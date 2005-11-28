@@ -359,7 +359,7 @@ CONTAINS
     IF (globenv%ionode .AND. globenv%print%basis_set) THEN
       output_unit = globenv%scr
       WRITE (UNIT=output_unit,FMT="(/,T2,A)")&
-             "Projectors for the basis functions of"//TRIM(bsname)
+             "Projectors for the basis functions of "//TRIM(bsname)
     ENDIF
 
     ALLOCATE(set_radius(nset),STAT=istat)
