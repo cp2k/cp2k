@@ -152,6 +152,9 @@ CONTAINS
           END DO
           atom_info%label_atmname(j)   = line(k:m-1)
           CALL uppercase(atom_info%label_atmname(j))
+          ! For default, set atom name to residue name to molecule name
+          atom_info%label_molname(j)   = TRIM(atom_info%label_molname(j))//"_"//&
+                                         TRIM(atom_info%label_atmname(j))
           atom_info%label_resname(j)   = atom_info%label_molname(j)
           atom_info%label_resid(j)     = 1
           READ(line(m:),*,IOSTAT=istat) atom_info%r(1:3,j)
