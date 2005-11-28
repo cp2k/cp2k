@@ -60,10 +60,15 @@ MODULE cp_ddapc
   USE qs_rho_types,                    ONLY: qs_rho_type
   USE coefficient_types,               ONLY: coeff_type
   USE mathlib,                         ONLY: invert_matrix
-  USE input_section_types, ONLY: section_type, section_create, &
-       section_add_keyword, section_add_subsection, section_release,&
-       section_vals_type,&
-       section_vals_get_subs_vals, section_vals_get, section_vals_val_get
+  USE input_section_types,             ONLY: section_type,&
+                                             section_create, &
+                                             section_add_keyword,&
+                                             section_add_subsection,&
+                                             section_release,&
+                                             section_vals_type,&
+                                             section_vals_get_subs_vals,&
+                                             section_vals_get,&
+                                             section_vals_val_get
   USE message_passing,                 ONLY: mp_sum
   USE input_constants,                 ONLY: use_multipole
   USE simulation_cell,                 ONLY: cell_type,&
@@ -72,8 +77,10 @@ MODULE cp_ddapc
   USE qs_force_types,                  ONLY: qs_force_type
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind_set
-  USE erf_fn, ONLY: erfc
+  USE erf_fn,                          ONLY: erfc
+
 #include "cp_common_uses.h"
+
   IMPLICIT NONE
   PRIVATE
 
