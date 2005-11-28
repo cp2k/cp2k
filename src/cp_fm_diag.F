@@ -125,10 +125,17 @@ CONTAINS
     CALL PDSYEVD('V','U',n,m(1,1),1,1,descm,eigenvalues(1),v(1,1),1,1,descv, &
                   work(1),lwork,iwork(1),liwork,info)
 #else
+
+#if defined(__DEC)
+    !if using CXML, LWORK must be at least 1 + 5*N + 2*N*lg N + 3*N**2, where lg( N ) = smallest integer k such that 2**k >= N
+    lwork=1+5*n+2*n*20+3*n**2
+    liwork=5*n+2
+#else
     ! for n=4 with my lapack (linux) I need to add 50 to the value of lwork. 5000 seems to work in IRIX
     ! unfortunately query is not supported. I did not test n dependence[fawzi]
     lwork=1+6*n+2*n**2+5000
     liwork=5*n+3
+#endif
     ALLOCATE(work(lwork),STAT=istat)
     IF (istat.NE.0) CALL stop_memory("cp_fm_syevd","work")
     ALLOCATE(iwork(liwork),STAT=istat)
