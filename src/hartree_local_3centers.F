@@ -141,7 +141,7 @@ MODULE  hartree_local_3centers
         OPTIONAL                               :: error
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "integrate_a_vhg0_b"
-    REAL(dp), PARAMETER         :: EPS = 1.E-8_dp
+    REAL(dp), PARAMETER         :: EPS_a_vhg0_b = 1.E-8_dp ! other parameter for input ?
 
     TYPE(atomic_kind_type), DIMENSION(:),&
                                   POINTER      :: atomic_kind_set
@@ -716,9 +716,9 @@ MODULE  hartree_local_3centers
                 rbc(1:3) = reduced_3c_rho0(kkind)%rbc(1:3,knode)
                 rbc2 = reduced_3c_rho0(kkind)%rbc2(knode)
 
-                IF(ABS(rac(1)-(rab(1) + rbc(1)))   > EPS .OR. &
-                     ABS(rac(2)-(rab(2) + rbc(2))) > EPS .OR. &
-                     ABS(rac(3)-(rab(3) + rbc(3))) > EPS ) THEN
+                IF(ABS(rac(1)-(rab(1) + rbc(1)))   > EPS_a_vhg0_b .OR. &
+                     ABS(rac(2)-(rab(2) + rbc(2))) > EPS_a_vhg0_b .OR. &
+                     ABS(rac(3)-(rab(3) + rbc(3))) > EPS_a_vhg0_b ) THEN
                     CYCLE
                 END IF
                 
