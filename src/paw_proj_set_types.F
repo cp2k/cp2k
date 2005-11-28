@@ -575,11 +575,11 @@ CONTAINS
          "Number of isolated projectors = ", nisop
         DO iset = 1,nset     ! iset
           IF (lshell >= lmin(iset) .AND. lshell <= lmax(iset))THEN
-            WRITE (UNIT=output_unit,FMT="(/,T2,A,I5,/,/,T4,A5,(T9,4f15.6))")&
+            WRITE (UNIT=output_unit,FMT="(/,T2,A,I5,/,/,T4,A9,(T13,4f15.6))")&
                    "Set ",iset,"exp prj: ", &
                    (paw_proj%zetprj(ip,lshell),ip=1,np)
             DO jp = 1,npgf(iset)
-              WRITE (UNIT=output_unit,FMT="(/,T4,A5,F15.6,/,T4,A5,(t9,4E15.6))") &
+              WRITE (UNIT=output_unit,FMT="(/,T4,A9,F15.6,/,T4,A9,(t13,4E15.6))") &
                 "exp gto: ",orb_basis%zet(jp,iset),&
                 "coeff.:  ",(paw_proj%gccprj(ip,jp,&
                              lshell,iset),ip=1,np)
