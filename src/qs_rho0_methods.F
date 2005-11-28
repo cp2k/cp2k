@@ -677,7 +677,7 @@ MODULE qs_rho0_methods
     TYPE(gto_basis_set_type),     POINTER      :: orb_basis
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "radii_3c_orbxrho0"
-    REAL(dp), PARAMETER         :: EPS = 1.E-4_dp
+    REAL(dp), PARAMETER         :: eps_radii_3c = 1.E-4_dp ! XXXX Marcella should this be input ?
 
     INTEGER :: i, ic, ico, ico0, icoa, ikind, ipgf, iset, is, iso0, istat, &
                j, jkind, l0, la, lmax_0, lx, ly, lz, maxlgto, n, nco0, nso0, ncoa, nkind, nseta
@@ -808,7 +808,7 @@ MODULE qs_rho0_methods
             END DO
           END DO  ! ico0
 
-          IF( intmax0 < eps ) THEN
+          IF( intmax0 < eps_radii_3c ) THEN
             r_cut_set(iset) = r(1,i)
             EXIT
           END IF
