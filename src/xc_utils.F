@@ -60,6 +60,7 @@ MODULE xc_utils
                                              xc_old_f_routine,&
                                              xc_test_lsd_f_routine,&
                                              xc_debug_new_routine
+  USE input_constants,                 ONLY: xc_pot_none, xc_pot_saop
   USE input_cp2k,                      ONLY: parsed_cp2k_input
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&
@@ -481,15 +482,54 @@ CONTAINS
     END IF
 
     ! Assign smoothing parameters
-     CALL section_vals_val_get(grid_section,"XC_SMOOTH_RHO",&
-          i_val=xc_control%xc_rho_smooth_id,error=error)
-     CALL section_vals_val_get(grid_section,"XC_DERIV",&
-          i_val=xc_control%xc_deriv_method_id,error=error)
-
-     ! read the xc_potential parameters
-!     xc_potential set
+    CALL section_vals_val_get(grid_section,"XC_SMOOTH_RHO",&
+         i_val=xc_control%xc_rho_smooth_id,error=error)
+    CALL section_vals_val_get(grid_section,"XC_DERIV",&
+         i_val=xc_control%xc_deriv_method_id,error=error)
+    
+    CALL read_xc_potential_section(potential_section, xc_control, error=error)
 
   END SUBROUTINE read_xc_control
+
+!***************************************************************************
+
+  SUBROUTINE read_xc_potential_section(potential_section, xc_control, error)
+
+    TYPE(section_vals_type), POINTER         :: potential_section
+    TYPE(xc_control_type)                    :: xc_control
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    LOGICAL                                  :: potential_provided, &
+                                                was_present
+    REAL(kind=dp)                            :: tmp
+    TYPE(section_vals_type), POINTER         :: tmp_section
+
+    NULLIFY(tmp_section)
+    xc_control%xc_potential_id = xc_pot_none
+
+    IF (parsed_cp2k_input(potential_section,check_this_section=.TRUE.,error=error)) THEN
+       
+       tmp_section => section_vals_get_subs_vals(potential_section,"SAOP",error=error)
+       CALL section_vals_get(tmp_section,explicit=was_present,error=error)
+       IF (was_present) THEN
+          
+          xc_control%xc_potential_id   = xc_pot_saop
+
+          CALL section_vals_val_get(tmp_section, "ALPHA", &
+                                    r_val=tmp, error=error)
+          CALL section_vals_val_get(tmp_section, "BETA", &
+                                    r_val=tmp, error=error)
+          CALL section_vals_val_get(tmp_section, "K_RHO", &
+                                    r_val=tmp, error=error)
+       END IF
+
+       CALL section_vals_val_get(potential_section, "ENERGY",&
+                                 i_val=xc_control%energy_mode_id, error=error)
+
+    END IF
+
+  END SUBROUTINE read_xc_potential_section
 
 !***************************************************************************
 

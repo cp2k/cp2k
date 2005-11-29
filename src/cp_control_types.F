@@ -187,6 +187,12 @@ MODULE cp_control_types
      INTEGER, DIMENSION(3)           :: functionals_new
      REAL(dp)                        :: xa_param
      INTEGER                         :: max_deriv
+
+     ! fields for the self-consistent application of a xc-potential
+
+     INTEGER                         :: xc_potential_id
+     INTEGER                         :: energy_mode_id
+
   END TYPE xc_control_type
 
   ! *** Control parameters for a TIME-DEPENDENT PERTURBATION calculation ***
