@@ -579,7 +579,6 @@ CONTAINS
     a_lu(1:n,1:n) = a(1:n,1:n)
 
 !   *** Compute the LU factorization of the matrix a ***
-    write(6,*) "Hi dgetrf",n
     CALL dgetrf(n,n,a_lu,n,ipiv,info)
 
     IF (info /= 0) THEN
