@@ -332,10 +332,10 @@ CONTAINS
     TYPE(mo_set_p_type), DIMENSION(:), &
          POINTER                                :: mo_array
     TYPE(cp_fm_p_type), POINTER, DIMENSION(:)   :: mo_derivs
-    INTEGER :: n,k,k2, nelec, nelec_a, nelec_b
+    INTEGER :: n,k,k2
     REAL(KIND=dp), DIMENSION(:), POINTER :: scaling_factor,occupation_numbers
     TYPE(cp_fm_type), POINTER            :: mo_coeff,hc_tmp
-    REAL(KIND=dp)                        :: ener, scaling, mulliken_order_p
+    REAL(KIND=dp)                        :: mulliken_order_p
     TYPE(section_vals_type), POINTER     :: print_qmmm_gen
     TYPE(qs_rho_type), POINTER           :: my_rho_xc
 ! shorter for output
@@ -436,62 +436,14 @@ CONTAINS
                ks_env%v_hartree_rspace%pw%pw_grid%dvol)
        ENDIF
 
-       ! OK, right now we like two spins to do sic, could be relaxed for AD 
-       IF ( dft_control%sic_method_id .NE. sic_none ) THEN
-          CPPrecondition(dft_control%nspins == 2,cp_failure_level,routineP,error,failure)
-       ENDIF
-       ! Hartree sic corrections
-       SELECT CASE ( dft_control%sic_method_id )
-       CASE ( sic_none )
-       CASE ( sic_mauri_us, sic_mauri_spz )
-          CALL coeff_subtract(rho%rho_g(1),rho%rho_g(2),rho_tot_gspace)
-          CALL init_pw_poisson_solver(green,error=error)
-          CALL calculate_hartree(rho_tot_gspace, ener, v_hartree_gspace)
-          energy%hartree=energy%hartree - dft_control % sic_scaling_a * ener
-          CALL cleanup_pw_poisson_solver(green,error=error)
-          IF (.NOT. just_energy) THEN
-             CALL pw_pool_init_coeff(auxbas_pw_pool,v_sic_rspace,&
-                                     use_data=REALDATA3D, in_space=REALSPACE)
-             CALL coeff_transform_space(v_hartree_gspace, v_sic_rspace)
-             ! also take into account the scaling (in addition to the volume element)
-             CALL coeff_scale(v_sic_rspace, &
-                     dft_control % sic_scaling_a * v_sic_rspace%pw%pw_grid%dvol )
-          ENDIF
-          CALL cp_assert( .NOT. gapw , cp_failure_level,cp_assertion_failed,routineP,&
-                          "sic and GAPW not yet compatible",error,failure)
-       CASE ( sic_ad )
-          ! find out how many elecs we have
-          CALL get_qs_env(qs_env,mos=mo_array)
-          CALL get_mo_set(mo_set=mo_array(1)%mo_set,nelectron=nelec_a)
-          CALL get_mo_set(mo_set=mo_array(2)%mo_set,nelectron=nelec_b)
-          nelec = nelec_a + nelec_b
-          ! we can just modify rho_tot_gspace here, it is given back to the pools afterwards
-          CALL coeff_add(rho%rho_g(1),rho%rho_g(2),rho_tot_gspace)
-          scaling = 1.0_dp / REAL(nelec,KIND=dp)
-          CALL coeff_scale(rho_tot_gspace,scaling)
-          CALL init_pw_poisson_solver(green,error=error)
-          CALL calculate_hartree(rho_tot_gspace, ener, v_hartree_gspace)
-          energy%hartree=energy%hartree - dft_control % sic_scaling_a * nelec * ener
-          CALL cleanup_pw_poisson_solver(green,error=error)
-          IF (.NOT. just_energy) THEN
-             CALL pw_pool_init_coeff(auxbas_pw_pool,v_sic_rspace,&
-                                     use_data=REALDATA3D, in_space=REALSPACE)
-             CALL coeff_transform_space(v_hartree_gspace, v_sic_rspace)
-             ! also take into account the scaling (in addition to the volume element)
-             CALL coeff_scale(v_sic_rspace, &
-                     dft_control % sic_scaling_a * v_sic_rspace%pw%pw_grid%dvol )
-          ENDIF
-          CALL cp_assert( .NOT. gapw , cp_failure_level,cp_assertion_failed,routineP,&
-                          "sic and GAPW not yet compatible",error,failure)
-       CASE DEFAULT
-          CALL cp_assert( .FALSE., cp_failure_level,cp_assertion_failed,routineP,&
-                          "Unknown sic method id",error,failure)
-       END SELECT
-
        CALL pw_pool_give_back_coeff(auxbas_pw_pool,rho_tot_gspace,&
             error=error)
        CALL pw_pool_give_back_coeff(auxbas_pw_pool,v_hartree_gspace,&
             error=error)
+
+       CALL calc_v_sic_rspace(v_sic_rspace,energy,&
+                              qs_env,dft_control,rho,green,just_energy,&
+                              auxbas_pw_pool)
 
        IF(gapw) CALL Vh_1c_gg_integrals(qs_env,energy%hartree_1c)
 
@@ -792,6 +744,91 @@ CONTAINS
     CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE qs_ks_build_kohn_sham_matrix
+
+! *****************************************************************************
+
+  SUBROUTINE calc_v_sic_rspace(v_sic_rspace,energy,&
+                               qs_env,dft_control,rho,green,just_energy,&
+                               auxbas_pw_pool,error)
+
+    TYPE(coeff_type), INTENT(INOUT)          :: v_sic_rspace
+    TYPE(qs_energy_type), INTENT(inout), &
+      TARGET                                 :: energy
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(qs_rho_type), POINTER               :: rho
+    TYPE(greens_function_type), POINTER      :: green
+    LOGICAL, INTENT(IN)                      :: just_energy
+    TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
+    TYPE(cp_error_type), INTENT(INOUT), &
+      OPTIONAL                               :: error
+
+    INTEGER                                  :: nelec, nelec_a, nelec_b
+    LOGICAL                                  :: failure
+    REAL(kind=dp)                            :: ener, scaling
+    TYPE(coeff_type)                         :: work_rho, work_v
+    TYPE(mo_set_p_type), DIMENSION(:), &
+         POINTER                             :: mo_array
+
+    CHARACTER(*), PARAMETER :: routineN = "calc_v_sic_rspace", &
+                               routineP = moduleN//'/'//routineN
+
+    failure = .FALSE.
+    NULLIFY(mo_array)
+
+    IF (dft_control%sic_method_id == sic_none) RETURN
+    CALL cp_assert(.NOT. dft_control%qs_control%gapw, cp_failure_level,cp_assertion_failed,routineP,&
+                   "sic and GAPW not yet compatible",error,failure)
+
+    ! OK, right now we like two spins to do sic, could be relaxed for AD 
+    CPPrecondition(dft_control%nspins == 2,cp_failure_level,routineP,error,failure)
+
+    CALL pw_pool_init_coeff(auxbas_pw_pool, work_rho, &
+                            use_data = COMPLEXDATA1D,&
+                            in_space = RECIPROCALSPACE, error=error)
+    CALL pw_pool_init_coeff(auxbas_pw_pool, work_v,&
+                            use_data = COMPLEXDATA1D,&
+                            in_space = RECIPROCALSPACE, error=error)
+    
+    ! Hartree sic corrections
+    SELECT CASE ( dft_control%sic_method_id )
+    CASE ( sic_mauri_us, sic_mauri_spz )
+       CALL coeff_subtract(rho%rho_g(1),rho%rho_g(2),work_rho)
+       CALL init_pw_poisson_solver(green,error=error)
+       CALL calculate_hartree(work_rho, ener, work_v)
+       energy%hartree=energy%hartree - dft_control % sic_scaling_a * ener
+       CALL cleanup_pw_poisson_solver(green,error=error)
+    CASE ( sic_ad )
+       ! find out how many elecs we have
+       CALL get_qs_env(qs_env,mos=mo_array)
+       CALL get_mo_set(mo_set=mo_array(1)%mo_set,nelectron=nelec_a)
+       CALL get_mo_set(mo_set=mo_array(2)%mo_set,nelectron=nelec_b)
+       nelec = nelec_a + nelec_b
+       CALL coeff_add(rho%rho_g(1),rho%rho_g(2),work_rho)
+       scaling = 1.0_dp / REAL(nelec,KIND=dp)
+       CALL coeff_scale(work_rho,scaling)
+       CALL init_pw_poisson_solver(green,error=error)
+       CALL calculate_hartree(work_rho, ener, work_v)
+       energy%hartree=energy%hartree - dft_control % sic_scaling_a * nelec * ener
+       CALL cleanup_pw_poisson_solver(green,error=error)
+    CASE DEFAULT
+       CALL cp_assert( .FALSE., cp_failure_level,cp_assertion_failed,routineP,&
+            "Unknown sic method id",error,failure)
+    END SELECT
+
+    IF (.NOT. just_energy) THEN
+       CALL pw_pool_init_coeff(auxbas_pw_pool,v_sic_rspace,&
+                               use_data=REALDATA3D, in_space=REALSPACE)
+       CALL coeff_transform_space(work_v, v_sic_rspace)
+       ! also take into account the scaling (in addition to the volume element)
+       CALL coeff_scale(v_sic_rspace, &
+            dft_control % sic_scaling_a * v_sic_rspace%pw%pw_grid%dvol )
+    ENDIF
+
+    CALL pw_pool_give_back_coeff(auxbas_pw_pool,work_rho,error=error)
+    CALL pw_pool_give_back_coeff(auxbas_pw_pool,work_v,error=error)
+
+  END SUBROUTINE calc_v_sic_rspace
 
 ! *****************************************************************************
 
