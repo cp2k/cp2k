@@ -29,8 +29,10 @@ Binaries are not yet provided, but the source is known to compile on a wide rang
 
 <H3>Anonymous CVS Access </H3>
 
-No password (i.e. just return) is needed to obtain the sources. The following will create a cp2k directory and download the source code and some example inputs.
+No password (i.e. just return) is needed to obtain the sources, but <A HREF="http://www.nongnu.org/cvs/">CVS</A> needs to be installed on your machine.
+The following will create a cp2k directory and download the source code and some example inputs.
 <pre>
+touch $HOME/.cvspass
 cvs -d:pserver:anonymous@cvs.cp2k.berlios.de:/cvsroot/cp2k login 
 cvs -z3 -d:pserver:anonymous@cvs.cp2k.berlios.de:/cvsroot/cp2k co cp2k
 </pre>
