@@ -4,9 +4,16 @@ How to compile CP2K code
 
  1) Acquire the code:
 
-    The preferred method is to download it from the CVS, 
-    using http://cp2k.berlios.de/
-    put the code in ~/cp2k/ or equivalent
+    see http://cp2k.berlios.de/
+    The preferred method is to download it from the CVS
+    (just use enter if a password is asked for).
+
+    cd $HOME
+    touch $HOME/.cvspass
+    cvs -d:pserver:anonymous@cvs.cp2k.berlios.de:/cvsroot/cp2k login
+    cvs -z3 -d:pserver:anonymous@cvs.cp2k.berlios.de:/cvsroot/cp2k co cp2k
+
+    if cvs is not installed on your system get it at http://www.nongnu.org/cvs/
 
  2a) gnu make should be on your system (gmake or make on linux), 
      go to http://www.gnu.org/software/make/make.html 
@@ -26,31 +33,43 @@ How to compile CP2K code
      the current version of the code needs FFTW 2.X
      http://www.fftw.org/
 
- 3) to compile the code use : 
+ 3) to compile the code:
 
-    > cd cp2k/makefiles; make sopt; make popt 
+ 3a) You will need to make sure that the architecture dependent file (settings such as the compiler name 
+     and library locations) is set up correctly. To do that, execute
+     > ~/cp2k/tools/get_arch_code
+     and modify ~/cp2k/arch/<result of get_arch_code>.sopt (or possible first rename a close match) to 
+     the correct values for your system.
+
+     some notes:
+
+     - ~/cp2k/arch/*.* files have paths to libraries hard-wired 
+        (e.g. blass, lapack, ...) so these will most likely need modification.
+
+     -  be sure to remove __FFTW if you don not have the library installed. __FFTSG 
+        is always there. 
+
+     - if ~/cp2k/tools/get_arch_code returns an unknown for the architecture
+       try to have it return the closest possible match.
+       have a look in ~/cp2k/arch for the possible options (or see step 7)
+       different compilers (e.g. INTEL ifc, PGI pgf90, NAG f95, g95, ...) can be selected using the
+       env variable 'FORT_C_NAME' e.g.
+       > export FORT_C_NAME=g95
+       or 
+       > setenv FORT_C_NAME g95
+       as this will change what get_arch_code returns
+
+ 3b) actually compile the code
+
+    > cd cp2k/makefiles; make sopt
+    or 
+    > cd cp2k/makefiles; make popt 
 
     "p" stands for parallel (alternatively "s" = serial)
     "opt" means to buil an optimised version (alternatively "dbg" = debugging)
     (make stands for GNU make)
 
- 3b) These easily fails, but there are a number of easy fixes (step 4,5)
-
- 4) In the likely order of occurence :
-
-    - ~/cp2k/arch/*.* files have some paths to libraries hard-wired 
-       (e.g. blass, lapack, ...). 
-       be sure to remove e.g. __FFTW if you don not have it. __FFTSG 
-       is always there. 
-
-    - ~/cp2k/tools/get_arch_code returns unknown for the architecture
-      try to have it return the closest possible match.
-      have a look in ~/cp2k/arch for the possible options (or see step 7)
-      different compilers (e.g. INTEL ifc, PGI pgf90, NAG f95, ...) can often also be selected
-
-    - your compiler is broken. Many, many bad f90 compilers are still around, 
-      and the latest version is not always the best one. Especially the PC 
-      platform seems to be affected (and a different compiler (version) can be twice as fast)
+ 4) If things fail, take a break... and go back to 3a
 
  5) If your machine is really not there, it shouldn't be too difficult to add.
     Only ~/cp2k/src/machine*.F should be affected.
