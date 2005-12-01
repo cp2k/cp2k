@@ -27,7 +27,12 @@ H O M E&nbsp;&nbsp;&nbsp; P A G E&nbsp;</font></b></center>
 <td> <center> <A HREF="regtest.html">Regtests</A> </center> </td>
 </table></center>
 
-
+<h1>WARNING</h1>
+<h2>We are switching to the new input</h2>
+<p>That is a big change and the code will be unstable in the next days</p>
+<p>If you want an old (stable) version you can take it with
+<br/>
+<code>cvs -d:pserver:anonymous@cvs.cp2k.berlios.de:/cvsroot/cp2k co cp2k -D 2005-11-30</code></p>
 <P><BR></P>
 
 <H2><CENTER>Welcome!</CENTER></H2>
