@@ -199,7 +199,7 @@ def read_section(f):
         if comments:
             preSectionComments.append(comments)
         if coreLine:
-            print "ignoring out of section line ",f.old_pos(coreLine)
+            print "ignoring out of section line in ",f.old_pos(coreLine)
         (coreLine,comments,lines)=f.readInputLine()
     if not lines:
         if preSectionComments:
