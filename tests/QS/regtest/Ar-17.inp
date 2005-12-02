@@ -11,7 +11,8 @@
       MAX_SCF 5
       SCF_GUESS RESTART
       &OT ON
-        LINESEARCH GOLD 0.1
+        LINESEARCH GOLD
+        GOLD_TARGET 0.1
         MINIMIZER SD
         PRECONDITIONER NONE
       &END OT

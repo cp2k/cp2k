@@ -15,7 +15,8 @@
       MAX_SCF 20
       SCF_GUESS RESTART
       &OT ON
-        LINESEARCH GOLD 0.1
+        LINESEARCH GOLD
+        GOLD_TARGET 0.1
         ROTATION
       &END OT
     &END SCF
