@@ -1198,7 +1198,7 @@ CONTAINS
        END DO 
 
        IF (z /= -1) THEN
-          akind_name=atomic_kind%name
+          akind_name=atomic_kind%element_symbol
           CALL uppercase(akind_name)
           DO i_rep=1,n_rep
              CALL section_vals_val_get(kind_section,"_SECTION_PARAMETERS_",&

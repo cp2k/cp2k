@@ -827,13 +827,6 @@ CONTAINS
           CALL harris_postprocessing(harris_env, error=error)
        END IF
 
-       if (ionode) &
-         WRITE (UNIT=output_unit,FMT="(/,(T3,A,T55,F30.20))")&
-            "Overlap energy of the core charge distribution:",energy%core_overlap,&
-            "Self energy of the core charge distribution:   ",energy%core_self,&
-            "Core Hamiltonian energy:                       ",energy%core,&
-            "Hartree energy:                                ",energy%hartree,&
-            "Exchange-correlation energy:                   ",energy%exc
 ! ** convergence check
        CALL external_control(should_stop,"SCF",error)
        IF (scf_env%iter_delta < scf_control%eps_scf) THEN

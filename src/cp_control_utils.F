@@ -326,7 +326,7 @@ CONTAINS
     CALL section_vals_val_get(mgrid_section,"COMMENSURATE",l_val=qs_control%commensurate_mgrids,error=error)
     CALL section_vals_val_get(mgrid_section,"REALSPACE",l_val=qs_control%realspace_mgrids,error=error)
     CALL section_vals_val_get(mgrid_section,"REL_CUTOFF",r_val=qs_control%relative_cutoff)
-
+    
     IF(multigrid_set) THEN
       ! Read the values from input
       IF (qs_control%commensurate_mgrids) THEN
@@ -358,6 +358,7 @@ CONTAINS
         END IF
       END DO
     ELSE
+       IF (qs_control%commensurate_mgrids) qs_control%progression_factor = 4.0_dp
       qs_control%e_cutoff(1) = qs_control%cutoff
       DO igrid_level=2,ngrid_level
         qs_control%e_cutoff(igrid_level) = qs_control%e_cutoff(igrid_level-1) &

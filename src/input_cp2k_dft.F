@@ -1963,7 +1963,7 @@ SUBROUTINE create_tddfpt_section(section,error)
 
        CALL cp_print_key_section_create(print_key,"detailed_energy",&
             description="Controls the printing of detailed energy information.", &
-            print_level=high_print_level,each=(/0/),add_last=(/1/),filename="__STD_OUT__",&
+            print_level=medium_print_level,each=(/1/),add_last=(/1/),filename="__STD_OUT__",&
             error=error)
        CALL section_add_subsection(subsection,print_key,error=error)
        CALL section_release(print_key,error=error)
@@ -2687,7 +2687,7 @@ SUBROUTINE create_tddfpt_section(section,error)
        CALL keyword_create(keyword, name="progression_factor",&
             description="Factor used to find the cutoff of the multigrids that"//&
             " where not given explicetly",&
-            usage="progression_factor 4", default_r_val=3._dp, error=error)
+            usage="progression_factor <integer>", default_r_val=3._dp, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
