@@ -15,7 +15,7 @@
     &SCF
       ADDED_MOS 4 0
       EPS_SCF 1.0E-5
-      MAX_SCF 30
+      MAX_SCF 1
       MIXING 0.4
       SCF_GUESS ATOMIC
       SMEAR 0.02
