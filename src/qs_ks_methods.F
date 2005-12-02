@@ -159,7 +159,7 @@ MODULE qs_ks_methods
   CHARACTER(len=*), PARAMETER :: moduleN='qs_ks_methods'
   INTEGER, SAVE, PRIVATE :: last_ks_id_nr=0
 
-  PUBLIC :: qs_ks_create, qs_ks_did_change, qs_vxc_create,&
+  PUBLIC :: qs_ks_create, qs_ks_did_change, qs_vxc_create, calc_rho_tot_gspace, &
        qs_ks_update_qs_env, qs_ks_build_kohn_sham_matrix, calculate_w_matrix
 !***
 !****************************************************************************

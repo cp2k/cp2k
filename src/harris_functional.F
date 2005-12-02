@@ -191,6 +191,7 @@ CONTAINS
 
       CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool, poisson_env=poisson_env, &
                       error=error)
+
       CALL pw_pool_init_coeff(auxbas_pw_pool, v_hartree_gspace, &
                               use_data=COMPLEXDATA1D, &
                               in_space=RECIPROCALSPACE, error=error)
@@ -218,12 +219,12 @@ CONTAINS
       CALL pw_pool_give_back_coeff(auxbas_pw_pool, v_hartree_gspace, &
                                    error=error)
 
-      CALL qs_vxc_create(qs_env=qs_env, vxc_rho=v_rspace_new, &
-                         vxc_tau = v_tau_rspace, exc=harris_energy%Exc, &
-                         just_energy=.FALSE., error=error)
       !CALL qs_vxc_create(qs_env=qs_env, vxc_rho=v_rspace_new, &
-      !                   vxc_tau=v_tau_rspace, exc=harris_energy%Exc, &
-      !                   just_energy=.TRUE., error=error)
+      !                   vxc_tau = v_tau_rspace, exc=harris_energy%Exc, &
+      !                   just_energy=.FALSE., error=error)
+      CALL qs_vxc_create(qs_env=qs_env, vxc_rho=v_rspace_new, &
+                         vxc_tau=v_tau_rspace, exc=harris_energy%Exc, &
+                         just_energy=.FALSE., harris=.TRUE., error=error)
 
       harris_energy%integral_vxc = pw_integral_ab(v_rspace_new(1)%pw, &
                                                   rho%rho_r(1)%pw)

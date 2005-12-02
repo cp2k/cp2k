@@ -27,6 +27,11 @@ MODULE qs_force
   USE cp_fm_types,                     ONLY: cp_fm_p_type
   USE global_types,                    ONLY: global_environment_type,&
                                              MEDIUM
+  USE harris_env_types,                ONLY: harris_env_type, &
+                                             harris_env_set
+  USE harris_force,                    ONLY: harris_force_correction
+  USE harris_force_types,              ONLY: harris_force_type, &
+                                             harris_force_create
   USE kinds,                           ONLY: dp,&
                                              int_size
   USE message_passing,                 ONLY: mp_sum
@@ -58,11 +63,9 @@ MODULE qs_force
                                              stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE harris_force,                    ONLY: harris_force_correction
-  USE harris_force_types,              ONLY: harris_force_type, &
-                                             harris_force_create
-  USE harris_env_types,                ONLY: harris_env_type, harris_env_set
+
 #include "cp_common_uses.h"
+
   IMPLICIT NONE
 
   PRIVATE
@@ -311,10 +314,9 @@ CONTAINS
       END IF
 
     ELSE
-      !IF (harris_flag) THEN
       CALL get_qs_env(qs_env=qs_env, harris_env=harris_env)
       CALL harris_force_correction(qs_env=qs_env, harris_env=harris_env, &
-                                   globenv=globenv, fast=.TRUE.)
+                                   globenv=globenv)
       DO iatom = 1,natom
         i = atom_of_kind(iatom)
         particle_set(iatom)%f = -harris_env%harris_force%f_harris(iatom, 1:3)
