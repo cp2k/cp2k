@@ -22,6 +22,9 @@ H2O-MD-harris.inp  1
 H2O-MD-harris.frozen.inp 1
 SiO2-Harris-CC.inp 1
 SiO2_aux_basis_set.inp 1
+#Force consistency via FDs
+H2O-Harris-Debug-SCF.inp 1
+H2O-Harris-Debug-NoSCF.inp 1
 #HMC
 H2O-OT-HMC-1.inp   1
 H2O-OT-HMC-2.inp   1

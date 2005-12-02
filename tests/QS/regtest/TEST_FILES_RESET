@@ -19,3 +19,9 @@ Ar-21.inp
 H2O-harris.inp
 H2O-MD-harris.inp
 H2O-gapwxc-gth.inp
+H2O-harris.inp
+H2O-MD-harris.inp
+H2O-MD-harris.frozen.inp
+H2O-OT-HMC-1.inp
+H2O-OT-HMC-2.inp
+H2O-OT-LDMC-3.inp
