@@ -6,15 +6,15 @@
       parmtype CHM
       &NONBONDED
         &BMHFT
-          atom Na+ Na+
+          atoms Na+ Na+
           RCUT 11.0
         &END BMHFT
         &BMHFT
-          atom Cl- Na+
+          atoms Cl- Na+
           RCUT 11.0
         &END BMHFT
         &BMHFT
-          atom Cl- Cl-
+          atoms Cl- Cl-
           RCUT 11.0
         &END BMHFT
       &END NONBONDED

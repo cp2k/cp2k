@@ -12,21 +12,21 @@
       &END CHARGE
       &NONBONDED
         &WILLIAMS
-          atom AL AL
+          atoms AL AL
           A 2.518e14
           B 10.925
           C 20.13e5
           RCUT 8.5
         &END WILLIAMS
         &WILLIAMS
-          atom AL O
+          atoms AL O
           A 128.7e8
           B 8.35
           C .005e6
           RCUT 8.5
         &END WILLIAMS
         &WILLIAMS
-          atom O O
+          atoms O O
           A 1.136e7
           B 2.76
           C 2.023e6

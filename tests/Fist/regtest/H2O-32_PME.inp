@@ -22,19 +22,19 @@
       &END CHARGE
       &NONBONDED
         &LENNARD-JONES
-          atom O O
+          atoms O O
           EPSILON 78.198
           SIGMA 3.166
           RCUT 11.4
         &END LENNARD-JONES
         &LENNARD-JONES
-          atom O H
+          atoms O H
           EPSILON 0.0
           SIGMA 3.6705
           RCUT 11.4
         &END LENNARD-JONES
         &LENNARD-JONES
-          atom H H
+          atoms H H
           EPSILON 0.0
           SIGMA 3.30523
           RCUT 11.4
@@ -46,7 +46,7 @@
         EWALD_TYPE pme
         ALPHA .5
         NS_MAX 11
-        EPSILON 1e-6
+        EPSILON 1.e-6
       &END EWALD
     &END POISSON_MM
   &END MM

@@ -4,7 +4,7 @@
     &FORCEFIELD
       &NONBONDED
         &LENNARD-JONES
-          atom Ar Ar
+          atoms Ar Ar
           EPSILON 119.8
           SIGMA 3.405
           RCUT 11.66

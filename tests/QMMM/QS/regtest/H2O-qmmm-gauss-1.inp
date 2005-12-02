@@ -40,19 +40,19 @@
       &END CHARGE
       &NONBONDED
         &LENNARD-JONES
-          atom O O
+          atoms O O
           EPSILON 78.198
           SIGMA 3.166
           RCUT 11.4
         &END LENNARD-JONES
         &LENNARD-JONES
-          atom O H
+          atoms O H
           EPSILON 0.0
           SIGMA 3.6705
           RCUT 11.4
         &END LENNARD-JONES
         &LENNARD-JONES
-          atom H H
+          atoms H H
           EPSILON 0.0
           SIGMA 3.30523
           RCUT 11.4

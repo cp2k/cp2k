@@ -22,15 +22,15 @@
       &END CHARGE
       &NONBONDED
         &IPBV
-          atom O O
+          atoms O O
           RCUT 7.8
         &END IPBV
         &IPBV
-          atom H O
+          atoms H O
           RCUT 7.8
         &END IPBV
         &IPBV
-          atom H H
+          atoms H H
           RCUT 7.8
         &END IPBV
       &END NONBONDED

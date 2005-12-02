@@ -4,13 +4,13 @@
     &FORCEFIELD
       &BOND
         ATOMS O H
-        K 0.4015204
-        R0 0.0
+        K 0.4015204 0.0 0.0
+        R0 1.812
       &END BOND
       &BOND
         ATOMS H H
-        K 0.02384043
-        R0 -0.0506033
+        K 0.02384043 -0.0506033 0.0287044
+        R0 3.0699
       &END BOND
       &CHARGE
         ATOM O
@@ -22,15 +22,15 @@
       &END CHARGE
       &NONBONDED
         &IPBV
-          atom O O
+          atoms O O
           RCUT 7.8
         &END IPBV
         &IPBV
-          atom H O
+          atoms H O
           RCUT 7.8
         &END IPBV
         &IPBV
-          atom H H
+          atoms H H
           RCUT 7.8
         &END IPBV
       &END NONBONDED

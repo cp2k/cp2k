@@ -4,42 +4,42 @@
     &FORCEFIELD
       &NONBONDED
         &WILLIAMS
-          atom SI O
+          atoms SI O
           A 208920748.3395
           B 4.87318
           C 1549614.30961
           RCUT 36.0
         &END WILLIAMS
         &WILLIAMS
-          atom SI H
+          atoms SI H
           A 0.0
           B 0.0
           C 0.0
           RCUT 36.0
         &END WILLIAMS
         &WILLIAMS
-          atom SI SI
+          atoms SI SI
           A 0.0
           B 0.0
           C 0.0
           RCUT 36.0
         &END WILLIAMS
         &WILLIAMS
-          atom O H
+          atoms O H
           A 1350000.7166855
           B 3.24430
           C 1450.53575
           RCUT 36.0
         &END WILLIAMS
         &WILLIAMS
-          atom O O
+          atoms O O
           A 16115719.1363
           B 2.76000
           C 2030750.05696
           RCUT 36.0
         &END WILLIAMS
         &WILLIAMS
-          atom H H
+          atoms H H
           A 0.0
           B 0.0
           C 0.0

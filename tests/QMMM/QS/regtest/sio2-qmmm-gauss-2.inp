@@ -34,147 +34,147 @@
     &FORCEFIELD
       &NONBONDED
         &WILLIAMS
-          atom SI O
+          atoms SI O
           A 208920748.3395
           B 4.87318
           C 1549614.30961
           RCUT 5.0
         &END WILLIAMS
         &WILLIAMS
-          atom SI OZ
+          atoms SI OZ
           A 208920748.3395
           B 4.87318
           C 1549614.30961
           RCUT 5.0
         &END WILLIAMS
         &WILLIAMS
-          atom SI SI
+          atoms SI SI
           A 0.0
           B 0.0
           C 0.0
           RCUT 5.0
         &END WILLIAMS
         &WILLIAMS
-          atom O O
+          atoms O O
           A 16115719.1363
           B 2.76000
           C 2030750.05696
           RCUT 5.0
         &END WILLIAMS
         &WILLIAMS
-          atom O OZ
+          atoms O OZ
           A 16115719.1363
           B 2.76000
           C 2030750.05696
           RCUT 5.0
         &END WILLIAMS
         &WILLIAMS
-          atom OZ OZ
+          atoms OZ OZ
           A 16115719.1363
           B 2.76000
           C 2030750.05696
           RCUT 5.0
         &END WILLIAMS
         &WILLIAMS
-          atom SI H1
+          atoms SI H1
           A 0.0
           B 0.0
           C 0.0
           RCUT 2.0
         &END WILLIAMS
         &WILLIAMS
-          atom SI H2
+          atoms SI H2
           A 0.0
           B 0.0
           C 0.0
           RCUT 2.0
         &END WILLIAMS
         &WILLIAMS
-          atom SI H3
+          atoms SI H3
           A 0.0
           B 0.0
           C 0.0
           RCUT 2.0
         &END WILLIAMS
         &WILLIAMS
-          atom OZ H1
+          atoms OZ H1
           A 0.0
           B 0.0
           C 0.0
           RCUT 2.0
         &END WILLIAMS
         &WILLIAMS
-          atom OZ H2
+          atoms OZ H2
           A 0.0
           B 0.0
           C 0.0
           RCUT 2.0
         &END WILLIAMS
         &WILLIAMS
-          atom OZ H3
+          atoms OZ H3
           A 0.0
           B 0.0
           C 0.0
           RCUT 2.0
         &END WILLIAMS
         &WILLIAMS
-          atom O H1
+          atoms O H1
           A 0.0
           B 0.0
           C 0.0
           RCUT 2.0
         &END WILLIAMS
         &WILLIAMS
-          atom O H2
+          atoms O H2
           A 0.0
           B 0.0
           C 0.0
           RCUT 2.0
         &END WILLIAMS
         &WILLIAMS
-          atom O H3
+          atoms O H3
           A 0.0
           B 0.0
           C 0.0
           RCUT 2.0
         &END WILLIAMS
         &WILLIAMS
-          atom H1 H1
+          atoms H1 H1
           A 0.0
           B 0.0
           C 0.0
           RCUT 2.0
         &END WILLIAMS
         &WILLIAMS
-          atom H2 H2
+          atoms H2 H2
           A 0.0
           B 0.0
           C 0.0
           RCUT 2.0
         &END WILLIAMS
         &WILLIAMS
-          atom H3 H3
+          atoms H3 H3
           A 0.0
           B 0.0
           C 0.0
           RCUT 2.0
         &END WILLIAMS
         &WILLIAMS
-          atom H1 H2
+          atoms H1 H2
           A 0.0
           B 0.0
           C 0.0
           RCUT 2.0
         &END WILLIAMS
         &WILLIAMS
-          atom H2 H3
+          atoms H2 H3
           A 0.0
           B 0.0
           C 0.0
           RCUT 2.0
         &END WILLIAMS
         &WILLIAMS
-          atom H1 H3
+          atoms H1 H3
           A 0.0
           B 0.0
           C 0.0

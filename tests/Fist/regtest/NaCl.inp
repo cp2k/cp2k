@@ -12,15 +12,15 @@
       &END CHARGE
       &NONBONDED
         &BMHFT
-          atom NA NA
+          atoms NA NA
           RCUT 10.0
         &END BMHFT
         &BMHFT
-          atom NA CL
+          atoms NA CL
           RCUT 10.0
         &END BMHFT
         &BMHFT
-          atom CL CL
+          atoms CL CL
           RCUT 10.0
         &END BMHFT
       &END NONBONDED

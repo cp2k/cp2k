@@ -30,19 +30,19 @@
       &END CHARGE
       &NONBONDED
         &LENNARD-JONES
-          atom NA NA
+          atoms NA NA
           EPSILON 0.0
           SIGMA 0.0
           RCUT 5.0
         &END LENNARD-JONES
         &LENNARD-JONES
-          atom CL NA
+          atoms CL NA
           EPSILON 0.0
           SIGMA 0.0
           RCUT 5.0
         &END LENNARD-JONES
         &LENNARD-JONES
-          atom CL CL
+          atoms CL CL
           EPSILON 0.0
           SIGMA 0.0
           RCUT 5.0
