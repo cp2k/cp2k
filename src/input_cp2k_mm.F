@@ -900,9 +900,9 @@ contains
 
        NULLIFY(keyword)
        
-       CALL keyword_create(keyword, name="ATOM",&
+       CALL keyword_create(keyword, name="ATOMS",&
             description="Defines the atomic kind involved in the nonbond potential",&
-            usage="ATOM {KIND1} {KIND2}", required=.TRUE., type_of_var=char_t,&
+            usage="ATOMS {KIND1} {KIND2}", required=.TRUE., type_of_var=char_t,&
             n_var=2, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -957,9 +957,9 @@ contains
 
        NULLIFY(keyword)
        
-       CALL keyword_create(keyword, name="ATOM",&
+       CALL keyword_create(keyword, name="ATOMS",&
             description="Defines the atomic kind involved in the nonbond potential",&
-            usage="ATOM {KIND1} {KIND2}", required=.TRUE., type_of_var=char_t,&
+            usage="ATOMS {KIND1} {KIND2}", required=.TRUE., type_of_var=char_t,&
             n_var=2, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -1030,9 +1030,9 @@ contains
 
        NULLIFY(keyword)
        
-       CALL keyword_create(keyword, name="ATOM",&
+       CALL keyword_create(keyword, name="ATOMS",&
             description="Defines the atomic kind involved in the nonbond potential",&
-            usage="ATOM {KIND1} {KIND2}", required=.TRUE., type_of_var=char_t,&
+            usage="ATOMS {KIND1} {KIND2}", required=.TRUE., type_of_var=char_t,&
             n_var=2, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -1109,9 +1109,9 @@ contains
 
        NULLIFY(keyword)
        
-       CALL keyword_create(keyword, name="ATOM",&
+       CALL keyword_create(keyword, name="ATOMS",&
             description="Defines the atomic kind involved in the nonbond potential",&
-            usage="ATOM {KIND1} {KIND2}", required=.TRUE., type_of_var=char_t,&
+            usage="ATOMS {KIND1} {KIND2}", required=.TRUE., type_of_var=char_t,&
             n_var=2, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -1202,9 +1202,9 @@ contains
 
        NULLIFY(keyword)
        
-       CALL keyword_create(keyword, name="ATOM",&
+       CALL keyword_create(keyword, name="ATOMS",&
             description="Defines the atomic kind involved in the IPBV nonbond potential",&
-            usage="ATOM {KIND1} {KIND2}", required=.TRUE., type_of_var=char_t,&
+            usage="ATOMS {KIND1} {KIND2}", required=.TRUE., type_of_var=char_t,&
             n_var=2, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -1261,9 +1261,9 @@ contains
 
        NULLIFY(keyword)
        
-       CALL keyword_create(keyword, name="ATOM",&
+       CALL keyword_create(keyword, name="ATOMS",&
             description="Defines the atomic kind involved in the BMHFT nonbond potential",&
-            usage="ATOM {KIND1} {KIND2}", required=.TRUE., type_of_var=char_t,&
+            usage="ATOMS {KIND1} {KIND2}", required=.TRUE., type_of_var=char_t,&
             n_var=2, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)

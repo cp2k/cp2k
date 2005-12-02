@@ -1122,7 +1122,7 @@ contains
 
        CALL keyword_create(keyword, name="ATOMS",&
             description="Atoms' index on which apply the constraint", usage="ATOMS 1 3 6 4",&
-            n_var=-1,type_of_var=integer_t,error=error)
+            n_var=4,type_of_var=integer_t,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
@@ -1130,7 +1130,7 @@ contains
        CALL keyword_create(keyword, name="DISTANCES",&
             description="The constrained distances' values.",&
             usage="DISTANCES {real} {real} {real} {real} {real} {real}",&
-            type_of_var=real_t, n_var=-1,error=error)
+            type_of_var=real_t, n_var=6,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)              
 

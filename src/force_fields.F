@@ -656,7 +656,7 @@ SUBROUTINE read_eam_section(nonbonded, section, start, globenv, error)
 
  CALL section_vals_get(section,n_repetition=n_items,error=error)
   DO isec = 1, n_items
-     CALL section_vals_val_get(section,"ATOM",i_rep_section=isec,c_vals=atm_names,error=error)
+     CALL section_vals_val_get(section,"ATOMS",i_rep_section=isec,c_vals=atm_names,error=error)
 
      nonbonded%pot(start+isec)%pot %type = "EAM"
      nonbonded%pot(start+isec)%pot %at1 = atm_names(1)
@@ -701,7 +701,7 @@ SUBROUTINE read_lj_section(nonbonded, section, start, error)
 
   CALL section_vals_get(section,n_repetition=n_items,error=error)
   DO isec = 1, n_items
-     CALL section_vals_val_get(section,"ATOM",i_rep_section=isec,c_vals=atm_names,error=error)
+     CALL section_vals_val_get(section,"ATOMS",i_rep_section=isec,c_vals=atm_names,error=error)
      CALL section_vals_val_get(section,"EPSILON",i_rep_section=isec,r_val=epsilon,error=error)
      CALL section_vals_val_get(section,"SIGMA",i_rep_section=isec,r_val=sigma,error=error)
      CALL section_vals_val_get(section,"RCUT",i_rep_section=isec,r_val=rcut,error=error)
@@ -749,7 +749,7 @@ SUBROUTINE read_wl_section(nonbonded, section, start, error)
 
   CALL section_vals_get(section,n_repetition=n_items,error=error)
   DO isec = 1, n_items
-     CALL section_vals_val_get(section,"ATOM",i_rep_section=isec,c_vals=atm_names,error=error)
+     CALL section_vals_val_get(section,"ATOMS",i_rep_section=isec,c_vals=atm_names,error=error)
      CALL section_vals_val_get(section,"A",i_rep_section=isec,r_val=a,error=error)
      CALL section_vals_val_get(section,"B",i_rep_section=isec,r_val=b,error=error)
      CALL section_vals_val_get(section,"C",i_rep_section=isec,r_val=c,error=error)
@@ -799,7 +799,7 @@ SUBROUTINE read_gd_section(nonbonded, section, start, error)
 
   CALL section_vals_get(section,n_repetition=n_items,error=error)
   DO isec = 1, n_items
-     CALL section_vals_val_get(section,"ATOM",i_rep_section=isec,c_vals=atm_names,error=error)
+     CALL section_vals_val_get(section,"ATOMS",i_rep_section=isec,c_vals=atm_names,error=error)
      CALL section_vals_val_get(section,"VR0",i_rep_section=isec,r_val=vr0,error=error)
      CALL section_vals_val_get(section,"D",i_rep_section=isec,r_val=d,error=error)
      CALL section_vals_val_get(section,"DC",i_rep_section=isec,r_val=dc,error=error)
@@ -852,7 +852,7 @@ SUBROUTINE read_ipbv_section(nonbonded, section, start, error)
 
   CALL section_vals_get(section,n_repetition=n_items,error=error)
   DO isec = 1, n_items         
-     CALL section_vals_val_get(section,"ATOM",i_rep_section=isec,c_vals=atm_names,error=error)
+     CALL section_vals_val_get(section,"ATOMS",i_rep_section=isec,c_vals=atm_names,error=error)
      nonbonded%pot(start+isec)%pot %type = "IPBV"
      nonbonded%pot(start+isec)%pot %at1  = atm_names(1)
      nonbonded%pot(start+isec)%pot %at2  = atm_names(2)
@@ -895,7 +895,7 @@ SUBROUTINE read_bmhft_section(nonbonded, section, start, error)
 
   CALL section_vals_get(section,n_repetition=n_items,error=error)
   DO isec = 1, n_items         
-     CALL section_vals_val_get(section,"ATOM",i_rep_section=isec,c_vals=atm_names,error=error)
+     CALL section_vals_val_get(section,"ATOMS",i_rep_section=isec,c_vals=atm_names,error=error)
      nonbonded%pot(start+isec)%pot %type = "BMHFT"
      nonbonded%pot(start+isec)%pot %at1  = atm_names(1)
      nonbonded%pot(start+isec)%pot %at2  = atm_names(2)
@@ -983,7 +983,7 @@ SUBROUTINE read_bonds_section(bond_a, bond_b, bond_k, bond_r0, section, start, e
   NULLIFY(Kvals, atm_names)
   CALL section_vals_get(section,n_repetition=n_items,error=error)
   DO isec = 1, n_items         
-     CALL section_vals_val_get(section,"ATOM",i_rep_section=isec,c_vals=atm_names,error=error)
+     CALL section_vals_val_get(section,"ATOMS",i_rep_section=isec,c_vals=atm_names,error=error)
      bond_a(start+isec) = atm_names(1)
      bond_b(start+isec) = atm_names(2)
      CALL section_vals_val_get(section,"K",i_rep_section=isec,r_vals=Kvals,error=error)
@@ -1036,7 +1036,7 @@ SUBROUTINE read_bends_section(bend_a, bend_b, bend_c, bend_k, bend_theta0, secti
   NULLIFY(Kvals, atm_names)
   CALL section_vals_get(section,n_repetition=n_items,error=error)
   DO isec = 1, n_items         
-     CALL section_vals_val_get(section,"ATOM",i_rep_section=isec,c_vals=atm_names,error=error)
+     CALL section_vals_val_get(section,"ATOMS",i_rep_section=isec,c_vals=atm_names,error=error)
      bend_a(start+isec) = atm_names(1)
      bend_b(start+isec) = atm_names(2)
      bend_c(start+isec) = atm_names(3)
@@ -1090,7 +1090,7 @@ SUBROUTINE read_torsions_section( torsion_a, torsion_b, torsion_c, torsion_d, to
   NULLIFY( atm_names)
   CALL section_vals_get(section,n_repetition=n_items,error=error)
   DO isec = 1, n_items         
-     CALL section_vals_val_get(section,"ATOM",i_rep_section=isec,c_vals=atm_names,error=error)
+     CALL section_vals_val_get(section,"ATOMS",i_rep_section=isec,c_vals=atm_names,error=error)
      torsion_a(start+isec) = atm_names(1)
      torsion_b(start+isec) = atm_names(2)
      torsion_c(start+isec) = atm_names(3)

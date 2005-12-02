@@ -491,7 +491,7 @@ SUBROUTINE read_md_new_section(simpar, globenv, md_section, error)
           CALL section_vals_val_get(tmp_section,"GAMMA",r_val=simpar%gamma_nph,error=error)
         END IF
         CALL section_vals_val_get(tmp_section,"CMASS",r_val=simpar%cmass,error=error)
-        CALL section_vals_val_get(tmp_section,"VSHOC",r_val=simpar%v_shock,error=error)
+        CALL section_vals_val_get(tmp_section,"VSHOCK",r_val=simpar%v_shock,error=error)
      END IF
 
      tmp_section => section_vals_get_subs_vals(md_section,"BAROSTAT",error=error)

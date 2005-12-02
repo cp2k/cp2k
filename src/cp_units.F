@@ -829,7 +829,7 @@ FUNCTION cp_basic_unit_to_cp2k(value,basic_kind,basic_unit,power,error)&
      CASE(cp_ukind_pressure)
         SELECT CASE (basic_unit)
         CASE(cp_units_bar)
-           res=(joule/a_bohr**3)**(-my_power)*value
+           res=(joule/(a_bohr**3*1.0E+05_dp))**(-my_power)*value
         CASE(cp_units_au)
            res=value
         CASE default

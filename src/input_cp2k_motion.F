@@ -1396,35 +1396,35 @@ SUBROUTINE create_uniaxial_section(section, error)
        CALL keyword_create(keyword, name="PRESSURE",&
             description="Initial pressure",&
             usage="PRESSURE real",&
-            type_of_var=real_t, n_var=1, unit_str='bar', error=error)
+            default_r_val=0._dp, n_var=1, unit_str='bar', error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)            
 
        CALL keyword_create(keyword, name="ENERGY",&
             description="Initial energy",&
             usage="ENERGY real",&
-            type_of_var=real_t, n_var=1, unit_str='hartree',error=error)
+            default_r_val=0._dp, n_var=1, unit_str='hartree',error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)         
 
        CALL keyword_create(keyword, name="VOLUME",&
             description="Initial compression",&
             usage="VOLUME real",&
-            type_of_var=real_t, n_var=1, unit_str='angstrom^3',error=error)
+            default_r_val=0._dp, n_var=1, unit_str='angstrom^3',error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)             
 
        CALL keyword_create(keyword, name="CMASS",&
             description="Barostat mass",&
             usage="CMASS real",&
-            type_of_var=real_t, n_var=1,unit_str='au_m',error=error)
+            default_r_val=0._dp, n_var=1,unit_str='au_m',error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)             
 
-       CALL keyword_create(keyword, name="VSHOCK",&
+       CALL keyword_create(keyword, name="VSHOCK",variants=(/"V_SHOCK"/),&
             description="Velocity of shock front",&
             usage="VSHOCK real",&
-            type_of_var=real_t, n_var=1,unit_str='m/s',error=error)
+            default_r_val=0._dp, n_var=1,unit_str='m/s',error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)             
 
@@ -1432,7 +1432,7 @@ SUBROUTINE create_uniaxial_section(section, error)
             description="Damping coefficient for barostat and particles",&
             usage="GAMMA real",&
             type_of_var=real_t, n_var=1,unit_str='fs^-1', &
-            default_r_val=0.1_dp, error=error)
+            default_r_val=0.0_dp, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)             
 

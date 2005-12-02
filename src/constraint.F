@@ -1139,6 +1139,7 @@ SUBROUTINE shake_roll_4x6( molecule, particle_set, pos, vel, r_shake,  &
         v2 ( : ) = vel ( :, index_b ) + imass2*dtby2*MATVEC_3x3(r_shake,fc2)
         v3 ( : ) = vel ( :, index_c ) + imass3*dtby2*MATVEC_3x3(r_shake,fc3)
         v4 ( : ) = vel ( :, index_d ) + imass4*dtby2*MATVEC_3x3(r_shake,fc4)
+
         r12=r1-r2
         r13=r1-r3
         r23=r2-r3
