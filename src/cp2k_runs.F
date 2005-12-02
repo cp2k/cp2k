@@ -374,7 +374,7 @@ CONTAINS
 
     failure=.FALSE.
     CALL timeset(routineN,'I','',handle)
-    NULLIFY(parser,g_section,g_data)
+    NULLIFY(parser,g_section,g_data,default_units)
 
     IF (globenv%ionode) write(globenv%scr,FMT="(T2,A)") "FARMING| Hi, welcome on this farm!"
 
@@ -472,17 +472,15 @@ CONTAINS
                           error=error)
                      CALL cp_unit_set_release(default_units,error=error)
                      CALL section_vals_val_get(g_data,"PROJECT",&
-                          c_val=output_file, error=error)
-                     output_file(LEN_TRIM(output_file):LEN(output_file))=".out"
-                     CALL section_vals_val_get(g_data,"OUTPUT_FILE",&
-                          n_rep_val=n_rep_val,error=error)
-                     IF (n_rep_val==1) THEN
-                        CALL section_vals_val_get(g_data,"OUTPUT_FILE_NAME",&
-                             c_val=output_file,error=error)
-                     END IF
+                          c_val=str, error=error)
+                     IF (str.NE."") output_file=TRIM(str)//".out"
+                     CALL section_vals_val_get(g_data,"OUTPUT_FILE_NAME",&
+                             c_val=str,error=error)
+                     IF (str.NE."") output_file=str
+                     CALL section_vals_release(g_data)
+                     CALL section_release(g_section)
                   END IF
                   CALL parser_release(parser,error=error)
-
                   CALL open_file(file_name=TRIM(output_file),&
                         file_action="WRITE",&
                         file_status="UNKNOWN",&
