@@ -1,59 +1,58 @@
-&CP2K
- PROGRAM      Quickstep
- PROJECT      H2O
- IOLEVEL      10
- FFTLIB       FFTSG
- RUN_TYPE     MD
-&END
 
-&MD
-  ensemble:     nve                    (nve,nvt,npt_i,npt_f)
-  steps:        2
-  timestep:     0.5                       time step [fs]
-  temperature:  300.0                      temperature [K]
-  restart:      init                      start type (pos,posvel)
-  print  files          1
-  print  screen         1
-&END
-
-
-&DFT
- FUNCTIONAL   Pade
- LSD
- RESTRICTED
- SIC MAURI_US
-&END
-
-&QS
- CUTOFF       150
- EXTRAPOLATION PS 1
-&END
-
-&SCF
- GUESS        RESTART
- MAX_SCF      3
- OT
-&END
-
-&OTSCF
- ROTATION
-&END
-
-&PRINT MEDIUM
-&END
-
-&KIND N
- BASIS_SET    DZVP-GTH-PADE
- POTENTIAL    GTH-PADE-q5
-&END
-
-&CELL
- UNIT         ANGSTROM
- ABC          8.0  5.0  5.0
-&END
-
-&COORD
-  N 0.0 0.0 0.0
-  N -1.19 0.0 0.0
-  N +1.19 0.0 0.0
-&END
+&FORCE_EVAL
+  &DFT
+    LSD
+    RESTRICTED
+    &MGRID
+      CUTOFF 150
+    &END MGRID
+    &QS
+      EXTRAPOLATION PS 1
+    &END QS
+    &SCF
+      MAX_SCF 3
+      SCF_GUESS RESTART
+      &OT ON
+        ROTATION
+      &END OT
+    &END SCF
+    &SIC
+      sic_method MAURI_US
+    &END SIC
+    &XC
+      &XC_FUNCTIONAL Pade
+      &END XC_FUNCTIONAL
+    &END XC
+  &END DFT
+  &SUBSYS
+    &CELL
+      ABC 8.0 5.0 5.0
+      UNIT ANGSTROM
+    &END CELL
+    &COORD
+     N 0.0 0.0 0.0
+     N -1.19 0.0 0.0
+     N +1.19 0.0 0.0
+    &END COORD
+    &KIND N
+      BASIS_SET DZVP-GTH-PADE
+      POTENTIAL GTH-PADE-q5
+    &END KIND
+  &END SUBSYS
+&END FORCE_EVAL
+&GLOBAL
+  FFTLIB FFTSG
+  PROGRAM Quickstep
+  PROJECT H2O
+  RUN_TYPE MD
+  PRINT_LEVEL MEDIUM
+&END GLOBAL
+&MOTION
+  &MD
+    ENSEMBLE NVE
+    STEPS 2
+    TIMESTEP 0.5
+    TEMPERATURE 300.0
+    RESTART INIT
+  &END MD
+&END MOTION

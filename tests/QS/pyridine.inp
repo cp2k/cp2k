@@ -1,82 +1,80 @@
-&CP2K
- PROGRAM      Quickstep
- PROJECT      pyridine
- IOLEVEL      10
- FFTLIB       FFTSG
- RUN_TYPE     MD
-&END
 
-
-&MD
- ensemble:     nve                     (nve,nvt,npt_i,npt_f)
- steps:        5
- timestep:     0.1 fs                  time step [fs]
- temperature:  300.0                   temperature [K]
- restart:      init                    start type (pos,posvel)
- constraints:  off
- shake:        1.0E-10
- nose_parameter & 
-  length:    3        &
-  Yoshida:   3        &
-  timecon:   100.0 fs &
-  mts:       2
-&END  
-
-&DFT
- FUNCTIONAL   Pade
-&END
-
-&QS
- CUTOFF       200
-&END
-
-&SCF
- GUESS        ATOMIC
-&END
-
-&PRINT MEDIUM
- LOCALIZATION
- MOLECULAR_STATES
-&END
-
-&KIND H
- BASIS_SET    DZVP-GTH-PADE
- POTENTIAL    GTH-PADE-q1
-&END
-
-&KIND O
- BASIS_SET    DZVP-GTH-PADE
- POTENTIAL    GTH-PADE-q6
-&END
-
-&KIND N
- BASIS_SET    DZVP-GTH-PADE
- POTENTIAL    GTH-PADE-q5
-&END
-
-&KIND C
- BASIS_SET    DZVP-GTH-PADE
- POTENTIAL    GTH-PADE-q4
-&END
-
-&CELL
- UNIT         ANGSTROM
- ABC          10.0  10.0  10.0
-&END
-
-&COORD 
-  N  0.000000  0.000000  1.412741 PYRI
-  C  0.000000  0.000000 -1.379003 PYRI
-  C  0.000000  1.138967  0.719513 PYRI
-  C  0.000000 -1.138967  0.719513 PYRI
-  C  0.000000  1.193378 -0.669793 PYRI
-  C  0.000000 -1.193378 -0.669793 PYRI
-  H  0.000000  0.000000 -2.461129 PYRI
-  H  0.000000  2.053434  1.302620 PYRI
-  H  0.000000 -2.053434  1.302620 PYRI
-  H  0.000000  2.148072 -1.177959 PYRI
-  H  0.000000 -2.148072 -1.177959 PYRI
-  O  5.000000    0.000000   -0.065587 H2O
-  H  5.000000   -0.757136    0.520545 H2O
-  H  5.000000    0.757136    0.520545 H2O
-&END
+&FORCE_EVAL
+  &DFT
+    &MGRID
+      CUTOFF 200
+    &END MGRID
+    &QS
+    &END QS
+    &SCF
+      SCF_GUESS ATOMIC
+    &END SCF
+    &XC
+      &XC_FUNCTIONAL Pade
+      &END XC_FUNCTIONAL
+    &END XC
+  &END DFT
+  &SUBSYS
+    &CELL
+      ABC 10.0 10.0 10.0
+      UNIT ANGSTROM
+    &END CELL
+    &CONSTRAINT
+      SHAKE 1.0E-10
+    &END CONSTRAINT
+    &COORD
+     N  0.000000  0.000000  1.412741 PYRI
+     C  0.000000  0.000000 -1.379003 PYRI
+     C  0.000000  1.138967  0.719513 PYRI
+     C  0.000000 -1.138967  0.719513 PYRI
+     C  0.000000  1.193378 -0.669793 PYRI
+     C  0.000000 -1.193378 -0.669793 PYRI
+     H  0.000000  0.000000 -2.461129 PYRI
+     H  0.000000  2.053434  1.302620 PYRI
+     H  0.000000 -2.053434  1.302620 PYRI
+     H  0.000000  2.148072 -1.177959 PYRI
+     H  0.000000 -2.148072 -1.177959 PYRI
+     O  5.000000    0.000000   -0.065587 H2O
+     H  5.000000   -0.757136    0.520545 H2O
+     H  5.000000    0.757136    0.520545 H2O
+    &END COORD
+    &KIND H
+      BASIS_SET DZVP-GTH-PADE
+      POTENTIAL GTH-PADE-q1
+    &END KIND
+    &KIND O
+      BASIS_SET DZVP-GTH-PADE
+      POTENTIAL GTH-PADE-q6
+    &END KIND
+    &KIND N
+      BASIS_SET DZVP-GTH-PADE
+      POTENTIAL GTH-PADE-q5
+    &END KIND
+    &KIND C
+      BASIS_SET DZVP-GTH-PADE
+      POTENTIAL GTH-PADE-q4
+    &END KIND
+  &END SUBSYS
+&END FORCE_EVAL
+&GLOBAL
+  FFTLIB FFTSG
+  PROGRAM Quickstep
+  PROJECT pyridine
+  RUN_TYPE MD
+  PRINT_LEVEL MEDIUM
+&END GLOBAL
+&MOTION
+  &MD
+    ENSEMBLE NVE
+    STEPS 5
+    TIMESTEP 0.1
+    TEMPERATURE 300.0
+    RESTART INIT
+    &NOSE
+      LENGTH 3
+      YOSHIDA 3
+      TIMECON 100.0
+      MTS 2
+    &END NOSE
+  &END MD
+&END MOTION

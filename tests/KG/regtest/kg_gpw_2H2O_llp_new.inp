@@ -1,79 +1,70 @@
-&GLOBAL
- PROGRAM      Kim_Gordon
- PROJECT      H2O
- FFTLIB       FFTSG
- RUN_TYPE     GEO_OPT
-&END
-
-
-&SCF
- GUESS        ATOMIC
- MIXING       0.4
- EPS_DIIS     0.4
- MAX_SCF      2
-&END
 
 &FORCE_EVAL
   &DFT
     BASIS_SET_FILE_NAME GTH_BASIS_SETS
     POTENTIAL_FILE_NAME QS_POTENTIAL
+    &MGRID
+      CUTOFF 50
+      NGRIDS 1
+    &END MGRID
+    &QS
+      EXTRAPOLATION USE_PREV_P
+      METHOD KG_GPW
+    &END QS
+    &SCF
+      EPS_DIIS 0.4
+      MAX_SCF 2
+      MIXING 0.4
+      SCF_GUESS ATOMIC
+    &END SCF
     &XC
       &XC_FUNCTIONAL
         &BECKE88
-        &END
-        &P86C
-        &END
+        &END BECKE88
         &KE_GGA
           FUNCTIONAL LLP
-        &END
-      &END
+        &END KE_GGA
+        &P86C
+        &END P86C
+      &END XC_FUNCTIONAL
       &XC_GRID
-        XC_DERIV      NN6_SMOOTH
+        XC_DERIV NN6_SMOOTH
         XC_SMOOTH_RHO NN10
-      &END
-    &END
-    &QS
-      METHOD       KG_GPW
-      EXTRAPOLATION  USE_PREV_P
-    &END
-    &MGRID
-       CUTOFF       50
-       NGRIDS        1
-    &END
-  &END SECTION DFT
+      &END XC_GRID
+    &END XC
+  &END DFT
   &SUBSYS
     &CELL
-       UNIT   ANGSTROM
-       ABC     10.0  10.0  10.0
+      ABC 10.0 10.0 10.0
+      UNIT ANGSTROM
     &END CELL
+    &COORD
+    O        -1.7337966306        5.3885627144        1.7224082741  H2O
+     H        -1.0348039486        5.2693826598        1.0344579918  H2O
+     H        -2.5047943630        4.9619148224        1.2901395183  H2O
+     O         0.0562938540        4.0497886321       -0.0583389488  H2O
+     H         0.0641138350        3.2566608292        0.5181946353  H2O
+     H         0.5003075125        3.7477489178       -0.8791401554  H2O
+    &END COORD
+    &KIND H
+      BASIS_SET DZVP-GTH
+      POTENTIAL GTH-BP-q1
+    &END KIND
+    &KIND O
+      BASIS_SET DZVP-GTH
+      POTENTIAL GTH-BP-q6
+    &END KIND
   &END SUBSYS
 &END FORCE_EVAL
-
-&PRINT  medium
- COORD
- DISTANCES
- CELL
-&END
-
-&GEOOPT
- MAX_ITER     1
-&END
-
-&KIND H
- BASIS_SET    DZVP-GTH
- POTENTIAL    GTH-BP-q1
-&END
-
-&KIND O
- BASIS_SET    DZVP-GTH
- POTENTIAL    GTH-BP-q6
-&END
-
-&COORD
- O        -1.7337966306        5.3885627144        1.7224082741  H2O
-  H        -1.0348039486        5.2693826598        1.0344579918  H2O
-  H        -2.5047943630        4.9619148224        1.2901395183  H2O
-  O         0.0562938540        4.0497886321       -0.0583389488  H2O
-  H         0.0641138350        3.2566608292        0.5181946353  H2O
-  H         0.5003075125        3.7477489178       -0.8791401554  H2O
-&END
+&GLOBAL
+  FFTLIB FFTSG
+  PROGRAM Kim_Gordon
+  PROJECT H2O
+  RUN_TYPE GEO_OPT
+  PRINT_LEVEL MEDIUM
+&END GLOBAL
+&MOTION
+  &GEOOPT
+    MAX_ITER 1
+  &END GEOOPT
+&END MOTION

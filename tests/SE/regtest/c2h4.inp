@@ -1,27 +1,32 @@
-&CP2K
- PROGRAM      Quickstep
- PROJECT      C2H4
-&END
 
-&QS
- METHOD       MNDO
-&END
-
-&SCF
- GUESS        ATOMIC
- MAX_SCF      20
-&END
-
-&CELL
- UNIT         ANGSTROM
- ABC          20.0  20.0  20.0
-&END
-
-&COORD
-       C                   .00000000     .00000000     .00000000
-       C                  1.32976650     .00000000     .00000000
-       H                  1.96696719     .89702095     .00000000
-       H                  1.96696719    -.89702095     .00000000
-       H                  -.63720069     .89702095     .00000000
-       H                  -.63720069    -.89702095     .00000000
-&END
+&FORCE_EVAL
+  &DFT
+    &MGRID
+    &END MGRID
+    &QS
+      METHOD MNDO
+    &END QS
+    &SCF
+      MAX_SCF 20
+      SCF_GUESS ATOMIC
+    &END SCF
+  &END DFT
+  &SUBSYS
+    &CELL
+      ABC 20.0 20.0 20.0
+      UNIT ANGSTROM
+    &END CELL
+    &COORD
+          C                   .00000000     .00000000     .00000000
+          C                  1.32976650     .00000000     .00000000
+          H                  1.96696719     .89702095     .00000000
+          H                  1.96696719    -.89702095     .00000000
+          H                  -.63720069     .89702095     .00000000
+          H                  -.63720069    -.89702095     .00000000
+    &END COORD
+  &END SUBSYS
+&END FORCE_EVAL
+&GLOBAL
+  PROGRAM Quickstep
+  PROJECT C2H4
+&END GLOBAL

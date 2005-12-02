@@ -1,46 +1,50 @@
-&CP2K  
-  PROGRAM   FIST
-  PROJECT   res_h2po4
-  IOLEVEL   1
-  FFTLIB    FFTSG
-  RUN_TYPE   md
-&END
 
-&MD
-  ensemble:     nve                    ensemble type (nve,nvt,npt_i,npt_f)
-  steps:        10                     total number of steps
-  timestep:     1.0 fs                 time step [fs]
-  temperature:  300                    temperature [K]
-  restart:      init                   start type (init,pos,posvel)
-  constraints   on 
-  nose_parameter:   &
-    length:    3        &
-    Yoshida:   3        &
-    timecon:   1000 fs  &
-    mts:       2
-
-  print  files        2
-  print  screen       1
-&END
-
-&TOPOLOGY
- coord_file     h2po4.pdb
- coordinate     pdb
- connectivity   PSF
- CONN_FILE      h2po4.psf
-&END
-
-&EWALD
- units angstrom
- ewald_type spme
- ewald_param .44 64 6
-&END
-
-&FORCE_FIELD
- PARMFILE CHM h2po4.pot
-&END
-
-&CELL
- UNIT         ANGSTROM
- ABC          24.1317 24.1317 24.1317
-&END
+&FORCE_EVAL
+  &MM
+    &FORCEFIELD
+      parmfile h2po4.pot
+      parmtype CHM
+    &END FORCEFIELD
+    &POISSON_MM
+      &EWALD
+        EWALD_TYPE spme
+        ALPHA .44
+        GMAX 64
+        O_SPLINE 6
+      &END EWALD
+    &END POISSON_MM
+  &END MM
+  &SUBSYS
+    &CELL
+      ABC 24.1317 24.1317 24.1317
+      UNIT ANGSTROM
+    &END CELL
+    &TOPOLOGY
+      CONN_FILE h2po4.psf
+      CONNECTIVITY PSF
+      COORD_FILE h2po4.pdb
+      COORDINATE pdb
+    &END TOPOLOGY
+  &END SUBSYS
+&END FORCE_EVAL
+&GLOBAL
+  FFTLIB FFTSG
+  PROGRAM FIST
+  PROJECT res_h2po4
+  RUN_TYPE md
+&END GLOBAL
+&MOTION
+  &MD
+    ENSEMBLE NVE
+    STEPS 10
+    TIMESTEP 1.0
+    TEMPERATURE 300
+    RESTART INIT
+    &NOSE
+      LENGTH 3
+      YOSHIDA 3
+      TIMECON 1000
+      MTS 2
+    &END NOSE
+  &END MD
+&END MOTION

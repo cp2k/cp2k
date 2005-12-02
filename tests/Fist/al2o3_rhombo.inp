@@ -1,72 +1,94 @@
-&CP2K  
-  PROJECT   al2o3_rhombo
-  PROGRAM   FIST
-  IOLEVEL    1
-  FFTLIB    FFTW
-  RUN_TYPE   DEBUG
-&END
 
-&EWALD
-  units angstrom
-  ewald_type     ewald    ( pme_gauss, ewald_gauss )
-  ewald_param    .368 21   ( alpha, [gmax,{ns_max,epsilon}])
-&END
-
-&TOPOLOGY
- FORCEFIELD ON
- NHCOPT MOLECULE
-&END
-
-&MD
-  ensemble:     nve                   (nve,nvt,npt_i,npt_f)
-  steps:        2000 
-  timestep:     3.                       time step [fs]
-  temperature:  298.0                    temperature [K]
-  restart:      init                   start type (pos,posvel)
-  constraints:  off     
-  nose_parameter   &
-    length:    1        &
-    Yoshida:   3        &
-    timecon:   1000. fs &  
-    mts:       2         
-  barostat_parameter:   &
-    pressure: 0.        &
-    timecon: 1000. fs
-  print  files          5
-  print  screen         1
-&END
-
-&CELL 
-   UNIT ANGSTROM
-   A  5.128    0.0       0.0
-   B  2.92661  4.210859  0.0
-   C  2.92661  1.53001   3.92306
-&END
-
-&PRINT medium
-&END
-
-&FORCE_FIELD
-  charges
-     AL 1.2
-     O -0.8
-  end 
-  nonbonded
-     williams AL AL    2.518e14  10.925  20.13e5  4.0
-     williams AL O     128.7e8    8.35     .005e6 4.0
-     williams O O      1.136e7    2.76    2.023e6 4.0
-  end 
-&END
-
-&COORD
-AL   3.865389   2.020786   1.380917
-AL  12.606441   6.590518   4.503673
-AL   7.115831   3.720083   2.542143
-AL   9.355999   4.891220   3.342447
- O   6.345540   4.357553   0.980765
- O   5.671915   3.785567   3.703369
- O   7.199680   1.903400   2.181221
- O   7.562290   5.594175   2.942295
- O   8.235915   3.485312   4.142751
- O   8.909540   3.837469   1.741839
-&END
+&FORCE_EVAL
+  &MM
+    &FORCEFIELD
+      &CHARGE
+        ATOM AL
+        CHARGE 1.2
+      &END CHARGE
+      &CHARGE
+        ATOM O
+        CHARGE -0.8
+      &END CHARGE
+      &NONBONDED
+        &WILLIAMS
+          atom AL AL
+          A 2.518e14
+          B 10.925
+          C 20.13e5
+          RCUT 4.0
+        &END WILLIAMS
+        &WILLIAMS
+          atom AL O
+          A 128.7e8
+          B 8.35
+          C .005e6
+          RCUT 4.0
+        &END WILLIAMS
+        &WILLIAMS
+          atom O O
+          A 1.136e7
+          B 2.76
+          C 2.023e6
+          RCUT 4.0
+        &END WILLIAMS
+      &END NONBONDED
+    &END FORCEFIELD
+    &POISSON_MM
+      &EWALD
+        EWALD_TYPE ewald
+        ALPHA .368
+        GMAX 21
+      &END EWALD
+    &END POISSON_MM
+  &END MM
+  &SUBSYS
+    &CELL
+      A 5.128 0.0 0.0
+      B 2.92661 4.210859 0.0
+      C 2.92661 1.53001 3.92306
+      UNIT ANGSTROM
+    &END CELL
+    &COORD
+   AL   3.865389   2.020786   1.380917
+   AL  12.606441   6.590518   4.503673
+   AL   7.115831   3.720083   2.542143
+   AL   9.355999   4.891220   3.342447
+    O   6.345540   4.357553   0.980765
+    O   5.671915   3.785567   3.703369
+    O   7.199680   1.903400   2.181221
+    O   7.562290   5.594175   2.942295
+    O   8.235915   3.485312   4.142751
+    O   8.909540   3.837469   1.741839
+    &END COORD
+    &TOPOLOGY
+      NHCOPT MOLECULE
+    &END TOPOLOGY
+  &END SUBSYS
+&END FORCE_EVAL
+&GLOBAL
+  FFTLIB FFTW
+  PRINT_LEVEL MEDIUM
+  PROGRAM FIST
+  PROJECT al2o3_rhombo
+  RUN_TYPE DEBUG
+&END GLOBAL
+&MOTION
+  &MD
+    ENSEMBLE NVE
+    STEPS 2000
+    TIMESTEP 3.
+    TEMPERATURE 298.0
+    RESTART INIT
+    &BAROSTAT
+      PRESSURE 0.
+      TIMECON 1000.
+    &END BAROSTAT
+    &NOSE
+      LENGTH 1
+      YOSHIDA 3
+      TIMECON 1000.
+      MTS 2
+    &END NOSE
+  &END MD
+&END MOTION

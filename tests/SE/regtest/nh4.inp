@@ -1,31 +1,33 @@
-&CP2K
- PROGRAM      Quickstep
- PROJECT      nh4
- RUN_TYPE     GEO_OPT
-&END
 
-&QS
- METHOD       MNDO
-&END
-
-&DFT
-  CHARGE   1
-&END
-
-&SCF
- GUESS        ATOMIC
- MAX_SCF      20
-&END
-
-&CELL
- UNIT         ANGSTROM
- ABC          20.0  20.0  20.0
-&END
-
-&COORD
-       H                 -1.01578458     .00000000     .00000000
-       N                   .00000000     .00000000     .00000000
-       H                   .33859487     .95769088     .00000000
-       H                   .33859487    -.47884544    -.82938463
-       H                   .33859487    -.47884544     .82938463
-&END
+&FORCE_EVAL
+  &DFT
+    CHARGE 1
+    &MGRID
+    &END MGRID
+    &QS
+      METHOD MNDO
+    &END QS
+    &SCF
+      MAX_SCF 20
+      SCF_GUESS ATOMIC
+    &END SCF
+  &END DFT
+  &SUBSYS
+    &CELL
+      ABC 20.0 20.0 20.0
+      UNIT ANGSTROM
+    &END CELL
+    &COORD
+          H                 -1.01578458     .00000000     .00000000
+          N                   .00000000     .00000000     .00000000
+          H                   .33859487     .95769088     .00000000
+          H                   .33859487    -.47884544    -.82938463
+          H                   .33859487    -.47884544     .82938463
+    &END COORD
+  &END SUBSYS
+&END FORCE_EVAL
+&GLOBAL
+  PROGRAM Quickstep
+  PROJECT nh4
+  RUN_TYPE GEO_OPT
+&END GLOBAL

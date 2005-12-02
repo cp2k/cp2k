@@ -1,25 +1,30 @@
-&CP2K
- PROGRAM      Quickstep
- PROJECT      CH2O
- RUN_TYPE     GEO_OPT
-&END
 
-&QS
- METHOD       AM1
-&END
-
-&SCF
- GUESS        ATOMIC
-&END
-
-&CELL
- UNIT         ANGSTROM
- ABC          20.0  20.0  20.0
-&END
-
-&COORD
-  O     0.051368    0.000000    0.000000     
-  C     1.278612    0.000000    0.000000    
-  H     1.870460    0.939607    0.000000   
-  H     1.870460   -0.939607    0.000000  
-&END
+&FORCE_EVAL
+  &DFT
+    &MGRID
+    &END MGRID
+    &QS
+      METHOD AM1
+    &END QS
+    &SCF
+      SCF_GUESS ATOMIC
+    &END SCF
+  &END DFT
+  &SUBSYS
+    &CELL
+      ABC 20.0 20.0 20.0
+      UNIT ANGSTROM
+    &END CELL
+    &COORD
+     O     0.051368    0.000000    0.000000     
+     C     1.278612    0.000000    0.000000    
+     H     1.870460    0.939607    0.000000   
+     H     1.870460   -0.939607    0.000000  
+    &END COORD
+  &END SUBSYS
+&END FORCE_EVAL
+&GLOBAL
+  PROGRAM Quickstep
+  PROJECT CH2O
+  RUN_TYPE GEO_OPT
+&END GLOBAL

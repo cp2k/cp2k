@@ -1,11 +1,11 @@
-&CP2K
- PROGRAM      farming
-&END
 
 &FARMING
- NGROUP 1
-&END
-
-&JOBS
- dir1 C.inp
-&END
+  NGROUP 1
+  &JOB
+    DIRECTORY dir1
+    INPUT_FILE_NAME C.inp
+  &END JOB
+&END FARMING
+&GLOBAL
+  PROGRAM farming
+&END GLOBAL

@@ -1,117 +1,115 @@
-&CP2K
- PROGRAM      QMMM
- PROJECT      2H2O
- IOLEVEL      10
- FFTLIB       FFTSG
- RUN_TYPE     GEO_OPT
-&END
-
-&GEOOPT
- OPTIMIZER BFGS
- MAX_ITER  1
-&END
-
-&PRINT
-&END
-
-&TOPOLOGY
- coord_file     2H2O.pdb
- coordinate     pdb
- connectivity   PSF
- CONN_FILE      2H2O.psf
-&END
-
-&EWALD
- units angstrom
- ewald_type spme
- ewald_param .44 64 6
-&END
-
-&FORCE_FIELD
- PARMFILE CHM 2H2O.pot
- RCUT_NB 5.2917720830
-&END
-
-&CELL
- UNIT         ANGSTROM
- ABC          20.00 20.00 20.00 
-&END
-
-&IO
- BASIS_SET_FILE BASIS_SET
- POTENTIAL_FILE POTENTIAL
- MM_POTENTIAL_FILE MM_POTENTIAL
-&END
-
-&DFT
- FUNCTIONAL   BLYP
- XC_SMOOTH_RHO NN10
- XC_DERIV SPLINE2_smooth
-&END
- 
-&QS
- CUTOFF       50
- COMMENSURATE
- EPS_DEFAULT  1.0E-10
-&END
- 
-&SCF
- GUESS        atomic
-&END
- 
-&KIND H
- BASIS_SET    DZVP-GTH-BLYP
- POTENTIAL    GTH-BLYP-q1
-&END
- 
-&KIND O
- BASIS_SET    DZVP-GTH-BLYP
- POTENTIAL    GTH-BLYP-q6
-&END
 
 &FORCE_EVAL
-        &DFT
-          &POISSON_DFT
-           POISSON_SOLVER MT
-           &MT
-            ALPHA 7.0
-            REL_CUTOFF 1.0
-           &END
-           PERIODIC NONE
-          &END POISSON_DFT
-        &END
-        &QMMM
-         &INTERPOLATOR
-	    EPS_R 1.0e-14
-	    EPS_X 1.0e-14
-            MAXITER 100
-	 &END INTERPOLATOR
-         ECOUPL GAUSS
-         ABC_QM  6.0 6.0 6.0
-         #
-         # QM_KINDS
-         #
-         &QM_KIND H
-          mm_index 2 3
-         &END QM_KIND
-         &QM_KIND O
-          mm_index 1
-         &END QM_KIND
-         #
-         # MM_KINDS
-         #
-         &MM_KIND HW
-          radius 0.44
-         &END MM_KIND
-         &MM_KIND OW
-          radius 0.80
-          corr_radius 1.0583544166
-         &END MM_KIND
-         &PRINT
-          &MM_POTENTIAL
-            PRINT SILENT
-          &END 
-         &END PRINT
-         #
-        &END QMMM
+  &DFT
+    BASIS_SET_FILE_NAME BASIS_SET
+    POTENTIAL_FILE_NAME POTENTIAL
+    &MGRID
+      COMMENSURATE
+      CUTOFF 50
+    &END MGRID
+    &POISSON_DFT
+      PERIODIC NONE
+      POISSON_SOLVER MT
+      &MT
+        ALPHA 7.0
+        REL_CUTOFF 1.0
+      &END MT
+    &END POISSON_DFT
+    &QS
+      EPS_DEFAULT 1.0E-10
+    &END QS
+    &SCF
+      SCF_GUESS atomic
+    &END SCF
+    &XC
+      &XC_FUNCTIONAL BLYP
+      &END XC_FUNCTIONAL
+      &XC_GRID
+        XC_DERIV SPLINE2_smooth
+        XC_SMOOTH_RHO NN10
+      &END XC_GRID
+    &END XC
+  &END DFT
+  &MM
+    &FORCEFIELD
+      parmfile 2H2O.pot
+      parmtype CHM
+      rcut_nb 5.2917720830
+    &END FORCEFIELD
+    &POISSON_MM
+      &EWALD
+        EWALD_TYPE spme
+        ALPHA .44
+        GMAX 64
+        O_SPLINE 6
+      &END EWALD
+    &END POISSON_MM
+  &END MM
+  &QMMM
+    ABC_QM 6.0 6.0 6.0
+    ECOUPL GAUSS
+    MM_POTENTIAL_FILE_NAME MM_POTENTIAL
+    &INTERPOLATOR
+      EPS_R 1.0e-14
+      EPS_X 1.0e-14
+      MAXITER 100
+    &END INTERPOLATOR
+    &MM_KIND HW
+      RADIUS 0.44
+    &END MM_KIND
+    &MM_KIND OW
+      CORR_RADIUS 1.0583544166
+      RADIUS 0.80
+    &END MM_KIND
+    &PRINT
+      &MM_POTENTIAL
+        PRINT SILENT
+      &END MM_POTENTIAL
+    &END PRINT
+    &QM_KIND H
+      MM_INDEX 2 3
+    &END QM_KIND
+    &QM_KIND O
+      MM_INDEX 1
+    &END QM_KIND
+  # 
+  # QM_KINDS
+  # 
+  # 
+  # MM_KINDS
+  # 
+  # 
+  &END QMMM
+  &SUBSYS
+    &CELL
+      ABC 20.00 20.00 20.00
+      UNIT ANGSTROM
+    &END CELL
+    &KIND H
+      BASIS_SET DZVP-GTH-BLYP
+      POTENTIAL GTH-BLYP-q1
+    &END KIND
+    &KIND O
+      BASIS_SET DZVP-GTH-BLYP
+      POTENTIAL GTH-BLYP-q6
+    &END KIND
+    &TOPOLOGY
+      CONN_FILE 2H2O.psf
+      CONNECTIVITY PSF
+      COORD_FILE 2H2O.pdb
+      COORDINATE pdb
+    &END TOPOLOGY
+  &END SUBSYS
 &END FORCE_EVAL
+&GLOBAL
+  FFTLIB FFTSG
+  PROGRAM QMMM
+  PROJECT 2H2O
+  RUN_TYPE GEO_OPT
+&END GLOBAL
+&MOTION
+  &GEOOPT
+    MAX_ITER 1
+    OPTIMIZER BFGS
+  &END GEOOPT
+&END MOTION

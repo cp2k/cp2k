@@ -1,49 +1,47 @@
-&CP2K  
-  PROGRAM   FIST
-  PROJECT   dhfr
-  IOLEVEL   1
-  FFTLIB    FFTSG
-  RUN_TYPE   md
-&END
-  RUN_TYPE   debug
 
-&PRINT LOW
-  DISTRIBUTION
-&END
-
-&MD
-  ensemble:     nve                    ensemble type (nve,nvt,npt_i,npt_f)
-  steps:        50                     total number of steps
-  timestep:     0.5 fs                 time step [fs]
-  temperature:  298                    temperature [K]
-  restart:      init                   start type (init,pos,posvel)
-  constraints   off
-  print  files        100
-  print  screen       1
-&END
-
-&TOPOLOGY
- PARA_RES
- COORDINATE      PDB
- COORD_FILE      sample_pdb/5dhfr_cube.pdb
- CONNECTIVITY    PSF
- CONN_FILE       5dhfr_cube.psf
-&END
-
-&EWALD
- units angstrom
- ewald_type  spme
- ewald_param .4 27 4
-&END
-
-&FORCE_FIELD
- PARMFILE CHM sample_pot/par_all27_prot_lipid.inp
- RCUT_NB         9.0
-&END
- PARMFILE CHM par_all22_prot.inp
-
-&CELL
- UNIT         ANGSTROM
- ABC          62.23 62.23 62.23
-&END
-
+&FORCE_EVAL
+  &MM
+    &FORCEFIELD
+      parmfile sample_pot/par_all27_prot_lipid.inp
+      parmtype CHM
+      rcut_nb 9.0
+    &END FORCEFIELD
+    &POISSON_MM
+      &EWALD
+        EWALD_TYPE spme
+        ALPHA .4
+        GMAX 27
+        O_SPLINE 4
+      &END EWALD
+    &END POISSON_MM
+  &END MM
+  &SUBSYS
+    &CELL
+      ABC 62.23 62.23 62.23
+      UNIT ANGSTROM
+    &END CELL
+    &TOPOLOGY
+      CONN_FILE 5dhfr_cube.psf
+      CONNECTIVITY PSF
+      COORD_FILE sample_pdb/5dhfr_cube.pdb
+      COORDINATE PDB
+      PARA_RES
+    &END TOPOLOGY
+  &END SUBSYS
+&END FORCE_EVAL
+&GLOBAL
+  FFTLIB FFTSG
+  PRINT_LEVEL LOW
+  PROGRAM FIST
+  PROJECT dhfr
+  RUN_TYPE md
+&END GLOBAL
+&MOTION
+  &MD
+    ENSEMBLE NVE
+    STEPS 50
+    TIMESTEP 0.5
+    TEMPERATURE 298
+    RESTART INIT
+  &END MD
+&END MOTION

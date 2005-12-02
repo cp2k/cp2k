@@ -1,53 +1,68 @@
-&CP2K
- PROGRAM      Fist
- PROJECT      NaCl
- IOLEVEL      1
- FFTLIB       FFTW
- RUN_TYPE     MD
-&END
 
-&MD
- ensemble:     nvt                     (nve,nvt,npt_i,npt_f)
- steps:        10
- timestep:     2.5 fs                  time step [fs]
- temperature:  300.0                   temperature [K]
- restart:      init                    start type (pos,posvel)
- constraints:  on
-  nose_parameter:   &
-    length:    3        &
-    Yoshida:   3        &
-    timecon:   1000 fs  &
-    mts:       2
-  print  files       10 
-  print  screen     1  
-&END  
-
-&TOPOLOGY
- FORCEFIELD ON
- COORDINATE      PDB
- COORD_FILE_NAME ../sample_pdb/NaCl.pdb
-&END
-
-&EWALD
- units angstrom
- ewald_type spme
- ewald_param .5 40 6
-&END
-
-&FORCE_FIELD
- charges
-  Na +1.000
-  Cl -1.000
- end
- nonbonded
-  BMHFT NA  NA  10.0
-  BMHFT NA  CL  10.0
-  BMHFT CL  CL  10.0
- end
-&END
-
-&CELL
- UNIT         ANGSTROM
- ABC          22.480   22.480   22.480
-&END
-
+&FORCE_EVAL
+  &MM
+    &FORCEFIELD
+      &CHARGE
+        ATOM Na
+        CHARGE +1.000
+      &END CHARGE
+      &CHARGE
+        ATOM Cl
+        CHARGE -1.000
+      &END CHARGE
+      &NONBONDED
+        &BMHFT
+          atom NA NA
+          RCUT 10.0
+        &END BMHFT
+        &BMHFT
+          atom NA CL
+          RCUT 10.0
+        &END BMHFT
+        &BMHFT
+          atom CL CL
+          RCUT 10.0
+        &END BMHFT
+      &END NONBONDED
+    &END FORCEFIELD
+    &POISSON_MM
+      &EWALD
+        EWALD_TYPE spme
+        ALPHA .5
+        GMAX 40
+        O_SPLINE 6
+      &END EWALD
+    &END POISSON_MM
+  &END MM
+  &SUBSYS
+    &CELL
+      ABC 22.480 22.480 22.480
+      UNIT ANGSTROM
+    &END CELL
+    &TOPOLOGY
+      COORD_FILE_NAME ../sample_pdb/NaCl.pdb
+      COORDINATE PDB
+    &END TOPOLOGY
+  &END SUBSYS
+&END FORCE_EVAL
+&GLOBAL
+  FFTLIB FFTW
+  PROGRAM Fist
+  PROJECT NaCl
+  RUN_TYPE MD
+&END GLOBAL
+&MOTION
+  &MD
+    ENSEMBLE NVT
+    STEPS 10
+    TIMESTEP 2.5
+    TEMPERATURE 300.0
+    RESTART INIT
+    &NOSE
+      LENGTH 3
+      YOSHIDA 3
+      TIMECON 1000
+      MTS 2
+    &END NOSE
+  &END MD
+&END MOTION

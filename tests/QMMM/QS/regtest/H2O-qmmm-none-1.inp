@@ -1,86 +1,83 @@
-&CP2K
- PROGRAM      QMMM
- PROJECT      2H2O
- IOLEVEL      10
- FFTLIB       FFTSG
- RUN_TYPE     GEO_OPT
-&END
-
-&PRINT MEDIUM
-&END
-
-&GEOOPT
- OPTIMIZER BFGS
- MAX_ITER  3
-&END
 
 &FORCE_EVAL
-        &QMMM
-         NOCOMPATIBILITY
-         ECOUPL NONE
-         ABC_QM  7.0 7.0 7.0
-         #
-         # QM_KINDS
-         #
-         &QM_KIND H
-          mm_index 5 6
-         &END QM_KIND
-         &QM_KIND O
-          mm_index 4
-         &END QM_KIND
-        &END QMMM
+  &DFT
+    BASIS_SET_FILE_NAME BASIS_SET
+    POTENTIAL_FILE_NAME POTENTIAL
+    &MGRID
+      COMMENSURATE
+      CUTOFF 50
+    &END MGRID
+    &QS
+    &END QS
+    &SCF
+      SCF_GUESS atomic
+    &END SCF
+    &XC
+      &XC_FUNCTIONAL pade
+      &END XC_FUNCTIONAL
+    &END XC
+  &END DFT
+  &MM
+    &FORCEFIELD
+      parmfile 2H2O.pot
+      parmtype CHM
+      rcut_nb 5.2917720830
+    &END FORCEFIELD
+    &POISSON_MM
+      &EWALD
+        EWALD_TYPE spme
+        ALPHA .44
+        GMAX 64
+        O_SPLINE 6
+      &END EWALD
+    &END POISSON_MM
+  &END MM
+  &QMMM
+    ABC_QM 7.0 7.0 7.0
+    ECOUPL NONE
+    NOCOMPATIBILITY
+    MM_POTENTIAL_FILE_NAME MM_POTENTIAL
+    &QM_KIND H
+      MM_INDEX 5 6
+    &END QM_KIND
+    &QM_KIND O
+      MM_INDEX 4
+    &END QM_KIND
+  # 
+  # QM_KINDS
+  # 
+  &END QMMM
+  &SUBSYS
+    &CELL
+      ABC 20.00 20.00 20.00
+      UNIT ANGSTROM
+    &END CELL
+    &KIND H
+      BASIS_SET DZVP-GTH-BLYP
+      POTENTIAL GTH-BLYP-q1
+    &END KIND
+    &KIND O
+      BASIS_SET DZVP-GTH-BLYP
+      POTENTIAL GTH-BLYP-q6
+    &END KIND
+    &TOPOLOGY
+      CONN_FILE 2H2O.psf
+      CONNECTIVITY PSF
+      COORD_FILE 2H2O.pdb
+      COORDINATE pdb
+    &END TOPOLOGY
+  &END SUBSYS
 &END FORCE_EVAL
-
-
-&TOPOLOGY
- coord_file     2H2O.pdb
- coordinate     pdb
- connectivity   PSF
- CONN_FILE      2H2O.psf
-&END
-
-&EWALD
- units angstrom
- ewald_type spme
- ewald_param .44 64 6
-&END
-
-&FORCE_FIELD
- PARMFILE CHM 2H2O.pot
- RCUT_NB 5.2917720830
-&END
-
-&CELL
- UNIT         ANGSTROM
- ABC          20.00 20.00 20.00 
-&END
-
-&IO
- BASIS_SET_FILE BASIS_SET
- POTENTIAL_FILE POTENTIAL
- MM_POTENTIAL_FILE MM_POTENTIAL
-&END
- 
-&DFT
- FUNCTIONAL   pade
-&END
- 
-&QS
- CUTOFF       50
- COMMENSURATE
-&END
- 
-&SCF
- GUESS        atomic
-&END
- 
-&KIND H
- BASIS_SET    DZVP-GTH-BLYP
- POTENTIAL    GTH-BLYP-q1
-&END
- 
-&KIND O
- BASIS_SET    DZVP-GTH-BLYP
- POTENTIAL    GTH-BLYP-q6
-&END
-
+&GLOBAL
+  FFTLIB FFTSG
+  PRINT_LEVEL MEDIUM
+  PROGRAM QMMM
+  PROJECT 2H2O
+  RUN_TYPE GEO_OPT
+&END GLOBAL
+&MOTION
+  &GEOOPT
+    MAX_ITER 3
+    OPTIMIZER BFGS
+  &END GEOOPT
+&END MOTION

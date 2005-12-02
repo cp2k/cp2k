@@ -1,66 +1,66 @@
-&CP2K
- PROGRAM      Quickstep
- PROJECT      H2O
- IOLEVEL      10
- FFTLIB       FFTSG
- RUN_TYPE     MD
-&END
 
-
-&MD
- ensemble:     nve                     (nve,nvt,npt_i,npt_f)
- steps:        3
- timestep:     0.1 fs                  time step [fs]
- temperature:  300.0                   temperature [K]
- restart:      init                    start type (pos,posvel)
- constraints:  off
- shake:        1.0E-10
- nose_parameter & 
-  length:    3        &
-  Yoshida:   3        &
-  timecon:   100.0 fs &
-  mts:       2
-&END  
-
-&DFT
- FUNCTIONAL   Pade
-&END
-
-&QS
- CUTOFF       200
- EPS_DEFAULT  1.0E-8
-&END
-
-&SCF
- GUESS        RESTART
- EPS_SCF      1.0E-4
- OT
-&END
-
-&OTSCF
- LINESEARCH GOLD
-&END
-
-&PRINT LOW
-&END
-
-&KIND H
- BASIS_SET    DZVP-GTH-PADE
- POTENTIAL    GTH-PADE-q1
-&END
-
-&KIND O
- BASIS_SET    DZVP-GTH-PADE
- POTENTIAL    GTH-PADE-q6
-&END
-
-&CELL
- UNIT         ANGSTROM
- ABC          4.0  4.0  4.0
-&END
-
-&COORD
- O   0.000000    0.000000   -0.065587
- H   0.000000   -0.757136    0.520545
- H   0.000000    0.757136    0.520545
-&END
+&FORCE_EVAL
+  &DFT
+    &MGRID
+      CUTOFF 200
+    &END MGRID
+    &QS
+      EPS_DEFAULT 1.0E-8
+    &END QS
+    &SCF
+      EPS_SCF 1.0E-4
+      SCF_GUESS RESTART
+      &OT ON
+        LINESEARCH GOLD
+      &END OT
+    &END SCF
+    &XC
+      &XC_FUNCTIONAL Pade
+      &END XC_FUNCTIONAL
+    &END XC
+  &END DFT
+  &SUBSYS
+    &CELL
+      ABC 4.0 4.0 4.0
+      UNIT ANGSTROM
+    &END CELL
+    &CONSTRAINT
+      SHAKE 1.0E-10
+    &END CONSTRAINT
+    &COORD
+    O   0.000000    0.000000   -0.065587
+    H   0.000000   -0.757136    0.520545
+    H   0.000000    0.757136    0.520545
+    &END COORD
+    &KIND H
+      BASIS_SET DZVP-GTH-PADE
+      POTENTIAL GTH-PADE-q1
+    &END KIND
+    &KIND O
+      BASIS_SET DZVP-GTH-PADE
+      POTENTIAL GTH-PADE-q6
+    &END KIND
+  &END SUBSYS
+&END FORCE_EVAL
+&GLOBAL
+  FFTLIB FFTSG
+  PROGRAM Quickstep
+  PROJECT H2O
+  RUN_TYPE MD
+  PRINT_LEVEL LOW
+&END GLOBAL
+&MOTION
+  &MD
+    ENSEMBLE NVE
+    STEPS 3
+    TIMESTEP 0.1
+    TEMPERATURE 300.0
+    RESTART INIT
+    &NOSE
+      LENGTH 3
+      YOSHIDA 3
+      TIMECON 100.0
+      MTS 2
+    &END NOSE
+  &END MD
+&END MOTION

@@ -1,49 +1,56 @@
-&CP2K  
-  PROGRAM   FIST
-  PROJECT   water512
-  IOLEVEL   1
-  FFTLIB    FFTW
-  RUN_TYPE   debug
-&END
-  RUN_TYPE   md
 
-&MD
-  ensemble:     nve                    ensemble type (nve,nvt,npt_i,npt_f)
-  steps:        100                    total number of steps
-  timestep:     2.5 fs                 time step [fs]
-  temperature:  298                    temperature [K]
-  restart:      init                   start type (init,pos,posvel)
-  constraints   on 
-  nose_parameter:   &
-    length:    3        &
-    Yoshida:   3        &
-    timecon:   1000 fs  &
-    mts:       2
-
-  print  files        2
-  print  screen       1
-&END
-
-&TOPOLOGY
- coord_file     sample_pdb/water_2.pdb
- coordinate     pdb
-&END
-
-&EWALD
- units angstrom
- ewald_type spme
- ewald_param .44 24 6
-&END
-
-&FORCE_FIELD
- PARMFILE CHM sample_pot/water.pot
- CHARGES
-   OT -0.8476
-   HT  0.4238
- END CHARGE
-&END
-
-&CELL
- UNIT         ANGSTROM
- ABC          24.955 24.955 24.955
-&END
+&FORCE_EVAL
+  &MM
+    &FORCEFIELD
+      parmfile sample_pot/water.pot
+      parmtype CHM
+      &CHARGE
+        ATOM OT
+        CHARGE -0.8476
+      &END CHARGE
+      &CHARGE
+        ATOM HT
+        CHARGE 0.4238
+      &END CHARGE
+    &END FORCEFIELD
+    &POISSON_MM
+      &EWALD
+        EWALD_TYPE spme
+        ALPHA .44
+        GMAX 24
+        O_SPLINE 6
+      &END EWALD
+    &END POISSON_MM
+  &END MM
+  &SUBSYS
+    &CELL
+      ABC 24.955 24.955 24.955
+      UNIT ANGSTROM
+    &END CELL
+    &TOPOLOGY
+      COORD_FILE sample_pdb/water_2.pdb
+      COORDINATE pdb
+    &END TOPOLOGY
+  &END SUBSYS
+&END FORCE_EVAL
+&GLOBAL
+  FFTLIB FFTW
+  PROGRAM FIST
+  PROJECT water512
+  RUN_TYPE debug
+&END GLOBAL
+&MOTION
+  &MD
+    ENSEMBLE NVE
+    STEPS 100
+    TIMESTEP 2.5
+    TEMPERATURE 298
+    RESTART INIT
+    &NOSE
+      LENGTH 3
+      YOSHIDA 3
+      TIMECON 1000
+      MTS 2
+    &END NOSE
+  &END MD
+&END MOTION

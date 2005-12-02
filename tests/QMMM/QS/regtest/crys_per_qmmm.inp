@@ -1,134 +1,145 @@
-&CP2K  
-  PROGRAM   QMMM
-  PROJECT   crystal
-  IOLEVEL   1
-  FFTLIB    FFTSG
-  RUN_TYPE  MD
-&END
-
-&PRINT MEDIUM
-&END
-
-&MD
-  ensemble:     nve                    ensemble type (nve,nvt,npt_i,npt_f)
-  steps:        2                      total number of steps
-  timestep:     0.5 fs                 time step [fs]
-  temperature:  298                    temperature [K]
-  restart:      init                   start type (init,pos,posvel)
-  print  files        100
-  print  screen       1
-&END
-
-&TOPOLOGY
- FORCEFIELD ON
-&END
-
-&EWALD
- units angstrom
- ewald_type ewald
- ewald_param .44 111 
-&END
-
-&FORCE_FIELD
- charges
-   NA  1.0000
-   CL -1.0000
- end
- nonbonded
-   LENNARD-JONES NA NA 0.0 0.0 5.0
-   LENNARD-JONES CL NA 0.0 0.0 5.0
-   LENNARD-JONES CL CL 0.0 0.0 5.0
- end
-&END
-
-&CELL
- UNIT         ANGSTROM
- ABC          17.320500   17.320500   17.320500
-&END
-
-&COORD
-NA        -8.660250   -8.660250   -8.660250
-CL         0.000000    0.000000    0.000000
-NA        -8.660250    0.000000    0.000000
-CL         0.000000    8.660250    8.660250
-NA         0.000000   -8.660250    0.000000
-CL         8.660250    0.000000    8.660250
-NA         0.000000    0.000000   -8.660250
-CL         8.660250    8.660250    0.000000
-&END
-
-&IO
- BASIS_SET_FILE GTH_BASIS_SETS
- POTENTIAL_FILE FAKE_POTENTIAL
-&END
-
-&DFT
- CHARGE 0
- FUNCTIONAL  pade
-&END
-
-&QS
- CUTOFF     25
- COMMENSURATE
-&END
-
-&SCF
- GUESS        atomic
-&END
-
-&KIND NA
- BASIS_SET    SZV-GTH
- POTENTIAL    GTH-P-NOEL
-&END
-
-&KIND CL
- BASIS_SET    SZV-GTH
- POTENTIAL    GTH-M-NOEL
-&END
 
 &FORCE_EVAL
-        &QMMM
-         &INTERPOLATOR
-            EPS_R 1.0e-14
-            EPS_X 1.0e-14
-            MAXITER 100
-         &END INTERPOLATOR
-         ECOUPL GAUSS
-         ABC_QM  17.320500   17.320500   17.320500
-         USE_GEEP_LIB 6
-         NOCOMPATIBILITY
-         #
-         # QM_KINDS
-         #
-         &QM_KIND NA
-          mm_index 3 
-         &END QM_KIND
-         &QM_KIND CL
-          mm_index 2 
-         &END QM_KIND
-         &MM_KIND NA
-          radius 1.5875316249000
-         &END MM_KIND
-         &MM_KIND CL
-          radius 1.5875316249000
-         &END MM_KIND
-         &PERIODIC 
-           GMAX 0.5
-           &MULTIPOLE
-            RCUT 8.0
-            EWALD_PRECISION 0.00000001
-           &END
-         &END
-         #
-         &PRINT
-          &PERIODIC_INFO
-            PRINT SILENT
-          &END 
-          &POTENTIAL
-            PRINT SILENT
-          &END
-         &END PRINT
-         #
-        &END QMMM
+  &DFT
+    CHARGE 0
+    BASIS_SET_FILE_NAME GTH_BASIS_SETS
+    POTENTIAL_FILE_NAME FAKE_POTENTIAL
+    &MGRID
+      COMMENSURATE
+      CUTOFF 25
+    &END MGRID
+    &QS
+    &END QS
+    &SCF
+      SCF_GUESS atomic
+    &END SCF
+    &XC
+      &XC_FUNCTIONAL pade
+      &END XC_FUNCTIONAL
+    &END XC
+  &END DFT
+  &MM
+    &FORCEFIELD
+      &CHARGE
+        ATOM NA
+        CHARGE 1.0000
+      &END CHARGE
+      &CHARGE
+        ATOM CL
+        CHARGE -1.0000
+      &END CHARGE
+      &NONBONDED
+        &LENNARD-JONES
+          atom NA NA
+          EPSILON 0.0
+          SIGMA 0.0
+          RCUT 5.0
+        &END LENNARD-JONES
+        &LENNARD-JONES
+          atom CL NA
+          EPSILON 0.0
+          SIGMA 0.0
+          RCUT 5.0
+        &END LENNARD-JONES
+        &LENNARD-JONES
+          atom CL CL
+          EPSILON 0.0
+          SIGMA 0.0
+          RCUT 5.0
+        &END LENNARD-JONES
+      &END NONBONDED
+    &END FORCEFIELD
+    &POISSON_MM
+      &EWALD
+        EWALD_TYPE ewald
+        ALPHA .44
+        GMAX 111
+      &END EWALD
+    &END POISSON_MM
+  &END MM
+  &QMMM
+    ABC_QM 17.320500 17.320500 17.320500
+    ECOUPL GAUSS
+    NOCOMPATIBILITY
+    USE_GEEP_LIB 6
+    &INTERPOLATOR
+      EPS_R 1.0e-14
+      EPS_X 1.0e-14
+      MAXITER 100
+    &END INTERPOLATOR
+    &MM_KIND NA
+      RADIUS 1.5875316249000
+    &END MM_KIND
+    &MM_KIND CL
+      RADIUS 1.5875316249000
+    &END MM_KIND
+    &PERIODIC
+      GMAX 0.5
+      &MULTIPOLE
+        EWALD_PRECISION 0.00000001
+        RCUT 8.0
+      &END MULTIPOLE
+    &END PERIODIC
+    &PRINT
+      &PERIODIC_INFO
+        PRINT SILENT
+      &END PERIODIC_INFO
+      &POTENTIAL
+        PRINT SILENT
+      &END POTENTIAL
+    &END PRINT
+    &QM_KIND NA
+      MM_INDEX 3
+    &END QM_KIND
+    &QM_KIND CL
+      MM_INDEX 2
+    &END QM_KIND
+  # 
+  # QM_KINDS
+  # 
+  # 
+  # 
+  &END QMMM
+  &SUBSYS
+    &CELL
+      ABC 17.320500 17.320500 17.320500
+      UNIT ANGSTROM
+    &END CELL
+    &COORD
+   NA        -8.660250   -8.660250   -8.660250
+   CL         0.000000    0.000000    0.000000
+   NA        -8.660250    0.000000    0.000000
+   CL         0.000000    8.660250    8.660250
+   NA         0.000000   -8.660250    0.000000
+   CL         8.660250    0.000000    8.660250
+   NA         0.000000    0.000000   -8.660250
+   CL         8.660250    8.660250    0.000000
+    &END COORD
+    &KIND NA
+      BASIS_SET SZV-GTH
+      POTENTIAL GTH-P-NOEL
+    &END KIND
+    &KIND CL
+      BASIS_SET SZV-GTH
+      POTENTIAL GTH-M-NOEL
+    &END KIND
+    &TOPOLOGY
+    &END TOPOLOGY
+  &END SUBSYS
 &END FORCE_EVAL
-
+&GLOBAL
+  FFTLIB FFTSG
+  PRINT_LEVEL MEDIUM
+  PROGRAM QMMM
+  PROJECT crystal
+  RUN_TYPE MD
+&END GLOBAL
+&MOTION
+  &MD
+    ENSEMBLE NVE
+    STEPS 2
+    TIMESTEP 0.5
+    TEMPERATURE 298
+    RESTART INIT
+  &END MD
+&END MOTION

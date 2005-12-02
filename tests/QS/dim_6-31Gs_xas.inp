@@ -1,95 +1,80 @@
-&CP2K
- PROGRAM      Quickstep
- PROJECT      xas_6-31Gs
- IOLEVEL      10
- FFTLIB       FFTSG
- RUN_TYPE     WFN_OPT
-&END 
-
-&IO
- BASIS_SET_FILE /users/marcella/basis/ALL_BASIS_SETS
- POTENTIAL_FILE /users/marcella/basis/POTENTIAL
-&END
-
-&DFT
- FUNCTIONAL   Blyp
- density_cutoff 1.0e-11
- LSD
-&END
-
-&QS
- METHOD       GAPW
- CUTOFF       280
- NGRID        1
- EPS_GVG      1.0E-8
- EPS_PGF_ORB  1.0E-8
- QUADRATURE   GC_LOG
- EPSFIT       1.E-4
- EPSISO       1.0E-12
- EPSRHO0      1.E-8
- LMAXN0       4
- LMAXN1       6
- ALPHA0_H     10
-&END
-
- ALPHA0_S
-&SCF
- GUESS        ATOMIC
- MIXING       0.4
- EPS_DIIS     0.4
- EPS_SCF      5.0E-7
- MAX_SCF      20
-&END
-
-  &PRINT MEDIUM
-    MO_EIGENVALUES
-  &END
 
 &FORCE_EVAL
-
   &DFT
+    LSD
+    BASIS_SET_FILE_NAME /users/marcella/basis/ALL_BASIS_SETS
+    POTENTIAL_FILE_NAME /users/marcella/basis/POTENTIAL
+    &MGRID
+      CUTOFF 280
+      NGRIDS 1
+    &END MGRID
+    &QS
+      ALPHA0_H 10
+      EPS_GVG 1.0E-8
+      EPS_PGF_ORB 1.0E-8
+      EPSFIT 1.E-4
+      EPSISO 1.0E-12
+      EPSRHO0 1.E-8
+      LMAXN0 4
+      LMAXN1 6
+      METHOD GAPW
+      QUADRATURE GC_LOG
+    &END QS
+    &SCF
+      EPS_DIIS 0.4
+      EPS_SCF 5.0E-7
+      MAX_SCF 20
+      MIXING 0.4
+      SCF_GUESS ATOMIC
+    &END SCF
     &XAS
+      ATOMS_LIST 1 4
       CONVERGENCE 0.00001
-      METHOD        TP_HH
-      MAXSTEP       40
-      EACH_STEP     1
-      STATE_TYPE    1s
-      STATE_SEARCH  10
-      FNAME         pippo
-      ATOMS_LIST    1 4
+      EACH_STEP 1
+      FNAME pippo
       LOCALIZE_WFN
-    &END
-  &END SECTION DFT
-
+      MAXSTEP 40
+      METHOD TP_HH
+      STATE_SEARCH 10
+      STATE_TYPE 1s
+    &END XAS
+    &XC
+      DENSITY_CUTOFF 1.0e-11
+      &XC_FUNCTIONAL Blyp
+      &END XC_FUNCTIONAL
+    &END XC
+  &END DFT
   &SUBSYS
     &CELL
-       UNIT   ANGSTROM
-       ABC   10.0   10.0    10.0 
+      ABC 10.0 10.0 10.0
+      UNIT ANGSTROM
     &END CELL
+    &COORD
+     O        -1.5574991518        5.5615110942        1.6017385036
+     H        -1.1071155404        4.9123357898        1.0055969642
+     H        -2.4841650102        5.5320929304        1.2848208725
+     O        -0.0936672407        3.6972834592       -0.0942506957
+     H         0.3514665955        3.1856287764        0.6144874465
+     H         0.6019083928        4.3150027824       -0.4056961815
+    &END COORD
+    &KIND O
+      BASIS_SET 6-31G*
+      LEBEDEV_GRID 70
+      POTENTIAL ALL
+      RADIAL_GRID 300
+    &END KIND
+    &KIND H
+      BASIS_SET 6-31G*
+      LEBEDEV_GRID 60
+      POTENTIAL ALL
+      RADIAL_GRID 300
+    &END KIND
   &END SUBSYS
 &END FORCE_EVAL
-
-
-&KIND O
-BASIS_SET  6-31G*
-POTENTIAL ALL
-LEBEDEV_GRID 70
-RADIAL_GRID 300
-&END
-
-&KIND  H
-BASIS_SET  6-31G*
-POTENTIAL  ALL
-LEBEDEV_GRID 60
-RADIAL_GRID 300
-&END
-
-
-&COORD
-  O        -1.5574991518        5.5615110942        1.6017385036
-  H        -1.1071155404        4.9123357898        1.0055969642
-  H        -2.4841650102        5.5320929304        1.2848208725
-  O        -0.0936672407        3.6972834592       -0.0942506957
-  H         0.3514665955        3.1856287764        0.6144874465
-  H         0.6019083928        4.3150027824       -0.4056961815
-&END
+&GLOBAL
+  FFTLIB FFTSG
+  PROGRAM Quickstep
+  PROJECT xas_6-31Gs
+  RUN_TYPE WFN_OPT
+  PRINT_LEVEL MEDIUM
+&END GLOBAL

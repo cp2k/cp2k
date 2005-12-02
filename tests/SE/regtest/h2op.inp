@@ -1,28 +1,30 @@
-&CP2K
- PROGRAM      Quickstep
- PROJECT      H2O
-&END
 
-&QS
- METHOD       AM1
-&END
-
-&DFT
-  LSD
-  CHARGE      1
-&END
-
-&SCF
- GUESS        ATOMIC
-&END
-
-&CELL
- UNIT         ANGSTROM
- ABC          20.0  20.0  20.0
-&END
-
-&COORD
-       O                  -.13219527     .00026095     .00000000
-       H                   .91780473     .00026095     .00000000
-       H                  1.18066235    -.00440322     .00000000
-&END
+&FORCE_EVAL
+  &DFT
+    CHARGE 1
+    LSD
+    &MGRID
+    &END MGRID
+    &QS
+      METHOD AM1
+    &END QS
+    &SCF
+      SCF_GUESS ATOMIC
+    &END SCF
+  &END DFT
+  &SUBSYS
+    &CELL
+      ABC 20.0 20.0 20.0
+      UNIT ANGSTROM
+    &END CELL
+    &COORD
+          O                  -.13219527     .00026095     .00000000
+          H                   .91780473     .00026095     .00000000
+          H                  1.18066235    -.00440322     .00000000
+    &END COORD
+  &END SUBSYS
+&END FORCE_EVAL
+&GLOBAL
+  PROGRAM Quickstep
+  PROJECT H2O
+&END GLOBAL

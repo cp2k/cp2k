@@ -1,126 +1,141 @@
-&CP2K  
-  PROGRAM   QMMM
-  PROJECT   water3
-  IOLEVEL   1
-  FFTLIB    FFTSG
-  RUN_TYPE   MD
-&END
-
-&PRINT MEDIUM
-&END
-
-&MD
-  ensemble:     nve                    ensemble type (nve,nvt,npt_i,npt_f)
-  steps:        2                     total number of steps
-  timestep:     0.5 fs                 time step [fs]
-  temperature:  298                    temperature [K]
-  restart:      init                   start type (init,pos,posvel)
-  print  files        100
-  print  screen       1
-&END
-
-&TOPOLOGY
- FORCEFIELD ON
-&END
-
-&EWALD
- units angstrom
- ewald_type ewald
- ewald_param .44 21 6
-&END
-
-&FORCE_FIELD
- charges
-   O -0.8476
-   H  0.4238
- end
- bonds
-  harmonic O H 0. 1.8
- end
- bends
-  harmonic H O H 0. 1.8
- end
- nonbonded
-  LENNARD-JONES O O 78.198 3.166 11.4
-  LENNARD-JONES O H 0.0 3.6705 11.4
-  LENNARD-JONES H H 0.0 3.30523 11.4
- end
-&END
-
-&CELL
- UNIT         ANGSTROM
- ABC          24.955 24.955 24.955
-&END
-
-&COORD
-O     0.000000     0.000000     0.000000    H2O1
-H     0.000000     0.000000     1.000000    H2O1
-H     0.942809     0.000000    -0.333333    H2O1
-O    -1.617979    -0.948062    -2.341650    H2O2
-H    -2.529195    -1.296822    -2.122437    H2O2
-H    -1.534288    -0.833088    -3.331486    H2O2
-O    -1.447990     2.117783     1.555094    H2O3
-H    -1.501128     2.645178     2.403050    H2O3
-H    -2.090603     1.352766     1.597519    H2O3
-&END
-
-&IO
- BASIS_SET_FILE GTH_BASIS_SETS
- POTENTIAL_FILE POTENTIAL
-&END
-
-&DFT
- FUNCTIONAL  pade
-&END
-
-&QS
- CUTOFF       50
- COMMENSURATE
-&END
-
-&SCF
- GUESS        atomic
-&END
-
-&KIND H
- BASIS_SET    SZV-GTH
- POTENTIAL    GTH-PADE-q1
-&END
-
-&KIND O
- BASIS_SET    SZV-GTH
- POTENTIAL    GTH-PADE-q6
-&END
 
 &FORCE_EVAL
-        &QMMM
-         NOCOMPATIBILITY
-         &INTERPOLATOR
-	    EPS_R 1.0e-14
-	    EPS_X 1.0e-14
-            MAXITER 100
-         &END INTERPOLATOR
-         ECOUPL GAUSS
-         ABC_QM  6.0 6.0 6.0
-         #
-         # QM_KINDS
-         #
-         &QM_KIND H
-          mm_index 2 3
-         &END QM_KIND
-         &QM_KIND O
-          mm_index 1
-         &END QM_KIND
-         #
-         # MM_KINDS
-         #
-         &MM_KIND H
-          radius 0.44
-         &END MM_KIND
-         &MM_KIND O
-          radius 0.78
-         &END MM_KIND
-         #
-        &END QMMM
+  &DFT
+    BASIS_SET_FILE_NAME GTH_BASIS_SETS
+    POTENTIAL_FILE_NAME POTENTIAL
+    &MGRID
+      COMMENSURATE
+      CUTOFF 50
+    &END MGRID
+    &QS
+    &END QS
+    &SCF
+      SCF_GUESS atomic
+    &END SCF
+    &XC
+      &XC_FUNCTIONAL pade
+      &END XC_FUNCTIONAL
+    &END XC
+  &END DFT
+  &MM
+    &FORCEFIELD
+      &BEND
+        ATOMS H O H
+        K 0.
+        THETA0 1.8
+      &END BEND
+      &BOND
+        ATOMS O H
+        K 0.
+        R0 1.8
+      &END BOND
+      &CHARGE
+        ATOM O
+        CHARGE -0.8476
+      &END CHARGE
+      &CHARGE
+        ATOM H
+        CHARGE 0.4238
+      &END CHARGE
+      &NONBONDED
+        &LENNARD-JONES
+          atom O O
+          EPSILON 78.198
+          SIGMA 3.166
+          RCUT 11.4
+        &END LENNARD-JONES
+        &LENNARD-JONES
+          atom O H
+          EPSILON 0.0
+          SIGMA 3.6705
+          RCUT 11.4
+        &END LENNARD-JONES
+        &LENNARD-JONES
+          atom H H
+          EPSILON 0.0
+          SIGMA 3.30523
+          RCUT 11.4
+        &END LENNARD-JONES
+      &END NONBONDED
+    &END FORCEFIELD
+    &POISSON_MM
+      &EWALD
+        EWALD_TYPE ewald
+        ALPHA .44
+        GMAX 21
+      &END EWALD
+    &END POISSON_MM
+  &END MM
+  &QMMM
+    ABC_QM 6.0 6.0 6.0
+    ECOUPL GAUSS
+    NOCOMPATIBILITY
+    &INTERPOLATOR
+      EPS_R 1.0e-14
+      EPS_X 1.0e-14
+      MAXITER 100
+    &END INTERPOLATOR
+    &MM_KIND H
+      RADIUS 0.44
+    &END MM_KIND
+    &MM_KIND O
+      RADIUS 0.78
+    &END MM_KIND
+    &QM_KIND H
+      MM_INDEX 2 3
+    &END QM_KIND
+    &QM_KIND O
+      MM_INDEX 1
+    &END QM_KIND
+  # 
+  # QM_KINDS
+  # 
+  # 
+  # MM_KINDS
+  # 
+  # 
+  &END QMMM
+  &SUBSYS
+    &CELL
+      ABC 24.955 24.955 24.955
+      UNIT ANGSTROM
+    &END CELL
+    &COORD
+   O     0.000000     0.000000     0.000000    H2O1
+   H     0.000000     0.000000     1.000000    H2O1
+   H     0.942809     0.000000    -0.333333    H2O1
+   O    -1.617979    -0.948062    -2.341650    H2O2
+   H    -2.529195    -1.296822    -2.122437    H2O2
+   H    -1.534288    -0.833088    -3.331486    H2O2
+   O    -1.447990     2.117783     1.555094    H2O3
+   H    -1.501128     2.645178     2.403050    H2O3
+   H    -2.090603     1.352766     1.597519    H2O3
+    &END COORD
+    &KIND H
+      BASIS_SET SZV-GTH
+      POTENTIAL GTH-PADE-q1
+    &END KIND
+    &KIND O
+      BASIS_SET SZV-GTH
+      POTENTIAL GTH-PADE-q6
+    &END KIND
+    &TOPOLOGY
+    &END TOPOLOGY
+  &END SUBSYS
 &END FORCE_EVAL
-
+&GLOBAL
+  FFTLIB FFTSG
+  PRINT_LEVEL MEDIUM
+  PROGRAM QMMM
+  PROJECT water3
+  RUN_TYPE MD
+&END GLOBAL
+&MOTION
+  &MD
+    ENSEMBLE NVE
+    STEPS 2
+    TIMESTEP 0.5
+    TEMPERATURE 298
+    RESTART INIT
+  &END MD
+&END MOTION

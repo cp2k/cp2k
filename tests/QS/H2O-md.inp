@@ -1,69 +1,71 @@
-&CP2K
- PROGRAM      Quickstep
- PROJECT      H2O-md
- IOLEVEL      10
- FFTLIB       FFTSG
- RUN_TYPE     MD
-&END
 
-&PRINT low
-&END
-
-&MD
-  ensemble:     nvt                    (nve,nvt,npt_i,npt_f)
-  steps:        5
-  timestep:     0.5 fs                     time step [fs]
-  temperature:  300.0                   temperature [K]
-  restart:      init                    start type (pos,posvel)
-  constraints:  off
-  shake:        1.e-10
-  nose_parameter   &
-    length:    3        &
-    Yoshida:   3        &
-    timecon:   1000. fs    &
-    mts:       2
-&END
-
-&DFT
-FUNCTIONAL    Pade
-&END
-
-&CELL
- UNIT         ANGSTROM
- ABC          6.000  6.000  6.000
-&END
-
-&QS
- NGRID        4
- CUTOFF       200
- REL_CUTOFF   20
- EPS_DEFAULT  1.0E-12
- EPS_GVG      1.0E-6
- EPS_PGF_ORB  1.0E-6
-&END
-
-&SCF
- GUESS        atomic
- MAX_SCF      150 
- EPS_SCF      1.0E-6
-&END
-
-&KIND O
- BASIS_SET    DZVP-GTH-PADE
- POTENTIAL    GTH-PADE-q6
-&END
-
-&KIND H
- BASIS_SET    DZVP-GTH-PADE
- POTENTIAL    GTH-PADE-q1
-&END
-
-
-&COORD
- O   -4.583297689         5.333952476         1.560053386
- O   -4.583297689         8.333952476         1.560053386
- H   -3.777665523         5.331555748        0.9431994470
- H   -5.081559801         4.589889965         1.176941208
- H   -3.777665523         8.331555748        0.9431994470
- H   -5.081559801         7.589889965         1.176941208
-&END
+&FORCE_EVAL
+  &DFT
+    &MGRID
+      CUTOFF 200
+      NGRIDS 4
+      REL_CUTOFF 20
+    &END MGRID
+    &QS
+      EPS_DEFAULT 1.0E-12
+      EPS_GVG 1.0E-6
+      EPS_PGF_ORB 1.0E-6
+    &END QS
+    &SCF
+      EPS_SCF 1.0E-6
+      MAX_SCF 150
+      SCF_GUESS atomic
+    &END SCF
+    &XC
+      &XC_FUNCTIONAL Pade
+      &END XC_FUNCTIONAL
+    &END XC
+  &END DFT
+  &SUBSYS
+    &CELL
+      ABC 6.000 6.000 6.000
+      UNIT ANGSTROM
+    &END CELL
+    &CONSTRAINT
+      SHAKE 1.E-10
+    &END CONSTRAINT
+    &COORD
+    O   -4.583297689         5.333952476         1.560053386
+    O   -4.583297689         8.333952476         1.560053386
+    H   -3.777665523         5.331555748        0.9431994470
+    H   -5.081559801         4.589889965         1.176941208
+    H   -3.777665523         8.331555748        0.9431994470
+    H   -5.081559801         7.589889965         1.176941208
+    &END COORD
+    &KIND O
+      BASIS_SET DZVP-GTH-PADE
+      POTENTIAL GTH-PADE-q6
+    &END KIND
+    &KIND H
+      BASIS_SET DZVP-GTH-PADE
+      POTENTIAL GTH-PADE-q1
+    &END KIND
+  &END SUBSYS
+&END FORCE_EVAL
+&GLOBAL
+  FFTLIB FFTSG
+  PROGRAM Quickstep
+  PROJECT H2O-md
+  RUN_TYPE MD
+  PRINT_LEVEL LOW
+&END GLOBAL
+&MOTION
+  &MD
+    ENSEMBLE NVT
+    STEPS 5
+    TIMESTEP 0.5
+    TEMPERATURE 300.0
+    RESTART INIT
+    &NOSE
+      LENGTH 3
+      YOSHIDA 3
+      TIMECON 1000.
+      MTS 2
+    &END NOSE
+  &END MD
+&END MOTION

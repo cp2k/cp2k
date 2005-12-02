@@ -1,72 +1,92 @@
-&CP2K  
-  PROGRAM   FIST
-  PROJECT   IPBV
-  IOLEVEL   1
-  FFTLIB    FFTW
-  RUN_TYPE  MD
-&END
 
-&MD
-  ensemble:     npt_i                    ensemble type (nve,nvt,npt_i,npt_f)
-  steps:        3000                   total number of steps
-  timestep:     2.5 fs                 time step [fs]
-  temperature:  298                    temperature [K]
-  restart:      all                   start type (init,pos,posvel)
-  constraints   on 
-  nose_parameter:   &
-    length:    3        &
-    Yoshida:   3        &
-    timecon:   1000 fs  &
-    mts:       2
-  barostat_parameter:   &
-    pressure: 0.        &
-    timecon: 1000 fs
-  print  files        10
-  print  screen       10
-&END
-
-&TOPOLOGY
- coord_file     ipbv.pdb
- coordinate     pdb
- connectivity   PSF
- CONN_FILE      ipbv.psf
- NHCOPT MOLECULE
-&END
- DUMP_TOP
- 
-&EWALD
- units angstrom
- ewald_type spme
- ewald_param .44 25 4
-&END
-
-&CONSTRAINTS
-   g3x3 add 1 1 2 3 1.87366 1.87366 2.982877
-&END
-
-&FORCE_FIELD
- charges
-   O -0.7699784
-   H  0.3849892
- end
- bonds
-  harmonic  O H 0.0 0.0
- end 
- bends
-  harmonic H O H 0. 1.8
- end
- nonbonded
-  IPBV O O 7.8
-  IPBV H O 7.8
-  IPBV H H 7.8
- end
-&END
-
-&CELL
- UNIT         ANGSTROM
- ABC          24.955 24.955 24.955
-&END
-
-&PRINT
- no_atomic_coordinates
-&END
+&FORCE_EVAL
+  &MM
+    &FORCEFIELD
+      &BEND
+        ATOMS H O H
+        K 0.
+        THETA0 1.8
+      &END BEND
+      &BOND
+        ATOMS O H
+        K 0.0
+        R0 0.0
+      &END BOND
+      &CHARGE
+        ATOM O
+        CHARGE -0.7699784
+      &END CHARGE
+      &CHARGE
+        ATOM H
+        CHARGE 0.3849892
+      &END CHARGE
+      &NONBONDED
+        &IPBV
+          atom O O
+          RCUT 7.8
+        &END IPBV
+        &IPBV
+          atom H O
+          RCUT 7.8
+        &END IPBV
+        &IPBV
+          atom H H
+          RCUT 7.8
+        &END IPBV
+      &END NONBONDED
+    &END FORCEFIELD
+    &POISSON_MM
+      &EWALD
+        EWALD_TYPE spme
+        ALPHA .44
+        GMAX 25
+        O_SPLINE 4
+      &END EWALD
+    &END POISSON_MM
+  &END MM
+  &SUBSYS
+    &CELL
+      ABC 24.955 24.955 24.955
+      UNIT ANGSTROM
+    &END CELL
+    &CONSTRAINT
+      &G3X3
+        DISTANCES 1.87366 1.87366 2.982877
+        MOLECULE 1
+        ATOMS 1 2 3
+      &END G3X3
+    &END CONSTRAINT
+    &TOPOLOGY
+      CONN_FILE ipbv.psf
+      CONNECTIVITY PSF
+      COORD_FILE ipbv.pdb
+      COORDINATE pdb
+      NHCOPT MOLECULE
+    &END TOPOLOGY
+  &END SUBSYS
+&END FORCE_EVAL
+&GLOBAL
+  FFTLIB FFTW
+  PROGRAM FIST
+  PROJECT IPBV
+  RUN_TYPE MD
+&END GLOBAL
+&MOTION
+  &MD
+    ENSEMBLE NPT_I
+    STEPS 3000
+    TIMESTEP 2.5
+    TEMPERATURE 298
+    RESTART ALL
+    &BAROSTAT
+      PRESSURE 0.
+      TIMECON 1000
+    &END BAROSTAT
+    &NOSE
+      LENGTH 3
+      YOSHIDA 3
+      TIMECON 1000
+      MTS 2
+    &END NOSE
+  &END MD
+&END MOTION

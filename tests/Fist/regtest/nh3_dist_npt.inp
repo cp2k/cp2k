@@ -1,63 +1,92 @@
-&CP2K  
-  PROGRAM   FIST
-  PROJECT   NH3
-  IOLEVEL   1
-  FFTLIB    FFTSG
-  RUN_TYPE  MD
-&END
 
-&PRINT LOW
- no_atomic_coordinates
-&END
-
-&MD
-  ensemble:     npt_i                  ensemble type (nve,nvt,npt_i,npt_f)
-  steps:        5                     total number of steps
-  timestep:     2.5 fs                 time step [fs]
-  temperature:  298                    temperature [K]
-  restart:      init                   start type (init,pos,posvel)
-  constraints   on 
-  nose_parameter:   &
-    length:    1        &
-    Yoshida:   3        &
-    timecon:   500 fs  &
-    mts:       2
-  print  files       10
-  print  screen      1
-&END
-
-&TOPOLOGY
- COORDINATE      PDB
- COORD_FILE_NAME ../sample_pdb/NH3.pdb
- NHCOPT          MOLECULE
-&END
-
-&EWALD
- units angstrom
- ewald_type ewald
- ewald_param .5 21 4
-&END
-
-&CONSTRAINTS
-  dist add 1 1 2  1.9275
-  dist add 1 1 3  1.9275
-  dist add 1 1 4  1.9275
-  dist add 1 2 3  3.1483
-  dist add 1 2 4  3.1483
-  dist add 1 3 4  3.1483
-&END
-
-&FORCE_FIELD
-RCUT_NB  6.9
-charges
-  NH3 -1.14
-   HC  0.38
- end
- PARMFILE CHM charmm.pot
-&END
-
-&CELL
- UNIT         ANGSTROM
- ABC          13.858 13.858 13.858
-&END
-
+&FORCE_EVAL
+  &MM
+    &FORCEFIELD
+      rcut_nb 6.9
+      parmfile charmm.pot
+      parmtype CHM
+      &CHARGE
+        ATOM NH3
+        CHARGE -1.14
+      &END CHARGE
+      &CHARGE
+        ATOM HC
+        CHARGE 0.38
+      &END CHARGE
+    &END FORCEFIELD
+    &POISSON_MM
+      &EWALD
+        EWALD_TYPE ewald
+        ALPHA .5
+        GMAX 21
+      &END EWALD
+    &END POISSON_MM
+  &END MM
+  &SUBSYS
+    &CELL
+      ABC 13.858 13.858 13.858
+      UNIT ANGSTROM
+    &END CELL
+    &CONSTRAINT
+      &INTERNALS
+        &DISTANCE
+          DISTANCE 1.9275
+          MOLECULE 1
+          ATOMS 1 2
+        &END DISTANCE
+        &DISTANCE
+          DISTANCE 1.9275
+          MOLECULE 1
+          ATOMS 1 3
+        &END DISTANCE
+        &DISTANCE
+          DISTANCE 1.9275
+          MOLECULE 1
+          ATOMS 1 4
+        &END DISTANCE
+        &DISTANCE
+          DISTANCE 3.1483
+          MOLECULE 1
+          ATOMS 2 3
+        &END DISTANCE
+        &DISTANCE
+          DISTANCE 3.1483
+          MOLECULE 1
+          ATOMS 2 4
+        &END DISTANCE
+        &DISTANCE
+          DISTANCE 3.1483
+          MOLECULE 1
+          ATOMS 3 4
+        &END DISTANCE
+      &END INTERNALS
+    &END CONSTRAINT
+    &TOPOLOGY
+      COORD_FILE_NAME ../sample_pdb/NH3.pdb
+      COORDINATE PDB
+      NHCOPT MOLECULE
+    &END TOPOLOGY
+  &END SUBSYS
+&END FORCE_EVAL
+&GLOBAL
+  FFTLIB FFTSG
+  PRINT_LEVEL LOW
+  PROGRAM FIST
+  PROJECT NH3
+  RUN_TYPE MD
+&END GLOBAL
+&MOTION
+  &MD
+    ENSEMBLE NPT_I
+    STEPS 5
+    TIMESTEP 2.5
+    TEMPERATURE 298
+    RESTART INIT
+    &NOSE
+      LENGTH 1
+      YOSHIDA 3
+      TIMECON 500
+      MTS 2
+    &END NOSE
+  &END MD
+&END MOTION

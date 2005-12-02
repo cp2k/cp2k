@@ -1,48 +1,44 @@
-&CP2K
- PROGRAM      Quickstep
- PROJECT      molecular_states
- IOLEVEL      10
- FFTLIB       FFTSG
-&END
 
-&TOPOL
- connectivity   generate
- coord_file     sample_pdb/water_32.pdb
- coordinate     pdb
-&END
-
-
-&DFT
- FUNCTIONAL   Pade
-&END
-
-&QS
- CUTOFF       200
-&END
-
-&SCF
- GUESS        ATOMIC
- MIXING       0.4
- EPS_SCF      1.0E-5
-&END
-
-&PRINT MEDIUM
- LOCALIZATION
- MOLECULAR_STATES
-&END
- DISTRIBUTION
-
-&KIND H
- BASIS_SET    DZV-GTH-PADE
- POTENTIAL    GTH-PADE-q1
-&END
-
-&KIND O
- BASIS_SET    DZVP-GTH-PADE
- POTENTIAL    GTH-PADE-q6
-&END
-
-&CELL
- UNIT         ANGSTROM
- ABC          9.865 9.865 9.865
-&END
+&FORCE_EVAL
+  &DFT
+    &MGRID
+      CUTOFF 200
+    &END MGRID
+    &QS
+    &END QS
+    &SCF
+      EPS_SCF 1.0E-5
+      MIXING 0.4
+      SCF_GUESS ATOMIC
+    &END SCF
+    &XC
+      &XC_FUNCTIONAL Pade
+      &END XC_FUNCTIONAL
+    &END XC
+  &END DFT
+  &SUBSYS
+    &CELL
+      ABC 9.865 9.865 9.865
+      UNIT ANGSTROM
+    &END CELL
+    &KIND H
+      BASIS_SET DZV-GTH-PADE
+      POTENTIAL GTH-PADE-q1
+    &END KIND
+    &KIND O
+      BASIS_SET DZVP-GTH-PADE
+      POTENTIAL GTH-PADE-q6
+    &END KIND
+    &TOPOLOGY
+      CONNECTIVITY generate
+      COORD_FILE sample_pdb/water_32.pdb
+      COORDINATE pdb
+    &END TOPOLOGY
+  &END SUBSYS
+&END FORCE_EVAL
+&GLOBAL
+  FFTLIB FFTSG
+  PROGRAM Quickstep
+  PROJECT molecular_states
+  PRINT_LEVEL MEDIUM
+&END GLOBAL

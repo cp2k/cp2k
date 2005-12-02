@@ -1,125 +1,123 @@
-&CP2K  
-  PROGRAM   QMMM
-  PROJECT   undecane
-  IOLEVEL   1
-  FFTLIB    FFTSG
-  RUN_TYPE  GEO_OPT
-&END
-
-&PRINT MEDIUM
-&END
-
-&GEOOPT
- OPTIMIZER BFGS
- MAX_ITER  0
-&END
-
-
-&TOPOLOGY
- coord_file     C11H24.pdb
- coordinate     pdb
- CHARGE_BETA
-&END
-
-&EWALD
- units angstrom
- ewald_type spme
- ewald_param .44 24 6
-&END
-
-&FORCE_FIELD
- PARMFILE CHM butane.pot
-&END
-
-&CELL
- UNIT         ANGSTROM
- ABC          15.0 15.0 15.0
-&END
-
-&IO
- BASIS_SET_FILE GTH_BASIS_SETS
- POTENTIAL_FILE POTENTIAL
- MM_POTENTIAL_FILE MM_POTENTIAL
-&END
-
-&DFT
- FUNCTIONAL  pade
-&END
-
-&QS
- CUTOFF       50
- COMMENSURATE
-&END
-
-&SCF
- GUESS        atomic
-&END
-
-&KIND H
- BASIS_SET    SZV-GTH
- POTENTIAL    GTH-PADE-q1
-&END
-
-&KIND C
- BASIS_SET    SZV-GTH
- POTENTIAL    GTH-PADE-q4
-&END
 
 &FORCE_EVAL
-        &QMMM
-         NOCOMPATIBILITY
-         &INTERPOLATOR
-	    EPS_R 1.0e-14
-	    EPS_X 1.0e-14
-            MAXITER 100
-         &END INTERPOLATOR
-         ECOUPL GAUSS
-         ABC_QM  10.0 10.0 10.0
-         #
-         # QM_KINDS
-         #
-         &QM_KIND C
-          mm_index   14 17 20 23
-         &END QM_KIND
-         &QM_KIND H
-          mm_index  15 16 18 19 21 22 24 25
-         &END QM_KIND
-         #
-         # MM_KINDS
-         #
-         &MM_KIND CTL2
-          radius 0.78
-         &END MM_KIND
-         &MM_KIND CTL3
-          radius 0.78
-         &END MM_KIND
-         &MM_KIND HAL2
-          radius 0.78
-         &END MM_KIND
-         &MM_KIND HAL3
-          radius 0.78
-         &END MM_KIND
-         #
-         # LINKS
-         # 
-         &LINK
-          LINK_TYPE IMOMM
-          QM_INDEX 14
-          MM_INDEX 11
-          ALPHA  1.50
-          QMMM_SCALE_FACTOR 0.0
-          FIST_SCALE_FACTOR 0.0
-          RADIUS 0.80
-         &END LINK
-         &LINK
-          LINK_TYPE IMOMM
-          QM_INDEX 23
-          MM_INDEX 26
-          ALPHA  1.50
-          QMMM_SCALE_FACTOR 0.0
-          FIST_SCALE_FACTOR 0.0
-          RADIUS 0.80
-         &END LINK
-         #
-        &END QMMM
+  &DFT
+    BASIS_SET_FILE_NAME GTH_BASIS_SETS
+    POTENTIAL_FILE_NAME POTENTIAL
+    &MGRID
+      COMMENSURATE
+      CUTOFF 50
+    &END MGRID
+    &QS
+    &END QS
+    &SCF
+      SCF_GUESS atomic
+    &END SCF
+    &XC
+      &XC_FUNCTIONAL pade
+      &END XC_FUNCTIONAL
+    &END XC
+  &END DFT
+  &MM
+    &FORCEFIELD
+      parmfile butane.pot
+      parmtype CHM
+    &END FORCEFIELD
+    &POISSON_MM
+      &EWALD
+        EWALD_TYPE spme
+        ALPHA .44
+        GMAX 24
+        O_SPLINE 6
+      &END EWALD
+    &END POISSON_MM
+  &END MM
+  &QMMM
+    ABC_QM 10.0 10.0 10.0
+    ECOUPL GAUSS
+    NOCOMPATIBILITY
+    MM_POTENTIAL_FILE_NAME MM_POTENTIAL
+    &INTERPOLATOR
+      EPS_R 1.0e-14
+      EPS_X 1.0e-14
+      MAXITER 100
+    &END INTERPOLATOR
+    &LINK
+      ALPHA 1.50
+      FIST_SCALE_FACTOR 0.0
+      LINK_TYPE IMOMM
+      MM_INDEX 11
+      QM_INDEX 14
+      QMMM_SCALE_FACTOR 0.0
+      RADIUS 0.80
+    &END LINK
+    &LINK
+      ALPHA 1.50
+      FIST_SCALE_FACTOR 0.0
+      LINK_TYPE IMOMM
+      MM_INDEX 26
+      QM_INDEX 23
+      QMMM_SCALE_FACTOR 0.0
+      RADIUS 0.80
+    &END LINK
+    &MM_KIND CTL2
+      RADIUS 0.78
+    &END MM_KIND
+    &MM_KIND CTL3
+      RADIUS 0.78
+    &END MM_KIND
+    &MM_KIND HAL2
+      RADIUS 0.78
+    &END MM_KIND
+    &MM_KIND HAL3
+      RADIUS 0.78
+    &END MM_KIND
+    &QM_KIND C
+      MM_INDEX 14 17 20 23
+    &END QM_KIND
+    &QM_KIND H
+      MM_INDEX 15 16 18 19 21 22 24 25
+    &END QM_KIND
+  # 
+  # QM_KINDS
+  # 
+  # 
+  # MM_KINDS
+  # 
+  # 
+  # LINKS
+  # 
+  # 
+  &END QMMM
+  &SUBSYS
+    &CELL
+      ABC 15.0 15.0 15.0
+      UNIT ANGSTROM
+    &END CELL
+    &KIND H
+      BASIS_SET SZV-GTH
+      POTENTIAL GTH-PADE-q1
+    &END KIND
+    &KIND C
+      BASIS_SET SZV-GTH
+      POTENTIAL GTH-PADE-q4
+    &END KIND
+    &TOPOLOGY
+      CHARGE_BETA
+      COORD_FILE C11H24.pdb
+      COORDINATE pdb
+    &END TOPOLOGY
+  &END SUBSYS
 &END FORCE_EVAL
+&GLOBAL
+  FFTLIB FFTSG
+  PRINT_LEVEL MEDIUM
+  PROGRAM QMMM
+  PROJECT undecane
+  RUN_TYPE GEO_OPT
+&END GLOBAL
+&MOTION
+  &GEOOPT
+    MAX_ITER 0
+    OPTIMIZER BFGS
+  &END GEOOPT
+&END MOTION

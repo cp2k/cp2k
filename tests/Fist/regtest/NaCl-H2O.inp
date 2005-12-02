@@ -1,48 +1,59 @@
-&CP2K  
-  PROGRAM   FIST
-  PROJECT   MYMOL
-  IOLEVEL   1
-  FFTLIB    FFTW
-  RUN_TYPE  MD
-&END
 
-&MD
-  ensemble:     nve                    ensemble type (nve,nvt,npt_i,npt_f)
-  steps:        5                      total number of steps
-  timestep:     0.5 fs                 time step [fs]
-  temperature:  298                    temperature [K]
-  temp_t: 10
-  restart:      init                   start type (init,pos,posvel)
-  constraints   on
-  print  files        1
-  print  screen       1
-&END
-
-&TOPOLOGY
- FORCEFIELD ON
- COORD_FILE     ../sample_pdb/NaCl-H2O.pdb
- COORDINATE     PDB
- CONNECTIVITY   PSF
- CONN_FILE      NaCl-H2O.psf
-&END
-
-&EWALD
- units angstrom
- ewald_type spme
- ewald_param .44 60 6
-&END
-
-&FORCE_FIELD
- PARMFILE CHM ../sample_pot/NaCl-H2O.pot
- nonbonded
-  BMHFT  Na+  Na+  11.0
-  BMHFT  Cl-  Na+  11.0
-  BMHFT  Cl-  Cl-  11.0
- end
-&END
-
-&CELL
- UNIT         ANGSTROM
- ABC          10.5375 10.5375 30.000
-&END
-
+&FORCE_EVAL
+  &MM
+    &FORCEFIELD
+      parmfile ../sample_pot/NaCl-H2O.pot
+      parmtype CHM
+      &NONBONDED
+        &BMHFT
+          atom Na+ Na+
+          RCUT 11.0
+        &END BMHFT
+        &BMHFT
+          atom Cl- Na+
+          RCUT 11.0
+        &END BMHFT
+        &BMHFT
+          atom Cl- Cl-
+          RCUT 11.0
+        &END BMHFT
+      &END NONBONDED
+    &END FORCEFIELD
+    &POISSON_MM
+      &EWALD
+        EWALD_TYPE spme
+        ALPHA .44
+        GMAX 60
+        O_SPLINE 6
+      &END EWALD
+    &END POISSON_MM
+  &END MM
+  &SUBSYS
+    &CELL
+      ABC 10.5375 10.5375 30.000
+      UNIT ANGSTROM
+    &END CELL
+    &TOPOLOGY
+      CONN_FILE NaCl-H2O.psf
+      CONNECTIVITY PSF
+      COORD_FILE ../sample_pdb/NaCl-H2O.pdb
+      COORDINATE PDB
+    &END TOPOLOGY
+  &END SUBSYS
+&END FORCE_EVAL
+&GLOBAL
+  FFTLIB FFTW
+  PROGRAM FIST
+  PROJECT MYMOL
+  RUN_TYPE MD
+&END GLOBAL
+&MOTION
+  &MD
+    ENSEMBLE NVE
+    STEPS 5
+    TIMESTEP 0.5
+    TEMPERATURE 298
+    TEMP_TOL 10
+    RESTART INIT
+  &END MD
+&END MOTION

@@ -1,61 +1,59 @@
-&CP2K
- PROGRAM      Quickstep
- PROJECT      H2O-md
- IOLEVEL      10
- FFTLIB       FFTW
- RUN_TYPE     MD
-&END
 
-
-&MD
-  ensemble:     nve                    (nve,nvt,npt_i,npt_f)
-  steps:        100
-  timestep:     0.1                       time step [fs]
-  temperature:  300.0                      temperature [K]
-  restart:      init                      start type (pos,posvel)
-  constraints:  off
-  shake:        1.e-10
-  print  files          10
-  print  screen         10
-&END
-
-&DFT
- FUNCTIONAL   pade
-&END
-
-&QS
- CUTOFF       300
- EPS_DEFAULT  1.0E-14
- EPS_GVG      1.0E-8
- EPS_PGF_ORB  1.0E-8
-&END
-
-&SCF
- GUESS        ATOMIC
- MIXING       0.4
- EPS_DIIS     0.4
- EPS_SCF      3.0E-8
-&END
-
-&PRINT low
- COORDINATES
-&END
-
-&KIND H
- BASIS_SET    DZVP-GTH-PADE
- POTENTIAL    GTH-PADE-q1
-&END
-
-&KIND O
- BASIS_SET    DZVP-GTH-PADE
- POTENTIAL    GTH-PADE-q6
-&END
-
-&CELL
- ABC          4.0  4.0  4.0
-&END
-
-&COORD 
- H   0.000000   0.0 0.85
- H   0.000000   0.0 0.0
-&END
+&FORCE_EVAL
+  &DFT
+    &MGRID
+      CUTOFF 300
+    &END MGRID
+    &QS
+      EPS_DEFAULT 1.0E-14
+      EPS_GVG 1.0E-8
+      EPS_PGF_ORB 1.0E-8
+    &END QS
+    &SCF
+      EPS_DIIS 0.4
+      EPS_SCF 3.0E-8
+      MIXING 0.4
+      SCF_GUESS ATOMIC
+    &END SCF
+    &XC
+      &XC_FUNCTIONAL pade
+      &END XC_FUNCTIONAL
+    &END XC
+  &END DFT
+  &SUBSYS
+    &CELL
+      ABC 4.0 4.0 4.0
+    &END CELL
+    &CONSTRAINT
+      SHAKE 1.E-10
+    &END CONSTRAINT
+    &COORD
+    H   0.000000   0.0 0.85
+    H   0.000000   0.0 0.0
+    &END COORD
+    &KIND H
+      BASIS_SET DZVP-GTH-PADE
+      POTENTIAL GTH-PADE-q1
+    &END KIND
+    &KIND O
+      BASIS_SET DZVP-GTH-PADE
+      POTENTIAL GTH-PADE-q6
+    &END KIND
+  &END SUBSYS
+&END FORCE_EVAL
+&GLOBAL
+  FFTLIB FFTW
+  PROGRAM Quickstep
+  PROJECT H2O-md
+  RUN_TYPE MD
+  PRINT_LEVEL LOW
+&END GLOBAL
+&MOTION
+  &MD
+    ENSEMBLE NVE
+    STEPS 100
+    TIMESTEP 0.1
+    TEMPERATURE 300.0
+    RESTART INIT
+  &END MD
+&END MOTION

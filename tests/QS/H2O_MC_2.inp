@@ -1,75 +1,65 @@
-&CP2K
- PROGRAM      Quickstep
- PROJECT      H2O_MC
- IOLEVEL      0
- FFTLIB       FFTSG
- RUN_TYPE     MC
-&END
 
-&PRINT silent
-&END
-
-&MC
-  program:      traditional                        (traditional)
-  nstep:        4
-  lstop:        yes                         (yes or no)
-  rmion:        0.2                        (a.u.)
-  rmtrans:      0.2                        (a.u.)
-  rmrot:        0.4                        (radians)
-  rmvolume:     1.0                        (cubic a.u.)
-  nchain:       2
-  nunits:       3
-  iupvolume:    10
-  iuptrans:     10
-  pmvolume:     0.00
-  pmtraion:     0.33
-  pmtrans:      0.67
-  temp:         300.0
-&END
-
-&DFT
- FUNCTIONAL   Pade
-&END
-
-&QS
- CUTOFF       200
-&END
-
-&SCF
- GUESS        ATOMIC
-&END
-
-&PRINT low
-&END
-
-&KIND H
- BASIS_SET    DZVP-GTH-PADE
- POTENTIAL    GTH-PADE-q1
-&END
-
-&KIND O
- BASIS_SET    DZVP-GTH-PADE
- POTENTIAL    GTH-PADE-q6
-&END
-
-&MOLECULE H2O
-ATOMS
- O Ow
- H Hw1
- H Hw2
-END
-&END
-
-&CELL
- UNIT         ANGSTROM
- ABC          3.9  3.9  3.9
-&END
-
-&COORD 
-O    0.000000000         0.000000000         0.000000000 H2O
-H    0.921645314         0.000000000        -0.252880139 H2O
-H   -0.229129946         0.926630000         0.000000000 H2O
-O    1.900000000         0.000000000         0.000000000 H2O
-H    2.857200000         0.000000000         0.000000000 H2O
-H    1.660010000         0.926630000         0.000000000 H2O
-&END
+&FORCE_EVAL
+  &DFT
+    &MGRID
+      CUTOFF 200
+    &END MGRID
+    &QS
+    &END QS
+    &SCF
+      SCF_GUESS ATOMIC
+    &END SCF
+    &XC
+      &XC_FUNCTIONAL Pade
+      &END XC_FUNCTIONAL
+    &END XC
+  &END DFT
+  &SUBSYS
+    &CELL
+      ABC 3.9 3.9 3.9
+      UNIT ANGSTROM
+    &END CELL
+    &COORD
+   O    0.000000000         0.000000000         0.000000000 H2O
+   H    0.921645314         0.000000000        -0.252880139 H2O
+   H   -0.229129946         0.926630000         0.000000000 H2O
+   O    1.900000000         0.000000000         0.000000000 H2O
+   H    2.857200000         0.000000000         0.000000000 H2O
+   H    1.660010000         0.926630000         0.000000000 H2O
+    &END COORD
+    &KIND H
+      BASIS_SET DZVP-GTH-PADE
+      POTENTIAL GTH-PADE-q1
+    &END KIND
+    &KIND O
+      BASIS_SET DZVP-GTH-PADE
+      POTENTIAL GTH-PADE-q6
+    &END KIND
+  &END SUBSYS
+&END FORCE_EVAL
+&GLOBAL
+  FFTLIB FFTSG
+  PROGRAM Quickstep
+  PROJECT H2O_MC
+  RUN_TYPE MC
+  PRINT_LEVEL LOW
+&END GLOBAL
+&MOTION
+  &MC
+    IUPTRANS 10
+    IUPVOLUME 10
+    LSTOP yes
+    NCHAIN 2
+    NSTEP 4
+    NUNITS 3
+    PMTRAION 0.33
+    PMTRANS 0.67
+    PMVOLUME 0.00
+    PROGRAM traditional
+    RMION 0.2
+    RMROT 0.4
+    RMTRANS 0.2
+    RMVOLUME 1.0
+    TEMP 300.0
+  &END MC
+&END MOTION

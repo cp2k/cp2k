@@ -1,133 +1,113 @@
-&GLOBAL
- PROGRAM      Quickstep
- PROJECT      H2O
- PRINT_LEVEL  LOW
- FFTLIB       FFTSG
-&END global
 
 &FORCE_EVAL
- &DFT
-  BASIS_SET_FILE_NAME ../BASISSET
-  &SCF
-   MAX_SCF 100
-   EPS_SCF 1.e-6
-  &END SECTION SCF
-  &XC
-   &GRID
-    xc_deriv SPLINE2
-   &END section GRID
-   &XC_FUNCTIONAL
-    &BECKE88
-    &END
-    &LYP
-    &END
-   &END SECTION XC_FUNCTIONAL
-  &END SECTION XC
-  #&qs
-  #&tddfpt
- &END DFT
- &SUBSYS
-  #cell
-  #topology
-  #kind
-  #coord
- &END
- #&mm &fist
- #&qmmm
- #&metadyn
+  &DFT
+    BASIS_SET_FILE_NAME GTH_BASIS_SETS
+    POTENTIAL_FILE_NAME POTENTIAL
+    &MGRID
+      CUTOFF 250 # 5000
+      REL_CUTOFF 30
+    &END MGRID
+    &QS
+    &END QS
+    &SCF
+      SCF_GUESS restart
+    # MAX_SCF 1
+    # OT
+    &END SCF
+    &XC
+      DENSITY_CUTOFF 1.e-9
+      DENSITY_SMOOTH_CUTOFF_RANGE 0
+      &XC_FUNCTIONAL PADE
+      &END XC_FUNCTIONAL
+      &XC_GRID
+      # FUNCTIONAL_ROUTINE DEBUG # TEST # TEST_LSD # DEBUG
+        XC_DERIV NN50_SMOOTH # NN6_SMOOTH
+        XC_SMOOTH_RHO NN50 # N10
+      &END XC_GRID
+    &END XC
+  &END DFT
+  &DFT
+    BASIS_SET_FILE_NAME ../BASISSET
+    &SCF
+      EPS_SCF 1.e-6
+      MAX_SCF 100
+    &END SCF
+    &XC
+      &GRID
+        XC_DERIV SPLINE2
+      &END GRID
+      &XC_FUNCTIONAL
+        &BECKE88
+        &END BECKE88
+        &LYP
+        &END LYP
+      &END XC_FUNCTIONAL
+    &END XC
+  # &qs
+  # &tddfpt
+  &END DFT
+  &SUBSYS
+    &CELL
+      ABC 5.0 5.0 5.0
+      UNIT ANGSTROM
+    &END CELL
+    &CONSTRAINT
+      SHAKE 1.0E-10
+    &END CONSTRAINT
+  # CELL_REF
+  # END
+    &COORD
+    O   2.500000    2.500000    1.934413
+    H   2.500000    1.742864    2.520545
+    H   2.500000    3.257136    2.520545
+    &END COORD
+    &KIND H
+      BASIS_SET DZVP-GTH
+      POTENTIAL GTH-PBE-q1
+    &END KIND
+    &KIND O
+      BASIS_SET DZVP-GTH
+      LDA_CORE_RADIUS 0 0 0 0
+      POTENTIAL GTH-PBE-q6
+    &END KIND
+  # cell
+  # topology
+  # kind
+  # coord
+  &END SUBSYS
+# &mm &fist
+# &qmmm
+# &metadyn
 &END FORCE_EVAL
-
-&MD_NEW
- timestep 1.0
-&END
-
-################ old input to keeep cp2k happy ##############
-
-&CP2K
- PROGRAM      Quickstep
- PROJECT      H2O
- IOLEVEL      10
- FFTLIB       FFTESSL
+# ############### old input to keeep cp2k happy ##############
+&GLOBAL
+  FFTLIB FFTESSL
+  PROGRAM Quickstep
+  PROJECT H2O
+  PRINT_LEVEL MEDIUM
 # RUN_TYPE geo_opt
-&END
-
-&GEOOPT 
- MAX_ITER 0 
-&END 
-
-&IO
- BASIS_SET_FILE GTH_BASIS_SETS
- POTENTIAL_FILE POTENTIAL
-&END
-
-&MD
- ensemble:     nve                     (nve,nvt,npt_i,npt_f)
- steps:        1
- walltime:     40.0
- timestep:     0.1 fs                  time step [fs]
- temperature:  0.0                   temperature [K]
- restart:      init                    start type (pos,posvel)
- constraints:  off
- shake:        1.0E-10
- nose_parameter & 
-  length:    3        &
-  Yoshida:   3        &
-  timecon:   100.0 fs &
-  mts:       2
-&END
-
-&DFT
-# LSD
- FUNCTIONAL PADE #BLYP
-# FUNCTIONAL_ROUTINE DEBUG # TEST # TEST_LSD # DEBUG
- XC_DERIV      NN50_SMOOTH # NN6_SMOOTH
- XC_SMOOTH_RHO NN50 #N10
- DENSITY_SMOOTH_CUTOFF_RANGE 0
- DENSITY_CUTOFF 1.e-9
-&END
-
-&QS
- CUTOFF       250 #5000
- REL_CUTOFF  30
-&END
-
-&SCF
- GUESS        restart
-# MAX_SCF 1
-# OT
-&END
-
-&PRINT MEDIUM
- FORCES 
- DISTANCES 
- PRECISION 10 
- GRID_INFO 
-&END
-
-&KIND H
- BASIS_SET    DZVP-GTH
- POTENTIAL    GTH-PBE-q1
-&END
-
-&KIND O
- BASIS_SET    DZVP-GTH
- POTENTIAL    GTH-PBE-q6
- LDA_CORE_RADIUS 0 0 0 0
-&END
-
-&CELL
- UNIT         ANGSTROM
- ABC          5.0  5.0  5.0
-&END
-
-#CELL_REF
- UNIT         ANGSTROM 
- ABC          2.5  2.5  2.5 
-#END 
-
-&COORD
- O   2.500000    2.500000    1.934413
- H   2.500000    1.742864    2.520545
- H   2.500000    3.257136    2.520545
-&END
-
+&END GLOBAL
+&GLOBAL
+  FFTLIB FFTSG
+  PRINT_LEVEL LOW
+  PROGRAM Quickstep
+  PROJECT H2O
+&END GLOBAL
+&MOTION
+  &GEOOPT
+    MAX_ITER 0
+  &END GEOOPT
+  &MD
+    ENSEMBLE NVE
+    STEPS 1
+    TIMESTEP 0.1
+    TEMPERATURE 0.0
+    RESTART INIT
+    &NOSE
+      LENGTH 3
+      YOSHIDA 3
+      TIMECON 100.0
+      MTS 2
+    &END NOSE
+  &END MD
+&END MOTION

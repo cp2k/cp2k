@@ -1,112 +1,93 @@
-&GLOBAL
-  PROJECT    nai
-  PROGRAM    kg
-  IOLEVEL    LOW
-  RUN_TYPE   MD     
-  FFTLIB     FFTSG
-  OUTPUT atomic
-&END
 
-&TOPOLOGY
-nhcopt   GLOBAL
-&END 
-
-
-&PRINT  low
-BASIS_SET
-CORE_CHARGE_RADII
-RADII
-POTENTIALS
-PW_GRID_INFORMATION
-CUBE
-&END
-
-&KIND Na
-BASIS_SET KG-PDM-CPMD
-POTENTIAL ELP
-&END
-
-&KIND I
-BASIS_SET KG-PDM-CPMD
-AUX_BASIS_SET I_DRHO
-POTENTIAL ELP
-&END
-
-&SCF
- GUESS        atomic
- EPS_SCF      1.0E-5
- MAX_SCF      300    
- MAX_DIIS     5
- WRITE_RESTART_EACH 100
-&END
-
-        
 &FORCE_EVAL
   &DFT
     BASIS_SET_FILE_NAME BASIS_SET
     POTENTIAL_FILE_NAME POTENTIAL
+    &MGRID
+      CUTOFF 20.0
+      NGRIDS 1
+    &END MGRID
+    &QS
+      EPS_CORE_CHARGE 1.0E-96
+      EPS_GVG_RSPACE 1.0E-16
+      EPS_PGF_ORB 1.0E-16
+      EPS_PPL 1.0E-96
+      EPS_RHO 1.0E-16
+      METHOD KG_POL
+    &END QS
+    &SCF
+      EPS_SCF 1.0E-5
+      MAX_DIIS 5
+      MAX_SCF 300
+      SCF_GUESS atomic
+      WRITE_RESTART_EACH 100
+    &END SCF
     &XC
       &XC_FUNCTIONAL
         &PADE
-        &END
+        &END PADE
         &TF
-        &END
-      &END
-    &END
-    &QS
-      eps_core_charge 1.0E-96 
-      eps_ppl 1.0E-96
-      eps_pgf_orb 1.0E-16
-      eps_gvg_rspace 1.0E-16
-      eps_rho 1.0E-16
-      method  KG_POL
-    &END
-    &MGRID
-      cutoff 20.0
-      ngrids 1
-    &END
-  &END SECTION DFT
+        &END TF
+      &END XC_FUNCTIONAL
+    &END XC
+  &END DFT
   &SUBSYS
     &CELL
-       UNIT   ANGSTROM
-       ABC    7.940  7.940   7.940 
+      ABC 7.940 7.940 7.940
+      UNIT ANGSTROM
     &END CELL
+    &COORD
+       I      0.05444808     -0.15740044      0.24414683
+      Na      3.31665718     -0.15142475     -0.25449516
+    &END COORD
+    &KIND Na
+      BASIS_SET KG-PDM-CPMD
+      POTENTIAL ELP
+    &END KIND
+    &KIND I
+      AUX_BASIS_SET I_DRHO
+      BASIS_SET KG-PDM-CPMD
+      POTENTIAL ELP
+    &END KIND
+    &TOPOLOGY
+      NHCOPT GLOBAL
+    &END TOPOLOGY
   &END SUBSYS
 &END FORCE_EVAL
-
+&GLOBAL
+  FFTLIB FFTSG
+  OUTPUT atomic
+  PROGRAM kg
+  PROJECT nai
+  RUN_TYPE MD
+  PRINT_LEVEL LOW
+&END GLOBAL
 &MOTION
   &MD_NEW
-    timestep 0.5
-    ensemble  nvt
-    temperature  300.0000
-    restart      init
-    steps 5
+    ENSEMBLE nvt
+    RESTART init
+    STEPS 5
+    TEMPERATURE 300.0000
+    TIMESTEP 0.5
     &KG_COEFF
       ENSEMBLE NVT
+      MASS 250.0
       NHCOPT GLOBAL
-      storage global
-      temperature 2.0
-      mass 250.0
       RESTART pos
+      STORAGE global
+      TEMPERATURE 2.0
       &NOSE
-        length 1
-        Yoshida 3
-        timecon [fs] 100.
-        mts 2
+        LENGTH 1
+        MTS 2
+        TIMECON [fs] 100.
+        YOSHIDA 3
       &END NOSE
     &END KG_COEFF
     &NOSE
-      length 1
-      Yoshida 3
-      timecon [fs] 1000.
-      mts 2
+      LENGTH 1
+      MTS 2
+      TIMECON [fs] 1000.
+      YOSHIDA 3
     &END NOSE
   &END MD_NEW
 &END MOTION
-
-
-&COORD
-    I      0.05444808     -0.15740044      0.24414683
-   Na      3.31665718     -0.15142475     -0.25449516
-&END
-bondparm COVALENT 0.01

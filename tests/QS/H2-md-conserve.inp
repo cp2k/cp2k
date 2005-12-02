@@ -2,58 +2,55 @@
 # i.e. about 1.0E-7 fluctuations in the constant of motion
 # for this the very small timestep is needed
 
-&CP2K
- PROGRAM      Quickstep
- PROJECT      H2-md
- IOLEVEL      10
- FFTLIB       FFTW
- RUN_TYPE     MD
-&END
-
-# if not running try to switcht to FFTSG instead of FFTW
-
-&MD
-  ensemble:     nve                    (nve,nvt,npt_i,npt_f)
-  steps:        1000
-  timestep:     0.01                     time step [fs]
-  temperature:  300.0                      temperature [K]
-  restart:      init                      start type (pos,posvel)
-  constraints:  off
-  shake:        1.e-10
-  print  files          5
-  print  screen         1
-&END
-
-&DFT
- FUNCTIONAL   pade
-&END
-
-&QS
- CUTOFF       200
- EPS_DEFAULT  1.0E-14
-&END
-
-&SCF
- GUESS        RESTART
- MIXING       0.6
- EPS_SCF      1.0E-7
-&END
-
-&PRINT low
-&END
-
-&KIND H
- BASIS_SET    DZVP-GTH-PADE
- POTENTIAL    GTH-PADE-q1
-&END
-
-
-&CELL
- UNIT         ANGSTROM
- ABC          8.0  8.0  8.0
-&END
-
-&COORD
- H   0.0 0.0 0.85
- H   0.0 0.0 0.0
-&END
+&FORCE_EVAL
+  &DFT
+    &MGRID
+      CUTOFF 200
+    &END MGRID
+    &QS
+      EPS_DEFAULT 1.0E-14
+    &END QS
+    &SCF
+      EPS_SCF 1.0E-7
+      MIXING 0.6
+      SCF_GUESS RESTART
+    &END SCF
+    &XC
+      &XC_FUNCTIONAL pade
+      &END XC_FUNCTIONAL
+    &END XC
+  &END DFT
+  &SUBSYS
+    &CELL
+      ABC 8.0 8.0 8.0
+      UNIT ANGSTROM
+    &END CELL
+    &CONSTRAINT
+      SHAKE 1.E-10
+    &END CONSTRAINT
+    &COORD
+    H   0.0 0.0 0.85
+    H   0.0 0.0 0.0
+    &END COORD
+    &KIND H
+      BASIS_SET DZVP-GTH-PADE
+      POTENTIAL GTH-PADE-q1
+    &END KIND
+  &END SUBSYS
+&END FORCE_EVAL
+&GLOBAL
+  FFTLIB FFTW
+  PROGRAM Quickstep
+  PROJECT H2-md
+  RUN_TYPE MD
+  PRINT_LEVEL LOW
+&END GLOBAL
+&MOTION
+  &MD
+    ENSEMBLE NVE
+    STEPS 1000
+    TIMESTEP 0.01
+    TEMPERATURE 300.0
+    RESTART INIT
+  &END MD
+&END MOTION

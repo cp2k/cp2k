@@ -1,85 +1,82 @@
-&CP2K
- PROGRAM      Quickstep
- PROJECT      H2O_MC
- IOLEVEL      0
- FFTLIB       FFTSG
- RUN_TYPE     MC
-&END
 
-&PRINT low
-&END
-
-&MC
-  program:      traditional               (traditional)
-  nstep:        2
-  lstop:        yes                         (yes or no)
-  lbias:        no
-  nmoves:       8
-  nvolmoves:    1
-  rmbond:       0.074                        (angstroms)
-  rmangle:      3.0                         (degrees)
-  rmtrans:      0.38                        (angstroms)
-  rmrot:        26.0                        (degrees)
-  rmvolume:     1.5                        (cubic angstroms)
-  iupvolume:    3200000
-  iuptrans:     6400000
-  pmvolume:     1.00
-  pmswap:       0.0
-  pmtraion:     0.00
-  pmtrans:      0.00
-  temp:         298.0                       (Kelvin)
-  pressure:     1.013                       (bar)
-  restart:      no
-  restart_file: mc_restart_1     
-&END
-
-&DFT
- FUNCTIONAL   Pade
- XC_SMOOTH_RHO   NONE
- XC_DERIV      SPLINE2
-&END
-
-&QS
- CUTOFF       100
-&END
-
-&TOPOLOGY
- CONNECTIVITY PSF
- CONN_FILE topology_3.psf
-&END
-
-&SCF
- GUESS        ATOMIC
-&END
-
-&KIND H
- BASIS_SET    DZVP-GTH-Pade
- POTENTIAL    GTH-BLYP-q1
-&END
-
-&KIND O
- BASIS_SET    DZVP-GTH-Pade
- POTENTIAL    GTH-BLYP-q6
-&END
-
-&CELL
- UNIT         ANGSTROM
- ABC          5.04977  5.04977  5.04977  
-&END
-
-&CELL_REF
- UNIT         ANGSTROM
- ABC          4.42  4.42  4.42
-&END
-
-&COORD
-  O          1.8618391587       2.1262212638       0.8067716497
-  H          2.7885812039       2.2213178792       0.4837188849
-  H          1.4050791412       2.6367607407       0.0086990777
-  O          1.2482936756       0.6926552354       3.5876311084
-  H          2.0049860962       0.0755517129       3.2546387846
-  H          1.1567427889       1.2966422959       2.8169934311
-  O          1.8631825886       4.1751225282       1.5320584673
-  H          1.0339593053       4.7472306483       1.6023778687
-  H          1.5959779716       3.3785364775       1.1011958798
-&END
+&FORCE_EVAL
+  &DFT
+    &MGRID
+      CUTOFF 100
+    &END MGRID
+    &QS
+    &END QS
+    &SCF
+      SCF_GUESS ATOMIC
+    &END SCF
+    &XC
+      &XC_FUNCTIONAL Pade
+      &END XC_FUNCTIONAL
+      &XC_GRID
+        XC_DERIV SPLINE2
+        XC_SMOOTH_RHO NONE
+      &END XC_GRID
+    &END XC
+  &END DFT
+  &SUBSYS
+    &CELL
+      ABC 5.04977 5.04977 5.04977
+      UNIT ANGSTROM
+    &END CELL
+    &COORD
+     O          1.8618391587       2.1262212638       0.8067716497
+     H          2.7885812039       2.2213178792       0.4837188849
+     H          1.4050791412       2.6367607407       0.0086990777
+     O          1.2482936756       0.6926552354       3.5876311084
+     H          2.0049860962       0.0755517129       3.2546387846
+     H          1.1567427889       1.2966422959       2.8169934311
+     O          1.8631825886       4.1751225282       1.5320584673
+     H          1.0339593053       4.7472306483       1.6023778687
+     H          1.5959779716       3.3785364775       1.1011958798
+    &END COORD
+    &KIND H
+      BASIS_SET DZVP-GTH-Pade
+      POTENTIAL GTH-BLYP-q1
+    &END KIND
+    &KIND O
+      BASIS_SET DZVP-GTH-Pade
+      POTENTIAL GTH-BLYP-q6
+    &END KIND
+    &TOPOLOGY
+      CONN_FILE topology_3.psf
+      CONNECTIVITY PSF
+    &END TOPOLOGY
+  &END SUBSYS
+&END FORCE_EVAL
+&GLOBAL
+  FFTLIB FFTSG
+  PROGRAM Quickstep
+  PROJECT H2O_MC
+  RUN_TYPE MC
+  PRINT_LEVEL LOW
+&END GLOBAL
+&MOTION
+  &MC
+    IUPTRANS 6400000
+    IUPVOLUME 3200000
+    LBIAS no
+    LSTOP yes
+    NMOVES 8
+    NSTEP 2
+    NVOLMOVES 1
+    PMSWAP 0.0
+    PMTRAION 0.00
+    PMTRANS 0.00
+    PMVOLUME 1.00
+    PRESSURE 1.013
+    PROGRAM traditional
+    RESTART no
+    RESTART_FILE mc_restart_1
+    RMANGLE 3.0
+    RMBOND 0.074
+    RMROT 26.0
+    RMTRANS 0.38
+    RMVOLUME 1.5
+    TEMP 298.0
+  &END MC
+&END MOTION

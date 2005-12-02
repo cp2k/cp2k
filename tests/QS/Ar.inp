@@ -1,43 +1,44 @@
-&CP2K
- PROGRAM      Quickstep
- IOLEVEL      10
- FFTLIB       FFTSG
-&END
 
-&DFT
- FUNCTIONAL   Pade
-&END
-
-&QS
- CUTOFF       300
- EPS_DEFAULT  1.0E-12
- EPS_RHO      1.0E-8
- EPS_GVG      1.0E-6
- REL_CUTOFF   30
-&END
-
-&SCF
- GUESS        atomic
- EPS_DIIS     0.1
- MAX_DIIS     4
- EPS_SCF      1.0E-6
- MAX_SCF      30
- MIXING       0.4
-&END
-
-&PRINT medium
-&END
-
-&KIND Ar
- BASIS_SET    DZVP-GTH-PADE
- POTENTIAL    GTH-PADE-q8
-&END
-
-&CELL
- UNIT         ANGSTROM
- ABC          12.0  12.0  12.0
-&END
-
-&COORD
- Ar     0.000000  0.000000  0.000000
-&END
+&FORCE_EVAL
+  &DFT
+    &MGRID
+      CUTOFF 300
+      REL_CUTOFF 30
+    &END MGRID
+    &QS
+      EPS_DEFAULT 1.0E-12
+      EPS_GVG 1.0E-6
+      EPS_RHO 1.0E-8
+    &END QS
+    &SCF
+      EPS_DIIS 0.1
+      EPS_SCF 1.0E-6
+      MAX_DIIS 4
+      MAX_SCF 30
+      MIXING 0.4
+      SCF_GUESS atomic
+    &END SCF
+    &XC
+      &XC_FUNCTIONAL Pade
+      &END XC_FUNCTIONAL
+    &END XC
+  &END DFT
+  &SUBSYS
+    &CELL
+      ABC 12.0 12.0 12.0
+      UNIT ANGSTROM
+    &END CELL
+    &COORD
+    Ar     0.000000  0.000000  0.000000
+    &END COORD
+    &KIND Ar
+      BASIS_SET DZVP-GTH-PADE
+      POTENTIAL GTH-PADE-q8
+    &END KIND
+  &END SUBSYS
+&END FORCE_EVAL
+&GLOBAL
+  FFTLIB FFTSG
+  PROGRAM Quickstep
+  PRINT_LEVEL MEDIUM
+&END GLOBAL

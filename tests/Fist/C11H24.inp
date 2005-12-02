@@ -1,38 +1,41 @@
-&CP2K  
-  PROGRAM   FIST
-  PROJECT   undecane
-  IOLEVEL   1
-  FFTLIB    FFTSG
-  RUN_TYPE  GEO_OPT
-&END
 
-&PRINT LOW
-&END
-
-&GEOOPT
- OPTIMIZER BFGS
- MAX_ITER  0
-&END
-
-&TOPOLOGY
- coord_file     sample_pdb/C11H24.pdb
- coordinate     pdb
- CHARGE_BETA
-&END
-
-&EWALD
- units angstrom
- ewald_type spme
- ewald_param .44 24 6
-&END
-
-&FORCE_FIELD
- PARMFILE CHM sample_pot/butane.pot
-&END
- PARMFILE CHM charmm.pot
-
-&CELL
- UNIT         ANGSTROM
- ABC          30.0 30.0 30.0
-&END
-
+&FORCE_EVAL
+  &MM
+    &FORCEFIELD
+      parmfile sample_pot/butane.pot
+      parmtype CHM
+    &END FORCEFIELD
+    &POISSON_MM
+      &EWALD
+        EWALD_TYPE spme
+        ALPHA .44
+        GMAX 24
+        O_SPLINE 6
+      &END EWALD
+    &END POISSON_MM
+  &END MM
+  &SUBSYS
+    &CELL
+      ABC 30.0 30.0 30.0
+      UNIT ANGSTROM
+    &END CELL
+    &TOPOLOGY
+      CHARGE_BETA
+      COORD_FILE sample_pdb/C11H24.pdb
+      COORDINATE pdb
+    &END TOPOLOGY
+  &END SUBSYS
+&END FORCE_EVAL
+&GLOBAL
+  FFTLIB FFTSG
+  PRINT_LEVEL LOW
+  PROGRAM FIST
+  PROJECT undecane
+  RUN_TYPE GEO_OPT
+&END GLOBAL
+&MOTION
+  &GEOOPT
+    MAX_ITER 0
+    OPTIMIZER BFGS
+  &END GEOOPT
+&END MOTION

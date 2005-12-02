@@ -1,56 +1,55 @@
-&CP2K
- PROGRAM      Quickstep
- PROJECT      H2O
- IOLEVEL      10
- FFTLIB       FFTSG
- RUN_TYPE     MD
-&END
 
-
-&MD
- ensemble:     langevin                (nve,nvt,npt_i,npt_f)
- gamma:        0.001                   (1/fs)
- steps:        3
- timestep:     0.1 fs                  time step [fs]
- temperature:  300.0                   temperature [K]
- restart:      all                     start type (pos,posvel)
- constraints:  off
-&END  
-
-&DFT
- FUNCTIONAL   Pade
-&END
-
-&QS
- CUTOFF       100
- EPS_DEFAULT  1.0E-8
-&END
-
-&SCF
- GUESS        RESTART
- EPS_SCF      1.0E-4
-&END
-
-&PRINT LOW
-&END
-
-&KIND H
- BASIS_SET    DZVP-GTH-PADE
- POTENTIAL    GTH-PADE-q1
-&END
-
-&KIND O
- BASIS_SET    DZVP-GTH-PADE
- POTENTIAL    GTH-PADE-q6
-&END
-
-&CELL
- UNIT         ANGSTROM
- ABC          6.0  6.0  6.0
-&END
-
-&COORD
- O   0.000000    0.000000   -0.065587
- H   0.000000   -0.757136    0.520545
- H   0.000000    0.757136    0.520545
-&END
+&FORCE_EVAL
+  &DFT
+    &MGRID
+      CUTOFF 100
+    &END MGRID
+    &QS
+      EPS_DEFAULT 1.0E-8
+    &END QS
+    &SCF
+      EPS_SCF 1.0E-4
+      SCF_GUESS RESTART
+    &END SCF
+    &XC
+      &XC_FUNCTIONAL Pade
+      &END XC_FUNCTIONAL
+    &END XC
+  &END DFT
+  &SUBSYS
+    &CELL
+      ABC 6.0 6.0 6.0
+      UNIT ANGSTROM
+    &END CELL
+    &COORD
+    O   0.000000    0.000000   -0.065587
+    H   0.000000   -0.757136    0.520545
+    H   0.000000    0.757136    0.520545
+    &END COORD
+    &KIND H
+      BASIS_SET DZVP-GTH-PADE
+      POTENTIAL GTH-PADE-q1
+    &END KIND
+    &KIND O
+      BASIS_SET DZVP-GTH-PADE
+      POTENTIAL GTH-PADE-q6
+    &END KIND
+  &END SUBSYS
+&END FORCE_EVAL
+&GLOBAL
+  FFTLIB FFTSG
+  PROGRAM Quickstep
+  PROJECT H2O
+  RUN_TYPE MD
+  PRINT_LEVEL LOW
+&END GLOBAL
+&MOTION
+  &MD
+    ENSEMBLE LANGEVIN
+    GAMMA 0.001
+    STEPS 3
+    TIMESTEP 0.1
+    TEMPERATURE 300.0
+    RESTART ALL
+  &END MD
+&END MOTION

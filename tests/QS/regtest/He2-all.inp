@@ -1,73 +1,62 @@
-&GLOBAL
- PROGRAM      Quickstep
- PROJECT      gapw_all_pade
- FFTLIB       FFTSG
- RUN_TYPE     ENERGY
-&END
-
-&SCF
- GUESS        ATOMIC
- EPS_SCF      1.0E-4
- OT
- MAX_SCF      5
-&END
-
-&OTSCF
- PRECONDITIONER FULL_ALL
-&END
 
 &FORCE_EVAL
   &DFT
     BASIS_SET_FILE_NAME BASIS_SET
-    POTENTIAL_FILE_NAME POTENTIAL
-    LSD
     CHARGE +1
+    LSD
+    POTENTIAL_FILE_NAME POTENTIAL
+    &MGRID
+      CUTOFF 150
+    &END MGRID
+    &QS
+      ALPHA0_HARD 10
+      ALPHA0_SOFT 10
+      EPS_GVG 1.0E-6
+      EPS_PGF_ORB 1.0E-6
+      EPSFIT 1.E-4
+      EPSISO 1.0E-12
+      EPSRHO0 1.E-8
+      LMAXN0 2
+      LMAXN1 6
+      METHOD GAPW
+      QUADRATURE GC_LOG
+    &END QS
+    &SCF
+      EPS_SCF 1.0E-4
+      MAX_SCF 5
+      SCF_GUESS ATOMIC
+      &OT ON
+        PRECONDITIONER FULL_ALL
+      &END OT
+    &END SCF
     &XC
       &XC_FUNCTIONAL
         &PADE
-        &END
-      &END
-    &END SECTION XC
-    &QS
-       METHOD       GAPW
-       EPS_GVG      1.0E-6
-       EPS_PGF_ORB  1.0E-6
-       QUADRATURE   GC_LOG
-       EPSFIT       1.E-4
-       EPSISO       1.0E-12
-       EPSRHO0      1.E-8
-       LMAXN0       2
-       LMAXN1       6
-       ALPHA0_HARD     10
-       ALPHA0_SOFT     10
-    &END SECTION QS
-    &MGRID
-       CUTOFF       150
-    &END SECTION MGRID
-  &END SECTION DFT
+        &END PADE
+      &END XC_FUNCTIONAL
+    &END XC
+  &END DFT
   &SUBSYS
     &CELL
-       UNIT   ANGSTROM
-       ABC          6.0  6.0  6.0
+      ABC 6.0 6.0 6.0
+      UNIT ANGSTROM
     &END CELL
+    &COORD
+    He 0.0 0.0 0.0
+    He 2.0 0.0 0.0
+    &END COORD
+    &KIND He
+      BASIS_SET DZVP-ALL-PADE
+      LEBEDEV_GRID 50
+      POTENTIAL ALL
+      RADIAL_GRID 150
+    &END KIND
   &END SUBSYS
 &END FORCE_EVAL
-
-
-&PRINT LOW
- HOMOS
- LUMOS 1
-&END
-
-&KIND He
- BASIS_SET    DZVP-ALL-PADE
- POTENTIAL    ALL
- LEBEDEV_GRID 50
- RADIAL_GRID  150
-&END
-
-&COORD
- He 0.0 0.0 0.0
- He 2.0 0.0 0.0
-&END
-
+&GLOBAL
+  FFTLIB FFTSG
+  PROGRAM Quickstep
+  PROJECT gapw_all_pade
+  RUN_TYPE ENERGY
+  PRINT_LEVEL LOW
+&END GLOBAL

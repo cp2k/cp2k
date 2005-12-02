@@ -1,85 +1,84 @@
-&CP2K
- PROGRAM      Quickstep
- PROJECT      H2O
- IOLEVEL      3
- FFTLIB       FFTSG
- RUN_TYPE     MD
-&END
 
-
-&MD
- ensemble:     nvt                     (nve,nvt,npt_i,npt_f)
- steps:        9
- timestep:     0.5 fs                  time step [fs]
- temperature:  300.0                   temperature [K]
- restart:      init                    start type (pos,posvel)
- constraints:  off
- shake:        1.0E-10
- nose_parameter & 
-  length:    3        &
-  Yoshida:   3        &
-  timecon:   100.0 fs &
-  mts:       2
-&END  
-
-&METADYNAMICS
- WW 1.0e-3
- ncolvar 2
- nt_hills 3
- do_hills
- LAGRANGE
-&END
-
-&COLVAR COORD
- lambda 0.1
- scale 0.02
- mass 10.0
- atoms_from 1   1
- atoms_to   2   2  3
- r_0 2.3
-&END
-
-&COLVAR COORD
- lambda 0.1
- scale 0.02
- mass 10.0
- atoms_from 1   2
- atoms_to   1   3
- r_0 2.3
-&END
-
-&DFT
- FUNCTIONAL   Pade
-&END
-
-&QS
- CUTOFF       200
-&END
-
-&SCF
- GUESS        ATOMIC
-&END
-
-&PRINT low
-&END
-
-&KIND H
- BASIS_SET    DZVP-GTH-PADE
- POTENTIAL    GTH-PADE-q1
-&END
-
-&KIND O
- BASIS_SET    DZVP-GTH-PADE
- POTENTIAL    GTH-PADE-q6
-&END
-
-&CELL
- UNIT         ANGSTROM
- ABC          5.0  5.0  5.0
-&END
-
-&COORD
- O   0.000000    0.000000   -0.065587
- H   0.000000   -0.757136    0.520545
- H   0.000000    0.757136    0.520545
-&END
+&FORCE_EVAL
+  &DFT
+    &MGRID
+      CUTOFF 200
+    &END MGRID
+    &QS
+    &END QS
+    &SCF
+      SCF_GUESS ATOMIC
+    &END SCF
+    &XC
+      &XC_FUNCTIONAL Pade
+      &END XC_FUNCTIONAL
+    &END XC
+  &END DFT
+  &SUBSYS
+    &CELL
+      ABC 5.0 5.0 5.0
+      UNIT ANGSTROM
+    &END CELL
+    &CONSTRAINT
+      SHAKE 1.0E-10
+    &END CONSTRAINT
+    &COORD
+    O   0.000000    0.000000   -0.065587
+    H   0.000000   -0.757136    0.520545
+    H   0.000000    0.757136    0.520545
+    &END COORD
+    &KIND H
+      BASIS_SET DZVP-GTH-PADE
+      POTENTIAL GTH-PADE-q1
+    &END KIND
+    &KIND O
+      BASIS_SET DZVP-GTH-PADE
+      POTENTIAL GTH-PADE-q6
+    &END KIND
+  &END SUBSYS
+&END FORCE_EVAL
+&GLOBAL
+  FFTLIB FFTSG
+  PROGRAM Quickstep
+  PROJECT H2O
+  RUN_TYPE MD
+  PRINT_LEVEL LOW
+&END GLOBAL
+&MOTION
+  &MD
+    ENSEMBLE NVT
+    STEPS 9
+    TIMESTEP 0.5
+    TEMPERATURE 300.0
+    RESTART INIT
+    &NOSE
+      LENGTH 3
+      YOSHIDA 3
+      TIMECON 100.0
+      MTS 2
+    &END NOSE
+  &END MD
+  &METADYN
+    DO_HILLS
+    LAGRANGE
+    NCOLVAR 2
+    NT_HILLS 3
+    WW 1.0e-3
+    &COLVAR COORD
+      ATOMS_FROM 1 1
+      ATOMS_TO 2 2 3
+      LAMBDA 0.1
+      MASS 10.0
+      R_0 2.3
+      SCALE 0.02
+    &END COLVAR
+    &COLVAR COORD
+      ATOMS_FROM 1 2
+      ATOMS_TO 1 3
+      LAMBDA 0.1
+      MASS 10.0
+      R_0 2.3
+      SCALE 0.02
+    &END COLVAR
+  &END METADYN
+&END MOTION
