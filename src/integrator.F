@@ -1737,7 +1737,7 @@ CONTAINS
        e6 = e4/42._dp, e8 = e6/72._dp
     REAL ( dp ) :: arg_r, poly_r, scale_r, roll_tol
     REAL ( dp ) :: arg_v, poly_v, scale_v, kin, infree
-    REAL ( dp ) :: arg_vx, poly_vx, scale_vx, gamma, aax, aa
+    REAL ( dp ) :: arg_vx, poly_vx, scale_vx, gamma1, aax, aa
     REAL ( dp ), DIMENSION (3,3) :: pv_kin
     REAL ( dp ), DIMENSION (3) :: vector_r, vector_v
     LOGICAL, PARAMETER :: box_change = .TRUE.
@@ -1750,7 +1750,7 @@ CONTAINS
                     npt = npt, para_env=para_env)
     dt = simpar%dt
     infree = 1.0_dp / REAL ( simpar % nfree, dp ) 
-    gamma = simpar % gamma_nph
+    gamma1 = simpar % gamma_nph
 
     IF (SIZE(force_env_p)/=1) THEN
        CALL stop_program("npt_i","integrator",__LINE__,&
@@ -1798,7 +1798,7 @@ CONTAINS
 ! CJM DBG
 ! perform damping on velocities
       CALL damp_v ( molecule_kind_set, molecule_set, atomic_kind_set,   &
-                    particle_set, local_molecules, gamma, npt ( 1, 1 ), &
+                    particle_set, local_molecules, gamma1, npt ( 1, 1 ), &
                     dt, para_env % group )
 
 
@@ -1815,7 +1815,7 @@ CONTAINS
       SR: DO WHILE (ABS(roll_tol)>=1.E-10_dp) ! SHAKE-ROLL LOOP
 
 ! perform damping on the barostat momentum
-          CALL damp_veps ( npt ( 1, 1 ), gamma, dt )
+          CALL damp_veps ( npt ( 1, 1 ), gamma1, dt )
 
           IF (simpar%constraint) THEN
              CALL set ( atomic_kind_set, particle_set, local_particles, cell, npt, 'B' )
@@ -1826,7 +1826,7 @@ CONTAINS
           CALL update_veps ( cell, npt, simpar, pv_kin, kin, virial, infree ) 
 
 ! perform damping on the barostat momentum
-          CALL damp_veps ( npt ( 1, 1 ), gamma, dt )
+          CALL damp_veps ( npt ( 1, 1 ), gamma1, dt )
 
 !
 ! first half of velocity verlet
@@ -1934,7 +1934,7 @@ CONTAINS
                                       cell, npt, simpar, virial, vector_v,  &
                                       roll_tol, iroll, infree, first, para_env )
 ! perform damping on the barostat momentum
-          CALL damp_veps ( npt ( 1, 1 ), gamma, dt )
+          CALL damp_veps ( npt ( 1, 1 ), gamma1, dt )
 
           CALL update_pv ( simpar, atomic_kind_set, vel, particle_set, &
                            local_molecules, molecule_set, molecule_kind_set, &
@@ -1942,14 +1942,14 @@ CONTAINS
           CALL update_veps ( cell, npt, simpar, pv_kin, kin, virial, infree ) 
 
 ! perform damping on the barostat momentum
-          CALL damp_veps ( npt ( 1, 1 ), gamma, dt )
+          CALL damp_veps ( npt ( 1, 1 ), gamma1, dt )
 
       END DO RR
 
 !
 ! perform damping on velocities
       CALL damp_v ( molecule_kind_set, molecule_set, atomic_kind_set,&
-                    particle_set, local_molecules, vel, gamma,  npt ( 1, 1 ),&
+                    particle_set, local_molecules, vel, gamma1,  npt ( 1, 1 ),&
                     dt, para_env % group )
 
       IF (simpar%annealing)  vel(:,:)=vel(:,:)*simpar%f_annealing
@@ -2546,7 +2546,7 @@ END SUBROUTINE deallocate_old
 !******************************************************************************
 
 SUBROUTINE damp_v_particle_set (molecule_kind_set, molecule_set, atomic_kind_set,&
-                                particle_set, local_molecules, gamma, npt, dt, group )
+                                particle_set, local_molecules, gamma1, npt, dt, group )
 
     TYPE(atomic_kind_type), POINTER          :: atomic_kind_set( : )
     TYPE ( particle_type ), POINTER          :: particle_set ( : )
@@ -2554,7 +2554,7 @@ SUBROUTINE damp_v_particle_set (molecule_kind_set, molecule_set, atomic_kind_set
     TYPE(molecule_type), POINTER             :: molecule_set( : )
     TYPE(distribution_1d_type), POINTER      :: local_molecules
     TYPE(npt_info_type), INTENT ( IN )       :: npt
-    REAL (KIND=dp), INTENT ( IN )            :: gamma, dt
+    REAL (KIND=dp), INTENT ( IN )            :: gamma1, dt
     INTEGER, INTENT(IN)                      :: group
 
     INTEGER                                  :: handle, ikind,        &
@@ -2590,7 +2590,7 @@ SUBROUTINE damp_v_particle_set (molecule_kind_set, molecule_set, atomic_kind_set
 ! 
   ikin = 1.0_dp/ kin
   scale = 1.0_dp
-  alpha = 2.0_dp * npt % mass * npt % v * npt % v * gamma * ikin
+  alpha = 2.0_dp * npt % mass * npt % v * npt % v * gamma1 * ikin
   scale = scale * SQRT ( 1.0_dp + alpha* 0.5_dp * dt )
 ! Scale 
   DO ikind = 1, SIZE ( molecule_kind_set )
@@ -2629,7 +2629,7 @@ END SUBROUTINE damp_v_particle_set
 !******************************************************************************
 
 SUBROUTINE damp_v_velocity (molecule_kind_set, molecule_set, atomic_kind_set,&
-                            particle_set, local_molecules, vel, gamma, npt, dt, group )
+                            particle_set, local_molecules, vel, gamma1, npt, dt, group )
 
     TYPE(atomic_kind_type), POINTER          :: atomic_kind_set( : )
     TYPE ( particle_type ), POINTER          :: particle_set ( : )
@@ -2638,7 +2638,7 @@ SUBROUTINE damp_v_velocity (molecule_kind_set, molecule_set, atomic_kind_set,&
     TYPE(distribution_1d_type), POINTER      :: local_molecules
     TYPE(npt_info_type), INTENT ( IN )       :: npt
     REAL (KIND=dp), INTENT ( INOUT )         :: vel ( :, : )
-    REAL (KIND=dp), INTENT ( IN )            :: gamma, dt
+    REAL (KIND=dp), INTENT ( IN )            :: gamma1, dt
     INTEGER, INTENT(IN)                      :: group
 
     INTEGER                                  :: handle, ikind,       &
@@ -2673,7 +2673,7 @@ SUBROUTINE damp_v_velocity (molecule_kind_set, molecule_set, atomic_kind_set,&
 !
   ikin = 1.0_dp/ kin
   scale = 1.0_dp
-  alpha = 2.0_dp * npt % mass * npt % v * npt % v * gamma  * ikin
+  alpha = 2.0_dp * npt % mass * npt % v * npt % v * gamma1  * ikin
   scale = scale * SQRT ( 1.0_dp + alpha* 0.5_dp * dt )
 ! Scale 
   DO ikind = 1, SIZE ( molecule_kind_set )
@@ -2711,16 +2711,16 @@ END SUBROUTINE damp_v_velocity
 !!   SOURCE
 !******************************************************************************
 
-SUBROUTINE damp_veps ( npt, gamma, dt )
+SUBROUTINE damp_veps ( npt, gamma1, dt )
 
     TYPE(npt_info_type), INTENT ( INOUT )    :: npt
     REAL (KIND=dp), INTENT ( IN )            :: dt
-    REAL ( KIND=dp ), INTENT ( IN )          :: gamma
+    REAL ( KIND=dp ), INTENT ( IN )          :: gamma1
 
     REAL ( KIND = dp )                       :: scale
 
   scale = 1.0_dp 
-  scale = scale * exp ( -gamma * 0.25_dp * dt )
+  scale = scale * exp ( -gamma1 * 0.25_dp * dt )
 ! Scale 
   npt % v = npt % v * scale
 
