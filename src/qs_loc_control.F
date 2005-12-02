@@ -55,9 +55,6 @@ MODULE qs_loc_control
                                              section_vals_type,&
                                              section_vals_val_get
   USE memory_utilities,                ONLY: reallocate
-  USE qs_parser,                       ONLY: read_object,&
-                                             stop_parser,&
-                                             test_object
   USE string_utilities,                ONLY: uppercase,&
                                              xstring
   USE termination,                     ONLY: stop_memory,&
@@ -129,7 +126,6 @@ MODULE qs_loc_control
   PUBLIC :: localized_wfn_control_create, &
             localized_wfn_control_release,&
             localized_wfn_control_retain,&
-            read_loc_control_old,&
             read_loc_section,&
             set_loc_wfn_lists,&
             set_loc_centers
@@ -315,139 +311,6 @@ CONTAINS
     END IF
 
   END SUBROUTINE read_loc_section
-
-!!****f* qs_loc_control/read_loc_control_old *
-!!
-!!   NAME
-!!      read_loc_control_old
-!!   FUNCTION
-!!      read the controlparameter from input, in the old fashion
-!!   NOTES
-!!
-!!   INPUTS
-!!
-!!   MODIFICATION HISTORY
-!!     04.2005 created [MI]
-!!
-!!   SOURCE
-!!*** **********************************************************************
-
-  SUBROUTINE read_loc_control_old(localized_wfn_control,test_result, error)
-
-    TYPE(localized_wfn_control_type), POINTER :: localized_wfn_control
-    CHARACTER(LEN=3)                          :: test_result
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                                :: error
-
-    CHARACTER(LEN=*), PARAMETER ::  routine_name = "read_loc_control_old", &
-      routineP = module_name//"/"//routine_name
-
-
-    CHARACTER(LEN=60)                         :: keyword, string, string2
-    INTEGER                                   :: nloc_now, i, istat
-    LOGICAL                                   :: failure
-
-    failure = .FALSE.
-
-    SELECT CASE (test_result)
-    CASE ("STR")
-      CALL read_object(string,lower_to_upper=.TRUE.)
-      SELECT CASE (string)
-      CASE ("METHOD")
-        CALL read_object(string2,lower_to_upper=.TRUE.)
-        SELECT CASE (string2)
-        CASE ("JACOBI")
-           localized_wfn_control%localization_method = do_loc_jacobi
-        CASE ("CRAZY")
-           localized_wfn_control%localization_method = do_loc_crazy
-        CASE ("DIRECT")
-           localized_wfn_control%localization_method = do_loc_direct
-        CASE ("NONE")
-           localized_wfn_control%localization_method = do_loc_none
-        CASE DEFAULT
-           CALL stop_parser(routineP,"unexpected data following LOCALIZED_WFN METHOD")
-        END SELECT
-      CASE ("MIN_OR_MAX")
-        CALL read_object(string2,lower_to_upper=.TRUE.)
-        SELECT CASE (string2)
-        CASE ("SPREADMIN")
-           localized_wfn_control%min_or_max = do_loc_min
-        CASE ("SPREADMAX")
-           localized_wfn_control%min_or_max = do_loc_max
-        CASE DEFAULT
-           CALL stop_parser(routineP,"unexpected data following LOCALIZED_WFN MIN_OR_MAX")
-        END SELECT
-      CASE ("OPERATOR")
-        CALL read_object(string2,lower_to_upper=.TRUE.)
-        SELECT CASE (string2)
-        CASE("BERRY")
-           localized_wfn_control%operator_type = op_loc_berry
-        CASE("BOYS")
-           localized_wfn_control%operator_type = op_loc_boys
-        CASE("PIPEK")
-           localized_wfn_control%operator_type = op_loc_pipek
-        CASE DEFAULT
-           CALL stop_parser(routineP,"unexpected data following LOCALIZED_WFN OPERATOR ")
-        END SELECT 
-      CASE ("SET_OF_STATES")
-        CALL read_object(string2,lower_to_upper=.TRUE.)
-        SELECT CASE (string2)
-        CASE("ALL")
-           localized_wfn_control%set_of_states = state_loc_all
-        CASE("NONE")
-           localized_wfn_control%set_of_states = state_loc_none
-        CASE("UPTON")
-           localized_wfn_control%set_of_states = state_loc_upton
-           CALL read_object(localized_wfn_control%lu_bound_states(2,1))    
-           localized_wfn_control%lu_bound_states(1,1) = 1
-           localized_wfn_control%nloc_states(1) = &
-                     localized_wfn_control%lu_bound_states(2,1) 
-        CASE("FROMITOJ")
-           localized_wfn_control%set_of_states = state_loc_fromitoj
-           CALL read_object(localized_wfn_control%lu_bound_states(1,1))
-           CALL read_object(localized_wfn_control%lu_bound_states(2,1))
-           localized_wfn_control%nloc_states(1) = &
-                     localized_wfn_control%lu_bound_states(2,1)-&
-                     localized_wfn_control%lu_bound_states(1,1)+1 
-        CASE("LIST")
-           localized_wfn_control%set_of_states = state_loc_list 
-           IF(.NOT.ASSOCIATED(localized_wfn_control%loc_states)) THEN
-             ALLOCATE(localized_wfn_control%loc_states(50),STAT=istat)
-             CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-             localized_wfn_control%loc_states = 0
-             nloc_now = 0
-           ELSE
-             nloc_now = SIZE(localized_wfn_control%loc_states,1)
-             CALL reallocate(localized_wfn_control%loc_states,1,50+nloc_now)
-           ENDIF  
-           DO 
-             IF(test_object()=="EOL") THEN
-                 EXIT
-             ELSE
-               nloc_now = nloc_now + 1
-               IF(nloc_now > SIZE(localized_wfn_control%loc_states,1))THEN
-                 CALL reallocate(localized_wfn_control%loc_states,1,nloc_now)
-               END IF  
-               CALL read_object(localized_wfn_control%loc_states(nloc_now))
-             END IF 
-           END DO 
-           CALL reallocate(localized_wfn_control%loc_states,1,nloc_now)
-           localized_wfn_control%nloc_states(1) = nloc_now
-        CASE DEFAULT
-           CALL stop_parser(routineP,"unexpected data following LOCALIZED_WFN ")
-        END SELECT
-      CASE ("EACH_STEP")
-        CALL read_object(localized_wfn_control%each_step)
-      CASE ("FNAME")
-        CALL read_object(localized_wfn_control%loc_rootfname)
-      END SELECT
-    CASE ("EOL")
-      ! do nothing
-    CASE DEFAULT
-      CALL stop_parser(routineP,"unexpected data following LOCALIZED_WFN") 
-    END SELECT
-
-  END SUBROUTINE read_loc_control_old
 
 !!****f* qs_loc_control/set_loc_centers *
 !!

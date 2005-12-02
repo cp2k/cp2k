@@ -56,7 +56,6 @@ MODULE topology_input
        section_add_keyword, section_add_subsection, section_release,&
        section_vals_type,&
        section_vals_get_subs_vals, section_vals_get, section_vals_val_get
-  USE input_cp2k, ONLY: parsed_cp2k_input
   USE kinds, ONLY: dp
   USE input_constants,                 ONLY: do_conn_psf,&
                                              do_conn_generate,&
@@ -135,207 +134,6 @@ SUBROUTINE read_topology_section ( topology, topology_section, globenv, error )
   ! Local Variables
   CHARACTER(len=*), PARAMETER :: routineN = 'read_topology_section', &
       routineP = moduleN//':'//routineN
-
-  CHARACTER(LEN=20)                                    :: str2,string
-  CHARACTER(LEN=6)                                     :: label
-  INTEGER                                              :: i,ia,ie,ierror,ilen,iw
-
-  LOGICAL                                              :: PM1,PM2,PM3,PM4
-
-  IF (parsed_cp2k_input(topology_section,check_this_section=.TRUE.,error=error)) THEN
-     CALL read_topology_section_new(topology, topology_section=topology_section,&
-          globenv=globenv, error=error)
-     RETURN
-  END IF
-!  
-!TODEL_START_TL
-!------------------------------------------------------------------------------
-  PM1 = .FALSE.
-  PM2 = .FALSE.
-  PM3 = .FALSE.
-  PM4 = .FALSE.
-  IF(PRESENT(globenv)) THEN
-    iw = globenv%scr
-    IF((globenv%ionode).AND.(globenv%print%level>0)) PM1= .TRUE.
-    IF((globenv%ionode).AND.(globenv%print%level>1)) PM2= .TRUE.
-    IF((globenv%ionode).AND.(globenv%print%level>2)) PM3= .TRUE.
-    IF((globenv%ionode).AND.(globenv%print%level>3)) PM4= .TRUE.
-  END IF
-!------------------------------------------------------------------------------
- 
-  CALL write_checkpoint_information("entering "//routineN,globenv)
-
-  IF(PM1) WRITE(iw,*) "  Entering read_topology_section"
-
-  CALL xstring(globenv % project_name,ia,ie)
-
-  topology % coord_file_name = globenv % project_name(ia:ie) // '.dat'
-  topology % conn_file_name = globenv % project_name(ia:ie) // '.top'
-
-
-  ! parse the input section
-  label = '&TOPOL'
-  CALL parser_init ( globenv % input_file_name, globenv )
-  CALL search_label ( label, ierror, ignore_case=.TRUE. )
-  IF ( ierror /= 0 ) THEN
-     IF ( globenv % ionode .AND. globenv % print%level >= 2 ) THEN
-        WRITE ( iw, '( A )' ) ' No input section &TOPOL found on file '
-        WRITE ( iw, '( T2, A )' ) globenv % input_file_name
-     END IF
-  ELSE
-     CALL read_line
-     DO WHILE (test_next()/='X')
-        ilen = 40
-        CALL get_next(string,ilen)
-        CALL uppercase ( string )
-        SELECT CASE ( string )
-        CASE ('CHARGE_O','CHARGE_OCCUP')
-           topology % charge_occup = .TRUE.
-        CASE ('CHARGE_B','CHARGE_BETA')
-           topology % charge_beta = .TRUE.
-        CASE ('PARA_RES')
-           topology % para_res = .TRUE.
-        CASE ('DUMP_TOP')
-           topology % dump_topology = .TRUE.
-        CASE ('REORDER')
-           topology % reorder_atom = .TRUE.
-        CASE ('MOL_CHECK')
-           topology % molecules_check = .TRUE.
-        CASE ('COORD_FI','COORD_FILE','COORD_FILE_NAME')
-           ilen = 40
-           CALL get_next(topology % coord_file_name,ilen)
-        CASE ('COORDINA','COORDINATE')
-           topology % coordinate = .TRUE.
-           ilen = 40
-           CALL get_next(str2,ilen)
-           CALL uppercase(str2)
-           IF (str2 == "PDB") THEN
-              topology%coordinate = .TRUE.
-              topology%coord_type = do_coord_pdb
-           ELSE IF (str2 == "XYZ") THEN
-              topology%coordinate = .TRUE.
-              topology%coord_type = do_coord_xyz
-           ELSE IF (str2 == "OFF") THEN
-              topology%coordinate = .FALSE.
-           ELSE
-              CALL p_error()
-              CALL stop_parser( 'read_topology_section', &
-                                'unknown option coordinate type' )
-           END IF
-        CASE ('CONN_FIL','CONN_FILE')
-           topology % connectivity = .TRUE.
-           ilen = 40
-           CALL get_next(topology % conn_file_name,ilen)
-        CASE ('CONNECTI','CONNECTIVITY')
-           topology % connectivity = .TRUE.
-           ilen = 40
-           CALL get_next(str2,ilen)
-           CALL uppercase(str2)
-           IF (str2 == "PSF") THEN
-              topology % connectivity = .TRUE.
-              topology % conn_type = do_conn_psf
-           ELSE IF (str2 == "GENERATE") THEN
-              topology % connectivity = .FALSE.
-              topology % conn_type = do_conn_generate
-           ELSE IF (str2 == "OFF") THEN
-              topology % connectivity = .FALSE.
-              topology % conn_type = do_conn_off
-           ELSE
-              CALL p_error()
-              CALL stop_parser( 'read_topology_section', &
-                                'unknown option topology type' )
-           END IF
-        CASE ('EXCLUDE_VDW')
-           ilen = 40
-           CALL get_next(str2,ilen)
-           CALL uppercase(str2)
-           SELECT CASE(str2)
-           CASE("1-2")
-              topology % exclude_vdw = do_skip_vdw_12
-           CASE("1-3")
-              topology % exclude_vdw = do_skip_vdw_13
-           CASE("1-4")
-              topology % exclude_vdw = do_skip_vdw_14
-           END SELECT
-
-        CASE ('EXCLUDE_EI')
-           ilen = 40
-           CALL get_next(str2,ilen)
-           CALL uppercase(str2)
-           SELECT CASE(str2)
-           CASE("1-2")
-              topology % exclude_ei = do_skip_ei_12
-           CASE("1-3")
-              topology % exclude_ei = do_skip_ei_13
-           CASE("1-4")
-              topology % exclude_ei = do_skip_ei_14
-           END SELECT
-
-        CASE ('EXCLUDE_CH','EXCLUDE_CHECK')
-           CALL get_next(topology%exclude_check)
-           WRITE(*,*) "exclude_check ",topology%exclude_check
-
-        CASE ('BONDPARM')
-           ilen = 40
-           CALL get_next(str2,ilen)
-           CALL uppercase(str2)
-           IF (str2 == "COVALENT") THEN
-              topology % bondparm_type = do_bondparm_covalent
-           ELSE IF (str2 == "VDW") THEN
-              topology % bondparm_type = do_bondparm_vdw
-           ELSE
-              CALL p_error()
-              CALL stop_parser( 'read_topology_section', &
-                                'unknown option bondparm type' )
-           END IF
-           CALL get_next(topology%bondparm_factor)
-        CASE ('NHCOPT')
-           ilen = 40
-           CALL get_next(str2,ilen)
-           CALL uppercase(str2)
-           IF (str2 == "GLOBAL") THEN
-              topology % nhcopt = do_nhcopt_global
-           ELSE IF (str2 == "MOLECULE") THEN
-              topology % nhcopt = do_nhcopt_molecule
-           ELSE IF (str2 == "MASSIVE") THEN
-              topology % nhcopt = do_nhcopt_massive
-           ELSE IF (str2 == "NONE") THEN
-              topology % nhcopt = do_nhcopt_none
-           ELSE
-              CALL p_error()
-              CALL stop_parser( 'read_topology_section', &
-                                'unknown option nhc opt' )
-           END IF
-        CASE DEFAULT
-           IF(PM1)  WRITE(iw,*) "read_topology_section unknown option"//string
-        END SELECT
-       CALL read_line
-     END DO
-  END IF
-
-  CALL parser_end
-
-
-  IF(PM1)  WRITE(iw,*) "  Exiting  read_topology_section"
-  CALL write_checkpoint_information("exiting "//routineN,globenv)
-!
-!TODEL_END_TL
-!
-
-END SUBROUTINE read_topology_section
-
-
-SUBROUTINE read_topology_section_new ( topology, topology_section, globenv ,error)
-  IMPLICIT NONE
-  ! Arguments
-  TYPE(topology_parameters_type)                       :: topology
-  TYPE(global_environment_type), INTENT(IN),OPTIONAL   :: globenv
-  TYPE(section_vals_type), POINTER                     :: topology_section
-  TYPE(cp_error_type), INTENT(inout), &
-       OPTIONAL                               :: error
-  ! Local Variables
-  CHARACTER(len=*), PARAMETER :: routineN = 'read_topology_section_new', &
-      routineP = moduleN//':'//routineN
   INTEGER :: ia, ie, n_rep
   LOGICAL :: failure 
 
@@ -375,7 +173,7 @@ SUBROUTINE read_topology_section_new ( topology, topology_section, globenv ,erro
      CALL section_vals_val_get(topology_section,"NHCOPT",i_val=topology % nhcopt,error=error)
 
   END IF
-END SUBROUTINE read_topology_section_new
+END SUBROUTINE read_topology_section
 
 !!*****
 !******************************************************************************
@@ -389,11 +187,12 @@ END SUBROUTINE read_topology_section_new
 !!     constraint_distance array.
 !!
 !!   AUTHOR
-!!     CJM
+!!     teo
 !!
 !!   MODIFICATION HISTORY
 !!     JGH (26-01-2002) Distance parameters are now stored in tables. The position
 !!        within the table is used as handle for the topology
+!!     teo Read the CONSTRAINT section within the new input style
 !!
 !!   NOTES
 !!
@@ -411,173 +210,6 @@ SUBROUTINE read_constraints_section(topology, globenv, constraint_section, error
 
   CHARACTER(len=*), PARAMETER :: routineN = 'read_constraints_section', &
       routineP = moduleN//':'//routineN
-
-    TYPE(constraint_info_type),POINTER       :: cons_info
-    CHARACTER(LEN=12)                        :: label
-    CHARACTER(LEN=40)                        :: string
-    INTEGER                                  :: i, ierror, ilen, iw
-
-    LOGICAL                                  :: PM1, PM2, PM3, PM4
-
-  IF (parsed_cp2k_input(constraint_section,check_this_section=.TRUE.,error=error)) THEN
-     CALL read_constraints_section_new(topology, constraint_section=constraint_section,&
-          error=error)
-     RETURN
-  END IF
-!  
-!TODEL_START_TL
-!------------------------------------------------------------------------------
-  PM1 = .FALSE.
-  PM2 = .FALSE.
-  PM3 = .FALSE.
-  PM4 = .FALSE.
-  IF(PRESENT(globenv)) THEN
-    iw = globenv%scr
-    IF((globenv%ionode).AND.(globenv%print%level>0)) PM1= .TRUE.
-    IF((globenv%ionode).AND.(globenv%print%level>1)) PM2= .TRUE.
-    IF((globenv%ionode).AND.(globenv%print%level>2)) PM3= .TRUE.
-    IF((globenv%ionode).AND.(globenv%print%level>3)) PM4= .TRUE.
-  END IF
-!------------------------------------------------------------------------------
-
-  CALL write_checkpoint_information("entering "//routineN,globenv)
-
-  IF(PM1) WRITE(iw,*) "  Entering read_constraints_section"
-
-  cons_info => topology%cons_info
-
-  ! parse the input section
-  label = '&CONSTRAINTS'
-  CALL parser_init ( globenv % input_file_name, globenv )
-  CALL search_label ( label, ierror, ignore_case=.TRUE. )
-  IF ( ierror /= 0 ) THEN
-     IF ( globenv % ionode .AND. globenv % print%level >= 2 ) THEN
-        WRITE ( iw, '( A )' ) ' No input section &CONSTRAINTS found on file '
-        WRITE ( iw, '( T2, A )' ) globenv % input_file_name
-     END IF
-  ELSE
-     CALL read_line
-     DO WHILE (test_next()/='X')
-        ilen = 7
-        CALL get_next ( string, ilen )
-        CALL uppercase ( string )
-
-        IF ( INDEX ( string, 'ATOM' ) /= 0 ) THEN
-           topology%const_atom=.TRUE.
-           CALL stop_program ( "read_constraints_section", &
-                               "CONATOM not done yet " )
-        ELSE IF ( INDEX ( string, 'CONHYDR' ) /= 0 ) THEN
-           topology%const_hydr=.TRUE.
-           CALL stop_program ( "read_constraints_section", &
-               "CONHYDR will not work until force field is completed " )
-        ELSE IF ( INDEX ( string, 'DIST' ) /= 0 ) THEN
-           topology%const_dist=.TRUE.
-           ilen = 40
-           CALL get_next(string,ilen)
-           CALL uppercase(string)
-           i=cons_info%nconst_dist + 1
-           CALL reallocate(cons_info%const_dist_mol,1,i)
-           CALL reallocate(cons_info%const_dist_a,1,i)
-           CALL reallocate(cons_info%const_dist_b,1,i)
-           CALL reallocate(cons_info%const_dist_dab,1,i)
-           CALL get_next(cons_info%const_dist_mol(i))
-           CALL get_next(cons_info%const_dist_a(i))
-           CALL get_next(cons_info%const_dist_b(i))
-           CALL get_next(cons_info%const_dist_dab(i))
-           cons_info%nconst_dist = i
-        ELSE IF ( INDEX ( string, 'G3X3' ) /= 0 ) THEN
-           topology%const_33=.TRUE.
-           ilen = 40
-           CALL get_next(string,ilen)
-           CALL uppercase(string)
-           i=cons_info%nconst_g33 + 1
-           CALL reallocate(cons_info%const_g33_mol,1,i)
-           CALL reallocate(cons_info%const_g33_a,1,i)
-           CALL reallocate(cons_info%const_g33_b,1,i)
-           CALL reallocate(cons_info%const_g33_c,1,i)
-           CALL reallocate(cons_info%const_g33_dab,1,i)
-           CALL reallocate(cons_info%const_g33_dac,1,i)
-           CALL reallocate(cons_info%const_g33_dbc,1,i)
-           CALL get_next(cons_info%const_g33_mol(i))
-           CALL get_next(cons_info%const_g33_a(i))
-           CALL get_next(cons_info%const_g33_b(i))
-           CALL get_next(cons_info%const_g33_c(i))
-           CALL get_next(cons_info%const_g33_dab(i))
-           CALL get_next(cons_info%const_g33_dac(i))
-           CALL get_next(cons_info%const_g33_dbc(i))
-           cons_info%nconst_g33 = i
-        ELSE IF ( INDEX ( string, 'G4X6' ) /= 0 ) THEN
-           topology%const_46=.TRUE.
-           ilen = 40
-           CALL get_next(string,ilen)
-           CALL uppercase(string)
-           i=cons_info%nconst_g46 + 1
-           CALL reallocate(cons_info%const_g46_mol,1,i)
-           CALL reallocate(cons_info%const_g46_a,1,i)
-           CALL reallocate(cons_info%const_g46_b,1,i)
-           CALL reallocate(cons_info%const_g46_c,1,i)
-           CALL reallocate(cons_info%const_g46_d,1,i)
-           CALL reallocate(cons_info%const_g46_dab,1,i)
-           CALL reallocate(cons_info%const_g46_dac,1,i)
-           CALL reallocate(cons_info%const_g46_dbc,1,i)
-           CALL reallocate(cons_info%const_g46_dad,1,i)
-           CALL reallocate(cons_info%const_g46_dbd,1,i)
-           CALL reallocate(cons_info%const_g46_dcd,1,i)
-           CALL get_next(cons_info%const_g46_mol(i))
-           CALL get_next(cons_info%const_g46_a(i))
-           CALL get_next(cons_info%const_g46_b(i))
-           CALL get_next(cons_info%const_g46_c(i))
-           CALL get_next(cons_info%const_g46_d(i))
-           CALL get_next(cons_info%const_g46_dab(i))
-           CALL get_next(cons_info%const_g46_dac(i))
-           CALL get_next(cons_info%const_g46_dad(i))
-           CALL get_next(cons_info%const_g46_dbc(i))
-           CALL get_next(cons_info%const_g46_dbd(i))
-           CALL get_next(cons_info%const_g46_dcd(i))
-           cons_info%nconst_g46 = i
-         END IF
-       CALL read_line
-     END DO
-  END IF
-
-  CALL parser_end
-
-  IF(PM1)  WRITE(iw,*) "  Exiting  read_constraints_section"
-  CALL write_checkpoint_information("exiting "//routineN,globenv)
-!
-!TODEL_END_TL
-!
-END SUBROUTINE read_constraints_section
-
-!!*****
-!******************************************************************************
-!!****** topology_input/read_constraints_section_new [1.0] *
-!!
-!!   NAME
-!!     read_constraints_section_new
-!!
-!!   FUNCTION
-!!     Read the CONSTRAINT section within the new input style
-!!
-!!   AUTHOR
-!!     teo
-!!
-!!   MODIFICATION HISTORY
-!!
-!!   NOTES
-!!
-!******************************************************************************
-
-SUBROUTINE read_constraints_section_new(topology, constraint_section, error)
-  IMPLICIT NONE
-  ! Arguments
-  TYPE(topology_parameters_type), INTENT(INOUT)      :: topology
-  TYPE(section_vals_type), POINTER                   :: constraint_section  
-  TYPE(cp_error_type), INTENT(inout), &
-       OPTIONAL                               :: error
-  ! Local Variables
-  CHARACTER(len=*), PARAMETER :: routineN = 'read_constraints_section', &
-       routineP = moduleN//':'//routineN
   TYPE(constraint_info_type),POINTER       :: cons_info
   TYPE(section_vals_type), POINTER         ::  g3x3_section, g4x6_section, fix_atom_section,&
                                                internal_section, dist_section, angle_section,&
@@ -726,6 +358,9 @@ SUBROUTINE read_constraints_section_new(topology, constraint_section, error)
            isize = isize + icons 
         END DO
         IF (isize /= 0) THEN
+           topology%const_dist=.TRUE.
+           cons_info%nconst_dist = isize
+           !
            ALLOCATE(cons_info%const_dist_mol(isize), stat=stat)
            CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
            ALLOCATE(cons_info%const_dist_a(isize), stat=stat)
@@ -739,18 +374,17 @@ SUBROUTINE read_constraints_section_new(topology, constraint_section, error)
               ! DISTANCE
               dist_section => section_vals_get_subs_vals(internal_section,"DISTANCE",i_rep_section=ig,error=error)
               CALL section_vals_get(dist_section,explicit=explicit, n_repetition=icons, error=error)
-              IF (explicit) THEN
-                 DO j = 1, icons
-                    isize = isize + 1
-!                    CALL section_vals_val_get(dist_section,"MOLECULE", i_val=cons_info%const_dist_mol(isize),&
-!                         error=error)
-                    CALL section_vals_val_get(dist_section,"ATOMS", i_vals=tmplist, error=error)
-                    CALL section_vals_val_get(dist_section,"DISTANCE",&
-                         r_val=cons_info%const_dist_dab(isize), error=error)
-                    cons_info%const_dist_a(isize) = tmplist(1)
-                    cons_info%const_dist_b(isize) = tmplist(2)
-                 END DO
-              END IF
+              DO j = 1, icons
+                 isize = isize + 1
+                 CALL section_vals_val_get(dist_section,"MOLECULE", i_val=cons_info%const_dist_mol(isize),&
+                      i_rep_section=j,error=error)
+                 CALL section_vals_val_get(dist_section,"ATOMS", i_vals=tmplist,&
+                      i_rep_section=j,error=error)
+                 CALL section_vals_val_get(dist_section,"DISTANCE",&
+                      r_val=cons_info%const_dist_dab(isize),i_rep_section=j, error=error)
+                 cons_info%const_dist_a(isize) = tmplist(1)
+                 cons_info%const_dist_b(isize) = tmplist(2)
+              END DO
            END DO
         END IF
         ! ANGLE
@@ -789,7 +423,7 @@ SUBROUTINE read_constraints_section_new(topology, constraint_section, error)
      END IF
   END IF
 
-END SUBROUTINE read_constraints_section_new
+END SUBROUTINE read_constraints_section
 
 END MODULE topology_input
 

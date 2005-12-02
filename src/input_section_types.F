@@ -36,13 +36,14 @@ MODULE input_section_types
   use cp_para_types, only: cp_para_env_type
   use timings, only: timeset, timestop
   USE input_val_types, ONLY: val_type, val_create, val_retain, val_release,&
-       val_write,val_get,no_t
+       val_write,val_get,no_t, val_duplicate
   USE input_keyword_types, ONLY: keyword_type, keyword_create, keyword_retain,&
        keyword_release, description_string_length, keyword_p_type,&
        keyword_describe, keyword_describe_html, write_keyword_xml
   USE cp_linked_list_val, ONLY: cp_sll_val_type, cp_sll_val_create,&
        cp_sll_val_next, cp_sll_val_dealloc, cp_sll_val_get_length,&
-       cp_sll_val_get_el_at, cp_sll_val_p_type
+       cp_sll_val_get_el_at, cp_sll_val_p_type, cp_sll_val_insert_el_at,&
+       cp_sll_val_set_el_at, cp_sll_val_rm_el_at
   USE string_utilities, only: uppercase
   USE output_utilities, only: print_message
 
@@ -56,13 +57,16 @@ MODULE input_section_types
   PUBLIC :: section_p_type, section_type
   PUBLIC :: section_create,section_retain, section_release, section_describe,&
        section_get_subsection, section_get_keyword, section_get,&
-       section_add_keyword, section_add_subsection, section_describe_html, section_describe_index_html
+       section_add_keyword, section_add_subsection, section_describe_html,&
+       section_describe_index_html
   PUBLIC :: section_get_subsection_index, section_get_keyword_index
 
   PUBLIC :: section_vals_p_type,section_vals_type
   PUBLIC :: section_vals_create, section_vals_retain, section_vals_release,&
        section_vals_get, section_vals_get_subs_vals, section_vals_val_get,&
-       section_vals_write, section_vals_add_values, section_vals_get_subs_vals2
+       section_vals_write, section_vals_add_values, section_vals_get_subs_vals2,&
+       section_vals_val_set, section_vals_val_unset,&
+       section_vals_set_subs_vals, section_vals_duplicate
   PUBLIC :: write_section_xml
 
 !!***
@@ -397,20 +401,23 @@ END SUBROUTINE section_release
 !!     fawzi
 !!
 !!*** **********************************************************************
-RECURSIVE SUBROUTINE section_describe(section, unit_nr, level, hide_root, error)
+RECURSIVE SUBROUTINE section_describe(section, unit_nr, level, hide_root, recurse,error)
   TYPE(section_type), pointer :: section
   INTEGER, INTENT(in) :: unit_nr, level
   LOGICAL, INTENT(in),optional :: hide_root
+  INTEGER, INTENT(in), optional :: recurse
   type(cp_error_type), optional, intent(inout) :: error
 
   LOGICAL :: failure, my_hide_root
   character(len=*), parameter :: routineN='section_desc',&
        routineP=moduleN//':'//routineN
-  INTEGER :: isub,ikeyword
+  INTEGER :: isub,ikeyword, my_recurse
 
   failure=.false.
   my_hide_root=.false.
   if (present(hide_root)) my_hide_root=hide_root
+  my_recurse=0
+  if (present(recurse)) my_recurse=recurse
   IF (ASSOCIATED(section)) THEN
      CPPrecondition(section%ref_count>0,cp_failure_level,routineP,error,failure)
 
@@ -433,12 +440,16 @@ RECURSIVE SUBROUTINE section_describe(section, unit_nr, level, hide_root, error)
                 level,error=error)
         END DO
      END IF
-     IF (section%n_subsections>0) THEN
+     IF (section%n_subsections>0 .and.my_recurse>=0) THEN
         IF (.NOT.my_hide_root)&
              WRITE(unit_nr,"('** subsections **')")
         DO isub=1,section%n_subsections
-           CALL section_describe(section%subsections(isub)%section,unit_nr,&
-                level,error=error)
+           IF (my_recurse>0) THEN
+              CALL section_describe(section%subsections(isub)%section,unit_nr,&
+                   level,recurse=my_recurse-1,error=error)
+           ELSE
+              WRITE(unit_nr,"(' ',a)") section%subsections(isub)%section%name
+           END IF
         END DO
      END IF
      IF (.NOT.my_hide_root)&
@@ -1214,7 +1225,7 @@ RECURSIVE FUNCTION section_vals_get_subs_vals(section_vals,subsection_name,&
      my_index=INDEX(subsection_name,"%")
      IF (my_index.EQ.0) THEN
         is_path=.FALSE.
-        my_index=LEN(subsection_name)
+        my_index=LEN_TRIM(subsection_name)
      ELSE
         is_path=.TRUE.
         irep=1
@@ -1237,7 +1248,7 @@ RECURSIVE FUNCTION section_vals_get_subs_vals(section_vals,subsection_name,&
        CPSourceFileRef,&
        error,failure)
   IF (is_path .AND. ASSOCIATED(res) ) THEN
-     res=>section_vals_get_subs_vals(res,subsection_name(my_index+2:LEN(subsection_name)),&
+     res=>section_vals_get_subs_vals(res,subsection_name(my_index+2:LEN_TRIM(subsection_name)),&
      i_rep_section,can_return_null,error) 
   ENDIF
 
@@ -1350,8 +1361,8 @@ SUBROUTINE section_vals_add_values(section_vals,error)
      DEALLOCATE(section_vals%values,stat=stat)
      CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
      section_vals%values => new_values
+     j=SIZE ( new_values, 2 )
      DO i=-1,UBOUND(new_values,1)
-        j=SIZE ( new_values, 2 )
         NULLIFY(new_values(i,j)%list)
      END DO
 
@@ -1367,8 +1378,8 @@ SUBROUTINE section_vals_add_values(section_vals,error)
         DEALLOCATE(section_vals%subs_vals,stat=stat)
         CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
         section_vals%subs_vals => new_sps
+        j = SIZE ( new_sps, 2 )
         DO i=1,SIZE(new_sps,1)
-           j = SIZE ( new_sps, 2 )
            NULLIFY(new_sps(i,j)%section_vals)
            CALL section_vals_create(new_sps(i,SIZE(new_sps,2))%section_vals,&
                 section=section_vals%section%subsections(i)%section,error=error)
@@ -1410,7 +1421,7 @@ END SUBROUTINE section_vals_add_values
 !!*** **********************************************************************
 SUBROUTINE section_vals_val_get(section_vals,keyword_name,i_rep_section,&
      i_rep_val,n_rep_val,val,&
-     l_val,i_val,r_val,c_val,l_vals,i_vals,r_vals,c_vals,error)
+     l_val,i_val,r_val,c_val,l_vals,i_vals,r_vals,c_vals,ignore_required,error)
   TYPE(section_vals_type),pointer :: section_vals
   CHARACTER(len=*), intent(in) :: keyword_name
   INTEGER, INTENT(in), OPTIONAL :: i_rep_section, i_rep_val
@@ -1424,9 +1435,10 @@ SUBROUTINE section_vals_val_get(section_vals,keyword_name,i_rep_section,&
   REAL(KIND=DP), DIMENSION(:), OPTIONAL, POINTER :: r_vals
   CHARACTER(LEN=*), OPTIONAL, INTENT(out) :: c_val
   CHARACTER(LEN=DEFAULT_STRING_LENGTH), DIMENSION(:), OPTIONAL, POINTER :: c_vals
+  LOGICAL, OPTIONAL, INTENT(in) :: ignore_required
   type(cp_error_type), optional, intent(inout) :: error
   
-  LOGICAL :: failure,valRequested
+  LOGICAL :: failure,valRequested, my_ignore_required
   character(len=*), parameter :: routineN='section_val_get',&
         routineP=moduleN//':'//routineN
   INTEGER :: ik,irs,irk,my_index,tmp_index,len_key
@@ -1442,15 +1454,17 @@ SUBROUTINE section_vals_val_get(section_vals,keyword_name,i_rep_section,&
   CPPrecondition(ASSOCIATED(section_vals),cp_failure_level,routineP,error,failure)
   CPPrecondition(section_vals%ref_count>0,cp_failure_level,routineP,error,failure)
 
+  my_ignore_required=.false.
+  if (present(ignore_required)) my_ignore_required=ignore_required
   my_index=INDEX(keyword_name,'%')+1
-  len_key=len(keyword_name)
-  IF (my_index/=1) THEN
+  len_key=len_trim(keyword_name)
+  IF (my_index>1) THEN
      DO
         tmp_index=INDEX(keyword_name(my_index:len_key),"%")
-        IF (tmp_index==0) EXIT
-        my_index=tmp_index+1
+        IF (tmp_index<=0) EXIT
+        my_index=my_index+tmp_index
      END DO
-     s_vals=>section_vals_get_subs_vals(section_vals,keyword_name(1:my_index-1),&
+     s_vals => section_vals_get_subs_vals(section_vals,keyword_name(1:my_index-2),&
           error=error)
   ELSE
      s_vals=> section_vals
@@ -1487,7 +1501,8 @@ SUBROUTINE section_vals_val_get(section_vals,keyword_name,i_rep_section,&
         IF (PRESENT(n_rep_val)) n_rep_val=cp_sll_val_get_length(vals,error=error)
         IF (.NOT.ASSOCIATED(vals)) THEN
 ! this keyword was not parsed
-           IF (.NOT.keyword%required.AND. ASSOCIATED(keyword%default_value)) THEN
+           IF ((.NOT.keyword%required.or.my_ignore_required)&
+                .AND. ASSOCIATED(keyword%default_value)) THEN
               my_val => keyword%default_value
               IF (PRESENT(n_rep_val)) n_rep_val=1
            END IF
@@ -1495,13 +1510,13 @@ SUBROUTINE section_vals_val_get(section_vals,keyword_name,i_rep_section,&
            my_val => cp_sll_val_get_el_at(s_vals%values(ik,irs)%list,&
                 irk,error=error)
         END IF
-     ELSE IF (section%required) THEN
+     ELSE IF (.not.my_ignore_required.and.section%required) THEN
         CALL cp_assert(.FALSE.,&
              cp_failure_level,cp_assertion_failed,routineP,&
              "section "//TRIM(section%name)//&
              " is required, and needed but was not found",&
              error,failure)
-     ELSE IF (.NOT.keyword%required.AND.&
+     ELSE IF ((my_ignore_required.or..NOT.keyword%required).AND.&
              ASSOCIATED(keyword%default_value)) THEN
         IF (PRESENT(n_rep_val)) n_rep_val=1
         my_val => keyword%default_value
@@ -1510,7 +1525,10 @@ SUBROUTINE section_vals_val_get(section_vals,keyword_name,i_rep_section,&
   END IF
   IF (.NOT.failure) THEN
      IF (valRequested) THEN
-        CPPrecondition(ASSOCIATED(my_val),cp_failure_level,routineP,error,failure)
+        CALL cp_assert(ASSOCIATED(my_val),cp_failure_level,cp_assertion_failed,&
+             routineP,"Value requested, but no value set getting value from "//&
+             "keyword "//TRIM(keyword_name(my_index:len_key))//" of section "//&
+             TRIM(section%name),error,failure)
         CALL cp_error_init(sub_error,template_error=error,stop_level=cp_fatal_level)
         CALL val_get(my_val,l_val=l_val,i_val=i_val,r_val=r_val,&
              c_val=c_val,l_vals=l_vals,i_vals=i_vals,r_vals=r_vals,&
@@ -1520,8 +1538,283 @@ SUBROUTINE section_vals_val_get(section_vals,keyword_name,i_rep_section,&
              TRIM(section%name),error=error,failure=failure)
         call cp_error_dealloc_ref(sub_error)
      END IF
+
   END IF
 END SUBROUTINE section_vals_val_get
+!***************************************************************************
+
+!!****f* cp_keywords/section_vals_val_set *
+!!
+!!   NAME
+!!     section_vals_val_set
+!!
+!!   FUNCTION
+!!     sets the requested value
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     - section: the root section
+!!     - keyword_name: the name of the keyword you want (can be a path
+!!       separated by '%')
+!!     - isection: which repetition of the section you are interested in
+!!       (defaults to 1)
+!!     - ival: which repetition of the keyword/val you are interested in
+!!       (defaults to 1)
+!!     - l_val,i_val,r_val,c_val: sets the logical,integer,real or
+!!       character value
+!!     - l_vals_ptr,i_vals_ptr,r_vals,c_vals: sets the logical,integer,real or
+!!       character arrays. The val becomes the owner of the array
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     fawzi
+!!
+!!*** **********************************************************************
+SUBROUTINE section_vals_val_set(section_vals,keyword_name,i_rep_section,&
+     i_rep_val,val,&
+     l_val,i_val,r_val,c_val,l_vals_ptr,i_vals_ptr,r_vals_ptr,c_vals_ptr,&
+     ignore_required,error)
+  TYPE(section_vals_type),pointer :: section_vals
+  CHARACTER(len=*), intent(in) :: keyword_name
+  INTEGER, INTENT(in), OPTIONAL :: i_rep_section, i_rep_val
+  TYPE(val_type), POINTER, OPTIONAL :: val
+  LOGICAL, OPTIONAL, INTENT(in) :: l_val
+  LOGICAL, DIMENSION(:), OPTIONAL, POINTER :: l_vals_ptr
+  INTEGER, OPTIONAL, INTENT(in) :: i_val
+  INTEGER, DIMENSION(:), OPTIONAL, POINTER :: i_vals_ptr
+  REAL(KIND=DP), OPTIONAL, INTENT(in) :: r_val
+  REAL(KIND=DP), DIMENSION(:), OPTIONAL, POINTER :: r_vals_ptr
+  CHARACTER(LEN=*), OPTIONAL, INTENT(in) :: c_val
+  CHARACTER(LEN=DEFAULT_STRING_LENGTH), DIMENSION(:), OPTIONAL, POINTER :: c_vals_ptr
+  LOGICAL, OPTIONAL, INTENT(in) :: ignore_required
+  type(cp_error_type), optional, intent(inout) :: error
+
+  LOGICAL :: failure,valSet, my_ignore_required
+  character(len=*), parameter :: routineN='section_val_set',&
+       routineP=moduleN//':'//routineN
+  INTEGER :: ik,irs,irk,my_index,tmp_index,len_key
+  TYPE(section_vals_type),pointer :: s_vals
+  TYPE(section_type),pointer ::section
+  TYPE(cp_sll_val_type), pointer :: vals
+  TYPE(val_type), POINTER :: my_val
+  type(cp_error_type) :: sub_error
+
+  failure=.false.
+
+  CPPrecondition(ASSOCIATED(section_vals),cp_failure_level,routineP,error,failure)
+  CPPrecondition(section_vals%ref_count>0,cp_failure_level,routineP,error,failure)
+
+  my_ignore_required=.false.
+  if (present(ignore_required)) my_ignore_required=ignore_required
+  my_index=INDEX(keyword_name,'%')+1
+  len_key=len_trim(keyword_name)
+  IF (my_index>1) THEN
+     DO
+        tmp_index=INDEX(keyword_name(my_index:len_key),"%")
+        IF (tmp_index<=0) EXIT
+        my_index=my_index+tmp_index
+     END DO
+     s_vals => section_vals_get_subs_vals(section_vals,keyword_name(1:my_index-2),&
+          error=error)
+  ELSE
+     s_vals=> section_vals
+  END IF
+
+  irk=1
+  irs=1
+  if (present(i_rep_section)) irs=i_rep_section
+  if (present(i_rep_val)) irk=i_rep_val
+  section => s_vals%section
+  IF (.NOT. failure) THEN
+     ik=section_get_keyword_index(s_vals%section,keyword_name(my_index:len_key),error=error)
+     CALL cp_assert(ik/=-2,cp_failure_level,cp_assertion_failed,routineP,&
+          "section "//TRIM(section%name)//" does not contain keyword "//&
+          TRIM(keyword_name(my_index:len_key)),error,failure)
+     DO
+        IF (irs<=SIZE(s_vals%values,2)) EXIT
+        CALL section_vals_add_values(s_vals,error=error)
+     END DO
+     CALL cp_assert(irs>0.AND.irs<=SIZE(s_vals%subs_vals,2),&
+          cp_failure_level,cp_assertion_failed,routineP,&
+          "section repetition requested ("//cp_to_string(irs)//&
+          ") out of bounds (1:"//cp_to_string(SIZE(s_vals%subs_vals,2))&
+          //")",error,failure)
+  END IF
+  IF (.NOT.failure) THEN
+     NULLIFY(my_val)
+     IF (PRESENT(val)) my_val => val
+     valSet=PRESENT(l_val).OR.PRESENT(i_val).OR.PRESENT(r_val).OR.&
+          PRESENT(c_val).OR.PRESENT(l_vals_ptr).OR.PRESENT(i_vals_ptr).OR.&
+          PRESENT(r_vals_ptr).OR.PRESENT(c_vals_ptr)
+     IF (ASSOCIATED(my_val)) THEN
+        ! check better?
+        CALL cp_assert(.NOT.valSet,&
+             cp_failure_level,cp_assertion_failed,routineP,&
+             " both val and values present, in setting "//&
+             "keyword "//TRIM(keyword_name(my_index:len_key))//" of section "//&
+             TRIM(section%name),error,failure)
+     ELSE
+        ! ignore ?
+        CALL cp_assert(valSet,&
+             cp_failure_level,cp_assertion_failed,routineP,&
+             " empty value in setting "//&
+             "keyword "//TRIM(keyword_name(my_index:len_key))//" of section "//&
+             TRIM(section%name),error,failure)
+        CPPrecondition(valSet,cp_failure_level,routineP,error,failure)
+        CALL cp_error_init(sub_error,template_error=error,&
+             stop_level=cp_fatal_level)
+        CALL val_create(my_val,l_val=l_val,i_val=i_val,r_val=r_val,&
+             c_val=c_val,l_vals_ptr=l_vals_ptr,i_vals_ptr=i_vals_ptr,&
+             r_vals_ptr=r_vals_ptr,&
+             c_vals_ptr=c_vals_ptr,error=sub_error)
+        CPPostcondition(ASSOCIATED(my_val),cp_failure_level,routineP,sub_error,failure)
+        CALL cp_error_propagate_error(sub_error,routineP,&
+             "setting value from  keyword "//TRIM(keyword_name(my_index:len_key))//&
+             " of section "// TRIM(section%name),error=error,failure=failure)
+        CALL cp_error_dealloc_ref(sub_error)
+     END IF
+  END IF
+  IF (.NOT.failure) THEN
+     vals => s_vals%values(ik,irs)%list
+     IF (irk==-1) THEN
+        CALL cp_sll_val_insert_el_at(vals,my_val,index=-1,error=error)
+     ELSE IF (irk <= cp_sll_val_get_length(vals,error)) THEN
+        CALL cp_assert(irk>0,cp_failure_level,cp_assertion_failed,&
+             routineP,"invalid irk "//TRIM(ADJUSTL(cp_to_string(irk)))//&
+             " in keyword "//TRIM(keyword_name(my_index:len_key))//" of section "//&
+             TRIM(section%name),&
+             error,failure)
+        CALL cp_sll_val_set_el_at(vals,value=my_val,index=irk,error=error)
+     ELSE IF (irk>cp_sll_val_get_length(vals,error)+1) THEN
+        ! change?
+        CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
+             routineP,"cannot add extra keyword repetitions to keyword"&
+             //TRIM(keyword_name(my_index:len_key))//" of section "//&
+             TRIM(section%name),error,failure)
+     ELSE
+        CALL cp_sll_val_insert_el_at(vals,my_val,index=irk,error=error)
+     END IF
+     s_vals%values(ik,irs)%list => vals
+     nullify(my_val)
+  END IF
+
+END SUBROUTINE section_vals_val_set
+!***************************************************************************
+
+!!****f* cp_keywords/section_vals_val_unset *
+!!
+!!   NAME
+!!     section_vals_val_unset
+!!
+!!   FUNCTION
+!!     unsets (removes) the requested value (if it is a keyword repetitions
+!!     removes the repetition, so be careful: the repetition indeces bigger
+!!     than the actual change.
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     - section: the root section
+!!     - keyword_name: the name of the keyword you want (can be a path
+!!       separated by '%')
+!!     - isection: which repetition of the section you are interested in
+!!       (defaults to 1)
+!!     - ival: which repetition of the keyword/val you are interested in
+!!       (defaults to 1)
+!!     - l_val,i_val,r_val,c_val: sets the logical,integer,real or
+!!       character value
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     fawzi
+!!
+!!*** **********************************************************************
+SUBROUTINE section_vals_val_unset(section_vals,keyword_name,i_rep_section,&
+     i_rep_val,n_rep_val,val,&
+     l_val,i_val,r_val,c_val,l_vals,i_vals,r_vals,c_vals,ignore_required,error)
+  TYPE(section_vals_type),pointer :: section_vals
+  CHARACTER(len=*), intent(in) :: keyword_name
+  INTEGER, INTENT(in), OPTIONAL :: i_rep_section, i_rep_val
+  INTEGER,INTENT(out), optional :: n_rep_val
+  TYPE(val_type), POINTER, OPTIONAL :: val
+  LOGICAL, OPTIONAL, INTENT(out) :: l_val
+  LOGICAL, DIMENSION(:), OPTIONAL, POINTER :: l_vals
+  INTEGER, OPTIONAL, INTENT(out) :: i_val
+  INTEGER, DIMENSION(:), OPTIONAL, POINTER :: i_vals
+  REAL(KIND=DP), OPTIONAL, INTENT(out) :: r_val
+  REAL(KIND=DP), DIMENSION(:), OPTIONAL, POINTER :: r_vals
+  CHARACTER(LEN=*), OPTIONAL, INTENT(out) :: c_val
+  CHARACTER(LEN=DEFAULT_STRING_LENGTH), DIMENSION(:), OPTIONAL, POINTER :: c_vals
+  LOGICAL, OPTIONAL, INTENT(in) :: ignore_required
+  type(cp_error_type), optional, intent(inout) :: error
+
+  LOGICAL :: failure,valRequested, my_ignore_required
+  character(len=*), parameter :: routineN='section_val_unset',&
+       routineP=moduleN//':'//routineN
+  INTEGER :: ik,irs,irk,my_index,tmp_index,len_key
+  TYPE(section_vals_type),pointer :: s_vals
+  TYPE(section_type),pointer ::section
+  TYPE(keyword_type), POINTER :: keyword
+  TYPE(cp_sll_val_type), pointer :: vals
+  TYPE(val_type), POINTER :: my_val
+  type(cp_error_type) :: sub_error
+
+  failure=.false.
+
+  CPPrecondition(ASSOCIATED(section_vals),cp_failure_level,routineP,error,failure)
+  CPPrecondition(section_vals%ref_count>0,cp_failure_level,routineP,error,failure)
+
+  my_ignore_required=.false.
+  if (present(ignore_required)) my_ignore_required=ignore_required
+  my_index=INDEX(keyword_name,'%')+1
+  len_key=len_trim(keyword_name)
+  IF (my_index>1) THEN
+     DO
+        tmp_index=INDEX(keyword_name(my_index:len_key),"%")
+        IF (tmp_index<=0) EXIT
+        my_index=my_index+tmp_index
+     END DO
+     s_vals => section_vals_get_subs_vals(section_vals,keyword_name(1:my_index-2),&
+          error=error)
+  ELSE
+     s_vals=> section_vals
+  END IF
+
+  irk=1
+  irs=1
+  if (present(i_rep_section)) irs=i_rep_section
+  if (present(i_rep_val)) irk=i_rep_val
+  if (present(val)) nullify(val)
+  section => s_vals%section
+  CPPrecondition(valRequested,cp_failure_level,routineP,error,failure)
+  IF (.NOT. failure) THEN
+     ik=section_get_keyword_index(s_vals%section,keyword_name(my_index:len_key),error=error)
+     CALL cp_assert(ik/=-2,cp_failure_level,cp_assertion_failed,routineP,&
+          "section "//TRIM(section%name)//" does not contain keyword "//&
+          TRIM(keyword_name(my_index:len_key)),error,failure)
+     IF (.NOT.failure) THEN
+        keyword => section%keywords(ik)%keyword
+     END IF
+  END IF
+  IF (.NOT.failure) THEN
+     ! ignore unset of non set values
+     IF (irs<=SIZE(s_vals%values,2)) THEN
+        CALL cp_assert(irs>0.AND.irs<=SIZE(s_vals%subs_vals,2),&
+             cp_failure_level,cp_assertion_failed,routineP,&
+             "section repetition requested ("//cp_to_string(irs)//&
+             ") out of bounds (1:"//cp_to_string(SIZE(s_vals%subs_vals,2))&
+             //")",error,failure)
+        CALL cp_sll_val_rm_el_at(s_vals%values(ik,irs)%list,index=irk,&
+             error=error)
+     END IF
+  END IF
+
+END SUBROUTINE section_vals_val_unset
 !***************************************************************************
 
 !!****f* cp_keywords/section_vals_write *
@@ -1687,5 +1980,213 @@ END SUBROUTINE section_vals_write
   END SUBROUTINE write_section_xml
 
 ! *****************************************************************************
+
+!!****f* cp_keywords/section_vals_set_subs_vals *
+!!
+!!   NAME
+!!     section_vals_set_subs_vals
+!!
+!!   FUNCTION
+!!     replaces of the requested subsection with the one given
+!!
+!!   NOTES
+!!     -
+!!
+!!   ARGUMENTS
+!!     - section_vals: the root section
+!!     - subsection_name: the name of the subsection to replace
+!!     - new_section_vals: the new section_vals to use
+!!     - i_rep_section: index of the repetition of section_vals of which
+!!       you want to replace the subsection (defaults to 1)
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     fawzi
+!!
+!!*** **********************************************************************
+  SUBROUTINE section_vals_set_subs_vals(section_vals,subsection_name,&
+     new_section_vals,i_rep_section,error)
+  TYPE(section_vals_type), pointer :: section_vals
+  CHARACTER(len=*), intent(in) :: subsection_name
+  TYPE(section_vals_type), pointer :: new_section_vals
+  INTEGER, INTENT(in), optional :: i_rep_section
+  type(cp_error_type), optional, intent(inout) :: error
+  
+  LOGICAL :: failure,is_path
+  character(len=*), parameter :: routineN='section_vals_set_subs_vals',&
+        routineP=moduleN//':'//routineN
+  INTEGER :: isection,irep,my_index, len_key,tmp_index
+  TYPE(section_vals_type), pointer :: s_vals
+
+  failure=.false.
+  CPPrecondition(ASSOCIATED(section_vals),cp_failure_level,routineP,error,failure)
+  CPPrecondition(section_vals%ref_count>0,cp_failure_level,routineP,error,failure)
+  CPPrecondition(ASSOCIATED(new_section_vals),cp_failure_level,routineP,error,failure)
+  CPPrecondition(new_section_vals%ref_count>0,cp_failure_level,routineP,error,failure)
+
+  IF (.NOT. failure) THEN
+     irep=1
+     if (present(i_rep_section)) irep=i_rep_section
+
+     my_index=INDEX(subsection_name,'%')+1
+     len_key=LEN_TRIM(subsection_name)
+     IF (my_index>1) THEN
+        DO
+           tmp_index=INDEX(subsection_name(my_index:len_key),"%")
+           IF (tmp_index<=0) EXIT
+           my_index=my_index+tmp_index
+        END DO
+        s_vals => section_vals_get_subs_vals(section_vals,subsection_name(1:my_index-2),&
+             error=error)
+     ELSE
+        s_vals=> section_vals
+     END IF
+     
+     CPPrecondition(irep<=SIZE(s_vals%subs_vals,2),cp_failure_level,routineP,error,failure)
+  END IF
+
+  IF (.NOT.failure) THEN
+     isection=section_get_subsection_index(s_vals%section,subsection_name(my_index:len_trim(subsection_name)),&
+          error=error)
+  call cp_assert(isection>0,cp_failure_level,&
+       cp_assertion_failed,routineP,&
+       "could not find subsection "//subsection_name(my_index:len_trim(subsection_name))//" in section "//&
+       TRIM(section_vals%section%name)//" at "//&
+       CPSourceFileRef,&
+       error,failure)
+  END IF
+  IF (.NOT.failure) THEN
+     CALL section_vals_retain(new_section_vals,error=error)
+     CALL section_vals_release(s_vals%subs_vals(isection,irep)%section_vals,error=error)
+     s_vals%subs_vals(isection,irep)%section_vals => new_section_vals
+  END IF
+
+END SUBROUTINE section_vals_set_subs_vals
+!***************************************************************************
+
+
+!!****f* input_section_types/section_vals_duplicate *
+!!
+!!   NAME
+!!     section_vals_duplicate
+!!
+!!   FUNCTION
+!!     creates a deep copy from section_vals_in to section_vals_out
+!!
+!!   NOTES
+!!     -
+!!
+!!   ARGUMENTS
+!!     - section_vals_in: the section_vals to copy
+!!     - section_vals_out: the section_vals to create 
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     fawzi
+!!
+!!*** **********************************************************************
+SUBROUTINE section_vals_duplicate(section_vals_in,section_vals_out,&
+     error)
+  TYPE(section_vals_type), POINTER :: section_vals_in, section_vals_out
+  type(cp_error_type), optional, intent(inout) :: error
+  
+  logical :: failure
+  character(len=*), parameter :: routineN='section_vals_create_copy',&
+        routineP=moduleN//':'//routineN
+
+  failure=.false.
+  
+  CPPrecondition(ASSOCIATED(section_vals_in),cp_failure_level,routineP,error,failure)
+  CPPrecondition(.NOT.ASSOCIATED(section_vals_out),cp_failure_level,routineP,error,failure)
+  IF (.NOT.failure) THEN
+     CALL section_vals_create(section_vals_out,section_vals_in%section,&
+          error=error)
+     CALL section_vals_copy(section_vals_in,section_vals_out,error=error)
+  END IF
+END SUBROUTINE section_vals_duplicate
+!***************************************************************************
+
+!!****f* input_section_types/section_vals_copy *
+!!
+!!   NAME
+!!     section_vals_copy
+!!
+!!   FUNCTION
+!!     deep copy from section_vals_in to section_vals_out
+!!
+!!   NOTES
+!!     private, only works with a newly initialized section_vals_out
+!!
+!!   ARGUMENTS
+!!     - section_vals_in: the section_vals to copy
+!!     - section_vals_out: the section_vals where to copy
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     fawzi
+!!
+!!*** **********************************************************************
+RECURSIVE SUBROUTINE section_vals_copy(section_vals_in,section_vals_out,&
+     error)
+  TYPE(section_vals_type), POINTER :: section_vals_in, section_vals_out
+  type(cp_error_type), optional, intent(inout) :: error
+  
+  logical :: failure
+  character(len=*), parameter :: routineN='section_vals_create_copy',&
+        routineP=moduleN//':'//routineN
+  INTEGER :: irep, ival,isec
+  TYPE(cp_sll_val_type), POINTER :: v1,v2
+  TYPE(val_type), pointer :: el
+
+  failure=.false.
+  NULLIFY(v2,el)
+  
+  CPPrecondition(ASSOCIATED(section_vals_in),cp_failure_level,routineP,error,failure)
+  CPPrecondition(ASSOCIATED(section_vals_out),cp_failure_level,routineP,error,failure)
+  call cp_assert(section_vals_in%section%id_nr==section_vals_out%section%id_nr,&
+       cp_failure_level,cp_assertion_failed,routineP,&
+       CPSourceFileRef,&
+       error,failure)
+  IF (.NOT.failure) THEN
+     DO irep=1,SIZE(section_vals_in%values,2)
+        CALL section_vals_add_values(section_vals_out,error=error)
+        DO ival=LBOUND(section_vals_in%values,1),UBOUND(section_vals_in%values,1)
+           v1=>section_vals_in%values(ival,irep)%list
+           IF (ASSOCIATED(v1)) THEN
+              CALL val_duplicate(v1%first_el,el,error=error)
+              CALL cp_sll_val_create(v2,el,error=error)
+              nullify(el)
+              section_vals_out%values(ival,irep)%list => v2
+              DO
+                 if (.not.associated(v1%rest)) exit
+                 v1 => v1%rest
+                 CALL val_duplicate(v1%first_el,el,error=error)
+                 CALL cp_sll_val_create(v2%rest,first_el=el,error=error)
+                 nullify(el)
+                 v2 => v2%rest
+              END DO
+           END IF
+        END DO
+     END DO
+     CALL cp_assert(SIZE(section_vals_in%values,2)==SIZE(section_vals_out%values,2),&
+          cp_failure_level,cp_assertion_failed,routineP,&
+          CPSourceFileRef,&
+          error,failure)
+     CALL cp_assert(SIZE(section_vals_in%subs_vals,2)==SIZE(section_vals_out%subs_vals,2),&
+          cp_failure_level,cp_assertion_failed,routineP,&
+          CPSourceFileRef,&
+          error,failure)
+     DO irep=1,SIZE(section_vals_in%subs_vals,2)
+        DO isec=1,SIZE(section_vals_in%subs_vals,1)
+           CALL section_vals_copy(section_vals_in%subs_vals(isec,irep)%section_vals,&
+                section_vals_out%subs_vals(isec,irep)%section_vals,error=error)
+        END DO
+     END DO
+  END IF
+END SUBROUTINE section_vals_copy
+!***************************************************************************
 
 END MODULE input_section_types

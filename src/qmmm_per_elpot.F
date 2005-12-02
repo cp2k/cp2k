@@ -36,7 +36,7 @@ MODULE qmmm_per_elpot
                                              cp_to_string,&
                                              cp_warning_level,&
                                              cp_logger_type
-  USE cp_output_handling, ONLY: cp_should_output
+  USE cp_output_handling, ONLY: cp_print_key_should_output, cp_p_file
   USE kinds,                           ONLY: default_string_length,&
                                              dp
   USE timings,                         ONLY: timeset,&
@@ -241,8 +241,8 @@ CONTAINS
                                      Gmax=Gmax, Kmax=Kmax, n_rep_real=n_rep_real,&
                                      Fac=Fac, mm_atom_index=mm_atom_index)
 
-       IF (cp_should_output(logger%iter_info,print_pot,error=error).AND.&
-            logger%para_env%mepos==logger%para_env%source) THEN
+       IF (BTEST(cp_print_key_should_output(logger%iter_info,print_pot,error=error),&
+            cp_p_file).AND.logger%para_env%mepos==logger%para_env%source) THEN
           IF (globenv%ionode) THEN
              iw = globenv%scr
              WRITE (UNIT=iw,FMT="(/,T2,A)") REPEAT("-",79)

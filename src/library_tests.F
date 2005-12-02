@@ -35,7 +35,6 @@ MODULE library_tests
   USE cp_blacs_env,                    ONLY: cp_blacs_env_create,&
                                              cp_blacs_env_release,&
                                              cp_blacs_env_write
-  USE cp_error_handling,               ONLY: cp_error_type
   USE cp_files,                        ONLY: close_file,&
                                              open_file
   USE cp_fm_diag,                      ONLY: cp_fm_syevd,&
@@ -74,20 +73,12 @@ MODULE library_tests
                                              rng_stream_type,&
                                              set_rng_stream,&
                                              write_rng_matrices
-  USE parser,                          ONLY: get_next,&
-                                             p_error,&
-                                             parser_end,&
-                                             parser_init,&
-                                             read_line,&
-                                             search_label,&
-                                             stop_parser,&
-                                             test_next
   USE pw_grid_types,                   ONLY: FULLSPACE,&
                                              HALFSPACE,&
                                              pw_grid_type
   USE pw_grids,                        ONLY: pw_find_cutoff,&
-                                             pw_grid_construct,&
-                                             pw_grid_destruct,&
+                                             pw_grid_create,&
+                                             pw_grid_release,&
                                              pw_grid_setup
   USE pw_types,                        ONLY: COMPLEXDATA1D,&
                                              COMPLEXDATA3D,&
@@ -100,7 +91,9 @@ MODULE library_tests
                                              cell_release
   USE string_utilities,                ONLY: uppercase
   USE termination,                     ONLY: stop_memory
-
+  USE input_section_types, ONLY: section_vals_type, section_vals_val_get,&
+       section_vals_get_subs_vals
+#include "cp_common_uses.h"
   IMPLICIT NONE
 
   PRIVATE
@@ -193,7 +186,6 @@ END SUBROUTINE lib_test
 !!I    MATMUL   n                                                             I
 !!I    FFT      n                                                             I
 !!I    PW_FFT   n                                                             I
-!!I    FUNCTIONALS n                                                          I
 !!I    Clebsch-Gordon n                                                       I
 !!I    RS_GRIDS n                                                             I
 !!I    MPI      n                                                             I
@@ -208,70 +200,39 @@ END SUBROUTINE lib_test
 !!
 !!*** *************************************************************************
 
-SUBROUTINE test_input ( globenv )
+SUBROUTINE test_input ( globenv , error)
 
     TYPE(global_environment_type), &
       INTENT(IN)                             :: globenv
+    TYPE(cp_error_type), INTENT(inout), optional :: error
 
     CHARACTER(LEN=20)                        :: string
     CHARACTER(LEN=5)                         :: label
     INTEGER                                  :: ierror, ilen, iw
-
+    TYPE(section_vals_type), pointer :: test_section
+    logical :: l_val
+    INTEGER, DIMENSION(:), pointer :: i_vals
 !
 
   iw = globenv % scr
 !..defaults
   runtest = 0
   max_memory = 256.e6_dp
-!..parse the input section
-  label = '&TEST'
-  CALL parser_init ( globenv % input_file_name, globenv )
-  CALL search_label ( label, ierror, ignore_case=.TRUE. )
-  IF (ierror /= 0 ) THEN
-     IF( globenv % ionode ) &
-        WRITE ( iw, '( a )' ) ' No input section &TEST found '
-  ELSE
-     CALL read_line
-     DO WHILE ( test_next() /= 'X' )
-        ilen = 6
-        CALL get_next ( string, ilen )
-        CALL uppercase ( string )
 
-        SELECT CASE ( string )
-        CASE DEFAULT
-           CALL p_error()
-           CALL stop_parser ( 'test_input', 'unknown option' )
-        CASE ( 'MEMORY' )
-           CALL get_next ( max_memory )
-        CASE ( 'COPY' )
-           CALL get_next ( runtest ( 1 ) )
-        CASE ( 'MATMUL' )
-           CALL get_next ( runtest ( 2 ) )
-        CASE ( 'FFT' )
-           CALL get_next ( runtest ( 3 ) )
-        CASE ( 'PW_FFT' )
-           CALL get_next ( runtest ( 4 ) )
-        CASE ( 'FUNCTI' )
-           CALL get_next ( runtest ( 5 ) )
-        CASE ( 'CLEBSC' )
-           CALL get_next ( runtest ( 6 ) )
-        CASE ( 'RS_GRI' )
-           CALL get_next ( runtest ( 7 ) )
-        CASE ( 'MPI' )
-           CALL get_next ( runtest ( 8 ) )
-        CASE ( 'RNG' )
-           CALL get_next ( runtest ( 9 ) )
-        CASE ( 'EIGENS' )
-           CALL get_next ( runtest (10 ) )
-           CALL get_next ( runtest (11 ) )
-           runtest(11) = MIN(MAX(1,runtest(11)),runtest(10))
-        END SELECT
-        CALL read_line
-     END DO
-
-  END IF
-  CALL parser_end
-!..end of parsing the input section
+  test_section => section_vals_get_subs_vals(globenv%input_file,"TEST",error=error)
+  CALL section_vals_val_get(test_section,"memory",r_val=max_memory,error=error)
+  CALL section_vals_val_get(test_section,'copy',i_val=runtest ( 1 ),error=error )
+  CALL section_vals_val_get(test_section,'matmul',i_val=runtest ( 2 ),error=error )
+  CALL section_vals_val_get(test_section,'fft',i_val=runtest ( 3 ),error=error )
+  CALL section_vals_val_get(test_section,'pw_fft',i_val=runtest ( 4 ),error=error )
+  CALL section_vals_val_get(test_section,'clebsch_gordon',i_val=runtest ( 6 ),error=error )
+  CALL section_vals_val_get(test_section,'rs_grid',i_val=runtest ( 7 ),error=error )
+  CALL section_vals_val_get(test_section,'mpi',i_val=runtest ( 8 ),error=error )
+  CALL section_vals_val_get(test_section,'rng',l_val=l_val,error=error )
+  if (l_val) runtest ( 9 )=1
+  CALL section_vals_val_get(test_section,'eigensolver',i_vals=i_vals,error=error )
+  runtest(10)=i_vals(1)
+  runtest(11) = MIN(MAX(1,i_vals(2)),i_vals(1))
 
 END SUBROUTINE test_input
 
@@ -757,7 +718,7 @@ SUBROUTINE pw_fft_test ( globenv )
                                                 perf, r, t, tend, tim, tstart
     TYPE(cell_type), POINTER                 :: box
     TYPE(coeff_type)                         :: ca, cb, cc
-    TYPE(pw_grid_type)                       :: grid
+    TYPE(pw_grid_type),pointer               :: grid
 
 !..the unit cell
 
@@ -779,7 +740,7 @@ SUBROUTINE pw_fft_test ( globenv )
   np ( 3 ) = NINT ( r * 0.666_dp )
 
 !..Test 1
-  CALL pw_grid_construct ( grid, globenv%group )
+  CALL pw_grid_create ( grid, globenv%group )
   grid % grid_span = FULLSPACE
   grid % bounds ( 1, : ) = -np / 2
   grid % bounds ( 2, : ) = ( np - 1 ) / 2
@@ -830,7 +791,7 @@ SUBROUTINE pw_fft_test ( globenv )
   CALL coeff_deallocate ( cb )
   CALL coeff_deallocate ( cc )
  
-  CALL pw_grid_destruct ( grid )
+  CALL pw_grid_release ( grid )
 
   IF ( globenv % ionode ) THEN
     iw = globenv % scr
@@ -843,7 +804,7 @@ SUBROUTINE pw_fft_test ( globenv )
   END IF
 
 !..Test 2
-  CALL pw_grid_construct ( grid, globenv%group )
+  CALL pw_grid_create ( grid, globenv%group )
   grid % grid_span = HALFSPACE
   grid % bounds ( 1, : ) = -np / 2
   grid % bounds ( 2, : ) = ( np - 1 ) / 2
@@ -894,7 +855,7 @@ SUBROUTINE pw_fft_test ( globenv )
   CALL coeff_deallocate ( cb )
   CALL coeff_deallocate ( cc )
  
-  CALL pw_grid_destruct ( grid )
+  CALL pw_grid_release ( grid )
 
   IF ( globenv % ionode ) THEN
     iw = globenv % scr
@@ -907,7 +868,7 @@ SUBROUTINE pw_fft_test ( globenv )
   END IF
 
 !..Test 3
-  CALL pw_grid_construct ( grid, globenv%group )
+  CALL pw_grid_create ( grid, globenv%group )
   grid % grid_span = FULLSPACE
 
   CALL pw_find_cutoff ( np, box, cutoff )
@@ -959,7 +920,7 @@ SUBROUTINE pw_fft_test ( globenv )
   CALL coeff_deallocate ( cb )
   CALL coeff_deallocate ( cc )
  
-  CALL pw_grid_destruct ( grid )
+  CALL pw_grid_release ( grid )
 
   IF ( globenv % ionode ) THEN
     iw = globenv % scr
@@ -972,7 +933,7 @@ SUBROUTINE pw_fft_test ( globenv )
   END IF
 
 !..Test 4
-  CALL pw_grid_construct ( grid , globenv%group )
+  CALL pw_grid_create ( grid , globenv%group )
   grid % grid_span = HALFSPACE
   CALL pw_find_cutoff ( np, box, cutoff )
   cutoff = cutoff * cutoff
@@ -1023,7 +984,7 @@ SUBROUTINE pw_fft_test ( globenv )
   CALL coeff_deallocate ( cb )
   CALL coeff_deallocate ( cc )
  
-  CALL pw_grid_destruct ( grid )
+  CALL pw_grid_release ( grid )
 
   IF ( globenv % ionode ) THEN
     iw = globenv % scr

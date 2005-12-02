@@ -56,11 +56,11 @@ MODULE qs_scf_post
                                              cp_note_level,&
                                              cp_to_string,&
                                              cp_warning_level
-  USE cp_output_handling,              ONLY: cp_finished_output,&
-                                             cp_first_output,&
+  USE cp_output_handling,              ONLY: cp_out_flags_finished_output,&
                                              cp_iter_string,&
-                                             cp_should_output,&
-                                             cp_unitnr_for_output
+                                             cp_out_flags_should_output,&
+                                             cp_out_flags_unit_nr,&
+                                             cp_out_flags_type, cp_p_file
   USE cp_para_types,                   ONLY: cp_blacs_env_type,&
                                              cp_para_env_type
   USE cp_rs_pool_types,                ONLY: cp_rs_pool_type,&
@@ -242,6 +242,7 @@ CONTAINS
     TYPE(section_vals_type), POINTER :: print_key, input
     TYPE(cp_rs_pool_type), POINTER           :: auxbas_rs_pool
     TYPE(realspace_grid_type), POINTER       :: rs
+    TYPE(cp_out_flags_type), pointer :: output_control
     TYPE(preconditioner_type), POINTER       :: preconditioner
  
     CALL timeset(routineN,"I",'',handle)
@@ -255,7 +256,7 @@ CONTAINS
             mos,atomic_kind_set,particle_set,rho,mo_coeff,&
             ks_rmpv,matrix_s,qs_loc_env,scf_control,unoccupied_orbs,&
             mo_eigenvalues,unoccupied_evals,fm_struct_tmp,molecule_set,&
-            center,rho_core,tddfpt_control,input,print_key)
+            center,rho_core,tddfpt_control,input,print_key, output_control)
     NULLIFY(qs_loc_env_new,my_localized_wfn_control)
 
     logger => cp_error_get_logger(error)
@@ -269,21 +270,21 @@ CONTAINS
        CALL get_qs_env(qs_env,dft_control=dft_control,molecule_set=molecule_set, &
             mos=mos,atomic_kind_set=atomic_kind_set,particle_set=particle_set,&
             rho=rho,matrix_ks=ks_rmpv,scf_control=scf_control,matrix_s=matrix_s, &
-            input=input, &
+            input=input, output_control=output_control,&
             cell=cell,rho_core=rho_core,tddfpt_control=tddfpt_control,error=error)
        CALL get_qs_env(qs_env=qs_env,pw_env=pw_env)
 
 !    *** compute the mulliken charges ***
-       print_key => section_vals_get_subs_vals(input,"DFT%PRINT%MULLIKEN", error=error)
-       IF (cp_should_output(logger%iter_info,print_key,error=error)) THEN
-          unit_nr=cp_unitnr_for_output(logger, print_key, extension=".mulliken", &
-               local=.FALSE., log_filename=.FALSE., error=error)
+       IF (BTEST(cp_out_flags_should_output(output_control,"DFT%PRINT%MULLIKEN",error=error),cp_p_file)) THEN
+          unit_nr=cp_out_flags_unit_nr(output_control,"DFT%PRINT%MULLIKEN",&
+               extension=".mulliken",middle_name="",log_filename=.false.,error=error)
           mulliken_title="  Mulliken charges : iteration level: " &
                                 //cp_iter_string(logger%iter_info, print_key)
           CALL mulliken_charges(rho%rho_ao,matrix_s(1)%matrix,globenv%para_env,particle_set, &
-                                  unit_nr,ionode,mulliken_title)
-          CALL cp_finished_output(unit_nr, logger, print_key, local=.FALSE.,&
-               error=error)
+                                  unit_nr,unit_nr>0,mulliken_title)
+
+          CALL cp_out_flags_finished_output(unit_nr, output_control,&
+               "DFT%PRINT%MULLIKEN", error=error)
        END IF
 
        ! XXX Joost : should go as soon as the default printing within the new scheme is clear
@@ -648,13 +649,14 @@ CONTAINS
     TYPE(cp_rs_pool_type), POINTER           :: auxbas_rs_pool
     TYPE(realspace_grid_type), POINTER       :: rs
     INTEGER            :: handle
+    TYPE(cp_out_flags_type), pointer :: output_control
 
     CALL timeset(routineN,handle)
     failure=.FALSE.
     NULLIFY(cell,dft_control,pw_env,auxbas_pw_pool,pw_pools,&
             mos,atomic_kind_set,particle_set,rho,&
             ks_rmpv,matrix_s,scf_control,&
-            molecule_set,input)
+            molecule_set,input,output_control)
     logger => cp_error_get_logger(error)
     ionode = logger%para_env%mepos==logger%para_env%source
     IF (ionode) output_unit= cp_logger_get_default_unit_nr(logger)
@@ -664,7 +666,7 @@ CONTAINS
        CALL get_qs_env(qs_env,dft_control=dft_control,molecule_set=molecule_set, &
             mos=mos,atomic_kind_set=atomic_kind_set,particle_set=particle_set,&
             rho=rho,matrix_ks=ks_rmpv,scf_control=scf_control,matrix_s=matrix_s,&
-            input=input,cell=cell,error=error)
+            input=input,cell=cell,output_control=output_control,error=error)
 
 !   *** Write last wavefunction to screen ***
        DO ispin=1,dft_control%nspins
@@ -749,21 +751,20 @@ CONTAINS
        ENDIF
 
 !    *** stupid (non periodic) calculation of the dipole moment ***
-       print_key => section_vals_get_subs_vals(input,"DFT%PRINT%DIPOLE",&
-            error=error)
-       IF (cp_should_output(logger%iter_info,print_key,error=error)) THEN
-          unit_nr=cp_unitnr_for_output(logger, print_key, extension=".dipole",&
-               local=.FALSE., log_filename=.FALSE., error=error)
+       IF (btest(cp_out_flags_should_output(output_control,"DFT%PRINT%DIPOLE",&
+            error=error),cp_p_file)) THEN
+          unit_nr=cp_out_flags_unit_nr(output_control, "DFT%PRINT%DIPOLE",&
+               extension=".dipole", log_filename=.FALSE., error=error)
           CALL get_qs_env(qs_env=qs_env,pw_env=pw_env,error=error)
           CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool,&
                error=error)
           CALL calc_stupid_dipole(qs_env%subsys,rho%rho_r,qs_env%rho_core%pw,&
                aux_bas_pool=auxbas_pw_pool,cell=cell,globenv=globenv,&
                unit_nr=unit_nr,&
-               print_header=cp_first_output(logger%iter_info,print_key,error=error),&
+               print_header=.FALSE.,&
                error=error)
-          CALL cp_finished_output(unit_nr, logger, print_key, local=.FALSE.,&
-               error=error)
+          CALL cp_out_flags_finished_output(unit_nr, output_control,&
+               "DFT%PRINT%DIPOLE",error=error)
        END IF
  
 !    *** write the density matrix ***

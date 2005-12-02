@@ -38,7 +38,8 @@ MODULE qs_force
                                              qs_environment_type,&
                                              set_qs_env
   USE qs_force_types,                  ONLY: zero_qs_force,&
-                                             qs_force_type
+                                             qs_force_type,&
+                                             allocate_qs_force
   USE qs_ks_methods,                   ONLY: qs_ks_update_qs_env,&
                                              calculate_w_matrix
   USE qs_ks_types,                     ONLY: qs_ks_env_type
@@ -58,8 +59,10 @@ MODULE qs_force
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE harris_force,                    ONLY: harris_force_correction
-  USE harris_env_types,                ONLY: harris_env_type
-
+  USE harris_force_types,              ONLY: harris_force_type, &
+                                             harris_force_create
+  USE harris_env_types,                ONLY: harris_env_type, harris_env_set
+#include "cp_common_uses.h"
   IMPLICIT NONE
 
   PRIVATE
@@ -79,7 +82,7 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE qs_forces(qs_env,globenv)
+  SUBROUTINE qs_forces(qs_env,globenv, error)
 
 !   Purpose: Calculate the Quickstep forces.
 
@@ -89,14 +92,17 @@ CONTAINS
 
     TYPE(qs_environment_type), POINTER               :: qs_env
     TYPE(global_environment_type), POINTER           :: globenv
+    TYPE(cp_error_type), INTENT(inout), optional     :: error
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "qs_forces", &
       routine = "SUBROUTINE "//routine_name//" (MODULE "//module_name//")"
 
     INTEGER                                          :: handle, i, iatom, &
                                                         ikind, ispin, &
-                                                        istat, natom, nspin
-    INTEGER, ALLOCATABLE, DIMENSION(:)               :: atom_of_kind, kind_of
+                                                        istat, natom, nspin,&
+                                                        nkind
+    INTEGER, ALLOCATABLE, DIMENSION(:)               :: atom_of_kind, kind_of,&
+         natom_of_kind
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                        :: atomic_kind_set
     TYPE(dft_control_type), POINTER                  :: dft_control
@@ -113,13 +119,15 @@ CONTAINS
                                                         matrix_w
     TYPE(scf_control_type), POINTER                  :: scf_control
     LOGICAL                                          :: gapw, obasis, &
-                                                        harris_flag
+                                                        harris_flag, failure
     TYPE(qs_rho_type), POINTER                       :: rho
     TYPE(cp_fm_p_type), DIMENSION(:), POINTER        :: mo_derivs
     TYPE(harris_env_type), POINTER                   :: harris_env
+    TYPE(harris_force_type), POINTER         :: harris_force
 
 !   ---------------------------------------------------------------------------
 
+    failure=.false.
     CALL write_checkpoint_information("entering "//routine_name,globenv)
 
     CALL timeset(routine_name,"I","",handle)
@@ -142,7 +150,7 @@ CONTAINS
     CALL get_qs_env(qs_env=qs_env,&
                     atomic_kind_set=atomic_kind_set,&
                     dft_control=dft_control,&
-                    force=force,&
+                    force=force,harris_env=harris_env,&
                     particle_set=particle_set,&
                     scf_control=scf_control)
 
@@ -171,6 +179,25 @@ CONTAINS
                              atom_of_kind=atom_of_kind,&
                              kind_of=kind_of)
 
+    IF (.NOT.ASSOCIATED(force)) THEN
+!   *** Allocate the force data structure ***
+       dft_control%forces=.true.
+       nkind = SIZE(atomic_kind_set)
+       ALLOCATE (natom_of_kind(nkind),STAT=istat)
+       CPPostcondition(istat==0,cp_failure_level,routine,error,failure)
+       CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
+            natom_of_kind=natom_of_kind)
+      CALL allocate_qs_force(force,natom_of_kind)
+      DEALLOCATE (natom_of_kind,STAT=istat)
+      CPPostconditionNoFail(istat==0,cp_warning_level,routine,error)
+      CALL set_qs_env(qs_env,force=force,error=error)
+      IF (harris_flag) THEN
+         NULLIFY(harris_force)
+        CALL harris_force_create(harris_force=harris_force,natom=natom,error=error)
+        CALL harris_env_set(harris_env=harris_env, &
+             harris_force=harris_force, error=error)
+      END IF
+    END IF
     CALL zero_qs_force(force)
 
     CALL qs_energies(qs_env,globenv)

@@ -117,17 +117,10 @@ MODULE global_types
      INTEGER :: id_nr, ref_count
      TYPE(cp_para_env_type), POINTER         :: para_env
      TYPE(print_keys_type), POINTER           :: PRINT
-     CHARACTER(LEN=default_path_length)    :: basis_set_file_name,&
-                                                coord_file_name,&
-                                                error_file_name,&
-                                                input_file_name,&
-                                                output_file_name,&
-                                                potential_file_name,&
-                                                mm_potential_file_name,&
-                                                pp_library_path,&
-                                                restart_file_name
+     CHARACTER(LEN=default_path_length)    :: input_file_name
      CHARACTER(LEN=default_string_length)    :: default_fft_library,&
-                                                project_name
+                                                project_name,&
+                                                coord_file_name
      INTEGER :: group        !! group handle for all processors
      INTEGER :: idum         !! random number seed
      INTEGER :: mepos        !! position number for local processor
@@ -206,22 +199,15 @@ CONTAINS
        ELSE
           CALL print_keys_create(globenv%print)
        END IF
-       globenv%basis_set_file_name=""
-       globenv%coord_file_name=""
-       globenv%error_file_name=""
        globenv%input_file_name=""
        IF (PRESENT(input_file_name)) globenv%input_file_name=input_file_name
-       globenv%output_file_name=""
-       globenv%potential_file_name=""
-       globenv%mm_potential_file_name=""
-       globenv%pp_library_path=""
-       globenv%restart_file_name=""
        globenv%run_type_id=0
        globenv%default_fft_library="FFTSG"
        globenv%prog_name_id=0
        globenv%project_name=""
        globenv%group=para_env%group
        globenv%idum=0                 !! random number seed
+       globenv%coord_file_name=""
        globenv%mepos=para_env%mepos
        globenv%num_pe=para_env%num_pe
        globenv%print_level=1

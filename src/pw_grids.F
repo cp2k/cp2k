@@ -20,8 +20,8 @@
 !!     JGH (21-02-2003) : Generalized reference grid concept
 !!
 !!   NOTES
-!!     pw_grid_construct : set the defaults
-!!     pw_grid_destruct : release all memory connected to type
+!!     pw_grid_create : set the defaults
+!!     pw_grid_release : release all memory connected to type
 !!     pw_grid_setup  : main routine to set up a grid
 !!          input: cell (the box for the grid)
 !!                 pw_grid (the grid; pw_grid%grid_span has to be set)
@@ -43,17 +43,6 @@
 !******************************************************************************
 
 MODULE pw_grids
-#include "cp_prep_globals.h"
-  USE cp_error_handling,               ONLY: cp_a_l,&
-                                             cp_assert,&
-                                             cp_error_get_logger,&
-                                             cp_error_message,&
-                                             cp_error_type
-  USE cp_log_handling,                 ONLY: cp_failure_level,&
-                                             cp_logger_type,&
-                                             cp_note_level,&
-                                             cp_to_string,&
-                                             cp_warning_level
   USE fft_tools,                       ONLY: FFT_RADIX_NEXT,&
                                              FFT_RADIX_NEXT_ODD,&
                                              fft_radix_operations
@@ -86,13 +75,13 @@ MODULE pw_grids
                                              get_limit,&
                                              matvec_3x3,&
                                              sort
-
+#include "cp_common_uses.h"
   IMPLICIT NONE
 
   PRIVATE
-  PUBLIC :: pw_grid_construct, pw_grid_destruct, pw_grid_compare
+  PUBLIC :: pw_grid_create, pw_grid_compare
   PUBLIC :: pw_grid_setup, pw_grid_change, pw_find_cutoff, pw_grid_find_bounds
-  PUBLIC :: pw_grid_retain, pw_grid_release, pw_grid_copy_no_pbc
+  PUBLIC :: pw_grid_retain, pw_grid_release, pw_grid_create_copy_no_pbc
   PUBLIC :: create_gvectors
 
   INTEGER :: grid_tag = 0
@@ -103,179 +92,83 @@ MODULE pw_grids
 CONTAINS
 
 !******************************************************************************
-!!****** pw_grids/pw_grid_construct [1.0] *
+!!****** pw_grids/pw_grid_create [1.0] *
 !!
 !!   NAME
-!!     pw_grid_construct
+!!     pw_grid_create
 !!
 !!   FUNCTION
 !!     Initialize a PW grid with all defaults
 !!
 !!   AUTHOR
-!!     JGH (7-Feb-2001)
+!!     JGH (7-Feb-2001) & fawzi
 !!
 !!   MODIFICATION HISTORY
 !!     JGH (21-Feb-2003) : initialize pw_grid%reference
 !!
 !!*** *************************************************************************
 
-SUBROUTINE pw_grid_construct ( pw_grid, pe_group )
+  SUBROUTINE pw_grid_create ( pw_grid, pe_group, error )
 
-    TYPE(pw_grid_type), INTENT(INOUT)        :: pw_grid
+    TYPE(pw_grid_type), pointer        :: pw_grid
     INTEGER, intent(in) :: pe_group
+    TYPE(cp_error_type), INTENT(inout), optional :: error
 
-  pw_grid % bounds = 0
-  pw_grid % cutoff = 0.0_dp
-  pw_grid % grid_span = FULLSPACE
-  pw_grid % para % mode = PW_MODE_LOCAL
-  pw_grid % para % rs_dims = 0
-  pw_grid % reference = 0
-  pw_grid % ref_count = 1
-  NULLIFY ( pw_grid % g )
-  NULLIFY ( pw_grid % gsq )
-  NULLIFY ( pw_grid % g_hat )
-  NULLIFY ( pw_grid % gidx )
-  NULLIFY ( pw_grid % mapl % pos )
-  NULLIFY ( pw_grid % mapl % neg )
-  NULLIFY ( pw_grid % mapm % pos )
-  NULLIFY ( pw_grid % mapm % neg )
-  NULLIFY ( pw_grid % mapn % pos )
-  NULLIFY ( pw_grid % mapn % neg )
-  NULLIFY ( pw_grid % para % yzp )
-  NULLIFY ( pw_grid % para % yzq )
-  NULLIFY ( pw_grid % para % nyzray )
-  NULLIFY ( pw_grid % para % bo )
-  NULLIFY ( pw_grid % para % pos_of_x )
+    LOGICAL :: failure
+    integer :: stat
+    CHARACTER(len=*), PARAMETER :: routineN="pw_grid_create",&
+         routineP=moduleN//':'//routineN
 
-  ! assign a unique tag to this grid
-  grid_tag = grid_tag + 1
-  pw_grid % identifier = grid_tag
-
-  ! parallel info
-  CALL mp_comm_dup ( pe_group, pw_grid % para % group )
-  CALL mp_environ ( pw_grid % para % group_size, &
-       pw_grid % para % my_pos, &
-       pw_grid % para % group )
-  pw_grid % para % group_head_id = 0
-  pw_grid % para % group_head = &
-       ( pw_grid % para % group_head_id == pw_grid % para % my_pos )
-  IF (pw_grid % para % group_size > 1) THEN
-     pw_grid % para % mode = PW_MODE_DISTRIBUTED
-  ELSE
-     pw_grid % para % mode = PW_MODE_LOCAL
-  END IF
-
-END SUBROUTINE pw_grid_construct
-
-!******************************************************************************
-!!****** pw_grids/pw_grid_destruct [1.0] *
-!!
-!!   NAME
-!!     pw_grid_destruct
-!!
-!!   FUNCTION
-!!     Deallocate all pointers within a pw_grid_type
-!!
-!!   AUTHOR
-!!     JGH (7-Feb-2001)
-!!
-!!   MODIFICATION HISTORY
-!!     JGH (22-Mar-2001) : release group communicators
-!!
-!!*** *************************************************************************
-
-SUBROUTINE pw_grid_destruct ( pw_grid, error )
-
-
-    TYPE(pw_grid_type), INTENT(INOUT)        :: pw_grid
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = "pw_grid_destruct", &
-      routineP = moduleN//":"//routineN
-
-    INTEGER                                  :: ierr
-
-  CPPreconditionNoFail(pw_grid%ref_count==1,cp_failure_level,routineP,error)
-  IF ( ASSOCIATED ( pw_grid % gidx ) ) THEN
-    DEALLOCATE ( pw_grid % gidx, STAT = ierr )
-    IF ( ierr /= 0 ) CALL stop_memory ( "pw_grid_destruct", "pw_grid % gidx" )
-  END IF
-  IF ( ASSOCIATED ( pw_grid % g ) ) THEN
-    DEALLOCATE ( pw_grid % g, STAT = ierr )
-    IF ( ierr /= 0 ) CALL stop_memory ( "pw_grid_destruct", "pw_grid % g" )
-  END IF
-  IF ( ASSOCIATED ( pw_grid % gsq ) ) THEN
-    DEALLOCATE ( pw_grid % gsq, STAT = ierr )
-    IF ( ierr /= 0 ) CALL stop_memory ( "pw_grid_destruct", "pw_grid % gsq" )
-  END IF
-  IF ( ASSOCIATED ( pw_grid % g_hat ) ) THEN
-    DEALLOCATE ( pw_grid % g_hat, STAT = ierr )
-    IF ( ierr /= 0 ) CALL stop_memory ( "pw_grid_destruct", "pw_grid % g_hat" )
-  END IF
-  IF ( ASSOCIATED ( pw_grid % mapl % pos ) ) THEN
-    DEALLOCATE ( pw_grid % mapl % pos, STAT = ierr )
-    IF ( ierr /= 0 ) CALL stop_memory ( "pw_grid_destruct", &
-       "pw_grid % mapl % pos" )
-  END IF
-  IF ( ASSOCIATED ( pw_grid % mapm % pos ) ) THEN
-    DEALLOCATE ( pw_grid % mapm % pos, STAT = ierr )
-    IF ( ierr /= 0 ) CALL stop_memory ( "pw_grid_destruct", &
-       "pw_grid % mapm % pos" )
-  END IF
-  IF ( ASSOCIATED ( pw_grid % mapn % pos ) ) THEN
-    DEALLOCATE ( pw_grid % mapn % pos, STAT = ierr )
-    IF ( ierr /= 0 ) CALL stop_memory ( "pw_grid_destruct", &
-       "pw_grid % mapn % pos" )
-  END IF
-  IF ( ASSOCIATED ( pw_grid % mapl % neg ) ) THEN
-    DEALLOCATE ( pw_grid % mapl % neg, STAT = ierr )
-    IF ( ierr /= 0 ) CALL stop_memory ( "pw_grid_destruct", &
-       "pw_grid % mapl % neg" )
-  END IF
-  IF ( ASSOCIATED ( pw_grid % mapm % neg ) ) THEN
-    DEALLOCATE ( pw_grid % mapm % neg, STAT = ierr )
-    IF ( ierr /= 0 ) CALL stop_memory ( "pw_grid_destruct", &
-       "pw_grid % mapm % neg" )
-  END IF
-  IF ( ASSOCIATED ( pw_grid % mapn % neg ) ) THEN
-    DEALLOCATE ( pw_grid % mapn % neg, STAT = ierr )
-    IF ( ierr /= 0 ) CALL stop_memory ( "pw_grid_destruct", &
-       "pw_grid % mapn % neg" )
-  END IF
-  IF ( pw_grid % para % mode == PW_MODE_DISTRIBUTED ) THEN
-    IF ( ASSOCIATED ( pw_grid % para % yzp ) ) THEN
-      DEALLOCATE ( pw_grid % para % yzp, STAT = ierr )
-      IF ( ierr /= 0 ) CALL stop_memory ( "pw_grid_destruct", &
-        "pw_grid % para % yzp" )
+    failure=.false.
+    CPPrecondition(.NOT.ASSOCIATED(pw_grid),cp_failure_level,routineP,error,failure)
+    IF (.NOT.failure) THEN
+       ALLOCATE(pw_grid,stat=stat)
+       CPPostcondition(stat==0,cp_fatal_level,routineP,error,failure)
     END IF
-    IF ( ASSOCIATED ( pw_grid % para % yzq ) ) THEN
-      DEALLOCATE ( pw_grid % para % yzq, STAT = ierr )
-      IF ( ierr /= 0 ) CALL stop_memory ( "pw_grid_destruct", &
-        "pw_grid % para % yzq" )
-    END IF
-    IF ( ASSOCIATED ( pw_grid % para % nyzray ) ) THEN
-      DEALLOCATE ( pw_grid % para % nyzray, STAT = ierr )
-      IF ( ierr /= 0 ) CALL stop_memory ( "pw_grid_destruct", &
-        "pw_grid % para % nyzray" )
-    END IF
-    IF ( ASSOCIATED ( pw_grid % para % bo ) ) THEN
-      DEALLOCATE ( pw_grid % para % bo, STAT = ierr )
-      IF ( ierr /= 0 ) CALL stop_memory ( "pw_grid_destruct", &
-        "pw_grid % para % bo" )
-    END IF
- END IF
- ! also release groups
- CALL mp_comm_free ( pw_grid % para % group )
- IF (PRODUCT(pw_grid % para % rs_dims) /= 0 ) &
-      CALL mp_comm_free ( pw_grid % para % rs_group )
- IF ( ASSOCIATED ( pw_grid % para % pos_of_x ) ) THEN
-    DEALLOCATE ( pw_grid % para % pos_of_x, STAT = ierr )
-    IF ( ierr /= 0 ) CALL stop_memory ( "pw_grid_destruct", &
-        "pw_grid % para % pos_of_x" )
-  END IF
+    IF (.NOT.failure) THEN
+       pw_grid % bounds = 0
+       pw_grid % cutoff = 0.0_dp
+       pw_grid % grid_span = FULLSPACE
+       pw_grid % para % mode = PW_MODE_LOCAL
+       pw_grid % para % rs_dims = 0
+       pw_grid % reference = 0
+       pw_grid % ref_count = 1
+       NULLIFY ( pw_grid % g )
+       NULLIFY ( pw_grid % gsq )
+       NULLIFY ( pw_grid % g_hat )
+       NULLIFY ( pw_grid % gidx )
+       NULLIFY ( pw_grid % mapl % pos )
+       NULLIFY ( pw_grid % mapl % neg )
+       NULLIFY ( pw_grid % mapm % pos )
+       NULLIFY ( pw_grid % mapm % neg )
+       NULLIFY ( pw_grid % mapn % pos )
+       NULLIFY ( pw_grid % mapn % neg )
+       NULLIFY ( pw_grid % para % yzp )
+       NULLIFY ( pw_grid % para % yzq )
+       NULLIFY ( pw_grid % para % nyzray )
+       NULLIFY ( pw_grid % para % bo )
+       NULLIFY ( pw_grid % para % pos_of_x )
 
-END SUBROUTINE pw_grid_destruct
+       ! assign a unique tag to this grid
+       grid_tag = grid_tag + 1
+       pw_grid %id_nr = grid_tag
+
+       ! parallel info
+       CALL mp_comm_dup ( pe_group, pw_grid % para % group )
+       CALL mp_environ ( pw_grid % para % group_size, &
+            pw_grid % para % my_pos, &
+            pw_grid % para % group )
+       pw_grid % para % group_head_id = 0
+       pw_grid % para % group_head = &
+            ( pw_grid % para % group_head_id == pw_grid % para % my_pos )
+       IF (pw_grid % para % group_size > 1) THEN
+          pw_grid % para % mode = PW_MODE_DISTRIBUTED
+       ELSE
+          pw_grid % para % mode = PW_MODE_LOCAL
+       END IF
+    END IF
+
+  END SUBROUTINE pw_grid_create
 
 !******************************************************************************
 !!****** pw_grids/pw_grid_compare [1.0] *
@@ -302,7 +195,7 @@ FUNCTION pw_grid_compare ( grida, gridb ) RESULT ( equal )
 
 !------------------------------------------------------------------------------
 
-  IF ( grida % identifier == gridb % identifier ) THEN
+  IF ( grida %id_nr == gridb %id_nr ) THEN
     equal = .TRUE.
   ELSE
 ! for the moment all grids with different identifiers are considered as not equal
@@ -432,7 +325,7 @@ SUBROUTINE pw_grid_setup ( cell, pw_grid, cutoff, info, fft_usage, &
 
   ! set pointer to possible reference grid
   IF ( PRESENT ( ref_grid ) ) THEN
-    pw_grid % reference = ref_grid % identifier
+    pw_grid % reference = ref_grid %id_nr
   END IF
 
   IF ( PRESENT ( cutoff ) ) THEN
@@ -615,7 +508,7 @@ SUBROUTINE pw_grid_setup ( cell, pw_grid, cutoff, info, fft_usage, &
     IF ( pw_grid % para % mode == PW_MODE_LOCAL) THEN
        IF (info >= 0 ) THEN
           WRITE ( info, '(/,A,T71,I10)' ) &
-               " PW_GRID: Information for grid number ", pw_grid % identifier
+               " PW_GRID: Information for grid number ", pw_grid %id_nr
           IF ( pw_grid % spherical ) THEN
              WRITE ( info, '(A,T35,A,T66,F10.1,T77,A)' ) " PW_GRID: ", &
                   "spherical cutoff", pw_grid % cutoff, "a.u."
@@ -657,7 +550,7 @@ SUBROUTINE pw_grid_setup ( cell, pw_grid, cutoff, info, fft_usage, &
 
       IF ( pw_grid % para % group_head .AND. info>=0) THEN
         WRITE ( info, '(/,A,T71,I10)' ) &
-          " PW_GRID: Information for grid number ", pw_grid % identifier
+          " PW_GRID: Information for grid number ", pw_grid %id_nr
         WRITE ( info, '(A,T60,I10,A)' ) &
           " PW_GRID: Grid distributed over ", pw_grid % para % group_size, &
           " processors"
@@ -1611,7 +1504,6 @@ SUBROUTINE pw_grid_find_bounds ( bounds, h_inv, cutoff, fft )
 !------------------------------------------------------------------------------
 
   CALL timeset("pw_grid_find_bounds","I","",handle)
-
   bounds ( :, : ) = 0
 
   gmat = MATMUL ( h_inv, TRANSPOSE ( h_inv ) )
@@ -2251,25 +2143,88 @@ END SUBROUTINE pw_grid_retain
 !!
 !!*** **********************************************************************
 SUBROUTINE pw_grid_release(pw_grid, error)
-    TYPE(pw_grid_type), POINTER              :: pw_grid
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+  TYPE(pw_grid_type), POINTER              :: pw_grid
+  TYPE(cp_error_type), INTENT(inout), &
+       OPTIONAL                               :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'pw_grid_release', &
-      routineP = moduleN//':'//routineN
+  CHARACTER(len=*), PARAMETER :: routineN = 'pw_grid_release', &
+       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
-    LOGICAL                                  :: failure
+  INTEGER                                  :: stat
+  LOGICAL                                  :: failure
 
   failure=.FALSE.
-  
+
   IF (ASSOCIATED(pw_grid)) THEN
      CPPreconditionNoFail(pw_grid%ref_count>0,cp_failure_level,routineP,error)
      pw_grid%ref_count=pw_grid%ref_count-1
      IF (pw_grid%ref_count==0) THEN
-        pw_grid%ref_count=1
-        CALL pw_grid_destruct(pw_grid)
-        pw_grid%ref_count=0
+        IF ( ASSOCIATED ( pw_grid % gidx ) ) THEN
+           DEALLOCATE ( pw_grid % gidx, STAT = stat )
+           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+        END IF
+        IF ( ASSOCIATED ( pw_grid % g ) ) THEN
+           DEALLOCATE ( pw_grid % g, STAT = stat )
+           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+        END IF
+        IF ( ASSOCIATED ( pw_grid % gsq ) ) THEN
+           DEALLOCATE ( pw_grid % gsq, STAT = stat )
+           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+        END IF
+        IF ( ASSOCIATED ( pw_grid % g_hat ) ) THEN
+           DEALLOCATE ( pw_grid % g_hat, STAT = stat )
+           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+        END IF
+        IF ( ASSOCIATED ( pw_grid % mapl % pos ) ) THEN
+           DEALLOCATE ( pw_grid % mapl % pos, STAT = stat )
+           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+        END IF
+        IF ( ASSOCIATED ( pw_grid % mapm % pos ) ) THEN
+           DEALLOCATE ( pw_grid % mapm % pos, STAT = stat )
+           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+        END IF
+        IF ( ASSOCIATED ( pw_grid % mapn % pos ) ) THEN
+           DEALLOCATE ( pw_grid % mapn % pos, STAT = stat )
+           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+        END IF
+        IF ( ASSOCIATED ( pw_grid % mapl % neg ) ) THEN
+           DEALLOCATE ( pw_grid % mapl % neg, STAT = stat )
+           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+        END IF
+        IF ( ASSOCIATED ( pw_grid % mapm % neg ) ) THEN
+           DEALLOCATE ( pw_grid % mapm % neg, STAT = stat )
+           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+        END IF
+        IF ( ASSOCIATED ( pw_grid % mapn % neg ) ) THEN
+           DEALLOCATE ( pw_grid % mapn % neg, STAT = stat )
+           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+        END IF
+        IF ( pw_grid % para % mode == PW_MODE_DISTRIBUTED ) THEN
+           IF ( ASSOCIATED ( pw_grid % para % yzp ) ) THEN
+              DEALLOCATE ( pw_grid % para % yzp, STAT = stat )
+              CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+           END IF
+           IF ( ASSOCIATED ( pw_grid % para % yzq ) ) THEN
+              DEALLOCATE ( pw_grid % para % yzq, STAT = stat )
+              CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+           END IF
+           IF ( ASSOCIATED ( pw_grid % para % nyzray ) ) THEN
+              DEALLOCATE ( pw_grid % para % nyzray, STAT = stat )
+              CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+           END IF
+           IF ( ASSOCIATED ( pw_grid % para % bo ) ) THEN
+              DEALLOCATE ( pw_grid % para % bo, STAT = stat )
+              CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+           END IF
+        END IF
+        ! also release groups
+        CALL mp_comm_free ( pw_grid % para % group )
+        IF (PRODUCT(pw_grid % para % rs_dims) /= 0 ) &
+             CALL mp_comm_free ( pw_grid % para % rs_group )
+        IF ( ASSOCIATED ( pw_grid % para % pos_of_x ) ) THEN
+           DEALLOCATE ( pw_grid % para % pos_of_x, STAT = stat )
+           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+        END IF
         DEALLOCATE(pw_grid, stat=stat)
         CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
      END IF
@@ -2277,10 +2232,10 @@ SUBROUTINE pw_grid_release(pw_grid, error)
   NULLIFY(pw_grid)
 END SUBROUTINE pw_grid_release
 !***************************************************************************
-!!****f* pw_grids/pw_grid_copy_no_pbc [1.0] *
+!!****f* pw_grids/pw_grid_create_copy_no_pbc [1.0] *
 !!
 !!   NAME
-!!     pw_grid_copy_no_pbc
+!!     pw_grid_create_copy_no_pbc
 !!
 !!   FUNCTION
 !!     creates a copy of pw_grid_in in which the pbc have been removed
@@ -2304,7 +2259,7 @@ END SUBROUTINE pw_grid_release
 !!             accordingly [fawzi]
 !!
 !!*** **********************************************************************
-  SUBROUTINE pw_grid_copy_no_pbc(pw_grid_in, pw_grid_out, cell, error)
+  SUBROUTINE pw_grid_create_copy_no_pbc(pw_grid_in, pw_grid_out, cell, error)
     IMPLICIT NONE
     ! Arguments
     TYPE(pw_grid_type), POINTER              :: pw_grid_in, pw_grid_out
@@ -2312,7 +2267,7 @@ END SUBROUTINE pw_grid_release
       OPTIONAL                               :: error
     TYPE(cell_type), POINTER                 :: cell
     ! Local Variables
-    CHARACTER(len=*), PARAMETER :: routineN = 'pw_grid_copy_no_pbc', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'pw_grid_create_copy_no_pbc', &
       routineP = moduleN//':'//routineN
     INTEGER                                  :: stat
     LOGICAL                                  :: failure
@@ -2324,13 +2279,9 @@ END SUBROUTINE pw_grid_release
     CPPrecondition(pw_grid_in%ngpts_cut>0,cp_failure_level,routineP,error,failure)
     CPPrecondition(.NOT.ASSOCIATED(pw_grid_out),cp_failure_level,routineP,error,failure)
     IF (.NOT.failure) THEN
-       ALLOCATE(pw_grid_out,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    END IF
-    IF (.NOT.failure) THEN
-       CALL pw_grid_construct(pw_grid_out, pw_grid_in%para%group)
+       CALL pw_grid_create(pw_grid_out, pw_grid_in%para%group)
        grid_tag = grid_tag + 1
-       pw_grid_out % identifier = grid_tag
+       pw_grid_out %id_nr = grid_tag
        pw_grid_out % ref_count  = 1
        pw_grid_out % reference  = 0
 
@@ -2398,7 +2349,7 @@ END SUBROUTINE pw_grid_release
        pw_grid_out%spherical    =  .false.
 
     END IF
-  END SUBROUTINE pw_grid_copy_no_pbc
+  END SUBROUTINE pw_grid_create_copy_no_pbc
 
 END MODULE pw_grids
 

@@ -40,12 +40,6 @@ MODULE atoms_input
                                              default_string_length
   USE memory_utilities,                ONLY: reallocate
   USE message_passing,                 ONLY: mp_bcast
-  USE parser,                          ONLY: get_next,&
-                                             parser_end,&
-                                             parser_init,&
-                                             read_line,&
-                                             search_label,&
-                                             test_next
   USE particle_types,                  ONLY: particle_type
   USE simulation_cell,                 ONLY: cell_type,&
                                              get_cell,&
@@ -61,12 +55,17 @@ MODULE atoms_input
                                              md_pos_restart,&
                                              md_pos_vel_restart,&
                                              md_all_restart
-
+  USE input_section_types,             ONLY: section_vals_get,&
+                                             section_vals_get_subs_vals,&
+                                             section_vals_get_subs_vals2,&
+                                             section_vals_type,&
+                                             section_vals_val_get
+#include "cp_common_uses.h"
   IMPLICIT NONE
 
   PRIVATE
   PUBLIC :: read_atoms_input, read_md_restart, read_pimd_atoms_input
-
+  CHARACTER(len=*), parameter :: moduleN="atoms_input"
 !!*****
 !******************************************************************************
 
@@ -90,12 +89,13 @@ CONTAINS
 !!  INPUTS
 !!*** *************************************************************************
 
-SUBROUTINE read_atoms_input ( topology, globenv )
+SUBROUTINE read_atoms_input ( topology, globenv, error )
 
 
     TYPE(topology_parameters_type)           :: topology
     TYPE(global_environment_type), &
       INTENT(IN), OPTIONAL                   :: globenv
+    TYPE(cp_error_type), INTENT(inout), optional :: error
 
     INTEGER, PARAMETER                       :: nblock_atom = 10000
 
@@ -104,10 +104,15 @@ SUBROUTINE read_atoms_input ( topology, globenv )
     CHARACTER(LEN=6)                         :: label
     REAL(KIND=dp)                           :: unit_of_length
     INTEGER                                  :: atm_equal_mol, iatom, ierror, &
-                                                ilen, iw, natom, ia, ie
-    LOGICAL                                  :: scaled_coordinates
+                                                ILEN, iw, natom, ia, ie, start_c,&
+                                                end_c,wrd, j
+    LOGICAL                                  :: scaled_coordinates, failure
 
     LOGICAL                                  :: PM1, PM2, PM3, PM4
+    TYPE(section_vals_type), pointer :: coord_section
+    CHARACTER(len=default_string_length) :: line_att
+    CHARACTER(len=*), PARAMETER :: routineN="read_atoms_input",&
+         routineP=moduleN//":"//routineN
 
 !   ---------------------------------------------------------------------------
 
@@ -115,6 +120,7 @@ SUBROUTINE read_atoms_input ( topology, globenv )
   PM2 = .FALSE.
   PM3 = .FALSE.
   PM4 = .FALSE.
+  failure=.false.
   IF(PRESENT(globenv)) THEN
     iw = globenv%scr
     IF((globenv%ionode).AND.(globenv%print%level>0)) PM1= .TRUE.
@@ -139,97 +145,76 @@ SUBROUTINE read_atoms_input ( topology, globenv )
 
   !-----------------------------------------------------------------------------
   !-----------------------------------------------------------------------------
-  ! 2. NULLIFY and ALLOCATE all that is necessary in topology
+  ! 2. Read in the coordinates from &COORD section in the input file
   !-----------------------------------------------------------------------------
-  CALL reallocate(atom_info%label_molname,1,nblock_atom)
-  CALL reallocate(atom_info%label_resname,1,nblock_atom)
-  CALL reallocate(atom_info%label_resid,1,nblock_atom)
-  CALL reallocate(atom_info%label_atmname,1,nblock_atom)
-  CALL reallocate(atom_info%element,1,nblock_atom)
-  CALL reallocate(atom_info%r,1,3,1,nblock_atom)
-  CALL reallocate(atom_info%atm_mass,1,nblock_atom)
-  CALL reallocate(atom_info%atm_charge,1,nblock_atom)
-
-
-
-
-  !-----------------------------------------------------------------------------
-  !-----------------------------------------------------------------------------
-  ! 3. Read in the coordinates from &COORD section in the input file
-  !-----------------------------------------------------------------------------
-  natom = 0
-  label = '&COORD'
-  CALL parser_init ( globenv % input_file_name, globenv )
-  CALL search_label ( label, ierror, ignore_case=.TRUE. )
-  IF ( ierror /= 0 ) THEN
-      CALL stop_program ('read_atoms_input','No &COORD section found')
-  ELSE
-     CALL read_line
-     DO WHILE (test_next()/='X')
-
-       natom = natom + 1
-
-       IF (natom > SIZE(atom_info%label_atmname)) THEN
-        CALL reallocate(atom_info%label_molname,1,natom+nblock_atom)
-        CALL reallocate(atom_info%label_resname,1,natom+nblock_atom)
-        CALL reallocate(atom_info%label_resid,1,natom+nblock_atom)
-        CALL reallocate(atom_info%label_atmname,1,natom+nblock_atom)
-        CALL reallocate(atom_info%element,1,natom+nblock_atom)
-        CALL reallocate(atom_info%r,1,3,1,natom+nblock_atom)
-        CALL reallocate(atom_info%atm_mass,1,natom+nblock_atom)
-        CALL reallocate(atom_info%atm_charge,1,natom+nblock_atom)
-       END IF
-
-       ilen = default_string_length
-       atom_info%label_molname(natom) = ""
-       atom_info%label_resname(natom) = ""
-       atom_info%label_resid(natom) = 1
-       atom_info%label_atmname(natom) = ""
-       atom_info%element(natom) = ""
-
-       ! For default, set atom name to residue name to molecule name
-       CALL get_next(atom_info%label_atmname(natom),ilen)
-       atom_info%label_molname(natom) = atom_info%label_atmname(natom)
-       atom_info%label_resname(natom) = atom_info%label_atmname(natom)
-       atom_info%element(natom) = atom_info%label_atmname(natom)
-
-       ! *** Read the atomic coordinates ***
-       CALL get_next(atom_info%r(1,natom))
-       CALL get_next(atom_info%r(2,natom))
-       CALL get_next(atom_info%r(3,natom))
-
-       !Future user optional inputs
-       IF (test_next()=='C') THEN
-         CALL get_next(atom_info%label_molname(natom),ilen)
-         atom_info%label_resname(natom) = atom_info%label_molname(natom)
-       END IF
-       atom_info%atm_mass(natom) = 0.0_dp 
-       atom_info%atm_charge(natom) = 0.0_dp 
-
-     call read_line
-     END DO
-
-    CALL parser_end
-  END IF
-
-
-  !-----------------------------------------------------------------------------
-  !-----------------------------------------------------------------------------
-  ! 4. Get rid of unnecessary spaces
-  !-----------------------------------------------------------------------------
-  topology%natoms = natom
+  coord_section => section_vals_get_subs_vals(globenv%input_file,&
+       "FORCE_EVAL%SUBSYS%COORD",error=error)
+  CALL section_vals_val_get(coord_section,"_DEFAULT_KEYWORD_",&
+       n_rep_val=natom,error=error)
   CALL reallocate(atom_info%label_molname,1,natom)
   CALL reallocate(atom_info%label_resname,1,natom)
   CALL reallocate(atom_info%label_resid,1,natom)
   CALL reallocate(atom_info%label_atmname,1,natom)
+  CALL reallocate(atom_info%element,1,natom)
   CALL reallocate(atom_info%r,1,3,1,natom)
   CALL reallocate(atom_info%atm_mass,1,natom)
   CALL reallocate(atom_info%atm_charge,1,natom)
 
+  DO iatom=1,natom
+     ! we use only the first default_string_length characters of each line
+     CALL section_vals_val_get(coord_section,"_DEFAULT_KEYWORD_",&
+          i_rep_val=iatom,c_val=line_att,error=error)
+     ILEN = default_string_length
+     atom_info%label_molname(iatom) = ""
+     atom_info%label_resname(iatom) = ""
+     atom_info%label_resid(iatom) = 1
+     atom_info%label_atmname(iatom) = ""
+     atom_info%element(iatom) = ""
+     ! *** Read name and atomic coordinates ***
+     start_c=1
+     DO wrd=1,4
+        DO j=start_c,LEN(line_att)
+           IF (line_att(j:j)/=' ') THEN
+              start_c=j
+              EXIT
+           END IF
+        END DO
+        end_c=LEN(line_att)+1
+        DO j=start_c,LEN(line_att)
+           IF (line_att(j:j)==' ') THEN
+              end_c=j
+              EXIT
+           END IF
+        END DO
+        call cp_assert(wrd==4.OR.end_c<LEN(line_att)+1,cp_failure_level,&
+             cp_assertion_failed,routineP,&
+             "incorrectly formatted line in coord section'"//line_att//"'",&
+             error,failure)
+        IF (wrd==1) THEN
+           atom_info%label_atmname(iatom)=line_att(start_c:end_c-1)
+        ELSE
+           READ (line_att(start_c:end_c-1),*) atom_info%r(wrd-1,iatom)
+        END IF
+        start_c=end_c
+     END DO
+     ! For default, set atom name to residue name to molecule name
+     atom_info%label_molname(iatom) = atom_info%label_atmname(iatom)
+     atom_info%label_resname(iatom) = atom_info%label_atmname(iatom)
+     atom_info%element(iatom) = atom_info%label_atmname(iatom)
+     
+     IF (start_c<=LEN_TRIM(line_att)) THEN
+        READ(line_att(start_c:LEN_TRIM(line_att)),*)atom_info%label_molname(iatom)
+        atom_info%label_resname(iatom) = atom_info%label_molname(iatom)
+     END IF
+     atom_info%atm_mass(iatom) = 0.0_dp 
+     atom_info%atm_charge(iatom) = 0.0_dp 
+
+  END DO
+  topology%natoms = natom
 
   !-----------------------------------------------------------------------------
   !-----------------------------------------------------------------------------
-  ! 5. Convert coordinates into internal cp2k coordinates
+  ! 3. Convert coordinates into internal cp2k coordinates
   !-----------------------------------------------------------------------------
   DO iatom=1,natom
     IF (scaled_coordinates) THEN
@@ -242,7 +227,7 @@ SUBROUTINE read_atoms_input ( topology, globenv )
 
   !-----------------------------------------------------------------------------
   !-----------------------------------------------------------------------------
-  ! 6. Post processing for special molecule name at the end of xyz
+  ! 4. Post processing for special molecule name at the end of xyz
   !-----------------------------------------------------------------------------
   atm_equal_mol = 0
   DO iatom=1,natom
@@ -285,7 +270,7 @@ SUBROUTINE read_md_restart ( in_use,rtype, globenv, particle_set, cell, cell_ref
     TYPE(npt_info_type), POINTER             :: npt_info( :, : )
 
     CHARACTER(len=20)                        :: filen
-    INTEGER                                  :: i, ia, ie, iunit, iw, j, &
+    INTEGER                                  :: i,ia, ie, iunit, iw, j, &
                                                 size_pnhc1, size_pnhc2,  &
                                                 size_bnhc1, size_bnhc2,  &
                                                 size_baro1, size_baro2,  &

@@ -195,7 +195,7 @@ MODULE input_constants
           linear_response_run /)
 
   INTEGER, PARAMETER, public :: atomic_guess=1,restart_guess=2,random_guess=3,&
-       core_guess=4
+       core_guess=4, densities_guess=5
   INTEGER, PARAMETER, public :: pw_interp=1,linear_interp=2,&
        spline3_nopbc_interp=3,spline3_pbc_interp=4 ! to move somewhere else
   integer, parameter, public :: do_gapw_gcs=1,&
@@ -244,19 +244,15 @@ MODULE input_constants
   !
   ! Output format files
   !
-  CHARACTER (LEN=default_string_length), PARAMETER, DIMENSION(5), PUBLIC :: output_name_types=&
-  (/"XYZ   ",&
-    "CRD   ",&
-    "ATOMIC",&
+  CHARACTER (LEN=default_string_length), PARAMETER, DIMENSION(3), PUBLIC :: output_name_types=&
+  (/"ATOMIC",&
     "XMOL  ",&
     "DCD   "/)
-  INTEGER, PARAMETER, PUBLIC :: dump_xyz=1,&
-                                dump_crd=2,&
-                                dump_atomic=3,&
-                                dump_xmol=4,&
-                                dump_dcd=5
-  INTEGER, PARAMETER, PUBLIC, DIMENSION(5) :: output_name_index=&
-       (/dump_xyz,dump_crd,dump_atomic,dump_xmol,dump_dcd/)
+  INTEGER, PARAMETER, PUBLIC :: dump_atomic=1,&
+                                dump_xmol=2,&
+                                dump_dcd=3
+  INTEGER, PARAMETER, PUBLIC, DIMENSION(3) :: output_name_index=&
+       (/dump_atomic,dump_xmol,dump_dcd/)
 
   integer, parameter, public :: do_qmmm_none=0,&
                                 do_qmmm_grid=1,&
@@ -335,7 +331,7 @@ MODULE input_constants
   INTEGER, PARAMETER, PUBLIC :: xc_old_f_routine=0, xc_new_f_routine=1,&
        xc_test_lsd_f_routine=3, xc_debug_new_routine=4
   INTEGER, PARAMETER, PUBLIC :: xc_funct_blyp=1, xc_funct_pade=2, xc_funct_pbe=3,&
-       xc_funct_tpss=4, xc_funct_hcth120=5, xc_funct_no_shortcut=0
+       xc_funct_tpss=4, xc_funct_hcth120=5, xc_funct_olyp=6,xc_funct_no_shortcut=0
   INTEGER, PARAMETER, PUBLIC :: sic_none=0, sic_mauri_us=1, sic_mauri_spz=2, sic_ad=3
   INTEGER, PARAMETER, PUBLIC :: tddfpt_singlet=0, tddfpt_triplet=1
   INTEGER, PARAMETER, PUBLIC :: tddfpt_lanczos=0, tddfpt_davidson=1

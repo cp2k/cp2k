@@ -31,7 +31,7 @@ MODULE mc_misc
                                              cp_error_type
   USE cp_subsystem_types,              ONLY: cp_subsys_get,&
                                              cp_subsystem_p_type
-  USE cp_control_types,                ONLY: dft_control_type
+!  USE cp_control_types,                ONLY: dft_control_type
 !  USE cp_control_utils,                ONLY: xc_get_rho_smooth_label,&
 !                                             xc_get_deriv_method_label
   USE cp_log_handling,                 ONLY: cp_failure_level,&
@@ -59,6 +59,7 @@ MODULE mc_misc
                                              do_ewald_ewald,&
                                              do_ewald_pme,&
                                              do_ewald_spme
+  USE input_section_types, ONLY: section_vals_type
   USE kinds,                           ONLY: default_string_length,&
                                              dp
   USE mathconstants,                   ONLY: pi
@@ -615,7 +616,6 @@ SUBROUTINE mc_make_dat_file(coordinates,natoms_tot,box_length,filename,&
 
     TYPE(cell_type),POINTER                  :: cell_ref,cell
     TYPE(qs_environment_type),POINTER        :: qs_env
-    TYPE(dft_control_type),POINTER           :: dft_control
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
@@ -642,6 +642,7 @@ SUBROUTINE mc_make_dat_file(coordinates,natoms_tot,box_length,filename,&
     CHARACTER(LEN=5)                         :: cfile
     CHARACTER(LEN=2)                         :: element_symbol
     CHARACTER(LEN=default_string_length)     :: name,unit_type
+    TYPE(section_vals_type), pointer :: input
 
 !------------------------------------------------------------------------------
 ! begin the timing of the subroutine
@@ -649,7 +650,7 @@ SUBROUTINE mc_make_dat_file(coordinates,natoms_tot,box_length,filename,&
       CALL timeset(routineN,'I','',handle)
 
 ! nullify some stuff
-      NULLIFY(qs_env,dft_control,atomic_kind_set,atomic_kind,gth_potential,&
+      NULLIFY(qs_env,atomic_kind_set,atomic_kind,gth_potential,&
          orb_basis_set,elp_potential)
 
 ! grab some of the structures we're gonna need
@@ -666,7 +667,7 @@ SUBROUTINE mc_make_dat_file(coordinates,natoms_tot,box_length,filename,&
       CASE ( use_qs_force )
          CALL force_env_get(force_env,qs_env=qs_env,subsys=subsys)
          CALL get_qs_env(qs_env,use_ref_cell=use_ref_cell,cell_ref=cell_ref,&
-         dft_control=dft_control,atomic_kind_set=atomic_kind_set)
+         input=input,atomic_kind_set=atomic_kind_set)
          CALL get_cell(cell_ref,abc=abc)
       CASE ( use_kg_force )
 
@@ -787,14 +788,14 @@ SUBROUTINE mc_make_dat_file(coordinates,natoms_tot,box_length,filename,&
 
       CASE ( use_qs_force )
 ! write out the functional...we only have three at the moment
-         WRITE(unit,10000) "&DFT"
-         IF(dft_control%xc_control%functionals(1) .EQ. 'BECKE88') THEN
-            WRITE(unit,10000) ' FUNCTIONAL   BLYP'
-         ELSEIF(dft_control%xc_control%functionals(1) .EQ. 'PBEX')THEN
-            WRITE(unit,10000) ' FUNCTIONAL   PBE'
-         ELSE
-            WRITE(unit,10000) ' FUNCTIONAL   Pade'
-         ENDIF
+!FM         WRITE(unit,10000) "&DFT"
+!FM         IF(dft_control%xc_control%functionals(1) .EQ. 'BECKE88') THEN
+!FM            WRITE(unit,10000) ' FUNCTIONAL   BLYP'
+!FM         ELSEIF(dft_control%xc_control%functionals(1) .EQ. 'PBEX')THEN
+!FM            WRITE(unit,10000) ' FUNCTIONAL   PBE'
+!FM         ELSE
+!FM            WRITE(unit,10000) ' FUNCTIONAL   Pade'
+!FM         ENDIF
 
          WRITE(unit,10000) ' XC_SMOOTH_RHO   NONE'
          WRITE(unit,10000) ' XC_DERIV      SPLINE2'
@@ -804,8 +805,8 @@ SUBROUTINE mc_make_dat_file(coordinates,natoms_tot,box_length,filename,&
 
 ! I need to undo the unit change that's done in 
 !       cp_control_units.F/read_qs_control
-         WRITE(unit,20000) ' CUTOFF       ',&
-         dft_control % qs_control % cutoff*2.0_dp
+!FM         WRITE(unit,20000) ' CUTOFF       ',&
+!FM         dft_control % qs_control % cutoff*2.0_dp
          WRITE(unit,10000) ' EXTRAPOLATION       USE_PREV_WF'
          WRITE(unit,10000) "&END"
          WRITE(unit,*) 

@@ -70,6 +70,7 @@ MODULE force_env_types
   USE virial_types,                    ONLY: virial_type,&
                                              virial_retain, &
                                              virial_release
+  USE input_section_types, only: section_vals_type
 
   IMPLICIT NONE
 
@@ -346,8 +347,8 @@ END SUBROUTINE force_env_release
 !!*** **********************************************************************
 RECURSIVE SUBROUTINE force_env_get(force_env, in_use, force_env_list, &
      fist_env, qs_env, kg_env, meta_env, dyn_coeff_set, subsys, para_env, &
-     potential_energy, kinetic_energy, cell, cell_ref, sub_force_env, qmmm_env, virial,&
-     box_changed, globenv, error)
+     potential_energy, kinetic_energy, cell, cell_ref, sub_force_env, qmmm_env,&
+     virial, box_changed, globenv, input, error)
     TYPE(force_env_type), POINTER            :: force_env
     INTEGER, INTENT(out), OPTIONAL           :: in_use
     TYPE(qs_environment_type), OPTIONAL, &
@@ -374,6 +375,7 @@ RECURSIVE SUBROUTINE force_env_get(force_env, in_use, force_env_list, &
     TYPE ( virial_type ), POINTER, OPTIONAL :: virial
     LOGICAL, INTENT(out), optional           :: box_changed
     TYPE(global_environment_type), POINTER, optional :: globenv
+    TYPE(section_vals_type), POINTER, optional :: input
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -409,6 +411,7 @@ RECURSIVE SUBROUTINE force_env_get(force_env, in_use, force_env_list, &
              energy=qs_energy,&
              cell=cell,&
              cell_ref=cell_ref,&
+             input=input,&
              error=error)
         IF (PRESENT(potential_energy)) potential_energy=qs_energy%total
         CPPrecondition(.NOT.PRESENT(kinetic_energy),cp_failure_level,routineP,error,failure)
@@ -417,6 +420,7 @@ RECURSIVE SUBROUTINE force_env_get(force_env, in_use, force_env_list, &
         CPPreconditionNoFail(.NOT.PRESENT(qs_env),cp_warning_level,routineP,error)
         CPPreconditionNoFail(.NOT.PRESENT(force_env_list),cp_warning_level,routineP,error)
         CPPreconditionNoFail(.NOT.PRESENT(kg_env),cp_warning_level,routineP,error)
+        CPPrecondition(.NOT.PRESENT(input),cp_failure_level,routineP,error,failure)
         CALL get_fist_env(force_env%fist_env,&
                           thermo=thermo,&
                           cell=cell,&

@@ -82,7 +82,7 @@ MODULE input_parsing
   USE timings,                         ONLY: timeset,&
        timestop
   USE cp_units, ONLY: cp_unit_type, cp_unit_set_type, cp_unit_create,&
-       cp_unit_to_cp2k, cp_unit_retain, cp_unit_release
+       cp_unit_to_cp2k1, cp_unit_retain, cp_unit_release
 
   IMPLICIT NONE
   PRIVATE
@@ -190,6 +190,7 @@ CONTAINS
            CALL cp_sll_val_create(new_val,el,error=error)
            section_vals%values(-1,irs)%list => new_val
         END IF
+        nullify(el)
      END IF
      DO WHILE (.NOT.failure)
         CALL parser_get_object(parser,token,newline=.TRUE.,&
@@ -255,9 +256,9 @@ CONTAINS
               END IF
            ELSE
               ! this should be an error (failure)
-!FM              CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,&
-!FM                   routineP,"unknown subsection "//TRIM(token)//" of section "&
-!FM                   //TRIM(section%name),error)
+              CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,&
+                   routineP,"unknown subsection "//TRIM(token)//" of section "&
+                   //TRIM(section%name),error)
               nSub=1
               DO WHILE (nSub>0)
                  CALL parser_get_object(parser,token,newline=.TRUE.,&
@@ -338,6 +339,18 @@ CONTAINS
                     IF (.NOT.ASSOCIATED(last_val)) THEN
                        section_vals%values(ik,irs)%list => new_val
                     ELSE
+                       IF (.NOT. keyword%repeats) THEN
+                          PRINT *, "Keyword "//TRIM(token)//&
+                         " in section "//TRIM(section%name)//" should not repeat."
+                          PRINT *, "new_val="
+                          CALL val_write(el,6,error)
+                          PRINT *,"old_val="
+                       DO
+                          CALL val_write(last_val%first_el,6,error)
+                          if (.not.ASSOCIATED(last_val%rest)) exit
+                          last_val => last_val%rest
+                       END DO
+                       END IF
                        CALL cp_assert(keyword%repeats,cp_failure_level,cp_assertion_failed,&
                          routineP,"Keyword "//TRIM(token)//&
                          " in section "//TRIM(section%name)//" should not repeat.",error,failure)
@@ -572,7 +585,7 @@ SUBROUTINE val_create_parsing(val,type_of_var, n_var,enum,&
               END IF
               CALL parser_get_object(parser,r_val,error=error)
               IF (ASSOCIATED(my_unit)) THEN
-                 r_val=cp_unit_to_cp2k(r_val,my_unit,default_units,error=error)
+                 r_val=cp_unit_to_cp2k1(r_val,my_unit,default_units,error=error)
               END IF
               CALL cp_create(r_first,r_val,error=error)
               r_last => r_first
@@ -590,7 +603,7 @@ SUBROUTINE val_create_parsing(val,type_of_var, n_var,enum,&
                  END IF
                  CALL parser_get_object(parser,r_val,error=error)
                  IF (ASSOCIATED(my_unit)) THEN
-                    r_val=cp_unit_to_cp2k(r_val,my_unit,default_units,error=error)
+                    r_val=cp_unit_to_cp2k1(r_val,my_unit,default_units,error=error)
                  END IF
                  CALL cp_create(r_new,r_val,error=error)
                  r_last%rest => r_new
@@ -617,7 +630,7 @@ SUBROUTINE val_create_parsing(val,type_of_var, n_var,enum,&
                     END IF
                     CALL parser_get_object(parser,r_val_p(i),error=suberror)
                     IF (ASSOCIATED(my_unit)) THEN
-                       r_val_p(i)=cp_unit_to_cp2k(r_val_p(i),my_unit,&
+                       r_val_p(i)=cp_unit_to_cp2k1(r_val_p(i),my_unit,&
                             default_units,error=suberror)
                     END IF
                     CALL cp_error_propagate_error(suberror,routineP,error=error,&

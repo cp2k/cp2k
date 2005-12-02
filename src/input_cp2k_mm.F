@@ -451,15 +451,15 @@ contains
        CALL section_add_subsection(section, subsection, error=error)
        CALL section_release(subsection,error=error)
 
-       CALL create_BONDS_section(subsection, error=error)
+       CALL create_BOND_section(subsection, error=error)
        CALL section_add_subsection(section, subsection, error=error)
        CALL section_release(subsection,error=error)
 
-       CALL create_BENDS_section(subsection, error=error)
+       CALL create_BEND_section(subsection, error=error)
        CALL section_add_subsection(section, subsection, error=error)
        CALL section_release(subsection,error=error)
 
-       CALL create_TORSIONS_section(subsection, error=error)
+       CALL create_TORSION_section(subsection, error=error)
        CALL section_add_subsection(section, subsection, error=error)
        CALL section_release(subsection,error=error)
 
@@ -468,13 +468,13 @@ contains
   END SUBROUTINE create_forcefield_section
 
 !***************************************************************************
-!!****f* input_cp2k_mm/create_TORSIONS_section [1.0] *
+!!****f* input_cp2k_mm/create_TORSION_section [1.0] *
 !!
 !!   NAME
-!!     create_torsions_section
+!!     create_torsion_section
 !!
 !!   FUNCTION
-!!     This section specifies the charges of the MM atoms
+!!     This section specifies the torsion of the MM atoms
 !!
 !!   NOTES
 !!     -
@@ -488,12 +488,12 @@ contains
 !!     teo
 !!
 !!*** **********************************************************************
-  SUBROUTINE create_TORSIONS_section(section,error)
+  SUBROUTINE create_TORSION_section(section,error)
     TYPE(section_type), POINTER :: section
     TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
     
     LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineN='create_TORSIONS_section',&
+    CHARACTER(len=*), PARAMETER :: routineN='create_TORSION_section',&
          routineP=moduleN//':'//routineN
     TYPE(keyword_type), POINTER :: keyword
     
@@ -501,7 +501,7 @@ contains
     
     CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
-       CALL section_create(section,name="TORSIONS",&
+       CALL section_create(section,name="TORSION",&
             description="This section specifies the torsion potential of the MM system."//&
             "JORGENSEN type potential supported.",&
             n_keywords=1, n_subsections=0, repeats=.TRUE., required=.FALSE.,&
@@ -538,16 +538,16 @@ contains
        CALL keyword_release(keyword,error=error)
 
     END IF
-  END SUBROUTINE create_TORSIONS_section
+  END SUBROUTINE create_TORSION_section
 
 !***************************************************************************
-!!****f* input_cp2k_mm/create_BENDS_section [1.0] *
+!!****f* input_cp2k_mm/create_BEND_section [1.0] *
 !!
 !!   NAME
-!!     create_bends_section
+!!     create_bend_section
 !!
 !!   FUNCTION
-!!     This section specifies the charges of the MM atoms
+!!     This section specifies the bend of the MM atoms
 !!
 !!   NOTES
 !!     -
@@ -561,12 +561,12 @@ contains
 !!     teo
 !!
 !!*** **********************************************************************
-  SUBROUTINE create_BENDS_section(section,error)
+  SUBROUTINE create_BEND_section(section,error)
     TYPE(section_type), POINTER :: section
     TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
     
     LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineN='create_BENDS_section',&
+    CHARACTER(len=*), PARAMETER :: routineN='create_BEND_section',&
          routineP=moduleN//':'//routineN
     TYPE(keyword_type), POINTER :: keyword
     
@@ -574,8 +574,8 @@ contains
     
     CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
-       CALL section_create(section,name="BENDS",&
-            description="This section specifies the bends potential of the MM system."//&
+       CALL section_create(section,name="BEND",&
+            description="This section specifies the bend potential of the MM system."//&
             "HARMONIC type potential supported.",&
             n_keywords=1, n_subsections=0, repeats=.TRUE., required=.FALSE.,&
             error=error)
@@ -605,16 +605,16 @@ contains
        CALL keyword_release(keyword,error=error)
 
     END IF
-  END SUBROUTINE create_BENDS_section
+  END SUBROUTINE create_BEND_section
 
 !***************************************************************************
-!!****f* input_cp2k_mm/create_BONDS_section [1.0] *
+!!****f* input_cp2k_mm/create_BOND_section [1.0] *
 !!
 !!   NAME
-!!     create_bonds_section
+!!     create_bond_section
 !!
 !!   FUNCTION
-!!     This section specifies the charges of the MM atoms
+!!     This section specifies the bond of the MM atoms
 !!
 !!   NOTES
 !!     -
@@ -628,12 +628,12 @@ contains
 !!     teo
 !!
 !!*** **********************************************************************
-  SUBROUTINE create_BONDS_section(section,error)
+  SUBROUTINE create_BOND_section(section,error)
     TYPE(section_type), POINTER :: section
     TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
     
     LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineN='create_BONDS_section',&
+    CHARACTER(len=*), PARAMETER :: routineN='create_BOND_section',&
          routineP=moduleN//':'//routineN
     TYPE(keyword_type), POINTER :: keyword
     
@@ -641,8 +641,8 @@ contains
     
     CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
-       CALL section_create(section,name="BONDS",&
-            description="This section specifies the potential of the bonds of the MM system",&
+       CALL section_create(section,name="BOND",&
+            description="This section specifies the potential of the bond of the MM system",&
             n_keywords=1, n_subsections=0, repeats=.TRUE., required=.FALSE.,&
             error=error)
 
@@ -671,7 +671,7 @@ contains
        CALL keyword_release(keyword,error=error)
 
     END IF
-  END SUBROUTINE create_BONDS_section
+  END SUBROUTINE create_BOND_section
 
 !***************************************************************************
 !!****f* input_cp2k_mm/create_charge_section [1.0] *
@@ -680,7 +680,7 @@ contains
 !!     create_charge_section
 !!
 !!   FUNCTION
-!!     This section specifies the charges of the MM atoms
+!!     This section specifies the charge of the MM atoms
 !!
 !!   NOTES
 !!     -
@@ -707,8 +707,8 @@ contains
     
     CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
-       CALL section_create(section,name="charges",&
-            description="This section specifies the charges of the MM atoms",&
+       CALL section_create(section,name="charge",&
+            description="This section specifies the charge of the MM atoms",&
             n_keywords=1, n_subsections=0, repeats=.TRUE., required=.FALSE.,&
             error=error)
 
@@ -1335,18 +1335,18 @@ SUBROUTINE create_ewald_section(section,error)
 
     CALL keyword_create(keyword, name="alpha",&
          description="alpha parameter associated with Ewald (EWALD|PME|SPME)",&
-         usage="alpha .44", default_r_val=.44_dp, unit_str='angstrom',error=error)
+         usage="alpha .44", default_r_val=.44_dp, unit_str='angstrom^-1',error=error)
     CALL section_add_keyword(section,keyword,error=error)
     CALL keyword_release(keyword,error=error)
 
     CALL keyword_create(keyword, name="gmax",&
-         description="maximum number of grid points (PME and EWALD)",&
-         usage="gmax 21", default_i_val=21,error=error)
+         description="maximum number of grid points (SPME and EWALD)",&
+         usage="gmax [integer]", default_i_val=25,error=error)
     CALL section_add_keyword(section,keyword,error=error)
     CALL keyword_release(keyword,error=error)
 
     CALL keyword_create(keyword, name="ns_max",&
-         description="number of grid points on small mesh (SPME only)",&
+         description="number of grid points on small mesh (PME only)",&
          usage="ns_max 12", default_i_val=12,error=error)
     CALL section_add_keyword(section,keyword,error=error)
     CALL keyword_release(keyword,error=error)

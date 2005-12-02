@@ -19,14 +19,11 @@
 
 MODULE qs_tddfpt_module
 
-  USE cp_control_types,                ONLY: dft_control_type,&
-                                             tddfpt_control_type,&
-                                             xc_control_type
   USE input_constants,                 ONLY: oe_none,&
                                              oe_lb,&
                                              oe_gllb,&
                                              oe_saop,&
-                                             oe_sic
+                                             oe_sic, tddfpt_excitations
   USE cp_error_handling,               ONLY: cp_a_l,&
                                              cp_error_get_logger,&
                                              cp_error_type,cp_assert
@@ -49,7 +46,9 @@ MODULE qs_tddfpt_module
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE xc_pot_saop,                     ONLY: add_saop_pot
-
+  USE input_section_types, ONLY:section_vals_type, section_vals_val_get, &
+       section_vals_get_subs_vals,  section_vals_retain, section_vals_create, &
+       section_vals_set_subs_vals, section_vals_release
   IMPLICIT NONE
 
 
@@ -82,20 +81,22 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'tddfpt_calculation', &
                                    routineP = moduleN//'/'//routineN
  
-    INTEGER                                  :: handle
-    TYPE(dft_control_type), POINTER          :: dft_control
+    INTEGER                                  :: handle, excitations, oe_corr
     TYPE(qs_p_env_type), POINTER             :: p_env
-    TYPE(tddfpt_control_type), POINTER       :: tddfpt_control
     TYPE(tddfpt_env_type)                    :: t_env
+    TYPE(section_vals_type),POINTER :: input,xc_section,tddfpt_section
 
-    NULLIFY(dft_control, tddfpt_control)
-    CALL get_qs_env(qs_env, dft_control=dft_control, tddfpt_control=tddfpt_control)
-
-    IF (.NOT.dft_control%do_tddfpt_calculation) RETURN
+    NULLIFY(input)
+    CALL get_qs_env(qs_env, input=input,error=error)
+    
+    CALL section_vals_val_get(input,"dft%excitations",i_val=excitations,error=error)
+    IF (.NOT.excitations==tddfpt_excitations) RETURN
 
     CALL timeset(routineN,"I","",handle)
 
-    IF (tddfpt_control%oe_corr /= oe_none) THEN
+    tddfpt_section => section_vals_get_subs_vals(input,"DFT%TDDFPT",error=error)
+    CALL section_vals_val_get(tddfpt_section,"oe_corr",i_val=oe_corr,error=error)
+    IF (oe_corr /= oe_none) THEN
        CALL orbital_eigenvalue_correction(qs_env, error)
     END IF
     
@@ -138,16 +139,11 @@ CONTAINS
     TYPE(cp_error_type), &
          INTENT(INOUT), OPTIONAL             :: error
 
-    INTEGER                                  :: output_unit
+    INTEGER                                  :: output_unit,oe_corr
     LOGICAL                                  :: failure, ionode
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(qs_scf_env_type), POINTER           :: scf_env
-    TYPE(dft_control_type), POINTER          :: dft_control
-    TYPE(tddfpt_control_type), POINTER       :: tddfpt_control
-    TYPE(xc_control_type), POINTER           :: xc_control
-
-    ! variables to remember from the environments
-    TYPE(xc_control_type)                    :: my_xc_control
+    TYPE(section_vals_type), POINTER :: input, xc_fun_orig, xc_fun_tmp
 
     CHARACTER(LEN=*), PARAMETER              :: routineN = "orbital_eigenvalue_correction", &
                                                 routineP = moduleN//"/"//routineN
@@ -155,8 +151,7 @@ CONTAINS
     CPPrecondition(ASSOCIATED(qs_env),cp_failure_level,routineP,error,failure)    
     
     failure = .FALSE.
-    NULLIFY(logger, scf_env, &
-            dft_control, xc_control, tddfpt_control)
+    NULLIFY(logger, scf_env, input)
     logger => cp_error_get_logger(error)
     ionode = (logger%para_env%mepos==logger%para_env%source)
     IF(ionode) output_unit = cp_logger_get_default_unit_nr(logger)
@@ -169,29 +164,36 @@ CONTAINS
        ""    
     END IF
 
-    CALL get_qs_env(qs_env, scf_env=scf_env, dft_control=dft_control, &
-                    tddfpt_control=tddfpt_control)
-    xc_control => dft_control%xc_control
-
-    my_xc_control%functionals = xc_control%functionals
+    CALL get_qs_env(qs_env, scf_env=scf_env, input=input, error=error)
 
     !----------------------!
     ! KS matrix without XC !
     !----------------------!
-    xc_control%functionals = "NONE"
+    xc_fun_orig => section_vals_get_subs_vals(input,"DFT%XC%XC_FUNCTIONAL",&
+         error=error)
+    CALL section_vals_retain(xc_fun_orig,error=error)
+    NULLIFY(xc_fun_tmp)
+    CALL section_vals_create(xc_fun_tmp,xc_fun_orig%section,error=error)
+    CALL section_vals_set_subs_vals(input,"DFT%XC%XC_FUNCTIONAL",xc_fun_tmp,&
+         error=error)
+    CALL section_vals_release(xc_fun_tmp,error=error)
+
     call qs_ks_build_kohn_sham_matrix(ks_env=qs_env%ks_env, qs_env=qs_env, &
                                       ks_matrix=qs_env%matrix_ks, rho=qs_env%rho, &
                                       energy=qs_env%energy,&
                                       calculate_forces=.false.,&
                                       just_energy=.false.,error=error)
 
-    xc_control%functionals = my_xc_control%functionals
+    CALL section_vals_set_subs_vals(input,"DFT%XC%XC_FUNCTIONAL",xc_fun_orig,&
+         error=error)
+    CALL section_vals_release(xc_fun_orig,error=error)
 
-    IF (tddfpt_control%oe_corr == oe_saop .OR. &
-        tddfpt_control%oe_corr == oe_lb .OR. &
-        tddfpt_control%oe_corr == oe_gllb) THEN
-       CALL add_saop_pot(qs_env%matrix_ks, qs_env, tddfpt_control%oe_corr, error)
-    ELSE IF (tddfpt_control%oe_corr == oe_sic) THEN
+    CALL section_vals_val_get(input,"DFT%TDDFPT%OE_CORR",i_val=oe_corr,error=error)
+    IF (oe_corr == oe_saop .OR. &
+        oe_corr == oe_lb .OR. &
+        oe_corr == oe_gllb) THEN
+       CALL add_saop_pot(qs_env%matrix_ks, qs_env, oe_corr, error)
+    ELSE IF (oe_corr == oe_sic) THEN
     END IF
 
   END SUBROUTINE orbital_eigenvalue_correction

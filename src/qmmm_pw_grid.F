@@ -66,14 +66,13 @@ MODULE qmmm_pw_grid
                                              pw_env_type
   USE pw_grid_types,                   ONLY: pw_grid_type, &
                                              PW_MODE_LOCAL
-  USE pw_grids,                        ONLY: pw_grid_construct,&
+  USE pw_grids,                        ONLY: pw_grid_create,&
                                              pw_grid_release,&
-                                             pw_grid_copy_no_pbc
+                                             pw_grid_create_copy_no_pbc
   USE qs_ks_qmmm_types,                ONLY: qs_ks_qmmm_env_type
   USE qs_ks_types,                     ONLY: qs_ks_env_type
   USE mathconstants,                   ONLY: pi
   USE simulation_cell,                 ONLY: cell_type
-  USE pw_types,                        ONLY: pw_allocate
   USE input_constants, ONLY: do_qmmm_grid, do_qmmm_gauss, do_qmmm_none
   IMPLICIT NONE
 
@@ -149,7 +148,7 @@ CONTAINS
           NULLIFY(pool, qmmm_env%aug_pools(Ilevel)%pool)
           pool      => pw_pools(Ilevel)%pool
           nullify(el_struct)
-          CALL pw_grid_copy_no_pbc(pool%pw_grid,el_struct, cell=cell,&
+          CALL pw_grid_create_copy_no_pbc(pool%pw_grid,el_struct, cell=cell,&
                error=error)
 
           CALL pw_pool_create(qmmm_env%aug_pools(Ilevel)%pool,&

@@ -101,10 +101,12 @@ MODULE cp_log_handling
   INTEGER, PARAMETER  :: cp_note_level=0
 !! maximum recursive level for the iterations
   INTEGER, PARAMETER, public  :: max_iter_r_level=5
+!! number used for udefined iteration levels
+  INTEGER, PARAMETER, public  :: cp_iter_undefined=-1
 
 !! a generic function to trasform different types to strings
   INTERFACE cp_to_string
-     MODULE PROCEDURE cp_int_to_string, cp_real_dp_to_string
+     MODULE PROCEDURE cp_int_to_string, cp_real_dp_to_string, cp_logical_to_string
   END INTERFACE
   INTERFACE cp_log
      MODULE PROCEDURE cp_logger_log
@@ -1252,7 +1254,7 @@ SUBROUTINE cp_iteration_info_create(iteration_info,project_name)
   iteration_info%project_name=project_name
   iteration_info%print_level=2
   iteration_info%n_rlevel=1
-  iteration_info%iteration=0
+  iteration_info%iteration=cp_iter_undefined
   iteration_info%iteration(1)=1
   iteration_info%level_name(1)="Global"
   iteration_info%last_iter=.FALSE.
@@ -1425,6 +1427,37 @@ END SUBROUTINE cp_iteration_info_release
     WRITE (res,'(es11.4)') val
   END FUNCTION cp_real_dp_to_string
 
+!!****f* cp_log_handling/cp_logical_to_string [1.0] *
+!!
+!!   NAME
+!!     cp_logical_to_string
+!!
+!!   FUNCTION
+!!     convert a logical in a string ('T' or 'F')
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     val: the number to convert
+!!
+!!   AUTHOR
+!!     fawzi
+!!
+!!*** *********************************************************************
+! pure 
+  FUNCTION cp_logical_to_string(val) RESULT(res)
+    LOGICAL, INTENT(in)                :: val
+    CHARACTER(len=1)                         :: res
+
+    IF (val) THEN
+       res='T'
+    ELSE
+       res='F'
+    END IF
+  END FUNCTION cp_logical_to_string
+
 END MODULE cp_log_handling
 
 !******************************************************************************
+

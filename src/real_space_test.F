@@ -34,11 +34,11 @@ MODULE real_space_test
   USE pw_grid_types,                   ONLY: FULLSPACE,&
                                              PW_MODE_LOCAL, &
                                              pw_grid_type
-  USE pw_grids,                        ONLY: pw_grid_construct,&
+  USE pw_grids,                        ONLY: pw_grid_create,&
                                              pw_grid_setup
   USE pw_types,                        ONLY: REALDATA3D,&
-                                             pw_allocate,&
-                                             pw_deallocate,&
+                                             pw_create,&
+                                             pw_release,&
                                              pw_type
   USE realspace_grid_types,            ONLY: realspace_grid_type,&
                                              rs_get_my_tasks,&
@@ -90,11 +90,12 @@ SUBROUTINE rs_test ( globenv )
     REAL(KIND=dp), DIMENSION(3, nparticle)       :: coord
     REAL(KIND=dp), DIMENSION(nparticle)          :: bval
     TYPE(cell_type), POINTER                 :: box
-    TYPE(pw_grid_type)                       :: grid
-    TYPE(pw_type)                            :: pw_a, pw_b, pw_c
+    TYPE(pw_grid_type),pointer               :: grid
+    TYPE(pw_type), POINTER                   :: pw_a, pw_b, pw_c
     TYPE(realspace_grid_type)                :: rden
 
   iw =globenv % scr
+  NULLIFY(pw_a,pw_b,pw_c)
   NULLIFY(box)
   CALL cell_create(box)
   IF ( globenv % ionode ) &
@@ -141,7 +142,7 @@ SUBROUTINE rs_test ( globenv )
     IF ( refpt ( 3, i ) > np(3) ) refpt ( 3, i ) = refpt ( 3, i ) - np ( 3 )
   END DO
 
-  CALL pw_grid_construct ( grid, globenv%group )
+  CALL pw_grid_create ( grid, globenv%group )
   grid % grid_span = FULLSPACE
   grid % bounds ( 1, : ) = -np / 2
   grid % bounds ( 2, : ) = ( np - 1 ) / 2
@@ -166,7 +167,7 @@ SUBROUTINE rs_test ( globenv )
     pt = refco(:,i) - rden%lb(:) + 1
     CALL put_on_grid ( rden%r, pt, no, bval(i), 0 )
   END DO
-  CALL pw_allocate ( pw_a, grid, REALDATA3D )
+  CALL pw_create ( pw_a, grid, REALDATA3D )
   CALL rs_pw_get ( rden, pw_a )
   pw_a%cr3d = pw_a%cr3d**(1.0_dp/3.0_dp)
   CALL rs_pw_transfer ( rden, pw_a, pw2rs )
@@ -206,7 +207,7 @@ SUBROUTINE rs_test ( globenv )
     no ( : ) = bsize ( i )
     CALL put_on_grid ( rden%r, pt, no, bval(i), 0 )
   END DO
-  CALL pw_allocate ( pw_b, grid, REALDATA3D )
+  CALL pw_create ( pw_b, grid, REALDATA3D )
   CALL rs_pw_transfer ( rden, pw_b, rs2pw )
   pw_b%cr3d = pw_b%cr3d**(1.0_dp/3.0_dp)
   CALL rs_grid_zero ( rden )
@@ -261,7 +262,7 @@ SUBROUTINE rs_test ( globenv )
   END DO
   DEALLOCATE ( tasks, STAT=ierr )
   IF ( ierr /= 0 ) CALL stop_memory ( "rs_test", "tasks" )
-  CALL pw_allocate ( pw_c, grid, REALDATA3D )
+  CALL pw_create ( pw_c, grid, REALDATA3D )
   CALL rs_pw_transfer ( rden, pw_c, rs2pw )
   pw_c%cr3d = pw_c%cr3d**(1.0_dp/3.0_dp)
   CALL rs_grid_zero ( rden )
@@ -313,9 +314,9 @@ SUBROUTINE rs_test ( globenv )
   END IF
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-  CALL pw_deallocate ( pw_a )
-  CALL pw_deallocate ( pw_b )
-  CALL pw_deallocate ( pw_c )
+  CALL pw_release ( pw_a )
+  CALL pw_release ( pw_b )
+  CALL pw_release ( pw_c )
   call cell_release(box)
 END SUBROUTINE rs_test
 

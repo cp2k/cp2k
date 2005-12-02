@@ -59,7 +59,9 @@ MODULE f77_interface
   USE cp_subsystem_types,              ONLY: cp_subsystem_p_type
   USE environment,                     ONLY: cp2k_finalize,&
                                              cp2k_init,&
-                                             cp2k_read
+                                             cp2k_read,&
+                                             cp2k_setup
+  USE mathconstants,                   ONLY: init_mathcon
   USE fist_main,                       ONLY: fist_create_force_env
   USE force_env_methods,               ONLY: force_env_calc_energy_force
   USE force_env_types,                 ONLY: force_env_get,&
@@ -110,6 +112,7 @@ MODULE f77_interface
                                              timer_env_retain,&
                                              timer_env_release
   USE cp_units, ONLY: cp_unit_set_type, cp_unit_set_create, cp_unit_set_release
+  USE physcon,                         ONLY: init_physcon
   implicit none
   private
 
@@ -239,6 +242,15 @@ contains
        CPPostconditionNoErr(stat==0,cp_fatal_level,routineP)
        module_initialized=.true.
        ierr=0
+
+       !   *** Initialize mathematical constants ***
+       
+       CALL init_mathcon()
+       
+       !   *** Initialize physical constants ***
+       
+       CALL init_physcon()
+
     ELSE
        ierr=cp_failure_level
     END IF
@@ -676,7 +688,7 @@ END SUBROUTINE f_env_rm_defaults
     END IF
 
     ! parse the input
-    NULLIFY(input_structure)
+    NULLIFY(input_structure, default_units)
     CALL create_cp2k_root_section(input_structure,error=error)
     NULLIFY(input_file)
     CALL section_vals_create(input_file,input_structure, error=error)
@@ -704,6 +716,7 @@ END SUBROUTINE f_env_rm_defaults
     IF (.NOT.failure) THEN
 
        CALL cp2k_read(globenv)
+       CALL cp2k_setup(globenv,error)
 
        ! initialize force_env
        SELECT CASE (globenv%prog_name_id)
@@ -1360,7 +1373,7 @@ END SUBROUTINE f_env_rm_defaults
     CALL cp_add_default_logger(logger)
     CALL cp_error_init(error,logger=logger,stop_level=cp_fatal_level)
 
-    NULLIFY(input_structure)
+    NULLIFY(input_structure, default_units)
     CALL create_cp2k_root_section(input_structure,error=error)
     NULLIFY(input_file)
     CALL section_vals_create(input_file,input_structure, error=error)

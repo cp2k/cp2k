@@ -48,6 +48,7 @@ MODULE kg_rspw_types
   USE termination,                     ONLY: stop_memory
   USE timings,                         ONLY: timeset,&
                                              timestop
+  USE pw_poisson_types, ONLY: pw_poisson_type, pw_poisson_release, pw_poisson_create, pw_poisson_retain
 
   IMPLICIT NONE
 
@@ -65,6 +66,7 @@ MODULE kg_rspw_types
      TYPE(cube_info_type), DIMENSION(:), POINTER    :: cube_info
      TYPE(pw_pool_p_type), DIMENSION(:), POINTER    :: pw_pools
      TYPE(cp_rs_pool_p_type), DIMENSION(:), POINTER :: rs_pools
+     TYPE(pw_poisson_type), pointer :: poisson_env
   END TYPE kg_rspw_type
 !-----------------------------------------------------------------------------!
 
@@ -75,7 +77,7 @@ CONTAINS
 !******************************************************************************
 SUBROUTINE kg_rspw_get(kg_rspw, l_info, cube_info, gridlevel_info,&
      auxbas_pw_pool,auxbas_grid,rs_pools,pw_pools,auxbas_rs_pool,&
-     error)
+     poisson_env,error)
     TYPE(kg_rspw_type), POINTER               :: kg_rspw
     TYPE(pw_pool_p_type), DIMENSION(:), &
      OPTIONAL, POINTER                      :: pw_pools
@@ -89,6 +91,7 @@ SUBROUTINE kg_rspw_get(kg_rspw, l_info, cube_info, gridlevel_info,&
     TYPE(cp_rs_pool_p_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: rs_pools
     TYPE(cp_rs_pool_type), OPTIONAL, POINTER :: auxbas_rs_pool
+    TYPE(pw_poisson_type), POINTER, optional :: poisson_env
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -115,6 +118,7 @@ SUBROUTINE kg_rspw_get(kg_rspw, l_info, cube_info, gridlevel_info,&
         auxbas_rs_pool => kg_rspw%rs_pools(kg_rspw%auxbas_grid)%pool
      END IF
      IF (PRESENT(auxbas_grid)) auxbas_grid = kg_rspw%auxbas_grid
+     if (present(poisson_env)) poisson_env => kg_rspw%poisson_env
   END IF
 END SUBROUTINE kg_rspw_get
 !***************************************************************************
@@ -189,6 +193,7 @@ END SUBROUTINE kg_rspw_retain
       END IF   
       CALL pw_pools_dealloc(kg_rspw%pw_pools,error=error)
       CALL rs_pools_dealloc(kg_rspw%rs_pools,error=error)
+      CALL pw_poisson_release(kg_rspw%poisson_env,error=error)
       DEALLOCATE(kg_rspw, stat=stat)
       CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
     END IF

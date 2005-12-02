@@ -31,25 +31,24 @@ MODULE spme
                                              ewald_env_get
   USE ewald_pw_types,                  ONLY: ewald_pw_type, &
                                              ewald_pw_get
-  USE green_types,                     ONLY: greens_function_type
-  USE hartree,                         ONLY: calculate_hartree
   USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: fourpi
   USE particle_types,                  ONLY: particle_type
   USE pw_grid_types,                   ONLY: pw_grid_type
   USE pw_pool_types,                   ONLY: pw_pool_type, &
                                              pw_pool_init_coeff, &
-                                             pw_pool_give_back_coeff
+                                             pw_pool_give_back_coeff,&
+                                             pw_pool_create_pw,&
+                                             pw_pool_give_back_pw
   USE pw_types,                        ONLY: COMPLEXDATA1D,&
                                              COMPLEXDATA3D,&
                                              REALDATA1D,&
                                              REALDATA3D,&
                                              REALSPACE,&
                                              RECIPROCALSPACE, &
-                                             pw_type
-  USE pws,                             ONLY: cleanup_pw_poisson_solver,&
-                                             init_pw_poisson_solver,&
-                                             pw_integral_a2b
+                                             pw_type,&
+                                             pw_p_type,&
+                                             pw_integral_a2b, pw_transfer
   USE realspace_grid_types,            ONLY: realspace_grid_type,&
                                              rs_grid_allocate,&
                                              rs_grid_deallocate,&
@@ -62,7 +61,9 @@ MODULE spme
                                              stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
-
+  USE pw_poisson_types, ONLY: pw_poisson_type, greens_fn_type
+  USE pw_poisson_methods, ONLY: pw_poisson_solve, pw_poisson_rebuild
+#include "cp_common_uses.h"
   IMPLICIT NONE
 
   PRIVATE
@@ -90,7 +91,7 @@ CONTAINS
 !!*** *************************************************************************
 
 SUBROUTINE spme_evaluate ( ewald_env, ewald_pw, particle_set, &
-                           fg_coulomb, vg_coulomb, pv_g )
+                           fg_coulomb, vg_coulomb, pv_g, error )
 
 
     TYPE(particle_type), DIMENSION(:), &
@@ -100,6 +101,7 @@ SUBROUTINE spme_evaluate ( ewald_env, ewald_pw, particle_set, &
     REAL(KIND=dp), DIMENSION(:, :), INTENT(OUT)  :: pv_g
     TYPE(ewald_environment_type), POINTER    :: ewald_env
     TYPE ( ewald_pw_type ), POINTER          :: ewald_pw
+    TYPE(cp_error_type), INTENT(inout), optional :: error
 
     INTEGER                                  :: handle, i, ierr, ipart, j, &
                                                 jpart, n, ndim( 3 ), npart, p1
@@ -111,22 +113,26 @@ SUBROUTINE spme_evaluate ( ewald_env, ewald_pw, particle_set, &
     REAL(KIND=dp), DIMENSION(3)                  :: fat
     REAL(KIND=dp), DIMENSION(3, 3)               :: f_stress, h_stress
     REAL (KIND=dp)                             :: alpha, eps0
-    TYPE(coeff_type)                         :: dphi_g( 3 ), phi_g, rhob_g, &
-                                                rhob_r
+    TYPE(pw_type), pointer :: phi_g, rhob_g, rhob_r
+    TYPE(pw_p_type), dimension(3) :: dphi_g
     TYPE(realspace_grid_type)                :: drpot( 3 ), rden
     TYPE(pw_grid_type), POINTER              :: grid_spme
     TYPE(pw_pool_type), POINTER              :: pw_pool
     TYPE(cell_type), POINTER           :: box
-    TYPE(greens_function_type), POINTER      :: green
+    TYPE(greens_fn_type), POINTER      :: green
+    TYPE(pw_poisson_type), pointer :: poisson_env
 
 !------------------------------------------------------------------------------
 !-------------- INITIALISATION ---------------------
 
-    NULLIFY(box, green)
+    NULLIFY(box, poisson_env)
   CALL timeset ( 'SPME', 'I', ' ', handle )
   CALL ewald_env_get ( ewald_env, alpha=alpha, eps0 = eps0, &
                        o_spline = o_spline, group = group )
-  CALL ewald_pw_get ( ewald_pw, pw_big_pool=pw_pool, cell = box, green=green )
+  CALL ewald_pw_get ( ewald_pw, pw_big_pool=pw_pool, cell = box,&
+       poisson_env=poisson_env)
+  CALL pw_poisson_rebuild(poisson_env,error=error)
+  green => poisson_env%green_fft
   grid_spme => pw_pool % pw_grid
 
   inv_fourpi_eps0 = 1.0_dp / ( fourpi * eps0 )
@@ -148,6 +154,7 @@ SUBROUTINE spme_evaluate ( ewald_env, ewald_pw, particle_set, &
 
   ipart = 0
   jpart = 0
+
   DO
 
      CALL set_list ( particle_set, npart, centre, p1, rden, ipart, jpart )
@@ -161,41 +168,38 @@ SUBROUTINE spme_evaluate ( ewald_env, ewald_pw, particle_set, &
 
   END DO
 
-  CALL pw_pool_init_coeff ( pw_pool, rhob_r,  &
+  CALL pw_pool_create_pw ( pw_pool, rhob_r,  &
                            use_data = REALDATA3D, &
                            in_space = REALSPACE )
 
-  CALL rs_pw_transfer ( rden, rhob_r % pw, rs2pw )
+  CALL rs_pw_transfer ( rden, rhob_r, rs2pw )
 
   CALL rs_grid_deallocate ( rden )
 
   ! transform density to G space and add charge function
-  CALL pw_pool_init_coeff ( pw_pool, rhob_g,  &
+  CALL pw_pool_create_pw ( pw_pool, rhob_g,  &
                            use_data = COMPLEXDATA1D, &
                            in_space = RECIPROCALSPACE )
-  CALL coeff_transform_space ( rhob_r, rhob_g )
+  CALL pw_transfer ( rhob_r, rhob_g )
   ! update charge function
-  CALL p3m_update ( green )
-  rhob_g % pw % cc = rhob_g % pw % cc * green % p3m_charge % cr
+  rhob_g % cc = rhob_g % cc * green % p3m_charge % cr
 
 !-------------- ELECTROSTATIC CALCULATION -----------
 
   ! allocate intermediate arrays
   DO i = 1, 3
-     CALL pw_pool_init_coeff ( pw_pool, dphi_g ( i ),  &
+     nullify(dphi_g(i)%pw)
+     CALL pw_pool_create_pw ( pw_pool, dphi_g ( i )%pw,  &
                               use_data = COMPLEXDATA1D,   &
                               in_space = RECIPROCALSPACE )
   END DO
-  CALL pw_pool_init_coeff ( pw_pool, phi_g,  &
+  CALL pw_pool_create_pw ( pw_pool, phi_g,  &
                            use_data = COMPLEXDATA1D,   &
                            in_space = RECIPROCALSPACE )
+  CALL pw_poisson_solve ( poisson_env, rhob_g, vg_coulomb, phi_g, dphi_g, h_stress )
 
-  CALL init_pw_poisson_solver ( green )
-
-  CALL calculate_hartree ( rhob_g, vg_coulomb, phi_g, dphi_g, h_stress )
-
-  CALL pw_pool_give_back_coeff ( pw_pool, phi_g )
-  CALL pw_pool_give_back_coeff ( pw_pool, rhob_g )
+  CALL pw_pool_give_back_pw ( pw_pool, phi_g )
+  CALL pw_pool_give_back_pw ( pw_pool, rhob_g )
   vg_coulomb = vg_coulomb * inv_fourpi_eps0
 
 !---------- END OF ELECTROSTATIC CALCULATION --------
@@ -223,12 +227,12 @@ SUBROUTINE spme_evaluate ( ewald_env, ewald_pw, particle_set, &
   DO i = 1, 3
      dphi_g ( i ) % pw % cc = dphi_g ( i ) % pw % cc * &
                               green % p3m_charge % cr
-     CALL coeff_transform_space ( dphi_g ( i ), rhob_r )
-     CALL pw_pool_give_back_coeff ( pw_pool, dphi_g ( i ) )
-     CALL rs_pw_transfer ( drpot ( i ), rhob_r % pw, pw2rs )
+     CALL pw_transfer ( dphi_g ( i )%pw, rhob_r )
+     CALL pw_pool_give_back_pw ( pw_pool, dphi_g ( i )%pw )
+     CALL rs_pw_transfer ( drpot ( i ), rhob_r, pw2rs )
   END DO
 
-  CALL pw_pool_give_back_coeff ( pw_pool, rhob_r )
+  CALL pw_pool_give_back_pw ( pw_pool, rhob_r )
 
 !----------------- FORCE CALCULATION ----------------
 
@@ -263,49 +267,12 @@ SUBROUTINE spme_evaluate ( ewald_env, ewald_pw, particle_set, &
   IF ( ierr /= 0 ) CALL stop_memory ( "spme_evaluate", "rhos" )
   DEALLOCATE ( centre, STAT = ierr )
   IF ( ierr /= 0 ) CALL stop_memory ( "spme_evaluate", "centre" )
-  CALL cleanup_pw_poisson_solver ( green )
 
   CALL timestop ( 0.0_dp, handle )
 
 END SUBROUTINE spme_evaluate
-
 !******************************************************************************
 
-SUBROUTINE p3m_update ( gf )
-
-
-    TYPE(greens_function_type), pointer      :: gf
-
-    INTEGER                                  :: ig, l, m, n
-    REAL(KIND=dp)                                :: arg, novol
-    REAL(KIND=dp), DIMENSION(:, :), POINTER      :: bm2
-    TYPE(pw_grid_type), POINTER              :: grid
-    TYPE(pw_type), POINTER                   :: pc
-
-!------------------------------------------------------------------------------
-
-  grid => gf % influence_function % pw_grid
-
-  ! check if charge function is consistent with current box volume
-  IF ( gf % volume /= grid % vol ) THEN
-
-    pc => gf % p3m_charge
-    bm2 => gf % p3m_bm2
-    arg = 1.0_dp / ( 8.0_dp * gf % p3m_alpha ** 2 )
-    novol = REAL ( grid % ngpts,KIND=dp) / grid % vol
-    DO ig = 1, grid % ngpts_cut_local
-       l = grid % g_hat ( 1, ig )
-       m = grid % g_hat ( 2, ig )
-       n = grid % g_hat ( 3, ig )
-       pc % cr ( ig ) = novol * exp ( -arg * grid % gsq ( ig ) ) * &
-                        bm2 ( 1, l ) * bm2 ( 2, m ) * bm2 ( 3, n )
-    END DO
-
-  END IF
-
-END SUBROUTINE p3m_update
-
-!******************************************************************************
 !!****** spme/get_patch [1.0] *
 !!
 !!   NAME
@@ -328,7 +295,7 @@ SUBROUTINE get_patch ( part, box, green, npts, p, rhos )
     TYPE(particle_type), DIMENSION(:), &
       INTENT(IN)                             :: part
     TYPE(cell_type), INTENT(IN)              :: box
-    TYPE(greens_function_type), POINTER      :: green
+    TYPE(greens_fn_type), POINTER      :: green
     INTEGER, DIMENSION(3), INTENT(IN)        :: npts
     INTEGER, INTENT(IN)                      :: p
     REAL(KIND=dp), DIMENSION(:, :, :), &

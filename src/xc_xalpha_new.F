@@ -95,24 +95,31 @@ CONTAINS
 ! *****************************************************************************
 
   SUBROUTINE xalpha_info ( lsd, reference, shortform, needs, max_deriv, &
-       xa_parameter,error)
+       xa_parameter,scaling,error)
     LOGICAL, INTENT(in)                      :: lsd
     CHARACTER(LEN=*), INTENT(OUT), OPTIONAL  :: reference, shortform
     TYPE(xc_rho_cflags_type), &
       INTENT(inout), OPTIONAL                :: needs
     INTEGER, INTENT(out), OPTIONAL           :: max_deriv
-    REAL(KIND=dp), INTENT(in), OPTIONAL     :: xa_parameter
+    REAL(KIND=dp), INTENT(in), OPTIONAL     :: xa_parameter,scaling
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-    REAL(KIND=dp)                           :: my_xparam
+    REAL(KIND=dp)                           :: my_xparam, my_scaling
 
     my_xparam=2.0_dp/3.0_dp
     IF (PRESENT(xa_parameter)) my_xparam=xa_parameter
+    my_scaling=1.0_dp
+    if (present(scaling)) my_scaling=scaling
 
     IF ( PRESENT ( reference ) ) THEN
+       IF (my_scaling/=1._dp) THEN
+          WRITE (reference,'(A,F8.4,A,F8.4)') &
+         "Dirac/Slater local exchange; parameter=",my_xparam," scaling=",my_scaling
+else
        WRITE (reference,'(A,F8.4)') &
          "Dirac/Slater local exchange; parameter=",my_xparam
+    END IF
        IF (.not.lsd) THEN
           IF (LEN_TRIM(reference)+6<LEN(reference)) THEN
              reference(LEN_TRIM(reference):LEN_TRIM(reference)+6)=' {LDA}'
@@ -120,8 +127,12 @@ CONTAINS
        END IF
     END IF
     IF ( PRESENT ( shortform ) ) THEN
-       WRITE (shortform,'(A,F8.4)') "Dirac/Slater exchange",my_xparam
-       IF (.not.lsd) THEN
+       IF (my_scaling/=1._dp) THEN
+          WRITE (shortform,'(A,F8.4,F8.4)') "Dirac/Slater exchange",my_xparam,my_scaling
+       ELSE
+          WRITE (shortform,'(A,F8.4)') "Dirac/Slater exchange",my_xparam
+       END IF
+       IF (.NOT.lsd) THEN
           IF (LEN_TRIM(shortform)+6<LEN(shortform)) THEN
              shortform(LEN_TRIM(shortform):LEN_TRIM(shortform)+6)=' {LDA}'
           END IF

@@ -51,7 +51,7 @@ MODULE pw_env_types
                                              pw_pools_flush_cache
   USE timings,                         ONLY: timeset,&
                                              timestop
-
+  USE pw_poisson_types, ONLY: pw_poisson_type, pw_poisson_retain, pw_poisson_release
   IMPLICIT NONE
   PRIVATE
 
@@ -106,6 +106,7 @@ MODULE pw_env_types
      TYPE(l_info_type), POINTER :: l_info_rho0 ! right place for it?
      TYPE(cube_info_type), DIMENSION(:), POINTER :: cube_info
      INTEGER :: auxbas_grid
+     TYPE(pw_poisson_type), pointer :: poisson_env
   END TYPE pw_env_type
 !!***
   !****************************************************************************
@@ -156,7 +157,7 @@ CONTAINS
 !!*** **********************************************************************
 SUBROUTINE pw_env_get(pw_env, pw_pools,l_info,l_info_rho0, cube_info, gridlevel_info,&
      auxbas_pw_pool,auxbas_cube_info,auxbas_grid,rs_pools,auxbas_rs_pool,&
-     error)
+     poisson_env,error)
     TYPE(pw_env_type), POINTER               :: pw_env
     TYPE(pw_pool_p_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: pw_pools
@@ -172,6 +173,7 @@ SUBROUTINE pw_env_get(pw_env, pw_pools,l_info,l_info_rho0, cube_info, gridlevel_
     TYPE(cp_rs_pool_p_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: rs_pools
     TYPE(cp_rs_pool_type), OPTIONAL, POINTER :: auxbas_rs_pool
+    TYPE(pw_poisson_type), OPTIONAL, POINTER :: poisson_env
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -198,6 +200,7 @@ SUBROUTINE pw_env_get(pw_env, pw_pools,l_info,l_info_rho0, cube_info, gridlevel_
         auxbas_rs_pool => pw_env%rs_pools(pw_env%auxbas_grid)%pool
      END IF
      IF (PRESENT(auxbas_grid)) auxbas_grid = pw_env%auxbas_grid
+     if (present(poisson_env)) poisson_env => pw_env%poisson_env
   END IF
 END SUBROUTINE pw_env_get
 !***************************************************************************
@@ -297,6 +300,7 @@ SUBROUTINE pw_env_release(pw_env, error)
      CPPrecondition(pw_env%ref_count>0,cp_failure_level,routineP,error,failure)
      pw_env%ref_count=pw_env%ref_count-1
      IF (pw_env%ref_count<1) THEN
+        CALL pw_poisson_release(pw_env%poisson_env, error=error)
         CALL pw_pools_dealloc(pw_env%pw_pools,error=error)
         IF (ASSOCIATED(pw_env%gridlevel_info)) THEN
            CALL destroy_gaussian_gridlevel(pw_env%gridlevel_info,error=error)

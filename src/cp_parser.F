@@ -10,18 +10,23 @@
 !!
 !!   FUNCTION
 !!     Utility routines to read data from files.
+!!     Kept as close as possible to the old parser because 
+!!       1. string handling is a weak point of fortran compilers, and it is
+!!          easy to write correct things that do not work
+!!       2. conversion of old code
 !!
 !!   AUTHOR
-!!     Matthias Krack (22.11.1999)
+!!     fawzi
 !!
 !!   MODIFICATION HISTORY
-!!     06.2004 removed module varibles, cp_parser_type [fawzi]
+!!     22.11.1999 first version of the old parser (called qs_parser)
+!!                Matthias Krack
+!!     06.2004 removed module varibles, cp_parser_type, new module [fawzi]
 !!
 !!   SOURCE
 !******************************************************************************
 
 MODULE cp_parser
-
   USE cp_error_handling,               ONLY: cp_a_l,&
                                              cp_assert,&
                                              cp_assertion_failed,&
@@ -380,7 +385,7 @@ SUBROUTINE parser_next_token(parser,string_length,error)
         CALL cp_assert(parser%icol/=-1,cp_failure_level,cp_assertion_failed,&
              routineP,"Unexpectetly reached EOF "//&
              TRIM(parser_location(parser,error=error)),error,failure)
-        length=MIN(LEN_TRIM(parser%input_line)-parser%icol1,length)
+        length=MIN(LEN_TRIM(parser%input_line)-parser%icol1+1,length)
         IF (.NOT.failure) THEN
            parser%icol1 = parser%icol + 1
            parser%icol2 = parser%icol + length

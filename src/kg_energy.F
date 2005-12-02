@@ -44,7 +44,6 @@ MODULE kg_energy
                                              read_coeff_restart,&
                                              write_coeff_restart
   USE global_types,                    ONLY: global_environment_type
-  USE hartree,                         ONLY: calculate_hartree
   USE kg_core,                         ONLY: calculate_ecore_rspace,&
                                              calculate_eself
   USE kg_density,                      ONLY: calculate_density,&
@@ -80,14 +79,16 @@ MODULE kg_energy
                                              mp_max
   USE pw_pool_types,                   ONLY: pw_pool_give_back_coeff,&
                                              pw_pool_init_coeff,&
-                                             pw_pool_type
+                                             pw_pool_type,&
+                                             pw_pool_p_type
   USE pw_types,                        ONLY: COMPLEXDATA1D,&
                                              REALDATA3D,&
                                              REALSPACE,&
                                              RECIPROCALSPACE,&
                                              pw_p_type
-  USE pws,                             ONLY: cleanup_pw_poisson_solver,&
-                                             init_pw_poisson_solver
+  USE pw_poisson_types,                             ONLY: pw_poisson_type,&
+       pw_poisson_create, pw_poisson_release
+  USE pw_poisson_methods, only: pw_poisson_solve
   USE qs_core_hamiltonian,             ONLY: build_core_hamiltonian_matrix
   USE qs_environment_types,            ONLY: qs_environment_type
   USE qs_neighbor_lists,               ONLY: build_qs_neighbor_lists
@@ -96,8 +97,8 @@ MODULE kg_energy
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE xc,                              ONLY: xc_vxc_pw_create1
-  USE green_types,                     ONLY: greens_function_type
-
+  USE input_constants, only: restart_guess
+  USE input_section_types, ONLY: section_vals_type, section_vals_get_subs_vals
   IMPLICIT NONE
 
   PRIVATE
@@ -379,6 +380,7 @@ SUBROUTINE init_energy_calculation ( kg_env, vxc_r, globenv, error)
     TYPE(kg_rspw_type), POINTER              :: rspw
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
     TYPE(scf_control_type), POINTER          :: scf_control
+    TYPE(section_vals_type), pointer :: xc_section
 
 !------------------------------------------------------------------------------
 
@@ -391,6 +393,8 @@ SUBROUTINE init_energy_calculation ( kg_env, vxc_r, globenv, error)
           cell,rho,rspw,scf_control,dyn_coeff_set)
   NULLIFY(rho_r,rho_g,rho_core, my_vxc_r, my_vxc_tau, my_rho_g, my_tau)
 
+  xc_section => section_vals_get_subs_vals(globenv%input_file,&
+       "FORCE_EVAL%DFT%XC",error=error)
   CALL get_kg_env( kg_env=kg_env, atomic_kind_set=atomic_kind_set,&
                     dft_control=dft_control, energy=energy, cell=cell,&
                     rho=rho,rspw=rspw,dyn_coeff_set=dyn_coeff_set,&
@@ -448,7 +452,7 @@ SUBROUTINE init_energy_calculation ( kg_env, vxc_r, globenv, error)
   ALLOCATE(my_rho_r(1))
   my_rho_r(1)%pw => rho_r%pw
   CALL xc_vxc_pw_create1(my_vxc_r,my_vxc_tau,my_rho_r,my_rho_g,my_tau,&
-       energy%exc,dft_control,cell,auxbas_pw_pool)
+       energy%exc,xc_section,cell,auxbas_pw_pool)
   allocate(vxc_r)
   CALL coeff_init(vxc_r,pw=my_vxc_r(1)%pw)
   NULLIFY(my_rho_r(1)%pw, my_vxc_r(1)%pw)
@@ -460,7 +464,7 @@ SUBROUTINE init_energy_calculation ( kg_env, vxc_r, globenv, error)
   CALL coeff_sumup(rho_g,rho_core)
 
 !  read coef from restart file
-  IF (scf_control%density_guess == "RESTART") THEN
+  IF (scf_control%density_guess == restart_guess) THEN
     CALL read_coeff_restart(dyn_coeff_set,globenv)
   END IF    
   CALL timestop(0.0_dp,handle)
@@ -470,7 +474,6 @@ END SUBROUTINE init_energy_calculation
 !------------------------------------------------------------------------------
 
 SUBROUTINE calc_c_gradients ( kg_env, vxc_r, maxgrad, globenv,error )
-
 
     TYPE(kg_environment_type), POINTER       :: kg_env
     TYPE(coeff_type), POINTER                :: vxc_r
@@ -493,7 +496,6 @@ SUBROUTINE calc_c_gradients ( kg_env, vxc_r, maxgrad, globenv,error )
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(cell_type), POINTER                 :: cell
-    TYPE(greens_function_type), POINTER      :: green
     TYPE(coeff_type), POINTER                :: rho_core, rho_r, rho_g,&
                                                 rhop_r, rhop_g, &
                                                 v_gspace, &
@@ -505,7 +507,9 @@ SUBROUTINE calc_c_gradients ( kg_env, vxc_r, maxgrad, globenv,error )
     TYPE(kg_energy_type), POINTER            :: energy
     TYPE(kg_rho_type), POINTER               :: rho
     TYPE(kg_rspw_type), POINTER              :: rspw
+    TYPE(pw_poisson_type), pointer           :: poisson_env
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
+    TYPE(section_vals_type), pointer :: xc_section
 
 !------------------------------------------------------------------------------
 
@@ -520,17 +524,20 @@ SUBROUTINE calc_c_gradients ( kg_env, vxc_r, maxgrad, globenv,error )
   NULLIFY(energy,atomic_kind_set,cell,dft_control,&
           dyn_coeff_set,rho,rspw,local_coeffs,forces)
   NULLIFY(rho_r,rho_g,rhop_r,rhop_g,rho_core,v_gspace,v_rspace,&
-          v1xc_r,v2xc_r,green)
+          v1xc_r,v2xc_r, poisson_env)
 
+  xc_section => section_vals_get_subs_vals(globenv%input_file,&
+       "FORCE_EVAL%DFT%XC", error=error)
   CALL get_kg_env( kg_env=kg_env, atomic_kind_set=atomic_kind_set,&
                     dft_control=dft_control, energy=energy, cell=cell,&
-                    rho=rho,rspw=rspw,dyn_coeff_set=dyn_coeff_set, green=green)
+                    rho=rho,rspw=rspw,dyn_coeff_set=dyn_coeff_set)
   CPPrecondition(ASSOCIATED(rho),cp_failure_level,routine,error,failure)
   CPPrecondition(ASSOCIATED(rspw),cp_failure_level,routine,error,failure)
   IF(.NOT.failure) THEN
     CALL kg_rho_get(kg_rho=rho, rho_r=rho_r, rho_g=rho_g, rhop_r=rhop_r,&
                     rhop_g=rhop_g,rho_core=rho_core)
-    CALL kg_rspw_get(kg_rspw=rspw,auxbas_pw_pool=auxbas_pw_pool,error=error)
+    CALL kg_rspw_get(kg_rspw=rspw,auxbas_pw_pool=auxbas_pw_pool,&
+         poisson_env=poisson_env,error=error)
   END IF
 
   ALLOCATE(v_gspace,stat=stat)
@@ -580,15 +587,14 @@ SUBROUTINE calc_c_gradients ( kg_env, vxc_r, maxgrad, globenv,error )
   CALL calculate_p_density(rhop_r, rhop_g, total_rhop_rspace, kg_env)
 
   CALL calculate_kxc_derivatives(auxbas_pw_pool, rho_r, rho_g, rhop_r, vxc_r, v1xc_r,&
-                                 v2xc_r, e1_xc, e2_xc, dft_control, calculate_forces)
+                                 v2xc_r, e1_xc, e2_xc, xc_section, calculate_forces)
 
 ! add the polarization density to get the total density
   CALL coeff_sumup(rhop_g,rho_g)
 
 ! calculate electrostatic potential
-  CALL init_pw_poisson_solver(green)
-  CALL calculate_hartree(rho_g, energy % hartree,v_gspace)        
-  CALL cleanup_pw_poisson_solver(green)
+
+  CALL pw_poisson_solve(poisson_env,rho_g%pw, energy % hartree,v_gspace%pw)        
 
   CALL coeff_transform_space(v_gspace,v_rspace)
   CALL pw_pool_give_back_coeff(auxbas_pw_pool,v_gspace,error=error)

@@ -172,29 +172,6 @@ MODULE cp_control_types
      REAL(KIND = dp) :: e_cutoff_dual
   END TYPE wave_control_type
 
-! *** Control parameters for a dft xc functionals ***
-
-  TYPE xc_control_type
-     CHARACTER(LEN=40), DIMENSION(3) :: functionals
-     LOGICAL, DIMENSION(3)           :: gradient_functionals, crossterms
-     REAL(KIND = dp)                 :: density_cut,&
-                                        gradient_cut,tau_cut,&
-                                        density_smooth_cut_range
-     INTEGER                         :: functional_routine,&
-                                        xc_rho_smooth_id,&
-                                        xc_deriv_method_id
-     TYPE(xc_rho_cflags_type)        :: needs  
-     INTEGER, DIMENSION(3)           :: functionals_new
-     REAL(dp)                        :: xa_param
-     INTEGER                         :: max_deriv
-
-     ! fields for the self-consistent application of a xc-potential
-
-     INTEGER                         :: xc_potential_id
-     INTEGER                         :: energy_mode_id
-
-  END TYPE xc_control_type
-
   ! *** Control parameters for a TIME-DEPENDENT PERTURBATION calculation ***
 
 !!****s* cp_control_types/tddfpt_control_type
@@ -222,7 +199,6 @@ MODULE cp_control_types
 !!***
   TYPE tddfpt_control_type
      TYPE(cp_fm_p_type), DIMENSION(:), POINTER :: lumos
-     TYPE(xc_control_type)                     :: xc_control
      REAL(KIND=dp)                             :: tolerance
      INTEGER                                   :: n_ev
      INTEGER                                   :: max_kv
@@ -249,7 +225,6 @@ MODULE cp_control_types
      TYPE(wave_control_type)         :: wave_control
      TYPE(xas_control_type), POINTER :: xas_control
      TYPE(xc_grid_type)              :: integration_grid
-     TYPE(xc_control_type)           :: xc_control
      INTEGER                         :: nspins,&
                                         charge,&
                                         multiplicity,&
@@ -264,6 +239,7 @@ MODULE cp_control_types
                                         derive_function_rho, &
                                         use_kinetic_energy_density, & 
                                         restricted
+     !FM add xc_section ?
   END TYPE dft_control_type
 
   CHARACTER(LEN=*), PARAMETER :: moduleN = "cp_control_types"
@@ -276,7 +252,7 @@ MODULE cp_control_types
             qs_control_type,&
             gapw_control_type,&
             wave_control_type, tddfpt_control_type,&
-            pw_grid_option, xc_control_type, mulliken_restraint_type,&
+            pw_grid_option, mulliken_restraint_type,&
             semi_empirical_control_type
 
 
@@ -424,7 +400,6 @@ SUBROUTINE dft_control_create(dft_control, error)
      CALL wave_control_init(dft_control%wave_control, error=error)
      CALL xas_control_create(dft_control%xas_control,error=error)
      CALL xc_grid_init(dft_control%integration_grid, error=error)
-     CALL xc_control_init(dft_control%xc_control, error=error)
   END IF
 END SUBROUTINE dft_control_create
 !***************************************************************************
@@ -515,7 +490,6 @@ SUBROUTINE dft_control_release(dft_control,error)
         CALL wave_control_dealloc_ref(dft_control%wave_control, error=error)
         CALL xas_control_release(dft_control%xas_control, error=error)
         CALL xc_grid_dealloc_ref(dft_control%integration_grid, error=error)
-        CALL xc_control_dealloc_ref(dft_control%xc_control, error=error)
         DEALLOCATE(dft_control, stat=stat)
         CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
      END IF
@@ -646,21 +620,6 @@ SUBROUTINE xc_grid_dealloc_ref(xc_grid, error)
       OPTIONAL                               :: error
 
 END SUBROUTINE xc_grid_dealloc_ref
-
-SUBROUTINE xc_control_init(xc_control, error)
-    TYPE(xc_control_type), INTENT(out)       :: xc_control
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
-
-    xc_control%functionals_new = 0
-END SUBROUTINE xc_control_init
-
-SUBROUTINE xc_control_dealloc_ref(xc_control, error)
-    TYPE(xc_control_type), INTENT(inout)     :: xc_control
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
-
-END SUBROUTINE xc_control_dealloc_ref
 
 SUBROUTINE se_control_init(se_control, error)
     TYPE(semi_empirical_control_type), &

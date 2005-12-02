@@ -37,27 +37,20 @@ MODULE ewald_environment_types
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE global_types,                    ONLY: global_environment_type
   USE kinds,                           ONLY: dp, default_string_length
-  USE parser,                          ONLY: get_next,&
-                                             p_error,&
-                                             parser_end,&
-                                             parser_init,&
-                                             read_line,&
-                                             search_label,&
-                                             stop_parser,&
-                                             test_next
   USE string_utilities,                ONLY: uppercase,&
                                              xstring
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type,&
                                              section_vals_get,&
-                                             section_vals_val_get
-  USE input_cp2k,                      ONLY: parsed_cp2k_input
+                                             section_vals_val_get,&
+                                             section_vals_retain,&
+                                             section_vals_release
   USE input_constants,                 ONLY: do_ewald_none,&
                                              do_ewald_ewald,&
                                              do_ewald_pme,&
                                              do_ewald_spme,&
                                              ewald_name_types
-
+  USE physcon, only: angstrom
   PRIVATE
 
   TYPE ewald_environment_type
@@ -72,6 +65,7 @@ MODULE ewald_environment_types
     INTEGER   :: ns_max                 ! # grid points for small grid (PME)
     INTEGER   :: o_spline               ! order of spline (SPME)
     TYPE ( cp_para_env_type ), POINTER :: para_env
+    TYPE(section_vals_type), pointer :: poisson_section
   END TYPE ewald_environment_type
 
 ! *****************************************************************************
@@ -127,7 +121,7 @@ MODULE ewald_environment_types
 
   SUBROUTINE ewald_env_get( ewald_env, ewald_type, unit_type, alpha, eps0, &
                             epsilon, gmax, ns_max, o_spline, group,  &
-                            para_env, id_nr, error )
+                            para_env, id_nr, poisson_section, error )
     IMPLICIT NONE
 
 !   Purpose: Get the EWALD environment.
@@ -146,6 +140,7 @@ MODULE ewald_environment_types
     INTEGER, OPTIONAL                              :: o_spline
     INTEGER, OPTIONAL                              :: group
     TYPE ( cp_para_env_type ), POINTER, OPTIONAL   :: para_env
+    TYPE(section_vals_type), POINTER, optional :: poisson_section
     TYPE ( cp_error_type ), INTENT ( INOUT ), OPTIONAL :: error
 
     LOGICAL :: failure
@@ -166,53 +161,15 @@ MODULE ewald_environment_types
     IF ( PRESENT ( o_spline ) ) o_spline = ewald_env % o_spline
     IF ( PRESENT ( group ) ) group = ewald_env % para_env % group
     IF ( PRESENT ( para_env ) ) para_env => ewald_env % para_env
+    IF (PRESENT(poisson_section)) poisson_section => ewald_env%poisson_section
 
   END SUBROUTINE ewald_env_get
 !
 ! *****************************************************************************
 
-  SUBROUTINE init_ewald_env ( ewald_env, para_env, error )
-
-!   Purpose: Initialise the FIST environment.
-
-!   ***************************************************************************
-    IMPLICIT NONE
-    ! Arguments
-    TYPE( ewald_environment_type ), INTENT(OUT)     :: ewald_env
-    TYPE ( cp_para_env_type ), POINTER, OPTIONAL :: para_env
-    TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
-    ! Local Variables
-    TYPE(unit_convert_type), POINTER         :: units
-!   ---------------------------------------------------------------------------
-
-    NULLIFY(units)
-    ewald_env % ref_count=1
-    last_ewald_env_id_nr=last_ewald_env_id_nr+1
-    ewald_env%id_nr=last_ewald_env_id_nr
-
-    CALL get_cp2k_units ( units )
-    ! Defaults
-    ewald_env % eps0 = units%eps0
-    ewald_env % alpha = 0.4_dp
-    ewald_env % gmax = 10
-    ewald_env % o_spline = 5
-    ewald_env % ns_max = 10
-    ewald_env % epsilon = 1.e-6_dp
-    ewald_env % ewald_type = do_ewald_none
-    ewald_env % unit_type = 'ANGSTROM'
-
-    IF ( PRESENT ( para_env ) ) THEN
-       CALL cp_para_env_retain ( para_env )
-       ewald_env % para_env => para_env
-    END IF
-
-  END SUBROUTINE init_ewald_env
-
-! *****************************************************************************
-
   SUBROUTINE ewald_env_set( ewald_env, ewald_type, unit_type, alpha, eps0, &
                             epsilon, gmax, ns_max, o_spline, &
-                            para_env, id_nr, error )
+                            para_env, id_nr, poisson_section, error )
     IMPLICIT NONE
 
 !   Purpose: Get the EWALD environment.
@@ -230,9 +187,11 @@ MODULE ewald_environment_types
     INTEGER, OPTIONAL                              :: ns_max
     INTEGER, OPTIONAL                              :: o_spline
     TYPE ( cp_para_env_type ), POINTER, OPTIONAL   :: para_env
+    TYPE(section_vals_type), POINTER, optional     :: poisson_section
     TYPE ( cp_error_type ), INTENT ( INOUT ), OPTIONAL :: error
 
     LOGICAL :: failure
+    TYPE(section_vals_type), POINTER    :: ewald_section
     CHARACTER(len=*), PARAMETER :: routineN='ewald_env_set',&
                                    routineP=moduleN//':'//routineN
 
@@ -250,6 +209,14 @@ MODULE ewald_environment_types
       IF ( PRESENT ( ns_max ) ) ewald_env % ns_max = ns_max
       IF ( PRESENT ( o_spline ) ) ewald_env % o_spline = o_spline
       IF ( PRESENT ( para_env ) )ewald_env %  para_env => para_env
+      IF (PRESENT(poisson_section)) THEN
+         CALL section_vals_retain(poisson_section,error=error)
+         CALL section_vals_release(ewald_env%poisson_section,error=error)
+         ewald_env%poisson_section => poisson_section
+         ewald_section => section_vals_get_subs_vals(poisson_section,"EWALD",&
+              error=error)
+         !FM call read_ewald_section1(ewald_env, ewald_section, error=error)
+      END IF
     ENDIF
 
 !***************************************************************************
@@ -291,13 +258,30 @@ SUBROUTINE ewald_env_create ( ewald_env, para_env, error )
   CHARACTER(len=*), PARAMETER :: routineN='ewald_env_create',&
         routineP=moduleN//':'//routineN
   INTEGER :: stat
+  TYPE(unit_convert_type), POINTER         :: units
 
   failure=.FALSE.
   
   ALLOCATE( ewald_env, stat=stat )
   CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
   IF (.NOT. failure) THEN
-     CALL init_ewald_env ( ewald_env, para_env = para_env, error=error)
+    NULLIFY(units)
+    ewald_env % ref_count=1
+    last_ewald_env_id_nr=last_ewald_env_id_nr+1
+    ewald_env%id_nr=last_ewald_env_id_nr
+    CALL get_cp2k_units ( units )
+    ! Defaults
+    ewald_env % eps0 = units%eps0
+    ewald_env % alpha = 0.4_dp
+    ewald_env % gmax = 10
+    ewald_env % o_spline = 5
+    ewald_env % ns_max = 10
+    ewald_env % epsilon = 1.e-6_dp
+    ewald_env % ewald_type = do_ewald_none
+    ewald_env % unit_type = 'ANGSTROM'
+    nullify(ewald_env%poisson_section)
+    CALL cp_para_env_retain ( para_env )
+    ewald_env % para_env => para_env
   END IF
 END SUBROUTINE ewald_env_create
 !***************************************************************************
@@ -391,7 +375,8 @@ SUBROUTINE ewald_env_release(ewald_env,error)
      CPPrecondition(ewald_env%ref_count>0,cp_failure_level,routineP,error,failure)
      ewald_env%ref_count=ewald_env%ref_count-1
      IF (ewald_env%ref_count<1) THEN
-       CALL cp_para_env_release ( ewald_env % para_env, error )
+        CALL cp_para_env_release ( ewald_env % para_env, error )
+        CALL section_vals_release(ewald_env%poisson_section,error=error)
         DEALLOCATE (  ewald_env, stat = stat )
         CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)       
      ENDIF
@@ -432,80 +417,8 @@ SUBROUTINE read_ewald_section ( ewald_env, globenv, error )
   CALL get_cp2k_units ( units )
   ewald_section => section_vals_get_subs_vals(globenv%input_file,&
        "FORCE_EVAL%MM%POISSON_MM%EWALD",error=error)
-  IF (parsed_cp2k_input(ewald_section,check_this_section=.TRUE.,error=error)) THEN
-     CALL read_ewald_new_section(ewald_env, ewald_section, error)
-  ELSE
-     !
-     !TODEL_START_TL
-     !
-     !..parse the input section
-     label = '&EWALD'
-     CALL parser_init(globenv % input_file_name,globenv)
-     CALL search_label(label,ierror,ignore_case=.TRUE.)
-     IF (ierror /= 0 ) THEN
-        IF (globenv % ionode) &
-             WRITE ( iw, '( a )' ) ' No input section &EWALD found '
-     ELSE
-        CALL read_line
-        DO WHILE (test_next()/='X')
-           ILEN = 8
-           CALL get_next ( string, ILEN )
-           CALL uppercase ( string )
-           SELECT CASE ( string )
-           CASE DEFAULT
-              CALL p_error()
-              CALL stop_parser( 'read_ewald_section','unknown option'//trim(string))
-           CASE ( 'UNITS', 'UNIT')
-              ilen = 20
-              CALL get_next( ewald_env % unit_type,ILEN)
-              CALL uppercase( ewald_env % unit_type )
-           CASE ( 'EWALD_TY')
-              ilen=20
-              CALL get_next(string,ILEN)
-              CALL uppercase ( string )
-              SELECT CASE(string)
-              CASE DEFAULT
-                 CALL p_error()
-                 CALL stop_parser( 'read_ewald_section', &
-                      'unknown option for Ewald type' )
-              CASE( 'NONE')
-                 ewald_env % ewald_type = do_ewald_none
-              CASE( 'EWALD')
-                 ewald_env % ewald_type = do_ewald_ewald
-              CASE( 'PME')
-                 ewald_env % ewald_type = do_ewald_pme
-              CASE( 'SPME')
-                 ewald_env % ewald_type = do_ewald_spme
-              END SELECT
-              ! if no type specified, assume ewald
-           CASE ( 'EWALD_PA')
-              CALL get_next ( ewald_env % alpha )
-              SELECT CASE ( ewald_env % ewald_type )
-              CASE DEFAULT
-                 CALL get_next ( ewald_env % gmax )
-              CASE ( do_ewald_pme )
-                 CALL get_next ( ewald_env % ns_max )
-                 IF ( test_next() == 'N' ) THEN
-                    CALL get_next ( ewald_env % epsilon )
-                 END IF
-              CASE ( do_ewald_spme )
-                 CALL get_next ( ewald_env % gmax )
-                 CALL get_next ( ewald_env % o_spline )
-              END SELECT
-              ! check for trailing rubbish
-           END SELECT
-           CALL read_line
-        END DO
-     END IF
-     CALL parser_end
+  CALL read_ewald_section1(ewald_env, ewald_section, error)
 
-     CALL convert_to_cp2k_units ( ewald_env % unit_type,              &
-          length = ewald_env % alpha,         &
-          l_power = -1 )  
-     !
-     !TODEL_END_TL
-     !
-  END IF
   !..end of parsing the input section
   IF ( globenv % ionode ) THEN
      IF ( ewald_env % ewald_type /= do_ewald_none ) THEN
@@ -513,7 +426,7 @@ SUBROUTINE read_ewald_section ( ewald_env, globenv, error )
         WRITE ( iw, '( A,T67,A14 )' ) ' Ewald| Summation is done by:', &
              ADJUSTR(ewald_name_types(ewald_env % ewald_type)(1:14))
         WRITE ( iw, '( A,A18,A,T71,F10.4 )' ) ' Ewald| Alpha parameter [','ANGSTROM',']', &
-             ewald_env % alpha * units % angstrom
+             ewald_env % alpha /  angstrom
 
         SELECT CASE ( ewald_env % ewald_type )
         CASE DEFAULT
@@ -544,14 +457,14 @@ END SUBROUTINE read_ewald_section
 ! New routine for the reading of the EWALD section with the new input style
 !
 
-SUBROUTINE read_ewald_new_section(ewald_env, ewald_section, error)
+SUBROUTINE read_ewald_section1(ewald_env, ewald_section, error)
   IMPLICIT NONE
   ! Arguments
   TYPE ( ewald_environment_type ), POINTER :: ewald_env
   TYPE(section_vals_type), POINTER         :: ewald_section  
   TYPE(cp_error_type), INTENT(inout), OPTIONAL   :: error 
   ! Local Variables
-  CHARACTER(len=*), PARAMETER :: routineN = 'read_ewald_new_section', &
+  CHARACTER(len=*), PARAMETER :: routineN = 'read_ewald_section1', &
        routineP = moduleN//':'//routineN
   LOGICAL :: failure
   INTEGER :: n_rep
@@ -566,6 +479,6 @@ SUBROUTINE read_ewald_new_section(ewald_env, ewald_section, error)
      CALL section_vals_val_get(ewald_section,"EPSILON",r_val=ewald_env%epsilon,error=error)
   END IF
 
-END SUBROUTINE read_ewald_new_section
+END SUBROUTINE read_ewald_section1
 
 END MODULE ewald_environment_types

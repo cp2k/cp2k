@@ -180,7 +180,8 @@ SUBROUTINE keyword_create(keyword, name, description, usage, type_of_var,&
      lone_keyword_c_vals, lone_keyword_i_vals, enum_c_vals, enum_i_vals, &
      enum,enum_strict,enum_desc,unit_str,error)
     TYPE(keyword_type), POINTER              :: keyword
-    CHARACTER(len=*), INTENT(in)             :: name, description, usage
+    CHARACTER(len=*), INTENT(in)             :: name, description
+    CHARACTER(len=*), INTENT(in), optional   :: usage
     INTEGER, INTENT(in), OPTIONAL            :: type_of_var, n_var
     LOGICAL, INTENT(in), OPTIONAL            :: repeats
     CHARACTER(len=*), DIMENSION(:), &
@@ -258,8 +259,12 @@ SUBROUTINE keyword_create(keyword, name, description, usage, type_of_var,&
         CALL uppercase(keyword%names(i))
      END DO
      
-     CPPrecondition(LEN_TRIM(usage)<=LEN(keyword%usage),cp_failure_level,routineP,error,failure)
-     keyword%usage=usage
+     IF (PRESENT(usage)) THEN
+        CPPrecondition(LEN_TRIM(usage)<=LEN(keyword%usage),cp_failure_level,routineP,error,failure)
+        keyword%usage=usage
+     ELSE
+        keyword%usage=""
+     END IF
      CPPrecondition(LEN_TRIM(description)<=LEN(keyword%description),cp_failure_level,routineP,error,failure)
      keyword%description=description
      
@@ -542,7 +547,7 @@ END SUBROUTINE keyword_release
 !!
 !!*** **********************************************************************
 SUBROUTINE keyword_get(keyword,names,usage,description,type_of_var,n_var,&
-     default_value, lone_keyword_value,required,repeats,error)
+     default_value, lone_keyword_value,required,repeats,enum,error)
     TYPE(keyword_type), POINTER              :: keyword
     CHARACTER(len=default_string_length), &
       DIMENSION(:), OPTIONAL, POINTER        :: names
@@ -551,6 +556,7 @@ SUBROUTINE keyword_get(keyword,names,usage,description,type_of_var,n_var,&
     TYPE(val_type), OPTIONAL, POINTER        :: default_value, &
                                                 lone_keyword_value
     LOGICAL, INTENT(out), OPTIONAL           :: required, repeats
+    TYPE(enumeration_type), POINTER, OPTIONAL:: enum
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -573,6 +579,7 @@ SUBROUTINE keyword_get(keyword,names,usage,description,type_of_var,n_var,&
      IF (PRESENT(required)) required=keyword%required
      IF (PRESENT(default_value)) default_value => keyword%default_value
      IF (PRESENT(lone_keyword_value)) lone_keyword_value => keyword%lone_keyword_value
+     IF (PRESENT(enum)) enum => keyword%enum
   END IF
 END SUBROUTINE keyword_get
 !***************************************************************************

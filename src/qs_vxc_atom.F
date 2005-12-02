@@ -29,9 +29,7 @@ MODULE qs_vxc_atom
                                              get_atomic_kind_set
   USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                              gto_basis_set_type
-  USE cp_control_types,                ONLY: dft_control_type,&
-                                             xc_control_type
-  USE input_constants,                 ONLY: tddfpt_triplet
+  USE input_constants,                 ONLY: tddfpt_triplet, tddfpt_excitations
   USE cp_error_handling,               ONLY: cp_error_type, &
                                              cp_a_l,&
                                              cp_assert
@@ -62,7 +60,8 @@ MODULE qs_vxc_atom
                                              xc_2nd_deriv_of_r,&
                                              xc_rho_set_atom_update,&
                                              fill_rho_set
-  USE xc_derivatives,                  ONLY: xc_functional_get_info
+  USE xc_derivatives,                  ONLY: xc_functional_get_info,&
+       xc_functionals_get_needs
   USE xc_derivative_set_types,         ONLY: xc_derivative_set_type,&
                                              xc_dset_create,&
                                              xc_dset_release,&
@@ -72,7 +71,8 @@ MODULE qs_vxc_atom
   USE xc_rho_set_types,                ONLY: xc_rho_set_create,&
                                              xc_rho_set_release,&
                                              xc_rho_set_type
-
+  USE input_section_types, ONLY: section_vals_type, section_vals_val_get,&
+       section_vals_get_subs_vals
   IMPLICIT NONE
 
   PRIVATE
@@ -104,7 +104,6 @@ CONTAINS
                             POINTER     :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER     :: atom_kind
     TYPE(cp_para_env_type), POINTER     :: para_env
-    TYPE(dft_control_type), POINTER     :: dft_control
     TYPE(grid_atom_type), POINTER       :: grid_atom
     TYPE(harmonics_atom_type), POINTER  :: harmonics
     TYPE(qs_energy_type), POINTER       :: energy
@@ -117,7 +116,6 @@ CONTAINS
                   POINTER               :: dr_h,dr_s
     TYPE(rho_atom_coeff),DIMENSION(:,:),&
                   POINTER               :: r_h_d,r_s_d
-    TYPE(xc_control_type), POINTER      :: xc_control
     TYPE(xc_derivative_set_type), &
                              POINTER    :: deriv_set
     TYPE(xc_rho_set_type), POINTER      :: rho_set_h, rho_set_s
@@ -132,20 +130,23 @@ CONTAINS
     REAL(dp), DIMENSION(:,:,:,:), &
                               POINTER   :: drho_h,drho_s
     LOGICAL                             :: gradient_f,lsd,paw_atom
-    REAL(dp)                            :: exc_h,exc_s
+    REAL(dp)                            :: exc_h,exc_s, density_cut,tau_cut,&
+         gradient_cut
     INTEGER                             :: bo(2),handle,i,ia,iat,iatom, ierr,&
                                            ifunc,ikind,ipot,ir,iso,ispin,&
                                            istat,lp,mepos,na,natom,nkind,&
                                            nr,nspins,num_pe 
     INTEGER, DIMENSION(:), POINTER      :: atom_list
     INTEGER, DIMENSION(2, 3)            :: bounds
+    TYPE(section_vals_type), POINTER :: input,xc_section,xc_fun_section
+    TYPE(xc_rho_cflags_type) :: needs
 
 
 !   ***************************************************************************
 
     CALL timeset("calculate_vxc_atom","I","",handle)
 
-    NULLIFY(dft_control,xc_control,para_env)
+    NULLIFY(para_env)
     NULLIFY(energy)
     NULLIFY(atomic_kind_set,atom_kind)
     NULLIFY(rho_atom_set,rho_atom)
@@ -153,18 +154,33 @@ CONTAINS
     NULLIFY(grid_atom,harmonics)
     NULLIFY(atom_list)
     NULLIFY(deriv_set)
-    NULLIFY(rho_set_h, rho_set_s)
+    NULLIFY(rho_set_h, rho_set_s, input)
 
     CALL get_qs_env(qs_env=qs_env,&
-                    dft_control=dft_control,&
                     para_env=para_env,&
                     energy=energy,&
                     atomic_kind_set=atomic_kind_set,&
+                    input=input,&
                     rho_atom_set=rho_atom_set)
 
-   nspins = dft_control%nspins
-   gradient_f=ANY(dft_control%xc_control%gradient_functionals)
-   lsd = (nspins==2)
+    CALL section_vals_val_get(input,"DFT%LSD",l_val=lsd,error=error)
+    xc_section => section_vals_get_subs_vals(input,"DFT%XC",error=error)
+    xc_fun_section => section_vals_get_subs_vals(xc_section,"XC_FUNCTIONAL",&
+         error=error)
+    CALL section_vals_val_get(xc_section,"DENSITY_CUTOFF",&
+         r_val=density_cut,error=error)
+    CALL section_vals_val_get(xc_section,"GRADIENT_CUTOFF",&
+         r_val=gradient_cut,error=error)
+    CALL section_vals_val_get(xc_section,"TAU_CUTOFF",&
+         r_val=tau_cut,error=error)
+    IF (lsd) THEN
+       nspins=2
+    ELSE
+       nspins=1
+    END IF
+    needs=xc_functionals_get_needs(xc_fun_section,lsd=lsd,&
+         add_basic_components=.TRUE., error=error)
+    gradient_f = needs%drho .or. needs%drho_spin
 
    nkind = SIZE(atomic_kind_set)
 
@@ -188,7 +204,7 @@ CONTAINS
      na = grid_atom%ng_sphere
 
 !    Prepare the structures needed to calculate and store the xc derivatives
-     xc_control => dft_control%xc_control
+
 !    Array dimension: here anly one dimensional arrays are used,
 !    i.e. only the first column of deriv_data is read.
 !    The other to dimensions  are set to size equal 1
@@ -199,40 +215,16 @@ CONTAINS
      ! create a place where to put the derivatives
      CALL xc_dset_create(deriv_set, local_bounds=bounds, error=error)
      ! create the place where to store the argument for the functionals
-     CALL xc_rho_set_create(rho_set_h,bounds,rho_cutoff=xc_control%density_cut,&
-            drho_cutoff=xc_control%gradient_cut,tau_cutoff=xc_control%tau_cut,&
+     CALL xc_rho_set_create(rho_set_h,bounds,rho_cutoff=density_cut,&
+            drho_cutoff=gradient_cut,tau_cutoff=tau_cut,&
             error=error)
-     CALL xc_rho_set_create(rho_set_s,bounds,rho_cutoff=xc_control%density_cut,&
-            drho_cutoff=xc_control%gradient_cut,tau_cutoff=xc_control%tau_cut,&
+     CALL xc_rho_set_create(rho_set_s,bounds,rho_cutoff=density_cut,&
+            drho_cutoff=gradient_cut,tau_cutoff=tau_cut,&
             error=error)
-
-!TODEL_START_MI
-       IF( ANY(xc_control%functionals_new /= 0) ) THEN
-
-       ELSE      
-
-  ! this should be done when the functional is defined
-
-          ! assesses the argument needed by the functionals
-           CALL xc_rho_cflags_setall(xc_control%needs,.FALSE.,error=error)
-           DO ifunc=1,SIZE(xc_control%functionals)
-             CALL xc_functional_get_info(xc_control%functionals(ifunc),lsd=lsd,&
-                      needs=xc_control%needs, error=error)
-           END DO
-           IF (xc_control%needs%drho .OR. xc_control%needs%drho_spin .OR. &
-               xc_control%needs%norm_drho .OR. xc_control%needs%norm_drho_spin) THEN
-             IF (lsd) THEN
-                xc_control%needs%drho_spin=.TRUE.
-             ELSE
-                xc_control%needs%drho=.TRUE.
-             END IF
-           END IF
-     END IF
-!TODEL_END_MI
 
      ! allocate the required 3d arrays where to store rho and drho
-     CALL xc_rho_set_atom_update(rho_set_h,xc_control%needs,nspins,bounds)
-     CALL xc_rho_set_atom_update(rho_set_s,xc_control%needs,nspins,bounds)
+     CALL xc_rho_set_atom_update(rho_set_h,needs,nspins,bounds)
+     CALL xc_rho_set_atom_update(rho_set_s,needs,nspins,bounds)
      
      CALL reallocate(rho_h,1,na,1,nspins)
      CALL reallocate(rho_s,1,na,1,nspins)
@@ -277,8 +269,8 @@ CONTAINS
          CALL calc_rho_angular(grid_atom, harmonics, nspins, gradient_f,&
                                ir, r_h, r_s, rho_h, rho_s, dr_h, dr_s, &
                                r_h_d, r_s_d, drho_h, drho_s, error)
-         CALL fill_rho_set(rho_set_h,lsd,nspins,xc_control%needs,rho_h,drho_h,na,ir,error)
-         CALL fill_rho_set(rho_set_s,lsd,nspins,xc_control%needs,rho_s,drho_s,na,ir,error)
+         CALL fill_rho_set(rho_set_h,lsd,nspins,needs,rho_h,drho_h,na,ir,error)
+         CALL fill_rho_set(rho_set_s,lsd,nspins,needs,rho_s,drho_s,na,ir,error)
          DO ia=1, na
             weight(ia,ir) = grid_atom%wr(ir)*grid_atom%wa(ia)
          END DO
@@ -288,7 +280,7 @@ CONTAINS
       ! hard atom density !
       !-------------------!
       CALL xc_dset_zero_all(deriv_set, error)
-      CALL vxc_of_r_new(xc_control, rho_set_h, deriv_set, 1, xc_control%needs, weight, &
+      CALL vxc_of_r_new(xc_fun_section, rho_set_h, deriv_set, 1, needs, weight, &
                         lsd, na, nr, exc_h, vxc_h, vxg_h,energy_only=energy_only, error=error)
       rho_atom%exc_h = rho_atom%exc_h + exc_h
 
@@ -296,7 +288,7 @@ CONTAINS
       ! soft atom density !
       !-------------------!
       CALL xc_dset_zero_all(deriv_set, error)
-      CALL vxc_of_r_new(xc_control, rho_set_s, deriv_set, 1, xc_control%needs, weight, &
+      CALL vxc_of_r_new(xc_fun_section, rho_set_s, deriv_set, 1, needs, weight, &
                         lsd, na, nr, exc_s, vxc_s, vxg_s, energy_only=energy_only, error=error)
       rho_atom%exc_s = rho_atom%exc_s + exc_s
 
@@ -345,11 +337,12 @@ CONTAINS
 
 ! *****************************************************************************
 
- SUBROUTINE calculate_xc_2nd_deriv_atom(p_env, qs_env, error)
+ SUBROUTINE calculate_xc_2nd_deriv_atom(p_env, qs_env, xc_section, error)
 
    ! ARGUMENTS
    TYPE(qs_p_env_type), POINTER        :: p_env
    TYPE(qs_environment_type), POINTER  :: qs_env
+   TYPE(section_vals_type), pointer :: xc_section
    TYPE(cp_error_type), INTENT(inout), &
         OPTIONAL                       :: error
 
@@ -359,7 +352,6 @@ CONTAINS
         POINTER                        :: atomic_kind_set
    TYPE(xc_derivative_set_type), &
         POINTER                        :: deriv_set
-   TYPE(dft_control_type), POINTER     :: dft_control
    TYPE(qs_energy_type), POINTER       :: energy
    TYPE(grid_atom_type), POINTER       :: grid_atom
    TYPE(harmonics_atom_type), POINTER  :: harmonics
@@ -373,18 +365,18 @@ CONTAINS
    TYPE(rho_atom_type),  POINTER       :: rho_atom, rho1_atom
    TYPE(xc_rho_set_type), POINTER      :: rho_set_h, rho1_set_h
    TYPE(xc_rho_set_type), POINTER      :: rho_set_s, rho1_set_s
-   TYPE(xc_control_type), POINTER      :: xc_control
    INTEGER                             :: i, iso, stat, asize
    INTEGER                             :: atom, iatom, natom
    INTEGER                             :: ikind, nkind
    INTEGER                             :: ispin, nspins
-   INTEGER                             :: ia, na, ir, nr
+   INTEGER                             :: ia, na, ir, nr, excitations, res_etype
    INTEGER, DIMENSION(:), POINTER      :: atom_list
    INTEGER, DIMENSION(2)               :: local_loop_limit
    INTEGER, DIMENSION(2,3)             :: bounds
    LOGICAL                             :: gradient_functional, failure
-   LOGICAL                             :: lsd, paw_atom
-   REAL(KIND=dp)                       :: rtot, rad, urad, usin_ia, exc
+   LOGICAL                             :: lsd, paw_atom, lsd_singlets
+   REAL(KIND=dp)                       :: rtot, rad, urad, usin_ia, exc,&
+        density_cut,gradient_cut,tau_cut
    REAL(KIND=dp), DIMENSION(:,:), &
         POINTER                        :: weight 
    REAL(KIND=dp), DIMENSION(:,:), &
@@ -395,32 +387,53 @@ CONTAINS
         POINTER                        :: vxc_h, vxc_s
    REAL(KIND=dp), DIMENSION(:,:,:,:), &
         POINTER                        :: vxg_h, vxg_s
+   TYPE(section_vals_type), pointer :: input, xc_fun_section
+   TYPE(xc_rho_cflags_type) :: needs
 
    ! PARAMETERS
    CHARACTER(LEN=*), PARAMETER         :: routineN = "calculate_xc_2nd_deriv_atom", &
                                           routineP = module_name//"/"//routineN
 
    failure = .FALSE.
-   NULLIFY(atomic_kind_set, dft_control, energy, para_env, xc_control)
+   NULLIFY(atomic_kind_set, energy, para_env)
    NULLIFY(rho_h, rho_s, drho_h, drho_s, weight)
    NULLIFY(rho1_h, rho1_s, drho1_h, drho1_s)
    NULLIFY(vxc_h, vxc_s, vxg_h, vxg_s)
    CALL get_qs_env(qs_env=qs_env,&
-                   dft_control=dft_control,&
                    para_env=para_env,&
                    energy=energy,&
+                   input=input,&
                    atomic_kind_set=atomic_kind_set)
    rho_atom_set => qs_env%local_rho_set%rho_atom_set
    rho1_atom_set => p_env%local_rho_set%rho_atom_set
-   xc_control => dft_control%xc_control
 
-   nspins = dft_control%nspins
-   gradient_functional = ANY(xc_control%gradient_functionals)
-   lsd = (nspins==2)
-   IF (dft_control%do_tddfpt_calculation) THEN
-      xc_control => dft_control%tddfpt_control%xc_control
-      IF (nspins == 1 .AND. (dft_control%tddfpt_control%lsd_singlets .OR. &
-                             dft_control%tddfpt_control%res_etype == tddfpt_triplet)) THEN
+    CALL section_vals_val_get(input,"DFT%LSD",l_val=lsd,error=error)
+    CALL section_vals_val_get(xc_section,"DENSITY_CUTOFF",&
+         r_val=density_cut,error=error)
+    CALL section_vals_val_get(xc_section,"GRADIENT_CUTOFF",&
+         r_val=gradient_cut,error=error)
+    CALL section_vals_val_get(xc_section,"TAU_CUTOFF",&
+         r_val=tau_cut,error=error)
+    CALL section_vals_val_get(input,"DFT%EXCITATIONS",&
+         i_val=excitations,error=error)
+    CALL section_vals_val_get(input,"DFT%TDDFPT%LSD_SINGLETS",&
+         l_val=lsd_singlets,error=error)
+    CALL section_vals_val_get(input,"DFT%TDDFPT%RES_ETYPE",&
+         i_val=res_etype,error=error)
+    xc_fun_section => section_vals_get_subs_vals(xc_section,&
+         "XC_FUNCTIONAL",error=error)
+    IF (lsd) THEN
+       nspins=2
+    ELSE
+       nspins=1
+    END IF
+    needs=xc_functionals_get_needs(xc_fun_section,lsd=lsd,&
+         add_basic_components=.TRUE., error=error)
+    gradient_functional = needs%drho .or. needs%drho_spin
+
+  IF (excitations==tddfpt_excitations) THEN
+      IF (nspins == 1 .AND. (lsd_singlets .OR. &
+                             res_etype == tddfpt_triplet)) THEN
          lsd = .TRUE.
       END IF
    END IF
@@ -448,61 +461,30 @@ CONTAINS
 
       NULLIFY(deriv_set, rho_set_h, rho_set_s, rho1_set_h, rho1_set_s)
       CALL xc_dset_create(deriv_set, local_bounds=bounds, error=error)
-      CALL xc_rho_set_create(rho_set_h,bounds,rho_cutoff=xc_control%density_cut,&
-                             drho_cutoff=xc_control%gradient_cut,tau_cutoff=xc_control%tau_cut,&
+      CALL xc_rho_set_create(rho_set_h,bounds,rho_cutoff=density_cut,&
+                             drho_cutoff=gradient_cut,tau_cutoff=tau_cut,&
                              error=error)
-      CALL xc_rho_set_create(rho_set_s,bounds,rho_cutoff=xc_control%density_cut,&
-                             drho_cutoff=xc_control%gradient_cut,tau_cutoff=xc_control%tau_cut,&
+      CALL xc_rho_set_create(rho_set_s,bounds,rho_cutoff=density_cut,&
+                             drho_cutoff=gradient_cut,tau_cutoff=tau_cut,&
                              error=error)
-      CALL xc_rho_set_create(rho1_set_h,bounds,rho_cutoff=xc_control%density_cut,&
-                             drho_cutoff=xc_control%gradient_cut,tau_cutoff=xc_control%tau_cut,&
+      CALL xc_rho_set_create(rho1_set_h,bounds,rho_cutoff=density_cut,&
+                             drho_cutoff=gradient_cut,tau_cutoff=tau_cut,&
                              error=error)
-      CALL xc_rho_set_create(rho1_set_s,bounds,rho_cutoff=xc_control%density_cut,&
-                             drho_cutoff=xc_control%gradient_cut,tau_cutoff=xc_control%tau_cut,&
+      CALL xc_rho_set_create(rho1_set_s,bounds,rho_cutoff=density_cut,&
+                             drho_cutoff=gradient_cut,tau_cutoff=tau_cut,&
                              error=error)
-
-       IF( ANY(xc_control%functionals_new /= 0) ) THEN
-
-       ELSE      
-!TODEL_START_MI
-  ! this should be done when the functional is defined
-
-      ! assesses the argument needed by the functionals
-      CALL xc_rho_cflags_setall(xc_control%needs, .FALSE., error=error)
-      DO i=1,SIZE(xc_control%functionals)
-         CALL xc_functional_get_info(xc_control%functionals(i), lsd=lsd, &
-                                     needs=xc_control%needs, error=error)
-      END DO  
-      ! basic components
-      IF (lsd) THEN
-         xc_control%needs%rho_spin=.TRUE.
-         xc_control%needs%tau_spin=xc_control%needs%tau_spin.OR.xc_control%needs%tau
-      ELSE
-         xc_control%needs%rho=.TRUE.
-      END IF
-      IF (xc_control%needs%drho .OR. xc_control%needs%drho_spin .OR. &
-          xc_control%needs%norm_drho .OR. xc_control%needs%norm_drho_spin) THEN
-         IF (lsd) THEN
-            xc_control%needs%drho_spin = .TRUE.
-         ELSE
-            xc_control%needs%drho = .TRUE.
-         END IF
-      END IF
-!TODEL_END_MI
-
-      END IF
 
       ! allocate the required 3d arrays where to store rho and drho
       IF (nspins == 1 .AND. .NOT. lsd) THEN
-         CALL xc_rho_set_atom_update(rho_set_h, xc_control%needs, 1, bounds)
-         CALL xc_rho_set_atom_update(rho1_set_h, xc_control%needs, 1, bounds)
-         CALL xc_rho_set_atom_update(rho_set_s, xc_control%needs, 1, bounds)
-         CALL xc_rho_set_atom_update(rho1_set_s, xc_control%needs, 1, bounds)
+         CALL xc_rho_set_atom_update(rho_set_h, needs, 1, bounds)
+         CALL xc_rho_set_atom_update(rho1_set_h, needs, 1, bounds)
+         CALL xc_rho_set_atom_update(rho_set_s, needs, 1, bounds)
+         CALL xc_rho_set_atom_update(rho1_set_s, needs, 1, bounds)
       ELSE
-         CALL xc_rho_set_atom_update(rho_set_h, xc_control%needs, 2, bounds)
-         CALL xc_rho_set_atom_update(rho1_set_h, xc_control%needs, 2, bounds)
-         CALL xc_rho_set_atom_update(rho_set_s, xc_control%needs, 2, bounds)
-         CALL xc_rho_set_atom_update(rho1_set_s, xc_control%needs, 2, bounds)
+         CALL xc_rho_set_atom_update(rho_set_h, needs, 2, bounds)
+         CALL xc_rho_set_atom_update(rho1_set_h, needs, 2, bounds)
+         CALL xc_rho_set_atom_update(rho_set_s, needs, 2, bounds)
+         CALL xc_rho_set_atom_update(rho1_set_s, needs, 2, bounds)
       END IF
 
       ALLOCATE(rho_h(1:na,1:nspins), rho1_h(1:na,1:nspins), &
@@ -571,23 +553,23 @@ CONTAINS
                                   ir, r1_h, r1_s, rho1_h, rho1_s, dr1_h, dr1_s, r1_h_d, r1_s_d, &
                                   drho1_h, drho1_s, error)
 
-            CALL fill_rho_set(rho_set_h,lsd,nspins,xc_control%needs,rho_h,drho_h,na,ir,error)
-            CALL fill_rho_set(rho1_set_h,lsd,nspins,xc_control%needs,rho1_h,drho1_h,na,ir,error)
-            CALL fill_rho_set(rho_set_s,lsd,nspins,xc_control%needs,rho_s,drho_s,na,ir,error)
-            CALL fill_rho_set(rho1_set_s,lsd,nspins,xc_control%needs,rho1_s,drho1_s,na,ir,error)
+            CALL fill_rho_set(rho_set_h,lsd,nspins,needs,rho_h,drho_h,na,ir,error)
+            CALL fill_rho_set(rho1_set_h,lsd,nspins,needs,rho1_h,drho1_h,na,ir,error)
+            CALL fill_rho_set(rho_set_s,lsd,nspins,needs,rho_s,drho_s,na,ir,error)
+            CALL fill_rho_set(rho1_set_s,lsd,nspins,needs,rho1_s,drho1_s,na,ir,error)
 
             DO ia=1, na
                weight(ia,ir) = grid_atom%wr(ir)*grid_atom%wa(ia)
             END DO
          END DO
 
-         CALL xc_2nd_deriv_of_r(dft_control=dft_control, &
+         CALL xc_2nd_deriv_of_r(xc_section=xc_section, &
                                 rho_set=rho_set_h, rho1_set=rho1_set_h, &
-                                deriv_set=deriv_set, needs=xc_control%needs, &
+                                deriv_set=deriv_set, needs=needs, &
                                 w=weight, exc=exc, vxc=vxc_h, vxg=vxg_h, error=error)
-         CALL xc_2nd_deriv_of_r(dft_control=dft_control, &
+         CALL xc_2nd_deriv_of_r(xc_section=xc_section, &
                                 rho_set=rho_set_s, rho1_set=rho1_set_s, &
-                                deriv_set=deriv_set, needs=xc_control%needs, &
+                                deriv_set=deriv_set, needs=needs, &
                                 w=weight, exc=exc, vxc=vxc_s, vxg=vxg_s, error=error)
 
          atom_kind => atomic_kind_set(ikind)

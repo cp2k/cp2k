@@ -142,7 +142,7 @@ SUBROUTINE density_init ( rho, part, pw_grid, use_data, c_model, use_basis )
 
     TYPE(density_type), INTENT(INOUT)        :: rho
     INTEGER, INTENT(IN), OPTIONAL            :: part
-    TYPE(pw_grid_type), OPTIONAL             :: pw_grid
+    TYPE(pw_grid_type),POINTER, OPTIONAL     :: pw_grid
     INTEGER, INTENT(IN), OPTIONAL            :: use_data
     TYPE(coeff_type), OPTIONAL               :: c_model
     INTEGER, INTENT(IN), OPTIONAL            :: use_basis

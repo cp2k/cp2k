@@ -21,8 +21,8 @@ OBJECTS_GENERIC =\
  bessel_lib.o\
  bfgs_optimizer.o\
  bsse.o\
- cg_test.o\
  cg_optimizer.o\
+ cg_test.o\
  checkpoint_handler.o\
  coefficient_lists.o\
  coefficient_types.o\
@@ -77,8 +77,8 @@ OBJECTS_GENERIC =\
  cp_sm_fm_interactions.o\
  cp_sm_pool_types.o\
  cp_sm_struct.o\
- cp_subsystem_types.o\
  cp_subsystem_methods.o\
+ cp_subsystem_types.o\
  cp_units.o\
  cube_utils.o\
  density_types.o\
@@ -100,10 +100,10 @@ OBJECTS_GENERIC =\
  extended_system_dynamics.o\
  extended_system_types.o\
  external_potential_types.o\
+ f77_interface.o\
  farming_methods.o\
  farming_types.o\
  fermi.o\
- f77_interface.o\
  fft_tools.o\
  fftessl_lib.o\
  fftsg_lib.o\
@@ -131,15 +131,12 @@ OBJECTS_GENERIC =\
  geo_opt.o\
  global_types.o\
  gopt_f_types.o\
- green_types.o\
- green_methods.o\
  harris_energy_types.o\
  harris_env_types.o\
  harris_force.o\
  harris_force_types.o\
  harris_functional.o\
  harris_metropolis_mc.o\
- hartree.o\
  hartree_local_2centers.o\
  hartree_local_3centers.o\
  hartree_local_methods.o\
@@ -178,14 +175,14 @@ OBJECTS_GENERIC =\
  kg_gpw_fm_mol_methods.o\
  kg_gpw_fm_mol_types.o\
  kg_gpw_fm_mol_utils.o\
+ kg_gpw_pw_env_methods.o \
+ kg_gpw_pw_env_types.o \
  kg_gpw_wf_history.o\
  kg_intra.o\
  kg_kxc.o\
  kg_main.o\
  kg_neighbor_lists.o\
  kg_ppl.o\
- kg_gpw_pw_env_methods.o \
- kg_gpw_pw_env_types.o \
  kg_rho_methods.o\
  kg_rho_types.o\
  kg_rspw_methods.o\
@@ -254,10 +251,11 @@ OBJECTS_GENERIC =\
  pw_env_types.o\
  pw_grid_types.o\
  pw_grids.o\
+ pw_poisson_methods.o\
+ pw_poisson_types.o\
  pw_pool_types.o\
  pw_spline_utils.o\
  pw_types.o\
- pws.o\
  qmmm_electrostatic_methods.o\
  qmmm_elpot.o\
  qmmm_ff_fist.o\
@@ -302,8 +300,8 @@ OBJECTS_GENERIC =\
  qs_ks_qmmm_methods.o\
  qs_ks_qmmm_types.o\
  qs_ks_types.o\
- qs_linres_module.o\
  qs_linres_methods.o\
+ qs_linres_module.o\
  qs_linres_nmr_op.o\
  qs_linres_nmr_utils.o\
  qs_linres_types.o\
@@ -332,6 +330,7 @@ OBJECTS_GENERIC =\
  qs_p_env_types.o\
  qs_p_sparse_psi.o\
  qs_parser.o\
+ qs_prop_store_types.o\
  qs_rho0_ggrid.o\
  qs_rho0_methods.o\
  qs_rho0_types.o\
@@ -394,8 +393,8 @@ OBJECTS_GENERIC =\
  whittaker.o\
  wiener_process.o\
  xas_control.o\
- xas_methods.o\
  xas_env_types.o\
+ xas_methods.o\
  xas_tp_scf.o\
  xc.o\
  xc_atom.o\
@@ -421,7 +420,6 @@ OBJECTS_GENERIC =\
  xc_tfw_new.o\
  xc_thomas_fermi_new.o\
  xc_tpss.o\
- xc_utils.o\
  xc_vwn_new.o\
  xc_xalpha_new.o\
  xc_xbecke88.o

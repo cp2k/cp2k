@@ -24,7 +24,8 @@ MODULE cp_ddapc
 !!
 !!   SOURCE
 !****************************************************************************  
-  USE cp_output_handling,              ONLY: cp_should_output
+  USE cp_output_handling,              ONLY: cp_print_key_should_output,&
+       cp_p_file, cp_out_flags_type, cp_out_flags_unit_nr, cp_out_flags_finished_output
   USE cp2k_units,                      ONLY: get_cp2k_units,&
                                              unit_convert_type
   USE kinds,                           ONLY: default_string_length,&
@@ -46,8 +47,8 @@ MODULE cp_ddapc
                                              pw_pools_create_pws,&
                                              pw_pools_give_back_pws
   USE pw_grid_types,                   ONLY: pw_grid_type
-  USE pws,                             ONLY: pw_integral_ab
-  USE pw_types,                        ONLY: COMPLEXDATA1D,&
+  USE pw_types,                        ONLY: pw_integral_ab,&
+                                             COMPLEXDATA1D,&
                                              REALSPACE,&
                                              REALDATA3D,&
                                              RECIPROCALSPACE,&
@@ -140,8 +141,8 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:), ALLOCATABLE     :: bv, cv, qv, qtot, ddqv, bv1, bv2, ddbv, dqv0
     REAL(KIND=dp), DIMENSION(:,:), ALLOCATABLE   :: Am, AmI, dbv, Awrk, Am1, Am2, ddAm
     REAL(KIND=dp), DIMENSION(:,:,:), ALLOCATABLE   :: dAm, dqv
-    TYPE(section_vals_type), POINTER             :: print_gen
     REAL(KIND=dp), DIMENSION(:), POINTER         :: qtot1, qtot2
+    TYPE(cp_out_flags_type), pointer :: output_control
 
     CALL timeset(routineN,"I","",handle)
     failure=.FALSE.
@@ -150,13 +151,9 @@ CONTAINS
     logger => cp_error_get_logger(error)
     ionode = logger%para_env%mepos==logger%para_env%source
     IF (ionode) iw = cp_logger_get_default_unit_nr(logger)
-    NULLIFY(rho, rho_tot_g, rho_core, pw_env, radii, inp_radii, particle_set)
+    NULLIFY(rho, rho_tot_g, rho_core, pw_env, radii, inp_radii, particle_set, &
+         output_control)
     IF (.NOT.failure) THEN
-       print_gen => section_vals_get_subs_vals(fitcharge_section,"PRINT%PROGRAM_RUN_INFO",error=error)
-       IF (cp_should_output(logger%iter_info,print_gen,error=error).AND.&
-            logger%para_env%mepos==logger%para_env%source) THEN
-          WRITE(iw,'(T3,A,F15.9)')" Evaluating the charges to couple QM images. " 
-       END IF       
        !
        ! Build the total QS density (electron+nuclei) in G-space
        !
@@ -165,7 +162,14 @@ CONTAINS
                        rho_core=rho_core,&
                        pw_env=pw_env,&
                        particle_set=particle_set,&
+                       output_control=output_control,&
                        error=error)
+       iw=cp_out_flags_unit_nr(output_control,&
+            "PROPERTIES%FIT_CHARGE%PRINT%PROGRAM_RUN_INFO",".totCharge",error=error)
+       if (iw>0) then
+          WRITE(iw,'(T3,A,F15.9)')" Evaluating the charges to couple QM images. " 
+       END IF       
+
 
        CALL pw_env_get(pw_env=pw_env,&
                        auxbas_pw_pool=auxbas_pool,&
@@ -230,8 +234,7 @@ CONTAINS
        CALL mp_sum(bv,rho_tot_g%pw_grid%para%group)
        CALL mp_sum(Am,rho_tot_g%pw_grid%para%group)
        CALL invert_matrix(Am, AmI, inv_error, "N")
-       IF (cp_should_output(logger%iter_info,print_gen,error=error).AND.&
-            logger%para_env%mepos==logger%para_env%source) THEN
+       IF (iw>0) THEN
           WRITE(iw,'(T3,A,F15.9)')" Error inverting the A matrix: ", inv_error 
        END IF
        c0 = DOT_PRODUCT(cv,MATMUL(AmI,cv))
@@ -264,8 +267,7 @@ CONTAINS
           END IF          
           qout2 = qtot
        END IF
-       IF (cp_should_output(logger%iter_info,print_gen,error=error).AND.&
-            logger%para_env%mepos==logger%para_env%source) THEN
+       IF (iw>0) THEN
           WRITE(iw,'(/T3,A)')" Charges on QM atoms used to couple/decouple the periodic images:"
           DO i = 1, SIZE(particle_set)
              WRITE(iw,'(T6,A,I5,F12.6)')"Atom: ",i,qtot(i)
@@ -277,8 +279,7 @@ CONTAINS
        ! If requested evaluate also the correction to derivatives due to Pulay Forces
        !
        IF (need_f) THEN          
-          IF (cp_should_output(logger%iter_info,print_gen,error=error).AND.&
-               logger%para_env%mepos==logger%para_env%source) THEN
+          IF (iw>0) THEN
              WRITE(iw,'(T3,A)')" Evaluating Pulay Forces.."
           END IF
           ALLOCATE(dAm(ndim, ndim,3), stat=stat)
@@ -468,6 +469,8 @@ CONTAINS
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        DEALLOCATE(qtot, stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CALL cp_out_flags_finished_output(iw,output_control,&
+            "PROPERTIES%FIT_CHARGE%PRINT%PROGRAM_RUN_INFO",error=error)
     END IF
     CALL pw_pool_give_back_pw(auxbas_pool,rho_tot_g,&
          accept_non_compatible=.TRUE.,error=error)
@@ -806,8 +809,7 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: multipole_section,&
                                                 force_env_section,&
                                                 poisson_section,&
-                                                qmmm_periodic_section,&
-                                                print_gen
+                                                qmmm_periodic_section
     TYPE(particle_type), DIMENSION(:), &
          POINTER                                 :: particle_set
     LOGICAL :: failure, qmmm_periodic, need_f, ionode
@@ -818,20 +820,24 @@ CONTAINS
     REAL(KIND=dp), POINTER, DIMENSION(:,:,:) :: dq
     TYPE(cp_logger_type), POINTER :: logger
     REAL(KINd=dp) :: e_decpl, e_recpl
+    TYPE(cp_out_flags_type), pointer :: output_control
 
     failure = .FALSE.
-    need_f = .FALSE.
+    need_f = .FALSE. 
     logger => cp_error_get_logger(error)
     ionode = logger%para_env%mepos==logger%para_env%source
     IF (ionode) iw = cp_logger_get_default_unit_nr(logger)
     IF (PRESENT(calculate_forces)) need_f = calculate_forces
     IF (.NOT.failure) THEN
        NULLIFY(multipole_section, poisson_section, force_env_section, particle_set,&
-               qmmm_periodic_section, charges, radii, M, AmI, dq)
+               qmmm_periodic_section, charges, radii, M, AmI, dq, output_control)
        CALL get_qs_env(qs_env=qs_env,&
                        input=force_env_section,&
                        particle_set=particle_set,&
+                       output_control=output_control,&
                        error=error)
+       iw=cp_out_flags_unit_nr(output_control,"PROPERTIES%FIT_CHARGE%PRINT%PROGRAM_RUN_INFO",&
+            extension=".fitChargeLog",error=error)
        poisson_section => section_vals_get_subs_vals(force_env_section,"DFT%POISSON_DFT", error=error)
        qmmm_periodic_section   => section_vals_get_subs_vals(force_env_section,"QMMM%PERIODIC", error=error)
        CALL section_vals_get(qmmm_periodic_section,explicit=qmmm_periodic, error=error)
@@ -847,7 +853,6 @@ CONTAINS
        ELSE
           multipole_section => section_vals_get_subs_vals(qmmm_periodic_section,"MULTIPOLE", error=error)
        END IF
-       print_gen => section_vals_get_subs_vals(multipole_section,"PRINT%PROGRAM_RUN_INFO",error=error)
        ! First we evaluate the charges at the corresponding SCF STEP
        IF (need_f) THEN
           CALL get_ddapc(qs_env, need_f, multipole_section, qout1=charges, out_radii=radii, out_AmI=AmI,&
@@ -865,16 +870,14 @@ CONTAINS
        IF (qmmm_periodic) THEN
           CALL ewald_ddapc_pot(qs_env, .FALSE., multipole_section, particle_set,&
                M, radii, need_f, dq, charges, error=error)
-          IF (cp_should_output(logger%iter_info,print_gen,error=error).AND.&
-               logger%para_env%mepos==logger%para_env%source) THEN
+          IF (iw>0) THEN
              e_decpl = 0.5_dp*DOT_PRODUCT(charges,MATMUL(M,charges))
              WRITE(iw,'(T3,A,F15.9)')" Decoupling Energy: ", e_decpl
           END IF
        END IF
        CALL ewald_ddapc_pot(qs_env, qmmm_periodic, multipole_section, particle_set,&
             M, radii, need_f, dq, charges, error=error)
-       IF (cp_should_output(logger%iter_info,print_gen,error=error).AND.&
-            logger%para_env%mepos==logger%para_env%source) THEN
+       IF (iw>0) THEN
           e_recpl = 0.5_dp*DOT_PRODUCT(charges,MATMUL(M,charges))
           IF (qmmm_periodic) THEN
              WRITE(iw,'(T3,A,F15.9)')" Recoupling Energy: ", e_recpl
@@ -899,6 +902,8 @@ CONTAINS
           DEALLOCATE(dq, stat=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        END IF
+       CALL cp_out_flags_finished_output(iw,output_control,&
+            "PROPERTIES%FIT_CHARGE%PRINT%PROGRAM_RUN_INFO",error=error)
     END IF
   END SUBROUTINE cp_decpl_ddapc
 

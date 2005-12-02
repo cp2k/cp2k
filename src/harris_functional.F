@@ -44,22 +44,18 @@ MODULE harris_functional
                                              cp_logger_type
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE global_types,                    ONLY: global_environment_type
-  USE green_types,                     ONLY: greens_function_type
   USE harris_energy_types,             ONLY: harris_energy_type
   USE harris_env_types,                ONLY: harris_env_type, &
                                              harris_env_get
-  USE hartree,                         ONLY: calculate_hartree
   USE kinds,                           ONLY: dp
   USE pw_env_types,                    ONLY: pw_env_type, &
                                              pw_env_get
   USE pw_pool_types,                   ONLY: pw_pool_type, &
                                              pw_pool_init_coeff, &
                                              pw_pool_give_back_coeff
-  USE pws,                             ONLY: cleanup_pw_poisson_solver, &
-                                             init_pw_poisson_solver, &
-                                             pw_integral_ab
   USE pw_types,                        ONLY: COMPLEXDATA1D, &
-                                             RECIPROCALSPACE
+                                             RECIPROCALSPACE,&
+                                             pw_integral_ab
   USE qs_core_energies,                ONLY: calculate_ecore_overlap, &
                                              calculate_ecore_self
                                              !calculate_ecore
@@ -78,8 +74,9 @@ MODULE harris_functional
                                              cp_sm_sm_trace
   USE timings,                         ONLY: timeset, &
                                              timestop
-  
- 
+  USE pw_poisson_methods, only: pw_poisson_solve
+  USE pw_poisson_types, only: pw_poisson_type
+
   IMPLICIT NONE
   PRIVATE
 
@@ -143,7 +140,6 @@ CONTAINS
     TYPE(qs_rho_type), POINTER                      :: rho
     INTEGER                                         :: handle, &
                                                        stat
-    TYPE(greens_function_type), POINTER             :: green
     TYPE(pw_env_type), POINTER                      :: pw_env
     TYPE(pw_pool_type), POINTER                     :: auxbas_pw_pool
     TYPE(coeff_type)                                :: v_hartree_gspace
@@ -158,6 +154,7 @@ CONTAINS
     LOGICAL                                         :: failure, &
                                                        my_EII_necessary, &
                                                        fast_flag
+    TYPE(pw_poisson_type), pointer  :: poisson_env
 
     CHARACTER(len=*), PARAMETER :: routineN = 'harris_energy_correction', &
       routineP = moduleN//':'//routineN
@@ -167,8 +164,8 @@ CONTAINS
     CALL timeset(routineN, "I", "", handle)
 
     failure = .FALSE.
-    NULLIFY(rho, green, pw_env, auxbas_pw_pool, v_rspace_new, v_tau_rspace, &
-            rho_core, rho, harris_energy)
+    NULLIFY(rho, pw_env, auxbas_pw_pool, v_rspace_new, v_tau_rspace, &
+            rho_core, rho, harris_energy, poisson_env)
 
     CPPrecondition(ASSOCIATED(qs_env), cp_failure_level, routineP, error, failure)
     CPPrecondition(qs_env%ref_count>0, cp_failure_level, routineP, error, failure)
@@ -187,7 +184,7 @@ CONTAINS
     IF (.NOT. failure) THEN
       CALL harris_env_get(harris_env=harris_env, harris_energy=harris_energy, error=error)
       CALL get_qs_env(qs_env=qs_env, pw_env=pw_env, rho=rho, rho_core=rho_core, &
-                      green=green, error=error)
+                      error=error)
 
       CALL duplicate_rho_type(rho_input=rho, rho_output=harris_env%rho, &
                               qs_env=qs_env, error=error)
@@ -200,7 +197,8 @@ CONTAINS
                             TARGET=harris_env%matrix_ks(1)%matrix, &
                             target_name="myKS-Matrix", allocate_blocks=.TRUE.)
 
-      CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool, error=error)
+      CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool,&
+           poisson_env=poisson_env, error=error)
       CALL pw_pool_init_coeff(auxbas_pw_pool, v_hartree_gspace, &
                               use_data=COMPLEXDATA1D, &
                               in_space=RECIPROCALSPACE, error=error)
@@ -214,16 +212,14 @@ CONTAINS
       !   CALL coeff_sumup(rho%rho_g(ispin), rho_tot_gspace)
       !END DO
 
-      CALL init_pw_poisson_solver(green, error=error)
       !CALL calculate_hartree(rho_tot_gspace, ehartree=harris_energy%Ehartree_tot, &
       !                       vhartree=v_hartree_gspace)
-      CALL calculate_hartree(rho%rho_g(1), ehartree=harris_energy%Ehartree_elec, &
-                             vhartree=v_hartree_gspace)
+      CALL pw_poisson_solve(poisson_env,rho%rho_g(1)%pw, ehartree=harris_energy%Ehartree_elec, &
+                             vhartree=v_hartree_gspace%pw)
       IF (my_EII_necessary) THEN
-        CALL calculate_hartree(rho_core, ehartree=harris_energy%Ehartree_core, &
-                               vhartree=v_hartree_gspace)
+        CALL pw_poisson_solve(poisson_env,rho_core%pw, ehartree=harris_energy%Ehartree_core, &
+                               vhartree=v_hartree_gspace%pw)
       END IF
-      CALL cleanup_pw_poisson_solver(green, error=error)
 
       !CALL pw_pool_give_back_coeff(auxbas_pw_pool, rho_tot_gspace, &
       !                             error=error)

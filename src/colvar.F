@@ -49,10 +49,6 @@ MODULE colvar
                                              torsion_colvar_id
   USE particle_list_types,             ONLY: particle_list_type
   USE physcon,                         ONLY: massunit
-  USE qs_parser,                       ONLY: read_object,&
-                                             search_object,&
-                                             stop_parser,&
-                                             test_object
   USE simulation_cell,                 ONLY: cell_type
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -60,14 +56,12 @@ MODULE colvar
                                              section_vals_type,&
                                              section_vals_val_get,&
                                              section_vals_get
-  USE input_cp2k,                      ONLY: parsed_cp2k_input
-
   IMPLICIT NONE
   PRIVATE
 
   CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='colvar'
 
-  PUBLIC :: colvar_read, colvar_read_new
+  PUBLIC :: colvar_read
   PUBLIC :: colvar_eval_f
 
 !***
@@ -82,229 +76,28 @@ CONTAINS
 !!     colvar_read
 !!
 !!   FUNCTION
-!!     reads a colvar with the parser. the input should have this form:
-!!     &colvar dist
-!!       lambda 1.0
-!!       mass   1.0
-!!       atoms 1 3
-!!     &end
+!!     reads a colvar from the input
 !!
 !!   NOTES
-!!     the parser should already be initialized
+!!     -
 !!
 !!   INPUTS
 !!     - colvar: the place where to store what will be read
-!!     - globenv: inputfile,...
+!!     - extended_lagrange: if the extended lagrangian formalismus should 
+!!       be used
+!!     - icol: number of the current colvar (repetition in colvar_section)
+!!     - colvar_section: the colvar section
 !!     - error: variable to control error logging, stopping,... 
 !!       see module cp_error_handling 
 !!
 !!   AUTHOR
-!!     alessandro laio and fawzi mohamed
+!!     teo
 !!
 !!   MODIFICATION HISTORY
-!!     04.2004 created
+!!     04.2004 created [alessandro laio and fawzi mohamed]
 !!
 !!*** **********************************************************************
-  SUBROUTINE colvar_read(colvar, extended_lagrange, error)
-    IMPLICIT NONE
-    ! Arguments
-    TYPE(colvar_type), INTENT(inout)         :: colvar
-    LOGICAL                                  :: extended_lagrange
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
-    ! Variables
-    CHARACTER(len=*), PARAMETER :: routinen = 'colvar_read', &
-         routinep = modulen//':'//routinen
-    CHARACTER(len=3)                         :: test_result
-    CHARACTER(len=default_string_length)     :: colvar_type_name, keyword
-    INTEGER                                  :: i, ii, n_opt, n_opt_cv, &
-                                                n_opt_var, ntemp, stat, n_rep
-    LOGICAL                                  :: failure, RECOGNIZED_KEYWORD, &
-                                                section_found
-    LOGICAL, DIMENSION(4)                    :: my_subsection
-    TYPE(section_vals_type), POINTER         :: distance_section, angle_section,&
-                                                torsion_section, coordination_section    
-
-    failure=.FALSE.
-    n_opt=0
-    n_opt_cv=0
-    n_opt_var=0
-    colvar%do_wall_p=.FALSE.
-    colvar%do_wall_m=.FALSE.
-
-    CALL search_object("&COLVAR",ignore_case=.TRUE.,&
-         found=section_found)
-    CALL cp_assert(section_found,cp_failure_level,cp_assertion_failed,routinep,&
-         "an expected colvar was not found",error,failure)
-    IF (.NOT. failure) THEN
-       CALL read_object(colvar_type_name,lower_to_upper=.TRUE.,&
-            newline=.FALSE., string_length=default_string_length)
-       SELECT CASE(colvar_type_name)
-       CASE("TORSION")
-          colvar%type_id=torsion_colvar_id
-          colvar%i_subsys=1
-          n_opt_var=1
-       CASE("DIST","DISTANCE")
-          colvar%type_id=dist_colvar_id
-          colvar%i_subsys=1
-          n_opt_var=1
-       CASE("COORD","COORDINATION")
-          colvar%type_id=coord_colvar_id
-          colvar%i_subsys=1
-          n_opt_var=3
-       CASE default
-          CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routinep,&
-               "Unknown collective variable type '"//TRIM(colvar_type_name)//"'",&
-               error,failure)
-          colvar%type_id=no_colvar_id
-       END SELECT
-    END IF
-    IF (.NOT.failure) THEN
-       DO
-          test_result = test_object(newline=.TRUE.)
-          IF (test_result == "EOS") THEN
-             EXIT
-          ELSE IF (test_result == "EOF") THEN
-             CALL stop_parser(routinen,modulen,__LINE__,"EOF")
-          END IF
-          
-          CALL read_object(keyword,lower_to_upper=.TRUE.,newline=.TRUE.)
-          SELECT CASE(keyword)
-          CASE ("LAMBDA")
-             CALL read_object(colvar%lambda)
-             n_opt=n_opt+1
-          CASE ("MASS","MASS_S")
-             CALL read_object(colvar%mass)
-             !             CALL convert_to_cp2k_units('u',mass=colvar%mass)
-             colvar%mass=colvar%mass*massunit
-             n_opt=n_opt+1
-          CASE ("SCALE")
-             CALL read_object(colvar%delta_s)
-             n_opt=n_opt+1
-          CASE ("WALL+","WALLP")
-             colvar%do_wall_p=.TRUE.
-             CALL read_object(colvar%wall_p)
-          CASE ("WALL-","WALLM")
-             colvar%do_wall_m=.TRUE.
-             CALL read_object(colvar%wall_m)
-          CASE ("SUBSYS")
-             CALL read_object(colvar%i_subsys)
-          CASE default
-             ! colvar type specific keyword
-             recognized_keyword=.TRUE.
-             
-             SELECT CASE(colvar%type_id)
-             CASE(torsion_colvar_id)
-                SELECT CASE(keyword)
-                CASE ("ATOMS")
-                   CALL read_object(colvar%torsion_param%i_at_tors(1))
-                   CALL read_object(colvar%torsion_param%i_at_tors(2))
-                   CALL read_object(colvar%torsion_param%i_at_tors(3))
-                   CALL read_object(colvar%torsion_param%i_at_tors(4))
-                   n_opt_cv=n_opt_cv+1
-                CASE default
-                   recognized_keyword=.FALSE.
-                END SELECT
-             CASE(dist_colvar_id)
-                SELECT CASE(keyword)
-                CASE ("ATOMS")
-                   CALL read_object(colvar%dist_param%i_at)
-                   CALL read_object(colvar%dist_param%j_at)
-                   n_opt_cv=n_opt_cv+1
-                CASE default
-                   recognized_keyword=.FALSE.
-                END SELECT
-             CASE(coord_colvar_id)
-                SELECT CASE(keyword)
-                CASE ("ATOMS_FROM")
-                   CALL read_object(ntemp)
-                   colvar%coord_param%n_atoms_from=ntemp
-                   ALLOCATE(colvar%coord_param%i_at_from(ntemp),stat=stat)
-                   CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
-                   DO i=1,ntemp
-                      CALL read_object(colvar%coord_param%i_at_from(i))
-                   ENDDO
-                   n_opt_cv=n_opt_cv+1
-                CASE ("ATOMS_TO")
-                   CALL read_object(ntemp)
-                   colvar%coord_param%n_atoms_to=ntemp
-                   ALLOCATE(colvar%coord_param%i_at_to(ntemp),stat=stat)
-                   CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
-                   DO i=1,ntemp
-                      CALL read_object(colvar%coord_param%i_at_to(i))
-                   ENDDO
-                   n_opt_cv=n_opt_cv+1
-                CASE ("R0","R_0")
-                   CALL read_object(colvar%coord_param%r_0)
-                   n_opt_cv=n_opt_cv+1
-                CASE ("NN","EXPON_NUMERATOR")
-                   CALL read_object(colvar%coord_param%nncrd)
-                CASE ("ND","EXPON_DENOMINATOR")
-                   CALL read_object(colvar%coord_param%ndcrd)
-                CASE default
-                   recognized_keyword=.FALSE.
-                END SELECT
-             CASE default
-                CPAssert(.FALSE.,cp_failure_level,routinep,error,failure)
-             END SELECT
-             
-             CALL cp_assert(recognized_keyword,cp_failure_level,&
-                  cp_assertion_failed,routinep,"unknown keyword '"//TRIM(keyword)//&
-                  "' in section colvar", error,failure)
-             
-          END SELECT
-       END DO
-    END IF
-    SELECT CASE(colvar%type_id)
-      CASE(dist_colvar_id)
-         colvar%n_atom_s=2
-         ALLOCATE(colvar%dsdr(3,colvar%n_atom_s), stat=stat)
-         CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
-         ALLOCATE(colvar%i_atom(colvar%n_atom_s), stat=stat)
-         CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
-         colvar%i_atom(1)=colvar%dist_param%i_at
-         colvar%i_atom(2)=colvar%dist_param%j_at
-      CASE(coord_colvar_id)
-         colvar%n_atom_s=colvar%coord_param%n_atoms_from+colvar%coord_param%n_atoms_to
-         ALLOCATE(colvar%dsdr(3,colvar%n_atom_s), stat=stat)
-         CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
-         ALLOCATE(colvar%i_atom(colvar%n_atom_s), stat=stat)
-         CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
-         DO ii=1,colvar%coord_param%n_atoms_from
-           colvar%i_atom(ii)=colvar%coord_param%i_at_from(ii)
-         ENDDO
-         DO ii=1,colvar%coord_param%n_atoms_to
-           colvar%i_atom(colvar%coord_param%n_atoms_from+ii)=colvar%coord_param%i_at_to(ii)
-         ENDDO
-      CASE(torsion_colvar_id)
-         colvar%n_atom_s=4
-         ALLOCATE(colvar%dsdr(3,colvar%n_atom_s), stat=stat)
-         CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
-         ALLOCATE(colvar%i_atom(colvar%n_atom_s), stat=stat)
-         CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
-         DO ii=1,4
-            colvar%i_atom(ii)=colvar%torsion_param%i_at_tors(ii)
-         ENDDO
-    END SELECT
-
-    IF(extended_lagrange)THEN
-       CALL cp_assert(n_opt==3,cp_failure_level,cp_assertion_failed,routinep,&
-         "mass, k or scaling factor missing from cv"//cp_to_string(colvar%index),error,failure)
-    ELSE
-       CALL cp_assert(n_opt<2,cp_failure_level,cp_assertion_failed,routinep,&
-         "mass and k are NOT used if NO_LAGRANGE is specified"//cp_to_string(colvar%index),error,failure)
-       CALL cp_assert(n_opt==1,cp_failure_level,cp_assertion_failed,routinep,&
-         "scaling factor missing from cv"//cp_to_string(colvar%index),error,failure)
-    ENDIF
-    CALL cp_assert(n_opt_cv==n_opt_var,cp_failure_level,cp_assertion_failed,routinep,&
-         "missing non optional parameter from CV "//cp_to_string(colvar%index), &
-      error,failure)
-  END SUBROUTINE colvar_read
-!***************************************************************************
-
-!TODEL_END_TL
-
-  SUBROUTINE colvar_read_new(colvar, extended_lagrange, icol, colvar_section,  error)
+  SUBROUTINE colvar_read(colvar, extended_lagrange, icol, colvar_section,  error)
     IMPLICIT NONE
     ! Arguments
     TYPE(colvar_type), INTENT(inout)         :: colvar
@@ -429,7 +222,7 @@ CONTAINS
        CPPostcondition(n_rep == 0,cp_failure_level,routinep,error,failure)
     ENDIF
 
-  END SUBROUTINE colvar_read_new
+  END SUBROUTINE colvar_read
 
 
 !!****f* colvar/colvar_eval_f [1.0] *

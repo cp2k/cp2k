@@ -352,13 +352,6 @@ CONTAINS
             na1 = (ipgf-1)*ncoset(la_max(iset))
             igrid_level = gaussian_gridlevel(gridlevel_info, zeta(ipgf,iset))
 
-            !CALL collocate_pgf_product_rspace(la_max=la_max(iset), zeta=zeta(ipgf,iset), &
-            !                                  la_min=la_min(iset), lb_max=0, zetb=0.0_dp, lb_min=0, &
-            !                                  ra=ra, rab=(/0.0_dp,0.0_dp,0.0_dp/), rab2=0.0_dp, &
-            !                                  scale=1.0_dp, pab=pab, o1=na1, o2=0, rsgrid=rs_rho, &
-            !                                  cube_info=cube_info, l_info=l_info, &
-            !                                  eps_rho_rspace=eps_rho_rspace, ithread=ithread, &
-            !                                  compute_tau=.FALSE., map_consistent=map_consistent)
             CALL collocate_pgf_product_rspace(la_max=la_max(iset), zeta=zeta(ipgf,iset), &
                                               la_min=la_min(iset), lb_max=0, zetb=0.0_dp, lb_min=0, &
                                               ra=ra, rab=(/0.0_dp,0.0_dp,0.0_dp/), rab2=0.0_dp, &
@@ -1138,7 +1131,7 @@ CONTAINS
                 ELSE
                   scale = 2.0_dp
                 END IF
- 
+
                 IF ( nthread > 1 ) THEN
                   IF (iatom <= jatom) THEN
                     CALL collocate_pgf_product_rspace(&
@@ -1647,7 +1640,7 @@ CONTAINS
     ELSE
        my_collocate_rho0=.FALSE.
     END IF
-
+    
     zetp      = zeta + zetb
     f         = zetb/zetp
     rap(:)    = f*rab(:)

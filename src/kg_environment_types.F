@@ -54,6 +54,8 @@ MODULE kg_environment_types
                                              cp_subsys_retain,&
                                              cp_subsys_set,&
                                              cp_subsystem_type
+  USE cp_output_handling, ONLY:cp_out_flags_type, cp_out_flags_retain, &
+       cp_out_flags_release
   USE distribution_1d_types,           ONLY: distribution_1d_type
   USE distribution_2d_types,           ONLY: distribution_2d_release,&
                                              distribution_2d_retain,&
@@ -104,10 +106,6 @@ MODULE kg_environment_types
   USE simulation_cell,                 ONLY: cell_release,&
                                              cell_retain,&
                                              cell_type
-  USE green_types,                     ONLY: greens_function_type,&
-                                             pw_green_release,&
-                                             pw_green_retain,&
-                                             pw_green_create
   PRIVATE
 
   character(len=*), private, parameter :: moduleN='kg_environment_types'
@@ -116,7 +114,6 @@ MODULE kg_environment_types
   TYPE kg_environment_type
     INTEGER :: id_nr, ref_count
     LOGICAL :: use_ref_cell
-    TYPE(greens_function_type), POINTER                   :: green
     TYPE(cell_type), POINTER                              :: cell
     TYPE(cell_type), POINTER                              :: cell_ref
     TYPE(cp_blacs_env_type), POINTER                      :: blacs_env
@@ -136,6 +133,7 @@ MODULE kg_environment_types
     TYPE(cp_subsystem_type), POINTER                      :: subsys
     TYPE(qs_environment_type), POINTER                    :: sub_qs_env
     TYPE(section_vals_type), POINTER                      :: input
+    TYPE(cp_out_flags_type), pointer                      :: output_control
   END TYPE kg_environment_type
 
 ! *** Public data types ***
@@ -157,7 +155,7 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE get_kg_env( kg_env,atomic_kind_set,cell,cell_ref, green,&
+  SUBROUTINE get_kg_env( kg_env,atomic_kind_set,cell,cell_ref, &
                          use_ref_cell,sub_qs_env,&
                          dft_control,distribution_2d,&
                          dyn_coeff_set,energy,force,input,&
@@ -166,7 +164,8 @@ CONTAINS
                          local_particles,local_molecules,&
                          molecule_kind_set,molecule_set,id_nr,para_env,&
                          blacs_env,particle_set,rho,rspw,scf_env,&
-                         sac_ppl,sac_ppl_aux,scf_control,subsys,error)
+                         sac_ppl,sac_ppl_aux,scf_control,subsys,&
+                         output_control,error)
 
 !   Purpose: Get the KG environment.
 
@@ -175,7 +174,6 @@ CONTAINS
     TYPE(kg_environment_type), POINTER         :: kg_env
     TYPE(atomic_kind_type), DIMENSION(:), &
       OPTIONAL, POINTER                        :: atomic_kind_set
-    TYPE(greens_function_type), POINTER, OPTIONAL :: green
     TYPE(cell_type), OPTIONAL, POINTER         :: cell, cell_ref
     LOGICAL, OPTIONAL                          :: use_ref_cell
     TYPE(dft_control_type), OPTIONAL, &
@@ -219,6 +217,7 @@ CONTAINS
       POINTER                                  :: scf_env
     TYPE(cp_subsystem_type), OPTIONAL, &
       POINTER                                  :: subsys
+    TYPE(cp_out_flags_type), POINTER, OPTIONAL :: output_control
     TYPE(cp_error_type), INTENT(INOUT), &
       OPTIONAL                                 :: error
 
@@ -240,7 +239,6 @@ CONTAINS
     CPPrecondition(ASSOCIATED(kg_env%subsys),cp_failure_level,routineP,error,failure)
 
     IF (PRESENT(blacs_env)) blacs_env => kg_env%blacs_env
-    IF (PRESENT(green)) green => kg_env%green
     IF (PRESENT(cell)) cell => kg_env%cell
     IF (PRESENT(cell_ref)) cell_ref => kg_env%cell_ref
     IF (PRESENT(use_ref_cell)) use_ref_cell = kg_env%use_ref_cell
@@ -285,6 +283,7 @@ CONTAINS
     IF (PRESENT(molecule_kind_set)) molecule_kind_set => molecule_kinds_new%els
     IF (PRESENT(molecule_set)) molecule_set => molecules_new%els
     IF (PRESENT(input)) input => kg_env%input
+    if (present(output_control)) output_control => kg_env%output_control
 
   END SUBROUTINE get_kg_env
 
@@ -304,7 +303,6 @@ CONTAINS
 !   ---------------------------------------------------------------------------
 
     NULLIFY (kg_env%blacs_env)
-    NULLIFY (kg_env%green)
     NULLIFY (kg_env%cell)
     NULLIFY (kg_env%cell_ref)
     kg_env%use_ref_cell = .FALSE.
@@ -323,6 +321,7 @@ CONTAINS
     NULLIFY (kg_env%scf_env)
     NULLIFY (kg_env%subsys)
     NULLIFY (kg_env%sub_qs_env)
+    NULLIFY (kg_env%output_control)
 
     CALL cp_subsys_create(kg_env%subsys, para_env=para_env, error=error)
     CALL cp_para_env_retain(para_env,error=error)
@@ -337,12 +336,13 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE set_kg_env( kg_env,atomic_kind_set,green,cell,cell_ref,use_ref_cell,  &
+  SUBROUTINE set_kg_env( kg_env,atomic_kind_set,cell,cell_ref,use_ref_cell,  &
                          dft_control,distribution_2d,dyn_coeff_set,energy,input,force, &
                          kg_fm_set,local_particles,local_molecules,&
                          molecule_kind_set,molecule_set,&
                          sub_qs_env,particle_set,rho,rspw,scf_env,&
-                         sac_ppl,sac_ppl_aux,scf_control,subsys,error)
+                         sac_ppl,sac_ppl_aux,scf_control,subsys,output_control,&
+                         error)
 
 !   Purpose: set the KG environment.
 
@@ -352,7 +352,6 @@ CONTAINS
       POINTER                                  :: kg_env
     TYPE(atomic_kind_type), DIMENSION(:), &
       OPTIONAL, POINTER                        :: atomic_kind_set
-    TYPE(greens_function_type), POINTER, OPTIONAL :: green
     TYPE(cell_type), OPTIONAL, POINTER         :: cell
     TYPE(cell_type), OPTIONAL, POINTER         :: cell_ref
     LOGICAL, OPTIONAL                          :: use_ref_cell
@@ -388,6 +387,7 @@ CONTAINS
     TYPE(cp_subsystem_type), OPTIONAL, &
       POINTER                                  :: subsys
     TYPE(section_vals_type), POINTER, optional :: input    
+    TYPE(cp_out_flags_type), POINTER, optional :: output_control
     TYPE(cp_error_type), INTENT(INOUT), &
       OPTIONAL                                 :: error
 
@@ -407,11 +407,6 @@ CONTAINS
 !    CPPrecondition(ASSOCIATED(kg_env),cp_failure_level,routineP,error,failure)
     CPPrecondition(kg_env%ref_count>0,cp_failure_level,routineP,error,failure)
 
-    IF (PRESENT(green)) THEN
-       CALL pw_green_retain(green, error=error)
-       CALL pw_green_release(kg_env%green, error=error)
-       kg_env%green => green
-    END IF
     IF (PRESENT(cell)) THEN
        CALL cell_retain(cell, error=error)
        CALL cell_release(kg_env%cell,error=error)
@@ -528,6 +523,11 @@ CONTAINS
        CALL section_vals_retain(input,error=error)
        CALL section_vals_release(kg_env%input,error=error)
        kg_env%input => input
+    END IF
+    IF (PRESENT(output_control)) THEN
+       CALL cp_out_flags_retain(output_control,error=error)
+       CALL cp_out_flags_release(kg_env%output_control,error=error)
+       kg_env%output_control => output_control
     END IF
 
   END SUBROUTINE set_kg_env
@@ -658,7 +658,6 @@ SUBROUTINE kg_env_release(kg_env,error)
      CPPrecondition(kg_env%ref_count>0,cp_failure_level,routineP,error,failure)
      kg_env%ref_count=kg_env%ref_count-1
      IF (kg_env%ref_count<1) THEN
-        CALL pw_green_release(kg_env%green, error=error)
         CALL cell_release(kg_env%cell)
         CALL cell_release(kg_env%cell_ref)
         CALL dft_control_release(kg_env%dft_control, error=error)
@@ -703,6 +702,7 @@ SUBROUTINE kg_env_release(kg_env,error)
         IF (ASSOCIATED(kg_env%sub_qs_env)) THEN
           CALL qs_env_release(kg_env%sub_qs_env,error=error)
         END IF
+        CALL cp_out_flags_release(kg_env%output_control,error=error)
 
         DEALLOCATE(kg_env, stat=stat)
         CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)

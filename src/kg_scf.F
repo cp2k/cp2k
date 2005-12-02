@@ -138,7 +138,7 @@ MODULE kg_scf
                                              stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
-
+  USE input_constants, ONLY: atomic_guess, core_guess, random_guess, restart_guess
   IMPLICIT NONE
 
   PRIVATE
@@ -576,7 +576,7 @@ CONTAINS
 
            ! Control Variables
            do_level_shift = ((scf_control%level_shift /= 0.0_dp).AND.&
-               ((scf_control%density_guess == "CORE").OR.(scf_env%iter_count > 1)))
+               ((scf_control%density_guess == core_guess).OR.(scf_env%iter_count > 1)))
 
            IF (diis_step) THEN
                scf_env%p_mix = 1.0_dp
@@ -1244,7 +1244,7 @@ CONTAINS
     matrix_p => qs_env%rho%rho_ao
 
 
-    IF (scf_control%density_guess == "RESTART") THEN
+    IF (scf_control%density_guess == restart_guess) THEN
 
       CALL read_mo_mol_restart(kg_fm,globenv,nspins=nspin,id_nr=1,error=error)
 
@@ -1289,7 +1289,7 @@ CONTAINS
 
       END DO  ! imolecule_kind
 
-    ELSE IF (scf_control%density_guess == "RANDOM") THEN
+    ELSE IF (scf_control%density_guess == random_guess) THEN
 
       DO imolecule_kind = 1,nmolecule_kind
         NULLIFY(fm_mol_set,fm_mol_blocks)
@@ -1332,7 +1332,7 @@ CONTAINS
 
       END DO  ! imolecule_kind
 
-    ELSE IF (scf_control%density_guess == "CORE") THEN
+    ELSE IF (scf_control%density_guess == core_guess) THEN
 
       DO imolecule_kind = 1,nmolecule_kind
         NULLIFY(fm_mol_set,fm_mol_blocks)
@@ -1386,7 +1386,7 @@ CONTAINS
 
       END DO  ! imolecule_kind
 
-    ELSE IF (scf_control%density_guess == "ATOMIC") THEN
+    ELSE IF (scf_control%density_guess == atomic_guess) THEN
 
       group = qs_env%para_env%group
 

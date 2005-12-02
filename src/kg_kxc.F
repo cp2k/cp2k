@@ -20,7 +20,6 @@
 
 MODULE kg_kxc
   USE coefficient_types,               ONLY: coeff_type
-  USE cp_control_types,                ONLY: dft_control_type
   USE kinds,                           ONLY: dp
   USE message_passing,                 ONLY: mp_sum
   USE pw_grid_types,                   ONLY: PW_MODE_DISTRIBUTED
@@ -44,7 +43,7 @@ MODULE kg_kxc
                                              cp_sll_xc_deriv_type
   USE xc_derivative_desc,              ONLY: MAX_DERIVATIVE_DESC_LENGTH,&
                                              MAX_LABEL_LENGTH
-
+  USE input_section_types, ONLY: section_vals_type
   IMPLICIT NONE
 
   PRIVATE
@@ -78,14 +77,14 @@ CONTAINS
 !******************************************************************************
 
  SUBROUTINE calculate_kxc_derivatives ( pw_pool,rho_r, rho_g, rhop_r, v_r, v1_r, &
-                           v2_r, e1_xc, e2_xc, dft_control,calculate_forces )
+                           v2_r, e1_xc, e2_xc, xc_section,calculate_forces )
 
 
     TYPE(pw_pool_type), POINTER              :: pw_pool
     TYPE(coeff_type), INTENT(in)             :: rho_r, rho_g, rhop_r, v_r
     TYPE(coeff_type), INTENT(inout)          :: v1_r, v2_r
     REAL(KIND=dp), INTENT(out)                   :: e1_xc, e2_xc
-    TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(section_vals_type), POINTER          :: xc_section
     LOGICAL, INTENT(in)                      :: calculate_forces
 
     CHARACTER(LEN=*), PARAMETER :: &
@@ -108,7 +107,7 @@ CONTAINS
   END IF
 
   CALL xc_calculate_derivatives (rho_r%pw,rhop_r%pw,v_r%pw,v1_r%pw, &
-                             v2_r%pw, e1_xc, e2_xc, order, dft_control, pw_pool)
+                             v2_r%pw, e1_xc, e2_xc, order, xc_section, pw_pool)
  
   IF ( rho_r%pw%pw_grid%para%mode == PW_MODE_DISTRIBUTED ) THEN
     CALL mp_sum ( e1_xc, rho_r%pw%pw_grid%para%group )
@@ -135,14 +134,14 @@ CONTAINS
 !!   SOURCE
 !******************************************************************************
  SUBROUTINE xc_calculate_derivatives ( rho_r,rhop_r,v,v1,v2,e1,e2,order,&
-      dft_control, pw_pool )
+      xc_section, pw_pool )
 
 
    TYPE(pw_type), INTENT(IN), target        :: rho_r, rhop_r, v
    TYPE(pw_type), INTENT(INOUT)             :: v1, v2
    REAL(KIND=dp), INTENT(out)                   :: e1, e2
    INTEGER, intent(IN)                      :: order
-   TYPE(dft_control_type), POINTER          :: dft_control
+   TYPE(section_vals_type), POINTER          :: xc_section
    TYPE(pw_pool_type), POINTER              :: pw_pool
    TYPE(cell_type), pointer                 :: cell
 
@@ -153,9 +152,7 @@ CONTAINS
         deriv_order
    INTEGER, DIMENSION(2, 3)                 :: bo
    INTEGER, DIMENSION(3, 3)                 :: nd
-   LOGICAL                                  :: do_lsd, failure, gradient_f
-   LOGICAL, DIMENSION(3)                    :: crossterms, &
-        gradient_functionals
+   LOGICAL                                  :: failure, gradient_f
    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)     :: rgrid
    TYPE(xc_derivative_set_type), POINTER    :: derivative_set
    TYPE(xc_rho_set_type), pointer           :: rho_set
@@ -175,18 +172,14 @@ CONTAINS
    e1 = 0.0_dp
    e2 = 0.0_dp
 
-   ! no gradient corrections are implemented for derivatives
-   gradient_functionals = dft_control%xc_control%gradient_functionals
-   do_lsd = (dft_control%nspins > 1)
-
    NULLIFY(rho_set,derivative_set,my_rho_g,my_tau)
    my_rho_r(1)%pw => rho_r
    bo=rho_r%pw_grid%bounds_local
    CALL xc_rho_set_and_dset_create(rho_set=rho_set,&
         deriv_set=derivative_set,&
         deriv_order=order,&
-        rho_r=my_rho_r,rho_g=my_rho_g,tau=my_tau,dft_control=dft_control,&
-        xc_control=dft_control%xc_control,cell=cell,pw_pool=pw_pool,&
+        rho_r=my_rho_r,rho_g=my_rho_g,tau=my_tau,xc_section=xc_section,&
+        cell=cell,pw_pool=pw_pool,&
         gradient_f=gradient_f,&
         needs_basic_components=.FALSE.)
 

@@ -32,7 +32,7 @@ MODULE qmmm_init
                                              get_atomic_kind,&
                                              read_atomic_kind_set, &
                                              set_atomic_kind
-  USE cp_output_handling, ONLY: cp_should_output
+  USE cp_output_handling, ONLY: cp_print_key_should_output, cp_p_file
   USE cp_error_handling,               ONLY: cp_a_l,&
                                              cp_assert,&
                                              cp_error_get_logger,&
@@ -129,9 +129,6 @@ MODULE qmmm_init
                         do_qmmm_gauss, do_center_none, do_center_grid,&
                         do_fist, do_qs, do_qmmm
   USE fist_environment_types,  ONLY: set_fist_env
-  USE green_types,                     ONLY: greens_function_type,&
-                                             pw_green_release
-  USE green_methods,                   ONLY: pw_green_setup  
   USE force_field_types,               ONLY: input_info_type
   USE pair_potential_types,            ONLY: pair_potential_reallocate
   USE cp_subsystem_methods,            ONLY: create_small_subsystem
@@ -205,7 +202,6 @@ CONTAINS
     LOGICAL                                  :: move_mm_charges, add_mm_charges, nocenter
     LOGICAL                                  :: nocompatibility, explicit
     TYPE(add_set_type), POINTER              :: added_charges
-    TYPE(greens_function_type), POINTER                   :: green
     REAL(KIND=dp), DIMENSION(3)              :: abc
     TYPE(section_vals_type), POINTER :: print_gen
     TYPE(cp_logger_type), POINTER :: logger
@@ -217,7 +213,7 @@ CONTAINS
          qmmm_env_qm, subsys_mm,subsys_qm, mm_cell, qm_cell_small,       &
          qs_env, para_env, mm_atom_chrg,mm_el_pot_radius, qmmm_env_mm,   &
          mm_link_atoms, mm_link_scale_factor, qmmm_links, added_charges, &
-         fist_scale_charge_link, green, poisson_section, print_section,  &
+         fist_scale_charge_link, poisson_section, print_section,  &
          print_gen, logger, mm_el_pot_radius_corr, super_cell)
     para_env => globenv%para_env
     iw = globenv%scr
@@ -308,7 +304,7 @@ CONTAINS
        qmmm_env_qm%qmmm_link       = qmmm_link
        qmmm_env_qm%num_qm_atoms = size(qm_atom_index)
        qmmm_env_qm%num_mm_atoms = size(mm_atom_index)
-       IF (cp_should_output(logger%iter_info,print_gen,error=error).AND.&
+       IF (BTEST(cp_print_key_should_output(logger%iter_info,print_gen,error=error),cp_p_file).AND.&
             logger%para_env%mepos==logger%para_env%source) THEN
           WRITE(iw,'(A,I6)')" Number of QM atoms: ",qmmm_env_qm%num_qm_atoms 
           WRITE(iw,'(A,I6)')" Number of MM atoms: ",qmmm_env_qm%num_mm_atoms
@@ -569,7 +565,7 @@ CONTAINS
     iw = globenv%scr
     logger => cp_error_get_logger(error)
     print_key => section_vals_get_subs_vals(qmmm_section,"print%qmmm_charges",error=error)
-    IF (cp_should_output(logger%iter_info,print_key,error=error).AND.&
+    IF (BTEST(cp_print_key_should_output(logger%iter_info,print_key,error=error),cp_p_file).AND.&
          logger%para_env%mepos==logger%para_env%source) THEN 
        WRITE(iw,FMT="(/,T2,A)") REPEAT("-",73)
        WRITE(iw,FMT='(/5X,A)')"MM    POINT CHARGES GENERATING THE QM/MM ELECTROSTATIC POTENTIAL"
@@ -655,7 +651,7 @@ CONTAINS
     iw = globenv%scr
     logger => cp_error_get_logger(error)
     print_key => section_vals_get_subs_vals(qmmm_section,"print%qmmm_link_info",error=error)
-    IF (cp_should_output(logger%iter_info,print_key,error=error).AND.&
+    IF (BTEST(cp_print_key_should_output(logger%iter_info,print_key,error=error),cp_p_file).AND.&
          logger%para_env%mepos==logger%para_env%source) THEN 
        IF (ASSOCIATED(qmmm_links)) THEN
           WRITE(iw,FMT="(/,T2, A)") REPEAT("-",73)

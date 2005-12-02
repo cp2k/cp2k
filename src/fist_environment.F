@@ -41,7 +41,8 @@ MODULE fist_environment
   USE ewald_environment_types,         ONLY: ewald_environment_type, &
                                              ewald_env_create, &
                                              ewald_env_release, &
-                                             read_ewald_section
+                                             read_ewald_section,&
+                                             ewald_env_get, ewald_env_set
   USE ewald_pw_types,                  ONLY: ewald_pw_type, &
                                              ewald_pw_create, &
                                              ewald_pw_release
@@ -85,10 +86,6 @@ MODULE fist_environment
   USE qmmm_types,                      ONLY: qmmm_env_mm_type
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type
-  USE green_types,                     ONLY: greens_function_type,&
-                                             pw_green_release
-  USE green_methods,                   ONLY: pw_green_setup
-
   IMPLICIT NONE
 
   PRIVATE
@@ -138,7 +135,6 @@ SUBROUTINE fist_init ( fist_env, globenv, error )
   TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
   TYPE(atomic_kind_type), DIMENSION(:), &
     POINTER                                :: atomic_kind_set
-  TYPE(greens_function_type), POINTER                   :: green
   TYPE(cell_type), POINTER                 :: cell, cell_ref
   TYPE(cp_subsystem_type), POINTER         :: subsystem
   TYPE(mol_kind_new_list_type), POINTER    :: mol_kinds
@@ -168,7 +164,7 @@ SUBROUTINE fist_init ( fist_env, globenv, error )
 
   NULLIFY ( subsystem, molecule_kind_set, molecule_set, atomic_kind_set,&
             particle_set,atomic_kinds,particles,mols,mol_kinds,cell,cell_ref)
-  NULLIFY ( ewald_env, fist_nonbond_env, qmmm_env, cell_section, poisson_section, green)
+  NULLIFY ( ewald_env, fist_nonbond_env, qmmm_env, cell_section, poisson_section)
 
   cell_section => section_vals_get_subs_vals(globenv%input_file,&
        "FORCE_EVAL%SUBSYS%CELL",error=error)
@@ -180,8 +176,6 @@ SUBROUTINE fist_init ( fist_env, globenv, error )
        cell_section=cell_section)
   CALL get_cell (cell, abc=abc)
 
-  CALL pw_green_setup ( green, poisson_section, abc, error )
-
 ! Print the cell parameters ***
   CALL write_cell ( cell, globenv )
 
@@ -190,6 +184,7 @@ SUBROUTINE fist_init ( fist_env, globenv, error )
 
 ! Read the input section and set the ewald_env ***
   CALL read_ewald_section ( ewald_env, globenv, error )
+  CALL ewald_env_set(ewald_env, poisson_section=poisson_section, error=error)
 
 ! topology
   CALL get_fist_env (fist_env, qmmm=qmmm, qmmm_env=qmmm_env, error=error)
@@ -215,10 +210,9 @@ SUBROUTINE fist_init ( fist_env, globenv, error )
   CALL mol_new_list_release ( mols, error = error )
   CALL mol_kind_new_list_release ( mol_kinds, error = error )
 
-  CALL fist_init_subsys ( fist_env, subsystem, green, cell, cell_ref, use_ref_cell, &
+  CALL fist_init_subsys ( fist_env, subsystem, cell, cell_ref, use_ref_cell, &
                           fist_nonbond_env, ewald_env, globenv, error )
 
-  CALL pw_green_release(green, error=error)
   CALL cell_release(cell,error=error)
   CALL cell_release(cell_ref,error=error)
   CALL ewald_env_release ( ewald_env, error )
@@ -230,7 +224,7 @@ SUBROUTINE fist_init ( fist_env, globenv, error )
   END SUBROUTINE fist_init
 
 !   ***************************************************************************
-  SUBROUTINE fist_init_subsys ( fist_env, subsystem, green, cell, cell_ref, use_ref_cell, &
+  SUBROUTINE fist_init_subsys ( fist_env, subsystem, cell, cell_ref, use_ref_cell, &
                                 fist_nonbond_env, ewald_env, globenv, error )
 
 !   Purpose: Read the input and the database files for the setup of the
@@ -241,7 +235,6 @@ SUBROUTINE fist_init ( fist_env, globenv, error )
 !   ***************************************************************************
   TYPE ( fist_environment_type ), POINTER       :: fist_env
   TYPE ( cp_subsystem_type ), POINTER           :: subsystem
-  TYPE(greens_function_type), POINTER                   :: green
   TYPE ( cell_type ), POINTER                   :: cell, cell_ref
   TYPE ( fist_nonbond_env_type ), POINTER       :: fist_nonbond_env
   TYPE ( ewald_environment_type ), POINTER      :: ewald_env
@@ -307,7 +300,7 @@ SUBROUTINE fist_init ( fist_env, globenv, error )
                                  error=error )
 
 ! Initialize ewald grids
-  CALL ewald_pw_create ( ewald_pw, green, cell, cell_ref, ewald_env, error )
+  CALL ewald_pw_create ( ewald_pw, cell, cell_ref, ewald_env, error )
 
 ! Initialize self-interaction and neutralizing background
   CALL ewald_self ( ewald_env, atomic_kind_set, local_particles, &

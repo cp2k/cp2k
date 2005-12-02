@@ -55,7 +55,7 @@ MODULE bsse
        section_add_keyword, section_add_subsection, section_release,&
        section_vals_type,&
        section_vals_get_subs_vals, section_vals_get, section_vals_val_get
-  USE cp_output_handling, ONLY: cp_should_output
+  USE cp_output_handling, ONLY: cp_print_key_should_output, cp_p_file
   USE input_constants,                 ONLY: do_qs,&
                                              do_fist,&
                                              do_kg,&
@@ -84,9 +84,6 @@ MODULE bsse
                                              qs_env_release,&
                                              qs_environment_type,&
                                              set_qs_env
-  USE green_types,                     ONLY: greens_function_type,&
-                                             pw_green_release
-  USE green_methods,                   ONLY: pw_green_setup  
   USE qs_main,                         ONLY: quickstep_create_force_env
 
   IMPLICIT NONE
@@ -316,14 +313,13 @@ CONTAINS
     CHARACTER(LEN=default_string_length)     :: name
     TYPE(qs_environment_type), POINTER       :: qs_env    
     TYPE(section_vals_type), POINTER         :: force_env_section, poisson_section
-    TYPE(greens_function_type), POINTER                   :: green
     REAL(KIND=dp), DIMENSION(3)              :: abc
 
     failure = .FALSE.
     CALL section_vals_get(n_frags,n_repetition=num_of_frag,error=error)
     CPPostcondition(SIZE(conf)==num_of_frag,cp_failure_level,routineP,error,failure)
     NULLIFY(subsys_loc, subsys, particles, para_env, cell, atom_index, atom_type, tmplist,&
-         force_env_section, green, poisson_section)
+         force_env_section, poisson_section)
     force_env_section => section_vals_get_subs_vals(globenv%input_file,"FORCE_EVAL",error=error)
     poisson_section => section_vals_get_subs_vals(force_env_section,"DFT%POISSON_DFT",error=error)
     IF (.NOT.failure) THEN
@@ -471,7 +467,7 @@ CONTAINS
        logger => cp_error_get_logger(error)
        bsse_section => section_vals_get_subs_vals(globenv%input_file,"FORCE_EVAL%BSSE",error=error)
        print_info =>  section_vals_get_subs_vals(bsse_section,"PRINT%PROGRAM_RUN_INFO",error=error)
-       IF (cp_should_output(logger%iter_info,print_info,error=error).AND.&
+       IF (BTEST(cp_print_key_should_output(logger%iter_info,print_info,error=error),cp_p_file).AND.&
             logger%para_env%mepos==logger%para_env%source) THEN
           iw = globenv%scr
           WRITE (conf_s,*)conf ;         CALL compress(conf_s,full=.TRUE.)
@@ -515,7 +511,7 @@ CONTAINS
        logger => cp_error_get_logger(error)
        bsse_section => section_vals_get_subs_vals(globenv%input_file,"FORCE_EVAL%BSSE",error=error)
        print_info =>  section_vals_get_subs_vals(bsse_section,"PRINT%PROGRAM_RUN_INFO",error=error)
-       IF (cp_should_output(logger%iter_info,print_info,error=error).AND.&
+       IF (BTEST(cp_print_key_should_output(logger%iter_info,print_info,error=error),cp_p_file).AND.&
             logger%para_env%mepos==logger%para_env%source) THEN
           iw = globenv%scr
 

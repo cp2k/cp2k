@@ -29,7 +29,6 @@
 !!   SOURCE
 !****************************************************************************
 MODULE pw_spline_utils
-  USE coefficient_types,               ONLY: SQUARE
   USE cp_error_handling,               ONLY: cp_a_l,&
                                              cp_assert,&
                                              cp_assertion_failed,&
@@ -62,21 +61,20 @@ MODULE pw_spline_utils
                                              pw_sumup,&
                                              pw_copy,&
                                              pw_compare_debug,&
-                                             pw_create, pw_release
+                                             pw_create, pw_release,&
+                                             pw_integral_ab, pw_integral_aa, SQUARE
   USE pw_pool_types, ONLY: pw_pool_type, pw_pool_create_pw,&
        pw_pool_give_back_pw, pw_pool_retain, pw_pool_release
   USE simulation_cell,                 ONLY: cell_type
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE realspace_grid_types,            ONLY: rs_pw_to_cube
-  USE pws, ONLY: pw_integral_ab, pw_integral_aa
   USE input_section_types, ONLY: section_vals_type, section_vals_get_subs_vals,&
        section_vals_val_get
   USE input_keyword_types, only: keyword_type
   USE input_constants, ONLY: spline3_nopbc_interp, spline3_pbc_interp
-  USE cp_output_handling, ONLY: cp_should_output, cp_iter_string, cp_iterate,&
-       cp_add_iter_level, cp_rm_iter_level, cp_unitnr_for_output, &
-       cp_finished_output
+  USE cp_output_handling, ONLY: cp_print_key_should_output, cp_iter_string,&
+       cp_iterate, cp_add_iter_level, cp_rm_iter_level
   USE string_utilities, only: compress
   USE input_constants, ONLY: no_precond,precond_spl3_aint, precond_spl3_1,&
        precond_spl3_aint2, precond_spl3_2, precond_spl3_3
@@ -3775,7 +3773,8 @@ END SUBROUTINE pw_nn_compose_r
                 IF (eps_r_att<eps_r .AND. eps_x_att<eps_x) last=.TRUE.
              END IF
              CALL cp_iterate(logger%iter_info,last=last,error=error)
-             IF (cp_should_output(logger%iter_info,print_key,error=error).AND.&
+             IF (cp_print_key_should_output(logger%iter_info,&
+                  print_key,error=error)/=0.AND.&
                   logger%para_env%mepos==logger%para_env%source) THEN
                 WRITE (unit=cp_logger_get_default_unit_nr(logger,local=.false.),&
                      fmt="(i6,' eps_x=',e12.4,' eps_r=',e12.4)")&
@@ -4025,17 +4024,6 @@ END SUBROUTINE pw_nn_compose_r
        END IF
        CPPostconditionNoFail(success,cp_warning_level,routineP,error)
        CALL pw_spline_precond_release(precond,error=error)
-
-       print_key => section_vals_get_subs_vals(param_section,"spl_coeffs",&
-            error=error)
-       IF (cp_should_output(logger%iter_info,print_key,error=error)) THEN
-          unit_nr=cp_unitnr_for_output(logger=logger, print_key=print_key,&
-               extension=".cube", local=.false., log_filename=.true., error=error)
-          CALL rs_pw_to_cube(coeffs,unit_nr,&
-               logger%para_env%source==logger%para_env%mepos,"spl_coeffs")
-          CALL cp_finished_output(unit_nr,logger=logger, print_key=print_key,&
-               error=error)
-       END IF
 
 !FM       nullify(tst_pw)
 !FM       call pw_create(tst_pw, pw_fine_out%pw_grid, use_data=REALDATA3D,&

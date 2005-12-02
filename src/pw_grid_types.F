@@ -79,7 +79,7 @@ MODULE pw_grid_types
      LOGICAL :: have_g0                           ! whether I have G = [0,0,0]
      INTEGER :: first_gne0                        ! first g index /= 0 [1/2]
      INTEGER :: nglengths                         ! # different lengths/shells
-     INTEGER :: identifier                        ! tag of this grid
+     INTEGER :: id_nr                             ! tag of this grid
      INTEGER :: reference                         ! reference grid identifier
      INTEGER, DIMENSION ( : ), POINTER :: gidx    ! ref grid index
      INTEGER :: ref_count                         ! reference count

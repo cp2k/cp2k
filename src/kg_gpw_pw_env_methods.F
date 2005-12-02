@@ -59,8 +59,6 @@ MODULE kg_gpw_pw_env_methods
   USE gaussian_gridlevels,             ONLY: destroy_gaussian_gridlevel,&
                                              gaussian_gridlevel,&
                                              init_gaussian_gridlevel
-  USE green_methods,                   ONLY: pw_green_fn_rebuild,&
-                                             pw_green_setup
   USE kg_environment_types,            ONLY: get_kg_env,&
                                              kg_environment_type
   USE kg_gpw_collocate_den,            ONLY: calculate_rho_mol
@@ -96,7 +94,7 @@ MODULE kg_gpw_pw_env_methods
                                              PW_MODE_LOCAL,&
                                              pw_grid_type
   USE pw_grids,                        ONLY: create_gvectors,& 
-                                             pw_grid_construct,&
+                                             pw_grid_create,&
                                              pw_grid_release
   USE pw_pool_types,                   ONLY: pw_pool_create,&
                                              pw_pool_init_coeff,&
@@ -123,11 +121,9 @@ MODULE kg_gpw_pw_env_methods
                                              stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE green_types,                     ONLY: greens_function_type,&
-                                             pw_green_release,&
-                                             pw_green_retain,&
-                                             pw_green_create
   USE input_section_types,             ONLY: section_vals_type  
+  USE pw_poisson_types, ONLY: pw_poisson_type, pw_poisson_create, pw_poisson_release
+  USE pw_poisson_methods, only: pw_poisson_set
   IMPLICIT NONE
 
   PRIVATE
@@ -191,7 +187,6 @@ CONTAINS
 
     TYPE(atomic_kind_type), POINTER          :: atom_kind
     TYPE(cell_type), POINTER                 :: cell, cell_ref, cell_mol
-    TYPE(greens_function_type), POINTER      :: green
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(gto_basis_set_type), POINTER        :: basis_set
@@ -207,11 +202,12 @@ CONTAINS
     TYPE(rho_mol_blocks_type), DIMENSION(:),&
       POINTER                                :: rho_mol_blocks
     REAL(KIND=dp), DIMENSION(3)              :: abc
+    TYPE(pw_poisson_type), pointer :: poisson_env
 
     CALL timeset(routineN,"I","",handle)
 
     NULLIFY(cell,cell_ref,cell_mol,dft_control,para_env,particle_set,pw_env)
-    NULLIFY(atom_kind,basis_set,fm_mol_blocks,green)
+    NULLIFY(atom_kind,basis_set,fm_mol_blocks, poisson_env)
 
     failure = .FALSE.
     logger => cp_error_get_logger(error)
@@ -332,15 +328,15 @@ CONTAINS
       IF (cutoff(i) == dft_control%qs_control%cutoff) new_pw_mol%auxbas_grid=i
     END DO
 
-   ! complete init of green's function
-    CALL get_cell(cell_mol, abc=abc)
+   ! poisson_env initialization
+    CALL pw_poisson_create(poisson_env,error=error)
+    CALL pw_poisson_set(poisson_env,parameters=poisson_section,cell=cell_mol,&
+         pw_pools=new_pw_mol%pw_pools,use_level=new_pw_mol%auxbas_grid,&
+         error=error)
 
-    CALL pw_green_setup(green, poisson_section, abc, error )
+    CALL set_molbox_env(molbox_env=molbox_env_p,poisson_env=poisson_env)
+    CALL pw_poisson_release(poisson_env,error=error)
 
-    CALL pw_green_fn_rebuild(green,&
-            new_pw_mol%pw_pools(new_pw_mol%auxbas_grid)%pool,cell=cell_mol, para_env=para_env)
-    CALL set_molbox_env(molbox_env=molbox_env_p,green=green)
-    CALL pw_green_release(green, error=error)
     CALL cell_release(cell_mol,error=error)
 
    ! And now initialize the rho sructure for each molecule
@@ -491,9 +487,7 @@ CONTAINS
       blocking = .FALSE.
 
 !     igrid_level == 1
-       ALLOCATE(pw_grid_mol,STAT=istat)
-       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-       CALL pw_grid_construct(pw_grid_mol,MPI_COMM_SELF)
+       CALL pw_grid_create(pw_grid_mol,MPI_COMM_SELF)
 
 !FM       pw_grid_mol%para%rs_dims ( 1 ) = num_pe
 !FM       pw_grid_mol%para%rs_dims ( 2 ) = 1
@@ -512,7 +506,7 @@ CONTAINS
 
        ! assign a unique tag to this grid
        grid_tag = grid_tag + 1
-       pw_grid_mol % identifier = grid_tag
+       pw_grid_mol %id_nr = grid_tag
        pw_grid_mol% para % mode = PW_MODE_LOCAL
        pw_grid_mol% para % group_head = .TRUE.
 
@@ -649,9 +643,7 @@ CONTAINS
 
          DO igrid_level = 2,ngrid_level
 
-           ALLOCATE(pw_grid_mol,STAT=istat)
-           CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-           CALL pw_grid_construct(pw_grid_mol,MPI_COMM_SELF)
+           CALL pw_grid_create(pw_grid_mol,MPI_COMM_SELF)
 !FM           pw_grid_mol%para%rs_dims ( 1 ) = num_pe
 !FM           pw_grid_mol%para%rs_dims ( 2 ) = 1
            IF ( dft_control % qs_control % pw_grid_opt % spherical ) THEN
@@ -691,8 +683,8 @@ CONTAINS
 
          ! assign a unique tag to this grid
            grid_tag = grid_tag + 1
-           pw_grid_mol % identifier = grid_tag
-           pw_grid_mol % reference  = ref_pw_grid_mol%identifier
+           pw_grid_mol %id_nr = grid_tag
+           pw_grid_mol % reference  = ref_pw_grid_mol%id_nr
          ! this grid is treated locally
            pw_grid_mol% para % mode = PW_MODE_LOCAL
            pw_grid_mol% para % group_head = .TRUE.

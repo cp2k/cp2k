@@ -38,7 +38,7 @@ MODULE mt_util
                                              timestop
   USE simulation_cell,                 ONLY: cell_type
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE pw_grids, ONLY: pw_grid_setup, pw_grid_construct, pw_grid_release
+  USE pw_grids, ONLY: pw_grid_setup, pw_grid_create, pw_grid_release
   USE pw_pool_types, ONLY: pw_pool_create, pw_pool_release
 
   IMPLICIT NONE
@@ -67,14 +67,13 @@ CONTAINS
 !!   SOURCE
 !******************************************************************************
   SUBROUTINE MTin_create_screen_fn(screen_function, pw_pool, method, alpha, rel_cutoff, cell, &
-       special_dimension, slab_size, para_env, super_ref_pw_grid, error)
+       special_dimension, slab_size, super_ref_pw_grid, error)
     TYPE(pw_type), POINTER                   :: screen_function
     TYPE(pw_pool_type), POINTER              :: pw_pool
     TYPE (pw_grid_type), POINTER             :: super_ref_pw_grid
     INTEGER, INTENT(IN)                      :: method, special_dimension
     REAL(KIND=dp), INTENT(in)                :: alpha, rel_cutoff, slab_size
     TYPE(cell_type), POINTER                 :: cell
-    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 

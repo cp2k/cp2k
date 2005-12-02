@@ -32,7 +32,7 @@ MODULE force_env_methods
                                              cp_error_message,&
                                              cp_error_type, &
                                              cp_precondition_failed
-  USE cp_output_handling,              ONLY: cp_should_output
+  USE cp_output_handling,              ONLY: cp_print_key_should_output, cp_p_file
   USE cp_log_handling,                 ONLY: cp_failure_level,&
                                              cp_fatal_level,&
                                              cp_logger_type,&
@@ -712,7 +712,7 @@ RECURSIVE SUBROUTINE qmmm_energy_and_forces(force_env,calc_force,error)
                      error=error)
   print_key => section_vals_get_subs_vals(qmmm_section,"print%fist_derivatives",&
        error=error)
-  IF (cp_should_output(logger%iter_info,print_key,error=error).AND.&
+  IF (BTEST(cp_print_key_should_output(logger%iter_info,print_key,error=error),cp_p_file).AND.&
        logger%para_env%mepos==logger%para_env%source) THEN
      WRITE (unit=cp_logger_get_default_unit_nr(logger,local=.FALSE.),&
           fmt='(/1X,A,F15.9)')"Energy after Fist calculation: ",energy_mm
@@ -738,7 +738,7 @@ RECURSIVE SUBROUTINE qmmm_energy_and_forces(force_env,calc_force,error)
 
   print_key => section_vals_get_subs_vals(qmmm_section,"print%qs_derivatives",&
        error=error)
-  IF (cp_should_output(logger%iter_info,print_key,error=error).AND.&
+  IF (BTEST(cp_print_key_should_output(logger%iter_info,print_key,error=error),cp_p_file).AND.&
        logger%para_env%mepos==logger%para_env%source) THEN
      WRITE (unit=cp_logger_get_default_unit_nr(logger,local=.FALSE.),&  
           fmt='(/1X,A,F15.9)')"Energy after QS calculation: ",energy_qm
@@ -784,7 +784,7 @@ RECURSIVE SUBROUTINE qmmm_energy_and_forces(force_env,calc_force,error)
 
   print_key => section_vals_get_subs_vals(qmmm_section,"print%qmmm_derivatives",&
        error=error)
-  IF (cp_should_output(logger%iter_info,print_key,error=error).AND.&
+  IF (BTEST(cp_print_key_should_output(logger%iter_info,print_key,error=error),cp_p_file).AND.&
        logger%para_env%mepos==logger%para_env%source) THEN
      WRITE (unit=cp_logger_get_default_unit_nr(logger,local=.FALSE.),&  
           fmt='(/1X,A,F15.9)')"Energy after QMMM calculation: ",energy_qm

@@ -43,11 +43,7 @@ MODULE xas_control
   USE qs_loc_control,                  ONLY: localized_wfn_control_create,&
                                              localized_wfn_control_release,&
                                              localized_wfn_control_type,&
-                                             read_loc_section,&
-                                             read_loc_control_old
-  USE qs_parser,                       ONLY: read_object,&
-                                             stop_parser,&
-                                             test_object
+                                             read_loc_section
   USE string_utilities,                ONLY: uppercase,&
                                              xstring
   USE termination,                     ONLY: stop_memory,&
@@ -113,7 +109,7 @@ MODULE xas_control
 
 ! *** Public subroutines ***
 
-  PUBLIC :: read_xas_control_new, xas_control_create, &
+  PUBLIC :: read_xas_control, xas_control_create, &
             xas_control_release, xas_control_retain
 
 !!***
@@ -123,7 +119,7 @@ CONTAINS
 
 !   ***************************************************************************
 
-  SUBROUTINE read_xas_control_new(xas_control,globenv, error)
+  SUBROUTINE read_xas_control(xas_control,globenv, error)
 
     TYPE(xas_control_type)                   :: xas_control
     TYPE(global_environment_type)            :: globenv
@@ -302,7 +298,7 @@ CONTAINS
       NULLIFY(xas_control%list_cubes)
     ENDIF
 
-  END SUBROUTINE read_xas_control_new
+  END SUBROUTINE read_xas_control
 
 
 !****f* xas_control/xas_control_create/retain/release *

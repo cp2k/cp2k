@@ -37,15 +37,18 @@ MODULE external_potential_types
                                              nso
   USE orbital_transformation_matrices, ONLY: orbtramat
   USE periodic_table,                  ONLY: ptable
-  USE qs_parser,                       ONLY: finish_parser,&
-                                             read_object,&
-                                             search_object,&
-                                             start_parser,&
-                                             test_object
+  USE cp_parser,                       ONLY: parser_release,&
+                                             parser_get_object,&
+                                             parser_search_string,&
+                                             parser_create,&
+                                             parser_test_next_token,&
+                                             cp_parser_type
   USE string_utilities,                ONLY: uppercase
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
-
+  USE input_section_types, ONLY: section_vals_val_get, section_vals_type,&
+       section_vals_get_subs_vals
+#include "cp_common_uses.h"
   IMPLICIT NONE
 
   PRIVATE
@@ -877,7 +880,7 @@ CONTAINS
 ! *****************************************************************************
 
   SUBROUTINE read_all_potential(element_symbol,potential_name,potential,&
-                                zeff_correction, globenv)
+                                zeff_correction, globenv,error)
 
 !   Purpose: Read an atomic all-electron potential data set.
 
@@ -890,6 +893,7 @@ CONTAINS
     REAL(KIND=dp)                            :: zeff_correction
     TYPE(global_environment_type), &
       INTENT(IN)                             :: globenv
+    TYPE(cp_error_type), INTENT(inout), optional :: error
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "read_all_potential"
 
@@ -899,20 +903,26 @@ CONTAINS
     CHARACTER(LEN=LEN(element_symbol)+2)     :: symbol2
     CHARACTER(LEN=LEN(potential_name))       :: apname
     CHARACTER(LEN=LEN(potential_name)+2)     :: apname2
+    CHARACTER(len=default_string_length)     :: potential_file_name
     INTEGER                                  :: istat, l, strlen1, strlen2
     INTEGER, DIMENSION(:), POINTER           :: elec_conf
     LOGICAL                                  :: found
     REAL(KIND=dp)                            :: alpha, r
+    TYPE(cp_parser_type), pointer :: parser
 
 !   ---------------------------------------------------------------------------
 
     line2 = ""
     symbol2 = ""
     apname2 = ""
+    nullify(parser)
 
     potential%name = potential_name
 
-    CALL start_parser(globenv%potential_file_name,globenv)
+    CALL section_vals_val_get(globenv%input_file,"FORCE_EVAL%DFT%POTENTIAL_FILE_NAME",&
+         c_val=potential_file_name,error=error)
+    CALL parser_create(parser,potential_file_name,&
+         para_env=globenv%para_env,error=error)
 
 !   *** Search for the requested potential in the potential file   ***
 !   *** until the potential is found or the end of file is reached ***
@@ -922,7 +932,7 @@ CONTAINS
 
     search_loop: DO
 
-      CALL search_object(apname,.TRUE.,found,line)
+      CALL parser_search_string(parser,apname,.TRUE.,found,line)
 
       IF (found) THEN
 
@@ -947,11 +957,11 @@ CONTAINS
 
           l = 0
           CALL reallocate(elec_conf,0,l)
-          CALL read_object(elec_conf(l),newline=.TRUE.)
-          DO WHILE (test_object() == "INT")
+          CALL parser_get_object(parser,elec_conf(l),newline=.TRUE.)
+          DO WHILE (parser_test_next_token(parser) == "INT")
             l = l + 1
             CALL reallocate(elec_conf,0,l)
-            CALL read_object(elec_conf(l))
+            CALL parser_get_object(parser,elec_conf(l))
           END DO
 
           CALL reallocate(potential%elec_conf,0,l)
@@ -967,7 +977,7 @@ CONTAINS
 !         *** Read r(loc) to define the exponent of the core charge    ***
 !         *** distribution and calculate the corresponding coefficient ***
 
-          CALL read_object(r,newline=.TRUE.)
+          CALL parser_get_object(parser,r,newline=.TRUE.)
 
           alpha = 1.0_dp/(2.0_dp*r**2)
 
@@ -986,20 +996,20 @@ CONTAINS
                           "The requested atomic potential <"//&
                           TRIM(potential_name)//&
                           "> was not found in the potential file <"//&
-                          TRIM(globenv%potential_file_name)//">")
+                          TRIM(potential_file_name)//">")
 
       END IF
 
     END DO search_loop
 
-    CALL finish_parser()
+    CALL parser_release(parser,error=error)
 
   END SUBROUTINE read_all_potential
 
 ! *****************************************************************************
 
   SUBROUTINE read_elp_potential(element_symbol,potential_name,potential,&
-                                globenv)
+                                globenv,error)
 
 !   Purpose: Read an effective charge potential data set.
 !   History: creation 22-09-2002, GT
@@ -1010,6 +1020,7 @@ CONTAINS
     TYPE(elp_potential_type), POINTER        :: potential
     TYPE(global_environment_type), &
       INTENT(IN)                             :: globenv
+    TYPE(cp_error_type), INTENT(inout), optional :: error
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "read_elp_potential"
 
@@ -1019,10 +1030,12 @@ CONTAINS
     CHARACTER(LEN=LEN(element_symbol)+2)     :: symbol2
     CHARACTER(LEN=LEN(potential_name))       :: apname
     CHARACTER(LEN=LEN(potential_name)+2)     :: apname2
+    CHARACTER(len=default_string_length)     :: potential_file_name
     INTEGER                                  :: i, j, maxlppl, n, nalpha_ppl, &
                                                 nmax, strlen1, strlen2
     LOGICAL                                  :: found
     REAL(KIND=dp)                            :: alpha, qeff
+    TYPE(cp_parser_type), pointer :: parser
 
 !   ---------------------------------------------------------------------------
 
@@ -1031,11 +1044,14 @@ CONTAINS
     apname2 = ""
     nalpha_ppl = 0
     nmax = 0
+    nullify(parser)
     
-
     potential%name = potential_name
 
-    CALL start_parser(globenv%potential_file_name,globenv)
+    CALL section_vals_val_get(globenv%input_file,"FORCE_EVAL%DFT%POTENTIAL_FILE_NAME",&
+         c_val=potential_file_name,error=error)
+    CALL parser_create(parser,potential_file_name,&
+         para_env=globenv%para_env,error=error)
 
 !   *** Search for the requested potential in the potential file   ***
 !   *** until the potential is found or the end of file is reached ***
@@ -1045,7 +1061,7 @@ CONTAINS
 
     search_loop: DO
 
-      CALL search_object(TRIM(apname),.TRUE.,found,line)
+      CALL parser_search_string(parser,TRIM(apname),.TRUE.,found,line)
 
       IF (found) THEN
 
@@ -1066,19 +1082,19 @@ CONTAINS
 
 !         *** Read the effective charge qeff ***
 
-          CALL read_object(qeff,newline=.TRUE.)
+          CALL parser_get_object(parser,qeff,newline=.TRUE.)
 
           potential%qeff = qeff
 
 !         *** read alpha and calculate the corresponding coefficient ***
 
-          CALL read_object(alpha,newline=.TRUE.)
+          CALL parser_get_object(parser,alpha,newline=.TRUE.)
 
           potential%alpha_core_charge = alpha
           potential%ccore_charge = potential%qeff*SQRT((alpha/pi)**3)
           potential%cerf_ppl = potential%qeff*SQRT((alpha/pi)**3)
 
-          CALL read_object(nalpha_ppl,newline=.TRUE.)
+          CALL parser_get_object(parser,nalpha_ppl,newline=.TRUE.)
 
           potential%nalpha_ppl = nalpha_ppl
 
@@ -1086,15 +1102,15 @@ CONTAINS
             CALL reallocate(potential%alpha_ppl,1,nalpha_ppl)
             CALL reallocate(potential%nexp_ppl,1,nalpha_ppl)
             DO i=1,nalpha_ppl
-              CALL read_object(potential%alpha_ppl(i),newline=.TRUE.)
-              CALL read_object(n)
+              CALL parser_get_object(parser,potential%alpha_ppl(i),newline=.TRUE.)
+              CALL parser_get_object(parser,n)
               potential%nexp_ppl(i)=n
               IF (n > nmax) THEN
                 nmax = n
                 CALL reallocate(potential%cexp_ppl,1,nalpha_ppl,1,nmax)
               END IF
               DO j=1,n
-                 CALL read_object(potential%cexp_ppl(i,j))
+                 CALL parser_get_object(parser,potential%cexp_ppl(i,j))
                  potential%cexp_ppl(i,j) = (2.0_dp*potential%alpha_ppl(i))**(j - 1)*&
                                            potential%cexp_ppl(i,j)
               END DO
@@ -1126,20 +1142,20 @@ CONTAINS
                           "The requested atomic potential <"//&
                           TRIM(potential_name)//&
                           "> was not found in the potential file <"//&
-                          TRIM(globenv%potential_file_name)//">",globenv)
+                          TRIM(potential_file_name)//">",globenv)
 
       END IF
 
     END DO search_loop
 
-    CALL finish_parser()
+    CALL parser_release(parser)
 
   END SUBROUTINE read_elp_potential
 
 ! *****************************************************************************
 
   SUBROUTINE read_gth_potential(element_symbol,potential_name,potential,&
-                                zeff_correction, globenv)
+                                zeff_correction, globenv,error)
 
 !   Purpose: Read an atomic GTH potential data set.
 
@@ -1157,6 +1173,7 @@ CONTAINS
     REAL(KIND=dp), INTENT(IN)                :: zeff_correction
     TYPE(global_environment_type), &
       INTENT(IN)                             :: globenv
+    TYPE(cp_error_type), INTENT(inout), optional :: error
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "read_gth_potential"
 
@@ -1166,6 +1183,7 @@ CONTAINS
     CHARACTER(LEN=LEN(element_symbol)+2)     :: symbol2
     CHARACTER(LEN=LEN(potential_name))       :: apname
     CHARACTER(LEN=LEN(potential_name)+2)     :: apname2
+    CHARACTER(len=default_string_length)     :: potential_file_name
     INTEGER                                  :: i, istat, j, l, lppnl, &
                                                 lprj_ppnl_max, maxlppl, n, &
                                                 nppnl, nprj_ppnl, &
@@ -1176,16 +1194,22 @@ CONTAINS
     REAL(KIND=dp)                            :: alpha, r
     REAL(KIND=dp), DIMENSION(:, :, :), &
       POINTER                                :: hprj_ppnl
+    TYPE(cp_parser_type),POINTER :: parser
 
 !   ---------------------------------------------------------------------------
 
     line2 = ""
     symbol2 = ""
     apname2 = ""
+    nullify(parser)
 
     potential%name = potential_name
+    
 
-    CALL start_parser(globenv%potential_file_name,globenv)
+    CALL section_vals_val_get(globenv%input_file,"FORCE_EVAL%DFT%POTENTIAL_FILE_NAME",&
+         c_val=potential_file_name,error=error)
+    CALL parser_create(parser,potential_file_name,&
+         para_env=globenv%para_env,error=error)
 
 !   *** Search for the requested potential in the potential file   ***
 !   *** until the potential is found or the end of file is reached ***
@@ -1195,7 +1219,7 @@ CONTAINS
 
     search_loop: DO
 
-      CALL search_object(TRIM(apname),.TRUE.,found,line)
+      CALL parser_search_string(parser,TRIM(apname),.TRUE.,found,line)
 
       IF (found) THEN
 
@@ -1219,11 +1243,11 @@ CONTAINS
           NULLIFY (elec_conf)
           l = 0
           CALL reallocate(elec_conf,0,l)
-          CALL read_object(elec_conf(l),newline=.TRUE.)
-          DO WHILE (test_object() == "INT")
+          CALL parser_get_object(parser,elec_conf(l),newline=.TRUE.)
+          DO WHILE (parser_test_next_token(parser) == "INT")
             l = l + 1
             CALL reallocate(elec_conf,0,l)
-            CALL read_object(elec_conf(l))
+            CALL parser_get_object(parser,elec_conf(l))
           END DO
 
           CALL reallocate(potential%elec_conf,0,l)
@@ -1239,7 +1263,7 @@ CONTAINS
 !         *** Read r(loc) to define the exponent of the core charge    ***
 !         *** distribution and calculate the corresponding coefficient ***
 
-          CALL read_object(r,newline=.TRUE.)
+          CALL parser_get_object(parser,r,newline=.TRUE.)
 
           alpha = 1.0_dp/(2.0_dp*r**2)
 
@@ -1252,12 +1276,12 @@ CONTAINS
 !         *** Read the parameters for the local part ***
 !         *** of the GTH pseudopotential (ppl)       ***
 
-          CALL read_object(n)
+          CALL parser_get_object(parser,n)
           potential%nexp_ppl = n
           CALL reallocate(potential%cexp_ppl,1,n)
 
           DO i=1,n
-            CALL read_object(potential%cexp_ppl(i))
+            CALL parser_get_object(parser,potential%cexp_ppl(i))
             potential%cexp_ppl(i) = (2.0_dp*potential%alpha_ppl)**(i - 1)*&
                                     potential%cexp_ppl(i)
           END DO
@@ -1269,7 +1293,7 @@ CONTAINS
 !         *** Read the parameters for the non-local  ***
 !         *** part of the GTH pseudopotential (ppnl) ***
 
-          CALL read_object(n,newline=.TRUE.)
+          CALL parser_get_object(parser,n,newline=.TRUE.)
 
           potential%lppnl = n - 1
           potential%nppnl = 0
@@ -1295,9 +1319,9 @@ CONTAINS
             nprj_ppnl_max = 0
 
             DO l=0,lppnl
-              CALL read_object(r,newline=.TRUE.)
+              CALL parser_get_object(parser,r,newline=.TRUE.)
               potential%alpha_ppnl(l) = 1.0_dp/(2.0_dp*r**2)
-              CALL read_object(nprj_ppnl)
+              CALL parser_get_object(parser,nprj_ppnl)
               potential%nprj_ppnl(l) = nprj_ppnl
               nppnl = nppnl + nprj_ppnl*nco(l)
               IF (nprj_ppnl > nprj_ppnl_max) THEN
@@ -1308,12 +1332,12 @@ CONTAINS
               END IF
               DO i=1,nprj_ppnl
                 IF (i == 1) THEN
-                  CALL read_object(hprj_ppnl(i,i,l))
+                  CALL parser_get_object(parser,hprj_ppnl(i,i,l))
                 ELSE
-                  CALL read_object(hprj_ppnl(i,i,l),newline=.TRUE.)
+                  CALL parser_get_object(parser,hprj_ppnl(i,i,l),newline=.TRUE.)
                 END IF
                 DO j=i+1,nprj_ppnl
-                  CALL read_object(hprj_ppnl(i,j,l))
+                  CALL parser_get_object(parser,hprj_ppnl(i,j,l))
                 END DO
               END DO
               IF (nprj_ppnl > 1) THEN
@@ -1356,13 +1380,13 @@ CONTAINS
                           "The requested atomic potential <"//&
                           TRIM(potential_name)//&
                           "> was not found in the potential file <"//&
-                          TRIM(globenv%potential_file_name)//">",globenv)
+                          TRIM(potential_file_name)//">",globenv)
 
       END IF
 
     END DO search_loop
 
-    CALL finish_parser()
+    CALL parser_release(parser,error=error)
 
   END SUBROUTINE read_gth_potential
 

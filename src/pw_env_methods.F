@@ -55,9 +55,6 @@ MODULE pw_env_methods
   USE gaussian_gridlevels,             ONLY: destroy_gaussian_gridlevel,&
                                              gaussian_gridlevel,&
                                              init_gaussian_gridlevel
-  USE green_methods,                   ONLY: pw_green_fn_rebuild,&
-                                             setup_MT_ref_grid
-  USE green_types,                     ONLY: greens_function_type
   USE kinds,                           ONLY: dp
   USE l_utils,                         ONLY: init_l_info,&
                                              l_info_release,&
@@ -68,7 +65,7 @@ MODULE pw_env_methods
                                              HALFSPACE,&
                                              pw_grid_type
   USE pw_grids,                        ONLY: pw_grid_change,&
-                                             pw_grid_construct,&
+                                             pw_grid_create,&
                                              pw_grid_release,&
                                              pw_grid_setup
   USE pw_pool_types,                   ONLY: pw_pool_create,&
@@ -85,7 +82,9 @@ MODULE pw_env_methods
                                              stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
-
+  USE pw_poisson_types, ONLY: setup_MT_ref_grid, pw_poisson_type, pw_poisson_create
+  USE pw_poisson_methods, ONLY: pw_poisson_set
+  USE input_section_types, ONLY: section_vals_type, section_vals_get_subs_vals
   IMPLICIT NONE
   PRIVATE
 
@@ -136,10 +135,13 @@ SUBROUTINE pw_env_create(pw_env,qs_env,error)
 
   failure=.FALSE.
   
-  ALLOCATE(pw_env, stat=stat)
-  CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+  CPPrecondition(.NOT.ASSOCIATED(pw_env),cp_failure_level,routineP,error,failure)
   IF (.NOT. failure) THEN
-     NULLIFY(pw_env%pw_pools, pw_env%gridlevel_info,&
+     ALLOCATE(pw_env, stat=stat)
+     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+  END IF
+  IF (.NOT. failure) THEN
+     NULLIFY(pw_env%pw_pools, pw_env%gridlevel_info,pw_env%poisson_env, &
           pw_env%l_info, pw_env%l_info_rho0, pw_env%cube_info, pw_env%rs_pools)
      pw_env%auxbas_grid=-1
      pw_env%ref_count=1
@@ -207,12 +209,13 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
     TYPE(cp_rs_pool_p_type), DIMENSION(:), &
       POINTER                                :: rs_pools
     TYPE(dft_control_type), POINTER          :: dft_control
-    TYPE(greens_function_type), POINTER      :: green
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
-    TYPE(pw_grid_type), POINTER              :: old_pw_grid, pw_grid
+    TYPE(pw_grid_type), POINTER              :: old_pw_grid, pw_grid, &
+         mt_super_ref_grid
     TYPE(pw_pool_p_type), DIMENSION(:), &
       POINTER                                :: pw_pools
     TYPE(rho0_mpole_type), POINTER           :: nddo_mpole, rho0_mpole
+    TYPE(section_vals_type), POINTER :: input, poisson_section
 
   CALL timeset(routineN,"I","",handle)
 
@@ -224,7 +227,8 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
 
   failure=.FALSE.
   NULLIFY(cutoff,cell,pw_grid,old_pw_grid,dft_control,atomic_kind_set,&
-          pw_pools,rho0_mpole,rs_pools, para_env,cell_ref, green)
+          pw_pools,rho0_mpole,rs_pools, para_env,cell_ref, mt_super_ref_grid,&
+          input,poisson_section)
   logger => cp_error_get_logger(error)
   pw_grid_information=logger%print_keys%pw_grid_information
  
@@ -292,7 +296,8 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
   IF (.NOT.failure) THEN
      CALL get_qs_env(qs_env=qs_env,&
           dft_control=dft_control,atomic_kind_set=atomic_kind_set,&
-          cell_ref=cell_ref, green=green, cell=cell,para_env=para_env)
+          cell_ref=cell_ref,cell=cell,para_env=para_env, input=input,&
+          error=error)
      rel_cutoff = dft_control%qs_control%relative_cutoff
      cutoff => dft_control%qs_control%e_cutoff
      ngrid_level = SIZE(cutoff)
@@ -325,15 +330,14 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
         cutilev = -cutoff(1)
         grid_span = HALFSPACE
      END IF
-     CALL setup_MT_ref_grid(green, cutilev, grid_span, cell_ref, para_env, &
-          old_pw_grid, qs_env%input, ngrid_level, error) 
+     CALL setup_MT_ref_grid(mt_super_ref_grid, cutilev, grid_span, cell_ref, para_env, &
+          qs_env%input, ngrid_level, error) 
+     old_pw_grid => mt_super_ref_grid
      !
      ! Setup of the multi-grid pw_grid and pw_pools
      !
      DO igrid_level=1,ngrid_level 
-        ALLOCATE(pw_grid,stat=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-        CALL pw_grid_construct(pw_grid,para_env%group)
+        CALL pw_grid_create(pw_grid,para_env%group)
       
         IF ( dft_control % qs_control % pw_grid_opt % spherical ) THEN
            cutilev = cutoff(igrid_level)
@@ -402,10 +406,16 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
         IF (cutoff(i) == dft_control%qs_control%cutoff) pw_env%auxbas_grid=i
      END DO
 
-     ! complete init of green's function
-     CALL pw_green_fn_rebuild(green,&
-          pw_env%pw_pools(pw_env%auxbas_grid)%pool, cell=cell, para_env=para_env)
-
+     ! complete init of the poisson_env
+     IF (.NOT.ASSOCIATED(pw_env%poisson_env)) THEN
+        CALL pw_poisson_create(pw_env%poisson_env,error=error)
+     END IF
+     poisson_section => section_vals_get_subs_vals(input,"DFT%POISSON_DFT",&
+          error=error)
+     CALL pw_poisson_set(pw_env%poisson_env,cell=cell,pw_pools=pw_env%pw_pools,&
+          parameters=poisson_section,mt_super_ref_pw_grid=mt_super_ref_grid,&
+          use_level=pw_env%auxbas_grid,error=error)
+     CALL pw_grid_release(mt_super_ref_grid,error=error)
 !
 !
 !    determine the maximum radii for mapped gaussians, needed to
@@ -593,10 +603,9 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
       DO igrid_level = 1, SIZE ( pw_pools )
         CALL pw_grid_change ( cell, pw_pools ( igrid_level ) % pool % pw_grid )
       ENDDO
-      CALL pw_green_fn_rebuild(green,&
-          pw_env%pw_pools(pw_env%auxbas_grid)%pool, cell=cell, para_env=para_env)
+      CALL pw_poisson_set(pw_env%poisson_env,cell=cell,pw_pools=pw_env%pw_pools,&
+           error=error)
   ENDIF
-  CALL pw_grid_release ( green%super_ref_pw_grid, error=error)     
 
   CALL timestop(0.0_dp,handle)
 

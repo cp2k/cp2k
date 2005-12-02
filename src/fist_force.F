@@ -34,7 +34,7 @@ MODULE fist_force
                                              cp_to_string,&
                                              cp_logger_type,&
                                              cp_warning_level
-  USE cp_output_handling, ONLY: cp_should_output
+  USE cp_output_handling, ONLY: cp_print_key_should_output, cp_p_file
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE atomic_kind_types,               ONLY: atomic_kind_type
   USE distribution_1d_types,           ONLY: distribution_1d_type
@@ -554,7 +554,8 @@ SUBROUTINE print_fist(print_section, atomic_kind_set, particle_set, cell, error)
   NULLIFY(logger,print_key)
   logger => cp_error_get_logger(error)
   print_key => section_vals_get_subs_vals(print_section,"dipole",error=error)  
-  IF (cp_should_output(logger%iter_info,print_key,error=error).AND.&
+  IF (BTEST(cp_print_key_should_output(logger%iter_info,print_key,error=error),&
+       cp_p_file).AND.&
        logger%para_env%mepos==logger%para_env%source) THEN 
 !     CALL fist_dipole(atomic_kind_set, particle_set, cell, error)
   END IF

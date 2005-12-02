@@ -886,6 +886,10 @@ CONTAINS
 !!     -
 !!
 !!   INPUTS
+!!     - fromWhere: routine where the error happened
+!!     - message: the message to write out (UNIMPLEMENTED is added to it)
+!!     - error_level: the error level of this error, defaults to 
+!!       cp_failure_level
 !!     - error: variable to control error logging, stopping,... 
 !!       see module cp_error_handling 
 !!

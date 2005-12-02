@@ -37,7 +37,7 @@ MODULE qmmm_gaussian_init
                                              cp_to_string,&
                                              cp_warning_level,&
                                              cp_logger_type
-  USE cp_output_handling, ONLY: cp_should_output
+  USE cp_output_handling, ONLY: cp_print_key_should_output,cp_p_file
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE kinds,                           ONLY: default_string_length,&
                                              dp
@@ -233,7 +233,7 @@ CONTAINS
           !
           ! End of gaussian initialization...
        CASE DEFAULT
-          IF (cp_should_output(logger%iter_info,print_gen,error=error).AND.&
+          IF (BTEST(cp_print_key_should_output(logger%iter_info,print_gen,error=error),cp_p_file).AND.&
                logger%para_env%mepos==logger%para_env%source) &
           WRITE(*,'(A)')" QMMM Gaussian Data Not Initialized!"
        END SELECT

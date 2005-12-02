@@ -17,8 +17,6 @@
 !****************************************************************************
 MODULE xc_atom 
 
-  USE cp_control_types,                ONLY: dft_control_type,&
-                                             xc_control_type
   USE input_constants,                 ONLY: tddfpt_triplet
   USE cp_error_handling,               ONLY: cp_a_l,&
                                              cp_assert,&
@@ -58,18 +56,17 @@ MODULE xc_atom
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE xc,                              ONLY: divide_by_norm_drho,&
-                                             xc_calc_2nd_deriv_new
+                                             xc_calc_2nd_deriv
   USE xc_derivative_desc,              ONLY: MAX_DERIVATIVE_DESC_LENGTH
   USE xc_derivative_set_types,         ONLY: xc_dset_get_derivative,&
                                              xc_derivative_set_type
   USE xc_derivative_types,             ONLY: xc_derivative_get,&
                                              xc_derivative_type
-  USE xc_derivatives,                  ONLY: xc_functional_eval
+  USE xc_derivatives,                  ONLY: xc_functionals_eval
   USE xc_rho_cflags_types,             ONLY: xc_rho_cflags_type
   USE xc_rho_set_types,                ONLY: xc_rho_set_get,&
                                              xc_rho_set_type
-  USE xc_utils,                        ONLY: xc_eval_yat
-
+  USE input_section_types, ONLY: section_vals_type, section_vals_get_subs_vals
  IMPLICIT NONE
 
   PRIVATE
@@ -84,7 +81,7 @@ CONTAINS
 
 !******************************************************************************
 
-  SUBROUTINE vxc_of_r_new(xc_control,rho_set,deriv_set,deriv_order,needs,w,&
+  SUBROUTINE vxc_of_r_new(xc_fun_section,rho_set,deriv_set,deriv_order,needs,w,&
                           lsd,na,nr,exc,vxc,vxg,energy_only,error)
 
 ! This routine updates rho_set by giving to it the rho and drho that are needed.
@@ -97,7 +94,7 @@ CONTAINS
 ! Afterwords the arrays containing the derivatives are put to zero so that the routine
 ! can safely be called for the next radial point ir_pnt
 
-    TYPE(xc_control_type), POINTER                :: xc_control
+    TYPE(section_vals_type), POINTER              :: xc_fun_section
     TYPE(xc_rho_set_type), POINTER                :: rho_set
     TYPE(xc_derivative_set_type), POINTER         :: deriv_set
     INTEGER, INTENT(in)                           :: deriv_order
@@ -132,27 +129,13 @@ CONTAINS
                 needs%drhoa_drhob.OR.needs%drho.OR.needs%norm_drho)
 
 !  Calculate the derivatives
-    IF( ANY(xc_control%functionals_new /= 0) ) THEN
-       DO i=1,SIZE(xc_control%functionals)
-          CALL xc_eval_yat(xc_control%functionals_new(i), &
-               lsd=lsd,&
-               rho_set=rho_set, &
-               deriv_set=deriv_set,&
-               deriv_order=deriv_order, &
-               xparam=xc_control%xa_param,&
-               error=error)
-       END DO
-    ELSE
-      DO i=1,SIZE(xc_control%functionals)
-          ! TO be changed with the version in xc_utils
-         CALL xc_functional_eval(xc_control%functionals(i), &
-              lsd=lsd,&
-              rho_set=rho_set, &
-              deriv_set=deriv_set,&
-              deriv_order=deriv_order, &
-              error=error)
-      END DO
-    END IF
+    CALL xc_functionals_eval(xc_fun_section, &
+         lsd=lsd,&
+         rho_set=rho_set, &
+         deriv_set=deriv_set,&
+         deriv_order=deriv_order, &
+         error=error)
+
     CALL xc_rho_set_get(rho_set, drho_cutoff=drho_cutoff, error=error)
 
    NULLIFY (deriv_data)
@@ -284,8 +267,8 @@ CONTAINS
 
 !   ***************************************************************************
 
-  SUBROUTINE xc_2nd_deriv_of_r(dft_control, rho_set, rho1_set, deriv_set, needs, &
-                               w, exc, vxc, vxg, error)
+  SUBROUTINE xc_2nd_deriv_of_r(rho_set, rho1_set,xc_section,&
+       deriv_set, needs, w, exc, vxc, vxg, error)
 
 ! As input of this routine one gets rho and drho on a one dimensional grid. 
 ! The grid is the angular grid corresponding to a given point ir on the radial grid.
@@ -295,9 +278,9 @@ CONTAINS
 ! can safely be called for the next radial point ir
 
     ! ARGUMENTS
-    TYPE(dft_control_type), POINTER               :: dft_control
     TYPE(xc_rho_set_type), POINTER                :: rho_set
     TYPE(xc_rho_set_type), POINTER                :: rho1_set
+    TYPE(section_vals_type), pointer              :: xc_section
     TYPE(xc_derivative_set_type), POINTER         :: deriv_set
     TYPE(xc_rho_cflags_type), INTENT(in)          :: needs
     REAL(dp), DIMENSION(:,:),  POINTER            :: w 
@@ -314,39 +297,35 @@ CONTAINS
     TYPE(cp_sll_xc_deriv_type), POINTER           :: pos
     TYPE(pw_p_type), DIMENSION(:), POINTER        :: vxc_pw
     TYPE(pw_pool_type), POINTER                   :: pw_pool
-    TYPE(xc_control_type), POINTER                :: xc_control
     TYPE(xc_derivative_type), POINTER             :: deriv_att
     REAL(dp)                                      :: drho_cutoff
     REAL(dp), DIMENSION(:,:,:), POINTER           :: deriv_data
-    INTEGER                                       :: handle, i, ispin, nspins, stat
+    INTEGER                                       :: handle, i, ispin, nspins,&
+         stat, ifun
     LOGICAL                                       :: failure, lsd
+    TYPE(section_vals_type), pointer :: xc_fun_section
 
     !   ***************************************************************************
 
     CALL timeset(routine_name,"I"," ",handle)
     failure = .FALSE.
     
-    nspins = dft_control%nspins
-    xc_control => dft_control%xc_control
+    nspins = SIZE(vxc,3)
     lsd = (nspins==2)
-    IF (dft_control%do_tddfpt_calculation) THEN
-       xc_control => dft_control%tddfpt_control%xc_control
-       IF (dft_control%tddfpt_control%lsd_singlets .OR. &
-           dft_control%tddfpt_control%res_etype == tddfpt_triplet) THEN
-          lsd = .TRUE. 
-       END IF
+    IF (associated(rho_set%rhoa)) THEN
+       lsd = .TRUE.
     END IF
     CALL xc_rho_set_get(rho_set, drho_cutoff=drho_cutoff, error=error)
+    xc_fun_section => section_vals_get_subs_vals(xc_section,&
+         "XC_FUNCTIONAL",error=error)
 
     !  Calculate the derivatives
-    DO i=1,SIZE(xc_control%functionals)
-       CALL xc_functional_eval(xc_control%functionals(i), &
-                               lsd=lsd,&
-                               rho_set=rho_set, &
-                               deriv_set=deriv_set,&
-                               deriv_order=2, &
-                               error=error)
-    END DO
+    CALL xc_functionals_eval(xc_fun_section, &
+         lsd=lsd,&
+         rho_set=rho_set, &
+         deriv_set=deriv_set,&
+         deriv_order=2, &
+         error=error)
 
     CALL divide_by_norm_drho(deriv_set, rho_set, lsd, error)
 
@@ -365,7 +344,8 @@ CONTAINS
        vxc_pw(ispin)%pw%cr3d => vxc(:,:,ispin:ispin)
     END DO
 
-    CALL xc_calc_2nd_deriv_new(vxc_pw, deriv_set, rho_set, rho1_set, pw_pool, dft_control, .TRUE., vxg, error)
+    CALL xc_calc_2nd_deriv(vxc_pw, deriv_set, rho_set, rho1_set, pw_pool, &
+         xc_section,gapw=.TRUE., vxg=vxg, error=error)
 
     DO ispin=1, nspins
        DEALLOCATE(vxc_pw(ispin)%pw, stat=stat)

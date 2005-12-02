@@ -32,7 +32,6 @@ MODULE qs_ks_qmmm_methods
                                              cp_note_level,&
                                              cp_to_string,&
                                              cp_warning_level
-  USE pws,                             ONLY: pw_integral_ab
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_env_retain,&
                                              qs_environment_type,&
@@ -51,7 +50,8 @@ MODULE qs_ks_qmmm_methods
                                              REALDATA3D,&
                                              REALSPACE,&
                                              RECIPROCALSPACE,&
-                                             pw_p_type
+                                             pw_p_type,&
+                                             pw_integral_ab
   USE qs_ks_qmmm_types,                ONLY: qs_ks_qmmm_env_type,&
                                              qs_ks_qmmm_release
   USE kinds,                           ONLY: dp

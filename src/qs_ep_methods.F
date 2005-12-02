@@ -67,7 +67,6 @@ MODULE qs_ep_methods
                                              cp_para_env_type
   USE cp_sm_fm_interactions,           ONLY: cp_sm_fm_multiply
   USE global_types,                    ONLY: global_environment_type
-  USE green_methods,                   ONLY: pw_green_fn_rebuild
   USE input_constants,                 ONLY: ot_precond_full_kinetic
   USE kinds,                           ONLY: dp
   USE machine,                         ONLY: m_flush
@@ -135,7 +134,6 @@ MODULE qs_ep_methods
                                              replicate_matrix_structure
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE green_types,                     ONLY: greens_function_type
 
   IMPLICIT NONE
   PRIVATE
@@ -434,7 +432,6 @@ END SUBROUTINE qs_ep_calculation
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cell_type), POINTER                 :: sub_cell
-    TYPE(greens_function_type), POINTER      :: green
     TYPE(coeff_type), POINTER                :: sub_rho_core
     TYPE(cp_blacs_env_type), POINTER         :: blacs_env
     TYPE(cp_fm_p_type), DIMENSION(:), &
@@ -462,7 +459,7 @@ END SUBROUTINE qs_ep_calculation
     NULLIFY(atom_list, sub_atom_list, dft_control,scf_control,&
          para_env, blacs_env, sub_mos,atomic_kind_set,sub_qs_charges,&
          proj, sub_qs, particle_set, p_set, sub_rho_core, auxbas_pw_pool,&
-         pw_env, sub_cell, psi0, ao_mo_fm_pools, mpools, green)
+         pw_env, sub_cell, psi0, ao_mo_fm_pools, mpools)
 
     ALLOCATE(ep_env, stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -616,10 +613,11 @@ END SUBROUTINE qs_ep_calculation
                nrow_block=scf_control%nrow_block,&
                ncol_block=scf_control%ncol_block,error=error)
           ! init green's function
-          CALL get_qs_env(sub_qs, cell=sub_cell, green=green, pw_env=pw_env,&
-               rho_core=sub_rho_core, error=error)
-          CALL pw_green_fn_rebuild(green,&
-               pw_env%pw_pools(pw_env%auxbas_grid)%pool, cell=sub_cell, para_env=para_env)
+          !poisson_env needs init?
+!FM          CALL get_qs_env(sub_qs, cell=sub_cell, green=green, pw_env=pw_env,&
+!FM               rho_core=sub_rho_core, error=error)
+!FM          CALL pw_green_fn_rebuild(green,&
+!FM               pw_env%pw_pools(pw_env%auxbas_grid)%pool, cell=sub_cell, para_env=para_env)
           ! reallocate rho_core
           IF (ASSOCIATED(sub_rho_core)) THEN
              CALL coeff_deallocate(sub_rho_core)

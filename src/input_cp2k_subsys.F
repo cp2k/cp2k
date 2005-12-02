@@ -36,8 +36,8 @@ MODULE input_cp2k_subsys
   USE input_val_types, ONLY: val_type, no_t, logical_t, integer_t, real_t, char_t,&
        enum_t
   USE cp_output_handling, only: cp_print_key_section_create
-
   USE string_utilities, ONLY: s2a
+  USE physcon, only: bohr
 #include "cp_common_uses.h"
 
   implicit none
@@ -360,9 +360,8 @@ contains
             error=error)
        NULLIFY(keyword)
        CALL keyword_create(keyword, name="_DEFAULT_KEYWORD_",&
-            description="The atoms coordinates in xyz format.",&
-            usage="H 0.7 0.3 0.3", type_of_var=char_t, n_var=-2, &
-            repeats=.TRUE., error=error)
+            description="The atoms coordinates in xyz format.",repeats=.TRUE.,&
+            usage="H 0.7 0.3 0.3", type_of_var=char_t, n_var=-2, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
@@ -420,8 +419,8 @@ contains
        CALL keyword_create(keyword, name="AUX_BASIS_SET",&
             variants=s2a("AUXILIARY_BASIS_SET", "AUX_BASIS"),&
             description="The auxliliary basis set (GTO type)",&
-            usage="AUX_BASIS_SET DZVP", type_of_var=char_t, &
-            n_var=1, required=.TRUE., error=error)
+            usage="AUX_BASIS_SET DZVP", default_c_val=" ", &
+            n_var=1, required=.false., error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
@@ -439,8 +438,8 @@ contains
        CALL keyword_create(keyword, name="BASIS_SET",&
             variants=s2a("ORBITAL_BASIS_SET","ORB_BASIS"),&
             description="The basis set (GTO type)",&
-            usage="BASIS_SET DZVP", type_of_var=char_t, &
-            n_var=1, required=.TRUE., error=error)
+            usage="BASIS_SET DZVP", default_c_val=" ", &
+            n_var=1, required=.false., error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
@@ -491,7 +490,7 @@ contains
 
        CALL keyword_create(keyword, name="HARD_EXP_RADIUS",&
             description="The region where the hard density is supposed to be confined (GAPW)(in Bohr)",&
-            usage="HARD_EXP_RADIUS 0.9", default_r_val=0.8_dp,&
+            usage="HARD_EXP_RADIUS 0.9", default_r_val=0.8_dp*bohr,&
             error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -500,7 +499,7 @@ contains
             description="the radius which defines the atomic region where "//&
             "the hard compensation density is confined."//&
             "should be less than HARD_EXP_RADIUS (GAPW)[Bohr]",&
-            usage="RHO_EXP_RADIUS 0.9", default_r_val=0.8_dp,&
+            usage="RHO_EXP_RADIUS 0.9", default_r_val=0.8_dp*bohr,&
             error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -819,6 +818,13 @@ contains
             error=error)
 
        NULLIFY(keyword)
+
+       CALL keyword_create(keyword, name="MOLECULE",&
+            variants=(/"MOL"/),&
+            description="Specifies the molecule number on which constraint will be applied",&
+            usage="MOL {integer}", required=.TRUE., n_var=1, type_of_var=integer_t, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="ATOMS",&
             description="Specifies the atom indexes defining the distance.",&
@@ -1153,7 +1159,7 @@ contains
        CALL section_create(section,name="topology",&
             description="Section specifying information regarding how to handle the topology"// &
             " for classical runs.",&
-            n_keywords=5, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+            n_keywords=5, n_subsections=0, repeats=.FALSE., required=.false.,&
             error=error)
 
        NULLIFY(keyword)

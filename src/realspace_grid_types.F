@@ -87,7 +87,7 @@ MODULE realspace_grid_types
   INTEGER, PARAMETER, PUBLIC :: rs2pw=11,pw2rs=12
 
   TYPE realspace_grid_type
-     INTEGER :: identifier                               ! tag of the pw_grid
+     INTEGER :: grid_id                               ! tag of the pw_grid
      INTEGER :: id_nr                                    ! unique identifier of rs
      INTEGER :: ref_count                                ! reference count
      INTEGER :: ngpts                                    ! # grid points
@@ -242,7 +242,7 @@ CONTAINS
     IF ( ierr /= 0 ) CALL stop_memory ( "rs_grid_deallocate","rs % py" )
     DEALLOCATE ( rs % pz , STAT = ierr )
     IF ( ierr /= 0 ) CALL stop_memory ( "rs_grid_deallocate","rs % pz" )
-    rs % identifier = 0
+    rs % grid_id = 0
     IF ( rs % parallel ) THEN
        ! release the group communicator
        CALL mp_comm_free ( rs % group )
@@ -305,7 +305,7 @@ CONTAINS
 !-----------------------------------------------------------------------------!
 
     rs % dr = pw_grid%dr
-    rs % identifier = pw_grid % identifier
+    rs % grid_id = pw_grid % id_nr
     last_rs_id = last_rs_id+1
     rs % id_nr = last_rs_id
     rs % ref_count = 1
@@ -412,7 +412,7 @@ CONTAINS
           IF ( rs % parallel ) THEN
              IF ( rs % group_head ) THEN
                 WRITE ( iounit, '(/,A,T71,I10)' ) &
-                     " RS_GRID: Information for grid number ", rs % identifier
+                     " RS_GRID: Information for grid number ", rs % grid_id
                 DO i = 1, 3
                    WRITE ( iounit, '(A,I3,T30,2I8,T62,A,T71,I10)' ) " RS_GRID:   Bounds ", &
                         i, rs % lb ( i ), rs % ub ( i ), "Points:", rs % npts ( i )
@@ -450,7 +450,7 @@ CONTAINS
              END IF
           ELSE
              WRITE ( iounit, '(/,A,T71,I10)' ) &
-                  " RS_GRID: Information for grid number ", rs % identifier
+                  " RS_GRID: Information for grid number ", rs % grid_id
              DO i = 1, 3
                 WRITE ( iounit, '(A,I3,T30,2I8,T62,A,T71,I10)' ) " RS_GRID:   Bounds ", &
                      i, rs % lb ( i ), rs % ub ( i ), "Points:", rs % npts ( i )
@@ -523,9 +523,9 @@ CONTAINS
     IF (dir.EQ.rs2pw) dirname="RS2PW"
     IF (dir.EQ.pw2rs) dirname="PW2RS"
     CALL timeset("rs_pw_transfer_"//trim(dirname)//"_"// &
-                 TRIM(ADJUSTL(cp_to_string(pw%pw_grid%identifier))),'I',' ',handle)
+                 TRIM(ADJUSTL(cp_to_string(pw%pw_grid%id_nr))),'I',' ',handle)
 
-    IF ( rs % identifier /= pw % pw_grid % identifier ) &
+    IF ( rs % grid_id /= pw % pw_grid % id_nr ) &
        CALL stop_program ( "rs_pw_transfer", "different rs and pw indentitfiers")
     IF ( (pw%in_use .NE. REALDATA3D) .AND. (pw%in_use .NE. COMPLEXDATA3D)) &
        CALL stop_program ( "rs_pw_transfer", "Need REALDATA3D or COMPLEXDATA3D" )

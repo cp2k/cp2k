@@ -22,7 +22,7 @@ MODULE coefficients
   USE coefficient_types,               ONLY: PLANEWAVES,&
                                              coeff_type
   USE kinds,                           ONLY: dp
-  USE pws,                             ONLY: pw_integral_aa,&
+  USE pw_types,                             ONLY: pw_integral_aa,&
                                              pw_integral_ab
 
   IMPLICIT NONE

@@ -44,22 +44,22 @@ MODULE ewald_pw_methods
   USE ewald_pw_types,                  ONLY: ewald_pw_get,&
                                              ewald_pw_set,&
                                              ewald_pw_type
-  USE green_methods,                   ONLY: pw_green_fn_rebuild
   USE kinds,                           ONLY: default_string_length,&
                                              dp
   USE pw_grid_types,                   ONLY: pw_grid_type
   USE pw_grids,                        ONLY: pw_grid_change
-  USE pw_pool_types,                   ONLY: pw_pool_type
+  USE pw_pool_types,                   ONLY: pw_pool_type, pw_pool_p_type
   USE simulation_cell,                 ONLY: cell_type
   USE termination,                     ONLY: stop_memory
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE green_types,                     ONLY: greens_function_type
   USE input_constants,                 ONLY: do_ewald_none,&
                                              do_ewald_ewald,&
                                              do_ewald_pme,&
                                              do_ewald_spme  
-
+  USE pw_poisson_types, ONLY: pw_poisson_type, pw_poisson_release, pw_poisson_retain, pw_poisson_create
+  USE pw_poisson_methods, ONLY: pw_poisson_set, pw_poisson_rebuild
+  USE input_section_types, ONLY: section_vals_type
   IMPLICIT NONE
 
   PRIVATE
@@ -90,50 +90,82 @@ CONTAINS
 !!   SOURCE
 !******************************************************************************
 
-SUBROUTINE ewald_pw_grid_change ( ewald_pw, ewald_env )
+SUBROUTINE ewald_pw_grid_change ( ewald_pw, ewald_env, error )
   IMPLICIT NONE
   ! Arguments
   TYPE(ewald_pw_type), POINTER             :: ewald_pw
   TYPE(ewald_environment_type), POINTER    :: ewald_env
   ! Local Variables
   INTEGER                                  :: ewald_type
-  INTEGER                                  :: o_spline
+  INTEGER                                  :: o_spline, stat
   REAL(dp)                                 :: alpha
-  TYPE(greens_function_type), POINTER      :: green
   TYPE(cell_type), POINTER                 :: cell
   TYPE(dg_type), POINTER                   :: dg
   TYPE(pw_pool_type), POINTER              :: pw_big_pool, pw_small_pool
-  
+  TYPE(pw_poisson_type), pointer           :: poisson_env
+  TYPE(pw_pool_p_type), POINTER, dimension(:) :: pw_pools
+  TYPE(section_vals_type), pointer :: poisson_section
+  TYPE(cp_error_type), INTENT(inout), optional :: error
+  CHARACTER(len=*), PARAMETER :: routineN="ewald_pw_grid_change",&
+       routineP=moduleN//':'//routineN
+  LOGICAL :: failure
+
+  failure=.FALSE.
+ 
   NULLIFY ( pw_big_pool )
   NULLIFY ( pw_small_pool )
-  NULLIFY ( cell, green )
-  NULLIFY ( dg )
+  NULLIFY ( cell )
+  NULLIFY ( dg, poisson_env, poisson_section )
 
   CALL ewald_env_get ( ewald_env, ewald_type = ewald_type, &
-                       alpha = alpha, o_spline = o_spline )
+                       alpha = alpha, o_spline = o_spline,&
+                       poisson_section=poisson_section)
   SELECT CASE ( ewald_type )
   CASE ( do_ewald_ewald )
      CALL ewald_pw_get ( ewald_pw, cell = cell, pw_big_pool = pw_big_pool, &
-                         dg = dg )
+                         dg = dg, poisson_env=poisson_env )
      CALL pw_grid_change ( cell, pw_big_pool % pw_grid )
      CALL ewald_pw_rho0_setup ( ewald_env, pw_big_pool % pw_grid, dg )
-     CALL ewald_pw_set ( ewald_pw, pw_big_pool = pw_big_pool, dg = dg )
+     CALL pw_poisson_release(poisson_env,error=error)
+     CALL ewald_pw_set ( ewald_pw, pw_big_pool = pw_big_pool, dg = dg, &
+          poisson_env=poisson_env )
   CASE ( do_ewald_pme )
-     CALL ewald_pw_get ( ewald_pw, cell = cell, green = green, pw_big_pool = pw_big_pool, &
-                         pw_small_pool = pw_small_pool, dg = dg )
+     CALL ewald_pw_get ( ewald_pw, cell = cell, pw_big_pool = pw_big_pool, &
+                         pw_small_pool = pw_small_pool, dg = dg, &
+                         poisson_env=poisson_env )
+     IF (.NOT.ASSOCIATED(poisson_env)) THEN
+        CALL pw_poisson_create(poisson_env,error=error)
+        CALL ewald_pw_set(ewald_pw, poisson_env=poisson_env)
+     END IF
      CALL pw_grid_change ( cell, pw_big_pool % pw_grid )
-     CALL pw_green_fn_rebuild ( green, pw_big_pool )
      CALL dg_grid_change ( cell, pw_big_pool % pw_grid, pw_small_pool % pw_grid )
      CALL ewald_pw_rho0_setup ( ewald_env, pw_small_pool % pw_grid, dg )
      CALL ewald_pw_set ( ewald_pw, pw_big_pool = pw_big_pool,  &
-                         pw_small_pool = pw_small_pool, dg = dg )
+                         pw_small_pool = pw_small_pool, dg = dg, &
+                         poisson_env=poisson_env )
   CASE ( do_ewald_spme )
-     CALL ewald_pw_get ( ewald_pw, cell = cell, green = green, pw_big_pool = pw_big_pool )
+     CALL ewald_pw_get ( ewald_pw, cell = cell, pw_big_pool = pw_big_pool,&
+          poisson_env=poisson_env)
+     IF (.NOT.ASSOCIATED(poisson_env)) THEN
+        CALL pw_poisson_create(poisson_env,error=error)
+     END IF
      CALL pw_grid_change ( cell, pw_big_pool % pw_grid )
-     CALL pw_green_fn_rebuild ( green, pw_big_pool, p3m=o_spline, &
-                             alpha = alpha )
-     CALL ewald_pw_set ( ewald_pw, pw_big_pool = pw_big_pool )
+     CALL ewald_pw_set ( ewald_pw, pw_big_pool = pw_big_pool, &
+          poisson_env=poisson_env )
+  CASE ( do_ewald_none )
+  CASE default
+     CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
   END SELECT
+  IF (ASSOCIATED(poisson_env)) THEN
+     ALLOCATE(pw_pools(1),stat=stat)
+     CPPostcondition(stat==0,cp_fatal_level,routineP,error,failure)
+     pw_pools(1)%pool => pw_big_pool
+     CALL pw_poisson_set(poisson_env,cell=cell,parameters=poisson_section,&
+          use_level=1,pw_pools=pw_pools,error=error)
+     CALL pw_poisson_rebuild(poisson_env,error=error)
+     DEALLOCATE(pw_pools,stat=stat)
+     CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+  END IF
 
 END SUBROUTINE ewald_pw_grid_change 
 !******************************************************************************

@@ -32,9 +32,6 @@ MODULE simulation_cell
   USE input_constants,                 ONLY: ANALYTIC0D,&
                                              ANALYTIC1D,&
                                              ANALYTIC2D,&
-                                             HOCKNEY0D,&
-                                             HOCKNEY1D,&
-                                             HOCKNEY2D,&
                                              MT0D,&
                                              MT1D,&
                                              MT2D,&
@@ -51,6 +48,7 @@ MODULE simulation_cell
                                              use_unit_bohr,&
                                              use_unit_scaled_angstrom,&
                                              use_unit_scaled_bohr
+  USE input_cp2k, only: parsed_cp2k_input
   USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: degree
   USE mathlib,                         ONLY: angle,&
@@ -67,7 +65,6 @@ MODULE simulation_cell
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type,&
                                              section_vals_val_get
-  USE input_cp2k,                      ONLY: parsed_cp2k_input
 
   IMPLICIT NONE
 
@@ -78,9 +75,17 @@ MODULE simulation_cell
   INTEGER, SAVE, PRIVATE :: last_cell_id=0
 
   TYPE cell_type
+     !FM to rm
      CHARACTER(LEN=8)           :: unit_of_length_name
-     REAL(KIND = dp)            :: deth,subcells,unit_of_length
-     LOGICAL                    :: orthorhombic,scaled_coordinates
+     REAL(KIND = dp)            :: unit_of_length
+     LOGICAL                    :: scaled_coordinates
+
+     !FM probably to rm
+     REAL(KIND = dp)            :: subcells
+
+     !FM should stay
+     REAL(KIND = dp)            :: deth
+     LOGICAL                    :: orthorhombic
      INTEGER, DIMENSION(3)      :: perd
      REAL(KIND = dp), DIMENSION(3,3)   :: hmat,h_inv
      INTEGER                    :: ref_count, id_nr
@@ -139,8 +144,6 @@ CONTAINS
     failure=.FALSE.
     CPPrecondition(ASSOCIATED(cell_in),cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(cell_out),cp_failure_level,routineP,error,failure)
-
-!    CALL pw_green_create(cell_out%green)
 
     cell_out%unit_of_length_name = cell_in%unit_of_length_name
     cell_out%deth =                cell_in%deth
@@ -576,191 +579,8 @@ CONTAINS
     LOGICAL                                  :: section_found
 
 
-    IF (parsed_cp2k_input(cell_section,check_this_section=.TRUE.,error=error)) THEN
-       CALL read_cell_new(cell, cell_ref, globenv, use_ref_cell, error=error, cell_section=cell_section)
-       RETURN
-    END IF
+    CALL read_cell_new(cell, cell_ref, globenv, use_ref_cell, error=error, cell_section=cell_section)
 
-!TODEL_START_TL
-    IF (.NOT.ASSOCIATED(cell)) THEN
-       CALL cell_create(cell)
-    END IF
-
-    IF (.NOT.ASSOCIATED(cell_ref)) THEN
-       CALL cell_create(cell_ref)
-    END IF
-
-!   *** Load the default values ***
-    IF(PRESENT(use_ref_cell) ) use_ref_cell = .FALSE.
-
-    cell%unit_of_length_name = "BOHR"
-    cell%deth = 0.0_dp
-    cell%unit_of_length = 1.0_dp
-    cell%orthorhombic = .TRUE.
-    cell%scaled_coordinates = .FALSE.
-    cell%subcells = 2.0_dp
-    cell%perd(:) = 1
-    cell%hmat(:,:) = 0.0_dp
-    cell%h_inv(:,:) = 0.0_dp
-
-!   *** Read the input section ***
-
-    CALL start_parser(file_name=globenv%input_file_name,&
-                      globenv=globenv,&
-                      start_section_label="CELL",&
-                      section_found=section_found)
-
-    IF (.NOT.section_found) &
-    CALL stop_program(routine,"No CELL section found.")
-
-    DO WHILE (test_object(newline=.TRUE.) /= "EOS")
-      CALL read_object(keyword,lower_to_upper=.TRUE.,newline=.TRUE.)
-      SELECT CASE (TRIM(keyword))
-      CASE ("A")
-        CALL read_object(cell%hmat(1,1))
-        CALL read_object(cell%hmat(2,1))
-        CALL read_object(cell%hmat(3,1))
-      CASE ("ABC")
-        CALL read_object(cell%hmat(1,1))
-        CALL read_object(cell%hmat(2,2))
-        CALL read_object(cell%hmat(3,3))
-      CASE ("B")
-        CALL read_object(cell%hmat(1,2))
-        CALL read_object(cell%hmat(2,2))
-        CALL read_object(cell%hmat(3,2))
-      CASE ("C")
-        CALL read_object(cell%hmat(1,3))
-        CALL read_object(cell%hmat(2,3))
-        CALL read_object(cell%hmat(3,3))
-      CASE ("SUBCELLS")
-        CALL read_object(cell%subcells)
-      CASE ("UNIT","UNITS")
-        CALL read_object(string,lower_to_upper=.TRUE.)
-        SELECT CASE (TRIM(string))
-        CASE ("ANGSTROM")
-          cell%unit_of_length = bohr
-          cell%unit_of_length_name = "ANGSTROM"
-          cell%scaled_coordinates = .FALSE.
-        CASE ("BOHR")
-          cell%unit_of_length = 1.0_dp
-          cell%unit_of_length_name = "BOHR"
-          cell%scaled_coordinates = .FALSE.
-        CASE ("SCALED_ANGSTROM")
-          cell%unit_of_length = bohr
-          cell%unit_of_length_name = "ANGSTROM"
-          cell%scaled_coordinates = .TRUE.
-        CASE ("SCALED_BOHR")
-          cell%unit_of_length = 1.0_dp
-          cell%unit_of_length_name = "BOHR"
-          cell%scaled_coordinates = .TRUE.
-        CASE DEFAULT
-          CALL stop_parser(routine,&
-                  "Invalid name for the cell unit of length <"//&
-                           TRIM(string)//"> found")
-        END SELECT
-      CASE DEFAULT
-          CALL stop_parser(routine,"Invalid keyword found")
-      END SELECT
-    END DO
-
-    CALL finish_parser()
-
-    cell%hmat(:,:) = cell%hmat(:,:)*cell%unit_of_length
-
-!   *** Initialise the remaining components of the cell_type ***
-
-    CALL init_cell(cell)
-
-! Default is to clone cell into cell_ref.  If there is a REF_CELL
-! section, then cell_ref will be overwritten
-    CALL cell_clone (cell, cell_ref, error)
-
-
-! check to see if we have a reference cell
-!   *** Read the input section ***
-
-         
-    CALL start_parser(file_name=globenv%input_file_name, &
-                      globenv=globenv,                   &
-                      start_section_label="CELL_REF",    &
-                      section_found=section_found )
-    IF (section_found) THEN
-! First release the clone and then reallocate for safety
-      CALL cell_release ( cell_ref, error )
-      IF (.NOT.ASSOCIATED(cell_ref)) THEN
-         call cell_create(cell_ref)
-      END IF
-!     trip a flag
-      IF ( PRESENT ( use_ref_cell ) ) use_ref_cell = .TRUE.
-            
-!     read in the reference cell info in the same way as the cell info was read in
-      cell_ref%unit_of_length_name = "BOHR"
-      cell_ref%deth = 0.0_dp
-      cell_ref%unit_of_length = 1.0_dp
-      cell_ref%orthorhombic = .TRUE.
-      cell_ref%scaled_coordinates = .FALSE.
-      cell_ref%subcells = 2.0_dp
-      cell_ref%perd(:) = 1
-      cell_ref%hmat(:,:) = 0.0_dp
-      cell_ref%h_inv(:,:) = 0.0_dp
-      
-      DO WHILE (test_object(newline=.TRUE.) /= "EOS")
-         CALL read_object(keyword,lower_to_upper=.TRUE.,newline=.TRUE.)
-         SELECT CASE (TRIM(keyword))
-         CASE ("A")
-            CALL read_object(cell_ref%hmat(1,1))
-            CALL read_object(cell_ref%hmat(2,1))
-            CALL read_object(cell_ref%hmat(3,1))
-         CASE ("ABC")
-            CALL read_object(cell_ref%hmat(1,1))
-            CALL read_object(cell_ref%hmat(2,2))
-            CALL read_object(cell_ref%hmat(3,3))
-         CASE ("B")
-            CALL read_object(cell_ref%hmat(1,2))
-            CALL read_object(cell_ref%hmat(2,2))
-            CALL read_object(cell_ref%hmat(3,2))
-         CASE ("C")
-            CALL read_object(cell_ref%hmat(1,3))
-            CALL read_object(cell_ref%hmat(2,3))
-            CALL read_object(cell_ref%hmat(3,3))
-         CASE ("SUBCELLS")
-            CALL read_object(cell_ref%subcells)
-         CASE ("UNIT","UNITS")
-            CALL read_object(string,lower_to_upper=.TRUE.)
-            SELECT CASE (TRIM(string))
-            CASE ("ANGSTROM")
-               cell_ref%unit_of_length = bohr
-               cell_ref%unit_of_length_name = "ANGSTROM"
-               cell_ref%scaled_coordinates = .FALSE.
-            CASE ("BOHR")
-               cell_ref%unit_of_length = 1.0_dp
-               cell_ref%unit_of_length_name = "BOHR"
-               cell_ref%scaled_coordinates = .FALSE.
-            CASE ("SCALED_ANGSTROM")
-               cell_ref%unit_of_length = bohr
-               cell_ref%unit_of_length_name = "ANGSTROM"
-               cell_ref%scaled_coordinates = .TRUE.
-            CASE ("SCALED_BOHR")
-               cell_ref%unit_of_length = 1.0_dp
-               cell_ref%unit_of_length_name = "BOHR"
-               cell_ref%scaled_coordinates = .TRUE.
-            CASE DEFAULT
-               CALL stop_parser(routine,&
-               "Invalid name for the cell_ref unit of length <"//&
-               TRIM(string)//"> found")
-            END SELECT
-         CASE DEFAULT
-            CALL stop_parser(routine,"Invalid keyword found")
-         END SELECT
-      END DO
-            
-      cell_ref%hmat(:,:) = cell_ref%hmat(:,:)*cell_ref%unit_of_length
-      
-      CALL init_cell(cell_ref)
-    ENDIF
-
-    CALL finish_parser()
-!TODEL_END_TL
   END SUBROUTINE read_cell
 
 !!****f* simulation_cell/read_cell_new [1.0] *

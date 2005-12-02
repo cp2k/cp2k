@@ -50,18 +50,12 @@ MODULE gopt_f_types
   USE particle_list_types,             ONLY: particle_list_type
   USE particle_types,                  ONLY: write_particle_distances,&
                                              write_qs_particle_coordinates
-  USE qs_parser,                       ONLY: finish_parser,&
-                                             read_object,&
-                                             start_parser,&
-                                             stop_parser,&
-                                             test_object
   USE simulation_cell,                 ONLY: cell_type
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE input_constants,                 ONLY: default_lbfgs_method_id,&
                                              default_bfgs_method_id,&
                                              default_cg_method_id
-  USE input_cp2k,                      ONLY: parsed_cp2k_input
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type,&
                                              section_vals_get,&
@@ -593,111 +587,6 @@ SUBROUTINE gopt_param_read(gopt_param, globenv, error)
     NULLIFY(gopt_section)
     gopt_section =>  section_vals_get_subs_vals(globenv%input_file,&
          "MOTION%GEOOPT",error=error)
-
-    IF (parsed_cp2k_input(gopt_section,check_this_section=.TRUE.,error=error)) THEN
-       CALL gopt_param_read_new(gopt_param, globenv, gopt_section, error)
-       RETURN
-    END IF
-    !
-    !TODEL_START_TL
-    !
-    CALL start_parser(file_name=globenv%input_file_name,&
-         globenv=globenv,&
-         start_section_label="GEOOPT",&
-         section_found=section_found)
-
-    IF (section_found) THEN
-       DO
-          test_result = test_object()
-          IF (test_result /= "EOL") THEN
-             CALL read_object(keyword)
-             CALL stop_parser(routine=routineP,message="INVALID_KEYWORD")
-          END IF
-          test_result = test_object(newline=.TRUE.)
-          IF (test_result == "EOS") THEN
-             EXIT
-          ELSE IF (test_result == "EOF") THEN
-             CALL stop_parser(routine=routineP,message="EOF")
-          ELSE
-             CALL read_object(keyword,lower_to_upper=.TRUE.,newline=.TRUE.)
-             SELECT CASE (TRIM(keyword))
-             CASE ('OPTIMIZER','MINIMIZER')
-                CALL read_object(keyword2)
-                SELECT CASE (TRIM(keyword2))
-                CASE ('BFGS')
-                   gopt_param%method_id=default_bfgs_method_id
-                CASE ('LBFGS')
-                   gopt_param%method_id=default_lbfgs_method_id
-                CASE ('CG')
-                   gopt_param%method_id=default_cg_method_id
-                CASE DEFAULT
-                   CALL stop_parser(routine=routineP,message="INVALID OPTIMIZER TYPE")
-                END SELECT
-             CASE ('MAX_ITER')
-                CALL read_object(gopt_param%max_iter)
-             CASE ('MAX_H_RANK')
-                CALL read_object(gopt_param%max_h_rank)
-             CASE ('MAX_F_PER_ITER')
-                CALL read_object(gopt_param%max_f_per_iter)
-             CASE ('WANTED_PROJ_GRADIENT')
-                CALL read_object(gopt_param%wanted_proj_gradient)
-             CASE ('WANTED_REL_F_ERROR')
-                CALL read_object(gopt_param%wanted_rel_f_error)
-             CASE ('RESTART')
-                gopt_param%hesrest = .TRUE.
-             CASE ('FLETCHER_REEVES')
-                gopt_param%Fletcher_Reeves_ON = .TRUE.
-             CASE ('USE_FIT_LINE_SEARCH')
-                gopt_param%use_fit_line_search = .TRUE.
-             CASE ('MAX_STEEP_STEPS')
-                CALL read_object(gopt_param%max_steep_steps)
-             CASE ("MAX_DR")
-                CALL read_object(gopt_param%max_dr)
-             CASE ("MAX_FORCE")
-                CALL read_object(gopt_param%max_force)
-             CASE ("RMS_DR")
-                CALL read_object(gopt_param%rms_dr)
-             CASE ("RMS_FORCE")
-                CALL read_object(gopt_param%rms_force)
-             CASE("BRENT_TOL")
-                CALL read_object(gopt_param%brent_tol)
-             CASE("BRENT_MAX_ITER")
-                CALL read_object(gopt_param%brent_max_iter)
-             CASE("BRACK_LIMIT")
-                CALL read_object(gopt_param%brack_limit)
-             CASE("CG_RESTART_LIMIT")
-                CALL read_object(gopt_param%restart_limit)
-             CASE DEFAULT
-                CALL stop_parser(routine=routineP,message="INVALID_KEYWORD")
-             END SELECT
-          END IF
-       END DO
-    END IF
-
-    CALL finish_parser()
-    !
-    ! TODEL_END_TL
-    !
-  END SUBROUTINE gopt_param_read
-!***************************************************************************
-  
-  SUBROUTINE gopt_param_read_new(gopt_param, globenv, gopt_section, error)
-    IMPLICIT NONE
-    ! Arguments
-    TYPE(gopt_param_type), POINTER           :: gopt_param
-    TYPE(global_environment_type), &
-      INTENT(inout), TARGET                  :: globenv
-    TYPE(section_vals_type), POINTER         :: gopt_section
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
-    ! Local Variables
-    CHARACTER(len=*), PARAMETER :: routineN = 'gopt_param_read', &
-      routineP = moduleN//':'//routineN
-
-    CHARACTER(LEN=3)                         :: test_result
-    CHARACTER(LEN=60)                        :: keyword, keyword2
-    LOGICAL                                  :: failure, section_found
-
     failure=.FALSE.
     IF (.NOT.failure) THEN
        CALL section_vals_val_get(gopt_section,"OPTIMIZER",i_val=gopt_param%method_id,error=error)
@@ -720,7 +609,7 @@ SUBROUTINE gopt_param_read(gopt_param, globenv, error)
        CALL section_vals_val_get(gopt_section,"CG_RESTART_LIMIT",r_val=gopt_param%restart_limit,error=error)
     END IF
 
-  END SUBROUTINE gopt_param_read_new
+  END SUBROUTINE gopt_param_read
 
 !!****f* gopt_f_types/gopt_param_retain [1.0] *
 !!

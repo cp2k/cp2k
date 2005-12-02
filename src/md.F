@@ -12,7 +12,7 @@
 !!
 !!   FUNCTION
 !!
-!!   AUTHOR  INTEGER, PARAMETER, PUBLIC, DIMENSION(9) ::
+!!   AUTHOR
 !!     CJM
 !!
 !!   MODIFICATION HISTORY
@@ -59,8 +59,6 @@ MODULE md
                                              md_all_restart,&
                                              restart_name_types,&
                                              restart_name_index,&
-                                             dump_xyz,&
-                                             dump_crd,&
                                              dump_atomic,&
                                              dump_xmol,&
                                              dump_dcd,&
@@ -76,27 +74,18 @@ MODULE md
                                              KG_MC_method, &
                                              QS_MC_method, &
                                              Harris_MC_method
-  USE input_cp2k,                      ONLY: parsed_cp2k_input
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type,&
                                              section_vals_get,&
                                              section_vals_val_get
   USE kinds,                           ONLY: dp
   USE message_passing,                 ONLY: mp_bcast
-  USE parser,                          ONLY: get_next,&
-                                             p_error,&
-                                             parser_end,&
-                                             parser_init,&
-                                             read_line,&
-                                             search_label,&
-                                             stop_parser,&
-                                             test_next
   USE particle_types,                  ONLY: particle_type
   USE string_utilities,                ONLY: uppercase,&
                                              xstring
   USE util,                            ONLY: gasdev
-
-
+  USE cp_units, only: cp_unit_from_cp2k
+  
   IMPLICIT NONE
 
   PRIVATE
@@ -219,94 +208,16 @@ CONTAINS
 !!   NAME
 !!     read_md_section
 !!
-!!   SYNOPSIS
-!!     Subroutine read_md_section(simpar, globenv, mdio)
-!!       Implicit None
-!!       Type(simulation_parameters_type), Intent (OUT):: simpar
-!!       Type(global_environment_type), Intent (IN):: globenv
-!!       Type(mdio_parameters_type), Intent (OUT):: mdio
-!!     End Subroutine read_md_section
-!!
 !!   FUNCTION
+!!     reads the md section and prints out what has been read
 !!
 !!   AUTHOR
-!!     CJM
+!!     Teo, CJM
 !!
 !!   MODIFICATION HISTORY
 !!     none
 !!
 !!   NOTES
-!!I---------------------------------------------------------------------------I
-!!I SECTION: &md ... &end                                                     I
-!!I                                                                           I
-!!I output_format[xmol,atomic...]        format for the output of pos,vel,    I
-!!I                                      forces, default is XMOL.             I
-!!I ensemble:    [nve,nvt,isokin]        ensemble type                        I
-!!I gamma:       [1/fs]                  Langevin dynamic friction parameter  I
-!!I steps:       n                       total number of steps                I
-!!I timestep:    dt                      time step [fs]                       I
-!!I temperature: T                       temperature [K]                      I
-!!I temperature: T_BARO                  temperature [K]                      I
-!!I temp_tol: T                          temperature tolerance [K]            I
-!!I restart:     [pos,posvel]            start type                           I
-!!I constraints: [on,off]                constraints                          I
-!!I pv_numerical: [true, false]          pv_numerical                         I
-!!I pv_availability: [true, false]       pv_availability                      I
-!!I shake:       eps                     convergence for Shake algorithm      I
-!!I verlet_skin  vs                      buffer size for Verlet lists         I
-!!I cells        x y z                   Number of cells in each direction    I
-!!I Uniaxial_shock        &              parameters for uniaxial shock        I
-!!I   v_shock  : v_shock  &                 velocity of shock front           I
-!!I   pressure : p0       &                 Initial pressure                  I
-!!I   energy   : e0       &                 Initial energy                    I
-!!I   volume   : v0       &                 Initial compression               I
-!!I   damping  : gamma    &                 Damping parameter                 I
-!!I   cmass    : cmass    &                 Cell mass in AU                   I
-!!I Nose_parameter        &              parameter of Nose-Hoover-chains      I
-!!I   length:    nhclen   &                 length of thermostat              I
-!!I   Yoshida:   nyosh    &                 order of Yoshida integrator       I
-!!I   mts:       nc       &                 number of multiple time steps     I
-!!I   timecon:   tau_nhc                    NHC time constant                 I
-!!I Barostat_parameter    &                 parameter of barostat             I
-!!I   pressure: P         &                 pressure [bar]                    I
-!!I   timecon:  tau_cell  &                 barostat time constant            I
-!!I qs_md_parameter       &                                                   I
-!!I   neighbor_lists_from_scratch: [true, false]                              I
-!!I FILES                           &                                         I
-!!I   filebody    "filename"        &                                         I
-!!I   coordinates "filename.xyz"    &                                         I
-!!I   coefficient "filename.coef"   &                                         I
-!!I   velocities  "filename.vel"    &                                         I
-!!I   pressure    "filename.ptens"  &                                         I
-!!I   energies    "filename.ener"   &                                         I
-!!I   temperature "filename.temp"   &                                         I
-!!I   dump        "filename.restart"                                          I
-!!I PRINT                           &                                         I
-!!I   screen       iscreen          &                                         I
-!!I   files        ifiles           &                                         I
-!!I   coordinates  icrd             &                                         I
-!!I   coefficents  icoef            &                                         I
-!!I   velocities   ivel             &                                         I
-!!I   pressure     iptens           &                                         I
-!!I   energies     iener            &                                         I
-!!I   temperature  itemp            &                                         I
-!!I   dump         idump                                                      I
-!!I HMC                             &                                         I
-!!I   ld_steps        {Integer}     &                                         I
-!!I   temp_alpha      {Real}        &                                         I
-!!I   temp_beta       {Real}        &                                         I
-!!I   tot_energy      {Logical}     &                                         I
-!!I   ext_temp        {Logical}     &                                         I
-!!I   qs_accept       {Logical}     &                                         I
-!!I   rnd_velocities  {Logical}     &                                         I
-!!I   vel_scaling     {Logical}     &                                         I
-!!I   qs_start        {Logical}     &                                         I
-!!I   restore_history {Logical}     &                                         I
-!!I   recover_momenta {Logical}     &                                         I
-!!I   semi_hybrid     {Logical}     &                                         I
-!!I   MD_method       {Integer}     &                                         I
-!!I   MC_method       {Integer}                                               I
-!!I---------------------------------------------------------------------------I
 !!*** ************************************************************************
 
   SUBROUTINE read_md_section ( simpar, globenv, mdio, error)
@@ -324,541 +235,15 @@ CONTAINS
     INTEGER                                  :: ia, ie, ierror, ILEN, iw
     TYPE(section_vals_type), POINTER         :: md_section
     TYPE(unit_convert_type), POINTER         :: unit
+    REAL(kind=dp) :: tmp_r
 
     NULLIFY(unit, md_section)
     CALL set_md_defaults(simpar, globenv, mdio)
     iw = globenv % scr
 
     md_section => section_vals_get_subs_vals(globenv%input_file,&
-       "MOTION%MD_NEW",error=error)
-    IF (parsed_cp2k_input(md_section,check_this_section=.TRUE.,error=error)) THEN
-       CALL read_md_new_section(simpar, globenv,  md_section, error)
-    ELSE
-!
-!TODEL_START_TL
-!
-!..parse the input section
-       label = '&MD'
-       CALL parser_init(globenv % input_file_name,globenv)
-       CALL search_label(label,ierror,ignore_case=.TRUE.)
-       IF (ierror /= 0 ) THEN
-          IF( globenv % ionode ) &
-               WRITE ( iw, '( a )' ) ' No input section &MD found '
-       ELSE
-          CALL read_line
-          DO WHILE ( test_next() /= 'X' )
-             ILEN = 6
-             CALL get_next ( string, ILEN )
-             CALL uppercase ( string )
-             SELECT CASE ( string )
-             CASE DEFAULT
-                CALL p_error()
-                CALL stop_parser ( 'read_md_section', 'unknown option' )
-
-             !MK Langevin
-             CASE ("GAMMA")
-               CALL get_next(simpar%gamma)
-             !TdK HMC
-             CASE ('HMC')
-               DO WHILE (test_next() == 'C')
-                   
-                 ILEN = 6
-                 CALL get_next(string, ILEN)
-                 CALL uppercase(string)
-                   
-                 SELECT CASE (string)
-                 CASE DEFAULT
-                   CALL p_error()
-                   CALL stop_parser('read_md_section%nose', &
-                                    'unknown suboption')
-                 !CASE ("GAMMA")
-                 !  CALL get_next(simpar%gamma)
-                 CASE ('LD_STE') ! LD_STEPS
-                   CALL get_next(simpar%ld_steps)
-                 CASE ('TEMP_A') ! TEMP_ALPHA
-                   CALL get_next(simpar%temp_alpha)
-                 CASE ('TEMP_B') ! TEMP_BETA
-                   CALL get_next(simpar%temp_beta)
-                 CASE ('TOT_EN') ! TOT_ENERGY
-                   simpar%tot_energy = .TRUE.
-                   ILEN = 0
-                   CALL get_next(string, ILEN)
-                   CALL uppercase(string)
-                   IF (string(1:1)=='F') simpar%tot_energy = .FALSE.
-                 CASE ('EXT_TE') ! EXT_TEMP
-                   simpar%ext_temp = .TRUE.
-                   ILEN = 0
-                   CALL get_next(string, ILEN)
-                   CALL uppercase(string)
-                   IF (string(1:1)=='F') simpar%ext_temp = .FALSE.
-                 CASE ('QS_ACC') ! QS_ACCEPT
-                   simpar%qs_accept = .TRUE.
-                   ILEN = 0
-                   CALL get_next(string, ILEN)
-                   CALL uppercase(string)
-                   IF (string(1:1)=='F') simpar%qs_accept = .FALSE.
-                 CASE ('RND_VE') ! RND_VELOCITIES
-                   simpar%rnd_velocities = .TRUE.
-                   ILEN = 0
-                   CALL get_next(string, ILEN)
-                   CALL uppercase(string)
-                   IF (string(1:1)=='F') simpar%rnd_velocities = .FALSE.
-                 CASE ('VEL_SC') ! VEL_SCALING
-                   simpar%vel_scaling = .TRUE.
-                   ILEN = 0
-                   CALL get_next(string, ILEN)
-                   CALL uppercase(string)
-                   IF (string(1:1)=='F') simpar%vel_scaling = .FALSE.
-                 CASE ('QS_STA') ! QS_START
-                   simpar%qs_start = .TRUE.
-                   ILEN = 0
-                   CALL get_next(string, ILEN)
-                   CALL uppercase(string)
-                   IF (string(1:1)=='F') simpar%qs_start = .FALSE.
-                 CASE ('RESTOR') ! RESTORE_HISTORY
-                   simpar%restore_history = .TRUE.
-                   ILEN = 0
-                   CALL get_next(string, ILEN)
-                   CALL uppercase(string)
-                   IF (string(1:1)=='F') simpar%restore_history = .FALSE.
-                 CASE ('RECOVE') ! RECOVER_MOMENTA
-                   simpar%restore_momenta = .TRUE.
-                   ILEN = 0
-                   CALL get_next(string, ILEN)
-                   CALL uppercase(string)
-                   IF (string(1:1)=='F') simpar%restore_momenta = .FALSE.
-                 CASE ('SEMI_H') ! SEMI_HYBRID
-                   simpar%semi_hybrid = .TRUE.
-                   ILEN = 0
-                   CALL get_next(string, ILEN)
-                   CALL uppercase(string)
-                   IF (string(1:1)=='F') simpar%semi_hybrid = .FALSE.
-                 CASE ('MD_MET')
-                   ILEN = 0
-                   CALL get_next(string, ILEN)
-                   CALL uppercase(string)
-                   SELECT CASE (string(1:ILEN))
-                     CASE ("FIST")
-                       simpar%md_method = FIST_MD_method
-                     CASE ("KG")
-                       simpar%md_method = KG_MD_method         
-                     CASE ("QS")
-                       simpar%md_method = QS_MD_method
-                     CASE ("Harris", "HARRIS")
-                       simpar%md_method = Harris_MD_method
-                     CASE DEFAULT
-                       CALL p_error()
-                       CALL stop_parser('MD_Method@HMC', &
-                                        'unknown suboption')
-                   END SELECT
-                 CASE ('MC_MET')
-                   ILEN = 0
-                   CALL get_next(string, ILEN)
-                   CALL uppercase(string)
-                   SELECT CASE (string(1:ILEN))
-                     CASE ("KG")
-                       simpar%mc_method = KG_MC_method
-                     CASE ("QS")
-                       simpar%mc_method = QS_MC_method
-                     CASE ("Harris", "HARRIS")
-                       simpar%mc_method = Harris_MC_method
-                     CASE DEFAULT
-                       CALL p_error()
-                       CALL stop_parser('MC_Method@HMC', &
-                                        'unknown suboption')
-                   END SELECT
-                 END SELECT
-               END DO
-             CASE ( 'ANNEAL' )
-                simpar % annealing = .TRUE.
-                CALL get_next ( simpar % f_annealing )
-                
-             CASE ( 'OUTPUT' )
-                ILEN = 0
-                CALL get_next ( string, ILEN )
-                CALL uppercase ( string )
-                SELECT CASE (string ( 1:ILEN ))
-                CASE ("XYZ")
-                   simpar % output_format = dump_xyz
-                CASE ("CRD")
-                   simpar % output_format = dump_crd
-                CASE ("ATOMIC")
-                   simpar % output_format = dump_atomic
-                CASE ("XMOL")
-                   simpar % output_format = dump_xmol
-                CASE ("DCD")
-                   simpar % output_format = dump_dcd
-                   CALL xstring ( globenv % project_name, ia, ie )
-                   mdio%crd_file_name = globenv%project_name(ia:ie)//'.dcd'
-                CASE DEFAULT
-                   call p_error
-                END SELECT
-             CASE ( 'ENSEMB' )
-                ILEN = 0
-                CALL get_next ( string, ILEN )
-                CALL uppercase ( string )
-                SELECT CASE(string( 1:ILEN ))
-                CASE ("NVE")
-                   simpar % ensemble = nve_ensemble
-                CASE ("NVT")
-                   simpar % ensemble = nvt_ensemble
-                CASE ("NPT_I")
-                   simpar % ensemble = npt_i_ensemble
-                CASE ("NPT_F")
-                   simpar % ensemble = npt_f_ensemble
-                CASE ("NPH")
-                   simpar % ensemble = nph_ensemble
-                CASE ("NPH_UNIAXIAL")
-                   simpar % ensemble = nph_uniaxial_ensemble            
-                CASE ("NPH_UNIAXIAL_DAMPED")
-                   simpar % ensemble = nph_uniaxial_damped_ensemble
-                CASE ("ISOKIN")
-                   simpar % ensemble = isokin_ensemble
-                CASE ("REFTRAJ")
-                   simpar % ensemble = reftraj_ensemble
-                CASE ("LANGEVIN")
-                   simpar % ensemble = langevin_ensemble
-                CASE DEFAULT 
-                   CALL p_error()
-                END SELECT
-             CASE ( 'STEPS' )
-                CALL get_next ( simpar % nsteps )
-                
-             CASE ( 'WALLTI' ) ! WALLTIME
-                CALL get_next ( simpar % walltime )
-             CASE ( 'TIMEST' )
-                CALL get_next ( simpar % dt )
-                IF ( test_next () == 'C' ) THEN
-                   CALL get_next ( string, ILEN )
-                   CALL uppercase ( string )
-                   SELECT CASE ( string )
-                   CASE DEFAULT
-                      simpar % units % time = 'FS'  
-                   CASE ('FS','AU')
-                      simpar % units % time = string
-                   END SELECT
-                ELSE
-                   simpar % units % time = 'FS'
-                ENDIF
-                CALL uppercase ( simpar % units % time )
-                
-             CASE ( 'TEMPER' )
-                CALL get_next ( simpar % temp_ext )
-                
-             CASE ( 'TEMP_T' )
-                CALL get_next ( simpar % temp_tol )
-                
-             CASE ( 'RESTAR' )
-                ILEN = 0
-                CALL get_next ( string, ILEN )
-                CALL uppercase ( string )
-                SELECT CASE(string ( 1:ILEN ))
-                CASE ("INIT")
-                   simpar % read_type = md_init_start
-                CASE ("POS")
-                   simpar % read_type = md_pos_restart
-                CASE ("POSVEL")
-                   simpar % read_type = md_pos_vel_restart
-                CASE ("ALL")
-                   simpar % read_type = md_all_restart
-                CASE DEFAULT
-                   call p_error()
-                END SELECT
-             CASE ( 'PV_AVA' )
-                ILEN = 0
-                CALL get_next ( string, ILEN )
-                CALL uppercase ( string )
-                IF ( string(1:1)=='T' ) simpar % pv_availability = .TRUE.
-                IF ( string(1:1)=='F' ) simpar % pv_availability = .FALSE.
-                
-             CASE ( 'PV_NUM' )
-                ILEN = 0
-                CALL get_next ( string, ILEN )
-                CALL uppercase ( string )
-                IF ( string(1:1)=='T' ) simpar % pv_numerical=.TRUE.
-                IF ( string(1:1)=='F' ) simpar % pv_numerical=.FALSE.
-                
-             CASE ( 'CONSTR' )
-                ILEN = 0
-                CALL get_next ( string, ILEN )
-                CALL uppercase ( string )
-                IF ( string(1:2)=='ON' ) simpar % constraint = .TRUE.
-                IF ( string(1:3)=='OFF' ) simpar % constraint = .FALSE.
-                
-             CASE ( 'SHAKE' )
-                CALL get_next ( simpar % shake_tol )
-             CASE ( 'UNIAXI' )
-                DO WHILE ( test_next() == 'C' )
-                   
-                   ILEN = 6
-                   CALL get_next ( string, ILEN )
-                   CALL uppercase ( string )
-                   
-                   SELECT CASE ( string )
-                   CASE DEFAULT
-                      CALL p_error()
-                      CALL stop_parser ( 'read_md_section%unixial_shock', &
-                           'unknown suboption' )
-                   CASE ( 'PRESSU' )
-                      CALL get_next ( simpar % p0 )
-                      IF ( test_next () == 'C' ) THEN
-                         CALL get_next ( simpar % units % press, ILEN )
-                      ELSE
-                         simpar % units % press = 'BAR'
-                      ENDIF
-                      CALL uppercase ( simpar % units % press )
-                   CASE ( 'ENERGY' )
-                      CALL get_next ( simpar % e0 )
-                   CASE ( 'VOLUME' )
-                      CALL get_next ( simpar % v0 )
-                   CASE ( 'CMASS' )
-                      CALL get_next ( simpar % cmass )
-                   CASE ( 'V_SHOC' )
-                      CALL get_next ( simpar % v_shock )
-!!! input in m/sec
-                      simpar % v_shock = simpar % v_shock * 1.e10_dp
-                      simpar % v_shock = simpar % v_shock * 1.e-15_dp
-                   CASE ( 'GAMMA' )
-                      CALL get_next ( simpar % gamma_nph )
-                      simpar % ensemble = nph_uniaxial_damped_ensemble
-                   END SELECT
-                END DO
-             CASE ( 'NOSE_P' )
-                DO WHILE ( test_next() == 'C' )
-                   
-                   ILEN = 6
-                   CALL get_next ( string, ILEN )
-                   CALL uppercase ( string )
-                   
-                   SELECT CASE ( string )
-                   CASE DEFAULT
-                      CALL p_error()
-                      CALL stop_parser ( 'read_md_section%nose', &
-                           'unknown suboption' )
-                   CASE ( 'LENGTH' )
-                      CALL get_next ( simpar % nhclen )
-                   CASE ( 'YOSHID' )
-                      CALL get_next ( simpar % nyosh )
-                   CASE ( 'TIMECO' )
-                      CALL get_next ( simpar % tau_nhc )
-                      IF ( test_next () == 'C' ) THEN
-                         CALL get_next ( string, ILEN )
-                         CALL uppercase ( string )
-                         SELECT CASE ( string )
-                         CASE DEFAULT
-                            simpar % units % tau = '1/CM'
-                         CASE ('FS','AU')
-                            simpar % units % tau = string
-                         END SELECT
-                      ELSE
-                         simpar % units % tau = '1/CM'
-                      ENDIF
-                      CALL uppercase ( simpar % units % tau )
-                   CASE ( 'MTS' )
-                      CALL get_next ( simpar % nc )
-                   END SELECT
-                END DO
-                
-             CASE ( 'BAROST' )
-                DO WHILE ( test_next() == 'C' )
-                   
-                   ILEN = 6
-                   CALL get_next ( string, ILEN )
-                   CALL uppercase ( string )
-                   
-                   SELECT CASE ( string )
-                   CASE DEFAULT
-                      CALL p_error()
-                      CALL stop_parser ( 'read_md_section%barost', &
-                           'unknown suboption' )
-                   CASE ( 'TIMECO' )
-                      CALL get_next ( simpar % tau_cell )
-                      IF ( test_next () == 'C' ) THEN
-                         CALL get_next ( string, ILEN )
-                         CALL uppercase ( string )
-                         SELECT CASE ( string )
-                         CASE DEFAULT
-                            simpar % units % tau_cell = '1/CM'
-                         CASE ('FS','AU')
-                            simpar % units % tau_cell = string
-                         END SELECT
-                      ELSE
-                         simpar % units % tau_cell = '1/CM'
-                      ENDIF
-                      CALL uppercase ( simpar % units % tau_cell )
-                   CASE ( 'PRESSU' )
-                      CALL get_next ( simpar % p_ext )
-                      IF ( test_next () == 'C' ) THEN
-                         CALL get_next ( simpar % units % press, ILEN )
-                      ELSE
-                         simpar % units % press = 'BAR'
-                      ENDIF
-                      CALL uppercase ( simpar % units % press )
-                   END SELECT
-                END DO
-                
-             CASE ( 'FILES' )
-                DO WHILE ( test_next() == 'C' )
-                   
-                   ILEN = 6
-                   CALL get_next ( string, ILEN )
-                   CALL uppercase ( string )
-                   
-                   SELECT CASE ( string )
-                   CASE DEFAULT
-                      CALL p_error()
-                      CALL stop_parser ( 'read_md_section%files', &
-                           'unknown suboption' )
-                   CASE ( 'FILEBO' )
-                      ILEN = 0
-                      CALL get_next ( string, ILEN )
-                      mdio % crd_file_name = string(1:ILEN) // '.xyz'
-                      mdio % vel_file_name = string(1:ILEN) // '.vel'
-                      mdio % ptens_file_name = string(1:ILEN) // '.ptens'
-                      mdio % ener_file_name = string(1:ILEN) // '.ener'
-                      mdio % pot_file_name = string(1:ILEN) // '.pot'
-                      mdio % temp_file_name = string(1:ILEN) // '.temp'
-                      mdio % dump_file_name = string(1:ILEN) // '.restart'
-                      mdio % coef_file_name = string(1:ILEN) // '.coef'
-                      mdio % hmc_file_name = string(1:ILEN) // '.hmc'
-                   CASE ( 'COORDI' )
-                      ILEN = 0
-                      CALL get_next ( mdio % crd_file_name, ILEN )
-                   CASE ( 'ENERGI' )
-                      ILEN = 0
-                      CALL get_next ( mdio % ener_file_name, ILEN )
-                   CASE ( 'POTENT' )
-                      ILEN = 0
-                      CALL get_next ( mdio % pot_file_name, ILEN )
-                   CASE ( 'PRESSU' )
-                      ILEN = 0
-                      CALL get_next ( mdio % ptens_file_name, ILEN )
-                   CASE ( 'VELOCI' )
-                      ILEN = 0
-                      CALL get_next ( mdio % vel_file_name, ILEN )
-                   CASE ( 'TEMPER' )
-                      ILEN = 0
-                      CALL get_next ( mdio % temp_file_name, ILEN )
-                   CASE ( 'DUMP' )
-                      ILEN = 0
-                      CALL get_next ( mdio % dump_file_name, ILEN )
-                   CASE ( 'COEF' )
-                      ILEN = 0
-                      CALL get_next ( mdio % coef_file_name, ILEN )
-                   CASE ('Hybrid') ! HybridMC
-                      ILEN = 0
-                      CALL get_next(mdio%hmc_file_name, ILEN)
-                   END SELECT
-                END DO
-                
-             CASE ( 'PRINT' )
-                DO WHILE ( test_next() == 'C' )
-
-                   ILEN = 6
-                   CALL get_next ( string, ILEN )
-                   CALL uppercase ( string )
-                   
-                   SELECT CASE ( string )
-                   CASE DEFAULT
-                      CALL p_error()
-                      CALL stop_parser ( 'read_md_section%print', &
-                           'unknown suboption' )
-                      
-                   CASE ( 'SCREEN' )
-                      CALL get_next ( mdio % iscreen )
-                      
-                   CASE ( 'FILES' )
-                      CALL get_next ( ia )
-                      mdio % icrd = ia
-                      mdio % ivel = ia
-                      mdio % iener = ia
-                      mdio % ipot = ia
-                      mdio % iptens = ia
-                      mdio % itemp = ia
-                      mdio % idump = ia
-                      mdio % icoef = ia
-                   CASE ( 'COORDI' )
-                      CALL get_next ( mdio % icrd )
-                   CASE ( 'ENERGI' )
-                      CALL get_next ( mdio % iener )
-                   CASE ( 'POTENT' )
-                      CALL get_next ( mdio % ipot )
-                   CASE ( 'PRESSU' )
-                      CALL get_next ( mdio % iptens )
-                   CASE ( 'VELOCI' )
-                      CALL get_next ( mdio % ivel )
-                   CASE ( 'TEMPER' )
-                      CALL get_next ( mdio % itemp )
-                   CASE ( 'DUMP' )
-                      CALL get_next ( mdio % idump )
-                   CASE ( 'COEF' )
-                      CALL get_next ( mdio % icoef )
-                   END SELECT
-                END DO
-                
-             CASE ( 'QS_MD_' )
-                DO WHILE ( test_next() == 'C' )
-                   
-                   ILEN = 9
-                   CALL get_next ( string, ILEN )
-                   CALL uppercase ( string )
-                   
-                   SELECT CASE ( string )
-                   CASE DEFAULT
-                      CALL p_error()
-                      CALL stop_parser ( 'read_md_section%qs_md_param', &
-                           'unknown suboption' )
-                   CASE ( 'NEIGHB' )
-                      ILEN = 5
-                      CALL get_next ( string, ILEN )
-                      CALL uppercase ( string )
-                      
-                      SELECT CASE ( string )
-                      CASE DEFAULT
-                         CALL p_error()
-                         CALL stop_parser ( 'read_md_section%qs_md_param', &
-                              'neighbor_lists_from_scratch must be either true '//&
-                              'or false' )
-                      CASE ( 'TRUE')
-                         simpar % qs_md_param % neighbor_lists_from_scratch = &
-                              .TRUE.
-                      CASE ( 'FALSE')
-                         simpar % qs_md_param % neighbor_lists_from_scratch = &
-                              .FALSE.
-                      END SELECT
-                   END SELECT
-                END DO
-                
-             END SELECT
-             CALL read_line
-          END DO
-          
-       END IF
-       CALL parser_end
-       !..end of parsing the input section
-!
-!TODEL_END_TL
-!
-    END IF
-!
-!TODEL_START_TL -- The conversion is intrinsic to the new input style.. not needed anymore
-!
-    IF (.NOT.parsed_cp2k_input(md_section,check_this_section=.TRUE.,error=error)) THEN
-       CALL convert_to_cp2k_units ( simpar % units % time, time = simpar % dt ) 
-       CALL convert_to_cp2k_units ( temperature = simpar % temp_ext ) 
-       CALL convert_to_cp2k_units ( temperature = simpar % temp_baro ) 
-       CALL convert_to_cp2k_units ( temperature = simpar % temp_tol ) 
-       CALL convert_to_cp2k_units ( simpar % units % tau, tau_nhc = simpar % tau_nhc ) 
-       CALL convert_to_cp2k_units ( simpar % units % tau_cell, tau_nhc = simpar % tau_cell ) 
-       CALL convert_to_cp2k_units ( simpar % units % press, pressure = simpar % p_ext ) 
-       CALL convert_to_cp2k_units ( simpar % units % press, pressure = simpar % p0 ) 
-       CALL convert_to_cp2k_units ( "ANGSTROM", length = simpar % v_shock ) 
-       CALL convert_to_cp2k_units ( "FS", time = simpar % v_shock, t_power = -1 ) 
-       CALL convert_to_cp2k_units ( "FS", time = simpar % gamma_nph, t_power = -1 ) 
-    END IF    
-!
-!TODEL_END_TL
-!
+       "MOTION%MD",error=error)
+    CALL read_md_new_section(simpar, globenv,  md_section, error)
 
 !TdK Turn on Langevin dynamics in case HMC is activated in the harris section
   IF (globenv%ionode.AND.(globenv%print_level >= 0)) THEN
@@ -919,14 +304,11 @@ CONTAINS
   IF (simpar%ensemble == langevin_ensemble) THEN
   
     IF (globenv%ionode.AND.(globenv%print_level >= 0)) THEN
+       tmp_r=cp_unit_from_cp2k(simpar%gamma,"fs^-1",error=error)
       WRITE (iw,"(T2,A,T71,ES10.3)")&
-        "LD| Gamma [1/"//TRIM(simpar%units%time)//"] ",simpar%gamma
+        "LD| Gamma [1/fs] ",tmp_r
     END IF
   
-    CALL convert_to_cp2k_units(simpar%units%time,&
-                               time=simpar%gamma,&
-                               t_power=-1)
-                               
     !MK Normalization factor uniform random number distribution [-0.5,0.5]
   
     simpar%var_w = 24.0_dp*simpar%temp_ext*simpar%dt*simpar%gamma
@@ -1090,7 +472,7 @@ SUBROUTINE read_md_new_section(simpar, globenv, md_section, error)
      END IF
 
      tmp_section => section_vals_get_subs_vals(globenv%input_file,"GLOBAL",error=error)
-     CALL section_vals_val_get(tmp_section,"OUTPUT",i_val=simpar%output_format,error=error)
+     CALL section_vals_val_get(globenv%input_file,"FORCE_EVAL%PRINT%TRAJECTORY%FORMAT",i_val=simpar%output_format,error=error)
      CALL section_vals_val_get(tmp_section,"WALLTIME",r_val=simpar%walltime,error=error)
 
      tmp_section => section_vals_get_subs_vals(globenv%input_file,"FORCE_EVAL%SUBSYS%CONSTRAINT",error=error)
@@ -1116,7 +498,7 @@ SUBROUTINE read_md_new_section(simpar, globenv, md_section, error)
      CALL section_vals_get(tmp_section,explicit=explicit,error=error)
      IF (explicit) THEN
         CALL section_vals_val_get(tmp_section,"PRESSURE",r_val=simpar%p_ext,error=error)
-        CALL section_vals_val_get(tmp_section,"TIMECO",r_val=simpar%tau_cell,error=error)
+        CALL section_vals_val_get(tmp_section,"TIMECON",r_val=simpar%tau_cell,error=error)
      END IF
      
      tmp_section => section_vals_get_subs_vals(md_section,"NOSE",error=error)

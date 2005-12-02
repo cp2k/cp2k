@@ -34,7 +34,8 @@
 MODULE qs_ks_methods
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind_set
-  USE cp_output_handling, ONLY: cp_should_output
+  USE cp_output_handling, ONLY: cp_out_flags_should_output, cp_out_flags_unit_nr,&
+       cp_out_flags_finished_output,cp_p_file, cp_out_flags_type
   USE coefficient_types,               ONLY: coeff_add,&
                                              coeff_subtract,&
                                              coeff_init,&
@@ -84,7 +85,6 @@ MODULE qs_ks_methods
   USE cp_sm_fm_interactions,           ONLY: cp_sm_fm_multiply,&
                                              cp_sm_plus_fm_fm_t
   USE harris_env_types,                ONLY: harris_env_type
-  USE hartree,                         ONLY: calculate_hartree
   USE hartree_local_2centers,          ONLY: integrate_vhg0_g0
   USE hartree_local_3centers,          ONLY: integrate_a_vhg0_b
   USE hartree_local_methods,           ONLY: Vh_1c_gg_integrals
@@ -108,8 +108,6 @@ MODULE qs_ks_methods
                                              RECIPROCALSPACE,&
                                              pw_p_type, &
                                              pw_release
-  USE pws,                             ONLY: cleanup_pw_poisson_solver,&
-                                             init_pw_poisson_solver
   USE qs_charges_types,                ONLY: qs_charges_type
   USE qs_collocate_density,            ONLY: calculate_total_rho
   USE qs_core_energies,                ONLY: calculate_ecore
@@ -141,12 +139,13 @@ MODULE qs_ks_methods
   USE qs_ks_qmmm_methods,              ONLY: qs_ks_qmmm_create,&
                                              qmmm_calculate_energy,&
                                              qmmm_modify_hartree_pot
-  USE green_types,                     ONLY: greens_function_type
   USE input_section_types, ONLY: section_type, section_create, &
        section_add_keyword, section_add_subsection, section_release,&
        section_vals_type,&
        section_vals_get_subs_vals, section_vals_get, section_vals_val_get
   USE cp_ddapc,                        ONLY: cp_decpl_ddapc 
+  USE pw_poisson_methods, ONLY: pw_poisson_solve
+  USE pw_poisson_types, ONLY: pw_poisson_type
   IMPLICIT NONE
 
   PRIVATE
@@ -200,12 +199,13 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_ks_create', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, nspins, stat
+    INTEGER                                  :: handle, nspins, stat, auxbas_grid
     LOGICAL                                  :: failure
     TYPE(cell_type), POINTER                 :: cell
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(pw_env_type), POINTER               :: pw_env
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
+    TYPE(pw_pool_p_type), DIMENSION(:), pointer :: pw_pools
 
     CALL timeset(routineN,"I","",handle)
 
@@ -216,12 +216,13 @@ CONTAINS
 
     IF (.not.failure) THEN
        NULLIFY( pw_env, auxbas_pw_pool,&
-            pw_env, cell)
+            pw_env, cell,pw_pools)
        CALL get_qs_env(qs_env=qs_env,&
             dft_control=dft_control,&
             pw_env=pw_env, cell=cell)
-       CALL pw_env_get(pw_env,auxbas_pw_pool=auxbas_pw_pool)
-
+       CALL pw_env_get(pw_env,auxbas_pw_pool=auxbas_pw_pool,pw_pools=pw_pools,&
+            auxbas_grid=auxbas_grid)
+       
        nspins=dft_control%nspins
 
        ks_env%s_mstruct_changed=.TRUE.
@@ -314,7 +315,6 @@ CONTAINS
     INTEGER                                  :: handle, ispin, n_electrons, &
                                                 nspins, output_unit, stat
     LOGICAL                                  :: failure, gapw, gapw_xc, ionode, my_kg_gpw
-    TYPE(greens_function_type), POINTER      :: green
     TYPE(cell_type), POINTER                 :: cell
     TYPE(coeff_type)                         :: rho_tot_gspace,&
                                                 v_hartree_gspace, v_sic_rspace
@@ -338,12 +338,14 @@ CONTAINS
     REAL(KIND=dp)                        :: mulliken_order_p
     TYPE(section_vals_type), POINTER     :: print_qmmm_gen
     TYPE(qs_rho_type), POINTER           :: my_rho_xc
+    TYPE(pw_poisson_type), pointer :: poisson_env
+    TYPE(cp_out_flags_type), pointer :: output_control
 ! shorter for output
 
     failure=.FALSE.
     NULLIFY(matrix_h,matrix_s,dft_control,auxbas_pw_pool, pw_pools,&
-         pw_env, cell, logger, v_rspace_new, v_tau_rspace, green,&
-         print_qmmm_gen)
+         pw_env, cell, logger, v_rspace_new, v_tau_rspace,&
+         print_qmmm_gen, poisson_env,output_control)
 
     !   -----------------------------------------------------------------------
 
@@ -354,8 +356,6 @@ CONTAINS
 
     logger => cp_error_get_logger(error)
     ionode = logger%para_env%mepos==logger%para_env%source
-    IF (ionode) output_unit = cp_logger_get_default_unit_nr(logger)
-    print_qmmm_gen => section_vals_get_subs_vals(qs_env%input,"QMMM%PRINT%PROGRAM_RUN_INFO",error=error)
     ! Check for a KG_GPW calculation: KE for total rho and for molecular rho
     my_kg_gpw = .FALSE.
     IF(PRESENT(kg_gpw)) my_kg_gpw = kg_gpw
@@ -366,9 +366,10 @@ CONTAINS
          matrix_s=matrix_s,&
          pw_env=pw_env,&
          cell=cell,&
-         green=green,&
-         para_env=para_env)
-  
+         para_env=para_env,&
+         output_control=output_control,&
+         error=error)
+
     nspins=dft_control%nspins
     CPPrecondition(ASSOCIATED(matrix_h),cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(matrix_s),cp_failure_level,routineP,error,failure)
@@ -396,7 +397,7 @@ CONTAINS
     ! gets the tmp grids
     IF (.NOT. failure) THEN
        CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool,&
-                       pw_pools=pw_pools)
+                       pw_pools=pw_pools, poisson_env=poisson_env,error=error)
     END IF
 
 ! ***  Prepare densities for gapw ***
@@ -421,10 +422,8 @@ CONTAINS
        CALL calc_rho_tot_gspace(rho_tot_gspace, qs_env, rho)
        IF (ionode) CALL print_densities(qs_env, rho_tot_gspace, rho, my_rho_xc)
 
-       CALL init_pw_poisson_solver(green,error=error)
-       CALL calculate_hartree(rho_tot_gspace,energy%hartree,&
-            v_hartree_gspace)
-       CALL cleanup_pw_poisson_solver(green,error=error)
+       CALL pw_poisson_solve(poisson_env,rho_tot_gspace%pw,energy%hartree,&
+            v_hartree_gspace%pw)
        ! In case decouple periodic images
        CALL cp_decpl_ddapc(qs_env,rho_tot_gspace,energy%hartree,v_hartree_gspace,&
             calculate_forces=calculate_forces,error=error)
@@ -442,15 +441,16 @@ CONTAINS
             error=error)
 
        CALL calc_v_sic_rspace(v_sic_rspace,energy,&
-                              qs_env,dft_control,rho,green,just_energy,&
+                              qs_env,dft_control,rho,poisson_env,just_energy,&
                               auxbas_pw_pool)
 
        IF(gapw) CALL Vh_1c_gg_integrals(qs_env,energy%hartree_1c)
 
        ! *** Add the QM/MM potential ***
        If (qs_env%qmmm) Then
-          IF (cp_should_output(logger%iter_info,print_qmmm_gen,error=error).AND.&
-               logger%para_env%mepos==logger%para_env%source) &          
+          output_unit=cp_out_flags_unit_nr(output_control,"QMMM%PRINT%PROGRAM_RUN_INFO",&
+               extension=".qmmmLog",error=error)
+          IF (output_unit>0) &          
                WRITE (UNIT=output_unit,FMT="(T3,A)")&
                "Adding QM/MM Electrostatic Potential to the Kohn-Sham Matrix.."
            CALL qmmm_calculate_energy (qs_env=qs_env,&
@@ -459,6 +459,9 @@ CONTAINS
                                        qmmm_energy=energy%qmmm_el,&
              ! also take into account the scaling (in addition to the volume element)
                                        error=error)
+           CALL cp_out_flags_finished_output(output_unit,output_control,&
+                "QMMM%PRINT%PROGRAM_RUN_INFO", error=error)
+
            IF (.NOT.just_energy) THEN
               CALL qmmm_modify_hartree_pot(v_hartree=ks_env%v_hartree_rspace,&
                    v_qmmm=qs_env%ks_qmmm_env%v_qmmm_rspace,&
@@ -704,7 +707,9 @@ CONTAINS
             energy%qmmm_el + energy%mulliken + &
             energy%kg_gpw_ekin_mol
 
-       IF (ionode.AND.logger%print_keys%scf_energies) THEN
+       output_unit=cp_out_flags_unit_nr(output_control,"DFT%SCF%PRINT%DETAILED_ENERGY",&
+            extension=".scfLog",error=error)
+       IF (output_unit>0) THEN
           IF(my_kg_gpw) THEN
             WRITE (UNIT=output_unit,FMT="(/,(T3,A,T60,F20.10))")&
                "Core Hamiltonian energy of separated molecules:",energy%core,&
@@ -738,6 +743,8 @@ CONTAINS
           ENDIF
 
        END IF
+       CALL cp_out_flags_finished_output(output_unit,output_control,&
+            "DFT%SCF%PRINT%DETAILED_ENERGY", error=error)
 
     END IF
 
@@ -748,7 +755,7 @@ CONTAINS
 ! *****************************************************************************
 
   SUBROUTINE calc_v_sic_rspace(v_sic_rspace,energy,&
-                               qs_env,dft_control,rho,green,just_energy,&
+                               qs_env,dft_control,rho,poisson_env,just_energy,&
                                auxbas_pw_pool,error)
 
     TYPE(coeff_type), INTENT(INOUT)          :: v_sic_rspace
@@ -757,7 +764,7 @@ CONTAINS
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(qs_rho_type), POINTER               :: rho
-    TYPE(greens_function_type), POINTER      :: green
+    TYPE(pw_poisson_type), POINTER           :: poisson_env
     LOGICAL, INTENT(IN)                      :: just_energy
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
     TYPE(cp_error_type), INTENT(INOUT), &
@@ -794,10 +801,8 @@ CONTAINS
     SELECT CASE ( dft_control%sic_method_id )
     CASE ( sic_mauri_us, sic_mauri_spz )
        CALL coeff_subtract(rho%rho_g(1),rho%rho_g(2),work_rho)
-       CALL init_pw_poisson_solver(green,error=error)
-       CALL calculate_hartree(work_rho, ener, work_v)
+       CALL pw_poisson_solve(poisson_env,work_rho%pw, ener, work_v%pw)
        energy%hartree=energy%hartree - dft_control % sic_scaling_a * ener
-       CALL cleanup_pw_poisson_solver(green,error=error)
     CASE ( sic_ad )
        ! find out how many elecs we have
        CALL get_qs_env(qs_env,mos=mo_array)
@@ -807,10 +812,8 @@ CONTAINS
        CALL coeff_add(rho%rho_g(1),rho%rho_g(2),work_rho)
        scaling = 1.0_dp / REAL(nelec,KIND=dp)
        CALL coeff_scale(work_rho,scaling)
-       CALL init_pw_poisson_solver(green,error=error)
-       CALL calculate_hartree(work_rho, ener, work_v)
+       CALL pw_poisson_solve(poisson_env,work_rho%pw, ener, work_v%pw)
        energy%hartree=energy%hartree - dft_control % sic_scaling_a * nelec * ener
-       CALL cleanup_pw_poisson_solver(green,error=error)
     CASE DEFAULT
        CALL cp_assert( .FALSE., cp_failure_level,cp_assertion_failed,routineP,&
             "Unknown sic method id",error,failure)
@@ -1137,6 +1140,11 @@ SUBROUTINE qs_ks_did_change(ks_env,s_mstruct_changed,rho_changed,full_reset,erro
       routineP = moduleN//':'//routineN
 
     LOGICAL                                  :: failure
+    integer :: auxbas_grid
+    TYPE(cell_type), POINTER                 :: cell
+    TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(pw_env_type), POINTER               :: pw_env
+    TYPE(pw_pool_p_type), DIMENSION(:), pointer :: pw_pools
 
   failure=.FALSE.
   
@@ -1239,6 +1247,7 @@ SUBROUTINE qs_vxc_create(vxc_rho,vxc_tau, exc, qs_env,&
                                                 nsc_flag, &
                                                 my_gapw_xc
     TYPE(harris_env_type), POINTER           :: harris_env
+    TYPE(section_vals_type), POINTER :: input, xc_section
 
 !   ---------------------------------------------------------------------------
 
@@ -1248,7 +1257,7 @@ SUBROUTINE qs_vxc_create(vxc_rho,vxc_tau, exc, qs_env,&
   CPPrecondition(.NOT.ASSOCIATED(vxc_rho),cp_failure_level,routineP,error,failure)
   CPPrecondition(.NOT.ASSOCIATED(vxc_tau),cp_failure_level,routineP,error,failure)
   NULLIFY(dft_control,rho_struct,pw_env,auxbas_pw_pool,harris_env,cell, my_vxc_rho, &
-          my_vxc_tau, rho_g, rho_r, tau, rho_m_rspace,rho_m_gspace)
+          my_vxc_tau, rho_g, rho_r, tau, rho_m_rspace,rho_m_gspace, input)
 
   my_just_energy=.FALSE.
   IF (PRESENT(just_energy)) my_just_energy=just_energy
@@ -1265,21 +1274,21 @@ SUBROUTINE qs_vxc_create(vxc_rho,vxc_tau, exc, qs_env,&
     nsc_flag = .FALSE.
   END IF
 
+  CALL get_qs_env(qs_env=qs_env, dft_control=dft_control,input=input, &
+       pw_env=pw_env, cell=cell, error=error)
+  xc_section => section_vals_get_subs_vals(input,"DFT%XC",error=error)
   ! would be better to pass these as arguments
   IF (harris_flag) THEN
-    CALL get_qs_env(qs_env=qs_env, dft_control=dft_control, harris_env=harris_env, &
-                    pw_env=pw_env, cell=cell, error=error)
+    CALL get_qs_env(qs_env=qs_env,  harris_env=harris_env, error=error)
     IF (nsc_flag) THEN
       rho_struct => harris_env%rho_diff
     ELSE
       rho_struct => harris_env%rho
     END IF
   ELSEIF(my_gapw_xc) THEN
-    CALL get_qs_env(qs_env=qs_env, dft_control=dft_control, rho_xc=rho_struct, &
-                    pw_env=pw_env, cell=cell, error=error)
+    CALL get_qs_env(qs_env=qs_env, rho_xc=rho_struct, error=error)
   ELSE
-    CALL get_qs_env(qs_env=qs_env, dft_control=dft_control, rho=rho_struct, &
-                    pw_env=pw_env, cell=cell, error=error)
+    CALL get_qs_env(qs_env=qs_env, rho=rho_struct, error=error)
   END IF
 
 
@@ -1355,14 +1364,14 @@ SUBROUTINE qs_vxc_create(vxc_rho,vxc_tau, exc, qs_env,&
      IF (my_just_energy) THEN
 
         exc=xc_exc_calc(rho_r=rho_r,tau=tau,&
-             rho_g=rho_g, dft_control=dft_control,&
+             rho_g=rho_g, xc_section=xc_section,&
              cell=cell, pw_pool=auxbas_pw_pool,&
              error=error)
 
      ELSE
         CALL xc_vxc_pw_create1(vxc_rho=my_vxc_rho,vxc_tau=my_vxc_tau, rho_r=rho_r,&
              rho_g=rho_g,tau=tau,exc=exc,&
-             dft_control=dft_control,&
+             xc_section=xc_section,&
              cell=cell, pw_pool=auxbas_pw_pool,&
              error=error)
      END IF
@@ -1431,13 +1440,13 @@ SUBROUTINE qs_vxc_create(vxc_rho,vxc_tau, exc, qs_env,&
         
         IF (my_just_energy) THEN
            exc_m=xc_exc_calc(rho_r=rho_r,tau=tau,&
-                rho_g=rho_g, dft_control=dft_control,&
+                rho_g=rho_g, xc_section=xc_section,&
                 cell=cell, pw_pool=auxbas_pw_pool,&
                 error=error)
         ELSE
            CALL xc_vxc_pw_create1(vxc_rho=my_vxc_rho,vxc_tau=my_vxc_tau, rho_r=rho_r,&
                 rho_g=rho_g,tau=tau,exc=exc_m,&
-                dft_control=dft_control,&
+                xc_section=xc_section,&
                 cell=cell, pw_pool=auxbas_pw_pool,&
                 error=error)
         END IF
@@ -1504,13 +1513,13 @@ SUBROUTINE qs_vxc_create(vxc_rho,vxc_tau, exc, qs_env,&
 
            IF (my_just_energy) THEN
               exc_m=xc_exc_calc(rho_r=rho_r,tau=tau,&
-                   rho_g=rho_g, dft_control=dft_control,&
+                   rho_g=rho_g, xc_section=xc_section,&
                    cell=cell, pw_pool=auxbas_pw_pool,&
                    error=error)
            ELSE
               CALL xc_vxc_pw_create1(vxc_rho=my_vxc_rho,vxc_tau=my_vxc_tau, rho_r=rho_r,&
                    rho_g=rho_g,tau=tau,exc=exc_m,&
-                   dft_control=dft_control,&
+                   xc_section=xc_section,&
                    cell=cell, pw_pool=auxbas_pw_pool,&
                    error=error)
            END IF
@@ -1549,13 +1558,13 @@ SUBROUTINE qs_vxc_create(vxc_rho,vxc_tau, exc, qs_env,&
         
         IF (my_just_energy) THEN
            exc_m=xc_exc_calc(rho_r=rho_r,tau=tau,&
-                rho_g=rho_g, dft_control=dft_control,&
+                rho_g=rho_g, xc_section=xc_section,&
                 cell=cell, pw_pool=auxbas_pw_pool,&
                 error=error)
         ELSE
            CALL xc_vxc_pw_create1(vxc_rho=my_vxc_rho,vxc_tau=my_vxc_tau, rho_r=rho_r,&
                 rho_g=rho_g,tau=tau,exc=exc_m,&
-                dft_control=dft_control,&
+                xc_section=xc_section,&
                 cell=cell, pw_pool=auxbas_pw_pool,&
                 error=error)
         END IF

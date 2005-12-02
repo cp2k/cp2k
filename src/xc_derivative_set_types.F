@@ -47,7 +47,7 @@ MODULE xc_derivative_set_types
                                              pw_pool_type,&
                                              pw_pool_create
   USE pw_grid_types,                   ONLY: pw_grid_type
-  USE pw_grids, only: pw_grid_construct,&
+  USE pw_grids, only: pw_grid_create,&
        pw_grid_release
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -210,7 +210,7 @@ CONTAINS
     TYPE(pw_grid_type), pointer              :: pw_grid
 
     failure=.FALSE.
-    
+    nullify(pw_grid)
     CPPrecondition(.not.ASSOCIATED(derivative_set),cp_failure_level,routineP,error,failure)
 
     ALLOCATE(derivative_set, stat=stat)
@@ -232,8 +232,7 @@ CONTAINS
        ELSE
           !FM ugly hack, should be replaced by a pool only for 3d arrays
           CPPrecondition(PRESENT(local_bounds),cp_failure_level,routineP,error,failure)
-          ALLOCATE(pw_grid,stat=stat)
-          CALL pw_grid_construct(pw_grid,MPI_COMM_SELF)
+          CALL pw_grid_create(pw_grid,MPI_COMM_SELF)
           pw_grid%bounds_local=local_bounds
           NULLIFY(derivative_set%pw_pool)
           CALL pw_pool_create(derivative_set%pw_pool, pw_grid, error=error)

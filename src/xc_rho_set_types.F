@@ -94,7 +94,7 @@ MODULE xc_rho_set_types
                                              timestop
   USE xc_rho_cflags_types,             ONLY: xc_rho_cflags_equal,&
                                              xc_rho_cflags_setall,&
-                                             xc_rho_cflags_type
+                                             xc_rho_cflags_type,xc_rho_cflags_write
 
   IMPLICIT NONE
   PRIVATE
@@ -791,7 +791,6 @@ CONTAINS
     needs_rho_g=(xc_deriv_method_id==xc_deriv_spline3.OR.&
          xc_deriv_method_id==xc_deriv_spline2.OR.&
          xc_deriv_method_id==xc_deriv_pw)
-
     DO ispin=1,nspins
        ! introduce a smoothing kernel on the density
        IF (xc_rho_smooth_id==xc_rho_no_smooth) THEN

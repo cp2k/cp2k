@@ -102,7 +102,6 @@ CONTAINS
                            maxpgf=maxpgf,maxshell=maxshell,nset=nset)
 
     paw_atom = .FALSE.
-        
     soft_basis%name = TRIM(bsname)//"_soft"
 
     CALL reallocate(npgf,1,nset)

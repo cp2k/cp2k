@@ -48,7 +48,6 @@ MODULE kg_rspw_methods
   USE gaussian_gridlevels,             ONLY: destroy_gaussian_gridlevel,&
                                              gaussian_gridlevel,&
                                              init_gaussian_gridlevel
-  USE green_methods,                   ONLY: pw_green_fn_rebuild
   USE kg_environment_types,            ONLY: get_kg_env,&
                                              kg_environment_type
   USE kg_rspw_types,                   ONLY: kg_rspw_type,&
@@ -60,7 +59,7 @@ MODULE kg_rspw_methods
   USE pw_grid_types,                   ONLY: FULLSPACE,&
                                              HALFSPACE,&
                                              pw_grid_type
-  USE pw_grids,                        ONLY: pw_grid_construct,&
+  USE pw_grids,                        ONLY: pw_grid_create,&
                                              pw_grid_release,&
                                              pw_grid_setup
   USE pw_pool_types,                   ONLY: pw_pool_create,&
@@ -71,7 +70,9 @@ MODULE kg_rspw_methods
   USE termination,                     ONLY: stop_memory
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE green_types,                     ONLY: greens_function_type
+  USE pw_poisson_types, only: pw_poisson_create
+  USE pw_poisson_methods, only: pw_poisson_set
+  USE input_section_types, ONLY: section_vals_type, section_vals_get_subs_vals
   IMPLICIT NONE
 
   PRIVATE
@@ -104,7 +105,7 @@ SUBROUTINE kg_rspw_create(kg_rspw,kg_env,error)
   CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
   IF (.NOT. failure) THEN
      NULLIFY( kg_rspw%gridlevel_info, kg_rspw%pw_pools,kg_rspw%rs_pools,&
-          kg_rspw%l_info, kg_rspw%cube_info)
+          kg_rspw%l_info, kg_rspw%cube_info, kg_rspw%poisson_env)
      kg_rspw%auxbas_grid=-1
      kg_rspw%ref_count=1
      IF (PRESENT(kg_env)) CALL kg_rspw_rebuild(kg_rspw,kg_env=kg_env,error=error)
@@ -160,7 +161,6 @@ END SUBROUTINE kg_rspw_create
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
-    TYPE(greens_function_type), POINTER      :: green
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
@@ -171,6 +171,7 @@ END SUBROUTINE kg_rspw_create
     TYPE(pw_grid_type), POINTER              :: old_pw_grid, pw_grid
     TYPE(pw_pool_p_type), DIMENSION(:), &
       POINTER                                :: pw_pools
+    TYPE(section_vals_type), pointer :: poisson_section
 !   ---------------------------------------------------------------------------
 
     CALL timeset(routineN,"I","",handle)
@@ -178,17 +179,18 @@ END SUBROUTINE kg_rspw_create
     failure=.FALSE.
 
     NULLIFY(cutoff,cell,pw_grid,dft_control,para_env,rs_pools,old_pw_grid,&
-            atomic_kind_set,green)
+            atomic_kind_set)
     logger => cp_error_get_logger(error)
     pw_grid_information=logger%print_keys%pw_grid_information
 
     CALL get_kg_env(kg_env=kg_env,&
                     atomic_kind_set=atomic_kind_set,&
                     cell=cell,&
-                    green=green,&
                     dft_control=dft_control,&
+                    input=poisson_section,&
                     para_env=para_env)
-
+    poisson_section => section_vals_get_subs_vals(poisson_section,"DFT%POISSON",&
+         error=error)
     rel_cutoff = dft_control%qs_control%relative_cutoff
     cutoff => dft_control%qs_control%e_cutoff
 
@@ -247,9 +249,7 @@ END SUBROUTINE kg_rspw_create
       ENDIF
 
       DO igrid_level=1,ngrid_level 
-        ALLOCATE(pw_grid,stat=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-        CALL pw_grid_construct(pw_grid,para_env%group)
+        CALL pw_grid_create(pw_grid,para_env%group)
 
         IF ( dft_control % qs_control % pw_grid_opt % spherical ) THEN
            cutilev = cutoff(igrid_level)
@@ -387,8 +387,12 @@ END SUBROUTINE kg_rspw_create
 !      poisson solver initialized only for the reference cutoff grid
 !      Total density and potentials are allocated on the reference grid
 
-       CALL pw_green_fn_rebuild(green,&
-          kg_rspw%pw_pools(kg_rspw%auxbas_grid)%pool, cell=cell, para_env=para_env)
+       IF (.NOT.ASSOCIATED(kg_rspw%poisson_env)) THEN
+          CALL pw_poisson_create(kg_rspw%poisson_env,error=error)
+       END IF
+       CALL pw_poisson_set(kg_rspw%poisson_env, cell=cell, &
+            parameters=poisson_section, pw_pools=kg_rspw%pw_pools,&
+            use_level=kg_rspw%auxbas_grid, error=error )
 
     END IF
     CALL timestop(0.0_dp,handle)

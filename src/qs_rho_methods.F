@@ -63,6 +63,7 @@ MODULE qs_rho_methods
                                              add_matrices
   USE timings,                         ONLY: timeset,&
                                              timestop
+  USE cp_matrix_utils, only: cp_sm_write
 
   IMPLICIT NONE
   PRIVATE
@@ -375,6 +376,10 @@ SUBROUTINE qs_rho_update_rho(rho_struct, qs_env, gapw, error)
          rho_struct%tau_r_valid=.TRUE.
          rho_struct%tau_g_valid=.TRUE.
       ENDIF
+!FM      call cp_sm_write(matrix=rho_struct%rho_ao(1)%matrix, unit_nr=122, &
+!FM           long_description=.TRUE., local=.true., error=error)
+!FM      WRITE (123,"(5F30.20)") rho_struct%rho_r(1)%pw%cr3d
+!FM      stop "pippo"
     END IF
 END SUBROUTINE qs_rho_update_rho
 

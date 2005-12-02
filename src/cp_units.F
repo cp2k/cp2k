@@ -82,7 +82,8 @@ MODULE cp_units
   PUBLIC :: cp_unit_type, cp_unit_p_type, cp_unit_set_type
   PUBLIC :: cp_unit_create, cp_unit_retain, cp_unit_release, &
        cp_unit_to_cp2k, cp_unit_from_cp2k, cp_unit_desc,&
-       cp_unit_set_create, cp_unit_set_retain, cp_unit_set_release
+       cp_unit_set_create, cp_unit_set_retain, cp_unit_set_release,&
+       cp_unit_to_cp2k1, cp_unit_from_cp2k1
   
 !!***
 !****************************************************************************
@@ -1185,7 +1186,7 @@ END FUNCTION cp_unit_desc
 !!     fawzi
 !!
 !!*** **********************************************************************
-FUNCTION cp_unit_to_cp2k(value,unit,defaults,power,error) RESULT(res)
+FUNCTION cp_unit_to_cp2k1(value,unit,defaults,power,error) RESULT(res)
   REAL(kind=dp), intent(in) :: value
   TYPE(cp_unit_type), pointer :: unit
   TYPE(cp_unit_set_type), POINTER, optional :: defaults
@@ -1194,7 +1195,7 @@ FUNCTION cp_unit_to_cp2k(value,unit,defaults,power,error) RESULT(res)
   REAL(kind=dp) :: res
   
   LOGICAL :: failure
-  CHARACTER(len=*), PARAMETER :: routineN='cp_unit_to_cp2k',&
+  CHARACTER(len=*), PARAMETER :: routineN='cp_unit_to_cp2k1',&
         routineP=moduleN//':'//routineN
   INTEGER :: my_power,my_basic_unit, i_unit
   
@@ -1224,7 +1225,7 @@ FUNCTION cp_unit_to_cp2k(value,unit,defaults,power,error) RESULT(res)
              power=my_power*unit%power(i_unit),error=error)
      END DO
   END IF
-END FUNCTION cp_unit_to_cp2k
+END FUNCTION cp_unit_to_cp2k1
 !***************************************************************************
 
 !!****f* cp_units/cp_unit_from_cp2k *
@@ -1251,7 +1252,7 @@ END FUNCTION cp_unit_to_cp2k
 !!     fawzi
 !!
 !!*** **********************************************************************
-FUNCTION cp_unit_from_cp2k(value,unit,defaults,power,error) RESULT(res)
+FUNCTION cp_unit_from_cp2k1(value,unit,defaults,power,error) RESULT(res)
   REAL(kind=dp), intent(in) :: value
   TYPE(cp_unit_type), POINTER :: unit
   TYPE(cp_unit_set_type), POINTER, OPTIONAL :: defaults
@@ -1261,18 +1262,118 @@ FUNCTION cp_unit_from_cp2k(value,unit,defaults,power,error) RESULT(res)
 
   logical :: failure
   integer :: my_power
-  character(len=*), parameter :: routineN='cp_unit_from_cp2k',&
+  character(len=*), parameter :: routineN='cp_unit_from_cp2k1',&
        routineP=moduleN//':'//routineN
 
   failure=.false.
   my_power=1
   if (present(power)) my_power=power
   IF (PRESENT(defaults)) THEN
-     res=cp_unit_to_cp2k(value=value,unit=unit,defaults=defaults,&
+     res=cp_unit_to_cp2k1(value=value,unit=unit,defaults=defaults,&
           power=-my_power,error=error)
   ELSE
-     res=cp_unit_to_cp2k(value=value,unit=unit,power=-my_power,error=error)
+     res=cp_unit_to_cp2k1(value=value,unit=unit,power=-my_power,error=error)
   END IF
+END FUNCTION cp_unit_from_cp2k1
+!***************************************************************************
+
+!!****f* cp_units/cp_unit_to_cp2k *
+!!
+!!   NAME
+!!     cp_unit_to_cp2k
+!!
+!!   FUNCTION
+!!     converts to the internal cp2k units to the given unit
+!!
+!!   NOTES
+!!     -
+!!
+!!   ARGUMENTS
+!!     - value: the value to convert
+!!     - unit_str: the unit of the result as string
+!!     - defaults: the defaults unit for those that are left free
+!!       (cp_units_none)
+!!     - power: the power of the unit (defaults to 1)
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     fawzi
+!!
+!!*** **********************************************************************
+FUNCTION cp_unit_to_cp2k(value,unit_str,defaults,power,error) RESULT(res)
+  REAL(kind=dp), intent(in) :: value
+  CHARACTER(len=*), INTENT(in) :: unit_str
+  TYPE(cp_unit_set_type), POINTER, OPTIONAL :: defaults
+  INTEGER, INTENT(in), optional :: power
+  type(cp_error_type), optional, intent(inout) :: error
+  REAL(kind=dp) :: res
+
+  TYPE(cp_unit_type), POINTER :: my_unit
+  logical :: failure
+  character(len=*), parameter :: routineN='cp_unit_to_cp2k',&
+       routineP=moduleN//':'//routineN
+
+  nullify(my_unit)
+  CALL cp_unit_create(my_unit,unit_str,error=error)
+  IF (PRESENT(defaults)) THEN
+     res=cp_unit_to_cp2k1(value=value,unit=my_unit,defaults=defaults,&
+          power=power,error=error)
+  ELSE
+     res=cp_unit_to_cp2k1(value=value,unit=my_unit,power=power,error=error)
+  END IF
+  CALL cp_unit_release(my_unit,error=error)
+  
+END FUNCTION cp_unit_to_cp2k
+!***************************************************************************
+
+!!****f* cp_units/cp_unit_from_cp2k *
+!!
+!!   NAME
+!!     cp_unit_from_cp2k
+!!
+!!   FUNCTION
+!!     converts from the internal cp2k units to the given unit
+!!
+!!   NOTES
+!!     -
+!!
+!!   ARGUMENTS
+!!     - value: the value to convert
+!!     - unit_str: the unit of the result as string
+!!     - defaults: the defaults unit for those that are left free
+!!       (cp_units_none)
+!!     - power: the power of the unit (defaults to 1)
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     fawzi
+!!
+!!*** **********************************************************************
+FUNCTION cp_unit_from_cp2k(value,unit_str,defaults,power,error) RESULT(res)
+  REAL(kind=dp), intent(in) :: value
+  CHARACTER(len=*), INTENT(in) :: unit_str
+  TYPE(cp_unit_set_type), POINTER, OPTIONAL :: defaults
+  INTEGER, INTENT(in), optional :: power
+  type(cp_error_type), optional, intent(inout) :: error
+  REAL(kind=dp) :: res
+
+  TYPE(cp_unit_type), POINTER :: my_unit
+  logical :: failure
+  character(len=*), parameter :: routineN='cp_unit_from_cp2k',&
+       routineP=moduleN//':'//routineN
+
+  nullify(my_unit)
+  CALL cp_unit_create(my_unit,unit_str,error=error)
+  IF (PRESENT(defaults)) THEN
+     res=cp_unit_from_cp2k1(value=value,unit=my_unit,defaults=defaults,&
+          power=power,error=error)
+  ELSE
+     res=cp_unit_from_cp2k1(value=value,unit=my_unit,power=power,error=error)
+  END IF
+  CALL cp_unit_release(my_unit,error=error)
+  
 END FUNCTION cp_unit_from_cp2k
 !***************************************************************************
 
@@ -1322,10 +1423,10 @@ FUNCTION cp_unit_transform(value,unit_from,unit_to,defaults,power,error) &
        cp_unit_desc(unit_to,error=error),error,failure)
   IF (.NOT.failure) THEN
      IF (PRESENT(defaults)) THEN
-        res=cp_unit_to_cp2k(value,unit_from,power=my_power,defaults=defaults,&
+        res=cp_unit_to_cp2k1(value,unit_from,power=my_power,defaults=defaults,&
              error=error)
      ELSE
-        res=cp_unit_from_cp2k(res,unit_to,power=my_power,error=error)
+        res=cp_unit_from_cp2k1(res,unit_to,power=my_power,error=error)
      END IF
   END IF
 END FUNCTION cp_unit_transform

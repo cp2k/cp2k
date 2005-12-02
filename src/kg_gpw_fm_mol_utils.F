@@ -59,7 +59,8 @@ MODULE kg_gpw_fm_mol_utils
                                              stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
-
+  USE input_section_types, ONLY: section_vals_type, section_vals_val_get,&
+       section_vals_get, section_vals_get_subs_vals
   IMPLICIT NONE
 
   PRIVATE
@@ -841,10 +842,10 @@ CONTAINS
 
     IF (globenv%ionode) THEN
 
-      IF (id_nr==1) THEN
-        file_name = globenv%restart_file_name
-      ELSE
-        file_name = TRIM(globenv%restart_file_name)//"-"//&
+       CALL section_vals_val_get(globenv%input_file,"FORCE_EVAL%DFT%RESTART_FILE_NAME",&
+            c_val=file_name,error=error)
+      IF (id_nr/=1) THEN
+        file_name(LEN_TRIM(file_name):len(file_name)) = "-"//&
                     ADJUSTL(cp_to_string(id_nr))
       END IF
 
@@ -1085,10 +1086,10 @@ CONTAINS
 
     IF (globenv%ionode) THEN
 
-      IF (id_nr==1) THEN
-        file_name = globenv%restart_file_name
-      ELSE
-        file_name = TRIM(globenv%restart_file_name)//"-"//&
+      CALL section_vals_val_get(globenv%input_file,"FORCE_EVAL%DFT%RESTART_FILE_NAME",&
+            c_val=file_name,error=error)
+      IF (id_nr/=1) THEN
+        file_name(LEN_TRIM(file_name):len(file_name)) = "-"//&
                     ADJUSTL(cp_to_string(id_nr))
       END IF
 

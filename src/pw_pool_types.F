@@ -682,7 +682,7 @@ CONTAINS
     END IF
     IF (.NOT. failure) THEN
        CPPrecondition(pw%ref_count==1,cp_failure_level,routineP,error,failure)
-       IF (pw%pw_grid%identifier/=pool%pw_grid%identifier) THEN
+       IF (pw%pw_grid%id_nr/=pool%pw_grid%id_nr) THEN
           IF (debug_this_module) THEN
              WRITE (unit=cp_logger_get_default_unit_nr(logger,local=.TRUE.),&
                   fmt="(' *** pw_pool ',i4,' giving back incompatible pw ',i4)")&

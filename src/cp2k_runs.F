@@ -26,13 +26,15 @@ MODULE cp2k_runs
                                              cp_para_env_release
   USE cp_parser,                       ONLY: cp_parser_type, &
                                              parser_create, &
-                                             parser_release
+                                             parser_release,&
+                                             parser_search_string
   USE cp_units,                        ONLY: cp_unit_set_type, &
                                              cp_unit_set_create, &
                                              cp_unit_set_release
   USE environment,                     ONLY: cp2k_finalize,&
                                              cp2k_init,&
                                              cp2k_read,&
+                                             cp2k_setup,&
                                              compile_date,compile_lastcvs
   USE farming_methods,                 ONLY: farming_parse_input
   USE farming_types,                   ONLY: farming_env_type, &
@@ -71,7 +73,7 @@ MODULE cp2k_runs
                                              qs_debug_run
   USE input_cp2k,                      ONLY: create_cp2k_root_section,&
                                              check_cp2k_input, &
-                                             parsed_cp2k_input
+                                             create_global_section
   USE input_keyword_types,             ONLY: keyword_release
   USE input_parsing,                   ONLY: section_vals_parse
   USE input_section_types,             ONLY: section_type, &
@@ -101,12 +103,6 @@ MODULE cp2k_runs
   USE metadynamics_types,              ONLY: meta_env_type, &
                                              meta_env_release
   USE metadynamics,                    ONLY: metadyn_read
-  USE parser,                          ONLY: parser_init, &
-                                             parser_end,&
-                                             get_next, &
-                                             test_next, &
-                                             search_label, &
-                                             read_line
   USE print_key_types,                 ONLY: print_keys_release
   USE qmmm_init,                       ONLY: qmmm_create_force_env
   USE qs_debug,                        ONLY: qs_debug_energy_and_forces
@@ -216,14 +212,12 @@ CONTAINS
     CALL cp_unit_set_release(default_units,error=error)
     CALL parser_release(parser,error=error)
     CALL cp_error_check(error,failure)
-    IF (.not.failure.and.parsed_cp2k_input(input_file,error=error)) THEN
-       glob_section => section_vals_get_subs_vals(input_file,"GLOBAL",error=error)
-       CALL section_vals_val_get(glob_section,"ECHO_INPUT",l_val=echo_input,&
-            error=error)
-       IF (echo_input.AND.para_env%mepos==para_env%source) THEN
-          CALL section_vals_write(input_file,unit_nr=globenv%scr,&
-               hide_root=.TRUE., error=error)
-       END IF
+    glob_section => section_vals_get_subs_vals(input_file,"GLOBAL",error=error)
+    CALL section_vals_val_get(glob_section,"ECHO_INPUT",l_val=echo_input,&
+         error=error)
+    IF (echo_input.AND.para_env%mepos==para_env%source) THEN
+       CALL section_vals_write(input_file,unit_nr=globenv%scr,&
+            hide_root=.TRUE., error=error)
     END IF
 
     IF (.NOT.failure) THEN
@@ -235,6 +229,7 @@ CONTAINS
 
     IF (.NOT.failure) THEN
        CALL cp2k_read(globenv)
+       CALL cp2k_setup(globenv,error)
        SELECT CASE (globenv%prog_name_id)
        CASE (do_atom)
           CALL atomic_code ( globenv )
@@ -360,10 +355,10 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
 
-    LOGICAL                                  :: failure,run_OK
+    LOGICAL                                  :: failure,run_OK,found
     TYPE(farming_env_type), POINTER          :: farming_env
     INTEGER                                  :: stat,ierr,handle,output_unit,&
-         length,i
+         length,i,n_rep_val
     CHARACTER(LEN=default_path_length)       :: output_file
     INTEGER, DIMENSION(:), POINTER           :: group_distribution
     INTEGER                                  :: ngroups
@@ -372,9 +367,14 @@ CONTAINS
     character(len=5)                         :: label
     INTEGER                                  :: new_group,new_rank,new_size
     INTEGER :: n_jobs_to_run, i_job_to_restart, ijob_start, ijob_end,ijob, iunit
+    TYPE(cp_parser_type), pointer :: parser
+    TYPE(section_type), pointer :: g_section
+    TYPE(section_vals_type), pointer :: g_data
+    TYPE(cp_unit_set_type), pointer :: default_units
 
     failure=.FALSE.
     CALL timeset(routineN,'I','',handle)
+    NULLIFY(parser,g_section,g_data)
 
     IF (globenv%ionode) write(globenv%scr,FMT="(T2,A)") "FARMING| Hi, welcome on this farm!"
 
@@ -461,31 +461,27 @@ CONTAINS
 
                  ! generate the output file
                   write(output_file,'(A12,I5.5)') "FARMING_OUT_",i
-                  CALL parser_init(file_name=TRIM(farming_env%Job_input(i)))
-                  label="&CP2K"
-                  CALL search_label(label,ierr,ignore_case=.true.)
-                  IF (ierr==0) THEN
-                     DO
-                        CALL read_line()
-                        test_result = test_next()
-                        IF (test_result == "X") exit
-                        length=default_string_length
-                        CALL get_next(keyword,length)
-                        call uppercase(keyword)
-                        SELECT CASE(keyword)
-                        CASE("PROJECT")
-                           length=default_string_length
-                           CALL get_next(str,length)
-                           output_file=TRIM(str)//".out"
-                        CASE("OUTPUT_FILE_NAME","OUTPUT_FILE")
-                           length=default_string_length
-                           CALL get_next(str,length)
-                           output_file=TRIM(str)
-                           EXIT
-                        END SELECT
-                     END DO
+                  CALL parser_create(parser,file_name=TRIM(farming_env%Job_input(i)))
+                  label="&GLOBAL"
+                  CALL parser_search_string(parser,label,ignore_case=.TRUE.,found=found,error=error)
+                  IF (found) THEN
+                     CALL create_global_section(g_section,error=error)
+                     CALL section_vals_create(g_data,g_section,error=error)
+                     CALL cp_unit_set_create(default_units, "OUTPUT",error=error)
+                     CALL section_vals_parse(g_data,parser,default_units,&
+                          error=error)
+                     CALL cp_unit_set_release(default_units,error=error)
+                     CALL section_vals_val_get(g_data,"PROJECT",&
+                          c_val=output_file, error=error)
+                     output_file(LEN_TRIM(output_file):LEN(output_file))=".out"
+                     CALL section_vals_val_get(g_data,"OUTPUT_FILE",&
+                          n_rep_val=n_rep_val,error=error)
+                     IF (n_rep_val==1) THEN
+                        CALL section_vals_val_get(g_data,"OUTPUT_FILE_NAME",&
+                             c_val=output_file,error=error)
+                     END IF
                   END IF
-                  CALL parser_end()
+                  CALL parser_release(parser,error=error)
 
                   CALL open_file(file_name=TRIM(output_file),&
                         file_action="WRITE",&
@@ -496,7 +492,7 @@ CONTAINS
                 ! this should never be used by cp2k_run, but e.g. still happens, incorrectly, 
                 ! on eror, writes now to fort.999 so that error messages can be recovered and fixed
                 output_unit=999 
-              ENDIF
+             ENDIF
           
               IF (globenv%ionode) write(globenv%scr,FMT="(T2,A,I5.5,A)") " Running Job ",i, &
                         " output to "//TRIM(farming_env%Job_cwd(i))//"/"//TRIM(output_file)

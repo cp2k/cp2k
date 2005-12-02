@@ -53,9 +53,9 @@ MODULE xas_tp_scf
                                              cp_to_string,&
                                              cp_warning_level
   USE global_types,                    ONLY: global_environment_type
-  USE input_constants,                 ONLY: ot_precond_full_kinetic,&
-                                             xas_tp_hh, xas_tp_fh,&
-                                             xas_dscf, do_loc_none ,&
+  USE input_constants,                 ONLY: xas_tp_hh, xas_tp_fh,&
+                                             xas_dscf, do_loc_none , core_guess,&
+                                             ot_precond_full_kinetic,&
                                              xas_scf_general,xas_scf_ot
   USE kinds,                           ONLY: dp
   USE machine,                         ONLY: m_flush,&
@@ -346,7 +346,7 @@ CONTAINS
             END IF
 
             do_level_shift = ((scf_control%level_shift /= 0.0_dp).AND.&
-               ((scf_control%density_guess == "CORE").OR.(iter_count > 1)))
+               ((scf_control%density_guess == core_guess).OR.(iter_count > 1)))
 
             IF (diis_step) THEN
                scf_env%p_mix = 1.0_dp

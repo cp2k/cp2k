@@ -503,7 +503,7 @@ CONTAINS
     CPPrecondition(pool%ref_count>0,cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(element),cp_warning_level,routineP,error,failure)
     IF (.NOT. failure) THEN
-          CALL cp_assert(pool%el_struct%identifier==element%identifier,&
+          CALL cp_assert(pool%el_struct%id_nr==element%grid_id,&
             cp_failure_level, cp_assertion_failed, routineP,&
             "pool cannot reuse rs grids of another pw_grid "//&
             CPSourceFileRef,&

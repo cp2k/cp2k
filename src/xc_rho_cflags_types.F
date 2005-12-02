@@ -62,7 +62,7 @@ MODULE xc_rho_cflags_types
 
   PUBLIC :: xc_rho_cflags_type
   PUBLIC :: xc_rho_cflags_setall, xc_rho_cflags_or, xc_rho_cflags_and,&
-       xc_rho_cflags_equal, xc_rho_cflags_contain
+       xc_rho_cflags_equal, xc_rho_cflags_contain, xc_rho_cflags_write
 
 !!***
   !****************************************************************************

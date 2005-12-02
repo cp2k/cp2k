@@ -79,6 +79,7 @@ MODULE harris_metropolis_mc
                                              do_kg, &
                                              md_pos_restart, &
                                              md_pos_vel_restart, &
+                                             restart_guess,&
                                              md_all_restart, &
                                              md_init_start, &
                                              FIST_MD_method, &
@@ -94,7 +95,6 @@ MODULE harris_metropolis_mc
   USE machine,                         ONLY: m_walltime, &
                                              m_flush
   USE md,                              ONLY: mdio_parameters_type, &
-                                             !read_md_new_section, &
                                              read_md_section, &
                                              simulation_parameters_type, &
                                              initialize_velocities
@@ -433,7 +433,6 @@ CONTAINS
                                      "mdio", 0)
 
     CALL read_md_section(simpar, globenv, mdio, error)
-    !CALL read_md_new_section(simpar, globenv, md_section, error)
 
     hmc_file_name = mdio%hmc_file_name    
 
@@ -633,7 +632,7 @@ CONTAINS
                                  output_wf_history=tmp_wf_history, &
                                  qs_env=qs_env, error=error)
     END IF
-    !IF ((qs_env%scf_control%density_guess == 'RESTART') .AND. &
+    !IF ((qs_env%scf_control%density_guess == restart_guess) .AND. &
     !    (dft_control%qs_control%wf_interpolation_method_nr == wfi_use_guess_method_nr)) THEN
     !  CALL write_mo_set(qs_env%mos, atomic_kind_set, particle_set, globenv, id_nr=1)
     !END IF
@@ -992,7 +991,7 @@ CONTAINS
                                      output_wf_history=tmp_wf_history, &
                                      qs_env=qs_env, error=error)
         END IF
-        !IF ((qs_env%scf_control%density_guess == 'RESTART') .AND. &
+        !IF ((qs_env%scf_control%density_guess == restart_guess) .AND. &
         !    (dft_control%qs_control%wf_interpolation_method_nr == wfi_use_guess_method_nr)) THEN
         !  CALL write_mo_set(qs_env%mos, atomic_kind_set, particle_set, globenv, id_nr=1)
         !END IF
@@ -1031,7 +1030,7 @@ CONTAINS
                                      output_wf_history=qs_env%wf_history, &
                                      qs_env=qs_env, error=error)
         END IF
-        IF ((qs_env%scf_control%density_guess == 'RESTART') .AND. &
+        IF ((qs_env%scf_control%density_guess == restart_guess) .AND. &
             (dft_control%qs_control%wf_interpolation_method_nr == wfi_use_guess_method_nr)) THEN
           CALL read_mo_set(qs_env%mos, atomic_kind_set, particle_set, globenv, id_nr=1)
         END IF

@@ -44,12 +44,10 @@ MODULE qs_environment
                                              semi_empirical_control_type
   USE cp_control_utils,                ONLY: read_dft_control,&
                                              read_mgrid_section,&
-                                             read_qs_control,&
                                              read_qs_section,&
                                              read_tddfpt_control,&
                                              write_dft_control,&
                                              write_qs_control
-  USE cp_error_handling,               ONLY: cp_error_type
   USE cp_fm_struct,                    ONLY: optimal_blacs_col_block_size,&
                                              optimal_blacs_row_block_size
   USE cp_subsystem_types,              ONLY: cp_subsys_create,&
@@ -74,7 +72,6 @@ MODULE qs_environment
                                              state_loc_all,&
                                              state_loc_none,&
                                              xas_tp_hh, xas_tp_fh 
-  USE input_cp2k,                      ONLY: parsed_cp2k_input
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_val_get, &
                                              section_vals_get,&
@@ -141,9 +138,9 @@ MODULE qs_environment
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE topology,                        ONLY: topology_control
-  USE green_types,                     ONLY: greens_function_type,&
-                                             pw_green_release
-  USE green_methods,                   ONLY: pw_green_setup  
+  USE cp_output_handling, ONLY: cp_out_flags_type, cp_out_flags_create,&
+       cp_out_flags_release
+#include "cp_common_uses.h"
   IMPLICIT NONE
 
   PRIVATE
@@ -201,22 +198,21 @@ CONTAINS
       POINTER                                :: particle_set
     TYPE(section_vals_type), POINTER         :: force_env_section,&
                                                 cell_section,&
-                                                poisson_section, &
                                                 harris_section
     REAL(kind=dp), dimension(3)              :: abc
-    TYPE(greens_function_type), POINTER      :: green
     LOGICAL                                  :: my_qmmm
+    TYPE(cp_logger_type), pointer            :: logger
+    TYPE(cp_out_flags_type), pointer         :: output_control
 
     NULLIFY(my_subsystem, molecule_kind_set, molecule_set, atomic_kind_set,&
          particle_set,atomic_kinds,particles,mols,mol_kinds,my_cell,my_cell_ref,&
-         cell_section, poisson_section, harris_section, green)
+         cell_section, harris_section, output_control)
     
+    logger => cp_error_get_logger(error)
     force_env_section => section_vals_get_subs_vals(globenv%input_file,&
          "FORCE_EVAL",error=error)
     cell_section => section_vals_get_subs_vals(force_env_section,&
          "SUBSYS%CELL",error=error)
-    poisson_section => section_vals_get_subs_vals(force_env_section,&
-         "DFT%POISSON_DFT",error=error)
     harris_section => section_vals_get_subs_vals(force_env_section, &
          "DFT%QS%HARRIS", error=error)
     
@@ -227,7 +223,11 @@ CONTAINS
     CALL section_vals_val_get(harris_section, "ACTIVATE", &
                               l_val=harris_flag, error=error)
 
-    CALL set_qs_env(qs_env,input=force_env_section,use_harris=harris_flag,error=error)
+    CALL cp_out_flags_create(output_control,force_env_section,&
+         logger=logger,error=error)
+    CALL set_qs_env(qs_env,input=force_env_section,output_control=output_control,&
+         use_harris=harris_flag,error=error)
+    CALL cp_out_flags_release(output_control,error=error)
 
     IF (PRESENT(cell)) THEN
        my_cell => cell
@@ -245,7 +245,6 @@ CONTAINS
                       cell_section=cell_section, error=error)
     END IF
     CALL get_cell ( my_cell, abc=abc)
-    CALL pw_green_setup ( green, poisson_section, abc, error )
 
 !   *** Print the cell parameters ***
 
@@ -278,10 +277,9 @@ CONTAINS
        CALL mol_kind_new_list_release(mol_kinds,error=error)
     END IF
 
-    CALL qs_init_subsys(qs_env,my_subsystem,green,my_cell,my_cell_ref,use_ref_cell,&
+    CALL qs_init_subsys(qs_env,my_subsystem,my_cell,my_cell_ref,use_ref_cell,&
          globenv,my_qmmm,harris=harris_flag,error=error)
 
-    CALL pw_green_release(green, error=error)
     IF (.NOT.PRESENT(cell))      CALL cell_release(my_cell,error=error)
     IF (.NOT.PRESENT(cell_ref))  CALL cell_release(my_cell_ref,error=error)
     IF (.NOT.PRESENT(subsystem)) CALL cp_subsys_release(my_subsystem,error=error)
@@ -290,7 +288,7 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE qs_init_subsys(qs_env,subsystem,green,cell,cell_ref,use_ref_cell,&
+  SUBROUTINE qs_init_subsys(qs_env,subsystem,cell,cell_ref,use_ref_cell,&
        globenv,qmmm,harris,error)
 
 !   Purpose: Read the input and the database files for the setup of the
@@ -302,7 +300,6 @@ CONTAINS
 
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(cp_subsystem_type), POINTER         :: subsystem
-    TYPE(greens_function_type), POINTER      :: green
     TYPE(cell_type), POINTER                 :: cell, cell_ref
     LOGICAL, INTENT(in)                      :: use_ref_cell
     TYPE(global_environment_type), POINTER   :: globenv
@@ -399,14 +396,8 @@ CONTAINS
 
 !   *** Read the input section with the Quickstep control parameters ***
 
-    IF (parsed_cp2k_input(globenv%input_file,error=error)) THEN
-      CALL read_qs_section(dft_control%qs_control,globenv,error=error)
-      CALL read_mgrid_section(dft_control%qs_control,globenv,error=error)
-    ELSE
-!TODEL_START_MI
-      CALL read_qs_control(dft_control%qs_control,globenv)
-!TODEL_END_MI
-    END IF
+    CALL read_qs_section(dft_control%qs_control,globenv,error=error)
+    CALL read_mgrid_section(dft_control%qs_control,globenv,error=error)
 
 !   *** Print the DFT control parameters ***
 
@@ -543,24 +534,24 @@ CONTAINS
       CALL harris_energy_create(harris_energy=harris_energy,error=error)
     END IF
 
-!   *** Allocate the force data structure ***
-
-    IF (dft_control%forces) THEN
-      nkind = SIZE(atomic_kind_set)
-      ALLOCATE (natom_of_kind(nkind),STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
-                                       "natom_of_kind",nkind*int_size)
-      CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
-                               natom_of_kind=natom_of_kind)
-      CALL allocate_qs_force(force,natom_of_kind)
-      DEALLOCATE (natom_of_kind,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
-                                       "natom_of_kind")
-      IF (harris_flag) THEN
-        natom = SIZE(particle_set)
-        CALL harris_force_create(harris_force=harris_force,natom=natom,error=error)
-      END IF
-    END IF
+!FM!   *** Allocate the force data structure ***
+!FM
+!FM    IF (dft_control%forces) THEN
+!FM      nkind = SIZE(atomic_kind_set)
+!FM      ALLOCATE (natom_of_kind(nkind),STAT=istat)
+!FM      IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+!FM                                       "natom_of_kind",nkind*int_size)
+!FM      CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
+!FM                               natom_of_kind=natom_of_kind)
+!FM      CALL allocate_qs_force(force,natom_of_kind)
+!FM      DEALLOCATE (natom_of_kind,STAT=istat)
+!FM      IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+!FM                                       "natom_of_kind")
+!FM      IF (harris_flag) THEN
+!FM        natom = SIZE(particle_set)
+!FM        CALL harris_force_create(harris_force=harris_force,natom=natom,error=error)
+!FM      END IF
+!FM    END IF
 
 !   *** Activate the interpolation ***
 
@@ -584,7 +575,6 @@ CONTAINS
     CALL set_qs_env(qs_env,subsys=subsystem,error=error)
     CALL set_qs_env(qs_env=qs_env,&
                     cell=cell,&
-                    green=green,&
                     cell_ref=cell_ref,&
                     use_ref_cell=use_ref_cell,&
                     qmmm=qmmm,&

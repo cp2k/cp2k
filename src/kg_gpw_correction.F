@@ -32,7 +32,6 @@ MODULE kg_gpw_correction
                                              coeff_transform_space,&
                                              coeff_type, & 
                                              coeff_copy
-  USE cp_control_types,                ONLY: dft_control_type
   USE input_constants,                 ONLY: sic_none
   USE cp_error_handling,               ONLY: cp_a_l,&
                                              cp_assert,&
@@ -105,7 +104,9 @@ MODULE kg_gpw_correction
                                              timestop
   USE xc,                              ONLY: xc_exc_calc,&
                                              xc_vxc_pw_create1
-
+  USE input_section_types, ONLY: section_vals_type, section_vals_get_subs_vals,&
+       section_vals_duplicate, section_vals_set_subs_vals, section_vals_val_get,&
+       section_vals_release
   IMPLICIT NONE
 
   PRIVATE
@@ -191,7 +192,6 @@ CONTAINS
     TYPE(cell_type), POINTER                     :: cell_mol
     TYPE(coeff_type), DIMENSION(:), POINTER      :: vxc_rho, vxc_tau
     TYPE(cp_para_env_type), POINTER              :: para_env
-    TYPE(dft_control_type), POINTER              :: dft_control
     TYPE(fm_mol_blocks_type), DIMENSION(:), &
       POINTER                                    :: fm_mol_blocks
     TYPE(fm_mol_blocks_type), POINTER            :: mol_block
@@ -209,6 +209,9 @@ CONTAINS
     TYPE(rho_mol_blocks_type), DIMENSION(:),&
       POINTER                                    :: rho_mol_blocks
     TYPE(rho_mol_blocks_type), POINTER           :: rho_block
+    TYPE(section_vals_type), POINTER :: input,xc_section,xc_section_tmp,&
+         xc_fun_section
+    integer :: sic_method_id
 
 !------------------------------------------------------------------------------
 
@@ -220,31 +223,25 @@ CONTAINS
     ekin_mol = 0.0_dp
 
     NULLIFY(atomic_kind_set,particle_set,para_env,vxc_tau,tau)
-    NULLIFY(dft_control,rho_global,rho_g,rho_r,my_vxc_rho,my_vxc_tau)
+    NULLIFY(rho_global,rho_g,rho_r,my_vxc_rho,my_vxc_tau,input,xc_section_tmp)
 
     CALL get_qs_env(qs_env=qs_env, atomic_kind_set=atomic_kind_set,&
-                    dft_control=dft_control,rho=rho_global,para_env=para_env)
+         input=input,rho=rho_global,para_env=para_env)
 
-    ! Modify temporarely dft_control to calculate only the kinetic energy functional
-    functionals_tmp(1:3) = dft_control%xc_control%functionals(1:3)
-    functionals_new_tmp(1:3) = dft_control%xc_control%functionals_new(1:3)
-    gradient_functionals_tmp(1:3) = dft_control%xc_control%gradient_functionals(1:3)
-    crossterms_tmp(1:3) = dft_control%xc_control%crossterms(1:3)
-
-    dft_control%xc_control%functionals(1) = "NONE"
-    dft_control%xc_control%functionals(2) = "NONE"
-    dft_control%xc_control%functionals_new(1) = 0
-    dft_control%xc_control%functionals_new(2) = 0
-    dft_control%xc_control%gradient_functionals(1) = .FALSE.
-    dft_control%xc_control%gradient_functionals(2) = .FALSE.
-    dft_control%xc_control%crossterms(1) = .FALSE.
-    dft_control%xc_control%crossterms(2) = .FALSE.
+    xc_section => section_vals_get_subs_vals(input,"DFT%XC",error=error)
+    CALL section_vals_duplicate(xc_section,xc_section_tmp,error=error)
+    xc_fun_section => section_vals_get_subs_vals(input,"DFT%KG%XC_FUNCTIONAL",&
+         error=error)
+    CALL section_vals_set_subs_vals(xc_section_tmp,"XC_FUNCTIONAL",xc_fun_section,&
+         error=error)
 
     ! Sic is not implemented
-    IF(dft_control%sic_method_id /= sic_none) &
+    CALL section_vals_val_get(input,"DFT%SIC%METHOD",&
+         i_val=sic_method_id,error=error)
+    IF(sic_method_id /= sic_none) &
        CALL  stop_program(routine_name,module_name,__LINE__,"KG_GPW with SIC  not implemented")
 
-    nspins = dft_control%nspins
+    nspins = size(p_global)
 
     ! initial allocations
     ALLOCATE(rho_r(nspins),STAT=istat)
@@ -335,13 +332,13 @@ CONTAINS
           ekin_imol = 0.0_dp
           IF (my_just_energy) THEN
             ekin_imol = xc_exc_calc(rho_r=rho_r,tau=tau,&
-                     rho_g=rho_g, dft_control=dft_control,&
+                     rho_g=rho_g, xc_section=xc_section_tmp,&
                      cell=cell_mol, pw_pool=auxbas_pw_pool,&
                      error=error)
           ELSE
             CALL xc_vxc_pw_create1(vxc_rho=my_vxc_rho,vxc_tau=my_vxc_tau, rho_r=rho_r,&
                                    rho_g=rho_g,tau=tau,exc=ekin_imol,&
-                                   dft_control=dft_control,&
+                                   xc_section=xc_section_tmp,&
                                    cell=cell_mol, pw_pool=auxbas_pw_pool,&
                                    error=error)
           END IF
@@ -470,11 +467,7 @@ CONTAINS
        CPPostconditionNoFail(istat==0,cp_warning_level,routineP,error)
     END IF
 
-    ! Set back dft_control%xc_control to the correct parameters for the functionals
-    dft_control%xc_control%functionals(1:3) = functionals_tmp(1:3)
-    dft_control%xc_control%functionals_new(1:3) = functionals_new_tmp(1:3)
-    dft_control%xc_control%gradient_functionals(1:3) = gradient_functionals_tmp(1:3)
-    dft_control%xc_control%crossterms(1:3) = crossterms_tmp(1:3)
+    CALL section_vals_release(xc_section_tmp,error=error)
 
     CALL timestop(0.0_dp,handle)
 

@@ -55,7 +55,6 @@ MODULE nddo_methods
                                              rs_pool_give_back_rs,&
                                              rs_pool_create_rs
   USE cube_utils,                      ONLY: cube_info_type
-  USE hartree,                         ONLY: calculate_hartree
   USE kinds,                           ONLY: dp
   USE l_utils,                         ONLY: l_info_type
   USE mathconstants,                   ONLY: pi,fourpi,fac,dfac
@@ -69,12 +68,14 @@ MODULE nddo_methods
                                              pw_pool_init_coeff,&
                                              pw_pool_type,&
                                              pw_pool_p_type
+  USE input_section_types, ONLY: section_vals_type, section_vals_get_subs_vals
   USE pw_types,                        ONLY: COMPLEXDATA1D,&
                                              REALDATA3D,&
                                              REALSPACE,&
                                              RECIPROCALSPACE
-  USE pws,                             ONLY: init_pw_poisson_solver,&
-                                             cleanup_pw_poisson_solver
+  USE pw_poisson_types,                ONLY: pw_poisson_type,&
+       pw_poisson_create, pw_poisson_release
+  USE pw_poisson_methods, only: pw_poisson_solve
   USE qs_energy_types,                 ONLY: qs_energy_type
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              set_qs_env,&
@@ -127,7 +128,6 @@ MODULE nddo_methods
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE util,                            ONLY: get_limit
-  USE green_types,                     ONLY: greens_function_type
 
   IMPLICIT NONE
 
@@ -1159,12 +1159,14 @@ CONTAINS
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
     TYPE(coeff_type)                         :: v_gspace
     REAL(KIND=dp)                            :: tot_rs_int
-    TYPE(greens_function_type), POINTER                   :: green
+    TYPE(pw_poisson_type), pointer           :: poisson_env
+    integer :: auxbas_grid
+    TYPE(pw_pool_p_type), POINTER, dimension(:) :: pw_pools
 
 ! -----------------------------------------------------------------------------
 
     failure=.FALSE.
-    NULLIFY(nddo_mpole,atomic_kind_set,logger)
+    NULLIFY(nddo_mpole,atomic_kind_set,logger,pw_pools)
 
     CALL timeset(routineN,"I","",handle)
 
@@ -1178,24 +1180,25 @@ CONTAINS
 
       CALL get_qs_env(qs_env=qs_env,&
                       atomic_kind_set=atomic_kind_set,&
-                      nddo_mpole=nddo_mpole)
+                      nddo_mpole=nddo_mpole, error=error)
 
       CALL calc_nddo_mpoles(qs_env,rho,atomic_kind_set,nddo_mpole,error)
       CALL put_rho0_s_on_grid(qs_env,atomic_kind_set,nddo_mpole,tot_rs_int,error)
 
-      NULLIFY (cell,pw_env,auxbas_pw_pool)
-      CALL get_qs_env(qs_env=qs_env, green=green, cell=cell, pw_env=pw_env)
+      NULLIFY (cell,pw_env,auxbas_pw_pool,poisson_env)
+      CALL get_qs_env(qs_env=qs_env, cell=cell, pw_env=pw_env, &
+           error=error)
       CPPostcondition(ASSOCIATED(cell),cp_failure_level,routineP,error,failure)
       CPPostcondition(ASSOCIATED(pw_env),cp_failure_level,routineP,error,failure)
-      CALL pw_env_get(pw_env,auxbas_pw_pool=auxbas_pw_pool)
+      CALL pw_env_get(pw_env,auxbas_pw_pool=auxbas_pw_pool,pw_pools=pw_pools,&
+           auxbas_grid=auxbas_grid, poisson_env=poisson_env, error=error)
       CPPostcondition(ASSOCIATED(auxbas_pw_pool),cp_failure_level,routineP,error,failure)
       CALL pw_pool_init_coeff(auxbas_pw_pool, v_gspace, &
                               use_data = COMPLEXDATA1D,&
                               in_space = RECIPROCALSPACE, error=error)
 
-      CALL init_pw_poisson_solver(green,error=error)
-      CALL calculate_hartree(nddo_mpole%rho0_s_gs,energy%hartree,v_gspace)
-      CALL cleanup_pw_poisson_solver(green,error=error)
+      CALL pw_poisson_solve(poisson_env, nddo_mpole%rho0_s_gs%pw,&
+           energy%hartree,v_gspace%pw)
 
       IF (.NOT. just_energy) THEN
           CALL coeff_transform_space(v_gspace,ks_env%v_hartree_rspace)

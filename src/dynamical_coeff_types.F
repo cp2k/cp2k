@@ -49,7 +49,7 @@ MODULE dynamical_coeff_types
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type,&
                                              section_vals_val_get
-  USE kinds,                           ONLY: dp
+  USE kinds,                           ONLY: dp, default_string_length
   USE message_passing,                 ONLY: mp_bcast,&
                                              mp_max,&
                                              mp_sum
@@ -470,7 +470,7 @@ SUBROUTINE dyn_coeff_set_initialize(dyn_coeff_set,globenv)
 ! get the kg coefficients' parameters from input structure
 
   NULLIFY(coeff_section)
-  coeff_section => section_vals_get_subs_vals(globenv%input_file,"MOTION%MD_NEW%KG_COEFF")
+  coeff_section => section_vals_get_subs_vals(globenv%input_file,"MOTION%MD%KG_COEFF")
   call section_vals_val_get(coeff_section,"storage",i_val=dyn_coeff_set%mass_storage)
   call section_vals_val_get(coeff_section,"mass",r_val=dyn_coeff_set%global_mass)
   call section_vals_val_get(coeff_section,"restart",i_val=restart_coeff)
@@ -521,12 +521,13 @@ SUBROUTINE dyn_coeff_set_initialize(dyn_coeff_set,globenv)
   
  END SUBROUTINE dyn_coeff_set_initialize
 !***************************************************************************
-SUBROUTINE read_coeff_restart(dyn_coeff_set,globenv,rtype)          
+SUBROUTINE read_coeff_restart(dyn_coeff_set,globenv,rtype,error)          
 
     TYPE(dyn_coeff_set_type), POINTER        :: dyn_coeff_set
     TYPE(global_environment_type), &
       INTENT(IN)                             :: globenv
     integer, optional                        :: rtype
+    TYPE(cp_error_type), INTENT(inout), optional :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'read_coeff_restart', &
       routineP = moduleN//':'//routineN
@@ -546,7 +547,8 @@ SUBROUTINE read_coeff_restart(dyn_coeff_set,globenv,rtype)
   group = globenv%group
   source = globenv%source
   IF (globenv%ionode) THEN
-    file_name=globenv%restart_file_name
+     CALL section_vals_val_get(globenv%input_file,"FORCE_EVAL%DFT%RESTART_FILE_NAME",&
+          c_val=file_name,error=error)
     CALL open_file(file_name=file_name,&
                    file_action="READ",&
                    file_form="FORMATTED",&
@@ -612,18 +614,19 @@ SUBROUTINE read_coeff_restart(dyn_coeff_set,globenv,rtype)
 
   END SUBROUTINE read_coeff_restart
 !***************************************************************************
-SUBROUTINE write_coeff_restart(dyn_coeff_set,atomic_kind_set,globenv)
+SUBROUTINE write_coeff_restart(dyn_coeff_set,atomic_kind_set,globenv,error)
 
     TYPE(dyn_coeff_set_type), POINTER        :: dyn_coeff_set
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(global_environment_type), &
       INTENT(IN)                             :: globenv
+    TYPE(cp_error_type), INTENT(inout), optional :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'write_coeff_restart', &
       routineP = moduleN//':'//routineN
 
-    CHARACTER(LEN=200)                       :: file_name
+    CHARACTER(LEN=default_string_length) :: file_name
     INTEGER :: group, i, iatom, icoef, iel, ikind, ioff, istat, n_el, natom, &
       nc, nkind, nsgf, nsgf_max, offset, restart_unit, source
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: index, ncoef
@@ -640,7 +643,8 @@ SUBROUTINE write_coeff_restart(dyn_coeff_set,atomic_kind_set,globenv)
   nsgf_max=0
   n_el=0
   IF (globenv%ionode) THEN
-    file_name=globenv%restart_file_name
+     CALL section_vals_val_get(globenv%input_file,"FORCE_EVAL%DFT%RESTART_FILE_NAME",&
+          c_val=file_name,error=error)
     CALL open_file(file_name=file_name,&
                    file_action="WRITE",&
                    file_form="FORMATTED",&

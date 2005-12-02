@@ -36,7 +36,7 @@ MODULE qmmm_elpot
                                              cp_to_string,&
                                              cp_warning_level,&
                                              cp_logger_type
-  USE cp_output_handling, ONLY: cp_should_output
+  USE cp_output_handling, ONLY: cp_print_key_should_output, cp_p_file
   USE kinds,                           ONLY: default_string_length,&
                                              dp
   USE timings,                         ONLY: timeset,&
@@ -207,7 +207,7 @@ CONTAINS
              END DO             
           END IF
           ! Print info on the unidimensional MM electrostatic potential
-          IF (cp_should_output(logger%iter_info,print_pot,error=error).AND.&
+          IF (BTEST(cp_print_key_should_output(logger%iter_info,print_pot,error=error),cp_p_file).AND.&
                logger%para_env%mepos==logger%para_env%source) THEN
              CALL section_vals_val_get(print_pot,"FILENAME",c_val=FileName,error=error)
              CALL section_vals_val_get(print_pot,"FILENAME",c_val=FileName,error=error)
@@ -256,7 +256,7 @@ CONTAINS
              END DO             
           END DO
           ! Print info on the unidimensional MM electrostatic potential
-          IF (cp_should_output(logger%iter_info,print_pot,error=error).AND.&
+          IF (BTEST(cp_print_key_should_output(logger%iter_info,print_pot,error=error),cp_p_file).AND.&
                logger%para_env%mepos==logger%para_env%source) THEN
              CALL section_vals_val_get(print_pot,"FILENAME",c_val=FileName,error=error)
              myind = INDEX(FileName," ")

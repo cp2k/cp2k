@@ -60,6 +60,8 @@ MODULE qs_environment_types
                                              cp_subsys_release,&
                                              cp_subsys_retain,&
                                              cp_subsystem_type
+  USE cp_output_handling, ONLY:cp_out_flags_type, cp_out_flags_retain, &
+       cp_out_flags_release
   USE distribution_1d_types,           ONLY: distribution_1d_type
   USE distribution_2d_types,           ONLY: distribution_2d_release,&
                                              distribution_2d_retain,&
@@ -147,10 +149,6 @@ MODULE qs_environment_types
                                              real_matrix_p_type
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE green_types,                     ONLY: greens_function_type,&
-                                             pw_green_release,&
-                                             pw_green_retain,&
-                                             pw_green_create
   USE xas_env_types,                   ONLY: xas_env_release,&
                                              xas_env_retain,& 
                                              xas_environment_type
@@ -274,7 +272,6 @@ MODULE qs_environment_types
     LOGICAL :: use_harris
     TYPE(cell_type), POINTER                              :: cell, super_cell 
     TYPE(cell_type), POINTER                              :: cell_ref
-    TYPE(greens_function_type), POINTER                   :: green
     TYPE(dft_control_type), POINTER                       :: dft_control
     TYPE(mo_set_p_type), DIMENSION(:), POINTER            :: mos
     TYPE(cp_fm_p_type), DIMENSION(:), POINTER             :: mo_derivs
@@ -314,6 +311,7 @@ MODULE qs_environment_types
     TYPE(kg_sub_pw_env_type), POINTER                     :: kg_sub_pw_env
     TYPE(linres_control_type), POINTER                    :: linres_control
     TYPE(xas_environment_type), POINTER                   :: xas_env
+    TYPE(cp_out_flags_type), pointer                      :: output_control
   END TYPE qs_environment_type
 
 ! *****************************************************************************
@@ -348,7 +346,7 @@ CONTAINS
 ! *****************************************************************************
 
  SUBROUTINE get_qs_env(qs_env,atomic_kind_set,cell,super_cell,cell_ref,use_ref_cell,&
-                        dft_control,mos,sab_orb,qmmm,green,&
+                        dft_control,mos,sab_orb,qmmm,&
                         sac_erfc,sac_ppl,sac_ppnl,sbc_ppnl,&
                         sac_oce,sbc_oce,sab_2c,sac_3c,sbc_3c,&
                         particle_set,energy,force,harris_env,&
@@ -359,11 +357,12 @@ CONTAINS
                         wf_history,scf_env,use_harris,&
                         id_nr,local_particles,local_molecules,&
                         distribution_2d,molecule_kind_set,molecule_set,&
-                        subsys,error,oce,rho_atom_set,&
+                        subsys,oce,rho_atom_set,&
                         rho0_atom_set,rho0_mpole,nddo_mpole,&
                         rhoz_set,ecoul_1c,VH_3c_list,rho0_s_rs,rho0_s_gs, &
                         requires_mo_derivs,mo_derivs,tddfpt_control, &
-                        neighbor_list_id,kg_sub_pw_env,linres_control,xas_env)
+                        neighbor_list_id,kg_sub_pw_env,linres_control,xas_env,&
+                        output_control,error)
 
 !   Purpose: Get the QUICKSTEP environment.
 
@@ -374,7 +373,6 @@ CONTAINS
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(atomic_kind_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: atomic_kind_set
-    TYPE(greens_function_type), POINTER, OPTIONAL  :: green
     TYPE(cell_type), OPTIONAL, POINTER       :: cell, cell_ref, super_cell
     LOGICAL, OPTIONAL                        :: use_ref_cell
     TYPE(dft_control_type), OPTIONAL, &
@@ -460,6 +458,7 @@ CONTAINS
       POINTER                                :: linres_control
     TYPE(xas_environment_type), OPTIONAL,&
       POINTER                                :: xas_env
+    TYPE(cp_out_flags_type), POINTER, optional :: output_control
 
 
     CHARACTER(len=*), PARAMETER :: routineN = 'get_qs_env', &
@@ -484,7 +483,6 @@ CONTAINS
     IF (PRESENT(cell)) cell => qs_env%cell
     IF (PRESENT(super_cell)) super_cell => qs_env%super_cell
     IF (PRESENT(cell_ref)) cell_ref => qs_env%cell_ref
-    IF (PRESENT(green)) green => qs_env%green
     IF (PRESENT(use_ref_cell)) use_ref_cell = qs_env%use_ref_cell
     IF (PRESENT(qmmm)) qmmm = qs_env%qmmm
     IF (PRESENT(dft_control)) dft_control => qs_env%dft_control
@@ -572,6 +570,7 @@ CONTAINS
     IF (PRESENT(molecule_kind_set)) molecule_kind_set => molecule_kinds_new%els
     IF (PRESENT(molecule_set)) molecule_set => molecules_new%els
     IF (PRESENT(input)) input => qs_env%input
+    if (present(output_control)) output_control => qs_env%output_control
 
   END SUBROUTINE get_qs_env
 
@@ -593,7 +592,6 @@ CONTAINS
 !   ---------------------------------------------------------------------------
 
     NULLIFY (qs_env%blacs_env)
-    NULLIFY (qs_env%green)
     NULLIFY (qs_env%cell)
     NULLIFY (qs_env%super_cell)
     NULLIFY (qs_env%cell_ref)
@@ -638,6 +636,7 @@ CONTAINS
     NULLIFY (qs_env%kg_sub_pw_env)
     NULLIFY (qs_env%linres_control)
     NULLIFY (qs_env%xas_env)
+    NULLIFY (qs_env%output_control)
     qs_env%neighbor_list_id=-1
 
     CALL local_rho_set_create(qs_env%local_rho_set, error=error)
@@ -660,7 +659,7 @@ CONTAINS
 ! *****************************************************************************
 
   SUBROUTINE set_qs_env(qs_env,cell,super_cell,cell_ref,use_ref_cell, &
-                        dft_control,mos,qmmm,green,&
+                        dft_control,mos,qmmm,&
                         sab_orb,sac_erfc,sac_ppl,sac_ppnl,sbc_ppnl,&
                         sac_oce,sbc_oce,sab_2c,sac_3c,sbc_3c,&
                         energy,force,harris_env,&
@@ -672,7 +671,7 @@ CONTAINS
                         subsys, oce,rho_atom_set,rho0_atom_set,rho0_mpole,&
                         nddo_mpole,rhoz_set,rhoz_tot,ecoul_1c,VH_3c_list,error, &
                         requires_mo_derivs,mo_derivs,neighbor_list_id,&
-                        kg_sub_pw_env,linres_control,xas_env)
+                        kg_sub_pw_env,linres_control,xas_env,output_control)
 
 !   Purpose: Set the QUICKSTEP environment.
 
@@ -681,7 +680,6 @@ CONTAINS
 !   ***************************************************************************
 
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(greens_function_type), POINTER,OPTIONAL  :: green
     TYPE(cell_type), OPTIONAL, POINTER       :: cell, super_cell, cell_ref
     LOGICAL, OPTIONAL                        :: use_ref_cell
     TYPE(dft_control_type), OPTIONAL, &
@@ -751,6 +749,7 @@ CONTAINS
       POINTER                                :: linres_control
     TYPE(xas_environment_type), OPTIONAL,&
       POINTER                                :: xas_env
+    TYPE(cp_out_flags_type), OPTIONAL, pointer :: output_control
 
     CHARACTER(len=*), PARAMETER :: routineN = "set_qs_env", &
       routineP = moduleN//':'//routineN
@@ -777,11 +776,6 @@ CONTAINS
        CALL cell_retain(cell_ref, error=error)
        CALL cell_release(qs_env%cell_ref,error=error)
        qs_env%cell_ref => cell_ref
-    END IF
-    IF (PRESENT(green)) THEN
-       CALL pw_green_retain(green, error=error)
-       CALL pw_green_release(qs_env%green,error=error)
-       qs_env%green => green
     END IF
     IF (PRESENT(dft_control)) THEN
        CALL dft_control_retain(dft_control, error=error)
@@ -918,6 +912,11 @@ CONTAINS
        CALL section_vals_retain(input,error=error)
        CALL section_vals_release(qs_env%input,error=error)
        qs_env%input => input
+    END IF
+    IF (PRESENT(output_control)) THEN
+       CALL cp_out_flags_retain(output_control,error=error)
+       CALL cp_out_flags_release(qs_env%output_control,error=error)
+       qs_env%output_control => output_control
     END IF
 
   END SUBROUTINE set_qs_env
@@ -1059,7 +1058,6 @@ SUBROUTINE qs_env_release(qs_env,error)
         CALL cell_release(qs_env%cell)
         CALL cell_release(qs_env%super_cell)
         CALL cell_release(qs_env%cell_ref)
-        CALL pw_green_release(qs_env%green)
         CALL dft_control_release(qs_env%dft_control, error=error)
         IF (ASSOCIATED(qs_env%mos)) THEN
            DO i=1,SIZE(qs_env%mos)
@@ -1219,6 +1217,7 @@ SUBROUTINE qs_env_release(qs_env,error)
         ENDIF
         CALL cp_subsys_release(qs_env%subsys,error=error)
         CALL section_vals_release(qs_env%input,error=error)
+        CALL cp_out_flags_release(qs_env%output_control,error=error)
         DEALLOCATE(qs_env, stat=stat)
         CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
      END IF

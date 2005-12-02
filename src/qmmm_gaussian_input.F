@@ -39,12 +39,11 @@ MODULE qmmm_gaussian_input
   USE kinds,                           ONLY: default_string_length,&
                                              dp
   USE mathconstants,                   ONLY: rootpi
-  USE qs_parser,                       ONLY: finish_parser,&
-                                             read_object,&
-                                             search_object,&
-                                             start_parser,&
-                                             stop_parser,&
-                                             test_object
+  USE cp_parser,                       ONLY: parser_release,&
+                                             parser_get_object,&
+                                             parser_search_string,&
+                                             parser_create,&
+                                             cp_parser_type
   USE memory_utilities,                ONLY: reallocate
   USE qmmm_gaussian_types,             ONLY: qmmm_gaussian_p_type,&
                                              qmmm_gaussian_type
@@ -54,6 +53,7 @@ MODULE qmmm_gaussian_input
   USE string_utilities,                ONLY: uppercase
   USE physcon,                         ONLY: bohr
   USE qmmm_gaussian_data
+  USE input_section_types, ONLY: section_vals_val_get,section_vals_type
   IMPLICIT NONE
   PRIVATE
 
@@ -106,16 +106,22 @@ CONTAINS
     CHARACTER(LEN=240)                       :: line
     CHARACTER(len=10)                        :: Ftarget, Units
     REAL(KIND=dp)                           :: Radius, fconv, my_radius
+    TYPE(cp_parser_type), pointer :: parser
+    CHARACTER(default_string_length) :: mm_potential_file_name
 
 
     Nval = size(qmmm_gaussian_fns)
     Ival = 0
-    CALL start_parser(globenv%mm_potential_file_name,globenv)
+    CALL section_vals_val_get(globenv%input_file,"FORCE_EVAL%QMMM%MM_POTENTIAL_FILE_NAME",&
+         c_val=mm_potential_file_name,error=error)
+
+    nullify(parser)
+    CALL parser_create(parser,mm_potential_file_name,para_env=globenv%para_env)
 
     search_loop: DO
        Ftarget = "&MM_FIT_POT"
        IF (Ival.EQ.Nval) EXIT search_loop
-       CALL search_object(Ftarget,.TRUE.,found,line)
+       CALL parser_search_string(parser,Ftarget,.TRUE.,found,line)
        IF (Found) THEN
 !
 ! Structure example of the MM fit potential file:
@@ -132,10 +138,10 @@ CONTAINS
 !           0.0790169  4.82046   Bohr
 !           &END
 !
-          CALL read_object  (Ftarget,newline=.TRUE.)
+          CALL parser_get_object  (parser,Ftarget,newline=.TRUE.)
           CPPostcondition(TRIM(Ftarget)=="RADIUS",cp_failure_level,routineP,error,Failure)
-          CALL read_object  (radius)
-          CALL read_object  (units)
+          CALL parser_get_object  (parser,radius)
+          CALL parser_get_object  (parser,units)
           CALL uppercase (units)
           fconv = 1.0_dp
           IF (TRIM(units).EQ."ANGSTROM") fconv = bohr 
@@ -153,7 +159,7 @@ CONTAINS
           Ival = Ival + 1
           IRad = J          
           ! Read  Rmin, Rmax
-          CALL read_object(qmmm_gaussian_fns(J)%pgf%Number_of_Gaussians,newline=.TRUE.)
+          CALL parser_get_object(parser,qmmm_gaussian_fns(J)%pgf%Number_of_Gaussians,newline=.TRUE.)
           ! Allocate Vectors
           istart = 1
           IF (compatibility) THEN 
@@ -171,9 +177,9 @@ CONTAINS
              qmmm_gaussian_fns(IRad)%pgf%Gk(1) = my_radius
           END IF
           DO J = istart, qmmm_gaussian_fns(IRad)%pgf%Number_of_Gaussians
-             CALL read_object(qmmm_gaussian_fns(IRad)%pgf%Ak(J),newline=.TRUE.)
-             CALL read_object(qmmm_gaussian_fns(IRad)%pgf%Gk(J))
-             CALL read_object(units)
+             CALL parser_get_object(parser,qmmm_gaussian_fns(IRad)%pgf%Ak(J),newline=.TRUE.)
+             CALL parser_get_object(parser,qmmm_gaussian_fns(IRad)%pgf%Gk(J))
+             CALL parser_get_object(parser,units)
              CALL uppercase (units)
              fconv = 1.0_dp
              IF (TRIM(units).EQ."ANGSTROM") fconv = bohr
@@ -188,7 +194,7 @@ CONTAINS
        
     END DO search_loop
 
-    CALL finish_parser()
+    CALL parser_release(parser,error=error)
 
   END SUBROUTINE read_mm_potential
 

@@ -34,23 +34,25 @@ MODULE pme
                                              ewald_env_get
   USE ewald_pw_types,                  ONLY: ewald_pw_type, &
                                              ewald_pw_get
-  USE hartree,                         ONLY: calculate_hartree
   USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: fourpi
   USE particle_types,                  ONLY: particle_type
   USE pw_grid_types,                   ONLY: pw_grid_type
   USE pw_pool_types,                   ONLY: pw_pool_type, &
                                              pw_pool_init_coeff, &
-                                             pw_pool_give_back_coeff
-  USE pws,                             ONLY: cleanup_pw_poisson_solver,&
-                                             init_pw_poisson_solver,&
-                                             pw_integral_a2b
+                                             pw_pool_give_back_coeff,&
+                                             pw_pool_create_pw,&
+                                             pw_pool_give_back_pw
+  USE pw_poisson_types,                ONLY: pw_poisson_type
+  USE pw_poisson_methods,              ONLY: pw_poisson_solve
   USE pw_types,                        ONLY: COMPLEXDATA1D,&
                                              COMPLEXDATA3D,&
                                              REALDATA1D,&
                                              REALDATA3D,&
                                              REALSPACE,&
-                                             RECIPROCALSPACE
+                                             RECIPROCALSPACE,&
+                                             pw_integral_a2b,&
+                                             pw_type,pw_p_type, pw_transfer
   USE realspace_grid_types,            ONLY: realspace_grid_type,&
                                              rs_grid_allocate,&
                                              rs_grid_deallocate,&
@@ -64,7 +66,6 @@ MODULE pme
                                              structure_factor_deallocate
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE green_types,                     ONLY: greens_function_type
   IMPLICIT NONE
 
   PRIVATE
@@ -112,8 +113,9 @@ SUBROUTINE pme_evaluate ( ewald_env, ewald_pw, particle_set,&
     REAL(KIND=dp)                                :: dvols, ffa, inv_fourpi_eps0
     REAL(KIND=dp), DIMENSION(3)                  :: fat
     REAL(KIND=dp), DIMENSION(3, 3)               :: f_stress, h_stress
-    TYPE(coeff_type)                         :: dphi_g( 3 ), phi_r, rhob_r, &
-                                                rhos1, rhos2
+    TYPE(pw_p_type), dimension(3)            :: dphi_g
+    TYPE(pw_type), POINTER :: phi_r,rhob_r
+    TYPE(coeff_type)                         :: rhos1, rhos2
     TYPE(realspace_grid_type)                :: drpot( 3 ), rden
     TYPE(structure_factor_type)              :: exp_igr
     TYPE(pw_grid_type), POINTER              :: grid_s, grid_b
@@ -123,15 +125,16 @@ SUBROUTINE pme_evaluate ( ewald_env, ewald_pw, particle_set,&
     REAL (KIND=dp)                            :: alpha, eps0
     INTEGER                                 :: group
     TYPE ( cell_type ), POINTER             :: box
-    TYPE(greens_function_type), POINTER      :: green
+    TYPE(pw_poisson_type), pointer :: poisson_env
 
 !------------------------------------------------------------------------------
 !-------------- INITIALISATION ---------------------
-    NULLIFY( box, green)
+    NULLIFY( box, poisson_env)
   CALL timeset ( 'PME', 'I', ' ', handle )
   CALL ewald_env_get (ewald_env, alpha=alpha, eps0 = eps0, group = group )
   CALL ewald_pw_get (ewald_pw, pw_big_pool=pw_big_pool, & 
-                     pw_small_pool=pw_small_pool, cell=box, green=green, dg = dg )
+                     pw_small_pool=pw_small_pool, cell=box, &
+                     poisson_env=poisson_env, dg = dg )
 
   grid_b => pw_big_pool % pw_grid
   grid_s => pw_small_pool % pw_grid
@@ -178,11 +181,11 @@ SUBROUTINE pme_evaluate ( ewald_env, ewald_pw, particle_set,&
 
   END DO
 
-  CALL pw_pool_init_coeff ( pw_big_pool, rhob_r, &
+  CALL pw_pool_create_pw ( pw_big_pool, rhob_r, &
                             use_data = REALDATA3D, &
                             in_space = REALSPACE )
 
-  CALL rs_pw_transfer ( rden, rhob_r % pw, rs2pw )
+  CALL rs_pw_transfer ( rden, rhob_r, rs2pw )
 
   CALL rs_grid_deallocate ( rden )
 
@@ -190,19 +193,18 @@ SUBROUTINE pme_evaluate ( ewald_env, ewald_pw, particle_set,&
 
   ! allocate intermediate arrays
   DO i = 1, 3
-     CALL pw_pool_init_coeff ( pw_big_pool, dphi_g ( i ), &
+     nullify(dphi_g ( i )%pw)
+     CALL pw_pool_create_pw ( pw_big_pool, dphi_g ( i )%pw, &
                                use_data = COMPLEXDATA1D, &
                                in_space = RECIPROCALSPACE )
   END DO
-  CALL pw_pool_init_coeff ( pw_big_pool, phi_r, &
+  CALL pw_pool_create_pw ( pw_big_pool, phi_r, &
                             use_data = REALDATA3D, &
                             in_space = REALSPACE )
 
-  CALL init_pw_poisson_solver ( green )
+  CALL pw_poisson_solve ( poisson_env, rhob_r, vg_coulomb, phi_r, dphi_g, h_stress )
 
-  CALL calculate_hartree ( rhob_r, vg_coulomb, phi_r, dphi_g, h_stress )
-
-  CALL pw_pool_give_back_coeff ( pw_big_pool, phi_r )
+  CALL pw_pool_give_back_pw ( pw_big_pool, phi_r )
 
   vg_coulomb = vg_coulomb * inv_fourpi_eps0
 
@@ -229,12 +231,12 @@ SUBROUTINE pme_evaluate ( ewald_env, ewald_pw, particle_set,&
   CALL rs_grid_allocate ( drpot ( 1 : 3 ) )
 
   DO i = 1, 3
-     CALL coeff_transform_space ( dphi_g ( i ), rhob_r )
-     CALL pw_pool_give_back_coeff ( pw_big_pool, dphi_g ( i ) )
-     CALL rs_pw_transfer ( drpot ( i ), rhob_r % pw, pw2rs )
+     CALL pw_transfer ( dphi_g ( i )%pw, rhob_r )
+     CALL pw_pool_give_back_pw ( pw_big_pool, dphi_g ( i )%pw )
+     CALL rs_pw_transfer ( drpot ( i ), rhob_r, pw2rs )
   END DO
 
-  CALL pw_pool_give_back_coeff ( pw_big_pool, rhob_r )
+  CALL pw_pool_give_back_pw ( pw_big_pool, rhob_r )
 
 !----------------- FORCE CALCULATION ----------------
 
@@ -275,7 +277,6 @@ SUBROUTINE pme_evaluate ( ewald_env, ewald_pw, particle_set,&
   CALL pw_pool_give_back_coeff ( pw_small_pool, rhos1 )
   CALL pw_pool_give_back_coeff ( pw_small_pool, rhos2 )
   CALL structure_factor_deallocate ( exp_igr )
-  CALL cleanup_pw_poisson_solver ( green )
 
   CALL timestop ( 0.0_dp, handle )
 

@@ -1103,7 +1103,7 @@ contains
 
     CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
-       CALL section_create(section,name="md_new",&
+       CALL section_create(section,name="md",&
             description="parameters needed perform an md run",&
             n_keywords=5, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
             error=error)
@@ -1492,7 +1492,7 @@ SUBROUTINE create_barostat_section(section, error)
        CALL keyword_create(keyword, name="TIMECON",&
             description="Barostat time constant",&
             usage="TIMECON real",&
-            type_of_var=real_t, n_var=1,unit_str='wavenumber_t',error=error)
+            type_of_var=real_t, n_var=1,unit_str='fs',error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)        
 
@@ -1670,7 +1670,7 @@ SUBROUTINE create_nose_section(section, error)
        CALL keyword_create(keyword, name="timecon",&
             description="timeconstant of the termostat chain",&
             usage="timeconstant real", &
-            default_r_val=1000._dp,unit_str='wavenumber_t',&
+            default_r_val=1000._dp,unit_str='fs',&
             error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)

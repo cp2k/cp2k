@@ -1,4 +1,3 @@
-
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2001 - 2002  CP2K developers group                          !
@@ -31,9 +30,6 @@ MODULE xc
   USE coefficient_types,               ONLY: PLANEWAVES,&
                                              coeff_type
   USE cp_array_r_utils,                ONLY: cp_3d_r_p_type
-  USE cp_control_types,                ONLY: dft_control_type,&
-                                             tddfpt_control_type,&
-                                             xc_control_type
   USE input_constants,                 ONLY: tddfpt_triplet,&
                                              xc_debug_new_routine,&
                                              xc_deriv_fd,&
@@ -120,8 +116,9 @@ MODULE xc
                                              xc_dset_release
   USE xc_derivative_types,             ONLY: xc_derivative_get,&
                                              xc_derivative_type
-  USE xc_derivatives,                  ONLY: xc_functional_eval,&
-                                             xc_functional_get_info
+  USE xc_derivatives,                  ONLY: xc_functionals_eval,&
+                                             xc_functional_get_info,&
+                                             xc_functionals_get_needs
   USE xc_rho_cflags_types,             ONLY: xc_rho_cflags_setall,&
                                              xc_rho_cflags_type
   USE xc_rho_set_types,                ONLY: xc_rho_set_create,&
@@ -129,13 +126,13 @@ MODULE xc
                                              xc_rho_set_release,&
                                              xc_rho_set_type,&
                                              xc_rho_set_update
-  USE xc_utils,                        ONLY: xc_eval_yat
-
+  USE input_section_types, ONLY: section_vals_type, section_vals_val_get,&
+       section_vals_get_subs_vals, section_vals_get_subs_vals2
   IMPLICIT NONE
   PRIVATE
   PUBLIC :: xc_vxc_pw_create1, xc_vxc_pw_create, &
        xc_rho_set_and_dset_create, xc_exc_calc,&
-       xc_calc_2nd_deriv_new, xc_prep_2nd_deriv_new, divide_by_norm_drho
+       xc_calc_2nd_deriv, xc_prep_2nd_deriv, divide_by_norm_drho
 
   LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
   CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='xc'
@@ -152,7 +149,7 @@ CONTAINS
 !!
 !!   FUNCTION
 !!     Exchange and Correlation functional calculations.
-!!     depending on the selected functional_routine in dft_control calls
+!!     depending on the selected functional_routine calls
 !!     the correct routine
 !!
 !!   NOTES
@@ -173,7 +170,8 @@ CONTAINS
 !!     - vxc: will contain the resulting xc potential, has to be 
 !!       already allocated
 !!     - exc: the xc energy
-!!     - dft_control: varius parameter (number of spin...)
+!!     - xc_section: parameters selecting the xc and the method used to
+!!       calculate it
 !!     - pw_pool: the pool for the grids
 !!     - error: variable to control error logging, stopping,... 
 !!       see module cp_error_handling 
@@ -182,14 +180,14 @@ CONTAINS
 !!     fawzi
 !!
 !!*** **********************************************************************
-  SUBROUTINE xc_vxc_pw_create1(vxc_rho,vxc_tau,rho_r,rho_g,tau,exc,dft_control,&
+  SUBROUTINE xc_vxc_pw_create1(vxc_rho,vxc_tau,rho_r,rho_g,tau,exc,xc_section,&
        cell,pw_pool,error)
     TYPE(pw_p_type), DIMENSION(:), POINTER   :: vxc_rho, vxc_tau
     TYPE(pw_p_type), DIMENSION(:), &
-      INTENT(inout), TARGET                  :: rho_r
+      pointer                   :: rho_r
     TYPE(pw_p_type), DIMENSION(:), POINTER   :: rho_g, tau
     REAL(KIND=dp), INTENT(out)               :: exc
-    TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(section_vals_type), pointer         :: xc_section
     TYPE(cell_type), POINTER                 :: cell
     TYPE(pw_pool_type), POINTER              :: pw_pool
     TYPE(cp_error_type), INTENT(inout), &
@@ -198,31 +196,32 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'xc_vxc_create1', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: ispin, stat
+    INTEGER                                  :: ispin, stat,f_routine
     LOGICAL                                  :: failure
 
     failure=.FALSE.
     
-    CPPrecondition(ASSOCIATED(dft_control),cp_failure_level,routineP,error,failure)    
+    CPPrecondition(ASSOCIATED(rho_r),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(xc_section),cp_failure_level,routineP,error,failure)    
     CPPrecondition(.NOT.ASSOCIATED(vxc_rho),cp_failure_level,routineP,error,failure)
     CPPrecondition(.NOT.ASSOCIATED(vxc_tau),cp_failure_level,routineP,error,failure)
     IF (.NOT.failure) THEN
 
-       SELECT CASE(dft_control%xc_control%functional_routine)
+       CALL section_vals_val_get(xc_section,"FUNCTIONAL_ROUTINE",&
+            i_val=f_routine,error=error)
+       SELECT CASE(f_routine)
        CASE(xc_new_f_routine)
           CALL xc_vxc_pw_create(vxc_rho=vxc_rho, vxc_tau=vxc_tau,tau=tau,&
-               rho_r=rho_r, rho_g=rho_g, exc=exc, dft_control=dft_control,&
-               cell=cell, pw_pool=pw_pool, &
-               error=error)
+               rho_r=rho_r, rho_g=rho_g, exc=exc, xc_section=xc_section,&
+               cell=cell, pw_pool=pw_pool, error=error)
        CASE(xc_debug_new_routine)
           CALL xc_vxc_pw_create_debug(vxc_rho=vxc_rho, vxc_tau=vxc_tau,tau=tau,&
-               rho_r=rho_r, rho_g=rho_g, exc=exc, dft_control=dft_control,&
-               cell=cell, pw_pool=pw_pool, &
-               error=error)
+               rho_r=rho_r, rho_g=rho_g, exc=exc, xc_section=xc_section,&
+               cell=cell, pw_pool=pw_pool, error=error)
        CASE(xc_test_lsd_f_routine)
           CALL xc_vxc_pw_create_test_lsd(vxc_rho=vxc_rho, vxc_tau=vxc_tau,&
                tau=tau, rho_r=rho_r, rho_g=rho_g, exc=exc, &
-               dft_control=dft_control, cell=cell, pw_pool=pw_pool,&
+               xc_section=xc_section, cell=cell, pw_pool=pw_pool,&
                error=error)
        CASE default
        END SELECT
@@ -256,7 +255,7 @@ CONTAINS
 !!     - tau: value of the kinetic density tau on the grid (can be null,
 !!       used only with meta functionals)
 !!     - exc: the xc energy
-!!     - dft_control: varius parameter (number of spin...)
+!!     - xc_section: which functional to calculate, and how
 !!     - pw_pool: the pool for the grids
 !!     - error: variable to control error logging, stopping,... 
 !!       see module cp_error_handling 
@@ -266,13 +265,13 @@ CONTAINS
 !!
 !!*** **********************************************************************
 SUBROUTINE xc_vxc_pw_create_test_lsd(vxc_rho,vxc_tau,rho_r,rho_g,tau,&
-     exc,dft_control, cell,pw_pool,  error)
+     exc,xc_section, cell,pw_pool,  error)
     TYPE(pw_p_type), DIMENSION(:), POINTER   :: vxc_rho, vxc_tau
     TYPE(pw_p_type), DIMENSION(:), &
       INTENT(inout), TARGET                  :: rho_r
     TYPE(pw_p_type), DIMENSION(:), POINTER   :: rho_g, tau
     REAL(KIND=dp), INTENT(out)               :: exc
-    TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(section_vals_type), POINTER         :: xc_section
     TYPE(cell_type), POINTER                 :: cell
     TYPE(pw_pool_type), POINTER              :: pw_pool
     TYPE(cp_error_type), INTENT(inout), &
@@ -343,27 +342,24 @@ SUBROUTINE xc_vxc_pw_create_test_lsd(vxc_rho,vxc_tau,rho_r,rho_g,tau,&
        
        PRINT *, "about to calculate xc (lda)"
        CALL xc_rho_set_and_dset_create(rho_r=rho_r, rho_g=rho_g,&
-            tau=tau,dft_control=dft_control,xc_control=dft_control%xc_control,&
+            tau=tau,xc_section=xc_section,&
             cell=cell, pw_pool=pw_pool,rho_set=rho_set1,&
             deriv_set=dSet1, deriv_order=1,&
             needs_basic_components=.FALSE.,error=error)
        CALL xc_vxc_pw_create(rho_r=rho_r, rho_g=rho_g,tau=tau,&
-            vxc_rho=vxc_rho,vxc_tau=vxc_tau, exc=exc, dft_control=dft_control,&
+            vxc_rho=vxc_rho,vxc_tau=vxc_tau, exc=exc, xc_section=xc_section,&
             cell=cell, pw_pool=pw_pool, &
             error=error)
        PRINT *, "did calculate xc (lda)"
-       dft_control%nspins=2
        PRINT *, "about to calculate xc (lsd)"
        CALL xc_rho_set_and_dset_create(rho_set=rho_set2,deriv_set=dSet2,&
-            rho_r=rho2_r, rho_g=rho2_g,tau=tau2, dft_control=dft_control,&
-            xc_control=dft_control%xc_control,&
+            rho_r=rho2_r, rho_g=rho2_g,tau=tau2, xc_section=xc_section,&
             cell=cell, pw_pool=pw_pool, deriv_order=1,&
             needs_basic_components=.FALSE.,error=error)
        CALL xc_vxc_pw_create(rho_r=rho2_r, rho_g=rho2_g,tau=tau2,&
-            vxc_rho=vxc_rho2,vxc_tau=vxc_tau2,exc=exc2, dft_control=dft_control,&
+            vxc_rho=vxc_rho2,vxc_tau=vxc_tau2,exc=exc2, xc_section=xc_section,&
             cell=cell, pw_pool=pw_pool,  error=error)
        PRINT *, "did calculate xc (new)"
-       dft_control%nspins=1
        PRINT *, "at (0,0,0) rho_r=",rho_r(1)%pw%cr3d(0,0,0),&
             "rho2_r(1)=",rho2_r(1)%pw%cr3d(0,0,0),&
             "rho2_r(2)=",rho2_r(2)%pw%cr3d(0,0,0),&
@@ -636,7 +632,7 @@ END SUBROUTINE xc_vxc_pw_create_test_lsd
 !!     - tau: value of the kinetic density tau on the grid (can be null,
 !!       used only with meta functionals)
 !!     - exc: the xc energy
-!!     - dft_control: varius parameter (number of spin...)
+!!     - xc_section: which functional should be used, and how to do it
 !!     - pw_pool: the pool for the grids
 !!     - error: variable to control error logging, stopping,... 
 !!       see module cp_error_handling 
@@ -646,13 +642,13 @@ END SUBROUTINE xc_vxc_pw_create_test_lsd
 !!
 !!*** **********************************************************************
 SUBROUTINE xc_vxc_pw_create_debug(vxc_rho,vxc_tau,rho_r,rho_g,tau,exc,&
-     dft_control, cell,pw_pool,error)
+     xc_section, cell,pw_pool,error)
     TYPE(pw_p_type), DIMENSION(:), POINTER   :: vxc_rho, vxc_tau
     TYPE(pw_p_type), DIMENSION(:), &
       INTENT(inout), TARGET                  :: rho_r
     TYPE(pw_p_type), DIMENSION(:), POINTER   :: rho_g, tau
     REAL(KIND=dp), INTENT(out)               :: exc
-    TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(section_vals_type), POINTER         :: xc_section
     TYPE(cell_type), POINTER                 :: cell
     TYPE(pw_pool_type), POINTER              :: pw_pool
     TYPE(cp_error_type), INTENT(inout), &
@@ -684,7 +680,7 @@ SUBROUTINE xc_vxc_pw_create_debug(vxc_rho,vxc_tau,rho_r,rho_g,tau,exc,&
      bo = rho_r(1)%pw%pw_grid%bounds_local
 
      CALL xc_rho_set_and_dset_create(rho_r=rho_r, rho_g=rho_g,&
-          tau=tau,dft_control=dft_control,xc_control=dft_control%xc_control,&
+          tau=tau,xc_section=xc_section,&
           cell=cell, pw_pool=pw_pool,rho_set=rho_set1,&
           deriv_set=dSet1, deriv_order=1,&
           needs_basic_components=.FALSE.,error=error)
@@ -772,7 +768,7 @@ SUBROUTINE xc_vxc_pw_create_debug(vxc_rho,vxc_tau,rho_r,rho_g,tau,exc,&
 
      CALL xc_vxc_pw_create(vxc_rho=vxc_rho,vxc_tau=vxc_tau,&
           rho_r=rho_r, rho_g=rho_g,tau=tau,&
-          exc=exc, dft_control=dft_control,&
+          exc=exc, xc_section=xc_section,&
           cell=cell, pw_pool=pw_pool,&
           error=error)
 
@@ -950,8 +946,8 @@ END SUBROUTINE xc_vxc_pw_create_debug
 !!       without smoothing of rho or deriv)
 !!     - tau: value of the kinetic density tau on the grid (can be null,
 !!       used only with meta functionals)
-!!     - dft_control: varius parameter (number of spin...)
 !!     - cell: the simulation cell (to scale the derivatives)
+!!     - xc_section: the section describing the functional to use
 !!     - pw_pool: the pool for the grids
 !!     - gradient_f: returns true if any of the functionals is gradient 
 !!       corrected
@@ -965,160 +961,110 @@ END SUBROUTINE xc_vxc_pw_create_debug
 !!     fawzi
 !!
 !!*** **********************************************************************
-  SUBROUTINE xc_rho_set_and_dset_create(rho_set,deriv_set,deriv_order,&
-       rho_r,rho_g,tau,dft_control,xc_control,cell,pw_pool,gradient_f,&
-       needs_basic_components,error)
-    TYPE(xc_rho_set_type), POINTER           :: rho_set
-    TYPE(xc_derivative_set_type), POINTER    :: deriv_set
-    INTEGER, INTENT(in)                      :: deriv_order
-    TYPE(pw_p_type), DIMENSION(:), &
-      INTENT(inout), TARGET                  :: rho_r
-    TYPE(pw_p_type), DIMENSION(:), POINTER   :: rho_g, tau
-    TYPE(dft_control_type), POINTER          :: dft_control
-    TYPE(xc_control_type)                    :: xc_control
-    TYPE(cell_type), POINTER                 :: cell
-    TYPE(pw_pool_type), POINTER              :: pw_pool
-    LOGICAL, INTENT(out), OPTIONAL           :: gradient_f
-    LOGICAL, INTENT(in)                      :: needs_basic_components
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+SUBROUTINE xc_rho_set_and_dset_create(rho_set,deriv_set,deriv_order,&
+     rho_r,rho_g,tau,xc_section,cell,pw_pool,gradient_f,&
+     needs_basic_components,error)
+  TYPE(xc_rho_set_type), POINTER           :: rho_set
+  TYPE(xc_derivative_set_type), POINTER    :: deriv_set
+  INTEGER, INTENT(in)                      :: deriv_order
+  TYPE(pw_p_type), DIMENSION(:), &
+       INTENT(inout), TARGET                  :: rho_r
+  TYPE(pw_p_type), DIMENSION(:), POINTER   :: rho_g, tau
+  TYPE(section_vals_type), pointer         :: xc_section
+  TYPE(cell_type), POINTER                 :: cell
+  TYPE(pw_pool_type), POINTER              :: pw_pool
+  LOGICAL, INTENT(out), OPTIONAL           :: gradient_f
+  LOGICAL, INTENT(in)                      :: needs_basic_components
+  TYPE(cp_error_type), INTENT(inout), &
+       OPTIONAL                               :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'xc_rho_set_and_dset_create', &
-      routineP = moduleN//':'//routineN
+  CHARACTER(len=*), PARAMETER :: routineN = 'xc_rho_set_and_dset_create', &
+       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, i, nspins
-    INTEGER, DIMENSION(2, 3)                 :: bo
-    LOGICAL                                  :: failure, lsd
-!    TYPE(xc_rho_cflags_type)                 :: needs
+  INTEGER                                  :: handle, i, nspins, ifun,&
+       xc_deriv_method_id, xc_rho_smooth_id
+  INTEGER, DIMENSION(2, 3)                 :: bo
+  LOGICAL                                  :: failure, lsd
+  TYPE(xc_rho_cflags_type)                 :: needs
+  TYPE(section_vals_type), POINTER :: xc_fun_sections, xc_fun
+  REAL(kind=dp) :: density_cut, gradient_cut, tau_cut
 
-    CALL timeset(routineN,"I","",handle)
-    failure=.FALSE.
+  CALL timeset(routineN,"I","",handle)
+  failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(rho_set),cp_failure_level,routineP,error,failure)
-    CPPrecondition(.NOT.ASSOCIATED(deriv_set),cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(dft_control),cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(pw_pool),cp_failure_level,routineP,error,failure)
-    IF (.NOT. failure) THEN
-       IF (PRESENT(gradient_f)) gradient_f=.FALSE.
-       nspins=SIZE(rho_r)
-       lsd=(nspins/=1)
-       IF (lsd) THEN
-          CPPrecondition(nspins==2,cp_failure_level,routineP,error,failure)
-       END IF
-    END IF
+  CPPrecondition(.NOT.ASSOCIATED(rho_set),cp_failure_level,routineP,error,failure)
+  CPPrecondition(.NOT.ASSOCIATED(deriv_set),cp_failure_level,routineP,error,failure)
+  CPPrecondition(ASSOCIATED(pw_pool),cp_failure_level,routineP,error,failure)
+  IF (.NOT. failure) THEN
+     IF (PRESENT(gradient_f)) gradient_f=.FALSE.
+     nspins=SIZE(rho_r)
+     lsd=(nspins/=1)
+     IF (lsd) THEN
+        CPPrecondition(nspins==2,cp_failure_level,routineP,error,failure)
+     END IF
+  END IF
 
-    CALL cp_assert(dft_control%integration_grid%pw_default,&
-         cp_failure_level,cp_unimplemented_error_nr,routineP,&
-         "calculation on a special grid unimplemented "//&
-         CPSourceFileRef,&
-         error,failure)
+  IF (.NOT.failure) THEN
+     bo = rho_r(1)%pw%pw_grid%bounds_local
 
-    IF (.NOT.failure) THEN
-       bo = rho_r(1)%pw%pw_grid%bounds_local
-       
-       ! create a place where to put the derivatives
-       CALL xc_dset_create(deriv_set, pw_pool, error=error)
+     xc_fun_sections => section_vals_get_subs_vals(xc_section,"XC_FUNCTIONAL",&
+          error=error)
+     ! create a place where to put the derivatives
+     CALL xc_dset_create(deriv_set, pw_pool, error=error)
 
-       ! create the place where to store the argument for the functionals
-       CALL xc_rho_set_create(rho_set,bo,rho_cutoff=xc_control%density_cut,&
-            drho_cutoff=xc_control%gradient_cut,tau_cutoff=xc_control%tau_cut,&
-            error=error)
+     ! create the place where to store the argument for the functionals
+     CALL section_vals_val_get(xc_section,"density_cutoff",&
+          r_val=density_cut,error=error)
+     CALL section_vals_val_get(xc_section,"gradient_cutoff",&
+          r_val=gradient_cut,error=error)
+     CALL section_vals_val_get(xc_section,"tau_cutoff",&
+          r_val=tau_cut,error=error)
+     CALL section_vals_val_get(xc_section,"XC_GRID%XC_DERIV",&
+          i_val=xc_deriv_method_id,error=error)
+     CALL section_vals_val_get(xc_section,"XC_GRID%XC_SMOOTH_RHO",&
+          i_val=xc_rho_smooth_id,error=error)
+     CALL xc_rho_set_create(rho_set,bo,rho_cutoff=density_cut,&
+          drho_cutoff=gradient_cut,tau_cutoff=tau_cut,&
+          error=error)
 
-       IF( ANY(xc_control%functionals_new /= 0) ) THEN
+     needs=xc_functionals_get_needs(xc_fun_sections,lsd,error=error)
 
-          
-          CALL xc_rho_cflags_setall(xc_control%needs,.FALSE.,error=error)
-          DO i=1,SIZE(xc_control%functionals)
-             CALL xc_functional_get_info(xc_control%functionals(i),lsd=lsd,&
-                  needs=xc_control%needs,&
-                  error=error)
-          END DO
-          IF (needs_basic_components) THEN
-             IF (lsd) THEN
-                xc_control%needs%rho_spin=.TRUE.
-                xc_control%needs%tau_spin=xc_control%needs%tau_spin.OR.xc_control%needs%tau
-             ELSE
-                xc_control%needs%rho=.TRUE.
-             END IF
-             IF (xc_control%needs%drho.OR.xc_control%needs%drho_spin.OR.xc_control%needs%norm_drho.OR.&
-                  xc_control%needs%norm_drho_spin) THEN
-                IF (PRESENT(gradient_f)) gradient_f=.TRUE.
-                IF (lsd) THEN
-                   xc_control%needs%drho_spin=.TRUE.
-                ELSE
-                   xc_control%needs%drho=.TRUE.
-                END IF
-             END IF
-          END IF
-          
-          ! calculate the agruments needed by the functionals
-          CALL xc_rho_set_update(rho_set, rho_r, rho_g, tau, xc_control%needs,&
-               xc_control%xc_deriv_method_id,xc_control%xc_rho_smooth_id,&
-               cell,pw_pool, error=error)
-          
-          ! evaluate the functionals
-          DO i=1,SIZE(xc_control%functionals)
-             ! TO be changed with the version in xc_utils
-             CALL xc_eval_yat(xc_control%functionals_new(i), &
-                  lsd=lsd,&
-                  rho_set=rho_set, &
-                  deriv_set=deriv_set,&
-                  deriv_order=deriv_order, &
-                  xparam=xc_control%xa_param,&
-                  error=error)
-          END DO
-          
-          
-       ELSE
+     IF (needs_basic_components) THEN
+        IF (lsd) THEN
+           needs%rho_spin=.TRUE.
+           needs%tau_spin=needs%tau_spin.OR.needs%tau
+        ELSE
+           needs%rho=.TRUE.
+        END IF
+        IF (needs%drho.OR.needs%drho_spin.OR.needs%norm_drho.OR.&
+             needs%norm_drho_spin) THEN
+           IF (PRESENT(gradient_f)) gradient_f=.TRUE.
+           IF (lsd) THEN
+              needs%drho_spin=.TRUE.
+           ELSE
+              needs%drho=.TRUE.
+           END IF
+        END IF
+     END IF
 
-          CALL xc_rho_cflags_setall(xc_control%needs,.FALSE.,error=error)
-          DO i=1,SIZE(xc_control%functionals)
-             CALL xc_functional_get_info(xc_control%functionals(i),lsd=lsd,&
-                  needs=xc_control%needs,&
-                  error=error)
-          END DO
+     ! calculate the agruments needed by the functionals
+     CALL xc_rho_set_update(rho_set, rho_r, rho_g, tau, needs,&
+          xc_deriv_method_id,xc_rho_smooth_id, cell,pw_pool,&
+          error=error)
 
-          IF (needs_basic_components) THEN
-             IF (lsd) THEN
-                xc_control%needs%rho_spin=.TRUE.
-                xc_control%needs%tau_spin=xc_control%needs%tau_spin.OR.xc_control%needs%tau
-             ELSE
-                xc_control%needs%rho=.TRUE.
-             END IF
-             IF (xc_control%needs%drho.OR.xc_control%needs%drho_spin.OR.xc_control%needs%norm_drho.OR.&
-                  xc_control%needs%norm_drho_spin) THEN
-                IF (PRESENT(gradient_f)) gradient_f=.TRUE.
-                IF (lsd) THEN
-                   xc_control%needs%drho_spin=.TRUE.
-                ELSE
-                   xc_control%needs%drho=.TRUE.
-                END IF
-             END IF
-          END IF
+     ! evaluate the functionals
+     CALL xc_functionals_eval(xc_fun_sections, &
+          lsd=lsd,&
+          rho_set=rho_set, &
+          deriv_set=deriv_set,&
+          deriv_order=deriv_order, &
+          error=error)
 
-          ! calculate the agruments needed by the functionals
-          CALL xc_rho_set_update(rho_set, rho_r, rho_g, tau, xc_control%needs,&
-               xc_control%xc_deriv_method_id,xc_control%xc_rho_smooth_id,&
-               cell,pw_pool, error=error)
+  END IF
 
-          ! evaluate the functionals
-          DO i=1,SIZE(xc_control%functionals)
-             ! TO be changed with the version in xc_utils
-             CALL xc_functional_eval(xc_control%functionals(i), &
-                  lsd=lsd,&
-                  rho_set=rho_set, &
-                  deriv_set=deriv_set,&
-                  deriv_order=deriv_order, &
-                  error=error)
-          END DO
+  CALL timestop(0.0_dp,handle)
 
-       END IF  ! ANY
-
-    END IF
-
-    CALL timestop(0.0_dp,handle)
-
-  END SUBROUTINE xc_rho_set_and_dset_create
+END SUBROUTINE xc_rho_set_and_dset_create
   !***************************************************************************
 
 !!****f* xc/smooth_cutoff [1.0] *
@@ -1340,7 +1286,7 @@ END SUBROUTINE smooth_cutoff
 !!     - tau: value of the kinetic density tau on the grid (can be null,
 !!       used only with meta functionals)
 !!     - exc: the xc energy
-!!     - dft_control: varius parameter (number of spin...)
+!!     - xc_section: which functional to calculate, and how to do it
 !!     - pw_pool: the pool for the grids
 !!     - error: variable to control error logging, stopping,... 
 !!       see module cp_error_handling 
@@ -1357,14 +1303,14 @@ END SUBROUTINE smooth_cutoff
 !!     Fawzi (04.2004): metafunctionals
 !!
 !!*** **********************************************************************
-SUBROUTINE xc_vxc_pw_create(vxc_rho,vxc_tau,exc,rho_r,rho_g,tau,dft_control,&
+SUBROUTINE xc_vxc_pw_create(vxc_rho,vxc_tau,exc,rho_r,rho_g,tau,xc_section,&
      cell,pw_pool,error)
     TYPE(pw_p_type), DIMENSION(:), POINTER   :: vxc_rho, vxc_tau
     REAL(KIND=dp), INTENT(out)               :: exc
     TYPE(pw_p_type), DIMENSION(:), &
       INTENT(inout), TARGET                  :: rho_r
     TYPE(pw_p_type), DIMENSION(:), POINTER   :: rho_g, tau
-    TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(section_vals_type), POINTER         :: xc_section
     TYPE(cell_type), POINTER                 :: cell
     TYPE(pw_pool_type), POINTER              :: pw_pool
     TYPE(cp_error_type), INTENT(inout), &
@@ -1379,13 +1325,14 @@ SUBROUTINE xc_vxc_pw_create(vxc_rho,vxc_tau,exc,rho_r,rho_g,tau,dft_control,&
       (len=MAX_DERIVATIVE_DESC_LENGTH)       :: desc
     INTEGER                                  :: handle, i, idir, ispin, j, k, &
                                                 n_deriv, npoints, nspins, &
-                                                order, stat
+                                                order, stat, xc_deriv_method_id,&
+                                                xc_rho_smooth_id
     INTEGER, DIMENSION(2, 3)                 :: bo
     INTEGER, DIMENSION(3, 3)                 :: nd
     LOGICAL :: dealloc_pw_to_deriv, failure, gradient_f, has_tau,  &
       lsd, zero_result
     REAL(KIND=dp)                            :: drho_cutoff, my_rho, ndr, &
-                                                rho_cutoff
+                                                rho_cutoff,density_smooth_cut_range
     REAL(kind=dp), DIMENSION(:, :, :), &
       POINTER                                :: deriv_data, norm_drho, &
                                                 norm_drho_spin, rho, rhoa, &
@@ -1397,7 +1344,6 @@ SUBROUTINE xc_vxc_pw_create(vxc_rho,vxc_tau,exc,rho_r,rho_g,tau,dft_control,&
     TYPE(pw_p_type), DIMENSION(2)            :: vxc_to_deriv
     TYPE(pw_p_type), DIMENSION(3)            :: pw_to_deriv, pw_to_deriv_rho
     TYPE(pw_type), POINTER                   :: tmp_g, tmp_r, tmp_r2, vxc_g
-    TYPE(xc_control_type)                    :: xc_control
     TYPE(xc_derivative_set_type), POINTER    :: deriv_set
     TYPE(xc_derivative_type), POINTER        :: deriv_att
     TYPE(xc_rho_set_type), POINTER           :: rho_set
@@ -1416,24 +1362,18 @@ SUBROUTINE xc_vxc_pw_create(vxc_rho,vxc_tau,exc,rho_r,rho_g,tau,dft_control,&
 
   pw_grid => rho_r(1)%pw%pw_grid
 
-  CPPrecondition(ASSOCIATED(dft_control),cp_failure_level,routineP,error,failure)
+  CPPrecondition(ASSOCIATED(xc_section),cp_failure_level,routineP,error,failure)
   CPPrecondition(ASSOCIATED(pw_pool),cp_failure_level,routineP,error,failure)
   CPPrecondition(.NOT.ASSOCIATED(vxc_rho),cp_failure_level,routineP,error,failure)
   CPPrecondition(.NOT.ASSOCIATED(vxc_tau),cp_failure_level,routineP,error,failure)
   IF (.NOT. failure) THEN
-     nspins=dft_control%nspins
+     nspins=size(rho_r)
+     CPPrecondition(ASSOCIATED(rho_r(SIZE(rho_r))%pw),cp_failure_level,routineP,error,failure)
      lsd=(nspins/=1)
      IF (lsd) THEN
         CPPrecondition(nspins==2,cp_failure_level,routineP,error,failure)
      END IF
   END IF
-
-
-  CALL cp_assert(dft_control%integration_grid%pw_default,&
-       cp_failure_level,cp_unimplemented_error_nr,routineP,&
-       "calculation on a special grid unimplemented "//&
-       CPSourceFileRef,&
-       error,failure)
 
   IF (.NOT.failure) THEN
      bo = rho_r(1)%pw%pw_grid%bounds_local
@@ -1442,15 +1382,24 @@ SUBROUTINE xc_vxc_pw_create(vxc_rho,vxc_tau,exc,rho_r,rho_g,tau,dft_control,&
      ! calculate the potential derivatives
      CALL xc_rho_set_and_dset_create(rho_set=rho_set,deriv_set=deriv_set,&
           deriv_order=1, rho_r=rho_r, rho_g=rho_g, tau=tau,&
-          dft_control=dft_control, xc_control=dft_control%xc_control,&
+          xc_section=xc_section,&
           cell=cell, pw_pool=pw_pool,&
           gradient_f=gradient_f,  needs_basic_components=.TRUE.,&
           error=error)
 
   END IF
-  xc_control = dft_control%xc_control
 
   IF (.NOT.failure) THEN
+     CALL section_vals_val_get(xc_section,"XC_GRID%XC_DERIV",&
+          i_val=xc_deriv_method_id,error=error)
+     CALL section_vals_val_get(xc_section,"XC_GRID%XC_SMOOTH_RHO",&
+          i_val=xc_rho_smooth_id,error=error)
+     CALL section_vals_val_get(xc_section,"DENSITY_SMOOTH_CUTOFF_RANGE",&
+          r_val=density_smooth_cut_range,error=error)
+
+     CALL xc_rho_set_get(rho_set,rho_cutoff=rho_cutoff,&
+             drho_cutoff=drho_cutoff, error=error)
+
      has_tau=.FALSE.
      ! check for unknown derivatives
      n_deriv=0
@@ -1482,7 +1431,6 @@ SUBROUTINE xc_vxc_pw_create(vxc_rho,vxc_tau,exc,rho_r,rho_g,tau,dft_control,&
               END SELECT
            ELSE
               SELECT CASE(desc)
-              CASE("(z)")
               CASE("(rho)","(norm_drho)")
                  n_deriv=n_deriv+1
               CASE("(tau)")
@@ -1628,11 +1576,6 @@ SUBROUTINE xc_vxc_pw_create(vxc_rho,vxc_tau,exc,rho_r,rho_g,tau,dft_control,&
            END DO
         END IF
 
-!FM        CALL smooth_cutoff(pot=deriv_data,rho=rho,rhoa=rhoa,rhob=rhob,&
-!FM             rho_cutoff=dft_control%xc_control%density_cut,&
-!FM             rho_smooth_cutoff_range=dft_control%xc_control%density_smooth_cut_range,&
-!FM             error=error)
-
         IF (ASSOCIATED(drho).AND.ASSOCIATED(drho(1)%array)) THEN
            CPPrecondition(ASSOCIATED(deriv_data),cp_failure_level,routineP,error,failure)
            DO idir=1,3
@@ -1677,16 +1620,6 @@ SUBROUTINE xc_vxc_pw_create(vxc_rho,vxc_tau,exc,rho_r,rho_g,tau,dft_control,&
      END IF
 
      DO ispin=1,nspins
-!FM        IF (n_deriv>0) THEN
-!FM           ! smooth cutoff
-!FM           deriv_att => xc_dset_get_derivative(deriv_set, "", error=error)
-!FM           CALL xc_derivative_get(deriv_att,deriv_data=deriv_data,&
-!FM                error=error)
-!FM           CALL smooth_cutoff(pot=vxc_rho(ispin)%pw%cr3d,rho=rho,rhoa=rhoa,rhob=rhob,&
-!FM                rho_cutoff=dft_control%xc_control%density_cut,&
-!FM                rho_smooth_cutoff_range=dft_control%xc_control%density_smooth_cut_range,&
-!FM                e_0=deriv_data,error=error)
-!FM        END IF
 
         IF (lsd) THEN
            IF (ispin==1) THEN
@@ -1742,11 +1675,6 @@ SUBROUTINE xc_vxc_pw_create(vxc_rho,vxc_tau,exc,rho_r,rho_g,tau,dft_control,&
               vxc_to_deriv(ispin)%pw => tmp_r
               NULLIFY(tmp_r,deriv_att%deriv_data)
 
-!FM              CALL smooth_cutoff(pot=vxc_to_deriv(ispin)%pw%cr3d,rho=rho,rhoa=rhoa,rhob=rhob,&
-!FM                   rho_cutoff=dft_control%xc_control%density_cut,&
-!FM                   rho_smooth_cutoff_range=dft_control%xc_control%density_smooth_cut_range,&
-!FM                   error=error)
-
               DO idir=1,3
                  CPPrecondition(ASSOCIATED(drho_spin(idir)%array),cp_failure_level,routineP,error,failure)
                  CPPrecondition(ASSOCIATED(vxc_to_deriv(ispin)%pw%cr3d),cp_failure_level,routineP,error,failure)
@@ -1798,17 +1726,17 @@ SUBROUTINE xc_vxc_pw_create(vxc_rho,vxc_tau,exc,rho_r,rho_g,tau,dft_control,&
         
         IF (ASSOCIATED(pw_to_deriv(1)%pw)) THEN
            ! partial integration
-           IF (xc_control%xc_deriv_method_id/=xc_deriv_pw&
-                .AND. xc_control%xc_deriv_method_id/=xc_deriv_fd&
+           IF (xc_deriv_method_id/=xc_deriv_pw&
+                .AND. xc_deriv_method_id/=xc_deriv_fd&
                 ) THEN
               CALL pw_spline_scale_deriv(pw_to_deriv, cell=cell,&
                    transpose=.TRUE.,&
                    error=error)
            END IF
 
-           IF (xc_control%xc_deriv_method_id==xc_deriv_pw.OR.&
-                xc_control%xc_deriv_method_id==xc_deriv_spline3.OR.&
-                xc_control%xc_deriv_method_id==xc_deriv_spline2) THEN
+           IF (xc_deriv_method_id==xc_deriv_pw.OR.&
+                xc_deriv_method_id==xc_deriv_spline3.OR.&
+                xc_deriv_method_id==xc_deriv_spline2) THEN
 
               IF (.NOT.ASSOCIATED(vxc_g)) THEN
                  CALL pw_pool_create_pw(pw_pool,vxc_g,&
@@ -1830,7 +1758,7 @@ SUBROUTINE xc_vxc_pw_create(vxc_rho,vxc_tau,exc,rho_r,rho_g,tau,dft_control,&
 
                  CALL pw_transfer ( pw_to_deriv(idir)%pw, tmp_g )
 
-                 SELECT CASE(xc_control%xc_deriv_method_id)
+                 SELECT CASE(xc_deriv_method_id)
                  CASE (xc_deriv_pw)
                     CALL pw_derive ( tmp_g, nd(:,idir) )
                  CASE (xc_deriv_spline2)
@@ -1864,7 +1792,7 @@ SUBROUTINE xc_vxc_pw_create(vxc_rho,vxc_tau,exc,rho_r,rho_g,tau,dft_control,&
            ELSE
               tmp_r => vxc_rho(ispin)%pw
               DO idir=1,3
-                 SELECT CASE(xc_control%xc_deriv_method_id)
+                 SELECT CASE(xc_deriv_method_id)
                  CASE (xc_deriv_spline2_smooth)
                     CALL pw_nn_deriv_r ( pw_in=pw_to_deriv(idir)%pw,&
                          pw_out=tmp_r,coeffs=spline2_deriv_coeffs,&
@@ -1909,20 +1837,18 @@ SUBROUTINE xc_vxc_pw_create(vxc_rho,vxc_tau,exc,rho_r,rho_g,tau,dft_control,&
            CALL pw_transfer ( vxc_g,vxc_rho(ispin)%pw )
            CALL pw_pool_give_back_pw(pw_pool,vxc_g)
         END IF
-
         CALL smooth_cutoff(pot=vxc_rho(ispin)%pw%cr3d,rho=rho,rhoa=rhoa,rhob=rhob,&
-             rho_cutoff=dft_control%xc_control%density_cut*&
-             dft_control%xc_control%density_smooth_cut_range,&
-             rho_smooth_cutoff_range=dft_control%xc_control%density_smooth_cut_range,&
+             rho_cutoff=rho_cutoff*density_smooth_cut_range,&
+             rho_smooth_cutoff_range=density_smooth_cut_range,&
              error=error)
 
         ! final smoothing if rho was smoothed
-        IF (xc_control%xc_rho_smooth_id/=xc_rho_no_smooth) THEN
+        IF (xc_rho_smooth_id/=xc_rho_no_smooth) THEN
            CALL pw_pool_create_pw(pw_pool, tmp_r,&
                 use_data=REALDATA3D, in_space=REALSPACE,&
                 error=error)
            CALL pw_zero(tmp_r)
-           SELECT CASE(xc_control%xc_rho_smooth_id)
+           SELECT CASE(xc_rho_smooth_id)
            CASE (xc_rho_spline2_smooth)
               CALL pw_nn_smear_r(pw_in=vxc_rho(ispin)%pw,pw_out=tmp_r,&
                    coeffs=spline2_coeffs,error=error)
@@ -1965,8 +1891,8 @@ SUBROUTINE xc_vxc_pw_create(vxc_rho,vxc_tau,exc,rho_r,rho_g,tau,dft_control,&
         CALL pw_release(tmp_r)
 
         CALL smooth_cutoff(pot=deriv_data,rho=rho,rhoa=rhoa,rhob=rhob,& 
-             rho_cutoff=dft_control%xc_control%density_cut,& 
-             rho_smooth_cutoff_range=dft_control%xc_control%density_smooth_cut_range,&
+             rho_cutoff=rho_cutoff,& 
+             rho_smooth_cutoff_range=density_smooth_cut_range,&
              error=error)
 
         exc = SUM ( REAL( deriv_data, KIND=mp ) )*pw_grid%dvol
@@ -2072,12 +1998,12 @@ END SUBROUTINE xc_vxc_pw_create
 !!     11.2003 created [fawzi]
 !!
 !!*** **********************************************************************
-FUNCTION xc_exc_calc(rho_r,rho_g,tau,dft_control, cell,pw_pool,&
+FUNCTION xc_exc_calc(rho_r,rho_g,tau,xc_section, cell,pw_pool,&
      error) RESULT(exc)
     TYPE(pw_p_type), DIMENSION(:), &
       INTENT(inout), TARGET                  :: rho_r
     TYPE(pw_p_type), DIMENSION(:), POINTER   :: rho_g, tau
-    TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(section_vals_type), pointer         :: xc_section
     TYPE(cell_type), POINTER                 :: cell
     TYPE(pw_pool_type), POINTER              :: pw_pool
     TYPE(cp_error_type), INTENT(inout), &
@@ -2093,6 +2019,7 @@ FUNCTION xc_exc_calc(rho_r,rho_g,tau,dft_control, cell,pw_pool,&
     TYPE(xc_derivative_set_type), POINTER    :: deriv_set
     TYPE(xc_derivative_type), POINTER        :: deriv
     TYPE(xc_rho_set_type), POINTER           :: rho_set
+    REAL(dp) :: density_smooth_cut_range, rho_cutoff
 
   CALL timeset(routineN,"I","",handle)
   NULLIFY(rho_set, deriv_set, deriv,e_0)
@@ -2102,8 +2029,7 @@ FUNCTION xc_exc_calc(rho_r,rho_g,tau,dft_control, cell,pw_pool,&
   ! this has to be consistent with what is done in xc_vxc_create
   CALL xc_rho_set_and_dset_create(rho_set=rho_set,&
        deriv_set=deriv_set,deriv_order=0,&
-       rho_r=rho_r,rho_g=rho_g,tau=tau,dft_control=dft_control,&
-       xc_control=dft_control%xc_control,&
+       rho_r=rho_r,rho_g=rho_g,tau=tau,xc_section=xc_section,&
        cell=cell,pw_pool=pw_pool,&
        needs_basic_components=.FALSE.,error=error)
   deriv => xc_dset_get_derivative(deriv_set,"",error=error)
@@ -2111,10 +2037,14 @@ FUNCTION xc_exc_calc(rho_r,rho_g,tau,dft_control, cell,pw_pool,&
   IF (ASSOCIATED(deriv)) THEN
      CALL xc_derivative_get(deriv, deriv_data=e_0, error=error)
      
+     CALL section_vals_val_get(xc_section,"DENSITY_CUTOFF",&
+          r_val=rho_cutoff,error=error)
+     CALL section_vals_val_get(xc_section,"DENSITY_SMOOTH_CUTOFF_RANGE",&
+          r_val=density_smooth_cut_range,error=error)
      CALL smooth_cutoff(pot=e_0,rho=rho_set%rho,&
           rhoa=rho_set%rhoa,rhob=rho_set%rhob,& 
-          rho_cutoff=dft_control%xc_control%density_cut,& 
-          rho_smooth_cutoff_range=dft_control%xc_control%density_smooth_cut_range,&
+          rho_cutoff=rho_cutoff,& 
+          rho_smooth_cutoff_range=density_smooth_cut_range,&
           error=error)
      
      exc = SUM ( REAL( e_0, KIND=mp ) )*rho_r(1)%pw%pw_grid%dvol
@@ -2129,13 +2059,1124 @@ FUNCTION xc_exc_calc(rho_r,rho_g,tau,dft_control, cell,pw_pool,&
 END FUNCTION xc_exc_calc
 !***************************************************************************
 
-!!****f* qs_kpp1_env_methods/xc_calc_2nd_deriv_new [1.0] *
+!!****f* qs_kpp1_env_methods/xc_calc_2nd_deriv [1.0] *
 !!
 !!   NAME
-!!     xc_calc_2nd_deriv_new
+!!     xc_calc_2nd_deriv
+!!
+!!   FUNCTION
+!!     Calculates the second derivative of E_xc at rho in the direction
+!!     rho1  (if you see the second derivative as bilinear form)
+!!     partial_rho|_(rho=rho) partial_rho|_(rho=rho) E_xc drho(rho1)drho
+!!     The other direction is still indetermined, thus it returns
+!!     a potential (partial integration is performed to reduce it to
+!!     function of rho, removing the dependence from its partial derivs)
+!!     Has to be called after the setup by xc_prep_2nd_deriv.
+!!
+!!   NOTES
+!!     The old version of this routine was smarter: it handled split_desc(1)
+!!     and split_desc(2) separatly, thus the code automatically handled all
+!!     possible cross terms (you only had to check if it was diagonal to avoid
+!!     double counting). I think that is the way to go if you want to add more
+!!     terms (tau,rho in LSD,...). The problem with the old code was that it
+!!     because of the old functional structure it sometime guessed wrongly
+!!     which derivative was where. There were probably still bugs with gradient
+!!     corrected functionals (never tested), and it didn't contain first 
+!!     derivatives with respect to drho (that contibute also to the second 
+!!     derivative wrt. rho).
+!!     The code was a little complex because it really tried to handle any 
+!!     functional derivative in the most efficent way with the given contents of
+!!     rho_set.
+!!     Anyway I strongly encourage whoever wants to modify this code to give a
+!!     look to the old version. [fawzi]
+!!
+!!   INPUTS
+!!     - deriv_set: object containing the potentials
+!!     - rho_set: object containing the density at which the derivatives were calculated
+!!     - rho1_set : object containing the density with which to fold
+!!     - v_rspace_new: will contain the new potential.
+!!     - pw_pool: the pool for the grids
+!!     - tddfpt_fac: factor that multiplies the crossterms (tddfpt triplets
+!!       on a closed shell sistem it should be -1, defaults to 1)
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!*** **********************************************************************
+SUBROUTINE xc_calc_2nd_deriv(v_xc, deriv_set, rho_set, rho1_set, &
+     pw_pool, xc_section, gapw, vxg, tddfpt_fac, error)
+
+  ! ARGUMENTS
+  TYPE(pw_p_type), DIMENSION(:), POINTER   :: v_xc
+  TYPE(xc_derivative_set_type), POINTER    :: deriv_set
+  TYPE(xc_rho_set_type), POINTER           :: rho_set, rho1_set
+  TYPE(pw_pool_type), POINTER              :: pw_pool
+  TYPE(section_vals_type), pointer         :: xc_section
+  LOGICAL, INTENT(IN), OPTIONAL            :: gapw
+  REAL(kind=dp), DIMENSION(:,:,:,:), &
+       POINTER, OPTIONAL                   :: vxg
+  REAL(kind=dp), INTENT(in), optional      :: tddfpt_fac
+  TYPE(cp_error_type), INTENT(inout), &
+       OPTIONAL                               :: error
+
+  ! PARAMETER
+  CHARACTER(len=*), PARAMETER :: routineN = 'xc_calc_2nd_deriv', &
+       routineP = moduleN//':'//routineN
+
+  ! LOCALS
+  INTEGER                                  :: handle, i, idir, ispin, j, k, &
+       nspins, stat, ia, ir,ifun, order,xc_deriv_method_id
+  INTEGER, DIMENSION(2, 3)                 :: bo
+  INTEGER, DIMENSION(3, 3)                 :: nd
+  LOGICAL                                  :: failure, gradient_f, lsd, my_gapw,&
+       unknown_deriv
+  REAL(KIND=dp)                            :: dr1dr, fac, gradient_cut
+  REAL(kind=dp), DIMENSION(:, :, :), &
+       POINTER                                :: deriv_data, e_drhoa, e_drhob, &
+       e_norm_drho, rho1, rho1a, &
+       rho1b
+  TYPE(cp_3d_r_p_type), DIMENSION(:), &
+       POINTER                                :: drho, drho1, drho1a, drho1b, &
+       drhoa, drhob
+  TYPE(pw_p_type)                          :: tmp_t, v_drho
+  TYPE(pw_p_type), DIMENSION(:), POINTER   :: tmp_a, tmp_b, tmp_r, tmp_r2
+  TYPE(xc_derivative_type), POINTER        :: deriv_att
+  TYPE(cp_sll_xc_deriv_type), POINTER      :: pos
+  TYPE(xc_rho_cflags_type)                 :: needs
+  CHARACTER&
+       (len=MAX_DERIVATIVE_DESC_LENGTH)       :: desc
+  CHARACTER(len=MAX_LABEL_LENGTH), &
+       DIMENSION(:), POINTER        :: split_desc
+  CALL timeset(routineN,"I","",handle)
+
+  failure=.FALSE.
+  NULLIFY(tmp_r, tmp_r2, tmp_a, tmp_b, e_drhoa, e_drhob, e_norm_drho, &
+       split_desc)
+
+  my_gapw = .FALSE.
+  IF (PRESENT(gapw)) my_gapw = gapw
+
+  CPPrecondition(ASSOCIATED(rho_set),cp_failure_level,routineP,error,failure)
+  CPPrecondition(ASSOCIATED(rho1_set),cp_failure_level,routineP,error,failure)
+  CPPrecondition(ASSOCIATED(v_xc),cp_failure_level,routineP,error,failure)
+  CPPrecondition(ASSOCIATED(xc_section),cp_failure_level,routineP,error,failure)
+  IF (my_gapw) THEN
+     CPPrecondition(PRESENT(vxg),cp_failure_level,routineP,error,failure)
+  END IF
+
+  IF (.NOT. failure) THEN
+     CALL section_vals_val_get(xc_section,"XC_GRID%XC_DERIV",&
+          i_val=xc_deriv_method_id,error=error)
+     CALL xc_rho_set_get(rho_set,drho_cutoff=gradient_cut,error=error)
+     nspins     = size(v_xc)
+     lsd = associated(rho_set%rhoa)
+     fac = 0.0_dp
+     IF (PRESENT(tddfpt_fac)) fac=tddfpt_fac
+
+     ALLOCATE(tmp_r(nspins), tmp_r2(nspins), tmp_a(nspins), tmp_b(nspins),stat=stat)
+     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+     DO ispin=1, nspins
+        NULLIFY(tmp_r(ispin)%pw, tmp_r2(ispin)%pw, tmp_a(ispin)%pw, tmp_b(nspins)%pw)
+     END DO
+
+  END IF
+
+  bo = rho_set%local_bounds
+
+  gradient_f=.FALSE.
+  ! check for unknown derivatives
+  pos => deriv_set%derivs
+  DO WHILE (cp_sll_xc_deriv_next(pos,el_att=deriv_att,error=error))
+     unknown_deriv=.false.
+     CALL xc_derivative_get(deriv_att,order=order,&
+          desc=desc, split_desc=split_desc, error=error)
+     select case(order)
+     CASE(1)
+        IF (lsd) THEN
+           SELECT CASE(split_desc(1))
+           CASE("rho","rhoa","rhob")
+           CASE("drho","drhoa","drhob")
+              gradient_f=.TRUE.
+           CASE default
+              unknown_deriv=.TRUE.
+           END SELECT
+        ELSE
+           SELECT CASE(split_desc(1))
+           CASE("rho")
+           CASE("drho")
+              gradient_f=.TRUE.
+           CASE default
+              unknown_deriv=.TRUE.
+           END SELECT
+        END IF
+     CASE(2)
+        IF (lsd) THEN
+           SELECT CASE(split_desc(1))
+           CASE("rhoa","rhob")
+              SELECT CASE(split_desc(2))
+              CASE("rhoa","rhob")
+              CASE("norm_drhoa", "norm_drhob","norm_drho")
+                 gradient_f=.TRUE.
+              CASE default
+                 unknown_deriv=.TRUE.
+              END SELECT
+           CASE("norm_drho","norm_drhoa", "norm_drhob")
+              gradient_f=.TRUE.
+              SELECT CASE(split_desc(2))
+              CASE("rhoa","rhob","norm_drhoa", "norm_drhob","norm_drho")
+              CASE default
+                 unknown_deriv=.TRUE.
+              END SELECT
+           CASE default
+              unknown_deriv=.true.
+           END SELECT
+        ELSE
+           SELECT CASE(split_desc(1))
+           CASE("rho")
+              SELECT CASE(split_desc(2))
+              CASE("rho")
+              CASE("norm_drho")
+                 gradient_f=.TRUE.
+              CASE default
+                 unknown_deriv=.TRUE.
+              END SELECT
+           CASE("norm_drho")
+              gradient_f=.TRUE.
+              SELECT CASE(split_desc(2))
+              CASE("rho","norm_drho")
+              CASE default
+                 unknown_deriv=.TRUE.
+              END SELECT
+           CASE default
+              unknown_deriv=.true.
+           END SELECT
+        END IF
+     END SELECT
+     CALL cp_assert(.NOT.unknown_deriv,cp_failure_level,&
+          cp_assertion_failed,routineP,&
+          "unknown functional derivative (LSD="//TRIM(cp_to_string(lsd))//&
+          "): '"//TRIM(desc)//"' in "//&
+          CPSourceFileRef,&
+          error,failure)
+  END DO
+
+  IF (lsd) THEN
+
+     !-------------------!
+     ! UNrestricted case !
+     !-------------------!
+
+     CALL xc_rho_set_get(rho1_set, rhoa=rho1a, rhob=rho1b, error=error)
+
+     IF (gradient_f) THEN
+        CALL xc_rho_set_get(rho_set, drhoa=drhoa, drhob=drhob, error=error)
+        CALL xc_rho_set_get(rho1_set,drhoa=drho1a, drhob=drho1b, error=error)
+        DO ispin=1, nspins
+           IF (ASSOCIATED(pw_pool)) THEN
+              CALL pw_pool_create_pw(pw_pool,tmp_a(ispin)%pw,&
+                   use_data = REALDATA3D,&
+                   in_space = REALSPACE, error=error)
+              CALL pw_zero(tmp_a(ispin)%pw)
+              CALL pw_pool_create_pw(pw_pool,tmp_b(ispin)%pw,&
+                   use_data = REALDATA3D,&
+                   in_space = REALSPACE, error=error)
+              CALL pw_zero(tmp_b(ispin)%pw)
+              CALL pw_pool_create_pw(pw_pool,tmp_r(ispin)%pw,&
+                   use_data = REALDATA3D,&
+                   in_space = REALSPACE, error=error)
+              CALL pw_zero(tmp_r(ispin)%pw)
+           ELSE
+              ALLOCATE(tmp_a(ispin)%pw, tmp_b(ispin)%pw, tmp_r(ispin)%pw, stat=stat)
+              CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+              ALLOCATE(tmp_a(ispin)%pw%cr3d(bo(1,1):bo(2,1),bo(1,2):bo(2,2),bo(1,3):bo(2,3)), &
+                   tmp_b(ispin)%pw%cr3d(bo(1,1):bo(2,1),bo(1,2):bo(2,2),bo(1,3):bo(2,3)), &
+                   tmp_r(ispin)%pw%cr3d(bo(1,1):bo(2,1),bo(1,2):bo(2,2),bo(1,3):bo(2,3)), &
+                   stat=stat)
+              CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+              tmp_a(ispin)%pw%cr3d = 0.0_dp
+              tmp_b(ispin)%pw%cr3d = 0.0_dp
+           END IF
+        END DO
+     END IF
+
+     deriv_att=> xc_dset_get_derivative(deriv_set, "(rhoa)(rhoa)", &
+          error=error)
+     IF (ASSOCIATED(deriv_att)) THEN
+        CALL xc_derivative_get(deriv_att, deriv_data=deriv_data, &
+             error=error)
+        !$omp parallel do private(k,j,i)
+        DO k = bo(1,3), bo(2,3)
+           DO j = bo(1,2), bo(2,2)
+              DO i = bo(1,1), bo(2,1)
+                 v_xc(1)%pw%cr3d(i,j,k) = v_xc(1)%pw%cr3d(i,j,k) + &
+                      deriv_data(i,j,k) * rho1a(i,j,k)
+              END DO
+           END DO
+        END DO
+     END IF
+
+     IF (nspins /= 1) THEN
+        deriv_att=> xc_dset_get_derivative(deriv_set, "(rhob)(rhob)", &
+             error=error)
+        IF (ASSOCIATED(deriv_att)) THEN
+           CALL xc_derivative_get(deriv_att, deriv_data=deriv_data, &
+                error=error)
+           !$omp parallel do private(k,j,i)
+           DO k = bo(1,3), bo(2,3)
+              DO j = bo(1,2), bo(2,2)
+                 DO i = bo(1,1), bo(2,1)
+                    v_xc(2)%pw%cr3d(i,j,k) = v_xc(2)%pw%cr3d(i,j,k) + &
+                         deriv_data(i,j,k) * rho1b(i,j,k)
+                 END DO
+              END DO
+           END DO
+        END IF
+     END IF
+
+     deriv_att=> xc_dset_get_derivative(deriv_set, "(rhoa)(rhob)", &
+          error=error)
+     IF (ASSOCIATED(deriv_att)) THEN
+        CALL xc_derivative_get(deriv_att, deriv_data=deriv_data, &
+             error=error)
+        !$omp parallel do private(k,j,i)
+        DO k = bo(1,3), bo(2,3)
+           DO j = bo(1,2), bo(2,2)
+              DO i = bo(1,1), bo(2,1)
+                 IF (nspins /= 1) THEN
+                    v_xc(1)%pw%cr3d(i,j,k) = v_xc(1)%pw%cr3d(i,j,k) + &
+                         deriv_data(i,j,k) * rho1b(i,j,k)
+                    v_xc(2)%pw%cr3d(i,j,k) = v_xc(2)%pw%cr3d(i,j,k) + &
+                         deriv_data(i,j,k) * rho1a(i,j,k)
+                 ELSE
+                    v_xc(1)%pw%cr3d(i,j,k) = v_xc(1)%pw%cr3d(i,j,k) + &
+                         fac * deriv_data(i,j,k) * rho1b(i,j,k)
+                 END IF
+              END DO
+           END DO
+        END DO
+     END IF
+
+     deriv_att=> xc_dset_get_derivative(deriv_set, "(rhoa)(norm_drhoa)", &
+          error=error)
+     IF (ASSOCIATED(deriv_att)) THEN
+        CALL xc_derivative_get(deriv_att, deriv_data=deriv_data, &
+             error=error)
+        !$omp parallel do private(k,j,i,dr1dr)
+        DO k = bo(1,3), bo(2,3)
+           DO j = bo(1,2), bo(2,2)
+              DO i = bo(1,1), bo(2,1)
+                 dr1dr=0._dp
+                 DO idir=1,3
+                    dr1dr=dr1dr+drhoa(idir)%array(i,j,k)*drho1a(idir)%array(i,j,k)
+                 END DO
+                 v_xc(1)%pw%cr3d(i,j,k) = v_xc(1)%pw%cr3d(i,j,k) + &
+                      deriv_data(i,j,k) * dr1dr
+                 tmp_a(1)%pw%cr3d(i,j,k) = tmp_a(1)%pw%cr3d(i,j,k) - &
+                      deriv_data(i,j,k) * rho1a(i,j,k)
+              END DO
+           END DO
+        END DO
+     END IF
+
+     IF (nspins /= 1) THEN
+        deriv_att=> xc_dset_get_derivative(deriv_set, "(rhob)(norm_drhob)", error=error)
+        IF (ASSOCIATED(deriv_att)) THEN
+           CALL xc_derivative_get(deriv_att, deriv_data=deriv_data, &
+                error=error)
+           !$omp parallel do private(k,j,i,dr1dr)
+           DO k = bo(1,3), bo(2,3)
+              DO j = bo(1,2), bo(2,2)
+                 DO i = bo(1,1), bo(2,1)
+                    dr1dr=0._dp
+                    DO idir=1,3
+                       dr1dr=dr1dr+drhob(idir)%array(i,j,k)*drho1b(idir)%array(i,j,k)
+                    END DO
+                    v_xc(2)%pw%cr3d(i,j,k) = v_xc(2)%pw%cr3d(i,j,k) + &
+                         deriv_data(i,j,k) * dr1dr
+                    tmp_b(2)%pw%cr3d(i,j,k) = tmp_b(2)%pw%cr3d(i,j,k) - &
+                         deriv_data(i,j,k) * rho1b(i,j,k)
+                 END DO
+              END DO
+           END DO
+        END IF
+     END IF
+
+     deriv_att=> xc_dset_get_derivative(deriv_set, "(rhoa)(norm_drhob)", &
+          error=error)
+     IF (ASSOCIATED(deriv_att)) THEN
+        CALL xc_derivative_get(deriv_att, deriv_data=deriv_data, &
+             error=error)
+        !$omp parallel do private(k,j,i,dr1dr)
+        DO k = bo(1,3), bo(2,3)
+           DO j = bo(1,2), bo(2,2)
+              DO i = bo(1,1), bo(2,1)
+                 dr1dr=0._dp
+                 DO idir=1,3
+                    dr1dr=dr1dr+drhob(idir)%array(i,j,k)*drho1b(idir)%array(i,j,k)
+                 END DO
+                 IF (nspins /= 1) THEN
+                    v_xc(1)%pw%cr3d(i,j,k) = v_xc(1)%pw%cr3d(i,j,k) + &
+                         deriv_data(i,j,k) * dr1dr
+                    tmp_b(2)%pw%cr3d(i,j,k) = tmp_b(2)%pw%cr3d(i,j,k) - &
+                         deriv_data(i,j,k) * rho1a(i,j,k)
+                 ELSE
+                    v_xc(1)%pw%cr3d(i,j,k) = v_xc(1)%pw%cr3d(i,j,k) + &
+                         fac * deriv_data(i,j,k) * dr1dr
+                 END IF
+              END DO
+           END DO
+        END DO
+     END IF
+
+     deriv_att=> xc_dset_get_derivative(deriv_set, "(rhob)(norm_drhoa)", &
+          error=error)
+     IF (ASSOCIATED(deriv_att)) THEN
+        CALL xc_derivative_get(deriv_att, deriv_data=deriv_data, &
+             error=error)
+        !$omp parallel do private(k,j,i,dr1dr)
+        DO k = bo(1,3), bo(2,3)
+           DO j = bo(1,2), bo(2,2)
+              DO i = bo(1,1), bo(2,1)
+                 IF (nspins /= 1) THEN
+                    dr1dr=0._dp
+                    DO idir=1,3
+                       dr1dr=dr1dr+drhoa(idir)%array(i,j,k)*drho1a(idir)%array(i,j,k)
+                    END DO
+                    v_xc(2)%pw%cr3d(i,j,k) = v_xc(2)%pw%cr3d(i,j,k) + &
+                         deriv_data(i,j,k) * dr1dr
+                    tmp_a(1)%pw%cr3d(i,j,k) = tmp_a(1)%pw%cr3d(i,j,k) - &
+                         deriv_data(i,j,k) * rho1b(i,j,k)
+                 ELSE
+                    tmp_a(1)%pw%cr3d(i,j,k) = tmp_a(1)%pw%cr3d(i,j,k) - &
+                         fac * deriv_data(i,j,k) * rho1b(i,j,k)
+                 END IF
+              END DO
+           END DO
+        END DO
+     END IF
+
+     deriv_att=> xc_dset_get_derivative(deriv_set, "(rhoa)(norm_drho)", &
+          error=error)
+     IF (ASSOCIATED(deriv_att)) THEN
+        CALL xc_derivative_get(deriv_att, deriv_data=deriv_data, &
+             error=error)
+        !$omp parallel do private(k,j,i)
+        DO k = bo(1,3), bo(2,3)
+           DO j = bo(1,2), bo(2,2)
+              DO i = bo(1,1), bo(2,1)
+                 IF (nspins /= 1) THEN
+                    dr1dr=0._dp
+                    DO idir=1,3
+                       dr1dr=dr1dr+drhob(idir)%array(i,j,k)*drho1a(idir)%array(i,j,k)
+                    END DO
+                    v_xc(1)%pw%cr3d(i,j,k) = v_xc(1)%pw%cr3d(i,j,k) + &
+                         deriv_data(i,j,k) * dr1dr
+                    dr1dr=0._dp
+                    DO idir=1,3
+                       dr1dr=dr1dr+drhoa(idir)%array(i,j,k)*drho1b(idir)%array(i,j,k)
+                    END DO
+                    v_xc(1)%pw%cr3d(i,j,k) = v_xc(1)%pw%cr3d(i,j,k) + &
+                         deriv_data(i,j,k) * dr1dr
+                    tmp_b(1)%pw%cr3d(i,j,k) = tmp_b(1)%pw%cr3d(i,j,k) - &
+                         deriv_data(i,j,k) * rho1a(i,j,k)
+                    tmp_a(2)%pw%cr3d(i,j,k) = tmp_a(2)%pw%cr3d(i,j,k) - &
+                         deriv_data(i,j,k) * rho1a(i,j,k)
+                 ELSE
+                    dr1dr=0._dp
+                    DO idir=1,3
+                       dr1dr = dr1dr + drhob(idir)%array(i,j,k)*drho1a(idir)%array(i,j,k) + &
+                            fac * drhoa(idir)%array(i,j,k)*drho1b(idir)%array(i,j,k)
+                    END DO
+                    v_xc(1)%pw%cr3d(i,j,k) = v_xc(1)%pw%cr3d(i,j,k) + &
+                         deriv_data(i,j,k) * dr1dr
+                    tmp_b(1)%pw%cr3d(i,j,k) = tmp_b(1)%pw%cr3d(i,j,k) - &
+                         deriv_data(i,j,k) * rho1a(i,j,k)
+                 END IF
+              END DO
+           END DO
+        END DO
+     END IF
+
+     deriv_att=> xc_dset_get_derivative(deriv_set, "(norm_drhoa)(norm_drho)", &
+          error=error)
+     IF (ASSOCIATED(deriv_att)) THEN
+        CALL xc_derivative_get(deriv_att, deriv_data=deriv_data, &
+             error=error)
+        !$omp parallel do private(k,j,i)
+        DO k = bo(1,3), bo(2,3)
+           DO j = bo(1,2), bo(2,2)
+              DO i = bo(1,1), bo(2,1)
+                 IF (nspins /= 1) THEN
+                    dr1dr=0._dp
+                    DO idir=1,3
+                       dr1dr=dr1dr+drhob(idir)%array(i,j,k)*drho1a(idir)%array(i,j,k)
+                    END DO
+                    tmp_a(1)%pw%cr3d(i,j,k) = tmp_a(1)%pw%cr3d(i,j,k) - &
+                         deriv_data(i,j,k) * dr1dr
+                    dr1dr=0._dp
+                    DO idir=1,3
+                       dr1dr=dr1dr+drhoa(idir)%array(i,j,k)*drho1b(idir)%array(i,j,k)
+                    END DO
+                    tmp_a(1)%pw%cr3d(i,j,k) = tmp_a(1)%pw%cr3d(i,j,k) - &
+                         deriv_data(i,j,k) * dr1dr
+                    dr1dr=0._dp
+                    DO idir=1,3
+                       dr1dr=dr1dr+drhoa(idir)%array(i,j,k)*drho1a(idir)%array(i,j,k)
+                    END DO
+                    tmp_b(1)%pw%cr3d(i,j,k) = tmp_b(1)%pw%cr3d(i,j,k) - &
+                         deriv_data(i,j,k) * dr1dr
+                    dr1dr=0._dp
+                    DO idir=1,3
+                       dr1dr=dr1dr+drhoa(idir)%array(i,j,k)*drho1a(idir)%array(i,j,k)
+                    END DO
+                    tmp_a(2)%pw%cr3d(i,j,k) = tmp_a(2)%pw%cr3d(i,j,k) - &
+                         deriv_data(i,j,k) * dr1dr
+                 ELSE
+                    dr1dr=0._dp
+                    DO idir=1,3
+                       dr1dr=dr1dr+drhob(idir)%array(i,j,k)*drho1a(idir)%array(i,j,k) + &
+                            fac * drhoa(idir)%array(i,j,k)*drho1b(idir)%array(i,j,k)
+                    END DO
+                    tmp_a(1)%pw%cr3d(i,j,k) = tmp_a(1)%pw%cr3d(i,j,k) - &
+                         deriv_data(i,j,k) * dr1dr
+                    dr1dr=0._dp
+                    DO idir=1,3
+                       dr1dr=dr1dr+drhoa(idir)%array(i,j,k)*drho1a(idir)%array(i,j,k)
+                    END DO
+                    tmp_b(1)%pw%cr3d(i,j,k) = tmp_b(1)%pw%cr3d(i,j,k) - &
+                         deriv_data(i,j,k) * dr1dr
+                 END IF
+              END DO
+           END DO
+        END DO
+     END IF
+
+     deriv_att=> xc_dset_get_derivative(deriv_set, "(rhob)(norm_drho)", &
+          error=error)
+     IF (ASSOCIATED(deriv_att)) THEN
+        CALL xc_derivative_get(deriv_att, deriv_data=deriv_data, &
+             error=error)
+        !$omp parallel do private(k,j,i)
+        DO k = bo(1,3), bo(2,3)
+           DO j = bo(1,2), bo(2,2)
+              DO i = bo(1,1), bo(2,1)
+                 IF (nspins /= 1) THEN
+                    dr1dr=0._dp
+                    DO idir=1,3
+                       dr1dr=dr1dr+drhoa(idir)%array(i,j,k)*drho1b(idir)%array(i,j,k)
+                    END DO
+                    v_xc(2)%pw%cr3d(i,j,k) = v_xc(2)%pw%cr3d(i,j,k) + &
+                         deriv_data(i,j,k) * dr1dr
+                    dr1dr=0._dp
+                    DO idir=1,3
+                       dr1dr=dr1dr+drhob(idir)%array(i,j,k)*drho1a(idir)%array(i,j,k)
+                    END DO
+                    v_xc(2)%pw%cr3d(i,j,k) = v_xc(2)%pw%cr3d(i,j,k) + &
+                         deriv_data(i,j,k) * dr1dr
+                    tmp_a(2)%pw%cr3d(i,j,k) = tmp_a(2)%pw%cr3d(i,j,k) - &
+                         deriv_data(i,j,k) * rho1b(i,j,k)
+                    tmp_b(1)%pw%cr3d(i,j,k) = tmp_b(1)%pw%cr3d(i,j,k) - &
+                         deriv_data(i,j,k) * rho1b(i,j,k)
+                 ELSE
+                    tmp_b(1)%pw%cr3d(i,j,k) = tmp_b(1)%pw%cr3d(i,j,k) - &
+                         fac * deriv_data(i,j,k) * rho1b(i,j,k)
+                 END IF
+              END DO
+           END DO
+        END DO
+     END IF
+
+     deriv_att=> xc_dset_get_derivative(deriv_set, "(norm_drhob)(norm_drho)", &
+          error=error)
+     IF (ASSOCIATED(deriv_att)) THEN
+        CALL xc_derivative_get(deriv_att, deriv_data=deriv_data, &
+             error=error)
+        !$omp parallel do private(k,j,i)
+        DO k = bo(1,3), bo(2,3)
+           DO j = bo(1,2), bo(2,2)
+              DO i = bo(1,1), bo(2,1)
+                 IF (nspins /= 1) THEN
+                    dr1dr=0._dp
+                    DO idir=1,3
+                       dr1dr=dr1dr+drhoa(idir)%array(i,j,k)*drho1b(idir)%array(i,j,k)
+                    END DO
+                    tmp_b(2)%pw%cr3d(i,j,k) = tmp_b(2)%pw%cr3d(i,j,k) - &
+                         deriv_data(i,j,k) * dr1dr
+                    dr1dr=0._dp
+                    DO idir=1,3
+                       dr1dr=dr1dr+drhob(idir)%array(i,j,k)*drho1a(idir)%array(i,j,k)
+                    END DO
+                    tmp_b(2)%pw%cr3d(i,j,k) = tmp_b(2)%pw%cr3d(i,j,k) - &
+                         deriv_data(i,j,k) * dr1dr
+                    dr1dr=0._dp
+                    DO idir=1,3
+                       dr1dr=dr1dr+drhob(idir)%array(i,j,k)*drho1b(idir)%array(i,j,k)
+                    END DO
+                    tmp_a(2)%pw%cr3d(i,j,k) = tmp_a(2)%pw%cr3d(i,j,k) - &
+                         deriv_data(i,j,k) * dr1dr
+                    dr1dr=0._dp
+                    DO idir=1,3
+                       dr1dr=dr1dr+drhob(idir)%array(i,j,k)*drho1b(idir)%array(i,j,k)
+                    END DO
+                    tmp_b(1)%pw%cr3d(i,j,k) = tmp_b(1)%pw%cr3d(i,j,k) - &
+                         deriv_data(i,j,k) * dr1dr
+                 ELSE
+                    dr1dr=0._dp
+                    DO idir=1,3
+                       dr1dr=dr1dr+drhob(idir)%array(i,j,k)*drho1b(idir)%array(i,j,k)
+                    END DO
+                    tmp_b(1)%pw%cr3d(i,j,k) = tmp_b(1)%pw%cr3d(i,j,k) - &
+                         fac*deriv_data(i,j,k) * dr1dr
+                 END IF
+              END DO
+           END DO
+        END DO
+     END IF
+
+     deriv_att=> xc_dset_get_derivative(deriv_set, "(norm_drhoa)(norm_drhoa)", &
+          error=error)
+     IF (ASSOCIATED(deriv_att)) THEN
+        CALL xc_derivative_get(deriv_att, deriv_data=deriv_data, &
+             error=error)
+        !$omp parallel do private(k,j,i,dr1dr)
+        DO k = bo(1,3), bo(2,3)
+           DO j = bo(1,2), bo(2,2)
+              DO i = bo(1,1), bo(2,1)
+                 dr1dr=0._dp
+                 DO idir=1,3
+                    dr1dr=dr1dr+drhoa(idir)%array(i,j,k)*drho1a(idir)%array(i,j,k)
+                 END DO
+                 tmp_a(1)%pw%cr3d(i,j,k) = tmp_a(1)%pw%cr3d(i,j,k) - &
+                      deriv_data(i,j,k) * dr1dr
+              END DO
+           END DO
+        END DO
+     END IF
+
+     IF (nspins /= 1) THEN
+        deriv_att=> xc_dset_get_derivative(deriv_set, "(norm_drhob)(norm_drhob)", error=error)
+        IF (ASSOCIATED(deriv_att)) THEN
+           CALL xc_derivative_get(deriv_att, deriv_data=deriv_data, &
+                error=error)
+           !$omp parallel do private(k,j,i,dr1dr)
+           DO k = bo(1,3), bo(2,3)
+              DO j = bo(1,2), bo(2,2)
+                 DO i = bo(1,1), bo(2,1)
+                    dr1dr=0._dp
+                    DO idir=1,3
+                       dr1dr=dr1dr+drhob(idir)%array(i,j,k)*drho1b(idir)%array(i,j,k)
+                    END DO
+                    tmp_b(2)%pw%cr3d(i,j,k) = tmp_b(2)%pw%cr3d(i,j,k) - &
+                         deriv_data(i,j,k) * dr1dr
+                 END DO
+              END DO
+           END DO
+        END IF
+     END IF
+
+     deriv_att=> xc_dset_get_derivative(deriv_set, "(norm_drhoa)(norm_drhob)", &
+          error=error)
+     IF (ASSOCIATED(deriv_att)) THEN
+        CALL xc_derivative_get(deriv_att, deriv_data=deriv_data, &
+             error=error)
+        !$omp parallel do private(k,j,i,dr1dr)
+        DO k = bo(1,3), bo(2,3)
+           DO j = bo(1,2), bo(2,2)
+              DO i = bo(1,1), bo(2,1)
+                 dr1dr=0._dp
+                 DO idir=1,3
+                    dr1dr=dr1dr+drhob(idir)%array(i,j,k)*drho1b(idir)%array(i,j,k)
+                 END DO
+                 IF (nspins /= 1) THEN
+                    tmp_a(1)%pw%cr3d(i,j,k) = tmp_a(1)%pw%cr3d(i,j,k) - &
+                         deriv_data(i,j,k) * dr1dr
+                    dr1dr=0._dp
+                    DO idir=1,3
+                       dr1dr=dr1dr+drhoa(idir)%array(i,j,k)*drho1a(idir)%array(i,j,k)
+                    END DO
+                    tmp_b(2)%pw%cr3d(i,j,k) = tmp_b(2)%pw%cr3d(i,j,k) - &
+                         deriv_data(i,j,k) * dr1dr
+                 ELSE
+                    tmp_a(1)%pw%cr3d(i,j,k) = tmp_a(1)%pw%cr3d(i,j,k) - &
+                         fac * deriv_data(i,j,k) * dr1dr
+                 END IF
+              END DO
+           END DO
+        END DO
+     END IF
+
+     deriv_att=> xc_dset_get_derivative(deriv_set, "(norm_drhoa)", &
+          error=error)
+     IF (ASSOCIATED(deriv_att)) THEN
+        CALL xc_derivative_get(deriv_att, deriv_data=deriv_data, &
+             error=error)
+        CALL xc_derivative_get(deriv_att, deriv_data=e_drhoa, &
+             error=error)
+        !$omp parallel do private(k,j,i,dr1dr)
+        DO k = bo(1,3), bo(2,3)
+           DO j = bo(1,2), bo(2,2)
+              DO i = bo(1,1), bo(2,1)
+                 dr1dr=0._dp
+                 DO idir=1,3
+                    dr1dr=dr1dr+drhoa(idir)%array(i,j,k)*drho1a(idir)%array(i,j,k)
+                 END DO
+                 tmp_a(1)%pw%cr3d(i,j,k) = tmp_a(1)%pw%cr3d(i,j,k) + &
+                      deriv_data(i,j,k) * dr1dr
+              END DO
+           END DO
+        END DO
+     END IF
+
+     IF (nspins /= 1) THEN
+        deriv_att=> xc_dset_get_derivative(deriv_set, "(norm_drhob)", &
+             error=error)
+        IF (ASSOCIATED(deriv_att)) THEN
+           CALL xc_derivative_get(deriv_att, deriv_data=deriv_data, &
+                error=error)
+           CALL xc_derivative_get(deriv_att, deriv_data=e_drhob, &
+                error=error)
+           !$omp parallel do private(k,j,i,dr1dr)
+           DO k = bo(1,3), bo(2,3)
+              DO j = bo(1,2), bo(2,2)
+                 DO i = bo(1,1), bo(2,1)
+                    dr1dr=0._dp
+                    DO idir=1,3
+                       dr1dr=dr1dr+drhob(idir)%array(i,j,k)*drho1b(idir)%array(i,j,k)
+                    END DO
+                    tmp_b(2)%pw%cr3d(i,j,k) = tmp_b(2)%pw%cr3d(i,j,k) + &
+                         deriv_data(i,j,k) * dr1dr
+                 END DO
+              END DO
+           END DO
+        END IF
+     END IF
+
+     deriv_att=> xc_dset_get_derivative(deriv_set, "(norm_drho)(norm_drho)", &
+          error=error)
+     IF (ASSOCIATED(deriv_att)) THEN
+        CALL xc_derivative_get(deriv_att, deriv_data=deriv_data, &
+             error=error)
+        !$omp parallel do private(k,j,i,dr1dr)
+        DO k = bo(1,3), bo(2,3)
+           DO j = bo(1,2), bo(2,2)
+              DO i = bo(1,1), bo(2,1)
+                 IF (nspins /= 1) THEN
+                    dr1dr=0._dp
+                    DO idir=1,3
+                       dr1dr=dr1dr+drhob(idir)%array(i,j,k)*drho1a(idir)%array(i,j,k)
+                    END DO
+                    tmp_b(1)%pw%cr3d(i,j,k) = tmp_b(1)%pw%cr3d(i,j,k) - &
+                         deriv_data(i,j,k) * dr1dr
+                    tmp_a(2)%pw%cr3d(i,j,k) = tmp_a(2)%pw%cr3d(i,j,k) - &
+                         deriv_data(i,j,k) * dr1dr
+                    dr1dr=0._dp
+                    DO idir=1,3
+                       dr1dr=dr1dr+drhoa(idir)%array(i,j,k)*drho1b(idir)%array(i,j,k)
+                    END DO
+                    tmp_b(1)%pw%cr3d(i,j,k) = tmp_b(1)%pw%cr3d(i,j,k) - &
+                         deriv_data(i,j,k) * dr1dr
+                    tmp_a(2)%pw%cr3d(i,j,k) = tmp_a(2)%pw%cr3d(i,j,k) - &
+                         deriv_data(i,j,k) * dr1dr
+                 ELSE
+                    dr1dr=0._dp
+                    DO idir=1,3
+                       dr1dr=dr1dr+drhob(idir)%array(i,j,k)*drho1a(idir)%array(i,j,k) + &
+                            fac * drhoa(idir)%array(i,j,k)*drho1b(idir)%array(i,j,k)
+                    END DO
+                    tmp_b(1)%pw%cr3d(i,j,k) = tmp_b(1)%pw%cr3d(i,j,k) - &
+                         deriv_data(i,j,k) * dr1dr
+                 END IF
+              END DO
+           END DO
+        END DO
+     END IF
+
+     deriv_att=> xc_dset_get_derivative(deriv_set, "(norm_drho)", &
+          error=error)
+     IF (ASSOCIATED(deriv_att)) THEN
+        CALL xc_derivative_get(deriv_att, deriv_data=e_norm_drho, &
+             error=error)
+     END IF
+
+
+     IF (gradient_f) THEN
+
+        IF (my_gapw) THEN
+           !$omp parallel do private(ia,idir,ispin)
+           DO ir = bo(1,2), bo(2,2)
+              DO ia = bo(1,1), bo(2,1)
+                 DO idir = 1,3
+                    DO ispin=1, nspins
+                       vxg(idir,ia,ir,ispin) = &
+                            tmp_a(ispin)%pw%cr3d(ia,ir,1) * drhoa(idir)%array(ia,ir,1) + &
+                            tmp_b(ispin)%pw%cr3d(ia,ir,1) * drhob(idir)%array(ia,ir,1)
+                    END DO
+                    IF (ASSOCIATED(e_drhoa)) THEN
+                       vxg(idir,i,ir,1) = vxg(idir,i,ir,1) - &
+                            e_drhoa(ia,ir,1) * drho1a(idir)%array(ia,ir,1)
+                    END IF
+                    IF (nspins /= 1 .AND. ASSOCIATED(e_drhob)) THEN
+                       vxg(idir,i,ir,2) = vxg(idir,i,ir,2) - &
+                            e_drhob(ia,ir,1) * drho1b(idir)%array(ia,ir,1)
+                    END IF
+                    IF (ASSOCIATED(e_norm_drho)) THEN
+                       IF (nspins /= 1) THEN
+                          vxg(idir,ia,ir,1) = vxg(idir,ia,ir,1) - &
+                               e_norm_drho(ia,ir,1) * drho1b(idir)%array(ia,ir,1)
+                          vxg(idir,ia,ir,2) = vxg(idir,ia,ir,2) - &
+                               e_norm_drho(ia,ir,1) * drho1a(idir)%array(ia,ir,1)
+                       ELSE
+                          vxg(idir,ia,ir,1) = vxg(idir,ia,ir,1) - &
+                               fac * e_norm_drho(ia,ir,1) * drho1b(idir)%array(ia,ir,1)                         
+                       END IF
+                    END IF
+                 END DO
+              END DO
+           END DO
+        ELSE
+
+
+           ! partial integration
+           DO idir=1, 3
+
+              DO ispin=1, nspins
+                 !$omp parallel do private(k,j,i,dr1dr)
+                 DO k = bo(1,3), bo(2,3)
+                    DO j = bo(1,2), bo(2,2)
+                       DO i = bo(1,1), bo(2,1)
+                          tmp_r(ispin)%pw%cr3d(i,j,k) = &
+                               tmp_a(ispin)%pw%cr3d(i,j,k) * drhoa(idir)%array(i,j,k) + &
+                               tmp_b(ispin)%pw%cr3d(i,j,k) * drhob(idir)%array(i,j,k)
+                       END DO
+                    END DO
+                 END DO
+                 IF (ASSOCIATED(e_drhoa)) THEN
+                    !$omp parallel do private(k,j,i,dr1dr)
+                    DO k = bo(1,3), bo(2,3)
+                       DO j = bo(1,2), bo(2,2)
+                          DO i = bo(1,1), bo(2,1)
+                             tmp_r(1)%pw%cr3d(i,j,k) = tmp_r(1)%pw%cr3d(i,j,k) - &
+                                  e_drhoa(i,j,k) * drho1a(idir)%array(i,j,k)
+                          END DO
+                       END DO
+                    END DO
+                 END IF
+                 IF (nspins /= 1 .AND. ASSOCIATED(e_drhob)) THEN
+                    !$omp parallel do private(k,j,i,dr1dr)
+                    DO k = bo(1,3), bo(2,3)
+                       DO j = bo(1,2), bo(2,2)
+                          DO i = bo(1,1), bo(2,1)
+                             tmp_r(2)%pw%cr3d(i,j,k) = tmp_r(2)%pw%cr3d(i,j,k) - &
+                                  e_drhob(i,j,k) * drho1b(idir)%array(i,j,k)
+                          END DO
+                       END DO
+                    END DO
+                 END IF
+                 IF (ASSOCIATED(e_norm_drho)) THEN
+                    !$omp parallel do private(k,j,i,dr1dr)
+                    DO k = bo(1,3), bo(2,3)
+                       DO j = bo(1,2), bo(2,2)
+                          DO i = bo(1,1), bo(2,1)
+                             IF (nspins /= 1) THEN
+                                tmp_r(1)%pw%cr3d(i,j,k) = tmp_r(1)%pw%cr3d(i,j,k) - &
+                                     e_norm_drho(i,j,k) * drho1b(idir)%array(i,j,k)
+                                tmp_r(2)%pw%cr3d(i,j,k) = tmp_r(2)%pw%cr3d(i,j,k) - &
+                                     e_norm_drho(i,j,k) * drho1a(idir)%array(i,j,k)
+                             ELSE
+                                tmp_r(1)%pw%cr3d(i,j,k) = tmp_r(1)%pw%cr3d(i,j,k) - &
+                                     fac * e_norm_drho(i,j,k) * drho1b(idir)%array(i,j,k)                         
+                             END IF
+                          END DO
+                       END DO
+                    END DO
+                 END IF
+              END DO
+
+              DO ispin=1, nspins
+                 SELECT CASE(xc_deriv_method_id)
+                 CASE (xc_deriv_spline2_smooth)
+                    CALL pw_nn_deriv_r ( pw_in=tmp_r(ispin)%pw,&
+                         pw_out=v_xc(ispin)%pw,coeffs=spline2_deriv_coeffs,&
+                         idir=idir, error=error )
+                 CASE (xc_deriv_spline3_smooth)
+                    CALL pw_nn_deriv_r ( pw_in=tmp_r(ispin)%pw,&
+                         pw_out=v_xc(ispin)%pw,coeffs=spline3_deriv_coeffs,&
+                         idir=idir, error=error )
+                 CASE (xc_deriv_nn10_smooth)
+                    CALL pw_nn_deriv_r ( pw_in=tmp_r(ispin)%pw,&
+                         pw_out=v_xc(ispin)%pw,coeffs=nn10_deriv_coeffs,&
+                         idir=idir, error=error )
+                 CASE (xc_deriv_nn50_smooth)
+                    CALL pw_nn_deriv_r ( pw_in=tmp_r(ispin)%pw,&
+                         pw_out=v_xc(ispin)%pw,coeffs=nn50_deriv_coeffs,&
+                         idir=idir, error=error )
+                 CASE (xc_deriv_fd)
+                    IF (ASSOCIATED(pw_pool)) THEN
+                       CALL pw_pool_create_pw(pw_pool, tmp_t%pw,&
+                            use_data=REALDATA3D, in_space=REALSPACE,&
+                            error=error)
+                    ELSE
+                       ALLOCATE(tmp_t%pw, stat=stat)
+                       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+                       ALLOCATE(tmp_t%pw%cr3d(bo(1,1):bo(2,1),bo(1,2):bo(2,2),bo(1,3):bo(2,3)), &
+                            stat=stat)
+                       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+                    END IF
+                    CALL pw_derive_fd(tmp_r(ispin)%pw,&
+                         tmp_t%pw,nd(:,idir))
+                    CALL pw_sumup(tmp_t%pw,v_xc(ispin)%pw)
+                    IF (ASSOCIATED(pw_pool)) THEN
+                       CALL pw_pool_give_back_pw(pw_pool,tmp_t%pw,error=error)
+                    ELSE
+                       DEALLOCATE(tmp_t%pw%cr3d, stat=stat)
+                       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+                       DEALLOCATE(tmp_t%pw, stat=stat)
+                       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+                    END IF
+                 CASE default
+                    CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
+                 END SELECT
+              END DO ! ispin
+
+           END DO ! idir
+
+        END IF
+
+        DO ispin=1, nspins
+           IF (ASSOCIATED(pw_pool)) THEN
+              CALL pw_pool_give_back_pw(pw_pool,tmp_a(ispin)%pw,error=error)
+              CALL pw_pool_give_back_pw(pw_pool,tmp_b(ispin)%pw,error=error)
+              CALL pw_pool_give_back_pw(pw_pool,tmp_r(ispin)%pw,error=error)
+           ELSE
+              DEALLOCATE(tmp_a(ispin)%pw%cr3d, tmp_b(ispin)%pw%cr3d, tmp_r(ispin)%pw%cr3d, stat=stat)
+              CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+              DEALLOCATE(tmp_a(ispin)%pw, tmp_b(ispin)%pw, tmp_r(ispin)%pw, stat=stat)
+              CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+           END IF
+        END DO
+
+     END IF ! gradient_f
+
+
+  ELSE
+
+     !-----------------!
+     ! restricted case !
+     !-----------------!
+
+     CALL xc_rho_set_get(rho1_set,rho=rho1, error=error)
+
+     IF (gradient_f) THEN
+        CALL xc_rho_set_get(rho_set,drho=drho, error=error)
+        CALL xc_rho_set_get(rho1_set,drho=drho1, error=error)
+        IF (ASSOCIATED(pw_pool)) THEN
+           CALL pw_pool_create_pw(pw_pool,v_drho%pw,&
+                use_data = REALDATA3D,&
+                in_space = REALSPACE, error=error)
+           CALL pw_zero(v_drho%pw)
+        ELSE
+           ALLOCATE(v_drho%pw, stat=stat)
+           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+           ALLOCATE(v_drho%pw%cr3d(bo(1,1):bo(2,1),bo(1,2):bo(2,2),bo(1,3):bo(2,3)), &
+                stat=stat)
+           v_drho%pw%cr3d = 0.0_dp
+           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+        END IF
+     END IF
+
+     deriv_att=> xc_dset_get_derivative(deriv_set, "(rho)(rho)", &
+          error=error)
+     IF (ASSOCIATED(deriv_att)) THEN
+        CALL xc_derivative_get(deriv_att, deriv_data=deriv_data, &
+             error=error)
+        !$omp parallel do private(k,j,i)
+        DO k = bo(1,3), bo(2,3)
+           DO j = bo(1,2), bo(2,2)
+              DO i = bo(1,1), bo(2,1)
+                 v_xc(1)%pw%cr3d(i,j,k)=&
+                      deriv_data(i,j,k)*rho1(i,j,k)
+              END DO
+           END DO
+        END DO
+     END IF
+
+     deriv_att=> xc_dset_get_derivative(deriv_set, "(rho)(norm_drho)", &
+          error=error)
+     IF (ASSOCIATED(deriv_att)) THEN
+        CALL xc_derivative_get(deriv_att, deriv_data=deriv_data, &
+             error=error)
+        !$omp parallel do private(k,j,i,idir,dr1dr)
+        DO k = bo(1,3), bo(2,3)
+           DO j = bo(1,2), bo(2,2)
+              DO i = bo(1,1), bo(2,1)
+                 dr1dr=0._dp
+                 DO idir=1,3
+                    dr1dr=dr1dr+drho(idir)%array(i,j,k)*drho1(idir)%array(i,j,k)
+                 END DO
+                 v_xc(1)%pw%cr3d(i,j,k)=v_xc(1)%pw%cr3d(i,j,k)+&
+                      deriv_data(i,j,k)*dr1dr
+                 v_drho%pw%cr3d(i,j,k) = -1._dp * deriv_data(i,j,k)*rho1(i,j,k)
+              END DO
+           END DO
+        END DO
+     END IF
+
+
+     deriv_att=> xc_dset_get_derivative(deriv_set, "(norm_drho)(norm_drho)", &
+          error=error)
+     IF (ASSOCIATED(deriv_att)) THEN
+        CALL xc_derivative_get(deriv_att, deriv_data=deriv_data, &
+             error=error)
+        !$omp parallel do private(k,j,i,idir,dr1dr)
+        DO k = bo(1,3), bo(2,3)
+           DO j = bo(1,2), bo(2,2)
+              DO i = bo(1,1), bo(2,1)
+                 dr1dr=0._dp
+                 DO idir=1,3
+                    dr1dr=dr1dr+drho(idir)%array(i,j,k)*drho1(idir)%array(i,j,k)
+                 END DO
+                 v_drho%pw%cr3d(i,j,k) = v_drho%pw%cr3d(i,j,k) - deriv_data(i,j,k)*dr1dr
+              END DO
+           END DO
+        END DO
+     END IF
+
+
+     deriv_att=> xc_dset_get_derivative(deriv_set, "(norm_drho)", &
+          error=error)
+     IF (ASSOCIATED(deriv_att)) THEN
+        CALL xc_derivative_get(deriv_att, deriv_data=deriv_data, &
+             error=error)
+        CALL xc_derivative_get(deriv_att, deriv_data=e_norm_drho, &
+             error=error)
+        !$omp parallel do private(k,j,i,idir,dr1dr)
+        DO k = bo(1,3), bo(2,3)
+           DO j = bo(1,2), bo(2,2)
+              DO i = bo(1,1), bo(2,1)
+                 dr1dr=0._dp
+                 DO idir=1,3
+                    dr1dr=dr1dr+drho(idir)%array(i,j,k)*drho1(idir)%array(i,j,k)
+                 END DO
+                 IF (rho_set%norm_drho(i,j,k) > gradient_cut) THEN
+                    dr1dr = dr1dr / (rho_set%norm_drho(i,j,k))**2
+                    v_drho%pw%cr3d(i,j,k) = v_drho%pw%cr3d(i,j,k) + deriv_data(i,j,k)*dr1dr
+                 END IF
+              END DO
+           END DO
+        END DO
+     END IF
+
+     IF (gradient_f) THEN
+
+        IF (my_gapw) THEN
+
+           DO idir=1,3
+              !$omp parallel do private(i)
+              DO ia = bo(1,1), bo(2,1)
+                 DO ir = bo(1,2), bo(2,2)
+                    vxg(idir,ia,ir,1) = drho(idir)%array(ia,ir,1)*v_drho%pw%cr3d(ia,ir,1)
+                    IF (ASSOCIATED(e_norm_drho)) THEN
+                       vxg(idir,ia,ir,1) = vxg(idir,ia,ir,1) - drho1(idir)%array(ia,ir,1)*e_norm_drho(ia,ir,1)
+                    END IF
+                 END DO
+              END DO
+           END DO
+
+        ELSE
+           ! partial integration
+
+           ! this does not work with non orthorombic cells 
+           ! (you will have to use a vector of pw with 3 components)
+           IF (ASSOCIATED(pw_pool)) THEN
+              CALL pw_pool_create_pw(pw_pool,tmp_r(1)%pw,&
+                   use_data = REALDATA3D,&
+                   in_space = REALSPACE, error=error)
+           ELSE
+              ALLOCATE(tmp_r(1)%pw, stat=stat)
+              ALLOCATE(tmp_r(1)%pw%cr3d(bo(1,1):bo(2,1),bo(1,2):bo(2,2),bo(1,3):bo(2,3)), &
+                   stat=stat)
+              CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+           END IF
+
+           DO idir=1,3
+              !$omp parallel do private(k,j,i)
+              DO k = bo(1,3), bo(2,3)
+                 DO j = bo(1,2), bo(2,2)
+                    DO i = bo(1,1), bo(2,1)
+                       tmp_r(1)%pw%cr3d(i,j,k) = drho(idir)%array(i,j,k)*v_drho%pw%cr3d(i,j,k)-&
+                            drho1(idir)%array(i,j,k)*deriv_data(i,j,k)
+                    END DO
+                 END DO
+              END DO
+
+              SELECT CASE(xc_deriv_method_id)
+              CASE (xc_deriv_spline2_smooth)
+                 CALL pw_nn_deriv_r ( pw_in=tmp_r(1)%pw,&
+                      pw_out=v_xc(1)%pw,coeffs=spline2_deriv_coeffs,&
+                      idir=idir, error=error )
+              CASE (xc_deriv_spline3_smooth)
+                 CALL pw_nn_deriv_r ( pw_in=tmp_r(1)%pw,&
+                      pw_out=v_xc(1)%pw,coeffs=spline3_deriv_coeffs,&
+                      idir=idir, error=error )
+              CASE (xc_deriv_nn10_smooth)
+                 CALL pw_nn_deriv_r ( pw_in=tmp_r(1)%pw,&
+                      pw_out=v_xc(1)%pw,coeffs=nn10_deriv_coeffs,&
+                      idir=idir, error=error )
+              CASE (xc_deriv_nn50_smooth)
+                 CALL pw_nn_deriv_r ( pw_in=tmp_r(1)%pw,&
+                      pw_out=v_xc(1)%pw,coeffs=nn50_deriv_coeffs,&
+                      idir=idir, error=error )
+              CASE (xc_deriv_fd)
+                 CALL pw_pool_create_pw(pw_pool, tmp_r2(1)%pw,&
+                      use_data=REALDATA3D, in_space=REALSPACE,&
+                      error=error)
+                 CALL pw_derive_fd(tmp_r(1)%pw,&
+                      tmp_r2(1)%pw,nd(:,idir))
+                 CALL pw_sumup(tmp_r2(1)%pw,v_xc(1)%pw)
+                 CALL pw_pool_give_back_pw(pw_pool,tmp_r2(1)%pw,error=error)
+              CASE default
+                 WRITE (*,*) "Please provide a derivation method"
+                 CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
+              END SELECT
+
+           END DO
+
+           IF (ASSOCIATED(pw_pool)) THEN
+              CALL pw_pool_give_back_pw(pw_pool,tmp_r(1)%pw,error=error)
+           ELSE
+              DEALLOCATE(tmp_r(1)%pw%cr3d, stat=stat)
+              CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+              DEALLOCATE(tmp_r(1)%pw, stat=stat)
+              CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+           END IF
+        END IF
+        IF (ASSOCIATED(pw_pool)) THEN
+           CALL pw_pool_give_back_pw(pw_pool,v_drho%pw,error=error)
+        ELSE
+           DEALLOCATE(v_drho%pw%cr3d, stat=stat)
+           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+           DEALLOCATE(v_drho%pw, stat=stat)
+           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+        END IF
+
+     END IF
+
+  END IF
+
+  DEALLOCATE(tmp_r, tmp_r2, tmp_a, tmp_b, stat=stat)
+  CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+
+  CALL timestop(0.0_dp,handle)
+END SUBROUTINE xc_calc_2nd_deriv
+  !***************************************************************************
+
+!!****f* qs_kpp1_env_methods/xc_calc_2nd_deriv [1.0] *
+!!
+!!   NAME
+!!     xc_calc_2nd_deriv
 !!
 !!   FUNCTION
 !!     Does the first prepartions for the calculation of the 2nd deriv
+!!     The calculation must then be performed with xc_calc_2nd_deriv
 !!     Calculates the second derivative of E_xc at rho in the direction
 !!     rho1  (if you see the second derivative as bilinear form)
 !!     partial_rho|_(rho=rho) partial_rho|_(rho=rho) E_xc drho(rho1)drho
@@ -2145,1030 +3186,29 @@ END FUNCTION xc_exc_calc
 !!
 !!   INPUTS
 !!     - deriv_set: object containing the potentials
-!!     - rho_set: object containing the density at which the derivatives were calculated
-!!     - rho1_set : object containing the density with which to fold
-!!     - v_rspace_new: will contain the new potential.
+!!     - rho_set: object that will contain the density at which the
+!!       derivatives were calculated
+!!     - rho_r: the place where you evaluate the derivative
 !!     - pw_pool: the pool for the grids
+!!     - xc_section: which functional should be used and how to calculate it
+!!     - cell: the simulation cell (needed to scale the derivatives)
 !!     - error: variable to control error logging, stopping,... 
 !!       see module cp_error_handling 
 !!
 !!*** **********************************************************************
-  SUBROUTINE xc_calc_2nd_deriv_new(v_xc, &
-       deriv_set, rho_set, rho1_set, pw_pool, dft_control, gapw, vxg, error)
-
-    ! ARGUMENTS
-    TYPE(pw_p_type), DIMENSION(:), POINTER   :: v_xc
-    TYPE(xc_derivative_set_type), POINTER    :: deriv_set
-    TYPE(xc_rho_set_type), POINTER           :: rho_set, rho1_set
-    TYPE(pw_pool_type), POINTER              :: pw_pool
-    TYPE(dft_control_type), POINTER          :: dft_control
-    LOGICAL, INTENT(IN), OPTIONAL            :: gapw
-    REAL(kind=dp), DIMENSION(:,:,:,:), &
-         POINTER, OPTIONAL                   :: vxg
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
-
-    ! PARAMETER
-    CHARACTER(len=*), PARAMETER :: routineN = 'xc_calc_2nd_deriv_new', &
-                                   routineP = moduleN//':'//routineN
-
-    ! LOCALS
-    INTEGER                                  :: handle, i, idir, ispin, j, k, &
-                                                nspins, stat, ia, ir
-    INTEGER, DIMENSION(2, 3)                 :: bo
-    INTEGER, DIMENSION(3, 3)                 :: nd
-    LOGICAL                                  :: failure, gradient_f, lsd, my_gapw
-    REAL(KIND=dp)                            :: dr1dr, fac
-    REAL(kind=dp), DIMENSION(:, :, :), &
-      POINTER                                :: deriv_data, e_drhoa, e_drhob, &
-                                                e_norm_drho, rho1, rho1a, &
-                                                rho1b
-    TYPE(cp_3d_r_p_type), DIMENSION(:), &
-      POINTER                                :: drho, drho1, drho1a, drho1b, &
-                                                drhoa, drhob
-    TYPE(pw_p_type)                          :: tmp_t, v_drho
-    TYPE(pw_p_type), DIMENSION(:), POINTER   :: tmp_a, tmp_b, tmp_r, tmp_r2
-    TYPE(tddfpt_control_type), POINTER       :: tddfpt_control
-    TYPE(xc_control_type)                    :: xc_control
-    TYPE(xc_derivative_type), POINTER        :: deriv_att
-    TYPE(xc_rho_cflags_type)                 :: needs
-
-    CALL timeset(routineN,"I","",handle)
-
-    failure=.FALSE.
-    NULLIFY(tmp_r, tmp_r2, tmp_a, tmp_b, e_drhoa, e_drhob, e_norm_drho,&
-            tddfpt_control)
-    tddfpt_control => dft_control%tddfpt_control
-
-    my_gapw = .FALSE.
-    IF (PRESENT(gapw)) my_gapw = gapw
-
-    CPPrecondition(ASSOCIATED(rho_set),cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(rho1_set),cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(v_xc),cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(dft_control),cp_failure_level,routineP,error,failure)
-    IF (my_gapw) THEN
-       CPPrecondition(PRESENT(vxg),cp_failure_level,routineP,error,failure)
-    END IF
-
-    IF (.NOT. failure) THEN
-
-       gradient_f = .FALSE.
-       nspins     = dft_control%nspins
-       lsd = (nspins /= 1)
-       xc_control = dft_control%xc_control
-       IF (dft_control%do_tddfpt_calculation) THEN
-          xc_control = tddfpt_control%xc_control
-          IF (nspins == 1 .AND. (tddfpt_control%lsd_singlets .OR. &
-                                 tddfpt_control%res_etype == tddfpt_triplet)) THEN
-             lsd = .TRUE.
-             fac = 1.0_dp
-             IF (tddfpt_control%res_etype == tddfpt_triplet) fac = -1.0_dp
-          END IF
-       END IF
-
-       ALLOCATE(tmp_r(nspins), tmp_r2(nspins), tmp_a(nspins), tmp_b(nspins),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       DO ispin=1, nspins
-          NULLIFY(tmp_r(ispin)%pw, tmp_r2(ispin)%pw, tmp_a(ispin)%pw, tmp_b(nspins)%pw)
-       END DO
-
-    END IF
-
-    ! assesses the argument needed by the functionals
-    CALL xc_rho_cflags_setall(needs,.FALSE.,error=error)
-    DO i=1,SIZE(xc_control%functionals)
-       CALL xc_functional_get_info(xc_control%functionals(i),lsd=lsd,&
-            needs=needs,&
-            error=error)
-    END DO
-    IF (needs%drho.OR.needs%drho_spin.OR.needs%norm_drho.OR.&
-         needs%norm_drho_spin) gradient_f=.TRUE.
-    bo = rho_set%local_bounds
-
-    IF (lsd) THEN
-
-       !-------------------!
-       ! UNrestricted case !
-       !-------------------!
-
-       CALL xc_rho_set_get(rho1_set, rhoa=rho1a, rhob=rho1b, error=error)
-
-       IF (gradient_f) THEN
-          CALL xc_rho_set_get(rho_set, drhoa=drhoa, drhob=drhob, error=error)
-          CALL xc_rho_set_get(rho1_set,drhoa=drho1a, drhob=drho1b, error=error)
-          DO ispin=1, nspins
-             IF (ASSOCIATED(pw_pool)) THEN
-                CALL pw_pool_create_pw(pw_pool,tmp_a(ispin)%pw,&
-                     use_data = REALDATA3D,&
-                     in_space = REALSPACE, error=error)
-                CALL pw_zero(tmp_a(ispin)%pw)
-                CALL pw_pool_create_pw(pw_pool,tmp_b(ispin)%pw,&
-                     use_data = REALDATA3D,&
-                     in_space = REALSPACE, error=error)
-                CALL pw_zero(tmp_b(ispin)%pw)
-                CALL pw_pool_create_pw(pw_pool,tmp_r(ispin)%pw,&
-                     use_data = REALDATA3D,&
-                     in_space = REALSPACE, error=error)
-                CALL pw_zero(tmp_r(ispin)%pw)
-             ELSE
-                ALLOCATE(tmp_a(ispin)%pw, tmp_b(ispin)%pw, tmp_r(ispin)%pw, stat=stat)
-                CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-                ALLOCATE(tmp_a(ispin)%pw%cr3d(bo(1,1):bo(2,1),bo(1,2):bo(2,2),bo(1,3):bo(2,3)), &
-                     tmp_b(ispin)%pw%cr3d(bo(1,1):bo(2,1),bo(1,2):bo(2,2),bo(1,3):bo(2,3)), &
-                     tmp_r(ispin)%pw%cr3d(bo(1,1):bo(2,1),bo(1,2):bo(2,2),bo(1,3):bo(2,3)), &
-                     stat=stat)
-                CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-                tmp_a(ispin)%pw%cr3d = 0.0_dp
-                tmp_b(ispin)%pw%cr3d = 0.0_dp
-             END IF
-          END DO
-       END IF
-
-       deriv_att=> xc_dset_get_derivative(deriv_set, "(rhoa)(rhoa)", &
-            error=error)
-       IF (ASSOCIATED(deriv_att)) THEN
-          CALL xc_derivative_get(deriv_att, deriv_data=deriv_data, &
-               error=error)
-          !$omp parallel do private(k,j,i)
-          DO k = bo(1,3), bo(2,3)
-             DO j = bo(1,2), bo(2,2)
-                DO i = bo(1,1), bo(2,1)
-                      v_xc(1)%pw%cr3d(i,j,k) = v_xc(1)%pw%cr3d(i,j,k) + &
-                           deriv_data(i,j,k) * rho1a(i,j,k)
-                END DO
-             END DO
-          END DO
-       END IF
-
-       IF (nspins /= 1) THEN
-          deriv_att=> xc_dset_get_derivative(deriv_set, "(rhob)(rhob)", &
-               error=error)
-          IF (ASSOCIATED(deriv_att)) THEN
-             CALL xc_derivative_get(deriv_att, deriv_data=deriv_data, &
-                  error=error)
-             !$omp parallel do private(k,j,i)
-             DO k = bo(1,3), bo(2,3)
-                DO j = bo(1,2), bo(2,2)
-                   DO i = bo(1,1), bo(2,1)
-                      v_xc(2)%pw%cr3d(i,j,k) = v_xc(2)%pw%cr3d(i,j,k) + &
-                           deriv_data(i,j,k) * rho1b(i,j,k)
-                   END DO
-                END DO
-             END DO
-          END IF
-       END IF
-
-       deriv_att=> xc_dset_get_derivative(deriv_set, "(rhoa)(rhob)", &
-            error=error)
-       IF (ASSOCIATED(deriv_att)) THEN
-          CALL xc_derivative_get(deriv_att, deriv_data=deriv_data, &
-               error=error)
-          !$omp parallel do private(k,j,i)
-          DO k = bo(1,3), bo(2,3)
-             DO j = bo(1,2), bo(2,2)
-                DO i = bo(1,1), bo(2,1)
-                   IF (nspins /= 1) THEN
-                      v_xc(1)%pw%cr3d(i,j,k) = v_xc(1)%pw%cr3d(i,j,k) + &
-                           deriv_data(i,j,k) * rho1b(i,j,k)
-                      v_xc(2)%pw%cr3d(i,j,k) = v_xc(2)%pw%cr3d(i,j,k) + &
-                           deriv_data(i,j,k) * rho1a(i,j,k)
-                   ELSE
-                      v_xc(1)%pw%cr3d(i,j,k) = v_xc(1)%pw%cr3d(i,j,k) + &
-                           fac * deriv_data(i,j,k) * rho1b(i,j,k)
-                   END IF
-                END DO
-             END DO
-          END DO
-       END IF
-
-       deriv_att=> xc_dset_get_derivative(deriv_set, "(rhoa)(norm_drhoa)", &
-            error=error)
-       IF (ASSOCIATED(deriv_att)) THEN
-          CALL xc_derivative_get(deriv_att, deriv_data=deriv_data, &
-               error=error)
-          !$omp parallel do private(k,j,i,dr1dr)
-          DO k = bo(1,3), bo(2,3)
-             DO j = bo(1,2), bo(2,2)
-                DO i = bo(1,1), bo(2,1)
-                   dr1dr=0._dp
-                   DO idir=1,3
-                      dr1dr=dr1dr+drhoa(idir)%array(i,j,k)*drho1a(idir)%array(i,j,k)
-                   END DO
-                   v_xc(1)%pw%cr3d(i,j,k) = v_xc(1)%pw%cr3d(i,j,k) + &
-                                            deriv_data(i,j,k) * dr1dr
-                   tmp_a(1)%pw%cr3d(i,j,k) = tmp_a(1)%pw%cr3d(i,j,k) - &
-                                             deriv_data(i,j,k) * rho1a(i,j,k)
-                END DO
-             END DO
-          END DO
-       END IF
-
-       IF (nspins /= 1) THEN
-          deriv_att=> xc_dset_get_derivative(deriv_set, "(rhob)(norm_drhob)", error=error)
-          IF (ASSOCIATED(deriv_att)) THEN
-             CALL xc_derivative_get(deriv_att, deriv_data=deriv_data, &
-                  error=error)
-             !$omp parallel do private(k,j,i,dr1dr)
-             DO k = bo(1,3), bo(2,3)
-                DO j = bo(1,2), bo(2,2)
-                   DO i = bo(1,1), bo(2,1)
-                      dr1dr=0._dp
-                      DO idir=1,3
-                         dr1dr=dr1dr+drhob(idir)%array(i,j,k)*drho1b(idir)%array(i,j,k)
-                      END DO
-                      v_xc(2)%pw%cr3d(i,j,k) = v_xc(2)%pw%cr3d(i,j,k) + &
-                                               deriv_data(i,j,k) * dr1dr
-                      tmp_b(2)%pw%cr3d(i,j,k) = tmp_b(2)%pw%cr3d(i,j,k) - &
-                                                deriv_data(i,j,k) * rho1b(i,j,k)
-                   END DO
-                END DO
-             END DO
-          END IF
-       END IF
-
-       deriv_att=> xc_dset_get_derivative(deriv_set, "(rhoa)(norm_drhob)", &
-            error=error)
-       IF (ASSOCIATED(deriv_att)) THEN
-          CALL xc_derivative_get(deriv_att, deriv_data=deriv_data, &
-               error=error)
-          !$omp parallel do private(k,j,i,dr1dr)
-          DO k = bo(1,3), bo(2,3)
-             DO j = bo(1,2), bo(2,2)
-                DO i = bo(1,1), bo(2,1)
-                   dr1dr=0._dp
-                   DO idir=1,3
-                      dr1dr=dr1dr+drhob(idir)%array(i,j,k)*drho1b(idir)%array(i,j,k)
-                   END DO
-                   IF (nspins /= 1) THEN
-                      v_xc(1)%pw%cr3d(i,j,k) = v_xc(1)%pw%cr3d(i,j,k) + &
-                                               deriv_data(i,j,k) * dr1dr
-                      tmp_b(2)%pw%cr3d(i,j,k) = tmp_b(2)%pw%cr3d(i,j,k) - &
-                                                deriv_data(i,j,k) * rho1a(i,j,k)
-                   ELSE
-                      v_xc(1)%pw%cr3d(i,j,k) = v_xc(1)%pw%cr3d(i,j,k) + &
-                                               fac * deriv_data(i,j,k) * dr1dr
-                   END IF
-                END DO
-             END DO
-          END DO
-       END IF
-
-       deriv_att=> xc_dset_get_derivative(deriv_set, "(rhob)(norm_drhoa)", &
-            error=error)
-       IF (ASSOCIATED(deriv_att)) THEN
-          CALL xc_derivative_get(deriv_att, deriv_data=deriv_data, &
-               error=error)
-          !$omp parallel do private(k,j,i,dr1dr)
-          DO k = bo(1,3), bo(2,3)
-             DO j = bo(1,2), bo(2,2)
-                DO i = bo(1,1), bo(2,1)
-                   IF (nspins /= 1) THEN
-                      dr1dr=0._dp
-                      DO idir=1,3
-                         dr1dr=dr1dr+drhoa(idir)%array(i,j,k)*drho1a(idir)%array(i,j,k)
-                      END DO
-                      v_xc(2)%pw%cr3d(i,j,k) = v_xc(2)%pw%cr3d(i,j,k) + &
-                                               deriv_data(i,j,k) * dr1dr
-                      tmp_a(1)%pw%cr3d(i,j,k) = tmp_a(1)%pw%cr3d(i,j,k) - &
-                                                deriv_data(i,j,k) * rho1b(i,j,k)
-                   ELSE
-                      tmp_a(1)%pw%cr3d(i,j,k) = tmp_a(1)%pw%cr3d(i,j,k) - &
-                                                fac * deriv_data(i,j,k) * rho1b(i,j,k)
-                   END IF
-                END DO
-             END DO
-          END DO
-       END IF
-
-       deriv_att=> xc_dset_get_derivative(deriv_set, "(rhoa)(norm_drho)", &
-            error=error)
-       IF (ASSOCIATED(deriv_att)) THEN
-          CALL xc_derivative_get(deriv_att, deriv_data=deriv_data, &
-               error=error)
-          !$omp parallel do private(k,j,i)
-          DO k = bo(1,3), bo(2,3)
-             DO j = bo(1,2), bo(2,2)
-                DO i = bo(1,1), bo(2,1)
-                   IF (nspins /= 1) THEN
-                      dr1dr=0._dp
-                      DO idir=1,3
-                         dr1dr=dr1dr+drhob(idir)%array(i,j,k)*drho1a(idir)%array(i,j,k)
-                      END DO
-                      v_xc(1)%pw%cr3d(i,j,k) = v_xc(1)%pw%cr3d(i,j,k) + &
-                                               deriv_data(i,j,k) * dr1dr
-                      dr1dr=0._dp
-                      DO idir=1,3
-                         dr1dr=dr1dr+drhoa(idir)%array(i,j,k)*drho1b(idir)%array(i,j,k)
-                      END DO
-                      v_xc(1)%pw%cr3d(i,j,k) = v_xc(1)%pw%cr3d(i,j,k) + &
-                                               deriv_data(i,j,k) * dr1dr
-                      tmp_b(1)%pw%cr3d(i,j,k) = tmp_b(1)%pw%cr3d(i,j,k) - &
-                                                deriv_data(i,j,k) * rho1a(i,j,k)
-                      tmp_a(2)%pw%cr3d(i,j,k) = tmp_a(2)%pw%cr3d(i,j,k) - &
-                                                deriv_data(i,j,k) * rho1a(i,j,k)
-                   ELSE
-                      dr1dr=0._dp
-                      DO idir=1,3
-                         dr1dr = dr1dr + drhob(idir)%array(i,j,k)*drho1a(idir)%array(i,j,k) + &
-                                         fac * drhoa(idir)%array(i,j,k)*drho1b(idir)%array(i,j,k)
-                      END DO      
-                      v_xc(1)%pw%cr3d(i,j,k) = v_xc(1)%pw%cr3d(i,j,k) + &
-                                               deriv_data(i,j,k) * dr1dr
-                      tmp_b(1)%pw%cr3d(i,j,k) = tmp_b(1)%pw%cr3d(i,j,k) - &
-                                                deriv_data(i,j,k) * rho1a(i,j,k)
-                   END IF
-                END DO
-             END DO
-          END DO
-       END IF
-
-       deriv_att=> xc_dset_get_derivative(deriv_set, "(norm_drhoa)(norm_drho)", &
-            error=error)
-       IF (ASSOCIATED(deriv_att)) THEN
-          CALL xc_derivative_get(deriv_att, deriv_data=deriv_data, &
-               error=error)
-          !$omp parallel do private(k,j,i)
-          DO k = bo(1,3), bo(2,3)
-             DO j = bo(1,2), bo(2,2)
-                DO i = bo(1,1), bo(2,1)
-                   IF (nspins /= 1) THEN
-                      dr1dr=0._dp
-                      DO idir=1,3
-                         dr1dr=dr1dr+drhob(idir)%array(i,j,k)*drho1a(idir)%array(i,j,k)
-                      END DO
-                      tmp_a(1)%pw%cr3d(i,j,k) = tmp_a(1)%pw%cr3d(i,j,k) - &
-                                                deriv_data(i,j,k) * dr1dr
-                      dr1dr=0._dp
-                      DO idir=1,3
-                         dr1dr=dr1dr+drhoa(idir)%array(i,j,k)*drho1b(idir)%array(i,j,k)
-                      END DO
-                      tmp_a(1)%pw%cr3d(i,j,k) = tmp_a(1)%pw%cr3d(i,j,k) - &
-                                                deriv_data(i,j,k) * dr1dr
-                      dr1dr=0._dp
-                      DO idir=1,3
-                         dr1dr=dr1dr+drhoa(idir)%array(i,j,k)*drho1a(idir)%array(i,j,k)
-                      END DO
-                      tmp_b(1)%pw%cr3d(i,j,k) = tmp_b(1)%pw%cr3d(i,j,k) - &
-                                                deriv_data(i,j,k) * dr1dr
-                      dr1dr=0._dp
-                      DO idir=1,3
-                         dr1dr=dr1dr+drhoa(idir)%array(i,j,k)*drho1a(idir)%array(i,j,k)
-                      END DO
-                      tmp_a(2)%pw%cr3d(i,j,k) = tmp_a(2)%pw%cr3d(i,j,k) - &
-                                                deriv_data(i,j,k) * dr1dr
-                   ELSE
-                      dr1dr=0._dp
-                      DO idir=1,3
-                         dr1dr=dr1dr+drhob(idir)%array(i,j,k)*drho1a(idir)%array(i,j,k) + &
-                                     fac * drhoa(idir)%array(i,j,k)*drho1b(idir)%array(i,j,k)
-                      END DO
-                      tmp_a(1)%pw%cr3d(i,j,k) = tmp_a(1)%pw%cr3d(i,j,k) - &
-                                                deriv_data(i,j,k) * dr1dr
-                      dr1dr=0._dp
-                      DO idir=1,3
-                         dr1dr=dr1dr+drhoa(idir)%array(i,j,k)*drho1a(idir)%array(i,j,k)
-                      END DO
-                      tmp_b(1)%pw%cr3d(i,j,k) = tmp_b(1)%pw%cr3d(i,j,k) - &
-                                                deriv_data(i,j,k) * dr1dr
-                   END IF
-                END DO
-             END DO
-          END DO
-       END IF
-
-       deriv_att=> xc_dset_get_derivative(deriv_set, "(rhob)(norm_drho)", &
-            error=error)
-       IF (ASSOCIATED(deriv_att)) THEN
-          CALL xc_derivative_get(deriv_att, deriv_data=deriv_data, &
-               error=error)
-          !$omp parallel do private(k,j,i)
-          DO k = bo(1,3), bo(2,3)
-             DO j = bo(1,2), bo(2,2)
-                DO i = bo(1,1), bo(2,1)
-                   IF (nspins /= 1) THEN
-                      dr1dr=0._dp
-                      DO idir=1,3
-                         dr1dr=dr1dr+drhoa(idir)%array(i,j,k)*drho1b(idir)%array(i,j,k)
-                      END DO
-                      v_xc(2)%pw%cr3d(i,j,k) = v_xc(2)%pw%cr3d(i,j,k) + &
-                                               deriv_data(i,j,k) * dr1dr
-                      dr1dr=0._dp
-                      DO idir=1,3
-                         dr1dr=dr1dr+drhob(idir)%array(i,j,k)*drho1a(idir)%array(i,j,k)
-                      END DO
-                      v_xc(2)%pw%cr3d(i,j,k) = v_xc(2)%pw%cr3d(i,j,k) + &
-                                               deriv_data(i,j,k) * dr1dr
-                      tmp_a(2)%pw%cr3d(i,j,k) = tmp_a(2)%pw%cr3d(i,j,k) - &
-                                                deriv_data(i,j,k) * rho1b(i,j,k)
-                      tmp_b(1)%pw%cr3d(i,j,k) = tmp_b(1)%pw%cr3d(i,j,k) - &
-                                                deriv_data(i,j,k) * rho1b(i,j,k)
-                   ELSE
-                      tmp_b(1)%pw%cr3d(i,j,k) = tmp_b(1)%pw%cr3d(i,j,k) - &
-                                                fac * deriv_data(i,j,k) * rho1b(i,j,k)
-                   END IF
-                END DO
-             END DO
-          END DO
-       END IF
-
-       deriv_att=> xc_dset_get_derivative(deriv_set, "(norm_drhob)(norm_drho)", &
-            error=error)
-       IF (ASSOCIATED(deriv_att)) THEN
-          CALL xc_derivative_get(deriv_att, deriv_data=deriv_data, &
-               error=error)
-          !$omp parallel do private(k,j,i)
-          DO k = bo(1,3), bo(2,3)
-             DO j = bo(1,2), bo(2,2)
-                DO i = bo(1,1), bo(2,1)
-                   IF (nspins /= 1) THEN
-                      dr1dr=0._dp
-                      DO idir=1,3
-                         dr1dr=dr1dr+drhoa(idir)%array(i,j,k)*drho1b(idir)%array(i,j,k)
-                      END DO
-                      tmp_b(2)%pw%cr3d(i,j,k) = tmp_b(2)%pw%cr3d(i,j,k) - &
-                                                deriv_data(i,j,k) * dr1dr
-                      dr1dr=0._dp
-                      DO idir=1,3
-                         dr1dr=dr1dr+drhob(idir)%array(i,j,k)*drho1a(idir)%array(i,j,k)
-                      END DO
-                      tmp_b(2)%pw%cr3d(i,j,k) = tmp_b(2)%pw%cr3d(i,j,k) - &
-                                                deriv_data(i,j,k) * dr1dr
-                      dr1dr=0._dp
-                      DO idir=1,3
-                         dr1dr=dr1dr+drhob(idir)%array(i,j,k)*drho1b(idir)%array(i,j,k)
-                      END DO
-                      tmp_a(2)%pw%cr3d(i,j,k) = tmp_a(2)%pw%cr3d(i,j,k) - &
-                                                deriv_data(i,j,k) * dr1dr
-                      dr1dr=0._dp
-                      DO idir=1,3
-                         dr1dr=dr1dr+drhob(idir)%array(i,j,k)*drho1b(idir)%array(i,j,k)
-                      END DO
-                      tmp_b(1)%pw%cr3d(i,j,k) = tmp_b(1)%pw%cr3d(i,j,k) - &
-                                                deriv_data(i,j,k) * dr1dr
-                   ELSE
-                      dr1dr=0._dp
-                      DO idir=1,3
-                         dr1dr=dr1dr+drhob(idir)%array(i,j,k)*drho1b(idir)%array(i,j,k)
-                      END DO
-                      tmp_b(1)%pw%cr3d(i,j,k) = tmp_b(1)%pw%cr3d(i,j,k) - &
-                                                fac*deriv_data(i,j,k) * dr1dr
-                   END IF
-                END DO
-             END DO
-          END DO
-       END IF
-
-       deriv_att=> xc_dset_get_derivative(deriv_set, "(norm_drhoa)(norm_drhoa)", &
-            error=error)
-       IF (ASSOCIATED(deriv_att)) THEN
-          CALL xc_derivative_get(deriv_att, deriv_data=deriv_data, &
-               error=error)
-          !$omp parallel do private(k,j,i,dr1dr)
-          DO k = bo(1,3), bo(2,3)
-             DO j = bo(1,2), bo(2,2)
-                DO i = bo(1,1), bo(2,1)
-                   dr1dr=0._dp
-                   DO idir=1,3
-                      dr1dr=dr1dr+drhoa(idir)%array(i,j,k)*drho1a(idir)%array(i,j,k)
-                   END DO
-                      tmp_a(1)%pw%cr3d(i,j,k) = tmp_a(1)%pw%cr3d(i,j,k) - &
-                                                deriv_data(i,j,k) * dr1dr
-                END DO
-             END DO
-          END DO
-       END IF
-
-       IF (nspins /= 1) THEN
-          deriv_att=> xc_dset_get_derivative(deriv_set, "(norm_drhob)(norm_drhob)", error=error)
-          IF (ASSOCIATED(deriv_att)) THEN
-             CALL xc_derivative_get(deriv_att, deriv_data=deriv_data, &
-                  error=error)
-             !$omp parallel do private(k,j,i,dr1dr)
-             DO k = bo(1,3), bo(2,3)
-                DO j = bo(1,2), bo(2,2)
-                   DO i = bo(1,1), bo(2,1)
-                      dr1dr=0._dp
-                      DO idir=1,3
-                         dr1dr=dr1dr+drhob(idir)%array(i,j,k)*drho1b(idir)%array(i,j,k)
-                      END DO
-                      tmp_b(2)%pw%cr3d(i,j,k) = tmp_b(2)%pw%cr3d(i,j,k) - &
-                                                deriv_data(i,j,k) * dr1dr
-                   END DO
-                END DO
-             END DO
-          END IF
-       END IF
-
-       deriv_att=> xc_dset_get_derivative(deriv_set, "(norm_drhoa)(norm_drhob)", &
-            error=error)
-       IF (ASSOCIATED(deriv_att)) THEN
-          CALL xc_derivative_get(deriv_att, deriv_data=deriv_data, &
-               error=error)
-          !$omp parallel do private(k,j,i,dr1dr)
-          DO k = bo(1,3), bo(2,3)
-             DO j = bo(1,2), bo(2,2)
-                DO i = bo(1,1), bo(2,1)
-                   dr1dr=0._dp
-                   DO idir=1,3
-                      dr1dr=dr1dr+drhob(idir)%array(i,j,k)*drho1b(idir)%array(i,j,k)
-                   END DO
-                   IF (nspins /= 1) THEN
-                      tmp_a(1)%pw%cr3d(i,j,k) = tmp_a(1)%pw%cr3d(i,j,k) - &
-                           deriv_data(i,j,k) * dr1dr
-                      dr1dr=0._dp
-                      DO idir=1,3
-                         dr1dr=dr1dr+drhoa(idir)%array(i,j,k)*drho1a(idir)%array(i,j,k)
-                      END DO
-                      tmp_b(2)%pw%cr3d(i,j,k) = tmp_b(2)%pw%cr3d(i,j,k) - &
-                           deriv_data(i,j,k) * dr1dr
-                   ELSE
-                      tmp_a(1)%pw%cr3d(i,j,k) = tmp_a(1)%pw%cr3d(i,j,k) - &
-                                                fac * deriv_data(i,j,k) * dr1dr
-                   END IF
-                END DO
-             END DO
-          END DO
-       END IF
-
-       deriv_att=> xc_dset_get_derivative(deriv_set, "(norm_drhoa)", &
-            error=error)
-       IF (ASSOCIATED(deriv_att)) THEN
-          CALL xc_derivative_get(deriv_att, deriv_data=deriv_data, &
-               error=error)
-          CALL xc_derivative_get(deriv_att, deriv_data=e_drhoa, &
-               error=error)
-          !$omp parallel do private(k,j,i,dr1dr)
-          DO k = bo(1,3), bo(2,3)
-             DO j = bo(1,2), bo(2,2)
-                DO i = bo(1,1), bo(2,1)
-                   dr1dr=0._dp
-                   DO idir=1,3
-                      dr1dr=dr1dr+drhoa(idir)%array(i,j,k)*drho1a(idir)%array(i,j,k)
-                   END DO
-                   tmp_a(1)%pw%cr3d(i,j,k) = tmp_a(1)%pw%cr3d(i,j,k) + &
-                                             deriv_data(i,j,k) * dr1dr
-                END DO
-             END DO
-          END DO
-       END IF
-
-       IF (nspins /= 1) THEN
-          deriv_att=> xc_dset_get_derivative(deriv_set, "(norm_drhob)", &
-               error=error)
-          IF (ASSOCIATED(deriv_att)) THEN
-             CALL xc_derivative_get(deriv_att, deriv_data=deriv_data, &
-                  error=error)
-             CALL xc_derivative_get(deriv_att, deriv_data=e_drhob, &
-                  error=error)
-             !$omp parallel do private(k,j,i,dr1dr)
-             DO k = bo(1,3), bo(2,3)
-                DO j = bo(1,2), bo(2,2)
-                   DO i = bo(1,1), bo(2,1)
-                      dr1dr=0._dp
-                      DO idir=1,3
-                         dr1dr=dr1dr+drhob(idir)%array(i,j,k)*drho1b(idir)%array(i,j,k)
-                      END DO
-                      tmp_b(2)%pw%cr3d(i,j,k) = tmp_b(2)%pw%cr3d(i,j,k) + &
-                                                deriv_data(i,j,k) * dr1dr
-                   END DO
-                END DO
-             END DO
-          END IF
-       END IF
-
-       deriv_att=> xc_dset_get_derivative(deriv_set, "(norm_drho)(norm_drho)", &
-            error=error)
-       IF (ASSOCIATED(deriv_att)) THEN
-          CALL xc_derivative_get(deriv_att, deriv_data=deriv_data, &
-               error=error)
-          !$omp parallel do private(k,j,i,dr1dr)
-          DO k = bo(1,3), bo(2,3)
-             DO j = bo(1,2), bo(2,2)
-                DO i = bo(1,1), bo(2,1)
-                   IF (nspins /= 1) THEN
-                      dr1dr=0._dp
-                      DO idir=1,3
-                         dr1dr=dr1dr+drhob(idir)%array(i,j,k)*drho1a(idir)%array(i,j,k)
-                      END DO
-                      tmp_b(1)%pw%cr3d(i,j,k) = tmp_b(1)%pw%cr3d(i,j,k) - &
-                                                deriv_data(i,j,k) * dr1dr
-                      tmp_a(2)%pw%cr3d(i,j,k) = tmp_a(2)%pw%cr3d(i,j,k) - &
-                                                deriv_data(i,j,k) * dr1dr
-                      dr1dr=0._dp
-                      DO idir=1,3
-                         dr1dr=dr1dr+drhoa(idir)%array(i,j,k)*drho1b(idir)%array(i,j,k)
-                      END DO
-                      tmp_b(1)%pw%cr3d(i,j,k) = tmp_b(1)%pw%cr3d(i,j,k) - &
-                                                deriv_data(i,j,k) * dr1dr
-                      tmp_a(2)%pw%cr3d(i,j,k) = tmp_a(2)%pw%cr3d(i,j,k) - &
-                                                deriv_data(i,j,k) * dr1dr
-                   ELSE
-                      dr1dr=0._dp
-                      DO idir=1,3
-                         dr1dr=dr1dr+drhob(idir)%array(i,j,k)*drho1a(idir)%array(i,j,k) + &
-                                     fac * drhoa(idir)%array(i,j,k)*drho1b(idir)%array(i,j,k)
-                      END DO
-                      tmp_b(1)%pw%cr3d(i,j,k) = tmp_b(1)%pw%cr3d(i,j,k) - &
-                                                deriv_data(i,j,k) * dr1dr
-                   END IF
-                END DO
-             END DO
-          END DO
-       END IF
-
-       deriv_att=> xc_dset_get_derivative(deriv_set, "(norm_drho)", &
-            error=error)
-       IF (ASSOCIATED(deriv_att)) THEN
-          CALL xc_derivative_get(deriv_att, deriv_data=e_norm_drho, &
-               error=error)
-       END IF
-
-
-       IF (gradient_f) THEN
-
-          IF (my_gapw) THEN
-             !$omp parallel do private(ia,idir,ispin)
-             DO ir = bo(1,2), bo(2,2)
-                DO ia = bo(1,1), bo(2,1)
-                   DO idir = 1,3
-                      DO ispin=1, nspins
-                         vxg(idir,ia,ir,ispin) = &
-                              tmp_a(ispin)%pw%cr3d(ia,ir,1) * drhoa(idir)%array(ia,ir,1) + &
-                              tmp_b(ispin)%pw%cr3d(ia,ir,1) * drhob(idir)%array(ia,ir,1)
-                      END DO
-                      IF (ASSOCIATED(e_drhoa)) THEN
-                         vxg(idir,i,ir,1) = vxg(idir,i,ir,1) - &
-                              e_drhoa(ia,ir,1) * drho1a(idir)%array(ia,ir,1)
-                      END IF
-                      IF (nspins /= 1 .AND. ASSOCIATED(e_drhob)) THEN
-                         vxg(idir,i,ir,2) = vxg(idir,i,ir,2) - &
-                              e_drhob(ia,ir,1) * drho1b(idir)%array(ia,ir,1)
-                      END IF
-                      IF (ASSOCIATED(e_norm_drho)) THEN
-                         IF (nspins /= 1) THEN
-                            vxg(idir,ia,ir,1) = vxg(idir,ia,ir,1) - &
-                                 e_norm_drho(ia,ir,1) * drho1b(idir)%array(ia,ir,1)
-                            vxg(idir,ia,ir,2) = vxg(idir,ia,ir,2) - &
-                                 e_norm_drho(ia,ir,1) * drho1a(idir)%array(ia,ir,1)
-                         ELSE
-                            vxg(idir,ia,ir,1) = vxg(idir,ia,ir,1) - &
-                                 fac * e_norm_drho(ia,ir,1) * drho1b(idir)%array(ia,ir,1)                         
-                         END IF
-                      END IF
-                   END DO
-                END DO
-             END DO
-          ELSE
-
-
-             ! partial integration
-             DO idir=1, 3
-
-                DO ispin=1, nspins
-                   !$omp parallel do private(k,j,i,dr1dr)
-                   DO k = bo(1,3), bo(2,3)
-                      DO j = bo(1,2), bo(2,2)
-                         DO i = bo(1,1), bo(2,1)
-                            tmp_r(ispin)%pw%cr3d(i,j,k) = &
-                                 tmp_a(ispin)%pw%cr3d(i,j,k) * drhoa(idir)%array(i,j,k) + &
-                                 tmp_b(ispin)%pw%cr3d(i,j,k) * drhob(idir)%array(i,j,k)
-                         END DO
-                      END DO
-                   END DO
-                   IF (ASSOCIATED(e_drhoa)) THEN
-                      !$omp parallel do private(k,j,i,dr1dr)
-                      DO k = bo(1,3), bo(2,3)
-                         DO j = bo(1,2), bo(2,2)
-                            DO i = bo(1,1), bo(2,1)
-                               tmp_r(1)%pw%cr3d(i,j,k) = tmp_r(1)%pw%cr3d(i,j,k) - &
-                                                         e_drhoa(i,j,k) * drho1a(idir)%array(i,j,k)
-                            END DO
-                         END DO
-                      END DO
-                   END IF
-                   IF (nspins /= 1 .AND. ASSOCIATED(e_drhob)) THEN
-                      !$omp parallel do private(k,j,i,dr1dr)
-                      DO k = bo(1,3), bo(2,3)
-                         DO j = bo(1,2), bo(2,2)
-                            DO i = bo(1,1), bo(2,1)
-                               tmp_r(2)%pw%cr3d(i,j,k) = tmp_r(2)%pw%cr3d(i,j,k) - &
-                                                         e_drhob(i,j,k) * drho1b(idir)%array(i,j,k)
-                            END DO
-                         END DO
-                      END DO
-                   END IF
-                   IF (ASSOCIATED(e_norm_drho)) THEN
-                      !$omp parallel do private(k,j,i,dr1dr)
-                      DO k = bo(1,3), bo(2,3)
-                         DO j = bo(1,2), bo(2,2)
-                            DO i = bo(1,1), bo(2,1)
-                               IF (nspins /= 1) THEN
-                                  tmp_r(1)%pw%cr3d(i,j,k) = tmp_r(1)%pw%cr3d(i,j,k) - &
-                                       e_norm_drho(i,j,k) * drho1b(idir)%array(i,j,k)
-                                  tmp_r(2)%pw%cr3d(i,j,k) = tmp_r(2)%pw%cr3d(i,j,k) - &
-                                       e_norm_drho(i,j,k) * drho1a(idir)%array(i,j,k)
-                               ELSE
-                                  tmp_r(1)%pw%cr3d(i,j,k) = tmp_r(1)%pw%cr3d(i,j,k) - &
-                                       fac * e_norm_drho(i,j,k) * drho1b(idir)%array(i,j,k)                         
-                               END IF
-                            END DO
-                         END DO
-                      END DO
-                   END IF
-                END DO
-
-                DO ispin=1, nspins
-                   SELECT CASE(xc_control%xc_deriv_method_id)
-                   CASE (xc_deriv_spline2_smooth)
-                      CALL pw_nn_deriv_r ( pw_in=tmp_r(ispin)%pw,&
-                           pw_out=v_xc(ispin)%pw,coeffs=spline2_deriv_coeffs,&
-                           idir=idir, error=error )
-                   CASE (xc_deriv_spline3_smooth)
-                      CALL pw_nn_deriv_r ( pw_in=tmp_r(ispin)%pw,&
-                           pw_out=v_xc(ispin)%pw,coeffs=spline3_deriv_coeffs,&
-                           idir=idir, error=error )
-                   CASE (xc_deriv_nn10_smooth)
-                      CALL pw_nn_deriv_r ( pw_in=tmp_r(ispin)%pw,&
-                           pw_out=v_xc(ispin)%pw,coeffs=nn10_deriv_coeffs,&
-                           idir=idir, error=error )
-                   CASE (xc_deriv_nn50_smooth)
-                      CALL pw_nn_deriv_r ( pw_in=tmp_r(ispin)%pw,&
-                           pw_out=v_xc(ispin)%pw,coeffs=nn50_deriv_coeffs,&
-                           idir=idir, error=error )
-                   CASE (xc_deriv_fd)
-                      IF (ASSOCIATED(pw_pool)) THEN
-                         CALL pw_pool_create_pw(pw_pool, tmp_t%pw,&
-                              use_data=REALDATA3D, in_space=REALSPACE,&
-                              error=error)
-                      ELSE
-                         ALLOCATE(tmp_t%pw, stat=stat)
-                         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-                         ALLOCATE(tmp_t%pw%cr3d(bo(1,1):bo(2,1),bo(1,2):bo(2,2),bo(1,3):bo(2,3)), &
-                              stat=stat)
-                         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-                      END IF
-                      CALL pw_derive_fd(tmp_r(ispin)%pw,&
-                           tmp_t%pw,nd(:,idir))
-                      CALL pw_sumup(tmp_t%pw,v_xc(ispin)%pw)
-                      IF (ASSOCIATED(pw_pool)) THEN
-                         CALL pw_pool_give_back_pw(pw_pool,tmp_t%pw,error=error)
-                      ELSE
-                         DEALLOCATE(tmp_t%pw%cr3d, stat=stat)
-                         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-                         DEALLOCATE(tmp_t%pw, stat=stat)
-                         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-                      END IF
-                   CASE default
-                      CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
-                   END SELECT
-                END DO ! ispin
-
-             END DO ! idir
-
-          END IF
-
-          DO ispin=1, nspins
-             IF (ASSOCIATED(pw_pool)) THEN
-                CALL pw_pool_give_back_pw(pw_pool,tmp_a(ispin)%pw,error=error)
-                CALL pw_pool_give_back_pw(pw_pool,tmp_b(ispin)%pw,error=error)
-                CALL pw_pool_give_back_pw(pw_pool,tmp_r(ispin)%pw,error=error)
-             ELSE
-                DEALLOCATE(tmp_a(ispin)%pw%cr3d, tmp_b(ispin)%pw%cr3d, tmp_r(ispin)%pw%cr3d, stat=stat)
-                CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-                DEALLOCATE(tmp_a(ispin)%pw, tmp_b(ispin)%pw, tmp_r(ispin)%pw, stat=stat)
-                CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-             END IF
-          END DO
-
-       END IF ! gradient_f
-
-
-    ELSE
-
-       !-----------------!
-       ! restricted case !
-       !-----------------!
-
-       CALL xc_rho_set_get(rho1_set,rho=rho1, error=error)
-
-       IF (gradient_f) THEN
-          CALL xc_rho_set_get(rho_set,drho=drho, error=error)
-          CALL xc_rho_set_get(rho1_set,drho=drho1, error=error)
-          IF (ASSOCIATED(pw_pool)) THEN
-             CALL pw_pool_create_pw(pw_pool,v_drho%pw,&
-                  use_data = REALDATA3D,&
-                  in_space = REALSPACE, error=error)
-             CALL pw_zero(v_drho%pw)
-          ELSE
-             ALLOCATE(v_drho%pw, stat=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-             ALLOCATE(v_drho%pw%cr3d(bo(1,1):bo(2,1),bo(1,2):bo(2,2),bo(1,3):bo(2,3)), &
-                  stat=stat)
-             v_drho%pw%cr3d = 0.0_dp
-             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-          END IF
-       END IF
-
-       deriv_att=> xc_dset_get_derivative(deriv_set, "(rho)(rho)", &
-            error=error)
-       IF (ASSOCIATED(deriv_att)) THEN
-          CALL xc_derivative_get(deriv_att, deriv_data=deriv_data, &
-               error=error)
-          !$omp parallel do private(k,j,i)
-          DO k = bo(1,3), bo(2,3)
-             DO j = bo(1,2), bo(2,2)
-                DO i = bo(1,1), bo(2,1)
-                   v_xc(1)%pw%cr3d(i,j,k)=&
-                        deriv_data(i,j,k)*rho1(i,j,k)
-                END DO
-             END DO
-          END DO
-       END IF
-
-       deriv_att=> xc_dset_get_derivative(deriv_set, "(rho)(norm_drho)", &
-            error=error)
-       IF (ASSOCIATED(deriv_att)) THEN
-          CALL xc_derivative_get(deriv_att, deriv_data=deriv_data, &
-               error=error)
-          !$omp parallel do private(k,j,i,idir,dr1dr)
-          DO k = bo(1,3), bo(2,3)
-             DO j = bo(1,2), bo(2,2)
-                DO i = bo(1,1), bo(2,1)
-                   dr1dr=0._dp
-                   DO idir=1,3
-                      dr1dr=dr1dr+drho(idir)%array(i,j,k)*drho1(idir)%array(i,j,k)
-                   END DO
-                   v_xc(1)%pw%cr3d(i,j,k)=v_xc(1)%pw%cr3d(i,j,k)+&
-                        deriv_data(i,j,k)*dr1dr
-                   v_drho%pw%cr3d(i,j,k) = -1._dp * deriv_data(i,j,k)*rho1(i,j,k)
-                END DO
-             END DO
-          END DO
-       END IF
-
-
-       deriv_att=> xc_dset_get_derivative(deriv_set, "(norm_drho)(norm_drho)", &
-            error=error)
-       IF (ASSOCIATED(deriv_att)) THEN
-          CALL xc_derivative_get(deriv_att, deriv_data=deriv_data, &
-               error=error)
-          !$omp parallel do private(k,j,i,idir,dr1dr)
-          DO k = bo(1,3), bo(2,3)
-             DO j = bo(1,2), bo(2,2)
-                DO i = bo(1,1), bo(2,1)
-                   dr1dr=0._dp
-                   DO idir=1,3
-                      dr1dr=dr1dr+drho(idir)%array(i,j,k)*drho1(idir)%array(i,j,k)
-                   END DO
-                   v_drho%pw%cr3d(i,j,k) = v_drho%pw%cr3d(i,j,k) - deriv_data(i,j,k)*dr1dr
-                END DO
-             END DO
-          END DO
-       END IF
-
-
-       deriv_att=> xc_dset_get_derivative(deriv_set, "(norm_drho)", &
-            error=error)
-       IF (ASSOCIATED(deriv_att)) THEN
-          CALL xc_derivative_get(deriv_att, deriv_data=deriv_data, &
-               error=error)
-          CALL xc_derivative_get(deriv_att, deriv_data=e_norm_drho, &
-               error=error)
-          !$omp parallel do private(k,j,i,idir,dr1dr)
-          DO k = bo(1,3), bo(2,3)
-             DO j = bo(1,2), bo(2,2)
-                DO i = bo(1,1), bo(2,1)
-                   dr1dr=0._dp
-                   DO idir=1,3
-                      dr1dr=dr1dr+drho(idir)%array(i,j,k)*drho1(idir)%array(i,j,k)
-                   END DO
-                   IF (rho_set%norm_drho(i,j,k) > xc_control%gradient_cut) THEN
-                      dr1dr = dr1dr / (rho_set%norm_drho(i,j,k))**2
-                      v_drho%pw%cr3d(i,j,k) = v_drho%pw%cr3d(i,j,k) + deriv_data(i,j,k)*dr1dr
-                   END IF
-                END DO
-             END DO
-          END DO
-       END IF
-
-       IF (gradient_f) THEN
-
-          IF (my_gapw) THEN
-
-             DO idir=1,3
-                !$omp parallel do private(i)
-                DO ia = bo(1,1), bo(2,1)
-                   DO ir = bo(1,2), bo(2,2)
-                      vxg(idir,ia,ir,1) = drho(idir)%array(ia,ir,1)*v_drho%pw%cr3d(ia,ir,1)
-                      IF (ASSOCIATED(e_norm_drho)) THEN
-                         vxg(idir,ia,ir,1) = vxg(idir,ia,ir,1) - drho1(idir)%array(ia,ir,1)*e_norm_drho(ia,ir,1)
-                      END IF
-                   END DO
-                END DO
-             END DO
-             
-          ELSE
-             ! partial integration
-
-             ! this does not work with non orthorombic cells 
-             ! (you will have to use a vector of pw with 3 components)
-             IF (ASSOCIATED(pw_pool)) THEN
-                CALL pw_pool_create_pw(pw_pool,tmp_r(1)%pw,&
-                     use_data = REALDATA3D,&
-                     in_space = REALSPACE, error=error)
-             ELSE
-                ALLOCATE(tmp_r(1)%pw, stat=stat)
-                ALLOCATE(tmp_r(1)%pw%cr3d(bo(1,1):bo(2,1),bo(1,2):bo(2,2),bo(1,3):bo(2,3)), &
-                     stat=stat)
-                CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-             END IF
-
-             DO idir=1,3
-                !$omp parallel do private(k,j,i)
-                DO k = bo(1,3), bo(2,3)
-                   DO j = bo(1,2), bo(2,2)
-                      DO i = bo(1,1), bo(2,1)
-                         tmp_r(1)%pw%cr3d(i,j,k) = drho(idir)%array(i,j,k)*v_drho%pw%cr3d(i,j,k)-&
-                              drho1(idir)%array(i,j,k)*deriv_data(i,j,k)
-                      END DO
-                   END DO
-                END DO
-
-                SELECT CASE(xc_control%xc_deriv_method_id)
-                CASE (xc_deriv_spline2_smooth)
-                   CALL pw_nn_deriv_r ( pw_in=tmp_r(1)%pw,&
-                        pw_out=v_xc(1)%pw,coeffs=spline2_deriv_coeffs,&
-                        idir=idir, error=error )
-                CASE (xc_deriv_spline3_smooth)
-                   CALL pw_nn_deriv_r ( pw_in=tmp_r(1)%pw,&
-                        pw_out=v_xc(1)%pw,coeffs=spline3_deriv_coeffs,&
-                        idir=idir, error=error )
-                CASE (xc_deriv_nn10_smooth)
-                   CALL pw_nn_deriv_r ( pw_in=tmp_r(1)%pw,&
-                        pw_out=v_xc(1)%pw,coeffs=nn10_deriv_coeffs,&
-                        idir=idir, error=error )
-                CASE (xc_deriv_nn50_smooth)
-                   CALL pw_nn_deriv_r ( pw_in=tmp_r(1)%pw,&
-                        pw_out=v_xc(1)%pw,coeffs=nn50_deriv_coeffs,&
-                        idir=idir, error=error )
-                CASE (xc_deriv_fd)
-                   CALL pw_pool_create_pw(pw_pool, tmp_r2(1)%pw,&
-                        use_data=REALDATA3D, in_space=REALSPACE,&
-                        error=error)
-                   CALL pw_derive_fd(tmp_r(1)%pw,&
-                        tmp_r2(1)%pw,nd(:,idir))
-                   CALL pw_sumup(tmp_r2(1)%pw,v_xc(1)%pw)
-                   CALL pw_pool_give_back_pw(pw_pool,tmp_r2(1)%pw,error=error)
-                CASE default
-                   WRITE (*,*) "Please provide a derivation method"
-                   CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
-                END SELECT
-
-             END DO
-
-             IF (ASSOCIATED(pw_pool)) THEN
-                CALL pw_pool_give_back_pw(pw_pool,tmp_r(1)%pw,error=error)
-             ELSE
-                DEALLOCATE(tmp_r(1)%pw%cr3d, stat=stat)
-                CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-                DEALLOCATE(tmp_r(1)%pw, stat=stat)
-                CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-             END IF
-          END IF
-          IF (ASSOCIATED(pw_pool)) THEN
-             CALL pw_pool_give_back_pw(pw_pool,v_drho%pw,error=error)
-          ELSE
-             DEALLOCATE(v_drho%pw%cr3d, stat=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-             DEALLOCATE(v_drho%pw, stat=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-          END IF
-
-       END IF
-
-    END IF
-
-    DEALLOCATE(tmp_r, tmp_r2, tmp_a, tmp_b, stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-
-    CALL timestop(0.0_dp,handle)
-  END SUBROUTINE xc_calc_2nd_deriv_new
-  !***************************************************************************
-
-  SUBROUTINE xc_prep_2nd_deriv_new(deriv_set, &
-       rho_set, rho_r, pw_pool, dft_control, cell, error)
+  SUBROUTINE xc_prep_2nd_deriv(deriv_set, &
+       rho_set, rho_r, pw_pool, xc_section, cell, error)
 
     TYPE(xc_derivative_set_type), POINTER    :: deriv_set
     TYPE(xc_rho_set_type), POINTER           :: rho_set
     TYPE(pw_p_type), DIMENSION(:), POINTER   :: rho_r
     TYPE(pw_pool_type), POINTER              :: pw_pool
-    TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(section_vals_type), pointer         :: xc_section
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'xc_prep_2nd_deriv_new', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'xc_prep_2nd_deriv', &
                                    routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, i, idesc, ispin, j, &
@@ -3176,62 +3216,31 @@ END FUNCTION xc_exc_calc
     INTEGER, DIMENSION(2, 3)                 :: bo
     LOGICAL                                  :: failure, lsd
     TYPE(pw_p_type), DIMENSION(:), POINTER   :: rho_g, rho_r_pw, tau
-    TYPE(xc_control_type)                    :: xc_control
 
     CALL timeset(routineN,"I","",handle)
 
     failure=.FALSE.
 
     CPPrecondition(.NOT.ASSOCIATED(rho_set),cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(dft_control),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(xc_section),cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(pw_pool),cp_failure_level,routineP,error,failure)
 
     IF (.NOT. failure) THEN
-       nspins     = dft_control%nspins
+       nspins     = size(rho_r)
        lsd = (nspins /= 1)
-       xc_control = dft_control%xc_control
-       IF (dft_control%do_tddfpt_calculation) THEN
-          xc_control = dft_control%tddfpt_control%xc_control
-       END IF
     END IF
 
-     IF (nspins == 1 .AND. (dft_control%do_tddfpt_calculation.and.&
-         (dft_control%tddfpt_control%lsd_singlets .OR. &
-         dft_control%tddfpt_control%res_etype == tddfpt_triplet))) THEN
-       
-       lsd = .TRUE.
-       ALLOCATE(rho_r_pw(2), stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       DO ispin=1, 2
-          CALL pw_create(rho_r_pw(ispin)%pw, rho_r(1)%pw%pw_grid, &
-                         rho_r(1)%pw%in_use, rho_r(1)%pw%in_space)
-          CALL pw_transfer(rho_r(1)%pw, rho_r_pw(ispin)%pw)
-          rho_r_pw(ispin)%pw%cr3d = 0.5_dp * rho_r_pw(ispin)%pw%cr3d
-       END DO
-
-
-
-    ELSE
-
-       ALLOCATE(rho_r_pw(nspins), stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       DO ispin=1, nspins
-          rho_r_pw(ispin)%pw => rho_r(ispin)%pw
-       END DO
-    
-    END IF
+    ALLOCATE(rho_r_pw(nspins), stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    DO ispin=1, nspins
+       rho_r_pw(ispin)%pw => rho_r(ispin)%pw
+    END DO
 
     NULLIFY(rho_g, tau)
     CALL xc_rho_set_and_dset_create(rho_set,deriv_set,2,&
-       rho_r_pw,rho_g,tau,dft_control,xc_control,cell,pw_pool,&
+       rho_r_pw,rho_g,tau,xc_section,cell,pw_pool,&
        needs_basic_components=.TRUE.,error=error)
 
-    IF (nspins == 1 .AND. (dft_control%do_tddfpt_calculation.and.&
-         (dft_control%tddfpt_control%lsd_singlets .OR. &
-         dft_control%tddfpt_control%res_etype == tddfpt_triplet))) THEN
-       CALL pw_release(rho_r_pw(1)%pw)
-       CALL pw_release(rho_r_pw(2)%pw)
-    END IF
     DEALLOCATE(rho_r_pw, stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
@@ -3240,8 +3249,7 @@ END FUNCTION xc_exc_calc
     CALL divide_by_norm_drho(deriv_set, rho_set, lsd, error)
 
     CALL timestop(0.0_dp,handle)
-  END SUBROUTINE xc_prep_2nd_deriv_new
-
+  END SUBROUTINE xc_prep_2nd_deriv
   !***************************************************************************
 
   SUBROUTINE divide_by_norm_drho(deriv_set, rho_set, lsd, error)
@@ -3276,7 +3284,7 @@ END FUNCTION xc_exc_calc
     bo = rho_set%local_bounds
     CALL xc_rho_set_get(rho_set, drho_cutoff=drho_cutoff, error=error)
 
-    pos => deriv_set%derivs
+    pos =>  deriv_set%derivs
     DO WHILE (cp_sll_xc_deriv_next(pos,el_att=deriv_att,error=error))
        CALL xc_derivative_get(deriv_att,order=order,&
                               desc=desc, split_desc=split_desc,&

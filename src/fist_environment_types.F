@@ -80,10 +80,8 @@ MODULE fist_environment_types
                                              qmmm_env_mm_create,&
                                              qmmm_env_mm_release,&
                                              qmmm_env_mm_retain
-  USE green_types,                     ONLY: greens_function_type,&
-                                             pw_green_release,&
-                                             pw_green_retain,&
-                                             pw_green_create
+  USE cp_output_handling, ONLY:cp_out_flags_type, cp_out_flags_retain, &
+       cp_out_flags_release
   PRIVATE
 !
 
@@ -93,7 +91,6 @@ MODULE fist_environment_types
     INTEGER :: id_nr, ref_count 
     LOGICAL                                        :: qmmm
     TYPE ( qmmm_env_mm_type ), POINTER             :: qmmm_env
-    TYPE(greens_function_type), POINTER            :: green
     TYPE ( cell_type ), POINTER                    :: cell
     TYPE ( cell_type ), POINTER                    :: cell_ref
     TYPE ( ewald_environment_type ), POINTER       :: ewald_env
@@ -102,6 +99,7 @@ MODULE fist_environment_types
     TYPE ( cp_para_env_type ), POINTER             :: para_env
     TYPE ( cp_subsystem_type ), POINTER            :: subsys
     TYPE ( fist_nonbond_env_type ), POINTER        :: fist_nonbond_env
+    TYPE ( cp_out_flags_type ), pointer            :: output_control
   END TYPE fist_environment_type
 
 ! *****************************************************************************
@@ -157,9 +155,9 @@ CONTAINS
 
   SUBROUTINE get_fist_env( fist_env, atomic_kind_set, particle_set, ewald_pw,  &
                            local_particles, local_molecules, molecule_kind_set, &
-                           molecule_set, cell, cell_ref, green, ewald_env,  &
+                           molecule_set, cell, cell_ref, ewald_env,  &
                            fist_nonbond_env, thermo, para_env, subsys,  &
-                           qmmm, qmmm_env, error )
+                           qmmm, qmmm_env, output_control, error )
     IMPLICIT NONE
 
 !   Purpose: Get the FIST environment.
@@ -167,7 +165,6 @@ CONTAINS
 !   ***************************************************************************
 
     TYPE ( fist_environment_type ), INTENT(IN)              :: fist_env
-    TYPE(greens_function_type), POINTER, OPTIONAL           :: green
     TYPE ( cell_type ), OPTIONAL, POINTER                   :: cell, cell_ref
     TYPE ( ewald_environment_type ), OPTIONAL, POINTER      :: ewald_env
     TYPE ( fist_energy_type ), OPTIONAL, POINTER            :: thermo
@@ -183,6 +180,7 @@ CONTAINS
     TYPE(molecule_type),  OPTIONAL, POINTER                 :: molecule_set ( : )
     TYPE(cp_subsystem_type), POINTER, OPTIONAL              :: subsys
     TYPE(qmmm_env_mm_type), POINTER, OPTIONAL               :: qmmm_env
+    TYPE(cp_out_flags_type), POINTER, optional              :: output_control
     LOGICAL, OPTIONAL :: qmmm
 
     LOGICAL :: failure
@@ -201,7 +199,6 @@ CONTAINS
 
     IF ( PRESENT ( qmmm ) ) qmmm = fist_env % qmmm
     IF ( PRESENT ( qmmm_env )) qmmm_env => fist_env % qmmm_env
-    IF ( present ( green ) ) green => fist_env%green
     IF ( PRESENT ( cell ) ) cell => fist_env % cell
     IF ( PRESENT ( cell_ref ) ) cell_ref => fist_env % cell_ref
     IF ( PRESENT ( ewald_env ) ) ewald_env => fist_env % ewald_env
@@ -209,6 +206,7 @@ CONTAINS
     IF ( PRESENT ( para_env ) ) para_env => fist_env % para_env
     IF ( PRESENT ( ewald_pw ) ) ewald_pw => fist_env % ewald_pw
     IF ( PRESENT ( fist_nonbond_env ) ) fist_nonbond_env => fist_env % fist_nonbond_env
+    IF (PRESENT(output_control)) output_control => fist_env%output_control
     IF (PRESENT(subsys)) subsys => fist_env%subsys
     CALL cp_subsys_get(fist_env%subsys,&
                       atomic_kinds=atomic_kinds,&
@@ -239,7 +237,6 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    NULLIFY (fist_env%green)
     NULLIFY (fist_env%cell)
     NULLIFY (fist_env%qmmm_env)
     NULLIFY (fist_env%cell_ref)
@@ -248,6 +245,7 @@ CONTAINS
     NULLIFY (fist_env%thermo)
     NULLIFY (fist_env%fist_nonbond_env)
     NULLIFY (fist_env%subsys)
+    nullify (fist_env%output_control)
     fist_env % qmmm = .FALSE.
     CALL qmmm_env_mm_create(fist_env%qmmm_env, error)
     CALL cp_subsys_create(fist_env%subsys, para_env=para_env, error=error)
@@ -263,15 +261,15 @@ CONTAINS
 
   SUBROUTINE set_fist_env( fist_env, atomic_kind_set, particle_set, ewald_pw, &
                            local_particles, local_molecules, molecule_kind_set, &
-                           molecule_set, cell, cell_ref, green, ewald_env,  &
-                           fist_nonbond_env, thermo, subsys, qmmm, qmmm_env, error )
+                           molecule_set, cell, cell_ref, ewald_env,  &
+                           fist_nonbond_env, thermo, subsys, qmmm, qmmm_env, &
+                           output_control, error )
 
     IMPLICIT NONE
 !   Purpose: Set the FIST environment.
 
     TYPE ( fist_environment_type ), POINTER                 :: fist_env
     TYPE ( qmmm_env_mm_type ), POINTER, OPTIONAL            :: qmmm_env
-    TYPE(greens_function_type), POINTER, OPTIONAL           :: green
     TYPE ( cell_type ), OPTIONAL, POINTER                   :: cell
     TYPE ( cell_type ), OPTIONAL, POINTER                   :: cell_ref
     TYPE ( ewald_environment_type ), OPTIONAL, POINTER      :: ewald_env
@@ -287,6 +285,7 @@ CONTAINS
     TYPE(molecule_type),  OPTIONAL, POINTER                 :: molecule_set ( : )
     TYPE(cp_subsystem_type), POINTER, OPTIONAL              :: subsys
     LOGICAL,OPTIONAL                                        :: qmmm
+    TYPE(cp_out_flags_type), POINTER, optional              :: output_control
 ! locals
     TYPE (atomic_kind_list_type), POINTER :: atomic_kinds
     TYPE (particle_list_type), POINTER :: particles
@@ -307,11 +306,6 @@ CONTAINS
        CALL qmmm_env_mm_retain(qmmm_env, error)
        CALL qmmm_env_mm_release(fist_env%qmmm_env, error=error)
        fist_env%qmmm_env => qmmm_env
-    END IF
-    IF (PRESENT(green)) THEN
-       CALL pw_green_retain(green, error=error)
-       CALL pw_green_release(fist_env%green, error=error)
-       fist_env%green =>  green
     END IF
     IF (PRESENT(cell)) THEN
        CALL cell_retain(cell, error=error)
@@ -389,6 +383,11 @@ CONTAINS
                         molecules_new=molecules_new,&
                         error=error)
       CALL mol_new_list_release(molecules_new,error=error)
+    END IF
+    IF (PRESENT(output_control)) THEN
+       CALL cp_out_flags_retain(output_control,error=error)
+       CALL cp_out_flags_release(fist_env%output_control,error=error)
+       fist_env%output_control => output_control
     END IF
 
 !***************************************************************************
@@ -533,7 +532,6 @@ SUBROUTINE fist_env_release(fist_env,error)
      fist_env%ref_count=fist_env%ref_count-1
      IF (fist_env%ref_count<1) THEN
         CALL qmmm_env_mm_release(fist_env%qmmm_env, error=error)
-        CALL pw_green_release(fist_env%green, error=error)
         CALL cell_release(fist_env%cell)
         CALL cell_release(fist_env%cell_ref)
         CALL ewald_pw_release(fist_env%ewald_pw)
@@ -544,6 +542,7 @@ SUBROUTINE fist_env_release(fist_env,error)
         CALL fist_nonbond_env_release ( fist_env % fist_nonbond_env, error = error )
 
         CALL cp_subsys_release(fist_env%subsys,error=error)
+        CALL cp_out_flags_release(fist_env%output_control,error=error)
         DEALLOCATE(fist_env, stat=stat)
         CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
      END IF

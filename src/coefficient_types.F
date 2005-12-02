@@ -20,17 +20,6 @@
 
 MODULE coefficient_types
   USE ao_types,                        ONLY: ao_type
-  USE cp_error_handling,               ONLY: cp_a_l,&
-                                             cp_assert,&
-                                             cp_error_get_logger,&
-                                             cp_error_message,&
-                                             cp_error_type
-  USE cp_log_handling,                 ONLY: cp_failure_level,&
-                                             cp_fatal_level,&
-                                             cp_logger_type,&
-                                             cp_note_level,&
-                                             cp_to_string,&
-                                             cp_warning_level
   USE kinds,                           ONLY: dp
   USE pw_grid_types,                   ONLY: pw_grid_type
   USE pw_types,                        ONLY: COMPLEXDATA1D,&
@@ -41,7 +30,7 @@ MODULE coefficient_types
                                              REALSPACE,&
                                              RECIPROCALSPACE,&
                                              pw_add,&
-                                             pw_allocate,&
+                                             pw_create,&
                                              pw_copy,&
                                              pw_fft_wrap,&
                                              pw_reduce,&
@@ -52,6 +41,7 @@ MODULE coefficient_types
                                              pw_type,&
                                              pw_zero
   USE termination,                     ONLY: stop_program
+#include "cp_common_uses.h"
 
   IMPLICIT NONE
   PRIVATE
@@ -90,9 +80,6 @@ MODULE coefficient_types
   END INTERFACE
 
   ! Flags for 'integral'
-  PUBLIC :: SQUARE, SQUAREROOT
-  INTEGER, PARAMETER :: SQUARE = 391, SQUAREROOT = 392
-
   INTEGER, PARAMETER :: PW_REALDATA1D = REALDATA1D
   INTEGER, PARAMETER :: PW_COMPLEXDATA1D = COMPLEXDATA1D
   INTEGER, PARAMETER :: PW_REALDATA3D = REALDATA3D
@@ -167,12 +154,8 @@ SUBROUTINE coeff_allocate_from_coeff ( c_out, c_model, use_basis )
   NULLIFY(c_out%pw)
   IF ( PRESENT ( use_basis ) ) THEN
      IF ( use_basis == PLANEWAVES ) THEN
-        ALLOCATE(c_out%pw,stat=stat)
-        IF (stat /=0 ) CALL stop_program(&
-             "coefficient_types:coeff_allocate_from_coeff",&
-             "c_out%pw allocation")
         c_out % in_use = PLANEWAVES
-        CALL pw_allocate ( c_out % pw, c_model % pw % pw_grid, &
+        CALL pw_create ( c_out % pw, c_model % pw % pw_grid, &
              use_data = c_model % pw % in_use )
 
      ELSE IF ( use_basis == PW_REALDATA1D .OR. use_basis == PW_COMPLEXDATA1D &
@@ -181,7 +164,7 @@ SUBROUTINE coeff_allocate_from_coeff ( c_out, c_model, use_basis )
 
         c_out % in_use = PLANEWAVES
 
-        CALL pw_allocate ( c_out % pw, c_model % pw % pw_grid, &
+        CALL pw_create ( c_out % pw, c_model % pw % pw_grid, &
              use_data = use_basis )
 
      ELSE
@@ -196,7 +179,7 @@ SUBROUTINE coeff_allocate_from_coeff ( c_out, c_model, use_basis )
           use_data == PW_REALDATA3D .OR. use_data == PW_COMPLEXDATA3D ) THEN
 
         c_out % in_use = PLANEWAVES
-        CALL pw_allocate ( c_out % pw, c_model % pw % pw_grid, &
+        CALL pw_create ( c_out % pw, c_model % pw % pw_grid, &
              use_data = c_model % pw % in_use )
 
      ELSE
@@ -209,27 +192,23 @@ END SUBROUTINE coeff_allocate_from_coeff
 
 !******************************************************************************
 
-SUBROUTINE coeff_allocate_from_grid ( c_out, pw_grid, use_data )
+SUBROUTINE coeff_allocate_from_grid ( c_out, pw_grid, use_data,error )
 
 
     TYPE(coeff_type), INTENT(OUT)                    :: c_out
-    TYPE(pw_grid_type), INTENT(IN), TARGET, OPTIONAL :: pw_grid
+    TYPE(pw_grid_type), pointer                      :: pw_grid
     INTEGER, INTENT(IN)                              :: use_data
+    TYPE(cp_error_type), INTENT(inout), optional     :: error
 
     INTEGER                                  :: stat
+    CHARACTER(len=*), PARAMETER :: routineN="coeff_allocate_from_grid",&
+         routineP=moduleN//':'//routineN
 
 !------------------------------------------------------------------------------
 
-  ALLOCATE(c_out%pw,stat=stat)
-  IF (stat /=0 ) CALL stop_program(&
-       "coefficient_types:coeff_allocate_from_grid",&
-       "c_out%pw allocation")  
-  IF ( PRESENT ( pw_grid ) ) THEN
-     c_out % in_use = PLANEWAVES
-     CALL pw_allocate ( c_out % pw, pw_grid, use_data )
-  ELSE
-     CALL stop_program ( "coeff_allocate_from_grid", "no suitable grid" )
-  END IF
+  NULLIFY(c_out%pw)
+  c_out % in_use = PLANEWAVES
+  CALL pw_create ( c_out % pw, pw_grid, use_data )
 
 END SUBROUTINE coeff_allocate_from_grid
 

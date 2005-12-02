@@ -28,8 +28,8 @@ MODULE input_cp2k_dft
   use timings, only: timeset, timestop
   USE input_section_types, ONLY: section_type, section_create, &
        section_add_keyword, section_add_subsection, section_release,&
-       section_vals_type,&
-       section_vals_get_subs_vals, section_vals_get
+       section_vals_type, section_vals_get_subs_vals, section_vals_get,&
+       section_vals_val_get, section_vals_val_set
   USE input_constants
   USE input_keyword_types, ONLY: keyword_type, keyword_create,&
        keyword_release
@@ -50,7 +50,8 @@ MODULE input_cp2k_dft
   public :: create_mt_section
   public :: create_bsse_section
   public :: create_multipole_section
-  public :: create_properties_section
+  PUBLIC :: create_properties_section, create_scf_section
+  public :: xc_functionals_expand
 !***
 !****************************************************************************
 contains
@@ -96,8 +97,8 @@ contains
     nullify(keyword)
     CALL keyword_create(keyword, name="BASIS_SET_FILE_NAME",&
          description="Name of the basis set file, may include a path",&
-         usage="BASIS_SET_FILE_NAME ../BASISSET",&
-         default_c_val="BASISSET",error=error)
+         usage="BASIS_SET_FILE_NAME ../BASIS_SET",&
+         default_c_val="BASIS_SET",error=error)
     CALL section_add_keyword(section,keyword,error=error)
     CALL keyword_release(keyword,error=error)
     CALL keyword_create(keyword, name="POTENTIAL_FILE_NAME",&
@@ -106,10 +107,10 @@ contains
          default_c_val="POTENTIAL",error=error)
     CALL section_add_keyword(section,keyword,error=error)
     CALL keyword_release(keyword,error=error)
-    CALL keyword_create(keyword, name="PP_LIBRARY_PATH",&
-         description="Path of the directory where PseudoPotential are located.",&
-         usage="PP_LIBRARY_PATH path",&
-         default_c_val="./",error=error)
+    CALL keyword_create(keyword, name="RESTART_FILE_NAME",&
+         description="The path to the pseudo potential file",&
+         usage="RESTART_FILE_NAME ../RESTART",&
+         default_c_val="RESTART",error=error)
     CALL section_add_keyword(section,keyword,error=error)
     CALL keyword_release(keyword,error=error)
     CALL keyword_create(keyword, name="LSD",&
@@ -179,11 +180,90 @@ contains
     CALL section_add_subsection(section, subsection, error=error)
     CALL section_release(subsection,error=error)
 
+    CALL create_kg_section(subsection,error)
+    CALL section_add_subsection(section, subsection, error=error)
+    CALL section_release(subsection,error=error)
+
     CALL create_print_dft_section(subsection,error)
     CALL section_add_subsection(section, subsection, error=error)
     CALL section_release(subsection,error=error)
 
   END SUBROUTINE create_dft_section
+!***************************************************************************
+
+!!****f* input_cp2k_dft/xc_functionals_expand *
+!!
+!!   NAME
+!!     xc_functionals_expand
+!!
+!!   FUNCTION
+!!     expand a shortcutted functional section
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     - functionals: the functional section to expand
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     fawzi
+!!
+!!*** **********************************************************************
+SUBROUTINE xc_functionals_expand(functionals,error)
+  TYPE(section_vals_type), pointer :: functionals
+  type(cp_error_type), optional, intent(inout) :: error
+  
+  logical :: failure
+  character(len=*), parameter :: routineN='xc_functionals_expand',&
+        routineP=moduleN//':'//routineN
+  integer :: shortcut
+  failure=.false.
+  
+  IF (.NOT. failure) THEN
+     CALL section_vals_val_get(functionals,"_SECTION_PARAMETERS_",&
+          i_val=shortcut,error=error)
+     SELECT CASE(shortcut)
+     CASE(xc_funct_no_shortcut)
+        ! nothing to expand
+     CASE(xc_funct_blyp)
+        CALL section_vals_val_set(functionals,"BECKE88%_SECTION_PARAMETERS_",&
+             l_val=.TRUE.,error=error)
+        CALL section_vals_val_set(functionals,"LYP%_SECTION_PARAMETERS_",&
+             l_val=.TRUE.,error=error)
+        CALL section_vals_val_set(functionals,"_SECTION_PARAMETERS_",&
+             i_val=xc_funct_no_shortcut,error=error)
+     CASE(xc_funct_pade)
+        CALL section_vals_val_set(functionals,"PADE%_SECTION_PARAMETERS_",&
+             l_val=.TRUE.,error=error)
+        CALL section_vals_val_set(functionals,"_SECTION_PARAMETERS_",&
+             i_val=xc_funct_no_shortcut,error=error)
+     CASE(xc_funct_pbe)
+        CALL section_vals_val_set(functionals,"PBE%_SECTION_PARAMETERS_",&
+             l_val=.TRUE.,error=error)
+        CALL section_vals_val_set(functionals,"_SECTION_PARAMETERS_",&
+             i_val=xc_funct_no_shortcut,error=error)
+     CASE(xc_funct_tpss)
+        CALL section_vals_val_set(functionals,"TPSS%_SECTION_PARAMETERS_",&
+             l_val=.TRUE.,error=error)
+        CALL section_vals_val_set(functionals,"_SECTION_PARAMETERS_",&
+             i_val=xc_funct_no_shortcut,error=error)
+     CASE(xc_funct_olyp)
+        CALL section_vals_val_set(functionals,"OPTX%_SECTION_PARAMETERS_",&
+             l_val=.TRUE.,error=error)
+        CALL section_vals_val_set(functionals,"LYP%_SECTION_PARAMETERS_",&
+             l_val=.TRUE.,error=error)
+        CALL section_vals_val_set(functionals,"_SECTION_PARAMETERS_",&
+             i_val=xc_funct_no_shortcut,error=error)
+     CASE(xc_funct_hcth120)
+     CASE default
+        CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
+             routineP,"unknown shortcut "//TRIM(ADJUSTL(cp_to_string(shortcut))),&
+             error,failure)
+     END SELECT
+  END IF
+END SUBROUTINE xc_functionals_expand
 !***************************************************************************
 
 
@@ -328,14 +408,14 @@ contains
   SUBROUTINE create_print_dft_section(section,error)
     TYPE(section_type), POINTER :: section
     TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-    
+
     LOGICAL :: failure
     CHARACTER(len=*), PARAMETER :: routineN='create_print_dft_section',&
          routineP=moduleN//':'//routineN
     TYPE(section_type), POINTER :: print_key
     TYPE(keyword_type), POINTER :: keyword
     failure=.FALSE.
-    
+
     CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
        CALL section_create(section,name="print",&
@@ -345,170 +425,172 @@ contains
 
        NULLIFY(print_key, keyword)
 
-       CALL cp_print_key_section_create(print_key,"ATOMIC_COORDINATES",&
-            description="Controls the printing of atomic coordinates in the DFT code.", &
-            print_level=medium_print_level,each=(/1/),filename="__STD_OUT__",&
+       CALL cp_print_key_section_create(print_key,"neighborlist",&
+            description="controls the printing of the neighborlists (debug).", &
+            print_level=debug_print_level,each=(/1/),filename="",&
             error=error)
+       CALL keyword_create(keyword, name="sab_orb",&
+            description="If the printkey is activated controls the printing of s-a-b lists",&
+            default_l_val=.false., lone_keyword_l_val=.TRUE., error=error)
+       CALL section_add_keyword(print_key,keyword,error=error)
+       CALL keyword_release(keyword,error=error)    
+       CALL keyword_create(keyword, name="sac_ppl",&
+            description="If the printkey is activated controls the printing of s-a-c gth local lists",&
+            default_l_val=.false., lone_keyword_l_val=.TRUE., error=error)
+       CALL section_add_keyword(print_key,keyword,error=error)
+       CALL keyword_release(keyword,error=error)    
+       CALL keyword_create(keyword, name="sab_ppnl",&
+            description="If the printkey is activated controls the printing of s-a-c gth non local lists",&
+            default_l_val=.false., lone_keyword_l_val=.TRUE., error=error)
+       CALL section_add_keyword(print_key,keyword,error=error)
+       CALL keyword_release(keyword,error=error)    
+       CALL keyword_create(keyword, name="sbc_ppnl",&
+            description="If the printkey is activated controls the printing of s-b-c gth non local lists",&
+            default_l_val=.false., lone_keyword_l_val=.TRUE., error=error)
+       CALL section_add_keyword(print_key,keyword,error=error)
+       CALL keyword_release(keyword,error=error)    
+       CALL keyword_create(keyword, name="sac_oce",&
+            description="If the printkey is activated controls the printing of s-a-c oce lists",&
+            default_l_val=.false., lone_keyword_l_val=.TRUE., error=error)
+       CALL section_add_keyword(print_key,keyword,error=error)
+       CALL keyword_release(keyword,error=error)    
+       CALL keyword_create(keyword, name="sbc_oce",&
+            description="If the printkey is activated controls the printing of s-b-c oce lists",&
+            default_l_val=.false., lone_keyword_l_val=.TRUE., error=error)
+       CALL section_add_keyword(print_key,keyword,error=error)
+       CALL keyword_release(keyword,error=error)    
        CALL section_add_subsection(section,print_key,error=error)
        CALL section_release(print_key,error=error)
 
-       CALL cp_print_key_section_create(print_key,"BASIC_DATA_TYPES",&
-            description="Controls the printing of the basic data types.", &
+       CALL cp_print_key_section_create(print_key,"ao_matrices",&
+            description="Controls the printing of the ao (i.e. contracted gaussian) matrices (debug).", &
+            print_level=debug_print_level,each=(/1/),filename="",&
+            error=error)
+       CALL keyword_create(keyword, name="charge_density",&
+            description="If the printkey is activated controls the printing of the charge density matrix",&
+            default_l_val=.false., lone_keyword_l_val=.TRUE., error=error)
+       CALL section_add_keyword(print_key,keyword,error=error)
+       CALL keyword_release(keyword,error=error)    
+       CALL keyword_create(keyword, name="core_hamiltonian",&
+            description="If the printkey is activated controls the printing of the hamiltonian matrix",&
+            default_l_val=.false., lone_keyword_l_val=.TRUE., error=error)
+       CALL section_add_keyword(print_key,keyword,error=error)
+       CALL keyword_release(keyword,error=error)    
+       CALL keyword_create(keyword, name="density",&
+            description="If the printkey is activated controls the printing of the density (P) matrix",&
+            default_l_val=.false., lone_keyword_l_val=.TRUE., error=error)
+       CALL section_add_keyword(print_key,keyword,error=error)
+       CALL keyword_release(keyword,error=error)    
+       CALL keyword_create(keyword, name="hartree",&
+            description="If the printkey is activated controls the printing of the hartree matrix",&
+            default_l_val=.false., lone_keyword_l_val=.TRUE., error=error)
+       CALL section_add_keyword(print_key,keyword,error=error)
+       CALL keyword_release(keyword,error=error)    
+       CALL keyword_create(keyword, name="kinetic_energy",&
+            description="If the printkey is activated controls the printing of the kinetic energy matrix",&
+            default_l_val=.false., lone_keyword_l_val=.TRUE., error=error)
+       CALL section_add_keyword(print_key,keyword,error=error)
+       CALL keyword_release(keyword,error=error)    
+       CALL keyword_create(keyword, name="kohn_sham_matrix",&
+            description="If the printkey is activated controls the printing of the kohn-sham matrix",&
+            default_l_val=.false., lone_keyword_l_val=.TRUE., error=error)
+       CALL section_add_keyword(print_key,keyword,error=error)
+       CALL keyword_release(keyword,error=error)    
+       CALL keyword_create(keyword, name="ortho",&
+            description="If the printkey is activated controls the printing of the orthogonalization matrix",&
+            default_l_val=.false., lone_keyword_l_val=.TRUE., error=error)
+       CALL section_add_keyword(print_key,keyword,error=error)
+       CALL keyword_release(keyword,error=error)    
+       CALL keyword_create(keyword, name="overlap",&
+            description="If the printkey is activated controls the printing of the overlap matrix",&
+            default_l_val=.false., lone_keyword_l_val=.TRUE., error=error)
+       CALL section_add_keyword(print_key,keyword,error=error)
+       CALL keyword_release(keyword,error=error)    
+       CALL keyword_create(keyword, name="potential_energy",&
+            description="If the printkey is activated controls the printing of the potential energy matrix",&
+            default_l_val=.false., lone_keyword_l_val=.TRUE., error=error)
+       CALL section_add_keyword(print_key,keyword,error=error)
+       CALL keyword_release(keyword,error=error)    
+       CALL keyword_create(keyword, name="w_matrix",&
+            description="If the printkey is activated controls the printing of the w matrix",&
+            default_l_val=.false., lone_keyword_l_val=.TRUE., error=error)
+       CALL section_add_keyword(print_key,keyword,error=error)
+       CALL keyword_release(keyword,error=error)    
+       CALL keyword_create(keyword, name="derivative_order",&
+            description="If the printkey is activated controls the printing "//&
+            "of the order of derivatives that should be output (for the "//&
+            "matrixes that support this)",&
+            default_i_val=0, error=error)
+       CALL section_add_keyword(print_key,keyword,error=error)
+       CALL keyword_release(keyword,error=error)    
+       CALL section_add_subsection(section,print_key,error=error)
+       CALL section_release(print_key,error=error)
+
+       CALL cp_print_key_section_create(print_key,"MO",&
+            description="Controls the printing of the molecular orbitals .", &
+            print_level=high_print_level,each=(/1/),filename="",&
+            error=error)
+       CALL keyword_create(keyword, name="cartesian",&
+            description="If the printkey is activated controls the printing of the mo in the cartesian basis",&
+            default_l_val=.false., lone_keyword_l_val=.TRUE., error=error)
+       CALL section_add_keyword(print_key,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+       CALL keyword_create(keyword, name="eigenvalues",&
+            description="If the printkey is activated controls the printing of the eigenvalues of the mos",&
+            default_l_val=.true., lone_keyword_l_val=.TRUE., error=error)
+       CALL section_add_keyword(print_key,keyword,error=error)
+       CALL keyword_release(keyword,error=error)    
+       CALL keyword_create(keyword, name="eigenvectors",&
+            description="If the printkey is activated controls the printing of the eigenvectors of the mos",&
+            default_l_val=.true., lone_keyword_l_val=.TRUE., error=error)
+       CALL section_add_keyword(print_key,keyword,error=error)
+       CALL keyword_release(keyword,error=error)    
+       CALL keyword_create(keyword, name="occupation_numbers",&
+            description="If the printkey is activated controls the printing of the occupation numbers of the mos",&
+            default_l_val=.true., lone_keyword_l_val=.TRUE., error=error)
+       CALL section_add_keyword(print_key,keyword,error=error)
+       CALL keyword_release(keyword,error=error)    
+       CALL section_add_subsection(section,print_key,error=error)
+       CALL section_release(print_key,error=error)
+
+       CALL cp_print_key_section_create(print_key,"MO_CUBES",&
+            description="Controls the printing of cubes of the molecular orbitals (squared).", &
+            print_level=high_print_level,each=(/1/),filename="",&
+            error=error)
+       CALL keyword_create(keyword, name="nlumo",&
+            description="If the printkey is activated controls the number of lumos that are printed (-1=all)",&
+            default_i_val=5, error=error)
+       CALL section_add_keyword(print_key,keyword,error=error)
+       CALL keyword_release(keyword,error=error)    
+       CALL keyword_create(keyword, name="nhomo",&
+            description="If the printkey is activated controls the number of homos that are calculated and printed",&
+            default_i_val=1, error=error)
+       CALL section_add_keyword(print_key,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+       CALL section_add_subsection(section,print_key,error=error)
+       CALL section_release(print_key,error=error)
+
+
+       CALL cp_print_key_section_create(print_key,"gapw",&
+            description="Controls the printing of some gapw related information (debug).", &
             print_level=debug_print_level,each=(/1/),filename="__STD_OUT__",&
             error=error)
+       CALL keyword_create(keyword, name="projectors",&
+            description="If the printkey is activated controls if information on the projectors is printed.",&
+            default_l_val=.TRUE.,lone_keyword_l_val=.true., error=error)
+       CALL section_add_keyword(print_key,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+       CALL keyword_create(keyword, name="rho0_information",&
+            description="If the printkey is activated controls if information on rho0 is printed.",&
+            default_l_val=.TRUE.,lone_keyword_l_val=.true., error=error)
+       CALL section_add_keyword(print_key,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
        CALL section_add_subsection(section,print_key,error=error)
        CALL section_release(print_key,error=error)
 
-       CALL cp_print_key_section_create(print_key,"BASIC_SETS",&
-            description="Controls the printing of the basis sets used in the DFT calculation.", &
+       CALL cp_print_key_section_create(print_key,"dft_control_parameters",&
+            description="Controls the printing of dft control parameters.", &
             print_level=medium_print_level,each=(/1/),filename="__STD_OUT__",&
-            error=error)
-       CALL section_add_subsection(section,print_key,error=error)
-       CALL section_release(print_key,error=error)
-
-       CALL cp_print_key_section_create(print_key,"BLACS_INFORMATION",&
-            description="Controls the printing of information about the specified BLACS context.", &
-            print_level=high_print_level,each=(/1/),filename="__STD_OUT__",&
-            error=error)
-       CALL section_add_subsection(section,print_key,error=error)
-       CALL section_release(print_key,error=error)
-
-       CALL cp_print_key_section_create(print_key,"CELL_PARAMETERS",&
-            description="Controls the printing of cell information", &
-            print_level=low_print_level,each=(/1/),filename="__STD_OUT__",&
-            error=error)
-       CALL section_add_subsection(section,print_key,error=error)
-       CALL section_release(print_key,error=error)
-
-       CALL cp_print_key_section_create(print_key,"CORE_HAMILTONIAN_MATRIX",&
-            description="Controls the printing of the core hamiltonian matrix.", &
-            print_level=high_print_level,each=(/1/),filename="__STD_OUT__",&
-            error=error)
-       CALL section_add_subsection(section,print_key,error=error)
-       CALL section_release(print_key,error=error)
-
-       CALL cp_print_key_section_create(print_key,"CORE_CHARGE_RADII",&
-            description="Controls the printing of the core charge radii.", &
-            print_level=high_print_level,each=(/1/),filename="__STD_OUT__",&
-            error=error)
-       CALL section_add_subsection(section,print_key,error=error)
-       CALL section_release(print_key,error=error)
-
-       CALL cp_print_key_section_create(print_key,"CPUTIME",&
-            description="Controls the printing of cputime information along the MM execution.", &
-            print_level=high_print_level,each=(/1/),filename="__STD_OUT__",&
-            error=error)
-       CALL section_add_subsection(section,print_key,error=error)
-       CALL section_release(print_key,error=error)
-
-       CALL cp_print_key_section_create(print_key,"DENSITY_MATRIX",&
-            description="Controls the printing of the Density Matrix", &
-            print_level=high_print_level,each=(/1/),filename="__STD_OUT__",&
-            error=error)
-       CALL section_add_subsection(section,print_key,error=error)
-       CALL section_release(print_key,error=error)
-
-       CALL cp_print_key_section_create(print_key,"DERIVATIVES",&
-            description="Controls the printing of derivatives.", &
-            print_level=debug_print_level,each=(/1/),filename="__STD_OUT__",&
-            error=error)
-       CALL section_add_subsection(section,print_key,error=error)
-       CALL section_release(print_key,error=error)
-
-       CALL cp_print_key_section_create(print_key,"DIIS_INFORMATION",&
-            description="Controls the printing of the DIIS information.", &
-            print_level=medium_print_level,each=(/1/),filename="__STD_OUT__",&
-            error=error)
-       CALL section_add_subsection(section,print_key,error=error)
-       CALL section_release(print_key,error=error)
-
-       CALL cp_print_key_section_create(print_key,"DISTRIBUTION",&
-            description="Controls the printing of the distribution of the simple pair neighbour list.", &
-            print_level=high_print_level,each=(/1/),filename="__STD_OUT__",&
-            error=error)
-       CALL section_add_subsection(section,print_key,error=error)
-       CALL section_release(print_key,error=error)
-
-       CALL cp_print_key_section_create(print_key,"FORCE",&
-            description="Controls the printing of the forces.", &
-            print_level=high_print_level,each=(/1/),filename="__STD_OUT__",&
-            error=error)
-       CALL section_add_subsection(section,print_key,error=error)
-       CALL section_release(print_key,error=error)
-
-       CALL cp_print_key_section_create(print_key,"HARTREE_MATRIX",&
-            description="Controls the printing of the Hartree Matrix.", &
-            print_level=high_print_level,each=(/1/),filename="__STD_OUT__",&
-            error=error)
-       CALL section_add_subsection(section,print_key,error=error)
-       CALL section_release(print_key,error=error)
-
-       CALL cp_print_key_section_create(print_key,"INTERATOMIC_DISTANCES",&
-            description="Controls the printing of interatomic distances.", &
-            print_level=high_print_level,each=(/1/),filename="__STD_OUT__",&
-            error=error)
-       CALL section_add_subsection(section,print_key,error=error)
-       CALL section_release(print_key,error=error)
-
-       CALL cp_print_key_section_create(print_key,"KIND_INFORMATION",&
-            description="Controls the printing of information on atomic kinds.", &
-            print_level=low_print_level,each=(/1/),filename="__STD_OUT__",&
-            error=error)
-       CALL section_add_subsection(section,print_key,error=error)
-       CALL section_release(print_key,error=error)
-
-       CALL cp_print_key_section_create(print_key,"KIND_RADII",&
-            description="Controls the printing of the kind radii", &
-            print_level=high_print_level,each=(/1/),filename="__STD_OUT__",&
-            error=error)
-       CALL section_add_subsection(section,print_key,error=error)
-       CALL section_release(print_key,error=error)
-
-       CALL cp_print_key_section_create(print_key,"KINETIC_ENERGY_MATRIX",&
-            description="Controls the printing the kinetic energy matrix.", &
-            print_level=high_print_level,each=(/1/),filename="__STD_OUT__",&
-            error=error)
-       CALL section_add_subsection(section,print_key,error=error)
-       CALL section_release(print_key,error=error)
-
-       CALL cp_print_key_section_create(print_key,"KS_MATRIX",&
-            description="Controls the printing of the Kohn-Sham Matrix.", &
-            print_level=high_print_level,each=(/1/),filename="__STD_OUT__",&
-            error=error)
-       CALL section_add_subsection(section,print_key,error=error)
-       CALL section_release(print_key,error=error)
-
-       CALL cp_print_key_section_create(print_key,"MEMORY",&
-            description="Controls the printing of information on memory usage", &
-            print_level=high_print_level,each=(/1/),filename="__STD_OUT__",&
-            error=error)
-       CALL section_add_subsection(section,print_key,error=error)
-       CALL section_release(print_key,error=error)
-
-       CALL cp_print_key_section_create(print_key,"MO_EIGENVALUES",&
-            description="Controls the printing of the eigenvalues of the MOs", &
-            print_level=high_print_level,each=(/1/),filename="__STD_OUT__",&
-            error=error)
-       CALL section_add_subsection(section,print_key,error=error)
-       CALL section_release(print_key,error=error)
-
-       CALL cp_print_key_section_create(print_key,"MO_EIGENVECTORS",&
-            description="Controls the printing of the Molecular Orbitals", &
-            print_level=high_print_level,each=(/1/),filename="__STD_OUT__",&
-            error=error)
-       CALL section_add_subsection(section,print_key,error=error)
-       CALL section_release(print_key,error=error)
-
-       CALL cp_print_key_section_create(print_key,"MO_OCCUPATION_NUMBERS",&
-            description="Controls the printing of the occupation numbers of MOs.", &
-            print_level=high_print_level,each=(/1/),filename="__STD_OUT__",&
-            error=error)
-       CALL section_add_subsection(section,print_key,error=error)
-       CALL section_release(print_key,error=error)
-
-       CALL cp_print_key_section_create(print_key,"NEIGHBOUR_LISTS",&
-            description="Controls the printing of the set of neighbor lists.", &
-            print_level=debug_print_level,each=(/1/),filename="__STD_OUT__",&
             error=error)
        CALL section_add_subsection(section,print_key,error=error)
        CALL section_release(print_key,error=error)
@@ -520,225 +602,16 @@ contains
        CALL section_add_subsection(section,print_key,error=error)
        CALL section_release(print_key,error=error)
 
-       CALL cp_print_key_section_create(print_key,"OVERLAP_MATRIX",&
-            description="Controls the printing of the Overlap Matrix", &
-            print_level=high_print_level,each=(/1/),filename="__STD_OUT__",&
+       CALL cp_print_key_section_create(print_key,"e_density_cube",&
+            description="Controls the printing of a cube file with electronic density.", &
+            print_level=high_print_level,each=(/1/),filename="",&
             error=error)
        CALL section_add_subsection(section,print_key,error=error)
        CALL section_release(print_key,error=error)
 
-       CALL cp_print_key_section_create(print_key,"PGF_RADII",&
-            description="Controls the printing of the radii of the primitive gaussian functions.", &
-            print_level=high_print_level,each=(/1/),filename="__STD_OUT__",&
-            error=error)
-       CALL section_add_subsection(section,print_key,error=error)
-       CALL section_release(print_key,error=error)
-
-       CALL cp_print_key_section_create(print_key,"PHYSICAL_CONSTANTS",&
-            description="Controls the printing of physical constants used in the code.", &
-            print_level=high_print_level,each=(/1/),filename="__STD_OUT__",&
-            error=error)
-       CALL section_add_subsection(section,print_key,error=error)
-       CALL section_release(print_key,error=error)
-
-       CALL cp_print_key_section_create(print_key,"POTENTIAL",&
-            description="Controls the printing of the potential generated by the QM "//&
-            "charge distribution on a cube file.", &
-            print_level=high_print_level,each=(/1/),filename="__STD_OUT__",&
-            error=error)
-       CALL section_add_subsection(section,print_key,error=error)
-       CALL section_release(print_key,error=error)
-
-       CALL cp_print_key_section_create(print_key,"POTENTIAL_ENERGY_MATRIX",&
-            description="Controls the printing of the potential energy matrix", &
-            print_level=high_print_level,each=(/1/),filename="__STD_OUT__",&
-            error=error)
-       CALL section_add_subsection(section,print_key,error=error)
-       CALL section_release(print_key,error=error)
-
-       CALL cp_print_key_section_create(print_key,"PPL_RADII",&
-            description="Controls the printing of the radii of the exponential functions "//&
-            "of the Goedecker pseudopotential (GTH, local part)", &
-            print_level=high_print_level,each=(/1/),filename="__STD_OUT__",&
-            error=error)
-       CALL section_add_subsection(section,print_key,error=error)
-       CALL section_release(print_key,error=error)
-
-       CALL cp_print_key_section_create(print_key,"PPNL_RADII",&
-            description="Controls the printing of the radii of the projector functions "//&
-            "of the Goedecker pseudopotential (GTH, non-local part)", &
-            print_level=high_print_level,each=(/1/),filename="__STD_OUT__",&
-            error=error)
-       CALL section_add_subsection(section,print_key,error=error)
-       CALL section_release(print_key,error=error)
-
-       CALL cp_print_key_section_create(print_key,"PRJ_RADII",&
-            description="Controls the printing of the radii of the one center projector", &
-            print_level=high_print_level,each=(/1/),filename="__STD_OUT__",&
-            error=error)
-       CALL section_add_subsection(section,print_key,error=error)
-       CALL section_release(print_key,error=error)
-
-       CALL cp_print_key_section_create(print_key,"PRECISION",&
-            description="Controls the precision of the results printed.",&
-            print_level=high_print_level,each=(/1/),filename="__STD_OUT__",&
-            error=error)
-       CALL section_add_subsection(section,print_key,error=error)
-       CALL section_release(print_key,error=error)
-
-       CALL cp_print_key_section_create(print_key,"PROGRAM_BANNER",&
-            description="Controls the printing of the banner of the MM program",&
-            print_level=low_print_level,each=(/1/),filename="__STD_OUT__",&
-            error=error)
-       CALL section_add_subsection(section,print_key,error=error)
-       CALL section_release(print_key,error=error)
-
-       CALL cp_print_key_section_create(print_key,"PROGRAM_RUN_INFO",&
-            description="Controls the printing of information regarding the run.",&
-            print_level=low_print_level,each=(/1/),filename="__STD_OUT__",&
-            error=error)
-       CALL section_add_subsection(section,print_key,error=error)
-       CALL section_release(print_key,error=error)
-
-       CALL cp_print_key_section_create(print_key,"PW_GRID_INFORMATION",&
-            description="Controls the printing of information regarding the pw_grid structure.",&
-            print_level=high_print_level,each=(/1/),filename="__STD_OUT__",&
-            error=error)
-       CALL section_add_subsection(section,print_key,error=error)
-       CALL section_release(print_key,error=error)
-
-       CALL cp_print_key_section_create(print_key,"RADII",&
-            description="Controls the printing of the full species of radii", &
-            print_level=high_print_level,each=(/1/),filename="__STD_OUT__",&
-            error=error)
-       CALL section_add_subsection(section,print_key,error=error)
-       CALL section_release(print_key,error=error)
-
-       CALL cp_print_key_section_create(print_key,"SAB_ORB_NEIGHBOR_LIST",&
-            description="Controls the printing of the orbital-orbital overlap neighbor lists", &
-            print_level=debug_print_level,each=(/1/),filename="__STD_OUT__",&
-            error=error)
-       CALL section_add_subsection(section,print_key,error=error)
-       CALL section_release(print_key,error=error)
-
-       CALL cp_print_key_section_create(print_key,"SAC_PPL_NEIGHBOR_LIST",&
-            description="Controls the printing of the orbital GTH-PPL operator overlap list.", &
-            print_level=debug_print_level,each=(/1/),filename="__STD_OUT__",&
-            error=error)
-       CALL section_add_subsection(section,print_key,error=error)
-       CALL section_release(print_key,error=error)
-
-       CALL cp_print_key_section_create(print_key,"SAC_PPNL_NEIGHBOR_LIST",&
-            description="Controls the printing of the orbital GTH-PPNL operator overlap list.", &
-            print_level=debug_print_level,each=(/1/),filename="__STD_OUT__",&
-            error=error)
-       CALL section_add_subsection(section,print_key,error=error)
-       CALL section_release(print_key,error=error)
-
-       CALL cp_print_key_section_create(print_key,"SBC_PPNL_NEIGHBOR_LIST",&
-            description="Controls the printing of the orbital GTH-PPNL operator overlap list.", &
-            print_level=debug_print_level,each=(/1/),filename="__STD_OUT__",&
-            error=error)
-       CALL section_add_subsection(section,print_key,error=error)
-       CALL section_release(print_key,error=error)
-
-       CALL cp_print_key_section_create(print_key,"SAC_OCE_NEIGHBOR_LIST",&
-            description="Controls the printing of then orbital orbital-gapw projector  overlap list", &
-            print_level=debug_print_level,each=(/1/),filename="__STD_OUT__",&
-            error=error)
-       CALL section_add_subsection(section,print_key,error=error)
-       CALL section_release(print_key,error=error)
-
-       CALL cp_print_key_section_create(print_key,"SBC_OCE_NEIGHBOR_LIST",&
-            description="Controls the printing of then orbital orbital-gapw projector  overlap list", &
-            print_level=debug_print_level,each=(/1/),filename="__STD_OUT__",&
-            error=error)
-       CALL section_add_subsection(section,print_key,error=error)
-       CALL section_release(print_key,error=error)
-
-       CALL cp_print_key_section_create(print_key,"SCF",&
-            description="Controls the printing of the SCF parameters.", &
-            print_level=low_print_level,each=(/1/),filename="__STD_OUT__",&
-            error=error)
-       CALL section_add_subsection(section,print_key,error=error)
-       CALL section_release(print_key,error=error)
-
-       CALL cp_print_key_section_create(print_key,"SET_RADII",&
-            description="Controls the printing of the shell set radii", &
-            print_level=high_print_level,each=(/1/),filename="__STD_OUT__",&
-            error=error)
-       CALL section_add_subsection(section,print_key,error=error)
-       CALL section_release(print_key,error=error)
-
-       CALL cp_print_key_section_create(print_key,"SPHERICAL_HARMONICS",&
-            description="Controls the printing of the Spherical Harmonics and the"//&
-            "orbital transformation matrices", &
-            print_level=debug_print_level,each=(/1/),filename="__STD_OUT__",&
-            error=error)
-       CALL section_add_subsection(section,print_key,error=error)
-       CALL section_release(print_key,error=error)
-
-       CALL cp_print_key_section_create(print_key,"TOTAL_NUMBERS",&
-            description="Controls the printing of the total number of kinds, atoms, etc.",&
-            print_level=low_print_level,each=(/1/),filename="__STD_OUT__",&
-            error=error)
-       CALL section_add_subsection(section,print_key,error=error)
-       CALL section_release(print_key,error=error)
-
-
-       CALL cp_print_key_section_create(print_key,"W-MATRIX",&
-            description="Controls the printing of the W matrix, involved in the force calculation.", &
-            print_level=high_print_level,each=(/1/),filename="__STD_OUT__",&
-            error=error)
-       CALL section_add_subsection(section,print_key,error=error)
-       CALL section_release(print_key,error=error)
-
-       CALL cp_print_key_section_create(print_key,"ORBITALS",&
-            description="Controls the printing of the MOs with cube format", &
-            print_level=high_print_level,each=(/1/),filename="__STD_OUT__",&
-            error=error)
-
-       CALL keyword_create(keyword, name="NUMBER_ORBITALS",&
-            description="Specify the number of orbitals to print (counting from HOMO to the lowest orbital)",&
-            usage="NUMBER_ORBITALS {integer}",&
-            default_i_val=5,error=error)
-       CALL section_add_keyword(print_key,keyword,error=error)
-       CALL keyword_release(keyword,error=error)       
-
-       CALL keyword_create(keyword, name="ORBITAL_NUMBER",&
-            description="Specify the orbital number to print.",&
-            usage="ORBITAL_NUMBER {integer} .. {integer}",&
-            required=.TRUE., type_of_var=integer_t, n_var=-1, error=error)
-       CALL section_add_keyword(print_key,keyword,error=error)
-       CALL keyword_release(keyword,error=error)       
-
-       CALL section_add_subsection(section,print_key,error=error)
-       CALL section_release(print_key,error=error)
-
-       CALL cp_print_key_section_create(print_key,"E_DENSITY_CUBE",&
-            description="Controls the printing of the electron density with cube format", &
-            print_level=high_print_level,each=(/1/),filename="__STD_OUT__",&
-            error=error)
-       CALL section_add_subsection(section,print_key,error=error)
-       CALL section_release(print_key,error=error)
-
-       CALL cp_print_key_section_create(print_key,"V_HARTREE_CUBE",&
-            description="Controls the printing of the hartree potential with a cube format", &
-            print_level=high_print_level,each=(/1/),filename="__STD_OUT__",&
-            error=error)
-       CALL section_add_subsection(section,print_key,error=error)
-       CALL section_release(print_key,error=error)
-
-       CALL cp_print_key_section_create(print_key,"LUMO",&
-            description="Controls the printing of the Lumo with cube format", &
-            print_level=high_print_level,each=(/1/),filename="__STD_OUT__",&
-            error=error)
-       CALL section_add_subsection(section,print_key,error=error)
-       CALL section_release(print_key,error=error)
-
-       CALL cp_print_key_section_create(print_key,"HOMO",&
-            description="Controls the printing of the Homo with cube format", &
-            print_level=high_print_level,each=(/1/),filename="__STD_OUT__",&
+       CALL cp_print_key_section_create(print_key,"v_hartree_cube",&
+            description="Controls the printing of a cube file with eletrostatic potential (electrons+core).", &
+            print_level=high_print_level,each=(/1/),filename="",&
             error=error)
        CALL section_add_subsection(section,print_key,error=error)
        CALL section_release(print_key,error=error)
@@ -747,7 +620,6 @@ contains
             Description="Controls the printing of the Wannier centers.", &
             print_level=high_print_level,each=(/1/),filename="__STD_OUT__",&
             error=error)
-
        CALL keyword_create(keyword, name="LOC_TYPE",&
             description="Specify the method to use for the localization.",&
             usage="LOC_TYPE (JACOBI|CRAZY|DIRECT|NONE)",&
@@ -762,13 +634,6 @@ contains
 
        CALL cp_print_key_section_create(print_key,"MOLECULAR_STATES",&
             description="Controls the printing of the molecular states", &
-            print_level=high_print_level,each=(/1/),filename="__STD_OUT__",&
-            error=error)
-       CALL section_add_subsection(section,print_key,error=error)
-       CALL section_release(print_key,error=error)
-
-       CALL cp_print_key_section_create(print_key,"HPM",&
-            description="Controls the printing of the hpm info (if linked as external library)", &
             print_level=high_print_level,each=(/1/),filename="__STD_OUT__",&
             error=error)
        CALL section_add_subsection(section,print_key,error=error)
@@ -842,12 +707,6 @@ SUBROUTINE create_qs_section(section,error)
 
      NULLIFY(keyword, subsection)
     
-    CALL keyword_create(keyword, name="RESTART_FILE_NAME",&
-         description="The path to the pseudo potential file",&
-         usage="RESTART_FILE_NAME ../RESTART",&
-         default_c_val="RESTART",error=error)
-    CALL section_add_keyword(section,keyword,error=error)
-    CALL keyword_release(keyword,error=error)
      ! Reals
      CALL keyword_create(keyword, name="EPS_DEFAULT",&
           description="Try setting all EPS_xxx to values leading to an energy correct up to EPS_DEFAULT",&
@@ -995,7 +854,7 @@ SUBROUTINE create_qs_section(section,error)
           variants=(/"LMAXRHO1"/),&
           description="GAPW : max L number for espansion of the atomic densities in spherical gaussians",&
           usage="LMAXN1 integer",&
-          default_i_val=-1,error=error)
+          default_i_val=6,error=error)
      CALL section_add_keyword(section,keyword,error=error)
      CALL keyword_release(keyword,error=error)
 
@@ -1269,9 +1128,9 @@ SUBROUTINE create_xc_fun_section(section,error)
      CALL keyword_create(keyword,name="_SECTION_PARAMETERS_",&
           description="shorcut for the most commont functionals combinations",&
           usage="&xc_functional BLYP",&
-          enum_c_vals=s2a("BLYP","PADE","PBE","TPSS","HCTH120","NO_SHORTCUT"),&
+          enum_c_vals=s2a("BLYP","PADE","PBE","TPSS","HCTH120","OLYP","NO_SHORTCUT"),&
           enum_i_vals=(/xc_funct_blyp,xc_funct_pade,xc_funct_pbe,&
-          xc_funct_tpss,xc_funct_hcth120,xc_funct_no_shortcut/),&
+          xc_funct_tpss,xc_funct_hcth120,xc_funct_olyp,xc_funct_no_shortcut/),&
           default_i_val=xc_funct_no_shortcut,lone_keyword_i_val=xc_funct_no_shortcut,&
           error=error)
      CALL section_add_keyword(section,keyword,error=error)
@@ -1281,6 +1140,11 @@ SUBROUTINE create_xc_fun_section(section,error)
           description="Uses the Becke 88 exchange functional",&
           n_keywords=0, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
           error=error)
+     CALL keyword_create(keyword,"_SECTION_PARAMETERS_",&
+          description="activates the functional",&
+          lone_keyword_l_val=.TRUE.,default_l_val=.FALSE.,error=error)
+     CALL section_add_keyword(subsection,keyword,error=error)
+     CALL keyword_release(keyword,error=error)
      CALL section_add_subsection(section,subsection,error=error)
      CALL section_release(subsection,error=error)
 
@@ -1288,6 +1152,11 @@ SUBROUTINE create_xc_fun_section(section,error)
           description="Uses the LYP functional",&
           n_keywords=0, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
           error=error)
+     CALL keyword_create(keyword,"_SECTION_PARAMETERS_",&
+          description="activates the functional",&
+          lone_keyword_l_val=.TRUE.,default_l_val=.FALSE.,error=error)
+     CALL section_add_keyword(subsection,keyword,error=error)
+     CALL keyword_release(keyword,error=error)
      CALL section_add_subsection(section,subsection,error=error)
      CALL section_release(subsection,error=error)
 
@@ -1295,6 +1164,11 @@ SUBROUTINE create_xc_fun_section(section,error)
           description="Uses the PADE functional",&
           n_keywords=0, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
           error=error)
+     CALL keyword_create(keyword,"_SECTION_PARAMETERS_",&
+          description="activates the functional",&
+          lone_keyword_l_val=.TRUE.,default_l_val=.FALSE.,error=error)
+     CALL section_add_keyword(subsection,keyword,error=error)
+     CALL keyword_release(keyword,error=error)
      CALL section_add_subsection(section,subsection,error=error)
      CALL section_release(subsection,error=error)
 
@@ -1310,6 +1184,11 @@ SUBROUTINE create_xc_fun_section(section,error)
           default_i_val=120,error=error)
      CALL section_add_keyword(subsection,keyword,error=error)
      CALL keyword_release(keyword,error=error)
+     CALL keyword_create(keyword,"_SECTION_PARAMETERS_",&
+          description="activates the functional",&
+          lone_keyword_l_val=.TRUE.,default_l_val=.FALSE.,error=error)
+     CALL section_add_keyword(subsection,keyword,error=error)
+     CALL keyword_release(keyword,error=error)
      CALL section_add_subsection(section,subsection,error=error)
      CALL section_release(subsection,error=error)
 
@@ -1317,6 +1196,11 @@ SUBROUTINE create_xc_fun_section(section,error)
           description="Uses the OPTX functional",&
           n_keywords=0, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
           error=error)
+     CALL keyword_create(keyword,"_SECTION_PARAMETERS_",&
+          description="activates the functional",&
+          lone_keyword_l_val=.TRUE.,default_l_val=.FALSE.,error=error)
+     CALL section_add_keyword(subsection,keyword,error=error)
+     CALL keyword_release(keyword,error=error)
      CALL section_add_subsection(section,subsection,error=error)
      CALL section_release(subsection,error=error)
 
@@ -1324,6 +1208,11 @@ SUBROUTINE create_xc_fun_section(section,error)
           description="Uses the CS1 functional",&
           n_keywords=0, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
           error=error)
+     CALL keyword_create(keyword,"_SECTION_PARAMETERS_",&
+          description="activates the functional",&
+          lone_keyword_l_val=.TRUE.,default_l_val=.FALSE.,error=error)
+     CALL section_add_keyword(subsection,keyword,error=error)
+     CALL keyword_release(keyword,error=error)
      CALL section_add_subsection(section,subsection,error=error)
      CALL section_release(subsection,error=error)
 
@@ -1332,6 +1221,11 @@ SUBROUTINE create_xc_fun_section(section,error)
           "some of these functionals might be available outside this section).",&
           n_keywords=1, n_subsections=0, repeats=.TRUE., required=.TRUE.,&
           error=error)
+     CALL keyword_create(keyword,"_SECTION_PARAMETERS_",&
+          description="activates the functional",&
+          lone_keyword_l_val=.TRUE.,default_l_val=.FALSE.,error=error)
+     CALL section_add_keyword(subsection,keyword,error=error)
+     CALL keyword_release(keyword,error=error)
      CALL keyword_create(keyword,name="FUNCTIONAL",&
           description="Which one of the XGGA functionals should be used",&
           usage="FUNCTIONAL PW86X",&
@@ -1354,6 +1248,11 @@ SUBROUTINE create_xc_fun_section(section,error)
           "some of these functionals might be available outside this section).",&
           n_keywords=1, n_subsections=0, repeats=.TRUE., required=.TRUE.,&
           error=error)
+     CALL keyword_create(keyword,"_SECTION_PARAMETERS_",&
+          description="activates the functional",&
+          lone_keyword_l_val=.TRUE.,default_l_val=.FALSE.,error=error)
+     CALL section_add_keyword(subsection,keyword,error=error)
+     CALL keyword_release(keyword,error=error)
      CALL keyword_create(keyword,name="FUNCTIONAL",&
           description="Which one of the KE_GGA functionals should be used",&
           usage="FUNCTIONAL LLP",&
@@ -1376,6 +1275,11 @@ SUBROUTINE create_xc_fun_section(section,error)
           description="Uses the PerdewWang correlation functional.",&
           n_keywords=1, n_subsections=0, repeats=.TRUE., required=.TRUE.,&
           error=error)
+     CALL keyword_create(keyword,"_SECTION_PARAMETERS_",&
+          description="activates the functional",&
+          lone_keyword_l_val=.TRUE.,default_l_val=.FALSE.,error=error)
+     CALL section_add_keyword(subsection,keyword,error=error)
+     CALL keyword_release(keyword,error=error)
      CALL keyword_create(keyword,name="PARAMETRIZATION",&
           description="Which one of parametrizations should be used",&
           usage="PARAMETRIZATION DMC",&
@@ -1394,6 +1298,11 @@ SUBROUTINE create_xc_fun_section(section,error)
           description="Uses the PZ functional.",&
           n_keywords=1, n_subsections=0, repeats=.TRUE., required=.TRUE.,&
           error=error)
+     CALL keyword_create(keyword,"_SECTION_PARAMETERS_",&
+          description="activates the functional",&
+          lone_keyword_l_val=.TRUE.,default_l_val=.FALSE.,error=error)
+     CALL section_add_keyword(subsection,keyword,error=error)
+     CALL keyword_release(keyword,error=error)
      CALL keyword_create(keyword,name="PARAMETRIZATION",&
           description="Which one of parametrizations should be used",&
           usage="PARAMETRIZATION DMC",&
@@ -1412,6 +1321,11 @@ SUBROUTINE create_xc_fun_section(section,error)
           description="Uses the TFW functional",&
           n_keywords=0, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
           error=error)
+     CALL keyword_create(keyword,"_SECTION_PARAMETERS_",&
+          description="activates the functional",&
+          lone_keyword_l_val=.TRUE.,default_l_val=.FALSE.,error=error)
+     CALL section_add_keyword(subsection,keyword,error=error)
+     CALL keyword_release(keyword,error=error)
      CALL section_add_subsection(section,subsection,error=error)
      CALL section_release(subsection,error=error)
      
@@ -1419,6 +1333,11 @@ SUBROUTINE create_xc_fun_section(section,error)
           description="Uses the TF functional",&
           n_keywords=0, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
           error=error)
+     CALL keyword_create(keyword,"_SECTION_PARAMETERS_",&
+          description="activates the functional",&
+          lone_keyword_l_val=.TRUE.,default_l_val=.FALSE.,error=error)
+     CALL section_add_keyword(subsection,keyword,error=error)
+     CALL keyword_release(keyword,error=error)
      CALL section_add_subsection(section,subsection,error=error)
      CALL section_release(subsection,error=error)
      
@@ -1426,6 +1345,11 @@ SUBROUTINE create_xc_fun_section(section,error)
           description="Uses the VWN functional",&
           n_keywords=0, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
           error=error)
+     CALL keyword_create(keyword,"_SECTION_PARAMETERS_",&
+          description="activates the functional",&
+          lone_keyword_l_val=.TRUE.,default_l_val=.FALSE.,error=error)
+     CALL section_add_keyword(subsection,keyword,error=error)
+     CALL keyword_release(keyword,error=error)
      CALL section_add_subsection(section,subsection,error=error)
      CALL section_release(subsection,error=error)
      
@@ -1433,6 +1357,11 @@ SUBROUTINE create_xc_fun_section(section,error)
           description="Uses the XALPHA (SLATER) functional.",&
           n_keywords=1, n_subsections=0, repeats=.TRUE., required=.TRUE.,&
           error=error)
+     CALL keyword_create(keyword,"_SECTION_PARAMETERS_",&
+          description="activates the functional",&
+          lone_keyword_l_val=.TRUE.,default_l_val=.FALSE.,error=error)
+     CALL section_add_keyword(subsection,keyword,error=error)
+     CALL keyword_release(keyword,error=error)
      CALL keyword_create(keyword,name="XA",&
           description="Value of the xa parameter (this does not change the exponent, "//&
           "just the mixing)",&
@@ -1446,23 +1375,26 @@ SUBROUTINE create_xc_fun_section(section,error)
           description="Uses the TPSS functional",&
           n_keywords=0, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
           error=error)
+     CALL keyword_create(keyword,"_SECTION_PARAMETERS_",&
+          description="activates the functional",&
+          lone_keyword_l_val=.TRUE.,default_l_val=.FALSE.,error=error)
+     CALL section_add_keyword(subsection,keyword,error=error)
+     CALL keyword_release(keyword,error=error)
      CALL section_add_subsection(section,subsection,error=error)
      CALL section_release(subsection,error=error)
      
-     CALL section_create(subsection,name="PBEX",&
+     CALL section_create(subsection,name="PBE",&
           description="Uses the PBE functional",&
           n_keywords=0, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
           error=error)
+     CALL keyword_create(keyword,"_SECTION_PARAMETERS_",&
+          description="activates the functional",&
+          lone_keyword_l_val=.TRUE.,default_l_val=.FALSE.,error=error)
+     CALL section_add_keyword(subsection,keyword,error=error)
+     CALL keyword_release(keyword,error=error)
      CALL section_add_subsection(section,subsection,error=error)
      CALL section_release(subsection,error=error)
-          
-     CALL section_create(subsection,name="PBEC",&
-          description="Uses the PBE functional",&
-          n_keywords=0, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
-          error=error)
-     CALL section_add_subsection(section,subsection,error=error)
-     CALL section_release(subsection,error=error)
-          
+
   END IF
 END SUBROUTINE create_xc_fun_section
 
@@ -1864,9 +1796,10 @@ SUBROUTINE create_tddfpt_section(section,error)
     character(len=*), parameter :: routineN='create_scf_section',&
          routineP=moduleN//':'//routineN
     TYPE(keyword_type), pointer :: keyword
-    TYPE(section_type), pointer :: subsection
+    TYPE(section_type), POINTER :: subsection, print_key
 
     failure=.false.
+    nullify(print_key)
 
     CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
@@ -1987,8 +1920,9 @@ SUBROUTINE create_tddfpt_section(section,error)
        CALL keyword_create(keyword, name="SCF_GUESS",&
             description="Change the initial guess for the wavefunction.",&
             usage="SCF_GUESS RESTART", default_i_val=atomic_guess,&
-            enum_c_vals=s2a("ATOMIC","RESTART","RANDOM","CORE"),&
-            enum_i_vals=(/atomic_guess,restart_guess,random_guess,core_guess/),&
+            enum_c_vals=s2a("ATOMIC","RESTART","RANDOM","CORE","DENSITIES"),&
+            enum_i_vals=(/atomic_guess,restart_guess,random_guess,core_guess,&
+            densities_guess/),&
             error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -2010,6 +1944,46 @@ SUBROUTINE create_tddfpt_section(section,error)
             usage="ADDED_MOS", default_i_val=0,n_var=-1,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
+
+
+       CALL section_create(subsection,"PRINT","printing of information during the scf",&
+            error=error,repeats=.FALSE.,required=.false.)
+
+       CALL cp_print_key_section_create(print_key,"iteration_info",&
+            description="Controls the printing of basic iteration information during the scf.", &
+            print_level=low_print_level,each=(/1/),add_last=(/1/),filename="__STD_OUT__",&
+            error=error)
+       CALL keyword_create(keyword, name="time_cumul",&
+            description="If the printkey is activated switches the printing of timings to cumulative (over the scf).",&
+            default_l_val=.FALSE., lone_keyword_l_val=.TRUE., error=error)
+       CALL section_add_keyword(print_key,keyword,error=error)
+       CALL keyword_release(keyword,error=error)    
+       CALL section_add_subsection(subsection,print_key,error=error)
+       CALL section_release(print_key,error=error)
+
+       CALL cp_print_key_section_create(print_key,"detailed_energy",&
+            description="Controls the printing of detailed energy information.", &
+            print_level=high_print_level,each=(/0/),add_last=(/1/),filename="__STD_OUT__",&
+            error=error)
+       CALL section_add_subsection(subsection,print_key,error=error)
+       CALL section_release(print_key,error=error)
+
+       CALL cp_print_key_section_create(print_key,"diis_info",&
+            description="Controls the printing of diis information.", &
+            print_level=high_print_level,each=(/1/),add_last=(/1/),filename="__STD_OUT__",&
+            error=error)
+       CALL section_add_subsection(subsection,print_key,error=error)
+       CALL section_release(print_key,error=error)
+
+       CALL cp_print_key_section_create(print_key,"total_densities",&
+            description="Controls the printing of total densities.", &
+            print_level=high_print_level,each=(/0/),add_last=(/1/),filename="__STD_OUT__",&
+            error=error)
+       CALL section_add_subsection(subsection,print_key,error=error)
+       CALL section_release(print_key,error=error)
+
+       CALL section_add_subsection(section,subsection,error=error)
+       CALL section_release(subsection,error=error)
 
     END IF
   END SUBROUTINE create_scf_section
@@ -2689,6 +2663,7 @@ SUBROUTINE create_tddfpt_section(section,error)
     TYPE(keyword_type), pointer :: keyword
     failure=.false.
 
+    nullify(print_key)
     CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
        CALL section_create(section,name="mgrid",&
@@ -2698,13 +2673,14 @@ SUBROUTINE create_tddfpt_section(section,error)
        nullify(keyword)
        CALL keyword_create(keyword, name="ngrids",&
             description="The number of multigrids to use",&
-            usage="ngrids 1", default_i_val=1, error=error)
+            usage="ngrids 1", default_i_val=4, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="cutoff",&
             description="The cutoff (from the highest grid to the lowest)",&
-            usage="cutoff 300", default_r_val=280._dp, n_var=-1, error=error)
+            usage="cutoff 300", default_r_val=280._dp, n_var=-1,&
+            unit_str="Ry",error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
@@ -2735,7 +2711,7 @@ SUBROUTINE create_tddfpt_section(section,error)
             description="Determines the grid at which a Gaussian is mapped,"//&
             " giving the cutoff used for a gaussian with alpha=1",&
             usage="RELATIVE_CUTOFF real", default_r_val=15.0_dp,&
-            error=error)
+            unit_str="Ry",error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
@@ -2754,6 +2730,12 @@ SUBROUTINE create_tddfpt_section(section,error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
+       CALL cp_print_key_section_create(print_key,"PRINT_INFO",&
+            description="controls the printing of grid information",&
+            print_level=medium_print_level,error=error)
+       CALL section_add_subsection(section,print_key,error=error)
+       CALL section_release(print_key,error=error)
+       
        NULLIFY(subsection)
        CALL create_interp_section(subsection,error)
        CALL section_add_subsection(section,subsection,error=error)
@@ -2978,6 +2960,15 @@ SUBROUTINE create_ot_section(section,error)
          error=error)
 
      nullify(keyword)
+
+     CALL keyword_create(keyword, name="_SECTION_PARAMETERS_",&
+          description="controls tha activation of the ot method",&
+          usage="&OT T",&
+          default_l_val=.false.,&
+          lone_keyword_l_val=.TRUE.,&
+          error=error)
+     CALL section_add_keyword(section,keyword,error=error)
+     CALL keyword_release(keyword,error=error)
 
      CALL keyword_create(keyword, name="MINIMIZER",&
           description="Minimizer to be used with the OT method",&
@@ -3511,5 +3502,51 @@ END SUBROUTINE create_ot_section
     END IF
 
   END SUBROUTINE create_nmr_section
+
+!!****f* input_cp2k_dft/create_kg_section *
+!!
+!!   NAME
+!!     create_kg_section
+!!
+!!   FUNCTION
+!!     creates a section with the parameters specific to the kg method
+!!
+!!   NOTES
+!!     -
+!!
+!!   ARGUMENTS
+!!     - section:the section to create
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     fawzi
+!!
+!!*** **********************************************************************
+SUBROUTINE create_kg_section(section,error)
+  TYPE(section_type), pointer :: section
+  type(cp_error_type), optional, intent(inout) :: error
+  
+  logical :: failure
+  character(len=*), parameter :: routineN='create_kg_section',&
+        routineP=moduleN//':'//routineN
+  TYPE(section_type), pointer :: subsection
+
+  failure=.false.
+
+  CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+  IF (.NOT. failure) THEN
+       CALL section_create(section,name="kg",&
+            description="The parameters specific to kg",&
+            error=error)
+
+     nullify(subsection)
+     CALL create_xc_fun_section(subsection,error=error)
+     subsection%description="kinetic functional for the coupling of molecules"
+     CALL section_add_subsection(section,subsection,error=error)
+     CALL section_release(subsection,error=error)
+  END IF
+END SUBROUTINE create_kg_section
+!***************************************************************************
 
 END MODULE input_cp2k_dft

@@ -113,7 +113,11 @@ MODULE qs_scf
                                              ot_precond_full_all,&
                                              xas_tp_hh, &
                                              xas_tp_fh, &
-                                             xas_dscf
+                                             xas_dscf,&
+                                             densities_guess,&
+                                             restart_guess,&
+                                             atomic_guess,&
+                                             core_guess, random_guess
   USE machine,                         ONLY: m_flush,&
                                              m_walltime
   USE message_passing,                 ONLY: mp_bcast,&
@@ -683,7 +687,7 @@ CONTAINS
             END IF
 
             do_level_shift = ((scf_control%level_shift /= 0.0_dp).AND.&
-               ((scf_control%density_guess == "CORE").OR.(scf_env%iter_count > 1)))
+               ((scf_control%density_guess == core_guess).OR.(scf_env%iter_count > 1)))
 
             IF (diis_step) THEN
                scf_env%p_mix = 1.0_dp
@@ -741,7 +745,7 @@ CONTAINS
                     scf_control%eps_diis,error=error)
             END IF
             do_level_shift = ((scf_control%level_shift /= 0.0_dp).AND.&
-               ((scf_control%density_guess == "CORE").OR.(scf_env%iter_count > 1)))
+               ((scf_control%density_guess == core_guess).OR.(scf_env%iter_count > 1)))
             IF (diis_step) THEN
                scf_env%p_mix = 1.0_dp
                scf_env%iter_param = diis_error
@@ -819,6 +823,13 @@ CONTAINS
           CALL harris_postprocessing(harris_env, error=error)
        END IF
 
+       if (ionode) &
+         WRITE (UNIT=output_unit,FMT="(/,(T3,A,T55,F30.20))")&
+            "Overlap energy of the core charge distribution:",energy%core_overlap,&
+            "Self energy of the core charge distribution:   ",energy%core_self,&
+            "Core Hamiltonian energy:                       ",energy%core,&
+            "Hartree energy:                                ",energy%hartree,&
+            "Exchange-correlation energy:                   ",energy%exc
 ! ** convergence check
        CALL external_control(should_stop,"SCF",error)
        IF (scf_env%iter_delta < scf_control%eps_scf) THEN
@@ -886,7 +897,7 @@ CONTAINS
             tot1_h = tot1_h + qs_charges%total_rho1_hard(ispin)
             tot1_s = tot1_s + qs_charges%total_rho1_soft(ispin)
           END DO
-          WRITE (UNIT=output_unit,FMT="(/,(T3,A,T44,2F18.10))")&
+          WRITE (UNIT=output_unit,FMT="(/,(T3,A,T44,2F28.20))")&
                 "Hard and soft local densities (lebedev):",&
                 tot1_h, tot1_s
           WRITE (UNIT=output_unit,FMT="(T3,A,T60,F20.10)")&
@@ -912,7 +923,7 @@ CONTAINS
             "Electronic energy [eV]:                        ",&
                                               (energy%core+0.5_dp*energy%hartree)*evolt
        ELSE
-         WRITE (UNIT=output_unit,FMT="(/,(T3,A,T55,F25.14))")&
+         WRITE (UNIT=output_unit,FMT="(/,(T3,A,T55,F30.20))")&
             "Overlap energy of the core charge distribution:",energy%core_overlap,&
             "Self energy of the core charge distribution:   ",energy%core_self,&
             "Core Hamiltonian energy:                       ",energy%core,&
@@ -2010,15 +2021,15 @@ CONTAINS
     END IF
 
     IF (scf_control%use_ot.AND.&
-        (.NOT.((scf_control%density_guess == "RANDOM").OR.&
-               (scf_control%density_guess == "ATOMIC").OR.&
-               ((scf_control%density_guess == "RESTART").AND.&
+        (.NOT.((scf_control%density_guess == random_guess).OR.&
+               (scf_control%density_guess == atomic_guess).OR.&
+               ((scf_control%density_guess == restart_guess).AND.&
                 (scf_control%level_shift == 0.0_dp))))) THEN
        CALL stop_program("calculate_first_density_matrix",&
             "OT needs GUESS ATOMIC / RESTART : other options NYI")
     END IF
 
-    IF (scf_control%density_guess == "RESTART") THEN
+    IF (scf_control%density_guess == restart_guess) THEN
 
        CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set)
        CALL read_mo_set(mo_array,atomic_kind_set,particle_set,globenv, id_nr=1)
@@ -2052,7 +2063,7 @@ CONTAINS
                p_rmpv(ispin)%matrix,error=error)
        ENDDO
 
-    ELSE IF (scf_control%density_guess == "RANDOM") THEN
+    ELSE IF (scf_control%density_guess == random_guess) THEN
 
        DO ispin=1,nspin
           CALL get_mo_set(mo_set=mo_array(ispin)%mo_set,&
@@ -2077,7 +2088,7 @@ CONTAINS
                p_rmpv(ispin)%matrix,error=error)
        ENDDO
 
-    ELSE IF (scf_control%density_guess == "CORE") THEN
+    ELSE IF (scf_control%density_guess == core_guess) THEN
  
        IF (dft_control%restricted) CALL stop_program("calculate_first_density_matrix","Option not yet implemented")
 
@@ -2117,7 +2128,7 @@ CONTAINS
                p_rmpv(ispin)%matrix,error=error)
        ENDDO
 
-    ELSE IF (scf_control%density_guess == "ATOMIC") THEN
+    ELSE IF (scf_control%density_guess == atomic_guess) THEN
 
       IF (dft_control%restricted) CALL stop_program("calculate_first_density_matrix","Option not yet implemented")
 
@@ -2280,7 +2291,7 @@ CONTAINS
       DEALLOCATE (sdiag,STAT=istat)
       IF (istat /= 0) CALL stop_memory(routineP,"sdiag")
 
-    ELSE IF (scf_control%density_guess == "DENSITIES") THEN
+    ELSE IF (scf_control%density_guess == densities_guess) THEN
 
       ! Collocation of the density into the PW-grid
       CALL collocate_atomic_charge_density(total_rho=total_rho, qs_env=qs_env, error=error)
@@ -2431,7 +2442,7 @@ CONTAINS
        IF (extrapolation_method_nr==wfi_use_guess_method_nr) THEN
           CALL calculate_first_density_matrix(scf_env=scf_env,qs_env=qs_env,&
                globenv=globenv, error=error)
-          IF (.NOT.(qs_env%scf_control%density_guess=="DENSITIES")) THEN
+          IF (.NOT.(qs_env%scf_control%density_guess==densities_guess)) THEN
             CALL qs_rho_update_rho(qs_env%rho,qs_env=qs_env, gapw=gapw, error=error)
             IF(gapw) THEN
                CALL calculate_rho_atom_coeff(qs_env,qs_env%rho%rho_ao)

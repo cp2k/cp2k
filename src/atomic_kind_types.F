@@ -87,11 +87,6 @@ MODULE atomic_kind_types
   USE qs_harmonics_atom,               ONLY: allocate_harmonics_atom,&
                                              deallocate_harmonics_atom,&
                                              harmonics_atom_type
-  USE qs_parser,                       ONLY: finish_parser,&
-                                             read_object,&
-                                             start_parser,&
-                                             stop_parser,&
-                                             test_object
   USE semi_empirical_types,            ONLY: semi_empirical_type
   USE semi_empirical_utils,            ONLY: allocate_se_param,&
                                              deallocate_se_param,&
@@ -110,6 +105,8 @@ MODULE atomic_kind_types
                                              do_atom,&
                                              do_farming,&
                                              do_test
+  USE input_section_types, ONLY: section_vals_type, section_vals_get_subs_vals,&
+       section_vals_get, section_vals_val_get, section_vals_release
   IMPLICIT NONE
 
   PRIVATE
@@ -142,7 +139,6 @@ MODULE atomic_kind_types
                                               natom,&
                                               number_of_grid_points
     INTEGER, DIMENSION(:), POINTER         :: atom_list
-    REAL(KIND=dp), DIMENSION(4)            :: ldaCoreRadius
     TYPE(harmonics_atom_type), POINTER     :: harmonics
     TYPE(grid_atom_type), POINTER          :: grid_atom
     INTEGER                                :: ngrid_rad,ngrid_ang 
@@ -226,7 +222,6 @@ CONTAINS
       atomic_kind_set(ikind)%kind_number = 0
       atomic_kind_set(ikind)%natom = 0
       atomic_kind_set(ikind)%number_of_grid_points = 0
-      atomic_kind_set(ikind)%ldaCoreRadius = 0.0_dp
       atomic_kind_set(ikind)%paw_atom = .FALSE.
       atomic_kind_set(ikind)%qm_atom = .FALSE.
       atomic_kind_set(ikind)%hard_radius = 0.8_dp*bohr
@@ -324,7 +319,7 @@ CONTAINS
                              element_symbol,name,mass,kind_number,natom,&
                              atom_list,alpha_core_charge,ccore_charge,&
                              core_charge_radius,ncgf,nsgf,z,zeff,qeff,&
-                             ldaCoreRadius,soft_basis_set,&
+                             soft_basis_set,&
                              hard_basis_set,paw_proj_set,softb,&
                              paw_atom,qm_atom,hard_radius,hard0_radius,&
                              harmonics, max_iso_not0, max_s_harm,&
@@ -367,8 +362,6 @@ CONTAINS
                                                 ngrid_rad, nsgf,&
                                                 z
     REAL(KIND=dp), INTENT(OUT), OPTIONAL     :: qeff, zeff
-    REAL(kind=dp), DIMENSION(4), &
-      INTENT(out), OPTIONAL                  :: ldaCoreRadius
     LOGICAL, OPTIONAL,  INTENT(OUT)          :: paw_atom
     LOGICAL, OPTIONAL,  INTENT(OUT)          :: qm_atom
     REAL(dp), OPTIONAL, INTENT(OUT)          :: hard_radius
@@ -493,7 +486,6 @@ CONTAINS
           qeff = 0
         END IF
       END IF
-      IF (PRESENT(ldaCoreRadius)) ldaCoreRadius = atomic_kind%ldaCoreRadius
       IF (PRESENT(soft_basis_set)) soft_basis_set => atomic_kind%soft_basis_set
       IF (PRESENT(hard_basis_set)) hard_basis_set => atomic_kind%hard_basis_set
       IF (PRESENT(paw_proj_set))   paw_proj_set => atomic_kind%paw_proj_set
@@ -541,7 +533,7 @@ CONTAINS
                                  elp_potential_present,paw_atom_present,&
                                  qm_atom_present,&
                                  atom_of_kind,kind_of,natom_of_kind,maxder,&
-                                 max_ldaCoreRadius,max_ngrid_rad,&
+                                 max_ngrid_rad,&
                                  max_sph_harm,maxg_iso_not0,lmax_rho0,&
                                  zetsoft_max)
 
@@ -567,8 +559,6 @@ CONTAINS
       OPTIONAL                               :: atom_of_kind, kind_of, &
                                                 natom_of_kind
     INTEGER, INTENT(IN), OPTIONAL            :: maxder
-    REAL(kind=dp), DIMENSION(4), &
-      INTENT(out), OPTIONAL                  :: max_ldaCoreRadius
     REAL(kind=dp),  &
       INTENT(out), OPTIONAL                  :: zetsoft_max
     INTEGER, INTENT(out), OPTIONAL           :: lmax_rho0
@@ -585,7 +575,6 @@ CONTAINS
     INTEGER, DIMENSION(:), POINTER           :: npgf_kind
     LOGICAL                                  :: paw_atom
     LOGICAL                                  :: qm_atom
-    REAL(kind=dp), DIMENSION(4)              :: ldaCoreRadius
     REAL(kind=dp), DIMENSION(:,:), POINTER   :: zet_kind
     TYPE(all_potential_type), POINTER        :: all_potential
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
@@ -632,9 +621,6 @@ CONTAINS
       IF (PRESENT(kind_of)) kind_of(:) = 0
       IF (PRESENT(natom_of_kind)) natom_of_kind(:) = 0
       IF (PRESENT(zetsoft_max))  zetsoft_max = 0.0_dp
-      IF (PRESENT(max_ldaCoreRadius)) THEN
-         max_ldaCoreRadius=0.0_dp
-      END IF
       IF (PRESENT(max_ngrid_rad))  max_ngrid_rad = 0
       IF (PRESENT(max_sph_harm))   max_sph_harm = 0
       IF (PRESENT(lmax_rho0))      lmax_rho0 = 0
@@ -649,16 +635,12 @@ CONTAINS
                              aux_basis_set=aux_basis_set,&
                              orb_basis_set=orb_basis_set,&
                              soft_basis_set=soft_basis_set,&
-                             ldaCoreRadius=ldaCoreRadius,&
                              ngrid_rad=ngrid_rad,&
                              max_s_harm=max_s_harm, &
                              max_iso_not0=max_iso_not0,&
                              paw_atom=paw_atom,&
                              qm_atom=qm_atom,&
                              lmax_rho0=lmax_rho0_kind)
-        IF (PRESENT(max_ldaCoreRadius)) THEN
-           max_ldaCoreRadius=MAX(max_ldaCoreRadius,ldaCoreRadius)
-        END IF
         IF (PRESENT(maxatom)) THEN
           maxatom = MAX(maxatom,atomic_kind%natom)
         END IF
@@ -912,7 +894,7 @@ CONTAINS
       CALL stop_program(routine_name,module_name,__LINE__,&
                         "The pointer atomic_kind_set is not associated")
 
-    END IF
+   END IF
 
   END SUBROUTINE get_atomic_kind_set
 
@@ -1140,15 +1122,16 @@ CONTAINS
 
     CHARACTER(LEN=2)                         :: current_symbol, element_symbol
     CHARACTER(LEN=3)                         :: test_result
-    CHARACTER(LEN=default_string_length) :: aux_basis_set_name, keyword, &
+    CHARACTER(LEN=default_string_length) :: aux_basis_set_name, keyword, akind_name,&
                                                 norm_sym, orb_basis_set_name, &
                                                 potential_name, potential_type
-    INTEGER                                  :: i, ipos, &
+    INTEGER                                  :: i, ipos, i_rep, n_rep, k_rep,&
                                                 min_b_index, naux, &
                                                 ngrid_ang, ngrid_rad, norb, z
     LOGICAL                                  :: failure, section_found
     REAL(KIND=dp)                            :: zeff_correction
     TYPE(cp_error_type)                      :: error
+    TYPE(section_vals_type), pointer :: kind_section
 
 !   ---------------------------------------------------------------------------
 
@@ -1163,20 +1146,83 @@ CONTAINS
 
     CALL cp_error_init(error)
 
-    CALL start_parser(file_name=globenv%input_file_name,&
-                      globenv=globenv,&
-                      start_section_label="KIND",&
-                      start_section_name=atomic_kind%name,&
-                      section_found=section_found)
-    IF (.NOT.section_found) THEN
-       CALL finish_parser()
-       IF (z == -1) THEN
-          ipos = INDEX(atomic_kind%name,"_")
-          IF (((ipos == 2).OR.(ipos == 3)).AND.(INDEX(atomic_kind%name,"_ghost")==0)) THEN
-             element_symbol = atomic_kind%name(1:ipos-1)
-          ELSE
-             element_symbol = atomic_kind%name
+    kind_section => section_vals_get_subs_vals(globenv%input_file,&
+         "FORCE_EVAL%SUBSYS%KIND",error=error)
+    CALL section_vals_get(kind_section,n_repetition=n_rep,error=error)
+    k_rep=-1
+    akind_name=atomic_kind%name
+    CALL uppercase(akind_name)
+    DO i_rep=1,n_rep
+       CALL section_vals_val_get(kind_section,"_SECTION_PARAMETERS_",&
+            c_val=keyword,i_rep_section=i_rep,error=error)
+       call uppercase(keyword)
+       IF (keyword==akind_name) THEN
+          k_rep=i_rep
+          exit
+       END IF
+    END DO
+    IF (k_rep<1) THEN
+       ipos = INDEX(atomic_kind%name,"_")
+       IF (((ipos == 2).OR.(ipos == 3)).AND.(INDEX(atomic_kind%name,"_ghost")==0)) THEN
+          element_symbol = atomic_kind%name(1:ipos-1)
+       ELSE
+          element_symbol = atomic_kind%name
+       END IF
+       CALL uppercase(element_symbol)
+       DO i=LBOUND(ptable,1),UBOUND(ptable,1)
+          current_symbol = ptable(i)%symbol
+          CALL uppercase(current_symbol)
+          IF (current_symbol == element_symbol) THEN
+             atomic_kind%element_symbol = ptable(i)%symbol
+             IF (atomic_kind%mass==-1.0_dp) THEN
+                atomic_kind%mass = ptable(i)%amass
+             END IF
+             z = i
+             EXIT
           END IF
+       END DO
+
+       IF (z /= -1) THEN
+          akind_name=atomic_kind%name
+          CALL uppercase(akind_name)
+          DO i_rep=1,n_rep
+             CALL section_vals_val_get(kind_section,"_SECTION_PARAMETERS_",&
+                  c_val=keyword,i_rep_section=i_rep,error=error)
+             CALL uppercase(keyword)
+             IF (keyword==akind_name) THEN
+                k_rep=i_rep
+                EXIT
+             END IF
+          END DO
+       END IF
+
+       IF (k_rep<1) THEN
+          DO i_rep=1,n_rep
+             CALL section_vals_val_get(kind_section,"_SECTION_PARAMETERS_",&
+                  c_val=keyword,i_rep_section=i_rep,error=error)
+             CALL uppercase(keyword)
+             IF (keyword=="DEFAULT") THEN
+                k_rep=i_rep
+                EXIT
+             END IF
+          END DO
+       END IF
+    END IF
+    
+    IF (k_rep>0) THEN
+       CALL section_vals_val_get(kind_section,i_rep_section=k_rep,&
+            keyword_name="AUX_BASIS_SET", c_val=aux_basis_set_name,error=error)
+       CALL section_vals_val_get(kind_section,i_rep_section=k_rep,&
+            keyword_name="AUX_BASIS_NORMALIZATION", i_val=naux,error=error)
+       CALL section_vals_val_get(kind_section,i_rep_section=k_rep,&
+            keyword_name="BASIS_SET",c_val=orb_basis_set_name,error=error)
+       CALL section_vals_val_get(kind_section,i_rep_section=k_rep,&
+            keyword_name="BASIS_NORMALIZATION", i_val=norb,error=error)
+       CALL section_vals_val_get(kind_section,i_rep_section=k_rep,&
+            keyword_name="ELEMENT",n_rep_val=i,error=error)
+       IF (i>0) THEN
+          CALL section_vals_val_get(kind_section,i_rep_section=k_rep,&
+               keyword_name="ELEMENT",c_val=element_symbol,error=error)
           CALL uppercase(element_symbol)
           DO i=LBOUND(ptable,1),UBOUND(ptable,1)
              current_symbol = ptable(i)%symbol
@@ -1191,119 +1237,34 @@ CONTAINS
              END IF
           END DO
        END IF
-       IF (z /= -1) THEN
-          CALL start_parser(file_name=globenv%input_file_name,&
-                            globenv=globenv,&
-                            start_section_label="KIND",&
-                            start_section_name=atomic_kind%element_symbol,&
-                            section_found=section_found)
+       CALL section_vals_val_get(kind_section,i_rep_section=k_rep,&
+            keyword_name="CORE_CORRECTION",r_val=zeff_correction,error=error)
+       CALL section_vals_val_get(kind_section,i_rep_section=k_rep,&
+            keyword_name="MASS",n_rep_val=i,error=error)
+       IF (i>0) THEN
+          CALL section_vals_val_get(kind_section,i_rep_section=k_rep,&
+               keyword_name="MASS",r_val=atomic_kind%mass,error=error)
        END IF
+       CALL section_vals_val_get(kind_section,i_rep_section=k_rep,&
+            keyword_name="POTENTIAL",c_val=potential_name,error=error)
+       CALL section_vals_val_get(kind_section,i_rep_section=k_rep,&
+            keyword_name="HARD_EXP_RADIUS",r_val=atomic_kind%hard_radius,error=error)
+       CALL section_vals_val_get(kind_section,i_rep_section=k_rep,&
+            keyword_name="RHO0_EXP_RADIUS",r_val=atomic_kind%hard0_radius,error=error)
+       CALL cp_assert(atomic_kind%hard_radius>=atomic_kind%hard0_radius,&
+            cp_failure_level,cp_assertion_failed,routineP,&
+            "rc0 should be <= rc",error,failure)
+       CALL section_vals_val_get(kind_section,i_rep_section=k_rep,&
+            keyword_name="LEBEDEV_GRID",i_val=atomic_kind%ngrid_ang,error=error)
+       CALL cp_assert(atomic_kind%ngrid_ang > 0,&
+            cp_failure_level,cp_assertion_failed,routineP,&
+            "# point lebedev grid < 0",error,failure)
+       CALL section_vals_val_get(kind_section,i_rep_section=k_rep,&
+            keyword_name="RADIAL_GRID",i_val=atomic_kind%ngrid_rad,error=error)
+       CALL cp_assert(atomic_kind%ngrid_rad > 0,&
+            cp_failure_level,cp_assertion_failed,routineP,&
+            "# point radial grid < 0",error,failure)
     END IF
-
-    IF (.NOT.section_found) THEN
-       IF (z /= -1) CALL finish_parser() 
-       CALL start_parser(file_name=globenv%input_file_name,&
-                         globenv=globenv,&
-                         start_section_label="KIND",&
-                         start_section_name="DEFAULT",&
-                         section_found=section_found)
-    END IF
-
-    IF (section_found) THEN
-      DO
-        test_result = test_object(newline=.TRUE.)
-        IF (test_result == "EOS") THEN
-          EXIT
-        ELSE IF (test_result == "EOF") THEN
-          CALL stop_parser(routine_name,module_name,__LINE__,"EOF")
-        ELSE
-          CALL read_object(keyword,lower_to_upper=.TRUE.,newline=.TRUE.)
-          SELECT CASE (TRIM(keyword))
-          CASE ("AUXILIARY_BASIS_SET","AUX_BASIS_SET","AUX_BASIS")
-            CALL read_object(aux_basis_set_name)
-            test_result = test_object()
-            naux = -1
-            IF (test_result /= "EOL") THEN
-              CALL read_object(norm_sym,lower_to_upper=.TRUE.)
-              SELECT CASE (TRIM(norm_sym))
-              CASE ("NONE","NO")
-                naux = 0
-              CASE ("WFN","WAVEFUNCTION","FUNCTION")
-                naux = 1
-              CASE ("DENS","DENSITY","SQUARE")
-                naux = 2
-              CASE DEFAULT
-                CALL stop_parser(routine_name,module_name,__LINE__,&
-                     "Invalid normalization method")
-              END SELECT
-            END IF
-          CASE ("ORBITAL_BASIS_SET","ORB_BASIS_SET","ORB_BASIS","BASIS_SET","BAS")
-            CALL read_object(orb_basis_set_name)
-            test_result = test_object()
-            norb = -1
-            IF (test_result /= "EOL") THEN
-              CALL read_object(norm_sym,lower_to_upper=.TRUE.)
-              SELECT CASE (TRIM(norm_sym))
-              CASE ("NONE","NO")
-                norb = 0
-              CASE ("WFN","WAVEFUNCTION","FUNCTION")
-                norb = 1
-              CASE ("DENS","DENSITY","SQUARE")
-                norb = 2
-              CASE DEFAULT
-                CALL stop_parser(routine_name,module_name,__LINE__,&
-                     "Invalid normalization method")
-              END SELECT
-            END IF
-          CASE ("ELEMENT_SYMBOL","ELEMENT")
-            CALL read_object(element_symbol,lower_to_upper=.TRUE.)
-            DO i=LBOUND(ptable,1),UBOUND(ptable,1)
-              current_symbol = ptable(i)%symbol
-              CALL uppercase(current_symbol)
-              IF (current_symbol == element_symbol) THEN
-                atomic_kind%element_symbol = ptable(i)%symbol
-                if (atomic_kind%mass==-1.0_dp) then
-                   atomic_kind%mass = ptable(i)%amass
-                end if
-                z = i
-                EXIT
-              END IF
-            END DO
-          CASE ("CORE_CORRECTION")
-             CALL read_object(zeff_correction)
-          CASE ("ATOMIC_MASS","ATOMIC_WEIGHT","MASS","WEIGHT")
-            CALL read_object(atomic_kind%mass)
-          CASE ("POTENTIAL","POT")
-            CALL read_object(potential_name)
-          CASE ("LDA_CORE_RADIUS")
-             DO i=1,SIZE(atomic_kind%ldaCoreRadius)
-                CALL read_object(atomic_kind%ldaCoreRadius(i))
-             END DO
-          CASE ("HARD_EXP_RADIUS")
-             CALL read_object(atomic_kind%hard_radius)
-          CASE ("RHO0_EXP_RADIUS")
-             CALL read_object(atomic_kind%hard0_radius)
-             CALL cp_assert(atomic_kind%hard_radius>atomic_kind%hard0_radius,&
-                       cp_failure_level,cp_assertion_failed,routineP,&
-                      "rc0 should be <= rc",error,failure)
-          CASE ("LEBEDEV_GRID")
-             CALL read_object(atomic_kind%ngrid_ang)
-             CALL cp_assert(atomic_kind%ngrid_ang > 0,&
-                      cp_failure_level,cp_assertion_failed,routineP,&
-                      "# point lebedev grid < 0",error,failure)
-          CASE ("RADIAL_GRID")
-             CALL read_object(atomic_kind%ngrid_rad)
-             CALL cp_assert(atomic_kind%ngrid_rad > 0,&
-                      cp_failure_level,cp_assertion_failed,routineP,&
-                      "# point radial grid < 0",error,failure)
-          CASE DEFAULT
-            CALL stop_parser(routine_name,module_name,__LINE__,"INVALID_KEYWORD")
-          END SELECT
-        END IF
-      END DO
-    END IF
-
-    CALL finish_parser()
 
 !   *** The corresponding element of the current atomic kind is still   ***
 !   *** undefined. Try the head first two characters of the kind name itself ***
@@ -1496,12 +1457,12 @@ CONTAINS
             (mass > 0.0_dp)) THEN
           CALL stop_program(routine_name,module_name,__LINE__,&
                       "No potential type was defined for the "//&
-                      "atomic kind <"//TRIM(atomic_kind%name),globenv)
+                      "atomic kind <"//TRIM(atomic_kind%name)//">",globenv)
         END IF
         IF (.NOT.ASSOCIATED(orb_basis_set)) THEN
           CALL stop_program(routine_name,module_name,__LINE__,&
                       "No basis set type was defined for the "//&
-                      "atomic kind <"//TRIM(atomic_kind%name),globenv)
+                      "atomic kind <"//TRIM(atomic_kind%name)//">",globenv)
         END IF
       ELSE
         CALL get_atomic_kind(atomic_kind,se_parameter=se_parameter)
@@ -1673,10 +1634,6 @@ CONTAINS
         WRITE (UNIT=output_unit,FMT="(/,T2,I2,A,T45,A,T75,I6)")&
           atomic_kind%kind_number,". Atomic kind: "//TRIM(atomic_kind%name),&
           "Number of atoms of this kind: ",atomic_kind%natom
-        IF (ANY(atomic_kind%ldaCoreRadius>0.0_dp)) THEN
-           WRITE(UNIT=output_unit,fmt="(/,T16,A,T41,4(F10.3))")&
-                "Lda core radius = ",atomic_kind%ldaCoreRadius
-        END IF
         CALL write_orb_basis_set(atomic_kind%orb_basis_set,globenv)
         IF (atomic_kind%paw_atom) THEN
           WRITE (UNIT=output_unit,FMT="(/,T2,A,A)")&

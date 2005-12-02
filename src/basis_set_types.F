@@ -38,16 +38,18 @@ MODULE basis_set_types
   USE orbital_symbols,                 ONLY: cgf_symbol,&
                                              sgf_symbol
   USE orbital_transformation_matrices, ONLY: orbtramat
-  USE qs_parser,                       ONLY: finish_parser,&
-                                             read_object,&
-                                             search_object,&
-                                             start_parser
+  USE cp_parser,                       ONLY: cp_parser_type,&
+                                             parser_get_object,&
+                                             parser_search_string,&
+                                             parser_create,&
+                                             parser_release
   USE sto_ng,                          ONLY: get_sto_ng
   USE string_utilities,                ONLY: uppercase,&
                                              integer_to_string
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
-
+  USE input_section_types, only: section_vals_val_get
+#include "cp_common_uses.h"
   IMPLICIT NONE
 
   PRIVATE
@@ -813,7 +815,7 @@ CONTAINS
 ! *****************************************************************************
 
   SUBROUTINE read_gto_basis_set(element_symbol,basis_set_name,gto_basis_set,&
-                                globenv)
+                                globenv,error)
 
 !   Purpose: Read a Gaussian-type orbital (GTO) basis set from the database
 !            file.
@@ -826,6 +828,7 @@ CONTAINS
     TYPE(gto_basis_set_type), POINTER        :: gto_basis_set
     TYPE(global_environment_type), &
       INTENT(IN)                             :: globenv
+    TYPE(cp_error_type), INTENT(inout), optional :: error
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "read_gto_basis_set"
 
@@ -835,6 +838,7 @@ CONTAINS
     CHARACTER(LEN=LEN(basis_set_name)+2)     :: bsname2
     CHARACTER(LEN=LEN(element_symbol))       :: symbol
     CHARACTER(LEN=LEN(element_symbol)+2)     :: symbol2
+    character(len=default_string_length)     :: basis_set_file_name
     INTEGER :: i, ico, ipgf, iset, ishell, istat, lshell, m, maxco, maxl, &
       maxpgf, maxshell, ncgf, nmin, nset, nsgf, strlen1, strlen2
     INTEGER, DIMENSION(:), POINTER           :: lmax, lmin, npgf, nshell
@@ -843,6 +847,7 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: zet
     REAL(KIND=dp), DIMENSION(:, :, :), &
       POINTER                                :: gcc
+    TYPE(cp_parser_type), pointer :: parser
 
 !   ---------------------------------------------------------------------------
 
@@ -854,8 +859,11 @@ CONTAINS
     bsname2 = ""
 
     gto_basis_set%name = basis_set_name
-
-    CALL start_parser(globenv%basis_set_file_name,globenv)
+    CALL section_vals_val_get(globenv%input_file,&
+         "FORCE_EVAL%DFT%BASIS_SET_FILE_NAME",&
+         c_val=basis_set_file_name)
+    nullify(parser)
+    CALL parser_create(parser,basis_set_file_name,para_env=globenv%para_env)
 
 !   *** Search for the requested basis set in the basis set file   ***
 !   *** until the basis set is found or the end of file is reached ***
@@ -865,7 +873,7 @@ CONTAINS
 
     search_loop: DO
 
-      CALL search_object(TRIM(bsname),.TRUE.,found,line)
+      CALL parser_search_string(parser,TRIM(bsname),.TRUE.,found,line)
 
       IF (found) THEN
 
@@ -888,7 +896,7 @@ CONTAINS
 
 !         *** Read the basis set information ***
 
-          CALL read_object(nset,newline=.TRUE.)
+          CALL parser_get_object(parser,nset,newline=.TRUE.)
 
           CALL reallocate(npgf,1,nset)
           CALL reallocate(nshell,1,nset)
@@ -901,11 +909,11 @@ CONTAINS
           maxshell = 0
 
           DO iset=1,nset
-            CALL read_object(n(1,iset),newline=.TRUE.)
-            CALL read_object(lmin(iset))
-            CALL read_object(lmax(iset))
+            CALL parser_get_object(parser,n(1,iset),newline=.TRUE.)
+            CALL parser_get_object(parser,lmin(iset))
+            CALL parser_get_object(parser,lmax(iset))
             maxl = MAX(maxl,lmax(iset))
-            CALL read_object(npgf(iset))
+            CALL parser_get_object(parser,npgf(iset))
             IF (npgf(iset) > maxpgf) THEN
               maxpgf = npgf(iset)
               CALL reallocate(zet,1,maxpgf,1,nset)
@@ -914,7 +922,7 @@ CONTAINS
             nshell(iset) = 0
             DO lshell=lmin(iset),lmax(iset)
               nmin = n(1,iset) + lshell - lmin(iset)
-              CALL read_object(ishell)
+              CALL parser_get_object(parser,ishell)
               nshell(iset) = nshell(iset) + ishell
               IF (nshell(iset) > maxshell) THEN
                 maxshell = nshell(iset)
@@ -928,9 +936,9 @@ CONTAINS
               END DO
             END DO
             DO ipgf=1,npgf(iset)
-              CALL read_object(zet(ipgf,iset),newline=.TRUE.)
+              CALL parser_get_object(parser,zet(ipgf,iset),newline=.TRUE.)
               DO ishell=1,nshell(iset)
-                CALL read_object(gcc(ipgf,ishell,iset))
+                CALL parser_get_object(parser,gcc(ipgf,ishell,iset))
               END DO
             END DO
           END DO
@@ -1068,13 +1076,13 @@ CONTAINS
                           "The requested basis set <"//TRIM(bsname)//&
                           "> for element <"//TRIM(symbol)//"> was not "//&
                           "found in the basis set file <"//&
-                          TRIM(globenv%basis_set_file_name)//">",globenv)
+                          TRIM(basis_set_file_name)//">",globenv)
 
       END IF
 
     END DO search_loop
 
-    CALL finish_parser()
+    CALL parser_release(parser,error=error)
 
   END SUBROUTINE read_gto_basis_set
 
@@ -1539,11 +1547,12 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE create_gto_from_sto_basis(sto_basis_set,gto_basis_set,ngauss)
+  SUBROUTINE create_gto_from_sto_basis(sto_basis_set,gto_basis_set,ngauss,error)
 
     TYPE(sto_basis_set_type), POINTER        :: sto_basis_set
     TYPE(gto_basis_set_type), POINTER        :: gto_basis_set
     INTEGER, OPTIONAL                        :: ngauss
+    TYPE(cp_error_type), INTENT(inout), optional :: error
 
     INTEGER                                  :: ng = 6
     INTEGER, PARAMETER                       :: maxng = 6

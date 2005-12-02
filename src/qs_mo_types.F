@@ -72,7 +72,8 @@ MODULE qs_mo_types
                                              stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
-
+  USE input_section_types, ONLY: section_vals_val_get, section_vals_get_subs_vals,&
+       section_vals_type, section_vals_release
   IMPLICIT NONE
 
   PRIVATE
@@ -595,7 +596,7 @@ CONTAINS
 
 ! *****************************************************************************
   SUBROUTINE write_mo_set_to_restart(mo_array,atomic_kind_set,particle_set,&
-                                     globenv,id_nr)
+                                     globenv,id_nr, error)
 
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mo_array
@@ -606,6 +607,7 @@ CONTAINS
     TYPE(global_environment_type), &
       INTENT(IN)                             :: globenv
     INTEGER, INTENT(in)                      :: id_nr
+    TYPE(cp_error_type), INTENT(inout), optional :: error
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "write_mo_set_to_restart", &
       routine = "SUBROUTINE "//routine_name//" (MODULE "//module_name//")"
@@ -631,10 +633,10 @@ CONTAINS
 
     IF (globenv%ionode) THEN
 
-      IF (id_nr==1) THEN
-        file_name = globenv%restart_file_name
-      ELSE
-        file_name = TRIM(globenv%restart_file_name)//"-"//&
+       CALL section_vals_val_get(globenv%input_file,"FORCE_EVAL%DFT%RESTART_FILE_NAME",&
+            c_val=file_name,error=error)
+      IF (id_nr/=1) THEN
+        file_name(len_trim(file_name):len(file_name)) = "-"//&
                     ADJUSTL(cp_to_string(id_nr))
       END IF
 
@@ -756,7 +758,7 @@ CONTAINS
 ! *****************************************************************************
 
   SUBROUTINE read_mo_set_from_restart(mo_array,atomic_kind_set,particle_set,&
-                                      globenv,id_nr)
+                                      globenv,id_nr,error)
 
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mo_array
@@ -767,6 +769,7 @@ CONTAINS
     TYPE(global_environment_type), &
       INTENT(IN)                             :: globenv
     INTEGER, INTENT(in)                      :: id_nr
+    TYPE(cp_error_type), INTENT(inout), optional :: error
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "read_mo_set_from_restart", &
       routine = "SUBROUTINE "//routine_name//" (MODULE "//module_name//")"
@@ -799,10 +802,10 @@ CONTAINS
       CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
                                natom=natom,&
                                nsgf=nsgf)
-      IF (id_nr==1) THEN
-        file_name=globenv%restart_file_name
-      ELSE
-        file_name = TRIM(globenv%restart_file_name)//"-"//&
+      CALL section_vals_val_get(globenv%input_file,"FORCE_EVAL%DFT%RESTART_FILE_NAME",&
+           c_val=file_name,error=error)
+      IF (id_nr/=1) THEN
+        file_name(len_trim(file_name):len(file_name)) = "-"//&
                          ADJUSTL(cp_to_string(id_nr))
       END IF
 
@@ -1006,7 +1009,7 @@ CONTAINS
   ! ***************************************************************************
 
   SUBROUTINE write_mo_set_to_output_unit(mo_set,atomic_kind_set,particle_set,&
-                                         before,after,globenv)
+                                         before,after,globenv,error)
 
     ! Purpose: Write the MO eigenvalues, MO occupation numbers and
     !          MO mo_coeff.
@@ -1031,6 +1034,7 @@ CONTAINS
     INTEGER, INTENT(IN)                      :: before, after
     TYPE(global_environment_type), &
       INTENT(IN)                             :: globenv
+    TYPE(cp_error_type), INTENT(inout), optional :: error
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "write_mo_set_to_output_unit"
 

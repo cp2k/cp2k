@@ -49,11 +49,9 @@ MODULE harris_force
                                              cp_logger_type
   !USE cp_para_types,                   ONLY: cp_para_env_type
   USE global_types,                    ONLY: global_environment_type
-  USE green_types,                     ONLY: greens_function_type
   USE harris_env_types,                ONLY: harris_env_type, &
                                              harris_env_get
   USE harris_force_types,              ONLY: harris_force_type
-  USE hartree,                         ONLY: calculate_hartree
   USE kinds,                           ONLY: dp
   USE message_passing,                 ONLY: mp_sum
   USE particle_types,                  ONLY: particle_type
@@ -63,8 +61,6 @@ MODULE harris_force
                                              pw_pool_init_coeff, &
                                              pw_pool_give_back_coeff, &
                                              pw_pool_create_pw
-  USE pws,                             ONLY: cleanup_pw_poisson_solver, &
-                                             init_pw_poisson_solver
   USE pw_types,                        ONLY: pw_p_type, &
                                              COMPLEXDATA1D, &
                                              RECIPROCALSPACE, &
@@ -92,13 +88,16 @@ MODULE harris_force
                                              transfer_matrix
   USE timings,                         ONLY: timeset, &
                                              timestop
-  USE xc,                              ONLY: xc_prep_2nd_deriv_new, &
-                                             xc_calc_2nd_deriv_new
+  USE xc,                              ONLY: xc_prep_2nd_deriv, &
+                                             xc_calc_2nd_deriv
   USE xc_derivative_set_types,         ONLY: xc_derivative_set_type, &
                                              xc_dset_release
   USE xc_rho_set_types,                ONLY: xc_rho_set_type, &
                                              xc_rho_set_release
-
+  USE qs_ks_types, only: qs_ks_env_type
+  USE pw_poisson_methods, only: pw_poisson_solve
+  USE pw_poisson_types, only: pw_poisson_type
+  USE input_section_types, ONLY: section_vals_type, section_vals_get_subs_vals
   IMPLICIT NONE
   PRIVATE
   
@@ -173,7 +172,6 @@ CONTAINS
     TYPE(qs_rho_type), POINTER                      :: rho
     TYPE(real_matrix_p_type), DIMENSION(:), POINTER :: matrix_ks, &
                                                        matrix_h
-    TYPE(greens_function_type), POINTER             :: green
     TYPE(pw_env_type), POINTER                      :: pw_env
     TYPE(pw_pool_type), POINTER                     :: auxbas_pw_pool
     TYPE(coeff_type)                                :: v_hartree_gspace, &
@@ -188,6 +186,9 @@ CONTAINS
     TYPE(coeff_type), DIMENSION(:), POINTER         :: rho_r
     LOGICAL                                         :: failure, &
                                                        fast_flag
+    TYPE(qs_ks_env_type), pointer :: ks_env
+    TYPE(pw_poisson_type), POINTER :: poisson_env
+    TYPE(section_vals_type), POINTER :: xc_section, input
 
     CHARACTER(len=*), PARAMETER :: routineN = 'harris_force_correction', &
       routineP = moduleN//':'//routineN
@@ -200,9 +201,9 @@ CONTAINS
 
     failure = .FALSE.
     NULLIFY(force, force_tmp, v_rspace_new, v_tau_rspace, rho, matrix_ks, &
-            green, pw_env, auxbas_pw_pool, rho_core, cell, dft_control, &
+            pw_env, auxbas_pw_pool, rho_core, cell, dft_control, &
             atomic_kind_set, particle_set, deriv_set, rho_set, my_rho_r, &
-            v_xc, matrix_h, harris_force, rho_r)
+            v_xc, matrix_h, harris_force, rho_r, ks_env, poisson_env, input)
     logger => cp_error_get_logger(error)
 
     IF (PRESENT(fast)) THEN
@@ -221,7 +222,9 @@ CONTAINS
     IF (.NOT. failure) THEN
       CALL harris_env_get(harris_env=harris_env, harris_force=harris_force, error=error)
       CALL get_qs_env(qs_env=qs_env, atomic_kind_set=atomic_kind_set, force=force, &
-                      particle_set=particle_set, error=error)
+                      particle_set=particle_set, input=input, error=error)
+
+      xc_section => section_vals_get_subs_vals(input,"DFT%XC",error=error)
 
       natom = SIZE(particle_set)
       nkind = SIZE(force)
@@ -269,12 +272,13 @@ CONTAINS
       CALL zero_qs_force(force)
 
       CALL get_qs_env(qs_env=qs_env, pw_env=pw_env, rho=rho, rho_core=rho_core, &
-                      green=green, error=error)
+                      ks_env=ks_env, error=error)
       !CALL harris_env_get(harris_env=harris_env, matrix_h=matrix_h, &
       !                    matrix_ks=matrix_ks, error=error)
       CALL get_qs_env(qs_env=qs_env, matrix_h=matrix_h, matrix_ks=matrix_ks, error=error)
 
-      CALL pw_env_get(pw_env=pw_env, auxbas_pw_pool=auxbas_pw_pool, error=error)
+      CALL pw_env_get(pw_env=pw_env, auxbas_pw_pool=auxbas_pw_pool,&
+           poisson_env=poisson_env,error=error)
       CALL pw_pool_init_coeff(auxbas_pw_pool, v_hartree_gspace, &
                               use_data = COMPLEXDATA1D, &
                               in_space = RECIPROCALSPACE, error=error)
@@ -282,11 +286,9 @@ CONTAINS
                               use_data=REALDATA3D, in_space=REALSPACE)
 
       ! *** Calculation of the forces due to the Hartree energy *** !
-      CALL init_pw_poisson_solver(green,error=error)
-      CALL calculate_hartree(rho%rho_g(1), ehartree=Ehartree, vhartree=v_hartree_gspace)
-      !CALL calculate_hartree(harris_env%rho%rho_g(1), ehartree=Ehartree, %
-      !                       vhartree=v_hartree_gspace)
-      CALL cleanup_pw_poisson_solver(green,error=error)
+      CALL pw_poisson_solve(poisson_env,rho%rho_g(1)%pw, ehartree=Ehartree, vhartree=v_hartree_gspace%pw)
+      !CALL pw_poisson_solve(harris_env%rho%rho_g(1)%pw, ehartree=Ehartree, %
+      !                       vhartree=v_hartree_gspace%pw)
 
       CALL coeff_transform_space(v_hartree_gspace, v_hartree_rspace)
       CALL coeff_scale(v_hartree_rspace, v_hartree_rspace%pw%pw_grid%dvol)
@@ -310,11 +312,9 @@ CONTAINS
 
       CALL zero_qs_force(force)
 
-      CALL init_pw_poisson_solver(green,error=error)
-      CALL calculate_hartree(harris_env%rho%rho_g(1), ehartree=Ehartree, &
-                             vhartree=v_hartree_gspace)
+      CALL pw_poisson_solve(poisson_env,harris_env%rho%rho_g(1)%pw, ehartree=Ehartree, &
+                             vhartree=v_hartree_gspace%pw)
       !CALL calculate_hartree(rho%rho_g(1), ehartree=Ehartree, vhartree=v_hartree_gspace)
-      CALL cleanup_pw_poisson_solver(green,error=error)
 
       CALL coeff_transform_space(v_hartree_gspace, v_hartree_rspace)
       CALL coeff_scale(v_hartree_rspace, v_hartree_rspace%pw%pw_grid%dvol)
@@ -340,9 +340,7 @@ CONTAINS
       CALL zero_qs_force(force)
 
       ! ** Force computation of f_V  ** !
-      CALL init_pw_poisson_solver(green, error=error)
-      CALL calculate_hartree(rho%rho_g(1), ehartree=Ehartree, vhartree=v_hartree_gspace)
-      CALL cleanup_pw_poisson_solver(green, error=error)
+      CALL pw_poisson_solve(poisson_env,rho%rho_g(1)%pw, ehartree=Ehartree, vhartree=v_hartree_gspace%pw)
 
       CALL coeff_transform_space(v_hartree_gspace, v_hartree_rspace)
       CALL coeff_scale(v_hartree_rspace, v_hartree_rspace%pw%pw_grid%dvol)
@@ -363,10 +361,8 @@ CONTAINS
 
       CALL transfer_matrix(matrix_h(1)%matrix, matrix_ks(1)%matrix)
             
-      CALL init_pw_poisson_solver(green,error=error)
-      CALL calculate_hartree(rho_core, ehartree=Ehartree, &
-                             vhartree=v_hartree_gspace)
-      CALL cleanup_pw_poisson_solver(green,error=error)
+      CALL pw_poisson_solve(poisson_env,rho_core%pw, ehartree=Ehartree, &
+                             vhartree=v_hartree_gspace%pw)
 
       CALL coeff_transform_space(v_hartree_gspace, v_hartree_rspace)
       CALL coeff_scale(v_hartree_rspace, v_hartree_rspace%pw%pw_grid%dvol)
@@ -423,9 +419,9 @@ CONTAINS
       DO ispin=1, SIZE(rho_r)
         my_rho_r(ispin)%pw => rho_r(ispin)%pw
       END DO
-      CALL xc_prep_2nd_deriv_new(deriv_set=deriv_set, rho_set=rho_set, &
+      CALL xc_prep_2nd_deriv(deriv_set=deriv_set, rho_set=rho_set, &
                                  rho_r=my_rho_r, pw_pool=auxbas_pw_pool, &
-                                 dft_control=dft_control, cell=cell, error=error)
+                                 xc_section=xc_section, cell=cell, error=error)
       DEALLOCATE(my_rho_r, stat=stat)
       CPPostconditionNoFail(stat==0, cp_warning_level, routineP, error)
 
@@ -440,9 +436,9 @@ CONTAINS
         CALL pw_zero(v_xc(ispin)%pw)
       END DO
 
-      CALL xc_calc_2nd_deriv_new(v_xc, deriv_set=deriv_set, rho_set=rho_set, &
+      CALL xc_calc_2nd_deriv(v_xc, deriv_set=deriv_set, rho_set=rho_set, &
                                 rho1_set=rho_set, pw_pool=auxbas_pw_pool, &
-                                dft_control=dft_control, gapw=.FALSE., error=error)
+                                xc_section=xc_section, gapw=.FALSE., error=error)
 
       CALL xc_dset_release(deriv_set, error=error)
 
@@ -519,7 +515,7 @@ CONTAINS
 
       CALL zero_qs_force(force)
 
-      NULLIFY(rho, rho_core, pw_env, green, auxbas_pw_pool, cell, dft_control, &
+      NULLIFY(rho, rho_core, pw_env, auxbas_pw_pool, cell, dft_control, &
               rho_r, my_rho_r, deriv_set, rho_set, v_xc, matrix_ks, matrix_h, &
               v_rspace_new, v_tau_rspace)
       
@@ -527,7 +523,7 @@ CONTAINS
 
 
       CALL get_qs_env(qs_env=qs_env, pw_env=pw_env, rho_core=rho_core, &
-                      green=green, error=error)
+                      error=error)
       CALL harris_env_get(harris_env=harris_env, rho=rho, error=error)
       !CALL get_qs_env(qs_env=qs_env, rho=rho, error=error)
 
@@ -544,10 +540,8 @@ CONTAINS
       
       !CALL coeff_add(rho_core, rho%rho_g(1), rho_tot_gspace)
 
-      CALL init_pw_poisson_solver(green,error=error)
-      CALL calculate_hartree(rho_core, ehartree=Ehartree, vhartree=v_hartree_gspace)
-      !CALL calculate_hartree(rho_tot_gspace, ehartree=Ehartree, vhartree=v_hartree_gspace)
-      CALL cleanup_pw_poisson_solver(green,error=error)
+      CALL pw_poisson_solve(poisson_env,rho_core%pw, ehartree=Ehartree, vhartree=v_hartree_gspace%pw)
+      !CALL calculate_hartree(poisson_env,rho_tot_gspace, ehartree=Ehartree, vhartree=v_hartree_gspace)
 
       !CALL pw_pool_give_back_coeff(auxbas_pw_pool, rho_tot_gspace, &
       !                             error=error)
@@ -603,11 +597,9 @@ CONTAINS
 
       !CALL coeff_add(rho_core, rho%rho_g(1), rho_tot_gspace)
 
-      CALL init_pw_poisson_solver(green,error=error)
-      !CALL calculate_hartree(rho_tot_gspace, ehartree=Ehartree, &
+      !CALL calculate_hartree(poisson_env,rho_tot_gspace, ehartree=Ehartree, &
       !                       vhartree=v_hartree_gspace)
-      CALL calculate_hartree(rho%rho_g(1), ehartree=Ehartree, vhartree=v_hartree_gspace)
-      CALL cleanup_pw_poisson_solver(green,error=error)
+      CALL pw_poisson_solve(poisson_env,rho%rho_g(1)%pw, ehartree=Ehartree, vhartree=v_hartree_gspace%pw)
 
       !CALL pw_pool_give_back_coeff(auxbas_pw_pool, rho_tot_gspace, &
       !                             error=error)
@@ -670,9 +662,9 @@ CONTAINS
       DO ispin=1, SIZE(rho_r)
         my_rho_r(ispin)%pw => rho_r(ispin)%pw
       END DO
-      CALL xc_prep_2nd_deriv_new(deriv_set=deriv_set, rho_set=rho_set, &
+      CALL xc_prep_2nd_deriv(deriv_set=deriv_set, rho_set=rho_set, &
                                  rho_r=my_rho_r, pw_pool=auxbas_pw_pool, &
-                                 dft_control=dft_control, cell=cell, error=error)
+                                 xc_section=xc_section, cell=cell, error=error)
       DEALLOCATE(my_rho_r, stat=stat)
       CPPostconditionNoFail(stat==0, cp_warning_level, routineP, error)
 
@@ -691,9 +683,9 @@ CONTAINS
       !CALL pw_pool_init_coeff(auxbas_pw_pool, v_xc, use_data=REALDATA3D, &
       !                        in_space=REALSPACE, error=error)
 
-      CALL xc_calc_2nd_deriv_new(v_xc, deriv_set=deriv_set, rho_set=rho_set, &
+      CALL xc_calc_2nd_deriv(v_xc, deriv_set=deriv_set, rho_set=rho_set, &
                                 rho1_set=rho_set, pw_pool=auxbas_pw_pool, &
-                                dft_control=dft_control, gapw=.FALSE., error=error)
+                                xc_section=xc_section, gapw=.FALSE., error=error)
 
       CALL xc_dset_release(deriv_set, error=error)
 
@@ -925,7 +917,6 @@ CONTAINS
                                                        Exc
     TYPE(coeff_type)                                :: v_hartree_gspace, &
                                                        v_hartree_rspace
-    TYPE(greens_function_type), POINTER             :: green
     TYPE(coeff_type), DIMENSION(:), POINTER         :: v_rspace_new, &
                                                        v_tau_rspace, &
                                                        rho_r
@@ -936,7 +927,9 @@ CONTAINS
     TYPE(xc_derivative_set_type), POINTER           :: deriv_set
     TYPE(xc_rho_set_type), POINTER                  :: rho_set
     TYPE(pw_pool_type), POINTER                     :: auxbas_pw_pool
-
+    TYPE(pw_env_type), pointer :: pw_env
+    TYPE(pw_poisson_type), pointer :: poisson_env
+    TYPE(section_vals_type), POINTER :: input,xc_section
     CHARACTER(len=*), PARAMETER :: routineN = 'harris_calc_nsc_force', &
       routineP = moduleN//':'//routineN
 
@@ -945,9 +938,9 @@ CONTAINS
     CALL timeset(routineN, "I", "", handle)
 
     failure = .FALSE.
-    NULLIFY(harris_env, harris_force, force, force_tmp, particle_set, green, &
+    NULLIFY(harris_env, harris_force, force, force_tmp, particle_set, &
             v_rspace_new, v_tau_rspace, rho_r, my_rho_r, v_xc, dft_control, &
-            cell, deriv_set, rho_set, auxbas_pw_pool)
+            cell, deriv_set, rho_set, auxbas_pw_pool, input)
 
     CPPrecondition(ASSOCIATED(qs_env), cp_failure_level, routineP, error, failure)
     CPPrecondition(qs_env%ref_count>0, cp_failure_level, routineP, error, failure)
@@ -955,7 +948,11 @@ CONTAINS
     IF (.NOT. failure) THEN
       CALL get_qs_env(qs_env=qs_env, harris_env=harris_env, &
                       atomic_kind_set=atomic_kind_set, force=force, &
-                      particle_set=particle_set, error=error)
+                      particle_set=particle_set, pw_env=pw_env, &
+                      input=input, error=error)
+      xc_section => section_vals_get_subs_vals(input,"DFT%XC",error=error)
+      CALL pw_env_get(pw_env,auxbas_pw_pool=auxbas_pw_pool,&
+           poisson_env=poisson_env,error=error)
       CALL harris_env_get(harris_env=harris_env, harris_force=harris_force, error=error)
       !CALL harris_env_get(harris_env=harris_env, matrix_h=matrix_h, &
       !                    matrix_ks=matrix_ks, error=error)
@@ -984,10 +981,9 @@ CONTAINS
       CALL zero_qs_force(force)
 
       ! *** Calculation of the forces due to the Hartree energy *** !
-      CALL init_pw_poisson_solver(green,error=error)
-      CALL calculate_hartree(harris_env%rho_diff%rho_g(1), ehartree=Ehartree, &
-                             vhartree=v_hartree_gspace)
-      CALL cleanup_pw_poisson_solver(green,error=error)
+      CALL pw_poisson_solve(poisson_env,harris_env%rho_diff%rho_g(1)%pw,&
+           ehartree=Ehartree, &
+                             vhartree=v_hartree_gspace%pw)
 
       CALL coeff_transform_space(v_hartree_gspace, v_hartree_rspace)
       CALL coeff_scale(v_hartree_rspace, v_hartree_rspace%pw%pw_grid%dvol)
@@ -1011,10 +1007,8 @@ CONTAINS
 
       CALL zero_qs_force(force)
 
-      CALL init_pw_poisson_solver(green,error=error)
-      CALL calculate_hartree(harris_env%rho_diff%rho_g(1), ehartree=Ehartree, &
-                             vhartree=v_hartree_gspace)
-      CALL cleanup_pw_poisson_solver(green,error=error)
+      CALL pw_poisson_solve(poisson_env,harris_env%rho_diff%rho_g(1)%pw, ehartree=Ehartree, &
+                             vhartree=v_hartree_gspace%pw)
 
       CALL coeff_transform_space(v_hartree_gspace, v_hartree_rspace)
       CALL coeff_scale(v_hartree_rspace, v_hartree_rspace%pw%pw_grid%dvol)
@@ -1077,9 +1071,9 @@ CONTAINS
       DO ispin=1, SIZE(rho_r)
         my_rho_r(ispin)%pw => rho_r(ispin)%pw
       END DO
-      CALL xc_prep_2nd_deriv_new(deriv_set=deriv_set, rho_set=rho_set, &
+      CALL xc_prep_2nd_deriv(deriv_set=deriv_set, rho_set=rho_set, &
                                  rho_r=my_rho_r, pw_pool=auxbas_pw_pool, &
-                                 dft_control=dft_control, cell=cell, error=error)
+                                 xc_section=xc_section, cell=cell, error=error)
       DEALLOCATE(my_rho_r, stat=stat)
       CPPostconditionNoFail(stat==0, cp_warning_level, routineP, error)
 
@@ -1094,9 +1088,9 @@ CONTAINS
         CALL pw_zero(v_xc(ispin)%pw)
       END DO
 
-      CALL xc_calc_2nd_deriv_new(v_xc, deriv_set=deriv_set, rho_set=rho_set, &
+      CALL xc_calc_2nd_deriv(v_xc, deriv_set=deriv_set, rho_set=rho_set, &
                                 rho1_set=rho_set, pw_pool=auxbas_pw_pool, &
-                                dft_control=dft_control, gapw=.FALSE., error=error)
+                                xc_section=xc_section, gapw=.FALSE., error=error)
 
       CALL xc_dset_release(deriv_set, error=error)
 
@@ -1416,13 +1410,13 @@ CONTAINS
                                                        v_hartree_gspace, &
                                                        rho_tot_gspace
     TYPE(real_matrix_p_type), DIMENSION(:), POINTER :: matrix_ks
-    TYPE(greens_function_type), POINTER             :: green
     REAL(KIND=dp)                                   :: Ehartree, &
                                                        Exc
     TYPE(pw_pool_type), POINTER                     :: auxbas_pw_pool
     TYPE(pw_env_type), POINTER                      :: pw_env
     TYPE(coeff_type), POINTER                       :: rho_core
     LOGICAL                                         :: failure
+    TYPE(pw_poisson_type), pointer ::poisson_env
 
     CHARACTER(len=*), PARAMETER :: routineN = 'harris_force_test_integral_vxc', &
       routineP = moduleN//':'//routineN
@@ -1432,8 +1426,8 @@ CONTAINS
 !   ------------------------------------------------------------------------
 
     failure = .FALSE.
-    NULLIFY(rho, v_rspace_new, matrix_ks, green, auxbas_pw_pool, pw_env, &
-            rho_core, force_tmp, v_tau_rspace)
+    NULLIFY(rho, v_rspace_new, matrix_ks, auxbas_pw_pool, pw_env, &
+            rho_core, force_tmp, v_tau_rspace, poisson_env)
     logger => cp_error_get_logger(error)
 
     CPPrecondition(ASSOCIATED(qs_env), cp_failure_level, routineP, error, failure)
@@ -1474,8 +1468,9 @@ CONTAINS
       CALL zero_qs_force(force)
 
       CALL get_qs_env(qs_env=qs_env, pw_env=pw_env, rho=rho, rho_core=rho_core, &
-                      matrix_ks=matrix_ks, green=green, error=error)
-      CALL pw_env_get(pw_env=pw_env, auxbas_pw_pool=auxbas_pw_pool, error=error)
+                      matrix_ks=matrix_ks, error=error)
+      CALL pw_env_get(pw_env=pw_env, auxbas_pw_pool=auxbas_pw_pool,&
+           poisson_env=poisson_env,error=error)
       CALL pw_pool_init_coeff(auxbas_pw_pool, v_hartree_gspace, &
                               use_data = COMPLEXDATA1D,&
                               in_space = RECIPROCALSPACE, error=error)
@@ -1485,10 +1480,8 @@ CONTAINS
             
       CALL coeff_add(rho_core, rho%rho_g(1), rho_tot_gspace)
       
-      CALL init_pw_poisson_solver(green,error=error)
-      CALL calculate_hartree(rho_tot_gspace, ehartree=Ehartree, vhartree=v_hartree_gspace)
-      !CALL calculate_hartree(rho%rho_g(1), ehartree=Ehartree, vhartree=v_hartree_gspace)
-      CALL cleanup_pw_poisson_solver(green,error=error)
+      CALL pw_poisson_solve(poisson_env,rho_tot_gspace%pw, ehartree=Ehartree, vhartree=v_hartree_gspace%pw)
+      !CALL calculate_hartree(poisson_env,rho%rho_g(1), ehartree=Ehartree, vhartree=v_hartree_gspace)
 
       CALL pw_pool_give_back_coeff(auxbas_pw_pool, rho_tot_gspace, &
                                    error=error)

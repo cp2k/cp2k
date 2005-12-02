@@ -397,7 +397,7 @@ CONTAINS
       routineP = moduleN//':'//routine_name
 
     CHARACTER(LEN=10)                        :: exit_fname_level
-    INTEGER                                  :: handle, unit_number
+    INTEGER                                  :: unit_number
     LOGICAL                                  :: failure
     TYPE(cp_logger_type), POINTER            :: logger
 

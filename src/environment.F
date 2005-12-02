@@ -86,7 +86,6 @@ MODULE environment
                                              m_getlog,&
                                              m_getpid,&
                                              m_hostnm
-  USE mathconstants,                   ONLY: init_mathcon
   USE message_passing,                 ONLY: add_mp_perf_env,&
                                              describe_mp_perf_env,&
                                              mp_bcast,&
@@ -99,11 +98,6 @@ MODULE environment
   USE physcon,                         ONLY: init_physcon,&
                                              write_physcon
   USE print_key_types,                 ONLY: print_keys_reset
-  USE qs_parser,                       ONLY: finish_parser,&
-                                             read_object,&
-                                             start_parser,&
-                                             stop_parser,&
-                                             test_object
   USE string_utilities,                ONLY: ascii_to_string,&
                                              string_to_ascii
   USE termination,                     ONLY: set_error_unit,&
@@ -152,7 +146,7 @@ MODULE environment
 ! *** Public subroutines ***
 
   PUBLIC :: cp2k_finalize,&
-            cp2k_init, cp2k_read
+            cp2k_init, cp2k_read, cp2k_setup
 
   PUBLIC :: compile_arch,compile_date,compile_host,compile_lastcvs
 
@@ -249,6 +243,7 @@ CONTAINS
 
     CALL mp_bcast(globenv%input_file_name,globenv%source,globenv%group)
 
+
 !   *** Print a list of all started processes ***
 
     ALLOCATE (all_pid(globenv%num_pe),STAT=istat)
@@ -288,28 +283,6 @@ CONTAINS
 !   *** Initialize timing ***
 
     CALL timeset ("CP2K","I","",handle)
-
-!   *** Initialize random number generator ***
-
-    globenv%idum = -1
-    initial_random = ran2(globenv%idum)
-
-!   *** Initialize the parallel random number generator ***
-
-    CALL init_rng()
-
-    IF (ionode.AND.globenv%print%rng_matrices) THEN
-      CALL write_rng_matrices(globenv%scr)
-    END IF
-
-!   *** Initialize mathematical constants ***
-
-    CALL init_mathcon()
-
-!   *** Initialize physical constants ***
-
-    CALL init_physcon()
-    CALL init_cp2k_units()
 
     output_unit=globenv%scr
 
@@ -368,14 +341,16 @@ CONTAINS
 !!     fawzi
 !!
 !!*** **********************************************************************
-SUBROUTINE cp2k_read(globenv)
+SUBROUTINE cp2k_read(globenv,error)
     TYPE(global_environment_type), POINTER   :: globenv
+    TYPE(cp_error_type), INTENT(inout), optional :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp2k_read', &
       routineP = module_name//':'//routineN
 
     INTEGER                                  :: output_unit
     TYPE(cp_logger_type), POINTER            :: logger
+    CHARACTER(len=default_string_length) :: c_val
 
     IF (globenv%para_env%source==globenv%para_env%mepos) THEN
        output_unit=globenv%scr
@@ -383,13 +358,7 @@ SUBROUTINE cp2k_read(globenv)
        output_unit=-1
     END IF
 
-!   *** Read the input section with the print keys ***
-
-    CALL read_print_section(globenv)
-
 !   *** Read the input/output section ***
-
-    CALL read_io_section(globenv)
 
 #if defined(__HPM)
     IF (globenv%print%HPM) THEN
@@ -404,16 +373,22 @@ SUBROUTINE cp2k_read(globenv)
 
     ! try to use better names for the local log if it is not too late
     logger => cp_get_default_logger()
-    IF (globenv%output_file_name/="") THEN
+    CALL section_vals_val_get(globenv%input_file,"GLOBAL%OUTPUT_FILE_NAME",&
+         c_val=c_val,error=error)
+    IF (c_val/="") THEN
        CALL cp_logger_set(logger,&
-            local_filename=TRIM(globenv%output_file_name)//"_localLog")
+            local_filename=TRIM(c_val)//"_localLog")
     END IF
-    IF (globenv%project_name/="") THEN
+    CALL section_vals_val_get(globenv%input_file,"GLOBAL%PROJECT",&
+         c_val=c_val,error=error)
+    IF (c_val/="") THEN
        CALL cp_logger_set(logger,&
-            local_filename=TRIM(globenv%project_name)//"_localLog")
+            local_filename=TRIM(c_val)//"_localLog")
     END IF
-    logger%iter_info%project_name=globenv%project_name
-    logger%iter_info%print_level=globenv%print%level
+    logger%iter_info%project_name=c_val
+    logger%iter_info%print_level=globenv%print_level
+    globenv%print%level=globenv%print_level
+    CALL print_keys_reset(globenv%print,globenv%print_level)
 
     IF (globenv%ionode) THEN
       IF (globenv%print%basic_data_types) CALL print_kind_info(output_unit)
@@ -423,446 +398,64 @@ SUBROUTINE cp2k_read(globenv)
   END SUBROUTINE cp2k_read
 !***************************************************************************
 
-!******************************************************************************
-!!****f* environment/read_print_section [1.0] *
+!!****f* environment/cp2k_setup [1.0] *
 !!
 !!   NAME
-!!     read_print_section
+!!     cp2k_setup
 !!
 !!   FUNCTION
-!!     Read the input section with the print keys.
+!!     globenv initializations that need the input and error
+!!
+!!   NOTES
+!!     if possible do the initializations here as the environement
+!!     (error,...) is setup, instaed of cp2k_init
+!!
+!!   INPUTS
+!!     - globenv: the global environment to initialize
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
 !!
 !!   AUTHOR
-!!     MK
+!!     fawzi
 !!
-!!   MODIFICATION HISTORY
-!!     Creation (13.07.2000,MK)
-!!
-!!******
-!******************************************************************************
-  SUBROUTINE read_print_section(globenv)
+!!*** **********************************************************************
+SUBROUTINE cp2k_setup(globenv,error)
+  TYPE(global_environment_type), pointer :: globenv
+  type(cp_error_type), optional, intent(inout) :: error
+  
+  logical :: failure
+  character(len=*), parameter :: routineN='cp2k_setup',&
+        routineP=module_name//':'//routineN
+    INTEGER           :: initial_random,ipe,istat,l,output_unit,pid,&
+                         strstart,strend
+    LOGICAL           :: ionode
 
-    TYPE(global_environment_type), &
-      INTENT(INOUT)                          :: globenv
+    INTEGER, DIMENSION(:), ALLOCATABLE   :: all_pid
+    INTEGER, DIMENSION(:,:), ALLOCATABLE :: all_host
+    TYPE(cp_logger_type), POINTER :: logger
+  failure=.false.
+  
+  IF (.NOT. failure) THEN
+!   *** Initialize random number generator ***
+    
+    CALL section_vals_val_get(globenv%input_file,"GLOBAL%SEED",&
+         i_val=globenv%idum)
+    initial_random = ran2(globenv%idum)
 
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "read_print_section", &
-      start_section_label = "PRINT"
+!   *** Initialize the parallel random number generator ***
 
-    CHARACTER(LEN=3)                         :: test_result
-    CHARACTER(LEN=60)                        :: keyword
-    INTEGER                                  :: ipos1, ipos2
-    LOGICAL                                  :: print_request, section_found
+    CALL init_rng()
 
-!   ---------------------------------------------------------------------------
-!   *** Initialize print keys (the default print level is LOW) ***
-
-    globenv%print%level = LOW
-
-!   *** Modify the default precision of flexible format output ***
-
-    globenv%print%precision = 0
-
-    CALL start_parser(file_name=globenv%input_file_name,&
-                      globenv=globenv,&
-                      start_section_label=start_section_label,&
-                      section_found=section_found)
-
-!   *** Check for print level specification ***
-
-    IF (section_found) THEN
-      test_result = test_object()
-      IF (test_result == "EOL") THEN
-        globenv%print%level = LOW
-      ELSE IF (test_result == "INT") THEN
-        CALL read_object(globenv%print%level)
-        IF (globenv%print%level < SILENT) globenv%print%level = SILENT
-        IF (globenv%print%level > DEBUG) globenv%print%level = DEBUG
-      ELSE IF (test_result == "STR") THEN
-        CALL read_object(keyword,lower_to_upper=.TRUE.)
-        SELECT CASE (TRIM(keyword))
-        CASE ("SILENT")
-          globenv%print%level = SILENT
-        CASE ("LOW","DEFAULT")
-          globenv%print%level = LOW
-        CASE ("MEDIUM")
-          globenv%print%level = MEDIUM
-        CASE ("HIGH")
-          globenv%print%level = HIGH
-        CASE ("DEBUG","ALL")
-          globenv%print%level = DEBUG
-        CASE DEFAULT
-          CALL stop_parser(routine_name,module_name,__LINE__,&
-                           "Invalid definition <"//TRIM(keyword)//&
-                           "> found for the default print level")
-        END SELECT
-      END IF
+    IF (ionode.AND.globenv%print%rng_matrices) THEN
+      CALL write_rng_matrices(globenv%scr)
     END IF
 
-    CALL print_keys_reset(globenv%print,globenv%print%level)
+    CALL init_cp2k_units()
 
-    IF (section_found) THEN
-      DO
-        test_result = test_object(newline=.TRUE.)
-        IF (test_result == "EOS") THEN
-          EXIT
-        ELSE IF (test_result == "EOF") THEN
-          CALL stop_parser(routine_name,module_name,__LINE__,"EOF")
-        ELSE
-          CALL read_object(keyword,lower_to_upper=.TRUE.,newline=.TRUE.)
-          IF (keyword(1:3) == "NO_") THEN
-            ipos1= 4
-            print_request = .FALSE.
-          ELSE
-            ipos1= 1
-            print_request = .TRUE.
-          END IF
-          ipos2 = LEN_TRIM(keyword)
-          SELECT CASE (keyword(ipos1:ipos2))
-          CASE ("ATOMIC_COORDINATES","COORDINATES","COORD")
-            globenv%print%atomic_coordinates = print_request
-          CASE ("BASIC_DATA_TYPES")
-            globenv%print%basic_data_types = print_request
-          CASE ("BASIS_SETS","BASIS_SET","BASIS")
-            globenv%print%basis_set = print_request
-          CASE ("BLACS_INFORMATION","BLACS_INFO")
-            globenv%print%blacs_info = print_request
-          CASE ("CARTESIAN_OPERATOR_MATRICES","CARTESIAN_MATRICES")
-            globenv%print%cartesian_om = print_request
-          CASE ("CELL_PARAMETERS","CELL")
-            globenv%print%cell_parameters = print_request
-          CASE ("CHARGE_DENSITY_MATRIX","G_MATRIX")
-            globenv%print%charge_density_matrix = print_request
-          CASE ("CORE_HAMILTONIAN_MATRIX","H_MATRIX","H-MATRIX")
-            globenv%print%core_hamiltonian_matrix = print_request
-          CASE ("CORE_CHARGE_RADII","CORE_RADII")
-            globenv%print%core_charge_radii = print_request
-          CASE ("CPUTIME")
-            globenv%print%cputime = print_request
-          CASE ("DENSITY_MATRIX","P_MATRIX")
-            globenv%print%density_matrix = print_request
-          CASE ("DERIVATIVES")
-            globenv%print%derivatives = print_request
-          CASE ("DIIS_INFORMATION","DIIS_INFO","DIIS")
-            globenv%print%diis_information = print_request
-          CASE ("DISTRIBUTION")
-            globenv%print%distribution = print_request
-          CASE ("EACH_SCF_STEP")
-            globenv%print%each_scf_step = print_request
-          CASE ("FORCES")
-            globenv%print%forces = print_request
-          CASE ("HARTREE_MATRIX")
-            globenv%print%hartree_matrix = print_request
-          CASE ("RNG_MATRICES")
-            globenv%print%rng_matrices = print_request
-          CASE ("INTERATOMIC_DISTANCES","DISTANCES")
-            globenv%print%interatomic_distances = print_request
-          CASE ("KIND_INFORMATION","KIND_INFO","KINDS")
-            globenv%print%kind_information = print_request
-            globenv%print%basis_set = print_request
-            globenv%print%potential = print_request
-          CASE ("KIND_RADII")
-            globenv%print%kind_radii = print_request
-          CASE ("KINETIC_ENERGY_MATRIX","T_MATRIX","T-MATRIX")
-            globenv%print%kinetic_energy_matrix = print_request
-          CASE ("KOHN_SHAM_MATRIX","KS_MATRIX")
-            globenv%print%kohn_sham_matrix = print_request
-          CASE ("MEMORY")
-            globenv%print%memory = print_request
-          CASE ("MOS_CARTESIAN","CARTESIAN_MOS")
-            globenv%print%mo_cartesian = print_request
-            globenv%print%mo_eigenvalues = print_request
-            globenv%print%mo_eigenvectors = print_request
-            globenv%print%mo_occupation_numbers = print_request
-          CASE ("MO_EIGENVALUES")
-            globenv%print%mo_eigenvalues = print_request
-          CASE ("MO_EIGENVECTORS","MOS")
-            globenv%print%mo_eigenvalues = print_request
-            globenv%print%mo_eigenvectors = print_request
-            globenv%print%mo_occupation_numbers = print_request
-          CASE ("MO_OCCUPATION_NUMBERS")
-            globenv%print%mo_eigenvalues = print_request
-            globenv%print%mo_occupation_numbers = print_request
-          CASE ("NEIGHBOR_LISTS")
-            globenv%print%sab_orb_neighbor_lists = print_request
-            globenv%print%sac_ppl_neighbor_lists = print_request
-            globenv%print%sac_ppnl_neighbor_lists = print_request
-            globenv%print%sbc_ppnl_neighbor_lists = print_request
-            globenv%print%sac_oce_neighbor_lists = print_request
-            globenv%print%sbc_oce_neighbor_lists = print_request
-          CASE ("OPTICAL_CONDUCTIVITY")
-            globenv%print%optical_conductivity = print_request
-          CASE ("ORTHOGONALISATION_MATRIX","ORTHO_MATRIX")
-            globenv%print%ortho_matrix = print_request
-          CASE ("OVERLAP_MATRIX","S_MATRIX","S-MATRIX")
-            globenv%print%overlap_matrix = print_request
-          CASE ("PGF_RADII")
-            globenv%print%pgf_radii = print_request
-          CASE ("PHYSICAL_CONSTANTS","PHYSCON")
-            globenv%print%physcon = print_request
-          CASE ("POTENTIALS","POTENTIAL")
-            globenv%print%potential = print_request
-          CASE ("POTENTIAL_ENERGY_MATRIX","V_MATRIX","V-MATRIX")
-            globenv%print%potential_energy_matrix = print_request
-          CASE ("PPL_RADII")
-            globenv%print%ppl_radii = print_request
-          CASE ("PPNL_RADII")
-            globenv%print%ppnl_radii = print_request
-          CASE ("PRJ_RADII")
-            globenv%print%prj_radii = print_request
-          CASE ("PRECISION")
-            CALL read_object(globenv%print%precision)
-          CASE ("PROGRAM_BANNER","BANNER")
-            globenv%print%program_banner = print_request
-          CASE ("PROGRAM_RUN_INFORMATION","PROGRAM_RUN_INFO","RUN_INFO")
-            globenv%print%program_run_information = print_request
-          CASE ("PROJECTORS")
-            globenv%print%projectors = print_request
-          CASE ("RADII")
-            globenv%print%core_charge_radii = print_request
-            globenv%print%kind_radii = print_request
-            globenv%print%ppl_radii = print_request
-            globenv%print%ppnl_radii = print_request
-            globenv%print%prj_radii = print_request
-            globenv%print%set_radii = print_request
-            globenv%print%pgf_radii = print_request
-          CASE ("PW_GRID_INFORMATION","PW_GRID_INFO","GRID_INFO")
-            globenv%print%pw_grid_information = print_request
-          CASE ("SAB_ORB_NEIGHBOR_LIST")
-            globenv%print%sab_orb_neighbor_lists = print_request
-          CASE ("SAC_PPL_NEIGHBOR_LIST")
-            globenv%print%sac_ppl_neighbor_lists = print_request
-          CASE ("SAC_PPNL_NEIGHBOR_LIST")
-            globenv%print%sac_ppnl_neighbor_lists = print_request
-          CASE ("SBC_PPNL_NEIGHBOR_LIST")
-            globenv%print%sbc_ppnl_neighbor_lists = print_request
-          CASE ("SAC_OCE_NEIGHBOR_LIST")
-            globenv%print%sac_oce_neighbor_lists = print_request
-          CASE ("SBC_OCE_NEIGHBOR_LIST")
-            globenv%print%sbc_oce_neighbor_lists = print_request
-          CASE ("SCF")
-            globenv%print%scf = print_request
-          CASE ("SCF_ENERGIES")
-            globenv%print%scf = print_request
-            globenv%print%scf_energies = print_request
-          CASE ("SET_RADII")
-            globenv%print%set_radii = print_request
-          CASE ("SPHERICAL_HARMONICS")
-            globenv%print%spherical_harmonics = print_request
-          CASE ("TITLE")
-            globenv%print%title = print_request
-          CASE ("TOTAL_NUMBERS")
-            globenv%print%total_numbers = print_request
-          CASE ("TOTAL_DENSITIES")
-            globenv%print%total_densities = print_request
-          CASE ("W-MATRIX","WMATRIX")
-            globenv%print%w_matrix = print_request
-!MK
-          CASE ("CUBE","CUBES")
-            globenv%print%cubes = print_request
-          CASE ("E_DENSITY_CUBE","DENSITY")
-            globenv%print%e_density_cube = print_request
-          CASE ("V_HARTREE_CUBE","HARTREE")
-            globenv%print%v_hartree_cube = print_request
-          CASE ("V_QMMM_CUBE","V_QMMM")
-            globenv%print%v_qmmm_cube = print_request
-          CASE ("LUMO","LUMOS")
-            globenv%print%lumos = print_request
-            IF (test_object() == "INT") CALL read_object(globenv%print%nlumos)
-            IF (globenv%print%nlumos <= 0) globenv%print%nlumos = 4
-          CASE ("HOMO","HOMOS")
-            globenv%print%homos = print_request
-            IF (test_object() == "INT") CALL read_object(globenv%print%nhomos)
-            IF (globenv%print%nhomos <= 0) globenv%print%nhomos = 4
-          CASE ("LOCALIZATION")
-            globenv%print%localization = print_request
-            IF (test_object() == "STR") THEN
-               CALL read_object(keyword,lower_to_upper=.TRUE.)
-               SELECT CASE(TRIM(keyword))
-               CASE("JACOBI")
-                  globenv%print%localization_method = WANNIER_JACOBI
-               CASE("CRAZY")
-                  globenv%print%localization_method = WANNIER_CRAZY
-               CASE("DIRECT")
-                  globenv%print%localization_method = WANNIER_DIRECT
-               CASE("NONE")
-                  globenv%print%localization_method = WANNIER_NONE
-               CASE DEFAULT
-                  CALL stop_parser(routine_name,module_name,__LINE__,&
-                        "INVALID_KEYWORD")
-               END SELECT
-            ENDIF
-          CASE ("MOLECULAR_STATES")
-            globenv%print%molecular_states = print_request
-          CASE ("TIMECUMUL")
-            globenv%print%timecumul = print_request
-          CASE ("HPM")
-            globenv%print%HPM = print_request
-!MK
-          CASE ("EP_MATRIXES")
-             globenv%print%ep_matrixes = print_request
-          CASE ("EP_RHO1_CUBE")
-             globenv%print%ep_rho1_cube = print_request
-          CASE ("EP_OPERATOR")
-             globenv%print%ep_operator = print_request
-          CASE ("MULLIKEN","MULLIKEN_ANALYSIS")
-             globenv%print%mulliken_analysis = print_request
-          CASE ("ORTHO","MO_ORTHONORMALITY")
-             globenv%print%mo_orthonormality = print_request
-          CASE DEFAULT
-            CALL stop_parser(routine_name,module_name,__LINE__,&
-                        "INVALID_KEYWORD")
-          END SELECT
-        END IF
-      END DO
-    END IF
+ END IF
+END SUBROUTINE cp2k_setup
+!***************************************************************************
 
-    CALL finish_parser()
-
-  END SUBROUTINE read_print_section
-
-!******************************************************************************
-!!****f* environment/read_io_section [1.0] *
-!!
-!!   NAME
-!!     read_io_section
-!!
-!!   FUNCTION
-!!     Read the input/output section (path and file names).
-!!
-!!   AUTHOR
-!!     MK
-!!
-!!   MODIFICATION HISTORY
-!!     Creation (13.07.2000,MK)
-!!
-!!******
-!******************************************************************************
-  SUBROUTINE read_io_section(globenv,error)
-
-    TYPE(global_environment_type), &
-      INTENT(INOUT)                          :: globenv
-    type(cp_error_type), optional, intent(inout) :: error
-
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "read_io_section", &
-      start_section_label = "IO"
-
-    CHARACTER(LEN=3)                         :: test_result
-    CHARACTER(LEN=60)                        :: keyword
-    INTEGER                                  :: output_unit, unit_number
-    LOGICAL                                  :: section_found, was_present
-    TYPE(section_vals_type), POINTER         :: global_section
-
-!   ---------------------------------------------------------------------------
-
-!TODEL_START_MI
-    NULLIFY(global_section)
-    was_present = .FALSE.
-
-    global_section => section_vals_get_subs_vals(globenv%input_file,"GLOBAL",error=error)
-    call section_vals_get(global_section,explicit=was_present,error=error)
-    IF (was_present .OR. parsed_cp2k_input(globenv%input_file,error=error)) THEN
-       GO TO 20
-    END IF
-
-!   *** Load the default settings ***
-    globenv%pp_library_path = "./"
-
-    globenv%basis_set_file_name = "BASIS_SET"
-    globenv%coord_file_name = globenv%input_file_name
-    globenv%error_file_name = "(stdout)"
-    globenv%output_file_name = "(stdout)"
-    globenv%potential_file_name = "POTENTIAL"
-    globenv%restart_file_name = "RESTART"
-    globenv%mm_potential_file_name = "MM_POTENTIAL"
-
-    CALL start_parser(file_name=globenv%input_file_name,&
-                      globenv=globenv,&
-                      start_section_label=start_section_label,&
-                      section_found=section_found)
-
-    IF (section_found) THEN
-      DO
-        test_result = test_object()
-        IF (test_result /= "EOL") THEN
-          CALL read_object(keyword)
-          CALL stop_parser(routine_name,module_name,__LINE__,&
-                      "INVALID_KEYWORD")
-        END IF
-        test_result = test_object(newline=.TRUE.)
-        IF (test_result == "EOS") THEN
-          EXIT
-        ELSE IF (test_result == "EOF") THEN
-          CALL stop_parser(routine_name,module_name,__LINE__,"EOF")
-        ELSE
-          CALL read_object(keyword,lower_to_upper=.TRUE.,newline=.TRUE.)
-          SELECT CASE (TRIM(keyword))
-          CASE ("BASIS_SET_FILE_NAME","BASIS_SET_FILE")
-            CALL read_object(globenv%basis_set_file_name)
-          CASE ("COORD_FILE_NAME","COORD_FILE")
-            CALL read_object(globenv%coord_file_name)
-          CASE ("ERROR_FILE_NAME","ERROR_FILE")
-            CALL read_object(globenv%error_file_name)
-            ! XXXX do we close these ???
-            CALL open_file(file_name=globenv%error_file_name,&
-                           file_action="WRITE",&
-                           file_form="FORMATTED",&
-                           file_status="REPLACE",&
-                           unit_number=unit_number)
-            CALL set_error_unit(unit_number)
-          CASE ("OUTPUT_FILE_NAME","OUTPUT_FILE")
-            CALL read_object(globenv%output_file_name)
-            ! XXXX do we close these ???
-            CALL open_file(file_name=globenv%output_file_name,&
-                           file_action="WRITE",&
-                           file_form="FORMATTED",&
-                           file_status="REPLACE",&
-                           unit_number=globenv%scr)
-          CASE ("POTENTIAL_FILE_NAME","POTENTIAL_FILE")
-            CALL read_object(globenv%potential_file_name)
-          CASE ("MM_POTENTIAL_FILE_NAME","MM_POTENTIAL_FILE")
-            CALL read_object(globenv%mm_potential_file_name)
-          CASE ("PP_LIBRARY_PATH")
-            CALL read_object(globenv%pp_library_path)
-          CASE ("RESTART_FILE_NAME","RESTART_FILE")
-            CALL read_object(globenv%restart_file_name)
-          CASE DEFAULT
-            CALL stop_parser(routine_name,module_name,__LINE__,&
-                      "INVALID_KEYWORD")
-          END SELECT
-        END IF
-      END DO
-    END IF
-
-    CALL finish_parser()
-
-    IF (globenv%ionode.AND.(globenv%print%level > SILENT)) THEN
-      output_unit = globenv%scr
-      WRITE (UNIT=output_unit,FMT="(/,(T2,A,T41,A))")&
-        start_section_label//"| Input file name",&
-        ADJUSTR(globenv%input_file_name(:40)),&
-        start_section_label//"| Output file name",&
-        ADJUSTR(globenv%output_file_name(:40)),&
-        start_section_label//"| Error file name",&
-        ADJUSTR(globenv%error_file_name(:40)),&
-        start_section_label//"| Library path",&
-        ADJUSTR(globenv%pp_library_path(:40)),&
-        start_section_label//"| Basis set file name",&
-        ADJUSTR(globenv%basis_set_file_name(:40)),&
-        start_section_label//"| Potential file name",&
-        ADJUSTR(globenv%potential_file_name(:40)),&
-        start_section_label//"| MM Potential file name",&
-        ADJUSTR(globenv%mm_potential_file_name(:40)),&
-        start_section_label//"| Restart file name",&
-        ADJUSTR(globenv%restart_file_name(:40)),&
-        start_section_label//"| Coordinate file name",&
-        ADJUSTR(globenv%coord_file_name(:40))
-    END IF
-
-  20 CONTINUE
-!TODEL_END_MI
-  END SUBROUTINE read_io_section
-
-!******************************************************************************
 !!****f* environment/read_global_section [1.0] *
 !!
 !!   NAME
@@ -895,6 +488,8 @@ SUBROUTINE cp2k_read(globenv)
     INTEGER                                  :: num_threads,output_unit
     LOGICAL                                  :: failure, trace
     TYPE(section_vals_type), POINTER         :: dft_section,global_section
+    CHARACTER(len=default_string_length) :: basis_set_file_name, potential_file_name,&
+         mm_potential_file_name,restart_file_name
 
 !$  INTEGER :: omp_get_num_threads
 
@@ -909,24 +504,23 @@ SUBROUTINE cp2k_read(globenv)
     CALL section_vals_val_get(global_section,"PRINT_LEVEL",i_val=globenv%print_level,error=error)
     CALL section_vals_val_get(global_section,"PROGRAM_NAME",i_val=globenv%prog_name_id,error=error)
     CALL section_vals_val_get(global_section,"PROJECT_NAME",c_val=globenv%project_name,error=error)
-    CALL section_vals_val_get(global_section,"ERROR_FILE_NAME",c_val=globenv%error_file_name,error=error)
-    CALL section_vals_val_get(global_section,"RESTART_FILE_NAME",c_val=globenv%restart_file_name,error=error)
     CALL section_vals_val_get(global_section,"RUN_TYPE",i_val=globenv%run_type_id,error=error)
-    CALL section_vals_val_get(global_section,"OUTPUT",i_val=globenv%out_form,error=error)
+    CALL section_vals_val_get(globenv%input_file,"FORCE_EVAL%PRINT%TRAJECTORY%FORMAT",i_val=globenv%out_form,error=error)
     CALL section_vals_val_get(global_section,"TRACE",l_val=trace,error=error)
     IF(trace) CALL trace_debug("start",groupid=globenv%group)
 
     globenv%coord_file_name = globenv%input_file_name
-    globenv%output_file_name = "(stdout)"
 
     dft_section => section_vals_get_subs_vals(globenv%input_file,"FORCE_EVAL%DFT",error=error)
 
     CALL section_vals_val_get(dft_section,"BASIS_SET_FILE_NAME",&
-         c_val=globenv % basis_set_file_name , error=error)
+         c_val=basis_set_file_name , ignore_required=.TRUE., error=error)
     CALL section_vals_val_get(dft_section,"POTENTIAL_FILE_NAME",&
-         c_val=globenv % potential_file_name , error=error)
-    CALL section_vals_val_get(dft_section,"PP_LIBRARY_PATH",&
-         c_val=globenv %  pp_library_path, error=error)
+         c_val=potential_file_name , ignore_required=.TRUE., error=error)
+    CALL section_vals_val_get(dft_section,"RESTART_FILE_NAME",&
+         c_val=restart_file_name , ignore_required=.TRUE., error=error)
+    CALL section_vals_val_get(globenv%input_file,"FORCE_EVAL%QMMM%MM_POTENTIAL_FILE_NAME",&
+         c_val=mm_potential_file_name, ignore_required=.TRUE., error=error)
 
     IF (globenv%run_type_id == 0) THEN
        SELECT CASE (globenv%prog_name_id)
@@ -967,20 +561,14 @@ SUBROUTINE cp2k_read(globenv)
       WRITE (UNIT=output_unit,FMT="(T2,A,T41,A)")&
         start_section_label//"| Input file name",&
         ADJUSTR(globenv%input_file_name(:40)),&
-        start_section_label//"| Output file name",&
-        ADJUSTR(globenv%output_file_name(:40)),&
-        start_section_label//"| Error file name",&
-        ADJUSTR(globenv%error_file_name(:40)),&
-        start_section_label//"| Library path",&
-        ADJUSTR(globenv%pp_library_path(:40)),&
         start_section_label//"| Basis set file name",&
-        ADJUSTR(globenv%basis_set_file_name(:40)),&
+        ADJUSTR(basis_set_file_name(:40)),&
         start_section_label//"| Potential file name",&
-        ADJUSTR(globenv%potential_file_name(:40)),&
+        ADJUSTR(potential_file_name(:40)),&
         start_section_label//"| MM Potential file name",&
-        ADJUSTR(globenv%mm_potential_file_name(:40)),&
+        ADJUSTR(mm_potential_file_name(:40)),&
         start_section_label//"| Restart file name",&
-        ADJUSTR(globenv%restart_file_name(:40)),&
+        ADJUSTR(restart_file_name(:40)),&
         start_section_label//"| Coordinate file name",&
         ADJUSTR(globenv%coord_file_name(:40))
       WRITE (UNIT=output_unit,FMT="(T2,A,T79,A)")&
@@ -1049,165 +637,7 @@ SUBROUTINE cp2k_read(globenv)
 
     global_section => section_vals_get_subs_vals(globenv%input_file,"GLOBAL",error=error)
     call section_vals_get(global_section,explicit=was_present,error=error)
-    IF (was_present .OR. parsed_cp2k_input(globenv%input_file,error=error)) THEN
-       CALL read_global_section(globenv)
-       GO TO 20
-    END IF
-
-!TODEL_START_MI
-!   *** Load the default settings ***
-
-    globenv%blacs_grid_layout = BLACS_GRID_SQUARE
-    globenv%default_fft_library = "FFTSG"
-    globenv%print_level  = 0
-    globenv%prog_name_id = 0
-    globenv%project_name = "unspecified"
-    globenv%run_type_id  = 0
-
-    CALL start_parser(file_name=globenv%input_file_name,&
-                      globenv=globenv,&
-                      start_section_label=start_section_label,&
-                      section_found=section_found)
-
-    IF (section_found) THEN
-      DO
-        test_result = test_object()
-        IF (test_result /= "EOL") THEN
-          CALL read_object(keyword)
-          CALL stop_parser(routine_name,module_name,__LINE__,&
-                       "INVALID_KEYWORD")
-        END IF
-        test_result = test_object(newline=.TRUE.)
-        IF (test_result == "EOS") THEN
-          EXIT
-        ELSE IF (test_result == "EOF") THEN
-          CALL stop_parser(routine_name,module_name,__LINE__,"EOF")
-        ELSE
-          CALL read_object(keyword,lower_to_upper=.TRUE.,newline=.TRUE.)
-          SELECT CASE (TRIM(keyword))
-          CASE ("BLACS_GRID")
-            CALL read_object(keyvalue,lower_to_upper=.TRUE.)
-            SELECT CASE(TRIM(keyvalue))
-            CASE ("SQUARE")
-                 globenv%blacs_grid_layout = BLACS_GRID_SQUARE
-            CASE ("ROW")
-                 globenv%blacs_grid_layout = BLACS_GRID_ROW
-            CASE ("COL","COLUMN")
-                 globenv%blacs_grid_layout = BLACS_GRID_COL
-            CASE DEFAULT
-              CALL stop_parser(routine_name,module_name,__LINE__,&
-                       "INVALID_KEYWORD")
-            END SELECT
-          CASE ("FFT_LIBRARY","FFT_LIB","FFTLIB")
-            CALL read_object(globenv%default_fft_library,lower_to_upper=.TRUE.)
-          CASE ("IOLEVEL","PRINT_LEVEL")
-            CALL read_object(globenv%print_level)
-          CASE ("PROGRAM_NAME","PROGRAM")
-            CALL read_object(program_name,lower_to_upper=.TRUE.)
-            
-            DO i = 1, SIZE(program_names)
-               IF (TRIM(program_name) == TRIM(program_names(i))) EXIT
-            END DO
-            IF ( i == SIZE(program_names) + 1 ) THEN
-               CALL stop_program(routine_name,module_name,__LINE__,&
-                    "Invalid program name <"//&
-                    TRIM(program_name)//"> found",globenv)               
-            END IF
-            globenv%prog_name_id = program_name_index(i) 
-          CASE ("PROJECT_NAME","PROJECT")
-            CALL read_object(globenv%project_name)
-          CASE ("RUN_TYPE")
-            CALL read_object(run_type,lower_to_upper=.TRUE.)
-
-            DO i = 1, SIZE(run_type_names)
-               IF (TRIM(run_type) == TRIM(run_type_names(i))) EXIT
-            END DO
-            IF ( i == SIZE(run_type_names) + 1 ) THEN
-               CALL stop_program(routine_name,module_name,__LINE__,&
-                    "Invalid program name <"//&
-                    TRIM(run_type)//"> found",globenv)               
-            END IF
-            globenv%run_type_id = run_type_index(i)   
-
-          CASE ("TRACE")
-            CALL trace_debug("start",groupid=globenv%group)
-          CASE DEFAULT
-            CALL stop_parser(routine_name,module_name,__LINE__,&
-                       "INVALID_KEYWORD")
-          END SELECT
-        END IF
-      END DO
-    ELSE
-      CALL stop_parser(routine_name,module_name,__LINE__,"SECTION_NOT_FOUND")
-    END IF
-
-    CALL finish_parser()
-
-    IF (globenv%run_type_id == 0) THEN
-       SELECT CASE (globenv%prog_name_id)
-       CASE (do_atom)
-          globenv%run_type_id = none_run
-       CASE (do_farming)
-          globenv%run_type_id = none_run
-       CASE (do_fist)
-          globenv%run_type_id = mol_dyn_run
-       CASE (do_kg)
-          globenv%run_type_id = mol_dyn_run
-       CASE (do_qs)
-          globenv%run_type_id = energy_run
-       CASE (do_test)
-          globenv%run_type_id = none_run
-       END SELECT
-    END IF
-    
-
-    SELECT CASE(globenv%prog_name_id)
-    CASE (do_atom)
-       IF (globenv%run_type_id/=none_run) THEN
-          CALL stop_program(routine_name,module_name,__LINE__,&
-               "ATOM program supports only NONE as run type",globenv)
-       END IF
-    CASE (do_farming)
-       IF (globenv%run_type_id/=none_run) THEN
-          CALL stop_program(routine_name,module_name,__LINE__,&
-               "ATOM program supports only NONE as run type",globenv)
-       END IF
-    CASE (do_test)
-       IF (globenv%run_type_id/=none_run) THEN
-          CALL stop_program(routine_name,module_name,__LINE__,&
-               "TEST program supports only NONE as run type",globenv)
-       END IF
-    END SELECT
-
-    num_threads=1
-!$omp parallel
-!$ num_threads = omp_get_num_threads()
-!$omp end parallel
-    IF (globenv%ionode.AND.(globenv%print%level > SILENT)) THEN
-      output_unit = globenv%scr
-      WRITE (UNIT=output_unit,FMT=*)
-      WRITE (UNIT=output_unit,FMT="(T2,A,T41,A)")&
-        start_section_label//"| Program name",&
-        ADJUSTR(program_names(globenv%prog_name_id)(:40)),&
-        start_section_label//"| Project name",&
-        ADJUSTR(globenv%project_name(:40)),&
-        start_section_label//"| Default FFT library",&
-        ADJUSTR(globenv%default_fft_library(:40)),&
-        start_section_label//"| Run type",&
-        ADJUSTR(run_type_names(globenv%run_type_id)(:40))
-      WRITE (UNIT=output_unit,FMT="(T2,A,T75,I6)")&
-        start_section_label//"| Global print level",globenv%print_level,&
-        start_section_label//"| Total number of message passing processes",&
-                             globenv%num_pe,&
-        start_section_label//"| Number of threads for this process",&
-                             num_threads,&
-        start_section_label//"| This output is from process",globenv%mepos
-      WRITE (UNIT=output_unit,FMT='()')
-    END IF
-
- 20 CONTINUE
-
-!TODEL_END_MI
+    CALL read_global_section(globenv)
 
 !   *** Initialize FFT library ***
     CALL init_fft(fftlib=TRIM(globenv%default_fft_library))

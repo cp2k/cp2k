@@ -41,7 +41,7 @@ MODULE input_val_types
 
   PUBLIC :: val_p_type, val_type
   PUBLIC :: val_create, val_retain, val_release, val_get, val_write,&
-            val_write_internal
+            val_write_internal, val_duplicate
 !***
 !****************************************************************************
 
@@ -498,6 +498,12 @@ SUBROUTINE val_get(val,has_l,has_i,has_r,has_c,l_val,l_vals,i_val,&
         ELSE
            CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
         END IF
+     ELSE if (associated(val%i_val).and.associated(val%enum)) then
+        IF (SIZE(val%i_val)>0) THEN
+           c_val=enum_i2c(val%enum,val%i_val(1),error=error)
+        ELSE
+           CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
+        END IF
      ELSE
         CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
      END IF
@@ -707,5 +713,80 @@ END SUBROUTINE val_write
   END SUBROUTINE val_write_internal
 
 ! *****************************************************************************
+
+!!****f* input_val_types/val_duplicate *
+!!
+!!   NAME
+!!     val_duplicate
+!!
+!!   FUNCTION
+!!     creates a copy of the given value
+!!
+!!   NOTES
+!!     -
+!!
+!!   ARGUMENTS
+!!     - val_in: the value to copy
+!!     - val_out: the value tha will be created
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     fawzi
+!!
+!!*** **********************************************************************
+SUBROUTINE val_duplicate(val_in,val_out,error)
+  TYPE(val_type), POINTER :: val_in,val_out
+  type(cp_error_type), optional, intent(inout) :: error
+  
+  logical :: failure
+  character(len=*), parameter :: routineN='val_duplicate',&
+        routineP=moduleN//':'//routineN
+  integer :: stat
+
+  failure=.false.
+  CPPrecondition(ASSOCIATED(val_in),cp_failure_level,routineP,error,failure)
+  CPPrecondition(.NOT.ASSOCIATED(val_out),cp_failure_level,routineP,error,failure)
+  IF (.NOT. failure) THEN
+     ALLOCATE(val_out,stat=stat)
+     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+  END IF
+  IF (.NOT.failure) THEN
+     last_val_id=last_val_id+1
+     val_out%id_nr=last_val_id
+     val_out%type_of_var=val_in%type_of_var
+     val_out%ref_count=1
+     val_out%enum => val_in%enum
+     IF (ASSOCIATED(val_out%enum)) CALL enum_retain(val_out%enum,error=error)
+
+     NULLIFY(val_out%l_val,val_out%i_val,val_out%c_val,val_out%r_val)
+     IF (ASSOCIATED(val_in%l_val)) THEN
+        ALLOCATE(val_out%l_val(SIZE(val_in%l_val)),stat=stat)
+        CPPostcondition(stat==0,cp_fatal_level,routineP,error,failure)
+        val_out%l_val=val_in%l_val
+     END IF
+     IF (ASSOCIATED(val_in%l_val)) THEN
+        ALLOCATE(val_out%l_val(SIZE(val_in%l_val)),stat=stat)
+        CPPostcondition(stat==0,cp_fatal_level,routineP,error,failure)
+        val_out%l_val=val_in%l_val
+     END IF
+     IF (ASSOCIATED(val_in%i_val)) THEN
+        ALLOCATE(val_out%i_val(SIZE(val_in%i_val)),stat=stat)
+        CPPostcondition(stat==0,cp_fatal_level,routineP,error,failure)
+        val_out%i_val=val_in%i_val
+     END IF
+     IF (ASSOCIATED(val_in%r_val)) THEN
+        ALLOCATE(val_out%r_val(SIZE(val_in%r_val)),stat=stat)
+        CPPostcondition(stat==0,cp_fatal_level,routineP,error,failure)
+        val_out%r_val=val_in%r_val
+     END IF
+     IF (ASSOCIATED(val_in%c_val)) THEN
+        ALLOCATE(val_out%c_val(SIZE(val_in%c_val)),stat=stat)
+        CPPostcondition(stat==0,cp_fatal_level,routineP,error,failure)
+        val_out%c_val=val_in%c_val
+     END IF
+  END IF
+END SUBROUTINE val_duplicate
+!***************************************************************************
 
 END MODULE input_val_types

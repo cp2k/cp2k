@@ -2,7 +2,6 @@
 !   CP2K: A general program to perform molecular dynamics simulations
 !   Copyright (C) 2004  CP2K developers group
 !-----------------------------------------------------------------------------!
-#include "cp_prep_globals.h"
 
 MODULE farming_methods
   USE farming_types,                   ONLY: farming_env_type
@@ -19,11 +18,9 @@ MODULE farming_methods
                                              cp_assertion_failed 
   USE cp_files,                        ONLY: get_unit_number
   USE message_passing,                 ONLY: mp_bcast
-  USE qs_parser,                       ONLY: finish_parser,&
-                                             read_object,&
-                                             start_parser,&
-                                             stop_parser,&
-                                             test_object
+  USE input_section_types, ONLY: section_vals_type, section_vals_val_get,&
+       section_vals_get_subs_vals,section_vals_get
+#include "cp_common_uses.h"
   IMPLICIT NONE
   PRIVATE
   PUBLIC  :: farming_parse_input
@@ -47,123 +44,67 @@ CONTAINS
     CHARACTER(LEN=default_string_length) :: dum
     CHARACTER(LEN=60)                        :: keyword
     CHARACTER(LEN=3)                         :: text
+    TYPE(section_vals_type), POINTER :: farming_section, jobs_section
+    integer :: n_rep_val
+    INTEGER, DIMENSION(:), pointer :: i_vals
+
     failure=.FALSE.
 
-!
-!  &FARMING section sets options for the farming 
-!    group_size  ! wished number of MPI tasks per group
-!    ngroups     ! wished number of groups 
-!  &END FARMING 
-!
    farming_env%group_size_wish_set=.FALSE.
    farming_env%ngroup_wish_set    =.FALSE.
-   CALL start_parser(file_name=globenv%input_file_name,&
-                      globenv=globenv,&
-                      start_section_label="FARMING",section_found=found)
-   IF (found) THEN 
-   DO
-        test_result = test_object()
-        IF (test_result /= "EOL") THEN
-          CALL read_object(keyword)
-          CALL stop_parser(routine=routineN,message="INVALID_KEYWORD")
-        END IF
-        test_result = test_object(newline=.TRUE.)
-        IF (test_result == "EOS") THEN
-          EXIT
-        ELSE IF (test_result == "EOF") THEN
-          CALL stop_parser(routine=routineN,message="EOF")
-        ELSE
-          CALL read_object(keyword,lower_to_upper=.TRUE.,newline=.TRUE.)
-          SELECT CASE (TRIM(keyword))
-          CASE("GROUP_SIZE")
-            IF (farming_env%ngroup_wish_set) & 
-               CALL stop_parser(routine=routineN,message="specify one of GROUP_SIZE or NGROUPS ")
-            CALL read_object(farming_env%group_size_wish)
-            farming_env%group_size_wish_set=.TRUE.
-          CASE("NGROUPS","NGROUP") 
-            IF (farming_env%group_size_wish_set) & 
-               CALL stop_parser(routine=routineN,message="specify one of GROUP_SIZE or NGROUPS ")
-            CALL read_object(farming_env%ngroup_wish)
-            farming_env%ngroup_wish_set=.TRUE.
-          !
-          ! allows strictly setting the size of the different partitions, up to the user to do the
-          ! right thing for the allocated number of CPUs
-          !
-          CASE ("GROUP_PARTITION")
-            IF (.NOT. farming_env%ngroup_wish_set) &
-               CALL stop_parser(routine=routineN,message="specify NGROUPS before GROUP_PARTITION")
-            ALLOCATE(farming_env%group_partition(0:farming_env%ngroup_wish-1))
-            DO I=0,farming_env%ngroup_wish-1
-               CALL read_object(farming_env%group_partition(I)) 
-            ENDDO
-          CASE ("RESTART")
-            farming_env%restart=.TRUE.
-          CASE ("MAX_STEP","MAX_STEPS")
-            CALL read_object(farming_env%max_steps)
-          CASE ("CYCLE")
-            farming_env%cycle=.TRUE.
-          CASE DEFAULT
-            CALL stop_parser(routine=routineN,message="INVALID_KEYWORD "&
-                 //keyword)
-          END SELECT
-        ENDIF
-   END DO
-   ENDIF
-   CALL finish_parser()
-   ! set a default if nothing given
-   IF (.NOT. farming_env%ngroup_wish_set .AND. .NOT. farming_env%group_size_wish_set) THEN
-      farming_env%group_size_wish_set=.TRUE.
-      farming_env%group_size_wish    = 8 ! groups of 8 CPUs are beautiful (on HPCx ;-)
-   ENDIF
-!
-!   &JOBS section gives the list of jobs
-!      running_dir1 input_file_name3
-!      running_dir2 input_file_name3
-!      running_dir3 input_file_name3
-!   &END 
-!
-    ! count the number of jobs first
-    farming_env % njobs = 0
-    CALL start_parser(file_name=globenv%input_file_name,&
-                      globenv=globenv,&
-                      start_section_label="JOBS",section_found=found)
+   farming_section => section_vals_get_subs_vals(globenv%input_file,"FARMING",&
+        error=error)
 
-    IF (found) THEN
-       DO WHILE (test_object(newline=.TRUE.) /= "EOS")
-          farming_env % njobs = farming_env % njobs + 1
-          CALL read_object(dum,newline=.TRUE.)
-       ENDDO
-    ELSE
-       failure=.true.
-       CALL stop_parser(routine=routineP,message="section &JOBS not found in "//globenv%input_file_name)      
-    ENDIF
-    CALL finish_parser()
+   IF (ASSOCIATED(farming_env%group_partition)) THEN
+      DEALLOCATE(farming_env%group_partition,stat=stat)
+      CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+   END IF
+   CALL section_vals_val_get(farming_section,"group_partition",&
+        n_rep_val=n_rep_val,error=error)
+   IF (n_rep_val>0) THEN
+      CALL section_vals_val_get(farming_section,"group_partition",&
+           i_vals=i_vals,error=error)
+      ALLOCATE(farming_env%group_partition(0:size(i_vals)-1))
+      farming_env%group_partition(:)=i_vals
+      farming_env%ngroup_wish_set=.TRUE.
+      farming_env%ngroup_wish=size(i_vals)
+   ELSE
+      CALL section_vals_val_get(farming_section,"GROUP_SIZE",&
+           n_rep_val=n_rep_val,error=error)
+      IF (n_rep_val>0) THEN
+         CALL section_vals_val_get(farming_section,"GROUP_SIZE",&
+              i_val=farming_env%ngroup_wish,error=error)
+         farming_env%ngroup_wish_set=.TRUE.
+      ELSE
+         CALL section_vals_val_get(farming_section,"GROUP_SIZE",&
+              i_val=farming_env%group_size_wish,error=error)
+         farming_env%group_size_wish_set=.FALSE.
+      END IF
+   END IF
+   CALL section_vals_val_get(farming_section,"restart",&
+        l_val=farming_env%restart,error=error)      
+   CALL section_vals_val_get(farming_section,"max_steps",&
+        i_val=farming_env%max_steps,error=error)      
+   CALL section_vals_val_get(farming_section,"cycle",&
+        l_val=farming_env%cycle,error=error)      
 
-    ! get the job info
-    ALLOCATE(farming_env%Job_cwd(farming_env % njobs),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    ALLOCATE(farming_env%Job_input(farming_env % njobs),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    IF (.NOT. failure) THEN
-        CALL start_parser(file_name=globenv%input_file_name,&
-                          globenv=globenv,&
-                          start_section_label="JOBS",section_found=found)
-        i=0
-        DO WHILE (test_object(newline=.TRUE.) /= "EOS")
-           i=i+1
-           IF (i<=farming_env % njobs) THEN
-              CALL read_object(farming_env%Job_cwd(i),newline=.TRUE.)           
-              CALL read_object(farming_env%Job_input(i))           
-           ELSE
-              failure=.true.
-              CALL stop_parser(routine=routineP,message="inconsistent reading in the JOBS section")
-           ENDIF
-        ENDDO
-        CALL finish_parser()
-    ENDIF
+   jobs_section => section_vals_get_subs_vals(farming_section,"JOB",error=error)
+   CALL section_vals_get(jobs_section,n_repetition=farming_env % njobs,error=error)
+   
+   ALLOCATE(farming_env%Job_cwd(farming_env % njobs),STAT=stat)
+   CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+   ALLOCATE(farming_env%Job_input(farming_env % njobs),STAT=stat)
+   CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+   IF (.NOT. failure) THEN
+      DO i=1,farming_env%njobs
+         CALL section_vals_val_get(jobs_section,i_rep_section=i,&
+              keyword_name="directory",c_val=farming_env%Job_cwd(i),error=error)
+         CALL section_vals_val_get(jobs_section,i_rep_section=i,&
+              keyword_name="input_file_name",c_val=farming_env%Job_input(i),error=error)
+      END DO
+   END IF
 
-
-    IF (globenv%ionode .AND. .NOT. failure) THEN
+   IF (globenv%ionode .AND. .NOT. failure) THEN
         write(globenv%scr,FMT="(T2,A,T71,I10)") "FARMING| Number of jobs found",farming_env%njobs
         IF (farming_env%ngroup_wish_set) THEN
            write(globenv%scr,FMT="(T2,A,T71,I10)") "FARMING| Ngroup wish:",farming_env%ngroup_wish

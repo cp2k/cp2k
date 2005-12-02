@@ -175,8 +175,9 @@ CONTAINS
        ks_env%ref_count=ks_env%ref_count-1
 
        IF (ks_env%ref_count<1) THEN
-          CALL pw_pool_give_back_coeff(ks_env%auxbas_pw_pool,ks_env%v_hartree_rspace)
-          CALL pw_pool_release(ks_env%auxbas_pw_pool)
+          CALL pw_pool_give_back_coeff(ks_env%auxbas_pw_pool,ks_env%v_hartree_rspace,&
+               error=error)
+          CALL pw_pool_release(ks_env%auxbas_pw_pool,error=error)
           DEALLOCATE(ks_env, stat=stat)
           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
        END IF

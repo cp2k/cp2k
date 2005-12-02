@@ -46,10 +46,10 @@ MODULE pw_types
   USE fft_tools,                       ONLY: BWFFT,&
                                              FWFFT,&
                                              fft3d
-  USE kinds,                           ONLY: dp
+  USE kinds,                           ONLY: dp,mp
   USE machine,                         ONLY: m_loc_c,&
                                              m_loc_r
-  USE message_passing,                 ONLY: mp_sendrecv
+  USE message_passing,                 ONLY: mp_sendrecv,mp_sum
   USE pw_grid_types,                   ONLY: HALFSPACE,&
                                              PW_MODE_DISTRIBUTED,&
                                              PW_MODE_LOCAL,&
@@ -64,7 +64,7 @@ MODULE pw_types
 
   PRIVATE
   PUBLIC :: pw_type, pw_p_type
-  PUBLIC :: pw_allocate, pw_deallocate, pw_retain, pw_release, pw_create
+  PUBLIC :: pw_retain, pw_release, pw_create
   PUBLIC :: pw_zero, pw_gather, pw_scatter
   PUBLIC :: pw_copy, pw_add, pw_sumup, pw_subtract, pw_reduce, pw_transfer, pw_scale
   PUBLIC :: pw_derive, pw_derive_fd, pw_sumup_square, pw_fft_wrap, pw_write
@@ -72,6 +72,7 @@ MODULE pw_types
   PUBLIC :: pw_prolongate_l_NoPBC, pw_restrict_l_NoPBC
   PUBLIC :: REALDATA1D, COMPLEXDATA1D, REALDATA3D, COMPLEXDATA3D, NODATA
   PUBLIC :: NOSPACE, REALSPACE, RECIPROCALSPACE
+  PUBLIC :: pw_integral_aa, pw_integral_ab, pw_integral_a2b
 
   TYPE pw_type
      REAL (KIND=dp), DIMENSION ( : ), POINTER :: cr, mass_cr
@@ -102,6 +103,8 @@ MODULE pw_types
   INTEGER, SAVE, PRIVATE :: last_pw_id_nr=0
   INTEGER, SAVE, PRIVATE :: allocated_pw_count=0
 
+  INTEGER, PUBLIC, PARAMETER :: SQUARE = 391, SQUAREROOT = 392
+
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN='pw_types'
   LOGICAL, PARAMETER, PRIVATE :: debug_this_module=.false.
 
@@ -122,205 +125,6 @@ MODULE pw_types
 
 CONTAINS
 
-!******************************************************************************
-!!****** pw_types/pw_allocate [1.0] *
-!!
-!!   NAME
-!!     pw_allocate
-!!
-!!   SYNOPSIS
-!!     Subroutine pw_allocate(pw, pw_grid, use_data, mass_flag, cr3d_ptr,&
-!!         error)
-!!       Type(pw_type), Intent (INOUT), Target:: pw
-!!       Type(pw_grid_type), Intent (IN), Target:: pw_grid
-!!       Integer, Intent (IN):: use_data
-!!       Logical, Intent (IN), Optional:: mass_flag
-!!       REAL(KIND=dp), Dimension(:,:,:), Optional, Pointer:: cr3d_ptr
-!!       Type(cp_error_type), Intent (INOUT), Optional:: error
-!!     End Subroutine pw_allocate
-!!
-!!   FUNCTION
-!!     Allocate a plane wave type variable
-!!
-!!   AUTHOR
-!!     apsi
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!   SOURCE
-!******************************************************************************
-
-SUBROUTINE pw_allocate ( pw, pw_grid, use_data, mass_flag, cr3d_ptr, error )
-
-
-    TYPE(pw_type), INTENT(INOUT), TARGET     :: pw
-    TYPE(pw_grid_type), INTENT(IN), TARGET   :: pw_grid
-    INTEGER, INTENT(IN)                      :: use_data
-    LOGICAL, INTENT(IN), OPTIONAL            :: mass_flag
-    REAL(KIND=dp), DIMENSION(:, :, :), &
-      OPTIONAL, POINTER                      :: cr3d_ptr
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'pw_allocate', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: allocstat, handle
-    INTEGER, DIMENSION(:, :), POINTER        :: bounds
-    LOGICAL                                  :: mass_flag_local,cr3d_compatible
-    TYPE(cp_logger_type), pointer :: logger
-
-!------------------------------------------------------------------------------
-
-  CALL timeset(routineN,"I"," ",handle)
-  logger => cp_error_get_logger(error)
-  IF (debug_this_module) THEN
-     WRITE (cp_logger_get_default_unit_nr(logger),"('*** allocated pw ***')")
-     IF (PRESENT(cr3d_ptr)) THEN
-        IF (ASSOCIATED(cr3d_ptr)) THEN
-           WRITE (cp_logger_get_default_unit_nr(logger),"('*** cr3d associated ***')")
-        END IF
-     END IF
-     CALL print_stack(cp_logger_get_default_unit_nr(logger))
-  END IF
-  mass_flag_local = .FALSE.
-  IF ( PRESENT ( mass_flag ) ) mass_flag_local = mass_flag
-
-  IF (PRESENT(cr3d_ptr)) THEN
-     IF (ASSOCIATED(cr3d_ptr)) THEN
-        CPAssertNoFail(use_data==REALDATA3D,cp_failure_level,routineP,error)
-     END IF
-  END IF
-
-  last_pw_id_nr=last_pw_id_nr+1
-  pw % id_nr = last_pw_id_nr
-  pw % ref_count = 1
-  NULLIFY ( pw % pw_grid )
-  pw % in_use = use_data
-  pw % pw_grid => pw_grid
-  pw % in_space = NOSPACE
-  bounds => pw % pw_grid % bounds_local
-
-  allocated_pw_count = allocated_pw_count + 1
-  ! write(6,*) "allocated_pw_count ",allocated_pw_count
-
-  NULLIFY ( pw % cr, pw % cc, pw % cr3d, pw % cc3d ,&
-       pw % mass_cr, pw % mass_cc)
-
-  IF ( use_data == REALDATA1D ) THEN
-     ALLOCATE ( pw % cr ( pw % pw_grid % ngpts_cut_local ), STAT = allocstat )
-     IF ( allocstat /= 0 ) CALL stop_memory ( "pw_allocate", &
-        "cr", pw % pw_grid % ngpts_cut_local )
-     IF ( mass_flag_local ) THEN
-       ALLOCATE ( pw % mass_cr ( pw % pw_grid % ngpts_cut_local ), STAT = allocstat )
-       IF ( allocstat /= 0 ) CALL stop_memory ( "pw_allocate", &
-          "mass_cr", pw % pw_grid % ngpts_cut_local )
-     ENDIF
-
-  ELSE IF ( use_data == COMPLEXDATA1D ) THEN
-     ALLOCATE ( pw % cc ( pw % pw_grid % ngpts_cut_local ), STAT = allocstat )
-     IF ( allocstat /= 0 ) CALL stop_memory ( "pw_allocate", &
-        "cc", pw % pw_grid % ngpts_cut_local )
-     IF ( mass_flag_local ) THEN
-       ALLOCATE ( pw % mass_cc ( pw % pw_grid % ngpts_cut_local ), STAT = allocstat )
-       IF ( allocstat /= 0 ) CALL stop_memory ( "pw_allocate", &
-          "mass_cc", pw % pw_grid % ngpts_cut_local )
-     ENDIF
-
-  ELSE IF ( use_data == REALDATA3D ) THEN
-     IF (PRESENT(cr3d_ptr)) THEN
-        IF (ASSOCIATED(cr3d_ptr)) THEN
-           cr3d_compatible =  ALL( MERGE( bounds(1,:)==LBOUND(cr3d_ptr).AND.bounds(2,:)==UBOUND(cr3d_ptr), &
-                                   bounds(2,:)<bounds(1,:), &
-                                   UBOUND(cr3d_ptr)>=LBOUND(cr3d_ptr) ) ) 
-           CPPreconditionNoFail(cr3d_compatible,cp_failure_level,routineP,error)
-           pw%cr3d => cr3d_ptr
-        END IF
-     END IF
-     IF (.NOT.ASSOCIATED(pw%cr3d)) THEN
-        ALLOCATE ( pw % cr3d ( &
-             bounds ( 1, 1 ) : bounds ( 2, 1 ), &
-             bounds ( 1, 2 ) : bounds ( 2, 2 ), &
-             bounds ( 1, 3 ) : bounds ( 2, 3 ) ), STAT = allocstat )
-        IF ( allocstat /= 0 ) CALL stop_memory ( "pw_allocate", "cr3d", 0 )
-     END IF
-
-  ELSE IF ( use_data == COMPLEXDATA3D ) THEN
-     ALLOCATE ( pw % cc3d ( &
-          bounds ( 1, 1 ) : bounds ( 2, 1 ), &
-          bounds ( 1, 2 ) : bounds ( 2, 2 ), &
-          bounds ( 1, 3 ) : bounds ( 2, 3 ) ), STAT = allocstat )
-     IF ( allocstat /= 0 ) CALL stop_memory ( "pw_allocate", "cc3d", 0 )
-
-  ELSE
-     CALL stop_program ( "pw_allocate", "no possible data field" )
-  END IF
-  CALL timestop(0.0_dp,handle)
-
-END SUBROUTINE pw_allocate
-
-!!*****
-!******************************************************************************
-!!****** pw_types/pw_deallocate [1.0] *
-!!
-!!   NAME
-!!     pw_deallocate
-!!
-!!   SYNOPSIS
-!!     Subroutine pw_deallocate(pw)
-!!       Type(pw_type), Intent (INOUT):: pw
-!!     End Subroutine pw_deallocate
-!!
-!!   FUNCTION
-!!     Deallocate a plane wave type variable
-!!
-!!   AUTHOR
-!!     apsi
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!   SOURCE
-!******************************************************************************
-
-SUBROUTINE pw_deallocate ( pw )
-
-
-    TYPE(pw_type), INTENT(INOUT)             :: pw
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'pw_deallocate', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: allocstat, handle
-
-!------------------------------------------------------------------------------
-
-  CALL timeset(routineN,"I"," ",handle)
-  allocated_pw_count = allocated_pw_count - 1
-  IF ( pw % in_use == REALDATA1D ) THEN
-     DEALLOCATE ( pw % cr, STAT = allocstat )
-     IF ( allocstat /= 0 ) CALL stop_memory ( "pw_deallocate", "cr" )
-  ELSE IF ( pw % in_use == COMPLEXDATA1D ) THEN
-     DEALLOCATE ( pw % cc, STAT = allocstat )
-     IF ( allocstat /= 0 ) CALL stop_memory ( "pw_deallocate", "cc" )
-  ELSE IF ( pw % in_use == REALDATA3D ) THEN
-     IF ( ASSOCIATED(pw % cr3d) ) THEN
-        DEALLOCATE ( pw % cr3d, STAT = allocstat )
-        IF ( allocstat /= 0 ) CALL stop_memory ( "pw_deallocate", "cr3d" )
-     END IF
-  ELSE IF ( pw % in_use == COMPLEXDATA3D ) THEN
-     DEALLOCATE ( pw % cc3d, STAT = allocstat )
-     IF ( allocstat /= 0 ) CALL stop_memory ( "pw_deallocate", "cc3d" )
-  ELSE IF ( pw % in_use /= NODATA ) THEN
-     CALL stop_program ( "pw_deallocate", "no possible data field" )
-  END IF
-  CALL timestop(0.0_dp,handle)
-
-END SUBROUTINE pw_deallocate
-
-!!*****
-!******************************************************************************
 !!****** pw_types/pw_zero [1.0] *
 !!
 !!   NAME
@@ -402,7 +206,7 @@ END SUBROUTINE pw_zero
 !!     apsi
 !!
 !!   MODIFICATION HISTORY
-!!     JGH (7-Mar-2001) : check for pw_grid % identifier, allow copy if 
+!!     JGH (7-Mar-2001) : check for pw_grid %id_nr, allow copy if 
 !!       in_use == COMPLEXDATA1D and in_space == RECIPROCALSPACE
 !!     JGH (21-Feb-2003) : Code for generalized reference grids
 !!
@@ -428,7 +232,7 @@ SUBROUTINE pw_copy ( pw1, pw2 )
   CPPreconditionNoErr(pw1%ref_count>0,cp_failure_level,"pw_copy")
   CPPreconditionNoErr(pw2%ref_count>0,cp_failure_level,"pw_copy")
 
-  IF ( pw1 % pw_grid % identifier /= pw2 % pw_grid % identifier ) THEN
+  IF ( pw1 % pw_grid %id_nr /= pw2 % pw_grid %id_nr ) THEN
 
     IF ( pw1 % pw_grid % spherical .AND. pw2 % pw_grid % spherical ) THEN
 
@@ -457,11 +261,11 @@ SUBROUTINE pw_copy ( pw1, pw2 )
 
       ELSE
         WRITE ( *, "(A,I5,T30,A,L1,T60,A,I5)" ) &
-                 " grid 1 :",pw1 % pw_grid % identifier, &
+                 " grid 1 :",pw1 % pw_grid %id_nr, &
                  " sperical :",pw1 % pw_grid % spherical, &
                  " reference :",pw1 % pw_grid % reference 
         WRITE ( *, "(A,I5,T30,A,L1,T60,A,I5)" ) &
-                 " grid 2 :",pw2 % pw_grid % identifier, &
+                 " grid 2 :",pw2 % pw_grid %id_nr, &
                  " sperical :",pw2 % pw_grid % spherical, &
                  " reference :",pw2 % pw_grid % reference 
         CALL stop_program ( "pw_copy", "Incompatible grids" )
@@ -478,7 +282,7 @@ SUBROUTINE pw_copy ( pw1, pw2 )
            pw2 % in_use == COMPLEXDATA1D .AND. &
            pw1 % in_space == RECIPROCALSPACE ) THEN
 
-        IF ( ( pw1 % pw_grid % identifier == pw2 % pw_grid % reference ) ) THEN
+        IF ( ( pw1 % pw_grid %id_nr == pw2 % pw_grid % reference ) ) THEN
           IF( ng1 >= ng2 ) THEN
 !$omp parallel do private(i,j)
             DO i = 1, ng2
@@ -493,7 +297,7 @@ SUBROUTINE pw_copy ( pw1, pw2 )
               pw2 % cc ( j ) = pw1 % cc ( i )
             END DO
           END IF
-        ELSE IF ( ( pw2 % pw_grid % identifier == pw1 % pw_grid % reference ) ) THEN
+        ELSE IF ( ( pw2 % pw_grid %id_nr == pw1 % pw_grid % reference ) ) THEN
           IF( ng1 >= ng2 ) THEN
 !$omp parallel do private(i,j)
             DO i = 1, ng2
@@ -510,11 +314,11 @@ SUBROUTINE pw_copy ( pw1, pw2 )
           END IF
         ELSE
           WRITE ( *, "(A,I5,T30,A,L1,T60,A,I5)" ) &
-                 " grid 1 :",pw1 % pw_grid % identifier, &
+                 " grid 1 :",pw1 % pw_grid %id_nr, &
                  " sperical :",pw1 % pw_grid % spherical, &
                  " reference :",pw1 % pw_grid % reference 
           WRITE ( *, "(A,I5,T30,A,L1,T60,A,I5)" ) &
-                 " grid 2 :",pw2 % pw_grid % identifier, &
+                 " grid 2 :",pw2 % pw_grid %id_nr, &
                  " sperical :",pw2 % pw_grid % spherical, &
                  " reference :",pw2 % pw_grid % reference 
           CALL stop_program ( "pw_copy", "Incompatible grids" )
@@ -528,11 +332,11 @@ SUBROUTINE pw_copy ( pw1, pw2 )
 
     ELSE
       WRITE ( *, "(A,I5,T30,A,L1,T60,A,I5)" ) &
-               " grid 1 :",pw1 % pw_grid % identifier, &
+               " grid 1 :",pw1 % pw_grid %id_nr, &
                " sperical :",pw1 % pw_grid % spherical, &
                " reference :",pw1 % pw_grid % reference 
       WRITE ( *, "(A,I5,T30,A,L1,T60,A,I5)" ) &
-               " grid 2 :",pw2 % pw_grid % identifier, &
+               " grid 2 :",pw2 % pw_grid %id_nr, &
                " sperical :",pw2 % pw_grid % spherical, &
                " reference :",pw2 % pw_grid % reference 
       CALL stop_program ( "pw_copy", "Incompatible grids" )
@@ -1335,7 +1139,7 @@ END SUBROUTINE pw_transfer
 !!     apsi
 !!
 !!   MODIFICATION HISTORY
-!!     CJM (23-May-01)  : check for pw_grid % identifier, allow copy if 
+!!     CJM (23-May-01)  : check for pw_grid %id_nr, allow copy if 
 !!       in_use == COMPLEXDATA1D and in_space == RECIPROCALSPACE
 !!     JGH (21-Feb-03)  : generalization to all reference grid types
 !!
@@ -1363,8 +1167,8 @@ SUBROUTINE pw_add ( pw1, pw2, pw3 )
   CPPreconditionNoErr(pw2%ref_count>0,cp_failure_level,"pw_add")
   CPPreconditionNoErr(pw3%ref_count>0,cp_failure_level,"pw_add")
 
-  IF ( pw3 % pw_grid % identifier /= pw2 % pw_grid % identifier .OR. &
-       pw3 % pw_grid % identifier /= pw1 % pw_grid % identifier  ) THEN
+  IF ( pw3 % pw_grid %id_nr /= pw2 % pw_grid %id_nr .OR. &
+       pw3 % pw_grid %id_nr /= pw1 % pw_grid %id_nr  ) THEN
 
     ! different grids: this works only with reference grids
 
@@ -1412,15 +1216,15 @@ SUBROUTINE pw_add ( pw1, pw2, pw3 )
 
          ELSE
             WRITE ( *, "(A,I5,T30,A,L1,T60,A,I5)" ) &
-               " grid 1 :",pw1 % pw_grid % identifier, &
+               " grid 1 :",pw1 % pw_grid %id_nr, &
                " sperical :",pw1 % pw_grid % spherical, &
                " reference :",pw1 % pw_grid % reference 
             WRITE ( *, "(A,I5,T30,A,L1,T60,A,I5)" ) &
-               " grid 2 :",pw2 % pw_grid % identifier, &
+               " grid 2 :",pw2 % pw_grid %id_nr, &
                " sperical :",pw2 % pw_grid % spherical, &
                " reference :",pw2 % pw_grid % reference 
             WRITE ( *, "(A,I5,T30,A,L1,T60,A,I5)" ) &
-               " grid 3 :",pw3 % pw_grid % identifier, &
+               " grid 3 :",pw3 % pw_grid %id_nr, &
                " sperical :",pw3 % pw_grid % spherical, &
                " reference :",pw3 % pw_grid % reference 
             CALL stop_program ( "pw_add", "incompatible grids" )
@@ -1434,14 +1238,14 @@ SUBROUTINE pw_add ( pw1, pw2, pw3 )
 
          IF ( pw_compatible ( pw2 % pw_grid, pw3 % pw_grid ) ) THEN
 
-           IF ( pw2 % pw_grid % identifier == pw3 % pw_grid % identifier ) THEN
+           IF ( pw2 % pw_grid %id_nr == pw3 % pw_grid %id_nr ) THEN
 
 !$omp parallel do private(i)
              DO i = 1, ng3
                 pw3 % cc ( i ) = pw3 % cc ( i ) + pw2 % cc ( i )
              END DO
 
-           ELSEIF ( ( pw2 % pw_grid % identifier == pw3 % pw_grid % reference ) ) THEN
+           ELSEIF ( ( pw2 % pw_grid %id_nr == pw3 % pw_grid % reference ) ) THEN
 
              IF( ng2 >= ng3 ) THEN
 !$omp parallel do private(i,j)
@@ -1457,7 +1261,7 @@ SUBROUTINE pw_add ( pw1, pw2, pw3 )
                END DO
              END IF
 
-           ELSEIF ( ( pw3 % pw_grid % identifier == pw2 % pw_grid % reference ) ) THEN
+           ELSEIF ( ( pw3 % pw_grid %id_nr == pw2 % pw_grid % reference ) ) THEN
 
              IF( ng2 >= ng3 ) THEN
 !$omp parallel do private(i,j)
@@ -1477,15 +1281,15 @@ SUBROUTINE pw_add ( pw1, pw2, pw3 )
 
          ELSE
             WRITE ( *, "(A,I5,T30,A,L1,T60,A,I5)" ) &
-               " grid 1 :",pw1 % pw_grid % identifier, &
+               " grid 1 :",pw1 % pw_grid %id_nr, &
                " sperical :",pw1 % pw_grid % spherical, &
                " reference :",pw1 % pw_grid % reference 
             WRITE ( *, "(A,I5,T30,A,L1,T60,A,I5)" ) &
-               " grid 2 :",pw2 % pw_grid % identifier, &
+               " grid 2 :",pw2 % pw_grid %id_nr, &
                " sperical :",pw2 % pw_grid % spherical, &
                " reference :",pw2 % pw_grid % reference 
             WRITE ( *, "(A,I5,T30,A,L1,T60,A,I5)" ) &
-               " grid 3 :",pw3 % pw_grid % identifier, &
+               " grid 3 :",pw3 % pw_grid %id_nr, &
                " sperical :",pw3 % pw_grid % spherical, &
                " reference :",pw3 % pw_grid % reference 
             CALL stop_program ( "pw_add", "Incompatible grids" )
@@ -1494,15 +1298,15 @@ SUBROUTINE pw_add ( pw1, pw2, pw3 )
        ELSE
 
           WRITE ( *, "(A,I5,T30,A,L1,T60,A,I5)" ) &
-             " grid 1 :",pw1 % pw_grid % identifier, &
+             " grid 1 :",pw1 % pw_grid %id_nr, &
              " sperical :",pw1 % pw_grid % spherical, &
              " reference :",pw1 % pw_grid % reference 
           WRITE ( *, "(A,I5,T30,A,L1,T60,A,I5)" ) &
-             " grid 2 :",pw2 % pw_grid % identifier, &
+             " grid 2 :",pw2 % pw_grid %id_nr, &
              " sperical :",pw2 % pw_grid % spherical, &
              " reference :",pw2 % pw_grid % reference 
           WRITE ( *, "(A,I5,T30,A,L1,T60,A,I5)" ) &
-             " grid 3 :",pw3 % pw_grid % identifier, &
+             " grid 3 :",pw3 % pw_grid %id_nr, &
              " sperical :",pw3 % pw_grid % spherical, &
              " reference :",pw3 % pw_grid % reference 
           CALL stop_program ( "pw_add", "incompatible grids" )
@@ -1591,7 +1395,7 @@ SUBROUTINE pw_sumup_square ( pw1, pw2 )
   CPPreconditionNoErr(pw1%ref_count>0,cp_failure_level,"pw_sumup_square")
   CPPreconditionNoErr(pw2%ref_count>0,cp_failure_level,"pw_sumup_square")
   
-  IF ( pw1 % pw_grid % identifier /= pw2 % pw_grid % identifier ) &
+  IF ( pw1 % pw_grid %id_nr /= pw2 % pw_grid %id_nr ) &
      CALL stop_program ( "pw_sumup_square", "grids not compatible" )
 
   IF ( pw1 % in_use == REALDATA1D ) THEN
@@ -1700,7 +1504,7 @@ SUBROUTINE pw_sumup ( pw1, pw2, alpha, alpha_im )
      my_alpha_c=CMPLX(my_alpha,0.0_dp,dp)
   END IF
 
-  IF ( pw1 % pw_grid % identifier == pw2 % pw_grid % identifier ) THEN
+  IF ( pw1 % pw_grid %id_nr == pw2 % pw_grid %id_nr ) THEN
 
      IF ( pw1 % in_use == REALDATA1D .AND. pw2 % in_use == REALDATA1D ) THEN
         IF (my_alpha==1.0_dp) THEN
@@ -1778,7 +1582,7 @@ SUBROUTINE pw_sumup ( pw1, pw2, alpha, alpha_im )
               END DO
            END IF
 
-        ELSEIF ( ( pw1 % pw_grid % identifier == pw2 % pw_grid % reference ) ) THEN
+        ELSEIF ( ( pw1 % pw_grid %id_nr == pw2 % pw_grid % reference ) ) THEN
 
            IF (my_alpha_c==CMPLX(1.0_dp,0.0_dp,dp)) THEN
               IF( ng1 >= ng2 ) THEN
@@ -1809,7 +1613,7 @@ SUBROUTINE pw_sumup ( pw1, pw2, alpha, alpha_im )
                  END DO
               END IF
            END IF
-        ELSEIF ( ( pw2 % pw_grid % identifier == pw1 % pw_grid % reference ) ) THEN
+        ELSEIF ( ( pw2 % pw_grid %id_nr == pw1 % pw_grid % reference ) ) THEN
 
            IF (my_alpha_c==CMPLX(1.0_dp,0.0_dp,dp)) THEN
               IF( ng1 >= ng2 ) THEN
@@ -1843,11 +1647,11 @@ SUBROUTINE pw_sumup ( pw1, pw2, alpha, alpha_im )
         ELSE
 
            WRITE ( *, "(A,I5,T30,A,L1,T60,A,I5)" ) &
-                " grid 1 :",pw1 % pw_grid % identifier, &
+                " grid 1 :",pw1 % pw_grid %id_nr, &
                 " sperical :",pw1 % pw_grid % spherical, &
                 " reference :",pw1 % pw_grid % reference
            WRITE ( *, "(A,I5,T30,A,L1,T60,A,I5)" ) &
-                " grid 2 :",pw2 % pw_grid % identifier, &
+                " grid 2 :",pw2 % pw_grid %id_nr, &
                 " sperical :",pw2 % pw_grid % spherical, &
                 " reference :",pw2 % pw_grid % reference
            CALL stop_program ( "pw_sumup_square", "grids not compatible" )
@@ -1861,11 +1665,11 @@ SUBROUTINE pw_sumup ( pw1, pw2, alpha, alpha_im )
   ELSE
 
      WRITE ( *, "(A,I5,T30,A,L1,T60,A,I5)" ) &
-          " grid 1 :",pw1 % pw_grid % identifier, &
+          " grid 1 :",pw1 % pw_grid %id_nr, &
           " sperical :",pw1 % pw_grid % spherical, &
           " reference :",pw1 % pw_grid % reference
      WRITE ( *, "(A,I5,T30,A,L1,T60,A,I5)" ) &
-          " grid 2 :",pw2 % pw_grid % identifier, &
+          " grid 2 :",pw2 % pw_grid %id_nr, &
           " sperical :",pw2 % pw_grid % spherical, &
           " reference :",pw2 % pw_grid % reference
      CALL stop_program ( "pw_sumup_square", "grids not compatible" )
@@ -1922,7 +1726,7 @@ SUBROUTINE pw_subtract ( pw1, pw2, pw3 )
   CPPreconditionNoErr(pw2%ref_count>0,cp_failure_level,"pw_subtract")
   CPPreconditionNoErr(pw3%ref_count>0,cp_failure_level,"pw_subtract")
 
-  IF ( pw1 % pw_grid % identifier /= pw2 % pw_grid % identifier ) &
+  IF ( pw1 % pw_grid %id_nr /= pw2 % pw_grid %id_nr ) &
      CALL stop_program ( "pw_sumup_square", "grids not compatible" )
 
   IF ( pw1 % in_use == REALDATA1D .AND. pw2 % in_use == REALDATA1D .AND. &
@@ -1994,7 +1798,7 @@ SUBROUTINE pw_reduce ( pw1, pw2 )
   CPPreconditionNoErr(pw1%ref_count>0,cp_failure_level,"pw_reduce")
   CPPreconditionNoErr(pw2%ref_count>0,cp_failure_level,"pw_reduce")
 
-  IF ( pw1 % pw_grid % identifier /= pw2 % pw_grid % identifier ) &
+  IF ( pw1 % pw_grid %id_nr /= pw2 % pw_grid %id_nr ) &
      CALL stop_program ( "pw_sumup_square", "grids not compatible" )
 
   IF ( pw1 % in_use == REALDATA1D .AND. pw2 % in_use == REALDATA1D ) THEN
@@ -2511,7 +2315,7 @@ SUBROUTINE fft_wrap_pw1pw2 ( pw1, pw2, debug )
 !------------------------------------------------------------------------------
 
   CALL timeset("fft_wrap_pw1pw2_all","I"," ",handle2)
-  CALL timeset("fft_wrap_pw1pw2_"//TRIM(ADJUSTL(cp_to_string(pw1%pw_grid%identifier))),"I"," ",handle)
+  CALL timeset("fft_wrap_pw1pw2_"//TRIM(ADJUSTL(cp_to_string(pw1%pw_grid%id_nr))),"I"," ",handle)
 
   CPPreconditionNoErr(pw1%ref_count>0,cp_failure_level,"fft_wrap_pw1pw2")
   CPPreconditionNoErr(pw2%ref_count>0,cp_failure_level,"fft_wrap_pw1pw2")
@@ -2525,7 +2329,7 @@ SUBROUTINE fft_wrap_pw1pw2 ( pw1, pw2, debug )
   END IF
 
 !..check if grids are compatible
-  IF ( pw1 % pw_grid % identifier /= pw2 % pw_grid % identifier ) THEN
+  IF ( pw1 % pw_grid %id_nr /= pw2 % pw_grid %id_nr ) THEN
     IF ( pw1 % pw_grid % dvol /= pw2 % pw_grid % dvol ) THEN
       CALL stop_program ( "fft_wrap_pw1pw2", "PW grids not compatible" )
     END IF
@@ -2934,8 +2738,8 @@ SUBROUTINE pw_write(pw, unit_nr, error)
           pw%in_space
   END SELECT
 
-  WRITE (unit=unit_nr, fmt="(' pw_grid%identifier=',i8,/,' }')",iostat=iostat)&
-       pw%pw_grid%identifier
+  WRITE (unit=unit_nr, fmt="(' pw_grid%id_nr=',i8,/,' }')",iostat=iostat)&
+       pw%pw_grid%id_nr
 
 END SUBROUTINE pw_write
 !***************************************************************************
@@ -2945,11 +2749,11 @@ FUNCTION pw_compatible ( grida, gridb ) RESULT ( compat )
     LOGICAL                                  :: compat
 
    compat = .FALSE.
-   IF ( grida%identifier == gridb%identifier ) THEN
+   IF ( grida%id_nr == gridb%id_nr ) THEN
       compat = .TRUE.
-   ELSE IF ( grida%reference == gridb%identifier ) THEN
+   ELSE IF ( grida%reference == gridb%id_nr ) THEN
       compat = .TRUE.
-   ELSE IF ( gridb%reference == grida%identifier ) THEN
+   ELSE IF ( gridb%reference == grida%id_nr ) THEN
       compat = .TRUE.
    END IF
    
@@ -3053,7 +2857,29 @@ SUBROUTINE pw_release(pw, error)
      pw%ref_count=pw%ref_count-1
      IF (pw%ref_count==0) THEN
         pw%ref_count=1
-        CALL pw_deallocate(pw)
+
+        allocated_pw_count = allocated_pw_count - 1
+        SELECT CASE(pw % in_use)
+        CASE (REALDATA1D)
+           DEALLOCATE ( pw % cr, STAT = stat )
+           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+        CASE(COMPLEXDATA1D)
+           DEALLOCATE ( pw % cc, STAT = stat )
+           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+        CASE(REALDATA3D)
+           IF (ASSOCIATED(pw%cr3d)) THEN
+              !FM optimizations of pools might have removed the 3d field to cache it
+              DEALLOCATE ( pw % cr3d, STAT = stat )
+              CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+           END IF
+        CASE(COMPLEXDATA3D)
+           DEALLOCATE ( pw % cc3d, STAT = stat )
+           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+        case(NODATA)
+        CASE default
+           CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
+                "unknown data type "//cp_to_string(pw%in_use),error,failure)
+        END SELECT
         pw%ref_count=0
         DEALLOCATE(pw, stat=stat)
         CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
@@ -3117,26 +2943,100 @@ SUBROUTINE pw_create(pw, pw_grid, use_data, in_space, mass_flag, cr3d_ptr, error
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_create', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
+    INTEGER                                  :: stat, handle
     LOGICAL                                  :: failure
+    INTEGER, DIMENSION(:, :), POINTER        :: bounds
+    LOGICAL                                  :: mass_flag_local
+    TYPE(cp_logger_type), pointer :: logger
 
   failure=.FALSE.
   
+  CALL timeset(routineN,"I","",handle)
+  CPPrecondition(.NOT.ASSOCIATED(pw),cp_failure_level,routineP,error,failure)
   ALLOCATE(pw,stat=stat)
   CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
   IF (.NOT. failure) THEN
+  logger => cp_error_get_logger(error)
+  IF (debug_this_module) THEN
+     WRITE (cp_logger_get_default_unit_nr(logger),"('*** allocated pw ***')")
      IF (PRESENT(cr3d_ptr)) THEN
-        CPPrecondition(.NOT.ASSOCIATED(cr3d_ptr).OR.(use_data==REALDATA3D),cp_failure_level,routineP,error,failure)
-        CALL pw_allocate(pw, pw_grid, use_data=use_data, &
-             mass_flag=mass_flag,cr3d_ptr=cr3d_ptr)
-     ELSE
-        CALL pw_allocate(pw, pw_grid, use_data=use_data, &
-             mass_flag=mass_flag)
+        IF (ASSOCIATED(cr3d_ptr)) THEN
+           WRITE (cp_logger_get_default_unit_nr(logger),"('*** cr3d associated ***')")
+        END IF
+     END IF
+     CALL print_stack(cp_logger_get_default_unit_nr(logger))
+  END IF
+  mass_flag_local = .FALSE.
+  IF ( PRESENT ( mass_flag ) ) mass_flag_local = mass_flag
+
+  IF (PRESENT(cr3d_ptr)) THEN
+     IF (ASSOCIATED(cr3d_ptr)) THEN
+        CPAssertNoFail(use_data==REALDATA3D,cp_failure_level,routineP,error)
+     END IF
+  END IF
+
+  last_pw_id_nr=last_pw_id_nr+1
+  pw % id_nr = last_pw_id_nr
+  pw % ref_count = 1
+  NULLIFY ( pw % pw_grid )
+  pw % in_use = use_data
+  pw % pw_grid => pw_grid
+  pw % in_space = NOSPACE
+  bounds => pw % pw_grid % bounds_local
+
+  allocated_pw_count = allocated_pw_count + 1
+  ! write(6,*) "allocated_pw_count ",allocated_pw_count
+
+  NULLIFY ( pw % cr, pw % cc, pw % cr3d, pw % cc3d ,&
+       pw % mass_cr, pw % mass_cc)
+
+  SELECT CASE(use_data)
+  CASE(REALDATA1D)
+     ALLOCATE ( pw % cr ( pw % pw_grid % ngpts_cut_local ), STAT = stat )
+     CPPostcondition(stat==0,cp_fatal_level,routineP,error,failure)
+     IF ( mass_flag_local ) THEN
+       ALLOCATE ( pw % mass_cr ( pw % pw_grid % ngpts_cut_local ), STAT = stat )
+       CPPostcondition(stat==0,cp_fatal_level,routineP,error,failure)
+     ENDIF
+
+  case(COMPLEXDATA1D)
+     ALLOCATE ( pw % cc ( pw % pw_grid % ngpts_cut_local ), STAT = stat )
+     CPPostcondition(stat==0,cp_fatal_level,routineP,error,failure)
+     IF ( mass_flag_local ) THEN
+       ALLOCATE ( pw % mass_cc ( pw % pw_grid % ngpts_cut_local ), STAT = stat )
+       CPPostcondition(stat==0,cp_fatal_level,routineP,error,failure)
+     ENDIF
+
+  case (REALDATA3D)
+     IF (PRESENT(cr3d_ptr)) THEN
+        IF (ASSOCIATED(cr3d_ptr)) THEN
+           CPPreconditionNoFail(ALL(LBOUND(cr3d_ptr)==bounds(1,:)),cp_failure_level,routineP,error)
+           CPPreconditionNoFail(ALL(UBOUND(cr3d_ptr)==bounds(2,:)),cp_failure_level,routineP,error)
+           pw%cr3d => cr3d_ptr
+        END IF
+     END IF
+     IF (.NOT.ASSOCIATED(pw%cr3d)) THEN
+        ALLOCATE ( pw % cr3d ( &
+             bounds ( 1, 1 ) : bounds ( 2, 1 ), &
+             bounds ( 1, 2 ) : bounds ( 2, 2 ), &
+             bounds ( 1, 3 ) : bounds ( 2, 3 ) ), STAT = stat )
+        CPPostcondition(stat==0,cp_fatal_level,routineP,error,failure)
      END IF
 
-     pw%in_space=0
-     IF (PRESENT(in_space)) pw%in_space=in_space
+  case(COMPLEXDATA3D)
+     ALLOCATE ( pw % cc3d ( &
+          bounds ( 1, 1 ) : bounds ( 2, 1 ), &
+          bounds ( 1, 2 ) : bounds ( 2, 2 ), &
+          bounds ( 1, 3 ) : bounds ( 2, 3 ) ), STAT = stat )
+     CPPostcondition(stat==0,cp_fatal_level,routineP,error,failure)
+  case(NODATA)
+  CASE default
+     CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
+          "unknown data type",error,failure)
+  END SELECT
+  IF (PRESENT(in_space)) pw%in_space=in_space
   END IF
+  CALL timestop(0.0_dp,handle)
 END SUBROUTINE pw_create
 !***************************************************************************
 
@@ -3524,6 +3424,186 @@ END SUBROUTINE pw_compare_debug
     CALL timestop ( 0.0_dp, handle )
     
   END SUBROUTINE pw_restrict_l_NoPBC
+
+
+!!****** pws/pw_integral [1.0] *
+!!
+!!   NAME
+!!     pw_integral
+!!
+!!   FUNCTION
+!!     Calculate integral over unit cell for functions in plane wave basis
+!!
+!!   AUTHOR
+!!     apsi
+!!
+!!   MODIFICATION HISTORY
+!!     JGH (14-Mar-2001) : Parallel sum and some tests, HALFSPACE case
+!!
+!******************************************************************************
+
+FUNCTION pw_integral_ab ( pw1, pw2, flag ) RESULT ( integral_value )
+
+  TYPE(pw_type), INTENT(IN)                :: pw1, pw2
+  INTEGER, INTENT(IN), OPTIONAL            :: flag
+  REAL(KIND=dp)                                :: integral_value
+
+  !------------------------------------------------------------------------------
+
+  IF ( pw1 % pw_grid %id_nr /= pw2 % pw_grid %id_nr ) THEN
+     CALL stop_program ( "integral_ab", "grids incompatible" )
+  END IF
+
+  ! does the sum using mp, which might be an enhanced precision, useful to
+  ! avoid round-off
+  IF ( pw1 % in_use == REALDATA3D .AND. pw2 % in_use == REALDATA3D ) THEN
+     integral_value = SUM ( REAL( pw1 % cr3d ( :, :, : ), KIND=mp )  &
+          * pw2 % cr3d ( :, :, : ) )
+  ELSE IF ( pw1 % in_use == REALDATA3D &
+       .AND. pw2 % in_use == COMPLEXDATA3D ) THEN
+     integral_value = SUM ( REAL( pw1 % cr3d ( :, :, : ), KIND=mp ) &
+          * pw2 % cc3d ( :, :, : ) )
+  ELSE IF ( pw1 % in_use == COMPLEXDATA3D &
+       .AND. pw2 % in_use == REALDATA3D ) THEN
+     integral_value = SUM ( pw1 % cc3d ( :, :, : ) &
+          * REAL( pw2 % cr3d ( :, :, : ), KIND=mp) )
+  ELSE IF ( pw1 % in_use == COMPLEXDATA3D &
+       .AND. pw2 % in_use == COMPLEXDATA3D ) THEN
+     integral_value = SUM ( CONJG ( pw1 % cc3d ( :, :, : ) ) &
+          * CMPLX( pw2 % cc3d ( :, :, : ), KIND=mp ) )
+
+  ELSE IF ( pw1 % in_use == REALDATA1D &
+       .AND. pw2 % in_use == REALDATA1D ) THEN
+     integral_value = SUM ( pw1 % cr ( : ) * REAL( pw2 % cr ( : ), KIND=mp ) )
+  ELSE IF ( pw1 % in_use == REALDATA1D &
+       .AND. pw2 % in_use == COMPLEXDATA1D ) THEN
+     integral_value = SUM ( REAL( pw1 % cr ( : ), KIND=mp ) * pw2 % cc ( : ) )
+  ELSE IF ( pw1 % in_use == COMPLEXDATA1D &
+       .AND. pw2 % in_use == REALDATA1D ) THEN
+     integral_value = SUM ( pw1 % cc ( : ) * REAL( pw2 % cr ( : ), KIND=mp ) )
+  ELSE IF ( pw1 % in_use == COMPLEXDATA1D &
+       .AND. pw2 % in_use == COMPLEXDATA1D ) THEN
+     integral_value = SUM ( CONJG ( pw1 % cc ( : ) ) * CMPLX( pw2 % cc ( : ), KIND=mp) )
+  ELSE
+     CALL stop_program ( "integral_ab", "no possible DATA" )
+  END IF
+
+  IF ( pw1 % in_use == REALDATA3D .OR. pw1 % in_use == COMPLEXDATA3D ) THEN
+     integral_value = integral_value * pw1 % pw_grid % dvol
+  ELSE
+     integral_value = integral_value * pw1 % pw_grid % vol
+  ENDIF
+  IF ( pw1 % in_use == COMPLEXDATA1D ) THEN
+     IF ( pw1 % pw_grid % grid_span == HALFSPACE ) THEN
+        integral_value = 2.0_dp * integral_value
+        IF ( pw1 % pw_grid % have_g0 ) integral_value = integral_value - &
+             CONJG ( pw1 % cc ( 1 ) ) * pw2 % cc ( 1 )
+     END IF
+  END IF
+
+  IF ( pw1 % pw_grid % para % mode == PW_MODE_DISTRIBUTED ) &
+       CALL mp_sum ( integral_value, pw1 % pw_grid % para % group )
+
+END FUNCTION pw_integral_ab
+
+!******************************************************************************
+
+FUNCTION pw_integral_aa ( pw1, flag ) RESULT ( integral_value )
+
+  TYPE(pw_type), INTENT(IN)                :: pw1
+  INTEGER, INTENT(IN), OPTIONAL            :: flag
+  REAL(KIND=dp)                                :: integral_value
+
+  !------------------------------------------------------------------------------
+
+  IF ( PRESENT ( flag ) ) THEN
+     IF ( flag == SQUARE ) THEN
+        IF ( pw1 % in_use == REALDATA3D ) THEN
+           integral_value = SUM ( REAL( pw1 % cr3d ( :, :, : ), KIND=mp ) ** 2 )
+        ELSE IF ( pw1 % in_use == COMPLEXDATA3D ) THEN
+           integral_value = SUM ( CONJG ( pw1 % cc3d ( :, :, : ) ) &
+                * CMPLX( pw1 % cc3d ( :, :, : ), KIND=mp) )
+        ELSE IF ( pw1 % in_use == REALDATA1D ) THEN
+           integral_value = SUM ( REAL( pw1 % cr ( : ), KIND=mp ) ** 2 )
+        ELSE IF ( pw1 % in_use == COMPLEXDATA1D ) THEN
+           integral_value = SUM ( CONJG ( pw1 % cc ( : ) ) &
+                * CMPLX( pw1 % cc ( : ), KIND=mp ) )
+           IF ( pw1 % pw_grid % grid_span == HALFSPACE ) THEN
+              integral_value = 2.0_dp * integral_value
+              IF ( pw1 % pw_grid % have_g0 ) integral_value = integral_value - &
+                   CONJG ( pw1 % cc ( 1 ) ) * pw1 % cc ( 1 )
+           END IF
+        ELSE
+           CALL stop_program ( "integral_aa", "no possible SQUARE DATA" )
+        END IF
+
+     ELSE IF ( flag == SQUAREROOT ) THEN
+        CALL stop_program ( "integral_aa", "no SQUAREROOT defined" )
+     END IF
+
+  ELSE
+     IF ( pw1 % in_use == REALDATA3D ) THEN
+        integral_value = SUM ( REAL( pw1 % cr3d ( :, :, : ), KIND=mp ) )
+     ELSE IF ( pw1 % in_use == COMPLEXDATA3D ) THEN
+        integral_value = SUM ( CMPLX( pw1 % cc3d ( :, :, : ), KIND=mp ) )
+     ELSE IF ( pw1 % in_use == REALDATA1D ) THEN
+        integral_value = SUM ( REAL( pw1 % cr ( : ), KIND=mp) )
+     ELSE IF ( pw1 % in_use == COMPLEXDATA1D ) THEN
+        integral_value = SUM ( CMPLX( pw1 % cc ( : ), KIND=mp) )
+     ELSE
+        CALL stop_program ( "integral_aa", "no possible DATA" )
+     END IF
+  END IF
+
+  IF ( pw1 % in_use == REALDATA3D .OR. pw1 % in_use == COMPLEXDATA3D ) THEN
+     integral_value = integral_value * pw1 % pw_grid % dvol
+  ELSE
+     integral_value = integral_value * pw1 % pw_grid % vol
+  END IF
+
+  IF ( pw1 % pw_grid % para % mode == PW_MODE_DISTRIBUTED ) &
+       CALL mp_sum ( integral_value, pw1 % pw_grid % para % group )
+
+END FUNCTION pw_integral_aa
+
+!******************************************************************************
+
+FUNCTION pw_integral_a2b ( pw1, pw2 ) RESULT ( integral_value )
+
+  TYPE(pw_type), INTENT(IN)                :: pw1, pw2
+  REAL(KIND=dp)                                :: integral_value
+
+  !------------------------------------------------------------------------------
+
+  IF ( pw1 % pw_grid %id_nr /= pw2 % pw_grid %id_nr ) THEN
+     CALL stop_program ( "integral_a2b", "grids incompatible" )
+  END IF
+  IF ( pw1 % in_use == REALDATA1D .AND. &
+       pw2 % in_use == REALDATA1D ) THEN
+     integral_value = SUM ( pw1 % cr ( : ) * REAL( pw2 % cr ( : ), KIND=mp ) &
+          * pw1 % pw_grid % gsq ( : ) )
+  ELSE IF ( pw1 % in_use == COMPLEXDATA1D .AND. &
+       pw2 % in_use == COMPLEXDATA1D ) THEN
+     integral_value = SUM ( REAL ( CONJG ( pw1 % cc ( : ) ) &
+          *  pw2 % cc ( : ) ,KIND=mp) * pw1 % pw_grid % gsq ( : ) )
+     IF ( pw1 % pw_grid % grid_span == HALFSPACE ) THEN
+        integral_value = 2.0_dp * integral_value
+     END IF
+  ELSE
+     CALL stop_program ( "integral_a2b", "no possible DATA" )
+  END IF
+
+  IF ( pw1 % in_use == REALDATA3D .OR. pw1 % in_use == COMPLEXDATA3D ) THEN
+     integral_value = integral_value * pw1 % pw_grid % dvol
+  ELSE
+     integral_value = integral_value * pw1 % pw_grid % vol
+  END IF
+
+  IF ( pw1 % pw_grid % para % mode == PW_MODE_DISTRIBUTED ) &
+       CALL mp_sum ( integral_value, pw1 % pw_grid % para % group )
+
+END FUNCTION pw_integral_a2b
+!******************************************************************************
 
 END MODULE pw_types
 
