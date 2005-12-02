@@ -417,6 +417,9 @@ CONTAINS
 
       CALL integrate_v_core_rspace(v_hartree_rspace, qs_env)
 
+      CALL pw_pool_give_back_coeff(auxbas_pw_pool, v_hartree_gspace, error=error)
+      CALL pw_pool_give_back_coeff(auxbas_pw_pool, v_hartree_rspace, error=error)
+
       DO ikind = 1,SIZE(force)
         CALL mp_sum(force(ikind)%rho_core, globenv%group)
       END DO
@@ -888,6 +891,9 @@ CONTAINS
                               h=matrix_ks(1), qs_env=qs_env, calculate_forces=.TRUE., &
                               gapw=.FALSE., error=error)
 
+      CALL pw_pool_give_back_coeff(auxbas_pw_pool, v_hartree_gspace, error=error)
+      CALL pw_pool_give_back_coeff(auxbas_pw_pool, v_hartree_rspace, error=error)
+
       IF (ASSOCIATED(v_rspace_new)) THEN
         CALL pw_pool_give_back_coeff(auxbas_pw_pool,v_rspace_new(1),error=error)
         DEALLOCATE(v_rspace_new,stat=stat)
@@ -1134,6 +1140,9 @@ CONTAINS
       CALL integrate_v_rspace(v_rspace=v_hartree_rspace, p=harris_env%rho_diff%rho_ao(1), &
                               h=matrix_ks(1), qs_env=qs_env, calculate_forces=.TRUE., &
                               gapw=.FALSE.,error=error)
+
+      CALL pw_pool_give_back_coeff(auxbas_pw_pool, v_hartree_gspace, error=error)
+      CALL pw_pool_give_back_coeff(auxbas_pw_pool, v_hartree_rspace, error=error)
 
       DO ikind = 1,SIZE(force)
         CALL mp_sum(force(ikind)%rho_elec, globenv%group)
