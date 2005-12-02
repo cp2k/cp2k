@@ -186,7 +186,7 @@ def cons_conv(oldInput,oldSect,newInput,new_sect,conv):
     new_sect.pre_comments=oldSect.pre_comments
     new_sect.post_comments=oldSect.post_comments
     consTypes={'g3x3':{'atoms':[3,4,5],'distances':[6,7,8],'molecule':[2]},
-               'g4x6':{'atoms':[3,4,5,6],'distances':[7,8,9,10,11],'molecule':[2]},
+               'g4x6':{'atoms':[3,4,5,6],'distances':[7,8,9,10,11,12],'molecule':[2]},
                'dist':{'atoms':[3,4],'distance':[5],'molecule':[2]}}
     for line in oldSect.raw_lines:
         if line.isspace():continue
@@ -381,11 +381,18 @@ def ff_conv(oldInput,oldSect,newInput,new_sect,conv):
                 l_nr+=1
                 if l_nr>=nl: break
                 line=oldSect.raw_lines[l_nr]
-                if line.split()[0].lower()=="end":break
+                ll=line.split()
+                if ll[0].lower()=="end":break
                 ch=Section(conv.upcase("bond"))
-                ch.add_keyword(Keyword(conv.upcase("atoms"),values=line.split()[1:3]))
-                ch.add_keyword(Keyword(conv.upcase("k"),values=[line.split()[3]]))
-                ch.add_keyword(Keyword(conv.upcase("r0"),values=[line.split()[4]]))
+                ch.add_keyword(Keyword(conv.upcase("atoms"),values=ll[1:3]))
+                if ll[0].lower()=="harmonic":
+                    ch.add_keyword(Keyword(conv.upcase("k"),values=[ll[3]]))
+                    ch.add_keyword(Keyword(conv.upcase("r0"),values=[line.split()[4]]))
+                elif ll[0].lower()=="quartic":
+                    ch.add_keyword(Keyword(conv.upcase("k"),values=ll[3:6]))
+                    ch.add_keyword(Keyword(conv.upcase("r0"),values=[line.split()[6]]))
+                else:
+                    print "WARNING unknown bond type in forcefield section:",ll[0]
                 new_sect.add_subsection(ch)
         elif ll.split()[0]=="parmfile":
             new_sect.add_keyword(Keyword("parmfile",[line.split()[2]]))
@@ -410,7 +417,7 @@ def ff_conv(oldInput,oldSect,newInput,new_sect,conv):
                 l=line.split()
                 sname=l[0].lower()
                 ch=Section(conv.upcase(l[0]))
-                ch.add_keyword(Keyword("atom",l[1:3]))
+                ch.add_keyword(Keyword("atoms",l[1:3]))
                 for idx in f_data[sname]:
                     kname=f_data[sname][idx]
                     ch.add_keyword(Keyword(conv.upcase(kname),values=[l[idx]]))
