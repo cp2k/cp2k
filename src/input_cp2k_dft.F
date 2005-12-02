@@ -854,7 +854,7 @@ SUBROUTINE create_qs_section(section,error)
           variants=(/"LMAXRHO1"/),&
           description="GAPW : max L number for espansion of the atomic densities in spherical gaussians",&
           usage="LMAXN1 integer",&
-          default_i_val=6,error=error)
+          default_i_val=-1,error=error)
      CALL section_add_keyword(section,keyword,error=error)
      CALL keyword_release(keyword,error=error)
 
@@ -3139,9 +3139,9 @@ END SUBROUTINE create_ot_section
       CALL section_add_keyword(section,keyword,error=error)
 
       CALL keyword_release(keyword,error=error)
-            CALL keyword_create(keyword, name="SCF_METHOD",&
+            CALL keyword_create(keyword, name="SCF_OPTIMIZER",&
            description="Optimization algorithm: diagonalization or OT",&
-           usage="SCF_METHOD GENERAL",&
+           usage="SCF_OPTIMIZER GENERAL",&
            default_i_val=xas_scf_default,&
            enum_c_vals=s2a( "DEFAULT", "GENERAL", "OT"),&
            enum_desc=s2a("same as in std SCF", "diagonalization",&

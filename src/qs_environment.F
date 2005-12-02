@@ -432,17 +432,6 @@ CONTAINS
     IF(lmax_sphere .LT.0) THEN
        lmax_sphere = 2*maxlgto
        dft_control%qs_control%gapw_control%lmax_sphere= lmax_sphere
-!    ELSEIF(lmax_sphere .LT. 2*maxlgto) THEN
-!    ! work araound for the moment 
-!    ! I am not sure it is meaningful to have this value smaller 
-!    ! The local densities may result very bad, 
-!    !though one could gain something in cpu time
-!      lmax_sphere = 2*maxlgto
-!      dft_control%qs_control%gapw_control%lmax_sphere= lmax_sphere
-!      IF (globenv%ionode) WRITE(globenv%scr,*) " ********************************************"
-!      IF (globenv%ionode) WRITE(globenv%scr,*) "     WARNING: LMAXN1 reset to ", lmax_sphere
-!      IF (globenv%ionode) WRITE(globenv%scr,*) "              smaller L is dangerous "
-!      IF (globenv%ionode) WRITE(globenv%scr,*) " ********************************************"
     END IF
     maxl = MAX(2*maxlgto,maxlppl,maxlppnl,lmax_sphere)
 

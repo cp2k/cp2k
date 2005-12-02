@@ -130,8 +130,11 @@ MODULE atomic_kind_types
     TYPE(paw_proj_set_type),  POINTER      :: paw_proj_set
     REAL(dp)                               :: hard_radius  ! for hard and soft exp
     REAL(dp)                               :: hard0_radius ! for hard exp of rho0
+    REAL(dp)                               :: max_rad_local ! max GTO radius used in GAPW 
+                                                            !projectors construction
     LOGICAL                                :: paw_atom     ! needs atomic rho1
     LOGICAL                                :: qm_atom    ! needs atomic rho1
+    LOGICAL                                :: gpw_type_forced ! gpw atom even if with hard exponents 
     CHARACTER(LEN=default_string_length)   :: name
     CHARACTER(LEN=2)                       :: element_symbol
     REAL(KIND = dp)                        :: mass
@@ -224,8 +227,10 @@ CONTAINS
       atomic_kind_set(ikind)%number_of_grid_points = 0
       atomic_kind_set(ikind)%paw_atom = .FALSE.
       atomic_kind_set(ikind)%qm_atom = .FALSE.
+      atomic_kind_set(ikind)%gpw_type_forced = .FALSE.
       atomic_kind_set(ikind)%hard_radius = 0.8_dp*bohr
       atomic_kind_set(ikind)%hard0_radius = 0.8_dp*bohr
+      atomic_kind_set(ikind)%max_rad_local = 13.2_dp*bohr
       atomic_kind_set(ikind)%ngrid_rad = 50
       atomic_kind_set(ikind)%ngrid_ang = 50 
       atomic_kind_set(ikind)%lmax_rho0 = 0 
@@ -322,6 +327,7 @@ CONTAINS
                              soft_basis_set,&
                              hard_basis_set,paw_proj_set,softb,&
                              paw_atom,qm_atom,hard_radius,hard0_radius,&
+                             max_rad_local, gpw_type_forced,&
                              harmonics, max_iso_not0, max_s_harm,&
                              grid_atom, ngrid_ang, ngrid_rad, lmax_rho0)
 
@@ -364,8 +370,10 @@ CONTAINS
     REAL(KIND=dp), INTENT(OUT), OPTIONAL     :: qeff, zeff
     LOGICAL, OPTIONAL,  INTENT(OUT)          :: paw_atom
     LOGICAL, OPTIONAL,  INTENT(OUT)          :: qm_atom
+    LOGICAL, OPTIONAL,  INTENT(OUT)          :: gpw_type_forced
     REAL(dp), OPTIONAL, INTENT(OUT)          :: hard_radius
     REAL(dp), OPTIONAL, INTENT(OUT)          :: hard0_radius
+    REAL(dp), OPTIONAL, INTENT(OUT)          :: max_rad_local
     TYPE(harmonics_atom_type), OPTIONAL, &
                                  POINTER     :: harmonics
     INTEGER, INTENT(OUT), OPTIONAL           :: max_iso_not0, &
@@ -491,8 +499,10 @@ CONTAINS
       IF (PRESENT(paw_proj_set))   paw_proj_set => atomic_kind%paw_proj_set
       IF (PRESENT(paw_atom)) paw_atom = atomic_kind%paw_atom
       IF (PRESENT(qm_atom)) qm_atom = atomic_kind%qm_atom
+      IF (PRESENT(gpw_type_forced)) gpw_type_forced = atomic_kind%gpw_type_forced
       IF (PRESENT(hard_radius)) hard_radius = atomic_kind%hard_radius
       IF (PRESENT(hard0_radius)) hard0_radius = atomic_kind%hard0_radius
+      IF (PRESENT(max_rad_local)) max_rad_local = atomic_kind%max_rad_local
       IF (PRESENT(harmonics))  harmonics => atomic_kind%harmonics
       IF (PRESENT(max_s_harm)) THEN 
          IF(ASSOCIATED(atomic_kind%harmonics)) THEN 
@@ -1031,8 +1041,9 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routine_name = "init_gapw_basis_set"
 
     INTEGER                                  :: ikind, nkind, output_unit
-    LOGICAL                                  :: paw_atom
+    LOGICAL                                  :: paw_atom,gpw
     REAL(dp)                                 :: covalent_radius,rc
+    REAL(dp)                                 :: max_rad_local_type
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(gto_basis_set_type), POINTER        :: orb_basis, soft_basis
     TYPE(gto_basis_set_type), POINTER        :: hard_basis
@@ -1061,14 +1072,18 @@ CONTAINS
 
         CALL get_atomic_kind(atomic_kind=atomic_kind,&
                              orb_basis_set=orb_basis,&
-                             hard_radius=rc)
+                             hard_radius=rc,&
+                             max_rad_local=max_rad_local_type,gpw_type_forced=gpw)
 
 !        bsname = orb_basis%name
 !        atomic_kind%hard_basis_set%name = TRIM(bsname)//"_hard"
 
         paw_atom = .FALSE.
+        IF(.NOT. gpw) THEN
+          CALL create_soft_basis(orb_basis,atomic_kind%soft_basis_set,&
+               qs_control%gapw_control,rc,paw_atom)
+        END IF
 
-        CALL create_soft_basis(orb_basis,atomic_kind%soft_basis_set,qs_control%gapw_control,rc,paw_atom)
         CALL set_atomic_kind(atomic_kind=atomic_kind,&
                              paw_atom=paw_atom)
         IF(paw_atom) THEN
@@ -1083,7 +1098,7 @@ CONTAINS
           CALL get_atomic_kind(atomic_kind=atomic_kind,&
                                paw_proj_set=paw_proj)
 
-          CALL projectors(paw_proj,orb_basis,rc,qs_control,globenv)
+          CALL projectors(paw_proj,orb_basis,rc,qs_control,max_rad_local_type,globenv)
 
          ENDIF
 
@@ -1180,7 +1195,7 @@ CONTAINS
              z = i
              EXIT
           END IF
-       END DO
+       END DO 
 
        IF (z /= -1) THEN
           akind_name=atomic_kind%name
@@ -1208,7 +1223,7 @@ CONTAINS
           END DO
        END IF
     END IF
-    
+
     IF (k_rep>0) THEN
        CALL section_vals_val_get(kind_section,i_rep_section=k_rep,&
             keyword_name="AUX_BASIS_SET", c_val=aux_basis_set_name,error=error)
@@ -1251,6 +1266,8 @@ CONTAINS
             keyword_name="HARD_EXP_RADIUS",r_val=atomic_kind%hard_radius,error=error)
        CALL section_vals_val_get(kind_section,i_rep_section=k_rep,&
             keyword_name="RHO0_EXP_RADIUS",r_val=atomic_kind%hard0_radius,error=error)
+       CALL section_vals_val_get(kind_section,i_rep_section=k_rep,&
+            keyword_name="MAX_RAD_LOCAL",r_val=atomic_kind%max_rad_local,error=error)
        CALL cp_assert(atomic_kind%hard_radius>=atomic_kind%hard0_radius,&
             cp_failure_level,cp_assertion_failed,routineP,&
             "rc0 should be <= rc",error,failure)
@@ -1264,6 +1281,8 @@ CONTAINS
        CALL cp_assert(atomic_kind%ngrid_rad > 0,&
             cp_failure_level,cp_assertion_failed,routineP,&
             "# point radial grid < 0",error,failure)
+       CALL section_vals_val_get(kind_section,i_rep_section=k_rep,&
+            keyword_name="GPW_TYPE",l_val=atomic_kind%gpw_type_forced,error=error)
     END IF
 
 !   *** The corresponding element of the current atomic kind is still   ***
@@ -1643,6 +1662,8 @@ CONTAINS
           "GAPW|  Hard Gaussians Radius:",atomic_kind%hard_radius
           WRITE (UNIT=output_unit,FMT="(T16,A,T71,F10.3,/)")&
           "GAPW|  Rho0 Radius:",atomic_kind%hard0_radius
+          WRITE (UNIT=output_unit,FMT="(T16,A,T71,F10.3,/)")&
+          "GAPW|  Max GTO radius used in proj. construction:",atomic_kind%max_rad_local
           WRITE (UNIT=output_unit,FMT="(T10,A))")&
           "***** Soft Basis Set *****"
 

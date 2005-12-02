@@ -262,7 +262,7 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE projectors(paw_proj,orb_basis,rc,qs_control,globenv)
+  SUBROUTINE projectors(paw_proj,orb_basis,rc,qs_control,max_rad_local_type,globenv)
 
 !   Purpose: initialize the projector-type set data set.
 
@@ -273,7 +273,7 @@ CONTAINS
     TYPE(qs_control_type), INTENT(IN)         :: qs_control
     TYPE(global_environment_type), INTENT(IN) :: globenv
     REAL(dp)                                  :: rc
-    REAL(dp)                                  :: eps_orb, max_rad_local
+    REAL(dp), INTENT(IN)                      :: max_rad_local_type
 
 !   *** Local parameters ***
 
@@ -282,12 +282,16 @@ CONTAINS
 !   *** Local variables ***
 
     REAL(dp)                                  :: eps_fit,eps_iso
+    REAL(dp)                                  :: eps_orb, max_rad_local
 
 !   ***************************************************************************
 
     eps_fit =  qs_control%gapw_control%eps_fit
     eps_iso =  qs_control%gapw_control%eps_iso
     max_rad_local = qs_control%gapw_control%max_rad_local
+    IF(max_rad_local_type.LT.max_rad_local)THEN
+      max_rad_local=max_rad_local_type
+    END IF
     eps_orb =  qs_control%eps_pgf_orb
 
     CALL build_projector(paw_proj,orb_basis,eps_fit,eps_iso,rc,eps_orb,max_rad_local,globenv)
