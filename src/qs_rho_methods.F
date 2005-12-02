@@ -598,13 +598,15 @@ END SUBROUTINE qs_rho_update_rho
 !!     diff_rho_type
 !!
 !!   FUNCTION
-!!     Creates a qs_rho_type, which is equivalent to rho_input1 - rho_input2
+!!     Creates a qs_rho_type, which is equivalent to 
+!!     alpha*rho_input1 - beta*rho_input2
 !!
 !!   NOTES
 !!     Associated pointers are deallocated, nullified pointers are NOT accepted!
 !!     Inputs and output must not be the same!
 !!
 !!   INPUTS
+!!     - alpha & beta: Multiplier for the rho input structures
 !!     - rho_input1 & rho_input2: The rho input structure
 !!     - rho_output: The difference rho structure
 !!     - qs_env: The QS environment from which the auxilliary PW basis-set 
@@ -619,11 +621,14 @@ END SUBROUTINE qs_rho_update_rho
 !!     09.2005 initial create [tdk]
 !!
 !!*** **********************************************************************
-  SUBROUTINE diff_rho_type(rho_input1, rho_input2, rho_output, qs_env, error)
+  SUBROUTINE diff_rho_type(alpha, rho_input1, beta, rho_input2, rho_output, &
+                           qs_env, error)
 
     TYPE(qs_rho_type), POINTER                      :: rho_input1, &
                                                        rho_input2, &
                                                        rho_output
+    REAL(KIND=dp), OPTIONAL                         :: alpha, &
+                                                       beta
     TYPE(qs_environment_type), POINTER              :: qs_env
     TYPE(cp_error_type), INTENT(INOUT), OPTIONAL    :: error
     INTEGER                                         :: handle, &
@@ -633,6 +638,8 @@ END SUBROUTINE qs_rho_update_rho
     TYPE(dft_control_type), POINTER                 :: dft_control
     TYPE(pw_env_type), POINTER                      :: pw_env
     TYPE(pw_pool_type), POINTER                     :: auxbas_pw_pool
+    REAL(KIND=dp)                                   :: a, &
+                                                       b
     LOGICAL                                         :: failure
     
     CHARACTER(len=*), PARAMETER :: routineN = 'diff_rho_type', &
@@ -651,6 +658,18 @@ END SUBROUTINE qs_rho_update_rho
     CPPrecondition(rho_input2%ref_count>0, cp_failure_level, routineP, error, failure)
     CPPrecondition(ASSOCIATED(qs_env), cp_failure_level, routineP, error, failure)
     CPPrecondition(qs_env%ref_count>0, cp_failure_level, routineP, error, failure)
+
+    IF (PRESENT(alpha)) THEN
+      a = alpha
+    ELSE
+      a = 1.0_dp
+    ENDIF
+
+    IF (PRESENT(beta)) THEN
+      b= beta
+    ELSE
+      b = -1.0_dp
+    END IF
 
     IF (.NOT. failure) THEN
       CALL get_qs_env(qs_env=qs_env, pw_env=pw_env, dft_control=dft_control, &
@@ -681,8 +700,8 @@ END SUBROUTINE qs_rho_update_rho
                                 target_name="myDensityMatrix_for_Spin_"//&
                                 TRIM(ADJUSTL(cp_to_string(i))), &
                                 allocate_blocks=.TRUE.)
-          CALL add_matrices(c=rho_output%rho_ao(i)%matrix, alpha=1.0_dp, &
-                            a=rho_input1%rho_ao(i)%matrix, beta=-1.0_dp, &
+          CALL add_matrices(c=rho_output%rho_ao(i)%matrix, alpha=a, &
+                            a=rho_input1%rho_ao(i)%matrix, beta=b, &
                             b=rho_input2%rho_ao(i)%matrix)
         END DO
       END IF
@@ -698,12 +717,12 @@ END SUBROUTINE qs_rho_update_rho
             CALL pw_pool_init_coeff(auxbas_pw_pool, rho_output%rho_r(i), &
                                     use_data=REALDATA3D, in_space=REALSPACE, &
                                     error=error)
-            rho_output%rho_r(i)%pw%cr3d(:,:,:) = rho_input1%rho_r(i)%pw%cr3d(:,:,:) - &
-                                                 rho_input2%rho_r(i)%pw%cr3d(:,:,:)
+            rho_output%rho_r(i)%pw%cr3d(:,:,:) = a*rho_input1%rho_r(i)%pw%cr3d(:,:,:) - &
+                                                 b*rho_input2%rho_r(i)%pw%cr3d(:,:,:)
             IF (ASSOCIATED(rho_input1%rho_r(i)%pw%mass_cr) .AND. &
                 ASSOCIATED(rho_input2%rho_r(i)%pw%mass_cr)) THEN
-              rho_output%rho_r(i)%pw%mass_cr(:) = rho_input1%rho_r(i)%pw%mass_cr(:) - &
-                                                  rho_input2%rho_r(i)%pw%mass_cr(:)
+              rho_output%rho_r(i)%pw%mass_cr(:) = a*rho_input1%rho_r(i)%pw%mass_cr(:) - &
+                                                  b*rho_input2%rho_r(i)%pw%mass_cr(:)
             END IF
           END DO
         END IF
@@ -720,12 +739,12 @@ END SUBROUTINE qs_rho_update_rho
             CALL pw_pool_init_coeff(auxbas_pw_pool, rho_output%rho_g(i), &
                                     use_data=COMPLEXDATA1D, &
                                     in_space=RECIPROCALSPACE, error=error)
-            rho_output%rho_g(i)%pw%cc(:)      = rho_input1%rho_g(i)%pw%cc(:) - &
-                                                rho_input2%rho_g(i)%pw%cc(:)
+            rho_output%rho_g(i)%pw%cc(:)      = a*rho_input1%rho_g(i)%pw%cc(:) - &
+                                                b*rho_input2%rho_g(i)%pw%cc(:)
             IF (ASSOCIATED(rho_input1%rho_g(i)%pw%mass_cc) .AND. &
                 ASSOCIATED(rho_input2%rho_g(i)%pw%mass_cc)) THEN
-              rho_output%rho_g(i)%pw%mass_cc(:) = rho_input1%rho_g(i)%pw%mass_cc(:) - &
-                                                  rho_input2%rho_g(i)%pw%mass_cc(:)
+              rho_output%rho_g(i)%pw%mass_cc(:) = a*rho_input1%rho_g(i)%pw%mass_cc(:) - &
+                                                  b*rho_input2%rho_g(i)%pw%mass_cc(:)
             END IF
           END DO
         END iF
@@ -747,12 +766,12 @@ END SUBROUTINE qs_rho_update_rho
               CALL pw_pool_init_coeff(auxbas_pw_pool, rho_output%tau_r(i), &
                                       use_data=REALDATA3D, in_space=REALSPACE, &
                                       error=error)
-              rho_output%tau_r(i)%pw%cr3d(:,:,:) = rho_input1%tau_r(i)%pw%cr3d(:,:,:) - &
-                                                   rho_input2%tau_r(i)%pw%cr3d(:,:,:)
+              rho_output%tau_r(i)%pw%cr3d(:,:,:) = a*rho_input1%tau_r(i)%pw%cr3d(:,:,:) - &
+                                                   b*rho_input2%tau_r(i)%pw%cr3d(:,:,:)
               IF (ASSOCIATED(rho_input1%tau_r(i)%pw%mass_cr) .AND. &
                   ASSOCIATED(rho_input2%tau_r(i)%pw%mass_cr)) THEN
-                rho_output%tau_r(i)%pw%mass_cr(:) = rho_input1%tau_r(i)%pw%mass_cr(:) - &
-                                                    rho_input2%tau_r(i)%pw%mass_cr(:)
+                rho_output%tau_r(i)%pw%mass_cr(:) = a*rho_input1%tau_r(i)%pw%mass_cr(:) - &
+                                                    b*rho_input2%tau_r(i)%pw%mass_cr(:)
               END IF
             END DO
           END IF
@@ -767,12 +786,12 @@ END SUBROUTINE qs_rho_update_rho
               CALL pw_pool_init_coeff(auxbas_pw_pool, rho_output%tau_g(i), &
                                       use_data=COMPLEXDATA1D, &
                                       in_space=RECIPROCALSPACE, error=error)
-              rho_output%tau_g(i)%pw%cc(:) = rho_input1%tau_g(i)%pw%cc(:) - &
-                                             rho_input2%tau_g(i)%pw%cc(:)
+              rho_output%tau_g(i)%pw%cc(:) = a*rho_input1%tau_g(i)%pw%cc(:) - &
+                                             b*rho_input2%tau_g(i)%pw%cc(:)
               IF (ASSOCIATED(rho_input1%tau_g(i)%pw%mass_cc) .AND. &
                   ASSOCIATED(rho_input2%tau_g(i)%pw%mass_cc)) THEN
-                rho_output%tau_g(i)%pw%mass_cc(:) = rho_input1%tau_g(i)%pw%mass_cc(:) - &
-                                                    rho_input2%tau_g(i)%pw%mass_cc(:)
+                rho_output%tau_g(i)%pw%mass_cc(:) = a*rho_input1%tau_g(i)%pw%mass_cc(:) - &
+                                                    b*rho_input2%tau_g(i)%pw%mass_cc(:)
               END IF
             END DO
           END IF
@@ -797,7 +816,8 @@ END SUBROUTINE qs_rho_update_rho
         CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
         IF (.NOT. failure) THEN
           DO i = 1, nspins
-            rho_output%tot_rho_r(i) = rho_input1%tot_rho_r(i) - rho_input2%tot_rho_r(i)
+            rho_output%tot_rho_r(i) = a*rho_input1%tot_rho_r(i) - &
+                                      b*rho_input2%tot_rho_r(i)
           END DO
         END IF
       END IF
@@ -808,7 +828,8 @@ END SUBROUTINE qs_rho_update_rho
         CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
         IF (.NOT. failure) THEN
           DO i = 1, nspins
-             rho_output%tot_rho_g(i) = rho_input1%tot_rho_g(i) - rho_input2%tot_rho_g(i)
+             rho_output%tot_rho_g(i) = a*rho_input1%tot_rho_g(i) - &
+                                       b*rho_input2%tot_rho_g(i)
           END DO
         END IF
       END IF

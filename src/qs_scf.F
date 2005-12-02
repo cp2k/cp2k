@@ -113,11 +113,13 @@ MODULE qs_scf
                                              ot_precond_full_all,&
                                              xas_tp_hh, &
                                              xas_tp_fh, &
+                                             qs_debug_run, &
                                              xas_dscf,&
                                              densities_guess,&
                                              restart_guess,&
                                              atomic_guess,&
-                                             core_guess, random_guess
+                                             core_guess, &
+                                             random_guess
   USE machine,                         ONLY: m_flush,&
                                              m_walltime
   USE message_passing,                 ONLY: mp_bcast,&
@@ -801,7 +803,9 @@ CONTAINS
          ELSE
            CALL harris_eigenvalue_calculation(qs_env=qs_env, harris_env=harris_env, error=error)
          END IF
-         !energy%total = harris_env%harris_energy%Eharris
+         IF (globenv%run_type_id == qs_debug_run) THEN
+           energy%total = harris_env%harris_energy%Eharris
+         END IF
        END IF
 
        IF (scf_env%mixing_method.EQ.ao_mixing_nr) THEN

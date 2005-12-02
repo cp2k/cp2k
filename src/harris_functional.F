@@ -189,16 +189,8 @@ CONTAINS
       CALL duplicate_rho_type(rho_input=rho, rho_output=harris_env%rho, &
                               qs_env=qs_env, error=error)
 
-      CALL replicate_matrix(source=qs_env%matrix_h(1)%matrix, &
-                            TARGET=harris_env%matrix_h(1)%matrix, &
-                            target_name="myH-Matrix", allocate_blocks=.TRUE.)
-
-      CALL replicate_matrix(source=qs_env%matrix_ks(1)%matrix, &
-                            TARGET=harris_env%matrix_ks(1)%matrix, &
-                            target_name="myKS-Matrix", allocate_blocks=.TRUE.)
-
-      CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool,&
-           poisson_env=poisson_env, error=error)
+      CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool, poisson_env=poisson_env, &
+                      error=error)
       CALL pw_pool_init_coeff(auxbas_pw_pool, v_hartree_gspace, &
                               use_data=COMPLEXDATA1D, &
                               in_space=RECIPROCALSPACE, error=error)
@@ -229,8 +221,9 @@ CONTAINS
       CALL qs_vxc_create(qs_env=qs_env, vxc_rho=v_rspace_new, &
                          vxc_tau = v_tau_rspace, exc=harris_energy%Exc, &
                          just_energy=.FALSE., error=error)
-      !CALL qs_vxc_create(qs_env=qs_env, vxc_rho=v_rspace_new, vxc_tau=v_tau_rspace, &
-      !                   exc=harris_energy%Exc, just_energy=.TRUE., error=error)
+      !CALL qs_vxc_create(qs_env=qs_env, vxc_rho=v_rspace_new, &
+      !                   vxc_tau=v_tau_rspace, exc=harris_energy%Exc, &
+      !                   just_energy=.TRUE., error=error)
 
       harris_energy%integral_vxc = pw_integral_ab(v_rspace_new(1)%pw, &
                                                   rho%rho_r(1)%pw)
