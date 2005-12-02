@@ -1190,7 +1190,6 @@ CONTAINS
       END DO
 
       CALL zero_qs_force(force)
-      
 
       ! *** The forces due to exchange and correlation *** !
       CALL qs_vxc_create(qs_env=qs_env, vxc_rho=v_rspace_new, vxc_tau=v_tau_rspace, &
