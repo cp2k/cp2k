@@ -199,7 +199,7 @@
       &NONBONDED
         &WILLIAMS
           A 603935406.
-          ATOM SI OZ
+          ATOMS  SI OZ
           B 5.6077
           C 2244282.
           RCUT 5.0
@@ -207,8 +207,7 @@
       &END NONBONDED
     &END FORCEFIELD
     &PRINT
-      &QMMM_CHARGES
-        PRINT SILENT
+      &QMMM_CHARGES SILENT
       &END QMMM_CHARGES
     &END PRINT
     &QM_KIND Si

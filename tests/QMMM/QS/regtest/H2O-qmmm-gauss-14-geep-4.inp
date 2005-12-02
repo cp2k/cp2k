@@ -85,7 +85,6 @@
     &END MM_KIND
     &PRINT
       &MM_POTENTIAL
-        PRINT SILENT
       &END MM_POTENTIAL
     &END PRINT
     &QM_KIND H

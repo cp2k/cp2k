@@ -62,8 +62,7 @@
       RADIUS 0.80
     &END MM_KIND
     &PRINT
-      &MM_POTENTIAL
-        PRINT SILENT
+      &MM_POTENTIAL SILENT
       &END MM_POTENTIAL
     &END PRINT
     &QM_KIND H
