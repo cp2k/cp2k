@@ -36,7 +36,7 @@ MODULE input_cp2k_motion
   USE input_val_types, ONLY: val_type, no_t, logical_t, integer_t, real_t, char_t,&
        enum_t
   USE cp_output_handling, only: cp_print_key_section_create
-
+  USE cp_units, only: cp_unit_to_cp2k
   USE string_utilities, ONLY: s2a
 #include "cp_common_uses.h"
   implicit none
@@ -1431,7 +1431,7 @@ SUBROUTINE create_uniaxial_section(section, error)
        CALL keyword_create(keyword, name="GAMMA",&
             description="Damping coefficient for barostat and particles",&
             usage="GAMMA real",&
-            type_of_var=real_t, n_var=1,unit_str='fs^-1', &
+            unit_str='fs^-1', &
             default_r_val=0.0_dp, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)             
@@ -1478,21 +1478,22 @@ SUBROUTINE create_barostat_section(section, error)
 
        CALL section_create(section,name="barostat",&
             description="Parameters of barostat.",&
-            n_keywords=1, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+            n_keywords=1, n_subsections=0, repeats=.FALSE., required=.FALSE.,&
             error=error)
 
        NULLIFY(keyword)
        CALL keyword_create(keyword, name="PRESSURE",&
             description="Initial pressure",&
             usage="PRESSURE real",&
-            type_of_var=real_t, n_var=1,unit_str='bar',error=error)
+            default_r_val=0._dp,unit_str='bar',error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)      
 
        CALL keyword_create(keyword, name="TIMECON",&
             description="Barostat time constant",&
             usage="TIMECON real",&
-            type_of_var=real_t, n_var=1,unit_str='fs',error=error)
+            default_r_val=cp_unit_to_cp2k(1000._dp,"fs",error=error),&
+            unit_str='fs',error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)        
 
@@ -1650,11 +1651,11 @@ SUBROUTINE create_nose_section(section, error)
   IF (.NOT. failure) THEN  
        CALL section_create(section,name="nose",&
             description="paramameters of the Nose Hoover thermostat chain for KG coeffs",&
-            required=.TRUE.,error=error)
+            required=.FALSE.,error=error)
        NULLIFY(keyword)
        CALL keyword_create(keyword, name="length",&
             description="length of the NoseHoover chain", usage="length integer", &
-            default_i_val=2,&
+            default_i_val=3,&
             error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -1670,8 +1671,8 @@ SUBROUTINE create_nose_section(section, error)
        CALL keyword_create(keyword, name="timecon",&
             description="timeconstant of the thermostat chain",&
             usage="timeconstant real", &
-            default_r_val=1000._dp,unit_str='fs',&
-            error=error)
+            default_r_val=cp_unit_to_cp2k(1000._dp,'fs',error=error),&
+            unit_str='fs',error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 

@@ -495,20 +495,14 @@ SUBROUTINE read_md_new_section(simpar, globenv, md_section, error)
      END IF
 
      tmp_section => section_vals_get_subs_vals(md_section,"BAROSTAT",error=error)
-     CALL section_vals_get(tmp_section,explicit=explicit,error=error)
-     IF (explicit) THEN
-        CALL section_vals_val_get(tmp_section,"PRESSURE",r_val=simpar%p_ext,error=error)
-        CALL section_vals_val_get(tmp_section,"TIMECON",r_val=simpar%tau_cell,error=error)
-     END IF
+     CALL section_vals_val_get(tmp_section,"PRESSURE",r_val=simpar%p_ext,error=error)
+     CALL section_vals_val_get(tmp_section,"TIMECON",r_val=simpar%tau_cell,error=error)
      
      tmp_section => section_vals_get_subs_vals(md_section,"NOSE",error=error)
-     CALL section_vals_get(tmp_section,explicit=explicit,error=error)
-     IF (explicit) THEN
-        CALL section_vals_val_get(tmp_section,"LENGTH",i_val=simpar%nhclen,error=error)
-        CALL section_vals_val_get(tmp_section,"YOSHIDA",i_val=simpar%nyosh,error=error)
-        CALL section_vals_val_get(tmp_section,"TIMECON",r_val=simpar%tau_nhc,error=error)
-        CALL section_vals_val_get(tmp_section,"MTS",i_val=simpar%nc,error=error)
-     END IF
+     CALL section_vals_val_get(tmp_section,"LENGTH",i_val=simpar%nhclen,error=error)
+     CALL section_vals_val_get(tmp_section,"YOSHIDA",i_val=simpar%nyosh,error=error)
+     CALL section_vals_val_get(tmp_section,"TIMECON",r_val=simpar%tau_nhc,error=error)
+     CALL section_vals_val_get(tmp_section,"MTS",i_val=simpar%nc,error=error)
 
      tmp_section => section_vals_get_subs_vals(md_section, "HMC", error=error)
      CALL section_vals_get(tmp_section, explicit=explicit, error=error)
