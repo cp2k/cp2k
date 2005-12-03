@@ -6,6 +6,7 @@
     LSD
     POTENTIAL_FILE_NAME POTENTIAL
     &MGRID
+      NGRID 1
       CUTOFF 150
     &END MGRID
     &QS
