@@ -37,6 +37,7 @@
 !!
 !------------------------------------------------------------------------------
 PROGRAM cp2k
+
   USE cp2k_runs,         ONLY : write_cp2k_html_manual, write_xml_file
   USE machine,           ONLY : m_iargc,m_getarg
   USE message_passing,   ONLY : mp_sync
