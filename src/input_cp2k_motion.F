@@ -1649,7 +1649,7 @@ SUBROUTINE create_nose_section(section, error)
   CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
   IF (.NOT. failure) THEN  
        CALL section_create(section,name="nose",&
-            description="paramameters of the Nose Hoover termostat chain for KG coeffs",&
+            description="paramameters of the Nose Hoover thermostat chain for KG coeffs",&
             required=.TRUE.,error=error)
        NULLIFY(keyword)
        CALL keyword_create(keyword, name="length",&
@@ -1660,7 +1660,7 @@ SUBROUTINE create_nose_section(section, error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="Yoshida",&
-            description="order of the yoshida integretor usef for the termostat",&
+            description="order of the yoshida integretor usef for the thermostat",&
             usage="Yoshida integer", &
             default_i_val=3,&
             error=error)
@@ -1668,7 +1668,7 @@ SUBROUTINE create_nose_section(section, error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="timecon",&
-            description="timeconstant of the termostat chain",&
+            description="timeconstant of the thermostat chain",&
             usage="timeconstant real", &
             default_r_val=1000._dp,unit_str='fs',&
             error=error)
