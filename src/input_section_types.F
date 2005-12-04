@@ -1599,8 +1599,9 @@ SUBROUTINE section_vals_val_set(section_vals,keyword_name,i_rep_section,&
   TYPE(section_vals_type),pointer :: s_vals
   TYPE(section_type),pointer ::section
   TYPE(cp_sll_val_type), pointer :: vals
-  TYPE(val_type), POINTER :: my_val
+  TYPE(val_type), POINTER :: my_val, old_val
   type(cp_error_type) :: sub_error
+  TYPE(keyword_type), pointer :: keyword
 
   failure=.false.
 
@@ -1644,6 +1645,7 @@ SUBROUTINE section_vals_val_set(section_vals,keyword_name,i_rep_section,&
           //")",error,failure)
   END IF
   IF (.NOT.failure) THEN
+     keyword => s_vals%section%keywords(ik)%keyword
      NULLIFY(my_val)
      IF (PRESENT(val)) my_val => val
      valSet=PRESENT(l_val).OR.PRESENT(i_val).OR.PRESENT(r_val).OR.&
@@ -1669,7 +1671,7 @@ SUBROUTINE section_vals_val_set(section_vals,keyword_name,i_rep_section,&
         CALL val_create(my_val,l_val=l_val,i_val=i_val,r_val=r_val,&
              c_val=c_val,l_vals_ptr=l_vals_ptr,i_vals_ptr=i_vals_ptr,&
              r_vals_ptr=r_vals_ptr,&
-             c_vals_ptr=c_vals_ptr,error=sub_error)
+             c_vals_ptr=c_vals_ptr,enum=keyword%enum,error=sub_error)
         CPPostcondition(ASSOCIATED(my_val),cp_failure_level,routineP,sub_error,failure)
         CALL cp_error_propagate_error(sub_error,routineP,&
              "setting value from  keyword "//TRIM(keyword_name(my_index:len_key))//&
@@ -1687,6 +1689,8 @@ SUBROUTINE section_vals_val_set(section_vals,keyword_name,i_rep_section,&
              " in keyword "//TRIM(keyword_name(my_index:len_key))//" of section "//&
              TRIM(section%name),&
              error,failure)
+        old_val => cp_sll_val_get_el_at(vals,index=irk,error=error)
+        CALL val_release(old_val,error=error)
         CALL cp_sll_val_set_el_at(vals,value=my_val,index=irk,error=error)
      ELSE IF (irk>cp_sll_val_get_length(vals,error)+1) THEN
         ! change?
@@ -1761,7 +1765,7 @@ SUBROUTINE section_vals_val_unset(section_vals,keyword_name,i_rep_section,&
   TYPE(section_type),pointer ::section
   TYPE(keyword_type), POINTER :: keyword
   TYPE(cp_sll_val_type), pointer :: vals
-  TYPE(val_type), POINTER :: my_val
+  TYPE(val_type), POINTER :: my_val, old_val
   type(cp_error_type) :: sub_error
 
   failure=.false.
@@ -1809,6 +1813,9 @@ SUBROUTINE section_vals_val_unset(section_vals,keyword_name,i_rep_section,&
              "section repetition requested ("//cp_to_string(irs)//&
              ") out of bounds (1:"//cp_to_string(SIZE(s_vals%subs_vals,2))&
              //")",error,failure)
+        old_val => cp_sll_val_get_el_at(s_vals%values(ik,irs)%list,index=irk,&
+             error=error)
+        CALL val_release(old_val,error=error)
         CALL cp_sll_val_rm_el_at(s_vals%values(ik,irs)%list,index=irk,&
              error=error)
      END IF
