@@ -494,7 +494,7 @@ SUBROUTINE val_create_parsing(val,type_of_var, n_var,enum,&
                     CALL cp_error_propagate_error(suberror,routineP,error=error,&
                          failure=failure)
                     IF (failure) EXIT
-                 END DO
+                 END DO                 
               END IF
            END IF
            IF (ASSOCIATED(l_val_p)) THEN
@@ -763,6 +763,10 @@ SUBROUTINE val_create_parsing(val,type_of_var, n_var,enum,&
              CPSourceFileRef,&
              error,cp_failure_level)
      END SELECT
+     CALL cp_assert(parser_test_next_token(parser,error=error)=="EOL",&
+          cp_failure_level,cp_assertion_failed,routineP,&
+          "found unexpected extra arguments"//&
+          TRIM(parser_location(parser,error=error)),error,failure)
      IF (ASSOCIATED(my_unit)) CALL cp_unit_release(my_unit,error=error)
   END IF
 !FM  PRINT *,"parsed val:"

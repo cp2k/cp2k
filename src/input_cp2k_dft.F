@@ -257,6 +257,13 @@ SUBROUTINE xc_functionals_expand(functionals,error)
         CALL section_vals_val_set(functionals,"_SECTION_PARAMETERS_",&
              i_val=xc_funct_no_shortcut,error=error)
      CASE(xc_funct_hcth120)
+        CALL section_vals_val_set(functionals,"HCTH%_SECTION_PARAMETERS_",&
+             l_val=.TRUE.,error=error)
+        CALL section_vals_val_set(functionals,"HCTH%PARAMETER_SET",&
+             i_val=120,error=error)
+        CALL section_vals_val_set(functionals,"_SECTION_PARAMETERS_",&
+             i_val=xc_funct_no_shortcut,error=error)
+        
      CASE default
         CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
              routineP,"unknown shortcut "//TRIM(ADJUSTL(cp_to_string(shortcut))),&
