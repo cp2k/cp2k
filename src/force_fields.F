@@ -939,6 +939,7 @@ SUBROUTINE read_chrg_section(charge_atm, charge, section, start, error)
   DO isec = 1, n_items         
      CALL section_vals_val_get(section,"ATOM",i_rep_section=isec,c_val=charge_atm(start+isec),&
           error=error)
+     CALL uppercase(charge_atm(start+isec))
      CALL section_vals_val_get(section,"CHARGE",i_rep_section=isec,r_val=charge(start+isec),&
           error=error)
   END DO

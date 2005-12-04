@@ -280,7 +280,8 @@ SUBROUTINE shake_roll_control( local_molecules, molecule_set, molecule_kind_set,
       OPTIONAL                               :: u
 
 ! locals
-    CHARACTER(LEN=*), PARAMETER              :: routineN = "shake_roll_control"
+    CHARACTER(LEN=*), PARAMETER              :: routineN = "shake_roll_control", &
+         routineP = moduleN//':'//routineN
     INTEGER                                  :: iconst, ikind, nkind, i, first_atom
     INTEGER                                  :: imol, n3x3con, n4x6con, ndcon
     INTEGER                                  :: handle, ishake, nmol_per_kind
@@ -293,7 +294,7 @@ SUBROUTINE shake_roll_control( local_molecules, molecule_set, molecule_kind_set,
 
 !------------------------------------------------------------------------------
 
-  CALL timeset ( 'SHAKE_ROLL_CONTROL', 'I', ' ', handle )
+  CALL timeset ( routineN, 'I', ' ', handle )
   nkind = SIZE ( molecule_kind_set )
 ! setting up for roll
   IF ( simpar % ensemble == npt_i_ensemble ) THEN
