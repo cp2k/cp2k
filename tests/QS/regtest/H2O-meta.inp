@@ -47,7 +47,7 @@
 &MOTION
   &MD
     ENSEMBLE NVT
-    STEPS 1000
+    STEPS 9
     TIMESTEP 0.5
     TEMPERATURE 300.0
     RESTART INIT
@@ -60,16 +60,27 @@
   &END MD
   &METADYN
     DO_HILLS
-    NCOLVAR 1
-    NT_HILLS 50
+    LAGRANGE
+    NCOLVAR 2
+    NT_HILLS 3
     WW 1.0e-3
     &COLVAR
       LAMBDA 0.1
-      SCALE 0.02
       MASS 10.0
+      SCALE 0.02
       &COORDINATION
         ATOMS_FROM 1 1
         ATOMS_TO 2 2 3
+        R_0 2.3
+      &END COORDINATION
+    &END COLVAR
+    &COLVAR
+      LAMBDA 0.1
+      MASS 10.0
+      SCALE 0.02
+      &COORDINATION
+        ATOMS_FROM 1 2
+        ATOMS_TO 1 3
         R_0 2.3
       &END COORDINATION
     &END COLVAR
