@@ -897,6 +897,8 @@ SUBROUTINE read_bmhft_section(nonbonded, section, start, error)
   DO isec = 1, n_items         
      CALL section_vals_val_get(section,"ATOMS",i_rep_section=isec,c_vals=atm_names,error=error)
      nonbonded%pot(start+isec)%pot %type = "BMHFT"
+     CALL uppercase(atm_names(1))
+     CALL uppercase(atm_names(2))
      nonbonded%pot(start+isec)%pot %at1  = atm_names(1)
      nonbonded%pot(start+isec)%pot %at2  = atm_names(2)
      CALL set_BMHFT_ff(nonbonded%pot(start+isec)%pot %at1, nonbonded%pot(start+isec)%pot %at2, nonbonded%pot(start+isec)%pot )
