@@ -139,12 +139,13 @@ CONTAINS
     TYPE(cp_error_type), INTENT(INOUT), OPTIONAL    :: error
     TYPE(qs_rho_type), POINTER                      :: rho
     INTEGER                                         :: handle, &
-                                                       stat
+                                                       stat, &
+                                                       ispin, &
+                                                       nspins
     TYPE(pw_env_type), POINTER                      :: pw_env
     TYPE(pw_pool_type), POINTER                     :: auxbas_pw_pool
     TYPE(coeff_type)                                :: v_hartree_gspace
                                                        !rho_tot_gspace, &
-    !INTEGER                                         :: ispin
     TYPE(coeff_type), POINTER                       :: rho_core
     TYPE(coeff_type), DIMENSION(:), POINTER         :: v_rspace_new, &
                                                        v_tau_rspace
@@ -154,6 +155,7 @@ CONTAINS
     LOGICAL                                         :: failure, &
                                                        my_EII_necessary, &
                                                        fast_flag
+
     TYPE(pw_poisson_type), pointer  :: poisson_env
 
     CHARACTER(len=*), PARAMETER :: routineN = 'harris_energy_correction', &
@@ -165,7 +167,7 @@ CONTAINS
 
     failure = .FALSE.
     NULLIFY(rho, pw_env, auxbas_pw_pool, v_rspace_new, v_tau_rspace, &
-            rho_core, rho, harris_energy, poisson_env)
+            rho_core, rho, harris_energy, poisson_env, dft_control)
 
     CPPrecondition(ASSOCIATED(qs_env), cp_failure_level, routineP, error, failure)
     CPPrecondition(qs_env%ref_count>0, cp_failure_level, routineP, error, failure)
@@ -184,7 +186,9 @@ CONTAINS
     IF (.NOT. failure) THEN
       CALL harris_env_get(harris_env=harris_env, harris_energy=harris_energy, error=error)
       CALL get_qs_env(qs_env=qs_env, pw_env=pw_env, rho=rho, rho_core=rho_core, &
-                      error=error)
+                      dft_control=dft_control, error=error)
+
+      nspins = dft_control%nspins
 
       CALL duplicate_rho_type(rho_input=rho, rho_output=harris_env%rho, &
                               qs_env=qs_env, error=error)
@@ -200,17 +204,21 @@ CONTAINS
       !                        in_space=RECIPROCALSPACE, error=error)
 
       ! ** CALL calc_rho_tot_gspace(rho_tot_gspace, qs_env, rho) ** !
-      !CALL coeff_add(rho_core, rho%rho_g(1), rho_tot_gspace)
+      !CALL coeff_add(rho_core, rho%rho_g(ispin), rho_tot_gspace)
       !DO ispin=2, qs_env%dft_control%nspins
       !   CALL coeff_sumup(rho%rho_g(ispin), rho_tot_gspace)
       !END DO
 
       !CALL calculate_hartree(rho_tot_gspace, ehartree=harris_energy%Ehartree_tot, &
       !                       vhartree=v_hartree_gspace)
-      CALL pw_poisson_solve(poisson_env,rho%rho_g(1)%pw, ehartree=harris_energy%Ehartree_elec, &
-                             vhartree=v_hartree_gspace%pw)
+      DO ispin = 1,nspins
+        CALL pw_poisson_solve(poisson_env, rho%rho_g(ispin)%pw, &
+                              ehartree=harris_energy%Ehartree_elec, &
+                              vhartree=v_hartree_gspace%pw)
+      END DO
+
       IF (my_EII_necessary) THEN
-        CALL pw_poisson_solve(poisson_env,rho_core%pw, ehartree=harris_energy%Ehartree_core, &
+         CALL pw_poisson_solve(poisson_env, rho_core%pw, ehartree=harris_energy%Ehartree_core, &
                                vhartree=v_hartree_gspace%pw)
       END IF
 
@@ -226,16 +234,22 @@ CONTAINS
                          vxc_tau=v_tau_rspace, exc=harris_energy%Exc, &
                          just_energy=.FALSE., harris=.TRUE., error=error)
 
-      harris_energy%integral_vxc = pw_integral_ab(v_rspace_new(1)%pw, &
-                                                  rho%rho_r(1)%pw)
+      DO ispin = 1,nspins
+        harris_energy%integral_vxc = pw_integral_ab(v_rspace_new(ispin)%pw, &
+                                                    rho%rho_r(ispin)%pw)
+      END DO
 
       IF (ASSOCIATED(v_rspace_new)) THEN
-        CALL pw_pool_give_back_coeff(auxbas_pw_pool,v_rspace_new(1),error=error)
+        DO ispin = 1,nspins
+          CALL pw_pool_give_back_coeff(auxbas_pw_pool, v_rspace_new(ispin), error=error)
+        END DO
         DEALLOCATE(v_rspace_new,stat=stat)
         CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
       END IF
       IF (ASSOCIATED(v_tau_rspace)) THEN
-        CALL pw_pool_give_back_coeff(auxbas_pw_pool,v_tau_rspace(1),error=error)
+        DO ispin = 1,nspins
+          CALL pw_pool_give_back_coeff(auxbas_pw_pool, v_tau_rspace(ispin), error=error)
+        END DO
         DEALLOCATE(v_tau_rspace,stat=stat)
         CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
       END IF
@@ -246,9 +260,8 @@ CONTAINS
           qs_env%energy%core_self = 0.0_dp
           !CALL get_qs_env(qs_env=qs_env, matrix_ks=matrix_ks, rho=rho, &
           !                para_env=para_env, dft_control=dft_control, error=error)
-          !CALL calculate_ecore(h=matrix_ks(1)%matrix, p=rho%rho_ao(1)%matrix, &
+          !CALL calculate_ecore(h=matrix_ks(ispin)%matrix, p=rho%rho_ao(ispin)%matrix, &
           !                     ecore=harris_energy%Ecore, para_env=para_env)
-          CALL get_qs_env(qs_env=qs_env, dft_control=dft_control, error=error)
           CALL calculate_ecore_overlap(qs_env=qs_env, globenv=globenv, &
                                        calculate_forces=dft_control%forces, &
                                        !calculate_forces=.FALSE., &
@@ -320,11 +333,14 @@ CONTAINS
     TYPE(mo_set_p_type), DIMENSION(:), POINTER      :: mo_array
     INTEGER                                         :: homo, &
                                                        iterator, &
-                                                       handle
+                                                       handle, &
+                                                       ispin, &
+                                                       nspins
     REAL(KIND=dp), DIMENSION(:), POINTER            :: eigenvalues, &
                                                        occupation_numbers
     REAL(KIND=dp)                                   :: sum_of_eigenvalues
     LOGICAL                                         :: failure
+    TYPE(dft_control_type), POINTER                 :: dft_control
 
     CHARACTER(len=*), PARAMETER :: routineN = 'harris_eigenvalue_summation', &
       routineP = moduleN//':'//routineN
@@ -334,7 +350,7 @@ CONTAINS
     CALL timeset(routineN, "I", "", handle)
 
     failure = .FALSE.
-    NULLIFY(eigenvalues, occupation_numbers, mo_array, harris_energy)
+    NULLIFY(eigenvalues, occupation_numbers, mo_array, harris_energy, dft_control)
 
     CPPrecondition(ASSOCIATED(qs_env), cp_failure_level, routineP, error, failure)
     CPPrecondition(qs_env%ref_count>0, cp_failure_level, routineP, error, failure)
@@ -346,9 +362,13 @@ CONTAINS
     IF (.NOT. failure) THEN
       CALL harris_env_get(harris_env=harris_env, harris_energy=harris_energy, error=error)
 
-      CALL get_qs_env(qs_env, mos=mo_array, error=error)
-      CALL get_mo_set(mo_array(1)%mo_set, homo=homo, eigenvalues=eigenvalues, &
-                      occupation_numbers = occupation_numbers)
+      CALL get_qs_env(qs_env, dft_control=dft_control, mos=mo_array, error=error)
+
+      nspins = dft_control%nspins
+      DO ispin = 1,nspins
+        CALL get_mo_set(mo_array(ispin)%mo_set, homo=homo, eigenvalues=eigenvalues, &
+                        occupation_numbers = occupation_numbers)
+      END DO
     
       DO iterator=1,homo
          sum_of_eigenvalues = sum_of_eigenvalues + occupation_numbers(iterator) &
@@ -401,12 +421,15 @@ CONTAINS
     TYPE(harris_energy_type), POINTER               :: harris_energy
     TYPE(harris_env_type), POINTER                  :: harris_env
     TYPE(cp_error_type), INTENT(INOUT), OPTIONAL    :: error
-    INTEGER                                         :: handle
+    INTEGER                                         :: handle, &
+                                                       ispin, &
+                                                       nspins
     LOGICAL                                         :: failure
     TYPE(real_matrix_p_type), DIMENSION(:), POINTER :: matrix_ks, &
                                                        rho_ao
     TYPE(qs_rho_type), POINTER                      :: rho
     TYPE(cp_para_env_type), POINTER                 :: para_env
+    TYPE(dft_control_type), POINTER                 :: dft_control
 
     CHARACTER(len=*), PARAMETER :: routineN = 'harris_eigenvalue_calculation', &
       routineP = moduleN//':'//routineN
@@ -416,7 +439,7 @@ CONTAINS
     CALL timeset(routineN, "I", "", handle)
 
     failure = .FALSE.
-    NULLIFY(rho, rho_ao, matrix_ks, harris_energy)
+    NULLIFY(rho, rho_ao, matrix_ks, harris_energy, dft_control)
 
     CPPrecondition(ASSOCIATED(qs_env), cp_failure_level, routineP, error, failure)
     CPPrecondition(qs_env%ref_count>0, cp_failure_level, routineP, error, failure)
@@ -426,12 +449,16 @@ CONTAINS
     IF (.NOT. failure) THEN
       CALL harris_env_get(harris_env=harris_env, harris_energy=harris_energy, error=error)
 
-      CALL get_qs_env(qs_env, rho=rho, matrix_ks=matrix_ks, para_env=para_env, error=error)
+      CALL get_qs_env(qs_env, rho=rho, dft_control=dft_control, matrix_ks=matrix_ks, &
+                      para_env=para_env, error=error)
       CALL qs_rho_get(rho_struct=rho, rho_ao=rho_ao, error=error)
 
-      CALL cp_sm_sm_trace(matrix_ks(1)%matrix, rho_ao(1)%matrix, &
-                          harris_energy%sum_of_eigenvalues, &
-                          para_env=para_env, error=error)
+      nspins = dft_control%nspins
+      DO ispin = 1,nspins
+        CALL cp_sm_sm_trace(matrix_ks(ispin)%matrix, rho_ao(ispin)%matrix, &
+                            harris_energy%sum_of_eigenvalues, &
+                            para_env=para_env, error=error)
+      END DO
 
       harris_energy%Eharris = harris_energy%sum_of_eigenvalues &
                             + harris_energy%Eharris_correction
@@ -475,13 +502,16 @@ CONTAINS
 
     TYPE(qs_scf_env_type), POINTER                  :: scf_env
     TYPE(qs_environment_type), POINTER              :: qs_env
-    TYPE(harris_energy_type), POINTER               :: harris_energy
     TYPE(harris_env_type), POINTER                  :: harris_env
     TYPE(cp_error_type), INTENT(INOUT), OPTIONAL    :: error
-    INTEGER                                         :: handle
+    TYPE(harris_energy_type), POINTER               :: harris_energy
+    INTEGER                                         :: handle, &
+                                                       ispin, &
+                                                       nspins
     LOGICAL                                         :: failure
     TYPE(real_matrix_p_type), DIMENSION(:), POINTER :: matrix_ks
     TYPE(cp_para_env_type), POINTER                 :: para_env
+    TYPE(dft_control_type), POINTER                 :: dft_control
 
     CHARACTER(len=*), PARAMETER :: routineN = 'harris_eigenvalue_trace_KS_Pmix', &
       routineP = moduleN//':'//routineN
@@ -491,7 +521,7 @@ CONTAINS
     CALL timeset(routineN, "I", "", handle)
 
     failure = .FALSE.
-    NULLIFY(matrix_ks, harris_energy)
+    NULLIFY(matrix_ks, harris_energy, dft_control)
 
     CPPrecondition(ASSOCIATED(scf_env),cp_failure_level, routineP, error, failure)
     CPPrecondition(scf_env%ref_count>0, CP_failure_level, routineP, error, failure)
@@ -503,11 +533,15 @@ CONTAINS
     IF (.NOT. failure) THEN
       CALL harris_env_get(harris_env=harris_env, harris_energy=harris_energy, error=error)
 
-      CALL get_qs_env(qs_env, matrix_ks=matrix_ks, para_env=para_env, error=error)
+      CALL get_qs_env(qs_env, dft_control=dft_control, matrix_ks=matrix_ks, &
+                      para_env=para_env, error=error)
 
-      CALL cp_sm_sm_trace(matrix_ks(1)%matrix, scf_env%p_mix_new(1)%matrix, &
-                          harris_energy%sum_of_eigenvalues, &
-                          para_env=para_env, error=error)
+      nspins = dft_control%nspins
+      DO ispin = 1,nspins
+        CALL cp_sm_sm_trace(matrix_ks(ispin)%matrix, scf_env%p_mix_new(ispin)%matrix, &
+                            harris_energy%sum_of_eigenvalues, &
+                            para_env=para_env, error=error)
+      END DO
 
       harris_energy%Eharris = harris_energy%sum_of_eigenvalues + &
                               harris_energy%Eharris_correction
