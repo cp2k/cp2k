@@ -315,13 +315,19 @@ CONTAINS
 
 
     CALL section_vals_val_get(mgrid_section,"NGRIDS",i_val=ngrid_level,error=error)
+    IF ( qs_control%semi_empirical ) THEN
+       ngrid_level = 1
+    END IF
     CALL section_vals_val_get(mgrid_section,"MULTIGRID_SET",l_val=multigrid_set,error=error)
 
-    ALLOCATE(qs_control%e_cutoff(ngrid_level),STAT=istat)
+    ALLOCATE(qs_control%e_cutoff(ngrid_level),STAT=istat)    
     IF (istat /= 0) CALL stop_memory(routine,"qs_control%e_cutoff",&
                                              ngrid_level*dp_size)
-    CALL section_vals_val_get(mgrid_section,"CUTOFF",r_val=cutoff,error=error)
+    CALL section_vals_val_get(mgrid_section,"CUTOFF",r_val=cutoff,error=error)    
     qs_control%cutoff = MAX(0.01_dp,cutoff) 
+    IF ( qs_control%semi_empirical ) THEN
+       qs_control%cutoff = 5._dp 
+    END IF
     CALL section_vals_val_get(mgrid_section,"PROGRESSION_FACTOR",r_val=qs_control%progression_factor,error=error)
     CALL section_vals_val_get(mgrid_section,"COMMENSURATE",l_val=qs_control%commensurate_mgrids,error=error)
     CALL section_vals_val_get(mgrid_section,"REALSPACE",l_val=qs_control%realspace_mgrids,error=error)
@@ -531,14 +537,15 @@ CONTAINS
     END IF
 
 !    CALL read_se_control_section()
-    CALL section_vals_val_get(se_section,"orthogonal_basis",l_val=qs_control%se_control%orthogonal_basis,error=error)
+    CALL section_vals_val_get(se_section,"ORTHOGONAL_BASIS",l_val=qs_control%se_control%orthogonal_basis,error=error)
     CALL section_vals_val_get(se_section,"EWALD",l_val=qs_control%se_control%ewald,error=error)
     CALL section_vals_val_get(se_section,"DELTA",r_val=qs_control%se_control%delta,error=error)
     CALL section_vals_val_get(se_section,"ALPHA_GAUSS",r_val=qs_control%se_control%alpha_gauss,error=error)
     CALL section_vals_val_get(se_section,"EPS_GAUSS",r_val=qs_control%se_control%eps_gauss,error=error)
     CALL section_vals_val_get(se_section,"RC_EXCHANGE",r_val=qs_control%se_control%rc_exchange,error=error)
     CALL section_vals_val_get(se_section,"RC_COULOMB",r_val=qs_control%se_control%rc_coulomb,error=error)
-
+    IF(qs_control %method_id >= do_method_mndo .AND. qs_control %method_id <= do_method_pm3)&
+         qs_control%se_control%orthogonal_basis=.TRUE.
     ! do not print dft section for semi empirical methods
     IF(qs_control%semi_empirical) THEN
       globenv%print%dft_control_parameters=.FALSE.

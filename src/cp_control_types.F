@@ -531,8 +531,6 @@ SUBROUTINE qs_control_init(qs_control, error)
 
   CALL mulliken_control_create(qs_control%mulliken_restraint_control)
 
-  CALL se_control_init(qs_control%se_control, error=error)
-
   CALL localized_wfn_control_create(qs_control%localized_wfn_control, error=error)
 
 END SUBROUTINE qs_control_init
@@ -621,19 +619,5 @@ SUBROUTINE xc_grid_dealloc_ref(xc_grid, error)
 
 END SUBROUTINE xc_grid_dealloc_ref
 
-SUBROUTINE se_control_init(se_control, error)
-    TYPE(semi_empirical_control_type), &
-      INTENT(out)                            :: se_control
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
-
-    se_control%orthogonal_basis = .FALSE.
-    se_control%ewald = .FALSE.
-    se_control%delta = 1.e-6_dp
-    se_control%alpha_gauss = 1._dp
-    se_control%eps_gauss = 1.e-8_dp
-    se_control%rc_exchange = 25._dp
-    se_control%rc_coulomb  = 10._dp
-END SUBROUTINE se_control_init
 
 END MODULE cp_control_types
