@@ -146,6 +146,7 @@ SUBROUTINE metadyn_read(meta_env,globenv,metadyn_section,error)
   REAL(kind=dp)                            :: dt
   TYPE(section_vals_type), POINTER         :: md_section, colvar_section
 
+  RETURN ! fix breakage, should only go through if metadynamics section is present
   CPPreconditionNoFail(.NOT.ASSOCIATED(meta_env),cp_failure_level,routineP,error)  
 
   md_section => section_vals_get_subs_vals(globenv%input_file,"MOTION%MD",error=error)
