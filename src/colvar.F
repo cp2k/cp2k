@@ -142,10 +142,10 @@ CONTAINS
     CALL section_vals_val_get(colvar_section,"SUBSYS",i_rep_section=icol,i_val=colvar%i_subsys,error=error)
     CALL section_vals_val_get(colvar_section,"MASS",i_rep_section=icol,r_val=colvar%mass,error=error)
     CALL section_vals_val_get(colvar_section,"SCALE",i_rep_section=icol,r_val=colvar%delta_s,error=error)
-    CALL section_vals_val_get(colvar_section,"WALL+",i_rep_section=icol,r_val=colvar%wall_p,&
+    CALL section_vals_val_get(colvar_section,"WALL_PLUS",i_rep_section=icol,r_val=colvar%wall_p,&
          n_rep_val=n_rep,error=error)
     IF (n_rep /= 0) colvar%do_wall_p=.TRUE.
-    CALL section_vals_val_get(colvar_section,"WALL-",i_rep_section=icol,r_val=colvar%wall_m,&
+    CALL section_vals_val_get(colvar_section,"WALL_MINUS",i_rep_section=icol,r_val=colvar%wall_m,&
          n_rep_val=n_rep,error=error)
     IF (n_rep /= 0) colvar%do_wall_m=.TRUE.
     CALL section_vals_val_get(colvar_section,"LAMBDA",i_rep_section=icol,r_val=colvar%lambda,error=error)
@@ -215,11 +215,11 @@ CONTAINS
 
     IF(extended_lagrange)THEN
        CALL section_vals_val_get(colvar_section,"MASS",i_rep_section=icol,  n_rep_val=n_rep, error=error)
-       CPPostcondition(n_rep == 0,cp_failure_level,routinep,error,failure)
+       CPPostcondition(n_rep /= 0,cp_failure_level,routinep,error,failure)
        CALL section_vals_val_get(colvar_section,"SCALE",i_rep_section=icol, n_rep_val=n_rep, error=error)
-       CPPostcondition(n_rep == 0,cp_failure_level,routinep,error,failure)
+       CPPostcondition(n_rep /= 0,cp_failure_level,routinep,error,failure)
        CALL section_vals_val_get(colvar_section,"LAMBDA",i_rep_section=icol, n_rep_val=n_rep, error=error)
-       CPPostcondition(n_rep == 0,cp_failure_level,routinep,error,failure)
+       CPPostcondition(n_rep /= 0,cp_failure_level,routinep,error,failure)
     ENDIF
 
   END SUBROUTINE colvar_read

@@ -108,6 +108,7 @@ SUBROUTINE metadyn_create(meta_env,n_colvar,dt,para_env,error)
     meta_env%dt = dt
     meta_env%colvar_file_unit_nr=-1
     meta_env%colvar_file_name="COLVAR"
+    meta_env%tempcontrol=.FALSE.
 
     ! hills_env
     ALLOCATE(meta_env%hills_env%ss_history(n_colvar,0), stat=stat)
@@ -145,11 +146,15 @@ SUBROUTINE metadyn_read(meta_env,globenv,metadyn_section,error)
   REAL(kind=dp)                            :: dt
   TYPE(section_vals_type), POINTER         :: md_section, colvar_section
 
-  IF (.NOT.ASSOCIATED(meta_env)) RETURN
-  meta_env%tempcontrol=.FALSE.
-  NULLIFY(md_section)
   CPPreconditionNoFail(.NOT.ASSOCIATED(meta_env),cp_failure_level,routineP,error)  
+
+  md_section => section_vals_get_subs_vals(globenv%input_file,"MOTION%MD",error=error)
+  CALL section_vals_val_get(md_section,"TIMESTEP",r_val=dt,error=error)
+
   CALL section_vals_val_get(metadyn_section,"NCOLVAR",i_val=n_colvar,error=error)
+  CALL metadyn_create(meta_env,n_colvar=n_colvar,&
+       dt=dt,para_env=globenv%para_env,error=error)
+
   CALL section_vals_val_get(metadyn_section,"DO_HILLS",l_val=do_hills,error=error)
   CALL section_vals_val_get(metadyn_section,"LAGRANGE",l_val=meta_env%extended_lagrange,error=error)
   CALL section_vals_val_get(metadyn_section,"WW",r_val=meta_env%hills_env%ww,error=error)
@@ -162,12 +167,6 @@ SUBROUTINE metadyn_read(meta_env,globenv,metadyn_section,error)
      meta_env%toll_temp=meta_env%temp_wanted/SQRT(REAL(meta_env%n_colvar,dp))
   END IF
 
-  md_section => section_vals_get_subs_vals(globenv%input_file,"MOTION%MD",error=error)
-  CALL section_vals_val_get(md_section,"TIMESTEP",r_val=dt,error=error)
-
-  CALL metadyn_create(meta_env,n_colvar=n_colvar,&
-       dt=dt,para_env=globenv%para_env,error=error)
-    
   IF (globenv%project_name/="") THEN
      meta_env%colvar_file_name='COLVAR-'//globenv%project_name
      meta_env%hills_env%hills_file_name='HILLS-'//globenv%project_name
