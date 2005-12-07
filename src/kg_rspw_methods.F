@@ -189,7 +189,7 @@ END SUBROUTINE kg_rspw_create
                     dft_control=dft_control,&
                     input=poisson_section,&
                     para_env=para_env)
-    poisson_section => section_vals_get_subs_vals(poisson_section,"DFT%POISSON",&
+    poisson_section => section_vals_get_subs_vals(poisson_section,"DFT%POISSON_DFT",&
          error=error)
     rel_cutoff = dft_control%qs_control%relative_cutoff
     cutoff => dft_control%qs_control%e_cutoff

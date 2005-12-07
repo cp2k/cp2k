@@ -710,7 +710,7 @@ END SUBROUTINE nhc_to_particle_mapping
   iw = globenv % scr
   
   kg_coeff_section => section_vals_get_subs_vals(globenv%input_file,&
-       "MOTION%MD_NEW")
+       "MOTION%MD")
   kg_coeff_section => section_vals_get_subs_vals(kg_coeff_section,&
        "kg_coeff")
   nose_section => section_vals_get_subs_vals(kg_coeff_section,&
