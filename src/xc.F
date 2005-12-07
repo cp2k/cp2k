@@ -119,15 +119,13 @@ MODULE xc
   USE xc_derivatives,                  ONLY: xc_functionals_eval,&
                                              xc_functional_get_info,&
                                              xc_functionals_get_needs
-  USE xc_rho_cflags_types,             ONLY: xc_rho_cflags_setall,&
-                                             xc_rho_cflags_type
   USE xc_rho_set_types,                ONLY: xc_rho_set_create,&
                                              xc_rho_set_get,&
                                              xc_rho_set_release,&
                                              xc_rho_set_type,&
                                              xc_rho_set_update
   USE input_section_types, ONLY: section_vals_type, section_vals_val_get,&
-       section_vals_get_subs_vals, section_vals_get_subs_vals2
+       section_vals_get_subs_vals, section_vals_get_subs_vals2, section_get_rval, section_get_ival
   IMPLICIT NONE
   PRIVATE
   PUBLIC :: xc_vxc_pw_create1, xc_vxc_pw_create, &
@@ -962,32 +960,28 @@ END SUBROUTINE xc_vxc_pw_create_debug
 !!
 !!*** **********************************************************************
 SUBROUTINE xc_rho_set_and_dset_create(rho_set,deriv_set,deriv_order,&
-     rho_r,rho_g,tau,xc_section,cell,pw_pool,gradient_f,&
+     rho_r,rho_g,tau,xc_section,cell,pw_pool,&
      needs_basic_components,error)
+
   TYPE(xc_rho_set_type), POINTER           :: rho_set
   TYPE(xc_derivative_set_type), POINTER    :: deriv_set
   INTEGER, INTENT(in)                      :: deriv_order
   TYPE(pw_p_type), DIMENSION(:), &
-       INTENT(inout), TARGET                  :: rho_r
+       INTENT(inout), TARGET               :: rho_r
   TYPE(pw_p_type), DIMENSION(:), POINTER   :: rho_g, tau
   TYPE(section_vals_type), pointer         :: xc_section
   TYPE(cell_type), POINTER                 :: cell
   TYPE(pw_pool_type), POINTER              :: pw_pool
-  LOGICAL, INTENT(out), OPTIONAL           :: gradient_f
   LOGICAL, INTENT(in)                      :: needs_basic_components
   TYPE(cp_error_type), INTENT(inout), &
-       OPTIONAL                               :: error
+       OPTIONAL                            :: error
 
-  CHARACTER(len=*), PARAMETER :: routineN = 'xc_rho_set_and_dset_create', &
-       routineP = moduleN//':'//routineN
+  CHARACTER(len=*), PARAMETER              :: routineN = 'xc_rho_set_and_dset_create', &
+                                              routineP = moduleN//':'//routineN
 
-  INTEGER                                  :: handle, i, nspins, ifun,&
-       xc_deriv_method_id, xc_rho_smooth_id
-  INTEGER, DIMENSION(2, 3)                 :: bo
+  INTEGER                                  :: handle, nspins
   LOGICAL                                  :: failure, lsd
-  TYPE(xc_rho_cflags_type)                 :: needs
-  TYPE(section_vals_type), POINTER :: xc_fun_sections, xc_fun
-  REAL(kind=dp) :: density_cut, gradient_cut, tau_cut
+  TYPE(section_vals_type), POINTER         :: xc_fun_sections
 
   CALL timeset(routineN,"I","",handle)
   failure=.FALSE.
@@ -995,70 +989,40 @@ SUBROUTINE xc_rho_set_and_dset_create(rho_set,deriv_set,deriv_order,&
   CPPrecondition(.NOT.ASSOCIATED(rho_set),cp_failure_level,routineP,error,failure)
   CPPrecondition(.NOT.ASSOCIATED(deriv_set),cp_failure_level,routineP,error,failure)
   CPPrecondition(ASSOCIATED(pw_pool),cp_failure_level,routineP,error,failure)
+
   IF (.NOT. failure) THEN
-     IF (PRESENT(gradient_f)) gradient_f=.FALSE.
      nspins=SIZE(rho_r)
      lsd=(nspins/=1)
-     IF (lsd) THEN
-        CPPrecondition(nspins==2,cp_failure_level,routineP,error,failure)
-     END IF
   END IF
 
   IF (.NOT.failure) THEN
-     bo = rho_r(1)%pw%pw_grid%bounds_local
 
      xc_fun_sections => section_vals_get_subs_vals(xc_section,"XC_FUNCTIONAL",&
-          error=error)
-     ! create a place where to put the derivatives
+                                                   error=error)
+
      CALL xc_dset_create(deriv_set, pw_pool, error=error)
 
-     ! create the place where to store the argument for the functionals
-     CALL section_vals_val_get(xc_section,"density_cutoff",&
-          r_val=density_cut,error=error)
-     CALL section_vals_val_get(xc_section,"gradient_cutoff",&
-          r_val=gradient_cut,error=error)
-     CALL section_vals_val_get(xc_section,"tau_cutoff",&
-          r_val=tau_cut,error=error)
-     CALL section_vals_val_get(xc_section,"XC_GRID%XC_DERIV",&
-          i_val=xc_deriv_method_id,error=error)
-     CALL section_vals_val_get(xc_section,"XC_GRID%XC_SMOOTH_RHO",&
-          i_val=xc_rho_smooth_id,error=error)
-     CALL xc_rho_set_create(rho_set,bo,rho_cutoff=density_cut,&
-          drho_cutoff=gradient_cut,tau_cutoff=tau_cut,&
-          error=error)
-
-     needs=xc_functionals_get_needs(xc_fun_sections,lsd,error=error)
-
-     IF (needs_basic_components) THEN
-        IF (lsd) THEN
-           needs%rho_spin=.TRUE.
-           needs%tau_spin=needs%tau_spin.OR.needs%tau
-        ELSE
-           needs%rho=.TRUE.
-        END IF
-        IF (needs%drho.OR.needs%drho_spin.OR.needs%norm_drho.OR.&
-             needs%norm_drho_spin) THEN
-           IF (PRESENT(gradient_f)) gradient_f=.TRUE.
-           IF (lsd) THEN
-              needs%drho_spin=.TRUE.
-           ELSE
-              needs%drho=.TRUE.
-           END IF
-        END IF
-     END IF
+     CALL xc_rho_set_create(rho_set,&
+            rho_r(1)%pw%pw_grid%bounds_local,&
+            rho_cutoff=section_get_rval(xc_section,"density_cutoff",error),&
+            drho_cutoff=section_get_rval(xc_section,"gradient_cutoff",error),&
+            tau_cutoff=section_get_rval(xc_section,"tau_cutoff",error),&
+            error=error)
 
      ! calculate the agruments needed by the functionals
-     CALL xc_rho_set_update(rho_set, rho_r, rho_g, tau, needs,&
-          xc_deriv_method_id,xc_rho_smooth_id, cell,pw_pool,&
-          error=error)
+     CALL xc_rho_set_update(rho_set, rho_r, rho_g, tau, &
+            xc_functionals_get_needs(xc_fun_sections,lsd,needs_basic_components,error),&
+            section_get_ival(xc_section,"XC_GRID%XC_DERIV",error),&
+            section_get_ival(xc_section,"XC_GRID%XC_SMOOTH_RHO",error),&
+            cell,pw_pool, error=error)
 
      ! evaluate the functionals
      CALL xc_functionals_eval(xc_fun_sections, &
-          lsd=lsd,&
-          rho_set=rho_set, &
-          deriv_set=deriv_set,&
-          deriv_order=deriv_order, &
-          error=error)
+            lsd=lsd,&
+            rho_set=rho_set, &
+            deriv_set=deriv_set,&
+            deriv_order=deriv_order, &
+            error=error)
 
   END IF
 
@@ -1384,7 +1348,7 @@ SUBROUTINE xc_vxc_pw_create(vxc_rho,vxc_tau,exc,rho_r,rho_g,tau,xc_section,&
           deriv_order=1, rho_r=rho_r, rho_g=rho_g, tau=tau,&
           xc_section=xc_section,&
           cell=cell, pw_pool=pw_pool,&
-          gradient_f=gradient_f,  needs_basic_components=.TRUE.,&
+          needs_basic_components=.TRUE.,&
           error=error)
 
   END IF
@@ -1624,12 +1588,12 @@ SUBROUTINE xc_vxc_pw_create(vxc_rho,vxc_tau,exc,rho_r,rho_g,tau,xc_section,&
         IF (lsd) THEN
            IF (ispin==1) THEN
               CALL xc_rho_set_get(rho_set,drhoa=drho_spin,&
-                   can_return_null=.NOT.gradient_f,error=error)
+                   can_return_null=.TRUE.,error=error)
               CALL xc_rho_set_get(rho_set,norm_drhoa=norm_drho_spin,&
                    can_return_null=.TRUE., error=error)
            ELSE
               CALL xc_rho_set_get(rho_set,drhob=drho_spin,&
-                   can_return_null=.NOT.gradient_f,error=error)
+                   can_return_null=.TRUE.,error=error)
               CALL xc_rho_set_get(rho_set,norm_drhob=norm_drho_spin,&
                    can_return_null=.TRUE., error=error)
            END IF
@@ -2141,7 +2105,6 @@ SUBROUTINE xc_calc_2nd_deriv(v_xc, deriv_set, rho_set, rho1_set, &
   TYPE(pw_p_type), DIMENSION(:), POINTER   :: tmp_a, tmp_b, tmp_r, tmp_r2
   TYPE(xc_derivative_type), POINTER        :: deriv_att
   TYPE(cp_sll_xc_deriv_type), POINTER      :: pos
-  TYPE(xc_rho_cflags_type)                 :: needs
   CHARACTER&
        (len=MAX_DERIVATIVE_DESC_LENGTH)       :: desc
   CHARACTER(len=MAX_LABEL_LENGTH), &

@@ -718,7 +718,7 @@ CONTAINS
       INTENT(inout), TARGET                  :: rho_r
     TYPE(pw_p_type), DIMENSION(:), POINTER   :: rho_g, tau
     TYPE(xc_rho_cflags_type), INTENT(in)     :: needs
-    INTEGER, INTENT(INOUT)                   :: xc_rho_smooth_id,&
+    INTEGER, INTENT(IN)                      :: xc_rho_smooth_id,&
                                                 xc_deriv_method_id
     TYPE(cell_type), POINTER                 :: cell
     TYPE(pw_pool_type), POINTER              :: pw_pool

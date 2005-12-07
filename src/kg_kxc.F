@@ -152,7 +152,7 @@ CONTAINS
         deriv_order
    INTEGER, DIMENSION(2, 3)                 :: bo
    INTEGER, DIMENSION(3, 3)                 :: nd
-   LOGICAL                                  :: failure, gradient_f
+   LOGICAL                                  :: failure
    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)     :: rgrid
    TYPE(xc_derivative_set_type), POINTER    :: derivative_set
    TYPE(xc_rho_set_type), pointer           :: rho_set
@@ -180,7 +180,6 @@ CONTAINS
         deriv_order=order,&
         rho_r=my_rho_r,rho_g=my_rho_g,tau=my_tau,xc_section=xc_section,&
         cell=cell,pw_pool=pw_pool,&
-        gradient_f=gradient_f,&
         needs_basic_components=.FALSE.)
 
    ! check for unsupported derivatives
