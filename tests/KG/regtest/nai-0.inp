@@ -1,9 +1,18 @@
 
 &FORCE_EVAL
   &DFT
-    C-FUNCTIONAL pade
-    KE-FUNCTIONAL tf
-    X-FUNCTIONAL none
+    &MGRID
+      NGRIDS 1
+      CUTOFF 20
+    &END MGRID
+    &QS
+      EPS_CORE_CHARGE 1.0E-96
+      EPS_PPL 1.0E-96
+      EPS_PGF_ORB 1.0E-16
+      EPS_GVG_RSPACE 1.0E-16
+      EPS_RHO 1.0E-16
+      METHOD KG_POL
+    &END QS
     &SCF
       EPS_SCF 1.0E-5
       MAX_DIIS 5
@@ -12,6 +21,12 @@
       WRITE_RESTART_EACH 100
     &END SCF
     &XC
+      &XC_FUNCTIONAL
+        &PADE
+        &END PADE
+        &TF
+        &END TF
+      &END XC_FUNCTIONAL
       DENSITY_CUTOFF 1.0E-10
       GRADIENT_CUTOFF 1.0E-10
     &END XC
