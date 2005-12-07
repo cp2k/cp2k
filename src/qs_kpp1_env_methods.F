@@ -414,22 +414,7 @@ CONTAINS
                               drho_cutoff=gradient_cut,tau_cutoff=tau_cut,&
                               error=error)
 
-       needs=xc_functionals_get_needs(xc_fun_section,lsd=lsd,error=error)
-       ! needed basic components
-       IF (lsd) THEN
-          needs%rho_spin=.TRUE.
-          needs%tau_spin=needs%tau_spin.or.needs%tau
-       ELSE
-          needs%rho=.TRUE.
-       END IF
-       IF (needs%drho.OR.needs%drho_spin.OR.needs%norm_drho.OR.&
-            needs%norm_drho_spin) THEN
-          IF (lsd) THEN
-             needs%drho_spin=.TRUE.
-          ELSE
-             needs%drho=.TRUE.
-          END IF
-       END IF
+       needs=xc_functionals_get_needs(xc_fun_section,lsd,.TRUE.,error)
 
        ! calculate the agruments needed by the functionals
        CALL xc_rho_set_update(rho1_set, rho1_r_pw, rho1_g_pw, tau_pw, needs,& 
