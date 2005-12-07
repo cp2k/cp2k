@@ -801,7 +801,6 @@ CONTAINS
        gy => per_pot%gy
        gz => per_pot%gz
        Atoms: DO Imm = 1, SIZE(per_pot%mm_atom_index)
-          WRITE(*,*)"atom:: ",Imm
           LIndMM    =   per_pot%mm_atom_index(Imm)
           IndMM     =   mm_atom_index(LIndMM)
           ra(:)     =   pbc(mm_particles(IndMM)%r-dOmmOqm,mm_cell)+dOmmOqm
