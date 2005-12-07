@@ -69,6 +69,9 @@ MODULE input_section_types
        section_vals_set_subs_vals, section_vals_duplicate
   PUBLIC :: write_section_xml
 
+  PUBLIC :: section_get_ival,&
+            section_get_rval
+
 !!***
 !****************************************************************************
 
@@ -1389,6 +1392,38 @@ SUBROUTINE section_vals_add_values(section_vals,error)
 END SUBROUTINE section_vals_add_values
 !***************************************************************************
 
+! These accessor functions can be used instead of passing a variable 
+! in the parameter list of a subroutine call. This should make the
+! code a lot simpler. See xc_rho_set_and_dset_create in xc.F as
+! an example.
+
+FUNCTION section_get_rval(section_vals,keyword_name,error) RESULT(res)
+
+  TYPE(section_vals_type),pointer :: section_vals
+  CHARACTER(len=*), intent(in) :: keyword_name
+  type(cp_error_type), optional, intent(inout) :: error
+
+  REAL(kind=dp) :: res
+
+  CALL section_vals_val_get(section_vals, keyword_name, r_val=res, error=error)
+
+END FUNCTION section_get_rval
+
+FUNCTION section_get_ival(section_vals,keyword_name,error) RESULT(res)
+
+  TYPE(section_vals_type),pointer :: section_vals
+  CHARACTER(len=*), intent(in) :: keyword_name
+  type(cp_error_type), optional, intent(inout) :: error
+
+  INTEGER :: res
+
+  CALL section_vals_val_get(section_vals, keyword_name, i_val=res, error=error)
+
+END FUNCTION section_get_ival
+
+
+!***************************************************************************
+
 !!****f* cp_keywords/section_vals_val_get *
 !!
 !!   NAME
@@ -1419,6 +1454,8 @@ END SUBROUTINE section_vals_add_values
 !!     fawzi
 !!
 !!*** **********************************************************************
+
+
 SUBROUTINE section_vals_val_get(section_vals,keyword_name,i_rep_section,&
      i_rep_val,n_rep_val,val,&
      l_val,i_val,r_val,c_val,l_vals,i_vals,r_vals,c_vals,ignore_required,error)
@@ -1542,6 +1579,8 @@ SUBROUTINE section_vals_val_get(section_vals,keyword_name,i_rep_section,&
   END IF
 END SUBROUTINE section_vals_val_get
 !***************************************************************************
+
+
 
 !!****f* cp_keywords/section_vals_val_set *
 !!
