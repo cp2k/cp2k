@@ -591,7 +591,6 @@ CONTAINS
         dft_control%qs_control%eps_gvg_rspace = 1.0e-4
         dft_control%qs_control%eps_core_charge = 1.0e-18
         dft_control%qs_control%eps_pgf_orb = 1.0e-4
-        dft_control%qs_control%eps_pgf_aux = 1.0e-4
         dft_control%qs_control%eps_ppl = 1.0e-18
         dft_control%qs_control%eps_ppnl = 1.0e-18
         CALL force_env_calc_energy_force(force_env=force_env_p(1)%force_env, &
@@ -605,7 +604,6 @@ CONTAINS
         dft_control%qs_control%eps_gvg_rspace = SQRT(eps_default_tmp)
         dft_control%qs_control%eps_core_charge = eps_default_tmp/100.0_dp
         dft_control%qs_control%eps_pgf_orb = SQRT(eps_default_tmp)
-        dft_control%qs_control%eps_pgf_aux = SQRT(eps_default_tmp)
         dft_control%qs_control%eps_ppl = eps_default_tmp/100.0_dp
         dft_control%qs_control%eps_ppnl = eps_default_tmp/100.0_dp
       ELSE

@@ -133,7 +133,6 @@ MODULE cp_control_types
     CHARACTER(LEN=10)               :: method
     INTEGER                         :: method_id
     REAL(KIND = dp)                 :: eps_core_charge,&
-                                       eps_pgf_aux,&
                                        eps_pgf_orb,&
                                        eps_ppl,&
                                        eps_ppnl,&

@@ -717,58 +717,66 @@ SUBROUTINE create_qs_section(section,error)
      ! Reals
      CALL keyword_create(keyword, name="EPS_DEFAULT",&
           description="Try setting all EPS_xxx to values leading to an energy correct up to EPS_DEFAULT",&
-          usage="EPS_DEFAULT real", type_of_var=real_t,&
+          usage="EPS_DEFAULT real", default_r_val=1.0E-10_dp,&
           error=error)
      CALL section_add_keyword(section,keyword,error=error)
      CALL keyword_release(keyword,error=error)     
 
      CALL keyword_create(keyword, name="EPS_CORE_CHARGE",&
-          description="Precision for mapping the core charges",&
-          usage="EPS_CORE_CHARGE real", default_r_val=1.0E-12_dp,&
+          description="Precision for mapping the core charges.Overrides EPS_DEFAULT/100.0 value",&
+          usage="EPS_CORE_CHARGE real", type_of_var=real_t,&
           error=error)
      CALL section_add_keyword(section,keyword,error=error)
      CALL keyword_release(keyword,error=error)     
 
      CALL keyword_create(keyword, name="EPS_GVG_RSPACE",&
           variants=(/"EPS_GVG"/),&
-          description="Sets precision of the realspace KS matrix element integration",&
-          usage="EPS_GVG_RSPACE real",default_r_val=1.0E-5_dp ,&
+          description="Sets precision of the realspace KS matrix element integration. Overrides SQRT(EPS_DEFAULT) value",&
+          usage="EPS_GVG_RSPACE real",type_of_var=real_t ,&
           error=error)
      CALL section_add_keyword(section,keyword,error=error)
      CALL keyword_release(keyword,error=error)
 
      CALL keyword_create(keyword, name="EPS_PGF_ORB",&
-          description="Sets precision of the overlap matrix elements",&
-          usage="EPS_PGF_ORB real",default_r_val=  1.0E-5_dp,&
+          description="Sets precision of the overlap matrix elements. Overrides SQRT(EPS_DEFAULT) value",&
+          usage="EPS_PGF_ORB real",type_of_var=real_t,&
           error=error)
      CALL section_add_keyword(section,keyword,error=error)
      CALL keyword_release(keyword,error=error)
 
-
      CALL keyword_create(keyword, name="EPS_PPL",&
-          description="Sets precision of the local part of the pseudo potential",&
-          usage="EPS_PPL real", default_r_val=1.0E-12_dp,&
+          description="Sets precision of the local part of the pseudo potential.Overrides EPS_DEFAULT/100.0 value",&
+          usage="EPS_PPL real", type_of_var=real_t,&
           error=error)
      CALL section_add_keyword(section,keyword,error=error)
      CALL keyword_release(keyword,error=error)
 
      CALL keyword_create(keyword, name="EPS_PPNL",&
-          description="Sets precision of the non-local part of the pseudo potential",&
-          usage="EPS_PPNL real",  default_r_val=1.0E-12_dp,&
+          description="Sets precision of the non-local part of the pseudo potential.Overrides EPS_DEFAULT/100.0 value",&
+          usage="EPS_PPNL real", type_of_var=real_t,&
           error=error)
      CALL section_add_keyword(section,keyword,error=error)
      CALL keyword_release(keyword,error=error)
 
      CALL keyword_create(keyword, name="EPS_RHO",&
-          description="Sets precision of the density mapping on the grids",&
+          description="Sets precision of the density mapping on the grids.Overrides EPS_DEFAULT value",&
           usage="EPS_RHO real",type_of_var=real_t,&
           error=error)
      CALL section_add_keyword(section,keyword,error=error)
      CALL keyword_release(keyword,error=error)
 
      CALL keyword_create(keyword, name="EPS_RHO_RSPACE",&
-          description="Sets precision of the density mapping in rspace",&
-          usage="EPS_RHO_RSPACE real",default_r_val=1.0E-10_dp,&
+          description="Sets precision of the density mapping in rspace.Overrides EPS_DEFAULT value."//&
+          ".Overrides EPS_RHO value",&
+          usage="EPS_RHO_RSPACE real",type_of_var=real_t,&
+          error=error)
+     CALL section_add_keyword(section,keyword,error=error)
+     CALL keyword_release(keyword,error=error)
+
+     CALL keyword_create(keyword, name="EPS_RHO_GSPACE",&
+          description="Sets precision of the density mapping in gspace.Overrides EPS_DEFAULT value."//&
+          ".Overrides EPS_RHO value",&
+          usage="EPS_RHO_GSPACE real",type_of_var=real_t,&
           error=error)
      CALL section_add_keyword(section,keyword,error=error)
      CALL keyword_release(keyword,error=error)

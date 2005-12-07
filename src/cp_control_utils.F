@@ -418,32 +418,47 @@ CONTAINS
     se_section => section_vals_get_subs_vals(qs_section,"SE", error=error)
 
     ! Setup all defaults values and overwrite input parameters
-    CALL section_vals_val_get(qs_section,"EPS_CORE_CHARGE",r_val=qs_control%eps_core_charge,error=error)
-    CALL section_vals_val_get(qs_section,"EPS_GVG_RSPACE",r_val=qs_control%eps_gvg_rspace,error=error)
-    CALL section_vals_val_get(qs_section,"EPS_PGF_ORB",r_val=qs_control%eps_pgf_orb,error=error)
-    qs_control%eps_pgf_aux = qs_control%eps_pgf_orb
-    CALL section_vals_val_get(qs_section,"EPS_PPL",r_val=qs_control%eps_ppl,error=error)
-    CALL section_vals_val_get(qs_section,"EPS_PPNL",r_val=qs_control%eps_ppnl,error=error)
-    CALL section_vals_val_get(qs_section,"EPS_RHO_RSPACE",r_val=qs_control%eps_rho_rspace,error=error)
-    qs_control%eps_rho_gspace = qs_control%eps_rho_rspace
+    CALL section_vals_val_get(qs_section,"EPS_DEFAULT",r_val=value,error=error)
+    qs_control%eps_core_charge = value/100.0_dp
+    qs_control%eps_pgf_orb = SQRT(value)
+    qs_control%eps_ppl = value/100.0_dp
+    qs_control%eps_ppnl = value/100.0_dp
+    qs_control%eps_rho_gspace = value
+    qs_control%eps_rho_rspace = value
+    qs_control%eps_gvg_rspace = SQRT(value)       
     !
-    CALL section_vals_val_get(qs_section,"EPS_DEFAULT",n_rep_val=n_rep,error=error)
+    CALL section_vals_val_get(qs_section,"EPS_CORE_CHARGE",n_rep_val=n_rep,error=error)
     IF (n_rep /=0) THEN
-       CALL section_vals_val_get(qs_section,"EPS_DEFAULT",r_val=value,error=error)
-       qs_control%eps_core_charge = value/100.0_dp
-       qs_control%eps_pgf_orb = SQRT(value)
-       qs_control%eps_pgf_aux = SQRT(value)
-       qs_control%eps_ppl = value/100.0_dp
-       qs_control%eps_ppnl = value/100.0_dp
-       qs_control%eps_rho_gspace = value
-       qs_control%eps_rho_rspace = value
-       qs_control%eps_gvg_rspace = SQRT(value)       
+       CALL section_vals_val_get(qs_section,"EPS_CORE_CHARGE",r_val=qs_control%eps_core_charge,error=error)
+    END IF    
+    CALL section_vals_val_get(qs_section,"EPS_GVG_RSPACE",n_rep_val=n_rep,error=error)
+    IF (n_rep /=0) THEN
+       CALL section_vals_val_get(qs_section,"EPS_GVG_RSPACE",r_val=qs_control%eps_gvg_rspace,error=error)
     END IF
-    !
+    CALL section_vals_val_get(qs_section,"EPS_PGF_ORB",n_rep_val=n_rep,error=error)
+    IF (n_rep /=0) THEN    
+       CALL section_vals_val_get(qs_section,"EPS_PGF_ORB",r_val=qs_control%eps_pgf_orb,error=error)
+    END IF
+    CALL section_vals_val_get(qs_section,"EPS_PPL",n_rep_val=n_rep,error=error)
+    IF (n_rep /=0) THEN    
+       CALL section_vals_val_get(qs_section,"EPS_PPL",r_val=qs_control%eps_ppl,error=error)
+    END IF
+    CALL section_vals_val_get(qs_section,"EPS_PPNL",n_rep_val=n_rep,error=error)
+    IF (n_rep /=0) THEN    
+       CALL section_vals_val_get(qs_section,"EPS_PPNL",r_val=qs_control%eps_ppnl,error=error)
+    END IF
     CALL section_vals_val_get(qs_section,"EPS_RHO",n_rep_val=n_rep,error=error)
     IF (n_rep /=0) THEN
        CALL section_vals_val_get(qs_section,"EPS_RHO",r_val=qs_control%eps_rho_gspace,error=error)
        qs_control%eps_rho_rspace = qs_control%eps_rho_gspace
+    END IF
+    CALL section_vals_val_get(qs_section,"EPS_RHO_RSPACE",n_rep_val=n_rep,error=error)
+    IF (n_rep /=0) THEN    
+       CALL section_vals_val_get(qs_section,"EPS_RHO_RSPACE",r_val=qs_control%eps_rho_rspace,error=error)
+    END IF
+    CALL section_vals_val_get(qs_section,"EPS_RHO_GSPACE",n_rep_val=n_rep,error=error)
+    IF (n_rep /=0) THEN    
+       CALL section_vals_val_get(qs_section,"EPS_RHO_GSPACE",r_val=qs_control%eps_rho_rspace,error=error)
     END IF
 
     ! Gapw
