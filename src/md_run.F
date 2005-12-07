@@ -60,7 +60,7 @@ MODULE md_run
                                              force_env_p_type,&
                                              force_env_type
   USE global_types,                    ONLY: global_environment_type
-  USE initialize_extended_system_types,ONLY: initialize_nhc_baro,&
+  USE init_extended_system_types,      ONLY: initialize_nhc_baro,&
                                              initialize_nhc_coef,&
                                              initialize_nhc_part,&
                                              initialize_npt

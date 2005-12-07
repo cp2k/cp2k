@@ -2,10 +2,10 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000-2005  CP2K developers group                            !
 !-----------------------------------------------------------------------------!
-!!****** cp2k/initialize_extended_system_types [1.0] *
+!!****** cp2k/init_extended_system_types [1.0] *
 !!
 !!   NAME
-!!     initialize_extended_system_types
+!!     init_extended_system_types
 !!
 !!   FUNCTION
 !!
@@ -19,7 +19,7 @@
 !!   SOURCE
 !******************************************************************************
 
-MODULE initialize_extended_system_types
+MODULE init_extended_system_types
 
   USE distribution_1d_types,           ONLY: distribution_1d_type
   USE dynamical_coeff_types,           ONLY: dyn_coeff_set_type
@@ -56,7 +56,7 @@ MODULE initialize_extended_system_types
             initialize_nhc_coef
   PRIVATE
 
-  CHARACTER(LEN=*), PARAMETER, PRIVATE :: moduleN = "initialize_extended_system_types"
+  CHARACTER(LEN=*), PARAMETER, PRIVATE :: moduleN = "init_extended_system_types"
 
 !!*****
 !******************************************************************************
@@ -64,7 +64,7 @@ MODULE initialize_extended_system_types
 CONTAINS
 
 !******************************************************************************
-!!****** initialize_extended_system_types/initialize_npt [1.0] *
+!!****** init_extended_system_types/initialize_npt [1.0] *
 !!
 !!   NAME
 !!     initialize_npt_type
@@ -442,6 +442,6 @@ END SUBROUTINE set_yoshida_coef
 !!*****
 !******************************************************************************
 
-END MODULE initialize_extended_system_types
+END MODULE init_extended_system_types
 
 !******************************************************************************

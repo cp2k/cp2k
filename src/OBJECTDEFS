@@ -143,7 +143,7 @@ OBJECTS_GENERIC =\
  hartree_local_types.o\
  header.o\
  init_extended_system_variables.o\
- initialize_extended_system_types.o\
+ init_extended_system_types.o\
  input_constants.o\
  input_cp2k.o\
  input_cp2k_dft.o\

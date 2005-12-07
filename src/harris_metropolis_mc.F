@@ -69,7 +69,7 @@ MODULE harris_metropolis_mc
                                              use_qs_force, &
                                              use_kg_force
   USE global_types,                    ONLY: global_environment_type
-  USE initialize_extended_system_types,ONLY: initialize_nhc_part, &
+  USE init_extended_system_types,      ONLY: initialize_nhc_part, &
                                              initialize_nhc_baro, &
                                              initialize_nhc_coef, &
                                              initialize_npt
