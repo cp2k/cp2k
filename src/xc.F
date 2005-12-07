@@ -1009,14 +1009,12 @@ SUBROUTINE xc_rho_set_and_dset_create(rho_set,deriv_set,deriv_order,&
             tau_cutoff=section_get_rval(xc_section,"tau_cutoff",error),&
             error=error)
 
-     ! calculate the agruments needed by the functionals
      CALL xc_rho_set_update(rho_set, rho_r, rho_g, tau, &
             xc_functionals_get_needs(xc_fun_sections,lsd,needs_basic_components,error),&
             section_get_ival(xc_section,"XC_GRID%XC_DERIV",error),&
             section_get_ival(xc_section,"XC_GRID%XC_SMOOTH_RHO",error),&
             cell,pw_pool, error=error)
 
-     ! evaluate the functionals
      CALL xc_functionals_eval(xc_fun_sections, &
             lsd=lsd,&
             rho_set=rho_set, &
