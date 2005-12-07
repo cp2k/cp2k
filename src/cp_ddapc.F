@@ -1026,7 +1026,7 @@ CONTAINS
                    dfact = 1.0_dp
                    IF (iparticle1 == iparticle2) dfact = 0.5_dp
                    IF (iparticle1 /= iparticle2) THEN
-                      ra = pbc(rvec,cell)
+                      ra = rvec !!TL pbc(rvec,cell)
                       r  = SQRT(DOT_PRODUCT(ra,ra))
                       IF (r<=rcut) THEN 
                          t1 = erfc(alpha*r) / r
@@ -1044,7 +1044,7 @@ CONTAINS
                          DO r3 = -rmax3, rmax3
                             IF ((r1==0).AND.(r2==0).AND.(r3==0)) CYCLE
                             rb = (/REAL(r1,KIND=dp),REAL(r2,KIND=dp),REAL(r3,KIND=dp)/)
-                            ra = pbc(rvec,cell) + MATMUL(cell%hmat,rb)
+                            ra = rvec + MATMUL(cell%hmat,rb) !!TL pbc(rvec,cell) + MATMUL(cell%hmat,rb)
                             r  = SQRT(DOT_PRODUCT(ra,ra))
                             IF (r<=rcut) THEN 
                                t1 = erfc(alpha*r) / r
@@ -1095,7 +1095,7 @@ CONTAINS
                    END IF
                    !
                    IF (iparticle1/=iparticle2) THEN 
-                      ra = pbc(rvec,cell)
+                      ra = rvec !!TL pbc(rvec,cell)
                       r  = SQRT(DOT_PRODUCT(ra,ra))
                       M(idim1,idim2) = M(idim1,idim2) + sfact / r
                       IF (need_f) THEN
