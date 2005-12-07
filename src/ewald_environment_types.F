@@ -129,7 +129,7 @@ MODULE ewald_environment_types
 !   ***************************************************************************
 
     TYPE ( ewald_environment_type ), POINTER       :: ewald_env
-    INTEGER, INTENT(out), OPTIONAL                 :: id_nr
+    INTEGER, INTENT(OUT), OPTIONAL                 :: id_nr
     INTEGER, OPTIONAL  :: ewald_type 
     CHARACTER ( default_string_length ), OPTIONAL  :: unit_type 
     REAL (KIND=dp), OPTIONAL                         :: alpha
@@ -151,6 +151,7 @@ MODULE ewald_environment_types
     failure=.FALSE.
     CPPrecondition(ASSOCIATED(ewald_env),cp_failure_level,routineP,error,failure)
 
+    IF ( PRESENT ( id_nr ) ) id_nr = ewald_env % id_nr
     IF ( PRESENT ( ewald_type ) ) ewald_type = ewald_env % ewald_type
     IF ( PRESENT ( unit_type ) ) unit_type = ewald_env % unit_type
     IF ( PRESENT ( alpha ) ) alpha = ewald_env % alpha
@@ -177,7 +178,7 @@ MODULE ewald_environment_types
 !   ***************************************************************************
 
     TYPE ( ewald_environment_type ), POINTER       :: ewald_env
-    INTEGER, INTENT(out), OPTIONAL                 :: id_nr
+    INTEGER, INTENT(IN), OPTIONAL                  :: id_nr
     INTEGER, OPTIONAL  :: ewald_type 
     CHARACTER ( default_string_length ), OPTIONAL  :: unit_type 
     REAL (KIND=dp), OPTIONAL                         :: alpha
@@ -200,6 +201,7 @@ MODULE ewald_environment_types
     CPPrecondition(ASSOCIATED(ewald_env),cp_failure_level,routineP,error,failure)
     
     IF ( .NOT. failure ) THEN
+      IF ( PRESENT ( id_nr ) ) ewald_env % id_nr = id_nr
       IF ( PRESENT ( ewald_type ) ) ewald_env % ewald_type = ewald_type
       IF ( PRESENT ( unit_type ) ) ewald_env % unit_type = unit_type
       IF ( PRESENT ( alpha ) ) ewald_env % alpha = alpha

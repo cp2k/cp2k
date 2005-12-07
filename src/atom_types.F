@@ -440,7 +440,7 @@ CONTAINS
 !!! ****************************************************************************
   
   SUBROUTINE handle_method_specific ( ac, globenv )
-    TYPE(ATOM_CALCULATION_TYPE), INTENT(OUT) :: ac
+    TYPE(ATOM_CALCULATION_TYPE), INTENT(INOUT) :: ac
     TYPE(GLOBAL_ENVIRONMENT_TYPE), &
       INTENT(IN)                             :: globenv
 

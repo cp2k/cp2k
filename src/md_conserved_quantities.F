@@ -65,7 +65,6 @@ MODULE md_conserved_quantities
   REAL(KIND=dp) :: epot  
   REAL(KIND=dp) :: ekin  
   REAL(KIND=dp) :: temp_part
-  REAL(KIND=dp) :: temp_nose  
   REAL(KIND=dp) :: temp_baro  
   REAL(KIND=dp) :: ekin_coefs
   REAL(KIND=dp) :: temp_coefs  
@@ -109,7 +108,7 @@ CONTAINS
 !!*** *************************************************************************
 
 SUBROUTINE compute_conserved_quantity (md_env, epot, cons, cons_rel, ekin,&
-                                       temp_part, temp_baro, temp_nose, ekin_coefs, &
+                                       temp_part, temp_baro, ekin_coefs, &
                                        temp_coefs )                            
 
 
@@ -117,8 +116,7 @@ SUBROUTINE compute_conserved_quantity (md_env, epot, cons, cons_rel, ekin,&
     REAL(KIND=dp), INTENT(IN)                    :: epot
     REAL(KIND=dp), INTENT(OUT)                   :: cons
     REAL(KIND=dp), INTENT(OUT), OPTIONAL         :: cons_rel, ekin, temp_part, &
-                                                ekin_coefs, temp_coefs, temp_baro, &
-                                                temp_nose
+                                                ekin_coefs, temp_coefs, temp_baro
 
     INTEGER                                  :: int_grp
     INTEGER, POINTER                         :: itimes

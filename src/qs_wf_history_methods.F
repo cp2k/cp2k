@@ -51,7 +51,6 @@ MODULE qs_wf_history_methods
   USE cp_fm_types,                     ONLY: cp_fm_create,&
                                              cp_fm_get_info,&
                                              cp_fm_release,&
-                                             cp_fm_to_fm,&
                                              cp_fm_type, &
                                              cp_fm_to_fm
   USE cp_log_handling,                 ONLY: cp_failure_level,&

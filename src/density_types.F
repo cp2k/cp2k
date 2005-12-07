@@ -206,7 +206,7 @@ END SUBROUTINE density_init
 SUBROUTINE density_deallocate ( rho )
 
 
-    TYPE(density_type), INTENT(OUT)          :: rho
+    TYPE(density_type), INTENT(INOUT)        :: rho
 
     INTEGER                                  :: ierr, part, spin
 

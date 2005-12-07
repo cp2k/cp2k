@@ -23,14 +23,11 @@
 !!   SOURCE
 !****************************************************************************
 MODULE pw_poisson_methods
-  use kinds, only: dp
-  use cp_para_types, only: cp_para_env_type
-  use timings, only: timeset, timestop
-  USE pw_poisson_types, ONLY:pw_poisson_type, greens_fn_type,&
-       pw_green_create,pw_green_release
-  use cp_para_types, only: cp_para_env_type
-  use timings, only: timeset, timestop
- USE input_constants,                 ONLY: ANALYTIC0D,&
+  USE kinds,                           ONLY: dp
+  USE pw_poisson_types,                ONLY: pw_poisson_type, greens_fn_type,&
+                                             pw_green_create,pw_green_release
+  USE timings,                         ONLY: timeset, timestop
+  USE input_constants,                 ONLY: ANALYTIC0D,&
                                              ANALYTIC1D,&
                                              ANALYTIC2D,&
                                              MT0D,&
@@ -57,11 +54,6 @@ MODULE pw_poisson_methods
                                              FFT_RADIX_NEXT_ODD,&
                                              fft_radix_operations
   USE mt_util,                         ONLY: MTin_create_screen_fn
-  USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
-                                             pw_pool_give_back_pw,&
-                                             pw_pool_type,&
-                                             pw_pool_p_type,&
-                                             pw_pools_dealloc
   USE pw_types,                        ONLY: REALDATA1D,&
                                              RECIPROCALSPACE,&
                                              COMPLEXDATA1D,&
@@ -86,14 +78,15 @@ MODULE pw_poisson_methods
                                              pw_grid_setup,&
                                              pw_grid_release,&
                                              pw_grid_retain 
-  USE mathconstants, ONLY: fourpi,twopi
+  USE mathconstants,                   ONLY: fourpi,twopi
   USE pw_pool_types,                   ONLY: pw_pool_type,&
-       pw_pool_create,&
+                                             pw_pool_create,&
                                              pw_pool_p_type,&
                                              pw_pools_dealloc,&
                                              pw_pool_create_pw,&
                                              pw_pool_give_back_pw,&
                                              pw_pools_copy
+                                             
 #include "cp_common_uses.h"
 
   implicit none

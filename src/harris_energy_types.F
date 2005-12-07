@@ -430,8 +430,8 @@ CONTAINS
                                Eharris, error)
 
     TYPE(harris_energy_type), POINTER          :: harris_energy
-    INTEGER, INTENT(OUT), OPTIONAL             :: id_nr
-    REAL(KIND=dp), INTENT(OUT), OPTIONAL       :: Ehartree_elec, &
+    INTEGER, INTENT(IN), OPTIONAL              :: id_nr
+    REAL(KIND=dp), INTENT(IN), OPTIONAL        :: Ehartree_elec, &
                                                   Ehartree_core, &
                                                   Exc, &
                                                   integral_vxc, &

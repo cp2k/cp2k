@@ -7,19 +7,12 @@ MODULE farming_methods
   USE farming_types,                   ONLY: farming_env_type
   USE global_types,                    ONLY: global_environment_type
   USE kinds,                           ONLY: default_string_length
-  USE cp_log_handling,                 ONLY: cp_logger_type, &
-                                             cp_failure_level, &
-                                             cp_to_string
-  USE cp_error_handling,               ONLY: cp_error_type, &
-                                             cp_a_l, &
-                                             cp_assert, &
-                                             cp_error_init, &
-                                             cp_error_dealloc_ref, &
-                                             cp_assertion_failed 
   USE cp_files,                        ONLY: get_unit_number
   USE message_passing,                 ONLY: mp_bcast
-  USE input_section_types, ONLY: section_vals_type, section_vals_val_get,&
-       section_vals_get_subs_vals,section_vals_get
+  USE input_section_types,             ONLY: section_vals_type,&
+                                             section_vals_val_get,&
+                                             section_vals_get_subs_vals,&
+                                             section_vals_get
 #include "cp_common_uses.h"
   IMPLICIT NONE
   PRIVATE

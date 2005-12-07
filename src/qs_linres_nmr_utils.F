@@ -409,6 +409,7 @@ CONTAINS
     INTEGER                                     :: idir,ispin,istat
     LOGICAL                                     :: failure
 
+    failure=.FALSE.
     IF(.NOT. failure) THEN
       nmr_env%ref_count = nmr_env%ref_count - 1
       IF(nmr_env%ref_count == 0 ) THEN

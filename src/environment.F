@@ -428,7 +428,6 @@ SUBROUTINE cp2k_setup(globenv,error)
         routineP=module_name//':'//routineN
     INTEGER           :: initial_random,ipe,istat,l,output_unit,pid,&
                          strstart,strend
-    LOGICAL           :: ionode
 
     INTEGER, DIMENSION(:), ALLOCATABLE   :: all_pid
     INTEGER, DIMENSION(:,:), ALLOCATABLE :: all_host
@@ -446,7 +445,7 @@ SUBROUTINE cp2k_setup(globenv,error)
 
     CALL init_rng()
 
-    IF (ionode.AND.globenv%print%rng_matrices) THEN
+    IF (globenv%ionode.AND.globenv%print%rng_matrices) THEN
       CALL write_rng_matrices(globenv%scr)
     END IF
 

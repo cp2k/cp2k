@@ -40,7 +40,7 @@ MODULE cp_control_types
        xc_deriv_spline3, xc_deriv_spline2,&
        xc_deriv_nn50_smooth, xc_deriv_nn10_smooth, xc_deriv_spline2_smooth,&
        xc_deriv_spline3_smooth,sic_none, sic_mauri_us, sic_ad, sic_mauri_spz,&
-       no_excitations,tddfpt_excitations,&
+       no_excitations,&
        do_loc_min,&
        do_loc_jacobi,&
        op_loc_berry,&

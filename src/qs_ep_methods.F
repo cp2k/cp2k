@@ -132,6 +132,8 @@ MODULE qs_ep_methods
   USE sparse_matrix_types,             ONLY: allocate_matrix_set,&
                                              real_matrix_p_type,&
                                              replicate_matrix_structure
+  USE termination,                     ONLY: stop_memory,&
+                                             stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
 
@@ -579,6 +581,8 @@ END SUBROUTINE qs_ep_calculation
                (scf_control%level_shift /= 0.0_dp).OR.&
                (scf_control%smear /= 0.0_dp).OR.&
                (scf_control%eps_jacobi /= 0.0_dp)) THEN
+             CALL stop_program("n_ao value not defined here...",&
+                               "qs_ep_methods.F")
              n_mo = n_ao
           ELSE
              n_mo = nelectron/2

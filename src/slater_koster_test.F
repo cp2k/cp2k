@@ -136,11 +136,11 @@
 !------------------------------------------------------------------------------!
       SUBROUTINE s_test(chi,gmu1,gmu2,l1,l2,emax)
     REAL(KIND=dp), INTENT(IN)                    :: chi, gmu1(0:6,0:6,0:3), &
-                                                gmu2(0:6,0:6,0:3)
-    INTEGER, INTENT(IN)                      :: l1, l2
-    REAL(KIND=dp), INTENT(OUT)                   :: emax
+                                                    gmu2(0:6,0:6,0:3)
+    INTEGER, INTENT(IN)                          :: l1, l2
+    REAL(KIND=dp), INTENT(INOUT)                 :: emax
 
-    INTEGER                                  :: lm, lu
+    INTEGER                                      :: lm, lu
     REAL(KIND=dp)                                :: xt
 
         lm = max(l1,l2)
@@ -162,13 +162,13 @@
 
       SUBROUTINE p_test(chi,gmu1,gmu2,dll1,dll2,l1,l2,emax)
     REAL(KIND=dp), INTENT(IN)                    :: chi, gmu1(0:6,0:6,0:3), &
-                                                gmu2(0:6,0:6,0:3), &
-                                                dll1(0:6,0:6,0:6), &
-                                                dll2(0:6,0:6,0:6)
-    INTEGER, INTENT(IN)                      :: l1, l2
-    REAL(KIND=dp), INTENT(OUT)                   :: emax
+                                                    gmu2(0:6,0:6,0:3), &
+                                                    dll1(0:6,0:6,0:6), &
+                                                    dll2(0:6,0:6,0:6)
+    INTEGER, INTENT(IN)                          :: l1, l2
+    REAL(KIND=dp), INTENT(INOUT)                 :: emax
 
-    INTEGER                                  :: lm, lu
+    INTEGER                                      :: lm, lu
     REAL(KIND=dp)                                :: dt1, dt2, dt3, xt1, xt2, xt3
 
         lm = max(l1,l2)
@@ -238,13 +238,13 @@
 
       SUBROUTINE d_test(chi,gmu1,gmu2,dll1,dll2,l1,l2,emax)
     REAL(KIND=dp), INTENT(IN)                    :: chi, gmu1(0:6,0:6,0:3), &
-                                                gmu2(0:6,0:6,0:3), &
-                                                dll1(0:6,0:6,0:6), &
-                                                dll2(0:6,0:6,0:6)
-    INTEGER, INTENT(IN)                      :: l1, l2
-    REAL(KIND=dp), INTENT(OUT)                   :: emax
+                                                    gmu2(0:6,0:6,0:3), &
+                                                    dll1(0:6,0:6,0:6), &
+                                                    dll2(0:6,0:6,0:6)
+    INTEGER, INTENT(IN)                          :: l1, l2
+    REAL(KIND=dp), INTENT(INOUT)                 :: emax
 
-    INTEGER                                  :: lm, lu
+    INTEGER                                      :: lm, lu
     REAL(KIND=dp)                                :: c2, c4, dt1, dt2, dt3, dt4, &
                                                 dt5, dt6, xt1, xt2, xt3, xt4, &
                                                 xt5, xt6
@@ -337,7 +337,7 @@
                                                 dll1(0:6,0:6,0:6), &
                                                 dll2(0:6,0:6,0:6)
     INTEGER, INTENT(IN)                      :: l1, l2
-    REAL(KIND=dp), INTENT(OUT)                   :: emax
+    REAL(KIND=dp), INTENT(INOUT)                 :: emax
 
     INTEGER                                  :: lm, lu
     REAL(KIND=dp)                                :: c2, c4, c6, dt0, dt1, dt2, &

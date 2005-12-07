@@ -366,7 +366,7 @@ CONTAINS
     TYPE(harris_env_type), POINTER              :: harris_env
     TYPE(harris_energy_type), POINTER, OPTIONAl :: harris_energy
     TYPE(harris_force_type), POINTER, OPTIONAL  :: harris_force
-    INTEGER, INTENT(OUT), OPTIONAL              :: id_nr
+    INTEGER, INTENT(IN), OPTIONAL               :: id_nr
     TYPE(qs_rho_type), POINTER, OPTIONAL        :: rho, &
                                                    rho_diff
     TYPE(cp_error_type), INTENT(INOUT), &

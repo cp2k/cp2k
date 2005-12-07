@@ -39,7 +39,6 @@ MODULE pw_poisson_types
        cp_assertion_failed, cp_internal_error, cp_unimplemented_error,&
        cp_error_get_logger, cp_a_l, cp_error_check
   use kinds, only: dp
-  use cp_para_types, only: cp_para_env_type
   use timings, only: timeset, timestop
  USE input_constants,                 ONLY: ANALYTIC0D,&
                                              ANALYTIC1D,&

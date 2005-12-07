@@ -167,6 +167,7 @@ CONTAINS
     t = tm - t0
     abt = SQRT ( p * rg % b(1)**p * ab / t )
 !bug : check for the correct value of s!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    CALL stop_program("set the value of s","radial_grids.F")
     tt = ( ( t * s ) / rg % b(1) ** p + 1.0_dp )
     DO i = 0, n+1
       s = REAL ( i,KIND=dp) / REAL ( n + 1,KIND=dp)

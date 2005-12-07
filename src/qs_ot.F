@@ -63,6 +63,7 @@ MODULE qs_ot
 
   IMPLICIT NONE
   PUBLIC  :: qs_ot_type
+  PUBLIC  :: qs_ot_settings_type
   PUBLIC  :: qs_ot_allocate
   PUBLIC  :: qs_ot_init
   PUBLIC  :: qs_ot_settings_init

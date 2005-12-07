@@ -3120,7 +3120,7 @@ SUBROUTINE pw_compare_debug(pw1,pw2,maxdiff,error)
            IF (mdiff<diff) THEN
               WRITE(unit=cp_logger_get_default_unit_nr(logger,local=.TRUE.),&
                    fmt="(' diff=',e10.4,'at(',i4,i4,i4,'),',e9.3,e9.3,'vs',e9.3,e9.3)")&
-                   diff,i,j,k,pw1%cc(i),pw2%cc(i)
+                   diff,i,pw1%cc(i),pw2%cc(i)
               mdiff=diff
            END IF
         END DO

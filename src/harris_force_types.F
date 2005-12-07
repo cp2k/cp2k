@@ -560,7 +560,7 @@ CONTAINS
                               error)
 
     TYPE(harris_force_type), POINTER                 :: harris_force
-    INTEGER, INTENT(OUT), OPTIONAL                   :: id_nr
+    INTEGER, INTENT(IN), OPTIONAL                    :: id_nr
     REAL(KIND=dp), DIMENSION(:,:), POINTER, OPTIONAL :: f_trace, &
                                                         f_V, &
                                                         f_hartree, &

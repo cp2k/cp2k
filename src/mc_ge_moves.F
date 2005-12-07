@@ -674,6 +674,8 @@ CONTAINS
       CALL mp_bcast(pos_insert,source,group)
 
 ! allocate some arrays we'll be using
+      CALL stop_program("natom value not defined here. Maybe ?natoms?",&
+                        "mc_ge_moves.F")
       ALLOCATE(r_insert_mol(1:3,1:natom),STAT=istat)
       IF (istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
          "r_insert_mol",3*natom)

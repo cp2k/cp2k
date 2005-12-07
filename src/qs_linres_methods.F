@@ -433,12 +433,13 @@ CONTAINS
       END DO
 
     ELSE IF (linres_control%opt_method == lr_diis) THEN
-
-        CALL cp_fm_get_info(p_env%g_psi1(ispin)%matrix,nrow_global=nrow,ncol_global=ncol)
+      DO ispin = 1,nspins
+        CALL cp_fm_get_info( p_env%g_psi1(ispin)%matrix,nrow_global=nrow,ncol_global=ncol)
         CPPrecondition(nrow==p_env%n_ao(ispin),cp_failure_level,routineP,error,failure)
         CPPrecondition(ncol==p_env%n_mo(ispin),cp_failure_level,routineP,error,failure)
         CALL cp_fm_set_all(p_env%g_psi1(ispin)%matrix,0.0_dp)
         CALL cp_fm_set_all(p_env%d_psi1(ispin)%matrix,0.0_dp)
+      END DO
 
     END IF
 
@@ -746,6 +747,8 @@ CONTAINS
          IF(ABS(den).LE.EPSILON(1.0_dp)*MAX(ABS(f2-f1),ABS(f2-f3))) THEN
             pos = x2
          ELSE
+            CALL stop_program("b value not defined here...",&
+                              "qs_linres_methods.F")
             pos = b-0.5_dp*nom/den
          END IF
          val = (pos-x1)*(pos-x2)*f3/((x3-x1)*(x3-x2))+ &
