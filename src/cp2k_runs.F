@@ -175,7 +175,7 @@ CONTAINS
     TYPE(meta_env_type), pointer :: meta_env
     TYPE(section_type), POINTER :: input_structure
     TYPE(section_vals_type), POINTER :: input_file, glob_section, metadyn_section
-    TYPE(cp_parser_type), pointer :: parser
+    TYPE(cp_parser_type), pointer :: my_parser
     TYPE(cp_para_env_type), pointer :: para_env
     TYPE(cp_unit_set_type), pointer :: default_units
     LOGICAL :: failure, echo_input, I_was_ionode, was_present
@@ -203,14 +203,14 @@ CONTAINS
     NULLIFY(input_file)
     CALL section_vals_create(input_file,input_structure, error=error)
     CALL section_release(input_structure,error=error)
-    nullify(parser)
-    CALL parser_create(parser,file_name=input_file_name,para_env=para_env,&
+    nullify(my_parser)
+    CALL parser_create(my_parser,file_name=input_file_name,para_env=para_env,&
          error=error)
     CALL cp_unit_set_create(default_units, "OUTPUT",error=error)
-    CALL section_vals_parse(input_file,parser,root_section=.false.,&
+    CALL section_vals_parse(input_file,my_parser,root_section=.false.,&
          default_units=default_units,error=error)
     CALL cp_unit_set_release(default_units,error=error)
-    CALL parser_release(parser,error=error)
+    CALL parser_release(my_parser,error=error)
     CALL cp_error_check(error,failure)
     glob_section => section_vals_get_subs_vals(input_file,"GLOBAL",error=error)
     CALL section_vals_val_get(glob_section,"ECHO_INPUT",l_val=echo_input,&
@@ -367,14 +367,14 @@ CONTAINS
     character(len=5)                         :: label
     INTEGER                                  :: new_group,new_rank,new_size
     INTEGER :: n_jobs_to_run, i_job_to_restart, ijob_start, ijob_end,ijob, iunit
-    TYPE(cp_parser_type), pointer :: parser
+    TYPE(cp_parser_type), pointer :: my_parser
     TYPE(section_type), pointer :: g_section
     TYPE(section_vals_type), pointer :: g_data
     TYPE(cp_unit_set_type), pointer :: default_units
 
     failure=.FALSE.
     CALL timeset(routineN,'I','',handle)
-    NULLIFY(parser,g_section,g_data,default_units)
+    NULLIFY(my_parser,g_section,g_data,default_units)
 
     IF (globenv%ionode) write(globenv%scr,FMT="(T2,A)") "FARMING| Hi, welcome on this farm!"
 
@@ -461,14 +461,14 @@ CONTAINS
 
                  ! generate the output file
                   write(output_file,'(A12,I5.5)') "FARMING_OUT_",i
-                  CALL parser_create(parser,file_name=TRIM(farming_env%Job_input(i)))
+                  CALL parser_create(my_parser,file_name=TRIM(farming_env%Job_input(i)))
                   label="&GLOBAL"
-                  CALL parser_search_string(parser,label,ignore_case=.TRUE.,found=found,error=error)
+                  CALL parser_search_string(my_parser,label,ignore_case=.TRUE.,found=found,error=error)
                   IF (found) THEN
                      CALL create_global_section(g_section,error=error)
                      CALL section_vals_create(g_data,g_section,error=error)
                      CALL cp_unit_set_create(default_units, "OUTPUT",error=error)
-                     CALL section_vals_parse(g_data,parser,default_units,&
+                     CALL section_vals_parse(g_data,my_parser,default_units,&
                           error=error)
                      CALL cp_unit_set_release(default_units,error=error)
                      CALL section_vals_val_get(g_data,"PROJECT",&
@@ -480,7 +480,7 @@ CONTAINS
                      CALL section_vals_release(g_data)
                      CALL section_release(g_section)
                   END IF
-                  CALL parser_release(parser,error=error)
+                  CALL parser_release(my_parser,error=error)
                   CALL open_file(file_name=TRIM(output_file),&
                         file_action="WRITE",&
                         file_status="UNKNOWN",&
