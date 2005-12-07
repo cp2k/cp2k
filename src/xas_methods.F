@@ -72,7 +72,8 @@ MODULE xas_methods
   USE cp_sm_fm_interactions,           ONLY: cp_sm_fm_multiply
   USE global_types,                    ONLY: global_environment_type
   USE input_constants,                 ONLY: xas_none, xas_tp_hh, &
-                                             xas_tp_fh, xas_tddft, xas_dscf,&
+                                             xas_tp_fh, xes_tp_val,&
+                                             xas_tddft, xas_dscf,&
                                              xas_1s_type, xas_2s_type, &
                                              xas_2p_type, xas_dip_len,&
                                              xas_scf_default,xas_scf_general,xas_scf_ot,&
@@ -318,6 +319,7 @@ CONTAINS
     nspins = dft_control%nspins
     transition_potential = (xas_control%xas_method==xas_tp_hh).OR.&
                            (xas_control%xas_method==xas_tp_fh).OR.&
+                           (xas_control%xas_method==xes_tp_val).OR.&
                            (xas_control%xas_method==xas_dscf)
     IF(nspins ==1 .AND. transition_potential) THEN
        CALL stop_program(routineP,"xas with tp method requires LSD calculations")
@@ -489,6 +491,7 @@ CONTAINS
             nao,1,transpose=.TRUE.,error=error)
 
       IF (transition_potential) THEN
+
          IF(ionode) THEN
            WRITE(UNIT=output_unit,FMT='(/,/,T2,A,I6)') &
                   " START XAS CALCULATION WITH TP APPROACH FOR ATOM   ", iatom 
@@ -740,7 +743,8 @@ CONTAINS
 
       ! initialize operators for the calculation of the oscillator strengts
       IF (xas_control%xas_method==xas_tp_hh .OR. xas_control%xas_method==xas_tp_fh &
-         .OR. xas_control%xas_method==xas_dscf) THEN
+         .OR. xas_control%xas_method==xes_tp_val .OR. &
+          xas_control%xas_method==xas_dscf) THEN
         
 !        CALL fm_pool_create_fm(xas_env%ao_mo_fm_pools(1)%pool,&
 !               xas_env%fm_work,name="xas_env%fm_work",error=error)

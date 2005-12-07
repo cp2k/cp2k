@@ -163,7 +163,7 @@ CONTAINS
     CALL section_vals_val_get(xas_section,"MAXSTEP",&
          i_val=xas_control%max_scf,error=error)
 
-    CALL section_vals_val_get(xas_section,"SCF_METHOD",&
+    CALL section_vals_val_get(xas_section,"SCF_OPTIMIZER",&
          i_val=xas_control%scf_method,error=error)
 
     CALL section_vals_val_get(xas_section,"EACH_STEP",&

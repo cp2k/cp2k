@@ -53,7 +53,7 @@ MODULE xas_tp_scf
                                              cp_to_string,&
                                              cp_warning_level
   USE global_types,                    ONLY: global_environment_type
-  USE input_constants,                 ONLY: xas_tp_hh, xas_tp_fh,&
+  USE input_constants,                 ONLY: xas_tp_hh, xas_tp_fh, xes_tp_val,&
                                              xas_dscf, do_loc_none , core_guess,&
                                              ot_precond_full_kinetic,&
                                              xas_scf_general,xas_scf_ot
@@ -451,6 +451,10 @@ CONTAINS
                    ELSE IF(xas_control%xas_method == xas_dscf) THEN
                        occupation_numbers(dft_control%xas_estate) = 0.0_dp
                        occupation_numbers(ir_max) = 1.0_dp
+                   ELSE IF(xas_control%xas_method == xes_tp_val) THEN
+                       occupation_numbers(dft_control%xas_estate) = 1.00_dp
+                       occupation_numbers(ir_max) = 1.0_dp
+                       occupation_numbers(homo) = 0.0_dp
                    END IF
 
                  END IF
@@ -533,6 +537,10 @@ CONTAINS
                    ELSE IF(xas_control%xas_method == xas_dscf) THEN
                        occupation_numbers(dft_control%xas_estate) = 0.0_dp
                        occupation_numbers(ir_max) = 1.0_dp
+                   ELSE IF(xas_control%xas_method == xes_tp_val) THEN
+                       occupation_numbers(dft_control%xas_estate) = 0.80_dp
+                       occupation_numbers(ir_max) = 1.0_dp
+                       occupation_numbers(homo) = 0.2_dp
                    END IF
 
                  END IF

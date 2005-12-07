@@ -113,6 +113,7 @@ MODULE qs_scf
                                              ot_precond_full_all,&
                                              xas_tp_hh, &
                                              xas_tp_fh, &
+                                             xes_tp_val, &
                                              qs_debug_run, &
                                              xas_dscf,&
                                              densities_guess,&
@@ -1492,6 +1493,10 @@ CONTAINS
                occupation_numbers(dft_control%xas_estate) = 0.0_dp
                uniform_occupation = .FALSE.
                occupation_numbers(homo) = 1.0_dp
+            ELSE IF(dft_control%xas_control%xas_method == xes_tp_val) THEN
+               occupation_numbers(dft_control%xas_estate) = 1.0_dp
+               uniform_occupation = .FALSE.
+               occupation_numbers(homo) = 0.0_dp
             END IF
             CALL set_mo_set(mos(ispin)%mo_set,&
                  uniform_occupation=uniform_occupation)
