@@ -28,3 +28,6 @@ H2O-OT-LDMC-3.inp
 H+-bloechl.inp       
 He2H-bloechl-md.inp 
 He2H-bloechl.inp    
+HF_gapw_all_LB.inp
+He2-all.inp
+He2-all-md.inp
