@@ -25,3 +25,6 @@ H2O-MD-harris.frozen.inp
 H2O-OT-HMC-1.inp
 H2O-OT-HMC-2.inp
 H2O-OT-LDMC-3.inp
+H+-bloechl.inp       
+He2H-bloechl-md.inp 
+He2H-bloechl.inp    

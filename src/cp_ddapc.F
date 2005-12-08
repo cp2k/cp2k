@@ -79,6 +79,7 @@ MODULE cp_ddapc
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind_set
   USE erf_fn,                          ONLY: erfc
+  USE qs_charges_types,                ONLY: qs_charges_type
 
 #include "cp_common_uses.h"
 
@@ -143,7 +144,9 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:,:,:), ALLOCATABLE   :: dAm, dqv
     REAL(KIND=dp), DIMENSION(:), POINTER         :: qtot1, qtot2
     TYPE(cp_out_flags_type), pointer :: output_control
-
+    TYPE(qs_charges_type), POINTER           :: qs_charges
+    REAL(KIND=dp) :: core_ch, elec_ch
+    
     CALL timeset(routineN,"I","",handle)
     failure=.FALSE.
     need_f = .FALSE.
@@ -152,7 +155,7 @@ CONTAINS
     ionode = logger%para_env%mepos==logger%para_env%source
     IF (ionode) iw = cp_logger_get_default_unit_nr(logger)
     NULLIFY(rho, rho_tot_g, rho_core, pw_env, radii, inp_radii, particle_set, &
-         output_control)
+         output_control, qs_charges)
     IF (.NOT.failure) THEN
        !
        ! Build the total QS density (electron+nuclei) in G-space
@@ -161,6 +164,7 @@ CONTAINS
                        rho=rho,&
                        rho_core=rho_core,&
                        pw_env=pw_env,&
+                       qs_charges=qs_charges,&
                        particle_set=particle_set,&
                        output_control=output_control,&
                        error=error)
@@ -181,7 +185,9 @@ CONTAINS
           CALL pw_sumup(rho%rho_g(ispin)%pw,rho_tot_g)
        END DO
        Vol = rho%rho_r(1)%pw%pw_grid%vol
-       ch_dens = - REAL(qs_env%dft_control%charge,KIND=dp)/Vol
+       core_ch = qs_charges%total_rho_core_rspace
+       elec_ch = SUM(rho%tot_rho_r)
+       ch_dens = (elec_ch - core_ch)/Vol
        !
        ! Get Input Parameters
        !
