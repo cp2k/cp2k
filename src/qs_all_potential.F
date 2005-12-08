@@ -311,7 +311,7 @@ MODULE qs_all_potential
     TYPE(all_potential_type), POINTER          :: all_potential
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "radii_3c_orbxall"
-    REAL(dp), PARAMETER         :: EPS = 1.E-6_dp
+    REAL(dp), PARAMETER         :: EPS = 1.E-06_dp
 
     TYPE(atomic_kind_type),       POINTER      :: atom_kind
     TYPE(gto_basis_set_type),     POINTER      :: orb_basis
@@ -389,7 +389,6 @@ MODULE qs_all_potential
         DO i = 10,60 
           rac(1:3) = r(1:3,i)
           rac2 = r2(i)
-
           int_tmp = 0.0_dp
           intmax0 = 0.0_dp
           CALL verfc(la_max(iset),npgfa(iset),zeta(:,iset),rpgfa(:,iset),la_min(iset),&
@@ -400,6 +399,7 @@ MODULE qs_all_potential
           DO ipgf = 1,npgfa(iset)
              n=(ipgf-1)*ncoset(la_max(iset))
              DO ico = 1,ncoset(la_max(iset))
+
                icoa = ico + n          
 
                intmax0 = MAX(intmax0,ABS(int_tmp(icoa,icoa)))
@@ -421,7 +421,7 @@ MODULE qs_all_potential
                                      "int_tmp")
 
       END DO  ! iset
-      
+
       DEALLOCATE(r_cut_set,STAT=istat)
       IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
                                      "r_cut_set")

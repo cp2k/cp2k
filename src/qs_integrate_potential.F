@@ -1182,7 +1182,6 @@ CONTAINS
        cutoff    = 0.0_dp
        prefactor = 1.0_dp
        radius = rpgf0_s
-
 !       radius=exp_radius_very_extended(la_min,la_max,lb_min,lb_max,ra=ra,rb=rb,rp=rp,&
 !                            zetp=zetp,eps=eps_gvg_rspace,prefactor=prefactor,cutoff=cutoff)
     ELSE

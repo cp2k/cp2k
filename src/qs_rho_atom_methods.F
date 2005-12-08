@@ -389,6 +389,11 @@ MODULE qs_rho_atom_methods
                 rho_s = rho_s + &
                      rho_atom_set(iatom)%rho_rad_s(i)%r_coef(ir,iso)*&
                      grid_atom%wr(ir)
+           !dbg
+    !         write(17+iso+100*iat,'(2(I0,1x),3f14.6)') ir , iso, grid_atom%rad(ir), &
+    !             rho_atom_set(iatom)%rho_rad_h(i)%r_coef(ir,iso), &
+    !              rho_atom_set(iatom)%rho_rad_s(i)%r_coef(ir,iso)
+           !dbg
              END DO  ! ir
              tot_rho1_h(i) = tot_rho1_h(i) + rho_h*harmonics%slm_int(iso)
              tot_rho1_s(i) = tot_rho1_s(i) + rho_s*harmonics%slm_int(iso)

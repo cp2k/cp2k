@@ -156,6 +156,50 @@ CONTAINS
                            paw_proj_set=paw_proj_set,&
                            paw_atom=paw_atom)
 
+!     *** Calculate the orbital basis function radii ***
+!         For ALL electron this has to come before the calculation of the 
+!         radii used to calculate the 3c lists. 
+!         Indeed, there the radii of the GTO primitives are needed
+      IF (ASSOCIATED(orb_basis_set)) THEN
+
+        p_orb = .TRUE.
+        CALL get_gto_basis_set(gto_basis_set=orb_basis_set,&
+                               nset=nset,&
+                               nshell=nshell,&
+                               npgf=npgf,&
+                               l=lshell,&
+                               zet=zet,&
+                               gcc=gcc,&
+                               pgf_radius=pgf_radius,&
+                               set_radius=set_radius)
+
+        kind_radius = 0.0_dp
+
+        DO iset=1,nset
+          set_radius(iset) = 0.0_dp
+          DO ipgf=1,npgf(iset)
+            pgf_radius(ipgf,iset) = 0.0_dp
+            DO ishell=1,nshell(iset)
+              l = lshell(ishell,iset)
+              gcca = gcc(ipgf,ishell,iset)
+              zeta = zet(ipgf,iset)
+              pgf_radius(ipgf,iset) = MAX(pgf_radius(ipgf,iset),&
+                                          exp_radius(l,zeta,&
+                                                     qs_control%eps_pgf_orb,&
+                                                     gcca))
+            END DO
+            set_radius(iset) = MAX(set_radius(iset),pgf_radius(ipgf,iset))
+          END DO
+          kind_radius = MAX(kind_radius,set_radius(iset))
+        END DO
+
+        CALL set_gto_basis_set(gto_basis_set=orb_basis_set,&
+                               pgf_radius=pgf_radius,&
+                               set_radius=set_radius,&
+                               kind_radius=kind_radius)
+
+      END IF
+
 
       IF (ASSOCIATED(all_potential)) THEN
 
@@ -276,47 +320,8 @@ CONTAINS
 
       END IF
 
-!     *** Calculate the orbital basis function radii ***
 
-      IF (ASSOCIATED(orb_basis_set)) THEN
-
-        p_orb = .TRUE.
-        CALL get_gto_basis_set(gto_basis_set=orb_basis_set,&
-                               nset=nset,&
-                               nshell=nshell,&
-                               npgf=npgf,&
-                               l=lshell,&
-                               zet=zet,&
-                               gcc=gcc,&
-                               pgf_radius=pgf_radius,&
-                               set_radius=set_radius)
-
-        kind_radius = 0.0_dp
-
-        DO iset=1,nset
-          set_radius(iset) = 0.0_dp
-          DO ipgf=1,npgf(iset)
-            pgf_radius(ipgf,iset) = 0.0_dp
-            DO ishell=1,nshell(iset)
-              l = lshell(ishell,iset)
-              gcca = gcc(ipgf,ishell,iset)
-              zeta = zet(ipgf,iset)
-              pgf_radius(ipgf,iset) = MAX(pgf_radius(ipgf,iset),&
-                                          exp_radius(l,zeta,&
-                                                     qs_control%eps_pgf_orb,&
-                                                     gcca))
-            END DO
-            set_radius(iset) = MAX(set_radius(iset),pgf_radius(ipgf,iset))
-          END DO
-          kind_radius = MAX(kind_radius,set_radius(iset))
-        END DO
-
-        CALL set_gto_basis_set(gto_basis_set=orb_basis_set,&
-                               pgf_radius=pgf_radius,&
-                               set_radius=set_radius,&
-                               kind_radius=kind_radius)
-
-      END IF
+!     *** Calculate the aux orbital basis function radii ***
 
       IF (ASSOCIATED(aux_basis_set)) THEN
 

@@ -167,7 +167,9 @@ MODULE  hartree_local_2centers
     CALL get_rho0_mpole(rho0_mpole=rho0_mpole,zet0_h=z0_h,zet0_s=z0_s,&
                         norm_g0l_h=ng0_h,norm_g0l_s=ng0_s,lmax_0=lmax_0)
 
-    IF(z0_h==z0_s) RETURN
+    IF(z0_h==z0_s) THEN
+      RETURN
+    END IF
 
     IF (my_tddft) THEN
        rho0_mpole   => p_env%local_rho_set%rho0_mpole

@@ -18,6 +18,8 @@
 !!   SOURCE
 !******************************************************************************
 
+#include "cp_prep_globals.h"
+
 MODULE paw_proj_set_types
 
 ! *****************************************************************************
@@ -25,6 +27,14 @@ MODULE paw_proj_set_types
   USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                              gto_basis_set_type
   USE cp_control_types,                ONLY: gapw_control_type, qs_control_type
+  USE cp_error_handling,               ONLY: cp_a_l,&
+                                             cp_assert,&
+                                             cp_error_message,&
+                                             cp_error_type
+  USE cp_log_handling,                 ONLY: cp_failure_level,&
+                                             cp_fatal_level,&
+                                             cp_to_string,&
+                                             cp_warning_level
   USE global_types,                    ONLY: global_environment_type
   USE kinds,                           ONLY: default_string_length,&
                                              dp
@@ -300,7 +310,8 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE build_projector(paw_proj,orb_basis,eps_fit,eps_iso,rc,eps_orb,max_rad_local,globenv)
+  SUBROUTINE build_projector(paw_proj,orb_basis,eps_fit,eps_iso,rc,eps_orb,&
+             max_rad_local,globenv,error)
 
 !   Purpose: initialize the projector-type set data set.
 
@@ -311,6 +322,9 @@ CONTAINS
     REAL(dp), INTENT(IN)              :: eps_fit,eps_iso,rc
     REAL(dp), INTENT(IN)              :: eps_orb, max_rad_local
     TYPE(global_environment_type), INTENT(IN) :: globenv
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
 
 
     CHARACTER(LEN=*), PARAMETER :: routine = "  build_projectors "
@@ -323,9 +337,10 @@ CONTAINS
       n, ncgauprj, ncgf, nisop, np, npgfg, ns, nset, nsgf, output_unit
     INTEGER, DIMENSION(:),    POINTER :: lmin,lmax,npgf,nshell
     INTEGER, DIMENSION(:,:),  POINTER :: first_cgf,first_sgf,last_cgf,last_sgf,l
+    LOGICAL :: failure
     LOGICAL,  DIMENSION(:),&
                           ALLOCATABLE :: isoprj
-    REAL(dp)                          :: expzet, error, prefac, radius,&
+    REAL(dp)                          :: expzet, my_error, prefac, radius,&
                                          x, zetmin, zetval
     REAL(dp), DIMENSION(:),   POINTER :: zet,zetp
     REAL(dp), DIMENSION(:,:), POINTER :: gcc,smat,work
@@ -344,8 +359,12 @@ CONTAINS
     NULLIFY (first_cgf,first_sgf,last_cgf,last_sgf,gcc,l,set_radius)
     NULLIFY (cphi,sphi,lmax,lmin,npgf,nshell,zet,zetp,smat,work,gcca)
 
-!   ***************************************************************************
+    failure =.FALSE.
+    CPPrecondition(ASSOCIATED(paw_proj),cp_failure_level,routine,error,failure)
+    CPPrecondition(ASSOCIATED(orb_basis),cp_failure_level,routine,error,failure)
 
+!   ***************************************************************************
+    IF(.NOT. failure) THEN
     CALL get_gto_basis_set(gto_basis_set=orb_basis,name=bsname,&
                            ncgf=ncgf,nset=nset,nsgf=nsgf,&
                            lmax=lmax,lmin=lmin,npgf=npgf,&
@@ -356,9 +375,19 @@ CONTAINS
                            gcc=gcca)
 
     paw_proj%maxl = maxl
-    CALL reallocate(paw_proj%zisomin,0,maxl)
-    CALL reallocate(paw_proj%zprjisomin,0,maxl)
-    CALL reallocate(paw_proj%nprj,0,maxl)
+    CPPrecondition(.NOT. ASSOCIATED(paw_proj%zisomin),cp_failure_level,routine,error,failure)
+    CPPrecondition(.NOT. ASSOCIATED(paw_proj%zprjisomin),cp_failure_level,routine,error,failure)
+    CPPrecondition(.NOT. ASSOCIATED(paw_proj%nprj),cp_failure_level,routine,error,failure)
+
+    ALLOCATE(paw_proj%zisomin(0:maxl),STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routine,error,failure)
+    paw_proj%zisomin(0:maxl) = 0.0_dp
+    ALLOCATE(paw_proj%zprjisomin(0:maxl),STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routine,error,failure)
+    paw_proj%zprjisomin(0:maxl) = 0.0_dp
+    ALLOCATE(paw_proj%nprj(0:maxl),STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routine,error,failure)
+    paw_proj%nprj(0:maxl) = 0
 
     IF (globenv%ionode .AND. globenv%print%basis_set) THEN
       output_unit = globenv%scr
@@ -367,14 +396,12 @@ CONTAINS
     ENDIF
 
     ALLOCATE(set_radius(nset),STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routine,error,failure)
     set_radius = 0.0_dp
     DO iset = 1,nset
       DO is = 1,nshell(iset)
        set_radius(iset) = MAX(set_radius(iset), &
             exp_radius(l(is,iset),orb_basis%zet(npgf(iset),iset),eps_orb,gcca(npgf(iset),is,iset)))
-!dbg
-! write(*,*) iset, l(is,iset),orb_basis%zet(npgf(iset),iset), gcca(npgf(iset),is,iset),set_radius(iset)
-!dbg
       END DO  ! is
     END DO  ! iset
 
@@ -397,10 +424,17 @@ CONTAINS
 
  
 !   *** Allocate exponents and coefficients ***
-    CALL reallocate(paw_proj%zetprj,1,maxnprj,0,maxl)
-    CALL reallocate(paw_proj%gccprj,1,maxnprj,1,maxpgf,0,maxl,1,nset)
-    CALL reallocate(paw_proj%rzetprj,1,maxnprj,0,maxl)
-    allocate(paw_proj%isoprj(maxnprj,0:maxl),STAT=istat)
+    ALLOCATE(paw_proj%zetprj(maxnprj,0:maxl),STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routine,error,failure)
+    paw_proj%zetprj(1:maxnprj,0:maxl)=0.0_dp
+    ALLOCATE(paw_proj%gccprj(maxnprj,maxpgf,0:maxl,nset),STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routine,error,failure)
+    paw_proj%gccprj=0.0_dp
+    ALLOCATE(paw_proj%rzetprj(maxnprj,0:maxl),STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routine,error,failure)
+    paw_proj%rzetprj(1:maxnprj,0:maxl)=0.0_dp
+    ALLOCATE(paw_proj%isoprj(maxnprj,0:maxl),STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routine,error,failure)
     paw_proj%isoprj = .FALSE.
 
     NULLIFY(zet,zetp,gcc,smat,work)
@@ -411,11 +445,16 @@ CONTAINS
 
       ALLOCATE(isoprj(np),STAT=istat)
       isoprj = .FALSE.
-      CALL reallocate(zet,1,np)
-      CALL reallocate(zetp,1,np)
-      CALL reallocate(gcc,1,np,1,np)
-      CALL reallocate(smat,1,np,1,np)
-      CALL reallocate(work,1,np,1,np)
+      CPPostcondition(istat==0,cp_failure_level,routine,error,failure)
+
+      ALLOCATE(zet(np),zetp(np),gcc(np,np),smat(np,np),work(np,np),STAT=istat)
+      CPPostcondition(istat==0,cp_failure_level,routine,error,failure)
+
+      zet(:) = 0.0_dp
+      zetp(:) = 0.0_dp
+      gcc(:,:) = 0.0_dp
+      smat(:,:) = 0.0_dp
+      work(:,:) = 0.0_dp
 
       npgfg = 0
 !     *** Collect all the exponent which contribute to lshell ***
@@ -451,21 +490,12 @@ CONTAINS
           isoprj(ip) = .FALSE.
         END IF
       END DO
- !dbg
-!    WRITE(*,*) 'lshell ', lshell, ' zisomin ', paw_proj%zisomin(lshell), ' np ', np, 'niso ', nisop
-!    WRITE(*,*) 'basis exponents'
-!    DO ip = 1,np
-!    WRITE(*,*) 'exponent ', ip, zet(ip), ' iso =', isoprj(ip) 
-!    ENDDO 
-! dbg
-
 
 !     *** Smallest exp. due to eps_fit: where to start geometric progression ***
       zetmin = gauss_exponent(lshell,rc,eps_fit,1.0_dp)
 
 !     *** Generate the projectors by the geometric progression ***
 
-!      WRITE(*,*) 'max fact ', (40.0_dp/zetmin)**(1.0_dp/REAL(np-nisop-1,dp))
       IF(np-nisop-1 > 2) THEN
         x = (80.0_dp/zetmin)**(1.0_dp/REAL(np-nisop-1,dp))
       ELSE
@@ -492,13 +522,6 @@ CONTAINS
         ENDIF
       ENDDO
 
- !dbg
-!    WRITE(*,*) 'proj exponents'
-!    DO ip = 1,np
-!    WRITE(*,*) 'exponent ', ip, zetp(ip), ' iso =', isoprj(ip) 
-!    ENDDO 
-! dbg
-
 !     *** Build the overlap matrix: <projector|primitive> ***
       prefac = 0.5_dp**(lshell + 2)*rootpi*dfac(2*lshell + 1)
       expzet = REAL(lshell,dp) + 1.5_dp
@@ -514,31 +537,10 @@ CONTAINS
            ENDDO
         ENDIF
       ENDDO
-!dbg
-!  WRITE(*,*) 'MATRIX to be inverted'
-!  DO ip = 1,np
-!    WRITE(*,'(i4,20(1PE12.4))') ip, (smat(ip,jp),jp = 1,np)
-!  END DO
-!dbg
 
-!      NULLIFY(aa,ei,er,vl,vr,worka)
-!      ALLOCATE(aa(np,np),er(np),ei(np),vr(np,np),vl(np,np),stat=istat)
-!      lwork = 3*np
-!      ALLOCATE(worka(lwork),STAT=istat)
-!      aa(1:np,1:np) = smat(1:np,1:np)
-!      ei =0.0_dp
-!      er =0.0_dp
-!      vl =0.0_dp
-!      vr =0.0_dp
-!      CALL DGEEV( "N","N", np, aa, np, er, ei, vl, np,vr,np,&
-!                 worka, lwork, info )
-!      DO ip = 1,np
-!      write(*,*) ip, er(ip), ei(ip)
-!      END DO
-!      DEALLOCATE(aa,er,ei,vr,vl,worka,STAT=istat)
 
 !     *** Compute inverse of the transpose ***
-      CALL invert_matrix(smat,gcc,error,"T")
+      CALL invert_matrix(smat,gcc,my_error,"T")
 
  
 !     *** Compute the orthogonality error ***
@@ -593,19 +595,20 @@ CONTAINS
 
 
       ENDIF
+
+
+!   *** Release the working storage for the current value lshell ***
       DEALLOCATE(isoprj,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine,module_name,__LINE__,&
-                           "isoprj")
+      CPPostcondition(istat==0,cp_failure_level,routine,error,failure)
+      DEALLOCATE(gcc,zet,zetp,smat,work,STAT=istat)
+      CPPostcondition(istat==0,cp_failure_level,routine,error,failure)
 
     ENDDO                 ! lshell
 
+
 !   *** Release the working storage for the current value lshell ***
-    DEALLOCATE(gcc,zet,zetp,smat,work,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,module_name,__LINE__,&
-                           "gcc,zet,zetp,smat,work")
     DEALLOCATE(set_radius,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,module_name,__LINE__,&
-                           "set_radius")
+    CPPostcondition(istat==0,cp_failure_level,routine,error,failure)
 
 !   *** Count primitives basis functions for the projectors
     paw_proj%ncgauprj = 0
@@ -705,13 +708,26 @@ CONTAINS
 
 !   local coefficients for the one center expansions : oce
 !   the coefficients are calculated for the full and soft expansions
-    CALL reallocate(paw_proj%local_oce_cphi_h, 1,maxco,1,ncgf)
-    CALL reallocate(paw_proj%local_oce_sphi_h, 1,maxso,1,nsgf)
-    CALL reallocate(paw_proj%sphi_h, 1,maxco,1,nsgf)
+    ALLOCATE(paw_proj%local_oce_cphi_h(maxco,ncgf),STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routine,error,failure)
+    paw_proj%local_oce_cphi_h = 0.0_dp
+    ALLOCATE(paw_proj%local_oce_sphi_h(maxco,nsgf),STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routine,error,failure)
+    paw_proj%local_oce_sphi_h = 0.0_dp
+    ALLOCATE(paw_proj%sphi_h(maxco,nsgf),STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routine,error,failure)
+    paw_proj%sphi_h = 0.0_dp
 
-    CALL reallocate(paw_proj%local_oce_cphi_s, 1,maxco,1,ncgf)
-    CALL reallocate(paw_proj%local_oce_sphi_s, 1,maxso,1,nsgf)
-    CALL reallocate(paw_proj%sphi_s, 1,maxco,1,nsgf)
+
+    ALLOCATE(paw_proj%local_oce_cphi_s(maxco,ncgf),STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routine,error,failure)
+    paw_proj%local_oce_cphi_s = 0.0_dp
+    ALLOCATE(paw_proj%local_oce_sphi_s(maxco,nsgf),STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routine,error,failure)
+    paw_proj%local_oce_sphi_s = 0.0_dp
+    ALLOCATE(paw_proj%sphi_s(maxco,nsgf),STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routine,error,failure)
+    paw_proj%sphi_s = 0.0_dp
 
 !   *** Cartesian ***
     DO iset = 1,nset
@@ -764,10 +780,6 @@ CONTAINS
       ENDDO          ! ipgf 
     ENDDO            ! iset
 
-
-
-    paw_proj%local_oce_sphi_h = 0.0_dp
-    paw_proj%local_oce_sphi_s = 0.0_dp
     DO iset = 1,nset
       n = ncoset(lmax(iset))
       ns = nsoset(lmax(iset))
@@ -803,7 +815,7 @@ CONTAINS
         END DO  ! ishell
       END DO  ! ipgf
     END DO  ! iset
-
+    END IF  ! failure
   END SUBROUTINE  build_projector
 
 ! *****************************************************************************

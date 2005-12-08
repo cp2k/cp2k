@@ -605,11 +605,12 @@ MODULE qs_rho0_methods
       r_s = max(r_s, exp_radius(l,z0_s,eps_Vrho0,ng0_s(l)))
     END DO
 
-    rho0_mpole%mp_gau(ik)%rpgf0_h = r_h
-    rho0_mpole%mp_gau(ik)%rpgf0_s = r_s
+    rho0_mpole%mp_gau(ik)%rpgf0_h = r_h 
+    rho0_mpole%mp_gau(ik)%rpgf0_s = r_s 
     max_rpgf0_s = MAX(max_rpgf0_s,r_s)
-
-    IF(calculate_V0hmV0s) THEN
+ 
+    IF(calculate_V0hmV0s .AND. z0_h/=z0_s) THEN
+!    IF(calculate_V0hmV0s ) THEN
 
       r_hms = 0.0_dp
       DO l = 0,lmax
@@ -656,11 +657,12 @@ MODULE qs_rho0_methods
 
       END DO  ! l
       rho0_mpole%mp_gau(ik)%r_V0hmV0s = r_hms
-
+      
     ELSE
       rho0_mpole%mp_gau(ik)%r_V0hmV0s = r_s
+
     END IF
- 
+
   END SUBROUTINE  interaction_radii_g0
 
 !******************************************************************************
@@ -829,7 +831,8 @@ MODULE qs_rho0_methods
       DEALLOCATE(r_cut_set,STAT=istat)
       IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
             "r_cut_set")
-!  write(*,'(A,I4,5f12.5)') 'prima ',ikind , orb_rad(ikind),set_rad(1:nseta,ikind)
+
+!  write(*,'(A,I4,15f12.5)') 'prima ',ikind , orb_rad(ikind),set_rad(1:nseta,ikind)
 
     DO jkind = 1,nkind
       NULLIFY(atom_kindj,all_potential)
@@ -839,7 +842,7 @@ MODULE qs_rho0_methods
         orb_rad(ikind) = MAX(orb_rad(ikind),all_potential%orb_radius_3c(ikind))
       END IF
     END DO
-!  write(*,'(A,I4,f12.5)') 'dopo ',ikind , orb_rad(ikind)
+!  write(*,'(A,I4,2f12.5)') 'dopo ',ikind , orb_rad(ikind), all_potential%orb_radius_3c(ikind)
 
     END DO  ! ikind
 

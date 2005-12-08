@@ -530,6 +530,8 @@ CONTAINS
                               rpgf0_s=V0hmV0s_radius(ikind))
 
         END IF
+!       These radii determine the extension of the 3c lists used for both
+!       the all electron core term and the term related to the compensation charges
         orb_rad_3c(ikind) = rho0_mpole%orb_radius_3c(ikind)
       END IF
 
@@ -664,15 +666,28 @@ CONTAINS
                                  "2C VH(RHO0) NEIGHBOR LISTS")
       END IF
 
+!     *** Build the neighbor lists for the 3-centers Hartree_local terms ***
+!     ***                   Vh(rho0_h-rho0_s) rho_soft                   ***
+!     *** and for the nucler potential term in All electron calculations *** 
+!     ***                -Zc erfc(zetc|r-Rc|)/|r-Rc|                     ***
+
       name = " ORBITAL GTH-3C VH" 
 
+!     *** The lists are groups of 3 atoms A B C, where A and B are a pair in
+!     ***  the orb_lists, and C is close to both A and B, within the given radius
+
+!     *** V0hmV0s_radius is the max distance from  the C center to interct 
+!     *** with the compensation charge n0_s or the nuclear charge
       IF(all_potential_present) THEN
         DO ikind = 1,nkind
-        !write(*,*) ikind,V0hmV0s_radius(ikind),all_pot_rad(ikind)
          V0hmV0s_radius(ikind) = MAX(V0hmV0s_radius(ikind),all_pot_rad(ikind)) 
         END DO
       END IF 
 
+!     *** orb_rad_3c is the max distance from the A and B centers to have 
+!     *** a not negligible interaction of the density with the potential
+!     ***  Vh(rho0_h-rho0_s) or the potential Zc erfc(zetc|r-Rc|)/|r-Rc|
+!     *** These twopotentials should be very short range
       CALL build_gth_ppnl_neighbor_lists(sac_3c,sbc_3c,atom,cell,r_skin,&
                                maxatom,maxatom_local,print_subcell_grid,&
                                output_unit,orb_present,Qlm_present,&
