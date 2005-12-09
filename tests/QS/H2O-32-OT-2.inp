@@ -21,7 +21,8 @@
       MAX_SCF 150
       SCF_GUESS RESTART
       &OT ON
-        MINIMIZER DIIS 7
+        MINIMIZER DIIS
+        N_DIIS 7
       &END OT
     &END SCF
     &XC
