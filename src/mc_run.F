@@ -181,7 +181,7 @@ CONTAINS
       CALL create_rng_stream(rng_stream,'first')
 
 ! read the input of the Monte Carlo section
-      CALL read_mc_section ( mc_par, globenv )
+      CALL read_mc_section ( mc_par, globenv ,error)
 
 ! if we're doing a classical simulation, figure out the largest
 ! potential cutoff and write it to the screen
@@ -239,9 +239,9 @@ CONTAINS
 
 ! figure out how many boxes we have
       SELECT CASE(ensemble)
-      CASE("traditional")
+      CASE("TRADITIONAL")
          nboxes=1
-      CASE("gemc")
+      CASE("GEMC")
          nboxes=2
       END SELECT
 
@@ -269,7 +269,7 @@ CONTAINS
 
 ! now perform the calculation
       SELECT CASE(ensemble)
-      CASE("traditional")
+      CASE("TRADITIONAL")
 
 ! make sure things aren't wonky
          CALL get_mc_par(mc_par,pmswap=pmswap)
@@ -283,7 +283,7 @@ CONTAINS
             mc_par = mc_par, force_env=force_env)
          CALL mc_run_ensemble(mc_env,globenv,nboxes,error,rng_stream)
 
-      CASE("gemc")
+      CASE("GEMC")
 
          CALL get_mc_par(mc_par,box2_file=box2_file)
 
@@ -308,7 +308,7 @@ CONTAINS
             '*************************************'
          ENDIF
          
-         CALL read_mc_section ( mc_par_2, globenv )
+         CALL read_mc_section ( mc_par_2, globenv ,error)
 
 ! determine the total number of molecules and atoms
          CALL force_env_get(force_env_2,subsys=subsys_2,error=error)
@@ -403,8 +403,10 @@ CONTAINS
 
       CASE DEFAULT
          IF (ionode) THEN
-            WRITE(6,*) "Don't recognize the ensemble ",ensemble
+            WRITE(6,*) "No idea how we got here...input section ",&
+            "should've caught this: ",ensemble
          ENDIF
+
       END SELECT
 
       CALL get_mc_env( mc_env(1)%mc_env, &

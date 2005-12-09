@@ -30,6 +30,11 @@ MODULE mc_types
   USE force_env_types,                 ONLY: force_env_get,&
                                              force_env_type
   USE global_types,                    ONLY: global_environment_type
+  USE input_section_types,             ONLY: section_vals_get_subs_vals,&
+                                             section_vals_type,&
+                                             section_vals_get,&
+                                             section_vals_val_set,&
+                                             section_vals_val_get
   USE input_constants,                 ONLY: do_qs,&
                                              do_fist,&
                                              do_kg
@@ -182,6 +187,9 @@ MODULE mc_types
   TYPE mc_moves_p_type
       TYPE(mc_moves_type), POINTER :: moves
   END TYPE mc_moves_p_type
+
+! *** Global parameters ***
+  CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='mc_types'
 
 CONTAINS
 !****************************************************************************
@@ -472,17 +480,19 @@ CONTAINS
 !!I---------------------------------------------------------------------------I
 !!*****************************************************************************
 
-SUBROUTINE read_mc_section ( mc_par, globenv )
+SUBROUTINE read_mc_section ( mc_par, globenv,error )
 
 
     TYPE(mc_simulation_parameters_type), &
       INTENT(OUT)                            :: mc_par
     TYPE(global_environment_type), &
       INTENT(IN)                             :: globenv
+    TYPE(cp_error_type), INTENT(inout)          :: error
 
     CHARACTER(LEN=*), PARAMETER      &
       :: routineN = "read_mc_section"
 
+    TYPE(section_vals_type), POINTER         :: mc_section
     CHARACTER(LEN=20)                        :: string
     CHARACTER(LEN=5)                         :: label
     INTEGER                                  :: handle, ia, ie, ierror, ilen, &
@@ -492,6 +502,10 @@ SUBROUTINE read_mc_section ( mc_par, globenv )
 ! begin the timing of the subroutine
 
       CALL timeset(routineN,'I','',handle)
+
+      NULLIFY(mc_section)
+      mc_section => section_vals_get_subs_vals(globenv%input_file,&
+         "MOTION%MC",error=error)
 
 ! set the ionode and mepos
       mc_par % ionode = globenv % ionode
@@ -547,130 +561,76 @@ SUBROUTINE read_mc_section ( mc_par, globenv )
       stop_num=ie-3
       mc_par%dat_file = mc_par % program(ia:stop_num) // 'dat'
 
+! set them into the input parameter structure as the new defaults
+      CALL section_vals_val_set(mc_section,"COORDINATE_FILE_NAME",&
+             c_val=mc_par%coords_file,error=error)
+      CALL section_vals_val_set(mc_section,"DATA_FILE_NAME",&
+             c_val=mc_par%data_file,error=error)
+      CALL section_vals_val_set(mc_section,"CELL_FILE_NAME",&
+             c_val=mc_par%cell_file,error=error)
+      CALL section_vals_val_set(mc_section,"MAX_DISP_FILE_NAME",&
+             c_val=mc_par%displacement_file,error=error)
+      CALL section_vals_val_set(mc_section,"MOVES_FILE_NAME",&
+             c_val=mc_par%moves_file,error=error)
+      CALL section_vals_val_set(mc_section,"MOLECULES_FILE_NAME",&
+             c_val=mc_par%molecules_file,error=error)
+      CALL section_vals_val_set(mc_section,"ENERGY_FILE_NAME",&
+             c_val=mc_par%energy_file,error=error)
+
 ! grab the FFT library name...this is used for writing the dat file
 ! and hopefully will be changed
       mc_par % fft_lib = globenv % default_fft_library
 
-!..parse the input section
-      label = '&MC'
-      CALL parser_init(globenv % input_file_name,globenv)
-      CALL search_label(label,ierror,ignore_case=.TRUE.)
-      IF (ierror /= 0 ) THEN
-         IF( mc_par % ionode ) THEN
-            WRITE ( iw, *) ierror
-            WRITE ( iw, '( a )' ) ' No input section &MC found '
-         ENDIF
-      ELSE
-         CALL read_line
-         DO WHILE ( test_next() /= 'X' )
-            ilen = 40
-            CALL get_next ( string, ilen )
-            CALL uppercase ( string )
+ ! first, grab all the integer values
+      CALL section_vals_val_get(mc_section,"NSTEP",i_val=mc_par%nstep,error=error)
+      CALL section_vals_val_get(mc_section,"AVBMC_ATOM",i_val=mc_par%avbmc_atom,error=error)
+      CALL section_vals_val_get(mc_section,"NMOVES",i_val=mc_par%nmoves,error=error)
+      CALL section_vals_val_get(mc_section,"NVOLMOVES",i_val=mc_par%nvolmoves,error=error)
+      CALL section_vals_val_get(mc_section,"NSWAPMOVES",i_val=mc_par%nswapmoves,error=error)
+      CALL section_vals_val_get(mc_section,"IUPVOLUME",i_val=mc_par%iupvolume,error=error)
+      CALL section_vals_val_get(mc_section,"IUPTRANS",i_val=mc_par%iuptrans,error=error)
+      CALL section_vals_val_get(mc_section,"IPRINT",i_val=mc_par%iprint,error=error)
 
-            SELECT CASE (string)
-            CASE DEFAULT
-               CALL p_error()
-               CALL stop_parser ( 'read_mc_section', 'unknown option' )
+! now the real values
+      CALL section_vals_val_get(mc_section,"AVBMC_RMIN",r_val=mc_par%avbmc_rmin,error=error)
+      CALL section_vals_val_get(mc_section,"AVBMC_RMAX",r_val=mc_par%avbmc_rmax,error=error)
+      CALL section_vals_val_get(mc_section,"PRESSURE",r_val=mc_par%pressure,error=error)
+      CALL section_vals_val_get(mc_section,"TEMP",r_val=mc_par%temp,error=error)
+      CALL section_vals_val_get(mc_section,"PMVOLUME",r_val=mc_par%pmvolume,error=error)
+      CALL section_vals_val_get(mc_section,"PMSWAP",r_val=mc_par%pmswap,error=error)
+      CALL section_vals_val_get(mc_section,"PMAVBMC",r_val=mc_par%pmavbmc,error=error)
+      CALL section_vals_val_get(mc_section,"PBIAS",r_val=mc_par%pbias,error=error)
+      CALL section_vals_val_get(mc_section,"PMTRANS",r_val=mc_par%pmtrans,error=error)
+      CALL section_vals_val_get(mc_section,"PMTRAION",r_val=mc_par%pmtraion,error=error)
+      CALL section_vals_val_get(mc_section,"DISCRETE_STEP",r_val=mc_par%discrete_step,error=error)
+      CALL section_vals_val_get(mc_section,"RMVOLUME",r_val=mc_par%rmvolume,error=error)
+      CALL section_vals_val_get(mc_section,"RMBOND",r_val=mc_par%rmbond,error=error)
+      CALL section_vals_val_get(mc_section,"RMANGLE",r_val=mc_par%rmangle,error=error)
+      CALL section_vals_val_get(mc_section,"RMDIHEDRAL",r_val=mc_par%rmdihedral,error=error)
+      CALL section_vals_val_get(mc_section,"RMROT",r_val=mc_par%rmrot,error=error)
+      CALL section_vals_val_get(mc_section,"RMTRANS",r_val=mc_par%rmtrans,error=error)
 
-            CASE ( 'AVBMC_ATOM' )
-               CALL get_next ( mc_par % avbmc_atom )
-            CASE ( 'AVBMC_RMIN' )
-               CALL get_next ( mc_par % avbmc_rmin )
-            CASE ( 'AVBMC_RMAX' )
-               CALL get_next ( mc_par % avbmc_rmax )
-            CASE ( 'NSTEP' )
-               CALL get_next ( mc_par % nstep )
-            CASE ( 'NMOVES' )
-               CALL get_next ( mc_par % nmoves )
-            CASE ( 'NVOLMOVES' )
-               CALL get_next ( mc_par % nvolmoves )
-            CASE ( 'NSWAPMOVES' )
-               CALL get_next ( mc_par % nswapmoves )
-            CASE ( 'LDISCRETE' )
-               CALL get_next ( string, ilen )
-               CALL uppercase ( string )
-               IF ( string(1:2)=='NO' ) mc_par % ldiscrete = .FALSE.
-               IF ( string(1:3)=='YES' ) mc_par % ldiscrete = .TRUE.
-            CASE ( 'LSTOP' )
-               CALL get_next ( string, ilen )
-               CALL uppercase ( string )
-               IF ( string(1:2)=='NO' ) mc_par % lstop = .FALSE.
-               IF ( string(1:3)=='YES' ) mc_par % lstop = .TRUE.
-            CASE ( 'LBIAS' )
-               CALL get_next ( string, ilen )
-               CALL uppercase ( string )
-               IF ( string(1:2)=='NO' ) THEN
-                  mc_par % lbias = .FALSE.
-                  mc_par % nvolmoves = 1
-                  mc_par % nswapmoves = 1
-               ENDIF
-               IF ( string(1:3)=='YES' ) mc_par % lbias = .TRUE.
-            CASE ( 'RESTART' )
-               CALL get_next ( string, ilen )
-               CALL uppercase ( string )
-               IF ( string(1:2)=='NO' ) mc_par % lrestart = .FALSE.
-               IF ( string(1:3)=='YES' ) mc_par % lrestart = .TRUE.
-            CASE ( 'IUPVOLUME' )
-               CALL get_next ( mc_par % iupvolume )
-            CASE ( 'IUPTRANS' )
-               CALL get_next ( mc_par % iuptrans )
-            CASE ( 'IPRINT' )
-               CALL get_next ( mc_par % iprint )
-            CASE ( 'PROGRAM' )
-               CALL get_next ( mc_par % ensemble, ilen )
-            CASE ( 'RESTART_FILE_NAME' )
-               CALL get_next ( mc_par % restart_file_name, ilen )
-            CASE ( 'COORDINATE_FILE' )
-               CALL get_next ( mc_par % coords_file, ilen )
-            CASE ( 'ENERGY_FILE' )
-               CALL get_next ( mc_par % energy_file, ilen )
-            CASE ( 'DATA_FILE' )
-               CALL get_next ( mc_par % data_file, ilen )
-            CASE ( 'CELL_FILE' )
-               CALL get_next ( mc_par % cell_file, ilen )
-            CASE ( 'MAX_DISP_FILE' )
-               CALL get_next ( mc_par % displacement_file, ilen )
-            CASE ( 'BOX2_FILE' )
-               CALL get_next ( mc_par % box2_file, ilen )
-            CASE ( 'PRESSURE' )
-               CALL get_next ( mc_par % pressure )
-            CASE ( 'TEMP' )
-               CALL get_next ( mc_par % temp )
-            CASE ( 'PMVOLUME' )
-               CALL get_next ( mc_par % pmvolume )
-            CASE ( 'PMSWAP' )
-               CALL get_next ( mc_par % pmswap )
-            CASE ( 'PMAVBMC' )
-               CALL get_next ( mc_par % pmavbmc )
-            CASE ( 'PBIAS' )
-               CALL get_next ( mc_par % pbias )
-            CASE ( 'PMTRANS' )
-               CALL get_next ( mc_par % pmtrans )
-            CASE ( 'PMTRAION' )
-               CALL get_next ( mc_par % pmtraion )
-            CASE ( 'DISCRETE_STEP' )
-               CALL get_next ( mc_par % discrete_step )
-            CASE ( 'RMVOLUME' )
-               CALL get_next ( mc_par % rmvolume )
-            CASE ( 'RMBOND' )
-               CALL get_next ( mc_par % rmbond )
-            CASE ( 'RMANGLE' )
-               CALL get_next ( mc_par % rmangle )
-            CASE ( 'RMDIHEDRAL' )
-               CALL get_next ( mc_par % rmdihedral )
-            CASE ( 'RMROT' )
-               CALL get_next ( mc_par % rmrot )
-            CASE ( 'RMTRANS' )
-               CALL get_next ( mc_par % rmtrans )
-            END SELECT
-            CALL read_line
-         END DO
 
-      END IF
-      CALL parser_end
+! now some logical values
+      CALL section_vals_val_get(mc_section,"LBIAS",l_val=mc_par%lbias,error=error)
+      CALL section_vals_val_get(mc_section,"LDISCRETE",l_val=mc_par%ldiscrete,error=error)
+      CALL section_vals_val_get(mc_section,"LSTOP",l_val=mc_par%lstop,error=error)
+      CALL section_vals_val_get(mc_section,"RESTART",l_val=mc_par%lrestart,error=error)
+      CALL section_vals_val_get(mc_section,"LBIAS",l_val=mc_par%lbias,error=error)
+
+! finally the character values
+      CALL section_vals_val_get(mc_section,"PROGRAM",c_val=mc_par%ensemble,error=error)
+      CALL section_vals_val_get(mc_section,"RESTART_FILE_NAME",c_val=mc_par%restart_file_name,error=error)
+      CALL section_vals_val_get(mc_section,"COORDINATE_FILE_NAME",c_val=mc_par%coords_file,error=error)
+      CALL section_vals_val_get(mc_section,"ENERGY_FILE_NAME",c_val=mc_par%energy_file,error=error)
+      CALL section_vals_val_get(mc_section,"MOVES_FILE_NAME",c_val=mc_par%moves_file,error=error)
+      CALL section_vals_val_get(mc_section,"MOLECULES_FILE_NAME",c_val=mc_par%molecules_file,error=error)
+      CALL section_vals_val_get(mc_section,"CELL_FILE_NAME",c_val=mc_par%cell_file,error=error)
+      CALL section_vals_val_get(mc_section,"DATA_FILE_NAME",c_val=mc_par%data_file,error=error)
+      CALL section_vals_val_get(mc_section,"MAX_DISP_FILE_NAME",c_val=mc_par%displacement_file,error=error)
+      CALL section_vals_val_get(mc_section,"BOX2_FILE_NAME",c_val=mc_par%box2_file,error=error)
+
 !..end of parsing the input section
-
-! problems
 
 !..write some information to output
       IF (mc_par % ionode ) THEN

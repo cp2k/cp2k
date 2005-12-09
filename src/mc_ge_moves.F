@@ -500,7 +500,7 @@ CONTAINS
 
     INTEGER :: handle, i, iatom, ibox, ii, imolecule, ins_atoms, &
       insert_box, istat, natom, rem_atoms, remove_box,nswapmoves,&
-      group,source,ipart,natoms
+      group,source,ipart
     LOGICAL                                  :: loverlap,ionode,lbias,&
       loverlap_ins,loverlap_rem
     REAL(KIND=dp)                            :: prefactor, rand, w,BETA,&
@@ -636,16 +636,16 @@ CONTAINS
 
 ! allocate a couple of arrays that depend on the box
       molecule_kind => molecule_kinds_new(1)%list%els(1)
-      CALL get_molecule_kind(molecule_kind,natom=natoms)   
-      ALLOCATE(mass(1:natoms),STAT=istat)
+      CALL get_molecule_kind(molecule_kind,natom=natom)   
+      ALLOCATE(mass(1:natom),STAT=istat)
       IF (istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
-                       "mass",natoms*dp_size)
-      DO iatom=1,natoms
+                       "mass",natom*dp_size)
+      DO iatom=1,natom
          CALL get_atomic_kind(particles_old(1)%list%els(iatom)%atomic_kind,&
             mass=mass(iatom))
       ENDDO
-      ins_atoms=nunits_tot(insert_box)+natoms
-      rem_atoms=nunits_tot(remove_box)-natoms
+      ins_atoms=nunits_tot(insert_box)+natom
+      rem_atoms=nunits_tot(remove_box)-natom
 
 ! grab the cells for later...acceptance and insertion
       IF(lbias) THEN
@@ -674,8 +674,8 @@ CONTAINS
       CALL mp_bcast(pos_insert,source,group)
 
 ! allocate some arrays we'll be using
-      CALL stop_program("natom value not defined here. Maybe ?natoms?",&
-                        "mc_ge_moves.F")
+!      CALL stop_program("natom value not defined here. Maybe ?natoms?",&
+!                        "mc_ge_moves.F")
       ALLOCATE(r_insert_mol(1:3,1:natom),STAT=istat)
       IF (istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
          "r_insert_mol",3*natom)
@@ -719,7 +719,7 @@ CONTAINS
       ENDIF
       
 ! fold the coordinates into the box and check for overlaps
-      CALL mc_coordinate_fold(r_insert(:,:),ins_atoms,mass,natoms,&
+      CALL mc_coordinate_fold(r_insert(:,:),ins_atoms,mass,natom,&
          abc_insert(1:3))
       
 ! allocate r_remove

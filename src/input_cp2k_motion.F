@@ -117,7 +117,7 @@ contains
 !!     create_mc_section
 !!
 !!   FUNCTION
-!!     creates the metadynamics section
+!!     creates the Monte Carlo section
 !!
 !!   NOTES
 !!     -
@@ -158,6 +158,20 @@ contains
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
+       CALL keyword_create(keyword, name="AVBMC_ATOM",&
+            description="The target atom for an AVBMC swap move.",&
+            usage="AVBMC_ATOM {integer}",&
+            default_i_val=1,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="IPRINT",&
+            description="Prints coordinate/cell/etc information every IPRINT steps.",&
+            usage="IPRINT {integer}",&
+            default_i_val=1,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
        CALL keyword_create(keyword, name="NMOVES",&
             description="Specifies the number of classical moves between energy evaluations. ",&
             usage="NMOVES {integer}",&
@@ -193,12 +207,12 @@ contains
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
-       CALL keyword_create(keyword, name="LCLASSICAL",&
-            description="Bias the moves with an inexpensive classical potential.",&
-            usage="LCLASSICAL {logical}",&
-            default_l_val=.TRUE.,error=error)
+       CALL keyword_create(keyword, name="LDISCRETE",&
+            description="Changes the volume of the box in discrete steps, one side at a time.",&
+            usage="LDISCRETE {logical}",&
+            default_l_val=.FALSE.,error=error)
        CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)       
+       CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="RESTART",&
             description="Read initial configuration from restart file.",&
@@ -233,6 +247,20 @@ contains
        CALL keyword_create(keyword, name="RESTART_FILE_NAME",&
             description="Name of the restart file for MC information.",&
             usage="RESTART_FILE_NAME {filename}",&
+            default_c_val="XXXXXXXX",error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="MOVES_FILE_NAME",&
+            description="The file to print the move statistics to.",&
+            usage="MOVES_FILE_NAME {filename}",&
+            default_c_val="XXXXXXXX",error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="MOLECULES_FILE_NAME",&
+            description="The file to print the number of molecules to.",&
+            usage="MOLECULES_FILE_NAME {filename}",&
             default_c_val="XXXXXXXX",error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -342,6 +370,13 @@ contains
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
+       CALL keyword_create(keyword, name="RMDIHEDRAL",&
+            description="Maximum dihedral angle distplacement, in degrees.",&
+            usage="RMDIHEDRAL {real}",&
+            type_of_var=real_t, required=.TRUE., error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
        CALL keyword_create(keyword, name="RMROT",&
             description="Maximum rotational displacement, in degrees.",&
             usage="RMROT {real}",&
@@ -353,6 +388,41 @@ contains
             description="Maximum translational displacement, in angstroms.",&
             usage="RMTRANS {real}",&
             type_of_var=real_t, required=.TRUE., error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="AVBMC_RMIN",&
+            description="The inner radius for an AVBMC swap move, in angstroms.",&
+            usage="AVBMC_RMIN {real}",&
+            default_r_val=1.0E0_dp, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="AVBMC_RMAX",&
+            description="The outer radius for an AVBMC swap move, in angstroms.",&
+            usage="AVBMC_RMAX {real}",&
+            default_r_val=5.0E0_dp, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="PMAVBMC",&
+            description="The probability of attempting an AVBMC swap move.",&
+            usage="PMAVBMC {real}",&
+            default_r_val=0.0E0_dp, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="PBIAS",&
+            description="The probability of swapping to an inner region in an AVBMC swap move.",&
+            usage="PBIAS {real}",&
+            default_r_val=0.5E0_dp, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="DISCRETE_STEP",&
+            description="The size of the discrete volume move step, in angstroms.",&
+            usage="DISCRETE_STEP {real}",&
+            default_r_val=1.0E0_dp, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
