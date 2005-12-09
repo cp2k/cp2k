@@ -71,7 +71,7 @@
     PRESSURE 1.013
     PROGRAM traditional
     RESTART no
-    RESTART_FILE mc_restart_1
+    RESTART_FILE_NAME mc_restart_1
     RMANGLE 3.0
     RMBOND 0.074
     RMROT 26.0

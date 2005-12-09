@@ -97,7 +97,7 @@ MODULE mc_types
       LOGICAL :: lrestart
       LOGICAL :: lstop
       CHARACTER ( LEN = 20 ) :: ensemble
-      CHARACTER ( LEN = 40 ) :: restart_file
+      CHARACTER ( LEN = 40 ) :: restart_file_name
       CHARACTER ( LEN = 40 ) :: molecules_file
       CHARACTER ( LEN = 40 ) :: moves_file
       CHARACTER ( LEN = 40 ) :: coords_file
@@ -190,7 +190,7 @@ CONTAINS
        nunits,nunits_tot,nmoves,nvolmoves,nswapmoves,rm,cl,diff,nstart,&
        source,group,lbias,ionode,lrestart,lstop,rmvolume,rmbond,rmangle,&
        rmrot,rmtrans,temp,pressure,BETA,pmswap,pmvolume,pmtraion,pmtrans,&
-       ensemble,program,restart_file,molecules_file,moves_file,coords_file,&
+       ensemble,program,restart_file_name,molecules_file,moves_file,coords_file,&
        energy_file,displacement_file,cell_file,dat_file,data_file,box2_file,&
        cutoff,inner_cutoff,fft_lib,iprint,rcut,ldiscrete,discrete_step,&
        conf_prob,pmavbmc,pbias,avbmc_atom,avbmc_rmin,avbmc_rmax,rmdihedral)
@@ -229,7 +229,7 @@ CONTAINS
 
     REAL(KIND=dp),DIMENSION(1:3),INTENT(OUT),OPTIONAL   :: conf_prob
 
-    CHARACTER(LEN=*),INTENT(OUT),OPTIONAL :: ensemble,program,restart_file,&
+    CHARACTER(LEN=*),INTENT(OUT),OPTIONAL :: ensemble,program,restart_file_name,&
        molecules_file,moves_file,coords_file,&
        energy_file,displacement_file,cell_file,dat_file,data_file,box2_file,&
        fft_lib
@@ -289,12 +289,14 @@ CONTAINS
 
     IF ( PRESENT ( ensemble ) ) ensemble = mc_par % ensemble
     IF ( PRESENT ( program ) ) program = mc_par % program
-    IF ( PRESENT ( restart_file ) ) restart_file = mc_par % restart_file
+    IF ( PRESENT ( restart_file_name ) ) restart_file_name = &
+      mc_par % restart_file_name
     IF ( PRESENT ( moves_file ) ) moves_file = mc_par % moves_file
     IF ( PRESENT ( coords_file ) ) coords_file = mc_par % coords_file
     IF ( PRESENT ( molecules_file ) ) molecules_file = mc_par % molecules_file
     IF ( PRESENT ( energy_file ) ) energy_file = mc_par % energy_file
-    IF ( PRESENT ( displacement_file ) ) displacement_file = mc_par % displacement_file
+    IF ( PRESENT ( displacement_file ) ) displacement_file = &
+      mc_par % displacement_file
     IF ( PRESENT ( cell_file ) ) cell_file = mc_par % cell_file
     IF ( PRESENT ( dat_file ) ) dat_file = mc_par % dat_file
     IF ( PRESENT ( data_file ) ) data_file = mc_par % data_file
@@ -463,7 +465,7 @@ CONTAINS
 !!I pressure:                             pressure (in bar)
 !!I lrestart:     (yes,no)                read initial coordinates from a
 !!                                        restart file
-!!I restart_file:                         name of the restart file
+!!I restart_file_name:                    name of the restart file
 !!I box2_file:                            name of the input file that contains
 !!                                        the coords for the second box in
 !!                                        a GEMC simulation
@@ -616,8 +618,8 @@ SUBROUTINE read_mc_section ( mc_par, globenv )
                CALL get_next ( mc_par % iprint )
             CASE ( 'PROGRAM' )
                CALL get_next ( mc_par % ensemble, ilen )
-            CASE ( 'RESTART_FILE' )
-               CALL get_next ( mc_par % restart_file, ilen )
+            CASE ( 'RESTART_FILE_NAME' )
+               CALL get_next ( mc_par % restart_file_name, ilen )
             CASE ( 'COORDINATE_FILE' )
                CALL get_next ( mc_par % coords_file, ilen )
             CASE ( 'ENERGY_FILE' )
@@ -700,7 +702,7 @@ SUBROUTINE read_mc_section ( mc_par, globenv )
             TRIM(mc_par % box2_file)
          ENDIF
          WRITE ( iw, '( A,T58,A )' ) ' MC| Name of restart file:',&
-            TRIM(mc_par % restart_file)
+            TRIM(mc_par % restart_file_name)
          WRITE ( iw, '( A,A,T44,A )' ) ' MC| Name of output ',&
             'coordinate file:',&
          TRIM(mc_par % coords_file)

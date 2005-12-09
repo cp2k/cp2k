@@ -179,6 +179,13 @@ contains
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)      
 
+       CALL keyword_create(keyword, name="LBIAS",&
+            description="Dictates if we presample moves with a different potential.",&
+            usage="LBIAS {logical}",&
+            default_l_val=.FALSE.,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
        CALL keyword_create(keyword, name="LSTOP",&
             description="Makes nstep in terms of steps, instead of cycles.",&
             usage="LSTOP {logical}",&

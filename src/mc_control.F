@@ -115,7 +115,7 @@ SUBROUTINE write_mc_restart ( nnstep, mc_par, force_env )
     TYPE(cp_subsystem_p_type), &
       DIMENSION(:), POINTER                  :: subsys
     TYPE(particle_list_type), POINTER        :: particles
-    CHARACTER(LEN=40)                        :: restart_file
+    CHARACTER(LEN=40)                        :: restart_file_name
     CHARACTER(LEN=20)                        :: ensemble
     REAL(KIND=dp)                            :: temp
 
@@ -125,12 +125,12 @@ SUBROUTINE write_mc_restart ( nnstep, mc_par, force_env )
   CALL timeset(routineN,'I','',handle)
 
 ! get some data from mc_par
-  CALL get_mc_par(mc_par,restart_file=restart_file,temp=temp,&
+  CALL get_mc_par(mc_par,restart_file_name=restart_file_name,temp=temp,&
       nunits_tot=nunits_tot,nchain=nchain,ensemble=ensemble,&
       nunits=nunits)
 
 ! open the file and write some simulation parameters
-  CALL open_file(file_name=restart_file,unit_number=unit,&
+  CALL open_file(file_name=restart_file_name,unit_number=unit,&
                  file_action='WRITE',file_status='REPLACE')
   WRITE(unit,*) nnstep
   WRITE(unit,*) temp,nunits_tot
@@ -199,7 +199,7 @@ SUBROUTINE read_mc_restart ( mc_par, force_env, iw, rng_stream)
     CHARACTER(LEN=*), PARAMETER            &
       :: routineN = "read_mc_restart"
 
-    CHARACTER(LEN=40)                        :: restart_file,dat_file
+    CHARACTER(LEN=40)                        :: restart_file_name,dat_file
     CHARACTER(LEN=200)                       :: fft_lib
     CHARACTER(LEN=20)                        :: chardum, ensemble,&
       mc_ensemble
@@ -224,14 +224,14 @@ SUBROUTINE read_mc_restart ( mc_par, force_env, iw, rng_stream)
       CALL timeset(routineN,'I','',handle)
 
 ! get some stuff from the mc_par
-      CALL get_mc_par(mc_par,restart_file=restart_file,temp=mc_temp,&
+      CALL get_mc_par(mc_par,restart_file_name=restart_file_name,temp=mc_temp,&
          nunits_tot=mc_nunits_tot,ensemble=mc_ensemble,nunits=mc_nunits,&
          ionode=ionode,dat_file=dat_file,nchain=mc_nchain,fft_lib=fft_lib,&
          group=group,source=source)
 
       IF(ionode) THEN
 ! open the file and read some simulation parameters
-         CALL open_file(file_name=restart_file,unit_number=unit,&
+         CALL open_file(file_name=restart_file_name,unit_number=unit,&
             file_action='READ',file_status='OLD')
 
          READ(unit,*) nstart
