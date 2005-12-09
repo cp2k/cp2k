@@ -14,7 +14,8 @@
       MIXING 0.05
       SCF_GUESS ATOMIC
       &OT OFF
-        MINIMIZER DIIS 7
+        MINIMIZER DIIS 
+        N_DIIS 7
       &END OT
     &END SCF
     &XC
