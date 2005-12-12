@@ -5,6 +5,7 @@ rm -f *.crd \
  *.vel \
  *.cube\
  *.dipole\
+ *.qmmmLog\
  RESTART \
  HESSIAN \
  bfgs.data\
