@@ -302,7 +302,7 @@ CONTAINS
         sab_max(:) = real_to_scaled(r(:),cell)
 
         ncell(:) = (INT(sab_max(:)) + 1)*periodic(:)
-        nsubcell(:) = MAX(1,NINT(0.5_dp*subcells/sab_max(:)))
+        nsubcell(:) = MIN(MAX(1,NINT(0.5_dp*subcells/sab_max(:))),20)
 
 !       *** Print subcell information for the current atomic kind pair ***
 
