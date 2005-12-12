@@ -480,7 +480,6 @@ CONTAINS
           CALL calculate_vxc_atom(qs_env,just_energy,error)
        END IF
 
-
        ! ***  Single atom contributions ***
        IF (.NOT. just_energy) THEN
           IF (calculate_forces .AND. .NOT. gapw) THEN
@@ -630,14 +629,12 @@ CONTAINS
                        energy%hartree_3c,.FALSE.,calculate_forces,error=error)
 
        END IF
+
        IF(gapw .OR. gapw_xc) THEN
 !      ***  Single atom contributions in the KS matrix ***
-!          DO ispin = 1,nspins
-             CALL update_ks_atom(qs_env,ks_matrix,rho%rho_ao,&
-                  calculate_forces,error=error)
-!          ENDDO
+          CALL update_ks_atom(qs_env,ks_matrix,rho%rho_ao,&
+               calculate_forces,error=error)
        ENDIF
-
 !      
   
        energy%mulliken = 0.0_dp

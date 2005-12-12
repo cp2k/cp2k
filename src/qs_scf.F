@@ -2046,13 +2046,14 @@ CONTAINS
           ! make all nmo vectors present orthonormal
           CALL get_mo_set(mo_set=mo_array(ispin)%mo_set,&
                mo_coeff=mo_coeff, nmo=nmo, homo=homo)
+
           IF(ortho_basis) THEN
             CALL make_basis(mo_coeff,nmo)
           ELSE
             ! ortho so that one can restart for different positions (basis sets?)
             CALL cp_fm_create(sv,mo_coeff%matrix_struct,"SV")
             CALL cp_sm_fm_multiply(s_sparse(1)%matrix,mo_coeff,sv,nmo)
-            CALL make_basis(mo_coeff,nmo, &
+            CALL make_basis(mo_coeff,homo, &
                  ortho=sv,otype="SV")
             CALL cp_fm_release(sv)
           ENDIF
