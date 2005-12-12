@@ -187,7 +187,7 @@ CONTAINS
        Vol = rho%rho_r(1)%pw%pw_grid%vol
        core_ch = qs_charges%total_rho_core_rspace
        elec_ch = SUM(rho%tot_rho_r)
-       ch_dens = (elec_ch - core_ch)/Vol
+       ch_dens = - (elec_ch + core_ch)/Vol
        !
        ! Get Input Parameters
        !
@@ -954,16 +954,19 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'ewald_ddapc_pot', &
          routineP = moduleN//':'//routineN      
     LOGICAL :: failure
-    INTEGER :: nmax1, nmax2, nmax3, k1, k2, k3, n_rep, rmax1, rmax2, rmax3, ich1, ich2, stat
+    INTEGER :: ip1, ip2, handle
+    INTEGER :: nmax1, nmax2, nmax3, k1, k2, k3, n_rep, rmax1, rmax2, rmax3, stat
     INTEGER :: iparticle1, iparticle2, idim1, idim2, igauss1, igauss2, istart_g,r1,r2,r3, sfact
-    REAL(KIND=dp) :: eps, rcut, tol, alpha, tol1, fac, rc, rc2, rc1, rc12, galpha, gsq, dfact
-    REAL(KIND=dp) :: g_ewald, gsqi, fac3, r_ewald, r, fs, eps0, ew_neut, fac2, q1, q2, t1, t2
+    REAL(KIND=dp) :: my_val
+    REAL(KIND=dp) :: eps, rcut, tol, alpha, tol1, fac, rc1, rc2, rc12, rc22, galpha, gsq, dfact
+    REAL(KIND=dp) :: g_ewald, gsqi, fac3, r_ewald, r, fs, eps0, ew_neut, fac2, q1t, q2t, t1, t2
     REAL(KIND=dp), DIMENSION(3) :: rvec, gvec, fvec, ra, rb, drvec
     REAL(KIND=dp), DIMENSION(:,:), POINTER   :: d_el
     TYPE(cell_type), POINTER                 :: cell
     TYPE(unit_convert_type), POINTER         :: units
 
     failure = .FALSE.
+    CALL timeset(routineN,"I","",handle)
     IF (.NOT.failure) THEN
        CPPostcondition(ASSOCIATED(M),cp_failure_level,routineP,error,failure)
        CPPostcondition(ASSOCIATED(radii),cp_failure_level,routineP,error,failure)
@@ -1004,114 +1007,112 @@ CONTAINS
        fac2   = 1.0_dp / ( 4.0_dp * pi * eps0 )
        fac3   = fac/8.0_dp
        fvec   = 2.0_dp * pi / (/cell%hmat(1,1),cell%hmat(2,2),cell%hmat(3,3)/)
-       idim1  = 0
-       ich1   = 0
        DO iparticle1 = 1, SIZE(particle_set)
-          DO igauss1 = 1, SIZE(radii)
-             ich2  = ich1
-             ich1  = ich1+1
-             q1    = charges(ich1)
-             rc    = radii(igauss1)
-             rc2   = rc*rc
-             idim2 = idim1
-             idim1 = idim1 + 1
-             DO iparticle2 = iparticle1, SIZE(particle_set)
-                istart_g = 1
-                IF (iparticle2==iparticle1) istart_g = igauss1
-                DO igauss2 = istart_g, SIZE(radii)
-                   ich2  = ich2+1
-                   q2    = charges(ich2)
-                   rc1   = radii(igauss2)
-                   rc12  = rc1*rc1          
-                   idim2 = idim2 + 1
-                   rvec   = particle_set(iparticle1)%r - particle_set(iparticle2)%r
-                   !
-                   ! Real-Space Contribution
-                   !
-                   r_ewald = 0.0_dp
-                   dfact = 1.0_dp
-                   IF (iparticle1 == iparticle2) dfact = 0.5_dp
-                   IF (iparticle1 /= iparticle2) THEN
-                      ra = rvec !!TL pbc(rvec,cell)
+          ip1 = (iparticle1-1)*SIZE(radii)          
+          DO iparticle2 = iparticle1, SIZE(particle_set)
+             ip2 = (iparticle2-1)*SIZE(radii)
+             my_val = 0.0_dp
+             !
+             ! Real-Space Contribution
+             !
+             q1t   = SUM(charges(ip1+1:ip1+SIZE(radii)))
+             q2t   = SUM(charges(ip2+1:ip2+SIZE(radii)))
+             rvec   = particle_set(iparticle1)%r - particle_set(iparticle2)%r
+             r_ewald = 0.0_dp
+             dfact = 1.0_dp
+             IF (iparticle1 == iparticle2) dfact = 0.5_dp
+             IF (iparticle1 /= iparticle2) THEN
+                ra = rvec 
+                r  = SQRT(DOT_PRODUCT(ra,ra))
+                IF (r<=rcut) THEN 
+                   t1 = erfc(alpha*r) / r
+                   r_ewald = t1
+                   IF (need_f) THEN
+                      drvec = ra / r * q1t * q2t * fac2 * sfact
+                      t2 = -2.0_dp * alpha * EXP(-alpha*alpha*r*r) / (r*rootpi) - t1/r
+                      d_el(1:3,iparticle1) = d_el(1:3,iparticle1) - t2 * drvec
+                      d_el(1:3,iparticle2) = d_el(1:3,iparticle2) + t2 * drvec
+                   END IF
+                END IF
+             END IF
+             DO r1 = -rmax1, rmax1
+                DO r2 = -rmax2, rmax2
+                   DO r3 = -rmax3, rmax3
+                      IF ((r1==0).AND.(r2==0).AND.(r3==0)) CYCLE
+                      rb = (/REAL(r1,KIND=dp),REAL(r2,KIND=dp),REAL(r3,KIND=dp)/)
+                      ra = rvec + MATMUL(cell%hmat,rb) 
                       r  = SQRT(DOT_PRODUCT(ra,ra))
                       IF (r<=rcut) THEN 
                          t1 = erfc(alpha*r) / r
-                         r_ewald = t1
+                         r_ewald = r_ewald + t1                           
                          IF (need_f) THEN
-                            drvec = ra / r * q1 * q2 * fac2 * sfact
+                            drvec = ra / r * q1t * q2t * fac2 * dfact * sfact
                             t2 = -2.0_dp * alpha * EXP(-alpha*alpha*r*r) / (r*rootpi) - t1/r
                             d_el(1:3,iparticle1) = d_el(1:3,iparticle1) - t2 * drvec
                             d_el(1:3,iparticle2) = d_el(1:3,iparticle2) + t2 * drvec
                          END IF
                       END IF
-                   END IF
-                   DO r1 = -rmax1, rmax1
-                      DO r2 = -rmax2, rmax2
-                         DO r3 = -rmax3, rmax3
-                            IF ((r1==0).AND.(r2==0).AND.(r3==0)) CYCLE
-                            rb = (/REAL(r1,KIND=dp),REAL(r2,KIND=dp),REAL(r3,KIND=dp)/)
-                            ra = rvec + MATMUL(cell%hmat,rb) !!TL pbc(rvec,cell) + MATMUL(cell%hmat,rb)
-                            r  = SQRT(DOT_PRODUCT(ra,ra))
-                            IF (r<=rcut) THEN 
-                               t1 = erfc(alpha*r) / r
-                               r_ewald = r_ewald + t1                           
-                               IF (need_f) THEN
-                                  drvec = ra / r * q1 * q2 * fac2 * dfact * sfact
-                                  t2 = -2.0_dp * alpha * EXP(-alpha*alpha*r*r) / (r*rootpi) - t1/r
-                                  d_el(1:3,iparticle1) = d_el(1:3,iparticle1) - t2 * drvec
-                                  d_el(1:3,iparticle2) = d_el(1:3,iparticle2) + t2 * drvec
-                               END IF
-                            END IF
-                         END DO
-                      END DO
                    END DO
-                   !
-                   ! G-space Contribution
-                   !
-                   g_ewald = 0.0_dp
-                   DO k1 = 0, nmax1
-                      DO k2 = -nmax2, nmax2
-                         DO k3 = -nmax3, nmax3
-                            IF (k1 == 0.AND.k2 == 0.AND.k3 == 0) CYCLE
-                            fs = 2.0_dp; IF (k1==0) fs = 1.0_dp
-                            gvec = fvec * (/REAL(k1,KIND=dp),REAL(k2,KIND=dp),REAL(k3,KIND=dp)/)
-                            gsq  = DOT_PRODUCT(gvec,gvec)
-                            gsqi = fs/gsq
-                            t1   = fac * gsqi * EXP(-galpha*gsq)
-                            g_ewald = g_ewald + t1 * COS(DOT_PRODUCT(gvec,rvec))
-                            IF (need_f) THEN
-                               t2 = -SIN(DOT_PRODUCT(gvec,rvec)) * t1 * q1 * q2 / eps0 * dfact * sfact
-                               d_el(1:3,iparticle1) = d_el(1:3,iparticle1) - t2 * gvec
-                               d_el(1:3,iparticle2) = d_el(1:3,iparticle2) + t2 * gvec
-                            END IF
-                         END DO
-                      END DO
-                   END DO
-                   !
-                   ! G-EWALD, R-EWALD and BACKGROUND CHARGE
-                   !
-                   g_ewald = r_ewald*fac2 + g_ewald/eps0
-                   ew_neut = - fac / ( 4.0_dp * eps0 * alpha ** 2 )
-                   g_ewald = g_ewald + ew_neut
-                   !
-                   ! Self Contribution
-                   !
-                   IF (iparticle1 == iparticle2) THEN
-                      g_ewald = g_ewald - alpha/(2.0_dp*eps0*pi*SQRT(pi))
-                   END IF
-                   !
-                   IF (iparticle1/=iparticle2) THEN 
-                      ra = rvec !!TL pbc(rvec,cell)
-                      r  = SQRT(DOT_PRODUCT(ra,ra))
-                      M(idim1,idim2) = M(idim1,idim2) + sfact / r
+                END DO
+             END DO
+             !
+             ! G-space Contribution
+             !
+             g_ewald = 0.0_dp
+             DO k1 = 0, nmax1
+                DO k2 = -nmax2, nmax2
+                   DO k3 = -nmax3, nmax3
+                      IF (k1 == 0.AND.k2 == 0.AND.k3 == 0) CYCLE
+                      fs = 2.0_dp; IF (k1==0) fs = 1.0_dp
+                      gvec = fvec * (/REAL(k1,KIND=dp),REAL(k2,KIND=dp),REAL(k3,KIND=dp)/)
+                      gsq  = DOT_PRODUCT(gvec,gvec)
+                      gsqi = fs/gsq
+                      t1   = fac * gsqi * EXP(-galpha*gsq)
+                      g_ewald = g_ewald + t1 * COS(DOT_PRODUCT(gvec,rvec))
                       IF (need_f) THEN
-                         t2    = - 1.0_dp /(r*r) * sfact
-                         drvec = ra / r * q1 * q2 
-                         d_el(1:3,iparticle1) = d_el(1:3,iparticle1) + t2 * drvec
-                         d_el(1:3,iparticle2) = d_el(1:3,iparticle2) - t2 * drvec
+                         t2 = -SIN(DOT_PRODUCT(gvec,rvec)) * t1 * q1t * q2t / eps0 * dfact * sfact
+                         d_el(1:3,iparticle1) = d_el(1:3,iparticle1) - t2 * gvec
+                         d_el(1:3,iparticle2) = d_el(1:3,iparticle2) + t2 * gvec
                       END IF
-                   END IF
-                   M(idim1,idim2) = M(idim1,idim2) - sfact * (g_ewald + fac3*(rc2+rc12))
+                   END DO
+                END DO
+             END DO
+             !
+             ! G-EWALD, R-EWALD and BACKGROUND CHARGE
+             !
+             g_ewald = r_ewald*fac2 + g_ewald/eps0
+             ew_neut = - fac / ( 4.0_dp * eps0 * alpha ** 2 )
+             g_ewald = g_ewald + ew_neut
+             !
+             ! Self Contribution
+             !
+             IF (iparticle1 == iparticle2) THEN
+                g_ewald = g_ewald - alpha/(2.0_dp*eps0*pi*SQRT(pi))
+             END IF
+             !
+             IF (iparticle1/=iparticle2) THEN 
+                ra = rvec 
+                r  = SQRT(DOT_PRODUCT(ra,ra))
+                my_val = sfact / r
+                IF (need_f) THEN
+                   t2    = - 1.0_dp /(r*r) * sfact
+                   drvec = ra / r * q1t * q2t 
+                   d_el(1:3,iparticle1) = d_el(1:3,iparticle1) + t2 * drvec
+                   d_el(1:3,iparticle2) = d_el(1:3,iparticle2) - t2 * drvec
+                END IF
+             END IF
+             my_val = my_val - sfact * g_ewald
+             DO igauss2 = 1, SIZE(radii)
+                idim2  = ip2 + igauss2
+                rc2    = radii(igauss2)
+                rc22   = rc2*rc2
+                istart_g = 1
+                IF (iparticle2==iparticle1) istart_g = igauss2
+                DO igauss1 = istart_g, SIZE(radii)
+                   idim1  = ip1 + igauss1
+                   rc1   = radii(igauss1)
+                   rc12  = rc1*rc1
+                   M(idim1,idim2) = M(idim1,idim2) - sfact * fac3*(rc12+rc22) + my_val
                    M(idim2,idim1) = M(idim1,idim2)
                 END DO
              END DO
@@ -1125,6 +1126,7 @@ CONTAINS
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)          
        END IF
     END IF
+    CALL timestop(0.0_dp,handle)
   END SUBROUTINE ewald_ddapc_pot
 
 !!****f* cp_ddapc/debug_ewald_ddapc_pot [1.0] *
