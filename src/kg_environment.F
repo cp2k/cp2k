@@ -112,6 +112,9 @@ MODULE kg_environment
   USE topology,                        ONLY: topology_control
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type
+  USE cp_output_handling, ONLY: cp_out_flags_type, cp_out_flags_create,&
+       cp_out_flags_release
+#include "cp_common_uses.h"
 
   IMPLICIT NONE
 
@@ -176,6 +179,8 @@ CONTAINS
                                                 force_env_section,&
                                                 poisson_section
     REAL(kind=dp), DIMENSION(3)              :: abc
+    TYPE(cp_logger_type), pointer            :: logger
+    TYPE(cp_out_flags_type), pointer         :: output_control
 
     CALL write_checkpoint_information("entering "//routine_name,globenv)
 
@@ -184,7 +189,7 @@ CONTAINS
     ionode = globenv%ionode
     output_unit = globenv%scr
     was_present = .FALSE.
-
+    
     ! nullifying  pointers
     NULLIFY ( atomic_kind_set )
     NULLIFY ( cell_section, force_env_section, poisson_section)
@@ -200,7 +205,9 @@ CONTAINS
     NULLIFY ( scf_control )
     NULLIFY ( cell_ref )
     NULLIFY ( cell_section, force_env_section, poisson_section )
+    NULLIFY ( logger, output_control )
 
+    logger => cp_error_get_logger(error)
     force_env_section => section_vals_get_subs_vals(globenv%input_file,&
          "FORCE_EVAL",error=error)
     cell_section => section_vals_get_subs_vals(force_env_section,&
@@ -208,8 +215,12 @@ CONTAINS
     poisson_section => section_vals_get_subs_vals(force_env_section,&
          "DFT%POISSON_DFT",error=error)
 
-    CALL set_kg_env(kg_env,input=force_env_section,error=error)
 
+    CALL cp_out_flags_create(output_control,force_env_section,&
+         logger=logger,error=error)
+    CALL set_kg_env(kg_env,input=force_env_section,output_control=output_control,&
+         error=error)
+    CALL cp_out_flags_release(output_control,error=error)
 
     ! Read/write the input section with the dft and qs control parameters
     CALL read_dft_control ( dft_control, globenv, error )
@@ -491,13 +502,15 @@ CONTAINS
     INTEGER, DIMENSION(2)                    :: added_mos
     TYPE(section_vals_type), POINTER         :: poisson_section,&
                                                 force_env_section
+    TYPE(cp_out_flags_type), pointer         :: output_control
+
 !   ---------------------------------------------------------------------------
 
     failure=.FALSE.
 
     NULLIFY(qs_env,subsys,scf_control,cell,cell_ref,atomic_kind_set,&
             para_env,dft_control,distribution_2d,wf_history,qs_energy,qs_force,&
-            poisson_section)
+            poisson_section,output_control)
 
     NULLIFY(distribution_1d,kg_fm,molecule_kind_set,molecule_set,particle_set)
 
@@ -516,6 +529,7 @@ CONTAINS
                     para_env=para_env,&
                     scf_control=scf_control,&
                     subsys=subsys,&
+                    output_control=output_control,&
                     error=error)
 
     CALL qs_env_create(qs_env, para_env=para_env, error=error)
@@ -557,6 +571,7 @@ CONTAINS
                     scf_control=scf_control   ,&
                     subsys=subsys             ,&
                     wf_history=wf_history     ,&
+                    output_control=output_control,&
                     error=error                 )
 
     CALL qs_charges_create(qs_charges,nspins=dft_control%nspins,error=error)

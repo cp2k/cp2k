@@ -1283,6 +1283,11 @@ SUBROUTINE create_xc_fun_section(section,error)
           description="Uses the P86C functional",&
           n_keywords=0, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
           error=error)
+     CALL keyword_create(keyword,"_SECTION_PARAMETERS_",&
+          description="activates the functional",&
+          lone_keyword_l_val=.TRUE.,default_l_val=.FALSE.,error=error)
+     CALL section_add_keyword(subsection,keyword,error=error)
+     CALL keyword_release(keyword,error=error)
      CALL section_add_subsection(section,subsection,error=error)
      CALL section_release(subsection,error=error)
 

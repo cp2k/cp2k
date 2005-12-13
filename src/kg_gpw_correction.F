@@ -236,7 +236,7 @@ CONTAINS
          error=error)
 
     ! Sic is not implemented
-    CALL section_vals_val_get(input,"DFT%SIC%METHOD",&
+    CALL section_vals_val_get(input,"DFT%SIC%SIC_METHOD",&
          i_val=sic_method_id,error=error)
     IF(sic_method_id /= sic_none) &
        CALL  stop_program(routine_name,module_name,__LINE__,"KG_GPW with SIC  not implemented")

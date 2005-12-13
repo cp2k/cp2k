@@ -409,6 +409,7 @@ CONTAINS
     failure = .FALSE.
 
     NULLIFY(cube_info_g,l_info_g,pw_pools_mol,rs_pools_mol)
+    NULLIFY(pw_pool_g,pw_grid_mol,ref_pw_grid_mol)
 
     CPPrecondition(ASSOCIATED(pw_mol),cp_failure_level,routineP,error,failure)
     CPPrecondition(pw_mol%ref_count>0,cp_failure_level,routineP,error,failure)
@@ -457,36 +458,35 @@ CONTAINS
      ! init gridlevel_info XXXXXXXXX setup mapping to the effective cutoff ?
      !                     XXXXXXXXX the cutoff array here is more a 'wish-list'
      !                     XXXXXXXXX same holds for radius
-     CALL init_gaussian_gridlevel(pw_mol%gridlevel_info,&
-          ngrid_levels=ngrid_level,cutoff=cutoff,rel_cutoff=rel_cutoff)
+      CALL init_gaussian_gridlevel(pw_mol%gridlevel_info,&
+           ngrid_levels=ngrid_level,cutoff=cutoff,rel_cutoff=rel_cutoff)
 
       ! init pw_grids and pools
-      ALLOCATE(pw_pools_mol(ngrid_level),STAT=istat)
-      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-      ALLOCATE(rs_pools_mol(ngrid_level),STAT=istat)
-      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+       ALLOCATE(pw_pools_mol(ngrid_level),STAT=istat)
+       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+       ALLOCATE(rs_pools_mol(ngrid_level),STAT=istat)
+       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
-      IF (dft_control % qs_control % commensurate_mgrids) THEN
-         ncommensurate=ngrid_level 
-         my_icommensurate = 1
-         my_ncommensurate = ncommensurate
-      ELSE 
-         ncommensurate=0
-         my_icommensurate = 0
-         my_ncommensurate = ncommensurate
-      ENDIF
+       IF (dft_control % qs_control % commensurate_mgrids) THEN
+          ncommensurate=ngrid_level 
+          my_icommensurate = 1
+          my_ncommensurate = ncommensurate
+       ELSE 
+          ncommensurate=0
+          my_icommensurate = 0
+          my_ncommensurate = ncommensurate
+       ENDIF
 
-      CALL pw_env_get(pw_env=pw_global,l_info=l_info_g,cube_info=cube_info_g,&
+       CALL pw_env_get(pw_env=pw_global,l_info=l_info_g,cube_info=cube_info_g,&
                       auxbas_pw_pool=pw_pool_g,auxbas_grid=auxbas_grid)
-      IF(auxbas_grid/=1) CALL stop_program ( "pw_env_mol_rebuild", &
+       IF(auxbas_grid/=1) CALL stop_program ( "pw_env_mol_rebuild", &
                           "the grid with the largest cutoff is not the first" )
 
      ! some logical variables
-      fft = .TRUE.
-      symmetry = .TRUE.
-      blocking = .FALSE.
+       fft = .TRUE.
+       symmetry = .TRUE.
+       blocking = .FALSE.
 
-!     igrid_level == 1
        CALL pw_grid_create(pw_grid_mol,MPI_COMM_SELF)
 
 !FM       pw_grid_mol%para%rs_dims ( 1 ) = num_pe
