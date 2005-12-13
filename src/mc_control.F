@@ -65,6 +65,7 @@ MODULE mc_control
                                              section_vals_val_get, &
                                              section_describe_index_html, &
                                              write_section_xml
+  USE kg_main,                         ONLY: kg_create_force_env
   USE kinds,                           ONLY: dp,&
                                              dp_size
   USE mc_misc,                         ONLY: mc_make_dat_file
@@ -443,8 +444,6 @@ SUBROUTINE mc_create_force_env ( force_env, globenv, box_change, in_use, &
       CALL cp_error_check(error,failure)
       file_temp => globenv%input_file 
       globenv%input_file => input_file
-      NULLIFY(input_file)
-
 
       SELECT CASE ( in_use )
       CASE ( use_fist_force )
@@ -453,14 +452,17 @@ SUBROUTINE mc_create_force_env ( force_env, globenv, box_change, in_use, &
       CASE ( use_qs_force )
          CALL quickstep_create_force_env(force_env, globenv, error=error)
       CASE ( use_kg_force )
+         CALL kg_create_force_env ( force_env, globenv, error=error)
       CASE default
          CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
       END SELECT
 
 ! release some stuff created here
       globenv%input_file => file_temp
+      CALL section_vals_release(input_file)     
       NULLIFY(file_temp)
-     
+
+
 END SUBROUTINE mc_create_force_env
 
 ! *****************************************************************************
