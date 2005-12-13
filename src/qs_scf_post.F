@@ -266,7 +266,11 @@ CONTAINS
 
     logger => cp_error_get_logger(error)
     ionode = logger%para_env%mepos==logger%para_env%source
-    IF (ionode) output_unit= cp_logger_get_default_unit_nr(logger)
+    IF (ionode) THEN
+       output_unit= cp_logger_get_default_unit_nr(logger)
+    ELSE
+       output_unit = -1
+    END IF
 
     CPPrecondition(ASSOCIATED(scf_env),cp_failure_level,routineP,error,failure)
     CPPrecondition(scf_env%ref_count>0,cp_failure_level,routineP,error,failure)
@@ -295,7 +299,7 @@ CONTAINS
        ! XXX Joost : should go as soon as the default printing within the new scheme is clear
        IF (globenv%print%mulliken_analysis) THEN
             CALL mulliken_charges(rho%rho_ao,matrix_s(1)%matrix,globenv%para_env,particle_set, &
-                                  globenv%scr,globenv%ionode," ")
+                                  output_unit,ionode," ")
        ENDIF
 
 !    *** Fit charges with the Bloechl scheme
@@ -325,17 +329,17 @@ CONTAINS
           DO ispin=1,dft_control%nspins
              CALL get_mo_set(mo_set=mos(ispin)%mo_set,mo_coeff=mo_coeff, &
                              eigenvalues=mo_eigenvalues,homo=homo,nmo=nmo)
-             IF (globenv%ionode) WRITE(globenv%scr,*) " "
-             IF (globenv%ionode) WRITE(globenv%scr,*) " Eigenvalues of the occupied subspace spin ",ispin
+             IF (ionode) WRITE(output_unit,*) " "
+             IF (ionode) WRITE(output_unit,*) " Eigenvalues of the occupied subspace spin ",ispin
              IF (homo .NE. nmo) THEN
-                IF (globenv%ionode) WRITE(globenv%scr,*) &
+                IF (ionode) WRITE(output_unit,*) &
                     " and ",nmo-homo," added MO eigenvalues" 
              ENDIF
-             IF (globenv%ionode) WRITE(globenv%scr,*) " ---------------------------------------------"
+             IF (ionode) WRITE(output_unit,*) " ---------------------------------------------"
              CALL calculate_subspace_eigenvalues(mo_coeff,&
                   ks_rmpv(ispin)%matrix,mo_eigenvalues, &
-                  para_env=qs_env%para_env,scr=globenv%scr, &
-                  ionode=globenv%ionode, do_rotation=.TRUE.)
+                  para_env=qs_env%para_env,scr=output_unit, &
+                  ionode=ionode, do_rotation=.TRUE.)
 
              IF (globenv%print%cubes) THEN
                 DO ivector=MAX(1,homo-globenv%print%nhomos+1),homo
@@ -344,10 +348,10 @@ CONTAINS
                         qs_env,error=error)
 
                    WRITE(filename,'(a13,I5.5,a1,I1.1,a5)') "WAVEFUNCTION_",ivector,"_",ispin,".cube"
-                   IF (globenv%ionode) OPEN(UNIT=21,FILE=filename)
+                   IF (ionode) OPEN(UNIT=21,FILE=filename)
                    WRITE(title,*) "WAVEFUNCTION ",ivector," spin ",ispin," i.e. HOMO - ",ivector-homo
-                   CALL rs_pw_to_cube(wf_r%pw,21,globenv%ionode,title,rs)
-                   IF (globenv%ionode) CLOSE(21)
+                   CALL rs_pw_to_cube(wf_r%pw,21,ionode,title,rs)
+                   IF (ionode) CLOSE(21)
                 ENDDO
              END IF
           ENDDO
@@ -390,16 +394,16 @@ CONTAINS
                                               eigenvalues=mo_eigenvalues,homo=homo,nmo=nmo)
              ! just get eigenstates
              IF (.NOT.globenv%print%homos) THEN
-                IF (globenv%ionode) WRITE(globenv%scr,*) " "
-                IF (globenv%ionode) WRITE(globenv%scr,*) " Eigenvalues of the occupied subspace spin ",ispin
+                IF (ionode) WRITE(output_unit,*) " "
+                IF (ionode) WRITE(output_unit,*) " Eigenvalues of the occupied subspace spin ",ispin
                 IF (homo .NE. nmo) THEN
-                   IF (globenv%ionode) WRITE(globenv%scr,*) &
+                   IF (ionode) WRITE(output_unit,*) &
                        " and ",nmo-homo," added MO eigenvalues" 
                 ENDIF
-                IF (globenv%ionode) WRITE(globenv%scr,*) " ---------------------------------------------"
+                IF (ionode) WRITE(output_unit,*) " ---------------------------------------------"
                 CALL calculate_subspace_eigenvalues(mo_coeff,ks_rmpv(ispin)%matrix, &
-                     evals_arg=mo_eigenvalues, para_env=qs_env%para_env,scr=globenv%scr, &
-                     ionode=globenv%ionode, do_rotation=.TRUE.)
+                     evals_arg=mo_eigenvalues, para_env=qs_env%para_env,scr=output_unit, &
+                     ionode=ionode, do_rotation=.TRUE.)
              ENDIF
              NULLIFY(mo_localized)
              CALL cp_fm_create(mo_localized,mo_coeff%matrix_struct)
@@ -407,12 +411,12 @@ CONTAINS
              CALL cp_fm_to_fm(mo_coeff,mo_localized)
              ! do localization computation
              WRITE(filename,'(a13,I1.1)') "HOMO_CENTERS_",ispin
-             IF (globenv%ionode) WRITE(globenv%scr,*) ""
-             IF (globenv%ionode) WRITE(globenv%scr,*) "Computing localization properties"
-             IF (globenv%ionode) OPEN(UNIT=21,FILE=filename)
-             CALL qs_loc_compute_properties(qs_loc_env,molecule_set,mo_localized,center,globenv%ionode,21)
-             IF (globenv%ionode) CLOSE(21)
-             IF (globenv%ionode) WRITE(globenv%scr,*) "Results in ",filename
+             IF (ionode) WRITE(output_unit,*) ""
+             IF (ionode) WRITE(output_unit,*) "Computing localization properties"
+             IF (ionode) OPEN(UNIT=21,FILE=filename)
+             CALL qs_loc_compute_properties(qs_loc_env,molecule_set,mo_localized,center,ionode,21)
+             IF (ionode) CLOSE(21)
+             IF (ionode) WRITE(output_unit,*) "Results in ",filename
              ! write the wannier functions to cubes
              IF (globenv%print%cubes.AND. .NOT. globenv % print % molecular_states ) THEN
                 ! obviously we need a smarter scheme to select them. 
@@ -422,13 +426,13 @@ CONTAINS
                         qs_env,error=error)
 
                    WRITE(filename,'(a7,I5.5,a1,I1.1,a5)') "WANNIER",ivector,"_",ispin,".cube"
-                   IF (globenv%ionode) OPEN(UNIT=21,FILE=filename)
+                   IF (ionode) OPEN(UNIT=21,FILE=filename)
                    ! title name
                    WRITE(title,'(A7,I5.5,A1,I1.1,A1,6G10.4)') "WANNIER",ivector,"_",ispin," ",&
                      center(ivector,1:3)*angstrom, &
                      center(ivector,4:6)*angstrom
-                   CALL rs_pw_to_cube(wf_r%pw,21,globenv%ionode,title,rs)
-                   IF (globenv%ionode) CLOSE(21)
+                   CALL rs_pw_to_cube(wf_r%pw,21,ionode,title,rs)
+                   IF (ionode) CLOSE(21)
                 ENDDO
              END IF
              ! compute the molecular states
@@ -458,9 +462,9 @@ CONTAINS
              NULLIFY(unoccupied_orbs(ispin)%matrix)
              NULLIFY(unoccupied_evals(ispin)%evals)
 ! write eigenvalues and a set of cubes
-             IF (globenv%ionode) WRITE(globenv%scr,*) " "
-             IF (globenv%ionode) WRITE(globenv%scr,*) " Lowest Eigenvalues of the unoccupied subspace spin ",ispin
-             IF (globenv%ionode) WRITE(globenv%scr,*) " -----------------------------------------------------"
+             IF (ionode) WRITE(output_unit,*) " "
+             IF (ionode) WRITE(output_unit,*) " Lowest Eigenvalues of the unoccupied subspace spin ",ispin
+             IF (ionode) WRITE(output_unit,*) " -----------------------------------------------------"
              CALL get_mo_set(mo_set=mos(ispin)%mo_set,mo_coeff=mo_coeff,homo=homo,nao=nao,nmo=nmo)
              CALL cp_fm_get_info(mo_coeff, nrow_global=n)
              nlumos=MAX(1,MIN(section_get_ival(dft_section,"PRINT%MO_CUBES%NLUMO"),nao-homo))
@@ -489,20 +493,20 @@ CONTAINS
                   size_ortho_space=homo)
 
              CALL calculate_subspace_eigenvalues(unoccupied_orbs(ispin)%matrix,ks_rmpv(ispin)%matrix,&
-                  unoccupied_evals(ispin)%evals, para_env=qs_env%para_env,scr=globenv%scr, &
-                  ionode=globenv%ionode)
+                  unoccupied_evals(ispin)%evals, para_env=qs_env%para_env,scr=output_unit, &
+                  ionode=ionode)
 
              IF (globenv%print%localization) THEN
-                IF (globenv%ionode) WRITE(globenv%scr,*) ""
-                IF (globenv%ionode) WRITE(globenv%scr,*) "Computing localization properties"
+                IF (ionode) WRITE(output_unit,*) ""
+                IF (ionode) WRITE(output_unit,*) "Computing localization properties"
                 WRITE(filename,'(a13,I1.1)') "LUMO_CENTERS_",ispin
-                IF (globenv%ionode) OPEN(UNIT=21,FILE=filename)
+                IF (ionode) OPEN(UNIT=21,FILE=filename)
                 ALLOCATE(center(unoccupied_orbs(ispin)%matrix%matrix_struct%ncol_global,6))
                 CALL qs_loc_compute_properties(qs_loc_env,molecule_set,unoccupied_orbs(ispin)%matrix,&
-                                center,globenv%ionode,21)
+                                center,ionode,21)
                 DEALLOCATE(center)
-                IF (globenv%ionode) CLOSE(21)
-                IF (globenv%ionode) WRITE(globenv%scr,*) "Results in ",filename
+                IF (ionode) CLOSE(21)
+                IF (ionode) WRITE(output_unit,*) "Results in ",filename
              ENDIF
 
              IF (globenv%print%cubes) THEN
@@ -513,10 +517,10 @@ CONTAINS
                         qs_env=qs_env,error=error)
 
                    WRITE(filename,'(a13,I5.5,a1,I1.1,a5)') "WAVEFUNCTION_",homo+ivector,"_",ispin,".cube"
-                   IF (globenv%ionode) OPEN(UNIT=21,FILE=filename)
+                   IF (ionode) OPEN(UNIT=21,FILE=filename)
                    WRITE(title,*) "WAVEFUNCTION ",homo+ivector," spin ",ispin," i.e. LUMO + ",ivector-1
-                   CALL rs_pw_to_cube(wf_r%pw,21,globenv%ionode,title,rs)
-                   IF (globenv%ionode) CLOSE(21)
+                   CALL rs_pw_to_cube(wf_r%pw,21,ionode,title,rs)
+                   IF (ionode) CLOSE(21)
                 ENDDO
              ENDIF
           ENDDO
@@ -558,23 +562,23 @@ CONTAINS
 
 ! *** compute the optical conductivity (needs homos and lumos)
        IF (globenv%print%optical_conductivity) THEN
-           IF (globenv%ionode) WRITE(globenv%scr,*) " "
-           IF (globenv%ionode) WRITE(globenv%scr,*) " Computing the optical conductivity "
-           IF (globenv%ionode) WRITE(globenv%scr,*) " Experimental version " 
-           IF (globenv%ionode) WRITE(globenv%scr,*) " Check the code before believing results " 
+           IF (ionode) WRITE(output_unit,*) " "
+           IF (ionode) WRITE(output_unit,*) " Computing the optical conductivity "
+           IF (ionode) WRITE(output_unit,*) " Experimental version " 
+           IF (ionode) WRITE(output_unit,*) " Check the code before believing results " 
            homoEQnmo=.true.
            DO ispin=1,dft_control%nspins
               CALL get_mo_set(mo_set=mos(ispin)%mo_set,homo=homo,nmo=nmo)
               if (homo.NE.nmo) homoEQnmo=.false. 
            ENDDO
            IF (.NOT. homoEQnmo) THEN
-              IF (globenv%ionode) WRITE(globenv%scr,*) " homo.NE.nmo : skip optical conductivty "
+              IF (ionode) WRITE(output_unit,*) " homo.NE.nmo : skip optical conductivty "
            ELSE
              IF (.NOT. globenv%print%lumos) &
                 CALL stop_program("optical_conductivity","put LUMOS XX in the print section")
              IF (.NOT. globenv%print%homos) &
                 CALL stop_program("optical_conductivity","put HOMOS XX in the print section")
-             IF (globenv%ionode) THEN
+             IF (ionode) THEN
                 File_name="CONDUCTIVITY"
                 CALL Open_file(File_name=File_name,&
                     File_action="Write",&
@@ -588,14 +592,14 @@ CONTAINS
                                                        eigenvalues=mo_eigenvalues)
                 CALL optical_conductivity(matrix_s,mo_coeff,mo_eigenvalues, &
                                             unoccupied_orbs(ispin)%matrix,unoccupied_evals(ispin)%evals, &
-                                            volume,globenv%ionode,File_unit) 
+                                            volume,ionode,File_unit) 
              ENDDO
-             IF (globenv%ionode) CALL close_file(Unit_number=File_unit)
-             IF (globenv%ionode) WRITE(globenv%scr,*) " Results written to file ",File_name
+             IF (ionode) CALL close_file(Unit_number=File_unit)
+             IF (ionode) WRITE(output_unit,*) " Results written to file ",File_name
            ENDIF
        ENDIF
 
-       IF (globenv%print%lumos) THEN
+       IF (section_get_ival(dft_section,"PRINT%MO_CUBES%NLUMO") /= 0) THEN
         DO ispin=1,dft_control%nspins
            DEALLOCATE(unoccupied_evals(ispin)%evals)
            IF (.NOT.dft_control%do_tddfpt_calculation) &
