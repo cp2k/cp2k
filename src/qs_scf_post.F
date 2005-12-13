@@ -306,8 +306,9 @@ CONTAINS
        END IF
 
 !    *** setup the grids needed to compute a wavefunction given a vector
-       IF ((globenv%print%homos .OR. globenv%print%lumos .OR. globenv%print%localization) &
-                   .AND. globenv%print%cubes ) THEN
+       IF ((section_get_ival(dft_section,"PRINT%MO_CUBES%NLUMO") /= 0 .OR. &
+            globenv%print%homos .OR. &
+            globenv%print%localization) .AND. globenv%print%cubes ) THEN
           CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool,&
                pw_pools=pw_pools,auxbas_rs_pool=auxbas_rs_pool)
           CALL rs_pool_create_rs(auxbas_rs_pool,rs)
@@ -535,8 +536,9 @@ CONTAINS
        ENDIF
 
 ! *** deallocate grids needed to compute wavefunctions
-       IF ((globenv%print%lumos .OR. globenv%print%homos .OR. globenv%print%localization) &
-                          .AND. globenv%print%cubes) THEN
+       IF ((section_get_ival(dft_section,"PRINT%MO_CUBES%NLUMO") /= 0 .OR. &
+            globenv%print%homos .OR. &
+            globenv%print%localization) .AND. globenv%print%cubes) THEN
           CALL pw_pool_give_back_coeff(auxbas_pw_pool,wf_r,&
                error=error)
           CALL pw_pool_give_back_coeff(auxbas_pw_pool,wf_g,&
