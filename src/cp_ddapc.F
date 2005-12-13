@@ -519,9 +519,10 @@ CONTAINS
       routineP = moduleN//':'//routineN      
     COMPLEX(KIND=dp) :: phase
     REAL(KIND=dp)    :: gfunc, rc, rc2, gcut2, g2, w, arg
-    INTEGER          :: idim, iparticle, igauss, ig
+    INTEGER          :: idim, iparticle, igauss, ig, handle
     REAL(KIND=dp), DIMENSION(3) :: gvec, rvec
 
+    CALL timeset(routineN,"I","",handle)
     gcut2 = gcut * gcut
     idim  = 0
     DO iparticle = 1, SIZE(particle_set)
@@ -542,7 +543,7 @@ CONTAINS
           END DO
        END DO
     END DO
-        
+    CALL timestop(0.0_dp,handle)
   END SUBROUTINE build_b_vector
     
 !!****f* cp_ddapc/build_A_matrix [1.0] *
@@ -583,7 +584,9 @@ CONTAINS
     REAL(KIND=dp)    :: gfunc1, gfunc2, rc, rc1, rc2, rc12, gcut2, g2, w, arg1, arg2
     INTEGER          :: idim1, idim2, iparticle1, iparticle2, igauss1, igauss2, ig, istart_g
     REAL(KIND=dp), DIMENSION(3) :: gvec, rvec1, rvec2
-
+    INTEGER          :: handle
+    
+    CALL timeset(routineN,"I","",handle)
     gcut2 = gcut * gcut
     idim1  = 0
     DO iparticle1 = 1, SIZE(particle_set)
@@ -619,7 +622,7 @@ CONTAINS
           END DO
        END DO
     END DO
-
+    CALL timestop(0.0_dp, handle)
   END SUBROUTINE build_A_matrix
 
 !!****f* cp_ddapc/build_der_b_vector [1.0] *
@@ -659,9 +662,10 @@ CONTAINS
       routineP = moduleN//':'//routineN      
     COMPLEX(KIND=dp) :: dphase
     REAL(KIND=dp)    :: gfunc, rc, rc2, gcut2, g2, w, arg
-    INTEGER          :: idim, iparticle, igauss, ig
+    INTEGER          :: idim, iparticle, igauss, ig, handle
     REAL(KIND=dp), DIMENSION(3) :: gvec, rvec
-
+    
+    CALL timeset(routineN,"I","",handle)
     gcut2 = gcut * gcut
     idim  = 0
     DO iparticle = 1, SIZE(particle_set)
@@ -683,7 +687,7 @@ CONTAINS
           END DO
        END DO
     END DO
-        
+    CALL timestop(0.0_dp, handle)
   END SUBROUTINE build_der_b_vector
     
 !!****f* cp_ddapc/build_der_A_matrix [1.0] *
@@ -726,7 +730,9 @@ CONTAINS
     REAL(KIND=dp)    :: gfunc1, gfunc2, rc, rc1, rc2, rc12, gcut2, g2, w, arg1, arg2
     INTEGER          :: idim1, idim2, iparticle1, iparticle2, igauss1, igauss2, ig, istart_g
     REAL(KIND=dp), DIMENSION(3) :: gvec, rvec1, rvec2
-
+    INTEGER          :: handle
+    
+    CALL timeset(routineN,"I","",handle)
     gcut2 = gcut * gcut
     idim1  = 0
     DO iparticle1 = 1, SIZE(particle_set)
@@ -770,7 +776,7 @@ CONTAINS
           END DO
        END DO
     END DO
-
+    CALL timestop(0.0_dp, handle)
   END SUBROUTINE build_der_A_matrix
 
 
@@ -819,7 +825,7 @@ CONTAINS
     TYPE(particle_type), DIMENSION(:), &
          POINTER                                 :: particle_set
     LOGICAL :: failure, qmmm_periodic, need_f, ionode
-    INTEGER :: stat, my_val, iw
+    INTEGER :: stat, my_val, iw, handle
     REAL(KIND=dp), DIMENSION(:), POINTER     :: charges
     REAL(KIND=dp), POINTER, DIMENSION(:)     :: radii
     REAL(KIND=dp), POINTER, DIMENSION(:,:)   :: M, AmI
@@ -828,6 +834,7 @@ CONTAINS
     REAL(KINd=dp) :: e_decpl, e_recpl
     TYPE(cp_out_flags_type), pointer :: output_control
 
+    CALL timeset(routineN,"I","",handle)
     failure = .FALSE.
     need_f = .FALSE. 
     logger => cp_error_get_logger(error)
@@ -911,6 +918,7 @@ CONTAINS
        CALL cp_out_flags_finished_output(iw,output_control,&
             "PROPERTIES%FIT_CHARGE%PRINT%PROGRAM_RUN_INFO",error=error)
     END IF
+    CALL timestop(0.0_dp, handle)
   END SUBROUTINE cp_decpl_ddapc
 
 !!****f* cp_ddapc/ewald_ddapc_pot [1.0] *
@@ -1168,11 +1176,12 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'debug_ewald_ddapc_pot', &
          routineP = moduleN//':'//routineN      
     LOGICAL :: failure    
-    INTEGER :: ip, k, j, stat
+    INTEGER :: ip, k, j, stat, handle
     REAL(KIND=dp) :: Dx, std_value, numer_energy(2), numer_forces, my_error
     REAL(KIND=dp), POINTER, DIMENSION(:,:)   :: Mloc
 
     failure = .FALSE.
+    CALL timeset(routineN,"I","",handle)
     IF (.NOT.failure) THEN
        Dx = 0.001_dp
        ALLOCATE(Mloc(SIZE(charges),SIZE(charges)), stat=stat)
@@ -1200,7 +1209,7 @@ CONTAINS
        DEALLOCATE(Mloc, stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)         
     END IF
-
+    CALL timestop(0.0_dp, handle)
   END SUBROUTINE debug_ewald_ddapc_pot
 
 !!****f* cp_ddapc/modify_hartree_pot [1.0] *
@@ -1242,11 +1251,12 @@ CONTAINS
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: uv, cv
     TYPE(pw_type), POINTER                   :: g_hartree
     REAL(kind=dp) :: gcut, Vol, fac, fac2, g2, gcut2, gfunc, w
-    INTEGER       :: ig, idim, iparticle, igauss, stat
+    INTEGER       :: ig, idim, iparticle, igauss, stat, handle
     REAL(KINd=dp) :: rc, rc2, sfac, gvec(3), rvec(3), arg
     COMPLEX(KIND=dp) :: phase, g_corr
 
     failure=.FALSE.
+    CALL timeset(routineN,"I","",handle)
     NULLIFY(g_hartree)
     IF (.NOT.failure) THEN
        CALL section_vals_val_get(multipole_section,"GCUT",r_val=gcut,error=error)
@@ -1288,7 +1298,7 @@ CONTAINS
           g_hartree%cc(ig) = g_hartree%cc(ig) + sfac*g_corr/Vol
        END DO
     END IF
-
+    CALL timestop(0.0_dp, handle)
   END SUBROUTINE modify_hartree_pot
 
 !!****f* cp_ddapc/cp_decpl_ddapc_forces [1.0] *
@@ -1328,7 +1338,7 @@ CONTAINS
     LOGICAL :: failure
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)   :: uv
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:,:) :: chf
-    INTEGER :: iatom, natom, i, stat, ikind, k, j
+    INTEGER :: handle,iatom, natom, i, stat, ikind, k, j
     TYPE(qs_force_type), DIMENSION(:), &
          POINTER                                     :: force
     TYPE(atomic_kind_type), DIMENSION(:), &
@@ -1336,6 +1346,7 @@ CONTAINS
     INTEGER, ALLOCATABLE, DIMENSION(:)               :: atom_of_kind, kind_of
     
     failure = .FALSE.
+    CALL timeset(routineN,"I","",handle)
     IF (.NOT.failure) THEN
        natom = SIZE(particle_set)
        CALL get_qs_env(qs_env=qs_env,&
@@ -1373,7 +1384,7 @@ CONTAINS
        DEALLOCATE(uv, stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
-
+    CALL timestop(0.0_dp, handle)
   END SUBROUTINE cp_decpl_ddapc_forces
 
 !!****f* cp_ddapc/reset_ch_pulay [1.0] *
@@ -1406,10 +1417,12 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'reset_ch_pulay', &
       routineP = moduleN//':'//routineN          
     LOGICAL :: failure
-    INTEGER :: ind
+    INTEGER :: ind, handle
     TYPE(qs_force_type), DIMENSION(:), &
          POINTER                                     :: force
     failure = .FALSE.
+
+    CALL timeset(routineN,"I","",handle)
     IF (.NOT.failure) THEN
        CALL get_qs_env(qs_env=qs_env,&
                        force=force)
@@ -1417,7 +1430,7 @@ CONTAINS
           force(ind)%ch_pulay = 0.0_dp
        END DO
     END IF
-
+    CALL timestop(0.0_dp, handle)
   END SUBROUTINE reset_ch_pulay
 
 END MODULE cp_ddapc
