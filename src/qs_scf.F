@@ -218,7 +218,8 @@ MODULE qs_scf
   USE harris_env_types,                ONLY: harris_env_type
   
   USE input_section_types, ONLY: section_vals_type, section_vals_val_get,&
-       section_vals_get_subs_vals, section_vals_get_subs_vals2, section_get_rval, section_get_ival
+       section_vals_get_subs_vals, section_vals_get_subs_vals2, &
+       section_get_rval, section_get_ival
 
 
   IMPLICIT NONE
@@ -487,7 +488,8 @@ CONTAINS
                                                 EII_necessary
     TYPE(harris_env_type), POINTER           :: harris_env
     TYPE(section_vals_type),POINTER           :: dft_section, input
-
+!dbg
+    LOGICAL :: l_val
 !   ---------------------------------------------------------------------------
 
     NULLIFY(dft_control,matrix_h,matrix_s,matrix_ks,matrix_p,rho,rho_xc,energy, &
@@ -738,7 +740,8 @@ CONTAINS
                     error=error)
 
                IF (logger%print_keys%each_scf_step) THEN
-                  CALL write_mo_set(mos(ispin)%mo_set,atomic_kind_set,particle_set,4,6,globenv)
+                  CALL write_mo_set(mos(ispin)%mo_set,atomic_kind_set,particle_set,&
+                       4,6,dft_section,globenv)
                END IF
 
                CALL calculate_density_matrix(mos(ispin)%mo_set,&
@@ -773,7 +776,7 @@ CONTAINS
                     smear=scf_control%smear,error=error)
                IF (logger%print_keys%each_scf_step) THEN
                   CALL write_mo_set(mos(ispin)%mo_set,atomic_kind_set,&
-                       particle_set,4,6,globenv)
+                       particle_set,4,6,dft_section,globenv)
                END IF
                CALL calculate_density_matrix(mos(ispin)%mo_set,&
                     scf_env%p_mix_new(ispin)%matrix,error=error)
@@ -979,6 +982,7 @@ CONTAINS
        CALL write_mo_set(mos,atomic_kind_set,particle_set,globenv,&
             id_nr=1)
     END IF
+
 
 !   *** add the converged wavefunction to the wavefunction history
 !   should possibly be moved down after de-mixing
@@ -1998,6 +2002,7 @@ CONTAINS
     TYPE(real_matrix_p_type), DIMENSION(:), &
       POINTER                                :: h_core_sparse
     TYPE(scf_control_type), POINTER          :: scf_control
+    TYPE(section_vals_type), POINTER         :: dft_section,input
     LOGICAL                                  :: ortho_basis, &
                                                 id_equal, &
                                                 failure
@@ -2008,12 +2013,13 @@ CONTAINS
          gth_potential, orb_basis_set, atomic_kind_set, particle_set,&
          ortho,work2,work1,mo_array,s_sparse,p_rmpv,scf_control, &
          dft_control,h_core_sparse)
+    NULLIFY(dft_section, input)
 
     CALL timeset("calculate_first_density_matrix","I"," ",handle)
 
     CALL get_qs_env(qs_env,atomic_kind_set=atomic_kind_set,&
          particle_set=particle_set,mos=mo_array, matrix_s=s_sparse,&
-         matrix_h=h_core_sparse,&
+         matrix_h=h_core_sparse,input=input,&
          scf_control=scf_control, id_nr=qs_env_id, dft_control=dft_control,&
          error=error)
 
@@ -2024,6 +2030,7 @@ CONTAINS
     work2 => scf_env%scf_work2
     ortho => scf_env%ortho
 
+    dft_section =>  section_vals_get_subs_vals(input,"DFT",error=error)
     ortho_basis = .FALSE.
     IF ( dft_control%qs_control%semi_empirical ) THEN
        IF ( dft_control%qs_control%se_control%orthogonal_basis ) &
@@ -2042,7 +2049,8 @@ CONTAINS
     IF (scf_control%density_guess == restart_guess) THEN
 
        CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set)
-       CALL read_mo_set(mo_array,atomic_kind_set,particle_set,globenv, id_nr=1)
+       CALL read_mo_set(mo_array,atomic_kind_set,particle_set,globenv,&
+            id_nr=1,dft_section=dft_section,error=error)
 
        DO ispin=1,nspin
           IF (scf_control%level_shift /= 0.0_dp) THEN

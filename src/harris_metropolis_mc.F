@@ -89,6 +89,7 @@ MODULE harris_metropolis_mc
                                              KG_MC_method, &
                                              QS_MC_method, &
                                              Harris_MC_method
+  USE input_section_types,             ONLY: section_vals_type,section_vals_get_subs_vals
   USE kg_environment_types,            ONLY: kg_environment_type
   USE kinds,                           ONLY: dp, &
                                              dp_size
@@ -371,6 +372,7 @@ CONTAINS
     TYPE(qs_wf_history_type), POINTER        :: tmp_wf_history
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(section_vals_type),POINTER          :: dft_section, input
     TYPE(kg_environment_type), POINTER       :: kg_env
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
@@ -400,6 +402,7 @@ CONTAINS
             particles, itimes, used_time, rng_stream, tmp_particle_set, &
             local_particles, atomic_kind, atomic_kinds, atom_list, unit, &
             tmp_wf_history, dft_control, qs_env, kg_env, particle_set, atomic_kind_set)
+    NULLIFY(dft_section, input)
     logger => cp_error_get_logger(error)
 
     CPPrecondition(ASSOCIATED(globenv), cp_failure_level, routineP, error, failure)
@@ -417,7 +420,7 @@ CONTAINS
     END IF
     IF (force_env_in_use == use_qs_force) THEN
       CALL get_qs_env(qs_env=qs_env, dft_control=dft_control, particle_set=particle_set, &
-                      atomic_kind_set=atomic_kind_set, error=error)
+                      atomic_kind_set=atomic_kind_set,input=input, error=error)
     END IF
 
     nbeads = SIZE(force_env_p)
@@ -1030,7 +1033,9 @@ CONTAINS
         END IF
         IF ((qs_env%scf_control%density_guess == restart_guess) .AND. &
             (dft_control%qs_control%wf_interpolation_method_nr == wfi_use_guess_method_nr)) THEN
-          CALL read_mo_set(qs_env%mos, atomic_kind_set, particle_set, globenv, id_nr=1)
+          dft_section =>  section_vals_get_subs_vals(input,"DFT",error=error)
+          CALL read_mo_set(qs_env%mos, atomic_kind_set, particle_set, globenv,&
+               id_nr=1,dft_section=dft_section)
         END IF
 
         ! If not accepted, set back velocities and positions

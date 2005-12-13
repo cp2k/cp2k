@@ -79,6 +79,8 @@ MODULE xas_methods
                                              xas_scf_default,xas_scf_general,xas_scf_ot,&
                                              do_loc_none, op_loc_berry,&
                                              state_loc_upton
+  USE input_section_types,             ONLY: section_vals_type, section_vals_val_get,&
+                                             section_vals_get_subs_vals
   USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: twopi
   USE memory_utilities,                ONLY: reallocate
@@ -253,6 +255,7 @@ CONTAINS
     TYPE( real_matrix_p_type ), DIMENSION(:,:), &
       POINTER                                   :: ostrength_sm
     TYPE(scf_control_type), POINTER             :: scf_control
+    TYPE(section_vals_type),POINTER             :: dft_section, input
     TYPE(xas_environment_type), POINTER         :: xas_env
 
 
@@ -274,6 +277,7 @@ CONTAINS
     NULLIFY(all_evals,all_vectors)
     NULLIFY(atom_of_state,type_of_state,state_of_atom,stogto_overlap)
     NULLIFY(mykind_of_kind, state_of_mytype,max_overlap,sto_state_overlap)
+    NULLIFY(dft_section, input)
 
 !   Create the xas environment
     CALL get_qs_env(qs_env,xas_env=xas_env,error=error)
@@ -287,9 +291,11 @@ CONTAINS
 
 !   Initialize the type of calculation
     NULLIFY(atomic_kind_set, cell, dft_control, scf_control, mos, para_env, particle_set)
-    CALL get_qs_env(qs_env=qs_env, atomic_kind_set=atomic_kind_set,&
+    CALL get_qs_env(qs_env=qs_env, atomic_kind_set=atomic_kind_set, input=input,&
          cell = cell, dft_control=dft_control, scf_control=scf_control,&
          matrix_ks=matrix_ks,mos=mos, para_env=para_env, particle_set=particle_set )
+
+    dft_section => section_vals_get_subs_vals(input,"DFT",error=error)
 
 !   The eigenstate of the KS Hamiltonian are nedeed
     NULLIFY(mo_coeff,eigenvalues)
@@ -510,7 +516,8 @@ CONTAINS
 
 !   *** Write last wavefunction to screen ***
          DO ispin=1,dft_control%nspins
-           CALL write_mo_set(mos(ispin)%mo_set,atomic_kind_set,particle_set,4,6,globenv)
+           CALL write_mo_set(mos(ispin)%mo_set,atomic_kind_set,particle_set,&
+           4,6,dft_section,globenv)
          ENDDO
 
          CALL get_xas_env(xas_env=xas_env,all_vectors=all_vectors,nvirtual2=nvirtual2,&

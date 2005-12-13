@@ -656,17 +656,18 @@ CONTAINS
     LOGICAL            :: all_equal
     REAL(KIND=dp), DIMENSION(:), POINTER :: occupation_numbers
     INTEGER            :: nmo, unit_nr
-    TYPE(section_vals_type), POINTER :: print_key, input
+    TYPE(section_vals_type), POINTER :: dft_section, print_key, input
     TYPE(cp_rs_pool_type), POINTER           :: auxbas_rs_pool
     TYPE(realspace_grid_type), POINTER       :: rs
     INTEGER            :: handle
     TYPE(cp_out_flags_type), pointer :: output_control
 
+
     CALL timeset(routineN,handle)
     failure=.FALSE.
     NULLIFY(cell,dft_control,pw_env,auxbas_pw_pool,pw_pools,&
             mos,atomic_kind_set,particle_set,rho,&
-            ks_rmpv,matrix_s,scf_control,&
+            ks_rmpv,matrix_s,scf_control,dft_section,&
             molecule_set,input,output_control)
     logger => cp_error_get_logger(error)
     ionode = logger%para_env%mepos==logger%para_env%source
@@ -679,9 +680,11 @@ CONTAINS
             rho=rho,matrix_ks=ks_rmpv,scf_control=scf_control,matrix_s=matrix_s,&
             input=input,cell=cell,output_control=output_control,error=error)
 
+    dft_section => section_vals_get_subs_vals(input,"DFT",error=error)
+
 !   *** Write last wavefunction to screen ***
        DO ispin=1,dft_control%nspins
-          CALL write_mo_set(mos(ispin)%mo_set,atomic_kind_set,particle_set,4,6,globenv)
+          CALL write_mo_set(mos(ispin)%mo_set,atomic_kind_set,particle_set,4,6,dft_section,globenv)
        ENDDO
 
 !   *** Integrated absolute spin density and spin contamination ***

@@ -758,7 +758,7 @@ CONTAINS
 ! *****************************************************************************
 
   SUBROUTINE read_mo_set_from_restart(mo_array,atomic_kind_set,particle_set,&
-                                      globenv,id_nr,error)
+                                      globenv,id_nr,dft_section,error)
 
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mo_array
@@ -769,6 +769,7 @@ CONTAINS
     TYPE(global_environment_type), &
       INTENT(IN)                             :: globenv
     INTEGER, INTENT(in)                      :: id_nr
+    TYPE(section_vals_type), POINTER         :: dft_section
     TYPE(cp_error_type), INTENT(inout), optional :: error
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "read_mo_set_from_restart", &
@@ -980,7 +981,7 @@ CONTAINS
 
       IF (globenv%print%level > LOW) THEN
         CALL write_mo_set(mo_array(ispin)%mo_set,atomic_kind_set,particle_set,&
-                          4,6,globenv)
+                          4,6,dft_section,globenv)
       END IF
 
     END DO
@@ -1009,7 +1010,7 @@ CONTAINS
   ! ***************************************************************************
 
   SUBROUTINE write_mo_set_to_output_unit(mo_set,atomic_kind_set,particle_set,&
-                                         before,after,globenv,error)
+                                         before,after,dft_section,globenv,error)
 
     ! Purpose: Write the MO eigenvalues, MO occupation numbers and
     !          MO mo_coeff.
@@ -1032,6 +1033,7 @@ CONTAINS
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     INTEGER, INTENT(IN)                      :: before, after
+    TYPE(section_vals_type),POINTER          :: dft_section
     TYPE(global_environment_type), &
       INTENT(IN)                             :: globenv
     TYPE(cp_error_type), INTENT(inout), optional :: error
@@ -1050,16 +1052,22 @@ CONTAINS
       output_unit, right, to, width, icgf, ncgf, ico
     INTEGER, DIMENSION(:), POINTER           :: nshell
     INTEGER, DIMENSION(:, :), POINTER        :: l
+    LOGICAL                                  :: p_cart,p_eval,p_evec,p_occ
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: cmatrix,smatrix
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
 
     ! -------------------------------------------------------------------------
 
-    IF (.NOT.globenv%print%mo_eigenvalues) RETURN
+!   Check whether it should write
+    CALL section_vals_val_get(dft_section,"PRINT%MO%EIGENVALUES",l_val=p_eval,error=error)
+    CALL section_vals_val_get(dft_section,"PRINT%MO%EIGENVECTORS",l_val=p_evec,error=error)
+    CALL section_vals_val_get(dft_section,"PRINT%MO%OCCUPATION_NUMBERS",l_val=p_occ,error=error)
+    CALL section_vals_val_get(dft_section,"PRINT%MO%CARTESIAN",l_val=p_cart,error=error)
+    IF (.NOT.(p_eval.OR.p_evec.OR.p_occ)) RETURN
 
     output_unit = globenv%scr
 
-    IF (globenv%print%mo_eigenvectors) THEN
+    IF (p_evec) THEN
       CALL cp_fm_get_info(mo_set%mo_coeff,&
                           nrow_global=nrow_global,&
                           ncol_global=ncol_global)
@@ -1108,9 +1116,9 @@ CONTAINS
     WRITE (UNIT=fmtstr3(32:33),FMT="(I2)") width - 1
     WRITE (UNIT=fmtstr3(35:36),FMT="(I2)") after
 
-    IF (globenv%print%mo_eigenvectors) THEN
+    IF (p_evec) THEN
 
-      IF (globenv%print%mo_cartesian) THEN
+      IF (p_cart) THEN
 
         name = "MO EIGENVALUES, MO OCCUPATION NUMBERS AND "//&
                "CARTESIAN MO EIGENVECTORS"
@@ -1154,7 +1162,7 @@ CONTAINS
 
       END IF
 
-    ELSE IF (globenv%print%mo_occupation_numbers) THEN
+    ELSE IF (p_occ) THEN
 
       name = "MO EIGENVALUES AND MO OCCUPATION NUMBERS"
 
@@ -1183,13 +1191,13 @@ CONTAINS
         (mo_set%eigenvalues(jcol),jcol=from,to)
       WRITE (UNIT=output_unit,FMT="(A)") ""
 
-      IF (globenv%print%mo_occupation_numbers) THEN
+      IF (p_occ) THEN
         WRITE (UNIT=output_unit,FMT=fmtstr2)&
           (mo_set%occupation_numbers(jcol),jcol=from,to)
         WRITE (UNIT=output_unit,FMT="(A)") ""
       END IF
 
-      IF (globenv%print%mo_eigenvectors) THEN
+      IF (p_evec) THEN
 
         irow = 1
 
@@ -1201,7 +1209,7 @@ CONTAINS
                                element_symbol=element_symbol,&
                                orb_basis_set=orb_basis_set)
 
-          IF (globenv%print%mo_cartesian) THEN
+          IF (p_cart) THEN
 
             CALL get_gto_basis_set(gto_basis_set=orb_basis_set,&
                                    nset=nset,&
@@ -1257,12 +1265,12 @@ CONTAINS
 
     ! Release work storage
 
-    IF (globenv%print%mo_eigenvectors) THEN
+    IF (p_evec) THEN
       DEALLOCATE (smatrix,STAT=istat)
       IF (istat /= 0) THEN
         CALL stop_memory(routine_name,module_name,__LINE__,"smatrix")
       END IF
-      IF (globenv%print%mo_cartesian) THEN
+      IF (p_cart) THEN
         DEALLOCATE (cmatrix,STAT=istat)
         IF (istat /= 0) THEN
           CALL stop_memory(routine_name,module_name,__LINE__,"cmatrix")

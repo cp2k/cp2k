@@ -57,6 +57,8 @@ MODULE xas_tp_scf
                                              xas_dscf, do_loc_none , core_guess,&
                                              ot_precond_full_kinetic,&
                                              xas_scf_general,xas_scf_ot
+  USE input_section_types,             ONLY: section_vals_type, section_vals_val_get,&
+                                             section_vals_get_subs_vals
   USE kinds,                           ONLY: dp
   USE machine,                         ONLY: m_flush,&
                                              m_walltime
@@ -166,6 +168,7 @@ CONTAINS
     INTEGER                                  :: handle, handle2,  homo, ic_max, ir_max,ispin, &
                                                 istat, iter_count, nao, nmo,nvirtual2, &
                                                 nvirtual1,output_unit,i,istate,uno_iter
+    INTEGER :: m, n
     LOGICAL :: diis_step, do_level_shift, energy_only, failure,& 
                gapw, ionode, should_stop, uniform_occupation, use_cholesky, use_jacobi, id_equal
     REAL(KIND=dp)                            :: a_max,b_max, diis_error, IP_energy, &
@@ -204,18 +207,19 @@ CONTAINS
     TYPE(qs_rho_type), POINTER               :: rho
     TYPE(real_matrix_p_type), DIMENSION(:), &
       POINTER                                :: matrix_h, matrix_ks, matrix_p, matrix_s
-    TYPE(scf_control_type), POINTER          :: scf_control
     TYPE(real_matrix_type), POINTER          :: orthogonality_metric
     INTEGER, DIMENSION(:), POINTER           :: col_indices
     TYPE (real_matrix_p_type), DIMENSION(:,:),&
-      POINTER                                    :: op_sm_set
-    INTEGER :: m, n
+      POINTER                                :: op_sm_set
+    TYPE(scf_control_type), POINTER          :: scf_control
+    TYPE(section_vals_type),POINTER          :: dft_section, input
 
     NULLIFY(dft_control,matrix_h,matrix_s,matrix_ks,matrix_p,rho,energy,scf_control,logger,&
          ks_env,mos,atomic_kind_set,particle_set,vecbuffer,vecbuffer2, occupation_numbers,&
          scf_work1,ortho,scf_work2,excvec_coeff,excvec_overlap,mo_coeff,fm_work,&
          col_indices, eigenvalues)
     NULLIFY(centers_wfn,qs_loc_env,localized_wfn_control,op_sm_set,op_fm_set,moloc_coeff,cell)
+    NULLIFY( dft_section, input)
 
     logger => cp_error_get_logger(error)
     t1 = m_walltime()
@@ -231,7 +235,8 @@ CONTAINS
     CALL get_qs_env(qs_env=qs_env,&
          atomic_kind_set=atomic_kind_set,&
          dft_control=dft_control,&
-         scf_control=scf_control)
+         scf_control=scf_control,&
+         input=input)
 
     CALL write_checkpoint_information("entering "//routineN,globenv)
 
@@ -240,6 +245,7 @@ CONTAINS
     ionode = logger%para_env%source==logger%para_env%mepos
     IF (ionode) output_unit = cp_logger_get_default_unit_nr(logger)
     energy_only = .FALSE.
+    dft_section => section_vals_get_subs_vals(input,"DFT",error=error)
 
     IF (ionode.AND.logger%print_keys%scf) THEN
        WRITE (UNIT=output_unit,FMT="(/,/,T2,A)")&
@@ -478,7 +484,8 @@ CONTAINS
                END IF
 
                IF (logger%print_keys%each_scf_step) THEN
-                  CALL write_mo_set(mos(ispin)%mo_set,atomic_kind_set,particle_set,4,6,globenv)
+                  CALL write_mo_set(mos(ispin)%mo_set,atomic_kind_set,particle_set,&
+                       4,6,dft_section,globenv)
                END IF
 
                CALL calculate_density_matrix(mos(ispin)%mo_set,&

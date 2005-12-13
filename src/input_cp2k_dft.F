@@ -544,17 +544,17 @@ END SUBROUTINE xc_functionals_expand
        CALL keyword_release(keyword,error=error)
        CALL keyword_create(keyword, name="eigenvalues",&
             description="If the printkey is activated controls the printing of the eigenvalues of the mos",&
-            default_l_val=.true., lone_keyword_l_val=.TRUE., error=error)
+            default_l_val=.false., lone_keyword_l_val=.TRUE., error=error)
        CALL section_add_keyword(print_key,keyword,error=error)
        CALL keyword_release(keyword,error=error)    
        CALL keyword_create(keyword, name="eigenvectors",&
             description="If the printkey is activated controls the printing of the eigenvectors of the mos",&
-            default_l_val=.true., lone_keyword_l_val=.TRUE., error=error)
+            default_l_val=.false., lone_keyword_l_val=.TRUE., error=error)
        CALL section_add_keyword(print_key,keyword,error=error)
        CALL keyword_release(keyword,error=error)    
        CALL keyword_create(keyword, name="occupation_numbers",&
             description="If the printkey is activated controls the printing of the occupation numbers of the mos",&
-            default_l_val=.true., lone_keyword_l_val=.TRUE., error=error)
+            default_l_val=.false., lone_keyword_l_val=.TRUE., error=error)
        CALL section_add_keyword(print_key,keyword,error=error)
        CALL keyword_release(keyword,error=error)    
        CALL section_add_subsection(section,print_key,error=error)
