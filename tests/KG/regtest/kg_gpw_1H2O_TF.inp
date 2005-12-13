@@ -1,7 +1,14 @@
 
 &FORCE_EVAL
   &DFT
-    KE-FUNCTIONAL TF
+    BASIS_SET_FILE_NAME QS_BASIS_SET
+    POTENTIAL_FILE_NAME QS_POTENTIAL
+    &MGRID
+      CUTOFF 10
+      NGRIDS 1
+      REL_CUTOFF 15
+    &END MGRID
+
     &SCF
       EPS_DIIS 0.4
       EPS_SCF 5.0E-4
@@ -10,9 +17,22 @@
       SCF_GUESS ATOMIC
     &END SCF
     &XC
-      &XC_FUNCTIONAL Pade
+      &XC_FUNCTIONAL 
+        &PADE
+        &END
+        &TF
+        &END
       &END XC_FUNCTIONAL
     &END XC
+    &KG
+      &XC_FUNCTIONAL
+        &TF
+        &END
+      &END
+    &END
+    &QS
+      METHOD KG_GPW
+    &END
   &END DFT
   &SUBSYS
     &CELL

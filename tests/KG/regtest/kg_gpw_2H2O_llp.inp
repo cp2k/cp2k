@@ -1,15 +1,40 @@
 
 &FORCE_EVAL
   &DFT
-    KE-FUNCTIONAL LLP
+    BASIS_SET_FILE_NAME GTH_BASIS_SETS
+    POTENTIAL_FILE_NAME QS_POTENTIAL
     &SCF
       EPS_DIIS 0.4
       MAX_SCF 2
       MIXING 0.4
       SCF_GUESS ATOMIC
     &END SCF
+    &MGRID
+      CUTOFF 50
+      NGRIDS 1
+      REL_CUTOFF 30
+    &END MGRID
+    &QS
+      METHOD KG_GPW
+      EXTRAPOLATION USE_PREV_P
+    &END
+
+    &KG
+      &XC_FUNCTIONAL
+        &KE_GGA
+          FUNCTIONAL LLP
+        &END
+      &END XC_FUNCTIONAL
+    &END
     &XC
-      &XC_FUNCTIONAL BP
+      &XC_FUNCTIONAL
+        &BECKE88
+        &END
+        &P86C
+        &END
+        &KE_GGA
+          FUNCTIONAL LLP
+        &END
       &END XC_FUNCTIONAL
       &XC_GRID
         XC_DERIV NN6_SMOOTH

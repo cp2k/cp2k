@@ -1,13 +1,30 @@
 
 &FORCE_EVAL
   &DFT
-    C-FUNCTIONAL pade
-    KE-FUNCTIONAL llp
-    X-FUNCTIONAL none
     &XC
       DENSITY_CUTOFF 1.0E-10
       GRADIENT_CUTOFF 1.0E-10
+      &XC_FUNCTIONAL
+        &PADE
+        &END
+        &KE_GGA
+          FUNCTIONAL  LLP
+        &END
+      &END
     &END XC
+    &MGRID
+      CUTOFF 40
+      NGRIDS 1
+    &END MGRID
+    &QS
+      eps_core_charge 1.0E-96
+      eps_ppl 1.0E-96
+      eps_pgf_orb 1.0E-10
+      eps_gvg_rspace 1.0E-10
+      eps_rho 1.0E-10
+      method  KG_NOPOL
+    &END QS
+
   &END DFT
   &SUBSYS
     &CELL
