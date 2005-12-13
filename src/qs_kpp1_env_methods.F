@@ -105,7 +105,7 @@ MODULE qs_kpp1_env_methods
   USE pw_poisson_types, only: pw_poisson_type
   USE pw_poisson_methods, only: pw_poisson_solve
   USE input_section_types, ONLY: section_vals_type, section_vals_val_get, &
-       section_vals_get_subs_vals, section_vals_get
+       section_vals_get_subs_vals, section_vals_get, section_get_ival
   IMPLICIT NONE
 
   PRIVATE
@@ -225,7 +225,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, i, ispin, nspins, &
-                                                output_unit, stat, dft_method,&
+                                                output_unit, stat,&
                                                 excitations,xc_deriv_method_id,&
                                                 xc_rho_smooth_id, res_etype
     INTEGER, DIMENSION(2, 3)                 :: bo
@@ -280,10 +280,8 @@ CONTAINS
             input=input,&
             error=error)
 
-       CALL section_vals_val_get(input,"DFT%METHOD",&
-            i_val=dft_method, error=error)
-       gapw=(dft_method==do_method_gapw)
-       gapw_xc=(dft_method==do_method_gapw_xc)
+       gapw=(section_get_ival(input,"DFT%QS%METHOD")==do_method_gapw)
+       gapw_xc=(section_get_ival(input,"DFT%QS%METHOD")==do_method_gapw_xc)
        IF(gapw_xc) THEN
           CPPrecondition(ASSOCIATED(rho1_xc),cp_failure_level,routineP,error,failure)
        END IF
