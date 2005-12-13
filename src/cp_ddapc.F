@@ -861,6 +861,7 @@ CONTAINS
           CASE (use_multipole)       
              multipole_section => section_vals_get_subs_vals(poisson_section,"MULTIPOLE", error=error)
           CASE DEFAULT
+             CALL timestop(0.0_dp, handle)
              RETURN
           END SELECT
        ELSE
