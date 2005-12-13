@@ -613,7 +613,8 @@ CONTAINS
            ENDIF
        ENDIF
 
-       IF (p_cubes .AND. section_get_ival(dft_section,"PRINT%MO_CUBES%NLUMO") /= 0) THEN
+       IF ((p_cubes .OR.dft_control%do_tddfpt_calculation ) &
+          .AND. section_get_ival(dft_section,"PRINT%MO_CUBES%NLUMO") /= 0) THEN
         DO ispin=1,dft_control%nspins
            DEALLOCATE(unoccupied_evals(ispin)%evals)
            IF (.NOT.dft_control%do_tddfpt_calculation) &
