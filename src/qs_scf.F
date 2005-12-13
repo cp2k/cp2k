@@ -216,6 +216,10 @@ MODULE qs_scf
                                              harris_eigenvalue_calculation, &
                                              harris_postprocessing
   USE harris_env_types,                ONLY: harris_env_type
+  
+  USE input_section_types, ONLY: section_vals_type, section_vals_val_get,&
+       section_vals_get_subs_vals, section_vals_get_subs_vals2, section_get_rval, section_get_ival
+
 
   IMPLICIT NONE
 
@@ -482,12 +486,13 @@ CONTAINS
     LOGICAL                                  :: harris_flag, &
                                                 EII_necessary
     TYPE(harris_env_type), POINTER           :: harris_env
+    TYPE(section_vals_type),POINTER           :: dft_section, input
 
 !   ---------------------------------------------------------------------------
 
     NULLIFY(dft_control,matrix_h,matrix_s,matrix_ks,matrix_p,rho,rho_xc,energy, &
             scf_control,logger,pw_env, qs_charges,ks_env,mos,atomic_kind_set, &
-            particle_set,scf_work1,ortho,scf_work2,harris_env)
+            particle_set,scf_work1,ortho,scf_work2,harris_env,dft_section,input)
 
     logger => cp_error_get_logger(error)
     t1 = m_walltime()
@@ -500,8 +505,12 @@ CONTAINS
     
     CALL get_qs_env(qs_env=qs_env,&
          atomic_kind_set=atomic_kind_set,&
+         input=input,&
          dft_control=dft_control,&
          scf_control=scf_control)
+
+    dft_section => section_vals_get_subs_vals(input,"DFT",error=error)
+
 
 !   *** Quick return, if no SCF iteration is requested ***
 
@@ -1005,8 +1014,7 @@ CONTAINS
 ! *** print out info
     IF ((.NOT.should_stop).AND.&
         (.NOT.dft_control%qs_control%semi_empirical)) THEN
-       CALL scf_post_calculation(scf_env=scf_env, qs_env=qs_env, &
-            globenv=globenv, error=error)
+       CALL scf_post_calculation(dft_section, scf_env, qs_env, globenv, error)
     END IF
 
 ! *** cleanup

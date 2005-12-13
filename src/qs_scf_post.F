@@ -143,6 +143,9 @@ MODULE qs_scf_post
   USE timings,                         ONLY: timeset,&
                                              timestop
 
+  USE input_section_types, ONLY: section_vals_type, section_vals_val_get,&
+       section_vals_get_subs_vals, section_vals_get_subs_vals2, section_get_rval, section_get_ival
+
   IMPLICIT NONE
 
   PRIVATE
@@ -184,7 +187,9 @@ CONTAINS
 !!             started splitting out different subroutines
 !!
 !!*** **********************************************************************
-  SUBROUTINE scf_post_calculation(scf_env,qs_env,globenv,error)
+  SUBROUTINE scf_post_calculation(dft_section, scf_env,qs_env,globenv,error)
+
+    TYPE(section_vals_type), POINTER         :: dft_section
     TYPE(qs_scf_env_type), POINTER           :: scf_env
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(global_environment_type),POINTER    :: globenv
@@ -445,7 +450,7 @@ CONTAINS
        ENDIF
 
 ! gets the lumos, and eigenvalues for the lumos 
-       IF (globenv%print%lumos) THEN
+       IF (section_get_ival(dft_section,"PRINT%MO_CUBES%NLUMO") /= 0) THEN
           ALLOCATE(unoccupied_orbs(dft_control%nspins))
           ALLOCATE(unoccupied_evals(dft_control%nspins))
           DO ispin=1,dft_control%nspins
@@ -457,7 +462,7 @@ CONTAINS
              IF (globenv%ionode) WRITE(globenv%scr,*) " -----------------------------------------------------"
              CALL get_mo_set(mo_set=mos(ispin)%mo_set,mo_coeff=mo_coeff,homo=homo,nao=nao,nmo=nmo)
              CALL cp_fm_get_info(mo_coeff, nrow_global=n)
-             nlumos=MAX(1,MIN(globenv%print%nlumos,nao-homo))
+             nlumos=MAX(1,MIN(section_get_ival(dft_section,"PRINT%MO_CUBES%NLUMO"),nao-homo))
              ALLOCATE(unoccupied_evals(ispin)%evals(nlumos))
              CALL cp_fm_struct_create(fm_struct_tmp,para_env=qs_env%para_env,context=qs_env%blacs_env, &
                                                     nrow_global=n,ncol_global=nlumos)
