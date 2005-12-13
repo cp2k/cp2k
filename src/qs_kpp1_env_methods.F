@@ -287,7 +287,6 @@ CONTAINS
        END IF
 
        nspins = size(k_p_p1)
-
        lsd = (nspins==2)
 
        xc_section => section_vals_get_subs_vals(input,"DFT%XC",error=error)
@@ -386,6 +385,7 @@ CONTAINS
           lsd = .TRUE.
           ALLOCATE(rho1_r_pw(2))
           DO ispin=1, 2
+             NULLIFY(rho1_r_pw(ispin)%pw)
              CALL pw_create(rho1_r_pw(ispin)%pw, rho1_r(1)%pw%pw_grid, &
                   rho1_r(1)%pw%in_use, rho1_r(1)%pw%in_space)
              CALL pw_transfer(rho1_r(1)%pw, rho1_r_pw(ispin)%pw)
@@ -825,7 +825,7 @@ CONTAINS
                 CALL pw_pool_create_pw(auxbas_pw_pool,my_rho_r(ispin)%pw, &
                      use_data=rho_r(1)%pw%in_use, in_space=rho_r(1)%pw%in_space,&
                      error=error)
-                my_rho_r(ispin)%pw%cr3d = 0.5_dp * rho_r(ispin)%pw%cr3d
+                my_rho_r(ispin)%pw%cr3d = 0.5_dp * rho_r(1)%pw%cr3d
              END DO
           ELSE
              ALLOCATE(my_rho_r(SIZE(rho_r)),stat=stat)
