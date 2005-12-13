@@ -35,3 +35,22 @@ C4H10-qmmm-gauss-7.inp
 sio2-qmmm-gauss-1.inp
 # Reset due to change diagonalizer from cp_fm_syevx to cp_fm_syevd 
 Ar-qmmm.inp
+# new input presumably numerics
+Ar-qmmm.inp
+H2O-qmmm-gauss-1.inp
+H2O-qmmm-gauss-2.inp
+H2O-qmmm-gauss-3.inp
+H2O-qmmm-gauss-5.inp
+H2O-qmmm-gauss-6.inp
+H2O-qmmm-gauss-7.inp
+H2O-qmmm-gauss-8.inp
+H2O-qmmm-gauss-9.inp
+H2O-qmmm-gauss-10.inp
+H2O-qmmm-gauss-12.inp
+H2O-qmmm-grid-1.inp
+H2O-qmmm-grid-2.inp
+sio2-qmmm-gauss-1.inp
+sio2-qmmm-gauss-1.inp
+sio2-qmmm-gauss-3.inp
+
+
