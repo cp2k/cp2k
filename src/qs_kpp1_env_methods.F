@@ -105,7 +105,7 @@ MODULE qs_kpp1_env_methods
   USE pw_poisson_types, only: pw_poisson_type
   USE pw_poisson_methods, only: pw_poisson_solve
   USE input_section_types, ONLY: section_vals_type, section_vals_val_get, &
-       section_vals_get_subs_vals, section_vals_get, section_get_ival
+       section_vals_get_subs_vals, section_vals_get, section_get_ival, section_get_rval
   IMPLICIT NONE
 
   PRIVATE
@@ -226,8 +226,7 @@ CONTAINS
 
     INTEGER                                  :: handle, i, ispin, nspins, &
                                                 output_unit, stat,&
-                                                excitations,xc_deriv_method_id,&
-                                                xc_rho_smooth_id, res_etype
+                                                excitations, res_etype
     INTEGER, DIMENSION(2, 3)                 :: bo
     LOGICAL                                  :: failure, lsd, ionode, &
                                                 gapw, gapw_xc, explicit, &
@@ -237,8 +236,7 @@ CONTAINS
                                                 energy_hartree_1c,&
                                                 energy_hartree_2c,&
                                                 energy_hartree_3c,&
-                                                density_cut,&
-                                                gradient_cut,tau_cut, fac
+                                                fac
     TYPE(cell_type), POINTER                 :: cell
     TYPE(coeff_type)                         :: rho1_tot_gspace, &
                                                 v_hartree_gspace, &
@@ -301,18 +299,6 @@ CONTAINS
           END IF
        END IF
 
-       CALL section_vals_val_get(xc_section,"DENSITY_CUTOFF",&
-            r_val=density_cut,error=error)
-       CALL section_vals_val_get(xc_section,"GRADIENT_CUTOFF",&
-            r_val=gradient_cut,error=error)
-       CALL section_vals_val_get(xc_section,"TAU_CUTOFF",&
-            r_val=tau_cut,error=error)
-       xc_fun_section => section_vals_get_subs_vals(xc_section,"XC_FUNCTIONAL",&
-            error=error)
-       CALL section_vals_val_get(xc_section,"XC_GRID%XC_DERIV",&
-            i_val=xc_deriv_method_id,error=error)
-       CALL section_vals_val_get(xc_section,"XC_GRID%XC_SMOOTH_RHO",&
-            i_val=xc_rho_smooth_id,error=error)
        CALL section_vals_val_get(input,"DFT%TDDFPT%LSD_SINGLETS",&
             l_val=lsd_singlets,error=error)
        CALL section_vals_val_get(input,"DFT%TDDFPT%RES_ETYPE",&
@@ -408,15 +394,20 @@ CONTAINS
        !------!
        bo = rho1_r(1)%pw%pw_grid%bounds_local
        ! create the place where to store the argument for the functionals
-       CALL xc_rho_set_create(rho1_set,bo,rho_cutoff=density_cut,&
-                              drho_cutoff=gradient_cut,tau_cutoff=tau_cut,&
+       CALL xc_rho_set_create(rho1_set, bo, &
+                              rho_cutoff=section_get_rval(xc_section, "DENSITY_CUTOFF"), &
+                              drho_cutoff=section_get_rval(xc_section, "GRADIENT_CUTOFF"), &
+                              tau_cutoff=section_get_rval(xc_section, "TAU_CUTOFF"), &
                               error=error)
 
+       xc_fun_section => section_vals_get_subs_vals(xc_section,"XC_FUNCTIONAL",&
+            error=error)
        needs=xc_functionals_get_needs(xc_fun_section,lsd,.TRUE.,error)
 
        ! calculate the agruments needed by the functionals
        CALL xc_rho_set_update(rho1_set, rho1_r_pw, rho1_g_pw, tau_pw, needs,& 
-                             xc_deriv_method_id,xc_rho_smooth_id ,&
+                             section_get_ival(xc_section,"XC_GRID%XC_DERIV"),&
+                             section_get_ival(xc_section,"XC_GRID%XC_SMOOTH_RHO"),&
                              cell, auxbas_pw_pool,  error)
 
        ALLOCATE(v_xc(nspins),stat=stat)
