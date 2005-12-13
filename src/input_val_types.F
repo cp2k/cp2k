@@ -765,11 +765,11 @@ SUBROUTINE val_duplicate(val_in,val_out,error)
         CPPostcondition(stat==0,cp_fatal_level,routineP,error,failure)
         val_out%l_val=val_in%l_val
      END IF
-     IF (ASSOCIATED(val_in%l_val)) THEN
-        ALLOCATE(val_out%l_val(SIZE(val_in%l_val)),stat=stat)
-        CPPostcondition(stat==0,cp_fatal_level,routineP,error,failure)
-        val_out%l_val=val_in%l_val
-     END IF
+  !   IF (ASSOCIATED(val_in%l_val)) THEN
+  !      ALLOCATE(val_out%l_val(SIZE(val_in%l_val)),stat=stat)
+  !      CPPostcondition(stat==0,cp_fatal_level,routineP,error,failure)
+  !      val_out%l_val=val_in%l_val
+  !   END IF
      IF (ASSOCIATED(val_in%i_val)) THEN
         ALLOCATE(val_out%i_val(SIZE(val_in%i_val)),stat=stat)
         CPPostcondition(stat==0,cp_fatal_level,routineP,error,failure)
