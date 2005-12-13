@@ -2,3 +2,5 @@
 # just add file names for which the reference needs to be reset below, with some comment
 # RATTLE_ROLL reprogrammed to be correct in parallel
 argon_nph_plastic.inp
+# after new input update, numerics
+water_1_res_3.inp
