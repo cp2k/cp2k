@@ -43,14 +43,6 @@ MODULE mc_types
   USE molecule_kind_types,             ONLY: get_molecule_kind,&
                                              molecule_kind_type
   USE pair_potential_types,            ONLY: pair_potential_pp_type
-  USE parser,                          ONLY: get_next,&
-                                             p_error,&
-                                             parser_end,&
-                                             parser_init,&
-                                             read_line,&
-                                             search_label,&
-                                             stop_parser,&
-                                             test_next
   USE physcon,                         ONLY: angstrom,&
                                              boltzmann,&
                                              joule

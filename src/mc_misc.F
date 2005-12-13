@@ -59,7 +59,10 @@ MODULE mc_misc
                                              do_ewald_ewald,&
                                              do_ewald_pme,&
                                              do_ewald_spme
-  USE input_section_types, ONLY: section_vals_type
+  USE input_section_types,             ONLY: section_vals_type,&
+                                             section_vals_val_get,&
+                                             section_vals_get_subs_vals2,&
+                                             section_vals_get_subs_vals
   USE kinds,                           ONLY: default_string_length,&
                                              dp
   USE mathconstants,                   ONLY: pi
@@ -635,14 +638,14 @@ SUBROUTINE mc_make_dat_file(coordinates,natoms_tot,box_length,filename,&
   
     INTEGER                                  :: handle, iatom, unit,&
       itype,ntypes,gmax,o_spline,ns_max,ewald_type,jtype,ichain,&
-      nchains,natoms
+      nchains,natoms,idum,i_val
     LOGICAL                                  :: use_ref_cell,failure
     REAL(KIND=dp),DIMENSION(1:3)             :: abc
-    REAL(KIND=dp)                            :: alpha,epsilon,charge
+    REAL(KIND=dp)                            :: alpha,epsilon,charge,r_val
     CHARACTER(LEN=5)                         :: cfile
     CHARACTER(LEN=2)                         :: element_symbol
-    CHARACTER(LEN=default_string_length)     :: name,unit_type
-    TYPE(section_vals_type), pointer :: input
+    CHARACTER(LEN=default_string_length)     :: name,unit_type,c_val
+    TYPE(section_vals_type), POINTER         :: input,xc_fun,xc_fun_section
 
 !------------------------------------------------------------------------------
 ! begin the timing of the subroutine
@@ -651,7 +654,7 @@ SUBROUTINE mc_make_dat_file(coordinates,natoms_tot,box_length,filename,&
 
 ! nullify some stuff
       NULLIFY(qs_env,atomic_kind_set,atomic_kind,gth_potential,&
-         orb_basis_set,elp_potential)
+         orb_basis_set,elp_potential,input,xc_fun)
 
 ! grab some of the structures we're gonna need
       SELECT CASE ( force_env%in_use )
@@ -669,6 +672,7 @@ SUBROUTINE mc_make_dat_file(coordinates,natoms_tot,box_length,filename,&
          CALL get_qs_env(qs_env,use_ref_cell=use_ref_cell,cell_ref=cell_ref,&
          input=input,atomic_kind_set=atomic_kind_set)
          CALL get_cell(cell_ref,abc=abc)
+
       CASE ( use_kg_force )
 
       CASE default
@@ -690,7 +694,114 @@ SUBROUTINE mc_make_dat_file(coordinates,natoms_tot,box_length,filename,&
          file_action='WRITE',file_status='REPLACE')
 
 ! write all the stuff down
-      WRITE(unit,10000) "&CP2K"
+      WRITE(unit,10000) "&FORCE_EVAL"
+      SELECT CASE ( force_env%in_use )
+      CASE ( use_fist_force )
+         WRITE(unit,10000) ' PROGRAM      FIST'
+      CASE ( use_qs_force )
+         WRITE(unit,10000) "  &DFT"
+         WRITE(unit,10000) "    &MGRID"
+         CALL section_vals_val_get(input,"DFT%MGRID%CUTOFF",r_val=r_val)
+         WRITE(unit,20000) "      CUTOFF  ",2.0E0_dp*r_val
+         WRITE(unit,10000) "    &END MGRID"
+         WRITE(unit,10000) "    &QS"
+         WRITE(unit,10000) "      EXTRAPOLATION USE_PREV_WF"
+         WRITE(unit,10000) "    &END QS"
+         WRITE(unit,10000) "    &SCF"
+         CALL section_vals_val_get(input,"DFT%SCF%SCF_GUESS",c_val=c_val)
+         WRITE(unit,20001) "      SCF_GUESS  ",TRIM(ADJUSTL(c_val))
+         WRITE(unit,10000) "    &END SCF"
+         WRITE(unit,10000) "    &XC"
+         xc_fun_section => section_vals_get_subs_vals(input,&
+            "DFT%XC%XC_FUNCTIONAL")
+         xc_fun => section_vals_get_subs_vals2(xc_fun_section,i_section=1)
+         WRITE(unit,20001) "      &XC_FUNCTIONAL ",TRIM(xc_fun%section%name)
+         WRITE(unit,10000) "      &END XC_FUNCTIONAL"
+         WRITE(unit,10000) "      &XC_GRID"
+         CALL section_vals_val_get(input,"DFT%XC%XC_GRID%XC_SMOOTH_RHO",&
+           c_val=c_val)
+         WRITE(unit,20001) "        XC_SMOOTH_RHO ",TRIM(ADJUSTL(c_val))
+         CALL section_vals_val_get(input,"DFT%XC%XC_GRID%XC_DERIV",&
+           c_val=c_val)
+         WRITE(unit,20001) "        XC_DERIV ",TRIM(ADJUSTL(c_val))
+         WRITE(unit,10000) "      &END XC_GRID"
+         WRITE(unit,10000) "    &END XC"
+         WRITE(unit,10000) "  &END DFT"
+      CASE ( use_kg_force )
+         WRITE(unit,10000) ' PROGRAM      KG'
+      CASE default
+        CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
+      END SELECT
+
+      WRITE(unit,10000) "  &SUBSYS"
+! cell information
+      WRITE(unit,10000) "    &CELL"
+      WRITE(unit,40000) '      ABC  ',box_length(1:3)
+      WRITE(unit,10000) '      UNIT ANGSTROM'
+      IF(force_env%in_use == use_qs_force) THEN
+         IF(use_ref_cell) THEN
+            WRITE(unit,10000) '       &CELL_REF'
+            WRITE(unit,40000) '         ABC ',&
+               abc(1:3)*angstrom
+            WRITE(unit,10000) '       &END CELL_REF'
+         ENDIF
+      ENDIF
+      WRITE(unit,10000) '    &END CELL'
+
+
+! write out the coordinate information...currently only works for
+! single component systems
+      WRITE(unit,10000) '    &COORD'
+      IF(MOD(natoms_tot,natoms) .NE. 0) THEN
+         CALL stop_program("mc_make_dat_file",&
+              "Not a single component system?")
+      ENDIF
+      nchains=natoms_tot/natoms
+
+      IF(nchains .NE. 0) THEN
+         DO ichain=1,nchains
+            DO iatom=1,natoms
+               WRITE(unit,40003) TRIM(ADJUSTL(atom_list(iatom)%name)),&
+               coordinates(1:3,(ichain-1)*natoms+iatom)*angstrom
+            ENDDO
+         ENDDO
+      ELSE
+         DO iatom=1,natoms
+            WRITE(unit,40003) TRIM(ADJUSTL(atom_list(iatom)%name)),&
+               REAL(iatom,dp),REAL(iatom,dp),REAL(iatom,dp)
+         ENDDO
+      ENDIF
+      WRITE(unit,10000) '    &END COORD'
+
+! now the kind types, for the basis sets and potentials
+      IF(force_env%in_use == use_qs_force)THEN
+         DO itype=1,ntypes
+            atomic_kind => atomic_kind_set(itype)
+            CALL get_atomic_kind(atomic_kind=atomic_kind,&
+            element_symbol=element_symbol,gth_potential=gth_potential,&
+            orb_basis_set=orb_basis_set)
+            
+            CALL get_gto_basis_set(orb_basis_set,name=name)
+            
+            WRITE(unit,20001) "    &KIND ",element_symbol
+            WRITE(unit,20001) "      BASIS_SET    ",TRIM(ADJUSTL(name))
+            
+            CALL get_potential(gth_potential,name=name)
+            
+            WRITE(unit,20001) "      POTENTIAL    ",TRIM(ADJUSTL(name))
+            WRITE(unit,10000) "    &END KIND"
+         ENDDO      
+      ENDIF
+! write the topology section
+      WRITE(unit,10000) "    &TOPOLOGY"
+      WRITE(unit,10000) "      CONNECTIVITY PSF"
+      WRITE(cfile,'(I4)') natoms_tot/natoms
+      WRITE(unit,10000) '      CONN_FILE topology_' &
+      // TRIM(ADJUSTL(cfile)) // '.psf'
+      WRITE(unit,10000) "    &END TOPOLOGY"
+      WRITE(unit,10000) "  &END SUBSYS"
+      WRITE(unit,10000) "&END FORCE_EVAL"
+      WRITE(unit,10000) "&GLOBAL"
       SELECT CASE ( force_env%in_use )
       CASE ( use_fist_force )
          WRITE(unit,10000) ' PROGRAM      FIST'
@@ -702,26 +813,9 @@ SUBROUTINE mc_make_dat_file(coordinates,natoms_tot,box_length,filename,&
         CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
       END SELECT
       WRITE(unit,10000) ' PROJECT      H2O_MC'
-      WRITE(unit,10000) ' IOLEVEL      0'
       WRITE(unit,20001) ' FFTLIB       ',fft_lib
-      WRITE(unit,10000) ' RUN_TYPE     MC'
+      WRITE(unit,10000) ' PRINT_LEVEL  LOW'
       WRITE(unit,10000) "&END"
-      WRITE(unit,*) 
-      WRITE(unit,10000) "&PRINT low"
-      WRITE(unit,10000) "&END"
-      WRITE(unit,*) 
-      WRITE(unit,10000) "&MC"
-      WRITE(unit,10000) "&END"
-      WRITE(unit,*) 
-
-! write the topology section
-      WRITE(unit,10000) "&TOPOLOGY"
-      WRITE(unit,10000) " CONNECTIVITY PSF"
-      WRITE(cfile,'(I4)') natoms_tot/natoms
-      WRITE(unit,10000) ' CONN_FILE topology_' &
-      // TRIM(ADJUSTL(cfile)) // '.psf'
-      WRITE(unit,10000) "&END"
-      WRITE(unit,10000) 
 
       SELECT CASE ( force_env%in_use )
       CASE ( use_fist_force )
@@ -787,52 +881,7 @@ SUBROUTINE mc_make_dat_file(coordinates,natoms_tot,box_length,filename,&
          WRITE(unit,10000) 
 
       CASE ( use_qs_force )
-! write out the functional...we only have three at the moment
-!FM         WRITE(unit,10000) "&DFT"
-!FM         IF(dft_control%xc_control%functionals(1) .EQ. 'BECKE88') THEN
-!FM            WRITE(unit,10000) ' FUNCTIONAL   BLYP'
-!FM         ELSEIF(dft_control%xc_control%functionals(1) .EQ. 'PBEX')THEN
-!FM            WRITE(unit,10000) ' FUNCTIONAL   PBE'
-!FM         ELSE
-!FM            WRITE(unit,10000) ' FUNCTIONAL   Pade'
-!FM         ENDIF
 
-         WRITE(unit,10000) ' XC_SMOOTH_RHO   NONE'
-         WRITE(unit,10000) ' XC_DERIV      SPLINE2'
-         WRITE(unit,10000) "&END"
-         WRITE(unit,*) 
-         WRITE(unit,10000) "&QS"
-
-! I need to undo the unit change that's done in 
-!       cp_control_units.F/read_qs_control
-!FM         WRITE(unit,20000) ' CUTOFF       ',&
-!FM         dft_control % qs_control % cutoff*2.0_dp
-         WRITE(unit,10000) ' EXTRAPOLATION       USE_PREV_WF'
-         WRITE(unit,10000) "&END"
-         WRITE(unit,*) 
-         WRITE(unit,10000) "&SCF"
-         WRITE(unit,10000) ' GUESS        ATOMIC'
-         WRITE(unit,10000) "&END"
-         WRITE(unit,*) 
-
-! write out element kind information...basis sets and potentials
-         DO itype=1,ntypes
-            atomic_kind => atomic_kind_set(itype)
-            CALL get_atomic_kind(atomic_kind=atomic_kind,&
-            element_symbol=element_symbol,gth_potential=gth_potential,&
-            orb_basis_set=orb_basis_set)
-            
-            CALL get_gto_basis_set(orb_basis_set,name=name)
-            
-            WRITE(unit,20001) "&KIND ",element_symbol
-            WRITE(unit,20001) " BASIS_SET    ",TRIM(ADJUSTL(name))
-            
-            CALL get_potential(gth_potential,name=name)
-            
-            WRITE(unit,20001) " POTENTIAL    ",TRIM(ADJUSTL(name))
-            WRITE(unit,10000) "&END"
-            WRITE(unit,*)  
-         ENDDO
 ! let's try to deal with the reference cell
          IF(use_ref_cell) THEN
             WRITE(unit,10000) '&CELL_REF'
@@ -848,38 +897,6 @@ SUBROUTINE mc_make_dat_file(coordinates,natoms_tot,box_length,filename,&
         CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
       END SELECT
 
-! write out the cell information
-      WRITE(unit,10000) "&CELL"
-      WRITE(unit,10000) ' UNIT         ANGSTROM'
-      WRITE(unit,40000) ' ABC          ',&
-         box_length(1:3)
-      WRITE(unit,10000) "&END"
-      WRITE(unit,*) 
-
-! write out the coordinate information...currently only works for
-! single component systems
-      WRITE(unit,10000) "&COORD"
-      IF(MOD(natoms_tot,natoms) .NE. 0) THEN
-         CALL stop_program("mc_make_dat_file",&
-              "Not a single component system?")
-      ENDIF
-      nchains=natoms_tot/natoms
-
-      IF(nchains .NE. 0) THEN
-         DO ichain=1,nchains
-            DO iatom=1,natoms
-               WRITE(unit,40003) TRIM(ADJUSTL(atom_list(iatom)%name)),&
-               coordinates(1:3,(ichain-1)*natoms+iatom)*angstrom
-            ENDDO
-         ENDDO
-      ELSE
-         DO iatom=1,natoms
-            WRITE(unit,40003) TRIM(ADJUSTL(atom_list(iatom)%name)),&
-               REAL(iatom,dp),REAL(iatom,dp),REAL(iatom,dp)
-         ENDDO
-      ENDIF
-      WRITE(unit,10000) "&END"
-         
 ! close the file
       CALL close_file(unit_number=unit)
 
@@ -893,7 +910,7 @@ SUBROUTINE mc_make_dat_file(coordinates,natoms_tot,box_length,filename,&
 40000 FORMAT(A,3(F20.12,2X))
 40001 FORMAT(A,F12.8,2X,I8,2X,I8)
 40002 FORMAT(A,F12.8,2X,I8,2X,F12.8)
-40003 FORMAT(A,3(F20.15,2X))
+40003 FORMAT(5X,A,3(F20.15,2X))
 50000 FORMAT(A,3(F18.12,2X),A)
 60000 FORMAT(A,A,2X,A,2X,A,3(2X,F10.5))
 

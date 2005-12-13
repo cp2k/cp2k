@@ -23,8 +23,20 @@
 MODULE mc_control
   USE cp_files,                        ONLY: open_file,&
                                              close_file
+  USE cp_parser,                       ONLY: cp_parser_type, &
+                                             parser_create, &
+                                             parser_release,&
+                                             parser_search_string
   USE cp_subsystem_types,              ONLY: cp_subsys_get,&
                                              cp_subsystem_p_type
+  USE cp_units,                        ONLY: cp_unit_set_type, &
+                                             cp_unit_set_create, &
+                                             cp_unit_set_release
+  USE environment,                     ONLY: cp2k_finalize,&
+                                             cp2k_init,&
+                                             cp2k_read,&
+                                             cp2k_setup,&
+                                             compile_date,compile_lastcvs
   USE fist_main,                       ONLY: fist_create_force_env
   USE force_env_types,                 ONLY: force_env_get,&
                                              force_env_type,&
@@ -32,7 +44,27 @@ MODULE mc_control
                                              use_kg_force,&
                                              use_qs_force,&
                                              force_env_release
-  USE global_types,                    ONLY: global_environment_type
+  USE global_types,                    ONLY: global_environment_type,&
+                                             globenv_create,&
+                                             globenv_retain,&
+                                             globenv_release
+  USE input_cp2k,                      ONLY: create_cp2k_root_section,&
+                                             check_cp2k_input, &
+                                             create_global_section
+  USE input_keyword_types,             ONLY: keyword_release
+  USE input_parsing,                   ONLY: section_vals_parse
+  USE input_section_types,             ONLY: section_type, &
+                                             section_release,&
+                                             section_vals_type, &
+                                             section_vals_release, &
+                                             section_vals_create,&
+                                             section_vals_write, &
+                                             section_vals_get, &
+                                             section_vals_get_subs_vals, &
+                                             section_describe_html,&
+                                             section_vals_val_get, &
+                                             section_describe_index_html, &
+                                             write_section_xml
   USE kinds,                           ONLY: dp,&
                                              dp_size
   USE mc_misc,                         ONLY: mc_make_dat_file
@@ -388,7 +420,32 @@ SUBROUTINE mc_create_force_env ( force_env, globenv, box_change, in_use, &
          :: routineN = "mc_create_force_env",&
             routineP = module_name//':'//routineN
       LOGICAL :: failure
+      TYPE(global_environment_type), POINTER   :: globenv_temp
+      TYPE(section_vals_type), POINTER :: input_file,file_temp
+      TYPE(section_type), POINTER :: input_structure
+      TYPE(cp_parser_type), pointer :: my_parser
+      TYPE(cp_unit_set_type), pointer :: default_units
 !***************************************************************************
+
+      NULLIFY(file_temp,input_file,input_structure,my_parser,default_units)
+
+    ! parse the new input file input
+      CALL create_cp2k_root_section(input_structure,error=error)
+      CALL section_vals_create(input_file,input_structure, error=error)
+      CALL section_release(input_structure,error=error)
+      CALL parser_create(my_parser,file_name=globenv%input_file_name,&
+         error=error)
+      CALL cp_unit_set_create(default_units, "OUTPUT",error=error)
+      CALL section_vals_parse(input_file,my_parser,root_section=.false.,&
+      default_units=default_units,error=error)
+      CALL cp_unit_set_release(default_units,error=error)
+      CALL parser_release(my_parser,error=error)
+      CALL cp_error_check(error,failure)
+      file_temp => globenv%input_file 
+      globenv%input_file => input_file
+      NULLIFY(input_file)
+
+
       SELECT CASE ( in_use )
       CASE ( use_fist_force )
          CALL fist_create_force_env(force_env, globenv, error=error)
@@ -400,6 +457,10 @@ SUBROUTINE mc_create_force_env ( force_env, globenv, box_change, in_use, &
          CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
       END SELECT
 
+! release some stuff created here
+      globenv%input_file => file_temp
+      NULLIFY(file_temp)
+     
 END SUBROUTINE mc_create_force_env
 
 ! *****************************************************************************
