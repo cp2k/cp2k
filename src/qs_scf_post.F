@@ -200,6 +200,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     LOGICAL                                  :: failure, ionode
+    LOGICAL                                  :: p_loc,p_molstates,p_cubes
     LOGICAL                                  :: my_localized_wfn, was_present
     REAL(KIND=dp), DIMENSION(:), POINTER     :: mo_eigenvalues
     TYPE(atomic_kind_type), DIMENSION(:), &
@@ -309,10 +310,21 @@ CONTAINS
           CALL get_ddapc(qs_env,.FALSE.,print_key,error=error)
        END IF
 
+!    ***  Print Localized orbitals
+       print_key => section_vals_get_subs_vals(dft_section,"PRINT%LOCALIZATION",error=error)
+       CALL section_vals_get(print_key,explicit=p_loc,error=error)
+!    ***  Print Molecular States
+       print_key => section_vals_get_subs_vals(dft_section,"PRINT%MOLECULAR_STATES",error=error)
+       CALL section_vals_get(print_key,explicit=p_molstates,error=error)
+!    *** Print Cubes     
+       print_key => section_vals_get_subs_vals(dft_section,"PRINT%MO_CUBES",error=error)
+       CALL section_vals_get(print_key,explicit=p_cubes,error=error)
+
 !    *** setup the grids needed to compute a wavefunction given a vector
-       IF ((section_get_ival(dft_section,"PRINT%MO_CUBES%NLUMO") /= 0 .OR. &
-            globenv%print%homos .OR. &
-            globenv%print%localization) .AND. globenv%print%cubes ) THEN
+       IF ( (p_cubes .AND. &
+             ( section_get_ival(dft_section,"PRINT%MO_CUBES%NLUMO") /= 0 .OR. &
+               section_get_ival(dft_section,"PRINT%MO_CUBES%NHOMO") /=0 ) ).OR. &
+            p_loc ) THEN
           CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool,&
                pw_pools=pw_pools,auxbas_rs_pool=auxbas_rs_pool)
           CALL rs_pool_create_rs(auxbas_rs_pool,rs)
@@ -325,7 +337,7 @@ CONTAINS
        END IF
 
 ! *** makes the MOs eigenstates, computes eigenvalues, write cubes 
-       IF (globenv%print%homos) THEN
+       IF (p_cubes .AND. section_get_ival(dft_section,"PRINT%MO_CUBES%NHOMO") /=0) THEN
           DO ispin=1,dft_control%nspins
              CALL get_mo_set(mo_set=mos(ispin)%mo_set,mo_coeff=mo_coeff, &
                              eigenvalues=mo_eigenvalues,homo=homo,nmo=nmo)
@@ -341,7 +353,7 @@ CONTAINS
                   para_env=qs_env%para_env,scr=output_unit, &
                   ionode=ionode, do_rotation=.TRUE.)
 
-             IF (globenv%print%cubes) THEN
+             IF (p_cubes) THEN
                 DO ivector=MAX(1,homo-globenv%print%nhomos+1),homo
                    CALL calculate_wavefunction(mo_coeff,ivector,wf_r, &
                         wf_g,&
@@ -372,7 +384,7 @@ CONTAINS
           END IF
           CALL localized_wfn_control_release(my_localized_wfn_control,error=error)
 
-       ELSEIF (globenv%print%localization)THEN
+       ELSEIF (p_loc)THEN
           NULLIFY(qs_loc_env)
           ALLOCATE(qs_loc_env)
           CALL qs_loc_init(qs_loc_env,qs_env)
@@ -384,16 +396,17 @@ CONTAINS
 ! *** gets localization info for the occupied orbs
 ! *** possibly gets wannier functions
 ! *** possibly gets molecular states
+
        IF (my_localized_wfn) THEN
 
           CALL qs_loc_driver(qs_env,qs_loc_env_new,ionode,error=error)
  
-       ELSEIF (globenv%print%localization) THEN
+       ELSEIF (p_loc) THEN
           DO ispin=1,dft_control%nspins
              CALL get_mo_set(mo_set=mos(ispin)%mo_set,mo_coeff=mo_coeff, &
                                               eigenvalues=mo_eigenvalues,homo=homo,nmo=nmo)
              ! just get eigenstates
-             IF (.NOT.globenv%print%homos) THEN
+             IF (section_get_ival(dft_section,"PRINT%MO_CUBES%NHOMO")==0) THEN
                 IF (ionode) WRITE(output_unit,*) " "
                 IF (ionode) WRITE(output_unit,*) " Eigenvalues of the occupied subspace spin ",ispin
                 IF (homo .NE. nmo) THEN
@@ -418,7 +431,7 @@ CONTAINS
              IF (ionode) CLOSE(21)
              IF (ionode) WRITE(output_unit,*) "Results in ",filename
              ! write the wannier functions to cubes
-             IF (globenv%print%cubes.AND. .NOT. globenv % print % molecular_states ) THEN
+             IF (p_cubes.AND. .NOT. p_molstates ) THEN
                 ! obviously we need a smarter scheme to select them. 
                 DO ivector=1,mo_localized%matrix_struct%ncol_global   
                    CALL calculate_wavefunction(mo_localized,ivector,wf_r, &
@@ -436,7 +449,7 @@ CONTAINS
                 ENDDO
              END IF
              ! compute the molecular states
-             IF ( globenv % print % molecular_states ) THEN
+             IF ( p_molstates ) THEN
                   CALL construct_molecular_states ( molecule_set, mo_localized, &
                                                     mo_coeff, mo_eigenvalues, &
                                                     ks_rmpv ( ispin ) % matrix, &
@@ -455,7 +468,8 @@ CONTAINS
        ENDIF
 
 ! gets the lumos, and eigenvalues for the lumos 
-       IF (section_get_ival(dft_section,"PRINT%MO_CUBES%NLUMO") /= 0) THEN
+       IF ((p_cubes .OR.dft_control%do_tddfpt_calculation ) .AND. &
+           section_get_ival(dft_section,"PRINT%MO_CUBES%NLUMO") /= 0) THEN
           ALLOCATE(unoccupied_orbs(dft_control%nspins))
           ALLOCATE(unoccupied_evals(dft_control%nspins))
           DO ispin=1,dft_control%nspins
@@ -496,7 +510,7 @@ CONTAINS
                   unoccupied_evals(ispin)%evals, para_env=qs_env%para_env,scr=output_unit, &
                   ionode=ionode)
 
-             IF (globenv%print%localization) THEN
+             IF (p_loc) THEN
                 IF (ionode) WRITE(output_unit,*) ""
                 IF (ionode) WRITE(output_unit,*) "Computing localization properties"
                 WRITE(filename,'(a13,I1.1)') "LUMO_CENTERS_",ispin
@@ -509,7 +523,7 @@ CONTAINS
                 IF (ionode) WRITE(output_unit,*) "Results in ",filename
              ENDIF
 
-             IF (globenv%print%cubes) THEN
+             IF (p_cubes) THEN
                 DO ivector=1,nlumos
                    CALL calculate_wavefunction(mo_vectors=unoccupied_orbs(ispin)%matrix,&
                         ivector=ivector,rho=wf_r, &
@@ -540,9 +554,9 @@ CONTAINS
        ENDIF
 
 ! *** deallocate grids needed to compute wavefunctions
-       IF ((section_get_ival(dft_section,"PRINT%MO_CUBES%NLUMO") /= 0 .OR. &
-            globenv%print%homos .OR. &
-            globenv%print%localization) .AND. globenv%print%cubes) THEN
+       IF ((p_cubes .AND. (section_get_ival(dft_section,"PRINT%MO_CUBES%NLUMO") /= 0 .OR. &
+            section_get_ival(dft_section,"PRINT%MO_CUBES%NHOMO") /= 0 )).OR. &
+            p_loc ) THEN
           CALL pw_pool_give_back_coeff(auxbas_pw_pool,wf_r,&
                error=error)
           CALL pw_pool_give_back_coeff(auxbas_pw_pool,wf_g,&
@@ -555,7 +569,7 @@ CONTAINS
           CALL qs_loc_env_destroy(qs_loc_env_new, error=error)
           DEALLOCATE(qs_loc_env_new,STAT=istat)
           CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-       ELSEIF (globenv%print%localization) THEN
+       ELSEIF (p_loc) THEN
           CALL qs_loc_destroy(qs_loc_env)
           DEALLOCATE(qs_loc_env) 
        ENDIF
@@ -574,9 +588,9 @@ CONTAINS
            IF (.NOT. homoEQnmo) THEN
               IF (ionode) WRITE(output_unit,*) " homo.NE.nmo : skip optical conductivty "
            ELSE
-             IF (.NOT. globenv%print%lumos) &
+             IF (.NOT.(p_cubes .AND. section_get_ival(dft_section,"PRINT%MO_CUBES%NLUMO") /= 0)) &
                 CALL stop_program("optical_conductivity","put LUMOS XX in the print section")
-             IF (.NOT. globenv%print%homos) &
+             IF (.NOT. (p_cubes .AND. section_get_ival(dft_section,"PRINT%MO_CUBES%NHOMO") /= 0)) &
                 CALL stop_program("optical_conductivity","put HOMOS XX in the print section")
              IF (ionode) THEN
                 File_name="CONDUCTIVITY"
@@ -599,7 +613,7 @@ CONTAINS
            ENDIF
        ENDIF
 
-       IF (section_get_ival(dft_section,"PRINT%MO_CUBES%NLUMO") /= 0) THEN
+       IF (p_cubes .AND. section_get_ival(dft_section,"PRINT%MO_CUBES%NLUMO") /= 0) THEN
         DO ispin=1,dft_control%nspins
            DEALLOCATE(unoccupied_evals(ispin)%evals)
            IF (.NOT.dft_control%do_tddfpt_calculation) &
