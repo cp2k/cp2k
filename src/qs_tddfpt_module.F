@@ -48,7 +48,7 @@ MODULE qs_tddfpt_module
   USE xc_pot_saop,                     ONLY: add_saop_pot
   USE input_section_types, ONLY:section_vals_type, section_vals_val_get, &
        section_vals_get_subs_vals,  section_vals_retain, section_vals_create, &
-       section_vals_set_subs_vals, section_vals_release
+       section_vals_set_subs_vals, section_vals_release, section_get_ival
   IMPLICIT NONE
 
 
@@ -84,19 +84,16 @@ CONTAINS
     INTEGER                                  :: handle, excitations, oe_corr
     TYPE(qs_p_env_type), POINTER             :: p_env
     TYPE(tddfpt_env_type)                    :: t_env
-    TYPE(section_vals_type),POINTER :: input,xc_section,tddfpt_section
+    TYPE(section_vals_type),POINTER          :: input
 
     NULLIFY(input)
     CALL get_qs_env(qs_env, input=input,error=error)
     
-    CALL section_vals_val_get(input,"dft%excitations",i_val=excitations,error=error)
-    IF (.NOT.excitations==tddfpt_excitations) RETURN
+    IF (section_get_ival(input,"DFT%EXCITATIONS") /= tddfpt_excitations) RETURN
 
     CALL timeset(routineN,"I","",handle)
 
-    tddfpt_section => section_vals_get_subs_vals(input,"DFT%TDDFPT",error=error)
-    CALL section_vals_val_get(tddfpt_section,"oe_corr",i_val=oe_corr,error=error)
-    IF (oe_corr /= oe_none) THEN
+    IF (section_get_ival(input,"DFT%TDDFPT%OE_CORR") /= oe_none) THEN
        CALL orbital_eigenvalue_correction(qs_env, error)
     END IF
     
