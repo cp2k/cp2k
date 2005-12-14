@@ -414,7 +414,7 @@ CONTAINS
     qs_section => section_vals_get_subs_vals(qs_section,"DFT",error=error)
     qs_section => section_vals_get_subs_vals(qs_section,"QS",error=error)
     loc_section => section_vals_get_subs_vals(qs_section,"LOCALIZE",error=error)
-    mull_section => section_vals_get_subs_vals(qs_section,"MULLIKEN", error=error)
+    mull_section => section_vals_get_subs_vals(qs_section,"MULLIKEN_RESTRAINT", error=error)
     se_section => section_vals_get_subs_vals(qs_section,"SE", error=error)
 
     ! Setup all defaults values and overwrite input parameters
@@ -479,7 +479,6 @@ CONTAINS
     ! Logicals
     CALL section_vals_val_get(qs_section,"MAP_PAA",l_val=qs_control%map_paa,error=error)
     CALL section_vals_val_get(qs_section,"MAP_CONSISTENT",l_val=qs_control%map_consistent,error=error)
-    CALL section_vals_val_get(qs_section,"MULLIKEN_RESTRAINT",l_val=qs_control%mulliken_restraint,error=error)
     CALL section_vals_val_get(qs_section,"LOCALIZE_WFN",l_val=qs_control%localized_wfn,error=error)
 
     ! Integers gapw
@@ -530,26 +529,23 @@ CONTAINS
       CALL read_loc_section(qs_control%localized_wfn_control,loc_section,error=error)
     END IF
 
-!    CALL read_mulliken_section()
-    CALL section_vals_val_get(mull_section,"STRENGTH",r_val=qs_control%mulliken_restraint_control%strength,error=error)
-    CALL section_vals_val_get(mull_section,"TARGET",r_val=qs_control%mulliken_restraint_control%target,error=error)
-    CALL section_vals_val_get(mull_section,"NATOMS",i_val=qs_control%mulliken_restraint_control%natoms,error=error)
-    IF(qs_control%mulliken_restraint_control%natoms .GT. 0) THEN
-      ALLOCATE(qs_control%mulliken_restraint_control%atoms(qs_control%mulliken_restraint_control%natoms))
+    call section_vals_get(mull_section,explicit=qs_control%mulliken_restraint,error=error)
+    IF (qs_control%mulliken_restraint) THEN
+      CALL section_vals_val_get(mull_section,"STRENGTH",r_val=qs_control%mulliken_restraint_control%strength,error=error)
+      CALL section_vals_val_get(mull_section,"TARGET",r_val=qs_control%mulliken_restraint_control%target,error=error)
       CALL section_vals_val_get(mull_section,"ATOMS",n_rep_val=n_rep,error=error)
+      qs_control%mulliken_restraint_control%natoms=n_rep
+      IF (n_rep<1) CALL stop_program(routine, "Need at least 1 atom to use mulliken contraints")
+      ALLOCATE(qs_control%mulliken_restraint_control%atoms(qs_control%mulliken_restraint_control%natoms))
       jj = 0
-      do k = 1,n_rep
-       CALL section_vals_val_get(mull_section,"ATOMS",i_rep_val=k,i_vals=tmplist, error=error)
-       DO  j = 1,SIZE(tmplist) 
-         jj = jj+1
-         qs_control%mulliken_restraint_control%atoms (jj) = tmplist(j) 
-       END DO 
-      end do
-    ELSE
-      IF(ASSOCIATED(qs_control%mulliken_restraint_control%atoms)) &
-          DEALLOCATE(qs_control%mulliken_restraint_control%atoms)
-      NULLIFY(qs_control%mulliken_restraint_control%atoms)
-    END IF
+      DO k = 1,n_rep
+         CALL section_vals_val_get(mull_section,"ATOMS",i_rep_val=k,i_vals=tmplist, error=error)
+         DO  j = 1,SIZE(tmplist) 
+           jj = jj+1
+           qs_control%mulliken_restraint_control%atoms (jj) = tmplist(j) 
+         END DO 
+      END DO
+    ENDIF
 
 !    CALL read_se_control_section()
     CALL section_vals_val_get(se_section,"ORTHOGONAL_BASIS",l_val=qs_control%se_control%orthogonal_basis,error=error)

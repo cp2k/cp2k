@@ -844,13 +844,6 @@ SUBROUTINE create_qs_section(section,error)
      CALL section_add_keyword(section,keyword,error=error)
      CALL keyword_release(keyword,error=error)
 
-     CALL keyword_create(keyword, name="MULLIKEN_RESTRAINT",&
-          description="Employ a restraint on the mulliken charges",&
-          usage="MULLIKEN_RESTRAINT",&
-          default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,error=error)
-     CALL section_add_keyword(section,keyword,error=error)
-     CALL keyword_release(keyword,error=error)     
-
      CALL keyword_create(keyword, name="LOCALIZE_WFN",&
           description="Check and possibly optimize the localization of the wavefunctions",&
           usage="LOCALIZE_WFN",&
@@ -1065,31 +1058,25 @@ SUBROUTINE create_mulliken_section(section,error)
     nullify(keyword)
     CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
-      CALL section_create(section,"MULLIKEN",&
-           description="parameters needed to calculate the Mulliken charges",&
-           n_keywords=7, n_subsections=0, repeats=.FALSE., required=.FALSE.,&
+      CALL section_create(section,"MULLIKEN_RESTRAINT",&
+           description="Use mulliken charges in a restraint (check code for details)",&
+           n_keywords=7, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
            error=error)
 
       CALL keyword_create(keyword, name="STRENGTH",&
-           description="??",&
+           description="force constant of the restraint",&
            usage="STRENGTH {real} ",default_r_val=0.1_dp, error=error)
       CALL section_add_keyword(section,keyword,error=error)
       CALL keyword_release(keyword,error=error)
   
       CALL keyword_create(keyword, name="TARGET",&
-           description="??",&
+           description="target value of the restraint",&
            usage="TARGET {real} ",default_r_val=1._dp, error=error)
       CALL section_add_keyword(section,keyword,error=error)
       CALL keyword_release(keyword,error=error)
 
-      CALL keyword_create(keyword, name="NATOMS",&
-           description="??",&
-           usage="NATOMS {integer} ",default_i_val=0, error=error)
-      CALL section_add_keyword(section,keyword,error=error)
-      CALL keyword_release(keyword,error=error)
-
       CALL keyword_create(keyword, name="ATOMS",&
-           description="Specifies a list of atoms to ....",&
+           description="Specifies the list of atoms that is summed in the restraint",&
            usage="LIST {integer} {integer} .. {integer}", required=.TRUE.,&
            n_var=-1, type_of_var=integer_t, error=error)
       CALL section_add_keyword(section,keyword,error=error)
