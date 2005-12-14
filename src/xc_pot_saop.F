@@ -493,6 +493,7 @@ CONTAINS
 
     CALL section_vals_release(xc_fun_section_tmp,error=error)
     CALL section_vals_release(xc_section_tmp,error=error)
+    CALL section_vals_release(xc_section_orig,error=error)
 
     !-----------------------!
     ! Call the GAPW routine !
@@ -1073,6 +1074,7 @@ CONTAINS
     !---------!
        CALL section_vals_release(xc_fun_section_tmp,error=error)
        CALL section_vals_release(xc_section_tmp,error=error)
+       CALL section_vals_release(xc_section_orig,error=error)     
 
     call local_rho_set_release(local_rho_set,error)
     do ispin=1, nspins
