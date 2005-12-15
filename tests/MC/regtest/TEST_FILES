@@ -8,3 +8,5 @@
 MC_volume.inp 0
 # QS MC testing the classical inner moves
 MC_qs_moves.inp 0
+# FIST MC testing NpT simulation with biasing
+MC_Fist.inp 0

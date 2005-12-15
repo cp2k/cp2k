@@ -1,0 +1,16 @@
+BONDS
+H   H      0.000     1.5139
+O   H    0.000     0.9572
+
+ANGLES
+H   O   H     0.000   104.5200
+
+DIHEDRALS
+
+IMPROPER
+
+NONBONDED
+
+HBOND CUTHB 0.5
+
+END
