@@ -25,18 +25,12 @@ MODULE mc_control
                                              close_file
   USE cp_parser,                       ONLY: cp_parser_type, &
                                              parser_create, &
-                                             parser_release,&
-                                             parser_search_string
+                                             parser_release
   USE cp_subsystem_types,              ONLY: cp_subsys_get,&
                                              cp_subsystem_p_type
   USE cp_units,                        ONLY: cp_unit_set_type, &
                                              cp_unit_set_create, &
                                              cp_unit_set_release
-  USE environment,                     ONLY: cp2k_finalize,&
-                                             cp2k_init,&
-                                             cp2k_read,&
-                                             cp2k_setup,&
-                                             compile_date,compile_lastcvs
   USE fist_main,                       ONLY: fist_create_force_env
   USE force_env_types,                 ONLY: force_env_get,&
                                              force_env_type,&
@@ -44,27 +38,14 @@ MODULE mc_control
                                              use_kg_force,&
                                              use_qs_force,&
                                              force_env_release
-  USE global_types,                    ONLY: global_environment_type,&
-                                             globenv_create,&
-                                             globenv_retain,&
-                                             globenv_release
-  USE input_cp2k,                      ONLY: create_cp2k_root_section,&
-                                             check_cp2k_input, &
-                                             create_global_section
-  USE input_keyword_types,             ONLY: keyword_release
+  USE global_types,                    ONLY: global_environment_type
+  USE input_cp2k,                      ONLY: create_cp2k_root_section
   USE input_parsing,                   ONLY: section_vals_parse
   USE input_section_types,             ONLY: section_type, &
                                              section_release,&
                                              section_vals_type, &
                                              section_vals_release, &
-                                             section_vals_create,&
-                                             section_vals_write, &
-                                             section_vals_get, &
-                                             section_vals_get_subs_vals, &
-                                             section_describe_html,&
-                                             section_vals_val_get, &
-                                             section_describe_index_html, &
-                                             write_section_xml
+                                             section_vals_create
   USE kg_main,                         ONLY: kg_create_force_env
   USE kinds,                           ONLY: dp,&
                                              dp_size
@@ -421,7 +402,6 @@ SUBROUTINE mc_create_force_env ( force_env, globenv, box_change, in_use, &
          :: routineN = "mc_create_force_env",&
             routineP = module_name//':'//routineN
       LOGICAL :: failure
-      TYPE(global_environment_type), POINTER   :: globenv_temp
       TYPE(section_vals_type), POINTER :: input_file,file_temp
       TYPE(section_type), POINTER :: input_structure
       TYPE(cp_parser_type), pointer :: my_parser

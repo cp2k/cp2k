@@ -227,7 +227,7 @@ SUBROUTINE mc_classical_energy ( force_env, classical_energy_new,&
     CHARACTER(LEN=*), PARAMETER :: routineN = "mc_classical_energy"
 
     INTEGER                                  :: handle, imol, ipart, jmol, &
-                                                jpart, jstart, ntij
+                                                jpart, jstart
     LOGICAL                                  :: lall, lcalc_charge
     REAL(KIND=dp) :: bend_energy, box_length, charge_energy, dist, kstretch, &
       LJ_energy, rijx, rijy, rijz, &
@@ -951,7 +951,7 @@ SUBROUTINE generate_cbmc_swap_config( force_env, BETA, nswapmoves,&
        iatom,imove,nmols,i,choosen,start_atom,end_atom,imolecule,natom
     LOGICAL,DIMENSION(:),ALLOCATABLE         :: loverlap_array
     LOGICAL                                  :: all_overlaps 
-    REAL(KIND=dp)                            :: rand,rdum,&
+    REAL(KIND=dp)                            :: rand,&
                                                 bias_energy,&
                                                 total_running_weight,&
                                                 exponent
@@ -963,7 +963,7 @@ SUBROUTINE generate_cbmc_swap_config( force_env, BETA, nswapmoves,&
       ALLOCATABLE                            :: boltz_weights,mass,&
       trial_energy
     REAL(KIND=dp), DIMENSION(1:3)            :: r_insert,center_of_mass,&
-                                                diff,abc,RIJ
+                                                diff,abc
     TYPE(cp_subsystem_p_type), &
       DIMENSION(:), POINTER                  :: oldsys
     TYPE(cp_error_type)                      :: error
@@ -1142,18 +1142,7 @@ SUBROUTINE generate_cbmc_swap_config( force_env, BETA, nswapmoves,&
             potential_energy=bias_energy,error=error)
             
 
-!            RIJ(1)=particles%els(start_atom)%r(1)-particles%els(mol_target)%r(1)-abc(1)*&
-!               ANINT((particles%els(start_atom)%r(1)-particles%els(mol_target)%r(1))/abc(1))
-!            RIJ(2)=particles%els(start_atom)%r(2)-particles%els(mol_target)%r(2)-abc(2)*&
-!               ANINT((particles%els(start_atom)%r(2)-particles%els(mol_target)%r(2))/abc(2))
-!            RIJ(3)=particles%els(start_atom)%r(3)-particles%els(mol_target)%r(3)-abc(3)*&
-!               ANINT((particles%els(start_atom)%r(3)-particles%els(mol_target)%r(3))/abc(3))
-!         WRITE(6,*) 'distance kdjlf ',SQRT((RIJ(1)**2+RIJ(2)**2+RIJ(3)**2))*angstrom
-!         WRITE(6,*) RIJ(1:3)*angstrom
-!         WRITE(6,*) abc(1:3)*angstrom
-
          trial_energy(imove)=(bias_energy-old_energy)
-!         WRITE(6,*) 'ioenvcm,xnv ',bias_energy,old_energy,trial_energy(imove),imove
 
          exponent=-BETA*trial_energy(imove)
          IF(exponent .GT. 500.0_dp) THEN
@@ -1163,7 +1152,6 @@ SUBROUTINE generate_cbmc_swap_config( force_env, BETA, nswapmoves,&
          ELSE
             boltz_weights(imove)=EXP(exponent)
          ENDIF
-!         WRITE(6,*) 'mncv,m ',boltz_weights(imove),imove
       ENDDO
 
 ! now we need to pick a configuration based on the Rosenbluth weight,

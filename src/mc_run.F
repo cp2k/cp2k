@@ -252,7 +252,7 @@ CONTAINS
       DO ibox=1,nboxes
 ! allocates an mc_env and sets the variables to zero
          CALL mc_env_create ( mc_env(ibox)%mc_env, &
-            globenv % para_env, error = error )
+            error = error )
       ENDDO
 
 

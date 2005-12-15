@@ -19,14 +19,9 @@
 
 MODULE mc_environment_types
   USE cp_error_handling,               ONLY: cp_a_l,&
-                                             cp_assert,&
                                              cp_error_type
   USE cp_log_handling,                 ONLY: cp_failure_level,&
-                                             cp_to_string,&
                                              cp_warning_level
-  USE cp_para_env,                     ONLY: cp_para_env_release,&
-                                             cp_para_env_retain
-  USE cp_para_types,                   ONLY: cp_para_env_type
   USE force_env_types,                 ONLY: force_env_type
   USE mc_types,                        ONLY: mc_simulation_parameters_type
 
@@ -37,7 +32,6 @@ MODULE mc_environment_types
  
   TYPE mc_environment_type
      INTEGER :: id_nr, ref_count, in_use
-     TYPE (cp_para_env_type), POINTER :: para_env 
      TYPE ( mc_simulation_parameters_type ), POINTER :: mc_par
      TYPE ( force_env_type ), POINTER :: force_env  
   END TYPE mc_environment_type
@@ -73,8 +67,6 @@ CONTAINS
 !!
 !!   ARGUMENTS
 !!     - mc_env: the mc_environment you want to create
-!!     - para_env: the cp para environment type you want to associate with
-!!                 this mc_env
 !!
 !!   Suitable for parallel use.
 !!
@@ -82,12 +74,11 @@ CONTAINS
 !!     MJM
 !!
 !!**************************************************************************
-  SUBROUTINE mc_env_create ( mc_env, para_env, error )
+  SUBROUTINE mc_env_create ( mc_env, error )
 
 !   ***************************************************************************
 
     TYPE(mc_environment_type), POINTER       :: mc_env
-    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_error_type), INTENT(INOUT), &
       OPTIONAL                               :: error
 
@@ -108,8 +99,6 @@ CONTAINS
 
     NULLIFY ( mc_env % mc_par )
     NULLIFY ( mc_env % force_env )
-!    mc_env % para_env => para_env 
-!    CALL cp_para_env_retain ( mc_env % para_env )
 
   END SUBROUTINE mc_env_create
 
@@ -129,8 +118,6 @@ CONTAINS
 !!     - mc_par: the mc parameters you want to associate with this mc_env
 !!     - force_env: the force environment type you want to associate
 !!                  with this mc_env
-!!     - para_env: the cp para environment type you want to associate
-!!                 with this mc_env
 !!
 !!   Suitable for parallel.
 !!
@@ -138,18 +125,15 @@ CONTAINS
 !!     MJM
 !!
 !!**************************************************************************
-  SUBROUTINE set_mc_env ( mc_env,mc_par,force_env,para_env)
+  SUBROUTINE set_mc_env ( mc_env,mc_par,force_env)
 
 !   ***************************************************************************
     TYPE(mc_environment_type), POINTER       :: mc_env
     TYPE(mc_simulation_parameters_type), &
       OPTIONAL, POINTER                      :: mc_par
     TYPE(force_env_type), OPTIONAL, POINTER  :: force_env
-    TYPE(cp_para_env_type), OPTIONAL, &
-      POINTER                                :: para_env
 
     IF ( PRESENT ( mc_par ) ) mc_env % mc_par => mc_par
-    IF ( PRESENT ( para_env ) ) mc_env % para_env => para_env
     IF ( PRESENT ( force_env )) THEN
        mc_env % force_env => force_env
     END IF
@@ -174,8 +158,6 @@ CONTAINS
 !!               associated with this mc_env
 !!     - force_env: the force environment type you want to point to the
 !!               force environment associated with this mc_env
-!!     - para_env: the cp para environment type you want to point to the
-!!               para environment associated with this mc_env
 !!
 !!   Suitable for parallel.
 !!
@@ -183,20 +165,17 @@ CONTAINS
 !!     MJM
 !!
 !!**************************************************************************
-  SUBROUTINE get_mc_env ( mc_env, mc_par, force_env, para_env)
+  SUBROUTINE get_mc_env ( mc_env, mc_par, force_env)
 
     TYPE(mc_environment_type), POINTER       :: mc_env
     TYPE(mc_simulation_parameters_type), &
       OPTIONAL, POINTER                      :: mc_par
     TYPE(force_env_type), OPTIONAL, POINTER  :: force_env
-    TYPE(cp_para_env_type), OPTIONAL, &
-      POINTER                                :: para_env
 
 !   ---------------------------------------------------------------------------
 
     IF ( PRESENT ( mc_par ) ) mc_par => mc_env % mc_par
     IF ( PRESENT ( force_env ) ) force_env => mc_env % force_env
-!    IF ( PRESENT ( para_env ) ) para_env => mc_env % para_env
 
   END SUBROUTINE get_mc_env
 
@@ -285,7 +264,6 @@ SUBROUTINE mc_env_release(mc_env, error)
      mc_env%ref_count=mc_env%ref_count-1
      IF (mc_env%ref_count==0) THEN
         mc_env%ref_count=1
-!        CALL cp_para_env_release ( mc_env % para_env, error = error )
         NULLIFY ( mc_env % mc_par )
         NULLIFY ( mc_env % force_env)
         mc_env%ref_count=0

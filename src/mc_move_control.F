@@ -20,7 +20,6 @@
 !******************************************************************************
 
 MODULE mc_move_control
-  USE cp_error_handling,               ONLY: cp_error_type
   USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: pi
   USE mc_types,                        ONLY: mc_moves_type,&

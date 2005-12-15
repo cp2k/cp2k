@@ -24,8 +24,7 @@
 !******************************************************************************
 
 MODULE mc_ge_moves
-  USE atomic_kind_types,               ONLY: atomic_kind_type,&
-                                             get_atomic_kind
+  USE atomic_kind_types,               ONLY: get_atomic_kind
   USE cp_error_handling,               ONLY: cp_error_type
   USE cp_subsystem_types,              ONLY: cp_subsys_get,&
                                              cp_subsys_set,&
@@ -51,15 +50,12 @@ MODULE mc_ge_moves
                                              q_move_accept
   USE mc_types,                        ONLY: get_mc_par,&
                                              mc_moves_p_type,&
-                                             mc_moves_type,&
                                              mc_simulation_parameters_p_type,&
-                                             mc_simulation_parameters_type,&
                                              set_mc_par
   USE message_passing,                 ONLY: mp_bcast
   USE mol_kind_new_list_types,         ONLY: mol_kind_new_list_p_type
   USE molecule_kind_types,             ONLY: get_molecule_kind,&
-                                             molecule_kind_type,&
-                                             atom_type
+                                             molecule_kind_type
   USE parallel_rng_types,              ONLY: rng_stream_type,&
                                              next_random_number
   USE particle_list_types,             ONLY: particle_list_p_type,&
@@ -473,7 +469,7 @@ CONTAINS
 
   SUBROUTINE mc_ge_swap_move(mc_par,force_env,bias_env,moves,&
                 energy_check,r_old,old_energy,&
-                nnstep,globenv,bias_energy_old,rng_stream,error)
+                globenv,bias_energy_old,rng_stream,error)
 
 !   ***************************************************************************
 
@@ -489,7 +485,6 @@ CONTAINS
       INTENT(INOUT)                          :: r_old
     REAL(KIND=dp), DIMENSION(1:2), &
       INTENT(INOUT)                          :: old_energy,bias_energy_old
-    INTEGER, INTENT(IN)                      :: nnstep
     TYPE(global_environment_type), POINTER   :: globenv
     TYPE(rng_stream_type), POINTER           :: rng_stream
     TYPE(cp_error_type), INTENT(INOUT), &

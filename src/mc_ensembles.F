@@ -469,7 +469,7 @@ CONTAINS
 
             CALL mc_ge_swap_move(mc_par,force_env,bias_env,moves,&
                 energy_check(:),r_old(:,:,:),old_energy(:),&
-                nnstep,globenv,bias_energy(:),rng_stream,error)
+                globenv,bias_energy(:),rng_stream,error)
 
 ! the number of molecules may have changed
             DO ibox=1,nboxes

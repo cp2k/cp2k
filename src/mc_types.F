@@ -32,7 +32,6 @@ MODULE mc_types
   USE global_types,                    ONLY: global_environment_type
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type,&
-                                             section_vals_get,&
                                              section_vals_val_set,&
                                              section_vals_val_get
   USE input_constants,                 ONLY: do_qs,&
@@ -48,8 +47,7 @@ MODULE mc_types
                                              joule
   USE simulation_cell,                 ONLY: cell_type,&
                                              get_cell
-  USE string_utilities,                ONLY: xstring,&
-                                             uppercase
+  USE string_utilities,                ONLY: xstring
   USE timings,                         ONLY: timeset,&
                                              timestop
 
@@ -485,9 +483,7 @@ SUBROUTINE read_mc_section ( mc_par, globenv,error )
       :: routineN = "read_mc_section"
 
     TYPE(section_vals_type), POINTER         :: mc_section
-    CHARACTER(LEN=20)                        :: string
-    CHARACTER(LEN=5)                         :: label
-    INTEGER                                  :: handle, ia, ie, ierror, ilen, &
+    INTEGER                                  :: handle, ia, ie, &
                                                 iw, stop_num
 
 !------------------------------------------------------------------------------

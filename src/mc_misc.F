@@ -638,7 +638,7 @@ SUBROUTINE mc_make_dat_file(coordinates,natoms_tot,box_length,filename,&
   
     INTEGER                                  :: handle, iatom, unit,&
       itype,ntypes,gmax,o_spline,ns_max,ewald_type,jtype,ichain,&
-      nchains,natoms,idum,i_val
+      nchains,natoms
     LOGICAL                                  :: use_ref_cell,failure
     REAL(KIND=dp),DIMENSION(1:3)             :: abc
     REAL(KIND=dp)                            :: alpha,epsilon,charge,r_val
@@ -697,7 +697,82 @@ SUBROUTINE mc_make_dat_file(coordinates,natoms_tot,box_length,filename,&
       WRITE(unit,10000) "&FORCE_EVAL"
       SELECT CASE ( force_env%in_use )
       CASE ( use_fist_force )
-         WRITE(unit,10000) ' PROGRAM      FIST'
+! grab some of the Ewald keywords
+         WRITE(unit,10000) "  &MM"
+         WRITE(unit,10000) "    &POISSON_MM"
+         WRITE(unit,10000) "      &EWALD"
+         CALL convert_to_cp2k_units ( 'BOHR', length = alpha,&
+            l_power = -1 )  
+         SELECT CASE ( ewald_type )
+         CASE ( do_ewald_ewald )
+            WRITE(unit,10000) "       EWALD_TYPE ewald"
+            WRITE(unit,20000) "       ALPHA ",alpha
+            WRITE(unit,20003) "       GMAX ",gmax
+         CASE ( do_ewald_none )
+            WRITE(unit,10000) "       EWALD_TYPE none"
+            WRITE(unit,20000) "       ALPHA ",alpha
+            WRITE(unit,20003) "       GMAX ",gmax
+         CASE ( do_ewald_pme )
+            WRITE(unit,10000) "       EWALD_TYPE pme"
+            WRITE(unit,20000) "       ALPHA ",alpha
+            WRITE(unit,20003) "       NS_MAX ",ns_max
+            WRITE(unit,20000) "       EPSILON ",epsilon
+         CASE ( do_ewald_spme )
+            WRITE(unit,10000) "       EWALD_TYPE pme"
+            WRITE(unit,20000) "       ALPHA ",alpha
+            WRITE(unit,20003) "       GMAX ",gmax
+            WRITE(unit,20003) "       O_SPLINE ",o_spline
+         END SELECT
+         WRITE(unit,10000) "      &END EWALD"
+         WRITE(unit,10000) "    &END POISSON_MM"
+
+
+! rcut
+         CALL fist_nonbond_env_get (fist_nonbond_env, potparm=potparm)
+
+! now some of the force field stuff
+         WRITE(unit,10000) "    &FORCEFIELD"
+! doesn't look like these values are stored past read-in
+         WRITE(unit,10000) "      parmfile water.pot"
+         WRITE(unit,10000) "      parmtype CHM"
+
+         
+! charges
+         DO itype=1,ntypes
+            atomic_kind => atomic_kind_set(itype)
+            CALL get_atomic_kind(atomic_kind=atomic_kind,&
+              name=name,elp_potential=elp_potential)
+            CALL get_potential(potential=elp_potential,&
+              qeff=charge)
+            WRITE(unit,10000) "      &CHARGE"
+            WRITE(unit,20001) "        ATOM ",TRIM(ADJUSTL(name))
+            WRITE(unit,20002) "        CHARGE ",charge
+            WRITE(unit,10000) "      &END CHARGE"
+         ENDDO
+
+! nonbonded...only works for LJ at the moment
+         WRITE(unit,10000) "      &NONBONDED"
+         DO itype=1,SIZE(potparm%pot,1)
+            DO jtype=itype,SIZE(potparm%pot,2)
+               WRITE(unit,10000) "        &LENNARD-JONES"
+               WRITE(unit,30002) "          ATOMS ",&
+                  TRIM(ADJUSTL(potparm%pot(itype,jtype)%pot%at1)),&
+                  TRIM(ADJUSTL(potparm%pot(itype,jtype)%pot%at2))
+               WRITE(unit,20002) "          EPSILON ",&
+                  potparm%pot(itype,jtype)%pot%lj%epsilon*kelvin
+               WRITE(unit,20002) "          SIGMA ",&
+                  potparm%pot(itype,jtype)%pot%lj%sigma6**(1.0_dp/6.0_dp)*&
+                  angstrom
+               WRITE(unit,20000) "          RCUT ",&
+                  potparm%pot(itype,jtype)%pot%rcutsq**0.5_dp*angstrom
+               WRITE(unit,10000) "        &END LENNARD-JONES"
+            ENDDO
+         ENDDO
+         WRITE(unit,10000) "      &END NONBONDED"
+         WRITE(unit,10000) "    &END FORCEFIELD"
+         WRITE(unit,10000) "  &END MM"
+
+
       CASE ( use_qs_force )
          WRITE(unit,10000) "  &DFT"
          WRITE(unit,10000) "    &MGRID"
@@ -820,66 +895,6 @@ SUBROUTINE mc_make_dat_file(coordinates,natoms_tot,box_length,filename,&
       SELECT CASE ( force_env%in_use )
       CASE ( use_fist_force )
 
-! grab some of the Ewald keywords
-         WRITE(unit,10000) "&EWALD"
-         WRITE(unit,20001) " units ",TRIM(unit_type)
-         CALL convert_to_cp2k_units ( 'BOHR', length = alpha,&
-            l_power = -1 )  
-         SELECT CASE ( ewald_type )
-         CASE ( do_ewald_ewald )
-            WRITE(unit,10000) " ewald_type ewald"
-            WRITE(unit,30000) " ewald_param ",alpha,gmax
-         CASE ( do_ewald_none )
-            WRITE(unit,10000) " ewald_type none"
-            WRITE(unit,30000) " ewald_param ",alpha,gmax
-         CASE ( do_ewald_pme )
-            WRITE(unit,10000) " ewald_type pme"
-            WRITE(unit,40002) " ewald_param ",alpha,ns_max,epsilon
-         CASE ( do_ewald_spme )
-            WRITE(unit,10000) " ewald_type spme"
-            WRITE(unit,40001) " ewald_param ",alpha,gmax,o_spline
-         END SELECT
-         WRITE(unit,10000) "&END"
-         WRITE(unit,10000) 
-
-! now some of the force field stuff
-         WRITE(unit,10000) "&FORCE_FIELD"
-! doesn't look like these values are stored past read-in
-         WRITE(unit,10000) "  parmfile chm water.pot"
-
-! rcut
-         CALL fist_nonbond_env_get (fist_nonbond_env, potparm=potparm)
-         
-         WRITE(unit,10000) "  charges"
-! charges
-         DO itype=1,ntypes
-            atomic_kind => atomic_kind_set(itype)
-            CALL get_atomic_kind(atomic_kind=atomic_kind,&
-              name=name,elp_potential=elp_potential)
-            CALL get_potential(potential=elp_potential,&
-              qeff=charge)
-            WRITE(unit,30001) "   ",TRIM(ADJUSTL(name)),charge
-         ENDDO
-         WRITE(unit,10000) "  end"
-! nonbonded...only works for LJ at the moment
-         WRITE(unit,10000) "  nonbonded"
-         DO itype=1,SIZE(potparm%pot,1)
-            DO jtype=itype,SIZE(potparm%pot,2)
-               WRITE(unit,60000) '   ',&
-               TRIM(ADJUSTL(potparm%pot(itype,jtype)%pot%type)),&
-               TRIM(ADJUSTL(potparm%pot(itype,jtype)%pot%at1)),&
-               TRIM(ADJUSTL(potparm%pot(itype,jtype)%pot%at2)),&
-               potparm%pot(itype,jtype)%pot%lj%epsilon*kelvin,&
-               potparm%pot(itype,jtype)%pot%lj%sigma6**(1.0_dp/6.0_dp)*&
-               angstrom,&
-               potparm%pot(itype,jtype)%pot%rcutsq**0.5_dp*angstrom
-            ENDDO
-         ENDDO
-         WRITE(unit,10000) "  end"
-
-         WRITE(unit,10000) "&END"
-         WRITE(unit,10000) 
-
       CASE ( use_qs_force )
 
 ! let's try to deal with the reference cell
@@ -905,8 +920,10 @@ SUBROUTINE mc_make_dat_file(coordinates,natoms_tot,box_length,filename,&
 20000 FORMAT(A,F8.2)
 20001 FORMAT(A,A)
 20002 FORMAT(A,F12.6)
+20003 FORMAT(A,I10)
 30000 FORMAT(A,F12.8,2X,I8)
 30001 FORMAT(A,A,F16.10)
+30002 FORMAT(A,A,1X,A)
 40000 FORMAT(A,3(F20.12,2X))
 40001 FORMAT(A,F12.8,2X,I8,2X,I8)
 40002 FORMAT(A,F12.8,2X,I8,2X,F12.8)
