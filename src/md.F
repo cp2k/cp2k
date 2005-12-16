@@ -487,9 +487,8 @@ SUBROUTINE read_md_new_section(simpar, globenv, md_section, error)
         CALL section_vals_val_get(tmp_section,"PRESSURE",r_val=simpar%p0,error=error)
         CALL section_vals_val_get(tmp_section,"ENERGY",r_val=simpar%e0,error=error)
         CALL section_vals_val_get(tmp_section,"VOLUME",r_val=simpar%v0,error=error)
-        IF (simpar%ensemble == nph_uniaxial_damped_ensemble) THEN
-          CALL section_vals_val_get(tmp_section,"GAMMA",r_val=simpar%gamma_nph,error=error)
-        END IF
+        CALL section_vals_val_get(tmp_section,"GAMMA",r_val=simpar%gamma_nph,error=error)
+        IF ( simpar % gamma_nph /= 0 ) simpar % ensemble = nph_uniaxial_damped_ensemble
         CALL section_vals_val_get(tmp_section,"CMASS",r_val=simpar%cmass,error=error)
         CALL section_vals_val_get(tmp_section,"VSHOCK",r_val=simpar%v_shock,error=error)
      END IF

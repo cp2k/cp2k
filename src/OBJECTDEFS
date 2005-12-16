@@ -318,6 +318,7 @@ OBJECTS_GENERIC =\
  qs_mo_types.o\
  qs_neighbor_list_types.o\
  qs_neighbor_lists.o\
+ qs_numerical_pressure.o\
  qs_oce_methods.o\
  qs_oce_types.o\
  qs_operators_ao.o\

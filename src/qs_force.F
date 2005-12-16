@@ -66,6 +66,14 @@ MODULE qs_force
 
 #include "cp_common_uses.h"
 
+!JCS
+  USE virial_types,                    ONLY: virial_type,&
+                                             virial_get
+  USE qs_ks_types,                     ONLY: qs_ks_release, qs_ks_env_type
+  USE qs_ks_methods,                   ONLY: qs_ks_create
+  USE qs_environment_methods,          ONLY: qs_env_rebuild_pw_env
+!JCS
+
   IMPLICIT NONE
 
   PRIVATE
@@ -85,7 +93,7 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE qs_forces(qs_env,globenv, error)
+  SUBROUTINE qs_forces(qs_env,globenv,box_changed,error)
 
 !   Purpose: Calculate the Quickstep forces.
 
@@ -95,6 +103,7 @@ CONTAINS
 
     TYPE(qs_environment_type), POINTER               :: qs_env
     TYPE(global_environment_type), POINTER           :: globenv
+    LOGICAL, OPTIONAL                                :: box_changed
     TYPE(cp_error_type), INTENT(inout), optional     :: error
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "qs_forces", &
@@ -126,6 +135,8 @@ CONTAINS
     TYPE(qs_rho_type), POINTER                       :: rho
     TYPE(cp_fm_p_type), DIMENSION(:), POINTER        :: mo_derivs
     TYPE(harris_env_type), POINTER                   :: harris_env
+    TYPE(virial_type), POINTER                       :: virial
+    TYPE(qs_ks_env_type), POINTER                    :: new_ks_env
     TYPE(harris_force_type), POINTER         :: harris_force
 
 !   ---------------------------------------------------------------------------
@@ -149,13 +160,22 @@ CONTAINS
     NULLIFY (harris_env)
 
     harris_flag = qs_env%use_harris
-
+!JCS
+!  **** Rebuild pw_env and ks_env if box has changed ****
+    IF (box_changed) THEN
+      CALL qs_env_rebuild_pw_env(qs_env)
+      CALL qs_ks_create ( new_ks_env, qs_env )
+      CALL set_qs_env(qs_env, ks_env=new_ks_env )
+      CALL qs_ks_release ( new_ks_env )
+    END IF
+!JCS
     CALL get_qs_env(qs_env=qs_env,&
                     atomic_kind_set=atomic_kind_set,&
                     dft_control=dft_control,&
                     force=force,harris_env=harris_env,&
                     particle_set=particle_set,&
-                    scf_control=scf_control)
+                    scf_control=scf_control,&
+                    virial=virial)
 
     natom = SIZE(particle_set)
 
@@ -263,6 +283,7 @@ CONTAINS
                                qs_env=qs_env,&
                                calculate_forces=.TRUE.)
 
+
 !   *** distribute forces ***
       DO ikind=1,SIZE(force)
         CALL mp_sum(force(ikind)%overlap,globenv%group)
@@ -305,10 +326,19 @@ CONTAINS
         particle_set(iatom)%f = -force(ikind)%total(1:3,i)
       END DO
 
+!JCS
+!   *** distribute virial ***
+      IF (virial%pv_availability) THEN
+        CALL mp_sum(virial%pv_virial,globenv%group)
+      END IF
+!JCS
+
       IF(dft_control%qs_control%semi_empirical .AND. obasis) THEN
         CALL write_forces(force,atomic_kind_set,2,globenv)
       ELSEIF(gapw) THEN
         CALL write_forces(force,atomic_kind_set,1,globenv)
+      ELSEIF (virial%pv_availability) THEN
+        CALL write_forces(force,atomic_kind_set,0,globenv,virial)
       ELSE
         CALL write_forces(force,atomic_kind_set,0,globenv)
       END IF
@@ -340,7 +370,7 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE write_forces(qs_force,atomic_kind_set,ftype,globenv)
+  SUBROUTINE write_forces(qs_force,atomic_kind_set,ftype,globenv,virial)
 
 !   Purpose: Write a Quickstep force data structure to
 
@@ -355,10 +385,15 @@ CONTAINS
     TYPE(global_environment_type), &
       INTENT(IN)                             :: globenv
     INTEGER, INTENT(IN)                      :: ftype
+!JCS
+    TYPE(virial_type), OPTIONAL, POINTER     :: virial
+!JCS
 
     CHARACTER(LEN=*), PARAMETER :: &
       routine = "SUBROUTINE write_forces (MODULE qs_force_types)"
 
+    CHARACTER(LEN=13)                        :: fmtstr5
+    CHARACTER(LEN=15)                        :: fmtstr4
     CHARACTER(LEN=20)                        :: fmtstr3
     CHARACTER(LEN=35)                        :: fmtstr2
     CHARACTER(LEN=48)                        :: fmtstr1
@@ -367,7 +402,10 @@ CONTAINS
                                                 my_ftype
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: atom_of_kind, kind_of
     REAL(KIND=dp), DIMENSION(3)              :: grand_total
-
+!JCS
+    LOGICAL                                  :: virial_present
+    REAL(kind=dp), DIMENSION(3, 3)           :: pv_virial
+!JCS
 !   ---------------------------------------------------------------------------
 
     IF (.NOT.globenv%ionode) RETURN
@@ -391,6 +429,16 @@ CONTAINS
                              atom_of_kind=atom_of_kind,&
                              kind_of=kind_of)
 
+!JCS
+    IF (PRESENT(virial)) THEN
+      CALL virial_get(virial, pv_virial=pv_virial,&
+                       pv_availability=virial_present)
+    ELSE
+      virial_present=.FALSE.
+    END IF
+
+!JCS
+
 !   *** Variable precision output of the forces ***
 
     ndigits = MAX(6 + globenv%print%precision,1)
@@ -405,6 +453,15 @@ CONTAINS
     fmtstr3 = "(/,T3,A,T34,3F  .  )"
     WRITE (UNIT=fmtstr3(18:19),FMT="(I2)") ndigits
     WRITE (UNIT=fmtstr3(15:16),FMT="(I2)") ndigits + 6
+
+!JCS
+    fmtstr4 = "((T34,3F  .  ))"
+    WRITE (UNIT=fmtstr4(12:13),FMT="(I2)") ndigits
+    WRITE (UNIT=fmtstr4(9:10),FMT="(I2)") ndigits + 6
+
+    fmtstr5 = "(/T2,A//T3,A)"
+    
+!JCS    
 
     WRITE (UNIT=output_unit,FMT=fmtstr1)&
       "FORCES","Atom","Kind","Component","X","Y","Z"
@@ -493,6 +550,13 @@ CONTAINS
     END SELECT
 
     WRITE (UNIT=output_unit,FMT=fmtstr3) "Sum of total",grand_total(1:3)
+
+!JCS
+    IF (virial_present) THEN
+      WRITE (UNIT=output_unit,FMT=fmtstr5) "STRESS","pv_virial"
+      WRITE (UNIT=output_unit,FMT=fmtstr4) (pv_virial(i,1:3), i=1,3)
+    END IF 
+!JCS
 
     DEALLOCATE (atom_of_kind,STAT=istat)
     IF (istat /= 0) CALL stop_memory(routine,"atom_of_kind")

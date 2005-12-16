@@ -152,6 +152,12 @@ MODULE qs_environment_types
   USE xas_env_types,                   ONLY: xas_env_release,&
                                              xas_env_retain,& 
                                              xas_environment_type
+!JCS
+  USE virial_types,                    ONLY: virial_type,&
+                                             virial_retain,&
+                                             virial_release,&
+					     virial_create
+!JCS         
 
   IMPLICIT NONE
 
@@ -311,6 +317,7 @@ MODULE qs_environment_types
     TYPE(kg_sub_pw_env_type), POINTER                     :: kg_sub_pw_env
     TYPE(linres_control_type), POINTER                    :: linres_control
     TYPE(xas_environment_type), POINTER                   :: xas_env
+    TYPE(virial_type), POINTER                            :: virial
     TYPE(cp_out_flags_type), pointer                      :: output_control
   END TYPE qs_environment_type
 
@@ -362,7 +369,7 @@ CONTAINS
                         rhoz_set,ecoul_1c,VH_3c_list,rho0_s_rs,rho0_s_gs, &
                         requires_mo_derivs,mo_derivs,tddfpt_control, &
                         neighbor_list_id,kg_sub_pw_env,linres_control,xas_env,&
-                        output_control,error)
+                        virial,output_control,error)
 
 !   Purpose: Get the QUICKSTEP environment.
 
@@ -458,6 +465,7 @@ CONTAINS
       POINTER                                :: linres_control
     TYPE(xas_environment_type), OPTIONAL,&
       POINTER                                :: xas_env
+    TYPE(virial_type), OPTIONAL, POINTER     :: virial
     TYPE(cp_out_flags_type), POINTER, optional :: output_control
 
 
@@ -528,7 +536,9 @@ CONTAINS
     IF (PRESENT(mo_derivs)) mo_derivs => qs_env%mo_derivs
     IF (PRESENT(tddfpt_control)) tddfpt_control => qs_env%dft_control%tddfpt_control
     IF (PRESENT(linres_control)) linres_control => qs_env%linres_control
-
+!JCS
+    IF (PRESENT(virial)) virial => qs_env%virial
+    
     IF (PRESENT(rho_atom_set)) &
        CALL get_local_rho(qs_env%local_rho_set, rho_atom_set=rho_atom_set)
     IF (PRESENT(rho0_atom_set)) &
@@ -636,12 +646,12 @@ CONTAINS
     NULLIFY (qs_env%kg_sub_pw_env)
     NULLIFY (qs_env%linres_control)
     NULLIFY (qs_env%xas_env)
+    NULLIFY (qs_env%virial)
     NULLIFY (qs_env%output_control)
     qs_env%neighbor_list_id=-1
 
     CALL local_rho_set_create(qs_env%local_rho_set, error=error)
     CALL hartree_local_create(qs_env%hartree_local, error=error)
-
     CALL cp_subsys_create(qs_env%subsys, para_env=para_env, error=error)
     CALL cp_para_env_retain(para_env,error=error)
     qs_env%para_env => para_env
@@ -671,7 +681,7 @@ CONTAINS
                         subsys, oce,rho_atom_set,rho0_atom_set,rho0_mpole,&
                         nddo_mpole,rhoz_set,rhoz_tot,ecoul_1c,VH_3c_list,error, &
                         requires_mo_derivs,mo_derivs,neighbor_list_id,&
-                        kg_sub_pw_env,linres_control,xas_env,output_control)
+                        kg_sub_pw_env,linres_control,xas_env,virial,output_control)
 
 !   Purpose: Set the QUICKSTEP environment.
 
@@ -749,6 +759,7 @@ CONTAINS
       POINTER                                :: linres_control
     TYPE(xas_environment_type), OPTIONAL,&
       POINTER                                :: xas_env
+    TYPE(virial_type), OPTIONAL, POINTER     :: virial
     TYPE(cp_out_flags_type), OPTIONAL, pointer :: output_control
 
     CHARACTER(len=*), PARAMETER :: routineN = "set_qs_env", &
@@ -870,6 +881,13 @@ CONTAINS
        CALL xas_env_release(qs_env%xas_env, error=error)
        qs_env%xas_env => xas_env
     END IF
+    IF (PRESENT(virial)) THEN
+       IF (ASSOCIATED(virial)) THEN
+          CALL virial_retain(virial,error=error)
+       END IF
+       CALL virial_release(qs_env%virial,error=error)
+       qs_env%virial => virial
+     END IF
     IF (PRESENT(mpools)) THEN
        CALL mpools_retain(mpools,error=error)
        CALL mpools_release(qs_env%mpools, error=error) 
@@ -1198,7 +1216,11 @@ SUBROUTINE qs_env_release(qs_env,error)
         IF(ASSOCIATED(qs_env%xas_env)) THEN
           CALL xas_env_release(qs_env%xas_env,error=error)
         END IF
-
+!JCS        
+        IF(ASSOCIATED(qs_env%virial)) THEN
+          CALL virial_release(qs_env%virial,error=error)
+        END IF
+!JCS
         CALL pw_env_release(qs_env%pw_env, error=error)
         CALL cp_para_env_release(qs_env%para_env,error=error)
         CALL cp_blacs_env_release(qs_env%blacs_env, error=error)

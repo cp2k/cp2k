@@ -97,6 +97,11 @@ MODULE md_run
   USE wiener_process,                  ONLY: create_wiener_process,&
                                              read_md_restart_file,&
                                              write_md_restart_file
+!JCS 
+  USE virial_types,                    ONLY: virial_type,&
+                                             virial_set
+!JCS
+
 
   IMPLICIT NONE
 
@@ -186,6 +191,7 @@ CONTAINS
       POINTER                                :: simpar
     TYPE(mdio_parameters_type), &
       POINTER                                :: mdio
+    TYPE(virial_type), POINTER               :: virial
     INTEGER                                  :: in_use
 
 !   ---------------------------------------------------------------------------
@@ -243,7 +249,8 @@ CONTAINS
 
       CALL force_env_get( force_env_p(ibead)%force_env, subsys=subsys, &
                           dyn_coeff_set=dyn_coeff_set,in_use=in_use,&
-                          cell=cell, cell_ref = cell_ref, error=error )
+                          cell=cell, cell_ref = cell_ref, virial = virial,&
+                          error=error )
 
 ! Define a reference cell for compatibility with MD restarts
 
@@ -269,6 +276,10 @@ CONTAINS
 
       END DO
       CALL initialize_npt (simpar,globenv,extended_type%npt_info,cell)
+!JCS
+      CALL virial_set(virial, pv_availability=simpar%pv_availability,&
+                              pv_numer = simpar%pv_numerical)
+!JCS
 
 ! Always initialize velocities (to be overwritten if needed)
       DO isubsys=1,SIZE(subsys)
@@ -304,11 +315,11 @@ CONTAINS
           nhc_part => extended_type%nhc_part(ibead)
           nhc_baro => extended_type%nhc_baro(ibead)
           CALL read_md_restart ( in_use, simpar % read_type, globenv,   &
-                              particles%els, &
-                              cell, cell_ref,  &
-                              nhc_part, &
-                              nhc_baro, &
-                              extended_type%npt_info )
+                                 particles%els, &
+                                 cell, cell_ref,  &
+                                 nhc_part, &
+                                 nhc_baro, &
+                                 extended_type%npt_info )
        END SELECT
        END IF
 

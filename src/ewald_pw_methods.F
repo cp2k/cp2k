@@ -58,7 +58,7 @@ MODULE ewald_pw_methods
                                              do_ewald_pme,&
                                              do_ewald_spme  
   USE pw_poisson_types, ONLY: pw_poisson_type, pw_poisson_release, pw_poisson_retain, pw_poisson_create
-  USE pw_poisson_methods, ONLY: pw_poisson_set, pw_poisson_rebuild
+  USE pw_poisson_methods, ONLY: pw_poisson_set ! CJM, pw_poisson_rebuild
   USE input_section_types, ONLY: section_vals_type
   IMPLICIT NONE
 
@@ -162,7 +162,7 @@ SUBROUTINE ewald_pw_grid_change ( ewald_pw, ewald_env, error )
      pw_pools(1)%pool => pw_big_pool
      CALL pw_poisson_set(poisson_env,cell=cell,parameters=poisson_section,&
           use_level=1,pw_pools=pw_pools,error=error)
-     CALL pw_poisson_rebuild(poisson_env,error=error)
+   ! CJM  CALL pw_poisson_rebuild(poisson_env,error=error)
      DEALLOCATE(pw_pools,stat=stat)
      CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
   END IF

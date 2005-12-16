@@ -106,6 +106,10 @@ MODULE kg_environment_types
   USE simulation_cell,                 ONLY: cell_release,&
                                              cell_retain,&
                                              cell_type
+  USE virial_types,                    ONLY: virial_type,&
+                                             virial_retain,&
+                                             virial_release,&
+					     virial_create
   PRIVATE
 
   character(len=*), private, parameter :: moduleN='kg_environment_types'
@@ -116,6 +120,7 @@ MODULE kg_environment_types
     LOGICAL :: use_ref_cell
     TYPE(cell_type), POINTER                              :: cell
     TYPE(cell_type), POINTER                              :: cell_ref
+    TYPE(virial_type), POINTER                            :: virial
     TYPE(cp_blacs_env_type), POINTER                      :: blacs_env
     TYPE(cp_para_env_type), POINTER                       :: para_env
     TYPE(dft_control_type), POINTER                       :: dft_control
@@ -165,7 +170,7 @@ CONTAINS
                          molecule_kind_set,molecule_set,id_nr,para_env,&
                          blacs_env,particle_set,rho,rspw,scf_env,&
                          sac_ppl,sac_ppl_aux,scf_control,subsys,&
-                         output_control,error)
+                         virial, output_control,error)
 
 !   Purpose: Get the KG environment.
 
@@ -217,6 +222,7 @@ CONTAINS
       POINTER                                  :: scf_env
     TYPE(cp_subsystem_type), OPTIONAL, &
       POINTER                                  :: subsys
+    TYPE(virial_type), OPTIONAL, POINTER     :: virial
     TYPE(cp_out_flags_type), POINTER, OPTIONAL :: output_control
     TYPE(cp_error_type), INTENT(INOUT), &
       OPTIONAL                                 :: error
@@ -238,6 +244,7 @@ CONTAINS
     CPPrecondition(kg_env%ref_count>0,cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(kg_env%subsys),cp_failure_level,routineP,error,failure)
 
+    IF (PRESENT(virial)) virial => kg_env%virial
     IF (PRESENT(blacs_env)) blacs_env => kg_env%blacs_env
     IF (PRESENT(cell)) cell => kg_env%cell
     IF (PRESENT(cell_ref)) cell_ref => kg_env%cell_ref
@@ -322,6 +329,7 @@ CONTAINS
     NULLIFY (kg_env%subsys)
     NULLIFY (kg_env%sub_qs_env)
     NULLIFY (kg_env%output_control)
+    NULLIFY (kg_env%virial)
 
     CALL cp_subsys_create(kg_env%subsys, para_env=para_env, error=error)
     CALL cp_para_env_retain(para_env,error=error)
@@ -341,7 +349,7 @@ CONTAINS
                          kg_fm_set,local_particles,local_molecules,&
                          molecule_kind_set,molecule_set,&
                          sub_qs_env,particle_set,rho,rspw,scf_env,&
-                         sac_ppl,sac_ppl_aux,scf_control,subsys,output_control,&
+                         sac_ppl,sac_ppl_aux,scf_control,subsys,virial,output_control,&
                          error)
 
 !   Purpose: set the KG environment.
@@ -387,6 +395,7 @@ CONTAINS
     TYPE(cp_subsystem_type), OPTIONAL, &
       POINTER                                  :: subsys
     TYPE(section_vals_type), POINTER, optional :: input    
+    TYPE(virial_type), OPTIONAL, POINTER     :: virial
     TYPE(cp_out_flags_type), POINTER, optional :: output_control
     TYPE(cp_error_type), INTENT(INOUT), &
       OPTIONAL                                 :: error
@@ -407,6 +416,13 @@ CONTAINS
 !    CPPrecondition(ASSOCIATED(kg_env),cp_failure_level,routineP,error,failure)
     CPPrecondition(kg_env%ref_count>0,cp_failure_level,routineP,error,failure)
 
+    IF (PRESENT(virial)) THEN
+       IF (ASSOCIATED(virial)) THEN
+          CALL virial_retain(virial,error=error)
+       END IF
+       CALL virial_release(kg_env%virial,error=error)
+       kg_env%virial => virial
+    END IF
     IF (PRESENT(cell)) THEN
        CALL cell_retain(cell, error=error)
        CALL cell_release(kg_env%cell,error=error)
@@ -689,6 +705,9 @@ SUBROUTINE kg_env_release(kg_env,error)
         END IF
         IF (ASSOCIATED(kg_env%scf_env))  THEN
            CALL kg_scf_env_release(kg_env%scf_env, error=error)
+        END IF
+        IF(ASSOCIATED(kg_env%virial)) THEN
+          CALL virial_release(kg_env%virial,error=error)
         END IF
  
         CALL kg_rho_release(kg_env%rho, error=error)

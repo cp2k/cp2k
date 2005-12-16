@@ -420,8 +420,6 @@ SUBROUTINE fist_force_control ( fist_env, virial, globenv, box_change, debug ,er
      virial % pv_virial = virial % pv_virial + pv_g
   END IF
 
-  IF ( first_time ) CALL virial_evaluate ( atomic_kind_set, particle_set, &
-                                           local_particles, virial, globenv % group )
 
 ! Sum total forces
   CALL mp_sum ( f_total, globenv % group )

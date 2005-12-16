@@ -92,10 +92,12 @@ MODULE force_env_methods
                                              qs_environment_type,&
                                              set_qs_env
   USE qs_force,                        ONLY: qs_forces
+  USE qs_numerical_pressure,           ONLY: qs_calc_numerical_pressure
   USE simulation_cell,                 ONLY: cell_type
   USE virial_types,                    ONLY: virial_create, &
                                              virial_type,&
-                                             virial_retain
+                                             virial_retain,&
+                                             zero_virial
   USE qs_ks_qmmm_methods,              ONLY: ks_qmmm_env_rebuild
   USE qmmm_links_methods,              ONLY: qmmm_link_Imomm_coord,&
                                              qmmm_link_Imomm_forces,&
@@ -162,6 +164,7 @@ RECURSIVE SUBROUTINE force_env_calc_energy_force ( force_env, &
     LOGICAL                                  :: failure, my_box_change, &
                                                 need_f, energy_consistency
     INTEGER                                  :: i
+    TYPE(virial_type), POINTER               :: virial
 
 !------------------------------------------------------------------------------
 
@@ -178,6 +181,13 @@ RECURSIVE SUBROUTINE force_env_calc_energy_force ( force_env, &
   IF (.NOT.failure) THEN
      CPPrecondition(force_env%ref_count>0,cp_failure_level,routineP,error,failure)
   END IF
+!JCS 
+  CALL force_env_get(force_env,virial=virial)
+  IF (virial%pv_availability) THEN
+    CALL zero_virial(force_env%virial,force_env%virial%pv_availability,&
+                   force_env%virial%pv_numer) 
+  END IF
+!JCS
   IF (.NOT.failure) THEN
      my_box_change=force_env%box_changed
      
@@ -189,9 +199,16 @@ RECURSIVE SUBROUTINE force_env_calc_energy_force ( force_env, &
         IF (.NOT.need_f) THEN
            CALL qs_energies(qs_env=force_env%qs_env, globenv=force_env%globenv, &
                             consistent_energies=energy_consistency, &
-                            calc_forces=calc_force)
+                            calc_forces=calc_force,box_changed=my_box_change)
+           IF (virial%pv_availability.AND.virial%pv_numer) THEN
+             CALL qs_calc_numerical_pressure(force_env,error=error) 
+           END IF
         ELSE
-           CALL qs_forces(force_env%qs_env,force_env%globenv)
+           CALL qs_forces(force_env%qs_env,force_env%globenv,&
+                                            box_changed=my_box_change)
+           IF (virial%pv_availability.AND.virial%pv_numer) THEN
+             CALL qs_calc_numerical_pressure(force_env,error=error) 
+           END IF
         END IF
      CASE ( use_pol_force )
         CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
@@ -341,6 +358,8 @@ SUBROUTINE force_env_create(force_env,globenv,force_env_list,fist_env,&
            force_env%kg_env => kg_env
            CALL kg_env_retain(kg_env,error=error)
            CALL virial_create ( force_env%virial, virial_in_use = .FALSE. )
+           kg_env%virial => force_env%virial
+           CALL virial_retain(kg_env%virial)
         END IF
      END IF
      IF (PRESENT(qs_env)) THEN
@@ -349,7 +368,9 @@ SUBROUTINE force_env_create(force_env,globenv,force_env_list,fist_env,&
            force_env%in_use=use_qs_force
            force_env%qs_env => qs_env
            CALL qs_env_retain(qs_env,error=error)
-           CALL virial_create ( force_env%virial, virial_in_use = .FALSE. )
+           CALL virial_create ( force_env%virial, virial_in_use = .TRUE. )
+           qs_env%virial => force_env%virial
+           CALL virial_retain(qs_env%virial)
         END IF
      END IF
      IF (PRESENT(qmmm_env)) THEN

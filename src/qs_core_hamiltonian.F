@@ -163,6 +163,8 @@ MODULE qs_core_hamiltonian
                                              timestop
   USE util,                            ONLY: locate,&
                                              sort
+!!JCS
+  USE virial_types,                    ONLY: virial_type
 
   IMPLICIT NONE
 
@@ -202,7 +204,8 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE build_core_hamiltonian_matrix(qs_env,globenv,calculate_forces,harris)
+  SUBROUTINE build_core_hamiltonian_matrix(qs_env,globenv,calculate_forces,&
+                                           harris)
 
 !   Purpose: Calculation of the overlap matrix over Cartesian Gaussian
 !            functions.
@@ -322,6 +325,13 @@ CONTAINS
     TYPE(harris_env_type), POINTER              :: harris_env
     TYPE(section_vals_type), POINTER            :: lr_section, xas_section
 
+    TYPE(virial_type), POINTER                  :: virial
+
+!!! JCS !!
+    INTEGER :: dir
+    REAL(kind = dp), DIMENSION(3,3) :: pv_virial
+    LOGICAL         :: use_virial
+!!! JCS !!
 
 #if defined(__AIX) && defined(__INIT_WITH_NANS)
     REAL(dp) :: nans_dp
@@ -360,6 +370,8 @@ CONTAINS
     NULLIFY (matrix_v)
     NULLIFY (workt)
     NULLIFY (harris_env)
+
+
 ! Default
     oce_present = .FALSE.
     rho0_present = .FALSE.
@@ -388,11 +400,15 @@ CONTAINS
                     sbc_3c=sbc_3c,&
                     neighbor_list_id=neighbor_list_id,&
                     scf_control=scf_control,&
-                    distribution_2d=distribution_2d)
+                    distribution_2d=distribution_2d,&
+                    virial = virial)
 
     nkind = SIZE(atomic_kind_set)
     natom = SIZE(particle_set)
 
+!JCS
+    use_virial = virial%pv_availability.AND.(.NOT.virial%pv_numer)
+!JCS
 
     IF (calculate_forces) THEN
 
@@ -857,7 +873,7 @@ CONTAINS
 !$OMP shared(set_radius_a,nco,ncoset,npgfa,nseta,ncoa_sum,vppnlt,vallt,sac_ppnl,ppnl_present,all_potential_present) &
 !$OMP shared(vpplt,sac_ppl,nkind,ppl_present,atom_of_kind,sab_orb_neighbor_list,rho0_present) &
 !$OMP shared(nlist,calculate_forces,pabt,workt,sdabt,sabt,habt,la_max,sintt,tintt,oceht,ocest,dist_list,qs_env) &
-!$OMP shared(atomic_kind_set)
+!$OMP shared(atomic_kind_set,virial)
         ithread = 0
 !$      ithread = omp_get_thread_num()
         hab => habt(:,:,ithread)
@@ -1318,7 +1334,8 @@ CONTAINS
 
                 IF (set_radius_a(iset) + set_radius_b(jset) >= dab) THEN
 
-                  IF (calculate_forces.AND.(iatom /= jatom)) THEN
+                  IF (calculate_forces.AND.((iatom /= jatom).OR.&
+                                                   use_virial)) THEN
 
 !                   *** Decontract W matrix block ***
 
@@ -1357,6 +1374,15 @@ CONTAINS
                       force(ikind)%overlap(:,atom_a) - 2.0_dp*force_a(:)
                     force(jkind)%overlap(:,atom_b) =&
                       force(jkind)%overlap(:,atom_b) + 2.0_dp*force_a(:)
+!JCS
+                    IF (use_virial) THEN
+                      DO dir=1, 3
+                        virial%pv_virial(dir,dir) = virial%pv_virial(dir,dir)+&
+                                                  f0*force_a(dir) * rab(dir)
+                      END DO
+                    END IF
+!JCS
+
 !$OMP end critical (qs_core_force_overlap)
 
                   ELSE
@@ -1426,7 +1452,8 @@ CONTAINS
                                0.0_dp,pab(1,1),SIZE(pab,1))
                   END IF
 
-                  IF (calculate_forces.AND.(iatom /= jatom)) THEN
+                  IF (calculate_forces.AND.((iatom /= jatom).OR.&
+                                                        use_virial)) THEN
 
 !                   *** Calculate the primitive kinetic energy integrals ***
 !                   *** and the corresponding force contribution         ***
@@ -1447,6 +1474,18 @@ CONTAINS
                       force(ikind)%kinetic(:,atom_a) + 2.0_dp*force_a(:)
                     force(jkind)%kinetic(:,atom_b) =&
                       force(jkind)%kinetic(:,atom_b) - 2.0_dp*force_a(:)
+
+!!! JCS !!
+                      IF (use_virial) THEN
+                        DO dir=1, 3
+                          virial%pv_virial(dir,dir) = &
+                                                virial%pv_virial(dir,dir) -&
+                                                f0*force_a(dir) * rab(dir)
+                        END DO
+                      END IF
+!! JCS !!
+
+
 !$OMP end critical (qs_core_force_kinetic)
 
                   ELSE
@@ -1554,6 +1593,16 @@ CONTAINS
                             force(jkind)%gth_ppl(:,atom_b) + f0*force_b(:)
                           force(kkind)%gth_ppl(:,atom_c) =&
                             force(kkind)%gth_ppl(:,atom_c) - f0*force_b(:)
+!!! JCS !!
+                          IF (use_virial) THEN
+                            DO dir=1, 3
+                              virial%pv_virial(dir,dir) = &
+                                                   virial%pv_virial(dir,dir) -&
+                                                   f0*force_a(dir) * rac(dir) -&
+                                                   f0*force_b(dir) * rbc(dir)
+                            END DO
+                          END IF
+!!! JCS !!
 !$OMP end critical (qs_core_force_gth_ppl)
 
                         ELSE
@@ -1612,7 +1661,7 @@ CONTAINS
                 END IF
 
 !               *** Loop over the GTH pseudo potential atoms (non-local part) ***
-                
+
                 IF (ppnl_present.AND.new_atom_b) THEN
                    
                    DO kkind=1,nkind
@@ -1767,6 +1816,17 @@ CONTAINS
 
                           force(kkind)%gth_ppnl(i,atom_c) =&
                             force(kkind)%gth_ppnl(i,atom_c) - f0*f
+
+
+
+!!! JCS !!
+                          IF (use_virial) THEN
+                            virial%pv_virial(i,i) = virial%pv_virial(i,i) -&
+                                                    f0*f * rac(i)
+                          END IF
+!!! JCS !!
+
+
 !$OMP end critical (qs_core_force_gth_ppnl)
 
                           CALL dgemm("N","T",ncoa,ncob,nppnl,1.0_dp,&
@@ -1790,6 +1850,12 @@ CONTAINS
 
                           force(kkind)%gth_ppnl(i,atom_c) =&
                             force(kkind)%gth_ppnl(i,atom_c) - f0*f
+!!! JCS !!
+                          IF (use_virial) THEN
+                            virial%pv_virial(i,i) = virial%pv_virial(i,i) -&
+                                                    f0*f * rbc(i)
+                          END IF
+!!! JCS !!
 !$OMP end critical (qs_core_force_gth_ppnl)
 
                         END DO

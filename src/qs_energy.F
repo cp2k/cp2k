@@ -27,7 +27,8 @@ MODULE qs_energy
   USE qs_core_hamiltonian,             ONLY: build_core_hamiltonian_matrix
   USE qs_environment_methods,          ONLY: qs_env_update_s_mstruct
   USE qs_environment_types,            ONLY: qs_environment_type,&
-                                             get_qs_env
+                                             get_qs_env,&
+                                             set_qs_env
   USE qs_ks_methods,                   ONLY: qs_ks_update_qs_env
   USE qs_neighbor_lists,               ONLY: build_qs_neighbor_lists
   USE qs_scf,                          ONLY: scf
@@ -35,6 +36,9 @@ MODULE qs_energy
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE xas_methods,                     ONLY: xas
+  USE qs_ks_types,                     ONLY: qs_ks_release, qs_ks_env_type
+  USE qs_ks_methods,                   ONLY: qs_ks_create
+  USE qs_environment_methods,          ONLY: qs_env_rebuild_pw_env
 
   IMPLICIT NONE
 
@@ -53,7 +57,8 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE qs_energies (qs_env, globenv, consistent_energies, calc_forces)
+  SUBROUTINE qs_energies (qs_env, globenv, consistent_energies, calc_forces, &
+                          box_changed)
 
 !   Purpose: QUICKSTEP single point wavefunction optimization.
 
@@ -65,7 +70,8 @@ CONTAINS
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(global_environment_type), POINTER   :: globenv    
     LOGICAL, INTENT(IN), OPTIONAL            :: consistent_energies, &
-                                                calc_forces
+                                                calc_forces,&
+                                                box_changed
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "qs_energies", &
       routine = "SUBROUTINE "//routine_name//" (MODULE "//module_name//")"
@@ -73,12 +79,25 @@ CONTAINS
     INTEGER                                  :: handle
     LOGICAL                                  :: right_iteration_level
     TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(qs_ks_env_type), POINTER            :: new_ks_env
 
 !   ---------------------------------------------------------------------------
 
     CALL write_checkpoint_information("entering "//routine_name,globenv)
 
     CALL timeset(routine_name,"I","",handle)
+
+!JCS
+!  **** Rebuild pw_env and ks_env if box has changed ****
+    IF (PRESENT(box_changed)) THEN
+      IF (box_changed) THEN
+        CALL qs_env_rebuild_pw_env(qs_env)
+        CALL qs_ks_create ( new_ks_env, qs_env )
+        CALL set_qs_env(qs_env, ks_env=new_ks_env )
+        CALL qs_ks_release ( new_ks_env )
+      END IF
+    END IF
+!JCS
 
     CALL build_qs_neighbor_lists(qs_env,globenv)
 

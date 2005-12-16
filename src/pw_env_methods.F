@@ -412,7 +412,7 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
      END IF
      poisson_section => section_vals_get_subs_vals(input,"DFT%POISSON_DFT",&
           error=error)
-     CALL pw_poisson_set(pw_env%poisson_env,cell=cell,pw_pools=pw_env%pw_pools,&
+     CALL pw_poisson_set(pw_env%poisson_env,cell=cell_ref,pw_pools=pw_env%pw_pools,&
           parameters=poisson_section,mt_super_ref_pw_grid=mt_super_ref_grid,&
           use_level=pw_env%auxbas_grid,error=error)
      CALL pw_grid_release(mt_super_ref_grid,error=error)
@@ -594,8 +594,6 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
 
 !
 ! If reference cell is present, then use pw_grid_change to keep bounds constant...
-! MJM is looking at a way to phase this out, because it doesn't seem like everything
-! gets initialized properly
 !
 !
   CALL get_qs_env ( qs_env, use_ref_cell = use_ref_cell )

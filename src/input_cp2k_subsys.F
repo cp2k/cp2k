@@ -124,7 +124,7 @@ contains
             variants=(/"UNIT"/),& 
             description="Specify the global units used in the input.",&
             usage="UNITS ANGSTROM",&
-            enum_c_vals=s2a( "ANGSTROM","SCALED_ANGSTROM","BOHR","SCALED_BOHR"),&
+            enum_c_vals=s2a( "ANGSTROM","BOHR","SCALED_ANGSTROM","SCALED_BOHR"),&
             enum_i_vals=(/ use_unit_angstrom, use_unit_bohr,&
             use_unit_scaled_angstrom, use_unit_scaled_bohr/),&
             default_i_val=use_unit_bohr, error=error)

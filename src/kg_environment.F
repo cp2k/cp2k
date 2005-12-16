@@ -110,6 +110,7 @@ MODULE kg_environment
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE topology,                        ONLY: topology_control
+  USE virial_types,                    ONLY: virial_create
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type
   USE cp_output_handling, ONLY: cp_out_flags_type, cp_out_flags_create,&
@@ -533,6 +534,8 @@ CONTAINS
                     error=error)
 
     CALL qs_env_create(qs_env, para_env=para_env, error=error)
+
+    CALL virial_create ( qs_env % virial, virial_in_use = .FALSE., numer_virial = .FALSE. )
 
     CALL wfi_create(wf_history,&
                     interpolation_method_nr = &

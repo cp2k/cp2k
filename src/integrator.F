@@ -88,6 +88,7 @@ MODULE integrator
                                              nph_ensemble,&
                                              nph_uniaxial_ensemble,&
                                              nph_uniaxial_damped_ensemble  
+
   IMPLICIT NONE
 
   PRIVATE
@@ -1080,9 +1081,9 @@ CONTAINS
     REAL ( dp ) :: kin
     LOGICAL, PARAMETER :: box_change = .TRUE.
     LOGICAL :: first
-    LOGICAL, SAVE :: first_time = .TRUE.
     INTEGER :: iroll
     TYPE(cp_para_env_type), POINTER          :: para_env
+    LOGICAL, SAVE                            :: first_time=.TRUE.
 
 
     CALL get_md_env(md_env=md_env,simpar=simpar,force_env_p=force_env_p,&
@@ -1117,6 +1118,11 @@ CONTAINS
       particle_set => particles%els
       nmolecule = molecules % n_els
       molecule_set => molecules % els
+
+      IF ( first_time ) THEN
+        CALL virial_evaluate ( atomic_kind_set, particle_set,  &
+                               local_particles, virial, para_env % group  )
+      END IF
 
 
 !     *** Allocate work storage for positions and velocities ***
@@ -1461,6 +1467,7 @@ CONTAINS
     LOGICAL :: first
     INTEGER :: iroll
     TYPE(cp_para_env_type), POINTER          :: para_env
+    LOGICAL, SAVE                            :: first_time=.TRUE.
 
 
     CALL get_md_env(md_env=md_env,simpar=simpar,force_env_p=force_env_p,&
@@ -1469,7 +1476,7 @@ CONTAINS
     infree = 1.0_dp / REAL ( simpar % nfree, dp ) 
 
     IF (SIZE(force_env_p)/=1) THEN
-       CALL stop_program("npt_i","integrator",__LINE__,&
+       CALL stop_program("nph_uniaxial","integrator",__LINE__,&
        "MD_ENV with more than (or less) than one force_env not supported atm!")
     END IF
     CALL force_env_get(force_env=force_env_p(1)%force_env,subsys=subsys,&
@@ -1495,6 +1502,10 @@ CONTAINS
       nmolecule = molecules % n_els
       molecule_set => molecules % els
 
+      IF ( first_time ) THEN
+        CALL virial_evaluate ( atomic_kind_set, particle_set,  &
+                               local_particles, virial, para_env % group  )
+      END IF
 
 !     *** Allocate work storage for positions and velocities ***
 
@@ -1597,7 +1608,7 @@ CONTAINS
       IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,"work")
 
 
-!     *** Update forces ***
+!     *** Update forces (and stress)***
 
       CALL force_env_set(force_env_p(1)%force_env,box_changed=.TRUE.)
       CALL force_env_calc_energy_force(force_env_p(1)%force_env)
@@ -1665,6 +1676,7 @@ CONTAINS
 ! Deallocate old variables
     CALL deallocate_old ( )
   END DO
+  first_time = .FALSE.
 
   END SUBROUTINE nph_uniaxial
 !!*****
@@ -1744,7 +1756,7 @@ CONTAINS
     LOGICAL :: first
     INTEGER :: iroll
     TYPE(cp_para_env_type), POINTER          :: para_env
-
+    LOGICAL, SAVE                            :: first_time
 
     CALL get_md_env(md_env=md_env,simpar=simpar,force_env_p=force_env_p,&
                     npt = npt, para_env=para_env)
@@ -1753,7 +1765,7 @@ CONTAINS
     gamma1 = simpar % gamma_nph
 
     IF (SIZE(force_env_p)/=1) THEN
-       CALL stop_program("npt_i","integrator",__LINE__,&
+       CALL stop_program("nph_uniaxial_damped","integrator",__LINE__,&
        "MD_ENV with more than (or less) than one force_env not supported atm!")
     END IF
     CALL force_env_get(force_env=force_env_p(1)%force_env,subsys=subsys,&
@@ -1778,6 +1790,11 @@ CONTAINS
       particle_set => particles%els
       nmolecule = molecules % n_els
       molecule_set => molecules % els
+
+      IF ( first_time ) THEN
+        CALL virial_evaluate ( atomic_kind_set, particle_set,  &
+                               local_particles, virial, para_env % group  )
+      END IF
 
 
 !     *** Allocate work storage for positions and velocities ***
@@ -1882,6 +1899,7 @@ CONTAINS
 
 ! Update h_mat
 
+
        cell % hmat ( 1, 1 ) = cell % hmat ( 1, 1 ) * scale_r * scale_r 
 
 
@@ -1973,6 +1991,7 @@ CONTAINS
 ! Deallocate old variables
     CALL deallocate_old ( )
   END DO
+  first_time = .FALSE.
 
   END SUBROUTINE nph_uniaxial_damped
 !!*****
@@ -2299,6 +2318,7 @@ END SUBROUTINE deallocate_old
     LOGICAL, PARAMETER :: box_change = .TRUE.
     LOGICAL :: first
     TYPE(cp_para_env_type), POINTER          :: para_env
+    LOGICAL, SAVE                            :: first_time=.TRUE.
 
     CALL get_md_env(md_env=md_env,simpar=simpar,force_env_p=force_env_p,&
                     nhc_part=nhc_part, nhc_baro=nhc_baro, npt = npt, &
@@ -2332,6 +2352,11 @@ END SUBROUTINE deallocate_old
       particle_set => particles%els
       nmolecule = molecules % n_els
       molecule_set => molecules % els
+
+      IF ( first_time ) THEN
+        CALL virial_evaluate ( atomic_kind_set, particle_set,  &
+                               local_particles, virial, para_env % group  )
+      END IF
 
 !     *** Allocate work storage for positions and velocities ***
 
@@ -2524,6 +2549,7 @@ END SUBROUTINE deallocate_old
 ! Deallocate old variables
     CALL deallocate_old ( )
   END DO
+  first_time = .FALSE.
 
 
  END SUBROUTINE npt_f
