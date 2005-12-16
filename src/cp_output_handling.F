@@ -323,7 +323,7 @@ CONTAINS
                         ' use __STD_OUT__ (exactly as written here) for the screen or standard logger. '//&
                         ' use filename to obtain projectname-filename. '//&
                         ' use ./filename to get filename ',&
-            usage="FILENAME ./filname ",&
+            usage="FILENAME ./filename ",&
             default_c_val=my_filename, error=error)
        CALL section_add_keyword(print_key_section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
