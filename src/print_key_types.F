@@ -62,7 +62,7 @@ MODULE print_key_types
 !!   SOURCE
 !!
   TYPE print_keys_type
-    INTEGER :: level,PRECISION,ref_count, id_nr
+    INTEGER :: level,precision,ref_count, id_nr
     LOGICAL :: atomic_coordinates,&
                basic_data_types,&
                basis_set,&
@@ -192,6 +192,7 @@ CONTAINS
     last_print_k_id=last_print_k_id+1
     print_keys%id_nr=last_print_k_id
     print_keys%ref_count=1
+    print_keys%precision=0
     IF (PRESENT(level)) THEN
        print_keys%level=level
        CALL print_keys_reset(print_keys,level)
