@@ -85,6 +85,7 @@ MODULE pw_env_methods
   USE pw_poisson_types, ONLY: setup_MT_ref_grid, pw_poisson_type, pw_poisson_create
   USE pw_poisson_methods, ONLY: pw_poisson_set
   USE input_section_types, ONLY: section_vals_type, section_vals_get_subs_vals
+  USE input_constants, ONLY: do_rsgrid_distributed
   IMPLICIT NONE
   PRIVATE
 
@@ -525,7 +526,7 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
         pw_grid => pw_pools(igrid_level)%pool%pw_grid
         drmin = MINVAL ( pw_grid%dr )
 
-        IF ( dft_control % qs_control % rs_distributed ) THEN
+        IF ( dft_control % qs_control % rs_distributed_id .EQ. do_rsgrid_distributed ) THEN
            nsmax = 2*MAX(1,CEILING((radius(igrid_level))/drmin))+1
         ELSE
            nsmax = -1

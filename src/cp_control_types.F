@@ -101,7 +101,7 @@ MODULE cp_control_types
 ! *** Control parameters for GAPW method within QUICKSTEP ***
 
   TYPE gapw_control_type
-    REAL(KIND = dp)                 :: eps_fit,eps_iso,eps_Vrho0
+    REAL(KIND = dp)                 :: eps_fit,eps_iso,eps_Vrho0,eps_svd
     INTEGER                         :: ladd_rho0,lmax_rho0,&
                                        lmax_sphere, quadrature
     CHARACTER(LEN=30)               :: quadrature_name
@@ -158,7 +158,6 @@ MODULE cp_control_types
     TYPE (gapw_control_type), POINTER       :: gapw_control
     TYPE ( pw_grid_option )         :: pw_grid_opt
     INTEGER                         :: pw_grid_opt_id
-    LOGICAL                         :: rs_distributed
     INTEGER                         :: rs_distributed_id
     INTEGER                         :: wf_interpolation_method_nr
     INTEGER                         :: wf_extrapolation_order
