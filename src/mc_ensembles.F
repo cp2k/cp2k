@@ -414,7 +414,6 @@ CONTAINS
          ENDIF
 
          IF (ionode) rand=next_random_number(rng_stream)
-!         CALL RANDOM_NUMBER(rand)
 ! broadcast the random number, to make sure we're on the same move
          CALL mp_bcast(rand,source,group)
 
@@ -486,7 +485,6 @@ CONTAINS
 
 ! first, pick a box to do it for
             IF(ionode) rand=next_random_number(rng_stream)
-!            CALL RANDOM_NUMBER(rand)
             CALL mp_bcast(rand,source,group)
 
             IF(nboxes .EQ. 2) THEN
@@ -522,7 +520,6 @@ CONTAINS
 ! choose if we're swapping into the bonded region of mol_target, or 
 ! into the nonbonded region
                   rand=next_random_number(rng_stream)
-!               CALL RANDOM_NUMBER(rand)
 
                ENDIF
                CALL mp_bcast(mol_swap,source,group)
@@ -559,14 +556,12 @@ CONTAINS
             DO imove=1,nmoves
                   
                IF(ionode) rand=next_random_number(rng_stream)
-!                  CALL RANDOM_NUMBER(rand)
                CALL mp_bcast(rand,source,group)
 
                IF(rand .LT. pmtraion) THEN
 ! change molecular conformation
 ! first, pick a box to do it for
                   IF(ionode) rand=next_random_number(rng_stream)
-!                     CALL RANDOM_NUMBER(rand)
                   CALL mp_bcast(rand,source,group)
                   IF(nboxes .EQ. 2) THEN
                      IF(rand .LT. 0.75E0_dp) THEN
@@ -592,7 +587,6 @@ CONTAINS
                            box=ibox,error=error)
                         
 ! choose if we're changing a bond length or an angle
-!                        CALL RANDOM_NUMBER(rand)
                         rand=next_random_number(rng_stream)
                      ENDIF
                      CALL mp_bcast(rand,source,group)
@@ -750,16 +744,13 @@ CONTAINS
             CALL m_flush(com_crd)
             CALL m_flush(com_mol)
 
-! check to see if EXIT file exists...if so, end the calculation
-            CALL external_control(should_stop,"MC",error=error)
-
          ENDIF
 
 ! reset the box flags
          box_flag(:)=0
 
-         CALL mp_bcast(should_stop,source,group)
-
+! check to see if EXIT file exists...if so, end the calculation
+         CALL external_control(should_stop,"MC",error=error)
          IF (should_stop) EXIT
 
 ! update the move displacements, if necessary
