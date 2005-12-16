@@ -2299,7 +2299,7 @@ END SUBROUTINE pw_grid_release
        pw_grid_out%npts            =  pw_grid_in%npts  + 1
        pw_grid_out%ngpts           =  PRODUCT ( pw_grid_out% npts )
        pw_grid_out%ngpts_cut=0
-       pw_grid_out%npts_local=pw_grid_out%bounds_local(2,:)-pw_grid_out%bounds_local(2,:)+1
+       pw_grid_out%npts_local=pw_grid_out%bounds_local(2,:)-pw_grid_out%bounds_local(1,:)+1
        pw_grid_out%ngpts_local=product(pw_grid_out%npts_local)
        pw_grid_out%ngpts_cut_local=0
        pw_grid_out%dr              =  pw_grid_in%dr               

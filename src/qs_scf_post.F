@@ -305,7 +305,7 @@ CONTAINS
        print_key => section_vals_get_subs_vals(input,"PROPERTIES%FIT_CHARGE", error=error)
        CALL section_vals_get(print_key,explicit=was_present,error=error)
        IF (was_present) THEN
-          CALL get_ddapc(qs_env,.FALSE.,print_key,error=error)
+          CALL get_ddapc(qs_env,.FALSE.,.FALSE.,print_key,error=error)
        END IF
 
 !    ***  Print Localized orbitals

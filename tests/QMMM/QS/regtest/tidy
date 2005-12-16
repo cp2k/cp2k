@@ -3,6 +3,7 @@ rm -f *.crd \
  *.ener \
  *.restart \
  *.vel \
+ *.dat \
  *.cube\
  *.dipole\
  *.qmmmLog\

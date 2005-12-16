@@ -402,6 +402,14 @@ CONTAINS
                                 print_section=print_section,&
                                 error=error)
        !
+       ! Initialize the qmmm_pw_grid
+       !
+       CALL qmmm_pw_grid_init(qmmm_env=qmmm_env_qm,&
+                              pw_env=qs_env%pw_env,&
+                              cell=qm_cell_small,&
+                              para_env=para_env,&
+                              error=error)
+       !
        ! Initialize the MM periodic potential
        !
        CALL qmmm_init_periodic_potential(qmmm_env_qm=qmmm_env_qm,&
@@ -414,14 +422,6 @@ CONTAINS
                                 print_section=print_section,&
                                 mm_atom_chrg=mm_atom_chrg,&
                                 error=error)
-       !
-       ! Initialize the qmmm_pw_grid
-       !
-       CALL qmmm_pw_grid_init(qmmm_env=qmmm_env_qm,&
-                              pw_env=qs_env%pw_env,&
-                              cell=qm_cell_small,&
-                              para_env=para_env,&
-                              error=error)
        !
        ! Preparing for PBC...
        !
@@ -846,10 +846,10 @@ CONTAINS
 
  END SUBROUTINE qmmm_init_potential
 
-  !!****f* qmmm_init/qmmm_init_potential [1.0] *
+  !!****f* qmmm_init/qmmm_init_periodic_potential [1.0] *
   !!
   !!   NAME
-  !!     qmmm_init_potential
+  !!     qmmm_init_periodic_potential
   !!
   !!   FUNCTION
   !!
@@ -901,6 +901,8 @@ CONTAINS
                                 print_section=print_section,&
                                 eps_mm_rspace=qmmm_env_qm%eps_mm_rspace,&
                                 maxchrg=maxchrg,&
+                                ncp =qmmm_env_qm%aug_pools(SIZE(qmmm_env_qm%aug_pools))%pool%pw_grid%npts,&
+                                ncpl=qmmm_env_qm%aug_pools(SIZE(qmmm_env_qm%aug_pools))%pool%pw_grid%npts_local,&
                                 error=error)
 
    IF (qmmm_env_qm%move_mm_charges.OR.qmmm_env_qm%add_mm_charges) THEN
@@ -917,6 +919,8 @@ CONTAINS
                                    print_section=print_section,&
                                    eps_mm_rspace=qmmm_env_qm%eps_mm_rspace,&
                                    maxchrg=maxchrg,&
+                                   ncp =qmmm_env_qm%aug_pools(SIZE(qmmm_env_qm%aug_pools))%pool%pw_grid%npts,&
+                                   ncpl=qmmm_env_qm%aug_pools(SIZE(qmmm_env_qm%aug_pools))%pool%pw_grid%npts_local,&
                                    error=error)      
    END IF
 

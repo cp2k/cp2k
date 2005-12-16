@@ -146,12 +146,14 @@ CONTAINS
        END DO
        IF ( screen_function% pw_grid % have_g0 )  screen_function%cc ( 1 ) = pi * zlength*zlength / 2.0_dp
     CASE(MT1D)
+       iz = special_dimension ! iz is the direction with PBC
+       CALL mt1din(screen_function,iz,error)
        CALL cp_unimplemented_error(routineP, "MT1D unimplemented", error, cp_failure_level)
     END SELECT
     CALL pw_pool_release ( pw_pool_aux, error=error )
     CALL timestop(0.0_dp,handle) 
   END SUBROUTINE MTin_create_screen_fn
-!!*****
+
 !******************************************************************************
 !!****** mt_util/mt0din [1.0] *
 !!
@@ -227,5 +229,60 @@ CONTAINS
     END DO
     CALL timestop(0.0_dp,handle)
   END SUBROUTINE Mt0din
+
+!******************************************************************************
+!!****** mt_util/mt1din [1.0] *
+!!
+!!   NAME
+!!     mt1din
+!!
+!!   FUNCTION
+!!     Calculates the Tuckerman Green's function in reciprocal space
+!!     according the scheme published on:
+!!     Martyna and Tuckerman, J. Chem. Phys. Vol. 121, No. 23, 11949
+!!     
+!!
+!!   AUTHOR
+!!     Teodoro Laino (11.2005)
+!!
+!!   MODIFICATION HISTORY
+!!
+!!   SOURCE
+!******************************************************************************
+  SUBROUTINE mt1din(screen_function,iz,error)
+    IMPLICIT NONE
+    ! Arguments
+    TYPE(pw_type), POINTER                   :: screen_function
+    INTEGER, INTENT(IN)                      :: iz
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+    ! Local Variables
+    CHARACTER(len=*), PARAMETER :: routineN = 'mt1din', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle
+    LOGICAL                                  :: failure
+    REAL(KIND=dp)                            :: dx, dy, dz, omega
+    TYPE(pw_grid_type), POINTER              :: grid
+    REAL(KIND=dp), DIMENSION(3)              :: box, box2
+    INTEGER, DIMENSION(:,:), POINTER         :: bo
+    INTEGER, DIMENSION(:), POINTER           :: glb
+
+    CALL timeset(routineN,"I","",handle)
+    failure=.FALSE.
+    IF (.NOT.failure) THEN
+       grid => screen_function%pw_grid
+       bo   => grid%bounds_local
+       glb  => grid%bounds(1,:)
+       box = REAL(grid%npts,kind=dp)*grid%dr
+       box2 = box/2.0_dp
+       omega = PRODUCT(box)
+       dx=grid%dr(1)
+       dy=grid%dr(2)
+       dz=grid%dr(3)
+
+    END IF
+    CALL timestop(0.0_dp,handle)
+  END SUBROUTINE mt1din
 
 END MODULE mt_util

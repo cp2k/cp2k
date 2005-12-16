@@ -94,14 +94,14 @@ CONTAINS
 !!*** ********************************************************************** 
   SUBROUTINE qmmm_per_potential_init(qmmm_coupl_type, per_potentials, potentials,&
     pgfs, qm_cell_small, mm_cell, globenv, compatibility, qmmm_periodic, print_section,&
-    eps_mm_rspace, maxchrg, error)
+    eps_mm_rspace, maxchrg, ncp, ncpl, error)
     IMPLICIT NONE
     ! Arguments
     TYPE(qmmm_per_pot_p_type), DIMENSION(:), POINTER :: per_potentials
     TYPE(qmmm_pot_p_type), DIMENSION(:), POINTER     :: potentials
     TYPE(qmmm_gaussian_p_type), &
          DIMENSION(:), POINTER                       :: pgfs    
-    INTEGER, INTENT(IN)                              :: qmmm_coupl_type      
+    INTEGER, INTENT(IN)                              :: qmmm_coupl_type, ncp(3), ncpl(3)
     TYPE(cell_type), POINTER                         :: mm_cell, qm_cell_small  
     TYPE(section_vals_type), POINTER                 :: print_section, qmmm_periodic
     TYPE(cp_error_type), INTENT(inout), &
@@ -113,17 +113,19 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_per_potential_init', &
       routineP = moduleN//':'//routineN
     TYPE(section_vals_type), POINTER                 :: print_pot
-    LOGICAL :: failure, found
+    LOGICAL :: failure
     TYPE(qmmm_gaussian_type), POINTER                :: pgf
     REAL(KIND=dp) :: Rmax, Fac(3), Gmax, Prefactor, alpha
     REAL(KIND=dp) :: g2, mymaxradius, vol, rc, vec(3), g, Gk, Ak, box(3), fs, rc2
     INTEGER       :: n_rep_real(3), n_rep_real_val, Kmax(3), ig_start, iz, iy, ix, stat, K, ig, I, iw
-    INTEGER       :: Ndim, idim
+    INTEGER       :: Ndim, idim, ncoarsel, ncoarset
     INTEGER,        DIMENSION(:), POINTER    :: mm_atom_index
     REAL(KIND=dp), DIMENSION(:), POINTER :: Lg, gx, gy, gz
     TYPE(cp_logger_type), POINTER            :: logger
 
     NULLIFY(Lg, gx, gy, gz)
+    ncoarset = PRODUCT(ncp)
+    ncoarsel = PRODUCT(ncpl)
     logger => cp_error_get_logger(error)
     Rmax = SQRT(mm_cell%hmat(1,1)**2+&
                 mm_cell%hmat(2,2)**2+&
@@ -248,9 +250,13 @@ CONTAINS
              WRITE (UNIT=iw,FMT="(/,T2,A)") REPEAT("-",79)
              WRITE (UNIT=iw,FMT="(T2,A,T20,A,T80,A)")"-","QMMM PERIODIC BOUNDARY CONDITION INFO","-"
              WRITE (UNIT=iw,FMT="(T2,A)") REPEAT("-",79)
-             WRITE (UNIT=iw,FMT="(T2,A,T10,A,F12.6,T50,A,3I5,T80,A)")"-","RADIUS  =",rc,"REPLICA =",n_rep_real,"-"
-             WRITE (UNIT=iw,FMT="(T2,A,T10,A,F12.6,T50,A,I15,T80,A)")"-","MINGVAL =",MINVAL(ABS(Lg)),&
+             WRITE (UNIT=iw,FMT="(T2,A,T10,A,F15.6,T50,A,3I5,T80,A)")"-","RADIUS  =",rc,"REPLICA =",n_rep_real,"-"
+             WRITE (UNIT=iw,FMT="(T2,A,T10,A,F15.6,T50,A,I15,T80,A)")"-","MINGVAL =",MINVAL(ABS(Lg)),&
                   "GPOINTS =",ndim,"-"
+             WRITE (UNIT=iw,FMT="(T2,A,T10,A,3I5,T50,A,3I5,T80,A)")  "-","NCOARSL =",ncpl,&
+                  "NCOARST =",ncp,"-"
+             WRITE (UNIT=iw,FMT="(T2,A,T10,A,I15,T50,A,I15,T80,A)")  "-","NFLOP-L ~",ncoarsel*ndim*SIZE(mm_atom_index),&
+                  "NFLOP-T ~",ncoarset*ndim*SIZE(mm_atom_index),"-"
              WRITE (UNIT=iw,FMT="(T2,A)") REPEAT("-",79)
           END IF
        END IF

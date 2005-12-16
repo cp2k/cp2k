@@ -147,7 +147,7 @@ CONTAINS
        DO Ilevel = 1, SIZE(pw_pools)
           NULLIFY(pool, qmmm_env%aug_pools(Ilevel)%pool)
           pool      => pw_pools(Ilevel)%pool
-          nullify(el_struct)
+          NULLIFY(el_struct)          
           CALL pw_grid_create_copy_no_pbc(pool%pw_grid,el_struct, cell=cell,&
                error=error)
 
