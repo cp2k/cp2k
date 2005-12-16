@@ -135,13 +135,11 @@ MODULE qs_scf_post
   USE scf_control_types,               ONLY: scf_control_type
   USE simulation_cell,                 ONLY: cell_type,&
                                              get_cell
-  USE sparse_matrix_types,             ONLY: deallocate_matrix,&
-                                             real_matrix_p_type,&
-                                             real_matrix_type,&
-                                             replicate_matrix
+  USE sparse_matrix_types,             ONLY: real_matrix_p_type
   USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
+  USE xray_diffraction,                ONLY: xray_diffraction_spectrum
 
   USE input_section_types, ONLY: section_vals_type, section_vals_val_get,&
        section_vals_get_subs_vals, section_vals_get_subs_vals2, section_get_rval, section_get_ival
@@ -243,7 +241,7 @@ CONTAINS
     CHARACTER(LEN=80)  :: filename
     CHARACTER(LEN=80) :: title
     CHARACTER(LEN=default_string_length) :: mulliken_title
-    REAL(KIND = dp)           :: volume
+    REAL(KIND = dp)           :: q_max,volume
     REAL(KIND = dp), POINTER, DIMENSION(:,:) :: center
     TYPE(section_vals_type), POINTER :: print_key, input
     TYPE(cp_rs_pool_type), POINTER           :: auxbas_rs_pool
@@ -625,8 +623,45 @@ CONTAINS
        ENDIF
 
     END IF
+
+    ! Print coherent X-ray diffraction spectrum
+
+    IF (BTEST(&
+        cp_out_flags_should_output(flags_env=output_control,&
+                                   name="DFT%PRINT%XRAY_DIFFRACTION_SPECTRUM",&
+                                   error=error),&
+        cp_p_file)) THEN
+      q_max = section_get_rval(section_vals=dft_section,&
+                               keyword_name="PRINT%XRAY_DIFFRACTION_SPECTRUM%Q_MAX",&
+                               error=error)
+      unit_nr = cp_out_flags_unit_nr(flags_env=output_control,&
+                                     name="DFT%PRINT%XRAY_DIFFRACTION_SPECTRUM",&
+                                     extension=".dat",&
+                                     middle_name="xray",&
+                                     log_filename=.FALSE.,&
+                                     error=error)
+      IF (ionode) THEN
+        INQUIRE (UNIT=unit_nr,NAME=file_name)
+        WRITE (UNIT=output_unit,FMT="(/,/,T2,A,2(/,/,T3,A),/)")&
+          "X-RAY DIFFRACTION SPECTRUM",&
+          "The coherent X-ray diffraction spectrum is appended to the file:",&
+          TRIM(file_name)
+      END IF
+      CALL xray_diffraction_spectrum(qs_env=qs_env,&
+                                     q_max=q_max,&
+                                     unit_number=unit_nr,&
+                                     error=error)
+      CALL cp_out_flags_finished_output(unit_nr=unit_nr,&
+                                        flags_env=output_control,&
+                                        name="DFT%PRINT%XRAY_DIFFRACTION_SPECTRUM",&
+                                        error=error)
+    END IF
+
     CALL timestop(0.0_dp,handle)
+
   END SUBROUTINE scf_post_calculation
+
+  ! ***************************************************************************
 
   SUBROUTINE write_available_results(qs_env,globenv,error)
     TYPE(qs_environment_type), POINTER       :: qs_env
@@ -664,14 +699,11 @@ CONTAINS
          REAL(KIND = dp), DIMENSION(:), POINTER :: evals
     END TYPE
     INTEGER :: ispin, output_unit
-    CHARACTER(LEN=6)   :: extension
-    CHARACTER(LEN=200) :: file_name
-    INTEGER            :: file_unit
     REAL(KIND=dp)      :: s_square_ideal,s_square
     LOGICAL            :: all_equal
     REAL(KIND=dp), DIMENSION(:), POINTER :: occupation_numbers
     INTEGER            :: nmo, unit_nr
-    TYPE(section_vals_type), POINTER :: dft_section, print_key, input
+    TYPE(section_vals_type), POINTER :: dft_section, input
     TYPE(cp_rs_pool_type), POINTER           :: auxbas_rs_pool
     TYPE(realspace_grid_type), POINTER       :: rs
     INTEGER            :: handle

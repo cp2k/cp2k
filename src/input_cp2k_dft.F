@@ -25,6 +25,7 @@
 MODULE input_cp2k_dft
   use kinds, only: dp
   use cp_para_types, only: cp_para_env_type
+  USE physcon, ONLY: bohr
   use timings, only: timeset, timestop
   USE input_section_types, ONLY: section_type, section_create, &
        section_add_keyword, section_add_subsection, section_release,&
@@ -668,7 +669,33 @@ END SUBROUTINE xc_functionals_expand
        CALL section_add_subsection(section,print_key,error=error)
        CALL section_release(print_key,error=error)
 
+       CALL cp_print_key_section_create(print_key_section=print_key,&
+                                        name="XRAY_DIFFRACTION_SPECTRUM",&
+                                        description="Calculate and print the coherent "//&
+                                                    "X-ray diffraction spectrum",&
+                                        print_level=medium_print_level,&
+                                        each=(/1/),&
+                                        filename="",&
+                                        error=error)
+       CALL keyword_create(keyword=keyword,&
+                           name="Q_MAX",&
+                           variants=(/"Q_MAXIMUM"/),&
+                           description="Maximum Q value printed",&
+                           usage="Q_MAX {real}",&
+                           repeats=.FALSE.,&
+                           required=.FALSE.,&
+                           n_var=1,&
+                           type_of_var=real_t,&
+                           default_r_val=20.0_dp/bohr,&
+                           unit_str="angstrom^-1",&
+                           error=error)
+       CALL section_add_keyword(print_key,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+       CALL section_add_subsection(section,print_key,error=error)
+       CALL section_release(print_key,error=error)
+
     END IF
+
   END SUBROUTINE create_print_dft_section
 
 
@@ -2034,8 +2061,9 @@ SUBROUTINE create_tddfpt_section(section,error)
             n_keywords=3, n_subsections=1, repeats=.FALSE., required=.TRUE.,&
             error=error)
 
-       NULLIFY(keyword, subsection)
-    
+       NULLIFY (keyword)
+       NULLIFY (subsection)
+
        CALL create_linres_section(subsection,error)
        CALL section_add_subsection(section, subsection, error=error)
        CALL section_release(subsection,error=error)

@@ -423,4 +423,5 @@ OBJECTS_GENERIC =\
  xc_tpss.o\
  xc_vwn_new.o\
  xc_xalpha_new.o\
- xc_xbecke88.o
+ xc_xbecke88.o\
+ xray_diffraction.o
