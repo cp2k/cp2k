@@ -907,7 +907,7 @@ CONTAINS
             tot1_h = tot1_h + qs_charges%total_rho1_hard(ispin)
             tot1_s = tot1_s + qs_charges%total_rho1_soft(ispin)
           END DO
-          WRITE (UNIT=output_unit,FMT="(/,(T3,A,T44,2F28.20))")&
+          WRITE (UNIT=output_unit,FMT="(/,(T3,A,T44,2F20.10))")&
                 "Hard and soft local densities (lebedev):",&
                 tot1_h, tot1_s
           WRITE (UNIT=output_unit,FMT="(T3,A,T60,F20.10)")&
@@ -933,7 +933,7 @@ CONTAINS
             "Electronic energy [eV]:                        ",&
                                               (energy%core+0.5_dp*energy%hartree)*evolt
        ELSE
-         WRITE (UNIT=output_unit,FMT="(/,(T3,A,T55,F30.20))")&
+         WRITE (UNIT=output_unit,FMT="(/,(T3,A,T55,F25.14))")&
             "Overlap energy of the core charge distribution:",energy%core_overlap,&
             "Self energy of the core charge distribution:   ",energy%core_self,&
             "Core Hamiltonian energy:                       ",energy%core,&
