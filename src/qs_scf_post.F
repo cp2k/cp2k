@@ -626,35 +626,28 @@ CONTAINS
 
     ! Print coherent X-ray diffraction spectrum
 
-    IF (BTEST(&
-        cp_out_flags_should_output(flags_env=output_control,&
-                                   name="DFT%PRINT%XRAY_DIFFRACTION_SPECTRUM",&
-                                   error=error),&
-        cp_p_file)) THEN
+    print_key => section_vals_get_subs_vals(&
+                   section_vals=input,&
+                   subsection_name="DFT%PRINT%XRAY_DIFFRACTION_SPECTRUM",&
+                   error=error)
+    CALL section_vals_get(section_vals=print_key,&
+                          explicit=was_present,&
+                          error=error)
+    IF (was_present) THEN
       q_max = section_get_rval(section_vals=dft_section,&
                                keyword_name="PRINT%XRAY_DIFFRACTION_SPECTRUM%Q_MAX",&
                                error=error)
-      unit_nr = cp_out_flags_unit_nr(flags_env=output_control,&
-                                     name="DFT%PRINT%XRAY_DIFFRACTION_SPECTRUM",&
-                                     extension=".dat",&
-                                     middle_name="xray",&
-                                     log_filename=.FALSE.,&
+      file_name = "x-ray.dat"
+      CALL xray_diffraction_spectrum(qs_env=qs_env,&
+                                     file_name=file_name,&
+                                     q_max=q_max,&
                                      error=error)
       IF (ionode) THEN
-        INQUIRE (UNIT=unit_nr,NAME=file_name)
         WRITE (UNIT=output_unit,FMT="(/,/,T2,A,2(/,/,T3,A),/)")&
           "X-RAY DIFFRACTION SPECTRUM",&
-          "The coherent X-ray diffraction spectrum is appended to the file:",&
+          "The coherent X-ray diffraction spectrum was written to the file:",&
           TRIM(file_name)
       END IF
-      CALL xray_diffraction_spectrum(qs_env=qs_env,&
-                                     q_max=q_max,&
-                                     unit_number=unit_nr,&
-                                     error=error)
-      CALL cp_out_flags_finished_output(unit_nr=unit_nr,&
-                                        flags_env=output_control,&
-                                        name="DFT%PRINT%XRAY_DIFFRACTION_SPECTRUM",&
-                                        error=error)
     END IF
 
     CALL timestop(0.0_dp,handle)

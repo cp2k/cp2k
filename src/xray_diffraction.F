@@ -32,6 +32,8 @@ MODULE xray_diffraction
                                              coeff_type,&
                                              coeff_zero
   USE cp_control_types,                ONLY: dft_control_type
+  USE cp_files,                        ONLY: close_file,&
+                                             open_file
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: twopi
@@ -84,15 +86,14 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE xray_diffraction_spectrum(qs_env,q_max,unit_number,error)
+  SUBROUTINE xray_diffraction_spectrum(qs_env,file_name,q_max,error)
 
-    ! Calculate the coherent X-ray diffraction spectrum and write it to the
-    ! file connected to the logical unit number unit_number.
+    ! Calculate the coherent X-ray diffraction spectrum.
     ! The total electronic density in reciprocal space (g-space) is calculated.
 
     TYPE(qs_environment_type), POINTER           :: qs_env
+    CHARACTER(LEN=*), INTENT(IN)                 :: file_name
     REAL(KIND=dp), INTENT(IN)                    :: q_max
-    INTEGER, INTENT(IN)                          :: unit_number
     TYPE(cp_error_type), OPTIONAL, INTENT(INOUT) :: error
 
     ! Local parameter
@@ -100,6 +101,7 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = "xray_diffraction_spectrum",&
                                    routineP = moduleN//":"//routineN
     INTEGER, PARAMETER          :: nblock = 100
+
     ! Local variables
 
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
@@ -120,7 +122,7 @@ CONTAINS
       ico,ico1_pgf,ico1_set,ig,ig_shell,ikind,ipgf,iset,ishell,iso,iso1_pgf,&
       iso1_set,ispin,istat,jco,jco1_pgf,jco1_set,jg,jpgf,jset,jso,jso1_pgf,&
       jso1_set,la,lb,maxco,maxso,na,nb,natom,ncoa,ncob,ncotot,ng,nkind,&
-      nset,nshell,nshell_printed,nsoa,nsob,nsotot,nspin
+      nset,nshell,nshell_printed,nsoa,nsob,nsotot,nspin,unit_number
     LOGICAL                                  :: failure,ionode,paw_atom
 
     REAL(KIND=dp), DIMENSION(3)              :: dg,ra
@@ -142,7 +144,6 @@ CONTAINS
     failure = .FALSE.
 
     CPPrecondition(ASSOCIATED(qs_env),cp_failure_level,routineP,error,failure)
-    CPPrecondition((unit_number > 0),cp_failure_level,routineP,error,failure)
 
     IF (.NOT.failure) THEN
 
@@ -371,6 +372,12 @@ CONTAINS
 
       IF (ionode) THEN
 
+        CALL open_file(file_name=TRIM(file_name),&
+                       file_action="WRITE",&
+                       file_form="FORMATTED",&
+                       file_status="REPLACE",&
+                       unit_number=unit_number)
+
         ng = pw_grid%ngpts
         dg(:) = twopi/(pw_grid%npts(:)*pw_grid%dr(:))
 
@@ -465,6 +472,8 @@ CONTAINS
           DEALLOCATE (idx,STAT=istat)
           CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
         END IF
+
+        CALL close_file(unit_number)
 
       END IF
 
