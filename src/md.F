@@ -149,8 +149,6 @@ MODULE md
      INTEGER        :: output_format
      LOGICAL :: constraint
      LOGICAL :: annealing
-     LOGICAL :: pv_numerical
-     LOGICAL :: pv_availability
      INTEGER :: nfree
      INTEGER :: nc
      INTEGER :: nyosh
@@ -464,8 +462,6 @@ SUBROUTINE read_md_new_section(simpar, globenv, md_section, error)
      CALL section_vals_val_get(md_section,"TEMPERATURE",r_val=simpar%temp_ext,error=error)
      CALL section_vals_val_get(md_section,"TEMP_TOL",r_val=simpar%temp_tol,error=error)
      CALL section_vals_val_get(md_section,"RESTART",i_val=simpar%read_type,error=error)
-     CALL section_vals_val_get(md_section,"PV_AVA",l_val=simpar%pv_availability,error=error)
-     CALL section_vals_val_get(md_section,"PV_NUM",l_val=simpar%pv_numerical,error=error)
      
      IF (simpar%ensemble == langevin_ensemble) THEN
        CALL section_vals_val_get(md_section, "GAMMA", r_val=simpar%gamma, error=error)
@@ -488,7 +484,7 @@ SUBROUTINE read_md_new_section(simpar, globenv, md_section, error)
         CALL section_vals_val_get(tmp_section,"ENERGY",r_val=simpar%e0,error=error)
         CALL section_vals_val_get(tmp_section,"VOLUME",r_val=simpar%v0,error=error)
         CALL section_vals_val_get(tmp_section,"GAMMA",r_val=simpar%gamma_nph,error=error)
-        IF ( simpar % gamma_nph /= 0 ) simpar % ensemble = nph_uniaxial_damped_ensemble
+        IF ( simpar % gamma_nph /= 0.0_dp ) simpar % ensemble = nph_uniaxial_damped_ensemble
         CALL section_vals_val_get(tmp_section,"CMASS",r_val=simpar%cmass,error=error)
         CALL section_vals_val_get(tmp_section,"VSHOCK",r_val=simpar%v_shock,error=error)
      END IF
@@ -594,8 +590,6 @@ END SUBROUTINE read_md_new_section
     simpar % read_type = md_pos_restart
     simpar % constraint = .FALSE.
     simpar % annealing = .FALSE.
-    simpar % pv_numerical=.FALSE.
-    simpar % pv_availability=.FALSE.
     simpar % shake_tol = 1.0E-6_dp
     simpar % nhclen = 3
     simpar % nc = 2

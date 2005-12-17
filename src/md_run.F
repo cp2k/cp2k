@@ -276,10 +276,6 @@ CONTAINS
 
       END DO
       CALL initialize_npt (simpar,globenv,extended_type%npt_info,cell)
-!JCS
-      CALL virial_set(virial, pv_availability=simpar%pv_availability,&
-                              pv_numer = simpar%pv_numerical)
-!JCS
 
 ! Always initialize velocities (to be overwritten if needed)
       DO isubsys=1,SIZE(subsys)

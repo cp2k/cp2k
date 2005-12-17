@@ -8,3 +8,5 @@ nai-1.inp
 # after new input, presumably numerics
 nai-1.inp
 kg_gpw_1H2O_TF.inp
+# reset for wrong test type
+h2o_energy.inp
