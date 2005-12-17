@@ -72,8 +72,15 @@ MODULE cp_subsystem_methods
                                              topology_parameters_type
   USE topology_util,                   ONLY: topology_connectivity_pack,&
                                              topology_coordinate_pack
+  USE periodic_table,                  ONLY: ptable
+  USE string_utilities,                ONLY: uppercase
+  USE input_section_types,             ONLY: section_vals_type,&
+                                             section_vals_get_subs_vals,&
+                                             section_vals_get,&
+                                             section_vals_val_get,&
+                                             section_vals_release
 
-  IMPLICIT NONE
+  IMPLICIT NONE 
   PRIVATE
 
   LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
@@ -148,6 +155,7 @@ CONTAINS
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(topology_parameters_type)           :: topology
+    CHARACTER(len=default_string_length)     :: my_element
 
     failure=.FALSE.
     NULLIFY(mol_kinds,mols,particles,atomic_kinds, atomic_kind_set, particle_set, &
@@ -205,9 +213,13 @@ CONTAINS
           topology%atom_info%label_atmname(iat)=sub_atom_kind_name(iat)
           topology%atom_info%label_molname(iat)=topology%atom_info%label_atmname(iat)
           topology%atom_info%label_resname(iat)=topology%atom_info%label_atmname(iat)
+          !
+          ! Defining element
+          !
           id_ = INDEX(topology%atom_info%label_atmname(iat),"_")-1
           IF ( id_ == -1 ) id_ = LEN_TRIM(topology%atom_info%label_atmname(iat))
-          topology%atom_info%element(iat)=topology%atom_info%label_atmname(iat)(1:id_)
+          CALL check_subsys_element(topology%atom_info%label_atmname(iat)(1:id_),my_element,globenv,error)
+          topology%atom_info%element(iat)=my_element 
           topology%atom_info%atm_mass(iat)=0._dp
           topology%atom_info%atm_charge(iat)=0._dp
        END DO
@@ -256,6 +268,81 @@ CONTAINS
        CALL mol_kind_new_list_release(mol_kinds,error=error)
     END IF
   END SUBROUTINE create_small_subsystem
-!***************************************************************************
+
+!!****f* cp_subsystem_methods/check_subsys_element [1.0] *
+!!
+!!   NAME
+!!     check_subsys_element
+!!
+!!   FUNCTION
+!!     Check and returns the ELEMENT label
+!!
+!!   NOTES
+!!
+!!
+!!   INPUTS
+!!
+!!
+!!   AUTHOR
+!!     Teodoro Laino
+!!
+!!   MODIFICATION HISTORY
+!!     12.2005 created [teo]
+!!
+!!*** **********************************************************************
+  SUBROUTINE check_subsys_element(element_in, element_out, globenv, error)
+    IMPLICIT NONE
+    ! Arguments
+    CHARACTER(len=*), INTENT(IN)                          :: element_in
+    CHARACTER(len=default_string_length), INTENT(OUT)     :: element_out
+    TYPE(global_environment_type), POINTER   :: globenv
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+    ! Local Variables
+    CHARACTER(len=*), PARAMETER :: routineN = 'check_subsys_element', &
+      routineP = moduleN//':'//routineN    
+    CHARACTER(len=default_string_length)     :: element_symbol, current_symbol, keyword
+    INTEGER :: i, n_rep, i_rep
+    LOGICAL :: found, failure
+    TYPE(section_vals_type), pointer :: kind_section
+    
+    found = .FALSE.
+    failure = .FALSE.
+    element_symbol = element_in
+    CALL uppercase(element_symbol)
+    DO i=LBOUND(ptable,1),UBOUND(ptable,1)
+       current_symbol = ptable(i)%symbol
+       CALL uppercase(current_symbol)
+       IF (TRIM(current_symbol) == TRIM(element_symbol)) THEN
+          element_out = TRIM(element_symbol)
+          found = .TRUE.
+          EXIT
+       END IF
+    END DO
+    IF (.NOT.found) THEN
+       kind_section => section_vals_get_subs_vals(globenv%input_file,&
+            "FORCE_EVAL%SUBSYS%KIND",error=error)
+       CALL section_vals_get(kind_section,n_repetition=n_rep,error=error)
+       DO i_rep=1,n_rep
+          CALL section_vals_val_get(kind_section,"_SECTION_PARAMETERS_",&
+               c_val=keyword,i_rep_section=i_rep,error=error)
+          CALL uppercase(keyword)
+          IF (TRIM(keyword)==TRIM(element_symbol)) THEN
+             CALL section_vals_val_get(kind_section,i_rep_section=i_rep,&
+                  keyword_name="ELEMENT",n_rep_val=i,error=error)
+             IF (i>0) THEN
+                CALL section_vals_val_get(kind_section,i_rep_section=i_rep,&
+                     keyword_name="ELEMENT",c_val=element_symbol,error=error)
+                element_out = TRIM(element_symbol)
+                found = .TRUE.                
+                EXIT
+             END IF
+          END IF
+       END DO
+    END IF
+    IF (.NOT.found) THEN
+       CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)       
+    END IF
+  END SUBROUTINE check_subsys_element
 
 END MODULE cp_subsystem_methods
