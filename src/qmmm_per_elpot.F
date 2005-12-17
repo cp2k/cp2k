@@ -115,7 +115,7 @@ CONTAINS
     TYPE(section_vals_type), POINTER                 :: print_pot
     LOGICAL :: failure
     TYPE(qmmm_gaussian_type), POINTER                :: pgf
-    REAL(KIND=dp) :: Rmax, Fac(3), Gmax, Prefactor, alpha
+    REAL(KIND=dp) :: Rmax, Fac(3), Gmax, Prefactor, alpha,npt, npl
     REAL(KIND=dp) :: g2, mymaxradius, vol, rc, vec(3), g, Gk, Ak, box(3), fs, rc2
     INTEGER       :: n_rep_real(3), n_rep_real_val, Kmax(3), ig_start, iz, iy, ix, stat, K, ig, I, iw
     INTEGER       :: Ndim, idim, ncoarsel, ncoarset
@@ -247,6 +247,8 @@ CONTAINS
             cp_p_file).AND.logger%para_env%mepos==logger%para_env%source) THEN
           IF (globenv%ionode) THEN
              iw = globenv%scr
+             npt = REAL(ncoarset,KIND=dp)*REAL(ndim,KIND=dp)*REAL(SIZE(mm_atom_index),KIND=dp)
+             npl = REAL(ncoarsel,KIND=dp)*REAL(ndim,KIND=dp)*REAL(SIZE(mm_atom_index),KIND=dp)
              WRITE (UNIT=iw,FMT="(/,T2,A)") REPEAT("-",79)
              WRITE (UNIT=iw,FMT="(T2,A,T20,A,T80,A)")"-","QMMM PERIODIC BOUNDARY CONDITION INFO","-"
              WRITE (UNIT=iw,FMT="(T2,A)") REPEAT("-",79)
@@ -255,8 +257,8 @@ CONTAINS
                   "GPOINTS =",ndim,"-"
              WRITE (UNIT=iw,FMT="(T2,A,T10,A,3I5,T50,A,3I5,T80,A)")  "-","NCOARSL =",ncpl,&
                   "NCOARST =",ncp,"-"
-             WRITE (UNIT=iw,FMT="(T2,A,T10,A,I15,T50,A,I15,T80,A)")  "-","NFLOP-L ~",ncoarsel*ndim*SIZE(mm_atom_index),&
-                  "NFLOP-T ~",ncoarset*ndim*SIZE(mm_atom_index),"-"
+             WRITE (UNIT=iw,FMT="(T2,A,T10,A,F15.0,T50,A,F15.0,T80,A)")  "-","NFLOP-L ~",npl,&
+                  "NFLOP-T ~",npt,"-"
              WRITE (UNIT=iw,FMT="(T2,A)") REPEAT("-",79)
           END IF
        END IF

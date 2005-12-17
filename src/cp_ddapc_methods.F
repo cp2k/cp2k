@@ -192,7 +192,7 @@ CONTAINS
                 IF (g2 > gcut2) EXIT
                 gvec  = rho_tot_g % pw_grid % g (:,ig)
                 arg   = DOT_PRODUCT(gvec,rvec)
-                phase = CMPLX(COS(arg),-SIN(arg))
+                phase = CMPLX(COS(arg),-SIN(arg),KIND=dp)
                 bv (idim) = bv(idim) +  w(ig) * &
                      REAL(CONJG(rho_tot_g%cc(ig))*gfunc(ig,igauss)*phase,KIND=dp)
              END DO
@@ -266,9 +266,9 @@ CONTAINS
                       IF (g2 > gcut2) EXIT
                       gvec   = rho_tot_g % pw_grid % g (:,ig)
                       arg    = DOT_PRODUCT(gvec,rvec1)
-                      phase1 = CMPLX(COS(arg),-SIN(arg))                     
+                      phase1 = CMPLX(COS(arg),-SIN(arg),KIND=dp)                     
                       arg    = DOT_PRODUCT(gvec,rvec2)
-                      phase2 = CMPLX(COS(arg),-SIN(arg))
+                      phase2 = CMPLX(COS(arg),-SIN(arg),KIND=dp)
                       gfunc1 = gfunc(ig,igauss1)
                       gfunc2 = gfunc(ig,igauss2)
                       Am (idim2,idim1) = Am (idim2,idim1) + w(ig) * REAL(CONJG(gfunc1*phase1)*gfunc2*phase2,KIND=dp)
@@ -340,7 +340,7 @@ CONTAINS
                 IF (g2 > gcut2) EXIT
                 gvec   = rho_tot_g % pw_grid % g (:,ig)
                 arg    = DOT_PRODUCT(gvec,rvec)
-                dphase = - CMPLX(SIN(arg),COS(arg)) 
+                dphase = - CMPLX(SIN(arg),COS(arg),KIND=dp) 
                 dbv (idim,:) = dbv(idim,:) +  w(ig) * &
                      REAL(CONJG(rho_tot_g%cc(ig))*gfunc(ig,igauss)*dphase,KIND=dp) * gvec
              END DO
@@ -422,18 +422,18 @@ CONTAINS
                       arg1   = DOT_PRODUCT(gvec,rvec1)
                       arg2   = DOT_PRODUCT(gvec,rvec2)
                       IF    ((iparticle1 == iparticle0).AND.(iparticle2==iparticle0))  THEN
-                         dphase1 = - CMPLX(SIN(arg1), COS(arg1))                         
-                         phase2  =   CMPLX(COS(arg2),-SIN(arg2))
+                         dphase1 = - CMPLX(SIN(arg1), COS(arg1),KIND=dp)                         
+                         phase2  =   CMPLX(COS(arg2),-SIN(arg2),KIND=dp)
                          dAm (idim1,idim2,1:3) = dAm (idim1,idim2,1:3) +&
                               2.0_dp * REAL(CONJG(gfunc1*dphase1)*gfunc2*phase2,KIND=dp) * gvec
                       ELSEIF (iparticle1 == iparticle0) THEN
-                         dphase1 = - CMPLX(SIN(arg1), COS(arg1))                         
-                         phase2  =   CMPLX(COS(arg2),-SIN(arg2))
+                         dphase1 = - CMPLX(SIN(arg1), COS(arg1),KIND=dp)
+                         phase2  =   CMPLX(COS(arg2),-SIN(arg2),KIND=dp)
                          dAm (idim1,idim2,1:3) = dAm (idim1,idim2,1:3) +&
                               REAL(CONJG(gfunc1*dphase1)*gfunc2*phase2,KIND=dp) * gvec
                       ELSEIF (iparticle2 == iparticle0) THEN
-                         phase1  =   CMPLX(COS(arg1),-SIN(arg1))
-                         dphase2 = - CMPLX(SIN(arg2), COS(arg2))
+                         phase1  =   CMPLX(COS(arg1),-SIN(arg1),KIND=dp)
+                         dphase2 = - CMPLX(SIN(arg2), COS(arg2),KIND=dp)
                          dAm (idim1,idim2,1:3) = dAm (idim1,idim2,1:3) +&
                               REAL(CONJG(gfunc1*phase1)*gfunc2*dphase2,KIND=dp) * gvec
                       END IF

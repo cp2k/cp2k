@@ -186,7 +186,7 @@ CONTAINS
        iw=cp_out_flags_unit_nr(output_control,&
             "PROPERTIES%FIT_CHARGE%PRINT%PROGRAM_RUN_INFO",".totCharge",error=error)
        IF (iw>0) THEN
-          WRITE(iw,'(T3,A,F15.9)')" Evaluating the charges to couple QM images. " 
+          WRITE(iw,'(T3,A,F15.9)')" Evaluating the charges to decouple QM images. " 
        END IF       
        CALL pw_env_get(pw_env=pw_env,&
                        auxbas_pw_pool=auxbas_pool,&
@@ -593,7 +593,7 @@ CONTAINS
                 rc2    = rc*rc                
                 rvec   = particle_set(iparticle)%r
                 arg    = DOT_PRODUCT(gvec,rvec)
-                phase  = CMPLX(COS(arg),-SIN(arg))
+                phase  = CMPLX(COS(arg),-SIN(arg),KIND=dp)
                 gfunc  = EXP(-g2*rc2/4.0_dp)
                 g_corr = g_corr + gfunc * cv(idim) * phase 
              END DO
