@@ -223,6 +223,8 @@ CONTAINS
       CALL pw_pool_give_back_coeff(pool=auxbas_pw_pool,&
                                    coeff=rho_elec_gspace,&
                                    error=error)
+      DEALLOCATE (rho_elec_gspace,STAT=istat)
+      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
       rho_soft = calculate_total_rho(rhotot_elec_gspace)
       CALL coeff_scale(rhotot_elec_gspace,pw_grid%vol)
@@ -469,6 +471,8 @@ CONTAINS
       CALL pw_pool_give_back_coeff(pool=auxbas_pw_pool,&
                                    coeff=rhotot_elec_gspace,&
                                    error=error)
+      DEALLOCATE (rhotot_elec_gspace,STAT=istat)
+      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
       CALL timestop(0.0_dp,handle)
 
