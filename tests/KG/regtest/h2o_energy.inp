@@ -1,0 +1,85 @@
+
+&FORCE_EVAL
+  &DFT
+    &XC
+      DENSITY_CUTOFF 1.0E-10
+      GRADIENT_CUTOFF 1.0E-10
+      &XC_FUNCTIONAL
+        &PADE
+        &END
+        &KE_GGA
+          FUNCTIONAL  LLP
+        &END
+      &END
+    &END XC
+    &MGRID
+      CUTOFF 40
+      NGRIDS 1
+    &END MGRID
+    &QS
+      eps_core_charge 1.0E-96
+      eps_ppl 1.0E-96
+      eps_pgf_orb 1.0E-10
+      eps_gvg_rspace 1.0E-10
+      eps_rho 1.0E-10
+      method  KG_NOPOL
+    &END QS
+
+  &END DFT
+  &SUBSYS
+    &CELL
+      ABC 7.0 7.0 7.0
+      SUBCELLS 0.
+      UNIT ANGSTROM
+    &END CELL
+    &CONSTRAINT
+      &G3X3
+        DISTANCES 1.872719336 1.872719336 2.981376694
+        MOLECULE 1
+        ATOMS 1 2 3
+      &END G3X3
+    &END CONSTRAINT
+    &COORD
+      O     .00000000     .00000000     .00000000   H2O
+      H     .99100000     .00000000     .00000000   H2O
+      H    -.26483324     .95495778     .00000000   H2O
+      O     .00000000     .00000000    3.09649992   H2O
+      H     .99100000     .00000000    3.09649992   H2O
+      H    -.26483324     .95495778    3.09649992   H2O
+    &END COORD
+    &KIND O
+      BASIS_SET KG-FEDPD-BARKER
+      POTENTIAL ELP
+    &END KIND
+    &KIND H
+      BASIS_SET KG-FEDPD-BARKER
+      POTENTIAL ELP
+    &END KIND
+  &END SUBSYS
+&END FORCE_EVAL
+&GLOBAL
+  FFTLIB FFTSG
+  PROGRAM kg
+  PROJECT h2o
+  RUN_TYPE ENERGY
+  PRINT_LEVEL LOW
+&END GLOBAL
+&MOTION
+  &MD
+    ENSEMBLE NVT
+    STEPS 2
+    TIMESTEP 1.0
+    TEMPERATURE 300.0000
+    RESTART INIT
+    &BAROSTAT
+      PRESSURE 0.
+      TIMECON 1000.
+    &END BAROSTAT
+    &NOSE
+      LENGTH 1
+      YOSHIDA 3
+      TIMECON 1000.
+      MTS 2
+    &END NOSE
+  &END MD
+&END MOTION

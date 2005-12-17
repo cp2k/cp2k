@@ -6,6 +6,7 @@
 #
 # KG MD test
 h2o.inp 2
+h2o_energy.inp 2
 # KG POLMD test
 # first optimize coefficients
 nai-0.inp 0
