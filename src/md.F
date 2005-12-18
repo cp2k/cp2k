@@ -149,6 +149,8 @@ MODULE md
      INTEGER        :: output_format
      LOGICAL :: constraint
      LOGICAL :: annealing
+     LOGICAL :: pv_numerical
+     LOGICAL :: pv_availability
      INTEGER :: nfree
      INTEGER :: nc
      INTEGER :: nyosh
@@ -462,6 +464,8 @@ SUBROUTINE read_md_new_section(simpar, globenv, md_section, error)
      CALL section_vals_val_get(md_section,"TEMPERATURE",r_val=simpar%temp_ext,error=error)
      CALL section_vals_val_get(md_section,"TEMP_TOL",r_val=simpar%temp_tol,error=error)
      CALL section_vals_val_get(md_section,"RESTART",i_val=simpar%read_type,error=error)
+     CALL section_vals_val_get(md_section,"PV_AVA",l_val=simpar%pv_availability,error=error)
+     CALL section_vals_val_get(md_section,"PV_NUM",l_val=simpar%pv_numerical,error=error)
      
      IF (simpar%ensemble == langevin_ensemble) THEN
        CALL section_vals_val_get(md_section, "GAMMA", r_val=simpar%gamma, error=error)
@@ -590,6 +594,8 @@ END SUBROUTINE read_md_new_section
     simpar % read_type = md_pos_restart
     simpar % constraint = .FALSE.
     simpar % annealing = .FALSE.
+    simpar % pv_numerical=.FALSE.
+    simpar % pv_availability=.FALSE.
     simpar % shake_tol = 1.0E-6_dp
     simpar % nhclen = 3
     simpar % nc = 2

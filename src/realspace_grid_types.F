@@ -412,7 +412,7 @@ CONTAINS
           IF ( rs % parallel ) THEN
              IF ( rs % group_head ) THEN
                 WRITE ( iounit, '(/,A,T71,I10)' ) &
-                     " RS_GRID: Information for grid number ", rs % grid_id
+                     " RS_GRID: Information for grid number ", rs % grid_id 
                 DO i = 1, 3
                    WRITE ( iounit, '(A,I3,T30,2I8,T62,A,T71,I10)' ) " RS_GRID:   Bounds ", &
                         i, rs % lb ( i ), rs % ub ( i ), "Points:", rs % npts ( i )
@@ -522,8 +522,8 @@ CONTAINS
     CALL timeset("rs_pw_transfer_all",'I',' ',handle2)
     IF (dir.EQ.rs2pw) dirname="RS2PW"
     IF (dir.EQ.pw2rs) dirname="PW2RS"
-    CALL timeset("rs_pw_transfer_"//trim(dirname)//"_"// &
-                 TRIM(ADJUSTL(cp_to_string(pw%pw_grid%id_nr))),'I',' ',handle)
+    CALL timeset("rs_pw_transfer_"//trim(dirname)//"_"// TRIM(ADJUSTL(&
+              cp_to_string(CEILING(pw%pw_grid%cutoff/10)*10))),'I',' ',handle)
 
     IF ( rs % grid_id /= pw % pw_grid % id_nr ) &
        CALL stop_program ( "rs_pw_transfer", "different rs and pw indentitfiers")

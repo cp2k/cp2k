@@ -388,10 +388,9 @@ SUBROUTINE qs_env_rebuild_pw_env(qs_env,error)
        CALL coeff_deallocate(rho_core)
        DEALLOCATE(rho_core,stat=stat)
        CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-    ELSE
-       ALLOCATE(rho_core,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    END IF
+    ENDIF
+    ALLOCATE(rho_core,stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     IF (.NOT.failure) THEN
        CALL pw_env_get(new_pw_env, auxbas_pw_pool=auxbas_pw_pool,error=error)
        CALL pw_pool_init_coeff(pool=auxbas_pw_pool, coeff=rho_core, &
