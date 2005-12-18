@@ -2315,7 +2315,8 @@ SUBROUTINE fft_wrap_pw1pw2 ( pw1, pw2, debug )
 !------------------------------------------------------------------------------
 
   CALL timeset("fft_wrap_pw1pw2_all","I"," ",handle2)
-  CALL timeset("fft_wrap_pw1pw2_"//TRIM(ADJUSTL(cp_to_string(pw1%pw_grid%id_nr))),"I"," ",handle)
+  CALL timeset("fft_wrap_pw1pw2_"//TRIM(ADJUSTL(cp_to_string( &
+               CEILING (pw1%pw_grid%cutoff/10)*10))),"I"," ",handle)
 
   CPPreconditionNoErr(pw1%ref_count>0,cp_failure_level,"fft_wrap_pw1pw2")
   CPPreconditionNoErr(pw2%ref_count>0,cp_failure_level,"fft_wrap_pw1pw2")
