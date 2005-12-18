@@ -1253,6 +1253,20 @@ contains
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
+       CALL keyword_create(keyword, name="pv_ava",&	 
+            description="Chris has to provide docs",&	 
+            usage="pv_ava LOGICAL",&	 
+            default_l_val=.FALSE., lone_keyword_l_val=.TRUE., error=error)	 
+       CALL section_add_keyword(section,keyword,error=error)	 
+       CALL keyword_release(keyword,error=error)	 
+ 	 
+       CALL keyword_create(keyword, name="pv_num",&	 
+            description="Chris has to provide docs",&	 
+            usage="pv_num LOGICAL",&	 
+            default_l_val=.FALSE., lone_keyword_l_val=.TRUE., error=error)	 
+       CALL section_add_keyword(section,keyword,error=error)	 
+       CALL keyword_release(keyword,error=error)
+
        CALL create_uniaxial_section(uni_section, error=error)
        CALL section_add_subsection(section, uni_section, error=error)
        CALL section_release(uni_section,error=error)       
