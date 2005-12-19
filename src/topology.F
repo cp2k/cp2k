@@ -24,7 +24,8 @@ MODULE topology
   USE atoms_input,                     ONLY: read_atoms_input
   USE checkpoint_handler,              ONLY: write_checkpoint_information
   USE global_types,                    ONLY: global_environment_type
-  USE kinds,                           ONLY: dp
+  USE kinds,                           ONLY: default_string_length,&
+                                             dp
   USE molecule_kind_types,             ONLY: molecule_kind_type
   USE molecule_types_new,              ONLY: molecule_type
   USE particle_types,                  ONLY: particle_type
@@ -54,7 +55,8 @@ MODULE topology
                                              topology_generate_onfo,&
                                              topology_generate_ub,&
                                              topology_molecules_check,&
-                                             topology_reorder_atoms
+                                             topology_reorder_atoms,&
+                                             check_subsys_element
   USE qmmm_topology_util,              ONLY: qmmm_coordinate_control,&
                                              qmmm_connectivity_control
   USE qmmm_types,                      only: qmmm_env_mm_type
@@ -104,7 +106,7 @@ SUBROUTINE topology_control (atomic_kind_set,particle_set,&
   TYPE(particle_type), DIMENSION(:), POINTER       :: particle_set
   TYPE(molecule_kind_type), DIMENSION(:), POINTER  :: molecule_kind_set
   TYPE(molecule_type), DIMENSION(:), POINTER       :: molecule_set
-  TYPE(global_environment_type), INTENT(IN)        :: globenv
+  TYPE(global_environment_type), POINTER           :: globenv
   TYPE(qmmm_env_mm_type), POINTER, OPTIONAL        :: qmmm_env
   TYPE(cp_error_type), INTENT(inout), &
        OPTIONAL                               :: error
@@ -168,7 +170,7 @@ SUBROUTINE topology_control (atomic_kind_set,particle_set,&
   !-----------------------------------------------------------------------------
   ! 5. Read in the coordinates
   !-----------------------------------------------------------------------------
-  CALL coordinate_control(topology,globenv)
+  CALL coordinate_control(topology,globenv,error)
 
   !-----------------------------------------------------------------------------
   !-----------------------------------------------------------------------------
@@ -271,7 +273,7 @@ SUBROUTINE connectivity_control(topology,globenv,qmmm,qmmm_env,error)
     TYPE(topology_parameters_type), &
       INTENT(INOUT)                          :: topology
     TYPE(global_environment_type), &
-      INTENT(IN), OPTIONAL                   :: globenv
+         POINTER, OPTIONAL                   :: globenv
     TYPE(qmmm_env_mm_type), POINTER, OPTIONAL :: qmmm_env
     LOGICAL, INTENT(in), OPTIONAL            :: qmmm
     TYPE(cp_error_type), INTENT(inout), &
@@ -395,20 +397,23 @@ END SUBROUTINE connectivity_control
 !!
 !!   SOURCE
 !******************************************************************************
-SUBROUTINE coordinate_control(topology,globenv)
+SUBROUTINE coordinate_control(topology,globenv,error)
 
 
     TYPE(topology_parameters_type), &
       INTENT(INOUT)                          :: topology
     TYPE(global_environment_type), &
-      INTENT(IN)                             :: globenv
+         POINTER                             :: globenv
+    TYPE(cp_error_type), INTENT(inout), &
+         OPTIONAL                               :: error    
 
     CHARACTER(len=*), PARAMETER :: routineN = 'coordinate_control', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, iw
+    INTEGER                                  :: handle, iw, i, id
     LOGICAL                                  :: found
-
+    CHARACTER(len=default_string_length)     :: my_element
+    
 !-------------------------------------------------------------------------------
 !-------------------------------------------------------------------------------
 
@@ -447,8 +452,6 @@ SUBROUTINE coordinate_control(topology,globenv)
   CASE (do_coord_xyz)
     CALL read_coordinate_xyz (topology,globenv)
   CASE DEFAULT
-    !CALL read_particle_set (particle_set,atomic_kind_set,molecule_set,&
-    !                        molecule_kind_set,topology%cell,globenv)
     CALL read_atoms_input ( topology, globenv )
   END SELECT
 
@@ -456,7 +459,14 @@ SUBROUTINE coordinate_control(topology,globenv)
   IF (topology%natoms.LE.0) THEN
      CALL stop_program ("coordinate_control","No atomic coordinates have been found")
   ENDIF
-
+  
+  ! Fix element name for QS
+  DO i = 1, topology%natoms
+     id = INDEX(topology%atom_info%element(i),"_")-1
+     IF ( id == -1 ) id = LEN_TRIM(topology%atom_info%element(i))
+     CALL check_subsys_element(topology%atom_info%element(i)(1:id),my_element,globenv,error)     
+     topology%atom_info%element(i)=my_element 
+  END DO
 
   IF((globenv%ionode).AND.(globenv%print%level>0))THEN
     WRITE(iw,*) "  Exiting  coordinate_control"

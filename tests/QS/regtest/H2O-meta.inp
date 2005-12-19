@@ -69,8 +69,8 @@
       MASS 10.0
       SCALE 0.02
       &COORDINATION
-        ATOMS_FROM 1 1
-        ATOMS_TO 2 2 3
+        ATOMS_FROM 1
+        ATOMS_TO 2 3
         R_0 2.3
       &END COORDINATION
     &END COLVAR
@@ -79,8 +79,8 @@
       MASS 10.0
       SCALE 0.02
       &COORDINATION
-        ATOMS_FROM 1 2
-        ATOMS_TO 1 3
+        ATOMS_FROM  2
+        ATOMS_TO  3
         R_0 2.3
       &END COORDINATION
     &END COLVAR

@@ -199,6 +199,7 @@ SUBROUTINE read_coordinate_pdb (topology,globenv)
       READ(line(61:66),*,IOSTAT=istat) atom_info%beta(natom)
       READ(line(73:76),*,IOSTAT=istat) atom_info%label_molname(natom)
       READ(line(77:78),*,IOSTAT=istat) atom_info%element(natom)
+      IF(LEN_TRIM(atom_info%element(natom)) == 0 )  atom_info%element(natom) = atom_info%label_atmname(natom)
       atom_info%atm_mass(natom)  =0.0_dp
       atom_info%atm_charge(natom)=-10000.0_dp
       IF(topology%charge_occup) & 
@@ -206,8 +207,9 @@ SUBROUTINE read_coordinate_pdb (topology,globenv)
       IF(topology%charge_beta) &
         atom_info%atm_charge(natom) = atom_info%beta(natom)
       IF(PM2) WRITE(iw,*) natom,line(13:16),line(77:78)
-      IF(PM2) WRITE(iw,'(5X,A4,3F8.3,A4,I4)') &
+      IF(PM2) WRITE(iw,'(5X,A4,5X,A2,3F8.3,A4,I4)') &
                    TRIM(atom_info%label_atmname(natom)),&
+                   TRIM(atom_info%element(natom)),&
                    atom_info%r(1,natom),&
                    atom_info%r(2,natom),&
                    atom_info%r(3,natom),&

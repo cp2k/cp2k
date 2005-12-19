@@ -37,6 +37,11 @@ MODULE metadynamics
                                              section_vals_type,&
                                              section_vals_val_get,&
                                              section_vals_get
+  USE metadynamics_types,              ONLY: colvar_type,&
+                                             coord_colvar_id,&
+                                             dist_colvar_id,&
+                                             no_colvar_id,&
+                                             torsion_colvar_id
   
   IMPLICIT NONE
   PRIVATE 
@@ -140,13 +145,14 @@ SUBROUTINE metadyn_read(meta_env,globenv,metadyn_section,error)
 
     CHARACTER(len=3)                         :: test_result
     CHARACTER(len=default_string_length)     :: keyword, time_units
-  INTEGER                                  :: n_colvar, n_colvar_inp, i, n_rep
-  LOGICAL                                  :: do_hills, failure, &
-       section_found
+  INTEGER                                  :: n_colvar, n_colvar_inp, i, n_rep, iw, kk
+  LOGICAL                                  :: failure, explicit
   REAL(kind=dp)                            :: dt
   TYPE(section_vals_type), POINTER         :: md_section, colvar_section
 
-  RETURN ! fix breakage, should only go through if metadynamics section is present
+
+  CALL section_vals_get(metadyn_section,explicit=explicit,error=error)
+  IF (.NOT.explicit) RETURN
   CPPreconditionNoFail(.NOT.ASSOCIATED(meta_env),cp_failure_level,routineP,error)  
 
   md_section => section_vals_get_subs_vals(globenv%input_file,"MOTION%MD",error=error)
@@ -156,13 +162,13 @@ SUBROUTINE metadyn_read(meta_env,globenv,metadyn_section,error)
   CALL metadyn_create(meta_env,n_colvar=n_colvar,&
        dt=dt,para_env=globenv%para_env,error=error)
 
-  CALL section_vals_val_get(metadyn_section,"DO_HILLS",l_val=do_hills,error=error)
+  CALL section_vals_val_get(metadyn_section,"DO_HILLS",l_val=meta_env%do_hills,error=error)
   CALL section_vals_val_get(metadyn_section,"LAGRANGE",l_val=meta_env%extended_lagrange,error=error)
   CALL section_vals_val_get(metadyn_section,"WW",r_val=meta_env%hills_env%ww,error=error)
   CALL section_vals_val_get(metadyn_section,"NT_HILLS",i_val=meta_env%hills_env%nt_hills,error=error)
   CALL section_vals_val_get(metadyn_section,"RESTART_HILLS",l_val=meta_env%hills_env%restart_hills,error=error)
   CALL section_vals_val_get(metadyn_section,"TEMPERATURE",n_rep_val=n_rep,error=error)
-  IF (n_rep /=0) THEN
+  IF ( n_rep /= 0 ) THEN
      meta_env%tempcontrol=.TRUE.
      CALL section_vals_val_get(metadyn_section,"TEMPERATURE",r_val=meta_env%temp_wanted,error=error)
      meta_env%toll_temp=meta_env%temp_wanted/SQRT(REAL(meta_env%n_colvar,dp))
@@ -181,6 +187,55 @@ SUBROUTINE metadyn_read(meta_env,globenv,metadyn_section,error)
   DO i= 1, n_colvar
      CALL colvar_read(meta_env%colvars(i),meta_env%extended_lagrange,i,colvar_section,error=error)
   END DO
+
+  IF (globenv % ionode .AND. globenv % print_level>=0) THEN
+     iw = globenv % scr
+     WRITE ( iw, '( /A )' )           ' METADYN| Meta Dynamics Protocol '
+     WRITE ( iw, '( A,T71,I10)' )    ' METADYN| Number of interval time steps to spawn hills',meta_env%hills_env%nt_hills
+     IF (meta_env%extended_lagrange) THEN
+        WRITE ( iw, '( A )' )        ' METADYN| Extended Lagrangian Scheme '
+        IF (meta_env%tempcontrol) WRITE ( iw, '( A,T71,F10.2)' )&
+                                     ' METADYN| Collective Variables Temperature control',meta_env%toll_temp
+     END IF
+     IF (meta_env%hills_env%restart_hills) &
+        WRITE ( iw, '( A )' )        ' METADYN| Restarting HILLS '
+     IF (meta_env%do_hills) &
+          WRITE ( iw, '( A )' )      ' METADYN| Spanwing the Hills '
+     WRITE ( iw, '( A,T71,F10.2)' )  ' METADYN| Width of the Spawned Gaussian',meta_env%hills_env%ww
+     WRITE ( iw, '( A,T71,I10)' )    ' METADYN| Number of collective variables',meta_env%n_colvar
+     
+     
+     DO i=1,n_colvar
+        WRITE ( iw, '( A )')'          ----------------------------------------------------------------------'
+        WRITE ( iw, '( A,T71,I10)' )      ' COLVARS| Collective Variable Number',i
+        WRITE ( iw, '( A,T71,I10)' )      ' COLVARS| Type of collective variable',meta_env%colvars(i)%type_id
+        WRITE ( iw, '( A,T71,I10)' )      ' COLVARS| Subsys',meta_env%colvars(i)%i_subsys
+        WRITE ( iw, '( A,T71,F10.6)' )    ' COLVARS| Lambda Parameter',meta_env%colvars(i)%lambda
+        WRITE ( iw, '( A,T66,F15.6)' )    ' COLVARS| Collective Variable Mass',meta_env%colvars(i)%mass
+        WRITE ( iw, '( A,T71,F10.6)' )    ' COLVARS| Scaling factor',meta_env%colvars(i)%delta_s
+        IF (meta_env%colvars(i)%do_wall_p) &
+        WRITE ( iw, '( A,T61,F12.6)' )    ' COLVARS| Upper Wall Height',meta_env%colvars(i)%wall_p
+        IF (meta_env%colvars(i)%do_wall_m) &
+        WRITE ( iw, '( A,T61,F12.6)' )    ' COLVARS| Lower Wall Height',meta_env%colvars(i)%wall_m
+        SELECT CASE(meta_env%colvars(i)%type_id)
+        CASE(torsion_colvar_id)
+           WRITE ( iw, '( A,T61,4I5)' )   ' COLVARS| TORSION       >>> ATOMS:',meta_env%colvars(i)%torsion_param%i_at_tors
+        CASE(dist_colvar_id)
+           WRITE ( iw, '( A,T71,2I5)' )   ' COLVARS| BOND          >>> ATOMS:',meta_env%colvars(i)% dist_param%i_at,&                
+                meta_env%colvars(i)% dist_param%j_at
+        CASE(coord_colvar_id)
+           WRITE ( iw, '( A,T71,I10)' )  (' COLVARS| COORDINATION  >>> FROM ATOM:',meta_env%colvars(i)%coord_param%i_at_from(kk),&
+                kk=1,SIZE(meta_env%colvars(i)%coord_param%i_at_from))
+           WRITE ( iw, '( A,T71,I10)' )  (' COLVARS| COORDINATION  >>>   TO ATOM:',meta_env%colvars(i)%coord_param%i_at_to(kk),&
+                kk=1,SIZE(meta_env%colvars(i)%coord_param%i_at_to))
+           WRITE ( iw, '( A,T71,F10.5)' ) ' COLVARS| R0',meta_env%colvars(i)%coord_param%r_0
+           WRITE ( iw, '( A,T71,I10)' )   ' COLVARS| NN',meta_env%colvars(i)%coord_param%nncrd
+           WRITE ( iw, '( A,T71,I10)' )   ' COLVARS| ND',meta_env%colvars(i)%coord_param%ndcrd
+           WRITE ( iw, '( A )')'          ----------------------------------------------------------------------'
+        END SELECT
+     END DO
+  END IF
+
 END SUBROUTINE metadyn_read
 
 

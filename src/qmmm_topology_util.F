@@ -155,7 +155,7 @@ CONTAINS
     TYPE(topology_parameters_type), &
          INTENT(INOUT)                          :: topology
     TYPE(global_environment_type), &
-         INTENT(IN)                             :: globenv
+         POINTER                                :: globenv
     TYPE(molecule_type), DIMENSION(:), &
          POINTER                                :: molecule_set
     TYPE(qmmm_env_mm_type), POINTER             :: qmmm_env
@@ -234,7 +234,9 @@ CONTAINS
        END IF
     END IF
     CALL timestop(0.0_dp,handle)
-    CALL write_checkpoint_information("leaving "//routineN,globenv)
+    IF((globenv%ionode).AND.(globenv%print%level>0))THEN
+       WRITE(iw,*) "  Leaving qmmm_connectivity_control"
+    END IF
   END SUBROUTINE qmmm_connectivity_control
 
 

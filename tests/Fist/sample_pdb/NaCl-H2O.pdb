@@ -1,258 +1,258 @@
 REMARK                                                              
-ATOM      1 Na+  Na+     1       0.000   0.000   8.430
-TER   
-ATOM      2 Na+  Na+     2       0.000   5.620   8.430
-TER   
-ATOM      3 Na+  Na+     3       5.620   0.000   8.430
-TER   
-ATOM      4 Na+  Na+     4       5.620   5.620   8.430
-TER   
-ATOM      5 Na+  Na+     5       2.810   2.810   8.430
-TER   
-ATOM      6 Na+  Na+     6       2.810   8.430   8.430
-TER   
-ATOM      7 Na+  Na+     7       8.430   2.810   8.430
-TER   
-ATOM      8 Na+  Na+     8       8.430   8.430   8.430
-TER   
-ATOM      9 Cl-  Cl-     9       2.810   0.000   8.430
-TER   
-ATOM     10 Cl-  Cl-    10       2.810   5.620   8.430
-TER   
-ATOM     11 Cl-  Cl-    11       8.430   0.000   8.430
-TER   
-ATOM     12 Cl-  Cl-    12       0.000   2.810   8.430
-TER   
-ATOM     13 Cl-  Cl-    13       0.000   8.430   8.430
-TER   
-ATOM     14 Cl-  Cl-    14       5.620   2.810   8.430
-TER   
-ATOM     15 Cl-  Cl-    15       5.620   8.430   8.430
-TER   
-ATOM     16 Cl-  Cl-    16       8.430   5.620   8.430
-TER   
-ATOM     17 Na+  Na+    17       0.000   2.810   5.620
-TER   
-ATOM     18 Na+  Na+    18       0.000   8.430   5.620
-TER   
-ATOM     19 Na+  Na+    19       5.620   2.810   5.620
-TER   
-ATOM     20 Na+  Na+    20       5.620   8.430   5.620
-TER   
-ATOM     21 Na+  Na+    21       2.810   0.000   5.620
-TER   
-ATOM     22 Na+  Na+    22       2.810   5.620   5.620
-TER   
-ATOM     23 Na+  Na+    23       8.430   0.000   5.620
-TER   
-ATOM     24 Na+  Na+    24       8.430   5.620   5.620
-TER   
-ATOM     25 Cl-  Cl-    25       2.810   2.810   5.620
-TER   
-ATOM     26 Cl-  Cl-    26       2.810   8.430   5.620
-TER   
-ATOM     27 Cl-  Cl-    27       8.430   2.810   5.620
-TER   
-ATOM     28 Cl-  Cl-    28       8.430   8.430   5.620
-TER   
-ATOM     29 Cl-  Cl-    29       0.000   0.000   5.620
-TER   
-ATOM     30 Cl-  Cl-    30       0.000   5.620   5.620
-TER   
-ATOM     31 Cl-  Cl-    31       5.620   0.000   5.620
-TER   
-ATOM     32 Cl-  Cl-    32       5.620   5.620   5.620
-TER   
-ATOM     33 Na+  Na+    33       0.000   0.000   2.810
-TER   
-ATOM     34 Na+  Na+    34       0.000   5.620   2.810
-TER   
-ATOM     35 Na+  Na+    35       5.620   0.000   2.810
-TER   
-ATOM     36 Na+  Na+    36       5.620   5.620   2.810
-TER   
-ATOM     37 Na+  Na+    37       2.810   2.810   2.810
-TER   
-ATOM     38 Na+  Na+    38       2.810   8.430   2.810
-TER   
-ATOM     39 Na+  Na+    39       8.430   2.810   2.810
-TER   
-ATOM     40 Na+  Na+    40       8.430   8.430   2.810
-TER   
-ATOM     41 Cl-  Cl-    41       2.810   0.000   2.810
-TER   
-ATOM     42 Cl-  Cl-    42       2.810   5.620   2.810
-TER   
-ATOM     43 Cl-  Cl-    43       8.430   0.000   2.810
-TER   
-ATOM     44 Cl-  Cl-    44       8.430   5.620   2.810
-TER   
-ATOM     45 Cl-  Cl-    45       0.000   2.810   2.810
-TER   
-ATOM     46 Cl-  Cl-    46       0.000   8.430   2.810
-TER   
-ATOM     47 Cl-  Cl-    47       5.620   2.810   2.810
-TER   
-ATOM     48 Cl-  Cl-    48       5.620   8.430   2.810
-TER   
-ATOM     49 Na+  Na+    49       0.000   2.810  11.240
-TER   
-ATOM     50 Na+  Na+    50       0.000   8.430  11.240
-TER   
-ATOM     51 Na+  Na+    51       5.620   2.810  11.240
-TER   
-ATOM     52 Na+  Na+    52       5.620   8.430  11.240
-TER   
-ATOM     53 Na+  Na+    53       2.810   0.000  11.240
-TER   
-ATOM     54 Na+  Na+    54       2.810   5.620  11.240
-TER   
-ATOM     55 Na+  Na+    55       8.430   0.000  11.240
-TER   
-ATOM     56 Na+  Na+    56       8.430   5.620  11.240
-TER   
-ATOM     57 Cl-  Cl-    57       2.810   2.810  11.240
-TER   
-ATOM     58 Cl-  Cl-    58       2.810   8.430  11.240
-TER   
-ATOM     59 Cl-  Cl-    59       8.430   2.810  11.240
-TER   
-ATOM     60 Cl-  Cl-    60       8.430   8.430  11.240
-TER   
-ATOM     61 Cl-  Cl-    61       0.000   0.000  11.240
-TER   
-ATOM     62 Cl-  Cl-    62       0.000   5.620  11.240
-TER   
-ATOM     63 Cl-  Cl-    63       5.620   0.000  11.240
-TER   
-ATOM     64 Cl-  Cl-    64       5.620   5.620  11.240
-TER   
-ATOM     65  O   WAT    65       2.966   9.144  17.602
-ATOM     66  H1  WAT    65       2.447   9.818  18.042
-ATOM     67  H2  WAT    65       3.781   9.104  18.102
-TER   
-ATOM     68  O   WAT    66       1.937   2.403  20.284
-ATOM     69  H1  WAT    66       1.240   2.980  20.596
-ATOM     70  H2  WAT    66       2.457   2.952  19.696
-TER   
-ATOM     71  O   WAT    67       0.914   5.881  19.046
-ATOM     72  H1  WAT    67       1.625   5.241  19.086
-ATOM     73  H2  WAT    67       1.201   6.518  18.391
-TER   
-ATOM     74  O   WAT    68       7.942   8.491  18.286
-ATOM     75  H1  WAT    68       8.572   7.938  18.748
-ATOM     76  H2  WAT    68       8.479   9.138  17.830
-TER   
-ATOM     77  O   WAT    69       7.016   7.361  16.262
-ATOM     78  H1  WAT    69       7.338   7.915  15.550
-ATOM     79  H2  WAT    69       7.397   7.741  17.053
-TER   
-ATOM     80  O   WAT    70       8.449   8.347  21.793
-ATOM     81  H1  WAT    70       8.437   8.742  22.665
-ATOM     82  H2  WAT    70       8.515   9.089  21.193
-TER   
-ATOM     83  O   WAT    71       8.966   3.834  18.313
-ATOM     84  H1  WAT    71       8.998   3.215  19.043
-ATOM     85  H2  WAT    71       9.194   4.678  18.704
-TER   
-ATOM     86  O   WAT    72       9.846   0.282  19.385
-ATOM     87  H1  WAT    72      10.191   1.159  19.215
-ATOM     88  H2  WAT    72      10.605  -0.223  19.675
-TER   
-ATOM     89  O   WAT    73       9.809   3.546  21.390
-ATOM     90  H1  WAT    73       9.771   4.490  21.546
-ATOM     91  H2  WAT    73       9.901   3.163  22.263
-TER   
-ATOM     92  O   WAT    74       7.222   1.144  20.123
-ATOM     93  H1  WAT    74       8.116   0.847  19.953
-ATOM     94  H2  WAT    74       7.261   1.534  20.997
-TER   
-ATOM     95  O   WAT    75       3.452   0.879  22.058
-ATOM     96  H1  WAT    75       3.101   1.574  21.501
-ATOM     97  H2  WAT    75       2.962   0.097  21.803
-TER   
-ATOM     98  O   WAT    76       1.542   2.073  17.524
-ATOM     99  H1  WAT    76       1.846   1.815  16.654
-ATOM    100  H2  WAT    76       1.036   2.872  17.375
-TER   
-ATOM    101  O   WAT    77       3.418   4.450  18.364
-ATOM    102  H1  WAT    77       3.946   5.240  18.476
-ATOM    103  H2  WAT    77       4.033   3.729  18.502
-TER   
-ATOM    104  O   WAT    78       5.285   9.251  19.090
-ATOM    105  H1  WAT    78       6.014   9.070  18.496
-ATOM    106  H2  WAT    78       5.692   9.669  19.849
-TER   
-ATOM    107  O   WAT    79       4.351   6.208  15.672
-ATOM    108  H1  WAT    79       5.252   6.410  15.922
-ATOM    109  H2  WAT    79       3.959   7.059  15.477
-TER   
-ATOM    110  O   WAT    80       4.057   6.923  19.990
-ATOM    111  H1  WAT    80       4.564   7.432  19.357
-ATOM    112  H2  WAT    80       4.570   6.963  20.797
-TER   
-ATOM    113  O   WAT    81       5.973   3.268  18.669
-ATOM    114  H1  WAT    81       6.604   3.114  17.965
-ATOM    115  H2  WAT    81       6.041   2.492  19.226
-TER   
-ATOM    116  O   WAT    82       5.912   6.951  22.085
-ATOM    117  H1  WAT    82       5.599   7.370  23.001
-ATOM    118  H2  WAT    82       6.793   7.104  21.744
-TER   
-ATOM    119  O   WAT    83       1.532   5.593  16.334
-ATOM    120  H1  WAT    83       2.323   5.182  16.683
-ATOM    121  H2  WAT    83       1.113   4.906  15.816
-TER   
-ATOM    122  O   WAT    84      10.471   8.162  16.172
-ATOM    123  H1  WAT    84      10.657   7.224  16.223
-ATOM    124  H2  WAT    84      11.333   8.576  16.144
-TER   
-ATOM    125  O   WAT    85       9.195   4.428  15.194
-ATOM    126  H1  WAT    85       8.732   5.123  14.728
-ATOM    127  H2  WAT    85       8.681   4.287  15.989
-TER   
-ATOM    128  O   WAT    86       2.023   8.578  20.786
-ATOM    129  H1  WAT    86       2.558   7.862  20.444
-ATOM    130  H2  WAT    86       1.523   8.184  21.501
-TER   
-ATOM    131  O   WAT    87       2.282   6.917  13.234
-ATOM    132  H1  WAT    87       2.798   6.123  13.375
-ATOM    133  H2  WAT    87       2.462   7.460  14.001
-TER   
-ATOM    134  O   WAT    88       3.643   3.769  14.391
-ATOM    135  H1  WAT    88       4.440   3.821  13.863
-ATOM    136  H2  WAT    88       3.696   4.521  14.981
-TER   
-ATOM    137  O   WAT    89       9.691   6.004  13.544
-ATOM    138  H1  WAT    89      10.520   6.375  13.845
-ATOM    139  H2  WAT    89       9.182   6.726  13.512
-TER   
-ATOM    140  O   WAT    90       5.776   9.458  13.350
-ATOM    141  H1  WAT    90       5.095   9.929  13.188
-ATOM    142  H2  WAT    90       6.444  10.094  13.606
-TER   
-ATOM    143  O   WAT    91       9.564   2.023  14.178
-ATOM    144  H1  WAT    91      10.428   1.702  14.436
-ATOM    145  H2  WAT    91       9.484   2.873  14.610
-TER   
-ATOM    146  O   WAT    92       5.963   4.301  14.225
-ATOM    147  H1  WAT    92       5.751   4.352  13.293
-ATOM    148  H2  WAT    92       6.249   5.185  14.455
-TER   
-ATOM    149  O   WAT    93       3.488   8.688  14.950
-ATOM    150  H1  WAT    93       4.261   9.076  14.540
-ATOM    151  H2  WAT    93       3.406   9.144  15.787
-TER   
-ATOM    152  O   WAT    94       2.139   1.400  14.872
-ATOM    153  H1  WAT    94       2.685   2.058  14.442
-ATOM    154  H2  WAT    94       2.510   0.562  14.595
-TER   
-ATOM    155  O   WAT    95       7.148   1.826  13.571
-ATOM    156  H1  WAT    95       6.531   2.546  13.703
-ATOM    157  H2  WAT    95       7.984   2.165  13.892
-TER   
-ATOM    158  O   WAT    96       8.740   9.219  14.505
-ATOM    159  H1  WAT    96       9.000  10.113  14.726
-ATOM    160  H2  WAT    96       9.373   8.664  14.962
+ATOM      1 Na+  Na+     1       0.000   0.000   8.430                      Na
+TER                                                                           
+ATOM      2 Na+  Na+     2       0.000   5.620   8.430                      Na
+TER                                                                           
+ATOM      3 Na+  Na+     3       5.620   0.000   8.430                      Na
+TER                                                                           
+ATOM      4 Na+  Na+     4       5.620   5.620   8.430                      Na
+TER                                                                           
+ATOM      5 Na+  Na+     5       2.810   2.810   8.430                      Na
+TER                                                                           
+ATOM      6 Na+  Na+     6       2.810   8.430   8.430                      Na
+TER                                                                           
+ATOM      7 Na+  Na+     7       8.430   2.810   8.430                      Na
+TER                                                                           
+ATOM      8 Na+  Na+     8       8.430   8.430   8.430                      Na
+TER                                                                           
+ATOM      9 Cl-  Cl-     9       2.810   0.000   8.430                      Cl
+TER                                                                           
+ATOM     10 Cl-  Cl-    10       2.810   5.620   8.430                      Cl
+TER                                                                           
+ATOM     11 Cl-  Cl-    11       8.430   0.000   8.430                      Cl
+TER                                                                           
+ATOM     12 Cl-  Cl-    12       0.000   2.810   8.430                      Cl
+TER                                                                           
+ATOM     13 Cl-  Cl-    13       0.000   8.430   8.430                      Cl
+TER                                                                           
+ATOM     14 Cl-  Cl-    14       5.620   2.810   8.430                      Cl
+TER                                                                           
+ATOM     15 Cl-  Cl-    15       5.620   8.430   8.430                      Cl
+TER                                                                           
+ATOM     16 Cl-  Cl-    16       8.430   5.620   8.430                      Cl
+TER                                                                           
+ATOM     17 Na+  Na+    17       0.000   2.810   5.620                      Na
+TER                                                                           
+ATOM     18 Na+  Na+    18       0.000   8.430   5.620                      Na
+TER                                                                           
+ATOM     19 Na+  Na+    19       5.620   2.810   5.620                      Na
+TER                                                                           
+ATOM     20 Na+  Na+    20       5.620   8.430   5.620                      Na
+TER                                                                           
+ATOM     21 Na+  Na+    21       2.810   0.000   5.620                      Na
+TER                                                                           
+ATOM     22 Na+  Na+    22       2.810   5.620   5.620                      Na
+TER                                                                           
+ATOM     23 Na+  Na+    23       8.430   0.000   5.620                      Na
+TER                                                                           
+ATOM     24 Na+  Na+    24       8.430   5.620   5.620                      Na
+TER                                                                           
+ATOM     25 Cl-  Cl-    25       2.810   2.810   5.620                      Cl
+TER                                                                           
+ATOM     26 Cl-  Cl-    26       2.810   8.430   5.620                      Cl
+TER                                                                           
+ATOM     27 Cl-  Cl-    27       8.430   2.810   5.620                      Cl
+TER                                                                           
+ATOM     28 Cl-  Cl-    28       8.430   8.430   5.620                      Cl
+TER                                                                           
+ATOM     29 Cl-  Cl-    29       0.000   0.000   5.620                      Cl
+TER                                                                           
+ATOM     30 Cl-  Cl-    30       0.000   5.620   5.620                      Cl
+TER                                                                           
+ATOM     31 Cl-  Cl-    31       5.620   0.000   5.620                      Cl
+TER                                                                           
+ATOM     32 Cl-  Cl-    32       5.620   5.620   5.620                      Cl
+TER                                                                           
+ATOM     33 Na+  Na+    33       0.000   0.000   2.810                      Na
+TER                                                                           
+ATOM     34 Na+  Na+    34       0.000   5.620   2.810                      Na
+TER                                                                           
+ATOM     35 Na+  Na+    35       5.620   0.000   2.810                      Na
+TER                                                                           
+ATOM     36 Na+  Na+    36       5.620   5.620   2.810                      Na
+TER                                                                           
+ATOM     37 Na+  Na+    37       2.810   2.810   2.810                      Na
+TER                                                                           
+ATOM     38 Na+  Na+    38       2.810   8.430   2.810                      Na
+TER                                                                           
+ATOM     39 Na+  Na+    39       8.430   2.810   2.810                      Na
+TER                                                                           
+ATOM     40 Na+  Na+    40       8.430   8.430   2.810                      Na
+TER                                                                           
+ATOM     41 Cl-  Cl-    41       2.810   0.000   2.810                      Cl
+TER                                                                           
+ATOM     42 Cl-  Cl-    42       2.810   5.620   2.810                      Cl
+TER                                                                           
+ATOM     43 Cl-  Cl-    43       8.430   0.000   2.810                      Cl
+TER                                                                           
+ATOM     44 Cl-  Cl-    44       8.430   5.620   2.810                      Cl
+TER                                                                           
+ATOM     45 Cl-  Cl-    45       0.000   2.810   2.810                      Cl
+TER                                                                           
+ATOM     46 Cl-  Cl-    46       0.000   8.430   2.810                      Cl
+TER                                                                           
+ATOM     47 Cl-  Cl-    47       5.620   2.810   2.810                      Cl
+TER                                                                           
+ATOM     48 Cl-  Cl-    48       5.620   8.430   2.810                      Cl
+TER                                                                           
+ATOM     49 Na+  Na+    49       0.000   2.810  11.240                      Na
+TER                                                                           
+ATOM     50 Na+  Na+    50       0.000   8.430  11.240                      Na
+TER                                                                           
+ATOM     51 Na+  Na+    51       5.620   2.810  11.240                      Na
+TER                                                                           
+ATOM     52 Na+  Na+    52       5.620   8.430  11.240                      Na
+TER                                                                           
+ATOM     53 Na+  Na+    53       2.810   0.000  11.240                      Na
+TER                                                                           
+ATOM     54 Na+  Na+    54       2.810   5.620  11.240                      Na
+TER                                                                           
+ATOM     55 Na+  Na+    55       8.430   0.000  11.240                      Na
+TER                                                                           
+ATOM     56 Na+  Na+    56       8.430   5.620  11.240                      Na
+TER                                                                           
+ATOM     57 Cl-  Cl-    57       2.810   2.810  11.240                      Cl
+TER                                                                           
+ATOM     58 Cl-  Cl-    58       2.810   8.430  11.240                      Cl
+TER                                                                           
+ATOM     59 Cl-  Cl-    59       8.430   2.810  11.240                      Cl
+TER                                                                           
+ATOM     60 Cl-  Cl-    60       8.430   8.430  11.240                      Cl
+TER                                                                           
+ATOM     61 Cl-  Cl-    61       0.000   0.000  11.240                      Cl
+TER                                                                           
+ATOM     62 Cl-  Cl-    62       0.000   5.620  11.240                      Cl
+TER                                                                           
+ATOM     63 Cl-  Cl-    63       5.620   0.000  11.240                      Cl
+TER                                                                           
+ATOM     64 Cl-  Cl-    64       5.620   5.620  11.240                      Cl
+TER                                                                           
+ATOM     65  O   WAT    65       2.966   9.144  17.602                       O
+ATOM     66  H1  WAT    65       2.447   9.818  18.042                       H
+ATOM     67  H2  WAT    65       3.781   9.104  18.102                       H
+TER                                                                           
+ATOM     68  O   WAT    66       1.937   2.403  20.284                       O
+ATOM     69  H1  WAT    66       1.240   2.980  20.596                       H
+ATOM     70  H2  WAT    66       2.457   2.952  19.696                       H
+TER                                                                           
+ATOM     71  O   WAT    67       0.914   5.881  19.046                       O
+ATOM     72  H1  WAT    67       1.625   5.241  19.086                       H
+ATOM     73  H2  WAT    67       1.201   6.518  18.391                       H
+TER                                                                           
+ATOM     74  O   WAT    68       7.942   8.491  18.286                       O
+ATOM     75  H1  WAT    68       8.572   7.938  18.748                       H
+ATOM     76  H2  WAT    68       8.479   9.138  17.830                       H
+TER                                                                           
+ATOM     77  O   WAT    69       7.016   7.361  16.262                       O
+ATOM     78  H1  WAT    69       7.338   7.915  15.550                       H
+ATOM     79  H2  WAT    69       7.397   7.741  17.053                       H
+TER                                                                           
+ATOM     80  O   WAT    70       8.449   8.347  21.793                       O
+ATOM     81  H1  WAT    70       8.437   8.742  22.665                       H
+ATOM     82  H2  WAT    70       8.515   9.089  21.193                       H
+TER                                                                           
+ATOM     83  O   WAT    71       8.966   3.834  18.313                       O
+ATOM     84  H1  WAT    71       8.998   3.215  19.043                       H
+ATOM     85  H2  WAT    71       9.194   4.678  18.704                       H
+TER                                                                           
+ATOM     86  O   WAT    72       9.846   0.282  19.385                       O
+ATOM     87  H1  WAT    72      10.191   1.159  19.215                       H
+ATOM     88  H2  WAT    72      10.605  -0.223  19.675                       H
+TER                                                                           
+ATOM     89  O   WAT    73       9.809   3.546  21.390                       O
+ATOM     90  H1  WAT    73       9.771   4.490  21.546                       H
+ATOM     91  H2  WAT    73       9.901   3.163  22.263                       H
+TER                                                                           
+ATOM     92  O   WAT    74       7.222   1.144  20.123                       O
+ATOM     93  H1  WAT    74       8.116   0.847  19.953                       H
+ATOM     94  H2  WAT    74       7.261   1.534  20.997                       H
+TER                                                                           
+ATOM     95  O   WAT    75       3.452   0.879  22.058                       O
+ATOM     96  H1  WAT    75       3.101   1.574  21.501                       H
+ATOM     97  H2  WAT    75       2.962   0.097  21.803                       H
+TER                                                                           
+ATOM     98  O   WAT    76       1.542   2.073  17.524                       O
+ATOM     99  H1  WAT    76       1.846   1.815  16.654                       H
+ATOM    100  H2  WAT    76       1.036   2.872  17.375                       H
+TER                                                                           
+ATOM    101  O   WAT    77       3.418   4.450  18.364                       O
+ATOM    102  H1  WAT    77       3.946   5.240  18.476                       H
+ATOM    103  H2  WAT    77       4.033   3.729  18.502                       H
+TER                                                                           
+ATOM    104  O   WAT    78       5.285   9.251  19.090                       O
+ATOM    105  H1  WAT    78       6.014   9.070  18.496                       H
+ATOM    106  H2  WAT    78       5.692   9.669  19.849                       H
+TER                                                                           
+ATOM    107  O   WAT    79       4.351   6.208  15.672                       O
+ATOM    108  H1  WAT    79       5.252   6.410  15.922                       H
+ATOM    109  H2  WAT    79       3.959   7.059  15.477                       H
+TER                                                                           
+ATOM    110  O   WAT    80       4.057   6.923  19.990                       O
+ATOM    111  H1  WAT    80       4.564   7.432  19.357                       H
+ATOM    112  H2  WAT    80       4.570   6.963  20.797                       H
+TER                                                                           
+ATOM    113  O   WAT    81       5.973   3.268  18.669                       O
+ATOM    114  H1  WAT    81       6.604   3.114  17.965                       H
+ATOM    115  H2  WAT    81       6.041   2.492  19.226                       H
+TER                                                                           
+ATOM    116  O   WAT    82       5.912   6.951  22.085                       O
+ATOM    117  H1  WAT    82       5.599   7.370  23.001                       H
+ATOM    118  H2  WAT    82       6.793   7.104  21.744                       H
+TER                                                                           
+ATOM    119  O   WAT    83       1.532   5.593  16.334                       O
+ATOM    120  H1  WAT    83       2.323   5.182  16.683                       H
+ATOM    121  H2  WAT    83       1.113   4.906  15.816                       H
+TER                                                                           
+ATOM    122  O   WAT    84      10.471   8.162  16.172                       O
+ATOM    123  H1  WAT    84      10.657   7.224  16.223                       H
+ATOM    124  H2  WAT    84      11.333   8.576  16.144                       H
+TER                                                                           
+ATOM    125  O   WAT    85       9.195   4.428  15.194                       O
+ATOM    126  H1  WAT    85       8.732   5.123  14.728                       H
+ATOM    127  H2  WAT    85       8.681   4.287  15.989                       H
+TER                                                                           
+ATOM    128  O   WAT    86       2.023   8.578  20.786                       O
+ATOM    129  H1  WAT    86       2.558   7.862  20.444                       H
+ATOM    130  H2  WAT    86       1.523   8.184  21.501                       H
+TER                                                                           
+ATOM    131  O   WAT    87       2.282   6.917  13.234                       O
+ATOM    132  H1  WAT    87       2.798   6.123  13.375                       H
+ATOM    133  H2  WAT    87       2.462   7.460  14.001                       H
+TER                                                                           
+ATOM    134  O   WAT    88       3.643   3.769  14.391                       O
+ATOM    135  H1  WAT    88       4.440   3.821  13.863                       H
+ATOM    136  H2  WAT    88       3.696   4.521  14.981                       H
+TER                                                                           
+ATOM    137  O   WAT    89       9.691   6.004  13.544                       O
+ATOM    138  H1  WAT    89      10.520   6.375  13.845                       H
+ATOM    139  H2  WAT    89       9.182   6.726  13.512                       H
+TER                                                                           
+ATOM    140  O   WAT    90       5.776   9.458  13.350                       O
+ATOM    141  H1  WAT    90       5.095   9.929  13.188                       H
+ATOM    142  H2  WAT    90       6.444  10.094  13.606                       H
+TER                                                                           
+ATOM    143  O   WAT    91       9.564   2.023  14.178                       O
+ATOM    144  H1  WAT    91      10.428   1.702  14.436                       H
+ATOM    145  H2  WAT    91       9.484   2.873  14.610                       H
+TER                                                                           
+ATOM    146  O   WAT    92       5.963   4.301  14.225                       O
+ATOM    147  H1  WAT    92       5.751   4.352  13.293                       H
+ATOM    148  H2  WAT    92       6.249   5.185  14.455                       H
+TER                                                                           
+ATOM    149  O   WAT    93       3.488   8.688  14.950                       O
+ATOM    150  H1  WAT    93       4.261   9.076  14.540                       H
+ATOM    151  H2  WAT    93       3.406   9.144  15.787                       H
+TER                                                                           
+ATOM    152  O   WAT    94       2.139   1.400  14.872                       O
+ATOM    153  H1  WAT    94       2.685   2.058  14.442                       H
+ATOM    154  H2  WAT    94       2.510   0.562  14.595                       H
+TER                                                                           
+ATOM    155  O   WAT    95       7.148   1.826  13.571                       O
+ATOM    156  H1  WAT    95       6.531   2.546  13.703                       H
+ATOM    157  H2  WAT    95       7.984   2.165  13.892                       H
+TER                                                                           
+ATOM    158  O   WAT    96       8.740   9.219  14.505                       O
+ATOM    159  H1  WAT    96       9.000  10.113  14.726                       H
+ATOM    160  H2  WAT    96       9.373   8.664  14.962                       H
 TER   
 END   

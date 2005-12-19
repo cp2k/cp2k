@@ -127,7 +127,7 @@ SUBROUTINE fist_init ( fist_env, globenv, error )
 
   TYPE(fist_environment_type), POINTER           :: fist_env
   TYPE(global_environment_type), &
-      INTENT(INOUT)                              :: globenv
+      POINTER                                    :: globenv
   TYPE(cp_error_type), INTENT(inout), OPTIONAL   :: error
 
 ! Local variables 

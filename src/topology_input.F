@@ -127,7 +127,7 @@ SUBROUTINE read_topology_section ( topology, topology_section, globenv, error )
   IMPLICIT NONE
   ! Arguments
   TYPE(topology_parameters_type)                       :: topology
-  TYPE(global_environment_type), INTENT(IN),OPTIONAL   :: globenv
+  TYPE(global_environment_type), POINTER   ,OPTIONAL   :: globenv
   TYPE(section_vals_type), POINTER                     :: topology_section
   TYPE(cp_error_type), INTENT(inout), &
        OPTIONAL                               :: error
@@ -203,7 +203,7 @@ SUBROUTINE read_constraints_section(topology, globenv, constraint_section, error
     TYPE(topology_parameters_type), &
       INTENT(INOUT)                          :: topology
     TYPE(global_environment_type), &
-      INTENT(IN),OPTIONAL                    :: globenv
+      pointer   ,OPTIONAL                    :: globenv
     TYPE(section_vals_type), POINTER                 :: constraint_section  
       TYPE(cp_error_type), INTENT(inout), &
        OPTIONAL                               :: error

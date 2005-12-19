@@ -418,6 +418,15 @@
       BASIS_SET SZV-GTH
       POTENTIAL GTH-PADE-q1
     &END KIND
+    &KIND H1
+      ELEMENT H
+    &END KIND
+    &KIND H2
+      ELEMENT H
+    &END KIND
+    &KIND H3
+      ELEMENT H
+    &END KIND
     &TOPOLOGY
       CONN_FILE sio2.psf
       CONNECTIVITY PSF

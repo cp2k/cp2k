@@ -68,8 +68,6 @@ MODULE colvar
 !****************************************************************************
 CONTAINS
 
-!TODEL_START_TL
-
 !!****f* metadynamics/colvar_read *
 !!
 !!   NAME
@@ -119,6 +117,7 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: distance_section, angle_section,&
                                                 torsion_section, coordination_section    
     INTEGER, DIMENSION(:), POINTER           :: iatms
+    
 
     NULLIFY(iatms)
     failure=.FALSE.
@@ -142,12 +141,16 @@ CONTAINS
     CALL section_vals_val_get(colvar_section,"SUBSYS",i_rep_section=icol,i_val=colvar%i_subsys,error=error)
     CALL section_vals_val_get(colvar_section,"MASS",i_rep_section=icol,r_val=colvar%mass,error=error)
     CALL section_vals_val_get(colvar_section,"SCALE",i_rep_section=icol,r_val=colvar%delta_s,error=error)
-    CALL section_vals_val_get(colvar_section,"WALL_PLUS",i_rep_section=icol,r_val=colvar%wall_p,&
-         n_rep_val=n_rep,error=error)
-    IF (n_rep /= 0) colvar%do_wall_p=.TRUE.
-    CALL section_vals_val_get(colvar_section,"WALL_MINUS",i_rep_section=icol,r_val=colvar%wall_m,&
-         n_rep_val=n_rep,error=error)
-    IF (n_rep /= 0) colvar%do_wall_m=.TRUE.
+    CALL section_vals_val_get(colvar_section,"WALL_PLUS",i_rep_section=icol,n_rep_val=n_rep,error=error)
+    IF (n_rep /= 0) THEN 
+       colvar%do_wall_p=.TRUE.
+       CALL section_vals_val_get(colvar_section,"WALL_PLUS",i_rep_section=icol,r_val=colvar%wall_p,error=error)
+    END IF
+    CALL section_vals_val_get(colvar_section,"WALL_MINUS",i_rep_section=icol,n_rep_val=n_rep,error=error)
+    IF (n_rep /= 0) THEN 
+       colvar%do_wall_m=.TRUE.
+       CALL section_vals_val_get(colvar_section,"WALL_MINUS",i_rep_section=icol,r_val=colvar%wall_m,error=error)
+    END IF
     CALL section_vals_val_get(colvar_section,"LAMBDA",i_rep_section=icol,r_val=colvar%lambda,error=error)
     
     IF      (my_subsection(1)) THEN
@@ -168,10 +171,16 @@ CONTAINS
     ELSE IF (my_subsection(4)) THEN
        ! Coordination
        colvar%type_id=coord_colvar_id
-       CALL section_vals_val_get(coordination_section,"ATOMS_FROM",i_vals=colvar%coord_param%i_at_from,error=error)
-       colvar%coord_param%n_atoms_from = SIZE(colvar%coord_param%i_at_from)
-       CALL section_vals_val_get(coordination_section,"ATOMS_TO",i_vals=colvar%coord_param%i_at_to,error=error)
-       colvar%coord_param%n_atoms_to = SIZE(colvar%coord_param%i_at_to)
+       CALL section_vals_val_get(coordination_section,"ATOMS_FROM",i_vals=iatms,error=error)
+       colvar%coord_param%n_atoms_from = SIZE(iatms)
+       ALLOCATE(colvar%coord_param%i_at_from(SIZE(iatms)),stat=stat)
+       CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure)
+       colvar%coord_param%i_at_from = iatms
+       CALL section_vals_val_get(coordination_section,"ATOMS_TO",i_vals=iatms,error=error)
+       colvar%coord_param%n_atoms_to = SIZE(iatms)
+       ALLOCATE(colvar%coord_param%i_at_to(SIZE(iatms)),stat=stat)
+       CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure)
+       colvar%coord_param%i_at_to = iatms       
        
        CALL section_vals_val_get(coordination_section,"R0",r_val=colvar%coord_param%r_0,error=error)
        CALL section_vals_val_get(coordination_section,"NN",i_val=colvar%coord_param%nncrd,error=error)

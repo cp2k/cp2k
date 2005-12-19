@@ -51,13 +51,13 @@ PUBLIC :: create_motion_section
 !****************************************************************************
 contains
 
-!!****f* input_cp2k/create_metadyn_section *
+!!****f* input_cp2k/create_motion_section *
 !!
 !!   NAME
-!!     create_metadyn_section
+!!     create_motion_section
 !!
 !!   FUNCTION
-!!     creates the metadynamics section
+!!     creates the motion section
 !!
 !!   NOTES
 !!     -
@@ -673,9 +673,9 @@ contains
        CALL keyword_create(keyword, name="TEMPERATURE",&
             variants=(/"TEMPCONTROL"/),&
             description="If a Lagrangian scheme is used the temperature control for the collective "//&
-            "variables is specified. Default 100.0 K.",&
+            "variables is specified. ",&
             usage="TEMPERATURE {real}",&
-            default_r_val=100.0_dp,error=error)
+            type_of_var=real_t,unit_str='K',error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
@@ -762,39 +762,36 @@ contains
        CALL keyword_create(keyword, name="LAMBDA",&
             description="Specifies the lambda parameter of the collective variable in the"//&
             " extended lagrangian scheme.",&
-            usage="LAMBDA {real}",&
-            default_r_val=-HUGE(0.0_dp),error=error)
+            usage="LAMBDA {real}",type_of_var=real_t,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="MASS",&
             description="Specifies the mass parameter of the collective variable in the"//&
-            " extended lagrangian scheme. Default 0.0 .",&
-            usage="MASS {real}",&
-            default_r_val=-HUGE(0.0_dp),error=error)
+            " extended lagrangian scheme.",&
+            usage="MASS {real}",unit_str='amu',&
+            default_r_val=0.0_dp,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="SCALE",&
             description="Specifies the scale factor for the following collective variable.",&
             usage="SCALE {real}",&
-            default_r_val=-HUGE(0.0_dp),error=error)
+            default_r_val=1.0_dp,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="WALL_PLUS",&
             variants=(/"WALLP"/),&
             description="Activates the reflective wall on the upper limit of the collective variable.",&
-            usage="WALL_PLUS {real}",&
-            default_r_val=-HUGE(0.0_dp),error=error)
+            usage="WALL_PLUS {real}",type_of_var=real_t,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="WALL_MINUS",&
             variants=(/"WALLM"/),&
             description="Activates the reflective wall on the lower limit of the collective variable.",&
-            usage="WALL_MINUS {real}",&
-            default_r_val=-HUGE(0.0_dp),error=error)
+            usage="WALL_MINUS {real}",type_of_var=real_t,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
