@@ -4,9 +4,9 @@
 #      1 compares the last total energy in the file
 #      for details see cp2k/tools/do_regtest
 #
-# QS MC test for volume moves and the ref_cell
-MC_volume.inp 0
-# QS MC testing the classical inner moves
-MC_qs_moves.inp 0
-# FIST MC testing NpT simulation with biasing
+# QS MC test for volume moves and the ref_cell on water
+MC_QS.inp 0
+# FIST MC testing NpT simulation with biasing on water
 MC_Fist.inp 0
+# KG MC testing NpT simulation with conformational moves on ethane
+MC_KG.inp 0

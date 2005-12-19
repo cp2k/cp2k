@@ -1,0 +1,88 @@
+
+&FORCE_EVAL
+  &DFT
+    &XC
+      &XC_FUNCTIONAL
+        &PADE
+        &END
+      &END
+    &END XC
+    &MGRID
+      CUTOFF 50
+    &END MGRID
+    &QS
+      eps_core_charge 1.0E-96
+      eps_ppl 1.0E-96
+      eps_pgf_orb 1.0E-10
+      eps_gvg_rspace 1.0E-10
+      eps_rho 1.0E-10
+      method  KG_NOPOL
+    &END QS
+    &SCF
+      SCF_GUESS ATOMIC
+    &END SCF
+  &END DFT
+  &SUBSYS
+    &CELL
+     ABC 10.0 10.0 10.0
+      UNIT ANGSTROM
+    &END CELL
+    &COORD
+ C     0.000000     0.000000     0.000000
+ C     0.000000     0.000000     1.450000
+ H     1.026719     0.000000     1.813000
+ H    -0.513360    -0.889165    -0.363000
+ H    -0.513360     0.889165    -0.363000
+ H     1.026719     0.000000    -0.363000
+ H    -0.513360     0.889165     1.813000
+ H    -0.513360    -0.889165     1.813000
+    &END COORD
+    &KIND C
+      BASIS_SET DZVP-GTH-PADE
+      POTENTIAL GTH-PADE-q4
+    &END KIND
+    &KIND H
+      BASIS_SET DZVP-GTH-PADE
+      POTENTIAL GTH-PADE-q1
+    &END KIND
+    &TOPOLOGY
+      CONN_FILE topology_1.psf
+      CONNECTIVITY PSF
+    &END TOPOLOGY
+  &END SUBSYS
+&END FORCE_EVAL
+&GLOBAL
+  FFTLIB FFTSG
+  PROGRAM kg
+  PROJECT h2o
+  RUN_TYPE MC
+  PRINT_LEVEL LOW
+&END GLOBAL
+&MOTION
+  &MC
+    IUPTRANS 6400000
+    IUPVOLUME 3200000
+    LBIAS no
+    LSTOP no
+    NMOVES 1
+    NSTEP 30
+    NVOLMOVES 1
+    PMSWAP 0.0
+    PMTRAION 1.0
+    PMTRANS 0.00
+    PMVOLUME 0.1
+    PRESSURE 1.013
+    PROGRAM traditional
+    RESTART no
+    RESTART_FILE_NAME mc_restart_1
+    RMANGLE 1.0
+    RMDIHEDRAL 5.0
+    RMBOND 0.04
+    RMROT 26.0
+    RMTRANS 0.38
+    RMVOLUME 10.5
+    TEMP 298.0
+    IPRINT 1
+  &END MC
+&END MOTION
+
