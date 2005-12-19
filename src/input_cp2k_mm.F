@@ -1271,7 +1271,7 @@ contains
 
        CALL keyword_create(keyword, name="RCUT",&
             description="Defines the cutoff parameter of the BMHFT potential",&
-            usage="RCUT {real}", required=.TRUE., default_r_val=7.8_dp,&
+            usage="RCUT {real}", default_r_val=7.8_dp,&
             unit_str="angstrom", n_var=1, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
