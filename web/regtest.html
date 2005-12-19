@@ -22,8 +22,8 @@
 <H3> Goal </H3> 
 CP2K should be kept in good shape throughout its development. 
 Bugs that are fixed should stay fixed, features that are working should remain in that state. 
-In order to do so, an automated tester downloads/builds/tests CP2K every night. 
-Correctness of results (<A HREF="#correct_serial">serial</A> and <A HREF="#correct_parallel">parallel</A>)  and <A HREF="#leaks">memory leak tests</A> are reported. 
+In order to do so, automated testers downloads/builds/tests CP2K after every commit/every night. 
+Correctness of results (<A HREF="#correct_serial">serial</A> and <A HREF="#correct_parallel">parallel</A>)  and <A HREF="#autotester">memory leak tests</A> are reported. 
 <H3> Info </H3> 
 Correctness runs are serial/parallel runs using the NAG compiler with full error checking on a PC architecture. Even though we strive to reach the above goal, the rapid development of CP2K does imply that not all features are working or passing the high standard of Fortran conformance we require during this testing. Failing tests are an indication of possible problems, but as yet still quite common.
 Memory leak checking is performed using the free Fortran compiler g95 (<A HREF="http://www.g95.org/">www.g95.org</A>).
@@ -32,6 +32,38 @@ The latest reference result of the regression testing suite as obtained with the
 for a serial run can be downloaded (<A HREF="reference"> 'reference', 2Mb, a gzipped tar file without the .tgz extension</A>).
 They can be used to set up a local regtest, but note that differences in compiler optimization
 can introduce differences in the output O(1E-9), which is acceptable within this setup (see the regtest READMEs for more info).
+
+<H3> <a NAME="autotester">Autotester</A> </H3>
+<CENTER>
+The <A HREF="regression_tests/sopt/x86_64/g95/regtest-1.txt">latest regtest report</A> is available.
+as well as reports from
+<A HREF="regression_tests/sopt/x86_64/g95/regtest-1.txt">1</A>,
+<A HREF="regression_tests/sopt/x86_64/g95/regtest-2.txt">2</A>,
+<A HREF="regression_tests/sopt/x86_64/g95/regtest-3.txt">3</A>,
+<A HREF="regression_tests/sopt/x86_64/g95/regtest-4.txt">4</A>,
+<A HREF="regression_tests/sopt/x86_64/g95/regtest-5.txt">5</A>,
+<A HREF="regression_tests/sopt/x86_64/g95/regtest-6.txt">6</A>,
+<A HREF="regression_tests/sopt/x86_64/g95/regtest-7.txt">7</A>,
+<A HREF="regression_tests/sopt/x86_64/g95/regtest-8.txt">8</A>,
+<A HREF="regression_tests/sopt/x86_64/g95/regtest-9.txt">9</A>,
+<A HREF="regression_tests/sopt/x86_64/g95/regtest-10.txt">10</A>
+runs ago. <BR>
+The <A HREF="regression_tests/sopt/x86_64/g95/memory_leaks-1.txt">latest memory leak report</A> is available. 
+as well as reports from
+<A HREF="regression_tests/sopt/x86_64/g95/memory_leaks-1.txt">1</A>,
+<A HREF="regression_tests/sopt/x86_64/g95/memory_leaks-2.txt">2</A>,
+<A HREF="regression_tests/sopt/x86_64/g95/memory_leaks-3.txt">3</A>,
+<A HREF="regression_tests/sopt/x86_64/g95/memory_leaks-4.txt">4</A>,
+<A HREF="regression_tests/sopt/x86_64/g95/memory_leaks-5.txt">5</A>,
+<A HREF="regression_tests/sopt/x86_64/g95/memory_leaks-6.txt">6</A>,
+<A HREF="regression_tests/sopt/x86_64/g95/memory_leaks-7.txt">7</A>,
+<A HREF="regression_tests/sopt/x86_64/g95/memory_leaks-8.txt">8</A>,
+<A HREF="regression_tests/sopt/x86_64/g95/memory_leaks-9.txt">9</A>,
+<A HREF="regression_tests/sopt/x86_64/g95/memory_leaks-10.txt">10</A>
+runs ago. <BR>
+<IMG SRC="regression_tests/sopt/x86_64/g95/errors.png"><BR>
+</CENTER>
+
 <H3> <a NAME="correct_serial">Serial correctness of results and Fortran conformance</a> </H3> 
 <CENTER>
 The <A HREF="regtest.txt">latest build report</A> is available. <BR>
@@ -91,23 +123,7 @@ days ago.
  <img src="regression_tests/pdbg/x86_64/nag/summary.png"><br/>
 </center>
 
-<H3> <a NAME="leaks">Memory leaks</A> </H3>
-<CENTER>
-The <A HREF="regression_tests/sopt/x86_64/g95/memory_leaks-1.txt">latest memory leak report</A> is available. <BR>
-These are the reports from
-<A HREF="regression_tests/sopt/x86_64/g95/memory_leaks-1.txt">1</A>,
-<A HREF="regression_tests/sopt/x86_64/g95/memory_leaks-2.txt">2</A>,
-<A HREF="regression_tests/sopt/x86_64/g95/memory_leaks-3.txt">3</A>,
-<A HREF="regression_tests/sopt/x86_64/g95/memory_leaks-4.txt">4</A>,
-<A HREF="regression_tests/sopt/x86_64/g95/memory_leaks-5.txt">5</A>,
-<A HREF="regression_tests/sopt/x86_64/g95/memory_leaks-6.txt">6</A>,
-<A HREF="regression_tests/sopt/x86_64/g95/memory_leaks-7.txt">7</A>,
-<A HREF="regression_tests/sopt/x86_64/g95/memory_leaks-8.txt">8</A>,
-<A HREF="regression_tests/sopt/x86_64/g95/memory_leaks-9.txt">9</A>,
-<A HREF="regression_tests/sopt/x86_64/g95/memory_leaks-10.txt">10</A>
-runs ago. <BR>
-<IMG SRC="regression_tests/sopt/x86_64/g95/leaks.png"><BR>
-</CENTER>
+
 <hr>
 Back to the <A HREF="index.html">CP2K homepage</A>
 
