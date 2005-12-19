@@ -25,6 +25,7 @@ MODULE qs_grid_atom
 
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
+  USE input_constants,                 ONLY: do_gapw_gcs,do_gapw_gct,do_gapw_log
 
   IMPLICIT NONE
 
@@ -303,7 +304,7 @@ MODULE qs_grid_atom
 
     SELECT CASE (radial_quadrature)
 
-    CASE (1)
+    CASE (do_gapw_gcs)
 
 !     *** Gauss-Chebyshev quadrature formula of the second kind ***
 !     *** u [-1,+1] -> r [0,infinity] =>  r = (1 + u)/(1 - u)   ***
@@ -318,7 +319,7 @@ MODULE qs_grid_atom
         wr(i) = 2.0_dp*wr(i)*r2(i)/(1.0_dp - x)**2
       END DO
 
-    CASE (2)
+    CASE (do_gapw_gct)
 
 !     *** Transformed Gauss-Chebyshev quadrature formula of the second kind ***
 !     *** u [-1,+1] -> r [0,infinity] => r = (1 + u)/(1 - u)                ***
@@ -336,7 +337,7 @@ MODULE qs_grid_atom
         wr(n+1-i) = 2.0_dp*w*r2(n+1-i)/(1.0_dp - x)**2
       END DO
 
-    CASE (3)
+    CASE (do_gapw_log)
 
 !     *** Transformed Gauss-Chebyshev quadrature formula of the second kind ***
 !     *** u [-1,+1] -> r [0,infinity] => r = ln(2/(1 - u))/ln(2)            ***
@@ -356,7 +357,7 @@ MODULE qs_grid_atom
 
     CASE DEFAULT
 
-      CALL stop_program("SUBROUTINE radial_grid (MODULE vxc_acsgrid)",&
+      CALL stop_program("SUBROUTINE radial_grid (MODULE qs_grid_atom)",&
                         "Invalid radial quadrature type specified")
 
     END SELECT
