@@ -51,6 +51,7 @@ MODULE mc_run
   USE cp2k_units,                      ONLY: init_cp2k_units
   USE cp_subsystem_types,              ONLY: cp_subsys_get,&
                                              cp_subsystem_p_type
+  USE force_env_methods,               ONLY: force_env_calc_energy_force
   USE force_env_types,                 ONLY: force_env_get,&
                                              force_env_type,&
                                              force_env_release,&

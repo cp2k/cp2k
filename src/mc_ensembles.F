@@ -527,8 +527,6 @@ CONTAINS
                CALL mp_bcast(mol_target,source,group)
                CALL mp_bcast(rand,source,group)
 
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! debug avbmc
-!               IF (.false.) THEN
                IF (rand .LT. pbias) THEN
                   move_type_avbmc='in'
                ELSE
@@ -545,11 +543,10 @@ CONTAINS
 
             ENDIF
 
-!            STOP 'After AVBMC move'
          ELSE
 
             IF(MOD(nnstep,iprint) == 0 .AND. ionode) THEN
-               WRITE(iw,*) "Attempting a Quickstep move"
+               WRITE(iw,*) "Attempting an inner move"
                WRITE(iw,*) 
             ENDIF
 
@@ -594,13 +591,10 @@ CONTAINS
                      CALL mp_bcast(box_number,source,group)
 
 ! figure out what kind of move we're doing
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! debugging
                      IF (rand .LT. conf_prob(1,ibox)) THEN
-!                        IF (rand .LT. 0.0d0) THEN
                         move_type='bond'
                      ELSEIF(rand .LT. (conf_prob(1,ibox)+&
                         conf_prob(2,ibox))) THEN
-!                     ELSEIF(rand .LT. 0.0d0) THEN
                         move_type='angle'
                      ELSE
                         move_type='dihedral'
@@ -614,7 +608,6 @@ CONTAINS
                         mol,bias_energy(box_number),&
                         move_type,lreject,rng_stream,error=error)
                      IF(lreject) EXIT
-!                     STOP 'End of conf move'
                   ENDIF
                ELSEIF(rand .LT. pmtrans) THEN
 ! translate a whole molecule in the system

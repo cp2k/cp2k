@@ -63,6 +63,8 @@ MODULE mc_misc
                                              section_vals_val_get,&
                                              section_vals_get_subs_vals2,&
                                              section_vals_get_subs_vals
+  USE kg_environment_types,            ONLY: kg_environment_type,&
+                                             get_kg_env
   USE kinds,                           ONLY: default_string_length,&
                                              dp
   USE mathconstants,                   ONLY: pi
@@ -627,6 +629,8 @@ SUBROUTINE mc_make_dat_file(coordinates,natoms_tot,box_length,filename,&
     TYPE(pair_potential_pp_type), POINTER      :: potparm
     TYPE(fist_nonbond_env_type), POINTER      :: fist_nonbond_env
     TYPE(gto_basis_set_type), POINTER      :: orb_basis_set
+    TYPE ( kg_environment_type ), &
+      POINTER                                :: kg_env                     
     TYPE ( fist_environment_type ), &
       POINTER                                :: fist_env 
     TYPE ( ewald_environment_type ), POINTER      :: ewald_env
@@ -638,7 +642,7 @@ SUBROUTINE mc_make_dat_file(coordinates,natoms_tot,box_length,filename,&
   
     INTEGER                                  :: handle, iatom, unit,&
       itype,ntypes,gmax,o_spline,ns_max,ewald_type,jtype,ichain,&
-      nchains,natoms
+      nchains,natoms,i_val
     LOGICAL                                  :: use_ref_cell,failure
     REAL(KIND=dp),DIMENSION(1:3)             :: abc
     REAL(KIND=dp)                            :: alpha,epsilon,charge,r_val
@@ -654,7 +658,7 @@ SUBROUTINE mc_make_dat_file(coordinates,natoms_tot,box_length,filename,&
 
 ! nullify some stuff
       NULLIFY(qs_env,atomic_kind_set,atomic_kind,gth_potential,&
-         orb_basis_set,elp_potential,input,xc_fun)
+         orb_basis_set,elp_potential,input,xc_fun,kg_env)
 
 ! grab some of the structures we're gonna need
       SELECT CASE ( force_env%in_use )
@@ -670,10 +674,14 @@ SUBROUTINE mc_make_dat_file(coordinates,natoms_tot,box_length,filename,&
       CASE ( use_qs_force )
          CALL force_env_get(force_env,qs_env=qs_env,subsys=subsys)
          CALL get_qs_env(qs_env,use_ref_cell=use_ref_cell,cell_ref=cell_ref,&
-         input=input,atomic_kind_set=atomic_kind_set)
+           input=input,atomic_kind_set=atomic_kind_set)
          CALL get_cell(cell_ref,abc=abc)
 
       CASE ( use_kg_force )
+         CALL force_env_get(force_env,kg_env=kg_env,subsys=subsys)
+         CALL get_kg_env(kg_env,use_ref_cell=use_ref_cell,cell_ref=cell_ref,&
+           input=input,atomic_kind_set=atomic_kind_set)
+         CALL get_cell(cell_ref,abc=abc)
 
       CASE default
         CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
@@ -778,6 +786,8 @@ SUBROUTINE mc_make_dat_file(coordinates,natoms_tot,box_length,filename,&
          WRITE(unit,10000) "    &MGRID"
          CALL section_vals_val_get(input,"DFT%MGRID%CUTOFF",r_val=r_val)
          WRITE(unit,20000) "      CUTOFF  ",2.0E0_dp*r_val
+         CALL section_vals_val_get(input,"DFT%MGRID%NGRIDS",i_val=i_val)
+         WRITE(unit,20003) "      NGRIDS  ",i_val
          WRITE(unit,10000) "    &END MGRID"
          WRITE(unit,10000) "    &QS"
          WRITE(unit,10000) "      EXTRAPOLATION USE_PREV_WF"
@@ -803,7 +813,50 @@ SUBROUTINE mc_make_dat_file(coordinates,natoms_tot,box_length,filename,&
          WRITE(unit,10000) "    &END XC"
          WRITE(unit,10000) "  &END DFT"
       CASE ( use_kg_force )
-         WRITE(unit,10000) ' PROGRAM      KG'
+         WRITE(unit,10000) "  &DFT"
+         WRITE(unit,10000) "    &MGRID"
+         CALL section_vals_val_get(input,"DFT%MGRID%CUTOFF",r_val=r_val)
+         WRITE(unit,20000) "      CUTOFF  ",2.0E0_dp*r_val
+         CALL section_vals_val_get(input,"DFT%MGRID%NGRIDS",i_val=i_val)
+         WRITE(unit,20003) "      NGRIDS  ",i_val
+         WRITE(unit,10000) "    &END MGRID"
+         WRITE(unit,10000) "    &QS"
+         CALL section_vals_val_get(input,"DFT%QS%EXTRAPOLATION",c_val=c_val)
+         WRITE(unit,20001) "      EXTRAPOLATION  ",TRIM(ADJUSTL(c_val))
+!         WRITE(unit,10000) "      EXTRAPOLATION USE_PREV_WF"
+         CALL section_vals_val_get(input,"DFT%QS%EPS_CORE_CHARGE",r_val=r_val)
+         WRITE(unit,20004) "      EPS_CORE_CHARGE  ",r_val
+         CALL section_vals_val_get(input,"DFT%QS%EPS_PPL",r_val=r_val)
+         WRITE(unit,20004) "      EPS_PPL  ",r_val
+         CALL section_vals_val_get(input,"DFT%QS%EPS_PGF_ORB",r_val=r_val)
+         WRITE(unit,20004) "      EPS_PGF_ORB  ",r_val
+         CALL section_vals_val_get(input,"DFT%QS%EPS_GVG_RSPACE",r_val=r_val)
+         WRITE(unit,20004) "      EPS_GVG_RSPACE  ",r_val
+         CALL section_vals_val_get(input,"DFT%QS%EPS_RHO",r_val=r_val)
+         WRITE(unit,20004) "      EPS_RHO  ",r_val
+         CALL section_vals_val_get(input,"DFT%QS%METHOD",c_val=c_val)
+         WRITE(unit,20001) "      METHOD  ",TRIM(ADJUSTL(c_val))
+         WRITE(unit,10000) "    &END QS"
+         WRITE(unit,10000) "    &SCF"
+         CALL section_vals_val_get(input,"DFT%SCF%SCF_GUESS",c_val=c_val)
+         WRITE(unit,20001) "      SCF_GUESS  ",TRIM(ADJUSTL(c_val))
+         WRITE(unit,10000) "    &END SCF"
+         WRITE(unit,10000) "    &XC"
+         xc_fun_section => section_vals_get_subs_vals(input,&
+            "DFT%XC%XC_FUNCTIONAL")
+         xc_fun => section_vals_get_subs_vals2(xc_fun_section,i_section=1)
+         WRITE(unit,20001) "      &XC_FUNCTIONAL ",TRIM(xc_fun%section%name)
+         WRITE(unit,10000) "      &END XC_FUNCTIONAL"
+         WRITE(unit,10000) "      &XC_GRID"
+         CALL section_vals_val_get(input,"DFT%XC%XC_GRID%XC_SMOOTH_RHO",&
+           c_val=c_val)
+         WRITE(unit,20001) "        XC_SMOOTH_RHO ",TRIM(ADJUSTL(c_val))
+         CALL section_vals_val_get(input,"DFT%XC%XC_GRID%XC_DERIV",&
+           c_val=c_val)
+         WRITE(unit,20001) "        XC_DERIV ",TRIM(ADJUSTL(c_val))
+         WRITE(unit,10000) "      &END XC_GRID"
+         WRITE(unit,10000) "    &END XC"
+         WRITE(unit,10000) "  &END DFT"
       CASE default
         CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
       END SELECT
@@ -849,21 +902,26 @@ SUBROUTINE mc_make_dat_file(coordinates,natoms_tot,box_length,filename,&
       WRITE(unit,10000) '    &END COORD'
 
 ! now the kind types, for the basis sets and potentials
-      IF(force_env%in_use == use_qs_force)THEN
+      IF(force_env%in_use == use_qs_force .OR. &
+         force_env%in_use == use_kg_force)THEN
          DO itype=1,ntypes
             atomic_kind => atomic_kind_set(itype)
             CALL get_atomic_kind(atomic_kind=atomic_kind,&
             element_symbol=element_symbol,gth_potential=gth_potential,&
-            orb_basis_set=orb_basis_set)
+            orb_basis_set=orb_basis_set,elp_potential=elp_potential)
             
             CALL get_gto_basis_set(orb_basis_set,name=name)
             
             WRITE(unit,20001) "    &KIND ",element_symbol
             WRITE(unit,20001) "      BASIS_SET    ",TRIM(ADJUSTL(name))
             
-            CALL get_potential(gth_potential,name=name)
-            
-            WRITE(unit,20001) "      POTENTIAL    ",TRIM(ADJUSTL(name))
+            IF(ASSOCIATED(gth_potential)) THEN
+               CALL get_potential(gth_potential,name=name)
+               WRITE(unit,20001) "      POTENTIAL    ",TRIM(ADJUSTL(name))
+            ELSE
+               CALL get_potential(elp_potential,name=name)
+               WRITE(unit,20001) "      POTENTIAL    ",TRIM(ADJUSTL(name))
+            ENDIF
             WRITE(unit,10000) "    &END KIND"
          ENDDO      
       ENDIF
@@ -907,7 +965,15 @@ SUBROUTINE mc_make_dat_file(coordinates,natoms_tot,box_length,filename,&
             WRITE(unit,*) 
          ENDIF
       CASE ( use_kg_force )
-         WRITE(unit,10000) ' PROGRAM      KG'
+! let's try to deal with the reference cell
+         IF(use_ref_cell) THEN
+            WRITE(unit,10000) '&CELL_REF'
+            WRITE(unit,10000) ' UNIT         ANGSTROM'
+            WRITE(unit,40000) '  ABC          ',&
+               abc(1:3)*angstrom
+            WRITE(unit,10000) "&END"
+            WRITE(unit,*) 
+         ENDIF
       CASE default
         CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
       END SELECT
@@ -921,6 +987,7 @@ SUBROUTINE mc_make_dat_file(coordinates,natoms_tot,box_length,filename,&
 20001 FORMAT(A,A)
 20002 FORMAT(A,F12.6)
 20003 FORMAT(A,I10)
+20004 FORMAT(A,E12.6)
 30000 FORMAT(A,F12.8,2X,I8)
 30001 FORMAT(A,A,F16.10)
 30002 FORMAT(A,A,1X,A)
