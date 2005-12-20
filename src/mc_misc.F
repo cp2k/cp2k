@@ -642,7 +642,7 @@ SUBROUTINE mc_make_dat_file(coordinates,natoms_tot,box_length,filename,&
   
     INTEGER                                  :: handle, iatom, unit,&
       itype,ntypes,gmax,o_spline,ns_max,ewald_type,jtype,ichain,&
-      nchains,natoms,i_val
+      nchains,natoms,i_val,ifunct
     LOGICAL                                  :: use_ref_cell,failure
     REAL(KIND=dp),DIMENSION(1:3)             :: abc
     REAL(KIND=dp)                            :: alpha,epsilon,charge,r_val
@@ -799,8 +799,14 @@ SUBROUTINE mc_make_dat_file(coordinates,natoms_tot,box_length,filename,&
          WRITE(unit,10000) "    &XC"
          xc_fun_section => section_vals_get_subs_vals(input,&
             "DFT%XC%XC_FUNCTIONAL")
-         xc_fun => section_vals_get_subs_vals2(xc_fun_section,i_section=1)
-         WRITE(unit,20001) "      &XC_FUNCTIONAL ",TRIM(xc_fun%section%name)
+         WRITE(unit,10000) "      &XC_FUNCTIONAL"
+         DO ifunct=1,2
+            xc_fun => section_vals_get_subs_vals2(xc_fun_section,i_section=ifunct)
+            IF(ASSOCIATED(xc_fun)) THEN
+               WRITE(unit,20001) "        &",TRIM(xc_fun%section%name)
+               WRITE(unit,20001) "        &END ",TRIM(xc_fun%section%name)
+            ENDIF
+         ENDDO
          WRITE(unit,10000) "      &END XC_FUNCTIONAL"
          WRITE(unit,10000) "      &XC_GRID"
          CALL section_vals_val_get(input,"DFT%XC%XC_GRID%XC_SMOOTH_RHO",&
@@ -844,8 +850,14 @@ SUBROUTINE mc_make_dat_file(coordinates,natoms_tot,box_length,filename,&
          WRITE(unit,10000) "    &XC"
          xc_fun_section => section_vals_get_subs_vals(input,&
             "DFT%XC%XC_FUNCTIONAL")
-         xc_fun => section_vals_get_subs_vals2(xc_fun_section,i_section=1)
-         WRITE(unit,20001) "      &XC_FUNCTIONAL ",TRIM(xc_fun%section%name)
+         WRITE(unit,10000) "      &XC_FUNCTIONAL"
+         DO ifunct=1,2
+            xc_fun => section_vals_get_subs_vals2(xc_fun_section,i_section=ifunct)
+            IF(ASSOCIATED(xc_fun)) THEN
+               WRITE(unit,20001) "        &",TRIM(xc_fun%section%name)
+               WRITE(unit,20001) "        &END ",TRIM(xc_fun%section%name)
+            ENDIF
+         ENDDO
          WRITE(unit,10000) "      &END XC_FUNCTIONAL"
          WRITE(unit,10000) "      &XC_GRID"
          CALL section_vals_val_get(input,"DFT%XC%XC_GRID%XC_SMOOTH_RHO",&
