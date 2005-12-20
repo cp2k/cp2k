@@ -85,7 +85,8 @@ MODULE kg_energy
                                              REALDATA3D,&
                                              REALSPACE,&
                                              RECIPROCALSPACE,&
-                                             pw_p_type
+                                             pw_p_type,&
+                                             pw_release
   USE pw_poisson_types,                             ONLY: pw_poisson_type,&
        pw_poisson_create, pw_poisson_release
   USE pw_poisson_methods, only: pw_poisson_solve
@@ -258,6 +259,11 @@ SUBROUTINE kg_only_energies ( kg_env, globenv, error )
   my_rho_r(1)%pw => rho_r%pw
   CALL xc_vxc_pw_create1(my_vxc_r,my_vxc_tau,my_rho_r,my_rho_g,my_tau,&
        energy%exc,xc_section,cell,auxbas_pw_pool)
+  DO i = 1, SIZE(my_vxc_r)
+     CALL pw_release(my_vxc_r(i)%pw,error)
+  END DO
+  DEALLOCATE(my_vxc_r,stat=stat)
+  CPPostconditionNoFail(stat==0,cp_warning_level,routine,error)
   NULLIFY(my_rho_r(1)%pw)
   DEALLOCATE(my_rho_r)
   NULLIFY(my_rho_r)

@@ -48,7 +48,6 @@
 !******************************************************************************
 
 MODULE mc_run
-  USE cp2k_units,                      ONLY: init_cp2k_units
   USE cp_subsystem_types,              ONLY: cp_subsys_get,&
                                              cp_subsystem_p_type
   USE force_env_methods,               ONLY: force_env_calc_energy_force
@@ -168,7 +167,6 @@ CONTAINS
 
       NULLIFY(mc_env,mc_par,mc_par_2,force_env_2,rng_stream)
 
-      CALL init_cp2k_units ()
       iw = globenv % scr
 
 ! set some values...will use get_globenv if that ever comes around

@@ -529,13 +529,17 @@ CONTAINS
     IF (ppl_present) THEN
 
       DO ikind=1,nkind
-        NULLIFY (alpha_ppl(ikind)%alpha)
+         DEALLOCATE(alpha_ppl(ikind)%alpha,STAT=istat)
+         IF (istat /= 0) CALL stop_memory(routine,"alpha_ppl")
+         NULLIFY (alpha_ppl(ikind)%alpha)
       END DO
       DEALLOCATE (alpha_ppl,STAT=istat)
       IF (istat /= 0) CALL stop_memory(routine,"alpha_ppl")
 
       DO ikind=1,nkind
-        NULLIFY (cexp_ppl(ikind)%c)
+         DEALLOCATE(cexp_ppl(ikind)%c,STAT=istat)
+         IF (istat /= 0) CALL stop_memory(routine,"cexp_ppl")
+         NULLIFY (cexp_ppl(ikind)%c)
       END DO
       DEALLOCATE (cexp_ppl,STAT=istat)
       IF (istat /= 0) CALL stop_memory(routine,"cexp_ppl")
