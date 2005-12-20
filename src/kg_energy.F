@@ -258,9 +258,9 @@ SUBROUTINE kg_only_energies ( kg_env, globenv, error )
   my_rho_r(1)%pw => rho_r%pw
   CALL xc_vxc_pw_create1(my_vxc_r,my_vxc_tau,my_rho_r,my_rho_g,my_tau,&
        energy%exc,xc_section,cell,auxbas_pw_pool)
-  NULLIFY(my_rho_r(1)%pw, my_vxc_r(1)%pw)
-  DEALLOCATE(my_rho_r, my_vxc_r)
-  NULLIFY(my_rho_r, my_vxc_r)
+  NULLIFY(my_rho_r(1)%pw)
+  DEALLOCATE(my_rho_r)
+  NULLIFY(my_rho_r)
 
 ! add the frozen electronic density to the core density 
   CALL coeff_sumup(rho_core,rho_g)
