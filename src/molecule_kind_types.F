@@ -891,7 +891,7 @@ CONTAINS
 
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
     TYPE(global_environment_type), &
-      INTENT(IN)                             :: globenv
+      pointer                             :: globenv
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "write_molecule_kind"
 
@@ -965,7 +965,7 @@ CONTAINS
     TYPE(molecule_kind_type), DIMENSION(:), &
       POINTER                                :: molecule_kind_set
     TYPE(global_environment_type), &
-      INTENT(IN)                             :: globenv
+      pointer                             :: globenv
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "write_molecule_kind_set"
 

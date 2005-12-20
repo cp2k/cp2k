@@ -97,7 +97,7 @@ CONTAINS
 SUBROUTINE parser_init ( file_name, globenv, section_end, comment )
     CHARACTER(LEN=*), INTENT(IN)             :: file_name
     TYPE(global_environment_type), &
-      INTENT(IN), OPTIONAL                   :: globenv
+      pointer, OPTIONAL                   :: globenv
     CHARACTER(LEN=*), INTENT(IN), OPTIONAL   :: section_end
     CHARACTER(LEN=1), INTENT(IN), OPTIONAL   :: comment
 

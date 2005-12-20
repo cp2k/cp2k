@@ -70,7 +70,7 @@ CONTAINS
     ! Arguments
     TYPE(topology_parameters_type)              :: topology
     TYPE(global_environment_type), &
-         INTENT(IN), OPTIONAL                   :: globenv
+         pointer, OPTIONAL                   :: globenv
     ! Local Variables
     TYPE (atom_info_type),POINTER               :: atom_info
     CHARACTER(len=*), PARAMETER :: routineN = 'read_coordinate_xyz', &

@@ -80,7 +80,7 @@ CONTAINS
   SUBROUTINE ot_scf_read_input(qs_ot_env,globenv)
     TYPE(qs_ot_type), DIMENSION(:), POINTER  :: qs_ot_env
     TYPE(global_environment_type), &
-         INTENT(IN)                             :: globenv
+         pointer                             :: globenv
 
     CHARACTER(LEN=40)                        :: keyword, value
     INTEGER                                  :: handle, ispin, ls_method, &

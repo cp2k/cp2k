@@ -720,7 +720,7 @@ END SUBROUTINE qs_ep_calculation
 SUBROUTINE ep_env_finish_qs_init(qs_env,globenv,error)
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(global_environment_type), &
-      INTENT(in), TARGET                     :: globenv
+      pointer                     :: globenv
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 

@@ -2360,8 +2360,7 @@ END SUBROUTINE cp_sm_scale_and_add
 !!
 !!*** **********************************************************************
 FUNCTION cp_sm_get_id_nr(matrix,error) RESULT(res)
-    TYPE(real_matrix_type), INTENT(in), &
-      TARGET                                 :: matrix
+    TYPE(real_matrix_type), POINTER          :: matrix
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
     INTEGER                                  :: res

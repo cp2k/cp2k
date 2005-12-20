@@ -300,7 +300,7 @@ CONTAINS
 
     CHARACTER(LEN=*), INTENT(IN)             :: routine, error_message
     TYPE(global_environment_type), &
-      INTENT(IN), OPTIONAL                   :: globenv
+      pointer, OPTIONAL                   :: globenv
 
     LOGICAL                                  :: ionode
 
@@ -332,7 +332,7 @@ CONTAINS
     INTEGER, INTENT(IN)                      :: line_number
     CHARACTER(LEN=*), INTENT(IN)             :: error_message
     TYPE(global_environment_type), &
-      INTENT(IN), OPTIONAL                   :: globenv
+      pointer, OPTIONAL                   :: globenv
 
     CHARACTER(LEN=80)                        :: message
     LOGICAL                                  :: ionode

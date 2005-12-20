@@ -73,7 +73,7 @@ CONTAINS
   SUBROUTINE build_kg_neighbor_lists(kg_env,globenv)
     TYPE(kg_environment_type), POINTER       :: kg_env
     TYPE(global_environment_type), &
-      INTENT(IN)                             :: globenv
+      pointer                             :: globenv
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "build_kg_neighbor_lists"
 
@@ -107,7 +107,7 @@ CONTAINS
 
     TYPE(kg_environment_type), POINTER       :: kg_env
     TYPE(global_environment_type), &
-      INTENT(IN)                             :: globenv
+      pointer                             :: globenv
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "build_kg_neighbor_lists1"
 
@@ -435,7 +435,7 @@ CONTAINS
 
     TYPE(kg_environment_type), POINTER       :: kg_env
     TYPE(global_environment_type), &
-      INTENT(IN)                             :: globenv
+      pointer                             :: globenv
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "build_kg_neighbor_lists2"
 

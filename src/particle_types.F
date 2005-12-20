@@ -627,7 +627,7 @@ END SUBROUTINE clone_particle
       POINTER                                :: particle_set
     TYPE(cell_type), POINTER                 :: cell
     TYPE(global_environment_type), &
-      INTENT(IN)                             :: globenv
+      pointer                             :: globenv
 
     TYPE(cp_logger_type), POINTER            :: logger
     CHARACTER(LEN=2)                         :: element_symbol
@@ -705,7 +705,7 @@ END SUBROUTINE clone_particle
       POINTER                                :: particle_set
     TYPE(cell_type), POINTER                 :: cell
     TYPE(global_environment_type), &
-      INTENT(IN)                             :: globenv
+      pointer                             :: globenv
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "write_structure_data", &
       start_section_label = "STRUCTURE_DATA"
@@ -871,7 +871,7 @@ END SUBROUTINE clone_particle
       POINTER                                :: particle_set
     TYPE(cell_type), POINTER                 :: cell
     TYPE(global_environment_type), &
-      INTENT(IN)                             :: globenv
+      pointer                             :: globenv
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "write_particle_distances"
 
@@ -953,7 +953,7 @@ SUBROUTINE generate_particle_distances(r,cell,radius,bondparm_factor,&
     INTEGER, POINTER                              :: bond_a(:),bond_b(:)
     INTEGER                                       :: bondparm_type
     TYPE(global_environment_type), &
-      INTENT(IN)                                  :: globenv
+      pointer                                  :: globenv
     REAL(KIND=dp), POINTER                        :: tbond_a(:),tbond_b(:)
     REAL(KIND=dp), POINTER                        :: ttbond_a(:),ttbond_b(:)
     REAL(KIND=dp)                                 :: dr(3),r2,rbond,rbond2,rr(3)

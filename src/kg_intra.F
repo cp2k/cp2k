@@ -73,7 +73,7 @@ CONTAINS
 
     TYPE(kg_environment_type), POINTER       :: kg_env
     TYPE(global_environment_type), &
-      INTENT(IN)                             :: globenv
+      pointer                             :: globenv
     REAL(KIND=dp), intent(out)               :: e_bc
     LOGICAL, INTENT(IN)                      :: calculate_forces
 

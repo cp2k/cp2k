@@ -794,7 +794,7 @@ CONTAINS
 
     TYPE(kg_fm_p_type)                         :: kg_fm
     TYPE(global_environment_type), &
-      INTENT(IN)                               :: globenv
+      pointer                               :: globenv
     INTEGER, INTENT(IN)                        :: id_nr, nspins
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                                 :: error
@@ -1032,7 +1032,7 @@ CONTAINS
 
     TYPE(kg_fm_p_type)                         :: kg_fm
     TYPE(global_environment_type), &
-      INTENT(IN)                               :: globenv
+      pointer                               :: globenv
     INTEGER, INTENT(IN)                        :: id_nr, nspins
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                                 :: error

@@ -94,7 +94,7 @@ SUBROUTINE read_atoms_input ( topology, globenv, error )
 
     TYPE(topology_parameters_type)           :: topology
     TYPE(global_environment_type), &
-      INTENT(IN), OPTIONAL                   :: globenv
+      pointer, OPTIONAL                   :: globenv
     TYPE(cp_error_type), INTENT(inout), optional :: error
 
     INTEGER, PARAMETER                       :: nblock_atom = 10000
@@ -262,7 +262,7 @@ SUBROUTINE read_md_restart ( in_use,rtype, globenv, particle_set, cell, cell_ref
     INTEGER                         :: in_use
     INTEGER, INTENT(IN)             :: rtype
     TYPE(global_environment_type), &
-      INTENT(IN)                             :: globenv
+      pointer                             :: globenv
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(cell_type), POINTER                 :: cell, cell_ref
@@ -703,7 +703,7 @@ SUBROUTINE read_pimd_atoms_input ( rtype, globenv, particle_set, cell,  &
 
     INTEGER, INTENT(IN)             :: rtype
     TYPE(global_environment_type), &
-      INTENT(IN)                             :: globenv
+      pointer                             :: globenv
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(cell_type), POINTER                 :: cell, cell_ref

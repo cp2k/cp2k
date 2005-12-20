@@ -111,7 +111,7 @@ SUBROUTINE  debug_control ( force_env, globenv, error)
   IMPLICIT NONE
 ! Arguments
   TYPE ( force_env_type ), POINTER :: force_env
-  TYPE ( global_environment_type ), INTENT ( IN ) :: globenv
+  TYPE ( global_environment_type ), pointer :: globenv
   TYPE(cp_error_type), INTENT(inout), &
        OPTIONAL                               :: error
 ! Locals

@@ -90,7 +90,7 @@ SUBROUTINE nhc_to_barostat_mapping ( simpar, nhc, globenv )
       INTENT(INOUT)                          :: simpar
     TYPE(lnhc_parameters_type), INTENT(INOUT)  :: nhc
     TYPE(global_environment_type), &
-      INTENT(IN)                             :: globenv
+      pointer                             :: globenv
 
     INTEGER                                  :: i, isos, iw, number
 
@@ -209,7 +209,7 @@ SUBROUTINE nhc_to_particle_mapping ( simpar, local_molecules, molecule_set, &
     TYPE(molecule_kind_type), POINTER        :: molecule_kind_set( : )
     TYPE(lnhc_parameters_type), INTENT(INOUT)  :: nhc
     TYPE(global_environment_type), &
-      INTENT(IN)                             :: globenv
+      pointer                             :: globenv
 
     INTEGER                                  :: nhcopt
     INTEGER :: atm_offset, i, icount, ii, ikind, imol, isos, iw, j, &
@@ -221,7 +221,6 @@ SUBROUTINE nhc_to_particle_mapping ( simpar, local_molecules, molecule_set, &
     INTEGER                                  :: ielement, iii
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: point
     LOGICAL                                  :: have_global, nointer, noneflag
-    REAL(KIND=dp), SAVE, TARGET                  :: scale
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
     TYPE(molecule_type), POINTER             :: molecule
     INTEGER, DIMENSION ( : ), POINTER        :: massive_atom_list
@@ -410,9 +409,6 @@ SUBROUTINE nhc_to_particle_mapping ( simpar, local_molecules, molecule_set, &
     IF ( isos /= 0 ) CALL stop_memory ( 'nhc_particle_setup', &
        'nhc%p_scale', 3 * natoms_local )
 
-! initialize variable 'scale' for the 'none' option
-    scale = 1.0_dp
-
 ! initialize deg_of_freedom
     deg_of_freedom = 0
     number = 0
@@ -511,23 +507,6 @@ SUBROUTINE nhc_to_particle_mapping ( simpar, local_molecules, molecule_set, &
       END DO
     END IF
 
-! DIS_REP AND NONE
-!          ELSE IF (nhcopt=="NONE") THEN
-!             noneflag = .TRUE.
-! NOTE: the thermostat counter is not incremented here.
-! nhc % p_scale(i,j) points to scale=1.0E0_dp for eternity.  Thus
-! the the velocites of particles that are not connected
-! to a thermostat will not get scaled in lnhc.f
-!             DO ii = 1, 3
-!                DO jj = point ( 1, icount ), point ( 2, icount )
-!                   nhc%p_scale(ii,jj) %point => scale
-!                END DO
-!             END DO
-!
-!          END IF
-!        END DO
-!      END DO
-
 ! DEAL WITH INTER_REP AND GLOBAL
     IF ( nhc % dis_type == 'INTER_REP' ) THEN    
       DO ikind = 1, nkind
@@ -596,14 +575,6 @@ SUBROUTINE nhc_to_particle_mapping ( simpar, local_molecules, molecule_set, &
       END DO
     ENDIF
 
-! INTER REP AND NONE
-!        ELSEIF ( nhcopt=="NONE") THEN
-!          noneflag = .TRUE.
-!          DO ii = 1, 3
-!            DO jj = point ( 1, ikind ), point ( 2, ikind )
-!              nhc%p_scale ( ii, jj ) % point => scale
-!            END DO
-!          END DO
 
     DEALLOCATE (const_mol,STAT=isos)
     IF ( isos /= 0 ) CALL stop_memory ( 'nhc_particle_setup', 'const_mol' )
@@ -694,7 +665,7 @@ END SUBROUTINE nhc_to_particle_mapping
     TYPE(dyn_coeff_set_type), POINTER        :: dyn_coeff_set
     TYPE(lnhc_parameters_type), INTENT(INOUT)  :: nhc
     TYPE(global_environment_type), &
-      INTENT(IN)                             :: globenv
+      pointer                             :: globenv
 
     INTEGER                                  :: i, ikind, isos, iw, j, &
                                                 ncoef_local, ncoef_of_kind, &
@@ -848,7 +819,7 @@ END SUBROUTINE nhc_to_particle_mapping
   TYPE ( molecule_kind_type ), POINTER :: molecule_kind_set( : )
   TYPE ( distribution_1d_type ), POINTER :: local_molecules
   TYPE(global_environment_type), &
-      INTENT(IN)                             :: globenv
+      pointer                             :: globenv
   INTEGER, POINTER ::  massive_atom_list ( : )
 ! local variables
   INTEGER :: num_massive_atm_local, ikind, nkind, nmol_per_kind, offset

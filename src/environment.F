@@ -23,7 +23,6 @@
 !******************************************************************************
 
 MODULE environment
-  USE cp2k_units,                      ONLY: init_cp2k_units
   USE cp_error_handling,               ONLY: cp_a_l,&
                                              cp_assert,&
                                              cp_assertion_failed,&
@@ -421,7 +420,7 @@ SUBROUTINE cp2k_read(globenv,error)
 !!*** **********************************************************************
 SUBROUTINE cp2k_setup(globenv,error)
   TYPE(global_environment_type), pointer :: globenv
-  type(cp_error_type), optional, intent(inout) :: error
+  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
   
   logical :: failure
   character(len=*), parameter :: routineN='cp2k_setup',&
@@ -448,9 +447,6 @@ SUBROUTINE cp2k_setup(globenv,error)
     IF (globenv%ionode.AND.globenv%print%rng_matrices) THEN
       CALL write_rng_matrices(globenv%scr)
     END IF
-
-    CALL init_cp2k_units()
-
  END IF
 END SUBROUTINE cp2k_setup
 !***************************************************************************
@@ -478,7 +474,7 @@ END SUBROUTINE cp2k_setup
   SUBROUTINE read_global_section(globenv,error)
 
     TYPE(global_environment_type), &
-      INTENT(INOUT)                          :: globenv
+      pointer                          :: globenv
     type(cp_error_type), optional, intent(inout) :: error
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "read_global_section", &
@@ -613,7 +609,7 @@ END SUBROUTINE cp2k_setup
   SUBROUTINE read_cp2k_section(globenv,error)
 
     TYPE(global_environment_type), &
-      INTENT(INOUT)                          :: globenv
+      pointer                          :: globenv
     type(cp_error_type), optional, intent(inout) :: error
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "read_cp2k_section", &
@@ -687,7 +683,7 @@ END SUBROUTINE cp2k_setup
 
   SUBROUTINE cp2k_finalize(globenv)
 
-    TYPE(global_environment_type), INTENT(INOUT) :: globenv
+    TYPE(global_environment_type), pointer :: globenv
 
 !   *** Local variables ***
 

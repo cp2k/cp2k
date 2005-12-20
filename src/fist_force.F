@@ -118,7 +118,7 @@ SUBROUTINE fist_force_control ( fist_env, virial, globenv, box_change, debug ,er
 ! Arguments
   TYPE ( fist_environment_type ), POINTER :: fist_env
   TYPE ( virial_type ), POINTER :: virial
-  TYPE ( global_environment_type ), INTENT ( IN ) :: globenv
+  TYPE ( global_environment_type ), pointer :: globenv
   LOGICAL, INTENT ( IN ) :: box_change
   TYPE ( debug_variables_type ), INTENT ( INOUT ), OPTIONAL :: debug
   TYPE(cp_error_type), INTENT(inout), &
@@ -280,7 +280,7 @@ SUBROUTINE fist_force_control ( fist_env, virial, globenv, box_change, debug ,er
         CALL stop_memory ( 'fist_force', 'fg_coulomb', 3 * natoms )
         fg_coulomb = 0.0_dp
         CALL pme_evaluate ( ewald_env, ewald_pw, particle_set, &
-                            vg_coulomb, fg_coulomb, pv_g )
+                            vg_coulomb, fg_coulomb, pv_g ,error)
         CALL mp_sum ( fg_coulomb, globenv % group ) 
      CASE ( do_ewald_spme )
         ! Parallelisation over grids --> allocate all atoms

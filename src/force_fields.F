@@ -195,7 +195,7 @@ CONTAINS
     TYPE(molecule_type), DIMENSION(:), POINTER          :: molecule_set
     TYPE ( ewald_environment_type ), POINTER :: ewald_env
     TYPE ( fist_nonbond_env_type ), POINTER ::  fist_nonbond_env
-    TYPE(global_environment_type), INTENT(IN),OPTIONAL  :: globenv
+    TYPE(global_environment_type), pointer,OPTIONAL  :: globenv
     LOGICAL, INTENT(IN), OPTIONAL :: qmmm
     TYPE (qmmm_env_mm_type), POINTER, OPTIONAL :: qmmm_env
     TYPE(cp_error_type), INTENT(inout), OPTIONAL   :: error
@@ -334,7 +334,7 @@ SUBROUTINE read_force_field_section1 ( ff_section, ff_type, globenv, error )
        INTENT(INOUT)                          :: ff_type
   TYPE(section_vals_type), POINTER         :: ff_section  
   TYPE(global_environment_type), &
-       INTENT(IN),OPTIONAL                    :: globenv
+       pointer,OPTIONAL                    :: globenv
   TYPE(cp_error_type), INTENT(inout), OPTIONAL   :: error
   ! Local Variables
   CHARACTER(len=*), PARAMETER :: routineN = 'read_force_field_section1', &
@@ -645,7 +645,7 @@ SUBROUTINE read_eam_section(nonbonded, section, start, globenv, error)
   TYPE (pair_potential_p_type), POINTER              :: nonbonded
   INTEGER, INTENT(IN) :: start
   TYPE(global_environment_type), &
-       INTENT(IN),OPTIONAL                    :: globenv
+       pointer,OPTIONAL                    :: globenv
   TYPE(cp_error_type), INTENT(inout), &
        OPTIONAL                               :: error    
   ! Local Variables
@@ -1128,7 +1128,7 @@ SUBROUTINE read_force_field_section ( ff_type , globenv, error )
   TYPE(force_field_type), &
        INTENT(INOUT)                          :: ff_type
   TYPE(global_environment_type), &
-       INTENT(IN),OPTIONAL                    :: globenv
+       pointer,OPTIONAL                    :: globenv
   TYPE(cp_error_type), INTENT(inout), OPTIONAL   :: error
   ! Local Variables
   CHARACTER(LEN=default_string_length)     :: label
@@ -1168,7 +1168,7 @@ SUBROUTINE read_force_field_charmm ( ff_type , globenv )
     TYPE(force_field_type), &
       INTENT(INOUT)                          :: ff_type
     TYPE(global_environment_type), &
-      INTENT(IN),OPTIONAL                    :: globenv
+      pointer,OPTIONAL                    :: globenv
 
     TYPE(charmm_info_type),POINTER           :: chm_info
 
@@ -1523,7 +1523,7 @@ SUBROUTINE force_field_pack (particle_set,atomic_kind_set,&
   TYPE(molecule_kind_type), DIMENSION(:), POINTER        :: molecule_kind_set
   TYPE(molecule_type), DIMENSION(:), POINTER             :: molecule_set
   TYPE(force_field_type), INTENT(INOUT)                  :: ff_type
-  TYPE(global_environment_type), INTENT(IN), OPTIONAL    :: globenv
+  TYPE(global_environment_type), pointer, OPTIONAL    :: globenv
   TYPE(pair_potential_pp_type), POINTER                  :: potparm_bond
   TYPE(pair_potential_pp_type), POINTER                  :: potparm_nonbond
   TYPE(cp_error_type), INTENT (INOUT), &
@@ -3145,7 +3145,7 @@ SUBROUTINE force_field_qeff_output (particle_set,atomic_kind_set,&
   TYPE(atomic_kind_type), DIMENSION(:), POINTER          :: atomic_kind_set
   TYPE(molecule_kind_type), DIMENSION(:), POINTER        :: molecule_kind_set
   TYPE(molecule_type), DIMENSION(:), POINTER             :: molecule_set
-  TYPE(global_environment_type), INTENT(IN), OPTIONAL    :: globenv
+  TYPE(global_environment_type), pointer, OPTIONAL    :: globenv
 
   CHARACTER(len=*), PARAMETER :: routineN = 'force_field_qeff_output', &
     routineP = moduleN//':'//routineN
@@ -3250,7 +3250,7 @@ END SUBROUTINE force_field_qeff_output
 SUBROUTINE clean_intra_force_kind (molecule_kind_set,globenv,error)
 
   TYPE(molecule_kind_type), DIMENSION(:), POINTER        :: molecule_kind_set
-  TYPE(global_environment_type), INTENT(IN), OPTIONAL    :: globenv
+  TYPE(global_environment_type), pointer, OPTIONAL    :: globenv
   TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
 
   CHARACTER(len=*), PARAMETER :: routineN = 'clean_intra_force_kind', &
@@ -4010,7 +4010,7 @@ SUBROUTINE read_eam_data ( eam, globenv , error)
   IMPLICIT NONE
   ! Arguments
   TYPE ( eam_pot_type ), POINTER                             :: eam
-  TYPE ( global_environment_type ), INTENT(IN), OPTIONAL     :: globenv
+  TYPE ( global_environment_type ), pointer, OPTIONAL     :: globenv
   TYPE(cp_error_type), INTENT (INOUT), &
     OPTIONAL                                    :: error
   ! Local Variables

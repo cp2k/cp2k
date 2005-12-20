@@ -42,9 +42,9 @@ MODULE real_space_test
                                              pw_type
   USE realspace_grid_types,            ONLY: realspace_grid_type,&
                                              rs_get_my_tasks,&
-                                             rs_grid_allocate,&
-                                             rs_grid_deallocate,&
-                                             rs_grid_setup,&
+                                             realspace_grid_p_type,&
+                                             rs_grid_release,&
+                                             rs_grid_create,&
                                              rs_grid_zero,&
                                              rs_pw_transfer,&
                                              rs2pw,&
@@ -57,22 +57,25 @@ MODULE real_space_test
                                              stop_program
   USE util,                            ONLY: get_limit
 
+#include "cp_common_uses.h"
+
   IMPLICIT NONE
-
   PRIVATE
-
   PUBLIC :: rs_test
-
-! *****************************************************************************
+  CHARACTER(len=*), PARAMETER :: moduleN = 'real_space_test'
 
 CONTAINS
 
 !******************************************************************************
-SUBROUTINE rs_test ( globenv )
+SUBROUTINE rs_test ( globenv, error )
 
     TYPE(global_environment_type), &
-      INTENT(IN)                             :: globenv
+      pointer                             :: globenv
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
+    CHARACTER(len=*), PARAMETER :: routineN = 'rs_test', &
+      routineP = moduleN//':'//routineN
     INTEGER, PARAMETER                       :: nparticle = 5000
 
     INTEGER                                  :: dir, i, ierr, iw, j, me, &
@@ -92,7 +95,7 @@ SUBROUTINE rs_test ( globenv )
     TYPE(cell_type), POINTER                 :: box
     TYPE(pw_grid_type),pointer               :: grid
     TYPE(pw_type), POINTER                   :: pw_a, pw_b, pw_c
-    TYPE(realspace_grid_type)                :: rden
+    TYPE(realspace_grid_type), POINTER       :: rden
 
   iw =globenv % scr
   NULLIFY(pw_a,pw_b,pw_c)
@@ -156,8 +159,7 @@ SUBROUTINE rs_test ( globenv )
   IF ( globenv % ionode ) &
     WRITE(iw,'(///,A,/)') " Start Test 1: Replicated grid, replicated calculation"
   tstart = m_cputime ( )
-  CALL rs_grid_setup ( rden, grid, -1, iw )
-  CALL rs_grid_allocate ( rden )
+  CALL rs_grid_create ( rden, grid, -1)
   CALL rs_grid_zero ( rden )
   DO i = 1, nparticle
      refco(:,i) = refpt(:,i) + rden%lb(:) - 1
@@ -179,7 +181,7 @@ SUBROUTINE rs_test ( globenv )
     energy1 = energy1 + integral
   END DO
   memory1 = SIZE ( rden%r ) + SIZE ( pw_a%cr3d )
-  CALL rs_grid_deallocate ( rden )
+  CALL rs_grid_release ( rden )
   tend  = m_cputime ( )
   t1 = tend - tstart
 
@@ -189,8 +191,7 @@ SUBROUTINE rs_test ( globenv )
   IF ( globenv % ionode ) &
     WRITE(iw,'(/,A,/)') " Start Test 2: Replicated grid, parallel calculation"
   tstart = m_cputime ( )
-  CALL rs_grid_setup ( rden, grid, -1, iw )
-  CALL rs_grid_allocate ( rden )
+  CALL rs_grid_create ( rden, grid, -1, error )
   CALL rs_grid_zero ( rden )
   DO i = 1, nparticle
      refco(:,i) = refpt(:,i) + rden%lb(:) - 1
@@ -221,7 +222,7 @@ SUBROUTINE rs_test ( globenv )
   END DO
   IF ( rden%parallel ) CALL mp_sum ( energy2, rden%group )
   memory2 = SIZE ( rden%r ) + SIZE ( pw_b%cr3d )
-  CALL rs_grid_deallocate ( rden )
+  CALL rs_grid_release ( rden )
   tend  = m_cputime ( )
   t2 = tend - tstart
 
@@ -231,8 +232,7 @@ SUBROUTINE rs_test ( globenv )
   IF ( globenv % ionode ) &
     WRITE(iw,'(/,A,/)') " Start Test 3: Distributed grid, parallel calculation"
   tstart = m_cputime ( )
-  CALL rs_grid_setup ( rden, grid, MAXVAL ( bsize(1:nparticle) ), iw )
-  CALL rs_grid_allocate ( rden )
+  CALL rs_grid_create ( rden, grid, MAXVAL ( bsize(1:nparticle) ), error )
   CALL rs_grid_zero ( rden )
   dir = rden%direction
   DO i = 1, nparticle
@@ -295,7 +295,7 @@ SUBROUTINE rs_test ( globenv )
   IF ( ierr /= 0 ) CALL stop_memory ( "rs_test", "tasks" )
   IF ( rden%parallel ) CALL mp_sum ( energy3, rden%group )
   memory3 = SIZE ( rden%r ) + SIZE ( pw_c%cr3d )
-  CALL rs_grid_deallocate ( rden )
+  CALL rs_grid_release ( rden )
   tend  = m_cputime ( )
   t3 = tend - tstart
 
@@ -404,8 +404,8 @@ END SUBROUTINE int_on_grid
 
 SUBROUTINE rs_pw_get ( rs, pw )
 
-    TYPE(realspace_grid_type), INTENT(INOUT) :: rs
-    TYPE(pw_type), INTENT(INOUT), TARGET     :: pw
+    TYPE(realspace_grid_type), POINTER       :: rs
+    TYPE(pw_type), POINTER                   :: pw
 
     INTEGER                                  :: group, ierr, ii, ip, ix, iy, &
                                                 iz, mepos, nn, np

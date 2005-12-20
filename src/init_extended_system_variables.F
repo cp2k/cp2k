@@ -67,7 +67,7 @@ SUBROUTINE init_nhc_variables ( nhc,tau_nhc,temp_ext, globenv )
       INTENT(INOUT)                          :: nhc
     REAL(KIND=dp), INTENT(IN)                :: tau_nhc, temp_ext
     TYPE(global_environment_type), &
-      INTENT(INOUT)                          :: globenv
+      pointer                          :: globenv
 
 ! locals
     INTEGER                                  :: i, j, number, isos, iproc, &
@@ -245,7 +245,7 @@ SUBROUTINE init_barostat_variables ( npt, tau_cell, temp_ext, deth, nfree, ensem
     INTEGER, INTENT(IN)                      :: nfree
     INTEGER, INTENT(IN)                      :: ensemble
     TYPE(global_environment_type), &
-      INTENT(INOUT)                          :: globenv
+      pointer                          :: globenv
 
     INTEGER                                  :: i, j, number
     REAL(KIND=dp)                            :: akin, temp, v

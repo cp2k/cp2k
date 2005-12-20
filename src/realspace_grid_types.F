@@ -74,12 +74,21 @@ MODULE realspace_grid_types
   IMPLICIT NONE
 
   PRIVATE
-  PUBLIC :: realspace_grid_type, realspace_grid_p_type
-  PUBLIC :: rs_grid_allocate, rs_grid_deallocate, &
-       rs_grid_setup, rs_pw_transfer, rs_grid_zero, rs_grid_to_cube, &
-       rs_pw_to_cube, rs_grid_write
-  PUBLIC :: rs_get_my_tasks, rs_get_loop_vars
-  PUBLIC :: rs_grid_create, rs_grid_retain, rs_grid_release
+  PUBLIC :: realspace_grid_type,&
+            realspace_grid_p_type
+
+  PUBLIC :: rs_pw_transfer,&
+            rs_grid_zero,&
+            rs_grid_to_cube, &
+            rs_pw_to_cube,&
+            rs_grid_write,&
+            rs_get_my_tasks,&
+            rs_get_loop_vars,&
+            rs_grid_create,&
+            rs_grid_retain,&
+            rs_grid_release,&
+            rs_grid_p_create,&
+            rs_grid_p_release
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN="realspace_grid_types"
   INTEGER, SAVE, PRIVATE :: last_rs_id=0
@@ -115,10 +124,6 @@ MODULE realspace_grid_types
      TYPE(realspace_grid_type), POINTER :: rs_grid
   END TYPE realspace_grid_p_type
 
-  INTERFACE rs_grid_allocate
-     MODULE PROCEDURE rs_grid_allocate_1, rs_grid_allocate_n
-  END INTERFACE
-
   INTERFACE rs_grid_deallocate
      MODULE PROCEDURE rs_grid_deallocate_1, rs_grid_deallocate_n
   END INTERFACE
@@ -127,8 +132,6 @@ MODULE realspace_grid_types
      MODULE PROCEDURE rs_grid_setup_1, rs_grid_setup_n
   END INTERFACE
 
-  !*****
-  !******************************************************************************
 
 CONTAINS
 
@@ -150,11 +153,14 @@ CONTAINS
 !!   SOURCE
   !******************************************************************************
 
-  SUBROUTINE rs_grid_allocate_1 ( rs )
+  SUBROUTINE rs_grid_allocate_1 ( rs, error )
 
-    TYPE(realspace_grid_type), &
-      INTENT(INOUT), TARGET                  :: rs
-
+    TYPE(realspace_grid_type),POINTER     :: rs
+    TYPE(cp_error_type), INTENT(inout), &
+         OPTIONAL                               :: error
+    ! Local Variables
+    CHARACTER(LEN=*), PARAMETER :: routineN = "rs_grid_allocate_1", &
+      routineP = moduleN//':'//routineN
     INTEGER                                  :: handle, ierr
     INTEGER, DIMENSION(:), POINTER           :: lb, ub
 
@@ -184,29 +190,6 @@ CONTAINS
     CALL timestop(0.0_dp,handle)
   END SUBROUTINE rs_grid_allocate_1
 
-  !******************************************************************************
-
-  SUBROUTINE rs_grid_allocate_n ( rs )
-
-    TYPE(realspace_grid_type), &
-      DIMENSION(:), INTENT(INOUT), TARGET    :: rs
-
-    INTEGER                                  :: i, n
-
-!-----------------------------------------------------------------------------!
-
-    n = SIZE ( rs )
-
-    DO i = 1, n
-
-       CALL rs_grid_allocate_1 ( rs ( i ) )
-
-    END DO
-
-  END SUBROUTINE rs_grid_allocate_n
-
-  !*****
-  !******************************************************************************
 !!****** realspace_grid_types/rs_grid_deallocate [1.0] *
 !!
 !!   NAME
@@ -224,14 +207,18 @@ CONTAINS
 !!   SOURCE
   !******************************************************************************
 
-  SUBROUTINE rs_grid_deallocate_1 ( rs )
+  SUBROUTINE rs_grid_deallocate_1 ( rs, error )
 
-    TYPE(realspace_grid_type), INTENT(INOUT) :: rs
-
-    INTEGER                                  :: handle, ierr
-
-!-----------------------------------------------------------------------------!
-
+    TYPE(realspace_grid_type), POINTER :: rs
+    TYPE(cp_error_type), INTENT(inout), &
+         OPTIONAL                               :: error
+    ! Local Variables
+    CHARACTER(LEN=*), PARAMETER :: routineN = "rs_grid_deallocate_1", &
+      routineP = moduleN//':'//routineN
+    INTEGER                                  :: handle, ierr, stat
+    LOGICAL :: failure
+    
+    failure = .FALSE.
     CALL timeset("rs_grid_dealloc",'I',' ',handle)
     allocated_rs_grid_count=allocated_rs_grid_count-1
     DEALLOCATE ( rs % r, STAT = ierr )
@@ -247,26 +234,29 @@ CONTAINS
        ! release the group communicator
        CALL mp_comm_free ( rs % group )
     END IF
-
-    CALL timestop(0.0_dp,handle)
-
+ 
+    CALL timestop(0.0_dp,handle)    
   END SUBROUTINE rs_grid_deallocate_1
 
   !******************************************************************************
 
-  SUBROUTINE rs_grid_deallocate_n ( rs )
+  SUBROUTINE rs_grid_deallocate_n ( rs, error )
 
-    TYPE(realspace_grid_type), &
-      DIMENSION(:), INTENT(INOUT)            :: rs
+    TYPE(realspace_grid_p_type), &
+         DIMENSION(:),POINTER                   :: rs
+    TYPE(cp_error_type), INTENT(inout), &
+         OPTIONAL                               :: error
+    ! Local Variables
+    CHARACTER(LEN=*), PARAMETER :: routineN = "rs_grid_deallocate_n", &
+      routineP = moduleN//':'//routineN
+    INTEGER                                  :: i, n, stat
+    logical :: failure 
 
-    INTEGER                                  :: i, n
-
-!-----------------------------------------------------------------------------!
+    failure = .FALSE.
 
     n = SIZE ( rs )
-
     DO i = 1, n
-       CALL rs_grid_deallocate_1 ( rs ( i ) )
+       CALL rs_grid_deallocate_1 ( rs ( i )%rs_grid, error )
     END DO
 
   END SUBROUTINE rs_grid_deallocate_n
@@ -290,19 +280,25 @@ CONTAINS
 !!   SOURCE
   !******************************************************************************
 
-  SUBROUTINE rs_grid_setup_1 ( rs, pw_grid, nsmax, iounit )
-
-    TYPE(realspace_grid_type), INTENT(INOUT) :: rs
+  SUBROUTINE rs_grid_setup_1 ( rs, pw_grid, nsmax, iounit, error)
+    IMPLICIT NONE
+    ! Arguments
+    TYPE(realspace_grid_type), POINTER       :: rs
     TYPE(pw_grid_type), INTENT(IN)           :: pw_grid
     INTEGER, INTENT(IN)                      :: nsmax
     INTEGER, INTENT(IN), OPTIONAL            :: iounit
-
-    INTEGER                                  :: dir, i, ip, lb( 2 ), &
+    TYPE(cp_error_type), INTENT(inout), &
+         OPTIONAL                               :: error
+    ! Local Variables
+    CHARACTER(LEN=*), PARAMETER :: routineN = "rs_grid_setup_1", &
+      routineP = moduleN//':'//routineN
+    INTEGER                                  :: dir, i, ip, lb( 2 ), stat, &
                                                 n_slices, ngmax, nmin, nn, &
                                                 pos( 2 )
     REAL(KIND=dp)                            :: pp( 3 )
+    LOGICAL                                  :: failure
 
-!-----------------------------------------------------------------------------!
+    failure = .FALSE.
 
     rs % dr = pw_grid%dr
     rs % grid_id = pw_grid % id_nr
@@ -459,35 +455,36 @@ CONTAINS
           END IF
        END IF
     END IF
+    CALL rs_grid_allocate_1 ( rs, error )
 
   END SUBROUTINE rs_grid_setup_1
 
   !******************************************************************************
 
-  SUBROUTINE rs_grid_setup_n ( rs, pw_grid, nsmax, iounit )
+  SUBROUTINE rs_grid_setup_n ( rs, pw_grid, nsmax, iounit, error)
 
-    TYPE(realspace_grid_type), &
-      DIMENSION(:), INTENT(INOUT)            :: rs
+    TYPE(realspace_grid_p_type), &
+         DIMENSION(:), POINTER               :: rs
     TYPE(pw_grid_type), INTENT(IN)           :: pw_grid
     INTEGER, INTENT(IN)                      :: nsmax
     INTEGER, INTENT(IN), OPTIONAL            :: iounit
+    TYPE(cp_error_type), INTENT(inout), &
+         OPTIONAL                               :: error
+    ! Local Variables
+    CHARACTER(LEN=*), PARAMETER :: routineN = "rs_grid_setup_n", &
+      routineP = moduleN//':'//routineN
+    INTEGER                                  :: i, stat
+    LOGICAL :: failure
+    
+    failure = .FALSE.
 
-    INTEGER                                  :: i
-
-!-----------------------------------------------------------------------------!
-
-    CALL rs_grid_setup_1 ( rs ( 1 ), pw_grid, nsmax, iounit )
-
+    CALL rs_grid_setup_1 ( rs ( 1 ) % rs_grid , pw_grid, nsmax, iounit )
     DO i = 2, SIZE ( rs )
-
-       CALL rs_grid_setup_1 ( rs ( i ), pw_grid, nsmax )
-
+       CALL rs_grid_setup_1 ( rs ( i ) % rs_grid , pw_grid, nsmax )
     END DO
 
   END SUBROUTINE rs_grid_setup_n
 
-  !*****
-  !******************************************************************************
 !!****** realspace_grid_types/rs_pw_transfer [1.0] *
 !!
 !!   NAME
@@ -510,8 +507,8 @@ CONTAINS
 
   SUBROUTINE rs_pw_transfer ( rs, pw, dir )
 
-    TYPE(realspace_grid_type), INTENT(INOUT) :: rs
-    TYPE(pw_type), INTENT(INOUT), TARGET     :: pw
+    TYPE(realspace_grid_type), POINTER       :: rs
+    TYPE(pw_type), POINTER                   :: pw
     INTEGER, INTENT(IN)                      :: dir
 
     INTEGER                                  :: handle, handle2, nn
@@ -564,8 +561,8 @@ CONTAINS
 
   ! treat the two different parallel cases here
   SUBROUTINE rs_pw_transfer_replicated(rs,pw,dir)
-    TYPE(realspace_grid_type), INTENT(INOUT) :: rs
-    TYPE(pw_type), INTENT(INOUT), TARGET     :: pw
+    TYPE(realspace_grid_type), POINTER       :: rs
+    TYPE(pw_type),POINTER                    :: pw
     INTEGER, INTENT(IN)             :: dir
 
     INTEGER                                  :: dest, group, ierr, ii, ip, &
@@ -684,8 +681,8 @@ CONTAINS
   END SUBROUTINE rs_pw_transfer_replicated
 
   SUBROUTINE rs_pw_transfer_distributed(rs,pw,dir)
-    TYPE(realspace_grid_type), INTENT(INOUT) :: rs
-    TYPE(pw_type), INTENT(INOUT), TARGET     :: pw
+    TYPE(realspace_grid_type), POINTER       :: rs
+    TYPE(pw_type),POINTER                    :: pw
     INTEGER, INTENT(IN)                      :: dir
 
     INTEGER                                  :: dest, group, idir, ierr, nn, &
@@ -796,7 +793,7 @@ CONTAINS
 !******************************************************************************
 SUBROUTINE send_forward ( rs, pw )
 
-    TYPE(realspace_grid_type), INTENT(INOUT) :: rs
+    TYPE(realspace_grid_type), pointer       :: rs
     TYPE(pw_type), INTENT(INOUT)             :: pw
 
     INTEGER                                  :: idir, ierr, nn, source, &
@@ -864,7 +861,7 @@ END SUBROUTINE send_forward
 
 SUBROUTINE send_backward ( rs, pw )
 
-    TYPE(realspace_grid_type), INTENT(INOUT) :: rs
+  TYPE(realspace_grid_type), POINTER       :: rs
     TYPE(pw_type), INTENT(INOUT)             :: pw
 
     INTEGER                                  :: idir, ierr, nn, source, &
@@ -957,7 +954,7 @@ END SUBROUTINE send_backward
 
 SUBROUTINE rs_grid_zero ( rs )
 
-    TYPE(realspace_grid_type), INTENT(INOUT) :: rs
+  TYPE(realspace_grid_type), POINTER         :: rs
 
     INTEGER                                  :: handle, n
 
@@ -971,7 +968,7 @@ SUBROUTINE rs_grid_zero ( rs )
 END SUBROUTINE rs_grid_zero
 !******************************************************************************
 SUBROUTINE rs_grid_to_cube ( rs, iunit, ionode, title )
-    TYPE(realspace_grid_type), INTENT(IN)    :: rs
+    TYPE(realspace_grid_type), POINTER       :: rs
     INTEGER, INTENT(IN)                      :: iunit
     LOGICAL, INTENT(IN)                      :: ionode
     CHARACTER(*), OPTIONAL                   :: title
@@ -1020,7 +1017,7 @@ END SUBROUTINE rs_grid_to_cube
 ! optionally pass a preallocated rs grid
 !******************************************************************************
 SUBROUTINE rs_pw_to_cube ( pw, iunit, ionode, title, rs )
-    TYPE(pw_type), INTENT(INOUT), TARGET     :: pw
+  TYPE(pw_type), POINTER                     :: pw
     INTEGER, INTENT(IN)                      :: iunit
     LOGICAL, INTENT(IN)                      :: ionode
     CHARACTER(*), INTENT(IN), OPTIONAL       :: title
@@ -1037,17 +1034,15 @@ SUBROUTINE rs_pw_to_cube ( pw, iunit, ionode, title, rs )
      rs_local=>rs
    ELSE
      nsmax=-1
-     ALLOCATE(rs_local)
-     CALL rs_grid_setup(rs_local,pw%pw_grid,nsmax)
-     CALL rs_grid_allocate(rs_local)
+     NULLIFY(rs_local)
+     CALL rs_grid_create(rs_local,pw%pw_grid,nsmax)
    ENDIF
 
    CALL rs_pw_transfer(rs_local,pw,pw2rs)
    CALL rs_grid_to_cube(rs_local,iunit,ionode,title)
 
    IF (.NOT. PRESENT(rs)) THEN
-       CALL rs_grid_deallocate(rs_local)
-       DEALLOCATE(rs_local)
+       CALL rs_grid_release(rs_local)
    ENDIF
    CALL timestop(handle)
 
@@ -1131,7 +1126,7 @@ SUBROUTINE rs_grid_create(rs_grid, pw_grid, nsmax, error)
     CHARACTER(len=*), PARAMETER :: routineN = 'rs_grid_create', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: iounit, my_nsmax, &
+    INTEGER                                  :: my_nsmax, &
                                                 output_unit, stat
     LOGICAL                                  :: failure, ionode
     TYPE(cp_logger_type), POINTER            :: logger
@@ -1155,7 +1150,6 @@ SUBROUTINE rs_grid_create(rs_grid, pw_grid, nsmax, error)
      ELSE
         CALL rs_grid_setup(rs_grid, pw_grid, my_nsmax)
      END IF
-     CALL rs_grid_allocate(rs_grid)
   END IF
 END SUBROUTINE rs_grid_create
 !***************************************************************************
@@ -1245,13 +1239,115 @@ SUBROUTINE rs_grid_release(rs_grid,error)
      IF (rs_grid%ref_count==0) THEN
         rs_grid%ref_count=1
         CALL rs_grid_deallocate(rs_grid)
-        rs_grid%ref_count=0
         DEALLOCATE(rs_grid, stat=stat)
         CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
      END IF
   END IF
   NULLIFY(rs_grid)
 END SUBROUTINE rs_grid_release
+
+!!****f* realspace_grid_types/rs_grid_p_create [1.0] *
+!!
+!!   NAME
+!!     rs_grid_p_create
+!!
+!!   FUNCTION
+!!     allocates and initialize an rs_grid_p_type
+!!
+!!   NOTES
+!!     nsmax removed
+!!
+!!   ARGUMENTS
+!!     - rs_grid: the rs grid that is created
+!!     - pw_grid: the corresponding pw_grid
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     teo
+!!
+!!   MODIFICATION HISTORY
+!!     12.2005 created [teo]
+!!
+!!*** **********************************************************************
+SUBROUTINE rs_grid_p_create(rs_p_grid, ndim, pw_grid, nsmax, error)
+  TYPE(realspace_grid_p_type), POINTER,DIMENSION(:)      :: rs_p_grid
+    TYPE(pw_grid_type), POINTER              :: pw_grid
+    INTEGER, INTENT(in), OPTIONAL            :: nsmax, ndim
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'rs_grid_p_create', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: my_nsmax, &
+                                                output_unit, stat, j
+    LOGICAL                                  :: failure, ionode
+    TYPE(cp_logger_type), POINTER            :: logger
+
+  failure=.FALSE.
+  logger => cp_error_get_logger(error)
+  my_nsmax = -1
+  IF (PRESENT(nsmax)) my_nsmax=nsmax
+  
+  CPPrecondition(ASSOCIATED(pw_grid),cp_failure_level,routineP,error,failure)
+  
+  ALLOCATE(rs_p_grid(ndim),stat=stat)
+  CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+  DO j = 1, ndim
+     NULLIFY(rs_p_grid(j)%rs_grid)
+     CALL rs_grid_create(rs_p_grid(j)%rs_grid, pw_grid, my_nsmax)
+  END DO
+
+END SUBROUTINE rs_grid_p_create
+!***************************************************************************
+
+!!****f* realspace_grid_types/rs_grid_p_release [1.0] *
+!!
+!!   NAME
+!!     rs_grid_p_release
+!!
+!!   FUNCTION
+!!     releases the given rs_grid_p_type
+!!
+!!   NOTES
+!!     -
+!!
+!!   ARGUMENTS
+!!     - rs_grid: the rs grid to release
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     teo
+!!
+!!   MODIFICATION HISTORY
+!!     12.2005 created [teo]
+!!
+!!*** **********************************************************************
+SUBROUTINE rs_grid_p_release(rs_grid,error)
+  TYPE(realspace_grid_p_type), POINTER,DIMENSION(:)       :: rs_grid
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'rs_grid_p_release', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: stat, j
+    LOGICAL                                  :: failure
+
+  failure=.FALSE.
+  
+  IF (ASSOCIATED(rs_grid)) THEN
+     DO j = 1, SIZE(rs_grid)        
+        CALL rs_grid_release(rs_grid(j)%rs_grid,error)
+     END DO
+     DEALLOCATE(rs_grid, stat=stat)
+     CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+  END IF
+  NULLIFY(rs_grid)
+END SUBROUTINE rs_grid_p_release
+
 
 !***************************************************************************
 !!****f* realspace_grid_types/rs_get_my_tasks [1.0] *
@@ -1281,7 +1377,7 @@ END SUBROUTINE rs_grid_release
 
 SUBROUTINE rs_get_my_tasks ( rs, tasks, npme, ival, rval, pmat, pcor )
 
-    TYPE(realspace_grid_type), INTENT(IN)    :: rs
+  TYPE(realspace_grid_type), POINTER         :: rs
     INTEGER, DIMENSION(:, :), POINTER        :: tasks
     INTEGER, INTENT(OUT)                     :: npme
     INTEGER, DIMENSION(:, :), OPTIONAL, &

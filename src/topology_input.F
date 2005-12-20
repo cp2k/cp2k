@@ -100,7 +100,7 @@ CONTAINS
 !!     Subroutine read_topology_section(topology, globenv)
 !!       Implicit None
 !!       Type(topology_parameters_type):: topology
-!!       Type(global_environment_type), Intent (IN):: globenv
+!!       Type(global_environment_type), pointer:: globenv
 !!     End Subroutine read_topology_section
 !!
 !!   FUNCTION

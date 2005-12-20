@@ -400,8 +400,7 @@ SUBROUTINE metadyn_add_forces(meta_env,force_env,error)
 END SUBROUTINE metadyn_add_forces
 
   SUBROUTINE hills(meta_env,error)
-    TYPE(meta_env_type), INTENT(inout), &
-      TARGET                                 :: meta_env
+    TYPE(meta_env_type), POINTER  :: meta_env
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 

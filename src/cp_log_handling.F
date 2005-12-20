@@ -364,9 +364,9 @@ CONTAINS
 !!         local_filename
 !!       Logical, Intent (IN), Optional:: close_global_unit_on_dealloc,&
 !!         close_local_unit_on_dealloc
-!!       Type(print_key_type), Target, Optional:: print_keys
+!!       Type(print_key_type), pointer, Optional:: print_keys
 !!       Character(Len=*), Intent (IN), Optional:: suffix
-!!       Type(cp_logger_type), Target, Optional:: template_logger
+!!       Type(cp_logger_type), pointer, Optional:: template_logger
 !!     End Subroutine cp_logger_create
 !!
 !!   FUNCTION
@@ -421,10 +421,10 @@ CONTAINS
                                                 local_filename
     LOGICAL, INTENT(in), OPTIONAL            :: close_global_unit_on_dealloc, &
                                                 close_local_unit_on_dealloc
-    TYPE(print_keys_type), OPTIONAL, TARGET   :: print_keys
+    TYPE(print_keys_type), OPTIONAL, POINTER :: print_keys
     CHARACTER(len=*), INTENT(in), OPTIONAL   :: suffix
     TYPE(cp_iteration_info_type), POINTER, optional :: iter_info
-    TYPE(cp_logger_type), OPTIONAL, TARGET   :: template_logger
+    TYPE(cp_logger_type), OPTIONAL, POINTER  :: template_logger
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_logger_create', &
       routineP = moduleN//':'//routineN

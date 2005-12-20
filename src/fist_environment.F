@@ -240,7 +240,7 @@ SUBROUTINE fist_init ( fist_env, globenv, error )
   TYPE ( ewald_environment_type ), POINTER      :: ewald_env
   LOGICAL, INTENT ( IN )                        :: use_ref_cell
   TYPE ( global_environment_type ), &
-    INTENT ( INOUT )                            :: globenv
+    pointer                            :: globenv
   TYPE(cp_error_type), INTENT (INOUT), &
     OPTIONAL                                    :: error
 

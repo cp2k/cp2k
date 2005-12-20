@@ -566,7 +566,7 @@ CONTAINS
 
     TYPE(cell_type), POINTER                 :: cell, cell_ref
     TYPE(global_environment_type), &
-      INTENT(IN)                             :: globenv
+      pointer                             :: globenv
     LOGICAL, INTENT(OUT), OPTIONAL           :: use_ref_cell
     TYPE(section_vals_type), POINTER, OPTIONAL :: cell_section
     TYPE(cp_error_type), INTENT(inout)            :: error
@@ -612,7 +612,7 @@ CONTAINS
     ! Arguments
     TYPE(cell_type), POINTER                 :: cell, cell_ref
     TYPE(global_environment_type), &
-      INTENT(IN)                             :: globenv
+      pointer                             :: globenv
     LOGICAL, INTENT(OUT), OPTIONAL           :: use_ref_cell
     LOGICAL, INTENT(IN), OPTIONAL            :: check_for_ref
     TYPE(section_vals_type), POINTER, OPTIONAL :: cell_section
@@ -807,7 +807,7 @@ CONTAINS
 
     TYPE(cell_type), POINTER                 :: cell
     TYPE(global_environment_type), &
-      INTENT(IN)                             :: globenv
+      pointer                             :: globenv
 
     INTEGER                                  :: output_unit
     REAL(KIND=dp)                            :: alpha, beta, gamma

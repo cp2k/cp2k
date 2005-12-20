@@ -236,7 +236,7 @@ SUBROUTINE density_nonbond ( fist_nonbond_env, particle_set, cell, globenv )
 !
 
     TYPE(fist_nonbond_env_type), POINTER     :: fist_nonbond_env
-    TYPE ( global_environment_type ), INTENT ( IN ) :: globenv
+    TYPE ( global_environment_type ), pointer :: globenv
     TYPE(particle_type), DIMENSION(:), &
       INTENT (INOUT)                         :: particle_set
     TYPE(cell_type), POINTER                 :: cell
@@ -364,7 +364,7 @@ SUBROUTINE energy_manybody ( fist_nonbond_env, atomic_kind_set, &
   TYPE(distribution_1d_type), POINTER      :: local_particles
   TYPE(particle_type), POINTER             :: particle_set( : )
   REAL ( dp ), INTENT ( INOUT )            :: pot_manybody
-  TYPE ( global_environment_type ), INTENT ( IN ) :: globenv
+  TYPE ( global_environment_type ), pointer :: globenv
 ! locals
   CHARACTER(LEN=*), PARAMETER   :: routine_name = "energy_manybody"
   INTEGER :: index, iparticle_local, iparticle, nparticle_local, nparticle

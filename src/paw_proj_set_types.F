@@ -281,7 +281,7 @@ CONTAINS
     TYPE(paw_proj_set_type),  POINTER         :: paw_proj
     TYPE(gto_basis_set_type), POINTER         :: orb_basis
     TYPE(qs_control_type), INTENT(IN)         :: qs_control
-    TYPE(global_environment_type), INTENT(IN) :: globenv
+    TYPE(global_environment_type), pointer :: globenv
     REAL(dp)                                  :: rc
     REAL(dp), INTENT(IN)                      :: max_rad_local_type
 
@@ -321,7 +321,7 @@ CONTAINS
     TYPE(paw_proj_set_type),  POINTER :: paw_proj
     REAL(dp), INTENT(IN)              :: eps_fit,eps_iso,rc
     REAL(dp), INTENT(IN)              :: eps_orb, max_rad_local
-    TYPE(global_environment_type), INTENT(IN) :: globenv
+    TYPE(global_environment_type), pointer :: globenv
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 

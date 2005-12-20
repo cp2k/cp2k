@@ -330,7 +330,7 @@ END SUBROUTINE globenv_release
 !!     -
 !!
 !!   INPUTS
-!!     - global_env: the global environment that contains the para_env
+!!     - globenv: the global environment that contains the para_env
 !!     - error: variable to control error logging, stopping,... 
 !!       see module cp_error_handling 
 !!
@@ -338,9 +338,8 @@ END SUBROUTINE globenv_release
 !!     Fawzi Mohamed
 !!
 !!*** **********************************************************************
-FUNCTION cp_para_env_from_globenv(global_env, error) RESULT(res)
-    TYPE(global_environment_type), &
-      INTENT(in), TARGET                     :: global_env
+FUNCTION cp_para_env_from_globenv(globenv, error) RESULT(res)
+  TYPE(global_environment_type),POINTER      :: globenv
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
     TYPE(cp_para_env_type), POINTER          :: res
@@ -352,8 +351,8 @@ FUNCTION cp_para_env_from_globenv(global_env, error) RESULT(res)
 
   failure=.FALSE.
   
-  CPPrecondition(ASSOCIATED(global_env%para_env),cp_failure_level,routineP,error,failure)
-  res => global_env%para_env
+  CPPrecondition(ASSOCIATED(globenv%para_env),cp_failure_level,routineP,error,failure)
+  res => globenv%para_env
 END FUNCTION cp_para_env_from_globenv
 !***************************************************************************
 

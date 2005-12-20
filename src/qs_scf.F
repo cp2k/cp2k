@@ -349,7 +349,7 @@ CONTAINS
 !!   SYNOPSIS
 !!     Subroutine scf(qs_env, globenv, error)
 !!       Type(qs_environment_type), Intent (INOUT), Target:: qs_env
-!!       Type(global_environment_type), Intent (IN):: globenv
+!!       Type(global_environment_type), pointer:: globenv
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
 !!     End Subroutine scf
 !!
@@ -418,7 +418,7 @@ CONTAINS
 !!   SYNOPSIS
 !!     Subroutine scf_env_do_scf(scf_env, qs_env, globenv, error)
 !!       Type(qs_scf_env_type), Pointer:: scf_env
-!!       Type(global_environment_type), Intent (IN):: globenv
+!!       Type(global_environment_type), pointer:: globenv
 !!       Type(qs_environment_type), Pointer:: qs_env
 !!       Type(cp_error_type), Intent (INOUT), Optional:: error
 !!     End Subroutine scf_env_do_scf
@@ -1965,7 +1965,7 @@ CONTAINS
     TYPE(qs_scf_env_type), POINTER           :: scf_env
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(global_environment_type), &
-      INTENT(IN)                             :: globenv
+      pointer                             :: globenv
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 

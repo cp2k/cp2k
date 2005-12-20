@@ -74,7 +74,7 @@ CONTAINS
 
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(global_environment_type), &
-      INTENT(IN)                             :: glob_env
+      pointer                             :: glob_env
     TYPE(cp_error_type), &
          INTENT(INOUT), OPTIONAL             :: error
 

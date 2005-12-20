@@ -1169,7 +1169,7 @@ CONTAINS
     TYPE(qs_environment_type), POINTER        :: qs_env
     TYPE(kg_environment_type), POINTER        :: kg_env
     TYPE(global_environment_type), &
-      INTENT(IN)                              :: globenv
+      pointer                              :: globenv
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                                :: error
 

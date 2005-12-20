@@ -827,7 +827,7 @@ CONTAINS
     CHARACTER(LEN=*), INTENT(IN)             :: element_symbol, basis_set_name
     TYPE(gto_basis_set_type), POINTER        :: gto_basis_set
     TYPE(global_environment_type), &
-      INTENT(IN)                             :: globenv
+      pointer                             :: globenv
     TYPE(cp_error_type), INTENT(inout), optional :: error
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "read_gto_basis_set"
@@ -1180,7 +1180,7 @@ CONTAINS
 
     TYPE(gto_basis_set_type), POINTER        :: aux_basis_set
     TYPE(global_environment_type), &
-      INTENT(IN)                             :: globenv
+      pointer                             :: globenv
 
     INTEGER                                  :: icgf, ico, ipgf, iset, &
                                                 ishell, output_unit
@@ -1250,7 +1250,7 @@ CONTAINS
 
     TYPE(gto_basis_set_type), POINTER        :: gto_basis_set
     TYPE(global_environment_type), &
-      INTENT(IN)                             :: globenv
+      pointer                             :: globenv
 
     INTEGER                                  :: ipgf, iset, ishell, &
                                                 output_unit
@@ -1297,7 +1297,7 @@ CONTAINS
 
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
     TYPE(global_environment_type), &
-      INTENT(IN)                             :: globenv
+      pointer                             :: globenv
 
     INTEGER                                  :: icgf, ico, ipgf, iset, &
                                                 ishell, output_unit
@@ -1514,7 +1514,7 @@ CONTAINS
 
     TYPE(sto_basis_set_type), POINTER        :: sto_basis_set
     TYPE(global_environment_type), &
-      INTENT(IN)                             :: globenv
+      pointer                             :: globenv
 
     INTEGER                                  :: ipgf, iset, ishell, &
                                                 output_unit

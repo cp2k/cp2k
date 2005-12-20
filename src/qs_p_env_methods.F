@@ -168,10 +168,9 @@ CONTAINS
        psi0d, orthogonal_orbitals,linres_control, error)
 
 
-    TYPE(qs_p_env_type), POINTER             :: p_env
-    TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(qs_kpp1_env_type), INTENT(in), &
-      OPTIONAL, TARGET                       :: kpp1_env
+    TYPE(qs_p_env_type), POINTER              :: p_env
+    TYPE(qs_environment_type), POINTER        :: qs_env
+    TYPE(qs_kpp1_env_type), POINTER, OPTIONAL :: kpp1_env
     TYPE(real_matrix_p_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: p1_option
     TYPE(cp_fm_p_type), DIMENSION(:), &
@@ -588,7 +587,7 @@ END SUBROUTINE p_env_did_change
     TYPE(qs_p_env_type), POINTER             :: p_env
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(cp_fm_p_type), DIMENSION(:), &
-      INTENT(in), OPTIONAL, TARGET           :: psi0
+         OPTIONAL, POINTER                   :: psi0
     TYPE(cp_fm_p_type), DIMENSION(:), &
       INTENT(inout), OPTIONAL                :: Hrho_psi0d
     TYPE(cp_error_type), INTENT(inout), &

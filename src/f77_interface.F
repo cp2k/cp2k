@@ -113,6 +113,8 @@ MODULE f77_interface
                                              timer_env_release
   USE cp_units, ONLY: cp_unit_set_type, cp_unit_set_create, cp_unit_set_release
   USE physcon,                         ONLY: init_physcon
+  USE cp2k_units,                      ONLY: init_cp2k_units,&
+                                             rm_cp2k_units
   implicit none
   private
 
@@ -250,7 +252,7 @@ contains
        !   *** Initialize physical constants ***
        
        CALL init_physcon()
-
+       CALL init_cp2k_units()
     ELSE
        ierr=cp_failure_level
     END IF
@@ -300,6 +302,7 @@ contains
        CALL cp_para_env_release(default_para_env,error)
        ierr=cp_error_get_level(error)
        CALL cp_rm_default_logger()
+       CALL rm_cp2k_units()
        CALL rm_timer_env()
        CALL rm_mp_perf_env()
        IF (finalize_mpi) THEN

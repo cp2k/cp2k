@@ -162,7 +162,7 @@ SUBROUTINE topology_reorder_atoms(topology,globenv)
     TYPE(topology_parameters_type), &
       INTENT(INOUT)                          :: topology
     TYPE(global_environment_type), &
-      INTENT(IN), OPTIONAL                   :: globenv
+      pointer, OPTIONAL                   :: globenv
 
     CHARACTER(len=*), PARAMETER :: routineN = 'topology_reorder_atoms', &
       routineP = moduleN//':'//routineN
@@ -366,7 +366,7 @@ SUBROUTINE topology_generate_molecule(topology,qmmm,qmmm_env,globenv,error)
     TYPE(topology_parameters_type), &
       INTENT(INOUT)                          :: topology
     TYPE(global_environment_type), &
-      INTENT(IN), OPTIONAL                   :: globenv
+      pointer, OPTIONAL                   :: globenv
     TYPE(qmmm_env_mm_type), POINTER, OPTIONAL :: qmmm_env
     LOGICAL, INTENT(in), OPTIONAL            :: qmmm
     TYPE(cp_error_type), INTENT(inout), &
@@ -643,7 +643,7 @@ SUBROUTINE topology_set_atm_mass(topology,globenv)
     TYPE(topology_parameters_type), &
       INTENT(INOUT)                          :: topology
     TYPE(global_environment_type), &
-      INTENT(IN), OPTIONAL                   :: globenv
+      pointer, OPTIONAL                   :: globenv
 
     CHARACTER(len=*), PARAMETER :: routineN = 'topology_set_atm_mass', &
       routineP = moduleN//':'//routineN
@@ -762,7 +762,7 @@ SUBROUTINE topology_generate_bond(topology,globenv)
     TYPE(topology_parameters_type), &
       INTENT(INOUT)                          :: topology
     TYPE(global_environment_type), &
-      INTENT(IN), OPTIONAL                   :: globenv
+      pointer, OPTIONAL                   :: globenv
 
     CHARACTER(len=*), PARAMETER :: routineN = 'topology_generate_bond', &
       routineP = moduleN//':'//routineN
@@ -937,7 +937,7 @@ SUBROUTINE topology_generate_bend(topology,globenv)
     TYPE(topology_parameters_type), &
       INTENT(INOUT)                          :: topology
     TYPE(global_environment_type), &
-      INTENT(IN), OPTIONAL                   :: globenv
+      pointer, OPTIONAL                   :: globenv
 
     CHARACTER(len=*), PARAMETER :: routineN = 'topology_generate_bend', &
       routineP = moduleN//':'//routineN
@@ -1094,7 +1094,7 @@ SUBROUTINE topology_generate_ub(topology,globenv)
     TYPE(topology_parameters_type), &
       INTENT(INOUT)                          :: topology
     TYPE(global_environment_type), &
-      INTENT(IN), OPTIONAL                   :: globenv
+      pointer, OPTIONAL                   :: globenv
 
     CHARACTER(len=*), PARAMETER :: routineN = 'topology_generate_ub', &
       routineP = moduleN//':'//routineN
@@ -1173,7 +1173,7 @@ SUBROUTINE topology_generate_dihe(topology,globenv)
     TYPE(topology_parameters_type), &
       INTENT(INOUT)                          :: topology
     TYPE(global_environment_type), &
-      INTENT(IN), OPTIONAL                   :: globenv
+      pointer, OPTIONAL                   :: globenv
 
     CHARACTER(len=*), PARAMETER :: routineN = 'topology_generate_dihe', &
       routineP = moduleN//':'//routineN
@@ -1345,7 +1345,7 @@ SUBROUTINE topology_generate_impr(topology,globenv)
     TYPE(topology_parameters_type), &
       INTENT(INOUT)                          :: topology
     TYPE(global_environment_type), &
-      INTENT(IN), OPTIONAL                   :: globenv
+      pointer, OPTIONAL                   :: globenv
 
     CHARACTER(len=*), PARAMETER :: routineN = 'topology_generate_impr', &
       routineP = moduleN//':'//routineN
@@ -1466,7 +1466,7 @@ SUBROUTINE topology_generate_onfo(topology,globenv)
     TYPE(topology_parameters_type), &
       INTENT(INOUT)                          :: topology
     TYPE(global_environment_type), &
-      INTENT(IN), OPTIONAL                   :: globenv
+      pointer, OPTIONAL                   :: globenv
 
     CHARACTER(len=*), PARAMETER :: routineN = 'topology_generate_onfo', &
       routineP = moduleN//':'//routineN
@@ -2432,7 +2432,7 @@ SUBROUTINE topology_coordinate_pack (particle_set,atomic_kind_set,&
     TYPE(topology_parameters_type), &
       INTENT(INOUT)                          :: topology
     TYPE(global_environment_type), &
-      INTENT(IN), OPTIONAL                   :: globenv
+      pointer, OPTIONAL                   :: globenv
     TYPE(qmmm_env_mm_type), POINTER, OPTIONAL        :: qmmm_env
     TYPE(cp_error_type), INTENT(inout), &
          OPTIONAL                               :: error
@@ -3212,7 +3212,7 @@ SUBROUTINE topology_constraint_pack ( molecule_kind_set,molecule_set,&
     TYPE(particle_type), DIMENSION(:), OPTIONAL, &
       POINTER                                :: particle_set
   TYPE(global_environment_type), &
-    INTENT(IN), OPTIONAL                   :: globenv
+    pointer, OPTIONAL                   :: globenv
 
   CHARACTER(len=*), PARAMETER :: routineN = 'topology_constraint_pack', &
     routineP = moduleN//':'//routineN
@@ -3653,7 +3653,7 @@ SUBROUTINE topology_molecules_check(topology,globenv)
     TYPE(topology_parameters_type), &
       INTENT(INOUT)                          :: topology
     TYPE(global_environment_type), &
-      INTENT(IN), OPTIONAL                   :: globenv
+      pointer, OPTIONAL                   :: globenv
 
     CHARACTER(len=*), PARAMETER :: routineN = 'topology_molecules_check', &
       routineP = moduleN//':'//routineN

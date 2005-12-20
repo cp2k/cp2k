@@ -85,7 +85,7 @@ SUBROUTINE construct_molecular_states(molecule_set, mo_localized, &
     REAL(KIND=dp), DIMENSION(:), POINTER     :: mo_eigenvalues
     TYPE(real_matrix_type), POINTER          :: Hks, matrix_S
     TYPE(global_environment_type), &
-      INTENT(IN)                             :: globenv
+      pointer                             :: globenv
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(coeff_type), INTENT(INOUT)          :: wf_r, wf_g
 

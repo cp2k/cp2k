@@ -265,8 +265,7 @@ CONTAINS
 SUBROUTINE xc_vxc_pw_create_test_lsd(vxc_rho,vxc_tau,rho_r,rho_g,tau,&
      exc,xc_section, cell,pw_pool,  error)
     TYPE(pw_p_type), DIMENSION(:), POINTER   :: vxc_rho, vxc_tau
-    TYPE(pw_p_type), DIMENSION(:), &
-      INTENT(inout), TARGET                  :: rho_r
+    TYPE(pw_p_type), DIMENSION(:), POINTER   :: rho_r
     TYPE(pw_p_type), DIMENSION(:), POINTER   :: rho_g, tau
     REAL(KIND=dp), INTENT(out)               :: exc
     TYPE(section_vals_type), POINTER         :: xc_section
@@ -642,8 +641,7 @@ END SUBROUTINE xc_vxc_pw_create_test_lsd
 SUBROUTINE xc_vxc_pw_create_debug(vxc_rho,vxc_tau,rho_r,rho_g,tau,exc,&
      xc_section, cell,pw_pool,error)
     TYPE(pw_p_type), DIMENSION(:), POINTER   :: vxc_rho, vxc_tau
-    TYPE(pw_p_type), DIMENSION(:), &
-      INTENT(inout), TARGET                  :: rho_r
+    TYPE(pw_p_type), DIMENSION(:), POINTER   :: rho_r
     TYPE(pw_p_type), DIMENSION(:), POINTER   :: rho_g, tau
     REAL(KIND=dp), INTENT(out)               :: exc
     TYPE(section_vals_type), POINTER         :: xc_section
@@ -966,8 +964,7 @@ SUBROUTINE xc_rho_set_and_dset_create(rho_set,deriv_set,deriv_order,&
   TYPE(xc_rho_set_type), POINTER           :: rho_set
   TYPE(xc_derivative_set_type), POINTER    :: deriv_set
   INTEGER, INTENT(in)                      :: deriv_order
-  TYPE(pw_p_type), DIMENSION(:), &
-       INTENT(inout), TARGET               :: rho_r
+  TYPE(pw_p_type), DIMENSION(:), POINTER   :: rho_r
   TYPE(pw_p_type), DIMENSION(:), POINTER   :: rho_g, tau
   TYPE(section_vals_type), pointer         :: xc_section
   TYPE(cell_type), POINTER                 :: cell
@@ -1269,8 +1266,7 @@ SUBROUTINE xc_vxc_pw_create(vxc_rho,vxc_tau,exc,rho_r,rho_g,tau,xc_section,&
      cell,pw_pool,error)
     TYPE(pw_p_type), DIMENSION(:), POINTER   :: vxc_rho, vxc_tau
     REAL(KIND=dp), INTENT(out)               :: exc
-    TYPE(pw_p_type), DIMENSION(:), &
-      INTENT(inout), TARGET                  :: rho_r
+    TYPE(pw_p_type), DIMENSION(:), POINTER   :: rho_r
     TYPE(pw_p_type), DIMENSION(:), POINTER   :: rho_g, tau
     TYPE(section_vals_type), POINTER         :: xc_section
     TYPE(cell_type), POINTER                 :: cell
@@ -1962,8 +1958,7 @@ END SUBROUTINE xc_vxc_pw_create
 !!*** **********************************************************************
 FUNCTION xc_exc_calc(rho_r,rho_g,tau,xc_section, cell,pw_pool,&
      error) RESULT(exc)
-    TYPE(pw_p_type), DIMENSION(:), &
-      INTENT(inout), TARGET                  :: rho_r
+    TYPE(pw_p_type), DIMENSION(:), POINTER   :: rho_r
     TYPE(pw_p_type), DIMENSION(:), POINTER   :: rho_g, tau
     TYPE(section_vals_type), pointer         :: xc_section
     TYPE(cell_type), POINTER                 :: cell

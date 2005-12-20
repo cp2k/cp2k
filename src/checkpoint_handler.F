@@ -55,7 +55,7 @@ CONTAINS
 
     CHARACTER(LEN=*), INTENT(IN)             :: checkpoint
     TYPE(global_environment_type), &
-      INTENT(IN)                             :: globenv
+      pointer                             :: globenv
 
 !   ---------------------------------------------------------------------------
 !   *** Wait for ionode and empty IO buffer ***
@@ -85,7 +85,7 @@ CONTAINS
 
     CHARACTER(LEN=*), INTENT(IN)             :: checkpoint
     TYPE(global_environment_type), &
-      INTENT(IN)                             :: globenv
+      pointer                             :: globenv
 
     CHARACTER(LEN=LEN_TRIM(checkpoint)+55)   :: string2
     CHARACTER(LEN=LEN_TRIM(checkpoint)+7)    :: string1

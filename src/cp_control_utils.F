@@ -291,7 +291,7 @@ CONTAINS
 
     TYPE(qs_control_type), INTENT(INOUT)     :: qs_control
     TYPE(global_environment_type), &
-      INTENT(INOUT)                          :: globenv
+      pointer                          :: globenv
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -389,7 +389,7 @@ CONTAINS
 
     TYPE(qs_control_type), INTENT(INOUT)     :: qs_control
     TYPE(global_environment_type), &
-      INTENT(INOUT)                          :: globenv
+      pointer                          :: globenv
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -655,7 +655,7 @@ CONTAINS
 
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(global_environment_type), &
-      INTENT(IN)                             :: globenv
+      pointer                             :: globenv
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -795,7 +795,7 @@ CONTAINS
 
     TYPE(qs_control_type), INTENT(IN)        :: qs_control
     TYPE(global_environment_type), &
-      INTENT(IN)                             :: globenv
+      pointer                             :: globenv
 
     INTEGER                                  :: igrid_level, ngrid_level, &
                                                 nstep,output_unit

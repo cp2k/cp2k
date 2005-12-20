@@ -109,7 +109,7 @@ CONTAINS
 
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(global_environment_type), &
-      INTENT(IN)                             :: globenv
+      pointer                             :: globenv
     INTEGER,INTENT(IN), OPTIONAL             :: nderivative
 
 !   *** Local types ***
@@ -502,7 +502,7 @@ CONTAINS
     INTEGER, INTENT(IN)                      :: before, after
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(global_environment_type), &
-      INTENT(IN)                             :: globenv
+      pointer                             :: globenv
     INTEGER, INTENT(IN), OPTIONAL            :: first_row, last_row, &
                                                 first_col, last_col
 
@@ -585,7 +585,7 @@ CONTAINS
     INTEGER, INTENT(IN)                      :: before, after
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(global_environment_type), &
-      INTENT(IN)                             :: globenv
+      pointer                             :: globenv
     INTEGER, INTENT(IN)                      :: first_row, last_row, &
                                                 first_col, last_col
 
@@ -709,7 +709,7 @@ CONTAINS
 
     TYPE(real_matrix_type), POINTER          :: matrix
     TYPE(global_environment_type), &
-      INTENT(IN)                             :: globenv
+      pointer                             :: globenv
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "write_matrix_distribution"
 
@@ -809,7 +809,7 @@ CONTAINS
     INTEGER, INTENT(IN)                      :: before, after
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(global_environment_type), &
-      INTENT(IN)                             :: globenv
+      pointer                             :: globenv
     INTEGER, INTENT(IN), OPTIONAL            :: first_row, last_row, &
                                                 first_col, last_col
     REAL(dp), INTENT(IN), OPTIONAL           :: scale

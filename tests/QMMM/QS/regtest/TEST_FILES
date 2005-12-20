@@ -36,6 +36,9 @@ H2O-qmmm-gauss-14-geep-12.inp  1
 H2O-qmmm-gauss-14-geep-13.inp  1
 H2O-qmmm-gauss-14-geep-14.inp  1
 H2O-qmmm-gauss-14-geep-15.inp  1
+H2O-qmmm-gauss-14-geep-16.inp  1
+H2O-qmmm-gauss-14-geep-17.inp  1
+H2O-qmmm-gauss-14-geep-18.inp  1
 # QM/MM links
 C4H10-qmmm-gauss-0.inp 1
 C4H10-qmmm-gauss-1.inp 1

@@ -998,7 +998,8 @@ CONTAINS
 
     CHARACTER(LEN=*), INTENT(IN)             :: checkpoint
     TYPE(global_environment_type), &
-      INTENT(IN)                             :: globenv
+      pointer                             :: globenv
+
 
     CHARACTER(LEN=LEN_TRIM(checkpoint)+7)    :: string
     INTEGER                                  :: group, ipe, mype, npe

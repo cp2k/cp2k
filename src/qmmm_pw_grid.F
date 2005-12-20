@@ -109,8 +109,7 @@ CONTAINS
   SUBROUTINE qmmm_pw_grid_init(qmmm_env, pw_env, cell, para_env, error)
     IMPLICIT NONE
     ! Arguments
-    TYPE(qmmm_env_qm_type), INTENT(inout), &
-         TARGET                               :: qmmm_env  
+    TYPE(qmmm_env_qm_type), POINTER           :: qmmm_env  
     TYPE(pw_env_type), POINTER                :: pw_env  
     TYPE(cp_para_env_type), POINTER           :: para_env
     TYPE(cp_error_type), INTENT(inout), &

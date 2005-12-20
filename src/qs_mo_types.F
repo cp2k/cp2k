@@ -605,7 +605,7 @@ CONTAINS
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(global_environment_type), &
-      INTENT(IN)                             :: globenv
+      pointer                             :: globenv
     INTEGER, INTENT(in)                      :: id_nr
     TYPE(cp_error_type), INTENT(inout), optional :: error
 
@@ -767,7 +767,7 @@ CONTAINS
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(global_environment_type), &
-      INTENT(IN)                             :: globenv
+      pointer                             :: globenv
     INTEGER, INTENT(in)                      :: id_nr
     TYPE(section_vals_type), POINTER         :: dft_section
     TYPE(cp_error_type), INTENT(inout), optional :: error
@@ -1035,7 +1035,7 @@ CONTAINS
     INTEGER, INTENT(IN)                      :: before, after
     TYPE(section_vals_type),POINTER          :: dft_section
     TYPE(global_environment_type), &
-      INTENT(IN)                             :: globenv
+      pointer                             :: globenv
     TYPE(cp_error_type), INTENT(inout), optional :: error
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "write_mo_set_to_output_unit"

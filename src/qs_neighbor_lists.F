@@ -145,7 +145,7 @@ CONTAINS
 
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(global_environment_type), &
-      INTENT(IN)                             :: globenv
+      pointer                             :: globenv
     LOGICAL, OPTIONAL                        :: molecular
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "build_qs_neighbor_lists"
@@ -2391,7 +2391,7 @@ CONTAINS
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(global_environment_type), &
-      INTENT(IN)                             :: globenv
+      pointer                             :: globenv
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "write_distribution"
 
@@ -2526,7 +2526,7 @@ CONTAINS
       POINTER                                :: particle_set
     TYPE(cell_type), POINTER                 :: cell
     TYPE(global_environment_type), &
-      INTENT(IN)                             :: globenv
+      pointer                             :: globenv
     CHARACTER(LEN=*), INTENT(IN)             :: name
 
     CHARACTER(LEN=8)                         :: unit_of_length_name

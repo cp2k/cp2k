@@ -323,7 +323,7 @@ CONTAINS
 
     INTEGER, INTENT(IN)                      :: maxl
     TYPE(global_environment_type), &
-      INTENT(IN)                             :: globenv
+      pointer                             :: globenv
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "init_spherical_harmonics"
 

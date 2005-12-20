@@ -24,7 +24,6 @@ OBJECTS_GENERIC =\
  cg_optimizer.o\
  cg_test.o\
  checkpoint_handler.o\
- coefficient_lists.o\
  coefficient_types.o\
  coefficients.o\
  colvar.o\
@@ -84,7 +83,6 @@ OBJECTS_GENERIC =\
  cp_subsystem_types.o\
  cp_units.o\
  cube_utils.o\
- density_types.o\
  dg_rho0_types.o\
  dg_types.o\
  dgs.o\

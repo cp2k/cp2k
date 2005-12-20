@@ -2,6 +2,9 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000  CP2K developers group                                 !
 !-----------------------------------------------------------------------------!
+
+#include "cp_prep_globals.h"
+
 !!****** cp2k/pme [2.0] *
 !!
 !!   NAME
@@ -54,9 +57,11 @@ MODULE pme
                                              pw_integral_a2b,&
                                              pw_type,pw_p_type, pw_transfer
   USE realspace_grid_types,            ONLY: realspace_grid_type,&
-                                             rs_grid_allocate,&
-                                             rs_grid_deallocate,&
-                                             rs_grid_setup,&
+                                             rs_grid_release,&
+                                             rs_grid_create,&
+                                             realspace_grid_p_type,&
+                                             rs_grid_p_release,&
+                                             rs_grid_p_create,&
                                              rs_pw_transfer,&
                                              rs2pw,&
                                              pw2rs
@@ -66,10 +71,26 @@ MODULE pme
                                              structure_factor_deallocate
   USE timings,                         ONLY: timeset,&
                                              timestop
+  USE cp_error_handling,               ONLY: cp_a_l,&
+                                             cp_assert,&
+                                             cp_assertion_failed,&
+                                             cp_debug,&
+                                             cp_error_get_logger,&
+                                             cp_error_message,&
+                                             cp_error_type
+  USE cp_log_handling,                 ONLY: cp_failure_level,&
+                                             cp_fatal_level,&
+                                             cp_log,&
+                                             cp_logger_get_default_unit_nr,&
+                                             cp_logger_type,&
+                                             cp_note_level,&
+                                             cp_to_string,&
+                                             cp_warning_level
   IMPLICIT NONE
 
   PRIVATE
   PUBLIC :: pme_evaluate
+  CHARACTER(LEN=*), PARAMETER :: moduleN = "pme"
 
 !!*****
 !******************************************************************************
@@ -96,10 +117,9 @@ CONTAINS
 !!   SOURCE
 !******************************************************************************
 
-SUBROUTINE pme_evaluate ( ewald_env, ewald_pw, particle_set,&
-                          vg_coulomb, fg_coulomb, pv_g )
-
-
+  SUBROUTINE pme_evaluate ( ewald_env, ewald_pw, particle_set, vg_coulomb, fg_coulomb, pv_g, error )
+    IMPLICIT NONE
+    ! Arguments
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(ewald_environment_type), POINTER    :: ewald_env
@@ -107,16 +127,21 @@ SUBROUTINE pme_evaluate ( ewald_env, ewald_pw, particle_set,&
     REAL(KIND=dp), INTENT(OUT)               :: vg_coulomb
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(OUT), OPTIONAL                  :: fg_coulomb, pv_g
-
+    TYPE(cp_error_type), INTENT(inout), &
+         OPTIONAL                               :: error
+    ! Local Variables
+    CHARACTER(LEN=*), PARAMETER :: routineN = "pme_evaluate", &
+      routineP = moduleN//':'//routineN
     INTEGER                                  :: handle, i, ipart, j, jpart, &
-                                                npart, p1, p2
+                                                npart, p1, p2, stat
     REAL(KIND=dp)                                :: dvols, ffa, inv_fourpi_eps0
     REAL(KIND=dp), DIMENSION(3)                  :: fat
     REAL(KIND=dp), DIMENSION(3, 3)               :: f_stress, h_stress
     TYPE(pw_p_type), dimension(3)            :: dphi_g
     TYPE(pw_type), POINTER :: phi_r,rhob_r
     TYPE(coeff_type)                         :: rhos1, rhos2
-    TYPE(realspace_grid_type)                :: drpot( 3 ), rden
+    TYPE(realspace_grid_type), POINTER       :: rden
+    TYPE(realspace_grid_p_type), DIMENSION(:), POINTER     :: drpot
     TYPE(structure_factor_type)              :: exp_igr
     TYPE(pw_grid_type), POINTER              :: grid_s, grid_b
     TYPE ( pw_pool_type ), POINTER          :: pw_big_pool, pw_small_pool
@@ -125,162 +150,154 @@ SUBROUTINE pme_evaluate ( ewald_env, ewald_pw, particle_set,&
     REAL (KIND=dp)                            :: alpha, eps0
     INTEGER                                 :: group
     TYPE ( cell_type ), POINTER             :: box
-    TYPE(pw_poisson_type), pointer :: poisson_env
+    TYPE(pw_poisson_type), POINTER :: poisson_env
+    logical                        :: failure
 
-!------------------------------------------------------------------------------
-!-------------- INITIALISATION ---------------------
-    NULLIFY( box, poisson_env)
-  CALL timeset ( 'PME', 'I', ' ', handle )
-  CALL ewald_env_get (ewald_env, alpha=alpha, eps0 = eps0, group = group )
-  CALL ewald_pw_get (ewald_pw, pw_big_pool=pw_big_pool, & 
-                     pw_small_pool=pw_small_pool, cell=box, &
-                     poisson_env=poisson_env, dg = dg )
+    NULLIFY( box, poisson_env, rden, drpot)
+    failure = .FALSE.
+    CALL timeset ( 'PME', 'I', ' ', handle )
+    CALL ewald_env_get (ewald_env, alpha=alpha, eps0 = eps0, group = group )
+    CALL ewald_pw_get (ewald_pw, pw_big_pool=pw_big_pool, & 
+                       pw_small_pool=pw_small_pool, cell=box, &
+                       poisson_env=poisson_env, dg = dg )
 
-  grid_b => pw_big_pool % pw_grid
-  grid_s => pw_small_pool % pw_grid
+    grid_b => pw_big_pool % pw_grid
+    grid_s => pw_small_pool % pw_grid
 
-  CALL dg_get ( dg, dg_rho0 = dg_rho0 )
+    CALL dg_get ( dg, dg_rho0 = dg_rho0 )
 
-  inv_fourpi_eps0 = 1.0_dp / ( fourpi * eps0 )
-  npart = SIZE ( particle_set )
+    inv_fourpi_eps0 = 1.0_dp / ( fourpi * eps0 )
+    npart = SIZE ( particle_set )
 
-  CALL structure_factor_allocate ( grid_s % bounds, npart, exp_igr, &
-       allocate_centre = .TRUE. )
+    CALL structure_factor_allocate ( grid_s % bounds, npart, exp_igr, &
+         allocate_centre = .TRUE. )
 
-  CALL pw_pool_init_coeff ( pw_small_pool, rhos1, &
-                            use_data = REALDATA3D )
-  CALL pw_pool_init_coeff ( pw_small_pool, rhos2, &
-                            use_data = REALDATA3D )
+    CALL pw_pool_init_coeff ( pw_small_pool, rhos1, &
+                              use_data = REALDATA3D )
+    CALL pw_pool_init_coeff ( pw_small_pool, rhos2, &
+                              use_data = REALDATA3D )
 
-  CALL rs_grid_setup ( rden, grid_b, -MAXVAL ( grid_s % npts ) )
-  CALL rs_grid_allocate ( rden )
-  rden % r = 0.0_dp
+    call rs_grid_create( rden, grid_b, -MAXVAL ( grid_s % npts ) )
+    rden % r = 0.0_dp
 
-  IF ( rden % parallel .AND. rden % group_dim ( 1 ) /= 1 ) THEN
-    CALL get_center ( particle_set, box, exp_igr % centre, grid_b % npts )
-  END IF
+    IF ( rden % parallel .AND. rden % group_dim ( 1 ) /= 1 ) THEN
+       CALL get_center ( particle_set, box, exp_igr % centre, grid_b % npts )
+    END IF
 
-!-------------- DENSITY CALCULATION ----------------
-
-  ipart = 0
-  jpart = 0
-  DO 
-
-     CALL set_list ( particle_set, npart, exp_igr % centre, p1, p2, rden, &
-          ipart, jpart )
-     IF ( p1 == 0 .AND. p2 == 0 ) EXIT
-
-     ! calculate function on small boxes (we use double packing in FFT)
-     CALL get_patch ( dg, particle_set, exp_igr, box, p1, p2, grid_b, grid_s, &
-          rhos1, rhos2 )
-
-     ! add boxes to real space grid (big box)
-     CALL dg_sum_patch ( rden, rhos1, exp_igr % centre ( :, p1 ) )
-     IF ( p2 /= 0 ) CALL dg_sum_patch ( rden, rhos2, &
-                         exp_igr % centre ( :, p2 ) )
-
-  END DO
-
-  CALL pw_pool_create_pw ( pw_big_pool, rhob_r, &
-                            use_data = REALDATA3D, &
-                            in_space = REALSPACE )
-
-  CALL rs_pw_transfer ( rden, rhob_r, rs2pw )
-
-  CALL rs_grid_deallocate ( rden )
-
-!-------------- ELECTROSTATIC CALCULATION -----------
-
-  ! allocate intermediate arrays
-  DO i = 1, 3
-     nullify(dphi_g ( i )%pw)
-     CALL pw_pool_create_pw ( pw_big_pool, dphi_g ( i )%pw, &
-                               use_data = COMPLEXDATA1D, &
-                               in_space = RECIPROCALSPACE )
-  END DO
-  CALL pw_pool_create_pw ( pw_big_pool, phi_r, &
-                            use_data = REALDATA3D, &
-                            in_space = REALSPACE )
-
-  CALL pw_poisson_solve ( poisson_env, rhob_r, vg_coulomb, phi_r, dphi_g, h_stress )
-
-  CALL pw_pool_give_back_pw ( pw_big_pool, phi_r )
-
-  vg_coulomb = vg_coulomb * inv_fourpi_eps0
-
-!---------- END OF ELECTROSTATIC CALCULATION --------
-
-!------------- STRESS TENSOR CALCULATION ------------
-
-  IF ( PRESENT ( pv_g ) ) THEN
-    DO i = 1, 3
-      DO j = i, 3
-         f_stress ( i, j ) = pw_integral_a2b ( dphi_g ( i ) % pw, &
-                                             dphi_g ( j ) % pw )
-         f_stress ( j, i ) = f_stress ( i, j )
-      END DO
-    END DO
-    ffa = ( 1.0_dp / fourpi ) * ( 0.5_dp / dg_rho0 % zet ( 1 ) ) ** 2
-    f_stress = -ffa * f_stress
-    pv_g = inv_fourpi_eps0 * ( h_stress + f_stress )
-  ENDIF
-
-!--------END OF STRESS TENSOR CALCULATION -----------
-
-  CALL rs_grid_setup ( drpot, grid_b , -MAXVAL ( grid_s % npts ) )
-  CALL rs_grid_allocate ( drpot ( 1 : 3 ) )
-
-  DO i = 1, 3
-     CALL pw_transfer ( dphi_g ( i )%pw, rhob_r )
-     CALL pw_pool_give_back_pw ( pw_big_pool, dphi_g ( i )%pw )
-     CALL rs_pw_transfer ( drpot ( i ), rhob_r, pw2rs )
-  END DO
-
-  CALL pw_pool_give_back_pw ( pw_big_pool, rhob_r )
-
-!----------------- FORCE CALCULATION ----------------
-
-! initialize the forces
-  IF ( PRESENT ( fg_coulomb ) ) THEN
-    fg_coulomb = 0.0_dp
-    dvols = rhos1 % pw % pw_grid % dvol * inv_fourpi_eps0
+    !-------------- DENSITY CALCULATION ----------------
 
     ipart = 0
     jpart = 0
-    DO
+    DO 
 
-       CALL set_list ( particle_set, npart, exp_igr % centre, p1, p2, rden, ipart, jpart )
+       CALL set_list ( particle_set, npart, exp_igr % centre, p1, p2, rden, &
+            ipart, jpart )
        IF ( p1 == 0 .AND. p2 == 0 ) EXIT
-
-     ! calculate function on small boxes (we use double packing in FFT)
-       CALL get_patch_again ( dg, particle_set, exp_igr, p1, p2, rhos1, rhos2 )
-
-     ! sum boxes on real space grids (big box)
-       CALL dg_sum_patch_force_3d ( drpot, rhos1, exp_igr % centre ( :, p1 ), fat )
-       fg_coulomb ( 1, p1 ) = fg_coulomb ( 1, p1 ) - fat ( 1 ) * dvols
-       fg_coulomb ( 2, p1 ) = fg_coulomb ( 2, p1 ) - fat ( 2 ) * dvols
-       fg_coulomb ( 3, p1 ) = fg_coulomb ( 3, p1 ) - fat ( 3 ) * dvols
-       IF ( p2 /= 0 ) THEN
-          CALL dg_sum_patch_force_3d ( drpot, rhos2, exp_igr % centre ( :, p2 ), fat )
-          fg_coulomb ( 1, p2 ) = fg_coulomb ( 1, p2 ) - fat ( 1 ) * dvols
-          fg_coulomb ( 2, p2 ) = fg_coulomb ( 2, p2 ) - fat ( 2 ) * dvols
-          fg_coulomb ( 3, p2 ) = fg_coulomb ( 3, p2 ) - fat ( 3 ) * dvols
-       END IF
-
+       
+       ! calculate function on small boxes (we use double packing in FFT)
+       CALL get_patch ( dg, particle_set, exp_igr, box, p1, p2, grid_b, grid_s, &
+            rhos1, rhos2 )
+       
+       ! add boxes to real space grid (big box)
+       CALL dg_sum_patch ( rden, rhos1, exp_igr % centre ( :, p1 ) )
+       IF ( p2 /= 0 ) CALL dg_sum_patch ( rden, rhos2, exp_igr % centre ( :, p2 ) )
+       
     END DO
-  ENDIF
-!--------------END OF FORCE CALCULATION -------------
+    
+    CALL pw_pool_create_pw ( pw_big_pool, rhob_r, use_data = REALDATA3D, in_space = REALSPACE )
+    CALL rs_pw_transfer ( rden, rhob_r, rs2pw )
 
-!------------------CLEANING UP ----------------------
+    !-------------- ELECTROSTATIC CALCULATION -----------
 
-  CALL rs_grid_deallocate ( drpot ( 1 : 3 ) )
-  CALL pw_pool_give_back_coeff ( pw_small_pool, rhos1 )
-  CALL pw_pool_give_back_coeff ( pw_small_pool, rhos2 )
-  CALL structure_factor_deallocate ( exp_igr )
+    ! allocate intermediate arrays
+    DO i = 1, 3
+       NULLIFY(dphi_g ( i )%pw)
+       CALL pw_pool_create_pw ( pw_big_pool, dphi_g ( i )%pw, &
+                                use_data = COMPLEXDATA1D, &
+                                in_space = RECIPROCALSPACE )
+    END DO
+    CALL pw_pool_create_pw ( pw_big_pool, phi_r, &
+                             use_data = REALDATA3D, &
+                             in_space = REALSPACE )
 
-  CALL timestop ( 0.0_dp, handle )
+    CALL pw_poisson_solve ( poisson_env, rhob_r, vg_coulomb, phi_r, dphi_g, h_stress )
+    
+    CALL pw_pool_give_back_pw ( pw_big_pool, phi_r )
+    
+    vg_coulomb = vg_coulomb * inv_fourpi_eps0
 
-END SUBROUTINE pme_evaluate
+    !---------- END OF ELECTROSTATIC CALCULATION --------
+
+    !------------- STRESS TENSOR CALCULATION ------------
+
+    IF ( PRESENT ( pv_g ) ) THEN
+       DO i = 1, 3
+          DO j = i, 3
+             f_stress ( i, j ) = pw_integral_a2b ( dphi_g ( i ) % pw, dphi_g ( j ) % pw )
+             f_stress ( j, i ) = f_stress ( i, j )
+          END DO
+       END DO
+       ffa = ( 1.0_dp / fourpi ) * ( 0.5_dp / dg_rho0 % zet ( 1 ) ) ** 2
+       f_stress = -ffa * f_stress
+       pv_g = inv_fourpi_eps0 * ( h_stress + f_stress )
+    ENDIF
+    
+    !--------END OF STRESS TENSOR CALCULATION -----------
+
+    CALL rs_grid_p_create ( drpot, 3, grid_b , -MAXVAL ( grid_s % npts ) )
+
+    DO i = 1, 3
+       CALL pw_transfer ( dphi_g ( i )%pw, rhob_r )
+       CALL pw_pool_give_back_pw ( pw_big_pool, dphi_g ( i )%pw )
+       CALL rs_pw_transfer ( drpot ( i )%rs_grid, rhob_r, pw2rs )
+    END DO
+    
+    CALL pw_pool_give_back_pw ( pw_big_pool, rhob_r )
+    
+    !----------------- FORCE CALCULATION ----------------
+
+    ! initialize the forces
+    IF ( PRESENT ( fg_coulomb ) ) THEN
+       fg_coulomb = 0.0_dp
+       dvols = rhos1 % pw % pw_grid % dvol * inv_fourpi_eps0
+       
+       ipart = 0
+       jpart = 0
+       DO
+          
+          CALL set_list ( particle_set, npart, exp_igr % centre, p1, p2, rden, ipart, jpart )
+          IF ( p1 == 0 .AND. p2 == 0 ) EXIT
+          
+          ! calculate function on small boxes (we use double packing in FFT)
+          CALL get_patch_again ( dg, particle_set, exp_igr, p1, p2, rhos1, rhos2 )
+          
+          ! sum boxes on real space grids (big box)
+          CALL dg_sum_patch_force_3d ( drpot, rhos1, exp_igr % centre ( :, p1 ), fat )
+          fg_coulomb ( 1, p1 ) = fg_coulomb ( 1, p1 ) - fat ( 1 ) * dvols
+          fg_coulomb ( 2, p1 ) = fg_coulomb ( 2, p1 ) - fat ( 2 ) * dvols
+          fg_coulomb ( 3, p1 ) = fg_coulomb ( 3, p1 ) - fat ( 3 ) * dvols
+          IF ( p2 /= 0 ) THEN
+             CALL dg_sum_patch_force_3d ( drpot, rhos2, exp_igr % centre ( :, p2 ), fat )
+             fg_coulomb ( 1, p2 ) = fg_coulomb ( 1, p2 ) - fat ( 1 ) * dvols
+             fg_coulomb ( 2, p2 ) = fg_coulomb ( 2, p2 ) - fat ( 2 ) * dvols
+             fg_coulomb ( 3, p2 ) = fg_coulomb ( 3, p2 ) - fat ( 3 ) * dvols
+          END IF
+          
+       END DO
+    ENDIF
+    !--------------END OF FORCE CALCULATION -------------
+
+    !------------------CLEANING UP ----------------------
+
+    CALL rs_grid_release ( rden, error)
+    CALL rs_grid_p_release ( drpot, error)
+    CALL pw_pool_give_back_coeff ( pw_small_pool, rhos1 )
+    CALL pw_pool_give_back_coeff ( pw_small_pool, rhos2 )
+    CALL structure_factor_deallocate ( exp_igr )
+
+    CALL timestop ( 0.0_dp, handle )
+    
+  END SUBROUTINE pme_evaluate
 
 !!*****
 !******************************************************************************

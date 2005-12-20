@@ -383,7 +383,7 @@ CONTAINS
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(global_environment_type), &
-      INTENT(IN)                             :: globenv
+      pointer                             :: globenv
     INTEGER, INTENT(IN)                      :: ftype
 !JCS
     TYPE(virial_type), OPTIONAL, POINTER     :: virial

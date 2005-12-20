@@ -297,8 +297,7 @@ CONTAINS
     TYPE(real_matrix_p_type), DIMENSION(:), &
         POINTER                              :: ks_matrix
     TYPE(qs_rho_type), POINTER               :: rho
-    TYPE(qs_energy_type), INTENT(inout), &
-      TARGET                                 :: energy
+    TYPE(qs_energy_type), POINTER            :: energy
     LOGICAL, INTENT(in)                      :: calculate_forces, just_energy
     TYPE(qs_rho_type), POINTER, OPTIONAL     :: rho_xc
     LOGICAL, INTENT(IN), OPTIONAL            :: kg_gpw
@@ -756,8 +755,7 @@ CONTAINS
                                auxbas_pw_pool,error)
 
     TYPE(coeff_type), INTENT(INOUT)          :: v_sic_rspace
-    TYPE(qs_energy_type), INTENT(inout), &
-      TARGET                                 :: energy
+    TYPE(qs_energy_type), POINTER            :: energy
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(qs_rho_type), POINTER               :: rho

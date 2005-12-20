@@ -579,7 +579,7 @@ CONTAINS
                   DIMENSION(:), POINTER      :: sac_list
     INTEGER, INTENT(IN)                      :: iatom,ikind,nkind
     TYPE(global_environment_type), &
-      INTENT(IN)                             :: globenv
+      pointer                             :: globenv
 
 !   *** Local parameters ***
 

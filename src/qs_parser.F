@@ -855,7 +855,7 @@ CONTAINS
 
     CHARACTER(LEN=*), INTENT(IN)             :: file_name
     TYPE(global_environment_type), &
-      INTENT(IN)                             :: globenv
+      pointer                             :: globenv
     CHARACTER(LEN=*), INTENT(IN), OPTIONAL   :: end_section_label, &
                                                 separator_chars, &
                                                 start_section_label, &

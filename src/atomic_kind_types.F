@@ -921,7 +921,7 @@ CONTAINS
 
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(global_environment_type), &
-      INTENT(IN)                             :: globenv
+      pointer                             :: globenv
     CHARACTER(LEN=10),INTENT(IN), OPTIONAL   :: method
 
 
@@ -999,7 +999,7 @@ CONTAINS
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(global_environment_type), &
-      INTENT(IN)                             :: globenv
+      pointer                             :: globenv
     CHARACTER(LEN=10),INTENT(IN), OPTIONAL   :: method
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "init_atomic_kind_set"
@@ -1036,7 +1036,7 @@ CONTAINS
       POINTER                                :: atomic_kind_set
     TYPE(qs_control_type),  POINTER        :: qs_control 
     TYPE(global_environment_type), &
-      INTENT(IN)                             :: globenv
+      pointer                             :: globenv
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "init_gapw_basis_set"
 
@@ -1130,7 +1130,7 @@ CONTAINS
 
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(global_environment_type), &
-      INTENT(IN)                             :: globenv
+      pointer                             :: globenv
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "read_atomic_kind", &
       routineP = module_name//':'//routine_name
@@ -1408,7 +1408,7 @@ CONTAINS
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(global_environment_type), &
-      INTENT(IN)                             :: globenv
+      pointer                             :: globenv
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "read_atomic_kind_set"
 
@@ -1441,7 +1441,7 @@ CONTAINS
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(dft_control_type),INTENT(IN)        :: dft_control
     TYPE(global_environment_type), &
-      INTENT(IN)                             :: globenv
+      pointer                             :: globenv
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "check_atomic_kind", &
       routineP = module_name//':'//routine_name
@@ -1517,7 +1517,7 @@ CONTAINS
       POINTER                                :: atomic_kind_set
     TYPE(dft_control_type),INTENT(IN)        :: dft_control
     TYPE(global_environment_type), &
-      INTENT(IN)                             :: globenv
+      pointer                             :: globenv
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "check_atomic_kind_set"
 
@@ -1636,7 +1636,7 @@ CONTAINS
 
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(global_environment_type), &
-      INTENT(IN)                             :: globenv
+      pointer                             :: globenv
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "write_atomic_kind"
 
@@ -1697,7 +1697,7 @@ CONTAINS
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(global_environment_type), &
-      INTENT(IN)                             :: globenv
+      pointer                             :: globenv
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "write_atomic_kind_set"
 
@@ -1750,7 +1750,7 @@ CONTAINS
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(global_environment_type), &
-      INTENT(IN)                             :: globenv
+      pointer                             :: globenv
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "write_gto_basis_sets"
 

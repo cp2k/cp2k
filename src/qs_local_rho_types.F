@@ -207,7 +207,7 @@ MODULE qs_local_rho_types
   SUBROUTINE  get_local_rho(local_rho_set,rho_atom_set,rho0_atom_set,&
                             rho0_mpole,nddo_mpole,rhoz_set)
 
-    TYPE(local_rho_type), INTENT(IN), TARGET     :: local_rho_set
+    TYPE(local_rho_type), POINTER                :: local_rho_set
     TYPE(rho_atom_type), DIMENSION(:),  &
                              OPTIONAL, POINTER   :: rho_atom_set
     TYPE(rho0_atom_type), DIMENSION(:), &
@@ -302,7 +302,7 @@ MODULE qs_local_rho_types
   SUBROUTINE set_local_rho(local_rho_set,rho_atom_set,rho0_atom_set,&
                             rho0_mpole,nddo_mpole,rhoz_set)
 
-    TYPE(local_rho_type), INTENT(INout), TARGET     :: local_rho_set
+    TYPE(local_rho_type), POINTER                   :: local_rho_set
     TYPE(rho_atom_type), DIMENSION(:),  &
                                 OPTIONAL, POINTER   :: rho_atom_set
     TYPE(rho0_atom_type), DIMENSION(:), &

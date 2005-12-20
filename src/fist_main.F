@@ -73,7 +73,7 @@ CONTAINS
 !!   SYNOPSIS
 !!     Subroutine fist(globenv)
 !!       Implicit None
-!!       Type(global_environment_type), Intent (INOUT):: globenv
+!!       Type(global_environment_type), pointer:: globenv
 !!     End Subroutine fist
 !!
 !!   FUNCTION

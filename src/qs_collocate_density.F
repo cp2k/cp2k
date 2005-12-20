@@ -1585,8 +1585,7 @@ CONTAINS
     REAL(KIND=dp), INTENT(IN)                :: rab2, scale
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: pab
     INTEGER                                  :: o1, o2
-    TYPE(realspace_grid_type), &
-      INTENT(INOUT), TARGET                  :: rsgrid
+    TYPE(realspace_grid_type),POINTER        :: rsgrid
     TYPE(cube_info_type), INTENT(IN)         :: cube_info
     TYPE(l_info_type), INTENT(IN)            :: l_info
     REAL(KIND=dp), INTENT(IN)                :: eps_rho_rspace

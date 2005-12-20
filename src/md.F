@@ -226,7 +226,7 @@ CONTAINS
     TYPE(simulation_parameters_type), &
          INTENT(OUT)                            :: simpar
     TYPE(global_environment_type), &
-         INTENT(IN)                             :: globenv
+         pointer                             :: globenv
     TYPE(mdio_parameters_type), INTENT(OUT)     :: mdio
     TYPE(cp_error_type), INTENT(inout)          :: error
     ! Local Variables
@@ -444,7 +444,7 @@ SUBROUTINE read_md_new_section(simpar, globenv, md_section, error)
   TYPE(simulation_parameters_type), &
        INTENT(INOUT)                          :: simpar
   TYPE(global_environment_type), &
-       INTENT(IN)                             :: globenv
+       pointer                             :: globenv
   TYPE(cp_error_type), INTENT(inout)          :: error
   TYPE(section_vals_type), POINTER            :: md_section
   ! Local Variables
@@ -571,7 +571,7 @@ END SUBROUTINE read_md_new_section
     TYPE(simulation_parameters_type), &
          INTENT(OUT)                            :: simpar
     TYPE(global_environment_type), &
-         INTENT(IN)                             :: globenv
+         pointer                             :: globenv
     TYPE(mdio_parameters_type), INTENT(OUT)     :: mdio    
     ! Local Variables
     INTEGER                                  :: ia, ie
@@ -668,7 +668,7 @@ END SUBROUTINE read_md_new_section
 !!       Implicit None
 !!       Type(simulation_parameters_type), Intent (IN):: simpar
 !!       Type(particle_type), Intent (INOUT), Dimension(:):: part
-!!       Type(global_environment_type), Intent (INOUT):: globenv
+!!       Type(global_environment_type), pointer:: globenv
 !!     End Subroutine initialize_velocities
 !!
 !!   FUNCTION
@@ -690,7 +690,7 @@ SUBROUTINE initialize_velocities ( simpar, part, globenv )
     TYPE(particle_type), DIMENSION(:), &
       INTENT(INOUT)                          :: part
     TYPE(global_environment_type), &
-      INTENT(INOUT)                          :: globenv
+      pointer                          :: globenv
 
     INTEGER                                  :: i, iw, natoms
     REAL(KIND=dp)                                :: akin, denom, mass, sc, temp, mass_tot

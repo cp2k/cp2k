@@ -224,10 +224,10 @@ CONTAINS
 ! (or you can reuse it on the next step of the computation)
 !*******************************************************************************
 SUBROUTINE qs_ot_new_preconditioner(qs_ot_env,preconditioner)
-    TYPE(qs_ot_type)                         :: qs_ot_env
-    TYPE(preconditioner_type), TARGET        :: preconditioner
+  TYPE(qs_ot_type)                          :: qs_ot_env
+  TYPE(preconditioner_type), POINTER        :: preconditioner
 
-    INTEGER :: ip
+  INTEGER :: ip
 
 !----
 

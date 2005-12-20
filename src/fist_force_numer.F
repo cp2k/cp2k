@@ -2874,7 +2874,7 @@ END SUBROUTINE potential_nonbond
     TYPE ( cell_type ), POINTER              :: cell
     TYPE ( fist_nonbond_env_type ), POINTER  :: fist_nonbond_env
     TYPE(global_environment_type), &
-      INTENT(IN)                                     :: globenv
+      pointer                                     :: globenv
     REAL (KIND=dp), INTENT ( IN ) :: delta
     REAL (KIND=dp), INTENT ( INOUT ) ::  energy_numer
     REAL (KIND=dp), INTENT ( INOUT ) :: f_numer ( :, : )

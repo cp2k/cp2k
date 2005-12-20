@@ -183,7 +183,7 @@ SUBROUTINE gopt_f_create(gopt_env, force_env, globenv, error)
     TYPE(gopt_f_type), POINTER               :: gopt_env
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(global_environment_type), &
-      INTENT(inout), TARGET                  :: globenv
+      pointer                  :: globenv
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -566,7 +566,7 @@ END SUBROUTINE gopt_param_create
 SUBROUTINE gopt_param_read(gopt_param, globenv, error)
     TYPE(gopt_param_type), POINTER           :: gopt_param
     TYPE(global_environment_type), &
-      INTENT(inout), TARGET                  :: globenv
+      pointer                  :: globenv
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 

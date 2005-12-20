@@ -74,7 +74,7 @@ SUBROUTINE read_topology_psf (topology,globenv)
     TYPE(topology_parameters_type), &
       INTENT(INOUT)                          :: topology
     TYPE(global_environment_type), &
-      INTENT(IN), OPTIONAL                   :: globenv
+      pointer, OPTIONAL                   :: globenv
     TYPE (atom_info_type),POINTER            :: atom_info
     TYPE (connectivity_info_type),POINTER    :: conn_info
 
@@ -425,7 +425,7 @@ SUBROUTINE write_topology_psf (topology,globenv)
     TYPE(topology_parameters_type), &
       INTENT(INOUT)                          :: topology
     TYPE(global_environment_type), &
-      INTENT(IN), OPTIONAL                   :: globenv
+      pointer, OPTIONAL                   :: globenv
 
     INTEGER                                  :: i, j, iatom, ibond, ierror, &
                                                 ilen, iphi, itheta, iunit, &

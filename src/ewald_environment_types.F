@@ -405,7 +405,7 @@ SUBROUTINE read_ewald_section ( ewald_env, globenv, error )
   IMPLICIT NONE
   ! Arguments
   TYPE ( ewald_environment_type ), POINTER :: ewald_env
-  TYPE ( global_environment_type ), INTENT ( IN ) :: globenv
+  TYPE ( global_environment_type ), pointer :: globenv
   TYPE(cp_error_type), INTENT(inout), OPTIONAL   :: error 
   ! Local Variables
   LOGICAL :: found, setf, datf, topf

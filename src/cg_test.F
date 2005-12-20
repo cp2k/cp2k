@@ -49,7 +49,7 @@ CONTAINS
 SUBROUTINE clebsch_gordon_test ( globenv )
 
     TYPE(global_environment_type), &
-      INTENT(IN)                             :: globenv
+      pointer                             :: globenv
 
     INTEGER, PARAMETER                       :: l = 7
 

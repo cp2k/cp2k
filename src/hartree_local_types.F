@@ -139,8 +139,7 @@ MODULE hartree_local_types
 
   SUBROUTINE get_ecoul_1c(ecoul_1c,iatom,Vh1_h,Vh1_s)
 
-    TYPE(ecoul_1center_type), DIMENSION(:),&
-                              INTENT(IN), TARGET  ::  ecoul_1c
+    TYPE(ecoul_1center_type), DIMENSION(:),POINTER  ::  ecoul_1c
     REAL(dp), DIMENSION(:,:), OPTIONAL, POINTER   :: Vh1_h, Vh1_s
     INTEGER, INTENT(IN), OPTIONAL                 :: iatom
 
@@ -157,7 +156,7 @@ MODULE hartree_local_types
 
   SUBROUTINE get_hartree_local(hartree_local,ecoul_1c,vtriple)
 
-    TYPE(hartree_local_type), INTENT(IN), TARGET  :: hartree_local
+    TYPE(hartree_local_type), POINTER   :: hartree_local
     TYPE(ecoul_1center_type), DIMENSION(:), &
                             OPTIONAL, POINTER     :: ecoul_1c
     TYPE(vtriple_type), DIMENSION(:,:), &
@@ -229,8 +228,7 @@ MODULE hartree_local_types
 
   SUBROUTINE set_ecoul_1c(ecoul_1c,iatom,ecoul_1_h,ecoul_1_s,ecoul_1_z,ecoul_1_0)
 
-    TYPE(ecoul_1center_type), DIMENSION(:),&
-                                          TARGET  ::  ecoul_1c
+    TYPE(ecoul_1center_type), DIMENSION(:), POINTER ::  ecoul_1c
     INTEGER, INTENT(IN), OPTIONAL                 :: iatom
     REAL(dp), INTENT(IN),  OPTIONAL               :: ecoul_1_h, ecoul_1_s, &
                                                      ecoul_1_z, ecoul_1_0
@@ -250,7 +248,7 @@ MODULE hartree_local_types
 
   SUBROUTINE set_hartree_local(hartree_local,ecoul_1c,vtriple)
 
-    TYPE(hartree_local_type), INTENT(INOUT), TARGET  :: hartree_local
+    TYPE(hartree_local_type), POINTER :: hartree_local
     TYPE(ecoul_1center_type), DIMENSION(:), &
                             OPTIONAL, POINTER        :: ecoul_1c
     TYPE(vtriple_type), DIMENSION(:,:), &

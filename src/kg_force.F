@@ -133,7 +133,7 @@ CONTAINS
 !!     Subroutine kg_force_control(kg_env, globenv, debug)
 !!       Implicit None
 !!       Type(kg_environment_type), Intent (INOUT):: kg_env
-!!       Type(global_environment_type), Intent (IN):: globenv
+!!       Type(global_environment_type), pointer:: globenv
 !!       Type(debug_variables_type), Intent (OUT), Optional:: debug
 !!     End Subroutine kg_force_control
 !!
@@ -198,7 +198,7 @@ SUBROUTINE kgpol_calculate_forces ( kg_env, globenv, error )
 
     TYPE(kg_environment_type), POINTER       :: kg_env
     TYPE(global_environment_type), &
-      INTENT(IN)                             :: globenv
+      pointer                             :: globenv
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -382,7 +382,7 @@ SUBROUTINE kgpol_calculate_forces ( kg_env, globenv, error )
   vxc_r%pw%cr3d(:,:,:) =dvol*vxc_r%pw%cr3d(:,:,:)
 
   CALL calculate_kxc_derivatives(auxbas_pw_pool, rho_r, rho_g, rhop_r, vxc_r, v1xc_r,&
-                                 v2xc_r, e1_xc, e2_xc, xc_section, calculate_forces)
+                                 v2xc_r, e1_xc, e2_xc, xc_section, calculate_forces,error)
 
 ! calculate the total density
   rho%total_rho_rspace = total_rho0_rspace+ rho%total_rho_core_rspace
@@ -525,7 +525,7 @@ SUBROUTINE kg_calculate_forces ( kg_env, globenv,error )
 
     TYPE(kg_environment_type), POINTER       :: kg_env
     TYPE(global_environment_type), &
-      INTENT(IN)                             :: globenv
+      pointer                             :: globenv
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 

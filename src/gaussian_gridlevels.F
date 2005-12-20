@@ -59,7 +59,7 @@ CONTAINS
 SUBROUTINE destroy_gaussian_gridlevel(gridlevel_info,globenv,error)
     TYPE(gridlevel_info_type)                :: gridlevel_info
     TYPE(global_environment_type), &
-      INTENT(in), OPTIONAL, TARGET           :: globenv
+      pointer, OPTIONAL           :: globenv
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 

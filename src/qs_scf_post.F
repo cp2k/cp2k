@@ -659,7 +659,7 @@ CONTAINS
   SUBROUTINE write_available_results(qs_env,globenv,error)
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(global_environment_type), &
-      INTENT(in), TARGET                     :: globenv
+      pointer                     :: globenv
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -959,7 +959,7 @@ SUBROUTINE calc_stupid_dipole(subsystem, rho_r, rho_core_g,aux_bas_pool,&
     TYPE(pw_pool_type), POINTER              :: aux_bas_pool
     TYPE(cell_type), POINTER                 :: cell
     TYPE(global_environment_type), &
-      INTENT(in)                             :: globenv
+      pointer                             :: globenv
     INTEGER, INTENT(in)                      :: unit_nr
     LOGICAL, INTENT(in), OPTIONAL            :: print_header
     TYPE(cp_error_type), INTENT(inout), &

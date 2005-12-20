@@ -892,7 +892,7 @@ CONTAINS
     TYPE(all_potential_type), POINTER        :: potential
     REAL(KIND=dp)                            :: zeff_correction
     TYPE(global_environment_type), &
-      INTENT(IN)                             :: globenv
+      pointer                             :: globenv
     TYPE(cp_error_type), INTENT(inout), optional :: error
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "read_all_potential"
@@ -1019,7 +1019,7 @@ CONTAINS
     CHARACTER(LEN=*), INTENT(IN)             :: element_symbol, potential_name
     TYPE(elp_potential_type), POINTER        :: potential
     TYPE(global_environment_type), &
-      INTENT(IN)                             :: globenv
+      pointer                             :: globenv
     TYPE(cp_error_type), INTENT(inout), optional :: error
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "read_elp_potential"
@@ -1172,7 +1172,7 @@ CONTAINS
     TYPE(gth_potential_type), POINTER        :: potential
     REAL(KIND=dp), INTENT(IN)                :: zeff_correction
     TYPE(global_environment_type), &
-      INTENT(IN)                             :: globenv
+      pointer                             :: globenv
     TYPE(cp_error_type), INTENT(inout), optional :: error
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "read_gth_potential"
@@ -1634,7 +1634,7 @@ CONTAINS
 
     TYPE(all_potential_type), POINTER        :: potential
     TYPE(global_environment_type), &
-      INTENT(IN)                             :: globenv
+      pointer                             :: globenv
 
     INTEGER                                  :: output_unit
 
@@ -1675,7 +1675,7 @@ CONTAINS
 
     TYPE(elp_potential_type), POINTER        :: potential
     TYPE(global_environment_type), &
-      INTENT(IN)                             :: globenv
+      pointer                             :: globenv
 
     INTEGER                                  :: i, j, output_unit
     REAL(KIND=dp)                            :: r
@@ -1727,7 +1727,7 @@ CONTAINS
 
     TYPE(gth_potential_type), POINTER        :: potential
     TYPE(global_environment_type), &
-      INTENT(IN)                             :: globenv
+      pointer                             :: globenv
 
     INTEGER                                  :: i, j, l, output_unit
     REAL(KIND=dp)                            :: r

@@ -2,6 +2,9 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C ) 2000  CP2K developers group                                !
 !-----------------------------------------------------------------------------!
+
+#include "cp_prep_globals.h"
+
 !!****** cp2k/kg_force [1.0] *
 !!
 !!   NAME
@@ -44,6 +47,10 @@ MODULE kg_kxc
   USE xc_derivative_desc,              ONLY: MAX_DERIVATIVE_DESC_LENGTH,&
                                              MAX_LABEL_LENGTH
   USE input_section_types, ONLY: section_vals_type
+
+#include "cp_common_uses.h"
+
+
   IMPLICIT NONE
 
   PRIVATE
@@ -77,7 +84,7 @@ CONTAINS
 !******************************************************************************
 
  SUBROUTINE calculate_kxc_derivatives ( pw_pool,rho_r, rho_g, rhop_r, v_r, v1_r, &
-                           v2_r, e1_xc, e2_xc, xc_section,calculate_forces )
+                           v2_r, e1_xc, e2_xc, xc_section,calculate_forces,error)
 
 
     TYPE(pw_pool_type), POINTER              :: pw_pool
@@ -86,6 +93,8 @@ CONTAINS
     REAL(KIND=dp), INTENT(out)                   :: e1_xc, e2_xc
     TYPE(section_vals_type), POINTER          :: xc_section
     LOGICAL, INTENT(in)                      :: calculate_forces
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
     CHARACTER(LEN=*), PARAMETER :: &
       routine = "calc_kxc_derivatives (MODULE kg_kxc)"
@@ -107,7 +116,7 @@ CONTAINS
   END IF
 
   CALL xc_calculate_derivatives (rho_r%pw,rhop_r%pw,v_r%pw,v1_r%pw, &
-                             v2_r%pw, e1_xc, e2_xc, order, xc_section, pw_pool)
+                             v2_r%pw, e1_xc, e2_xc, order, xc_section, pw_pool, error)
  
   IF ( rho_r%pw%pw_grid%para%mode == PW_MODE_DISTRIBUTED ) THEN
     CALL mp_sum ( e1_xc, rho_r%pw%pw_grid%para%group )
@@ -134,16 +143,18 @@ CONTAINS
 !!   SOURCE
 !******************************************************************************
  SUBROUTINE xc_calculate_derivatives ( rho_r,rhop_r,v,v1,v2,e1,e2,order,&
-      xc_section, pw_pool )
+      xc_section, pw_pool, error)
 
 
-   TYPE(pw_type), INTENT(IN), target        :: rho_r, rhop_r, v
+   TYPE(pw_type), POINTER                   :: rho_r, rhop_r, v
    TYPE(pw_type), INTENT(INOUT)             :: v1, v2
    REAL(KIND=dp), INTENT(out)                   :: e1, e2
    INTEGER, intent(IN)                      :: order
    TYPE(section_vals_type), POINTER          :: xc_section
    TYPE(pw_pool_type), POINTER              :: pw_pool
    TYPE(cell_type), pointer                 :: cell
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
    CHARACTER(len=*), PARAMETER :: routineN = 'xc_calculate_derivatives', &
         routineP = moduleN//':'//routineN
@@ -157,7 +168,7 @@ CONTAINS
    TYPE(xc_derivative_set_type), POINTER    :: derivative_set
    TYPE(xc_rho_set_type), pointer           :: rho_set
    TYPE(pw_p_type), DIMENSION(:), POINTER   :: my_rho_g,my_tau
-   TYPE(pw_p_type), DIMENSION(1), target    :: my_rho_r
+   TYPE(pw_p_type), DIMENSION(:), POINTER   :: my_rho_r
    TYPE(cp_sll_xc_deriv_type), POINTER      :: pos
     CHARACTER&
       (len=MAX_DERIVATIVE_DESC_LENGTH)       :: desc
@@ -172,7 +183,10 @@ CONTAINS
    e1 = 0.0_dp
    e2 = 0.0_dp
 
-   NULLIFY(rho_set,derivative_set,my_rho_g,my_tau)
+   NULLIFY(rho_set,derivative_set,my_rho_g,my_rho_r,my_tau)
+   ALLOCATE(my_rho_r(1),stat=stat)
+   CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+   NULLIFY (my_rho_r(1)%pw)
    my_rho_r(1)%pw => rho_r
    bo=rho_r%pw_grid%bounds_local
    CALL xc_rho_set_and_dset_create(rho_set=rho_set,&
@@ -182,6 +196,8 @@ CONTAINS
         cell=cell,pw_pool=pw_pool,&
         needs_basic_components=.FALSE.)
 
+   DEALLOCATE(my_rho_r,stat=stat)
+   CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
    ! check for unsupported derivatives
    pos => derivative_set%derivs
    DO WHILE (cp_sll_xc_deriv_next(pos,el_att=deriv))

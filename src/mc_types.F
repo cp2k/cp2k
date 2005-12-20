@@ -476,7 +476,7 @@ SUBROUTINE read_mc_section ( mc_par, globenv,error )
     TYPE(mc_simulation_parameters_type), &
       INTENT(OUT)                            :: mc_par
     TYPE(global_environment_type), &
-      INTENT(IN)                             :: globenv
+      pointer                             :: globenv
     TYPE(cp_error_type), INTENT(inout)          :: error
 
     CHARACTER(LEN=*), PARAMETER      &

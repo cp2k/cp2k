@@ -126,7 +126,7 @@ CONTAINS
 
 SUBROUTINE lib_test ( globenv, error )
 
-    TYPE(global_environment_type), INTENT(IN) :: globenv
+    TYPE(global_environment_type), pointer :: globenv
     TYPE(cp_error_type), INTENT(INOUT)        :: error
 
     INTEGER                                  :: iw
@@ -150,7 +150,7 @@ SUBROUTINE lib_test ( globenv, error )
 !
   IF ( runtest ( 6 ) /= 0 ) CALL clebsch_gordon_test ( globenv )
 !
-  IF ( runtest ( 7 ) /= 0 ) CALL rs_test ( globenv )
+  IF ( runtest ( 7 ) /= 0 ) CALL rs_test ( globenv, error )
 !
   IF ( runtest ( 8 ) /= 0 ) CALL mpi_test ( globenv%group )
 !
@@ -203,7 +203,7 @@ END SUBROUTINE lib_test
 SUBROUTINE test_input ( globenv , error)
 
     TYPE(global_environment_type), &
-      INTENT(IN)                             :: globenv
+      pointer                             :: globenv
     TYPE(cp_error_type), INTENT(inout), optional :: error
 
     CHARACTER(LEN=20)                        :: string
@@ -261,7 +261,7 @@ END SUBROUTINE test_input
 SUBROUTINE copy_test ( globenv )
 
     TYPE(global_environment_type), &
-      INTENT(IN)                             :: globenv
+      pointer                             :: globenv
 
     INTEGER                                  :: i, ierr, iw, j, len, ntim, siz
     REAL(KIND=dp)                                :: perf, t, tend, tstart
@@ -332,7 +332,7 @@ END SUBROUTINE copy_test
 SUBROUTINE matmul_test ( globenv )
 
     TYPE(global_environment_type), &
-      INTENT(IN)                             :: globenv
+      pointer                             :: globenv
 
     INTEGER                                  :: i, ierr, iw, j, len, ntim, siz
     REAL(KIND=dp)                                :: perf, t, tend, tstart
@@ -551,7 +551,7 @@ END SUBROUTINE matmul_test
 SUBROUTINE fft_test ( globenv )
 
     TYPE(global_environment_type), &
-      INTENT(IN)                             :: globenv
+      pointer                             :: globenv
 
     INTEGER :: iall, ierr, it, iw, j, len, n(3), &
       ndate( 3 ) = (/ 12, 48, 96 /), ntim, radix_in, radix_out, siz, stat
@@ -708,7 +708,7 @@ END SUBROUTINE fft_test
 SUBROUTINE pw_fft_test ( globenv )
 
     TYPE(global_environment_type), &
-      INTENT(IN)                             :: globenv
+      pointer                             :: globenv
 
     REAL(KIND=dp), PARAMETER                     :: toler = 1.e-11_dp
 
@@ -1386,7 +1386,7 @@ END SUBROUTINE simple_copy
 
     ! Test the parallel (pseudo)random number generator.
 
-    TYPE(global_environment_type), INTENT(IN) :: globenv
+    TYPE(global_environment_type), pointer :: globenv
 
     ! Local variables
 
@@ -1533,7 +1533,7 @@ END SUBROUTINE simple_copy
     ! Test eigensolver library routines.
 
     INTEGER, INTENT(IN)                       :: nrow_global,neig
-    TYPE(global_environment_type), INTENT(IN) :: globenv
+    TYPE(global_environment_type), pointer :: globenv
     TYPE(cp_error_type), INTENT(INOUT)        :: error
 
     ! Local variables

@@ -79,7 +79,7 @@ CONTAINS
     TYPE(topology_parameters_type), &
          INTENT(INOUT)                          :: topology
     TYPE(global_environment_type), &
-         INTENT(IN)                             :: globenv
+         pointer                             :: globenv
     TYPE(qmmm_env_mm_type), pointer             :: qmmm_env
     TYPE(cp_error_type), INTENT(inout), &
          OPTIONAL                               :: error

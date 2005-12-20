@@ -312,7 +312,7 @@ SUBROUTINE dg_rho0_pme_gauss ( dg_rho0, alpha )
   IMPLICIT NONE
 
 ! Arguments
-  TYPE ( coeff_type ), INTENT ( INOUT ), TARGET :: dg_rho0
+  TYPE ( coeff_type ), INTENT ( INOUT ) :: dg_rho0
   REAL (KIND=dp), INTENT ( IN ) :: alpha
 
 ! Locals

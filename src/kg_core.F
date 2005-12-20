@@ -74,7 +74,7 @@ CONTAINS
 
     TYPE(kg_environment_type), POINTER       :: kg_env
     TYPE(global_environment_type), &
-      INTENT(IN)                             :: globenv
+      pointer                             :: globenv
     LOGICAL, INTENT(IN)                      :: calculate_forces
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "calculate_ecore_overlap", &

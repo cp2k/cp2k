@@ -347,7 +347,7 @@ CONTAINS
 !!*** **********************************************************************
   RECURSIVE SUBROUTINE farming_run(globenv,error)
     TYPE(global_environment_type), &
-      INTENT(IN)                             :: globenv
+      pointer                             :: globenv
     TYPE(cp_error_type), INTENT(INOUT), &
       OPTIONAL                               :: error
 

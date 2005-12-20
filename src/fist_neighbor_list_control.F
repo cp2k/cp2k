@@ -70,7 +70,7 @@ SUBROUTINE list_control ( atomic_kind_set, particle_set, local_particles, &
     TYPE(cell_type), POINTER                 :: cell
     TYPE(fist_nonbond_env_type), POINTER     :: fist_nonbond_env
     TYPE(global_environment_type), &
-      INTENT(IN)                             :: globenv
+      pointer                             :: globenv
 
     CHARACTER(LEN=*), PARAMETER              :: routine_name = "list_control"
 

@@ -440,7 +440,7 @@ SUBROUTINE dyn_coeff_set_initialize(dyn_coeff_set,globenv)
 
     TYPE(dyn_coeff_set_type), POINTER        :: dyn_coeff_set
     TYPE(global_environment_type), &
-      INTENT(INOUT)                          :: globenv
+      pointer                          :: globenv
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dyn_coeff_set_initialize', &
       routineP = moduleN//':'//routineN
@@ -525,7 +525,7 @@ SUBROUTINE read_coeff_restart(dyn_coeff_set,globenv,rtype,error)
 
     TYPE(dyn_coeff_set_type), POINTER        :: dyn_coeff_set
     TYPE(global_environment_type), &
-      INTENT(IN)                             :: globenv
+      pointer                             :: globenv
     integer, optional                        :: rtype
     TYPE(cp_error_type), INTENT(inout), optional :: error
 
@@ -620,7 +620,7 @@ SUBROUTINE write_coeff_restart(dyn_coeff_set,atomic_kind_set,globenv,error)
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(global_environment_type), &
-      INTENT(IN)                             :: globenv
+      pointer                             :: globenv
     TYPE(cp_error_type), INTENT(inout), optional :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'write_coeff_restart', &
@@ -839,7 +839,7 @@ SUBROUTINE dyn_coeff_set_init_masses(dyn_coeff_set,mbuffer,globenv)
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(INOUT)                          :: mbuffer
     TYPE(global_environment_type), &
-      INTENT(IN)                             :: globenv
+      pointer                             :: globenv
 
     CHARACTER(len=*), PARAMETER :: file_name = 'CMASSES', &
       routineN = 'dyn_coeff_set_init_masses', &
@@ -973,7 +973,7 @@ SUBROUTINE dyn_coeff_set_init_vel(kg_coeff_target_temp,dyn_coeff_set,mbuffer,glo
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(IN)                             :: mbuffer
     TYPE(global_environment_type), &
-      INTENT(INOUT)                          :: globenv
+      pointer                          :: globenv
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dyn_coeff_set_init_vel', &
       routineP = moduleN//':'//routineN

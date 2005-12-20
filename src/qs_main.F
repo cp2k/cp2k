@@ -79,7 +79,7 @@ CONTAINS
 !!
 !!   SYNOPSIS
 !!     Subroutine quickstep(globenv)
-!!       Type(global_environment_type), Intent (INOUT):: globenv
+!!       Type(global_environment_type), pointer:: globenv
 !!     End Subroutine quickstep
 !!
 !!   FUNCTION

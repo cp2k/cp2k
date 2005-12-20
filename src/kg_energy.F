@@ -161,7 +161,7 @@ SUBROUTINE kg_only_energies ( kg_env, globenv, error )
 
     TYPE(kg_environment_type), POINTER       :: kg_env
     TYPE(global_environment_type), &
-      INTENT(IN)                             :: globenv
+      pointer                             :: globenv
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -333,7 +333,7 @@ SUBROUTINE kg_std_energies ( kg_env, globenv, error )
 
     TYPE(kg_environment_type), POINTER       :: kg_env
     TYPE(global_environment_type), &
-      INTENT(IN)                             :: globenv
+      pointer                             :: globenv
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -531,7 +531,7 @@ SUBROUTINE init_energy_calculation ( kg_env, vxc_r, globenv, error)
     TYPE(kg_environment_type), POINTER       :: kg_env
     TYPE(coeff_type),POINTER                 :: vxc_r
     TYPE(global_environment_type), &
-      INTENT(IN)                             :: globenv
+      pointer                             :: globenv
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -656,7 +656,7 @@ SUBROUTINE calc_c_gradients ( kg_env, vxc_r, maxgrad, globenv,error )
     TYPE(coeff_type), POINTER                :: vxc_r
     REAL(KIND=dp), intent(inout)                 :: maxgrad
     TYPE(global_environment_type), &
-      INTENT(IN)                             :: globenv
+      pointer                             :: globenv
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -764,7 +764,7 @@ SUBROUTINE calc_c_gradients ( kg_env, vxc_r, maxgrad, globenv,error )
   CALL calculate_p_density(rhop_r, rhop_g, total_rhop_rspace, kg_env)
 
   CALL calculate_kxc_derivatives(auxbas_pw_pool, rho_r, rho_g, rhop_r, vxc_r, v1xc_r,&
-                                 v2xc_r, e1_xc, e2_xc, xc_section, calculate_forces)
+                                 v2xc_r, e1_xc, e2_xc, xc_section, calculate_forces, error)
 
 ! add the polarization density to get the total density
   CALL coeff_sumup(rhop_g,rho_g)

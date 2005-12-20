@@ -50,9 +50,11 @@ MODULE spme
                                              pw_p_type,&
                                              pw_integral_a2b, pw_transfer
   USE realspace_grid_types,            ONLY: realspace_grid_type,&
-                                             rs_grid_allocate,&
-                                             rs_grid_deallocate,&
-                                             rs_grid_setup,&
+                                             rs_grid_release,&
+                                             rs_grid_create,&
+                                             realspace_grid_p_type,&
+                                             rs_grid_p_release,&
+                                             rs_grid_p_create,&
                                              rs_pw_transfer,&
                                              rs2pw,&
                                              pw2rs
@@ -115,7 +117,8 @@ SUBROUTINE spme_evaluate ( ewald_env, ewald_pw, particle_set, &
     REAL (KIND=dp)                             :: alpha, eps0
     TYPE(pw_type), pointer :: phi_g, rhob_g, rhob_r
     TYPE(pw_p_type), dimension(3) :: dphi_g
-    TYPE(realspace_grid_type)                :: drpot( 3 ), rden
+    TYPE(realspace_grid_type), POINTER        :: rden
+    TYPE(realspace_grid_p_type), POINTER, DIMENSION(:) :: drpot
     TYPE(pw_grid_type), POINTER              :: grid_spme
     TYPE(pw_pool_type), POINTER              :: pw_pool
     TYPE(cell_type), POINTER           :: box
@@ -142,8 +145,7 @@ SUBROUTINE spme_evaluate ( ewald_env, ewald_pw, particle_set, &
   ALLOCATE ( rhos ( n, n, n ), STAT = ierr )
   IF ( ierr /= 0 ) CALL stop_memory ( "spme_evaluate", "rhos", n**3 )
   ndim = n
-  CALL rs_grid_setup ( rden, grid_spme, -MAXVAL ( ndim(1:3) ) )
-  CALL rs_grid_allocate ( rden )
+  CALL rs_grid_create ( rden, grid_spme, -MAXVAL ( ndim(1:3) ) )
   rden % r = 0.0_dp
 
   ALLOCATE ( centre ( 3, npart ), STAT = ierr )
@@ -173,8 +175,6 @@ SUBROUTINE spme_evaluate ( ewald_env, ewald_pw, particle_set, &
                            in_space = REALSPACE )
 
   CALL rs_pw_transfer ( rden, rhob_r, rs2pw )
-
-  CALL rs_grid_deallocate ( rden )
 
   ! transform density to G space and add charge function
   CALL pw_pool_create_pw ( pw_pool, rhob_g,  &
@@ -222,14 +222,13 @@ SUBROUTINE spme_evaluate ( ewald_env, ewald_pw, particle_set, &
 
   ! move derivative of potential to real space grid and
   ! multiply by charge function in g-space
-  CALL rs_grid_setup ( drpot, grid_spme, -MAXVAL ( ndim(1:3) ) )
-  CALL rs_grid_allocate ( drpot ( 1 : 3 ) )
+  CALL rs_grid_p_create ( drpot, 3, grid_spme, -MAXVAL ( ndim(1:3) ) )
   DO i = 1, 3
      dphi_g ( i ) % pw % cc = dphi_g ( i ) % pw % cc * &
                               green % p3m_charge % cr
      CALL pw_transfer ( dphi_g ( i )%pw, rhob_r )
      CALL pw_pool_give_back_pw ( pw_pool, dphi_g ( i )%pw )
-     CALL rs_pw_transfer ( drpot ( i ), rhob_r, pw2rs )
+     CALL rs_pw_transfer ( drpot ( i ) % rs_grid, rhob_r, pw2rs )
   END DO
 
   CALL pw_pool_give_back_pw ( pw_pool, rhob_r )
@@ -262,7 +261,8 @@ SUBROUTINE spme_evaluate ( ewald_env, ewald_pw, particle_set, &
 
 !------------------CLEANING UP ----------------------
 
-  CALL rs_grid_deallocate ( drpot ( 1 : 3 ) )
+  CALL rs_grid_release ( rden )
+  CALL rs_grid_p_release ( drpot )
   DEALLOCATE ( rhos, STAT = ierr )
   IF ( ierr /= 0 ) CALL stop_memory ( "spme_evaluate", "rhos" )
   DEALLOCATE ( centre, STAT = ierr )
@@ -423,7 +423,7 @@ SUBROUTINE set_list ( part, npart, center, p1, rs, ipart, jpart )
     INTEGER, INTENT(IN)                      :: npart
     INTEGER, DIMENSION(:, :), INTENT(IN)     :: center
     INTEGER, INTENT(OUT)                     :: p1
-    TYPE(realspace_grid_type)                :: rs
+    TYPE(realspace_grid_type), POINTER                :: rs
     INTEGER, INTENT(INOUT)                   :: ipart, jpart
 
     INTEGER                                  :: dir, lb, ndim, npos, ub

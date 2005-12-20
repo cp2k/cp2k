@@ -113,7 +113,7 @@ CONTAINS
     TYPE(ATOM_TYPE), INTENT(OUT)             :: atom
     TYPE(ATOM_CALCULATION_TYPE), INTENT(OUT) :: ac
     TYPE(GLOBAL_ENVIRONMENT_TYPE), &
-      INTENT(IN)                             :: globenv
+      pointer                             :: globenv
 
 ! variables
 
@@ -137,7 +137,7 @@ CONTAINS
     TYPE(ATOM_TYPE), INTENT(OUT)             :: atom
     TYPE(ATOM_CALCULATION_TYPE), INTENT(IN)  :: ac
     TYPE(GLOBAL_ENVIRONMENT_TYPE), &
-      INTENT(IN)                             :: globenv
+      pointer                             :: globenv
 
     CHARACTER(8)                             :: label, string
     INTEGER                                  :: avail, err, i, l, len, n, np, &
@@ -259,7 +259,7 @@ CONTAINS
   SUBROUTINE handle_ac ( ac, globenv )
     TYPE(ATOM_CALCULATION_TYPE), INTENT(OUT) :: ac
     TYPE(GLOBAL_ENVIRONMENT_TYPE), &
-      INTENT(IN)                             :: globenv
+      pointer                             :: globenv
 
     CHARACTER(8)                             :: label, string
     INTEGER                                  :: err, len, out
@@ -324,7 +324,7 @@ CONTAINS
   SUBROUTINE handle_grid ( ac, globenv )
     TYPE(ATOM_CALCULATION_TYPE), INTENT(OUT) :: ac
     TYPE(GLOBAL_ENVIRONMENT_TYPE), &
-      INTENT(IN)                             :: globenv
+      pointer                             :: globenv
 
     CHARACTER(8)                             :: gridtype, label, string
     INTEGER                                  :: err, len, np, out
@@ -442,7 +442,7 @@ CONTAINS
   SUBROUTINE handle_method_specific ( ac, globenv )
     TYPE(ATOM_CALCULATION_TYPE), INTENT(INOUT) :: ac
     TYPE(GLOBAL_ENVIRONMENT_TYPE), &
-      INTENT(IN)                             :: globenv
+      pointer                             :: globenv
 
     CHARACTER(8)                             :: label, string
     INTEGER                                  :: err, len, out

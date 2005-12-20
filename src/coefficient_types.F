@@ -144,7 +144,7 @@ SUBROUTINE coeff_allocate_from_coeff ( c_out, c_model, use_basis )
 
 
     TYPE(coeff_type), INTENT(OUT)            :: c_out
-    TYPE(coeff_type), INTENT(IN), TARGET     :: c_model
+    TYPE(coeff_type), POINTER                :: c_model
     INTEGER, INTENT(IN), OPTIONAL            :: use_basis
 
     INTEGER                                  :: stat, use_data
@@ -387,7 +387,7 @@ END SUBROUTINE coeff_reduce
 SUBROUTINE coeff_transform_c1 ( c1, debug )
   
 
-    TYPE(coeff_type), INTENT(INOUT), TARGET  :: c1
+  TYPE(coeff_type), POINTER                  :: c1
     LOGICAL, INTENT(IN), OPTIONAL            :: debug
 
 !------------------------------------------------------------------------------

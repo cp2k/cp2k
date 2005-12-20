@@ -25,7 +25,7 @@ CONTAINS
   SUBROUTINE farming_parse_input(farming_env,globenv,error)
     TYPE(farming_env_type), POINTER          :: farming_env
     TYPE(global_environment_type), &
-      INTENT(IN)                             :: globenv
+      pointer                             :: globenv
     TYPE(cp_error_type), INTENT(INOUT), &
       OPTIONAL                               :: error
 

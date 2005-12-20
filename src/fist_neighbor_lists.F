@@ -109,7 +109,7 @@ CONTAINS
     TYPE(neighbor_list_set_p_type), &
       DIMENSION(:), POINTER                  :: nonbonded
     TYPE(global_environment_type), &
-      INTENT(IN)                             :: globenv
+      pointer                             :: globenv
     LOGICAL, INTENT(IN)                      :: build_from_scratch
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "build_fist_neighbor_lists"
@@ -642,7 +642,7 @@ CONTAINS
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(global_environment_type), &
-      INTENT(IN)                             :: globenv
+      pointer                             :: globenv
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "write_distribution"
 
@@ -778,7 +778,7 @@ CONTAINS
       POINTER                                :: particle_set
     TYPE(cell_type), POINTER                 :: cell
     TYPE(global_environment_type), &
-      INTENT(IN)                             :: globenv
+      pointer                             :: globenv
     CHARACTER(LEN=*), INTENT(IN)             :: name
 
     CHARACTER(LEN=8)                         :: unit_of_length_name

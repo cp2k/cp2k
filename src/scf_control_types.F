@@ -311,7 +311,7 @@ CONTAINS
 !!   SYNOPSIS
 !!     Subroutine scf_c_read_parameters(scf_control, globenv, error)
 !!       Type(scf_control_type), Pointer:: scf_control
-!!       Type(global_environment_type), Intent (IN):: globenv
+!!       Type(global_environment_type), pointer:: globenv
 !!       Type(cp_error_type), Intent (INOUT), Optional:: error
 !!     End Subroutine scf_c_read_parameters
 !!
@@ -337,7 +337,7 @@ CONTAINS
   SUBROUTINE scf_c_read_parameters(scf_control, globenv,error)
     TYPE(scf_control_type), POINTER          :: scf_control
     TYPE(global_environment_type), &
-      INTENT(IN)                             :: globenv
+      pointer                             :: globenv
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -431,7 +431,7 @@ CONTAINS
 !!   SYNOPSIS
 !!     Subroutine scf_c_write_parameters(scf_control, globenv, error)
 !!       Type(scf_control_type), Pointer:: scf_control
-!!       Type(global_environment_type), Intent (IN):: globenv
+!!       Type(global_environment_type), pointer:: globenv
 !!       Type(cp_error_type), Intent (INOUT), Optional:: error
 !!     End Subroutine scf_c_write_parameters
 !!
@@ -457,7 +457,7 @@ CONTAINS
   SUBROUTINE scf_c_write_parameters(scf_control,globenv, error)
     TYPE(scf_control_type), POINTER          :: scf_control
     TYPE(global_environment_type), &
-      INTENT(IN)                             :: globenv
+      pointer                             :: globenv
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 

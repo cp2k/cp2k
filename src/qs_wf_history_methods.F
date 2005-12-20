@@ -949,7 +949,7 @@ END FUNCTION wfi_get_method_label
 SUBROUTINE wfi_extrapolate(globenv,wf_history, qs_env, dt, extrapolation_method_nr, &
      orthogonal_wf, kg_gpw, gapw, gapw_xc, kg_fm_mol_set, error)
     TYPE(global_environment_type), &
-      INTENT(in), TARGET                     :: globenv
+      pointer                     :: globenv
     TYPE(qs_wf_history_type), POINTER        :: wf_history
     TYPE(qs_environment_type), POINTER       :: qs_env
     REAL(KIND=dp), INTENT(in)                :: dt

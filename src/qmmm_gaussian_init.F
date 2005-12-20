@@ -37,7 +37,8 @@ MODULE qmmm_gaussian_init
                                              cp_to_string,&
                                              cp_warning_level,&
                                              cp_logger_type
-  USE cp_output_handling, ONLY: cp_print_key_should_output,cp_p_file
+  USE cp_output_handling,              ONLY: cp_print_key_should_output,&
+                                             cp_p_file
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE kinds,                           ONLY: default_string_length,&
                                              dp
@@ -50,15 +51,27 @@ MODULE qmmm_gaussian_init
   USE simulation_cell,                 ONLY: cell_type
   USE qs_util,                         ONLY: exp_radius
   USE mathconstants,                   ONLY: pi
-  USE pw_pool_types, ONLY: pw_pool_type, pw_pool_p_type
-  USE pw_env_types, ONLY: pw_env_type, pw_env_release, pw_env_get
-  USE qmmm_types, only: qmmm_env_qm_type
-  USE gaussian_gridlevels, ONLY: gaussian_gridlevel, gridlevel_info_type
-  USE input_constants, ONLY: do_qmmm_grid, do_qmmm_gauss, do_qmmm_none
-  USE input_section_types, ONLY: section_type, section_create, &
-       section_add_keyword, section_add_subsection, section_release,&
-       section_vals_type,&
-       section_vals_get_subs_vals, section_vals_get, section_vals_val_get
+  USE pw_pool_types,                   ONLY: pw_pool_type, pw_pool_p_type
+  USE pw_env_types,                    ONLY: pw_env_type,&
+                                             pw_env_release,&
+                                             pw_env_get
+  USE qmmm_types,                      ONLY: qmmm_env_qm_type
+  USE gaussian_gridlevels,             ONLY: gaussian_gridlevel,&
+                                             gridlevel_info_type
+  USE input_constants,                 ONLY: do_qmmm_grid,&
+                                             do_qmmm_gauss,&
+                                             do_qmmm_none
+  USE input_section_types,             ONLY: section_type,&
+                                             section_create, &
+                                             section_add_keyword,&
+                                             section_add_subsection,&
+                                             section_release,&
+                                             section_vals_type,&
+                                             section_vals_get_subs_vals,&
+                                             section_vals_get,&
+                                             section_vals_val_get
+  USE qmmm_gaussian_data,              ONLY: max_geep_lib_gauss,&
+                                             min_geep_lib_gauss
   IMPLICIT NONE
   PRIVATE
 
@@ -132,8 +145,8 @@ CONTAINS
           use_geep_lib = .FALSE.
        ELSE
           use_geep_lib = .TRUE.
-          CPPostcondition(num_geep_gauss>=2,cp_failure_level,routineP,error,failure)
-          CPPostcondition(num_geep_gauss<=15,cp_failure_level,routineP,error,failure)          
+          CPPostcondition(num_geep_gauss>=min_geep_lib_gauss,cp_failure_level,routineP,error,failure)
+          CPPostcondition(num_geep_gauss<=max_geep_lib_gauss,cp_failure_level,routineP,error,failure)          
        END IF
        SELECT CASE(qmmm_coupl_type)
        CASE(do_qmmm_gauss)

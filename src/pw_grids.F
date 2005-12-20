@@ -236,8 +236,7 @@ SUBROUTINE pw_grid_setup ( cell, pw_grid, cutoff, info, fft_usage, &
 
 
     TYPE(cell_type), INTENT(IN)              :: cell
-    TYPE(pw_grid_type), INTENT(INOUT), &
-      TARGET                                 :: pw_grid
+    TYPE(pw_grid_type), POINTER              :: pw_grid
     REAL(KIND=dp), INTENT(IN), OPTIONAL      :: cutoff
     INTEGER, INTENT(IN), OPTIONAL            :: info
     LOGICAL, INTENT(IN), OPTIONAL            :: fft_usage, symm_usage, blocked
@@ -599,8 +598,7 @@ END SUBROUTINE pw_grid_setup
   ! the indices in yz_mask are from -n/2 .. n/2 shifted by n/2 + 1
   ! these are not mapped indices !
 
-    TYPE(pw_grid_type), INTENT(INOUT), &
-      TARGET                                 :: pw_grid
+    TYPE(pw_grid_type), POINTER              :: pw_grid
     TYPE(cell_type), INTENT(IN)              :: cell
     REAL(KIND=dp)                            :: ecut
     LOGICAL :: blocking
@@ -659,8 +657,7 @@ SUBROUTINE pw_grid_distribute ( pw_grid, yz_mask, ref_grid, blocking, rs_dims,&
      error)
 
 
-    TYPE(pw_grid_type), INTENT(INOUT), &
-      TARGET                                 :: pw_grid
+    TYPE(pw_grid_type), POINTER              :: pw_grid
     INTEGER, DIMENSION(:, :), INTENT(INOUT)  :: yz_mask
     TYPE(pw_grid_type), INTENT(IN), OPTIONAL :: ref_grid
     LOGICAL, INTENT(IN)                      :: blocking
@@ -952,8 +949,7 @@ END SUBROUTINE pw_grid_distribute
 SUBROUTINE pre_tag ( pw_grid, yz_mask, ref_grid )
 
 
-    TYPE(pw_grid_type), INTENT(INOUT), &
-      TARGET                                 :: pw_grid
+    TYPE(pw_grid_type), POINTER              :: pw_grid
     INTEGER, DIMENSION(:, :), INTENT(INOUT)  :: yz_mask
     TYPE(pw_grid_type), INTENT(IN)           :: ref_grid
 
@@ -1089,8 +1085,7 @@ SUBROUTINE pw_grid_count ( h_inv, pw_grid, cutoff, yz_mask )
 
 
     REAL(KIND=dp), DIMENSION(3, 3)           :: h_inv
-    TYPE(pw_grid_type), INTENT(INOUT), &
-      TARGET                                 :: pw_grid
+    TYPE(pw_grid_type),   POINTER            :: pw_grid
     REAL(KIND=dp), INTENT(IN)                :: cutoff
     INTEGER, DIMENSION(:, :), INTENT(OUT)    :: yz_mask
 
@@ -1181,8 +1176,7 @@ SUBROUTINE pw_grid_assign ( h_inv, pw_grid, cutoff )
 
 
     REAL(KIND=dp), DIMENSION(3, 3)           :: h_inv
-    TYPE(pw_grid_type), INTENT(INOUT), &
-      TARGET                                 :: pw_grid
+    TYPE(pw_grid_type), POINTER              :: pw_grid
     REAL(KIND=dp), INTENT(IN)                :: cutoff
 
     INTEGER                                  :: gpt, handle, i, ip, l, lby, &
@@ -1892,8 +1886,7 @@ END SUBROUTINE redist
 SUBROUTINE pw_grid_remap ( pw_grid, yz )
 
 ! Argument
-    TYPE(pw_grid_type), INTENT(INOUT), &
-      TARGET                                 :: pw_grid
+    TYPE(pw_grid_type), POINTER              :: pw_grid
     INTEGER, DIMENSION(:, :), INTENT(OUT)    :: yz
 
     INTEGER                                  :: gpt, handle, i, ip, is, j, m, &
@@ -1980,8 +1973,7 @@ SUBROUTINE pw_grid_change ( cell, pw_grid )
   IMPLICIT NONE
   ! Argument
   TYPE(cell_type), POINTER                 :: cell
-  TYPE(pw_grid_type), INTENT(INOUT), &
-       TARGET                                 :: pw_grid
+  TYPE(pw_grid_type), POINTER              :: pw_grid
   ! Local 
   INTEGER                                  :: gpt
   REAL(KIND=dp)                            :: l, m, n

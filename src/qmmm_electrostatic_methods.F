@@ -117,7 +117,7 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE  qmmm_el_coupling(globenv,qs_env,qmmm_env,mm_particles,mm_cell,error)
     TYPE(global_environment_type), &
-      INTENT(in), OPTIONAL, TARGET           :: globenv
+      pointer, OPTIONAL           :: globenv
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(qmmm_env_qm_type), POINTER          :: qmmm_env
     TYPE(particle_type), DIMENSION(:), &

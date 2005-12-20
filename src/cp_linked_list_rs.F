@@ -1175,7 +1175,7 @@ END FUNCTION cp_sll_rs_to_array
 !!
 !!*** **********************************************************************
 FUNCTION cp_sll_rs_from_array(array,error) RESULT(res)
-  type(realspace_grid_p_type), DIMENSION(:), INTENT(in) :: array
+  TYPE(realspace_grid_p_type), DIMENSION(:), POINTER :: array
   TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
   TYPE(cp_sll_rs_type), POINTER :: res
   

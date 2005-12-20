@@ -123,7 +123,7 @@ CONTAINS
 !!       Type(qs_p_env_type), Pointer:: p_env
 !!       Type(tddfpt_env_type), Intent (OUT):: t_env
 !!       Type(qs_environment_type), Intent (INOUT), Target:: qs_env
-!!       Type(global_environment_type), Intent (IN):: glob_env
+!!       Type(global_environment_type), pointer:: glob_env
 !!     End Subroutine tddfpt_init
 !!
 !!   FUNCTION
@@ -206,7 +206,7 @@ CONTAINS
 
     
     TYPE(global_environment_type), &
-      INTENT(in)                             :: globenv
+      pointer                             :: globenv
 
     IF (.NOT.globenv%ionode) RETURN
     IF (globenv%print%program_banner) THEN

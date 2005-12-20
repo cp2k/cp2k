@@ -363,7 +363,7 @@ CONTAINS
 
     TYPE(semi_empirical_type), POINTER       :: se_parameter
     TYPE(global_environment_type), &
-      INTENT(IN)                             :: globenv
+      pointer                             :: globenv
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "write_se_param"
 

@@ -65,7 +65,7 @@ CONTAINS
 !!
 !!   SYNOPSIS
 !!     Subroutine atomic_code(globenv)
-!!       Type(global_environment_type), Intent (INOUT):: globenv
+!!       Type(global_environment_type), pointer:: globenv
 !!     End Subroutine atomic_code
 !!
 !!   FUNCTION
@@ -88,7 +88,7 @@ CONTAINS
 
 
     TYPE(GLOBAL_ENVIRONMENT_TYPE), &
-      INTENT(INOUT)                          :: globenv
+      pointer                          :: globenv
 
     INTEGER                                  :: handle
     TYPE(ATOM_CALCULATION_TYPE)              :: ac

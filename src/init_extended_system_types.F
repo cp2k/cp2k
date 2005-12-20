@@ -86,7 +86,7 @@ SUBROUTINE initialize_npt ( simpar, globenv, npt_info, box )
     TYPE(simulation_parameters_type), &
       INTENT(INOUT)                          :: simpar
     TYPE(global_environment_type), &
-      INTENT(INOUT)                          :: globenv
+      pointer                          :: globenv
     TYPE(npt_info_type), DIMENSION(:, :), &
       POINTER                                :: npt_info
     TYPE(cell_type), INTENT(inout)           :: box
@@ -159,7 +159,7 @@ SUBROUTINE initialize_nhc_baro ( simpar, globenv, nhc )
     TYPE(simulation_parameters_type), &
       INTENT(INOUT)                          :: simpar
     TYPE(global_environment_type), &
-      INTENT(INOUT)                          :: globenv
+      pointer                          :: globenv
     TYPE(lnhc_parameters_type), &
       INTENT(INOUT)                          :: nhc
 
@@ -221,7 +221,7 @@ SUBROUTINE initialize_nhc_part ( box, simpar, local_molecules, molecule, &
     TYPE(molecule_type), POINTER             :: molecule( : )
     TYPE(molecule_kind_type), POINTER        :: molecule_kind_set( : )
     TYPE(global_environment_type), &
-      INTENT(INOUT)                          :: globenv
+      pointer                          :: globenv
     TYPE(lnhc_parameters_type), &
       INTENT(INOUT)                          :: nhc
 
@@ -303,7 +303,7 @@ SUBROUTINE initialize_nhc_coef ( dyn_coeff_set, globenv, nhc )
 
     TYPE(dyn_coeff_set_type), POINTER        :: dyn_coeff_set
     TYPE(global_environment_type), &
-      INTENT(INOUT)                          :: globenv
+      pointer                          :: globenv
     TYPE(lnhc_parameters_type), &
       INTENT(INOUT)                          :: nhc
 
