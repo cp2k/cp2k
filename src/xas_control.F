@@ -21,17 +21,21 @@ MODULE xas_control
 
  USE cp_error_handling,                ONLY: cp_a_l,&
                                              cp_assert,&
+                                             cp_assertion_failed,&
                                              cp_error_get_logger,&
                                              cp_error_message,&
                                              cp_error_type
   USE cp_log_handling,                 ONLY: cp_failure_level,&
                                              cp_fatal_level,&
+                                             cp_logger_get_default_unit_nr,&
                                              cp_logger_type,&
                                              cp_note_level,&
                                              cp_to_string,&
                                              cp_warning_level
   USE global_types,                    ONLY: global_environment_type
   USE input_constants,                 ONLY: xas_tp_hh, &
+                                             xas_tp_fh, xes_tp_val,&
+                                             xas_tddft, xas_dscf,&
                                              xas_1s_type
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&
@@ -109,7 +113,7 @@ MODULE xas_control
 
 ! *** Public subroutines ***
 
-  PUBLIC :: read_xas_control, xas_control_create, &
+  PUBLIC :: read_xas_control, write_xas_control, xas_control_create, &
             xas_control_release, xas_control_retain
 
 !!***
@@ -118,7 +122,23 @@ MODULE xas_control
 CONTAINS
 
 !   ***************************************************************************
-
+!!
+!!   NAME
+!!      read_xas_control
+!!   FUNCTION
+!!      read from input the instructions for a xes/xas calculation
+!!   NOTES
+!!
+!!   INPUTS
+!!      xas_control :  control variables
+!!      globenv : global variables
+!!      error
+!!
+!!   MODIFICATION HISTORY
+!!     04.2005 created [MI]
+!!
+!!   SOURCE
+!!*** **********************************************************************
   SUBROUTINE read_xas_control(xas_control,globenv, error)
 
     TYPE(xas_control_type)                   :: xas_control
@@ -299,7 +319,80 @@ CONTAINS
     ENDIF
 
   END SUBROUTINE read_xas_control
+!   ***************************************************************************
+!!
+!!   NAME
+!!      write_xas_control
+!!   FUNCTION
+!!      write on the instructions for a xes/xas calculation
+!!   NOTES
+!!
+!!   INPUTS
+!!      xas_control :  control variables
+!!      globenv : global variables
+!!      error
+!!
+!!   MODIFICATION HISTORY
+!!     12.2005 created [MI]
+!!
+!!   SOURCE
+!!*** **********************************************************************
+  SUBROUTINE write_xas_control(xas_control,globenv, error)
 
+    TYPE(xas_control_type)                   :: xas_control
+    TYPE(global_environment_type)            :: globenv
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(LEN=*), PARAMETER ::  routineN = "write_xas_control_new", &
+      routineP = moduleN//"/"//routineN
+
+    INTEGER :: output_unit
+    LOGICAL                                  :: failure, ionode
+    TYPE(cp_logger_type), POINTER            :: logger
+
+!   ---------------------------------------------------------------------------
+
+    logger => cp_error_get_logger(error)
+    ionode = logger%para_env%mepos==logger%para_env%source
+    IF (ionode) THEN
+       output_unit= cp_logger_get_default_unit_nr(logger)
+    ELSE
+       output_unit = -1
+    END IF
+
+    IF (.NOT.ionode) RETURN
+
+    IF (globenv%print%dft_control_parameters) THEN
+      SELECT CASE(xas_control%xas_method)
+        CASE(xas_tp_hh)
+          WRITE (UNIT=output_unit,FMT="(/,T2,A,T40,A)")&
+                "XAS| Method:",&
+                   "      Transition potential with half hole" 
+        CASE(xas_tp_fh)
+          WRITE (UNIT=output_unit,FMT="(/,T2,A,T40,A)")&
+                "XAS| Method:",&
+                   "      Transition potential with full hole" 
+        CASE(xes_tp_val)
+          WRITE (UNIT=output_unit,FMT="(/,T2,A,T40,A)")&
+                "XAS| Method:",&
+                   " Only XES with full core and hole in lumo" 
+        CASE(xas_tddft)
+          WRITE (UNIT=output_unit,FMT="(/,T2,A,T40,A)")&
+                "XAS| Method:",&
+                   "                                    TDDFT" 
+        CASE(xas_dscf)
+          WRITE (UNIT=output_unit,FMT="(/,T2,A,T40,A)")&
+                "XAS| Method:",&
+                   "         DSCF for the first excited state" 
+        CASE default
+          CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
+             routineP,"unknown xas method "//TRIM(ADJUSTL(cp_to_string(xas_control%xas_method))),&
+             error,failure)
+      END SELECT
+    END IF
+
+  END SUBROUTINE write_xas_control
 
 !****f* xas_control/xas_control_create/retain/release *
 !!

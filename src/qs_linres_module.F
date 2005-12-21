@@ -43,7 +43,11 @@ MODULE qs_linres_module
                                              cp_warning_level
   USE global_types,                    ONLY: global_environment_type
   USE input_constants,                 ONLY: lr_none, lr_chemshift,&
-                                             state_loc_all
+                                             state_loc_all,&
+                                             lr_cg,lr_diis,lr_sd,&
+                                             lr_ls_none,lr_ls_2pnt,lr_ls_3pnt,lr_ls_gold,&
+                                             lr_precond_none,lr_precond_single,&
+                                             lr_precond_kinetic,lr_precond_full_all
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&
                                              section_vals_get_subs_vals2,&
@@ -144,13 +148,14 @@ CONTAINS
 
     ! The transition potential method to calculate XAS needs LSD
     lr_section =>  section_vals_get_subs_vals(globenv%input_file, &
-                                                 "FORCE_EVAL%PROPERTIES%LINRES")
+                                          "FORCE_EVAL%PROPERTIES%LINRES")
     call section_vals_get(lr_section,explicit=lr_calculation,error=error)
 
+    CALL linres_init(lr_section,p_env,qs_env,globenv,error=error)
+
+     write(*,*) 'init'
+     stop 'lr_calculation'
     IF (lr_calculation) THEN
-
-
-       CALL linres_init(lr_section,p_env,qs_env,ionode,globenv,error=error)
 
        CALL get_qs_env(qs_env=qs_env, dft_control=dft_control, &
             linres_control=linres_control)
@@ -183,6 +188,13 @@ CONTAINS
       ! Other possible LR calculations can be introduced here
       
        CALL p_env_release(p_env)
+
+       IF(ionode .AND. logger%print_keys%linres) THEN
+         WRITE (UNIT=output_unit,FMT="(/,T3,A,/,T25,A,/,T3,A,/)")&
+            REPEAT("=",77),&
+            "END LINRES CALCULATION",&
+            REPEAT("=",77)
+       END IF
 
 
     ELSE
@@ -219,12 +231,11 @@ CONTAINS
 !!
 !****************************************************************************
 
-  SUBROUTINE linres_init(lr_section,p_env,qs_env,ionode,globenv,error)
+  SUBROUTINE linres_init(lr_section,p_env,qs_env,globenv,error)
 
     TYPE(section_vals_type), POINTER            :: lr_section
     TYPE(qs_environment_type), POINTER          :: qs_env
     TYPE(qs_p_env_type), POINTER                :: p_env
-    LOGICAL, INTENT(IN)                         :: ionode
     TYPE(global_environment_type),  &
       POINTER                                   :: globenv
     TYPE(cp_error_type), & 
@@ -233,14 +244,20 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'linres_init', &
                                    routineP = moduleN//'/'//routineN
  
-    INTEGER :: istat, ispin, n_mo(2),nelectron,nmoloc(2)
-    LOGICAL :: failure
+    INTEGER :: istat, ispin, n_mo(2),nelectron,nmoloc(2),output_unit
+    LOGICAL :: failure, do_it, ionode
     REAL(dp) :: maxocc
+    TYPE(cp_logger_type), POINTER               :: logger
     TYPE(dft_control_type), POINTER             :: dft_control
     TYPE(linres_control_type), POINTER          :: linres_control
     TYPE(section_vals_type), POINTER            :: loc_section
 
     failure = .FALSE.
+
+    NULLIFY(logger)
+    logger => cp_error_get_logger(error)
+    ionode = logger%para_env%mepos==logger%para_env%source
+    IF (ionode) output_unit= cp_logger_get_default_unit_nr(logger)
 
     NULLIFY(dft_control,linres_control,loc_section)
 
@@ -272,6 +289,58 @@ CONTAINS
 
        CALL section_vals_val_get(lr_section,"PRECONDITIONER",i_val=linres_control%preconditioner_type)
        CALL section_vals_val_get(lr_section,"ENERGY_GAP",r_val=linres_control%energy_gap)
+       
+       IF(ionode .AND. logger%print_keys%linres) THEN
+         WRITE (UNIT=output_unit,FMT="(/,T3,A,/,T25,A,/,T3,A,/)")&
+            REPEAT("=",77),&
+            "START LINRES CALCULATION",&
+            REPEAT("=",77)
+
+         WRITE (UNIT=output_unit,FMT="(/,T10,A,/)")&
+            "Properties to be Calulated:" 
+         CALL section_vals_val_get(lr_section,"NMR%_SECTION_PARAMETERS_",&
+            l_val=do_it,error=error)
+         IF(do_it) WRITE (UNIT=output_unit,FMT="(T45,A)") &
+             "NMR Chemical Shift"
+
+         IF(linres_control%localized_psi0) WRITE (UNIT=output_unit,FMT="(T2,A,T65,A)")&
+            "LINRES|","LOCALIZE PSI0" 
+         IF(linres_control%opt_method==lr_cg) WRITE (UNIT=output_unit,FMT="(T2,A,T60,A)")&
+            "LINRES|     Optimization algorithm","Conjugate Gradients"
+         IF(linres_control%opt_method==lr_sd) WRITE (UNIT=output_unit,FMT="(T2,A,T60,A)")&
+            "LINRES|     Optimization algorithm","    Steepnd Descent"
+         IF(linres_control%opt_method==lr_diis) WRITE (UNIT=output_unit,FMT="(T2,A,T60,A)")&
+            "LINRES|     Optimization algorithm","               DIIS"
+         IF(linres_control%ls_method==lr_ls_none) &
+            WRITE (UNIT=output_unit,FMT="(T2,A,T60,A)")&
+            "LINRES|                Line Search","               NONE"
+         IF(linres_control%ls_method==lr_ls_2pnt) &
+            WRITE (UNIT=output_unit,FMT="(T2,A,T60,A)")&
+            "LINRES|                Line Search","               2pnt"
+         IF(linres_control%ls_method==lr_ls_3pnt) &
+            WRITE (UNIT=output_unit,FMT="(T2,A,T60,A)")&
+            "LINRES|                Line Search","               3pnt"
+         IF(linres_control%ls_method==lr_ls_gold) &
+            WRITE (UNIT=output_unit,FMT="(T2,A,T60,A)")&
+            "LINRES|                Line Search","               gold"
+         IF(linres_control%preconditioner_type==lr_precond_none) &
+            WRITE (UNIT=output_unit,FMT="(T2,A,T60,A)")&
+            "LINRES|             Preconditioner","               NONE"
+         IF(linres_control%preconditioner_type==lr_precond_single) &
+            WRITE (UNIT=output_unit,FMT="(T2,A,T60,A)")&
+            "LINRES|             Preconditioner","        FULL SINGLE"
+         IF(linres_control%preconditioner_type==lr_precond_kinetic) &
+            WRITE (UNIT=output_unit,FMT="(T2,A,T60,A)")&
+            "LINRES|             Preconditioner","       FULL KINETIC"
+         IF(linres_control%preconditioner_type==lr_precond_full_all) &
+            WRITE (UNIT=output_unit,FMT="(T2,A,T60,A)")&
+            "LINRES|             Preconditioner","           FULL ALL"
+         WRITE (UNIT=output_unit,FMT="(/,T2,A,T73,ES8.1)")&
+            "LINRES|                    EPS_SCF",linres_control%eps_scf
+         WRITE (UNIT=output_unit,FMT="(/,T2,A,T73,I8)")&
+            "LINRES|     Max number of iteration per SCF cycle",linres_control%max_scf
+       END IF
+
        
       !------------------!
       ! create the p_env !

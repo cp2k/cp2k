@@ -2997,7 +2997,7 @@ SUBROUTINE create_ot_section(section,error)
      nullify(keyword)
 
      CALL keyword_create(keyword, name="_SECTION_PARAMETERS_",&
-          description="controls tha activation of the ot method",&
+          description="controls the activation of the ot method",&
           usage="&OT T",&
           default_l_val=.false.,&
           lone_keyword_l_val=.TRUE.,&
@@ -3148,6 +3148,18 @@ END SUBROUTINE create_ot_section
          error=error)
 
       nullify(keyword,subsection)
+
+      CALL keyword_create(keyword, name="_SECTION_PARAMETERS_",&
+          description="controls the activation of the xes/xas calculation",&
+          usage="&XAS T",&
+          default_l_val=.false.,&
+          lone_keyword_l_val=.TRUE.,&
+          error=error)
+      CALL section_add_keyword(section,keyword,error=error)
+      CALL keyword_release(keyword,error=error)
+
+
+
       CALL keyword_create(keyword, name="METHOD",&
            variants=(/"XAS_METHOD"/),&
            description="Method to be used to calculate XAS",&
@@ -3419,7 +3431,7 @@ END SUBROUTINE create_ot_section
            variants=(/"MINIMIZER"/),&
            description="Define the algorithms used to optimize the Psi1 in the scf iteration",&
            usage="OPT_METHOD CG",&
-           default_i_val=lr_diis,&
+           default_i_val=lr_cg,&
            enum_c_vals=s2a( "CG", "DIIS", "SD"),&
            enum_desc=s2a("Conjugate Gradients", "DIIS", "Steepesst Descent"),&
            enum_i_vals=(/lr_cg,lr_diis,lr_sd/),&
@@ -3462,10 +3474,11 @@ END SUBROUTINE create_ot_section
                        "They differ in effectiveness, cost of construction, cost of application.",&
            usage="PRECONDITIONER FULL_SINGLE",&
            default_i_val=lr_precond_none,&
-           enum_c_vals=s2a("FULL_SINGLE","FULL_KINETIC","FULL_S_INVERSE","NONE"),&
-           enum_desc=s2a("Based on diagonalisation","Cholesky inversion of S and T", &
+           enum_c_vals=s2a("FULL_ALL","FULL_SINGLE","FULL_KINETIC","FULL_S_INVERSE","NONE"),&
+           enum_desc=s2a("State selective, similar to full_single","Based on diagonalisation",&
+                         "Cholesky inversion of S and T", &
                          "Cholesky inversion of S", "skip preconditioning"),&
-           enum_i_vals=(/lr_precond_single,lr_precond_kinetic,lr_precond_s_inverse,&
+           enum_i_vals=(/lr_precond_full_all,lr_precond_single,lr_precond_kinetic,lr_precond_s_inverse,&
                          lr_precond_none/), error=error)
      CALL section_add_keyword(section,keyword,error=error)
      CALL keyword_release(keyword,error=error)
@@ -3517,6 +3530,15 @@ END SUBROUTINE create_ot_section
             description="The chemical shift is calculated by DFPT ",&
             n_keywords=5, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
             error=error)
+
+       CALL keyword_create(keyword, name="_SECTION_PARAMETERS_",&
+           description="controls the activation of the nmr calculation",&
+           usage="&NMR T",&
+           default_l_val=.false.,&
+           lone_keyword_l_val=.TRUE.,&
+           error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="CURRENT_DENSITY",&
             description="Calculate the current density and the "//&

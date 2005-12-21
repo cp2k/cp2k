@@ -136,6 +136,7 @@ MODULE print_key_types
     LOGICAL :: localization
     INTEGER :: localization_method
     LOGICAL :: HPM
+    LOGICAL :: xas, linres
   END TYPE print_keys_type
 
 !!*****
@@ -285,6 +286,8 @@ CONTAINS
     print_keys%mulliken_analysis = key_value(level,(/f,t,t/))
     print_keys%molecular_states = key_value(level,(/f,f,f/))
     print_keys%HPM = key_value(level,(/f,f,f/))
+    print_keys%xas = key_value(level,(/t,t,t/))
+    print_keys%linres = key_value(level,(/t,t,t/))
 
   END SUBROUTINE print_keys_reset
 

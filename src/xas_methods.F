@@ -279,9 +279,20 @@ CONTAINS
     NULLIFY(mykind_of_kind, state_of_mytype,max_overlap,sto_state_overlap)
     NULLIFY(dft_section, input)
 
+    IF (ionode.AND.logger%print_keys%xas) THEN
+       WRITE (UNIT=output_unit,FMT="(/,T3,A,/,T25,A,/,T3,A,/)")&
+            REPEAT("=",77),&
+            "START XES/XAS CALCULATION",&
+            REPEAT("=",77)
+    END IF
+
 !   Create the xas environment
     CALL get_qs_env(qs_env,xas_env=xas_env,error=error)
     IF (.NOT.ASSOCIATED(xas_env)) THEN
+       IF (ionode.AND.logger%print_keys%xas) THEN
+          WRITE (UNIT=output_unit,FMT="(/,T10,A,/)")&
+           "Create and initialize the xas environment"
+       END IF
       CALL xas_env_create(xas_env, error=error)
       CALL xas_env_init(xas_env, xas_control, qs_env, globenv, error=error)
       CALL set_qs_env(qs_env,xas_env=xas_env, error=error)
@@ -300,6 +311,10 @@ CONTAINS
 !   The eigenstate of the KS Hamiltonian are nedeed
     NULLIFY(mo_coeff,eigenvalues)
     IF(scf_control%use_ot) THEN
+       IF (ionode.AND.logger%print_keys%xas) THEN
+          WRITE (UNIT=output_unit,FMT="(/,T10,A,/)")&
+           "Get eigenstates and eigenvalues from ground state MOs"
+       END IF
       DO ispin = 1,dft_control%nspins
         CALL get_mo_set(mos(ispin)%mo_set, mo_coeff=mo_coeff,nao=nao,nmo=nmo,&
              eigenvalues=eigenvalues,homo=homo)
@@ -354,6 +369,11 @@ CONTAINS
 
     CALL get_xas_env(xas_env=xas_env, qs_loc_env=qs_loc_env)
 
+    IF (ionode.AND.logger%print_keys%xas) THEN
+          WRITE (UNIT=output_unit,FMT="(/,T10,A,/,T10,A,I7,/)")&
+           "Localize a set of MOs: those where to search the states to be excited",&
+           "MOs to be localized from 1 to ",nexc_search
+    END IF
     IF(.NOT.(ASSOCIATED(qs_loc_env))) THEN
       CALL qs_loc_env_create(qs_loc_env,error=error)
       CALL set_xas_env(xas_env=xas_env, qs_loc_env=qs_loc_env)
@@ -443,12 +463,18 @@ CONTAINS
   ! If required check the character of the states of each atom
   ! by taking the overlap with atomic-like states
 
-  ! In the set of states, which is the index of the one to be excited for iatom
+  ! In the set of states, assign the index of the state to be excited for iatom
+    IF (ionode.AND.logger%print_keys%xas) THEN
+          WRITE (UNIT=output_unit,FMT="(/,T10,A,/)")&
+           "List the atoms to be excited and the relative of MOs index "
+    END IF
     DO iat = 1,xas_control%nexc_atoms
       iatom = xas_control%exc_atoms(iat)
-
      state_of_atom(iat) = state_of_mytype(iatom)
-! IF(ionode) WRITE(*,'(A,2I4)') 'state of iatom ',iatom , state_of_atom(iat)
+     IF(ionode .AND. logger%print_keys%xas) THEN
+       WRITE(UNIT=output_unit,FMT="(T10,A,I6,T32,A,I6)") 'Atom: ',iatom ,&
+       "localized MO index", state_of_atom(iat)
+     END IF
     END DO 
 
 
@@ -498,9 +524,9 @@ CONTAINS
 
       IF (transition_potential) THEN
 
-         IF(ionode) THEN
-           WRITE(UNIT=output_unit,FMT='(/,/,T2,A,I6)') &
-                  " START XAS CALCULATION WITH TP APPROACH FOR ATOM   ", iatom 
+         IF(ionode .AND. logger%print_keys%xas) THEN
+           WRITE(UNIT=output_unit,FMT='(/,/,T10,A,I6)') &
+                  "START XAS CALCULATION WITH TP APPROACH FOR ATOM   ", iatom 
          END IF
          NULLIFY(scf_env)
          CALL get_qs_env(qs_env,scf_env=scf_env,error=error)
@@ -588,6 +614,14 @@ CONTAINS
    
 
     dft_control % xas_estate    = -1
+
+    IF (ionode.AND.logger%print_keys%xas) THEN
+       WRITE (UNIT=output_unit,FMT="(/,T3,A,/,T25,A,/,T3,A,/)")&
+            REPEAT("=",77),&
+            "END XES/XAS CALCULATION",&
+            REPEAT("=",77)
+    END IF
+
 
     CALL timestop(0.0_dp,handle)
 

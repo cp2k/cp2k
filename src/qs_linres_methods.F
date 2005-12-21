@@ -474,7 +474,7 @@ CONTAINS
 
     INTEGER :: ip, ispin, istat, k, nao, nmo
     LOGICAL :: failure
-    REAL(dp) :: tmp
+    REAL(dp) :: polak_gamma, test_down, tmp
     TYPE(cp_fm_p_type), DIMENSION(2)            :: PS_psi0
     TYPE(cp_fm_type), POINTER                   :: mo_coeff
     TYPE(mo_set_p_type), DIMENSION(:), &
@@ -540,6 +540,7 @@ CONTAINS
     SELECT CASE  (linres_control%opt_method)
       CASE (lr_sd)
          IF(p_env%ls_count==0) THEN
+            p_env%gnorm = 0.0_dp
             DO ispin=1,nspins
                IF(linres_control%preconditioner_type /= lr_precond_none) THEN
                  CALL apply_preconditioner(p_env%preconditioner,&
@@ -566,7 +567,63 @@ CONTAINS
          END IF
          CALL do_lr_line_search(p_env,b,linres_control,nspins,error=error)
       CASE (lr_cg)
+         IF(p_env%ls_count==0) THEN
+            p_env%gnorm = 0.0_dp
+            p_env%gnorm_cross = 0.0_dp
+            p_env%gradient = 0.0_dp
+            DO ispin=1,nspins
+               CALL cp_fm_trace(p_env%g_psi1(ispin)%matrix,&
+                    p_env%d_psi1(ispin)%matrix,tmp,error=error)
+               p_env%gradient = p_env%gradient + tmp
+               CALL cp_fm_trace(p_env%g_psi1(ispin)%matrix,&
+                    p_env%g_psi1_old(ispin)%matrix,tmp,error=error)
+               p_env%gnorm_cross = p_env%gnorm_cross + tmp
 
+               IF(linres_control%preconditioner_type /= lr_precond_none) THEN  
+                  CALL apply_preconditioner(p_env%preconditioner,&
+                       p_env%g_psi1(ispin)%matrix,p_env%g_psi1_old(ispin)%matrix)
+                  CALL cp_fm_trace(p_env%g_psi1(ispin)%matrix,&
+                       p_env%g_psi1_old(ispin)%matrix,tmp,error=error)
+                  p_env%gnorm = p_env%gnorm + tmp 
+                  IF(p_env%gnorm .LT. 0.0_dp) THEN
+                      WRITE(6,*) "WARNING Preconditioner not positive definite !"
+                  END IF
+                  CALL cp_fm_to_fm(p_env%g_psi1_old(ispin)%matrix,&
+                       p_env%g_psi1(ispin)%matrix,error=error)
+               ELSE
+                  CALL cp_fm_to_fm(p_env%g_psi1(ispin)%matrix,&
+                       p_env%g_psi1_old(ispin)%matrix,error=error)
+                  CALL cp_fm_trace(p_env%g_psi1(ispin)%matrix,&
+                       p_env%g_psi1_old(ispin)%matrix,tmp,error=error)
+                  p_env%gnorm = p_env%gnorm + tmp
+               END IF
+            END DO  ! ispin
+            k =  0 
+            DO ispin = 1,nspins
+              k = k + p_env%n_mo(ispin)
+            END DO
+            p_env%delta = SQRT(ABS(p_env%gnorm) / (p_env%n_ao(1)*k))
+            polak_gamma = (p_env%gnorm-p_env%gnorm_cross)/p_env%gnorm_old
+            polak_gamma = MAX(polak_gamma,0.0_dp) ! reset to SD
+            test_down = 0.0_dp
+            DO ispin = 1,nspins
+              CALL cp_fm_scale_and_add(polak_gamma,p_env%d_psi1(ispin)%matrix,&
+                   -1.0_dp,p_env%g_psi1(ispin)%matrix,error=error)
+              CALL cp_fm_trace(p_env%g_psi1(ispin)%matrix,&
+                   p_env%d_psi1(ispin)%matrix,tmp,error=error)
+              test_down = test_down + tmp
+            END DO ! ispin
+            IF (test_down.ge.0.0_dp) THEN ! reset to SD
+              polak_gamma = 0.0_dp
+              DO ispin = 1,nspins
+                CALL cp_fm_scale_and_add(polak_gamma,p_env%d_psi1(ispin)%matrix,&
+                     -1.0_dp,p_env%g_psi1(ispin)%matrix,error=error)
+              END DO ! ispin
+            END IF
+            p_env%gradient = polak_gamma*p_env%gradient - p_env%gnorm
+            p_env%gnorm_old = p_env%gnorm
+          END IF
+          CALL do_lr_line_search(p_env,b,linres_control,nspins,error=error) 
       CASE (lr_diis)
            CALL stop_program("linres_scf_mini","LR_DIIS NYI")
       CASE DEFAULT

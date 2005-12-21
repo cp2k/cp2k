@@ -323,6 +323,7 @@ CONTAINS
     INTEGER :: neighbor_list_id
 
     TYPE(harris_env_type), POINTER              :: harris_env
+    TYPE(section_vals_type), POINTER            :: print_key, input
     TYPE(section_vals_type), POINTER            :: lr_section, xas_section
 
     TYPE(virial_type), POINTER                  :: virial
@@ -370,6 +371,7 @@ CONTAINS
     NULLIFY (matrix_v)
     NULLIFY (workt)
     NULLIFY (harris_env)
+    NULLIFY(print_key,input)
 
 
 ! Default
@@ -401,7 +403,8 @@ CONTAINS
                     neighbor_list_id=neighbor_list_id,&
                     scf_control=scf_control,&
                     distribution_2d=distribution_2d,&
-                    virial = virial)
+                    virial = virial,&
+                    input=input)
 
     nkind = SIZE(atomic_kind_set)
     natom = SIZE(particle_set)
@@ -541,12 +544,13 @@ CONTAINS
 
     lr_precond = 0  
     IF(globenv%run_type_id==linear_response_run) THEN
-      lr_section = section_vals_get_subs_vals(globenv%input_file,"FORCE_EVAL%PROPERTIES%LINRES")
+      lr_section => section_vals_get_subs_vals(input,"PROPERTIES%LINRES")
       CALL section_vals_val_get(lr_section,"PRECONDITIONER",i_val=lr_precond)
     END IF
+
     ! The transition potential method may need the kinetic matrix
-    xas_section =>  section_vals_get_subs_vals(globenv%input_file, &
-                                                 "FORCE_EVAL%DFT%XAS")
+    xas_section =>  section_vals_get_subs_vals(input, &
+                                                 "DFT%XAS")
 !    call section_vals_get(xas_section,explicit=xas_calculation)
     call section_vals_val_get(xas_section,"ADDED_MOS",i_val=added_mos)
     xas_calculation = (added_mos>0)

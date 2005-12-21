@@ -138,6 +138,7 @@ MODULE qs_environment
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE topology,                        ONLY: topology_control
+  USE xas_control,                     ONLY: write_xas_control
   USE cp_output_handling, ONLY: cp_out_flags_type, cp_out_flags_create,&
        cp_out_flags_release
 #include "cp_common_uses.h"
@@ -406,6 +407,11 @@ CONTAINS
 !   *** Print the Quickstep control parameters ***
 
     CALL write_qs_control(dft_control%qs_control,globenv)
+
+!   *** Print XES/XAS   control parameters *** ***
+    if (dft_control % do_xas_calculation) then
+      CALL write_xas_control(dft_control%xas_control,globenv,error=error)
+    end if
 
 !   *** Check basis and fill in missing parts ***
 

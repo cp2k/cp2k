@@ -406,7 +406,8 @@ MODULE input_constants
   INTEGER, PARAMETER, PUBLIC :: lr_precond_none=0, &
                                 lr_precond_single=1, &
                                 lr_precond_kinetic=2, &
-                                lr_precond_s_inverse=3
+                                lr_precond_s_inverse=3,&
+                                lr_precond_full_all=6
   INTEGER, PARAMETER, PUBLIC :: lr_ls_none=0, lr_ls_2pnt=1,&
                                 lr_ls_3pnt=2, lr_ls_gold=3 
 

@@ -352,7 +352,8 @@ CONTAINS
                   ionode=ionode, do_rotation=.TRUE.)
 
              IF (p_cubes) THEN
-                DO ivector=MAX(1,homo-globenv%print%nhomos+1),homo
+                DO ivector=MAX(1,&
+                   homo-section_get_ival(dft_section,"PRINT%MO_CUBES%NHOMO") +1),homo
                    CALL calculate_wavefunction(mo_coeff,ivector,wf_r, &
                         wf_g,&
                         qs_env,error=error)
@@ -388,7 +389,7 @@ CONTAINS
           CALL qs_loc_init(qs_loc_env,qs_env)
           qs_loc_env%localization_method = globenv % print % localization_method
           qs_loc_env%wannier = .NOT. (qs_loc_env % localization_method .EQ. WANNIER_NONE)
-          IF (globenv%print%molecular_states) qs_loc_env%molecular_states = .TRUE.
+          IF (p_molstates) qs_loc_env%molecular_states = .TRUE.
        ENDIF
 
 ! *** gets localization info for the occupied orbs
@@ -753,11 +754,11 @@ CONTAINS
              ENDIF
           ENDDO
           IF (.NOT. all_equal) THEN
-             IF (globenv%ionode) WRITE(UNIT=output_unit,fmt='(T3,A)') &
+             IF (ionode) WRITE(UNIT=output_unit,fmt='(T3,A)') &
                    "Warning: S**2 computation does not yet treat empty/fractional orbitals"
           ENDIF
           CALL compute_s_square(mos=mos, matrix_s=matrix_s, s_square=s_square, s_square_ideal=s_square_ideal)
-          IF (globenv%ionode) WRITE(UNIT=output_unit,fmt='(T3,A,T60,2F10.5)') &
+          IF (ionode) WRITE(UNIT=output_unit,fmt='(T3,A,T60,2F10.5)') &
                "Ideal and single determinant S**2 : ",s_square_ideal,s_square
        ENDIF
 
@@ -775,19 +776,19 @@ CONTAINS
                   in_space = REALSPACE, error=error)
              CALL coeff_copy(rho%rho_r(1),wf_r)
              CALL coeff_sumup(rho%rho_r(2),wf_r)
-             IF (globenv%ionode) OPEN(UNIT=21,FILE="ELECTRON_DENSITY.cube")
-             CALL rs_pw_to_cube(wf_r%pw,21,globenv%ionode,"SPIN 1 + SPIN 2 ELECTRON DENSITY",rs)
-             IF (globenv%ionode) CLOSE(21)
+             IF (ionode) OPEN(UNIT=21,FILE="ELECTRON_DENSITY.cube")
+             CALL rs_pw_to_cube(wf_r%pw,21,ionode,"SPIN 1 + SPIN 2 ELECTRON DENSITY",rs)
+             IF (ionode) CLOSE(21)
              CALL coeff_copy(rho%rho_r(1),wf_r)
              CALL coeff_reduce(rho%rho_r(2),wf_r)
-             IF (globenv%ionode) OPEN(UNIT=21,FILE="SPIN_DENSITY.cube")
-             CALL rs_pw_to_cube(wf_r%pw,21,globenv%ionode,"SPIN 1 DENSITY - SPIN 2 DENSITY",rs)
-             IF (globenv%ionode) CLOSE(21)
+             IF (ionode) OPEN(UNIT=21,FILE="SPIN_DENSITY.cube")
+             CALL rs_pw_to_cube(wf_r%pw,21,ionode,"SPIN 1 DENSITY - SPIN 2 DENSITY",rs)
+             IF (ionode) CLOSE(21)
              CALL pw_pool_give_back_coeff(auxbas_pw_pool,wf_r, error=error)
           ELSE
-             IF (globenv%ionode) OPEN(UNIT=21,FILE="ELECTRON_DENSITY.cube")
-             CALL rs_pw_to_cube(rho%rho_r(1)%pw,21,globenv%ionode,"ELECTRON DENSITY",rs)
-             IF (globenv%ionode) CLOSE(21)
+             IF (ionode) OPEN(UNIT=21,FILE="ELECTRON_DENSITY.cube")
+             CALL rs_pw_to_cube(rho%rho_r(1)%pw,21,ionode,"ELECTRON DENSITY",rs)
+             IF (ionode) CLOSE(21)
           ENDIF
           CALL rs_pool_give_back_rs(auxbas_rs_pool,rs,error=error)
        ENDIF
@@ -797,10 +798,10 @@ CONTAINS
           CALL get_qs_env(qs_env=qs_env,pw_env=pw_env)
           CALL pw_env_get(pw_env, auxbas_rs_pool=auxbas_rs_pool)
           CALL rs_pool_create_rs(auxbas_rs_pool,rs)
-          IF (globenv%ionode) OPEN(UNIT=21,FILE="V_HARTREE.cube")
+          IF (ionode) OPEN(UNIT=21,FILE="V_HARTREE.cube")
           CALL rs_pw_to_cube(qs_env%ks_env%v_hartree_rspace%pw,&
-               21,globenv%ionode,"HARTREE POTENTIAL",rs)
-          IF (globenv%ionode) CLOSE(21)
+               21,ionode,"HARTREE POTENTIAL",rs)
+          IF (ionode) CLOSE(21)
           CALL rs_pool_give_back_rs(auxbas_rs_pool,rs,error=error)
        ENDIF
 

@@ -94,7 +94,8 @@ MODULE cp_control_utils
                                              ldmc_run,&
                                              mol_dyn_run,&
                                              qs_debug_run,&
-                                             bsse_run
+                                             bsse_run,&
+                                             linear_response_run
   USE input_constants,                 ONLY: quadrature_name,&
                                              do_pwgrid_spherical,&
                                              do_pwgrid_ns_fullspace,&
@@ -238,7 +239,8 @@ CONTAINS
          error=error)
     CALL section_vals_val_get(tmp_section,"RUN_TYPE",i_val=run_id,error=error)
     SELECT CASE (run_id)!FM to rm, ugly!!
-    CASE (energy_run,mon_car_run,energy_force_run,electronic_spectra_run,bsse_run)
+    CASE (energy_run,mon_car_run,energy_force_run,electronic_spectra_run,&
+          bsse_run,linear_response_run)
       dft_control%forces = .FALSE.
     CASE (mol_dyn_run,hmc_run,ldmc_run,geo_opt_run,qs_debug_run)
       dft_control%forces = .TRUE.
@@ -268,20 +270,10 @@ CONTAINS
 
     
 !   *** Read the input section ***
-    tmp_section => section_vals_get_subs_vals(dft_section,"xas",&
-         error=error)
-    call section_vals_get(tmp_section,explicit=was_present,error=error)
-
-    if (was_present) then
-
-      dft_control % do_xas_calculation = .TRUE.
-
+    CALL section_vals_val_get(dft_section,"XAS%_SECTION_PARAMETERS_",&
+            l_val=dft_control%do_xas_calculation,error=error)
+    if (dft_control % do_xas_calculation) then
       CALL read_xas_control(dft_control%xas_control,globenv,error=error)
-
-    else
-
-      dft_control % do_xas_calculation = .FALSE.
-
     end if
 
   END SUBROUTINE read_dft_control

@@ -128,7 +128,7 @@ MODULE qs_p_env_types
      LOGICAL :: new_preconditioner
 
      !factors
-     REAL(KIND = dp)  :: delta,gnorm,gnorm_old,etotal,gradient
+     REAL(KIND = dp)  :: delta,gnorm,gnorm_cross,gnorm_old,etotal,gradient
      !line search
      INTEGER :: ls_count
      REAL(KIND = dp)  :: ls_pos(53),ls_energy(53),ls_grad(53)
