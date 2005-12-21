@@ -151,7 +151,8 @@ CONTAINS
     TYPE(vppl_type), DIMENSION(:), ALLOCATABLE :: vppl
 
     REAL(KIND=dp), DIMENSION(:,:,:,:), ALLOCATABLE :: ai_work
-
+    REAL(KIND=dp), DIMENSION(:), POINTER :: my_alpha
+    REAL(KIND=dp), DIMENSION(:,:), POINTER :: my_c 
 !   ---------------------------------------------------------------------------
 
     CALL write_checkpoint_information("entering "//routine_name,globenv)
@@ -161,7 +162,7 @@ CONTAINS
     NULLIFY(atomic_kind_set,atomic_kind,cexp,elp_potential,gth_potential)
     NULLIFY(orb_basis_set,particle_set,sac_ppl,set_radius_a,rpgfa,sphi_a,zeta)
     NULLIFY(sac_ppl_neighbor_list,sac_ppl_neighbor_node,atom_list,first_sgfa)
-    NULLIFY(la_max,la_min,npgfa,nsgfa,energy,force,local_particles)
+    NULLIFY(la_max,la_min,npgfa,nsgfa,energy,force,local_particles,my_alpha)
 
     group = globenv%group
     ionode = globenv%ionode
@@ -287,9 +288,17 @@ CONTAINS
 
         IF (ASSOCIATED(elp_potential)) THEN
           CALL get_potential(potential=elp_potential,&
-                             alpha_ppl=alpha_ppl(ikind)%alpha,&
-                             cexp_ppl=cexp_ppl(ikind)%c,&
+                             alpha_ppl=my_alpha,&
+                             cexp_ppl=my_c,&
                              ppl_radius=ppl_radius(ikind))
+          ALLOCATE(alpha_ppl(ikind)%alpha(SIZE(my_alpha)),stat=istat)
+          IF (istat /= 0) CALL stop_memory(routine,"alpha_ppl%alpha",&
+                          SIZE(my_alpha)*int_size)
+          ALLOCATE(cexp_ppl(ikind)%c(SIZE(my_c,1),SIZE(my_c,2)),stat=istat)
+          IF (istat /= 0) CALL stop_memory(routine,"alpha_ppl%alpha",&
+                          SIZE(my_c)*int_size)
+          alpha_ppl(ikind)%alpha = my_alpha
+          cexp_ppl(ikind)%c = my_c
         ELSE IF (ASSOCIATED(gth_potential)) THEN
           CALL get_potential(potential=gth_potential,&
                              alpha_ppl=alfa,& 
@@ -563,7 +572,6 @@ CONTAINS
     DEALLOCATE (ai_work,STAT=istat)
     IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
                                      "ai_work")
- 
     DEALLOCATE (hab,STAT=istat)
     IF (istat /= 0) CALL stop_memory(routine,"hab")
 
