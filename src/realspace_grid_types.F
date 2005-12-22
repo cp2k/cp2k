@@ -70,6 +70,8 @@ MODULE realspace_grid_types
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE util,                            ONLY: get_limit
+  USE atomic_kind_types, only: get_atomic_kind
+  USE particle_list_types, only: particle_list_type
 
   IMPLICIT NONE
 
@@ -967,14 +969,16 @@ SUBROUTINE rs_grid_zero ( rs )
 
 END SUBROUTINE rs_grid_zero
 !******************************************************************************
-SUBROUTINE rs_grid_to_cube ( rs, iunit, ionode, title )
+SUBROUTINE rs_grid_to_cube ( rs, iunit, ionode, title, particles )
     TYPE(realspace_grid_type), POINTER       :: rs
     INTEGER, INTENT(IN)                      :: iunit
     LOGICAL, INTENT(IN)                      :: ionode
     CHARACTER(*), OPTIONAL                   :: title
+    TYPE(particle_list_type), POINTER, optional :: particles
+    TYPE(particle_list_type), POINTER :: my_particles
 
-    INTEGER                                  :: I1, I2, I3, L1, L2, L3, S1, &
-                                                S2, S3, U1, U2, U3
+    INTEGER                                  :: I1, I2, I3, L1, L2, L3, np,&
+         U1, U2, U3, z,iat
 
 !-----------------------------------------------------------------------------!
 ! not working for distributed grids !
@@ -988,14 +992,26 @@ SUBROUTINE rs_grid_to_cube ( rs, iunit, ionode, title )
      ELSE
         WRITE(iunit,*) "No Title"
      ENDIF
-     ! put 0.0, 0.0 ,0.0 (approx) in the center of the cube
-     S1=0!rs%npts(1)/2
-     S2=0!rs%npts(2)/2
-     S3=0!rs%npts(3)/2
-     WRITE(iunit,'(I5,3f12.6)') 0,0.0_dp-S1*rs%dr(1),0.0_dp-S2*rs%dr(2),0.0_dp-S3*rs%dr(3)
+     
+     np=0
+     nullify(my_particles)
+     IF (PRESENT(particles)) my_particles=>particles
+     if (associated(my_particles)) np=my_particles%n_els
+
+     WRITE(iunit,'(I5,3f12.6)') np,0.0_dp,0._dp,0._dp !start of cube
+
      WRITE(iunit,'(I5,3f12.6)') rs%npts(1),rs%dr(1),0.0_dp,0.0_dp
      WRITE(iunit,'(I5,3f12.6)') rs%npts(2),0.0_dp,rs%dr(2),0.0_dp
      WRITE(iunit,'(I5,3f12.6)') rs%npts(3),0.0_dp,0.0_dp,rs%dr(3)
+
+     IF (ASSOCIATED(my_particles)) THEN
+        DO iat=1,np
+           CALL get_atomic_kind(my_particles%els(iat)%atomic_kind,z=z)
+
+           WRITE(iunit,'(I5,4f12.6)') z,0._dp,my_particles%els(iat)%r
+        END DO
+     END IF
+
      ! write(iunit,'(I5,4f12.6)') 1, 0.0,0.0,0.0,0.0
      L1=LBOUND(rs%r,1)
      L2=LBOUND(rs%r,2)
@@ -1005,8 +1021,8 @@ SUBROUTINE rs_grid_to_cube ( rs, iunit, ionode, title )
      U3=UBOUND(rs%r,3)
      DO I1=L1,U1
        DO I2=L2,U2
-        WRITE(iunit,'(6E13.5)') (rs%r(MODULO(I1-S1-L1,U1-L1+1)+L1,MODULO(I2-S2-L2,U2-L2+1)+L2, &
-                                      MODULO(I3-S3-L3,U3-L3+1)+L3),I3=L3,U3)
+        WRITE(iunit,'(6E13.5)') (rs%r(MODULO(I1-L1,U1-L1+1)+L1,MODULO(I2-L2,U2-L2+1)+L2, &
+                                      MODULO(I3-L3,U3-L3+1)+L3),I3=L3,U3)
        ENDDO
      ENDDO
    ENDIF
@@ -1016,12 +1032,13 @@ END SUBROUTINE rs_grid_to_cube
 !******************************************************************************
 ! optionally pass a preallocated rs grid
 !******************************************************************************
-SUBROUTINE rs_pw_to_cube ( pw, iunit, ionode, title, rs )
+SUBROUTINE rs_pw_to_cube ( pw, iunit, ionode, title, rs, particles )
   TYPE(pw_type), POINTER                     :: pw
     INTEGER, INTENT(IN)                      :: iunit
     LOGICAL, INTENT(IN)                      :: ionode
     CHARACTER(*), INTENT(IN), OPTIONAL       :: title
     TYPE(realspace_grid_type), POINTER, OPTIONAL      :: rs 
+    TYPE(particle_list_type), POINTER, OPTIONAL :: particles
 
     INTEGER                                  :: nsmax,handle
     TYPE(realspace_grid_type), POINTER       :: rs_local
@@ -1039,7 +1056,11 @@ SUBROUTINE rs_pw_to_cube ( pw, iunit, ionode, title, rs )
    ENDIF
 
    CALL rs_pw_transfer(rs_local,pw,pw2rs)
-   CALL rs_grid_to_cube(rs_local,iunit,ionode,title)
+   IF (PRESENT(particles)) THEN
+      CALL rs_grid_to_cube(rs_local,iunit,ionode,title,particles=particles)
+   ELSE
+      CALL rs_grid_to_cube(rs_local,iunit,ionode,title)
+   END IF
 
    IF (.NOT. PRESENT(rs)) THEN
        CALL rs_grid_release(rs_local)

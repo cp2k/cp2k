@@ -56,11 +56,11 @@ MODULE qs_scf_post
                                              cp_note_level,&
                                              cp_to_string,&
                                              cp_warning_level
-  USE cp_output_handling,              ONLY: cp_out_flags_finished_output,&
+  USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_iter_string,&
-                                             cp_out_flags_should_output,&
-                                             cp_out_flags_unit_nr,&
-                                             cp_out_flags_type, cp_p_file
+                                             cp_print_key_should_output,&
+                                             cp_print_key_unit_nr,&
+                                             cp_p_file
   USE cp_para_types,                   ONLY: cp_blacs_env_type,&
                                              cp_para_env_type
   USE cp_rs_pool_types,                ONLY: cp_rs_pool_type,&
@@ -218,6 +218,7 @@ CONTAINS
     TYPE(molecule_type), POINTER             :: molecule_set( : )
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
+    TYPE(particle_list_type), pointer :: particles
     TYPE(pw_env_type), POINTER               :: pw_env
     TYPE(pw_pool_p_type), DIMENSION(:), &
       POINTER                                :: pw_pools
@@ -246,8 +247,8 @@ CONTAINS
     TYPE(section_vals_type), POINTER :: print_key, input
     TYPE(cp_rs_pool_type), POINTER           :: auxbas_rs_pool
     TYPE(realspace_grid_type), POINTER       :: rs
-    TYPE(cp_out_flags_type), pointer :: output_control
     TYPE(preconditioner_type), POINTER       :: preconditioner
+    TYPE(cp_subsystem_type), pointer :: subsys
  
     CALL timeset(routineN,"I",'',handle)
 
@@ -257,10 +258,11 @@ CONTAINS
     failure=.FALSE.
     my_localized_wfn = .FALSE.
     NULLIFY(cell,dft_control,pw_env,auxbas_pw_pool,pw_pools,&
-            mos,atomic_kind_set,particle_set,rho,mo_coeff,&
+            mos,atomic_kind_set,particle_set, rho,mo_coeff,&
             ks_rmpv,matrix_s,qs_loc_env,scf_control,unoccupied_orbs,&
             mo_eigenvalues,unoccupied_evals,fm_struct_tmp,molecule_set,&
-            center,rho_core,tddfpt_control,input,print_key, output_control)
+            center,rho_core,tddfpt_control,subsys,particles,input,print_key)
+    
     NULLIFY(qs_loc_env_new,my_localized_wfn_control)
 
     logger => cp_error_get_logger(error)
@@ -278,45 +280,44 @@ CONTAINS
        CALL get_qs_env(qs_env,dft_control=dft_control,molecule_set=molecule_set, &
             mos=mos,atomic_kind_set=atomic_kind_set,particle_set=particle_set,&
             rho=rho,matrix_ks=ks_rmpv,scf_control=scf_control,matrix_s=matrix_s, &
-            input=input, output_control=output_control,&
+            input=input, subsys=subsys,&
             cell=cell,rho_core=rho_core,tddfpt_control=tddfpt_control,error=error)
        CALL get_qs_env(qs_env=qs_env,pw_env=pw_env)
+       CALL cp_subsys_get(subsys,particles=particles)
 
 !    *** compute the mulliken charges ***
-       IF (BTEST(cp_out_flags_should_output(output_control,"DFT%PRINT%MULLIKEN",error=error),cp_p_file)) THEN
-          unit_nr=cp_out_flags_unit_nr(output_control,"DFT%PRINT%MULLIKEN",&
-               extension=".mulliken",middle_name="",log_filename=.false.,error=error)
+       IF (BTEST(cp_print_key_should_output(logger%iter_info,input,&
+            "DFT%PRINT%MULLIKEN",error=error),cp_p_file)) THEN
+          unit_nr=cp_print_key_unit_nr(logger,input,"DFT%PRINT%MULLIKEN",&
+               extension=".mulliken",middle_name="",log_filename=.FALSE.,error=error)
           mulliken_title="  Mulliken charges : iteration level: " &
                                 //cp_iter_string(logger%iter_info, print_key)
           CALL mulliken_charges(rho%rho_ao,matrix_s(1)%matrix,globenv%para_env,particle_set, &
                                   unit_nr,unit_nr>0,mulliken_title)
 
-          CALL cp_out_flags_finished_output(unit_nr, output_control,&
+          CALL cp_print_key_finished_output(unit_nr, logger,input,&
                "DFT%PRINT%MULLIKEN", error=error)
        END IF
 
-       ! XXX Joost : should go as soon as the default printing within the new scheme is clear
-       IF (globenv%print%mulliken_analysis) THEN
-            CALL mulliken_charges(rho%rho_ao,matrix_s(1)%matrix,globenv%para_env,particle_set, &
-                                  output_unit,ionode," ")
-       ENDIF
-
 !    *** Fit charges with the Bloechl scheme
        print_key => section_vals_get_subs_vals(input,"PROPERTIES%FIT_CHARGE", error=error)
-       CALL section_vals_get(print_key,explicit=was_present,error=error)
-       IF (was_present) THEN
+       IF (BTEST(cp_print_key_should_output(logger%iter_info,print_key,&
+           error=error),cp_p_file)) THEN
           CALL get_ddapc(qs_env,.FALSE.,.FALSE.,print_key,error=error)
        END IF
 
 !    ***  Print Localized orbitals
        print_key => section_vals_get_subs_vals(dft_section,"PRINT%LOCALIZATION",error=error)
-       CALL section_vals_get(print_key,explicit=p_loc,error=error)
+       p_loc=BTEST(cp_print_key_should_output(logger%iter_info,print_key,&
+           error=error),cp_p_file)
 !    ***  Print Molecular States
        print_key => section_vals_get_subs_vals(dft_section,"PRINT%MOLECULAR_STATES",error=error)
-       CALL section_vals_get(print_key,explicit=p_molstates,error=error)
+       p_molstates=BTEST(cp_print_key_should_output(logger%iter_info,print_key,&
+           error=error),cp_p_file)
 !    *** Print Cubes     
        print_key => section_vals_get_subs_vals(dft_section,"PRINT%MO_CUBES",error=error)
-       CALL section_vals_get(print_key,explicit=p_cubes,error=error)
+       p_cubes=BTEST(cp_print_key_should_output(logger%iter_info,print_key,&
+            error=error),cp_p_file)
 
 !    *** setup the grids needed to compute a wavefunction given a vector
        IF ( (p_cubes .AND. &
@@ -361,7 +362,7 @@ CONTAINS
                    WRITE(filename,'(a13,I5.5,a1,I1.1,a5)') "WAVEFUNCTION_",ivector,"_",ispin,".cube"
                    IF (ionode) OPEN(UNIT=21,FILE=filename)
                    WRITE(title,*) "WAVEFUNCTION ",ivector," spin ",ispin," i.e. HOMO - ",ivector-homo
-                   CALL rs_pw_to_cube(wf_r%pw,21,ionode,title,rs)
+                   CALL rs_pw_to_cube(wf_r%pw,21,ionode,title,rs,particles=particles)
                    IF (ionode) CLOSE(21)
                 ENDDO
              END IF
@@ -387,7 +388,8 @@ CONTAINS
           NULLIFY(qs_loc_env)
           ALLOCATE(qs_loc_env)
           CALL qs_loc_init(qs_loc_env,qs_env)
-          qs_loc_env%localization_method = globenv % print % localization_method
+          CALL section_vals_val_get(input,"DFT%PRINT%LOCALIZATION%LOC_TYPE",&
+               i_val=qs_loc_env%localization_method,error=error)
           qs_loc_env%wannier = .NOT. (qs_loc_env % localization_method .EQ. WANNIER_NONE)
           IF (p_molstates) qs_loc_env%molecular_states = .TRUE.
        ENDIF
@@ -443,7 +445,7 @@ CONTAINS
                    WRITE(title,'(A7,I5.5,A1,I1.1,A1,6G10.4)') "WANNIER",ivector,"_",ispin," ",&
                      center(ivector,1:3)*angstrom, &
                      center(ivector,4:6)*angstrom
-                   CALL rs_pw_to_cube(wf_r%pw,21,ionode,title,rs)
+                   CALL rs_pw_to_cube(wf_r%pw,21,ionode,title,rs,particles=particles)
                    IF (ionode) CLOSE(21)
                 ENDDO
              END IF
@@ -532,7 +534,7 @@ CONTAINS
                    WRITE(filename,'(a13,I5.5,a1,I1.1,a5)') "WAVEFUNCTION_",homo+ivector,"_",ispin,".cube"
                    IF (ionode) OPEN(UNIT=21,FILE=filename)
                    WRITE(title,*) "WAVEFUNCTION ",homo+ivector," spin ",ispin," i.e. LUMO + ",ivector-1
-                   CALL rs_pw_to_cube(wf_r%pw,21,ionode,title,rs)
+                   CALL rs_pw_to_cube(wf_r%pw,21,ionode,title,rs,particles=particles)
                    IF (ionode) CLOSE(21)
                 ENDDO
              ENDIF
@@ -574,7 +576,8 @@ CONTAINS
        ENDIF
 
 ! *** compute the optical conductivity (needs homos and lumos)
-       IF (globenv%print%optical_conductivity) THEN
+       IF (BTEST(cp_print_key_should_output(logger%iter_info,input,&
+            "DFT%PRINT%OPTICAL_CONDUCTIVITY",error=error),cp_p_file)) THEN
            IF (ionode) WRITE(output_unit,*) " "
            IF (ionode) WRITE(output_unit,*) " Computing the optical conductivity "
            IF (ionode) WRITE(output_unit,*) " Experimental version " 
@@ -631,10 +634,8 @@ CONTAINS
                    section_vals=input,&
                    subsection_name="DFT%PRINT%XRAY_DIFFRACTION_SPECTRUM",&
                    error=error)
-    CALL section_vals_get(section_vals=print_key,&
-                          explicit=was_present,&
-                          error=error)
-    IF (was_present) THEN
+    IF (BTEST(cp_print_key_should_output(logger%iter_info,print_key,&
+            error=error),cp_p_file)) THEN
       q_max = section_get_rval(section_vals=dft_section,&
                                keyword_name="PRINT%XRAY_DIFFRACTION_SPECTRUM%Q_MAX",&
                                error=error)
@@ -680,6 +681,7 @@ CONTAINS
     TYPE(molecule_type), POINTER             :: molecule_set( : )
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
+    TYPE(particle_list_type), pointer :: particles
     TYPE(pw_env_type), POINTER               :: pw_env
     TYPE(pw_pool_p_type), DIMENSION(:), &
       POINTER                                :: pw_pools
@@ -688,6 +690,7 @@ CONTAINS
     TYPE(real_matrix_p_type), DIMENSION(:), &
       POINTER                                :: ks_rmpv, matrix_s
     TYPE(scf_control_type), POINTER          :: scf_control
+    TYPE(cp_subsystem_type), pointer :: subsys
 
     TYPE evals_p_type
          REAL(KIND = dp), DIMENSION(:), POINTER :: evals
@@ -701,7 +704,6 @@ CONTAINS
     TYPE(cp_rs_pool_type), POINTER           :: auxbas_rs_pool
     TYPE(realspace_grid_type), POINTER       :: rs
     INTEGER            :: handle
-    TYPE(cp_out_flags_type), pointer :: output_control
 
 
     CALL timeset(routineN,handle)
@@ -709,7 +711,7 @@ CONTAINS
     NULLIFY(cell,dft_control,pw_env,auxbas_pw_pool,pw_pools,&
             mos,atomic_kind_set,particle_set,rho,&
             ks_rmpv,matrix_s,scf_control,dft_section,&
-            molecule_set,input,output_control)
+            molecule_set,input,particles,subsys)
     logger => cp_error_get_logger(error)
     ionode = logger%para_env%mepos==logger%para_env%source
     IF (ionode) output_unit= cp_logger_get_default_unit_nr(logger)
@@ -719,7 +721,8 @@ CONTAINS
        CALL get_qs_env(qs_env,dft_control=dft_control,molecule_set=molecule_set, &
             mos=mos,atomic_kind_set=atomic_kind_set,particle_set=particle_set,&
             rho=rho,matrix_ks=ks_rmpv,scf_control=scf_control,matrix_s=matrix_s,&
-            input=input,cell=cell,output_control=output_control,error=error)
+            input=input,cell=cell,subsys=subsys,error=error)
+       CALL cp_subsys_get(subsys,particles=particles,error=error)
 
     dft_section => section_vals_get_subs_vals(input,"DFT",error=error)
 
@@ -763,7 +766,8 @@ CONTAINS
        ENDIF
 
 !   *** Cube file of the electron density ***
-       IF (globenv%print%e_density_cube) THEN ! write the electron densoity
+       IF (BTEST(cp_print_key_should_output(logger%iter_info,input,&
+            "DFT%PRINT%E_DENSITY_CUBE", error=error),cp_p_file)) THEN ! write the electron densoity
           CALL get_qs_env(qs_env=qs_env,pw_env=pw_env)
           CALL pw_env_get(pw_env, auxbas_rs_pool=auxbas_rs_pool)
           CALL rs_pool_create_rs(auxbas_rs_pool,rs)
@@ -777,38 +781,44 @@ CONTAINS
              CALL coeff_copy(rho%rho_r(1),wf_r)
              CALL coeff_sumup(rho%rho_r(2),wf_r)
              IF (ionode) OPEN(UNIT=21,FILE="ELECTRON_DENSITY.cube")
-             CALL rs_pw_to_cube(wf_r%pw,21,ionode,"SPIN 1 + SPIN 2 ELECTRON DENSITY",rs)
+             CALL rs_pw_to_cube(wf_r%pw,21,ionode,"SPIN 1 + SPIN 2 ELECTRON DENSITY",&
+                  rs,particles=particles)
              IF (ionode) CLOSE(21)
              CALL coeff_copy(rho%rho_r(1),wf_r)
              CALL coeff_reduce(rho%rho_r(2),wf_r)
              IF (ionode) OPEN(UNIT=21,FILE="SPIN_DENSITY.cube")
-             CALL rs_pw_to_cube(wf_r%pw,21,ionode,"SPIN 1 DENSITY - SPIN 2 DENSITY",rs)
+             CALL rs_pw_to_cube(wf_r%pw,21,ionode,"SPIN 1 DENSITY - SPIN 2 DENSITY",rs,&
+                  particles=particles)
              IF (ionode) CLOSE(21)
              CALL pw_pool_give_back_coeff(auxbas_pw_pool,wf_r, error=error)
           ELSE
              IF (ionode) OPEN(UNIT=21,FILE="ELECTRON_DENSITY.cube")
-             CALL rs_pw_to_cube(rho%rho_r(1)%pw,21,ionode,"ELECTRON DENSITY",rs)
+             CALL rs_pw_to_cube(rho%rho_r(1)%pw,21,ionode,"ELECTRON DENSITY",&
+                  rs,particles=particles)
              IF (ionode) CLOSE(21)
           ENDIF
           CALL rs_pool_give_back_rs(auxbas_rs_pool,rs,error=error)
        ENDIF
 
 !   *** write the hartree potential ***
-       IF (globenv%print%v_hartree_cube) THEN
+       IF (BTEST(cp_print_key_should_output(logger%iter_info,input,&
+            "DFT%PRINT%V_HARTREE_CUBE",error=error),cp_p_file)) THEN
           CALL get_qs_env(qs_env=qs_env,pw_env=pw_env)
           CALL pw_env_get(pw_env, auxbas_rs_pool=auxbas_rs_pool)
           CALL rs_pool_create_rs(auxbas_rs_pool,rs)
-          IF (ionode) OPEN(UNIT=21,FILE="V_HARTREE.cube")
+          unit_nr=cp_print_key_unit_nr(logger,input,"DFT%PRINT%V_HARTREE_CUBE",&
+               extension=".cube",middle_name="v_hartree",error=error)
           CALL rs_pw_to_cube(qs_env%ks_env%v_hartree_rspace%pw,&
-               21,ionode,"HARTREE POTENTIAL",rs)
-          IF (ionode) CLOSE(21)
+               unit_nr,unit_nr>0,"HARTREE POTENTIAL",rs,particles=particles)
+          CALL cp_print_key_finished_output(unit_nr,logger,input,&
+               "DFT%PRINT%V_HARTREE_CUBE",error=error)
           CALL rs_pool_give_back_rs(auxbas_rs_pool,rs,error=error)
        ENDIF
 
 !    *** stupid (non periodic) calculation of the dipole moment ***
-       IF (btest(cp_out_flags_should_output(output_control,"DFT%PRINT%DIPOLE",&
+       IF (BTEST(cp_print_key_should_output(logger%iter_info,input,"DFT%PRINT%DIPOLE",&
             error=error),cp_p_file)) THEN
-          unit_nr=cp_out_flags_unit_nr(output_control, "DFT%PRINT%DIPOLE",&
+          unit_nr=cp_print_key_unit_nr(logger,input, "DFT%PRINT%DIPOLE",&
                extension=".dipole", log_filename=.FALSE., error=error)
           CALL get_qs_env(qs_env=qs_env,pw_env=pw_env,error=error)
           CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool,&
@@ -818,19 +828,21 @@ CONTAINS
                unit_nr=unit_nr,&
                print_header=.FALSE.,&
                error=error)
-          CALL cp_out_flags_finished_output(unit_nr, output_control,&
+          CALL cp_print_key_finished_output(unit_nr, logger,input,&
                "DFT%PRINT%DIPOLE",error=error)
        END IF
  
 !    *** write the density matrix ***
-       IF (globenv%print%density_matrix) THEN
-         DO ispin=1,dft_control%nspins
-           CALL write_sparse_matrix(rho%rho_ao(ispin)%matrix,4,6,qs_env,globenv)
-         END DO
+       IF (BTEST(cp_print_key_should_output(logger%iter_info,input,&
+            "DFT%PRINT%AO_MATRICES/DENSITY",error=error),cp_p_file)) THEN
+          DO ispin=1,dft_control%nspins
+             CALL write_sparse_matrix(rho%rho_ao(ispin)%matrix,4,6,qs_env,globenv)
+          END DO
        END IF
 
 !    **** the Kohn-Sham matrix itself
-       IF (globenv%print%kohn_sham_matrix) THEN
+       IF (btest(cp_print_key_should_output(logger%iter_info,input,&
+            "DFT%PRINT%AO_MATRICES/KOHN_SHAM_MATRIX",error=error),cp_p_file)) THEN
           CALL qs_ks_update_qs_env(qs_env%ks_env,qs_env=qs_env,&
                error=error,&
                calculate_forces=.FALSE.,just_energy=.FALSE.)

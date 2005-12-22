@@ -26,9 +26,8 @@ MODULE cp_ddapc
 !****************************************************************************  
   USE cp_output_handling,              ONLY: cp_print_key_should_output,&
                                              cp_p_file,&
-                                             cp_out_flags_type,&
-                                             cp_out_flags_unit_nr,&
-                                             cp_out_flags_finished_output
+                                             cp_print_key_unit_nr,&
+                                             cp_print_key_finished_output
   USE cp2k_units,                      ONLY: get_cp2k_units,&
                                              unit_convert_type
   USE kinds,                           ONLY: default_string_length,&
@@ -154,7 +153,6 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:), ALLOCATABLE       :: bv, cv, qv, qtot, dqv0
     REAL(KIND=dp), DIMENSION(:,:), ALLOCATABLE     :: dbv, Awrk
     REAL(KIND=dp), DIMENSION(:,:,:), ALLOCATABLE   :: dAm, dqv
-    TYPE(cp_out_flags_type), pointer :: output_control
     TYPE(qs_charges_type), POINTER           :: qs_charges
     REAL(KIND=dp) :: core_ch, elec_ch
     TYPE(cp_ddapc_type), POINTER             :: cp_ddapc_env
@@ -168,7 +166,7 @@ CONTAINS
     ionode = logger%para_env%mepos==logger%para_env%source
     IF (ionode) iw = cp_logger_get_default_unit_nr(logger)
     NULLIFY(rho, rho_tot_g, rho_core, pw_env, radii, inp_radii, particle_set, &
-         output_control, qs_charges, cp_ddapc_env)
+         qs_charges, cp_ddapc_env)
     IF (.NOT.failure) THEN
        !
        ! Build the total QS density (electron+nuclei) in G-space
@@ -179,12 +177,11 @@ CONTAINS
                        pw_env=pw_env,&
                        qs_charges=qs_charges,&
                        particle_set=particle_set,&
-                       output_control=output_control,&
                        cell=cell,&
                        super_cell=super_cell,&
                        error=error)
-       iw=cp_out_flags_unit_nr(output_control,&
-            "PROPERTIES%FIT_CHARGE%PRINT%PROGRAM_RUN_INFO",".totCharge",error=error)
+       iw=cp_print_key_unit_nr(logger,fitcharge_section,&
+            "/PROGRAM_RUN_INFO",".totCharge",error=error)
        IF (iw>0) THEN
           WRITE(iw,'(T3,A,F15.9)')" Evaluating the charges to decouple QM images. " 
        END IF       
@@ -374,8 +371,8 @@ CONTAINS
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        DEALLOCATE(qtot, stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       CALL cp_out_flags_finished_output(iw,output_control,&
-            "PROPERTIES%FIT_CHARGE%PRINT%PROGRAM_RUN_INFO",error=error)
+       CALL cp_print_key_finished_output(iw,logger,fitcharge_section,&
+            "/PROGRAM_RUN_INFO",error=error)
        CALL pw_pool_give_back_pw(auxbas_pool,rho_tot_g,&
             accept_non_compatible=.TRUE.,error=error)
     END IF
@@ -434,7 +431,6 @@ CONTAINS
     REAL(KIND=dp), POINTER, DIMENSION(:,:,:) :: dq
     TYPE(cp_logger_type), POINTER :: logger
     REAL(KINd=dp) :: e_decpl, e_recpl
-    TYPE(cp_out_flags_type), pointer :: output_control
 
     CALL timeset(routineN,"I","",handle)
     failure = .FALSE.
@@ -445,13 +441,12 @@ CONTAINS
     IF (PRESENT(calculate_forces)) need_f = calculate_forces
     IF (.NOT.failure) THEN
        NULLIFY(multipole_section, poisson_section, force_env_section, particle_set,&
-               qmmm_periodic_section, charges, radii, dq, output_control)
+               qmmm_periodic_section, charges, radii, dq)
        CALL get_qs_env(qs_env=qs_env,&
                        input=force_env_section,&
                        particle_set=particle_set,&
-                       output_control=output_control,&
                        error=error)
-       iw=cp_out_flags_unit_nr(output_control,"PROPERTIES%FIT_CHARGE%PRINT%PROGRAM_RUN_INFO",&
+       iw=cp_print_key_unit_nr(logger,force_env_section,"PROPERTIES%FIT_CHARGE/PROGRAM_RUN_INFO",&
             extension=".fitChargeLog",error=error)
        poisson_section => section_vals_get_subs_vals(force_env_section,"DFT%POISSON_DFT", error=error)
        qmmm_periodic_section   => section_vals_get_subs_vals(force_env_section,"QMMM%PERIODIC", error=error)
@@ -510,8 +505,8 @@ CONTAINS
           DEALLOCATE(dq, stat=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        END IF
-       CALL cp_out_flags_finished_output(iw,output_control,&
-            "PROPERTIES%FIT_CHARGE%PRINT%PROGRAM_RUN_INFO",error=error)
+       CALL cp_print_key_finished_output(iw,logger,force_env_section,&
+            "PROPERTIES%FIT_CHARGE/PROGRAM_RUN_INFO",error=error)
     END IF
     CALL timestop(0.0_dp, handle)
   END SUBROUTINE cp_decpl_ddapc

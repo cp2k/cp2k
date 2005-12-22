@@ -139,8 +139,6 @@ MODULE qs_environment
                                              timestop
   USE topology,                        ONLY: topology_control
   USE xas_control,                     ONLY: write_xas_control
-  USE cp_output_handling, ONLY: cp_out_flags_type, cp_out_flags_create,&
-       cp_out_flags_release
 #include "cp_common_uses.h"
   IMPLICIT NONE
 
@@ -203,11 +201,10 @@ CONTAINS
     REAL(kind=dp), dimension(3)              :: abc
     LOGICAL                                  :: my_qmmm
     TYPE(cp_logger_type), pointer            :: logger
-    TYPE(cp_out_flags_type), pointer         :: output_control
 
     NULLIFY(my_subsystem, molecule_kind_set, molecule_set, atomic_kind_set,&
          particle_set,atomic_kinds,particles,mols,mol_kinds,my_cell,my_cell_ref,&
-         cell_section, harris_section, output_control)
+         cell_section, harris_section)
     
     logger => cp_error_get_logger(error)
     force_env_section => section_vals_get_subs_vals(globenv%input_file,&
@@ -224,11 +221,8 @@ CONTAINS
     CALL section_vals_val_get(harris_section, "ACTIVATE", &
                               l_val=harris_flag, error=error)
 
-    CALL cp_out_flags_create(output_control,force_env_section,&
-         logger=logger,error=error)
-    CALL set_qs_env(qs_env,input=force_env_section,output_control=output_control,&
+    CALL set_qs_env(qs_env,input=force_env_section,&
          use_harris=harris_flag,error=error)
-    CALL cp_out_flags_release(output_control,error=error)
 
     IF (PRESENT(cell)) THEN
        my_cell => cell

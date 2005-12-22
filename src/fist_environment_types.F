@@ -80,8 +80,6 @@ MODULE fist_environment_types
                                              qmmm_env_mm_create,&
                                              qmmm_env_mm_release,&
                                              qmmm_env_mm_retain
-  USE cp_output_handling, ONLY:cp_out_flags_type, cp_out_flags_retain, &
-       cp_out_flags_release
   PRIVATE
 !
 
@@ -99,7 +97,6 @@ MODULE fist_environment_types
     TYPE ( cp_para_env_type ), POINTER             :: para_env
     TYPE ( cp_subsystem_type ), POINTER            :: subsys
     TYPE ( fist_nonbond_env_type ), POINTER        :: fist_nonbond_env
-    TYPE ( cp_out_flags_type ), pointer            :: output_control
   END TYPE fist_environment_type
 
 ! *****************************************************************************
@@ -157,7 +154,7 @@ CONTAINS
                            local_particles, local_molecules, molecule_kind_set, &
                            molecule_set, cell, cell_ref, ewald_env,  &
                            fist_nonbond_env, thermo, para_env, subsys,  &
-                           qmmm, qmmm_env, output_control, error )
+                           qmmm, qmmm_env, error )
     IMPLICIT NONE
 
 !   Purpose: Get the FIST environment.
@@ -180,7 +177,6 @@ CONTAINS
     TYPE(molecule_type),  OPTIONAL, POINTER                 :: molecule_set ( : )
     TYPE(cp_subsystem_type), POINTER, OPTIONAL              :: subsys
     TYPE(qmmm_env_mm_type), POINTER, OPTIONAL               :: qmmm_env
-    TYPE(cp_out_flags_type), POINTER, optional              :: output_control
     LOGICAL, OPTIONAL :: qmmm
 
     LOGICAL :: failure
@@ -206,7 +202,6 @@ CONTAINS
     IF ( PRESENT ( para_env ) ) para_env => fist_env % para_env
     IF ( PRESENT ( ewald_pw ) ) ewald_pw => fist_env % ewald_pw
     IF ( PRESENT ( fist_nonbond_env ) ) fist_nonbond_env => fist_env % fist_nonbond_env
-    IF (PRESENT(output_control)) output_control => fist_env%output_control
     IF (PRESENT(subsys)) subsys => fist_env%subsys
     CALL cp_subsys_get(fist_env%subsys,&
                       atomic_kinds=atomic_kinds,&
@@ -245,7 +240,6 @@ CONTAINS
     NULLIFY (fist_env%thermo)
     NULLIFY (fist_env%fist_nonbond_env)
     NULLIFY (fist_env%subsys)
-    nullify (fist_env%output_control)
     fist_env % qmmm = .FALSE.
     CALL qmmm_env_mm_create(fist_env%qmmm_env, error)
     CALL cp_subsys_create(fist_env%subsys, para_env=para_env, error=error)
@@ -263,7 +257,7 @@ CONTAINS
                            local_particles, local_molecules, molecule_kind_set, &
                            molecule_set, cell, cell_ref, ewald_env,  &
                            fist_nonbond_env, thermo, subsys, qmmm, qmmm_env, &
-                           output_control, error )
+                           error )
 
     IMPLICIT NONE
 !   Purpose: Set the FIST environment.
@@ -285,7 +279,6 @@ CONTAINS
     TYPE(molecule_type),  OPTIONAL, POINTER                 :: molecule_set ( : )
     TYPE(cp_subsystem_type), POINTER, OPTIONAL              :: subsys
     LOGICAL,OPTIONAL                                        :: qmmm
-    TYPE(cp_out_flags_type), POINTER, optional              :: output_control
 ! locals
     TYPE (atomic_kind_list_type), POINTER :: atomic_kinds
     TYPE (particle_list_type), POINTER :: particles
@@ -383,11 +376,6 @@ CONTAINS
                         molecules_new=molecules_new,&
                         error=error)
       CALL mol_new_list_release(molecules_new,error=error)
-    END IF
-    IF (PRESENT(output_control)) THEN
-       CALL cp_out_flags_retain(output_control,error=error)
-       CALL cp_out_flags_release(fist_env%output_control,error=error)
-       fist_env%output_control => output_control
     END IF
 
 !***************************************************************************
@@ -542,7 +530,6 @@ SUBROUTINE fist_env_release(fist_env,error)
         CALL fist_nonbond_env_release ( fist_env % fist_nonbond_env, error = error )
 
         CALL cp_subsys_release(fist_env%subsys,error=error)
-        CALL cp_out_flags_release(fist_env%output_control,error=error)
         DEALLOCATE(fist_env, stat=stat)
         CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
      END IF

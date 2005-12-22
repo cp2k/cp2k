@@ -32,10 +32,9 @@
 !!   SOURCE
 !****************************************************************************
 MODULE qs_ks_methods
+  USE cp_output_handling, ONLY: cp_print_key_unit_nr, cp_print_key_finished_output
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind_set
-  USE cp_output_handling, ONLY: cp_out_flags_should_output, cp_out_flags_unit_nr,&
-       cp_out_flags_finished_output,cp_p_file, cp_out_flags_type
   USE coefficient_types,               ONLY: coeff_add,&
                                              coeff_subtract,&
                                              coeff_init,&
@@ -335,16 +334,15 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:), POINTER :: scaling_factor,occupation_numbers
     TYPE(cp_fm_type), POINTER            :: mo_coeff,hc_tmp
     REAL(KIND=dp)                        :: mulliken_order_p
-    TYPE(section_vals_type), POINTER     :: print_qmmm_gen
+    TYPE(section_vals_type), POINTER     :: input
     TYPE(qs_rho_type), POINTER           :: my_rho_xc
     TYPE(pw_poisson_type), pointer :: poisson_env
-    TYPE(cp_out_flags_type), pointer :: output_control
 ! shorter for output
 
     failure=.FALSE.
     NULLIFY(matrix_h,matrix_s,dft_control,auxbas_pw_pool, pw_pools,&
          pw_env, cell, logger, v_rspace_new, v_tau_rspace,&
-         print_qmmm_gen, poisson_env,output_control)
+         input, poisson_env)
 
     !   -----------------------------------------------------------------------
 
@@ -366,7 +364,7 @@ CONTAINS
          pw_env=pw_env,&
          cell=cell,&
          para_env=para_env,&
-         output_control=output_control,&
+         input=input,&
          error=error)
 
     nspins=dft_control%nspins
@@ -447,7 +445,7 @@ CONTAINS
 
        ! *** Add the QM/MM potential ***
        If (qs_env%qmmm) Then
-          output_unit=cp_out_flags_unit_nr(output_control,"QMMM%PRINT%PROGRAM_RUN_INFO",&
+          output_unit=cp_print_key_unit_nr(logger,input,"QMMM%PRINT%PROGRAM_RUN_INFO",&
                extension=".qmmmLog",error=error)
           IF (output_unit>0) &          
                WRITE (UNIT=output_unit,FMT="(T3,A)")&
@@ -458,7 +456,7 @@ CONTAINS
                                        qmmm_energy=energy%qmmm_el,&
              ! also take into account the scaling (in addition to the volume element)
                                        error=error)
-           CALL cp_out_flags_finished_output(output_unit,output_control,&
+           CALL cp_print_key_finished_output(output_unit,logger,input,&
                 "QMMM%PRINT%PROGRAM_RUN_INFO", error=error)
 
            IF (.NOT.just_energy) THEN
@@ -703,7 +701,7 @@ CONTAINS
             energy%qmmm_el + energy%mulliken + &
             energy%kg_gpw_ekin_mol
 
-       output_unit=cp_out_flags_unit_nr(output_control,"DFT%SCF%PRINT%DETAILED_ENERGY",&
+       output_unit=cp_print_key_unit_nr(logger,input,"DFT%SCF%PRINT%DETAILED_ENERGY",&
             extension=".scfLog",error=error)
        IF (output_unit>0) THEN
           IF(my_kg_gpw) THEN
@@ -739,7 +737,7 @@ CONTAINS
           ENDIF
 
        END IF
-       CALL cp_out_flags_finished_output(output_unit,output_control,&
+       CALL cp_print_key_finished_output(output_unit,logger,input,&
             "DFT%SCF%PRINT%DETAILED_ENERGY", error=error)
 
     END IF

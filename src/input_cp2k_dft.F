@@ -2110,10 +2110,9 @@ SUBROUTINE create_tddfpt_section(section,error)
     
     CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
-       CALL section_create(section,name="FIT_CHARGE",&
+       call cp_print_key_section_create(section,name="FIT_CHARGE",&
             description="This section is used to set up calculation of density derived atomic point charges.",&
-            n_keywords=3, n_subsections=1, repeats=.FALSE., required=.FALSE.,&
-            error=error)
+            print_level=high_print_level,filename="__STD_OUT__",error=error)
 
        NULLIFY(keyword, subsection)
 
@@ -2154,62 +2153,15 @@ SUBROUTINE create_tddfpt_section(section,error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
-       CALL create_print_fitcharge_section(subsection,error)
-       CALL section_add_subsection(section, subsection, error=error)
-       CALL section_release(subsection,error=error)
-      
+       CALL keyword_create(keyword, name="PROGRAM_RUN_INFO",&
+            description="Controls the printing of information regarding the run.",&
+            default_l_val=.TRUE.,lone_keyword_l_val=.TRUE.,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
     END IF
 
   END SUBROUTINE create_fitcharge_section
-
-!***************************************************************************
-!!****f* input_cp2k_dft/create_print_fitcharge_section [1.0] *
-!!
-!!   NAME
-!!     create_print_fitcharge_section
-!!
-!!   FUNCTION
-!!     Create the print bsse section
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - section: the section to create
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     teo
-!!
-!!*** **********************************************************************
-  SUBROUTINE create_print_fitcharge_section(section,error)
-    TYPE(section_type), POINTER :: section
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-    
-    LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineN='create_print_fitcharge_section',&
-         routineP=moduleN//':'//routineN
-    TYPE(section_type), POINTER :: print_key
-    failure=.FALSE.
-    
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
-    IF (.NOT. failure) THEN
-       CALL section_create(section,name="print",&
-            description="Section of possible print options in FIT_CHARGE code.",&
-            n_keywords=0, n_subsections=1, repeats=.FALSE., required=.TRUE.,&
-            error=error)
-       
-       NULLIFY(print_key)
-       CALL cp_print_key_section_create(print_key,"PROGRAM_RUN_INFO",&
-            description="Controls the printing of information regarding the run.",&
-            print_level=silent_print_level,each=(/1/),filename="__STD_OUT__",&
-            error=error)
-       CALL section_add_subsection(section,print_key,error=error)
-       CALL section_release(print_key,error=error)
-
-    END IF
-  END SUBROUTINE create_print_fitcharge_section
 
 !***************************************************************************
 !!****f* input_cp2k_dft/create_bsse_section [1.0] *
@@ -2438,10 +2390,10 @@ SUBROUTINE create_tddfpt_section(section,error)
     
     CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
-       CALL section_create(section,name="MULTIPOLE",&
+       CALL cp_print_key_section_create(section,name="MULTIPOLE",&
             description="This section is used to set up the decoupling of QM periodic images with "//&
             "the use of density derived atomic point charges.",&
-            n_keywords=3, n_subsections=1, repeats=.FALSE., required=.FALSE.,&
+            print_level=high_print_level,filename="__STD_OUT__",&
             error=error)
 
        NULLIFY(keyword, subsection)
@@ -2497,64 +2449,18 @@ SUBROUTINE create_tddfpt_section(section,error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
-       CALL create_print_multipole_section(subsection,error)
-       CALL section_add_subsection(section, subsection, error=error)
-       CALL section_release(subsection,error=error)
+       CALL keyword_create(keyword, name="PROGRAM_RUN_INFO",&
+            description="Controls the printing of information regarding the run.",&
+            default_l_val=.TRUE., lone_keyword_l_val=.TRUE.,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
       
     END IF
 
   END SUBROUTINE create_multipole_section
 
 !***************************************************************************
-!!****f* input_cp2k_dft/create_print_multipole_section [1.0] *
-!!
-!!   NAME
-!!     create_print_multipole_section
-!!
-!!   FUNCTION
-!!     Create the print multipole section
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - section: the section to create
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     teo
-!!
-!!*** **********************************************************************
-  SUBROUTINE create_print_multipole_section(section,error)
-    TYPE(section_type), POINTER :: section
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-    
-    LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineN='create_print_multipole_section',&
-         routineP=moduleN//':'//routineN
-    TYPE(section_type), POINTER :: print_key
-    failure=.FALSE.
-    
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
-    IF (.NOT. failure) THEN
-       CALL section_create(section,name="print",&
-            description="Section of possible print options in MULTIPOLE decoupling code.",&
-            n_keywords=0, n_subsections=1, repeats=.FALSE., required=.TRUE.,&
-            error=error)
-       
-       NULLIFY(print_key)
-       CALL cp_print_key_section_create(print_key,"PROGRAM_RUN_INFO",&
-            description="Controls the printing of information regarding the run.",&
-            print_level=silent_print_level,each=(/1/),filename="__STD_OUT__",&
-            error=error)
-       CALL section_add_subsection(section,print_key,error=error)
-       CALL section_release(print_key,error=error)
 
-    END IF
-  END SUBROUTINE create_print_multipole_section
-
-!***************************************************************************
 !!****f* input_cp2k_dft/create_mt_section [1.0] *
 !!
 !!   NAME

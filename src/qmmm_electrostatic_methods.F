@@ -26,8 +26,8 @@ MODULE qmmm_electrostatic_methods
   USE coefficient_types,               ONLY: coeff_type,&
                                              coeff_zero
   USE mathconstants,                   ONLY: pi
-  USE cp_output_handling, ONLY: cp_out_flags_should_output, cp_out_flags_type,&
-       cp_p_file, cp_out_flags_unit_nr, cp_out_flags_finished_output,&
+  USE cp_output_handling, ONLY: cp_print_key_should_output,&
+       cp_p_file, cp_print_key_unit_nr, cp_print_key_finished_output,&
        cp_iter_string, cp_iterate,&
        cp_add_iter_level, cp_rm_iter_level
   USE cp_para_types,                   ONLY: cp_para_env_type
@@ -140,23 +140,22 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: input_section, interp_section, print_section
     TYPE(cp_logger_type), POINTER :: logger
     TYPE(section_vals_type), POINTER :: print_pot
-    TYPE(cp_out_flags_type), POINTER :: output_control
     
     CALL timeset(routineN,"I","",handle)
     failure=.FALSE.
+    logger => cp_error_get_logger(error)
     IF (.NOT.failure) THEN
-       NULLIFY(ks_qmmm_env_loc, pw_pools, pw_env,input_section, output_control)
+       NULLIFY(ks_qmmm_env_loc, pw_pools, pw_env,input_section)
        CALL get_qs_env(qs_env=qs_env,&
                        pw_env=pw_env,&
                        para_env=para_env,&
                        input=input_section,&
                        ks_qmmm_env=ks_qmmm_env_loc,&
-                       output_control=output_control,&
                        error=error)
 
        CALL pw_env_get(pw_env=pw_env, pw_pools=pw_pools, error=error)
        print_section => section_vals_get_subs_vals(input_section,"QMMM%PRINT",error=error)
-       iw = cp_out_flags_unit_nr(output_control,"QMMM%PRINT%PROGRAM_RUN_INFO",&
+       iw = cp_print_key_unit_nr(logger,print_section,"PROGRAM_RUN_INFO",&
             extension=".qmmmLog",error=error)
        logger => cp_error_get_logger(error)
        print_pot => section_vals_get_subs_vals(print_section,"POTENTIAL",error=error)
@@ -206,17 +205,17 @@ CONTAINS
           CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
        END SELECT
 
-       CALL cp_out_flags_finished_output(iw,output_control,&
-            "QMMM%PRINT%PROGRAM_RUN_INFO", error=error)
+       CALL cp_print_key_finished_output(iw,logger,print_section,&
+            "PROGRAM_RUN_INFO", error=error)
 
-       IF (BTEST(cp_out_flags_should_output(output_control,&
-            "QMMM%PRINT%POTENTIAL",error=error),cp_p_file)) then
-          iw = cp_out_flags_unit_nr(output_control,"QMMM%PRINT%POTENTIAL",&
+       IF (BTEST(cp_print_key_should_output(logger%iter_info,print_section,&
+            "POTENTIAL",error=error),cp_p_file)) then
+          iw = cp_print_key_unit_nr(logger,print_section,"POTENTIAL",&
                extension=".qmmmLog",error=error)
           CALL rs_pw_to_cube(ks_qmmm_env_loc%v_qmmm_rspace%pw,iw,iw>0,&
                "QM/MM: MM ELECTROSTATIC POTENTIAL ")
-          CALL cp_out_flags_finished_output(iw,output_control,&
-               "QMMM%PRINT%POTENTIAL", error=error)
+          CALL cp_print_key_finished_output(iw,logger,print_section,&
+               "POTENTIAL", error=error)
        END IF
        CALL timestop(0.0_dp,handle)
     END IF

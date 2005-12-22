@@ -60,8 +60,6 @@ MODULE qs_environment_types
                                              cp_subsys_release,&
                                              cp_subsys_retain,&
                                              cp_subsystem_type
-  USE cp_output_handling, ONLY:cp_out_flags_type, cp_out_flags_retain, &
-       cp_out_flags_release
   USE distribution_1d_types,           ONLY: distribution_1d_type
   USE distribution_2d_types,           ONLY: distribution_2d_release,&
                                              distribution_2d_retain,&
@@ -317,7 +315,6 @@ MODULE qs_environment_types
     TYPE(kg_sub_pw_env_type), POINTER                     :: kg_sub_pw_env
     TYPE(linres_control_type), POINTER                    :: linres_control
     TYPE(xas_environment_type), POINTER                   :: xas_env
-    TYPE(cp_out_flags_type), POINTER                      :: output_control
     TYPE(cp_ddapc_type), POINTER                          :: cp_ddapc_env
     TYPE(virial_type), POINTER                            :: virial
   END TYPE qs_environment_type
@@ -370,7 +367,7 @@ CONTAINS
                         rhoz_set,ecoul_1c,VH_3c_list,rho0_s_rs,rho0_s_gs, &
                         requires_mo_derivs,mo_derivs,tddfpt_control, &
                         neighbor_list_id,kg_sub_pw_env,linres_control,xas_env,&
-                        output_control,virial,cp_ddapc_env,error)
+                        virial,cp_ddapc_env,error)
 
 !   Purpose: Get the QUICKSTEP environment.
 
@@ -466,7 +463,6 @@ CONTAINS
       POINTER                                :: linres_control
     TYPE(xas_environment_type), OPTIONAL,&
       POINTER                                :: xas_env
-    TYPE(cp_out_flags_type), POINTER, OPTIONAL :: output_control
     TYPE(cp_ddapc_type), POINTER, OPTIONAL   :: cp_ddapc_env
     TYPE(virial_type), OPTIONAL, POINTER     :: virial
 
@@ -581,7 +577,6 @@ CONTAINS
     IF (PRESENT(molecule_kind_set)) molecule_kind_set => molecule_kinds_new%els
     IF (PRESENT(molecule_set)) molecule_set => molecules_new%els
     IF (PRESENT(input)) input => qs_env%input
-    IF (PRESENT(output_control)) output_control => qs_env%output_control
     IF (PRESENT(cp_ddapc_env)) cp_ddapc_env => qs_env%cp_ddapc_env
 
   END SUBROUTINE get_qs_env
@@ -649,7 +644,6 @@ CONTAINS
     NULLIFY (qs_env%linres_control)
     NULLIFY (qs_env%xas_env)
     NULLIFY (qs_env%virial)
-    NULLIFY (qs_env%output_control)
     NULLIFY (qs_env%cp_ddapc_env)
     qs_env%neighbor_list_id=-1
 
@@ -684,7 +678,7 @@ CONTAINS
                         subsys, oce,rho_atom_set,rho0_atom_set,rho0_mpole,&
                         nddo_mpole,rhoz_set,rhoz_tot,ecoul_1c,VH_3c_list,error, &
                         requires_mo_derivs,mo_derivs,neighbor_list_id,&
-                        kg_sub_pw_env,linres_control,xas_env,output_control,virial,&
+                        kg_sub_pw_env,linres_control,xas_env,virial,&
                         cp_ddapc_env)
 
 !   Purpose: Set the QUICKSTEP environment.
@@ -763,7 +757,6 @@ CONTAINS
       POINTER                                :: linres_control
     TYPE(xas_environment_type), OPTIONAL,&
       POINTER                                :: xas_env
-    TYPE(cp_out_flags_type), OPTIONAL, POINTER :: output_control
     TYPE(cp_ddapc_type), OPTIONAL, POINTER   :: cp_ddapc_env
     TYPE(virial_type), OPTIONAL, POINTER     :: virial
 
@@ -935,11 +928,6 @@ CONTAINS
        CALL section_vals_retain(input,error=error)
        CALL section_vals_release(qs_env%input,error=error)
        qs_env%input => input
-    END IF
-    IF (PRESENT(output_control)) THEN
-       CALL cp_out_flags_retain(output_control,error=error)
-       CALL cp_out_flags_release(qs_env%output_control,error=error)
-       qs_env%output_control => output_control
     END IF
     IF (PRESENT(cp_ddapc_env)) THEN
        CALL cp_ddapc_retain(cp_ddapc_env, error=error)
@@ -1248,7 +1236,6 @@ SUBROUTINE qs_env_release(qs_env,error)
         ENDIF
         CALL cp_subsys_release(qs_env%subsys,error=error)
         CALL section_vals_release(qs_env%input,error=error)
-        CALL cp_out_flags_release(qs_env%output_control,error=error)
         CALL cp_ddapc_release(qs_env%cp_ddapc_env, error=error)
         DEALLOCATE(qs_env, stat=stat)
         CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)

@@ -54,8 +54,6 @@ MODULE kg_environment_types
                                              cp_subsys_retain,&
                                              cp_subsys_set,&
                                              cp_subsystem_type
-  USE cp_output_handling, ONLY:cp_out_flags_type, cp_out_flags_retain, &
-       cp_out_flags_release
   USE distribution_1d_types,           ONLY: distribution_1d_type
   USE distribution_2d_types,           ONLY: distribution_2d_release,&
                                              distribution_2d_retain,&
@@ -138,7 +136,6 @@ MODULE kg_environment_types
     TYPE(cp_subsystem_type), POINTER                      :: subsys
     TYPE(qs_environment_type), POINTER                    :: sub_qs_env
     TYPE(section_vals_type), POINTER                      :: input
-    TYPE(cp_out_flags_type), pointer                      :: output_control
   END TYPE kg_environment_type
 
 ! *** Public data types ***
@@ -170,7 +167,7 @@ CONTAINS
                          molecule_kind_set,molecule_set,id_nr,para_env,&
                          blacs_env,particle_set,rho,rspw,scf_env,&
                          sac_ppl,sac_ppl_aux,scf_control,subsys,&
-                         virial, output_control,error)
+                         virial, error)
 
 !   Purpose: Get the KG environment.
 
@@ -223,7 +220,6 @@ CONTAINS
     TYPE(cp_subsystem_type), OPTIONAL, &
       POINTER                                  :: subsys
     TYPE(virial_type), OPTIONAL, POINTER     :: virial
-    TYPE(cp_out_flags_type), POINTER, OPTIONAL :: output_control
     TYPE(cp_error_type), INTENT(INOUT), &
       OPTIONAL                                 :: error
 
@@ -290,7 +286,6 @@ CONTAINS
     IF (PRESENT(molecule_kind_set)) molecule_kind_set => molecule_kinds_new%els
     IF (PRESENT(molecule_set)) molecule_set => molecules_new%els
     IF (PRESENT(input)) input => kg_env%input
-    if (present(output_control)) output_control => kg_env%output_control
 
   END SUBROUTINE get_kg_env
 
@@ -328,7 +323,6 @@ CONTAINS
     NULLIFY (kg_env%scf_env)
     NULLIFY (kg_env%subsys)
     NULLIFY (kg_env%sub_qs_env)
-    NULLIFY (kg_env%output_control)
     NULLIFY (kg_env%virial)
 
     CALL cp_subsys_create(kg_env%subsys, para_env=para_env, error=error)
@@ -349,7 +343,7 @@ CONTAINS
                          kg_fm_set,local_particles,local_molecules,&
                          molecule_kind_set,molecule_set,&
                          sub_qs_env,particle_set,rho,rspw,scf_env,&
-                         sac_ppl,sac_ppl_aux,scf_control,subsys,virial,output_control,&
+                         sac_ppl,sac_ppl_aux,scf_control,subsys,virial,&
                          error)
 
 !   Purpose: set the KG environment.
@@ -396,7 +390,6 @@ CONTAINS
       POINTER                                  :: subsys
     TYPE(section_vals_type), POINTER, optional :: input    
     TYPE(virial_type), OPTIONAL, POINTER     :: virial
-    TYPE(cp_out_flags_type), POINTER, optional :: output_control
     TYPE(cp_error_type), INTENT(INOUT), &
       OPTIONAL                                 :: error
 
@@ -539,11 +532,6 @@ CONTAINS
        CALL section_vals_retain(input,error=error)
        CALL section_vals_release(kg_env%input,error=error)
        kg_env%input => input
-    END IF
-    IF (PRESENT(output_control)) THEN
-       CALL cp_out_flags_retain(output_control,error=error)
-       CALL cp_out_flags_release(kg_env%output_control,error=error)
-       kg_env%output_control => output_control
     END IF
 
   END SUBROUTINE set_kg_env
@@ -721,7 +709,6 @@ SUBROUTINE kg_env_release(kg_env,error)
         IF (ASSOCIATED(kg_env%sub_qs_env)) THEN
           CALL qs_env_release(kg_env%sub_qs_env,error=error)
         END IF
-        CALL cp_out_flags_release(kg_env%output_control,error=error)
 
         DEALLOCATE(kg_env, stat=stat)
         CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
