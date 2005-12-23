@@ -165,6 +165,7 @@ CONTAINS
        ALLOCATE (linres_control,STAT=istat)
        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
        linres_control%ref_count=1
+       NULLIFY(linres_control%localized_wfn_control)
        CALL localized_wfn_control_create(linres_control%localized_wfn_control, error=error)
 
      END IF
@@ -182,9 +183,8 @@ CONTAINS
      LOGICAL                                   :: failure
 
      failure =.FALSE.
-
-     CPPrecondition(ASSOCIATED(linres_control),cp_failure_level,routineP,error,failure)
-     IF (.NOT. failure) THEN
+     
+     IF (ASSOCIATED(linres_control)) THEN
        CPPostcondition(linres_control%ref_count>0,cp_failure_level,routineP,error,failure)
        linres_control%ref_count=linres_control%ref_count-1
        IF(linres_control%ref_count<1)THEN

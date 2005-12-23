@@ -136,7 +136,7 @@ MODULE print_key_types
     LOGICAL :: localization
     INTEGER :: localization_method
     LOGICAL :: HPM
-    LOGICAL :: xas, linres
+    LOGICAL :: xas, linres, loc_info
   END TYPE print_keys_type
 
 !!*****
@@ -288,6 +288,7 @@ CONTAINS
     print_keys%HPM = key_value(level,(/f,f,f/))
     print_keys%xas = key_value(level,(/t,t,t/))
     print_keys%linres = key_value(level,(/t,t,t/))
+    print_keys%loc_info = key_value(level,(/t,t,t/))
 
   END SUBROUTINE print_keys_reset
 

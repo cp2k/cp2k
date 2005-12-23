@@ -153,8 +153,6 @@ CONTAINS
 
     CALL linres_init(lr_section,p_env,qs_env,globenv,error=error)
 
-     write(*,*) 'init'
-     stop 'lr_calculation'
     IF (lr_calculation) THEN
 
        CALL get_qs_env(qs_env=qs_env, dft_control=dft_control, &
@@ -178,7 +176,12 @@ CONTAINS
          END IF
 
          !Initialize the nmr environment
+!         ALLOCATE(nmr_env,STAT=istat)
+!         CPPrecondition(istat/=0,cp_failure_level,routineP,error,failure)
+         nmr_env%ref_count=0
          CALL nmr_env_init(nmr_env,qs_env,globenv,error=error)
+     write(*,*) 'init'
+     stop 'lr_calculation'
          CALL nmr_operators(nmr_env,qs_env,error=error)
          CALL nmr_do_nmr(nmr_env,p_env,qs_env,globenv,error=error)
          CALL nmr_env_cleanup(nmr_env,error=error)
@@ -270,11 +273,16 @@ CONTAINS
        CALL linres_control_release(linres_control,error=error)
        CALL get_qs_env(qs_env=qs_env, linres_control=linres_control,&
                        dft_control=dft_control)
-
+  
        ! Localized Psi0 are required when the position operator has to be defined (nmr)
        CALL section_vals_val_get(lr_section,"LOCALIZE_PSI0",&
            l_val=linres_control%localized_psi0,error=error)
        IF(linres_control%localized_psi0) THEN
+         IF(ionode .AND. logger%print_keys%linres) THEN
+           WRITE (UNIT=output_unit,FMT="(/,T3,A)")&
+            "Localization of the ground state orbitals before starting the Linres calculation"
+         END IF
+
          loc_section =>section_vals_get_subs_vals(lr_section,"LOCALIZE",error=error)
          CALL read_loc_section(linres_control%localized_wfn_control,loc_section,error=error)
          CALL linres_localize(linres_control%localized_wfn_control,qs_env,&
@@ -304,7 +312,7 @@ CONTAINS
              "NMR Chemical Shift"
 
          IF(linres_control%localized_psi0) WRITE (UNIT=output_unit,FMT="(T2,A,T65,A)")&
-            "LINRES|","LOCALIZE PSI0" 
+            "LINRES|","LOCALIZED PSI0" 
          IF(linres_control%opt_method==lr_cg) WRITE (UNIT=output_unit,FMT="(T2,A,T60,A)")&
             "LINRES|     Optimization algorithm","Conjugate Gradients"
          IF(linres_control%opt_method==lr_sd) WRITE (UNIT=output_unit,FMT="(T2,A,T60,A)")&
@@ -335,10 +343,10 @@ CONTAINS
          IF(linres_control%preconditioner_type==lr_precond_full_all) &
             WRITE (UNIT=output_unit,FMT="(T2,A,T60,A)")&
             "LINRES|             Preconditioner","           FULL ALL"
-         WRITE (UNIT=output_unit,FMT="(/,T2,A,T73,ES8.1)")&
+         WRITE (UNIT=output_unit,FMT="(/,T2,A,T71,ES8.1)")&
             "LINRES|                    EPS_SCF",linres_control%eps_scf
-         WRITE (UNIT=output_unit,FMT="(/,T2,A,T73,I8)")&
-            "LINRES|     Max number of iteration per SCF cycle",linres_control%max_scf
+         WRITE (UNIT=output_unit,FMT="(/,T2,A,T71,I8)")&
+            "LINRES|    Max number of iterations per SCF cycle",linres_control%max_scf
        END IF
 
        

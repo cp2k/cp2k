@@ -40,6 +40,7 @@ MODULE qs_operators_ao
                                              cp_note_level,&
                                              cp_to_string,&
                                              cp_warning_level
+  USE distribution_2d_types,           ONLY: distribution_2d_type
   USE external_potential_types,        ONLY: all_potential_type,&
                                              get_potential,&
                                              gth_potential_type
@@ -64,7 +65,7 @@ MODULE qs_operators_ao
                                              neighbor_node_type,&
                                              next
   USE simulation_cell,                 ONLY: cell_type, pbc
-  USE sparse_matrix_types,             ONLY: get_block_node,&
+  USE sparse_matrix_types,             ONLY: allocate_matrix, get_block_node,&
                                              add_block_node,&
                                              real_matrix_p_type, &
                                              real_matrix_type
@@ -817,26 +818,75 @@ CONTAINS
 !!
 !****************************************************************************
 
-  SUBROUTINE set_up_op_rmd(matrix,atomic_kind_set,sab_orb,error)
+  SUBROUTINE set_up_op_rmd(matrix,qs_env,error)
 
     TYPE(real_matrix_type), POINTER                    :: matrix
-    TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
-    TYPE(neighbor_list_set_p_type), DIMENSION(:),&
-      POINTER                                          :: sab_orb
+    TYPE(qs_environment_type), POINTER                 :: qs_env
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                                         :: error
 
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'set_up_op_rmd', &
+                                   routineP = module_name//'/'//routineN
 
-    INTEGER :: iab, iatom, ikind, jkind, ilist,inode, jatom, last_jatom, nkind, nlist, nnode
-    LOGICAL :: new_atom_b
-    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: block
-    TYPE(neighbor_list_type), POINTER        :: sab_orb_neighbor_list,&
-                                                sab_orb_neighbor_list_local
-    TYPE(neighbor_node_type), POINTER        :: sab_orb_neighbor_node
+    INTEGER :: iab, iatom, ikind, istat, jkind, ilist,inode, jatom, last_jatom, natom,  neighbor_list_id, nkind, nlist, nnode, nsgf
+    INTEGER, DIMENSION(:), ALLOCATABLE                 :: first_sgf, last_sgf
+    LOGICAL :: failure, new_atom_b
+    REAL(KIND=dp), DIMENSION(:, :), POINTER            :: block
+    TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
+    TYPE(distribution_2d_type), POINTER                :: distribution_2d
+    TYPE(neighbor_list_type), POINTER                  :: sab_orb_neighbor_list,&
+                                                          sab_orb_neighbor_list_local
+    TYPE(neighbor_node_type), POINTER                  :: sab_orb_neighbor_node
+    TYPE(neighbor_list_set_p_type), DIMENSION(:),&
+      POINTER                                          :: sab_orb
+    TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
 
 !******************************************************************************
 
+    failure = .FALSE.
+
+    NULLIFY(particle_set,distribution_2d,atomic_kind_set,sab_orb)
+
+    CALL get_qs_env(qs_env=qs_env,&
+         atomic_kind_set=atomic_kind_set,&
+         particle_set=particle_set,&
+         distribution_2d=distribution_2d,&
+         neighbor_list_id=neighbor_list_id,&
+         sab_orb=sab_orb)
+
     nkind = SIZE(atomic_kind_set,1)
+    natom = SIZE(particle_set)
+
+    CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,nsgf=nsgf)
+    ALLOCATE (first_sgf(natom),STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE (last_sgf(natom),STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+
+
+    CALL get_particle_set(particle_set=particle_set,&
+                          first_sgf=first_sgf,&
+                          last_sgf=last_sgf)
+
+    CALL allocate_matrix(matrix=matrix,&
+                         nblock_row=natom,&
+                         nblock_col=natom,&
+                         nrow=nsgf,&
+                         ncol=nsgf,&
+                         first_row=first_sgf,&
+                         last_row=last_sgf,&
+                         first_col=first_sgf,&
+                         last_col=last_sgf,&
+                         matrix_name="OP_RMD_AO",&
+                         matrix_symmetry="none",&
+                         sparsity_id=neighbor_list_id, &
+                         distribution_2d=distribution_2d)
+
+    DEALLOCATE (first_sgf,STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    DEALLOCATE (last_sgf,STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+
 
     DO ikind=1,nkind
 
@@ -889,17 +939,21 @@ CONTAINS
               sab_orb_neighbor_node => next(sab_orb_neighbor_node)
               CYCLE
             END IF
-
+  write(*,*) iatom, jatom
             NULLIFY(block)
             CALL add_block_node(matrix=matrix,&
                                 block_row=iatom,&
                                 block_col=jatom,&
                                 block=block)
-            NULLIFY(block)
-            CALL add_block_node(matrix=matrix,&
-                                block_row=jatom,&
-                                block_col=iatom,&
-                                block=block)
+
+            IF(iatom/=jatom) THEN
+  write(*,*) jatom, iatom
+              NULLIFY(block)
+              CALL add_block_node(matrix=matrix,&
+                                  block_row=jatom,&
+                                  block_col=iatom,&
+                                  block=block)
+            END IF
             sab_orb_neighbor_node => next(sab_orb_neighbor_node)
           END DO  ! inode
 

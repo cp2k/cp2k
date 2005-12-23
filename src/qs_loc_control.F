@@ -30,6 +30,7 @@ MODULE qs_loc_control
                                              list_keywords
   USE cp_log_handling,                 ONLY: cp_failure_level,&
                                              cp_fatal_level,&
+                                             cp_logger_get_default_unit_nr,&
                                              cp_logger_type,&
                                              cp_note_level,&
                                              cp_to_string,&
@@ -250,12 +251,18 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER ::  routine_name = "read_loc_section", &
       routineP = module_name//"/"//routine_name
 
-    INTEGER                                   :: nloc_now, i, istat
+    INTEGER                                   :: nloc_now, i, istat,output_unit
     INTEGER,DIMENSION(:) , POINTER            :: bounds,list
-    LOGICAL                                   :: failure
+    LOGICAL                                   :: failure,ionode
+    TYPE(cp_logger_type), POINTER             :: logger
 
     failure=.FALSE.
     CPPrecondition(ASSOCIATED(loc_section),cp_failure_level,routineP,error,failure)
+    NULLIFY(logger)
+    logger => cp_error_get_logger(error)
+    ionode = logger%para_env%mepos==logger%para_env%source
+    IF (ionode) output_unit= cp_logger_get_default_unit_nr(logger)
+
 
     IF(.NOT. failure)  THEN
 
@@ -308,6 +315,57 @@ CONTAINS
       END IF
       CALL section_vals_val_get(loc_section,"FNAME",&
            c_val=localized_wfn_control%loc_rootfname,error=error)
+
+
+           
+      IF(ionode .AND. logger%print_keys%loc_info) THEN
+
+        WRITE (UNIT=output_unit,FMT="(/,T3,A)")&
+                 "Localization of a subset of KS orbitals"
+        IF(localized_wfn_control%min_or_max==do_loc_min) &
+           WRITE (UNIT=output_unit,FMT="(T2,A,T54,A)")&
+          "LOC|","Minimize the orbital spread"
+        IF(localized_wfn_control%min_or_max==do_loc_max) &
+            WRITE (UNIT=output_unit,FMT="(T2,A,T54,A)")&
+          "LOC|","Maximize the orbital spread"
+        IF(localized_wfn_control%operator_type==op_loc_berry)  &
+           WRITE (UNIT=output_unit,FMT="(T2,A,T65,A)")&
+          "LOC|  Definition of the spread functional by ","     Berry Phase"
+        IF(localized_wfn_control%operator_type==op_loc_pipek)  &
+           WRITE (UNIT=output_unit,FMT="(T2,A,T65,A)")&
+          "LOC|  Definition of the spread functional by ","Pipek definition"
+        IF(localized_wfn_control%operator_type==op_loc_boys)  &
+           WRITE (UNIT=output_unit,FMT="(T2,A,T65,A)")&
+          "LOC|  Definition of the spread functional by "," Boys definition"
+        IF(localized_wfn_control%operator_type==do_loc_jacobi)  &
+           WRITE (UNIT=output_unit,FMT="(T2,A,T63,A)")&
+          "LOC|  Obtimal Rotation found by ",             "     Jacobi method"
+        IF(localized_wfn_control%operator_type==do_loc_crazy)  &
+           WRITE (UNIT=output_unit,FMT="(T2,A,T63,A)")&
+          "LOC|  Obtimal Rotation found by ","Crazy angle method"
+        IF(localized_wfn_control%operator_type==do_loc_direct)  &
+           WRITE (UNIT=output_unit,FMT="(T2,A,T63,A)")&
+          "LOC|  Obtimal Rotation found by ","  Direct SD method"
+        IF(localized_wfn_control%operator_type==do_loc_none)  &
+           WRITE (UNIT=output_unit,FMT="(T2,A,T60,A)")&
+          "LOC|   ","No stationary state is located"
+        IF(localized_wfn_control%set_of_states==state_loc_all) &
+           WRITE (UNIT=output_unit,FMT="(T2,A,T57,A)")&
+          "LOC|  Set of states: " , "All the occupied orbitals"
+        IF(localized_wfn_control%set_of_states==state_loc_upton) &
+           WRITE (UNIT=output_unit,FMT="(T2,A,T53,A,I6)")&
+          "LOC|  Set of states: " , "All the orbitals up to",&
+           localized_wfn_control%nloc_states(1)
+        IF(localized_wfn_control%set_of_states==state_loc_fromitoj) &
+           WRITE (UNIT=output_unit,FMT="(T2,A,T46,A,I6,A,I6)")&
+          "LOC|  Set of states: " , "The orbitals between",&
+           localized_wfn_control%lu_bound_states(1,1), " and ",&
+           localized_wfn_control%lu_bound_states(2,1)
+        IF(localized_wfn_control%set_of_states==state_loc_list) &
+           WRITE (UNIT=output_unit,FMT="(T2,A,T50,A,I6,A)")&
+          "LOC|  Set of states: " , "List of ",&
+          localized_wfn_control%nloc_states(1), " orbitals from input"
+      END IF
     END IF
 
   END SUBROUTINE read_loc_section

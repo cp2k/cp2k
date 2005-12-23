@@ -74,7 +74,7 @@ MODULE qs_linres_nmr_utils
   USE qs_operators_ao,                 ONLY: set_up_op_rmd
   USE qs_p_env_types,                  ONLY: qs_p_env_type
   USE simulation_cell,                 ONLY: cell_type, pbc
-  USE sparse_matrix_types,             ONLY: cp_sm_scale_and_add,&
+  USE sparse_matrix_types,             ONLY: allocate_matrix_set,cp_sm_scale_and_add,&
                                              deallocate_matrix_set,&
                                              real_matrix_p_type,&
                                              real_matrix_type,&
@@ -119,7 +119,7 @@ CONTAINS
     failure   = .FALSE.
     CALL timeset(routineN,"I"," ",handle)
 
-     NULLIFY(ao_mo_fm_pools, dft_control, mpools)
+     NULLIFY(ao_mo_fm_pools, dft_control, mpools, psi1,h1_psi0)
 
      CALL get_qs_env(qs_env=qs_env,&
           dft_control= dft_control,&
@@ -129,7 +129,7 @@ CONTAINS
      ! allocate the vectors !
      !----------------------!
      CALL mpools_get(mpools, ao_mo_fm_pools=ao_mo_fm_pools)
-     CALL fm_pools_create_fm_vect(ao_mo_fm_pools, psi1, name=routineP//":X")
+     CALL fm_pools_create_fm_vect(ao_mo_fm_pools, psi1, name=routineP//":psi1")
      ALLOCATE(h1_psi0(dft_control%nspins),STAT=istat)
      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure) 
 
@@ -137,6 +137,10 @@ CONTAINS
      DO idir = 1,3
 
        !initial guess for psi1
+       !Should be beter than this
+       DO ispin = 1,dft_control%nspins
+         CALL cp_fm_set_all(psi1(ispin)%matrix,0.0_dp,error=error)
+       END DO 
 
        !DO scf cycle to optimize psi1
        DO ispin = 1,dft_control%nspins
@@ -158,12 +162,23 @@ CONTAINS
      END DO ! idir
 
      DO idir = 1,3 
+
+       !initial guess for psi1
+       !Should be beter than this
+       DO ispin = 1,dft_control%nspins
+         CALL cp_fm_set_all(psi1(ispin)%matrix,0.0_dp,error=error)
+       END DO 
+
        !DO scf cycle to optimize psi1
        DO ispin = 1,dft_control%nspins
          NULLIFY(h1_psi0(ispin)%matrix)
-         h1_psi0(ispin)%matrix =>  nmr_env%p_psi0(ispin,idir)%matrix
+         h1_psi0(ispin)%matrix =>  nmr_env%rxp_psi0(ispin,idir)%matrix
        END DO
        CALL linres_scf(p_env, qs_env, psi1, h1_psi0,error=error)
+
+       !Calculate the contribution to the chemical shift
+!       CALL chemshift_p(nmr_env%chemical_shift,psi1,idir,error=error)
+
        IF(nmr_env%current_density) THEN
         ! the optimized wfns are copied in the  fm
          DO ispin=1, dft_control%nspins
@@ -172,15 +187,23 @@ CONTAINS
        END IF
      END DO ! idir
 
-     IF(nmr_env%current_density) THEN
-      ! the optimized wfns are copied in the  fm
-       DO ispin=1, dft_control%nspins
-          CALL cp_fm_to_fm(psi1(ispin)%matrix, nmr_env%psi1_D(ispin,idir)%matrix)
-       END DO
+     IF(nmr_env%full_nmr) THEN
+
+!    The correction is state depedent a loop over the states is necessary
+       !initial guess for psi1
+       IF(nmr_env%current_density) THEN
+        ! the optimized wfns are copied in the  fm
+         DO ispin=1, dft_control%nspins
+            CALL cp_fm_to_fm(psi1(ispin)%matrix, nmr_env%psi1_D(ispin,idir)%matrix)
+         END DO
+       END IF
+
      END IF
 
     !Calculate current density and induced field
-!    CALL current_density(nmr_env,error=error)
+     IF(nmr_env%current_density) THEN
+!      CALL current_density(nmr_env,error=error)
+     END IF
 
     !----------!
     ! clean up !
@@ -244,7 +267,8 @@ CONTAINS
 
     failure = .FALSE.
 
-    NULLIFY(atomic_kind_set,centers,dft_control,linres_control,logger,matrix_s,mos,mpools,nmr_section,sab_orb)
+    NULLIFY(atomic_kind_set,centers,dft_control,linres_control)
+    NULLIFY(logger,matrix_s,mos,mpools,nmr_section,sab_orb)
     n_mo(1:2) = 0
     nao = 0
     nmoloc = 0
@@ -272,7 +296,7 @@ CONTAINS
                     linres_control=linres_control,&
                     matrix_s=matrix_s,&
                     mos=mos,&
-                    mpools=mpools,sab_orb=sab_orb)
+                    mpools=mpools)
 
     ! check that the psi0 are localized and you have all the centers
      CPPrecondition(linres_control%localized_psi0,cp_warning_level,routineP,error,failure)
@@ -280,15 +304,15 @@ CONTAINS
        WRITE (UNIT=output_unit,FMT='(A)') &
           ' To get NMR parameters within PBC you need localized zero order orbitals '
      END IF
+     ALLOCATE(nmr_env%centers_set(dft_control%nspins),STAT=istat)
      DO ispin = 1,dft_control%nspins
        CALL get_mo_set(mo_set=mos(ispin)%mo_set,nao=nao,nmo=n_mo(ispin),homo=homo)
        centers => linres_control%localized_wfn_control%centers_set(ispin)%array
        nmoloc = size(centers,2)
        CPPrecondition(nmoloc==homo,cp_warning_level,routineP,error,failure)
+       ! point to the psi0 centers
+       nmr_env%centers_set(ispin)%array =>  linres_control%localized_wfn_control%centers_set(ispin)%array
      END DO  
-
-    ! point to the psi0 centers
-     nmr_env%centers_set =  linres_control%localized_wfn_control%centers_set
 
      CALL mpools_get(qs_env%mpools, ao_mo_fm_pools=nmr_env%ao_mo_fm_pools, error=error)
     ! for the chemical shift we need 6 psi1, i.e. 6 optimization procedures
@@ -354,10 +378,12 @@ CONTAINS
        END DO 
      END DO 
 
-     ALLOCATE(nmr_env%op_rmd_ao(3),STAT=istat)
-     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+     CALL allocate_matrix_set(nmr_env%op_rmd_ao,3)
+!     ALLOCATE(nmr_env%op_rmd_ao(3),STAT=istat)
+!     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
-     CALL set_up_op_rmd(nmr_env%op_rmd_ao(1)%matrix,atomic_kind_set,sab_orb,error=error)
+
+     CALL set_up_op_rmd(nmr_env%op_rmd_ao(1)%matrix,qs_env,error=error)
 
      DO idir = 2,3 
        NULLIFY(nmr_env%op_rmd_ao(idir)%matrix)
