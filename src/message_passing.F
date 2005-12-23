@@ -21,12 +21,15 @@
 !!     JGH (06-Feb-2001): New routines mp_comm_free
 !!     JGH (22-Mar-2001): New routines mp_comm_dup
 !!     fawzi (04-NOV-2004): storable performance info (for f77 interface)
+!!     Wrapper routine for mpi_gatherv added (22.12.2005,MK)
 !!
 !!   SOURCE
 !******************************************************************************
 
 MODULE message_passing
-  USE kinds,                           ONLY: dp
+  USE kinds,                           ONLY: dp,&
+                                             dp_size,&
+                                             int_size
   USE machine,                         ONLY: m_walltime
   USE parallel_include
 
@@ -63,6 +66,7 @@ MODULE message_passing
   PUBLIC :: mp_gather, mp_alltoall, mp_sendrecv, mp_allgather
   PUBLIC :: mp_cart_shift, mp_isend, mp_irecv
   PUBLIC :: mp_sum_scatter, mp_shift, mp_isendrecv, mp_wait, mp_waitall
+  PUBLIC :: mp_gatherv
 
   ! currently not used
   ! PUBLIC :: mp_group
@@ -112,6 +116,10 @@ MODULE message_passing
 
   INTERFACE mp_gather
      MODULE PROCEDURE mp_gather_i, mp_gather_iv, mp_gather_r, mp_gather_rv
+  END INTERFACE
+
+  INTERFACE mp_gatherv
+    MODULE PROCEDURE mp_gatherv_iv,mp_gatherv_rv
   END INTERFACE
 
   INTERFACE mp_allgather
@@ -1957,6 +1965,74 @@ SUBROUTINE mp_gather_rv(msg,msg_gather,root,gid)
   msg_gather = msg
 #endif
 END SUBROUTINE mp_gather_rv
+
+  ! ***************************************************************************
+
+  SUBROUTINE mp_gatherv_iv(sendbuf,recvbuf,recvcounts,displs,root,comm)
+
+    INTEGER, DIMENSION(:), INTENT(IN)  :: sendbuf
+    INTEGER, DIMENSION(:), INTENT(OUT) :: recvbuf
+    INTEGER, DIMENSION(:), INTENT(IN)  :: recvcounts,displs
+    INTEGER, INTENT(IN)                :: root,comm
+
+    ! Local variables
+
+    INTEGER :: ierr,sendcount
+
+    ! -------------------------------------------------------------------------
+
+    sendcount = SIZE(sendbuf)
+#if defined(__parallel)
+    t_start = m_walltime()
+    CALL mpi_gatherv(sendbuf,sendcount,MPI_INTEGER,&
+                     recvbuf,recvcounts,displs,MPI_INTEGER,&
+                     root,comm,ierr)
+    IF (ierr /= 0) CALL mp_stop(ierr,"mpi_gatherv@mp_gatherv_iv")
+    t_end = m_walltime()
+    CALL add_perf(perf_id=4,&
+                  count=1,&
+                  time=t_end-t_start,&
+                  msg_size=sendcount*int_size)
+#else
+    recvbuf(1+displs(1):) = sendbuf
+#endif
+
+  END SUBROUTINE mp_gatherv_iv
+
+  ! ***************************************************************************
+
+  SUBROUTINE mp_gatherv_rv(sendbuf,recvbuf,recvcounts,displs,root,comm)
+
+    REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: sendbuf
+    REAL(KIND=dp), DIMENSION(:), INTENT(OUT) :: recvbuf
+    INTEGER, DIMENSION(:), INTENT(IN)        :: recvcounts,displs
+    INTEGER, INTENT(IN)                      :: root,comm
+
+    ! Local variables
+
+    INTEGER :: ierr,sendcount
+
+    ! -------------------------------------------------------------------------
+
+    sendcount = SIZE(sendbuf)
+#if defined(__parallel)
+    t_start = m_walltime()
+    CALL mpi_gatherv(sendbuf,sendcount,MPI_DOUBLE_PRECISION,&
+                     recvbuf,recvcounts,displs,MPI_DOUBLE_PRECISION,&
+                     root,comm,ierr)
+    IF (ierr /= 0) CALL mp_stop(ierr,"mpi_gatherv@mp_gatherv_rv")
+    t_end = m_walltime()
+    CALL add_perf(perf_id=4,&
+                  count=1,&
+                  time=t_end-t_start,&
+                  msg_size=sendcount*dp_size)
+#else
+    recvbuf(1+displs(1):) = sendbuf
+#endif
+
+  END SUBROUTINE mp_gatherv_rv
+
+  ! ***************************************************************************
 
 ! wrapper for MPI_ALLGATHERV subroutine
 ! one dimensional real arrays
