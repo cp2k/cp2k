@@ -907,8 +907,8 @@ CONTAINS
             tot1_h = tot1_h + qs_charges%total_rho1_hard(ispin)
             tot1_s = tot1_s + qs_charges%total_rho1_soft(ispin)
           END DO
-          WRITE (UNIT=output_unit,FMT="(/,(T3,A,T44,2F20.10))")&
-                "Hard and soft local densities (lebedev):",&
+          WRITE (UNIT=output_unit,FMT="(/,(T3,A,T40,2F20.10))")&
+                "Hard and soft densities (Lebedev):",&
                 tot1_h, tot1_s
           WRITE (UNIT=output_unit,FMT="(T3,A,T60,F20.10)")&
                "Total Rho_soft + Rho1_hard - Rho1_soft (r-space): ",&
