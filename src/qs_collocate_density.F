@@ -1955,13 +1955,13 @@ CONTAINS
   SUBROUTINE collocate_pgf_product_gspace(la_max,zeta,la_min,&
                                           lb_max,zetb,lb_min,&
                                           ra,rab,rab2,scale,pab,na,nb,&
-                                          eps_rho_gspace,pw)
+                                          eps_rho_gspace,gsq_max,pw)
 
     ! NOTE: this routine is much slower than collocate_pgf_product_rspace
 
     INTEGER, INTENT(IN)                   :: la_max,la_min,lb_max,lb_min,na,nb
-    REAL(dp), INTENT(IN)                  :: eps_rho_gspace,rab2,scale,zeta,&
-                                             zetb
+    REAL(dp), INTENT(IN)                  :: eps_rho_gspace,gsq_max,rab2,scale,&
+                                             zeta,zetb
     REAL(dp), DIMENSION(3), INTENT(IN)    :: ra,rab
     TYPE(pw_type), POINTER                :: pw
     REAL(dp), DIMENSION(:,:), POINTER     :: pab
@@ -2126,6 +2126,7 @@ CONTAINS
         bz = indco(3,jco)
 
         DO i=lb_grid,ub_grid
+          IF (pw%pw_grid%gsq(i) > gsq_max) EXIT
           ig = pw%pw_grid%g_hat(1,i)
           jg = pw%pw_grid%g_hat(2,i)
           kg = pw%pw_grid%g_hat(3,i)
