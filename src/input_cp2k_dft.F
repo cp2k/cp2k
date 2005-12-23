@@ -657,7 +657,7 @@ END SUBROUTINE xc_functionals_expand
 
        CALL cp_print_key_section_create(print_key,"MULLIKEN",&
             description="Controls the printing of the Mulliken Population analysis.", &
-            print_level=medium_print_level,each=(/1/),filename="__STD_OUT__",&
+            print_level=high_print_level,each=(/1/),filename="__STD_OUT__",&
             error=error)
        CALL section_add_subsection(section,print_key,error=error)
        CALL section_release(print_key,error=error)
@@ -673,7 +673,7 @@ END SUBROUTINE xc_functionals_expand
                                         name="XRAY_DIFFRACTION_SPECTRUM",&
                                         description="Calculate and print the coherent "//&
                                                     "X-ray diffraction spectrum",&
-                                        print_level=medium_print_level,&
+                                        print_level=debug_print_level,&
                                         each=(/1/),&
                                         filename="",&
                                         error=error)
