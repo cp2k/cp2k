@@ -2150,7 +2150,7 @@ SUBROUTINE xc_calc_2nd_deriv(v_xc, deriv_set, rho_set, rho1_set, &
         IF (lsd) THEN
            SELECT CASE(split_desc(1))
            CASE("rho","rhoa","rhob")
-           CASE("drho","drhoa","drhob")
+           CASE("norm_drho","norm_drhoa","norm_drhob")
               gradient_f=.TRUE.
            CASE default
               unknown_deriv=.TRUE.
@@ -2158,7 +2158,7 @@ SUBROUTINE xc_calc_2nd_deriv(v_xc, deriv_set, rho_set, rho1_set, &
         ELSE
            SELECT CASE(split_desc(1))
            CASE("rho")
-           CASE("drho")
+           CASE("norm_drho")
               gradient_f=.TRUE.
            CASE default
               unknown_deriv=.TRUE.
