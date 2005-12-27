@@ -2478,7 +2478,7 @@ SUBROUTINE topology_coordinate_pack (particle_set,atomic_kind_set,&
     LOGICAL :: mol_change,mol_change2
     INTEGER, DIMENSION(:), POINTER :: molecule_list
     INTEGER :: position
-
+    CHARACTER (LEN=default_string_length), DIMENSION(:), POINTER :: element
 
 !------------------------------------------------------------------------------
 !------------------------------------------------------------------------------
@@ -2508,11 +2508,12 @@ SUBROUTINE topology_coordinate_pack (particle_set,atomic_kind_set,&
   !-----------------------------------------------------------------------------
   !-----------------------------------------------------------------------------
   ! 1. Determine topology%[natom_type,atom_names] and save mass(natom_type) 
+  !    and element(natom_type) 
   !-----------------------------------------------------------------------------
   counter=0
-  NULLIFY(work,mass,charge)
-  ALLOCATE(work(topology%natoms),mass(topology%natoms),STAT=istat)
-  IF (istat/=0) CALL stop_memory ('coordinate_pack','work,mass',topology%natoms)
+  NULLIFY(work,mass,element,charge)
+  ALLOCATE(work(topology%natoms),mass(topology%natoms),element(topology%natoms),STAT=istat)
+  IF (istat/=0) CALL stop_memory ('coordinate_pack','work,mass,element',topology%natoms)
   ALLOCATE(charge(topology%natoms),STAT=istat)
   IF (istat/=0) CALL stop_memory ('coordinate_pack','charge',topology%natoms)
   work(:)=""
@@ -2533,9 +2534,10 @@ SUBROUTINE topology_coordinate_pack (particle_set,atomic_kind_set,&
          counter = counter + 1
          work(counter)   = atom_list(j)%name
          mass(counter)   = atom_info%atm_mass(first+j-1)
+         element(counter)= atom_info%element(first+j-1)
          charge(counter) = atom_info%atm_charge(first+j-1)
-        IF(PM2) WRITE(iw,'(7X,A,1X,A5,F10.5,F10.5)') &
-                "NEW ATOMIC KIND",work(counter),mass(counter),charge(counter)
+        IF(PM2) WRITE(iw,'(7X,A,1X,A5,F10.5,5X,A2,5X,F10.5)') &
+                "NEW ATOMIC KIND",work(counter),mass(counter),element(counter),charge(counter)
       ELSE
         found = .FALSE.
         DO k = 1, counter
@@ -2549,9 +2551,10 @@ SUBROUTINE topology_coordinate_pack (particle_set,atomic_kind_set,&
           counter = counter + 1
           work(counter)   = atom_list(j)%name
           mass(counter)   = atom_info%atm_mass(first+j-1)
+          element(counter)= atom_info%element(first+j-1)
           charge(counter) = atom_info%atm_charge(first+j-1)
-          IF(PM2) WRITE(iw,'(7X,A,1X,A5,F10.5,F10.5)') &
-                  "NEW ATOMIC KIND",work(counter),mass(counter),charge(counter)
+          IF(PM2) WRITE(iw,'(7X,A,1X,A5,F10.5,5X,A2,5X,F10.5)') &
+                  "NEW ATOMIC KIND",work(counter),mass(counter),element(counter),charge(counter)
         END IF
       END IF
     END DO
@@ -2563,6 +2566,7 @@ SUBROUTINE topology_coordinate_pack (particle_set,atomic_kind_set,&
   DEALLOCATE(work,STAT=istat)
   IF (istat/=0) CALL stop_memory ('coordinate_pack','work')
   CALL reallocate(mass,1,counter)
+  CALL reallocate(element,1,counter)
   CALL reallocate(charge,1,counter)
   IF(PM2) &
     WRITE(iw,'(5X,A,I3)') "Total Number of Atomic Kinds = ",topology%natom_type
@@ -2592,10 +2596,12 @@ SUBROUTINE topology_coordinate_pack (particle_set,atomic_kind_set,&
     atomic_kind => atomic_kind_set(i)
     mass(i) = mass(i) * massunit
     CALL set_atomic_kind(atomic_kind=atomic_kind,kind_number=i,&
-                         name=atom_info%atom_names(i),element_symbol=atom_info%element(i),&
+                         name=atom_info%atom_names(i),element_symbol=element(i),&
                          mass=mass(i)) 
   END DO
   DEALLOCATE(mass,STAT=istat)
+  IF (istat/=0) CALL stop_memory ('coordinate_pack','element')
+  DEALLOCATE(element,STAT=istat)
   IF (istat/=0) CALL stop_memory ('coordinate_pack','mass')
 
 
@@ -3806,7 +3812,8 @@ END SUBROUTINE topology_molecules_check
     INTEGER :: i, n_rep, i_rep
     LOGICAL :: found, failure
     TYPE(section_vals_type), pointer :: kind_section
-    
+    INTEGER, SAVE :: iwarn=20
+
     found = .FALSE.
     failure = .FALSE.
     element_symbol = element_in
@@ -3842,9 +3849,16 @@ END SUBROUTINE topology_molecules_check
        END DO
     END IF
     IF (.NOT.found) THEN
-       IF (globenv%ionode) &
-            WRITE(globenv%scr,*)">>> NO ELEMENT SPECIFIED FOR TYPE:",element_in,"<<<"
-       CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)       
+       IF (iwarn > 0) THEN
+          IF (globenv%ionode) &
+               WRITE(globenv%scr,'(5X,3A)')">>> NO ELEMENT SPECIFIED FOR TYPE:",element_in,"<<<"
+          CPPrecondition(.FALSE.,cp_warning_level,routineP,error,failure)
+          iwarn = iwarn - 1
+          IF (iwarn == 0) THEN
+             IF (globenv%ionode) &
+                  WRITE(globenv%scr,'(/,5X,A,/)')" *** Further Output WARNINGs will be suppressed!"
+          END IF
+       END IF
     END IF
   END SUBROUTINE check_subsys_element
 
