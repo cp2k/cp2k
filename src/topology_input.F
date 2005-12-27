@@ -39,14 +39,6 @@ MODULE topology_input
   USE checkpoint_handler,              ONLY: write_checkpoint_information
   USE global_types,                    ONLY: global_environment_type
   USE memory_utilities,                ONLY: reallocate
-  USE parser,                          ONLY: get_next,&
-                                             p_error,&
-                                             parser_end,&
-                                             parser_init,&
-                                             read_line,&
-                                             search_label,&
-                                             stop_parser,&
-                                             test_next
   USE string_utilities,                ONLY: uppercase,&
                                              xstring
   USE termination,                     ONLY: stop_program

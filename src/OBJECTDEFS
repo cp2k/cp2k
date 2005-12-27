@@ -239,7 +239,6 @@ OBJECTS_GENERIC =\
  pair_potential_types.o\
  parallel_include.o\
  parallel_rng_types.o\
- parser.o\
  particle_list_types.o\
  particle_types.o\
  paw_proj_set_types.o\

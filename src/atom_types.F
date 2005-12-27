@@ -8,13 +8,13 @@ MODULE atom_types
   USE global_types,                    ONLY: GLOBAL_ENVIRONMENT_TYPE
   USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: pi
-  USE parser,                          ONLY: get_next,&
-                                             parser_end,&
-                                             parser_init,&
-                                             read_line,&
-                                             search_label,&
-                                             stop_parser,&
-                                             test_next
+!TODEL_TL  USE parser,                          ONLY: get_next,&
+!TODEL_TL                                             parser_end,&
+!TODEL_TL                                             parser_init,&
+!TODEL_TL                                             read_line,&
+!TODEL_TL                                             search_label,&
+!TODEL_TL                                             stop_parser,&
+!TODEL_TL                                             test_next
   USE radial_grids,                    ONLY: RADIAL_GRID_TYPE,&
                                              init_radial_grid
   USE radial_util,                     ONLY: radial_normalize
@@ -117,7 +117,7 @@ CONTAINS
 
 ! variables
 
-    CALL parser_init(globenv%input_file_name, globenv)
+!TODEL_TL    CALL parser_init(globenv%input_file_name, globenv)
     
     CALL handle_ac(ac, globenv)
     CALL handle_grid(ac, globenv)
@@ -127,7 +127,7 @@ CONTAINS
     CALL print_atom(atom)
     CALL print_parameters(ac)
 
-    CALL parser_end()
+!TODEL_TL    CALL parser_end()
 
   END SUBROUTINE init
   
@@ -150,107 +150,107 @@ CONTAINS
     len = 8
     out = globenv%scr
     label = "&ATOM"
-    CALL search_label(label, err)
-    IF ( err /= 0 ) THEN
-       IF ( globenv%ionode ) WRITE ( out,'(A)' ) "No &ATOM section found"
-    ELSE
-       CALL read_line ()
-       DO WHILE ( test_next () /= 'X' )
-          
-          CALL get_next(string, len)
-          CALL uppercase(string)
-          
-          SELECT CASE ( string )
-             
-          CASE DEFAULT
-             
-          CASE ('Z')
-             IF (test_next() == 'N') THEN 
-                CALL get_next(atom%z)
-             ELSE 
-                CALL stop_parser("atom_types/init", "Z needs numeric argument")
-             END IF
-             
-          CASE ('N')
-             IF (test_next () == 'N') THEN
-                CALL get_next(atom%ne)
-             ELSE
-                CALL stop_parser("atom_types/init", "N needs numeric argument")
-             END IF
-             
-          END SELECT
-          CALL read_line ()
-       END DO
-    END IF
-    
-!!!
-!!! Fill the electron shells of the atom
-!!!
-    ! find the number of shells
-    n = 1
-    DO 
-       IF ((2*(n*(n+1)*(2*n+1))/6) >= atom%ne) EXIT
-       n = n + 1
-    END DO
-    atom%ns = n
-    ALLOCATE(atom%shells(atom%ns))
-
-    avail = atom%ne
-    ! loop over shells
-    DO n=1, atom%ns
-       atom%shells(n)%n = n
-
-       ! find number of different angular momenta in this shell
-       l=0
-       DO  
-          IF ((avail <= 2*(l+1)**2) .OR. (l == n-1)) EXIT
-          l = l + 1
-       END DO
-       atom%shells(n)%no = l+1
-       ALLOCATE(atom%shells(n)%orbits(0:atom%shells(n)%no-1))
-
-       ! loop over these momenta
-       DO l=0, atom%shells(n)%no-1
-          IF (avail > 0) THEN
-
-             set = MIN(avail, 2*(2*l+1))
-
-             atom%shells(n)%no = l+1
-             atom%shells(n)%orbits(l)%ne = set
-             atom%shells(n)%orbits(l)%n = n
-             atom%shells(n)%orbits(l)%l = l
-
-             SELECT CASE (ac%method)
-             CASE DEFAULT
-                atom%shells(n)%orbits(l)%ev = &
-                     -0.5_dp * (REAL(atom%z, KIND=dp)/REAL(n, KIND=dp))**2
-             CASE ('SIMPLE')
-                atom%shells(n)%orbits(l)%ev = &
-                     -0.7_dp * (REAL(atom%z, KIND=dp)/REAL(n, KIND=dp))**2
-             CASE ('XA')
-                atom%shells(n)%orbits(l)%ev = &
-                     -0.5_dp * (REAL(avail, KIND=dp)/REAL(n, KIND=dp))**2
-             END SELECT
-
-!!! fill the orbits with (sensible) estimations of eigenvalues and eigenfunctions
-             ALLOCATE(atom%shells(n)%orbits(l)%wf(1:np))
-             DO i=1, np
-                x = 2.25_dp * ac%rg%r(i) / REAL((n*(n-1))/2+l+1,KIND=dp)**2
-                atom%shells(n)%orbits(l)%wf(i) = exp(-x)*x
-             END DO
-             CALL radial_normalize(atom%shells(n)%orbits(l)%wf(1:np), ac%rg)
-
-             avail = avail - set
-
-          ELSE
-             EXIT
-          END IF
-       END DO
-    END DO
-    
-    IF (.NOT.is_valid(atom)) THEN
-       WRITE (6,*) "Atom entries invalid"
-    END IF
+!TODEL_TL    CALL search_label(label, err)
+!TODEL_TL    IF ( err /= 0 ) THEN
+!TODEL_TL       IF ( globenv%ionode ) WRITE ( out,'(A)' ) "No &ATOM section found"
+!TODEL_TL    ELSE
+!TODEL_TL       CALL read_line ()
+!TODEL_TL       DO WHILE ( test_next () /= 'X' )
+!TODEL_TL          
+!TODEL_TL          CALL get_next(string, len)
+!TODEL_TL          CALL uppercase(string)
+!TODEL_TL          
+!TODEL_TL          SELECT CASE ( string )
+!TODEL_TL             
+!TODEL_TL          CASE DEFAULT
+!TODEL_TL             
+!TODEL_TL          CASE ('Z')
+!TODEL_TL             IF (test_next() == 'N') THEN 
+!TODEL_TL                CALL get_next(atom%z)
+!TODEL_TL             ELSE 
+!TODEL_TL                CALL stop_parser("atom_types/init", "Z needs numeric argument")
+!TODEL_TL             END IF
+!TODEL_TL             
+!TODEL_TL          CASE ('N')
+!TODEL_TL             IF (test_next () == 'N') THEN
+!TODEL_TL                CALL get_next(atom%ne)
+!TODEL_TL             ELSE
+!TODEL_TL                CALL stop_parser("atom_types/init", "N needs numeric argument")
+!TODEL_TL             END IF
+!TODEL_TL             
+!TODEL_TL          END SELECT
+!TODEL_TL          CALL read_line ()
+!TODEL_TL       END DO
+!TODEL_TL    END IF
+!TODEL_TL    
+!TODEL_TL!!!
+!TODEL_TL!!! Fill the electron shells of the atom
+!TODEL_TL!!!
+!TODEL_TL    ! find the number of shells
+!TODEL_TL    n = 1
+!TODEL_TL    DO 
+!TODEL_TL       IF ((2*(n*(n+1)*(2*n+1))/6) >= atom%ne) EXIT
+!TODEL_TL       n = n + 1
+!TODEL_TL    END DO
+!TODEL_TL    atom%ns = n
+!TODEL_TL    ALLOCATE(atom%shells(atom%ns))
+!TODEL_TL
+!TODEL_TL    avail = atom%ne
+!TODEL_TL    ! loop over shells
+!TODEL_TL    DO n=1, atom%ns
+!TODEL_TL       atom%shells(n)%n = n
+!TODEL_TL
+!TODEL_TL       ! find number of different angular momenta in this shell
+!TODEL_TL       l=0
+!TODEL_TL       DO  
+!TODEL_TL          IF ((avail <= 2*(l+1)**2) .OR. (l == n-1)) EXIT
+!TODEL_TL          l = l + 1
+!TODEL_TL       END DO
+!TODEL_TL       atom%shells(n)%no = l+1
+!TODEL_TL       ALLOCATE(atom%shells(n)%orbits(0:atom%shells(n)%no-1))
+!TODEL_TL
+!TODEL_TL       ! loop over these momenta
+!TODEL_TL       DO l=0, atom%shells(n)%no-1
+!TODEL_TL          IF (avail > 0) THEN
+!TODEL_TL
+!TODEL_TL             set = MIN(avail, 2*(2*l+1))
+!TODEL_TL
+!TODEL_TL             atom%shells(n)%no = l+1
+!TODEL_TL             atom%shells(n)%orbits(l)%ne = set
+!TODEL_TL             atom%shells(n)%orbits(l)%n = n
+!TODEL_TL             atom%shells(n)%orbits(l)%l = l
+!TODEL_TL
+!TODEL_TL             SELECT CASE (ac%method)
+!TODEL_TL             CASE DEFAULT
+!TODEL_TL                atom%shells(n)%orbits(l)%ev = &
+!TODEL_TL                     -0.5_dp * (REAL(atom%z, KIND=dp)/REAL(n, KIND=dp))**2
+!TODEL_TL             CASE ('SIMPLE')
+!TODEL_TL                atom%shells(n)%orbits(l)%ev = &
+!TODEL_TL                     -0.7_dp * (REAL(atom%z, KIND=dp)/REAL(n, KIND=dp))**2
+!TODEL_TL             CASE ('XA')
+!TODEL_TL                atom%shells(n)%orbits(l)%ev = &
+!TODEL_TL                     -0.5_dp * (REAL(avail, KIND=dp)/REAL(n, KIND=dp))**2
+!TODEL_TL             END SELECT
+!TODEL_TL
+!TODEL_TL!!! fill the orbits with (sensible) estimations of eigenvalues and eigenfunctions
+!TODEL_TL             ALLOCATE(atom%shells(n)%orbits(l)%wf(1:np))
+!TODEL_TL             DO i=1, np
+!TODEL_TL                x = 2.25_dp * ac%rg%r(i) / REAL((n*(n-1))/2+l+1,KIND=dp)**2
+!TODEL_TL                atom%shells(n)%orbits(l)%wf(i) = exp(-x)*x
+!TODEL_TL             END DO
+!TODEL_TL             CALL radial_normalize(atom%shells(n)%orbits(l)%wf(1:np), ac%rg)
+!TODEL_TL
+!TODEL_TL             avail = avail - set
+!TODEL_TL
+!TODEL_TL          ELSE
+!TODEL_TL             EXIT
+!TODEL_TL          END IF
+!TODEL_TL       END DO
+!TODEL_TL    END DO
+!TODEL_TL    
+!TODEL_TL    IF (.NOT.is_valid(atom)) THEN
+!TODEL_TL       WRITE (6,*) "Atom entries invalid"
+!TODEL_TL    END IF
     
   END SUBROUTINE handle_atom
   
@@ -269,53 +269,53 @@ CONTAINS
     len = 8
     out = globenv%scr
     label = "&CALC"
-    CALL search_label(label, err)
-    IF ( err /= 0 ) THEN
-       IF ( globenv%ionode ) WRITE ( out,'(A)' ) "No &CALC section found"
-    ELSE
-       CALL read_line ()
-       DO WHILE ( test_next () /= 'X' )
-          
-          CALL get_next ( string, len )
-          CALL uppercase ( string )
-          
-          SELECT CASE ( string )
-             
-          CASE DEFAULT
-
-          CASE ('METHOD')
-             IF (test_next() == 'C') THEN
-                CALL get_next(ac%method, len)
-                CALL uppercase(ac%method)
-             ELSE
-                CALL stop_parser("atom_types/init", "METHOD needs string argument")
-             END IF
-             
-          CASE ('MAXITER')
-             IF (test_next() == 'N') THEN 
-                CALL get_next(ac%maxiter)
-             ELSE 
-                CALL stop_parser("atom_types/init", "MAXITER needs numeric argument")
-             END IF
-
-          CASE ('MAXSHOOT')
-             IF (test_next() == 'N') THEN 
-                CALL get_next(ac%maxshoot)
-             ELSE 
-                CALL stop_parser("atom_types/init", "MAXSHOOT needs numeric argument")
-             END IF
-
-          CASE ('PRECIS')
-             IF (test_next() == 'N') THEN 
-                CALL get_next(ac%precision)
-             ELSE 
-                CALL stop_parser("atom_types/init", "PRECIS needs numeric argument")
-             END IF
-
-          END SELECT
-          CALL read_line ()
-       END DO
-    END IF
+!TODEL_TL    CALL search_label(label, err)
+!TODEL_TL    IF ( err /= 0 ) THEN
+!TODEL_TL       IF ( globenv%ionode ) WRITE ( out,'(A)' ) "No &CALC section found"
+!TODEL_TL    ELSE
+!TODEL_TL       CALL read_line ()
+!TODEL_TL       DO WHILE ( test_next () /= 'X' )
+!TODEL_TL          
+!TODEL_TL          CALL get_next ( string, len )
+!TODEL_TL          CALL uppercase ( string )
+!TODEL_TL          
+!TODEL_TL          SELECT CASE ( string )
+!TODEL_TL             
+!TODEL_TL          CASE DEFAULT
+!TODEL_TL
+!TODEL_TL          CASE ('METHOD')
+!TODEL_TL             IF (test_next() == 'C') THEN
+!TODEL_TL                CALL get_next(ac%method, len)
+!TODEL_TL                CALL uppercase(ac%method)
+!TODEL_TL             ELSE
+!TODEL_TL                CALL stop_parser("atom_types/init", "METHOD needs string argument")
+!TODEL_TL             END IF
+!TODEL_TL             
+!TODEL_TL          CASE ('MAXITER')
+!TODEL_TL             IF (test_next() == 'N') THEN 
+!TODEL_TL                CALL get_next(ac%maxiter)
+!TODEL_TL             ELSE 
+!TODEL_TL                CALL stop_parser("atom_types/init", "MAXITER needs numeric argument")
+!TODEL_TL             END IF
+!TODEL_TL
+!TODEL_TL          CASE ('MAXSHOOT')
+!TODEL_TL             IF (test_next() == 'N') THEN 
+!TODEL_TL                CALL get_next(ac%maxshoot)
+!TODEL_TL             ELSE 
+!TODEL_TL                CALL stop_parser("atom_types/init", "MAXSHOOT needs numeric argument")
+!TODEL_TL             END IF
+!TODEL_TL
+!TODEL_TL          CASE ('PRECIS')
+!TODEL_TL             IF (test_next() == 'N') THEN 
+!TODEL_TL                CALL get_next(ac%precision)
+!TODEL_TL             ELSE 
+!TODEL_TL                CALL stop_parser("atom_types/init", "PRECIS needs numeric argument")
+!TODEL_TL             END IF
+!TODEL_TL
+!TODEL_TL          END SELECT
+!TODEL_TL          CALL read_line ()
+!TODEL_TL       END DO
+!TODEL_TL    END IF
 
   END SUBROUTINE handle_ac
   
@@ -336,93 +336,93 @@ CONTAINS
     len = 8
     out = globenv%scr
     label = "&GRID"
-    CALL search_label(label, err)
-    IF ( err /= 0 ) THEN
-       IF ( globenv%ionode ) WRITE ( out,'(A)' ) "No &GRID section found"
-    ELSE
-       CALL read_line ()
-       DO WHILE ( test_next () /= 'X' )
-          
-          CALL get_next ( string, len )
-          CALL uppercase ( string )
-          
-          SELECT CASE ( string )
-             
-          CASE DEFAULT
-
-          CASE ('GRIDTYPE')
-             IF (test_next() == 'C') THEN
-                CALL get_next(gridtype, len)
-                CALL uppercase (gridtype)
-             ELSE
-                CALL stop_parser("atom_types/init", "GRIDTYPE needs string argument" )
-             END IF
-             
-          CASE ('NP')
-             IF (test_next () == 'N') THEN 
-                CALL get_next(np)
-             ELSE 
-                CALL stop_parser("atom_types/init", "NP needs numeric argument")
-             END IF
-             
-          CASE ('RMAX')
-             IF (test_next() == 'N') THEN 
-                CALL get_next(rmax)
-             ELSE 
-                CALL stop_parser("atom_types/init", "GRIDRMAX needs numeric argument")
-             END IF
-             
-          CASE ('B0')
-             IF (test_next() == 'N') THEN 
-                CALL get_next(b(0))
-             ELSE 
-                CALL stop_parser("atom_types/init", "B0 needs numeric argument")
-             END IF
-
-          CASE ('B1')
-             IF (test_next() == 'N') THEN 
-                CALL get_next(b(1))
-             ELSE 
-                CALL stop_parser("atom_types/init", "B1 needs numeric argument")
-             END IF
-
-          CASE ('B2')
-             IF (test_next() == 'N') THEN 
-                CALL get_next(b(2))
-             ELSE 
-                CALL stop_parser("atom_types/init", "B2 needs numeric argument")
-             END IF
-
-          CASE ('B3')
-             IF (test_next() == 'N') THEN 
-                CALL get_next(b(3))
-             ELSE 
-                CALL stop_parser("atom_types/init", "B3 needs numeric argument")
-             END IF
-
-          CASE ('B4')
-             IF (test_next() == 'N') THEN 
-                CALL get_next(b(4))
-             ELSE 
-                CALL stop_parser("atom_types/init", "B4 needs numeric argument")
-             END IF
-
-          CASE ('B5')
-             IF (test_next() == 'N') THEN 
-                CALL get_next(b(5))
-             ELSE 
-                CALL stop_parser("atom_types/init", "B5 needs numeric argument")
-             END IF
-
-          END SELECT
-          CALL read_line ()
-       END DO
-    END IF
+!TODEL_TL    CALL search_label(label, err)
+!TODEL_TL    IF ( err /= 0 ) THEN
+!TODEL_TL       IF ( globenv%ionode ) WRITE ( out,'(A)' ) "No &GRID section found"
+!TODEL_TL    ELSE
+!TODEL_TL       CALL read_line ()
+!TODEL_TL       DO WHILE ( test_next () /= 'X' )
+!TODEL_TL          
+!TODEL_TL          CALL get_next ( string, len )
+!TODEL_TL          CALL uppercase ( string )
+!TODEL_TL          
+!TODEL_TL          SELECT CASE ( string )
+!TODEL_TL             
+!TODEL_TL          CASE DEFAULT
+!TODEL_TL
+!TODEL_TL          CASE ('GRIDTYPE')
+!TODEL_TL             IF (test_next() == 'C') THEN
+!TODEL_TL                CALL get_next(gridtype, len)
+!TODEL_TL                CALL uppercase (gridtype)
+!TODEL_TL             ELSE
+!TODEL_TL                CALL stop_parser("atom_types/init", "GRIDTYPE needs string argument" )
+!TODEL_TL             END IF
+!TODEL_TL             
+!TODEL_TL          CASE ('NP')
+!TODEL_TL             IF (test_next () == 'N') THEN 
+!TODEL_TL                CALL get_next(np)
+!TODEL_TL             ELSE 
+!TODEL_TL                CALL stop_parser("atom_types/init", "NP needs numeric argument")
+!TODEL_TL             END IF
+!TODEL_TL             
+!TODEL_TL          CASE ('RMAX')
+!TODEL_TL             IF (test_next() == 'N') THEN 
+!TODEL_TL                CALL get_next(rmax)
+!TODEL_TL             ELSE 
+!TODEL_TL                CALL stop_parser("atom_types/init", "GRIDRMAX needs numeric argument")
+!TODEL_TL             END IF
+!TODEL_TL             
+!TODEL_TL          CASE ('B0')
+!TODEL_TL             IF (test_next() == 'N') THEN 
+!TODEL_TL                CALL get_next(b(0))
+!TODEL_TL             ELSE 
+!TODEL_TL                CALL stop_parser("atom_types/init", "B0 needs numeric argument")
+!TODEL_TL             END IF
+!TODEL_TL
+!TODEL_TL          CASE ('B1')
+!TODEL_TL             IF (test_next() == 'N') THEN 
+!TODEL_TL                CALL get_next(b(1))
+!TODEL_TL             ELSE 
+!TODEL_TL                CALL stop_parser("atom_types/init", "B1 needs numeric argument")
+!TODEL_TL             END IF
+!TODEL_TL
+!TODEL_TL          CASE ('B2')
+!TODEL_TL             IF (test_next() == 'N') THEN 
+!TODEL_TL                CALL get_next(b(2))
+!TODEL_TL             ELSE 
+!TODEL_TL                CALL stop_parser("atom_types/init", "B2 needs numeric argument")
+!TODEL_TL             END IF
+!TODEL_TL
+!TODEL_TL          CASE ('B3')
+!TODEL_TL             IF (test_next() == 'N') THEN 
+!TODEL_TL                CALL get_next(b(3))
+!TODEL_TL             ELSE 
+!TODEL_TL                CALL stop_parser("atom_types/init", "B3 needs numeric argument")
+!TODEL_TL             END IF
+!TODEL_TL
+!TODEL_TL          CASE ('B4')
+!TODEL_TL             IF (test_next() == 'N') THEN 
+!TODEL_TL                CALL get_next(b(4))
+!TODEL_TL             ELSE 
+!TODEL_TL                CALL stop_parser("atom_types/init", "B4 needs numeric argument")
+!TODEL_TL             END IF
+!TODEL_TL
+!TODEL_TL          CASE ('B5')
+!TODEL_TL             IF (test_next() == 'N') THEN 
+!TODEL_TL                CALL get_next(b(5))
+!TODEL_TL             ELSE 
+!TODEL_TL                CALL stop_parser("atom_types/init", "B5 needs numeric argument")
+!TODEL_TL             END IF
+!TODEL_TL
+!TODEL_TL          END SELECT
+!TODEL_TL          CALL read_line ()
+!TODEL_TL       END DO
+!TODEL_TL    END IF
     
 !!! now create the radial grid with the complete informations
     SELECT CASE (gridtype)
     CASE DEFAULT
-       CALL stop_parser("atom_types/init", "unknown gridtype specified")
+!TODEL_TL       CALL stop_parser("atom_types/init", "unknown gridtype specified")
     CASE ('LINEAR')
        CALL init_radial_grid ( ac%rg, "LINEAR", np, b(0), b(1:5), rmax )
     CASE ('LOG')
@@ -463,37 +463,37 @@ CONTAINS
        ac%xapara%alpha = 0.667_dp
 
        label = "&XA"
-       CALL search_label(label, err)
-       IF ( err /= 0 ) THEN
-          ! not necessary to specify so can be left out
-       ELSE
-          CALL read_line ()
-          DO WHILE ( test_next () /= 'X' )
-
-             CALL get_next ( string, len )
-             CALL uppercase ( string )
-
-             SELECT CASE ( string )
-
-             CASE DEFAULT
-                CALL stop_parser("atom_types/init", "unrecognized option: ")
-
-             CASE ('ALPHA')
-                IF (test_next() == 'N') THEN
-                   CALL get_next(ac%xapara%alpha)
-                ELSE
-                   CALL stop_parser("atom_types/init", "ALPHA needs numeric argument")
-                END IF
-                CALL xalpha_init(1.e-10_dp,ac%xapara%alpha)
-                ac%xapara%c = 1.5_dp * ac%xapara%alpha * (3.0_dp/pi)**(1.0_dp/3.0_dp)
-             END SELECT
-
-             CALL read_line ()
-          END DO
-       END IF
+!TODEL_TL       CALL search_label(label, err)
+!TODEL_TL       IF ( err /= 0 ) THEN
+!TODEL_TL          ! not necessary to specify so can be left out
+!TODEL_TL       ELSE
+!TODEL_TL          CALL read_line ()
+!TODEL_TL          DO WHILE ( test_next () /= 'X' )
+!TODEL_TL
+!TODEL_TL             CALL get_next ( string, len )
+!TODEL_TL             CALL uppercase ( string )
+!TODEL_TL
+!TODEL_TL             SELECT CASE ( string )
+!TODEL_TL
+!TODEL_TL             CASE DEFAULT
+!TODEL_TL                CALL stop_parser("atom_types/init", "unrecognized option: ")
+!TODEL_TL
+!TODEL_TL             CASE ('ALPHA')
+!TODEL_TL                IF (test_next() == 'N') THEN
+!TODEL_TL                   CALL get_next(ac%xapara%alpha)
+!TODEL_TL                ELSE
+!TODEL_TL                   CALL stop_parser("atom_types/init", "ALPHA needs numeric argument")
+!TODEL_TL                END IF
+!TODEL_TL                CALL xalpha_init(1.e-10_dp,ac%xapara%alpha)
+!TODEL_TL                ac%xapara%c = 1.5_dp * ac%xapara%alpha * (3.0_dp/pi)**(1.0_dp/3.0_dp)
+!TODEL_TL             END SELECT
+!TODEL_TL
+!TODEL_TL             CALL read_line ()
+!TODEL_TL          END DO
+!TODEL_TL       END IF
 
     CASE DEFAULT
-       CALL stop_parser("atom_types/init", "unrecognized method: ")
+!TODEL_TL       CALL stop_parser("atom_types/init", "unrecognized method: ")
     END SELECT
 
   END SUBROUTINE handle_method_specific
@@ -541,7 +541,7 @@ CONTAINS
     WRITE (6,'(1X,A,A)') "method : ", ac%method
     SELECT CASE (ac%method)
     CASE DEFAULT
-       CALL stop_parser("atom_types/print_parameters","Unkown calculation method "//ac%method)
+!TODEL_TL       CALL stop_parser("atom_types/print_parameters","Unkown calculation method "//ac%method)
     CASE ('SIMPLE')
        ! nothing to do
     CASE ('XA')

@@ -2,6 +2,9 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2001  CP2K developers group                                 !
 !-----------------------------------------------------------------------------!
+
+#include "cp_prep_globals.h"
+
 !!****** cp2k/topology_psf [1.0] *
 !!
 !!   NAME
@@ -21,18 +24,28 @@
 !******************************************************************************
 
 MODULE topology_psf
-
+  USE cp_error_handling,               ONLY: cp_a_l,&
+                                             cp_assert,&
+                                             cp_error_get_logger,&
+                                             cp_error_message,&
+                                             cp_error_type
+  USE cp_log_handling,                 ONLY: cp_failure_level,&
+                                             cp_fatal_level,&
+                                             cp_note_level,&
+                                             cp_to_string,&
+                                             cp_warning_level,&
+                                             cp_logger_type
   USE checkpoint_handler,              ONLY: write_checkpoint_information
   USE global_types,                    ONLY: global_environment_type
   USE kinds,                           ONLY: dp,&
                                              default_string_length
   USE memory_utilities,                ONLY: reallocate
-  USE parser,                          ONLY: get_next,&
-                                             parser_end,&
-                                             parser_init,&
-                                             parser_backspace, &
-                                             read_line,&
-                                             search_label
+  USE cp_parser,                       ONLY: parser_release,&
+                                             parser_get_object,&
+                                             parser_read_line,&
+                                             parser_search_string,&
+                                             parser_create,&
+                                             cp_parser_type
   USE cp_files,                        ONLY: close_file,&
                                              open_file
   USE termination,                     ONLY: stop_memory,&
@@ -68,343 +81,300 @@ CONTAINS
 !!   SOURCE
 !******************************************************************************
 
-SUBROUTINE read_topology_psf (topology,globenv)
-
-
+  SUBROUTINE read_topology_psf (topology,globenv, error)
+    IMPLICIT NONE
+    ! Arguments
     TYPE(topology_parameters_type), &
       INTENT(INOUT)                          :: topology
     TYPE(global_environment_type), &
-      pointer, OPTIONAL                   :: globenv
+      pointer, OPTIONAL                      :: globenv
+    TYPE(cp_error_type), INTENT(inout), &
+         OPTIONAL                               :: error 
+    ! Local Variables
     TYPE (atom_info_type),POINTER            :: atom_info
     TYPE (connectivity_info_type),POINTER    :: conn_info
 
-    CHARACTER(LEN=default_string_length)              :: label
-    INTEGER                                  :: i, iatom, ibond, ierror, &
+    CHARACTER(LEN=default_string_length)              :: label, dummy_field
+    INTEGER                                  :: i, iatom, ibond, stat, &
                                                 ilen, iphi, itheta, iunit, &
                                                 iw, natom, nbond, nphi, ntheta
     CHARACTER(len=*), PARAMETER :: routineN = 'read_coordinate_psf', &
       routineP = moduleN//':'//routineN
     INTEGER                                  :: handle
-    LOGICAL                                  :: PM1, PM2, PM3, PM4
+    LOGICAL                                  :: PM1, PM2, PM3, PM4, found, failure
     INTEGER :: jatom
+    TYPE(cp_parser_type), POINTER            :: parser
 
-!------------------------------------------------------------------------------
-!------------------------------------------------------------------------------
-  PM1 = .FALSE.
-  PM2 = .FALSE.
-  PM3 = .FALSE.
-  PM4 = .FALSE.
-  IF(PRESENT(globenv)) THEN
-    CALL write_checkpoint_information("entering "//routineN,globenv)
-    iw = globenv%scr
-    IF((globenv%ionode).AND.(globenv%print%level>0)) PM1= .TRUE.
-    IF((globenv%ionode).AND.(globenv%print%level>1)) PM2= .TRUE.
-    IF((globenv%ionode).AND.(globenv%print%level>2)) PM3= .TRUE.
-    IF((globenv%ionode).AND.(globenv%print%level>3)) PM4= .TRUE.
-  END IF
-
-  IF(PM1) WRITE(iw,*) "  Entering read_topology_psf"
-
-  CALL write_checkpoint_information("entering "//routineN,globenv)
-  CALL timeset(routineN,'I','',handle)
-!------------------------------------------------------------------------------
-!------------------------------------------------------------------------------
-
-  atom_info => topology%atom_info
-  conn_info => topology%conn_info
-
-  IF(PM2) WRITE(iw,*) 'Parsing the NATOM section'
-
-  label = '!NATOM'
-  CALL parser_init(topology%conn_file_name,globenv)
-  CALL search_label(label,ierror,ignore_case=.TRUE.)
-  IF ( ierror /= 0 ) THEN
-    IF(PM1) WRITE ( iw, '( A )' ) ' No NATOM section '
-    natom = 0
-  ELSE
-    CALL parser_backspace
-    CALL read_line
-    CALL get_next (natom)
-    IF(PM1) WRITE(iw,*) 'NATOM = ',natom
-    !malloc the memory that we need
-    IF (ASSOCIATED(atom_info%label_molname)) &
-         DEALLOCATE(atom_info%label_molname,STAT=ierror)
-    IF(ierror/=0) CALL stop_memory &
-      ('read_topology_psf','dealloc :: atm_mol_name',nphi)
-    ALLOCATE(atom_info%label_molname(natom),STAT=ierror)
-    IF(ierror/=0) CALL stop_memory &
-      ('read_topology_psf','alloc :: atm_mol_name',nphi)
-
-    IF (ASSOCIATED(atom_info%label_resid)) &
-         DEALLOCATE(atom_info%label_resid,STAT=ierror)
-    IF(ierror/=0) CALL stop_memory &
-      ('read_topology_psf','dealloc :: atm_res_num',nphi)    
-    ALLOCATE(atom_info%label_resid(natom),STAT=ierror)
-    IF(ierror/=0) CALL stop_memory &
-      ('read_topology_psf','alloc :: atm_res_num',nphi)
-
-    IF (ASSOCIATED(atom_info%label_resname)) &
-         DEALLOCATE(atom_info%label_resname,STAT=ierror)
-    IF(ierror/=0) CALL stop_memory &
-      ('read_topology_psf','dealloc :: atm_res_name',nphi)    
-    ALLOCATE(atom_info%label_resname(natom),STAT=ierror)
-    IF(ierror/=0) CALL stop_memory &
-      ('read_topology_psf','alloc :: atm_res_name',nphi)
-
-    IF (ASSOCIATED(atom_info%label_atmname)) &
-         DEALLOCATE(atom_info%label_atmname,STAT=ierror)
-    IF(ierror/=0) CALL stop_memory &
-      ('read_topology_psf','dealloc :: atm_name1',nphi)
-    ALLOCATE(atom_info%label_atmname(natom),STAT=ierror)
-    IF(ierror/=0) CALL stop_memory &
-      ('read_topology_psf','alloc :: atm_name1',nphi)
-
-    IF (ASSOCIATED(atom_info%atm_charge)) &
-         DEALLOCATE(atom_info%atm_charge,STAT=ierror)
-    IF(ierror/=0) CALL stop_memory &
-      ('read_topology_psf','dealloc :: atm_charge',nphi)    
-    ALLOCATE(atom_info%atm_charge(natom),STAT=ierror)
-    IF(ierror/=0) CALL stop_memory &
-      ('read_topology_psf','alloc :: atm_charge',nphi)
-
-    IF (ASSOCIATED(atom_info%atm_mass)) &
-         DEALLOCATE(atom_info%atm_mass,STAT=ierror)
-    IF(ierror/=0) CALL stop_memory &
-      ('read_topology_psf','dealloc :: atm_mass',nphi)    
-    ALLOCATE(atom_info%atm_mass(natom),STAT=ierror)
-    IF(ierror/=0) CALL stop_memory &
-      ('read_topology_psf','alloc :: atm_mass',nphi)
-
-    !Read in the atom info
-    DO iatom=1,natom
-      ilen = 20
-      CALL read_line
-      CALL get_next(i)
-      CALL get_next(atom_info%label_molname(iatom),ilen)
-      CALL get_next(atom_info%label_resid(iatom))
-      CALL get_next(atom_info%label_resname(iatom),ilen)
-      CALL get_next(atom_info%label_atmname(iatom),ilen)
-      CALL get_next(atom_info%label_atmname(iatom),ilen)
-      CALL uppercase ( atom_info%label_atmname(iatom) )
-      CALL get_next(atom_info%atm_charge(iatom))
-      CALL get_next(atom_info%atm_mass(iatom))
-    END DO
-  END IF
-  CALL parser_end
-!------------------------------------------------------------------------------
-!------------------------------------------------------------------------------
-  IF(PM1) WRITE(iw,*) 'Parsing the NBOND section'
-  label = '!NBOND'
-  CALL parser_init(topology%conn_file_name,globenv)
-  CALL search_label(label,ierror,ignore_case=.TRUE.)
-  IF ( ierror /= 0 ) THEN
-    IF(PM1) WRITE ( iw, '( A )' ) ' No NBOND section '
-    nbond = 0
-  ELSE
-    CALL parser_backspace
-    CALL read_line
-    CALL get_next (nbond)
-    IF(PM1) WRITE(iw,*) 'NBOND = ',nbond
-    !malloc the memory that we need
-    ALLOCATE(conn_info%bond_a(nbond),STAT=ierror)
-    IF(ierror/=0) CALL stop_memory &
-      ('read_topology_psf','bond_a',nbond)
-    ALLOCATE(conn_info%bond_b(nbond),STAT=ierror)
-    IF(ierror/=0) CALL stop_memory &
-      ('read_topology_psf','bond_b',nbond)
-    !Read in the atom info
-    DO ibond=1,nbond,4
-      CALL read_line
-      i=0
-      DO WHILE ((i<4).AND.((ibond+i)<=nbond))
-        CALL get_next(conn_info%bond_a(ibond+i))
-        CALL get_next(conn_info%bond_b(ibond+i))
-        i=i+1
-      END DO
-    END DO
-  END IF
-  CALL parser_end
-!------------------------------------------------------------------------------
-!------------------------------------------------------------------------------
-  i = 0
-  DO ibond=1,nbond
-    iatom = conn_info%bond_a(ibond)
-    jatom = conn_info%bond_b(ibond)
-    IF(topology%para_res) THEN
-      IF((atom_info%label_molname(iatom)/=atom_info%label_molname(jatom)).OR.&
-         (atom_info%label_resid(iatom)/=atom_info%label_resid(jatom)).OR.&
-         (atom_info%label_resname(iatom)/=atom_info%label_resname(jatom)))THEN
-          IF(PM1) WRITE(iw,*) "      PARA_RES, bond between molecules atom ",&
-                              iatom,jatom
-          i = i + 1
-          CALL reallocate(conn_info%c_bond_a,1,i+1)
-          CALL reallocate(conn_info%c_bond_b,1,i+1)
-          conn_info%c_bond_a(i) = iatom
-          conn_info%c_bond_b(i) = jatom
-      END IF
-    ELSE
-      IF(atom_info%label_molname(iatom)/=atom_info%label_molname(jatom)) THEN
-          CALL stop_program ("topology_generate_bond",&
-                             "bonds between different molecule types??? ")
-      END IF
+    failure = .FALSE.
+    PM1 = .FALSE.
+    PM2 = .FALSE.
+    PM3 = .FALSE.
+    PM4 = .FALSE.
+    NULLIFY (parser)
+    CALL parser_create(parser,topology%conn_file_name,para_env=globenv%para_env)
+    IF(PRESENT(globenv)) THEN
+       CALL write_checkpoint_information("entering "//routineN,globenv)
+       iw = globenv%scr
+       IF((globenv%ionode).AND.(globenv%print%level>0)) PM1= .TRUE.
+       IF((globenv%ionode).AND.(globenv%print%level>1)) PM2= .TRUE.
+       IF((globenv%ionode).AND.(globenv%print%level>2)) PM3= .TRUE.
+       IF((globenv%ionode).AND.(globenv%print%level>3)) PM4= .TRUE.
     END IF
-  END DO
-!------------------------------------------------------------------------------
-!------------------------------------------------------------------------------
-  IF(PM1) WRITE(iw,*) 'Parsing the NTHETA section'
-  label = '!NTHETA'
-  CALL parser_init(topology%conn_file_name,globenv)
-  CALL search_label(label,ierror,ignore_case=.TRUE.)
-  IF ( ierror /= 0 ) THEN
-    IF(PM1) WRITE ( iw, '( A )' ) ' No NTHETA section '
-    ntheta = 0
-  ELSE
-    CALL parser_backspace
-    CALL read_line
-    CALL get_next (ntheta)
-    IF(PM1) WRITE(iw,*) 'NTHETA = ',ntheta
-    !malloc the memory that we need
-    ALLOCATE(conn_info%theta_a(ntheta),STAT=ierror)
-    IF(ierror/=0) CALL stop_memory &
-      ('read_topology_psf','theta_a',ntheta)
-    ALLOCATE(conn_info%theta_b(ntheta),STAT=ierror)
-    IF(ierror/=0) CALL stop_memory &
-      ('read_topology_psf','theta_b',ntheta)
-    ALLOCATE(conn_info%theta_c(ntheta),STAT=ierror)
-    IF(ierror/=0) CALL stop_memory &
-      ('read_topology_psf','theta_c',ntheta)
-    !Read in the atom info
-    DO itheta=1,ntheta,3
-      CALL read_line
-      i=0
-      DO WHILE ((i<3).AND.((itheta+i)<=ntheta))
-        CALL get_next(conn_info%theta_a(itheta+i))
-        CALL get_next(conn_info%theta_b(itheta+i))
-        CALL get_next(conn_info%theta_c(itheta+i))
-        i=i+1
-      END DO
+    
+    IF(PM1) WRITE(iw,*) "  Entering read_topology_psf"
+    
+    CALL write_checkpoint_information("entering "//routineN,globenv)
+    CALL timeset(routineN,'I','',handle)
+
+    atom_info => topology%atom_info
+    conn_info => topology%conn_info
+    
+    IF(PM2) WRITE(iw,*) 'Parsing the NATOM section'
+
+    label = '!NATOM'
+    CALL parser_search_string(parser,label,.TRUE.,found,begin_line=.TRUE.)
+    IF ( .NOT. found ) THEN
+       IF(PM1) WRITE ( iw, '( A )' ) ' No NATOM section '
+       natom = 0
+    ELSE
+       CALL parser_get_object  (parser,natom)
+       IF(PM1) WRITE(iw,*) 'NATOM = ',natom
+       !malloc the memory that we need
+       IF (ASSOCIATED(atom_info%label_molname)) DEALLOCATE(atom_info%label_molname,STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       ALLOCATE(atom_info%label_molname(natom),STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+     
+       IF (ASSOCIATED(atom_info%label_resid)) DEALLOCATE(atom_info%label_resid,STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       ALLOCATE(atom_info%label_resid(natom),STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+     
+       IF (ASSOCIATED(atom_info%label_resname)) DEALLOCATE(atom_info%label_resname,STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       ALLOCATE(atom_info%label_resname(natom),STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       
+       IF (ASSOCIATED(atom_info%label_atmname)) DEALLOCATE(atom_info%label_atmname,STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       ALLOCATE(atom_info%label_atmname(natom),STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+     
+       IF (ASSOCIATED(atom_info%atm_charge)) DEALLOCATE(atom_info%atm_charge,STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       ALLOCATE(atom_info%atm_charge(natom),STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+     
+       IF (ASSOCIATED(atom_info%atm_mass)) DEALLOCATE(atom_info%atm_mass,STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       ALLOCATE(atom_info%atm_mass(natom),STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+     
+       !Read in the atom info
+       DO iatom=1,natom
+          CALL parser_get_object(parser,i,newline=.TRUE.)
+          CALL parser_get_object(parser,atom_info%label_molname(iatom))
+          CALL parser_get_object(parser,atom_info%label_resid(iatom))
+          CALL parser_get_object(parser,atom_info%label_resname(iatom))
+          CALL parser_get_object(parser,dummy_field)
+          CALL parser_get_object(parser,atom_info%label_atmname(iatom))
+          CALL parser_get_object(parser,atom_info%atm_charge(iatom))
+          CALL parser_get_object(parser,atom_info%atm_mass(iatom))
+          CALL uppercase ( atom_info%label_atmname(iatom) )
+       END DO
+    END IF
+
+    !------------------------------------------------------------------------------
+    !------------------------------------------------------------------------------
+    IF(PM1) WRITE(iw,*) 'Parsing the NBOND section'
+    label = '!NBOND'
+    CALL parser_search_string(parser,label,.TRUE.,found,begin_line=.TRUE.)
+    IF ( .NOT. found ) THEN
+       IF(PM1) WRITE ( iw, '( A )' ) ' No NBOND section '
+       nbond = 0
+    ELSE
+       CALL parser_get_object  (parser,nbond)
+       
+       IF(PM1) WRITE(iw,*) 'NBOND = ',nbond
+       !malloc the memory that we need
+       ALLOCATE(conn_info%bond_a(nbond),STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       ALLOCATE(conn_info%bond_b(nbond),STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       !Read in the atom info
+       DO ibond=1,nbond,4
+          CALL parser_read_line(parser,1,error=error)
+          i=0
+          DO WHILE ((i<4).AND.((ibond+i)<=nbond))
+             CALL parser_get_object(parser,conn_info%bond_a(ibond+i))
+             CALL parser_get_object(parser,conn_info%bond_b(ibond+i))
+             i=i+1
+          END DO
+       END DO
+    END IF
+    
+    !------------------------------------------------------------------------------
+    !------------------------------------------------------------------------------
+    i = 0
+    DO ibond=1,nbond
+       iatom = conn_info%bond_a(ibond)
+       jatom = conn_info%bond_b(ibond)
+       IF(topology%para_res) THEN
+          IF((atom_info%label_molname(iatom)/=atom_info%label_molname(jatom)).OR.&
+               (atom_info%label_resid(iatom)/=atom_info%label_resid(jatom)).OR.&
+               (atom_info%label_resname(iatom)/=atom_info%label_resname(jatom)))THEN
+             IF(PM1) WRITE(iw,*) "      PARA_RES, bond between molecules atom ",&
+                  iatom,jatom
+             i = i + 1
+             CALL reallocate(conn_info%c_bond_a,1,i+1)
+             CALL reallocate(conn_info%c_bond_b,1,i+1)
+             conn_info%c_bond_a(i) = iatom
+             conn_info%c_bond_b(i) = jatom
+          END IF
+       ELSE
+          IF(atom_info%label_molname(iatom)/=atom_info%label_molname(jatom)) THEN
+             CALL stop_program ("topology_generate_bond",&
+                                "bonds between different molecule types??? ")
+          END IF
+       END IF
     END DO
-  END IF
-  CALL parser_end
-!------------------------------------------------------------------------------
-!------------------------------------------------------------------------------
-    ALLOCATE(conn_info%ub_a(ntheta),STAT=ierror)
-    IF(ierror/=0) CALL stop_memory &
-      ('read_topology_psf','ub_a',ntheta)
-    ALLOCATE(conn_info%ub_b(ntheta),STAT=ierror)
-    IF(ierror/=0) CALL stop_memory &
-      ('read_topology_psf','ub_b',ntheta)
-    ALLOCATE(conn_info%ub_c(ntheta),STAT=ierror)
-    IF(ierror/=0) CALL stop_memory &
-      ('read_topology_psf','ub_c',ntheta)
+
+    !------------------------------------------------------------------------------
+    !------------------------------------------------------------------------------
+    IF(PM1) WRITE(iw,*) 'Parsing the NTHETA section'
+    label = '!NTHETA'
+    CALL parser_search_string(parser,label,.TRUE.,found,begin_line=.TRUE.)
+    IF ( .NOT. found ) THEN
+       IF(PM1) WRITE ( iw, '( A )' ) ' No NTHETA section '
+       ntheta = 0
+    ELSE
+       CALL parser_get_object  (parser,ntheta)
+       IF(PM1) WRITE(iw,*) 'NTHETA = ',ntheta
+       !malloc the memory that we need
+       ALLOCATE(conn_info%theta_a(ntheta),STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       ALLOCATE(conn_info%theta_b(ntheta),STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       ALLOCATE(conn_info%theta_c(ntheta),STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       !Read in the atom info
+       DO itheta=1,ntheta,3
+          CALL parser_read_line(parser,1,error=error)
+          i=0
+          DO WHILE ((i<3).AND.((itheta+i)<=ntheta))
+             CALL parser_get_object(parser,conn_info%theta_a(itheta+i))
+             CALL parser_get_object(parser,conn_info%theta_b(itheta+i))
+             CALL parser_get_object(parser,conn_info%theta_c(itheta+i))
+             i=i+1
+          END DO
+       END DO
+    END IF
+
+    !------------------------------------------------------------------------------
+    !------------------------------------------------------------------------------
+    ALLOCATE(conn_info%ub_a(ntheta),STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+
+    ALLOCATE(conn_info%ub_b(ntheta),STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+
+    ALLOCATE(conn_info%ub_c(ntheta),STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+
     conn_info%ub_a(:) = conn_info%theta_a(:)
     conn_info%ub_b(:) = conn_info%theta_b(:)
     conn_info%ub_c(:) = conn_info%theta_c(:)
-!------------------------------------------------------------------------------
-!------------------------------------------------------------------------------
-  IF(PM1) WRITE(iw,*) 'Parsing the NPHI (ie dihedrals) section'
-  label = '!NPHI'
-  CALL parser_init(topology%conn_file_name,globenv)
-  CALL search_label(label,ierror,ignore_case=.TRUE.)
-  IF ( ierror /= 0 ) THEN
-    IF(PM1) WRITE ( iw, '( A )' ) ' No NPHI section '
-    nphi = 0
-  ELSE
-    CALL parser_backspace()
-    CALL read_line
-    CALL get_next (nphi)
-    IF(PM1) WRITE(iw,*) 'NPHI = ',nphi
-    !malloc the memory that we need
-    ALLOCATE(conn_info%phi_a(nphi),STAT=ierror)
-    IF(ierror/=0) CALL stop_memory &
-      ('read_topology_psf','phi_a',nphi)
-    ALLOCATE(conn_info%phi_b(nphi),STAT=ierror)
-    IF(ierror/=0) CALL stop_memory &
-      ('read_topology_psf','phi_b',nphi)
-    ALLOCATE(conn_info%phi_c(nphi),STAT=ierror)
-    IF(ierror/=0) CALL stop_memory &
-      ('read_topology_psf','phi_c',nphi)
-    ALLOCATE(conn_info%phi_d(nphi),STAT=ierror)
-    IF(ierror/=0) CALL stop_memory &
-      ('read_topology_psf','phi_d',nphi)
-    !Read in the atom info
-    DO iphi=1,nphi,2
-      CALL read_line
-      i=0
-      DO WHILE ((i<2).AND.((iphi+i)<=nphi))
-        CALL get_next(conn_info%phi_a(iphi+i))
-        CALL get_next(conn_info%phi_b(iphi+i))
-        CALL get_next(conn_info%phi_c(iphi+i))
-        CALL get_next(conn_info%phi_d(iphi+i))
-        i=i+1
-      END DO
-    END DO
-  END IF
-  CALL parser_end
-!------------------------------------------------------------------------------
-!------------------------------------------------------------------------------
-    ALLOCATE(conn_info%onfo_a(nphi),STAT=ierror)
-    IF(ierror/=0) CALL stop_memory &
-      ('read_topology_psf','onfo_a',nphi)
-    ALLOCATE(conn_info%onfo_b(nphi),STAT=ierror)
-    IF(ierror/=0) CALL stop_memory &
-      ('read_topology_psf','onfo_b',nphi)
+
+    !------------------------------------------------------------------------------
+    !------------------------------------------------------------------------------
+    IF(PM1) WRITE(iw,*) 'Parsing the NPHI (ie dihedrals) section'
+    label = '!NPHI'
+    CALL parser_search_string(parser,label,.TRUE.,found,begin_line=.TRUE.)
+    IF ( .NOT. found ) THEN
+       IF(PM1) WRITE ( iw, '( A )' ) ' No NPHI section '
+       nphi = 0
+    ELSE
+       CALL parser_get_object  (parser,nphi)
+       IF(PM1) WRITE(iw,*) 'NPHI = ',nphi
+       !malloc the memory that we need
+       ALLOCATE(conn_info%phi_a(nphi),STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       ALLOCATE(conn_info%phi_b(nphi),STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       ALLOCATE(conn_info%phi_c(nphi),STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       ALLOCATE(conn_info%phi_d(nphi),STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       !Read in the atom info
+       DO iphi=1,nphi,2
+          CALL parser_read_line(parser,1,error=error)
+          i=0
+          DO WHILE ((i<2).AND.((iphi+i)<=nphi))
+             CALL parser_get_object(parser,conn_info%phi_a(iphi+i))
+             CALL parser_get_object(parser,conn_info%phi_b(iphi+i))
+             CALL parser_get_object(parser,conn_info%phi_c(iphi+i))
+             CALL parser_get_object(parser,conn_info%phi_d(iphi+i))
+             i=i+1
+          END DO
+       END DO
+    END IF
+
+    !------------------------------------------------------------------------------
+    !------------------------------------------------------------------------------
+    ALLOCATE(conn_info%onfo_a(nphi),STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE(conn_info%onfo_b(nphi),STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     conn_info%onfo_a(:) = conn_info%phi_a(:)
     conn_info%onfo_b(:) = conn_info%phi_d(:)
-!------------------------------------------------------------------------------
-!------------------------------------------------------------------------------
-  IF(PM1) WRITE(iw,*) 'Parsing the NIMPHI (ie dihedrals) section'
-  label = '!NIMPHI'
-  CALL parser_init(topology%conn_file_name,globenv)
-  CALL search_label(label,ierror,ignore_case=.TRUE.)
-  IF ( ierror /= 0 ) THEN
-    IF(PM1) WRITE ( iw, '( A )' ) ' No NIMPHI section '
-    nphi = 0
-  ELSE
-    CALL parser_backspace
-    CALL read_line
-    CALL get_next (nphi)
-    IF(PM1) WRITE(iw,*) 'NIMPR = ',nphi
-    !malloc the memory that we need
-    ALLOCATE(conn_info%impr_a(nphi),STAT=ierror)
-    IF(ierror/=0) CALL stop_memory &
-      ('read_topology_psf','impr_a',nphi)
-    ALLOCATE(conn_info%impr_b(nphi),STAT=ierror)
-    IF(ierror/=0) CALL stop_memory &
-      ('read_topology_psf','impr_b',nphi)
-    ALLOCATE(conn_info%impr_c(nphi),STAT=ierror)
-    IF(ierror/=0) CALL stop_memory &
-      ('read_topology_psf','impr_c',nphi)
-    ALLOCATE(conn_info%impr_d(nphi),STAT=ierror)
-    IF(ierror/=0) CALL stop_memory &
-      ('read_topology_psf','impr_d',nphi)
-    !Read in the atom info
-    DO iphi=1,nphi,2
-      CALL read_line
-      i=0
-      DO WHILE ((i<2).AND.((iphi+i)<=nphi))
-        CALL get_next(conn_info%impr_a(iphi+i))
-        CALL get_next(conn_info%impr_b(iphi+i))
-        CALL get_next(conn_info%impr_c(iphi+i))
-        CALL get_next(conn_info%impr_d(iphi+i))
-        i=i+1
-      END DO
-    END DO
-  END IF
-  CALL parser_end
 
-!------------------------------------------------------------------------------
-!------------------------------------------------------------------------------
-  IF(PM1) WRITE(iw,*) "  Exiting read_topology_psf"
+    !------------------------------------------------------------------------------
+    !------------------------------------------------------------------------------
+    IF(PM1) WRITE(iw,*) 'Parsing the NIMPHI (ie dihedrals) section'
+    label = '!NIMPHI'
+    CALL parser_search_string(parser,label,.TRUE.,found,begin_line=.TRUE.)
+    IF ( .NOT. found ) THEN
+       IF(PM1) WRITE ( iw, '( A )' ) ' No NIMPHI section '
+       nphi = 0
+    ELSE
+       CALL parser_get_object  (parser,nphi)
+       IF(PM1) WRITE(iw,*) 'NIMPR = ',nphi
+       !malloc the memory that we need
+       ALLOCATE(conn_info%impr_a(nphi),STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       ALLOCATE(conn_info%impr_b(nphi),STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)       
+       ALLOCATE(conn_info%impr_c(nphi),STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       ALLOCATE(conn_info%impr_d(nphi),STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       !Read in the atom info
+       DO iphi=1,nphi,2
+          CALL parser_read_line(parser,1,error=error)
+          i=0
+          DO WHILE ((i<2).AND.((iphi+i)<=nphi))
+             CALL parser_get_object(parser,conn_info%impr_a(iphi+i))
+             CALL parser_get_object(parser,conn_info%impr_b(iphi+i))
+             CALL parser_get_object(parser,conn_info%impr_c(iphi+i))
+             CALL parser_get_object(parser,conn_info%impr_d(iphi+i))
+             i=i+1
+          END DO
+       END DO
+    END IF
 
-  CALL timestop(0.0_dp,handle)
-  IF(PRESENT(globenv)) THEN
-    CALL write_checkpoint_information("exiting "//routineN,globenv)
-  END IF
-!------------------------------------------------------------------------------
-!------------------------------------------------------------------------------
+    !------------------------------------------------------------------------------
+    !------------------------------------------------------------------------------
+    IF(PM1) WRITE(iw,*) "  Exiting read_topology_psf"
+    CALL parser_release(parser,error=error)
+    
+    CALL timestop(0.0_dp,handle)
+    IF(PRESENT(globenv)) THEN
+       CALL write_checkpoint_information("exiting "//routineN,globenv)
+    END IF
+    !------------------------------------------------------------------------------
+    !------------------------------------------------------------------------------
 
-END SUBROUTINE read_topology_psf
+  END SUBROUTINE read_topology_psf
 
 !!*****
 !******************************************************************************
@@ -427,7 +397,7 @@ SUBROUTINE write_topology_psf (topology,globenv)
     TYPE(global_environment_type), &
       pointer, OPTIONAL                   :: globenv
 
-    INTEGER                                  :: i, j, iatom, ibond, ierror, &
+    INTEGER                                  :: i, j, iatom, ibond, &
                                                 ilen, iphi, itheta, iunit, &
                                                 iw, natom, nbond, nphi, ntheta
 

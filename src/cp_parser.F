@@ -1057,11 +1057,13 @@ END SUBROUTINE parser_next_token
 
 ! *****************************************************************************
 
-  SUBROUTINE parser_search_string(parser,string,ignore_case,found,line,error)
+  SUBROUTINE parser_search_string(parser,string,ignore_case,found,line,begin_line,error)
 
     !   Purpose: Search a string pattern in a file defined by its logical unit
     !            number "unit". A case sensitive search is performed, if
     !            ignore_case is .FALSE..
+    !            begin_line: give back the parser at the beginning of the line
+    !            matching the search
 
     !   History: - Creation (05.10.1999,MK)
 
@@ -1072,6 +1074,7 @@ END SUBROUTINE parser_next_token
     LOGICAL, INTENT(IN)                      :: ignore_case
     LOGICAL, INTENT(OUT)                     :: found
     CHARACTER(LEN=*), INTENT(OUT), OPTIONAL  :: line
+    LOGICAL, INTENT(IN), OPTIONAL            :: begin_line
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -1081,12 +1084,14 @@ END SUBROUTINE parser_next_token
     CHARACTER(LEN=LEN(string))               :: pattern
     CHARACTER(LEN=max_line_length+1)         :: current_line
     INTEGER                                  :: ipattern
-    LOGICAL                                  :: at_end, failure
+    LOGICAL                                  :: at_end, failure, begin
 
 !   ---------------------------------------------------------------------------
 
     found = .FALSE.
     failure = .FALSE.
+    begin = .FALSE.
+    IF (PRESENT(begin_line)) begin=begin_line
 
     CPPrecondition(ASSOCIATED(parser),cp_failure_level,routineP,error,failure)
     IF (.NOT.failure) THEN
@@ -1117,7 +1122,7 @@ END SUBROUTINE parser_next_token
 
              IF (ignore_case) CALL uppercase(current_line)
 
-             ipattern = INDEX(current_line,pattern)
+             ipattern = INDEX(current_line,TRIM(pattern))
 
              IF (ipattern > 0) THEN
                 found = .TRUE.
@@ -1137,8 +1142,11 @@ END SUBROUTINE parser_next_token
 
           END DO
 
+          IF (found) THEN
+             IF (begin) parser%icol = 0
+          END IF
        END IF
-
+      
        IF (parser%para_env%num_pe>1) THEN
           CALL mp_bcast(found,parser%para_env%source,parser%para_env%group)
           CALL broadcast_input_information(parser,error)
@@ -1147,7 +1155,7 @@ END SUBROUTINE parser_next_token
 
        IF (found) THEN
           IF (PRESENT(line)) line = parser%input_line
-          CALL parser_next_token(parser,error=error) !only if .not.cp_error_check?
+          IF (.NOT.begin) CALL parser_next_token(parser,error=error)
        END IF
     END IF
   END SUBROUTINE parser_search_string

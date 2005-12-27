@@ -112,14 +112,13 @@ MODULE force_fields
                                              pair_potential_pp_create, &
                                              pair_potential_pp_release,&
                                              pair_potential_single_clean
-  USE parser,                          ONLY: get_next,&
-                                             p_error,&
-                                             parser_end,&
-                                             parser_init,&
-                                             read_line,&
-                                             search_label,&
-                                             stop_parser,&
-                                             test_next
+  USE cp_parser,                       ONLY: parser_release,&
+                                             parser_get_object,&
+                                             parser_read_line,&
+                                             parser_search_string,&
+                                             parser_create,&
+                                             cp_parser_type,&
+                                             parser_test_next_token
   USE particle_types,                  ONLY: particle_type
   USE splines,                         ONLY: spline_environment_type, &
                                              spline_env_create, &
@@ -263,7 +262,7 @@ CONTAINS
     IF(ff_type%ff_type/="OFF") THEN
        SELECT CASE (ff_type%ff_type)
        CASE ("CHM")
-          CALL read_force_field_charmm(ff_type,globenv)
+          CALL read_force_field_charmm(ff_type,globenv,error)
        CASE DEFAULT
           CALL stop_program ("force_field_control","force field type not implemented")
        END SELECT
@@ -1162,334 +1161,390 @@ END SUBROUTINE read_force_field_section
 !!   SOURCE
 !******************************************************************************
 
-SUBROUTINE read_force_field_charmm ( ff_type , globenv )
+SUBROUTINE read_force_field_charmm ( ff_type , globenv, error )
 
 
     TYPE(force_field_type), &
       INTENT(INOUT)                          :: ff_type
     TYPE(global_environment_type), &
       pointer,OPTIONAL                    :: globenv
+    TYPE(cp_error_type), INTENT(inout), OPTIONAL   :: error
 
     TYPE(charmm_info_type),POINTER           :: chm_info
 
-    LOGICAL                                  :: PM1, PM2, PM3, PM4
-    INTEGER                                  :: i, istat, ilen, iw
+    LOGICAL                                  :: PM1, PM2, PM3, PM4, found
+    INTEGER                                  :: i, istat, iw, ilab
     INTEGER                                  :: nbond,nbend,nub,ntorsion,&
                                                 nimpr,nonfo,nnonbond,dummy
 
     CHARACTER(LEN=default_string_length)     :: label
     CHARACTER(LEN=default_string_length)     :: string,string2,string3,string4
+    TYPE(cp_parser_type), POINTER            :: parser
+    CHARACTER(LEN=default_string_length), DIMENSION(18) :: avail_section 
+    CHARACTER(LEN=default_string_length), DIMENSION(1)  :: bond_section
+    CHARACTER(LEN=default_string_length), DIMENSION(2)  :: angl_section,&
+                                                           thet_section,&
+                                                           impr_section,&
+                                                           nbon_section
 
-!------------------------------------------------------------------------------
-!------------------------------------------------------------------------------
+    PM1 = .FALSE.
+    PM2 = .FALSE.
+    PM3 = .FALSE.
+    PM4 = .FALSE.
+    avail_section(1) = "BOND"     ; bond_section(1) = "BOND"
+    avail_section(11)= "BONDS"
+    avail_section(2) = "ANGL"     ; angl_section(1) = avail_section(2)  
+    avail_section(3) = "THETA"    ; angl_section(2) = avail_section(3) 
+    avail_section(12)= "THETAS"
+    avail_section(13)= "ANGLE"
+    avail_section(14)= "ANGLES"
+    avail_section(4) = "DIHEDRAL" ; thet_section(1) = avail_section(4)
+    avail_section(15)= "DIHEDRALS"
+    avail_section(5) = "PHI"      ; thet_section(2) = avail_section(5)
+    avail_section(6) = "IMPROPER" ; impr_section(1) = avail_section(6)
+    avail_section(7) = "IMPH"     ; impr_section(2) = avail_section(7)
+    avail_section(16)= "IMPHI"
+    avail_section(8) = "NONBONDED"; nbon_section(1) = avail_section(8)
+    avail_section(9) = "NBOND"    ; nbon_section(2) = avail_section(9)
+    avail_section(10)= "HBOND"
+    avail_section(17)= "NBFIX"
+    avail_section(18)= "END"
 
-  PM1 = .FALSE.
-  PM2 = .FALSE.
-  PM3 = .FALSE.
-  PM4 = .FALSE.
-  IF(PRESENT(globenv)) THEN
-    iw = globenv%scr
-    IF((globenv%ionode).AND.(globenv%print%level>0)) PM1= .TRUE.
-    IF((globenv%ionode).AND.(globenv%print%level>1)) PM2= .TRUE.
-    IF((globenv%ionode).AND.(globenv%print%level>2)) PM3= .TRUE.
-    IF((globenv%ionode).AND.(globenv%print%level>3)) PM4= .TRUE.
-  END IF
+    NULLIFY(parser)
+    IF(PRESENT(globenv)) THEN
+       iw = globenv%scr
+       IF((globenv%ionode).AND.(globenv%print%level>0)) PM1= .TRUE.
+       IF((globenv%ionode).AND.(globenv%print%level>1)) PM2= .TRUE.
+       IF((globenv%ionode).AND.(globenv%print%level>2)) PM3= .TRUE.
+       IF((globenv%ionode).AND.(globenv%print%level>3)) PM4= .TRUE.
+    END IF
+    
+    IF(PM1) WRITE(iw,*) "    Entering read_force_field_charmm"
+    
+    chm_info => ff_type%chm_info    
+    !-----------------------------------------------------------------------------
+    !-----------------------------------------------------------------------------
+    ! 1. Read in all the Bonds info from the param file here
+    !      Vbond = Kb(b-b0)^2
+    !      UNITS for Kb: [(kcal/mol)/(A^2)] to [Eh/(AU^2)]
+    !      FACTOR of "2" rolled into Kb
+    !-----------------------------------------------------------------------------
+    nbond = 0
+    DO ilab = 1, SIZE(bond_section)
+       CALL parser_create(parser,ff_type%ff_file_name,comment_char='!',para_env=globenv%para_env)
+       label = TRIM(bond_section(ilab))
+       DO 
+          CALL parser_search_string(parser,label,.TRUE.,found,begin_line=.TRUE.)
+          IF (found) THEN
+             CALL parser_get_object(parser,string)
+             IF (INDEX(string,TRIM(label)) /= 1) CYCLE
+             CALL parser_read_line(parser,1,error=error)
+             DO 
+                CALL parser_get_object(parser,string)
+                CALL uppercase ( string )
+                IF(ANY(string == avail_section)) EXIT
+                CALL parser_get_object(parser,string2)
+                CALL uppercase ( string2 )
+                nbond = nbond + 1
+                CALL reallocate(chm_info%bond_a,1,nbond)
+                CALL reallocate(chm_info%bond_b,1,nbond)
+                CALL reallocate(chm_info%bond_k,1,3,1,nbond)
+                CALL reallocate(chm_info%bond_r0,1,nbond)
+                chm_info%bond_a(nbond) = string
+                chm_info%bond_b(nbond) = string2
+                CALL parser_get_object(parser,chm_info%bond_k(1,nbond))
+                CALL parser_get_object(parser,chm_info%bond_r0(nbond))
+                IF(PM2) WRITE(iw,*) "    CHM BOND ",nbond,&
+                     TRIM(chm_info%bond_a(nbond))," ",&
+                     TRIM(chm_info%bond_b(nbond))," ",&
+                     chm_info%bond_k(1,nbond),&
+                     chm_info%bond_r0(nbond)
+                ! Do some units conversion into internal atomic units
+                CALL convert_to_cp2k_units("ANGSTROM",length=chm_info%bond_r0(nbond))
+                CALL convert_to_cp2k_units("KCAL",energy=chm_info%bond_k(1,nbond))
+                CALL convert_to_cp2k_units("BOHR",length=chm_info%bond_k(1,nbond))
+                CALL convert_to_cp2k_units("BOHR",length=chm_info%bond_k(1,nbond))
+                chm_info%bond_k(1,nbond) = 2.0_dp * chm_info%bond_k(1,nbond)
+                chm_info%bond_k(2,nbond) = 0.0_dp
+                chm_info%bond_k(3,nbond) = 0.0_dp
+                CALL parser_read_line(parser,1,error=error)
+             END DO
+          ELSE
+             EXIT
+          END IF
+       END DO
+       CALL parser_release(parser,error=error)
+    END DO
+    !-----------------------------------------------------------------------------
+    !-----------------------------------------------------------------------------
+    ! 2. Read in all the Bends and UB info from the param file here
+    !      Vangle = Ktheta(theta-theta0)^2
+    !      UNITS for Ktheta: [(kcal/mol)/(rad^2)] to [Eh/(rad^2)]
+    !      FACTOR of "2" rolled into Ktheta
+    !      Vub = Kub(S-S0)^2
+    !      UNITS for Kub: [(kcal/mol)/(A^2)] to [Eh/(AU^2)]
+    !      FACTOR of "2" rolled into Kub
+    !-----------------------------------------------------------------------------    
+    nbend = 0
+    nub = 0
+    DO ilab = 1, SIZE(angl_section)
+       CALL parser_create(parser,ff_type%ff_file_name,comment_char='!',para_env=globenv%para_env)
+       label = TRIM(angl_section(ilab))
+       DO 
+          CALL parser_search_string(parser,label,.TRUE.,found,begin_line=.TRUE.)
+          IF (found) THEN
+             CALL parser_get_object(parser,string)
+             IF (INDEX(string,TRIM(label)) /= 1) CYCLE
+             CALL parser_read_line(parser,1,error=error)
+             DO
+                CALL parser_get_object(parser,string)
+                CALL uppercase ( string )
+                IF(ANY(string == avail_section)) EXIT
+                CALL parser_get_object(parser,string2)
+                CALL parser_get_object(parser,string3)
+                CALL uppercase ( string2 )
+                CALL uppercase ( string3 )
+                nbend = nbend + 1
+                CALL reallocate(chm_info%bend_a,1,nbend)
+                CALL reallocate(chm_info%bend_b,1,nbend)
+                CALL reallocate(chm_info%bend_c,1,nbend)
+                CALL reallocate(chm_info%bend_k,1,nbend)
+                CALL reallocate(chm_info%bend_theta0,1,nbend)
+                chm_info%bend_a(nbend) = string
+                chm_info%bend_b(nbend) = string2
+                chm_info%bend_c(nbend) = string3
+                CALL parser_get_object(parser,chm_info%bend_k(nbend))     
+                CALL parser_get_object(parser,chm_info%bend_theta0(nbend))
+                IF(PM2) WRITE(iw,*) "    CHM BEND ",nbend,&
+                     TRIM(chm_info%bend_a(nbend))," ",&
+                     TRIM(chm_info%bend_b(nbend))," ",&
+                     TRIM(chm_info%bend_c(nbend))," ",&
+                     chm_info%bend_k(nbend),&
+                     chm_info%bend_theta0(nbend)
+                ! Do some units conversion into internal atomic units
+                CALL convert_to_cp2k_units("DEGREE",angle=chm_info%bend_theta0(nbend))
+                CALL convert_to_cp2k_units("KCAL",energy=chm_info%bend_k(nbend))
+                chm_info%bend_k(nbend) = 2.0_dp * chm_info%bend_k(nbend)
+                IF (parser_test_next_token(parser) == "FLT") THEN
+                   nub = nub + 1
+                   CALL reallocate(chm_info%ub_a,1,nub)
+                   CALL reallocate(chm_info%ub_b,1,nub)
+                   CALL reallocate(chm_info%ub_c,1,nub)
+                   CALL reallocate(chm_info%ub_k,1,nub)
+                   CALL reallocate(chm_info%ub_r0,1,nub)
+                   chm_info%ub_a(nub) = string
+                   chm_info%ub_b(nub) = string2
+                   chm_info%ub_c(nub) = string3
+                   CALL parser_get_object(parser,chm_info%ub_k(nub)) 
+                   CALL parser_get_object(parser,chm_info%ub_r0(nub))
+                   IF(PM2) WRITE(iw,*) "    CHM UB ",nub,&
+                        TRIM(chm_info%ub_a(nub))," ",&
+                        TRIM(chm_info%ub_b(nub))," ",&
+                        TRIM(chm_info%ub_c(nub))," ",&
+                        chm_info%ub_k(nub),&
+                        chm_info%ub_r0(nub)
+                   ! Do some units conversion into internal atomic units
+                   CALL convert_to_cp2k_units("ANGSTROM",length=chm_info%ub_r0(nub))
+                   CALL convert_to_cp2k_units("KCAL",energy=chm_info%ub_k(nub))
+                   CALL convert_to_cp2k_units("BOHR",length=chm_info%ub_k(nub))
+                   CALL convert_to_cp2k_units("BOHR",length=chm_info%ub_k(nub))
+                   chm_info%ub_k(nub) = 2.0_dp * chm_info%ub_k(nub)
+                END IF
+                CALL parser_read_line(parser,1,error=error)
+             END DO
+          ELSE
+             EXIT
+          END IF
+       END DO
+       CALL parser_release(parser,error=error)
+    END DO
+    !-----------------------------------------------------------------------------
+    !-----------------------------------------------------------------------------
+    ! 3. Read in all the Dihedrals info from the param file here
+    !      Vtorsion = Kphi(1+COS(n(phi)-delta))
+    !      UNITS for Kphi: [(kcal/mol)] to [Eh]
+    !-----------------------------------------------------------------------------
+    ntorsion = 0
+    DO ilab = 1, SIZE(thet_section)
+       CALL parser_create(parser,ff_type%ff_file_name,comment_char='!',para_env=globenv%para_env)
+       label = TRIM(thet_section(ilab))
+       DO 
+          CALL parser_search_string(parser,label,.TRUE.,found,begin_line=.TRUE.)
+          IF (found) THEN
+             CALL parser_get_object(parser,string)
+             IF (INDEX(string,TRIM(label)) /= 1) CYCLE
+             CALL parser_read_line(parser,1,error=error)
+             DO
+                CALL parser_get_object(parser,string)
+                CALL uppercase ( string )
+                IF(ANY(string == avail_section)) EXIT
+                CALL parser_get_object(parser,string2)
+                CALL parser_get_object(parser,string3)
+                CALL parser_get_object(parser,string4)
+                CALL uppercase ( string2 )
+                CALL uppercase ( string3 )
+                CALL uppercase ( string4 )
+                ntorsion = ntorsion + 1
+                CALL reallocate(chm_info%torsion_a,1,ntorsion)
+                CALL reallocate(chm_info%torsion_b,1,ntorsion)
+                CALL reallocate(chm_info%torsion_c,1,ntorsion)
+                CALL reallocate(chm_info%torsion_d,1,ntorsion)
+                CALL reallocate(chm_info%torsion_k,1,ntorsion)
+                CALL reallocate(chm_info%torsion_m,1,ntorsion)
+                CALL reallocate(chm_info%torsion_cosphi0,1,ntorsion)
+                chm_info%torsion_a(ntorsion) = string
+                chm_info%torsion_b(ntorsion) = string2
+                chm_info%torsion_c(ntorsion) = string3
+                chm_info%torsion_d(ntorsion) = string4
+                CALL parser_get_object(parser,chm_info%torsion_k(ntorsion))      
+                CALL parser_get_object(parser,chm_info%torsion_m(ntorsion))      
+                CALL parser_get_object(parser,chm_info%torsion_cosphi0(ntorsion))
+                IF(PM2) WRITE(iw,*) "    CHM TORSION ",ntorsion,&
+                     TRIM(chm_info%torsion_a(ntorsion))," ",&
+                     TRIM(chm_info%torsion_b(ntorsion))," ",&
+                     TRIM(chm_info%torsion_c(ntorsion))," ",&
+                     TRIM(chm_info%torsion_d(ntorsion))," ",&
+                     chm_info%torsion_k(ntorsion),&
+                     chm_info%torsion_m(ntorsion),&
+                     chm_info%torsion_cosphi0(ntorsion)
+                ! Do some units conversion into internal atomic units
+                CALL convert_to_cp2k_units("DEGREE",&
+                     angle=chm_info%torsion_cosphi0(ntorsion))
+                CALL convert_to_cp2k_units("KCAL",energy=chm_info%torsion_k(ntorsion))
+                chm_info%torsion_cosphi0(ntorsion)=&
+                     COS(chm_info%torsion_cosphi0(ntorsion))
+                CALL parser_read_line(parser,1,error=error)
+             END DO
+          ELSE
+             EXIT
+          END IF
+       END DO
+       CALL parser_release(parser,error=error)
+    END DO
+    !-----------------------------------------------------------------------------
+    !-----------------------------------------------------------------------------
+    ! 4. Read in all the Improper info from the param file here
+    !      Vimpr = Kpsi(psi-psi0)^2
+    !      UNITS for Kpsi: [(kcal/mol)/(rad^2)] to [Eh/(rad^2)]
+    !      FACTOR of "2" rolled into Kpsi
+    !-----------------------------------------------------------------------------
+    nimpr = 0
+    DO ilab = 1, SIZE(impr_section)
+       CALL parser_create(parser,ff_type%ff_file_name,comment_char='!',para_env=globenv%para_env)
+       label = TRIM(impr_section(ilab))
+       DO 
+          CALL parser_search_string(parser,label,.TRUE.,found,begin_line=.TRUE.)
+          IF (found) THEN
+             CALL parser_get_object(parser,string)
+             IF (INDEX(string,TRIM(label)) /= 1) CYCLE
+             CALL parser_read_line(parser,1,error=error)
+             DO
+                CALL parser_get_object(parser,string)
+                CALL uppercase ( string )
+                IF(ANY(string == avail_section)) EXIT
+                CALL parser_get_object(parser,string2)
+                CALL parser_get_object(parser,string3)
+                CALL parser_get_object(parser,string4)
+                CALL uppercase ( string2 )
+                CALL uppercase ( string3 )
+                CALL uppercase ( string4 )
+                nimpr = nimpr + 1
+                CALL reallocate(chm_info%impr_a,1,nimpr)
+                CALL reallocate(chm_info%impr_b,1,nimpr)
+                CALL reallocate(chm_info%impr_c,1,nimpr)
+                CALL reallocate(chm_info%impr_d,1,nimpr)
+                CALL reallocate(chm_info%impr_k,1,nimpr)
+                CALL reallocate(chm_info%impr_phi0,1,nimpr)
+                chm_info%impr_a(nimpr) = string
+                chm_info%impr_b(nimpr) = string2
+                chm_info%impr_c(nimpr) = string3
+                chm_info%impr_d(nimpr) = string4
+                CALL parser_get_object(parser,chm_info%impr_k(nimpr))   
+                CALL parser_get_object(parser,dummy)                    
+                CALL parser_get_object(parser,chm_info%impr_phi0(nimpr))
+                IF(PM2) WRITE(iw,*) "    CHM IMPROPERS ",nimpr,&
+                     TRIM(chm_info%impr_a(nimpr))," ",&
+                     TRIM(chm_info%impr_b(nimpr))," ",&
+                     TRIM(chm_info%impr_c(nimpr))," ",&
+                     TRIM(chm_info%impr_d(nimpr))," ",&
+                     chm_info%impr_k(nimpr),&
+                     chm_info%impr_phi0(nimpr)
+                ! Do some units conversion into internal atomic units
+                CALL convert_to_cp2k_units("DEGREE",angle=chm_info%impr_phi0(nimpr))
+                CALL convert_to_cp2k_units("KCAL",energy=chm_info%impr_k(nimpr))
+                chm_info%impr_k(nimpr) = 2.0_dp * chm_info%impr_k(nimpr)
+                CALL parser_read_line(parser,1,error=error)
+             END DO
+          ELSE
+             EXIT
+          END IF
+       END DO
+       CALL parser_release(parser,error=error)
+    END DO
+    !-----------------------------------------------------------------------------
+    !-----------------------------------------------------------------------------
+    ! 5. Read in all the Nonbonded info from the param file here
+    !-----------------------------------------------------------------------------
+    nnonbond = 0
+    nonfo = 0
+    DO ilab = 1, SIZE(nbon_section)
+       CALL parser_create(parser,ff_type%ff_file_name,comment_char='!',para_env=globenv%para_env)
+       label = TRIM(nbon_section(ilab))
+       DO 
+          CALL parser_search_string(parser,label,.TRUE.,found,begin_line=.TRUE.)
+          IF (found) THEN
+             CALL parser_get_object(parser,string)
+             IF (INDEX(string,TRIM(label)) /= 1) CYCLE
+             CALL parser_read_line(parser,1,error=error)
+             DO
+                CALL parser_get_object(parser,string)
+                CALL uppercase ( string )
+                IF(ANY(string == avail_section)) EXIT
+                nnonbond = nnonbond + 1
+                CALL reallocate(chm_info%nonbond_a,1,nnonbond)
+                CALL reallocate(chm_info%nonbond_eps,1,nnonbond)
+                CALL reallocate(chm_info%nonbond_rmin2,1,nnonbond)
+                chm_info%nonbond_a(nnonbond) = string
+                CALL parser_get_object(parser,chm_info%nonbond_eps(nnonbond))  
+                CALL parser_get_object(parser,chm_info%nonbond_eps(nnonbond))  
+                CALL parser_get_object(parser,chm_info%nonbond_rmin2(nnonbond))
+                IF(PM2) WRITE(iw,*) "    CHM NONBOND ",nnonbond,&
+                     TRIM(chm_info%nonbond_a(nnonbond))," ",&
+                     chm_info%nonbond_eps(nnonbond),&
+                     chm_info%nonbond_rmin2(nnonbond)
+                CALL convert_to_cp2k_units("ANGSTROM",&
+                     length=chm_info%nonbond_rmin2(nnonbond))
+                CALL convert_to_cp2k_units("KCAL",&
+                     energy=chm_info%nonbond_eps(nnonbond))
+                IF (parser_test_next_token(parser) == "FLT") THEN
+                   nonfo = nonfo + 1
+                   CALL reallocate(chm_info%nonbond_a_14,1,nonfo)
+                   CALL reallocate(chm_info%nonbond_eps_14,1,nonfo)
+                   CALL reallocate(chm_info%nonbond_rmin2_14,1,nonfo)
+                   chm_info%nonbond_a_14(nonfo) = chm_info%nonbond_a(nnonbond)
+                   CALL parser_get_object(parser,chm_info%nonbond_eps_14(nonfo))  
+                   CALL parser_get_object(parser,chm_info%nonbond_eps_14(nonfo))  
+                   CALL parser_get_object(parser,chm_info%nonbond_rmin2_14(nonfo))
+                   IF(PM2) WRITE(iw,*) "    CHM ONFO ",nonfo,&
+                        TRIM(chm_info%nonbond_a_14(nonfo))," ",&
+                        chm_info%nonbond_eps_14(nonfo),&
+                        chm_info%nonbond_rmin2_14(nonfo)
+                   CALL convert_to_cp2k_units("ANGSTROM",&
+                        length=chm_info%nonbond_rmin2_14(nonfo))
+                   CALL convert_to_cp2k_units("KCAL",&
+                        energy=chm_info%nonbond_eps_14(nonfo))
+                END IF
+                CALL parser_read_line(parser,1,error=error)
+             END DO
+          ELSE
+             EXIT
+          END IF
+       END DO
+       CALL parser_release(parser,error=error)
+    END DO
+    IF(PM1) WRITE(iw,*) "    Exiting  read_force_field_charmm"
 
-  IF(PM1) WRITE(iw,*) "    Entering read_force_field_charmm"
-
-  chm_info => ff_type%chm_info
-  CALL parser_init(ff_type%ff_file_name,globenv)
-
-  !-----------------------------------------------------------------------------
-  !-----------------------------------------------------------------------------
-  ! 1. Read in all the Bonds info from the param file here
-  !      Vbond = Kb(b-b0)^2
-  !      UNITS for Kb: [(kcal/mol)/(A^2)] to [Eh/(AU^2)]
-  !      FACTOR of "2" rolled into Kb
-  !-----------------------------------------------------------------------------
-  nbond = 0
-  label = 'BONDS'
-  CALL search_label ( label, istat, ignore_case=.TRUE. )
-  IF (istat == 0) THEN
-     CALL read_line
-     DO WHILE (test_next()/='X')
-       ilen = 7
-       CALL get_next(string,ilen)
-       CALL uppercase ( string )
-       IF(string == "ANGLES") EXIT
-       CALL get_next(string2,ilen)
-       CALL uppercase ( string2 )
-       nbond = nbond + 1
-       CALL reallocate(chm_info%bond_a,1,nbond)
-       CALL reallocate(chm_info%bond_b,1,nbond)
-       CALL reallocate(chm_info%bond_k,1,3,1,nbond)
-       CALL reallocate(chm_info%bond_r0,1,nbond)
-       chm_info%bond_a(nbond) = string
-       chm_info%bond_b(nbond) = string2
-       CALL get_next(chm_info%bond_k(1,nbond))
-       CALL get_next(chm_info%bond_r0(nbond))
-       IF(PM2) WRITE(iw,*) "    CHM BOND ",nbond,&
-                           TRIM(chm_info%bond_a(nbond))," ",&
-                           TRIM(chm_info%bond_b(nbond))," ",&
-                           chm_info%bond_k(1,nbond),&
-                           chm_info%bond_r0(nbond)
-       ! Do some units conversion into internal atomic units
-       CALL convert_to_cp2k_units("ANGSTROM",length=chm_info%bond_r0(nbond))
-       CALL convert_to_cp2k_units("KCAL",energy=chm_info%bond_k(1,nbond))
-       CALL convert_to_cp2k_units("BOHR",length=chm_info%bond_k(1,nbond))
-       CALL convert_to_cp2k_units("BOHR",length=chm_info%bond_k(1,nbond))
-       chm_info%bond_k(1,nbond) = 2.0_dp * chm_info%bond_k(1,nbond)
-       chm_info%bond_k(2,nbond) =0.0_dp
-       chm_info%bond_k(3,nbond) =0.0_dp
-       CALL read_line
-     END DO
-  END IF
-
-  !-----------------------------------------------------------------------------
-  !-----------------------------------------------------------------------------
-  ! 2. Read in all the Bends and UB info from the param file here
-  !      Vangle = Ktheta(theta-theta0)^2
-  !      UNITS for Ktheta: [(kcal/mol)/(rad^2)] to [Eh/(rad^2)]
-  !      FACTOR of "2" rolled into Ktheta
-  !      Vub = Kub(S-S0)^2
-  !      UNITS for Kub: [(kcal/mol)/(A^2)] to [Eh/(AU^2)]
-  !      FACTOR of "2" rolled into Kub
-  !-----------------------------------------------------------------------------
-  nbend = 0
-  nub = 0
-  label = 'ANGLES'
-  CALL search_label ( label, istat, ignore_case=.TRUE. )
-  IF (istat == 0) THEN
-     CALL read_line
-     DO WHILE (test_next()/='X')
-       ilen = 7
-       CALL get_next(string,ilen)
-       CALL uppercase ( string )
-       IF(string == "DIHEDRA") EXIT
-       CALL get_next(string2,ilen)
-       CALL get_next(string3,ilen)
-       CALL uppercase ( string2 )
-       CALL uppercase ( string3 )
-       nbend = nbend + 1
-       CALL reallocate(chm_info%bend_a,1,nbend)
-       CALL reallocate(chm_info%bend_b,1,nbend)
-       CALL reallocate(chm_info%bend_c,1,nbend)
-       CALL reallocate(chm_info%bend_k,1,nbend)
-       CALL reallocate(chm_info%bend_theta0,1,nbend)
-       chm_info%bend_a(nbend) = string
-       chm_info%bend_b(nbend) = string2
-       chm_info%bend_c(nbend) = string3
-       CALL get_next(chm_info%bend_k(nbend))
-       CALL get_next(chm_info%bend_theta0(nbend))
-       IF(PM2) WRITE(iw,*) "    CHM BEND ",nbend,&
-                           TRIM(chm_info%bend_a(nbend))," ",&
-                           TRIM(chm_info%bend_b(nbend))," ",&
-                           TRIM(chm_info%bend_c(nbend))," ",&
-                           chm_info%bend_k(nbend),&
-                           chm_info%bend_theta0(nbend)
-       ! Do some units conversion into internal atomic units
-       CALL convert_to_cp2k_units("DEGREE",angle=chm_info%bend_theta0(nbend))
-       CALL convert_to_cp2k_units("KCAL",energy=chm_info%bend_k(nbend))
-       chm_info%bend_k(nbend) = 2.0_dp * chm_info%bend_k(nbend)
-       IF (test_next()=='N') THEN
-         nub = nub + 1
-         CALL reallocate(chm_info%ub_a,1,nub)
-         CALL reallocate(chm_info%ub_b,1,nub)
-         CALL reallocate(chm_info%ub_c,1,nub)
-         CALL reallocate(chm_info%ub_k,1,nub)
-         CALL reallocate(chm_info%ub_r0,1,nub)
-         chm_info%ub_a(nub) = string
-         chm_info%ub_b(nub) = string2
-         chm_info%ub_c(nub) = string3
-         CALL get_next(chm_info%ub_k(nub))
-         CALL get_next(chm_info%ub_r0(nub))
-         IF(PM2) WRITE(iw,*) "    CHM UB ",nub,&
-                             TRIM(chm_info%ub_a(nub))," ",&
-                             TRIM(chm_info%ub_b(nub))," ",&
-                             TRIM(chm_info%ub_c(nub))," ",&
-                             chm_info%ub_k(nub),&
-                             chm_info%ub_r0(nub)
-         ! Do some units conversion into internal atomic units
-         CALL convert_to_cp2k_units("ANGSTROM",length=chm_info%ub_r0(nub))
-         CALL convert_to_cp2k_units("KCAL",energy=chm_info%ub_k(nub))
-         CALL convert_to_cp2k_units("BOHR",length=chm_info%ub_k(nub))
-         CALL convert_to_cp2k_units("BOHR",length=chm_info%ub_k(nub))
-         chm_info%ub_k(nub) = 2.0_dp * chm_info%ub_k(nub)
-       END IF
-       CALL read_line
-     END DO
-  END IF
-
-
-  !-----------------------------------------------------------------------------
-  !-----------------------------------------------------------------------------
-  ! 3. Read in all the Dihedrals info from the param file here
-  !      Vtorsion = Kphi(1+COS(n(phi)-delta))
-  !      UNITS for Kphi: [(kcal/mol)] to [Eh]
-  !-----------------------------------------------------------------------------
-  ntorsion = 0
-  label = 'DIHEDRALS'
-  CALL search_label ( label, istat, ignore_case=.TRUE. )
-  IF (istat == 0) THEN
-     CALL read_line
-     DO WHILE (test_next()/='X')
-       ilen = 7
-       CALL get_next(string,ilen)
-       CALL uppercase ( string )
-       IF(string == "IMPROPE") EXIT
-       CALL get_next(string2,ilen)
-       CALL get_next(string3,ilen)
-       CALL get_next(string4,ilen)
-       CALL uppercase ( string2 )
-       CALL uppercase ( string3 )
-       CALL uppercase ( string4 )
-       ntorsion = ntorsion + 1
-       CALL reallocate(chm_info%torsion_a,1,ntorsion)
-       CALL reallocate(chm_info%torsion_b,1,ntorsion)
-       CALL reallocate(chm_info%torsion_c,1,ntorsion)
-       CALL reallocate(chm_info%torsion_d,1,ntorsion)
-       CALL reallocate(chm_info%torsion_k,1,ntorsion)
-       CALL reallocate(chm_info%torsion_m,1,ntorsion)
-       CALL reallocate(chm_info%torsion_cosphi0,1,ntorsion)
-       chm_info%torsion_a(ntorsion) = string
-       chm_info%torsion_b(ntorsion) = string2
-       chm_info%torsion_c(ntorsion) = string3
-       chm_info%torsion_d(ntorsion) = string4
-       CALL get_next(chm_info%torsion_k(ntorsion))
-       CALL get_next(chm_info%torsion_m(ntorsion))
-       CALL get_next(chm_info%torsion_cosphi0(ntorsion))
-       IF(PM2) WRITE(iw,*) "    CHM TORSION ",ntorsion,&
-                           TRIM(chm_info%torsion_a(ntorsion))," ",&
-                           TRIM(chm_info%torsion_b(ntorsion))," ",&
-                           TRIM(chm_info%torsion_c(ntorsion))," ",&
-                           TRIM(chm_info%torsion_d(ntorsion))," ",&
-                           chm_info%torsion_k(ntorsion),&
-                           chm_info%torsion_m(ntorsion),&
-                           chm_info%torsion_cosphi0(ntorsion)
-       ! Do some units conversion into internal atomic units
-       CALL convert_to_cp2k_units("DEGREE",&
-                                  angle=chm_info%torsion_cosphi0(ntorsion))
-       CALL convert_to_cp2k_units("KCAL",energy=chm_info%torsion_k(ntorsion))
-       chm_info%torsion_cosphi0(ntorsion)=&
-                                  COS(chm_info%torsion_cosphi0(ntorsion))
-       CALL read_line
-     END DO
-  END IF
-
-
-  !-----------------------------------------------------------------------------
-  !-----------------------------------------------------------------------------
-  ! 4. Read in all the Improper info from the param file here
-  !      Vimpr = Kpsi(psi-psi0)^2
-  !      UNITS for Kpsi: [(kcal/mol)/(rad^2)] to [Eh/(rad^2)]
-  !      FACTOR of "2" rolled into Kpsi
-  !-----------------------------------------------------------------------------
-  nimpr = 0
-  label = 'IMPROPER'
-  CALL search_label ( label, istat, ignore_case=.TRUE. )
-  IF (istat == 0) THEN
-     CALL read_line
-     DO WHILE (test_next()/='X')
-       ilen = 7
-       CALL get_next(string,ilen)
-       CALL uppercase ( string )
-       IF(string == "NONBOND") EXIT
-       CALL get_next(string2,ilen)
-       CALL get_next(string3,ilen)
-       CALL get_next(string4,ilen)
-       CALL uppercase ( string2 )
-       CALL uppercase ( string3 )
-       CALL uppercase ( string4 )
-       nimpr = nimpr + 1
-       CALL reallocate(chm_info%impr_a,1,nimpr)
-       CALL reallocate(chm_info%impr_b,1,nimpr)
-       CALL reallocate(chm_info%impr_c,1,nimpr)
-       CALL reallocate(chm_info%impr_d,1,nimpr)
-       CALL reallocate(chm_info%impr_k,1,nimpr)
-       CALL reallocate(chm_info%impr_phi0,1,nimpr)
-       chm_info%impr_a(nimpr) = string
-       chm_info%impr_b(nimpr) = string2
-       chm_info%impr_c(nimpr) = string3
-       chm_info%impr_d(nimpr) = string4
-       CALL get_next(chm_info%impr_k(nimpr))
-       CALL get_next(dummy)
-       CALL get_next(chm_info%impr_phi0(nimpr))
-       IF(PM2) WRITE(iw,*) "    CHM IMPROPERS ",nimpr,&
-                           TRIM(chm_info%impr_a(nimpr))," ",&
-                           TRIM(chm_info%impr_b(nimpr))," ",&
-                           TRIM(chm_info%impr_c(nimpr))," ",&
-                           TRIM(chm_info%impr_d(nimpr))," ",&
-                           chm_info%impr_k(nimpr),&
-                           chm_info%impr_phi0(nimpr)
-       ! Do some units conversion into internal atomic units
-       CALL convert_to_cp2k_units("DEGREE",angle=chm_info%impr_phi0(nimpr))
-       CALL convert_to_cp2k_units("KCAL",energy=chm_info%impr_k(nimpr))
-       chm_info%impr_k(nimpr) = 2.0_dp * chm_info%impr_k(nimpr)
-       CALL read_line
-     END DO
-  END IF
-
-
-  !-----------------------------------------------------------------------------
-  !-----------------------------------------------------------------------------
-  ! 5. Read in all the Nonbonded info from the param file here
-  !-----------------------------------------------------------------------------
-  nnonbond = 0
-  nonfo = 0
-  label = 'NONBONDED'
-  CALL search_label ( label, istat )
-  IF (istat == 0) THEN
-     CALL read_line
-     DO WHILE (test_next()/='X')
-       ilen = 7
-       CALL get_next(string,ilen)
-       CALL uppercase ( string )
-       IF(string == "HBOND".OR.string == "END") EXIT
-       nnonbond = nnonbond + 1
-       CALL reallocate(chm_info%nonbond_a,1,nnonbond)
-       CALL reallocate(chm_info%nonbond_eps,1,nnonbond)
-       CALL reallocate(chm_info%nonbond_rmin2,1,nnonbond)
-       chm_info%nonbond_a(nnonbond) = string
-       CALL get_next(chm_info%nonbond_eps(nnonbond))
-       CALL get_next(chm_info%nonbond_eps(nnonbond))
-       CALL get_next(chm_info%nonbond_rmin2(nnonbond))
-       IF(PM2) WRITE(iw,*) "    CHM NONBOND ",nnonbond,&
-                           TRIM(chm_info%nonbond_a(nnonbond))," ",&
-                           chm_info%nonbond_eps(nnonbond),&
-                           chm_info%nonbond_rmin2(nnonbond)
-       CALL convert_to_cp2k_units("ANGSTROM",&
-                                  length=chm_info%nonbond_rmin2(nnonbond))
-       CALL convert_to_cp2k_units("KCAL",&
-                                  energy=chm_info%nonbond_eps(nnonbond))
-       IF (test_next()=='N') THEN
-         nonfo = nonfo + 1
-         CALL reallocate(chm_info%nonbond_a_14,1,nonfo)
-         CALL reallocate(chm_info%nonbond_eps_14,1,nonfo)
-         CALL reallocate(chm_info%nonbond_rmin2_14,1,nonfo)
-         chm_info%nonbond_a_14(nonfo) = chm_info%nonbond_a(nnonbond)
-         CALL get_next(chm_info%nonbond_eps_14(nonfo))
-         CALL get_next(chm_info%nonbond_eps_14(nonfo))
-         CALL get_next(chm_info%nonbond_rmin2_14(nonfo))
-         IF(PM2) WRITE(iw,*) "    CHM ONFO ",nonfo,&
-                             TRIM(chm_info%nonbond_a_14(nonfo))," ",&
-                             chm_info%nonbond_eps_14(nonfo),&
-                             chm_info%nonbond_rmin2_14(nonfo)
-         CALL convert_to_cp2k_units("ANGSTROM",&
-                                  length=chm_info%nonbond_rmin2_14(nonfo))
-         CALL convert_to_cp2k_units("KCAL",&
-                                  energy=chm_info%nonbond_eps_14(nonfo))
-       END IF
-       CALL read_line
-     END DO
-  END IF
-
-  CALL parser_end
-
-  IF(PM1) WRITE(iw,*) "    Exiting  read_force_field_charmm"
-
-!------------------------------------------------------------------------------
-!------------------------------------------------------------------------------
-END SUBROUTINE read_force_field_charmm
+  END SUBROUTINE read_force_field_charmm
 
 !******************************************************************************
 !!****** force_field_util/force_field_pack [1.0] *

@@ -323,7 +323,7 @@ SUBROUTINE connectivity_control(topology,globenv,qmmm,qmmm_env,error)
   !-----------------------------------------------------------------------------
   SELECT CASE (topology%conn_type)
   CASE (do_conn_psf)
-    CALL read_topology_psf(topology,globenv)
+    CALL read_topology_psf(topology,globenv,error)
     CALL topology_generate_molecule(topology,my_qmmm,qmmm_env,globenv,error)
     IF(topology%molecules_check) &
       CALL topology_molecules_check(topology,globenv)
