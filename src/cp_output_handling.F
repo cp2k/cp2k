@@ -384,6 +384,7 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: print_key
     
     failure=.false.
+    res=0
     CPPrecondition(ASSOCIATED(basis_section),cp_failure_level,routineP,error,failure)
     CPPrecondition(basis_section%ref_count>0,cp_failure_level,routineP,error,failure)
     if (present(used_print_key)) nullify(used_print_key)
