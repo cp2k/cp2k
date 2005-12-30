@@ -604,9 +604,9 @@ CONTAINS
        nmax2  = NINT(0.25_dp + cell%hmat(2,2)*alpha*tol1/pi)
        nmax3  = NINT(0.25_dp + cell%hmat(3,3)*alpha*tol1/pi)
        
-       rmax1  = NINT(rcut/cell%hmat(1,1))
-       rmax2  = NINT(rcut/cell%hmat(2,2))
-       rmax3  = NINT(rcut/cell%hmat(3,3))
+       rmax1  = CEILING(rcut/cell%hmat(1,1))
+       rmax2  = CEILING(rcut/cell%hmat(2,2))
+       rmax3  = CEILING(rcut/cell%hmat(3,3))
        fac    = 1.d0/cell%deth
        fac2   = 1.0_dp / ( 4.0_dp * pi * eps0 )
        fac3   = fac/8.0_dp

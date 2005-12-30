@@ -166,10 +166,10 @@ CONTAINS
        nmax1  = NINT(0.25_dp + cell%hmat(1,1)*alpha*tol1/pi)
        nmax2  = NINT(0.25_dp + cell%hmat(2,2)*alpha*tol1/pi)
        nmax3  = NINT(0.25_dp + cell%hmat(3,3)*alpha*tol1/pi)
-       
-       rmax1  = NINT(rcut/cell%hmat(1,1))
-       rmax2  = NINT(rcut/cell%hmat(2,2))
-       rmax3  = NINT(rcut/cell%hmat(3,3))
+
+       rmax1  = CEILING(rcut/cell%hmat(1,1))
+       rmax2  = CEILING(rcut/cell%hmat(2,2))
+       rmax3  = CEILING(rcut/cell%hmat(3,3))
 
        ALLOCATE(d_el(3,SIZE(particle_set)), stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
