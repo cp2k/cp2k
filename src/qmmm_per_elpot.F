@@ -36,7 +36,11 @@ MODULE qmmm_per_elpot
                                              cp_to_string,&
                                              cp_warning_level,&
                                              cp_logger_type
-  USE cp_output_handling, ONLY: cp_print_key_should_output, cp_p_file
+  USE cp_output_handling,              ONLY: cp_print_key_should_output,&
+                                             cp_p_file,&
+                                             cp_print_key_unit_nr,&
+                                             cp_print_key_finished_output
+  USE cp_para_types,                   ONLY: cp_para_env_type
   USE kinds,                           ONLY: default_string_length,&
                                              dp
   USE timings,                         ONLY: timeset,&
@@ -49,17 +53,24 @@ MODULE qmmm_per_elpot
                                              qmmm_pot_p_type,&
                                              qmmm_pot_type
   USE qs_util,                         ONLY: exp_radius  
-  USE simulation_cell,                 ONLY: cell_type  
-  USE memory_utilities,                ONLY: reallocate
+  USE simulation_cell,                 ONLY: cell_type
   USE global_types,                    ONLY: global_environment_type
   USE erf_fn,                          ONLY: erf
   USE mathconstants,                   ONLY: rootpi, pi
-  USE input_constants,                 ONLY: do_qmmm_grid, do_qmmm_gauss, do_qmmm_none
+  USE input_constants,                 ONLY: do_qmmm_grid,&
+                                             do_qmmm_gauss,&
+                                             do_qmmm_none
   USE particle_types,                  ONLY: particle_type
-  USE input_section_types, ONLY: section_type, section_create, &
-       section_add_keyword, section_add_subsection, section_release,&
-       section_vals_type,&
-       section_vals_get_subs_vals, section_vals_get, section_vals_val_get  
+  USE input_section_types,             ONLY: section_type,&
+                                             section_create,&
+                                             section_add_keyword,&
+                                             section_add_subsection,&
+                                             section_release,&
+                                             section_vals_type,&
+                                             section_vals_get_subs_vals,&
+                                             section_vals_get,&
+                                             section_vals_val_get  
+  USE ewald_spline_util,               ONLY: Setup_Ewald_Spline
 
   IMPLICIT NONE
   PRIVATE
@@ -120,7 +131,7 @@ CONTAINS
     INTEGER       :: n_rep_real(3), n_rep_real_val, Kmax(3), ig_start, iz, iy, ix, stat, K, ig, I, iw
     INTEGER       :: Ndim, idim, ncoarsel, ncoarset
     INTEGER,        DIMENSION(:), POINTER    :: mm_atom_index
-    REAL(KIND=dp), DIMENSION(:), POINTER :: Lg, gx, gy, gz
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: Lg, gx, gy, gz
     TYPE(cp_logger_type), POINTER            :: logger
 
     NULLIFY(Lg, gx, gy, gz)
@@ -224,6 +235,7 @@ CONTAINS
              n_rep_real(2) = CEILING(( box(2) + mymaxradius ) / mm_cell%hmat(2,2))
              n_rep_real(3) = CEILING(( box(3) + mymaxradius ) / mm_cell%hmat(3,3))
           END IF
+
        CASE DEFAULT
           DEALLOCATE(per_potentials(K)%Pot)
           CPPostcondition(stat==0,cp_fatal_level,routineP,error,failure)
@@ -241,7 +253,9 @@ CONTAINS
                per_potentials(K)%Pot%gx, per_potentials(K)%Pot%gy, per_potentials(K)%Pot%gz)
        CALL qmmm_per_pot_type_create(per_potentials(K)%Pot, LG=LG, gx=gx, gy=gy, gz=gz,&
                                      Gmax=Gmax, Kmax=Kmax, n_rep_real=n_rep_real,&
-                                     Fac=Fac, mm_atom_index=mm_atom_index)
+                                     Fac=Fac, mm_atom_index=mm_atom_index, &
+                                     qm_cell=qm_cell_small, mm_cell=mm_cell, globenv=globenv,&
+                                     error=error)
 
        IF (BTEST(cp_print_key_should_output(logger%iter_info,print_pot,error=error),&
             cp_p_file).AND.logger%para_env%mepos==logger%para_env%source) THEN
@@ -289,24 +303,60 @@ CONTAINS
 !!     09.2004 created [tlaino]
 !!
 !!*** ********************************************************************** 
-  SUBROUTINE qmmm_per_pot_type_create(Pot, LG, gx, gy, gz, GMax, Kmax, n_rep_real, Fac, mm_atom_index)
+  SUBROUTINE qmmm_per_pot_type_create(Pot, LG, gx, gy, gz, GMax, Kmax, n_rep_real,&
+       Fac, mm_atom_index, qm_cell, mm_cell, globenv, error)
     IMPLICIT NONE
+    ! Arguments
     TYPE(qmmm_per_pot_type), POINTER :: Pot
     REAL(KIND=dp), DIMENSION(:), POINTER :: LG, gx, gy, gz
     REAL(KIND=dp), INTENT(IN) :: Gmax, Fac(3)
     INTEGER, INTENT(IN) :: Kmax(3), n_rep_real(3)
     INTEGER, DIMENSION(:), POINTER :: mm_atom_index
-    
-    Pot%LG            => LG
-    Pot%gx            => gx
-    Pot%gy            => gy
-    Pot%gz            => gz
-    Pot%mm_atom_index => mm_atom_index
-    Pot%Gmax          =  Gmax
-    Pot%Kmax          =  Kmax
-    Pot%n_rep_real    =  n_rep_real
-    Pot%Fac           =  Fac
+    TYPE(cell_type), POINTER                         :: mm_cell, qm_cell
+    TYPE(cp_error_type), INTENT(inout), &
+         OPTIONAL                                    :: error
+    TYPE(global_environment_type), POINTER           :: globenv
+    ! Local Variables
+    CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_per_pot_type_create', &
+      routineP = moduleN//':'//routineN
+    REAL(KIND=dp)                                    :: hmat(3,3)
+    INTEGER                                          :: npts(3)
+    LOGICAL                                          :: failure 
+    INTEGER, POINTER, DIMENSION(:)                   :: ngrids
+    TYPE(section_vals_type), POINTER                 :: param_section
+
+    failure = .FALSE.
+    IF (.NOT.failure) THEN
+       Pot%LG            => LG
+       Pot%gx            => gx
+       Pot%gy            => gy
+       Pot%gz            => gz
+       Pot%mm_atom_index => mm_atom_index
+       Pot%Gmax          =  Gmax
+       Pot%Kmax          =  Kmax
+       Pot%n_rep_real    =  n_rep_real
+       Pot%Fac           =  Fac
+       !
+       ! Setting Up Fit Procedure
+       !
+       NULLIFY(Pot%pw_grid)
+       NULLIFY(Pot%pw_pool)
+       NULLIFY(Pot%TabLR, ngrids, param_section)
+       param_section =>  section_vals_get_subs_vals(globenv%input_file,&
+            "FORCE_EVAL%QMMM%PERIODIC",error=error)
+       CALL section_vals_val_get(param_section,"ngrids", i_vals=ngrids, error=error)       
+       npts =  ngrids
+       hmat =  mm_cell%hmat
+
+       CALL Setup_Ewald_Spline(pw_grid=Pot%pw_grid, pw_pool=Pot%pw_pool, coeff=Pot%TabLR,&
+            LG=LG, gx=gx, gy=gy, gz=gz, hmat=hmat, npts=npts, param_section=param_section,&
+            tag="qmmm",globenv=globenv, error=error)
+
+    END IF
 
   END SUBROUTINE qmmm_per_pot_type_create
 
 END MODULE qmmm_per_elpot
+
+
+

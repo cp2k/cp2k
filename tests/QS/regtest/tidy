@@ -8,6 +8,7 @@ rm -f .ener .xyz .vel .dat \
  *.cube\
  *.dipole\
  *.hmc\
+ *.*Log\
  RESTART \
  HESSIAN \
  bfgs.data\
@@ -23,6 +24,7 @@ rm -f .ener .xyz .vel .dat \
  RESTARTFARM\
  S_MAGNITUDE\
  bfgs.data\
+ dir1/PROJECT.out\
  dir1/FARMING_OUT_00001\
  dir1/FARMING_OUT_00002\
  dir1/HOMO_CENTERS_1\

@@ -72,7 +72,8 @@ MODULE qmmm_methods
                                              pw_pools_create_pws,&
                                              pw_pools_give_back_pws
   USE pw_spline_utils,                 ONLY: pw_prolongate_s3,&
-                                             pw_restrict_s3
+                                             pw_restrict_s3,&
+                                             Eval_d_Interp_Spl3_pbc
   USE pw_types,                        ONLY: REALDATA3D,&
                                              REALSPACE,&
                                              pw_restrict_l_NoPBC,&
@@ -168,7 +169,6 @@ CONTAINS
     TYPE(qs_ks_qmmm_env_type), POINTER       :: ks_qmmm_env_loc
     TYPE(qs_rho_type), POINTER               :: rho
     TYPE(section_vals_type), POINTER         :: input_section, interp_section, print_section
-    TYPE(section_vals_type), POINTER         :: fitcharge_section 
     TYPE(cp_logger_type), POINTER :: logger
 
     CALL timeset(routineN,"I","",handle)
@@ -364,7 +364,7 @@ CONTAINS
     ! Local Variables
     CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_forces_on_grid', &
       routineP = moduleN//':'//routineN
-    INTEGER                                  :: handle, stat
+    INTEGER                                  :: handle
     LOGICAL                                  :: failure
 
     failure = .FALSE.
@@ -923,7 +923,7 @@ CONTAINS
 
     IF (periodic) THEN
        CALL qmmm_forces_with_gaussian_LG  (pgfs=pgfs,&
-                                           grid=grids(coarser_grid)%pw,&
+                                           cgrid=grids(coarser_grid)%pw,&
                                            num_mm_atoms=num_mm_atoms,&
                                            mm_charges=mm_charges,&
                                            mm_atom_index=mm_atom_index,&
@@ -983,13 +983,13 @@ CONTAINS
 !!     08.2004 created [tlaino]
 !!
 !!*************************************************************************
-  SUBROUTINE qmmm_forces_with_gaussian_LG  (pgfs,grid,num_mm_atoms,mm_charges,mm_atom_index,&
+  SUBROUTINE qmmm_forces_with_gaussian_LG  (pgfs,cgrid,num_mm_atoms,mm_charges,mm_atom_index,&
                                             mm_particles,mm_el_pot_radius,para_env,&
                                             coarser_grid_level,Forces, per_potentials,&
                                             aug_pools, mm_cell, dOmmOqm, iw, error)
     TYPE(qmmm_gaussian_p_type), &
       DIMENSION(:), POINTER                  :: pgfs
-    TYPE(pw_type), POINTER                   :: grid
+    TYPE(pw_type), POINTER                   :: cgrid
     REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: dOmmOqm
     INTEGER, INTENT(IN)                      :: num_mm_atoms
     REAL(KIND=dp), DIMENSION(:), POINTER     :: mm_charges
@@ -1012,46 +1012,60 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_forces_with_gaussian_LG', &
       routineP = moduleN//':'//routineN    
 
-    INTEGER                                  :: handle, i, Imm, IndMM, &
-                                                IRadTyp, ix, j, k, LIndMM, &
-                                                my_i, my_j, my_k, n1, n2, n3, &
-                                                stat, kg
+    INTEGER                                  :: handle, Imm, IndMM, &
+                                                IRadTyp, i, j, k, LIndMM, &
+                                                my_i, my_j, my_k,  &
+                                                stat
     INTEGER, DIMENSION(2, 3)                 :: bo, gbo
     LOGICAL                                  :: failure
-    REAL(KIND=dp)                            :: dr1, dr2, dr3, dvol, fac, &
-                                                ft1, ft2, ft3, qt, r, r2, &
+    REAL(KIND=dp)                            :: dr1c, dr2c, dr3c, dvol, fac, &
+                                                ft1, ft2, ft3, qt, &
                                                 rt1, rt2, rt3, rv1, rv2, rv3, &
-                                                rx, rx2, Term, xs1, xs2, xs3, &
-                                                ft1l, ft2l, ft3l
+                                                xs1, xs2, xs3
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: LForces
-    REAL(KIND=dp), DIMENSION(3)              :: ra, vec
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: Lg, gx, gy, gz
+    REAL(KIND=dp), DIMENSION(3)              :: ra, vec, val
     TYPE(qmmm_per_pot_type), POINTER         :: per_pot
-
-! Statements
+    INTEGER       :: ivec(3), npts(3)
+    INTEGER       :: ik1, ik2, ik3, ik4, ij1, ij2, ij3, ij4, ii1, ii2, ii3, ii4
+    REAL(KIND=dp) :: dr1, dr2, dr3, xd1, xd2, xd3, dr1i, dr2i, dr3i
+    REAL(KIND=dp) :: aaa, aba, aca, ada, aab, abb, acb, adb, aac, abc, acc, adc, aad, abd, acd, add   
+    REAL(KIND=dp) :: baa, bba, bca, bda, bab, bbb, bcb, bdb, bac, bbc, bcc, bdc, bad, bbd, bcd, bdd 
+    REAL(KIND=dp) :: caa, cba, cca, cda, cab, cbb, ccb, cdb, cac, cbc, ccc, cdc, cad, cbd, ccd, cdd 
+    REAL(KIND=dp) :: daa, dba, dca, dda, dab, dbb, dcb, ddb, dac, dbc, dcc, ddc, dad, dbd, dcd, ddd 
+    REAL(KIND=dp) :: a1, a2, a3, b1, b2, b3, c1, c2, c3, d1, d2, d3, t1o, t2o, t3o, t4o
+    REAL(KIND=dp) :: t1d, t2d, t3d, t4d, t1, t2, t3, t4
+    REAL(KIND=dp) :: e1, e2, e3, f1, f2, f3, g1, g2, g3, h1, h2, h3, s1o, s2o, s3o, s4o
+    REAL(KIND=dp) :: s1d, s2d, s3d, s4d, s1, s2, s3, s4
+    REAL(KIND=dp) :: p1, p2, p3, q1, q2, q3, r1, r2, r3, u1, u2, u3, v1o, v2o, v3o, v4o
+    REAL(KIND=dp) :: v1d, v2d, v3d, v4d, v1, v2, v3, v4
+    REAL(KIND=dp), DIMENSION(:,:,:), POINTER    :: grid
+    TYPE(pw_type), POINTER                      :: pw
+    ! Statements
 
     CALL timeset(routineN,"I","",handle)
-
+    NULLIFY(grid)
     ALLOCATE(LForces(num_mm_atoms,3), stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     LForces = 0.0_dp
-    n1   = grid%pw_grid%npts(1)
-    n2   = grid%pw_grid%npts(2)
-    n3   = grid%pw_grid%npts(3)
-    dr1  = grid%pw_grid%dr(1) 
-    dr2  = grid%pw_grid%dr(2) 
-    dr3  = grid%pw_grid%dr(3) 
-    dvol = grid%pw_grid%dvol
-    bo   = grid%pw_grid%bounds_local
-    gbo  = grid%pw_grid%bounds
+    dr1c  = cgrid%pw_grid%dr(1) 
+    dr2c  = cgrid%pw_grid%dr(2) 
+    dr3c  = cgrid%pw_grid%dr(3) 
+    dvol  = cgrid%pw_grid%dvol
+    bo    = cgrid%pw_grid%bounds_local
+    gbo   = cgrid%pw_grid%bounds
 
     Radius: DO IRadTyp = 1, SIZE(pgfs) 
        per_pot => per_potentials(IRadTyp)%pot
-       Lg => per_pot%Lg
-       gx => per_pot%gx
-       gy => per_pot%gy
-       gz => per_pot%gz       
+       pw => per_pot%TabLR
+       npts = pw%pw_grid%npts
+       dr1  = pw%pw_grid%dr(1)
+       dr2  = pw%pw_grid%dr(2)
+       dr3  = pw%pw_grid%dr(3)
+       dr1i = 1.0_dp / dr1
+       dr2i = 1.0_dp / dr2
+       dr3i = 1.0_dp / dr3
+       grid => pw%cr3d(:,:,:)
        Atoms: DO Imm = 1, SIZE(per_pot%mm_atom_index)
           LIndMM    =   per_pot%mm_atom_index(Imm)
           IndMM     =   mm_atom_index(LIndMM)
@@ -1066,34 +1080,256 @@ CONTAINS
           ft3 = 0.0_dp
           LoopOnGrid: DO k = bo(1,3), bo(2,3)
              my_k = k-gbo(1,3)
-             xs3  = REAL(my_k,dp)*dr3
+             xs3  = REAL(my_k,dp)*dr3c
              my_j = bo(1,2)-gbo(1,2)
-             xs2 = REAL(my_j,dp)*dr2
+             xs2 = REAL(my_j,dp)*dr2c
              rv3 = rt3 - xs3
              DO j =  bo(1,2), bo(2,2)
                 my_i= bo(1,1)-gbo(1,1)
-                xs1 = REAL(my_i,dp)*dr1
+                xs1 = REAL(my_i,dp)*dr1c
                 rv2 = rt2 - xs2
                 DO i =  bo(1,1), bo(2,1)
                    rv1 = rt1 - xs1
-                   ! Sum over k vectors
-                   ft1l = 0.0_dp
-                   ft2l = 0.0_dp
-                   ft3l = 0.0_dp
-                   DO kg = 1, SIZE(Lg)
-                      vec  = (/REAL(gx(kg)),REAL(gy(kg)),REAL(gz(kg))/)
-                      Term = - lg(kg)*SIN(vec(1)*rv1+vec(2)*rv2+vec(3)*rv3)
-                      ft1l = ft1l + Term * vec(1)
-                      ft2l = ft2l + Term * vec(2)
-                      ft3l = ft3l + Term * vec(3)
-                   END DO
-                   fac = grid%cr3d(i,j,k)
-                   ft1 = ft1 + ft1l * fac
-                   ft2 = ft2 + ft2l * fac
-                   ft3 = ft3 + ft3l * fac                   
-                   xs1 = xs1 + dr1
+                   vec = (/rv1,rv2,rv3/)
+                   ivec = FLOOR(vec/pw%pw_grid%dr)
+                   xd1  = (vec(1)/dr1)-REAL(ivec(1),kind=dp)
+                   xd2  = (vec(2)/dr2)-REAL(ivec(2),kind=dp)
+                   xd3  = (vec(3)/dr3)-REAL(ivec(3),kind=dp)
+                   ik1 = MODULO(ivec(3)-1,npts(3))+1
+                   ik2 = MODULO(ivec(3)  ,npts(3))+1
+                   ik3 = MODULO(ivec(3)+1,npts(3))+1
+                   ik4 = MODULO(ivec(3)+2,npts(3))+1                   
+                   ij1 = MODULO(ivec(2)-1,npts(2))+1
+                   ij2 = MODULO(ivec(2)  ,npts(2))+1
+                   ij3 = MODULO(ivec(2)+1,npts(2))+1
+                   ij4 = MODULO(ivec(2)+2,npts(2))+1       
+                   ii1 = MODULO(ivec(1)-1,npts(1))+1
+                   ii2 = MODULO(ivec(1)  ,npts(1))+1
+                   ii3 = MODULO(ivec(1)+1,npts(1))+1
+                   ii4 = MODULO(ivec(1)+2,npts(1))+1
+                   
+                   aaa   = grid(ii1,ij1,ik1)
+                   baa   = grid(ii2,ij1,ik1)
+                   caa   = grid(ii3,ij1,ik1)
+                   daa   = grid(ii4,ij1,ik1)
+                   aba   = grid(ii1,ij2,ik1)
+                   bba   = grid(ii2,ij2,ik1)
+                   cba   = grid(ii3,ij2,ik1)
+                   dba   = grid(ii4,ij2,ik1)
+                   aca   = grid(ii1,ij3,ik1)
+                   bca   = grid(ii2,ij3,ik1)
+                   cca   = grid(ii3,ij3,ik1)
+                   dca   = grid(ii4,ij3,ik1)
+                   ada   = grid(ii1,ij4,ik1)
+                   bda   = grid(ii2,ij4,ik1)
+                   cda   = grid(ii3,ij4,ik1)
+                   dda   = grid(ii4,ij4,ik1)
+                   aab   = grid(ii1,ij1,ik2)
+                   bab   = grid(ii2,ij1,ik2)
+                   cab   = grid(ii3,ij1,ik2)
+                   dab   = grid(ii4,ij1,ik2)
+                   abb   = grid(ii1,ij2,ik2)
+                   bbb   = grid(ii2,ij2,ik2)
+                   cbb   = grid(ii3,ij2,ik2)
+                   dbb   = grid(ii4,ij2,ik2)
+                   acb   = grid(ii1,ij3,ik2)
+                   bcb   = grid(ii2,ij3,ik2)
+                   ccb   = grid(ii3,ij3,ik2)
+                   dcb   = grid(ii4,ij3,ik2)
+                   adb   = grid(ii1,ij4,ik2)
+                   bdb   = grid(ii2,ij4,ik2)
+                   cdb   = grid(ii3,ij4,ik2)
+                   ddb   = grid(ii4,ij4,ik2)
+                   aac   = grid(ii1,ij1,ik3)
+                   bac   = grid(ii2,ij1,ik3)
+                   cac   = grid(ii3,ij1,ik3)
+                   dac   = grid(ii4,ij1,ik3)
+                   abc   = grid(ii1,ij2,ik3)
+                   bbc   = grid(ii2,ij2,ik3)
+                   cbc   = grid(ii3,ij2,ik3)
+                   dbc   = grid(ii4,ij2,ik3)
+                   acc   = grid(ii1,ij3,ik3)
+                   bcc   = grid(ii2,ij3,ik3)
+                   ccc   = grid(ii3,ij3,ik3)
+                   dcc   = grid(ii4,ij3,ik3)
+                   adc   = grid(ii1,ij4,ik3)
+                   bdc   = grid(ii2,ij4,ik3)
+                   cdc   = grid(ii3,ij4,ik3)
+                   ddc   = grid(ii4,ij4,ik3)
+                   aad   = grid(ii1,ij1,ik4)
+                   bad   = grid(ii2,ij1,ik4)
+                   cad   = grid(ii3,ij1,ik4)
+                   dad   = grid(ii4,ij1,ik4)
+                   abd   = grid(ii1,ij2,ik4)
+                   bbd   = grid(ii2,ij2,ik4)
+                   cbd   = grid(ii3,ij2,ik4)
+                   dbd   = grid(ii4,ij2,ik4)
+                   acd   = grid(ii1,ij3,ik4)
+                   bcd   = grid(ii2,ij3,ik4)
+                   ccd   = grid(ii3,ij3,ik4)
+                   dcd   = grid(ii4,ij3,ik4)
+                   add   = grid(ii1,ij4,ik4)
+                   bdd   = grid(ii2,ij4,ik4)
+                   cdd   = grid(ii3,ij4,ik4)
+                   ddd   = grid(ii4,ij4,ik4)
+                   
+                   a1  = 3.0_dp + xd1
+                   a2  = a1*a1
+                   a3  = a2*a1
+                   b1  = 2.0_dp + xd1
+                   b2  = b1*b1
+                   b3  = b2*b1
+                   c1  = 1.0_dp + xd1
+                   c2  = c1*c1
+                   c3  = c2*c1
+                   d1  = xd1
+                   d2  = d1*d1
+                   d3  = d2*d1
+                   e1  = 3.0_dp + xd2
+                   e2  = e1*e1
+                   e3  = e2*e1
+                   f1  = 2.0_dp + xd2
+                   f2  = f1*f1
+                   f3  = f2*f1
+                   g1  = 1.0_dp + xd2
+                   g2  = g1*g1
+                   g3  = g2*g1
+                   h1  = xd2
+                   h2  = h1*h1
+                   h3  = h2*h1
+                   p1  = 3.0_dp + xd3
+                   p2  = p1*p1
+                   p3  = p2*p1
+                   q1  = 2.0_dp + xd3
+                   q2  = q1*q1
+                   q3  = q2*q1
+                   r1  = 1.0_dp + xd3
+                   r2  = r1*r1
+                   r3  = r2*r1
+                   u1  = xd3
+                   u2  = u1*u1
+                   u3  = u2*u1
+                   
+                   t1o =   1.0_dp/6.0_dp * (64.0_dp - 48.0_dp*a1 + 12.0_dp*a2 - a3)
+                   t2o = -22.0_dp/3.0_dp + 10.0_dp*b1 - 4.0_dp*b2 + 0.5_dp*b3
+                   t3o =   2.0_dp/3.0_dp -  2.0_dp*c1 + 2.0_dp*c2 - 0.5_dp*c3
+                   t4o =   1.0_dp/6.0_dp*d3
+                   s1o =   1.0_dp/6.0_dp * (64.0_dp - 48.0_dp*e1 + 12.0_dp*e2 - e3)
+                   s2o = -22.0_dp/3.0_dp + 10.0_dp*f1 - 4.0_dp*f2 + 0.5_dp*f3
+                   s3o =   2.0_dp/3.0_dp -  2.0_dp*g1 + 2.0_dp*g2 - 0.5_dp*g3
+                   s4o =   1.0_dp/6.0_dp*h3
+                   v1o =   1.0_dp/6.0_dp * (64.0_dp - 48.0_dp*p1 + 12.0_dp*p2 - p3)
+                   v2o = -22.0_dp/3.0_dp + 10.0_dp*q1 - 4.0_dp*q2 + 0.5_dp*q3
+                   v3o =   2.0_dp/3.0_dp -  2.0_dp*r1 + 2.0_dp*r2 - 0.5_dp*r3
+                   v4o =   1.0_dp/6.0_dp*u3
+       
+                   t1d =  -8.0_dp + 4.0_dp*a1 - 0.5_dp*a2
+                   t2d =  10.0_dp - 8.0_dp*b1 + 1.5_dp*b2
+                   t3d =  -2.0_dp + 4.0_dp*c1 - 1.5_dp*c2
+                   t4d =   0.5_dp*d2
+                   s1d =  -8.0_dp + 4.0_dp*e1 - 0.5_dp*e2
+                   s2d =  10.0_dp - 8.0_dp*f1 + 1.5_dp*f2
+                   s3d =  -2.0_dp + 4.0_dp*g1 - 1.5_dp*g2
+                   s4d =   0.5_dp*h2
+                   v1d =  -8.0_dp + 4.0_dp*p1 - 0.5_dp*p2
+                   v2d =  10.0_dp - 8.0_dp*q1 + 1.5_dp*q2
+                   v3d =  -2.0_dp + 4.0_dp*r1 - 1.5_dp*r2
+                   v4d =   0.5_dp*u2
+                   
+                   t1     = t1d*dr1i
+                   t2     = t2d*dr1i
+                   t3     = t3d*dr1i
+                   t4     = t4d*dr1i
+                   s1     = s1o
+                   s2     = s2o
+                   s3     = s3o
+                   s4     = s4o
+                   v1     = v1o
+                   v2     = v2o
+                   v3     = v3o
+                   v4     = v4o
+                   val(1) = (( aaa * t1 + baa * t2 + caa * t3 + daa * t4 ) * s1  +&
+                             ( aba * t1 + bba * t2 + cba * t3 + dba * t4 ) * s2  +&
+                             ( aca * t1 + bca * t2 + cca * t3 + dca * t4 ) * s3  +&
+                             ( ada * t1 + bda * t2 + cda * t3 + dda * t4 ) * s4  ) * v1 +&
+                            (( aab * t1 + bab * t2 + cab * t3 + dab * t4 ) * s1  +&
+                             ( abb * t1 + bbb * t2 + cbb * t3 + dbb * t4 ) * s2  +&
+                             ( acb * t1 + bcb * t2 + ccb * t3 + dcb * t4 ) * s3  +&
+                             ( adb * t1 + bdb * t2 + cdb * t3 + ddb * t4 ) * s4  ) * v2 +&
+                            (( aac * t1 + bac * t2 + cac * t3 + dac * t4 ) * s1  +&
+                             ( abc * t1 + bbc * t2 + cbc * t3 + dbc * t4 ) * s2  +&
+                             ( acc * t1 + bcc * t2 + ccc * t3 + dcc * t4 ) * s3  +&
+                             ( adc * t1 + bdc * t2 + cdc * t3 + ddc * t4 ) * s4  ) * v3 +&
+                            (( aad * t1 + bad * t2 + cad * t3 + dad * t4 ) * s1  +&
+                             ( abd * t1 + bbd * t2 + cbd * t3 + dbd * t4 ) * s2  +&
+                             ( acd * t1 + bcd * t2 + ccd * t3 + dcd * t4 ) * s3  +&
+                             ( add * t1 + bdd * t2 + cdd * t3 + ddd * t4 ) * s4  ) * v4
+            
+                   t1     = t1o
+                   t2     = t2o
+                   t3     = t3o
+                   t4     = t4o
+                   s1     = s1d*dr2i
+                   s2     = s2d*dr2i
+                   s3     = s3d*dr2i
+                   s4     = s4d*dr2i
+                   v1     = v1o
+                   v2     = v2o
+                   v3     = v3o
+                   v4     = v4o
+                   val(2) = (( aaa * t1 + baa * t2 + caa * t3 + daa * t4 ) * s1  +&
+                             ( aba * t1 + bba * t2 + cba * t3 + dba * t4 ) * s2  +&
+                             ( aca * t1 + bca * t2 + cca * t3 + dca * t4 ) * s3  +&
+                             ( ada * t1 + bda * t2 + cda * t3 + dda * t4 ) * s4  ) * v1 +&
+                            (( aab * t1 + bab * t2 + cab * t3 + dab * t4 ) * s1  +&
+                             ( abb * t1 + bbb * t2 + cbb * t3 + dbb * t4 ) * s2  +&
+                             ( acb * t1 + bcb * t2 + ccb * t3 + dcb * t4 ) * s3  +&
+                             ( adb * t1 + bdb * t2 + cdb * t3 + ddb * t4 ) * s4  ) * v2 +&
+                            (( aac * t1 + bac * t2 + cac * t3 + dac * t4 ) * s1  +&
+                             ( abc * t1 + bbc * t2 + cbc * t3 + dbc * t4 ) * s2  +&
+                             ( acc * t1 + bcc * t2 + ccc * t3 + dcc * t4 ) * s3  +&
+                             ( adc * t1 + bdc * t2 + cdc * t3 + ddc * t4 ) * s4  ) * v3 +&
+                            (( aad * t1 + bad * t2 + cad * t3 + dad * t4 ) * s1  +&
+                             ( abd * t1 + bbd * t2 + cbd * t3 + dbd * t4 ) * s2  +&
+                             ( acd * t1 + bcd * t2 + ccd * t3 + dcd * t4 ) * s3  +&
+                             ( add * t1 + bdd * t2 + cdd * t3 + ddd * t4 ) * s4  ) * v4
+            
+                   t1     = t1o
+                   t2     = t2o
+                   t3     = t3o
+                   t4     = t4o
+                   s1     = s1o
+                   s2     = s2o
+                   s3     = s3o
+                   s4     = s4o
+                   v1     = v1d*dr3i
+                   v2     = v2d*dr3i
+                   v3     = v3d*dr3i
+                   v4     = v4d*dr3i
+                   val(3) = (( aaa * t1 + baa * t2 + caa * t3 + daa * t4 ) * s1  +&
+                             ( aba * t1 + bba * t2 + cba * t3 + dba * t4 ) * s2  +&
+                             ( aca * t1 + bca * t2 + cca * t3 + dca * t4 ) * s3  +&
+                             ( ada * t1 + bda * t2 + cda * t3 + dda * t4 ) * s4  ) * v1 +&
+                            (( aab * t1 + bab * t2 + cab * t3 + dab * t4 ) * s1  +&
+                             ( abb * t1 + bbb * t2 + cbb * t3 + dbb * t4 ) * s2  +&
+                             ( acb * t1 + bcb * t2 + ccb * t3 + dcb * t4 ) * s3  +&
+                             ( adb * t1 + bdb * t2 + cdb * t3 + ddb * t4 ) * s4  ) * v2 +&
+                            (( aac * t1 + bac * t2 + cac * t3 + dac * t4 ) * s1  +&
+                             ( abc * t1 + bbc * t2 + cbc * t3 + dbc * t4 ) * s2  +&
+                             ( acc * t1 + bcc * t2 + ccc * t3 + dcc * t4 ) * s3  +&
+                             ( adc * t1 + bdc * t2 + cdc * t3 + ddc * t4 ) * s4  ) * v3 +&
+                            (( aad * t1 + bad * t2 + cad * t3 + dad * t4 ) * s1  +&
+                             ( abd * t1 + bbd * t2 + cbd * t3 + dbd * t4 ) * s2  +&
+                             ( acd * t1 + bcd * t2 + ccd * t3 + dcd * t4 ) * s3  +&
+                             ( add * t1 + bdd * t2 + cdd * t3 + ddd * t4 ) * s4  ) * v4 
+
+                   fac = cgrid%cr3d(i,j,k)
+                   ft1 = ft1 + val(1) * fac
+                   ft2 = ft2 + val(2) * fac
+                   ft3 = ft3 + val(3) * fac                   
+                   xs1 = xs1 + dr1c
                 END DO
-                xs2 = xs2 + dr2
+                xs2 = xs2 + dr2c
              END DO
           END DO LoopOnGrid
           qt = - qt * dvol 
@@ -1112,7 +1348,7 @@ CONTAINS
     IF (debug_this_module) THEN
        CALL debug_qmmm_forces_with_gauss_LG(pgfs=pgfs,&
                                             aug_pools=aug_pools,&
-                                            rho=grid,&
+                                            rho=cgrid,&
                                             num_mm_atoms=num_mm_atoms,&
                                             mm_charges=mm_charges,&
                                             mm_atom_index=mm_atom_index,&
@@ -1523,14 +1759,12 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:), POINTER     :: xdat, ydat, zdat
     TYPE(pw_p_type), DIMENSION(:), POINTER   :: grids
     INTEGER, DIMENSION(2,3)                  :: bo2
-    TYPE(cp_logger_type), POINTER :: logger
 
     DATA Icount /0/
     ! Statements
     failure=.FALSE.
     CALL timeset(routineN,"I","",handle)
-    NULLIFY(grids,logger)
-    logger => cp_error_get_logger(error)
+    NULLIFY(grids)
     !Statements
     ngrids = SIZE(aug_pools)
     CALL pw_pools_create_pws(aug_pools,grids,use_data=REALDATA3D,in_space=REALSPACE,error=error)
@@ -1660,12 +1894,10 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(3)              :: Err
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: Num_Forces
     TYPE(pw_p_type), DIMENSION(:), POINTER   :: grids
-    TYPE(cp_logger_type), POINTER :: logger
 
     ALLOCATE(Num_Forces(num_mm_atoms,3),stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    NULLIFY(grids,logger)
-    logger => cp_error_get_logger(error)
+    NULLIFY(grids)
     CALL timeset(routineN,"I","",handle)
     ngrids = SIZE(aug_pools)
     CALL pw_pools_create_pws(aug_pools,grids,use_data=REALDATA3D,in_space=REALSPACE,error=error)
@@ -1682,7 +1914,7 @@ CONTAINS
              CALL pw_zero(grids(coarser_grid_level)%pw)
 
              CALL qmmm_elec_with_gaussian_LG    (pgfs=pgfs,&
-                                                 grid=grids(coarser_grid_level)%pw,&
+                                                 cgrid=grids(coarser_grid_level)%pw,&
                                                  mm_charges=mm_charges,&
                                                  mm_atom_index=mm_atom_index,&
                                                  mm_particles=mm_particles,&
@@ -1786,12 +2018,10 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(3)              :: Err
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: Num_Forces
     TYPE(pw_p_type), DIMENSION(:), POINTER   :: grids
-    TYPE(cp_logger_type), POINTER :: logger
 
     ALLOCATE(Num_Forces(num_mm_atoms,3),stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    NULLIFY(grids,logger)
-    logger => cp_error_get_logger(error)
+    NULLIFY(grids)
     CALL timeset(routineN,"I","",handle)
     ngrids = SIZE(aug_pools)
     CALL pw_pools_create_pws(aug_pools,grids,use_data=REALDATA3D,in_space=REALSPACE,error=error)

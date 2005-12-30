@@ -49,8 +49,8 @@ MODULE input_cp2k_dft
 
   public :: create_dft_section
   public :: create_mt_section
-  public :: create_bsse_section
-  public :: create_multipole_section
+  PUBLIC :: create_bsse_section
+  PUBLIC :: create_multipole_section, create_gspace_interp_section
   PUBLIC :: create_properties_section, create_scf_section
   public :: xc_functionals_expand
 !***
@@ -2454,11 +2454,131 @@ SUBROUTINE create_tddfpt_section(section,error)
             default_l_val=.TRUE., lone_keyword_l_val=.TRUE.,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
-      
+
+       CALL keyword_create(keyword, name="ANALYTICAL_GTERM",&
+            description="Evaluates the Gterm in the Ewald Scheme analytically instead of using Splines.",&
+            usage="ANALYTICAL_GTERM <LOGICAL>",&
+            default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)       
+
+       CALL keyword_create(keyword, name="NGRIDS",&
+            description="Specifies the number of grid points used for the Interpolation of the G-space term",&
+            usage="NGRIDS <integer> <iteger> <integer> ",n_var=3,default_i_vals=(/50,50,50/),&
+            error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)       
+
+       CALL create_gspace_interp_section(subsection,error)
+       CALL section_add_subsection(section, subsection, error=error)
+       CALL section_release(subsection,error=error)       
+       
+       CALL cp_print_key_section_create(subsection,"check_spline",&
+            description="Controls the checking of the G-space term Spline Interpolation.",&
+            print_level=medium_print_level,each=(/1/),filename="GSpace-SplInterp",&
+            error=error)
+       CALL section_add_subsection(section,subsection,error=error)
+       CALL section_release(subsection,error=error)       
+
     END IF
 
   END SUBROUTINE create_multipole_section
 
+!!****f* input_cp2k_qmmm/create_gspace_interp_section *
+!!
+!!   NAME
+!!     create_gspace_interp_section
+!!
+!!   FUNCTION
+!!     creates the interpolation section for the periodic QM/MM 
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     tlaino
+!!
+!!*** **********************************************************************
+  SUBROUTINE create_gspace_interp_section(section,error)
+    TYPE(section_type), POINTER :: section
+    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    
+    LOGICAL :: failure
+    CHARACTER(len=*), PARAMETER :: routineN='create_gspace_interp_section',&
+         routineP=moduleN//':'//routineN
+    TYPE(keyword_type), POINTER :: keyword
+    TYPE(section_type), POINTER :: print_key
+    failure=.FALSE.
+    
+    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+    IF (.NOT. failure) THEN
+       CALL section_create(section,name="interpolator",&
+            description="controls the interpolation for the G-space term",&
+            n_keywords=5, n_subsections=0, repeats=.FALSE., required=.false.,&
+            error=error)
+
+       NULLIFY(keyword, print_key)
+
+       CALL keyword_create(keyword, name="aint_precond",&
+            description="the approximate inverse to use to get the starting point"//&
+            " for the linear solver of the spline3 methods",&
+            usage="kind spline3",&
+            default_i_val=precond_spl3_aint,&
+            enum_c_vals=s2a( "copy","spl3_nopbc_aint1","spl3_nopbc_precond1",&
+            "spl3_nopbc_aint2","spl3_nopbc_precond2","spl3_nopbc_precond3"),&
+            enum_i_vals=(/no_precond,precond_spl3_aint, precond_spl3_1,&
+            precond_spl3_aint2, precond_spl3_2, precond_spl3_3/),&
+            error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="precond",&
+            description="The preconditioner used"//&
+            " for the linear solver of the spline3 methods",&
+            usage="kind spline3",&
+            default_i_val=precond_spl3_3,&
+            enum_c_vals=s2a("copy","spl3_nopbc_aint1","spl3_nopbc_precond1",&
+            "spl3_nopbc_aint2","spl3_nopbc_precond2","spl3_nopbc_precond3"),&
+            enum_i_vals=(/no_precond,precond_spl3_aint, precond_spl3_1,&
+            precond_spl3_aint2, precond_spl3_2, precond_spl3_3/),&
+            error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="eps_x",&
+            description="accuracy on the solution for spline3 the interpolators",&
+            usage="eps_x 1.e-15", default_r_val=1.e-10_dp, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="eps_r",&
+            description="accuracy on the residual for spline3 the interpolators",&
+            usage="eps_r 1.e-15", default_r_val=1.e-10_dp, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="max_iter",&
+            variants=(/'maxiter'/),&
+            description="the maximum number of iterations",&
+            usage="max_iter 200", default_i_val=100, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       nullify(print_key)
+       CALL cp_print_key_section_create(print_key,"conv_info",&
+            description="if convergence information about the linear solver"//&
+            " of the spline methods should be printed", &
+            print_level=medium_print_level,each=(/10/),filename="__STD_OUT__",&
+            add_last=(/1/),error=error)
+       CALL section_add_subsection(section,print_key,error=error)
+       CALL section_release(print_key,error=error)
+
+    END IF
+  END SUBROUTINE create_gspace_interp_section
 !***************************************************************************
 
 !!****f* input_cp2k_dft/create_mt_section [1.0] *

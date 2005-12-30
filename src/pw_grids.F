@@ -108,18 +108,21 @@ CONTAINS
 !!
 !!*** *************************************************************************
 
-  SUBROUTINE pw_grid_create ( pw_grid, pe_group, error )
+  SUBROUTINE pw_grid_create ( pw_grid, pe_group, local, error )
 
     TYPE(pw_grid_type), pointer        :: pw_grid
     INTEGER, intent(in) :: pe_group
     TYPE(cp_error_type), INTENT(inout), optional :: error
+    LOGICAL, INTENT(IN), OPTIONAL :: local
 
-    LOGICAL :: failure
-    integer :: stat
+    LOGICAL :: failure, my_local
+    INTEGER :: stat
     CHARACTER(len=*), PARAMETER :: routineN="pw_grid_create",&
          routineP=moduleN//':'//routineN
 
-    failure=.false.
+    failure =.FALSE.
+    my_local=.FALSE.
+    IF (PRESENT(local)) my_local = local
     CPPrecondition(.NOT.ASSOCIATED(pw_grid),cp_failure_level,routineP,error,failure)
     IF (.NOT.failure) THEN
        ALLOCATE(pw_grid,stat=stat)
@@ -161,7 +164,7 @@ CONTAINS
        pw_grid % para % group_head_id = 0
        pw_grid % para % group_head = &
             ( pw_grid % para % group_head_id == pw_grid % para % my_pos )
-       IF (pw_grid % para % group_size > 1) THEN
+       IF (pw_grid % para % group_size > 1 .AND. (.NOT.my_local)) THEN
           pw_grid % para % mode = PW_MODE_DISTRIBUTED
        ELSE
           pw_grid % para % mode = PW_MODE_LOCAL

@@ -97,6 +97,7 @@ OBJECTS_GENERIC =\
  ewald_environment_types.o\
  ewald_pw_methods.o\
  ewald_pw_types.o\
+ ewald_spline_util.o\
  ewalds.o\
  extended_system_dynamics.o\
  extended_system_types.o\

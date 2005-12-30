@@ -152,7 +152,9 @@ MODULE qs_environment_types
                                              xas_environment_type
   USE cp_ddapc_types,                  ONLY: cp_ddapc_type,&
                                              cp_ddapc_release,&
-                                             cp_ddapc_retain
+                                             cp_ddapc_retain,&
+                                             cp_ddapc_ewald_type,&
+                                             cp_ddapc_ewald_release
   USE virial_types,                    ONLY: virial_type,&
                                              virial_retain,&
                                              virial_release,&
@@ -316,6 +318,7 @@ MODULE qs_environment_types
     TYPE(linres_control_type), POINTER                    :: linres_control
     TYPE(xas_environment_type), POINTER                   :: xas_env
     TYPE(cp_ddapc_type), POINTER                          :: cp_ddapc_env
+    TYPE(cp_ddapc_ewald_type), POINTER                    :: cp_ddapc_ewald
     TYPE(virial_type), POINTER                            :: virial
   END TYPE qs_environment_type
 
@@ -367,7 +370,7 @@ CONTAINS
                         rhoz_set,ecoul_1c,VH_3c_list,rho0_s_rs,rho0_s_gs, &
                         requires_mo_derivs,mo_derivs,tddfpt_control, &
                         neighbor_list_id,kg_sub_pw_env,linres_control,xas_env,&
-                        virial,cp_ddapc_env,error)
+                        virial,cp_ddapc_env,cp_ddapc_ewald,error)
 
 !   Purpose: Get the QUICKSTEP environment.
 
@@ -464,6 +467,7 @@ CONTAINS
     TYPE(xas_environment_type), OPTIONAL,&
       POINTER                                :: xas_env
     TYPE(cp_ddapc_type), POINTER, OPTIONAL   :: cp_ddapc_env
+    TYPE(cp_ddapc_ewald_type), POINTER, OPTIONAL   :: cp_ddapc_ewald
     TYPE(virial_type), OPTIONAL, POINTER     :: virial
 
     CHARACTER(len=*), PARAMETER :: routineN = 'get_qs_env', &
@@ -578,6 +582,7 @@ CONTAINS
     IF (PRESENT(molecule_set)) molecule_set => molecules_new%els
     IF (PRESENT(input)) input => qs_env%input
     IF (PRESENT(cp_ddapc_env)) cp_ddapc_env => qs_env%cp_ddapc_env
+    IF (PRESENT(cp_ddapc_ewald)) cp_ddapc_ewald => qs_env%cp_ddapc_ewald
 
   END SUBROUTINE get_qs_env
 
@@ -645,6 +650,7 @@ CONTAINS
     NULLIFY (qs_env%xas_env)
     NULLIFY (qs_env%virial)
     NULLIFY (qs_env%cp_ddapc_env)
+    NULLIFY (qs_env%cp_ddapc_ewald)
     qs_env%neighbor_list_id=-1
 
     CALL local_rho_set_create(qs_env%local_rho_set, error=error)
@@ -679,7 +685,7 @@ CONTAINS
                         nddo_mpole,rhoz_set,rhoz_tot,ecoul_1c,VH_3c_list,error, &
                         requires_mo_derivs,mo_derivs,neighbor_list_id,&
                         kg_sub_pw_env,linres_control,xas_env,virial,&
-                        cp_ddapc_env)
+                        cp_ddapc_env,cp_ddapc_ewald)
 
 !   Purpose: Set the QUICKSTEP environment.
 
@@ -758,6 +764,7 @@ CONTAINS
     TYPE(xas_environment_type), OPTIONAL,&
       POINTER                                :: xas_env
     TYPE(cp_ddapc_type), OPTIONAL, POINTER   :: cp_ddapc_env
+    TYPE(cp_ddapc_ewald_type), OPTIONAL, POINTER   :: cp_ddapc_ewald
     TYPE(virial_type), OPTIONAL, POINTER     :: virial
 
     CHARACTER(len=*), PARAMETER :: routineN = "set_qs_env", &
@@ -933,6 +940,9 @@ CONTAINS
        CALL cp_ddapc_retain(cp_ddapc_env, error=error)
        CALL cp_ddapc_release(qs_env%cp_ddapc_env, error=error)
        qs_env%cp_ddapc_env => cp_ddapc_env
+    END IF
+    IF (PRESENT(cp_ddapc_ewald)) THEN
+       qs_env%cp_ddapc_ewald => cp_ddapc_ewald
     END IF
   END SUBROUTINE set_qs_env
 
@@ -1237,6 +1247,7 @@ SUBROUTINE qs_env_release(qs_env,error)
         CALL cp_subsys_release(qs_env%subsys,error=error)
         CALL section_vals_release(qs_env%input,error=error)
         CALL cp_ddapc_release(qs_env%cp_ddapc_env, error=error)
+        CALL cp_ddapc_ewald_release(qs_env%cp_ddapc_ewald, error=error)
         DEALLOCATE(qs_env, stat=stat)
         CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
      END IF

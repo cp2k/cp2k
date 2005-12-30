@@ -73,7 +73,7 @@ MODULE cp_ddapc_forces
                                              cp_ddapc_create,&
                                              cp_ddapc_release,&
                                              cp_ddapc_retain
-
+  USE pw_spline_utils,                 ONLY: Eval_d_Interp_Spl3_pbc
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -106,10 +106,11 @@ CONTAINS
 !!     08.2005 created [tlaino]
 !!
 !!*** **********************************************************************
-  RECURSIVE SUBROUTINE ewald_ddapc_force(qs_env, qmmm_periodic, multipole_section, &
+  RECURSIVE SUBROUTINE ewald_ddapc_force(qs_env, coeff, qmmm_periodic, multipole_section, &
        particle_set, radii, dq, charges, error)
     IMPLICIT NONE
     ! Arguments
+    TYPE(pw_type), POINTER                   :: coeff
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(section_vals_type), POINTER         :: multipole_section    
     TYPE(particle_type), DIMENSION(:), &
@@ -123,7 +124,7 @@ CONTAINS
     ! Local Variables
     CHARACTER(len=*), PARAMETER :: routineN = 'ewald_ddapc_force', &
          routineP = moduleN//':'//routineN      
-    LOGICAL :: failure
+    LOGICAL :: failure, analyt
     INTEGER :: ip1, ip2, handle
     INTEGER :: nmax1, nmax2, nmax3, k1, k2, k3, n_rep, rmax1, rmax2, rmax3, stat
     INTEGER :: iparticle1, iparticle2, r1, r2, r3, sfact
@@ -152,6 +153,7 @@ CONTAINS
        CALL section_vals_val_get(multipole_section,"RCUT",n_rep_val=n_rep,error=error)
        IF (n_rep==1) CALL section_vals_val_get(multipole_section,"RCUT",r_val=rcut,error=error)
        CALL section_vals_val_get(multipole_section,"EWALD_PRECISION",r_val=eps,error=error)
+       CALL section_vals_val_get(multipole_section,"ANALYTICAL_GTERM",l_val=analyt,error=error)
        !
        ! Setting-up parameters for Ewald summation
        !
@@ -220,21 +222,27 @@ CONTAINS
              !
              ! G-space Contribution
              !
-             DO k1 = 0, nmax1
-                DO k2 = -nmax2, nmax2
-                   DO k3 = -nmax3, nmax3
-                      IF (k1 == 0.AND.k2 == 0.AND.k3 == 0) CYCLE
-                      fs = 2.0_dp; IF (k1==0) fs = 1.0_dp
-                      gvec = fvec * (/REAL(k1,KIND=dp),REAL(k2,KIND=dp),REAL(k3,KIND=dp)/)
-                      gsq  = DOT_PRODUCT(gvec,gvec)
-                      gsqi = fs/gsq
-                      t1   = fac * gsqi * EXP(-galpha*gsq)
-                      t2 = -SIN(DOT_PRODUCT(gvec,rvec)) * t1 * q1t * q2t / eps0 * dfact * sfact
-                      d_el(1:3,iparticle1) = d_el(1:3,iparticle1) - t2 * gvec
-                      d_el(1:3,iparticle2) = d_el(1:3,iparticle2) + t2 * gvec
+             IF (analyt) THEN
+                DO k1 = 0, nmax1
+                   DO k2 = -nmax2, nmax2
+                      DO k3 = -nmax3, nmax3
+                         IF (k1 == 0.AND.k2 == 0.AND.k3 == 0) CYCLE
+                         fs = 2.0_dp; IF (k1==0) fs = 1.0_dp
+                         gvec = fvec * (/REAL(k1,KIND=dp),REAL(k2,KIND=dp),REAL(k3,KIND=dp)/)
+                         gsq  = DOT_PRODUCT(gvec,gvec)
+                         gsqi = fs/gsq
+                         t1   = fac * gsqi * EXP(-galpha*gsq)
+                         t2 = -SIN(DOT_PRODUCT(gvec,rvec)) * t1 * q1t * q2t / eps0 * dfact * sfact
+                         d_el(1:3,iparticle1) = d_el(1:3,iparticle1) - t2 * gvec
+                         d_el(1:3,iparticle2) = d_el(1:3,iparticle2) + t2 * gvec
+                      END DO
                    END DO
                 END DO
-             END DO
+             ELSE
+                gvec = Eval_d_Interp_Spl3_pbc( rvec, coeff, error ) * q1t * q2t / eps0 * dfact * sfact
+                d_el(1:3,iparticle1) = d_el(1:3,iparticle1) -  gvec
+                d_el(1:3,iparticle2) = d_el(1:3,iparticle2) +  gvec                
+             END IF
              IF (iparticle1/=iparticle2) THEN 
                 ra = rvec 
                 r  = SQRT(DOT_PRODUCT(ra,ra))

@@ -303,7 +303,7 @@ CONTAINS
        print_key => section_vals_get_subs_vals(input,"PROPERTIES%FIT_CHARGE", error=error)
        IF (BTEST(cp_print_key_should_output(logger%iter_info,print_key,&
            error=error),cp_p_file)) THEN
-          CALL get_ddapc(qs_env,.FALSE.,.FALSE.,print_key,error=error)
+          CALL get_ddapc(qs_env,.FALSE.,.FALSE.,print_key,just_charge=.TRUE.,error=error)
        END IF
 
 !    ***  Print Localized orbitals

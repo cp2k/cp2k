@@ -57,6 +57,7 @@ MODULE cp_ddapc_methods
                                              section_vals_get_subs_vals,&
                                              section_vals_get,&
                                              section_vals_val_get
+  USE pw_spline_utils,                 ONLY: Eval_Interp_Spl3_pbc
 
   IMPLICIT NONE
   PRIVATE
@@ -546,10 +547,11 @@ CONTAINS
 !!     08.2005 created [tlaino]
 !!
 !!*** **********************************************************************
-  RECURSIVE SUBROUTINE ewald_ddapc_pot(qmmm_periodic, cell, multipole_section,&
+  RECURSIVE SUBROUTINE ewald_ddapc_pot(coeff, qmmm_periodic, cell, multipole_section,&
        particle_set, M, radii, error)
     IMPLICIT NONE
     ! Arguments
+    TYPE(pw_type), POINTER                   :: coeff
     TYPE(section_vals_type), POINTER         :: multipole_section    
     TYPE(particle_type), DIMENSION(:), &
          POINTER                             :: particle_set
@@ -561,7 +563,7 @@ CONTAINS
     ! Local Variables
     CHARACTER(len=*), PARAMETER :: routineN = 'ewald_ddapc_pot', &
          routineP = moduleN//':'//routineN      
-    LOGICAL :: failure
+    LOGICAL :: failure, analyt
     INTEGER :: ip1, ip2, handle, ewmdim, idim, idimo, ndim
     INTEGER :: nmax1, nmax2, nmax3, k1, k2, k3, n_rep, rmax1, rmax2, rmax3, stat
     INTEGER :: iparticle1, iparticle2, idim1, idim2, igauss1, igauss2, istart_g,r1,r2,r3, sfact
@@ -588,6 +590,7 @@ CONTAINS
        CALL section_vals_val_get(multipole_section,"RCUT",n_rep_val=n_rep,error=error)
        IF (n_rep==1) CALL section_vals_val_get(multipole_section,"RCUT",r_val=rcut,error=error)
        CALL section_vals_val_get(multipole_section,"EWALD_PRECISION",r_val=eps,error=error)
+       CALL section_vals_val_get(multipole_section,"ANALYTICAL_GTERM",l_val=analyt,error=error)
        !
        ! Setting-up parameters for Ewald summation
        !
@@ -656,20 +659,24 @@ CONTAINS
              !
              ! G-space Contribution
              !
-             g_ewald = 0.0_dp
-             DO k1 = 0, nmax1
-                DO k2 = -nmax2, nmax2
-                   DO k3 = -nmax3, nmax3
-                      IF (k1 == 0.AND.k2 == 0.AND.k3 == 0) CYCLE
-                      fs = 2.0_dp; IF (k1==0) fs = 1.0_dp
-                      gvec = fvec * (/REAL(k1,KIND=dp),REAL(k2,KIND=dp),REAL(k3,KIND=dp)/)
-                      gsq  = DOT_PRODUCT(gvec,gvec)
-                      gsqi = fs/gsq
-                      t1   = fac * gsqi * EXP(-galpha*gsq)
-                      g_ewald = g_ewald + t1 * COS(DOT_PRODUCT(gvec,rvec))
+             IF (analyt) THEN
+                g_ewald = 0.0_dp
+                DO k1 = 0, nmax1
+                   DO k2 = -nmax2, nmax2
+                      DO k3 = -nmax3, nmax3
+                         IF (k1 == 0.AND.k2 == 0.AND.k3 == 0) CYCLE
+                         fs = 2.0_dp; IF (k1==0) fs = 1.0_dp
+                         gvec = fvec * (/REAL(k1,KIND=dp),REAL(k2,KIND=dp),REAL(k3,KIND=dp)/)
+                         gsq  = DOT_PRODUCT(gvec,gvec)
+                         gsqi = fs/gsq
+                         t1   = fac * gsqi * EXP(-galpha*gsq)
+                         g_ewald = g_ewald + t1 * COS(DOT_PRODUCT(gvec,rvec))
+                      END DO
                    END DO
                 END DO
-             END DO
+             ELSE
+                g_ewald = Eval_Interp_Spl3_pbc(rvec, coeff, error)
+             END IF
              !
              ! G-EWALD, R-EWALD and BACKGROUND CHARGE
              !

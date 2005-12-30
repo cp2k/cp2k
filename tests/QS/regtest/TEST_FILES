@@ -148,6 +148,7 @@ H+-bloechl.inp       1
 He2H-bloechl-md.inp  1
 He2H-bloechl.inp     1
 H2O-bloechl.inp      1
+H2O-bloechl-Spl.inp  1
 # S**2
 CN.inp             4
 # testing of distributed rs grids

@@ -58,3 +58,5 @@ sio2-qmmm-gauss-2.inp 1
 sio2-qmmm-gauss-3.inp 1
 #Periodic calculation
 crys_per_qmmm.inp 1
+crys_per_qmmm_anal.inp 1 
+crys_per_qmmm_spln.inp 1

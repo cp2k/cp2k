@@ -75,7 +75,7 @@ MODULE pw_spline_utils
   USE input_constants, ONLY: spline3_nopbc_interp, spline3_pbc_interp
   USE cp_output_handling, ONLY: cp_print_key_should_output, cp_iter_string,&
        cp_iterate, cp_add_iter_level, cp_rm_iter_level
-  USE string_utilities, only: compress
+  USE string_utilities, ONLY: compress
   USE input_constants, ONLY: no_precond,precond_spl3_aint, precond_spl3_1,&
        precond_spl3_aint2, precond_spl3_2, precond_spl3_3
 
@@ -126,9 +126,16 @@ MODULE pw_spline_utils
   PUBLIC :: pw_spline2_interpolate_values_g, pw_spline2_evaluate_values_g,&
        pw_spline2_deriv_g
   PUBLIC :: pw_nn_compose_r, pw_nn_smear_r, pw_nn_deriv_r, pw_prolongate_s3,&
-       pw_restrict_s3, spl3_nopbc, pw_nn_compose_r_no_pbc, spl3_nopbct
-  public :: add_fine2coarse
-
+       pw_restrict_s3, spl3_nopbc, spl3_pbc, pw_nn_compose_r_no_pbc, spl3_nopbct
+  PUBLIC :: add_fine2coarse
+  PUBLIC :: pw_spline_precond_create,&
+            pw_spline_do_precond,&
+            pw_spline_precond_set_kind,&
+            find_coeffs,&
+            pw_spline_precond_release,&
+            pw_spline_precond_type,&
+            Eval_Interp_Spl3_pbc,&
+            Eval_d_Interp_Spl3_pbc
 !***
 !****************************************************************************
 
@@ -4451,5 +4458,508 @@ END SUBROUTINE pw_nn_compose_r
     CALL pw_nn_smear_r(pw_in,pw_out,coeffs=spline3_coeffs,&
          error=error)
   END SUBROUTINE spl3_pbc
+
+  !!****f* pw_spline_utils/Eval_Interp_Spl3_pbc *
+  !!
+  !!   NAME
+  !!     Eval_Interp_Spl3_pbc
+  !!
+  !!   FUNCTION
+  !!     Evaluates the PBC interpolated Spline (pw) function on the generic 
+  !!     input vector (vec)
+  !!
+  !!   NOTES
+  !!     Requires the Spline coefficients to be computed with PBC
+  !!
+  !!   INPUTS
+  !!     - error: variable to control error logging, stopping,... 
+  !!       see module cp_error_handling 
+  !!
+  !!   AUTHOR
+  !!     Teodoro Laino 12/2005 [tlaino]
+  !!
+  !!*** **********************************************************************
+  FUNCTION Eval_Interp_Spl3_pbc(vec,pw,error) RESULT(val)
+    IMPLICIT NONE
+    ! Arguments
+    REAL(KIND=dp), DIMENSION(3), INTENT(in)      :: vec
+    TYPE(pw_type), POINTER                       :: pw
+    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    REAL(KIND=dp)                                :: val
+    ! Local Variables
+    CHARACTER(len=*), PARAMETER :: routineN='Eval_Interp_Spl3_pbc',&
+         routineP=moduleN//':'//routineN
+    INTEGER       :: ivec(3), npts(3)
+    INTEGER       :: ik1, ik2, ik3, ik4, ij1, ij2, ij3, ij4, ii1, ii2, ii3, ii4
+    REAL(KIND=dp) :: dr1, dr2, dr3, xd1, xd2, xd3
+    REAL(KIND=dp) :: aaa, aba, aca, ada, aab, abb, acb, adb, aac, abc, acc, adc, aad, abd, acd, add   
+    REAL(KIND=dp) :: baa, bba, bca, bda, bab, bbb, bcb, bdb, bac, bbc, bcc, bdc, bad, bbd, bcd, bdd 
+    REAL(KIND=dp) :: caa, cba, cca, cda, cab, cbb, ccb, cdb, cac, cbc, ccc, cdc, cad, cbd, ccd, cdd 
+    REAL(KIND=dp) :: daa, dba, dca, dda, dab, dbb, dcb, ddb, dac, dbc, dcc, ddc, dad, dbd, dcd, ddd 
+    REAL(KIND=dp) :: a1, a2, a3, b1, b2, b3, c1, c2, c3, d1, d2, d3, t1, t2, t3, t4
+    REAL(KIND=dp) :: e1, e2, e3, f1, f2, f3, g1, g2, g3, h1, h2, h3, s1, s2, s3, s4
+    REAL(KIND=dp) :: p1, p2, p3, q1, q2, q3, r1, r2, r3, u1, u2, u3, v1, v2, v3, v4
+    REAL(KIND=dp), DIMENSION(:,:,:), POINTER    :: grid
+    LOGICAL       :: failure
+
+    NULLIFY(grid)
+    failure=.FALSE.
+    IF (.NOT.failure) THEN
+       npts = pw%pw_grid%npts
+       ivec = FLOOR(vec/pw%pw_grid%dr)
+       dr1  = pw%pw_grid%dr(1)
+       dr2  = pw%pw_grid%dr(2)
+       dr3  = pw%pw_grid%dr(3)
+       xd1  = (vec(1)/dr1)-REAL(ivec(1),kind=dp)
+       xd2  = (vec(2)/dr2)-REAL(ivec(2),kind=dp)
+       xd3  = (vec(3)/dr3)-REAL(ivec(3),kind=dp)
+       grid => pw%cr3d(:,:,:)       
+
+       ik1 = MODULO(ivec(3)-1,npts(3))+1
+       ik2 = MODULO(ivec(3)  ,npts(3))+1
+       ik3 = MODULO(ivec(3)+1,npts(3))+1
+       ik4 = MODULO(ivec(3)+2,npts(3))+1
+
+       ij1 = MODULO(ivec(2)-1,npts(2))+1
+       ij2 = MODULO(ivec(2)  ,npts(2))+1
+       ij3 = MODULO(ivec(2)+1,npts(2))+1
+       ij4 = MODULO(ivec(2)+2,npts(2))+1
+       
+       ii1 = MODULO(ivec(1)-1,npts(1))+1
+       ii2 = MODULO(ivec(1)  ,npts(1))+1
+       ii3 = MODULO(ivec(1)+1,npts(1))+1
+       ii4 = MODULO(ivec(1)+2,npts(1))+1
+ 
+       aaa   = grid(ii1,ij1,ik1)
+       baa   = grid(ii2,ij1,ik1)
+       caa   = grid(ii3,ij1,ik1)
+       daa   = grid(ii4,ij1,ik1)
+       aba   = grid(ii1,ij2,ik1)
+       bba   = grid(ii2,ij2,ik1)
+       cba   = grid(ii3,ij2,ik1)
+       dba   = grid(ii4,ij2,ik1)
+       aca   = grid(ii1,ij3,ik1)
+       bca   = grid(ii2,ij3,ik1)
+       cca   = grid(ii3,ij3,ik1)
+       dca   = grid(ii4,ij3,ik1)
+       ada   = grid(ii1,ij4,ik1)
+       bda   = grid(ii2,ij4,ik1)
+       cda   = grid(ii3,ij4,ik1)
+       dda   = grid(ii4,ij4,ik1)
+       aab   = grid(ii1,ij1,ik2)
+       bab   = grid(ii2,ij1,ik2)
+       cab   = grid(ii3,ij1,ik2)
+       dab   = grid(ii4,ij1,ik2)
+       abb   = grid(ii1,ij2,ik2)
+       bbb   = grid(ii2,ij2,ik2)
+       cbb   = grid(ii3,ij2,ik2)
+       dbb   = grid(ii4,ij2,ik2)
+       acb   = grid(ii1,ij3,ik2)
+       bcb   = grid(ii2,ij3,ik2)
+       ccb   = grid(ii3,ij3,ik2)
+       dcb   = grid(ii4,ij3,ik2)
+       adb   = grid(ii1,ij4,ik2)
+       bdb   = grid(ii2,ij4,ik2)
+       cdb   = grid(ii3,ij4,ik2)
+       ddb   = grid(ii4,ij4,ik2)
+       aac   = grid(ii1,ij1,ik3)
+       bac   = grid(ii2,ij1,ik3)
+       cac   = grid(ii3,ij1,ik3)
+       dac   = grid(ii4,ij1,ik3)
+       abc   = grid(ii1,ij2,ik3)
+       bbc   = grid(ii2,ij2,ik3)
+       cbc   = grid(ii3,ij2,ik3)
+       dbc   = grid(ii4,ij2,ik3)
+       acc   = grid(ii1,ij3,ik3)
+       bcc   = grid(ii2,ij3,ik3)
+       ccc   = grid(ii3,ij3,ik3)
+       dcc   = grid(ii4,ij3,ik3)
+       adc   = grid(ii1,ij4,ik3)
+       bdc   = grid(ii2,ij4,ik3)
+       cdc   = grid(ii3,ij4,ik3)
+       ddc   = grid(ii4,ij4,ik3)
+       aad   = grid(ii1,ij1,ik4)
+       bad   = grid(ii2,ij1,ik4)
+       cad   = grid(ii3,ij1,ik4)
+       dad   = grid(ii4,ij1,ik4)
+       abd   = grid(ii1,ij2,ik4)
+       bbd   = grid(ii2,ij2,ik4)
+       cbd   = grid(ii3,ij2,ik4)
+       dbd   = grid(ii4,ij2,ik4)
+       acd   = grid(ii1,ij3,ik4)
+       bcd   = grid(ii2,ij3,ik4)
+       ccd   = grid(ii3,ij3,ik4)
+       dcd   = grid(ii4,ij3,ik4)
+       add   = grid(ii1,ij4,ik4)
+       bdd   = grid(ii2,ij4,ik4)
+       cdd   = grid(ii3,ij4,ik4)
+       ddd   = grid(ii4,ij4,ik4)
+              
+       a1  = 3.0_dp + xd1
+       a2  = a1*a1
+       a3  = a2*a1
+       b1  = 2.0_dp + xd1
+       b2  = b1*b1
+       b3  = b2*b1
+       c1  = 1.0_dp + xd1
+       c2  = c1*c1
+       c3  = c2*c1
+       d1  = xd1
+       d2  = d1*d1
+       d3  = d2*d1
+       e1  = 3.0_dp + xd2
+       e2  = e1*e1
+       e3  = e2*e1
+       f1  = 2.0_dp + xd2
+       f2  = f1*f1
+       f3  = f2*f1
+       g1  = 1.0_dp + xd2
+       g2  = g1*g1
+       g3  = g2*g1
+       h1  = xd2
+       h2  = h1*h1
+       h3  = h2*h1
+       p1  = 3.0_dp + xd3
+       p2  = p1*p1
+       p3  = p2*p1
+       q1  = 2.0_dp + xd3
+       q2  = q1*q1
+       q3  = q2*q1
+       r1  = 1.0_dp + xd3
+       r2  = r1*r1
+       r3  = r2*r1
+       u1  = xd3
+       u2  = u1*u1
+       u3  = u2*u1
+       
+       t1 =   1.0_dp/6.0_dp * (64.0_dp - 48.0_dp*a1 + 12.0_dp*a2 - a3)
+       t2 = -22.0_dp/3.0_dp + 10.0_dp*b1 - 4.0_dp*b2 + 0.5_dp*b3
+       t3 =   2.0_dp/3.0_dp -  2.0_dp*c1 + 2.0_dp*c2 - 0.5_dp*c3
+       t4 =   1.0_dp/6.0_dp*d3
+       s1 =   1.0_dp/6.0_dp * (64.0_dp - 48.0_dp*e1 + 12.0_dp*e2 - e3)
+       s2 = -22.0_dp/3.0_dp + 10.0_dp*f1 - 4.0_dp*f2 + 0.5_dp*f3
+       s3 =   2.0_dp/3.0_dp -  2.0_dp*g1 + 2.0_dp*g2 - 0.5_dp*g3
+       s4 =   1.0_dp/6.0_dp*h3
+       v1 =   1.0_dp/6.0_dp * (64.0_dp - 48.0_dp*p1 + 12.0_dp*p2 - p3)
+       v2 = -22.0_dp/3.0_dp + 10.0_dp*q1 - 4.0_dp*q2 + 0.5_dp*q3
+       v3 =   2.0_dp/3.0_dp -  2.0_dp*r1 + 2.0_dp*r2 - 0.5_dp*r3
+       v4 =   1.0_dp/6.0_dp*u3
+       
+       val = (( aaa * t1 + baa * t2 + caa * t3 + daa * t4 ) * s1  +&
+              ( aba * t1 + bba * t2 + cba * t3 + dba * t4 ) * s2  +&
+              ( aca * t1 + bca * t2 + cca * t3 + dca * t4 ) * s3  +&
+              ( ada * t1 + bda * t2 + cda * t3 + dda * t4 ) * s4  ) * v1 +&
+             (( aab * t1 + bab * t2 + cab * t3 + dab * t4 ) * s1  +&
+              ( abb * t1 + bbb * t2 + cbb * t3 + dbb * t4 ) * s2  +&
+              ( acb * t1 + bcb * t2 + ccb * t3 + dcb * t4 ) * s3  +&
+              ( adb * t1 + bdb * t2 + cdb * t3 + ddb * t4 ) * s4  ) * v2 +&
+             (( aac * t1 + bac * t2 + cac * t3 + dac * t4 ) * s1  +&
+              ( abc * t1 + bbc * t2 + cbc * t3 + dbc * t4 ) * s2  +&
+              ( acc * t1 + bcc * t2 + ccc * t3 + dcc * t4 ) * s3  +&
+              ( adc * t1 + bdc * t2 + cdc * t3 + ddc * t4 ) * s4  ) * v3 +&
+             (( aad * t1 + bad * t2 + cad * t3 + dad * t4 ) * s1  +&
+              ( abd * t1 + bbd * t2 + cbd * t3 + dbd * t4 ) * s2  +&
+              ( acd * t1 + bcd * t2 + ccd * t3 + dcd * t4 ) * s3  +&
+              ( add * t1 + bdd * t2 + cdd * t3 + ddd * t4 ) * s4  ) * v4 
+          
+    END IF
+
+  END FUNCTION Eval_Interp_Spl3_pbc
+
+  !!****f* pw_spline_utils/Eval_d_Interp_Spl3_pbc *
+  !!
+  !!   NAME
+  !!     Eval_d_Interp_Spl3_pbc
+  !!
+  !!   FUNCTION
+  !!     Evaluates the derivatives of the PBC interpolated Spline (pw) 
+  !!     function on the generic input vector (vec)
+  !!
+  !!   NOTES
+  !!     Requires the Spline coefficients to be computed with PBC
+  !!
+  !!   INPUTS
+  !!     - error: variable to control error logging, stopping,... 
+  !!       see module cp_error_handling 
+  !!
+  !!   AUTHOR
+  !!     Teodoro Laino 12/2005 [tlaino]
+  !!
+  !!*** **********************************************************************
+  FUNCTION Eval_d_Interp_Spl3_pbc(vec,pw,error) RESULT(val)
+    IMPLICIT NONE
+    ! Arguments
+    REAL(KIND=dp), DIMENSION(3), INTENT(in)      :: vec
+    TYPE(pw_type), POINTER                       :: pw
+    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    REAL(KIND=dp)                                :: val(3)
+    ! Local Variables
+    CHARACTER(len=*), PARAMETER :: routineN='Eval_d_Interp_Spl3_pbc',&
+         routineP=moduleN//':'//routineN
+    INTEGER       :: ivec(3), npts(3)
+    INTEGER       :: ik1, ik2, ik3, ik4, ij1, ij2, ij3, ij4, ii1, ii2, ii3, ii4
+    REAL(KIND=dp) :: dr1, dr2, dr3, xd1, xd2, xd3, dr1i, dr2i, dr3i
+    REAL(KIND=dp) :: aaa, aba, aca, ada, aab, abb, acb, adb, aac, abc, acc, adc, aad, abd, acd, add   
+    REAL(KIND=dp) :: baa, bba, bca, bda, bab, bbb, bcb, bdb, bac, bbc, bcc, bdc, bad, bbd, bcd, bdd 
+    REAL(KIND=dp) :: caa, cba, cca, cda, cab, cbb, ccb, cdb, cac, cbc, ccc, cdc, cad, cbd, ccd, cdd 
+    REAL(KIND=dp) :: daa, dba, dca, dda, dab, dbb, dcb, ddb, dac, dbc, dcc, ddc, dad, dbd, dcd, ddd 
+    REAL(KIND=dp) :: a1, a2, a3, b1, b2, b3, c1, c2, c3, d1, d2, d3, t1o, t2o, t3o, t4o
+    REAL(KIND=dp) :: t1d, t2d, t3d, t4d, t1, t2, t3, t4
+    REAL(KIND=dp) :: e1, e2, e3, f1, f2, f3, g1, g2, g3, h1, h2, h3, s1o, s2o, s3o, s4o
+    REAL(KIND=dp) :: s1d, s2d, s3d, s4d, s1, s2, s3, s4
+    REAL(KIND=dp) :: p1, p2, p3, q1, q2, q3, r1, r2, r3, u1, u2, u3, v1o, v2o, v3o, v4o
+    REAL(KIND=dp) :: v1d, v2d, v3d, v4d, v1, v2, v3, v4
+    REAL(KIND=dp), DIMENSION(:,:,:), POINTER    :: grid
+    LOGICAL       :: failure
+
+    NULLIFY(grid)
+    failure=.FALSE.
+    IF (.NOT.failure) THEN
+       npts = pw%pw_grid%npts
+       ivec = FLOOR(vec/pw%pw_grid%dr)
+       dr1  = pw%pw_grid%dr(1)
+       dr2  = pw%pw_grid%dr(2)
+       dr3  = pw%pw_grid%dr(3)
+       dr1i = 1.0_dp / dr1
+       dr2i = 1.0_dp / dr2
+       dr3i = 1.0_dp / dr3
+       xd1  = (vec(1)/dr1)-REAL(ivec(1),kind=dp)
+       xd2  = (vec(2)/dr2)-REAL(ivec(2),kind=dp)
+       xd3  = (vec(3)/dr3)-REAL(ivec(3),kind=dp)
+       grid => pw%cr3d(:,:,:)       
+
+       ik1 = MODULO(ivec(3)-1,npts(3))+1
+       ik2 = MODULO(ivec(3)  ,npts(3))+1
+       ik3 = MODULO(ivec(3)+1,npts(3))+1
+       ik4 = MODULO(ivec(3)+2,npts(3))+1
+
+       ij1 = MODULO(ivec(2)-1,npts(2))+1
+       ij2 = MODULO(ivec(2)  ,npts(2))+1
+       ij3 = MODULO(ivec(2)+1,npts(2))+1
+       ij4 = MODULO(ivec(2)+2,npts(2))+1
+       
+       ii1 = MODULO(ivec(1)-1,npts(1))+1
+       ii2 = MODULO(ivec(1)  ,npts(1))+1
+       ii3 = MODULO(ivec(1)+1,npts(1))+1
+       ii4 = MODULO(ivec(1)+2,npts(1))+1
+ 
+       aaa   = grid(ii1,ij1,ik1)
+       baa   = grid(ii2,ij1,ik1)
+       caa   = grid(ii3,ij1,ik1)
+       daa   = grid(ii4,ij1,ik1)
+       aba   = grid(ii1,ij2,ik1)
+       bba   = grid(ii2,ij2,ik1)
+       cba   = grid(ii3,ij2,ik1)
+       dba   = grid(ii4,ij2,ik1)
+       aca   = grid(ii1,ij3,ik1)
+       bca   = grid(ii2,ij3,ik1)
+       cca   = grid(ii3,ij3,ik1)
+       dca   = grid(ii4,ij3,ik1)
+       ada   = grid(ii1,ij4,ik1)
+       bda   = grid(ii2,ij4,ik1)
+       cda   = grid(ii3,ij4,ik1)
+       dda   = grid(ii4,ij4,ik1)
+       aab   = grid(ii1,ij1,ik2)
+       bab   = grid(ii2,ij1,ik2)
+       cab   = grid(ii3,ij1,ik2)
+       dab   = grid(ii4,ij1,ik2)
+       abb   = grid(ii1,ij2,ik2)
+       bbb   = grid(ii2,ij2,ik2)
+       cbb   = grid(ii3,ij2,ik2)
+       dbb   = grid(ii4,ij2,ik2)
+       acb   = grid(ii1,ij3,ik2)
+       bcb   = grid(ii2,ij3,ik2)
+       ccb   = grid(ii3,ij3,ik2)
+       dcb   = grid(ii4,ij3,ik2)
+       adb   = grid(ii1,ij4,ik2)
+       bdb   = grid(ii2,ij4,ik2)
+       cdb   = grid(ii3,ij4,ik2)
+       ddb   = grid(ii4,ij4,ik2)
+       aac   = grid(ii1,ij1,ik3)
+       bac   = grid(ii2,ij1,ik3)
+       cac   = grid(ii3,ij1,ik3)
+       dac   = grid(ii4,ij1,ik3)
+       abc   = grid(ii1,ij2,ik3)
+       bbc   = grid(ii2,ij2,ik3)
+       cbc   = grid(ii3,ij2,ik3)
+       dbc   = grid(ii4,ij2,ik3)
+       acc   = grid(ii1,ij3,ik3)
+       bcc   = grid(ii2,ij3,ik3)
+       ccc   = grid(ii3,ij3,ik3)
+       dcc   = grid(ii4,ij3,ik3)
+       adc   = grid(ii1,ij4,ik3)
+       bdc   = grid(ii2,ij4,ik3)
+       cdc   = grid(ii3,ij4,ik3)
+       ddc   = grid(ii4,ij4,ik3)
+       aad   = grid(ii1,ij1,ik4)
+       bad   = grid(ii2,ij1,ik4)
+       cad   = grid(ii3,ij1,ik4)
+       dad   = grid(ii4,ij1,ik4)
+       abd   = grid(ii1,ij2,ik4)
+       bbd   = grid(ii2,ij2,ik4)
+       cbd   = grid(ii3,ij2,ik4)
+       dbd   = grid(ii4,ij2,ik4)
+       acd   = grid(ii1,ij3,ik4)
+       bcd   = grid(ii2,ij3,ik4)
+       ccd   = grid(ii3,ij3,ik4)
+       dcd   = grid(ii4,ij3,ik4)
+       add   = grid(ii1,ij4,ik4)
+       bdd   = grid(ii2,ij4,ik4)
+       cdd   = grid(ii3,ij4,ik4)
+       ddd   = grid(ii4,ij4,ik4)
+              
+       a1  = 3.0_dp + xd1
+       a2  = a1*a1
+       a3  = a2*a1
+       b1  = 2.0_dp + xd1
+       b2  = b1*b1
+       b3  = b2*b1
+       c1  = 1.0_dp + xd1
+       c2  = c1*c1
+       c3  = c2*c1
+       d1  = xd1
+       d2  = d1*d1
+       d3  = d2*d1
+       e1  = 3.0_dp + xd2
+       e2  = e1*e1
+       e3  = e2*e1
+       f1  = 2.0_dp + xd2
+       f2  = f1*f1
+       f3  = f2*f1
+       g1  = 1.0_dp + xd2
+       g2  = g1*g1
+       g3  = g2*g1
+       h1  = xd2
+       h2  = h1*h1
+       h3  = h2*h1
+       p1  = 3.0_dp + xd3
+       p2  = p1*p1
+       p3  = p2*p1
+       q1  = 2.0_dp + xd3
+       q2  = q1*q1
+       q3  = q2*q1
+       r1  = 1.0_dp + xd3
+       r2  = r1*r1
+       r3  = r2*r1
+       u1  = xd3
+       u2  = u1*u1
+       u3  = u2*u1
+       
+       t1o =   1.0_dp/6.0_dp * (64.0_dp - 48.0_dp*a1 + 12.0_dp*a2 - a3)
+       t2o = -22.0_dp/3.0_dp + 10.0_dp*b1 - 4.0_dp*b2 + 0.5_dp*b3
+       t3o =   2.0_dp/3.0_dp -  2.0_dp*c1 + 2.0_dp*c2 - 0.5_dp*c3
+       t4o =   1.0_dp/6.0_dp*d3
+       s1o =   1.0_dp/6.0_dp * (64.0_dp - 48.0_dp*e1 + 12.0_dp*e2 - e3)
+       s2o = -22.0_dp/3.0_dp + 10.0_dp*f1 - 4.0_dp*f2 + 0.5_dp*f3
+       s3o =   2.0_dp/3.0_dp -  2.0_dp*g1 + 2.0_dp*g2 - 0.5_dp*g3
+       s4o =   1.0_dp/6.0_dp*h3
+       v1o =   1.0_dp/6.0_dp * (64.0_dp - 48.0_dp*p1 + 12.0_dp*p2 - p3)
+       v2o = -22.0_dp/3.0_dp + 10.0_dp*q1 - 4.0_dp*q2 + 0.5_dp*q3
+       v3o =   2.0_dp/3.0_dp -  2.0_dp*r1 + 2.0_dp*r2 - 0.5_dp*r3
+       v4o =   1.0_dp/6.0_dp*u3
+       
+       t1d =  -8.0_dp + 4.0_dp*a1 - 0.5_dp*a2
+       t2d =  10.0_dp - 8.0_dp*b1 + 1.5_dp*b2
+       t3d =  -2.0_dp + 4.0_dp*c1 - 1.5_dp*c2
+       t4d =   0.5_dp*d2
+       s1d =  -8.0_dp + 4.0_dp*e1 - 0.5_dp*e2
+       s2d =  10.0_dp - 8.0_dp*f1 + 1.5_dp*f2
+       s3d =  -2.0_dp + 4.0_dp*g1 - 1.5_dp*g2
+       s4d =   0.5_dp*h2
+       v1d =  -8.0_dp + 4.0_dp*p1 - 0.5_dp*p2
+       v2d =  10.0_dp - 8.0_dp*q1 + 1.5_dp*q2
+       v3d =  -2.0_dp + 4.0_dp*r1 - 1.5_dp*r2
+       v4d =   0.5_dp*u2
+
+       t1     = t1d*dr1i
+       t2     = t2d*dr1i
+       t3     = t3d*dr1i
+       t4     = t4d*dr1i
+       s1     = s1o
+       s2     = s2o
+       s3     = s3o
+       s4     = s4o
+       v1     = v1o
+       v2     = v2o
+       v3     = v3o
+       v4     = v4o
+       val(1) = (( aaa * t1 + baa * t2 + caa * t3 + daa * t4 ) * s1  +&
+                 ( aba * t1 + bba * t2 + cba * t3 + dba * t4 ) * s2  +&
+                 ( aca * t1 + bca * t2 + cca * t3 + dca * t4 ) * s3  +&
+                 ( ada * t1 + bda * t2 + cda * t3 + dda * t4 ) * s4  ) * v1 +&
+                (( aab * t1 + bab * t2 + cab * t3 + dab * t4 ) * s1  +&
+                 ( abb * t1 + bbb * t2 + cbb * t3 + dbb * t4 ) * s2  +&
+                 ( acb * t1 + bcb * t2 + ccb * t3 + dcb * t4 ) * s3  +&
+                 ( adb * t1 + bdb * t2 + cdb * t3 + ddb * t4 ) * s4  ) * v2 +&
+                (( aac * t1 + bac * t2 + cac * t3 + dac * t4 ) * s1  +&
+                 ( abc * t1 + bbc * t2 + cbc * t3 + dbc * t4 ) * s2  +&
+                 ( acc * t1 + bcc * t2 + ccc * t3 + dcc * t4 ) * s3  +&
+                 ( adc * t1 + bdc * t2 + cdc * t3 + ddc * t4 ) * s4  ) * v3 +&
+                (( aad * t1 + bad * t2 + cad * t3 + dad * t4 ) * s1  +&
+                 ( abd * t1 + bbd * t2 + cbd * t3 + dbd * t4 ) * s2  +&
+                 ( acd * t1 + bcd * t2 + ccd * t3 + dcd * t4 ) * s3  +&
+                 ( add * t1 + bdd * t2 + cdd * t3 + ddd * t4 ) * s4  ) * v4
+
+       t1     = t1o
+       t2     = t2o
+       t3     = t3o
+       t4     = t4o
+       s1     = s1d*dr2i
+       s2     = s2d*dr2i
+       s3     = s3d*dr2i
+       s4     = s4d*dr2i
+       v1     = v1o
+       v2     = v2o
+       v3     = v3o
+       v4     = v4o
+       val(2) = (( aaa * t1 + baa * t2 + caa * t3 + daa * t4 ) * s1  +&
+                 ( aba * t1 + bba * t2 + cba * t3 + dba * t4 ) * s2  +&
+                 ( aca * t1 + bca * t2 + cca * t3 + dca * t4 ) * s3  +&
+                 ( ada * t1 + bda * t2 + cda * t3 + dda * t4 ) * s4  ) * v1 +&
+                (( aab * t1 + bab * t2 + cab * t3 + dab * t4 ) * s1  +&
+                 ( abb * t1 + bbb * t2 + cbb * t3 + dbb * t4 ) * s2  +&
+                 ( acb * t1 + bcb * t2 + ccb * t3 + dcb * t4 ) * s3  +&
+                 ( adb * t1 + bdb * t2 + cdb * t3 + ddb * t4 ) * s4  ) * v2 +&
+                (( aac * t1 + bac * t2 + cac * t3 + dac * t4 ) * s1  +&
+                 ( abc * t1 + bbc * t2 + cbc * t3 + dbc * t4 ) * s2  +&
+                 ( acc * t1 + bcc * t2 + ccc * t3 + dcc * t4 ) * s3  +&
+                 ( adc * t1 + bdc * t2 + cdc * t3 + ddc * t4 ) * s4  ) * v3 +&
+                (( aad * t1 + bad * t2 + cad * t3 + dad * t4 ) * s1  +&
+                 ( abd * t1 + bbd * t2 + cbd * t3 + dbd * t4 ) * s2  +&
+                 ( acd * t1 + bcd * t2 + ccd * t3 + dcd * t4 ) * s3  +&
+                 ( add * t1 + bdd * t2 + cdd * t3 + ddd * t4 ) * s4  ) * v4
+
+       t1     = t1o
+       t2     = t2o
+       t3     = t3o
+       t4     = t4o
+       s1     = s1o
+       s2     = s2o
+       s3     = s3o
+       s4     = s4o
+       v1     = v1d*dr3i
+       v2     = v2d*dr3i
+       v3     = v3d*dr3i
+       v4     = v4d*dr3i
+       val(3) = (( aaa * t1 + baa * t2 + caa * t3 + daa * t4 ) * s1  +&
+                 ( aba * t1 + bba * t2 + cba * t3 + dba * t4 ) * s2  +&
+                 ( aca * t1 + bca * t2 + cca * t3 + dca * t4 ) * s3  +&
+                 ( ada * t1 + bda * t2 + cda * t3 + dda * t4 ) * s4  ) * v1 +&
+                (( aab * t1 + bab * t2 + cab * t3 + dab * t4 ) * s1  +&
+                 ( abb * t1 + bbb * t2 + cbb * t3 + dbb * t4 ) * s2  +&
+                 ( acb * t1 + bcb * t2 + ccb * t3 + dcb * t4 ) * s3  +&
+                 ( adb * t1 + bdb * t2 + cdb * t3 + ddb * t4 ) * s4  ) * v2 +&
+                (( aac * t1 + bac * t2 + cac * t3 + dac * t4 ) * s1  +&
+                 ( abc * t1 + bbc * t2 + cbc * t3 + dbc * t4 ) * s2  +&
+                 ( acc * t1 + bcc * t2 + ccc * t3 + dcc * t4 ) * s3  +&
+                 ( adc * t1 + bdc * t2 + cdc * t3 + ddc * t4 ) * s4  ) * v3 +&
+                (( aad * t1 + bad * t2 + cad * t3 + dad * t4 ) * s1  +&
+                 ( abd * t1 + bbd * t2 + cbd * t3 + dbd * t4 ) * s2  +&
+                 ( acd * t1 + bcd * t2 + ccd * t3 + dcd * t4 ) * s3  +&
+                 ( add * t1 + bdd * t2 + cdd * t3 + ddd * t4 ) * s4  ) * v4 
+          
+    END IF
+
+  END FUNCTION Eval_d_Interp_Spl3_pbc
 
 END MODULE pw_spline_utils

@@ -139,6 +139,7 @@ MODULE qs_environment
                                              timestop
   USE topology,                        ONLY: topology_control
   USE xas_control,                     ONLY: write_xas_control
+  USE cp_ddapc_types,                  ONLY: cp_ddapc_ewald_create
 #include "cp_common_uses.h"
   IMPLICIT NONE
 
@@ -240,6 +241,10 @@ CONTAINS
                       cell_section=cell_section, error=error)
     END IF
     CALL get_cell ( my_cell, abc=abc)
+
+!   *** Setup the grids for the G-space Interpolation if any
+    CALL cp_ddapc_ewald_create(qs_env%cp_ddapc_ewald, my_qmmm, my_cell, force_env_section,&
+         globenv, error)
 
 !   *** Print the cell parameters ***
 

@@ -40,17 +40,25 @@ MODULE qmmm_types
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE qmmm_gaussian_types,             ONLY: qmmm_gaussian_p_type
+  USE pw_grid_types,                   ONLY: pw_grid_type
+  USE pw_grids,                        ONLY: pw_grid_release
   USE pw_types,                        ONLY: pw_type,&
                                              pw_p_type,&
                                              pw_release
   USE particle_types,                  ONLY: particle_type,&
                                              deallocate_particle_set,&
                                              allocate_particle_set
-  USE pw_pool_types, ONLY: pw_pool_p_type, pw_pool_type, pw_pools_dealloc
-  USE input_constants, ONLY: do_qmmm_grid, do_qmmm_gauss, do_qmmm_none
-  USE force_field_types, ONLY: input_info_type,&
-                               init_inp_info,&
-                               deallocate_inp_info
+  USE pw_pool_types,                   ONLY: pw_pool_p_type,&
+                                             pw_pool_type,&
+                                             pw_pools_dealloc,&
+                                             pw_pool_give_back_pw,&
+                                             pw_pool_release
+  USE input_constants,                 ONLY: do_qmmm_grid,&
+                                             do_qmmm_gauss,&
+                                             do_qmmm_none
+  USE force_field_types,               ONLY: input_info_type,&
+                                             init_inp_info,&
+                                             deallocate_inp_info
   IMPLICIT NONE
   PRIVATE
 
@@ -117,6 +125,9 @@ MODULE qmmm_types
      REAL(KIND=dp)  :: Gmax, Fac(3)
      INTEGER        :: Kmax(3), n_rep_real(3)
      INTEGER,        DIMENSION(:), POINTER :: mm_atom_index
+     TYPE ( pw_pool_type ), POINTER :: pw_pool
+     TYPE ( pw_grid_type ), POINTER :: pw_grid
+     TYPE ( pw_type ),      POINTER :: TabLR
   END TYPE qmmm_per_pot_type
 
   TYPE qmmm_per_pot_p_type
@@ -785,6 +796,17 @@ SUBROUTINE qmmm_per_pot_type_dealloc(Per_Potentials, error)
         IF (ASSOCIATED(Per_Potentials(I)%Pot%mm_atom_index)) THEN   
            DEALLOCATE(Per_Potentials(I)%Pot%mm_atom_index,stat=stat)
            CPPostconditionNoFail(stat==0,cp_failure_level,routineP,error)              
+        END IF
+        IF (ASSOCIATED(Per_Potentials(I)%Pot%TabLR)) THEN
+           CALL pw_pool_give_back_pw ( Per_Potentials(I)%Pot%pw_pool,  Per_Potentials(I)%Pot%TabLR)
+        END IF
+        IF (ASSOCIATED(Per_Potentials(I)%Pot%pw_pool)) THEN
+           CALL pw_pool_release ( Per_Potentials(I)%Pot%pw_pool, error=error)
+           CPPostconditionNoFail(.NOT.ASSOCIATED(Per_Potentials(I)%Pot%pw_pool),cp_failure_level,routineP,error)
+        END IF
+        IF (ASSOCIATED(Per_Potentials(I)%Pot%pw_grid)) THEN
+           CALL pw_grid_release ( Per_Potentials(I)%Pot%pw_grid, error=error)
+           CPPostconditionNoFail(.NOT.ASSOCIATED(Per_Potentials(I)%Pot%pw_grid),cp_failure_level,routineP,error)
         END IF
         DEALLOCATE(Per_Potentials(I)%Pot,stat=stat)
         CPPostconditionNoFail(stat==0,cp_failure_level,routineP,error)

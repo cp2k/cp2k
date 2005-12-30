@@ -39,7 +39,7 @@ MODULE input_cp2k_qmmm
 
   USE string_utilities, ONLY: s2a
   USE input_cp2k_mm, ONLY: create_NONBONDED14_section, create_LJ_section, create_Williams_section, create_Goodwin_section
-  USE input_cp2k_dft, only: create_multipole_section
+  USE input_cp2k_dft, ONLY: create_multipole_section, create_gspace_interp_section
 #include "cp_common_uses.h"
 
   implicit none
@@ -322,7 +322,7 @@ contains
 
        CALL keyword_create(keyword, name="GMAX",&
             description="Specifies the maximum value of G in the reciprocal space over which perform the Ewald sum.",&
-            usage="GMAX real",n_var=1,default_r_val=1.0_dp,&
+            usage="GMAX <real>",n_var=1,default_r_val=1.0_dp,&
             error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -330,13 +330,31 @@ contains
        CALL keyword_create(keyword, name="REPLICA",&
             description="Specifies the number of replica to take into consideration for the real part of the "//&
             "calculation. Default is letting the qmmm module decide how many replica you really need.",&
-            usage="REPLICA integer",n_var=1,default_i_val=-1,&
+            usage="REPLICA <integer>",n_var=1,default_i_val=-1,&
             error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)       
        
+       CALL keyword_create(keyword, name="NGRIDS",&
+            description="Specifies the number of grid points used for the Interpolation of the G-space term",&
+            usage="NGRIDS <integer> <iteger> <integer> ",n_var=3,default_i_vals=(/50,50,50/),&
+            error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)       
+
        CALL create_multipole_section(subsection,error)
        CALL section_add_subsection(section, subsection, error=error)
+       CALL section_release(subsection,error=error)       
+
+       CALL create_gspace_interp_section(subsection,error)
+       CALL section_add_subsection(section, subsection, error=error)
+       CALL section_release(subsection,error=error)       
+
+       CALL cp_print_key_section_create(subsection,"check_spline",&
+            description="Controls the checking of the G-space term Spline Interpolation.",&
+            print_level=medium_print_level,each=(/1/),filename="GSpace-SplInterp",&
+            error=error)
+       CALL section_add_subsection(section,subsection,error=error)
        CALL section_release(subsection,error=error)       
 
     END IF

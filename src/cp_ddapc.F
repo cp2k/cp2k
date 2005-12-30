@@ -125,11 +125,11 @@ CONTAINS
 !!
 !!*** **********************************************************************
   RECURSIVE SUBROUTINE get_ddapc(qs_env,qmmm_periodic,calc_force,fitcharge_section,&
-       qout1,qout2,out_radii,dq_out,error)
+       qout1,qout2,out_radii,dq_out,just_charge,error)
     IMPLICIT NONE
     ! Arguments
     TYPE(qs_environment_type), POINTER       :: qs_env
-    LOGICAL, INTENT(in), OPTIONAL            :: calc_force, qmmm_periodic
+    LOGICAL, INTENT(in), OPTIONAL            :: calc_force, qmmm_periodic, just_charge
     TYPE(section_vals_type), POINTER         :: fitcharge_section
     REAL(KIND=dp), DIMENSION(:), POINTER, OPTIONAL   :: qout1, qout2, out_radii
     REAL(KIND=dp), DIMENSION(:,:,:), POINTER, OPTIONAL :: dq_out
@@ -143,7 +143,7 @@ CONTAINS
     TYPE(pw_type), POINTER                   :: rho_tot_g
     TYPE(coeff_type), POINTER                :: rho_core
     TYPE(cp_logger_type), POINTER :: logger
-    LOGICAL :: failure, need_f, ionode
+    LOGICAL :: failure, need_f, ionode, only_charge
     INTEGER :: iw, handle, ispin, n_rep_val, num_gauss, stat, i, ndim, ii, j, iparticle
     TYPE(pw_pool_type), POINTER              :: auxbas_pool
     REAL(KIND=dp), DIMENSION(:), POINTER     :: inp_radii, radii
@@ -161,6 +161,8 @@ CONTAINS
     CALL timeset(routineN,"I","",handle)
     failure=.FALSE.
     need_f = .FALSE.
+    only_charge = .FALSE.
+    IF (PRESENT(just_charge)) only_charge=just_charge
     IF (PRESENT(calc_force)) need_f = calc_force    
     logger => cp_error_get_logger(error)
     ionode = logger%para_env%mepos==logger%para_env%source
@@ -231,8 +233,9 @@ CONTAINS
        ! 
        ! Start with the linear system
        !
-       CALL cp_ddapc_create(qs_env%cp_ddapc_env, qmmm_periodic, particle_set, radii, cell, super_cell,&
-            rho_tot_g, gcut, iw, Vol, fitcharge_section, error)
+       CALL cp_ddapc_create(qs_env%cp_ddapc_env,qs_env%cp_ddapc_ewald, qmmm_periodic,&
+            particle_set, radii, cell, super_cell,rho_tot_g, gcut, iw, Vol, &
+            fitcharge_section, only_charge, error)
        cp_ddapc_env => qs_env%cp_ddapc_env 
 
        ndim = SIZE(particle_set)*SIZE(radii) 
@@ -279,7 +282,7 @@ CONTAINS
           qout2 = qtot
        END IF
        IF (iw>0) THEN
-          WRITE(iw,'(/T3,A)')" Charges on QM atoms used to couple/decouple the periodic images:"
+          WRITE(iw,'(/T3,A)')" Atomic point Charges on QM atoms:"
           DO i = 1, SIZE(particle_set)
              WRITE(iw,'(T6,A,I5,F12.6)')"Atom: ",i,qtot(i)
           END DO
@@ -289,7 +292,7 @@ CONTAINS
        !
        ! If requested evaluate also the correction to derivatives due to Pulay Forces
        !
-       IF (need_f) THEN          
+       IF (need_f.AND.(.NOT.only_charge)) THEN          
           IF (iw>0) THEN
              WRITE(iw,'(T3,A)')" Evaluating Pulay Forces.."
           END IF
@@ -489,11 +492,13 @@ CONTAINS
        ! Re-evaluate Hartree Energy after the Hartree potential has been modified
        energy=0.5_dp * pw_integral_ab ( rho_tot_gspace % pw, v_hartree_gspace % pw )
        IF (need_f) THEN
-               CALL ewald_ddapc_force(qs_env, .FALSE.,       multipole_section, particle_set,&
+          CALL ewald_ddapc_force(qs_env, qs_env%cp_ddapc_ewald%coeff_qm,&
+               .FALSE.,       multipole_section, particle_set,&
                radii, dq, charges, error=error)
           IF (qmmm_periodic) &
-               CALL ewald_ddapc_force(qs_env, qmmm_periodic, multipole_section, particle_set,&
-               radii, dq, charges, error=error)
+               CALL ewald_ddapc_force(qs_env, qs_env%cp_ddapc_ewald%coeff_mm,&
+               qmmm_periodic, multipole_section, particle_set, radii, dq, charges,&
+               error=error)
           CALL cp_ddapc_release(qs_env%cp_ddapc_env,error)
        END IF
        !
