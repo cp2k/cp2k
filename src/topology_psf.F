@@ -42,7 +42,7 @@ MODULE topology_psf
   USE memory_utilities,                ONLY: reallocate
   USE cp_parser,                       ONLY: parser_release,&
                                              parser_get_object,&
-                                             parser_read_line,&
+                                             parser_get_next_line,&
                                              parser_search_string,&
                                              parser_create,&
                                              cp_parser_type
@@ -203,7 +203,7 @@ CONTAINS
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        !Read in the atom info
        DO ibond=1,nbond,4
-          CALL parser_read_line(parser,1,error=error)
+          CALL parser_get_next_line(parser,1,error=error)
           i=0
           DO WHILE ((i<4).AND.((ibond+i)<=nbond))
              CALL parser_get_object(parser,conn_info%bond_a(ibond+i))
@@ -259,7 +259,7 @@ CONTAINS
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        !Read in the atom info
        DO itheta=1,ntheta,3
-          CALL parser_read_line(parser,1,error=error)
+          CALL parser_get_next_line(parser,1,error=error)
           i=0
           DO WHILE ((i<3).AND.((itheta+i)<=ntheta))
              CALL parser_get_object(parser,conn_info%theta_a(itheta+i))
@@ -307,7 +307,7 @@ CONTAINS
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        !Read in the atom info
        DO iphi=1,nphi,2
-          CALL parser_read_line(parser,1,error=error)
+          CALL parser_get_next_line(parser,1,error=error)
           i=0
           DO WHILE ((i<2).AND.((iphi+i)<=nphi))
              CALL parser_get_object(parser,conn_info%phi_a(iphi+i))
@@ -350,7 +350,7 @@ CONTAINS
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        !Read in the atom info
        DO iphi=1,nphi,2
-          CALL parser_read_line(parser,1,error=error)
+          CALL parser_get_next_line(parser,1,error=error)
           i=0
           DO WHILE ((i<2).AND.((iphi+i)<=nphi))
              CALL parser_get_object(parser,conn_info%impr_a(iphi+i))

@@ -114,7 +114,7 @@ MODULE force_fields
                                              pair_potential_single_clean
   USE cp_parser,                       ONLY: parser_release,&
                                              parser_get_object,&
-                                             parser_read_line,&
+                                             parser_get_next_line,&
                                              parser_search_string,&
                                              parser_create,&
                                              cp_parser_type,&
@@ -1238,7 +1238,7 @@ SUBROUTINE read_force_field_charmm ( ff_type , globenv, error )
           IF (found) THEN
              CALL parser_get_object(parser,string)
              IF (INDEX(string,TRIM(label)) /= 1) CYCLE
-             CALL parser_read_line(parser,1,error=error)
+             CALL parser_get_next_line(parser,1,error=error)
              DO 
                 CALL parser_get_object(parser,string)
                 CALL uppercase ( string )
@@ -1267,7 +1267,7 @@ SUBROUTINE read_force_field_charmm ( ff_type , globenv, error )
                 chm_info%bond_k(1,nbond) = 2.0_dp * chm_info%bond_k(1,nbond)
                 chm_info%bond_k(2,nbond) = 0.0_dp
                 chm_info%bond_k(3,nbond) = 0.0_dp
-                CALL parser_read_line(parser,1,error=error)
+                CALL parser_get_next_line(parser,1,error=error)
              END DO
           ELSE
              EXIT
@@ -1295,7 +1295,7 @@ SUBROUTINE read_force_field_charmm ( ff_type , globenv, error )
           IF (found) THEN
              CALL parser_get_object(parser,string)
              IF (INDEX(string,TRIM(label)) /= 1) CYCLE
-             CALL parser_read_line(parser,1,error=error)
+             CALL parser_get_next_line(parser,1,error=error)
              DO
                 CALL parser_get_object(parser,string)
                 CALL uppercase ( string )
@@ -1350,7 +1350,7 @@ SUBROUTINE read_force_field_charmm ( ff_type , globenv, error )
                    CALL convert_to_cp2k_units("BOHR",length=chm_info%ub_k(nub))
                    chm_info%ub_k(nub) = 2.0_dp * chm_info%ub_k(nub)
                 END IF
-                CALL parser_read_line(parser,1,error=error)
+                CALL parser_get_next_line(parser,1,error=error)
              END DO
           ELSE
              EXIT
@@ -1373,7 +1373,7 @@ SUBROUTINE read_force_field_charmm ( ff_type , globenv, error )
           IF (found) THEN
              CALL parser_get_object(parser,string)
              IF (INDEX(string,TRIM(label)) /= 1) CYCLE
-             CALL parser_read_line(parser,1,error=error)
+             CALL parser_get_next_line(parser,1,error=error)
              DO
                 CALL parser_get_object(parser,string)
                 CALL uppercase ( string )
@@ -1413,7 +1413,7 @@ SUBROUTINE read_force_field_charmm ( ff_type , globenv, error )
                 CALL convert_to_cp2k_units("KCAL",energy=chm_info%torsion_k(ntorsion))
                 chm_info%torsion_cosphi0(ntorsion)=&
                      COS(chm_info%torsion_cosphi0(ntorsion))
-                CALL parser_read_line(parser,1,error=error)
+                CALL parser_get_next_line(parser,1,error=error)
              END DO
           ELSE
              EXIT
@@ -1437,7 +1437,7 @@ SUBROUTINE read_force_field_charmm ( ff_type , globenv, error )
           IF (found) THEN
              CALL parser_get_object(parser,string)
              IF (INDEX(string,TRIM(label)) /= 1) CYCLE
-             CALL parser_read_line(parser,1,error=error)
+             CALL parser_get_next_line(parser,1,error=error)
              DO
                 CALL parser_get_object(parser,string)
                 CALL uppercase ( string )
@@ -1473,7 +1473,7 @@ SUBROUTINE read_force_field_charmm ( ff_type , globenv, error )
                 CALL convert_to_cp2k_units("DEGREE",angle=chm_info%impr_phi0(nimpr))
                 CALL convert_to_cp2k_units("KCAL",energy=chm_info%impr_k(nimpr))
                 chm_info%impr_k(nimpr) = 2.0_dp * chm_info%impr_k(nimpr)
-                CALL parser_read_line(parser,1,error=error)
+                CALL parser_get_next_line(parser,1,error=error)
              END DO
           ELSE
              EXIT
@@ -1495,7 +1495,7 @@ SUBROUTINE read_force_field_charmm ( ff_type , globenv, error )
           IF (found) THEN
              CALL parser_get_object(parser,string)
              IF (INDEX(string,TRIM(label)) /= 1) CYCLE
-             CALL parser_read_line(parser,1,error=error)
+             CALL parser_get_next_line(parser,1,error=error)
              DO
                 CALL parser_get_object(parser,string)
                 CALL uppercase ( string )
@@ -1534,7 +1534,7 @@ SUBROUTINE read_force_field_charmm ( ff_type , globenv, error )
                    CALL convert_to_cp2k_units("KCAL",&
                         energy=chm_info%nonbond_eps_14(nonfo))
                 END IF
-                CALL parser_read_line(parser,1,error=error)
+                CALL parser_get_next_line(parser,1,error=error)
              END DO
           ELSE
              EXIT

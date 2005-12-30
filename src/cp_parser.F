@@ -62,10 +62,10 @@ MODULE cp_parser
 
   PUBLIC :: cp_parser_type
   PUBLIC :: parser_release, parser_retain, parser_create
-  PUBLIC :: parser_read_line, parser_next_token, parser_test_next_token
+  PUBLIC :: parser_next_token, parser_test_next_token
   PUBLIC :: parser_get_object, parser_get_real, parser_get_integer,&
        parser_get_logical, parser_get_string, parser_location,&
-       parser_search_string
+       parser_search_string,parser_get_next_line
 
 ! *** Global parameters ***
 
