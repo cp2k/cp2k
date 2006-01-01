@@ -4,7 +4,6 @@
 !   Copyright (C) 2000  CP2K developers group                                 !
 !-----------------------------------------------------------------------------!
 
-#include "cp_prep_globals.h"
 
 !!****** cp2k/fist_environment [1.0] *
 !!
@@ -27,7 +26,6 @@ MODULE fist_environment
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              write_atomic_kind_set
   USE checkpoint_handler,              ONLY: write_checkpoint_information
-  USE cp_error_handling,               ONLY: cp_error_type
   USE cp_subsystem_types,              ONLY: cp_subsys_create,&
                                              cp_subsys_set,&
                                              cp_subsys_release,&
@@ -86,6 +84,7 @@ MODULE fist_environment
   USE qmmm_types,                      ONLY: qmmm_env_mm_type
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type
+#include "cp_common_uses.h"
   IMPLICIT NONE
 
   PRIVATE

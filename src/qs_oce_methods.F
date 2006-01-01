@@ -27,7 +27,6 @@ MODULE qs_oce_methods
                                              get_atomic_kind
   USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                              gto_basis_set_type
-  USE cp_error_handling,               ONLY: cp_error_type
   USE kinds,                           ONLY: dp,dp_size
   USE mathconstants,                   ONLY: dfac,&
                                              pi
@@ -51,6 +50,7 @@ MODULE qs_oce_methods
                                              stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
+#include "cp_common_uses.h"
 
   IMPLICIT NONE
 

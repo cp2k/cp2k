@@ -26,10 +26,6 @@ MODULE distribution_methods
                                              get_atomic_kind,&
                                              get_atomic_kind_set
   USE cp_array_i_utils,                ONLY: cp_1d_i_p_type
-  USE cp_error_handling,               ONLY: cp_error_get_logger,&
-                                             cp_error_type
-  USE cp_log_handling,                 ONLY: cp_logger_get_default_unit_nr,&
-                                             cp_logger_type
   USE cp_para_types,                   ONLY: cp_blacs_env_type
   USE distribution_1d_types,           ONLY: distribution_1d_create,&
                                              distribution_1d_type
@@ -48,6 +44,7 @@ MODULE distribution_methods
   USE molecule_types_new,              ONLY: molecule_type
   USE particle_types,                  ONLY: particle_type
   USE termination,                     ONLY: stop_memory
+#include "cp_common_uses.h"
 
   IMPLICIT NONE
 

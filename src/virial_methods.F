@@ -2,7 +2,6 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000  CP2K developers group                                 !
 !-----------------------------------------------------------------------------!
-#include "cp_prep_globals.h"
 !!****** cp2k/virial_methods [1.0] *
 !!
 !!   NAME
@@ -22,21 +21,6 @@ MODULE virial_methods
 
   USE atomic_kind_types,               ONLY: atomic_kind_type, &
                                              get_atomic_kind
-  USE cp_error_handling,               ONLY: cp_a_l,&
-                                             cp_assert,&
-                                             cp_assertion_failed,&
-                                             cp_debug,&
-                                             cp_error_dealloc_ref,&
-                                             cp_error_get_logger,&
-                                             cp_error_init,&
-                                             cp_error_message,&
-                                             cp_error_type,&
-                                             cp_internal_error
-  USE cp_log_handling,                 ONLY: cp_failure_level,&
-                                             cp_fatal_level,&
-                                             cp_note_level,&
-                                             cp_to_string,&
-                                             cp_warning_level
   USE distribution_1d_types,           ONLY: distribution_1d_type
   USE message_passing,                 ONLY: mp_sum
   USE particle_types,                  ONLY: particle_type
@@ -44,6 +28,7 @@ MODULE virial_methods
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE virial_types,                    ONLY: virial_type
+#include "cp_common_uses.h"
 
   IMPLICIT NONE
 

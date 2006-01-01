@@ -3,7 +3,6 @@
 !   Copyright (C) 2004  CP2K developers group                                 !
 !-----------------------------------------------------------------------------!
 
-#include "cp_prep_globals.h"
 
 !!****h* cp2k/qmmm_init [1.0] *
 !!
@@ -33,18 +32,6 @@ MODULE qmmm_init
                                              read_atomic_kind_set, &
                                              set_atomic_kind
   USE cp_output_handling, ONLY: cp_print_key_should_output, cp_p_file
-  USE cp_error_handling,               ONLY: cp_a_l,&
-                                             cp_assert,&
-                                             cp_error_get_logger,&
-                                             cp_error_message,&
-                                             cp_error_type,&
-                                             cp_assertion_failed
-  USE cp_log_handling,                 ONLY: cp_failure_level,&
-                                             cp_fatal_level,&
-                                             cp_note_level,&
-                                             cp_to_string,&
-                                             cp_logger_type,&
-                                             cp_warning_level
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_subsystem_types,              ONLY: cp_subsys_create,&
                                              cp_subsys_get,&
@@ -133,6 +120,7 @@ MODULE qmmm_init
   USE pair_potential_types,            ONLY: pair_potential_reallocate
   USE cp_subsystem_methods,            ONLY: create_small_subsystem
   USE qs_main,                         ONLY: quickstep_create_force_env
+#include "cp_common_uses.h"
   IMPLICIT NONE
   PRIVATE
 

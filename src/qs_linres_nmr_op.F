@@ -2,7 +2,6 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2005  CP2K developers group                                 !
 !-----------------------------------------------------------------------------!
-#include "cp_prep_globals.h"
 !!****m* cp2k/qs_linres_nmr_op
 !!
 !!   NAME
@@ -31,11 +30,6 @@ MODULE qs_linres_nmr_op
                                              get_atomic_kind_set
   USE cp_array_r_utils,                ONLY: cp_2d_r_p_type
   USE cp_control_types,                ONLY: dft_control_type
-  USE cp_error_handling,               ONLY: cp_a_l,&
-                                             cp_assert,&
-                                             cp_error_get_logger,&
-                                             cp_error_message,&
-                                             cp_error_type
   USE cp_fm_basic_linalg,              ONLY: cp_fm_scale,&
                                              cp_fm_symm,&
                                              cp_fm_scale_and_add,&
@@ -47,13 +41,6 @@ MODULE qs_linres_nmr_op
                                              cp_fm_set_all,&
                                              cp_fm_set_submatrix,&
                                              cp_fm_type
-  USE cp_log_handling,                 ONLY: cp_failure_level,&
-                                             cp_fatal_level,&
-                                             cp_logger_get_default_unit_nr,&
-                                             cp_logger_type,&
-                                             cp_note_level,&
-                                             cp_to_string,&
-                                             cp_warning_level
   USE cp_sm_fm_interactions,           ONLY: cp_sm_fm_multiply
   USE kinds,                           ONLY: dp
   USE particle_types,                  ONLY: get_particle_set,&
@@ -68,6 +55,7 @@ MODULE qs_linres_nmr_op
   USE simulation_cell,                 ONLY: cell_type, pbc
   USE sparse_matrix_types,             ONLY: real_matrix_p_type,&
                                              real_matrix_type
+#include "cp_common_uses.h"
 
   IMPLICIT NONE
 

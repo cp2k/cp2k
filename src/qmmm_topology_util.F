@@ -3,7 +3,6 @@
 !   Copyright (C) 2000  CP2K developers group                                 !
 !-----------------------------------------------------------------------------!
 
-#include "cp_prep_globals.h"
 
 !!****** cp2k/qmmm_topology_util [1.0] *
 !!
@@ -22,16 +21,6 @@
 
 
 MODULE qmmm_topology_util
-  USE cp_error_handling,               ONLY: cp_a_l,&
-                                             cp_assert,&
-                                             cp_error_get_logger,&
-                                             cp_error_message,&
-                                             cp_error_type
-  USE cp_log_handling,                 ONLY: cp_failure_level,&
-                                             cp_fatal_level,&
-                                             cp_note_level,&
-                                             cp_to_string,&
-                                             cp_warning_level
   USE checkpoint_handler,              ONLY: write_checkpoint_information
   USE global_types,                    ONLY: global_environment_type
   USE kinds,                           ONLY: dp,&
@@ -49,6 +38,7 @@ MODULE qmmm_topology_util
        section_vals_get_subs_vals, section_vals_get, section_vals_val_get
   USE qmmm_types,                      ONLY: qmmm_env_mm_type
   USE string_utilities,                ONLY: compress
+#include "cp_common_uses.h"
   IMPLICIT NONE
   PRIVATE
   CHARACTER(LEN=*), PARAMETER, PRIVATE :: moduleN = "qmmm_topology_util"

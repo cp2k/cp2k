@@ -3,7 +3,6 @@
 !   Copyright (C) 2001 - 2005  CP2K developers group
 !-----------------------------------------------------------------------------!
 
-#include "cp_prep_globals.h"
 
 !!****** cp2k/qs_scf [1.0] *
 !!
@@ -57,12 +56,6 @@ MODULE qs_scf
                                              gto_basis_set_type
   USE checkpoint_handler,              ONLY: write_checkpoint_information
   USE cp_control_types,                ONLY: dft_control_type
-  USE cp_error_handling,               ONLY: cp_a_l,&
-                                             cp_assert,&
-                                             cp_assertion_failed,&
-                                             cp_error_get_logger,&
-                                             cp_error_message,&
-                                             cp_error_type
   USE cp_files,                        ONLY: close_file,open_file
   USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm,&
                                              cp_fm_symm,&
@@ -89,12 +82,6 @@ MODULE qs_scf
                                              cp_fm_to_fm,&
                                              cp_fm_type,&
                                              cp_fm_write
-  USE cp_log_handling,                 ONLY: cp_failure_level,&
-                                             cp_logger_get_default_unit_nr,&
-                                             cp_logger_type,&
-                                             cp_note_level,&
-                                             cp_to_string,&
-                                             cp_warning_level
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_sm_fm_interactions,           ONLY: copy_sm_to_fm,&
                                              cp_sm_fm_multiply
@@ -216,6 +203,7 @@ MODULE qs_scf
                                              harris_eigenvalue_calculation, &
                                              harris_postprocessing
   USE harris_env_types,                ONLY: harris_env_type
+#include "cp_common_uses.h"
   
   USE input_section_types, ONLY: section_vals_type, section_vals_val_get,&
        section_vals_get_subs_vals, section_vals_get_subs_vals2, &

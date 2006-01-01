@@ -3,7 +3,6 @@
 !   Copyright (C) 1999  MPI fuer Festkoerperforschung, Stuttgart              !
 !-----------------------------------------------------------------------------!
 
-#include "cp_prep_globals.h"
 
 !!****** cp2k/qs_diis [1.0] *
 !!
@@ -24,11 +23,6 @@
 !******************************************************************************
 
 MODULE qs_diis
-  USE cp_error_handling,               ONLY: cp_a_l,&
-                                             cp_assert,&
-                                             cp_error_get_logger,&
-                                             cp_error_message,&
-                                             cp_error_type
   USE cp_fm_basic_linalg,              ONLY: cp_fm_column_scale,&
                                              cp_fm_gemm,&
                                              cp_fm_scale_and_add,&
@@ -42,13 +36,6 @@ MODULE qs_diis
                                              cp_fm_set_all,&
                                              cp_fm_to_fm,&
                                              cp_fm_type
-  USE cp_log_handling,                 ONLY: cp_failure_level,&
-                                             cp_fatal_level,&
-                                             cp_logger_get_default_unit_nr,&
-                                             cp_logger_type,&
-                                             cp_note_level,&
-                                             cp_to_string,&
-                                             cp_warning_level
   USE cp_sm_fm_interactions,           ONLY: copy_sm_to_fm
   USE kinds,                           ONLY: dp,&
                                              dp_size
@@ -60,6 +47,7 @@ MODULE qs_diis
   USE termination,                     ONLY: stop_memory
   USE timings,                         ONLY: timeset,&
                                              timestop
+#include "cp_common_uses.h"
 
   IMPLICIT NONE
 

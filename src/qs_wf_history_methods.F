@@ -3,7 +3,6 @@
 !   Copyright (C) 2002-2003  CP2K developers group                            !
 !-----------------------------------------------------------------------------!
 
-#include "cp_prep_globals.h"
 
 !!****h* cp2k/qs_wf_history_methods [1.0] *
 !!
@@ -32,13 +31,6 @@
 MODULE qs_wf_history_methods
   USE coefficient_types,               ONLY: coeff_type
   USE cp_control_types,                ONLY: dft_control_type
-  USE cp_error_handling,               ONLY: cp_a_l,&
-                                             cp_assert,&
-                                             cp_assertion_failed,&
-                                             cp_error_check,&
-                                             cp_error_get_logger,&
-                                             cp_error_message,&
-                                             cp_error_type
   USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm,&
                                              cp_fm_scale,&
                                              cp_fm_scale_and_add
@@ -53,11 +45,6 @@ MODULE qs_wf_history_methods
                                              cp_fm_release,&
                                              cp_fm_type, &
                                              cp_fm_to_fm
-  USE cp_log_handling,                 ONLY: cp_failure_level,&
-                                             cp_fatal_level,&
-                                             cp_note_level,&
-                                             cp_to_string,&
-                                             cp_warning_level
   USE cp_sm_fm_interactions,           ONLY: cp_sm_fm_multiply
   USE cp_sm_pool_types,                ONLY: cp_sm_pool_p_type,&
                                              sm_pool_create_matrix,&
@@ -125,6 +112,7 @@ MODULE qs_wf_history_methods
                                              allocate_matrix_set
   USE timings,                         ONLY: timeset,&
                                              timestop
+#include "cp_common_uses.h"
 
   IMPLICIT NONE
   PRIVATE

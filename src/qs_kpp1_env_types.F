@@ -3,7 +3,6 @@
 !   Copyright (C) 2002  CP2K developers group                                 !
 !-----------------------------------------------------------------------------!
 
-#include "cp_prep_globals.h"
 
 !!****h* cp2k/qs_kpp1_env_types [1.0] *
 !!
@@ -30,18 +29,6 @@ MODULE qs_kpp1_env_types
   USE cp_array_i_utils,                ONLY: cp_2d_i_write
   USE cp_array_logical_utils,          ONLY: cp_1d_logical_write,&
                                              cp_2d_logical_write
-  USE cp_error_handling,               ONLY: cp_a_l,&
-                                             cp_assert,&
-                                             cp_error_get_logger,&
-                                             cp_error_message,&
-                                             cp_error_type
-  USE cp_log_handling,                 ONLY: cp_failure_level,&
-                                             cp_fatal_level,&
-                                             cp_logger_generate_filename,&
-                                             cp_logger_type,&
-                                             cp_note_level,&
-                                             cp_to_string,&
-                                             cp_warning_level
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE kinds,                           ONLY: dp
   USE pw_types,                        ONLY: pw_p_type
@@ -57,6 +44,7 @@ MODULE qs_kpp1_env_types
                                              xc_dset_release
   USE xc_rho_set_types,                ONLY: xc_rho_set_type,&
                                              xc_rho_set_release
+#include "cp_common_uses.h"
 
   IMPLICIT NONE
   PRIVATE

@@ -2,22 +2,9 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C ) 2000  CP2K developers group                                !
 !-----------------------------------------------------------------------------!
-#include "cp_prep_globals.h"
 
 MODULE kg_energy_utils
 
-  USE cp_error_handling,               ONLY: cp_a_l,&
-                                             cp_assert,&
-                                             cp_assertion_failed,&
-                                             cp_error_get_logger,&
-                                             cp_error_message,&
-                                             cp_error_type
-  USE cp_log_handling,                 ONLY: cp_failure_level,&
-                                             cp_fatal_level,&
-                                             cp_logger_type,&
-                                             cp_note_level,&
-                                             cp_to_string,&
-                                             cp_warning_level
   USE atomic_kind_types,               ONLY: atomic_kind_type
   USE distribution_1d_types,           ONLY: distribution_1d_type
   USE dynamical_coeff_types,           ONLY: dyn_coeff_set_type,&
@@ -29,6 +16,7 @@ MODULE kg_energy_utils
   USE linear_systems,                  ONLY: solve_system
   USE message_passing,                 ONLY: mp_max
 !  USE scf_control_types, ONLY : scf_control
+#include "cp_common_uses.h"
 
   USE termination,                     ONLY: stop_memory
 

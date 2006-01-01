@@ -3,7 +3,6 @@
 !   Copyright (C) 2003 CP2K developers group
 !-----------------------------------------------------------------------------!
 
-#include "cp_prep_globals.h"
 
 !!****h* cp2k/cp_fm_diag [1.0] *
 !!
@@ -25,20 +24,9 @@
 MODULE cp_fm_diag
   USE cp_blacs_calls,                  ONLY: cp_blacs_gridexit,&
                                              cp_blacs_gridinit
-  USE cp_error_handling,               ONLY: cp_a_l,&
-                                             cp_assert,&
-                                             cp_error_get_logger,&
-                                             cp_error_message,&
-                                             cp_error_type
   USE cp_fm_basic_linalg,              ONLY: cp_fm_syrk
   USE cp_fm_types,                     ONLY: cp_fm_to_fm,&
                                              cp_fm_type
-  USE cp_log_handling,                 ONLY: cp_failure_level,&
-                                             cp_logger_get_unit_nr,&
-                                             cp_logger_type,&
-                                             cp_to_string,&
-                                             cp_warning_level, &
-                                             cp_logger_get_default_unit_nr
   USE cp_para_types,                   ONLY: cp_blacs_env_type
   USE kinds,                           ONLY: dp,&
                                              dp_size,&
@@ -49,6 +37,7 @@ MODULE cp_fm_diag
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE util,                            ONLY: sort
+#include "cp_common_uses.h"
 
   IMPLICIT NONE
   PRIVATE

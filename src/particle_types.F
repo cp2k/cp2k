@@ -33,18 +33,6 @@ MODULE particle_types
                                              set_atomic_kind
   USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                              gto_basis_set_type
-  USE cp_error_handling,               ONLY: cp_a_l,&
-                                             cp_assert,&
-                                             cp_error_get_logger,&
-                                             cp_error_message,&
-                                             cp_error_type
-  USE cp_log_handling,                 ONLY: cp_failure_level,&
-                                             cp_fatal_level,&
-                                             cp_logger_get_default_unit_nr,&
-                                             cp_logger_type,&
-                                             cp_note_level,&
-                                             cp_to_string,&
-                                             cp_warning_level
   USE input_constants,                 ONLY: dump_xmol,&
                                              dump_atomic,&
                                              dump_dcd,&
@@ -94,6 +82,7 @@ MODULE particle_types
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE util,                            ONLY: find_boundary
+#include "cp_common_uses.h"
 
   IMPLICIT NONE
 

@@ -3,7 +3,6 @@
 !   Copyright (C) 2001  CP2K developers group                                 !
 !-----------------------------------------------------------------------------!
 
-#include "cp_prep_globals.h"
 ! less not much meningful... and defines oly a partial ordering.
 #define CP_SLL_R_LESS_Q(el1,el2) ( all(el1 < el2) )
 #define CP_SLL_R_EQUAL_Q(el1,el2) ( all(el1 == el2) )
@@ -38,15 +37,9 @@
 !!   SOURCE
 !*****************************************************************************
 MODULE cp_linked_list_3d_r
-  USE cp_log_handling, ONLY: cp_fatal_level, cp_failure_level,&
-       cp_warning_level, cp_note_level, cp_to_string, cp_log,&
-       cp_logger_get_default_unit_nr, cp_logger_type
-  USE cp_error_handling, ONLY: cp_debug, cp_error_type, cp_error_init,&
-       cp_error_dealloc_ref, cp_error_message, cp_assert, cp_a_l,&
-       cp_assertion_failed, cp_internal_error, cp_unimplemented_error,&
-       cp_error_get_logger
   USE kinds, only: dp
 USE cp_array_r_utils, only: cp_3d_r_p_type, cp_3d_r_write
+#include "cp_common_uses.h"
   IMPLICIT NONE
   PRIVATE
 

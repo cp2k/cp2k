@@ -2,7 +2,6 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2004  CP2K developers group                                 !
 !-----------------------------------------------------------------------------!
-#include "cp_prep_globals.h"
 !!****m* cp2k/xc_perdew_zunger *
 !!
 !!   NAME
@@ -31,18 +30,6 @@
 !!****
 
 MODULE xc_perdew_zunger_new
-  USE cp_error_handling,               ONLY: cp_a_l,&
-                                             cp_assert,&
-                                             cp_debug,&
-                                             cp_error_get_logger,&
-                                             cp_error_message,&
-                                             cp_error_type,&
-                                             cp_unimplemented_error
-  USE cp_log_handling,                 ONLY: cp_failure_level,&
-                                             cp_fatal_level,&
-                                             cp_note_level,&
-                                             cp_to_string,&
-                                             cp_warning_level
   USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: zero
   USE termination,                     ONLY: stop_program
@@ -62,6 +49,7 @@ MODULE xc_perdew_zunger_new
   USE input_constants,                 ONLY: pz_dmc,&
                                              pz_orig,&
                                              pz_vmc
+#include "cp_common_uses.h"
   IMPLICIT NONE
   PRIVATE
   

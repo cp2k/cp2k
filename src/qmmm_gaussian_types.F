@@ -1,4 +1,3 @@
-#include "cp_prep_globals.h"
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2002  CP2K developers group                                 !
@@ -25,18 +24,9 @@
 !!   SOURCE
 !****************************************************************************
 MODULE qmmm_gaussian_types
-  USE cp_error_handling,               ONLY: cp_a_l,&
-                                             cp_assert,&
-                                             cp_error_get_logger,&
-                                             cp_error_message,&
-                                             cp_error_type
-  USE cp_log_handling,                 ONLY: cp_failure_level,&
-                                             cp_fatal_level,&
-                                             cp_note_level,&
-                                             cp_to_string,&
-                                             cp_warning_level
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE kinds,                           ONLY: dp
+#include "cp_common_uses.h"
 
   IMPLICIT NONE
   PRIVATE

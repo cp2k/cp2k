@@ -15,7 +15,6 @@
 !!     MJM
 !!
 !******************************************************************************
-#include "cp_prep_globals.h"
 
 MODULE mc_misc
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
@@ -23,24 +22,11 @@ MODULE mc_misc
   USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                              gto_basis_set_type
   USE convert_units,                   ONLY: convert_to_cp2k_units
-  USE cp_error_handling,               ONLY: cp_a_l,&
-                                             cp_assert,&
-                                             cp_assertion_failed,&
-                                             cp_error_get_logger,&
-                                             cp_error_message,&
-                                             cp_error_type
   USE cp_subsystem_types,              ONLY: cp_subsys_get,&
                                              cp_subsystem_p_type
 !  USE cp_control_types,                ONLY: dft_control_type
 !  USE cp_control_utils,                ONLY: xc_get_rho_smooth_label,&
 !                                             xc_get_deriv_method_label
-  USE cp_log_handling,                 ONLY: cp_failure_level,&
-                                             cp_fatal_level,&
-                                             cp_logger_type,&
-                                             cp_note_level,&
-                                             cp_to_string,&
-                                             cp_warning_level,&
-                                             cp_logger_get_default_unit_nr
   USE external_potential_types,        ONLY: get_potential,&
                                              gth_potential_type,&
                                              elp_potential_type
@@ -91,6 +77,7 @@ MODULE mc_misc
                                              stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
+#include "cp_common_uses.h"
 
   IMPLICIT NONE
 

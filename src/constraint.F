@@ -50,18 +50,13 @@ MODULE constraint
   USE virial_types,                    ONLY: virial_type
   USE force_env_types,                 ONLY: force_env_type,&
                                              force_env_get
-  USE cp_error_handling,               ONLY: cp_a_l,&
-                                             cp_assert,&
-                                             cp_assertion_failed,&
-                                             cp_error_get_logger,&
-                                             cp_error_message,&
-                                             cp_error_type
   USE cp_subsystem_types,              ONLY: cp_subsystem_p_type,&
                                              cp_subsys_get
   USE particle_list_types,             ONLY: particle_list_type
   USE mol_kind_new_list_types,         ONLY: mol_kind_new_list_type
   USE input_constants,                 ONLY: npt_i_ensemble,&
                                              npt_f_ensemble
+#include "cp_common_uses.h"
 
   IMPLICIT NONE
 

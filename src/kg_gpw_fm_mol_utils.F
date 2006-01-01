@@ -3,7 +3,6 @@
 !   Copyright (C) 2000 - 2004  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-#include "cp_prep_globals.h"
 
 !!****** cp2k/kg_gpw_fm_mol_methods [1.0] *
 !!
@@ -25,20 +24,8 @@
 
 MODULE kg_gpw_fm_mol_utils
 
-  USE cp_error_handling,               ONLY: cp_a_l,&
-                                             cp_assert,&
-                                             cp_assertion_failed,&
-                                             cp_error_get_logger,&
-                                             cp_error_message,&
-                                             cp_error_type
   USE cp_files,                        ONLY: close_file,&
                                              open_file
-  USE cp_log_handling,                 ONLY: cp_failure_level,&
-                                             cp_logger_get_default_unit_nr,&
-                                             cp_logger_type,&
-                                             cp_note_level,&
-                                             cp_to_string,&
-                                             cp_warning_level
   USE global_types,                    ONLY: global_environment_type
   USE kg_gpw_fm_mol_types,             ONLY: get_fm_mol_block,&
                                              get_kg_fm_mol_set,&
@@ -61,6 +48,7 @@ MODULE kg_gpw_fm_mol_utils
                                              timestop
   USE input_section_types, ONLY: section_vals_type, section_vals_val_get,&
        section_vals_get, section_vals_get_subs_vals
+#include "cp_common_uses.h"
   IMPLICIT NONE
 
   PRIVATE

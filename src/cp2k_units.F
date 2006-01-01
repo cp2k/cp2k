@@ -3,7 +3,6 @@
 !   Copyright (C) 2000,2004  CP2K developers group                            !
 !-----------------------------------------------------------------------------!
 
-#include "cp_prep_globals.h"
 
 !!****** cp2k/cp2k_units [1.0] *
 !!
@@ -37,21 +36,8 @@ MODULE cp2k_units
                                              permittivity,&
                                              wavenum
   USE mathconstants,                   ONLY: twopi
-  USE cp_error_handling,               ONLY: cp_a_l,&
-                                             cp_assert,&
-                                             cp_assertion_failed,&
-                                             cp_error_check,&
-                                             cp_error_dealloc_ref,&
-                                             cp_error_get_logger,&
-                                             cp_error_init,&
-                                             cp_error_message,&
-                                             cp_error_reset,&
-                                             cp_error_type
-  USE cp_log_handling,                 ONLY: cp_failure_level,&
-                                             cp_fatal_level,&
-                                             cp_note_level,&
-                                             cp_to_string,&
-                                             cp_warning_level
+#include "cp_common_uses.h"
+  IMPLICIT NONE
   PRIVATE
 
   TYPE unit_convert_type

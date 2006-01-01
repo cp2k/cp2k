@@ -2,7 +2,6 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2004  CP2K developers group                                 !
 !-----------------------------------------------------------------------------!
-#include "cp_prep_globals.h"
 !!****** cp2k/hartree_local_types [1.0] *
 !!
 !!   NAME
@@ -18,14 +17,6 @@
 
 MODULE hartree_local_types
 
-  USE cp_error_handling,               ONLY: cp_a_l,&
-                                             cp_assert,&
-                                             cp_assertion_failed,&
-                                             cp_error_message,&
-                                             cp_error_type
-  USE cp_log_handling,                 ONLY: cp_failure_level,&
-                                             cp_to_string,&
-                                             cp_warning_level
   USE kinds,                           ONLY: default_string_length,&
                                              dp,&
                                              int_size
@@ -34,6 +25,7 @@ MODULE hartree_local_types
   USE qs_rho_atom_types,               ONLY: rho_atom_coeff
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
+#include "cp_common_uses.h"
 
   IMPLICIT NONE
 

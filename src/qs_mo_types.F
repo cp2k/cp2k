@@ -3,7 +3,6 @@
 !   Copyright (C) 2001 - 2005  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-#include "cp_prep_globals.h"
 
 !!****** cp2k/qs_mo_types [1.0] *
 !!
@@ -36,11 +35,6 @@ MODULE qs_mo_types
                                              get_atomic_kind_set
   USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                              gto_basis_set_type
-  USE cp_error_handling,               ONLY: cp_a_l,&
-                                             cp_assert,&
-                                             cp_error_get_logger,&
-                                             cp_error_message,&
-                                             cp_error_type
   USE cp_fm_pool_types,                ONLY: cp_fm_pool_type,&
                                              fm_pool_create_fm
   USE cp_fm_types,                     ONLY: cp_fm_get_info,&
@@ -50,12 +44,6 @@ MODULE qs_mo_types
                                              cp_fm_set_submatrix,&
                                              cp_fm_to_fm,&
                                              cp_fm_type
-  USE cp_log_handling,                 ONLY: cp_failure_level,&
-                                             cp_fatal_level,&
-                                             cp_logger_type,&
-                                             cp_note_level,&
-                                             cp_to_string,&
-                                             cp_warning_level
   USE global_types,                    ONLY: LOW,&
                                              global_environment_type
   USE kinds,                           ONLY: dp,&
@@ -74,6 +62,7 @@ MODULE qs_mo_types
                                              timestop
   USE input_section_types, ONLY: section_vals_val_get, section_vals_get_subs_vals,&
        section_vals_type, section_vals_release
+#include "cp_common_uses.h"
   IMPLICIT NONE
 
   PRIVATE

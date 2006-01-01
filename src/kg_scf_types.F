@@ -3,7 +3,6 @@
 !   Copyright (C) 2004  CP2K developers group                                 !
 !-----------------------------------------------------------------------------!
 
-#include "cp_prep_globals.h"
 
 !!****h* cp2k/kg_scf_types [1.0] *
 !!
@@ -24,16 +23,6 @@
 !!***
 !****************************************************************************
 MODULE kg_scf_types
-  USE cp_error_handling,               ONLY: cp_a_l,&
-                                             cp_assert,&
-                                             cp_error_get_logger,&
-                                             cp_error_message,&
-                                             cp_error_type
-  USE cp_log_handling,                 ONLY: cp_failure_level,&
-                                             cp_fatal_level,&
-                                             cp_note_level,&
-                                             cp_to_string,&
-                                             cp_warning_level
   USE kinds,                           ONLY: dp
   USE preconditioner,                  ONLY: destroy_preconditioner,&
                                              preconditioner_type,&
@@ -46,6 +35,7 @@ MODULE kg_scf_types
                                              real_matrix_p_type
   USE timings,                         ONLY: timeset,&
                                              timestop
+#include "cp_common_uses.h"
 
 
   IMPLICIT NONE

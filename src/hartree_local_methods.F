@@ -25,7 +25,6 @@ MODULE  hartree_local_methods
                                              gapw_control_type
   USE input_constants,                 ONLY: tddfpt_singlet
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE cp_error_handling,               ONLY: cp_error_type
   USE global_types,                    ONLY: global_environment_type
   USE hartree_local_types,             ONLY: allocate_ecoul_1center,&
                                              ecoul_1center_type,&
@@ -60,6 +59,7 @@ MODULE  hartree_local_methods
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE util,                            ONLY: get_limit
+#include "cp_common_uses.h"
 
   IMPLICIT NONE
 

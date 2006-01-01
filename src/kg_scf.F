@@ -3,7 +3,6 @@
 !   Copyright (C) 2004 CP2K developers group
 !-----------------------------------------------------------------------------!
 
-#include "cp_prep_globals.h"
 
 !!****** cp2k/kg_scf [1.0] *
 !!
@@ -29,19 +28,7 @@ MODULE kg_scf
                                              gto_basis_set_type
   USE checkpoint_handler,              ONLY: write_checkpoint_information
   USE cp_control_types,                ONLY: dft_control_type
-  USE cp_error_handling,               ONLY: cp_a_l,&
-                                             cp_assert,&
-                                             cp_assertion_failed,&
-                                             cp_error_get_logger,&
-                                             cp_error_message,&
-                                             cp_error_type
   USE cp_files,                        ONLY: close_file,open_file
-  USE cp_log_handling,                 ONLY: cp_failure_level,&
-                                             cp_logger_get_default_unit_nr,&
-                                             cp_logger_type,&
-                                             cp_note_level,&
-                                             cp_to_string,&
-                                             cp_warning_level
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_sm_pool_types,                ONLY: cp_sm_pool_p_type,&
                                              sm_pools_create_matrix_vect,&
@@ -139,6 +126,7 @@ MODULE kg_scf
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE input_constants, ONLY: atomic_guess, core_guess, random_guess, restart_guess
+#include "cp_common_uses.h"
   IMPLICIT NONE
 
   PRIVATE

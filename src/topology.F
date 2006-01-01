@@ -19,7 +19,6 @@
 !******************************************************************************
 
 MODULE topology
-  USE cp_error_handling,               ONLY: cp_error_type
   USE atomic_kind_types,               ONLY: atomic_kind_type
   USE atoms_input,                     ONLY: read_atoms_input
   USE checkpoint_handler,              ONLY: write_checkpoint_information
@@ -67,6 +66,7 @@ MODULE topology
                                              do_conn_off,&
                                              do_coord_pdb,&
                                              do_coord_xyz
+#include "cp_common_uses.h"
   IMPLICIT NONE
 
   CHARACTER(LEN=*), PARAMETER, PRIVATE :: moduleN = "topology"

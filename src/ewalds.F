@@ -22,7 +22,6 @@ MODULE ewalds
 
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind
-  USE cp_error_handling,               ONLY: cp_error_type
   USE cp2k_units,                      ONLY: get_cp2k_units,&
                                              unit_convert_type
   USE distribution_1d_types,           ONLY: distribution_1d_type
@@ -55,6 +54,7 @@ MODULE ewalds
                                              do_ewald_ewald,&
                                              do_ewald_pme,&
                                              do_ewald_spme
+#include "cp_common_uses.h"
   IMPLICIT NONE
 
   PRIVATE

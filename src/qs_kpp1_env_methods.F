@@ -3,7 +3,6 @@
 !   Copyright (C) 2002  CP2K developers group                                 !
 !-----------------------------------------------------------------------------!
 
-#include "cp_prep_globals.h"
 
 !!****h* cp2k/qs_kpp1_env_methods [1.0] *
 !!
@@ -35,16 +34,6 @@ MODULE qs_kpp1_env_methods
   USE input_constants,                 ONLY: tddfpt_singlet,&
                                              tddfpt_triplet, do_method_gapw,&
                                              do_method_gapw_xc, tddfpt_excitations
-  USE cp_error_handling,               ONLY: cp_a_l,&
-                                             cp_assert,&
-                                             cp_error_get_logger,&
-                                             cp_error_type
-  USE cp_log_handling,                 ONLY: cp_failure_level,&
-                                             cp_logger_type,&
-                                             cp_note_level,&
-                                             cp_to_string,&
-                                             cp_warning_level,&
-                                             cp_logger_get_default_unit_nr
   USE hartree_local_methods,           ONLY: Vh_1c_gg_integrals
   USE hartree_local_2centers,          ONLY: integrate_vhg0_g0
   USE hartree_local_3centers,          ONLY: integrate_a_vhg0_b
@@ -106,6 +95,7 @@ MODULE qs_kpp1_env_methods
   USE pw_poisson_methods, only: pw_poisson_solve
   USE input_section_types, ONLY: section_vals_type, section_vals_val_get, &
        section_vals_get_subs_vals, section_vals_get, section_get_ival, section_get_rval
+#include "cp_common_uses.h"
   IMPLICIT NONE
 
   PRIVATE

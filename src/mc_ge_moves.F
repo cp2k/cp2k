@@ -25,7 +25,6 @@
 
 MODULE mc_ge_moves
   USE atomic_kind_types,               ONLY: get_atomic_kind
-  USE cp_error_handling,               ONLY: cp_error_type
   USE cp_subsystem_types,              ONLY: cp_subsys_get,&
                                              cp_subsys_set,&
                                              cp_subsystem_p_type,&
@@ -69,6 +68,7 @@ MODULE mc_ge_moves
                                              stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
+#include "cp_common_uses.h"
 
   IMPLICIT NONE
 

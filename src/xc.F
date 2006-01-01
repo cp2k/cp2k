@@ -3,7 +3,6 @@
 !   Copyright (C) 2001 - 2002  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-#include "cp_prep_globals.h"
 
 !!****s* cp2k/xc [1.0] *
 !!
@@ -47,23 +46,8 @@ MODULE xc
                                              xc_rho_spline2_smooth,&
                                              xc_rho_spline3_smooth,&
                                              xc_test_lsd_f_routine
-  USE cp_error_handling,               ONLY: cp_a_l,&
-                                             cp_assert,&
-                                             cp_assertion_failed,&
-                                             cp_error_get_logger,&
-                                             cp_error_message,&
-                                             cp_error_type,&
-                                             cp_unimplemented_error,&
-                                             cp_unimplemented_error_nr
   USE cp_linked_list_xc_deriv,         ONLY: cp_sll_xc_deriv_next,&
                                              cp_sll_xc_deriv_type
-  USE cp_log_handling,                 ONLY: cp_failure_level,&
-                                             cp_fatal_level,&
-                                             cp_logger_get_default_unit_nr,&
-                                             cp_logger_type,&
-                                             cp_note_level,&
-                                             cp_to_string,&
-                                             cp_warning_level
   USE cp_subsystem_types,              ONLY: cp_subsystem_p_type
   USE kinds,                           ONLY: dp, mp
   USE message_passing,                 ONLY: mp_sum
@@ -126,6 +110,7 @@ MODULE xc
                                              xc_rho_set_update
   USE input_section_types, ONLY: section_vals_type, section_vals_val_get,&
        section_vals_get_subs_vals, section_vals_get_subs_vals2, section_get_rval, section_get_ival
+#include "cp_common_uses.h"
   IMPLICIT NONE
   PRIVATE
   PUBLIC :: xc_vxc_pw_create1, xc_vxc_pw_create, &

@@ -3,7 +3,6 @@
 !   Copyright (C) 2001  CP2K developers group                                 !
 !-----------------------------------------------------------------------------!
 
-#include "cp_prep_globals.h"
 
 !!****h* cp2k/cp_ddapc_methods [1.0] *
 !!
@@ -25,17 +24,6 @@
 !!   SOURCE
 !*****************************************************************************
 MODULE cp_ddapc_methods
-  USE cp_error_handling,               ONLY: cp_a_l,&
-                                             cp_assert,&
-                                             cp_error_get_logger,&
-                                             cp_error_message,&
-                                             cp_error_type
-  USE cp_log_handling,                 ONLY: cp_failure_level,&
-                                             cp_fatal_level,&
-                                             cp_logger_type,&
-                                             cp_note_level,&
-                                             cp_to_string,&
-                                             cp_warning_level
   USE simulation_cell,                 ONLY: cell_type
   USE erf_fn,                          ONLY: erfc
   USE cp2k_units,                      ONLY: get_cp2k_units,&
@@ -58,6 +46,7 @@ MODULE cp_ddapc_methods
                                              section_vals_get,&
                                              section_vals_val_get
   USE pw_spline_utils,                 ONLY: Eval_Interp_Spl3_pbc
+#include "cp_common_uses.h"
 
   IMPLICIT NONE
   PRIVATE

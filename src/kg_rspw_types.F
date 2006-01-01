@@ -2,7 +2,6 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C ) 2002 - 2004  CP2K developers group                         !
 !-----------------------------------------------------------------------------!
-#include "cp_prep_globals.h"
 !!****** cp2k/kg_rspw_types [1.0] *
 !!
 !!   NAME
@@ -21,16 +20,6 @@
 !******************************************************************************
 
 MODULE kg_rspw_types
-  USE cp_error_handling,               ONLY: cp_a_l,&
-                                             cp_assert,&
-                                             cp_error_get_logger,&
-                                             cp_error_message,&
-                                             cp_error_type
-  USE cp_log_handling,                 ONLY: cp_failure_level,&
-                                             cp_fatal_level,&
-                                             cp_note_level,&
-                                             cp_to_string,&
-                                             cp_warning_level
   USE cp_rs_pool_types,                ONLY: cp_rs_pool_p_type,&
                                              cp_rs_pool_type,&
                                              rs_pools_dealloc
@@ -49,6 +38,7 @@ MODULE kg_rspw_types
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE pw_poisson_types, ONLY: pw_poisson_type, pw_poisson_release, pw_poisson_create, pw_poisson_retain
+#include "cp_common_uses.h"
 
   IMPLICIT NONE
 

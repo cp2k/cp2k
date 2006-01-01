@@ -14,7 +14,6 @@
 !!   SOURCE
 !******************************************************************************
 
-#include "cp_prep_globals.h"
 
 MODULE qs_rho0_ggrid
 
@@ -29,14 +28,6 @@ MODULE qs_rho0_ggrid
                                              coeff_sumup,coeff_zero
   USE cp_control_types,                ONLY: dft_control_type
   USE input_constants,                 ONLY: tddfpt_singlet
-  USE cp_error_handling,               ONLY: cp_a_l,&
-                                             cp_assert,&
-                                             cp_error_message,&
-                                             cp_error_type
-  USE cp_log_handling,                 ONLY: cp_failure_level,&
-                                             cp_fatal_level,&
-                                             cp_to_string,&
-                                             cp_warning_level
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_rs_pool_types,                ONLY: cp_rs_pool_type,&
                                              cp_rs_pool_p_type,&
@@ -93,6 +84,7 @@ MODULE qs_rho0_ggrid
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE util,                            ONLY: get_limit
+#include "cp_common_uses.h"
  
   IMPLICIT NONE
 

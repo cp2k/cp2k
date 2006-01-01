@@ -3,7 +3,6 @@
 !   Copyright (C) 2004  CP2K developers group                                 !
 !-----------------------------------------------------------------------------!
 
-#include "cp_prep_globals.h"
 
 !!****h* cp2k/qmmm_gaussian_data [1.0] *
 !!

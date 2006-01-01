@@ -3,7 +3,6 @@
 !   Copyright (C) 2000 - 2004  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-#include "cp_prep_globals.h"
 
 !!****** cp2k/kg_gpw_correction
 !!
@@ -33,21 +32,6 @@ MODULE kg_gpw_correction
                                              coeff_type, & 
                                              coeff_copy
   USE input_constants,                 ONLY: sic_none
-  USE cp_error_handling,               ONLY: cp_a_l,&
-                                             cp_assert,&
-                                             cp_assertion_failed,&
-                                             cp_debug,&
-                                             cp_error_get_logger,&
-                                             cp_error_message,&
-                                             cp_error_type
-  USE cp_log_handling,                 ONLY: cp_failure_level,&
-                                             cp_fatal_level,&
-                                             cp_log,&
-                                             cp_logger_get_default_unit_nr,&
-                                             cp_logger_type,&
-                                             cp_note_level,&
-                                             cp_to_string,&
-                                             cp_warning_level
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_rs_pool_types,                ONLY: cp_rs_pool_p_type,&
                                              rs_pool_create,&
@@ -107,6 +91,7 @@ MODULE kg_gpw_correction
   USE input_section_types, ONLY: section_vals_type, section_vals_get_subs_vals,&
        section_vals_duplicate, section_vals_set_subs_vals, section_vals_val_get,&
        section_vals_release
+#include "cp_common_uses.h"
   IMPLICIT NONE
 
   PRIVATE

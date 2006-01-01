@@ -23,25 +23,8 @@
 !******************************************************************************
 
 MODULE environment
-  USE cp_error_handling,               ONLY: cp_a_l,&
-                                             cp_assert,&
-                                             cp_assertion_failed,&
-                                             cp_error_check,&
-                                             cp_error_dealloc_ref,&
-                                             cp_error_get_logger,&
-                                             cp_error_init,&
-                                             cp_error_message,&
-                                             cp_error_reset,&
-                                             cp_error_type
   USE cp_files,                        ONLY: close_file,&
                                              open_file
-  USE cp_log_handling,                 ONLY: cp_add_default_logger,&
-                                             cp_get_default_logger,&
-                                             cp_logger_create,&
-                                             cp_logger_release,&
-                                             cp_logger_set,&
-                                             cp_logger_type,&
-                                             cp_rm_default_logger
   USE fft_tools,                       ONLY: fft3d,&
                                              init_fft
   USE gamma,                           ONLY: deallocate_md_ftable
@@ -110,6 +93,7 @@ MODULE environment
                                              trace_debug,&
                                              use_HPM
   USE util,                            ONLY: ran2
+#include "cp_common_uses.h"
 
   IMPLICIT NONE
 

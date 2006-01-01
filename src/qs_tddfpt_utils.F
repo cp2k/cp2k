@@ -3,7 +3,6 @@
 !   Copyright (C) 2000  CP2K developers group                                 !
 !-----------------------------------------------------------------------------!
 
-#include "cp_prep_globals.h"
 
 !!****m* cp2k/qs_tddfpt_utils *
 !!
@@ -25,18 +24,6 @@ MODULE qs_tddfpt_utils
 
   USE cp_control_types,                ONLY: gapw_control_type,&
                                              tddfpt_control_type
-  USE cp_error_handling,               ONLY: cp_a_l,&
-                                             cp_assert,&
-                                             cp_error_get_logger,&
-                                             cp_error_message,&
-                                             cp_error_type
-  USE cp_log_handling,                 ONLY: cp_failure_level,&
-                                             cp_fatal_level,&
-                                             cp_logger_get_default_unit_nr,&
-                                             cp_logger_type,&
-                                             cp_note_level,&
-                                             cp_to_string,&
-                                             cp_warning_level
   USE cp_fm_basic_linalg,              ONLY: cp_fm_scale, &
                                              cp_fm_scale_and_add,&
                                              cp_fm_trace
@@ -81,6 +68,7 @@ MODULE qs_tddfpt_utils
                                              stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
+#include "cp_common_uses.h"
 
   IMPLICIT NONE
 

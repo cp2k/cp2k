@@ -3,7 +3,6 @@
 !   Copyright (C) 2002  CP2K developers group                                 !
 !-----------------------------------------------------------------------------!
 
-#include "cp_prep_globals.h"
 
 !!****h* cp2k/qs_ks_qmmm_types [1.0] *
 !!
@@ -26,16 +25,6 @@
 !****************************************************************************
 MODULE qs_ks_qmmm_types
   USE coefficient_types,               ONLY: coeff_type
-  USE cp_error_handling,               ONLY: cp_a_l,&
-                                             cp_assert,&
-                                             cp_error_get_logger,&
-                                             cp_error_message,&
-                                             cp_error_type
-  USE cp_log_handling,                 ONLY: cp_failure_level,&
-                                             cp_fatal_level,&
-                                             cp_note_level,&
-                                             cp_to_string,&
-                                             cp_warning_level
   USE kinds,                           ONLY: dp
   USE pw_pool_types,                   ONLY: pw_pool_give_back_coeff,&
                                              pw_pool_release,&
@@ -45,6 +34,7 @@ MODULE qs_ks_qmmm_types
   USE cube_utils,                      ONLY: cube_info_type
   USE cube_utils,                      ONLY: destroy_cube_info
   USE pw_env_types, ONLY: pw_env_type, pw_env_get, pw_env_release
+#include "cp_common_uses.h"
 
   IMPLICIT NONE
   PRIVATE

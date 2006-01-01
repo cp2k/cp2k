@@ -3,7 +3,6 @@
 !   Copyright (C) 2000 - 2005  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-#include "cp_prep_globals.h"
 
 !!***** cp2k/xas_control [1.0] *
 !!
@@ -19,19 +18,6 @@
 
 MODULE xas_control
 
- USE cp_error_handling,                ONLY: cp_a_l,&
-                                             cp_assert,&
-                                             cp_assertion_failed,&
-                                             cp_error_get_logger,&
-                                             cp_error_message,&
-                                             cp_error_type
-  USE cp_log_handling,                 ONLY: cp_failure_level,&
-                                             cp_fatal_level,&
-                                             cp_logger_get_default_unit_nr,&
-                                             cp_logger_type,&
-                                             cp_note_level,&
-                                             cp_to_string,&
-                                             cp_warning_level
   USE global_types,                    ONLY: global_environment_type
   USE input_constants,                 ONLY: xas_tp_hh, &
                                              xas_tp_fh, xes_tp_val,&
@@ -52,6 +38,7 @@ MODULE xas_control
                                              xstring
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
+#include "cp_common_uses.h"
 
 
   IMPLICIT NONE

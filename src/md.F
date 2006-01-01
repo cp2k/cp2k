@@ -3,7 +3,6 @@
 !   Copyright (C) 2000  CP2K developers group                                 !
 !-----------------------------------------------------------------------------!
 
-#include "cp_prep_globals.h"
 
 !!****** cp2k/md [1.0] *
 !!
@@ -22,17 +21,6 @@
 !******************************************************************************
 
 MODULE md
-  USE cp_error_handling,               ONLY: cp_a_l,&
-                                             cp_assert,&
-                                             cp_error_get_logger,&
-                                             cp_error_message,&
-                                             cp_error_type
-  USE cp_log_handling,                 ONLY: cp_failure_level,&
-                                             cp_fatal_level,&
-                                             cp_note_level,&
-                                             cp_to_string,&
-                                             cp_logger_type,&
-                                             cp_warning_level
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind
   USE convert_units,                   ONLY: convert_to_cp2k_units
@@ -85,6 +73,7 @@ MODULE md
                                              xstring
   USE util,                            ONLY: gasdev
   USE cp_units, only: cp_unit_from_cp2k
+#include "cp_common_uses.h"
   
   IMPLICIT NONE
 

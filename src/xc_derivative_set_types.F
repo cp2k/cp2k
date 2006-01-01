@@ -3,7 +3,6 @@
 !   Copyright (C) 2003  CP2K developers group                                 !
 !-----------------------------------------------------------------------------!
 
-#include "cp_prep_globals.h"
 
 !!****h* cp2k/xc_derivative_set_types [1.0] *
 !!
@@ -25,21 +24,10 @@
 !!   SOURCE
 !****************************************************************************
 MODULE xc_derivative_set_types
-  USE cp_error_handling,               ONLY: cp_a_l,&
-                                             cp_assert,&
-                                             cp_error_get_logger,&
-                                             cp_error_message,&
-                                             cp_error_type,&
-                                             cp_assertion_failed
   USE cp_linked_list_xc_deriv,         ONLY: cp_sll_xc_deriv_dealloc,&
                                              cp_sll_xc_deriv_insert_ordered,&
                                              cp_sll_xc_deriv_next,&
                                              cp_sll_xc_deriv_type
-  USE cp_log_handling,                 ONLY: cp_failure_level,&
-                                             cp_fatal_level,&
-                                             cp_note_level,&
-                                             cp_to_string,&
-                                             cp_warning_level
   USE kinds,                           ONLY: dp
   USE pw_pool_types,                   ONLY: pw_pool_create_cr3d,&
                                              pw_pool_release,&
@@ -57,6 +45,7 @@ MODULE xc_derivative_set_types
                                              xc_derivative_release,&
                                              xc_derivative_type
   USE message_passing, only: MPI_COMM_SELF
+#include "cp_common_uses.h"
 
   IMPLICIT NONE
   PRIVATE

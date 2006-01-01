@@ -15,15 +15,11 @@
 !!
 !******************************************************************************
 
-#include "cp_prep_globals.h"
 
 MODULE mc_environment_types
-  USE cp_error_handling,               ONLY: cp_a_l,&
-                                             cp_error_type
-  USE cp_log_handling,                 ONLY: cp_failure_level,&
-                                             cp_warning_level
   USE force_env_types,                 ONLY: force_env_type
   USE mc_types,                        ONLY: mc_simulation_parameters_type
+#include "cp_common_uses.h"
 
   IMPLICIT NONE
 

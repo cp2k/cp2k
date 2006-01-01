@@ -3,24 +3,13 @@
 !   Copyright (C) 2004  CP2K developers group
 !-----------------------------------------------------------------------------!
 
-#include "cp_prep_globals.h"
 
 MODULE cp2k_runs
 
   USE atom_module,                     ONLY: atomic_code
-  USE cp_error_handling,               ONLY: cp_error_type, &
-                                             cp_a_l, &
-                                             cp_assert, &
-                                             cp_error_init, &
-                                             cp_error_dealloc_ref, &
-                                             cp_assertion_failed, &
-                                             cp_error_check
   USE cp_files,                        ONLY: open_file, &
                                              close_file, &
                                              get_unit_number
-  USE cp_log_handling,                 ONLY: cp_logger_type, &
-                                             cp_failure_level, &
-                                             cp_to_string
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_para_env,                     ONLY: cp_para_env_create,&
                                              cp_para_env_release
@@ -113,6 +102,7 @@ MODULE cp2k_runs
   USE timings,                         ONLY: timeset, &
                                              timestop
   USE bsse,                            ONLY: do_bsse_calculation
+#include "cp_common_uses.h"
 
   IMPLICIT NONE
 

@@ -2,7 +2,6 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2004  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
-#include "cp_prep_globals.h"
 !!****s* cp2k/qmmm_pw_grid [1.1] *
 !!
 !!   NAME
@@ -19,16 +18,6 @@
 !!   SOURCE
 !******************************************************************************
 MODULE qmmm_pw_grid
-  USE cp_error_handling,               ONLY: cp_a_l,&
-                                             cp_assert,&
-                                             cp_error_get_logger,&
-                                             cp_error_message,&
-                                             cp_error_type
-  USE cp_log_handling,                 ONLY: cp_failure_level,&
-                                             cp_fatal_level,&
-                                             cp_note_level,&
-                                             cp_to_string,&
-                                             cp_warning_level
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE kinds,                           ONLY: default_string_length,&
                                              dp
@@ -74,6 +63,7 @@ MODULE qmmm_pw_grid
   USE mathconstants,                   ONLY: pi
   USE simulation_cell,                 ONLY: cell_type
   USE input_constants, ONLY: do_qmmm_grid, do_qmmm_gauss, do_qmmm_none
+#include "cp_common_uses.h"
   IMPLICIT NONE
 
   PRIVATE

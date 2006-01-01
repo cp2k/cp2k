@@ -3,7 +3,6 @@
 !   Copyright (C) 2004  CP2K developers group                                 !
 !-----------------------------------------------------------------------------!
 
-#include "cp_prep_globals.h"
 
 !!****h* cp2k/qs_numerical_pressure [1.0] *
 !!
@@ -27,7 +26,7 @@ MODULE qs_numerical_pressure
   USE cp_subsystem_types,              ONLY: cp_subsys_retain,&
                                              cp_subsys_get,&
                                              cp_subsystem_p_type
-  USE cp_error_handling,               ONLY: cp_error_type
+#include "cp_common_uses.h"
   
   USE qs_energy,                       ONLY: qs_energies
   USE force_env_types,                 ONLY: force_env_type, &

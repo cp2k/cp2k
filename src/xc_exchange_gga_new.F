@@ -2,7 +2,6 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2004  CP2K developers group                                 !
 !-----------------------------------------------------------------------------!
-#include "cp_prep_globals.h"
 !!****** cp2k/xc_exchange_gga [1.0] *
 !!
 !!   NAME
@@ -24,18 +23,6 @@
 MODULE xc_exchange_gga_new
 ! *****************************************************************************
   USE cp_array_r_utils,                ONLY: cp_3d_r_p_type
-  USE cp_error_handling,               ONLY: cp_a_l,&
-                                             cp_assert,&
-                                             cp_assertion_failed,&
-                                             cp_error_get_logger,&
-                                             cp_error_message,&
-                                             cp_error_type,&
-                                             cp_unimplemented_error
-  USE cp_log_handling,                 ONLY: cp_failure_level,&
-                                             cp_fatal_level,&
-                                             cp_note_level,&
-                                             cp_to_string,&
-                                             cp_warning_level
   USE kinds,                           ONLY: dp
   USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
@@ -55,6 +42,7 @@ MODULE xc_exchange_gga_new
                                              xgga_pw86,&
                                              xgga_pw91,&
                                              xgga_revpbe
+#include "cp_common_uses.h"
   IMPLICIT NONE
 
   PRIVATE

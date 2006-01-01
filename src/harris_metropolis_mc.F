@@ -3,7 +3,6 @@
 !   Copyright (C) 2000-2005  CP2K developers group                            !
 !-----------------------------------------------------------------------------!
 
-#include "cp_prep_globals.h"
 
 !!****h* cp2k/harris_metropolis_mc [1.0] *
 !!
@@ -32,19 +31,6 @@ MODULE harris_metropolis_mc
   USE atoms_input,                     ONLY: read_md_restart
   USE checkpoint_handler,              ONLY: write_checkpoint_information
   USE cp_control_types,                ONLY: dft_control_type
-  USE cp_error_handling,               ONLY: cp_a_l, &
-                                             cp_assert, &
-                                             cp_assertion_failed, &
-                                             cp_debug, &
-                                             cp_error_get_logger, &
-                                             cp_error_message, &
-                                             cp_error_type
-  USE cp_log_handling,                 ONLY: cp_failure_level, &
-                                             cp_note_level, &
-                                             cp_to_string, &
-                                             cp_warning_level, &
-                                             cp_logger_get_default_unit_nr, &
-                                             cp_logger_type
   USE cp_output_handling,              ONLY: cp_add_iter_level, &
                                              cp_rm_iter_level, &
                                              cp_iterate
@@ -140,6 +126,7 @@ MODULE harris_metropolis_mc
   USE wiener_process,                  ONLY: create_wiener_process,&
                                              read_md_restart_file,&
                                              write_md_restart_file
+#include "cp_common_uses.h"
 
   IMPLICIT NONE
   PRIVATE

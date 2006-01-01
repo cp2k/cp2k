@@ -2,7 +2,6 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000-2004  CP2K developers group                                 !
 !-----------------------------------------------------------------------------!
-#include "cp_prep_globals.h"
 !!****** cp2k/qs_rho0_types
 !!
 !!   NAME
@@ -17,17 +16,6 @@
 
 MODULE qs_local_rho_types
 
-  USE cp_error_handling,               ONLY: cp_a_l,&
-                                             cp_assert,&
-                                             cp_assertion_failed,&
-                                             cp_error_dealloc_ref,&
-                                             cp_error_get_logger,&
-                                             cp_error_init,&
-                                             cp_error_message,&
-                                             cp_error_type
-  USE cp_log_handling,                 ONLY: cp_failure_level,&
-                                             cp_to_string,&
-                                             cp_warning_level
   USE erf_fn,                          ONLY: erf
   USE kinds,                           ONLY: default_string_length,&
                                              dp,&
@@ -44,6 +32,7 @@ MODULE qs_local_rho_types
                                              rho0_mpole_type
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
+#include "cp_common_uses.h"
 
   IMPLICIT NONE
 

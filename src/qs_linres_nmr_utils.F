@@ -3,7 +3,6 @@
 !   Copyright (C) 2005  CP2K developers group                                 !
 !-----------------------------------------------------------------------------!
 
-#include "cp_prep_globals.h"
 
 !!****m* cp2k/qs_linres_nmr_utils *
 !!
@@ -35,11 +34,6 @@ MODULE qs_linres_nmr_utils
 
   USE atomic_kind_types,               ONLY: atomic_kind_type
   USE cp_control_types,                ONLY: dft_control_type
-  USE cp_error_handling,               ONLY: cp_a_l,&
-                                             cp_assert,&
-                                             cp_error_get_logger,&
-                                             cp_error_message,&
-                                             cp_error_type
   USE cp_fm_pool_types,                ONLY: cp_fm_pool_p_type,&
                                              fm_pool_create_fm,&
                                              fm_pools_create_fm_vect,&
@@ -48,13 +42,6 @@ MODULE qs_linres_nmr_utils
   USE cp_fm_types,                     ONLY: cp_fm_p_type,&
                                              cp_fm_set_all,&
                                              cp_fm_to_fm
-  USE cp_log_handling,                 ONLY: cp_failure_level,&
-                                             cp_fatal_level,&
-                                             cp_logger_get_default_unit_nr,&
-                                             cp_logger_type,&
-                                             cp_note_level,&
-                                             cp_to_string,&
-                                             cp_warning_level
   USE global_types,                    ONLY: global_environment_type
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&
@@ -83,6 +70,7 @@ MODULE qs_linres_nmr_utils
                                              transfer_matrix
   USE timings,                         ONLY: timeset,&
                                              timestop
+#include "cp_common_uses.h"
 
   IMPLICIT NONE
 

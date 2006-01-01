@@ -3,7 +3,6 @@
 !   Copyright (C) 2000  CP2K developers group                                 !
 !-----------------------------------------------------------------------------!
 
-#include "cp_prep_globals.h"
 
 !!****m* cp2k/xc_derivative_types *
 !!
@@ -20,14 +19,6 @@
 !!****
 MODULE xc_derivative_types
   USE cp_array_r_utils,                ONLY: cp_3d_r_write
-  USE cp_error_handling,               ONLY: cp_a_l,&
-                                             cp_assert,&
-                                             cp_error_get_logger,&
-                                             cp_error_type
-  USE cp_log_handling,                 ONLY: cp_failure_level,&
-                                             cp_logger_type,&
-                                             cp_to_string,&
-                                             cp_warning_level
   USE kinds,                           ONLY: dp
   USE pw_pool_types,                   ONLY: pw_pool_give_back_cr3d,&
                                              pw_pool_type
@@ -35,6 +26,7 @@ MODULE xc_derivative_types
                                              MAX_LABEL_LENGTH,&
                                              create_split_derivative_desc,&
                                              standardize_derivative_desc
+#include "cp_common_uses.h"
 
   IMPLICIT NONE
 

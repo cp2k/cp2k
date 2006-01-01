@@ -3,7 +3,6 @@
 !   Copyright (C) 2003 CP2K developers group
 !-----------------------------------------------------------------------------!
 
-#include "cp_prep_globals.h"
 
 !!****h* cp2k/qs_mo_methods [1.0] *
 !!
@@ -22,11 +21,6 @@
 ! ************************************************************************************
 
 MODULE qs_mo_methods
-  USE cp_error_handling,               ONLY: cp_a_l,&
-                                             cp_assert,&
-                                             cp_error_get_logger,&
-                                             cp_error_message,&
-                                             cp_error_type
   USE cp_fm_basic_linalg,              ONLY: cp_fm_column_scale,&
                                              cp_fm_gemm,&
                                              cp_fm_syrk
@@ -42,10 +36,6 @@ MODULE qs_mo_methods
                                              cp_fm_retain,&
                                              cp_fm_to_fm,&
                                              cp_fm_type
-  USE cp_log_handling,                 ONLY: cp_failure_level,&
-                                             cp_logger_type,&
-                                             cp_to_string,&
-                                             cp_warning_level
   USE cp_para_types,                   ONLY: cp_blacs_env_type,&
                                              cp_para_env_type
   USE cp_sm_fm_interactions,           ONLY: cp_sm_fm_multiply,&
@@ -60,6 +50,7 @@ MODULE qs_mo_methods
                                              stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
+#include "cp_common_uses.h"
 
   IMPLICIT NONE
   PRIVATE

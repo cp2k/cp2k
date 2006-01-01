@@ -2,7 +2,6 @@
 !   CP2K: A general program to perform molecular dynamics simulations          !
 !   Copyright (C) 2000  CP2K developers group                                  !
 !------------------------------------------------------------------------------!
-#include "cp_prep_globals.h"
 !!****** cp2k/fermi [1.0] *
 !!
 !!   NAME
@@ -23,17 +22,12 @@
 !
 !------------------------------------------------------------------------------!
 !
-  USE cp_error_handling,               ONLY: cp_a_l,&
-                                             cp_assert,&
-                                             cp_error_type
-  USE cp_log_handling,                 ONLY: cp_failure_level,&
-                                             cp_to_string,&
-                                             cp_warning_level
   USE kinds,                           ONLY: dp
   USE physcon,                         ONLY: boltzmann,&
                                              joule
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
+#include "cp_common_uses.h"
 
       IMPLICIT NONE
 !

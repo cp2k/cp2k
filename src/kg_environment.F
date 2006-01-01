@@ -35,7 +35,6 @@ MODULE kg_environment
                                              read_qs_section,&
                                              write_dft_control,&
                                              write_qs_control
-  USE cp_error_handling,               ONLY: cp_error_type
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_subsystem_types,              ONLY: cp_subsystem_type
   USE distribution_1d_types,           ONLY: distribution_1d_release,&
@@ -113,6 +112,7 @@ MODULE kg_environment
   USE virial_types,                    ONLY: virial_create
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type
+#include "cp_common_uses.h"
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

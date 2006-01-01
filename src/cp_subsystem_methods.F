@@ -3,7 +3,6 @@
 !   Copyright (C) 2004  CP2K developers group                                 !
 !-----------------------------------------------------------------------------!
 
-#include "cp_prep_globals.h"
 
 !!****h* cp2k/cp_subsystem_methods [1.0] *
 !!
@@ -29,18 +28,6 @@ MODULE cp_subsystem_methods
                                              atomic_kind_list_release,&
                                              atomic_kind_list_type
   USE atomic_kind_types,               ONLY: atomic_kind_type
-  USE cp_error_handling,               ONLY: cp_a_l,&
-                                             cp_assert,&
-                                             cp_assertion_failed,&
-                                             cp_error_get_logger,&
-                                             cp_error_message,&
-                                             cp_error_type
-  USE cp_log_handling,                 ONLY: cp_failure_level,&
-                                             cp_fatal_level,&
-                                             cp_logger_type,&
-                                             cp_note_level,&
-                                             cp_to_string,&
-                                             cp_warning_level
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_subsystem_types,              ONLY: cp_subsys_create,&
                                              cp_subsys_get,&
@@ -73,6 +60,7 @@ MODULE cp_subsystem_methods
   USE topology_util,                   ONLY: topology_connectivity_pack,&
                                              topology_coordinate_pack,&
                                              check_subsys_element
+#include "cp_common_uses.h"
 
   IMPLICIT NONE 
   PRIVATE

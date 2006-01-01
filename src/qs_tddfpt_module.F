@@ -3,7 +3,6 @@
 !   Copyright (C) 2000  CP2K developers group                                 !
 !-----------------------------------------------------------------------------!
 
-#include "cp_prep_globals.h"
 
 !!****m* cp2k/qs_tddfpt_module *
 !!
@@ -24,12 +23,6 @@ MODULE qs_tddfpt_module
                                              oe_gllb,&
                                              oe_saop,&
                                              oe_sic, tddfpt_excitations
-  USE cp_error_handling,               ONLY: cp_a_l,&
-                                             cp_error_get_logger,&
-                                             cp_error_type,cp_assert
-  USE cp_log_handling,                 ONLY: cp_failure_level,&
-                                             cp_logger_get_default_unit_nr,&
-                                             cp_logger_type,cp_to_string
   USE global_types,                    ONLY: global_environment_type
   USE kinds,                           ONLY: dp
   USE qs_environment_types,            ONLY: get_qs_env,&
@@ -49,6 +42,7 @@ MODULE qs_tddfpt_module
   USE input_section_types, ONLY:section_vals_type, section_vals_val_get, &
        section_vals_get_subs_vals,  section_vals_retain, section_vals_create, &
        section_vals_set_subs_vals, section_vals_release, section_get_ival
+#include "cp_common_uses.h"
   IMPLICIT NONE
 
 

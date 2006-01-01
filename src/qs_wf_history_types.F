@@ -3,7 +3,6 @@
 !   Copyright (C) 2002  CP2K developers group                                 !
 !-----------------------------------------------------------------------------!
 
-#include "cp_prep_globals.h"
 
 !!****h* cp2k/qs_wf_history_types [1.0] *
 !!
@@ -27,18 +26,8 @@
 !!   SOURCE
 !****************************************************************************
 MODULE qs_wf_history_types
-  USE cp_error_handling,               ONLY: cp_a_l,&
-                                             cp_assert,&
-                                             cp_error_get_logger,&
-                                             cp_error_message,&
-                                             cp_error_type
   USE cp_fm_types,                     ONLY: cp_fm_p_type,&
                                              cp_fm_release
-  USE cp_log_handling,                 ONLY: cp_failure_level,&
-                                             cp_fatal_level,&
-                                             cp_note_level,&
-                                             cp_to_string,&
-                                             cp_warning_level
   USE kg_gpw_fm_mol_types,             ONLY: kg_fm_mol_set_release,&
                                              kg_fm_p_type
   USE kinds,                           ONLY: dp
@@ -52,6 +41,7 @@ MODULE qs_wf_history_types
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE termination,                     ONLY: stop_program
+#include "cp_common_uses.h"
   IMPLICIT NONE
   PRIVATE
 

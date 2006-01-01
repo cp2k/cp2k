@@ -3,7 +3,6 @@
 !   Copyright (C) 2002  CP2K developers group                                 !
 !-----------------------------------------------------------------------------!
 
-#include "cp_prep_globals.h"
 
 !!****h* cp2k/distribution_1d_types [1.0] *
 !!
@@ -37,17 +36,6 @@
 MODULE distribution_1d_types
   USE cp_array_i_utils,                ONLY: cp_1d_i_bsearch,&
                                              cp_1d_i_p_type
-  USE cp_error_handling,               ONLY: cp_a_l,&
-                                             cp_assert,&
-                                             cp_assertion_failed,&
-                                             cp_error_message,&
-                                             cp_error_type
-  USE cp_log_handling,                 ONLY: cp_failure_level,&
-                                             cp_fatal_level,&
-                                             cp_logger_type,&
-                                             cp_note_level,&
-                                             cp_to_string,&
-                                             cp_warning_level
   USE cp_para_env,                     ONLY: cp_para_env_release,&
                                              cp_para_env_retain
   USE cp_para_types,                   ONLY: cp_para_env_type
@@ -58,6 +46,7 @@ MODULE distribution_1d_types
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE util,                            ONLY: sort
+#include "cp_common_uses.h"
 
   IMPLICIT NONE
 

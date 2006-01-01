@@ -25,10 +25,6 @@ MODULE  hartree_local_3centers
   USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                              gto_basis_set_type
   USE input_constants,                 ONLY: tddfpt_singlet
-  USE cp_error_handling,               ONLY: cp_a_l,&
-                                             cp_assert,&
-                                             cp_error_message,&
-                                             cp_error_type
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE kinds,                           ONLY: dp,dp_size,&
                                              int_size
@@ -77,6 +73,7 @@ MODULE  hartree_local_3centers
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE util,                            ONLY: get_limit!, &
+#include "cp_common_uses.h"
 
   IMPLICIT NONE
 

@@ -3,7 +3,6 @@
 !   Copyright (C) 2001 - 2005  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-#include "cp_prep_globals.h"
 
 !!****** cp2k/cg_optimizer [1.0] *
 !!
@@ -27,16 +26,6 @@ MODULE cg_optimizer
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind
   USE checkpoint_handler,              ONLY: write_checkpoint_information
-  USE cp_error_handling,               ONLY: cp_a_l,&
-                                             cp_assert,&
-                                             cp_error_get_logger,&
-                                             cp_error_message,&
-                                             cp_error_type
-  USE cp_log_handling,                 ONLY: cp_failure_level,&
-                                             cp_logger_type,&
-                                             cp_note_level,&
-                                             cp_to_string,&
-                                             cp_warning_level
   USE cp_subsystem_types,              ONLY: cp_subsys_get,&
                                              cp_subsystem_p_type
   USE force_env_methods,               ONLY: force_env_calc_energy_force
@@ -60,6 +49,7 @@ MODULE cg_optimizer
   USE input_constants,                 ONLY: dump_xmol
   USE cp_files,                        ONLY: close_file,open_file
   USE memory_utilities,                ONLY: reallocate
+#include "cp_common_uses.h"
 
   IMPLICIT NONE
   PRIVATE

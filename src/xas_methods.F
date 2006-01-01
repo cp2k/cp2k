@@ -2,7 +2,6 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2005  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
-#include "cp_prep_globals.h"
 !!****s* cp2k/xas_methods   [1.0] *
 !!
 !!   NAME
@@ -39,11 +38,6 @@ MODULE xas_methods
   USE checkpoint_handler,              ONLY: write_checkpoint_information
   USE cp_array_r_utils,                ONLY: cp_2d_r_p_type
   USE cp_control_types,                ONLY: dft_control_type
-  USE cp_error_handling,               ONLY: cp_a_l,&
-                                             cp_assert,&
-                                             cp_error_get_logger,&
-                                             cp_error_message,&
-                                             cp_error_type
   USE cp_files,                        ONLY: open_file
   USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm
   USE cp_fm_pool_types,                ONLY: cp_fm_pool_p_type,&
@@ -61,13 +55,6 @@ MODULE xas_methods
                                              cp_fm_set_all,&
                                              cp_fm_set_submatrix,&
                                              cp_fm_type
-  USE cp_log_handling,                 ONLY: cp_failure_level,&
-                                             cp_logger_get_default_unit_nr,&
-                                             cp_logger_type,&
-                                             cp_fatal_level,&
-                                             cp_note_level,&
-                                             cp_to_string,&
-                                             cp_warning_level
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_sm_fm_interactions,           ONLY: cp_sm_fm_multiply
   USE global_types,                    ONLY: global_environment_type
@@ -144,6 +131,7 @@ MODULE xas_methods
                                              xas_env_retain, &
                                              xas_environment_type
   USE xas_tp_scf,                      ONLY: xas_do_tp_scf
+#include "cp_common_uses.h"
 
   IMPLICIT NONE
   PRIVATE

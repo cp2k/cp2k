@@ -3,7 +3,6 @@
 !   Copyright (C) 2004  CP2K developers group                                 !
 !-----------------------------------------------------------------------------!
 
-#include "cp_prep_globals.h"
 
 !!****h* cp2k/input_parsing [1.0] *
 !!
@@ -25,29 +24,12 @@
 !!   SOURCE
 !****************************************************************************
 MODULE input_parsing
-  USE cp_error_handling,               ONLY: cp_a_l,&
-                                             cp_assert,&
-                                             cp_assertion_failed,&
-                                             cp_error_dealloc_ref,&
-                                             cp_error_get_logger,&
-                                             cp_error_init,&
-                                             cp_error_message,&
-                                             cp_error_propagate_error,&
-                                             cp_error_type,&
-                                             cp_unimplemented_error
   USE cp_linked_list_logical,          ONLY: cp_create,&
                                              cp_dealloc,&
                                              cp_sll_logical_type,&
                                              cp_to_array
   USE cp_linked_list_val,              ONLY: cp_sll_val_create,&
                                              cp_sll_val_type
-  USE cp_log_handling,                 ONLY: cp_failure_level,&
-                                             cp_fatal_level,&
-                                             cp_logger_get_default_unit_nr,&
-                                             cp_logger_type,&
-                                             cp_note_level,&
-                                             cp_to_string,&
-                                             cp_warning_level
   USE cp_parser,                       ONLY: cp_parser_type,&
                                              max_line_length,&
                                              parser_get_object,&
@@ -83,6 +65,7 @@ MODULE input_parsing
        timestop
   USE cp_units, ONLY: cp_unit_type, cp_unit_set_type, cp_unit_create,&
        cp_unit_to_cp2k1, cp_unit_retain, cp_unit_release
+#include "cp_common_uses.h"
 
   IMPLICIT NONE
   PRIVATE

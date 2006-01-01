@@ -18,7 +18,6 @@
 !!   SOURCE
 !******************************************************************************
 
-#include "cp_prep_globals.h"
 
 MODULE paw_proj_set_types
 
@@ -27,14 +26,6 @@ MODULE paw_proj_set_types
   USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                              gto_basis_set_type
   USE cp_control_types,                ONLY: gapw_control_type, qs_control_type
-  USE cp_error_handling,               ONLY: cp_a_l,&
-                                             cp_assert,&
-                                             cp_error_message,&
-                                             cp_error_type
-  USE cp_log_handling,                 ONLY: cp_failure_level,&
-                                             cp_fatal_level,&
-                                             cp_to_string,&
-                                             cp_warning_level
   USE global_types,                    ONLY: global_environment_type
   USE kinds,                           ONLY: default_string_length,&
                                              dp
@@ -49,6 +40,7 @@ MODULE paw_proj_set_types
                                              exp_radius
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
+#include "cp_common_uses.h"
  
 ! *****************************************************************************
 

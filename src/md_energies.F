@@ -21,12 +21,6 @@
 
 MODULE md_energies
 
-  USE cp_error_handling,               ONLY: cp_a_l,&
-                                             cp_assert,&
-                                             cp_error_type
-  USE cp_log_handling,                 ONLY: cp_failure_level,&
-                                             cp_logger_type,&
-                                             cp_to_string
   USE cp_subsystem_types,              ONLY: cp_subsys_get,&
                                              cp_subsystem_p_type
   USE cp2k_units,                      ONLY: unit_convert_type, &
@@ -78,6 +72,7 @@ MODULE md_energies
                                              md_pos_vel_restart,&
                                              dump_xmol,&
                                              dump_dcd
+#include "cp_common_uses.h"
   IMPLICIT NONE
 
   PRIVATE

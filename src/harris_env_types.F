@@ -3,7 +3,6 @@
 !   Copyright (C) 2000-2005  CP2K developers group                            !
 !-----------------------------------------------------------------------------!
 
-#include "cp_prep_globals.h"
 
 !!****** cp2k/harris_env_types [1.0] *
 !!
@@ -28,17 +27,6 @@
 !******************************************************************************
 MODULE harris_env_types
 
-  USE cp_error_handling,               ONLY: cp_a_l,&
-                                             cp_assert,&
-                                             cp_assertion_failed,&
-                                             cp_error_get_logger,&
-                                             cp_error_message,&
-                                             cp_error_type
-  use cp_log_handling,                 ONLY: cp_failure_level,&
-                                             cp_fatal_level,&
-                                             cp_note_level,&
-                                             cp_to_string,&
-                                             cp_warning_level
   USE harris_energy_types,             ONLY: harris_energy_type, &
                                              harris_energy_release, &
                                              harris_energy_clear
@@ -49,6 +37,7 @@ MODULE harris_env_types
                                              !harris_force_create
   USE qs_rho_types,                    ONLY: qs_rho_type, &
                                              qs_rho_release
+#include "cp_common_uses.h"
 
   IMPLICIT NONE
   PRIVATE

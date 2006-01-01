@@ -3,7 +3,6 @@
 !   Copyright (C) 2000-2005  CP2K developers group                            !
 !-----------------------------------------------------------------------------!
 
-#include "cp_prep_globals.h"
 
 !!****h* cp2k/harris_functional [1.0] *
 !!
@@ -29,19 +28,6 @@ MODULE harris_functional
                                              !coeff_add, &
                                              !coeff_sumup, &
   USE cp_control_types,                ONLY: dft_control_type
-  USE cp_error_handling,               ONLY: cp_a_l, &
-                                             cp_assert, &
-                                             cp_assertion_failed, &
-                                             cp_debug, &
-                                             cp_error_get_logger, &
-                                             cp_error_message, &
-                                             cp_error_type
-  USE cp_log_handling,                 ONLY: cp_failure_level, &
-                                             cp_note_level, &
-                                             cp_to_string, &
-                                             cp_warning_level,&
-                                             cp_logger_get_default_unit_nr,&
-                                             cp_logger_type
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE global_types,                    ONLY: global_environment_type
   USE harris_energy_types,             ONLY: harris_energy_type
@@ -76,6 +62,7 @@ MODULE harris_functional
                                              timestop
   USE pw_poisson_methods, only: pw_poisson_solve
   USE pw_poisson_types, only: pw_poisson_type
+#include "cp_common_uses.h"
 
   IMPLICIT NONE
   PRIVATE

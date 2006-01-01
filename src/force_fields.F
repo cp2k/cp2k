@@ -3,7 +3,6 @@
 !   Copyright (C) 2004  CP2K developers group                                 !
 !-----------------------------------------------------------------------------!
 
-#include "cp_prep_globals.h"
 
 !!****** cp2k/force_fields [1.0] *
 !!
@@ -35,17 +34,7 @@ MODULE force_fields
                                              init_atomic_kind_set,&
                                              set_atomic_kind
   USE checkpoint_handler,              ONLY: write_checkpoint_information
-  USE cp_error_handling,               ONLY: cp_a_l,&
-                                             cp_assert,&
-                                             cp_error_get_logger,&
-                                             cp_error_message,&
-                                             cp_error_type
   USE cp_files,                        ONLY: open_file
-  USE cp_log_handling,                 ONLY: cp_failure_level,&
-                                             cp_fatal_level,&
-                                             cp_note_level,&
-                                             cp_to_string,&
-                                             cp_warning_level
   USE convert_units,                   ONLY: convert_to_cp2k_units
   USE ewald_environment_types,         ONLY: ewald_environment_type
   USE external_potential_types,        ONLY: elp_potential_type,&
@@ -148,6 +137,7 @@ MODULE force_fields
                                              section_vals_get_subs_vals,&
                                              section_vals_get,&
                                              section_vals_val_get
+#include "cp_common_uses.h"
 
   IMPLICIT NONE
 

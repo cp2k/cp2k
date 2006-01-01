@@ -3,7 +3,6 @@
 !   Copyright (C) 2002 -2004  CP2K developers group                           !
 !-----------------------------------------------------------------------------!
 
-#include "cp_prep_globals.h"
 
 !!****h* cp2k/qs_vxc_atom [1.0] *
 !!
@@ -30,11 +29,6 @@ MODULE qs_vxc_atom
   USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                              gto_basis_set_type
   USE input_constants,                 ONLY: tddfpt_triplet, tddfpt_excitations
-  USE cp_error_handling,               ONLY: cp_error_type, &
-                                             cp_a_l,&
-                                             cp_assert
-  USE cp_log_handling,                 ONLY: cp_failure_level,&
-                                             cp_to_string
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE kinds,                           ONLY: dp,dp_size
   USE memory_utilities,                ONLY: reallocate
@@ -73,6 +67,7 @@ MODULE qs_vxc_atom
                                              xc_rho_set_type
   USE input_section_types, ONLY: section_vals_type, section_vals_val_get,&
        section_vals_get_subs_vals
+#include "cp_common_uses.h"
   IMPLICIT NONE
 
   PRIVATE

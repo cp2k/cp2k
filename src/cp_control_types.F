@@ -3,7 +3,6 @@
 !   Copyright (C) 2000 - 2005  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
-#include "cp_prep_globals.h"
 
 !!****s* cp2k/cp_control_types [1.0] *
 !!
@@ -19,19 +18,8 @@
 
 MODULE cp_control_types
   USE cp_array_r_utils,                ONLY: cp_2d_r_p_type
-  USE cp_error_handling,               ONLY: cp_a_l,&
-                                             cp_assert,&
-                                             cp_error_get_logger,&
-                                             cp_error_message,&
-                                             cp_error_type
   USE cp_fm_types,                     ONLY: cp_fm_p_type,&
                                              cp_fm_release
-  USE cp_log_handling,                 ONLY: cp_failure_level,&
-                                             cp_fatal_level,&
-                                             cp_logger_type,&
-                                             cp_note_level,&
-                                             cp_to_string,&
-                                             cp_warning_level
   USE global_types,                    ONLY: global_environment_type
   USE kinds,                           ONLY: dp
   USE pw_grid_types,                   ONLY: pw_grid_type
@@ -68,6 +56,7 @@ MODULE cp_control_types
                                              xas_control_release,&
                                              xas_control_type
   USE xc_rho_cflags_types,             ONLY: xc_rho_cflags_type
+#include "cp_common_uses.h"
 
   IMPLICIT NONE
 

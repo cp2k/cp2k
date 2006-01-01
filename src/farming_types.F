@@ -2,16 +2,10 @@
 !   CP2K: A general program to perform molecular dynamics simulations
 !   Copyright (C) 2004  CP2K developers group
 !-----------------------------------------------------------------------------!
-#include "cp_prep_globals.h"
 
 MODULE farming_types
-  USE cp_error_handling,               ONLY: cp_a_l,&
-                                             cp_assert,&
-                                             cp_error_type
-  USE cp_log_handling,                 ONLY: cp_failure_level,&
-                                             cp_logger_type,&
-                                             cp_to_string
   USE kinds,                           ONLY: default_path_length
+#include "cp_common_uses.h"
 
   IMPLICIT NONE
   PRIVATE

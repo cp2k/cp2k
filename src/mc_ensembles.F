@@ -19,11 +19,8 @@
 !!
 !******************************************************************************
 
-#include "cp_prep_globals.h"
 
 MODULE mc_ensembles
-  USE cp_error_handling,               ONLY: cp_a_l,&
-                                             cp_error_type
   USE cp_subsystem_types,              ONLY: cp_subsys_get,&
                                              cp_subsystem_pp_type
   USE force_env_methods,               ONLY: force_env_calc_energy_force
@@ -80,6 +77,7 @@ MODULE mc_ensembles
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE input_constants,                 ONLY: dump_xmol
+#include "cp_common_uses.h"
   IMPLICIT NONE
 
   PRIVATE

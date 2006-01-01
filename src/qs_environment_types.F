@@ -2,7 +2,6 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 1999  MPI fuer Festkoerperforschung, Stuttgart              !
 !-----------------------------------------------------------------------------!
-#include "cp_prep_globals.h"
 !!****** cp2k/qs_environment_types [1.0] *
 !!
 !!   NAME
@@ -31,23 +30,12 @@ MODULE qs_environment_types
                                              dft_control_retain,&
                                              dft_control_type,&
                                              tddfpt_control_type
-  USE cp_error_handling,               ONLY: cp_a_l,&
-                                             cp_assert,&
-                                             cp_error_get_logger,&
-                                             cp_error_message,&
-                                             cp_error_type
   USE cp_fm_pool_types,                ONLY: cp_fm_pool_type
   USE cp_fm_types,                     ONLY: cp_fm_create,&
                                              cp_fm_get_info,&
                                              cp_fm_release,&
                                              cp_fm_type, &
                                              cp_fm_p_type
-  USE cp_log_handling,                 ONLY: cp_failure_level,&
-                                             cp_fatal_level,&
-                                             cp_logger_type,&
-                                             cp_note_level,&
-                                             cp_to_string,&
-                                             cp_warning_level
   USE cp_para_env,                     ONLY: cp_para_env_release,&
                                              cp_para_env_retain
   USE cp_para_types,                   ONLY: cp_blacs_env_type,&
@@ -159,6 +147,7 @@ MODULE qs_environment_types
                                              virial_retain,&
                                              virial_release,&
 					     virial_create
+#include "cp_common_uses.h"
   IMPLICIT NONE
 
   PRIVATE

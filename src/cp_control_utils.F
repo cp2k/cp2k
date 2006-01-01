@@ -2,7 +2,6 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2004  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
-#include "cp_prep_globals.h"
 !!****s* cp2k/cp_control_utils [1.0] *
 !!
 !!   NAME
@@ -65,25 +64,9 @@ MODULE cp_control_utils
                                              xc_rho_spline2_smooth,&
                                              xc_rho_spline3_smooth,&
                                              xc_test_lsd_f_routine
-  USE cp_error_handling,               ONLY: cp_a_l,&
-                                             cp_assert,&
-                                             cp_assertion_failed,&
-                                             cp_error_check,&
-                                             cp_error_dealloc_ref,&
-                                             cp_error_get_logger,&
-                                             cp_error_init,&
-                                             cp_error_message,&
-                                             cp_error_reset,&
-                                             cp_error_type
   USE cp_keywords,                     ONLY: find_keyword,&
                                              keyword_type,&
                                              list_keywords
-  USE cp_log_handling,                 ONLY: cp_failure_level,&
-                                             cp_fatal_level,&
-                                             cp_logger_type,&
-                                             cp_note_level,&
-                                             cp_to_string,&
-                                             cp_warning_level
   USE global_types,                    ONLY: global_environment_type
   USE input_constants,                 ONLY: electronic_spectra_run,&
                                              energy_force_run,&
@@ -141,6 +124,7 @@ MODULE cp_control_utils
   USE xc_rho_cflags_types,             ONLY: xc_rho_cflags_setall,&
                                              xc_rho_cflags_type
   USE input_cp2k_dft, only: xc_functionals_expand
+#include "cp_common_uses.h"
 
   IMPLICIT NONE
 

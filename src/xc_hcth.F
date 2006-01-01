@@ -3,7 +3,6 @@
 !   Copyright (C) 2002  CP2K developers group                                 !
 !-----------------------------------------------------------------------------!
 
-#include "cp_prep_globals.h"
 
 !!****h* cp2k/xc_hcth [1.0] *
 !!
@@ -23,18 +22,6 @@
 !!   SOURCE
 !****************************************************************************
 MODULE xc_hcth
-  USE cp_error_handling,               ONLY: cp_a_l,&
-                                             cp_assert,&
-                                             cp_assertion_failed,&
-                                             cp_error_get_logger,&
-                                             cp_error_message,&
-                                             cp_error_type,&
-                                             cp_unimplemented_error
-  USE cp_log_handling,                 ONLY: cp_failure_level,&
-                                             cp_fatal_level,&
-                                             cp_note_level,&
-                                             cp_to_string,&
-                                             cp_warning_level
   USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: pi
   USE timings,                         ONLY: timeset,&
@@ -46,6 +33,7 @@ MODULE xc_hcth
   USE xc_rho_cflags_types,                ONLY: xc_rho_cflags_type
   USE xc_rho_set_types,                ONLY: xc_rho_set_get,&
                                              xc_rho_set_type
+#include "cp_common_uses.h"
 
   IMPLICIT NONE
   PRIVATE

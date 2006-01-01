@@ -25,11 +25,6 @@ MODULE level_shift
   USE coefficient_types,               ONLY: coeff_sumup,&
                                              coeff_transform_space,&
                                              coeff_type
-  USE cp_error_handling,               ONLY: cp_a_l,&
-                                             cp_assert,&
-                                             cp_error_get_logger,&
-                                             cp_error_message,&
-                                             cp_error_type
   USE cp_rs_pool_types,                ONLY: cp_rs_pool_type,&
                                              rs_pool_create_rs
   USE kinds,                           ONLY: dp
@@ -52,6 +47,7 @@ MODULE level_shift
                                              pbc
   USE timings,                         ONLY: timeset,&
                                              timestop
+#include "cp_common_uses.h"
 
   IMPLICIT NONE
 

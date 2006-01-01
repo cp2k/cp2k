@@ -3,7 +3,6 @@
 !   Copyright (C) 2004  CP2K developers group                                 !
 !-----------------------------------------------------------------------------!
 
-#include "cp_prep_globals.h"
 
 !!****h* cp2k/qmmm_gaussian_init [1.0] *
 !!
@@ -26,17 +25,6 @@
 !!   SOURCE
 !****************************************************************************
 MODULE qmmm_gaussian_init
-  USE cp_error_handling,               ONLY: cp_a_l,&
-                                             cp_assert,&
-                                             cp_error_get_logger,&
-                                             cp_error_message,&
-                                             cp_error_type
-  USE cp_log_handling,                 ONLY: cp_failure_level,&
-                                             cp_fatal_level,&
-                                             cp_note_level,&
-                                             cp_to_string,&
-                                             cp_warning_level,&
-                                             cp_logger_type
   USE cp_output_handling,              ONLY: cp_print_key_should_output,&
                                              cp_p_file
   USE cp_para_types,                   ONLY: cp_para_env_type
@@ -72,6 +60,7 @@ MODULE qmmm_gaussian_init
                                              section_vals_val_get
   USE qmmm_gaussian_data,              ONLY: max_geep_lib_gauss,&
                                              min_geep_lib_gauss
+#include "cp_common_uses.h"
   IMPLICIT NONE
   PRIVATE
 

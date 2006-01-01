@@ -3,7 +3,6 @@
 !   Copyright (C) 2002  CP2K developers group                                 !
 !-----------------------------------------------------------------------------!
 
-#include "cp_prep_globals.h"
 
 !!****h* cp2k/pw_env_types [1.0] *
 !!
@@ -25,15 +24,6 @@
 !!   SOURCE
 !****************************************************************************
 MODULE pw_env_types
-  USE cp_error_handling,               ONLY: cp_a_l,&
-                                             cp_assert,&
-                                             cp_error_message,&
-                                             cp_error_type
-  USE cp_log_handling,                 ONLY: cp_failure_level,&
-                                             cp_fatal_level,&
-                                             cp_note_level,&
-                                             cp_to_string,&
-                                             cp_warning_level
   USE cp_rs_pool_types,                ONLY: cp_rs_pool_p_type,&
                                              cp_rs_pool_type,&
                                              rs_pools_dealloc,&
@@ -52,6 +42,7 @@ MODULE pw_env_types
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE pw_poisson_types, ONLY: pw_poisson_type, pw_poisson_retain, pw_poisson_release
+#include "cp_common_uses.h"
   IMPLICIT NONE
   PRIVATE
 

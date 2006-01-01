@@ -20,17 +20,6 @@
 !******************************************************************************
 
 MODULE dump
-  USE cp_error_handling,               ONLY: cp_a_l,&
-                                             cp_assert,&
-                                             cp_error_dealloc_ref,&
-                                             cp_error_get_logger,&
-                                             cp_error_init,&
-                                             cp_error_type
-  USE cp_log_handling,                 ONLY: cp_failure_level,&
-                                             cp_logger_create,&
-                                             cp_logger_release,&
-                                             cp_logger_type,&
-                                             cp_to_string
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE extended_system_types,           ONLY: lnhc_parameters_type,&
                                              npt_info_type
@@ -47,6 +36,7 @@ MODULE dump
   USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
+#include "cp_common_uses.h"
 
   IMPLICIT NONE
 

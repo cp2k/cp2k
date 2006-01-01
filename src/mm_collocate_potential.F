@@ -3,7 +3,6 @@
 !   Copyright (C) 2004  CP2K developers group                                 !
 !-----------------------------------------------------------------------------!
 
-#include "cp_prep_globals.h"
 
 !!****h* cp2k/mm_collocate_potential [1.0] *
 !!
@@ -26,16 +25,6 @@
 !!   SOURCE
 !****************************************************************************
 MODULE mm_collocate_potential
-  USE cp_error_handling,               ONLY: cp_a_l,&
-                                             cp_assert,&
-                                             cp_error_get_logger,&
-                                             cp_error_message,&
-                                             cp_error_type
-  USE cp_log_handling,                 ONLY: cp_failure_level,&
-                                             cp_fatal_level,&
-                                             cp_note_level,&
-                                             cp_to_string,&
-                                             cp_warning_level
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE timings,                         ONLY: timeset,&
                                              timestop  
@@ -63,6 +52,7 @@ MODULE mm_collocate_potential
                                              rs_pools_create_rs_vect,&
                                              rs_pools_give_back_rs_vect
   USE qs_util,                         ONLY: exp_radius
+#include "cp_common_uses.h"
 
   IMPLICIT NONE
   PRIVATE

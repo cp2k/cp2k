@@ -22,7 +22,6 @@
 
 MODULE mc_types
   USE convert_units,                   ONLY: convert_to_cp2k_units
-  USE cp_error_handling,               ONLY: cp_error_type
   USE fist_environment_types,          ONLY: fist_environment_type,&
                                              get_fist_env
   USE fist_nonbond_env_types,          ONLY: fist_nonbond_env_type,&
@@ -50,6 +49,7 @@ MODULE mc_types
   USE string_utilities,                ONLY: xstring
   USE timings,                         ONLY: timeset,&
                                              timestop
+#include "cp_common_uses.h"
 
   IMPLICIT NONE
 

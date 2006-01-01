@@ -3,7 +3,6 @@
 !   Copyright (C) 2000  CP2K developers group                                 !
 !-----------------------------------------------------------------------------!
 
-#include "cp_prep_globals.h"
 
 MODULE qs_tddfpt_types
   USE cp_control_types,                ONLY: tddfpt_control_type
@@ -19,7 +18,6 @@ MODULE qs_tddfpt_types
                                              cp_fm_p_type,&
                                              cp_fm_release,&
                                              cp_fm_set_all
-  USE cp_log_handling,                 ONLY: cp_to_string
   USE hartree_local_types,             ONLY: hartree_local_create,&
                                              hartree_local_release,&
                                              hartree_local_type
@@ -28,6 +26,7 @@ MODULE qs_tddfpt_types
   USE qs_matrix_pools,                 ONLY: mpools_get
   USE qs_p_env_types,                  ONLY: qs_p_env_type
   USE termination,                     ONLY: stop_memory
+#include "cp_common_uses.h"
 
   IMPLICIT NONE
 

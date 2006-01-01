@@ -2,7 +2,6 @@
 !   CP2K: A general program to perform molecular dynamics simulations
 !   Copyright (C) 2001 - 2003  CP2K developers group
 !-----------------------------------------------------------------------------!
-#include "cp_prep_globals.h"
 !!****** cp2k/md_run [1.0] *
 !!
 !!   NAME
@@ -26,19 +25,8 @@ MODULE md_run
                                              get_atomic_kind
   USE atoms_input,                     ONLY: read_md_restart
   USE checkpoint_handler,              ONLY: write_checkpoint_information
-  USE cp_error_handling,               ONLY: cp_a_l,&
-                                             cp_assert,&
-                                             cp_error_get_logger,&
-                                             cp_error_message,&
-                                             cp_error_type
   USE cp_files,                        ONLY: close_file,&
                                              open_file
-  USE cp_log_handling,                 ONLY: cp_failure_level,&
-                                             cp_logger_get_default_unit_nr,&
-                                             cp_logger_type,&
-                                             cp_note_level,&
-                                             cp_to_string,&
-                                             cp_warning_level
   USE cp_output_handling,              ONLY: cp_add_iter_level,&
                                              cp_iterate,&
                                              cp_rm_iter_level
@@ -101,6 +89,7 @@ MODULE md_run
   USE virial_types,                    ONLY: virial_type,&
                                              virial_set
 !JCS
+#include "cp_common_uses.h"
 
 
   IMPLICIT NONE

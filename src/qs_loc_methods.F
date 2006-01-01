@@ -1,7 +1,6 @@
 !   CP2K: A general program to perform moleocular dynamics simulations         !
 !   Copyright (C) 2004 - 2005  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
-#include "cp_prep_globals.h"
 !!****** cp2k/qs_loc_methods_new [1.0] *
 !!
 !!   NAME
@@ -32,11 +31,6 @@ MODULE qs_loc_methods
                                              cp_cfm_release,&
                                              cp_cfm_type
   USE cp_control_types,                ONLY: dft_control_type
-  USE cp_error_handling,               ONLY: cp_a_l,&
-                                             cp_assert,&
-                                             cp_error_get_logger,&
-                                             cp_error_message,&
-                                             cp_error_type
   USE cp_files,                        ONLY: open_file
   USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm,&
                                              cp_fm_scale_and_add,&
@@ -58,13 +52,6 @@ MODULE qs_loc_methods
                                              cp_fm_type
   USE cp_sm_fm_interactions,           ONLY: copy_sm_to_fm,&
                                              cp_sm_fm_multiply
-  USE cp_log_handling,                 ONLY: cp_failure_level,&
-                                             cp_fatal_level,&
-                                             cp_logger_type,&
-                                             cp_note_level,&
-                                             cp_to_string,&
-                                             cp_warning_level,&
-                                             cp_logger_get_default_unit_nr
   USE input_constants,                 ONLY: do_loc_min,&
                                              do_loc_max,&
                                              do_loc_jacobi,&
@@ -121,6 +108,7 @@ MODULE qs_loc_methods
                                              stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
+#include "cp_common_uses.h"
 
   IMPLICIT NONE
 

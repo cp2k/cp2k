@@ -3,7 +3,6 @@
 !   Copyright (C) 2002  CP2K developers group                                 !
 !-----------------------------------------------------------------------------!
 
-#include "cp_prep_globals.h"
 
 !!****h* cp2k/scf_control_types [1.0] *
 !!
@@ -26,16 +25,6 @@
 !!   SOURCE
 !****************************************************************************
 MODULE scf_control_types
-  USE cp_error_handling,               ONLY: cp_a_l,&
-                                             cp_assert,&
-                                             cp_error_get_logger,&
-                                             cp_error_message,&
-                                             cp_error_type
-  USE cp_log_handling,                 ONLY: cp_failure_level,&
-                                             cp_fatal_level,&
-                                             cp_note_level,&
-                                             cp_to_string,&
-                                             cp_warning_level
   USE global_types,                    ONLY: global_environment_type
   USE kinds,                           ONLY: dp
   USE termination,                     ONLY: stop_program
@@ -47,6 +36,7 @@ MODULE scf_control_types
        section_vals_val_get, section_vals_retain, section_vals_release,section_release, section_type, section_get_keyword
   USE input_keyword_types, ONLY: keyword_type, keyword_get
   USE input_enumeration_types, ONLY: enumeration_type, enum_i2c
+#include "cp_common_uses.h"
   IMPLICIT NONE
   PRIVATE
 

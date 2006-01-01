@@ -3,7 +3,6 @@
 !   Copyright (C) 2004  CP2K developers group                                 !
 !-----------------------------------------------------------------------------!
 
-#include "cp_prep_globals.h"
 
 !!****h* cp2k/qmmm_links_methods [1.0] *
 !!
@@ -25,16 +24,6 @@
 !!   SOURCE
 !****************************************************************************
 MODULE qmmm_links_methods
-  USE cp_error_handling,               ONLY: cp_a_l,&
-                                             cp_assert,&
-                                             cp_error_get_logger,&
-                                             cp_error_message,&
-                                             cp_error_type
-  USE cp_log_handling,                 ONLY: cp_failure_level,&
-                                             cp_fatal_level,&
-                                             cp_note_level,&
-                                             cp_to_string,&
-                                             cp_warning_level
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE global_types,                    ONLY: global_environment_type
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
@@ -46,6 +35,7 @@ MODULE qmmm_links_methods
                                              qmmm_pseudo_link_type,&
                                              qmmm_env_qm_type,&
                                              add_set_type
+#include "cp_common_uses.h"
 
   IMPLICIT NONE
   PRIVATE

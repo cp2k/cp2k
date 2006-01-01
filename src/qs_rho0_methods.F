@@ -25,10 +25,6 @@ MODULE qs_rho0_methods
                                              gto_basis_set_type
   USE cp_control_types,                ONLY: dft_control_type,&
                                              gapw_control_type
-  USE cp_error_handling,               ONLY: cp_a_l,&
-                                             cp_assert,&
-                                             cp_error_message,&
-                                             cp_error_type
   USE external_potential_types,        ONLY: all_potential_type
   USE gaussian_gridlevels,             ONLY: gaussian_gridlevel
   USE global_types,                    ONLY: global_environment_type
@@ -71,6 +67,7 @@ MODULE qs_rho0_methods
   USE termination,                     ONLY: stop_memory
   USE timings,                         ONLY: timeset,&
                                              timestop
+#include "cp_common_uses.h"
 
   IMPLICIT NONE
 

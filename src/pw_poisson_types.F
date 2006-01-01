@@ -3,7 +3,6 @@
 !   Copyright (C) 2002  CP2K developers group                                 !
 !-----------------------------------------------------------------------------!
 
-#include "cp_prep_globals.h"
 
 !!****h* cp2k/pw_poisson_types *
 !!
@@ -32,12 +31,6 @@
 !!   SOURCE
 !****************************************************************************
 MODULE pw_poisson_types
-  use cp_log_handling, only: cp_fatal_level, cp_failure_level,&
-       cp_warning_level, cp_note_level, cp_to_string, cp_log
-  use cp_error_handling, only: cp_debug, cp_error_type, cp_error_init,&
-       cp_error_dealloc_ref, cp_error_message, cp_assert,&
-       cp_assertion_failed, cp_internal_error, cp_unimplemented_error,&
-       cp_error_get_logger, cp_a_l, cp_error_check
   use kinds, only: dp
   use timings, only: timeset, timestop
  USE input_constants,                 ONLY: ANALYTIC0D,&
@@ -92,7 +85,8 @@ MODULE pw_poisson_types
                                              pw_grid_release
   USE mathconstants, ONLY: fourpi, twopi
   USE bessel_lib, ONLY: bessj0, bessj1, bessk0, bessk1
-  implicit none
+#include "cp_common_uses.h"
+  IMPLICIT NONE
   private
 
   logical, private, parameter :: debug_this_module=.true.

@@ -2,7 +2,6 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000  CP2K developers group                                 !
 !-----------------------------------------------------------------------------!
-#include "cp_prep_globals.h"
 !!****** cp2k/simulation_cell [1.0] *
 !!
 !!   NAME
@@ -20,14 +19,6 @@
 !******************************************************************************
 
 MODULE simulation_cell
-  USE cp_error_handling,               ONLY: cp_a_l,&
-                                             cp_assert,&
-                                             cp_error_type
-  USE cp_log_handling,                 ONLY: cp_failure_level,&
-                                             cp_fatal_level,&
-                                             cp_note_level,&
-                                             cp_to_string,&
-                                             cp_warning_level
   USE global_types,                    ONLY: global_environment_type
   USE input_constants,                 ONLY: ANALYTIC0D,&
                                              ANALYTIC1D,&
@@ -65,6 +56,7 @@ MODULE simulation_cell
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type,&
                                              section_vals_val_get
+#include "cp_common_uses.h"
 
   IMPLICIT NONE
 

@@ -23,10 +23,6 @@ MODULE qs_gapw_densities
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind
   USE cp_control_types,                ONLY: dft_control_type
-  USE cp_error_handling,               ONLY: cp_error_get_logger,&
-                                             cp_error_type
-  USE cp_log_handling,                 ONLY: cp_logger_type, &
-                                             cp_logger_get_default_unit_nr 
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE kinds,                           ONLY: dp
   USE memory_utilities,                ONLY: reallocate
@@ -47,6 +43,7 @@ MODULE qs_gapw_densities
   USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
+#include "cp_common_uses.h"
 
   IMPLICIT NONE
 

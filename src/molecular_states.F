@@ -3,7 +3,6 @@
 !   Copyright (C) 2001 - 2002  CP2K developers group
 !-----------------------------------------------------------------------------!
 
-#include "cp_prep_globals.h"
 
 !!****** cp2k/molecular_states [1.0] *
 !!
@@ -24,7 +23,6 @@
 MODULE molecular_states
 ! *****************************************************************************
   USE coefficient_types,               ONLY: coeff_type
-  USE cp_error_handling,               ONLY: cp_error_type
   USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm
   USE cp_fm_diag,                      ONLY: cp_fm_syevd
   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
@@ -52,6 +50,7 @@ MODULE molecular_states
   USE termination,                     ONLY: stop_memory
   USE timings,                         ONLY: timeset,&
                                              timestop
+#include "cp_common_uses.h"
 
   IMPLICIT NONE
 

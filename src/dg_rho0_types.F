@@ -2,7 +2,6 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000  CP2K developers group                                 !
 !-----------------------------------------------------------------------------!
-#include "cp_prep_globals.h"
 !!****** cp2k/dg_rho0_types [1.0] *
 !!
 !!   NAME
@@ -20,21 +19,6 @@
 
 MODULE dg_rho0_types
 
-  USE cp_error_handling,               ONLY: cp_a_l,&
-                                             cp_assert,&
-                                             cp_assertion_failed,&
-                                             cp_debug,&
-                                             cp_error_dealloc_ref,&
-                                             cp_error_get_logger,&
-                                             cp_error_init,&
-                                             cp_error_message,&
-                                             cp_error_type,&
-                                             cp_internal_error
-  USE cp_log_handling,                 ONLY: cp_failure_level,&
-                                             cp_fatal_level,&
-                                             cp_note_level,&
-                                             cp_to_string,&
-                                             cp_warning_level
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE coefficient_types,               ONLY: coeff_type, &
                                              coeff_allocate, &
@@ -51,6 +35,7 @@ MODULE dg_rho0_types
                                              do_ewald_ewald,&
                                              do_ewald_pme,&
                                              do_ewald_spme  
+#include "cp_common_uses.h"
 
   IMPLICIT NONE
 

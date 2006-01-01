@@ -3,7 +3,6 @@
 !   Copyright (C) 2001 - 2002  CP2K developers group
 !-----------------------------------------------------------------------------!
 
-#include "cp_prep_globals.h"
 
 !!****h* cp2k/cp_cfm_basic_linalg [1.0] *
 !!
@@ -27,22 +26,11 @@
 MODULE cp_cfm_basic_linalg
   USE cp_cfm_types,                    ONLY: cp_cfm_get_element,&
                                              cp_cfm_type
-  USE cp_error_handling,               ONLY: cp_a_l,&
-                                             cp_assert,&
-                                             cp_assertion_failed,&
-                                             cp_error_get_logger,&
-                                             cp_error_message,&
-                                             cp_error_type,&
-                                             cp_unimplemented_error
   USE cp_fm_struct,                    ONLY: cp_fm_struct_equivalent
-  USE cp_log_handling,                 ONLY: cp_failure_level,&
-                                             cp_fatal_level,&
-                                             cp_note_level,&
-                                             cp_to_string,&
-                                             cp_warning_level
   USE kinds,                           ONLY: dp
   USE timings,                         ONLY: timeset,&
                                              timestop
+#include "cp_common_uses.h"
 
   IMPLICIT NONE
   PRIVATE

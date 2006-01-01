@@ -3,7 +3,6 @@
 !   Copyright (C) 2000-2005  CP2K developers group                            !
 !-----------------------------------------------------------------------------!
 
-#include "cp_prep_globals.h"
 
 !!****h* cp2k/harris_functional [1.0] *
 !!
@@ -35,19 +34,6 @@ MODULE harris_force
                                              coeff_sumup, &
                                              coeff_subtract
   USE cp_control_types,                ONLY: dft_control_type
-  USE cp_error_handling,               ONLY: cp_a_l, &
-                                             cp_assert, &
-                                             cp_assertion_failed, &
-                                             cp_debug, &
-                                             cp_error_get_logger, &
-                                             cp_error_message, &
-                                             cp_error_type
-  USE cp_log_handling,                 ONLY: cp_failure_level, &
-                                             cp_note_level, &
-                                             cp_to_string, &
-                                             cp_warning_level,&
-                                             cp_logger_get_default_unit_nr,&
-                                             cp_logger_type
   USE global_types,                    ONLY: global_environment_type
   USE harris_env_types,                ONLY: harris_env_type, &
                                              harris_env_get
@@ -98,6 +84,7 @@ MODULE harris_force
                                              xc_dset_release
   USE xc_rho_set_types,                ONLY: xc_rho_set_type, &
                                              xc_rho_set_release
+#include "cp_common_uses.h"
 
   IMPLICIT NONE
   PRIVATE

@@ -3,7 +3,6 @@
 !   Copyright (C) 2003  CP2K developers group
 !-----------------------------------------------------------------------------!
 
-#include "cp_prep_globals.h"
 
 !!****** cp2k/qs_scf_post [1.0] *
 !!
@@ -32,11 +31,6 @@ MODULE qs_scf_post
                                              coeff_type
   USE cp_control_types,                ONLY: dft_control_type,&
                                              tddfpt_control_type
-  USE cp_error_handling,               ONLY: cp_a_l,&
-                                             cp_assert,&
-                                             cp_error_get_logger,&
-                                             cp_error_message,&
-                                             cp_error_type
   USE cp_files,                        ONLY: close_file,&
                                              open_file
   USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm
@@ -50,12 +44,6 @@ MODULE qs_scf_post
                                              cp_fm_release,&
                                              cp_fm_to_fm,&
                                              cp_fm_type
-  USE cp_log_handling,                 ONLY: cp_failure_level,&
-                                             cp_logger_get_default_unit_nr,&
-                                             cp_logger_type,&
-                                             cp_note_level,&
-                                             cp_to_string,&
-                                             cp_warning_level
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_iter_string,&
                                              cp_print_key_should_output,&
@@ -140,6 +128,7 @@ MODULE qs_scf_post
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE xray_diffraction,                ONLY: xray_diffraction_spectrum
+#include "cp_common_uses.h"
 
   USE input_section_types, ONLY: section_vals_type, section_vals_val_get,&
        section_vals_get_subs_vals, section_vals_get_subs_vals2, section_get_rval, section_get_ival

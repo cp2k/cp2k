@@ -3,7 +3,6 @@
 !   Copyright (C) 2002  CP2K developers group                                 !
 !-----------------------------------------------------------------------------!
 
-#include "cp_prep_globals.h"
 
 !!****h* cp2k/qs_rho_methods [1.0] *
 !!
@@ -27,16 +26,6 @@
 MODULE qs_rho_methods
   USE coefficient_types,               ONLY: coeff_deallocate
   USE cp_control_types,                ONLY: dft_control_type
-  USE cp_error_handling,               ONLY: cp_a_l,&
-                                             cp_assert,&
-                                             cp_error_get_logger,&
-                                             cp_error_message,&
-                                             cp_error_type
-  USE cp_log_handling,                 ONLY: cp_failure_level,&
-                                             cp_fatal_level,&
-                                             cp_note_level,&
-                                             cp_to_string,&
-                                             cp_warning_level
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE kinds,                           ONLY: dp
   USE pw_env_types,                    ONLY: pw_env_get,&
@@ -64,6 +53,7 @@ MODULE qs_rho_methods
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE cp_matrix_utils, only: cp_sm_write
+#include "cp_common_uses.h"
 
   IMPLICIT NONE
   PRIVATE

@@ -3,7 +3,6 @@
 !   Copyright (C ) 2000  CP2K developers group                                !
 !-----------------------------------------------------------------------------!
 
-#include "cp_prep_globals.h"
 
 !!****** cp2k/kg_force [1.0] *
 !!

@@ -2,7 +2,6 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C ) 2002 - 2003  CP2K developers group                         !
 !-----------------------------------------------------------------------------!
-#include "cp_prep_globals.h"
 !!****** cp2k/ewald_pw_types [1.0] *
 !!
 !!   NAME
@@ -20,24 +19,7 @@
 !******************************************************************************
 
 MODULE ewald_pw_types
-  USE cp_error_handling,               ONLY: cp_a_l,&
-                                             cp_assert,&
-                                             cp_assertion_failed,&
-                                             cp_debug,&
-                                             cp_error_dealloc_ref,&
-                                             cp_error_get_logger,&
-                                             cp_error_init,&
-                                             cp_error_message,&
-                                             cp_error_type,&
-                                             cp_internal_error
   USE message_passing, only: MPI_COMM_SELF
-  USE cp_log_handling,                 ONLY: cp_failure_level,&
-                                             cp_fatal_level,&
-                                             cp_logger_get_default_unit_nr,&
-                                             cp_logger_type,&
-                                             cp_note_level,&
-                                             cp_to_string,&
-                                             cp_warning_level
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE dgs,                             ONLY: dg_pme_grid_setup
   USE dg_types,                        ONLY: dg_type, &
@@ -82,6 +64,7 @@ MODULE ewald_pw_types
   USE pw_poisson_types, ONLY: pw_poisson_type, pw_poisson_release, &
        pw_poisson_retain, pw_poisson_create
   USE pw_poisson_methods, only: pw_poisson_set
+#include "cp_common_uses.h"
   IMPLICIT NONE
 
   PRIVATE

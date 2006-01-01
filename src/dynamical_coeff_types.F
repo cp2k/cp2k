@@ -2,7 +2,6 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2003  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
-#include "cp_prep_globals.h"
 !!****s* cp2k/dynamical_coeff_types [1.0] *
 !!
 !!   NAME
@@ -27,14 +26,6 @@ MODULE dynamical_coeff_types
                                              gto_basis_set_type
   USE cp2k_units,                      ONLY: get_cp2k_units,&
                                              unit_convert_type
-  USE cp_error_handling,               ONLY: cp_a_l,&
-                                             cp_assert,&
-                                             cp_error_get_logger,&
-                                             cp_error_type
-  USE cp_log_handling,                 ONLY: cp_failure_level,&
-                                             cp_logger_type,&
-                                             cp_to_string,&
-                                             cp_warning_level
   USE distribution_1d_types,           ONLY: distribution_1d_release,&
                                              distribution_1d_retain,&
                                              distribution_1d_type
@@ -58,6 +49,7 @@ MODULE dynamical_coeff_types
   USE termination,                     ONLY: stop_memory
   USE util,                            ONLY: gasdev,&
                                              locate
+#include "cp_common_uses.h"
 
   IMPLICIT NONE
 

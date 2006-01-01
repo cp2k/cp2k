@@ -2,7 +2,6 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2002  CP2K developers group                                 !
 !-----------------------------------------------------------------------------!
-#include "cp_prep_globals.h"
 !!****h* cp2k/f77_interface [1.0] *
 !!
 !!   NAME
@@ -28,26 +27,6 @@
 !****************************************************************************
 MODULE f77_interface
   USE cp2k_runs,                       ONLY: cp2k_run
-  USE cp_error_handling,               ONLY: cp_a_l,&
-                                             cp_assert,&
-                                             cp_assertion_failed,&
-                                             cp_error_check,&
-                                             cp_error_dealloc_ref,&
-                                             cp_error_get_level,&
-                                             cp_error_get_logger,&
-                                             cp_error_init,&
-                                             cp_error_type
-  USE cp_log_handling,                 ONLY: cp_add_default_logger,&
-                                             cp_failure_level,&
-                                             cp_fatal_level,&
-                                             cp_get_default_logger,&
-                                             cp_logger_create,&
-                                             cp_logger_release,&
-                                             cp_logger_type,&
-                                             cp_rm_default_logger,&
-                                             cp_to_string,&
-                                             cp_warning_level,&
-                                             cp_logger_get_default_unit_nr
   USE cp_files,                        ONLY: open_file, close_file 
   USE cp_para_env,                     ONLY: cp_para_env_create,&
                                              cp_para_env_release,&
@@ -115,6 +94,7 @@ MODULE f77_interface
   USE physcon,                         ONLY: init_physcon
   USE cp2k_units,                      ONLY: init_cp2k_units,&
                                              rm_cp2k_units
+#include "cp_common_uses.h"
   IMPLICIT NONE
   private
 

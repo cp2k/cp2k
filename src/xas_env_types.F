@@ -2,7 +2,6 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2005  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
-#include "cp_prep_globals.h"
 !!****s* cp2k/xas_env_types [1.0] *
 !!
 !!   NAME
@@ -26,28 +25,19 @@ MODULE xas_env_types
   USE basis_set_types,                 ONLY: deallocate_gto_basis_set,&
                                              gto_basis_set_p_type
   USE cp_array_r_utils,                ONLY: cp_2d_r_p_type
-  USE cp_error_handling,               ONLY: cp_a_l,&
-                                             cp_assert,&
-                                             cp_error_get_logger,&
-                                             cp_error_message,&
-                                             cp_error_type
   USE cp_fm_pool_types,                ONLY: cp_fm_pool_p_type,&
                                              fm_pool_give_back_fm
   USE cp_fm_types,                     ONLY: cp_fm_create,&
                                              cp_fm_p_type,&
                                              cp_fm_release,&
                                              cp_fm_type
-  USE cp_log_handling,                 ONLY: cp_failure_level,&
-                                             cp_fatal_level,&
-                                             cp_note_level,&
-                                             cp_to_string,&
-                                             cp_warning_level
   USE kinds,                           ONLY: dp
   USE qs_loc_types,                    ONLY: qs_loc_env_release,&
                                              qs_loc_env_retain,&
                                              qs_loc_env_new_type
   USE sparse_matrix_types,             ONLY: deallocate_matrix,&
                                              real_matrix_p_type
+#include "cp_common_uses.h"
 
   IMPLICIT NONE
   PRIVATE

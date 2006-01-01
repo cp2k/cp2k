@@ -2,7 +2,6 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C ) 2002 - 2003  CP2K developers group                         !
 !-----------------------------------------------------------------------------!
-#include "cp_prep_globals.h"
 !!****** cp2k/kg_energy [1.0] *
 !!
 !!   NAME
@@ -28,16 +27,6 @@ MODULE kg_energy
                                              coeff_init,&
                                              coeff_zero
   USE cp_control_types,                ONLY: dft_control_type
-  USE cp_error_handling,               ONLY: cp_a_l,&
-                                             cp_assert,&
-                                             cp_error_get_logger,&
-                                             cp_error_message,&
-                                             cp_error_type
-  USE cp_log_handling,                 ONLY: cp_failure_level,&
-                                             cp_fatal_level,&
-                                             cp_note_level,&
-                                             cp_to_string,&
-                                             cp_warning_level
   USE dynamical_coeff_types,           ONLY: dyn_coeff_set_type,&
                                              dyn_coeff_type,&
                                              get_dyn_coeff,&
@@ -58,6 +47,7 @@ MODULE kg_energy
                                              diis_info_type,&
                                              do_diis_step
   USE kg_intra,                        ONLY: calculate_ebond_corr
+#include "cp_common_uses.h"
 
   USE kg_environment_types,            ONLY: get_kg_env,&
                                              kg_environment_type

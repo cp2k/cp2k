@@ -28,8 +28,6 @@ MODULE qs_ks_atom
   USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                              gto_basis_set_type
   USE cp_array_r_utils,                ONLY: cp_2d_r_p_type
-  USE cp_error_handling,               ONLY: cp_error_type
-  USE cp_log_handling,                 ONLY: cp_failure_level
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE input_constants,                 ONLY: tddfpt_singlet
   USE kinds,                           ONLY: dp, dp_size, int_size
@@ -60,6 +58,7 @@ MODULE qs_ks_atom
   USE termination,                     ONLY: stop_memory
   USE timings,                         ONLY: timeset,&
                                              timestop
+#include "cp_common_uses.h"
 
   IMPLICIT NONE
 

@@ -18,10 +18,6 @@ MODULE qs_rho0_types
 
   USE coefficient_types,               ONLY: coeff_deallocate,&
                                              coeff_type
-  USE cp_error_handling,               ONLY: cp_error_get_logger,&
-                                             cp_error_type
-  USE cp_log_handling,                 ONLY: cp_logger_type, &
-                                             cp_logger_get_default_unit_nr 
   USE erf_fn,                          ONLY: erf
   USE global_types,                    ONLY: global_environment_type
   USE kinds,                           ONLY: default_string_length,&
@@ -38,6 +34,7 @@ MODULE qs_rho0_types
                                              stop_program
   USE whittaker,                       ONLY: whittaker_c0,&
                                              whittaker_ci
+#include "cp_common_uses.h"
   IMPLICIT NONE
 
   PRIVATE

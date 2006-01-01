@@ -3,7 +3,6 @@
 !   Copyright (C) 2002,2003,2004  CP2K developers group                       !
 !-----------------------------------------------------------------------------!
 
-#include "cp_prep_globals.h"
 
 !!****h* cp2k/qmmm_methods [1.0] *
 !!
@@ -34,18 +33,7 @@ MODULE qmmm_methods
        cp_print_key_finished_output
   USE cp_control_types,                ONLY: dft_control_type
   USE global_types,                    ONLY: global_environment_type
-  USE cp_error_handling,               ONLY: cp_a_l,&
-                                             cp_assert,&
-                                             cp_error_get_logger,&
-                                             cp_error_message,&
-                                             cp_error_type
   USE message_passing, ONLY: mp_isend, mp_irecv, mp_wait
-  USE cp_log_handling,                 ONLY: cp_failure_level,&
-                                             cp_fatal_level,&
-                                             cp_note_level,&
-                                             cp_to_string,&
-                                             cp_logger_type,&
-                                             cp_warning_level
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cube_utils,                      ONLY: cube_info_type
   USE input_constants,                 ONLY: do_qmmm_gauss,&
@@ -105,6 +93,7 @@ MODULE qmmm_methods
   USE simulation_cell,                 ONLY: cell_type,&
                                              pbc
   USE message_passing,                 ONLY: mp_sum 
+#include "cp_common_uses.h"
 
   IMPLICIT NONE
   

@@ -3,7 +3,6 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000-2003  CP2K developers group                            !
 !-----------------------------------------------------------------------------!
-#include "cp_prep_globals.h"
 !!****** cp2k/qs_ks_qmmm_methods [1.0] *
 !!
 !!   NAME
@@ -20,18 +19,6 @@
 !******************************************************************************
 
 MODULE qs_ks_qmmm_methods
-  USE cp_error_handling,               ONLY: cp_a_l,&
-                                             cp_assert,&
-                                             cp_assertion_failed,&
-                                             cp_error_get_logger,&
-                                             cp_error_message,&
-                                             cp_error_type
-  USE cp_log_handling,                 ONLY: cp_failure_level,&
-                                             cp_fatal_level,&
-                                             cp_logger_type,&
-                                             cp_note_level,&
-                                             cp_to_string,&
-                                             cp_warning_level
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_env_retain,&
                                              qs_environment_type,&
@@ -61,6 +48,7 @@ MODULE qs_ks_qmmm_methods
                                              coeff_zero
   USE cp_control_types,                ONLY: dft_control_type
   USE input_constants, ONLY: do_qmmm_grid, do_qmmm_gauss, do_qmmm_none
+#include "cp_common_uses.h"
   IMPLICIT NONE
 
   PRIVATE
