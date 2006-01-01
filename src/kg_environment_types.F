@@ -108,6 +108,7 @@ MODULE kg_environment_types
                                              virial_retain,&
                                              virial_release,&
 					     virial_create
+  IMPLICIT NONE
   PRIVATE
 
   character(len=*), private, parameter :: moduleN='kg_environment_types'

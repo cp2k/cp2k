@@ -16,6 +16,7 @@ MODULE metadynamics_types
   USE cp_para_env,                     ONLY: cp_para_env_release
   USE kinds,                           ONLY: default_path_length,&
                                              dp
+  IMPLICIT NONE
 
   PRIVATE 
 

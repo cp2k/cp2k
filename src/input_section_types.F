@@ -47,7 +47,7 @@ MODULE input_section_types
   USE string_utilities, only: uppercase
   USE output_utilities, only: print_message
 
-  implicit none
+  IMPLICIT NONE
   private
 
   INTEGER, SAVE, PRIVATE :: last_section_id=0, last_section_vals_id=0

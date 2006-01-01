@@ -52,7 +52,7 @@ MODULE cp_units
        femtoseconds, e_mass,massunit,kelvin, seconds, hz, h_bar
   USE mathconstants, only: radians
   USE string_utilities, ONLY: compress, uppercase
-  implicit none
+  IMPLICIT NONE
   private
 
   logical, private, parameter :: debug_this_module=.true.

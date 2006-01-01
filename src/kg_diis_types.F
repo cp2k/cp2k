@@ -42,7 +42,7 @@ module kg_diis_types
   USE timings,                         ONLY: timeset,&
                                              timestop
 
-  implicit none
+  IMPLICIT NONE
   private
 
   logical, private, parameter :: debug_this_module=.true.

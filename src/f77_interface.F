@@ -115,7 +115,7 @@ MODULE f77_interface
   USE physcon,                         ONLY: init_physcon
   USE cp2k_units,                      ONLY: init_cp2k_units,&
                                              rm_cp2k_units
-  implicit none
+  IMPLICIT NONE
   private
 
   logical, private, parameter :: debug_this_module=.true.

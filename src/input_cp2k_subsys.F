@@ -40,7 +40,7 @@ MODULE input_cp2k_subsys
   USE physcon, only: bohr
 #include "cp_common_uses.h"
 
-  implicit none
+  IMPLICIT NONE
   private
 
   logical, private, parameter :: debug_this_module=.true.

@@ -42,7 +42,7 @@ MODULE input_cp2k_qmmm
   USE input_cp2k_dft, ONLY: create_multipole_section, create_gspace_interp_section
 #include "cp_common_uses.h"
 
-  implicit none
+  IMPLICIT NONE
   private
 
   logical, private, parameter :: debug_this_module=.true.

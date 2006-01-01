@@ -30,6 +30,7 @@ MODULE atom_util
   USE mathconstants,                   ONLY: PI
   USE radial_poisson,                  ONLY: rg_poisson
   USE radial_util,                     ONLY: radial_integrate
+  IMPLICIT NONE
 
   PRIVATE
   PUBLIC :: calculate_energy, &

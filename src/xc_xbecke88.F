@@ -50,7 +50,7 @@ MODULE xc_xbecke88
   USE xc_rho_set_types,                ONLY: xc_rho_set_get,&
        xc_rho_set_type
 
-  implicit none
+  IMPLICIT NONE
   private
 
   logical, private, parameter :: debug_this_module=.true.

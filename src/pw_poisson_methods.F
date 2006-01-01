@@ -89,7 +89,7 @@ MODULE pw_poisson_methods
                                              
 #include "cp_common_uses.h"
 
-  implicit none
+  IMPLICIT NONE
   private
 
   logical, private, parameter :: debug_this_module=.true.

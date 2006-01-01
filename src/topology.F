@@ -67,6 +67,7 @@ MODULE topology
                                              do_conn_off,&
                                              do_coord_pdb,&
                                              do_coord_xyz
+  IMPLICIT NONE
 
   CHARACTER(LEN=*), PARAMETER, PRIVATE :: moduleN = "topology"
 

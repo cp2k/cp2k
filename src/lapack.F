@@ -22,6 +22,7 @@
 !******************************************************************************
 
 MODULE lapack
+  IMPLICIT NONE
   PUBLIC ! make all routines public 
 #if defined (__sp_lib)
   INTERFACE lapack_ssyev

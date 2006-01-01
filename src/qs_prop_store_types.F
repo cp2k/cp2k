@@ -30,7 +30,7 @@ MODULE qs_prop_store_types
   USE cp_output_handling, only: cp_out_default
 #include "cp_common_uses.h"
 
-  implicit none
+  IMPLICIT NONE
   private
 
   logical, private, parameter :: debug_this_module=.true.

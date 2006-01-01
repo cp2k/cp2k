@@ -41,7 +41,7 @@ MODULE input_cp2k_mm
   USE input_cp2k_dft, only: create_mt_section
 #include "cp_common_uses.h"
 
-  implicit none
+  IMPLICIT NONE
   private
 
   logical, private, parameter :: debug_this_module=.true.
