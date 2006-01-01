@@ -28,7 +28,14 @@
 !!   SOURCE
 !****************************************************************************
 MODULE qs_ep_methods
-!MK  USE qs_overlap,                      ONLY: distribute_overlap_matrix
+  USE cp_output_handling,              ONLY: cp_print_key_should_output,&
+                                             cp_p_file,&
+                                             cp_print_key_unit_nr,&
+                                             cp_print_key_finished_output,&
+                                             cp_iter_string,&
+                                             cp_iterate,&
+                                             cp_add_iter_level,&
+                                             cp_rm_iter_level
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind
   USE coefficient_types,               ONLY: coeff_deallocate,&
@@ -540,29 +547,11 @@ END SUBROUTINE qs_ep_calculation
              CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
           END DO
 
-!MK this components are obsolete, since they are now available
-!MK should be retrieved on the fly by calling get_particle_set
-!MK          next_cgf=1
-!MK          next_sgf=1
-!MK          DO iatom=1,SIZE(p_set)
-!MK             p_set(iatom)%last_cgf=next_cgf+p_set(iatom)%last_cgf-&
-!MK                  p_set(iatom)%first_cgf
-!MK             p_set(iatom)%first_cgf=next_cgf
-!MK             next_cgf=p_set(iatom)%last_cgf+1
-!MK             p_set(iatom)%last_sgf=next_sgf+p_set(iatom)%last_sgf-&
-!MK                  p_set(iatom)%first_sgf
-!MK             p_set(iatom)%first_sgf=next_sgf
-!MK             next_sgf=p_set(iatom)%last_sgf+1
-!FM cgf_aux not initialized! (at the moment unused)
-!MK             p_set(iatom)%iatom=iatom
-!MK          END DO
-
-          !   *** allocate mo_types ***
-!          CALL get_atomic_kind_set(sub_qs%atomic_kind_set,&
-!               nsgf=n_ao, nelectron=nelectron)
           CPPrecondition(dft_control%charge==0,cp_failure_level,routineP,error,failure)
           nelectron = nelectron-dft_control%charge
-          IF (logger%print_keys%mo_eigenvalues.OR.&
+          
+          IF (BTEST(cp_print_key_should_output(logger%iter_info,main_qs_env%input,&
+               "FORCE_EVAL%DFT%PRINT%MO",error=error),cp_p_file).OR.&
                (scf_control%level_shift /= 0.0_dp).OR.&
                (scf_control%smear /= 0.0_dp).OR.&
                (scf_control%eps_jacobi /= 0.0_dp)) THEN

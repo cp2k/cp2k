@@ -62,11 +62,9 @@ MODULE print_key_types
 !!
   TYPE print_keys_type
     INTEGER :: level,precision,ref_count, id_nr
-    LOGICAL :: atomic_coordinates,&
-               basic_data_types,&
+    LOGICAL :: basic_data_types,&
                basis_set,&
                blacs_info,&
-               cartesian_om,&
                cell_parameters,&
                charge_density_matrix,&
                core_hamiltonian_matrix,&
@@ -80,16 +78,11 @@ MODULE print_key_types
                each_scf_step,&
                forces,&
                hartree_matrix,&
-               interatomic_distances,&
                kind_information,&
                kind_radii,&
                kinetic_energy_matrix,&
                kohn_sham_matrix,&
-               memory,&
-               mo_cartesian,&
-               mo_eigenvalues,&
-               mo_eigenvectors,&
-               mo_occupation_numbers
+               memory
     LOGICAL :: optical_conductivity,&
                ortho_matrix,&
                overlap_matrix,&
@@ -209,11 +202,9 @@ CONTAINS
 
     LOGICAL, PARAMETER                       :: f = .FALSE., t = .TRUE.
 
-    print_keys%atomic_coordinates = key_value(level,(/t,t,t/))
     print_keys%basic_data_types = key_value(level,(/f,f,f/))
     print_keys%basis_set = key_value(level,(/f,t,t/))
     print_keys%blacs_info = key_value(level,(/f,t,t/))
-    print_keys%cartesian_om = key_value(level,(/f,f,f/))
     print_keys%cell_parameters = key_value(level,(/t,t,t/))
     print_keys%charge_density_matrix = key_value(level,(/f,f,t/))
     print_keys%core_hamiltonian_matrix = key_value(level,(/f,f,t/))
@@ -230,16 +221,11 @@ CONTAINS
     print_keys%ep_operator = key_value(level,(/f,f,t/))
     print_keys%forces = key_value(level,(/f,t,t/))
     print_keys%hartree_matrix = key_value(level,(/f,f,t/))
-    print_keys%interatomic_distances = key_value(level,(/f,f,t/))
     print_keys%kind_information = key_value(level,(/f,t,t/))
     print_keys%kind_radii = key_value(level,(/f,t,t/))
     print_keys%kinetic_energy_matrix = key_value(level,(/f,f,t/))
     print_keys%kohn_sham_matrix = key_value(level,(/f,f,t/))
     print_keys%memory = key_value(level,(/f,f,t/))
-    print_keys%mo_cartesian = key_value(level,(/f,f,f/))
-    print_keys%mo_eigenvalues = key_value(level,(/f,f,t/))
-    print_keys%mo_eigenvectors = key_value(level,(/f,f,t/))
-    print_keys%mo_occupation_numbers = key_value(level,(/f,f,t/))
     print_keys%ortho_matrix = key_value(level,(/f,f,t/))
     print_keys%overlap_matrix = key_value(level,(/f,f,t/))
     print_keys%pgf_radii = key_value(level,(/f,f,t/))

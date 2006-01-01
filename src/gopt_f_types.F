@@ -355,14 +355,8 @@ SUBROUTINE gopt_f_eval_at(gopt_env, x, f, gradient, master, para_env, error)
            particles%els(ip)%r(idir)=x(idg)*scale
         END DO
      END DO
-     IF (logger%print_keys%atomic_coordinates) THEN
-          CALL write_qs_particle_coordinates(particles%els,&
-               cell,gopt_env%globenv)
-       END IF
-     IF (logger%print_keys%interatomic_distances) THEN
-        CALL write_particle_distances(particles%els,&
-             cell,gopt_env%globenv)
-     END IF
+     CALL write_qs_particle_coordinates(particles%els,cell,gopt_env%globenv,error)
+     CALL write_particle_distances(particles%els,cell,gopt_env%globenv,error)
   END DO
 
   CALL force_env_calc_energy_force(gopt_env%force_env,&

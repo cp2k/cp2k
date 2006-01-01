@@ -189,8 +189,8 @@ CONTAINS
     CALL m_flush(output_unit)
   END IF
 
-  CALL write_qs_particle_coordinates(particle_set,cell,globenv) 
-  CALL write_particle_distances(particle_set,cell,globenv)
+  CALL write_qs_particle_coordinates(particle_set,cell,globenv,error) 
+  CALL write_particle_distances(particle_set,cell,globenv,error)
   CALL write_structure_data(particle_set,cell,globenv)
 
   IF(ionode)THEN
@@ -356,10 +356,10 @@ CONTAINS
      CALL write_particle_coordinates(particle_set,cell,dataunit,&
                                      dump_xmol,"POS",TRIM(title))
      CALL m_flush(dataunit)
-     CALL write_qs_particle_coordinates(particle_set,cell,globenv)
+     CALL write_qs_particle_coordinates(particle_set,cell,globenv,error)
    END IF
 
-   CALL write_particle_distances(particle_set,cell,globenv)
+   CALL write_particle_distances(particle_set,cell,globenv,error)
    CALL write_structure_data(particle_set,cell,globenv)
 
    CALL energy_predict(ndf,work,hes,dr,g,ionode,output_unit,conv,pred)

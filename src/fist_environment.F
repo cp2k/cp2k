@@ -281,12 +281,9 @@ SUBROUTINE fist_init ( fist_env, globenv, error )
   CALL write_molecule_kind_set(molecule_kind_set,globenv)
 
 ! Print the atomic coordinates 
-   IF (globenv%print%atomic_coordinates) THEN
-     CALL write_qs_particle_coordinates(particle_set,cell,globenv)
-   END IF
-
-   CALL write_particle_distances(particle_set,cell,globenv)
-   CALL write_structure_data(particle_set,cell,globenv)
+  CALL write_qs_particle_coordinates(particle_set,cell,globenv,error)
+  CALL write_particle_distances(particle_set,cell,globenv,error)
+  CALL write_structure_data(particle_set,cell,globenv)
 
 ! Distribute molecules and atoms using the new data structures ***
 

@@ -25,7 +25,14 @@
 !******************************************************************************
 
 MODULE particle_types
-
+  USE cp_output_handling,              ONLY: cp_print_key_should_output,&
+                                             cp_p_file,&
+                                             cp_print_key_unit_nr,&
+                                             cp_print_key_finished_output,&
+                                             cp_iter_string,&
+                                             cp_iterate,&
+                                             cp_add_iter_level,&
+                                             cp_rm_iter_level
   USE atomic_kind_types,               ONLY: allocate_atomic_kind_set,&
                                              atomic_kind_type,&
                                              get_atomic_kind,&
@@ -604,7 +611,7 @@ END SUBROUTINE clone_particle
 
 ! *****************************************************************************
 
-  SUBROUTINE write_qs_particle_coordinates(particle_set,cell,globenv)
+  SUBROUTINE write_qs_particle_coordinates(particle_set,cell,globenv,error)
 
 !   Purpose: Write the atomic coordinates to the output unit.
 
@@ -616,41 +623,31 @@ END SUBROUTINE clone_particle
       POINTER                                :: particle_set
     TYPE(cell_type), POINTER                 :: cell
     TYPE(global_environment_type), &
-      pointer                             :: globenv
+         POINTER                             :: globenv
+    TYPE(cp_error_type), INTENT(INOUT), &
+      OPTIONAL                               :: error
 
-    TYPE(cp_logger_type), POINTER            :: logger
     CHARACTER(LEN=2)                         :: element_symbol
     CHARACTER(LEN=8)                         :: unit_of_length_name
     INTEGER                                  :: iatom, ikind, natom, &
-                                                output_unit, z
+                                                iw, z
     REAL(KIND=dp)                            :: zeff, mass, unit_of_length
-    LOGICAL                                  :: ionode, print_coordinates
+    TYPE(cp_logger_type), POINTER            :: logger
+    
+    NULLIFY(logger)
+    logger => cp_error_get_logger(error)
+    iw = cp_print_key_unit_nr(logger,globenv%input_file,&
+         "FORCE_EVAL%PRINT%ATOMIC_COORDINATES",extension=".coordLog",error=error)
 
-!   ---------------------------------------------------------------------------
-
-    ionode = globenv%ionode
-    output_unit = globenv%scr
-    print_coordinates = globenv%print%atomic_coordinates
-
-!MK prepare to use error instead of globenv
-!   logger => cp_error_get_logger(error)
-!   ionode = (logger%para_env%source == logger%para_env%mepos)
-!   IF (ionode) output_unit = cp_logger_get_default_unit_nr(logger)
-!   print_coordinates = logger%print_keys%atomic_coordinates
-!MK
-    IF (.NOT.ionode) RETURN
-
-    IF (print_coordinates) THEN
+    IF (iw>0) THEN
 
       CALL get_cell(cell=cell,&
                     unit_of_length=unit_of_length,&
                     unit_of_length_name=unit_of_length_name)
 
-!     *** Write headlines ***
-
-      WRITE (UNIT=output_unit,FMT="(/,/,T2,A)")&
+      WRITE (UNIT=iw,FMT="(/,/,T2,A)")&
         "ATOMIC COORDINATES IN "//TRIM(unit_of_length_name)
-      WRITE (UNIT=output_unit,&
+      WRITE (UNIT=iw,&
            FMT="(/,T3,A,7X,2(A1,11X),A1,8X,A8,5X,A6,/)")&
         "Atom  Kind  Element","X","Y","Z","  Z(eff)","  Mass"
 
@@ -663,19 +660,21 @@ END SUBROUTINE clone_particle
                              z=z,&
                              zeff=zeff)
         IF (particle_set(iatom)%is_fixed) THEN
-          WRITE (output_unit,&
+          WRITE (iw,&
                "(T2,I5,1X,I4,3X,A2,2X,I3,3F12.6,4X,F6.2,2X,F11.4,1X,A1)")&
             iatom,ikind,element_symbol,z,&
             particle_set(iatom)%r(1:3)/unit_of_length,zeff,mass/massunit,"!"
         ELSE
-          WRITE (output_unit,&
+          WRITE (iw,&
                "(T2,I5,1X,I4,3X,A2,2X,I3,3F12.6,4X,F6.2,2X,F11.4)")&
             iatom,ikind,element_symbol,z,&
             particle_set(iatom)%r(1:3)/unit_of_length,zeff,mass/massunit
         END IF
       END DO
-
     END IF
+
+    CALL cp_print_key_finished_output(iw,logger,globenv%input_file,&
+         "FORCE_EVAL%PRINT%ATOMIC_COORDINATES", error=error)
 
   END SUBROUTINE write_qs_particle_coordinates
 
@@ -848,7 +847,7 @@ END SUBROUTINE clone_particle
 
 ! *****************************************************************************
 
-  SUBROUTINE write_particle_distances(particle_set,cell,globenv)
+  SUBROUTINE write_particle_distances(particle_set,cell,globenv,error)
 
 !   Purpose: Write the matrix of the particle distances to the output unit.
 
@@ -860,7 +859,9 @@ END SUBROUTINE clone_particle
       POINTER                                :: particle_set
     TYPE(cell_type), POINTER                 :: cell
     TYPE(global_environment_type), &
-      pointer                             :: globenv
+         POINTER                             :: globenv
+    TYPE(cp_error_type), INTENT(INOUT), &
+      OPTIONAL                               :: error
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "write_particle_distances"
 
@@ -868,25 +869,26 @@ END SUBROUTINE clone_particle
     CHARACTER(LEN=8)                         :: unit_of_length_name
     INTEGER                                  :: from, iatom, icol, ikind, &
                                                 istat, jatom, natom, &
-                                                output_unit, to
+                                                iw, to
     INTEGER, DIMENSION(3)                    :: periodic
     REAL(KIND=dp)                            :: dab, unit_of_length
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: distance_matrix
     REAL(KIND=dp), DIMENSION(3)              :: rab
+    TYPE(cp_logger_type), POINTER            :: logger
+    
+    NULLIFY(logger)
+    logger => cp_error_get_logger(error)
+    iw = cp_print_key_unit_nr(logger,globenv%input_file,&
+         "FORCE_EVAL%PRINT%INTERATOMIC_DISTANCES",extension=".distLog",error=error)
 
-!   ---------------------------------------------------------------------------
-
-    IF (.NOT.globenv%ionode) RETURN
-
-    IF (globenv%print%interatomic_distances) THEN
+    IF (iw>0) THEN
 
       CALL get_cell(cell=cell,&
                     periodic=periodic,&
                     unit_of_length=unit_of_length,&
                     unit_of_length_name=unit_of_length_name)
 
-      output_unit = globenv%scr
 
       natom = SIZE(particle_set)
 
@@ -908,19 +910,19 @@ END SUBROUTINE clone_particle
 
 !     *** Print the distance matrix ***
 
-      WRITE (UNIT=output_unit,FMT="(/,/,T2,A)")&
+      WRITE (UNIT=iw,FMT="(/,/,T2,A)")&
         "INTERATOMIC DISTANCES IN "//TRIM(unit_of_length_name)
 
       DO jatom=1,natom,5
         from = jatom
         to = MIN(from+4,natom)
-        WRITE (UNIT=output_unit,FMT="(/,T2,11X,5(4X,I5,4X))")&
+        WRITE (UNIT=iw,FMT="(/,T2,11X,5(4X,I5,4X))")&
           (icol,icol=from,to)
         DO iatom=1,natom
           CALL get_atomic_kind(atomic_kind=particle_set(iatom)%atomic_kind,&
                                kind_number=ikind,&
                                element_symbol=element_symbol)
-          WRITE (UNIT=output_unit,FMT="(T2,I5,2X,A2,2X,5(1X,F12.6))")&
+          WRITE (UNIT=iw,FMT="(T2,I5,2X,A2,2X,5(1X,F12.6))")&
             iatom,element_symbol,&
             (distance_matrix(iatom,icol),icol=from,to)
         END DO
@@ -928,6 +930,8 @@ END SUBROUTINE clone_particle
 
     END IF
 
+    CALL cp_print_key_finished_output(iw,logger,globenv%input_file,&
+         "FORCE_EVAL%PRINT%INTERATOMIC_DISTANCES", error=error)
   END SUBROUTINE write_particle_distances
 
 ! *****************************************************************************

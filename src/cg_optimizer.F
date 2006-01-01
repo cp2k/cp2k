@@ -172,14 +172,14 @@ CONTAINS
                          unit_number=dataunit)
        END IF
 
-       CALL write_qs_particle_coordinates(particle_set,cell,globenv) 
-       CALL write_particle_distances(particle_set,cell,globenv)
+       CALL write_qs_particle_coordinates(particle_set,cell,globenv,error) 
+       CALL write_particle_distances(particle_set,cell,globenv,error)
        CALL write_structure_data(particle_set,cell,globenv)
        
        CALL  cp_cg_main(force_env, x, gopt_param, ionode, output_unit, dataunit, &
             globenv, error)
 
-       CALL write_particle_distances(particle_set,cell,globenv)
+       CALL write_particle_distances(particle_set,cell,globenv,error)
        CALL write_structure_data(particle_set,cell,globenv)
    
        DEALLOCATE(x, stat=stat)
@@ -402,7 +402,7 @@ CONTAINS
              CALL write_particle_coordinates(particle_set,cell,dataunit,&
                                              dump_xmol,"POS",TRIM(title))
              CALL m_flush(dataunit)
-             CALL write_qs_particle_coordinates(particle_set,cell,globenv)
+             CALL write_qs_particle_coordinates(particle_set,cell,globenv,error)
           END IF
           IF (conv.OR.(its==maxiter))  EXIT
           CALL get_energy_and_gradients(force_env, xvec, opt_energy, xi)          

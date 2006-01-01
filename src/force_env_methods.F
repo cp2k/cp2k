@@ -694,7 +694,7 @@ RECURSIVE SUBROUTINE qmmm_energy_and_forces(force_env,calc_force,error)
 
   ! Dump out coordinates
   CALL write_qs_particle_coordinates(particles_qm,qm_cell,&
-       force_env%sub_force_env(qs_subsys)%force_env%globenv)
+       force_env%sub_force_env(qs_subsys)%force_env%globenv,error)
 
   ! Initialize ks_qmmm_env
   CALL ks_qmmm_env_rebuild(qs_env=force_env%sub_force_env(qs_subsys)%force_env%qs_env,&

@@ -19,7 +19,14 @@
 !******************************************************************************
 
 MODULE kg_environment
-
+  USE cp_output_handling,              ONLY: cp_print_key_should_output,&
+                                             cp_p_file,&
+                                             cp_print_key_unit_nr,&
+                                             cp_print_key_finished_output,&
+                                             cp_iter_string,&
+                                             cp_iterate,&
+                                             cp_add_iter_level,&
+                                             cp_rm_iter_level
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              check_atomic_kind_set,&
                                              get_atomic_kind_set,&
@@ -274,12 +281,10 @@ CONTAINS
     CALL write_total_numbers(atomic_kind_set,particle_set,globenv)
 
     ! Print the atomic coordinates 
-    IF (globenv%print%atomic_coordinates) THEN
-      CALL write_qs_particle_coordinates(particle_set,cell,globenv)
-    END IF
+    CALL write_qs_particle_coordinates(particle_set,cell,globenv,error)
 
     ! Print the interatomic distances ***
-    CALL write_particle_distances(particle_set,cell,globenv)
+    CALL write_particle_distances(particle_set,cell,globenv,error)
     CALL write_structure_data(particle_set,cell,globenv)
 
     ! Initialize the atomic interaction radii 
@@ -497,9 +502,10 @@ CONTAINS
     INTEGER, DIMENSION(2)                    :: added_mos
     TYPE(section_vals_type), POINTER         :: poisson_section,&
                                                 force_env_section
-
-!   ---------------------------------------------------------------------------
-
+    TYPE(cp_logger_type), POINTER            :: logger
+    
+    NULLIFY(logger)
+    logger => cp_error_get_logger(error)
     failure=.FALSE.
 
     NULLIFY(qs_env,subsys,scf_control,cell,cell_ref,atomic_kind_set,&
@@ -610,7 +616,8 @@ CONTAINS
     
 !   *** Some options require that all MOs are computed ... ***
     nmo_eq_nao = .FALSE.
-    IF (globenv%print%mo_eigenvalues.OR.&
+    IF (BTEST(cp_print_key_should_output(logger%iter_info,globenv%input_file,&
+            "FORCE_EVAL%DFT%PRINT%MO",error=error),cp_p_file).OR.&
         (scf_control%level_shift /= 0.0_dp).OR.&
         (scf_control%smear /= 0.0_dp).OR.&
         (scf_control%eps_jacobi /= 0.0_dp)) THEN

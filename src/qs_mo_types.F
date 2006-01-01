@@ -30,6 +30,14 @@
 !******************************************************************************
 
 MODULE qs_mo_types
+  USE cp_output_handling,              ONLY: cp_print_key_should_output,&
+                                             cp_p_file,&
+                                             cp_print_key_unit_nr,&
+                                             cp_print_key_finished_output,&
+                                             cp_iter_string,&
+                                             cp_iterate,&
+                                             cp_add_iter_level,&
+                                             cp_rm_iter_level
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind,&
                                              get_atomic_kind_set
@@ -1000,31 +1008,31 @@ CONTAINS
 
   SUBROUTINE write_mo_set_to_output_unit(mo_set,atomic_kind_set,particle_set,&
                                          before,after,dft_section,globenv,error)
-
+    
     ! Purpose: Write the MO eigenvalues, MO occupation numbers and
     !          MO mo_coeff.
-
+    
     ! History: - Creation (15.05.2001,MK)
     !          - Optionally print Cartesian MOs (20.04.2005,MK)
-
+    
     ! *************************************************************************
-
+    
     ! List of variables:
-
+    
     ! after : Number of digits after point.
     ! before: Number of digits before point.
-
+    
     ! -------------------------------------------------------------------------
-
+    
     TYPE(mo_set_type), POINTER               :: mo_set
     TYPE(atomic_kind_type), DIMENSION(:), &
-      POINTER                                :: atomic_kind_set
+         POINTER                                :: atomic_kind_set
     TYPE(particle_type), DIMENSION(:), &
-      POINTER                                :: particle_set
+         POINTER                                :: particle_set
     INTEGER, INTENT(IN)                      :: before, after
     TYPE(section_vals_type),POINTER          :: dft_section
     TYPE(global_environment_type), &
-      pointer                             :: globenv
+         pointer                             :: globenv
     TYPE(cp_error_type), INTENT(inout), optional :: error
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "write_mo_set_to_output_unit"
@@ -1037,236 +1045,234 @@ CONTAINS
     CHARACTER(LEN=6), DIMENSION(:), POINTER  :: sgf_symbol
     CHARACTER(LEN=80)                        :: name
     INTEGER :: from, iatom, icol, irow, iset, isgf, ishell, iso, istat, jcol, &
-      left, lshell, natom, ncol, ncol_global, nrow_global, nset, nsgf, &
-      output_unit, right, to, width, icgf, ncgf, ico
+         left, lshell, natom, ncol, ncol_global, nrow_global, nset, nsgf, &
+         iw, right, to, width, icgf, ncgf, ico
     INTEGER, DIMENSION(:), POINTER           :: nshell
     INTEGER, DIMENSION(:, :), POINTER        :: l
     LOGICAL                                  :: p_cart,p_eval,p_evec,p_occ
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: cmatrix,smatrix
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
+    TYPE(cp_logger_type), POINTER            :: logger
 
-    ! -------------------------------------------------------------------------
-
-!   Check whether it should write
+    NULLIFY(logger)
+    logger => cp_error_get_logger(error)
     CALL section_vals_val_get(dft_section,"PRINT%MO%EIGENVALUES",l_val=p_eval,error=error)
     CALL section_vals_val_get(dft_section,"PRINT%MO%EIGENVECTORS",l_val=p_evec,error=error)
     CALL section_vals_val_get(dft_section,"PRINT%MO%OCCUPATION_NUMBERS",l_val=p_occ,error=error)
     CALL section_vals_val_get(dft_section,"PRINT%MO%CARTESIAN",l_val=p_cart,error=error)
     IF (.NOT.(p_eval.OR.p_evec.OR.p_occ)) RETURN
 
-    output_unit = globenv%scr
-
     IF (p_evec) THEN
-      CALL cp_fm_get_info(mo_set%mo_coeff,&
-                          nrow_global=nrow_global,&
-                          ncol_global=ncol_global)
-      ALLOCATE(smatrix(nrow_global,ncol_global),STAT=istat)
-      IF (istat /= 0) THEN
-        CALL stop_memory(routine_name,module_name,__LINE__,&
-                         "smatrix",nrow_global*ncol_global*dp_size)
-      END IF
-      CALL cp_fm_get_submatrix(mo_set%mo_coeff,smatrix)
-      IF (.NOT.globenv%ionode) THEN
-        DEALLOCATE(smatrix,STAT=istat)
-        IF (istat /= 0) THEN
-          CALL stop_memory(routine_name,module_name,__LINE__,"smatrix")
-        END IF
-      END IF
-    END IF
-
-    IF (.NOT.globenv%ionode) RETURN
-
-    CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
-                             natom=natom,&
-                             ncgf=ncgf,&
-                             nsgf=nsgf)
-
-    ! Definition of the variable formats
-
-    fmtstr1 = "(/,T2,21X,  (  X,I5,  X))"
-    fmtstr2 = "(T2,21X,  (1X,F  .  ))"
-    fmtstr3 = "(T2,I5,1X,I5,1X,A,1X,A6,  (1X,F  .  ))"
-
-    width = before + after + 3
-    ncol = INT(56/width)
-
-    right = MAX((after-2),1)
-    left =  width - right - 5
-
-    WRITE (UNIT=fmtstr1(11:12),FMT="(I2)") ncol
-    WRITE (UNIT=fmtstr1(14:15),FMT="(I2)") left
-    WRITE (UNIT=fmtstr1(21:22),FMT="(I2)") right
-
-    WRITE (UNIT=fmtstr2(9:10),FMT="(I2)") ncol
-    WRITE (UNIT=fmtstr2(16:17),FMT="(I2)") width - 1
-    WRITE (UNIT=fmtstr2(19:20),FMT="(I2)") after
-
-    WRITE (UNIT=fmtstr3(25:26),FMT="(I2)") ncol
-    WRITE (UNIT=fmtstr3(32:33),FMT="(I2)") width - 1
-    WRITE (UNIT=fmtstr3(35:36),FMT="(I2)") after
-
-    IF (p_evec) THEN
-
-      IF (p_cart) THEN
-
-        name = "MO EIGENVALUES, MO OCCUPATION NUMBERS AND "//&
-               "CARTESIAN MO EIGENVECTORS"
-
-        ALLOCATE(cmatrix(ncgf,ncgf),STAT=istat)
-        IF (istat /= 0) THEN
+       CALL cp_fm_get_info(mo_set%mo_coeff,&
+            nrow_global=nrow_global,&
+            ncol_global=ncol_global)
+       ALLOCATE(smatrix(nrow_global,ncol_global),STAT=istat)
+       IF (istat /= 0) THEN
           CALL stop_memory(routine_name,module_name,__LINE__,&
-                           "cmatrix",ncgf*ncgf*dp_size)
-        END IF
-
-        cmatrix = 0.0_dp
-
-        ! Transform spherical MOs to Cartesian MOs
-
-        icgf = 1
-        isgf = 1
-        DO iatom=1,natom
-          CALL get_atomic_kind(atomic_kind=particle_set(iatom)%atomic_kind,&
-                               orb_basis_set=orb_basis_set)
-          CALL get_gto_basis_set(gto_basis_set=orb_basis_set,&
-                                 nset=nset,&
-                                 nshell=nshell,&
-                                 l=l)
-          DO iset=1,nset
-            DO ishell=1,nshell(iset)
-              lshell = l(ishell,iset)
-              CALL dgemm("T","N",nco(lshell),nsgf,nso(lshell),1.0_dp,&
-                         orbtramat(lshell)%s2c,nso(lshell),&
-                         smatrix(isgf,1),nsgf,0.0_dp,&
-                         cmatrix(icgf,1),ncgf)
-              icgf = icgf + nco(lshell)
-              isgf = isgf + nso(lshell)
-            END DO
-          END DO
-        END DO
-
-      ELSE
-
-        name = "MO EIGENVALUES, MO OCCUPATION NUMBERS AND "//&
-               "SPHERICAL MO EIGENVECTORS"
-
-      END IF
-
-    ELSE IF (p_occ) THEN
-
-      name = "MO EIGENVALUES AND MO OCCUPATION NUMBERS"
-
-    ELSE
-
-      name = "MO EIGENVALUES"
-
+               "smatrix",nrow_global*ncol_global*dp_size)
+       END IF
+       CALL cp_fm_get_submatrix(mo_set%mo_coeff,smatrix)
+       IF (.NOT.globenv%ionode) THEN
+          DEALLOCATE(smatrix,STAT=istat)
+          IF (istat /= 0) THEN
+             CALL stop_memory(routine_name,module_name,__LINE__,"smatrix")
+          END IF
+       END IF
     END IF
+    iw = cp_print_key_unit_nr(logger,globenv%input_file,&
+         "PRINT%MO",extension=".MOLog",error=error)
 
-    ! Print headline
+    IF (iw>0) THEN
 
-    WRITE (UNIT=output_unit,FMT="(/,/,T2,A)") TRIM(name)
+       CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
+            natom=natom, ncgf=ncgf, nsgf=nsgf)
 
-    ! Print MO information
+       ! Definition of the variable formats
 
-!    DO icol=1,nsgf,ncol
-    DO icol=1,mo_set%nmo,ncol
+       fmtstr1 = "(/,T2,21X,  (  X,I5,  X))"
+       fmtstr2 = "(T2,21X,  (1X,F  .  ))"
+       fmtstr3 = "(T2,I5,1X,I5,1X,A,1X,A6,  (1X,F  .  ))"
 
-      from = icol
-!      to = MIN((from+ncol-1),nsgf)
-      to = MIN((from+ncol-1),mo_set%nmo)
+       width = before + after + 3
+       ncol = INT(56/width)
 
-      WRITE (UNIT=output_unit,FMT=fmtstr1)&
-        (jcol,jcol=from,to)
-      WRITE (UNIT=output_unit,FMT=fmtstr2)&
-        (mo_set%eigenvalues(jcol),jcol=from,to)
-      WRITE (UNIT=output_unit,FMT="(A)") ""
+       right = MAX((after-2),1)
+       left =  width - right - 5
 
-      IF (p_occ) THEN
-        WRITE (UNIT=output_unit,FMT=fmtstr2)&
-          (mo_set%occupation_numbers(jcol),jcol=from,to)
-        WRITE (UNIT=output_unit,FMT="(A)") ""
-      END IF
+       WRITE (UNIT=fmtstr1(11:12),FMT="(I2)") ncol
+       WRITE (UNIT=fmtstr1(14:15),FMT="(I2)") left
+       WRITE (UNIT=fmtstr1(21:22),FMT="(I2)") right
 
-      IF (p_evec) THEN
+       WRITE (UNIT=fmtstr2(9:10),FMT="(I2)") ncol
+       WRITE (UNIT=fmtstr2(16:17),FMT="(I2)") width - 1
+       WRITE (UNIT=fmtstr2(19:20),FMT="(I2)") after
 
-        irow = 1
+       WRITE (UNIT=fmtstr3(25:26),FMT="(I2)") ncol
+       WRITE (UNIT=fmtstr3(32:33),FMT="(I2)") width - 1
+       WRITE (UNIT=fmtstr3(35:36),FMT="(I2)") after
 
-        DO iatom=1,natom
-
-          IF (iatom /= 1) WRITE (UNIT=output_unit,FMT="(A)") ""
-
-          CALL get_atomic_kind(atomic_kind=particle_set(iatom)%atomic_kind,&
-                               element_symbol=element_symbol,&
-                               orb_basis_set=orb_basis_set)
+       IF (p_evec) THEN
 
           IF (p_cart) THEN
 
-            CALL get_gto_basis_set(gto_basis_set=orb_basis_set,&
-                                   nset=nset,&
-                                   nshell=nshell,&
-                                   l=l,&
-                                   cgf_symbol=cgf_symbol)
+             name = "MO EIGENVALUES, MO OCCUPATION NUMBERS AND "//&
+                  "CARTESIAN MO EIGENVECTORS"
 
-            icgf = 1
-            DO iset=1,nset
-              DO ishell=1,nshell(iset)
-                lshell = l(ishell,iset)
-                DO ico=1,nco(lshell)
-                  WRITE (UNIT=output_unit,FMT=fmtstr3)&
-                    irow,iatom,ADJUSTR(element_symbol),cgf_symbol(icgf),&
-                    (cmatrix(irow,jcol),jcol=from,to)
-                  icgf = icgf + 1
-                  irow = irow + 1
+             ALLOCATE(cmatrix(ncgf,ncgf),STAT=istat)
+             IF (istat /= 0) THEN
+                CALL stop_memory(routine_name,module_name,__LINE__,&
+                     "cmatrix",ncgf*ncgf*dp_size)
+             END IF
+
+             cmatrix = 0.0_dp
+
+             ! Transform spherical MOs to Cartesian MOs
+
+             icgf = 1
+             isgf = 1
+             DO iatom=1,natom
+                CALL get_atomic_kind(atomic_kind=particle_set(iatom)%atomic_kind,&
+                     orb_basis_set=orb_basis_set)
+                CALL get_gto_basis_set(gto_basis_set=orb_basis_set,&
+                     nset=nset,&
+                     nshell=nshell,&
+                     l=l)
+                DO iset=1,nset
+                   DO ishell=1,nshell(iset)
+                      lshell = l(ishell,iset)
+                      CALL dgemm("T","N",nco(lshell),nsgf,nso(lshell),1.0_dp,&
+                           orbtramat(lshell)%s2c,nso(lshell),&
+                           smatrix(isgf,1),nsgf,0.0_dp,&
+                           cmatrix(icgf,1),ncgf)
+                      icgf = icgf + nco(lshell)
+                      isgf = isgf + nso(lshell)
+                   END DO
                 END DO
-              END DO
-            END DO
+             END DO
 
           ELSE
 
-            CALL get_gto_basis_set(gto_basis_set=orb_basis_set,&
-                                 nset=nset,&
-                                 nshell=nshell,&
-                                 l=l,&
-                                 sgf_symbol=sgf_symbol)
-
-            isgf = 1
-            DO iset=1,nset
-              DO ishell=1,nshell(iset)
-                lshell = l(ishell,iset)
-                DO iso=1,nso(lshell)
-                  WRITE (UNIT=output_unit,FMT=fmtstr3)&
-                    irow,iatom,ADJUSTR(element_symbol),sgf_symbol(isgf),&
-                    (smatrix(irow,jcol),jcol=from,to)
-                  isgf = isgf + 1
-                  irow = irow + 1
-                END DO
-              END DO
-            END DO
+             name = "MO EIGENVALUES, MO OCCUPATION NUMBERS AND "//&
+                  "SPHERICAL MO EIGENVECTORS"
 
           END IF
 
-        END DO
+       ELSE IF (p_occ) THEN
 
-      END IF
+          name = "MO EIGENVALUES AND MO OCCUPATION NUMBERS"
 
-    END DO
+       ELSE
 
-    WRITE (UNIT=output_unit,FMT="(/)")
+          name = "MO EIGENVALUES"
 
-    ! Release work storage
+       END IF
 
-    IF (p_evec) THEN
-      DEALLOCATE (smatrix,STAT=istat)
-      IF (istat /= 0) THEN
-        CALL stop_memory(routine_name,module_name,__LINE__,"smatrix")
-      END IF
-      IF (p_cart) THEN
-        DEALLOCATE (cmatrix,STAT=istat)
-        IF (istat /= 0) THEN
-          CALL stop_memory(routine_name,module_name,__LINE__,"cmatrix")
-        END IF
-      END IF
+       ! Print headline
+
+       WRITE (UNIT=iw,FMT="(/,/,T2,A)") TRIM(name)
+
+       ! Print MO information
+       DO icol=1,mo_set%nmo,ncol
+
+          from = icol
+          to = MIN((from+ncol-1),mo_set%nmo)
+
+          WRITE (UNIT=iw,FMT=fmtstr1)&
+               (jcol,jcol=from,to)
+          WRITE (UNIT=iw,FMT=fmtstr2)&
+               (mo_set%eigenvalues(jcol),jcol=from,to)
+          WRITE (UNIT=iw,FMT="(A)") ""
+
+          IF (p_occ) THEN
+             WRITE (UNIT=iw,FMT=fmtstr2)&
+                  (mo_set%occupation_numbers(jcol),jcol=from,to)
+             WRITE (UNIT=iw,FMT="(A)") ""
+          END IF
+
+          IF (p_evec) THEN
+
+             irow = 1
+
+             DO iatom=1,natom
+
+                IF (iatom /= 1) WRITE (UNIT=iw,FMT="(A)") ""
+
+                CALL get_atomic_kind(atomic_kind=particle_set(iatom)%atomic_kind,&
+                     element_symbol=element_symbol,&
+                     orb_basis_set=orb_basis_set)
+
+                IF (p_cart) THEN
+
+                   CALL get_gto_basis_set(gto_basis_set=orb_basis_set,&
+                        nset=nset,&
+                        nshell=nshell,&
+                        l=l,&
+                        cgf_symbol=cgf_symbol)
+
+                   icgf = 1
+                   DO iset=1,nset
+                      DO ishell=1,nshell(iset)
+                         lshell = l(ishell,iset)
+                         DO ico=1,nco(lshell)
+                            WRITE (UNIT=iw,FMT=fmtstr3)&
+                                 irow,iatom,ADJUSTR(element_symbol),cgf_symbol(icgf),&
+                                 (cmatrix(irow,jcol),jcol=from,to)
+                            icgf = icgf + 1
+                            irow = irow + 1
+                         END DO
+                      END DO
+                   END DO
+
+                ELSE
+
+                   CALL get_gto_basis_set(gto_basis_set=orb_basis_set,&
+                        nset=nset,&
+                        nshell=nshell,&
+                        l=l,&
+                        sgf_symbol=sgf_symbol)
+
+                   isgf = 1
+                   DO iset=1,nset
+                      DO ishell=1,nshell(iset)
+                         lshell = l(ishell,iset)
+                         DO iso=1,nso(lshell)
+                            WRITE (UNIT=iw,FMT=fmtstr3)&
+                                 irow,iatom,ADJUSTR(element_symbol),sgf_symbol(isgf),&
+                                 (smatrix(irow,jcol),jcol=from,to)
+                            isgf = isgf + 1
+                            irow = irow + 1
+                         END DO
+                      END DO
+                   END DO
+                   
+                END IF
+                
+             END DO
+             
+          END IF
+          
+       END DO
+       
+       WRITE (UNIT=iw,FMT="(/)")
+
+       ! Release work storage
+
+       IF (p_evec) THEN
+          DEALLOCATE (smatrix,STAT=istat)
+          IF (istat /= 0) THEN
+             CALL stop_memory(routine_name,module_name,__LINE__,"smatrix")
+          END IF
+          IF (p_cart) THEN
+             DEALLOCATE (cmatrix,STAT=istat)
+             IF (istat /= 0) THEN
+                CALL stop_memory(routine_name,module_name,__LINE__,"cmatrix")
+             END IF
+          END IF
+       END IF
+
     END IF
-
+    CALL cp_print_key_finished_output(iw,logger,globenv%input_file,&
+         "PRINT%MO", error=error)
   END SUBROUTINE write_mo_set_to_output_unit
 
 ! *****************************************************************************

@@ -638,12 +638,11 @@ CONTAINS
 
        DO ispin=1,dft_control%nspins
 
-          IF (logger%print_keys%density_matrix.AND.&
-               logger%print_keys%each_scf_step) THEN
+          IF (logger%print_keys%density_matrix) THEN
              CALL write_sparse_matrix(matrix_p(ispin)%matrix,4,6,qs_env,globenv)
           END IF
 
-          IF (logger%print_keys%kohn_sham_matrix.AND.logger%print_keys%each_scf_step) THEN
+          IF (logger%print_keys%kohn_sham_matrix) THEN
              IF (dft_control%qs_control%semi_empirical) THEN
                CALL write_sparse_matrix(matrix_ks(ispin)%matrix,4,6,qs_env,globenv,&
                     scale=evolt)
@@ -727,10 +726,8 @@ CONTAINS
                     smear=scf_control%smear, &
                     error=error)
 
-               IF (logger%print_keys%each_scf_step) THEN
-                  CALL write_mo_set(mos(ispin)%mo_set,atomic_kind_set,particle_set,&
-                       4,6,dft_section,globenv)
-               END IF
+               CALL write_mo_set(mos(ispin)%mo_set,atomic_kind_set,particle_set,&
+                    4,6,dft_section,globenv)
 
                CALL calculate_density_matrix(mos(ispin)%mo_set,&
                     scf_env%p_mix_new(ispin)%matrix,error=error)
@@ -762,10 +759,8 @@ CONTAINS
                     mos(ispin)%mo_set,do_level_shift,scf_control%level_shift,&
                     work_syevx=scf_control%work_syevx,&
                     smear=scf_control%smear,error=error)
-               IF (logger%print_keys%each_scf_step) THEN
-                  CALL write_mo_set(mos(ispin)%mo_set,atomic_kind_set,&
-                       particle_set,4,6,dft_section,globenv)
-               END IF
+               CALL write_mo_set(mos(ispin)%mo_set,atomic_kind_set,&
+                    particle_set,4,6,dft_section,globenv)
                CALL calculate_density_matrix(mos(ispin)%mo_set,&
                     scf_env%p_mix_new(ispin)%matrix,error=error)
             ENDDO

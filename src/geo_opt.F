@@ -220,7 +220,7 @@ MODULE geo_opt
                 error=error)
            CALL write_particle_distances(particles%els,&
                 cell,&
-                globenv)
+                globenv,error)
         END DO
 
         CALL cp_opt_gopt_release(optimizer, error=error)

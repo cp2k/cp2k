@@ -25,6 +25,14 @@
 !******************************************************************************
 
 MODULE qs_environment
+  USE cp_output_handling,              ONLY: cp_print_key_should_output,&
+                                             cp_p_file,&
+                                             cp_print_key_unit_nr,&
+                                             cp_print_key_finished_output,&
+                                             cp_iter_string,&
+                                             cp_iterate,&
+                                             cp_add_iter_level,&
+                                             cp_rm_iter_level
   USE atomic_kind_list_types,          ONLY: atomic_kind_list_create,&
                                              atomic_kind_list_release,&
                                              atomic_kind_list_type
@@ -343,14 +351,15 @@ CONTAINS
     TYPE(qs_wf_history_type), POINTER        :: wf_history
     TYPE(rho0_mpole_type), POINTER           :: nddo_mpole, rho0_mpole
     TYPE(scf_control_type), POINTER          :: scf_control
-    TYPE(section_vals_type), POINTER         :: xas_section
+    TYPE(section_vals_type), POINTER         :: xas_section, print_dft_section
     TYPE(semi_empirical_control_type), &
       POINTER                                :: se_control
 
     LOGICAL :: harris_flag
-
-!   ---------------------------------------------------------------------------
-
+    TYPE(cp_logger_type), POINTER            :: logger
+    
+    NULLIFY(logger)
+    logger => cp_error_get_logger(error)
     CALL write_checkpoint_information("entering "//routine_name,globenv)
 
     CALL timeset(routine_name,"I",'',handle)
@@ -378,7 +387,7 @@ CONTAINS
     NULLIFY (local_particles)
     NULLIFY (scf_control)
     NULLIFY (localized_wfn_control)
-    NULLIFY (xas_section)
+    NULLIFY (xas_section, print_dft_section)
     particle_set => subsystem%particles%els
     atomic_kind_set => subsystem%atomic_kinds%els
     molecule_set => subsystem%molecules_new%els
@@ -484,13 +493,11 @@ CONTAINS
 
 !   *** Print the atomic coordinates ***
 
-    IF (globenv%print%atomic_coordinates) THEN
-      CALL write_qs_particle_coordinates(particle_set,cell,globenv)
-    END IF
+    CALL write_qs_particle_coordinates(particle_set,cell,globenv,error)
 
 !   *** Print the interatomic distances ***
 
-    CALL write_particle_distances(particle_set,cell,globenv)
+    CALL write_particle_distances(particle_set,cell,globenv,error)
     CALL write_structure_data(particle_set,cell,globenv)
 
 !   *** Initialize the atomic interaction radii ***
@@ -527,25 +534,6 @@ CONTAINS
     IF (harris_flag) THEN
       CALL harris_energy_create(harris_energy=harris_energy,error=error)
     END IF
-
-!FM!   *** Allocate the force data structure ***
-!FM
-!FM    IF (dft_control%forces) THEN
-!FM      nkind = SIZE(atomic_kind_set)
-!FM      ALLOCATE (natom_of_kind(nkind),STAT=istat)
-!FM      IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
-!FM                                       "natom_of_kind",nkind*int_size)
-!FM      CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
-!FM                               natom_of_kind=natom_of_kind)
-!FM      CALL allocate_qs_force(force,natom_of_kind)
-!FM      DEALLOCATE (natom_of_kind,STAT=istat)
-!FM      IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
-!FM                                       "natom_of_kind")
-!FM      IF (harris_flag) THEN
-!FM        natom = SIZE(particle_set)
-!FM        CALL harris_force_create(harris_force=harris_force,natom=natom,error=error)
-!FM      END IF
-!FM    END IF
 
 !   *** Activate the interpolation ***
 
@@ -718,10 +706,11 @@ CONTAINS
     END IF
 
 !   *** Some options require that all MOs are computed ... ***
-    IF (globenv%print%mo_cartesian.OR.&
-        (scf_control%level_shift /= 0.0_dp).OR.&
-!        (scf_control%smear /= 0.0_dp).OR.&
-        (scf_control%eps_jacobi /= 0.0_dp)) THEN
+    print_dft_section =>  section_vals_get_subs_vals(globenv%input_file, &
+         "FORCE_EVAL%DFT%PRINT")
+    IF (BTEST(cp_print_key_should_output(logger%iter_info,print_dft_section,&
+            "MO/CARTESIAN",error=error),cp_p_file).OR.&
+        (scf_control%level_shift /= 0.0_dp).OR.(scf_control%eps_jacobi /= 0.0_dp)) THEN
        n_mo(1) = n_ao
        IF (n_mo(2) /= 0) n_mo(2) = n_ao
     END IF
