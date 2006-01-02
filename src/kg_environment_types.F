@@ -95,7 +95,7 @@ MODULE kg_environment_types
   USE virial_types,                    ONLY: virial_type,&
                                              virial_retain,&
                                              virial_release,&
-					     virial_create
+                                   virial_create
 #include "cp_common_uses.h"
   IMPLICIT NONE
   PRIVATE

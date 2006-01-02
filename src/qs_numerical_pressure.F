@@ -128,17 +128,17 @@ MODULE qs_numerical_pressure
            !
            DO  isubsys = 1, SIZE(subsys)
              particles => subsys(isubsys)%subsys%particles%els
-	     DO j = 1, subsys(isubsys)%subsys%particles%n_els
-	       iseq = iseq + 1
-	       DO l = 1, 3
-		 IF (l == ip) THEN
+           DO j = 1, subsys(isubsys)%subsys%particles%n_els
+             iseq = iseq + 1
+             DO l = 1, 3
+             IF (l == ip) THEN
                    particles(j)%r(l) = pos_ref(iseq,l) * cell%hmat(l,l) / cell_local%hmat(l,l)
                  ELSE
                    particles(j)%r(l) = pos_ref(iseq,l)
                  END IF
- 	       END DO
+              END DO
              END DO
-	   END DO
+         END DO
            !
            ! Since the box has changed, rebuild grids, i.e. pw_env and ks_env
            !
@@ -149,8 +149,8 @@ MODULE qs_numerical_pressure
            numer_energy(k) = force_env%qs_env%energy%total
 ! reset cell
            cell%hmat(ip,ip) = cell_local%hmat(ip,ip)
-  	 END DO
-	 CALL get_hinv( cell )
+         END DO
+       CALL get_hinv( cell )
          numer_stress(ip) = (numer_energy(1) - numer_energy(2) ) / (2.0_dp*Dx)                
          virial%pv_virial(ip,ip) = (-1.0_dp)*numer_stress(ip) * cell_local%hmat(ip,ip)
          IF (globenv%run_type_id.EQ.qs_debug_run) THEN

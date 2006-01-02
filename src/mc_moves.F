@@ -1040,7 +1040,7 @@ CONTAINS
                                                 center_of_mass_new, diff,&
                                                 abc,test_cell_length,&
                                                 new_cell_length,&
-	                                        old_cell_length
+                                              old_cell_length
     TYPE(mol_kind_new_list_type), POINTER    :: molecule_kinds_new
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
     TYPE(force_env_type), POINTER            :: test_env
