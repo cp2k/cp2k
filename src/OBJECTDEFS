@@ -27,6 +27,7 @@ OBJECTS_GENERIC =\
  coefficient_types.o\
  coefficients.o\
  colvar.o\
+ colvar_types.o\
  constraint.o\
  convert_units.o\
  cp2k_runs.o\

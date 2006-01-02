@@ -1,7 +1,7 @@
 MODULE colvar
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2002  CP2K developers group                                 !
+!   Copyright (C) 2002,2006  CP2K developers group                            !
 !-----------------------------------------------------------------------------!
 
 
@@ -11,7 +11,7 @@ MODULE colvar
 !!     colvar
 !!
 !!   FUNCTION
-!!     collective variables for metadynamics
+!!     collective variables 
 !!
 !!   NOTES
 !!     -
@@ -30,7 +30,7 @@ MODULE colvar
                                              force_env_type
   USE kinds,                           ONLY: default_string_length,&
                                              dp
-  USE metadynamics_types,              ONLY: colvar_type,&
+  USE colvar_types,                    ONLY: colvar_type,&
                                              coord_colvar_id,&
                                              dist_colvar_id,&
                                              no_colvar_id,&
@@ -57,7 +57,7 @@ MODULE colvar
 !****************************************************************************
 CONTAINS
 
-!!****f* metadynamics/colvar_read *
+!!****f* colvar/colvar_read *
 !!
 !!   NAME
 !!     colvar_read
@@ -85,28 +85,28 @@ CONTAINS
 !!
 !!*** **********************************************************************
   SUBROUTINE colvar_read(colvar, extended_lagrange, icol, colvar_section,  error)
-    IMPLICIT NONE
-    ! Arguments
     TYPE(colvar_type), INTENT(inout)         :: colvar
     LOGICAL                                  :: extended_lagrange
-    TYPE(section_vals_type), POINTER, OPTIONAL :: colvar_section    
-    INTEGER, INTENT(IN)                        :: icol
+    INTEGER, INTENT(IN)                      :: icol
+    TYPE(section_vals_type), OPTIONAL, &
+      POINTER                                :: colvar_section
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
-    ! Variables
+
     CHARACTER(len=*), PARAMETER :: routinen = 'colvar_read', &
-         routinep = modulen//':'//routinen
-    CHARACTER(len=3)                         :: test_result
-    CHARACTER(len=default_string_length)     :: colvar_type_name, keyword
-    INTEGER                                  :: i, ii, n_opt, n_opt_cv, &
-                                                n_opt_var, ntemp, stat, n_rep
-    LOGICAL                                  :: failure, RECOGNIZED_KEYWORD, &
-                                                section_found
-    LOGICAL, DIMENSION(4)                    :: my_subsection
-    TYPE(section_vals_type), POINTER         :: distance_section, angle_section,&
-                                                torsion_section, coordination_section    
+      routinep = modulen//':'//routinen
+
+    INTEGER                                  :: ii, n_opt, n_opt_cv, &
+                                                n_opt_var, n_rep, stat
     INTEGER, DIMENSION(:), POINTER           :: iatms
-    
+    LOGICAL                                  :: failure
+    LOGICAL, DIMENSION(4)                    :: my_subsection
+    TYPE(section_vals_type), POINTER         :: angle_section, &
+                                                coordination_section, &
+                                                distance_section, &
+                                                torsion_section
+
+! Variables
 
     NULLIFY(iatms)
     failure=.FALSE.
@@ -500,11 +500,11 @@ END SUBROUTINE colvar_eval_f
                IF (sine .LT. 0.0e0_dp)  angle = -angle
                dt = angle 
                DO ii=1,100
-                 IF(dt<180._dp) exit
+                 IF(dt<180._dp) EXIT
                  dt = dt - 360.0e0_dp
                ENDDO
                DO ii=1,100
-                 IF(dt>-180._dp) exit
+                 IF(dt>-180._dp) EXIT
                  dt = dt + 360.0e0_dp
                ENDDO
                dt = dt / radian

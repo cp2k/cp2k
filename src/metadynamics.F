@@ -14,18 +14,17 @@ MODULE metadynamics
                                              dp
   USE machine,                         ONLY: m_flush
   USE message_passing,                 ONLY: mp_bcast
-  USE metadynamics_types,              ONLY: colvar_init,&
-                                             colvar_type,&
-                                             hills_env_type,&
+  USE metadynamics_types,              ONLY: hills_env_type,&
                                              meta_env_type
   USE particle_list_types,             ONLY: particle_list_type
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type,&
                                              section_vals_val_get,&
                                              section_vals_get
-  USE metadynamics_types,              ONLY: colvar_type,&
+  USE colvar_types,                    ONLY: colvar_type,&
                                              coord_colvar_id,&
                                              dist_colvar_id,&
+                                             colvar_init,&
                                              no_colvar_id,&
                                              torsion_colvar_id
 #include "cp_common_uses.h"
@@ -78,7 +77,7 @@ SUBROUTINE metadyn_create(meta_env,n_colvar,dt,para_env,error)
     CHARACTER(len=*), PARAMETER :: routinen = 'metadyn_create', &
       routinep = modulen//':'//routinen
 
-    INTEGER                                  :: stat,i
+    INTEGER                                  :: i, stat
     LOGICAL                                  :: failure
 
   failure=.FALSE.
@@ -123,20 +122,19 @@ END SUBROUTINE metadyn_create
 SUBROUTINE metadyn_read(meta_env,globenv,metadyn_section,error)
     TYPE(meta_env_type), POINTER             :: meta_env
     TYPE(global_environment_type)            :: globenv
-    TYPE(section_vals_type), POINTER, OPTIONAL :: metadyn_section    
+    TYPE(section_vals_type), OPTIONAL, &
+      POINTER                                :: metadyn_section
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
     CHARACTER(len=*), PARAMETER :: routinen = 'read_metadyn', &
       routinep = modulen//':'//routinen
 
-    CHARACTER(len=3)                         :: test_result
-    CHARACTER(len=default_string_length)     :: keyword, time_units
-  INTEGER                                  :: n_colvar, n_colvar_inp, i, n_rep, iw, kk
-  LOGICAL                                  :: failure, explicit
-  REAL(kind=dp)                            :: dt
-  TYPE(section_vals_type), POINTER         :: md_section, colvar_section
-
+    INTEGER                                  :: i, iw, kk, n_colvar, &
+                                                n_colvar_inp, n_rep
+    LOGICAL                                  :: explicit
+    REAL(kind=dp)                            :: dt
+    TYPE(section_vals_type), POINTER         :: colvar_section, md_section
 
   CALL section_vals_get(metadyn_section,explicit=explicit,error=error)
   IF (.NOT.explicit) RETURN
@@ -235,17 +233,18 @@ SUBROUTINE metadyn_add_forces(meta_env,force_env,error)
 
     CHARACTER(len=*), PARAMETER :: routinen = 'metadyn_add_forces', &
       routinep = modulen//':'//routinen
+    REAL(kind=dp), PARAMETER                 :: FACTEM = 315795.260
 
-    INTEGER                                  :: i_c, np, stat, ii, i
+    INTEGER                                  :: i, i_c, ii
     LOGICAL                                  :: failure
-    REAL(kind=dp)                            :: dt, fft, ekin_w,tol_ekin,fac_t, ss0_test
+    REAL(kind=dp)                            :: dt, ekin_w, fac_t, fft, norm, &
+                                                scal, ss0_test, tol_ekin
     TYPE(colvar_type), DIMENSION(:), POINTER :: colvars
-    TYPE(colvar_type), POINTER               ::  CV
+    TYPE(colvar_type), POINTER               :: CV
     TYPE(cp_subsystem_p_type), &
       DIMENSION(:), POINTER                  :: subsys
-    REAL(kind=dp) , PARAMETER                :: FACTEM=315795.260
-    REAL(kind=dp)                            :: scal,norm
     TYPE(particle_list_type), POINTER        :: particles
+
   NULLIFY(colvars,subsys)
   failure=.FALSE.
   CPPrecondition(ASSOCIATED(meta_env),cp_failure_level,routineP,error,failure)
@@ -269,7 +268,7 @@ SUBROUTINE metadyn_add_forces(meta_env,force_env,error)
      CALL  hills(meta_env,error)
   ENDIF
 
-  IF(.not. meta_env%extended_lagrange)THEN
+  IF(.NOT. meta_env%extended_lagrange)THEN
      meta_env%ekin_s=0.0_dp
      meta_env%cv_energy=0.0_dp
      DO i_c=1,meta_env%n_colvar
@@ -278,10 +277,10 @@ SUBROUTINE metadyn_add_forces(meta_env,force_env,error)
         CV%ff_s=0.0_dp
         NULLIFY(particles)
         CALL cp_subsys_get(subsys(CV%i_subsys)%subsys, particles=particles,error=error)
-        do ii=1,CV%n_atom_s
+        DO ii=1,CV%n_atom_s
           i=CV%i_atom(ii)
           particles%els(i)%f=particles%els(i)%f+ CV%ff_hills*CV%dsdr(:,ii)
-        enddo
+        ENDDO
      ENDDO
   ELSE
      meta_env%ekin_s=0.0_dp
@@ -292,10 +291,10 @@ SUBROUTINE metadyn_add_forces(meta_env,force_env,error)
         ! forces on the atoms
         NULLIFY(particles)
         CALL cp_subsys_get(subsys(CV%i_subsys)%subsys,particles=particles,error=error)
-        do ii=1,CV%n_atom_s
+        DO ii=1,CV%n_atom_s
           i=CV%i_atom(ii)
           particles%els(i)%f=particles%els(i)%f- CV%ff_s*CV%dsdr(:,ii)
-        enddo
+        ENDDO
         !  velocity verlet on the s0
         fft=CV%ff_s+CV%ff_hills
         CV%vv=CV%vvp+0.5E0_dp*dt*fft/CV%mass
@@ -303,26 +302,26 @@ SUBROUTINE metadyn_add_forces(meta_env,force_env,error)
         meta_env%ekin_s=meta_env%ekin_s + 0.5E0_dp*CV%mass*CV%vvp**2
      ENDDO
      !  velocity rescaling on the s0
-     if(meta_env%tempcontrol)then
+     IF(meta_env%tempcontrol)THEN
        ekin_w=0.5_dp*meta_env%temp_wanted/FACTEM*REAL(meta_env%n_colvar,dp)
        tol_ekin=0.5_dp*meta_env%toll_temp/FACTEM*REAL(meta_env%n_colvar,dp)
-       if(abs(ekin_w-meta_env%ekin_s)> tol_ekin)then
-         fac_t=sqrt(ekin_w/max(meta_env%ekin_s,1.0E-8_dp))
+       IF(ABS(ekin_w-meta_env%ekin_s)> tol_ekin)THEN
+         fac_t=SQRT(ekin_w/MAX(meta_env%ekin_s,1.0E-8_dp))
          DO i_c=1,meta_env%n_colvar
            CV=>colvars(i_c)
            CV%vvp=CV%vvp*fac_t
          ENDDO
          meta_env%ekin_s=ekin_w
-       endif
-     endif
+       ENDIF
+     ENDIF
      ! reflecting boundary conditions on the s0  
      DO i_c=1,meta_env%n_colvar
        CV=>colvars(i_c)
        ss0_test=CV%ss0+dt*CV%vvp
-       if((CV%do_wall_p .and. ss0_test > CV%wall_p) .or. &
-          (CV%do_wall_m .and. ss0_test < CV%wall_m))  then    
+       IF((CV%do_wall_p .AND. ss0_test > CV%wall_p) .OR. &
+          (CV%do_wall_m .AND. ss0_test < CV%wall_m))  THEN    
          CV%vvp=-CV%vvp
-       endif
+       ENDIF
      ENDDO
      ! update of ss0
      meta_env%cv_energy=0.0_dp
@@ -335,13 +334,13 @@ SUBROUTINE metadyn_add_forces(meta_env,force_env,error)
   ! reflecting boundary conditions on the ss  
   DO i_c=1,meta_env%n_colvar
     CV=>colvars(i_c)
-    if((CV%do_wall_p .and. CV%ss  > CV%wall_p) .or. &
-       (CV%do_wall_m .and. CV%ss  < CV%wall_m))  then    
+    IF((CV%do_wall_p .AND. CV%ss  > CV%wall_p) .OR. &
+       (CV%do_wall_m .AND. CV%ss  < CV%wall_m))  THEN    
       NULLIFY(particles)
       CALL cp_subsys_get(subsys(CV%i_subsys)%subsys, particles=particles,error=error)
       scal=0.0_dp
       norm=0.0_dp
-      do ii=1,CV%n_atom_s
+      DO ii=1,CV%n_atom_s
         i=CV%i_atom(ii)
         scal=scal+particles%els(i)%v(1)*CV%dsdr(1,ii)
         scal=scal+particles%els(i)%v(2)*CV%dsdr(2,ii)
@@ -349,19 +348,19 @@ SUBROUTINE metadyn_add_forces(meta_env,force_env,error)
         norm=norm+CV%dsdr(1,ii)**2
         norm=norm+CV%dsdr(2,ii)**2
         norm=norm+CV%dsdr(3,ii)**2
-      enddo
-      do ii=1,CV%n_atom_s
+      ENDDO
+      DO ii=1,CV%n_atom_s
         i=CV%i_atom(ii)
         particles%els(i)%v(:)=particles%els(i)%v(:)-2.0_dp*CV%dsdr(:,ii)*scal/norm
-      enddo
-    endif
+      ENDDO
+    ENDIF
   ENDDO
 
   ! write COLVAR file
   IF (meta_env%para_env%source==meta_env%para_env%mepos) THEN
     IF(meta_env%n_steps==1)THEN
        IF(meta_env%hills_env%restart_hills)THEN
-          CALL open_file(trim(meta_env%colvar_file_name),file_status="OLD",&
+          CALL open_file(TRIM(meta_env%colvar_file_name),file_status="OLD",&
              file_action="READ",unit_number=meta_env%colvar_file_unit_nr)
           DO i=1,100000
              READ(meta_env%colvar_file_unit_nr,*,END=144)
@@ -369,11 +368,11 @@ SUBROUTINE metadyn_add_forces(meta_env,force_env,error)
 144       CONTINUE
           CLOSE(meta_env%colvar_file_unit_nr)
           meta_env%n_steps=i
-          CALL open_file(trim(meta_env%colvar_file_name),file_status='OLD',&
+          CALL open_file(TRIM(meta_env%colvar_file_name),file_status='OLD',&
              file_position='APPEND', file_action="WRITE",&
              unit_number=meta_env%colvar_file_unit_nr)
        ELSE
-          CALL open_file(trim(meta_env%colvar_file_name),file_status='REPLACE',&
+          CALL open_file(TRIM(meta_env%colvar_file_name),file_status='REPLACE',&
              file_action="WRITE",unit_number=meta_env%colvar_file_unit_nr)
        END IF
     ENDIF
@@ -387,7 +386,7 @@ SUBROUTINE metadyn_add_forces(meta_env,force_env,error)
 END SUBROUTINE metadyn_add_forces
 
   SUBROUTINE hills(meta_env,error)
-    TYPE(meta_env_type), POINTER  :: meta_env
+    TYPE(meta_env_type), POINTER             :: meta_env
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -397,15 +396,13 @@ END SUBROUTINE metadyn_add_forces
     INTEGER                                  :: i, ih, n_colvar, n_step, &
                                                 stat, unit_number
     INTEGER, POINTER                         :: n_hills
-    LOGICAL                                  :: failure
-    REAL(dp)                                 :: dfunc, dp2
+    LOGICAL                                  :: failure, MASTER
+    REAL(dp)                                 :: dfunc, dp2, dum
     REAL(dp), DIMENSION(:, :), POINTER       :: ss_history, tmp
     TYPE(colvar_type), DIMENSION(:), POINTER :: colvars
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(hills_env_type), POINTER            :: hills_env
     REAL(dp)                                 :: ddp(meta_env%n_colvar)
-    REAL(dp)                                 :: dum
-    LOGICAL                                  :: MASTER
 
     failure=.FALSE.
     hills_env => meta_env%hills_env
@@ -438,13 +435,13 @@ END SUBROUTINE metadyn_add_forces
             CLOSE(unit_number)
           ENDIF
           CALL MP_BCAST(n_hills,meta_env%para_env%source,meta_env%para_env%group)
-          IF (.not. MASTER) THEN
+          IF (.NOT. MASTER) THEN
             ALLOCATE(ss_history(n_colvar,n_hills), stat=stat)
             CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
           ENDIF
           CALL MP_BCAST(ss_history,meta_env%para_env%source,meta_env%para_env%group)
           hills_env%ss_history=>ss_history
-       ELSE IF(MASTER) then
+       ELSE IF(MASTER) THEN
           CALL open_file(hills_env%hills_file_name,file_status='replace',&
                file_action="WRITE",unit_number=unit_number)
           CLOSE(unit_number)
@@ -467,7 +464,7 @@ END SUBROUTINE metadyn_add_forces
        DO i=1,n_colvar
           ss_history(i,n_hills)=colvars(i)%ss0
        ENDDO
-       IF(MASTER) then
+       IF(MASTER) THEN
          WRITE(cp_logger_get_default_unit_nr(logger,local=.TRUE.),*)' hills number ',n_hills,' added'
          CALL open_file(hills_env%hills_file_name,file_status='unknown',&
             file_action="WRITE",file_position='append', unit_number=unit_number)
