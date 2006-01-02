@@ -663,15 +663,6 @@ CONTAINS
         
        NULLIFY(subsection,keyword)
 
-       CALL keyword_create(keyword, name="NCOLVAR",&
-            variants=(/"N_COLVAR"/),&
-            description="Specifies the number of collective variables to use in the metadynamics."//&
-            "Defaults 1 variable.",&
-            usage="NCOLVAR {integer}",&
-            default_i_val=1,error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
        CALL keyword_create(keyword, name="NT_HILLS",&
             description="Specify the number the interval of time step to spawn the hills.",&
             usage="NT_HILLS {integer}",&

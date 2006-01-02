@@ -61,7 +61,6 @@
   &METADYN
     DO_HILLS
     LAGRANGE
-    NCOLVAR 2
     NT_HILLS 3
     WW 1.0e-3
     &COLVAR

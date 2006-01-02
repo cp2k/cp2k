@@ -131,7 +131,7 @@ SUBROUTINE metadyn_read(meta_env,globenv,metadyn_section,error)
       routinep = modulen//':'//routinen
 
     INTEGER                                  :: i, iw, kk, n_colvar, &
-                                                n_colvar_inp, n_rep
+                                                n_rep
     LOGICAL                                  :: explicit
     REAL(kind=dp)                            :: dt
     TYPE(section_vals_type), POINTER         :: colvar_section, md_section
@@ -143,7 +143,8 @@ SUBROUTINE metadyn_read(meta_env,globenv,metadyn_section,error)
   md_section => section_vals_get_subs_vals(globenv%input_file,"MOTION%MD",error=error)
   CALL section_vals_val_get(md_section,"TIMESTEP",r_val=dt,error=error)
 
-  CALL section_vals_val_get(metadyn_section,"NCOLVAR",i_val=n_colvar,error=error)
+  colvar_section => section_vals_get_subs_vals(metadyn_section,"COLVAR",error=error)
+  CALL section_vals_get(colvar_section,n_repetition=n_colvar,error=error)
   CALL metadyn_create(meta_env,n_colvar=n_colvar,&
        dt=dt,para_env=globenv%para_env,error=error)
 
@@ -166,9 +167,6 @@ SUBROUTINE metadyn_read(meta_env,globenv,metadyn_section,error)
      meta_env%colvar_file_name='COLVAR'
      meta_env%hills_env%hills_file_name="HILLS"
   END IF
-  colvar_section => section_vals_get_subs_vals(metadyn_section,"COLVAR",error=error)
-  CALL section_vals_get(colvar_section,n_repetition=n_colvar_inp,error=error)
-  CPPreconditionNoFail((n_colvar == n_colvar_inp),cp_failure_level,routineP,error)
   DO i= 1, n_colvar
      CALL colvar_read(meta_env%colvars(i),meta_env%extended_lagrange,i,colvar_section,error=error)
   END DO
