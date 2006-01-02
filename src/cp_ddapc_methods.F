@@ -3,7 +3,6 @@
 !   Copyright (C) 2001  CP2K developers group                                 !
 !-----------------------------------------------------------------------------!
 
-
 !!****h* cp2k/cp_ddapc_methods [1.0] *
 !!
 !!   NAME
@@ -97,7 +96,7 @@ CONTAINS
          routineP = moduleN//':'//routineN  
     INTEGER                                  :: stat, handle
     LOGICAL                                  :: failure
-    REAL(KIND=dp) :: gcut2, g2, my_w, rc, rc2
+    REAL(KIND=dp) :: gcut2, g2, rc, rc2
     INTEGER       :: igauss, ig
    
     CALL timeset(routineN,"I","",handle)
@@ -111,16 +110,20 @@ CONTAINS
        ALLOCATE(w(rho_tot_g % pw_grid % first_gne0:rho_tot_g % pw_grid % ngpts_cut_local), stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        gfunc = 0.0_dp
+       w     = 0.0_dp
        DO igauss = 1, SIZE(radii)
           rc  = radii(igauss)
           rc2 = rc*rc
           DO ig = rho_tot_g % pw_grid % first_gne0, rho_tot_g % pw_grid % ngpts_cut_local
              g2 = rho_tot_g % pw_grid % gsq ( ig )
-             my_w  = 4.0_dp * pi * (g2 -gcut2)**2/(g2*gcut2)
              IF (g2 > gcut2) EXIT
              gfunc(ig,igauss) = EXP(-g2*rc2/4.0_dp)
-             w(ig) = my_w
           END DO
+       END DO
+       DO ig = rho_tot_g % pw_grid % first_gne0, rho_tot_g % pw_grid % ngpts_cut_local
+          g2 = rho_tot_g % pw_grid % gsq ( ig )
+          IF (g2 > gcut2) EXIT
+          w(ig) = 4.0_dp * pi * (g2 -gcut2)**2/(g2*gcut2)
        END DO
     END IF
     CALL timestop(0.0_dp, handle)
@@ -164,30 +167,38 @@ CONTAINS
       routineP = moduleN//':'//routineN      
     REAL(KIND=dp)    :: gcut2, g2, rvec(3), gvec(3), arg
     COMPLEX(KIND=dp) :: phase
-    INTEGER          :: idim, iparticle, igauss, ig, handle
+    INTEGER          :: idim, iparticle, igauss, ig, handle, stat
     LOGICAL          :: failure
+    REAL(KIND=dp), POINTER, DIMENSION(:) :: my_bv
 
     failure = .FALSE.
+    NULLIFY(my_bv)
     CALL timeset(routineN,"I","",handle)
     gcut2 = gcut * gcut
     IF (.NOT.failure) THEN
+       ALLOCATE(my_bv(rho_tot_g % pw_grid % first_gne0:rho_tot_g % pw_grid % ngpts_cut_local),&
+            stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        !   
        idim  = 0
        DO iparticle = 1, SIZE(particle_set)
           rvec =  particle_set(iparticle)%r
+          my_bv = 0.0_dp
+          DO ig = rho_tot_g % pw_grid % first_gne0, rho_tot_g % pw_grid % ngpts_cut_local
+             g2 = rho_tot_g % pw_grid % gsq ( ig )
+             IF (g2 > gcut2) EXIT
+             gvec  = rho_tot_g % pw_grid % g (:,ig)
+             arg   = DOT_PRODUCT(gvec,rvec)
+             phase = CMPLX(COS(arg),-SIN(arg),KIND=dp)
+             my_bv (ig) =  w(ig) * REAL(CONJG(rho_tot_g%cc(ig))*phase,KIND=dp)
+          END DO
           DO igauss = 1, SIZE(radii)
-             idim = idim + 1
-             DO ig = rho_tot_g % pw_grid % first_gne0, rho_tot_g % pw_grid % ngpts_cut_local
-                g2 = rho_tot_g % pw_grid % gsq ( ig )
-                IF (g2 > gcut2) EXIT
-                gvec  = rho_tot_g % pw_grid % g (:,ig)
-                arg   = DOT_PRODUCT(gvec,rvec)
-                phase = CMPLX(COS(arg),-SIN(arg),KIND=dp)
-                bv (idim) = bv(idim) +  w(ig) * &
-                     REAL(CONJG(rho_tot_g%cc(ig))*gfunc(ig,igauss)*phase,KIND=dp)
-             END DO
+             idim = (iparticle-1)*SIZE(radii)+igauss
+             bv (idim) = DOT_PRODUCT(my_bv(:), gfunc(:,igauss))
           END DO
        END DO
+       DEALLOCATE(my_bv,stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
     CALL timestop(0.0_dp,handle)
   END SUBROUTINE build_b_vector
@@ -232,42 +243,47 @@ CONTAINS
     REAL(KIND=dp)                             :: gfunc1, gfunc2
     REAL(KIND=dp)    :: gcut2, g2, rvec1(3), rvec2(3), gvec(3), arg
     INTEGER          :: idim1, idim2, iparticle1, iparticle2, igauss1, igauss2, ig, istart_g
-    INTEGER          :: handle
+    INTEGER          :: handle, stat
     LOGICAL          :: failure 
-    
+    REAL(KIND=dp), POINTER, DIMENSION(:) :: my_Am
+
     failure = .FALSE.
+    NULLIFY(my_Am)
     CALL timeset(routineN,"I","",handle)
     gcut2 = gcut * gcut
     IF (.NOT. failure) THEN
-       idim1  = 0
+       ALLOCATE(my_Am(rho_tot_g % pw_grid % first_gne0:rho_tot_g % pw_grid % ngpts_cut_local),&
+            stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        DO iparticle1 = 1, SIZE(particle_set)
           rvec1=particle_set(iparticle1)%r
-          DO igauss1 = 1, SIZE(radii)
-             idim2 = idim1
-             idim1 = idim1 + 1
-             DO iparticle2 = iparticle1, SIZE(particle_set)
-                rvec2=particle_set(iparticle2)%r
+          DO iparticle2 = iparticle1, SIZE(particle_set)
+             rvec2=particle_set(iparticle2)%r
+             my_Am = 0.0_dp
+             DO ig = rho_tot_g % pw_grid % first_gne0, rho_tot_g % pw_grid % ngpts_cut_local
+                g2 = rho_tot_g % pw_grid % gsq ( ig )
+                IF (g2 > gcut2) EXIT
+                gvec   = rho_tot_g % pw_grid % g (:,ig)
+                arg    = DOT_PRODUCT(gvec,rvec1)
+                phase1 = CMPLX(COS(arg),-SIN(arg),KIND=dp)                     
+                arg    = DOT_PRODUCT(gvec,rvec2)
+                phase2 = CMPLX(COS(arg),-SIN(arg),KIND=dp)
+                my_Am (ig) = w(ig) * REAL(CONJG(phase1)*phase2,KIND=dp)
+             END DO
+             DO igauss1 = 1, SIZE(radii)
+                idim1 = (iparticle1-1)*SIZE(radii)+igauss1
                 istart_g = 1
                 IF (iparticle2==iparticle1) istart_g = igauss1
                 DO igauss2 = istart_g, SIZE(radii)
-                   idim2 = idim2 + 1
-                   DO ig = rho_tot_g % pw_grid % first_gne0, rho_tot_g % pw_grid % ngpts_cut_local
-                      g2 = rho_tot_g % pw_grid % gsq ( ig )
-                      IF (g2 > gcut2) EXIT
-                      gvec   = rho_tot_g % pw_grid % g (:,ig)
-                      arg    = DOT_PRODUCT(gvec,rvec1)
-                      phase1 = CMPLX(COS(arg),-SIN(arg),KIND=dp)                     
-                      arg    = DOT_PRODUCT(gvec,rvec2)
-                      phase2 = CMPLX(COS(arg),-SIN(arg),KIND=dp)
-                      gfunc1 = gfunc(ig,igauss1)
-                      gfunc2 = gfunc(ig,igauss2)
-                      Am (idim2,idim1) = Am (idim2,idim1) + w(ig) * REAL(CONJG(gfunc1*phase1)*gfunc2*phase2,KIND=dp)
-                   END DO
+                   idim2 = (iparticle2-1)*SIZE(radii)+igauss2
+                   Am (idim2,idim1) = DOT_PRODUCT(my_Am(:),gfunc(:,igauss1)*gfunc(:,igauss2))
                    Am (idim1,idim2) = Am (idim2,idim1)
                 END DO
              END DO
           END DO
        END DO
+       DEALLOCATE(my_Am,stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
     CALL timestop(0.0_dp, handle)
   END SUBROUTINE build_A_matrix
@@ -310,32 +326,42 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'build_der_b_vector', &
       routineP = moduleN//':'//routineN      
     REAL(KIND=dp)    :: gcut2, g2, arg
-    INTEGER          :: idim, iparticle, igauss, ig, handle
+    INTEGER          :: idim, iparticle, igauss, ig, handle, stat
     REAL(KIND=dp), DIMENSION(3) :: gvec, rvec
     LOGICAL          :: failure
     COMPLEX(KIND=dp)                         :: dphase
-    
+    REAL(KIND=dp), POINTER, DIMENSION(:,:)     :: my_dbv
+
     failure = .FALSE.
+    NULLIFY(my_dbv)
     CALL timeset(routineN,"I","",handle)
     gcut2 = gcut * gcut
     IF (.NOT.failure) THEN
+       ALLOCATE(my_dbv(rho_tot_g % pw_grid % first_gne0:rho_tot_g % pw_grid % ngpts_cut_local,3),&
+            stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        idim  = 0
        DO iparticle = 1, SIZE(particle_set)
           rvec =  particle_set(iparticle)%r
+          IF (iparticle /= iparticle0) CYCLE
+          my_dbv = 0.0_dp
+          DO ig = rho_tot_g % pw_grid % first_gne0, rho_tot_g % pw_grid % ngpts_cut_local
+             g2 = rho_tot_g % pw_grid % gsq ( ig )
+             IF (g2 > gcut2) EXIT
+             gvec   = rho_tot_g % pw_grid % g (:,ig)
+             arg    = DOT_PRODUCT(gvec,rvec)
+             dphase = - CMPLX(SIN(arg),COS(arg),KIND=dp) 
+             my_dbv (ig,:) = w(ig) * REAL(CONJG(rho_tot_g%cc(ig))*dphase,KIND=dp) * gvec(:)
+          END DO
           DO igauss = 1, SIZE(radii)
-             idim = idim + 1
-             IF (iparticle /= iparticle0) CYCLE
-             DO ig = rho_tot_g % pw_grid % first_gne0, rho_tot_g % pw_grid % ngpts_cut_local
-                g2 = rho_tot_g % pw_grid % gsq ( ig )
-                IF (g2 > gcut2) EXIT
-                gvec   = rho_tot_g % pw_grid % g (:,ig)
-                arg    = DOT_PRODUCT(gvec,rvec)
-                dphase = - CMPLX(SIN(arg),COS(arg),KIND=dp) 
-                dbv (idim,:) = dbv(idim,:) +  w(ig) * &
-                     REAL(CONJG(rho_tot_g%cc(ig))*gfunc(ig,igauss)*dphase,KIND=dp) * gvec
-             END DO
+             idim = (iparticle-1)*SIZE(radii)+igauss
+             dbv (idim,1) = DOT_PRODUCT(my_dbv(:,1),gfunc(:,igauss))
+             dbv (idim,2) = DOT_PRODUCT(my_dbv(:,2),gfunc(:,igauss))
+             dbv (idim,3) = DOT_PRODUCT(my_dbv(:,3),gfunc(:,igauss))
           END DO
        END DO
+       DEALLOCATE(my_dbv,stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
     CALL timestop(0.0_dp, handle)
   END SUBROUTINE build_der_b_vector
@@ -383,56 +409,60 @@ CONTAINS
     REAL(KIND=dp)    :: gfunc1, gfunc2, gcut2, g2, arg1, arg2
     INTEGER          :: idim1, idim2, iparticle1, iparticle2, igauss1, igauss2,  ig, istart_g
     REAL(KIND=dp), DIMENSION(3) :: gvec, rvec1, rvec2
-    INTEGER          :: handle
+    INTEGER          :: handle, stat
     LOGICAL          :: failure 
+    REAL(KIND=dp), POINTER, DIMENSION(:,:) :: my_Am
 
+    NULLIFY(my_Am)
     failure = .FALSE.
     CALL timeset(routineN,"I","",handle)
     gcut2 = gcut * gcut
     IF (.NOT. failure) THEN
-       idim1  = 0
+       ALLOCATE(my_Am(rho_tot_g % pw_grid % first_gne0:rho_tot_g % pw_grid % ngpts_cut_local,3),&
+            stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        DO iparticle1 = 1, SIZE(particle_set)
           rvec1 =  particle_set(iparticle1)%r
-          DO igauss1 = 1, SIZE(radii)
-             idim2 = idim1
-             idim1 = idim1 + 1
-             DO iparticle2 = iparticle1, SIZE(particle_set)
-                rvec2 =  particle_set(iparticle2)%r
+          DO iparticle2 = iparticle1, SIZE(particle_set)
+             rvec2 =  particle_set(iparticle2)%r
+             IF ((iparticle1 /= iparticle0).AND.(iparticle2 /= iparticle0)) CYCLE
+             my_Am = 0.0_dp
+             DO ig = rho_tot_g % pw_grid % first_gne0, rho_tot_g % pw_grid % ngpts_cut_local
+                g2 = rho_tot_g % pw_grid % gsq ( ig )
+                IF (g2 > gcut2) EXIT
+                gvec   = rho_tot_g % pw_grid % g (:,ig)
+                arg1   = DOT_PRODUCT(gvec,rvec1)
+                arg2   = DOT_PRODUCT(gvec,rvec2)
+                IF    ((iparticle1 == iparticle0).AND.(iparticle2==iparticle0))  THEN
+                   dphase1 = - CMPLX(SIN(arg1), COS(arg1),KIND=dp)                         
+                   phase2  =   CMPLX(COS(arg2),-SIN(arg2),KIND=dp)
+                   my_Am (ig,1:3) = 2.0_dp * REAL(CONJG(dphase1)*phase2,KIND=dp) * gvec
+                ELSEIF (iparticle1 == iparticle0) THEN
+                   dphase1 = - CMPLX(SIN(arg1), COS(arg1),KIND=dp)
+                   phase2  =   CMPLX(COS(arg2),-SIN(arg2),KIND=dp)
+                   my_Am (ig,1:3) = REAL(CONJG(dphase1)*phase2,KIND=dp) * gvec
+                ELSEIF (iparticle2 == iparticle0) THEN
+                   phase1  =   CMPLX(COS(arg1),-SIN(arg1),KIND=dp)
+                   dphase2 = - CMPLX(SIN(arg2), COS(arg2),KIND=dp)
+                   my_Am (ig,1:3) = REAL(CONJG(phase1)*dphase2,KIND=dp) * gvec
+                END IF
+             END DO
+             DO igauss1 = 1, SIZE(radii)
+                idim1 = (iparticle1-1)*SIZE(radii)+igauss1
                 istart_g = 1
                 IF (iparticle2==iparticle1) istart_g = igauss1
                 DO igauss2 = istart_g, SIZE(radii)
-                   idim2 = idim2 + 1
-                   IF ((iparticle1 /= iparticle0).AND.(iparticle2 /= iparticle0)) CYCLE
-                   DO ig = rho_tot_g % pw_grid % first_gne0, rho_tot_g % pw_grid % ngpts_cut_local
-                      g2 = rho_tot_g % pw_grid % gsq ( ig )
-                      IF (g2 > gcut2) EXIT
-                      gvec   = rho_tot_g % pw_grid % g (:,ig)
-                      gfunc1 =  gfunc(ig,igauss1) * w(ig)
-                      gfunc2 =  gfunc(ig,igauss2)
-                      arg1   = DOT_PRODUCT(gvec,rvec1)
-                      arg2   = DOT_PRODUCT(gvec,rvec2)
-                      IF    ((iparticle1 == iparticle0).AND.(iparticle2==iparticle0))  THEN
-                         dphase1 = - CMPLX(SIN(arg1), COS(arg1),KIND=dp)                         
-                         phase2  =   CMPLX(COS(arg2),-SIN(arg2),KIND=dp)
-                         dAm (idim1,idim2,1:3) = dAm (idim1,idim2,1:3) +&
-                              2.0_dp * REAL(CONJG(gfunc1*dphase1)*gfunc2*phase2,KIND=dp) * gvec
-                      ELSEIF (iparticle1 == iparticle0) THEN
-                         dphase1 = - CMPLX(SIN(arg1), COS(arg1),KIND=dp)
-                         phase2  =   CMPLX(COS(arg2),-SIN(arg2),KIND=dp)
-                         dAm (idim1,idim2,1:3) = dAm (idim1,idim2,1:3) +&
-                              REAL(CONJG(gfunc1*dphase1)*gfunc2*phase2,KIND=dp) * gvec
-                      ELSEIF (iparticle2 == iparticle0) THEN
-                         phase1  =   CMPLX(COS(arg1),-SIN(arg1),KIND=dp)
-                         dphase2 = - CMPLX(SIN(arg2), COS(arg2),KIND=dp)
-                         dAm (idim1,idim2,1:3) = dAm (idim1,idim2,1:3) +&
-                              REAL(CONJG(gfunc1*phase1)*gfunc2*dphase2,KIND=dp) * gvec
-                      END IF
-                   END DO
+                   idim2 = (iparticle2-1)*SIZE(radii)+igauss2
+                   dAm (idim1,idim2,1) = DOT_PRODUCT(my_Am(:,1),gfunc(:,igauss1)*gfunc(:,igauss2)*w(:))
+                   dAm (idim1,idim2,2) = DOT_PRODUCT(my_Am(:,2),gfunc(:,igauss1)*gfunc(:,igauss2)*w(:))
+                   dAm (idim1,idim2,3) = DOT_PRODUCT(my_Am(:,3),gfunc(:,igauss1)*gfunc(:,igauss2)*w(:))
                    dAm (idim2,idim1,1:3) = dAm (idim1,idim2,1:3)
                 END DO
              END DO
           END DO
-       END DO    
+       END DO
+       DEALLOCATE(my_Am,stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
     CALL timestop(0.0_dp, handle)
   END SUBROUTINE build_der_A_matrix

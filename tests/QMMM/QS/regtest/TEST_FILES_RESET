@@ -59,3 +59,6 @@ sio2-qmmm-gauss-2.inp
 crys_per_qmmm.inp
 # bug fix for geep_lib coefficients
 H2O-qmmm-gauss-14-geep-15.inp
+crys_per_qmmm.inp 
+crys_per_qmmm_anal.inp 
+crys_per_qmmm_spln.inp 
