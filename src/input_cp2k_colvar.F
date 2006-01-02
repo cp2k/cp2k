@@ -23,9 +23,9 @@
 !!   SOURCE
 !****************************************************************************
 MODULE input_cp2k_colvar
-  use kinds, only: dp
-  use cp_para_types, only: cp_para_env_type
-  use timings, only: timeset, timestop
+  USE kinds, ONLY: dp
+  USE cp_para_types, ONLY: cp_para_env_type
+  USE timings, ONLY: timeset, timestop
   USE input_section_types, ONLY: section_type, section_create, &
        section_add_keyword, section_add_subsection, section_release,&
        section_vals_type,&
@@ -35,15 +35,15 @@ MODULE input_cp2k_colvar
        keyword_release
   USE input_val_types, ONLY: val_type, no_t, logical_t, integer_t, real_t, char_t,&
        enum_t
-  USE cp_output_handling, only: cp_print_key_section_create
-  USE cp_units, only: cp_unit_to_cp2k
+  USE cp_output_handling, ONLY: cp_print_key_section_create
+  USE cp_units, ONLY: cp_unit_to_cp2k
   USE string_utilities, ONLY: s2a
 #include "cp_common_uses.h"
-  implicit none
-  private
+  IMPLICIT NONE
+  PRIVATE
 
-  logical, private, parameter :: debug_this_module=.true.
-  character(len=*), private, parameter :: moduleN='input_cp2k_colvar'
+  LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
+  CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='input_cp2k_colvar'
 
 PUBLIC :: create_colvar_section
 
@@ -70,14 +70,16 @@ CONTAINS
 !!
 !!*** **********************************************************************
   SUBROUTINE create_colvar_section(section,error)
-    TYPE(section_type), POINTER :: section
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-    
-    LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineN='create_colvar_section',&
-         routineP=moduleN//':'//routineN
-    TYPE(section_type), POINTER :: subsection
-    TYPE(keyword_type), pointer :: keyword    
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_colvar_section', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
+    TYPE(section_type), POINTER              :: subsection
 
     failure=.FALSE.
     
@@ -161,12 +163,14 @@ CONTAINS
 !!
 !!*** **********************************************************************
   SUBROUTINE create_colvar_var_section(subsection, section, error)
-    TYPE(section_type), POINTER :: section, subsection
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-    
-    LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineN='create_colvar_var_section',&
-         routineP=moduleN//':'//routineN
+    TYPE(section_type), POINTER              :: subsection, section
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_colvar_var_section', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
 
     failure=.FALSE.
     
@@ -214,13 +218,15 @@ CONTAINS
 !!
 !!*** **********************************************************************
   SUBROUTINE create_colvar_coord_section(section,error)
-    TYPE(section_type), POINTER :: section
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-    
-    LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineN='create_colvar_coord_section',&
-         routineP=moduleN//':'//routineN
-    TYPE(keyword_type), pointer :: keyword    
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_colvar_coord_section', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
 
     failure=.FALSE.
     
@@ -313,14 +319,17 @@ CONTAINS
 !!
 !!*** **********************************************************************
   SUBROUTINE create_colvar_torsion_section(section,error,description)
-    TYPE(section_type), POINTER :: section
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-    CHARACTER(LEN=*), OPTIONAL, INTENT(IN) :: description
-    
-    LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineN='create_colvar_torsion_section',&
-         routineP=moduleN//':'//routineN
-    TYPE(keyword_type), pointer :: keyword    
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+    CHARACTER(LEN=*), INTENT(IN), OPTIONAL   :: description
+
+    CHARACTER(len=*), PARAMETER :: &
+      routineN = 'create_colvar_torsion_section', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
 
     failure=.FALSE.
 
@@ -372,15 +381,16 @@ CONTAINS
 !!
 !!*** **********************************************************************
   SUBROUTINE create_colvar_angle_section(section,error,description)
-    TYPE(section_type), POINTER :: section
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-    CHARACTER(LEN=*), OPTIONAL, INTENT(IN) :: description
-    
-    
-    LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineN='create_colvar_angle_section',&
-         routineP=moduleN//':'//routineN
-    TYPE(keyword_type), pointer :: keyword    
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+    CHARACTER(LEN=*), INTENT(IN), OPTIONAL   :: description
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_colvar_angle_section', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
 
     failure=.FALSE.
     
@@ -434,14 +444,16 @@ CONTAINS
 !!
 !!*** **********************************************************************
   SUBROUTINE create_colvar_dist_section(section,error,description)
-    TYPE(section_type), POINTER :: section
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-    CHARACTER(LEN=*), OPTIONAL, INTENT(IN) :: description
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+    CHARACTER(LEN=*), INTENT(IN), OPTIONAL   :: description
 
-    LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineN='create_colvar_dist_section',&
-         routineP=moduleN//':'//routineN
-    TYPE(keyword_type), pointer :: keyword    
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_colvar_dist_section', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
 
     failure=.FALSE.
     
