@@ -652,7 +652,7 @@ contains
     IF (.NOT. failure) THEN
        CALL section_create(section,name="internals",&
             description="This section is used to constraint the internals (bonds,angles,torsions)"//&
-            " variables or their combination.",&
+            " variables or their combination using fast specific routines, only applicable within molecules.",&
             n_subsections=0, repeats=.TRUE., required=.TRUE.,&
             error=error)
 
@@ -685,7 +685,7 @@ contains
 !!     create_constraint_tors_section
 !!
 !!   FUNCTION
-!!     creates the colvar section regarded to the collective variables dist
+!!     creates the torsional internal constraints
 !!
 !!   NOTES
 !!     -
@@ -743,7 +743,7 @@ contains
 !!     create_constraint_angle_section
 !!
 !!   FUNCTION
-!!     creates the colvar section regarded to the collective variables dist
+!!     creates the angle internal constraints
 !!
 !!   NOTES
 !!     -
@@ -802,7 +802,7 @@ contains
 !!     create_constraint_dist_section
 !!
 !!   FUNCTION
-!!     creates the colvar section regarded to the collective variables dist
+!!     creates the distance internal constraints
 !!
 !!   NOTES
 !!     -
@@ -867,7 +867,7 @@ contains
 !!     create_comb_section
 !!
 !!   FUNCTION
-!!     creates the colvar section regarded to the collective variables dist
+!!     creates the combined internal constraints
 !!
 !!   NOTES
 !!     -
@@ -935,7 +935,7 @@ contains
 !!     create_fixed_atom_section
 !!
 !!   FUNCTION
-!!     Create the constraint section specialized on g3x3 constraints
+!!     Create the constraint section that fixes atoms
 !!
 !!   NOTES
 !!     -
