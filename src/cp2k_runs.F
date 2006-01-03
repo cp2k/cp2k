@@ -578,6 +578,7 @@ CONTAINS
        write(unit_nr,*) "</BODY></HTML>"
 
        call close_file(unit_nr)
+       CALL section_release(root_section,error=error)
     END IF
   END SUBROUTINE write_cp2k_html_manual
 
@@ -626,6 +627,7 @@ CONTAINS
       WRITE (UNIT=unit_number,FMT="(A)") "</CP2K_INPUT>"
 
       CALL close_file(unit_number=unit_number)
+      CALL section_release(root_section,error=error)
 
     END IF
 
