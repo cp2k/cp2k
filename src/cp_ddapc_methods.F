@@ -165,9 +165,9 @@ CONTAINS
     ! Local Variables
     CHARACTER(len=*), PARAMETER :: routineN = 'build_b_vector', &
       routineP = moduleN//':'//routineN      
-    REAL(KIND=dp)    :: gcut2, g2, rvec(3), gvec(3), arg
+    REAL(KIND=dp)    :: gcut2, g2, rvec(3), gvec(3), arg, tmp
     COMPLEX(KIND=dp) :: phase
-    INTEGER          :: idim, iparticle, igauss, ig, handle, stat
+    INTEGER          :: idim, iparticle, igauss, ig, handle, stat, igmax
     LOGICAL          :: failure
     REAL(KIND=dp), POINTER, DIMENSION(:) :: my_bv
 
@@ -184,9 +184,11 @@ CONTAINS
        DO iparticle = 1, SIZE(particle_set)
           rvec =  particle_set(iparticle)%r
           my_bv = 0.0_dp
+          igmax = 0
           DO ig = rho_tot_g % pw_grid % first_gne0, rho_tot_g % pw_grid % ngpts_cut_local
              g2 = rho_tot_g % pw_grid % gsq ( ig )
              IF (g2 > gcut2) EXIT
+             igmax = ig
              gvec  = rho_tot_g % pw_grid % g (:,ig)
              arg   = DOT_PRODUCT(gvec,rvec)
              phase = CMPLX(COS(arg),-SIN(arg),KIND=dp)
@@ -194,7 +196,11 @@ CONTAINS
           END DO
           DO igauss = 1, SIZE(radii)
              idim = (iparticle-1)*SIZE(radii)+igauss
-             bv (idim) = DOT_PRODUCT(my_bv(:), gfunc(:,igauss))
+             tmp = 0.0_dp
+             DO ig = rho_tot_g % pw_grid % first_gne0, igmax
+                tmp = tmp + my_bv(ig)* gfunc(ig,igauss)
+             END DO
+             bv (idim) = tmp
           END DO
        END DO
        DEALLOCATE(my_bv,stat=stat)
@@ -241,9 +247,9 @@ CONTAINS
       routineP = moduleN//':'//routineN      
     COMPLEX(KIND=dp)                          :: phase1, phase2
     REAL(KIND=dp)                             :: gfunc1, gfunc2
-    REAL(KIND=dp)    :: gcut2, g2, rvec1(3), rvec2(3), gvec(3), arg
+    REAL(KIND=dp)    :: gcut2, g2, rvec1(3), rvec2(3), gvec(3), arg, tmp
     INTEGER          :: idim1, idim2, iparticle1, iparticle2, igauss1, igauss2, ig, istart_g
-    INTEGER          :: handle, stat
+    INTEGER          :: handle, stat, igmax
     LOGICAL          :: failure 
     REAL(KIND=dp), POINTER, DIMENSION(:) :: my_Am
 
@@ -260,9 +266,11 @@ CONTAINS
           DO iparticle2 = iparticle1, SIZE(particle_set)
              rvec2=particle_set(iparticle2)%r
              my_Am = 0.0_dp
+             igmax = 0
              DO ig = rho_tot_g % pw_grid % first_gne0, rho_tot_g % pw_grid % ngpts_cut_local
                 g2 = rho_tot_g % pw_grid % gsq ( ig )
                 IF (g2 > gcut2) EXIT
+                igmax  = ig
                 gvec   = rho_tot_g % pw_grid % g (:,ig)
                 arg    = DOT_PRODUCT(gvec,rvec1)
                 phase1 = CMPLX(COS(arg),-SIN(arg),KIND=dp)                     
@@ -276,8 +284,12 @@ CONTAINS
                 IF (iparticle2==iparticle1) istart_g = igauss1
                 DO igauss2 = istart_g, SIZE(radii)
                    idim2 = (iparticle2-1)*SIZE(radii)+igauss2
-                   Am (idim2,idim1) = DOT_PRODUCT(my_Am(:),gfunc(:,igauss1)*gfunc(:,igauss2))
-                   Am (idim1,idim2) = Am (idim2,idim1)
+                   tmp = 0.0_dp
+                   DO ig = rho_tot_g % pw_grid % first_gne0, igmax
+                      tmp = tmp + my_Am(ig)*gfunc(ig,igauss1)*gfunc(ig,igauss2)
+                   END DO
+                   Am (idim2,idim1) = tmp
+                   Am (idim1,idim2) = tmp
                 END DO
              END DO
           END DO
@@ -326,8 +338,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'build_der_b_vector', &
       routineP = moduleN//':'//routineN      
     REAL(KIND=dp)    :: gcut2, g2, arg
-    INTEGER          :: idim, iparticle, igauss, ig, handle, stat
-    REAL(KIND=dp), DIMENSION(3) :: gvec, rvec
+    INTEGER          :: idim, iparticle, igauss, ig, handle, stat, igmax
+    REAL(KIND=dp), DIMENSION(3) :: gvec, rvec, tmp
     LOGICAL          :: failure
     COMPLEX(KIND=dp)                         :: dphase
     REAL(KIND=dp), POINTER, DIMENSION(:,:)     :: my_dbv
@@ -345,9 +357,11 @@ CONTAINS
           rvec =  particle_set(iparticle)%r
           IF (iparticle /= iparticle0) CYCLE
           my_dbv = 0.0_dp
+          igmax  = 0
           DO ig = rho_tot_g % pw_grid % first_gne0, rho_tot_g % pw_grid % ngpts_cut_local
              g2 = rho_tot_g % pw_grid % gsq ( ig )
              IF (g2 > gcut2) EXIT
+             igmax  = ig
              gvec   = rho_tot_g % pw_grid % g (:,ig)
              arg    = DOT_PRODUCT(gvec,rvec)
              dphase = - CMPLX(SIN(arg),COS(arg),KIND=dp) 
@@ -355,9 +369,11 @@ CONTAINS
           END DO
           DO igauss = 1, SIZE(radii)
              idim = (iparticle-1)*SIZE(radii)+igauss
-             dbv (idim,1) = DOT_PRODUCT(my_dbv(:,1),gfunc(:,igauss))
-             dbv (idim,2) = DOT_PRODUCT(my_dbv(:,2),gfunc(:,igauss))
-             dbv (idim,3) = DOT_PRODUCT(my_dbv(:,3),gfunc(:,igauss))
+             tmp = 0.0_dp
+             DO ig = rho_tot_g % pw_grid % first_gne0, igmax
+                tmp = tmp + my_dbv(ig,1:3)*gfunc(ig,igauss)
+             END DO
+             dbv (idim,1:3) = tmp
           END DO
        END DO
        DEALLOCATE(my_dbv,stat=stat)
@@ -408,8 +424,8 @@ CONTAINS
     COMPLEX(KIND=dp) :: phase1, phase2, dphase1, dphase2
     REAL(KIND=dp)    :: gfunc1, gfunc2, gcut2, g2, arg1, arg2
     INTEGER          :: idim1, idim2, iparticle1, iparticle2, igauss1, igauss2,  ig, istart_g
-    REAL(KIND=dp), DIMENSION(3) :: gvec, rvec1, rvec2
-    INTEGER          :: handle, stat
+    REAL(KIND=dp), DIMENSION(3) :: gvec, rvec1, rvec2, tmp
+    INTEGER          :: handle, stat, igmax
     LOGICAL          :: failure 
     REAL(KIND=dp), POINTER, DIMENSION(:,:) :: my_Am
 
@@ -427,9 +443,11 @@ CONTAINS
              rvec2 =  particle_set(iparticle2)%r
              IF ((iparticle1 /= iparticle0).AND.(iparticle2 /= iparticle0)) CYCLE
              my_Am = 0.0_dp
+             igmax = 0
              DO ig = rho_tot_g % pw_grid % first_gne0, rho_tot_g % pw_grid % ngpts_cut_local
                 g2 = rho_tot_g % pw_grid % gsq ( ig )
                 IF (g2 > gcut2) EXIT
+                igmax  = ig
                 gvec   = rho_tot_g % pw_grid % g (:,ig)
                 arg1   = DOT_PRODUCT(gvec,rvec1)
                 arg2   = DOT_PRODUCT(gvec,rvec2)
@@ -453,10 +471,12 @@ CONTAINS
                 IF (iparticle2==iparticle1) istart_g = igauss1
                 DO igauss2 = istart_g, SIZE(radii)
                    idim2 = (iparticle2-1)*SIZE(radii)+igauss2
-                   dAm (idim1,idim2,1) = DOT_PRODUCT(my_Am(:,1),gfunc(:,igauss1)*gfunc(:,igauss2)*w(:))
-                   dAm (idim1,idim2,2) = DOT_PRODUCT(my_Am(:,2),gfunc(:,igauss1)*gfunc(:,igauss2)*w(:))
-                   dAm (idim1,idim2,3) = DOT_PRODUCT(my_Am(:,3),gfunc(:,igauss1)*gfunc(:,igauss2)*w(:))
-                   dAm (idim2,idim1,1:3) = dAm (idim1,idim2,1:3)
+                   tmp = 0.0_dp
+                   DO ig = rho_tot_g % pw_grid % first_gne0, igmax
+                      tmp = tmp + my_Am(ig,1:3)*gfunc(ig,igauss1)*gfunc(ig,igauss2)*w(ig)
+                   END DO
+                   dAm (idim1,idim2,1:3) = tmp
+                   dAm (idim2,idim1,1:3) = tmp
                 END DO
              END DO
           END DO
