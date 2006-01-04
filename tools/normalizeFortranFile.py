@@ -613,6 +613,28 @@ def writeUseLong(modules,outFile):
             outFile.write('\n'.join(m['comments']))
         outFile.write("\n")
 
+def writeUseShort(modules,file):
+    """Writes a declaration in a compact way"""
+    for m in modules:
+        uLine=[]
+        if m.has_key('only'):
+            uLine.append("  USE "+m['module']+", ONLY: ")
+            for k in m['only'][:-1]:
+                uLine.append(k+", ")
+            uLine.append(m['only'][-1])
+        elif m.has_key('renames') and m['renames']:
+            uLine.append("  USE "+m['module']+", ")
+            for k in m['renames'][:-1]:
+                uLine.append(k+", ")
+            uLine.append(m['renames'][-1])
+        else:
+            uLine.append("  USE "+m['module'])
+        writeInCols(uLine,7,79,0,file)
+        if m['comments']:
+            outFile.write("\n")
+            outFile.write('\n'.join(m['comments']))
+        file.write("\n")
+
 def prepareImplicitUses(modules):
     """Transforms a modulesDict into an implictUses (dictionary of module names
     each containing a dictionary with the only, and the special key '_WHOLE_'
@@ -733,7 +755,7 @@ def rewriteFortranFile(inFile,outFile,logFile=sys.stdout):
             cleanUse(modulesDict,rest,implicitUses=implicitUses,logFile=logFile)
             normalizeModules(modulesDict['modules'])
             outFile.writelines(modulesDict['preComments'])
-            writeUseLong(modulesDict['modules'],outFile)
+            writeUseShort(modulesDict['modules'],outFile)
             outFile.write(modulesDict['commonUses'])
             if modulesDict['modules']:
                 outFile.write('\n')
