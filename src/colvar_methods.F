@@ -36,8 +36,6 @@ MODULE colvar_methods
                                              dist_colvar_id,&
                                              no_colvar_id,&
                                              torsion_colvar_id
-  USE cp_subsystem_types,              ONLY: cp_subsystem_type, &
-                                             cp_subsys_set
   USE particle_list_types,             ONLY: particle_list_type
   USE physcon,                         ONLY: massunit
   USE simulation_cell,                 ONLY: cell_type

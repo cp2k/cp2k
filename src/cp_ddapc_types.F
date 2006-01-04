@@ -27,7 +27,6 @@ MODULE cp_ddapc_types
   USE kinds,                           ONLY: dp
   USE particle_types,                  ONLY: particle_type 
   USE mathconstants,                   ONLY: rootpi, pi  
-  USE pw_types,                        ONLY: pw_type
   USE cp_ddapc_methods,                ONLY: ddapc_eval_gfunc,&
                                              ddapc_eval_AmI,&
                                              ewald_ddapc_pot

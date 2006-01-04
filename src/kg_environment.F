@@ -121,7 +121,6 @@ MODULE kg_environment
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type
 #include "cp_common_uses.h"
-#include "cp_common_uses.h"
 
   IMPLICIT NONE
 

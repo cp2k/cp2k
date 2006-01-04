@@ -47,7 +47,6 @@ MODULE qs_force
                                              allocate_qs_force
   USE qs_ks_methods,                   ONLY: qs_ks_update_qs_env,&
                                              calculate_w_matrix
-  USE qs_ks_types,                     ONLY: qs_ks_env_type
   USE qs_mo_types,                     ONLY: mo_set_p_type,&
                                              mo_set_type
   USE qs_overlap,                      ONLY: write_sparse_matrix

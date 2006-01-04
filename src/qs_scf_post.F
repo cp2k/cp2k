@@ -60,8 +60,12 @@ MODULE qs_scf_post
   USE global_types,                    ONLY: WANNIER_NONE,&
                                              global_environment_type
   USE input_constants,                 ONLY: ot_precond_full_all
-  USE input_section_types,             ONLY: section_vals_get_subs_vals,&
-                                             section_vals_type,&
+  USE input_section_types,             ONLY: section_vals_type, &
+                                             section_vals_val_get,&
+                                             section_vals_get_subs_vals, &
+                                             section_vals_get_subs_vals2, &
+                                             section_get_rval, &
+                                             section_get_ival, &
                                              section_vals_get
   USE cp_ddapc,                        ONLY: get_ddapc
   USE kinds,                           ONLY: default_string_length,&
@@ -129,9 +133,6 @@ MODULE qs_scf_post
                                              timestop
   USE xray_diffraction,                ONLY: xray_diffraction_spectrum
 #include "cp_common_uses.h"
-
-  USE input_section_types, ONLY: section_vals_type, section_vals_val_get,&
-       section_vals_get_subs_vals, section_vals_get_subs_vals2, section_get_rval, section_get_ival
 
   IMPLICIT NONE
 
