@@ -36,8 +36,7 @@ MODULE qs_main
                                              qs_environment_type
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE cp_subsystem_types,              ONLY: cp_subsys_create,&
-                                             cp_subsys_release,&
+  USE cp_subsystem_types,              ONLY: cp_subsys_release,&
                                              cp_subsys_set,&
                                              cp_subsystem_type
   USE simulation_cell,                 ONLY: cell_type

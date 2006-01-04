@@ -1,17 +1,15 @@
-MODULE colvar
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2002,2006  CP2K developers group                            !
 !-----------------------------------------------------------------------------!
-
-
-!!****h* cp2k/colvar [1.0] *
+!!****h* cp2k/colvar_methods [1.0] *
 !!
 !!   NAME
-!!     colvar
+!!     colvar_methods
 !!
 !!   FUNCTION
-!!     collective variables 
+!!     defines collective variables s({R}) and the derivative of this variable wrt R
+!!     these can then be used in constraints, restraints and metadynamics ...
 !!
 !!   NOTES
 !!     -
@@ -21,10 +19,13 @@ MODULE colvar
 !!
 !!   MODIFICATION HISTORY
 !!     04.2004 created
+!!     01.2006 Refactored [Joost VandeVondele]
 !!
 !!   SOURCE
 !****************************************************************************
+MODULE colvar_methods
   USE cp_subsystem_types,              ONLY: cp_subsys_get,&
+                                             cp_subsystem_type,&
                                              cp_subsystem_p_type
   USE force_env_types,                 ONLY: force_env_get,&
                                              force_env_type
@@ -35,6 +36,8 @@ MODULE colvar
                                              dist_colvar_id,&
                                              no_colvar_id,&
                                              torsion_colvar_id
+  USE cp_subsystem_types,              ONLY: cp_subsystem_type, &
+                                             cp_subsys_set
   USE particle_list_types,             ONLY: particle_list_type
   USE physcon,                         ONLY: massunit
   USE simulation_cell,                 ONLY: cell_type
@@ -43,21 +46,20 @@ MODULE colvar
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type,&
                                              section_vals_val_get,&
-                                             section_vals_get
+                                             section_vals_get,&
+                                             section_type
 #include "cp_common_uses.h"
   IMPLICIT NONE
   PRIVATE
 
-  CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='colvar'
+  CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='colvar_methods'
 
-  PUBLIC :: colvar_read
-  PUBLIC :: colvar_eval_f
+  PUBLIC :: colvar_read, colvar_eval_f
 
 !***
 !****************************************************************************
 CONTAINS
-
-!!****f* colvar/colvar_read *
+!!****f* colvar_methods/colvar_read *
 !!
 !!   NAME
 !!     colvar_read
@@ -84,20 +86,17 @@ CONTAINS
 !!     04.2004 created [alessandro laio and fawzi mohamed]
 !!
 !!*** **********************************************************************
-  SUBROUTINE colvar_read(colvar, extended_lagrange, icol, colvar_section,  error)
+  SUBROUTINE colvar_read(colvar, icol, colvar_section,  error)
     TYPE(colvar_type), INTENT(inout)         :: colvar
-    LOGICAL                                  :: extended_lagrange
     INTEGER, INTENT(IN)                      :: icol
-    TYPE(section_vals_type), OPTIONAL, &
-      POINTER                                :: colvar_section
+    TYPE(section_vals_type), POINTER         :: colvar_section
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-    CHARACTER(len=*), PARAMETER :: routinen = 'colvar_read', &
-      routinep = modulen//':'//routinen
+    CHARACTER(len=*), PARAMETER :: routineN = 'colvar_read', &
+      routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: ii, n_opt, n_opt_cv, &
-                                                n_opt_var, n_rep, stat
+    INTEGER                                  :: ii, stat
     INTEGER, DIMENSION(:), POINTER           :: iatms
     LOGICAL                                  :: failure
     LOGICAL, DIMENSION(4)                    :: my_subsection
@@ -105,16 +104,12 @@ CONTAINS
                                                 coordination_section, &
                                                 distance_section, &
                                                 torsion_section
+    INTEGER                                  :: handle
 
-! Variables
+    CALL timeset(routineN,"I","",handle)
 
     NULLIFY(iatms)
     failure=.FALSE.
-    n_opt=0
-    n_opt_cv=0
-    n_opt_var=0
-    colvar%do_wall_p=.FALSE.
-    colvar%do_wall_m=.FALSE.
 
     distance_section     => section_vals_get_subs_vals(colvar_section,"DISTANCE",i_rep_section=icol,error=error)
     angle_section        => section_vals_get_subs_vals(colvar_section,"ANGLE",i_rep_section=icol,error=error)
@@ -125,23 +120,10 @@ CONTAINS
     CALL section_vals_get(angle_section,explicit=my_subsection(2),error=error)
     CALL section_vals_get(torsion_section,explicit=my_subsection(3),error=error)
     CALL section_vals_get(coordination_section,explicit=my_subsection(4),error=error)
-    
+
+    ! only one colvar can be present 
     CPPostcondition(COUNT(my_subsection) == 1,cp_failure_level,routinep,error,failure)
-    CALL section_vals_val_get(colvar_section,"SUBSYS",i_rep_section=icol,i_val=colvar%i_subsys,error=error)
-    CALL section_vals_val_get(colvar_section,"MASS",i_rep_section=icol,r_val=colvar%mass,error=error)
-    CALL section_vals_val_get(colvar_section,"SCALE",i_rep_section=icol,r_val=colvar%delta_s,error=error)
-    CALL section_vals_val_get(colvar_section,"WALL_PLUS",i_rep_section=icol,n_rep_val=n_rep,error=error)
-    IF (n_rep /= 0) THEN 
-       colvar%do_wall_p=.TRUE.
-       CALL section_vals_val_get(colvar_section,"WALL_PLUS",i_rep_section=icol,r_val=colvar%wall_p,error=error)
-    END IF
-    CALL section_vals_val_get(colvar_section,"WALL_MINUS",i_rep_section=icol,n_rep_val=n_rep,error=error)
-    IF (n_rep /= 0) THEN 
-       colvar%do_wall_m=.TRUE.
-       CALL section_vals_val_get(colvar_section,"WALL_MINUS",i_rep_section=icol,r_val=colvar%wall_m,error=error)
-    END IF
-    CALL section_vals_val_get(colvar_section,"LAMBDA",i_rep_section=icol,r_val=colvar%lambda,error=error)
-    
+
     IF      (my_subsection(1)) THEN
        ! Distance
        colvar%type_id=dist_colvar_id
@@ -170,7 +152,6 @@ CONTAINS
        ALLOCATE(colvar%coord_param%i_at_to(SIZE(iatms)),stat=stat)
        CPPostcondition(stat == 0,cp_failure_level,routinep,error,failure)
        colvar%coord_param%i_at_to = iatms       
-       
        CALL section_vals_val_get(coordination_section,"R0",r_val=colvar%coord_param%r_0,error=error)
        CALL section_vals_val_get(coordination_section,"NN",i_val=colvar%coord_param%nncrd,error=error)
        CALL section_vals_val_get(coordination_section,"ND",i_val=colvar%coord_param%ndcrd,error=error)          
@@ -207,21 +188,10 @@ CONTAINS
           colvar%i_atom(ii)=colvar%torsion_param%i_at_tors(ii)
        ENDDO
     END SELECT
-    !
-    ! Check Input Inconsistencies..
-    !
-
-    IF(extended_lagrange)THEN
-       CALL section_vals_val_get(colvar_section,"MASS",i_rep_section=icol,  n_rep_val=n_rep, error=error)
-       CPPostcondition(n_rep /= 0,cp_failure_level,routinep,error,failure)
-       CALL section_vals_val_get(colvar_section,"SCALE",i_rep_section=icol, n_rep_val=n_rep, error=error)
-       CPPostcondition(n_rep /= 0,cp_failure_level,routinep,error,failure)
-       CALL section_vals_val_get(colvar_section,"LAMBDA",i_rep_section=icol, n_rep_val=n_rep, error=error)
-       CPPostcondition(n_rep /= 0,cp_failure_level,routinep,error,failure)
-    ENDIF
+    
+    CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE colvar_read
-
 
 !!****f* colvar/colvar_eval_f [1.0] *
 !!
@@ -229,7 +199,7 @@ CONTAINS
 !!     colvar_eval_f
 !!
 !!   FUNCTION
-!!     evaluates the force given and due to the given colvar
+!!     evaluates the force (dsdr) given and due to the given colvar
 !!
 !!   NOTES
 !!     -
@@ -243,8 +213,8 @@ CONTAINS
 !!     Alessandro Laio and fawzi
 !!
 !!*** **********************************************************************
-SUBROUTINE colvar_eval_f(colvar,force_env,error)
-    TYPE(colvar_type), INTENT(inout)         :: colvar
+SUBROUTINE colvar_eval_f(isubsys,icolvar,force_env,error)
+    INTEGER                                  :: isubsys,icolvar
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
@@ -252,7 +222,7 @@ SUBROUTINE colvar_eval_f(colvar,force_env,error)
     CHARACTER(len=*), PARAMETER :: routineN = 'colvar_eval_f', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
+    LOGICAL                                  :: failure,colvar_ok
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_subsystem_p_type), &
       DIMENSION(:), POINTER                  :: subsys
@@ -260,14 +230,17 @@ SUBROUTINE colvar_eval_f(colvar,force_env,error)
   failure=.FALSE.
   NULLIFY(subsys,cell)
   CALL force_env_get(force_env,subsys=subsys,cell=cell,error=error)
+  colvar_ok=ASSOCIATED(subsys(isubsys)%subsys%colvar)
+  CPAssert(colvar_ok,cp_failure_level,routineP,error,failure)
+  
   IF (.NOT. failure) THEN
-     SELECT CASE(colvar%type_id)
+     SELECT CASE(subsys(isubsys)%subsys%colvar(icolvar)%type_id)
      CASE (dist_colvar_id)
-        CALL dist_colvar(colvar,subsys,cell,error=error)
+        CALL dist_colvar(icolvar,subsys(isubsys)%subsys,cell,error=error)
      CASE (coord_colvar_id)
-        CALL coord_colvar(colvar,subsys,cell, error=error)
+        CALL coord_colvar(icolvar,subsys(isubsys)%subsys,cell, error=error)
      CASE (torsion_colvar_id)
-        CALL torsion_colvar(colvar,subsys,cell, error=error)
+        CALL torsion_colvar(icolvar,subsys(isubsys)%subsys,cell, error=error)
      CASE default
         CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
      END SELECT
@@ -289,10 +262,9 @@ END SUBROUTINE colvar_eval_f
 !!     Alessandro Laio, Fawzi Mohamed
 !!
 !!*** **********************************************************************
-  SUBROUTINE dist_colvar(colvar,subsys,cell,error)
-    TYPE(colvar_type)                        :: colvar
-    TYPE(cp_subsystem_p_type), &
-      DIMENSION(:), POINTER                  :: subsys
+  SUBROUTINE dist_colvar(icolvar,subsys,cell,error)
+    INTEGER                        :: icolvar
+    TYPE(cp_subsystem_type), POINTER         :: subsys
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
@@ -305,12 +277,14 @@ END SUBROUTINE colvar_eval_f
     REAL(dp)                                 :: r12, ss(3), xij(3), xpi(3), &
                                                 xpj(3)
     TYPE(particle_list_type), POINTER        :: particles_i
+    TYPE(colvar_type), POINTER               :: colvar
 
     failure=.FALSE.
     NULLIFY(particles_i)
+    colvar=>subsys%colvar(icolvar)
+
     CPPrecondition(colvar%type_id==dist_colvar_id,cp_failure_level,routineP,error,failure)
-    CALL cp_subsys_get(subsys(colvar%i_subsys)%subsys,&
-         particles=particles_i,error=error)
+    CALL cp_subsys_get(subsys,particles=particles_i,error=error)
 
     i=colvar%dist_param%i_at
     j=colvar%dist_param%j_at
@@ -342,10 +316,9 @@ END SUBROUTINE colvar_eval_f
 !!     Alessandro Laio, Fawzi Mohamed
 !!
 !!*** **********************************************************************
-  SUBROUTINE coord_colvar(colvar,subsys,cell,error)
-    TYPE(colvar_type)                        :: colvar
-    TYPE(cp_subsystem_p_type), &
-      DIMENSION(:), POINTER                  :: subsys
+  SUBROUTINE coord_colvar(icolvar,subsys,cell,error)
+    INTEGER                                  :: icolvar
+    TYPE(cp_subsystem_type), POINTER         :: subsys
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
@@ -353,6 +326,7 @@ END SUBROUTINE colvar_eval_f
     CHARACTER(len=*), PARAMETER :: routineN = 'coord_colvar', &
       routineP = moduleN//':'//routineN
 
+    TYPE(colvar_type), POINTER               :: colvar
     INTEGER                                  :: i, ii, jj, n_atoms_from, &
                                                 n_atoms_to, ndcrd, nncrd
     LOGICAL                                  :: failure
@@ -365,6 +339,7 @@ END SUBROUTINE colvar_eval_f
 !
 
     failure=.FALSE.
+    colvar=>subsys%colvar(icolvar)
     n_atoms_to=colvar%coord_param%n_atoms_to
     n_atoms_from=colvar%coord_param%n_atoms_from
     nncrd=colvar%coord_param%nncrd
@@ -372,8 +347,7 @@ END SUBROUTINE colvar_eval_f
     r_0=colvar%coord_param%r_0
     NULLIFY(particles_i)
     CPPrecondition(colvar%type_id==coord_colvar_id,cp_failure_level,routineP,error,failure)
-    CALL cp_subsys_get(subsys(colvar%i_subsys)%subsys,&
-         particles=particles_i,error=error)
+    CALL cp_subsys_get(subsys,particles=particles_i,error=error)
 
     ncoord=0.0_dp
     colvar%dsdr=0.0_dp
@@ -419,10 +393,9 @@ END SUBROUTINE colvar_eval_f
 !!     Alessandro Laio, Fawzi Mohamed
 !!
 !!*** **********************************************************************
-  SUBROUTINE torsion_colvar(colvar,subsys,cell,error)
-    TYPE(colvar_type)                        :: colvar
-    TYPE(cp_subsystem_p_type), &
-      DIMENSION(:), POINTER                  :: subsys
+  SUBROUTINE torsion_colvar(icolvar,subsys,cell,error)
+    INTEGER                                  :: icolvar
+    TYPE(cp_subsystem_type), POINTER         :: subsys
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
@@ -430,6 +403,7 @@ END SUBROUTINE colvar_eval_f
     CHARACTER(len=*), PARAMETER :: routineN = 'torsion_colvar', &
       routineP = moduleN//':'//routineN
 
+    TYPE(colvar_type), POINTER               :: colvar
     INTEGER                                  :: i, ii
     LOGICAL                                  :: failure
     REAL(dp) :: angle, cosine, dedphi, dedxia, dedxib, dedxic, dedxid, dedxt, &
@@ -445,10 +419,10 @@ END SUBROUTINE colvar_eval_f
 !
 
     failure=.FALSE.
+    colvar=>subsys%colvar(icolvar)
     NULLIFY(particles_i)
     CPPrecondition(colvar%type_id==torsion_colvar_id,cp_failure_level,routineP,error,failure)
-    CALL cp_subsys_get(subsys(colvar%i_subsys)%subsys,&
-         particles=particles_i,error=error)
+    CALL cp_subsys_get(subsys,particles=particles_i,error=error)
 
     DO ii=1,4
       i=colvar%torsion_param%i_at_tors(ii)
@@ -564,4 +538,4 @@ END SUBROUTINE colvar_eval_f
   END SUBROUTINE torsion_colvar
 !***************************************************************************
 
-END MODULE colvar
+END MODULE colvar_methods

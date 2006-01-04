@@ -1,6 +1,6 @@
 MODULE metadynamics_types
   USE colvar_types,                    ONLY: colvar_type, coord_colvar_type, &
-                                             dist_colvar_type,colvar_init,&
+                                             dist_colvar_type,&
                                              colvar_dealloc_ref,torsion_colvar_type
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_para_env,                     ONLY: cp_para_env_release
@@ -13,7 +13,8 @@ MODULE metadynamics_types
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: modulen='metadynamics_types'
 
-  PUBLIC :: hills_env_type, meta_env_type, meta_env_retain, meta_env_release
+  PUBLIC :: hills_env_type, meta_env_type, meta_env_retain, &
+            meta_env_release, metavar_type
 
   TYPE hills_env_type
      REAL(kind=dp) :: ww
@@ -22,6 +23,15 @@ MODULE metadynamics_types
      REAL(kind=dp), DIMENSION(:,:), POINTER :: ss_history
      LOGICAL :: restart_hills
   END TYPE hills_env_type
+
+  TYPE metavar_type
+     REAL(kind=dp) :: mass,lambda,ss, ss0, ff_s,vv, vvp, &
+                      cv_energy,delta_s,ff_hills
+     LOGICAL :: do_wall_p,do_wall_m
+     REAL(kind=dp) :: wall_p,wall_m
+     REAL(kind=dp) :: target
+     INTEGER :: icolvar,isubsys
+  END TYPE metavar_type
 
   TYPE meta_env_type
      INTEGER :: ref_count, id_nr
@@ -34,7 +44,7 @@ MODULE metadynamics_types
      INTEGER :: n_steps, colvar_file_unit_nr
      CHARACTER(len=default_path_length) :: colvar_file_name     
      TYPE(hills_env_type) :: hills_env
-     TYPE(colvar_type), DIMENSION(:), POINTER :: colvars
+     TYPE(metavar_type), POINTER, DIMENSION(:) :: metavar
      TYPE(cp_para_env_type), POINTER :: para_env
   END TYPE meta_env_type
 
@@ -114,11 +124,8 @@ SUBROUTINE meta_env_release(meta_env,error)
      meta_env%ref_count=meta_env%ref_count-1
      IF (meta_env%ref_count==0) THEN
         CALL cp_para_env_release(meta_env%para_env)
-        IF (ASSOCIATED(meta_env%colvars)) THEN
-           DO i=1,SIZE(meta_env%colvars)
-              CALL colvar_dealloc_ref(meta_env%colvars(i),error=error)
-           END DO
-           DEALLOCATE(meta_env%colvars,stat=stat)
+        IF (ASSOCIATED(meta_env%metavar)) THEN
+           DEALLOCATE(meta_env%metavar,stat=stat)
            CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
         END IF
         IF (ASSOCIATED(meta_env%hills_env%ss_history)) THEN

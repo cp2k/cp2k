@@ -28,6 +28,9 @@ MODULE cp_subsystem_methods
                                              atomic_kind_list_release,&
                                              atomic_kind_list_type
   USE atomic_kind_types,               ONLY: atomic_kind_type
+  USE colvar_types,                    ONLY: colvar_type,&
+                                             colvar_init
+  USE colvar_methods,                  ONLY: colvar_read
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_subsystem_types,              ONLY: cp_subsys_create,&
                                              cp_subsys_get,&
@@ -49,6 +52,9 @@ MODULE cp_subsystem_methods
                                              particle_list_release,&
                                              particle_list_type
   USE particle_types,                  ONLY: particle_type
+  USE input_section_types,             ONLY: section_type,&
+                                             section_vals_type,&
+                                             section_vals_get
   USE simulation_cell,                 ONLY: cell_retain,&
                                              cell_type
   USE timings,                         ONLY: timeset,&
@@ -68,10 +74,48 @@ MODULE cp_subsystem_methods
   LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
   CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='cp_subsystem_methods'
 
-  PUBLIC :: create_small_subsystem
+  PUBLIC :: create_small_subsystem, cp_subsys_read_colvar
 
 CONTAINS
 
+!!****f* cp_subsystem_methods/cp_subsys_read_colvar [1.0] *
+!!
+!!   NAME
+!!     cp_subsys_read_colvar
+!!
+!!   FUNCTION
+!!     reads the colvar section of the colvar
+!!
+!!   NOTES
+!!
+!!   INPUTS
+!!
+!!   AUTHOR
+!!
+!!   MODIFICATION HISTORY
+!!     2006.01 Joost VandeVondele
+!!
+!!*** **********************************************************************
+  SUBROUTINE cp_subsys_read_colvar(subsys,colvar_section,error)
+    TYPE(cp_subsystem_type), POINTER :: subsys
+    TYPE(section_vals_type), POINTER :: colvar_section
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_subsys_read_colvar', &
+      routineP = moduleN//':'//routineN
+    LOGICAL :: failure
+    INTEGER :: ig,ncol,stat
+    failure=.FALSE.
+    CALL section_vals_get(colvar_section,n_repetition=ncol,error=error)
+    ALLOCATE(subsys%colvar(ncol),stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    IF (.NOT. failure) THEN
+     DO ig= 1, ncol
+       CALL colvar_init(subsys%colvar(ig),error=error)
+       CALL colvar_read(subsys%colvar(ig),ig,colvar_section, error=error)
+     ENDDO
+    ENDIF
+  END SUBROUTINE cp_subsys_read_colvar
 !!****f* cp_subsystem_methods/create_small_subsystem [1.0] *
 !!
 !!   NAME

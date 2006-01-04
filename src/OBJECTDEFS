@@ -26,8 +26,8 @@ OBJECTS_GENERIC =\
  checkpoint_handler.o\
  coefficient_types.o\
  coefficients.o\
- colvar.o\
  colvar_types.o\
+ colvar_methods.o\
  constraint.o\
  convert_units.o\
  cp2k_runs.o\

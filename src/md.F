@@ -461,7 +461,8 @@ SUBROUTINE read_md_new_section(simpar, globenv, md_section, error)
      END IF
 
      tmp_section => section_vals_get_subs_vals(globenv%input_file,"GLOBAL",error=error)
-     CALL section_vals_val_get(globenv%input_file,"FORCE_EVAL%PRINT%TRAJECTORY%FORMAT",i_val=simpar%output_format,error=error)
+     CALL section_vals_val_get(globenv%input_file,"FORCE_EVAL%PRINT%TRAJECTORY%FORMAT", &
+                               i_val=simpar%output_format,error=error)
      CALL section_vals_val_get(tmp_section,"WALLTIME",r_val=simpar%walltime,error=error)
 
      tmp_section => section_vals_get_subs_vals(globenv%input_file,"FORCE_EVAL%SUBSYS%CONSTRAINT",error=error)

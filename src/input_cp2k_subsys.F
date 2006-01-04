@@ -31,6 +31,7 @@ MODULE input_cp2k_subsys
        section_vals_type,&
        section_vals_get_subs_vals, section_vals_get
   USE input_constants
+  USE input_cp2k_colvar,   ONLY: create_colvar_section  
   USE input_keyword_types, ONLY: keyword_type, keyword_create,&
        keyword_release
   USE input_val_types, ONLY: val_type, no_t, logical_t, integer_t, real_t, char_t,&
@@ -321,6 +322,10 @@ CONTAINS
 
        CALL create_topology_section(subsection,error=error)
        CALL section_add_subsection(section,subsection,error=error)
+       CALL section_release(subsection,error=error)
+
+       CALL create_colvar_section(subsection,error)
+       CALL section_add_subsection(section, subsection, error=error)
        CALL section_release(subsection,error=error)
 
     END IF
@@ -625,6 +630,10 @@ CONTAINS
        CALL section_add_subsection(section, subsection, error=error)
        CALL section_release(subsection,error=error)
 
+       CALL create_collective_section(subsection, error=error)
+       CALL section_add_subsection(section, subsection, error=error)
+       CALL section_release(subsection,error=error)
+
     END IF
 
   END SUBROUTINE create_constraint_section
@@ -693,6 +702,65 @@ CONTAINS
 
   END SUBROUTINE create_internal_section
 
+!!****f* input_cp2k_subsys/create_collective_section [1.0] *
+!!
+!!   NAME
+!!     create_collecive_section
+!!
+!!   FUNCTION
+!!     Create the constraint section for collective constraints
+!!
+!!   NOTES
+!!     -
+!!
+!!   ARGUMENTS
+!!     - section: the section to create
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     Joost VandeVondele [01.2006]
+!!
+!!*** **********************************************************************
+  SUBROUTINE create_collective_section(section,error)
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_collective_section', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
+
+    failure=.FALSE.
+    
+    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+    IF (.NOT. failure) THEN
+       CALL section_create(section,name="COLLECTIVE",&
+            description="This section is used to constraint collective (general) degrees of freedom"//&
+            "using general routines, and writing langrangian multipliers to file ",&
+            n_subsections=0, repeats=.TRUE., required=.TRUE.,&
+            error=error)
+       NULLIFY(keyword)
+
+       CALL keyword_create(keyword, name="COLVAR",&
+             description="Specifies which colvar to use ",&
+             usage="COLVAR {int}",&
+             type_of_var=integer_t, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="TARGET",&
+            description="Specifies the target value of the constrained collective variable (units depend on the colvar) ",&
+            usage="TARGET {real}",&
+            type_of_var=real_t, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+    END IF
+
+  END SUBROUTINE create_collective_section
 
 !!****f* input_cp2k_subsys/create_constraint_tors_section *
 !!

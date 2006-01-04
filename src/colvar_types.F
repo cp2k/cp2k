@@ -1,6 +1,4 @@
 MODULE colvar_types
-  USE cp_para_types,                   ONLY: cp_para_env_type
-  USE cp_para_env,                     ONLY: cp_para_env_release
   USE kinds,                           ONLY: default_path_length,&
                                              dp
 #include "cp_common_uses.h"
@@ -61,12 +59,6 @@ MODULE colvar_types
 !!     -
 !!
 !!   ATTRIBUTES
-!!     - index: index of this the colvar
-!!     - type_id: the type of this colvar
-!!     - mass_s mass of the collective variable
-!!     - lambda: lambda of the gaussian in the direction of this colvar
-!!     - dist_param: parameters for the distance collective variable
-!!       (meaningful only if type_id==dist_colvar_id)
 !!
 !!   AUTHOR
 !!     alessandro laio and fawzi mohamed
@@ -74,14 +66,11 @@ MODULE colvar_types
 !!   SOURCE
   !***************************************************************************
   TYPE colvar_type
-     INTEGER :: index,type_id
-     REAL(kind=dp) :: mass,lambda,ss, ss0, ff_s,vv, vvp, &
-                      cv_energy,delta_s,ff_hills
-     LOGICAL :: do_wall_p,do_wall_m
-     REAL(kind=dp) :: wall_p,wall_m
-     REAL(kind=dp), DIMENSION (:,:), POINTER :: dsdr
-     INTEGER, DIMENSION (:), POINTER :: i_atom
-     INTEGER :: n_atom_s,i_subsys
+     INTEGER :: type_id
+     REAL(kind=dp)                           :: ss   ! value of the colvar
+     REAL(kind=dp), DIMENSION (:,:), POINTER :: dsdr ! derivative of colvar 
+     INTEGER, DIMENSION (:), POINTER :: i_atom       ! mapping of dsdr
+     INTEGER                         :: n_atom_s
      TYPE(dist_colvar_type) :: dist_param
      TYPE(coord_colvar_type) :: coord_param
      TYPE(torsion_colvar_type) :: torsion_param
@@ -112,9 +101,8 @@ CONTAINS
 !!     alessandro laio and fawzi mohamed
 !!
 !!*** **********************************************************************
-SUBROUTINE colvar_init(colvar,index,error)
+SUBROUTINE colvar_init(colvar,error)
     TYPE(colvar_type), INTENT(inout)         :: colvar
-    INTEGER, INTENT(in)                      :: index
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -125,31 +113,20 @@ SUBROUTINE colvar_init(colvar,index,error)
 
   failure=.FALSE.
   
-  colvar%index=index
   colvar%type_id=no_colvar_id
-  colvar%mass=-HUGE(0.0_dp)
-  colvar%lambda=-HUGE(0.0_dp)
   colvar%dist_param%i_at=-HUGE(0)
   colvar%dist_param%j_at=-HUGE(0)
   colvar%torsion_param%i_at_tors(1)=-HUGE(0)
   colvar%torsion_param%i_at_tors(2)=-HUGE(0)
   colvar%torsion_param%i_at_tors(3)=-HUGE(0)
   colvar%torsion_param%i_at_tors(4)=-HUGE(0)
-  colvar%i_subsys=-HUGE(0)
   colvar%coord_param%n_atoms_from=-HUGE(0)
   colvar%coord_param%n_atoms_to=-HUGE(0)
   colvar%coord_param%nncrd=6
   colvar%coord_param%ndcrd=12
   colvar%coord_param%R_0=3.0_dp
   NULLIFY(colvar%coord_param%i_at_from,colvar%coord_param%i_at_to)
-
-  colvar%ss=0.0_dp
-  colvar%ss0=0.0_dp
-  colvar%ff_s=0.0_dp
-  colvar%vv=0.0_dp
-  colvar%vvp=0.0_dp
-  colvar%wall_p=0.0_dp
-  colvar%wall_m=0.0_dp
+  NULLIFY(colvar%i_atom,colvar%dsdr)
 END SUBROUTINE colvar_init
 !***************************************************************************
 
@@ -219,11 +196,7 @@ SUBROUTINE colvar_dealloc_ref(colvar,error)
   CASE default
      CPAssert(.FALSE.,cp_failure_level,routinep,error,failure)
   END SELECT
-  colvar%index=-HUGE(0)
   colvar%type_id=no_colvar_id
-  colvar%mass=-HUGE(0.0_dp)
-  colvar%lambda=-HUGE(0.0_dp)
-  colvar%delta_s=-HUGE(0.0_dp)
 END SUBROUTINE colvar_dealloc_ref
 
 END MODULE colvar_types

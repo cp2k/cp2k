@@ -1,7 +1,5 @@
-
 MODULE metadynamics
-  USE colvar,                          ONLY: colvar_eval_f,&
-                                             colvar_read
+  USE colvar_methods,                  ONLY: colvar_eval_f
   USE convert_units,                   ONLY: convert_to_cp2k_units
   USE cp_files,                        ONLY: open_file
   USE cp_para_env,                     ONLY: cp_para_env_retain
@@ -15,7 +13,8 @@ MODULE metadynamics
   USE machine,                         ONLY: m_flush
   USE message_passing,                 ONLY: mp_bcast
   USE metadynamics_types,              ONLY: hills_env_type,&
-                                             meta_env_type
+                                             meta_env_type,&
+                                             metavar_type
   USE particle_list_types,             ONLY: particle_list_type
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type,&
@@ -24,11 +23,10 @@ MODULE metadynamics
   USE colvar_types,                    ONLY: colvar_type,&
                                              coord_colvar_id,&
                                              dist_colvar_id,&
-                                             colvar_init,&
                                              no_colvar_id,&
                                              torsion_colvar_id
 #include "cp_common_uses.h"
-  
+
   IMPLICIT NONE
   PRIVATE 
 
@@ -109,12 +107,23 @@ SUBROUTINE metadyn_create(meta_env,n_colvar,dt,para_env,error)
     meta_env%hills_env%hills_file_name='HILLS'
 
     ! colvar
-    ALLOCATE(meta_env%colvars(n_colvar), stat=stat)
+    ALLOCATE(meta_env%metavar(n_colvar), stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
     DO i=1,n_colvar
-       CALL colvar_init(meta_env%colvars(i),index=i,error=error)
+       meta_env%metavar(i)%ss=0.0_dp
+       meta_env%metavar(i)%ss0=0.0_dp
+       meta_env%metavar(i)%ff_s=0.0_dp
+       meta_env%metavar(i)%vv=0.0_dp
+       meta_env%metavar(i)%vvp=0.0_dp
+       meta_env%metavar(i)%wall_p=0.0_dp
+       meta_env%metavar(i)%wall_m=0.0_dp
+       meta_env%metavar(i)%mass=-HUGE(0.0_dp)
+       meta_env%metavar(i)%lambda=-HUGE(0.0_dp)
+       meta_env%metavar(i)%icolvar=0
+       meta_env%metavar(i)%isubsys=0
+       meta_env%metavar(i)%do_wall_p=.FALSE.
+       meta_env%metavar(i)%do_wall_m=.FALSE.
     END DO
-
  END IF
 END SUBROUTINE metadyn_create
 !***************************************************************************
@@ -134,7 +143,7 @@ SUBROUTINE metadyn_read(meta_env,globenv,metadyn_section,error)
                                                 n_rep
     LOGICAL                                  :: explicit
     REAL(kind=dp)                            :: dt
-    TYPE(section_vals_type), POINTER         :: colvar_section, md_section
+    TYPE(section_vals_type), POINTER         :: metavar_section, md_section
 
   CALL section_vals_get(metadyn_section,explicit=explicit,error=error)
   IF (.NOT.explicit) RETURN
@@ -143,8 +152,8 @@ SUBROUTINE metadyn_read(meta_env,globenv,metadyn_section,error)
   md_section => section_vals_get_subs_vals(globenv%input_file,"MOTION%MD",error=error)
   CALL section_vals_val_get(md_section,"TIMESTEP",r_val=dt,error=error)
 
-  colvar_section => section_vals_get_subs_vals(metadyn_section,"COLVAR",error=error)
-  CALL section_vals_get(colvar_section,n_repetition=n_colvar,error=error)
+  metavar_section => section_vals_get_subs_vals(metadyn_section,"METAVAR",error=error)
+  CALL section_vals_get(metavar_section,n_repetition=n_colvar,error=error)
   CALL metadyn_create(meta_env,n_colvar=n_colvar,&
        dt=dt,para_env=globenv%para_env,error=error)
 
@@ -168,12 +177,12 @@ SUBROUTINE metadyn_read(meta_env,globenv,metadyn_section,error)
      meta_env%hills_env%hills_file_name="HILLS"
   END IF
   DO i= 1, n_colvar
-     CALL colvar_read(meta_env%colvars(i),meta_env%extended_lagrange,i,colvar_section,error=error)
+     CALL metavar_read(meta_env%metavar(i), meta_env%extended_lagrange,i, metavar_section,error=error)
   END DO
 
   IF (globenv % ionode .AND. globenv % print_level>=0) THEN
      iw = globenv % scr
-     WRITE ( iw, '( /A )' )           ' METADYN| Meta Dynamics Protocol '
+     WRITE ( iw, '( /A )' )          ' METADYN| Meta Dynamics Protocol '
      WRITE ( iw, '( A,T71,I10)' )    ' METADYN| Number of interval time steps to spawn hills',meta_env%hills_env%nt_hills
      IF (meta_env%extended_lagrange) THEN
         WRITE ( iw, '( A )' )        ' METADYN| Extended Lagrangian Scheme '
@@ -190,40 +199,87 @@ SUBROUTINE metadyn_read(meta_env,globenv,metadyn_section,error)
      
      DO i=1,n_colvar
         WRITE ( iw, '( A )')'          ----------------------------------------------------------------------'
-        WRITE ( iw, '( A,T71,I10)' )      ' COLVARS| Collective Variable Number',i
-        WRITE ( iw, '( A,T71,I10)' )      ' COLVARS| Type of collective variable',meta_env%colvars(i)%type_id
-        WRITE ( iw, '( A,T71,I10)' )      ' COLVARS| Subsys',meta_env%colvars(i)%i_subsys
-        WRITE ( iw, '( A,T71,F10.6)' )    ' COLVARS| Lambda Parameter',meta_env%colvars(i)%lambda
-        WRITE ( iw, '( A,T66,F15.6)' )    ' COLVARS| Collective Variable Mass',meta_env%colvars(i)%mass
-        WRITE ( iw, '( A,T71,F10.6)' )    ' COLVARS| Scaling factor',meta_env%colvars(i)%delta_s
-        IF (meta_env%colvars(i)%do_wall_p) &
-        WRITE ( iw, '( A,T61,F12.6)' )    ' COLVARS| Upper Wall Height',meta_env%colvars(i)%wall_p
-        IF (meta_env%colvars(i)%do_wall_m) &
-        WRITE ( iw, '( A,T61,F12.6)' )    ' COLVARS| Lower Wall Height',meta_env%colvars(i)%wall_m
-        SELECT CASE(meta_env%colvars(i)%type_id)
-        CASE(torsion_colvar_id)
-           WRITE ( iw, '( A,T61,4I5)' )   ' COLVARS| TORSION       >>> ATOMS:',meta_env%colvars(i)%torsion_param%i_at_tors
-        CASE(dist_colvar_id)
-           WRITE ( iw, '( A,T71,2I5)' )   ' COLVARS| BOND          >>> ATOMS:',meta_env%colvars(i)% dist_param%i_at,&                
-                meta_env%colvars(i)% dist_param%j_at
-        CASE(coord_colvar_id)
-           WRITE ( iw, '( A,T71,I10)' )  (' COLVARS| COORDINATION  >>> FROM ATOM:',meta_env%colvars(i)%coord_param%i_at_from(kk),&
-                kk=1,SIZE(meta_env%colvars(i)%coord_param%i_at_from))
-           WRITE ( iw, '( A,T71,I10)' )  (' COLVARS| COORDINATION  >>>   TO ATOM:',meta_env%colvars(i)%coord_param%i_at_to(kk),&
-                kk=1,SIZE(meta_env%colvars(i)%coord_param%i_at_to))
-           WRITE ( iw, '( A,T71,F10.5)' ) ' COLVARS| R0',meta_env%colvars(i)%coord_param%r_0
-           WRITE ( iw, '( A,T71,I10)' )   ' COLVARS| NN',meta_env%colvars(i)%coord_param%nncrd
-           WRITE ( iw, '( A,T71,I10)' )   ' COLVARS| ND',meta_env%colvars(i)%coord_param%ndcrd
-           WRITE ( iw, '( A )')'          ----------------------------------------------------------------------'
-        END SELECT
-     END DO
+        WRITE ( iw, '( A,T71,I10)' )      ' METAVARS| Collective Variable Number',meta_env%metavar(i)%icolvar
+        WRITE ( iw, '( A,T71,I10)' )      ' METAVARS| Subsys',meta_env%metavar(i)%isubsys
+        WRITE ( iw, '( A,T71,F10.6)' )    ' METAVARS| Lambda Parameter',meta_env%metavar(i)%lambda
+        WRITE ( iw, '( A,T66,F15.6)' )    ' METAVARS| Collective Variable Mass',meta_env%metavar(i)%mass
+        WRITE ( iw, '( A,T71,F10.6)' )    ' METAVARS| Scaling factor',meta_env%metavar(i)%delta_s
+        IF (meta_env%metavar(i)%do_wall_p) &
+        WRITE ( iw, '( A,T61,F12.6)' )    ' METAVARS| Upper Wall Height',meta_env%metavar(i)%wall_p
+        IF (meta_env%metavar(i)%do_wall_m) &
+        WRITE ( iw, '( A,T61,F12.6)' )    ' METAVARS| Lower Wall Height',meta_env%metavar(i)%wall_m
+     ENDDO
+     !   SELECT CASE(meta_env%colvars(i)%type_id)
+     !   CASE(torsion_colvar_id)
+     !      WRITE ( iw, '( A,T61,4I5)' )   ' COLVARS| TORSION       >>> ATOMS:',meta_env%colvars(i)%torsion_param%i_at_tors
+     !   CASE(dist_colvar_id)
+     !      WRITE ( iw, '( A,T71,2I5)' )   ' COLVARS| BOND          >>> ATOMS:',meta_env%colvars(i)% dist_param%i_at,&                
+     !           meta_env%colvars(i)% dist_param%j_at
+     !   CASE(coord_colvar_id)
+     !      WRITE ( iw, '( A,T71,I10)' )  (' COLVARS| COORDINATION  >>> FROM ATOM:',meta_env%colvars(i)%coord_param%i_at_from(kk),&
+     !           kk=1,SIZE(meta_env%colvars(i)%coord_param%i_at_from))
+     !      WRITE ( iw, '( A,T71,I10)' )  (' COLVARS| COORDINATION  >>>   TO ATOM:',meta_env%colvars(i)%coord_param%i_at_to(kk),&
+     !           kk=1,SIZE(meta_env%colvars(i)%coord_param%i_at_to))
+     !      WRITE ( iw, '( A,T71,F10.5)' ) ' COLVARS| R0',meta_env%colvars(i)%coord_param%r_0
+     !      WRITE ( iw, '( A,T71,I10)' )   ' COLVARS| NN',meta_env%colvars(i)%coord_param%nncrd
+     !      WRITE ( iw, '( A,T71,I10)' )   ' COLVARS| ND',meta_env%colvars(i)%coord_param%ndcrd
+     !      WRITE ( iw, '( A )')'          ----------------------------------------------------------------------'
+     !   END SELECT
+     !END DO
   END IF
 
 END SUBROUTINE metadyn_read
+!
+!
+! read the metavars, subsection of metadynamics
+!
+!
+SUBROUTINE metavar_read(metavar,extended_lagrange,icol,metavar_section,error)
+  TYPE(metavar_type), INTENT(INOUT)        :: metavar
+  LOGICAL                                  :: extended_lagrange
+  INTEGER, INTENT(IN)                      :: icol
+  TYPE(section_vals_type), OPTIONAL, &
+      POINTER                              :: metavar_section
+  TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                             :: error
 
+  CHARACTER(len=*), PARAMETER :: routineN = 'metavar_read', &
+      routineP = moduleN//':'//routineN
+  INTEGER                                  :: handle, n_rep
+  LOGICAL :: failure
+
+  failure=.FALSE.
+  CALL section_vals_val_get(metavar_section,"SUBSYS",i_rep_section=icol,i_val=metavar%isubsys,error=error)
+  CALL section_vals_val_get(metavar_section,"COLVAR",i_rep_section=icol,i_val=metavar%icolvar,error=error)
+  CALL section_vals_val_get(metavar_section,"MASS",i_rep_section=icol,r_val=metavar%mass,error=error)
+  CALL section_vals_val_get(metavar_section,"SCALE",i_rep_section=icol,r_val=metavar%delta_s,error=error)
+  CALL section_vals_val_get(metavar_section,"WALL_PLUS",i_rep_section=icol,n_rep_val=n_rep,error=error)
+  IF (n_rep /= 0) THEN
+         metavar%do_wall_p=.TRUE.
+         CALL section_vals_val_get(metavar_section,"WALL_PLUS",i_rep_section=icol,r_val=metavar%wall_p,error=error)
+  END IF
+  CALL section_vals_val_get(metavar_section,"WALL_MINUS",i_rep_section=icol,n_rep_val=n_rep,error=error)
+  IF (n_rep /= 0) THEN
+         metavar%do_wall_m=.TRUE.
+         CALL section_vals_val_get(metavar_section,"WALL_MINUS",i_rep_section=icol,r_val=metavar%wall_m,error=error)
+  END IF
+  CALL section_vals_val_get(metavar_section,"LAMBDA",i_rep_section=icol,r_val=metavar%lambda,error=error)
+  !
+  ! Check Input Inconsistencies..
+  !
+  IF(extended_lagrange)THEN
+      CALL section_vals_val_get(metavar_section,"MASS",i_rep_section=icol,  n_rep_val=n_rep, error=error)
+      CPPostcondition(n_rep /= 0,cp_failure_level,routinep,error,failure)
+      CALL section_vals_val_get(metavar_section,"SCALE",i_rep_section=icol, n_rep_val=n_rep, error=error)
+      CPPostcondition(n_rep /= 0,cp_failure_level,routinep,error,failure)
+      CALL section_vals_val_get(metavar_section,"LAMBDA",i_rep_section=icol, n_rep_val=n_rep, error=error)
+      CPPostcondition(n_rep /= 0,cp_failure_level,routinep,error,failure)
+  ENDIF
+
+END SUBROUTINE metavar_read
 
 SUBROUTINE metadyn_add_forces(meta_env,force_env,error)
-  !FM not safe with multiple non overlapping para_env for the subsys
+  !FM not safe with multiple non overlapping para_env for the subsys (sounds likely)
     TYPE(meta_env_type), POINTER             :: meta_env
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(cp_error_type), INTENT(inout), &
@@ -231,35 +287,35 @@ SUBROUTINE metadyn_add_forces(meta_env,force_env,error)
 
     CHARACTER(len=*), PARAMETER :: routinen = 'metadyn_add_forces', &
       routinep = modulen//':'//routinen
-    REAL(kind=dp), PARAMETER                 :: FACTEM = 315795.260
+    REAL(kind=dp), PARAMETER                 :: FACTEM = 315795.260 
 
-    INTEGER                                  :: i, i_c, ii
+    INTEGER                                  :: i, i_c, ii, isubsys,icolvar
     LOGICAL                                  :: failure
     REAL(kind=dp)                            :: dt, ekin_w, fac_t, fft, norm, &
                                                 scal, ss0_test, tol_ekin
-    TYPE(colvar_type), DIMENSION(:), POINTER :: colvars
-    TYPE(colvar_type), POINTER               :: CV
+    TYPE(colvar_type), POINTER, DIMENSION(:) :: colvar
+    TYPE(metavar_type), POINTER              :: CV
     TYPE(cp_subsystem_p_type), &
       DIMENSION(:), POINTER                  :: subsys
     TYPE(particle_list_type), POINTER        :: particles
 
-  NULLIFY(colvars,subsys)
+  NULLIFY(colvar,subsys)
   failure=.FALSE.
   CPPrecondition(ASSOCIATED(meta_env),cp_failure_level,routineP,error,failure)
   CALL force_env_get(force_env, subsys=subsys, error=error)
 
-  colvars => meta_env%colvars
   dt = meta_env%dt
   meta_env%n_steps=meta_env%n_steps+1
 
   ! compute ss and the derivative of ss with respect to the atomic positions
   DO i_c=1,meta_env%n_colvar
-     CV=>colvars(i_c)
-     CALL colvar_eval_f(CV,force_env,error=error)
-     IF(.not.meta_env%extended_lagrange) CV%ss0=CV%ss
-     IF(meta_env%n_steps==1)CV%ss0=CV%ss
+     isubsys=meta_env%metavar(i_c)%isubsys
+     icolvar=meta_env%metavar(i_c)%icolvar
+     CALL colvar_eval_f(isubsys,icolvar,force_env,error=error)
+     meta_env%metavar(i_c)%ss=subsys(isubsys)%subsys%colvar(icolvar)%ss
+     IF(.not.meta_env%extended_lagrange) meta_env%metavar(i_c)%ss0=meta_env%metavar(i_c)%ss
+     IF(meta_env%n_steps==1) meta_env%metavar(i_c)%ss0=meta_env%metavar(i_c)%ss
   ENDDO
-       
 
   ! history dependent forces (evaluated at s0)
   IF(meta_env%do_hills)THEN
@@ -270,28 +326,34 @@ SUBROUTINE metadyn_add_forces(meta_env,force_env,error)
      meta_env%ekin_s=0.0_dp
      meta_env%cv_energy=0.0_dp
      DO i_c=1,meta_env%n_colvar
-        CV=>colvars(i_c)
+        CV=>meta_env%metavar(i_c)
         CV%cv_energy=0.0_dp
         CV%ff_s=0.0_dp
+        isubsys=CV%isubsys
+        icolvar=CV%icolvar
         NULLIFY(particles)
-        CALL cp_subsys_get(subsys(CV%i_subsys)%subsys, particles=particles,error=error)
-        DO ii=1,CV%n_atom_s
-          i=CV%i_atom(ii)
-          particles%els(i)%f=particles%els(i)%f+ CV%ff_hills*CV%dsdr(:,ii)
+        CALL cp_subsys_get(subsys(isubsys)%subsys, colvar=colvar, &
+                                   particles=particles,error=error)
+        DO ii=1,colvar(icolvar)%n_atom_s
+          i=colvar(icolvar)%i_atom(ii)
+          particles%els(i)%f=particles%els(i)%f+CV%ff_hills*colvar(icolvar)%dsdr(:,ii)
         ENDDO
      ENDDO
   ELSE
      meta_env%ekin_s=0.0_dp
      DO i_c=1,meta_env%n_colvar
-        CV=>colvars(i_c)
+        CV=>meta_env%metavar(i_c)
         CV%cv_energy=0.5_dp*CV%lambda*(CV%ss-CV%ss0)**2
         CV%ff_s=CV%lambda* (CV%ss-CV%ss0)
+        isubsys=CV%isubsys
+        icolvar=CV%icolvar
         ! forces on the atoms
         NULLIFY(particles)
-        CALL cp_subsys_get(subsys(CV%i_subsys)%subsys,particles=particles,error=error)
-        DO ii=1,CV%n_atom_s
-          i=CV%i_atom(ii)
-          particles%els(i)%f=particles%els(i)%f- CV%ff_s*CV%dsdr(:,ii)
+        CALL cp_subsys_get(subsys(isubsys)%subsys, colvar=colvar, &
+                                   particles=particles,error=error)
+        DO ii=1,colvar(icolvar)%n_atom_s
+          i=colvar(icolvar)%i_atom(ii)
+          particles%els(i)%f=particles%els(i)%f- CV%ff_s*colvar(icolvar)%dsdr(:,ii)
         ENDDO
         !  velocity verlet on the s0
         fft=CV%ff_s+CV%ff_hills
@@ -306,7 +368,7 @@ SUBROUTINE metadyn_add_forces(meta_env,force_env,error)
        IF(ABS(ekin_w-meta_env%ekin_s)> tol_ekin)THEN
          fac_t=SQRT(ekin_w/MAX(meta_env%ekin_s,1.0E-8_dp))
          DO i_c=1,meta_env%n_colvar
-           CV=>colvars(i_c)
+           CV=>meta_env%metavar(i_c)
            CV%vvp=CV%vvp*fac_t
          ENDDO
          meta_env%ekin_s=ekin_w
@@ -314,7 +376,7 @@ SUBROUTINE metadyn_add_forces(meta_env,force_env,error)
      ENDIF
      ! reflecting boundary conditions on the s0  
      DO i_c=1,meta_env%n_colvar
-       CV=>colvars(i_c)
+       CV=>meta_env%metavar(i_c)
        ss0_test=CV%ss0+dt*CV%vvp
        IF((CV%do_wall_p .AND. ss0_test > CV%wall_p) .OR. &
           (CV%do_wall_m .AND. ss0_test < CV%wall_m))  THEN    
@@ -324,32 +386,35 @@ SUBROUTINE metadyn_add_forces(meta_env,force_env,error)
      ! update of ss0
      meta_env%cv_energy=0.0_dp
      DO i_c=1,meta_env%n_colvar
-       CV=>colvars(i_c)
+       CV=>meta_env%metavar(i_c)
        CV%ss0=CV%ss0+dt*CV%vvp
        meta_env%cv_energy=meta_env%cv_energy + CV%cv_energy
      ENDDO
   ENDIF
   ! reflecting boundary conditions on the ss  
   DO i_c=1,meta_env%n_colvar
-    CV=>colvars(i_c)
+    CV=>meta_env%metavar(i_c)
     IF((CV%do_wall_p .AND. CV%ss  > CV%wall_p) .OR. &
        (CV%do_wall_m .AND. CV%ss  < CV%wall_m))  THEN    
       NULLIFY(particles)
-      CALL cp_subsys_get(subsys(CV%i_subsys)%subsys, particles=particles,error=error)
+      isubsys=CV%isubsys
+      icolvar=CV%icolvar
+      CALL cp_subsys_get(subsys(isubsys)%subsys, colvar=colvar, &
+                                 particles=particles,error=error)
       scal=0.0_dp
       norm=0.0_dp
-      DO ii=1,CV%n_atom_s
-        i=CV%i_atom(ii)
-        scal=scal+particles%els(i)%v(1)*CV%dsdr(1,ii)
-        scal=scal+particles%els(i)%v(2)*CV%dsdr(2,ii)
-        scal=scal+particles%els(i)%v(3)*CV%dsdr(3,ii)
-        norm=norm+CV%dsdr(1,ii)**2
-        norm=norm+CV%dsdr(2,ii)**2
-        norm=norm+CV%dsdr(3,ii)**2
+      DO ii=1,colvar(icolvar)%n_atom_s
+        i=colvar(icolvar)%i_atom(ii)
+        scal=scal+particles%els(i)%v(1)*colvar(icolvar)%dsdr(1,ii)
+        scal=scal+particles%els(i)%v(2)*colvar(icolvar)%dsdr(2,ii)
+        scal=scal+particles%els(i)%v(3)*colvar(icolvar)%dsdr(3,ii)
+        norm=norm+colvar(icolvar)%dsdr(1,ii)**2
+        norm=norm+colvar(icolvar)%dsdr(2,ii)**2
+        norm=norm+colvar(icolvar)%dsdr(3,ii)**2
       ENDDO
-      DO ii=1,CV%n_atom_s
-        i=CV%i_atom(ii)
-        particles%els(i)%v(:)=particles%els(i)%v(:)-2.0_dp*CV%dsdr(:,ii)*scal/norm
+      DO ii=1,colvar(icolvar)%n_atom_s
+        i=colvar(icolvar)%i_atom(ii)
+        particles%els(i)%v(:)=particles%els(i)%v(:)-2.0_dp*colvar(icolvar)%dsdr(:,ii)*scal/norm
       ENDDO
     ENDIF
   ENDDO
@@ -360,7 +425,7 @@ SUBROUTINE metadyn_add_forces(meta_env,force_env,error)
        IF(meta_env%hills_env%restart_hills)THEN
           CALL open_file(TRIM(meta_env%colvar_file_name),file_status="OLD",&
              file_action="READ",unit_number=meta_env%colvar_file_unit_nr)
-          DO i=1,100000
+          DO i=1,1000000
              READ(meta_env%colvar_file_unit_nr,*,END=144)
           ENDDO
 144       CONTINUE
@@ -375,10 +440,10 @@ SUBROUTINE metadyn_add_forces(meta_env,force_env,error)
        END IF
     ENDIF
     WRITE(meta_env%colvar_file_unit_nr,'(f12.1,40f13.5)')dt*meta_env%n_steps, &
-          (colvars(i)%ss0,i=1,meta_env%n_colvar), &
-          (colvars(i)%ss,i=1,meta_env%n_colvar), &
-          (colvars(i)%ff_s,i=1,meta_env%n_colvar), &
-          (colvars(i)%ff_hills,i=1,meta_env%n_colvar)
+          (meta_env%metavar(i)%ss0,i=1,meta_env%n_colvar), &
+          (meta_env%metavar(i)%ss,i=1,meta_env%n_colvar), &
+          (meta_env%metavar(i)%ff_s,i=1,meta_env%n_colvar), &
+          (meta_env%metavar(i)%ff_hills,i=1,meta_env%n_colvar)
      CALL m_flush(meta_env%colvar_file_unit_nr)
   ENDIF
 END SUBROUTINE metadyn_add_forces
@@ -397,7 +462,7 @@ END SUBROUTINE metadyn_add_forces
     LOGICAL                                  :: failure, MASTER
     REAL(dp)                                 :: dfunc, dp2, dum
     REAL(dp), DIMENSION(:, :), POINTER       :: ss_history, tmp
-    TYPE(colvar_type), DIMENSION(:), POINTER :: colvars
+    TYPE(metavar_type), DIMENSION(:), POINTER :: colvars
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(hills_env_type), POINTER            :: hills_env
     REAL(dp)                                 :: ddp(meta_env%n_colvar)
@@ -406,7 +471,7 @@ END SUBROUTINE metadyn_add_forces
     hills_env => meta_env%hills_env
     logger => cp_error_get_logger(error)
     ss_history => hills_env%ss_history
-    colvars => meta_env%colvars
+    colvars => meta_env%metavar
     n_hills => hills_env%n_hills
     n_colvar=meta_env%n_colvar
     n_step=meta_env%n_steps

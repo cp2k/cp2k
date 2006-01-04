@@ -194,6 +194,7 @@ SUBROUTINE read_constraints_section(topology, globenv, constraint_section, error
   TYPE(section_vals_type), POINTER         ::  g3x3_section, g4x6_section, fix_atom_section,&
                                                internal_section, dist_section, angle_section,&
                                                tors_section, comb_section
+                                               
   LOGICAL :: explicit, failure, freeze_mm, freeze_qm
   INTEGER :: ncons, stat, isize, j, k, jj, icons, ig, n_rep
   INTEGER, DIMENSION(:), POINTER       :: ilist, tmplist

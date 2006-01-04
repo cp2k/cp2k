@@ -44,6 +44,7 @@ MODULE kg_environment
                                              write_qs_control
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_subsystem_types,              ONLY: cp_subsystem_type
+  USE cp_subsystem_methods,            ONLY: cp_subsys_read_colvar
   USE distribution_1d_types,           ONLY: distribution_1d_release,&
                                              distribution_1d_type
   USE distribution_2d_types,           ONLY: distribution_2d_type
@@ -501,13 +502,13 @@ CONTAINS
     TYPE(scf_control_type), POINTER          :: scf_control
     INTEGER, DIMENSION(2)                    :: added_mos
     TYPE(section_vals_type), POINTER         :: poisson_section,&
-                                                force_env_section
-    TYPE(cp_logger_type), POINTER            :: logger
+                                                force_env_section,&
+                                                colvar_section
+    TYPE(cp_logger_type), pointer            :: logger
     
-    NULLIFY(logger)
-    logger => cp_error_get_logger(error)
     failure=.FALSE.
 
+    logger => cp_error_get_logger(error)
     NULLIFY(qs_env,subsys,scf_control,cell,cell_ref,atomic_kind_set,&
             para_env,dft_control,distribution_2d,wf_history,qs_energy,qs_force,&
             poisson_section)
@@ -530,6 +531,12 @@ CONTAINS
                     scf_control=scf_control,&
                     subsys=subsys,&
                     error=error)
+
+    ! read colvars and add to subsystem
+    colvar_section => section_vals_get_subs_vals(globenv%input_file,&
+                              "FORCE_EVAL%SUBSYS%COLVAR",error=error)
+    CALL cp_subsys_read_colvar( subsys, colvar_section, error=error)
+
 
     CALL qs_env_create(qs_env, para_env=para_env, error=error)
 

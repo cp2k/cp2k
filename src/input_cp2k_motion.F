@@ -709,13 +709,111 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
-       CALL create_colvar_section(subsection,error)
+       CALL create_metavar_section(subsection,error)
        CALL section_add_subsection(section, subsection, error=error)
        CALL section_release(subsection,error=error)
 
     END IF
 
   END SUBROUTINE create_metadyn_section
+
+
+!!****f* input_cp2k/create_metavar_section *
+!!
+!!   NAME
+!!     create_metavar_section
+!!
+!!   FUNCTION
+!!     creates the metavar section
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     - section: the section to be created
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     teo
+!!
+!!*** **********************************************************************
+  SUBROUTINE create_metavar_section(section,error)
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_metavar_section', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
+    TYPE(section_type), POINTER              :: subsection
+
+    failure=.FALSE.
+    
+    IF (.NOT.failure) THEN
+       CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+       CALL section_create(section,name="METAVAR",&
+            description="This section specify the nature of the collective variables.",&
+            n_keywords=1, n_subsections=1, repeats=.TRUE., required=.TRUE.,&
+            error=error)
+        
+       NULLIFY(subsection,keyword)
+
+       CALL keyword_create(keyword, name="LAMBDA",&
+            description="Specifies the lambda parameter of the collective variable in the"//&
+            " extended lagrangian scheme.",&
+            usage="LAMBDA {real}",type_of_var=real_t,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="MASS",&
+            description="Specifies the mass parameter of the collective variable in the"//&
+            " extended lagrangian scheme.",&
+            usage="MASS {real}",unit_str='amu',&
+            default_r_val=0.0_dp,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="SCALE",&
+            description="Specifies the scale factor for the following collective variable.",&
+            usage="SCALE {real}",&
+            default_r_val=1.0_dp,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="WALL_PLUS",&
+            variants=(/"WALLP"/),&
+            description="Activates the reflective wall on the upper limit of the collective variable.",&
+            usage="WALL_PLUS {real}",type_of_var=real_t,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="WALL_MINUS",&
+            variants=(/"WALLM"/),&
+            description="Activates the reflective wall on the lower limit of the collective variable.",&
+            usage="WALL_MINUS {real}",type_of_var=real_t,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="COLVAR",&
+            description="Specifies the colvar on which to apply metadynamics.",&
+            usage="COLVAR {integer}", type_of_var=integer_t, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="SUBSYS",&
+            description="Specifies the subsystem to which the colvar belongs. Default 1.",&
+            usage="SUBSYS {integer}",&
+            default_i_val=1,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)       
+    
+    END IF
+
+  END SUBROUTINE create_metavar_section
+
 
 !!****f* input_cp2k/create_md_section *
 !!

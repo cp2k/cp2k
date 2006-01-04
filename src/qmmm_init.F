@@ -33,8 +33,7 @@ MODULE qmmm_init
                                              set_atomic_kind
   USE cp_output_handling, ONLY: cp_print_key_should_output, cp_p_file
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE cp_subsystem_types,              ONLY: cp_subsys_create,&
-                                             cp_subsys_get,&
+  USE cp_subsystem_types,              ONLY: cp_subsys_get,&
                                              cp_subsys_release,&
                                              cp_subsys_set,&
                                              cp_subsystem_p_type,&

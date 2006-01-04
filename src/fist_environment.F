@@ -30,6 +30,7 @@ MODULE fist_environment
                                              cp_subsys_set,&
                                              cp_subsys_release,&
                                              cp_subsystem_type
+  USE cp_subsystem_methods,            ONLY: cp_subsys_read_colvar
   USE distribution_1d_types,           ONLY: distribution_1d_release,&
                                              distribution_1d_type
   USE distribution_methods,            ONLY: distribute_molecules_1d
@@ -150,7 +151,9 @@ SUBROUTINE fist_init ( fist_env, globenv, error )
   TYPE ( ewald_environment_type ), POINTER :: ewald_env
   TYPE ( fist_nonbond_env_type ), POINTER ::  fist_nonbond_env
   INTEGER                                  :: handle
-  TYPE(section_vals_type), POINTER         :: cell_section, poisson_section
+  TYPE(section_vals_type), POINTER         :: cell_section, &
+                                              poisson_section, &
+                                              colvar_section
 ! Local parameters 
   REAL(KIND=dp), DIMENSION(3)              :: abc
   CHARACTER(LEN=*), PARAMETER :: routine_name = "fist_init"
@@ -170,6 +173,11 @@ SUBROUTINE fist_init ( fist_env, globenv, error )
   poisson_section => section_vals_get_subs_vals(globenv%input_file,&
        "FORCE_EVAL%MM%POISSON_MM",error=error)
   CALL cp_subsys_create ( subsystem, para_env = globenv % para_env, error = error )
+
+  ! read colvars and add to subsystem
+  colvar_section => section_vals_get_subs_vals(globenv%input_file,&
+       "FORCE_EVAL%SUBSYS%COLVAR",error=error)
+  CALL cp_subsys_read_colvar( subsystem, colvar_section, error=error)
 
   CALL read_cell( cell, cell_ref, globenv, use_ref_cell = use_ref_cell, error=error,&
        cell_section=cell_section)

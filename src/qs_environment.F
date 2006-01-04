@@ -62,6 +62,7 @@ MODULE qs_environment
                                              cp_subsys_release,&
                                              cp_subsys_set,&
                                              cp_subsystem_type
+  USE cp_subsystem_methods,            ONLY: cp_subsys_read_colvar
   USE distribution_1d_types,           ONLY: distribution_1d_release,&
                                              distribution_1d_type
   USE distribution_methods,            ONLY: distribute_molecules_1d
@@ -206,16 +207,15 @@ CONTAINS
       POINTER                                :: particle_set
     TYPE(section_vals_type), POINTER         :: force_env_section,&
                                                 cell_section,&
-                                                harris_section
+                                                harris_section,&
+                                                colvar_section
     REAL(kind=dp), dimension(3)              :: abc
     LOGICAL                                  :: my_qmmm
-    TYPE(cp_logger_type), pointer            :: logger
 
     NULLIFY(my_subsystem, molecule_kind_set, molecule_set, atomic_kind_set,&
          particle_set,atomic_kinds,particles,mols,mol_kinds,my_cell,my_cell_ref,&
          cell_section, harris_section)
     
-    logger => cp_error_get_logger(error)
     force_env_section => section_vals_get_subs_vals(globenv%input_file,&
          "FORCE_EVAL",error=error)
     cell_section => section_vals_get_subs_vals(force_env_section,&
@@ -262,6 +262,11 @@ CONTAINS
        CALL read_atomic_kind_set(my_subsystem%atomic_kinds%els, globenv)
     ELSE
        CALL cp_subsys_create(my_subsystem,para_env=globenv%para_env,error=error)
+
+       colvar_section => section_vals_get_subs_vals(globenv%input_file,&
+                                 "FORCE_EVAL%SUBSYS%COLVAR",error=error)
+       CALL cp_subsys_read_colvar( my_subsystem, colvar_section, error=error)
+
 
        !   *** Read the particle coordinates and allocate the atomic kind, ***
        !   *** the molecule kind, and the molecule data structures         ***

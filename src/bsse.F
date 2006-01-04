@@ -51,8 +51,7 @@ MODULE bsse
                                              do_atom,&
                                              do_farming,&
                                              do_test
-  USE cp_subsystem_types,              ONLY: cp_subsys_create,&
-                                             cp_subsys_get,&
+  USE cp_subsystem_types,              ONLY: cp_subsys_get,&
                                              cp_subsys_release,&
                                              cp_subsys_set,&
                                              cp_subsystem_p_type,&

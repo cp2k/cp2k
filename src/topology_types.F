@@ -119,6 +119,8 @@ MODULE topology_types
      REAL(KIND=dp), POINTER :: const_g46_dad(:)
      REAL(KIND=dp), POINTER :: const_g46_dbd(:)
      REAL(KIND=dp), POINTER :: const_g46_dcd(:)
+     ! Collectives
+     INTEGER          :: ncollective
   END TYPE constraint_info_type
 
   TYPE topology_parameters_type
@@ -350,7 +352,6 @@ SUBROUTINE init_constraint(constraint_info)
   NULLIFY(constraint_info%const_g46_dad)
   NULLIFY(constraint_info%const_g46_dbd)
   NULLIFY(constraint_info%const_g46_dcd)
-
 END SUBROUTINE init_constraint
 
 !******************************************************************************
@@ -574,7 +575,7 @@ SUBROUTINE deallocate_constraint(constraint_info, error)
   CHARACTER(len=*), PARAMETER :: routineN = 'deallocate_constraint', &
        routineP = moduleN//':'//routineN
   LOGICAL :: failure
-  integer :: stat
+  integer :: stat,i
 
   failure = .FALSE.
   IF (.NOT.failure) THEN
@@ -722,7 +723,6 @@ SUBROUTINE deallocate_constraint(constraint_info, error)
      END IF
   END IF
 END SUBROUTINE deallocate_constraint
-
 
 END MODULE topology_types
 
