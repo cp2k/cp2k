@@ -13,6 +13,8 @@ useParseRe=re.compile(
     r" *use +(?P<module>[a-zA-Z_][a-zA-Z_0-9]*)(?P<only> *, *only *:)? *(?P<imports>.*)$",
     flags=re.IGNORECASE)
 commonUsesRe=re.compile("^#include *\"cp_common_uses.h\"")
+localNameRe=re.compile(" *(?P<localName>[a-zA-Z_0-9]+)(?: *= *> *[a-zA-Z_0-9]+)? *$")
+
 def readFortranLine(infile):
     """Reads a group of connected lines (connected with &)
     returns a touple with the joined line, and a list with the original lines.
@@ -617,12 +619,17 @@ def prepareImplicitUses(modules):
     wich is true if the whole mosule is implicitly present"""
     mods={}
     for m in modules:
-        if (not mods.has_key(m['module'])):
+        m_name=m['module'].lower()
+        if (not mods.has_key(m_name)):
             mods[m['module']]={'_WHOLE_':0}
-        m_att=mods[m['module']]
+        m_att=mods[m_name]
         if m.has_key('only'):
             for k in m['only']:
-                m_att[k]=1
+                m=localNameRe.match(k)
+                if not m:
+                    raise SyntaxError('could not parse use only:'+repr(k))
+                impAtt=m.group('localName').lower()
+                m_att[impAtt]=1
         else:
             m_att['_WHOLE_']=1
     return mods
@@ -634,12 +641,11 @@ def cleanUse(modulesDict,rest,implicitUses=None,logFile=sys.stdout):
                 "cp_failure_level":1,"cp_warning_level":1,"cp_note_level":1,
                 "cp_fatal_level":1,"cp_logger_type":1,"timeset":1,"timestop":1,
                 "dp":1,"cp_error_get_logger":1, "cp_error_message":1}
-    localNameRe=re.compile(" *(?P<localName>[a-zA-Z_0-9]+)(?: *= *> *[a-zA-Z_0-9]+)? *$")
     modules=modulesDict['modules']
     rest=rest.lower()
     for i in range(len(modules)-1,-1,-1):
         m_att={}
-        m_name=modules[i]['module']
+        m_name=modules[i]['module'].lower()
         if implicitUses and implicitUses.has_key(m_name):
             m_att=implicitUses[m_name]
         if m_att.has_key('_WHOLE_') and m_att['_WHOLE_']:
