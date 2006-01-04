@@ -41,7 +41,6 @@ MODULE mc_ge_moves
   USE mc_control,                      ONLY: mc_create_force_env
   USE mc_coordinates,                  ONLY: generate_cbmc_swap_config,&
                                              get_center_of_mass,&
-!                                             mc_classical_energy,&
                                              check_for_overlap,&
                                              mc_coordinate_fold
   USE mc_misc,                         ONLY: mc_make_dat_file

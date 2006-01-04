@@ -34,8 +34,6 @@ MODULE mc_ensembles
   USE mc_control,                      ONLY: write_mc_restart,&
                                              mc_create_bias_force_env
   USE mc_coordinates,                  ONLY: find_mc_test_molecule,&
-!                                             get_water_data,&
-!                                             mc_classical_energy,&
                                              check_for_overlap,&
                                              create_discrete_array
   USE mc_environment_types,            ONLY: get_mc_env,&

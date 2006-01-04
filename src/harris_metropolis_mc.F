@@ -313,10 +313,8 @@ CONTAINS
                                                 e_kinetic, &
                                                 v2, &
                                                 mass, &
-                                                !Ekin, &
                                                 Ekin_prev, &
                                                 Ekin_new, &
-                                                !Epot, &
                                                 Epot_prev, &
                                                 Epot_new, &
                                                 Econs, &

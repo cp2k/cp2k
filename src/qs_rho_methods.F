@@ -48,7 +48,6 @@ MODULE qs_rho_methods
                                              replicate_matrix_structure, &
                                              replicate_matrix, &
                                              copy_matrix, &
-                                             !transfer_matrix, &
                                              add_matrices
   USE timings,                         ONLY: timeset,&
                                              timestop
