@@ -631,8 +631,8 @@ def writeUseShort(modules,file):
             uLine.append("  USE "+m['module'])
         writeInCols(uLine,7,79,0,file)
         if m['comments']:
-            outFile.write("\n")
-            outFile.write('\n'.join(m['comments']))
+            file.write("\n")
+            file.write('\n'.join(m['comments']))
         file.write("\n")
 
 def prepareImplicitUses(modules):
