@@ -12,7 +12,7 @@ varRe=re.compile(r" *(?P<var>[a-zA-Z_0-9]+) *(?P<rest>(?:\((?P<param>(?:[^()]+|\
 useParseRe=re.compile(
     r" *use +(?P<module>[a-zA-Z_][a-zA-Z_0-9]*)(?P<only> *, *only *:)? *(?P<imports>.*)$",
     flags=re.IGNORECASE)
-
+commonUsesRe=re.compile("^#include *\"cp_common_uses.h\"")
 def readFortranLine(infile):
     """Reads a group of connected lines (connected with &)
     returns a touple with the joined line, and a list with the original lines.
@@ -536,6 +536,7 @@ def parseUse(inFile):
     preComments=[]
     modules=[]
     origLines=[]
+    commonUses=""
     while 1:
         (jline,comments,lines)=readFortranLine(inFile)
         lineNr=lineNr+len(lines)
@@ -559,12 +560,14 @@ def parseUse(inFile):
         elif jline and not jline.isspace():
             break
         else:
-            if len(modules)==0:
+            if comments and commonUsesRe.match(comments):
+                commonUses="".join(lines)
+            elif len(modules)==0:
                 preComments.append(("".join(lines)))
             elif comments:
                 modules[-1]['comments'].append(comments)
         
-    return {'modules':modules,'preComments':preComments,
+    return {'modules':modules,'preComments':preComments,'commonUses':commonUses,
             'postLine':"".join(lines),'origLines':origLines[:-1]}
 
 def normalizeModules(modules):
@@ -608,7 +611,23 @@ def writeUseLong(modules,outFile):
             outFile.write('\n'.join(m['comments']))
         outFile.write("\n")
 
-def cleanUse(modulesDict,rest,logFile=sys.stdout):
+def prepareImplicitUses(modules):
+    """Transforms a modulesDict into an implictUses (dictionary of module names
+    each containing a dictionary with the only, and the special key '_WHOLE_'
+    wich is true if the whole mosule is implicitly present"""
+    mods={}
+    for m in modules:
+        if (not mods.has_key(m['module'])):
+            mods[m['module']]={'_WHOLE_':0}
+        m_att=mods[m['module']]
+        if m.has_key('only'):
+            for k in m['only']:
+                m_att[k]=1
+        else:
+            m_att['_WHOLE_']=1
+    return mods
+
+def cleanUse(modulesDict,rest,implicitUses=None,logFile=sys.stdout):
     """Removes the unneded modules (the ones that are not used in rest)"""
     global rUse
     exceptions={"cp_a_l":1,"cp_to_string":1,"cp_error_type":1,"cp_assert":1,
@@ -619,17 +638,29 @@ def cleanUse(modulesDict,rest,logFile=sys.stdout):
     modules=modulesDict['modules']
     rest=rest.lower()
     for i in range(len(modules)-1,-1,-1):
-        if modules[i].has_key("only"):
+        m_att={}
+        m_name=modules[i]['module']
+        if implicitUses and implicitUses.has_key(m_name):
+            m_att=implicitUses[m_name]
+        if m_att.has_key('_WHOLE_') and m_att['_WHOLE_']:
+            rUse+=1
+            logFile.write("removed USE of module "+m_name+"\n")
+            del modules[i]
+        elif modules[i].has_key("only"):
             els=modules[i]['only']
             for j in range(len(els)-1,-1,-1):
                 m=localNameRe.match(els[j])
                 if not m:
                     raise SyntaxError('could not parse use only:'+repr(els[j]))
                 impAtt=m.group('localName').lower()
-                if not exceptions.has_key(impAtt):
+                if m_att.has_key(impAtt):
+                    rUse+=1
+                    logFile.write("removed USE "+m_name+", only: "+repr(els[j])+"\n")
+                    del els[j]
+                elif not exceptions.has_key(impAtt):
                     if findWord(impAtt,rest)==-1:
                         rUse+=1
-                        logFile.write("removed USE "+repr(els[j])+"\n")
+                        logFile.write("removed USE "+m_name+", only: "+repr(els[j])+"\n")
                         del els[j]
             if len(modules[i]['only'])==0:
                 if modules[i]['comments']:
@@ -642,6 +673,8 @@ def rewriteFortranFile(inFile,outFile,logFile=sys.stdout):
     import os.path
     moduleRe=re.compile(r" *module (?P<moduleName>[a-zA-Z_][a-zA-Z_0-9]*) *(?:!.*)?$",
                         flags=re.IGNORECASE)
+    commonUsesIncludeFilepath=os.path.join(
+        os.path.split(os.path.abspath(inFile.name))[0],"cp_common_uses.h")
     coreLines=[]
     while 1:
         line=inFile.readline()
@@ -671,14 +704,31 @@ def rewriteFortranFile(inFile,outFile,logFile=sys.stdout):
             coreLines.extend(routine['declarations'])
             coreLines.extend(routine['strippedCore'])
         rest="".join(coreLines)
-        if re.search('^#',"".join(modulesDict['origLines']),re.MULTILINE):
+        nonStPrep=0
+        for line in modulesDict['origLines']:
+            if (re.search('^#',line) and not commonUsesRe.match(line)):
+                print 'noMatch',line
+                nonStPrep=1
+        if nonStPrep:
             logFile.write("*** use statements contains preprocessor directives, not cleaning ***")
             outFile.writelines(modulesDict['origLines'])
         else:
-            cleanUse(modulesDict,rest,logFile)
+            implicitUses=None
+            if modulesDict['commonUses']:
+                try:
+                    f=file(commonUsesIncludeFilepath)
+                    implicitUsesRaw=parseUse(f)
+                    f.close()
+                    implicitUses=prepareImplicitUses(implicitUsesRaw['modules'])
+                except:
+                    print ("ERROR trying to parse use statements contained in common",
+                           "uses precompiler file ", commonUsesIncludeFilepath)
+                    raise
+            cleanUse(modulesDict,rest,implicitUses=implicitUses,logFile=logFile)
             normalizeModules(modulesDict['modules'])
             outFile.writelines(modulesDict['preComments'])
             writeUseLong(modulesDict['modules'],outFile)
+            outFile.write(modulesDict['commonUses'])
             if modulesDict['modules']:
                 outFile.write('\n')
         outFile.write(modulesDict['postLine'])
