@@ -663,7 +663,7 @@ MODULE qs_rho0_ggrid
 !$OMP private(lshell,is,iso,hab,hdab,hadb,hab_sph,hdab_sph)&
 !$OMP private(lx,ly,lz,ic,ico,Qlm)&
 !$OMP private(iset1,iset2,ipgf1,ipgf2,n1,n2,m1,m2,ig1,ig2,iso1,iso2)&
-!$OMP private(force_tmp,rho_atom,int_local_h,int_local_s)&
+!$OMP private(force_tmp,rho_atom,int_local_h,int_local_s,icg,ispin)&
 !$OMP shared(npme,tasks,atom_list,particle_set,cell,pab,rs_v,ikind) &
 !$OMP shared(habt,hdabt,hadbt,hab_spht,hdab_spht)&
 !$OMP shared(cube_info,l_info,eps_rho_rspace,zet0_s,l0_ikind) &
