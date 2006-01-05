@@ -600,47 +600,55 @@ def normalizeModules(modules):
             for i in range(len(m['only'])-1,0,-1):
                 if m['only'][i-1]==m['only'][i]: del m['only'][i]
 
-def writeUseLong(modules,outFile):
+def writeUses(modules,outFile):
+    """Writes the use declaration using a long or short form depending on how
+    many only statements there are"""
     for m in modules:
-        if m.has_key('only'):
-            outFile.write("  USE "+m['module']+","+
-                          string.rjust('ONLY: ',38-len(m['module'])))
-            if m['only']: outFile.write(m['only'][0])
-            for i in range(1,len(m['only'])):
-                outFile.write(",&\n"+string.ljust("",45)+m['only'][i])
+        if m.has_key('only') and len(m['only'])>8:
+            writeUseShort(m,outFile)
         else:
-            outFile.write("  USE "+m['module'])
-            if m.has_key('renames') and m['renames']:
-                outFile.write(","+string.ljust("",38)+
-                              m['renames'][0])
-                for i in range(1,len(m['renames'])):
-                    outFile.write(",&\n"+string.ljust("",45)+m['renames'][i])
-        if m['comments']:
-            outFile.write("\n")
-            outFile.write('\n'.join(m['comments']))
-        outFile.write("\n")
+            writeUseLong(m,outFile)
 
-def writeUseShort(modules,file):
+def writeUseLong(m,outFile):
+    """Writes a use declaration in a nicer, but longer way"""
+    if m.has_key('only'):
+        outFile.write("  USE "+m['module']+","+
+                      string.rjust('ONLY: ',38-len(m['module'])))
+        if m['only']: outFile.write(m['only'][0])
+        for i in range(1,len(m['only'])):
+            outFile.write(",&\n"+string.ljust("",45)+m['only'][i])
+    else:
+        outFile.write("  USE "+m['module'])
+        if m.has_key('renames') and m['renames']:
+            outFile.write(","+string.ljust("",38)+
+                          m['renames'][0])
+            for i in range(1,len(m['renames'])):
+                outFile.write(",&\n"+string.ljust("",45)+m['renames'][i])
+    if m['comments']:
+        outFile.write("\n")
+        outFile.write('\n'.join(m['comments']))
+    outFile.write("\n")
+
+def writeUseShort(m,file):
     """Writes a use declaration in a compact way"""
-    for m in modules:
-        uLine=[]
-        if m.has_key('only'):
-            uLine.append("  USE "+m['module']+", ONLY: ")
-            for k in m['only'][:-1]:
-                uLine.append(k+", ")
-            uLine.append(m['only'][-1])
-        elif m.has_key('renames') and m['renames']:
-            uLine.append("  USE "+m['module']+", ")
-            for k in m['renames'][:-1]:
-                uLine.append(k+", ")
-            uLine.append(m['renames'][-1])
-        else:
-            uLine.append("  USE "+m['module'])
-        writeInCols(uLine,7,79,0,file)
-        if m['comments']:
-            file.write("\n")
-            file.write('\n'.join(m['comments']))
+    uLine=[]
+    if m.has_key('only'):
+        uLine.append("  USE "+m['module']+", ONLY: ")
+        for k in m['only'][:-1]:
+            uLine.append(k+", ")
+        uLine.append(m['only'][-1])
+    elif m.has_key('renames') and m['renames']:
+        uLine.append("  USE "+m['module']+", ")
+        for k in m['renames'][:-1]:
+            uLine.append(k+", ")
+        uLine.append(m['renames'][-1])
+    else:
+        uLine.append("  USE "+m['module'])
+    writeInCols(uLine,7,79,0,file)
+    if m['comments']:
         file.write("\n")
+        file.write('\n'.join(m['comments']))
+    file.write("\n")
 
 def prepareImplicitUses(modules):
     """Transforms a modulesDict into an implictUses (dictionary of module names
@@ -762,7 +770,7 @@ def rewriteFortranFile(inFile,outFile,logFile=sys.stdout):
             cleanUse(modulesDict,rest,implicitUses=implicitUses,logFile=logFile)
             normalizeModules(modulesDict['modules'])
             outFile.writelines(modulesDict['preComments'])
-            writeUseShort(modulesDict['modules'],outFile)
+            writeUses(modulesDict['modules'],outFile)
             outFile.write(modulesDict['commonUses'])
             if modulesDict['modules']:
                 outFile.write('\n')
