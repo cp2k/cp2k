@@ -20,11 +20,12 @@ def readFortranLine(infile):
     returns a touple with the joined line, and a list with the original lines.
     Doesn't support multiline character constants!"""
     lineRe=re.compile(
-        r"(?:(?P<preprocessor>#.*\n?)| *(&)?(?P<core>(?:!\$|[^&!\"']+|\"[^\"]*\"|'[^']*')*)(?P<continue>&)? *(?P<comment>!.*\n?)?\n?)",#$
+        r"(?:(?P<preprocessor>#.*\n?)| *(&)?(?P<core>(?:!\$|[^&!\"']+|\"[^\"]*\"|'[^']*')*)(?P<continue>&)? *(?P<comment>!.*)?\n?)",#$
         re.IGNORECASE)
     joinedLine=""
     comments=None
     lines=[]
+    continuation=0
     while 1:
         line=infile.readline()
         if not line: break
@@ -37,14 +38,17 @@ def readFortranLine(infile):
             lines.append(line)
             comments=line
             break
-        joinedLine+=m.group("core")
+        coreAtt=m.group("core")
+        joinedLine+=coreAtt
+        if coreAtt and not coreAtt.isspace(): continuation=0
+        if m.group("continue"): continuation=1
         lines.append(line)
         if m.group("comment"):
             if comments:
-                comments+=m.group("comment")
+                comments+="\n"+m.group("comment")
             else:
                 comments=m.group("comment")
-        if not m.group("continue"): break
+        if not continuation: break
     return (joinedLine,comments,lines)
     
 def parseRoutine(inFile):
@@ -516,6 +520,7 @@ def cleanDeclarations(routine,logFile=sys.stdout):
         for comment in routine['declComments']:
             if not commentToRemoveRe.match(comment):
                 newDecl.write(comment)
+                newDecl.write("\n")
                 wrote=1
         if wrote:
             newDecl.write("\n")
@@ -547,6 +552,8 @@ def parseUse(inFile):
         # parse use
         m=useParseRe.match(jline)
         if m:
+            if comments:
+                print "jline",jline,"lines",lines
             useAtt={'module':m.group('module'),'comments':[]}
             
             if m.group('only'):
@@ -614,7 +621,7 @@ def writeUseLong(modules,outFile):
         outFile.write("\n")
 
 def writeUseShort(modules,file):
-    """Writes a declaration in a compact way"""
+    """Writes a use declaration in a compact way"""
     for m in modules:
         uLine=[]
         if m.has_key('only'):
