@@ -633,10 +633,12 @@ def writeUseShort(m,file):
     """Writes a use declaration in a compact way"""
     uLine=[]
     if m.has_key('only'):
-        uLine.append("  USE "+m['module']+", ONLY: ")
+        file.write("  USE "+m['module']+","+
+                   string.rjust('ONLY: &\n',40-len(m['module'])))
         for k in m['only'][:-1]:
             uLine.append(k+", ")
         uLine.append(m['only'][-1])
+        uLine[0]=" "*7+uLine[0]
     elif m.has_key('renames') and m['renames']:
         uLine.append("  USE "+m['module']+", ")
         for k in m['renames'][:-1]:
