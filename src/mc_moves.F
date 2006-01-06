@@ -1181,8 +1181,8 @@ CONTAINS
       ELSE
 ! now for the not discrete volume move
 !!!!!!!!!!!!!!!! for E_V curves
-         vol_dis=rmvolume*(rand-0.5E0_dp)*2.0E0_dp
-!     vol_dis=5.0E0_dp/angstrom**3
+!         vol_dis=rmvolume*(rand-0.5E0_dp)*2.0E0_dp
+         vol_dis=5.0E0_dp/angstrom**3
 
          new_cell_length(1:3)=(vol_dis+&
          test_cell_length(1)*test_cell_length(2)*&
@@ -1311,7 +1311,7 @@ CONTAINS
       ENDIF
  
 !!!!!!!!!!!!!!!! for E_V curves
-!         w=1.0E0_dp
+         w=1.0E0_dp
 !         w=0.0E0_dp
 
       IF ( w .GE. 1.0E0_dp ) THEN
@@ -1319,7 +1319,6 @@ CONTAINS
          rand=0.0E0_dp
       ELSE
          IF(ionode) rand=next_random_number(rng_stream)
-!            CALL RANDOM_NUMBER(rand)
          CALL mp_bcast(rand,source,group)
       ENDIF
 
@@ -2188,7 +2187,7 @@ CONTAINS
 
   SUBROUTINE mc_avbmc_move ( mc_par,force_env,bias_env, moves,&
                         energy_check,r_old,old_energy,mol_swap,&
-                        mol_target,bias_energy,move_type,rng_stream,error)
+                        mol_target,bias_energy_old,move_type,rng_stream,error)
 
 !   ***************************************************************************
 
@@ -2197,7 +2196,7 @@ CONTAINS
     TYPE(force_env_type), POINTER            :: force_env,bias_env
     TYPE(mc_moves_type), POINTER             :: moves
     INTEGER, INTENT(IN)                      :: mol_swap,mol_target
-    REAL(KIND=dp), INTENT(INOUT)             :: bias_energy,old_energy,&
+    REAL(KIND=dp), INTENT(INOUT)             :: bias_energy_old,old_energy,&
       energy_check
     REAL(KIND=dp), DIMENSION(:,:),INTENT(INOUT)     &
       :: r_old
@@ -2217,7 +2216,7 @@ CONTAINS
       loverlap,ionode,ldum,lin
     REAL(KIND=dp),DIMENSION(1:3)             :: abc,RIJ
     REAL(KIND=dp)                            :: bias_energy_new, &
-      bias_energy_old, rand, w, BETA,&
+      rand, w, BETA,&
       avbmc_rmin,avbmc_rmax,rdum,new_energy,weight_new,weight_old,&
       volume_in,volume_out,del_quickstep_energy,prefactor,distance,pbias
     TYPE(cp_subsystem_p_type), &
@@ -2267,7 +2266,7 @@ CONTAINS
          CALL get_cell(cell,abc=abc)
 
 ! save the energy
-         bias_energy_old=bias_energy
+!         bias_energy_old=bias_energy
 
       ELSE
 
@@ -2470,11 +2469,6 @@ CONTAINS
          
          w=prefactor*del_quickstep_energy*weight_new/weight_old
          
-         IF(ionode) THEN
-            WRITE(6,*) 'einvodi ',new_energy,old_energy
-            WRITE(6,*) 'einvodi ',bias_energy_new,bias_energy_old
-            WRITE(6,*) 'invodi ',prefactor,weight_new,weight_old
-         ENDIF
       ELSE
 
 ! AVBMC with CBMC
@@ -2488,7 +2482,6 @@ CONTAINS
          rand=0.0E0_dp
       ELSE
          IF(ionode) rand=next_random_number(rng_stream)
-!     CALL RANDOM_NUMBER(rand)
          CALL mp_bcast(rand,source,group)
       ENDIF
       
