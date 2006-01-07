@@ -124,11 +124,11 @@ CONTAINS
     CHARACTER (LEN=200)                      :: title
     CHARACTER (LEN=50)                       :: filename
     CHARACTER (LEN=50)                       :: crd_file_name, vel_file_name, ptens_file_name, &
-                                                ener_file_name, temp_file_name, dump_file_name
+                                                ener_file_name, temp_file_name
     INTEGER, SAVE                            :: crd, vel, ene 
     INTEGER                                  :: handle, istat, isubsys, iw, delta_t, i
     INTEGER                                  :: group, source
-    INTEGER                                  :: icrd, ivel, iptens, iener, itemp, idump, iscreen, nat
+    INTEGER                                  :: icrd, ivel, iptens, iener, itemp, iscreen, nat
     INTEGER, POINTER                         :: itimes
     LOGICAL                                  :: file_exists, replace_file
     LOGICAL                                  :: ionode
@@ -190,14 +190,12 @@ CONTAINS
     ptens_file_name = mdio % ptens_file_name
     ener_file_name = mdio % ener_file_name
     temp_file_name = mdio % temp_file_name
-    dump_file_name = mdio % dump_file_name
 
     icrd = mdio % icrd
     ivel = mdio % ivel
     iptens = mdio % iptens
     iener = mdio % iener
     itemp = mdio % itemp
-    idump = mdio % idump
     iscreen = mdio % iscreen
 
     CALL force_env_get(force_env=force_env_p(1)%force_env,&

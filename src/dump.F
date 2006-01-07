@@ -26,7 +26,8 @@ MODULE dump
   USE force_env_types,                 ONLY: force_env_get,&
                                              force_env_p_type,&
                                              force_env_write_variables
-  USE kinds,                           ONLY: dp
+  USE kinds,                           ONLY: dp,&
+                                             default_string_length
   USE md_environment_types,            ONLY: get_md_env,&
                                              md_environment_type
   USE memory_utilities,                ONLY: reallocate
@@ -100,11 +101,14 @@ CONTAINS
     INTEGER, POINTER :: nhc_per_proc ( : ),index(:)
     REAL (KIND=dp), POINTER, DIMENSION ( : ) :: eta, veta, fnhc, mnhc, work
 
+    CHARACTER (LEN=default_string_length)    :: cmdstr
+    LOGICAL                                  :: found
+
 !   ---------------------------------------------------------------------------
 
     CALL get_md_env ( md_env, force_env_p = force_env_p, nhc_part = nhc_part, &
                       nhc_baro = nhc_baro, npt = npt )
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,"I",'',handle)
 
     NULLIFY (para_env,new_logger)
 
@@ -115,6 +119,14 @@ CONTAINS
     CALL cp_error_init(new_error,logger=new_logger,template_error=error)
 
     IF (para_env%mepos==para_env%source) THEN
+
+      INQUIRE(FILE=dump_file_name,EXIST=found)
+      IF (found) THEN
+        WRITE(UNIT=cmdstr,FMT="(A)")&
+          "mv "//TRIM(dump_file_name)//" "//TRIM(dump_file_name)//".bak"
+        CALL system(cmdstr)
+      END IF
+      
       CALL open_file(file_name=dump_file_name,&
                      file_action="WRITE",&
                      file_form="FORMATTED",&
