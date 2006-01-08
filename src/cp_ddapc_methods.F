@@ -419,7 +419,7 @@ CONTAINS
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
     ! Local Variables
-    CHARACTER(len=*), PARAMETER :: routineN = 'build_der_A_vector', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'build_der_A_matrix', &
       routineP = moduleN//':'//routineN
     COMPLEX(KIND=dp) :: phase1, phase2, dphase1, dphase2
     REAL(KIND=dp)    :: gfunc1, gfunc2, gcut2, g2, arg1, arg2

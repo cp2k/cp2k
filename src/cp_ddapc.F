@@ -144,7 +144,8 @@ CONTAINS
     TYPE(coeff_type), POINTER                :: rho_core
     TYPE(cp_logger_type), POINTER :: logger
     LOGICAL :: failure, need_f, ionode, only_charge
-    INTEGER :: iw, handle, ispin, n_rep_val, num_gauss, stat, i, ndim, ii, j, iparticle
+    INTEGER :: iw, ispin, n_rep_val, num_gauss, stat, i, ndim, ii, j, iparticle
+    INTEGER :: handle, handle2, handle3
     TYPE(pw_pool_type), POINTER              :: auxbas_pool
     REAL(KIND=dp), DIMENSION(:), POINTER     :: inp_radii, radii
     REAL(KIND=dp) :: rcmin, pfact, gcut, Vol, c1, c3, c4, ch_dens
@@ -247,6 +248,7 @@ CONTAINS
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)    
        ALLOCATE(cv(ndim), stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CALL timeset(routineN//"-charges","I","",handle2)
        bv  = 0.0_dp
        cv  = 1.0_dp/Vol
        CALL build_b_vector(bv, cp_ddapc_env%gfunc, cp_ddapc_env%w,&
@@ -289,10 +291,12 @@ CONTAINS
           WRITE(iw,'(T5,A,5X,F12.6)')"Total: ",SUM(qtot)
           WRITE(iw,'(/)')
        END IF
+       CALL timestop(0.0_dp,handle2)
        !
        ! If requested evaluate also the correction to derivatives due to Pulay Forces
        !
        IF (need_f.AND.(.NOT.only_charge)) THEN          
+          CALL timeset(routineN//"-forces","I","",handle3)
           IF (iw>0) THEN
              WRITE(iw,'(T3,A)')" Evaluating Pulay Forces.."
           END IF
@@ -360,6 +364,7 @@ CONTAINS
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
           DEALLOCATE(dbv, stat=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          CALL timestop(0.0_dp,handle3)
        END IF
        !
        ! End of charge fit

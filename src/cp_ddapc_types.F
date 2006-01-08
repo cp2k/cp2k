@@ -24,6 +24,8 @@
 !!   SOURCE
 !*****************************************************************************
 MODULE cp_ddapc_types
+  USE timings,                         ONLY: timeset,&
+                                             timestop
   USE kinds,                           ONLY: dp
   USE particle_types,                  ONLY: particle_type 
   USE mathconstants,                   ONLY: rootpi, pi  
@@ -143,12 +145,13 @@ CONTAINS
     ! Local Variables
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_ddapc_create', &
          routineP = moduleN//':'//routineN
-    INTEGER                                  :: stat
+    INTEGER                                  :: stat, handle
     LOGICAL                                  :: failure
 
     failure=.FALSE.    
     IF (ASSOCIATED(cp_ddapc_env)) RETURN
 
+    CALL timeset(routineN,"I","",handle)
     ALLOCATE(cp_ddapc_env, stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     IF (.NOT.failure) THEN
@@ -168,7 +171,10 @@ CONTAINS
        CALL ddapc_eval_AmI(cp_ddapc_env%AmI, cp_ddapc_env%c0, &
             cp_ddapc_env%gfunc, cp_ddapc_env%w, particle_set, &
             gcut, rho_tot_g, radii, iw, Vol, error)
-       IF (only_charge) RETURN
+       IF (only_charge) THEN
+          CALL timestop(0.0_dp, handle)
+          RETURN
+       END IF
        !
        ! Evaluate the matrix for the Classical contribution to the coupling/decoupling scheme
        !
@@ -184,6 +190,7 @@ CONTAINS
           cp_ddapc_env%Mt = cp_ddapc_env%Md 
        END IF
     END IF
+    CALL timestop(0.0_dp, handle)
   END SUBROUTINE cp_ddapc_create
 
 !***************************************************************************
