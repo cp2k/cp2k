@@ -47,7 +47,7 @@ MODULE geo_opt
                                              gopt_param_release,&
                                              gopt_param_type
   USE kinds,                           ONLY: dp
-  USE message_passing,                 ONLY: mp_bcast
+  USE termination,                     ONLY: external_control
   USE particle_list_types,             ONLY: particle_list_type
   USE particle_types,                  ONLY: write_particle_distances
   USE simulation_cell,                 ONLY: cell_type
@@ -196,9 +196,8 @@ MODULE geo_opt
 
         DO i=1,gopt_param%max_iter
            IF (.NOT.cp_opt_gopt_next(optimizer)) EXIT
-           IF (para_env%mepos==para_env%source) &
-                INQUIRE(file="EXIT",exist=should_stop)
-           CALL mp_bcast(should_stop,para_env%source,para_env%group)
+           ! check for an external exit command 
+           CALL external_control(should_stop,"GEO",error)
            IF (should_stop) THEN
               CALL cp_opt_gopt_stop(optimizer, error=error)
               EXIT

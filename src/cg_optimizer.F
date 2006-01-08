@@ -49,6 +49,7 @@ MODULE cg_optimizer
   USE input_constants,                 ONLY: dump_xmol
   USE cp_files,                        ONLY: close_file,open_file
   USE memory_utilities,                ONLY: reallocate
+  USE termination,                     ONLY: external_control
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -342,6 +343,7 @@ CONTAINS
     CHARACTER(LEN=80)                        :: title
     CHARACTER(LEN=5)                         :: wildcard
     LOGICAL                                  :: failure,  Fletcher_Reeves_ON, use_fit
+    LOGICAL                                  :: should_stop
     INTEGER                                  :: max_steep_steps
 
     failure = .FALSE.
@@ -376,6 +378,10 @@ CONTAINS
           eold = opt_energy
           emin = MIN(emin, opt_energy)
           step = 1.0_dp
+          ! check for an external exit command 
+          CALL external_control(should_stop,"GEO",error)
+          IF(should_stop) EXIT
+
           IF (use_fit) THEN
              CALL linminE(force_env, xvec, xi, opt_energy, brent_tol, brent_max_iter, brack_limit, &
                           step, output_unit, ionode, gopt_param, error)             
