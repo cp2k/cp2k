@@ -15,6 +15,7 @@
       EPS_PGF_ORB 1.0E-4
       EPSFIT 1.E-4
       EPSISO 1.0E-12
+      EPSSVD 0.0
       EPSRHO0 1.E-8
       LMAXN0 4
       LMAXN1 6
