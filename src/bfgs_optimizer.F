@@ -251,7 +251,7 @@ CONTAINS
        EXIT
      END IF
      ! check for an external exit command 
-     CALL external_control(should_stop,"GEO",error)
+     CALL external_control(should_stop,"GEO",globenv,error)
      IF(should_stop) EXIT
 
      IF (ionode)THEN

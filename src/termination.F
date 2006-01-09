@@ -35,6 +35,8 @@ MODULE termination
   USE output_utilities,                ONLY: print_message
   USE string_utilities,                ONLY: compress
   USE timings,                         ONLY: print_stack
+  USE machine,                         ONLY: m_walltime
+  USE kinds,                           ONLY: dp
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -375,10 +377,12 @@ CONTAINS
 !!
 !******************************************************************************
 
-  SUBROUTINE external_control(should_stop,flag,error)
+  SUBROUTINE external_control(should_stop,flag,globenv,error)
 
     LOGICAL, INTENT(OUT)                     :: should_stop
     CHARACTER(LEN=*), INTENT(IN)             :: flag
+    TYPE(global_environment_type), &
+         POINTER, OPTIONAL                   :: globenv
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -390,7 +394,7 @@ CONTAINS
     INTEGER                                  :: unit_number
     LOGICAL                                  :: failure
     TYPE(cp_logger_type), POINTER            :: logger
-
+    REAL(KIND=dp)                            :: time_check
 !   ---------------------------------------------------------------------------
 
     failure=.FALSE.
@@ -413,6 +417,17 @@ CONTAINS
             WRITE (UNIT=cp_logger_get_default_unit_nr(logger),FMT="(/,T2,A,/)")&
                "*** "//TRIM(flag)//"  run terminated by external request ***"
           ENDIF
+       END IF
+       IF ((.NOT.should_stop).AND.(globenv%cp2k_target_time > 0.0_dp)) THEN
+          ! Check for execution time
+          time_check  = m_walltime() - globenv%cp2k_start_time
+          IF (time_check .GT. globenv%cp2k_target_time) THEN
+             should_stop = .TRUE.
+             WRITE (UNIT=cp_logger_get_default_unit_nr(logger),FMT="(/,T2,A,f12.3,A)")&
+                  "*** "//TRIM(flag)//"  run terminated - exceeded requested execution time:",&
+                  globenv%cp2k_target_time," seconds.",&
+                  "*** Execution time now: ",time_check," seconds."
+          END IF
        END IF
     END IF
     CALL mp_bcast(should_stop,logger%para_env%source,logger%para_env%group)

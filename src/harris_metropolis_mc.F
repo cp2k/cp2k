@@ -1199,11 +1199,9 @@ CONTAINS
       !  END IF
       !END IF
 
-      CALL external_control(should_stop,"HMC",error=error)
+      CALL external_control(should_stop,"HMC",globenv,error)
       IF (should_stop) EXIT
 
-      CALL mp_bcast(should_stop, globenv%para_env%source, globenv%para_env%group) ! sync values of should_stop
-      IF (should_stop) EXIT
     END DO
 
     CALL timestop(0.0_dp, handle)

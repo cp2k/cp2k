@@ -34,7 +34,8 @@ MODULE global_types
   USE input_section_types,             ONLY: section_vals_release,&
                                              section_vals_type
   USE kinds,                           ONLY: default_path_length,&
-                                             default_string_length
+                                             default_string_length,&
+                                             dp
   USE print_key_types,                 ONLY: DEBUG,&
                                              HIGH,&
                                              LOW,&
@@ -48,6 +49,8 @@ MODULE global_types
                                              print_keys_release,&
                                              print_keys_retain,&
                                              print_keys_type
+  USE machine,                         ONLY: m_walltime
+
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -106,8 +109,8 @@ MODULE global_types
   TYPE global_environment_type
      INTEGER :: id_nr, ref_count
      TYPE(cp_para_env_type), POINTER         :: para_env
-     TYPE(print_keys_type), POINTER           :: PRINT
-     CHARACTER(LEN=default_path_length)    :: input_file_name
+     TYPE(print_keys_type), POINTER          :: PRINT
+     CHARACTER(LEN=default_path_length)      :: input_file_name
      CHARACTER(LEN=default_string_length)    :: default_fft_library,&
                                                 project_name,&
                                                 coord_file_name
@@ -122,8 +125,9 @@ MODULE global_types
      INTEGER :: source       !! processor id for global output node
      LOGICAL :: ionode       !! this processor performs global output
      INTEGER :: blacs_grid_layout !! will store the user preference for the blacs grid
-    TYPE(section_vals_type), POINTER :: input_file
-    LOGICAL :: close_output_unit
+     REAL(KIND=dp) :: cp2k_start_time, cp2k_target_time
+     TYPE(section_vals_type), POINTER :: input_file
+     LOGICAL :: close_output_unit
   END TYPE global_environment_type
 !!***
 ! *****************************************************************************
@@ -204,6 +208,7 @@ CONTAINS
        globenv%source=para_env%source
        globenv%ionode=(para_env%source==para_env%mepos)
        globenv%blacs_grid_layout=BLACS_GRID_SQUARE
+       globenv%cp2k_start_time=m_walltime()
        NULLIFY(globenv%input_file)
     END IF
   END SUBROUTINE globenv_create
@@ -287,11 +292,6 @@ SUBROUTINE globenv_release(globenv, error)
      CPPrecondition(globenv%ref_count>0,cp_failure_level,routineP,error,failure)
      globenv%ref_count=globenv%ref_count-1
      IF (globenv%ref_count==0) THEN
-!        IF (globenv%para_env%mepos==globenv%para_env%source) THEN
-!           ! this message is here only for debugging, it should go away
-!           WRITE(globenv%scr,"(' 000000 goodbye from globenv ',i6,' 000000')")&
-!                globenv%id_nr
-!        END IF
         CALL section_vals_release(globenv%input_file,error=error)
         CALL cp_para_env_release(globenv%para_env,error=error)
         CALL print_keys_release(globenv%print)

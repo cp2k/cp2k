@@ -632,10 +632,7 @@ CONTAINS
        END IF
 
 ! ** convergece check
-!       IF (qs_env%para_env%source==qs_env%para_env%mepos) &
-!            INQUIRE(file="EXIT",exist=should_stop)
-!       CALL mp_bcast(should_stop,qs_env%para_env%source,qs_env%para_env%group)
-       CALL external_control(should_stop,"SCF",error)
+       CALL external_control(should_stop,"SCF",globenv,error)
        IF (scf_env%iter_delta < scf_control%eps_scf) THEN
           IF (ionode.AND.logger%print_keys%scf) THEN
              WRITE(UNIT=output_unit,FMT="(/,T3,A,I5,A/)")&

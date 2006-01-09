@@ -89,7 +89,7 @@ CONTAINS
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(gopt_param_type), POINTER           :: gopt_param
     TYPE(global_environment_type), &
-      pointer                             :: globenv
+         POINTER                             :: globenv
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
     ! Local Variables
@@ -379,21 +379,21 @@ CONTAINS
           emin = MIN(emin, opt_energy)
           step = 1.0_dp
           ! check for an external exit command 
-          CALL external_control(should_stop,"GEO",error)
-          IF(should_stop) EXIT
-
           IF (use_fit) THEN
              CALL linminE(force_env, xvec, xi, opt_energy, brent_tol, brent_max_iter, brack_limit, &
-                          step, output_unit, ionode, gopt_param, error)             
+                          step, output_unit, ionode, gopt_param, globenv, error)             
           ELSE
              CALL linmin(force_env, xvec, xi, opt_energy, brent_tol, brent_max_iter, brack_limit, &
-                         step, output_unit, ionode, error)
+                         step, output_unit, ionode, globenv, error)
           END IF
+          CALL external_control(should_stop,"GEO",globenv,error)
+          IF(should_stop) EXIT
           !
           ! Convergence check
           !       
           IF (ionode) &
-               CALL write_cycle_infos(output_unit,its,opt_energy,opt_energy-eold,emin=emin,wildcard=wildcard)
+               CALL write_cycle_infos(output_unit,its,opt_energy,opt_energy-eold,emin=emin,&
+               wildcard=wildcard)
           CALL check_converg(SIZE(xvec),xvec-xold,xi,ionode,output_unit,conv,gopt_param)
           wildcard = "   CG"
           IF (ionode) THEN
@@ -421,7 +421,6 @@ CONTAINS
           gam = dgg/gg
           g   = -xi
           h   = g + gam * h
-          xi  = h
           !
           ! Reset Condition or Steepest Descent Requested
           !
@@ -429,9 +428,9 @@ CONTAINS
                .OR. its+1 <= max_steep_steps) THEN
              g  = -xi
              h  =   g
-             xi =   h
              wildcard = "   SD"
           END IF
+          xi  = h
        END DO
        IF(its == maxiter .AND. (.NOT.conv))THEN
           IF(ionode)THEN
@@ -478,7 +477,7 @@ CONTAINS
 !!
 !!*** **********************************************************************
   SUBROUTINE LinMinE(force_env, xvec, xi, opt_energy, brent_tol, brent_max_iter, &
-       brack_limit, step, output_unit, ionode, gopt_param, error)
+       brack_limit, step, output_unit, ionode, gopt_param, globenv, error)
     IMPLICIT NONE
     ! Arguments
     TYPE(force_env_type), POINTER            :: force_env
@@ -487,6 +486,8 @@ CONTAINS
     INTEGER                                  :: brent_max_iter, output_unit
     LOGICAL                                  :: ionode
     TYPE(gopt_param_type), POINTER           :: gopt_param
+    TYPE(global_environment_type), &
+         POINTER                             :: globenv
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
     ! Local Variables
@@ -496,7 +497,7 @@ CONTAINS
     REAL(KIND=dp)                            :: ax, bx, xmin, xx, fprev, rms_force, rms_dr, scale
     REAL(KIND=dp), DIMENSION(:), POINTER     :: pcom, xicom
     REAL(KIND=dp), DIMENSION(:,:), POINTER   :: hist
-    LOGICAL                                  :: failure
+    LOGICAL                                  :: failure, should_stop
 
     failure = .FALSE.
     NULLIFY(pcom,xicom,hist)
@@ -509,13 +510,13 @@ CONTAINS
        CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
 
        pcom  = xvec
-       xi = xi / SQRT(DOT_PRODUCT(xi,xi))
+       xicom = xi       
+       xicom = xicom / SQRT(DOT_PRODUCT(xicom,xicom))
        step = 0.05_dp
-       xicom = xi
        ax = 0.0_dp
        xx = step
        CALL cg_mnbrak(force_env, ax, xx, bx, pcom, xicom, brack_limit, output_unit, ionode, &
-            histpoint=hist,error=error)
+            histpoint=hist,globenv=globenv, error=error)
        !
        fprev      = 0.0_dp
        opt_energy = MINVAL(hist(:,2))
@@ -523,6 +524,9 @@ CONTAINS
        scale = 0.25_dp
        loc_iter = 0
        DO WHILE ( ABS(hist(odim,3)) > rms_force*scale .OR. ABS(hist(odim,1)-hist(odim-1,1)) > scale*rms_dr)
+          CALL external_control(should_stop,"LINFIT",globenv,error)
+          IF(should_stop) EXIT
+          !
           loc_iter = loc_iter + 1
           fprev = opt_energy
           xmin  = FindMin(hist(:,1),hist(:,2),hist(:,3),error)
@@ -533,8 +537,8 @@ CONTAINS
           odim = SIZE(hist,1)
        END DO
        !
-       xi = xmin*xi
-       xvec = xvec + xi
+       xicom = xmin*xicom
+       xvec  = xvec + xicom
        DEALLOCATE(pcom,  stat=stat)
        CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
        DEALLOCATE(xicom, stat=stat)
@@ -575,7 +579,7 @@ CONTAINS
 !!
 !!*** **********************************************************************
   SUBROUTINE LinMin(force_env, xvec, xi, opt_energy, brent_tol, brent_max_iter, &
-       brack_limit, step, output_unit, ionode, error)
+       brack_limit, step, output_unit, ionode, globenv, error)
     IMPLICIT NONE
     ! Arguments
     TYPE(force_env_type), POINTER            :: force_env
@@ -583,6 +587,8 @@ CONTAINS
     REAL(KIND=dp)                            :: opt_energy, brent_tol, brack_limit, step
     INTEGER                                  :: brent_max_iter, output_unit
     LOGICAL                                  :: ionode
+    TYPE(global_environment_type), &
+         POINTER                             :: globenv
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
     ! Local Variables
@@ -603,14 +609,16 @@ CONTAINS
 
        pcom  = xvec
        xicom = xi
+       xicom = xicom / SQRT(DOT_PRODUCT(xicom,xicom))
+       step = 0.05_dp
        ax = 0.0_dp
        xx = step       
        CALL cg_mnbrak(force_env, ax, xx, bx, pcom, xicom, brack_limit, output_unit, ionode,&
-            error=error)
+            globenv=globenv, error=error)
        opt_energy = cg_dbrent(force_env, ax, xx, bx, brent_tol, brent_max_iter, &
-                              xmin, pcom, xicom, output_unit, ionode, error)
-       xi = xmin*xi
-       xvec = xvec + xi
+                              xmin, pcom, xicom, output_unit, ionode, globenv, error)
+       xicom = xmin*xicom
+       xvec  = xvec + xicom
        DEALLOCATE(pcom,  stat=stat)
        CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
        DEALLOCATE(xicom, stat=stat)
@@ -644,7 +652,7 @@ CONTAINS
 !!
 !!*** **********************************************************************
   SUBROUTINE cg_mnbrak(force_env, ax, bx, cx, pcom, xicom, brack_limit, output_unit, ionode,&
-       histpoint, error)
+       histpoint, globenv, error)
     IMPLICIT NONE
     ! Arguments
     TYPE(force_env_type), POINTER            :: force_env
@@ -654,6 +662,8 @@ CONTAINS
          OPTIONAL                            :: histpoint
     INTEGER                                  :: output_unit
     LOGICAL                                  :: ionode
+    TYPE(global_environment_type), &
+         POINTER                             :: globenv
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
     ! Local Variables
@@ -661,7 +671,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
     REAL(KIND=dp)                            :: dum, fa, fb, fc, fu, q, r, u, &
                                                 ulim, gold
-    LOGICAL                                  :: failure, hist
+    LOGICAL                                  :: failure, hist, should_stop
     INTEGER                                  :: loc_iter, odim, stat
 
     failure = .FALSE.
@@ -702,6 +712,9 @@ CONTAINS
        END IF
        loc_iter = 3
        DO WHILE (fb.GE.fc)
+          CALL external_control(should_stop,"MNBRACK",globenv,error)
+          IF(should_stop) EXIT
+          !
           r=(bx-ax)*(fb-fc)
           q=(bx-cx)*(fb-fa)
           u=bx-((bx-cx)*q-(bx-ax)*r)/(2.0_dp*SIGN(MAX(ABS(q-r),TINY(0.0_dp)),q-r))
@@ -837,7 +850,8 @@ CONTAINS
 !!     10.2005 created [tlaino] 
 !!
 !!*** **********************************************************************
-  FUNCTION cg_dbrent(force_env,ax,bx,cx,tol,itmax,xmin,pcom,xicom,output_unit, ionode, error) RESULT(dbrent)
+  FUNCTION cg_dbrent(force_env,ax,bx,cx,tol,itmax,xmin,pcom,xicom,output_unit,&
+       ionode, globenv, error) RESULT(dbrent)
     IMPLICIT NONE
     ! Arguments
     TYPE(force_env_type), POINTER            :: force_env
@@ -847,6 +861,8 @@ CONTAINS
     INTEGER                                  :: itmax
     INTEGER                                  :: output_unit
     LOGICAL                                  :: ionode
+    TYPE(global_environment_type), &
+         POINTER                             :: globenv
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
     ! Local Variables
@@ -859,7 +875,7 @@ CONTAINS
                                                 dx, e, fu, fv, fw, fx, olde, &
                                                 tol1, tol2, u, u1, u2, v, w, &
                                                 x, xm
-    LOGICAL                                  :: failure
+    LOGICAL                                  :: failure, should_stop
     
     failure = .FALSE.
     IF (.NOT.failure) THEN
@@ -874,6 +890,9 @@ CONTAINS
        dw = dx
        loc_iter = 1
        DO  iter = 1, itmax
+          CALL external_control(should_stop,"BRENT",globenv,error)
+          IF(should_stop) EXIT
+          !
           xm    = 0.5_dp * (a+b)
           tol1  = tol*ABS(x)+zeps
           tol2  = 2.0_dp * tol1

@@ -159,8 +159,7 @@ CONTAINS
                                                 nbeads, nfixed
     INTEGER, POINTER                         :: itimes
     LOGICAL                                  :: failure, should_stop
-    REAL(KIND=dp)                            :: md_run_start_time, &
-                                                time_iter_start, &
+    REAL(KIND=dp)                            :: time_iter_start, &
                                                 time_iter_stop
     REAL(KIND=dp), POINTER                   :: used_time
     TYPE(cell_type), POINTER                 :: cell, cell_ref
@@ -188,9 +187,6 @@ CONTAINS
     CALL write_checkpoint_information("entering "//routine_name,globenv)
 
     CALL timeset(routine_name,"I","",handle)
-
-    ! will be used to stop if a maximum walltime is given
-    md_run_start_time=m_walltime()
 
     failure=.FALSE.
     NULLIFY ( particles, local_molecules, cell, cell_ref, dyn_coeff_set,&
@@ -374,15 +370,9 @@ CONTAINS
       END IF
 
       ! test for EXIT_MD to exit
-      CALL external_control(should_stop,"MD",error=error)
+      CALL external_control(should_stop,"MD",globenv,error=error)
       IF (should_stop) EXIT
 
-      ! test if we have used more walltime than allowed      
-      IF (simpar%walltime > 0.0_dp .AND. simpar%walltime < m_walltime()-md_run_start_time) THEN
-          should_stop=.TRUE.
-      ENDIF
-      CALL mp_bcast(should_stop,globenv%para_env%source,globenv%para_env%group) ! sync values of should_stop
-      IF (should_stop) EXIT
     END DO 
     CALL cp_rm_iter_level(logger%iter_info,n_rlevel_att=iter_level,&
          error=error)

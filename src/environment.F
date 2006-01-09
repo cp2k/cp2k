@@ -484,6 +484,7 @@ END SUBROUTINE cp2k_setup
     CALL section_vals_val_get(global_section,"PROGRAM_NAME",i_val=globenv%prog_name_id,error=error)
     CALL section_vals_val_get(global_section,"PROJECT_NAME",c_val=globenv%project_name,error=error)
     CALL section_vals_val_get(global_section,"RUN_TYPE",i_val=globenv%run_type_id,error=error)
+    CALL section_vals_val_get(global_section,"WALLTIME",r_val=globenv%cp2k_target_time,error=error)
     CALL section_vals_val_get(global_section,"TRACE",l_val=trace,error=error)
     IF(trace) CALL trace_debug("start",groupid=globenv%group)
 

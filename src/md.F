@@ -120,7 +120,6 @@ MODULE md
 
   TYPE simulation_parameters_type
      INTEGER :: nsteps
-     REAL (KIND=dp) :: walltime ! target maximum wall time of a simulation (alternative to nsteps)
      REAL (KIND=dp) :: dt
      REAL (KIND=dp) :: temp_ext
      REAL (KIND=dp) :: temp_baro
@@ -332,8 +331,6 @@ CONTAINS
             ADJUSTR ( restart_name_types(simpar % read_type)(1:20))
        WRITE ( iw, '( A,T71,I10 )' ) ' MD| Number of Time Steps ', &
             simpar % nsteps
-       WRITE ( iw, '( A,T71,F10.2 )' ) ' MD| Target Walltime [sec]', &
-            simpar % walltime
        WRITE ( iw, '( A,A2,A,T71,F10.2 )' ) ' MD| Time Step [','fs','] ',&
             simpar % dt /unit%fs
        WRITE ( iw, '( A,T71,F10.2 )' ) ' MD| Temperature [K] ', &
@@ -463,7 +460,6 @@ SUBROUTINE read_md_new_section(simpar, globenv, md_section, error)
      tmp_section => section_vals_get_subs_vals(globenv%input_file,"GLOBAL",error=error)
      CALL section_vals_val_get(globenv%input_file,"FORCE_EVAL%PRINT%TRAJECTORY%FORMAT", &
                                i_val=simpar%output_format,error=error)
-     CALL section_vals_val_get(tmp_section,"WALLTIME",r_val=simpar%walltime,error=error)
 
      tmp_section => section_vals_get_subs_vals(globenv%input_file,"FORCE_EVAL%SUBSYS%CONSTRAINT",error=error)
      CALL section_vals_get(tmp_section,explicit=explicit,error=error)
@@ -574,7 +570,6 @@ END SUBROUTINE read_md_new_section
     simpar % output_format = dump_xmol
     simpar % ensemble = nve_ensemble
     simpar % nsteps = 0
-    simpar % walltime = -1.0_dp ! default: don't care
     simpar % dt = 0.0_dp
     simpar % temp_ext = 0.0_dp
     simpar % temp_baro = 0.0_dp

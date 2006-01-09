@@ -739,7 +739,7 @@ CONTAINS
          box_flag(:)=0
 
 ! check to see if EXIT file exists...if so, end the calculation
-         CALL external_control(should_stop,"MC",error=error)
+         CALL external_control(should_stop,"MC",globenv,error)
          IF (should_stop) EXIT
 
 ! update the move displacements, if necessary
