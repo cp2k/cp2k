@@ -506,15 +506,16 @@ CONTAINS
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="HARD_EXP_RADIUS",&
-            description="The region where the hard density is supposed to be confined (GAPW)(in Bohr)",&
-            usage="HARD_EXP_RADIUS 0.9", default_r_val=0.8_dp*bohr,&
-            error=error)
+            description="The region where the hard density is supposed to be confined"//&
+                        "(GAPW)(in Bohr, default is 1.2 for H and 1.512 otherwise)",&
+            usage="HARD_EXP_RADIUS 0.9", type_of_var=real_t,n_var=1,&
+            required=.FALSE., error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="MAX_RAD_LOCAL",&
             description="Max radius for the basis functions used to"//&
-            " generate the local projectors in GAPW",&
+            " generate the local projectors in GAPW [Bohr]",&
             usage="MAX_RAD_LOCAL 15.0", default_r_val=13.0_dp*bohr,&
             error=error)
        CALL section_add_keyword(section,keyword,error=error)
@@ -523,9 +524,9 @@ CONTAINS
        CALL keyword_create(keyword, name="RHO0_EXP_RADIUS",&
             description="the radius which defines the atomic region where "//&
             "the hard compensation density is confined."//&
-            "should be less than HARD_EXP_RADIUS (GAPW)[Bohr]",&
-            usage="RHO_EXP_RADIUS 0.9", default_r_val=0.8_dp*bohr,&
-            error=error)
+            "should be less than HARD_EXP_RADIUS (GAPW)(Bohr, default equals HARD_EXP_RADIUS)",&
+            usage="RHO_EXP_RADIUS 0.9", type_of_var=real_t,n_var=1,&
+            required=.FALSE., error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 

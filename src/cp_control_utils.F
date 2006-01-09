@@ -442,6 +442,7 @@ CONTAINS
 
     CALL section_vals_val_get(qs_section,"EPSFIT",r_val=qs_control%gapw_control%eps_fit,error=error)
     CALL section_vals_val_get(qs_section,"EPSISO",r_val=qs_control%gapw_control%eps_iso,error=error)
+    CALL section_vals_val_get(qs_section,"EPSSVD",r_val=qs_control%gapw_control%eps_svd,error=error)
     CALL section_vals_val_get(qs_section,"EPSRHO0",r_val=qs_control%gapw_control%eps_Vrho0,error=error)
     CALL section_vals_val_get(qs_section,"ALPHA0_HARD",r_val=qs_control%gapw_control%alpha0_hard,error=error)
     qs_control%gapw_control%lrho1_eq_lrho0 = .FALSE.
@@ -844,7 +845,9 @@ CONTAINS
            "QS| GAPW|                   eps_fit:",&
            qs_control%gapw_control%eps_fit,&
            "QS| GAPW|                   eps_iso:",&
-           qs_control%gapw_control%eps_iso
+           qs_control%gapw_control%eps_iso,&
+           "QS| GAPW|                   eps_svd:",&
+           qs_control%gapw_control%eps_svd
          WRITE (UNIT=output_unit,FMT="(T2,A,T55,A30)")&
            "QS| GAPW|   atom-r-grid: quadrature:",&
            qs_control%gapw_control%quadrature_name
@@ -859,7 +862,9 @@ CONTAINS
            "QS| GAPW_XC|                eps_fit:",&
            qs_control%gapw_control%eps_fit,&
            "QS| GAPW_XC|                eps_iso:",&
-           qs_control%gapw_control%eps_iso
+           qs_control%gapw_control%eps_iso,&
+           "QS| GAPW_XC|                eps_svd:",&
+           qs_control%gapw_control%eps_svd
          WRITE (UNIT=output_unit,FMT="(T2,A,T55,A30)")&
            "QS| GAPW_XC|atom-r-grid: quadrature:",&
            qs_control%gapw_control%quadrature_name

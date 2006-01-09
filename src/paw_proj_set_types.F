@@ -283,27 +283,29 @@ CONTAINS
 
 !   *** Local variables ***
 
-    REAL(dp)                                  :: eps_fit,eps_iso
+    REAL(dp)                                  :: eps_fit,eps_iso,eps_svd
     REAL(dp)                                  :: eps_orb, max_rad_local
 
 !   ***************************************************************************
 
     eps_fit =  qs_control%gapw_control%eps_fit
     eps_iso =  qs_control%gapw_control%eps_iso
+    eps_svd =  qs_control%gapw_control%eps_svd
     max_rad_local = qs_control%gapw_control%max_rad_local
     IF(max_rad_local_type.LT.max_rad_local)THEN
       max_rad_local=max_rad_local_type
     END IF
     eps_orb =  qs_control%eps_pgf_orb
 
-    CALL build_projector(paw_proj,orb_basis,eps_fit,eps_iso,rc,eps_orb,max_rad_local,globenv)
+    CALL build_projector(paw_proj,orb_basis,eps_fit,eps_iso,eps_svd, &  
+                                     rc,eps_orb,max_rad_local,globenv)
 
   END SUBROUTINE  projectors
 
 ! *****************************************************************************
 
-  SUBROUTINE build_projector(paw_proj,orb_basis,eps_fit,eps_iso,rc,eps_orb,&
-             max_rad_local,globenv,error)
+  SUBROUTINE build_projector(paw_proj,orb_basis,eps_fit,eps_iso,eps_svd, &
+                   rc,eps_orb,max_rad_local,globenv,error)
 
 !   Purpose: initialize the projector-type set data set.
 
@@ -311,7 +313,7 @@ CONTAINS
 
     TYPE(gto_basis_set_type), POINTER :: orb_basis
     TYPE(paw_proj_set_type),  POINTER :: paw_proj
-    REAL(dp), INTENT(IN)              :: eps_fit,eps_iso,rc
+    REAL(dp), INTENT(IN)              :: eps_fit,eps_iso,rc,eps_svd
     REAL(dp), INTENT(IN)              :: eps_orb, max_rad_local
     TYPE(global_environment_type), pointer :: globenv
     TYPE(cp_error_type), INTENT(inout), &
@@ -319,7 +321,7 @@ CONTAINS
 
 
 
-    CHARACTER(LEN=*), PARAMETER :: routine = "  build_projectors "
+    CHARACTER(LEN=*), PARAMETER :: routine = "  build_projector"
 
     CHARACTER(LEN=default_string_length)   :: bsname
     INTEGER  :: icgf, icgfmin, icgfmax, ico, icomin, icomax, il, ip, ipgf, iprj, &
@@ -343,8 +345,11 @@ CONTAINS
 
     REAL(dp), DIMENSION(:), POINTER :: ei, er,worka
     REAL(dp), DIMENSION(:,:), POINTER :: aa, vl, vr
-    INTEGER :: lwork, info
+    INTEGER :: lwork, info, k
     INTEGER :: ic, iprjs, is, isomin, ms, nsgauprj, notprj
+    REAL(KIND=dp), DIMENSION(:,:), ALLOCATABLE :: U,VT
+    REAL(KIND=dp), DIMENSION(:), ALLOCATABLE :: S,Work_dgesdd
+    INTEGER, DIMENSION(:), ALLOCATABLE  :: IWORK
 
 !   ***************************************************************************
 
@@ -530,12 +535,34 @@ CONTAINS
         ENDIF
       ENDDO
 
+!     FIXME ... catch the case where np == 0
+      CPPrecondition(np > 0,cp_failure_level,routine,error,failure)
 
 !     *** Compute inverse of the transpose ***
-      CALL invert_matrix(smat,gcc,my_error,"T")
-
- 
-!     *** Compute the orthogonality error ***
+      IF (eps_svd.EQ.0.0_dp) THEN
+          CALL invert_matrix(smat,gcc,my_error,"T")
+      ELSE
+         work=transpose(smat)
+         ! workspace query
+         ALLOCATE(iwork(8*np),S(np),U(np,np),VT(np,np),work_dgesdd(1))
+         lwork=-1
+         CALL DGESDD('S',np,np,work,np,S,U,np,vt,np,work_dgesdd,lwork,iwork,info)
+         lwork=work_dgesdd(1)
+         DEALLOCATE(work_dgesdd) ; ALLOCATE(work_dgesdd(lwork))
+         CALL DGESDD('S',np,np,work,np,S,U,np,vt,np,work_dgesdd,lwork,iwork,info)
+         ! construct the inverse
+         DO k=1,np
+            ! invert SV
+            IF (S(k)<eps_svd) THEN
+               S(k)=0.0_dp
+            ELSE
+               S(k)=1.0_dp/S(k)
+            ENDIF
+            VT(k,:)=VT(k,:)*S(k)
+         ENDDO
+         CALL DGEMM('T','T',np,np,np,1.0_dp,VT,np,U,np,0.0_dp,gcc,np)
+         DEALLOCATE(iwork,S,U,VT,work_dgesdd)
+      ENDIF
 
 !     *** Set the coefficient of the isolated projectors to 0 ***
       DO ip = 1, np

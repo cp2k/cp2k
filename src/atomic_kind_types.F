@@ -1249,15 +1249,36 @@ CONTAINS
        END IF
        CALL section_vals_val_get(kind_section,i_rep_section=k_rep,&
             keyword_name="POTENTIAL",c_val=potential_name,error=error)
-       CALL section_vals_val_get(kind_section,i_rep_section=k_rep,&
-            keyword_name="HARD_EXP_RADIUS",r_val=atomic_kind%hard_radius,error=error)
-       CALL section_vals_val_get(kind_section,i_rep_section=k_rep,&
-            keyword_name="RHO0_EXP_RADIUS",r_val=atomic_kind%hard0_radius,error=error)
+
+       ! assign atom dependent defaults, only H special case
+       CALL section_vals_val_get(kind_section,i_rep_section=k_rep,n_rep_val=i,&
+            keyword_name="HARD_EXP_RADIUS",error=error)
+       IF (i==0) THEN
+         IF (z==1) THEN
+            atomic_kind%hard_radius=1.2_dp
+         ELSE
+            atomic_kind%hard_radius=0.8_dp*bohr
+         ENDIF
+       ELSE
+         CALL section_vals_val_get(kind_section,i_rep_section=k_rep,&
+              keyword_name="HARD_EXP_RADIUS",r_val=atomic_kind%hard_radius,error=error)
+       ENDIF
+
+       ! assign atom dependent defaults, only H special case
+       CALL section_vals_val_get(kind_section,i_rep_section=k_rep,n_rep_val=i,&
+            keyword_name="RHO0_EXP_RADIUS",error=error)
+       IF (i==0) THEN
+          atomic_kind%hard0_radius=atomic_kind%hard_radius
+       ELSE
+         CALL section_vals_val_get(kind_section,i_rep_section=k_rep,&
+              keyword_name="RHO0_EXP_RADIUS",r_val=atomic_kind%hard0_radius,error=error)
+       ENDIF
+       CALL cp_assert(atomic_kind%hard_radius>=atomic_kind%hard0_radius,&
+             cp_failure_level,cp_assertion_failed,routineP,&
+             "rc0 should be <= rc",error,failure)
+
        CALL section_vals_val_get(kind_section,i_rep_section=k_rep,&
             keyword_name="MAX_RAD_LOCAL",r_val=atomic_kind%max_rad_local,error=error)
-       CALL cp_assert(atomic_kind%hard_radius>=atomic_kind%hard0_radius,&
-            cp_failure_level,cp_assertion_failed,routineP,&
-            "rc0 should be <= rc",error,failure)
        CALL section_vals_val_get(kind_section,i_rep_section=k_rep,&
             keyword_name="LEBEDEV_GRID",i_val=atomic_kind%ngrid_ang,error=error)
        CALL cp_assert(atomic_kind%ngrid_ang > 0,&

@@ -824,6 +824,14 @@ SUBROUTINE create_qs_section(section,error)
      CALL section_add_keyword(section,keyword,error=error)
      CALL keyword_release(keyword,error=error)
 
+     CALL keyword_create(keyword, name="EPSSVD",&
+          variants=(/"EPS_SVD"/),&
+          description="GAPW : tolerance used in the singular value decomposition of the projector matrix",&
+          usage="EPS_SVD real", default_r_val=1.0E-8_dp,&
+          error=error)
+     CALL section_add_keyword(section,keyword,error=error)
+     CALL keyword_release(keyword,error=error)
+
      CALL keyword_create(keyword, name="EPSRHO0",&
           variants=s2a("EPSVRHO0","EPS_VRHO0"),&
           description="GAPW : precision to determine the range of V(rho0-rho0soft)",&
