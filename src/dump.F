@@ -37,6 +37,12 @@ MODULE dump
   USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
+#if defined (__NAG)
+!MK This is a quick hack to allow the call system() below using the NAG compiler.
+!MK Such a direct call to system should not be used here and a m_system wrapper
+!MK routine in the machine(_arch) modules would be an appropriate solution.
+  USE f90_unix_proc
+#endif
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
