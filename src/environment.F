@@ -549,11 +549,9 @@ END SUBROUTINE cp2k_setup
         start_section_label//"| Restart file name",&
         ADJUSTR(restart_file_name(:40)),&
         start_section_label//"| Coordinate file name",&
-        ADJUSTR(globenv%coord_file_name(:40))
-      WRITE (UNIT=output_unit,FMT="(T2,A,T79,A)")&
-        "GLOBAL"//"| Program name",&
-        program_names(globenv%prog_name_id)
-      WRITE (UNIT=output_unit,FMT="(T2,A,T41,A)")&
+        ADJUSTR(globenv%coord_file_name(:40)),&
+        start_section_label//"| Program name",&
+        ADJUSTR(program_names(globenv%prog_name_id)(:40)),&
         start_section_label//"| Project name",&
         ADJUSTR(globenv%project_name(:40)),&
         start_section_label//"| Default FFT library",&
