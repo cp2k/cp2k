@@ -813,19 +813,19 @@ SUBROUTINE create_f_env_print_section(section,error)
 
      CALL cp_print_key_section_create(print_key,"interatomic_distances",&
           description="controls the output of the interatomic distances",&
-          print_level=low_print_level, filename="__STD_OUT__",error=error)
+          print_level=debug_print_level, filename="__STD_OUT__",error=error)
      CALL section_add_subsection(section,print_key,error=error)
      CALL section_release(print_key,error=error)
 
      CALL cp_print_key_section_create(print_key,"cell",&
           description="controls the output of the cell parameters",&
-          print_level=high_print_level, filename="",error=error)
+          print_level=medium_print_level, filename="",error=error)
      CALL section_add_subsection(section,print_key,error=error)
      CALL section_release(print_key,error=error)
 
      CALL cp_print_key_section_create(print_key,"kinds",&
           description="controls the output of information on the kinds",&
-          print_level=high_print_level, filename="",error=error)
+          print_level=medium_print_level, filename="",error=error)
      CALL keyword_create(keyword, name="kind_information",&
           description="If the printkey is activated controls the printing of generic kind information",&
           default_l_val=.TRUE., lone_keyword_l_val=.TRUE., error=error)
