@@ -25,6 +25,7 @@ MODULE cp_files
 
   PUBLIC :: close_file, &
             open_file, &
+            move_file,&
             get_unit_number
 
 !!***
@@ -152,22 +153,24 @@ CONTAINS
   !!
   !!*** *********************************************************************
   SUBROUTINE open_file(file_name,file_status,file_form,file_action,&
-                       file_position,unit_number)
+                       file_position,file_pad,unit_number)
 
     CHARACTER(LEN=*), INTENT(IN)             :: file_name
-    CHARACTER(LEN=*), INTENT(IN), OPTIONAL   :: file_status, file_form, &
+    CHARACTER(LEN=*), INTENT(IN), OPTIONAL   :: file_status, file_form, file_pad,&
                                                 file_action, file_position
     INTEGER, INTENT(OUT)                     :: unit_number
 
     CHARACTER(LEN=*), PARAMETER              :: routine_name = "open_file"
 
     CHARACTER(LEN=11)                        :: action_string, form_string, &
-                                                position_string, status_string
+                                                position_string, status_string,&
+                                                pad_string
     CHARACTER(LEN=max_message_length)        :: message
     INTEGER                                  :: istat
     LOGICAL                                  :: exists, opened
 
 !   ---------------------------------------------------------------------------
+
 
     IF (PRESENT(file_status)) THEN
       status_string = file_status
@@ -182,6 +185,19 @@ CONTAINS
     ELSE
       form_string = "FORMATTED"
     END IF
+
+    IF (PRESENT(file_pad)) THEN
+       pad_string = file_pad
+       CALL uppercase(pad_string)
+       IF (form_string=="UNFORMATTED") THEN
+          WRITE (UNIT=message,FMT="(A)")&
+               "The PAD= specifier is not allowed for an UNFORMATTED file!"
+          WRITE(6,*) TRIM(message)
+          STOP  ! should actually do error recovery....          
+       END IF
+    ELSE
+       pad_string = "YES"
+    END IF    
 
     IF (PRESENT(file_action)) THEN
       action_string = file_action
@@ -232,14 +248,26 @@ CONTAINS
          STOP  ! should actually do error recovery....
       END IF
 
-      OPEN (UNIT=unit_number,&
-            FILE=TRIM(file_name),&
-            STATUS=TRIM(status_string),&
-            ACCESS="SEQUENTIAL",&
-            FORM=TRIM(form_string),&
-            POSITION=TRIM(position_string),&
-            ACTION=TRIM(action_string),&
-            IOSTAT=istat)
+      IF (TRIM(form_string)== "FORMATTED") THEN
+         OPEN (UNIT=unit_number,&
+              FILE=TRIM(file_name),&
+              STATUS=TRIM(status_string),&
+              ACCESS="SEQUENTIAL",&
+              FORM=TRIM(form_string),&
+              POSITION=TRIM(position_string),&
+              ACTION=TRIM(action_string),&
+              PAD=TRIM(pad_string),&
+              IOSTAT=istat)
+      ELSE
+         OPEN (UNIT=unit_number,&
+              FILE=TRIM(file_name),&
+              STATUS=TRIM(status_string),&
+              ACCESS="SEQUENTIAL",&
+              FORM=TRIM(form_string),&
+              POSITION=TRIM(position_string),&
+              ACTION=TRIM(action_string),&
+              IOSTAT=istat)
+      END IF
 
       IF (istat /= 0) THEN
         WRITE (UNIT=message,FMT="(A,I6,A,I6,A)")&
@@ -252,5 +280,64 @@ CONTAINS
     END IF
 
   END SUBROUTINE open_file
+
+  !!****f* cp_files/move_file *
+  !!
+  !!   NAME
+  !!     move_file
+  !!
+  !!   FUNCTION
+  !!     moves the requested files
+  !!
+  !!   NOTES
+  !!     -
+  !!
+  !!   ARGUMENTS
+  !!     -
+  !!
+  !!   AUTHOR
+  !!     Joost and Teo
+  !!
+  !!*** *********************************************************************
+  SUBROUTINE move_file(Ifilename, Ofilename)
+    IMPLICIT NONE
+    ! Arguments
+    CHARACTER (LEN=*), INTENT(IN)  :: Ifilename, Ofilename
+    ! Local Variables
+    INTEGER, PARAMETER             :: max_line_length=1024
+    INTEGER                        :: iunit_in, iunit_out
+    CHARACTER(len=max_line_length) :: line, myfmt
+    INTEGER                        :: i
+
+
+    WRITE(myfmt,'(A,I0,A)') '(A',max_line_length,')'
+
+    CALL open_file(file_name=Ifilename,&
+                   file_action="READ",&
+                   file_pad="YES",&
+                   file_position="REWIND",&
+                   unit_number=iunit_in)
+
+    CALL open_file(file_name=Ofilename,&
+                   file_action="WRITE",&
+                   file_status="REPLACE",&
+                   file_position="REWIND",&
+                   unit_number=iunit_out)
+
+    DO
+       READ(iunit_in,FMT=myfmt,SIZE=i,ADVANCE="NO",EOR=100,ERR=10,END=999) line
+       STOP "No EOR (line too long), file not moved"
+10     CONTINUE
+       STOP "Error, file not moved"
+100    CONTINUE
+       WRITE(iunit_out,'(A)') line(1:i)
+    ENDDO
+999 CONTINUE
+
+    CALL close_file(unit_number=iunit_in,file_status="DELETE")
+    CALL close_file(unit_number=iunit_out)
+    
+  END SUBROUTINE move_file
+
 END MODULE cp_files
 

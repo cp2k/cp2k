@@ -33,11 +33,11 @@ MODULE dump
   USE memory_utilities,                ONLY: reallocate
   USE message_passing,                 ONLY: mp_bcast, mp_allgather
   USE cp_files,                        ONLY: close_file,&
-                                             open_file
+                                             open_file,&
+                                             move_file
   USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE cp_files_utils,                  ONLY: move_file
 
 #include "cp_common_uses.h"
 
@@ -103,7 +103,7 @@ CONTAINS
     INTEGER, POINTER :: nhc_per_proc ( : ),index(:)
     REAL (KIND=dp), POINTER, DIMENSION ( : ) :: eta, veta, fnhc, mnhc, work
 
-    CHARACTER (LEN=default_string_length)    :: cmdstr
+    CHARACTER (LEN=default_string_length)    :: cmdstr, bak_file_name
     LOGICAL                                  :: found
 
 !   ---------------------------------------------------------------------------
@@ -124,7 +124,8 @@ CONTAINS
 
       INQUIRE(FILE=dump_file_name,EXIST=found)
       IF (found) THEN
-         CALL move_file(dump_file_name, force_env_p(1)%force_env%globenv, error)
+         bak_file_name = TRIM(dump_file_name)//".bak"
+         CALL move_file(TRIM(dump_file_name), TRIM(bak_file_name))
       END IF
       
       CALL open_file(file_name=dump_file_name,&
