@@ -128,6 +128,8 @@ CONTAINS
 
       INQUIRE(FILE=dump_file_name,EXIST=found)
       IF (found) THEN
+        ! FIXME use system only in the machine files as this is not portable
+        ! implement a move_file in the machine files
         WRITE(UNIT=cmdstr,FMT="(A)")&
           "mv "//TRIM(dump_file_name)//" "//TRIM(dump_file_name)//".bak"
         CALL system(cmdstr)
