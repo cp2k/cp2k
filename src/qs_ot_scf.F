@@ -212,23 +212,6 @@ CONTAINS
                     WRITE(globenv%scr,'(3A)') "  line search : ", &
                                qs_ot_env(1)%settings%line_search_method," : UNKNOWN"
        END SELECT
-       IF (qs_ot_env(1)%settings%OT_METHOD .EQ."SD".OR.qs_ot_env(1)%settings%OT_METHOD.EQ."CG") THEN
-          SELECT CASE (qs_ot_env(1)%settings%line_search_method)
-          CASE ("2PNT")
-             WRITE(globenv%scr,'(A)') "  line search    : 2PNT           : 2 energies, one gradient "
-          CASE ("3PNT")
-             WRITE(globenv%scr,'(A)') "  line search    : 3PNT           : 3 energies "
-          CASE ("GOLD")
-             WRITE(globenv%scr,'(A)') "  line search    : GOLD           : bracketing and golden section search "
-             WRITE(globenv%scr,'(A,F14.8)') "                   target relative accuracy : ", &
-                  qs_ot_env(1)%settings%gold_target
-          CASE ("NONE")
-             WRITE(globenv%scr,'(A)') "  line search    : NONE "
-          CASE DEFAULT
-             WRITE(globenv%scr,'(3A)') "  line search : ", &
-                  qs_ot_env(1)%settings%line_search_method," : UNKNOWN"
-          END SELECT
-       ENDIF
        WRITE(globenv%scr,'(A,F14.8)') "  stepsize       :",qs_ot_env(1)%settings%ds_min
        WRITE(globenv%scr,'(A,F14.8)') "  energy_gap     :",qs_ot_env(1)%settings%energy_gap
        WRITE(globenv%scr,'(A,E14.5)') "  eps_taylor     :",qs_ot_env(1)%settings%eps_taylor
