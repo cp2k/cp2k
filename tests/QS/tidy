@@ -1,4 +1,5 @@
 rm -f *.crd \
+ *.bak\
  *.xyz \
  *.ener \
  *.restart \
