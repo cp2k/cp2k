@@ -49,6 +49,7 @@ OBJECTS_GENERIC =\
  cp_ddapc_methods.o\
  cp_error_handling.o\
  cp_files.o\
+ cp_files_utils.o\
  cp_fm_basic_linalg.o\
  cp_fm_cholesky.o\
  cp_fm_diag.o\

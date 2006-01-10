@@ -37,12 +37,8 @@ MODULE dump
   USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
-#if defined (__NAG)
-!MK This is a quick hack to allow the call system() below using the NAG compiler.
-!MK Such a direct call to system should not be used here and a m_system wrapper
-!MK routine in the machine(_arch) modules would be an appropriate solution.
-  USE f90_unix_proc
-#endif
+  USE cp_files_utils,                  ONLY: move_file
+
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -128,11 +124,7 @@ CONTAINS
 
       INQUIRE(FILE=dump_file_name,EXIST=found)
       IF (found) THEN
-        ! FIXME use system only in the machine files as this is not portable
-        ! implement a move_file in the machine files
-        WRITE(UNIT=cmdstr,FMT="(A)")&
-          "mv "//TRIM(dump_file_name)//" "//TRIM(dump_file_name)//".bak"
-        CALL system(cmdstr)
+         CALL move_file(dump_file_name, force_env_p(1)%force_env%globenv, error)
       END IF
       
       CALL open_file(file_name=dump_file_name,&
