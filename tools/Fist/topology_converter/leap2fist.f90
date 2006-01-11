@@ -108,7 +108,7 @@ PROGRAM leap2fist
   CALL open_file(input_filename,  "old", "formatted", unit_i)
   CALL open_file(output_filename, "unknown", "formatted", unit_o)
   CALL rdparm_amber_8(unit_i)
-  CALL conform_amber_2_charmm
+  IF (.NOT.dlpoly) CALL conform_amber_2_charmm
   CALL initialize_var
   IF (fist) THEN
      CALL open_file(psf_filename, "unknown", "formatted", unit_p)
@@ -1042,7 +1042,6 @@ CONTAINS
     !
     ! Dihedrals
     !
-
     WRITE(unit,1003)
     my_count = &
          NUMBER_UNIQUE_RES_DIHEDRALS(my_atom_index, my_i, my_j, my_k, my_l, my_a, my_delta,&
@@ -1409,12 +1408,14 @@ CONTAINS
     INTEGER :: i
 
     bonds: DO i = 1, ndim
-       number_of_bonds = number_of_bonds + 1
-       IF (PRESENT(my_req)) THEN
-          my_i(number_of_bonds)   = ib_l(i)/3+1
-          my_j(number_of_bonds)   = jb_l(i)/3+1
-          my_kb(number_of_bonds)  = RK(icb_l(i))
-          my_req(number_of_bonds) = REQ(icb_l(i))
+       IF (ANY(my_atom_index==ib_l(i)).AND.ANY(my_atom_index==ib_l(i))) THEN
+          number_of_bonds = number_of_bonds + 1
+          IF (PRESENT(my_req)) THEN
+             my_i(number_of_bonds)   = (ib_l(i)-my_atom_index(1))/3+1
+             my_j(number_of_bonds)   = (jb_l(i)-my_atom_index(1))/3+1
+             my_kb(number_of_bonds)  = RK(icb_l(i))
+             my_req(number_of_bonds) = REQ(icb_l(i))
+          END IF
        END IF
     END DO bonds
     IF (verbose) WRITE(*,*)"Entering loop_on_bonds :: number_of_bonds ::",number_of_bonds
@@ -1462,18 +1463,21 @@ CONTAINS
     INTEGER :: i
 
     angles: DO i = 1, ndim
-       number_of_angles = number_of_angles + 1
-       IF (PRESENT(my_theta)) THEN
-          my_i(number_of_angles)     = it_l(i)/3+1
-          my_j(number_of_angles)     = jt_l(i)/3+1
-          my_k(number_of_angles)     = kt_l(i)/3+1
-          my_ka(number_of_angles)    = TK(ict_l(i))
-          my_theta(number_of_angles) = TEQ(ict_l(i))
+       IF  (ANY(my_atom_index==it_l(i)).AND.ANY(my_atom_index==jt_l(i)).AND.&
+            ANY(my_atom_index==kt_l(i))) THEN
+          number_of_angles = number_of_angles + 1
+          IF (PRESENT(my_theta)) THEN
+             my_i(number_of_angles)     = (it_l(i)-my_atom_index(1))/3+1
+             my_j(number_of_angles)     = (jt_l(i)-my_atom_index(1))/3+1
+             my_k(number_of_angles)     = (kt_l(i)-my_atom_index(1))/3+1
+             my_ka(number_of_angles)    = TK(ict_l(i))
+             my_theta(number_of_angles) = TEQ(ict_l(i))
+          END IF
        END IF
     END DO angles
     IF (verbose) WRITE(*,*)"Entering loop_on_angles :: number_of_angles ::",number_of_angles
   END SUBROUTINE loop_on_angles
-
+  
 
   INTEGER FUNCTION NUMBER_UNIQUE_RES_DIHEDRALS(my_atom_index, my_i, my_j, my_k, my_l, my_a, my_delta,&
        my_m, dihedral_type, my_scale_el, my_scale_LJ) RESULT(number_of_dihedrals)
@@ -1550,26 +1554,29 @@ CONTAINS
     INTEGER :: i
 
     dihedrals: DO i = 1, ndim
-       number_of_dihedrals = number_of_dihedrals + 1
-       IF (PRESENT(my_delta)) THEN
-          my_i(number_of_dihedrals)          = it_l(i)/3+1
-          my_j(number_of_dihedrals)          = jt_l(i)/3+1
-          my_k(number_of_dihedrals)          = ABS(kt_l(i))/3+1
-          my_l(number_of_dihedrals)          = ABS(lt_l(i))/3+1
-          my_a(number_of_dihedrals)          = PK(ict_l(i))
-          my_m(number_of_dihedrals)          = PN(ict_l(i))
-          my_delta(number_of_dihedrals)      = PHASE(ict_l(i))
-          IF (PRESENT(my_scale_el).AND.PRESENT(my_scale_LJ)) THEN
-             my_scale_el(number_of_dihedrals)   = 1.0_dp/1.2_dp 
-             my_scale_LJ(number_of_dihedrals)   = 0.5_dp
-             IF (kt_l(i) < 0 .OR. lt_l(i) < 0) THEN
-                my_scale_el(number_of_dihedrals)   = 0.0_dp
-                my_scale_LJ(number_of_dihedrals)   = 0.0_dp
+       IF  (ANY(my_atom_index==it_l(i)).AND.ANY(my_atom_index==jt_l(i)).AND.&
+            ANY(my_atom_index==kt_l(i)).AND.ANY(my_atom_index==lt_l(i))) THEN
+          number_of_dihedrals = number_of_dihedrals + 1
+          IF (PRESENT(my_delta)) THEN
+             my_i(number_of_dihedrals)          = (it_l(i)-my_atom_index(1))/3+1
+             my_j(number_of_dihedrals)          = (jt_l(i)-my_atom_index(1))/3+1
+             my_k(number_of_dihedrals)          = (ABS(kt_l(i))-my_atom_index(1))/3+1
+             my_l(number_of_dihedrals)          = (ABS(lt_l(i))-my_atom_index(1))/3+1
+             my_a(number_of_dihedrals)          = PK(ict_l(i))
+             my_m(number_of_dihedrals)          = PN(ict_l(i))
+             my_delta(number_of_dihedrals)      = PHASE(ict_l(i))
+             IF (PRESENT(my_scale_el).AND.PRESENT(my_scale_LJ)) THEN
+                my_scale_el(number_of_dihedrals)   = 1.0_dp/1.2_dp 
+                my_scale_LJ(number_of_dihedrals)   = 0.5_dp
+                IF (kt_l(i) < 0 .OR. lt_l(i) < 0) THEN
+                   my_scale_el(number_of_dihedrals)   = 0.0_dp
+                   my_scale_LJ(number_of_dihedrals)   = 0.0_dp
+                END IF
              END IF
-          END IF
-          IF (PRESENT(dihedral_type)) THEN
-             dihedral_type(number_of_dihedrals) = 0
-             IF (lt_l(i) < 0) dihedral_type(number_of_dihedrals) = 1
+             IF (PRESENT(dihedral_type)) THEN
+                dihedral_type(number_of_dihedrals) = 0
+                IF (lt_l(i) < 0) dihedral_type(number_of_dihedrals) = 1
+             END IF
           END IF
        END IF
     END DO dihedrals
