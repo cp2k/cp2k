@@ -405,7 +405,6 @@ CONTAINS
          i_val=my_control_val,error=error)
     is_on=cp_printkey_is_on(iteration_info,print_key,error=error)
     is_iter=cp_printkey_is_iter(iteration_info,print_key,error=error)
-    res=0
 
     IF (BTEST(my_control_val,cp_p_store)) THEN
        res=IBSET(res,cp_p_store)

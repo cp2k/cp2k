@@ -38,7 +38,8 @@ MODULE pw_env_types
   USE pw_pool_types,                   ONLY: pw_pool_p_type,&
                                              pw_pool_type,&
                                              pw_pools_dealloc,&
-                                             pw_pools_flush_cache
+                                             pw_pools_flush_cache,&
+                                             pw_pool_release
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE pw_poisson_types, ONLY: pw_poisson_type, pw_poisson_retain, pw_poisson_release
@@ -69,6 +70,8 @@ MODULE pw_env_types
 !!   ATTRIBUTES
 !!     - pw_pools: pools for multigrids
 !!     - rs_pools: pools for the realspace grids
+!!     - xc_pw_pool: the pool used for xc calculation on grid (might be the
+!!       same as the finest, or finer still).
 !!     - gridlevel_info: gaussian gridlevel info
 !!     - l_info: informations for l calc
 !!     - cube_info: info on cube and max sphere size for multigrids
@@ -91,6 +94,7 @@ MODULE pw_env_types
   TYPE pw_env_type
      INTEGER :: ref_count
      TYPE(pw_pool_p_type), DIMENSION(:), POINTER :: pw_pools
+     TYPE(pw_pool_type), POINTER :: xc_pw_pool
      TYPE(cp_rs_pool_p_type), DIMENSION(:), POINTER :: rs_pools
      TYPE(gridlevel_info_type), POINTER :: gridlevel_info
      TYPE(l_info_type), POINTER :: l_info ! right place for it?
@@ -148,7 +152,7 @@ CONTAINS
 !!*** **********************************************************************
 SUBROUTINE pw_env_get(pw_env, pw_pools,l_info,l_info_rho0, cube_info, gridlevel_info,&
      auxbas_pw_pool,auxbas_cube_info,auxbas_grid,rs_pools,auxbas_rs_pool,&
-     poisson_env,error)
+     xc_pw_pool, poisson_env,error)
     TYPE(pw_env_type), POINTER               :: pw_env
     TYPE(pw_pool_p_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: pw_pools
@@ -164,6 +168,7 @@ SUBROUTINE pw_env_get(pw_env, pw_pools,l_info,l_info_rho0, cube_info, gridlevel_
     TYPE(cp_rs_pool_p_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: rs_pools
     TYPE(cp_rs_pool_type), OPTIONAL, POINTER :: auxbas_rs_pool
+    TYPE(pw_pool_type), OPTIONAL, POINTER    :: xc_pw_pool
     TYPE(pw_poisson_type), OPTIONAL, POINTER :: poisson_env
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
@@ -191,7 +196,8 @@ SUBROUTINE pw_env_get(pw_env, pw_pools,l_info,l_info_rho0, cube_info, gridlevel_
         auxbas_rs_pool => pw_env%rs_pools(pw_env%auxbas_grid)%pool
      END IF
      IF (PRESENT(auxbas_grid)) auxbas_grid = pw_env%auxbas_grid
-     if (present(poisson_env)) poisson_env => pw_env%poisson_env
+     IF (PRESENT(xc_pw_pool)) xc_pw_pool => pw_env%xc_pw_pool
+     IF (PRESENT(poisson_env)) poisson_env => pw_env%poisson_env
   END IF
 END SUBROUTINE pw_env_get
 !***************************************************************************
@@ -319,6 +325,7 @@ SUBROUTINE pw_env_release(pw_env, error)
            DEALLOCATE(pw_env%cube_info,stat=stat)
            CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
         END IF
+        CALL pw_pool_release(pw_env%xc_pw_pool,error=error)
         CALL rs_pools_dealloc(pw_env%rs_pools, error=error)
         DEALLOCATE(pw_env, stat=stat)
         CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)

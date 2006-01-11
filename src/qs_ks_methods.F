@@ -84,13 +84,17 @@ MODULE qs_ks_methods
                                              pw_pool_init_coeff,&
                                              pw_pool_p_type,&
                                              pw_pool_retain,&
-                                             pw_pool_type
-  USE pw_types,                        ONLY: COMPLEXDATA1D,&
+                                             pw_pool_type,&
+                                             pw_pool_create_pw,&
+                                             pw_pool_give_back_pw
+  USE pw_types,                        ONLY: pw_type,&
+                                             COMPLEXDATA1D,&
                                              REALDATA3D,&
                                              REALSPACE,&
                                              RECIPROCALSPACE,&
                                              pw_p_type, &
-                                             pw_release
+                                             pw_release,&
+                                             pw_transfer
   USE qs_charges_types,                ONLY: qs_charges_type
   USE qs_collocate_density,            ONLY: calculate_total_rho
   USE qs_core_energies,                ONLY: calculate_ecore
@@ -1212,7 +1216,8 @@ SUBROUTINE qs_vxc_create(vxc_rho,vxc_tau, exc, qs_env,&
     TYPE(pw_env_type), POINTER               :: pw_env
     TYPE(pw_p_type), DIMENSION(:), POINTER   :: my_vxc_rho, my_vxc_tau, &
                                                 rho_g, rho_r, tau
-    TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
+    TYPE(pw_type), POINTER :: tmp_pw, tmp_g, tmp_g2
+    TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool, xc_pw_pool
     TYPE(qs_rho_type), POINTER               :: rho_struct
     TYPE(coeff_type), DIMENSION(:), POINTER  :: rho_m_rspace,rho_m_gspace
     REAL(KIND=dp)                            :: exc_m
@@ -1223,7 +1228,7 @@ SUBROUTINE qs_vxc_create(vxc_rho,vxc_tau, exc, qs_env,&
     LOGICAL                                  :: sic_scaling_b_zero, &
                                                 harris_flag, &
                                                 nsc_flag, &
-                                                my_gapw_xc
+                                                my_gapw_xc,uf_grid
     TYPE(harris_env_type), POINTER           :: harris_env
     TYPE(section_vals_type), POINTER :: input, xc_section
 
@@ -1234,8 +1239,9 @@ SUBROUTINE qs_vxc_create(vxc_rho,vxc_tau, exc, qs_env,&
   failure=.FALSE.
   CPPrecondition(.NOT.ASSOCIATED(vxc_rho),cp_failure_level,routineP,error,failure)
   CPPrecondition(.NOT.ASSOCIATED(vxc_tau),cp_failure_level,routineP,error,failure)
-  NULLIFY(dft_control,rho_struct,pw_env,auxbas_pw_pool,harris_env,cell, my_vxc_rho, &
-          my_vxc_tau, rho_g, rho_r, tau, rho_m_rspace,rho_m_gspace, input)
+  NULLIFY(dft_control,rho_struct,pw_env,auxbas_pw_pool,xc_pw_pool,harris_env,&
+       cell, my_vxc_rho, tmp_pw,tmp_g,tmp_g2,&
+       my_vxc_tau, rho_g, rho_r, tau, rho_m_rspace,rho_m_gspace, input)
 
   my_just_energy=.FALSE.
   IF (PRESENT(just_energy)) my_just_energy=just_energy
@@ -1308,33 +1314,99 @@ SUBROUTINE qs_vxc_create(vxc_rho,vxc_tau, exc, qs_env,&
   ENDIF
 
   IF ( .NOT. failure ) THEN
-     CALL pw_env_get(pw_env,auxbas_pw_pool=auxbas_pw_pool,error=error)
-
+     CALL pw_env_get(pw_env,xc_pw_pool=xc_pw_pool,auxbas_pw_pool=auxbas_pw_pool,&
+          error=error)
+     uf_grid=(auxbas_pw_pool%pw_grid%id_nr/=xc_pw_pool%pw_grid%id_nr)
+     
      ALLOCATE(rho_r(dft_control%nspins),stat=stat)
      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-
-     DO ispin=1,dft_control%nspins
-        rho_r(ispin)%pw => rho_struct%rho_r(ispin)%pw
-     END DO
-
-     IF (rho_struct%tau_r_valid) THEN
-        ALLOCATE(tau(dft_control%nspins),stat=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+     IF (.not.uf_grid) THEN
         DO ispin=1,dft_control%nspins
-           tau(ispin)%pw => rho_struct%tau_r(ispin)%pw
+           rho_r(ispin)%pw => rho_struct%rho_r(ispin)%pw
         END DO
-     END IF
 
-     ! for gradient corrected functional the density in g space might
-     ! be useful so if we have it, we pass it in
-     IF ( rho_struct%rho_g_valid ) THEN
+        IF (rho_struct%tau_r_valid) THEN
+           ALLOCATE(tau(dft_control%nspins),stat=stat)
+           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+           DO ispin=1,dft_control%nspins
+              tau(ispin)%pw => rho_struct%tau_r(ispin)%pw
+           END DO
+        END IF
+
+        ! for gradient corrected functional the density in g space might
+        ! be useful so if we have it, we pass it in
+        IF ( rho_struct%rho_g_valid ) THEN
+           ALLOCATE(rho_g(dft_control%nspins),stat=stat)
+           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+           DO ispin=1,dft_control%nspins
+              rho_g(ispin)%pw => rho_struct%rho_g(ispin)%pw
+           END DO
+        END IF
+     ELSE
+!FM        DO ispin=1,dft_control%nspins
+!FM           CALL pw_pool_create_pw(xc_pw_pool,rho_r(ispin)%pw,&
+!FM                in_space=REALSPACE, use_data=REALDATA3D,error=error)
+!FM           call pw_zero(rho_r(ispin)%pw)
+!FM           CALL pw_prolongate_s3(rho_struct%rho_r(ispin)%pw,rho_r(ispin)%pw,&
+!FM                auxbas_pw_pool,param_section=interp_section,error=error)
+!FM        END DO
+!FM        
+!FM        IF (rho_struct%tau_r_valid) THEN
+!FM           ALLOCATE(tau(dft_control%nspins),stat=stat)
+!FM           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+!FM           DO ispin=1,dft_control%nspins
+!FM              CALL pw_pool_create_pw(xc_pw_pool,tau(ispin)%pw,&
+!FM                   in_space=REALSPACE, use_data=REALDATA3D,error=error)
+!FM              CALL pw_zero(rho_r(ispin)%pw)
+!FM              CALL pw_prolongate_s3(rho_struct%tau_r(ispin)%pw,tau(ispin)%pw,&
+!FM                   auxbas_pw_pool,param_section=interp_section,error=error)
+!FM           END DO
+!FM        END IF
+!FM
+!FM        ! for gradient corrected functional the density in g space might
+!FM        ! be useful so if we have it, we pass it in
+!FM        IF ( rho_struct%rho_g_valid ) THEN
+!FM           ALLOCATE(rho_g(dft_control%nspins),stat=stat)
+!FM           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+!FM           DO ispin=1,dft_control%nspins
+!FM              CALL pw_pool_create_pw(xc_pw_pool,rho_g(ispin)%pw,&
+!FM                   in_space=REALSPACE, use_data=REALDATA3D,error=error)
+!FM              CALL pw_transfer(rho_struct%rho_g(ispin)%pw,rho_g(ispin)%pw)
+!FM           END DO
+!FM        END IF
+        CPPrecondition(rho_struct%rho_g_valid,cp_failure_level,routineP,error,failure)
         ALLOCATE(rho_g(dft_control%nspins),stat=stat)
         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
         DO ispin=1,dft_control%nspins
-           rho_g(ispin)%pw => rho_struct%rho_g(ispin)%pw
+           CALL pw_pool_create_pw(xc_pw_pool,rho_g(ispin)%pw,&
+                in_space=RECIPROCALSPACE, use_data=COMPLEXDATA1D,error=error)
+           CALL pw_transfer(rho_struct%rho_g(ispin)%pw,rho_g(ispin)%pw)
         END DO
-     END IF
+        DO ispin=1,dft_control%nspins
+           CALL pw_pool_create_pw(xc_pw_pool,rho_r(ispin)%pw,&
+                in_space=REALSPACE, use_data=REALDATA3D,error=error)
+           CALL pw_transfer(rho_g(ispin)%pw,rho_r(ispin)%pw)
+        END DO
+        CPPrecondition(.NOT.rho_struct%tau_r_valid,cp_failure_level,routineP,error,failure)
+        IF (rho_struct%tau_r_valid) THEN
+           ALLOCATE(tau(dft_control%nspins),stat=stat)
+           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+           DO ispin=1,dft_control%nspins
+              CALL pw_pool_create_pw(xc_pw_pool,tau(ispin)%pw,&
+                   in_space=REALSPACE, use_data=REALDATA3D,error=error)
 
+              CALL pw_pool_create_pw(xc_pw_pool,tmp_g,&
+                   in_space=RECIPROCALSPACE,use_data=COMPLEXDATA1D,error=error)
+              CALL pw_pool_create_pw(auxbas_pw_pool,tmp_g2,&
+                   in_space=RECIPROCALSPACE,use_data=COMPLEXDATA1D,error=error)
+              CALL pw_transfer(tau(ispin)%pw,tmp_g)
+              CALL pw_transfer(tmp_g,tmp_g2)
+              CALL pw_transfer(tmp_g2,tmp_pw)
+              CALL pw_pool_give_back_pw(auxbas_pw_pool,tmp_g2,error=error)
+              CALL pw_pool_give_back_pw(xc_pw_pool,tmp_g,error=error)
+           END DO
+        END IF
+     END IF
      !
      ! here the rho_r, rho_g, tau is what it should be
      ! we get back the right my_vxc_rho and my_vxc_tau as required
@@ -1343,14 +1415,14 @@ SUBROUTINE qs_vxc_create(vxc_rho,vxc_tau, exc, qs_env,&
 
         exc=xc_exc_calc(rho_r=rho_r,tau=tau,&
              rho_g=rho_g, xc_section=xc_section,&
-             cell=cell, pw_pool=auxbas_pw_pool,&
+             cell=cell, pw_pool=xc_pw_pool,&
              error=error)
 
      ELSE
         CALL xc_vxc_pw_create1(vxc_rho=my_vxc_rho,vxc_tau=my_vxc_tau, rho_r=rho_r,&
              rho_g=rho_g,tau=tau,exc=exc,&
              xc_section=xc_section,&
-             cell=cell, pw_pool=auxbas_pw_pool,&
+             cell=cell, pw_pool=xc_pw_pool,&
              error=error)
      END IF
 
@@ -1393,19 +1465,19 @@ SUBROUTINE qs_vxc_create(vxc_rho,vxc_tau, exc, qs_env,&
      ! compute again the xc but now for Exc(m,o) and the opposite sign
      IF (dft_control%sic_method_id .EQ. sic_mauri_spz .AND. .NOT. sic_scaling_b_zero) THEN
         ALLOCATE(rho_m_rspace(2),rho_m_gspace(2))
-        CALL pw_pool_init_coeff(auxbas_pw_pool, rho_m_gspace(1),&
+        CALL pw_pool_init_coeff(xc_pw_pool, rho_m_gspace(1),&
                                    use_data = COMPLEXDATA1D,&
                                    in_space = RECIPROCALSPACE, error=error)
-        CALL pw_pool_init_coeff(auxbas_pw_pool, rho_m_rspace(1),&
+        CALL pw_pool_init_coeff(xc_pw_pool, rho_m_rspace(1),&
                                    use_data = REALDATA3D,&
                                    in_space = REALSPACE, error=error)
         CALL coeff_subtract(rho_struct%rho_r(1),rho_struct%rho_r(2),rho_m_rspace(1))
         CALL coeff_subtract(rho_struct%rho_g(1),rho_struct%rho_g(2),rho_m_gspace(1))
         ! bit sad, these will be just zero...
-        CALL pw_pool_init_coeff(auxbas_pw_pool, rho_m_gspace(2),&
+        CALL pw_pool_init_coeff(xc_pw_pool, rho_m_gspace(2),&
                                    use_data = COMPLEXDATA1D,&
                                    in_space = RECIPROCALSPACE, error=error)
-        CALL pw_pool_init_coeff(auxbas_pw_pool, rho_m_rspace(2),&
+        CALL pw_pool_init_coeff(xc_pw_pool, rho_m_rspace(2),&
                                    use_data = REALDATA3D,&
                                    in_space = REALSPACE, error=error)
         CALL coeff_zero(rho_m_rspace(2))
@@ -1419,13 +1491,13 @@ SUBROUTINE qs_vxc_create(vxc_rho,vxc_tau, exc, qs_env,&
         IF (my_just_energy) THEN
            exc_m=xc_exc_calc(rho_r=rho_r,tau=tau,&
                 rho_g=rho_g, xc_section=xc_section,&
-                cell=cell, pw_pool=auxbas_pw_pool,&
+                cell=cell, pw_pool=xc_pw_pool,&
                 error=error)
         ELSE
            CALL xc_vxc_pw_create1(vxc_rho=my_vxc_rho,vxc_tau=my_vxc_tau, rho_r=rho_r,&
                 rho_g=rho_g,tau=tau,exc=exc_m,&
                 xc_section=xc_section,&
-                cell=cell, pw_pool=auxbas_pw_pool,&
+                cell=cell, pw_pool=xc_pw_pool,&
                 error=error)
         END IF
  
@@ -1442,9 +1514,9 @@ SUBROUTINE qs_vxc_create(vxc_rho,vxc_tau, exc, qs_env,&
         ENDIF
 
         DO ispin=1,2
-           CALL pw_pool_give_back_coeff(auxbas_pw_pool,rho_m_rspace(ispin),&
+           CALL pw_pool_give_back_coeff(xc_pw_pool,rho_m_rspace(ispin),&
                                         error=error)                 
-           CALL pw_pool_give_back_coeff(auxbas_pw_pool,rho_m_gspace(ispin),&
+           CALL pw_pool_give_back_coeff(xc_pw_pool,rho_m_gspace(ispin),&
                                         error=error)                 
         ENDDO
         DEALLOCATE(rho_m_rspace)
@@ -1462,10 +1534,10 @@ SUBROUTINE qs_vxc_create(vxc_rho,vxc_tau, exc, qs_env,&
 
         ALLOCATE(rho_m_rspace(2),rho_m_gspace(2))
         DO ispin=1,2
-           CALL pw_pool_init_coeff(auxbas_pw_pool, rho_m_gspace(ispin),&
+           CALL pw_pool_init_coeff(xc_pw_pool, rho_m_gspace(ispin),&
                                    use_data = COMPLEXDATA1D,&
                                    in_space = RECIPROCALSPACE, error=error)
-           CALL pw_pool_init_coeff(auxbas_pw_pool, rho_m_rspace(ispin),&
+           CALL pw_pool_init_coeff(xc_pw_pool, rho_m_rspace(ispin),&
                                    use_data = REALDATA3D,&
                                    in_space = REALSPACE, error=error)
         ENDDO
@@ -1492,13 +1564,13 @@ SUBROUTINE qs_vxc_create(vxc_rho,vxc_tau, exc, qs_env,&
            IF (my_just_energy) THEN
               exc_m=xc_exc_calc(rho_r=rho_r,tau=tau,&
                    rho_g=rho_g, xc_section=xc_section,&
-                   cell=cell, pw_pool=auxbas_pw_pool,&
+                   cell=cell, pw_pool=xc_pw_pool,&
                    error=error)
            ELSE
               CALL xc_vxc_pw_create1(vxc_rho=my_vxc_rho,vxc_tau=my_vxc_tau, rho_r=rho_r,&
                    rho_g=rho_g,tau=tau,exc=exc_m,&
                    xc_section=xc_section,&
-                   cell=cell, pw_pool=auxbas_pw_pool,&
+                   cell=cell, pw_pool=xc_pw_pool,&
                    error=error)
            END IF
 
@@ -1515,9 +1587,9 @@ SUBROUTINE qs_vxc_create(vxc_rho,vxc_tau, exc, qs_env,&
         ENDDO
 
         DO ispin=1,2
-           CALL pw_pool_give_back_coeff(auxbas_pw_pool,rho_m_rspace(ispin),&
+           CALL pw_pool_give_back_coeff(xc_pw_pool,rho_m_rspace(ispin),&
                                         error=error)
-           CALL pw_pool_give_back_coeff(auxbas_pw_pool,rho_m_gspace(ispin),&
+           CALL pw_pool_give_back_coeff(xc_pw_pool,rho_m_gspace(ispin),&
                                         error=error)
         ENDDO
         DEALLOCATE(rho_m_rspace)
@@ -1537,13 +1609,13 @@ SUBROUTINE qs_vxc_create(vxc_rho,vxc_tau, exc, qs_env,&
         IF (my_just_energy) THEN
            exc_m=xc_exc_calc(rho_r=rho_r,tau=tau,&
                 rho_g=rho_g, xc_section=xc_section,&
-                cell=cell, pw_pool=auxbas_pw_pool,&
+                cell=cell, pw_pool=xc_pw_pool,&
                 error=error)
         ELSE
            CALL xc_vxc_pw_create1(vxc_rho=my_vxc_rho,vxc_tau=my_vxc_tau, rho_r=rho_r,&
                 rho_g=rho_g,tau=tau,exc=exc_m,&
                 xc_section=xc_section,&
-                cell=cell, pw_pool=auxbas_pw_pool,&
+                cell=cell, pw_pool=xc_pw_pool,&
                 error=error)
         END IF
  
@@ -1565,13 +1637,73 @@ SUBROUTINE qs_vxc_create(vxc_rho,vxc_tau, exc, qs_env,&
      !
      ! cleanups
      !
+     IF (uf_grid) THEN
+        DO ispin=1,SIZE(rho_r)
+           CALL pw_pool_give_back_pw(xc_pw_pool,rho_r(ispin)%pw,error=error)
+        END DO
+        IF (ASSOCIATED(vxc_rho)) THEN
+           DO ispin=1,SIZE(vxc_rho)
+              CALL pw_pool_create_pw(auxbas_pw_pool,tmp_pw,&
+                   in_space=REALSPACE,use_data=REALDATA3D,error=error)
+              
+              CALL pw_pool_create_pw(xc_pw_pool,tmp_g,&
+                   in_space=RECIPROCALSPACE,use_data=COMPLEXDATA1D,error=error)
+              CALL pw_pool_create_pw(auxbas_pw_pool,tmp_g2,&
+                   in_space=RECIPROCALSPACE,use_data=COMPLEXDATA1D,error=error)
+              CALL pw_transfer(vxc_rho(ispin)%pw,tmp_g)
+              CALL pw_transfer(tmp_g,tmp_g2)
+              CALL pw_transfer(tmp_g2,tmp_pw)
+              CALL pw_pool_give_back_pw(auxbas_pw_pool,tmp_g2,error=error)
+              CALL pw_pool_give_back_pw(xc_pw_pool,tmp_g,error=error)
+!FM              CALL pw_zero(tmp_pw,error=error)
+!FM              CALL pw_restrict_s3(vxc_rho(ispin)%pw,tmp_pw,&
+!FM                   auxbas_pw_pool,param_section=interp_section,error=error)
+              CALL pw_pool_give_back_pw(xc_pw_pool,vxc_rho(ispin)%pw,error=error)
+              vxc_rho(ispin)%pw => tmp_pw
+              nullify(tmp_pw)
+           END DO
+        END IF
+        IF (ASSOCIATED(vxc_tau)) THEN
+           DO ispin=1,SIZE(vxc_tau)
+              CALL pw_pool_create_pw(auxbas_pw_pool,tmp_pw,&
+                   in_space=REALSPACE,use_data=REALDATA3D,error=error)
+
+              CALL pw_pool_create_pw(xc_pw_pool,tmp_g,&
+                   in_space=RECIPROCALSPACE,use_data=COMPLEXDATA1D,error=error)
+              CALL pw_pool_create_pw(auxbas_pw_pool,tmp_g2,&
+                   in_space=RECIPROCALSPACE,use_data=COMPLEXDATA1D,error=error)
+              CALL pw_transfer(vxc_tau(ispin)%pw,tmp_g)
+              CALL pw_transfer(tmp_g,tmp_g2)
+              CALL pw_transfer(tmp_g2,tmp_pw)
+              CALL pw_pool_give_back_pw(auxbas_pw_pool,tmp_g2,error=error)
+              CALL pw_pool_give_back_pw(xc_pw_pool,tmp_g,error=error)
+!FM              CALL pw_zero(tmp_pw,error=error)
+!FM              CALL pw_restrict_s3(vxc_rho(ispin)%pw,tmp_pw,&
+!FM                   auxbas_pw_pool,param_section=interp_section,error=error)
+              CALL pw_pool_give_back_pw(xc_pw_pool,vxc_tau(ispin)%pw,error=error)
+              vxc_tau(ispin)%pw => tmp_pw
+              nullify(tmp_pw)
+           END DO
+        END IF
+        
+     END IF
      DEALLOCATE(rho_r,stat=stat)
      CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
      IF (ASSOCIATED(rho_g)) THEN
+        IF (uf_grid) THEN
+           DO ispin=1,SIZE(rho_g)
+              CALL pw_pool_give_back_pw(xc_pw_pool,rho_g(ispin)%pw,error=error)
+           END DO
+        END IF
         DEALLOCATE(rho_g,stat=stat)
         CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
      END IF
      IF (ASSOCIATED(tau)) THEN
+        IF (uf_grid) THEN
+           DO ispin=1,SIZE(tau)
+              CALL pw_pool_give_back_pw(xc_pw_pool,tau(ispin)%pw,error=error)
+           END DO
+        END IF
         DEALLOCATE(tau,stat=stat)
         CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
      END IF

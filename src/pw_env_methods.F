@@ -57,7 +57,9 @@ MODULE pw_env_methods
                                              pw_grid_setup
   USE pw_pool_types,                   ONLY: pw_pool_create,&
                                              pw_pool_p_type,&
-                                             pw_pools_dealloc
+                                             pw_pools_dealloc,&
+                                             pw_pool_release,&
+                                             pw_pool_retain
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
   USE qs_interactions,                 ONLY: exp_radius_very_extended
@@ -69,9 +71,10 @@ MODULE pw_env_methods
                                              stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE pw_poisson_types, ONLY: setup_MT_ref_grid, pw_poisson_type, pw_poisson_create
+  USE pw_poisson_types, ONLY: setup_super_ref_grid, pw_poisson_type, pw_poisson_create
   USE pw_poisson_methods, ONLY: pw_poisson_set
-  USE input_section_types, ONLY: section_vals_type, section_vals_get_subs_vals
+  USE input_section_types, ONLY: section_vals_type, section_vals_get_subs_vals,&
+       section_vals_val_get
   USE input_constants, ONLY: do_rsgrid_distributed
 #include "cp_common_uses.h"
   IMPLICIT NONE
@@ -131,7 +134,8 @@ SUBROUTINE pw_env_create(pw_env,qs_env,error)
   END IF
   IF (.NOT. failure) THEN
      NULLIFY(pw_env%pw_pools, pw_env%gridlevel_info,pw_env%poisson_env, &
-          pw_env%l_info, pw_env%l_info_rho0, pw_env%cube_info, pw_env%rs_pools)
+          pw_env%l_info, pw_env%l_info_rho0, pw_env%cube_info, pw_env%rs_pools,&
+          pw_env%xc_pw_pool)
      pw_env%auxbas_grid=-1
      pw_env%ref_count=1
      IF (PRESENT(qs_env)) CALL pw_env_rebuild(pw_env,qs_env=qs_env,error=error)
@@ -177,11 +181,11 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
     INTEGER :: cmax, grid_span, handle, i, igrid_level, igrid_zet0_s, &
       ikind, ipgf, iset, ishell, istat, jkind, jpgf, jset, jshell, la, lb, &
       lgrid_level, lmax_rho0, maxlgto, ncommensurate, ngrid_level, nkind, &
-      nseta, nsetb, nsmax, stat
+      nseta, nsetb, nsmax, stat, info_unit
     INTEGER, DIMENSION(:), POINTER           :: npgfa, npgfb, nshella, nshellb
     INTEGER, DIMENSION(:, :), POINTER        :: lshella, lshellb
     LOGICAL                                  :: failure, pw_grid_information, &
-                                                use_ref_cell
+                                                use_ref_cell, uf_grid
     REAL(KIND=dp)                            :: alpha, cutilev, drmin, &
                                                 max_rpgf0_s, maxradius, &
                                                 rel_cutoff, zet0_s, zetp
@@ -200,7 +204,7 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
     TYPE(pw_grid_type), POINTER              :: old_pw_grid, pw_grid, &
-         mt_super_ref_grid
+         mt_super_ref_grid, xc_super_ref_grid, super_ref_grid
     TYPE(pw_pool_p_type), DIMENSION(:), &
       POINTER                                :: pw_pools
     TYPE(rho0_mpole_type), POINTER           :: nddo_mpole, rho0_mpole
@@ -217,13 +221,14 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
   failure=.FALSE.
   NULLIFY(cutoff,cell,pw_grid,old_pw_grid,dft_control,atomic_kind_set,&
           pw_pools,rho0_mpole,rs_pools, para_env,cell_ref, mt_super_ref_grid,&
-          input,poisson_section)
+          input,poisson_section,xc_super_ref_grid,super_ref_grid)
   logger => cp_error_get_logger(error)
   pw_grid_information=logger%print_keys%pw_grid_information
  
   CPPrecondition(ASSOCIATED(pw_env),cp_failure_level,routineP,error,failure)
   CPPrecondition(pw_env%ref_count>0,cp_failure_level,routineP,error,failure)
   IF (.NOT. failure) THEN
+     CALL pw_pool_release(pw_env%xc_pw_pool,error=error)
      CALL pw_pools_dealloc(pw_env%pw_pools,error=error)
      CALL rs_pools_dealloc(pw_env%rs_pools,error=error)
      IF (ASSOCIATED(pw_env%gridlevel_info)) THEN
@@ -289,6 +294,8 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
           error=error)
      rel_cutoff = dft_control%qs_control%relative_cutoff
      cutoff => dft_control%qs_control%e_cutoff
+     CALL section_vals_val_get(input,"DFT%XC%XC_GRID%USE_FINER_GRID",&
+          l_val=uf_grid,error=error)
      ngrid_level = SIZE(cutoff)
      
      ! init gridlevel_info XXXXXXXXX setup mapping to the effective cutoff ?
@@ -319,9 +326,16 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
         cutilev = -cutoff(1)
         grid_span = HALFSPACE
      END IF
-     CALL setup_MT_ref_grid(mt_super_ref_grid, cutilev, grid_span, cell_ref, para_env, &
-          qs_env%input, ngrid_level, error) 
-     old_pw_grid => mt_super_ref_grid
+     IF (pw_grid_information) THEN
+        info_unit=cp_logger_get_default_unit_nr(logger,local=.FALSE.)
+     ELSE
+        info_unit=-1
+     END IF
+     CALL setup_super_ref_grid(super_ref_grid,mt_super_ref_grid,&
+          xc_super_ref_grid, cutilev, grid_span, cell_ref, para_env, &
+          qs_env%input, ncommensurate, uf_grid=uf_grid,&
+          info_unit=info_unit,error=error) 
+     old_pw_grid => super_ref_grid
      !
      ! Setup of the multi-grid pw_grid and pw_pools
      !
@@ -394,6 +408,16 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
      DO i=1,ngrid_level
         IF (cutoff(i) == dft_control%qs_control%cutoff) pw_env%auxbas_grid=i
      END DO
+
+     ! init xc_pool
+     IF (ASSOCIATED(xc_super_ref_grid)) THEN
+        CALL pw_pool_create(pw_env%xc_pw_pool,&
+             pw_grid=xc_super_ref_grid,error=error)
+        CALL pw_grid_release(xc_super_ref_grid,error=error)
+     ELSE
+        pw_env%xc_pw_pool => pw_pools(pw_env%auxbas_grid)%pool
+        CALL pw_pool_retain(pw_env%xc_pw_pool,error=error)
+     END IF
 
      ! complete init of the poisson_env
      IF (.NOT.ASSOCIATED(pw_env%poisson_env)) THEN

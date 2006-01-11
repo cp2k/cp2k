@@ -367,10 +367,6 @@ OBJECTS_GENERIC =\
  semi_empirical_types.o\
  semi_empirical_utils.o\
  simulation_cell.o\
- slater_koster.o\
- slater_koster_matr.o\
- slater_koster_test.o\
- slater_koster_util.o\
  soft_basis_set.o\
  sparse_matrix_types.o\
  spherical_harmonics.o\

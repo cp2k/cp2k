@@ -82,7 +82,8 @@ MODULE pw_grids
   PUBLIC :: pw_grid_create, pw_grid_compare
   PUBLIC :: pw_grid_setup, pw_grid_change, pw_find_cutoff, pw_grid_find_bounds
   PUBLIC :: pw_grid_retain, pw_grid_release, pw_grid_create_copy_no_pbc
-  PUBLIC :: create_gvectors
+  PUBLIC :: create_gvectors, pw_grid_find_n, pw_grid_n_from_cutoff,&
+       pw_grid_n_for_fft, pw_grid_bounds_from_n, pw_grid_setup1,pw_cutoff_from_n
 
   INTEGER :: grid_tag = 0
   CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='pw_grids'
@@ -209,6 +210,385 @@ FUNCTION pw_grid_compare ( grida, gridb ) RESULT ( equal )
 END FUNCTION pw_grid_compare
 
 !******************************************************************************
+
+  !!****f* pw_grids/pw_grid_find_n *
+  !!
+  !!   NAME
+  !!     pw_grid_find_n
+  !!
+  !!   FUNCTION
+  !!     returns the n needed for the grid with all the given constraints
+  !!
+  !!   NOTES
+  !!     -
+  !!
+  !!   ARGUMENTS
+  !!     - error: variable to control error logging, stopping,... 
+  !!       see module cp_error_handling 
+  !!
+  !!   AUTHOR
+  !!     fawzi
+  !!
+  !!*** *********************************************************************
+FUNCTION pw_grid_find_n ( cell, cutoff, fft_usage, grid_span,&
+     symm_usage, spherical, ncommensurate, error) RESULT(n)
+
+    TYPE(cell_type), INTENT(IN)              :: cell
+    REAL(KIND=dp), INTENT(IN)                :: cutoff
+    LOGICAL, INTENT(IN), OPTIONAL            :: fft_usage, symm_usage,spherical
+    INTEGER, INTENT(IN), OPTIONAL            :: ncommensurate, grid_span
+    INTEGER, dimension(3) :: n
+    TYPE(cp_error_type), INTENT(inout), optional :: error
+
+    INTEGER :: allocstat, handle, i, ires, my_icommensurate, idir, &
+      my_ncommensurate, nlowest, nlowest_new, ntest(3), n_ref(3),my_grid_span
+    INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: yz_mask
+    LOGICAL                                  :: fft, symmetry,&
+         my_spherical, failure
+    REAL(KIND=dp)                            :: ecut, rv(3,3)
+    CHARACTER(len=*), PARAMETER :: routineN='pw_grid_find_n',&
+         routineP=moduleN//':'//routineN
+
+! cutoff could be inout, and set to the effective cutoff of the given grid
+! in atomic units
+! parent group for this grid
+! output unit for information on grid
+! has the grid size to be 
+! compatible with the FFT
+! has the grid size to be 
+! symmetric (g <-> -g)    
+! block or ray-distribution
+!------------------------------------------------------------------------------
+
+  CALL timeset("pw_grid_find_n","I","",handle)
+  failure=.false.
+
+  ! default is to use only fft compatible grids
+  IF ( PRESENT ( fft_usage ) ) THEN
+    fft = fft_usage
+  ELSE
+    fft = .TRUE.
+  END IF
+
+  ! default is to use only symmetric grids
+  IF ( PRESENT ( symm_usage ) ) THEN
+    symmetry = symm_usage
+  ELSE
+    symmetry = .TRUE.
+  END IF
+
+  ! ncommensurate is the number of commensurate grids 
+  ! in order to have non-commensurate grids ncommensurate must be 0
+  ! icommensurte  is the level number of communensurate grids
+  ! this implies that the number of grid points in each direction
+  ! is k*2**(ncommensurate-icommensurate) 
+  IF ( PRESENT ( ncommensurate ) ) THEN
+     my_ncommensurate=ncommensurate
+     IF (my_ncommensurate .GT. 0 ) THEN
+         my_icommensurate=1
+     ELSE
+         my_icommensurate=0
+     ENDIF
+     IF (my_icommensurate > my_ncommensurate ) THEN
+        CALL stop_program ( "grid_setup", &
+                            "my_icommensurate > my_ncommensurate" )
+     ENDIF
+     IF (my_icommensurate<=0 .AND. my_ncommensurate > 1) THEN
+        CALL stop_program ( "grid_setup", &
+                            " my_incommensurate<=0 .AND. my_ncommensurate > 1 " )
+     ENDIF
+     IF (my_ncommensurate < 0 ) THEN
+        CALL stop_program ( "grid_setup", &
+                            "my_ncommensurate < 0 " )
+     ENDIF
+  ELSE
+     my_ncommensurate=0
+     my_icommensurate=0
+  ENDIF
+
+  CPPrecondition(cutoff>0.0_dp,cp_failure_level,routineP,error,failure)
+  n= pw_grid_n_from_cutoff ( cell % h_inv, cutoff,error=error)
+  my_spherical = .FALSE.
+  IF (PRESENT(spherical)) my_spherical=spherical
+  
+  IF (fft) THEN
+     n=pw_grid_n_for_fft(n,odd=(my_grid_span == HALFSPACE .AND. symmetry),error=error)
+
+     IF (.NOT.spherical) THEN
+        ntest = n
+
+        IF ( my_ncommensurate>0 ) THEN
+           DO idir=1,3
+              DO
+                 CALL fft_radix_operations ( ntest(idir), n(idir), FFT_RADIX_NEXT )
+                 ! is also the lowest grid allowed (e.g could be 17, which is too large, but might be 5)
+                 nlowest=n(idir)/2**(my_ncommensurate-my_icommensurate)
+                 CALL fft_radix_operations ( nlowest,nlowest_new, FFT_RADIX_NEXT )
+                 IF (nlowest==nlowest_new .AND. MODULO(n(idir),2**(my_ncommensurate-my_icommensurate)).EQ.0) THEN
+                    EXIT
+                 ELSE
+                    ntest(idir)=n(idir)+1
+                 ENDIF
+              END DO
+           END DO
+        END IF
+     END IF
+  ELSE 
+     ! without a cutoff and HALFSPACE we have to be sure that there is
+     ! a negative counterpart to every g vector (-> odd number of grid points)
+     IF ( my_grid_span == HALFSPACE .AND. symmetry ) &
+          n = n + MOD ( n + 1, 2 )
+     
+  END IF
+  
+  ! final check if all went fine ...
+  IF (my_ncommensurate>0) THEN
+     DO my_icommensurate=1,my_ncommensurate
+        IF ( ANY( MODULO(n,2**(my_ncommensurate-my_icommensurate)).NE.0 ) ) THEN ! nope, sorry
+           CALL stop_program ( "grid_setup", &
+                "commensurate option failed (I) ... maybe not yet programmed for this combination of options ?" )
+        END IF
+     END DO
+  ENDIF
+  
+  CALL timestop(0.0_dp,handle)
+
+END FUNCTION pw_grid_find_n
+!****************************************************************************
+
+!!****f* pw_grids/pw_grid_n_for_fft *
+!!
+!!   NAME
+!!     pw_grid_n_for_fft
+!!
+!!   FUNCTION
+!!     returns the closest number of points >= n, on which you can perform
+!!     ffts
+!!
+!!   NOTES
+!!     result<=n
+!!
+!!   ARGUMENTS
+!!     - n: the minimum number of points you want
+!!     - odd: if the number has to be odd
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     fawzi
+!!
+!!*** **********************************************************************
+FUNCTION pw_grid_n_for_fft(n,odd,error) RESULT(nout)
+  INTEGER, DIMENSION(3), intent(in) :: n
+  LOGICAL, OPTIONAL, intent(in) :: odd
+  type(cp_error_type), optional, intent(inout) :: error
+  INTEGER, dimension(3) :: nout
+  
+  LOGICAL :: failure,my_odd
+  character(len=*), parameter :: routineN='pw_grid_n_for_fft',&
+        routineP=moduleN//':'//routineN
+
+  failure=.false.
+  my_odd=.false.
+  if (present(odd)) my_odd=odd
+  CPPrecondition(ALL(n>=0),cp_failure_level,routineP,error,failure)
+  IF (.NOT.failure) THEN
+     IF (my_odd) THEN
+        CALL fft_radix_operations ( n(1), nout(1), FFT_RADIX_NEXT_ODD )
+        CALL fft_radix_operations ( n(2), nout(2), FFT_RADIX_NEXT_ODD )
+        CALL fft_radix_operations ( n(3), nout(3), FFT_RADIX_NEXT_ODD )
+     ELSE
+        CALL fft_radix_operations ( n(1), nout(1), FFT_RADIX_NEXT )
+        CALL fft_radix_operations ( n(2), nout(2), FFT_RADIX_NEXT )
+        CALL fft_radix_operations ( n(3), nout(3), FFT_RADIX_NEXT )
+     END IF
+  END IF
+     
+END FUNCTION pw_grid_n_for_fft
+!***************************************************************************
+
+!!****** pw_grids/pw_grid_n_from_cutoff [1.1] *
+!!
+!!   NAME
+!!     pw_grid_n_from_cutoff
+!!
+!!   FUNCTION
+!!     Find the number of points that give at least the requested cutoff
+!!
+!!   AUTHOR
+!!     apsi
+!!     Christopher Mundy
+!!
+!!   MODIFICATION HISTORY
+!!     JGH (21-12-2000) : Simplify parameter list, bounds will be global
+!!     JGH ( 8-01-2001) : Add check to FFT allowd grids (this now depends
+!!                        on the FFT library.
+!!                        Should the pw_grid_type have a reference to the FFT
+!!                        library ?
+!!     JGH (28-02-2001) : Only do conditional check for FFT
+!!     JGH (21-05-2002) : Optimise code, remove orthorhombic special case
+!!
+!!*** *************************************************************************
+FUNCTION pw_grid_n_from_cutoff ( h_inv, cutoff, error ) RESULT(n)
+
+
+    INTEGER, DIMENSION(3)    :: n
+    REAL(KIND=dp), DIMENSION(3, 3), &
+      INTENT(IN)                             :: h_inv
+    REAL(KIND=dp), INTENT(IN)                :: cutoff
+    TYPE(cp_error_type), INTENT(inout), optional :: error
+
+    INTEGER, PARAMETER                       :: lwork = 20
+
+    INTEGER                                  :: handle, info
+    REAL(KIND=dp)                            :: eig( 3 ), gmat( 3, 3 ), &
+                                                work( lwork )
+    LOGICAL:: failure
+    CHARACTER(len=*), PARAMETER :: routineN='pw_grid_n_from_cutoff',&
+         routineP=moduleN//':'//routineN
+
+!------------------------------------------------------------------------------
+
+    failure=.false.
+
+  gmat = MATMUL ( h_inv, TRANSPOSE ( h_inv ) )
+  CALL dsyev("V","U",3,gmat,3,eig,work,lwork,info)
+  CPPostcondition(info==0,cp_failure_level,routineP,error,failure)
+  IF (.NOT.failure) THEN
+     eig = SQRT ( 2.0_dp * cutoff / eig ) / twopi
+     n = 2*FLOOR ( matvec_3x3 ( gmat, eig ) )+1
+  ELSE
+     n=-huge(0)
+  END IF
+
+END FUNCTION pw_grid_n_from_cutoff
+!****************************************************************************
+
+!!****** pw_grids/pw_cutoff_from_n [1.1] *
+!!
+!!   NAME
+!!     pw_cutoff_from_n
+!!
+!!   FUNCTION
+!!     Given a n and a box, calculate the corresponding maximum cutoff in a.u.
+!!     If npts is odd returns the energy of the next biggest g vector, because
+!!     if you take the points with energy smaller than that they are still 
+!!     representable with that cutoff. Whereas if npts is even the energy of
+!!     the last (unpaired) g vector is returned. This implies that you always
+!!     have that 2*i+1, and 2*i+2 have the same cutoff.
+!!
+!!   AUTHOR
+!!     fawzi (taken from pw_find_cutoff)
+!!
+!!*** *************************************************************************
+
+FUNCTION pw_cutoff_from_n ( npts, box, error ) RESULT(cutoff)
+  INTEGER, DIMENSION(:), INTENT(IN)        :: npts
+  TYPE(cell_type), INTENT(IN)              :: box
+  REAL(KIND=dp)               :: cutoff
+  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+  
+  REAL(KIND=dp)                            :: gdum( 3 ), cut_att
+  integer :: idir
+  
+  cutoff=0._dp
+  DO idir=1,3
+     gdum ( : ) = twopi * box % h_inv ( idir, : ) &
+          * REAL ( ( npts ( idir ) + 1 )/2,KIND=dp)
+     cut_att = dotprod_3d ( gdum, gdum )/2._dp
+     if (idir==1) cutoff=cut_att
+     cutoff = MIN ( cutoff, cut_att )
+  END DO
+  
+END FUNCTION pw_cutoff_from_n
+
+!******************************************************************************
+
+!!****f* pw_grids/pw_grid_bounds_from_n *
+!!
+!!   NAME
+!!     pw_grid_bounds_from_n
+!!
+!!   FUNCTION
+!!     returns the bounds that distribute n points evenly around 0
+!!
+!!   NOTES
+!!     -
+!!
+!!   ARGUMENTS
+!!     - npts: the number of points in each direction
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     fawzi
+!!
+!!*** **********************************************************************
+FUNCTION pw_grid_bounds_from_n(npts,error) RESULT(bounds)
+  INTEGER, DIMENSION(3), intent(in) :: npts
+  type(cp_error_type), optional, intent(inout) :: error
+  INTEGER, DIMENSION(2,3) :: bounds
+
+  logical :: failure
+  character(len=*), parameter :: routineN='pw_grid_bounds_from_n',&
+        routineP=moduleN//':'//routineN
+
+  failure=.false.
+  
+  bounds(1,:)=-npts/2
+  bounds(2,:)=bounds(1,:)+npts-1
+END FUNCTION pw_grid_bounds_from_n
+!***************************************************************************
+
+!!****** pw_grids/pw_grid_find_bounds [1.1] *
+!!
+!!   NAME
+!!     pw_grid_find_bounds
+!!
+!!   FUNCTION
+!!     Find bounds of grid array
+!!
+!!   AUTHOR
+!!     apsi
+!!     Christopher Mundy
+!!
+!!   MODIFICATION HISTORY
+!!     JGH (21-12-2000) : Simplify parameter list, bounds will be global
+!!     JGH ( 8-01-2001) : Add check to FFT allowd grids (this now depends
+!!                        on the FFT library.
+!!                        Should the pw_grid_type have a reference to the FFT
+!!                        library ?
+!!     JGH (28-02-2001) : Only do conditional check for FFT
+!!     JGH (21-05-2002) : Optimise code, remove orthorhombic special case
+!!
+!!*** *************************************************************************
+
+SUBROUTINE pw_grid_find_bounds ( bounds, h_inv, cutoff, fft )
+
+
+    INTEGER, DIMENSION(2, 3), INTENT(OUT)    :: bounds
+    REAL(KIND=dp), DIMENSION(3, 3), &
+      INTENT(IN)                             :: h_inv
+    REAL(KIND=dp), INTENT(IN)                :: cutoff
+    LOGICAL, INTENT(IN)                      :: fft
+
+    INTEGER, PARAMETER                       :: lwork = 20
+
+    INTEGER                                  :: handle, n(3)
+
+!------------------------------------------------------------------------------
+
+  CALL timeset("pw_grid_find_bounds","I","",handle)
+
+  n=pw_grid_n_from_cutoff(h_inv,cutoff)
+  if (fft) n=pw_grid_n_for_fft(n)
+  bounds = pw_grid_bounds_from_n(n)
+
+  CALL timestop(0.0_dp,handle)
+
+END SUBROUTINE pw_grid_find_bounds
+!****************************************************************************
+
 !!****** pw_grids/pw_grid_setup [1.1] *
 !!
 !!   NAME
@@ -233,9 +613,10 @@ END FUNCTION pw_grid_compare
 !!
 !!*** *************************************************************************
 
+
 SUBROUTINE pw_grid_setup ( cell, pw_grid, cutoff, info, fft_usage, &
                            symm_usage, blocked, ref_grid, ncommensurate,&
-                           icommensurate, rs_dims )
+                           icommensurate, rs_dims, error)
 
 
     TYPE(cell_type), INTENT(IN)              :: cell
@@ -246,12 +627,16 @@ SUBROUTINE pw_grid_setup ( cell, pw_grid, cutoff, info, fft_usage, &
     TYPE(pw_grid_type), INTENT(IN), OPTIONAL :: ref_grid
     INTEGER, INTENT(IN), OPTIONAL            :: ncommensurate, icommensurate
     INTEGER, DIMENSION(2), INTENT(in), optional :: rs_dims
+    TYPE(cp_error_type), INTENT(inout), optional :: error
 
     INTEGER :: allocstat, handle, i, ires, my_icommensurate, &
-      my_ncommensurate, n(3), nlowest, nlowest_new, ntest(3)
+      my_ncommensurate, n(3), nlowest, nlowest_new, ntest(3), my_bounds(2,3), my_span
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: yz_mask
-    LOGICAL                                  :: blocking, fft, symmetry
-    REAL(KIND=dp)                            :: ecut, rv(3,3)
+    LOGICAL                                  :: blocking, fft, symmetry,&
+         failure
+    REAL(KIND=dp)                            :: ecut, rv(3,3), spherical_cutoff
+    CHARACTER(len=*), PARAMETER :: routineN="pw_grid_setup",&
+         routineP=moduleN//":"//routineN
 
 ! cutoff could be inout, and set to the effective cutoff of the given grid
 ! in atomic units
@@ -279,172 +664,161 @@ SUBROUTINE pw_grid_setup ( cell, pw_grid, cutoff, info, fft_usage, &
   ELSE
     symmetry = .TRUE.
   END IF
+  my_ncommensurate=0
+  if (present(ncommensurate)) my_ncommensurate=ncommensurate
+  IF (my_ncommensurate>0) THEN
+     CPPrecondition(PRESENT(icommensurate),cp_failure_level,routineP,error,failure)
+     my_icommensurate=icommensurate
+     CPPrecondition(icommensurate>0,cp_failure_level,routineP,error,failure)
+     CPPrecondition(icommensurate<=my_ncommensurate,cp_failure_level,routineP,error,failure)
+  ELSE
+     my_icommensurate=0
+  END IF
+  spherical_cutoff=0._dp
 
+  my_span=pw_grid%grid_span ! *** UGLY! should be an argument ***
+  n=0
+  IF (ANY(pw_grid%bounds(:,:)/=0)) THEN
+     n=pw_grid%bounds(2,:)-pw_grid%bounds(1,:)+1 ! *** UGLY! should be an argument ***
+  END IF
+  IF (PRESENT(cutoff)) THEN
+     spherical_cutoff=cutoff
+     IF (PRODUCT(n)<=0) THEN
+        n=pw_grid_find_n(cell,cutoff=ABS(cutoff),fft_usage=fft_usage,&
+             symm_usage=symmetry, grid_span=my_span,ncommensurate=my_ncommensurate, &
+             spherical=spherical_cutoff>0._dp, error=error)
+     END IF
+     IF (my_icommensurate>1) THEN
+        n=ref_grid%npts/2**(my_icommensurate-1)
+        CPPostcondition(ALL(ref_grid%npts==n*2**(my_icommensurate-1)),cp_failure_level,routineP,error,failure)
+        CALL cp_assert(.NOT.fft .OR. ALL(pw_grid_n_for_fft(n,error=error)==n),&
+             cp_failure_level,cp_assertion_failed,routineP,&
+             "could not build commensurate grids, probably for this fft library"//&
+             "  it is not true that if n is allowed 2*n is also allowed"//&
+             CPSourceFileRef,&
+             error=error,failure=failure)
+     END IF
+     my_bounds=pw_grid_bounds_from_n(n)
+  ELSE
+     my_bounds=pw_grid%bounds ! *** UGLY! should be an argument ***
+     n=my_bounds(2,:)-my_bounds(1,:)+1
+
+     IF (fft) THEN
+        n=pw_grid_n_for_fft(n,odd=(my_span == HALFSPACE .and. symmetry),&
+             error=error)
+     ELSE
+        ! without a cutoff and HALFSPACE we have to be sure that there is
+        ! a negative counterpart to every g vector (-> odd number of grid points)
+        IF ( my_span == HALFSPACE .AND. symmetry ) &
+             n = n + MOD ( n + 1, 2 )
+     END IF
+     my_bounds = pw_grid_bounds_from_n(n)
+  END IF
+  IF (ALL(pw_grid%bounds(2,:)-pw_grid%bounds(1,:)+1==n)) THEN
+     my_bounds=pw_grid%bounds
+  END IF
+  call pw_grid_setup1( cell=cell, pw_grid=pw_grid, bounds=my_bounds, &
+       grid_span=my_span, info=info, spherical_cutoff=spherical_cutoff, &
+       blocked=blocked, ref_grid=ref_grid, rs_dims=rs_dims, error=error)
+
+  CALL timestop(0.0_dp,handle)
+
+END SUBROUTINE pw_grid_setup
+!****************************************************************************
+
+!!****f* pw_grids/pw_grid_setup1 *
+!!
+!!   NAME
+!!     pw_grid_setup1
+!!
+!!   FUNCTION
+!!     sets up a pw_grid, needs valid bounds as input, it is up to you to
+!!     make sure of it using pw_grid_bounds_from_n, pw_grid_n_for_fft,
+!!     pw_grid_n_from_cutoff...
+!!
+!!   NOTES
+!!     this is the function that should be used in the future
+!!
+!!   ARGUMENTS
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     fawzi
+!!
+!!*** **********************************************************************
+SUBROUTINE pw_grid_setup1 ( cell, pw_grid, bounds, grid_span,info, &
+                            spherical_cutoff,blocked, ref_grid, rs_dims, error )
+
+
+    TYPE(cell_type), INTENT(IN)              :: cell
+    TYPE(pw_grid_type), pointer :: pw_grid
+    INTEGER, OPTIONAL, intent(in) :: grid_span
+    INTEGER, DIMENSION(2,3), intent(in) :: bounds
+    INTEGER, INTENT(IN), OPTIONAL            :: info
+    TYPE(pw_grid_type), INTENT(IN), OPTIONAL :: ref_grid
+    REAL(kind=dp), INTENT(in), optional :: spherical_cutoff
+    LOGICAL, INTENT(in), OPTIONAL :: blocked
+    INTEGER, DIMENSION(2), INTENT(in), optional :: rs_dims
+    TYPE(cp_error_type), INTENT(inout), optional :: error
+
+    INTEGER :: allocstat, handle, i, ires, n(3)
+    INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: yz_mask
+    LOGICAL                                  :: blocking, fft, failure
+    REAL(KIND=dp)                            :: ecut, rv(3,3)
+    CHARACTER(len=*), PARAMETER :: routineN="pw_grid_setup1",&
+         routineP=moduleN//':'//routineN
+
+! cutoff could be inout, and set to the effective cutoff of the given grid
+! in atomic units
+! parent group for this grid
+! output unit for information on grid
+! has the grid size to be 
+! compatible with the FFT
+! has the grid size to be 
+! symmetric (g <-> -g)    
+! block or ray-distribution
+!------------------------------------------------------------------------------
+
+  CALL timeset("pw_grid_setup","I","",handle)
+
+  failure=.FALSE.
+  CPPrecondition(ASSOCIATED(pw_grid),cp_failure_level,routineP,error,failure)
+  CPPrecondition(pw_grid%ref_count>0,cp_failure_level,routineP,error,failure)
   ! default is to allow block usage
   IF ( PRESENT ( blocked ) ) THEN
     blocking = blocked
   ELSE
     blocking = .TRUE.
   END IF
- 
-  ! ncommensurate is the number of commensurate grids 
-  ! in order to have non-commensurate grids ncommensurate must be 0
-  ! icommensurte  is the level number of communensurate grids
-  ! this implies that the number of grid points in each direction
-  ! is k*2**(ncommensurate-icommensurate) 
-  IF ( PRESENT ( ncommensurate ) .AND. PRESENT( icommensurate ) ) THEN
-     my_ncommensurate=ncommensurate
-     IF (my_ncommensurate .GT. 0 ) THEN
-         my_icommensurate=icommensurate
-     ELSE
-         my_icommensurate=0
-     ENDIF
-     IF (my_icommensurate > my_ncommensurate ) THEN
-        CALL stop_program ( "grid_setup", &
-                            "my_icommensurate > my_ncommensurate" )
-     ENDIF
-     IF (my_icommensurate<=0 .AND. my_ncommensurate > 1) THEN
-        CALL stop_program ( "grid_setup", &
-                            " my_incommensurate<=0 .AND. my_ncommensurate > 1 " )
-     ENDIF
-     IF (my_ncommensurate < 0 ) THEN
-        CALL stop_program ( "grid_setup", &
-                            "my_ncommensurate < 0 " )
-     ENDIF
-     IF (my_icommensurate > 1 .AND. .NOT. PRESENT(ref_grid)  ) THEN
-        CALL stop_program ( "grid_setup", &
-                            "my_icommensurate > 1 .AND. .NOT. PRESENT(ref_grid)" )
-     ENDIF
-  ELSE
-     IF (PRESENT( ncommensurate ) .OR. PRESENT( icommensurate ) ) THEN
-        CALL stop_program ( "grid_setup", &
-                            "both ncommensurate and icommensurate needed" )
-     ELSE
-        my_ncommensurate=0
-        my_icommensurate=0
-     ENDIF
-  ENDIF
 
+  IF (PRESENT(grid_span)) THEN
+     pw_grid%grid_span=grid_span
+  ELSE
+     pw_grid%grid_span=FULLSPACE
+  END IF
+ 
   ! set pointer to possible reference grid
   IF ( PRESENT ( ref_grid ) ) THEN
     pw_grid % reference = ref_grid %id_nr
   END IF
 
-  IF ( PRESENT ( cutoff ) ) THEN
-     pw_grid % cutoff = ABS ( cutoff )
-     IF ( SUM ( ABS ( pw_grid % bounds ( :, : ) ) ) == 0 ) &
-          CALL pw_grid_find_bounds ( pw_grid % bounds, cell % h_inv, &
-                                     pw_grid % cutoff, fft )
-     IF ( cutoff < 0.0_dp ) THEN
-        pw_grid % spherical = .FALSE.
-        ecut = 1.e10_dp
-     ELSE
-        pw_grid % spherical = .TRUE.
-        ecut = cutoff
+  pw_grid % bounds = bounds
+  pw_grid % npts = bounds(2,:)-bounds(1,:)+1
+  pw_grid % cutoff = pw_cutoff_from_n(pw_grid % npts,cell,error)
+  
+  pw_grid%spherical=.false.
+  IF (PRESENT(spherical_cutoff)) THEN
+     IF (spherical_cutoff>0._dp) THEN
+        pw_grid%spherical=.true.
+        pw_grid % cutoff = spherical_cutoff
      END IF
+  END IF
+  IF (pw_grid%spherical) THEN
+     ecut = pw_grid%cutoff
   ELSE
-     ecut = 1.e10_dp              ! all g-vectors in the box will be included
-     pw_grid % spherical = .FALSE.
-     pw_grid % cutoff = 0.0_dp
+     ecut = 1.e10_dp
   END IF
-
-  IF ( my_ncommensurate > 0 ) THEN
-     IF (my_icommensurate > 1) THEN ! we should use the reference grid to find out the number of gridpoints
-         pw_grid % bounds ( 1, : ) = - ref_grid % npts  / 2**my_icommensurate
-         pw_grid % bounds ( 2, : ) = pw_grid % bounds ( 1, : ) +  ref_grid % npts / (2**(my_icommensurate-1)) - 1
-     ENDIF
-  ENDIF
-
-  IF ( .NOT. pw_grid % spherical ) THEN
-
-     IF ( SUM ( ABS ( pw_grid % bounds ( :, : ) ) ) == 0 ) THEN
-        CALL stop_program ( "grid_setup", &
-                            "provide initial values for bounds" )
-     END IF
-
-     ntest = pw_grid % bounds ( 2, : ) - pw_grid % bounds ( 1, : ) + 1
-
-     IF ( fft ) THEN
- 
-         ! select FFT compatible bounds
-         ! without a cutoff and HALFSPACE we have to be sure that there is
-         ! a negative counterpart to every g vector (-> odd number of grid points)
-         IF ( pw_grid % grid_span == HALFSPACE .AND. symmetry ) THEN
-  
-           CALL fft_radix_operations ( ntest(1), n(1), FFT_RADIX_NEXT_ODD )
-           CALL fft_radix_operations ( ntest(2), n(2), FFT_RADIX_NEXT_ODD )
-           CALL fft_radix_operations ( ntest(3), n(3), FFT_RADIX_NEXT_ODD )
-  
-         ELSE
-           ! keep looping to find the right one
-           DO
-             CALL fft_radix_operations ( ntest(1), n(1), FFT_RADIX_NEXT )
-             ! is also the lowest grid allowed (e.g could be 17, which is too large, but might be 5)
-             nlowest=n(1)/2**(my_ncommensurate-my_icommensurate)
-             CALL fft_radix_operations ( nlowest,nlowest_new, FFT_RADIX_NEXT )
-             IF (nlowest==nlowest_new .AND. MODULO(n(1),2**(my_ncommensurate-my_icommensurate)).EQ.0) THEN
-                EXIT
-             ELSE
-                ntest(1)=n(1)+1
-             ENDIF
-           ENDDO
-           ! keep looping to find the right one
-           DO
-             CALL fft_radix_operations ( ntest(2), n(2), FFT_RADIX_NEXT )
-             ! is also the lowest grid allowed (e.g could be 17, which is too large, but might be 5)
-             nlowest=n(2)/2**(my_ncommensurate-my_icommensurate)
-             CALL fft_radix_operations ( nlowest,nlowest_new, FFT_RADIX_NEXT )
-             IF (nlowest==nlowest_new .AND. MODULO(n(2),2**(my_ncommensurate-my_icommensurate)).EQ.0) THEN
-                EXIT
-             ELSE
-                ntest(2)=n(2)+1
-             ENDIF
-           ENDDO
-           ! keep looping to find the right one
-           DO
-             CALL fft_radix_operations ( ntest(3), n(3), FFT_RADIX_NEXT )
-             ! is also the lowest grid allowed (e.g could be 17, which is too large, but might be 5)
-             nlowest=n(3)/2**(my_ncommensurate-my_icommensurate)
-             CALL fft_radix_operations ( nlowest,nlowest_new, FFT_RADIX_NEXT )
-             IF (nlowest==nlowest_new .AND. MODULO(n(3),2**(my_ncommensurate-my_icommensurate)).EQ.0) THEN
-                EXIT
-             ELSE
-                ntest(3)=n(3)+1
-             ENDIF
-           ENDDO
-
-         END IF
-
-     ELSE
-
-       ! without a cutoff and HALFSPACE we have to be sure that there is
-       ! a negative counterpart to every g vector (-> odd number of grid points)
-       IF ( pw_grid % grid_span == HALFSPACE .AND. symmetry ) &
-            n = ntest + MOD ( ntest + 1, 2 )
-
-     END IF
-
-     pw_grid % bounds ( 1, : ) = - n / 2
-     pw_grid % bounds ( 2, : ) = pw_grid % bounds ( 1, : ) + n - 1
-
-  END IF
-
-  pw_grid % npts ( : ) = &
-       pw_grid % bounds ( 2, : ) - pw_grid % bounds ( 1, : ) + 1
-
-  ! final check if all went fine ...
-  IF (my_ncommensurate>0) THEN
-     IF ( ANY( MODULO(pw_grid % npts,2**(my_ncommensurate-my_icommensurate)).NE.0 ) ) THEN ! nope, sorry
-        CALL stop_program ( "grid_setup", &
-            "commensurate option failed (I) ... maybe not yet programmed for this combination of options ?" )
-     END IF
-     IF ( my_icommensurate > 1 ) THEN 
-        IF ( ANY(pw_grid % npts * 2 ** (my_icommensurate-1) .NE. ref_grid % npts ) ) THEN
-          CALL stop_program ( "grid_setup", &
-              "commensurate option failed (II) ... maybe not yet programmed for this combination of options ?" )
-        ENDIF
-     END IF
-  ENDIF
 
   n ( : )  = pw_grid % npts ( : )
 
@@ -517,6 +891,10 @@ SUBROUTINE pw_grid_setup ( cell, pw_grid, cutoff, info, fft_usage, &
              WRITE ( info, '(A,T71,I10)' ) " PW_GRID: Grid points within cutoff", &
                   pw_grid % ngpts_cut
           END IF
+          WRITE ( info, '(A,T35,A,T66,F10.1,T77,A)' ) " PW_GRID: ", &
+                  "max spherical cutoff", &
+                  pw_cutoff_from_n(pw_grid % npts, cell, error=error),&
+                  "a.u."
           DO i = 1, 3
              WRITE ( info, '(A,I3,T30,2I8,T62,A,T71,I10)' ) " PW_GRID:   Bounds ", &
                   i, pw_grid % bounds ( 1, I ), pw_grid % bounds ( 2, I ), &
@@ -559,10 +937,12 @@ SUBROUTINE pw_grid_setup ( cell, pw_grid, cutoff, info, fft_usage, &
         WRITE ( info, '(A,T71,2I5)' ) &
           " PW_GRID: Real space group dimensions ", pw_grid % para % rs_dims
         IF ( pw_grid % spherical ) THEN
-          WRITE ( info, '(A,T35,A,T66,F10.1,T77,A)' ) " PW_GRID: ", &
-            "spherical cutoff", pw_grid % cutoff, "a.u."
-          WRITE ( info, '(A,T71,I10)' ) " PW_GRID: Grid points within cutoff", &
-            pw_grid % ngpts_cut
+           WRITE ( info, '(A,T35,A,T66,F10.1,T77,A)' ) " PW_GRID: ", &
+                "spherical cutoff", pw_grid % cutoff, "a.u."
+           WRITE ( info, '(A,T71,I10)' ) " PW_GRID: Grid points within cutoff", &
+                pw_grid % ngpts_cut
+        ELSE
+           WRITE ( info, '(" PW_GRID: Cutoff [a.u.]",T71,f10.1)' ) pw_grid % cutoff
         END IF
         DO i = 1, 3
           WRITE ( info, '(A,I3,T30,2I8,T62,A,T71,I10)' ) " PW_GRID:   Bounds ", &
@@ -591,7 +971,7 @@ SUBROUTINE pw_grid_setup ( cell, pw_grid, cutoff, info, fft_usage, &
 
   CALL timestop(0.0_dp,handle)
 
-END SUBROUTINE pw_grid_setup
+END SUBROUTINE pw_grid_setup1
 
 !******************************************************************************
 
@@ -1460,78 +1840,7 @@ SUBROUTINE pw_grid_set_maps ( grid_span, g_hat, mapl, mapm, mapn, npts )
 END SUBROUTINE pw_grid_set_maps
 
 !****************************************************************************
-!!****** pw_grids/pw_grid_find_bounds [1.1] *
-!!
-!!   NAME
-!!     pw_grid_find_bounds
-!!
-!!   FUNCTION
-!!     Find bounds of grid array
-!!
-!!   AUTHOR
-!!     apsi
-!!     Christopher Mundy
-!!
-!!   MODIFICATION HISTORY
-!!     JGH (21-12-2000) : Simplify parameter list, bounds will be global
-!!     JGH ( 8-01-2001) : Add check to FFT allowd grids (this now depends
-!!                        on the FFT library.
-!!                        Should the pw_grid_type have a reference to the FFT
-!!                        library ?
-!!     JGH (28-02-2001) : Only do conditional check for FFT
-!!     JGH (21-05-2002) : Optimise code, remove orthorhombic special case
-!!
-!!*** *************************************************************************
 
-SUBROUTINE pw_grid_find_bounds ( bounds, h_inv, cutoff, fft )
-
-
-    INTEGER, DIMENSION(2, 3), INTENT(OUT)    :: bounds
-    REAL(KIND=dp), DIMENSION(3, 3), &
-      INTENT(IN)                             :: h_inv
-    REAL(KIND=dp), INTENT(IN)                :: cutoff
-    LOGICAL, INTENT(IN)                      :: fft
-
-    INTEGER, PARAMETER                       :: lwork = 20
-
-    INTEGER                                  :: handle, info, rin(3), rout(3)
-    REAL(KIND=dp)                            :: eig( 3 ), gmat( 3, 3 ), &
-                                                work( lwork )
-
-!------------------------------------------------------------------------------
-
-  CALL timeset("pw_grid_find_bounds","I","",handle)
-  bounds ( :, : ) = 0
-
-  gmat = MATMUL ( h_inv, TRANSPOSE ( h_inv ) )
-  CALL dsyev("V","U",3,gmat,3,eig,work,lwork,info)
-  IF ( info /= 0 ) CALL stop_program ( "pw_grid_find_bounds", "dsyev:info" )
-
-  eig = SQRT ( 2.0_dp * cutoff / eig ) / twopi
-  bounds ( 2, : ) = FLOOR ( matvec_3x3 ( gmat, eig ) )
-
-  rin(1) = 2 * bounds ( 2, 1 ) + 1
-  rin(2) = 2 * bounds ( 2, 2 ) + 1
-  rin(3) = 2 * bounds ( 2, 3 ) + 1
-  IF ( fft ) THEN
-    CALL fft_radix_operations ( rin(1), rout(1), FFT_RADIX_NEXT )
-    bounds ( 1, 1 ) = -rout(1)/2
-    CALL fft_radix_operations ( rin(2), rout(2), FFT_RADIX_NEXT )
-    bounds ( 1, 2 ) = -rout(2)/2
-    CALL fft_radix_operations ( rin(3), rout(3), FFT_RADIX_NEXT )
-    bounds ( 1, 3 ) = -rout(3)/2
-  ELSE
-    rout = rin
-    bounds ( 1, : ) = -rout(:)/2
-  END IF
-
-  bounds ( 2, : ) = bounds ( 1, : ) + rout - 1
-
-  CALL timestop(0.0_dp,handle)
-
-END SUBROUTINE pw_grid_find_bounds
-
-!****************************************************************************
 !!****** pw_grids/pw_grid_allocate [1.1] *
 !!
 !!   NAME
@@ -2020,7 +2329,7 @@ END SUBROUTINE pw_grid_change
 !!
 !!   FUNCTION
 !!     Given a grid and a box, calculate the corresponding cutoff
-!!     This routine calculates the cutoff in momentum units!
+!!     *** This routine calculates the cutoff in MOMENTUM UNITS! ***
 !!
 !!   AUTHOR
 !!     apsi
@@ -2036,12 +2345,13 @@ END SUBROUTINE pw_grid_change
 !!
 !!*** *************************************************************************
 
-SUBROUTINE pw_find_cutoff ( npts, box, cutoff )
+SUBROUTINE pw_find_cutoff ( npts, box, cutoff, error )
 
 
     INTEGER, DIMENSION(:), INTENT(IN)        :: npts
     TYPE(cell_type), INTENT(IN)              :: box
     REAL(KIND=dp), INTENT(OUT)               :: cutoff
+    TYPE(cp_error_type), OPTIONAL, intent(inout) :: error
 
     REAL(KIND=dp)                            :: gcut, gdum( 3 ), length
 
