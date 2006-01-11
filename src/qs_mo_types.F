@@ -1079,7 +1079,7 @@ CONTAINS
           END IF
        END IF
     END IF
-    iw = cp_print_key_unit_nr(logger,globenv%input_file,&
+    iw = cp_print_key_unit_nr(logger,dft_section,&
          "PRINT%MO",extension=".MOLog",error=error)
 
     IF (iw>0) THEN
@@ -1271,8 +1271,9 @@ CONTAINS
        END IF
 
     END IF
-    CALL cp_print_key_finished_output(iw,logger,globenv%input_file,&
+    CALL cp_print_key_finished_output(iw,logger,dft_section,&
          "PRINT%MO", error=error)
+
   END SUBROUTINE write_mo_set_to_output_unit
 
 ! *****************************************************************************
