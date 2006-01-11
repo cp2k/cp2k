@@ -84,13 +84,41 @@ MODULE qs_linres_types
 !!
 !! ATTRIBUTES
 !!   - ref_count
-!!   - centers_set : poiter to the  centers of the maximally localized psi0
-!!   - spreads_set : pointer to the spreads of the maximally localized psi0 (to evaluate thei extension)
-!!   - op_p_ao     : sparse matrices for the px, py and pz operator appliet to the atomic orbitals
-!!   - op_rxp_ao   : the rxp operator should be psi0 dependent, therefore it is used a s a temporary matrix
-!!   - jp1_ao      : current density matrices. If the current density has to be calculated,
-!!                   we need to store at least two set of current density matrices, 
-!!                   each set has the x y and z components.
+!!   - current_density : true if the response current density is calculated
+!!   - full_nmr    : true if the full correction is calculated
+!!   - simplenmr_done, fullnmr_done : flags that indicate what has been
+!!                   already calculated: used for restart
+!!   - centers_set : centers of the maximally localized psi0
+!!   - spreads_set : spreads of the maximally localized psi0 
+!!   - op_p_ao     : sparse matrixes for the px, py and pz operator 
+!!                   in the contracted basis set representation 
+!!   - op_rmd_ao   : sparse matrixes used to construct the (r-d)xp operator
+!!                   in the contracted basis set representation
+!!   - p_psi0      : full matrixes, operator p applied to psi0
+!!   - p_psi1      : full matrixes, operator p applied to psi1
+!!                   since it is a temporary matrix needed for the calculation 
+!!                   the current density, only one psi1 is considered
+!!   - rxp_psi0    : full matrixes, operator (r-d)xp applied to psi0
+!!   - psi1_p      : response wavefunctions to the perturbation given by 
+!!                   H1=p (xyz)  applied to psi0
+!!   - psi1_rxp    : response wavefunctions to the perturbation given by 
+!!                   H1=(r-d_i)xp applied to psi0_i where d_i is the center
+!!   - psi1_D      : response wavefunctions to the perturbation given by 
+!!                   H1=(d_j-d_i)xp applied to psi0_i where d_i is the center
+!!                   and d_j is the center of psi0_j and psi1_D_j is the result
+!!                   This operator has to be used in nstate scf calculations,
+!!                   one for each psi1_D_j vector
+!!   - chemical_shift: the tensor for each atom
+!!   - chi_tensor  : the susceptibility tensor
+!!   - jp1_Bx_ao, jp1_By_ao, jp1_Bz_ao :
+!!                   current density matrixes. One set for each dir. of B
+!!                   If the current density has to be calculated,
+!!                   we need to store the current density matrixes, in the dir. x,y,and z 
+!!                   This is a sparse matrix not symmetric
+!!                   The contributions can be added avery time a new psi1 is calculated
+!!                   For psi1_p and psi1_rxp the contribution is a sum over the states 
+!!                   contributions. For psi1_D instead, at each new scf only one 
+!!                   state contributes.
 !!   - jrho1_set   : current density on the global grid, if gapw this is only the soft part
 !!   - jrho1_atom_set : current density on the local atomic grids (only if gapw)
 !!
@@ -103,8 +131,11 @@ MODULE qs_linres_types
   TYPE nmr_env_type
      INTEGER                                     :: ref_count
      LOGICAL                                     :: current_density, &
-                                                    full_nmr
-     REAL(dp),DIMENSION(3,3)                     :: chemical_shift
+                                                    full_nmr,simplenmr_done(6),&
+                                                    restart_nmr
+     LOGICAL,DIMENSION(:,:), POINTER             :: fullnmr_done
+     REAL(dp)                                    :: chi_tensor(3,3)
+     REAL(dp),DIMENSION(:,:,:), POINTER          :: chemical_shift
      TYPE(cp_2d_r_p_type), DIMENSION(:),POINTER  :: centers_set
      TYPE(cp_fm_pool_p_type), DIMENSION(:), &
        POINTER                                   :: ao_mo_fm_pools
@@ -112,8 +143,9 @@ MODULE qs_linres_types
           POINTER                                :: op_p_ao, op_rmd_ao
      TYPE(cp_fm_p_type), DIMENSION(:,:), POINTER :: psi1_p, psi1_rxp, psi1_D
      TYPE(real_matrix_p_type), DIMENSION(:,:), &
-          POINTER                                :: jp1_ao
+          POINTER                                :: jp1_Bx_ao,jp1_By_ao,jp1_Bz_ao
      TYPE(cp_fm_p_type), DIMENSION(:,:), POINTER :: p_psi0, rxp_psi0
+     TYPE(cp_fm_p_type), DIMENSION(:,:), POINTER :: p_psi1
      TYPE(qs_rho_p_type),DIMENSION(:),   POINTER :: jrho1_set
      TYPE(rho_atom_p_type), DIMENSION(:), POINTER:: jrho1_atom_set
   END TYPE nmr_env_type
@@ -226,11 +258,16 @@ CONTAINS
        NULLIFY(nmr_env%psi1_p)
        NULLIFY(nmr_env%psi1_rxp)
        NULLIFY(nmr_env%psi1_D)
-       NULLIFY(nmr_env%jp1_ao)
+       NULLIFY(nmr_env%jp1_Bx_ao)
+       NULLIFY(nmr_env%jp1_By_ao)
+       NULLIFY(nmr_env%jp1_Bz_ao)
        NULLIFY(nmr_env%p_psi0)
        NULLIFY(nmr_env%rxp_psi0)
+       NULLIFY(nmr_env%p_psi1)
        NULLIFY(nmr_env%jrho1_set)
        NULLIFY(nmr_env%jrho1_atom_set)
+       NULLIFY(nmr_env%fullnmr_done)
+       NULLIFY(nmr_env%chemical_shift)
      END IF 
 
 

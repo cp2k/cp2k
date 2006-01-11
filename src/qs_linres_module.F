@@ -164,14 +164,12 @@ CONTAINS
          END IF
 
          !Initialize the nmr environment
-!         ALLOCATE(nmr_env,STAT=istat)
-!         CPPrecondition(istat/=0,cp_failure_level,routineP,error,failure)
          nmr_env%ref_count=0
          CALL nmr_env_init(nmr_env,qs_env,globenv,error=error)
-     write(*,*) 'init'
-     stop 'lr_calculation'
          CALL nmr_operators(nmr_env,qs_env,error=error)
          CALL nmr_do_nmr(nmr_env,p_env,qs_env,globenv,error=error)
+     write(*,*) 'donmr'
+     stop 'lr_calculation'
          CALL nmr_env_cleanup(nmr_env,error=error)
 
        END IF

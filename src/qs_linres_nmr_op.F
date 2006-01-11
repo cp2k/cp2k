@@ -107,10 +107,10 @@ CONTAINS
                                    routineP = moduleN//'/'//routineN
 
     INTEGER :: homo, iao, iatom, idir, idir2, ii, iii, ispin, istat, &
-               istate, nao, natom, nmo, nsgf
+               istate, nao, natom, nmo, nsgf,output_unit
     INTEGER, DIMENSION(:), ALLOCATABLE          :: first_sgf,&
                                                    last_sgf
-    LOGICAL :: failure
+    LOGICAL :: failure,ionode
     REAL(dp) :: ck(3),ckdk(3),dk(3)
     TYPE(atomic_kind_type), DIMENSION(:),&
       POINTER                                   :: atomic_kind_set
@@ -119,6 +119,7 @@ CONTAINS
     TYPE(cp_2d_r_p_type), DIMENSION(3)          :: vecbuf_rxp0
     TYPE(cp_2d_r_p_type), DIMENSION(3)          :: vecbuf_cmd
     TYPE(cp_fm_type), POINTER                   :: mo_coeff
+    TYPE(cp_logger_type), POINTER               :: logger
     TYPE(dft_control_type), POINTER             :: dft_control
     TYPE(linres_control_type), POINTER          :: linres_control
     TYPE(mo_set_p_type), DIMENSION(:), POINTER  :: mos
@@ -126,7 +127,18 @@ CONTAINS
 
     failure = .FALSE.
 
-    NULLIFY(atomic_kind_set,cell,dft_control,linres_control,mos,particle_set)
+    NULLIFY(atomic_kind_set,cell,dft_control,linres_control,logger,mos,particle_set)
+ 
+    logger => cp_error_get_logger(error)
+    ionode = logger%para_env%mepos==logger%para_env%source
+    IF (ionode) output_unit = cp_logger_get_default_unit_nr(logger)
+
+    IF(ionode .AND. logger%print_keys%linres) THEN
+
+      WRITE (UNIT=output_unit,FMT="(T10,A,/)")&
+         "Calculation of the p and (r-d)xp operators applied to psi0"
+
+    END IF
 
     CALL get_qs_env(qs_env=qs_env, atomic_kind_set=atomic_kind_set, cell=cell, &
                     dft_control=dft_control, linres_control=linres_control,&
@@ -158,9 +170,22 @@ CONTAINS
     ! We use the distributive property of the vector product and calculatr
     ! (r-c)xp + (c-d)xp 
     ! where c depends on the contracted functions and not on the states
-    ! d depends instead on the state, but the second term can be added in a second stage as a correction
+    ! d is the center of a specific state and a loop over states is needed
+    ! the second term can be added in a second moment as a correction
+    ! notice: (r-c) and p are operators, whereas (c-d) is a multiplicative factor
+
+    !First term: operator matrix elements
     CALL rmc_x_p_xyz_ao(nmr_env%op_rmd_ao,qs_env,minimum_image=.TRUE.,error=error)
+
     ! Multiply the (r-c)xp operator to the psi0
+    DO idir = 1,3
+      DO ispin = 1, dft_control%nspins
+         CALL get_mo_set(mos(ispin)%mo_set, mo_coeff=mo_coeff, nao=nao, nmo=nmo)
+         CALL cp_fm_set_all(nmr_env%rxp_psi0(ispin,idir)%matrix,0.0_dp,error=error)
+         CALL cp_sm_fm_multiply(nmr_env%op_rmd_ao(idir)%matrix,mo_coeff,&
+              nmr_env%rxp_psi0(ispin,idir)%matrix,ncol=nmo)
+      END DO 
+    END DO 
 
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,nsgf=nsgf)
 
@@ -173,6 +198,9 @@ CONTAINS
     CALL get_particle_set(particle_set=particle_set,&
                           first_sgf=first_sgf,&
                           last_sgf=last_sgf)
+
+    !Build 3 arrays where for each contracted basis function 
+    !the x y and z coordinates of the center are given
     DO iatom = 1,natom
       DO iao = first_sgf(iatom),last_sgf(iatom)
         DO idir = 1,3
@@ -181,40 +209,51 @@ CONTAINS
       END DO
     END DO
 
-    DO idir = 1,3
-      DO ispin = 1, dft_control%nspins
-         CALL get_mo_set(mos(ispin)%mo_set, mo_coeff=mo_coeff, nao=nao, nmo=nmo)
-         CALL cp_fm_set_all(nmr_env%rxp_psi0(ispin,idir)%matrix,0.0_dp,error=error)
-         CALL cp_sm_fm_multiply(nmr_env%op_rmd_ao(idir)%matrix,mo_coeff,&
-              nmr_env%rxp_psi0(ispin,idir)%matrix,ncol=nmo)
-      END DO 
-    END DO 
     
+    !Calculate the second term of the operator proceeding state by state
     DO ispin = 1, dft_control%nspins
        CALL get_mo_set(mos(ispin)%mo_set, mo_coeff=mo_coeff, nao=nao, nmo=nmo,homo=homo)
       
+! write(*,*) 'homo ', homo, ' nao ', nao
        DO istate = 1,homo
+         !center of the localized psi0 state istate 
          dk(1:3) = linres_control%localized_wfn_control%centers_set(ispin)%array(1:3,istate)
+! write(*,*) 'dk ', istate, dk
+         !get the corresponding vector from the full matrix (p psi0)
          DO idir = 1,3
            CALL cp_fm_get_submatrix(nmr_env%p_psi0(ispin,idir)%matrix,vecbuf_p0(idir)%array,&
                 1,istate,nao,1,transpose=.TRUE.,error=error)
+! write(*,*) 'idir p0 ', idir
+! write(*,*) vecbuf_p0(idir)%array(1,:)
          END DO
          DO idir = 1,3
            CALL set_vecp(idir,ii,iii)
+           !get the full matrix vector containing only the first term, 
+           !to which now the second term will be added
            CALL cp_fm_get_submatrix(nmr_env%rxp_psi0(ispin,idir)%matrix,vecbuf_rxp0(idir)%array,&
                 1,istate,nao,1,transpose=.TRUE.,error=error)
+
+!  This loop should be distributed over the processors
            DO iao = 1,nao
              DO idir2 = 1,3
                ck(idir2) = vecbuf_cmd(idir2)%array(1,iao)
              END DO
-             ckdk = pbc(ck,dk,cell)
+! write(*,*) 'iao', iao, 'ck ', ck
+             ckdk = pbc(dk,ck,cell)
+! write(*,*) 'c-dk ', ckdk
+             !Add the second term element by element (not very efficient indeed)
+! write(*,*) 'rxp0 terms',vecbuf_rxp0(idir)%array(1,iao),ckdk(ii)*vecbuf_p0(iii)%array(1,iao) - &
+!                                ckdk(iii)*vecbuf_p0(ii)%array(1,iao)
              vecbuf_rxp0(idir)%array(1,iao) =  vecbuf_rxp0(idir)%array(1,iao) + & 
                                 ckdk(ii)*vecbuf_p0(iii)%array(1,iao) - &
                                 ckdk(iii)*vecbuf_p0(ii)%array(1,iao)
+! write(*,*) 'rxp0 fin',vecbuf_rxp0(idir)%array(1,iao)
            END DO
+           !Give back the modified vector to the full matrix
            CALL cp_fm_set_submatrix(nmr_env%rxp_psi0(ispin,idir)%matrix,vecbuf_rxp0(idir)%array,&
                 1,istate,nao,1,transpose=.TRUE.,error=error)
          END DO 
+
        END DO  ! istate
     END DO  ! ispin
 

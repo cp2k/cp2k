@@ -3589,6 +3589,12 @@ END SUBROUTINE create_ot_section
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
+       CALL keyword_create(keyword, name="RESTART_NMR",&
+            description="Restart the NMR calculation from a previous run",&
+            usage="RESTART_NMR",default_l_val=.FALSE.,&
+            lone_keyword_l_val=.TRUE.,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
 
     END IF
 

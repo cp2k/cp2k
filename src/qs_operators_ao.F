@@ -87,9 +87,8 @@ CONTAINS
 !!   NOTES
 !!
 !!   ARGUMENTS
-!!     - op_sm: components of the position operator for the dipole
-!!              in a sparse matrix form (cos and sin)
-!!              calculated for the basis functions
+!!     - op_sm: matrix representation of the p operator
+!!              calculated in terms of the contracted basis functions
 !!     - qs_env: enviroment for the lists and the basis sets
 !!     - minimum_image : take into account only the first neighbors in the lists
 !!     - error: variable to control error logging, stopping,...
@@ -181,11 +180,16 @@ CONTAINS
     ldab = ldwork
     nthread = 1
 !$  nthread = omp_get_max_threads()
-    CALL reallocate(difabt,1,ldab,1,ldab,1,3,0,nthread-1)
-    CALL reallocate(workt,1,ldwork,1,ldwork,0,nthread-1)
 
+    ALLOCATE(difabt(ldab,ldab,3,0:nthread-1),STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    difabt(1:ldab,1:ldab,1:3,0:nthread-1) = 0.0_dp
+    ALLOCATE(workt(ldwork,ldwork,0:nthread-1),STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    workt(1:ldwork,1:ldwork,0:nthread-1) = 0.0_dp
     ALLOCATE (op_dipt(3,0:nthread-1),STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+
     DO i = 1, 3
       DO j=0,nthread-1
         NULLIFY (op_dipt(i,j)%block)
@@ -239,7 +243,7 @@ CONTAINS
         iab = ikind + nkind*(jkind - 1)
         ldsb = SIZE(sphi_b,1)
 
-       IF (.NOT.ASSOCIATED(sab_orb(iab)%neighbor_list_set)) CYCLE
+        IF (.NOT.ASSOCIATED(sab_orb(iab)%neighbor_list_set)) CYCLE
 
         CALL get_neighbor_list_set(neighbor_list_set=&
                                    sab_orb(iab)%neighbor_list_set,&
@@ -270,7 +274,7 @@ CONTAINS
         op_dip => op_dipt(:,ithread)
 
 !$OMP do
-       DO ilist = 1,nlist
+        DO ilist = 1,nlist
 
 !$OMP critical (qs_core_neighbor_list)
           IF ( .NOT. ASSOCIATED(sab_orb_neighbor_list) ) THEN
@@ -295,7 +299,7 @@ CONTAINS
                                    neighbor=jatom, r=rab)
 
             IF(my_minimum_image) THEN
-              IF(rab(1) > Lxo2 .OR. rab(2) > Lxo2 .OR. rab(3) > Lxo2) THEN
+              IF(ABS(rab(1)) > Lxo2 .OR. ABS(rab(2)) > Lyo2 .OR. ABS(rab(3)) > Lzo2) THEN
                 sab_orb_neighbor_node => next(sab_orb_neighbor_node)
                 CYCLE
               END IF
@@ -309,7 +313,8 @@ CONTAINS
             ELSE
               new_atom_b = .FALSE.
             END IF
-           IF (new_atom_b) THEN
+
+            IF (new_atom_b) THEN
               IF (iatom <= jatom) THEN
                 irow = iatom
                 icol = jatom
@@ -429,29 +434,34 @@ CONTAINS
 
     DEALLOCATE(difabt,workt,STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-
+ 
     CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE p_xyz_ao
 
 
 !***************************************************************************
-!!****f* qs_operators_ao/p_xyz_ao [1.0] *
+!!****f* qs_operators_ao/rmc_x_p_xyz_ao [1.0] *
 !!
 !!   NAME
-!!     p_xyz_op 
+!!     rmc_x_p_xyz_op 
 !!
 !!   FUNCTION
-!!     Calculation of the components of the dipole operator in the velocity form
+!!     Calculation of the components of the (r-c)xp operator 
+!!     where p is in the velocity form and c is the center of the primitive
+!!     function multiplied from the left.
+!!     The resulting sparse matrix is not symmetric, therefore for each
+!!     couple of neighbors (iatom,jatom), the two blocks (ij) and (ji)
+!!     need to be calculated. The center c will be the position of
+!!     iatom and the position of jatom respectively.
 !!     The elements of the  sparse matrices are the integrals in the
 !!     basis functions
 !!
 !!   NOTES
 !!
 !!   ARGUMENTS
-!!     - op_sm: components of the position operator for the dipole
-!!              in a sparse matrix form (cos and sin)
-!!              calculated for the basis functions
+!!     - op_sm: matrix representation of the (r-c)xp operator 
+!!              in terms of the contracted basis functions
 !!     - qs_env: enviroment for the lists and the basis sets
 !!     - minimum_image : take into account only the first neighbors in the lists
 !!     - error: variable to control error logging, stopping,...
@@ -543,12 +553,16 @@ CONTAINS
     ldab = ldwork
     nthread = 1
 !$  nthread = omp_get_max_threads()
-    CALL reallocate(angabt,1,ldab,1,ldab,1,3,0,nthread-1)
-    CALL reallocate(workt,1,ldwork,1,ldwork,0,nthread-1)
 
-
+    ALLOCATE (angabt(ldab,ldab,3,0:nthread-1),STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    angabt(1:ldab,1:ldab,1:3,0:nthread-1)=0.0_dp
+    ALLOCATE (workt(ldwork,ldwork,0:nthread-1),STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    workt(1:ldwork,1:ldwork,0:nthread-1)=0.0_dp
     ALLOCATE (op_angijt(3,0:nthread-1),op_angjit(3,0:nthread-1),STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+
     DO i = 1, 3
       DO j=0,nthread-1
         NULLIFY (op_angijt(i,j)%block)
@@ -603,7 +617,7 @@ CONTAINS
         iab = ikind + nkind*(jkind - 1)
         ldsb = SIZE(sphi_b,1)
 
-       IF (.NOT.ASSOCIATED(sab_orb(iab)%neighbor_list_set)) CYCLE
+        IF (.NOT.ASSOCIATED(sab_orb(iab)%neighbor_list_set)) CYCLE
 
         CALL get_neighbor_list_set(neighbor_list_set=&
                                    sab_orb(iab)%neighbor_list_set,&
@@ -662,7 +676,7 @@ CONTAINS
                                    neighbor=jatom, r=rab)
 
             IF(my_minimum_image) THEN
-              IF(rab(1) > Lxo2 .OR. rab(2) > Lxo2 .OR. rab(3) > Lxo2) THEN
+              IF(rab(1) > ABS(Lxo2) .OR. rab(2) > ABS(Lyo2) .OR. rab(3) > ABS(Lzo2)) THEN
                 sab_orb_neighbor_node => next(sab_orb_neighbor_node)
                 CYCLE
               END IF
@@ -676,6 +690,7 @@ CONTAINS
             ELSE
               new_atom_b = .FALSE.
             END IF
+
             IF (new_atom_b) THEN
             ! iatom , jatom and  jatom, iatom
               DO i = 1,3
@@ -878,15 +893,7 @@ CONTAINS
 
     DO ikind=1,nkind
 
-!      atomic_kind => atomic_kind_set(ikind)
-!      CALL get_atomic_kind(atomic_kind=atomic_kind,&
-!                           orb_basis_set=orb_basis)
-
       DO jkind=1,nkind
-
-!        atomic_kind => atomic_kind_set(jkind)
-!        CALL get_atomic_kind(atomic_kind=atomic_kind, &
-!                             orb_basis_set=orb_basis)
 
         iab = ikind + nkind*(jkind - 1)
 
@@ -911,11 +918,11 @@ CONTAINS
                                  atom=iatom,&
                                  nnode=nnode)
 
-         last_jatom = 0
+          last_jatom = 0
 
-         sab_orb_neighbor_node => first_node(sab_orb_neighbor_list_local)
+          sab_orb_neighbor_node => first_node(sab_orb_neighbor_list_local)
 
-         DO inode=1,nnode
+          DO inode=1,nnode
             CALL get_neighbor_node(neighbor_node=sab_orb_neighbor_node,&
                                    neighbor=jatom)
 
@@ -927,7 +934,7 @@ CONTAINS
               sab_orb_neighbor_node => next(sab_orb_neighbor_node)
               CYCLE
             END IF
-  write(*,*) iatom, jatom
+
             NULLIFY(block)
             CALL add_block_node(matrix=matrix,&
                                 block_row=iatom,&
@@ -935,7 +942,7 @@ CONTAINS
                                 block=block)
 
             IF(iatom/=jatom) THEN
-  write(*,*) jatom, iatom
+
               NULLIFY(block)
               CALL add_block_node(matrix=matrix,&
                                   block_row=jatom,&
