@@ -10,7 +10,7 @@ AR       = ar -r
 DFLAGS   = -D__XT3 -D__FFTSG\
            -D__parallel -D__BLACS -D__SCALAPACK
 CPPFLAGS = -traditional -C $(DFLAGS) -P
-FCFLAGS  = -target=catamount -O2 -g
+FCFLAGS  = -target=catamount -O3 -fastsse -Minfo
 LDFLAGS  = $(FCFLAGS)
 LIBS     = -lacml
 
