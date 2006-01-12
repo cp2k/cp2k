@@ -9,7 +9,7 @@ LD       = ftn
 AR       = ar -r
 DFLAGS   = -D__XT3 -D__FFTSG
 CPPFLAGS = -traditional -C $(DFLAGS) -P
-FCFLAGS  = -target=catamount -O3 -fastsse -Minfo
+FCFLAGS  = -target=catamount -O4 -Mscalarsse -Mvect=sse -Mcache_align -Minfo
 LDFLAGS  = $(FCFLAGS)
 LIBS     = -lacml
 
