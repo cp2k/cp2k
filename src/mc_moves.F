@@ -1181,8 +1181,8 @@ CONTAINS
       ELSE
 ! now for the not discrete volume move
 !!!!!!!!!!!!!!!! for E_V curves
-!         vol_dis=rmvolume*(rand-0.5E0_dp)*2.0E0_dp
-         vol_dis=5.0E0_dp/angstrom**3
+         vol_dis=rmvolume*(rand-0.5E0_dp)*2.0E0_dp
+!     vol_dis=5.0E0_dp/angstrom**3
 
          new_cell_length(1:3)=(vol_dis+&
          test_cell_length(1)*test_cell_length(2)*&
@@ -1311,7 +1311,7 @@ CONTAINS
       ENDIF
  
 !!!!!!!!!!!!!!!! for E_V curves
-         w=1.0E0_dp
+!         w=1.0E0_dp
 !         w=0.0E0_dp
 
       IF ( w .GE. 1.0E0_dp ) THEN
@@ -1751,12 +1751,9 @@ CONTAINS
 
 ! choose a displacement
       IF(ionode) rand=next_random_number(rng_stream)
-!      CALL RANDOM_NUMBER(rand)
       CALL mp_bcast(rand,source,group)
       
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
       dis_angle=rmangle*2.0E0_dp*(rand-0.5E0_dp)
-!      dis_angle=-0.017453E0_dp*60.0_dp*(rand-0.5E0_dp)  ! always increase by one degree for testing
 
 ! need to find the A-B-C bisector
 
@@ -2055,12 +2052,9 @@ CONTAINS
 
 ! choose a displacement
       IF(ionode) rand=next_random_number(rng_stream)
-!      CALL RANDOM_NUMBER(rand)
       CALL mp_bcast(rand,source,group)
       
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
       dis_angle=rmdihedral*2.0E0_dp*(rand-0.5E0_dp)
-!      dis_angle=-0.017453E0_dp*60.0_dp*(rand-0.5E0_dp)  ! always increase by one degree for testing
 
 ! find the bond vectors, B-C, so we know what to rotate around
       DO i=1,3
@@ -2485,12 +2479,7 @@ CONTAINS
          CALL mp_bcast(rand,source,group)
       ENDIF
       
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! debug
-!      w=1.0_dp
-
       IF ( rand .LT. w ) THEN
-
-!         WRITE(6,*) 'ACCEPTED'
 
 ! accept the move         
 
