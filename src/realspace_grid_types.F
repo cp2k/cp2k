@@ -996,11 +996,11 @@ SUBROUTINE rs_grid_to_cube ( rs, iunit, ionode, title, particles, stride, error 
 
      WRITE(iunit,'(I5,3f12.6)') np,0.0_dp,0._dp,0._dp !start of cube
 
-     WRITE(iunit,'(I5,3f12.6)') rs%npts(1)/my_stride,&
+     WRITE(iunit,'(I5,3f12.6)') (rs%npts(1)+my_stride-1)/my_stride,&
           rs%dr(1)*REAL(my_stride,dp),0.0_dp,0.0_dp
-     WRITE(iunit,'(I5,3f12.6)') rs%npts(2)/my_stride,&
+     WRITE(iunit,'(I5,3f12.6)') (rs%npts(2)+my_stride-1)/my_stride,&
           0.0_dp,rs%dr(2)*REAL(my_stride,dp),0.0_dp
-     WRITE(iunit,'(I5,3f12.6)') rs%npts(3)/my_stride,&
+     WRITE(iunit,'(I5,3f12.6)') (rs%npts(3)+my_stride-1)/my_stride,&
           0.0_dp,0.0_dp,rs%dr(3)*REAL(my_stride,dp)
 
      IF (ASSOCIATED(my_particles)) THEN
