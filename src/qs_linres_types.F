@@ -71,6 +71,7 @@ MODULE qs_linres_types
      INTEGER                                   :: max_scf
      LOGICAL                                   :: localized_psi0
      LOGICAL                                   :: do_kernel
+     LOGICAL                                   :: converged
      REAL(KIND=dp)                             :: eps_scf
      TYPE(localized_wfn_control_type),POINTER  :: localized_wfn_control
   END TYPE linres_control_type
@@ -129,9 +130,11 @@ MODULE qs_linres_types
 !!***
 
   TYPE nmr_env_type
-     INTEGER                                     :: ref_count
+     INTEGER                                     :: ref_count, nao, nstates(2)
+     INTEGER, DIMENSION(:,:), POINTER            :: statetrueindex
      LOGICAL                                     :: current_density, &
                                                     full_nmr,simplenmr_done(6),&
+                                                    simplenmr_converged(6),&
                                                     restart_nmr
      LOGICAL,DIMENSION(:,:), POINTER             :: fullnmr_done
      REAL(dp)                                    :: chi_tensor(3,3)
@@ -268,6 +271,7 @@ CONTAINS
        NULLIFY(nmr_env%jrho1_atom_set)
        NULLIFY(nmr_env%fullnmr_done)
        NULLIFY(nmr_env%chemical_shift)
+       NULLIFY(nmr_env%statetrueindex)
      END IF 
 
 

@@ -3508,15 +3508,14 @@ END SUBROUTINE create_ot_section
 
       CALL keyword_create(keyword, name="LINESEARCH",&
            variants=(/"LINE_SEARCH"/),&
-           description="1D line search algorithm to be used with the OT minimizer,"//&
-                      " in increasing order of robustness and cost. MINIMIZER CG combined with"//&
-                      " LINESEARCH GOLD should always find an electronic minimum.",&
+           description="1D line search algorithm,"//&
+                      " in increasing order of robustness and cost.",&
            usage="LINESEARCH GOLD",&
            default_i_val=ot_ls_none,&
            enum_c_vals=s2a( "NONE", "2PNT", "3PNT","GOLD"),&
            enum_desc=s2a("take fixed lenght steps","extrapolate based on 2 points", &
-                         "... or on 3 points","perform 1D golden section search of the minimum"),&
-           enum_i_vals=(/ot_ls_none,ot_ls_2pnt,ot_ls_3pnt,ot_ls_gold/),&
+                "... or on 3 points","perform 1D golden section search of the minimum"),&
+           enum_i_vals=(/lr_ls_none,lr_ls_2pnt,lr_ls_3pnt,lr_ls_gold/),&
            error=error)
       CALL section_add_keyword(section,keyword,error=error)
       CALL keyword_release(keyword,error=error)

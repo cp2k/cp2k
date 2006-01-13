@@ -60,7 +60,7 @@ MODULE qs_linres_nmr_op
   IMPLICIT NONE
 
   PRIVATE
-  PUBLIC :: nmr_operators
+  PUBLIC :: nmr_operators, set_vecp
 
   CHARACTER(LEN=*), PARAMETER :: moduleN='qs_linres_nmr_utils'
 

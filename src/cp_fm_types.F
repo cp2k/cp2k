@@ -74,7 +74,8 @@ MODULE cp_fm_types
             cp_fm_maxabsval, &         ! find the maximum absolute value
             cp_fm_maxabsrownorm, &     ! find the maximum of the sum of the abs of the elements of a row
             cp_fm_write, &             ! writes lots of information and data (might need further development) 
-            cp_fm_to_fm                ! copy (parts of) a fm to a fm
+            cp_fm_to_fm,&             ! copy (parts of) a fm to a fm
+            cp_fm_vectorsnorm          ! compute the norm of the column-vectors      
 
 
   INTERFACE cp_fm_to_fm
@@ -1127,6 +1128,55 @@ CONTAINS
 
     CALL timestop(handle)
   END SUBROUTINE
+
+!!****f* cp_fm_types/cp_fm_vectorsnorm [1.0] *
+!!
+!!   NAME
+!!     cp_fm_vectorsnorm
+!!
+!!   FUNCTION
+!!     find the inorm of each column norm_{j}= sqrt( \sum_{i} A_{ij}*A_{ij} )
+!!
+!!   NOTES
+!!
+!!   INPUTS
+!!
+!!   AUTHOR
+!!
+!!   MODIFICATION HISTORY
+!!
+!!*** *********************************************************************
+  SUBROUTINE cp_fm_vectorsnorm(matrix, norm_array)
+    TYPE(cp_fm_type), POINTER                :: matrix
+    REAL(KIND=dp), DIMENSION(:), INTENT(OUT) :: norm_array
+
+    INTEGER                                  :: handle, i, j, ncol_local, &
+                                                ncol_global, nrow_local
+    INTEGER, DIMENSION(:), POINTER           :: col_indices
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: values
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: my_block
+
+!   ---------------------------------------------------------------------------
+
+    CALL timeset("cp_fm_maxabsrownorm",handle)
+
+    my_block => matrix%local_data
+    CALL cp_fm_get_info(matrix, col_indices=col_indices, ncol_global=ncol_global, &
+                                nrow_local=nrow_local, ncol_local=ncol_local)
+
+    ! the efficiency could be improved by making use of the row-col distribution of scalapack
+    norm_array=0.0_dp
+    DO j=1,ncol_local
+       DO i=1,nrow_local
+          norm_array(col_indices(j))=norm_array(col_indices(j))+my_block(i,j)*my_block(i,j)
+       ENDDO
+    ENDDO
+    CALL mp_sum(norm_array,matrix%matrix_struct%para_env%group)
+    norm_array = SQRT(norm_array) 
+
+    CALL timestop(handle)
+  END SUBROUTINE
+
 
 !!****f* cp_fm_types/cp_fm_write [1.0] *
 !!

@@ -48,7 +48,8 @@ MODULE qs_linres_methods
                                              cp_fm_release,&
                                              cp_fm_set_all,&
                                              cp_fm_type,&
-                                             cp_fm_to_fm
+                                             cp_fm_to_fm,&
+                                             cp_fm_vectorsnorm
   USE cp_para_types,                   ONLY: cp_blacs_env_type,&
                                              cp_para_env_type
   USE global_types,                    ONLY: global_environment_type 
@@ -217,10 +218,10 @@ CONTAINS
                                    routineP = moduleN//'/'//routineN
 
 
-    INTEGER ::  handle, i, ik, istat, ispin, iter, last_ik, nvectors, out_unit
+    INTEGER ::  handle, homo, i, ik, istat, ispin, iter, last_ik, nvectors, output_unit
     LOGICAL                                     :: ionode, failure,energy_only
-    REAL(dp) :: tmp
-    REAL(dp), DIMENSION(:), POINTER             :: occupations
+    REAL(dp) :: eps_perturbation, max_input_norm, tmp
+    REAL(dp), DIMENSION(:), POINTER             :: occupations, vectorsnorm
     TYPE(cp_blacs_env_type), POINTER            :: blacs_env
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                   :: R, X
@@ -240,17 +241,17 @@ CONTAINS
       POINTER                                   :: matrix_s
  
 
-    failure   = .FALSE.
-    energy_only = .FALSE.
-    CALL timeset(routineN,"I","",handle)
+     failure   = .FALSE.
+     energy_only = .FALSE.
+     CALL timeset(routineN,"I","",handle)
 
      NULLIFY(ao_mo_fm_pools, blacs_env, dft_control, linres_control)
      NULLIFY(matrix_s, mos, mpools, para_env)
      NULLIFY(Ab, b, kv_fm_struct, logger,  R, X)
 
-    logger    => cp_error_get_logger(error)
-    ionode    = (logger%para_env%mepos==logger%para_env%source)
-    out_unit  = cp_logger_get_default_unit_nr(logger)
+     logger    => cp_error_get_logger(error)
+     ionode    = (logger%para_env%mepos==logger%para_env%source)
+     output_unit  = cp_logger_get_default_unit_nr(logger)
 
 
      CALL get_qs_env(qs_env=qs_env,  blacs_env=blacs_env, &
@@ -260,6 +261,36 @@ CONTAINS
                      mpools=mpools, mos=mos,&
                      para_env=para_env)
 
+     IF(.NOT.  linres_control%do_kernel) THEN
+     ! Check the max size of the perturbation operator matrix elements
+       max_input_norm = 0.0_dp
+       eps_perturbation = 1.0E-10_dp
+       DO ispin = 1,dft_control%nspins
+         CALL get_mo_set(mo_set=mos(ispin)%mo_set,homo=homo )
+         ALLOCATE(vectorsnorm(homo), STAT=istat)
+         CALL cp_fm_vectorsnorm(h1_psi0(ispin)%matrix,vectorsnorm) 
+         DO i=1,homo
+           max_input_norm = MAX(max_input_norm,vectorsnorm(i))
+         END DO 
+         DEALLOCATE(vectorsnorm,STAT=istat)
+       END DO 
+
+       ! If too small set solution to zero and return
+       IF(max_input_norm .LT. eps_perturbation) THEN
+         DO ispin = 1,dft_control%nspins
+           CALL cp_fm_set_all(psi1(ispin)%matrix,0.0_dp,error=error)
+         END DO
+         IF(ionode .AND. logger%print_keys%linres) THEN
+           WRITE (UNIT=output_unit,FMT="(T10,A/)")&
+           "The Perturbation is too small, psi1 remain zero. "
+         END IF
+         RETURN
+       END IF
+       max_input_norm = 1.0_dp / max_input_norm
+       DO ispin = 1,dft_control%nspins
+  !       CALL cp_fm_scale(max_input_norm,h1_psi0(ispin)%matrix,error=error)
+       END DO
+     END IF
 
      !----------------------!
      ! allocate the vectors !
@@ -285,13 +316,9 @@ CONTAINS
      DO ispin=1,dft_control%nspins
         NULLIFY(b(ispin)%matrix, Ab(ispin)%matrix )
      END DO
-     ! Copy the initial guess
      DO ispin=1, dft_control%nspins
-        CALL fm_pool_create_fm(ao_mo_fm_pools(ispin)%pool,&
-               b(ispin)%matrix,&
-               name="b"//TRIM(ADJUSTL(cp_to_string(ispin))),error=error)
 
-        CALL cp_fm_to_fm(psi1(ispin)%matrix, b(ispin)%matrix)
+        b(ispin)%matrix => psi1(ispin)%matrix
 
         CALL fm_pool_create_fm(ao_mo_fm_pools(ispin)%pool,&
                Ab(ispin)%matrix,&
@@ -300,13 +327,10 @@ CONTAINS
 
      CALL check_p_env_init(p_env,linres_control, dft_control%nspins, error=error)
 
-    !Orthogonalize with respect to the psi0
-     CALL p_preortho(p_env, qs_env, b(:))
-     CALL normalize(b(:), R, matrix_s) ! R is temp
 
      ik = 1
      last_ik = 1
-     DO  iter = 1,linres_control%max_scf
+     iteration: DO  iter = 1,4!linres_control%max_scf
 
        p_env%etotal = 0.0_dp
        p_env%gnorm = 0.0_dp
@@ -317,48 +341,65 @@ CONTAINS
        END DO
        ! Apply the operators that do not depend on the perturbation
        CALL apply_op(X, Ab(:), p_env, qs_env, linres_control%do_kernel)
+
        ! Apply the perturbative operator
        DO ispin=1, dft_control%nspins
           CALL cp_fm_scale_and_add(1.0_dp, Ab(ispin)%matrix, &
-                                   1.0_dp, h1_psi0(ispin)%matrix) ! add h1_psi0 to Ab 
+                                   -1.0_dp, h1_psi0(ispin)%matrix) ! add h1_psi0 to Ab 
           CALL get_mo_set(mo_set=mos(ispin)%mo_set, &
                           occupation_numbers=occupations )
           CALL cp_fm_column_scale(Ab(ispin)%matrix, occupations)
           CALL cp_fm_trace(psi1(ispin)%matrix,Ab(ispin)%matrix,tmp,error)
           p_env%etotal = p_env%etotal + tmp 
+ write(*,*) 'etot ', p_env%etotal
        END DO
 
        !minimization
        CALL linres_scf_mini(p_env,qs_env,linres_control,b,Ab,&
             dft_control%nspins,iter,error=error)
 
+    ! Check ortho
+    !Orthogonalize with respect to the psi0
+!     CALL p_preortho(p_env, qs_env, b(:))
+!     CALL normalize(b(:), R, matrix_s) ! R is temp
+
        !Refine the orthogonalization constraint
   !     CALL p_postortho(p_env,qs_env, Ab(:))
 
        !Check Convergence
        IF(iter /= 1) THEN
-
+         IF(p_env%delta .LT. 1.E-2_dp) THEN !linres_control%eps_scf
+           ! The opt has converged to a min.
+           IF(ionode .AND. logger%print_keys%linres) THEN
+              WRITE (UNIT=output_unit,FMT="(T10,A,I4,A,/)")&
+             "The SCF has converged in ", iter, " iterations"
+           END IF
+           linres_control%converged = .TRUE.
+           EXIT iteration
+         END IF
        END IF
 
+       ! Max number of iteration reached, write restart and exit
+       IF(iter == linres_control%max_scf) THEN 
+         IF(ionode .AND. logger%print_keys%linres) THEN
+           WRITE (UNIT=output_unit,FMT="(T10,A/)")&
+           "SCF has not converged: the max. number of iterations has been reached "
+         END IF
+          linres_control%converged = .FALSE.
+       ENDIF
 
-     END DO  ! iter
+     END DO  iteration
 
+ stop 'min'
     ! Copy the optimized wavefunctions
-     DO ispin=1, dft_control%nspins
-       CALL cp_fm_to_fm(b(ispin)%matrix,psi1(ispin)%matrix)
-     END DO
 
     !----------!
     ! clean up !
     !----------!
      DO ispin=1, dft_control%nspins
         CALL cp_fm_struct_release(kv_fm_struct(ispin)%struct)
-        DO i=1, nvectors
-           IF (ASSOCIATED(b(ispin)%matrix)) &
-                CALL cp_fm_release(b(ispin)%matrix)
-           IF (ASSOCIATED(Ab(ispin)%matrix)) &
-                CALL cp_fm_release(Ab(ispin)%matrix)
-        END DO
+        NULLIFY(b(ispin)%matrix)
+        IF (ASSOCIATED(Ab(ispin)%matrix)) CALL cp_fm_release(Ab(ispin)%matrix)
      END DO
      DEALLOCATE(b, Ab, kv_fm_struct, STAT=istat)
      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
@@ -504,7 +545,6 @@ CONTAINS
       END DO
     END IF
 
-
     IF(.NOT.p_env%os_valid) THEN
       DO ispin = 1,nspins
           IF(ASSOCIATED(p_env%preconditioner)) THEN
@@ -524,7 +564,7 @@ CONTAINS
     IF(p_env%ls_count==0) THEN
       CALL linres_derivative(Ab,PS_psi0,p_env,nspins,error=error)
     END IF
-    
+
     SELECT CASE  (linres_control%opt_method)
       CASE (lr_sd)
          IF(p_env%ls_count==0) THEN
@@ -541,19 +581,22 @@ CONTAINS
                     p_env%d_psi1(ispin)%matrix,tmp,error=error)
                p_env%gnorm = p_env%gnorm + tmp
                CALL cp_fm_scale_and_add(-1.0_dp,p_env%d_psi1(ispin)%matrix)
+   write(*,*) 'gnorm ', p_env%gnorm
             ENDDO
             IF( p_env%gnorm .LT. 0.0) THEN
               WRITE(6,*) "WARNING Preconditioner not positive definite !"
             END IF
-            
+
             k =  0 
             DO ispin = 1,nspins
               k = k + p_env%n_mo(ispin)
             END DO
             p_env%delta = SQRT(ABS(p_env%gnorm) / (p_env%n_ao(1)*k))
             p_env%gradient = -p_env%gnorm
+ write(*,*) 'delta ', p_env%delta , 'grad ',  p_env%gradient
          END IF
          CALL do_lr_line_search(p_env,b,linres_control,nspins,error=error)
+
       CASE (lr_cg)
          IF(p_env%ls_count==0) THEN
             p_env%gnorm = 0.0_dp
@@ -667,6 +710,8 @@ CONTAINS
     INTEGER  :: ispin
     REAL(dp) :: ds
 
+  write(*,*) linres_control%ls_method, lr_ls_none
+
     SELECT CASE(linres_control%ls_method)
 
       CASE(lr_ls_gold)
@@ -677,6 +722,7 @@ CONTAINS
          CALL do_lr_ls_2pnt(p_env,vectors,linres_control%ds_min,nspins,error=error)
       CASE(lr_ls_none)
          ds=linres_control%ds_min
+         write(*,*) 'ds ', ds
          DO ispin = 1,nspins
            CALL cp_fm_scale_and_add(1.0_dp,vectors(ispin)%matrix,ds,&
                 p_env%d_psi1(ispin)%matrix,error=error)
