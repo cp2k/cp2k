@@ -352,7 +352,8 @@ CONTAINS
                    WRITE(filename,'(a13,I5.5,a1,I1.1,a5)') "WAVEFUNCTION_",ivector,"_",ispin,".cube"
                    IF (ionode) OPEN(UNIT=21,FILE=filename)
                    WRITE(title,*) "WAVEFUNCTION ",ivector," spin ",ispin," i.e. HOMO - ",ivector-homo
-                   CALL rs_pw_to_cube(wf_r%pw,21,ionode,title,rs,particles=particles)
+                   CALL rs_pw_to_cube(wf_r%pw,21,ionode,title,rs,particles=particles,&
+                        stride=section_get_ival(dft_section,"PRINT%MO_CUBES%STRIDE"))
                    IF (ionode) CLOSE(21)
                 ENDDO
              END IF
@@ -435,7 +436,9 @@ CONTAINS
                    WRITE(title,'(A7,I5.5,A1,I1.1,A1,6G10.4)') "WANNIER",ivector,"_",ispin," ",&
                      center(ivector,1:3)*angstrom, &
                      center(ivector,4:6)*angstrom
-                   CALL rs_pw_to_cube(wf_r%pw,21,ionode,title,rs,particles=particles)
+                   CALL rs_pw_to_cube(wf_r%pw,21,ionode,title,rs,&
+                        particles=particles,&
+                        stride=section_get_ival(dft_section,"PRINT%MO_CUBES%STRIDE"))
                    IF (ionode) CLOSE(21)
                 ENDDO
              END IF
@@ -524,7 +527,9 @@ CONTAINS
                    WRITE(filename,'(a13,I5.5,a1,I1.1,a5)') "WAVEFUNCTION_",homo+ivector,"_",ispin,".cube"
                    IF (ionode) OPEN(UNIT=21,FILE=filename)
                    WRITE(title,*) "WAVEFUNCTION ",homo+ivector," spin ",ispin," i.e. LUMO + ",ivector-1
-                   CALL rs_pw_to_cube(wf_r%pw,21,ionode,title,rs,particles=particles)
+                   CALL rs_pw_to_cube(wf_r%pw,21,ionode,title,rs,&
+                        particles=particles,&
+                        stride=section_get_ival(dft_section,"PRINT%MO_CUBES%STRIDE"))
                    IF (ionode) CLOSE(21)
                 ENDDO
              ENDIF
@@ -772,19 +777,22 @@ CONTAINS
              CALL coeff_sumup(rho%rho_r(2),wf_r)
              IF (ionode) OPEN(UNIT=21,FILE="ELECTRON_DENSITY.cube")
              CALL rs_pw_to_cube(wf_r%pw,21,ionode,"SPIN 1 + SPIN 2 ELECTRON DENSITY",&
-                  rs,particles=particles)
+                  rs,particles=particles,&
+                  stride=section_get_ival(dft_section,"PRINT%E_DENSITY_CUBE%STRIDE"))
              IF (ionode) CLOSE(21)
              CALL coeff_copy(rho%rho_r(1),wf_r)
              CALL coeff_reduce(rho%rho_r(2),wf_r)
              IF (ionode) OPEN(UNIT=21,FILE="SPIN_DENSITY.cube")
              CALL rs_pw_to_cube(wf_r%pw,21,ionode,"SPIN 1 DENSITY - SPIN 2 DENSITY",rs,&
-                  particles=particles)
+                  particles=particles,&
+                  stride=section_get_ival(dft_section,"PRINT%E_DENSITY_CUBE%STRIDE"))
              IF (ionode) CLOSE(21)
              CALL pw_pool_give_back_coeff(auxbas_pw_pool,wf_r, error=error)
           ELSE
              IF (ionode) OPEN(UNIT=21,FILE="ELECTRON_DENSITY.cube")
              CALL rs_pw_to_cube(rho%rho_r(1)%pw,21,ionode,"ELECTRON DENSITY",&
-                  rs,particles=particles)
+                  rs,particles=particles,&
+                  stride=section_get_ival(dft_section,"PRINT%E_DENSITY_CUBE%STRIDE"))
              IF (ionode) CLOSE(21)
           ENDIF
           CALL rs_pool_give_back_rs(auxbas_rs_pool,rs,error=error)
@@ -799,7 +807,8 @@ CONTAINS
           unit_nr=cp_print_key_unit_nr(logger,input,"DFT%PRINT%V_HARTREE_CUBE",&
                extension=".cube",middle_name="v_hartree",error=error)
           CALL rs_pw_to_cube(qs_env%ks_env%v_hartree_rspace%pw,&
-               unit_nr,unit_nr>0,"HARTREE POTENTIAL",rs,particles=particles)
+               unit_nr,unit_nr>0,"HARTREE POTENTIAL",rs,particles=particles,&
+               stride=section_get_ival(dft_section,"PRINT%V_HARTREE_CUBE%STRIDE"))
           CALL cp_print_key_finished_output(unit_nr,logger,input,&
                "DFT%PRINT%V_HARTREE_CUBE",error=error)
           CALL rs_pool_give_back_rs(auxbas_rs_pool,rs,error=error)

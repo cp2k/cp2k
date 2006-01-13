@@ -565,6 +565,12 @@ END SUBROUTINE xc_functionals_expand
             description="Controls the printing of cubes of the molecular orbitals (squared).", &
             print_level=high_print_level,each=(/1/),filename="",&
             error=error)
+       CALL keyword_create(keyword, name="stride",&
+            description="the stride used to write the cube file "//&
+            "(the bigger, the smaller the cube gets)",&
+            default_i_val=2, error=error)
+       CALL section_add_keyword(print_key,keyword,error=error)
+       CALL keyword_release(keyword,error=error)    
        CALL keyword_create(keyword, name="nlumo",&
             description="If the printkey is activated controls the number of lumos that are printed (-1=all)",&
             default_i_val=5, error=error)
@@ -614,6 +620,12 @@ END SUBROUTINE xc_functionals_expand
             description="Controls the printing of a cube file with electronic density.", &
             print_level=high_print_level,each=(/1/),filename="",&
             error=error)
+       CALL keyword_create(keyword, name="stride",&
+            description="the stride used to write the cube file "//&
+            "(the bigger, the smaller the cube gets)",&
+            default_i_val=2, error=error)
+       CALL section_add_keyword(print_key,keyword,error=error)
+       CALL keyword_release(keyword,error=error)    
        CALL section_add_subsection(section,print_key,error=error)
        CALL section_release(print_key,error=error)
 
@@ -621,6 +633,12 @@ END SUBROUTINE xc_functionals_expand
             description="Controls the printing of a cube file with eletrostatic potential (electrons+core).", &
             print_level=high_print_level,each=(/1/),filename="",&
             error=error)
+       CALL keyword_create(keyword, name="stride",&
+            description="the stride used to write the cube file "//&
+            "(the bigger, the smaller the cube gets)",&
+            default_i_val=2, error=error)
+       CALL section_add_keyword(print_key,keyword,error=error)
+       CALL keyword_release(keyword,error=error)    
        CALL section_add_subsection(section,print_key,error=error)
        CALL section_release(print_key,error=error)
 
@@ -657,7 +675,7 @@ END SUBROUTINE xc_functionals_expand
 
        CALL cp_print_key_section_create(print_key,"MULLIKEN",&
             description="Controls the printing of the Mulliken Population analysis.", &
-            print_level=high_print_level,each=(/1/),filename="__STD_OUT__",&
+            print_level=medium_print_level,each=(/1/),filename="__STD_OUT__",&
             error=error)
        CALL section_add_subsection(section,print_key,error=error)
        CALL section_release(print_key,error=error)

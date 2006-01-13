@@ -956,20 +956,29 @@ SUBROUTINE rs_grid_zero ( rs )
 
 END SUBROUTINE rs_grid_zero
 !******************************************************************************
-SUBROUTINE rs_grid_to_cube ( rs, iunit, ionode, title, particles )
+SUBROUTINE rs_grid_to_cube ( rs, iunit, ionode, title, particles, stride, error )
     TYPE(realspace_grid_type), POINTER       :: rs
     INTEGER, INTENT(IN)                      :: iunit
     LOGICAL, INTENT(IN)                      :: ionode
     CHARACTER(*), OPTIONAL                   :: title
     TYPE(particle_list_type), POINTER, optional :: particles
+    INTEGER, INTENT(in), optional :: stride
     TYPE(particle_list_type), POINTER :: my_particles
+    TYPE(cp_error_type), INTENT(inout), optional :: error
 
     INTEGER                                  :: I1, I2, I3, L1, L2, L3, np,&
-         U1, U2, U3, z,iat
+         U1, U2, U3, z,iat, my_stride
+    CHARACTER(len=*), PARAMETER :: routineN="rs_grid_to_cube",&
+         routineP=moduleN//":"//routineN
+    logical :: failure
 
 !-----------------------------------------------------------------------------!
 ! not working for distributed grids !
-
+  
+   failure=.false.
+   my_stride=1
+   IF (PRESENT(stride)) my_stride=stride
+   CPPrecondition(my_stride>0,cp_failure_level,routineP,error,failure) 
    IF (rs%ngpts.ne.rs%ngpts_local) CALL stop_program("rs_grid_to_cube","NYI")
    IF (ionode) THEN
      ! this format seems to work for e.g. molekel and gOpenmol
@@ -987,9 +996,12 @@ SUBROUTINE rs_grid_to_cube ( rs, iunit, ionode, title, particles )
 
      WRITE(iunit,'(I5,3f12.6)') np,0.0_dp,0._dp,0._dp !start of cube
 
-     WRITE(iunit,'(I5,3f12.6)') rs%npts(1),rs%dr(1),0.0_dp,0.0_dp
-     WRITE(iunit,'(I5,3f12.6)') rs%npts(2),0.0_dp,rs%dr(2),0.0_dp
-     WRITE(iunit,'(I5,3f12.6)') rs%npts(3),0.0_dp,0.0_dp,rs%dr(3)
+     WRITE(iunit,'(I5,3f12.6)') rs%npts(1)/my_stride,&
+          rs%dr(1)*REAL(my_stride,dp),0.0_dp,0.0_dp
+     WRITE(iunit,'(I5,3f12.6)') rs%npts(2)/my_stride,&
+          0.0_dp,rs%dr(2)*REAL(my_stride,dp),0.0_dp
+     WRITE(iunit,'(I5,3f12.6)') rs%npts(3)/my_stride,&
+          0.0_dp,0.0_dp,rs%dr(3)*REAL(my_stride,dp)
 
      IF (ASSOCIATED(my_particles)) THEN
         DO iat=1,np
@@ -1006,10 +1018,10 @@ SUBROUTINE rs_grid_to_cube ( rs, iunit, ionode, title, particles )
      U1=UBOUND(rs%r,1)
      U2=UBOUND(rs%r,2)
      U3=UBOUND(rs%r,3)
-     DO I1=L1,U1
-       DO I2=L2,U2
+     DO I1=L1,U1,my_stride
+       DO I2=L2,U2,my_stride
         WRITE(iunit,'(6E13.5)') (rs%r(MODULO(I1-L1,U1-L1+1)+L1,MODULO(I2-L2,U2-L2+1)+L2, &
-                                      MODULO(I3-L3,U3-L3+1)+L3),I3=L3,U3)
+                                      MODULO(I3-L3,U3-L3+1)+L3),I3=L3,U3,my_stride)
        ENDDO
      ENDDO
    ENDIF
@@ -1019,13 +1031,15 @@ END SUBROUTINE rs_grid_to_cube
 !******************************************************************************
 ! optionally pass a preallocated rs grid
 !******************************************************************************
-SUBROUTINE rs_pw_to_cube ( pw, iunit, ionode, title, rs, particles )
+SUBROUTINE rs_pw_to_cube ( pw, iunit, ionode, title, rs, particles, stride,error )
   TYPE(pw_type), POINTER                     :: pw
     INTEGER, INTENT(IN)                      :: iunit
     LOGICAL, INTENT(IN)                      :: ionode
     CHARACTER(*), INTENT(IN), OPTIONAL       :: title
     TYPE(realspace_grid_type), POINTER, OPTIONAL      :: rs 
     TYPE(particle_list_type), POINTER, OPTIONAL :: particles
+    INTEGER, INTENT(in), optional :: stride
+    TYPE(cp_error_type), INTENT(inout), optional :: error
 
     INTEGER                                  :: nsmax,handle
     TYPE(realspace_grid_type), POINTER       :: rs_local
@@ -1044,9 +1058,10 @@ SUBROUTINE rs_pw_to_cube ( pw, iunit, ionode, title, rs, particles )
 
    CALL rs_pw_transfer(rs_local,pw,pw2rs)
    IF (PRESENT(particles)) THEN
-      CALL rs_grid_to_cube(rs_local,iunit,ionode,title,particles=particles)
+      CALL rs_grid_to_cube(rs_local,iunit,ionode,title,particles=particles,&
+           stride=stride,error=error)
    ELSE
-      CALL rs_grid_to_cube(rs_local,iunit,ionode,title)
+      CALL rs_grid_to_cube(rs_local,iunit,ionode,title,stride=stride, error=error)
    END IF
 
    IF (.NOT. PRESENT(rs)) THEN

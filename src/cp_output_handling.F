@@ -236,8 +236,10 @@ CONTAINS
             description="Level starting at which this proprety is printed",&
             usage="silent",&
             default_i_val=my_print_level,lone_keyword_i_val=silent_print_level,&
-            enum_c_vals=(/"silent","low   ","medium","high  ","debug "/),&
-            enum_i_vals=(/ silent_print_level, low_print_level,&
+            enum_c_vals=(/"on    ","off   ","silent","low   ","medium",&
+            "high  ","debug "/),&
+            enum_i_vals=(/ silent_print_level-1,debug_print_level+1,&
+            silent_print_level, low_print_level,&
             medium_print_level,high_print_level,debug_print_level/),&
             error=error)
        CALL section_add_keyword(print_key_section,keyword,error=error)
