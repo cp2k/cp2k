@@ -43,7 +43,7 @@
      var Path = new collapsibleList([17,21,'t.gif','l.gif','i.gif','e.gif'],[25,21,'f.gif','b.gif','p.gif','m.gif'],false);
      <xsl:call-template name="section_index">
       <xsl:with-param name="path" select="'Path'"/>
-      <xsl:with-param name="expand_list" select="'true'"/>
+      <xsl:with-param name="expand_list" select="'false'"/>
       <xsl:with-param name="start" select="count(KEYWORD)"/>
      </xsl:call-template>
      createList(Path);
@@ -109,48 +109,67 @@
   <li>
   <xsl:for-each select="KEYWORD">
    <xsl:sort select="NAME"/>
-   <dl>
-    <dt>
-     <a href="#key_ind_{generate-id(NAME[@type='default'])}" id="key_des_{generate-id(NAME[@type='default'])}"><xsl:value-of select="NAME[@type='default']"/></a>
-     <!--a href="#sec_ind_{generate-id(../NAME)}"><xsl:value-of select="NAME[@type='default']"/></a-->
-     <xsl:if test="NAME[@type='alias']">
-      (alias:
-      <xsl:for-each select="NAME[@type='alias']">
-       <xsl:sort select="NAME[@type='alias']"/>
-       <xsl:choose>
-        <xsl:when test="position() = last()">
-         <xsl:value-of select="."/>)
-        </xsl:when>
-        <xsl:otherwise>
-         <xsl:value-of select="."/>,
-        </xsl:otherwise>
-       </xsl:choose>
-      </xsl:for-each>
-     </xsl:if>
-    </dt>
-    <dd><p><em><xsl:value-of select="DESCRIPTION"/></em></p></dd>
-    <dd>
-     <p>
-      Data type: <big class="uctt"><xsl:value-of select="DATA_TYPE/@kind"/></big>
-      <xsl:if test="DATA_TYPE/ENUMERATION">
-       <p>List of valid keys:</p>
-       <ul class="none">
-       <xsl:for-each select="DATA_TYPE/ENUMERATION/ITEM">
-        <xsl:sort select="NAME"/>
-        <dl>
-         <dt><big class="uctt"><xsl:value-of select="NAME"/></big></dt>
-         <dd><em><xsl:value-of select="DESCRIPTION"/></em></dd>
-        </dl>
+   <xsl:if test="not(starts-with(NAME,'__'))">
+    <dl>
+     <dt>
+      <a href="#key_ind_{generate-id(NAME[@type='default'])}" id="key_des_{generate-id(NAME[@type='default'])}"><xsl:value-of select="NAME[@type='default']"/></a>
+      <!--a href="#sec_ind_{generate-id(../NAME)}"><xsl:value-of select="NAME[@type='default']"/></a-->
+      <xsl:if test="NAME[@type='alias']">
+       (alias:
+       <xsl:for-each select="NAME[@type='alias']">
+        <xsl:sort select="NAME[@type='alias']"/>
+        <xsl:choose>
+         <xsl:when test="position() = last()">
+          <xsl:value-of select="."/>)
+         </xsl:when>
+         <xsl:otherwise>
+          <xsl:value-of select="."/>,
+         </xsl:otherwise>
+        </xsl:choose>
        </xsl:for-each>
-       </ul>
       </xsl:if>
-     </p>
-    </dd>
-    <dd><p>Usage example: <big class="uctt"><xsl:value-of select="USAGE"/></big></p></dd>
-    <xsl:if test="string-length(DEFAULT_VALUE) > 0">
-     <dd><p>Default value: <big class="uctt"><xsl:value-of select="DEFAULT_VALUE"/></big></p></dd>
-    </xsl:if>
-   </dl>
+     </dt>
+     <dd><p><em><xsl:value-of select="DESCRIPTION"/></em></p></dd>
+     <dd>
+      <p>
+       Data type: <big class="uctt"><xsl:value-of select="DATA_TYPE/@kind"/></big>
+       <xsl:if test="DATA_TYPE/ENUMERATION">
+        <p>List of valid keys:</p>
+        <ul class="none">
+        <xsl:for-each select="DATA_TYPE/ENUMERATION/ITEM">
+         <xsl:sort select="NAME"/>
+         <dl>
+          <dt><big class="uctt"><xsl:value-of select="NAME"/></big></dt>
+          <dd><em><xsl:value-of select="DESCRIPTION"/></em></dd>
+         </dl>
+        </xsl:for-each>
+        </ul>
+       </xsl:if>
+      </p>
+     </dd>
+     <dd><p>Usage example: <big class="uctt"><xsl:value-of select="USAGE"/></big></p></dd>
+     <xsl:if test="string-length(DEFAULT_VALUE) > 0">
+      <dd>
+       <p>
+        Default value:
+        <big class="uctt">
+         <xsl:value-of select="DEFAULT_VALUE"/>
+        </big>
+       </p>
+      </dd>
+     </xsl:if>
+     <xsl:if test="string-length(DEFAULT_UNIT) > 0">
+      <dd>
+       <p>
+        Default unit:
+        <big class="uctt">
+         <xsl:value-of select="DEFAULT_UNIT"/>
+        </big>
+       </p>
+      </dd>
+     </xsl:if>
+    </dl>
+   </xsl:if>
   </xsl:for-each>
   </li>
  </ul>
