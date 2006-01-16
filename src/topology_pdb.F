@@ -57,6 +57,15 @@ MODULE topology_pdb
                                              timestop
   USE topology_types,                  ONLY: topology_parameters_type,&
                                              atom_info_type
+  USE cp_parser,                       ONLY: parser_release,&
+                                             parser_get_object,&
+                                             parser_search_string,&
+                                             parser_create,&
+                                             parser_test_next_token,&
+                                             cp_parser_type,&
+                                             parser_get_next_line
+
+#include "cp_common_uses.h"  
 
   IMPLICIT NONE
 
@@ -91,12 +100,14 @@ CONTAINS
 !------------------------------------------------------------------------------
 !------------------------------------------------------------------------------
 
-SUBROUTINE read_coordinate_pdb (topology,globenv)
+SUBROUTINE read_coordinate_pdb (topology,globenv,error)
 
 
     TYPE(topology_parameters_type)           :: topology
     TYPE(global_environment_type), &
-      pointer, OPTIONAL                   :: globenv
+         POINTER, OPTIONAL                   :: globenv
+    TYPE(cp_error_type), INTENT(inout), &
+         OPTIONAL                               :: error    
 
     TYPE (atom_info_type),POINTER            :: atom_info
     CHARACTER(len=*), PARAMETER :: routineN = 'read_coordinate_pdb', &
@@ -106,16 +117,16 @@ SUBROUTINE read_coordinate_pdb (topology,globenv)
     CHARACTER(LEN=default_string_length)     :: line, record, root_mol_name
     INTEGER                                  :: handle, istat,&
                                                 iw, natom,i, inum_mol
-    INTEGER                                  :: file_unit
 
-    LOGICAL                                  :: PM1, PM2, PM3, PM4
-
+    LOGICAL                                  :: PM1, PM2, PM3, PM4, my_end
+    TYPE(cp_parser_type), POINTER :: parser
 !------------------------------------------------------------------------------
 !------------------------------------------------------------------------------
   PM1 = .FALSE.
   PM2 = .FALSE.
   PM3 = .FALSE.
   PM4 = .FALSE.
+  NULLIFY(parser)
   IF(PRESENT(globenv)) THEN
     CALL write_checkpoint_information("entering "//routineN,globenv)
     iw = globenv%scr
@@ -149,9 +160,8 @@ SUBROUTINE read_coordinate_pdb (topology,globenv)
 !------------------------------------------------------------------------------
 
   IF(PM1) WRITE(iw,*) "    Reading in PDB file ",TRIM(topology%coord_file_name)
-  CALL open_file(file_name=topology%coord_file_name,&
-                 file_action="READ",&
-                 unit_number=file_unit)
+  CALL parser_create(parser,topology%coord_file_name,&
+       para_env=globenv%para_env,error=error)  
 
   natom         = 0
   inum_mol      = 1
@@ -162,9 +172,9 @@ SUBROUTINE read_coordinate_pdb (topology,globenv)
 
   DO
     line = ''
-    READ(file_unit,'(A80)',IOSTAT=istat) line 
-    IF(istat /= 0) EXIT
-
+    CALL parser_get_next_line(parser,1,at_end=my_end,error=error)
+    IF(my_end) EXIT
+    line   = parser%input_line(1:default_string_length)
     record = line(1:6)
     record = TRIM(record)
 
@@ -231,7 +241,7 @@ SUBROUTINE read_coordinate_pdb (topology,globenv)
     CASE DEFAULT
     END SELECT
   END DO
-  CALL close_file(unit_number=file_unit)
+  CALL parser_release(parser,error=error)
 
   CALL reallocate(atom_info%label_molname,1,natom)
   CALL reallocate(atom_info%label_resname,1,natom)

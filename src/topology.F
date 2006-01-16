@@ -459,11 +459,11 @@ SUBROUTINE coordinate_control(topology,globenv,error)
   !-----------------------------------------------------------------------------
   SELECT CASE (topology%coord_type)
   CASE (do_coord_pdb)
-    CALL read_coordinate_pdb (topology,globenv)
+    CALL read_coordinate_pdb (topology,globenv,error)
   CASE (do_coord_xyz)
-    CALL read_coordinate_xyz (topology,globenv)
+    CALL read_coordinate_xyz (topology,globenv,error)
   CASE DEFAULT
-    CALL read_atoms_input ( topology, globenv )
+    CALL read_atoms_input ( topology, globenv)
   END SELECT
 
   ! if the e.g. the &COORD block is empty, we don't proceed

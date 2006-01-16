@@ -34,6 +34,16 @@ MODULE topology_xyz
        timestop
   USE topology_types,                  ONLY: topology_parameters_type,&
        atom_info_type
+  USE cp_parser,                       ONLY: parser_release,&
+                                             parser_get_object,&
+                                             parser_search_string,&
+                                             parser_create,&
+                                             parser_test_next_token,&
+                                             cp_parser_type,&
+                                             parser_get_next_line
+
+#include "cp_common_uses.h"  
+
 
   IMPLICIT NONE
 
@@ -65,27 +75,31 @@ CONTAINS
   ! (3) The rest of the file is composed of one line for each atom in the molecule. 
   !     Each atom is designated by the atomic number and then the x, y, and z coordinate value.
   !     Separate each value by at least 1 space; there is no strict format for these lines.
-  SUBROUTINE read_coordinate_xyz (topology,globenv)
+  SUBROUTINE read_coordinate_xyz (topology,globenv,error)
     IMPLICIT NONE
     ! Arguments
     TYPE(topology_parameters_type)              :: topology
     TYPE(global_environment_type), &
          pointer, OPTIONAL                   :: globenv
+    TYPE(cp_error_type), INTENT(inout), &
+         OPTIONAL                               :: error
     ! Local Variables
     TYPE (atom_info_type),POINTER               :: atom_info
     CHARACTER(len=*), PARAMETER :: routineN = 'read_coordinate_xyz', &
          routineP = moduleN//':'//routineN
     INTEGER, PARAMETER                          :: nblock_atom = 1000
 
-    CHARACTER(LEN=default_string_length)        :: line, record, root_mol_name
-    INTEGER                                     :: handle, istat, iw, natom, i, j, k, m, inum_mol
-    INTEGER                                     :: file_unit, frame
-    LOGICAL                                     :: PM1, PM2, PM3, PM4
+    CHARACTER(LEN=default_string_length)        :: root_mol_name
+    INTEGER                                     :: handle, iw, natom, i, j, inum_mol
+    INTEGER                                     :: frame
+    LOGICAL                                     :: PM1, PM2, PM3, PM4, my_end
+    TYPE(cp_parser_type), POINTER :: parser    
 
     PM1 = .FALSE.
     PM2 = .FALSE.
     PM3 = .FALSE.
     PM4 = .FALSE.
+    NULLIFY(parser)
     IF(PRESENT(globenv)) THEN
        CALL write_checkpoint_information("entering "//routineN,globenv)
        iw = globenv%scr
@@ -103,9 +117,8 @@ CONTAINS
     atom_info => topology%atom_info
 
     IF(PM1) WRITE(iw,*) "    Reading in XYZ file ",TRIM(topology%coord_file_name)
-    CALL open_file(file_name=topology%coord_file_name,&
-                   file_action="READ",&
-                   unit_number=file_unit)
+    CALL parser_create(parser,topology%coord_file_name,&
+         para_env=globenv%para_env,error=error)      
 
     natom         = 0
     inum_mol      = 1
@@ -114,9 +127,10 @@ CONTAINS
        if (root_mol_name(i:i) == " ") root_mol_name(i:i) = "0" 
     END DO
     frame = 0
+    CALL parser_get_next_line(parser,1,error=error)
     Frames: DO 
        ! Atom numbers
-       READ(file_unit,*,IOSTAT=istat)natom
+       CALL parser_get_object  (parser,natom)
        topology%natoms = natom
        frame = frame + 1
        IF (frame == 1) THEN
@@ -135,33 +149,23 @@ CONTAINS
                        "Atom number differs in different frames!")
        END IF
        ! Dummy line
-       line = ''; READ(file_unit,'(A80)',IOSTAT=istat) line 
+       CALL parser_get_next_line(parser,2,error=error)
        DO j = 1, natom
-          line = ''
-          READ(file_unit,'(A80)',IOSTAT=istat) line 
-          IF(istat /= 0) EXIT Frames
           ! Atom coordinates
           atom_info%label_molname(j) = TRIM(root_mol_name)
-          k = 1
-          DO WHILE (line(k:k) == " ")
-             k = k + 1
-          END DO
-          m = k
-          DO WHILE (line(m:m) /= " ")
-             m = m + 1
-          END DO
-          atom_info%label_atmname(j)   = line(k:m-1)
+          CALL parser_get_object  (parser,atom_info%label_atmname(j))
           CALL uppercase(atom_info%label_atmname(j))
           ! For default, set atom name to residue name to molecule name
           atom_info%label_molname(j)   = TRIM(atom_info%label_molname(j))//"_"//&
                                          TRIM(atom_info%label_atmname(j))
           atom_info%label_resname(j)   = atom_info%label_molname(j)
           atom_info%label_resid(j)     = 1
-          READ(line(m:),*,IOSTAT=istat) atom_info%r(1:3,j)
+          CALL parser_get_object  (parser,atom_info%r(1,j))
+          CALL parser_get_object  (parser,atom_info%r(2,j))
+          CALL parser_get_object  (parser,atom_info%r(3,j))
           atom_info%element(j)         = atom_info%label_atmname(j)
           atom_info%atm_mass(j)        = 0.0_dp
           atom_info%atm_charge(j)      = -10000.0_dp
-          IF(PM2) WRITE(iw,*) j,line
           IF(PM2) WRITE(iw,'(5X,A4,3F8.3,A4,I4)') &
                TRIM(atom_info%label_atmname(j)),&
                atom_info%r(1,j),&
@@ -172,9 +176,11 @@ CONTAINS
           CALL convert_to_cp2k_units("ANGSTROM",length=atom_info%r(1,j))
           CALL convert_to_cp2k_units("ANGSTROM",length=atom_info%r(2,j))
           CALL convert_to_cp2k_units("ANGSTROM",length=atom_info%r(3,j))
+          CALL parser_get_next_line(parser,1,at_end=my_end,error=error)
+          IF (my_end) EXIT Frames
        END DO
     END DO Frames
-    CALL close_file(unit_number=file_unit)
+    CALL parser_release(parser,error=error)
 
     IF(.NOT.topology%para_res) atom_info%label_resid(:) = 1
     topology%natoms = natom
