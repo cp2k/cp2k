@@ -283,6 +283,8 @@ CONTAINS
 
        CALL section_vals_val_get(lr_section,"PRECONDITIONER",i_val=linres_control%preconditioner_type)
        CALL section_vals_val_get(lr_section,"ENERGY_GAP",r_val=linres_control%energy_gap)
+       CALL section_vals_val_get(lr_section,"CHECK_ORTHO",&
+            l_val=linres_control%check_ortho,error=error)
        
        IF(ionode .AND. logger%print_keys%linres) THEN
          WRITE (UNIT=output_unit,FMT="(/,T3,A,/,T25,A,/,T3,A,/)")&

@@ -49,7 +49,8 @@ MODULE qs_linres_methods
                                              cp_fm_set_all,&
                                              cp_fm_type,&
                                              cp_fm_to_fm,&
-                                             cp_fm_vectorsnorm
+                                             cp_fm_vectorsnorm,&
+                                             cp_fm_maxabsval
   USE cp_para_types,                   ONLY: cp_blacs_env_type,&
                                              cp_para_env_type
   USE global_types,                    ONLY: global_environment_type 
@@ -220,7 +221,7 @@ CONTAINS
 
     INTEGER ::  handle, homo, i, ik, istat, ispin, iter, last_ik, nvectors, output_unit
     LOGICAL                                     :: ionode, failure,energy_only
-    REAL(dp) :: eps_perturbation, max_input_norm, tmp
+    REAL(dp) :: eps_perturbation, max_input_norm, out_of_ortho,tmp
     REAL(dp), DIMENSION(:), POINTER             :: occupations, vectorsnorm
     TYPE(cp_blacs_env_type), POINTER            :: blacs_env
     TYPE(cp_fm_p_type), DIMENSION(:), &
@@ -229,8 +230,6 @@ CONTAINS
       POINTER                                   :: b, Ab
     TYPE(cp_fm_pool_p_type), DIMENSION(:), &
       POINTER                                   :: ao_mo_fm_pools
-    TYPE(cp_fm_struct_p_type), DIMENSION(:), &
-      POINTER                                   :: kv_fm_struct
     TYPE(cp_logger_type), POINTER               :: logger
     TYPE(cp_para_env_type), POINTER                       :: para_env
     TYPE(dft_control_type), POINTER             :: dft_control
@@ -239,7 +238,7 @@ CONTAINS
     TYPE(qs_matrix_pools_type), POINTER         :: mpools
     TYPE(real_matrix_p_type), DIMENSION(:), &
       POINTER                                   :: matrix_s
- 
+    real(dp) :: tmp1, tmp2 
 
      failure   = .FALSE.
      energy_only = .FALSE.
@@ -247,7 +246,7 @@ CONTAINS
 
      NULLIFY(ao_mo_fm_pools, blacs_env, dft_control, linres_control)
      NULLIFY(matrix_s, mos, mpools, para_env)
-     NULLIFY(Ab, b, kv_fm_struct, logger,  R, X)
+     NULLIFY(Ab, b, logger,  R, X)
 
      logger    => cp_error_get_logger(error)
      ionode    = (logger%para_env%mepos==logger%para_env%source)
@@ -288,7 +287,7 @@ CONTAINS
        END IF
        max_input_norm = 1.0_dp / max_input_norm
        DO ispin = 1,dft_control%nspins
-  !       CALL cp_fm_scale(max_input_norm,h1_psi0(ispin)%matrix,error=error)
+         CALL cp_fm_scale(max_input_norm,h1_psi0(ispin)%matrix,error=error)
        END DO
      END IF
 
@@ -299,15 +298,7 @@ CONTAINS
      CALL fm_pools_create_fm_vect(ao_mo_fm_pools, X, name=routineP//":X")
      CALL fm_pools_create_fm_vect(ao_mo_fm_pools, R, name=routineP//":R")
    
-     ALLOCATE(kv_fm_struct(dft_control%nspins), STAT=istat)
-     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
      
-     DO ispin=1, dft_control%nspins
-        NULLIFY (kv_fm_struct(ispin)%struct)
-        CALL cp_fm_struct_create(kv_fm_struct(ispin)%struct, para_env, &
-             blacs_env, p_env%n_ao(ispin), p_env%n_mo(ispin))
-     END DO
-
      ! The storage of older vectors and residues depends on the optimization algorithm (DIIS,PCG..)
      nvectors = 1
      ALLOCATE(b(dft_control%nspins), Ab(dft_control%nspins), STAT=istat)
@@ -327,10 +318,21 @@ CONTAINS
 
      CALL check_p_env_init(p_env,linres_control, dft_control%nspins, error=error)
 
+    !Orthogonalize with respect to the psi0
+!     CALL p_preortho(p_env, qs_env, b(:))
+!     CALL normalize(b(:), R, matrix_s) ! R is temp
+
+     IF(ionode .AND. logger%print_keys%linres) THEN
+       WRITE (UNIT=output_unit,&
+            FMT="(/,T3,A,T10,A,T20,A,T38,A,T57,A,T82,A,/,T3,A)")&
+            "Iter.","Method","Stepsize","G-norm","Convergence","Total energy",&
+            REPEAT("-",77)
+     END IF
+
 
      ik = 1
      last_ik = 1
-     iteration: DO  iter = 1,4!linres_control%max_scf
+     iteration: DO  iter = 1,100!linres_control%max_scf
 
        p_env%etotal = 0.0_dp
        p_env%gnorm = 0.0_dp
@@ -344,31 +346,61 @@ CONTAINS
 
        ! Apply the perturbative operator
        DO ispin=1, dft_control%nspins
+          CALL cp_fm_trace(psi1(ispin)%matrix,Ab(ispin)%matrix,tmp1,error)
+          CALL cp_fm_trace(psi1(ispin)%matrix,h1_psi0(ispin)%matrix,tmp2,error)
           CALL cp_fm_scale_and_add(1.0_dp, Ab(ispin)%matrix, &
-                                   -1.0_dp, h1_psi0(ispin)%matrix) ! add h1_psi0 to Ab 
+                                   +1.0_dp, h1_psi0(ispin)%matrix) ! add h1_psi0 to Ab 
           CALL get_mo_set(mo_set=mos(ispin)%mo_set, &
                           occupation_numbers=occupations )
           CALL cp_fm_column_scale(Ab(ispin)%matrix, occupations)
-          CALL cp_fm_trace(psi1(ispin)%matrix,Ab(ispin)%matrix,tmp,error)
-          p_env%etotal = p_env%etotal + tmp 
- write(*,*) 'etot ', p_env%etotal
+!        Total perturbation energy :
+!                \sum_kl <psi1_k|H_0 d_kl-lambda_kl|psi1_l> + 
+!                 sum_k (<psi1_k|H_1|psi0_k> + <psi0_k|H_1|psi1_k>)
+!        Since H_1 and psi1_k are purely imaginary the second term is 
+!                        2*\sum_k <psi1_k|H_1|psi0_k>
+          p_env%etotal = p_env%etotal + tmp1+2.0_dp*tmp2 
        END DO
 
        !minimization
        CALL linres_scf_mini(p_env,qs_env,linres_control,b,Ab,&
             dft_control%nspins,iter,error=error)
 
-    ! Check ortho
-    !Orthogonalize with respect to the psi0
-!     CALL p_preortho(p_env, qs_env, b(:))
-!     CALL normalize(b(:), R, matrix_s) ! R is temp
+       IF(ionode .AND. logger%print_keys%linres) THEN
+         WRITE (UNIT=output_unit,&
+            FMT="(T2,I5,T11,A,T20,1E8.2,T30,3F20.10)")&
+            iter, linres_control%flag,linres_control%ds_min, &
+            p_env%gnorm,  p_env%delta, p_env%etotal
+       END IF
 
-       !Refine the orthogonalization constraint
-  !     CALL p_postortho(p_env,qs_env, Ab(:))
+    !  Check ortho
+       IF(linres_control%check_ortho) THEN
+         DO ispin=1, dft_control%nspins
+!          CALL cp_fm_get_info(p_env%S_psi0(1)%matrix,nrow_global=nao,ncol_global=nmo)
+           CALL  cp_fm_gemm('T','N',p_env%n_mo(ispin),p_env%n_mo(ispin),p_env%n_ao(ispin),&   
+                1.0_dp,p_env%S_psi0(ispin)%matrix,&
+                b(ispin)%matrix,0.0_dp,p_env%buf2(ispin)%matrix)
+!dbg
+!     do i = 1,nmo
+!     write(*,'(I4,100f12.8)')   i, (p_env%buf2(1)%matrix%local_data(i,j),j=1,nmo)
+!     end do 
+!dbg
+           out_of_ortho = 0.0_dp
+           CALL cp_fm_maxabsval(p_env%buf2(ispin)%matrix,out_of_ortho,error=error)
+           IF(out_of_ortho .GT. EPSILON(1.0_dp)) THEN
+             IF(ionode .AND. logger%print_keys%linres) THEN
+               WRITE (UNIT=output_unit,FMT="(T3,A,E15.5)")&
+               "WARNING: orthogonality not satisfied, max val |<psi1_k | psi0_l>|= ", out_of_ortho
+                WRITE (UNIT=output_unit,FMT="(T3,A,/)") "The orthogonalization should be refined" 
+             END IF
+            !Refine the orthogonalization constraint
+  !           CALL p_postortho
+           END IF
+         END DO
+       END IF
 
        !Check Convergence
        IF(iter /= 1) THEN
-         IF(p_env%delta .LT. 1.E-2_dp) THEN !linres_control%eps_scf
+         IF(p_env%delta .LT. 1.E-5_dp) THEN !linres_control%eps_scf
            ! The opt has converged to a min.
            IF(ionode .AND. logger%print_keys%linres) THEN
               WRITE (UNIT=output_unit,FMT="(T10,A,I4,A,/)")&
@@ -397,15 +429,14 @@ CONTAINS
     ! clean up !
     !----------!
      DO ispin=1, dft_control%nspins
-        CALL cp_fm_struct_release(kv_fm_struct(ispin)%struct)
         NULLIFY(b(ispin)%matrix)
         IF (ASSOCIATED(Ab(ispin)%matrix)) CALL cp_fm_release(Ab(ispin)%matrix)
      END DO
-     DEALLOCATE(b, Ab, kv_fm_struct, STAT=istat)
+     DEALLOCATE(b, Ab, STAT=istat)
      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
      CALL fm_pools_give_back_fm_vect(ao_mo_fm_pools, X)
      CALL fm_pools_give_back_fm_vect(ao_mo_fm_pools, R)
-     NULLIFY(X, R, b, Ab, kv_fm_struct)
+     NULLIFY(X, R, b, Ab)
 
     CALL timestop(0.0_dp, handle)
 
@@ -503,7 +534,7 @@ CONTAINS
 
     INTEGER :: ip, ispin, istat, k, nao, nmo
     LOGICAL :: failure
-    REAL(dp) :: polak_gamma, test_down, tmp
+    REAL(dp) :: polak_gamma, test_down, tmp, tmp_e
     TYPE(cp_fm_p_type), DIMENSION(2)            :: PS_psi0
     TYPE(cp_fm_type), POINTER                   :: mo_coeff
     TYPE(mo_set_p_type), DIMENSION(:), &
@@ -511,7 +542,7 @@ CONTAINS
     TYPE(real_matrix_p_type), DIMENSION(:), &
       POINTER                                   :: matrix_ks, matrix_t, matrix_s
 
-
+    integer :: i,j
 
     failure = .FALSE.
 
@@ -573,15 +604,16 @@ CONTAINS
                IF(linres_control%preconditioner_type /= lr_precond_none) THEN
                  CALL apply_preconditioner(p_env%preconditioner,&
                       p_env%g_psi1(ispin)%matrix,p_env%d_psi1(ispin)%matrix)
+                 linres_control%flag="LR P-SD"
                ELSE
                  CALL cp_fm_to_fm(p_env%g_psi1(ispin)%matrix,&
                       p_env%d_psi1(ispin)%matrix,error=error) 
+                 linres_control%flag="LR SD"
                END IF 
                CALL cp_fm_trace(p_env%g_psi1(ispin)%matrix,&
                     p_env%d_psi1(ispin)%matrix,tmp,error=error)
                p_env%gnorm = p_env%gnorm + tmp
                CALL cp_fm_scale_and_add(-1.0_dp,p_env%d_psi1(ispin)%matrix)
-   write(*,*) 'gnorm ', p_env%gnorm
             ENDDO
             IF( p_env%gnorm .LT. 0.0) THEN
               WRITE(6,*) "WARNING Preconditioner not positive definite !"
@@ -593,9 +625,11 @@ CONTAINS
             END DO
             p_env%delta = SQRT(ABS(p_env%gnorm) / (p_env%n_ao(1)*k))
             p_env%gradient = -p_env%gnorm
- write(*,*) 'delta ', p_env%delta , 'grad ',  p_env%gradient
+         ELSE
+            linres_control%flag="LR LS"
          END IF
          CALL do_lr_line_search(p_env,b,linres_control,nspins,error=error)
+  
 
       CASE (lr_cg)
          IF(p_env%ls_count==0) THEN
@@ -621,12 +655,14 @@ CONTAINS
                   END IF
                   CALL cp_fm_to_fm(p_env%g_psi1_old(ispin)%matrix,&
                        p_env%g_psi1(ispin)%matrix,error=error)
+                  linres_control%flag="LR P-CG"
                ELSE
                   CALL cp_fm_to_fm(p_env%g_psi1(ispin)%matrix,&
                        p_env%g_psi1_old(ispin)%matrix,error=error)
                   CALL cp_fm_trace(p_env%g_psi1(ispin)%matrix,&
                        p_env%g_psi1_old(ispin)%matrix,tmp,error=error)
                   p_env%gnorm = p_env%gnorm + tmp
+                  linres_control%flag="LR CG"
                END IF
             END DO  ! ispin
             k =  0 
@@ -653,6 +689,8 @@ CONTAINS
             END IF
             p_env%gradient = polak_gamma*p_env%gradient - p_env%gnorm
             p_env%gnorm_old = p_env%gnorm
+          ELSE
+            linres_control%flag="LR LS"
           END IF
           CALL do_lr_line_search(p_env,b,linres_control,nspins,error=error) 
       CASE (lr_diis)
@@ -710,8 +748,6 @@ CONTAINS
     INTEGER  :: ispin
     REAL(dp) :: ds
 
-  write(*,*) linres_control%ls_method, lr_ls_none
-
     SELECT CASE(linres_control%ls_method)
 
       CASE(lr_ls_gold)
@@ -722,7 +758,6 @@ CONTAINS
          CALL do_lr_ls_2pnt(p_env,vectors,linres_control%ds_min,nspins,error=error)
       CASE(lr_ls_none)
          ds=linres_control%ds_min
-         write(*,*) 'ds ', ds
          DO ispin = 1,nspins
            CALL cp_fm_scale_and_add(1.0_dp,vectors(ispin)%matrix,ds,&
                 p_env%d_psi1(ispin)%matrix,error=error)
@@ -759,7 +794,7 @@ CONTAINS
 
       CASE(1)
          ls_pos(count)   = 0.0_dp
-         p_env%ls_grad(count)  = p_env%gnorm
+         p_env%ls_grad(count)  = p_env%gradient
          p_env%ls_pos(count+1) = ds_min
       CASE(2)
 
@@ -767,13 +802,16 @@ CONTAINS
          x1 = ls_pos(2)
          c = p_env%ls_energy(1)
          b = p_env%ls_grad(1)
-         a = (p_env%ls_energy(2)-b*x1)/(x1*x1)
-         IF(a .le. EPSILON(1.0_dp)) a = 1.E-15_dp
+         a = (p_env%ls_energy(2)-b*x1-c)/(x1*x1)
+!    write(*,*) 'a', a, b, c, x1,p_env%ls_energy(2)
+         IF(a .le. 0.0_dp) a = 1.E-15_dp
          pos = -b/(2.0_dp*a)
          val = a*pos*pos+b*pos+c 
+!    write(*,*) 'pos', pos, ' val ', val
          IF(val .LT. c .AND. val .LE. p_env%ls_energy(2)) THEN
            ls_pos(count+1) = MAX(MAXVAL(ls_pos(1:2))*0.01_dp,&
               MIN(pos,MAXVAL(ls_pos(1:2))*4.0_dp)) 
+!write(*,*) 'minval ',ls_pos(1),ls_pos(2),pos
          ELSE
            ls_pos(count+1) = MAXVAL(ls_pos(1:2))*2.0_dp
          END IF
@@ -806,7 +844,7 @@ CONTAINS
          INTENT(INOUT), OPTIONAL                :: error
 
     INTEGER :: count, ispin
-    REAL(dp) :: a, b, c, den, ds, f1, f2, f3, nom, pos, val, x1, x2, x3
+    REAL(dp) :: den, ds, f1, f2, f3, nom, pos, val, x1, x2, x3
     REAL(DP), DIMENSION(:), POINTER             :: ls_pos 
 
 
@@ -815,6 +853,7 @@ CONTAINS
     count = p_env%ls_count 
     p_env%only_energy = .TRUE.
     p_env%ls_energy(count) = p_env%etotal
+    ls_pos=>p_env%ls_pos
 
     SELECT CASE (count)
       CASE(1) 
@@ -833,18 +872,22 @@ CONTAINS
          f2 = p_env%ls_energy(2)
          x3 = ls_pos(3)
          f3 = p_env%ls_energy(3)
+ !dbg
+!   write(*,*) 'f ', f1,f2,f3
+!   write(*,*) 'x ', x1,x2,x3
+
          nom =  (x2-x1)**2*(f2-f3)-(x2-x3)**2*(f2-f1) 
-         den =  (x2-x1)*(f2-f3)-(x2-x1)*(f2-f1)
+         den =  (x2-x1)*(f2-f3)-(x2-x3)*(f2-f1)
+!   write(*,*) 'nom ', nom, den
          IF(ABS(den).LE.EPSILON(1.0_dp)*MAX(ABS(f2-f1),ABS(f2-f3))) THEN
             pos = x2
          ELSE
-            CALL stop_program("b value not defined here...",&
-                              "qs_linres_methods.F")
-            pos = b-0.5_dp*nom/den
+            pos = x2-0.5_dp*nom/den
          END IF
          val = (pos-x1)*(pos-x2)*f3/((x3-x1)*(x3-x2))+ &
                (pos-x2)*(pos-x3)*f1/((x1-x2)*(x1-x3))+ &
                (pos-x3)*(pos-x1)*f2/((x2-x3)*(x2-x1))
+!   write(*,*) 'pos ', pos, ' val ', val
          IF(val .LT. f1 .AND. val .LE. f2 .AND. val .LE. f3) THEN
              ls_pos(count+1) = MAX(MAXVAL(ls_pos(1:3))*0.01_dp,&
                    MIN(pos,MAXVAL(ls_pos(1:3))*4.0_dp))

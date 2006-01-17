@@ -3548,6 +3548,13 @@ END SUBROUTINE create_ot_section
       CALL section_add_keyword(section,keyword,error=error)
       CALL keyword_release(keyword,error=error)
 
+      CALL keyword_create(keyword, name="CHECK_ORTHO",&
+           description="Require the check of the orthogonality condition",&
+           usage="CHECK_ORTHO",&
+           default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,error=error)
+      CALL section_add_keyword(section,keyword,error=error)
+      CALL keyword_release(keyword,error=error)
+
       CALL keyword_create(keyword, name="LOCALIZE_PSI0",&
            description="Maximize the localization of the ground state wavefunctions",&
            usage="LOCALIZE_PSI0",&

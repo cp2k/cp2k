@@ -585,13 +585,14 @@ END SUBROUTINE p_env_did_change
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, lfomo, n_spins, nmo, &
-                                                spin, stat
-    LOGICAL                                  :: failure
+                                                output_unit,spin, stat
+    LOGICAL                                  :: failure,ionode
     REAL(KIND=dp)                            :: maxocc
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: my_psi0
     TYPE(cp_fm_pool_p_type), DIMENSION(:), &
       POINTER                                :: ao_mo_fm_pools
+    TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_sm_pool_p_type), DIMENSION(:), &
       POINTER                                :: S_sm_pools
@@ -602,13 +603,18 @@ END SUBROUTINE p_env_did_change
     TYPE(real_matrix_p_type), DIMENSION(:), &
       POINTER                                :: matrix_s
 
+    integer :: i,j
 ! code
 
     CALL timeset(routineN,"I"," ",handle)
 
     failure=.FALSE.
     NULLIFY(ao_mo_fm_pools,mos,my_psi0,matrix_s,mos, para_env,ks_env, rho, &
-         S_sm_pools)
+         S_sm_pools,logger)
+    logger => cp_error_get_logger(error)
+    ionode = logger%para_env%source==logger%para_env%mepos
+    output_unit  = cp_logger_get_default_unit_nr(logger)
+
     n_spins = qs_env%dft_control%nspins
 
     CPPrecondition(ASSOCIATED(p_env),cp_failure_level,routineP,error,failure)
@@ -728,6 +734,11 @@ END SUBROUTINE p_env_did_change
        ! updates K (if necessary)
        CALL qs_ks_update_qs_env(ks_env=ks_env,qs_env=qs_env,&
             error=error)
+       IF(ionode .AND. logger%print_keys%linres) THEN
+
+          write(UNIT=output_unit,FMT="(/,(T3,A,T55,F25.14))") &
+         "Total energy:                                  ", qs_env%energy%total
+       END IF
        
        !-----------------------------------------------------------------------|
        ! calculates                                                            |
@@ -749,6 +760,11 @@ END SUBROUTINE p_env_did_change
                p_env%n_mo(spin), p_env%n_mo(spin), p_env%n_ao(spin), &
                -1.0_dp, p_env%S_psi0(spin)%matrix, p_env%psi0d(spin)%matrix, &
                0.0_dp, p_env%m_epsilon(spin)%matrix)
+!dbg
+!    write(*,*)  p_env%n_mo(spin),  p_env%n_ao(spin)
+! do i = 1,p_env%n_mo(spin)
+!       write(*,'(I4,100f10.5)') i, (p_env%m_epsilon(spin)%matrix%local_data(i,j),j=1,p_env%n_mo(spin))
+! end do
        END DO
 
        !----------------------------------|

@@ -72,8 +72,10 @@ MODULE qs_linres_types
      LOGICAL                                   :: localized_psi0
      LOGICAL                                   :: do_kernel
      LOGICAL                                   :: converged
+     LOGICAL                                   :: check_ortho
      REAL(KIND=dp)                             :: eps_scf
      TYPE(localized_wfn_control_type),POINTER  :: localized_wfn_control
+     CHARACTER(LEN=8)                          :: flag
   END TYPE linres_control_type
 
 !****s* qs_linres_types/nmr_env_type
