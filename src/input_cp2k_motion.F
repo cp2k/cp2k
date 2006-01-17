@@ -40,6 +40,7 @@ MODULE input_cp2k_motion
   USE cp_units, ONLY: cp_unit_to_cp2k
   USE string_utilities, ONLY: s2a
 #include "cp_common_uses.h"
+
   IMPLICIT NONE
   PRIVATE
 
@@ -1496,7 +1497,7 @@ END SUBROUTINE create_nose_section
        
        CALL keyword_create(keyword, name="ld_steps", &
             description="Number of LD steps per MC cycle.", &
-            usage="nsteps 20", required=.TRUE.,&
+            usage="ld_steps 20", required=.TRUE.,&
             default_i_val=10, lone_keyword_i_val=20,&
             error=error)
        CALL section_add_keyword(section, keyword, error=error)

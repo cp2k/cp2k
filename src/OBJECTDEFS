@@ -155,6 +155,7 @@ OBJECTS_GENERIC =\
  input_cp2k_motion.o\
  input_cp2k_qmmm.o\
  input_cp2k_subsys.o\
+ input_cp2k_tbmd.o\
  input_enumeration_types.o\
  input_keyword_types.o\
  input_parsing.o\

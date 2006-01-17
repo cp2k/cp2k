@@ -4,10 +4,10 @@
 !-----------------------------------------------------------------------------!
 
 
-!!****h* cp2k/harris_functional [1.0] *
+!!****h* cp2k/harris_force [1.0] *
 !!
 !!   NAME
-!!     harris_functional
+!!     harris_force
 !!
 !!   FUNCTION
 !!     Performs the Harris functional force correction

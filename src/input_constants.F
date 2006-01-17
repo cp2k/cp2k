@@ -28,29 +28,33 @@ MODULE input_constants
   PRIVATE
 
   ! Program Names
-  CHARACTER (LEN=default_string_length), PARAMETER, DIMENSION(10), PUBLIC :: program_names=&
+  CHARACTER (LEN=default_string_length), PARAMETER, DIMENSION(12), PUBLIC :: program_names=&
        (/"QS        ",&
          "FIST      ",&
          "KG        ",&
+         "TBMD      ",&
          "QMMM      ",&
          "ATOM      ",&
          "FARMING   ",&
          "TEST      ",&
          "QUICKSTEP ",&
          "KIM-GORDON",&
-         "KIM_GORDON" /)
+         "KIM_GORDON",&
+         "TB-MD     " /)
 
-  CHARACTER (LEN=default_string_length), PARAMETER, DIMENSION(10), PUBLIC :: program_name_desc=&
+  CHARACTER (LEN=default_string_length), PARAMETER, DIMENSION(12), PUBLIC :: program_name_desc=&
        (/"Electronic structure methods (DFT, ...)",&
          "Molecular Mechanics                    ",&
          "Kim Gordon models (DFT)                ",&
+         "Tight-Binding Molecular Dynamics       ",&
          "Hybrid quantum classical               ",&
          "Atomic calculations                    ",&
          "Runs N independent jobs in a single run",&
          "Do some benchmarking and testing       ",&
          "Electronic structure methods (DFT, ...)",&    ! Aliases to the previous unique names
          "Kim Gordon models (DFT)                ",&    !
-         "Kim Gordon models (DFT)                " /)   !
+         "Kim Gordon models (DFT)                ",&    !
+         "Tight-Binding Molecular Dynamics       " /)   !
 
   INTEGER, PARAMETER, public :: do_qs=1,&
                                 do_fist=2,&
@@ -58,10 +62,11 @@ MODULE input_constants
                                 do_qmmm=4,&
                                 do_atom=5,&
                                 do_farming=6,&
-                                do_test=7
+                                do_test=7,&
+                                do_tbmd=8
 
-  INTEGER, PARAMETER, PUBLIC, DIMENSION(10) :: program_name_index=&
-       (/do_qs, do_fist, do_kg, do_qmmm, do_atom, do_farming, do_test, do_qs, do_kg, do_kg/)
+  INTEGER, PARAMETER, PUBLIC, DIMENSION(12) :: program_name_index=&
+       (/do_qs, do_fist, do_kg, do_tbmd, do_qmmm, do_atom, do_farming, do_test, do_qs, do_kg, do_kg, do_tbmd/)
 
   REAL(KIND=dp), PARAMETER, PUBLIC :: RADIUS_QMMM_DEFAULT = 0.80_dp,&
                                       ALPHA_IMOMM_DEFAULT = 1.38_dp,&
@@ -424,5 +429,12 @@ MODULE input_constants
                                 QS_MD_method=3, Harris_MD_method=4, &
                                 KG_MC_method=5, QS_MC_method=6, &
                                 Harris_MC_method=7
+
+  ! Tight-Binding parametrization models
+  INTEGER, PARAMETER, PUBLIC :: use_gsp=0,&
+                                use_sawada=1,&
+                                use_kwon=2,&
+                                use_lenosky=3,&
+                                use_udp=4
 
 END MODULE input_constants

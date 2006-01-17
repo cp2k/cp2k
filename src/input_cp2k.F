@@ -45,6 +45,8 @@ MODULE input_cp2k
   USE input_cp2k_qmmm, only: create_qmmm_section
   USE input_cp2k_dft, ONLY: create_dft_section, create_bsse_section, &
        create_properties_section
+  USE input_cp2k_tbmd, ONLY: create_tbmd_section
+
 #include "cp_common_uses.h"
   IMPLICIT NONE
   PRIVATE
@@ -578,7 +580,7 @@ contains
     CALL section_create(section,name="force_eval",&
          description="parameters needed to calculate energy and forces and"//&
          " describe the system you want to analyze.",&
-         n_keywords=0, n_subsections=5, repeats=.FALSE., required=.TRUE.,&
+         n_keywords=0, n_subsections=8, repeats=.FALSE., required=.TRUE.,&
          error=error)
 
 
@@ -586,6 +588,10 @@ contains
     CALL create_dft_section(subsection,error)
     CALL section_add_subsection(section, subsection, error=error)
     CALL section_release(subsection,error=error)
+
+    CALL create_tbmd_section(subsection, error)
+    CALL section_add_subsection(section, subsection, error=error)
+    CALL section_release(subsection, error=error)
 
     CALL create_mm_section(subsection,error)
     CALL section_add_subsection(section, subsection, error=error)
