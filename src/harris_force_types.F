@@ -574,7 +574,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'harris_force_set', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                                    :: failure
+    LOGICAL                                          :: failure
 
 !   ------------------------------------------------------------------------
 

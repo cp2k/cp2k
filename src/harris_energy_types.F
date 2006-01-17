@@ -333,7 +333,7 @@ CONTAINS
     failure = .FALSE.
   
     CPPrecondition(ASSOCIATED(harris_energy), cp_failure_level, routineP, error, failure)
-    IF (.not.failure) THEN
+    IF (.NOT. failure) THEN
       CPPrecondition(harris_energy%ref_count>0, cp_failure_level, routineP, error, failure)
     END IF
 
@@ -444,7 +444,7 @@ CONTAINS
     failure = .FALSE.
   
     CPPrecondition(ASSOCIATED(harris_energy), cp_failure_level, routineP, error, failure)
-    IF (.not.failure) THEN
+    IF (.NOT. failure) THEN
       CPPrecondition(harris_energy%ref_count>0, cp_failure_level, routineP, error, failure)
     END IF
 

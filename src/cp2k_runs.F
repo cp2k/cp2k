@@ -47,6 +47,7 @@ MODULE cp2k_runs
                                              do_qmmm,&
                                              do_atom,&
                                              do_farming,&
+                                             do_tbmd,&
                                              do_test,&
                                              none_run,&
                                              energy_run,&
@@ -99,6 +100,7 @@ MODULE cp2k_runs
   USE qs_main,                         ONLY: quickstep_create_force_env
   USE qs_tddfpt_module,                ONLY: tddfpt_calculation
   USE string_utilities,                ONLY: uppercase
+  USE tbmd_main,                       ONLY: tbmd_create_force_env
   USE timings,                         ONLY: timeset, &
                                              timestop
   USE bsse,                            ONLY: do_bsse_calculation
@@ -233,6 +235,8 @@ CONTAINS
           CALL qmmm_create_force_env(force_env, globenv, error=error)
        CASE (do_qs)
           CALL quickstep_create_force_env(force_env, globenv, error=error)
+       CASE (do_tbmd)
+          CALL tbmd_create_force_env(force_env, globenv, error=error)
        CASE (do_test)
           CALL lib_test(globenv,error)
        END SELECT

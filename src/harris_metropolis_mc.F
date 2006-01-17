@@ -188,6 +188,8 @@ CONTAINS
     TYPE(force_env_p_type), DIMENSION(:), &
       POINTER                                       :: force_env_p
 
+!   ------------------------------------------------------------------------
+
     ALLOCATE(force_env_p(1), stat=stat)
     CPPostconditionNoFail(stat==0,cp_failure_level,routineP,error)
     force_env_p(1)%force_env => force_env

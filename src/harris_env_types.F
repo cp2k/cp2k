@@ -528,4 +528,4 @@ CONTAINS
   END SUBROUTINE harris_env_create
 !***************************************************************************
 
-END MODULE
+END MODULE harris_env_types
