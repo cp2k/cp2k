@@ -269,9 +269,11 @@ SUBROUTINE xc_functional_get_info(functional,lsd,reference,shortform,&
         END IF
      CASE("PBE")
         IF (lsd) THEN
-           CALL pbe_lsd_info(reference,shortform,needs,max_deriv,error=error)
+           CALL pbe_lsd_info(functional,reference,shortform,needs,max_deriv,&
+                error=error)
         ELSE
-           CALL pbe_lda_info(reference,shortform,needs,max_deriv,error=error)
+           CALL pbe_lda_info(functional,reference,shortform,needs,max_deriv,&
+                error=error)
         END IF
      CASE default
         CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
@@ -451,9 +453,9 @@ SUBROUTINE xc_functional_eval(functional, lsd, rho_set, deriv_set, &
         END IF
      CASE("PBE")
         IF (lsd) THEN
-           CALL pbe_lsd_eval(rho_set,deriv_set,deriv_order,error=error)
+           CALL pbe_lsd_eval(rho_set,deriv_set,deriv_order,functional,error=error)
         ELSE
-           CALL pbe_lda_eval(rho_set,deriv_set,deriv_order,error=error)
+           CALL pbe_lda_eval(rho_set,deriv_set,deriv_order,functional,error=error)
         END IF
      CASE default
         CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
