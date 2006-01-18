@@ -89,12 +89,13 @@ CONTAINS
 !!  INPUTS
 !!*** *************************************************************************
 
-SUBROUTINE read_atoms_input ( topology, globenv, error )
+SUBROUTINE read_atoms_input ( topology, globenv, overwrite, error )
 
 
     TYPE(topology_parameters_type)           :: topology
     TYPE(global_environment_type), &
       pointer, OPTIONAL                   :: globenv
+    LOGICAL, INTENT(IN), OPTIONAL         :: overwrite
     TYPE(cp_error_type), INTENT(inout), optional :: error
 
     INTEGER, PARAMETER                       :: nblock_atom = 10000
@@ -102,12 +103,12 @@ SUBROUTINE read_atoms_input ( topology, globenv, error )
     TYPE(cell_type), POINTER                 :: cell
     TYPE(atom_info_type),POINTER             :: atom_info
     CHARACTER(LEN=6)                         :: label
-    REAL(KIND=dp)                           :: unit_of_length
+    REAL(KIND=dp)                            :: unit_of_length
     INTEGER                                  :: atm_equal_mol, iatom, ierror, &
                                                 ILEN, iw, natom, ia, ie, start_c,&
                                                 end_c,wrd, j
-    LOGICAL                                  :: scaled_coordinates, failure
-
+    LOGICAL                                  :: scaled_coordinates, failure, my_overwrite
+    LOGICAL                                  :: explicit
     TYPE(section_vals_type), pointer :: coord_section
     CHARACTER(len=default_string_length) :: line_att
     CHARACTER(len=*), PARAMETER :: routineN="read_atoms_input",&
@@ -116,7 +117,13 @@ SUBROUTINE read_atoms_input ( topology, globenv, error )
 !   ---------------------------------------------------------------------------
 
   failure=.false.
-
+  my_overwrite = .FALSE.
+  IF (PRESENT(overwrite)) my_overwrite=overwrite
+  NULLIFY(coord_section)
+  coord_section => section_vals_get_subs_vals(globenv%input_file,&
+       "FORCE_EVAL%SUBSYS%COORD",error=error)
+  CALL section_vals_get(coord_section, explicit=explicit, error=error)
+  IF (.NOT.explicit) RETURN
   !-----------------------------------------------------------------------------
   !-----------------------------------------------------------------------------
   ! 1. get cell and topolgoy%atom_info
@@ -132,70 +139,104 @@ SUBROUTINE read_atoms_input ( topology, globenv, error )
   !-----------------------------------------------------------------------------
   ! 2. Read in the coordinates from &COORD section in the input file
   !-----------------------------------------------------------------------------
-  coord_section => section_vals_get_subs_vals(globenv%input_file,&
-       "FORCE_EVAL%SUBSYS%COORD",error=error)
   CALL section_vals_val_get(coord_section,"_DEFAULT_KEYWORD_",&
        n_rep_val=natom,error=error)
-  CALL reallocate(atom_info%label_molname,1,natom)
-  CALL reallocate(atom_info%label_resname,1,natom)
-  CALL reallocate(atom_info%label_resid,1,natom)
-  CALL reallocate(atom_info%label_atmname,1,natom)
-  CALL reallocate(atom_info%element,1,natom)
-  CALL reallocate(atom_info%r,1,3,1,natom)
-  CALL reallocate(atom_info%atm_mass,1,natom)
-  CALL reallocate(atom_info%atm_charge,1,natom)
-
-  DO iatom=1,natom
-     ! we use only the first default_string_length characters of each line
-     CALL section_vals_val_get(coord_section,"_DEFAULT_KEYWORD_",&
-          i_rep_val=iatom,c_val=line_att,error=error)
-     ILEN = default_string_length
-     atom_info%label_molname(iatom) = ""
-     atom_info%label_resname(iatom) = ""
-     atom_info%label_resid(iatom) = 1
-     atom_info%label_atmname(iatom) = ""
-     atom_info%element(iatom) = ""
-     ! *** Read name and atomic coordinates ***
-     start_c=1
-     DO wrd=1,4
-        DO j=start_c,LEN(line_att)
-           IF (line_att(j:j)/=' ') THEN
-              start_c=j
-              EXIT
-           END IF
-        END DO
-        end_c=LEN(line_att)+1
-        DO j=start_c,LEN(line_att)
-           IF (line_att(j:j)==' ') THEN
-              end_c=j
-              EXIT
-           END IF
-        END DO
-        call cp_assert(wrd==4.OR.end_c<LEN(line_att)+1,cp_failure_level,&
-             cp_assertion_failed,routineP,&
-             "incorrectly formatted line in coord section'"//line_att//"'",&
-             error,failure)
-        IF (wrd==1) THEN
-           atom_info%label_atmname(iatom)=line_att(start_c:end_c-1)
-        ELSE
-           READ (line_att(start_c:end_c-1),*) atom_info%r(wrd-1,iatom)
-        END IF
-        start_c=end_c
-     END DO
-     ! For default, set atom name to residue name to molecule name
-     atom_info%label_molname(iatom) = atom_info%label_atmname(iatom)
-     atom_info%label_resname(iatom) = atom_info%label_atmname(iatom)
-     atom_info%element(iatom) = atom_info%label_atmname(iatom)
-     
-     IF (start_c<=LEN_TRIM(line_att)) THEN
-        READ(line_att(start_c:LEN_TRIM(line_att)),*)atom_info%label_molname(iatom)
-        atom_info%label_resname(iatom) = atom_info%label_molname(iatom)
-     END IF
-     atom_info%atm_mass(iatom) = 0.0_dp 
-     atom_info%atm_charge(iatom) = 0.0_dp 
-
-  END DO
   topology%natoms = natom
+  IF (my_overwrite) THEN
+     CPPostcondition(SIZE(atom_info%r,2)==natom, cp_failure_level, routineP, error, failure)
+     DO iatom=1,natom
+        ! we use only the first default_string_length characters of each line
+        CALL section_vals_val_get(coord_section,"_DEFAULT_KEYWORD_",&
+             i_rep_val=iatom,c_val=line_att,error=error)
+        ! *** Read name and atomic coordinates ***
+        start_c=1
+        DO wrd=1,4
+           DO j=start_c,LEN(line_att)
+              IF (line_att(j:j)/=' ') THEN
+                 start_c=j
+                 EXIT
+              END IF
+           END DO
+           end_c=LEN(line_att)+1
+           DO j=start_c,LEN(line_att)
+              IF (line_att(j:j)==' ') THEN
+                 end_c=j
+                 EXIT
+              END IF
+           END DO
+           CALL cp_assert(wrd==4.OR.end_c<LEN(line_att)+1,cp_failure_level,&
+                cp_assertion_failed,routineP,&
+                "incorrectly formatted line in coord section'"//line_att//"'",&
+                error,failure)
+           IF (wrd==1) THEN
+              atom_info%label_atmname(iatom)=line_att(start_c:end_c-1)
+           ELSE
+              READ (line_att(start_c:end_c-1),*) atom_info%r(wrd-1,iatom)
+           END IF
+           start_c=end_c
+        END DO        
+     END DO     
+  ELSE
+     CALL reallocate(atom_info%label_molname,1,natom)
+     CALL reallocate(atom_info%label_resname,1,natom)
+     CALL reallocate(atom_info%label_resid,1,natom)
+     CALL reallocate(atom_info%label_atmname,1,natom)
+     CALL reallocate(atom_info%element,1,natom)
+     CALL reallocate(atom_info%r,1,3,1,natom)
+     CALL reallocate(atom_info%atm_mass,1,natom)
+     CALL reallocate(atom_info%atm_charge,1,natom)
+     
+     DO iatom=1,natom
+        ! we use only the first default_string_length characters of each line
+        CALL section_vals_val_get(coord_section,"_DEFAULT_KEYWORD_",&
+             i_rep_val=iatom,c_val=line_att,error=error)
+        ILEN = default_string_length
+        atom_info%label_molname(iatom) = ""
+        atom_info%label_resname(iatom) = ""
+        atom_info%label_resid(iatom) = 1
+        atom_info%label_atmname(iatom) = ""
+        atom_info%element(iatom) = ""
+        ! *** Read name and atomic coordinates ***
+        start_c=1
+        DO wrd=1,4
+           DO j=start_c,LEN(line_att)
+              IF (line_att(j:j)/=' ') THEN
+                 start_c=j
+                 EXIT
+              END IF
+           END DO
+           end_c=LEN(line_att)+1
+           DO j=start_c,LEN(line_att)
+              IF (line_att(j:j)==' ') THEN
+                 end_c=j
+                 EXIT
+              END IF
+           END DO
+           CALL cp_assert(wrd==4.OR.end_c<LEN(line_att)+1,cp_failure_level,&
+                cp_assertion_failed,routineP,&
+                "incorrectly formatted line in coord section'"//line_att//"'",&
+                error,failure)
+           IF (wrd==1) THEN
+              atom_info%label_atmname(iatom)=line_att(start_c:end_c-1)
+           ELSE
+              READ (line_att(start_c:end_c-1),*) atom_info%r(wrd-1,iatom)
+           END IF
+           start_c=end_c
+        END DO
+        ! For default, set atom name to residue name to molecule name
+        atom_info%label_molname(iatom) = atom_info%label_atmname(iatom)
+        atom_info%label_resname(iatom) = atom_info%label_atmname(iatom)
+        atom_info%element(iatom) = atom_info%label_atmname(iatom)
+     
+        IF (start_c<=LEN_TRIM(line_att)) THEN
+           READ(line_att(start_c:LEN_TRIM(line_att)),*)atom_info%label_molname(iatom)
+           atom_info%label_resname(iatom) = atom_info%label_molname(iatom)
+        END IF
+        atom_info%atm_mass(iatom) = 0.0_dp 
+        atom_info%atm_charge(iatom) = 0.0_dp 
+        
+     END DO
+  END IF
 
   !-----------------------------------------------------------------------------
   !-----------------------------------------------------------------------------
@@ -214,17 +255,18 @@ SUBROUTINE read_atoms_input ( topology, globenv, error )
   !-----------------------------------------------------------------------------
   ! 4. Post processing for special molecule name at the end of xyz
   !-----------------------------------------------------------------------------
-  atm_equal_mol = 0
-  DO iatom=1,natom
-    IF(atom_info%label_molname(iatom)==atom_info%label_atmname(iatom))THEN
-      atm_equal_mol = atm_equal_mol + 1
-      topology%bondparm_factor=0.0_dp
-    END IF
-  END DO
-  IF ((atm_equal_mol /= 0) .AND. (atm_equal_mol /= natom)) THEN
-    CALL stop_program ('read_atoms_input','check coord optional molname')
+  IF (.NOT.my_overwrite) THEN
+     atm_equal_mol = 0
+     DO iatom=1,natom
+        IF(atom_info%label_molname(iatom)==atom_info%label_atmname(iatom))THEN
+           atm_equal_mol = atm_equal_mol + 1
+           topology%bondparm_factor=0.0_dp
+        END IF
+     END DO
+     IF ((atm_equal_mol /= 0) .AND. (atm_equal_mol /= natom)) THEN
+        CALL stop_program ('read_atoms_input','check coord optional molname')
+     END IF
   END IF
-
 END SUBROUTINE read_atoms_input
 
 !******************************************************************************
