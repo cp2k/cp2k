@@ -103,7 +103,7 @@ MODULE geo_opt
      TYPE(gopt_param_type), POINTER           :: gopt_param
 
 
-     CALL write_checkpoint_information("entering "//routineN,globenv)
+     CALL write_checkpoint_information("Entering "//routineN,globenv,error)
      CPPrecondition(ASSOCIATED(force_env),cp_failure_level,routineP,error,failure)
      CPPrecondition(ASSOCIATED(globenv),cp_failure_level,routineP,error,failure)
      NULLIFY (gopt_param)
@@ -121,7 +121,7 @@ MODULE geo_opt
      END SELECT
 
      CALL gopt_param_release(gopt_param, error=error)
-     CALL write_checkpoint_information("leaving "//routineN,globenv)
+     CALL write_checkpoint_information("Leaving "//routineN,globenv,error)
    END SUBROUTINE qs_geo_opt
 
 !!****f* geo_opt/gopt_do_opt [1.0] *
@@ -195,7 +195,7 @@ MODULE geo_opt
         CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
 
         DO i=1,gopt_param%max_iter
-           IF (.NOT.cp_opt_gopt_next(optimizer)) EXIT
+           IF (.NOT.cp_opt_gopt_next(optimizer,error=error)) EXIT
            ! check for an external exit command 
            CALL external_control(should_stop,"GEO",globenv,error)
            IF (should_stop) THEN

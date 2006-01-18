@@ -145,7 +145,7 @@ MODULE qs_numerical_pressure
            force_env%box_changed = .TRUE.
            force_env%qs_env%use_ref_cell=.TRUE.
            CALL qs_energies(force_env%qs_env,globenv,&
-                            consistent_energies=.TRUE.,box_changed=.TRUE.)
+                            consistent_energies=.TRUE.,box_changed=.TRUE.,error=error)
            numer_energy(k) = force_env%qs_env%energy%total
 ! reset cell
            cell%hmat(ip,ip) = cell_local%hmat(ip,ip)

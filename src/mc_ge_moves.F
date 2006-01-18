@@ -231,13 +231,13 @@ CONTAINS
                ENDDO
 
                CALL force_env_calc_energy_force(force_env(ibox)%force_env,&
-                  calc_force=.FALSE.)
+                  calc_force=.FALSE.,error=error)
                CALL force_env_get(force_env(ibox)%force_env,&
                   potential_energy=new_energy(ibox),error=error)
             ELSE
                IF( .NOT. lreject) THEN
                   CALL force_env_calc_energy_force(force_env(ibox)%force_env,&
-                     calc_force=.FALSE.)
+                     calc_force=.FALSE.,error=error)
                   CALL force_env_get(force_env(ibox)%force_env,&
                      potential_energy=new_energy(ibox),error=error)
                ENDIF
@@ -922,7 +922,7 @@ CONTAINS
          CALL mc_create_force_env(insert_env, globenv, .FALSE., &
             force_env(insert_box)%force_env%in_use,error=error)
          CALL force_env_calc_energy_force(insert_env,&
-            calc_force=.FALSE.)
+            calc_force=.FALSE.,error=error)
          CALL force_env_get(insert_env,&
             potential_energy=new_energy(insert_box),error=error)
 
@@ -947,11 +947,11 @@ CONTAINS
             globenv%input_file_name=dat_file(remove_box)
             CALL mc_create_force_env(remove_env, globenv, .FALSE., &
                force_env(remove_box)%force_env%in_use,error=error)
-            CALL force_env_calc_energy_force(remove_env,calc_force=.FALSE.)
+            CALL force_env_calc_energy_force(remove_env,calc_force=.FALSE.,error=error)
             CALL force_env_get(remove_env,&
                potential_energy=new_energy(remove_box),error=error)
             CALL force_env_calc_energy_force(remove_env_bias,&
-               calc_force=.FALSE.)
+               calc_force=.FALSE.,error=error)
             CALL force_env_get(remove_env_bias,&
                potential_energy=bias_energy_new(remove_box),error=error)
          ENDIF
@@ -959,7 +959,7 @@ CONTAINS
          IF (nchain(remove_box)-1 == 0) THEN
             new_energy(remove_box)=0.0E0_dp
          ELSE
-            CALL force_env_calc_energy_force(remove_env,calc_force=.FALSE.)
+            CALL force_env_calc_energy_force(remove_env,calc_force=.FALSE.,error=error)
             CALL force_env_get(remove_env,&
                potential_energy=new_energy(remove_box),error=error)
          ENDIF
@@ -1475,7 +1475,7 @@ CONTAINS
          ELSE
 
             CALL force_env_calc_energy_force(test_env(ibox)%force_env,&
-               calc_force=.FALSE.)
+               calc_force=.FALSE.,error=error)
             CALL force_env_get(test_env(ibox)%force_env,&
                potential_energy=new_energy(ibox),error=error)
 

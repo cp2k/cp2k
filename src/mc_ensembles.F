@@ -276,7 +276,7 @@ CONTAINS
 ! find the energy of the initial configuration
          IF(nchain(ibox) .NE. 0) THEN
             CALL force_env_calc_energy_force(force_env(ibox)%force_env,&
-               calc_force=.FALSE.)
+               calc_force=.FALSE.,error=error)
             CALL force_env_get(force_env(ibox)%force_env,&
                potential_energy=old_energy(ibox),&
                error=error)
@@ -292,7 +292,7 @@ CONTAINS
                globenv,.FALSE.,TRIM(fft_lib),ionode,error)
             IF(nchain(ibox) .NE. 0) THEN
                CALL force_env_calc_energy_force(bias_env(ibox)%force_env,&
-                  calc_force=.FALSE.)
+                  calc_force=.FALSE.,error=error)
                CALL force_env_get(bias_env(ibox)%force_env,&
                   potential_energy=moves(ibox)%moves%bias_energy,error=error)
                   
@@ -444,7 +444,7 @@ CONTAINS
                   IF(nchain(ibox) .NE. 0) THEN
                      CALL force_env_calc_energy_force(&
                         bias_env(ibox)%force_env,&
-                        calc_force=.FALSE.)
+                        calc_force=.FALSE.,error=error)
                      CALL force_env_get(bias_env(ibox)%force_env,&
                         potential_energy=moves(ibox)%moves%bias_energy,&
                         error=error)
@@ -773,7 +773,7 @@ CONTAINS
          DO ibox=1,nboxes
             IF(nchain(ibox) .NE. 0) THEN
                CALL force_env_calc_energy_force(force_env(ibox)%force_env,&
-               calc_force=.FALSE.)
+               calc_force=.FALSE.,error=error)
                CALL force_env_get(force_env(ibox)%force_env,&
                potential_energy=test_energy,&
                error=error)
@@ -806,7 +806,7 @@ CONTAINS
       DO ibox=1,nboxes
          IF(nchain(ibox) .NE. 0) THEN
             CALL force_env_calc_energy_force(force_env(ibox)%force_env,&
-               calc_force=.FALSE.)
+               calc_force=.FALSE.,error=error)
             CALL force_env_get(force_env(ibox)%force_env,&
                potential_energy=final_energy(ibox),&
                error=error)

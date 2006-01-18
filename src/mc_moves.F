@@ -356,7 +356,7 @@ CONTAINS
          IF(loverlap) THEN
             w=0.0E0_dp
          ELSE
-            CALL force_env_calc_energy_force(bias_env,calc_force=.FALSE.)
+            CALL force_env_calc_energy_force(bias_env,calc_force=.FALSE.,error=error)
             CALL force_env_get(bias_env,&
                potential_energy=bias_energy_new,error=error)
 ! accept or reject the move based on the Metropolis rule with a 
@@ -600,7 +600,7 @@ CONTAINS
          IF(loverlap) THEN
             w=0.0E0_dp
          ELSE
-            CALL force_env_calc_energy_force(bias_env,calc_force=.FALSE.)
+            CALL force_env_calc_energy_force(bias_env,calc_force=.FALSE.,error=error)
             CALL force_env_get(bias_env,&
                potential_energy=bias_energy_new,error=error)
 ! accept or reject the move based on the Metropolis rule
@@ -906,7 +906,7 @@ CONTAINS
          IF(loverlap) THEN
             w=0.0E0_dp
          ELSE
-            CALL force_env_calc_energy_force(bias_env,calc_force=.FALSE.)
+            CALL force_env_calc_energy_force(bias_env,calc_force=.FALSE.,error=error)
             CALL force_env_get(bias_env,&
             potential_energy=bias_energy_new,error=error)
 ! accept or reject the move based on the Metropolis rule
@@ -1288,7 +1288,7 @@ CONTAINS
          force_env%in_use,error=error)
 
 ! now compute the energy
-      CALL force_env_calc_energy_force(test_env,calc_force=.FALSE.)
+      CALL force_env_calc_energy_force(test_env,calc_force=.FALSE.,error=error)
       test_env%box_changed=.false.
       CALL force_env_get(test_env,&
          potential_energy=new_energy,error=error)
@@ -2427,7 +2427,7 @@ CONTAINS
          ENDDO
 
          CALL force_env_calc_energy_force(force_env,&
-            calc_force=.FALSE.)
+            calc_force=.FALSE.,error=error)
          CALL force_env_get(force_env,&
             potential_energy=new_energy,error=error)
 

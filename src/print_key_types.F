@@ -69,7 +69,6 @@ MODULE print_key_types
                charge_density_matrix,&
                core_hamiltonian_matrix,&
                core_charge_radii,&
-               cputime,&
                density_matrix,&
                derivatives,&
                dft_control_parameters,&
@@ -81,8 +80,7 @@ MODULE print_key_types
                kind_information,&
                kind_radii,&
                kinetic_energy_matrix,&
-               kohn_sham_matrix,&
-               memory
+               kohn_sham_matrix
     LOGICAL :: optical_conductivity,&
                ortho_matrix,&
                overlap_matrix,&
@@ -113,9 +111,6 @@ MODULE print_key_types
                total_densities,&
                total_numbers
     LOGICAL :: w_matrix,&
-               e_density_cube, &
-               v_hartree_cube, &
-               v_qmmm_cube,&
                lumos, &
                homos, &
                cubes, &
@@ -209,7 +204,6 @@ CONTAINS
     print_keys%charge_density_matrix = key_value(level,(/f,f,t/))
     print_keys%core_hamiltonian_matrix = key_value(level,(/f,f,t/))
     print_keys%core_charge_radii = key_value(level,(/f,t,t/))
-    print_keys%cputime = key_value(level,(/f,f,f/))
     print_keys%dft_control_parameters = key_value(level,(/t,t,t/))
     print_keys%density_matrix = key_value(level,(/f,f,t/))
     print_keys%derivatives = key_value(level,(/f,f,f/))
@@ -225,7 +219,6 @@ CONTAINS
     print_keys%kind_radii = key_value(level,(/f,t,t/))
     print_keys%kinetic_energy_matrix = key_value(level,(/f,f,t/))
     print_keys%kohn_sham_matrix = key_value(level,(/f,f,t/))
-    print_keys%memory = key_value(level,(/f,f,t/))
     print_keys%ortho_matrix = key_value(level,(/f,f,t/))
     print_keys%overlap_matrix = key_value(level,(/f,f,t/))
     print_keys%pgf_radii = key_value(level,(/f,f,t/))
@@ -255,9 +248,6 @@ CONTAINS
     print_keys%total_densities = key_value(level,(/f,t,t/))
     print_keys%total_numbers = key_value(level,(/t,t,t/))
     print_keys%w_matrix = key_value(level,(/f,f,f/))
-    print_keys%e_density_cube = key_value(level,(/f,f,f/))
-    print_keys%v_hartree_cube = key_value(level,(/f,f,f/))
-    print_keys%v_qmmm_cube = key_value(level,(/f,f,f/))
     print_keys%cubes = key_value(level,(/f,f,f/))
     print_keys%lumos = key_value(level,(/f,f,f/))
     print_keys%mo_orthonormality = key_value(level,(/f,f,t/))

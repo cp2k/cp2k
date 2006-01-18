@@ -113,7 +113,7 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure = .FALSE.
-    CALL write_checkpoint_information("entering "//routineN,globenv)
+    CALL write_checkpoint_information("Entering "//routineN,globenv,error)
     CALL timeset(routineN,"I","",handle)   
     IF (.NOT.failure) THEN
        ionode      = globenv%ionode
@@ -187,7 +187,7 @@ CONTAINS
        CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
     CALL timestop(0.0_dp,handle)
-    CALL write_checkpoint_information("leaving "//routineN,globenv)
+    CALL write_checkpoint_information("Leaving "//routineN,globenv,error)
   END SUBROUTINE geoopt_cg
 
 !!****f* cg_optimizer/get_energy_and_gradients [1.0] *
@@ -212,7 +212,7 @@ CONTAINS
 !!     10.2005 created [tlaino] 
 !!
 !!*** **********************************************************************
-  SUBROUTINE get_energy_and_gradients(force_env,xvec,energy,grad)
+  SUBROUTINE get_energy_and_gradients(force_env,xvec,energy,grad,error)
     IMPLICIT NONE
     ! Arguments
     TYPE(force_env_type), POINTER            :: force_env
@@ -220,6 +220,8 @@ CONTAINS
     REAL(KIND=dp), INTENT(OUT), OPTIONAL     :: energy
     REAL(KIND=dp), DIMENSION(:), OPTIONAL, &
       POINTER                                :: grad
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
     ! Local Variables
     INTEGER                                  :: atom, iatom, ikind, indf, j, &
                                                 natom, nkind
@@ -267,7 +269,7 @@ CONTAINS
        END DO
     END DO
 
-    CALL force_env_calc_energy_force(force_env,calc_force=get_gradients)
+    CALL force_env_calc_energy_force(force_env,calc_force=get_gradients,error=error)
 
     IF (get_gradients)  THEN
        indf = 0
@@ -366,7 +368,7 @@ CONTAINS
        ALLOCATE(xold(SIZE(xvec)), stat=stat)
        CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
 
-       CALL get_energy_and_gradients(force_env, xvec, opt_energy, xi)
+       CALL get_energy_and_gradients(force_env, xvec, opt_energy, xi,error=error)
        g  = -xi
        h  =   g
        xi =   h
@@ -411,7 +413,7 @@ CONTAINS
              CALL write_qs_particle_coordinates(particle_set,cell,globenv,error)
           END IF
           IF (conv.OR.(its==maxiter))  EXIT
-          CALL get_energy_and_gradients(force_env, xvec, opt_energy, xi)          
+          CALL get_energy_and_gradients(force_env, xvec, opt_energy, xi,error=error)          
           gg  = DOT_PRODUCT(g,g)
           IF (Fletcher_Reeves_ON) THEN 
              dgg = DOT_PRODUCT(xi,xi)
@@ -691,8 +693,8 @@ CONTAINS
           histpoint(2,3) = cg_deval1d(force_env,bx,pcom,xicom,fb,error)
           histpoint(2,2) = fb
        ELSE
-          fa=cg_eval1d(force_env,ax,pcom,xicom) 
-          fb=cg_eval1d(force_env,bx,pcom,xicom) 
+          fa=cg_eval1d(force_env,ax,pcom,xicom,error=error) 
+          fb=cg_eval1d(force_env,bx,pcom,xicom,error=error) 
        END IF
        IF(fb.GT.fa)THEN
           dum=ax
@@ -708,7 +710,7 @@ CONTAINS
           histpoint(3,3) = cg_deval1d(force_env,cx,pcom,xicom,fc,error)
           histpoint(3,2) = fc          
        ELSE
-          fc=cg_eval1d(force_env,cx,pcom,xicom)
+          fc=cg_eval1d(force_env,cx,pcom,xicom,error=error)
        END IF
        loc_iter = 3
        DO WHILE (fb.GE.fc)
@@ -727,7 +729,7 @@ CONTAINS
                 histpoint(odim+1,3) = cg_deval1d(force_env,u,pcom,xicom,fu,error)
                 histpoint(odim+1,2) = fu
              ELSE
-                fu=cg_eval1d(force_env,u,pcom,xicom)
+                fu=cg_eval1d(force_env,u,pcom,xicom,error=error)
              END IF
              loc_iter = loc_iter + 1
              IF(fu.LT.fc)THEN
@@ -749,7 +751,7 @@ CONTAINS
                 histpoint(odim+1,3) = cg_deval1d(force_env,u,pcom,xicom,fu,error)
                 histpoint(odim+1,2) = fu
              ELSE
-                fu=cg_eval1d(force_env,u,pcom,xicom)
+                fu=cg_eval1d(force_env,u,pcom,xicom,error=error)
              END IF
              loc_iter = loc_iter + 1
           ELSE IF((cx-u)*(u-ulim).GT.0.)THEN
@@ -760,7 +762,7 @@ CONTAINS
                 histpoint(odim+1,3) = cg_deval1d(force_env,u,pcom,xicom,fu,error)
                 histpoint(odim+1,2) = fu
              ELSE
-                fu=cg_eval1d(force_env,u,pcom,xicom)
+                fu=cg_eval1d(force_env,u,pcom,xicom,error=error)
              END IF
              loc_iter = loc_iter + 1
              IF(fu.LT.fc)THEN
@@ -776,7 +778,7 @@ CONTAINS
                    histpoint(odim+1,3) = cg_deval1d(force_env,u,pcom,xicom,fu,error)
                    histpoint(odim+1,2) = fu
                 ELSE
-                   fu=cg_eval1d(force_env,u,pcom,xicom)
+                   fu=cg_eval1d(force_env,u,pcom,xicom,error=error)
                 END IF
                 loc_iter = loc_iter + 1
              ENDIF
@@ -789,7 +791,7 @@ CONTAINS
                 histpoint(odim+1,3) = cg_deval1d(force_env,u,pcom,xicom,fu,error)
                 histpoint(odim+1,2) = fu
              ELSE
-                fu=cg_eval1d(force_env,u,pcom,xicom)
+                fu=cg_eval1d(force_env,u,pcom,xicom,error=error)
              END IF
              loc_iter = loc_iter + 1
           ELSE
@@ -801,7 +803,7 @@ CONTAINS
                 histpoint(odim+1,3) = cg_deval1d(force_env,u,pcom,xicom,fu,error)
                 histpoint(odim+1,2) = fu
              ELSE
-                fu=cg_eval1d(force_env,u,pcom,xicom)
+                fu=cg_eval1d(force_env,u,pcom,xicom,error=error)
              END IF
              loc_iter = loc_iter + 1
           ENDIF
@@ -1033,7 +1035,7 @@ CONTAINS
        ALLOCATE(xvec(SIZE(pcom)), stat=stat)
        CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
        xvec = pcom + x*xicom
-       CALL get_energy_and_gradients(force_env, xvec, my_val)
+       CALL get_energy_and_gradients(force_env, xvec, my_val,error=error)
        DEALLOCATE(xvec, stat=stat)
        CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
@@ -1086,7 +1088,7 @@ CONTAINS
        ALLOCATE(grad(SIZE(pcom)), stat=stat)
        CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
        xvec = pcom + x * xicom
-       CALL get_energy_and_gradients(force_env, xvec, energy, grad)
+       CALL get_energy_and_gradients(force_env, xvec, energy, grad,error=error)
        my_val = DOT_PRODUCT(grad,xicom)
        fval   = energy
        DEALLOCATE(xvec, stat=stat)

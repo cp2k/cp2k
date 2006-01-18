@@ -44,13 +44,16 @@ MODULE topology_psf
                                              atom_info_type,&
                                              connectivity_info_type
   USE string_utilities,                ONLY: uppercase
+  USE cp_output_handling,              ONLY: cp_print_key_unit_nr, &
+                                             cp_print_key_finished_output  
+
 #include "cp_common_uses.h"
   IMPLICIT NONE
 
   CHARACTER(LEN=*), PARAMETER, PRIVATE :: moduleN = "topology_psf"
 
   PRIVATE
-  PUBLIC :: read_topology_psf,write_topology_psf
+  PUBLIC :: read_topology_psf, write_topology_psf
 
 !!*****
 !******************************************************************************
@@ -90,44 +93,33 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'read_coordinate_psf', &
       routineP = moduleN//':'//routineN
     INTEGER                                  :: handle
-    LOGICAL                                  :: PM1, PM2, PM3, PM4, found, failure
+    LOGICAL                                  :: found, failure
     INTEGER :: jatom
     TYPE(cp_parser_type), POINTER            :: parser
+    TYPE(cp_logger_type), POINTER            :: logger
 
     failure = .FALSE.
-    PM1 = .FALSE.
-    PM2 = .FALSE.
-    PM3 = .FALSE.
-    PM4 = .FALSE.
-    NULLIFY (parser)
-    CALL parser_create(parser,topology%conn_file_name,para_env=globenv%para_env)
-    IF(PRESENT(globenv)) THEN
-       CALL write_checkpoint_information("entering "//routineN,globenv)
-       iw = globenv%scr
-       IF((globenv%ionode).AND.(globenv%print%level>0)) PM1= .TRUE.
-       IF((globenv%ionode).AND.(globenv%print%level>1)) PM2= .TRUE.
-       IF((globenv%ionode).AND.(globenv%print%level>2)) PM3= .TRUE.
-       IF((globenv%ionode).AND.(globenv%print%level>3)) PM4= .TRUE.
-    END IF
-    
-    IF(PM1) WRITE(iw,*) "  Entering read_topology_psf"
-    
-    CALL write_checkpoint_information("entering "//routineN,globenv)
+    NULLIFY(parser, logger)
+    logger => cp_error_get_logger(error)
+    CALL write_checkpoint_information("Entering "//routineN,globenv,error)
+    iw = cp_print_key_unit_nr(logger,globenv%input_file,"FORCE_EVAL%MM%PRINT%TOPOLOGY_INFO/PSF_INFO",&
+         extension=".mmLog",error=error)    
     CALL timeset(routineN,'I','',handle)
-
+    CALL parser_create(parser,topology%conn_file_name,para_env=globenv%para_env)
+    
     atom_info => topology%atom_info
     conn_info => topology%conn_info
     
-    IF(PM2) WRITE(iw,*) 'Parsing the NATOM section'
+    IF(iw>0) WRITE(iw,*) 'Parsing the NATOM section'
 
     label = '!NATOM'
     CALL parser_search_string(parser,label,.TRUE.,found,begin_line=.TRUE.)
     IF ( .NOT. found ) THEN
-       IF(PM1) WRITE ( iw, '( A )' ) ' No NATOM section '
+       IF(iw>0) WRITE ( iw, '( A )' ) ' No NATOM section '
        natom = 0
     ELSE
        CALL parser_get_object  (parser,natom)
-       IF(PM1) WRITE(iw,*) 'NATOM = ',natom
+       IF(iw>0) WRITE(iw,*) 'NATOM = ',natom
        !malloc the memory that we need
        IF (ASSOCIATED(atom_info%label_molname)) DEALLOCATE(atom_info%label_molname,STAT=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -175,16 +167,16 @@ CONTAINS
 
     !------------------------------------------------------------------------------
     !------------------------------------------------------------------------------
-    IF(PM1) WRITE(iw,*) 'Parsing the NBOND section'
+    IF(iw>0) WRITE(iw,*) 'Parsing the NBOND section'
     label = '!NBOND'
     CALL parser_search_string(parser,label,.TRUE.,found,begin_line=.TRUE.)
     IF ( .NOT. found ) THEN
-       IF(PM1) WRITE ( iw, '( A )' ) ' No NBOND section '
+       IF(iw>0) WRITE ( iw, '( A )' ) ' No NBOND section '
        nbond = 0
     ELSE
        CALL parser_get_object  (parser,nbond)
        
-       IF(PM1) WRITE(iw,*) 'NBOND = ',nbond
+       IF(iw>0) WRITE(iw,*) 'NBOND = ',nbond
        !malloc the memory that we need
        ALLOCATE(conn_info%bond_a(nbond),STAT=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -212,7 +204,7 @@ CONTAINS
           IF((atom_info%label_molname(iatom)/=atom_info%label_molname(jatom)).OR.&
                (atom_info%label_resid(iatom)/=atom_info%label_resid(jatom)).OR.&
                (atom_info%label_resname(iatom)/=atom_info%label_resname(jatom)))THEN
-             IF(PM1) WRITE(iw,*) "      PARA_RES, bond between molecules atom ",&
+             IF(iw>0) WRITE(iw,*) "      PARA_RES, bond between molecules atom ",&
                   iatom,jatom
              i = i + 1
              CALL reallocate(conn_info%c_bond_a,1,i+1)
@@ -222,23 +214,22 @@ CONTAINS
           END IF
        ELSE
           IF(atom_info%label_molname(iatom)/=atom_info%label_molname(jatom)) THEN
-             CALL stop_program ("topology_generate_bond",&
-                                "bonds between different molecule types??? ")
+             CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
           END IF
        END IF
     END DO
 
     !------------------------------------------------------------------------------
     !------------------------------------------------------------------------------
-    IF(PM1) WRITE(iw,*) 'Parsing the NTHETA section'
+    IF(iw>0) WRITE(iw,*) 'Parsing the NTHETA section'
     label = '!NTHETA'
     CALL parser_search_string(parser,label,.TRUE.,found,begin_line=.TRUE.)
     IF ( .NOT. found ) THEN
-       IF(PM1) WRITE ( iw, '( A )' ) ' No NTHETA section '
+       IF(iw>0) WRITE ( iw, '( A )' ) ' No NTHETA section '
        ntheta = 0
     ELSE
        CALL parser_get_object  (parser,ntheta)
-       IF(PM1) WRITE(iw,*) 'NTHETA = ',ntheta
+       IF(iw>0) WRITE(iw,*) 'NTHETA = ',ntheta
        !malloc the memory that we need
        ALLOCATE(conn_info%theta_a(ntheta),STAT=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -276,15 +267,15 @@ CONTAINS
 
     !------------------------------------------------------------------------------
     !------------------------------------------------------------------------------
-    IF(PM1) WRITE(iw,*) 'Parsing the NPHI (ie dihedrals) section'
+    IF(iw>0) WRITE(iw,*) 'Parsing the NPHI (ie dihedrals) section'
     label = '!NPHI'
     CALL parser_search_string(parser,label,.TRUE.,found,begin_line=.TRUE.)
     IF ( .NOT. found ) THEN
-       IF(PM1) WRITE ( iw, '( A )' ) ' No NPHI section '
+       IF(iw>0) WRITE ( iw, '( A )' ) ' No NPHI section '
        nphi = 0
     ELSE
        CALL parser_get_object  (parser,nphi)
-       IF(PM1) WRITE(iw,*) 'NPHI = ',nphi
+       IF(iw>0) WRITE(iw,*) 'NPHI = ',nphi
        !malloc the memory that we need
        ALLOCATE(conn_info%phi_a(nphi),STAT=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -319,15 +310,15 @@ CONTAINS
 
     !------------------------------------------------------------------------------
     !------------------------------------------------------------------------------
-    IF(PM1) WRITE(iw,*) 'Parsing the NIMPHI (ie dihedrals) section'
+    IF(iw>0) WRITE(iw,*) 'Parsing the NIMPHI (ie dihedrals) section'
     label = '!NIMPHI'
     CALL parser_search_string(parser,label,.TRUE.,found,begin_line=.TRUE.)
     IF ( .NOT. found ) THEN
-       IF(PM1) WRITE ( iw, '( A )' ) ' No NIMPHI section '
+       IF(iw>0) WRITE ( iw, '( A )' ) ' No NIMPHI section '
        nphi = 0
     ELSE
        CALL parser_get_object  (parser,nphi)
-       IF(PM1) WRITE(iw,*) 'NIMPR = ',nphi
+       IF(iw>0) WRITE(iw,*) 'NIMPR = ',nphi
        !malloc the memory that we need
        ALLOCATE(conn_info%impr_a(nphi),STAT=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -351,17 +342,11 @@ CONTAINS
        END DO
     END IF
 
-    !------------------------------------------------------------------------------
-    !------------------------------------------------------------------------------
-    IF(PM1) WRITE(iw,*) "  Exiting read_topology_psf"
     CALL parser_release(parser,error=error)
-    
     CALL timestop(0.0_dp,handle)
-    IF(PRESENT(globenv)) THEN
-       CALL write_checkpoint_information("exiting "//routineN,globenv)
-    END IF
-    !------------------------------------------------------------------------------
-    !------------------------------------------------------------------------------
+    CALL write_checkpoint_information("exiting "//routineN,globenv,error)
+    CALL cp_print_key_finished_output(iw,logger,globenv%input_file,&
+         "FORCE_EVAL%MM%PRINT%TOPOLOGY_INFO/PSF_INFO",error=error)
 
   END SUBROUTINE read_topology_psf
 
@@ -378,150 +363,132 @@ CONTAINS
 !!   SOURCE
 !******************************************************************************
 
-SUBROUTINE write_topology_psf (topology,globenv)
-
-
+  SUBROUTINE write_topology_psf (topology,globenv,error)
+    IMPLICIT NONE
+    !Arguments
     TYPE(topology_parameters_type), &
       INTENT(INOUT)                          :: topology
     TYPE(global_environment_type), &
       pointer, OPTIONAL                   :: globenv
-
+    TYPE(cp_error_type), INTENT(inout), &
+         OPTIONAL                               :: error 
+    ! Local Variables
     INTEGER                                  :: i, j, iatom, ibond, &
                                                 ilen, iphi, itheta, iunit, &
                                                 iw, natom, nbond, nphi, ntheta
-
     CHARACTER(len=*), PARAMETER :: routineN = 'write_topology_psf', &
       routineP = moduleN//':'//routineN
     TYPE (atom_info_type),POINTER            :: atom_info
     TYPE (connectivity_info_type),POINTER    :: conn_info
     CHARACTER(LEN=default_string_length)     :: record
     INTEGER                                  :: file_unit,imol,id1,id2,handle
-    LOGICAL                                  :: PM1, PM2, PM3, PM4
+    LOGICAL                                  :: failure
+    TYPE(cp_logger_type), POINTER            :: logger
 
-!------------------------------------------------------------------------------
-!------------------------------------------------------------------------------
-  PM1 = .FALSE.
-  PM2 = .FALSE.
-  PM3 = .FALSE.
-  PM4 = .FALSE.
-  IF(PRESENT(globenv)) THEN
-    CALL write_checkpoint_information("entering "//routineN,globenv)
-    iw = globenv%scr
-    IF((globenv%ionode).AND.(globenv%print%level>0)) PM1= .TRUE.
-    IF((globenv%ionode).AND.(globenv%print%level>1)) PM2= .TRUE.
-    IF((globenv%ionode).AND.(globenv%print%level>2)) PM3= .TRUE.
-    IF((globenv%ionode).AND.(globenv%print%level>3)) PM4= .TRUE.
-  END IF
+    failure = .FALSE.
+    NULLIFY(logger)
+    logger => cp_error_get_logger(error)
+    CALL write_checkpoint_information("Entering "//routineN,globenv,error)
+    iw = cp_print_key_unit_nr(logger,globenv%input_file,"FORCE_EVAL%MM%PRINT%TOPOLOGY_INFO/PSF_INFO",&
+         extension=".mmLog",error=error)    
+    CALL timeset(routineN,'I','',handle)
 
-  IF(PM1) WRITE(iw,*) "  Entering write_topology_psf"
+    atom_info => topology%atom_info
+    conn_info => topology%conn_info
+    
+    record = "topology_dump.psf"
 
-  CALL write_checkpoint_information("entering "//routineN,globenv)
-  CALL timeset(routineN,'I','',handle)
-!------------------------------------------------------------------------------
-!------------------------------------------------------------------------------
+    IF(iw>0) WRITE(iw,*) "    Writing out PSF file ",TRIM(record)
 
-  atom_info => topology%atom_info
-  conn_info => topology%conn_info
+    CALL open_file(file_name=record,&
+         file_status="REPLACE",&
+         file_action="WRITE",&
+         unit_number=file_unit)
 
-  record = "topology_dump.psf"
-
-  IF(PM1) WRITE(iw,*) "    Writing out PSF file ",TRIM(record)
-
-  CALL open_file(file_name=record,&
-                 file_status="REPLACE",&
-                 file_action="WRITE",&
-                 unit_number=file_unit)
-
-  WRITE(file_unit,*) "PSF"
-  WRITE(file_unit,*) ""
-  WRITE(file_unit,*) " 1 !NTITLE"
-  WRITE(file_unit,*) "   CP2K generated DUMP of connectivity"
-  WRITE(file_unit,*) ""
-
-  WRITE(file_unit,*) " ",topology%natoms," !NATOM"
-  DO i=1,topology%natoms
-    WRITE(file_unit,'(I8,1X,A5,I4,1X,A5,A5,A5,F10.6,4X,F10.4,4X,I8)') &
-      i,&
-      atom_info%label_molname(i),&
-      atom_info%map_mol_num(i),&
-      atom_info%label_resname(i),&
-      atom_info%label_atmname(i),&
-      atom_info%label_atmname(i),&
-      atom_info%atm_charge(i),&
-      atom_info%atm_mass(i),0
-  END DO
-  WRITE(file_unit,*) ""
-
-  WRITE(file_unit,*) " ",SIZE(conn_info%bond_a)," !NBOND"
-  DO i=1,SIZE(conn_info%bond_a),4
-    j=0
-    DO WHILE ((j<4).AND.((i+j)<=SIZE(conn_info%bond_a)))
-      WRITE(file_unit,'(I8,I8)',ADVANCE="NO") &
-            conn_info%bond_a(i+j),conn_info%bond_b(i+j)
-      j=j+1
+    WRITE(file_unit,*) "PSF"
+    WRITE(file_unit,*) ""
+    WRITE(file_unit,*) " 1 !NTITLE"
+    WRITE(file_unit,*) "   CP2K generated DUMP of connectivity"
+    WRITE(file_unit,*) ""
+    
+    WRITE(file_unit,*) " ",topology%natoms," !NATOM"
+    DO i=1,topology%natoms
+       WRITE(file_unit,'(I8,1X,A5,I4,1X,A5,A5,A5,F10.6,4X,F10.4,4X,I8)') &
+            i,&
+            atom_info%label_molname(i),&
+            atom_info%map_mol_num(i),&
+            atom_info%label_resname(i),&
+            atom_info%label_atmname(i),&
+            atom_info%label_atmname(i),&
+            atom_info%atm_charge(i),&
+            atom_info%atm_mass(i),0
     END DO
     WRITE(file_unit,*) ""
-  END DO
-  WRITE(file_unit,*) ""
-
-  WRITE(file_unit,*) " ",SIZE(conn_info%theta_a)," !NTHETA"
-  DO i=1,SIZE(conn_info%theta_a),3
-    j=0
-    DO WHILE ((j<3).AND.((i+j)<=SIZE(conn_info%theta_a)))
-      WRITE(file_unit,'(I8,I8,I8)',ADVANCE="NO") &
-            conn_info%theta_a(i+j),conn_info%theta_b(i+j),&
-            conn_info%theta_c(i+j)
-      j=j+1
+    
+    WRITE(file_unit,*) " ",SIZE(conn_info%bond_a)," !NBOND"
+    DO i=1,SIZE(conn_info%bond_a),4
+       j=0
+       DO WHILE ((j<4).AND.((i+j)<=SIZE(conn_info%bond_a)))
+          WRITE(file_unit,'(I8,I8)',ADVANCE="NO") &
+               conn_info%bond_a(i+j),conn_info%bond_b(i+j)
+          j=j+1
+       END DO
+       WRITE(file_unit,*) ""
     END DO
     WRITE(file_unit,*) ""
-  END DO
-  WRITE(file_unit,*) ""
-
-  WRITE(file_unit,*) " ",SIZE(conn_info%phi_a)," !NPHI"
-  DO i=1,SIZE(conn_info%phi_a),2
-    j=0
-    DO WHILE ((j<2).AND.((i+j)<=SIZE(conn_info%phi_a)))
-      WRITE(file_unit,'(I8,I8,I8,I8)',ADVANCE="NO") &
-            conn_info%phi_a(i+j),conn_info%phi_b(i+j),&
-            conn_info%phi_c(i+j),conn_info%phi_d(i+j)
-      j=j+1
+    
+    WRITE(file_unit,*) " ",SIZE(conn_info%theta_a)," !NTHETA"
+    DO i=1,SIZE(conn_info%theta_a),3
+       j=0
+       DO WHILE ((j<3).AND.((i+j)<=SIZE(conn_info%theta_a)))
+          WRITE(file_unit,'(I8,I8,I8)',ADVANCE="NO") &
+               conn_info%theta_a(i+j),conn_info%theta_b(i+j),&
+               conn_info%theta_c(i+j)
+          j=j+1
+       END DO
+       WRITE(file_unit,*) ""
     END DO
     WRITE(file_unit,*) ""
-  END DO
-  WRITE(file_unit,*) ""
-
-  WRITE(file_unit,*) " ",SIZE(conn_info%impr_a)," !NIMPHI"
-  DO i=1,SIZE(conn_info%impr_a),2
-    j=0
-    DO WHILE ((j<2).AND.((i+j)<=SIZE(conn_info%impr_a)))
-      WRITE(file_unit,'(I8,I8,I8,I8)',ADVANCE="NO") &
-            conn_info%impr_a(i+j),conn_info%impr_b(i+j),&
-            conn_info%impr_c(i+j),conn_info%impr_d(i+j)
-      j=j+1
+    
+    WRITE(file_unit,*) " ",SIZE(conn_info%phi_a)," !NPHI"
+    DO i=1,SIZE(conn_info%phi_a),2
+       j=0
+       DO WHILE ((j<2).AND.((i+j)<=SIZE(conn_info%phi_a)))
+          WRITE(file_unit,'(I8,I8,I8,I8)',ADVANCE="NO") &
+               conn_info%phi_a(i+j),conn_info%phi_b(i+j),&
+               conn_info%phi_c(i+j),conn_info%phi_d(i+j)
+          j=j+1
+       END DO
+       WRITE(file_unit,*) ""
     END DO
     WRITE(file_unit,*) ""
-  END DO
-  WRITE(file_unit,*) ""
+    
+    WRITE(file_unit,*) " ",SIZE(conn_info%impr_a)," !NIMPHI"
+    DO i=1,SIZE(conn_info%impr_a),2
+       j=0
+       DO WHILE ((j<2).AND.((i+j)<=SIZE(conn_info%impr_a)))
+          WRITE(file_unit,'(I8,I8,I8,I8)',ADVANCE="NO") &
+               conn_info%impr_a(i+j),conn_info%impr_b(i+j),&
+               conn_info%impr_c(i+j),conn_info%impr_d(i+j)
+          j=j+1
+       END DO
+       WRITE(file_unit,*) ""
+    END DO
+    WRITE(file_unit,*) ""
+    
+    WRITE(file_unit,*) " 0 !NDON"
+    WRITE(file_unit,*) ""
+    WRITE(file_unit,*) " 0 !NACC"
+    WRITE(file_unit,*) ""
+    WRITE(file_unit,*) " 0 !NNB"
+    WRITE(file_unit,*) ""
 
-  WRITE(file_unit,*) " 0 !NDON"
-  WRITE(file_unit,*) ""
-  WRITE(file_unit,*) " 0 !NACC"
-  WRITE(file_unit,*) ""
-  WRITE(file_unit,*) " 0 !NNB"
-  WRITE(file_unit,*) ""
-  
-!------------------------------------------------------------------------------
-!------------------------------------------------------------------------------
-  IF(PM1) WRITE(iw,*) "  Exiting write_topology_psf"
-
-  CALL timestop(0.0_dp,handle)
-  IF(PRESENT(globenv)) THEN
-    CALL write_checkpoint_information("exiting "//routineN,globenv)
-  END IF
-!------------------------------------------------------------------------------
-!------------------------------------------------------------------------------
-
-END SUBROUTINE write_topology_psf
+    CALL timestop(0.0_dp,handle)
+    CALL write_checkpoint_information("exiting "//routineN,globenv,error)
+    CALL cp_print_key_finished_output(iw,logger,globenv%input_file,&
+         "FORCE_EVAL%MM%PRINT%TOPOLOGY_INFO/PSF_INFO",error=error)  
+    
+  END SUBROUTINE write_topology_psf
 
 END MODULE topology_psf
 

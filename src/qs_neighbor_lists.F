@@ -84,6 +84,7 @@ MODULE qs_neighbor_lists
   USE timings,                         ONLY: timeset,&
                                              timestop
 
+#include "cp_common_uses.h"  
   IMPLICIT NONE
 
   PRIVATE
@@ -134,7 +135,7 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE build_qs_neighbor_lists(qs_env,globenv,molecular)
+  SUBROUTINE build_qs_neighbor_lists(qs_env,globenv,molecular,error)
 
 !   Purpose: Build all the required neighbor lists for Quickstep.
 
@@ -147,6 +148,8 @@ CONTAINS
     TYPE(global_environment_type), &
       pointer                             :: globenv
     LOGICAL, OPTIONAL                        :: molecular
+    TYPE(cp_error_type), INTENT(inout), &
+         OPTIONAL                               :: error
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "build_qs_neighbor_lists"
 
@@ -195,7 +198,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL write_checkpoint_information("entering "//routine_name,globenv)
+    CALL write_checkpoint_information("entering "//routine_name,globenv,error)
 
     CALL timeset(routine_name,"I"," ",handle)
 
@@ -818,7 +821,7 @@ CONTAINS
 
     CALL timestop(0.0_dp,handle)
 
-    CALL write_checkpoint_information("leaving "//routine_name,globenv)
+    CALL write_checkpoint_information("leaving "//routine_name,globenv,error)
 
   END SUBROUTINE build_qs_neighbor_lists
 

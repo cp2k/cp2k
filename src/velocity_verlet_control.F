@@ -53,6 +53,8 @@ MODULE velocity_verlet_control
                                              isokin_ensemble, &
                                              reftraj_ensemble,&
                                              langevin_ensemble
+#include "cp_common_uses.h"
+
   IMPLICIT NONE
 
   PRIVATE
@@ -79,10 +81,12 @@ CONTAINS
 !!
 !!*** *************************************************************************
 
-SUBROUTINE velocity_verlet ( md_env )
+SUBROUTINE velocity_verlet ( md_env, error )
   
 
     TYPE(md_environment_type), POINTER       :: md_env
+    TYPE(cp_error_type), INTENT(inout), &
+         OPTIONAL                               :: error
 
     INTEGER                                  :: handle, in_use
     TYPE(force_env_p_type), POINTER          :: force_env_p ( : )
@@ -104,36 +108,36 @@ SUBROUTINE velocity_verlet ( md_env )
      CASE DEFAULT
         CALL stop_program ( 'velocity_verlet','integrator not implemented')
      CASE ( nve_ensemble )
-        CALL nve ( md_env )
+        CALL nve ( md_env, error )
      CASE ( nvt_ensemble )
-        CALL nvt ( md_env )
+        CALL nvt ( md_env, error  )
      CASE ( isokin_ensemble )
-        CALL isokin ( md_env )
+        CALL isokin ( md_env, error  )
      CASE ( npt_i_ensemble )
-        CALL npt_i ( md_env )
+        CALL npt_i ( md_env, error  )
      CASE ( npt_f_ensemble)
-        CALL npt_f ( md_env )
+        CALL npt_f ( md_env, error  )
      CASE ( nph_uniaxial_ensemble)
-        CALL nph_uniaxial ( md_env )
+        CALL nph_uniaxial ( md_env, error  )
      CASE ( nph_uniaxial_damped_ensemble )
-        CALL nph_uniaxial_damped ( md_env )
+        CALL nph_uniaxial_damped ( md_env, error  )
      CASE ( reftraj_ensemble)
-        CALL reftraj ( md_env )
+        CALL reftraj ( md_env, error  )
      CASE (langevin_ensemble)
-        CALL langevin(md_env)
+        CALL langevin(md_env, error )
      END SELECT
   CASE default
     SELECT CASE (simpar%ensemble)
     CASE (nve_ensemble)
-      CALL nve(md_env)
+      CALL nve(md_env, error )
     CASE (nvt_ensemble)
-      CALL nvt(md_env)
+      CALL nvt(md_env, error )
     CASE (isokin_ensemble)
-      CALL isokin ( md_env )
+      CALL isokin ( md_env, error  )
     CASE (reftraj_ensemble)
-      CALL reftraj ( md_env )
+      CALL reftraj ( md_env, error  )
     CASE (langevin_ensemble)
-      CALL langevin(md_env)
+      CALL langevin(md_env, error )
     CASE DEFAULT
       CALL stop_program("velocity_verlet",&
                         "integrator not implemented for a generic force_env")

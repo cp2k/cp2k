@@ -159,7 +159,7 @@ SUBROUTINE fist_init ( fist_env, globenv, error )
   CHARACTER(LEN=*), PARAMETER :: routine_name = "fist_init"
   TYPE (qmmm_env_mm_type), POINTER :: qmmm_env
 !   ---------------------------------------------------------------------------
-  CALL write_checkpoint_information("entering "//routine_name,globenv)
+  CALL write_checkpoint_information("Entering "//routine_name,globenv,error)
 
   CALL timeset(routine_name,"I",'',handle)
 
@@ -227,7 +227,8 @@ SUBROUTINE fist_init ( fist_env, globenv, error )
   CALL cp_subsys_release(subsystem,error=error)
 
   CALL timestop(0.0_dp,handle)
- 
+  CALL write_checkpoint_information("Leaving "//routine_name,globenv,error)
+
   END SUBROUTINE fist_init
 
 !   ***************************************************************************
@@ -270,7 +271,7 @@ SUBROUTINE fist_init ( fist_env, globenv, error )
   TYPE ( ewald_pw_type ), POINTER          :: ewald_pw
 
 
-  CALL write_checkpoint_information("entering "//routine_name,globenv)
+  CALL write_checkpoint_information("Entering "//routine_name,globenv,error)
   CALL timeset(routine_name,"I",'',handle)
   particle_set => subsystem % particles % els
   atomic_kind_set => subsystem % atomic_kinds % els
@@ -327,7 +328,7 @@ SUBROUTINE fist_init ( fist_env, globenv, error )
 
   CALL timestop(0.0_dp,handle)
 
-  CALL write_checkpoint_information("leaving "//routine_name,globenv)
+  CALL write_checkpoint_information("Leaving "//routine_name,globenv,error)
 
  END SUBROUTINE fist_init_subsys
 !******************************************************************************

@@ -29,6 +29,11 @@ MODULE memory_utilities
   USE machine,                         ONLY: print_memory
   USE message_passing,                 ONLY: mp_sync
   USE termination,                     ONLY: stop_memory
+  USE cp_output_handling,              ONLY: cp_print_key_unit_nr, &
+                                             cp_print_key_finished_output,&
+                                             cp_print_key_should_output, cp_p_file  
+
+#include "cp_common_uses.h"
 
   IMPLICIT NONE
 
@@ -988,7 +993,7 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE write_memory(checkpoint,globenv)
+  SUBROUTINE write_memory(checkpoint,globenv,error)
 
 !   Purpose: Write the current memory size of all processe in KBytes.
 
@@ -999,25 +1004,28 @@ CONTAINS
     CHARACTER(LEN=*), INTENT(IN)             :: checkpoint
     TYPE(global_environment_type), &
       pointer                             :: globenv
-
+    TYPE(cp_error_type), INTENT(inout)          :: error 
 
     CHARACTER(LEN=LEN_TRIM(checkpoint)+7)    :: string
     INTEGER                                  :: group, ipe, mype, npe
+    TYPE(cp_logger_type), POINTER            :: logger
+    
+    NULLIFY(logger)
+    logger => cp_error_get_logger(error)
+    IF (BTEST(cp_print_key_should_output(logger%iter_info,globenv%input_file,&
+         "GLOBAL%PERFORMANCE/MEMORY",error=error),cp_p_file)) THEN
 
-!   ---------------------------------------------------------------------------
+       group = globenv%group
+       npe = globenv%num_pe
+       mype = globenv%mepos
 
-    IF (.NOT.globenv%print%memory) RETURN
-
-    group = globenv%group
-    npe = globenv%num_pe
-    mype = globenv%mepos
-
-    DO ipe=0,npe-1
-      WRITE (UNIT=string,FMT="(I6,A)") ipe,":"//TRIM(checkpoint)
-      string = ADJUSTL(string)
-      IF (ipe == mype) CALL print_memory(string)
-      CALL mp_sync(group)
-    END DO
+       DO ipe=0,npe-1
+          WRITE (UNIT=string,FMT="(I6,A)") ipe,":"//TRIM(checkpoint)
+          string = ADJUSTL(string)
+          IF (ipe == mype) CALL print_memory(string)
+          CALL mp_sync(group)
+       END DO
+    END IF
 
   END SUBROUTINE write_memory
 

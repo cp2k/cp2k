@@ -187,7 +187,7 @@ CONTAINS
     REAL(kind=dp), DIMENSION(3)              :: abc
     TYPE(cp_logger_type), pointer            :: logger
 
-    CALL write_checkpoint_information("entering "//routine_name,globenv)
+    CALL write_checkpoint_information("entering "//routine_name,globenv,error)
 
     CALL timeset(routine_name,"I",'',handle)
 
@@ -372,7 +372,7 @@ CONTAINS
 
     CALL timestop(0.0_dp,handle)
 
-    CALL write_checkpoint_information("leaving "//routine_name,globenv)
+    CALL write_checkpoint_information("leaving "//routine_name,globenv,error)
 
   END SUBROUTINE kg_init
 

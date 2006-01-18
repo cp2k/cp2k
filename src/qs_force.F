@@ -141,7 +141,7 @@ CONTAINS
 !   ---------------------------------------------------------------------------
 
     failure=.false.
-    CALL write_checkpoint_information("entering "//routine_name,globenv)
+    CALL write_checkpoint_information("entering "//routine_name,globenv,error)
 
     CALL timeset(routine_name,"I","",handle)
 
@@ -222,7 +222,7 @@ CONTAINS
     END IF
     CALL zero_qs_force(force)
 
-    CALL qs_energies(qs_env,globenv)
+    CALL qs_energies(qs_env,globenv,error=error)
 
     CALL get_qs_env(qs_env=qs_env,mos=mos,mo_derivs=mo_derivs, &
                     matrix_ks=matrix_ks, ks_env=ks_env, matrix_s=matrix_s, &
@@ -269,11 +269,11 @@ CONTAINS
 !   *** compute core forces (also overwrites matrix_w) ***
       IF (dft_control%qs_control%semi_empirical) THEN
         CALL build_se_core_matrix(qs_env=qs_env,globenv=globenv,&
-                                  calculate_forces=.TRUE.)
+                                  calculate_forces=.TRUE.,error=error)
       ELSE
         CALL build_core_hamiltonian_matrix(qs_env=qs_env,&
                                            globenv=globenv,&
-                                           calculate_forces=.TRUE.)
+                                           calculate_forces=.TRUE.,error=error)
       END IF
 
 
@@ -345,7 +345,7 @@ CONTAINS
     ELSE
       CALL get_qs_env(qs_env=qs_env, harris_env=harris_env)
       CALL harris_force_correction(qs_env=qs_env, harris_env=harris_env, &
-                                   globenv=globenv)
+                                   globenv=globenv,error=error)
       DO iatom = 1,natom
         i = atom_of_kind(iatom)
         particle_set(iatom)%f = -harris_env%harris_force%f_harris(iatom, 1:3)
@@ -363,7 +363,7 @@ CONTAINS
 
     CALL timestop(0.0_dp,handle)
 
-    CALL write_checkpoint_information("leaving "//routine_name,globenv)
+    CALL write_checkpoint_information("leaving "//routine_name,globenv,error)
 
   END SUBROUTINE qs_forces
 

@@ -265,7 +265,7 @@ SUBROUTINE qs_ep_calculation(qs_env,globenv, error)
      CALL cp_log(logger,cp_note_level,routineP,&
           "Diagonalization of subsystem "//ADJUSTL(cp_to_string(isub)))
      sub_qs => ep_env%sub_qs_env(isub)%qs_env
-     CALL qs_energies(sub_qs,globenv)
+     CALL qs_energies(sub_qs,globenv,error=error)
   END DO
   
   ! perturbative approach for complete system
@@ -716,13 +716,13 @@ SUBROUTINE ep_env_finish_qs_init(qs_env,globenv,error)
 
   CALL timeset(routineN,"I","",handle)
 
-  CALL build_qs_neighbor_lists(qs_env,globenv)
+  CALL build_qs_neighbor_lists(qs_env,globenv,error=error)
 
 ! *** Calculate the overlap and the core Hamiltonian integral matrix ***
 
   CALL build_core_hamiltonian_matrix(qs_env=qs_env,&
                                      globenv=globenv,&
-                                     calculate_forces=.FALSE.)
+                                     calculate_forces=.FALSE.,error=error)
   CALL qs_env_update_s_mstruct(qs_env, error=error)
 
 !  *** init the ks_env

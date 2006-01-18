@@ -76,6 +76,8 @@ MODULE qs_overlap
   USE timings,                         ONLY: timeset,&
                                              timestop
 
+#include "cp_common_uses.h"
+
   IMPLICIT NONE
 
   PRIVATE
@@ -98,7 +100,7 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE build_overlap_matrix(qs_env,globenv,nderivative)
+  SUBROUTINE build_overlap_matrix(qs_env,globenv,nderivative,error)
 
 !   Purpose: Calculation of the overlap matrix over Cartesian Gaussian
 !            functions.
@@ -111,7 +113,8 @@ CONTAINS
     TYPE(global_environment_type), &
       pointer                             :: globenv
     INTEGER,INTENT(IN), OPTIONAL             :: nderivative
-
+    TYPE(cp_error_type), INTENT(inout), &
+         OPTIONAL                               :: error
 !   *** Local types ***
 
     TYPE block_p_type
@@ -165,7 +168,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL write_checkpoint_information("entering "//routine_name,globenv)
+    CALL write_checkpoint_information("entering "//routine_name,globenv,error)
 
     CALL timeset(routine_name,"I","",handle)
 
@@ -482,7 +485,7 @@ CONTAINS
       END IF
     END IF
 
-    CALL write_checkpoint_information("leaving "//routine_name,globenv)
+    CALL write_checkpoint_information("leaving "//routine_name,globenv,error)
 
   END SUBROUTINE build_overlap_matrix
 

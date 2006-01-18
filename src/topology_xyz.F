@@ -41,6 +41,9 @@ MODULE topology_xyz
                                              parser_test_next_token,&
                                              cp_parser_type,&
                                              parser_get_next_line
+  USE cp_output_handling,              ONLY: cp_print_key_unit_nr, &
+                                             cp_print_key_finished_output  
+  
 
 #include "cp_common_uses.h"  
 
@@ -63,6 +66,7 @@ CONTAINS
   !!   FUNCTION
   !!
   !!   AUTHOR
+  !!     Teodoro Laino
   !!
   !!   MODIFICATION HISTORY
   !!
@@ -92,31 +96,20 @@ CONTAINS
     CHARACTER(LEN=default_string_length)        :: root_mol_name
     INTEGER                                     :: handle, iw, natom, i, j, inum_mol
     INTEGER                                     :: frame
-    LOGICAL                                     :: PM1, PM2, PM3, PM4, my_end
-    TYPE(cp_parser_type), POINTER :: parser    
+    LOGICAL                                     ::  my_end
+    TYPE(cp_parser_type), POINTER               :: parser    
+    TYPE(cp_logger_type), POINTER            :: logger
 
-    PM1 = .FALSE.
-    PM2 = .FALSE.
-    PM3 = .FALSE.
-    PM4 = .FALSE.
-    NULLIFY(parser)
-    IF(PRESENT(globenv)) THEN
-       CALL write_checkpoint_information("entering "//routineN,globenv)
-       iw = globenv%scr
-       IF((globenv%ionode).AND.(globenv%print%level>0)) PM1= .TRUE.
-       IF((globenv%ionode).AND.(globenv%print%level>1)) PM2= .TRUE.
-       IF((globenv%ionode).AND.(globenv%print%level>2)) PM3= .TRUE.
-       IF((globenv%ionode).AND.(globenv%print%level>3)) PM4= .TRUE.
-    END IF
-    
-    IF(PM1) WRITE(iw,*) "  Entering read_coordinate_xyz"
-
-    CALL write_checkpoint_information("entering "//routineN,globenv)
+    NULLIFY(parser, logger)
+    logger => cp_error_get_logger(error)
+    CALL write_checkpoint_information("Entering "//routineN,globenv,error)
+    iw = cp_print_key_unit_nr(logger,globenv%input_file,"FORCE_EVAL%MM%PRINT%TOPOLOGY_INFO/XYZ_INFO",&
+         extension=".mmLog",error=error)    
     CALL timeset(routineN,'I','',handle)
     
     atom_info => topology%atom_info
 
-    IF(PM1) WRITE(iw,*) "    Reading in XYZ file ",TRIM(topology%coord_file_name)
+    IF(iw>0) WRITE(iw,*) "    Reading in XYZ file ",TRIM(topology%coord_file_name)
     CALL parser_create(parser,topology%coord_file_name,&
          para_env=globenv%para_env,error=error)      
 
@@ -124,7 +117,7 @@ CONTAINS
     inum_mol      = 1
     WRITE(root_mol_name,'(A3,I7)')"MOL",inum_mol
     DO i =  1, 10
-       if (root_mol_name(i:i) == " ") root_mol_name(i:i) = "0" 
+       IF (root_mol_name(i:i) == " ") root_mol_name(i:i) = "0" 
     END DO
     frame = 0
     CALL parser_get_next_line(parser,1,error=error)
@@ -146,7 +139,7 @@ CONTAINS
           CALL reallocate(atom_info%element,       1,    natom)
        ELSE IF(natom > SIZE(atom_info%label_atmname)) THEN
           CALL stop_program (routineP,&
-                       "Atom number differs in different frames!")
+               "Atom number differs in different frames!")
        END IF
        ! Dummy line
        CALL parser_get_next_line(parser,2,error=error)
@@ -166,7 +159,7 @@ CONTAINS
           atom_info%element(j)         = atom_info%label_atmname(j)
           atom_info%atm_mass(j)        = 0.0_dp
           atom_info%atm_charge(j)      = -10000.0_dp
-          IF(PM2) WRITE(iw,'(5X,A4,3F8.3,A4,I4)') &
+          IF(iw>0) WRITE(iw,'(5X,A4,3F8.3,A4,I4)') &
                TRIM(atom_info%label_atmname(j)),&
                atom_info%r(1,j),&
                atom_info%r(2,j),&
@@ -184,15 +177,11 @@ CONTAINS
 
     IF(.NOT.topology%para_res) atom_info%label_resid(:) = 1
     topology%natoms = natom
-
-    IF(PM1) WRITE(iw,*) "  Exiting read_coordinate_xyz"
-
     CALL timestop(0.0_dp,handle)
-    IF(PRESENT(globenv)) THEN
-       CALL write_checkpoint_information("exiting "//routineN,globenv)
-    END IF
-    !------------------------------------------------------------------------------
-    !------------------------------------------------------------------------------
+    CALL write_checkpoint_information("exiting "//routineN,globenv,error)
+    CALL cp_print_key_finished_output(iw,logger,globenv%input_file,&
+         "FORCE_EVAL%MM%PRINT%TOPOLOGY_INFO/XYZ_INFO",error=error)
+
   END SUBROUTINE read_coordinate_xyz
 
 END MODULE topology_xyz

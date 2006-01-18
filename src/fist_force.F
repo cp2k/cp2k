@@ -47,7 +47,6 @@ MODULE fist_force
   USE pme, ONLY: pme_evaluate
   USE simulation_cell, ONLY : cell_type, get_hinv
   USE spme, ONLY : spme_evaluate
-  USE termination, ONLY : stop_program, stop_memory
   USE timings, ONLY : timeset, timestop
   USE virial_methods, ONLY : virial_evaluate
   USE virial_types, ONLY : virial_type
@@ -59,10 +58,14 @@ MODULE fist_force
                                              do_ewald_ewald,&
                                              do_ewald_pme,&
                                              do_ewald_spme
+  USE cp_output_handling,              ONLY: cp_print_key_unit_nr, &
+                                             cp_print_key_finished_output
+  USE checkpoint_handler,              ONLY: write_checkpoint_information
 #include "cp_common_uses.h"
   IMPLICIT NONE
   PRIVATE
   PUBLIC :: fist_force_control, debug_variables_type
+  CHARACTER(len=*), PARAMETER :: moduleN="fist_force"
 
   TYPE debug_variables_type
      REAL (KIND=dp) :: pot_nonbond, pot_g, pot_bond, pot_bend, pot_torsion
@@ -114,7 +117,9 @@ SUBROUTINE fist_force_control ( fist_env, virial, globenv, box_change, debug ,er
   TYPE(cp_error_type), INTENT(inout), &
        OPTIONAL                               :: error
 ! Locals
-  INTEGER :: id, i, ii, natoms, nnodes, handle, isos, n, nlocal_particles
+    CHARACTER(len=*), PARAMETER :: routineN="fist_force_control",&
+         routineP=moduleN//":"//routineN  
+  INTEGER :: id, i, ii, natoms, nnodes, handle, stat, n, nlocal_particles
   INTEGER :: ikind, iparticle_kind, nparticle_kind, iparticle_local, nparticle_local
   INTEGER :: node, iw, j
   REAL (KIND=dp) :: pot_nonbond, pot_bond, pot_bend, pot_urey_bradley,  &
@@ -142,21 +147,18 @@ SUBROUTINE fist_force_control ( fist_env, virial, globenv, box_change, debug ,er
   TYPE ( ewald_environment_type ),   POINTER :: ewald_env
   REAL (KIND=dp), DIMENSION ( :,: ), ALLOCATABLE :: f_nonbond
   LOGICAL,SAVE :: first_time=.true.
-  LOGICAL                                  :: PM1, PM2, PM3, PM4
   TYPE(section_vals_type), POINTER         :: fist_section, print_section
+  LOGICAL :: failure
+  TYPE(cp_logger_type), POINTER            :: logger
 
-  CALL timeset ( 'FORCE','I',' ',handle )
-  ! Print Debug Info
-  ! Da riaggiustare dopo con il nuovo input...
-  PM1 = .FALSE.
-  PM2 = .FALSE.
-  PM3 = .FALSE.
-  PM4 = .FALSE.
-  iw = globenv%scr
-  IF((globenv%ionode).AND.(globenv%print%level>0)) PM1= .TRUE.
-  IF((globenv%ionode).AND.(globenv%print%level>1)) PM2= .TRUE.
-  IF((globenv%ionode).AND.(globenv%print%level>2)) PM3= .TRUE.
-  IF((globenv%ionode).AND.(globenv%print%level>3)) PM4= .TRUE.
+  failure = .FALSE.
+  NULLIFY(logger)
+  logger => cp_error_get_logger(error)
+  CALL write_checkpoint_information("Entering "//routineN,globenv,error)
+  iw = cp_print_key_unit_nr(logger,globenv%input_file,"FORCE_EVAL%MM%PRINT%DERIVATIVES",&
+       extension=".mmLog",error=error)
+  CALL timeset(routineN,'I','',handle)
+
   NULLIFY(fist_section,thermo,particle_set,local_molecules,local_particles,atomic_kind_set,&
           molecule_kind_set,molecule_set,fist_nonbond_env,cell,ewald_pw,ewald_env,fist_section,print_section)
   fist_section => section_vals_get_subs_vals(globenv%input_file,"FORCE_EVAL%MM",error=error)
@@ -171,7 +173,6 @@ SUBROUTINE fist_force_control ( fist_env, virial, globenv, box_change, debug ,er
 
   CALL ewald_env_get ( ewald_env, ewald_type = ewald_type )
 
-  isos = 0
   natoms = SIZE ( particle_set )
   nlocal_particles = 0
   nparticle_kind = SIZE ( atomic_kind_set )
@@ -179,10 +180,8 @@ SUBROUTINE fist_force_control ( fist_env, virial, globenv, box_change, debug ,er
      nlocal_particles = nlocal_particles + local_particles%n_el(ikind) 
   ENDDO 
 
-  ALLOCATE ( f_nonbond ( 3, natoms ), STAT = isos )
-  IF ( isos /= 0 ) &
-      CALL stop_memory ( 'fist_force', 'f_nonbond', 3 * natoms )
-
+  ALLOCATE ( f_nonbond ( 3, natoms ), STAT = stat )
+  CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 ! reinitialize the gspace for the new box
   IF ( ( box_change ) .OR. ( first_time ) ) THEN
     CALL ewald_pw_grid_change ( ewald_pw, ewald_env )
@@ -191,7 +190,7 @@ SUBROUTINE fist_force_control ( fist_env, virial, globenv, box_change, debug ,er
 ! first check with list_control to update neighbor lists
 
   CALL list_control ( atomic_kind_set, particle_set, local_particles, &
-                      cell, fist_nonbond_env, globenv ) 
+                      cell, fist_nonbond_env, globenv, error) 
 
 !
 ! initial force, energy and pressure tensor arrays
@@ -225,7 +224,7 @@ SUBROUTINE fist_force_control ( fist_env, virial, globenv, box_change, debug ,er
 !
 ! get real-space non-bonded forces:
 !
-  IF (PM2) THEN
+  IF (iw>0) THEN
      WRITE(iw,'(A)')" FIST:: FORCES IN INPUT..."
      WRITE(iw,'(3f15.9)')((particle_set ( i ) % f ( j ),j=1,3), i = 1, SIZE(particle_set))
   END IF
@@ -241,7 +240,7 @@ SUBROUTINE fist_force_control ( fist_env, virial, globenv, box_change, debug ,er
   CALL force_nonbond ( fist_nonbond_env, particle_set, cell, &
                        pot_nonbond, f_nonbond, pv_nonbond  )
 
-  IF (PM2) THEN
+  IF (iw>0) THEN
      WRITE(iw,'(A)')" FIST:: NONBOND + R-SPACE ELECTROSTATIC FORCES ..."
      WRITE(iw,'(3f15.9)')f_nonbond
   END IF
@@ -256,27 +255,24 @@ SUBROUTINE fist_force_control ( fist_env, virial, globenv, box_change, debug ,er
 
      CASE ( do_ewald_ewald )
         ! Parallelisation over atoms --> allocate local atoms
-        ALLOCATE ( fg_coulomb ( 3, nlocal_particles ), STAT=isos )
-        IF ( isos /= 0 ) &
-        CALL stop_memory ( 'fist_force', 'fg_coulomb', 3 * nlocal_particles )
+        ALLOCATE ( fg_coulomb ( 3, nlocal_particles ), STAT=stat )
+        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
         fg_coulomb = 0.0_dp
         CALL ewald_evaluate ( ewald_env, ewald_pw, atomic_kind_set, particle_set, &
                               local_particles, fg_coulomb, vg_coulomb, pv_g )
         
      CASE ( do_ewald_pme )
         ! Parallelisation over grids --> allocate all atoms
-        ALLOCATE ( fg_coulomb ( 3, natoms ), STAT=isos )
-        IF ( isos /= 0 ) &
-        CALL stop_memory ( 'fist_force', 'fg_coulomb', 3 * natoms )
+        ALLOCATE ( fg_coulomb ( 3, natoms ), STAT=stat )
+        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
         fg_coulomb = 0.0_dp
         CALL pme_evaluate ( ewald_env, ewald_pw, particle_set, &
                             vg_coulomb, fg_coulomb, pv_g ,error)
         CALL mp_sum ( fg_coulomb, globenv % group ) 
      CASE ( do_ewald_spme )
         ! Parallelisation over grids --> allocate all atoms
-        ALLOCATE ( fg_coulomb ( 3, natoms ), STAT=isos )
-        IF ( isos /= 0 ) &
-        CALL stop_memory ( 'fist_force', 'fg_coulomb', 3 * natoms )
+        ALLOCATE ( fg_coulomb ( 3, natoms ), STAT=stat )
+        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
         fg_coulomb = 0.0_dp
         CALL spme_evaluate ( ewald_env, ewald_pw, particle_set, &
                              fg_coulomb, vg_coulomb, pv_g)
@@ -293,7 +289,7 @@ SUBROUTINE fist_force_control ( fist_env, virial, globenv, box_change, debug ,er
 
   END IF
 
-  IF (PM2) THEN
+  IF (iw>0) THEN
      IF (ALLOCATED(fg_coulomb)) THEN
         WRITE(iw,'(A)')" FIST:: NONBONDED ELECTROSTATIC FORCES IN G-SPACE..."
         WRITE(iw,'(3f15.9)')((fg_coulomb(j,i) ,j=1,3),i = 1, SIZE(fg_coulomb,2))
@@ -317,7 +313,7 @@ SUBROUTINE fist_force_control ( fist_env, virial, globenv, box_change, debug ,er
                    pv_urey_bradley, pv_torsion, pv_imptors, pv_onef )
   ENDIF
 
-  IF (PM2) THEN
+  IF (iw>0) THEN
      WRITE(iw,'(A)')" FIST:: CORRECTED BONDED ELECTROSTATIC FORCES + INTERNAL FORCES..."
      WRITE(iw,'(3f15.9)')((particle_set ( i ) % f ( j ),j=1,3), i = 1, SIZE(particle_set))
   END IF
@@ -344,8 +340,8 @@ SUBROUTINE fist_force_control ( fist_env, virial, globenv, box_change, debug ,er
 ! ewald forces are strictly local -> sum only over pnode
 ! We first sum the forces in f_nonbond, this allows for a more efficient
 ! global sum in the parallel code and in the end copy them back to part
-  ALLOCATE ( f_total ( 3,natoms ), STAT=isos )
-  IF ( isos /= 0 ) CALL stop_memory ( 'fist_force', 'f_total', 3 * natoms )
+  ALLOCATE ( f_total ( 3,natoms ), STAT=stat )
+  CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
   f_total = 0.0_dp
   DO i = 1, natoms
      f_total ( 1, i ) = particle_set ( i ) % f ( 1 ) + f_nonbond ( 1, i )
@@ -353,7 +349,7 @@ SUBROUTINE fist_force_control ( fist_env, virial, globenv, box_change, debug ,er
      f_total ( 3, i ) = particle_set ( i ) % f ( 3 ) + f_nonbond ( 3, i )
   END DO
 
-  IF (PM2) THEN
+  IF (iw>0) THEN
      WRITE(iw,'(A)')" FIST:: (1) INTERNAL + ELECTROSTATIC BONDED + NONBONDED"
      WRITE(iw,'(3f15.9)')((f_total ( j, i ),j=1,3), i = 1, natoms)
   END IF  
@@ -382,7 +378,7 @@ SUBROUTINE fist_force_control ( fist_env, virial, globenv, box_change, debug ,er
   END SELECT
 
 
-  IF (PM2) THEN
+  IF (iw>0) THEN
      WRITE(iw,'(A)')" FIST:: (2) TOTAL FORCES (1) + ELECTROSTATIC FORCES"
      WRITE(iw,'(3f15.9)')((f_total ( j, i ),j=1,3), i = 1, natoms)
   END IF  
@@ -429,7 +425,7 @@ SUBROUTINE fist_force_control ( fist_env, virial, globenv, box_change, debug ,er
       particle_set ( i ) % f ( 3 ) = f_total ( 3, i ) 
     END DO
   END SELECT
-  IF (PM2) THEN
+  IF (iw>0) THEN
      WRITE(iw,'(A)')" FIST:: (3) TOTAL FORCES - THE END..."
      WRITE(iw,'(3f15.9)')((particle_set ( i ) % f ( j ),j=1,3), i = 1, natoms)
      WRITE(iw,'(A,f15.9)')"Energy after FIST calculation.. exiting now ::",thermo%pot
@@ -493,18 +489,20 @@ SUBROUTINE fist_force_control ( fist_env, virial, globenv, box_change, debug ,er
 
 ! deallocating all local variables
   IF ( ALLOCATED ( fg_coulomb ) ) THEN
-    DEALLOCATE ( fg_coulomb, STAT = isos )
-    IF ( isos /= 0 ) CALL stop_memory ( 'fist_force', 'fg_coulomb' )
+    DEALLOCATE ( fg_coulomb, STAT = stat )
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
   END IF
   IF ( ALLOCATED ( f_total ) ) THEN
-    DEALLOCATE ( f_total, STAT = isos )
-    IF ( isos /= 0 ) CALL stop_memory ( 'fist_force', 'f_total' )
+    DEALLOCATE ( f_total, STAT = stat )
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
   END IF
-  DEALLOCATE ( f_nonbond, STAT = isos )
-  IF ( isos /= 0 ) &
-      CALL stop_memory ( 'fist_force', 'f_nonbond', 3 * natoms )
+  DEALLOCATE ( f_nonbond, STAT = stat )
+  CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
   first_time = .false.
-  CALL timestop ( zero, handle )
+  CALL timestop(0.0_dp,handle)
+  CALL write_checkpoint_information("Leaving "//routineN,globenv,error)
+  CALL cp_print_key_finished_output(iw,logger,globenv%input_file,&
+       "FORCE_EVAL%MM%PRINT%DERIVATIVES",error=error)
 
 END SUBROUTINE fist_force_control
 

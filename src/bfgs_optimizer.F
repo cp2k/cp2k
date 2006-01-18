@@ -98,7 +98,7 @@ CONTAINS
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
 
-    CALL write_checkpoint_information("entering "//routine_name,globenv)
+    CALL write_checkpoint_information("Entering "//routine_name,globenv,error)
 
     CALL timeset(routine_name,"I","",handle)
 
@@ -209,7 +209,7 @@ CONTAINS
 
 ! Calculate Energy & Gradients
 
-  CALL force_env_calc_energy_force(force_env,calc_force=.TRUE.)
+  CALL force_env_calc_energy_force(force_env,calc_force=.TRUE.,error=error)
 
 ! Copy forces to g, the gradients
 
@@ -370,7 +370,7 @@ CONTAINS
 
 !    ** Energy & Gradients at new step **
 
-     CALL force_env_calc_energy_force(force_env,calc_force=.TRUE.)
+     CALL force_env_calc_energy_force(force_env,calc_force=.TRUE.,error=error)
 
      indf = 0
      DO ikind=1,nkind
@@ -427,7 +427,7 @@ CONTAINS
 
     CALL timestop(0.0_dp,handle)
 
-    CALL write_checkpoint_information("leaving "//routine_name,globenv)
+    CALL write_checkpoint_information("Leaving "//routine_name,globenv,error)
 
     END SUBROUTINE geoopt_bfgs 
 

@@ -117,13 +117,13 @@ SUBROUTINE read_topology_section ( topology, topology_section, globenv, error )
   INTEGER :: ia, ie, n_rep
   LOGICAL :: failure 
 
-  CALL write_checkpoint_information("entering "//routineN,globenv)
+  CALL write_checkpoint_information("entering "//routineN,globenv,error)
   CALL xstring(globenv % project_name,ia,ie)
   failure = .FALSE.
   topology % coord_file_name = globenv % project_name(ia:ie) // '.dat'
   topology % conn_file_name = globenv % project_name(ia:ie) // '.top'
   
-  IF (.NOT. .FALSE.) THEN
+  IF (.NOT. failure) THEN
      ! Logical
      CALL section_vals_val_get(topology_section,"CHARGE_OCCUP",l_val=topology % charge_occup,error=error)
      CALL section_vals_val_get(topology_section,"CHARGE_BETA",l_val=topology % charge_beta,error=error)
@@ -153,6 +153,7 @@ SUBROUTINE read_topology_section ( topology, topology_section, globenv, error )
      CALL section_vals_val_get(topology_section,"NHCOPT",i_val=topology % nhcopt,error=error)
 
   END IF
+  CALL write_checkpoint_information("Leaving "//routineN,globenv,error)
 END SUBROUTINE read_topology_section
 
 !!*****

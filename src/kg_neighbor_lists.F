@@ -52,6 +52,8 @@ MODULE kg_neighbor_lists
   USE timings,                         ONLY: timeset,&
                                              timestop
 
+#include "cp_common_uses.h"  
+
   IMPLICIT NONE
 
   PRIVATE
@@ -70,17 +72,18 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE build_kg_neighbor_lists(kg_env,globenv)
+  SUBROUTINE build_kg_neighbor_lists(kg_env,globenv,error)
     TYPE(kg_environment_type), POINTER       :: kg_env
     TYPE(global_environment_type), &
       pointer                             :: globenv
-
+    TYPE(cp_error_type), INTENT(inout), &
+         OPTIONAL                               :: error
     CHARACTER(LEN=*), PARAMETER :: routine_name = "build_kg_neighbor_lists"
 
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(qs_control_type), POINTER           :: qs_control
 
-    CALL write_checkpoint_information("entering "//routine_name,globenv)
+    CALL write_checkpoint_information("entering "//routine_name,globenv,error)
 
     CALL get_kg_env(kg_env=kg_env,&
                     dft_control=dft_control)
@@ -88,27 +91,28 @@ CONTAINS
 
     SELECT CASE (qs_control%method)
     CASE ("KG_POL")
-      CALL build_kg_neighbor_lists1(kg_env,globenv)
+      CALL build_kg_neighbor_lists1(kg_env,globenv,error)
     CASE ("KG_NOPOL")
-      CALL build_kg_neighbor_lists1(kg_env,globenv)
+      CALL build_kg_neighbor_lists1(kg_env,globenv,error)
     CASE ("KG_GPW")
-      CALL build_kg_neighbor_lists2(kg_env,globenv)
+      CALL build_kg_neighbor_lists2(kg_env,globenv,error)
     CASE DEFAULT
       CALL stop_program(routine_name,module_name,__LINE__,"method unknown")
     END SELECT
 
-    CALL write_checkpoint_information("leaving "//routine_name,globenv)
+    CALL write_checkpoint_information("leaving "//routine_name,globenv,error)
 
   END SUBROUTINE build_kg_neighbor_lists
 
 ! *****************************************************************************
 
-  SUBROUTINE build_kg_neighbor_lists1(kg_env,globenv)
+  SUBROUTINE build_kg_neighbor_lists1(kg_env,globenv,error)
 
     TYPE(kg_environment_type), POINTER       :: kg_env
     TYPE(global_environment_type), &
       pointer                             :: globenv
-
+    TYPE(cp_error_type), INTENT(inout), &
+         OPTIONAL                               :: error
     CHARACTER(LEN=*), PARAMETER :: routine_name = "build_kg_neighbor_lists1"
 
     INTEGER :: atom_a, handle, iatom, iatom_local, ikind, istat, maxatom, &
@@ -139,7 +143,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL write_checkpoint_information("entering "//routine_name,globenv)
+    CALL write_checkpoint_information("entering "//routine_name,globenv,error)
 
     CALL timeset(routine_name,"I","",handle)
 
@@ -425,18 +429,19 @@ CONTAINS
 
     CALL timestop(0.0_dp,handle)
 
-    CALL write_checkpoint_information("leaving "//routine_name,globenv)
+    CALL write_checkpoint_information("leaving "//routine_name,globenv,error)
 
   END SUBROUTINE build_kg_neighbor_lists1
 
 ! *****************************************************************************
 
-  SUBROUTINE build_kg_neighbor_lists2(kg_env,globenv)
+  SUBROUTINE build_kg_neighbor_lists2(kg_env,globenv,error)
 
     TYPE(kg_environment_type), POINTER       :: kg_env
     TYPE(global_environment_type), &
       pointer                             :: globenv
-
+    TYPE(cp_error_type), INTENT(inout), &
+         OPTIONAL                               :: error
     CHARACTER(LEN=*), PARAMETER :: routine_name = "build_kg_neighbor_lists2"
 
     INTEGER                                  :: handle,isub
@@ -444,7 +449,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL write_checkpoint_information("entering "//routine_name,globenv)
+    CALL write_checkpoint_information("entering "//routine_name,globenv,error)
 
     CALL timeset(routine_name,"I","",handle)
 
@@ -454,7 +459,7 @@ CONTAINS
                     sub_qs_env=qs_env)
 
     IF(ASSOCIATED(qs_env)) THEN
-      CALL build_qs_neighbor_lists(qs_env,globenv,.TRUE.)
+      CALL build_qs_neighbor_lists(qs_env,globenv,.TRUE.,error=error)
     ELSE
       CALL stop_program(routine_name,module_name,__LINE__,&
             "sub_qs_env not defined")
@@ -462,7 +467,7 @@ CONTAINS
 
     CALL timestop(0.0_dp,handle)
 
-    CALL write_checkpoint_information("leaving "//routine_name,globenv)
+    CALL write_checkpoint_information("leaving "//routine_name,globenv,error)
 
   END SUBROUTINE build_kg_neighbor_lists2
 

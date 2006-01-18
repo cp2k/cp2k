@@ -60,7 +60,7 @@ MODULE kg_ppl
                                              stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
-
+#include "cp_common_uses.h"
   IMPLICIT NONE
 
   PRIVATE
@@ -82,7 +82,7 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE calculate_rho0_ppl(kg_env,globenv,calculate_forces)
+  SUBROUTINE calculate_rho0_ppl(kg_env,globenv,calculate_forces,error)
 
 !   ***************************************************************************
 
@@ -90,6 +90,8 @@ CONTAINS
     TYPE(global_environment_type), &
       pointer                             :: globenv
     LOGICAL, INTENT(IN)                      :: calculate_forces
+    TYPE(cp_error_type), INTENT(inout), &
+         OPTIONAL                               :: error
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "calculate_rho0_pp", &
       routine = "SUBROUTINE "//routine_name//" (MODULE "//module_name//")"
@@ -155,7 +157,7 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:,:), POINTER :: my_c 
 !   ---------------------------------------------------------------------------
 
-    CALL write_checkpoint_information("entering "//routine_name,globenv)
+    CALL write_checkpoint_information("entering "//routine_name,globenv,error)
 
     CALL timeset(routine_name,"I","",handle)
     
@@ -589,14 +591,14 @@ CONTAINS
 
     energy%pseudo = e_ppl
 
-    CALL write_checkpoint_information("leaving "//routine_name,globenv)
+    CALL write_checkpoint_information("leaving "//routine_name,globenv,error)
 
     CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE calculate_rho0_ppl
 ! *****************************************************************************
 
-  SUBROUTINE calculate_drho_ppl(kg_env,globenv,calculate_forces)
+  SUBROUTINE calculate_drho_ppl(kg_env,globenv,calculate_forces,error)
 
 !   ***************************************************************************
 
@@ -604,6 +606,8 @@ CONTAINS
     TYPE(global_environment_type), &
       pointer                             :: globenv
     LOGICAL, INTENT(IN)                      :: calculate_forces
+    TYPE(cp_error_type), INTENT(inout), &
+         OPTIONAL                               :: error
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "calculate_drho_pp", &
       routine = "SUBROUTINE "//routine_name//" (MODULE "//module_name//")"
@@ -670,7 +674,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL write_checkpoint_information("entering "//routine_name,globenv)
+    CALL write_checkpoint_information("entering "//routine_name,globenv,error)
 
     CALL timeset(routine_name,"I","",handle)
     
@@ -1107,7 +1111,7 @@ CONTAINS
 
     energy%ppseudo = e_ppl
 
-    CALL write_checkpoint_information("leaving "//routine_name,globenv)
+    CALL write_checkpoint_information("leaving "//routine_name,globenv,error)
 
     CALL timestop(0.0_dp,handle)
 

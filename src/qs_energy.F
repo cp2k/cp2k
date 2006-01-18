@@ -40,6 +40,8 @@ MODULE qs_energy
   USE qs_ks_methods,                   ONLY: qs_ks_create
   USE qs_environment_methods,          ONLY: qs_env_rebuild_pw_env
 
+#include "cp_common_uses.h"
+
   IMPLICIT NONE
 
   PRIVATE
@@ -58,7 +60,7 @@ CONTAINS
 ! *****************************************************************************
 
   SUBROUTINE qs_energies (qs_env, globenv, consistent_energies, calc_forces, &
-                          box_changed)
+                          box_changed, error)
 
 !   Purpose: QUICKSTEP single point wavefunction optimization.
 
@@ -72,6 +74,8 @@ CONTAINS
     LOGICAL, INTENT(IN), OPTIONAL            :: consistent_energies, &
                                                 calc_forces,&
                                                 box_changed
+    TYPE(cp_error_type), INTENT(inout), &
+         OPTIONAL                               :: error
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "qs_energies", &
       routine = "SUBROUTINE "//routine_name//" (MODULE "//module_name//")"
@@ -83,7 +87,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL write_checkpoint_information("entering "//routine_name,globenv)
+    CALL write_checkpoint_information("entering "//routine_name,globenv,error)
 
     CALL timeset(routine_name,"I","",handle)
 
@@ -99,7 +103,7 @@ CONTAINS
     END IF
 !JCS
 
-    CALL build_qs_neighbor_lists(qs_env,globenv)
+    CALL build_qs_neighbor_lists(qs_env,globenv,error=error)
 
     CALL get_qs_env ( qs_env=qs_env, dft_control=dft_control )
 
@@ -107,20 +111,20 @@ CONTAINS
     IF ( dft_control%qs_control%semi_empirical ) THEN
        CALL build_se_core_matrix(qs_env=qs_env,&
                                  globenv=globenv,&
-                                 calculate_forces=.FALSE.)
+                                 calculate_forces=.FALSE.,error=error)
     ELSE
       CALL build_core_hamiltonian_matrix(qs_env=qs_env,&
                                        globenv=globenv,&
-                                       calculate_forces=.FALSE.)
+                                       calculate_forces=.FALSE.,error=error)
     END IF
 
     CALL qs_env_update_s_mstruct(qs_env)
 
     ! *** Perform a SCF run ***
     IF (PRESENT(calc_forces)) THEN
-      CALL scf(qs_env=qs_env, globenv=globenv, calc_forces=calc_forces)
+      CALL scf(qs_env=qs_env, globenv=globenv, calc_forces=calc_forces, error=error)
     ELSE
-      CALL scf(qs_env=qs_env, globenv=globenv)
+      CALL scf(qs_env=qs_env, globenv=globenv,error=error)
     END IF
 
     IF (PRESENT(consistent_energies)) THEN
@@ -141,7 +145,7 @@ CONTAINS
 
     CALL timestop(0.0_dp,handle)
 
-    CALL write_checkpoint_information("leaving "//routine_name,globenv)
+    CALL write_checkpoint_information("leaving "//routine_name,globenv,error)
 
   END SUBROUTINE qs_energies
 

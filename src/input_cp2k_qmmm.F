@@ -849,23 +849,9 @@ contains
             error=error)
 
        NULLIFY(print_key)
-       CALL cp_print_key_section_create(print_key,"CPUTIME",&
-            description="Controls the printing of cputime information along the QMMM execution.", &
-            print_level=high_print_level,each=(/1/),filename="__STD_OUT__",&
-            error=error)
-       CALL section_add_subsection(section,print_key,error=error)
-       CALL section_release(print_key,error=error)
-
        CALL cp_print_key_section_create(print_key,"fist_derivatives",&
             description="Print all derivatives after FIST calculation", &
             print_level=medium_print_level,each=(/1/),filename="__STD_OUT__",&
-            error=error)
-       CALL section_add_subsection(section,print_key,error=error)
-       CALL section_release(print_key,error=error)
-
-       CALL cp_print_key_section_create(print_key,"MEMORY",&
-            description="Controls the printing of information on memory usage", &
-            print_level=high_print_level,each=(/1/),filename="__STD_OUT__",&
             error=error)
        CALL section_add_subsection(section,print_key,error=error)
        CALL section_release(print_key,error=error)

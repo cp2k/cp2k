@@ -129,9 +129,9 @@ CONTAINS
 
      ! calculate overlap matrix
      IF(calculate_forces) THEN
-       CALL build_overlap_matrix(qs_env=qs_env,globenv=globenv,nderivative=1)
+       CALL build_overlap_matrix(qs_env=qs_env,globenv=globenv,nderivative=1,error=error)
      ELSE
-       CALL build_overlap_matrix(qs_env=qs_env,globenv=globenv)
+       CALL build_overlap_matrix(qs_env=qs_env,globenv=globenv,error=error)
      END IF
 
      CALL get_qs_env(qs_env=qs_env,&

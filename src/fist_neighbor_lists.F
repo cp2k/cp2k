@@ -70,7 +70,7 @@ MODULE fist_neighbor_lists
                                              stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
-
+#include "cp_common_uses.h"
   IMPLICIT NONE
 
   PRIVATE
@@ -91,7 +91,7 @@ CONTAINS
 
   SUBROUTINE build_fist_neighbor_lists(atomic_kind_set,particle_set,&
                                        local_particles,cell,r_max,nonbonded,&
-                                       globenv,build_from_scratch)
+                                       globenv,build_from_scratch,error)
 
 !   Purpose: Build all the required neighbor lists for FIST.
 
@@ -109,7 +109,9 @@ CONTAINS
     TYPE(neighbor_list_set_p_type), &
       DIMENSION(:), POINTER                  :: nonbonded
     TYPE(global_environment_type), &
-      POINTER                                :: globenv
+         POINTER                             :: globenv
+    TYPE(cp_error_type), INTENT(inout), &
+         OPTIONAL                               :: error
     LOGICAL, INTENT(IN)                      :: build_from_scratch
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "build_fist_neighbor_lists"
@@ -124,7 +126,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL write_checkpoint_information("entering "//routine_name,globenv)
+    CALL write_checkpoint_information("Entering "//routine_name,globenv,error)
 
     CALL timeset(routine_name,"I","",handle)
 
@@ -251,7 +253,7 @@ CONTAINS
 
     CALL timestop(0.0_dp,handle)
 
-    CALL write_checkpoint_information("leaving "//routine_name,globenv)
+    CALL write_checkpoint_information("Leaving "//routine_name,globenv,error)
 
   END SUBROUTINE build_fist_neighbor_lists
 

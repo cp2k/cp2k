@@ -1137,7 +1137,7 @@ SUBROUTINE generate_cbmc_swap_config( force_env, BETA, nswapmoves,&
             boltz_weights(imove)=0.0_dp
             CYCLE
          ENDIF
-         CALL force_env_calc_energy_force(force_env,calc_force=.FALSE.)
+         CALL force_env_calc_energy_force(force_env,calc_force=.FALSE.,error=error)
          CALL force_env_get(force_env,&
             potential_energy=bias_energy,error=error)
             

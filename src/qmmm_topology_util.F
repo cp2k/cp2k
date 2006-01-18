@@ -83,7 +83,7 @@ CONTAINS
     
     failure = .FALSE.
     iw = globenv%scr
-    CALL write_checkpoint_information("entering "//routineN,globenv)
+    CALL write_checkpoint_information("entering "//routineN,globenv,error)
     CALL timeset(routineN,'I','',handle)
     IF((globenv%ionode).AND.(globenv%print%level>0))THEN
        WRITE(iw,*) "  Entering qmmm_coordinate_control"
@@ -118,7 +118,7 @@ CONTAINS
     END IF
     
     CALL timestop(0.0_dp,handle)
-    CALL write_checkpoint_information("leaving "//routineN,globenv)
+    CALL write_checkpoint_information("leaving "//routineN,globenv,error)
   END SUBROUTINE qmmm_coordinate_control
   
 
@@ -165,7 +165,7 @@ CONTAINS
     failure = .FALSE.
     detected_link = .FALSE.
     iw = globenv%scr
-    CALL write_checkpoint_information("entering "//routineN,globenv)
+    CALL write_checkpoint_information("entering "//routineN,globenv,error)
     CALL timeset(routineN,'I','',handle)
     IF (.NOT.failure) THEN
        IF((globenv%ionode).AND.(globenv%print%level>0))THEN
@@ -227,7 +227,7 @@ CONTAINS
     IF((globenv%ionode).AND.(globenv%print%level>0))THEN
        WRITE(iw,*) "  Leaving qmmm_connectivity_control"
     END IF
+    CALL write_checkpoint_information("leaving "//routineN,globenv,error)
   END SUBROUTINE qmmm_connectivity_control
-
 
 END MODULE qmmm_topology_util

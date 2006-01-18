@@ -506,7 +506,7 @@ CONTAINS
 
     IF (scf_control%max_scf < 1) RETURN
 
-    CALL write_checkpoint_information("entering "//routineN,globenv)
+    CALL write_checkpoint_information("entering "//routineN,globenv,error)
 
     CALL timeset(routineN,"I"," ",handle)
 
@@ -1009,7 +1009,7 @@ CONTAINS
 
     CALL timestop(0.0_dp,handle)
 
-    CALL write_checkpoint_information("leaving "//routineN,globenv)
+    CALL write_checkpoint_information("leaving "//routineN,globenv,error)
 
   END SUBROUTINE scf_env_do_scf
 

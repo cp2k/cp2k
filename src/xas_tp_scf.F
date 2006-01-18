@@ -225,7 +225,7 @@ CONTAINS
          scf_control=scf_control,&
          input=input)
 
-    CALL write_checkpoint_information("entering "//routineN,globenv)
+    CALL write_checkpoint_information("entering "//routineN,globenv,error)
 
     CALL timeset(routineN,"I"," ",handle)
 
@@ -728,7 +728,7 @@ CONTAINS
 
     CALL timestop(0.0_dp,handle)
 
-    CALL write_checkpoint_information("leaving "//routineN,globenv)
+    CALL write_checkpoint_information("leaving "//routineN,globenv,error)
 
 
   END SUBROUTINE xas_do_tp_scf

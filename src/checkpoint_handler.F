@@ -31,6 +31,11 @@ MODULE checkpoint_handler
   USE string_utilities,                ONLY: compress,&
                                              string_to_ascii,&
                                              ascii_to_string
+  USE cp_output_handling,              ONLY: cp_print_key_unit_nr, &
+                                             cp_print_key_finished_output,&
+                                             cp_print_key_should_output, cp_p_file
+
+#include "cp_common_uses.h"
 
   IMPLICIT NONE
 
@@ -45,7 +50,7 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE write_checkpoint_information(checkpoint,globenv)
+  SUBROUTINE write_checkpoint_information(checkpoint,globenv,error)
 
 !   Purpose: Write checkpoint information.
 
@@ -53,29 +58,39 @@ CONTAINS
 
 !   ***************************************************************************
 
-    CHARACTER(LEN=*), INTENT(IN)             :: checkpoint
+    CHARACTER(LEN=*), INTENT(IN)                :: checkpoint
     TYPE(global_environment_type), &
-      pointer                             :: globenv
+         POINTER                                :: globenv
+    TYPE(cp_error_type), INTENT(inout)          :: error
 
+    TYPE(cp_logger_type), POINTER            :: logger
+    INTEGER :: iw
+    
+    NULLIFY(logger)
+    logger => cp_error_get_logger(error)
+    iw = cp_print_key_unit_nr(logger,globenv%input_file,"GLOBAL%PERFORMANCE/ROUTINES",&
+         extension=".Log",error=error)
 !   ---------------------------------------------------------------------------
 !   *** Wait for ionode and empty IO buffer ***
-
+    
+    IF (iw>0) WRITE(iw,*)checkpoint
     IF (globenv%ionode) CALL m_flush(globenv%scr)
     CALL mp_sync(globenv%group)
 
 !   *** Write checkpoint informations ***
 
-    CALL write_cputime(checkpoint,globenv)
-    CALL write_memory(checkpoint,globenv)
+    CALL write_cputime(checkpoint,globenv,error)
+    CALL write_memory(checkpoint,globenv,error)
 
     IF (globenv%ionode) CALL m_flush(globenv%scr)
     CALL mp_sync(globenv%group)
-
+    CALL cp_print_key_finished_output(iw,logger,globenv%input_file,&
+         "GLOBAL%PERFORMANCE/ROUTINES",error=error)    
   END SUBROUTINE write_checkpoint_information
 
 ! *****************************************************************************
 
-  SUBROUTINE write_cputime(checkpoint,globenv)
+  SUBROUTINE write_cputime(checkpoint,globenv,error)
 
 !   Purpose: Write the current CPU time of all processes in seconds.
 
@@ -93,38 +108,46 @@ CONTAINS
                                                 output_unit, pid
     INTEGER, DIMENSION(:,:), ALLOCATABLE     :: myconvertedstring
     LOGICAL                                  :: ionode
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
-!   ---------------------------------------------------------------------------
+    TYPE(cp_logger_type), POINTER            :: logger
+    INTEGER :: iw
+    
+    NULLIFY(logger)
+    logger => cp_error_get_logger(error)
+    IF (BTEST(cp_print_key_should_output(logger%iter_info,globenv%input_file,&
+         "GLOBAL%PERFORMANCE/CPUTIME",error=error),cp_p_file)) THEN
+       iw = cp_print_key_unit_nr(logger,globenv%input_file,"GLOBAL%PERFORMANCE/CPUTIME",&
+            extension=".Log",error=error)
 
-    IF (.NOT.globenv%print%cputime) RETURN
-
-    group = globenv%group
-    ionode = globenv%ionode
-    npe = globenv%num_pe
-    mype = globenv%mepos
-    output_unit = globenv%scr
-
-    ALLOCATE(myconvertedstring(LEN(string2),npe))
-    myconvertedstring=0
-
-    CALL m_getpid(pid)
-    WRITE (UNIT=string1,FMT="(I6,A)") mype,":"//TRIM(checkpoint)
-    string1 = ADJUSTL(string1)
-    WRITE (UNIT=string2,FMT="(A,I8,A,F12.3,A)")&
-          "CPU time of process",pid," <"//TRIM(string1)//">: ",m_cputime(),&
-          " sec"
-    CALL string_to_ascii(string2,myconvertedstring(:,mype+1))
-    CALL mp_sum(myconvertedstring,group)
-    IF (ionode) THEN
-      DO ipe=1,npe
-         CALL ascii_to_string(myconvertedstring(:,ipe),string2)
-         WRITE (UNIT=output_unit,FMT="(T2,A)") TRIM(string2)
-      ENDDO
-      CALL m_flush(output_unit)
-    ENDIF
-
-    DEALLOCATE(myconvertedstring)
-
+       group = globenv%group
+       ionode = globenv%ionode
+       npe = globenv%num_pe
+       mype = globenv%mepos
+       output_unit = globenv%scr
+       
+       ALLOCATE(myconvertedstring(LEN(string2),npe))
+       myconvertedstring=0
+       
+       CALL m_getpid(pid)
+       WRITE (UNIT=string1,FMT="(I6,A)") mype,":"//TRIM(checkpoint)
+       string1 = ADJUSTL(string1)
+       WRITE (UNIT=string2,FMT="(A,I8,A,F12.3,A)")&
+            "CPU time of process",pid," <"//TRIM(string1)//">: ",m_cputime(),&
+            " sec"
+       CALL string_to_ascii(string2,myconvertedstring(:,mype+1))
+       CALL mp_sum(myconvertedstring,group)
+       IF (iw>0) THEN
+          DO ipe=1,npe
+             CALL ascii_to_string(myconvertedstring(:,ipe),string2)
+             WRITE (UNIT=output_unit,FMT="(T2,A)") TRIM(string2)
+          ENDDO
+          CALL m_flush(output_unit)
+       ENDIF       
+       DEALLOCATE(myconvertedstring)
+       CALL cp_print_key_finished_output(iw,logger,globenv%input_file,&
+            "GLOBAL%PERFORMANCE/CPUTIME",error=error)       
+    END IF
   END SUBROUTINE write_cputime
 
 !!*****

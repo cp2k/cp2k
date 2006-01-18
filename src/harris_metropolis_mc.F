@@ -372,7 +372,7 @@ CONTAINS
 
 !   ------------------------------------------------------------------------
 
-    CALL write_checkpoint_information("entering "//routineN, globenv)
+    CALL write_checkpoint_information("Entering "//routineN, globenv, error)
 
     CALL timeset(routineN, "I", "", handle)
 
@@ -1063,7 +1063,7 @@ CONTAINS
     CALL cp_iterate(logger%iter_info, last=.TRUE., &
                     iter_nr=itimes, error=error)
 
-    CALL velocity_verlet(md_env)
+    CALL velocity_verlet(md_env,error=error)
     DO ibead=1,nbeads
       CALL temperature_control(simpar,force_env_p(ibead)%force_env,error)
     END DO
@@ -1109,7 +1109,7 @@ CONTAINS
     
     CALL timestop(0.0_dp, handle)
 
-    CALL write_checkpoint_information("leaving "//routineN,globenv)
+    CALL write_checkpoint_information("Leaving "//routineN,globenv,error)
 
   END SUBROUTINE harris_mc_md
 !***************************************************************************
@@ -1183,7 +1183,7 @@ CONTAINS
       CALL cp_iterate(logger%iter_info, last=.FALSE., &
                       iter_nr=itimes, error=error)
 
-      CALL velocity_verlet(md_env)
+      CALL velocity_verlet(md_env,error=error)
 
       DO ibead = 1,nbeads
         CALL temperature_control(simpar, force_env_p(ibead)%force_env, error)

@@ -28,7 +28,6 @@ MODULE kg_intra
                                              get_atomic_kind_set
   USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                              gto_basis_set_type
-  USE checkpoint_handler,              ONLY: write_checkpoint_information
   USE distribution_1d_types,           ONLY: distribution_1d_type
   USE erf_fn,                          ONLY: erf
   USE global_types,                    ONLY: global_environment_type
@@ -108,8 +107,6 @@ CONTAINS
     INTEGER, DIMENSION ( : ), POINTER        :: list
 
 !   ---------------------------------------------------------------------------
-    CALL write_checkpoint_information("entering "//routine,globenv)
-
     CALL timeset("calculate_ebond_corr","I","",handle)
 
     group = globenv%group
@@ -257,8 +254,6 @@ CONTAINS
     IF (istat /= 0) CALL stop_memory(routine,"atom_of_kind")
 
     CALL mp_sum(e_bc,group)
-    CALL write_checkpoint_information("leaving "//routine,globenv)
-
     CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE calculate_ebond_corr  

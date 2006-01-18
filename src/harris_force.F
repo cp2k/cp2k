@@ -234,7 +234,7 @@ CONTAINS
 
       ! *** d/dR[Sum of eigenvalues] = d/dR[trace(H_in * rho_out)] *** !
       CALL build_core_hamiltonian_matrix(qs_env=qs_env, globenv=globenv, &
-                                         calculate_forces=.TRUE.)
+                                         calculate_forces=.TRUE.,error=error)
 
       DO ikind = 1,SIZE(force)
         CALL mp_sum(force(ikind)%kinetic, globenv%group)
@@ -633,7 +633,7 @@ CONTAINS
 
       ! *** d/dR[Sum of eigenvalues] = d/dR[trace(H_in * rho_out)] *** !
       CALL build_core_hamiltonian_matrix(qs_env=qs_env, globenv=globenv, &
-                                         calculate_forces=.TRUE.)
+                                         calculate_forces=.TRUE.,error=error)
 
       DO ikind = 1,SIZE(force)
         CALL mp_sum(force(ikind)%kinetic, globenv%group)

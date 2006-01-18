@@ -88,6 +88,7 @@ MODULE integrator
                                              nph_ensemble,&
                                              nph_uniaxial_ensemble,&
                                              nph_uniaxial_damped_ensemble  
+#include "cp_common_uses.h"
 
   IMPLICIT NONE
 
@@ -146,9 +147,11 @@ CONTAINS
 !!   SOURCE
 !******************************************************************************
 
-  SUBROUTINE langevin(md_env)
+  SUBROUTINE langevin(md_env,error)
 
     TYPE(md_environment_type), POINTER       :: md_env
+    TYPE(cp_error_type), INTENT(inout), &
+         OPTIONAL                               :: error
 
     CHARACTER(LEN=*), PARAMETER              :: routine_name = "langevin"
 
@@ -287,7 +290,7 @@ CONTAINS
 !     *** Update forces ***
 
 !      CALL force_env_set(force_env_p(1)%force_env,box_changed=.false.)
-      CALL force_env_calc_energy_force(force_env_p(1)%force_env)
+      CALL force_env_calc_energy_force(force_env_p(1)%force_env,error=error)
 
 !     *** Update Verlet (second part) ***
 
@@ -337,10 +340,11 @@ CONTAINS
 !!   SOURCE
 !******************************************************************************
 
-  SUBROUTINE nve ( md_env )
+  SUBROUTINE nve ( md_env, error)
 
     TYPE(md_environment_type), POINTER       :: md_env
-
+   TYPE(cp_error_type), INTENT(inout), &
+         OPTIONAL                               :: error
     CHARACTER(LEN=*), PARAMETER              :: routine_name = "nve_new"
 
     INTEGER :: icoef, iparticle, iparticle_kind, iparticle_local, istat, &
@@ -492,7 +496,7 @@ CONTAINS
 !     *** Update forces ***
 
 !      CALL force_env_set(force_env_p(1)%force_env,box_changed=.false.)
-       CALL force_env_calc_energy_force(force_env_p(1)%force_env)
+       CALL force_env_calc_energy_force(force_env_p(1)%force_env,error=error)
 
 !     *** Velocity Verlet (second part) ***
 
@@ -592,10 +596,11 @@ CONTAINS
 !!
 !!   SOURCE
 !******************************************************************************
-  SUBROUTINE isokin ( md_env )
+  SUBROUTINE isokin ( md_env, error )
 
     TYPE(md_environment_type), POINTER       :: md_env
-
+   TYPE(cp_error_type), INTENT(inout), &
+         OPTIONAL                               :: error
     CHARACTER(LEN=*), PARAMETER              :: routine_name = "isokin"
 
     INTEGER :: iparticle, iparticle_kind, iparticle_local, istat, isubsys, &
@@ -691,7 +696,7 @@ CONTAINS
       END DO
 
 !      CALL force_env_set(force_env_p(1)%force_env,box_changed=.false.)
-      CALL force_env_calc_energy_force(force_env_p(1)%force_env)
+      CALL force_env_calc_energy_force(force_env_p(1)%force_env,error=error)
 
       ! compute K,a,b,s,ds
       CALL get_s_ds()
@@ -770,11 +775,12 @@ CONTAINS
 !!   SOURCE
 !******************************************************************************
 
-  SUBROUTINE nvt ( md_env )
+  SUBROUTINE nvt ( md_env, error)
     IMPLICIT NONE
 
     TYPE(md_environment_type), POINTER       :: md_env
-
+   TYPE(cp_error_type), INTENT(inout), &
+         OPTIONAL                               :: error
     CHARACTER(LEN=*), PARAMETER              :: routine_name = "nvt"
 
     INTEGER :: icoef, iparticle, iparticle_kind, iparticle_local, istat, &
@@ -929,7 +935,7 @@ CONTAINS
 !     *** Update forces ***
 
 !      CALL force_env_set(force_env_p(1)%force_env,box_changed=.false.)
-      CALL force_env_calc_energy_force(force_env_p(1)%force_env)
+      CALL force_env_calc_energy_force(force_env_p(1)%force_env,error=error)
 
 !     *** Velocity Verlet (second part) ***
 
@@ -1032,11 +1038,12 @@ CONTAINS
 !!   SOURCE
 !******************************************************************************
 
- SUBROUTINE npt_i ( md_env )
+ SUBROUTINE npt_i ( md_env, error )
   
     IMPLICIT NONE
     TYPE(md_environment_type), POINTER       :: md_env
-
+   TYPE(cp_error_type), INTENT(inout), &
+         OPTIONAL                               :: error
     CHARACTER(LEN=*), PARAMETER              :: routine_name = "npt_i"
 
     INTEGER :: iparticle, iparticle_kind, iparticle_local, istat, &
@@ -1234,7 +1241,7 @@ CONTAINS
 !     *** Update forces ***
 
       CALL force_env_set(force_env_p(1)%force_env,box_changed=.TRUE.)
-      CALL force_env_calc_energy_force(force_env_p(1)%force_env)
+      CALL force_env_calc_energy_force(force_env_p(1)%force_env,error=error)
 
 !     *** Velocity Verlet (second part) ***
 
@@ -1324,9 +1331,10 @@ CONTAINS
 !!     04.2005 created [Joost VandeVondele]
 !!
 !!*** **********************************************************************
- SUBROUTINE reftraj ( md_env )
+ SUBROUTINE reftraj ( md_env, error )
     TYPE(md_environment_type), POINTER       :: md_env
-
+   TYPE(cp_error_type), INTENT(inout), &
+         OPTIONAL                               :: error
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: pos
     TYPE(cp_subsystem_p_type), &
@@ -1379,7 +1387,7 @@ CONTAINS
     ENDIF
     CALL update_particle_set ( particle_set, para_env % group, pos = pos )
     DEALLOCATE(pos)
-    CALL force_env_calc_energy_force(force_env_p(1)%force_env)
+    CALL force_env_calc_energy_force(force_env_p(1)%force_env,error=error)
 
     RETURN
 998 CONTINUE ! end of file
@@ -1418,11 +1426,12 @@ CONTAINS
 !!   SOURCE
 !******************************************************************************
 
- SUBROUTINE nph_uniaxial ( md_env )
+ SUBROUTINE nph_uniaxial ( md_env, error )
   
     IMPLICIT NONE
     TYPE(md_environment_type), POINTER       :: md_env
-
+   TYPE(cp_error_type), INTENT(inout), &
+         OPTIONAL                               :: error
     CHARACTER(LEN=*), PARAMETER              :: routine_name = "npt_uniaxial"
 
     INTEGER :: iparticle, iparticle_kind, iparticle_local, istat, &
@@ -1611,7 +1620,7 @@ CONTAINS
 !     *** Update forces (and stress)***
 
       CALL force_env_set(force_env_p(1)%force_env,box_changed=.TRUE.)
-      CALL force_env_calc_energy_force(force_env_p(1)%force_env)
+      CALL force_env_calc_energy_force(force_env_p(1)%force_env, error=error)
 
 !     *** Velocity Verlet (second part) ***
 
@@ -1708,11 +1717,12 @@ CONTAINS
 !!   SOURCE
 !******************************************************************************
 
- SUBROUTINE nph_uniaxial_damped ( md_env )
+ SUBROUTINE nph_uniaxial_damped ( md_env, error )
   
     IMPLICIT NONE
     TYPE(md_environment_type), POINTER       :: md_env
-
+   TYPE(cp_error_type), INTENT(inout), &
+         OPTIONAL                               :: error
     CHARACTER(LEN=*), PARAMETER              :: routine_name = "nph_uniaxial_damped"
 
     INTEGER :: iparticle, iparticle_kind, iparticle_local, istat, &
@@ -1916,7 +1926,7 @@ CONTAINS
 !     *** Update forces ***
 
       CALL force_env_set(force_env_p(1)%force_env,box_changed=.TRUE.)
-      CALL force_env_calc_energy_force(force_env_p(1)%force_env)
+      CALL force_env_calc_energy_force(force_env_p(1)%force_env, error=error)
 
 !     *** Velocity Verlet (second part) ***
 
@@ -2263,13 +2273,14 @@ END SUBROUTINE deallocate_old
 !!   SOURCE
 !******************************************************************************
 
- SUBROUTINE npt_f ( md_env )
+ SUBROUTINE npt_f ( md_env, error )
   
     IMPLICIT NONE
 
 ! Arguments
     TYPE ( md_environment_type ), POINTER :: md_env
-
+   TYPE(cp_error_type), INTENT(inout), &
+         OPTIONAL                               :: error
 ! Locals
     CHARACTER(LEN=*), PARAMETER              :: routine_name = "npt_f"
   
@@ -2481,7 +2492,7 @@ END SUBROUTINE deallocate_old
 !     *** Update forces ***
 
        CALL force_env_set(force_env_p(1)%force_env,box_changed=.TRUE.)
-       CALL force_env_calc_energy_force(force_env_p(1)%force_env)
+       CALL force_env_calc_energy_force(force_env_p(1)%force_env,error=error)
 
 !     *** Velocity Verlet (second part) ***
 

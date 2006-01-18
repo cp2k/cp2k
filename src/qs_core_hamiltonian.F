@@ -165,7 +165,7 @@ MODULE qs_core_hamiltonian
                                              sort
 !!JCS
   USE virial_types,                    ONLY: virial_type
-
+#include "cp_common_uses.h"
   IMPLICIT NONE
 
   PRIVATE
@@ -205,7 +205,7 @@ CONTAINS
 ! *****************************************************************************
 
   SUBROUTINE build_core_hamiltonian_matrix(qs_env,globenv,calculate_forces,&
-                                           harris)
+                                           harris,error)
 
 !   Purpose: Calculation of the overlap matrix over Cartesian Gaussian
 !            functions.
@@ -222,7 +222,8 @@ CONTAINS
       pointer                             :: globenv
     LOGICAL, INTENT(IN)                      :: calculate_forces
     LOGICAL, INTENT(IN), OPTIONAL            :: harris
-
+    TYPE(cp_error_type), INTENT(inout), &
+         OPTIONAL                               :: error
 !   *** Local parameters ***
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "core_hamiltonian"
@@ -341,7 +342,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL write_checkpoint_information("entering "//routine_name,globenv)
+    CALL write_checkpoint_information("entering "//routine_name,globenv,error)
 
     NULLIFY (atomic_kind_set)
     NULLIFY (distribution_2d)
@@ -2225,7 +2226,7 @@ CONTAINS
       CALL write_sparse_matrix(matrix_h(1)%matrix,4,6,qs_env,globenv)
     END IF
 
-    CALL write_checkpoint_information("leaving "//routine_name,globenv)
+    CALL write_checkpoint_information("leaving "//routine_name,globenv,error)
 
   END SUBROUTINE build_core_hamiltonian_matrix
 

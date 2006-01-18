@@ -185,13 +185,13 @@ RECURSIVE SUBROUTINE force_env_calc_energy_force ( force_env, &
         IF (.NOT.need_f) THEN
            CALL qs_energies(qs_env=force_env%qs_env, globenv=force_env%globenv, &
                             consistent_energies=energy_consistency, &
-                            calc_forces=calc_force,box_changed=my_box_change)
+                            calc_forces=calc_force,box_changed=my_box_change, error=error)
            IF (virial%pv_availability.AND.virial%pv_numer) THEN
              CALL qs_calc_numerical_pressure(force_env,error=error) 
            END IF
         ELSE
            CALL qs_forces(force_env%qs_env,force_env%globenv,&
-                                            box_changed=my_box_change)
+                                            box_changed=my_box_change, error=error)
            IF (virial%pv_availability.AND.virial%pv_numer) THEN
              CALL qs_calc_numerical_pressure(force_env,error=error) 
            END IF
@@ -200,9 +200,9 @@ RECURSIVE SUBROUTINE force_env_calc_energy_force ( force_env, &
         CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
      CASE ( use_kg_force )
         IF (.NOT.need_f) THEN
-           CALL kg_energies ( force_env%kg_env, force_env%globenv )
+           CALL kg_energies ( force_env%kg_env, force_env%globenv, error=error )
         ELSE
-           CALL kg_force_control ( force_env%kg_env, force_env%globenv )
+           CALL kg_force_control ( force_env%kg_env, force_env%globenv, error=error )
         END IF
      CASE ( use_qmmm )
         CALL qmmm_energy_and_forces(force_env,need_f,error)

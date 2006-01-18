@@ -65,7 +65,7 @@ MODULE atoms_input
 
   PRIVATE
   PUBLIC :: read_atoms_input, read_md_restart, read_pimd_atoms_input
-  CHARACTER(len=*), parameter :: moduleN="atoms_input"
+  CHARACTER(len=*), PARAMETER :: moduleN="atoms_input"
 !!*****
 !******************************************************************************
 
@@ -108,7 +108,6 @@ SUBROUTINE read_atoms_input ( topology, globenv, error )
                                                 end_c,wrd, j
     LOGICAL                                  :: scaled_coordinates, failure
 
-    LOGICAL                                  :: PM1, PM2, PM3, PM4
     TYPE(section_vals_type), pointer :: coord_section
     CHARACTER(len=default_string_length) :: line_att
     CHARACTER(len=*), PARAMETER :: routineN="read_atoms_input",&
@@ -116,21 +115,7 @@ SUBROUTINE read_atoms_input ( topology, globenv, error )
 
 !   ---------------------------------------------------------------------------
 
-  PM1 = .FALSE.
-  PM2 = .FALSE.
-  PM3 = .FALSE.
-  PM4 = .FALSE.
   failure=.false.
-  IF(PRESENT(globenv)) THEN
-    iw = globenv%scr
-    IF((globenv%ionode).AND.(globenv%print%level>0)) PM1= .TRUE.
-    IF((globenv%ionode).AND.(globenv%print%level>1)) PM2= .TRUE.
-    IF((globenv%ionode).AND.(globenv%print%level>2)) PM3= .TRUE.
-    IF((globenv%ionode).AND.(globenv%print%level>3)) PM4= .TRUE.
-  END IF
-
-  IF(PM1) WRITE(iw,*) "  Entering read_atoms_input"
-
 
   !-----------------------------------------------------------------------------
   !-----------------------------------------------------------------------------
@@ -239,9 +224,6 @@ SUBROUTINE read_atoms_input ( topology, globenv, error )
   IF ((atm_equal_mol /= 0) .AND. (atm_equal_mol /= natom)) THEN
     CALL stop_program ('read_atoms_input','check coord optional molname')
   END IF
-
-
-  IF(PM1) WRITE(iw,*) "  Exiting read_atoms_input"
 
 END SUBROUTINE read_atoms_input
 

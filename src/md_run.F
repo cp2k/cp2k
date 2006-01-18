@@ -184,7 +184,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL write_checkpoint_information("entering "//routine_name,globenv)
+    CALL write_checkpoint_information("Entering "//routine_name,globenv,error)
 
     CALL timeset(routine_name,"I","",handle)
 
@@ -343,7 +343,7 @@ CONTAINS
                       used_time = used_time ) 
     DO ibead = 1, nbeads
        CALL force_env_calc_energy_force ( force_env_p(ibead)%force_env,&
-            calc_force=.TRUE.)
+            calc_force=.TRUE.,error=error)
     END DO
     CALL md_energy ( md_env, globenv ) ! inits the print env at itimes == 0
     
@@ -353,7 +353,7 @@ CONTAINS
       itimes = itimes + 1
       CALL cp_iterate(logger%iter_info,last=(istep==simpar%nsteps),&
            iter_nr=itimes,error=error)
-      CALL velocity_verlet(md_env)
+      CALL velocity_verlet(md_env,error)
       DO ibead=1,nbeads
         CALL temperature_control(simpar,force_env_p(ibead)%force_env,error)
       END DO
@@ -391,7 +391,7 @@ CONTAINS
 
     CALL timestop(0.0_dp,handle)
 
-    CALL write_checkpoint_information("leaving "//routine_name,globenv)
+    CALL write_checkpoint_information("Leaving "//routine_name,globenv,error)
 
   END SUBROUTINE qs_mol_dyn2
 

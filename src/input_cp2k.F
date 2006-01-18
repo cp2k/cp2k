@@ -365,7 +365,7 @@ contains
     CALL section_add_keyword(section,keyword,error=error)
     CALL keyword_release(keyword,error=error)
 
-    CALL cp_print_key_section_create(print_key, "print_globals", description=&
+    CALL cp_print_key_section_create(print_key, "print", description=&
          "controls the printing of physical and mathematical constants", &
          print_level=high_print_level,filename="__STD_OUT__",&
          error=error)
@@ -392,19 +392,30 @@ contains
          print_level=high_print_level,filename="__STD_OUT__",&
          error=error)
     CALL keyword_create(keyword,"HPM",&
-         description="if the printkey is active controls the printing of the hpm info (if linked as external library)",&
+         description="if the printkey is active controls the printing of the hpm info (if linked as"//&
+         " EXTERNAL library)",&
          default_l_val=.TRUE.,lone_keyword_l_val=.TRUE.,error=error)
     CALL section_add_keyword(print_key,keyword,error=error)
     CALL keyword_release(keyword,error=error)
+
     CALL keyword_create(keyword,"cputime",&
-         description="if the printkey is active controls the printing of the cputime at important points during the program run",&
-         default_l_val=.TRUE.,lone_keyword_l_val=.TRUE.,error=error)
+         description="if the printkey is active controls the printing of the cputime at important"//&
+         " points during the PROGRAM run",&
+         default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,error=error)
     CALL section_add_keyword(print_key,keyword,error=error)
     CALL keyword_release(keyword,error=error)
+
+    CALL keyword_create(keyword,"routines",&
+         description="if the printkey is active controls the printing of the routine's name"//&
+         " at important points during the PROGRAM run",&
+         default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,error=error)
+    CALL section_add_keyword(print_key,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+
     CALL keyword_create(keyword,"memory",&
          description="if the printkey is active controls the printing of the "//&
          "memory usage at important points during the PROGRAM run",&
-         default_l_val=.TRUE.,lone_keyword_l_val=.TRUE.,error=error)
+         default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,error=error)
     CALL section_add_keyword(print_key,keyword,error=error)
     CALL keyword_release(keyword,error=error)
     CALL section_add_subsection(section,print_key,error=error)
@@ -415,12 +426,14 @@ contains
          print_level=high_print_level,filename="__STD_OUT__",&
          error=error)
     CALL keyword_create(keyword,"mpi",&
-         description="if the printkey is active controls the printing of the hpm info (if linked as external library)",&
+         description="if the printkey is active controls the printing of"//&
+         " the hpm info (IF linked as EXTERNAL library)",&
          default_l_val=.TRUE.,lone_keyword_l_val=.TRUE.,error=error)
     CALL section_add_keyword(print_key,keyword,error=error)
     CALL keyword_release(keyword,error=error)
     CALL keyword_create(keyword,"blacs_info",&
-         description="if the printkey is active controls the printing of the cputime at important points during the program run",&
+         description="if the printkey is active controls the printing of"//&
+         " the blacs info (IF linked as EXTERNAL library)",&
          default_l_val=.TRUE.,lone_keyword_l_val=.TRUE.,error=error)
     CALL section_add_keyword(print_key,keyword,error=error)
     CALL keyword_release(keyword,error=error)

@@ -256,7 +256,7 @@ CONTAINS
        !-----------------------------------------------------------------------------
        ! 5. Read in or generate the molecular connectivity
        !-----------------------------------------------------------------------------
-       CALL connectivity_control(topology,globenv)
+       CALL connectivity_control(topology,globenv,error=error)
 
 
        !-----------------------------------------------------------------------------
@@ -264,7 +264,7 @@ CONTAINS
        ! 7. Pack everything into the molecular types
        !-----------------------------------------------------------------------------
        CALL topology_connectivity_pack(molecule_kind_set,molecule_set,&
-            topology,globenv)
+            topology,globenv,error)
 
 
        !-----------------------------------------------------------------------------
@@ -272,7 +272,7 @@ CONTAINS
        ! 8. Pack everything into the atomic types
        !-----------------------------------------------------------------------------
        CALL topology_coordinate_pack(particle_set,atomic_kind_set,&
-            molecule_kind_set,molecule_set,topology,globenv)
+            molecule_kind_set,molecule_set,topology,globenv,error=error)
 
        !-----------------------------------------------------------------------------
        !-----------------------------------------------------------------------------

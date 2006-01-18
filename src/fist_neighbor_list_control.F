@@ -41,6 +41,8 @@ MODULE fist_neighbor_list_control
   USE timings,                         ONLY: timeset,&
                                              timestop
 
+#include "cp_common_uses.h"
+
   IMPLICIT NONE
 
   PRIVATE
@@ -62,7 +64,7 @@ CONTAINS
 ! list update, then the list routine is called.
 
 SUBROUTINE list_control ( atomic_kind_set, particle_set, local_particles, &
-                          cell, fist_nonbond_env, globenv )
+                          cell, fist_nonbond_env, globenv, error)
 
     TYPE(atomic_kind_type), POINTER          :: atomic_kind_set( : )
     TYPE(particle_type), POINTER             :: particle_set( : )
@@ -71,6 +73,8 @@ SUBROUTINE list_control ( atomic_kind_set, particle_set, local_particles, &
     TYPE(fist_nonbond_env_type), POINTER     :: fist_nonbond_env
     TYPE(global_environment_type), &
       pointer                             :: globenv
+    TYPE(cp_error_type), INTENT(inout), &
+         OPTIONAL                               :: error
 
     CHARACTER(LEN=*), PARAMETER              :: routine_name = "list_control"
 
@@ -162,7 +166,7 @@ SUBROUTINE list_control ( atomic_kind_set, particle_set, local_particles, &
     CALL build_fist_neighbor_lists(atomic_kind_set,particle_set,&
                                    local_particles,cell,rlist_cutsq,&
                                    nonbonded,globenv,&
-                                   build_from_scratch=build_from_scratch)
+                                   build_from_scratch=build_from_scratch, error=error)
 
     IF ( counter > 0 ) THEN
       num_update = num_update + 1
