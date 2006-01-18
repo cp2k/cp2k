@@ -784,7 +784,7 @@ END SUBROUTINE f_env_rm_defaults
           CPPrecondition(ASSOCIATED(globenv),cp_failure_level,routineP,error,failure)
        END IF
        IF (.NOT.failure) THEN
-          CALL cp2k_finalize(globenv)
+          CALL cp2k_finalize(globenv,error)
           CALL f_env_dealloc(f_envs(env_pos)%f_env,error=error)
           CALL cp_error_check(error,failure)
 

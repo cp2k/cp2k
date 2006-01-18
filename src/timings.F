@@ -22,7 +22,6 @@
 !******************************************************************************
 
 MODULE timings
-
   USE kinds,                           ONLY: dp
   USE machine,                         ONLY: m_cputime,&
                                              m_walltime,&
@@ -32,7 +31,7 @@ MODULE timings
                                              mp_environ
   USE string_utilities,                ONLY: uppercase
   USE util,                            ONLY: sort
-
+  
   PRIVATE
 
   INTERFACE timeset
@@ -537,12 +536,12 @@ END SUBROUTINE timestop_full
 !!
 !!   SOURCE
 !******************************************************************************
-
-SUBROUTINE timeprint(iw,global_print_level)
-
-
-    INTEGER, INTENT(IN)                      :: iw, global_print_level
-
+ 
+SUBROUTINE timeprint(iw,r_timings)
+    IMPLICIT NONE
+    REAL(KIND=dp), INTENT(IN)                :: r_timings
+    INTEGER, INTENT(IN)                      :: iw
+    
     INTEGER                                  :: i, j
     CHARACTER(LEN=1), DIMENSION(0:1)         :: ct = (/"I","E"/)
     INTEGER, DIMENSION(max_timer)            :: index
@@ -556,21 +555,14 @@ SUBROUTINE timeprint(iw,global_print_level)
       CALL mp_abort()
   ENDIF
 
-   timer_env => timer_env_stack(stack_pointer)%timer_env
+  timer_env => timer_env_stack(stack_pointer)%timer_env
 
-  IF ((timer_env%num_timer > 0).AND.(global_print_level >= 0)) THEN
+  IF (timer_env%num_timer > 0) THEN
 
      CALL sort(timer_env%wallclock_accu,timer_env%num_timer,index)
 
      maxtime = timer_env%wallclock_accu(timer_env%num_timer)
-
-     IF (global_print_level > 10) THEN
-        mintime = zero
-     ELSE IF (global_print_level > 5) THEN
-        mintime = maxtime*0.002_dp
-     ELSE
-        mintime = maxtime*0.02_dp
-     END IF
+     mintime = maxtime*r_timings
 
      WRITE (UNIT=iw,FMT="(/,T2,A)") REPEAT("-",79)
      WRITE (UNIT=iw,FMT="(T2,A,T80,A)") "-","-"

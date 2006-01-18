@@ -58,7 +58,8 @@ MODULE environment
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&
                                              section_vals_type,&
-                                             section_vals_val_get
+                                             section_vals_val_get,&
+                                             section_get_rval
   USE kinds,                           ONLY: dp,&
                                              int_size,&
                                              default_string_length,&
@@ -93,6 +94,8 @@ MODULE environment
                                              trace_debug,&
                                              use_HPM
   USE util,                            ONLY: ran2
+  USE cp_output_handling,              ONLY: cp_print_key_unit_nr, &
+                                             cp_print_key_finished_output
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -168,7 +171,7 @@ CONTAINS
     CHARACTER(LEN=60) :: cwd
     CHARACTER(LEN=30) :: host_name,string,user_name
     CHARACTER(LEN=26) :: datx
-    INTEGER           :: initial_random,ipe,istat,l,output_unit,pid,&
+    INTEGER           :: ipe,istat,l,output_unit,pid,&
                          strstart,strend
     LOGICAL           :: ionode
 
@@ -663,17 +666,19 @@ END SUBROUTINE cp2k_setup
 !!******
 !******************************************************************************
 
-  SUBROUTINE cp2k_finalize(globenv)
+  SUBROUTINE cp2k_finalize(globenv,error)
 
-    TYPE(global_environment_type), pointer :: globenv
-
+    TYPE(global_environment_type), POINTER :: globenv
+    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
 !   *** Local variables ***
 
     CHARACTER(LEN=60) :: cwd
     CHARACTER(LEN=30) :: host_name,user_name
     CHARACTER(LEN=26) :: datx
-    INTEGER           :: l,output_unit,pid,unit_exit
+    INTEGER           :: l,iw,pid,unit_exit
     LOGICAL           :: delete_it
+    TYPE(cp_logger_type), POINTER            :: logger
+    REAL(KIND=dp)     :: r_timings
 #if defined(__HPM)
 #include "f_hpm.h"
 #endif
@@ -681,7 +686,8 @@ END SUBROUTINE cp2k_setup
 !   ---------------------------------------------------------------------------
 
 !   *** Clean up ***
-
+    NULLIFY(logger)
+    logger => cp_error_get_logger(error)
     CALL deallocate_spherical_harmonics()
     CALL deallocate_orbital_pointers()
     CALL deallocate_md_ftable()
@@ -699,15 +705,19 @@ END SUBROUTINE cp2k_setup
 
     CALL timestop(0.0_dp,handle) ! corresponding the "CP2K" in cp2k_init
 
-    IF (globenv%ionode) THEN
-      output_unit = globenv%scr
-      CALL timeprint(output_unit,globenv%print_level)
+    iw = cp_print_key_unit_nr(logger,globenv%input_file,"GLOBAL%TIMINGS",&
+         extension=".Log",error=error)
+    IF (iw>0) THEN
+       r_timings = section_get_rval(globenv%input_file,"GLOBAL%TIMINGS%THRESHOLD",error)
+       CALL timeprint(iw,r_timings)
     END IF
+    CALL cp_print_key_finished_output(iw,logger,globenv%input_file,&
+         "GLOBAL%TIMINGS",error=error)
 
     CALL rm_timer_env()
 
     IF (globenv%ionode) THEN
-      output_unit = globenv%scr
+      iw = globenv%scr
       CALL m_datum(datx)
       CALL m_getcwd(cwd)
       CALL m_getlog(user_name)
@@ -722,7 +732,7 @@ END SUBROUTINE cp2k_setup
       END IF
 
       IF (globenv%ionode.AND.globenv%print%program_banner) THEN
-        WRITE (UNIT=output_unit,&
+        WRITE (UNIT=iw,&
                FMT="(A,T55,A26,/,A,T51,A30,/,A,T51,A30,/,A,T71,I10)")&
          "  **** **** ******  **  PROGRAM ENDED AT   ",ADJUSTR(datx),&
          " ***** ** ***  *** **   PROGRAM RAN ON     ",ADJUSTR(host_name),&
@@ -730,12 +740,12 @@ END SUBROUTINE cp2k_setup
          " ***** **    ** ** **   PROGRAM PROCESS ID ",pid
         l = LEN_TRIM(cwd)
         IF (l <= 38) THEN
-          WRITE (UNIT=output_unit,FMT="(A,T43,A38,/)")&
+          WRITE (UNIT=iw,FMT="(A,T43,A38,/)")&
             "  **** **  *******  **  PROGRAM STARTED IN ",ADJUSTR(cwd(1:l))
         ELSE
-          WRITE (UNIT=output_unit,FMT="(A)")&
+          WRITE (UNIT=iw,FMT="(A)")&
             "  **** **  *******  **  PROGRAM STARTED IN "
-          WRITE (UNIT=output_unit,FMT="(T21,A60,/)") ADJUSTR(cwd)
+          WRITE (UNIT=iw,FMT="(T21,A60,/)") ADJUSTR(cwd)
         END IF
       END IF
 

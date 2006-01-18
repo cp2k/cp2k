@@ -309,7 +309,7 @@ CONTAINS
     CALL cp_error_dealloc_ref(error)
  
     I_was_ionode=globenv%ionode
-    CALL cp2k_finalize(globenv)
+    CALL cp2k_finalize(globenv,error)
     CPPostconditionNoFail(globenv%ref_count==1,cp_failure_level,routineP,error)
     CALL globenv_release(globenv)
     CALL cp_para_env_release(para_env)
