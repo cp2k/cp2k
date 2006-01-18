@@ -84,18 +84,18 @@ CONTAINS
   SUBROUTINE quickstep_create_force_env(force_env,globenv,subsystem,cell,cell_ref,&
        qmmm, error)
 
-    TYPE(force_env_type), POINTER            :: force_env
-    TYPE(global_environment_type), POINTER   :: globenv
+    TYPE(force_env_type), POINTER              :: force_env
+    TYPE(global_environment_type), POINTER     :: globenv
     TYPE(cp_subsystem_type), POINTER, OPTIONAL :: subsystem
     TYPE(cell_type), POINTER, OPTIONAL         :: cell, cell_ref
     LOGICAL, INTENT(IN), OPTIONAL              :: qmmm
     TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+      OPTIONAL                                 :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = "quickstep_create_force_env", &
       routineP = moduleN//":"//routineN
 
-    INTEGER                                  :: handle
+    INTEGER                                    :: handle
 
 !   ---------------------------------------------------------------------------
 

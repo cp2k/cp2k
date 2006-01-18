@@ -217,7 +217,7 @@ CONTAINS
        CALL keyword_release(keyword, error=error)
 
        CALL keyword_create(keyword, name="r_calpha", &
-            description="Individual cutoff for each hopping parameter", &
+            description="Individual cutoffs for each hopping parameter", &
             usage="r_calpha <Real r_c1> <Real r_c2> <Real r_c3> <Real r_c4>", &
             required=.FALSE., type_of_var=real_t, n_var=4, repeats=.FALSE., &
             default_r_vals=(/3.67_dp, 3.67_dp, 3.67_dp, 3.67_dp/), &
@@ -243,7 +243,7 @@ CONTAINS
        CALL keyword_release(keyword, error=error)
 
        CALL keyword_create(keyword, name="m", &
-            description="The value of the pair potential exponent", &
+            description="The value of the pair-potential exponent", &
             usage="m 4.54", required=.FALSE., type_of_var=real_t, &
             n_var=1, repeats=.FALSE., default_r_val=4.54_dp, &
             error=error)
@@ -251,21 +251,21 @@ CONTAINS
        CALL keyword_release(keyword, error=error)
 
        CALL keyword_create(keyword, name="d_c", &
-            description="Pair potential cutoff", &
+            description="Pair-potential cutoff", &
             usage="d_c 3.67", required=.FALSE., type_of_var=real_t, &
             n_var=1, repeats=.FALSE., default_r_val=3.67_dp, error=error)
        CALL section_add_keyword(section, keyword, error=error)
        CALL keyword_release(keyword, error=error)
 
        CALL keyword_create(keyword, name="m_c", &
-            description="Pair potential exponent m_c", &
+            description="Pair-potential exponent m_c", &
             usage="m_c", required=.FALSE., type_of_var=real_t, n_var=1, &
             repeats=.FALSE., default_r_val=6.48_dp, error=error)
        CALL section_add_keyword(section, keyword, error=error)
        CALL keyword_release(keyword, error=error)
 
        CALL keyword_create(keyword, name="C14", &
-            description="Parameters C1-C4 of Kwon's function for the pair repulsion", &
+            description="Parameters C1-C4 of Kwon's 4th order polynomial for the pair-repulsion", &
             usage="C14 <Real C1> <Real C2> <Real C3> <Real C4>", &
             required=.FALSE., type_of_var=real_t, n_var=4, repeats=.FALSE., &
             default_r_vals=(/1.0_dp, 0.0_dp, 0.0_dp, 0.0_dp/), error=error)
@@ -275,7 +275,7 @@ CONTAINS
 
        CALL keyword_create(keyword, name="dEpsilon", &
             description="s-p energy splitting dEpsilon = Epsilon_p-Epsilon_s", &
-            usage="dEsilon 8.295", required=.FALSE., type_of_var=real_t, &
+            usage="dEpsilon 8.295", required=.FALSE., type_of_var=real_t, &
             n_var=1, repeats=.FALSE., default_r_val=8.295_dp, &
             unit_str="eV", error=error)
        CALL section_add_keyword(section, keyword, error=error)

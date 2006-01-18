@@ -109,9 +109,9 @@ CONTAINS
     TYPE(neighbor_list_set_p_type), &
       DIMENSION(:), POINTER                  :: nonbonded
     TYPE(global_environment_type), &
-         POINTER                             :: globenv
+      POINTER                                :: globenv
     TYPE(cp_error_type), INTENT(inout), &
-         OPTIONAL                               :: error
+      OPTIONAL                               :: error
     LOGICAL, INTENT(IN)                      :: build_from_scratch
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "build_fist_neighbor_lists"

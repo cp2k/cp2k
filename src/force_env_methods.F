@@ -50,7 +50,8 @@ MODULE force_env_methods
                                              use_pol_force,&
                                              use_qs_force,&
                                              use_qmmm,&
-                                             use_list_force
+                                             use_list_force, &
+                                             use_tbmd_force
   USE global_types,                    ONLY: global_environment_type,&
        globenv_retain, globenv_release
   USE kg_energy,                       ONLY: kg_energies
@@ -79,6 +80,11 @@ MODULE force_env_methods
   USE qs_force,                        ONLY: qs_forces
   USE qs_numerical_pressure,           ONLY: qs_calc_numerical_pressure
   USE simulation_cell,                 ONLY: cell_type
+  !USE tbmd_energy_methods,             ONLY: tbmd_energies
+  USE tbmd_environment_types,          ONLY: tbmd_environment_type, &
+                                             tbmd_env_get, &
+                                             tbmd_env_retain
+  !USE tbmd_force_methods,              ONLY: tbmd_forces
   USE virial_types,                    ONLY: virial_create, &
                                              virial_type,&
                                              virial_retain,&
@@ -204,6 +210,12 @@ RECURSIVE SUBROUTINE force_env_calc_energy_force ( force_env, &
         ELSE
            CALL kg_force_control ( force_env%kg_env, force_env%globenv, error=error )
         END IF
+     CASE (use_tbmd_force)
+        IF (.NOT. need_f) THEN
+          !CALL tbmd_energies(force_env%tbmd_env, force_env%globenv, error=error)
+        ELSE
+          !CALL tbmd_forces(force_env%tbmd_env, force_env%globenv, error=error)
+        END IF
      CASE ( use_qmmm )
         CALL qmmm_energy_and_forces(force_env,need_f,error)
      CASE ( use_list_force )
@@ -262,7 +274,7 @@ END SUBROUTINE force_env_calc_energy_force
 !!
 !!*** **********************************************************************
 SUBROUTINE force_env_create(force_env,globenv,force_env_list,fist_env,&
-     qs_env,kg_env,meta_env,sub_force_env,qmmm_env,error)
+     qs_env,kg_env,tbmd_env,meta_env,sub_force_env,qmmm_env,error)
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(force_env_p_type), DIMENSION(:), OPTIONAL, &
       POINTER                                :: force_env_list
@@ -272,6 +284,8 @@ SUBROUTINE force_env_create(force_env,globenv,force_env_list,fist_env,&
       POINTER                                :: qs_env
     TYPE(kg_environment_type), OPTIONAL, &
       POINTER                                :: kg_env
+    TYPE(tbmd_environment_type), OPTIONAL, &
+      POINTER                                :: tbmd_env
     TYPE(global_environment_type), &
       POINTER                                :: globenv
     TYPE(meta_env_type), OPTIONAL, POINTER   :: meta_env
@@ -347,6 +361,17 @@ SUBROUTINE force_env_create(force_env,globenv,force_env_list,fist_env,&
            kg_env%virial => force_env%virial
            CALL virial_retain(kg_env%virial)
         END IF
+     END IF
+     IF (PRESENT(tbmd_env)) THEN
+       IF (ASSOCIATED(tbmd_env)) THEN
+         CPPrecondition(force_env%in_use==0, cp_failure_level, routineP, error, failure)
+         force_env%in_use = use_tbmd_force
+         force_env%tbmd_env => tbmd_env
+         CALL tbmd_env_retain(tbmd_env, error=error)
+         CALL virial_create(force_env%virial, virial_in_use = .FALSE.)
+         tbmd_env%virial => force_env%virial
+         CALL virial_retain(tbmd_env%virial)
+       END IF
      END IF
      IF (PRESENT(qs_env)) THEN
         IF (ASSOCIATED(qs_env)) THEN
@@ -465,6 +490,15 @@ SUBROUTINE force_env_create(force_env,globenv,force_env_list,fist_env,&
              error=error)
         CALL cp_subsys_retain(force_env%subsys(1)%subsys,&
              error=error)
+     CASE(use_tbmd_force)
+        ALLOCATE(force_env%subsys(1), stat=stat)
+        CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
+        NULLIFY(force_env%subsys(1)%subsys)
+
+        CALL tbmd_env_get(force_env%tbmd_env, &
+                          subsys=force_env%subsys(1)%subsys, &
+                          error=error)
+        CALL cp_subsys_retain(force_env%subsys(1)%subsys, error=error)
      CASE(use_qmmm)
         subsys => force_env%sub_force_env(1)%force_env%subsys
         ALLOCATE(force_env%subsys(size(subsys)), stat=stat)
@@ -544,6 +578,8 @@ RECURSIVE SUBROUTINE force_env_set_cell(force_env, cell, error)
         CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
      CASE (use_kg_force)
         CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
+     CASE (use_tbmd_force)
+        CPAssert(.FALSE., cp_failure_level, routineP, error, failure)
      CASE default
         CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
              routineP,"unknown in_use flag value "//&
