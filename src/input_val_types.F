@@ -22,7 +22,12 @@
 !!
 !!   SOURCE
 !****************************************************************************
+
 MODULE input_val_types
+
+  USE cp_units,                        ONLY: cp_unit_desc,&
+                                             cp_unit_from_cp2k,&
+                                             cp_unit_type
   USE input_enumeration_types,         ONLY: enum_i2c,&
                                              enum_release,&
                                              enum_retain,&
@@ -628,18 +633,21 @@ SUBROUTINE val_write(val,unit_nr,error)
   WRITE(unit=unit_nr,fmt="()")
 END SUBROUTINE val_write
 
-! *****************************************************************************
+  ! ***************************************************************************
 
-  SUBROUTINE val_write_internal(val,string,error)
+  SUBROUTINE val_write_internal(val,string,unit,error)
 
-!   Purpose: Write values to an internal file, i.e. string variable.
+    ! Purpose: Write values to an internal file, i.e. string variable.
 
-!   History: - Creation (10.03.2005,MK)
+    ! History: - Creation (10.03.2005,MK)
+    !          - Optional argument unit for the conversion to the external unit
+    !            added (17.01.2006,MK)
 
-!   ***************************************************************************
+    ! *************************************************************************
 
     TYPE(val_type), POINTER                  :: val
     CHARACTER(LEN=*), INTENT(OUT)            :: string
+    TYPE(cp_unit_type), POINTER, OPTIONAL    :: unit
     TYPE(cp_error_type), INTENT(INOUT),&
       OPTIONAL                               :: error
 
@@ -647,10 +655,11 @@ END SUBROUTINE val_write
                                    routineP = moduleN//":"//routineN
 
     CHARACTER(LEN=default_string_length) :: enum_string
+    REAL(KIND=dp)                        :: value
     INTEGER                              :: i,ipos
     LOGICAL                              :: failure
 
-!   ---------------------------------------------------------------------------
+    ! -------------------------------------------------------------------------
 
     failure = .FALSE.
 
@@ -677,9 +686,19 @@ END SUBROUTINE val_write
         END IF
       CASE (real_t)
         IF (ASSOCIATED(val%r_val)) THEN
-          DO i=1,SIZE(val%r_val)
-            WRITE (UNIT=string(16*i-15:),FMT="(ES16.8)") val%r_val(i)
-          END DO
+          IF (PRESENT(unit)) THEN
+            DO i=1,SIZE(val%r_val)
+              value = cp_unit_from_cp2k(value=val%r_val(i),&
+                                        unit_str=cp_unit_desc(unit=unit,&
+                                                              error=error),&
+                                        error=error)
+              WRITE (UNIT=string(16*i-15:),FMT="(ES16.8)") value
+            END DO
+          ELSE
+            DO i=1,SIZE(val%r_val)
+              WRITE (UNIT=string(16*i-15:),FMT="(ES16.8)") val%r_val(i)
+            END DO
+          END IF
         ELSE
           CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
         END IF
@@ -712,7 +731,7 @@ END SUBROUTINE val_write
 
   END SUBROUTINE val_write_internal
 
-! *****************************************************************************
+  ! ***************************************************************************
 
 !!****f* input_val_types/val_duplicate *
 !!

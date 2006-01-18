@@ -875,9 +875,16 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
-       CALL keyword_create(keyword, name="timestep",&
-            description="The length of an integration step.",&
-            usage="timestep 1.0", default_r_val=0.5_dp,unit_str='fs',error=error)
+       CALL keyword_create(&
+             keyword=keyword,&
+             name="timestep",&
+             description="The length of an integration step",&
+             usage="timestep 1.0",&
+             default_r_val=cp_unit_to_cp2k(value=0.5_dp,&
+                                           unit_str="fs",&
+                                           error=error),&
+             unit_str="fs",&
+             error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
@@ -895,11 +902,18 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
-       CALL keyword_create(keyword, name="temperature",&
-            description="The temperature in K used to initialize the velocities"//&
-            "with init and pos restart, and in the npt/nvt simulations", &
-            usage="temperature 325.0",&
-            default_r_val=300.0_dp, unit_str='K',error=error)
+       CALL keyword_create(&
+             keyword=keyword,&
+             name="temperature",&
+             description="The temperature in K used to initialize "//&
+                         "the velocities with init and pos restart, "//&
+                         "and in the NPT/NVT simulations",&
+             usage="temperature 325.0",&
+             default_r_val=cp_unit_to_cp2k(value=300.0_dp,&
+                                           unit_str="K",&
+                                           error=error),&
+             unit_str="K",&
+             error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
@@ -1244,7 +1258,7 @@ SUBROUTINE create_barostat_section(section, error)
        CALL keyword_create(keyword, name="TIMECON",&
             description="Barostat time constant",&
             usage="TIMECON real",&
-            default_r_val=cp_unit_to_cp2k(1000._dp,"fs",error=error),&
+            default_r_val=cp_unit_to_cp2k(1000.0_dp,"fs",error=error),&
             unit_str='fs',error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)        
@@ -1333,10 +1347,16 @@ SUBROUTINE create_coeff_section(coeff_section, error)
        CALL section_add_keyword(coeff_section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
-       CALL keyword_create(keyword, name="temperature",&
-            description="target temperature for the KG-POL coeffs",&
-            default_r_val=1.0_dp, usage="temperature 1.0",&
-            unit_str='K',error=error)
+       CALL keyword_create(&
+             keyword=keyword,&
+             name="temperature",&
+             description="Target temperature for the KG-POL coeffs",&
+             default_r_val=cp_unit_to_cp2k(value=1.0_dp,&
+                                           unit_str="K",&
+                                           error=error),&
+             usage="temperature 1.0",&
+             unit_str="K",&
+             error=error)
        CALL section_add_keyword(coeff_section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
@@ -1425,8 +1445,8 @@ SUBROUTINE create_nose_section(section, error)
        CALL keyword_create(keyword, name="timecon",&
             description="timeconstant of the thermostat chain",&
             usage="timeconstant real", &
-            default_r_val=cp_unit_to_cp2k(1000._dp,'fs',error=error),&
-            unit_str='fs',error=error)
+            default_r_val=cp_unit_to_cp2k(1000.0_dp,"fs",error=error),&
+            unit_str="fs",error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 

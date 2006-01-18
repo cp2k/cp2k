@@ -25,7 +25,6 @@
 MODULE input_cp2k_dft
   use kinds, only: dp
   use cp_para_types, only: cp_para_env_type
-  USE physcon, ONLY: bohr
   use timings, only: timeset, timestop
   USE input_section_types, ONLY: section_type, section_create, &
        section_add_keyword, section_add_subsection, section_release,&
@@ -37,7 +36,7 @@ MODULE input_cp2k_dft
   USE input_val_types, ONLY: val_type, no_t, logical_t, integer_t, real_t, char_t,&
        enum_t
   USE cp_output_handling, only: cp_print_key_section_create
-
+  USE cp_units, ONLY: cp_unit_to_cp2k
   USE string_utilities, ONLY: s2a
 #include "cp_common_uses.h"
 
@@ -687,26 +686,30 @@ END SUBROUTINE xc_functionals_expand
        CALL section_add_subsection(section,print_key,error=error)
        CALL section_release(print_key,error=error)
 
-       CALL cp_print_key_section_create(print_key_section=print_key,&
-                                        name="XRAY_DIFFRACTION_SPECTRUM",&
-                                        description="Calculate and print the coherent "//&
-                                                    "X-ray diffraction spectrum",&
-                                        print_level=debug_print_level,&
-                                        each=(/1/),&
-                                        filename="",&
-                                        error=error)
-       CALL keyword_create(keyword=keyword,&
-                           name="Q_MAX",&
-                           variants=(/"Q_MAXIMUM"/),&
-                           description="Maximum Q value printed",&
-                           usage="Q_MAX {real}",&
-                           repeats=.FALSE.,&
-                           required=.FALSE.,&
-                           n_var=1,&
-                           type_of_var=real_t,&
-                           default_r_val=20.0_dp/bohr,&
-                           unit_str="angstrom^-1",&
-                           error=error)
+       CALL cp_print_key_section_create(&
+             print_key_section=print_key,&
+             name="XRAY_DIFFRACTION_SPECTRUM",&
+             description="Calculate and print the coherent X-ray "//&
+                         "diffraction spectrum",&
+             print_level=debug_print_level,&
+             each=(/1/),&
+             filename="",&
+             error=error)
+       CALL keyword_create(&
+             keyword=keyword,&
+             name="Q_MAX",&
+             variants=(/"Q_MAXIMUM"/),&
+             description="Maximum Q value calculated for the spectrum",&
+             usage="Q_MAX {real}",&
+             repeats=.FALSE.,&
+             required=.FALSE.,&
+             n_var=1,&
+             type_of_var=real_t,&
+             default_r_val=cp_unit_to_cp2k(value=20.0_dp,&
+                                           unit_str="angstrom^-1",&
+                                           error=error),&
+             unit_str="angstrom^-1",&
+             error=error)
        CALL section_add_keyword(print_key,keyword,error=error)
        CALL keyword_release(keyword,error=error)
        CALL section_add_subsection(section,print_key,error=error)
@@ -2771,16 +2774,23 @@ SUBROUTINE create_tddfpt_section(section,error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
-       CALL keyword_create(keyword, name="cutoff",&
-            description="The cutoff (from the highest grid to the lowest)",&
-            usage="cutoff 300", default_r_val=280._dp, n_var=-1,&
-            unit_str="Ry",error=error)
+       CALL keyword_create(&
+             keyword=keyword,&
+             name="cutoff",&
+             description="The cutoff (from the highest grid to the lowest)",&
+             usage="cutoff 300",&
+             default_r_val=cp_unit_to_cp2k(value=280.0_dp,&
+                                           unit_str="Ry",&
+                                           error=error),&
+             n_var=-1,&
+             unit_str="Ry",&
+             error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="progression_factor",&
             description="Factor used to find the cutoff of the multigrids that"//&
-            " where not given explicetly",&
+            " where not given explicitly",&
             usage="progression_factor <integer>", default_r_val=3._dp, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)

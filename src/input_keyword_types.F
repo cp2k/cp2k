@@ -912,6 +912,7 @@ END SUBROUTINE keyword_describe_html
     CHARACTER(LEN=1000) :: string
     CHARACTER(LEN=5)    :: keyword_n_var
     CHARACTER(LEN=3)    :: repeats,required
+    REAL(KIND=dp)       :: value
     INTEGER             :: i,l0,l1,l2,l3,l4
     LOGICAL             :: failure
 
@@ -1015,7 +1016,16 @@ END SUBROUTINE keyword_describe_html
 
       IF (ASSOCIATED(keyword%default_value).AND.&
           (keyword%type_of_var /= no_t)) THEN
-        CALL val_write_internal(keyword%default_value,string,error)
+        IF (ASSOCIATED(keyword%unit)) THEN
+          CALL val_write_internal(val=keyword%default_value,&
+                                  string=string,&
+                                  unit=keyword%unit,&
+                                  error=error)
+        ELSE
+          CALL val_write_internal(val=keyword%default_value,&
+                                  string=string,&
+                                  error=error)
+        END IF
         CALL compress(string)
         WRITE (UNIT=unit_number,FMT="(A)")&
           REPEAT(" ",l1)//"<DEFAULT_VALUE>"//&
@@ -1031,7 +1041,9 @@ END SUBROUTINE keyword_describe_html
 
       IF (ASSOCIATED(keyword%lone_keyword_value).AND.&
           (keyword%type_of_var /= no_t)) THEN
-        CALL val_write_internal(keyword%lone_keyword_value,string,error)
+        CALL val_write_internal(val=keyword%lone_keyword_value,&
+                                string=string,&
+                                error=error)
         WRITE (UNIT=unit_number,FMT="(A)")&
           REPEAT(" ",l1)//"<LONE_KEYWORD_VALUE>"//&
           TRIM(ADJUSTL(string))//"</LONE_KEYWORD_VALUE>"
