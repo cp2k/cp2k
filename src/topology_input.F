@@ -150,6 +150,8 @@ SUBROUTINE read_topology_section ( topology, topology_section, globenv, error )
      CALL section_vals_val_get(topology_section,"EXCLUDE_EI",i_val=topology % exclude_ei,error=error)
      CALL section_vals_val_get(topology_section,"EXCLUDE_CHECK",i_val=topology % exclude_check,error=error)
      CALL section_vals_val_get(topology_section,"BONDPARM",i_val=topology % bondparm_type,error=error)
+     CALL section_vals_val_get(topology_section,"BONDPARM_FACTOR", &
+                               r_val=topology % bondparm_factor,error=error)
      CALL section_vals_val_get(topology_section,"NHCOPT",i_val=topology % nhcopt,error=error)
 
   END IF
