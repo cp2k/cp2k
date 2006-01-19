@@ -496,7 +496,7 @@ SUBROUTINE force_env_create(force_env,globenv,force_env_list,fist_env,&
         NULLIFY(force_env%subsys(1)%subsys)
 
         CALL tbmd_env_get(force_env%tbmd_env, &
-                          subsys=force_env%subsys(1)%subsys, &
+                          subsystem=force_env%subsys(1)%subsys, &
                           error=error)
         CALL cp_subsys_retain(force_env%subsys(1)%subsys, error=error)
      CASE(use_qmmm)

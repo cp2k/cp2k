@@ -27,7 +27,9 @@ MODULE tbmd_main
   USE force_env_methods,               ONLY: force_env_create
   USE global_types,                    ONLY: global_environment_type
   USE kinds,                           ONLY: dp
-  USE tbmd_environment_types,          ONLY: tbmd_environment_type
+  USE tbmd_environment,                ONLY: tbmd_init
+  USE tbmd_environment_types,          ONLY: tbmd_environment_type, &
+                                             tbmd_env_create
   USE timings,                         ONLY: timeset, &
                                              timestop
 
@@ -82,6 +84,12 @@ CONTAINS
 !   ---------------------------------------------------------------------------
 
     CALL timeset(routineN,"I","",handle)
+
+    NULLIFY(tbmd_env)
+
+    CALL tbmd_env_create(tbmd_env, error=error)
+
+    CALL tbmd_init(tbmd_env, globenv, error=error)
 
     CALL force_env_create(force_env, tbmd_env=tbmd_env, globenv=globenv, &
                           error=error)

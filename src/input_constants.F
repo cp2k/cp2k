@@ -431,10 +431,10 @@ MODULE input_constants
                                 Harris_MC_method=7
 
   ! Tight-Binding parametrization models
-  INTEGER, PARAMETER, PUBLIC :: use_gsp=0,&
-                                use_sawada=1,&
-                                use_kwon=2,&
-                                use_lenosky=3,&
-                                use_udp=4
+  INTEGER, PARAMETER, PUBLIC :: use_gsp=1,&
+                                use_sawada=2,&
+                                use_kwon=3,&
+                                use_lenosky=4,&
+                                use_udp=5
 
 END MODULE input_constants

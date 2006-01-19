@@ -558,10 +558,11 @@ CONTAINS
 
     TYPE(cell_type), POINTER                 :: cell, cell_ref
     TYPE(global_environment_type), &
-      pointer                             :: globenv
+      POINTER                                :: globenv
     LOGICAL, INTENT(OUT), OPTIONAL           :: use_ref_cell
-    TYPE(section_vals_type), POINTER, OPTIONAL :: cell_section
-    TYPE(cp_error_type), INTENT(inout)            :: error
+    TYPE(section_vals_type), POINTER, &
+      OPTIONAL                               :: cell_section
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: &
       routine = "SUBROUTINE read_cell (MODULE simulation_cell)"

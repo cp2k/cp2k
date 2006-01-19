@@ -61,6 +61,7 @@ MODULE tbmd_model_types
 !!   ATTRIBUTES
 !!     - id_nr: unique identifier
 !!     - ref_count: reference counter (see doc/ReferenceCounting.html)
+!!     - tb_model_name: Name of the tight-binding parametrization
 !!     - h_ssS: The hopping coefficient h(1)_ssSigma
 !!     - h_spS: The hopping coefficient h(1)_spSigma
 !!     - h_ppS: The hopping coefficient h(1)_ppSigma
@@ -89,7 +90,8 @@ MODULE tbmd_model_types
 !****************************************************************************
   TYPE tbmd_model_type
     INTEGER                                          :: id_nr, &
-                                                        ref_count
+                                                        ref_count, &
+                                                        tb_model_name
     REAL(KIND=dp)                                    :: h_ssS, &
                                                         h_spS, &
                                                         h_ppS, &
@@ -257,6 +259,7 @@ CONTAINS
 !!   ARGUMENTS
 !!     - tbmd_model: The enquired tbmd model type
 !!     - id_nr: unique identifier
+!!     - tb_model_name: Name of the tight-binding parametrization
 !!     - error: variable to control error logging, stopping,... 
 !!       see module cp_error_handlin
 !!     - h_ssS: The hopping coefficient h(1)_ssSigma
@@ -288,33 +291,33 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE tbmd_model_get(tbmd_model, id_nr, h_ssS, h_spS, h_ppS, h_ppP, &
                             n, r_0, Phi, m, d_c, m_c, dEpsilon, E_s, E_0, &
-                            r_calpha, n_calpha, C14, error)
+                            r_calpha, n_calpha, C14, tb_model_name, error)
 
-    TYPE(tbmd_model_type), POINTER                   :: tbmd_model
-    INTEGER, INTENT(OUT), OPTIONAL                   :: id_nr
-    REAL(KIND=dp)                                    :: h_ssS, &
-                                                        h_spS, &
-                                                        h_ppS, &
-                                                        h_ppP, &
-                                                        n, &
-                                                        r_0, &
-                                                        Phi, &
-                                                        m, &
-                                                        d_c, &
-                                                        m_c, &
-                                                        dEpsilon, &
-                                                        E_s, &
-                                                        E_0
-    REAL(KIND=dp), DIMENSION(4)                      :: r_calpha, &
-                                                        n_calpha, &
-                                                        C14
-    TYPE(cp_error_type), INTENT(INOUT), &
-      OPTIONAL                                       :: error
+    TYPE(tbmd_model_type), POINTER                     :: tbmd_model
+    INTEGER, INTENT(OUT), OPTIONAL                     :: id_nr, &
+                                                          tb_model_name
+    REAL(KIND=dp), INTENT(OUT), OPTIONAL               :: h_ssS, &
+                                                          h_spS, &
+                                                          h_ppS, &
+                                                          h_ppP, &
+                                                          n, &
+                                                          r_0, &
+                                                          Phi, &
+                                                          m, &
+                                                          d_c, &
+                                                          m_c, &
+                                                          dEpsilon, &
+                                                          E_s, &
+                                                          E_0
+    REAL(KIND=dp), DIMENSION(4), INTENT(OUT), OPTIONAL :: r_calpha, &
+                                                          n_calpha, &
+                                                          C14
+    TYPE(cp_error_type), INTENT(INOUT), OPTIONAL       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'tbmd_model_get', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                          :: failure
+    LOGICAL                                            :: failure
 
 !   ------------------------------------------------------------------------
 
@@ -325,9 +328,28 @@ CONTAINS
       CPPrecondition(tbmd_model%ref_count>0, cp_failure_level, routineP, error, failure)
     END IF
 
-    !IF (.NOT. failure) THEN
-    !  IF (PRESENT(f_total)) f_total = tbmd_model%f_total
-    !END IF
+    IF (.NOT. failure) THEN
+      IF (PRESENT(id_nr)) id_nr = tbmd_model%id_nr
+      IF (PRESENT(tb_model_name)) THEN 
+        tb_model_name = tbmd_model%tb_model_name
+      END IF
+      IF (PRESENT(h_ssS)) h_ssS = tbmd_model%h_ssS
+      IF (PRESENT(h_spS)) h_spS = tbmd_model%h_spS
+      IF (PRESENT(h_ppS)) h_ppS = tbmd_model%h_ppS
+      IF (PRESENT(h_ppP)) h_ppP = tbmd_model%h_ppP
+      IF (PRESENT(n)) n = tbmd_model%n
+      IF (PRESENT(r_0)) r_0 = tbmd_model%r_0
+      IF (PRESENT(Phi)) Phi = tbmd_model%Phi
+      IF (PRESENT(m)) m = tbmd_model%m
+      IF (PRESENT(d_c)) d_c = tbmd_model%d_c
+      IF (PRESENT(m_c)) m_c = tbmd_model%m_c
+      IF (PRESENT(dEpsilon)) dEpsilon = tbmd_model%dEpsilon
+      IF (PRESENT(E_s)) E_s = tbmd_model%E_s
+      IF (PRESENT(E_0)) E_0 = tbmd_model%E_0
+      IF (PRESENT(r_calpha)) r_calpha = tbmd_model%r_calpha
+      IF (PRESENT(n_calpha)) n_calpha = tbmd_model%n_calpha
+      IF (PRESENT(C14)) C14 = tbmd_model%C14
+    END IF
   END SUBROUTINE tbmd_model_get
 !***************************************************************************
 
@@ -345,6 +367,7 @@ CONTAINS
 !!   ARGUMENTS
 !!     - tbmd_model: The enquired tbmd model type
 !!     - id_nr: unique identifier
+!!     - tb_model_name: Name of the tight-binding parametrization
 !!     - error: variable to control error logging, stopping,... 
 !!       see module cp_error_handling
 !!     - h_ssS: The hopping coefficient h(1)_ssSigma
@@ -376,33 +399,33 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE tbmd_model_set(tbmd_model, id_nr, h_ssS, h_spS, h_ppS, h_ppP, &
                             n, r_0, Phi, m, d_c, m_c, dEpsilon, E_s, E_0, &
-                            r_calpha, n_calpha, C14, error)
+                            r_calpha, n_calpha, C14, tb_model_name, error)
 
-    TYPE(tbmd_model_type), POINTER                   :: tbmd_model
-    INTEGER, INTENT(IN), OPTIONAL                    :: id_nr
-    REAL(KIND=dp)                                    :: h_ssS, &
-                                                        h_spS, &
-                                                        h_ppS, &
-                                                        h_ppP, &
-                                                        n, &
-                                                        r_0, &
-                                                        Phi, &
-                                                        m, &
-                                                        d_c, &
-                                                        m_c, &
-                                                        dEpsilon, &
-                                                        E_s, &
-                                                        E_0
-    REAL(KIND=dp), DIMENSION(4)                      :: r_calpha, &
-                                                        n_calpha, &
-                                                        C14
-    TYPE(cp_error_type), INTENT(INOUT), &
-      OPTIONAL                                       :: error
+    TYPE(tbmd_model_type), POINTER                    :: tbmd_model
+    INTEGER, INTENT(IN), OPTIONAL                     :: id_nr, &
+                                                         tb_model_name
+    REAL(KIND=dp), INTENT(IN), OPTIONAL               :: h_ssS, &
+                                                         h_spS, &
+                                                         h_ppS, &
+                                                         h_ppP, &
+                                                         n, &
+                                                         r_0, &
+                                                         Phi, &
+                                                         m, &
+                                                         d_c, &
+                                                         m_c, &
+                                                         dEpsilon, &
+                                                         E_s, &
+                                                         E_0
+    REAL(KIND=dp), DIMENSION(4), INTENT(IN), OPTIONAL :: r_calpha, &
+                                                         n_calpha, &
+                                                         C14
+    TYPE(cp_error_type), INTENT(INOUT), OPTIONAL      :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'tbmd_model_set', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                          :: failure
+    LOGICAL                                           :: failure
 
 !   ------------------------------------------------------------------------
 
@@ -414,7 +437,26 @@ CONTAINS
     END IF
 
     IF (.NOT. failure) THEN
-      !IF (PRESENT(f_total)) tbmd_model%f_total = f_total
+      IF (PRESENT(id_nr)) tbmd_model%id_nr = id_nr
+      IF (PRESENT(tb_model_name)) THEN
+        tbmd_model%tb_model_name = tb_model_name
+      END IF
+      IF (PRESENT(h_ssS)) tbmd_model%h_ssS = h_ssS
+      IF (PRESENT(h_spS)) tbmd_model%h_spS = h_spS
+      IF (PRESENT(h_ppS)) tbmd_model%h_ppS = h_ppS
+      IF (PRESENT(h_ppP)) tbmd_model%h_ppP = h_ppP
+      IF (PRESENT(n)) tbmd_model%n = n
+      IF (PRESENT(r_0)) tbmd_model%r_0 = r_0
+      IF (PRESENT(Phi)) tbmd_model%Phi = Phi
+      IF (PRESENT(m)) tbmd_model%m = m
+      IF (PRESENT(d_c)) tbmd_model%d_c = d_c
+      IF (PRESENT(m_c)) tbmd_model%m_c = m_c
+      IF (PRESENT(dEpsilon)) tbmd_model%dEpsilon = dEpsilon
+      IF (PRESENT(E_s)) tbmd_model%E_s = E_s
+      IF (PRESENT(E_0)) tbmd_model%E_0 = E_0
+      IF (PRESENT(r_calpha)) tbmd_model%r_calpha = r_calpha
+      IF (PRESENT(n_calpha)) tbmd_model%n_calpha = n_calpha
+      IF (PRESENT(C14)) tbmd_model%C14 = C14
     END IF
   END SUBROUTINE tbmd_model_set
 !***************************************************************************
@@ -460,7 +502,23 @@ CONTAINS
     CPPrecondition(ASSOCIATED(tbmd_model), cp_failure_level, routineP, error, failure)
 
     IF (.NOT. failure) THEN
-      !tbmd_tbmd%f_total(:) = 0.0_dp
+      tbmd_model%tb_model_name = 0
+      tbmd_model%h_ssS         = 0.0_dp
+      tbmd_model%h_spS         = 0.0_dp
+      tbmd_model%h_ppS         = 0.0_dp
+      tbmd_model%h_ppP         = 0.0_dp
+      tbmd_model%n             = 0.0_dp
+      tbmd_model%r_0           = 0.0_dp
+      tbmd_model%Phi           = 0.0_dp
+      tbmd_model%m             = 0.0_dp
+      tbmd_model%d_c           = 0.0_dp
+      tbmd_model%m_c           = 0.0_dp
+      tbmd_model%dEpsilon      = 0.0_dp
+      tbmd_model%E_s           = 0.0_dp
+      tbmd_model%E_0           = 0.0_dp
+      tbmd_model%r_calpha(:)   = 0.0_dp
+      tbmd_model%n_calpha(:)   = 0.0_dp
+      tbmd_model%C14(:)        = 0.0_dp
     ELSE
       CALL tbmd_model_create(tbmd_model, error=error)
     END IF
