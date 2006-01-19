@@ -608,7 +608,9 @@ SUBROUTINE fist_dipole(atomic_kind_set, particle_set, cell, unit_nr, error)
      ENDDO
   END DO
   
+  dipole = 0.0_dp
   DO j = 1, 3
+     IF (REAL(ggamma(j),KIND=dp) /= 0.0_dp) &
      dipole(j) = 1.0_dp/gvec(j) * ATAN( REAL(AIMAG(ggamma(j)),KIND=dp)/REAL(ggamma(j),KIND=dp) )  
   END DO
   
