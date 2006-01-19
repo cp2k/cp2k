@@ -327,7 +327,7 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
         grid_span = HALFSPACE
      END IF
      IF (pw_grid_information) THEN
-        info_unit=cp_logger_get_default_unit_nr(logger,local=.FALSE.)
+        info_unit=cp_logger_get_default_unit_nr(logger)
      ELSE
         info_unit=-1
      END IF
@@ -358,7 +358,7 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
               IF (pw_grid_information) THEN
                  CALL pw_grid_setup(cell_ref,pw_grid,cutilev,&
                       ref_grid=old_pw_grid,&
-                      info= cp_logger_get_default_unit_nr(logger,local=.FALSE.), &
+                      info= cp_logger_get_default_unit_nr(logger), &
                       blocked=.FALSE.,ncommensurate=ncommensurate,&
                       icommensurate=igrid_level, rs_dims=(/para_env%num_pe,1/))
               ELSE
@@ -370,7 +370,7 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
            ELSE
               IF (pw_grid_information) THEN
                  CALL pw_grid_setup(cell_ref,pw_grid,cutilev,&
-                      info= cp_logger_get_default_unit_nr(logger,local=.FALSE.),&
+                      info= cp_logger_get_default_unit_nr(logger),&
                       blocked=.FALSE.,ncommensurate=ncommensurate,&
                       icommensurate=igrid_level, rs_dims=(/para_env%num_pe,1/))
               ELSE
@@ -383,8 +383,7 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
         ELSE
            IF (pw_grid_information) THEN
               CALL pw_grid_setup(cell_ref,pw_grid,cutilev,&
-                   info=cp_logger_get_default_unit_nr(logger,&
-                   local=.FALSE.), blocked=.FALSE., &
+                   info=cp_logger_get_default_unit_nr(logger), blocked=.FALSE., &
                    ref_grid=old_pw_grid,ncommensurate=ncommensurate,&
                    icommensurate=igrid_level, rs_dims=(/para_env%num_pe,1/))
            ELSE
