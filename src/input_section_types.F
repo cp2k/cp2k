@@ -64,7 +64,8 @@ MODULE input_section_types
   PUBLIC :: write_section_xml
 
   PUBLIC :: section_get_ival,&
-            section_get_rval
+            section_get_rval,&
+            section_get_cval
 
 !!***
 !****************************************************************************
@@ -1390,6 +1391,18 @@ END SUBROUTINE section_vals_add_values
 ! in the parameter list of a subroutine call. This should make the
 ! code a lot simpler. See xc_rho_set_and_dset_create in xc.F as
 ! an example.
+
+FUNCTION section_get_cval(section_vals,keyword_name,error) RESULT(res)
+
+  TYPE(section_vals_type),pointer :: section_vals
+  CHARACTER(len=*), intent(in) :: keyword_name
+  type(cp_error_type), optional, intent(inout) :: error
+
+  CHARACTER(LEN=DEFAULT_STRING_LENGTH) :: res
+
+  CALL section_vals_val_get(section_vals, keyword_name, c_val=res, error=error)
+
+END FUNCTION section_get_cval
 
 FUNCTION section_get_rval(section_vals,keyword_name,error) RESULT(res)
 

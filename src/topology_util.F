@@ -26,7 +26,8 @@ MODULE topology_util
                                              atomic_kind_type,&
                                              get_atomic_kind,&
                                              set_atomic_kind
-  USE checkpoint_handler,              ONLY: write_checkpoint_information
+  USE checkpoint_handler,              ONLY: write_checkpoint_information,&
+                                             Pwarning
   USE convert_units,                   ONLY: convert_to_cp2k_units
   USE external_potential_types,        ONLY: elp_potential_type,&
                                              allocate_potential,&
@@ -3600,17 +3601,13 @@ CONTAINS
     ! Local Variables
     CHARACTER(len=*), PARAMETER :: routineN = 'check_subsys_element', &
       routineP = moduleN//':'//routineN    
-    CHARACTER(len=default_string_length)     :: element_symbol, current_symbol, keyword
+    CHARACTER(len=default_string_length)     :: element_symbol, current_symbol
+    CHARACTER(len=default_string_length)     :: keyword
     INTEGER :: i, n_rep, i_rep, iw, handle
     LOGICAL :: found, failure
     TYPE(section_vals_type), pointer :: kind_section
     INTEGER, SAVE :: iwarn=20
-    TYPE(cp_logger_type), POINTER            :: logger
-
-    NULLIFY(logger)
-    logger => cp_error_get_logger(error)
-    iw = cp_print_key_unit_nr(logger,globenv%input_file,"FORCE_EVAL%MM%PRINT%TOPOLOGY_INFO/UTIL_INFO",&
-         extension=".mmLog",error=error)    
+    
     CALL timeset(routineN,'I','',handle)
 
     found = .FALSE.
@@ -3649,19 +3646,16 @@ CONTAINS
     END IF
     IF (.NOT.found) THEN
        IF (iwarn > 0) THEN
-          IF (iw>0) &
-               WRITE(iw,'(5X,3A)')">>> NO ELEMENT SPECIFIED FOR TYPE:",element_in,"<<<"
-          CPPrecondition(.FALSE.,cp_warning_level,routineP,error,failure)
+          CALL Pwarning("No element specification provided for type:"//element_in//".",globenv, error)
           iwarn = iwarn - 1
           IF (iwarn == 0) THEN
-             IF (iw>0) &
-                  WRITE(iw,'(/,5X,A,/)')" *** Further Output WARNINGs will be suppressed!"
+             CALL Pwarning("Further Output regarding unknown elemet types will be suppressed!",&
+                  globenv,error)
           END IF
        END IF
     END IF
     CALL timestop(0.0_dp,handle)
-    CALL cp_print_key_finished_output(iw,logger,globenv%input_file,&
-         "FORCE_EVAL%MM%PRINT%TOPOLOGY_INFO/UTIL_INFO",error=error)
+
   END SUBROUTINE check_subsys_element
 
 END MODULE topology_util

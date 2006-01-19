@@ -36,10 +36,6 @@ MODULE environment
                                              LOW,&
                                              MEDIUM,&
                                              SILENT,&
-                                             WANNIER_CRAZY,&
-                                             WANNIER_DIRECT,&
-                                             WANNIER_JACOBI,&
-                                             WANNIER_NONE,&
                                              global_environment_type
   USE input_constants,                 ONLY: program_names,&
                                              none_run,&

@@ -49,9 +49,10 @@ MODULE qs_localization
   USE distribution_1d_types,           ONLY: distribution_1d_type
   USE external_potential_types,        ONLY: gth_potential_type, &
                                              get_potential
-  USE global_types,                    ONLY: WANNIER_CRAZY,&
-                                             WANNIER_DIRECT,&
-                                             WANNIER_JACOBI
+  USE input_constants,                 ONLY: do_loc_jacobi,&
+                                             do_loc_crazy,&
+                                             do_loc_direct,&
+                                             do_loc_none
   USE kinds,                           ONLY: default_string_length,&
                                              dp
   USE mathconstants,                   ONLY: twopi
@@ -341,9 +342,9 @@ SUBROUTINE qs_loc_compute_properties(qs_loc_env, molecule_set, vectors, center, 
 
   IF ( qs_loc_env % wannier ) THEN
        SELECT CASE (qs_loc_env % localization_method) 
-       CASE ( WANNIER_JACOBI )
+       CASE ( do_loc_jacobi )
           CALL jacobi_rotations ( qs_loc_env % weights, zij, vectors, sweeps ) 
-       CASE ( WANNIER_CRAZY )
+       CASE ( do_loc_crazy )
           CALL crazy_rotations  ( qs_loc_env % weights, zij, vectors, sweeps, &
                converged=converged, error=error )
           IF (.NOT.converged) THEN
@@ -352,7 +353,7 @@ SUBROUTINE qs_loc_compute_properties(qs_loc_env, molecule_set, vectors, center, 
                   " iterations, switching to jacobi rotations"
              CALL jacobi_rotations ( qs_loc_env % weights, zij, vectors, sweeps ) 
           END IF
-       CASE ( WANNIER_DIRECT )
+       CASE ( do_loc_direct )
           CALL direct_mini      ( qs_loc_env % weights, zij, vectors, sweeps ) 
        CASE DEFAULT
           CALL stop_program("qs_localization","unknown localization method")

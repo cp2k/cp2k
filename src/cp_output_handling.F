@@ -896,13 +896,17 @@ FUNCTION cp_print_key_unit_nr(logger, basis_section, print_key_path, extension,&
            ! if it is actually a full path, use it as the root
            IF (INDEX(outPath,"/").EQ.0) THEN
               IF (PRESENT(middle_name)) THEN
-                   my_middle_name="-"//middle_name
+                 IF (outPath.EQ."") THEN
+                    my_middle_name="-"//middle_name
+                 ELSE
+                    my_middle_name="-"//TRIM(outPath)//"-"//middle_name
+                 END IF
               ELSE
-                   IF (outPath.EQ."") THEN
-                      my_middle_name="" !"-"//print_key%section%name
-                   ELSE
-                      my_middle_name="-"//outPath
-                   ENDIF
+                 IF (outPath.EQ."") THEN
+                    my_middle_name="" !"-"//print_key%section%name
+                 ELSE
+                    my_middle_name="-"//outPath
+                 ENDIF
               ENDIF
               IF (my_middle_name.EQ."-") my_middle_name=""
               root=TRIM(logger%iter_info%project_name)//TRIM(my_middle_name)

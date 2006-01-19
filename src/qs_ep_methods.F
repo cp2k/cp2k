@@ -127,6 +127,18 @@ MODULE qs_ep_methods
                                              stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
+  USE cp_output_handling,              ONLY: cp_print_key_unit_nr, &
+                                             cp_print_key_finished_output,&
+                                             cp_print_key_should_output,&
+                                             cp_p_file
+  USE input_section_types,             ONLY: section_vals_type, &
+                                             section_vals_val_get,&
+                                             section_vals_get_subs_vals, &
+                                             section_vals_get_subs_vals2, &
+                                             section_get_rval,&
+                                             section_get_ival,&
+                                             section_get_cval,&
+                                             section_vals_get
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -347,22 +359,26 @@ SUBROUTINE qs_ep_calculation(qs_env,globenv, error)
           local=.FALSE., error=error)
   END IF
   
-  IF (logger%print_keys%ep_rho1_cube) THEN
-     CALL open_file(file_name="rho1.cube",file_status="UNKNOWN",&
-          file_action="WRITE",unit_number=file_unit)
+  IF (BTEST(cp_print_key_should_output(logger%iter_info,globenv%input_file,&
+       "FORCE_EVAL%DFT%PRINT%EP_RHO_CUBE/RHO1",error=error),cp_p_file) ) THEN
+     unit_nr=cp_print_key_unit_nr(logger,globenv%input_file,"FORCE_EVAL%DFT%PRINT%EP_RHO_CUBE",&
+          extension=".cube",middle_name="rho1",log_filename=.FALSE.,error=error)
      CALL rs_pw_to_cube ( ep_env%main_p_env%rho1%rho_r(1)%pw, iunit=file_unit,&
           ionode=logger%para_env%mepos==logger%para_env%source,&
-          title="rho1")
-     CALL close_file(file_unit)
+          title="rho1",stride=section_get_ival(globenv%input_file,"FORCE_EVAL%DFT%PRINT%EP_RHO_CUBE"))
+     CALL cp_print_key_finished_output(unit_nr,logger,globenv%input_file,&
+          "FORCE_EVAL%DFT%PRINT%EP_RHO_CUBE/RHO1",error=error)
   END IF
 
-  IF (logger%print_keys%cubes) THEN
-     CALL open_file(file_name="rho0.cube",file_status="UNKNOWN",&
-          file_action="WRITE",unit_number=file_unit)
-     CALL rs_pw_to_cube ( ep_env%main_qs_env%rho%rho_r(1)%pw, iunit=file_unit,&
+  IF (BTEST(cp_print_key_should_output(logger%iter_info,globenv%input_file,&
+       "FORCE_EVAL%DFT%PRINT%EP_RHO_CUBE/RHO0",error=error),cp_p_file) ) THEN
+     unit_nr=cp_print_key_unit_nr(logger,globenv%input_file,"FORCE_EVAL%DFT%PRINT%EP_RHO_CUBE",&
+          extension=".cube",middle_name="rho0",log_filename=.FALSE.,error=error)
+     CALL rs_pw_to_cube ( ep_env%main_qs_env%rho%rho_r(1)%pw, iunit=unit_nr,&
           ionode=logger%para_env%mepos==logger%para_env%source,&
-          title="rho0")
-     CALL close_file(file_unit)
+          title="rho0",stride=section_get_ival(globenv%input_file,"FORCE_EVAL%DFT%PRINT%EP_RHO_CUBE"))
+     CALL cp_print_key_finished_output(unit_nr,logger,globenv%input_file,&
+          "FORCE_EVAL%DFT%PRINT%EP_RHO_CUBE/RHO0",error=error)
   END IF
 
   IF (print_ep_matrixes) THEN

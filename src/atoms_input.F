@@ -60,6 +60,7 @@ MODULE atoms_input
                                              section_vals_get_subs_vals2,&
                                              section_vals_type,&
                                              section_vals_val_get
+  USE checkpoint_handler,              ONLY: Pwarning
 #include "cp_common_uses.h"
   IMPLICIT NONE
 
@@ -144,6 +145,9 @@ SUBROUTINE read_atoms_input ( topology, globenv, overwrite, error )
   topology%natoms = natom
   IF (my_overwrite) THEN
      CPPostcondition(SIZE(atom_info%r,2)==natom, cp_failure_level, routineP, error, failure)
+     CALL Pwarning("Overwriting coordinates. Active coordinates read from &COORD section."//&
+          " Active coordinates READ from &COORD section",&
+          globenv, error)
      DO iatom=1,natom
         ! we use only the first default_string_length characters of each line
         CALL section_vals_val_get(coord_section,"_DEFAULT_KEYWORD_",&

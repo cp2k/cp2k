@@ -42,8 +42,6 @@ MODULE print_key_types
                         MEDIUM = 2,&
                         HIGH = 3,&
                         DEBUG = 4
-  INTEGER, PARAMETER, PUBLIC :: WANNIER_JACOBI=1, WANNIER_CRAZY=2, &
-       WANNIER_DIRECT=3, WANNIER_NONE=4
 
 !!***
 !****************************************************************************
@@ -111,17 +109,10 @@ MODULE print_key_types
                total_densities,&
                total_numbers
     LOGICAL :: w_matrix,&
-               lumos, &
-               homos, &
-               cubes, &
-               mulliken_analysis, &
-               mo_orthonormality, &
-               molecular_states
-    LOGICAL :: ep_matrixes, ep_rho1_cube, ep_operator
+               mo_orthonormality
+    LOGICAL :: ep_matrixes, ep_operator
     LOGICAL :: timecumul
     INTEGER    nlumos,nhomos
-    LOGICAL :: localization
-    INTEGER :: localization_method
     LOGICAL :: HPM
     LOGICAL :: xas, linres, loc_info
   END TYPE print_keys_type
@@ -211,7 +202,6 @@ CONTAINS
     print_keys%distribution = key_value(level,(/f,t,t/))
     print_keys%each_scf_step = key_value(level,(/f,f,t/))
     print_keys%ep_matrixes = key_value(level,(/f,f,t/))
-    print_keys%ep_rho1_cube = key_value(level,(/f,f,t/))
     print_keys%ep_operator = key_value(level,(/f,f,t/))
     print_keys%forces = key_value(level,(/f,t,t/))
     print_keys%hartree_matrix = key_value(level,(/f,f,t/))
@@ -248,22 +238,11 @@ CONTAINS
     print_keys%total_densities = key_value(level,(/f,t,t/))
     print_keys%total_numbers = key_value(level,(/t,t,t/))
     print_keys%w_matrix = key_value(level,(/f,f,f/))
-    print_keys%cubes = key_value(level,(/f,f,f/))
-    print_keys%lumos = key_value(level,(/f,f,f/))
     print_keys%mo_orthonormality = key_value(level,(/f,f,t/))
-    print_keys%optical_conductivity = key_value(level,(/f,f,f/))
-    print_keys%homos = key_value(level,(/f,f,f/))
-    print_keys%nlumos = 4
-    print_keys%nhomos = 4
     print_keys%timecumul = key_value(level,(/f,f,f/))
-    print_keys%localization = key_value(level,(/f,f,f/))
-    print_keys%localization_method = WANNIER_CRAZY
-    print_keys%mulliken_analysis = key_value(level,(/f,t,t/))
-    print_keys%molecular_states = key_value(level,(/f,f,f/))
     print_keys%HPM = key_value(level,(/f,f,f/))
     print_keys%xas = key_value(level,(/t,t,t/))
     print_keys%linres = key_value(level,(/t,t,t/))
-    print_keys%loc_info = key_value(level,(/t,t,t/))
 
   END SUBROUTINE print_keys_reset
 

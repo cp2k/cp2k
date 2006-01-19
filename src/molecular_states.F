@@ -50,6 +50,18 @@ MODULE molecular_states
   USE termination,                     ONLY: stop_memory
   USE timings,                         ONLY: timeset,&
                                              timestop
+  USE cp_output_handling,              ONLY: cp_print_key_unit_nr, &
+                                             cp_print_key_finished_output,&
+                                             cp_print_key_should_output,&
+                                             cp_p_file
+  USE input_section_types,             ONLY: section_vals_type, &
+                                             section_vals_val_get,&
+                                             section_vals_get_subs_vals, &
+                                             section_vals_get_subs_vals2, &
+                                             section_get_rval,&
+                                             section_get_ival,&
+                                             section_get_cval,&
+                                             section_vals_get
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -101,7 +113,13 @@ SUBROUTINE construct_molecular_states(molecule_set, mo_localized, &
     TYPE(cp_fm_type), POINTER                :: b, c, d, D_igk, e_vectors, &
                                                 rot_e_vectors, smo
     TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(cp_logger_type), POINTER            :: logger
+    LOGICAL :: failure
+    INTEGER :: unit_nr
 
+    failure = .FALSE.
+    NULLIFY(logger)
+    logger => cp_error_get_logger(error)
 !-------------------------------------------------------------------------------
 !-------------------------------------------------------------------------------
 !-----------------------------------------------------------------------------
@@ -246,20 +264,23 @@ SUBROUTINE construct_molecular_states(molecule_set, mo_localized, &
     ENDDO
     CALL cp_fm_release(D_igk)
 
-    IF ( globenv % print % cubes ) THEN
-      DO i=1,ns
-        j=ind(i)
-        CALL calculate_wavefunction(rot_e_vectors,i,wf_r, &
-                                    wf_g, qs_env, error = error )
+    IF ( BTEST(cp_print_key_should_output(logger%iter_info,globenv%input_file,&
+         "FORCE_EVAL%DFT%PRINT%MOLECULAR_STATES%CUBES",error=error),cp_p_file) ) THEN
+       DO i=1,ns
+          j=ind(i)
+          CALL calculate_wavefunction(rot_e_vectors,i,wf_r, &
+                                      wf_g, qs_env, error = error )
 
-        WRITE(filename,'(a9,I2.2,a1,I3.3,a5)')  &
-              "MOLECULE_",imol,"_",j,".cube"
-        IF (globenv%ionode) OPEN(UNIT=22,FILE=filename)
-        CALL rs_pw_to_cube(wf_r%pw,22,globenv%ionode,filename)
-        IF (globenv%ionode) CLOSE ( 22 )
-        IF (globenv%ionode) WRITE(globenv%scr,*) filename
-      END DO
-    ENDIF  
+          WRITE(filename,'(a9,I2.2,a1,I3.3)')"MOLECULE_",imol,"_",j          
+          unit_nr=cp_print_key_unit_nr(logger,globenv%input_file,"FORCE_EVAL%DFT%PRINT%MOLECULAR_STATES%CUBES",&
+               extension=".cube",middle_name=TRIM(filename),log_filename=.FALSE.,error=error)
+          CALL rs_pw_to_cube(wf_r%pw,unit_nr,globenv%ionode,filename,&
+               stride=section_get_ival(globenv%input_file,"FORCE_EVAL%DFT%PRINT%MOLECULAR_STATES%CUBES%STRIDE"))
+          CALL cp_print_key_finished_output(unit_nr,logger,globenv%input_file,&
+               "FORCE_EVAL%DFT%PRINT%MOLECULAR_STATES%CUBES",error=error)
+          IF (globenv%ionode) WRITE(globenv%scr,*) filename
+       END DO
+    ENDIF
 
     CALL cp_fm_release ( b )
     CALL cp_fm_release ( c )

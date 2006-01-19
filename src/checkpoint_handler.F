@@ -21,6 +21,7 @@
 
 MODULE checkpoint_handler
 
+  USE kinds,                           ONLY: dp
   USE global_types,                    ONLY: global_environment_type
   USE machine,                         ONLY: m_cputime,&
                                              m_flush,&
@@ -41,7 +42,8 @@ MODULE checkpoint_handler
 
   PRIVATE
 
-  PUBLIC :: write_checkpoint_information
+  PUBLIC :: write_checkpoint_information,&
+            Pwarning
 
 !!***
 ! *****************************************************************************
@@ -152,5 +154,43 @@ CONTAINS
 
 !!*****
 !******************************************************************************
+  SUBROUTINE Pwarning(message, globenv, error)
+
+!   Purpose: Write warning messages
+
+!   History: - Creation (01.2006, Teo)
+
+!   ***************************************************************************
+
+    CHARACTER(LEN=*), INTENT(IN)                :: message
+    TYPE(global_environment_type), &
+         POINTER                                :: globenv
+    TYPE(cp_error_type), INTENT(inout)          :: error
+
+    TYPE(cp_logger_type), POINTER               :: logger
+    INTEGER :: iw, cyc, i, j
+    CHARACTER(LEN=1024)                         :: my_message
+
+    NULLIFY(logger)
+    logger => cp_error_get_logger(error)
+    iw = cp_print_key_unit_nr(logger,globenv%input_file,"GLOBAL%WARNINGS",&
+         extension=".Log",error=error)
+!   ---------------------------------------------------------------------------
+    
+    IF (iw>0) THEN
+       my_message = message(1:MIN(LEN(message),1024))
+       CALL compress(my_message)
+       cyc = FLOOR(REAL(LEN_TRIM(my_message),KIND=dp) / 69.0_dp) + 1
+       WRITE(iw,'(/)')
+       DO i = 1, cyc
+          j =0
+          IF (my_message((i-1)*69+1:(i-1)*69+1)==" ") j = 1
+          WRITE(iw,'(T2,A,2X,A)')"WARNING|",my_message((i-1)*69+1+j:MIN((i-1)*69+69+j,LEN_TRIM(my_message)))
+       END DO
+       WRITE(iw,'(/)')
+    END IF
+    CALL cp_print_key_finished_output(iw,logger,globenv%input_file,&
+         "GLOBAL%WARNINGS",error=error)    
+  END SUBROUTINE Pwarning
 
 END MODULE checkpoint_handler

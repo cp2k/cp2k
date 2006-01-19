@@ -31,8 +31,6 @@ MODULE qs_scf_post
                                              coeff_type
   USE cp_control_types,                ONLY: dft_control_type,&
                                              tddfpt_control_type
-  USE cp_files,                        ONLY: close_file,&
-                                             open_file
   USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm
   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                              cp_fm_struct_release,&
@@ -57,15 +55,16 @@ MODULE qs_scf_post
   USE cp_sm_fm_interactions,           ONLY: cp_sm_fm_multiply
   USE cp_subsystem_types,              ONLY: cp_subsys_get,&
                                              cp_subsystem_type
-  USE global_types,                    ONLY: WANNIER_NONE,&
-                                             global_environment_type
-  USE input_constants,                 ONLY: ot_precond_full_all
+  USE global_types,                    ONLY: global_environment_type
+  USE input_constants,                 ONLY: ot_precond_full_all,&
+                                             do_loc_none
   USE input_section_types,             ONLY: section_vals_type, &
                                              section_vals_val_get,&
                                              section_vals_get_subs_vals, &
                                              section_vals_get_subs_vals2, &
-                                             section_get_rval, &
-                                             section_get_ival, &
+                                             section_get_rval,&
+                                             section_get_ival,&
+                                             section_get_cval,&
                                              section_vals_get
   USE cp_ddapc,                        ONLY: get_ddapc
   USE kinds,                           ONLY: default_string_length,&
@@ -188,7 +187,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     LOGICAL                                  :: failure, ionode
-    LOGICAL                                  :: p_loc,p_molstates,p_cubes
+    LOGICAL                                  :: p_loc,p_molstates
     LOGICAL                                  :: my_localized_wfn, was_present
     REAL(KIND=dp), DIMENSION(:), POINTER     :: mo_eigenvalues
     TYPE(atomic_kind_type), DIMENSION(:), &
@@ -304,16 +303,16 @@ CONTAINS
        print_key => section_vals_get_subs_vals(dft_section,"PRINT%MOLECULAR_STATES",error=error)
        p_molstates=BTEST(cp_print_key_should_output(logger%iter_info,print_key,&
            error=error),cp_p_file)
-!    *** Print Cubes     
-       print_key => section_vals_get_subs_vals(dft_section,"PRINT%MO_CUBES",error=error)
-       p_cubes=BTEST(cp_print_key_should_output(logger%iter_info,print_key,&
-            error=error),cp_p_file)
 
 !    *** setup the grids needed to compute a wavefunction given a vector
-       IF ( (p_cubes .AND. &
-             ( section_get_ival(dft_section,"PRINT%MO_CUBES%NLUMO") /= 0 .OR. &
-               section_get_ival(dft_section,"PRINT%MO_CUBES%NHOMO") /=0 ) ).OR. &
-            p_loc ) THEN
+       IF ( ((BTEST(cp_print_key_should_output(logger%iter_info,dft_section,"PRINT%MO_CUBES",&
+              error=error),cp_p_file).OR.&
+              BTEST(cp_print_key_should_output(logger%iter_info,dft_section,"PRINT%LOCALIZATION%CUBES",&
+              error=error),cp_p_file)&
+             ).AND. &
+              ( section_get_ival(dft_section,"PRINT%MO_CUBES%NLUMO") /= 0 .OR. &
+                section_get_ival(dft_section,"PRINT%MO_CUBES%NHOMO") /=0 ) &
+            ).OR. p_loc ) THEN
           CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool,&
                pw_pools=pw_pools,auxbas_rs_pool=auxbas_rs_pool)
           CALL rs_pool_create_rs(auxbas_rs_pool,rs)
@@ -326,7 +325,8 @@ CONTAINS
        END IF
 
 ! *** makes the MOs eigenstates, computes eigenvalues, write cubes 
-       IF (p_cubes .AND. section_get_ival(dft_section,"PRINT%MO_CUBES%NHOMO") /=0) THEN
+       IF (BTEST(cp_print_key_should_output(logger%iter_info,dft_section,"PRINT%MO_CUBES",&
+            error=error),cp_p_file) .AND. section_get_ival(dft_section,"PRINT%MO_CUBES%NHOMO") /=0) THEN
           DO ispin=1,dft_control%nspins
              CALL get_mo_set(mo_set=mos(ispin)%mo_set,mo_coeff=mo_coeff, &
                              eigenvalues=mo_eigenvalues,homo=homo,nmo=nmo)
@@ -342,19 +342,21 @@ CONTAINS
                   para_env=qs_env%para_env,scr=output_unit, &
                   ionode=ionode, do_rotation=.TRUE.)
 
-             IF (p_cubes) THEN
+             IF (BTEST(cp_print_key_should_output(logger%iter_info,dft_section,"PRINT%MO_CUBES",&
+                  error=error),cp_p_file)) THEN
                 DO ivector=MAX(1,&
                    homo-section_get_ival(dft_section,"PRINT%MO_CUBES%NHOMO") +1),homo
                    CALL calculate_wavefunction(mo_coeff,ivector,wf_r, &
                         wf_g,&
-                        qs_env,error=error)
-
-                   WRITE(filename,'(a13,I5.5,a1,I1.1,a5)') "WAVEFUNCTION_",ivector,"_",ispin,".cube"
-                   IF (ionode) OPEN(UNIT=21,FILE=filename)
+                        qs_env,error=error)                   
+                   WRITE(filename,'(a4,I5.5,a1,I1.1)')"WFN_",ivector,"_",ispin
+                   unit_nr=cp_print_key_unit_nr(logger,input,"DFT%PRINT%MO_CUBES",&
+                        extension=".cube",middle_name=TRIM(filename),log_filename=.FALSE.,error=error)
                    WRITE(title,*) "WAVEFUNCTION ",ivector," spin ",ispin," i.e. HOMO - ",ivector-homo
-                   CALL rs_pw_to_cube(wf_r%pw,21,ionode,title,rs,particles=particles,&
+                   CALL rs_pw_to_cube(wf_r%pw,unit_nr,ionode,title,rs,particles=particles,&
                         stride=section_get_ival(dft_section,"PRINT%MO_CUBES%STRIDE"))
-                   IF (ionode) CLOSE(21)
+                   CALL cp_print_key_finished_output(unit_nr,logger,input,&
+                        "DFT%PRINT%MO_CUBES",error=error)
                 ENDDO
              END IF
           ENDDO
@@ -381,7 +383,7 @@ CONTAINS
           CALL qs_loc_init(qs_loc_env,qs_env)
           CALL section_vals_val_get(input,"DFT%PRINT%LOCALIZATION%LOC_TYPE",&
                i_val=qs_loc_env%localization_method,error=error)
-          qs_loc_env%wannier = .NOT. (qs_loc_env % localization_method .EQ. WANNIER_NONE)
+          qs_loc_env%wannier = .NOT. (qs_loc_env % localization_method .EQ. do_loc_none)
           IF (p_molstates) qs_loc_env%molecular_states = .TRUE.
        ENDIF
 
@@ -418,28 +420,33 @@ CONTAINS
              WRITE(filename,'(a13,I1.1)') "HOMO_CENTERS_",ispin
              IF (ionode) WRITE(output_unit,*) ""
              IF (ionode) WRITE(output_unit,*) "Computing localization properties"
-             IF (ionode) OPEN(UNIT=21,FILE=filename)
-             CALL qs_loc_compute_properties(qs_loc_env,molecule_set,mo_localized,center,ionode,21)
-             IF (ionode) CLOSE(21)
+             unit_nr=cp_print_key_unit_nr(logger,input,"DFT%PRINT%LOCALIZATION",&
+                  extension=".data",middle_name=TRIM(filename),log_filename=.FALSE.,error=error)
+             CALL qs_loc_compute_properties(qs_loc_env,molecule_set,mo_localized,center,ionode,unit_nr)
+             CALL cp_print_key_finished_output(unit_nr,logger,input,&
+                  "DFT%PRINT%LOCALIZATION",error=error)
              IF (ionode) WRITE(output_unit,*) "Results in ",filename
              ! write the wannier functions to cubes
-             IF (p_cubes.AND. .NOT. p_molstates ) THEN
+             IF (BTEST(cp_print_key_should_output(logger%iter_info,dft_section,"PRINT%LOCALIZATION%CUBES",&
+                  error=error),cp_p_file).AND. .NOT. p_molstates ) THEN
                 ! obviously we need a smarter scheme to select them. 
                 DO ivector=1,mo_localized%matrix_struct%ncol_global   
                    CALL calculate_wavefunction(mo_localized,ivector,wf_r, &
                         wf_g,&
                         qs_env,error=error)
 
-                   WRITE(filename,'(a7,I5.5,a1,I1.1,a5)') "WANNIER",ivector,"_",ispin,".cube"
-                   IF (ionode) OPEN(UNIT=21,FILE=filename)
+                   WRITE(filename,'(a8,I5.5,a1,I1.1)') "WANNIER",ivector,"_",ispin
+                   unit_nr=cp_print_key_unit_nr(logger,input,"DFT%PRINT%LOCALIZATION%CUBES",&
+                        extension=".cube",middle_name=TRIM(filename),log_filename=.FALSE.,error=error)
                    ! title name
                    WRITE(title,'(A7,I5.5,A1,I1.1,A1,6G10.4)') "WANNIER",ivector,"_",ispin," ",&
                      center(ivector,1:3)*angstrom, &
                      center(ivector,4:6)*angstrom
-                   CALL rs_pw_to_cube(wf_r%pw,21,ionode,title,rs,&
+                   CALL rs_pw_to_cube(wf_r%pw,unit_nr,ionode,title,rs,&
                         particles=particles,&
-                        stride=section_get_ival(dft_section,"PRINT%MO_CUBES%STRIDE"))
-                   IF (ionode) CLOSE(21)
+                        stride=section_get_ival(dft_section,"PRINT%LOCALIZATION%CUBES%STRIDE"))
+                   CALL cp_print_key_finished_output(unit_nr,logger,input,&
+                        "DFT%PRINT%LOCALIZATION%CUBES",error=error)
                 ENDDO
              END IF
              ! compute the molecular states
@@ -462,7 +469,8 @@ CONTAINS
        ENDIF
 
 ! gets the lumos, and eigenvalues for the lumos 
-       IF ((p_cubes .OR.dft_control%do_tddfpt_calculation ) .AND. &
+       IF ((BTEST(cp_print_key_should_output(logger%iter_info,dft_section,"PRINT%MO_CUBES",&
+            error=error),cp_p_file) .OR.dft_control%do_tddfpt_calculation ) .AND. &
            section_get_ival(dft_section,"PRINT%MO_CUBES%NLUMO") /= 0) THEN
           ALLOCATE(unoccupied_orbs(dft_control%nspins))
           ALLOCATE(unoccupied_evals(dft_control%nspins))
@@ -508,29 +516,33 @@ CONTAINS
                 IF (ionode) WRITE(output_unit,*) ""
                 IF (ionode) WRITE(output_unit,*) "Computing localization properties"
                 WRITE(filename,'(a13,I1.1)') "LUMO_CENTERS_",ispin
-                IF (ionode) OPEN(UNIT=21,FILE=filename)
+                unit_nr=cp_print_key_unit_nr(logger,input,"DFT%PRINT%LOCALIZATION",&
+                     extension=".data",middle_name=TRIM(filename),log_filename=.FALSE.,error=error)
                 ALLOCATE(center(unoccupied_orbs(ispin)%matrix%matrix_struct%ncol_global,6))
                 CALL qs_loc_compute_properties(qs_loc_env,molecule_set,unoccupied_orbs(ispin)%matrix,&
-                                center,ionode,21)
+                                center,ionode,unit_nr)
                 DEALLOCATE(center)
-                IF (ionode) CLOSE(21)
+                CALL cp_print_key_finished_output(unit_nr,logger,input,&
+                     "DFT%PRINT%LOCALIZATION",error=error)
                 IF (ionode) WRITE(output_unit,*) "Results in ",filename
              ENDIF
 
-             IF (p_cubes) THEN
+             IF (BTEST(cp_print_key_should_output(logger%iter_info,dft_section,"PRINT%MO_CUBES",&
+                  error=error),cp_p_file)) THEN
                 DO ivector=1,nlumos
                    CALL calculate_wavefunction(mo_vectors=unoccupied_orbs(ispin)%matrix,&
                         ivector=ivector,rho=wf_r, &
                         rho_gspace=wf_g,&
                         qs_env=qs_env,error=error)
-
-                   WRITE(filename,'(a13,I5.5,a1,I1.1,a5)') "WAVEFUNCTION_",homo+ivector,"_",ispin,".cube"
-                   IF (ionode) OPEN(UNIT=21,FILE=filename)
+                   WRITE(filename,'(a4,I5.5,a1,I1.1)')"WFN_",homo+ivector,"_",ispin
+                   unit_nr=cp_print_key_unit_nr(logger,input,"DFT%PRINT%MO_CUBES",&
+                        extension=".cube",middle_name=TRIM(filename),log_filename=.FALSE.,error=error)
                    WRITE(title,*) "WAVEFUNCTION ",homo+ivector," spin ",ispin," i.e. LUMO + ",ivector-1
-                   CALL rs_pw_to_cube(wf_r%pw,21,ionode,title,rs,&
+                   CALL rs_pw_to_cube(wf_r%pw,unit_nr,ionode,title,rs,&
                         particles=particles,&
                         stride=section_get_ival(dft_section,"PRINT%MO_CUBES%STRIDE"))
-                   IF (ionode) CLOSE(21)
+                   CALL cp_print_key_finished_output(unit_nr,logger,input,&
+                        "DFT%PRINT%MO_CUBES",error=error)
                 ENDDO
              ENDIF
           ENDDO
@@ -550,9 +562,14 @@ CONTAINS
        ENDIF
 
 ! *** deallocate grids needed to compute wavefunctions
-       IF ((p_cubes .AND. (section_get_ival(dft_section,"PRINT%MO_CUBES%NLUMO") /= 0 .OR. &
-            section_get_ival(dft_section,"PRINT%MO_CUBES%NHOMO") /= 0 )).OR. &
-            p_loc ) THEN
+       IF ( ((BTEST(cp_print_key_should_output(logger%iter_info,dft_section,"PRINT%MO_CUBES",&
+              error=error),cp_p_file).OR.&
+              BTEST(cp_print_key_should_output(logger%iter_info,dft_section,"PRINT%LOCALIZATION%CUBES",&
+              error=error),cp_p_file)&
+             ).AND. &
+              ( section_get_ival(dft_section,"PRINT%MO_CUBES%NLUMO") /= 0 .OR. &
+                section_get_ival(dft_section,"PRINT%MO_CUBES%NHOMO") /=0 ) &
+            ).OR. p_loc ) THEN
           CALL pw_pool_give_back_coeff(auxbas_pw_pool,wf_r,&
                error=error)
           CALL pw_pool_give_back_coeff(auxbas_pw_pool,wf_g,&
@@ -585,32 +602,28 @@ CONTAINS
            IF (.NOT. homoEQnmo) THEN
               IF (ionode) WRITE(output_unit,*) " homo.NE.nmo : skip optical conductivty "
            ELSE
-             IF (.NOT.(p_cubes .AND. section_get_ival(dft_section,"PRINT%MO_CUBES%NLUMO") /= 0)) &
-                CALL stop_program("optical_conductivity","put LUMOS XX in the print section")
-             IF (.NOT. (p_cubes .AND. section_get_ival(dft_section,"PRINT%MO_CUBES%NHOMO") /= 0)) &
-                CALL stop_program("optical_conductivity","put HOMOS XX in the print section")
-             IF (ionode) THEN
-                File_name="CONDUCTIVITY"
-                CALL Open_file(File_name=File_name,&
-                    File_action="Write",&
-                    File_form="Formatted",&
-                    File_status="Replace",&
-                    Unit_number=File_unit)
-             ENDIF
+             IF (.NOT.( BTEST(cp_print_key_should_output(logger%iter_info,dft_section,"PRINT%MO_CUBES",&
+              error=error),cp_p_file) )) &
+              CALL stop_program("optical_conductivity","Needs MO_CUBES to be activated")
+             filename="CONDUCTIVITY"             
+             unit_nr=cp_print_key_unit_nr(logger,input,"DFT%PRINT%OPTICAL_CONDUCTIVITY",&
+                  extension=".data",middle_name=TRIM(filename),log_filename=.FALSE.,error=error)
              CALL get_cell(cell,deth=volume)
              DO ispin=1,dft_control%nspins
                 CALL get_mo_set(mo_set=mos(ispin)%mo_set,mo_coeff=mo_coeff, &
                                                        eigenvalues=mo_eigenvalues)
                 CALL optical_conductivity(matrix_s,mo_coeff,mo_eigenvalues, &
                                             unoccupied_orbs(ispin)%matrix,unoccupied_evals(ispin)%evals, &
-                                            volume,ionode,File_unit) 
+                                            volume,ionode,unit_nr) 
              ENDDO
-             IF (ionode) CALL close_file(Unit_number=File_unit)
+             CALL cp_print_key_finished_output(unit_nr,logger,input,&
+                  "DFT%PRINT%OPTICAL_CONDUCTIVITY",error=error)
              IF (ionode) WRITE(output_unit,*) " Results written to file ",File_name
            ENDIF
        ENDIF
 
-       IF ((p_cubes .OR.dft_control%do_tddfpt_calculation ) &
+       IF ((BTEST(cp_print_key_should_output(logger%iter_info,dft_section,"PRINT%MO_CUBES",&
+              error=error),cp_p_file).OR.dft_control%do_tddfpt_calculation ) &
           .AND. section_get_ival(dft_section,"PRINT%MO_CUBES%NLUMO") /= 0) THEN
         DO ispin=1,dft_control%nspins
            DEALLOCATE(unoccupied_evals(ispin)%evals)
@@ -699,7 +712,7 @@ CONTAINS
     TYPE(cp_rs_pool_type), POINTER           :: auxbas_rs_pool
     TYPE(realspace_grid_type), POINTER       :: rs
     INTEGER            :: handle
-
+    CHARACTER(LEN=80)  :: filename
 
     CALL timeset(routineN,handle)
     failure=.FALSE.
@@ -775,25 +788,34 @@ CONTAINS
                   in_space = REALSPACE, error=error)
              CALL coeff_copy(rho%rho_r(1),wf_r)
              CALL coeff_sumup(rho%rho_r(2),wf_r)
-             IF (ionode) OPEN(UNIT=21,FILE="ELECTRON_DENSITY.cube")
-             CALL rs_pw_to_cube(wf_r%pw,21,ionode,"SPIN 1 + SPIN 2 ELECTRON DENSITY",&
+             filename = "ELECTRON_DENSITY"
+             unit_nr=cp_print_key_unit_nr(logger,input,"DFT%PRINT%E_DENSITY_CUBE",&
+                  extension=".cube",middle_name=TRIM(filename),log_filename=.FALSE.,error=error)
+             CALL rs_pw_to_cube(wf_r%pw,unit_nr,ionode,"SPIN 1 + SPIN 2 ELECTRON DENSITY",&
                   rs,particles=particles,&
                   stride=section_get_ival(dft_section,"PRINT%E_DENSITY_CUBE%STRIDE"))
-             IF (ionode) CLOSE(21)
+             CALL cp_print_key_finished_output(unit_nr,logger,input,&
+                  "DFT%PRINT%E_DENSITY_CUBE",error=error)             
              CALL coeff_copy(rho%rho_r(1),wf_r)
              CALL coeff_reduce(rho%rho_r(2),wf_r)
-             IF (ionode) OPEN(UNIT=21,FILE="SPIN_DENSITY.cube")
-             CALL rs_pw_to_cube(wf_r%pw,21,ionode,"SPIN 1 DENSITY - SPIN 2 DENSITY",rs,&
+             filename = "SPIN_DENSITY"
+             unit_nr=cp_print_key_unit_nr(logger,input,"DFT%PRINT%E_DENSITY_CUBE",&
+                  extension=".cube",middle_name=TRIM(filename),log_filename=.FALSE.,error=error)
+             CALL rs_pw_to_cube(wf_r%pw,unit_nr,ionode,"SPIN 1 DENSITY - SPIN 2 DENSITY",rs,&
                   particles=particles,&
                   stride=section_get_ival(dft_section,"PRINT%E_DENSITY_CUBE%STRIDE"))
-             IF (ionode) CLOSE(21)
+             CALL cp_print_key_finished_output(unit_nr,logger,input,&
+                  "DFT%PRINT%E_DENSITY_CUBE",error=error)
              CALL pw_pool_give_back_coeff(auxbas_pw_pool,wf_r, error=error)
           ELSE
-             IF (ionode) OPEN(UNIT=21,FILE="ELECTRON_DENSITY.cube")
-             CALL rs_pw_to_cube(rho%rho_r(1)%pw,21,ionode,"ELECTRON DENSITY",&
+             filename = "ELECTRON_DENSITY"
+             unit_nr=cp_print_key_unit_nr(logger,input,"DFT%PRINT%E_DENSITY_CUBE",&
+                  extension=".cube",middle_name=TRIM(filename),log_filename=.FALSE.,error=error)
+             CALL rs_pw_to_cube(rho%rho_r(1)%pw,unit_nr,ionode,"ELECTRON DENSITY",&
                   rs,particles=particles,&
                   stride=section_get_ival(dft_section,"PRINT%E_DENSITY_CUBE%STRIDE"))
-             IF (ionode) CLOSE(21)
+             CALL cp_print_key_finished_output(unit_nr,logger,input,&
+                  "DFT%PRINT%E_DENSITY_CUBE",error=error)
           ENDIF
           CALL rs_pool_give_back_rs(auxbas_rs_pool,rs,error=error)
        ENDIF

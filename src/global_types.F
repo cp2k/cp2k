@@ -41,10 +41,6 @@ MODULE global_types
                                              LOW,&
                                              MEDIUM,&
                                              SILENT,&
-                                             WANNIER_CRAZY,&
-                                             WANNIER_DIRECT,&
-                                             WANNIER_JACOBI,&
-                                             WANNIER_NONE,&
                                              print_keys_create,&
                                              print_keys_release,&
                                              print_keys_retain,&
@@ -61,7 +57,6 @@ MODULE global_types
 
   PUBLIC :: DEBUG,HIGH,LOW,MEDIUM,SILENT
   PUBLIC :: BLACS_GRID_SQUARE, BLACS_GRID_ROW, BLACS_GRID_COL
-  PUBLIC :: WANNIER_JACOBI, WANNIER_CRAZY, WANNIER_DIRECT, WANNIER_NONE
 
 ! *** Public data types
 

@@ -47,6 +47,10 @@ MODULE qs_loc_control
                                              xstring
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
+  USE cp_output_handling,              ONLY: cp_print_key_unit_nr, &
+                                             cp_print_key_finished_output,&
+                                             cp_print_key_should_output,&
+                                             cp_p_file
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -389,9 +393,12 @@ CONTAINS
 
     INTEGER :: ia, ie, ispin, istat
     LOGICAL :: failure
+    TYPE(cp_logger_type), POINTER            :: logger
 
     failure = .FALSE.
-
+    NULLIFY(logger)
+    logger => cp_error_get_logger(error)
+ 
     IF(localized_wfn_control%loc_rootfname==" ") THEN
       CALL xstring ( globenv % project_name, ia, ie )
       DO ispin = 1,nspins
@@ -417,10 +424,12 @@ CONTAINS
       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     END DO
 
-    localized_wfn_control%print_centers = globenv%print%localization
-    localized_wfn_control%print_spreads = globenv%print%localization
-    localized_wfn_control%print_cubes = globenv%print%cubes
-
+    localized_wfn_control%print_centers = BTEST(cp_print_key_should_output(logger%iter_info,globenv%input_file,&
+         "FORCE_EVAL%DFT%PRINT%LOCALIZATION",error=error),cp_p_file)
+    localized_wfn_control%print_spreads = BTEST(cp_print_key_should_output(logger%iter_info,globenv%input_file,&
+         "FORCE_EVAL%DFT%PRINT%LOCALIZATION",error=error),cp_p_file)
+    localized_wfn_control%print_cubes =   BTEST(cp_print_key_should_output(logger%iter_info,globenv%input_file,&
+         "FORCE_EVAL%DFT%PRINT%LOCALIZATION%CUBES",error=error),cp_p_file)
 
   END SUBROUTINE set_loc_centers
  

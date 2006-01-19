@@ -419,7 +419,7 @@ END SUBROUTINE xc_functionals_expand
     LOGICAL :: failure
     CHARACTER(len=*), PARAMETER :: routineN='create_print_dft_section',&
          routineP=moduleN//':'//routineN
-    TYPE(section_type), POINTER :: print_key
+    TYPE(section_type), POINTER :: print_key, print_key2
     TYPE(keyword_type), POINTER :: keyword
     failure=.FALSE.
 
@@ -430,7 +430,7 @@ END SUBROUTINE xc_functionals_expand
             n_keywords=0, n_subsections=1, repeats=.FALSE., required=.TRUE.,&
             error=error)
 
-       NULLIFY(print_key, keyword)
+       NULLIFY(print_key, keyword, print_key2)
 
        CALL cp_print_key_section_create(print_key,"neighborlist",&
             description="controls the printing of the neighborlists (debug).", &
@@ -641,6 +641,33 @@ END SUBROUTINE xc_functionals_expand
        CALL section_add_subsection(section,print_key,error=error)
        CALL section_release(print_key,error=error)
 
+       CALL cp_print_key_section_create(print_key,"EP_RHO_CUBE",&
+            description="Controls the printing of a cube file with electronic density during EP.", &
+            print_level=high_print_level,each=(/1/),filename="",&
+            error=error)
+
+       CALL keyword_create(keyword, name="stride",&
+            description="the stride used to write the cube file "//&
+            "(the bigger, the smaller the cube gets)",&
+            default_i_val=2, error=error)
+       CALL section_add_keyword(print_key,keyword,error=error)
+       CALL keyword_release(keyword,error=error) 
+
+       CALL keyword_create(keyword, name="rho0",&
+            description="If the printkey is activated controls if rho0 cube is printed.",&
+            default_l_val=.FALSE.,lone_keyword_l_val=.TRUE., error=error) 
+       CALL section_add_keyword(print_key,keyword,error=error) 
+       CALL keyword_release(keyword,error=error) 
+
+       CALL keyword_create(keyword, name="rho1",&
+            description="If the printkey is activated controls if  rho1 cube is printed.",&
+            default_l_val=.FALSE.,lone_keyword_l_val=.TRUE., error=error)
+       CALL section_add_keyword(print_key,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL section_add_subsection(section,print_key,error=error)
+       CALL section_release(print_key,error=error)
+
        CALL cp_print_key_section_create(print_key,"LOCALIZATION",&
             Description="Controls the printing of the Wannier centers.", &
             print_level=high_print_level,each=(/1/),filename="__STD_OUT__",&
@@ -654,6 +681,19 @@ END SUBROUTINE xc_functionals_expand
        CALL section_add_keyword(print_key,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
+       CALL cp_print_key_section_create(print_key2,"cubes",&
+            description="Controls the printing of cube files in localization", &
+            print_level=high_print_level,each=(/1/),filename="",&
+            error=error)
+       CALL keyword_create(keyword, name="stride",&
+            description="the stride used to write the cube file "//&
+            "(the bigger, the smaller the cube gets)",&
+            default_i_val=2, error=error)
+       CALL section_add_keyword(print_key2,keyword,error=error)
+       CALL keyword_release(keyword,error=error)    
+       CALL section_add_subsection(print_key,print_key2,error=error)
+       CALL section_release(print_key2,error=error)       
+
        CALL section_add_subsection(section,print_key,error=error)
        CALL section_release(print_key,error=error)
 
@@ -661,6 +701,20 @@ END SUBROUTINE xc_functionals_expand
             description="Controls the printing of the molecular states", &
             print_level=high_print_level,each=(/1/),filename="__STD_OUT__",&
             error=error)
+
+       CALL cp_print_key_section_create(print_key2,"cubes",&
+            description="Controls the printing of cube files in localization", &
+            print_level=high_print_level,each=(/1/),filename="",&
+            error=error)
+       CALL keyword_create(keyword, name="stride",&
+            description="the stride used to write the cube file "//&
+            "(the bigger, the smaller the cube gets)",&
+            default_i_val=2, error=error)
+       CALL section_add_keyword(print_key2,keyword,error=error)
+       CALL keyword_release(keyword,error=error)    
+       CALL section_add_subsection(print_key,print_key2,error=error)
+       CALL section_release(print_key2,error=error)       
+
        CALL section_add_subsection(section,print_key,error=error)
        CALL section_release(print_key,error=error)
 
@@ -674,13 +728,6 @@ END SUBROUTINE xc_functionals_expand
 
        CALL cp_print_key_section_create(print_key,"MULLIKEN",&
             description="Controls the printing of the Mulliken Population analysis.", &
-            print_level=medium_print_level,each=(/1/),filename="__STD_OUT__",&
-            error=error)
-       CALL section_add_subsection(section,print_key,error=error)
-       CALL section_release(print_key,error=error)
-
-       CALL cp_print_key_section_create(print_key,"LOCALIZED_WFN",&
-            description="Controls the printing of new localized wavefunctions method.", &
             print_level=medium_print_level,each=(/1/),filename="__STD_OUT__",&
             error=error)
        CALL section_add_subsection(section,print_key,error=error)
