@@ -9,6 +9,7 @@ rm -f .ener .xyz .vel .dat \
  *.cube\
  *.dipole\
  *.hmc\
+ *.data\
  *.*Log\
  RESTART \
  HESSIAN \
