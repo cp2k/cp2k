@@ -615,8 +615,8 @@ SUBROUTINE fist_dipole(atomic_kind_set, particle_set, cell, unit_nr, error)
   END DO
   
   IF (unit_nr>0) THEN
-     WRITE(unit_nr,'(1X,A,3F12.6)')"DIPOLE BERRY PHASE ( A.U.)|",dipole
-     WRITE(unit_nr,'(1X,A,3F12.6)')"DIPOLE BERRY PHASE (Debye)|",dipole*debye
+     WRITE(unit_nr,'(1X,A,3F12.6)')"MM DIPOLE BERRY PHASE ( A.U.)|",dipole
+     WRITE(unit_nr,'(1X,A,3F12.6)')"MM DIPOLE BERRY PHASE (Debye)|",dipole*debye
   END IF
   
 END SUBROUTINE fist_dipole
