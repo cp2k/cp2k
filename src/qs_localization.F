@@ -65,7 +65,8 @@ MODULE qs_localization
                                              molecule_kind_type
   USE molecule_types_new,              ONLY: molecule_type
   USE particle_types,                  ONLY: particle_type
-  USE physcon,                         ONLY: angstrom
+  USE physcon,                         ONLY: angstrom,&
+                                             debye
   USE pw_env_types,                    ONLY: pw_env_get,&
                                              pw_env_type
   USE pw_pool_types,                   ONLY: pw_pool_give_back_coeff,&
@@ -698,7 +699,7 @@ SUBROUTINE wfc_to_molecule ( qs_loc_env, center, molecule_set )
                         file_position="APPEND",&
                         unit_number=output_unit)
      WRITE(UNIT=output_unit,FMT='(A40)') "# molecule nr, charge, dipole vector, dipole (Debye) "
-     dipole_set=dipole_set*2.541747_dp ! Debye
+     dipole_set=dipole_set*debye ! Debye
      DO I=1,SIZE(dipole_set,2)
         WRITE(UNIT=output_unit,FMT='(I6,5F12.6)') I,charge_set(I),dipole_set(1:3,I), &
                                               SQRT(DOT_PRODUCT(dipole_set(1:3,I),dipole_set(1:3,I)))

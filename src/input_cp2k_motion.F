@@ -749,7 +749,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
-    TYPE(section_type), POINTER              :: subsection
 
     failure=.FALSE.
     
@@ -760,7 +759,7 @@ CONTAINS
             n_keywords=1, n_subsections=1, repeats=.TRUE., required=.TRUE.,&
             error=error)
         
-       NULLIFY(subsection,keyword)
+       NULLIFY(keyword)
 
        CALL keyword_create(keyword, name="LAMBDA",&
             description="Specifies the lambda parameter of the collective variable in the"//&
@@ -1236,7 +1235,7 @@ SUBROUTINE create_barostat_section(section, error)
 
     LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
-
+    TYPE(section_type), POINTER              :: subsection
   failure=.FALSE.
   
   CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
@@ -1247,7 +1246,7 @@ SUBROUTINE create_barostat_section(section, error)
             n_keywords=1, n_subsections=0, repeats=.FALSE., required=.FALSE.,&
             error=error)
 
-       NULLIFY(keyword)
+       NULLIFY(keyword,subsection)
        CALL keyword_create(keyword, name="PRESSURE",&
             description="Initial pressure",&
             usage="PRESSURE real",&
@@ -1262,6 +1261,18 @@ SUBROUTINE create_barostat_section(section, error)
             unit_str='fs',error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)        
+
+       CALL create_coord_section(subsection,"BAROSTAT",error=error)
+       CALL section_add_subsection(section,subsection,error=error)
+       CALL section_release(subsection,error=error)
+       
+       CALL create_velocity_section(subsection,"BAROSTAT",error=error)
+       CALL section_add_subsection(section,subsection,error=error)
+       CALL section_release(subsection,error=error)
+
+       CALL create_force_section(subsection,"BAROSTAT",error=error)
+       CALL section_add_subsection(section,subsection,error=error)
+       CALL section_release(subsection,error=error)
 
     END IF
   END SUBROUTINE create_barostat_section
@@ -1298,7 +1309,7 @@ SUBROUTINE create_coeff_section(coeff_section, error)
 
     LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
-    TYPE(section_type), POINTER              :: nose_section
+    TYPE(section_type), POINTER              :: nose_section, subsection
 
   failure=.FALSE.
   
@@ -1310,7 +1321,7 @@ SUBROUTINE create_coeff_section(coeff_section, error)
             n_keywords=5, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
             error=error)
        
-       NULLIFY(nose_section, keyword)
+       NULLIFY(nose_section, keyword, subsection)
        CALL keyword_create(keyword, name="ensemble",&
             description="md ensemble for KG-POL coefficients", usage="ENSEMBLE NVT", &
             default_i_val=nvt_ensemble,&
@@ -1384,6 +1395,18 @@ SUBROUTINE create_coeff_section(coeff_section, error)
        CALL section_add_subsection(coeff_section, nose_section, error=error)
        CALL section_release(nose_section,error=error)
        
+       CALL create_coord_section(subsection,"KG_COEFF",error=error)
+       CALL section_add_subsection(coeff_section,subsection,error=error)
+       CALL section_release(subsection,error=error)
+       
+       CALL create_velocity_section(subsection,"KG_COEFF",error=error)
+       CALL section_add_subsection(coeff_section,subsection,error=error)
+       CALL section_release(subsection,error=error)
+
+       CALL create_force_section(subsection,"KG_COEFF",error=error)
+       CALL section_add_subsection(coeff_section,subsection,error=error)
+       CALL section_release(subsection,error=error)
+
     END IF
   END SUBROUTINE create_coeff_section
 !***************************************************************************
@@ -1418,7 +1441,7 @@ SUBROUTINE create_nose_section(section, error)
 
     LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
-
+    TYPE(section_type), POINTER              :: subsection
   failure=.FALSE.
   
   CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
@@ -1426,7 +1449,7 @@ SUBROUTINE create_nose_section(section, error)
        CALL section_create(section,name="nose",&
             description="paramameters of the Nose Hoover thermostat chain for KG coeffs",&
             required=.FALSE.,error=error)
-       NULLIFY(keyword)
+       NULLIFY(keyword,subsection)
        CALL keyword_create(keyword, name="length",&
             description="length of the NoseHoover chain", usage="length integer", &
             default_i_val=3,&
@@ -1458,6 +1481,14 @@ SUBROUTINE create_nose_section(section, error)
             error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
+
+       CALL create_coord_section(subsection,"NOSE HOOVER",error=error)
+       CALL section_add_subsection(section,subsection,error=error)
+       CALL section_release(subsection,error=error)
+       
+       CALL create_velocity_section(subsection,"NOSE HOOVER",error=error)
+       CALL section_add_subsection(section,subsection,error=error)
+       CALL section_release(subsection,error=error)
 
   END IF
 
@@ -1639,5 +1670,159 @@ END SUBROUTINE create_nose_section
   END SUBROUTINE create_hmc_section
 
 !***************************************************************************
+!!****f* input_cp2k_motion/create_velocity_section [1.0] *
+!!
+!!   NAME
+!!     create_velocity_section
+!!
+!!   FUNCTION
+!!     Creates the velocity section
+!!
+!!   NOTES
+!!     -
+!!
+!!   ARGUMENTS
+!!     - section: the section to create
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     teo
+!!
+!!*** **********************************************************************
+  SUBROUTINE create_velocity_section(section,name,error)
+    TYPE(section_type), POINTER              :: section
+    CHARACTER(LEN=*), INTENT(IN)             :: name
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_velocity_section', &
+         routineP = moduleN//':'//routineN
+    
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
+
+    failure=.FALSE.
+
+    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+    IF (.NOT. failure) THEN
+       CALL section_create(section,name="velocity",&
+            description="The velocities for "//TRIM(name)//" used for restart",&
+            n_keywords=1, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+            error=error)
+       NULLIFY(keyword)
+
+       CALL keyword_create(keyword, name="_DEFAULT_KEYWORD_",&
+            description="Specify velocities of the system",repeats=.TRUE.,&
+            usage="<REAL> <REAL> .. <REAL>", type_of_var=char_t, n_var=-2, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+    END IF
+  END SUBROUTINE create_velocity_section
+
+!***************************************************************************
+!!****f* input_cp2k_motion/create_coord_section [1.0] *
+!!
+!!   NAME
+!!     create_coord_section
+!!
+!!   FUNCTION
+!!     Creates the coord section
+!!
+!!   NOTES
+!!     -
+!!
+!!   ARGUMENTS
+!!     - section: the section to create
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     teo
+!!
+!!*** **********************************************************************
+  SUBROUTINE create_coord_section(section,name,error)
+    TYPE(section_type), POINTER              :: section
+    CHARACTER(LEN=*), INTENT(IN)             :: name
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_coord_section', &
+         routineP = moduleN//':'//routineN
+    
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
+
+    failure=.FALSE.
+
+    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+    IF (.NOT. failure) THEN
+       CALL section_create(section,name="coord",&
+            description="The positions for "//TRIM(name)//" used for restart",&
+            n_keywords=1, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+            error=error)
+       NULLIFY(keyword)
+
+       CALL keyword_create(keyword, name="_DEFAULT_KEYWORD_",&
+            description="Specify positions of the system",repeats=.TRUE.,&
+            usage="<REAL> <REAL> .. <REAL>", type_of_var=char_t, n_var=-2, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+    END IF
+  END SUBROUTINE create_coord_section
+
+!***************************************************************************
+!!****f* input_cp2k_motion/create_force_section [1.0] *
+!!
+!!   NAME
+!!     create_force_section
+!!
+!!   FUNCTION
+!!     Creates the force section
+!!
+!!   NOTES
+!!     -
+!!
+!!   ARGUMENTS
+!!     - section: the section to create
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     teo
+!!
+!!*** **********************************************************************
+  SUBROUTINE create_force_section(section,name,error)
+    TYPE(section_type), POINTER              :: section
+    CHARACTER(LEN=*), INTENT(IN)             :: name
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_force_section', &
+         routineP = moduleN//':'//routineN
+    
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
+
+    failure=.FALSE.
+
+    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+    IF (.NOT. failure) THEN
+       CALL section_create(section,name="force",&
+            description="The forces for "//TRIM(name)//" used for restart",&
+            n_keywords=1, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+            error=error)
+       NULLIFY(keyword)
+
+       CALL keyword_create(keyword, name="_DEFAULT_KEYWORD_",&
+            description="Specify forces of the system",repeats=.TRUE.,&
+            usage="<REAL> <REAL> .. <REAL>", type_of_var=char_t, n_var=-2, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+    END IF
+  END SUBROUTINE create_force_section
 
 END MODULE input_cp2k_motion

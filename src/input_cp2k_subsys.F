@@ -312,6 +312,10 @@ CONTAINS
        CALL section_add_subsection(section,subsection,error=error)
        CALL section_release(subsection,error=error)
 
+       CALL create_velocity_section(subsection,error=error)
+       CALL section_add_subsection(section,subsection,error=error)
+       CALL section_release(subsection,error=error)       
+
        CALL create_kind_section(subsection,error=error)
        CALL section_add_subsection(section,subsection,error=error)
        CALL section_release(subsection,error=error)
@@ -332,13 +336,65 @@ CONTAINS
   END SUBROUTINE create_subsys_section
 
 !***************************************************************************
+!!****f* input_cp2k_subsys/create_velocity_section [1.0] *
+!!
+!!   NAME
+!!     create_velocity_section
+!!
+!!   FUNCTION
+!!     Creates the velocity section
+!!
+!!   NOTES
+!!     -
+!!
+!!   ARGUMENTS
+!!     - section: the section to create
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     teo
+!!
+!!*** **********************************************************************
+  SUBROUTINE create_velocity_section(section,error)
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_velocity_section', &
+         routineP = moduleN//':'//routineN
+    
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
+
+    failure=.FALSE.
+
+    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+    IF (.NOT. failure) THEN
+       CALL section_create(section,name="velocity",&
+            description="The velocities for simple systems xyz format by default",&
+            n_keywords=1, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+            error=error)
+       NULLIFY(keyword)
+
+       CALL keyword_create(keyword, name="_DEFAULT_KEYWORD_",&
+            description="The atoms velocities in xyz format. The same order as"//&
+            " the atom's order is assumed.",repeats=.TRUE.,&
+            usage="<REAL> <REAL> <REAL>", type_of_var=char_t, n_var=-2, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+    END IF
+  END SUBROUTINE create_velocity_section
+
+!***************************************************************************
 !!****f* input_cp2k_subsys/create_coord_section [1.0] *
 !!
 !!   NAME
 !!     create_coord_section
 !!
 !!   FUNCTION
-!!     Creates the QM/MM section
+!!     Creates the &COORD section
 !!
 !!   NOTES
 !!     -
@@ -382,6 +438,7 @@ CONTAINS
 
     END IF
   END SUBROUTINE create_coord_section
+
 
 !***************************************************************************
 !!****f* input_cp2k_subsys/create_kind_section [1.0] *

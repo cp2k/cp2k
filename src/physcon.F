@@ -38,6 +38,7 @@
 !!     seconds     : Conversion factor [a.u.] -> [s]
 !!     vibfac      : Conversion factor [a.u./Bohr**2] -> [1/cm]
 !!     wavenum     : Conversion factor [a.u.] -> [1/cm] (wave numbers)
+!!     debye       : Conversion factor [a.u.] -> Debye
 !!
 !!   AUTHOR
 !!     Matthias Krack
@@ -72,7 +73,7 @@ MODULE physcon
   REAL(KIND = dp) :: a_bohr,a_fine,a_mass,angstrom,bohr,boltzmann,c_light,e_charge,&
               e_mass,evolt,femtoseconds,h_bar,h_planck,hz,joule,kcalmol,kelvin,&
               kjmol,massunit,mu_perm,mhz,n_avogadro,permittivity,rydberg,&
-              seconds,vibfac,wavenum
+              seconds,vibfac,wavenum, debye
 
   REAL(KIND = dp), DIMENSION(maxmom) :: esu
 
@@ -81,7 +82,7 @@ MODULE physcon
   PUBLIC :: a_bohr,a_fine,a_mass,angstrom,bohr,boltzmann,c_light,e_charge,&
             e_mass,evolt,femtoseconds,h_bar,h_planck,hz,joule,kcalmol,kelvin,&
             kjmol,massunit,mu_perm,mhz,n_avogadro,permittivity,rydberg,&
-            seconds,vibfac,wavenum
+            seconds,vibfac,wavenum, debye
 
 ! *** Public subroutines ***
 
@@ -235,6 +236,9 @@ CONTAINS
       esu(i) = esu(i-1)/bohr
     END DO
 
+!   *** [a.u.] -> [debye] (electrostatic units) ***
+    Debye = esu(1)
+
 !   *** Initialize the periodic table ***
 
     CALL init_periodic_table()
@@ -310,6 +314,7 @@ CONTAINS
       "[a.u.] -> [MHz]",mhz,&
       "[a.u.] -> [1/cm] (wave numbers)",wavenum,&
       "[a.u./Bohr**2] -> [1/cm]",vibfac
+
 
   END SUBROUTINE write_physcon
 

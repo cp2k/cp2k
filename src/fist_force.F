@@ -24,7 +24,8 @@
 MODULE fist_force
   USE cp_output_handling, ONLY: cp_print_key_should_output, cp_p_file
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE atomic_kind_types,               ONLY: atomic_kind_type
+  USE atomic_kind_types,               ONLY: atomic_kind_type,&
+                                             get_atomic_kind
   USE distribution_1d_types,           ONLY: distribution_1d_type
   USE ewalds, ONLY : ewald_evaluate, ewald_print
   USE ewald_environment_types, ONLY : ewald_environment_type, ewald_env_get
@@ -50,6 +51,7 @@ MODULE fist_force
   USE timings, ONLY : timeset, timestop
   USE virial_methods, ONLY : virial_evaluate
   USE virial_types, ONLY : virial_type
+  USE physcon, ONLY: debye
   USE input_section_types, ONLY: section_type, section_create, &
        section_add_keyword, section_add_subsection, section_release,&
        section_describe_html, section_describe_index_html, section_vals_type,&
@@ -507,7 +509,7 @@ SUBROUTINE fist_force_control ( fist_env, virial, globenv, box_change, debug ,er
 END SUBROUTINE fist_force_control
 
 !******************************************************************************
-!!****** fist_force/fist_force_control [1.1] *
+!!****** fist_force/print_fist [1.1] *
 !!
 !!   NAME
 !!    print_fist
@@ -516,10 +518,10 @@ END SUBROUTINE fist_force_control
 !!     Print properties number according the requests in input file
 !!
 !!   AUTHOR
-!!     Teo
+!!     Teodoro Laino
 !!
 !!   MODIFICATION HISTORY
-!!
+!!     [01.2006] created
 !!
 !!   SOURCE
 !!******************************************************************************
@@ -536,18 +538,87 @@ SUBROUTINE print_fist(print_section, atomic_kind_set, particle_set, cell, error)
   ! Local Variables
   TYPE(cp_logger_type), POINTER :: logger
   TYPE(section_vals_type), POINTER :: print_key
+  INTEGER :: unit_nr
 
   NULLIFY(logger,print_key)
   logger => cp_error_get_logger(error)
   print_key => section_vals_get_subs_vals(print_section,"dipole",error=error)  
   IF (BTEST(cp_print_key_should_output(logger%iter_info,print_key,error=error),&
-       cp_p_file).AND.&
-       logger%para_env%mepos==logger%para_env%source) THEN 
-!     CALL fist_dipole(atomic_kind_set, particle_set, cell, error)
+       cp_p_file)) THEN
+     unit_nr=cp_print_key_unit_nr(logger,print_section,"dipole",&
+          extension=".data",middle_name="MM_DIPOLE",log_filename=.FALSE.,error=error)
+     CALL fist_dipole(atomic_kind_set, particle_set, cell, unit_nr, error)
+     CALL cp_print_key_finished_output(unit_nr,logger,print_key,error=error)     
   END IF
 
 END SUBROUTINE print_fist
+
+!******************************************************************************
+!!****** fist_force/fist_dipole [1.1] *
+!!
+!!   NAME
+!!    fist_dipole
+!!
+!!   FUNCTION
+!!     Evaluates the Dipole of a classical charge distribution (point-like)
+!!     using the berry phase formalism
+!!
+!!   AUTHOR
+!!     Teodoro Laino
+!!
+!!   MODIFICATION HISTORY
+!!     [01.2006] created
+!!
+!!   SOURCE
+!!******************************************************************************
+SUBROUTINE fist_dipole(atomic_kind_set, particle_set, cell, unit_nr, error)
+  IMPLICIT NONE
+  ! Arguments
+  TYPE(atomic_kind_type), DIMENSION(:), &
+      POINTER                                :: atomic_kind_set
+  TYPE ( particle_type ), DIMENSION(:), POINTER :: particle_set 
+  TYPE (cell_type), POINTER :: cell
+  INTEGER, INTENT(IN) :: unit_nr
+  TYPE(cp_error_type), INTENT(INOUT), &
+       OPTIONAL                               :: error
+  ! Local Variables
+  INTEGER                          :: i, j, iparticle_kind
+  REAL(KIND=dp)                    :: dipole(3), theta, gvec(3), q
+  COMPLEX(KIND=dp), DIMENSION(3)   :: ggamma, zeta
+  INTEGER, DIMENSION(:), POINTER   :: atom_list
+  TYPE(atomic_kind_type), POINTER          :: atomic_kind
+
+  NULLIFY(atomic_kind)
+  DO i = 1,3
+     gvec(i) = 2.0_dp*pi/cell%hmat(i,i)
+  ENDDO
+
+  ggamma = CMPLX(0.0_dp,0.0_dp,KIND=dp)
+  DO iparticle_kind = 1, SIZE(atomic_kind_set)     
+     atomic_kind => atomic_kind_set(iparticle_kind)
+     CALL get_atomic_kind(atomic_kind=atomic_kind, qeff=q,&
+          atom_list=atom_list)
+     
+     DO i = 1, SIZE(atom_list)
+        DO j = 1, 3
+           theta = particle_set(i)%r(j)*gvec(j)
+           zeta(j) = q * CMPLX(COS(theta),SIN(theta),KIND=dp)
+        END DO
+        ggamma = ggamma + zeta
+     ENDDO
+  END DO
   
+  DO j = 1, 3
+     dipole(j) = 1.0_dp/gvec(j) * ATAN( REAL(AIMAG(ggamma(j)),KIND=dp)/REAL(ggamma(j),KIND=dp) )  
+  END DO
+  
+  IF (unit_nr>0) THEN
+     WRITE(unit_nr,'(1X,A,3F12.6)')"DIPOLE BERRY PHASE ( A.U.)|",dipole
+     WRITE(unit_nr,'(1X,A,3F12.6)')"DIPOLE BERRY PHASE (Debye)|",dipole*debye
+  END IF
+  
+END SUBROUTINE fist_dipole
+
 !******************************************************************************
 END MODULE fist_force
 !******************************************************************************

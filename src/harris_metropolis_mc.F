@@ -1041,16 +1041,6 @@ CONTAINS
           END DO
         END IF
 
-        !IF (MODULO(itimes,mdio%idump) == 0) THEN
-        !  IF (simpar%ensemble == langevin_ensemble) THEN
-        !    CALL read_md_restart_file(md_env,error)
-        !  ELSE
-        !    CALL read_md_restart(in_use, simpar%read_type, globenv, &
-        !                         particles%els, cell, cell_ref, &
-        !                         nhc_part, nhc_baro, extended_type%npt_info)
-        !  END IF
-        !END IF
-
         itimes = itimes - simpar%ld_steps
         CALL cp_iterate(logger%iter_info, last=.FALSE., &
                         iter_nr=itimes, error=error)

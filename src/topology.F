@@ -28,11 +28,6 @@ MODULE topology
   USE molecule_kind_types,             ONLY: molecule_kind_type
   USE molecule_types_new,              ONLY: molecule_type
   USE particle_types,                  ONLY: particle_type
-  USE print_key_types,                 ONLY: DEBUG,&
-                                             HIGH,&
-                                             LOW,&
-                                             MEDIUM,&
-                                             SILENT
   USE simulation_cell,                 ONLY: read_cell
   USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
