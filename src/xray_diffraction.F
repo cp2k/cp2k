@@ -608,6 +608,8 @@ CONTAINS
         WRITE (UNIT=unit_number,FMT="(A,2X,I8)")&
           "# Number of g-vectors (grid points):",pw_grid%ngpts,&
           "# Number of g-vector shells        :",nshell
+        WRITE (UNIT=unit_number,FMT="(A,3X,3I6)")&
+          "# Grid size (a,b,c)                :",pw_grid%npts(1:3)
         WRITE (UNIT=unit_number,FMT="(A)")&
           "#",&
           "# shell  points         q [1/A]      <|F(q)|^2>     Min(|F(q)|) "//&
