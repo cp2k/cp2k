@@ -332,7 +332,7 @@ CONTAINS
 
      ik = 1
      last_ik = 1
-     iteration: DO  iter = 1,100!linres_control%max_scf
+     iteration: DO  iter = 1,linres_control%max_scf
 
        p_env%etotal = 0.0_dp
        p_env%gnorm = 0.0_dp
@@ -468,6 +468,7 @@ CONTAINS
       p_env%ls_pos = 0.0_dp
       p_env%ls_energy = 0.0_dp
       p_env%ls_grad = 0.0_dp
+      p_env%gnorm_old = 1.0_dp
 
       CPPrecondition(ASSOCIATED(p_env%g_psi1_old),cp_failure_level,routineP,error,failure)
       DO ispin = 1,nspins
@@ -670,15 +671,21 @@ CONTAINS
               k = k + p_env%n_mo(ispin)
             END DO
             p_env%delta = SQRT(ABS(p_env%gnorm) / (p_env%n_ao(1)*k))
-            polak_gamma = (p_env%gnorm-p_env%gnorm_cross)/p_env%gnorm_old
-            polak_gamma = MAX(polak_gamma,0.0_dp) ! reset to SD
+            IF(ABS(p_env%gnorm_old) .LT. EPSILON(1.0_dp) ) THEN
+              polak_gamma = 0.0_dp
+            ELSE
+              polak_gamma = (p_env%gnorm-p_env%gnorm_cross)/p_env%gnorm_old
+              polak_gamma = MAX(polak_gamma,0.0_dp) ! reset to SD
+            END IF
             test_down = 0.0_dp
+
             DO ispin = 1,nspins
               CALL cp_fm_scale_and_add(polak_gamma,p_env%d_psi1(ispin)%matrix,&
                    -1.0_dp,p_env%g_psi1(ispin)%matrix,error=error)
               CALL cp_fm_trace(p_env%g_psi1(ispin)%matrix,&
                    p_env%d_psi1(ispin)%matrix,tmp,error=error)
               test_down = test_down + tmp
+
             END DO ! ispin
             IF (test_down.ge.0.0_dp) THEN ! reset to SD
               polak_gamma = 0.0_dp
@@ -686,6 +693,7 @@ CONTAINS
                 CALL cp_fm_scale_and_add(polak_gamma,p_env%d_psi1(ispin)%matrix,&
                      -1.0_dp,p_env%g_psi1(ispin)%matrix,error=error)
               END DO ! ispin
+              linres_control%flag="LR SD"
             END IF
             p_env%gradient = polak_gamma*p_env%gradient - p_env%gnorm
             p_env%gnorm_old = p_env%gnorm

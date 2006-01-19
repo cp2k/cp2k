@@ -91,6 +91,9 @@ MODULE qs_p_env_methods
                                              replicate_matrix_structure,&
                                              set_matrix,&
                                              transfer_matrix
+  USE input_section_types,             ONLY: section_vals_type, &
+                                             section_vals_get,&
+                                             section_vals_get_subs_vals
   USE string_utilities,                ONLY: compress
   USE termination,                     ONLY: stop_memory
   USE timings,                         ONLY: timeset,&
@@ -586,7 +589,7 @@ END SUBROUTINE p_env_did_change
 
     INTEGER                                  :: handle, lfomo, n_spins, nmo, &
                                                 output_unit,spin, stat
-    LOGICAL                                  :: failure,ionode
+    LOGICAL                                  :: failure,ionode,was_present
     REAL(KIND=dp)                            :: maxocc
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: my_psi0
@@ -602,15 +605,15 @@ END SUBROUTINE p_env_did_change
     TYPE(qs_rho_type), POINTER               :: rho
     TYPE(real_matrix_p_type), DIMENSION(:), &
       POINTER                                :: matrix_s
+    TYPE(section_vals_type), POINTER         :: input,lr_section
 
-    integer :: i,j
 ! code
 
     CALL timeset(routineN,"I"," ",handle)
 
     failure=.FALSE.
     NULLIFY(ao_mo_fm_pools,mos,my_psi0,matrix_s,mos, para_env,ks_env, rho, &
-         S_sm_pools,logger)
+         S_sm_pools,logger, input,lr_section)
     logger => cp_error_get_logger(error)
     ionode = logger%para_env%source==logger%para_env%mepos
     output_unit  = cp_logger_get_default_unit_nr(logger)
@@ -625,7 +628,7 @@ END SUBROUTINE p_env_did_change
 
        CALL get_qs_env(qs_env,&
             mos=mos, matrix_s=matrix_s, para_env=para_env, ks_env=ks_env, rho=rho,&
-            error=error)
+            input=input,error=error)
        CALL mpools_get(qs_env%mpools,S_sm_pools=S_sm_pools,&
             ao_mo_fm_pools=ao_mo_fm_pools, error=error)
        ! def my_psi0
@@ -734,10 +737,14 @@ END SUBROUTINE p_env_did_change
        ! updates K (if necessary)
        CALL qs_ks_update_qs_env(ks_env=ks_env,qs_env=qs_env,&
             error=error)
-       IF(ionode .AND. logger%print_keys%linres) THEN
 
-          write(UNIT=output_unit,FMT="(/,(T3,A,T55,F25.14))") &
-         "Total energy:                                  ", qs_env%energy%total
+       IF(ionode .AND. logger%print_keys%linres) THEN
+          lr_section => section_vals_get_subs_vals(input,"PROPERTIES%LINRES")
+          CALL section_vals_get(lr_section,explicit=was_present,error=error)
+          IF(was_present) THEN
+            write(UNIT=output_unit,FMT="(/,(T3,A,T55,F25.14))") &
+            "Total energy ground state:                     ", qs_env%energy%total
+          END IF
        END IF
        
        !-----------------------------------------------------------------------|
@@ -760,11 +767,6 @@ END SUBROUTINE p_env_did_change
                p_env%n_mo(spin), p_env%n_mo(spin), p_env%n_ao(spin), &
                -1.0_dp, p_env%S_psi0(spin)%matrix, p_env%psi0d(spin)%matrix, &
                0.0_dp, p_env%m_epsilon(spin)%matrix)
-!dbg
-!    write(*,*)  p_env%n_mo(spin),  p_env%n_ao(spin)
-! do i = 1,p_env%n_mo(spin)
-!       write(*,'(I4,100f10.5)') i, (p_env%m_epsilon(spin)%matrix%local_data(i,j),j=1,p_env%n_mo(spin))
-! end do
        END DO
 
        !----------------------------------|
