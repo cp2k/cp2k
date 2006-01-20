@@ -115,7 +115,7 @@ MODULE harris_metropolis_mc
   USE qs_wf_history_types,             ONLY: qs_wf_history_type, &
                                              wfi_release, &
                                              wfi_use_guess_method_nr
-  USE simulation_cell,                 ONLY: cell_type
+  USE cell_types,                 ONLY: cell_type
   USE termination,                     ONLY: stop_memory, &
                                              external_control, &
                                              stop_program

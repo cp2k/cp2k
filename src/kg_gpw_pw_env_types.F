@@ -41,7 +41,7 @@ MODULE kg_gpw_pw_env_types
   USE qs_rho_types,                    ONLY: qs_rho_release,&
                                              qs_rho_retain,&
                                              qs_rho_type
-  USE simulation_cell,                 ONLY: cell_release,&
+  USE cell_types,                 ONLY: cell_release,&
                                              cell_retain,&
                                              cell_type
   USE termination,                     ONLY: stop_memory,&

@@ -49,7 +49,7 @@ MODULE ewald_pw_types
                                              RECIPROCALSPACE,&
                                              pw_type
   USE qs_util,                         ONLY: exp_radius
-  USE simulation_cell,                 ONLY: cell_type, &
+  USE cell_types,                 ONLY: cell_type, &
                                              cell_retain, &
                                              cell_release
   USE termination,                     ONLY: stop_memory,&

@@ -67,7 +67,7 @@ MODULE qs_linres_nmr_utils
   USE qs_operators_ao,                 ONLY: set_up_op_rmd
   USE qs_p_env_types,                  ONLY: qs_p_env_type
   USE scf_control_types,               ONLY: scf_control_type
-  USE simulation_cell,                 ONLY: cell_type, pbc
+  USE cell_types,                 ONLY: cell_type, pbc
   USE sparse_matrix_types,             ONLY: allocate_matrix_set,cp_sm_scale_and_add,&
                                              deallocate_matrix_set,&
                                              deallocate_matrix,&

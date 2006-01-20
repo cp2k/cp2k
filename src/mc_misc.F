@@ -71,7 +71,7 @@ MODULE mc_misc
                                              qs_environment_type
   USE cp_files,                        ONLY: close_file,&
                                              open_file
-  USE simulation_cell,                 ONLY: cell_type,&
+  USE cell_types,                 ONLY: cell_type,&
                                              get_cell
   USE termination,                     ONLY: stop_memory,&
                                              stop_program

@@ -41,7 +41,7 @@ MODULE atoms_input
   USE memory_utilities,                ONLY: reallocate
   USE message_passing,                 ONLY: mp_bcast
   USE particle_types,                  ONLY: particle_type
-  USE simulation_cell,                 ONLY: cell_type,&
+  USE cell_types,                 ONLY: cell_type,&
                                              get_cell,&
                                              scaled_to_real, &
                                              get_hinv

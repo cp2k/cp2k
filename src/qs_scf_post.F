@@ -124,7 +124,7 @@ MODULE qs_scf_post
   USE realspace_grid_types,            ONLY: rs_pw_to_cube, & 
                                              realspace_grid_type
   USE scf_control_types,               ONLY: scf_control_type
-  USE simulation_cell,                 ONLY: cell_type,&
+  USE cell_types,                 ONLY: cell_type,&
                                              get_cell
   USE sparse_matrix_types,             ONLY: real_matrix_p_type
   USE termination,                     ONLY: stop_program

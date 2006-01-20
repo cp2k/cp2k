@@ -51,7 +51,7 @@ MODULE pw_spline_utils
                                              pw_integral_ab, pw_integral_aa, SQUARE
   USE pw_pool_types, ONLY: pw_pool_type, pw_pool_create_pw,&
        pw_pool_give_back_pw, pw_pool_retain, pw_pool_release
-  USE simulation_cell,                 ONLY: cell_type
+  USE cell_types,                 ONLY: cell_type
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE realspace_grid_types,            ONLY: rs_pw_to_cube

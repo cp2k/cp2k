@@ -66,7 +66,7 @@ MODULE pw_grids
                                              PW_MODE_LOCAL,&
                                              map_pn,&
                                              pw_grid_type
-  USE simulation_cell,                 ONLY: cell_type
+  USE cell_types,                 ONLY: cell_type
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
   USE timings,                         ONLY: timeset,&

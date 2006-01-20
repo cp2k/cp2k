@@ -89,7 +89,7 @@ MODULE xc
                                              pw_transfer,&
                                              pw_type,&
                                              pw_zero
-  USE simulation_cell,                 ONLY: cell_type
+  USE cell_types,                 ONLY: cell_type
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE xc_derivative_desc,              ONLY: MAX_DERIVATIVE_DESC_LENGTH,&

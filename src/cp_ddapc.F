@@ -74,7 +74,7 @@ MODULE cp_ddapc
                                              section_vals_val_get
   USE message_passing,                 ONLY: mp_sum
   USE input_constants,                 ONLY: use_multipole
-  USE simulation_cell,                 ONLY: cell_type,&
+  USE cell_types,                 ONLY: cell_type,&
                                              get_cell,&
                                              pbc
   USE qs_force_types,                  ONLY: qs_force_type

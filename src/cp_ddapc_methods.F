@@ -23,7 +23,7 @@
 !!   SOURCE
 !*****************************************************************************
 MODULE cp_ddapc_methods
-  USE simulation_cell,                 ONLY: cell_type
+  USE cell_types,                 ONLY: cell_type
   USE erf_fn,                          ONLY: erfc
   USE cp2k_units,                      ONLY: get_cp2k_units,&
                                              unit_convert_type

@@ -38,6 +38,11 @@ MODULE xas_control
                                              xstring
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
+  USE cp_output_handling,              ONLY: cp_print_key_unit_nr, &
+                                             cp_print_key_finished_output,&
+                                             cp_print_key_should_output,&
+                                             cp_p_file
+
 #include "cp_common_uses.h"
 
 
@@ -341,16 +346,9 @@ CONTAINS
 !   ---------------------------------------------------------------------------
 
     logger => cp_error_get_logger(error)
-    ionode = logger%para_env%mepos==logger%para_env%source
-    IF (ionode) THEN
-       output_unit= cp_logger_get_default_unit_nr(logger)
-    ELSE
-       output_unit = -1
-    END IF
-
-    IF (.NOT.ionode) RETURN
-
-    IF (globenv%print%dft_control_parameters) THEN
+    output_unit = cp_print_key_unit_nr(logger,globenv%input_file,&
+         "FORCE_EVAL%DFT%PRINT%DFT_CONTROL_PARAMETERS",extension=".Log",error=error)
+    IF (output_unit>0) THEN
       SELECT CASE(xas_control%xas_method)
         CASE(xas_tp_hh)
           WRITE (UNIT=output_unit,FMT="(/,T2,A,T40,A)")&
@@ -378,7 +376,8 @@ CONTAINS
              error,failure)
       END SELECT
     END IF
-
+    CALL cp_print_key_finished_output(output_unit,logger,globenv%input_file,&
+         "FORCE_EVAL%DFT%PRINT%DFT_CONTROL_PARAMETERS",error=error)
   END SUBROUTINE write_xas_control
 
 !****f* xas_control/xas_control_create/retain/release *

@@ -38,7 +38,7 @@ MODULE dgs
                                              pw_grid_setup
   USE realspace_grid_types,            ONLY: realspace_grid_type,&
                                              realspace_grid_p_type
-  USE simulation_cell,                 ONLY: cell_type,&
+  USE cell_types,                 ONLY: cell_type,&
                                              get_cell_param,&
                                              get_hinv,&
                                              cell_create,&

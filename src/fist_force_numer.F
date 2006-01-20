@@ -61,7 +61,7 @@ MODULE fist_force_numer
   USE pme,                            ONLY: pme_evaluate
   USE qs_neighbor_lists,              ONLY: local_atoms_type,&
                                              subcell_type
-  USE simulation_cell,                 ONLY: cell_type,&
+  USE cell_types,                 ONLY: cell_type,&
                                              get_cell,&
                                              plane_distance,&
                                              pbc,&

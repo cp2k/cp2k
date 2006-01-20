@@ -135,7 +135,7 @@ MODULE qs_environment
                                              scf_c_release,&
                                              scf_c_write_parameters,&
                                              scf_control_type
-  USE simulation_cell,                 ONLY: cell_release,&
+  USE cell_types,                 ONLY: cell_release,&
                                              cell_type,&
                                              read_cell,&
                                              write_cell,&
@@ -256,10 +256,10 @@ CONTAINS
 
 !   *** Print the cell parameters ***
 
-    CALL write_cell(my_cell,globenv)
+    CALL write_cell(my_cell,globenv,error)
     IF (PRESENT(subsystem)) THEN 
        my_subsystem => subsystem
-       CALL read_atomic_kind_set(my_subsystem%atomic_kinds%els, globenv)
+       CALL read_atomic_kind_set(my_subsystem%atomic_kinds%els, globenv,error)
     ELSE
        CALL cp_subsys_create(my_subsystem,para_env=globenv%para_env,error=error)
 
@@ -274,7 +274,7 @@ CONTAINS
                               molecule_kind_set,molecule_set,&
                               globenv,error=error)
   
-       CALL read_atomic_kind_set(atomic_kind_set,globenv)
+       CALL read_atomic_kind_set(atomic_kind_set,globenv,error)
        
        CALL num_ao_el_per_molecule(molecule_kind_set)
        
@@ -415,11 +415,11 @@ CONTAINS
 
 !   *** Print the DFT control parameters ***
 
-    CALL write_dft_control(dft_control,globenv)
+    CALL write_dft_control(dft_control,globenv,error)
 
 !   *** Print the Quickstep control parameters ***
 
-    CALL write_qs_control(dft_control%qs_control,globenv)
+    CALL write_qs_control(dft_control%qs_control,globenv,error)
 
 !   *** Print XES/XAS   control parameters *** ***
     if (dft_control % do_xas_calculation) then
@@ -428,7 +428,7 @@ CONTAINS
 
 !   *** Check basis and fill in missing parts ***
 
-    CALL check_atomic_kind_set(atomic_kind_set,dft_control,globenv)
+    CALL check_atomic_kind_set(atomic_kind_set,dft_control,globenv,error=error)
 
 !   *** Check that no all-electron potential is present if GPW or GAPW_XC
 
@@ -465,7 +465,7 @@ CONTAINS
 
 !   *** Print the unnormalized basis set information (input data) ***
 
-    CALL write_gto_basis_sets(atomic_kind_set,globenv)
+    CALL write_gto_basis_sets(atomic_kind_set,globenv,error)
 
 !   *** Initialise GAPW soft basis and projectors
 
@@ -473,7 +473,7 @@ CONTAINS
        dft_control%qs_control%method == "GAPW_XC")  THEN
       qs_control => dft_control%qs_control
       gapw_control => dft_control%qs_control%gapw_control
-      CALL init_gapw_basis_set(atomic_kind_set,qs_control,globenv)
+      CALL init_gapw_basis_set(atomic_kind_set,qs_control,globenv,error)
     ENDIF
 
 !   *** Initialize the pretabulation for the calculation of the   ***
@@ -486,11 +486,11 @@ CONTAINS
 
 !   *** Print the atomic kind set ***
 
-    CALL write_atomic_kind_set(atomic_kind_set,globenv)
+    CALL write_atomic_kind_set(atomic_kind_set,globenv,error)
 
 !   *** Print the molecule kind set ***
 
-    CALL write_molecule_kind_set(molecule_kind_set,globenv)
+    CALL write_molecule_kind_set(molecule_kind_set,globenv,error)
 
 !   *** Print the total number of kinds, atoms, basis functions etc. ***
 
@@ -507,7 +507,7 @@ CONTAINS
 
 !   *** Initialize the atomic interaction radii ***
     CALL init_interaction_radii(dft_control%qs_control,cell,atomic_kind_set,&
-                                globenv)
+                                globenv,error)
 
 !   *** Distribute molecules and atoms using the new data structures ***
 

@@ -46,7 +46,7 @@ MODULE fist_force
   USE molecule_types_new,              ONLY: molecule_type
   USE particle_types, ONLY : particle_type
   USE pme, ONLY: pme_evaluate
-  USE simulation_cell, ONLY : cell_type, get_hinv
+  USE cell_types, ONLY : cell_type, get_hinv
   USE spme, ONLY : spme_evaluate
   USE timings, ONLY : timeset, timestop
   USE virial_methods, ONLY : virial_evaluate

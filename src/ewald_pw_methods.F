@@ -37,7 +37,7 @@ MODULE ewald_pw_methods
   USE pw_grid_types,                   ONLY: pw_grid_type
   USE pw_grids,                        ONLY: pw_grid_change
   USE pw_pool_types,                   ONLY: pw_pool_type, pw_pool_p_type
-  USE simulation_cell,                 ONLY: cell_type
+  USE cell_types,                 ONLY: cell_type
   USE termination,                     ONLY: stop_memory
   USE timings,                         ONLY: timeset,&
                                              timestop

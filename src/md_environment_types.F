@@ -30,7 +30,7 @@ MODULE md_environment_types
   USE kinds,                           ONLY: dp
   USE md,                              ONLY: simulation_parameters_type, &
                                              mdio_parameters_type
-  USE simulation_cell,                 ONLY: cell_type
+  USE cell_types,                 ONLY: cell_type
 !USE termination,                     ONLY: stop_memory
 #include "cp_common_uses.h"
 

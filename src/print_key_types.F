@@ -60,37 +60,22 @@ MODULE print_key_types
 !!
   TYPE print_keys_type
     INTEGER :: level,precision,ref_count, id_nr
-    LOGICAL :: basic_data_types,&
-               basis_set,&
-               blacs_info,&
-               cell_parameters,&
-               charge_density_matrix,&
+    LOGICAL :: charge_density_matrix,&
                core_hamiltonian_matrix,&
-               core_charge_radii,&
                density_matrix,&
                derivatives,&
-               dft_control_parameters,&
                diis_information,&
                distribution,&
                each_scf_step,&
                forces,&
                hartree_matrix,&
-               kind_information,&
-               kind_radii,&
                kinetic_energy_matrix,&
                kohn_sham_matrix
     LOGICAL :: optical_conductivity,&
                ortho_matrix,&
                overlap_matrix,&
-               pgf_radii,&
-               physcon,&
-               potential,&
                potential_energy_matrix,&
-               ppl_radii,&
-               ppnl_radii,&
-               prj_radii,&
                program_banner,&
-               program_run_information,&
                projectors,&
                pw_grid_information,&
                rho0_information,&
@@ -103,7 +88,6 @@ MODULE print_key_types
                sbc_oce_neighbor_lists,&
                scf,&
                scf_energies,&
-               set_radii,&
                spherical_harmonics,&
                title,&
                total_densities,&
@@ -188,14 +172,8 @@ CONTAINS
 
     LOGICAL, PARAMETER                       :: f = .FALSE., t = .TRUE.
 
-    print_keys%basic_data_types = key_value(level,(/f,f,f/))
-    print_keys%basis_set = key_value(level,(/f,t,t/))
-    print_keys%blacs_info = key_value(level,(/f,t,t/))
-    print_keys%cell_parameters = key_value(level,(/t,t,t/))
     print_keys%charge_density_matrix = key_value(level,(/f,f,t/))
     print_keys%core_hamiltonian_matrix = key_value(level,(/f,f,t/))
-    print_keys%core_charge_radii = key_value(level,(/f,t,t/))
-    print_keys%dft_control_parameters = key_value(level,(/t,t,t/))
     print_keys%density_matrix = key_value(level,(/f,f,t/))
     print_keys%derivatives = key_value(level,(/f,f,f/))
     print_keys%diis_information = key_value(level,(/f,f,t/))
@@ -205,20 +183,11 @@ CONTAINS
     print_keys%ep_operator = key_value(level,(/f,f,t/))
     print_keys%forces = key_value(level,(/f,t,t/))
     print_keys%hartree_matrix = key_value(level,(/f,f,t/))
-    print_keys%kind_information = key_value(level,(/f,t,t/))
-    print_keys%kind_radii = key_value(level,(/f,t,t/))
     print_keys%kinetic_energy_matrix = key_value(level,(/f,f,t/))
     print_keys%kohn_sham_matrix = key_value(level,(/f,f,t/))
     print_keys%ortho_matrix = key_value(level,(/f,f,t/))
     print_keys%overlap_matrix = key_value(level,(/f,f,t/))
-    print_keys%pgf_radii = key_value(level,(/f,f,t/))
-    print_keys%physcon = key_value(level,(/f,t,t/))
-    print_keys%potential = key_value(level,(/f,t,t/))
-    print_keys%ppl_radii = key_value(level,(/f,t,t/))
-    print_keys%ppnl_radii = key_value(level,(/f,f,t/))
-    print_keys%prj_radii = key_value(level,(/f,f,t/))
     print_keys%program_banner = key_value(level,(/t,t,t/))
-    print_keys%program_run_information = key_value(level,(/t,t,t/))
     print_keys%projectors = key_value(level,(/f,t,t/))
     print_keys%potential_energy_matrix = key_value(level,(/f,f,f/))
     print_keys%pw_grid_information = key_value(level,(/f,t,t/))
@@ -232,7 +201,6 @@ CONTAINS
     print_keys%sbc_oce_neighbor_lists = key_value(level,(/f,f,t/))
     print_keys%scf = key_value(level,(/t,t,t/))
     print_keys%scf_energies = key_value(level,(/f,t,t/))
-    print_keys%set_radii = key_value(level,(/f,t,t/))
     print_keys%spherical_harmonics = key_value(level,(/f,f,t/))
     print_keys%title = key_value(level,(/t,t,t/))
     print_keys%total_densities = key_value(level,(/f,t,t/))

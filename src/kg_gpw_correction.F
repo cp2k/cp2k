@@ -76,7 +76,7 @@ MODULE kg_gpw_correction
                                              qs_environment_type
   USE qs_force_types,                  ONLY: qs_force_type
   USE qs_rho_types,                    ONLY: qs_rho_type
-  USE simulation_cell,                 ONLY: cell_type
+  USE cell_types,                 ONLY: cell_type
   USE sparse_matrix_types,             ONLY: real_matrix_p_type,&
                                              transfer_matrix, &
                                              real_matrix_type, &

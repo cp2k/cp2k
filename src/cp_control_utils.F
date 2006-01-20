@@ -124,6 +124,11 @@ MODULE cp_control_utils
   USE xc_rho_cflags_types,             ONLY: xc_rho_cflags_setall,&
                                              xc_rho_cflags_type
   USE input_cp2k_dft, only: xc_functionals_expand
+  USE cp_output_handling,              ONLY: cp_print_key_unit_nr, &
+                                             cp_print_key_finished_output,&
+                                             cp_print_key_should_output,&
+                                             cp_p_file
+
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -534,11 +539,6 @@ CONTAINS
     CALL section_vals_val_get(se_section,"RC_COULOMB",r_val=qs_control%se_control%rc_coulomb,error=error)
     IF(qs_control %method_id >= do_method_mndo .AND. qs_control %method_id <= do_method_pm3)&
          qs_control%se_control%orthogonal_basis=.TRUE.
-    ! do not print dft section for semi empirical methods
-    IF(qs_control%semi_empirical) THEN
-      globenv%print%dft_control_parameters=.FALSE.
-    END IF
-
 
   END SUBROUTINE read_qs_section
 
@@ -632,7 +632,7 @@ CONTAINS
 
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(global_environment_type), &
-      pointer                             :: globenv
+      pointer                                :: globenv
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -645,15 +645,17 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: xc_section,xc_fun_section,&
          xc_fun
     REAL(kind=dp) :: density_cut, gradient_cut, tau_cut, density_smooth_cut_range
+    TYPE(cp_logger_type), POINTER            :: logger
 
-!   ---------------------------------------------------------------------------
-
-    IF (.NOT.globenv%ionode) RETURN
-    failure=.FALSE.
-
-    IF (globenv%print%dft_control_parameters) THEN
-
-       output_unit = globenv%scr
+    failure = .FALSE.
+    IF (dft_control%qs_control%semi_empirical) RETURN
+    NULLIFY(logger)
+    logger => cp_error_get_logger(error)
+    
+    
+    output_unit = cp_print_key_unit_nr(logger,globenv%input_file,&
+         "FORCE_EVAL%DFT%PRINT%DFT_CONTROL_PARAMETERS",extension=".Log",error=error)
+    IF (output_unit>0) THEN
        xc_section => section_vals_get_subs_vals(globenv%input_file,&
             "FORCE_EVAL%DFT%XC",error=error)
        CALL section_vals_val_get(globenv%input_file,"FORCE_EVAL%DFT%LSD",&
@@ -760,11 +762,14 @@ CONTAINS
           END DO
        END IF
     END IF
+    CALL cp_print_key_finished_output(output_unit,logger,globenv%input_file,&
+         "FORCE_EVAL%DFT%PRINT%DFT_CONTROL_PARAMETERS",error=error)
+    
   END SUBROUTINE write_dft_control
 
 ! *****************************************************************************
 
-  SUBROUTINE write_qs_control(qs_control,globenv)
+  SUBROUTINE write_qs_control(qs_control,globenv,error)
 
 !   Purpose: Write the DFT control parameters to the output unit.
 
@@ -773,16 +778,20 @@ CONTAINS
     TYPE(qs_control_type), INTENT(IN)        :: qs_control
     TYPE(global_environment_type), &
       pointer                             :: globenv
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
     INTEGER                                  :: igrid_level, ngrid_level, &
                                                 nstep,output_unit
-    
+    TYPE(cp_logger_type), POINTER            :: logger
 
-!   ---------------------------------------------------------------------------
-
-    IF (.NOT.globenv%ionode) RETURN
-
-    IF (globenv%print%dft_control_parameters) THEN
+    IF (qs_control%semi_empirical) RETURN
+    NULLIFY(logger)
+    logger => cp_error_get_logger(error)
+        
+    output_unit = cp_print_key_unit_nr(logger,globenv%input_file,&
+         "FORCE_EVAL%DFT%PRINT%DFT_CONTROL_PARAMETERS",extension=".Log",error=error)
+    IF (output_unit>0) THEN
       ngrid_level = SIZE(qs_control%e_cutoff)
       output_unit = globenv%scr
       WRITE (UNIT=output_unit,FMT="(/,T2,A,T71,A)")&
@@ -936,7 +945,8 @@ CONTAINS
          END SELECT
       END IF
     END IF
-
+    CALL cp_print_key_finished_output(output_unit,logger,globenv%input_file,&
+         "FORCE_EVAL%DFT%PRINT%DFT_CONTROL_PARAMETERS",error=error)
   END SUBROUTINE write_qs_control
 
 ! *****************************************************************************

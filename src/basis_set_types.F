@@ -49,6 +49,10 @@ MODULE basis_set_types
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
   USE input_section_types, only: section_vals_val_get
+  USE cp_output_handling,              ONLY: cp_print_key_unit_nr, &
+                                             cp_print_key_finished_output,&
+                                             cp_print_key_should_output,&
+                                             cp_p_file
 #include "cp_common_uses.h"
   IMPLICIT NONE
 
@@ -1169,7 +1173,7 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE write_aux_basis_set(aux_basis_set,globenv)
+  SUBROUTINE write_aux_basis_set(aux_basis_set,globenv,error)
 
 !   Purpose: Write an auxiliary Gaussian-type orbital (GTO) basis set data set
 !            to the output unit.
@@ -1181,65 +1185,70 @@ CONTAINS
     TYPE(gto_basis_set_type), POINTER        :: aux_basis_set
     TYPE(global_environment_type), &
       pointer                             :: globenv
+    TYPE(cp_error_type), INTENT(inout), &
+         OPTIONAL                               :: error
 
     INTEGER                                  :: icgf, ico, ipgf, iset, &
                                                 ishell, output_unit
+    TYPE(cp_logger_type), POINTER            :: logger
 
-!   ---------------------------------------------------------------------------
+    NULLIFY(logger)
+    logger => cp_error_get_logger(error)
+    IF (.NOT.BTEST(cp_print_key_should_output(logger%iter_info,&
+         globenv%input_file,"FORCE_EVAL%PRINT%KINDS/BASIS_SET",error=error),cp_p_file)) RETURN
+    output_unit = cp_print_key_unit_nr(logger,globenv%input_file,"FORCE_EVAL%PRINT%KINDS",&
+         extension=".Log",error=error)
 
-    IF (.NOT.globenv%ionode) RETURN
+    IF (ASSOCIATED(aux_basis_set).AND.(output_unit>0)) THEN
+       WRITE (UNIT=output_unit,FMT="(/,T4,A,T31,A30)")&
+            "- Auxiliary basis set information",TRIM(aux_basis_set%name)
 
-    IF (ASSOCIATED(aux_basis_set).AND.globenv%print%basis_set) THEN
+       WRITE (UNIT=output_unit,FMT="((T6,A,I6))")&
+            "Number of orbital shell sets:            ",&
+            aux_basis_set%nset,&
+            "Number of orbital shells:                ",&
+            SUM(aux_basis_set%nshell(:)),&
+            "Number of primitive Cartesian functions: ",&
+            SUM(aux_basis_set%npgf(:)),&
+            "Number of Cartesian basis functions:     ",&
+            aux_basis_set%ncgf,&
+            "Number of spherical basis functions:     ",&
+            aux_basis_set%nsgf,&
+            "Norm type:                               ",&
+            aux_basis_set%norm_type
 
-      output_unit = globenv%scr
+       WRITE (UNIT=output_unit,FMT="(/,T6,A,/,T6,A)")&
+            "Normalised Cartesian auxiliary functions",&
+            "Set   Shell   Function           Exponent    Coefficient"
 
-      WRITE (UNIT=output_unit,FMT="(/,T4,A,T31,A30)")&
-        "- Auxiliary basis set information",TRIM(aux_basis_set%name)
+       icgf = 0
 
-      WRITE (UNIT=output_unit,FMT="((T6,A,I6))")&
-        "Number of orbital shell sets:            ",&
-        aux_basis_set%nset,&
-        "Number of orbital shells:                ",&
-        SUM(aux_basis_set%nshell(:)),&
-        "Number of primitive Cartesian functions: ",&
-        SUM(aux_basis_set%npgf(:)),&
-        "Number of Cartesian basis functions:     ",&
-        aux_basis_set%ncgf,&
-        "Number of spherical basis functions:     ",&
-        aux_basis_set%nsgf,&
-        "Norm type:                               ",&
-        aux_basis_set%norm_type
-
-      WRITE (UNIT=output_unit,FMT="(/,T6,A,/,T6,A)")&
-        "Normalised Cartesian auxiliary functions",&
-        "Set   Shell   Function           Exponent    Coefficient"
-
-      icgf = 0
-
-      DO iset=1,aux_basis_set%nset
-        DO ishell=1,aux_basis_set%nshell(iset)
-          WRITE (UNIT=output_unit,FMT="(A)") ""
-          DO ico=1,nco(aux_basis_set%l(ishell,iset))
-            icgf = icgf + 1
-            WRITE (UNIT=output_unit,&
-                   FMT="(T6,I3,4X,I4,3X,A12,(T32,2F15.6))")&
-              iset,ishell,&
-              aux_basis_set%cgf_symbol(icgf),&
-              (aux_basis_set%zet(ipgf,iset),&
-               aux_basis_set%norm_cgf(icgf)*&
-               aux_basis_set%gcc(ipgf,ishell,iset),&
-               ipgf=1,aux_basis_set%npgf(iset))
+       DO iset=1,aux_basis_set%nset
+          DO ishell=1,aux_basis_set%nshell(iset)
+             WRITE (UNIT=output_unit,FMT="(A)") ""
+             DO ico=1,nco(aux_basis_set%l(ishell,iset))
+                icgf = icgf + 1
+                WRITE (UNIT=output_unit,&
+                     FMT="(T6,I3,4X,I4,3X,A12,(T32,2F15.6))")&
+                     iset,ishell,&
+                     aux_basis_set%cgf_symbol(icgf),&
+                     (aux_basis_set%zet(ipgf,iset),&
+                     aux_basis_set%norm_cgf(icgf)*&
+                     aux_basis_set%gcc(ipgf,ishell,iset),&
+                     ipgf=1,aux_basis_set%npgf(iset))
+             END DO
           END DO
-        END DO
-      END DO
+       END DO
 
     END IF
+    CALL cp_print_key_finished_output(output_unit,logger,globenv%input_file,&
+         "FORCE_EVAL%PRINT%KINDS",error=error)
 
   END SUBROUTINE write_aux_basis_set
 
 ! *****************************************************************************
 
-  SUBROUTINE write_gto_basis_set(gto_basis_set,globenv)
+  SUBROUTINE write_gto_basis_set(gto_basis_set,globenv,error)
 
 !   Purpose: Write a Gaussian-type orbital (GTO) basis set data set to the
 !            output unit.
@@ -1251,42 +1260,47 @@ CONTAINS
     TYPE(gto_basis_set_type), POINTER        :: gto_basis_set
     TYPE(global_environment_type), &
       pointer                             :: globenv
+    TYPE(cp_error_type), INTENT(inout), &
+         OPTIONAL                               :: error
 
     INTEGER                                  :: ipgf, iset, ishell, &
                                                 output_unit
+    TYPE(cp_logger_type), POINTER            :: logger
 
-!   ---------------------------------------------------------------------------
+    NULLIFY(logger)
+    logger => cp_error_get_logger(error)
+    IF (.NOT.BTEST(cp_print_key_should_output(logger%iter_info,&
+         globenv%input_file,"FORCE_EVAL%PRINT%KINDS/BASIS_SET",error=error),cp_p_file)) RETURN
+    output_unit = cp_print_key_unit_nr(logger,globenv%input_file,"FORCE_EVAL%PRINT%KINDS",&
+         extension=".Log",error=error)
 
-    IF (.NOT.globenv%ionode) RETURN
+    IF (ASSOCIATED(gto_basis_set).AND.(output_unit>0)) THEN
+       WRITE (UNIT=output_unit,FMT="(/,T4,A,T41,A40,/,/,T25,A))")&
+            "- GTO basis set information",TRIM(gto_basis_set%name),&
+            "Set   Shell     n   l            Exponent    Coefficient"
 
-    IF (ASSOCIATED(gto_basis_set).AND.globenv%print%basis_set) THEN
-
-      output_unit = globenv%scr
-
-      WRITE (UNIT=output_unit,FMT="(/,T4,A,T41,A40,/,/,T25,A))")&
-        "- GTO basis set information",TRIM(gto_basis_set%name),&
-        "Set   Shell     n   l            Exponent    Coefficient"
-
-      DO iset=1,gto_basis_set%nset
-        WRITE (UNIT=output_unit,FMT="(A)") ""
-        DO ishell=1,gto_basis_set%nshell(iset)
-          WRITE (UNIT=output_unit,&
-                 FMT="(T25,I3,4X,I4,4X,I2,2X,I2,(T51,2F15.6))")&
-            iset,ishell,&
-            gto_basis_set%n(ishell,iset),&
-            gto_basis_set%l(ishell,iset),&
-            (gto_basis_set%zet(ipgf,iset),gto_basis_set%gcc(ipgf,ishell,iset),&
-             ipgf=1,gto_basis_set%npgf(iset))
-        END DO
-      END DO
+       DO iset=1,gto_basis_set%nset
+          WRITE (UNIT=output_unit,FMT="(A)") ""
+          DO ishell=1,gto_basis_set%nshell(iset)
+             WRITE (UNIT=output_unit,&
+                  FMT="(T25,I3,4X,I4,4X,I2,2X,I2,(T51,2F15.6))")&
+                  iset,ishell,&
+                  gto_basis_set%n(ishell,iset),&
+                  gto_basis_set%l(ishell,iset),&
+                  (gto_basis_set%zet(ipgf,iset),gto_basis_set%gcc(ipgf,ishell,iset),&
+                  ipgf=1,gto_basis_set%npgf(iset))
+          END DO
+       END DO
 
     END IF
+    CALL cp_print_key_finished_output(output_unit,logger,globenv%input_file,&
+         "FORCE_EVAL%PRINT%KINDS",error=error)
 
   END SUBROUTINE write_gto_basis_set
 
 ! *****************************************************************************
 
-  SUBROUTINE write_orb_basis_set(orb_basis_set,globenv)
+  SUBROUTINE write_orb_basis_set(orb_basis_set,globenv,error)
 
 !   Purpose: Write a Gaussian-type orbital (GTO) basis set data set to the
 !            output unit.
@@ -1298,55 +1312,60 @@ CONTAINS
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
     TYPE(global_environment_type), &
       pointer                             :: globenv
+    TYPE(cp_error_type), INTENT(inout), &
+         OPTIONAL                               :: error
 
     INTEGER                                  :: icgf, ico, ipgf, iset, &
                                                 ishell, output_unit
+    TYPE(cp_logger_type), POINTER            :: logger
 
-!   ---------------------------------------------------------------------------
+    NULLIFY(logger)
+    logger => cp_error_get_logger(error)
+    IF (.NOT.BTEST(cp_print_key_should_output(logger%iter_info,&
+         globenv%input_file,"FORCE_EVAL%PRINT%KINDS/BASIS_SET",error=error),cp_p_file)) RETURN
+    output_unit = cp_print_key_unit_nr(logger,globenv%input_file,"FORCE_EVAL%PRINT%KINDS",&
+         extension=".Log",error=error)
 
-    IF (.NOT.globenv%ionode) RETURN
+    IF (ASSOCIATED(orb_basis_set).AND.(output_unit>0)) THEN
+       WRITE (UNIT=output_unit,FMT="(/,T4,A,T41,A40)")&
+            "- Orbital basis set information",TRIM(orb_basis_set%name)
 
-    IF (ASSOCIATED(orb_basis_set).AND.globenv%print%basis_set) THEN
+       WRITE (UNIT=output_unit,FMT="(/,(T25,A,T71,I10))")&
+            "Number of orbital shell sets:            ",&
+            orb_basis_set%nset,&
+            "Number of orbital shells:                ",&
+            SUM(orb_basis_set%nshell(:)),&
+            "Number of primitive Cartesian functions: ",&
+            SUM(orb_basis_set%npgf(:)),&
+            "Number of Cartesian basis functions:     ",&
+            orb_basis_set%ncgf,&
+            "Number of spherical basis functions:     ",&
+            orb_basis_set%nsgf
 
-      output_unit = globenv%scr
+       WRITE (UNIT=output_unit,FMT="(/,T6,A,/,/,T25,A)")&
+            "Normalised Cartesian orbitals",&
+            "Set   Shell   Orbital            Exponent    Coefficient"
 
-      WRITE (UNIT=output_unit,FMT="(/,T4,A,T41,A40)")&
-        "- Orbital basis set information",TRIM(orb_basis_set%name)
+       icgf = 0
 
-      WRITE (UNIT=output_unit,FMT="(/,(T25,A,T71,I10))")&
-        "Number of orbital shell sets:            ",&
-        orb_basis_set%nset,&
-        "Number of orbital shells:                ",&
-        SUM(orb_basis_set%nshell(:)),&
-        "Number of primitive Cartesian functions: ",&
-        SUM(orb_basis_set%npgf(:)),&
-        "Number of Cartesian basis functions:     ",&
-        orb_basis_set%ncgf,&
-        "Number of spherical basis functions:     ",&
-        orb_basis_set%nsgf
-
-      WRITE (UNIT=output_unit,FMT="(/,T6,A,/,/,T25,A)")&
-        "Normalised Cartesian orbitals",&
-          "Set   Shell   Orbital            Exponent    Coefficient"
-
-      icgf = 0
-
-      DO iset=1,orb_basis_set%nset
-        DO ishell=1,orb_basis_set%nshell(iset)
-          WRITE (UNIT=output_unit,FMT="(A)") ""
-          DO ico=1,nco(orb_basis_set%l(ishell,iset))
-            icgf = icgf + 1
-            WRITE (UNIT=output_unit,FMT="(T25,I3,4X,I4,3X,A12,(T51,2F15.6))")&
-              iset,ishell,orb_basis_set%cgf_symbol(icgf),&
-              (orb_basis_set%zet(ipgf,iset),&
-               orb_basis_set%norm_cgf(icgf)*&
-               orb_basis_set%gcc(ipgf,ishell,iset),&
-               ipgf=1,orb_basis_set%npgf(iset))
+       DO iset=1,orb_basis_set%nset
+          DO ishell=1,orb_basis_set%nshell(iset)
+             WRITE (UNIT=output_unit,FMT="(A)") ""
+             DO ico=1,nco(orb_basis_set%l(ishell,iset))
+                icgf = icgf + 1
+                WRITE (UNIT=output_unit,FMT="(T25,I3,4X,I4,3X,A12,(T51,2F15.6))")&
+                     iset,ishell,orb_basis_set%cgf_symbol(icgf),&
+                     (orb_basis_set%zet(ipgf,iset),&
+                     orb_basis_set%norm_cgf(icgf)*&
+                     orb_basis_set%gcc(ipgf,ishell,iset),&
+                     ipgf=1,orb_basis_set%npgf(iset))
+             END DO
           END DO
-        END DO
-      END DO
+       END DO
 
     END IF
+    CALL cp_print_key_finished_output(output_unit,logger,globenv%input_file,&
+         "FORCE_EVAL%PRINT%KINDS",error=error)
 
   END SUBROUTINE write_orb_basis_set
 
@@ -1510,38 +1529,42 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE write_sto_basis_set(sto_basis_set,globenv)
+  SUBROUTINE write_sto_basis_set(sto_basis_set,globenv,error)
 
     TYPE(sto_basis_set_type), POINTER        :: sto_basis_set
     TYPE(global_environment_type), &
       pointer                             :: globenv
+    TYPE(cp_error_type), INTENT(inout), &
+         OPTIONAL                               :: error
 
     INTEGER                                  :: ipgf, iset, ishell, &
                                                 output_unit
+    TYPE(cp_logger_type), POINTER            :: logger
 
-!   ---------------------------------------------------------------------------
+    NULLIFY(logger)
+    logger => cp_error_get_logger(error)
+    IF (.NOT.BTEST(cp_print_key_should_output(logger%iter_info,&
+         globenv%input_file,"FORCE_EVAL%PRINT%KINDS/BASIS_SET",error=error),cp_p_file)) RETURN
+    output_unit = cp_print_key_unit_nr(logger,globenv%input_file,"FORCE_EVAL%PRINT%KINDS",&
+         extension=".Log",error=error)
 
-    IF (.NOT.globenv%ionode) RETURN
+    IF (ASSOCIATED(sto_basis_set).AND.(output_unit>0)) THEN
+       WRITE (UNIT=output_unit,FMT="(/,T4,A,T31,A50)")&
+            "- STO basis set information",&
+            ADJUSTR("STO basis set name: "//TRIM(sto_basis_set%name))
+       WRITE (UNIT=output_unit,FMT="(T51,A)") "   Shell     n   l    Exponent"
 
-    IF (ASSOCIATED(sto_basis_set).AND.globenv%print%basis_set) THEN
-
-      output_unit = globenv%scr
-
-      WRITE (UNIT=output_unit,FMT="(/,T4,A,T31,A50)")&
-        "- STO basis set information",&
-        ADJUSTR("STO basis set name: "//TRIM(sto_basis_set%name))
-      WRITE (UNIT=output_unit,FMT="(T51,A)") "   Shell     n   l    Exponent"
-
-      DO ishell=1,sto_basis_set%nshell
-        WRITE (UNIT=output_unit,&
+       DO ishell=1,sto_basis_set%nshell
+          WRITE (UNIT=output_unit,&
                FMT="(T51,I7,I7,I4,F12.6)")&
-            ishell,&
-            sto_basis_set%nq(ishell),&
-            sto_basis_set%lq(ishell),&
-            sto_basis_set%zet(ishell)
-      END DO
-
+               ishell,&
+               sto_basis_set%nq(ishell),&
+               sto_basis_set%lq(ishell),&
+               sto_basis_set%zet(ishell)
+       END DO
     END IF
+    CALL cp_print_key_finished_output(output_unit,logger,globenv%input_file,&
+         "FORCE_EVAL%PRINT%KINDS",error=error)
 
   END SUBROUTINE write_sto_basis_set
 

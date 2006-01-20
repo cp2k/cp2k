@@ -28,7 +28,7 @@ MODULE qs_rho0_types
   USE qs_grid_atom,                    ONLY: grid_atom_type
   USE qs_rho_atom_types,               ONLY: rho_atom_coeff
   USE qs_util,                         ONLY: exp_radius
-  USE simulation_cell,                 ONLY: cell_type,&
+  USE cell_types,                 ONLY: cell_type,&
                                              get_cell
   USE termination,                     ONLY: stop_memory,&
                                              stop_program

@@ -116,7 +116,7 @@ MODULE qs_collocate_density
                                              rs_grid_zero,&
                                              rs_pw_transfer,&
                                              rs2pw
-  USE simulation_cell,                 ONLY: cell_type,&
+  USE cell_types,                 ONLY: cell_type,&
                                              pbc
   USE sparse_matrix_types,             ONLY: add_block_node,&
                                              allocate_matrix,&

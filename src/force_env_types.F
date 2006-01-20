@@ -53,7 +53,7 @@ MODULE force_env_types
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_env_release,&
                                              qs_environment_type
-  USE simulation_cell,                 ONLY: cell_type
+  USE cell_types,                 ONLY: cell_type
   USE tbmd_environment_types,          ONLY: tbmd_environment_type, &
                                              tbmd_env_release, &
                                              tbmd_env_get

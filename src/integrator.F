@@ -71,7 +71,7 @@ MODULE integrator
                                              rng_stream_type
   USE particle_list_types,             ONLY: particle_list_type
   USE particle_types,                  ONLY: particle_type
-  USE simulation_cell,                 ONLY: cell_type, get_hinv
+  USE cell_types,                 ONLY: cell_type, get_hinv
   USE termination,                     ONLY: stop_memory, stop_program
 !  USE transformations,                 ONLY: fr2fu,&
 !                                             u2r

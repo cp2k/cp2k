@@ -63,7 +63,7 @@ MODULE qs_rho0_methods
   USE qs_util,                         ONLY: exp_radius,&
                                              gaussint_sph,&
                                              trace_r_AxB
-  USE simulation_cell,                 ONLY: cell_type
+  USE cell_types,                 ONLY: cell_type
   USE termination,                     ONLY: stop_memory
   USE timings,                         ONLY: timeset,&
                                              timestop

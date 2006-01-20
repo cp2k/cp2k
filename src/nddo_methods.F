@@ -100,7 +100,7 @@ MODULE nddo_methods
   USE semi_empirical_utils,            ONLY: contract,&
                                              expand,&
                                              get_se_param
-  USE simulation_cell,                 ONLY: cell_type,pbc
+  USE cell_types,                 ONLY: cell_type,pbc
   USE sparse_matrix_types,             ONLY: cp_sm_scale_and_add,&
                                              cp_sm_sm_trace,&
                                              first_block_node,&

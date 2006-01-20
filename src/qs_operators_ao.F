@@ -51,7 +51,7 @@ MODULE qs_operators_ao
                                              neighbor_list_type,&
                                              neighbor_node_type,&
                                              next
-  USE simulation_cell,                 ONLY: cell_type, pbc
+  USE cell_types,                 ONLY: cell_type, pbc
   USE sparse_matrix_types,             ONLY: allocate_matrix, get_block_node,&
                                              add_block_node,&
                                              real_matrix_p_type, &

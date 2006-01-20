@@ -90,7 +90,7 @@ MODULE qmmm_methods
   USE qs_rho_types,                    ONLY: qs_rho_type
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE simulation_cell,                 ONLY: cell_type,&
+  USE cell_types,                 ONLY: cell_type,&
                                              pbc
   USE message_passing,                 ONLY: mp_sum 
 #include "cp_common_uses.h"

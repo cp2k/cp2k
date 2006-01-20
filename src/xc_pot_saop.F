@@ -69,7 +69,7 @@ MODULE xc_pot_saop
   USE qs_rho_types,                    ONLY: qs_rho_type
   USE qs_vxc_atom,                     ONLY: calc_rho_angular,&
                                              gaVxcgb_noGC
-  USE simulation_cell,                 ONLY: cell_type
+  USE cell_types,                 ONLY: cell_type
   USE sparse_matrix_types,             ONLY: deallocate_matrix,&
                                              real_matrix_p_type,&
                                              replicate_matrix,&

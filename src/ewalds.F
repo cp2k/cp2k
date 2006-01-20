@@ -40,7 +40,7 @@ MODULE ewalds
                                              pw_grid_type
   USE pw_types,                        ONLY: pw_type
   USE pw_pool_types,                   ONLY: pw_pool_type
-  USE simulation_cell,                 ONLY: cell_type
+  USE cell_types,                 ONLY: cell_type
   USE structure_factor_types,          ONLY: structure_factor_type
   USE structure_factors,               ONLY: structure_factor_allocate,&
                                              structure_factor_deallocate,&

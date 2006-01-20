@@ -60,7 +60,7 @@ MODULE bsse
                                              atomic_kind_list_release,&
                                              atomic_kind_list_type
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE simulation_cell,                 ONLY: cell_type,&
+  USE cell_types,                 ONLY: cell_type,&
                                              get_cell
   USE particle_list_types,             ONLY: particle_list_release,&
                                              particle_list_retain,&

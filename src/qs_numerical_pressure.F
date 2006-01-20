@@ -35,7 +35,7 @@ MODULE qs_numerical_pressure
   USE kinds,                           ONLY: dp
   USE particle_types,                  ONLY: particle_type
 
-  USE simulation_cell,                 ONLY: get_hinv, cell_type, get_cell,&
+  USE cell_types,                 ONLY: get_hinv, cell_type, get_cell,&
                                              cell_create, cell_clone,&
                                              cell_release
   USE qs_environment_methods,          ONLY: qs_env_rebuild_pw_env, &

@@ -39,7 +39,7 @@ MODULE qs_main
   USE cp_subsystem_types,              ONLY: cp_subsys_release,&
                                              cp_subsys_set,&
                                              cp_subsystem_type
-  USE simulation_cell,                 ONLY: cell_type
+  USE cell_types,                 ONLY: cell_type
 #include "cp_common_uses.h"
     IMPLICIT NONE
 

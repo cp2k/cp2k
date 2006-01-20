@@ -107,7 +107,7 @@ MODULE kg_environment
                                              scf_c_release,&
                                              scf_c_write_parameters,&
                                              scf_control_type
-  USE simulation_cell,                 ONLY: cell_release,&
+  USE cell_types,                 ONLY: cell_release,&
                                              cell_type,&
                                              read_cell,&
                                              write_cell,&
@@ -231,8 +231,8 @@ CONTAINS
     CALL read_qs_section(dft_control%qs_control,globenv,error=error)
     CALL read_mgrid_section(dft_control%qs_control,globenv,error=error)
 
-    CALL write_dft_control ( dft_control, globenv )
-    CALL write_qs_control ( dft_control % qs_control, globenv )
+    CALL write_dft_control ( dft_control, globenv, error)
+    CALL write_qs_control ( dft_control % qs_control, globenv, error)
 
 !   *** Read the input section with the cell parameters
     CALL read_cell ( cell, cell_ref, globenv,  use_ref_cell=use_ref_cell,&
@@ -240,7 +240,7 @@ CONTAINS
     CALL get_cell( cell, abc=abc)    
 
 !   *** Print the cell parameters ***
-    CALL write_cell ( cell, globenv )
+    CALL write_cell ( cell, globenv, error)
 
     ! topology
     CALL topology_control (atomic_kind_set,particle_set,&
@@ -248,9 +248,9 @@ CONTAINS
                            globenv, error=error)
 
     ! Read/write the atomic kind set
-    CALL read_atomic_kind_set(atomic_kind_set,globenv)
-    CALL check_atomic_kind_set(atomic_kind_set,dft_control,globenv)
-    CALL write_gto_basis_sets(atomic_kind_set,globenv)
+    CALL read_atomic_kind_set(atomic_kind_set,globenv,error)
+    CALL check_atomic_kind_set(atomic_kind_set,dft_control,globenv,error)
+    CALL write_gto_basis_sets(atomic_kind_set,globenv,error)
 
     CALL num_ao_el_per_molecule(molecule_kind_set)
 
@@ -276,8 +276,8 @@ CONTAINS
     ! Initialise/print the atomic/molecular kind set
     CALL init_atomic_kind_set(atomic_kind_set,globenv,&
                               method=dft_control%qs_control%method)
-    CALL write_atomic_kind_set(atomic_kind_set,globenv)
-    CALL write_molecule_kind_set(molecule_kind_set,globenv)
+    CALL write_atomic_kind_set(atomic_kind_set,globenv,error)
+    CALL write_molecule_kind_set(molecule_kind_set,globenv,error)
     CALL write_total_numbers(atomic_kind_set,particle_set,globenv)
 
     ! Print the atomic coordinates 
@@ -289,7 +289,7 @@ CONTAINS
 
     ! Initialize the atomic interaction radii 
     CALL init_interaction_radii ( dft_control%qs_control, cell, &
-                                  atomic_kind_set, globenv)
+                                  atomic_kind_set, globenv, error)
 
     ! Distribute molecules and atoms using the new data structures
     CALL distribute_molecules_1d(particle_kind_set=atomic_kind_set,&

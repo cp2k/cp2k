@@ -118,7 +118,7 @@ MODULE qs_ep_methods
   USE realspace_grid_types,            ONLY: rs_pw_to_cube
   USE scf_control_types,               ONLY: scf_c_retain,&
                                              scf_control_type
-  USE simulation_cell,                 ONLY: cell_type,&
+  USE cell_types,                 ONLY: cell_type,&
                                              cell_clone
   USE sparse_matrix_types,             ONLY: allocate_matrix_set,&
                                              real_matrix_p_type,&
@@ -777,7 +777,7 @@ SUBROUTINE ep_env_finish_qs_init(qs_env,globenv,error)
        matrix_ks=matrix_ks)
 
   CALL calculate_ecore_self(qs_env)
-  CALL calculate_ecore_overlap(qs_env,globenv,.FALSE.)
+  CALL calculate_ecore_overlap(qs_env,globenv,.FALSE.,error=error)
 
   CALL timestop(0.0_dp,handle)
 END SUBROUTINE ep_env_finish_qs_init

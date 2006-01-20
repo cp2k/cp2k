@@ -79,7 +79,7 @@ MODULE qmmm_electrostatic_methods
   USE realspace_grid_types,            ONLY: rs_pw_to_cube
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE simulation_cell,                 ONLY: cell_type,&
+  USE cell_types,                 ONLY: cell_type,&
                                              pbc
   USE message_passing, ONLY: mp_stop, mp_sync
   USE machine, only: m_flush

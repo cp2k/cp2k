@@ -29,7 +29,7 @@ MODULE mm_collocate_potential
   USE timings,                         ONLY: timeset,&
                                              timestop  
   USE kinds,                           ONLY: dp
-  USE simulation_cell,                 ONLY: cell_type
+  USE cell_types,                 ONLY: cell_type
   USE cube_utils,                      ONLY: cube_info_type,&
                                              return_cube
   USE pw_types,                        ONLY: COMPLEXDATA1D,&

@@ -89,7 +89,7 @@ MODULE kg_environment_types
   USE scf_control_types,               ONLY: scf_c_release,&
                                              scf_c_retain,&
                                              scf_control_type
-  USE simulation_cell,                 ONLY: cell_release,&
+  USE cell_types,                 ONLY: cell_release,&
                                              cell_retain,&
                                              cell_type
   USE virial_types,                    ONLY: virial_type,&

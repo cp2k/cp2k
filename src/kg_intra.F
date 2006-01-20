@@ -42,7 +42,7 @@ MODULE kg_intra
                                              twopi
   USE message_passing,                 ONLY: mp_sum
   USE particle_types,                  ONLY: particle_type
-  USE simulation_cell,                 ONLY: cell_type,&
+  USE cell_types,                 ONLY: cell_type,&
                                              pbc
   USE termination,                     ONLY: stop_memory
   USE timings,                         ONLY: timeset,&

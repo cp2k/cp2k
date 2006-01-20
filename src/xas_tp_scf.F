@@ -83,7 +83,7 @@ MODULE xas_tp_scf
                                              ot_method_nr,&
                                              qs_scf_env_type
   USE scf_control_types,               ONLY: scf_control_type
-  USE simulation_cell,                 ONLY: cell_type,pbc
+  USE cell_types,                 ONLY: cell_type,pbc
   USE sparse_matrix_types,             ONLY: real_matrix_p_type, &
                                              real_matrix_type,&
                                              set_matrix,&

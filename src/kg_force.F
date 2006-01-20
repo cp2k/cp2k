@@ -91,7 +91,7 @@ MODULE kg_force
                                              real_matrix_p_type,&
                                              replicate_matrix_structure, &
                                              set_matrix
-  USE simulation_cell,                 ONLY: cell_type
+  USE cell_types,                 ONLY: cell_type
   USE termination,                     ONLY: stop_memory,stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -333,7 +333,7 @@ SUBROUTINE kgpol_calculate_forces ( kg_env, globenv, error )
 ! Calculate the rspace energy of the core charge distribution
 ! and its force contributions
 
-  CALL calculate_ecore_rspace(kg_env,globenv,calculate_forces)
+  CALL calculate_ecore_rspace(kg_env,globenv,calculate_forces,error)
 
 ! calculate intramolecular bonded_correction energy  
 
@@ -628,7 +628,7 @@ SUBROUTINE kg_calculate_forces ( kg_env, globenv,error )
 ! Calculate the rspace energy of the core charge distribution
 ! and its force contributions
 
-  CALL calculate_ecore_rspace(kg_env,globenv,calculate_forces)
+  CALL calculate_ecore_rspace(kg_env,globenv,calculate_forces,error)
 
 ! calculate intramolecular bonded_correction energy  
 

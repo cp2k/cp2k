@@ -64,7 +64,7 @@ MODULE  hartree_local_3centers
                                              rho_atom_coeff,&
                                              rho_atom_type
   USE qs_util,                         ONLY: trace_r_AxB, trace_r_AxB_new 
-  USE simulation_cell,                 ONLY: cell_type,&
+  USE cell_types,                 ONLY: cell_type,&
                                              pbc
   USE sparse_matrix_types,             ONLY: get_block_node,&
                                              real_matrix_p_type

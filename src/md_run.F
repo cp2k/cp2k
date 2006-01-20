@@ -71,7 +71,7 @@ MODULE md_run
   USE mol_new_list_types,              ONLY: mol_new_list_type
   USE particle_list_types,             ONLY: particle_list_type
   USE physcon,                         ONLY: kelvin
-  USE simulation_cell,                 ONLY: cell_type
+  USE cell_types,                 ONLY: cell_type
   USE termination,                     ONLY: stop_memory,&
        external_control
   USE timings,                         ONLY: timeset,&

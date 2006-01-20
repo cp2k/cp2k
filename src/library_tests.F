@@ -85,7 +85,7 @@ MODULE library_tests
                                              REALDATA3D,&
                                              RECIPROCALSPACE
   USE real_space_test,                 ONLY: rs_test
-  USE simulation_cell,                 ONLY: cell_type,&
+  USE cell_types,                 ONLY: cell_type,&
                                              get_hinv,&
                                              cell_create,&
                                              cell_release

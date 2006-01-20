@@ -34,7 +34,7 @@ MODULE qmmm_elpot
   USE qmmm_types,                      ONLY: qmmm_env_qm_type,&
                                              qmmm_Pot_Type,&
                                              qmmm_pot_p_type
-  USE simulation_cell,                 ONLY: cell_type  
+  USE cell_types,                 ONLY: cell_type  
   USE memory_utilities,                ONLY: reallocate
   USE global_types,                    ONLY: global_environment_type
   USE erf_fn,                          ONLY: erf

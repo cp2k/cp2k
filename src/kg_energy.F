@@ -84,7 +84,7 @@ MODULE kg_energy
   USE qs_environment_types,            ONLY: qs_environment_type
   USE qs_neighbor_lists,               ONLY: build_qs_neighbor_lists
   USE scf_control_types,               ONLY: scf_control_type
-  USE simulation_cell,                 ONLY: cell_type
+  USE cell_types,                 ONLY: cell_type
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE xc,                              ONLY: xc_vxc_pw_create1
@@ -223,7 +223,7 @@ SUBROUTINE kg_only_energies ( kg_env, globenv, error )
 ! Calculate the rspace energy of the core charge distribution
 ! and its force contributions
 
-  CALL calculate_ecore_rspace(kg_env,globenv,calculate_forces)
+  CALL calculate_ecore_rspace(kg_env,globenv,calculate_forces,error)
 
 ! calculate intramolecular bonded_correction energy  
 
@@ -597,7 +597,7 @@ SUBROUTINE init_energy_calculation ( kg_env, vxc_r, globenv, error)
 ! Calculate the rspace energy of the core charge distribution
 ! and its force contributions
 
-  CALL calculate_ecore_rspace(kg_env,globenv,calculate_forces)
+  CALL calculate_ecore_rspace(kg_env,globenv,calculate_forces,error)
 
 ! calculate intramolecular bonded_correction energy  
 

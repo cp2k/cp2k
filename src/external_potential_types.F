@@ -48,6 +48,10 @@ MODULE external_potential_types
                                              stop_program
   USE input_section_types, ONLY: section_vals_val_get, section_vals_type,&
        section_vals_get_subs_vals
+ USE cp_output_handling,              ONLY: cp_print_key_unit_nr, &
+                                             cp_print_key_finished_output,&
+                                             cp_print_key_should_output,&
+                                             cp_p_file
 #include "cp_common_uses.h"
   IMPLICIT NONE
 
@@ -1623,7 +1627,7 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE write_all_potential(potential,globenv)
+  SUBROUTINE write_all_potential(potential,globenv,error)
 
 !   Purpose: Write an atomic all-electron potential data set to the output
 !            unit.
@@ -1635,17 +1639,17 @@ CONTAINS
     TYPE(all_potential_type), POINTER        :: potential
     TYPE(global_environment_type), &
       pointer                             :: globenv
+    TYPE(cp_error_type), INTENT(inout), &
+         OPTIONAL                               :: error
 
     INTEGER                                  :: output_unit
+    TYPE(cp_logger_type), POINTER            :: logger
 
-!   ---------------------------------------------------------------------------
-
-    IF (.NOT.globenv%ionode) RETURN
-
-    IF (ASSOCIATED(potential).AND.globenv%print%potential) THEN
-
-      output_unit = globenv%scr
-
+    NULLIFY(logger)
+    logger => cp_error_get_logger(error)
+    output_unit = cp_print_key_unit_nr(logger,globenv%input_file,&
+         "FORCE_EVAL%PRINT%KINDS/POTENTIAL",extension=".Log",error=error)
+    IF (output_unit>0.AND.ASSOCIATED(potential)) THEN
       WRITE (UNIT=output_unit,FMT="(/,T4,A,T57,A24)")&
         "- Potential information",TRIM(potential%name)
 
@@ -1657,14 +1661,14 @@ CONTAINS
           potential%alpha_core_charge
       WRITE (UNIT=output_unit,FMT="(T12,A,T65,4I4)")&
         "Electronic configuration (s p d ...):",potential%elec_conf
-
     END IF
-
+    CALL cp_print_key_finished_output(output_unit,logger,globenv%input_file,&
+         "FORCE_EVAL%PRINT%KINDS/POTENTIAL",error=error)
   END SUBROUTINE write_all_potential
 
 ! *****************************************************************************
 
-  SUBROUTINE write_elp_potential(potential,globenv)
+  SUBROUTINE write_elp_potential(potential,globenv,error)
 
 !   Purpose: Write an effective-point-charge potential data set to the output
 !            unit.
@@ -1676,18 +1680,18 @@ CONTAINS
     TYPE(elp_potential_type), POINTER        :: potential
     TYPE(global_environment_type), &
       pointer                             :: globenv
+    TYPE(cp_error_type), INTENT(inout), &
+         OPTIONAL                               :: error
 
     INTEGER                                  :: i, j, output_unit
     REAL(KIND=dp)                            :: r
+    TYPE(cp_logger_type), POINTER            :: logger
 
-!   ---------------------------------------------------------------------------
-
-    IF (.NOT.globenv%ionode) RETURN
-
-    IF (ASSOCIATED(potential).AND.globenv%print%potential) THEN
-
-      output_unit = globenv%scr
-
+    NULLIFY(logger)
+    logger => cp_error_get_logger(error)
+    output_unit = cp_print_key_unit_nr(logger,globenv%input_file,&
+         "FORCE_EVAL%PRINT%KINDS/POTENTIAL",extension=".Log",error=error)
+    IF (output_unit>0.AND.ASSOCIATED(potential)) THEN
       WRITE (UNIT=output_unit,FMT="(/,/,T4,A,/,/,T6,A)")&
         "- Potential information",&
         "Potential name: "//TRIM(potential%name)
@@ -1699,25 +1703,14 @@ CONTAINS
       WRITE (UNIT=output_unit,FMT="(/,T6,A,F12.6)")&
         "Gaussian exponent of the core charge distribution: ",&
         potential%alpha_core_charge
-
-!      IF (potential%nalpha_ppl>0) THEN
-!        DO I=1,potential%nalpha_ppl
-!           r=sqrt(1.0_dp/(2.0_dp*potential%alpha_ppl(i)))
-!           WRITE (UNIT=output_unit,FMT="(/,T12,A,/,/,T8,A,/,T8,6F12.6)")&
-!           "Parameters of the local pseudopotential:",&
-!           "alpha       rloc        C1          C2          C3          C4",&
-!           potential%alpha_ppl(i), r, &
-!           (potential%cexp_ppl(i,j)*r**(2*(j-1)),j=1,potential%nexp_ppl(i))
-!        END DO
-!      END IF
-
     END IF
-
+    CALL cp_print_key_finished_output(output_unit,logger,globenv%input_file,&
+         "FORCE_EVAL%PRINT%KINDS/POTENTIAL",error=error)
   END SUBROUTINE write_elp_potential
 
 ! *****************************************************************************
 
-  SUBROUTINE write_gth_potential(potential,globenv)
+  SUBROUTINE write_gth_potential(potential,globenv,error)
 
 !   Purpose: Write an atomic GTH potential data set to the output unit.
 
@@ -1728,18 +1721,18 @@ CONTAINS
     TYPE(gth_potential_type), POINTER        :: potential
     TYPE(global_environment_type), &
       pointer                             :: globenv
+    TYPE(cp_error_type), INTENT(inout), &
+         OPTIONAL                               :: error
 
     INTEGER                                  :: i, j, l, output_unit
     REAL(KIND=dp)                            :: r
+    TYPE(cp_logger_type), POINTER            :: logger
 
-!   ---------------------------------------------------------------------------
-
-    IF (.NOT.globenv%ionode) RETURN
-
-    IF (ASSOCIATED(potential).AND.globenv%print%potential) THEN
-
-      output_unit = globenv%scr
-
+    NULLIFY(logger)
+    logger => cp_error_get_logger(error)
+    output_unit = cp_print_key_unit_nr(logger,globenv%input_file,&
+         "FORCE_EVAL%PRINT%KINDS/POTENTIAL",extension=".Log",error=error)
+    IF (output_unit>0.AND.ASSOCIATED(potential)) THEN
       WRITE (UNIT=output_unit,FMT="(/,/,T4,A,/,/,T6,A)")&
         "- Potential information",&
         "Potential name: "//TRIM(potential%name)
@@ -1774,9 +1767,9 @@ CONTAINS
           END DO
         END DO
       END IF
-
-    END IF
-
+   END IF
+   CALL cp_print_key_finished_output(output_unit,logger,globenv%input_file,&
+        "FORCE_EVAL%PRINT%KINDS/POTENTIAL",error=error)
   END SUBROUTINE write_gth_potential
 
 ! *****************************************************************************

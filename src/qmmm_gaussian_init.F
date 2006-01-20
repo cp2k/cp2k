@@ -36,7 +36,7 @@ MODULE qmmm_gaussian_init
   USE qmmm_gaussian_input,             ONLY: read_mm_potential,&
                                              set_mm_potential
   USE global_types,                    ONLY: global_environment_type
-  USE simulation_cell,                 ONLY: cell_type
+  USE cell_types,                 ONLY: cell_type
   USE qs_util,                         ONLY: exp_radius
   USE mathconstants,                   ONLY: pi
   USE pw_pool_types,                   ONLY: pw_pool_type, pw_pool_p_type

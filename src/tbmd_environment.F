@@ -58,7 +58,7 @@ MODULE tbmd_environment
   USE particle_types,                         ONLY: particle_type
   USE physcon,                                ONLY: evolt, &
                                                     angstrom
-  USE simulation_cell,                        ONLY: cell_type, &
+  USE cell_types,                        ONLY: cell_type, &
                                                     read_cell, &
                                                     get_cell, &
                                                     cell_release,&
@@ -174,7 +174,7 @@ CONTAINS
                      use_ref_cell=use_ref_cell, cell_section=cell_section, &
                      error=error)
       CALL get_cell(cell=cell, abc=abc)
-      CALL write_cell(cell=cell, globenv=globenv)
+      CALL write_cell(cell=cell, globenv=globenv,error=error)
 
       CALL cp_subsys_create(subsystem, para_env=globenv%para_env, error=error)
       CALL cp_subsys_read_colvar(subsystem, colvar_section, error=error)

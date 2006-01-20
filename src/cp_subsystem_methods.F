@@ -55,7 +55,7 @@ MODULE cp_subsystem_methods
   USE input_section_types,             ONLY: section_type,&
                                              section_vals_type,&
                                              section_vals_get
-  USE simulation_cell,                 ONLY: cell_retain,&
+  USE cell_types,                 ONLY: cell_retain,&
                                              cell_type
   USE timings,                         ONLY: timeset,&
                                              timestop

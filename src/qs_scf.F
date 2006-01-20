@@ -1188,10 +1188,12 @@ CONTAINS
       CALL calculate_ecore_self(qs_env)
       IF (PRESENT(calc_forces)) THEN
         CALL calculate_ecore_overlap(qs_env, globenv, &
-                                     calculate_forces=calc_forces)
+                                     calculate_forces=calc_forces,&
+                                     error=error)
       ELSE
         CALL calculate_ecore_overlap(qs_env, globenv, &
-                                     calculate_forces=dft_control%forces)
+                                     calculate_forces=dft_control%forces,&
+                                     error=error)
       END IF
       IF (ionode.AND.logger%print_keys%scf_energies) THEN
          WRITE (UNIT=output_unit,FMT="(/,(T3,A,T60,F20.10))")&

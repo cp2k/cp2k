@@ -38,7 +38,7 @@ MODULE kg_core
                                              deallocate_subcell,&
                                              local_atoms_type,&
                                              subcell_type
-  USE simulation_cell,                 ONLY: cell_type,&
+  USE cell_types,                 ONLY: cell_type,&
                                              get_cell,&
                                              pbc,&
                                              real_to_scaled,&
@@ -47,6 +47,12 @@ MODULE kg_core
                                              stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
+  USE cp_output_handling,              ONLY: cp_print_key_unit_nr, &
+                                             cp_print_key_finished_output,&
+                                             cp_print_key_should_output,&
+                                             cp_p_file
+
+#include "cp_common_uses.h"
 
   IMPLICIT NONE
 
@@ -66,7 +72,7 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE calculate_ecore_rspace(kg_env,globenv,calculate_forces)
+  SUBROUTINE calculate_ecore_rspace(kg_env,globenv,calculate_forces,error)
 
 !   Purpose: Calculate the overlap energy of the core charge distribution.
 
@@ -76,6 +82,8 @@ CONTAINS
     TYPE(global_environment_type), &
       pointer                             :: globenv
     LOGICAL, INTENT(IN)                      :: calculate_forces
+    TYPE(cp_error_type), INTENT(inout), &
+         OPTIONAL                               :: error
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "calculate_ecore_overlap", &
       routine = "SUBROUTINE "//routine_name//" (MODULE "//module_name//")"
@@ -110,8 +118,11 @@ CONTAINS
       POINTER                                :: force
     TYPE(subcell_type), DIMENSION(:, :, :), &
       POINTER                                :: subcell
+    TYPE(cp_logger_type), POINTER            :: logger
 
-!   ---------------------------------------------------------------------------
+
+    NULLIFY(logger)
+    logger => cp_error_get_logger(error)
 
     CALL timeset(routine_name,"I",'',handle)
 
@@ -126,8 +137,7 @@ CONTAINS
     NULLIFY (list)
 
     group = globenv%group
-    ionode = globenv%ionode
-    output_unit = globenv%scr
+
 
 !   *** Set Verlet skin ***
 
@@ -260,8 +270,9 @@ CONTAINS
 
     END DO
 
-    IF ((ionode.AND.globenv%print%cell_parameters).AND.&
-        (globenv%print%level > LOW)) THEN
+    output_unit = cp_print_key_unit_nr(logger,globenv%input_file,"FORCE_EVAL%PRINT%SUBCELL",&
+         extension=".Log",error=error)
+    IF (output_unit>0) THEN
       WRITE (UNIT=output_unit,FMT="(/,/,T2,A,/,/,T3,A,T29,A,T54,A)")&
         "SUBCELL GRID FOR THE CALCULATION OF THE CORE CHARGE OVERLAP",&
         "Atomic kind pair","Grid size",&
@@ -306,8 +317,7 @@ CONTAINS
 
 !       *** Print subcell information for the current atomic kind pair ***
 
-        IF ((ionode.AND.globenv%print%cell_parameters).AND.&
-            (globenv%print%level > LOW)) THEN
+        IF (output_unit>0) THEN
           s(:) = 1.0_dp/REAL(nsubcell(:),dp)
           r(:) = scaled_to_real(s(:),cell)
           WRITE (UNIT=output_unit,FMT="(T3,2I8,4X,3I5,6X,3F12.6)")&
@@ -593,7 +603,8 @@ CONTAINS
     CALL mp_sum(ecore_overlap,group)
 
     energy%core_overlap = ecore_overlap
-
+    CALL cp_print_key_finished_output(output_unit,logger,globenv%input_file,&
+         "FORCE_EVAL%PRINT%SUBCELL",error=error)    
     CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE calculate_ecore_rspace

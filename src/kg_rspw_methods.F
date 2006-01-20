@@ -53,7 +53,7 @@ MODULE kg_rspw_methods
                                              pw_pool_p_type,&
                                              pw_pools_dealloc
   USE qs_util,                         ONLY: exp_radius
-  USE simulation_cell,                 ONLY: cell_type
+  USE cell_types,                 ONLY: cell_type
   USE termination,                     ONLY: stop_memory
   USE timings,                         ONLY: timeset,&
                                              timestop

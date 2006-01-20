@@ -70,7 +70,7 @@ MODULE qs_kpp1_env_methods
                                              qs_rho_type
   USE qs_rho0_ggrid,                   ONLY: integrate_vhg0_rspace
   USE qs_vxc_atom,                     ONLY: calculate_xc_2nd_deriv_atom
-  USE simulation_cell,                 ONLY: cell_type
+  USE cell_types,                 ONLY: cell_type
   USE sparse_matrix_types,             ONLY: cp_sm_scale_and_add,&
                                              deallocate_matrix_set,&
                                              real_matrix_p_type,&

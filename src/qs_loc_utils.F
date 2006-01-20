@@ -94,7 +94,7 @@ MODULE qs_loc_utils
 !  USE qs_matrix_pools,                 ONLY: mpools_get
   USE qs_mo_types,                     ONLY: get_mo_set,&
                                              mo_set_p_type
-  USE simulation_cell,                 ONLY: cell_type,&
+  USE cell_types,                 ONLY: cell_type,&
                                              pbc
   USE sparse_matrix_types,             ONLY: get_block_node,&
                                              real_matrix_p_type,&

@@ -330,15 +330,10 @@ SUBROUTINE cp2k_read(globenv,error)
     CHARACTER(len=*), PARAMETER :: routineN = 'cp2k_read', &
       routineP = module_name//':'//routineN
 
-    INTEGER                                  :: output_unit
+    INTEGER                                  :: iw
     TYPE(cp_logger_type), POINTER            :: logger
     CHARACTER(len=default_string_length) :: c_val
 
-    IF (globenv%para_env%source==globenv%para_env%mepos) THEN
-       output_unit=globenv%scr
-    ELSE
-       output_unit=-1
-    END IF
 
 !   *** Read the input/output section ***
 
@@ -372,10 +367,17 @@ SUBROUTINE cp2k_read(globenv,error)
     globenv%print%level=globenv%print_level
     CALL print_keys_reset(globenv%print,globenv%print_level)
 
-    IF (globenv%ionode) THEN
-      IF (globenv%print%basic_data_types) CALL print_kind_info(output_unit)
-      IF (globenv%print%physcon) CALL write_physcon(output_unit)
-    END IF
+    iw = cp_print_key_unit_nr(logger,globenv%input_file,"FORCE_EVAL%PRINT%BASIC_DATA_TYPES",&
+         extension=".Log",error=error)
+    IF (iw>0) CALL print_kind_info(iw)
+    CALL cp_print_key_finished_output(iw,logger,globenv%input_file,&
+         "FORCE_EVAL%PRINT%BASIC_DATA_TYPES",error=error)
+
+    iw = cp_print_key_unit_nr(logger,globenv%input_file,"GLOBAL%PRINT/PHYSCON",&
+         extension=".Log",error=error)
+    IF (iw>0) CALL write_physcon(iw)
+    CALL cp_print_key_finished_output(iw,logger,globenv%input_file,&
+         "GLOBAL%PRINT/PHYSCON",error=error)    
 
   END SUBROUTINE cp2k_read
 !***************************************************************************

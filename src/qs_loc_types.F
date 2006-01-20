@@ -52,7 +52,7 @@ MODULE qs_loc_types
   USE qs_loc_control,                  ONLY: localized_wfn_control_release,&
                                              localized_wfn_control_retain,&
                                              localized_wfn_control_type
-  USE simulation_cell,                 ONLY: cell_release,&
+  USE cell_types,                 ONLY: cell_release,&
                                              cell_retain,&
                                              cell_type,&
                                              pbc

@@ -60,7 +60,7 @@ MODULE mc_ge_moves
                                              particle_list_type
   USE particle_types,                  ONLY: write_particle_coordinates
   USE physcon,                         ONLY: angstrom
-  USE simulation_cell,                 ONLY: cell_p_type,&
+  USE cell_types,                 ONLY: cell_p_type,&
                                              cell_type,&
                                              get_cell
   USE termination,                     ONLY: stop_memory,&

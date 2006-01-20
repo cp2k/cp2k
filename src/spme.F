@@ -58,7 +58,7 @@ MODULE spme
                                              rs_pw_transfer,&
                                              rs2pw,&
                                              pw2rs
-  USE simulation_cell,                 ONLY: cell_type
+  USE cell_types,                 ONLY: cell_type
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
   USE timings,                         ONLY: timeset,&

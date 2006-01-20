@@ -23,7 +23,7 @@ MODULE convert_units
                                              unit_convert_type
   USE kinds,                           ONLY: dp
   USE particle_types,                  ONLY: particle_type
-  USE simulation_cell,                 ONLY: cell_type
+  USE cell_types,                 ONLY: cell_type
 
   IMPLICIT NONE
 

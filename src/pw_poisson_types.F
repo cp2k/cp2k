@@ -77,7 +77,7 @@ USE cp_error_handling, only: cp_error_type
                                              section_vals_val_get,&
                                              section_vals_release,&
                                              section_vals_retain
-  USE simulation_cell,                 ONLY: cell_type, cell_release
+  USE cell_types,                 ONLY: cell_type, cell_release
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE pw_grid_types,                   ONLY: pw_grid_type,&
                                              HALFSPACE

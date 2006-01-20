@@ -67,7 +67,7 @@ MODULE mc_ensembles
                                              next_random_number
   USE cp_files,                        ONLY: close_file,&
                                              open_file
-  USE simulation_cell,                 ONLY: get_cell,&
+  USE cell_types,                 ONLY: get_cell,&
                                              cell_p_type
   USE termination,                     ONLY: stop_memory,&
                                              stop_program,&

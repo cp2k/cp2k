@@ -37,7 +37,7 @@ MODULE qmmm_gaussian_input
   USE qmmm_gaussian_types,             ONLY: qmmm_gaussian_p_type,&
                                              qmmm_gaussian_type
   USE global_types,                    ONLY: global_environment_type
-  USE simulation_cell,                 ONLY: cell_type
+  USE cell_types,                 ONLY: cell_type
   USE termination,                     ONLY: stop_program
   USE string_utilities,                ONLY: uppercase
   USE physcon,                         ONLY: bohr

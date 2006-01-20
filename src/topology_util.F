@@ -82,7 +82,7 @@ MODULE topology_util
   USE physcon,                         ONLY: massunit
   USE qmmm_ff_fist,                    ONLY: qmmm_ff_precond_only_qm
   USE qmmm_types,                      ONLY: qmmm_env_mm_type
-  USE simulation_cell,                 ONLY: pbc
+  USE cell_types,                 ONLY: pbc
   USE string_utilities,                ONLY: integer_to_string,&
                                              uppercase,&
                                              str_comp,&

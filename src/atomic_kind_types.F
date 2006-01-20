@@ -93,6 +93,10 @@ MODULE atomic_kind_types
                                              do_test
   USE input_section_types, ONLY: section_vals_type, section_vals_get_subs_vals,&
        section_vals_get, section_vals_val_get, section_vals_release
+  USE cp_output_handling,              ONLY: cp_print_key_unit_nr, &
+                                             cp_print_key_finished_output,&
+                                             cp_print_key_should_output,&
+                                             cp_p_file
 #include "cp_common_uses.h"
   IMPLICIT NONE
 
@@ -1017,13 +1021,14 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE init_gapw_basis_set(atomic_kind_set,qs_control,globenv)
+  SUBROUTINE init_gapw_basis_set(atomic_kind_set,qs_control,globenv,error)
 
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(qs_control_type),  POINTER        :: qs_control 
     TYPE(global_environment_type), &
       pointer                             :: globenv
+    TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "init_gapw_basis_set"
 
@@ -1036,18 +1041,23 @@ CONTAINS
     TYPE(gto_basis_set_type), POINTER        :: hard_basis
     TYPE(paw_proj_set_type), POINTER         :: paw_proj
     CHARACTER(LEN=2)                         :: current_symbol,kind_symbol
+    TYPE(cp_logger_type), POINTER            :: logger
 
-! *****************************************************************************
+    NULLIFY(logger)
+    logger => cp_error_get_logger(error)
 
     IF (ASSOCIATED(atomic_kind_set)) THEN
       nkind = SIZE(atomic_kind_set)
 
-      IF (globenv%print%basis_set) THEN
-       output_unit = globenv%scr
-       IF(globenv%ionode) WRITE (UNIT=output_unit,FMT="(/,/,T2,A)")&
-       "SOFT BASIS SET INFORMATION (Unnormalised Gaussian-type functions)"
+      IF (BTEST(cp_print_key_should_output(logger%iter_info,&
+           globenv%input_file,"FORCE_EVAL%PRINT%KINDS/BASIS_SET",error=error),cp_p_file)) THEN
+         output_unit = cp_print_key_unit_nr(logger,globenv%input_file,"FORCE_EVAL%PRINT%KINDS",&
+              extension=".Log",error=error)
+         IF (output_unit>0) WRITE (UNIT=output_unit,FMT="(/,/,T2,A)")&
+              "SOFT BASIS SET INFORMATION (Unnormalised Gaussian-type functions)"
+         CALL cp_print_key_finished_output(output_unit,logger,globenv%input_file,&
+              "FORCE_EVAL%PRINT%KINDS",error=error)
       END IF
-
       DO ikind=1,nkind
 
         atomic_kind => atomic_kind_set(ikind)
@@ -1062,8 +1072,6 @@ CONTAINS
                              hard_radius=rc,&
                              max_rad_local=max_rad_local_type,gpw_type_forced=gpw)
 
-!        bsname = orb_basis%name
-!        atomic_kind%hard_basis_set%name = TRIM(bsname)//"_hard"
 
         paw_atom = .FALSE.
         IF(.NOT. gpw) THEN
@@ -1074,18 +1082,23 @@ CONTAINS
         CALL set_atomic_kind(atomic_kind=atomic_kind,&
                              paw_atom=paw_atom)
         IF(paw_atom) THEN
-          IF (globenv%print%basis_set) THEN
-            IF(globenv%ionode) WRITE (UNIT=output_unit,FMT="(/,T2,I2,A)")&
-              atomic_kind%kind_number,". Atomic kind: "//TRIM(atomic_kind%name)
-          END IF
+           IF (BTEST(cp_print_key_should_output(logger%iter_info,&
+                globenv%input_file,"FORCE_EVAL%PRINT%KINDS/BASIS_SET",error=error),cp_p_file)) THEN
+              output_unit = cp_print_key_unit_nr(logger,globenv%input_file,"FORCE_EVAL%PRINT%KINDS",&
+                   extension=".Log",error=error)
+              IF (output_unit>0) WRITE (UNIT=output_unit,FMT="(/,T2,I2,A)")&
+                   atomic_kind%kind_number,". Atomic kind: "//TRIM(atomic_kind%name)
+              CALL cp_print_key_finished_output(output_unit,logger,globenv%input_file,&
+                   "FORCE_EVAL%PRINT%KINDS",error=error)
+           END IF
 
-          CALL write_gto_basis_set(atomic_kind%soft_basis_set,globenv)
+          CALL write_gto_basis_set(atomic_kind%soft_basis_set,globenv,error)
 !         the hard_basis points to the orb_basis
           CALL allocate_paw_proj_set(atomic_kind%paw_proj_set)
           CALL get_atomic_kind(atomic_kind=atomic_kind,&
                                paw_proj_set=paw_proj)
 
-          CALL projectors(paw_proj,orb_basis,rc,qs_control,max_rad_local_type,globenv)
+          CALL projectors(paw_proj,orb_basis,rc,qs_control,max_rad_local_type,globenv,error)
 
          ENDIF
 
@@ -1106,7 +1119,7 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE read_atomic_kind(atomic_kind,globenv)
+  SUBROUTINE read_atomic_kind(atomic_kind,globenv,error)
 
 !   Purpose: Read an atomic kind data set from the input file.
 
@@ -1118,6 +1131,7 @@ CONTAINS
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(global_environment_type), &
       pointer                             :: globenv
+    TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "read_atomic_kind", &
       routineP = module_name//':'//routine_name
@@ -1132,7 +1146,6 @@ CONTAINS
                                                 ngrid_ang, ngrid_rad, norb, z
     LOGICAL                                  :: failure, section_found
     REAL(KIND=dp)                            :: zeff_correction
-    TYPE(cp_error_type)                      :: error
     TYPE(section_vals_type), pointer :: kind_section
 
 !   ---------------------------------------------------------------------------
@@ -1145,8 +1158,6 @@ CONTAINS
     z = -1
     atomic_kind%mass=-1.0_dp
     zeff_correction = 0.0_dp
-
-    CALL cp_error_init(error)
 
     kind_section => section_vals_get_subs_vals(globenv%input_file,&
          "FORCE_EVAL%SUBSYS%KIND",error=error)
@@ -1399,13 +1410,11 @@ CONTAINS
 
     END IF
 
-    CALL cp_error_dealloc_ref(error)
-
   END SUBROUTINE read_atomic_kind
 
 ! *****************************************************************************
 
-  SUBROUTINE read_atomic_kind_set(atomic_kind_set,globenv)
+  SUBROUTINE read_atomic_kind_set(atomic_kind_set,globenv,error)
 
 !   Purpose: Read an atomic kind set data set from the input file.
 
@@ -1417,6 +1426,7 @@ CONTAINS
       POINTER                                :: atomic_kind_set
     TYPE(global_environment_type), &
       pointer                             :: globenv
+    TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "read_atomic_kind_set"
 
@@ -1444,12 +1454,13 @@ CONTAINS
   END SUBROUTINE read_atomic_kind_set
 
 ! *****************************************************************************
-  SUBROUTINE check_atomic_kind(atomic_kind,dft_control,globenv)
+  SUBROUTINE check_atomic_kind(atomic_kind,dft_control,globenv,error)
 
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(dft_control_type),INTENT(IN)        :: dft_control
     TYPE(global_environment_type), &
       pointer                             :: globenv
+    TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "check_atomic_kind", &
       routineP = module_name//':'//routine_name
@@ -1503,7 +1514,7 @@ CONTAINS
           CALL se_param_set_default(se_parameter,z,&
                  dft_control%qs_control%method)
         END IF
-        CALL write_se_param(se_parameter,globenv)
+        CALL write_se_param(se_parameter,globenv,error)
         CALL init_se_param(atomic_kind%se_parameter,&
                            atomic_kind%orb_basis_set)
         IF ( ASSOCIATED(all_potential) ) THEN
@@ -1519,13 +1530,14 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE check_atomic_kind_set(atomic_kind_set,dft_control,globenv)
+  SUBROUTINE check_atomic_kind_set(atomic_kind_set,dft_control,globenv,error)
 
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(dft_control_type),INTENT(IN)        :: dft_control
     TYPE(global_environment_type), &
       pointer                             :: globenv
+    TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "check_atomic_kind_set"
 
@@ -1538,7 +1550,7 @@ CONTAINS
       nkind = SIZE(atomic_kind_set)
       DO ikind=1,nkind
         atomic_kind => atomic_kind_set(ikind)
-        CALL check_atomic_kind(atomic_kind,dft_control,globenv)
+        CALL check_atomic_kind(atomic_kind,dft_control,globenv,error)
       END DO
     ELSE
       CALL stop_program(routine_name,module_name,__LINE__,&
@@ -1634,7 +1646,7 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE write_atomic_kind(atomic_kind,globenv)
+  SUBROUTINE write_atomic_kind(atomic_kind,globenv,output_unit,error)
 
 !   Purpose: Write an atomic kind data set to the output unit.
 
@@ -1645,56 +1657,51 @@ CONTAINS
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(global_environment_type), &
       pointer                             :: globenv
-
+    TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
+    INTEGER, INTENT(in) :: output_unit
     CHARACTER(LEN=*), PARAMETER :: routine_name = "write_atomic_kind"
 
-    INTEGER                                  :: output_unit
+    TYPE(cp_logger_type), POINTER            :: logger
 
-!   ---------------------------------------------------------------------------
+    NULLIFY(logger)
+    logger => cp_error_get_logger(error)       
 
-    IF (.NOT.globenv%ionode) RETURN
+    IF (output_unit>0) THEN
+       IF (ASSOCIATED(atomic_kind)) THEN
+          WRITE (UNIT=output_unit,FMT="(/,T2,I2,A,T45,A,T75,I6)")&
+               atomic_kind%kind_number,". Atomic kind: "//TRIM(atomic_kind%name),&
+               "Number of atoms of this kind: ",atomic_kind%natom
+          CALL write_orb_basis_set(atomic_kind%orb_basis_set,globenv,error)
+          IF (atomic_kind%paw_atom) THEN
+             WRITE (UNIT=output_unit,FMT="(/,T2,A,A)")&
+                  "***** GAPW  Atomic Kind: Soft Basis Set and",&
+                  "Atomic and Compensation Density are Required ***"
+             WRITE (UNIT=output_unit,FMT="(/,T16,A,T71,F10.3)")&
+                  "GAPW|  Hard Gaussians Radius:",atomic_kind%hard_radius
+             WRITE (UNIT=output_unit,FMT="(T16,A,T71,F10.3,/)")&
+                  "GAPW|  Rho0 Radius:",atomic_kind%hard0_radius
+             WRITE (UNIT=output_unit,FMT="(T16,A,T71,F10.3,/)")&
+                  "GAPW|  Max GTO radius used in proj. construction:",atomic_kind%max_rad_local
+             WRITE (UNIT=output_unit,FMT="(T10,A))")&
+                  "***** Soft Basis Set *****"
 
-    IF (ASSOCIATED(atomic_kind)) THEN
-
-      IF (globenv%print%kind_information) THEN
-        output_unit = globenv%scr
-        WRITE (UNIT=output_unit,FMT="(/,T2,I2,A,T45,A,T75,I6)")&
-          atomic_kind%kind_number,". Atomic kind: "//TRIM(atomic_kind%name),&
-          "Number of atoms of this kind: ",atomic_kind%natom
-        CALL write_orb_basis_set(atomic_kind%orb_basis_set,globenv)
-        IF (atomic_kind%paw_atom) THEN
-          WRITE (UNIT=output_unit,FMT="(/,T2,A,A)")&
-          "***** GAPW  Atomic Kind: Soft Basis Set and",&
-              "Atomic and Compensation Density are Required ***"
-          WRITE (UNIT=output_unit,FMT="(/,T16,A,T71,F10.3)")&
-          "GAPW|  Hard Gaussians Radius:",atomic_kind%hard_radius
-          WRITE (UNIT=output_unit,FMT="(T16,A,T71,F10.3,/)")&
-          "GAPW|  Rho0 Radius:",atomic_kind%hard0_radius
-          WRITE (UNIT=output_unit,FMT="(T16,A,T71,F10.3,/)")&
-          "GAPW|  Max GTO radius used in proj. construction:",atomic_kind%max_rad_local
-          WRITE (UNIT=output_unit,FMT="(T10,A))")&
-          "***** Soft Basis Set *****"
-
-          CALL write_orb_basis_set(atomic_kind%soft_basis_set,globenv)
-        ENDIF
-        CALL write_aux_basis_set(atomic_kind%aux_basis_set,globenv)
-        CALL write_potential(atomic_kind%all_potential,globenv)
-        CALL write_potential(atomic_kind%elp_potential,globenv)
-        CALL write_potential(atomic_kind%gth_potential,globenv)
-      END IF
-
-    ELSE
-
-      CALL stop_program(routine_name,module_name,__LINE__,&
-                        "The pointer atomic_kind is not associated",globenv)
-
+             CALL write_orb_basis_set(atomic_kind%soft_basis_set,globenv,error)
+          ENDIF
+          CALL write_aux_basis_set(atomic_kind%aux_basis_set,globenv,error)
+          CALL write_potential(atomic_kind%all_potential,globenv,error)
+          CALL write_potential(atomic_kind%elp_potential,globenv,error)
+          CALL write_potential(atomic_kind%gth_potential,globenv,error)
+       ELSE
+          CALL stop_program(routine_name,module_name,__LINE__,&
+               "The pointer atomic_kind is not associated",globenv)
+       END IF
     END IF
 
   END SUBROUTINE write_atomic_kind
 
 ! *****************************************************************************
 
-  SUBROUTINE write_atomic_kind_set(atomic_kind_set,globenv)
+  SUBROUTINE write_atomic_kind_set(atomic_kind_set,globenv,error)
 
 !   Purpose: Write an atomic kind set data set to the output unit.
 
@@ -1706,46 +1713,39 @@ CONTAINS
       POINTER                                :: atomic_kind_set
     TYPE(global_environment_type), &
       pointer                             :: globenv
+    TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "write_atomic_kind_set"
 
     INTEGER                                  :: ikind, nkind, output_unit
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
+    TYPE(cp_logger_type), POINTER            :: logger
 
-!   ---------------------------------------------------------------------------
-
-    IF (.NOT.globenv%ionode) RETURN
-
-    IF (globenv%print%kind_information) THEN
-
-      IF (ASSOCIATED(atomic_kind_set)) THEN
-
-        output_unit = globenv%scr
-
-        WRITE (UNIT=output_unit,FMT="(/,/,T2,A)") "ATOMIC KIND INFORMATION"
-
-        nkind = SIZE(atomic_kind_set)
-
-        DO ikind=1,nkind
-          atomic_kind => atomic_kind_set(ikind)
-          CALL write_atomic_kind(atomic_kind,globenv)
-        END DO
-
-      ELSE
-
-        CALL stop_program(routine_name,module_name,__LINE__,&
-                          "The pointer atomic_kind_set is not associated",&
-                          globenv)
-
-      END IF
-
+    NULLIFY(logger)
+    logger => cp_error_get_logger(error)       
+    output_unit = cp_print_key_unit_nr(logger,globenv%input_file,&
+         "FORCE_EVAL%PRINT%KINDS/KIND_INFORMATION",extension=".Log",error=error)
+    IF (output_unit>0) THEN
+       IF (ASSOCIATED(atomic_kind_set)) THEN
+          WRITE (UNIT=output_unit,FMT="(/,/,T2,A)") "ATOMIC KIND INFORMATION"
+          nkind = SIZE(atomic_kind_set)
+          DO ikind=1,nkind
+             atomic_kind => atomic_kind_set(ikind)
+             CALL write_atomic_kind(atomic_kind,globenv,output_unit,error)
+          END DO
+       ELSE
+          CALL stop_program(routine_name,module_name,__LINE__,&
+               "The pointer atomic_kind_set is not associated",&
+               globenv)
+       END IF
     END IF
-
+    CALL cp_print_key_finished_output(output_unit,logger,globenv%input_file,&
+         "FORCE_EVAL%PRINT%KINDS/KIND_INFORMATION",error=error)
   END SUBROUTINE write_atomic_kind_set
 
 ! *****************************************************************************
 
-  SUBROUTINE write_gto_basis_sets(atomic_kind_set,globenv)
+  SUBROUTINE write_gto_basis_sets(atomic_kind_set,globenv,error)
 
 !   Purpose: Write all the GTO basis sets of an atomic kind set to the output
 !            unit (for the printing of the unnormalized basis sets as read from
@@ -1759,46 +1759,42 @@ CONTAINS
       POINTER                                :: atomic_kind_set
     TYPE(global_environment_type), &
       pointer                             :: globenv
+    TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "write_gto_basis_sets"
 
     INTEGER                                  :: ikind, nkind, output_unit
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
+    TYPE(cp_logger_type), POINTER            :: logger
 
-!   ---------------------------------------------------------------------------
-
-    IF (.NOT.globenv%ionode) RETURN
-
-    IF (globenv%print%basis_set) THEN
-
-      IF (ASSOCIATED(atomic_kind_set)) THEN
-
-        output_unit = globenv%scr
-
-        WRITE (UNIT=output_unit,FMT="(/,/,T2,A)")&
-          "BASIS SET INFORMATION (Unnormalised Gaussian-type functions)"
-
-        nkind = SIZE(atomic_kind_set)
-
-        DO ikind=1,nkind
-          atomic_kind => atomic_kind_set(ikind)
-          WRITE (UNIT=output_unit,FMT="(/,T2,I2,A)")&
-            atomic_kind%kind_number,". Atomic kind: "//TRIM(atomic_kind%name)
-          CALL write_gto_basis_set(atomic_kind_set(ikind)%orb_basis_set,&
-                                   globenv)
-          CALL write_gto_basis_set(atomic_kind_set(ikind)%aux_basis_set,&
-                                   globenv)
-        END DO
-
-      ELSE
-
-        CALL stop_program(routine_name,module_name,__LINE__,&
-                          "The pointer atomic_kind_set is not associated",&
-                          globenv)
-
-      END IF
-
+    NULLIFY(logger)
+    logger => cp_error_get_logger(error)
+    IF (.NOT.BTEST(cp_print_key_should_output(logger%iter_info,&
+         globenv%input_file,"FORCE_EVAL%PRINT%KINDS/BASIS_SET",error=error),cp_p_file)) RETURN    
+    output_unit = cp_print_key_unit_nr(logger,globenv%input_file,"FORCE_EVAL%PRINT%KINDS",&
+         extension=".Log",error=error)
+    IF (output_unit>0) THEN
+       IF (ASSOCIATED(atomic_kind_set)) THEN
+          WRITE (UNIT=output_unit,FMT="(/,/,T2,A)")&
+               "BASIS SET INFORMATION (Unnormalised Gaussian-type functions)"
+          nkind = SIZE(atomic_kind_set)
+          DO ikind=1,nkind
+             atomic_kind => atomic_kind_set(ikind)
+             WRITE (UNIT=output_unit,FMT="(/,T2,I2,A)")&
+                  atomic_kind%kind_number,". Atomic kind: "//TRIM(atomic_kind%name)
+             CALL write_gto_basis_set(atomic_kind_set(ikind)%orb_basis_set,&
+                  globenv,error)
+             CALL write_gto_basis_set(atomic_kind_set(ikind)%aux_basis_set,&
+                  globenv,error)
+          END DO
+       ELSE
+          CALL stop_program(routine_name,module_name,__LINE__,&
+               "The pointer atomic_kind_set is not associated",&
+               globenv)
+       END IF
     END IF
+    CALL cp_print_key_finished_output(output_unit,logger,globenv%input_file,&
+         "FORCE_EVAL%PRINT%KINDS",error=error)
 
   END SUBROUTINE write_gto_basis_sets
 

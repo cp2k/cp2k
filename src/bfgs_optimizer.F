@@ -44,7 +44,7 @@ MODULE bfgs_optimizer
                                              write_particle_distances,&
                                              write_qs_particle_coordinates,&
                                              write_structure_data
-  USE simulation_cell,                 ONLY: cell_type
+  USE cell_types,                 ONLY: cell_type
   USE termination,                     ONLY: external_control
   USE timings,                         ONLY: timeset,&
                                              timestop

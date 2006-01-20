@@ -2,10 +2,10 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000  CP2K developers group                                 !
 !-----------------------------------------------------------------------------!
-!!****** cp2k/simulation_cell [1.0] *
+!!****** cp2k/cell_types [1.0] *
 !!
 !!   NAME
-!!     simulation_cell
+!!     cell_types
 !!
 !!   FUNCTION
 !!
@@ -18,7 +18,7 @@
 !!   SOURCE
 !******************************************************************************
 
-MODULE simulation_cell
+MODULE cell_types
   USE global_types,                    ONLY: global_environment_type
   USE input_constants,                 ONLY: ANALYTIC0D,&
                                              ANALYTIC1D,&
@@ -56,13 +56,18 @@ MODULE simulation_cell
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type,&
                                              section_vals_val_get
+  USE cp_output_handling,              ONLY: cp_print_key_unit_nr, &
+                                             cp_print_key_finished_output,&
+                                             cp_print_key_should_output,&
+                                             cp_p_file
+
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
 
   PRIVATE
 
-  CHARACTER(LEN=*), PARAMETER :: module_name = "simulation_cell"
+  CHARACTER(LEN=*), PARAMETER :: module_name = "cell_types"
 
   INTEGER, SAVE, PRIVATE :: last_cell_id=0
 
@@ -279,7 +284,7 @@ CONTAINS
 
 ! *****************************************************************************
 
-!!****f* simulation_cell/init_qmmm_cell
+!!****f* cell_types/init_qmmm_cell
 !!
 !!   NAME
 !!     init_qmmm_cell
@@ -322,7 +327,7 @@ CONTAINS
       OPTIONAL                               :: periodic
 
     CHARACTER(LEN=*), PARAMETER :: &
-      routine = "SUBROUTINE init_cell (MODULE simulation_cell)"
+      routine = "SUBROUTINE init_cell (MODULE cell_types)"
 
     INTEGER                                  :: dim, i
     REAL(KIND=dp), DIMENSION(3)              :: abc
@@ -558,14 +563,13 @@ CONTAINS
 
     TYPE(cell_type), POINTER                 :: cell, cell_ref
     TYPE(global_environment_type), &
-      POINTER                                :: globenv
+      pointer                             :: globenv
     LOGICAL, INTENT(OUT), OPTIONAL           :: use_ref_cell
-    TYPE(section_vals_type), POINTER, &
-      OPTIONAL                               :: cell_section
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
+    TYPE(section_vals_type), POINTER, OPTIONAL :: cell_section
+    TYPE(cp_error_type), INTENT(inout)            :: error
 
     CHARACTER(LEN=*), PARAMETER :: &
-      routine = "SUBROUTINE read_cell (MODULE simulation_cell)"
+      routine = "SUBROUTINE read_cell (MODULE cell_types)"
 
     CHARACTER(LEN=40)                        :: keyword, string
     INTEGER                                  :: istat
@@ -576,7 +580,7 @@ CONTAINS
 
   END SUBROUTINE read_cell
 
-!!****f* simulation_cell/read_cell_new [1.0] *
+!!****f* cell_types/read_cell_new [1.0] *
 !!
 !!   NAME
 !!     read_cell_new
@@ -790,7 +794,7 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE write_cell(cell,globenv)
+  SUBROUTINE write_cell(cell,globenv,error)
 
 !   Purpose: Write the cell parameters to the output unit.
 
@@ -801,48 +805,51 @@ CONTAINS
     TYPE(cell_type), POINTER                 :: cell
     TYPE(global_environment_type), &
       pointer                             :: globenv
+    TYPE(cp_error_type), INTENT(inout), &
+         OPTIONAL                               :: error
 
     INTEGER                                  :: output_unit
     REAL(KIND=dp)                            :: alpha, beta, gamma
     REAL(KIND=dp), DIMENSION(3)              :: abc
+    TYPE(cp_logger_type), POINTER            :: logger
 
-!   ---------------------------------------------------------------------------
+    NULLIFY(logger)
+    logger => cp_error_get_logger(error)
 
-    IF (.NOT.globenv%ionode) RETURN
+    output_unit = cp_print_key_unit_nr(logger,globenv%input_file,"FORCE_EVAL%PRINT%CELL",&
+         extension=".Log",error=error)
+    IF (output_unit>0) THEN
 
-    IF (globenv%print%cell_parameters) THEN
+       CALL get_cell(cell=cell,abc=abc,alpha=alpha,beta=beta,gamma=gamma)
 
-      output_unit = globenv%scr
-
-      CALL get_cell(cell=cell,abc=abc,alpha=alpha,beta=beta,gamma=gamma)
-
-      WRITE (UNIT=output_unit,FMT="(T2,A,T61,F20.3)")&
-        "CELL| Volume ["//TRIM(cell%unit_of_length_name)//"**3]:",&
-        cell%deth/cell%unit_of_length**3
-      WRITE (UNIT=output_unit,FMT="(T2,A,T30,3F10.3,4X,A6,F11.3)")&
-        "CELL| Vector a ["//TRIM(cell%unit_of_length_name)//"]:",&
-        cell%hmat(:,1)/cell%unit_of_length,&
-        "|a| = ",abc(1)/cell%unit_of_length,&
-        "CELL| Vector b ["//TRIM(cell%unit_of_length_name)//"]:",&
-        cell%hmat(:,2)/cell%unit_of_length,&
-        "|b| = ",abc(2)/cell%unit_of_length,&
-        "CELL| Vector c ["//TRIM(cell%unit_of_length_name)//"]:",&
-        cell%hmat(:,3)/cell%unit_of_length,&
-        "|c| = ",abc(3)/cell%unit_of_length
-      WRITE (UNIT=output_unit,FMT="(T2,A,T70,F11.3)")&
-        "CELL| Angle (b,c) [degree]: ",alpha,&
-        "CELL| Angle (a,c) [degree]: ",beta,&
-        "CELL| Angle (a,b) [degree]: ",gamma
-      WRITE (UNIT=output_unit,FMT="(T2,A,T70,F11.3)")&
-        "CELL| Grid size for subcell generation",cell%subcells
-
-    END IF
-
+     WRITE (UNIT=output_unit,FMT="(T2,A,T61,F20.3)")&
+          "CELL| Volume ["//TRIM(cell%unit_of_length_name)//"**3]:",&
+          cell%deth/cell%unit_of_length**3
+     WRITE (UNIT=output_unit,FMT="(T2,A,T30,3F10.3,4X,A6,F11.3)")&
+          "CELL| Vector a ["//TRIM(cell%unit_of_length_name)//"]:",&
+          cell%hmat(:,1)/cell%unit_of_length,&
+          "|a| = ",abc(1)/cell%unit_of_length,&
+          "CELL| Vector b ["//TRIM(cell%unit_of_length_name)//"]:",&
+          cell%hmat(:,2)/cell%unit_of_length,&
+          "|b| = ",abc(2)/cell%unit_of_length,&
+          "CELL| Vector c ["//TRIM(cell%unit_of_length_name)//"]:",&
+          cell%hmat(:,3)/cell%unit_of_length,&
+          "|c| = ",abc(3)/cell%unit_of_length
+     WRITE (UNIT=output_unit,FMT="(T2,A,T70,F11.3)")&
+          "CELL| Angle (b,c) [degree]: ",alpha,&
+          "CELL| Angle (a,c) [degree]: ",beta,&
+          "CELL| Angle (a,b) [degree]: ",gamma
+     WRITE (UNIT=output_unit,FMT="(T2,A,T70,F11.3)")&
+          "CELL| Grid size for subcell generation",cell%subcells
+  END IF
+  CALL cp_print_key_finished_output(output_unit,logger,globenv%input_file,&
+       "FORCE_EVAL%PRINT%CELL",error=error)
+  
   END SUBROUTINE write_cell
 
 ! *****************************************************************************
 
-!!****f* simulation_cell/cell_create [1.0] *
+!!****f* cell_types/cell_create [1.0] *
 !!
 !!   NAME
 !!     cell_create
@@ -898,7 +905,7 @@ CONTAINS
   END SUBROUTINE cell_create
 !***************************************************************************
 
-!!****f* simulation_cell/cell_retain [1.0] *
+!!****f* cell_types/cell_retain [1.0] *
 !!
 !!   NAME
 !!     cell_retain
@@ -941,7 +948,7 @@ SUBROUTINE cell_retain(cell,error)
 END SUBROUTINE cell_retain
 !***************************************************************************
 
-!!****f* simulation_cell/cell_release [1.0] *
+!!****f* cell_types/cell_release [1.0] *
 !!
 !!   NAME
 !!     cell_release
@@ -988,4 +995,4 @@ SUBROUTINE cell_release(cell,error)
 END SUBROUTINE cell_release
 !***************************************************************************
 
-END MODULE simulation_cell
+END MODULE cell_types

@@ -44,7 +44,7 @@ MODULE mc_coordinates
   USE particle_list_types,             ONLY: particle_list_type
   USE physcon,                         ONLY: angstrom,&
                                              n_avogadro
-  USE simulation_cell,                 ONLY: cell_type,&
+  USE cell_types,                 ONLY: cell_type,&
                                              get_cell
   USE termination,                     ONLY: stop_memory,&
                                              stop_program

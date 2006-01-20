@@ -23,7 +23,7 @@ MODULE mt_util
                                              pw_type
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE simulation_cell,                 ONLY: cell_type
+  USE cell_types,                 ONLY: cell_type
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE pw_grids, ONLY: pw_grid_setup, pw_grid_create, pw_grid_release
   USE pw_pool_types, ONLY: pw_pool_create, pw_pool_release

@@ -40,7 +40,7 @@ MODULE kg_kxc
                                              xc_derivative_type
   USE xc_rho_set_types, ONLY: xc_rho_set_type, xc_rho_set_release
   USE cp_subsystem_types, only: cp_subsystem_p_type
-  USE simulation_cell, only:cell_type
+  USE cell_types, only:cell_type
   USE cp_linked_list_xc_deriv,         ONLY: cp_sll_xc_deriv_next,&
                                              cp_sll_xc_deriv_type
   USE xc_derivative_desc,              ONLY: MAX_DERIVATIVE_DESC_LENGTH,&

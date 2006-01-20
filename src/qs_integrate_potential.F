@@ -98,7 +98,7 @@ MODULE qs_integrate_potential
                                              rs_pw_transfer,&
                                              rs2pw,&
                                              pw2rs
-  USE simulation_cell,                 ONLY: cell_type,&
+  USE cell_types,                 ONLY: cell_type,&
                                              pbc
   USE sparse_matrix_types,             ONLY: add_block_node,&
                                              allocate_matrix,&

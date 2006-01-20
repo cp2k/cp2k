@@ -41,7 +41,7 @@ MODULE qmmm_per_elpot
                                              qmmm_pot_p_type,&
                                              qmmm_pot_type
   USE qs_util,                         ONLY: exp_radius  
-  USE simulation_cell,                 ONLY: cell_type
+  USE cell_types,                 ONLY: cell_type
   USE global_types,                    ONLY: global_environment_type
   USE erf_fn,                          ONLY: erf
   USE mathconstants,                   ONLY: rootpi, pi

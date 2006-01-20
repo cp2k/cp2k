@@ -82,7 +82,7 @@ MODULE qmmm_init
                                              qs_env_release,&
                                              qs_environment_type,&
                                              set_qs_env
-  USE simulation_cell,                 ONLY: cell_retain,&
+  USE cell_types,                 ONLY: cell_retain,&
                                              cell_type,&
                                              init_qmmm_cell,&
                                              cell_clone,&
@@ -296,7 +296,7 @@ CONTAINS
           WRITE(iw,'(A,I6)')" Number of QM atoms: ",qmmm_env_qm%num_qm_atoms 
           WRITE(iw,'(A,I6)')" Number of MM atoms: ",qmmm_env_qm%num_mm_atoms
           WRITE(iw,'(A)')" QM cell ::"
-          CALL write_cell(qm_cell_small, globenv)
+          CALL write_cell(qm_cell_small, globenv, error)
        END IF
        CALL get_cell(qm_cell_small, abc=abc)
        !

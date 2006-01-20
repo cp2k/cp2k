@@ -76,7 +76,7 @@ MODULE xc_rho_set_types
                                              pw_transfer,&
                                              pw_type,&
                                              pw_zero
-  USE simulation_cell,                 ONLY: cell_type
+  USE cell_types,                 ONLY: cell_type
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE xc_rho_cflags_types,             ONLY: xc_rho_cflags_equal,&

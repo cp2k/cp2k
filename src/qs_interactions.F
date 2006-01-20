@@ -44,11 +44,16 @@ MODULE qs_interactions
                                              set_paw_proj_set
   USE qs_all_potential,                ONLY: radii_3c_orbxall
   USE qs_util,                         ONLY: exp_radius
-  USE simulation_cell,                 ONLY: cell_type,&
+  USE cell_types,                 ONLY: cell_type,&
                                              get_cell
   USE string_utilities,                ONLY: uppercase
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
+  USE cp_output_handling,              ONLY: cp_print_key_unit_nr, &
+                                             cp_print_key_finished_output,&
+                                             cp_print_key_should_output,&
+                                             cp_p_file
+#include "cp_common_uses.h"
 
   IMPLICIT NONE
 
@@ -73,7 +78,7 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE init_interaction_radii(qs_control,cell,atomic_kind_set,globenv)
+  SUBROUTINE init_interaction_radii(qs_control,cell,atomic_kind_set,globenv,error)
 
 !   Purpose: Initialize all the atomic kind radii for a given threshold value.
 
@@ -87,7 +92,8 @@ CONTAINS
       POINTER                                :: atomic_kind_set
     TYPE(global_environment_type), &
       pointer                             :: globenv
-
+    TYPE(cp_error_type), INTENT(inout), &
+         OPTIONAL                               :: error
     CHARACTER(LEN=*), PARAMETER :: routine_name = "init_interaction_radii"
 
     INTEGER                                  :: i, iexp_ppl, ikind, ip, ipgf, &
@@ -434,18 +440,18 @@ CONTAINS
       END IF
     END DO
 
-    IF (p_orb) CALL write_pgf_orb_radii("orb",cell,atomic_kind_set,globenv)
-    IF (p_aux) CALL write_pgf_orb_radii("aux",cell,atomic_kind_set,globenv)
-    IF (p_ccr) CALL write_core_charge_radii(cell,atomic_kind_set,globenv)
-    IF (p_ppl) CALL write_ppl_radii(cell,atomic_kind_set,globenv)
-    IF (p_ppnl) CALL write_ppnl_radii(cell,atomic_kind_set,globenv)
-    IF (p_paw) CALL write_paw_radii(cell,atomic_kind_set,globenv)
+    IF (p_orb) CALL write_pgf_orb_radii("orb",cell,atomic_kind_set,globenv,error)
+    IF (p_aux) CALL write_pgf_orb_radii("aux",cell,atomic_kind_set,globenv,error)
+    IF (p_ccr) CALL write_core_charge_radii(cell,atomic_kind_set,globenv,error)
+    IF (p_ppl) CALL write_ppl_radii(cell,atomic_kind_set,globenv,error)
+    IF (p_ppnl) CALL write_ppnl_radii(cell,atomic_kind_set,globenv,error)
+    IF (p_paw) CALL write_paw_radii(cell,atomic_kind_set,globenv,error)
 
   END SUBROUTINE init_interaction_radii
 
 ! *****************************************************************************
 
-  SUBROUTINE write_core_charge_radii(cell,atomic_kind_set,globenv)
+  SUBROUTINE write_core_charge_radii(cell,atomic_kind_set,globenv,error)
 
 !   Purpose: Write the radii of the core charge distributions to the output
 !            unit.
@@ -459,6 +465,8 @@ CONTAINS
       POINTER                                :: atomic_kind_set
     TYPE(global_environment_type), &
       pointer                             :: globenv
+    TYPE(cp_error_type), INTENT(inout), &
+         OPTIONAL                               :: error
 
     CHARACTER(LEN=8)                         :: unit_of_length_name
     CHARACTER(LEN=default_string_length)     :: name
@@ -469,54 +477,52 @@ CONTAINS
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(elp_potential_type), POINTER        :: elp_potential
     TYPE(gth_potential_type), POINTER        :: gth_potential
+    TYPE(cp_logger_type), POINTER            :: logger
 
-!   ---------------------------------------------------------------------------
-
-    IF (.NOT.globenv%ionode) RETURN
-
-    CALL get_cell(cell=cell,&
-                  unit_of_length=unit_of_length,&
-                  unit_of_length_name=unit_of_length_name)
-
-    output_unit = globenv%scr
-
-    nkind = SIZE(atomic_kind_set)
-
-    IF (globenv%print%core_charge_radii) THEN
-      WRITE (UNIT=output_unit,FMT="(/,T2,A,T56,A,T63,A,T75,A)")&
-        "RADII: CORE CHARGE DISTRIBUTIONS in "//&
-        TRIM(unit_of_length_name),"Kind","Label","Radius"
-      DO ikind=1,nkind
-        atomic_kind => atomic_kind_set(ikind)
-        CALL get_atomic_kind(atomic_kind=atomic_kind,&
-                             name=name,&
-                             all_potential=all_potential,&
-                             elp_potential=elp_potential,&
-                             gth_potential=gth_potential)
-        IF (ASSOCIATED(all_potential)) THEN
-          CALL get_potential(potential=all_potential,&
-                             core_charge_radius=core_charge_radius)
-          WRITE (UNIT=output_unit,FMT="(T55,I5,T63,A5,T69,F12.6)")&
-            ikind,name,core_charge_radius/unit_of_length
-        ELSE IF (ASSOCIATED(elp_potential)) THEN
-          CALL get_potential(potential=elp_potential,&
-                             core_charge_radius=core_charge_radius)
-          WRITE (UNIT=output_unit,FMT="(T55,I5,T63,A5,T69,F12.6)")&
-            ikind,name,core_charge_radius/unit_of_length
-        ELSE IF (ASSOCIATED(gth_potential)) THEN
-          CALL get_potential(potential=gth_potential,&
-                             core_charge_radius=core_charge_radius)
-          WRITE (UNIT=output_unit,FMT="(T55,I5,T63,A5,T69,F12.6)")&
-            ikind,name,core_charge_radius/unit_of_length
-        END IF
-      END DO
+    NULLIFY(logger)
+    logger => cp_error_get_logger(error)
+    output_unit = cp_print_key_unit_nr(logger,globenv%input_file,&
+         "FORCE_EVAL%PRINT%RADII/CORE_CHARGE_RADII",extension=".Log",error=error)
+    IF (output_unit>0) THEN
+       CALL get_cell(cell=cell,&
+                     unit_of_length=unit_of_length,&
+                     unit_of_length_name=unit_of_length_name)       
+       nkind = SIZE(atomic_kind_set)
+       WRITE (UNIT=output_unit,FMT="(/,T2,A,T56,A,T63,A,T75,A)")&
+            "RADII: CORE CHARGE DISTRIBUTIONS in "//&
+            TRIM(unit_of_length_name),"Kind","Label","Radius"
+       DO ikind=1,nkind
+          atomic_kind => atomic_kind_set(ikind)
+          CALL get_atomic_kind(atomic_kind=atomic_kind,&
+               name=name,&
+               all_potential=all_potential,&
+               elp_potential=elp_potential,&
+               gth_potential=gth_potential)
+          IF (ASSOCIATED(all_potential)) THEN
+             CALL get_potential(potential=all_potential,&
+                  core_charge_radius=core_charge_radius)
+             WRITE (UNIT=output_unit,FMT="(T55,I5,T63,A5,T69,F12.6)")&
+                  ikind,name,core_charge_radius/unit_of_length
+          ELSE IF (ASSOCIATED(elp_potential)) THEN
+             CALL get_potential(potential=elp_potential,&
+                  core_charge_radius=core_charge_radius)
+             WRITE (UNIT=output_unit,FMT="(T55,I5,T63,A5,T69,F12.6)")&
+                  ikind,name,core_charge_radius/unit_of_length
+          ELSE IF (ASSOCIATED(gth_potential)) THEN
+             CALL get_potential(potential=gth_potential,&
+                  core_charge_radius=core_charge_radius)
+             WRITE (UNIT=output_unit,FMT="(T55,I5,T63,A5,T69,F12.6)")&
+                  ikind,name,core_charge_radius/unit_of_length
+          END IF
+       END DO
     END IF
-
+    CALL cp_print_key_finished_output(output_unit,logger,globenv%input_file,&
+         "FORCE_EVAL%PRINT%RADII/CORE_CHARGE_RADII",error=error)
   END SUBROUTINE write_core_charge_radii
 
 ! *****************************************************************************
 
-  SUBROUTINE write_pgf_orb_radii(basis,cell,atomic_kind_set,globenv)
+  SUBROUTINE write_pgf_orb_radii(basis,cell,atomic_kind_set,globenv,error)
 
 !   Purpose: Write the orbital basis function radii to the output unit.
 
@@ -530,6 +536,8 @@ CONTAINS
       POINTER                                :: atomic_kind_set
     TYPE(global_environment_type), &
       pointer                             :: globenv
+    TYPE(cp_error_type), INTENT(inout), &
+         OPTIONAL                               :: error
 
     CHARACTER(LEN=8)                         :: unit_of_length_name
     CHARACTER(LEN=10)                        :: bas
@@ -543,11 +551,11 @@ CONTAINS
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
     TYPE(gto_basis_set_type), POINTER        :: aux_basis_set
+    TYPE(cp_logger_type), POINTER            :: logger
 
-!   ---------------------------------------------------------------------------
-
+    NULLIFY(logger)
+    logger => cp_error_get_logger(error)
     NULLIFY(aux_basis_set,orb_basis_set)
-    IF (.NOT.globenv%ionode) RETURN
     bas=" "
     bas(1:3) = basis(1:3)
     CALL uppercase ( bas )
@@ -563,13 +571,12 @@ CONTAINS
                   unit_of_length=unit_of_length,&
                   unit_of_length_name=unit_of_length_name)
 
-    output_unit = globenv%scr
-
     nkind = SIZE(atomic_kind_set)
 
 !   *** Print the kind radii ***
-
-    IF (globenv%print%kind_radii) THEN
+    output_unit = cp_print_key_unit_nr(logger,globenv%input_file,&
+         "FORCE_EVAL%PRINT%RADII/KIND_RADII",extension=".Log",error=error)
+    IF (output_unit>0) THEN
       WRITE (UNIT=output_unit,FMT="(/,T2,A,T56,A,T63,A,T75,A)")&
         "RADII: "//TRIM(bas)//" BASIS in "//TRIM(unit_of_length_name),&
         "Kind","Label","Radius"
@@ -603,10 +610,13 @@ CONTAINS
         END IF
       END DO
     END IF
+    CALL cp_print_key_finished_output(output_unit,logger,globenv%input_file,&
+         "FORCE_EVAL%PRINT%RADII/KIND_RADII",error=error)
 
 !   *** Print the shell set radii ***
-
-    IF (globenv%print%set_radii) THEN
+    output_unit = cp_print_key_unit_nr(logger,globenv%input_file,&
+         "FORCE_EVAL%PRINT%RADII/SET_RADII",extension=".Log",error=error)
+    IF (output_unit>0) THEN
       WRITE (UNIT=output_unit,FMT="(/,T2,A,T51,A,T57,A,T65,A,T75,A)")&
         "RADII: SHELL SETS OF "//TRIM(bas)//" BASIS in "//&
         TRIM(unit_of_length_name),"Kind","Label","Set","Radius"
@@ -642,10 +652,12 @@ CONTAINS
         END IF
       END DO
     END IF
-
+    CALL cp_print_key_finished_output(output_unit,logger,globenv%input_file,&
+         "FORCE_EVAL%PRINT%RADII/SET_RADII",error=error)
 !   *** Print the primitive Gaussian function radii ***
-
-    IF (globenv%print%pgf_radii) THEN
+    output_unit = cp_print_key_unit_nr(logger,globenv%input_file,&
+         "FORCE_EVAL%PRINT%RADII/PGF_RADII",extension=".Log",error=error)
+    IF (output_unit>0) THEN
       WRITE (UNIT=output_unit,FMT="(/,T2,A,T51,A,T57,A,T65,A,T75,A)")&
         "RADII: PRIMITIVE GAUSSIANS OF "//TRIM(bas)//" BASIS in "//&
         TRIM(unit_of_length_name),"Kind","Label","Set","Radius"
@@ -685,13 +697,14 @@ CONTAINS
               ikind,name,"no basis"
         END IF
       END DO
-    END IF
-
+   END IF
+    CALL cp_print_key_finished_output(output_unit,logger,globenv%input_file,&
+         "FORCE_EVAL%PRINT%RADII/PGF_RADII",error=error)
   END SUBROUTINE write_pgf_orb_radii
 
 ! *****************************************************************************
 
-  SUBROUTINE write_ppl_radii(cell,atomic_kind_set,globenv)
+  SUBROUTINE write_ppl_radii(cell,atomic_kind_set,globenv,error)
 
 !   Purpose: Write the radii of the exponential functions of the Goedecker
 !            pseudopotential (GTH, local part) to the logical unit number
@@ -706,6 +719,8 @@ CONTAINS
       POINTER                                :: atomic_kind_set
     TYPE(global_environment_type), &
       pointer                             :: globenv
+    TYPE(cp_error_type), INTENT(inout), &
+         OPTIONAL                               :: error
 
     CHARACTER(LEN=8)                         :: unit_of_length_name
     CHARACTER(LEN=default_string_length)     :: name
@@ -714,16 +729,16 @@ CONTAINS
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(gth_potential_type), POINTER        :: gth_potential
     TYPE(elp_potential_type), POINTER        :: elp_potential
+    TYPE(cp_logger_type), POINTER            :: logger
 
-!   ---------------------------------------------------------------------------
-
-    IF (.NOT.globenv%ionode) RETURN
-
-    IF (globenv%print%ppl_radii) THEN
+    NULLIFY(logger)
+    logger => cp_error_get_logger(error)
+    output_unit = cp_print_key_unit_nr(logger,globenv%input_file,&
+         "FORCE_EVAL%PRINT%RADII/GTH_PPL_RADII",extension=".Log",error=error)
+    IF (output_unit>0) THEN
       CALL get_cell(cell=cell,&
                     unit_of_length=unit_of_length,&
                     unit_of_length_name=unit_of_length_name)
-      output_unit = globenv%scr
       nkind = SIZE(atomic_kind_set)
       WRITE (UNIT=output_unit,FMT="(/,T2,A,T56,A,T63,A,T75,A)")&
         "RADII: LOCAL PART OF GTH/ELP PP in "//&
@@ -747,12 +762,13 @@ CONTAINS
         END IF
       END DO
     END IF
-
+    CALL cp_print_key_finished_output(output_unit,logger,globenv%input_file,&
+         "FORCE_EVAL%PRINT%RADII/GTH_PPL_RADII",error=error)
   END SUBROUTINE write_ppl_radii
 
 ! *****************************************************************************
 
-  SUBROUTINE write_ppnl_radii(cell,atomic_kind_set,globenv)
+  SUBROUTINE write_ppnl_radii(cell,atomic_kind_set,globenv,error)
 
 !   Purpose: Write the radii of the projector functions of the Goedecker
 !            pseudopotential (GTH, non-local part) to the logical unit number
@@ -767,6 +783,8 @@ CONTAINS
       POINTER                                :: atomic_kind_set
     TYPE(global_environment_type), &
       pointer                             :: globenv
+    TYPE(cp_error_type), INTENT(inout), &
+         OPTIONAL                               :: error
 
     CHARACTER(LEN=8)                         :: unit_of_length_name
     CHARACTER(LEN=default_string_length)     :: name
@@ -774,16 +792,16 @@ CONTAINS
     REAL(KIND=dp)                            :: ppnl_radius, unit_of_length
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(gth_potential_type), POINTER        :: gth_potential
+    TYPE(cp_logger_type), POINTER            :: logger
 
-!   ---------------------------------------------------------------------------
-
-    IF (.NOT.globenv%ionode) RETURN
-
-    IF (globenv%print%ppnl_radii) THEN
+    NULLIFY(logger)
+    logger => cp_error_get_logger(error)
+    output_unit = cp_print_key_unit_nr(logger,globenv%input_file,&
+         "FORCE_EVAL%PRINT%RADII/GTH_PPNL_RADII",extension=".Log",error=error)
+    IF (output_unit>0) THEN
       CALL get_cell(cell=cell,&
                     unit_of_length=unit_of_length,&
                     unit_of_length_name=unit_of_length_name)
-      output_unit = globenv%scr
       nkind = SIZE(atomic_kind_set)
       WRITE (UNIT=output_unit,FMT="(/,T2,A,T56,A,T63,A,T75,A)")&
         "RADII: NON-LOCAL PART OF GTH PP in "//&
@@ -801,11 +819,12 @@ CONTAINS
         END IF
       END DO
     END IF
-
+    CALL cp_print_key_finished_output(output_unit,logger,globenv%input_file,&
+         "FORCE_EVAL%PRINT%RADII/GTH_PPNL_RADII",error=error)
   END SUBROUTINE write_ppnl_radii
 
 ! *****************************************************************************
-  SUBROUTINE write_paw_radii(cell,atomic_kind_set,globenv)
+  SUBROUTINE write_paw_radii(cell,atomic_kind_set,globenv,error)
   
 !   Purpose: Write the radii of the one center projector 
 
@@ -816,6 +835,8 @@ CONTAINS
       POINTER                                :: atomic_kind_set
     TYPE(global_environment_type), &
       pointer                             :: globenv
+    TYPE(cp_error_type), INTENT(inout), &
+         OPTIONAL                               :: error
 
     CHARACTER(LEN=8)                         :: unit_of_length_name
     CHARACTER(LEN=default_string_length)     :: name
@@ -824,35 +845,36 @@ CONTAINS
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(paw_proj_set_type),  POINTER        :: paw_proj_set
     LOGICAL                                  :: paw_atom
+    TYPE(cp_logger_type), POINTER            :: logger
 
-!   ---------------------------------------------------------------------------
-
-    IF (.NOT.globenv%ionode) RETURN
-
-    IF (globenv%print%prj_radii) THEN
-      CALL get_cell(cell=cell,&
-                    unit_of_length=unit_of_length,&
-                    unit_of_length_name=unit_of_length_name)
-      output_unit = globenv%scr
-      nkind = SIZE(atomic_kind_set)
-      WRITE (UNIT=output_unit,FMT="(/,T2,A,T56,A,T63,A,T75,A)")&
-        "RADII: ONE CENTER PROJECTORS in "//&
-        TRIM(unit_of_length_name),"Kind","Label","Radius"
-      DO ikind=1,nkind
-        atomic_kind => atomic_kind_set(ikind)
-        CALL get_atomic_kind(atomic_kind=atomic_kind,&
-                             name=name,&
-                             paw_atom=paw_atom,&
-                             paw_proj_set=paw_proj_set)
-        IF (paw_atom) THEN
-          CALL get_paw_proj_set(paw_proj_set=paw_proj_set,&
-                                rcprj=rcprj)
-          WRITE (UNIT=output_unit,FMT="(T55,I5,T63,A5,T69,F12.6)")&
-            ikind,name,rcprj/unit_of_length
-        END IF
-      END DO
+    NULLIFY(logger)
+    logger => cp_error_get_logger(error)
+    output_unit = cp_print_key_unit_nr(logger,globenv%input_file,&
+         "FORCE_EVAL%PRINT%RADII/GAPW_PRJ_RADII",extension=".Log",error=error)
+    IF (output_unit>0) THEN
+       CALL get_cell(cell=cell,&
+            unit_of_length=unit_of_length,&
+            unit_of_length_name=unit_of_length_name)
+       nkind = SIZE(atomic_kind_set)
+       WRITE (UNIT=output_unit,FMT="(/,T2,A,T56,A,T63,A,T75,A)")&
+            "RADII: ONE CENTER PROJECTORS in "//&
+            TRIM(unit_of_length_name),"Kind","Label","Radius"
+       DO ikind=1,nkind
+          atomic_kind => atomic_kind_set(ikind)
+          CALL get_atomic_kind(atomic_kind=atomic_kind,&
+               name=name,&
+               paw_atom=paw_atom,&
+               paw_proj_set=paw_proj_set)
+          IF (paw_atom) THEN
+             CALL get_paw_proj_set(paw_proj_set=paw_proj_set,&
+                  rcprj=rcprj)
+             WRITE (UNIT=output_unit,FMT="(T55,I5,T63,A5,T69,F12.6)")&
+                  ikind,name,rcprj/unit_of_length
+          END IF
+       END DO
     END IF
-
+    CALL cp_print_key_finished_output(output_unit,logger,globenv%input_file,&
+         "FORCE_EVAL%PRINT%RADII/GAPW_PRJ_RADII",error=error)
   END SUBROUTINE write_paw_radii
 
 ! *****************************************************************************

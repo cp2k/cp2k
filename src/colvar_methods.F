@@ -38,7 +38,7 @@ MODULE colvar_methods
                                              torsion_colvar_id
   USE particle_list_types,             ONLY: particle_list_type
   USE physcon,                         ONLY: massunit
-  USE simulation_cell,                 ONLY: cell_type
+  USE cell_types,                 ONLY: cell_type
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&

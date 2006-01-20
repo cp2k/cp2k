@@ -74,7 +74,7 @@ MODULE harris_force
   USE qs_rho_methods,                  ONLY: diff_rho_type
   USE qs_rho_types,                    ONLY: qs_rho_type, &
                                              qs_rho_get
-  USE simulation_cell,                 ONLY: cell_type
+  USE cell_types,                 ONLY: cell_type
   USE sparse_matrix_types,             ONLY: real_matrix_p_type
   USE timings,                         ONLY: timeset, &
                                              timestop
@@ -432,17 +432,6 @@ CONTAINS
         i = atom_of_kind(iatom)
         harris_force%f_rho_core(iatom, 1:3) = force(ikind)%rho_core(1:3,i)
       END DO
-
-      !CALL zero_qs_force(force)
-      !
-      !CALL calculate_ecore_overlap(qs_env=qs_env, globenv=globenv, &
-      !                             calculate_forces=.TRUE., E_overlap_core=E_overlap_core)
-      !
-      !DO iatom = 1, natom
-      !  ikind = kind_of(iatom)
-      !  i = atom_of_kind(iatom)
-      !  harris_force%f_ovrl(iatom, 1:3) = force(ikind)%core_overlap(1:3,i)
-      !END DO
       
       CALL deallocate_qs_force(force)
       CALL set_qs_env(qs_env=qs_env, force=force_tmp, error=error)
@@ -948,7 +937,8 @@ CONTAINS
       CALL zero_qs_force(force)
 
       CALL calculate_ecore_overlap(qs_env=qs_env, globenv=globenv, &
-                                   calculate_forces=.TRUE., E_overlap_core=E_overlap_core)
+                                   calculate_forces=.TRUE., E_overlap_core=E_overlap_core,&
+                                   error=error)
 
       DO iatom = 1, natom
         ikind = kind_of(iatom)

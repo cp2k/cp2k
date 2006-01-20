@@ -380,7 +380,7 @@ contains
 
     CALL cp_print_key_section_create(print_key, "print", description=&
          "controls the printing of physical and mathematical constants", &
-         print_level=high_print_level,filename="__STD_OUT__",&
+         print_level=low_print_level,filename="__STD_OUT__",&
          error=error)
     CALL keyword_create(keyword,"physcon",&
          description="if the printkey is active prints the physical constants",&
@@ -389,12 +389,12 @@ contains
     CALL keyword_release(keyword,error=error)
     CALL keyword_create(keyword,"spherical_harmonics",&
          description="if the printkey is active prints the spherical harmonics",&
-         default_l_val=.TRUE.,lone_keyword_l_val=.TRUE.,error=error)
+         default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,error=error)
     CALL section_add_keyword(print_key,keyword,error=error)
     CALL keyword_release(keyword,error=error)
     CALL keyword_create(keyword,"rgn_matrices",&
          description="if the printkey is active prints the random number generator matrices",&
-         default_l_val=.TRUE.,lone_keyword_l_val=.TRUE.,error=error)
+         default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,error=error)
     CALL section_add_keyword(print_key,keyword,error=error)
     CALL keyword_release(keyword,error=error)
     CALL section_add_subsection(section,print_key,error=error)
@@ -429,25 +429,6 @@ contains
          description="if the printkey is active controls the printing of the "//&
          "memory usage at important points during the PROGRAM run",&
          default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,error=error)
-    CALL section_add_keyword(print_key,keyword,error=error)
-    CALL keyword_release(keyword,error=error)
-    CALL section_add_subsection(section,print_key,error=error)
-    CALL section_release(print_key,error=error)
-
-    CALL cp_print_key_section_create(print_key, "parallel", description=&
-         "controls the printing of physical and mathematical constants", &
-         print_level=high_print_level,filename="__STD_OUT__",&
-         error=error)
-    CALL keyword_create(keyword,"mpi",&
-         description="if the printkey is active controls the printing of"//&
-         " the hpm info (IF linked as EXTERNAL library)",&
-         default_l_val=.TRUE.,lone_keyword_l_val=.TRUE.,error=error)
-    CALL section_add_keyword(print_key,keyword,error=error)
-    CALL keyword_release(keyword,error=error)
-    CALL keyword_create(keyword,"blacs_info",&
-         description="if the printkey is active controls the printing of"//&
-         " the blacs info (IF linked as EXTERNAL library)",&
-         default_l_val=.TRUE.,lone_keyword_l_val=.TRUE.,error=error)
     CALL section_add_keyword(print_key,keyword,error=error)
     CALL keyword_release(keyword,error=error)
     CALL section_add_subsection(section,print_key,error=error)
@@ -917,6 +898,14 @@ SUBROUTINE create_f_env_print_section(section,error)
      CALL section_add_subsection(section,print_key,error=error)
      CALL section_release(print_key,error=error)
 
+     CALL cp_print_key_section_create(print_key,"subcell",&
+          description="controls the output of the subcell parameters"//&
+          " during the construction of the neighbouring lists.",&
+          print_level=high_print_level, filename="",error=error)
+     CALL section_add_subsection(section,print_key,error=error)
+     CALL section_release(print_key,error=error)
+
+
      CALL cp_print_key_section_create(print_key,"kinds",&
           description="controls the output of information on the kinds",&
           print_level=medium_print_level, filename="",error=error)
@@ -925,16 +914,25 @@ SUBROUTINE create_f_env_print_section(section,error)
           default_l_val=.TRUE., lone_keyword_l_val=.TRUE., error=error)
      CALL section_add_keyword(print_key,keyword,error=error)
      CALL keyword_release(keyword,error=error)    
-     CALL keyword_create(keyword, name="gth_potential",&
-          description="If the printkey is activated controls the printing of the gth_potential information",&
-          default_l_val=.TRUE., lone_keyword_l_val=.TRUE., error=error)
+
+     CALL keyword_create(keyword, name="potential",&
+          description="If the printkey is activated controls the printing of the"//&
+          " elp_potential, gth_potential or all electron potential information",&
+          default_l_val=.FALSE., lone_keyword_l_val=.TRUE., error=error)
      CALL section_add_keyword(print_key,keyword,error=error)
      CALL keyword_release(keyword,error=error)    
      CALL keyword_create(keyword, name="basis_set",&
           description="If the printkey is activated controls the printing of basis set information",&
-          default_l_val=.TRUE., lone_keyword_l_val=.TRUE., error=error)
+          default_l_val=.FALSE., lone_keyword_l_val=.TRUE., error=error)
      CALL section_add_keyword(print_key,keyword,error=error)
      CALL keyword_release(keyword,error=error)    
+     CALL section_add_subsection(section,print_key,error=error)
+     CALL section_release(print_key,error=error)
+
+     CALL cp_print_key_section_create(print_key,"BASIC_DATA_TYPES",&
+          description="Controls the printing of the basic data types.", &
+          print_level=high_print_level,each=(/1/),filename="__STD_OUT__",&
+          error=error)
      CALL section_add_subsection(section,print_key,error=error)
      CALL section_release(print_key,error=error)
 
@@ -950,12 +948,26 @@ SUBROUTINE create_f_env_print_section(section,error)
           description="If the printkey is activated controls the printing of the core gaussian radii",&
           default_l_val=.TRUE., lone_keyword_l_val=.TRUE., error=error)
      CALL section_add_keyword(print_key,keyword,error=error)
-     CALL keyword_release(keyword,error=error)    
+     CALL keyword_release(keyword,error=error) 
+   
      CALL keyword_create(keyword, name="set_radii",&
           description="If the printkey is activated controls the printing of the set_radii",&
           default_l_val=.TRUE., lone_keyword_l_val=.TRUE., error=error)
      CALL section_add_keyword(print_key,keyword,error=error)
      CALL keyword_release(keyword,error=error)    
+
+     CALL keyword_create(keyword, name="kind_radii",&
+          description="If the printkey is activated controls the printing of the kind_radii",&
+          default_l_val=.TRUE., lone_keyword_l_val=.TRUE., error=error)
+     CALL section_add_keyword(print_key,keyword,error=error)
+     CALL keyword_release(keyword,error=error)    
+
+     CALL keyword_create(keyword, name="core_charge_radii",&
+          description="If the printkey is activated controls the printing of the core_charge_radii",&
+          default_l_val=.TRUE., lone_keyword_l_val=.TRUE., error=error)
+     CALL section_add_keyword(print_key,keyword,error=error)
+     CALL keyword_release(keyword,error=error)
+
      CALL keyword_create(keyword, name="gth_ppl_radii",&
           description="If the printkey is activated controls the printing of the "//&
           "gth pseudo potential local radii",&

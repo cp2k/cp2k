@@ -66,7 +66,7 @@ MODULE xray_diffraction
                                              rho_atom_coeff,&
                                              rho_atom_type
   USE qs_rho_types,                    ONLY: qs_rho_type
-  USE simulation_cell,                 ONLY: cell_type,&
+  USE cell_types,                 ONLY: cell_type,&
                                              pbc
   USE timings,                         ONLY: timeset,&
                                              timestop

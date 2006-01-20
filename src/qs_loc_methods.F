@@ -100,7 +100,7 @@ MODULE qs_loc_methods
   USE qs_rho_atom_methods,             ONLY: calculate_rho_atom_coeff
   USE qs_rho_methods,                  ONLY: qs_rho_update_rho
   USE realspace_grid_types,            ONLY: rs_pw_to_cube
-  USE simulation_cell,                 ONLY: cell_type
+  USE cell_types,                 ONLY: cell_type
   USE sparse_matrix_types,             ONLY: real_matrix_p_type
   USE string_utilities,                ONLY: uppercase,&
                                              xstring

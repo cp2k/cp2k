@@ -51,7 +51,7 @@ MODULE cp_ddapc_types
                                              pw_release
   USE pw_grid_types,                   ONLY: pw_grid_type
   USE pw_grids,                        ONLY: pw_grid_release
-  USE simulation_cell,                 ONLY: cell_type,&
+  USE cell_types,                 ONLY: cell_type,&
                                              cell_release,&
                                              read_cell
   USE input_constants,                 ONLY: use_multipole

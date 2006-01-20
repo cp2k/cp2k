@@ -27,7 +27,7 @@ MODULE topology_types
   USE kinds,                           ONLY: dp,&
                                              default_string_length
   USE pair_potential_types,            ONLY: pair_potential_type
-  USE simulation_cell,                 ONLY: cell_release,&
+  USE cell_types,                 ONLY: cell_release,&
                                              cell_type
   USE termination,                     ONLY: stop_memory
   USE input_constants,                 ONLY: do_conn_psf,&

@@ -79,7 +79,7 @@ MODULE force_env_methods
                                              set_qs_env
   USE qs_force,                        ONLY: qs_forces
   USE qs_numerical_pressure,           ONLY: qs_calc_numerical_pressure
-  USE simulation_cell,                 ONLY: cell_type
+  USE cell_types,                 ONLY: cell_type
   !USE tbmd_energy_methods,             ONLY: tbmd_energies
   USE tbmd_environment_types,          ONLY: tbmd_environment_type, &
                                              tbmd_env_get, &

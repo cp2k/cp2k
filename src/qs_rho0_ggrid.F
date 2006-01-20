@@ -78,7 +78,7 @@ MODULE qs_rho0_ggrid
                                              rs_pw_transfer,&
                                              rs2pw,&
                                              pw2rs
-  USE simulation_cell,                 ONLY: cell_type,&
+  USE cell_types,                 ONLY: cell_type,&
                                              pbc
   USE termination,                     ONLY: stop_memory
   USE timings,                         ONLY: timeset,&

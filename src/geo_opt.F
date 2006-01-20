@@ -50,7 +50,7 @@ MODULE geo_opt
   USE termination,                     ONLY: external_control
   USE particle_list_types,             ONLY: particle_list_type
   USE particle_types,                  ONLY: write_particle_distances
-  USE simulation_cell,                 ONLY: cell_type
+  USE cell_types,                 ONLY: cell_type
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE input_constants,                 ONLY: default_lbfgs_method_id,&

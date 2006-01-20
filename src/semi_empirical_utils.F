@@ -39,6 +39,13 @@ MODULE semi_empirical_utils
   USE semi_empirical_types,            ONLY: semi_empirical_type
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
+  USE cp_output_handling,              ONLY: cp_print_key_unit_nr, &
+                                             cp_print_key_finished_output,&
+                                             cp_print_key_should_output,&
+                                             cp_p_file
+#include "cp_common_uses.h"
+
+  
 
   IMPLICIT NONE
 
@@ -359,11 +366,12 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE write_se_param(se_parameter,globenv)
+  SUBROUTINE write_se_param(se_parameter,globenv,error)
 
     TYPE(semi_empirical_type), POINTER       :: se_parameter
     TYPE(global_environment_type), &
-      pointer                             :: globenv
+         POINTER                             :: globenv
+    TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "write_se_param"
 
@@ -376,154 +384,159 @@ CONTAINS
                                                 uss,zeff
     REAL(KIND=dp), DIMENSION(0:3)            :: u
     REAL(KIND=dp), DIMENSION(:), POINTER     :: beta, sexp
+    TYPE(cp_logger_type), POINTER            :: logger
 
-!   ---------------------------------------------------------------------------
-!   REAL(KIND = dp)                        :: dd,qq,am,ad,aq
-!   REAL(KIND = dp),DIMENSION(4)           :: fn1,fn2,fn3
+    NULLIFY(logger)
+    logger => cp_error_get_logger(error)
+    IF (ASSOCIATED(se_parameter).AND.BTEST(cp_print_key_should_output(logger%iter_info,globenv%input_file,&
+         "FORCE_EVAL%PRINT%KINDS/BASIS_SET",error=error),cp_p_file)) THEN
 
-    IF (.NOT.globenv%ionode) RETURN
+       output_unit = cp_print_key_unit_nr(logger,globenv%input_file,"FORCE_EVAL%PRINT%KINDS",&
+            extension=".Log",error=error)
 
-    IF (ASSOCIATED(se_parameter).AND.globenv%print%basis_set) THEN
-      CALL get_se_param(se_parameter,name=name,typ=typ,defined=defined,&
-                        z=z,zeff=zeff,natorb=natorb,eheat=eheat,beta=beta,&
-                        sto_exponents=sexp,uss=uss,upp=upp,udd=udd,uff=uff,&
-                        alp=alp,eisol=eisol,&
-                        gss=gss,gsp=gsp,gpp=gpp,gp2=gp2,hsp=hsp,&
-                        ngauss=ngauss)
-      output_unit = globenv%scr
+       IF (output_unit >0) THEN
+          CALL get_se_param(se_parameter,name=name,typ=typ,defined=defined,&
+               z=z,zeff=zeff,natorb=natorb,eheat=eheat,beta=beta,&
+               sto_exponents=sexp,uss=uss,upp=upp,udd=udd,uff=uff,&
+               alp=alp,eisol=eisol,&
+               gss=gss,gsp=gsp,gpp=gpp,gp2=gp2,hsp=hsp,&
+               ngauss=ngauss)
 
-      u(0) = uss
-      u(1) = upp
-      u(2) = udd
-      u(3) = uff
 
-      lm=-1
+          u(0) = uss
+          u(1) = upp
+          u(2) = udd
+          u(3) = uff
 
-      SELECT CASE (typ)
-        CASE DEFAULT
-          CALL stop_program(routine_name,module_name,__LINE__,&
-                          "Typ unknown: "//typ)
-        CASE ('EHT')
-          WRITE (UNIT=output_unit,FMT="(/,A,T35,A,T67,A14)")&
-            " Semi empirical parameters: ","Extended Huckel ",TRIM(name)
-          IF ( defined ) THEN
-            WRITE (UNIT=output_unit,FMT="(T16,A,T71,F10.2)")&
-              "Effective core charge:",zeff
-            WRITE (UNIT=output_unit,FMT="(T16,A,T71,I10)")&
-              "Number of orbitals:",natorb, &
-              "Basis set expansion (STO-NG)",ngauss
-            WRITE (UNIT=output_unit,FMT="(T16,A,T66,F15.5)")&
-              "Atomic heat of formation [kcal/mol]:",eheat*kcalmol
-            DO l=0,3
-              IF (ABS(beta(l)) > 0._dp) THEN
-                WRITE (UNIT=output_unit,&
-                 FMT="(T16,A,I2,T48,A,F17.4,/,T47,A,F17.4)") &
-                 "Shell: ",l,"Slater exponent:",sexp(l),&
-                 "H parameter [eV]:",beta(l)*evolt
-              END IF
-            END DO
-          ELSE
-            WRITE (UNIT=output_unit,FMT="(T55,A)")&
-               "Parameters are not defined"
-          END IF
-        CASE ('AM1')
-          WRITE (UNIT=output_unit,FMT="(/,A,T35,A,T67,A14)")&
-            " Semi empirical parameters: ","Austin Model 1 (AM1)",TRIM(name)
-          IF ( defined ) THEN
-            WRITE (UNIT=output_unit,FMT="(T16,A,T71,F10.2)")&
-              "Effective core charge:",zeff
-            WRITE (UNIT=output_unit,FMT="(T16,A,T71,I10)")&
-              "Number of orbitals:",natorb, &
-              "Basis set expansion (STO-NG)",ngauss
-            WRITE (UNIT=output_unit,FMT="(T16,A,T66,F15.5)")&
-              "Atomic heat of formation [kcal/mol]:",eheat*kcalmol
-            DO l=0,3
-              IF (ABS(beta(l)) > 0._dp) THEN
-                WRITE (UNIT=output_unit,&
-                 FMT="(T16,A,I2,T48,A,F17.4,/,T22,A,F12.4,T52,A,F12.4)") &
-                 "Shell: ",l,"Slater exponent:",sexp(l),&
-                 "U [eV]    :",u(l)*evolt,"Beta [eV]       :",beta(l)*evolt
-                lm=l
-              END IF
-            END DO
-            WRITE (UNIT=output_unit,FMT="(T16,A,F12.4,T52,A,F12.4)") &
-               "alp [A^-1]      :",alp/angstrom,&
-               "eisol [eV]      :",eisol*evolt
-            WRITE (UNIT=output_unit,FMT="(T16,A,/,T16,5(A,F8.3))") &
-               "One-centre-two-electron integrals [eV]",&
-               " gss=",gss*evolt," gsp=",gsp*evolt,&
-               " gpp=",gpp*evolt," gp2=",gp2*evolt," hsp=",hsp*evolt
-          ELSE
-            WRITE (UNIT=output_unit,FMT="(T55,A)")&
-               "Parameters are not defined"
-          END IF
-        CASE ('PM3')
-          WRITE (UNIT=output_unit,FMT="(/,A,T35,A,T67,A14)")&
-            " Semi empirical parameters: ","Parametric Method 3 (PM3) ",&
-            TRIM(name)
-          IF ( defined ) THEN
-            WRITE (UNIT=output_unit,FMT="(T16,A,T71,F10.2)")&
-              "Effective core charge:",zeff
-            WRITE (UNIT=output_unit,FMT="(T16,A,T71,I10)")&
-              "Number of orbitals:",natorb, &
-              "Basis set expansion (STO-NG)",ngauss
-            WRITE (UNIT=output_unit,FMT="(T16,A,T66,F15.5)")&
-              "Atomic heat of formation [kcal/mol]:",eheat*kcalmol
-            DO l=0,3
-              IF (ABS(beta(l)) > 0._dp) THEN
-                WRITE (UNIT=output_unit,&
-                 FMT="(T16,A,I2,T48,A,F17.4,/,T22,A,F12.4,T52,A,F12.4)") &
-                 "Shell: ",l,"Slater exponent:",sexp(l),&
-                 "U [eV]    :",u(l)*evolt,"Beta [eV]       :",beta(l)*evolt
-                lm=l
-              END IF
-            END DO
-            WRITE (UNIT=output_unit,FMT="(T16,A,F12.4,T52,A,F12.4)") &
-               "alp [A^-1]      :",alp/angstrom,&
-               "eisol [eV]      :",eisol*evolt
-            WRITE (UNIT=output_unit,FMT="(T16,A,/,T16,5(A,F8.3))") &
-               "One-centre-two-electron integrals [eV]",&
-               " gss=",gss*evolt," gsp=",gsp*evolt,&
-               " gpp=",gpp*evolt," gp2=",gp2*evolt," hsp=",hsp*evolt
-          ELSE
-            WRITE (UNIT=output_unit,FMT="(T55,A)")&
-               "Parameters are not defined"
-          END IF
-        CASE ('MNDO')
-          WRITE (UNIT=output_unit,FMT="(/,A,T35,A,T67,A14)")&
-            " Semi empirical parameters: ","MNDO ",TRIM(name)
-          IF ( defined ) THEN
-            WRITE (UNIT=output_unit,FMT="(T16,A,T71,F10.2)")&
-              "Effective core charge:",zeff
-            WRITE (UNIT=output_unit,FMT="(T16,A,T71,I10)")&
-              "Number of orbitals:",natorb, &
-              "Basis set expansion (STO-NG)",ngauss
-            WRITE (UNIT=output_unit,FMT="(T16,A,T66,F15.5)")&
-              "Atomic heat of formation [kcal/mol]:",eheat*kcalmol
-            DO l=0,3
-              IF (ABS(beta(l)) > 0._dp) THEN
-                WRITE (UNIT=output_unit,&
-                 FMT="(T16,A,I2,T48,A,F17.4,/,T22,A,F12.4,T52,A,F12.4)") &
-                 "Shell: ",l,"Slater exponent:",sexp(l),&
-                 "U [eV]    :",u(l)*evolt,"Beta [eV]       :",beta(l)*evolt
-                lm=l
-              END IF
-            END DO
-            WRITE (UNIT=output_unit,FMT="(T16,A,F12.4,T52,A,F12.4)") &
-               "alp [A^-1]      :",alp/angstrom,&
-               "eisol [eV]      :",eisol*evolt
-            WRITE (UNIT=output_unit,FMT="(T16,A,/,T16,5(A,F8.3))") &
-               "One-centre-two-electron integrals [eV]",&
-               " gss=",gss*evolt," gsp=",gsp*evolt,&
-               " gpp=",gpp*evolt," gp2=",gp2*evolt," hsp=",hsp*evolt
-          ELSE
-            WRITE (UNIT=output_unit,FMT="(T55,A)")&
-               "Parameters are not defined"
-          END IF
-      END SELECT
+          lm=-1
 
+          SELECT CASE (typ)
+          CASE DEFAULT
+             CALL stop_program(routine_name,module_name,__LINE__,&
+                  "Typ unknown: "//typ)
+          CASE ('EHT')
+             WRITE (UNIT=output_unit,FMT="(/,A,T35,A,T67,A14)")&
+                  " Semi empirical parameters: ","Extended Huckel ",TRIM(name)
+             IF ( defined ) THEN
+                WRITE (UNIT=output_unit,FMT="(T16,A,T71,F10.2)")&
+                     "Effective core charge:",zeff
+                WRITE (UNIT=output_unit,FMT="(T16,A,T71,I10)")&
+                     "Number of orbitals:",natorb, &
+                     "Basis set expansion (STO-NG)",ngauss
+                WRITE (UNIT=output_unit,FMT="(T16,A,T66,F15.5)")&
+                     "Atomic heat of formation [kcal/mol]:",eheat*kcalmol
+                DO l=0,3
+                   IF (ABS(beta(l)) > 0._dp) THEN
+                      WRITE (UNIT=output_unit,&
+                           FMT="(T16,A,I2,T48,A,F17.4,/,T47,A,F17.4)") &
+                           "Shell: ",l,"Slater exponent:",sexp(l),&
+                           "H parameter [eV]:",beta(l)*evolt
+                   END IF
+                END DO
+             ELSE
+                WRITE (UNIT=output_unit,FMT="(T55,A)")&
+                     "Parameters are not defined"
+             END IF
+          CASE ('AM1')
+             WRITE (UNIT=output_unit,FMT="(/,A,T35,A,T67,A14)")&
+                  " Semi empirical parameters: ","Austin Model 1 (AM1)",TRIM(name)
+             IF ( defined ) THEN
+                WRITE (UNIT=output_unit,FMT="(T16,A,T71,F10.2)")&
+                     "Effective core charge:",zeff
+                WRITE (UNIT=output_unit,FMT="(T16,A,T71,I10)")&
+                     "Number of orbitals:",natorb, &
+                     "Basis set expansion (STO-NG)",ngauss
+                WRITE (UNIT=output_unit,FMT="(T16,A,T66,F15.5)")&
+                     "Atomic heat of formation [kcal/mol]:",eheat*kcalmol
+                DO l=0,3
+                   IF (ABS(beta(l)) > 0._dp) THEN
+                      WRITE (UNIT=output_unit,&
+                           FMT="(T16,A,I2,T48,A,F17.4,/,T22,A,F12.4,T52,A,F12.4)") &
+                           "Shell: ",l,"Slater exponent:",sexp(l),&
+                           "U [eV]    :",u(l)*evolt,"Beta [eV]       :",beta(l)*evolt
+                      lm=l
+                   END IF
+                END DO
+                WRITE (UNIT=output_unit,FMT="(T16,A,F12.4,T52,A,F12.4)") &
+                     "alp [A^-1]      :",alp/angstrom,&
+                     "eisol [eV]      :",eisol*evolt
+                WRITE (UNIT=output_unit,FMT="(T16,A,/,T16,5(A,F8.3))") &
+                     "One-centre-two-electron integrals [eV]",&
+                     " gss=",gss*evolt," gsp=",gsp*evolt,&
+                     " gpp=",gpp*evolt," gp2=",gp2*evolt," hsp=",hsp*evolt
+             ELSE
+                WRITE (UNIT=output_unit,FMT="(T55,A)")&
+                     "Parameters are not defined"
+             END IF
+          CASE ('PM3')
+             WRITE (UNIT=output_unit,FMT="(/,A,T35,A,T67,A14)")&
+                  " Semi empirical parameters: ","Parametric Method 3 (PM3) ",&
+                  TRIM(name)
+             IF ( defined ) THEN
+                WRITE (UNIT=output_unit,FMT="(T16,A,T71,F10.2)")&
+                     "Effective core charge:",zeff
+                WRITE (UNIT=output_unit,FMT="(T16,A,T71,I10)")&
+                     "Number of orbitals:",natorb, &
+                     "Basis set expansion (STO-NG)",ngauss
+                WRITE (UNIT=output_unit,FMT="(T16,A,T66,F15.5)")&
+                     "Atomic heat of formation [kcal/mol]:",eheat*kcalmol
+                DO l=0,3
+                   IF (ABS(beta(l)) > 0._dp) THEN
+                      WRITE (UNIT=output_unit,&
+                           FMT="(T16,A,I2,T48,A,F17.4,/,T22,A,F12.4,T52,A,F12.4)") &
+                           "Shell: ",l,"Slater exponent:",sexp(l),&
+                           "U [eV]    :",u(l)*evolt,"Beta [eV]       :",beta(l)*evolt
+                      lm=l
+                   END IF
+                END DO
+                WRITE (UNIT=output_unit,FMT="(T16,A,F12.4,T52,A,F12.4)") &
+                     "alp [A^-1]      :",alp/angstrom,&
+                     "eisol [eV]      :",eisol*evolt
+                WRITE (UNIT=output_unit,FMT="(T16,A,/,T16,5(A,F8.3))") &
+                     "One-centre-two-electron integrals [eV]",&
+                     " gss=",gss*evolt," gsp=",gsp*evolt,&
+                     " gpp=",gpp*evolt," gp2=",gp2*evolt," hsp=",hsp*evolt
+             ELSE
+                WRITE (UNIT=output_unit,FMT="(T55,A)")&
+                     "Parameters are not defined"
+             END IF
+          CASE ('MNDO')
+             WRITE (UNIT=output_unit,FMT="(/,A,T35,A,T67,A14)")&
+                  " Semi empirical parameters: ","MNDO ",TRIM(name)
+             IF ( defined ) THEN
+                WRITE (UNIT=output_unit,FMT="(T16,A,T71,F10.2)")&
+                     "Effective core charge:",zeff
+                WRITE (UNIT=output_unit,FMT="(T16,A,T71,I10)")&
+                     "Number of orbitals:",natorb, &
+                     "Basis set expansion (STO-NG)",ngauss
+                WRITE (UNIT=output_unit,FMT="(T16,A,T66,F15.5)")&
+                     "Atomic heat of formation [kcal/mol]:",eheat*kcalmol
+                DO l=0,3
+                   IF (ABS(beta(l)) > 0._dp) THEN
+                      WRITE (UNIT=output_unit,&
+                           FMT="(T16,A,I2,T48,A,F17.4,/,T22,A,F12.4,T52,A,F12.4)") &
+                           "Shell: ",l,"Slater exponent:",sexp(l),&
+                           "U [eV]    :",u(l)*evolt,"Beta [eV]       :",beta(l)*evolt
+                      lm=l
+                   END IF
+                END DO
+                WRITE (UNIT=output_unit,FMT="(T16,A,F12.4,T52,A,F12.4)") &
+                     "alp [A^-1]      :",alp/angstrom,&
+                     "eisol [eV]      :",eisol*evolt
+                WRITE (UNIT=output_unit,FMT="(T16,A,/,T16,5(A,F8.3))") &
+                     "One-centre-two-electron integrals [eV]",&
+                     " gss=",gss*evolt," gsp=",gsp*evolt,&
+                     " gpp=",gpp*evolt," gp2=",gp2*evolt," hsp=",hsp*evolt
+             ELSE
+                WRITE (UNIT=output_unit,FMT="(T55,A)")&
+                     "Parameters are not defined"
+             END IF
+          END SELECT
+       END IF
+       CALL cp_print_key_finished_output(output_unit,logger,globenv%input_file,&
+            "FORCE_EVAL%PRINT%KINDS",error=error)
     END IF
-
+    
   END SUBROUTINE write_se_param
 
 ! *****************************************************************************

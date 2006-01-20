@@ -56,7 +56,7 @@ MODULE fist_debug
   USE molecule_types_new,                       ONLY : molecule_type
   USE pair_potential_types,                     ONLY : pair_potential_pp_type
   USE particle_types,                           ONLY : particle_type
-  USE simulation_cell,                          ONLY : cell_type
+  USE cell_types,                          ONLY : cell_type
   USE termination,                              ONLY : stop_memory, stop_program
   USE virial_types,                             ONLY : virial_type
   USE input_constants,                 ONLY: do_ewald_none,&

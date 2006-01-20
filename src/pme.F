@@ -64,7 +64,7 @@ MODULE pme
                                              rs_pw_transfer,&
                                              rs2pw,&
                                              pw2rs
-  USE simulation_cell,                 ONLY: cell_type
+  USE cell_types,                 ONLY: cell_type
   USE structure_factor_types,          ONLY: structure_factor_type
   USE structure_factors,               ONLY: structure_factor_allocate,&
                                              structure_factor_deallocate

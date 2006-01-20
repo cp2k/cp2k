@@ -52,7 +52,7 @@ MODULE kg_environment_methods
   USE sparse_matrix_types,             ONLY: real_matrix_p_type, &
                                              deallocate_matrix_set
   USE particle_types,                  ONLY: particle_type  
-  USE simulation_cell,                 ONLY: cell_type
+  USE cell_types,                 ONLY: cell_type
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE topology,                        ONLY: topology_control

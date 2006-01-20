@@ -49,7 +49,7 @@ MODULE fist_nonbond_force
   USE pair_potential_types,            ONLY: pair_potential_pp_type,&
                                              pair_potential_single_type
   USE particle_types,                  ONLY: particle_type
-  USE simulation_cell,                 ONLY: cell_type,&
+  USE cell_types,                 ONLY: cell_type,&
                                              real_to_scaled,&
                                              scaled_to_real
   USE splines,                         ONLY: spline_data_type

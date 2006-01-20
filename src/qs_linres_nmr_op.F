@@ -52,7 +52,7 @@ MODULE qs_linres_nmr_op
   USE qs_mo_types,                     ONLY: get_mo_set,&
                                              mo_set_p_type
   USE qs_operators_ao,                 ONLY: p_xyz_ao,rmc_x_p_xyz_ao
-  USE simulation_cell,                 ONLY: cell_type, pbc
+  USE cell_types,                 ONLY: cell_type, pbc
   USE sparse_matrix_types,             ONLY: real_matrix_p_type,&
                                              real_matrix_type
 #include "cp_common_uses.h"

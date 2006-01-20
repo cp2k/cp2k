@@ -82,7 +82,7 @@ MODULE qs_localization
                                              initialize_weights,&
                                              jacobi_rotations
   USE cp_files,                        ONLY: open_file, close_file
-  USE simulation_cell,                 ONLY: cell_type,&
+  USE cell_types,                 ONLY: cell_type,&
                                              pbc
   USE sparse_matrix_types,             ONLY: deallocate_matrix,&
                                              real_matrix_p_type,&

@@ -61,7 +61,7 @@ MODULE qmmm_pw_grid
   USE qs_ks_qmmm_types,                ONLY: qs_ks_qmmm_env_type
   USE qs_ks_types,                     ONLY: qs_ks_env_type
   USE mathconstants,                   ONLY: pi
-  USE simulation_cell,                 ONLY: cell_type
+  USE cell_types,                 ONLY: cell_type
   USE input_constants, ONLY: do_qmmm_grid, do_qmmm_gauss, do_qmmm_none
 #include "cp_common_uses.h"
   IMPLICIT NONE

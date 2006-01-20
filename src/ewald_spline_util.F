@@ -34,7 +34,7 @@ MODULE ewald_spline_util
                                              dp
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE simulation_cell,                 ONLY: cell_type,&
+  USE cell_types,                 ONLY: cell_type,&
                                              cell_create,&
                                              cell_release
   USE memory_utilities,                ONLY: reallocate

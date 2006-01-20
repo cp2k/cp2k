@@ -73,7 +73,7 @@ MODULE qs_neighbor_lists
                                              reduced_3c_list_type
   USE qs_rho0_types,                   ONLY: get_rho0_mpole,&
                                              rho0_mpole_type
-  USE simulation_cell,                 ONLY: cell_type,&
+  USE cell_types,                 ONLY: cell_type,&
                                              get_cell,&
                                              pbc,&
                                              real_to_scaled,&
@@ -83,6 +83,10 @@ MODULE qs_neighbor_lists
                                              stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
+  USE cp_output_handling,              ONLY: cp_print_key_unit_nr, &
+                                             cp_print_key_finished_output,&
+                                             cp_print_key_should_output,&
+                                             cp_p_file
 
 #include "cp_common_uses.h"  
   IMPLICIT NONE
@@ -195,11 +199,12 @@ CONTAINS
     TYPE(rho0_mpole_type), POINTER           :: rho0_mpole
     TYPE(rhoz_type), DIMENSION(:), POINTER   :: rhoz_set
     CHARACTER(20)                            :: name
+    TYPE(cp_logger_type), POINTER            :: logger
 
-!   ---------------------------------------------------------------------------
+    NULLIFY(logger)
+    logger => cp_error_get_logger(error)
 
     CALL write_checkpoint_information("entering "//routine_name,globenv,error)
-
     CALL timeset(routine_name,"I"," ",handle)
 
 
@@ -224,14 +229,10 @@ CONTAINS
     NULLIFY (sac_3c)
     NULLIFY (sbc_3c)
 
-    output_unit = globenv%scr
-
-    IF ((globenv%ionode.AND.globenv%print%cell_parameters).AND.&
-        (globenv%print%level > MEDIUM)) THEN
-      print_subcell_grid = .TRUE.
-    ELSE
-      print_subcell_grid = .FALSE.
-    END IF
+    print_subcell_grid = .FALSE.
+    output_unit = cp_print_key_unit_nr(logger,globenv%input_file,"FORCE_EVAL%PRINT%SUBCELL",&
+         extension=".Log",error=error)
+    IF (output_unit>0)  print_subcell_grid = .TRUE.
 
     molecule_only = .FALSE.
     IF ( PRESENT ( molecular ) ) molecule_only = molecular
@@ -819,8 +820,9 @@ CONTAINS
 
     END IF
 
+    CALL cp_print_key_finished_output(output_unit,logger,globenv%input_file,&
+         "FORCE_EVAL%PRINT%SUBCELL",error=error)    
     CALL timestop(0.0_dp,handle)
-
     CALL write_checkpoint_information("leaving "//routine_name,globenv,error)
 
   END SUBROUTINE build_qs_neighbor_lists

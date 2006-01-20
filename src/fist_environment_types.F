@@ -59,7 +59,7 @@ MODULE fist_environment_types
                                              particle_list_release, &
                                              particle_list_create
   USE particle_types,                  ONLY: particle_type
-  USE simulation_cell,                 ONLY: cell_type, &
+  USE cell_types,                 ONLY: cell_type, &
                                              cell_retain, &
                                              cell_release
   USE timings,                         ONLY: timeset,&

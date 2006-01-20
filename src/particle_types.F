@@ -76,7 +76,7 @@ MODULE particle_types
                                              start_parser,&
                                              stop_parser,&
                                              test_object
-  USE simulation_cell,                 ONLY: cell_type,&
+  USE cell_types,                 ONLY: cell_type,&
                                              get_cell,&
                                              pbc,&
                                              scaled_to_real

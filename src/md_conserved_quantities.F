@@ -45,7 +45,7 @@ MODULE md_conserved_quantities
   USE message_passing,                 ONLY: mp_sum
   USE particle_list_types,             ONLY: particle_list_type
   USE particle_types,                  ONLY: particle_type
-  USE simulation_cell,                 ONLY: cell_type
+  USE cell_types,                 ONLY: cell_type
   USE termination,                     ONLY: stop_program
   USE input_constants,                 ONLY: nve_ensemble,&
                                              nvt_ensemble,&

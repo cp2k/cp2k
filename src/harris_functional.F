@@ -245,14 +245,11 @@ CONTAINS
         IF (.NOT. fast_flag) THEN
           qs_env%energy%core_overlap = 0.0_dp
           qs_env%energy%core_self = 0.0_dp
-          !CALL get_qs_env(qs_env=qs_env, matrix_ks=matrix_ks, rho=rho, &
-          !                para_env=para_env, dft_control=dft_control, error=error)
-          !CALL calculate_ecore(h=matrix_ks(ispin)%matrix, p=rho%rho_ao(ispin)%matrix, &
-          !                     ecore=harris_energy%Ecore, para_env=para_env)
+
           CALL calculate_ecore_overlap(qs_env=qs_env, globenv=globenv, &
                                        calculate_forces=dft_control%forces, &
-                                       !calculate_forces=.FALSE., &
-                                       E_overlap_core=harris_energy%Ecore_overlap)
+                                       E_overlap_core=harris_energy%Ecore_overlap,&
+                                       error=error)
           CALL calculate_ecore_self(qs_env, E_self_core=harris_energy%Ecore_self)
         ELSE
           harris_energy%Ecore_overlap = qs_env%energy%core_overlap

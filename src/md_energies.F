@@ -53,7 +53,7 @@ MODULE md_energies
   USE physcon,                         ONLY: femtoseconds,&
                                              kelvin
   USE cp_files,                        ONLY: open_file,close_file
-  USE simulation_cell,                 ONLY: cell_type, get_cell
+  USE cell_types,                 ONLY: cell_type, get_cell
   USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop

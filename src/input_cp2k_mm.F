@@ -224,13 +224,6 @@ contains
 
        NULLIFY(print_key)
 
-       CALL cp_print_key_section_create(print_key,"BASIC_DATA_TYPES",&
-            description="Controls the printing of the basic data types.", &
-            print_level=high_print_level,each=(/1/),filename="__STD_OUT__",&
-            error=error)
-       CALL section_add_subsection(section,print_key,error=error)
-       CALL section_release(print_key,error=error)
-
        CALL cp_print_key_section_create(print_key,"DERIVATIVES",&
             description="Controls the printing of derivatives.", &
             print_level=high_print_level,each=(/1/),filename="__STD_OUT__",&

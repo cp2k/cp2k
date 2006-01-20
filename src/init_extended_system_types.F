@@ -39,7 +39,7 @@ MODULE init_extended_system_types
   USE nhc_mapping,                     ONLY: nhc_to_barostat_mapping,&
                                              nhc_to_coef_mapping,&
                                              nhc_to_particle_mapping
-  USE simulation_cell,                 ONLY: cell_type
+  USE cell_types,                 ONLY: cell_type
   USE termination,                     ONLY: stop_program, stop_memory
   USE input_constants,                 ONLY: nve_ensemble,&
                                              nvt_ensemble,&

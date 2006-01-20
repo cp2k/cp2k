@@ -41,7 +41,7 @@ MODULE cg_optimizer
                                              write_qs_particle_coordinates,&
                                              write_particle_coordinates,&
                                              write_structure_data
-  USE simulation_cell,                 ONLY: cell_type
+  USE cell_types,                 ONLY: cell_type
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE bfgs_optimizer,                  ONLY: write_cycle_infos,&

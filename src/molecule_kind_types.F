@@ -49,6 +49,11 @@ MODULE molecule_kind_types
                                              string_to_ascii
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
+  USE cp_output_handling,              ONLY: cp_print_key_unit_nr, &
+                                             cp_print_key_finished_output,&
+                                             cp_print_key_should_output,&
+                                             cp_p_file
+#include "cp_common_uses.h"
 
   IMPLICIT NONE
 
@@ -881,7 +886,7 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE write_molecule_kind(molecule_kind,globenv)
+  SUBROUTINE write_molecule_kind(molecule_kind,globenv,output_unit,error)
 
 !   Purpose: Write a molecule kind data set to the output unit.
 
@@ -892,24 +897,20 @@ CONTAINS
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
     TYPE(global_environment_type), &
       pointer                             :: globenv
-
+    TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
+    INTEGER, INTENT(in) :: output_unit
     CHARACTER(LEN=*), PARAMETER :: routine_name = "write_molecule_kind"
 
     CHARACTER(LEN=default_string_length)     :: name
     INTEGER                                  :: iatom, imolecule, natom, &
-                                                nmolecule, output_unit
+                                                nmolecule
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
+    TYPE(cp_logger_type), POINTER            :: logger
 
-!   ---------------------------------------------------------------------------
-
-    IF (.NOT.globenv%ionode) RETURN
-
-    IF (globenv%print%kind_information) THEN
-
+    NULLIFY(logger)
+    logger => cp_error_get_logger(error)       
+    IF (output_unit>0) THEN
       IF (ASSOCIATED(molecule_kind)) THEN
-
-        output_unit = globenv%scr
-
         natom = SIZE(molecule_kind%atom_list)
         nmolecule = SIZE(molecule_kind%molecule_list)
 
@@ -949,12 +950,11 @@ CONTAINS
       END IF
 
     END IF
-
   END SUBROUTINE write_molecule_kind
 
 ! *****************************************************************************
 
-  SUBROUTINE write_molecule_kind_set(molecule_kind_set,globenv)
+  SUBROUTINE write_molecule_kind_set(molecule_kind_set,globenv,error)
 
 !   Purpose: Write a moleculeatomic kind set data set to the output unit.
 
@@ -966,6 +966,7 @@ CONTAINS
       POINTER                                :: molecule_kind_set
     TYPE(global_environment_type), &
       pointer                             :: globenv
+    TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "write_molecule_kind_set"
 
@@ -973,24 +974,21 @@ CONTAINS
                                                 nmolecule_kind, output_unit
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
     INTEGER                                  :: nbond,nbend,nub,ntors,nimpr,nonfo
+    TYPE(cp_logger_type), POINTER            :: logger
 
-!   ---------------------------------------------------------------------------
-
-    IF (.NOT.globenv%ionode) RETURN
-
-    IF (globenv%print%kind_information) THEN
-
+    NULLIFY(logger)
+    logger => cp_error_get_logger(error)       
+    output_unit = cp_print_key_unit_nr(logger,globenv%input_file,&
+         "FORCE_EVAL%PRINT%KINDS/KIND_INFORMATION",extension=".Log",error=error)
+    IF (output_unit>0) THEN
       IF (ASSOCIATED(molecule_kind_set)) THEN
-
-        output_unit = globenv%scr
-
         WRITE (UNIT=output_unit,FMT="(/,/,T2,A)") "MOLECULE KIND INFORMATION"
 
         nmolecule_kind = SIZE(molecule_kind_set)
 
         DO imolecule_kind=1,nmolecule_kind
           molecule_kind => molecule_kind_set(imolecule_kind)
-          CALL write_molecule_kind(molecule_kind,globenv)
+          CALL write_molecule_kind(molecule_kind,globenv,output_unit,error)
         END DO
 
 
@@ -1023,7 +1021,8 @@ CONTAINS
       END IF
 
     END IF
-
+    CALL cp_print_key_finished_output(output_unit,logger,globenv%input_file,&
+         "FORCE_EVAL%PRINT%KINDS/KIND_INFORMATION",error=error)
   END SUBROUTINE write_molecule_kind_set
 
 ! *****************************************************************************

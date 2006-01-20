@@ -72,7 +72,7 @@ MODULE fist_environment
                                              write_particle_distances, &
                                              write_qs_particle_coordinates,&
                                              write_structure_data
-  USE simulation_cell,                 ONLY: cell_type,&
+  USE cell_types,                 ONLY: cell_type,&
                                              cell_release,&
                                              read_cell,&
                                              write_cell,&
@@ -184,7 +184,7 @@ SUBROUTINE fist_init ( fist_env, globenv, error )
   CALL get_cell (cell, abc=abc)
 
 ! Print the cell parameters ***
-  CALL write_cell ( cell, globenv )
+  CALL write_cell ( cell, globenv, error)
 
 ! Create the ewald environment
   CALL ewald_env_create ( ewald_env, globenv % para_env, error )
@@ -283,11 +283,8 @@ SUBROUTINE fist_init ( fist_env, globenv, error )
 ! Create the fist_energy_type
   call allocate_fist_energy( thermo )
 
-! Print the atomic kind set
-!  CALL write_atomic_kind_set(atomic_kind_set,globenv)
-
 ! Print the molecule kind set
-  CALL write_molecule_kind_set(molecule_kind_set,globenv)
+  CALL write_molecule_kind_set(molecule_kind_set,globenv,error)
 
 ! Print the atomic coordinates 
   CALL write_qs_particle_coordinates(particle_set,cell,globenv,error)

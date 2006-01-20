@@ -885,7 +885,8 @@ CONTAINS
       ! update ecore
       CALL calculate_ecore_self(qs_env)
 
-      CALL calculate_ecore_overlap(qs_env,globenv,dft_control%forces,molecular=.TRUE.)
+      CALL calculate_ecore_overlap(qs_env,globenv,dft_control%forces,molecular=.TRUE.,&
+           error=error)
 
       IF (ionode.AND.logger%print_keys%scf_energies) THEN
          WRITE (UNIT=output_unit,FMT="(/,(T3,A,T60,F20.10))")&

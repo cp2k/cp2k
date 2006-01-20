@@ -113,7 +113,7 @@ MODULE xas_methods
   USE qs_scf_types,                    ONLY: qs_scf_env_type
   USE scf_control_types,               ONLY: scf_control_type
   USE semi_empirical_parameters,       ONLY: srules
-  USE simulation_cell,                 ONLY: cell_type, pbc
+  USE cell_types,                 ONLY: cell_type, pbc
   USE sparse_matrix_types,             ONLY: get_block_node,&
                                              real_matrix_p_type, &
                                              real_matrix_type,&

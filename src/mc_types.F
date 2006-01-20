@@ -44,7 +44,7 @@ MODULE mc_types
   USE physcon,                         ONLY: angstrom,&
                                              boltzmann,&
                                              joule
-  USE simulation_cell,                 ONLY: cell_type,&
+  USE cell_types,                 ONLY: cell_type,&
                                              get_cell
   USE string_utilities,                ONLY: xstring
   USE timings,                         ONLY: timeset,&

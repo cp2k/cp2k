@@ -49,7 +49,7 @@ MODULE real_space_test
                                              rs_pw_transfer,&
                                              rs2pw,&
                                              pw2rs
-  USE simulation_cell,                 ONLY: cell_type,&
+  USE cell_types,                 ONLY: cell_type,&
                                              get_hinv,&
                                              cell_create,&
                                              cell_release

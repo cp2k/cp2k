@@ -43,7 +43,7 @@ MODULE level_shift
   USE realspace_grid_types,            ONLY: realspace_grid_type,&
                                              rs_pw_transfer,&
                                              pw2rs
-  USE simulation_cell,                 ONLY: cell_type,&
+  USE cell_types,                 ONLY: cell_type,&
                                              pbc
   USE timings,                         ONLY: timeset,&
                                              timestop

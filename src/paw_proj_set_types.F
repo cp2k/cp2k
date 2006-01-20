@@ -40,6 +40,10 @@ MODULE paw_proj_set_types
                                              exp_radius
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
+  USE cp_output_handling,              ONLY: cp_print_key_unit_nr, &
+                                             cp_print_key_finished_output,&
+                                             cp_print_key_should_output,&
+                                             cp_p_file
 #include "cp_common_uses.h"
  
 ! *****************************************************************************
@@ -264,7 +268,7 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE projectors(paw_proj,orb_basis,rc,qs_control,max_rad_local_type,globenv)
+  SUBROUTINE projectors(paw_proj,orb_basis,rc,qs_control,max_rad_local_type,globenv,error)
 
 !   Purpose: initialize the projector-type set data set.
 
@@ -276,7 +280,7 @@ CONTAINS
     TYPE(global_environment_type), pointer :: globenv
     REAL(dp)                                  :: rc
     REAL(dp), INTENT(IN)                      :: max_rad_local_type
-
+    TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
 !   *** Local parameters ***
 
     CHARACTER(LEN=*), PARAMETER :: routine = " projectors "
@@ -298,7 +302,7 @@ CONTAINS
     eps_orb =  qs_control%eps_pgf_orb
 
     CALL build_projector(paw_proj,orb_basis,eps_fit,eps_iso,eps_svd, &  
-                                     rc,eps_orb,max_rad_local,globenv)
+                                     rc,eps_orb,max_rad_local,globenv,error)
 
   END SUBROUTINE  projectors
 
@@ -350,6 +354,10 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:,:), ALLOCATABLE :: U,VT
     REAL(KIND=dp), DIMENSION(:), ALLOCATABLE :: S,Work_dgesdd
     INTEGER, DIMENSION(:), ALLOCATABLE  :: IWORK
+    TYPE(cp_logger_type), POINTER            :: logger
+
+    NULLIFY(logger)
+    logger => cp_error_get_logger(error)
 
 !   ***************************************************************************
 
@@ -386,11 +394,13 @@ CONTAINS
     CPPostcondition(istat==0,cp_failure_level,routine,error,failure)
     paw_proj%nprj(0:maxl) = 0
 
-    IF (globenv%ionode .AND. globenv%print%basis_set) THEN
-      output_unit = globenv%scr
-      WRITE (UNIT=output_unit,FMT="(/,T2,A)")&
-             "Projectors for the basis functions of "//TRIM(bsname)
-    ENDIF
+    output_unit = cp_print_key_unit_nr(logger,globenv%input_file,&
+         "FORCE_EVAL%PRINT%KINDS/BASIS_SET",extension=".Log",error=error)
+    
+    IF (output_unit>0) THEN
+       WRITE (UNIT=output_unit,FMT="(/,T2,A)")&
+            "Projectors for the basis functions of "//TRIM(bsname)
+    END IF
 
     ALLOCATE(set_radius(nset),STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routine,error,failure)
@@ -591,30 +601,25 @@ CONTAINS
       ENDDO                ! iset
 
 !     *** Print exponents and coefficients of the projectors ***
-      IF (globenv%ionode .AND. globenv%print%basis_set) THEN
-        output_unit = globenv%scr
-
-        WRITE (UNIT=output_unit,FMT="(/,/,T2,A,I2)")&
-         "Built projector for angular momentum quantum number l= ", lshell
-        WRITE (UNIT=output_unit,FMT="(T2,A,I2)")&
-         "Number of isolated projectors = ", nisop
-        DO iset = 1,nset     ! iset
-          IF (lshell >= lmin(iset) .AND. lshell <= lmax(iset))THEN
-            WRITE (UNIT=output_unit,FMT="(/,T2,A,I5,/,/,T4,A9,(T13,4f15.6))")&
-                   "Set ",iset,"exp prj: ", &
-                   (paw_proj%zetprj(ip,lshell),ip=1,np)
-            DO jp = 1,npgf(iset)
-              WRITE (UNIT=output_unit,FMT="(/,T4,A9,F15.6,/,T4,A9,(t13,4E15.6))") &
-                "exp gto: ",orb_basis%zet(jp,iset),&
-                "coeff.:  ",(paw_proj%gccprj(ip,jp,&
-                             lshell,iset),ip=1,np)
-            ENDDO
-          ENDIF
-        ENDDO                ! iset
-
-
-      ENDIF
-
+      IF (output_unit>0 ) THEN
+         WRITE (UNIT=output_unit,FMT="(/,/,T2,A,I2)")&
+              "Built projector for angular momentum quantum number l= ", lshell
+         WRITE (UNIT=output_unit,FMT="(T2,A,I2)")&
+              "Number of isolated projectors = ", nisop
+         DO iset = 1,nset     ! iset
+            IF (lshell >= lmin(iset) .AND. lshell <= lmax(iset))THEN
+               WRITE (UNIT=output_unit,FMT="(/,T2,A,I5,/,/,T4,A9,(T13,4f15.6))")&
+                    "Set ",iset,"exp prj: ", &
+                    (paw_proj%zetprj(ip,lshell),ip=1,np)
+               DO jp = 1,npgf(iset)
+                  WRITE (UNIT=output_unit,FMT="(/,T4,A9,F15.6,/,T4,A9,(t13,4E15.6))") &
+                       "exp gto: ",orb_basis%zet(jp,iset),&
+                       "coeff.:  ",(paw_proj%gccprj(ip,jp,&
+                       lshell,iset),ip=1,np)
+               ENDDO
+            ENDIF
+         ENDDO                ! iset
+      END IF
 
 !   *** Release the working storage for the current value lshell ***
       DEALLOCATE(isoprj,STAT=istat)
@@ -623,7 +628,8 @@ CONTAINS
       CPPostcondition(istat==0,cp_failure_level,routine,error,failure)
 
     ENDDO                 ! lshell
-
+    CALL cp_print_key_finished_output(output_unit,logger,globenv%input_file,&
+         "FORCE_EVAL%PRINT%KINDS/BASIS_SET",error=error)
 
 !   *** Release the working storage for the current value lshell ***
     DEALLOCATE(set_radius,STAT=istat)

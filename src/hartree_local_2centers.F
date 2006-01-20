@@ -60,7 +60,7 @@ MODULE  hartree_local_2centers
                                              rho_atom_coeff,&
                                              rho_atom_type
   USE qs_util,                         ONLY: trace_r_AxB
-  USE simulation_cell,                 ONLY: cell_type,&
+  USE cell_types,                 ONLY: cell_type,&
                                              pbc
   USE termination,                     ONLY: stop_memory,&
                                              stop_program

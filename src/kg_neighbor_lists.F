@@ -44,13 +44,17 @@ MODULE kg_neighbor_lists
                                              build_qs_neighbor_lists,&
                                              local_atoms_type,&
                                              write_neighbor_lists
-  USE simulation_cell,                 ONLY: cell_type,&
+  USE cell_types,                 ONLY: cell_type,&
                                              pbc,&
                                              real_to_scaled
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
+  USE cp_output_handling,              ONLY: cp_print_key_unit_nr, &
+                                             cp_print_key_finished_output,&
+                                             cp_print_key_should_output,&
+                                             cp_p_file
 
 #include "cp_common_uses.h"  
 
@@ -140,11 +144,13 @@ CONTAINS
       DIMENSION(:), POINTER                  :: sac_ppl, sac_ppl_aux
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
+    TYPE(cp_logger_type), POINTER            :: logger
 
-!   ---------------------------------------------------------------------------
+
+    NULLIFY(logger)
+    logger => cp_error_get_logger(error)
 
     CALL write_checkpoint_information("entering "//routine_name,globenv,error)
-
     CALL timeset(routine_name,"I","",handle)
 
     NULLIFY (atomic_kind)
@@ -158,15 +164,10 @@ CONTAINS
     NULLIFY (particle_set)
     NULLIFY (sac_ppl)
     NULLIFY (sac_ppl_aux)
-
-    output_unit = globenv%scr
-
-    IF ((globenv%ionode.AND.globenv%print%cell_parameters).AND.&
-        (globenv%print%level > LOW)) THEN
-      print_subcell_grid = .TRUE.
-    ELSE
-      print_subcell_grid = .FALSE.
-    END IF
+    print_subcell_grid = .FALSE.
+    output_unit = cp_print_key_unit_nr(logger,globenv%input_file,"FORCE_EVAL%PRINT%SUBCELL",&
+         extension=".Log",error=error)
+    IF (output_unit>0)  print_subcell_grid = .TRUE.
 
 !   *** Set Verlet skin ***
 
@@ -426,7 +427,8 @@ CONTAINS
                                        "ppl_radius")
 
     END IF
-
+    CALL cp_print_key_finished_output(output_unit,logger,globenv%input_file,&
+         "FORCE_EVAL%PRINT%SUBCELL",error=error)    
     CALL timestop(0.0_dp,handle)
 
     CALL write_checkpoint_information("leaving "//routine_name,globenv,error)
