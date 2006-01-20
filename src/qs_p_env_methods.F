@@ -30,7 +30,8 @@ MODULE qs_p_env_methods
                                              cp_fm_scale_and_add,&
                                              cp_fm_symm,&
                                              cp_fm_triangular_multiply
-  USE cp_fm_cholesky,                  ONLY: cp_fm_cholesky_decompose
+  USE cp_fm_cholesky,                  ONLY: cp_fm_cholesky_decompose,&
+                                             cp_fm_cholesky_invert
   USE cp_fm_pool_types,                ONLY: cp_fm_pool_p_type,&
                                              cp_fm_pool_type,&
                                              fm_pool_create_fm,&
@@ -53,7 +54,8 @@ MODULE qs_p_env_methods
                                              cp_fm_vect_dealloc
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_sm_fm_interactions,           ONLY: cp_sm_fm_multiply,&
-                                             cp_sm_plus_fm_fm_t
+                                             cp_sm_plus_fm_fm_t,&
+                                             copy_sm_to_fm
   USE cp_sm_pool_types,                ONLY: cp_sm_pool_p_type
   USE global_types,                    ONLY: global_environment_type
   USE hartree_local_methods,           ONLY: init_coulomb_local
@@ -181,7 +183,9 @@ CONTAINS
     TYPE(cp_fm_pool_p_type), DIMENSION(:), &
       POINTER                                :: ao_mo_fm_pools, mo_mo_fm_pools
     TYPE(cp_fm_type), POINTER                :: qs_env_c
+    TYPE(cp_fm_struct_type), POINTER         :: ao_mo_fmstruct,fm_struct_tmp
 
+ integer :: i,j
 ! code
 
     CALL timeset(routineN,"I"," ",handle)
@@ -189,7 +193,7 @@ CONTAINS
     n_spins = qs_env%dft_control%nspins
 
     failure=.FALSE.
-    NULLIFY( ao_mo_fm_pools, mo_mo_fm_pools)
+    NULLIFY( ao_mo_fm_pools, mo_mo_fm_pools,ao_mo_fmstruct,fm_struct_tmp)
     
     ALLOCATE(p_env,stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -212,7 +216,9 @@ CONTAINS
             p_env%buf1,&
             p_env%buf2,&
             p_env%os_psi0,&
-            p_env%preconditioner)
+            p_env%preconditioner,&
+            p_env%sinv_test)
+
 
        p_env%ref_count=1
        last_p_env_id=last_p_env_id+1
@@ -365,6 +371,17 @@ CONTAINS
          IF(linres_control%ls_method /= lr_ls_none) THEN
          ! Initialize the required variables for the line search
          END IF
+
+         ao_mo_fmstruct => fm_pool_get_el_struct(ao_mo_fm_pools(1)%pool,&
+            error=error)
+         CALL cp_fm_struct_create(fm_struct_tmp, nrow_global=p_env%n_ao(1),&
+              ncol_global=p_env%n_ao(1),template_fmstruct=ao_mo_fmstruct, error=error)
+         CALL cp_fm_create(p_env%sinv_test,fm_struct_tmp, name="sinv_test")
+         CALL cp_fm_struct_release(fm_struct_tmp)
+
+         CALL copy_sm_to_fm(qs_env%matrix_s(1)%matrix,p_env%sinv_test)
+         CALL cp_fm_cholesky_decompose(p_env%sinv_test,error=error)
+         CALL cp_fm_cholesky_invert(p_env%sinv_test,error=error)
 
        END IF
 

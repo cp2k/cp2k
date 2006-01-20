@@ -373,7 +373,7 @@ CONTAINS
        END IF
 
     !  Check ortho
-       IF(linres_control%check_ortho) THEN
+!       IF(linres_control%check_ortho) THEN
          DO ispin=1, dft_control%nspins
 !          CALL cp_fm_get_info(p_env%S_psi0(1)%matrix,nrow_global=nao,ncol_global=nmo)
            CALL  cp_fm_gemm('T','N',p_env%n_mo(ispin),p_env%n_mo(ispin),p_env%n_ao(ispin),&   
@@ -394,9 +394,9 @@ CONTAINS
              END IF
             !Refine the orthogonalization constraint
   !           CALL p_postortho
-           END IF
+          END IF
          END DO
-       END IF
+!       END IF
 
        !Check Convergence
        IF(iter /= 1) THEN
@@ -731,6 +731,7 @@ CONTAINS
     DO ispin = 1,nspins
        n_mo = p_env%n_mo(ispin)
        n_ao = p_env%n_ao(ispin)
+
        CALL cp_fm_to_fm(Ab(ispin)%matrix,p_env%g_psi1(ispin)%matrix,error=error) 
        CALL cp_fm_gemm('T','N',n_mo,n_mo,n_ao,1.0_dp,PS_psi0(ispin)%matrix,&
             Ab(ispin)%matrix,0.0_dp,p_env%buf1(ispin)%matrix) 
@@ -738,6 +739,18 @@ CONTAINS
             p_env%buf1(ispin)%matrix,0.0_dp,p_env%buf2(ispin)%matrix)
        CALL cp_fm_gemm('N','N',n_ao,n_mo,n_mo,-1.0_dp,p_env%S_psi0(ispin)%matrix,&
             p_env%buf2(ispin)%matrix,1.0_dp,p_env%g_psi1(ispin)%matrix)
+
+
+!       CALL cp_fm_symm('L','U',n_ao,n_mo,1.0_dp,p_env%sinv_test,Ab(ispin)%matrix,0.0_dp,&
+!            p_env%g_psi1(ispin)%matrix,error=error)  
+!       CALL cp_fm_gemm('T','N',n_mo,n_mo,n_ao,1.0_dp,PS_psi0(ispin)%matrix,&
+!            p_env%g_psi1(ispin)%matrix,0.0_dp,p_env%buf1(ispin)%matrix) 
+!       CALL cp_fm_symm('L','U',n_mo,n_mo,1.0_dp,p_env%os_psi0(ispin)%matrix,&
+!            p_env%buf1(ispin)%matrix,0.0_dp,p_env%buf2(ispin)%matrix)
+!       CALL cp_fm_gemm('N','N',n_ao,n_mo,n_mo,-1.0_dp,p_env%S_psi0(ispin)%matrix,&
+!            p_env%buf2(ispin)%matrix,1.0_dp,p_env%g_psi1(ispin)%matrix)
+!       CALL cp_fm_gemm('N','N',n_ao,n_mo,n_mo,-1.0_dp,p_env%S_psi0(ispin)%matrix,&
+!            p_env%buf1(ispin)%matrix,1.0_dp,p_env%g_psi1(ispin)%matrix)
     END DO ! ispin
 
   END SUBROUTINE linres_derivative

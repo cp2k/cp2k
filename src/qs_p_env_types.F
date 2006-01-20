@@ -25,7 +25,8 @@
 ! ****************************************************************************
 MODULE qs_p_env_types
   USE cp_fm_types,                     ONLY: cp_fm_release,&
-                                             cp_fm_p_type
+                                             cp_fm_p_type,&
+                                             cp_fm_type
   USE cp_fm_vect,                      ONLY: cp_fm_vect_dealloc,&
                                              cp_fm_vect_write
   USE cp_para_types,                   ONLY: cp_para_env_type
@@ -111,6 +112,7 @@ MODULE qs_p_env_types
      TYPE(cp_fm_p_type), DIMENSION(:), POINTER  :: PS_psi0
      TYPE(cp_fm_p_type), DIMENSION(:), POINTER  :: d_psi1, g_psi1, g_psi1_old
      TYPE(cp_fm_p_type), DIMENSION(:), POINTER  :: buf1, buf2, os_psi0 
+     TYPE(cp_fm_type), POINTER :: sinv_test
 
      ! preconditioner matrix should be symmetric and positive definite
      TYPE(preconditioner_type), POINTER :: preconditioner
@@ -296,6 +298,9 @@ END SUBROUTINE p_env_retain
           END IF
           IF(ASSOCIATED(p_env%preconditioner)) THEN
             CALL destroy_preconditioner(p_env%preconditioner)
+          END IF
+          IF(ASSOCIATED(p_env%sinv_test)) THEN
+            CALL cp_fm_release(p_env%sinv_test)
           END IF
        END IF
        DEALLOCATE(p_env,stat=stat)
