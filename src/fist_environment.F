@@ -72,7 +72,7 @@ MODULE fist_environment
                                              write_particle_distances, &
                                              write_qs_particle_coordinates,&
                                              write_structure_data
-  USE cell_types,                 ONLY: cell_type,&
+  USE cell_types,                      ONLY: cell_type,&
                                              cell_release,&
                                              read_cell,&
                                              write_cell,&
@@ -146,10 +146,10 @@ SUBROUTINE fist_init ( fist_env, globenv, error )
   TYPE(particle_list_type), POINTER        :: particles
   TYPE(particle_type), DIMENSION(:), &
     POINTER                                :: particle_set
-  TYPE ( distribution_1d_type ), POINTER :: local_molecules,&
-                                            local_particles
+  TYPE ( distribution_1d_type ), POINTER   :: local_molecules,&
+                                              local_particles
   TYPE ( ewald_environment_type ), POINTER :: ewald_env
-  TYPE ( fist_nonbond_env_type ), POINTER ::  fist_nonbond_env
+  TYPE ( fist_nonbond_env_type ), POINTER  :: fist_nonbond_env
   INTEGER                                  :: handle
   TYPE(section_vals_type), POINTER         :: cell_section, &
                                               poisson_section, &

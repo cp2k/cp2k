@@ -147,7 +147,7 @@ CONTAINS
     IF (.NOT. failure) THEN
        CALL section_create(section,name="TB_Model", &
             description="This section specifies the Tight-Binding parametrization model.", &
-            n_keywords=1, n_subsections=0, repeats=.FALSE., required=.TRUE., &
+            n_keywords=18, n_subsections=0, repeats=.FALSE., required=.TRUE., &
             error=error)
 
        NULLIFY(keyword)
@@ -159,6 +159,14 @@ CONTAINS
             enum_c_vals=s2a("GSP", "Sawada", "Kwon", "Lenosky", "UDP"), &
             enum_i_vals=(/use_gsp, use_sawada, use_kwon, use_lenosky, use_udp/), &
             default_i_val=use_gsp, error=error)
+       CALL section_add_keyword(section, keyword, error=error)
+       CALL keyword_release(keyword, error=error)
+
+       CALL keyword_create(keyword, name="r_cutoff", &
+            description="Cutoff length: More distant interactions are neglected.", &
+            usage="r_cutoff 3.75", required=.TRUE., type_of_var=real_t, &
+            n_var=1, repeats=.FALSE., default_r_val=3.75_dp, &
+            unit_str="angstrom", error=error)
        CALL section_add_keyword(section, keyword, error=error)
        CALL keyword_release(keyword, error=error)
 

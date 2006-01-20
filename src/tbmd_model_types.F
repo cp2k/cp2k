@@ -62,6 +62,8 @@ MODULE tbmd_model_types
 !!     - id_nr: unique identifier
 !!     - ref_count: reference counter (see doc/ReferenceCounting.html)
 !!     - tb_model_name: Name of the tight-binding parametrization
+!!     - noisy_tb: Logical which indicates if our linear scaling 
+!!                 stoachstic tight-binding method is used.
 !!     - h_ssS: The hopping coefficient h(1)_ssSigma
 !!     - h_spS: The hopping coefficient h(1)_spSigma
 !!     - h_ppS: The hopping coefficient h(1)_ppSigma
@@ -75,6 +77,7 @@ MODULE tbmd_model_types
 !!     - dEpsilon: s-p energy splitting
 !!     - E_s: Energy of the s-Orbital
 !!     - E_0: Energy shift constant
+!!     - r_cutoff: Cutoff radius, after which interactions are neglected
 !!     - r_calpha: Individual cutoffs for each hopping parameter
 !!     - n_calpha: Individual exponents for each hopping parameter
 !!     - C14: Paramters C1-C4 of Kwon's 4th order polynomial for the 
@@ -92,6 +95,7 @@ MODULE tbmd_model_types
     INTEGER                                          :: id_nr, &
                                                         ref_count, &
                                                         tb_model_name
+    LOGICAL                                          :: noisy_tb
     REAL(KIND=dp)                                    :: h_ssS, &
                                                         h_spS, &
                                                         h_ppS, &
@@ -104,7 +108,8 @@ MODULE tbmd_model_types
                                                         m_c, &
                                                         dEpsilon, &
                                                         E_s, &
-                                                        E_0
+                                                        E_0, &
+                                                        r_cutoff
     REAL(KIND=dp), DIMENSION(4)                      :: r_calpha, &
                                                         n_calpha, &
                                                         C14
@@ -232,10 +237,6 @@ CONTAINS
       CPPrecondition(tbmd_model%ref_count>0, cp_failure_level, routineP, error, failure)
       tbmd_model%ref_count = tbmd_model%ref_count-1
       IF (tbmd_model%ref_count<1) THEN
-        !IF (ASSOCIATED(tbmd_model%f_total)) THEN
-        !  DEALLOCATE(tbmd_model%f_total, stat=stat)
-        !  CPPostconditionNoFail(stat==0, cp_warning_level, routineP, error)
-        !END IF
         DEALLOCATE(tbmd_model, stat=stat)
         CPPostconditionNoFail(stat==0, cp_warning_level, routineP, error)
       END IF
@@ -260,6 +261,8 @@ CONTAINS
 !!     - tbmd_model: The enquired tbmd model type
 !!     - id_nr: unique identifier
 !!     - tb_model_name: Name of the tight-binding parametrization
+!!     - noisy_tb: Logical which indicates if our linear scaling 
+!!                 stoachstic tight-binding method is used.
 !!     - error: variable to control error logging, stopping,... 
 !!       see module cp_error_handlin
 !!     - h_ssS: The hopping coefficient h(1)_ssSigma
@@ -275,6 +278,7 @@ CONTAINS
 !!     - dEpsilon: s-p energy splitting
 !!     - E_s: Energy of the s-Orbital
 !!     - E_0: Energy shift constant
+!!     - r_cutoff: Cutoff radius, after which interactions are neglected
 !!     - r_calpha: Individual cutoffs for each hopping parameter
 !!     - n_calpha: Individual exponents for each hopping parameter
 !!     - C14: Paramters C1-C4 of Kwon's 4th order polynomial for the 
@@ -291,11 +295,13 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE tbmd_model_get(tbmd_model, id_nr, h_ssS, h_spS, h_ppS, h_ppP, &
                             n, r_0, Phi, m, d_c, m_c, dEpsilon, E_s, E_0, &
-                            r_calpha, n_calpha, C14, tb_model_name, error)
+                            r_cutoff, r_calpha, n_calpha, C14, &
+                            tb_model_name, noisy_tb, error)
 
     TYPE(tbmd_model_type), POINTER                     :: tbmd_model
     INTEGER, INTENT(OUT), OPTIONAL                     :: id_nr, &
                                                           tb_model_name
+    LOGICAL, INTENT(OUT), OPTIONAL                     :: noisy_tb
     REAL(KIND=dp), INTENT(OUT), OPTIONAL               :: h_ssS, &
                                                           h_spS, &
                                                           h_ppS, &
@@ -308,7 +314,8 @@ CONTAINS
                                                           m_c, &
                                                           dEpsilon, &
                                                           E_s, &
-                                                          E_0
+                                                          E_0, &
+                                                          r_cutoff
     REAL(KIND=dp), DIMENSION(4), INTENT(OUT), OPTIONAL :: r_calpha, &
                                                           n_calpha, &
                                                           C14
@@ -333,6 +340,7 @@ CONTAINS
       IF (PRESENT(tb_model_name)) THEN 
         tb_model_name = tbmd_model%tb_model_name
       END IF
+      IF (PRESENT(noisy_tb)) noisy_tb = tbmd_model%noisy_tb
       IF (PRESENT(h_ssS)) h_ssS = tbmd_model%h_ssS
       IF (PRESENT(h_spS)) h_spS = tbmd_model%h_spS
       IF (PRESENT(h_ppS)) h_ppS = tbmd_model%h_ppS
@@ -346,6 +354,7 @@ CONTAINS
       IF (PRESENT(dEpsilon)) dEpsilon = tbmd_model%dEpsilon
       IF (PRESENT(E_s)) E_s = tbmd_model%E_s
       IF (PRESENT(E_0)) E_0 = tbmd_model%E_0
+      IF (PRESENT(r_cutoff)) r_cutoff = tbmd_model%r_cutoff
       IF (PRESENT(r_calpha)) r_calpha = tbmd_model%r_calpha
       IF (PRESENT(n_calpha)) n_calpha = tbmd_model%n_calpha
       IF (PRESENT(C14)) C14 = tbmd_model%C14
@@ -368,6 +377,8 @@ CONTAINS
 !!     - tbmd_model: The enquired tbmd model type
 !!     - id_nr: unique identifier
 !!     - tb_model_name: Name of the tight-binding parametrization
+!!     - noisy_tb: Logical which indicates if our linear scaling 
+!!                 stoachstic tight-binding method is used.
 !!     - error: variable to control error logging, stopping,... 
 !!       see module cp_error_handling
 !!     - h_ssS: The hopping coefficient h(1)_ssSigma
@@ -383,6 +394,7 @@ CONTAINS
 !!     - dEpsilon: s-p energy splitting
 !!     - E_s: Energy of the s-Orbital
 !!     - E_0: Energy shift constant
+!!     - r_cutoff: Cutoff radius, after which interactions are neglected
 !!     - r_calpha: Individual cutoffs for each hopping parameter
 !!     - n_calpha: Individual exponents for each hopping parameter
 !!     - C14: Paramters C1-C4 of Kwon's 4th order polynomial for the 
@@ -399,11 +411,13 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE tbmd_model_set(tbmd_model, id_nr, h_ssS, h_spS, h_ppS, h_ppP, &
                             n, r_0, Phi, m, d_c, m_c, dEpsilon, E_s, E_0, &
-                            r_calpha, n_calpha, C14, tb_model_name, error)
+                            r_cutoff, r_calpha, n_calpha, C14, &
+                            tb_model_name, noisy_tb, error)
 
     TYPE(tbmd_model_type), POINTER                    :: tbmd_model
     INTEGER, INTENT(IN), OPTIONAL                     :: id_nr, &
                                                          tb_model_name
+    LOGICAL, INTENT(IN), OPTIONAL                     :: noisy_tb
     REAL(KIND=dp), INTENT(IN), OPTIONAL               :: h_ssS, &
                                                          h_spS, &
                                                          h_ppS, &
@@ -416,7 +430,8 @@ CONTAINS
                                                          m_c, &
                                                          dEpsilon, &
                                                          E_s, &
-                                                         E_0
+                                                         E_0, &
+                                                         r_cutoff
     REAL(KIND=dp), DIMENSION(4), INTENT(IN), OPTIONAL :: r_calpha, &
                                                          n_calpha, &
                                                          C14
@@ -441,6 +456,7 @@ CONTAINS
       IF (PRESENT(tb_model_name)) THEN
         tbmd_model%tb_model_name = tb_model_name
       END IF
+      IF (PRESENT(noisy_tb)) tbmd_model%noisy_tb = noisy_tb
       IF (PRESENT(h_ssS)) tbmd_model%h_ssS = h_ssS
       IF (PRESENT(h_spS)) tbmd_model%h_spS = h_spS
       IF (PRESENT(h_ppS)) tbmd_model%h_ppS = h_ppS
@@ -454,6 +470,7 @@ CONTAINS
       IF (PRESENT(dEpsilon)) tbmd_model%dEpsilon = dEpsilon
       IF (PRESENT(E_s)) tbmd_model%E_s = E_s
       IF (PRESENT(E_0)) tbmd_model%E_0 = E_0
+      IF (PRESENT(r_cutoff)) tbmd_model%r_cutoff = r_cutoff
       IF (PRESENT(r_calpha)) tbmd_model%r_calpha = r_calpha
       IF (PRESENT(n_calpha)) tbmd_model%n_calpha = n_calpha
       IF (PRESENT(C14)) tbmd_model%C14 = C14
@@ -503,6 +520,7 @@ CONTAINS
 
     IF (.NOT. failure) THEN
       tbmd_model%tb_model_name = 0
+      tbmd_model%noisy_tb      = .FALSE.
       tbmd_model%h_ssS         = 0.0_dp
       tbmd_model%h_spS         = 0.0_dp
       tbmd_model%h_ppS         = 0.0_dp
@@ -516,6 +534,7 @@ CONTAINS
       tbmd_model%dEpsilon      = 0.0_dp
       tbmd_model%E_s           = 0.0_dp
       tbmd_model%E_0           = 0.0_dp
+      tbmd_model%r_cutoff      = 0.0_dp
       tbmd_model%r_calpha(:)   = 0.0_dp
       tbmd_model%n_calpha(:)   = 0.0_dp
       tbmd_model%C14(:)        = 0.0_dp

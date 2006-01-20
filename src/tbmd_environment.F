@@ -28,12 +28,16 @@ MODULE tbmd_environment
                                                     atomic_kind_list_type
   USE atomic_kind_types,                      ONLY: atomic_kind_type, &
                                                     read_atomic_kind_set, &
-                                                    get_atomic_kind
+                                                    get_atomic_kind, &
+                                                    write_atomic_kind_set
   USE cp_subsystem_methods,                   ONLY: cp_subsys_read_colvar
   USE cp_subsystem_types,                     ONLY: cp_subsystem_type, &
                                                     cp_subsys_create, &
                                                     cp_subsys_release, &
                                                     cp_subsys_set
+  USE distribution_1d_types,                  ONLY: distribution_1d_release, &
+                                                    distribution_1d_type
+  USE distribution_methods,                   ONLY: distribute_molecules_1d
   USE global_types,                           ONLY: global_environment_type
   USE input_constants,                        ONLY: use_gsp, &
                                                     use_sawada, &
@@ -41,7 +45,8 @@ MODULE tbmd_environment
                                                     use_lenosky, &
                                                     use_udp
   USE input_section_types,                    ONLY: section_vals_get_subs_vals,&
-                                                    section_vals_type
+                                                    section_vals_type, &
+                                                    section_vals_val_get
   USE kinds,                                  ONLY: dp, &
                                                     default_string_length
   USE mol_kind_new_list_types,                ONLY: mol_kind_new_list_create,&
@@ -50,15 +55,19 @@ MODULE tbmd_environment
   USE mol_new_list_types,                     ONLY: mol_new_list_create,&
                                                     mol_new_list_release,&
                                                     mol_new_list_type
-  USE molecule_kind_types,                    ONLY: molecule_kind_type
+  USE molecule_kind_types,                    ONLY: molecule_kind_type, &
+                                                    write_molecule_kind_set
   USE molecule_types_new,                     ONLY: molecule_type
   USE particle_list_types,                    ONLY: particle_list_create, &
                                                     particle_list_type, &
                                                     particle_list_release
-  USE particle_types,                         ONLY: particle_type
+  USE particle_types,                         ONLY: particle_type, &
+                                                    write_particle_distances, &
+                                                    write_qs_particle_coordinates,&
+                                                    write_structure_data
   USE physcon,                                ONLY: evolt, &
                                                     angstrom
-  USE cell_types,                        ONLY: cell_type, &
+  USE cell_types,                             ONLY: cell_type, &
                                                     read_cell, &
                                                     get_cell, &
                                                     cell_release,&
@@ -157,7 +166,8 @@ CONTAINS
       ! nullifying  pointers
       NULLIFY(force_env_section, cell_section, colvar_section, tbmd_section, &
               cell, cell_ref, subsystem, molecule_kind_set, molecule_set, &
-              particle_set, atomic_kind_set, particles, molecules, molecule_kinds)
+              particle_set, atomic_kind_set, particles, molecules, &
+              molecule_kinds, atomic_kinds)
 
       force_env_section => section_vals_get_subs_vals(globenv%input_file, &
                                                       "FORCE_EVAL", error=error)
@@ -257,34 +267,62 @@ CONTAINS
       POINTER                                :: molecule_set
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
-    INTEGER                                  :: natom, &
-                                                kinds, &
-                                                stat, &
-                                                i
+    INTEGER                                  :: natom
     TYPE(tbmd_energy_type), POINTER          :: tbmd_energy
     TYPE(tbmd_force_type), POINTER           :: tbmd_force
     TYPE(tbmd_model_type), POINTER           :: tbmd_model
+    TYPE(distribution_1d_type), POINTER      :: local_molecules, &
+                                                local_particles
 
 !   ------------------------------------------------------------------------
 
     NULLIFY(atomic_kind_set, molecule_kind_set, molecule_set, particle_set, &
-            tbmd_energy, tbmd_force, tbmd_model)
+            tbmd_energy, tbmd_force, tbmd_model, local_molecules, &
+            local_particles)
 
     particle_set => subsystem%particles%els
     atomic_kind_set => subsystem%atomic_kinds%els
     molecule_set => subsystem%molecules_new%els
     molecule_kind_set => subsystem%molecule_kinds_new%els
 
+!   *** Print the atomic kind set ***
+    CALL write_atomic_kind_set(atomic_kind_set, globenv, error=error)
+
+!   *** Print the molecule kind set ***
+    CALL write_molecule_kind_set(molecule_kind_set, globenv, error=error)
+
+!   *** Print the atomic coordinates 
+    CALL write_qs_particle_coordinates(particle_set, cell=cell, &
+                                       globenv=globenv, error=error)
+    CALL write_particle_distances(particle_set, cell=cell, globenv=globenv, &
+                                  error=error)
+    CALL write_structure_data(particle_set, cell=cell, globenv=globenv)
+
+!   *** Distribute molecules and atoms using the new data structures ***
+    CALL distribute_molecules_1d(particle_kind_set=atomic_kind_set, &
+                                 particle_set=particle_set, &
+                                 local_particles=local_particles, &
+                                 molecule_kind_set=molecule_kind_set, &
+                                 molecule_set=molecule_set, &
+                                 local_molecules=local_molecules, &
+                                 error=error)
+
     natom = SIZE(particle_set)
     CALL tbmd_energy_create(tbmd_energy=tbmd_energy, error=error)
     CALL tbmd_force_create(tbmd_force=tbmd_force, natom=natom, error=error)
     CALL tbmd_model_create(tbmd_model=tbmd_model, error=error)
 
-    CALL tbmd_init_tb_model(tbmd_env=tbmd_env, error=error)
+    CALL tbmd_init_tb_model(tbmd_env=tbmd_env, globenv=globenv, error=error)
 
     CALL tbmd_env_set(tbmd_env=tbmd_env, tbmd_energy=tbmd_energy, &
                       tbmd_force=tbmd_force, tbmd_model=tbmd_model, &
-                      subsystem=subsystem, error=error)
+                      subsystem=subsystem, local_molecules=local_molecules, &
+                      local_particles=local_particles, cell=cell, &
+                      cell_ref=cell_ref, use_ref_cell=use_ref_cell, &
+                      para_env=globenv%para_env, error=error)
+
+    CALL distribution_1d_release(local_particles, error=error)
+    CALL distribution_1d_release(local_molecules, error=error)
 
   END SUBROUTINE tbmd_init_subsys
 !***************************************************************************
@@ -312,8 +350,9 @@ CONTAINS
 !!     01.2006 initial create [tdk]
 !!
 !!*** **********************************************************************
-  SUBROUTINE tbmd_init_tb_model(tbmd_env, error)
+  SUBROUTINE tbmd_init_tb_model(tbmd_env, globenv, error)
     TYPE(tbmd_environment_type), POINTER     :: tbmd_env
+    TYPE(global_environment_type), POINTER   :: globenv
     TYPE(cp_error_type), INTENT(INOUT), &
       OPTIONAL                               :: error
 
@@ -330,19 +369,30 @@ CONTAINS
     REAL(KIND=dp)                            :: eV, &
                                                 Am, &
                                                 a_latt
+    TYPE(section_vals_type), POINTER         :: force_env_section, &
+                                                tbmd_section, &
+                                                tbmd_model_section
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: vector_ptr
 
 !   ------------------------------------------------------------------------
 
-    NULLIFY(tbmd_input, tbmd_model, atomic_kind_set, atomic_kind_ptr)
+    NULLIFY(tbmd_input, tbmd_model, atomic_kind_set, atomic_kind_ptr, &
+            force_env_section, tbmd_section, tbmd_model_section, vector_ptr)
 
     tbmd_input => tbmd_env%tbmd_input
     tbmd_model => tbmd_env%tbmd_model
+
+    force_env_section => section_vals_get_subs_vals(globenv%input_file, &
+                                                    "FORCE_EVAL", error=error)
+    tbmd_section => section_vals_get_subs_vals(force_env_section, &
+                                               "TBMD", error=error)
+    tbmd_model_section => section_vals_get_subs_vals(tbmd_section, &
+                                                     "TB_MODEL", error=error)
 
     atomic_kind_set => tbmd_env%subsystem%atomic_kinds%els
     
     eV = 1/evolt
     Am = 1/angstrom
-    a_latt = 5.43*Am
 
     ! loop over all kinds
     DO i=1,SIZE(atomic_kind_set)
@@ -351,9 +401,19 @@ CONTAINS
                            name=tb_model_name)
       SELECT CASE(tb_model_name)
         CASE("SI", "Si")
+          a_latt = 5.43*Am
           SELECT CASE(tbmd_model%tb_model_name)
             CASE(use_gsp)
               tbmd_model%tb_model_name = use_gsp
+              CALL section_vals_val_get(section_vals=tbmd_section, &
+                                        keyword_name="Noisy_TB", &
+                                        l_val=tbmd_model%noisy_tb, &
+                                        error=error)
+              CALL section_vals_val_get(section_vals=tbmd_model_section, &
+                                        keyword_name="r_cutoff", &
+                                        r_val=tbmd_model%r_cutoff, &
+                                        error=error)
+
               tbmd_model%h_ssS         = -1.82_dp*eV
               tbmd_model%h_spS         =  1.96_dp*eV
               tbmd_model%h_ppS         =  3.06_dp*eV
@@ -376,17 +436,130 @@ CONTAINS
                    message="The Sawada tight-binding" //&
                    "parametrization isn't implemented yet.", &
                    error=error, error_level=cp_failure_level)
+
+              tbmd_model%tb_model_name = use_sawada
+              CALL section_vals_val_get(section_vals=tbmd_section, &
+                                        keyword_name="Noisy_TB", &
+                                        l_val=tbmd_model%noisy_tb, &
+                                        error=error)
+              CALL section_vals_val_get(section_vals=tbmd_model_section, &
+                                        keyword_name="r_cutoff", &
+                                        r_val=tbmd_model%r_cutoff, &
+                                        error=error)
+
             CASE(use_kwon)
               CALL cp_unimplemented_error(fromWhere=routineP, &
                    message="The Kwon tight-binding" //&
                    "parametrization isn't implemented yet.", &
                    error=error, error_level=cp_failure_level)
+
+              tbmd_model%tb_model_name = use_kwon
+              CALL section_vals_val_get(section_vals=tbmd_section, &
+                                        keyword_name="Noisy_TB", &
+                                        l_val=tbmd_model%noisy_tb, &
+                                        error=error)
+              CALL section_vals_val_get(section_vals=tbmd_model_section, &
+                                        keyword_name="r_cutoff", &
+                                        r_val=tbmd_model%r_cutoff, &
+                                        error=error)
+
             CASE(use_lenosky)
               CALL cp_unimplemented_error(fromWhere=routineP, &
                    message="The Lenosky tight-binding" //&
                    "parametrization isn't implemented yet.", &
                    error=error, error_level=cp_failure_level)
+
+              tbmd_model%tb_model_name = use_lenosky
+              CALL section_vals_val_get(section_vals=tbmd_section, &
+                                        keyword_name="Noisy_TB", &
+                                        l_val=tbmd_model%noisy_tb, &
+                                        error=error)
+              CALL section_vals_val_get(section_vals=tbmd_model_section, &
+                                        keyword_name="r_cutoff", &
+                                        r_val=tbmd_model%r_cutoff, &
+                                        error=error)
+
             CASE(use_udp)
+              tbmd_model%tb_model_name = use_udp
+              CALL section_vals_val_get(section_vals=tbmd_section, &
+                                        keyword_name="Noisy_TB", &
+                                        l_val=tbmd_model%noisy_tb, &
+                                        error=error)
+              CALL section_vals_val_get(section_vals=tbmd_model_section, &
+                                        keyword_name="r_cutoff", &
+                                        r_val=tbmd_model%r_cutoff, &
+                                        error=error)
+
+              CALL section_vals_val_get(section_vals=tbmd_model_section, &
+                                        keyword_name="h_ssS", &
+                                        r_val=tbmd_model%h_ssS, &
+                                        error=error)
+              CALL section_vals_val_get(section_vals=tbmd_model_section, &
+                                        keyword_name="h_spS", &
+                                        r_val=tbmd_model%h_spS, &
+                                        error=error)
+              CALL section_vals_val_get(section_vals=tbmd_model_section, &
+                                        keyword_name="h_ppS", &
+                                        r_val=tbmd_model%h_ppS, &
+                                        error=error)
+              CALL section_vals_val_get(section_vals=tbmd_model_section, &
+                                        keyword_name="h_ppP", &
+                                        r_val=tbmd_model%h_ppP, &
+                                        error=error)
+              CALL section_vals_val_get(section_vals=tbmd_model_section, &
+                                        keyword_name="n", &
+                                        r_val=tbmd_model%n, &
+                                        error=error)
+              CALL section_vals_val_get(section_vals=tbmd_model_section, &
+                                        keyword_name="r_0", &
+                                        r_val=tbmd_model%r_0, &
+                                        error=error)
+              CALL section_vals_val_get(section_vals=tbmd_model_section, &
+                                        keyword_name="Phi(i)", &
+                                        r_val=tbmd_model%Phi, &
+                                        error=error)
+              CALL section_vals_val_get(section_vals=tbmd_model_section, &
+                                        keyword_name="m", &
+                                        r_val=tbmd_model%m, &
+                                        error=error)
+              CALL section_vals_val_get(section_vals=tbmd_model_section, &
+                                        keyword_name="d_c", &
+                                        r_val=tbmd_model%d_c, &
+                                        error=error)
+              CALL section_vals_val_get(section_vals=tbmd_model_section, &
+                                        keyword_name="m_c", &
+                                        r_val=tbmd_model%m_c, &
+                                        error=error)
+              CALL section_vals_val_get(section_vals=tbmd_model_section, &
+                                        keyword_name="dEpsilon", &
+                                        r_val=tbmd_model%dEpsilon, &
+                                        error=error)
+              CALL section_vals_val_get(section_vals=tbmd_model_section, &
+                                        keyword_name="E_s", &
+                                        r_val=tbmd_model%E_s, &
+                                        error=error)
+              CALL section_vals_val_get(section_vals=tbmd_model_section, &
+                                        keyword_name="E_0", &
+                                        r_val=tbmd_model%E_0, &
+                                        error=error)
+
+              CALL section_vals_val_get(section_vals=tbmd_model_section, &
+                                        keyword_name="r_calpha", &
+                                        r_vals=vector_ptr, &
+                                        error=error)
+              tbmd_model%r_calpha(1:4) = vector_ptr(1:4)
+
+              CALL section_vals_val_get(section_vals=tbmd_model_section, &
+                                        keyword_name="n_calpha", &
+                                        r_vals=vector_ptr, &
+                                        error=error)
+              tbmd_model%n_calpha(1:4) = vector_ptr(1:4)
+
+              CALL section_vals_val_get(section_vals=tbmd_model_section, &
+                                        keyword_name="C14", &
+                                        r_vals=vector_ptr, &
+                                        error=error)
+              tbmd_model%C14(1:4) = vector_ptr(1:4)
             CASE DEFAULT
               CALL cp_unimplemented_error(fromWhere=routineP, &
                    message="Other tight-binding parametrizations"//&
