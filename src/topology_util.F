@@ -106,7 +106,6 @@ MODULE topology_util
                                              section_vals_release
   USE cp_output_handling,              ONLY: cp_print_key_unit_nr, &
                                              cp_print_key_finished_output  
-  
 #include "cp_common_uses.h"
   IMPLICIT NONE
 
@@ -3568,7 +3567,11 @@ CONTAINS
                 IF( atom_info%label_atmname(first+iatom-1) /= &
                      atom_info%label_atmname(first2+iatom-1) ) THEN
                    CALL stop_program ("topology_molecules_check",&
-                        "different atom name for same molecule kind")
+                        "different atom name for same molecule kind"&
+                        //" imol_typ= "//TRIM(cp_to_string(imol_typ))&
+                        //" imol= "//TRIM(cp_to_string(imol))&
+                        //" "//TRIM(atom_info%label_atmname(first+iatom-1))&
+                       //" "//TRIM(atom_info%label_atmname(first2+iatom-1)))
                 END IF
              END DO
           END DO
