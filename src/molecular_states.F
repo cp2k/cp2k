@@ -87,7 +87,7 @@ CONTAINS
 SUBROUTINE construct_molecular_states(molecule_set, mo_localized, &
                                    mo_coeff, mo_eigenvalues, &
                                    Hks,matrix_S,globenv,qs_env,wf_r,wf_g,&
-                                   error)
+                                   force_env_section, error)
 
 
     TYPE(molecule_type), DIMENSION(:), &
@@ -96,7 +96,8 @@ SUBROUTINE construct_molecular_states(molecule_set, mo_localized, &
     REAL(KIND=dp), DIMENSION(:), POINTER     :: mo_eigenvalues
     TYPE(real_matrix_type), POINTER          :: Hks, matrix_S
     TYPE(global_environment_type), &
-      pointer                             :: globenv
+      pointer                                :: globenv
+    TYPE(section_vals_type), POINTER :: force_env_section
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(coeff_type), INTENT(INOUT)          :: wf_r, wf_g
 
@@ -264,20 +265,23 @@ SUBROUTINE construct_molecular_states(molecule_set, mo_localized, &
     ENDDO
     CALL cp_fm_release(D_igk)
 
-    IF ( BTEST(cp_print_key_should_output(logger%iter_info,globenv%input_file,&
-         "FORCE_EVAL%DFT%PRINT%MOLECULAR_STATES%CUBES",error=error),cp_p_file) ) THEN
+    IF ( BTEST(cp_print_key_should_output(logger%iter_info,force_env_section,&
+         "DFT%PRINT%MOLECULAR_STATES%CUBES",error=error),cp_p_file) ) THEN
        DO i=1,ns
           j=ind(i)
           CALL calculate_wavefunction(rot_e_vectors,i,wf_r, &
                                       wf_g, qs_env, error = error )
 
           WRITE(filename,'(a9,I2.2,a1,I3.3)')"MOLECULE_",imol,"_",j          
-          unit_nr=cp_print_key_unit_nr(logger,globenv%input_file,"FORCE_EVAL%DFT%PRINT%MOLECULAR_STATES%CUBES",&
+          unit_nr=cp_print_key_unit_nr(logger,force_env_section,&
+               "DFT%PRINT%MOLECULAR_STATES%CUBES",&
                extension=".cube",middle_name=TRIM(filename),log_filename=.FALSE.,error=error)
           CALL rs_pw_to_cube(wf_r%pw,unit_nr,globenv%ionode,filename,&
-               stride=section_get_ival(globenv%input_file,"FORCE_EVAL%DFT%PRINT%MOLECULAR_STATES%CUBES%STRIDE"))
-          CALL cp_print_key_finished_output(unit_nr,logger,globenv%input_file,&
-               "FORCE_EVAL%DFT%PRINT%MOLECULAR_STATES%CUBES",error=error)
+               stride=section_get_ival(force_env_section,&
+               "DFT%PRINT%MOLECULAR_STATES%CUBES%STRIDE"),force_env_section=qs_env%input,&
+               error=error)
+          CALL cp_print_key_finished_output(unit_nr,logger,force_env_section,&
+               "DFT%PRINT%MOLECULAR_STATES%CUBES",error=error)
           IF (globenv%ionode) WRITE(globenv%scr,*) filename
        END DO
     ENDIF

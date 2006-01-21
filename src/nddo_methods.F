@@ -1592,7 +1592,7 @@ CONTAINS
 
     ! set up the rs grid at level igrid
     NULLIFY(rs_v)
-    CALL rs_pool_create_rs(rs_pool,rs_v,error=error)
+    CALL rs_pool_create_rs(rs_pool,rs_v,force_env_section=qs_env%input, error=error)
     CALL rs_grid_zero(rs_v)
     CALL rs_pw_transfer(rs_v,v_rspace%pw,pw2rs)
 

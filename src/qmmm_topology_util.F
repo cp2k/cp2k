@@ -63,13 +63,15 @@ CONTAINS
   !!     11.2004 created [tlaino]
   !!
   !***************************************************************************
-  SUBROUTINE qmmm_coordinate_control(topology, globenv, qmmm_env, error)
+  SUBROUTINE qmmm_coordinate_control(topology, globenv, qmmm_env, subsys_section, error)
     IMPLICIT NONE
     
     TYPE(topology_parameters_type), &
          INTENT(INOUT)                          :: topology
     TYPE(global_environment_type), &
          pointer                             :: globenv
+    TYPE(section_vals_type), POINTER :: subsys_section
+
     TYPE(qmmm_env_mm_type), pointer             :: qmmm_env
     TYPE(cp_error_type), INTENT(inout), &
          OPTIONAL                               :: error

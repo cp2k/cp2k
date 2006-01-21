@@ -152,12 +152,13 @@ CONTAINS
 !!
 !!   SOURCE
 !******************************************************************************
-  SUBROUTINE topology_reorder_atoms(topology,globenv,error)
+  SUBROUTINE topology_reorder_atoms(topology,globenv,subsys_section,error)
     IMPLICIT NONE
     TYPE(topology_parameters_type), &
          INTENT(INOUT)                          :: topology
     TYPE(global_environment_type), &
          POINTER, OPTIONAL                   :: globenv
+    TYPE(section_vals_type), POINTER :: subsys_section
     TYPE(cp_error_type), INTENT(inout), &
          OPTIONAL                               :: error
      
@@ -187,8 +188,8 @@ CONTAINS
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
     CALL write_checkpoint_information("Entering "//routineN,globenv,error)
-    iw = cp_print_key_unit_nr(logger,globenv%input_file,"FORCE_EVAL%MM%PRINT%TOPOLOGY_INFO/UTIL_INFO",&
-         extension=".mmLog",error=error)    
+    iw = cp_print_key_unit_nr(logger,subsys_section,"PRINT%TOPOLOGY_INFO/UTIL_INFO",&
+         extension=".subsysLog",error=error)    
     CALL timeset(routineN,'I','',handle)
     
     atom_info => topology%atom_info
@@ -321,8 +322,8 @@ CONTAINS
     
     CALL timestop(0.0_dp,handle)
     CALL write_checkpoint_information("exiting "//routineN,globenv,error)
-    CALL cp_print_key_finished_output(iw,logger,globenv%input_file,&
-         "FORCE_EVAL%MM%PRINT%TOPOLOGY_INFO/UTIL_INFO",error=error)
+    CALL cp_print_key_finished_output(iw,logger,subsys_section,&
+         "PRINT%TOPOLOGY_INFO/UTIL_INFO",error=error)
   END SUBROUTINE topology_reorder_atoms
 
 !******************************************************************************
@@ -343,12 +344,14 @@ CONTAINS
 !!
 !!   SOURCE
 !******************************************************************************
-  SUBROUTINE topology_generate_molecule(topology,qmmm,qmmm_env,globenv,error)
+  SUBROUTINE topology_generate_molecule(topology,qmmm,qmmm_env,globenv,subsys_section,error)
     IMPLICIT NONE
     TYPE(topology_parameters_type), &
       INTENT(INOUT)                          :: topology
     TYPE(global_environment_type), &
       pointer, OPTIONAL                   :: globenv
+    TYPE(section_vals_type), POINTER :: subsys_section
+
     TYPE(qmmm_env_mm_type), POINTER, OPTIONAL :: qmmm_env
     LOGICAL, INTENT(in), OPTIONAL            :: qmmm
     TYPE(cp_error_type), INTENT(inout), &
@@ -373,8 +376,8 @@ CONTAINS
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
     CALL write_checkpoint_information("Entering "//routineN,globenv,error)
-    iw = cp_print_key_unit_nr(logger,globenv%input_file,"FORCE_EVAL%MM%PRINT%TOPOLOGY_INFO/UTIL_INFO",&
-         extension=".mmLog",error=error)    
+    iw = cp_print_key_unit_nr(logger,subsys_section,"PRINT%TOPOLOGY_INFO/UTIL_INFO",&
+         extension=".subsysLog",error=error)    
     CALL timeset(routineN,'I','',handle)
     NULLIFY(checkme, qm_atom_index)
 
@@ -578,8 +581,8 @@ CONTAINS
     
     CALL timestop(0.0_dp,handle)
     CALL write_checkpoint_information("exiting "//routineN,globenv,error)
-    CALL cp_print_key_finished_output(iw,logger,globenv%input_file,&
-         "FORCE_EVAL%MM%PRINT%TOPOLOGY_INFO/UTIL_INFO",error=error)
+    CALL cp_print_key_finished_output(iw,logger,subsys_section,&
+         "PRINT%TOPOLOGY_INFO/UTIL_INFO",error=error)
 
   END SUBROUTINE topology_generate_molecule
 
@@ -603,12 +606,13 @@ CONTAINS
 !!
 !!   SOURCE
 !******************************************************************************
-  SUBROUTINE topology_set_atm_mass(topology,globenv,error)
+  SUBROUTINE topology_set_atm_mass(topology,globenv,subsys_section,error)
     IMPLICIT NONE
     TYPE(topology_parameters_type), &
          INTENT(INOUT)                          :: topology
     TYPE(global_environment_type), &
          POINTER, OPTIONAL                      :: globenv
+    TYPE(section_vals_type), POINTER :: subsys_section
     TYPE(cp_error_type), INTENT(inout), &
          OPTIONAL                               :: error   
     
@@ -637,8 +641,8 @@ CONTAINS
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
     CALL write_checkpoint_information("Entering "//routineN,globenv,error)
-    iw = cp_print_key_unit_nr(logger,globenv%input_file,"FORCE_EVAL%MM%PRINT%TOPOLOGY_INFO/UTIL_INFO",&
-         extension=".mmLog",error=error)    
+    iw = cp_print_key_unit_nr(logger,subsys_section,"PRINT%TOPOLOGY_INFO/UTIL_INFO",&
+         extension=".subsysLog",error=error)    
     CALL timeset(routineN,'I','',handle)
     
     atom_info => topology%atom_info
@@ -685,8 +689,8 @@ CONTAINS
 
     CALL timestop(0.0_dp,handle)
     CALL write_checkpoint_information("exiting "//routineN,globenv,error)
-    CALL cp_print_key_finished_output(iw,logger,globenv%input_file,&
-         "FORCE_EVAL%MM%PRINT%TOPOLOGY_INFO/UTIL_INFO",error=error)
+    CALL cp_print_key_finished_output(iw,logger,subsys_section,&
+         "PRINT%TOPOLOGY_INFO/UTIL_INFO",error=error)
     
   END SUBROUTINE topology_set_atm_mass
 !
@@ -709,12 +713,14 @@ CONTAINS
 !!
 !!   SOURCE
 !******************************************************************************
-  SUBROUTINE topology_generate_bond(topology,globenv,error)
+  SUBROUTINE topology_generate_bond(topology,globenv,subsys_section,error)
     IMPLICIT NONE
     TYPE(topology_parameters_type), &
          INTENT(INOUT)                          :: topology
     TYPE(global_environment_type), &
          POINTER, OPTIONAL                   :: globenv
+    TYPE(section_vals_type), POINTER :: subsys_section
+
     TYPE(cp_error_type), INTENT(inout), &
          OPTIONAL                               :: error
 
@@ -746,8 +752,8 @@ CONTAINS
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
     CALL write_checkpoint_information("Entering "//routineN,globenv,error)
-    iw = cp_print_key_unit_nr(logger,globenv%input_file,"FORCE_EVAL%MM%PRINT%TOPOLOGY_INFO/UTIL_INFO",&
-         extension=".mmLog",error=error)    
+    iw = cp_print_key_unit_nr(logger,subsys_section,"PRINT%TOPOLOGY_INFO/UTIL_INFO",&
+         extension=".subsysLog",error=error)    
     CALL timeset(routineN,'I','',handle)
 
     atom_info => topology%atom_info
@@ -846,8 +852,8 @@ CONTAINS
     
     CALL timestop(0.0_dp,handle)
     CALL write_checkpoint_information("exiting "//routineN,globenv,error)
-    CALL cp_print_key_finished_output(iw,logger,globenv%input_file,&
-         "FORCE_EVAL%MM%PRINT%TOPOLOGY_INFO/UTIL_INFO",error=error)
+    CALL cp_print_key_finished_output(iw,logger,subsys_section,&
+         "PRINT%TOPOLOGY_INFO/UTIL_INFO",error=error)
 
   END SUBROUTINE topology_generate_bond
 
@@ -869,12 +875,14 @@ CONTAINS
 !!
 !!   SOURCE
 !******************************************************************************
-  SUBROUTINE topology_generate_bend(topology,globenv,error)
+  SUBROUTINE topology_generate_bend(topology,globenv,subsys_section,error)
     IMPLICIT NONE
     TYPE(topology_parameters_type), &
          INTENT(INOUT)                          :: topology
     TYPE(global_environment_type), &
          POINTER, OPTIONAL                      :: globenv
+    TYPE(section_vals_type), POINTER :: subsys_section
+
     TYPE(cp_error_type), INTENT(inout), &
          OPTIONAL                               :: error   
     
@@ -892,8 +900,8 @@ CONTAINS
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
     CALL write_checkpoint_information("Entering "//routineN,globenv,error)
-    iw = cp_print_key_unit_nr(logger,globenv%input_file,"FORCE_EVAL%MM%PRINT%TOPOLOGY_INFO/UTIL_INFO",&
-         extension=".mmLog",error=error)    
+    iw = cp_print_key_unit_nr(logger,subsys_section,"PRINT%TOPOLOGY_INFO/UTIL_INFO",&
+         extension=".subsysLog",error=error)    
     CALL timeset(routineN,'I','',handle)
 
     conn_info => topology%conn_info
@@ -988,8 +996,8 @@ CONTAINS
 
     CALL timestop(0.0_dp,handle)
     CALL write_checkpoint_information("exiting "//routineN,globenv,error)
-    CALL cp_print_key_finished_output(iw,logger,globenv%input_file,&
-         "FORCE_EVAL%MM%PRINT%TOPOLOGY_INFO/UTIL_INFO",error=error)
+    CALL cp_print_key_finished_output(iw,logger,subsys_section,&
+         "PRINT%TOPOLOGY_INFO/UTIL_INFO",error=error)
   END SUBROUTINE topology_generate_bend
 
 !
@@ -1010,12 +1018,14 @@ CONTAINS
 !!
 !!   SOURCE
 !******************************************************************************
-  SUBROUTINE topology_generate_ub(topology,globenv,error)
+  SUBROUTINE topology_generate_ub(topology,globenv,subsys_section,error)
     IMPLICIT NONE
     TYPE(topology_parameters_type), &
          INTENT(INOUT)                          :: topology
     TYPE(global_environment_type), &
          POINTER, OPTIONAL                      :: globenv
+    TYPE(section_vals_type), POINTER :: subsys_section
+
     TYPE(cp_error_type), INTENT(inout), &
          OPTIONAL                               :: error   
     
@@ -1031,8 +1041,8 @@ CONTAINS
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
     CALL write_checkpoint_information("Entering "//routineN,globenv,error)
-    iw = cp_print_key_unit_nr(logger,globenv%input_file,"FORCE_EVAL%MM%PRINT%TOPOLOGY_INFO/UTIL_INFO",&
-         extension=".mmLog",error=error)    
+    iw = cp_print_key_unit_nr(logger,subsys_section,"PRINT%TOPOLOGY_INFO/UTIL_INFO",&
+         extension=".subsysLog",error=error)    
     CALL timeset(routineN,'I','',handle)
 
     conn_info => topology%conn_info
@@ -1051,8 +1061,8 @@ CONTAINS
 
     CALL timestop(0.0_dp,handle)
     CALL write_checkpoint_information("exiting "//routineN,globenv,error)
-    CALL cp_print_key_finished_output(iw,logger,globenv%input_file,&
-         "FORCE_EVAL%MM%PRINT%TOPOLOGY_INFO/UTIL_INFO",error=error)
+    CALL cp_print_key_finished_output(iw,logger,subsys_section,&
+         "PRINT%TOPOLOGY_INFO/UTIL_INFO",error=error)
 
   END SUBROUTINE topology_generate_ub
 
@@ -1073,12 +1083,14 @@ CONTAINS
 !!
 !!   SOURCE
 !******************************************************************************
-  SUBROUTINE topology_generate_dihe(topology,globenv,error)
+  SUBROUTINE topology_generate_dihe(topology,globenv,subsys_section,error)
     IMPLICIT NONE
     TYPE(topology_parameters_type), &
       INTENT(INOUT)                          :: topology
     TYPE(global_environment_type), &
          POINTER, OPTIONAL                   :: globenv
+    TYPE(section_vals_type), POINTER :: subsys_section
+ 
     TYPE(cp_error_type), INTENT(inout), &
          OPTIONAL                               :: error 
     
@@ -1097,8 +1109,8 @@ CONTAINS
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
     CALL write_checkpoint_information("Entering "//routineN,globenv,error)
-    iw = cp_print_key_unit_nr(logger,globenv%input_file,"FORCE_EVAL%MM%PRINT%TOPOLOGY_INFO/UTIL_INFO",&
-         extension=".mmLog",error=error)    
+    iw = cp_print_key_unit_nr(logger,subsys_section,"PRINT%TOPOLOGY_INFO/UTIL_INFO",&
+         extension=".subsysLog",error=error)    
     CALL timeset(routineN,'I','',handle)
 
     conn_info => topology%conn_info
@@ -1206,8 +1218,8 @@ CONTAINS
 
     CALL timestop(0.0_dp,handle)
     CALL write_checkpoint_information("exiting "//routineN,globenv,error)
-    CALL cp_print_key_finished_output(iw,logger,globenv%input_file,&
-         "FORCE_EVAL%MM%PRINT%TOPOLOGY_INFO/UTIL_INFO",error=error)
+    CALL cp_print_key_finished_output(iw,logger,subsys_section,&
+         "PRINT%TOPOLOGY_INFO/UTIL_INFO",error=error)
     
   END SUBROUTINE topology_generate_dihe
  
@@ -1229,12 +1241,14 @@ CONTAINS
 !!
 !!   SOURCE
 !******************************************************************************
-  SUBROUTINE topology_generate_impr(topology,globenv,error)
+  SUBROUTINE topology_generate_impr(topology,globenv,subsys_section,error)
     IMPLICIT NONE
     TYPE(topology_parameters_type), &
       INTENT(INOUT)                          :: topology
     TYPE(global_environment_type), &
       pointer, OPTIONAL                   :: globenv
+    TYPE(section_vals_type), POINTER :: subsys_section
+
     TYPE(cp_error_type), INTENT(inout), &
          OPTIONAL                               :: error 
 
@@ -1258,8 +1272,8 @@ CONTAINS
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
     CALL write_checkpoint_information("Entering "//routineN,globenv,error)
-    iw = cp_print_key_unit_nr(logger,globenv%input_file,"FORCE_EVAL%MM%PRINT%TOPOLOGY_INFO/UTIL_INFO",&
-         extension=".mmLog",error=error)    
+    iw = cp_print_key_unit_nr(logger,subsys_section,"PRINT%TOPOLOGY_INFO/UTIL_INFO",&
+         extension=".subsysLog",error=error)    
     CALL timeset(routineN,'I','',handle)
 
     atom_info => topology%atom_info
@@ -1311,8 +1325,8 @@ CONTAINS
     END DO
     CALL timestop(0.0_dp,handle)
     CALL write_checkpoint_information("exiting "//routineN,globenv,error)
-    CALL cp_print_key_finished_output(iw,logger,globenv%input_file,&
-         "FORCE_EVAL%MM%PRINT%TOPOLOGY_INFO/UTIL_INFO",error=error)
+    CALL cp_print_key_finished_output(iw,logger,subsys_section,&
+         "PRINT%TOPOLOGY_INFO/UTIL_INFO",error=error)
 
   END SUBROUTINE topology_generate_impr
 
@@ -1334,12 +1348,14 @@ CONTAINS
 !!
 !!   SOURCE
 !******************************************************************************
-  SUBROUTINE topology_generate_onfo(topology,globenv,error)
+  SUBROUTINE topology_generate_onfo(topology,globenv,subsys_section,error)
     IMPLICIT NONE
     TYPE(topology_parameters_type), &
       INTENT(INOUT)                          :: topology
     TYPE(global_environment_type), &
          POINTER, OPTIONAL                   :: globenv
+    TYPE(section_vals_type), POINTER :: subsys_section
+
     TYPE(cp_error_type), INTENT(inout), &
          OPTIONAL                               :: error     
 
@@ -1355,8 +1371,8 @@ CONTAINS
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
     CALL write_checkpoint_information("Entering "//routineN,globenv,error)
-    iw = cp_print_key_unit_nr(logger,globenv%input_file,"FORCE_EVAL%MM%PRINT%TOPOLOGY_INFO/UTIL_INFO",&
-         extension=".mmLog",error=error)    
+    iw = cp_print_key_unit_nr(logger,subsys_section,"PRINT%TOPOLOGY_INFO/UTIL_INFO",&
+         extension=".subsysLog",error=error)    
     CALL timeset(routineN,'I','',handle)
     
     conn_info => topology%conn_info    
@@ -1371,8 +1387,8 @@ CONTAINS
     END DO
     CALL timestop(0.0_dp,handle)
     CALL write_checkpoint_information("exiting "//routineN,globenv,error)
-    CALL cp_print_key_finished_output(iw,logger,globenv%input_file,&
-         "FORCE_EVAL%MM%PRINT%TOPOLOGY_INFO/UTIL_INFO",error=error)
+    CALL cp_print_key_finished_output(iw,logger,subsys_section,&
+         "PRINT%TOPOLOGY_INFO/UTIL_INFO",error=error)
     
   END SUBROUTINE topology_generate_onfo
 
@@ -1398,7 +1414,7 @@ CONTAINS
 !******************************************************************************
 
   SUBROUTINE topology_connectivity_pack(molecule_kind_set,molecule_set,&
-       topology,globenv,error)
+       topology,globenv,subsys_section,error)
     IMPLICIT NONE
     TYPE(molecule_kind_type), DIMENSION(:), &
       POINTER                                :: molecule_kind_set
@@ -1408,6 +1424,8 @@ CONTAINS
       INTENT(INOUT)                          :: topology
     TYPE(global_environment_type), &
          POINTER, OPTIONAL                   :: globenv
+    TYPE(section_vals_type), POINTER :: subsys_section
+
     TYPE(cp_error_type), INTENT(inout), &
          OPTIONAL                               :: error
 
@@ -1444,8 +1462,8 @@ CONTAINS
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
     CALL write_checkpoint_information("Entering "//routineN,globenv,error)
-    iw = cp_print_key_unit_nr(logger,globenv%input_file,"FORCE_EVAL%MM%PRINT%TOPOLOGY_INFO/UTIL_INFO",&
-         extension=".mmLog",error=error)    
+    iw = cp_print_key_unit_nr(logger,subsys_section,"PRINT%TOPOLOGY_INFO/UTIL_INFO",&
+         extension=".subsysLog",error=error)    
     CALL timeset(routineN,'I','',handle)
 
     atom_info => topology%atom_info
@@ -2228,8 +2246,8 @@ CONTAINS
 
     CALL timestop(0.0_dp,handle)
     CALL write_checkpoint_information("exiting "//routineN,globenv,error)
-    CALL cp_print_key_finished_output(iw,logger,globenv%input_file,&
-         "FORCE_EVAL%MM%PRINT%TOPOLOGY_INFO/UTIL_INFO",error=error)
+    CALL cp_print_key_finished_output(iw,logger,subsys_section,&
+         "PRINT%TOPOLOGY_INFO/UTIL_INFO",error=error)
   END SUBROUTINE topology_connectivity_pack
 
 !******************************************************************************
@@ -2254,7 +2272,8 @@ CONTAINS
 !!*** *************************************************************************
 
   SUBROUTINE topology_coordinate_pack (particle_set,atomic_kind_set,&
-       molecule_kind_set,molecule_set,topology,globenv,qmmm,qmmm_env,error)
+       molecule_kind_set,molecule_set,topology,globenv,qmmm,qmmm_env,&
+       subsys_section,error)
     IMPLICIT NONE
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
@@ -2268,6 +2287,8 @@ CONTAINS
       INTENT(INOUT)                          :: topology
     TYPE(global_environment_type), &
       pointer, OPTIONAL                   :: globenv
+    TYPE(section_vals_type), POINTER :: subsys_section
+ 
     TYPE(qmmm_env_mm_type), POINTER, OPTIONAL        :: qmmm_env
     TYPE(cp_error_type), INTENT(inout), &
          OPTIONAL                               :: error
@@ -2320,8 +2341,8 @@ CONTAINS
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
     CALL write_checkpoint_information("Entering "//routineN,globenv,error)
-    iw = cp_print_key_unit_nr(logger,globenv%input_file,"FORCE_EVAL%MM%PRINT%TOPOLOGY_INFO/UTIL_INFO",&
-         extension=".mmLog",error=error)    
+    iw = cp_print_key_unit_nr(logger,subsys_section,"PRINT%TOPOLOGY_INFO/UTIL_INFO",&
+         extension=".subsysLog",error=error)    
     CALL timeset(routineN,'I','',handle)
         
     my_qmmm = .FALSE.
@@ -2998,8 +3019,8 @@ CONTAINS
 
     CALL timestop(0.0_dp,handle)
     CALL write_checkpoint_information("exiting "//routineN,globenv,error)
-    CALL cp_print_key_finished_output(iw,logger,globenv%input_file,&
-         "FORCE_EVAL%MM%PRINT%TOPOLOGY_INFO/UTIL_INFO",error=error)
+    CALL cp_print_key_finished_output(iw,logger,subsys_section,&
+         "PRINT%TOPOLOGY_INFO/UTIL_INFO",error=error)
   END SUBROUTINE topology_coordinate_pack
 
 
@@ -3024,7 +3045,7 @@ CONTAINS
 !!*** *************************************************************************
 
   SUBROUTINE topology_constraint_pack ( molecule_kind_set,molecule_set,&
-                                      topology,qmmm_env,particle_set,globenv,error)
+                                      topology,qmmm_env,particle_set,globenv,subsys_section,error)
     IMPLICIT NONE
     TYPE(molecule_kind_type), DIMENSION(:), &
          POINTER                                :: molecule_kind_set
@@ -3037,6 +3058,8 @@ CONTAINS
          POINTER                                :: particle_set
     TYPE(global_environment_type), &
          POINTER, OPTIONAL                   :: globenv
+    TYPE(section_vals_type), POINTER :: subsys_section
+
     TYPE(cp_error_type), INTENT(inout), &
          OPTIONAL                               :: error  
     
@@ -3070,8 +3093,8 @@ CONTAINS
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
     CALL write_checkpoint_information("Entering "//routineN,globenv,error)
-    iw = cp_print_key_unit_nr(logger,globenv%input_file,"FORCE_EVAL%MM%PRINT%TOPOLOGY_INFO/UTIL_INFO",&
-         extension=".mmLog",error=error)    
+    iw = cp_print_key_unit_nr(logger,subsys_section,"PRINT%TOPOLOGY_INFO/UTIL_INFO",&
+         extension=".subsysLog",error=error)    
     CALL timeset(routineN,'I','',handle)
     
     cons_info => topology%cons_info
@@ -3438,8 +3461,8 @@ CONTAINS
     END IF
     CALL timestop(0.0_dp,handle)
     CALL write_checkpoint_information("exiting "//routineN,globenv,error)
-    CALL cp_print_key_finished_output(iw,logger,globenv%input_file,&
-         "FORCE_EVAL%MM%PRINT%TOPOLOGY_INFO/UTIL_INFO",error=error)
+    CALL cp_print_key_finished_output(iw,logger,subsys_section,&
+         "PRINT%TOPOLOGY_INFO/UTIL_INFO",error=error)
   END SUBROUTINE topology_constraint_pack
 !
 !******************************************************************************
@@ -3459,12 +3482,14 @@ CONTAINS
 !!
 !!   SOURCE
 !******************************************************************************
-  SUBROUTINE topology_molecules_check(topology,globenv,error)
+  SUBROUTINE topology_molecules_check(topology,globenv,subsys_section,error)
     IMPLICIT NONE
     TYPE(topology_parameters_type), &
       INTENT(INOUT)                          :: topology
     TYPE(global_environment_type), &
          POINTER, OPTIONAL                   :: globenv
+    TYPE(section_vals_type), POINTER :: subsys_section
+
     TYPE(cp_error_type), INTENT(inout), &
          OPTIONAL                               :: error
 
@@ -3484,8 +3509,8 @@ CONTAINS
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
     CALL write_checkpoint_information("Entering "//routineN,globenv,error)
-    iw = cp_print_key_unit_nr(logger,globenv%input_file,"FORCE_EVAL%MM%PRINT%TOPOLOGY_INFO/UTIL_INFO",&
-         extension=".mmLog",error=error)    
+    iw = cp_print_key_unit_nr(logger,subsys_section,"PRINT%TOPOLOGY_INFO/UTIL_INFO",&
+         extension=".subsysLog",error=error)    
     CALL timeset(routineN,'I','',handle)
 
     atom_info => topology%atom_info
@@ -3563,8 +3588,8 @@ CONTAINS
 
     CALL timestop(0.0_dp,handle)
     CALL write_checkpoint_information("exiting "//routineN,globenv,error)
-    CALL cp_print_key_finished_output(iw,logger,globenv%input_file,&
-         "FORCE_EVAL%MM%PRINT%TOPOLOGY_INFO/UTIL_INFO",error=error)
+    CALL cp_print_key_finished_output(iw,logger,subsys_section,&
+         "PRINT%TOPOLOGY_INFO/UTIL_INFO",error=error)
 
   END SUBROUTINE topology_molecules_check
 
@@ -3590,12 +3615,13 @@ CONTAINS
 !!     12.2005 created [teo]
 !!
 !!*** **********************************************************************
-  SUBROUTINE check_subsys_element(element_in, element_out, globenv, error)
+  SUBROUTINE check_subsys_element(element_in, element_out, globenv, force_env_section, error)
     IMPLICIT NONE
     ! Arguments
     CHARACTER(len=*), INTENT(IN)                          :: element_in
     CHARACTER(len=default_string_length), INTENT(OUT)     :: element_out
     TYPE(global_environment_type), POINTER   :: globenv
+    TYPE(section_vals_type), POINTER :: force_env_section
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
     ! Local Variables
@@ -3624,8 +3650,8 @@ CONTAINS
        END IF
     END DO
     IF (.NOT.found) THEN
-       kind_section => section_vals_get_subs_vals(globenv%input_file,&
-            "FORCE_EVAL%SUBSYS%KIND",error=error)
+       kind_section => section_vals_get_subs_vals(force_env_section,&
+            "KIND",error=error)
        CALL section_vals_get(kind_section,n_repetition=n_rep,error=error)
        DO i_rep=1,n_rep
           CALL section_vals_val_get(kind_section,"_SECTION_PARAMETERS_",&

@@ -71,6 +71,8 @@ MODULE pw_env_methods
                                              stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
+  USE cp_output_handling,              ONLY: cp_print_key_unit_nr, &
+                                             cp_print_key_finished_output  
   USE pw_poisson_types, ONLY: setup_super_ref_grid, pw_poisson_type, pw_poisson_create
   USE pw_poisson_methods, ONLY: pw_poisson_set
   USE input_section_types, ONLY: section_vals_type, section_vals_get_subs_vals,&
@@ -181,11 +183,10 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
     INTEGER :: cmax, grid_span, handle, i, igrid_level, igrid_zet0_s, &
       ikind, ipgf, iset, ishell, istat, jkind, jpgf, jset, jshell, la, lb, &
       lgrid_level, lmax_rho0, maxlgto, ncommensurate, ngrid_level, nkind, &
-      nseta, nsetb, nsmax, stat, info_unit
+      nseta, nsetb, nsmax, stat
     INTEGER, DIMENSION(:), POINTER           :: npgfa, npgfb, nshella, nshellb
     INTEGER, DIMENSION(:, :), POINTER        :: lshella, lshellb
-    LOGICAL                                  :: failure, pw_grid_information, &
-                                                use_ref_cell, uf_grid
+    LOGICAL                                  :: failure, use_ref_cell, uf_grid
     REAL(KIND=dp)                            :: alpha, cutilev, drmin, &
                                                 max_rpgf0_s, maxradius, &
                                                 rel_cutoff, zet0_s, zetp
@@ -209,6 +210,7 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
       POINTER                                :: pw_pools
     TYPE(rho0_mpole_type), POINTER           :: nddo_mpole, rho0_mpole
     TYPE(section_vals_type), POINTER :: input, poisson_section
+    INTEGER :: output_unit
 
   CALL timeset(routineN,"I","",handle)
 
@@ -217,13 +219,13 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
 ! Part one, deallocate old data if needed
 !
 !
-
   failure=.FALSE.
   NULLIFY(cutoff,cell,pw_grid,old_pw_grid,dft_control,atomic_kind_set,&
           pw_pools,rho0_mpole,rs_pools, para_env,cell_ref, mt_super_ref_grid,&
           input,poisson_section,xc_super_ref_grid,super_ref_grid)
   logger => cp_error_get_logger(error)
-  pw_grid_information=logger%print_keys%pw_grid_information
+  output_unit = cp_print_key_unit_nr(logger,qs_env%input,"PRINT%PW_GRID_INFORMATION",&
+       extension=".Log",error=error)      
  
   CPPrecondition(ASSOCIATED(pw_env),cp_failure_level,routineP,error,failure)
   CPPrecondition(pw_env%ref_count>0,cp_failure_level,routineP,error,failure)
@@ -232,7 +234,7 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
      CALL pw_pools_dealloc(pw_env%pw_pools,error=error)
      CALL rs_pools_dealloc(pw_env%rs_pools,error=error)
      IF (ASSOCIATED(pw_env%gridlevel_info)) THEN
-        CALL destroy_gaussian_gridlevel(pw_env%gridlevel_info,error=error)
+        CALL destroy_gaussian_gridlevel(pw_env%gridlevel_info,qs_env%input,error=error)
      ELSE
         ALLOCATE(pw_env%gridlevel_info,stat=stat)
         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -326,15 +328,11 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
         cutilev = -cutoff(1)
         grid_span = HALFSPACE
      END IF
-     IF (pw_grid_information) THEN
-        info_unit=cp_logger_get_default_unit_nr(logger)
-     ELSE
-        info_unit=-1
-     END IF
+
      CALL setup_super_ref_grid(super_ref_grid,mt_super_ref_grid,&
           xc_super_ref_grid, cutilev, grid_span, cell_ref, para_env, &
           qs_env%input, ncommensurate, uf_grid=uf_grid,&
-          info_unit=info_unit,error=error) 
+          info_unit=output_unit,error=error) 
      old_pw_grid => super_ref_grid
      !
      ! Setup of the multi-grid pw_grid and pw_pools
@@ -355,43 +353,24 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
 
         IF (igrid_level == 1) THEN
            IF (ASSOCIATED(old_pw_grid)) THEN
-              IF (pw_grid_information) THEN
-                 CALL pw_grid_setup(cell_ref,pw_grid,cutilev,&
-                      ref_grid=old_pw_grid,&
-                      info= cp_logger_get_default_unit_nr(logger), &
-                      blocked=.FALSE.,ncommensurate=ncommensurate,&
-                      icommensurate=igrid_level, rs_dims=(/para_env%num_pe,1/))
-              ELSE
-                 CALL pw_grid_setup(cell_ref,pw_grid,cutilev,ref_grid=old_pw_grid,&
-                      blocked=.FALSE.,ncommensurate=ncommensurate,&
-                      icommensurate=igrid_level, rs_dims=(/para_env%num_pe,1/))
-              END IF
+              CALL pw_grid_setup(cell_ref,pw_grid,cutilev,&
+                   ref_grid=old_pw_grid,&
+                   info= output_unit, &
+                   blocked=.FALSE.,ncommensurate=ncommensurate,&
+                   icommensurate=igrid_level, rs_dims=(/para_env%num_pe,1/))
               old_pw_grid => pw_grid
            ELSE
-              IF (pw_grid_information) THEN
-                 CALL pw_grid_setup(cell_ref,pw_grid,cutilev,&
-                      info= cp_logger_get_default_unit_nr(logger),&
-                      blocked=.FALSE.,ncommensurate=ncommensurate,&
-                      icommensurate=igrid_level, rs_dims=(/para_env%num_pe,1/))
-              ELSE
-                 CALL pw_grid_setup(cell_ref,pw_grid,cutilev,&
-                      blocked=.FALSE.,ncommensurate=ncommensurate,&
-                      icommensurate=igrid_level, rs_dims=(/para_env%num_pe,1/))
-              END IF
+              CALL pw_grid_setup(cell_ref,pw_grid,cutilev,&
+                   info= output_unit,&
+                   blocked=.FALSE.,ncommensurate=ncommensurate,&
+                   icommensurate=igrid_level, rs_dims=(/para_env%num_pe,1/))
               old_pw_grid => pw_grid
            END IF
         ELSE
-           IF (pw_grid_information) THEN
-              CALL pw_grid_setup(cell_ref,pw_grid,cutilev,&
-                   info=cp_logger_get_default_unit_nr(logger), blocked=.FALSE., &
-                   ref_grid=old_pw_grid,ncommensurate=ncommensurate,&
-                   icommensurate=igrid_level, rs_dims=(/para_env%num_pe,1/))
-           ELSE
-              CALL pw_grid_setup(cell_ref,pw_grid,cutilev,&
-                   blocked=.FALSE., &
-                   ref_grid=old_pw_grid,ncommensurate=ncommensurate,&
-                   icommensurate=igrid_level, rs_dims=(/para_env%num_pe,1/))
-           END IF
+           CALL pw_grid_setup(cell_ref,pw_grid,cutilev,&
+                info=output_unit, blocked=.FALSE., &
+                ref_grid=old_pw_grid,ncommensurate=ncommensurate,&
+                icommensurate=igrid_level, rs_dims=(/para_env%num_pe,1/))
         END IF
       
       ! init pw_pools
@@ -616,7 +595,8 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
       CALL pw_poisson_set(pw_env%poisson_env,cell=cell,pw_pools=pw_env%pw_pools,&
            error=error)
   ENDIF
-
+  CALL cp_print_key_finished_output(output_unit,logger,qs_env%input,&
+       "PRINT%PW_GRID_INFORMATION",error=error)  
   CALL timestop(0.0_dp,handle)
 
 END SUBROUTINE pw_env_rebuild

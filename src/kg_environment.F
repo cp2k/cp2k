@@ -85,8 +85,7 @@ MODULE kg_environment
   USE orbital_transformation_matrices, ONLY: init_spherical_harmonics
   USE particle_types,                  ONLY: particle_type,&
                                              write_particle_distances,&
-                                             write_qs_particle_coordinates,&
-                                             write_structure_data
+                                             write_qs_particle_coordinates
   USE qs_charges_types,                ONLY: qs_charges_create,&
                                              qs_charges_release,&
                                              qs_charges_type
@@ -183,7 +182,7 @@ CONTAINS
     TYPE(scf_control_type), POINTER          :: scf_control
     TYPE(section_vals_type), POINTER         :: cell_section,&
                                                 force_env_section,&
-                                                poisson_section
+                                                poisson_section, dft_section
     REAL(kind=dp), DIMENSION(3)              :: abc
     TYPE(cp_logger_type), pointer            :: logger
 
@@ -217,8 +216,10 @@ CONTAINS
          "FORCE_EVAL",error=error)
     cell_section => section_vals_get_subs_vals(force_env_section,&
          "SUBSYS%CELL",error=error) 
-    poisson_section => section_vals_get_subs_vals(force_env_section,&
-         "DFT%POISSON_DFT",error=error)
+    dft_section =>  section_vals_get_subs_vals(force_env_section,&
+         "DFT",error=error)
+    poisson_section => section_vals_get_subs_vals(dft_section,&
+         "POISSON_DFT",error=error)
 
 
     CALL set_kg_env(kg_env,input=force_env_section,&
@@ -231,8 +232,8 @@ CONTAINS
     CALL read_qs_section(dft_control%qs_control,globenv,error=error)
     CALL read_mgrid_section(dft_control%qs_control,globenv,error=error)
 
-    CALL write_dft_control ( dft_control, globenv, error)
-    CALL write_qs_control ( dft_control % qs_control, globenv, error)
+    CALL write_dft_control ( dft_control, dft_section, error)
+    CALL write_qs_control ( dft_control % qs_control, dft_section, error)
 
 !   *** Read the input section with the cell parameters
     CALL read_cell ( cell, cell_ref, globenv,  use_ref_cell=use_ref_cell,&
@@ -240,7 +241,7 @@ CONTAINS
     CALL get_cell( cell, abc=abc)    
 
 !   *** Print the cell parameters ***
-    CALL write_cell ( cell, globenv, error)
+    CALL write_cell ( cell, force_env_section, error)
 
     ! topology
     CALL topology_control (atomic_kind_set,particle_set,&
@@ -249,8 +250,9 @@ CONTAINS
 
     ! Read/write the atomic kind set
     CALL read_atomic_kind_set(atomic_kind_set,globenv,error)
-    CALL check_atomic_kind_set(atomic_kind_set,dft_control,globenv,error)
-    CALL write_gto_basis_sets(atomic_kind_set,globenv,error)
+    CALL check_atomic_kind_set(atomic_kind_set,dft_control,globenv,&
+         force_env_section=kg_env%input,error=error)
+    CALL write_gto_basis_sets(atomic_kind_set,kg_env%input,error)
 
     CALL num_ao_el_per_molecule(molecule_kind_set)
 
@@ -276,20 +278,19 @@ CONTAINS
     ! Initialise/print the atomic/molecular kind set
     CALL init_atomic_kind_set(atomic_kind_set,globenv,&
                               method=dft_control%qs_control%method)
-    CALL write_atomic_kind_set(atomic_kind_set,globenv,error)
-    CALL write_molecule_kind_set(molecule_kind_set,globenv,error)
+    CALL write_atomic_kind_set(atomic_kind_set,kg_env%input,error)
+    CALL write_molecule_kind_set(molecule_kind_set,force_env_section,error)
     CALL write_total_numbers(atomic_kind_set,particle_set,globenv)
 
     ! Print the atomic coordinates 
-    CALL write_qs_particle_coordinates(particle_set,cell,globenv,error)
+    CALL write_qs_particle_coordinates(particle_set,cell,kg_env%input,error)
 
     ! Print the interatomic distances ***
-    CALL write_particle_distances(particle_set,cell,globenv,error)
-    CALL write_structure_data(particle_set,cell,globenv)
+    CALL write_particle_distances(particle_set,cell,kg_env%input,error)
 
     ! Initialize the atomic interaction radii 
     CALL init_interaction_radii ( dft_control%qs_control, cell, &
-                                  atomic_kind_set, globenv, error)
+                                  atomic_kind_set, kg_env%input, error)
 
     ! Distribute molecules and atoms using the new data structures
     CALL distribute_molecules_1d(particle_kind_set=atomic_kind_set,&
@@ -660,7 +661,7 @@ CONTAINS
     END DO
 
     CALL set_qs_env(qs_env=qs_env,kg_sub_pw_env=kg_sub_pw_env)
-    CALL kg_sub_pw_env_release(kg_sub_pw_env,error=error)
+    CALL kg_sub_pw_env_release(kg_sub_pw_env,force_env_section=force_env_section,error=error)
 
     CALL mp_sum(nelectron_global, para_env%group)
     CALL mp_sum(nao_global, para_env%group)

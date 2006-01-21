@@ -48,6 +48,8 @@ MODULE qs_ks_qmmm_methods
                                              coeff_zero
   USE cp_control_types,                ONLY: dft_control_type
   USE input_constants, ONLY: do_qmmm_grid, do_qmmm_gauss, do_qmmm_none
+  USE input_section_types,             ONLY: section_vals_type,&
+       section_vals_get_subs_vals
 #include "cp_common_uses.h"
   IMPLICIT NONE
 
@@ -95,13 +97,14 @@ CONTAINS
     NULLIFY(ks_qmmm_env)
     CALL get_qs_env(qs_env=qs_env,&
          ks_qmmm_env=ks_qmmm_env)
-    
+
     !   *** allocate the ks_qmmm env if not allocated yet!**
     IF (.NOT.ASSOCIATED(ks_qmmm_env)) THEN
        CALL qs_ks_qmmm_create(ks_qmmm_env=ks_qmmm_env,qs_env=qs_env,&
             qmmm_env=qmmm_env,error=error)
        CALL set_qs_env(qs_env=qs_env, ks_qmmm_env=ks_qmmm_env)
-       CALL qs_ks_qmmm_release(ks_qmmm_env=ks_qmmm_env,error=error)
+       CALL qs_ks_qmmm_release(ks_qmmm_env=ks_qmmm_env,force_env_section=qs_env%input,&
+            error=error)
     END IF
   END SUBROUTINE ks_qmmm_env_rebuild
   !***************************************************************************

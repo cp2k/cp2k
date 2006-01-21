@@ -63,8 +63,7 @@ MODULE tbmd_environment
                                                     particle_list_release
   USE particle_types,                         ONLY: particle_type, &
                                                     write_particle_distances, &
-                                                    write_qs_particle_coordinates,&
-                                                    write_structure_data
+                                                    write_qs_particle_coordinates
   USE physcon,                                ONLY: evolt, &
                                                     angstrom
   USE cell_types,                             ONLY: cell_type, &
@@ -184,7 +183,7 @@ CONTAINS
                      use_ref_cell=use_ref_cell, cell_section=cell_section, &
                      error=error)
       CALL get_cell(cell=cell, abc=abc)
-      CALL write_cell(cell=cell, globenv=globenv,error=error)
+      CALL write_cell(cell=cell, force_env_section=force_env_section,error=error)
 
       CALL cp_subsys_create(subsystem, para_env=globenv%para_env, error=error)
       CALL cp_subsys_read_colvar(subsystem, colvar_section, error=error)
@@ -286,17 +285,16 @@ CONTAINS
     molecule_kind_set => subsystem%molecule_kinds_new%els
 
 !   *** Print the atomic kind set ***
-    CALL write_atomic_kind_set(atomic_kind_set, globenv, error=error)
+    CALL write_atomic_kind_set(atomic_kind_set, tbmd_env%tbmd_input, error=error)
 
 !   *** Print the molecule kind set ***
-    CALL write_molecule_kind_set(molecule_kind_set, globenv, error=error)
+    CALL write_molecule_kind_set(molecule_kind_set, tbmd_env%tbmd_input, error=error)
 
 !   *** Print the atomic coordinates 
     CALL write_qs_particle_coordinates(particle_set, cell=cell, &
-                                       globenv=globenv, error=error)
-    CALL write_particle_distances(particle_set, cell=cell, globenv=globenv, &
+                                       force_env_section=tbmd_env%tbmd_input, error=error)
+    CALL write_particle_distances(particle_set, cell=cell, force_env_section=tbmd_env%tbmd_input, &
                                   error=error)
-    CALL write_structure_data(particle_set, cell=cell, globenv=globenv)
 
 !   *** Distribute molecules and atoms using the new data structures ***
     CALL distribute_molecules_1d(particle_kind_set=atomic_kind_set, &

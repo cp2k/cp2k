@@ -43,6 +43,8 @@ MODULE semi_empirical_utils
                                              cp_print_key_finished_output,&
                                              cp_print_key_should_output,&
                                              cp_p_file
+  USE input_section_types,             ONLY: section_vals_type
+
 #include "cp_common_uses.h"
 
   
@@ -366,11 +368,10 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE write_se_param(se_parameter,globenv,error)
+  SUBROUTINE write_se_param(se_parameter,force_env_section,error)
 
     TYPE(semi_empirical_type), POINTER       :: se_parameter
-    TYPE(global_environment_type), &
-         POINTER                             :: globenv
+ TYPE(section_vals_type), POINTER :: force_env_section
     TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "write_se_param"
@@ -388,10 +389,10 @@ CONTAINS
 
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
-    IF (ASSOCIATED(se_parameter).AND.BTEST(cp_print_key_should_output(logger%iter_info,globenv%input_file,&
-         "FORCE_EVAL%PRINT%KINDS/BASIS_SET",error=error),cp_p_file)) THEN
+    IF (ASSOCIATED(se_parameter).AND.BTEST(cp_print_key_should_output(logger%iter_info,force_env_section,&
+         "SUBSYS%PRINT%KINDS/BASIS_SET",error=error),cp_p_file)) THEN
 
-       output_unit = cp_print_key_unit_nr(logger,globenv%input_file,"FORCE_EVAL%PRINT%KINDS",&
+       output_unit = cp_print_key_unit_nr(logger,force_env_section,"SUBSYS%PRINT%KINDS",&
             extension=".Log",error=error)
 
        IF (output_unit >0) THEN
@@ -533,8 +534,8 @@ CONTAINS
              END IF
           END SELECT
        END IF
-       CALL cp_print_key_finished_output(output_unit,logger,globenv%input_file,&
-            "FORCE_EVAL%PRINT%KINDS",error=error)
+       CALL cp_print_key_finished_output(output_unit,logger,force_env_section,&
+            "SUBSYS%PRINT%KINDS",error=error)
     END IF
     
   END SUBROUTINE write_se_param

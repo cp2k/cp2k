@@ -55,6 +55,8 @@ MODULE kg_neighbor_lists
                                              cp_print_key_finished_output,&
                                              cp_print_key_should_output,&
                                              cp_p_file
+  USE input_section_types, ONLY: section_vals_type, section_vals_get_subs_vals,&
+       section_vals_get, section_vals_val_get, section_vals_release
 
 #include "cp_common_uses.h"  
 
@@ -95,11 +97,11 @@ CONTAINS
 
     SELECT CASE (qs_control%method)
     CASE ("KG_POL")
-      CALL build_kg_neighbor_lists1(kg_env,globenv,error)
+      CALL build_kg_neighbor_lists1(kg_env,globenv,kg_env%input,error)
     CASE ("KG_NOPOL")
-      CALL build_kg_neighbor_lists1(kg_env,globenv,error)
+      CALL build_kg_neighbor_lists1(kg_env,globenv,kg_env%input,error)
     CASE ("KG_GPW")
-      CALL build_kg_neighbor_lists2(kg_env,globenv,error)
+      CALL build_kg_neighbor_lists2(kg_env,globenv,kg_env%input,error)
     CASE DEFAULT
       CALL stop_program(routine_name,module_name,__LINE__,"method unknown")
     END SELECT
@@ -110,13 +112,14 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE build_kg_neighbor_lists1(kg_env,globenv,error)
+  SUBROUTINE build_kg_neighbor_lists1(kg_env,globenv,force_env_section,error)
 
     TYPE(kg_environment_type), POINTER       :: kg_env
     TYPE(global_environment_type), &
       pointer                             :: globenv
     TYPE(cp_error_type), INTENT(inout), &
          OPTIONAL                               :: error
+    TYPE(section_vals_type), POINTER :: force_env_section
     CHARACTER(LEN=*), PARAMETER :: routine_name = "build_kg_neighbor_lists1"
 
     INTEGER :: atom_a, handle, iatom, iatom_local, ikind, istat, maxatom, &
@@ -165,7 +168,7 @@ CONTAINS
     NULLIFY (sac_ppl)
     NULLIFY (sac_ppl_aux)
     print_subcell_grid = .FALSE.
-    output_unit = cp_print_key_unit_nr(logger,globenv%input_file,"FORCE_EVAL%PRINT%SUBCELL",&
+    output_unit = cp_print_key_unit_nr(logger,force_env_section,"SUBSYS%PRINT%SUBCELL",&
          extension=".Log",error=error)
     IF (output_unit>0)  print_subcell_grid = .TRUE.
 
@@ -427,8 +430,8 @@ CONTAINS
                                        "ppl_radius")
 
     END IF
-    CALL cp_print_key_finished_output(output_unit,logger,globenv%input_file,&
-         "FORCE_EVAL%PRINT%SUBCELL",error=error)    
+    CALL cp_print_key_finished_output(output_unit,logger,force_env_section,&
+         "SUBSYS%PRINT%SUBCELL",error=error)    
     CALL timestop(0.0_dp,handle)
 
     CALL write_checkpoint_information("leaving "//routine_name,globenv,error)
@@ -437,13 +440,14 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE build_kg_neighbor_lists2(kg_env,globenv,error)
+  SUBROUTINE build_kg_neighbor_lists2(kg_env,globenv,force_env_section,error)
 
     TYPE(kg_environment_type), POINTER       :: kg_env
     TYPE(global_environment_type), &
       pointer                             :: globenv
     TYPE(cp_error_type), INTENT(inout), &
          OPTIONAL                               :: error
+    TYPE(section_vals_type), POINTER :: force_env_section
     CHARACTER(LEN=*), PARAMETER :: routine_name = "build_kg_neighbor_lists2"
 
     INTEGER                                  :: handle,isub
@@ -461,7 +465,7 @@ CONTAINS
                     sub_qs_env=qs_env)
 
     IF(ASSOCIATED(qs_env)) THEN
-      CALL build_qs_neighbor_lists(qs_env,globenv,.TRUE.,error=error)
+      CALL build_qs_neighbor_lists(qs_env,globenv,.TRUE.,force_env_section,error=error)
     ELSE
       CALL stop_program(routine_name,module_name,__LINE__,&
             "sub_qs_env not defined")

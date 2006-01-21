@@ -107,8 +107,7 @@ MODULE qs_environment
                                              particle_list_type
   USE particle_types,                  ONLY: particle_type,&
                                              write_particle_distances,&
-                                             write_qs_particle_coordinates,&
-                                             write_structure_data
+                                             write_qs_particle_coordinates
   USE qs_energy_types,                 ONLY: allocate_qs_energy,&
                                              qs_energy_type
   USE qs_environment_methods,          ONLY: qs_env_setup
@@ -256,7 +255,7 @@ CONTAINS
 
 !   *** Print the cell parameters ***
 
-    CALL write_cell(my_cell,globenv,error)
+    CALL write_cell(my_cell,force_env_section,error)
     IF (PRESENT(subsystem)) THEN 
        my_subsystem => subsystem
        CALL read_atomic_kind_set(my_subsystem%atomic_kinds%els, globenv,error)
@@ -356,7 +355,7 @@ CONTAINS
     TYPE(qs_wf_history_type), POINTER        :: wf_history
     TYPE(rho0_mpole_type), POINTER           :: nddo_mpole, rho0_mpole
     TYPE(scf_control_type), POINTER          :: scf_control
-    TYPE(section_vals_type), POINTER         :: xas_section, print_dft_section
+    TYPE(section_vals_type), POINTER         :: xas_section, dft_section
     TYPE(semi_empirical_control_type), &
       POINTER                                :: se_control
 
@@ -392,7 +391,8 @@ CONTAINS
     NULLIFY (local_particles)
     NULLIFY (scf_control)
     NULLIFY (localized_wfn_control)
-    NULLIFY (xas_section, print_dft_section)
+    NULLIFY (xas_section, dft_section)
+    dft_section =>  section_vals_get_subs_vals(qs_env%input,"DFT",error=error)
     particle_set => subsystem%particles%els
     atomic_kind_set => subsystem%atomic_kinds%els
     molecule_set => subsystem%molecules_new%els
@@ -415,20 +415,21 @@ CONTAINS
 
 !   *** Print the DFT control parameters ***
 
-    CALL write_dft_control(dft_control,globenv,error)
+    CALL write_dft_control(dft_control,dft_section,error)
 
 !   *** Print the Quickstep control parameters ***
 
-    CALL write_qs_control(dft_control%qs_control,globenv,error)
+    CALL write_qs_control(dft_control%qs_control,dft_section,error)
 
 !   *** Print XES/XAS   control parameters *** ***
     if (dft_control % do_xas_calculation) then
-      CALL write_xas_control(dft_control%xas_control,globenv,error=error)
+      CALL write_xas_control(dft_control%xas_control,dft_section,error=error)
     end if
 
 !   *** Check basis and fill in missing parts ***
 
-    CALL check_atomic_kind_set(atomic_kind_set,dft_control,globenv,error=error)
+    CALL check_atomic_kind_set(atomic_kind_set,dft_control,globenv,&
+         force_env_section=qs_env%input,error=error)
 
 !   *** Check that no all-electron potential is present if GPW or GAPW_XC
 
@@ -465,7 +466,7 @@ CONTAINS
 
 !   *** Print the unnormalized basis set information (input data) ***
 
-    CALL write_gto_basis_sets(atomic_kind_set,globenv,error)
+    CALL write_gto_basis_sets(atomic_kind_set,qs_env%input,error)
 
 !   *** Initialise GAPW soft basis and projectors
 
@@ -473,7 +474,7 @@ CONTAINS
        dft_control%qs_control%method == "GAPW_XC")  THEN
       qs_control => dft_control%qs_control
       gapw_control => dft_control%qs_control%gapw_control
-      CALL init_gapw_basis_set(atomic_kind_set,qs_control,globenv,error)
+      CALL init_gapw_basis_set(atomic_kind_set,qs_control,qs_env%input,error)
     ENDIF
 
 !   *** Initialize the pretabulation for the calculation of the   ***
@@ -486,11 +487,11 @@ CONTAINS
 
 !   *** Print the atomic kind set ***
 
-    CALL write_atomic_kind_set(atomic_kind_set,globenv,error)
+    CALL write_atomic_kind_set(atomic_kind_set,qs_env%input,error)
 
 !   *** Print the molecule kind set ***
 
-    CALL write_molecule_kind_set(molecule_kind_set,globenv,error)
+    CALL write_molecule_kind_set(molecule_kind_set,qs_env%input,error)
 
 !   *** Print the total number of kinds, atoms, basis functions etc. ***
 
@@ -498,16 +499,15 @@ CONTAINS
 
 !   *** Print the atomic coordinates ***
 
-    CALL write_qs_particle_coordinates(particle_set,cell,globenv,error)
+    CALL write_qs_particle_coordinates(particle_set,cell,qs_env%input,error)
 
 !   *** Print the interatomic distances ***
 
-    CALL write_particle_distances(particle_set,cell,globenv,error)
-    CALL write_structure_data(particle_set,cell,globenv)
+    CALL write_particle_distances(particle_set,cell,qs_env%input,error)
 
 !   *** Initialize the atomic interaction radii ***
     CALL init_interaction_radii(dft_control%qs_control,cell,atomic_kind_set,&
-                                globenv,error)
+                                qs_env%input,error)
 
 !   *** Distribute molecules and atoms using the new data structures ***
 
@@ -711,10 +711,9 @@ CONTAINS
     END IF
 
 !   *** Some options require that all MOs are computed ... ***
-    print_dft_section =>  section_vals_get_subs_vals(globenv%input_file, &
-         "FORCE_EVAL%DFT%PRINT")
-    IF (BTEST(cp_print_key_should_output(logger%iter_info,print_dft_section,&
-            "MO/CARTESIAN",error=error),cp_p_file).OR.&
+
+    IF (BTEST(cp_print_key_should_output(logger%iter_info,dft_section,&
+            "PRINT%MO/CARTESIAN",error=error),cp_p_file).OR.&
         (scf_control%level_shift /= 0.0_dp).OR.(scf_control%eps_jacobi /= 0.0_dp)) THEN
        n_mo(1) = n_ao
        IF (n_mo(2) /= 0) n_mo(2) = n_ao

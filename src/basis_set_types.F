@@ -48,7 +48,8 @@ MODULE basis_set_types
                                              integer_to_string
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
-  USE input_section_types, only: section_vals_val_get
+  USE input_section_types, ONLY: section_vals_val_get,&
+                                 section_vals_type
   USE cp_output_handling,              ONLY: cp_print_key_unit_nr, &
                                              cp_print_key_finished_output,&
                                              cp_print_key_should_output,&
@@ -111,8 +112,7 @@ MODULE basis_set_types
             create_gto_from_sto_basis,&
             deallocate_sto_basis_set,&
             get_sto_basis_set,&
-            set_sto_basis_set,&
-            write_sto_basis_set
+            set_sto_basis_set
 
 ! *** Public data types ***
 
@@ -1173,7 +1173,7 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE write_aux_basis_set(aux_basis_set,globenv,error)
+  SUBROUTINE write_aux_basis_set(aux_basis_set,force_env_section,output_unit,error)
 
 !   Purpose: Write an auxiliary Gaussian-type orbital (GTO) basis set data set
 !            to the output unit.
@@ -1183,21 +1183,19 @@ CONTAINS
 !   ***************************************************************************
 
     TYPE(gto_basis_set_type), POINTER        :: aux_basis_set
-    TYPE(global_environment_type), &
-      pointer                             :: globenv
+    TYPE(section_vals_type), POINTER :: force_env_section
+    INTEGER, INTENT(in) :: output_unit
     TYPE(cp_error_type), INTENT(inout), &
          OPTIONAL                               :: error
 
     INTEGER                                  :: icgf, ico, ipgf, iset, &
-                                                ishell, output_unit
+                                                ishell
     TYPE(cp_logger_type), POINTER            :: logger
 
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
     IF (.NOT.BTEST(cp_print_key_should_output(logger%iter_info,&
-         globenv%input_file,"FORCE_EVAL%PRINT%KINDS/BASIS_SET",error=error),cp_p_file)) RETURN
-    output_unit = cp_print_key_unit_nr(logger,globenv%input_file,"FORCE_EVAL%PRINT%KINDS",&
-         extension=".Log",error=error)
+         force_env_section,"SUBSYS%PRINT%KINDS/BASIS_SET",error=error),cp_p_file)) RETURN
 
     IF (ASSOCIATED(aux_basis_set).AND.(output_unit>0)) THEN
        WRITE (UNIT=output_unit,FMT="(/,T4,A,T31,A30)")&
@@ -1241,14 +1239,12 @@ CONTAINS
        END DO
 
     END IF
-    CALL cp_print_key_finished_output(output_unit,logger,globenv%input_file,&
-         "FORCE_EVAL%PRINT%KINDS",error=error)
 
   END SUBROUTINE write_aux_basis_set
 
 ! *****************************************************************************
 
-  SUBROUTINE write_gto_basis_set(gto_basis_set,globenv,error)
+  SUBROUTINE write_gto_basis_set(gto_basis_set,output_unit,error)
 
 !   Purpose: Write a Gaussian-type orbital (GTO) basis set data set to the
 !            output unit.
@@ -1258,21 +1254,11 @@ CONTAINS
 !   ***************************************************************************
 
     TYPE(gto_basis_set_type), POINTER        :: gto_basis_set
-    TYPE(global_environment_type), &
-      pointer                             :: globenv
+    INTEGER, INTENT(in) :: output_unit
     TYPE(cp_error_type), INTENT(inout), &
          OPTIONAL                               :: error
 
-    INTEGER                                  :: ipgf, iset, ishell, &
-                                                output_unit
-    TYPE(cp_logger_type), POINTER            :: logger
-
-    NULLIFY(logger)
-    logger => cp_error_get_logger(error)
-    IF (.NOT.BTEST(cp_print_key_should_output(logger%iter_info,&
-         globenv%input_file,"FORCE_EVAL%PRINT%KINDS/BASIS_SET",error=error),cp_p_file)) RETURN
-    output_unit = cp_print_key_unit_nr(logger,globenv%input_file,"FORCE_EVAL%PRINT%KINDS",&
-         extension=".Log",error=error)
+    INTEGER                                  :: ipgf, iset, ishell
 
     IF (ASSOCIATED(gto_basis_set).AND.(output_unit>0)) THEN
        WRITE (UNIT=output_unit,FMT="(/,T4,A,T41,A40,/,/,T25,A))")&
@@ -1293,14 +1279,12 @@ CONTAINS
        END DO
 
     END IF
-    CALL cp_print_key_finished_output(output_unit,logger,globenv%input_file,&
-         "FORCE_EVAL%PRINT%KINDS",error=error)
-
+ 
   END SUBROUTINE write_gto_basis_set
 
 ! *****************************************************************************
 
-  SUBROUTINE write_orb_basis_set(orb_basis_set,globenv,error)
+  SUBROUTINE write_orb_basis_set(orb_basis_set,force_env_section,output_unit,error)
 
 !   Purpose: Write a Gaussian-type orbital (GTO) basis set data set to the
 !            output unit.
@@ -1310,21 +1294,19 @@ CONTAINS
 !   ***************************************************************************
 
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
-    TYPE(global_environment_type), &
-      pointer                             :: globenv
+    TYPE(section_vals_type), POINTER :: force_env_section
+    INTEGER, INTENT(in) :: output_unit
     TYPE(cp_error_type), INTENT(inout), &
          OPTIONAL                               :: error
 
     INTEGER                                  :: icgf, ico, ipgf, iset, &
-                                                ishell, output_unit
+                                                ishell
     TYPE(cp_logger_type), POINTER            :: logger
 
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
     IF (.NOT.BTEST(cp_print_key_should_output(logger%iter_info,&
-         globenv%input_file,"FORCE_EVAL%PRINT%KINDS/BASIS_SET",error=error),cp_p_file)) RETURN
-    output_unit = cp_print_key_unit_nr(logger,globenv%input_file,"FORCE_EVAL%PRINT%KINDS",&
-         extension=".Log",error=error)
+         force_env_section,"SUBSYS%PRINT%KINDS/BASIS_SET",error=error),cp_p_file)) RETURN
 
     IF (ASSOCIATED(orb_basis_set).AND.(output_unit>0)) THEN
        WRITE (UNIT=output_unit,FMT="(/,T4,A,T41,A40)")&
@@ -1364,8 +1346,6 @@ CONTAINS
        END DO
 
     END IF
-    CALL cp_print_key_finished_output(output_unit,logger,globenv%input_file,&
-         "FORCE_EVAL%PRINT%KINDS",error=error)
 
   END SUBROUTINE write_orb_basis_set
 
@@ -1527,48 +1507,6 @@ CONTAINS
 
   END SUBROUTINE set_sto_basis_set
 
-! *****************************************************************************
-
-  SUBROUTINE write_sto_basis_set(sto_basis_set,globenv,error)
-
-    TYPE(sto_basis_set_type), POINTER        :: sto_basis_set
-    TYPE(global_environment_type), &
-      pointer                             :: globenv
-    TYPE(cp_error_type), INTENT(inout), &
-         OPTIONAL                               :: error
-
-    INTEGER                                  :: ipgf, iset, ishell, &
-                                                output_unit
-    TYPE(cp_logger_type), POINTER            :: logger
-
-    NULLIFY(logger)
-    logger => cp_error_get_logger(error)
-    IF (.NOT.BTEST(cp_print_key_should_output(logger%iter_info,&
-         globenv%input_file,"FORCE_EVAL%PRINT%KINDS/BASIS_SET",error=error),cp_p_file)) RETURN
-    output_unit = cp_print_key_unit_nr(logger,globenv%input_file,"FORCE_EVAL%PRINT%KINDS",&
-         extension=".Log",error=error)
-
-    IF (ASSOCIATED(sto_basis_set).AND.(output_unit>0)) THEN
-       WRITE (UNIT=output_unit,FMT="(/,T4,A,T31,A50)")&
-            "- STO basis set information",&
-            ADJUSTR("STO basis set name: "//TRIM(sto_basis_set%name))
-       WRITE (UNIT=output_unit,FMT="(T51,A)") "   Shell     n   l    Exponent"
-
-       DO ishell=1,sto_basis_set%nshell
-          WRITE (UNIT=output_unit,&
-               FMT="(T51,I7,I7,I4,F12.6)")&
-               ishell,&
-               sto_basis_set%nq(ishell),&
-               sto_basis_set%lq(ishell),&
-               sto_basis_set%zet(ishell)
-       END DO
-    END IF
-    CALL cp_print_key_finished_output(output_unit,logger,globenv%input_file,&
-         "FORCE_EVAL%PRINT%KINDS",error=error)
-
-  END SUBROUTINE write_sto_basis_set
-
-! *****************************************************************************
 
   SUBROUTINE create_gto_from_sto_basis(sto_basis_set,gto_basis_set,ngauss,error)
 

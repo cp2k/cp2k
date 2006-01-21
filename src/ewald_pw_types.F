@@ -64,6 +64,10 @@ MODULE ewald_pw_types
   USE pw_poisson_types, ONLY: pw_poisson_type, pw_poisson_release, &
        pw_poisson_retain, pw_poisson_create
   USE pw_poisson_methods, only: pw_poisson_set
+  USE cp_output_handling,              ONLY: cp_print_key_unit_nr, &
+                                             cp_print_key_finished_output
+
+
 #include "cp_common_uses.h"
   IMPLICIT NONE
 
@@ -129,11 +133,12 @@ END SUBROUTINE ewald_pw_retain
 !!   MODIFICATION HISTORY
 !!
 !!*** **********************************************************************
-SUBROUTINE ewald_pw_create ( ewald_pw, cell, cell_ref, ewald_env, error )
+SUBROUTINE ewald_pw_create ( ewald_pw, cell, cell_ref, ewald_env, force_env_section, error )
   TYPE(ewald_pw_type), POINTER :: ewald_pw
   TYPE ( cell_type ), POINTER :: cell, cell_ref
   TYPE(ewald_environment_type), POINTER :: ewald_env
   TYPE(cp_error_type), OPTIONAL, INTENT ( inout ) :: error
+  TYPE(section_vals_type), POINTER :: force_env_section
 
 ! Locals 
   TYPE ( dg_type ), POINTER :: dg
@@ -157,7 +162,8 @@ SUBROUTINE ewald_pw_create ( ewald_pw, cell, cell_ref, ewald_env, error )
      ewald_pw%ref_count=1
      last_ewald_pw_id_nr=last_ewald_pw_id_nr+1
      ewald_pw%id_nr=last_ewald_pw_id_nr
-     CALL ewald_pw_init ( ewald_pw, cell, cell_ref, ewald_env, error )
+     CALL ewald_pw_init ( ewald_pw, cell, cell_ref, ewald_env, force_env_section,&
+          error=error )
   END IF
 END SUBROUTINE ewald_pw_create
 !***************************************************************************
@@ -229,7 +235,7 @@ END SUBROUTINE ewald_pw_create
 !!   SOURCE
 !!*****
 !******************************************************************************
-SUBROUTINE ewald_pw_init ( ewald_pw, cell, cell_ref, ewald_env, error )
+SUBROUTINE ewald_pw_init ( ewald_pw, cell, cell_ref, ewald_env, force_env_section, error )
   
   IMPLICIT NONE
 
@@ -238,6 +244,7 @@ SUBROUTINE ewald_pw_init ( ewald_pw, cell, cell_ref, ewald_env, error )
   TYPE ( ewald_pw_type ), POINTER :: ewald_pw
   TYPE ( cell_type ), POINTER :: cell, cell_ref
   TYPE ( cp_error_type ), OPTIONAL, INTENT ( inout ) :: error
+  TYPE(section_vals_type), POINTER :: force_env_section
   
 ! Locals
   INTEGER :: ns_max, o_spline, n, isos
@@ -247,7 +254,7 @@ SUBROUTINE ewald_pw_init ( ewald_pw, cell, cell_ref, ewald_env, error )
   INTEGER ::  iat, jat, gmax, npts_s ( 3 ), iw, output_unit, handle,stat
   REAL (KIND=dp) :: i, cutoff, ecut, alphasq, norm, cutoff_radius
   TYPE ( cp_para_env_type ), POINTER :: para_env
-  LOGICAL :: pw_grid_information, failure, ionode
+  LOGICAL :: failure
   TYPE ( cp_logger_type ), POINTER :: logger
   TYPE ( pw_pool_type ), POINTER :: pw_pool
   TYPE(pw_pool_p_type), DIMENSION(:), POINTER :: pw_pools
@@ -264,10 +271,8 @@ SUBROUTINE ewald_pw_init ( ewald_pw, cell, cell_ref, ewald_env, error )
   NULLIFY ( pw_big_grid )
   NULLIFY ( pw_small_grid, p3m_coeff, poisson_section )
   logger => cp_error_get_logger ( error )
-  pw_grid_information=logger%print_keys%pw_grid_information
-  ionode=(logger%para_env%mepos==logger%para_env%source)
-  output_unit=-1
-  IF (ionode) output_unit=cp_logger_get_default_unit_nr(logger)
+  output_unit = cp_print_key_unit_nr(logger,force_env_section,"PRINT%PW_GRID_INFORMATION",&
+         extension=".Log",error=error)
 
   CPPrecondition(ASSOCIATED ( ewald_pw ),cp_failure_level,routineP,error,failure)
   CPPrecondition(ASSOCIATED ( ewald_env ),cp_failure_level,routineP,error,failure)
@@ -287,8 +292,7 @@ SUBROUTINE ewald_pw_init ( ewald_pw, cell, cell_ref, ewald_env, error )
        CALL pw_grid_create( pw_big_grid, MPI_COMM_SELF )
        ! set up EWALD "Classic"
        IF ( gmax == 2 * ( gmax / 2 ) ) THEN
-          IF ( ionode ) &
-            CALL stop_program ( "initialize_ewalds", "gmax has to be odd" )
+          CALL stop_program ( "initialize_ewalds", "gmax has to be odd" )
        END IF
        pw_big_grid % bounds ( 1, : ) = -gmax / 2
        pw_big_grid % bounds ( 2, : ) = +gmax / 2
@@ -314,8 +318,7 @@ SUBROUTINE ewald_pw_init ( ewald_pw, cell, cell_ref, ewald_env, error )
        CALL pw_grid_create( pw_big_grid, para_env%group )
        ! set up PME, the double grid method
        IF ( ns_max == 2 * ( ns_max / 2 ) ) THEN
-          IF ( ionode ) &
-            CALL stop_program ( "initialize_ewalds", "ns_max has to be odd" )
+          CALL stop_program ( "initialize_ewalds", "ns_max has to be odd" )
        END IF
        npts_s ( : ) = ns_max
 ! compute cut-off radius
@@ -328,7 +331,7 @@ SUBROUTINE ewald_pw_init ( ewald_pw, cell, cell_ref, ewald_env, error )
                                 para_env,rs_dims=(/para_env%num_pe,1/),&
                                 error = error )
 ! Write some useful info
-       IF ( ionode ) THEN
+       IF ( output_unit > 0 ) THEN
          WRITE ( output_unit, '( A,T71,E10.4 )' ) &
             ' EWALD| Gaussian tolerance (effective) ', epsilon
          WRITE ( output_unit, '( A,T63,3I6 )' ) &
@@ -396,7 +399,8 @@ SUBROUTINE ewald_pw_init ( ewald_pw, cell, cell_ref, ewald_env, error )
     ewald_pw % cell => cell
     ewald_pw % cell_ref => cell_ref
   ENDIF
-
+  CALL cp_print_key_finished_output(output_unit,logger,force_env_section,&
+       "PRINT%PW_GRID_INFORMATION",error=error)  
   CALL timestop(0.0_dp,handle)
 
 END SUBROUTINE ewald_pw_init

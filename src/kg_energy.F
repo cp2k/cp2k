@@ -502,7 +502,7 @@ SUBROUTINE kg_qs_energies ( kg_env, globenv, error )
     CALL get_kg_env(kg_env=kg_env,&
                     sub_qs_env=qs_env)
 
-    CALL build_qs_neighbor_lists(qs_env,globenv,.TRUE.,error=error)
+    CALL build_qs_neighbor_lists(qs_env,globenv,.TRUE.,qs_env%input,error=error)
 
     ! Calculate the overlap and the core Hamiltonian integral matrix
     CALL build_core_hamiltonian_matrix(qs_env=qs_env,&

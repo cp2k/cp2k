@@ -192,7 +192,7 @@ CONTAINS
                               in_space = RECIPROCALSPACE, error=error)
 
     ! *** set up the rs multi-grids
-    CALL rs_pools_create_rs_vect(rs_pools, rs_rho, error=error)
+    CALL rs_pools_create_rs_vect(rs_pools, rs_rho, force_env_section=kg_env%input, error=error)
     DO igrid_level=1,gridlevel_info%ngrid_levels
        CALL rs_grid_zero(rs_rho(igrid_level)%rs_grid)
     END DO
@@ -426,7 +426,7 @@ CONTAINS
                     l_info=l_info,error=error)
     cube_info=>rspw%cube_info(1)
 
-    CALL rs_pool_create_rs(auxbas_rs_pool,rs_rho)
+    CALL rs_pool_create_rs(auxbas_rs_pool,rs_rho,force_env_section=kg_env%input,error=error)
     CALL rs_grid_zero(rs_rho)
 
     eps_rho_rspace = dft_control%qs_control%eps_rho_rspace
@@ -562,7 +562,7 @@ CONTAINS
                               in_space = RECIPROCALSPACE, error=error)
 
     ! *** set up the rs multi-grids
-    CALL rs_pools_create_rs_vect(rs_pools, rs_rho, error=error)
+    CALL rs_pools_create_rs_vect(rs_pools, rs_rho, force_env_section=kg_env%input, error=error)
     DO igrid_level=1,gridlevel_info%ngrid_levels
        CALL rs_grid_zero(rs_rho(igrid_level)%rs_grid)
     END DO
@@ -707,13 +707,15 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE calculate_epc_rspace_forces(v_rspace,kg_env)
+  SUBROUTINE calculate_epc_rspace_forces(v_rspace,kg_env,error)
    
 
 !   *** Arguments ***
 
     TYPE(coeff_type), INTENT(INOUT)          :: v_rspace
     TYPE(kg_environment_type), POINTER       :: kg_env
+    TYPE(cp_error_type), INTENT(inout), &
+         OPTIONAL                               :: error
 
     CHARACTER(LEN=*), PARAMETER :: &
       routine = "SUBROUTINE calculate_epc_rspace_forces (MODULE kg_density)"
@@ -762,7 +764,7 @@ CONTAINS
                     rspw=rspw) 
     CALL kg_rspw_get(kg_rspw=rspw,auxbas_rs_pool=auxbas_rs_pool)
 
-    CALL rs_pool_create_rs(auxbas_rs_pool,rs_v)
+    CALL rs_pool_create_rs(auxbas_rs_pool,rs_v,force_env_section=kg_env%input,error=error)
     CALL rs_pw_transfer(rs_v,v_rspace%pw,pw2rs)
 
     nkind = SIZE(atomic_kind_set)
@@ -948,7 +950,7 @@ CONTAINS
     CPPostcondition(stat==0,cp_failure_level,routine,error,failure)
 
     CALL kg_rspw_get(rspw, rs_pools=rs_pools)
-    CALL rs_pools_create_rs_vect(rs_pools, rs_v)
+    CALL rs_pools_create_rs_vect(rs_pools, rs_v, force_env_section=kg_env%input,error=error)
 
 
     DO igrid_level=1,gridlevel_info%ngrid_levels
@@ -1229,7 +1231,7 @@ CONTAINS
     CPPostcondition(stat==0,cp_failure_level,routine,error,failure)
 
     CALL kg_rspw_get(rspw, rs_pools=rs_pools)
-    CALL rs_pools_create_rs_vect(rs_pools, rs_v)
+    CALL rs_pools_create_rs_vect(rs_pools, rs_v,force_env_section=kg_env%input,error=error)
 
     DO igrid_level=1,gridlevel_info%ngrid_levels
        CALL rs_pw_transfer(rs_v(igrid_level)%rs_grid,mgrid_rspace(igrid_level)%pw,&

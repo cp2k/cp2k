@@ -39,8 +39,7 @@ MODULE cg_optimizer
   USE particle_types,                  ONLY: particle_type,&
                                              write_particle_distances,&
                                              write_qs_particle_coordinates,&
-                                             write_particle_coordinates,&
-                                             write_structure_data
+                                             write_particle_coordinates
   USE cell_types,                 ONLY: cell_type
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -50,6 +49,8 @@ MODULE cg_optimizer
   USE cp_files,                        ONLY: close_file,open_file
   USE memory_utilities,                ONLY: reallocate
   USE termination,                     ONLY: external_control
+  USE input_section_types, ONLY: section_vals_type, section_vals_get_subs_vals,&
+       section_vals_get, section_vals_val_get, section_vals_release
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -83,13 +84,14 @@ CONTAINS
 !!     10.2005 created [tlaino] 
 !!
 !!*** ********************************************************************** 
-  SUBROUTINE geoopt_cg(force_env,gopt_param,globenv,error)
+  SUBROUTINE geoopt_cg(force_env,gopt_param,globenv,force_env_section,error)
     IMPLICIT NONE
     ! Arguments
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(gopt_param_type), POINTER           :: gopt_param
     TYPE(global_environment_type), &
          POINTER                             :: globenv
+    TYPE(section_vals_type), POINTER :: force_env_section
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
     ! Local Variables
@@ -173,15 +175,13 @@ CONTAINS
                          unit_number=dataunit)
        END IF
 
-       CALL write_qs_particle_coordinates(particle_set,cell,globenv,error) 
-       CALL write_particle_distances(particle_set,cell,globenv,error)
-       CALL write_structure_data(particle_set,cell,globenv)
+       CALL write_qs_particle_coordinates(particle_set,cell,force_env_section,error) 
+       CALL write_particle_distances(particle_set,cell,force_env_section,error)
        
        CALL  cp_cg_main(force_env, x, gopt_param, ionode, output_unit, dataunit, &
-            globenv, error)
+            globenv, force_env_section, error)
 
-       CALL write_particle_distances(particle_set,cell,globenv,error)
-       CALL write_structure_data(particle_set,cell,globenv)
+       CALL write_particle_distances(particle_set,cell,force_env_section,error)
    
        DEALLOCATE(x, stat=stat)
        CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -315,12 +315,13 @@ CONTAINS
 !!
 !!*** **********************************************************************
   SUBROUTINE cp_cg_main(force_env, xvec, gopt_param, ionode, output_unit, dataunit,&
-       globenv, error)
+       globenv, force_env_section, error)
     IMPLICIT NONE
     ! Arguments
     TYPE(force_env_type), POINTER            :: force_env
     REAL(KIND=dp), DIMENSION(:), POINTER     :: xvec
     INTEGER, INTENT(IN)                      :: output_unit, dataunit
+    TYPE(section_vals_type), POINTER :: force_env_section
     LOGICAL, INTENT(IN)                      :: ionode
     TYPE(gopt_param_type), POINTER           :: gopt_param
     TYPE(global_environment_type), &
@@ -410,7 +411,7 @@ CONTAINS
              CALL write_particle_coordinates(particle_set,cell,dataunit,&
                                              dump_xmol,"POS",TRIM(title))
              CALL m_flush(dataunit)
-             CALL write_qs_particle_coordinates(particle_set,cell,globenv,error)
+             CALL write_qs_particle_coordinates(particle_set,cell,force_env_section,error)
           END IF
           IF (conv.OR.(its==maxiter))  EXIT
           CALL get_energy_and_gradients(force_env, xvec, opt_energy, xi,error=error)          

@@ -149,7 +149,8 @@ SUBROUTINE fist_force_control ( fist_env, virial, globenv, box_change, debug ,er
   TYPE ( ewald_environment_type ),   POINTER :: ewald_env
   REAL (KIND=dp), DIMENSION ( :,: ), ALLOCATABLE :: f_nonbond
   LOGICAL,SAVE :: first_time=.true.
-  TYPE(section_vals_type), POINTER         :: fist_section, print_section
+  TYPE(section_vals_type), POINTER         :: fist_section, print_section,&
+                                              force_env_section
   LOGICAL :: failure
   TYPE(cp_logger_type), POINTER            :: logger
 
@@ -157,15 +158,15 @@ SUBROUTINE fist_force_control ( fist_env, virial, globenv, box_change, debug ,er
   NULLIFY(logger)
   logger => cp_error_get_logger(error)
   CALL write_checkpoint_information("Entering "//routineN,globenv,error)
-  iw = cp_print_key_unit_nr(logger,globenv%input_file,"FORCE_EVAL%MM%PRINT%DERIVATIVES",&
-       extension=".mmLog",error=error)
   CALL timeset(routineN,'I','',handle)
 
   NULLIFY(fist_section,thermo,particle_set,local_molecules,local_particles,atomic_kind_set,&
           molecule_kind_set,molecule_set,fist_nonbond_env,cell,ewald_pw,ewald_env,fist_section,print_section)
   fist_section => section_vals_get_subs_vals(globenv%input_file,"FORCE_EVAL%MM",error=error)
-
+  force_env_section => section_vals_get_subs_vals(globenv%input_file,"FORCE_EVAL",error=error)
 ! associcating local pointers
+  iw = cp_print_key_unit_nr(logger,fist_section,"PRINT%DERIVATIVES",&
+       extension=".mmLog",error=error)
   CALL get_fist_env ( fist_env, ewald_pw = ewald_pw, ewald_env = ewald_env, &
                       local_particles = local_particles, particle_set = particle_set, &
                       atomic_kind_set = atomic_kind_set, molecule_set = molecule_set, &
@@ -192,7 +193,7 @@ SUBROUTINE fist_force_control ( fist_env, virial, globenv, box_change, debug ,er
 ! first check with list_control to update neighbor lists
 
   CALL list_control ( atomic_kind_set, particle_set, local_particles, &
-                      cell, fist_nonbond_env, globenv, error) 
+                      cell, fist_nonbond_env, globenv, force_env_section, error) 
 
 !
 ! initial force, energy and pressure tensor arrays
@@ -269,7 +270,7 @@ SUBROUTINE fist_force_control ( fist_env, virial, globenv, box_change, debug ,er
         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
         fg_coulomb = 0.0_dp
         CALL pme_evaluate ( ewald_env, ewald_pw, particle_set, &
-                            vg_coulomb, fg_coulomb, pv_g ,error)
+                            vg_coulomb, fg_coulomb, pv_g , force_env_section, error)
         CALL mp_sum ( fg_coulomb, globenv % group ) 
      CASE ( do_ewald_spme )
         ! Parallelisation over grids --> allocate all atoms
@@ -277,7 +278,7 @@ SUBROUTINE fist_force_control ( fist_env, virial, globenv, box_change, debug ,er
         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
         fg_coulomb = 0.0_dp
         CALL spme_evaluate ( ewald_env, ewald_pw, particle_set, &
-                             fg_coulomb, vg_coulomb, pv_g)
+                             fg_coulomb, vg_coulomb, pv_g, force_env_section, error)
         CALL mp_sum ( fg_coulomb, globenv % group ) 
         
      END SELECT
@@ -503,8 +504,8 @@ SUBROUTINE fist_force_control ( fist_env, virial, globenv, box_change, debug ,er
   first_time = .false.
   CALL timestop(0.0_dp,handle)
   CALL write_checkpoint_information("Leaving "//routineN,globenv,error)
-  CALL cp_print_key_finished_output(iw,logger,globenv%input_file,&
-       "FORCE_EVAL%MM%PRINT%DERIVATIVES",error=error)
+  CALL cp_print_key_finished_output(iw,logger,fist_section,&
+       "PRINT%DERIVATIVES",error=error)
 
 END SUBROUTINE fist_force_control
 

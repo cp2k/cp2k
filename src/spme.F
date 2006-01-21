@@ -65,6 +65,8 @@ MODULE spme
                                              timestop
   USE pw_poisson_types, ONLY: pw_poisson_type, greens_fn_type
   USE pw_poisson_methods, ONLY: pw_poisson_solve, pw_poisson_rebuild
+  USE input_section_types,             ONLY: section_vals_type
+
 #include "cp_common_uses.h"
   IMPLICIT NONE
 
@@ -93,7 +95,7 @@ CONTAINS
 !!*** *************************************************************************
 
 SUBROUTINE spme_evaluate ( ewald_env, ewald_pw, particle_set, &
-                           fg_coulomb, vg_coulomb, pv_g, error )
+                           fg_coulomb, vg_coulomb, pv_g, force_env_section,error )
 
 
     TYPE(particle_type), DIMENSION(:), &
@@ -104,6 +106,7 @@ SUBROUTINE spme_evaluate ( ewald_env, ewald_pw, particle_set, &
     TYPE(ewald_environment_type), POINTER    :: ewald_env
     TYPE ( ewald_pw_type ), POINTER          :: ewald_pw
     TYPE(cp_error_type), INTENT(inout), optional :: error
+    TYPE(section_vals_type), POINTER :: force_env_section
 
     INTEGER                                  :: handle, i, ierr, ipart, j, &
                                                 jpart, n, ndim( 3 ), npart, p1
@@ -145,7 +148,8 @@ SUBROUTINE spme_evaluate ( ewald_env, ewald_pw, particle_set, &
   ALLOCATE ( rhos ( n, n, n ), STAT = ierr )
   IF ( ierr /= 0 ) CALL stop_memory ( "spme_evaluate", "rhos", n**3 )
   ndim = n
-  CALL rs_grid_create ( rden, grid_spme, -MAXVAL ( ndim(1:3) ) )
+  CALL rs_grid_create ( rden, grid_spme, -MAXVAL ( ndim(1:3) ),&
+       force_env_section=force_env_section, error=error)
   rden % r = 0.0_dp
 
   ALLOCATE ( centre ( 3, npart ), STAT = ierr )
@@ -222,7 +226,8 @@ SUBROUTINE spme_evaluate ( ewald_env, ewald_pw, particle_set, &
 
   ! move derivative of potential to real space grid and
   ! multiply by charge function in g-space
-  CALL rs_grid_p_create ( drpot, 3, grid_spme, -MAXVAL ( ndim(1:3) ) )
+  CALL rs_grid_p_create ( drpot, 3, grid_spme, -MAXVAL ( ndim(1:3) ),&
+       force_env_section=force_env_section, error=error)
   DO i = 1, 3
      dphi_g ( i ) % pw % cc = dphi_g ( i ) % pw % cc * &
                               green % p3m_charge % cr

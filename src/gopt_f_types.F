@@ -315,8 +315,9 @@ END SUBROUTINE gopt_f_release
 !!     none
 !!
 !!*** **********************************************************************
-SUBROUTINE gopt_f_eval_at(gopt_env, x, f, gradient, master, para_env, error)
+SUBROUTINE gopt_f_eval_at(gopt_env, x, f, gradient, master, para_env, force_env_section, error)
     TYPE(gopt_f_type), POINTER               :: gopt_env
+    TYPE(section_vals_type), POINTER :: force_env_section    
     REAL(KIND=dp), DIMENSION(:), INTENT(in)  :: x
     REAL(KIND=dp), INTENT(out), OPTIONAL     :: f
     REAL(KIND=dp), DIMENSION(:), OPTIONAL, &
@@ -355,8 +356,8 @@ SUBROUTINE gopt_f_eval_at(gopt_env, x, f, gradient, master, para_env, error)
            particles%els(ip)%r(idir)=x(idg)*scale
         END DO
      END DO
-     CALL write_qs_particle_coordinates(particles%els,cell,gopt_env%globenv,error)
-     CALL write_particle_distances(particles%els,cell,gopt_env%globenv,error)
+     CALL write_qs_particle_coordinates(particles%els,cell,force_env_section,error)
+     CALL write_particle_distances(particles%els,cell,force_env_section,error)
   END DO
 
   CALL force_env_calc_energy_force(gopt_env%force_env,&

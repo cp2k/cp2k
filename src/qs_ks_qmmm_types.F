@@ -33,6 +33,7 @@ MODULE qs_ks_qmmm_types
                                              timestop
   USE cube_utils,                      ONLY: cube_info_type
   USE cube_utils,                      ONLY: destroy_cube_info
+  USE input_section_types,             ONLY: section_vals_type
   USE pw_env_types, ONLY: pw_env_type, pw_env_get, pw_env_release
 #include "cp_common_uses.h"
 
@@ -138,10 +139,11 @@ CONTAINS
 !!     05.2004 created [tlaino]
 !!
 !!*** **********************************************************************
-  SUBROUTINE qs_ks_qmmm_release(ks_qmmm_env,error)
+  SUBROUTINE qs_ks_qmmm_release(ks_qmmm_env,force_env_section,error)
     TYPE(qs_ks_qmmm_env_type), POINTER       :: ks_qmmm_env
     TYPE(cp_error_type), INTENT(inout), &
          OPTIONAL                               :: error
+    TYPE(section_vals_type), POINTER :: force_env_section
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_ks_qmmm_release', &
          routineP = moduleN//':'//routineN
@@ -159,7 +161,7 @@ CONTAINS
        IF (ks_qmmm_env%ref_count<1) THEN
           CALL pw_env_get(ks_qmmm_env%pw_env,auxbas_pw_pool=pool,error=error)
           CALL pw_pool_give_back_coeff(pool,ks_qmmm_env%v_qmmm_rspace,error=error)
-          CALL pw_env_release(ks_qmmm_env%pw_env,error=error)
+          CALL pw_env_release(ks_qmmm_env%pw_env,force_env_section,error=error)
           IF (ASSOCIATED(ks_qmmm_env%cube_info))THEN
              DO i=1,SIZE(ks_qmmm_env%cube_info)
                 CALL destroy_cube_info(ks_qmmm_env%cube_info(i))

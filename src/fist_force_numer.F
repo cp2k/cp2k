@@ -74,6 +74,8 @@ MODULE fist_force_numer
   USE splines,                         ONLY: spline_data_type
   USE termination,                     ONLY : stop_program, stop_memory
   USE timings,                         ONLY : timeset, timestop
+  USE input_section_types,             ONLY: section_vals_type
+#include "cp_common_uses.h"  
 
   PRIVATE
   PUBLIC :: force_bond_numer, force_bend_numer, force_torsion_numer, &
@@ -2145,13 +2147,17 @@ END SUBROUTINE force_g_numer
 !!   SOURCE
 !******************************************************************************
 
-SUBROUTINE pme_force_numer ( ewald_env, ewald_pw, particle_set, delta, f_part )
+SUBROUTINE pme_force_numer ( ewald_env, ewald_pw, particle_set, delta, f_part ,&
+     force_env_section, error)
   IMPLICIT NONE
   TYPE ( particle_type ), POINTER, DIMENSION ( : ) :: particle_set
   TYPE ( ewald_pw_type ), POINTER :: ewald_pw
   TYPE ( ewald_environment_type ), POINTER :: ewald_env
   REAL (KIND=dp), INTENT ( INOUT ), DIMENSION ( :, : ) :: f_part
   REAL (KIND=dp), INTENT ( IN ) :: delta
+  TYPE(section_vals_type), POINTER :: force_env_section
+  TYPE(cp_error_type), INTENT(inout), &
+       OPTIONAL                               :: error
 
 ! locals
   INTEGER :: natoms, i, id 
@@ -2161,9 +2167,11 @@ SUBROUTINE pme_force_numer ( ewald_env, ewald_pw, particle_set, delta, f_part )
   DO i = 1, natoms 
     DO id = 1, 3
       particle_set ( i ) % r ( id ) = particle_set ( i ) % r ( id ) + delta 
-      CALL pme_evaluate ( ewald_env, ewald_pw, particle_set, eplus )
+      CALL pme_evaluate ( ewald_env, ewald_pw, particle_set, eplus,&
+           force_env_section=force_env_section,error=error)
       particle_set ( i ) % r ( id ) = particle_set ( i ) % r ( id ) - 2.0_dp * delta 
-      CALL pme_evaluate ( ewald_env, ewald_pw, particle_set, eminus )
+      CALL pme_evaluate ( ewald_env, ewald_pw, particle_set, eminus,&
+           force_env_section=force_env_section,error=error )
       f_part ( id, i ) = eminus - eplus
       particle_set ( i ) % r ( id ) = particle_set ( i ) % r ( id ) + delta 
     ENDDO

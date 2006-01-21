@@ -624,15 +624,14 @@ CONTAINS
 
 !   ***************************************************************************
 
-  SUBROUTINE write_dft_control(dft_control,globenv, error)
+  SUBROUTINE write_dft_control(dft_control, dft_section, error)
 
     !   Purpose: Write the DFT control parameters to the output unit.
 
     !   ***************************************************************************
 
     TYPE(dft_control_type), POINTER          :: dft_control
-    TYPE(global_environment_type), &
-      pointer                                :: globenv
+    TYPE(section_vals_type), POINTER :: dft_section
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -653,12 +652,12 @@ CONTAINS
     logger => cp_error_get_logger(error)
     
     
-    output_unit = cp_print_key_unit_nr(logger,globenv%input_file,&
-         "FORCE_EVAL%DFT%PRINT%DFT_CONTROL_PARAMETERS",extension=".Log",error=error)
+    output_unit = cp_print_key_unit_nr(logger,dft_section,&
+         "PRINT%DFT_CONTROL_PARAMETERS",extension=".Log",error=error)
     IF (output_unit>0) THEN
-       xc_section => section_vals_get_subs_vals(globenv%input_file,&
-            "FORCE_EVAL%DFT%XC",error=error)
-       CALL section_vals_val_get(globenv%input_file,"FORCE_EVAL%DFT%LSD",&
+       xc_section => section_vals_get_subs_vals(dft_section,&
+            "XC",error=error)
+       CALL section_vals_val_get(dft_section,"LSD",&
             l_val=lsd,error=error)
        IF (dft_control%forces) THEN
           WRITE (UNIT=output_unit,FMT="(/,T2,A,T78,A)")&
@@ -762,22 +761,21 @@ CONTAINS
           END DO
        END IF
     END IF
-    CALL cp_print_key_finished_output(output_unit,logger,globenv%input_file,&
-         "FORCE_EVAL%DFT%PRINT%DFT_CONTROL_PARAMETERS",error=error)
+    CALL cp_print_key_finished_output(output_unit,logger,dft_section,&
+         "PRINT%DFT_CONTROL_PARAMETERS",error=error)
     
   END SUBROUTINE write_dft_control
 
 ! *****************************************************************************
 
-  SUBROUTINE write_qs_control(qs_control,globenv,error)
+  SUBROUTINE write_qs_control(qs_control,dft_section,error)
 
 !   Purpose: Write the DFT control parameters to the output unit.
 
 !   ***************************************************************************
 
     TYPE(qs_control_type), INTENT(IN)        :: qs_control
-    TYPE(global_environment_type), &
-      pointer                             :: globenv
+    TYPE(section_vals_type), POINTER :: dft_section
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -789,11 +787,10 @@ CONTAINS
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
         
-    output_unit = cp_print_key_unit_nr(logger,globenv%input_file,&
-         "FORCE_EVAL%DFT%PRINT%DFT_CONTROL_PARAMETERS",extension=".Log",error=error)
+    output_unit = cp_print_key_unit_nr(logger, dft_section,&
+         "PRINT%DFT_CONTROL_PARAMETERS",extension=".Log",error=error)
     IF (output_unit>0) THEN
       ngrid_level = SIZE(qs_control%e_cutoff)
-      output_unit = globenv%scr
       WRITE (UNIT=output_unit,FMT="(/,T2,A,T71,A)")&
         "QS| Method:",ADJUSTR(qs_control%method)
       IF ( qs_control% pw_grid_opt % spherical ) THEN
@@ -945,8 +942,8 @@ CONTAINS
          END SELECT
       END IF
     END IF
-    CALL cp_print_key_finished_output(output_unit,logger,globenv%input_file,&
-         "FORCE_EVAL%DFT%PRINT%DFT_CONTROL_PARAMETERS",error=error)
+    CALL cp_print_key_finished_output(output_unit,logger,dft_section,&
+         "PRINT%DFT_CONTROL_PARAMETERS",error=error)
   END SUBROUTINE write_qs_control
 
 ! *****************************************************************************

@@ -296,7 +296,7 @@ CONTAINS
           WRITE(iw,'(A,I6)')" Number of QM atoms: ",qmmm_env_qm%num_qm_atoms 
           WRITE(iw,'(A,I6)')" Number of MM atoms: ",qmmm_env_qm%num_mm_atoms
           WRITE(iw,'(A)')" QM cell ::"
-          CALL write_cell(qm_cell_small, globenv, error)
+          CALL write_cell(qm_cell_small, force_env_section, error)
        END IF
        CALL get_cell(qm_cell_small, abc=abc)
        !
@@ -350,7 +350,7 @@ CONTAINS
             big_subsys=subsys_mm,small_para_env=para_env,&
             small_cell=qm_cell_small,sub_atom_index=qm_atom_index,&
             sub_subsys_index=qm_subsys_index,&
-            sub_atom_kind_name=qm_atom_type, globenv=globenv,error=error)
+            sub_atom_kind_name=qm_atom_type, globenv=globenv,force_env_section=force_env_section,error=error)
        CALL quickstep_create_force_env(sub_force_env(2)%force_env,globenv,subsystem=subsys_qm,&
             cell=qm_cell_small, qmmm=.TRUE., error=error)
        CALL cp_subsys_release(subsys_qm,error=error)

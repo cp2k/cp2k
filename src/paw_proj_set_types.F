@@ -44,6 +44,8 @@ MODULE paw_proj_set_types
                                              cp_print_key_finished_output,&
                                              cp_print_key_should_output,&
                                              cp_p_file
+  USE input_section_types, ONLY: section_vals_type, section_vals_get_subs_vals,&
+       section_vals_get, section_vals_val_get, section_vals_release  
 #include "cp_common_uses.h"
  
 ! *****************************************************************************
@@ -268,7 +270,8 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE projectors(paw_proj,orb_basis,rc,qs_control,max_rad_local_type,globenv,error)
+  SUBROUTINE projectors(paw_proj,orb_basis,rc,qs_control,max_rad_local_type,&
+       force_env_section,error)
 
 !   Purpose: initialize the projector-type set data set.
 
@@ -277,7 +280,7 @@ CONTAINS
     TYPE(paw_proj_set_type),  POINTER         :: paw_proj
     TYPE(gto_basis_set_type), POINTER         :: orb_basis
     TYPE(qs_control_type), INTENT(IN)         :: qs_control
-    TYPE(global_environment_type), pointer :: globenv
+    TYPE(section_vals_type), POINTER :: force_env_section
     REAL(dp)                                  :: rc
     REAL(dp), INTENT(IN)                      :: max_rad_local_type
     TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
@@ -302,14 +305,14 @@ CONTAINS
     eps_orb =  qs_control%eps_pgf_orb
 
     CALL build_projector(paw_proj,orb_basis,eps_fit,eps_iso,eps_svd, &  
-                                     rc,eps_orb,max_rad_local,globenv,error)
+                                     rc,eps_orb,max_rad_local,force_env_section,error)
 
   END SUBROUTINE  projectors
 
 ! *****************************************************************************
 
   SUBROUTINE build_projector(paw_proj,orb_basis,eps_fit,eps_iso,eps_svd, &
-                   rc,eps_orb,max_rad_local,globenv,error)
+                   rc,eps_orb,max_rad_local,force_env_section,error)
 
 !   Purpose: initialize the projector-type set data set.
 
@@ -319,7 +322,7 @@ CONTAINS
     TYPE(paw_proj_set_type),  POINTER :: paw_proj
     REAL(dp), INTENT(IN)              :: eps_fit,eps_iso,rc,eps_svd
     REAL(dp), INTENT(IN)              :: eps_orb, max_rad_local
-    TYPE(global_environment_type), pointer :: globenv
+    TYPE(section_vals_type), POINTER :: force_env_section
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -394,8 +397,8 @@ CONTAINS
     CPPostcondition(istat==0,cp_failure_level,routine,error,failure)
     paw_proj%nprj(0:maxl) = 0
 
-    output_unit = cp_print_key_unit_nr(logger,globenv%input_file,&
-         "FORCE_EVAL%PRINT%KINDS/BASIS_SET",extension=".Log",error=error)
+    output_unit = cp_print_key_unit_nr(logger,force_env_section,&
+         "SUBSYS%PRINT%KINDS/BASIS_SET",extension=".Log",error=error)
     
     IF (output_unit>0) THEN
        WRITE (UNIT=output_unit,FMT="(/,T2,A)")&
@@ -628,8 +631,8 @@ CONTAINS
       CPPostcondition(istat==0,cp_failure_level,routine,error,failure)
 
     ENDDO                 ! lshell
-    CALL cp_print_key_finished_output(output_unit,logger,globenv%input_file,&
-         "FORCE_EVAL%PRINT%KINDS/BASIS_SET",error=error)
+    CALL cp_print_key_finished_output(output_unit,logger,force_env_section,&
+         "SUBSYS%PRINT%KINDS/BASIS_SET",error=error)
 
 !   *** Release the working storage for the current value lshell ***
     DEALLOCATE(set_radius,STAT=istat)

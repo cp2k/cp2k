@@ -53,6 +53,8 @@ MODULE molecule_kind_types
                                              cp_print_key_finished_output,&
                                              cp_print_key_should_output,&
                                              cp_p_file
+  USE input_section_types, ONLY: section_vals_type, section_vals_get_subs_vals,&
+       section_vals_get, section_vals_val_get, section_vals_release
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -886,7 +888,7 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE write_molecule_kind(molecule_kind,globenv,output_unit,error)
+  SUBROUTINE write_molecule_kind(molecule_kind,output_unit,error)
 
 !   Purpose: Write a molecule kind data set to the output unit.
 
@@ -895,18 +897,20 @@ CONTAINS
 !   ***************************************************************************
 
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
-    TYPE(global_environment_type), &
-      pointer                             :: globenv
+
     TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
     INTEGER, INTENT(in) :: output_unit
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "write_molecule_kind"
+    CHARACTER(len=*), PARAMETER :: routineN = 'write_molecule_kind', &
+      routineP = module_name//':'//routineN
 
     CHARACTER(LEN=default_string_length)     :: name
     INTEGER                                  :: iatom, imolecule, natom, &
                                                 nmolecule
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cp_logger_type), POINTER            :: logger
+    logical :: failure
 
+    failure = .FALSE.
     NULLIFY(logger)
     logger => cp_error_get_logger(error)       
     IF (output_unit>0) THEN
@@ -941,12 +945,8 @@ CONTAINS
         WRITE (UNIT=output_unit,FMT="(1X,A30,I6)")&
           "Number of one-four:    ",molecule_kind%nonfo
 
-      ELSE
-
-        CALL stop_program(routine_name,module_name,__LINE__,&
-                          "The pointer molecule_kind is not associated",&
-                          globenv)
-
+      ELSE         
+          CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
       END IF
 
     END IF
@@ -954,7 +954,7 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE write_molecule_kind_set(molecule_kind_set,globenv,error)
+  SUBROUTINE write_molecule_kind_set(molecule_kind_set,force_env_section,error)
 
 !   Purpose: Write a moleculeatomic kind set data set to the output unit.
 
@@ -964,22 +964,24 @@ CONTAINS
 
     TYPE(molecule_kind_type), DIMENSION(:), &
       POINTER                                :: molecule_kind_set
-    TYPE(global_environment_type), &
-      pointer                             :: globenv
-    TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "write_molecule_kind_set"
+    TYPE(section_vals_type), POINTER :: force_env_section
+    TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
+    CHARACTER(len=*), PARAMETER :: routineN = 'write_molecule_kind_set', &
+         routineP = module_name//':'//routineN
 
     INTEGER                                  :: imolecule_kind, &
                                                 nmolecule_kind, output_unit
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
     INTEGER                                  :: nbond,nbend,nub,ntors,nimpr,nonfo
     TYPE(cp_logger_type), POINTER            :: logger
+    logical :: failure
 
+    failure = .FALSE.
     NULLIFY(logger)
     logger => cp_error_get_logger(error)       
-    output_unit = cp_print_key_unit_nr(logger,globenv%input_file,&
-         "FORCE_EVAL%PRINT%KINDS/KIND_INFORMATION",extension=".Log",error=error)
+    output_unit = cp_print_key_unit_nr(logger,force_env_section,&
+         "SUBSYS%PRINT%MOLECULES",extension=".Log",error=error)
     IF (output_unit>0) THEN
       IF (ASSOCIATED(molecule_kind_set)) THEN
         WRITE (UNIT=output_unit,FMT="(/,/,T2,A)") "MOLECULE KIND INFORMATION"
@@ -988,7 +990,7 @@ CONTAINS
 
         DO imolecule_kind=1,nmolecule_kind
           molecule_kind => molecule_kind_set(imolecule_kind)
-          CALL write_molecule_kind(molecule_kind,globenv,output_unit,error)
+          CALL write_molecule_kind(molecule_kind,output_unit,error)
         END DO
 
 
@@ -1013,16 +1015,12 @@ CONTAINS
         WRITE (UNIT=output_unit,FMT="(1X,A30,I6)")&
           "Total Number of one-four:    ",nonfo
       ELSE
-
-        CALL stop_program(routine_name,module_name,__LINE__,&
-                          "The pointer molecule_kind_set is not associated",&
-                        globenv)
-
+         CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
       END IF
 
     END IF
-    CALL cp_print_key_finished_output(output_unit,logger,globenv%input_file,&
-         "FORCE_EVAL%PRINT%KINDS/KIND_INFORMATION",error=error)
+    CALL cp_print_key_finished_output(output_unit,logger,force_env_section,&
+         "SUBSYS%PRINT%MOLECULES",error=error)
   END SUBROUTINE write_molecule_kind_set
 
 ! *****************************************************************************

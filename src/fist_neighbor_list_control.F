@@ -40,7 +40,8 @@ MODULE fist_neighbor_list_control
   USE termination,                     ONLY: stop_memory
   USE timings,                         ONLY: timeset,&
                                              timestop
-
+  USE input_section_types, ONLY: section_vals_type, section_vals_get_subs_vals,&
+       section_vals_get, section_vals_val_get, section_vals_release
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -64,7 +65,7 @@ CONTAINS
 ! list update, then the list routine is called.
 
 SUBROUTINE list_control ( atomic_kind_set, particle_set, local_particles, &
-                          cell, fist_nonbond_env, globenv, error)
+                          cell, fist_nonbond_env, globenv, force_env_section, error)
 
     TYPE(atomic_kind_type), POINTER          :: atomic_kind_set( : )
     TYPE(particle_type), POINTER             :: particle_set( : )
@@ -75,6 +76,7 @@ SUBROUTINE list_control ( atomic_kind_set, particle_set, local_particles, &
       pointer                             :: globenv
     TYPE(cp_error_type), INTENT(inout), &
          OPTIONAL                               :: error
+    TYPE(section_vals_type), POINTER :: force_env_section
 
     CHARACTER(LEN=*), PARAMETER              :: routine_name = "list_control"
 
@@ -166,7 +168,8 @@ SUBROUTINE list_control ( atomic_kind_set, particle_set, local_particles, &
     CALL build_fist_neighbor_lists(atomic_kind_set,particle_set,&
                                    local_particles,cell,rlist_cutsq,&
                                    nonbonded,globenv,&
-                                   build_from_scratch=build_from_scratch, error=error)
+                                   build_from_scratch=build_from_scratch,&
+                                   force_env_section=force_env_section,error=error)
 
     IF ( counter > 0 ) THEN
       num_update = num_update + 1

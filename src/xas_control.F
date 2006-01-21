@@ -329,10 +329,10 @@ CONTAINS
 !!
 !!   SOURCE
 !!*** **********************************************************************
-  SUBROUTINE write_xas_control(xas_control,globenv, error)
+  SUBROUTINE write_xas_control(xas_control,dft_section, error)
 
     TYPE(xas_control_type)                   :: xas_control
-    TYPE(global_environment_type)            :: globenv
+    TYPE(section_vals_type), POINTER :: dft_section
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -346,8 +346,8 @@ CONTAINS
 !   ---------------------------------------------------------------------------
 
     logger => cp_error_get_logger(error)
-    output_unit = cp_print_key_unit_nr(logger,globenv%input_file,&
-         "FORCE_EVAL%DFT%PRINT%DFT_CONTROL_PARAMETERS",extension=".Log",error=error)
+    output_unit = cp_print_key_unit_nr(logger,dft_section,&
+         "PRINT%DFT_CONTROL_PARAMETERS",extension=".Log",error=error)
     IF (output_unit>0) THEN
       SELECT CASE(xas_control%xas_method)
         CASE(xas_tp_hh)
@@ -376,8 +376,8 @@ CONTAINS
              error,failure)
       END SELECT
     END IF
-    CALL cp_print_key_finished_output(output_unit,logger,globenv%input_file,&
-         "FORCE_EVAL%DFT%PRINT%DFT_CONTROL_PARAMETERS",error=error)
+    CALL cp_print_key_finished_output(output_unit,logger,dft_section,&
+         "PRINT%DFT_CONTROL_PARAMETERS",error=error)
   END SUBROUTINE write_xas_control
 
 !****f* xas_control/xas_control_create/retain/release *

@@ -316,13 +316,6 @@ SUBROUTINE qs_ep_calculation(qs_env,globenv, error)
           long_description=debug_this_module, local=.FALSE.,&
           error=error)
 
-!FM     DO ispin=1,nspins
-!FM        CALL cp_sm_output(logger=logger, &
-!FM             outputName="ep_ks-"//cp_to_string(ispin), &
-!FM             fromWhere=routineP, iter=0, &
-!FM             matrix=ep_env%main_qs_env%matrix_ks(ispin)%matrix,&
-!FM             para_env=ep_env%main_qs_env%para_env,error=error)
-!FM     END DO
   END IF
 
   CALL get_qs_env(ep_env%main_qs_env, energy=energy, error=error)
@@ -359,32 +352,34 @@ SUBROUTINE qs_ep_calculation(qs_env,globenv, error)
           local=.FALSE., error=error)
   END IF
   
-  IF (BTEST(cp_print_key_should_output(logger%iter_info,globenv%input_file,&
-       "FORCE_EVAL%DFT%PRINT%EP_RHO_CUBE/RHO1",error=error),cp_p_file) ) THEN
-     unit_nr=cp_print_key_unit_nr(logger,globenv%input_file,"FORCE_EVAL%DFT%PRINT%EP_RHO_CUBE",&
+  IF (BTEST(cp_print_key_should_output(logger%iter_info,qs_env%input,&
+       "DFT%PRINT%EP_RHO_CUBE/RHO1",error=error),cp_p_file) ) THEN
+     unit_nr=cp_print_key_unit_nr(logger,qs_env%input,"DFT%PRINT%EP_RHO_CUBE",&
           extension=".cube",middle_name="rho1",log_filename=.FALSE.,error=error)
      CALL rs_pw_to_cube ( ep_env%main_p_env%rho1%rho_r(1)%pw, iunit=file_unit,&
           ionode=logger%para_env%mepos==logger%para_env%source,&
-          title="rho1",stride=section_get_ival(globenv%input_file,"FORCE_EVAL%DFT%PRINT%EP_RHO_CUBE"))
-     CALL cp_print_key_finished_output(unit_nr,logger,globenv%input_file,&
-          "FORCE_EVAL%DFT%PRINT%EP_RHO_CUBE/RHO1",error=error)
+          title="rho1",stride=section_get_ival(qs_env%input,"DFT%PRINT%EP_RHO_CUBE"),&
+          force_env_section=qs_env%input,error=error)
+     CALL cp_print_key_finished_output(unit_nr,logger,qs_env%input,&
+          "DFT%PRINT%EP_RHO_CUBE/RHO1",error=error)
   END IF
 
-  IF (BTEST(cp_print_key_should_output(logger%iter_info,globenv%input_file,&
-       "FORCE_EVAL%DFT%PRINT%EP_RHO_CUBE/RHO0",error=error),cp_p_file) ) THEN
-     unit_nr=cp_print_key_unit_nr(logger,globenv%input_file,"FORCE_EVAL%DFT%PRINT%EP_RHO_CUBE",&
+  IF (BTEST(cp_print_key_should_output(logger%iter_info,qs_env%input,&
+       "DFT%PRINT%EP_RHO_CUBE/RHO0",error=error),cp_p_file) ) THEN
+     unit_nr=cp_print_key_unit_nr(logger,qs_env%input,"DFT%PRINT%EP_RHO_CUBE",&
           extension=".cube",middle_name="rho0",log_filename=.FALSE.,error=error)
      CALL rs_pw_to_cube ( ep_env%main_qs_env%rho%rho_r(1)%pw, iunit=unit_nr,&
           ionode=logger%para_env%mepos==logger%para_env%source,&
-          title="rho0",stride=section_get_ival(globenv%input_file,"FORCE_EVAL%DFT%PRINT%EP_RHO_CUBE"))
-     CALL cp_print_key_finished_output(unit_nr,logger,globenv%input_file,&
-          "FORCE_EVAL%DFT%PRINT%EP_RHO_CUBE/RHO0",error=error)
+          title="rho0",stride=section_get_ival(qs_env%input,"DFT%PRINT%EP_RHO_CUBE"),&
+          force_env_section=qs_env%input,error=error)
+     CALL cp_print_key_finished_output(unit_nr,logger,qs_env%input,&
+          "DFT%PRINT%EP_RHO_CUBE/RHO0",error=error)
   END IF
 
   IF (print_ep_matrixes) THEN
      CALL kpp1_write(kpp1_env=ep_env%main_p_env%kpp1_env,&
           unit_nr=unit_nr, long_description=.TRUE., local=.FALSE.,&
-          error=error)
+          force_env_section=qs_env%input, error=error)
      CALL p_env_write(ep_env%main_p_env,unit_nr=unit_nr,&
           long_description=debug_this_module, local=.FALSE.,&
           error=error)
@@ -567,7 +562,7 @@ END SUBROUTINE qs_ep_calculation
           nelectron = nelectron-dft_control%charge
           
           IF (BTEST(cp_print_key_should_output(logger%iter_info,main_qs_env%input,&
-               "FORCE_EVAL%DFT%PRINT%MO",error=error),cp_p_file).OR.&
+               "DFT%PRINT%MO",error=error),cp_p_file).OR.&
                (scf_control%level_shift /= 0.0_dp).OR.&
                (scf_control%smear /= 0.0_dp).OR.&
                (scf_control%eps_jacobi /= 0.0_dp)) THEN
@@ -732,7 +727,7 @@ SUBROUTINE ep_env_finish_qs_init(qs_env,globenv,error)
 
   CALL timeset(routineN,"I","",handle)
 
-  CALL build_qs_neighbor_lists(qs_env,globenv,error=error)
+  CALL build_qs_neighbor_lists(qs_env,globenv,force_env_section=qs_env%input,error=error)
 
 ! *** Calculate the overlap and the core Hamiltonian integral matrix ***
 

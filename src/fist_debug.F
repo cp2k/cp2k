@@ -63,6 +63,9 @@ MODULE fist_debug
                                              do_ewald_ewald,&
                                              do_ewald_pme,&
                                              do_ewald_spme
+  USE input_section_types,             ONLY: section_vals_type,&
+                                             section_vals_get_subs_vals
+  
 #include "cp_common_uses.h"
   IMPLICIT NONE
 
@@ -132,6 +135,7 @@ SUBROUTINE  debug_control ( force_env, globenv, error)
   REAL (KIND=dp), DIMENSION ( :, : ), ALLOCATABLE :: rel, diff
   LOGICAL, PARAMETER :: box_change = .FALSE.
   LOGICAL :: ionode
+  TYPE(section_vals_type), POINTER :: force_env_section  
 
   ionode = globenv % ionode
   group  = globenv % group
@@ -143,7 +147,8 @@ SUBROUTINE  debug_control ( force_env, globenv, error)
                       local_molecules = local_molecules, &
                       molecule_kind_set = molecule_kind_set, &
                       fist_nonbond_env = fist_nonbond_env, cell = cell )
-
+  NULLIFY(force_env_section)
+  force_env_section =>section_vals_get_subs_vals(globenv%input_file,"FORCE_EVAL",error=error)
 
   CALL fist_nonbond_env_get ( fist_nonbond_env, potparm = potparm )
   CALL ewald_env_get ( ewald_env, ewald_type = ewald_type )
@@ -880,7 +885,8 @@ SUBROUTINE  debug_control ( force_env, globenv, error)
     CALL mp_sum ( dbg % f_g, group )    
   CASE ( do_ewald_pme )
     f_numer = 0.0_dp
-    CALL pme_force_numer ( ewald_env, ewald_pw, particle_set, delta, f_numer )
+    CALL pme_force_numer ( ewald_env, ewald_pw, particle_set, delta, f_numer,&
+         force_env_section=force_env_section, error=error)
   CASE ( do_ewald_spme )
     CALL stop_program ( "fist_debug", " NO SPME debug routines " )
   END SELECT

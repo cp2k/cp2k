@@ -44,6 +44,7 @@ MODULE cp_rs_pool_types
                                              rs_grid_release
   USE timings,                         ONLY: timeset,&
                                              timestop
+  USE input_section_types,             ONLY: section_vals_type
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -356,12 +357,12 @@ CONTAINS
 !!     08.2002 created [fawzi]
 !!
 !!*** **********************************************************************
-  SUBROUTINE rs_pool_create_rs(pool, element,&
-        error)
+  SUBROUTINE rs_pool_create_rs(pool, element, force_env_section, error)
     TYPE(cp_rs_pool_type), POINTER           :: pool
     TYPE(realspace_grid_type), POINTER       :: element
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
+    TYPE(section_vals_type), POINTER :: force_env_section
 
     CHARACTER(len=*), PARAMETER :: routineN = 'rs_pool_create_rs', &
       routineP = moduleN//':'//routineN
@@ -380,7 +381,7 @@ CONTAINS
        ELSE
           NULLIFY(element)
           CALL rs_grid_create(element,pw_grid=pool%el_struct,&
-         nsmax=pool%nsmax,error=error)
+         nsmax=pool%nsmax,force_env_section=force_env_section, error=error)
        END IF
        
     END IF
@@ -416,13 +417,14 @@ CONTAINS
 !!
 !!*** **********************************************************************
   SUBROUTINE rs_pool_create_rs_vect(pool, n_elements,&
-       elements,  error)
+       elements,  force_env_section, error)
     TYPE(cp_rs_pool_type), POINTER           :: pool
     INTEGER, INTENT(in)                      :: n_elements
     TYPE(realspace_grid_p_type), &
       DIMENSION(:), POINTER                  :: elements
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
+    TYPE(section_vals_type), POINTER :: force_env_section
 
     CHARACTER(len=*), PARAMETER :: routineN = 'rs_pool_create_rs_vect', &
       routineP = moduleN//':'//routineN
@@ -439,9 +441,8 @@ CONTAINS
     IF (.NOT.failure) THEN
        DO i=1,n_elements
           NULLIFY(elements(i)%rs_grid)
-          CALL rs_pool_create_rs(pool,elements(i)%rs_grid,error=error)
-!          CALL rs_pool_create_rs(pool,elements(i)%rs_grid,&
-!                error=error)
+          CALL rs_pool_create_rs(pool,elements(i)%rs_grid,&
+               force_env_section=force_env_section,error=error)
        END DO
        
     END IF
@@ -790,15 +791,15 @@ END SUBROUTINE rs_pools_flush_cache
 !!     09.2002 created [fawzi]
 !!
 !!*** **********************************************************************
-SUBROUTINE rs_pools_create_rs_vect(pools,elements,&
-     error)
+SUBROUTINE rs_pools_create_rs_vect(pools,elements,force_env_section, error)
     TYPE(cp_rs_pool_p_type), DIMENSION(:), &
       POINTER                                :: pools
     TYPE(realspace_grid_p_type), &
       DIMENSION(:), POINTER                  :: elements
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
-
+    TYPE(section_vals_type), POINTER :: force_env_section
+    
     CHARACTER(len=*), PARAMETER :: routineN = 'rs_pools_create_rs_vect', &
       routineP = moduleN//':'//routineN
 
@@ -818,9 +819,8 @@ SUBROUTINE rs_pools_create_rs_vect(pools,elements,&
      DO i=1,SIZE(pools)
         NULLIFY(elements(i)%rs_grid)
         pool => pools(i)%pool
-        CALL rs_pool_create_rs(pool,elements(i)%rs_grid,error=error)
-!           CALL rs_pool_create_type(realspace_grid_type)(pools(i)%pool,&
-!               elements(i)%rs_grid,error=error)
+        CALL rs_pool_create_rs(pool,elements(i)%rs_grid,&
+             force_env_section=force_env_section,error=error)
      END DO
      
   END IF

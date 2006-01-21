@@ -44,6 +44,8 @@ MODULE qs_kpp1_env_types
                                              xc_dset_release
   USE xc_rho_set_types,                ONLY: xc_rho_set_type,&
                                              xc_rho_set_release
+  USE input_section_types,             ONLY: section_vals_type
+
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -308,12 +310,13 @@ CONTAINS
 !!
 !!*** **********************************************************************
   SUBROUTINE kpp1_write(kpp1_env, unit_nr, long_description, local,&
-       error)
+       force_env_section, error)
     TYPE(qs_kpp1_env_type), POINTER          :: kpp1_env
     INTEGER, INTENT(in)                      :: unit_nr
     LOGICAL, INTENT(in), OPTIONAL            :: long_description, local
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
+    TYPE(section_vals_type), POINTER :: force_env_section
 
     CHARACTER(len=*), PARAMETER :: routineN = 'kpp1_write', &
       routineP = moduleN//':'//routineN
@@ -370,7 +373,9 @@ CONTAINS
                    CALL rs_pw_to_cube ( kpp1_env%v_rspace(ispin)%pw,&
                         iunit=file_unit,&
                         ionode=logger%para_env%mepos==logger%para_env%source,&
-                        title="v_rspace")
+                        title="v_rspace",&
+                        force_env_section=force_env_section,&
+                        error=error)
                    CALL close_file(file_unit)
                 END DO
                 WRITE (unit=my_unit_nr,fmt="(a,a,a)") " v_rspace=*written to ",&
@@ -419,7 +424,9 @@ CONTAINS
                       CALL rs_pw_to_cube ( kpp1_env%v_rspace(ispin)%pw,&
                            iunit=file_unit,&
                            ionode=logger%para_env%mepos==logger%para_env%source,&
-                           title="drho_r")
+                           title="drho_r",&
+                           force_env_section=force_env_section,&
+                           error=error)
                       CALL close_file(file_unit)
                    END DO
                 END DO

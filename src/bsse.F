@@ -381,7 +381,7 @@ CONTAINS
           CALL create_small_subsystem(subsys_loc, big_subsys=subsys,&
                small_para_env=para_env, small_cell=cell,sub_atom_index=atom_index,&
                sub_subsys_index=subsys_index, sub_atom_kind_name=atom_type,&
-               globenv=globenv, error=error)
+               globenv=globenv, force_env_section=force_env_section, error=error)
 
           CALL quickstep_create_force_env(force_env_loc,globenv,subsystem=subsys_loc,error=error)
 

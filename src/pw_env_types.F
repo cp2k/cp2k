@@ -42,6 +42,7 @@ MODULE pw_env_types
                                              pw_pool_release
   USE timings,                         ONLY: timeset,&
                                              timestop
+  USE input_section_types,             ONLY: section_vals_type
   USE pw_poisson_types, ONLY: pw_poisson_type, pw_poisson_retain, pw_poisson_release
 #include "cp_common_uses.h"
   IMPLICIT NONE
@@ -280,10 +281,11 @@ END SUBROUTINE pw_env_retain
 !!     10.2002 created [fawzi]
 !!
 !!*** **********************************************************************
-SUBROUTINE pw_env_release(pw_env, error)
+SUBROUTINE pw_env_release(pw_env, force_env_section, error)
     TYPE(pw_env_type), POINTER               :: pw_env
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
+    TYPE(section_vals_type), POINTER :: force_env_section
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_env_release', &
       routineP = moduleN//':'//routineN
@@ -300,7 +302,8 @@ SUBROUTINE pw_env_release(pw_env, error)
         CALL pw_poisson_release(pw_env%poisson_env, error=error)
         CALL pw_pools_dealloc(pw_env%pw_pools,error=error)
         IF (ASSOCIATED(pw_env%gridlevel_info)) THEN
-           CALL destroy_gaussian_gridlevel(pw_env%gridlevel_info,error=error)
+           CALL destroy_gaussian_gridlevel(pw_env%gridlevel_info,force_env_section,&
+                error=error)
            DEALLOCATE(pw_env%gridlevel_info,stat=stat)
            CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
         END IF

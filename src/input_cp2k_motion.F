@@ -82,7 +82,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     LOGICAL                                  :: failure
-    TYPE(section_type), POINTER              :: subsection
+    TYPE(section_type), POINTER              :: subsection, print_key
+    TYPE(keyword_type), POINTER              :: keyword
 
     failure=.FALSE.
     
@@ -93,7 +94,7 @@ CONTAINS
             n_keywords=1, n_subsections=1, repeats=.FALSE., required=.TRUE.,&
             error=error)
 
-       NULLIFY(subsection)
+       NULLIFY(subsection, print_key)
 
        CALL create_geoopt_section(subsection,error)
        CALL section_add_subsection(section, subsection, error=error)
@@ -111,6 +112,59 @@ CONTAINS
        CALL section_add_subsection(section, subsection, error=error)
        CALL section_release(subsection,error=error)
        
+
+       CALL section_create(subsection,name="print",&
+            description="Controls the printing properties during an MD run",&
+            n_keywords=0, n_subsections=1, repeats=.TRUE., required=.FALSE.,&
+            error=error)
+       nullify(keyword)
+       CALL cp_print_key_section_create(print_key,"trajectory",&
+            description="controls the output of the trajectory",&
+            print_level=low_print_level, filename="",error=error)
+       CALL keyword_create(keyword, name="format",&
+            description="Specifies the format of the output file for the trajectory.",&
+            usage="FORMAT (ATOMIC|XMOL|DCD)",&
+            default_i_val=dump_xmol,&
+            enum_c_vals=output_name_types,&
+            enum_i_vals=output_name_index,&
+            error=error)
+       CALL section_add_keyword(print_key,keyword,error=error)
+       CALL keyword_release(keyword,error=error)    
+       CALL section_add_subsection(subsection,print_key,error=error)
+       CALL section_release(print_key,error=error)
+       
+       CALL cp_print_key_section_create(print_key,"velocities",&
+            description="controls the output of the velocities",&
+            print_level=low_print_level, filename="",error=error)
+       CALL keyword_create(keyword, name="format",&
+            description="Specifies the format of the output file for the trajectory.",&
+            usage="FORMAT (ATOMIC|XMOL|DCD)",&
+            default_i_val=dump_xmol,&
+            enum_c_vals=output_name_types,&
+            enum_i_vals=output_name_index,&
+            error=error)
+       CALL section_add_keyword(print_key,keyword,error=error)
+       CALL keyword_release(keyword,error=error)    
+       CALL section_add_subsection(subsection,print_key,error=error)
+       CALL section_release(print_key,error=error)
+       
+       CALL cp_print_key_section_create(print_key,"forces",&
+            description="controls the output of the forces",&
+            print_level=high_print_level, filename="",error=error)
+       CALL keyword_create(keyword, name="format",&
+            description="Specifies the format of the output file for the trajectory.",&
+            usage="FORMAT (ATOMIC|XMOL|DCD)",&
+            default_i_val=dump_xmol,&
+            enum_c_vals=output_name_types,&
+            enum_i_vals=output_name_index,&
+            error=error)
+       CALL section_add_keyword(print_key,keyword,error=error)
+       CALL keyword_release(keyword,error=error)    
+       CALL section_add_subsection(subsection,print_key,error=error)
+       CALL section_release(print_key,error=error)
+
+       CALL section_add_subsection(section, subsection, error=error)
+       CALL section_release(subsection,error=error)
     END IF
 
   END SUBROUTINE create_motion_section
@@ -984,37 +1038,13 @@ CONTAINS
             description="Controls the printing properties during an MD run",&
             n_keywords=0, n_subsections=1, repeats=.TRUE., required=.FALSE.,&
             error=error)
-
-       
-       NULLIFY(print_key)
-       CALL cp_print_key_section_create(print_key,"FILES",&
-            description="Controls the printing of MD information on all files.", &
-            print_level=silent_print_level,each=(/1/),&
-            error=error)
-       CALL section_add_subsection(subsection,print_key,error=error)
+       nullify(print_key)
+       CALL cp_print_key_section_create(print_key,"energy",&
+            description="controls the output the ener file",&
+            print_level=debug_print_level, filename="",error=error)
+       CALL section_add_subsection(section,print_key,error=error)
        CALL section_release(print_key,error=error)
-
-       CALL cp_print_key_section_create(print_key,"SCREEN",&
-            description="Controls the printing of MD information on screen.", &
-            print_level=silent_print_level,each=(/1/),filename="__STD_OUT__",&
-            error=error)
-       CALL section_add_subsection(subsection,print_key,error=error)
-       CALL section_release(print_key,error=error)
-
-       CALL cp_print_key_section_create(print_key,"COORDINATE",&
-            description="Controls the printing of coordinates during an MD run.", &
-            print_level=silent_print_level,each=(/1/),&
-            error=error)
-       CALL section_add_subsection(subsection,print_key,error=error)
-       CALL section_release(print_key,error=error)
-
-       CALL cp_print_key_section_create(print_key,"VELOCITIES",&
-            description="Controls the printing of velocities during an MD run.", &
-            print_level=silent_print_level,each=(/1/),&
-            error=error)
-       CALL section_add_subsection(subsection,print_key,error=error)
-       CALL section_release(print_key,error=error)
-
+              
        CALL cp_print_key_section_create(print_key,"COEFFICIENTS",&
             description="Controls the printing of coefficients during an MD run.", &
             print_level=medium_print_level,each=(/1/),&
@@ -1029,12 +1059,6 @@ CONTAINS
        CALL section_add_subsection(subsection,print_key,error=error)
        CALL section_release(print_key,error=error)
 
-       CALL cp_print_key_section_create(print_key,"ENERGIES",&
-            description="Controls the printing of energies during an MD run.", &
-            print_level=silent_print_level,each=(/1/),&
-            error=error)
-       CALL section_add_subsection(subsection,print_key,error=error)
-       CALL section_release(print_key,error=error)
 
        CALL cp_print_key_section_create(print_key,"TEMPERATURE",&
             description="Controls the printing of temperature info during an MD run.", &

@@ -103,7 +103,7 @@ CONTAINS
     END IF
 !JCS
 
-    CALL build_qs_neighbor_lists(qs_env,globenv,error=error)
+    CALL build_qs_neighbor_lists(qs_env,globenv,force_env_section=qs_env%input,error=error)
 
     CALL get_qs_env ( qs_env=qs_env, dft_control=dft_control )
 

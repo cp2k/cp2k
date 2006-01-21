@@ -90,12 +90,14 @@ CONTAINS
 !!  INPUTS
 !!*** *************************************************************************
 
-SUBROUTINE read_atoms_input ( topology, globenv, overwrite, error )
+SUBROUTINE read_atoms_input ( topology, globenv, overwrite, subsys_section, error )
 
 
     TYPE(topology_parameters_type)           :: topology
     TYPE(global_environment_type), &
       pointer, OPTIONAL                   :: globenv
+    TYPE(section_vals_type), POINTER :: subsys_section
+
     LOGICAL, INTENT(IN), OPTIONAL         :: overwrite
     TYPE(cp_error_type), INTENT(inout), optional :: error
 
@@ -121,8 +123,7 @@ SUBROUTINE read_atoms_input ( topology, globenv, overwrite, error )
   my_overwrite = .FALSE.
   IF (PRESENT(overwrite)) my_overwrite=overwrite
   NULLIFY(coord_section)
-  coord_section => section_vals_get_subs_vals(globenv%input_file,&
-       "FORCE_EVAL%SUBSYS%COORD",error=error)
+  coord_section => section_vals_get_subs_vals(subsys_section,"COORD",error=error)
   CALL section_vals_get(coord_section, explicit=explicit, error=error)
   IF (.NOT.explicit) RETURN
   !-----------------------------------------------------------------------------

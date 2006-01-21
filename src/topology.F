@@ -127,23 +127,27 @@ CONTAINS
          topology_section
     LOGICAL :: failure
     TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(section_vals_type), POINTER :: subsys_section
+
 
     failure = .FALSE.
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
     CALL write_checkpoint_information("Entering "//routineN,globenv,error)
-    iw = cp_print_key_unit_nr(logger,globenv%input_file,"FORCE_EVAL%MM%PRINT%TOPOLOGY_INFO",&
-         extension=".mmLog",error=error)
     CALL timeset(routineN,'I','',handle)
 
-    NULLIFY(cell_section)
+    NULLIFY(cell_section,subsys_section)
 
-    cell_section => section_vals_get_subs_vals(globenv%input_file,&
-         "FORCE_EVAL%SUBSYS%CELL",error=error)
-    constraint_section =>  section_vals_get_subs_vals(globenv%input_file,&
-         "FORCE_EVAL%SUBSYS%CONSTRAINT",error=error)
-    topology_section   =>  section_vals_get_subs_vals(globenv%input_file,&
-         "FORCE_EVAL%SUBSYS%TOPOLOGY",error=error)
+    subsys_section   =>  section_vals_get_subs_vals(globenv%input_file,&
+         "FORCE_EVAL%SUBSYS",error=error)
+    cell_section => section_vals_get_subs_vals(subsys_section,&
+         "CELL",error=error)
+    constraint_section =>  section_vals_get_subs_vals(subsys_section,&
+         "CONSTRAINT",error=error)
+    topology_section   =>  section_vals_get_subs_vals(subsys_section,&
+         "TOPOLOGY",error=error)
+    iw = cp_print_key_unit_nr(logger,subsys_section,"PRINT%TOPOLOGY_INFO",&
+         extension=".mmLog",error=error)
     my_qmmm = .FALSE.
     IF (PRESENT(qmmm).AND.PRESENT(qmmm_env)) my_qmmm = qmmm
 
@@ -176,20 +180,20 @@ CONTAINS
     !-----------------------------------------------------------------------------
     ! 5. Read in the coordinates
     !-----------------------------------------------------------------------------
-    CALL coordinate_control(topology,globenv,error)
+    CALL coordinate_control(topology,globenv,subsys_section,error)
 
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------
     ! 6. Read in or generate the molecular connectivity
     !-----------------------------------------------------------------------------
-    CALL connectivity_control(topology,globenv,my_qmmm, qmmm_env, error)
+    CALL connectivity_control(topology,globenv,my_qmmm, qmmm_env, subsys_section,error)
 
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------
     ! 7. Pack everything into the molecular types
     !-----------------------------------------------------------------------------
     CALL topology_connectivity_pack(molecule_kind_set,molecule_set,&
-         topology,globenv,error)
+         topology,globenv,subsys_section,error)
     !-----------------------------------------------------------------------------
     ! Teo 12.2004:
     ! 
@@ -209,11 +213,11 @@ CONTAINS
     IF (my_qmmm) THEN
        CALL topology_coordinate_pack(particle_set,atomic_kind_set,&
             molecule_kind_set,molecule_set,&
-            topology,globenv, my_qmmm, qmmm_env, error=error)
+            topology,globenv, my_qmmm, qmmm_env, subsys_section,error=error)
     ELSE 
        CALL topology_coordinate_pack(particle_set,atomic_kind_set,&
             molecule_kind_set,molecule_set,&
-            topology,globenv,error=error)
+            topology,globenv,subsys_section=subsys_section,error=error)
     END IF
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------
@@ -221,11 +225,11 @@ CONTAINS
     !-----------------------------------------------------------------------------
     IF (my_qmmm) THEN
        CALL topology_constraint_pack(molecule_kind_set,molecule_set,&
-            topology,qmmm_env,particle_set,globenv,error)
+            topology,qmmm_env,particle_set,globenv,subsys_section,error)
     ELSE
        CALL topology_constraint_pack(molecule_kind_set,molecule_set,&
             topology,particle_set=particle_set, globenv=globenv,&
-            error=error)
+            subsys_section=subsys_section,error=error)
     END IF
 
     !-----------------------------------------------------------------------------
@@ -233,8 +237,8 @@ CONTAINS
     ! 10. Dump the topology informations
     !-----------------------------------------------------------------------------
     IF(topology%dump_topology) THEN
-       CALL write_topology_psf(topology,globenv,error)
-       CALL write_coordinate_pdb(topology,globenv,error)
+       CALL write_topology_psf(topology,globenv,subsys_section,error)
+       CALL write_coordinate_pdb(topology,globenv,subsys_section,error)
     END IF
 
 
@@ -245,8 +249,8 @@ CONTAINS
     CALL deallocate_topology(topology, error)
     CALL timestop(0.0_dp,handle)
     CALL write_checkpoint_information("exiting "//routineN,globenv,error)
-    CALL cp_print_key_finished_output(iw,logger,globenv%input_file,&
-         "FORCE_EVAL%MM%PRINT%TOPOLOGY_INFO",error=error)  
+    CALL cp_print_key_finished_output(iw,logger,subsys_section,&
+         "PRINT%TOPOLOGY_INFO",error=error)  
   END SUBROUTINE topology_control
 
 !******************************************************************************
@@ -267,12 +271,14 @@ CONTAINS
 !!
 !!   SOURCE
 !******************************************************************************
-  SUBROUTINE connectivity_control(topology,globenv,qmmm,qmmm_env,error)
+  SUBROUTINE connectivity_control(topology,globenv,qmmm,qmmm_env,subsys_section,error)
 
     TYPE(topology_parameters_type), &
          INTENT(INOUT)                          :: topology
     TYPE(global_environment_type), &
          POINTER, OPTIONAL                   :: globenv
+    TYPE(section_vals_type), POINTER :: subsys_section
+
     TYPE(qmmm_env_mm_type), POINTER, OPTIONAL :: qmmm_env
     LOGICAL, INTENT(in), OPTIONAL            :: qmmm
     TYPE(cp_error_type), INTENT(inout), &
@@ -289,7 +295,7 @@ CONTAINS
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
     CALL write_checkpoint_information("Entering "//routineN,globenv,error)
-    iw = cp_print_key_unit_nr(logger,globenv%input_file,"FORCE_EVAL%MM%PRINT%TOPOLOGY_INFO",&
+    iw = cp_print_key_unit_nr(logger,subsys_section,"PRINT%TOPOLOGY_INFO",&
          extension=".mmLog",error=error)
     CALL timeset(routineN,'I','',handle)
 
@@ -320,52 +326,52 @@ CONTAINS
     !-----------------------------------------------------------------------------
     SELECT CASE (topology%conn_type)
     CASE (do_conn_psf)
-       CALL read_topology_psf(topology,globenv,error)
-       CALL topology_generate_molecule(topology,my_qmmm,qmmm_env,globenv,error)
+       CALL read_topology_psf(topology,globenv,subsys_section,error)
+       CALL topology_generate_molecule(topology,my_qmmm,qmmm_env,globenv,subsys_section,error)
        IF(topology%molecules_check) &
-            CALL topology_molecules_check(topology,globenv,error)
+            CALL topology_molecules_check(topology,globenv,subsys_section,error)
     CASE (do_conn_generate)
-       CALL topology_set_atm_mass(topology,globenv,error)
-       CALL topology_generate_bond(topology,globenv,error)
-       CALL topology_generate_bend(topology,globenv,error)
-       CALL topology_generate_ub(topology,globenv,error)
-       CALL topology_generate_dihe(topology,globenv,error)
-       CALL topology_generate_impr(topology,globenv,error)
-       CALL topology_generate_onfo(topology,globenv,error)
-       CALL topology_generate_molecule(topology,my_qmmm,qmmm_env,globenv,error)
+       CALL topology_set_atm_mass(topology,globenv,subsys_section,error)
+       CALL topology_generate_bond(topology,globenv,subsys_section,error)
+       CALL topology_generate_bend(topology,globenv,subsys_section,error)
+       CALL topology_generate_ub(topology,globenv,subsys_section,error)
+       CALL topology_generate_dihe(topology,globenv,subsys_section,error)
+       CALL topology_generate_impr(topology,globenv,subsys_section,error)
+       CALL topology_generate_onfo(topology,globenv,subsys_section,error)
+       CALL topology_generate_molecule(topology,my_qmmm,qmmm_env,globenv,subsys_section,error)
        IF(topology%molecules_check) &
-            CALL topology_molecules_check(topology,globenv,error)
+            CALL topology_molecules_check(topology,globenv,subsys_section,error)
        IF(topology%reorder_atom) THEN
-          CALL topology_reorder_atoms(topology,globenv,error)
-          CALL topology_set_atm_mass(topology,globenv,error)
-          CALL topology_generate_bond(topology,globenv,error)
-          CALL topology_generate_bend(topology,globenv,error)
-          CALL topology_generate_ub(topology,globenv,error)
-          CALL topology_generate_dihe(topology,globenv,error)
-          CALL topology_generate_impr(topology,globenv,error)
-          CALL topology_generate_onfo(topology,globenv,error)
-          CALL topology_generate_molecule(topology,my_qmmm,qmmm_env,globenv,error)
+          CALL topology_reorder_atoms(topology,globenv,subsys_section,error)
+          CALL topology_set_atm_mass(topology,globenv,subsys_section,error)
+          CALL topology_generate_bond(topology,globenv,subsys_section,error)
+          CALL topology_generate_bend(topology,globenv,subsys_section,error)
+          CALL topology_generate_ub(topology,globenv,subsys_section,error)
+          CALL topology_generate_dihe(topology,globenv,subsys_section,error)
+          CALL topology_generate_impr(topology,globenv,subsys_section,error)
+          CALL topology_generate_onfo(topology,globenv,subsys_section,error)
+          CALL topology_generate_molecule(topology,my_qmmm,qmmm_env,globenv,subsys_section,error)
        END IF
     CASE (do_conn_off)
-       CALL topology_set_atm_mass(topology,globenv,error)
-       CALL topology_generate_bend(topology,globenv,error)
-       CALL topology_generate_ub(topology,globenv,error)
-       CALL topology_generate_dihe(topology,globenv,error)
-       CALL topology_generate_impr(topology,globenv,error)
-       CALL topology_generate_onfo(topology,globenv,error)
-       CALL topology_generate_molecule(topology,my_qmmm,qmmm_env,globenv,error)
+       CALL topology_set_atm_mass(topology,globenv,subsys_section,error)
+       CALL topology_generate_bend(topology,globenv,subsys_section,error)
+       CALL topology_generate_ub(topology,globenv,subsys_section,error)
+       CALL topology_generate_dihe(topology,globenv,subsys_section,error)
+       CALL topology_generate_impr(topology,globenv,subsys_section,error)
+       CALL topology_generate_onfo(topology,globenv,subsys_section,error)
+       CALL topology_generate_molecule(topology,my_qmmm,qmmm_env,globenv,subsys_section,error)
     CASE DEFAULT
        CALL stop_program ("connectivity_control",&
             "no default")
     END SELECT
 
     IF (my_qmmm) THEN
-       CALL qmmm_coordinate_control(topology, globenv, qmmm_env, error)
+       CALL qmmm_coordinate_control(topology, globenv, qmmm_env,subsys_section, error)
     END IF
     CALL timestop(0.0_dp,handle)
     CALL write_checkpoint_information("exiting "//routineN,globenv,error)
-    CALL cp_print_key_finished_output(iw,logger,globenv%input_file,&
-         "FORCE_EVAL%MM%PRINT%TOPOLOGY_INFO",error=error)
+    CALL cp_print_key_finished_output(iw,logger,subsys_section,&
+         "PRINT%TOPOLOGY_INFO",error=error)
 
   END SUBROUTINE connectivity_control
 
@@ -388,13 +394,15 @@ CONTAINS
 !!
 !!   SOURCE
 !******************************************************************************
-  SUBROUTINE coordinate_control(topology,globenv,error)
+  SUBROUTINE coordinate_control(topology,globenv,subsys_section,error)
 
 
     TYPE(topology_parameters_type), &
          INTENT(INOUT)                          :: topology
     TYPE(global_environment_type), &
          POINTER                             :: globenv
+    TYPE(section_vals_type), POINTER :: subsys_section
+
     TYPE(cp_error_type), INTENT(inout), &
          OPTIONAL                               :: error    
 
@@ -410,7 +418,7 @@ CONTAINS
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
     CALL write_checkpoint_information("Entering "//routineN,globenv,error)
-    iw = cp_print_key_unit_nr(logger,globenv%input_file,"FORCE_EVAL%MM%PRINT%TOPOLOGY_INFO",&
+    iw = cp_print_key_unit_nr(logger,subsys_section,"PRINT%TOPOLOGY_INFO",&
          extension=".mmLog",error=error)
     CALL timeset(routineN,'I','',handle)
 
@@ -438,13 +446,13 @@ CONTAINS
     !-----------------------------------------------------------------------------
     SELECT CASE (topology%coord_type)
     CASE (do_coord_pdb)
-       CALL read_coordinate_pdb (topology,globenv,error)
-       CALL read_atoms_input ( topology, globenv, overwrite=.TRUE., error=error)
+       CALL read_coordinate_pdb (topology,globenv,subsys_section,error)
+       CALL read_atoms_input ( topology, globenv, overwrite=.TRUE., subsys_section=subsys_section,error=error)
     CASE (do_coord_xyz)
-       CALL read_coordinate_xyz (topology,globenv,error)
-       CALL read_atoms_input ( topology, globenv, overwrite=.TRUE., error=error)
+       CALL read_coordinate_xyz (topology,globenv,subsys_section,error)
+       CALL read_atoms_input ( topology, globenv, overwrite=.TRUE., subsys_section=subsys_section,error=error)
     CASE DEFAULT
-       CALL read_atoms_input ( topology, globenv,  error=error)
+       CALL read_atoms_input ( topology, globenv,  subsys_section=subsys_section, error=error)
     END SELECT
 
     ! if the e.g. the &COORD block is empty, we don't proceed
@@ -456,15 +464,15 @@ CONTAINS
     DO i = 1, topology%natoms
        id = INDEX(topology%atom_info%element(i),"_")-1
        IF ( id == -1 ) id = LEN_TRIM(topology%atom_info%element(i))
-       CALL check_subsys_element(topology%atom_info%element(i)(1:id),my_element,globenv,error)     
+       CALL check_subsys_element(topology%atom_info%element(i)(1:id),my_element,globenv,subsys_section,error)     
        topology%atom_info%element(i)=my_element 
     END DO
 
 
     CALL timestop(0.0_dp,handle)
     CALL write_checkpoint_information("exiting "//routineN,globenv,error)
-    CALL cp_print_key_finished_output(iw,logger,globenv%input_file,&
-         "FORCE_EVAL%MM%PRINT%TOPOLOGY_INFO",error=error)
+    CALL cp_print_key_finished_output(iw,logger,subsys_section,&
+         "PRINT%TOPOLOGY_INFO",error=error)
   END SUBROUTINE coordinate_control
 
 END MODULE topology

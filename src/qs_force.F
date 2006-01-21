@@ -62,7 +62,9 @@ MODULE qs_force
                                              stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
-
+  USE cp_output_handling,              ONLY: cp_print_key_unit_nr, &
+                                             cp_print_key_finished_output
+  
 #include "cp_common_uses.h"
 
 !JCS
@@ -137,10 +139,12 @@ CONTAINS
     TYPE(virial_type), POINTER                       :: virial
     TYPE(qs_ks_env_type), POINTER                    :: new_ks_env
     TYPE(harris_force_type), POINTER         :: harris_force
+    INTEGER :: output_unit
+    TYPE(cp_logger_type), POINTER            :: logger
 
-!   ---------------------------------------------------------------------------
-
-    failure=.false.
+    failure = .FALSE.
+    NULLIFY(logger)
+    logger => cp_error_get_logger(error)
     CALL write_checkpoint_information("entering "//routine_name,globenv,error)
 
     CALL timeset(routine_name,"I","",handle)
@@ -331,17 +335,19 @@ CONTAINS
         CALL mp_sum(virial%pv_virial,globenv%group)
       END IF
 !JCS
-
+      output_unit = cp_print_key_unit_nr(logger,qs_env%input,"DFT%PRINT%DERIVATIVES",&
+           extension=".Log",error=error)
       IF(dft_control%qs_control%semi_empirical .AND. obasis) THEN
-        CALL write_forces(force,atomic_kind_set,2,globenv)
+        CALL write_forces(force,atomic_kind_set,2,globenv,output_unit=output_unit)
       ELSEIF(gapw) THEN
-        CALL write_forces(force,atomic_kind_set,1,globenv)
+        CALL write_forces(force,atomic_kind_set,1,globenv,output_unit=output_unit)
       ELSEIF (virial%pv_availability) THEN
-        CALL write_forces(force,atomic_kind_set,0,globenv,virial)
+        CALL write_forces(force,atomic_kind_set,0,globenv,virial,output_unit=output_unit)
       ELSE
-        CALL write_forces(force,atomic_kind_set,0,globenv)
+        CALL write_forces(force,atomic_kind_set,0,globenv,output_unit=output_unit)
       END IF
-
+      CALL cp_print_key_finished_output(output_unit,logger,qs_env%input,&
+           "DFT%PRINT%DERIVATIVES",error=error)  
     ELSE
       CALL get_qs_env(qs_env=qs_env, harris_env=harris_env)
       CALL harris_force_correction(qs_env=qs_env, harris_env=harris_env, &
@@ -369,7 +375,7 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE write_forces(qs_force,atomic_kind_set,ftype,globenv,virial)
+  SUBROUTINE write_forces(qs_force,atomic_kind_set,ftype,globenv,virial,output_unit)
 
 !   Purpose: Write a Quickstep force data structure to
 
@@ -383,7 +389,7 @@ CONTAINS
       POINTER                                :: atomic_kind_set
     TYPE(global_environment_type), &
       pointer                             :: globenv
-    INTEGER, INTENT(IN)                      :: ftype
+    INTEGER, INTENT(IN)                      :: ftype,output_unit
 !JCS
     TYPE(virial_type), OPTIONAL, POINTER     :: virial
 !JCS
@@ -397,7 +403,7 @@ CONTAINS
     CHARACTER(LEN=35)                        :: fmtstr2
     CHARACTER(LEN=48)                        :: fmtstr1
     INTEGER                                  :: i, iatom, ikind, istat, &
-                                                natom, ndigits, output_unit, &
+                                                natom, ndigits, &
                                                 my_ftype
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: atom_of_kind, kind_of
     REAL(KIND=dp), DIMENSION(3)              :: grand_total
@@ -407,162 +413,158 @@ CONTAINS
 !JCS
 !   ---------------------------------------------------------------------------
 
-    IF (.NOT.globenv%ionode) RETURN
+    IF (output_unit>0) THEN
 
-    IF (.NOT.globenv%print%forces) RETURN
+       IF (.NOT.ASSOCIATED(qs_force)) THEN
+          CALL stop_program(routine,"The qs_force pointer is not associated "//&
+                                    "and cannot be printed")
+       END IF
 
-    IF (.NOT.ASSOCIATED(qs_force)) THEN
-      CALL stop_program(routine,"The qs_force pointer is not associated "//&
-                                "and cannot be printed")
+       CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
+            natom=natom)
+       ALLOCATE (atom_of_kind(natom),STAT=istat)
+       IF (istat /= 0) CALL stop_memory(routine,"atom_of_kind",natom*int_size)
+       ALLOCATE (kind_of(natom),STAT=istat)
+       IF (istat /= 0) CALL stop_memory(routine,"kind_of",natom*int_size)
+       CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
+            atom_of_kind=atom_of_kind,&
+            kind_of=kind_of)
+       
+       !JCS
+       IF (PRESENT(virial)) THEN
+          CALL virial_get(virial, pv_virial=pv_virial,&
+               pv_availability=virial_present)
+       ELSE
+          virial_present=.FALSE.
+       END IF
+       
+       !JCS
+       
+       !   *** Variable precision output of the forces ***
+       
+       ndigits = MAX(6 + globenv%print%precision,1)
+       
+       fmtstr1 = "(/,/,T2,A,/,/,T3,A,T11,A,T23,A,T40,A1,2(  X,A1))"
+       WRITE (UNIT=fmtstr1(41:42),FMT="(I2)") ndigits + 5
+       
+       fmtstr2 = "(/,(T2,I5,4X,I4,T18,A,T34,3F  .  ))"
+       WRITE (UNIT=fmtstr2(32:33),FMT="(I2)") ndigits
+       WRITE (UNIT=fmtstr2(29:30),FMT="(I2)") ndigits + 6
+       
+       fmtstr3 = "(/,T3,A,T34,3F  .  )"
+       WRITE (UNIT=fmtstr3(18:19),FMT="(I2)") ndigits
+       WRITE (UNIT=fmtstr3(15:16),FMT="(I2)") ndigits + 6
+       
+       !JCS
+       fmtstr4 = "((T34,3F  .  ))"
+       WRITE (UNIT=fmtstr4(12:13),FMT="(I2)") ndigits
+       WRITE (UNIT=fmtstr4(9:10),FMT="(I2)") ndigits + 6
+       
+       fmtstr5 = "(/T2,A//T3,A)"
+       
+       !JCS    
+       
+       WRITE (UNIT=output_unit,FMT=fmtstr1)&
+            "FORCES","Atom","Kind","Component","X","Y","Z"
+       
+       grand_total(:) = 0.0_dp
+       
+       IF (globenv%print%level <= MEDIUM) THEN
+          my_ftype=-1
+       ELSE
+          my_ftype=ftype
+       ENDIF
+
+       SELECT CASE (my_ftype)
+       CASE DEFAULT
+          DO iatom=1,natom
+             ikind = kind_of(iatom)
+             i = atom_of_kind(iatom)
+             WRITE (UNIT=output_unit,FMT=fmtstr2)&
+                  iatom,ikind,"         total",qs_force(ikind)%total(1:3,i)
+             grand_total(1:3) = grand_total(1:3) + qs_force(ikind)%total(1:3,i)
+          END DO
+       CASE (0)
+          DO iatom=1,natom
+             ikind = kind_of(iatom)
+             i = atom_of_kind(iatom)
+             WRITE (UNIT=output_unit,FMT=fmtstr2)&
+                  iatom,ikind,"       overlap",qs_force(ikind)%overlap(1:3,i),&
+                  iatom,ikind,"       kinetic",qs_force(ikind)%kinetic(1:3,i),&
+                  iatom,ikind,"       gth_ppl",qs_force(ikind)%gth_ppl(1:3,i),&
+                  iatom,ikind,"      gth_ppnl",qs_force(ikind)%gth_ppnl(1:3,i),&
+                  iatom,ikind,"  core_overlap",qs_force(ikind)%core_overlap(1:3,i),&
+                  iatom,ikind,"      rho_core",qs_force(ikind)%rho_core(1:3,i),&
+                  iatom,ikind,"      rho_elec",qs_force(ikind)%rho_elec(1:3,i),&
+                  iatom,ikind,"      ch_pulay",qs_force(ikind)%ch_pulay(1:3,i),&
+                  iatom,ikind,"         total",qs_force(ikind)%total(1:3,i)
+             grand_total(1:3) = grand_total(1:3) + qs_force(ikind)%total(1:3,i)
+          END DO
+       CASE (1)
+          DO iatom=1,natom
+             ikind = kind_of(iatom)
+             i = atom_of_kind(iatom)
+             WRITE (UNIT=output_unit,FMT=fmtstr2)&
+                  iatom,ikind,"       overlap",qs_force(ikind)%overlap(1:3,i),&
+                  iatom,ikind,"       kinetic",qs_force(ikind)%kinetic(1:3,i),&
+                  iatom,ikind,"       gth_ppl",qs_force(ikind)%gth_ppl(1:3,i),&
+                  iatom,ikind,"      gth_ppnl",qs_force(ikind)%gth_ppnl(1:3,i),&
+                  iatom,ikind," all_potential",qs_force(ikind)%all_potential(1:3,i),&
+                  iatom,ikind,"  core_overlap",qs_force(ikind)%core_overlap(1:3,i),&
+                  iatom,ikind,"      rho_core",qs_force(ikind)%rho_core(1:3,i),&
+                  iatom,ikind,"      rho_elec",qs_force(ikind)%rho_elec(1:3,i),&
+                  iatom,ikind,"      vhxc_atom",qs_force(ikind)%vhxc_atom(1:3,i),&
+                  iatom,ikind,"    g0s_Vh_elec",qs_force(ikind)%g0s_Vh_elec(1:3,i),& 
+                  iatom,ikind,"     hartree_2c",qs_force(ikind)%hartree_2c(1:3,i),& 
+                  iatom,ikind,"     hartree_3c",qs_force(ikind)%hartree_3c(1:3,i),&
+                  iatom,ikind,"      ch_pulay",qs_force(ikind)%ch_pulay(1:3,i),&
+                  iatom,ikind,"         total",qs_force(ikind)%total(1:3,i)
+             grand_total(1:3) = grand_total(1:3) + qs_force(ikind)%total(1:3,i)
+          END DO
+       CASE (2)
+          DO iatom=1,natom
+             ikind = kind_of(iatom)
+             i = atom_of_kind(iatom)
+             WRITE (UNIT=output_unit,FMT=fmtstr2)&
+                  iatom,ikind," all_potential",qs_force(ikind)%all_potential(1:3,i),&
+                  iatom,ikind,"      rho_elec",qs_force(ikind)%rho_elec(1:3,i),&
+                  iatom,ikind,"         total",qs_force(ikind)%total(1:3,i)
+             grand_total(1:3) = grand_total(1:3) + qs_force(ikind)%total(1:3,i)
+          END DO
+       CASE (3)
+          DO iatom=1,natom
+             ikind = kind_of(iatom)
+             i = atom_of_kind(iatom)
+             WRITE (UNIT=output_unit,FMT=fmtstr2)&
+                  iatom,ikind,"        overlap",qs_force(ikind)%overlap(1:3,i),&
+                  iatom,ikind,"        kinetic",qs_force(ikind)%kinetic(1:3,i),&
+                  iatom,ikind,"        gth_ppl",qs_force(ikind)%gth_ppl(1:3,i),&
+                  iatom,ikind,"       gth_ppnl",qs_force(ikind)%gth_ppnl(1:3,i),&
+                  iatom,ikind,"   core_overlap",qs_force(ikind)%core_overlap(1:3,i),&
+                  iatom,ikind,"       rho_core",qs_force(ikind)%rho_core(1:3,i),&
+                  iatom,ikind,"       rho_elec",qs_force(ikind)%rho_elec(1:3,i),&
+                  iatom,ikind,"kg_gpw_ekin_mol",qs_force(ikind)%kg_gpw_ekin_mol(1:3,i),&
+                  iatom,ikind,"       ch_pulay",qs_force(ikind)%ch_pulay(1:3,i),&
+                  iatom,ikind,"          total",qs_force(ikind)%total(1:3,i)
+             grand_total(1:3) = grand_total(1:3) + qs_force(ikind)%total(1:3,i)
+          END DO
+       END SELECT
+       
+       WRITE (UNIT=output_unit,FMT=fmtstr3) "Sum of total",grand_total(1:3)
+       
+       !JCS
+       IF (virial_present) THEN
+          WRITE (UNIT=output_unit,FMT=fmtstr5) "STRESS","pv_virial"
+          WRITE (UNIT=output_unit,FMT=fmtstr4) (pv_virial(i,1:3), i=1,3)
+       END IF
+       !JCS
+       
+       DEALLOCATE (atom_of_kind,STAT=istat)
+       IF (istat /= 0) CALL stop_memory(routine,"atom_of_kind")
+       
+       DEALLOCATE (kind_of,STAT=istat)
+       IF (istat /= 0) CALL stop_memory(routine,"kind_of")
     END IF
-
-    output_unit = globenv%scr
-
-    CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
-                             natom=natom)
-    ALLOCATE (atom_of_kind(natom),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"atom_of_kind",natom*int_size)
-    ALLOCATE (kind_of(natom),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"kind_of",natom*int_size)
-    CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
-                             atom_of_kind=atom_of_kind,&
-                             kind_of=kind_of)
-
-!JCS
-    IF (PRESENT(virial)) THEN
-      CALL virial_get(virial, pv_virial=pv_virial,&
-                       pv_availability=virial_present)
-    ELSE
-      virial_present=.FALSE.
-    END IF
-
-!JCS
-
-!   *** Variable precision output of the forces ***
-
-    ndigits = MAX(6 + globenv%print%precision,1)
-
-    fmtstr1 = "(/,/,T2,A,/,/,T3,A,T11,A,T23,A,T40,A1,2(  X,A1))"
-    WRITE (UNIT=fmtstr1(41:42),FMT="(I2)") ndigits + 5
-
-    fmtstr2 = "(/,(T2,I5,4X,I4,T18,A,T34,3F  .  ))"
-    WRITE (UNIT=fmtstr2(32:33),FMT="(I2)") ndigits
-    WRITE (UNIT=fmtstr2(29:30),FMT="(I2)") ndigits + 6
-
-    fmtstr3 = "(/,T3,A,T34,3F  .  )"
-    WRITE (UNIT=fmtstr3(18:19),FMT="(I2)") ndigits
-    WRITE (UNIT=fmtstr3(15:16),FMT="(I2)") ndigits + 6
-
-!JCS
-    fmtstr4 = "((T34,3F  .  ))"
-    WRITE (UNIT=fmtstr4(12:13),FMT="(I2)") ndigits
-    WRITE (UNIT=fmtstr4(9:10),FMT="(I2)") ndigits + 6
-
-    fmtstr5 = "(/T2,A//T3,A)"
-    
-!JCS    
-
-    WRITE (UNIT=output_unit,FMT=fmtstr1)&
-      "FORCES","Atom","Kind","Component","X","Y","Z"
-
-    grand_total(:) = 0.0_dp
-
-    IF (globenv%print%level <= MEDIUM) THEN
-       my_ftype=-1
-    ELSE
-       my_ftype=ftype
-    ENDIF
-
-    SELECT CASE (my_ftype)
-      CASE DEFAULT
-       DO iatom=1,natom
-          ikind = kind_of(iatom)
-          i = atom_of_kind(iatom)
-          WRITE (UNIT=output_unit,FMT=fmtstr2)&
-            iatom,ikind,"         total",qs_force(ikind)%total(1:3,i)
-            grand_total(1:3) = grand_total(1:3) + qs_force(ikind)%total(1:3,i)
-        END DO
-      CASE (0)
-        DO iatom=1,natom
-          ikind = kind_of(iatom)
-          i = atom_of_kind(iatom)
-          WRITE (UNIT=output_unit,FMT=fmtstr2)&
-            iatom,ikind,"       overlap",qs_force(ikind)%overlap(1:3,i),&
-            iatom,ikind,"       kinetic",qs_force(ikind)%kinetic(1:3,i),&
-            iatom,ikind,"       gth_ppl",qs_force(ikind)%gth_ppl(1:3,i),&
-            iatom,ikind,"      gth_ppnl",qs_force(ikind)%gth_ppnl(1:3,i),&
-            iatom,ikind,"  core_overlap",qs_force(ikind)%core_overlap(1:3,i),&
-            iatom,ikind,"      rho_core",qs_force(ikind)%rho_core(1:3,i),&
-            iatom,ikind,"      rho_elec",qs_force(ikind)%rho_elec(1:3,i),&
-            iatom,ikind,"      ch_pulay",qs_force(ikind)%ch_pulay(1:3,i),&
-            iatom,ikind,"         total",qs_force(ikind)%total(1:3,i)
-            grand_total(1:3) = grand_total(1:3) + qs_force(ikind)%total(1:3,i)
-        END DO
-      CASE (1)
-        DO iatom=1,natom
-          ikind = kind_of(iatom)
-          i = atom_of_kind(iatom)
-          WRITE (UNIT=output_unit,FMT=fmtstr2)&
-            iatom,ikind,"       overlap",qs_force(ikind)%overlap(1:3,i),&
-            iatom,ikind,"       kinetic",qs_force(ikind)%kinetic(1:3,i),&
-            iatom,ikind,"       gth_ppl",qs_force(ikind)%gth_ppl(1:3,i),&
-            iatom,ikind,"      gth_ppnl",qs_force(ikind)%gth_ppnl(1:3,i),&
-            iatom,ikind," all_potential",qs_force(ikind)%all_potential(1:3,i),&
-            iatom,ikind,"  core_overlap",qs_force(ikind)%core_overlap(1:3,i),&
-            iatom,ikind,"      rho_core",qs_force(ikind)%rho_core(1:3,i),&
-            iatom,ikind,"      rho_elec",qs_force(ikind)%rho_elec(1:3,i),&
-            iatom,ikind,"      vhxc_atom",qs_force(ikind)%vhxc_atom(1:3,i),&
-            iatom,ikind,"    g0s_Vh_elec",qs_force(ikind)%g0s_Vh_elec(1:3,i),& 
-            iatom,ikind,"     hartree_2c",qs_force(ikind)%hartree_2c(1:3,i),& 
-            iatom,ikind,"     hartree_3c",qs_force(ikind)%hartree_3c(1:3,i),&
-            iatom,ikind,"      ch_pulay",qs_force(ikind)%ch_pulay(1:3,i),&
-            iatom,ikind,"         total",qs_force(ikind)%total(1:3,i)
-            grand_total(1:3) = grand_total(1:3) + qs_force(ikind)%total(1:3,i)
-        END DO
-      CASE (2)
-        DO iatom=1,natom
-          ikind = kind_of(iatom)
-          i = atom_of_kind(iatom)
-          WRITE (UNIT=output_unit,FMT=fmtstr2)&
-            iatom,ikind," all_potential",qs_force(ikind)%all_potential(1:3,i),&
-            iatom,ikind,"      rho_elec",qs_force(ikind)%rho_elec(1:3,i),&
-            iatom,ikind,"         total",qs_force(ikind)%total(1:3,i)
-            grand_total(1:3) = grand_total(1:3) + qs_force(ikind)%total(1:3,i)
-        END DO
-     CASE (3)
-        DO iatom=1,natom
-          ikind = kind_of(iatom)
-          i = atom_of_kind(iatom)
-          WRITE (UNIT=output_unit,FMT=fmtstr2)&
-            iatom,ikind,"        overlap",qs_force(ikind)%overlap(1:3,i),&
-            iatom,ikind,"        kinetic",qs_force(ikind)%kinetic(1:3,i),&
-            iatom,ikind,"        gth_ppl",qs_force(ikind)%gth_ppl(1:3,i),&
-            iatom,ikind,"       gth_ppnl",qs_force(ikind)%gth_ppnl(1:3,i),&
-            iatom,ikind,"   core_overlap",qs_force(ikind)%core_overlap(1:3,i),&
-            iatom,ikind,"       rho_core",qs_force(ikind)%rho_core(1:3,i),&
-            iatom,ikind,"       rho_elec",qs_force(ikind)%rho_elec(1:3,i),&
-            iatom,ikind,"kg_gpw_ekin_mol",qs_force(ikind)%kg_gpw_ekin_mol(1:3,i),&
-            iatom,ikind,"       ch_pulay",qs_force(ikind)%ch_pulay(1:3,i),&
-            iatom,ikind,"          total",qs_force(ikind)%total(1:3,i)
-            grand_total(1:3) = grand_total(1:3) + qs_force(ikind)%total(1:3,i)
-        END DO
-    END SELECT
-
-    WRITE (UNIT=output_unit,FMT=fmtstr3) "Sum of total",grand_total(1:3)
-
-!JCS
-    IF (virial_present) THEN
-      WRITE (UNIT=output_unit,FMT=fmtstr5) "STRESS","pv_virial"
-      WRITE (UNIT=output_unit,FMT=fmtstr4) (pv_virial(i,1:3), i=1,3)
-    END IF 
-!JCS
-
-    DEALLOCATE (atom_of_kind,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"atom_of_kind")
-
-    DEALLOCATE (kind_of,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"kind_of")
-
   END SUBROUTINE write_forces
 
 ! *****************************************************************************

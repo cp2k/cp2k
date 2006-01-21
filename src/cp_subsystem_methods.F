@@ -66,6 +66,10 @@ MODULE cp_subsystem_methods
   USE topology_util,                   ONLY: topology_connectivity_pack,&
                                              topology_coordinate_pack,&
                                              check_subsys_element
+  USE input_section_types,             ONLY: section_vals_type,&
+                                             section_vals_get_subs_vals
+
+
 #include "cp_common_uses.h"
 
   IMPLICIT NONE 
@@ -149,12 +153,14 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE create_small_subsystem(small_subsystem,big_subsys,small_cell,&
        small_para_env,sub_atom_index,sub_subsys_index,sub_atom_kind_name,&
-       globenv,error)
+       globenv,force_env_section,error)
     TYPE(cp_subsystem_type), POINTER         :: small_subsystem
     TYPE(cp_subsystem_p_type), &
       DIMENSION(:), POINTER                  :: big_subsys
     TYPE(cell_type), POINTER                 :: small_cell
     TYPE(cp_para_env_type), POINTER          :: small_para_env
+    TYPE(section_vals_type), POINTER :: force_env_section
+
     INTEGER, DIMENSION(:), INTENT(in)        :: sub_atom_index, &
                                                 sub_subsys_index
     CHARACTER(len=default_string_length), &
@@ -182,10 +188,11 @@ CONTAINS
       POINTER                                :: particle_set
     TYPE(topology_parameters_type)           :: topology
     CHARACTER(len=default_string_length)     :: my_element
+    TYPE(section_vals_type), POINTER :: subsys_section
 
     failure=.FALSE.
     NULLIFY(mol_kinds,mols,particles,atomic_kinds, atomic_kind_set, particle_set, &
-         molecule_kind_set,molecule_set,particles,atomic_kinds)
+         molecule_kind_set,molecule_set,particles,atomic_kinds,subsys_section)
 
     CPPrecondition(.NOT.ASSOCIATED(small_subsystem),cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(big_subsys),cp_failure_level,routineP,error,failure)
@@ -196,6 +203,8 @@ CONTAINS
                    error,failure)
 
     IF (.NOT. failure) THEN
+       subsys_section => section_vals_get_subs_vals(force_env_section,&
+         "SUBSYS",error=error)
        !-----------------------------------------------------------------------------
        !-----------------------------------------------------------------------------
        ! 1. Initialize the topology structure type
@@ -244,7 +253,8 @@ CONTAINS
           !
           id_ = INDEX(topology%atom_info%label_atmname(iat),"_")-1
           IF ( id_ == -1 ) id_ = LEN_TRIM(topology%atom_info%label_atmname(iat))
-          CALL check_subsys_element(topology%atom_info%label_atmname(iat)(1:id_),my_element,globenv,error)
+          CALL check_subsys_element(topology%atom_info%label_atmname(iat)(1:id_),my_element,globenv,&
+               subsys_section,error)
           topology%atom_info%element(iat)=my_element 
           topology%atom_info%atm_mass(iat)=0._dp
           topology%atom_info%atm_charge(iat)=0._dp
@@ -256,7 +266,7 @@ CONTAINS
        !-----------------------------------------------------------------------------
        ! 5. Read in or generate the molecular connectivity
        !-----------------------------------------------------------------------------
-       CALL connectivity_control(topology,globenv,error=error)
+       CALL connectivity_control(topology,globenv,subsys_section=subsys_section,error=error)
 
 
        !-----------------------------------------------------------------------------
@@ -264,7 +274,7 @@ CONTAINS
        ! 7. Pack everything into the molecular types
        !-----------------------------------------------------------------------------
        CALL topology_connectivity_pack(molecule_kind_set,molecule_set,&
-            topology,globenv,error)
+            topology,globenv,subsys_section=subsys_section,error=error)
 
 
        !-----------------------------------------------------------------------------
@@ -272,7 +282,8 @@ CONTAINS
        ! 8. Pack everything into the atomic types
        !-----------------------------------------------------------------------------
        CALL topology_coordinate_pack(particle_set,atomic_kind_set,&
-            molecule_kind_set,molecule_set,topology,globenv,error=error)
+            molecule_kind_set,molecule_set,topology,globenv,subsys_section=subsys_section,&
+            error=error)
 
        !-----------------------------------------------------------------------------
        !-----------------------------------------------------------------------------

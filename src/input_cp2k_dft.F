@@ -432,9 +432,16 @@ END SUBROUTINE xc_functionals_expand
 
        NULLIFY(print_key, keyword, print_key2)
 
+       CALL cp_print_key_section_create(print_key,"derivatives",&
+            description="Print all derivatives after the DFT calculation", &
+            print_level=high_print_level,each=(/1/),filename="__STD_OUT__",&
+            error=error)
+       CALL section_add_subsection(section,print_key,error=error)
+       CALL section_release(print_key,error=error)       
+
        CALL cp_print_key_section_create(print_key,"neighborlist",&
             description="controls the printing of the neighborlists (debug).", &
-            print_level=debug_print_level,each=(/1/),filename="",&
+            print_level=debug_print_level,each=(/1/),filename="__STD_OUT__",&
             error=error)
        CALL keyword_create(keyword, name="sab_orb",&
             description="If the printkey is activated controls the printing of s-a-b lists",&
@@ -471,7 +478,7 @@ END SUBROUTINE xc_functionals_expand
 
        CALL cp_print_key_section_create(print_key,"ao_matrices",&
             description="Controls the printing of the ao (i.e. contracted gaussian) matrices (debug).", &
-            print_level=debug_print_level,each=(/1/),filename="",&
+            print_level=debug_print_level,each=(/1/),filename="__STD_OUT__",&
             error=error)
        CALL keyword_create(keyword, name="charge_density",&
             description="If the printkey is activated controls the printing of the charge density matrix",&
@@ -535,7 +542,7 @@ END SUBROUTINE xc_functionals_expand
 
        CALL cp_print_key_section_create(print_key,"MO",&
             description="Controls the printing of the molecular orbitals .", &
-            print_level=high_print_level,each=(/1/),filename="",&
+            print_level=high_print_level,each=(/1/),filename="__STD_OUT__",&
             error=error)
        CALL keyword_create(keyword, name="cartesian",&
             description="If the printkey is activated controls the printing of the mo in the cartesian basis",&
@@ -2881,12 +2888,6 @@ SUBROUTINE create_tddfpt_section(section,error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
-       CALL cp_print_key_section_create(print_key,"PRINT_INFO",&
-            description="controls the printing of grid information",&
-            print_level=medium_print_level,error=error)
-       CALL section_add_subsection(section,print_key,error=error)
-       CALL section_release(print_key,error=error)
-       
        NULLIFY(subsection)
        CALL create_interp_section(subsection,error)
        CALL section_add_subsection(section,subsection,error=error)

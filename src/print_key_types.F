@@ -77,7 +77,6 @@ MODULE print_key_types
                potential_energy_matrix,&
                program_banner,&
                projectors,&
-               pw_grid_information,&
                rho0_information,&
                rng_matrices,&
                sab_orb_neighbor_lists,&
@@ -190,7 +189,6 @@ CONTAINS
     print_keys%program_banner = key_value(level,(/t,t,t/))
     print_keys%projectors = key_value(level,(/f,t,t/))
     print_keys%potential_energy_matrix = key_value(level,(/f,f,f/))
-    print_keys%pw_grid_information = key_value(level,(/f,t,t/))
     print_keys%rho0_information = key_value(level,(/f,t,t/))
     print_keys%rng_matrices = key_value(level,(/f,f,t/))
     print_keys%sab_orb_neighbor_lists = key_value(level,(/f,f,t/))

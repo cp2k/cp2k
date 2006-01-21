@@ -177,7 +177,7 @@ CONTAINS
   SUBROUTINE force_field_control (atomic_kind_set,particle_set,&
        molecule_kind_set,molecule_set,&
        ewald_env,fist_nonbond_env,&
-       globenv, qmmm, qmmm_env, error)
+       globenv, qmmm, qmmm_env, mm_section, error)
     IMPLICIT NONE
     ! Arguments
     TYPE(atomic_kind_type), DIMENSION(:), POINTER       :: atomic_kind_set
@@ -187,6 +187,8 @@ CONTAINS
     TYPE ( ewald_environment_type ), POINTER :: ewald_env
     TYPE ( fist_nonbond_env_type ), POINTER ::  fist_nonbond_env
     TYPE(global_environment_type), pointer,OPTIONAL  :: globenv
+    TYPE(section_vals_type), POINTER :: mm_section
+
     LOGICAL, INTENT(IN), OPTIONAL :: qmmm
     TYPE (qmmm_env_mm_type), POINTER, OPTIONAL :: qmmm_env
     TYPE(cp_error_type), INTENT(inout), OPTIONAL   :: error
@@ -202,7 +204,7 @@ CONTAINS
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
     CALL write_checkpoint_information("Entering "//routineN,globenv,error)
-    iw = cp_print_key_unit_nr(logger,globenv%input_file,"FORCE_EVAL%MM%PRINT%FF_INFO",&
+    iw = cp_print_key_unit_nr(logger,mm_section,"PRINT%FF_INFO",&
          extension=".mmLog",error=error)
     CALL timeset(routineN,'I','',handle)
 
@@ -217,7 +219,7 @@ CONTAINS
     !-----------------------------------------------------------------------------
     ! 2. Read in the force field section in the input file if any
     !-----------------------------------------------------------------------------
-    CALL read_force_field_section(ff_type,globenv,error)
+    CALL read_force_field_section(ff_type,globenv,mm_section,error)
 
 
     !-----------------------------------------------------------------------------
@@ -244,7 +246,7 @@ CONTAINS
     IF(ff_type%ff_type/="OFF") THEN
        SELECT CASE (ff_type%ff_type)
        CASE ("CHM")
-          CALL read_force_field_charmm(ff_type,globenv,error)
+          CALL read_force_field_charmm(ff_type,globenv,mm_section,error)
        CASE DEFAULT
           CALL stop_program ("force_field_control","force field type not implemented")
        END SELECT
@@ -258,7 +260,7 @@ CONTAINS
     CALL force_field_pack (particle_set,atomic_kind_set,&
          molecule_kind_set,molecule_set,&
          ewald_env,fist_nonbond_env,&
-         ff_type,globenv, qmmm, qmmm_env, error=error)
+         ff_type,globenv, qmmm, qmmm_env, mm_section, error=error)
 
 
     !-----------------------------------------------------------------------------
@@ -267,14 +269,14 @@ CONTAINS
     !-----------------------------------------------------------------------------
     CALL force_field_qeff_output (particle_set,atomic_kind_set,&
          molecule_kind_set,molecule_set,&
-         globenv,error=error)
+         globenv,mm_section, error=error)
 
 
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------
     ! 7. Clean up "UNSET" bond,bend,UB,TORSION,IMPR,ONFO kinds
     !-----------------------------------------------------------------------------
-    CALL clean_intra_force_kind (molecule_kind_set,globenv,error)
+    CALL clean_intra_force_kind (molecule_kind_set,globenv,mm_section,error)
 
 
     !-----------------------------------------------------------------------------
@@ -285,8 +287,8 @@ CONTAINS
 
     CALL timestop(0.0_dp,handle)
     CALL write_checkpoint_information("Leaving "//routineN,globenv,error)
-    CALL cp_print_key_finished_output(iw,logger,globenv%input_file,&
-         "FORCE_EVAL%MM%PRINT%FF_INFO",error=error)
+    CALL cp_print_key_finished_output(iw,logger,mm_section,&
+         "PRINT%FF_INFO",error=error)
 
   END SUBROUTINE force_field_control
 
@@ -306,12 +308,12 @@ CONTAINS
 !!
 !!   SOURCE
 !******************************************************************************
-  SUBROUTINE read_force_field_section1 ( ff_section, ff_type, globenv, error )
+  SUBROUTINE read_force_field_section1 ( ff_section, mm_section, ff_type, globenv, error )
     IMPLICIT NONE
     ! Arguments
     TYPE(force_field_type), &
          INTENT(INOUT)                          :: ff_type
-    TYPE(section_vals_type), POINTER         :: ff_section  
+    TYPE(section_vals_type), POINTER         :: ff_section, mm_section
     TYPE(global_environment_type), &
          pointer,OPTIONAL                    :: globenv
     TYPE(cp_error_type), INTENT(inout), OPTIONAL   :: error
@@ -357,7 +359,7 @@ CONTAINS
           ntot=nlj+nwl
           IF (explicit) THEN
              CALL pair_potential_reallocate(inp_info%nonbonded,1,ntot+neam,eam=.TRUE.,error=error)
-             CALL read_eam_section(inp_info%nonbonded,tmp_section2,ntot,globenv,error)
+             CALL read_eam_section(inp_info%nonbonded,tmp_section2,ntot,globenv,mm_section,error)
           END IF
           tmp_section2 => section_vals_get_subs_vals(tmp_section,"GOODWIN",error=error)
           CALL section_vals_get(tmp_section2,explicit=explicit,n_repetition=ngd,error=error)
@@ -617,7 +619,7 @@ CONTAINS
 !!
 !!   SOURCE
 !******************************************************************************
-  SUBROUTINE read_eam_section(nonbonded, section, start, globenv, error)
+  SUBROUTINE read_eam_section(nonbonded, section, start, globenv, mm_section, error)
     IMPLICIT NONE
     ! Arguments
     TYPE (section_vals_type), POINTER                  :: section
@@ -627,6 +629,7 @@ CONTAINS
          pointer,OPTIONAL                    :: globenv
     TYPE(cp_error_type), INTENT(inout), &
          OPTIONAL                               :: error    
+    TYPE(section_vals_type), POINTER :: mm_section
     ! Local Variables
     CHARACTER(len=*), PARAMETER :: routineN = 'read_eam_section', &
          routineP = moduleN//':'//routineN
@@ -642,7 +645,7 @@ CONTAINS
        nonbonded%pot(start+isec)%pot %at2 = atm_names(2)
        CALL section_vals_val_get(section,"PARMFILE",i_rep_section=isec,&
             c_val=nonbonded%pot(start+isec)%pot%eam%eam_file_name,error=error)
-       CALL read_eam_data ( nonbonded%pot(start+isec)%pot%eam, globenv, error)
+       CALL read_eam_data ( nonbonded%pot(start+isec)%pot%eam, globenv, mm_section,error)
        nonbonded%pot(start+isec)%pot%rcutsq  = nonbonded%pot(start+isec)%pot%eam%acutal**2
     END DO
   END SUBROUTINE read_eam_section
@@ -1103,13 +1106,14 @@ CONTAINS
 !!
 !!   SOURCE
 !******************************************************************************
-  SUBROUTINE read_force_field_section ( ff_type , globenv, error )
+  SUBROUTINE read_force_field_section ( ff_type , globenv, mm_section, error )
     IMPLICIT NONE
     ! Arguments
     TYPE(force_field_type), &
          INTENT(INOUT)                          :: ff_type
     TYPE(global_environment_type), &
          pointer,OPTIONAL                    :: globenv
+    TYPE(section_vals_type), POINTER :: mm_section
     TYPE(cp_error_type), INTENT(inout), OPTIONAL   :: error
     ! Local Variables
     CHARACTER(LEN=default_string_length)     :: label
@@ -1118,9 +1122,9 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: ff_section  
 
     NULLIFY(ff_section)
-    ff_section => section_vals_get_subs_vals(globenv%input_file,&
-         "FORCE_EVAL%MM%FORCEFIELD",error=error)
-    CALL read_force_field_section1(ff_section, ff_type, globenv, error)
+    ff_section => section_vals_get_subs_vals(mm_section,&
+         "FORCEFIELD",error=error)
+    CALL read_force_field_section1(ff_section, mm_section, ff_type, globenv, error)
   END SUBROUTINE read_force_field_section
 
 !******************************************************************************
@@ -1142,13 +1146,15 @@ CONTAINS
 !!   SOURCE
 !******************************************************************************
   
-  SUBROUTINE read_force_field_charmm ( ff_type , globenv, error )
+  SUBROUTINE read_force_field_charmm ( ff_type , globenv, mm_section, error )
 
 
     TYPE(force_field_type), &
          INTENT(INOUT)                          :: ff_type
     TYPE(global_environment_type), &
          pointer,OPTIONAL                    :: globenv
+    TYPE(section_vals_type), POINTER :: mm_section
+ 
     TYPE(cp_error_type), INTENT(inout), OPTIONAL   :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'read_force_field_charmm', &
@@ -1176,7 +1182,7 @@ CONTAINS
     NULLIFY(logger,parser)
     logger => cp_error_get_logger(error)
     CALL write_checkpoint_information("Entering "//routineN,globenv,error)
-    iw = cp_print_key_unit_nr(logger,globenv%input_file,"FORCE_EVAL%MM%PRINT%FF_INFO",&
+    iw = cp_print_key_unit_nr(logger,mm_section,"PRINT%FF_INFO",&
          extension=".mmLog",error=error)
     CALL timeset(routineN,'I','',handle)
 
@@ -1523,8 +1529,8 @@ CONTAINS
     END DO
     CALL timestop(0.0_dp,handle)
     CALL write_checkpoint_information("Leaving "//routineN,globenv,error)
-    CALL cp_print_key_finished_output(iw,logger,globenv%input_file,&
-         "FORCE_EVAL%MM%PRINT%FF_INFO",error=error)
+    CALL cp_print_key_finished_output(iw,logger,mm_section,&
+         "PRINT%FF_INFO",error=error)
 
   END SUBROUTINE read_force_field_charmm
 
@@ -1551,7 +1557,7 @@ CONTAINS
   SUBROUTINE force_field_pack (particle_set,atomic_kind_set,&
        molecule_kind_set,molecule_set,&
        ewald_env,fist_nonbond_env,ff_type,globenv,&
-       qmmm, qmmm_env, error)
+       qmmm, qmmm_env, mm_section, error)
 
     TYPE ( ewald_environment_type ), POINTER :: ewald_env
     TYPE ( fist_nonbond_env_type ), POINTER ::  fist_nonbond_env
@@ -1560,6 +1566,8 @@ CONTAINS
     TYPE(molecule_kind_type), DIMENSION(:), POINTER        :: molecule_kind_set
     TYPE(molecule_type), DIMENSION(:), POINTER             :: molecule_set
     TYPE(force_field_type), INTENT(INOUT)                  :: ff_type
+    TYPE(section_vals_type), POINTER :: mm_section
+
     TYPE(global_environment_type), pointer, OPTIONAL    :: globenv
     TYPE(pair_potential_pp_type), POINTER                  :: potparm_bond
     TYPE(pair_potential_pp_type), POINTER                  :: potparm_nonbond
@@ -1636,7 +1644,7 @@ CONTAINS
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
     CALL write_checkpoint_information("Entering "//routineN,globenv,error)
-    iw = cp_print_key_unit_nr(logger,globenv%input_file,"FORCE_EVAL%MM%PRINT%FF_INFO",&
+    iw = cp_print_key_unit_nr(logger,mm_section,"PRINT%FF_INFO",&
          extension=".mmLog",error=error)
     CALL timeset(routineN,'I','',handle)
 
@@ -3139,8 +3147,8 @@ CONTAINS
 
     CALL timestop(0.0_dp,handle)
     CALL write_checkpoint_information("Leaving "//routineN,globenv,error)
-    CALL cp_print_key_finished_output(iw,logger,globenv%input_file,&
-         "FORCE_EVAL%MM%PRINT%FF_INFO",error=error)
+    CALL cp_print_key_finished_output(iw,logger,mm_section,&
+         "PRINT%FF_INFO",error=error)
   END SUBROUTINE force_field_pack
 
 !******************************************************************************
@@ -3163,7 +3171,7 @@ CONTAINS
 !!   INPUTS
 !!*****************************************************************************
   SUBROUTINE force_field_qeff_output (particle_set,atomic_kind_set,&
-       molecule_kind_set,molecule_set,globenv,error)
+       molecule_kind_set,molecule_set,globenv,mm_section,error)
 
     TYPE(particle_type), DIMENSION(:), POINTER             :: particle_set
     TYPE(atomic_kind_type), DIMENSION(:), POINTER          :: atomic_kind_set
@@ -3172,7 +3180,7 @@ CONTAINS
     TYPE(global_environment_type), pointer, OPTIONAL    :: globenv
     TYPE(cp_error_type), INTENT(inout), &
          OPTIONAL                               :: error
-
+    TYPE(section_vals_type), POINTER :: mm_section
     CHARACTER(len=*), PARAMETER :: routineN = 'force_field_qeff_output', &
          routineP = moduleN//':'//routineN
 
@@ -3192,7 +3200,7 @@ CONTAINS
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
     CALL write_checkpoint_information("Entering "//routineN,globenv,error)
-    iw = cp_print_key_unit_nr(logger,globenv%input_file,"FORCE_EVAL%MM%PRINT%FF_INFO",&
+    iw = cp_print_key_unit_nr(logger,mm_section,"PRINT%FF_INFO",&
          extension=".mmLog",error=error)
     CALL timeset(routineN,'I','',handle)
 
@@ -3235,8 +3243,8 @@ CONTAINS
 
     CALL timestop(0.0_dp,handle)
     CALL write_checkpoint_information("Leaving "//routineN,globenv,error)
-    CALL cp_print_key_finished_output(iw,logger,globenv%input_file,&
-         "FORCE_EVAL%MM%PRINT%FF_INFO",error=error)
+    CALL cp_print_key_finished_output(iw,logger,mm_section,&
+         "PRINT%FF_INFO",error=error)
   END SUBROUTINE force_field_qeff_output
 
 !******************************************************************************
@@ -3258,11 +3266,12 @@ CONTAINS
 !!
 !!   INPUTS
 !!*****************************************************************************
-  SUBROUTINE clean_intra_force_kind (molecule_kind_set,globenv,error)
+  SUBROUTINE clean_intra_force_kind (molecule_kind_set,globenv,mm_section,error)
 
     TYPE(molecule_kind_type), DIMENSION(:), POINTER        :: molecule_kind_set
     TYPE(global_environment_type), pointer, OPTIONAL    :: globenv
     TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(section_vals_type), POINTER :: mm_section
 
     CHARACTER(len=*), PARAMETER :: routineN = 'clean_intra_force_kind', &
          routineP = moduleN//':'//routineN
@@ -3310,7 +3319,7 @@ CONTAINS
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
     CALL write_checkpoint_information("Entering "//routineN,globenv,error)
-    iw = cp_print_key_unit_nr(logger,globenv%input_file,"FORCE_EVAL%MM%PRINT%FF_INFO",&
+    iw = cp_print_key_unit_nr(logger,mm_section,"PRINT%FF_INFO",&
          extension=".mmLog",error=error)
     CALL timeset(routineN,'I','',handle)
 
@@ -3981,8 +3990,8 @@ CONTAINS
     END DO
     CALL timestop(0.0_dp,handle)
     CALL write_checkpoint_information("Leaving "//routineN,globenv,error)
-    CALL cp_print_key_finished_output(iw,logger,globenv%input_file,&
-         "FORCE_EVAL%MM%PRINT%FF_INFO",error=error)
+    CALL cp_print_key_finished_output(iw,logger,mm_section,&
+         "PRINT%FF_INFO",error=error)
   END SUBROUTINE clean_intra_force_kind
 
 !******************************************************************************
@@ -4004,13 +4013,14 @@ CONTAINS
 !!
 !!   INPUTS
 !!*****************************************************************************
-  SUBROUTINE read_eam_data ( eam, globenv , error)
+  SUBROUTINE read_eam_data ( eam, globenv , mm_section, error)
     IMPLICIT NONE
     ! Arguments
     TYPE ( eam_pot_type ), POINTER                             :: eam
     TYPE ( global_environment_type ), pointer, OPTIONAL     :: globenv
     TYPE(cp_error_type), INTENT (INOUT), &
          OPTIONAL                                    :: error
+    TYPE(section_vals_type), POINTER :: mm_section
     ! Local Variables
     CHARACTER(len=*), PARAMETER :: routineN='read_eam_data',&
          routineP=moduleN//':'//routineN
@@ -4027,7 +4037,7 @@ CONTAINS
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
     CALL write_checkpoint_information("Entering "//routineN,globenv,error)
-    iw = cp_print_key_unit_nr(logger,globenv%input_file,"FORCE_EVAL%MM%PRINT%FF_INFO",&
+    iw = cp_print_key_unit_nr(logger,mm_section,"PRINT%FF_INFO",&
          extension=".mmLog",error=error)
     CALL timeset(routineN,'I','',handle)
     NULLIFY ( rval, rhoval, phi, phip, frho, frhop, rho, rhop )
@@ -4155,8 +4165,8 @@ CONTAINS
     END IF
     CALL timestop(0.0_dp,handle)
     CALL write_checkpoint_information("Leaving "//routineN,globenv,error)
-    CALL cp_print_key_finished_output(iw,logger,globenv%input_file,&
-         "FORCE_EVAL%MM%PRINT%FF_INFO",error=error)
+    CALL cp_print_key_finished_output(iw,logger,mm_section,&
+         "PRINT%FF_INFO",error=error)
     
   END SUBROUTINE read_eam_data
 

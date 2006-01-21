@@ -46,6 +46,8 @@ MODULE kg_gpw_pw_env_types
                                              cell_type
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
+  USE input_section_types,             ONLY: section_vals_type
+
   USE pw_poisson_types, ONLY: pw_poisson_type, pw_poisson_release, pw_poisson_retain
 #include "cp_common_uses.h"
   IMPLICIT NONE
@@ -228,12 +230,13 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE kg_sub_pw_env_destroy(molbox_env_set,error)
+  SUBROUTINE kg_sub_pw_env_destroy(molbox_env_set, force_env_section, error)
 
     TYPE(kg_molbox_env_type), DIMENSION(:), &
       POINTER                                  :: molbox_env_set
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                                 :: error
+    TYPE(section_vals_type), POINTER :: force_env_section
 
     CHARACTER(len=*), PARAMETER :: routineN = 'kg_sub_pw_env_destroy',&
       routineP = module_name//':'//routineN
@@ -266,7 +269,7 @@ CONTAINS
          CPPostconditionNoFail(istat==0,cp_warning_level,routineP,error)
       END IF
 
-      CALL pw_env_release(molbox_env_set(ikind)%pw_env_mol,error=error)
+      CALL pw_env_release(molbox_env_set(ikind)%pw_env_mol,force_env_section, error=error)
 
       CALL deallocate_rho_mol_blocks(molbox_env_set(ikind)%rho_mol_blocks,error=error)
 
@@ -278,11 +281,12 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE kg_sub_pw_env_release(kg_sub_pw_env,error)
+  SUBROUTINE kg_sub_pw_env_release(kg_sub_pw_env,force_env_section,error)
 
     TYPE(kg_sub_pw_env_type), POINTER          :: kg_sub_pw_env
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                                 :: error
+    TYPE(section_vals_type), POINTER :: force_env_section
 
     CHARACTER(len=*), PARAMETER :: routineN = 'kg_sub_pw_env_release',&
       routineP = module_name//':'//routineN
@@ -297,7 +301,8 @@ CONTAINS
       CPPrecondition(kg_sub_pw_env%ref_count>0,cp_failure_level,routineP,error,failure)
       kg_sub_pw_env%ref_count = kg_sub_pw_env%ref_count - 1
       IF(kg_sub_pw_env%ref_count<1) THEN
-        CALL kg_sub_pw_env_destroy(kg_sub_pw_env%molbox_env_set, error=error)
+        CALL kg_sub_pw_env_destroy(kg_sub_pw_env%molbox_env_set, force_env_section,&
+             error=error)
         DEALLOCATE(kg_sub_pw_env, STAT = istat)
         CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
       END IF
@@ -372,7 +377,8 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE set_molbox_env(molbox_env,cell_mol,poisson_env,pw_env_mol,rho_mol_blocks,error)
+  SUBROUTINE set_molbox_env(molbox_env,cell_mol,poisson_env,force_env_section,&
+       pw_env_mol,rho_mol_blocks,error)
 
     TYPE(kg_molbox_env_type), POINTER          :: molbox_env
     TYPE(cell_type) , POINTER, OPTIONAL        :: cell_mol
@@ -382,6 +388,8 @@ CONTAINS
       POINTER, OPTIONAL                        :: rho_mol_blocks
     TYPE(cp_error_type), INTENT(INOUT), &
       OPTIONAL                                 :: error
+     TYPE(section_vals_type), POINTER :: force_env_section
+
 
     CHARACTER(len=*), PARAMETER :: routineN = "set_molbox_env", &
       routineP = module_name//':'//routineN
@@ -403,7 +411,7 @@ CONTAINS
     END IF
     IF(PRESENT(pw_env_mol)) THEN
       CALL pw_env_retain(pw_env_mol,error=error)
-      CALL pw_env_release(molbox_env%pw_env_mol,error=error)
+      CALL pw_env_release(molbox_env%pw_env_mol,force_env_section, error=error)
       molbox_env%pw_env_mol => pw_env_mol
     END IF
     IF(PRESENT(rho_mol_blocks)) THEN

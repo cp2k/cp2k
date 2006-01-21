@@ -70,8 +70,7 @@ MODULE fist_environment
                                              particle_list_type
   USE particle_types,                  ONLY: particle_type,&
                                              write_particle_distances, &
-                                             write_qs_particle_coordinates,&
-                                             write_structure_data
+                                             write_qs_particle_coordinates
   USE cell_types,                      ONLY: cell_type,&
                                              cell_release,&
                                              read_cell,&
@@ -153,21 +152,25 @@ SUBROUTINE fist_init ( fist_env, globenv, error )
   INTEGER                                  :: handle
   TYPE(section_vals_type), POINTER         :: cell_section, &
                                               poisson_section, &
-                                              colvar_section
+                                              colvar_section,&
+                                              force_env_section,&
+                                              mm_section
 ! Local parameters 
   REAL(KIND=dp), DIMENSION(3)              :: abc
   CHARACTER(LEN=*), PARAMETER :: routine_name = "fist_init"
   TYPE (qmmm_env_mm_type), POINTER :: qmmm_env
-!   ---------------------------------------------------------------------------
+
   CALL write_checkpoint_information("Entering "//routine_name,globenv,error)
-
   CALL timeset(routine_name,"I",'',handle)
-
 
   NULLIFY ( subsystem, molecule_kind_set, molecule_set, atomic_kind_set,&
             particle_set,atomic_kinds,particles,mols,mol_kinds,cell,cell_ref)
-  NULLIFY ( ewald_env, fist_nonbond_env, qmmm_env, cell_section, poisson_section)
-
+  NULLIFY ( ewald_env, fist_nonbond_env, qmmm_env, cell_section, poisson_section,&
+            force_env_section)
+  force_env_section => section_vals_get_subs_vals(globenv%input_file,&
+       "FORCE_EVAL",error=error)
+  mm_section => section_vals_get_subs_vals(force_env_section,&
+       "MM",error=error)
   cell_section => section_vals_get_subs_vals(globenv%input_file,&
        "FORCE_EVAL%SUBSYS%CELL",error=error)
   poisson_section => section_vals_get_subs_vals(globenv%input_file,&
@@ -184,7 +187,7 @@ SUBROUTINE fist_init ( fist_env, globenv, error )
   CALL get_cell (cell, abc=abc)
 
 ! Print the cell parameters ***
-  CALL write_cell ( cell, globenv, error)
+  CALL write_cell ( cell, force_env_section, error)
 
 ! Create the ewald environment
   CALL ewald_env_create ( ewald_env, globenv % para_env, error )
@@ -204,7 +207,7 @@ SUBROUTINE fist_init ( fist_env, globenv, error )
   CALL force_field_control ( atomic_kind_set, particle_set,&
                              molecule_kind_set, molecule_set,&
                              ewald_env, fist_nonbond_env, globenv, qmmm=qmmm,&
-                             qmmm_env=qmmm_env, error=error )
+                             qmmm_env=qmmm_env, mm_section=mm_section, error=error )
 
   CALL particle_list_create ( particles, els_ptr = particle_set, error = error )
   CALL atomic_kind_list_create ( atomic_kinds, els_ptr = atomic_kind_set, error = error )
@@ -218,7 +221,8 @@ SUBROUTINE fist_init ( fist_env, globenv, error )
   CALL mol_kind_new_list_release ( mol_kinds, error = error )
 
   CALL fist_init_subsys ( fist_env, subsystem, cell, cell_ref, use_ref_cell, &
-                          fist_nonbond_env, ewald_env, globenv, error )
+                          fist_nonbond_env, ewald_env, globenv, force_env_section,&
+                          error )
 
   CALL cell_release(cell,error=error)
   CALL cell_release(cell_ref,error=error)
@@ -233,7 +237,8 @@ SUBROUTINE fist_init ( fist_env, globenv, error )
 
 !   ***************************************************************************
   SUBROUTINE fist_init_subsys ( fist_env, subsystem, cell, cell_ref, use_ref_cell, &
-                                fist_nonbond_env, ewald_env, globenv, error )
+                                fist_nonbond_env, ewald_env, globenv, force_env_section,&
+                                error )
 
 !   Purpose: Read the input and the database files for the setup of the
 !            FIST environment.
@@ -251,7 +256,7 @@ SUBROUTINE fist_init ( fist_env, globenv, error )
     pointer                            :: globenv
   TYPE(cp_error_type), INTENT (INOUT), &
     OPTIONAL                                    :: error
-
+  TYPE(section_vals_type), POINTER :: force_env_section
 ! locals
   CHARACTER(LEN=*), PARAMETER              :: routine_name = "fist_init_subsys"
 
@@ -270,7 +275,7 @@ SUBROUTINE fist_init ( fist_env, globenv, error )
   TYPE(fist_energy_type), POINTER          :: thermo
   TYPE ( ewald_pw_type ), POINTER          :: ewald_pw
 
-
+  NULLIFY ( thermo, ewald_pw, local_molecules, local_particles)
   CALL write_checkpoint_information("Entering "//routine_name,globenv,error)
   CALL timeset(routine_name,"I",'',handle)
   particle_set => subsystem % particles % els
@@ -278,18 +283,15 @@ SUBROUTINE fist_init ( fist_env, globenv, error )
   molecule_set => subsystem % molecules_new % els
   molecule_kind_set => subsystem % molecule_kinds_new % els
 
-  NULLIFY ( thermo, ewald_pw, local_molecules, local_particles)
-
 ! Create the fist_energy_type
-  call allocate_fist_energy( thermo )
+  CALL allocate_fist_energy( thermo )
 
 ! Print the molecule kind set
-  CALL write_molecule_kind_set(molecule_kind_set,globenv,error)
+  CALL write_molecule_kind_set(molecule_kind_set,force_env_section,error)
 
 ! Print the atomic coordinates 
-  CALL write_qs_particle_coordinates(particle_set,cell,globenv,error)
-  CALL write_particle_distances(particle_set,cell,globenv,error)
-  CALL write_structure_data(particle_set,cell,globenv)
+  CALL write_qs_particle_coordinates(particle_set,cell,force_env_section,error)
+  CALL write_particle_distances(particle_set,cell,force_env_section,error)
 
 ! Distribute molecules and atoms using the new data structures ***
 
@@ -302,7 +304,7 @@ SUBROUTINE fist_init ( fist_env, globenv, error )
                                  error=error )
 
 ! Initialize ewald grids
-  CALL ewald_pw_create ( ewald_pw, cell, cell_ref, ewald_env, error )
+  CALL ewald_pw_create ( ewald_pw, cell, cell_ref, ewald_env, force_env_section, error )
 
 ! Initialize self-interaction and neutralizing background
   CALL ewald_self ( ewald_env, atomic_kind_set, local_particles, &

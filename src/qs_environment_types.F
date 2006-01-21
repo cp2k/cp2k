@@ -61,7 +61,8 @@ MODULE qs_environment_types
                                              hartree_local_type,&
                                              set_hartree_local
   USE input_section_types,             ONLY: section_vals_type, section_vals_retain,&
-                                             section_vals_release
+                                             section_vals_release,&
+                                             section_vals_get_subs_vals
   USE kg_gpw_pw_env_types,             ONLY: kg_sub_pw_env_release,&
                                              kg_sub_pw_env_retain,&
                                              kg_sub_pw_env_type
@@ -760,13 +761,11 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     LOGICAL                                  :: failure
-
 !   ---------------------------------------------------------------------------
 
     failure=.FALSE.
 !    CPPrecondition(ASSOCIATED(qs_env),cp_failure_level,routineP,error,failure)
     CPPrecondition(qs_env%ref_count>0,cp_failure_level,routineP,error,failure)
-
     IF (PRESENT(cell)) THEN
        CALL cell_retain(cell, error=error)
        CALL cell_release(qs_env%cell,error=error)
@@ -825,12 +824,12 @@ CONTAINS
 
     IF(PRESENT(kg_sub_pw_env)) THEN
       CALL kg_sub_pw_env_retain(kg_sub_pw_env,error=error)
-      CALL kg_sub_pw_env_release(qs_env%kg_sub_pw_env, error=error)
+      CALL kg_sub_pw_env_release(qs_env%kg_sub_pw_env, qs_env%input, error=error)
       qs_env%kg_sub_pw_env => kg_sub_pw_env
     END IF
     IF (PRESENT(pw_env)) THEN ! accept also null pointers?
       CALL pw_env_retain(pw_env,error=error)
-      CALL pw_env_release(qs_env%pw_env,error=error)
+      CALL pw_env_release(qs_env%pw_env,qs_env%input,error=error)
       qs_env%pw_env => pw_env
     END IF
     IF (PRESENT(scf_control)) THEN ! accept also null pointers?
@@ -852,7 +851,7 @@ CONTAINS
     END IF
     IF (PRESENT(ks_qmmm_env)) THEN
        CALL qs_ks_qmmm_retain(ks_qmmm_env, error=error)
-       CALL qs_ks_qmmm_release(qs_env%ks_qmmm_env, error=error)
+       CALL qs_ks_qmmm_release(qs_env%ks_qmmm_env, qs_env%input, error=error)
        qs_env%ks_qmmm_env => ks_qmmm_env
     END IF
     IF (PRESENT(ks_env)) THEN ! accept also null pointers?
@@ -1205,7 +1204,7 @@ SUBROUTINE qs_env_release(qs_env,error)
         END IF
 
         IF(ASSOCIATED(qs_env%kg_sub_pw_env)) THEN
-          CALL kg_sub_pw_env_release(qs_env%kg_sub_pw_env,error=error)
+          CALL kg_sub_pw_env_release(qs_env%kg_sub_pw_env,qs_env%input,error=error)
         END IF
 
         !Only if do_xas_calculation
@@ -1217,7 +1216,7 @@ SUBROUTINE qs_env_release(qs_env,error)
           CALL virial_release(qs_env%virial,error=error)
         END IF
 !JCS
-        CALL pw_env_release(qs_env%pw_env, error=error)
+        CALL pw_env_release(qs_env%pw_env, qs_env%input, error=error)
         CALL cp_para_env_release(qs_env%para_env,error=error)
         CALL cp_blacs_env_release(qs_env%blacs_env, error=error)
         IF (ASSOCIATED(qs_env%rho_core)) THEN
@@ -1226,7 +1225,7 @@ SUBROUTINE qs_env_release(qs_env,error)
         ENDIF
         CALL qs_charges_release(qs_env%qs_charges, error=error)
         CALL qs_ks_release(qs_env%ks_env, error=error)
-        CALL qs_ks_qmmm_release(qs_env%ks_qmmm_env, error=error)
+        CALL qs_ks_qmmm_release(qs_env%ks_qmmm_env, qs_env%input, error=error)
         CALL wfi_release(qs_env%wf_history,error=error)
         CALL scf_env_release(qs_env%scf_env, error=error)
         CALL mpools_release(qs_env%mpools,error=error)

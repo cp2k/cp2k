@@ -56,6 +56,9 @@ MODULE geo_opt
   USE input_constants,                 ONLY: default_lbfgs_method_id,&
                                              default_bfgs_method_id,&
                                              default_cg_method_id
+  USE input_section_types, ONLY: section_vals_type, section_vals_get_subs_vals,&
+       section_vals_get, section_vals_val_get, section_vals_release
+   
 #include "cp_common_uses.h"
 
  IMPLICIT NONE
@@ -101,21 +104,24 @@ MODULE geo_opt
           routineP = moduleN//':'//routineN
      LOGICAL                                  :: failure
      TYPE(gopt_param_type), POINTER           :: gopt_param
-
+     TYPE(section_vals_type), POINTER :: force_env_section
 
      CALL write_checkpoint_information("Entering "//routineN,globenv,error)
      CPPrecondition(ASSOCIATED(force_env),cp_failure_level,routineP,error,failure)
      CPPrecondition(ASSOCIATED(globenv),cp_failure_level,routineP,error,failure)
-     NULLIFY (gopt_param)
+     NULLIFY (gopt_param,force_env_section)
      CALL gopt_param_read(gopt_param, globenv, error=error)
+
+     force_env_section => section_vals_get_subs_vals(globenv%input_file,&
+          "FORCE_EVAL",error=error)     
 
      SELECT CASE (gopt_param%method_id)
      CASE (default_bfgs_method_id)
-        CALL geoopt_bfgs(force_env,globenv,gopt_param,error=error)
+        CALL geoopt_bfgs(force_env,globenv,gopt_param,force_env_section,error=error)
      CASE (default_lbfgs_method_id)
-        CALL gopt_do_opt(force_env,gopt_param,globenv,error=error)
+        CALL gopt_do_opt(force_env,gopt_param,globenv,force_env_section,error=error)
      CASE (default_cg_method_id)
-        CALL geoopt_cg(force_env,gopt_param,globenv,error=error)
+        CALL geoopt_cg(force_env,gopt_param,globenv,force_env_section,error=error)
      CASE DEFAULT
         CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
      END SELECT
@@ -146,11 +152,12 @@ MODULE geo_opt
 !!     08.2003 created [fawzi]
 !!
 !!*** **********************************************************************
-   SUBROUTINE gopt_do_opt(force_env, gopt_param, globenv, error)
+   SUBROUTINE gopt_do_opt(force_env, gopt_param, globenv, force_env_section,error)
      IMPLICIT NONE
      ! Arguments
      TYPE(force_env_type), POINTER            :: force_env
      TYPE(gopt_param_type), POINTER           :: gopt_param
+     TYPE(section_vals_type), POINTER :: force_env_section
      TYPE(global_environment_type), &
           pointer                  :: globenv
      TYPE(cp_error_type), INTENT(inout), &
@@ -195,7 +202,7 @@ MODULE geo_opt
         CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
 
         DO i=1,gopt_param%max_iter
-           IF (.NOT.cp_opt_gopt_next(optimizer,error=error)) EXIT
+           IF (.NOT.cp_opt_gopt_next(optimizer,force_env_section=force_env_section,error=error)) EXIT
            ! check for an external exit command 
            CALL external_control(should_stop,"GEO",globenv,error)
            IF (should_stop) THEN
@@ -210,7 +217,7 @@ MODULE geo_opt
                 fmt="(' Reevaluating wf at minimum')")
         END IF
         CALL gopt_f_eval_at(gopt_env,optimizer%x,f=f,master=optimizer%master,&
-             para_env=optimizer%para_env,error=error)
+             para_env=optimizer%para_env,force_env_section=force_env_section, error=error)
         ! add 'gradient=optimizer%gradient' to revaluate also the force?
 
         CALL force_env_get(force_env,subsys=subsys,cell=cell,error=error)
@@ -218,8 +225,7 @@ MODULE geo_opt
            CALL cp_subsys_get(subsys(isubsys)%subsys, particles=particles,&
                 error=error)
            CALL write_particle_distances(particles%els,&
-                cell,&
-                globenv,error)
+                cell,force_env_section,error)
         END DO
 
         CALL cp_opt_gopt_release(optimizer, error=error)

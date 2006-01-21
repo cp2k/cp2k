@@ -77,6 +77,9 @@ MODULE qs_environment_methods
   USE termination,                     ONLY: stop_memory
   USE timings,                         ONLY: timeset,&
                                              timestop
+  USE input_section_types,             ONLY: section_vals_type,&
+       section_vals_get_subs_vals
+  
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -348,7 +351,6 @@ SUBROUTINE qs_env_rebuild_pw_env(qs_env,error)
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
 
   failure=.FALSE.
-
   ! rebuild pw_env
   NULLIFY(dft_control)
   CALL get_qs_env(qs_env, pw_env=new_pw_env, dft_control=dft_control)
@@ -356,7 +358,7 @@ SUBROUTINE qs_env_rebuild_pw_env(qs_env,error)
   IF (.NOT.ASSOCIATED(new_pw_env)) THEN
      CALL pw_env_create(new_pw_env,qs_env=qs_env,error=error)
      CALL set_qs_env(qs_env,pw_env=new_pw_env)
-     CALL pw_env_release(new_pw_env,error=error)
+     CALL pw_env_release(new_pw_env,force_env_section=qs_env%input,error=error)
   ELSE
      CALL pw_env_rebuild(new_pw_env,qs_env=qs_env,error=error)
   END IF

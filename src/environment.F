@@ -367,11 +367,11 @@ SUBROUTINE cp2k_read(globenv,error)
     globenv%print%level=globenv%print_level
     CALL print_keys_reset(globenv%print,globenv%print_level)
 
-    iw = cp_print_key_unit_nr(logger,globenv%input_file,"FORCE_EVAL%PRINT%BASIC_DATA_TYPES",&
+    iw = cp_print_key_unit_nr(logger,globenv%input_file,"GLOBAL%PRINT/BASIC_DATA_TYPES",&
          extension=".Log",error=error)
     IF (iw>0) CALL print_kind_info(iw)
     CALL cp_print_key_finished_output(iw,logger,globenv%input_file,&
-         "FORCE_EVAL%PRINT%BASIC_DATA_TYPES",error=error)
+         "GLOBAL%PRINT/BASIC_DATA_TYPES",error=error)
 
     iw = cp_print_key_unit_nr(logger,globenv%input_file,"GLOBAL%PRINT/PHYSCON",&
          extension=".Log",error=error)

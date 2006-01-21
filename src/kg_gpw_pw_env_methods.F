@@ -108,7 +108,8 @@ MODULE kg_gpw_pw_env_methods
                                              stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE input_section_types,             ONLY: section_vals_type  
+  USE input_section_types,             ONLY: section_vals_type,&
+                                             section_vals_get_subs_vals
   USE pw_poisson_types, ONLY: pw_poisson_type, pw_poisson_create, pw_poisson_release
   USE pw_poisson_methods, only: pw_poisson_set
 #include "cp_common_uses.h"
@@ -288,14 +289,18 @@ CONTAINS
     CALL get_molbox_env(molbox_env=molbox_env_p,pw_env_mol=new_pw_mol)
     IF (.NOT.ASSOCIATED(new_pw_mol)) THEN
        CALL pw_env_create(new_pw_mol,error=error)
-       CALL pw_env_mol_rebuild(new_pw_mol,cell_mol,pw_env,dft_control,side,num_pe,error=error)
-       CALL set_molbox_env(molbox_env=molbox_env_p,pw_env_mol=new_pw_mol)
-       CALL pw_env_release(new_pw_mol,error=error)
+       CALL pw_env_mol_rebuild(new_pw_mol,cell_mol,pw_env,dft_control,side,num_pe,&
+            error=error,force_env_section=qs_env%input)
+       CALL set_molbox_env(molbox_env=molbox_env_p,pw_env_mol=new_pw_mol,&
+            force_env_section=qs_env%input)
+       CALL pw_env_release(new_pw_mol,qs_env%input,error=error)
     ELSE
-       CALL pw_env_mol_rebuild(new_pw_mol,cell_mol,pw_env,dft_control,side,num_pe,error=error)
+       CALL pw_env_mol_rebuild(new_pw_mol,cell_mol,pw_env,dft_control,side,num_pe,&
+            force_env_section=qs_env%input,error=error)
     END IF
 
-    CALL set_molbox_env(molbox_env=molbox_env_p,cell_mol=cell_mol)
+    CALL set_molbox_env(molbox_env=molbox_env_p,cell_mol=cell_mol,&
+         force_env_section=qs_env%input)
     DO i = 1,3
       Li =  SQRT ( SUM ( cell_ref % hmat ( :, i ) ** 2 ) )
       length = cell_mol%hmat( i,i )
@@ -322,7 +327,8 @@ CONTAINS
          pw_pools=new_pw_mol%pw_pools,use_level=new_pw_mol%auxbas_grid,&
          error=error)
 
-    CALL set_molbox_env(molbox_env=molbox_env_p,poisson_env=poisson_env)
+    CALL set_molbox_env(molbox_env=molbox_env_p,poisson_env=poisson_env,&
+         force_env_section=qs_env%input)
     CALL pw_poisson_release(poisson_env,error=error)
 
     CALL cell_release(cell_mol,error=error)
@@ -330,7 +336,8 @@ CONTAINS
    ! And now initialize the rho sructure for each molecule
     NULLIFY(rho_mol_blocks)
     CALL rho_mol_blocks_create(rho_mol_blocks,nmol_local,nat_mol,fm_mol_blocks,error=error)
-    CALL set_molbox_env(molbox_env=molbox_env_p,rho_mol_blocks=rho_mol_blocks)
+    CALL set_molbox_env(molbox_env=molbox_env_p,rho_mol_blocks=rho_mol_blocks,&
+         force_env_section=qs_env%input)
 
     CALL timestop(0.0_dp,handle)
 
@@ -361,7 +368,8 @@ CONTAINS
 !!*** *************************************************************************
  
 
-  SUBROUTINE pw_env_mol_rebuild(pw_mol,cell_mol,pw_global,dft_control,side,num_pe,error)
+  SUBROUTINE pw_env_mol_rebuild(pw_mol,cell_mol,pw_global,dft_control,side,num_pe,&
+       force_env_section, error)
 
     TYPE(pw_env_type), POINTER                 :: pw_global,pw_mol
     TYPE(cell_type), POINTER                   :: cell_mol
@@ -370,6 +378,7 @@ CONTAINS
     INTEGER, INTENT(IN)                        :: num_pe
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                                 :: error
+    TYPE(section_vals_type), POINTER :: force_env_section
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_env_mol_rebuild',&
       routineP = module_name//':'//routineN
@@ -409,7 +418,8 @@ CONTAINS
       CALL pw_pools_dealloc(pw_mol%pw_pools,error=error)
       CALL rs_pools_dealloc(pw_mol%rs_pools,error=error)
       IF (ASSOCIATED(pw_mol%gridlevel_info)) THEN
-        CALL destroy_gaussian_gridlevel(pw_mol%gridlevel_info,error=error)
+        CALL destroy_gaussian_gridlevel(pw_mol%gridlevel_info,force_env_section,&
+             error=error)
       ELSE
         ALLOCATE(pw_mol%gridlevel_info, STAT=istat)
         CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)

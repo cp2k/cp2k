@@ -74,7 +74,8 @@ MODULE fist_neighbor_lists
                                              cp_print_key_finished_output,&
                                              cp_print_key_should_output,&
                                              cp_p_file
-
+  USE input_section_types, ONLY: section_vals_type, section_vals_get_subs_vals,&
+       section_vals_get, section_vals_val_get, section_vals_release
 #include "cp_common_uses.h"
   IMPLICIT NONE
 
@@ -96,7 +97,8 @@ CONTAINS
 
   SUBROUTINE build_fist_neighbor_lists(atomic_kind_set,particle_set,&
                                        local_particles,cell,r_max,nonbonded,&
-                                       globenv,build_from_scratch,error)
+                                       globenv,build_from_scratch,&
+                                       force_env_section,error)
 
 !   Purpose: Build all the required neighbor lists for FIST.
 
@@ -117,6 +119,8 @@ CONTAINS
       POINTER                                :: globenv
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
+    TYPE(section_vals_type), POINTER :: force_env_section
+
     LOGICAL, INTENT(IN)                      :: build_from_scratch
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "build_fist_neighbor_lists"
@@ -137,7 +141,7 @@ CONTAINS
     CALL timeset(routine_name,"I","",handle)
 
     print_subcell_grid = .FALSE.
-    output_unit = cp_print_key_unit_nr(logger,globenv%input_file,"FORCE_EVAL%PRINT%SUBCELL",&
+    output_unit = cp_print_key_unit_nr(logger,force_env_section,"SUBSYS%PRINT%SUBCELL",&
          extension=".Log",error=error)
     IF (output_unit>0)  print_subcell_grid = .TRUE.
 
@@ -253,8 +257,8 @@ CONTAINS
     IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
                                      "atom")
 
-    CALL cp_print_key_finished_output(output_unit,logger,globenv%input_file,&
-         "FORCE_EVAL%PRINT%SUBCELL",error=error)    
+    CALL cp_print_key_finished_output(output_unit,logger,force_env_section,&
+         "SUBSYS%PRINT%SUBCELL",error=error)    
     CALL timestop(0.0_dp,handle)
 
     CALL write_checkpoint_information("Leaving "//routine_name,globenv,error)

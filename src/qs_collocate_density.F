@@ -265,7 +265,6 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'collocate_atomic_charge_density', &
       routineP = moduleN//':'//routineN
-
 !   ---------------------------------------------------------------------------
 
     NULLIFY(aux_basis_set, atomic_kind_set, atomic_kind, npgfa, cell, particle_set, &
@@ -315,7 +314,8 @@ CONTAINS
                               error=error)
 
     ! *** set up the rs multi-grids *** !
-    CALL rs_pools_create_rs_vect(rs_pools,rs_rho, error=error)
+    CALL rs_pools_create_rs_vect(rs_pools,rs_rho, force_env_section=qs_env%input,&
+         error=error)
     DO igrid_level = 1,gridlevel_info%ngrid_levels
       CALL rs_grid_zero(rs_rho(igrid_level)%rs_grid)
     END DO
@@ -472,11 +472,9 @@ CONTAINS
     TYPE(realspace_grid_type), POINTER       :: rs_rho
 
     SAVE pab                ! Temporary addition for Intel 8.0 OpenMP to work
-
 !   ---------------------------------------------------------------------------
 
     CALL timeset("calculate_rho_core","I"," ",handle)
-
     NULLIFY(atomic_kind,cell,dft_control,pab,atomic_kind_set,particle_set,&
          atom_list,pw_env,rs_rho,auxbas_rs_pool,auxbas_pw_pool,tasks)
     ALLOCATE(pab(1,1),STAT=ierr)
@@ -493,7 +491,8 @@ CONTAINS
     cube_info=pw_env%cube_info(1)
     l_info=pw_env%l_info
     ! be careful in parallel nsmax is choosen with multigrid in mind!
-    CALL rs_pool_create_rs(auxbas_rs_pool,rs_rho)
+    CALL rs_pool_create_rs(auxbas_rs_pool,rs_rho,force_env_section=qs_env%input,&
+         error=error)
     CALL rs_grid_zero(rs_rho)
 
     ncurr = -1
@@ -666,7 +665,6 @@ CONTAINS
     LOGICAL                                  :: distributed_rs_grids
     TYPE(section_vals_type), POINTER :: input, interp_section
     integer :: interp_kind
-
 !   ---------------------------------------------------------------------------
 
     failure=.FALSE.
@@ -746,7 +744,8 @@ CONTAINS
 
     ! *** set up the rs multi-grids
     distributed_rs_grids=.FALSE.
-    CALL rs_pools_create_rs_vect(rs_pools, rs_rho, error=error)
+    CALL rs_pools_create_rs_vect(rs_pools, rs_rho, force_env_section=input,&
+         error=error)
     DO igrid_level=1,gridlevel_info%ngrid_levels
        CALL rs_grid_zero(rs_rho(igrid_level)%rs_grid)
        IF ( rs_rho(igrid_level)%rs_grid%direction /= 0 ) THEN
@@ -1340,8 +1339,6 @@ CONTAINS
     TYPE(REALSPACE_GRID_P_TYPE), &
       DIMENSION(:), POINTER                  :: rs_rho
 
-!   ---------------------------------------------------------------------------
-
     failure=.FALSE.
 
     CALL timeset("calculate_wavefunction","I"," ",handle)
@@ -1392,7 +1389,8 @@ CONTAINS
     cube_info=>pw_env%cube_info
     l_info=pw_env%l_info
     ! *** set up rs multi-grids
-    CALL rs_pools_create_rs_vect(rs_pools, rs_rho, error=error)
+    CALL rs_pools_create_rs_vect(rs_pools, rs_rho, force_env_section=qs_env%input,&
+         error=error)
 
     DO igrid_level=1,gridlevel_info%ngrid_levels
        CALL rs_grid_zero(rs_rho(igrid_level)%rs_grid)

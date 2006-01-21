@@ -270,7 +270,7 @@ CONTAINS
     ! *** set up the rs multi-grids
     distributed_rs_grids=.FALSE.
     NULLIFY(rs_rho)
-    CALL rs_pools_create_rs_vect(rs_pools, rs_rho, error=error)
+    CALL rs_pools_create_rs_vect(rs_pools, rs_rho, force_env_section=qs_env%input, error=error)
     DO igrid_level=1,gridlevel_info%ngrid_levels
        CALL rs_grid_zero(rs_rho(igrid_level)%rs_grid)
     END DO
@@ -887,7 +887,7 @@ CONTAINS
        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     ENDIF
 
-    CALL rs_pools_create_rs_vect(rs_pools, rs_v)
+    CALL rs_pools_create_rs_vect(rs_pools, rs_v, force_env_section=qs_env%input, error=error)
     DO igrid_level=1,gridlevel_info%ngrid_levels
        CALL rs_pw_transfer(rs_v(igrid_level)%rs_grid,&
                            mgrid_rspace(igrid_level)%pw,pw2rs)

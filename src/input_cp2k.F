@@ -382,6 +382,11 @@ contains
          "controls the printing of physical and mathematical constants", &
          print_level=low_print_level,filename="__STD_OUT__",&
          error=error)
+    CALL keyword_create(keyword,"BASIC_DATA_TYPES",&
+         description="Controls the printing of the basic data types.",&
+         default_l_val=.TRUE.,lone_keyword_l_val=.TRUE.,error=error)
+    CALL section_add_keyword(print_key,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
     CALL keyword_create(keyword,"physcon",&
          description="if the printkey is active prints the physical constants",&
          default_l_val=.TRUE.,lone_keyword_l_val=.TRUE.,error=error)
@@ -829,162 +834,17 @@ SUBROUTINE create_f_env_print_section(section,error)
           n_keywords=0, n_subsections=5, repeats=.FALSE., required=.TRUE.,&
           error=error)
 
-     CALL cp_print_key_section_create(print_key,"trajectory",&
-          description="controls the output of the trajectory",&
-          print_level=low_print_level, filename="",error=error)
-     CALL keyword_create(keyword, name="format",&
-          description="Specifies the format of the output file for the trajectory.",&
-          usage="FORMAT (ATOMIC|XMOL|DCD)",&
-          default_i_val=dump_xmol,&
-          enum_c_vals=output_name_types,&
-          enum_i_vals=output_name_index,&
-          error=error)
-     CALL section_add_keyword(print_key,keyword,error=error)
-     CALL keyword_release(keyword,error=error)    
-     CALL section_add_subsection(section,print_key,error=error)
-     CALL section_release(print_key,error=error)
-
-     CALL cp_print_key_section_create(print_key,"velocities",&
-          description="controls the output of the velocities",&
-          print_level=low_print_level, filename="",error=error)
-     CALL keyword_create(keyword, name="format",&
-          description="Specifies the format of the output file for the trajectory.",&
-          usage="FORMAT (ATOMIC|XMOL|DCD)",&
-          default_i_val=dump_xmol,&
-          enum_c_vals=output_name_types,&
-          enum_i_vals=output_name_index,&
-          error=error)
-     CALL section_add_keyword(print_key,keyword,error=error)
-     CALL keyword_release(keyword,error=error)    
-     CALL section_add_subsection(section,print_key,error=error)
-     CALL section_release(print_key,error=error)
-
-     CALL cp_print_key_section_create(print_key,"forces",&
-          description="controls the output of the forces",&
-          print_level=high_print_level, filename="",error=error)
-     CALL keyword_create(keyword, name="format",&
-          description="Specifies the format of the output file for the trajectory.",&
-          usage="FORMAT (ATOMIC|XMOL|DCD)",&
-          default_i_val=dump_xmol,&
-          enum_c_vals=output_name_types,&
-          enum_i_vals=output_name_index,&
-          error=error)
-     CALL section_add_keyword(print_key,keyword,error=error)
-     CALL keyword_release(keyword,error=error)    
-     CALL section_add_subsection(section,print_key,error=error)
-     CALL section_release(print_key,error=error)
-
-     CALL cp_print_key_section_create(print_key,"energy",&
-          description="controls the output the ener file",&
-          print_level=debug_print_level, filename="",error=error)
-     CALL section_add_subsection(section,print_key,error=error)
-     CALL section_release(print_key,error=error)
-
-     CALL cp_print_key_section_create(print_key,"atomic_coordinates",&
-          description="controls the output of the atomic coordinates (check if trajectory is not what you want)",&
-          print_level=low_print_level, filename="__STD_OUT__",error=error)
-     CALL section_add_subsection(section,print_key,error=error)
-     CALL section_release(print_key,error=error)
-
-     CALL cp_print_key_section_create(print_key,"interatomic_distances",&
-          description="controls the output of the interatomic distances",&
-          print_level=debug_print_level, filename="__STD_OUT__",error=error)
-     CALL section_add_subsection(section,print_key,error=error)
-     CALL section_release(print_key,error=error)
-
-     CALL cp_print_key_section_create(print_key,"cell",&
-          description="controls the output of the cell parameters",&
-          print_level=medium_print_level, filename="",error=error)
-     CALL section_add_subsection(section,print_key,error=error)
-     CALL section_release(print_key,error=error)
-
-     CALL cp_print_key_section_create(print_key,"subcell",&
-          description="controls the output of the subcell parameters"//&
-          " during the construction of the neighbouring lists.",&
-          print_level=high_print_level, filename="",error=error)
-     CALL section_add_subsection(section,print_key,error=error)
-     CALL section_release(print_key,error=error)
-
-
-     CALL cp_print_key_section_create(print_key,"kinds",&
-          description="controls the output of information on the kinds",&
-          print_level=medium_print_level, filename="",error=error)
-     CALL keyword_create(keyword, name="kind_information",&
-          description="If the printkey is activated controls the printing of generic kind information",&
-          default_l_val=.TRUE., lone_keyword_l_val=.TRUE., error=error)
-     CALL section_add_keyword(print_key,keyword,error=error)
-     CALL keyword_release(keyword,error=error)    
-
-     CALL keyword_create(keyword, name="potential",&
-          description="If the printkey is activated controls the printing of the"//&
-          " elp_potential, gth_potential or all electron potential information",&
-          default_l_val=.FALSE., lone_keyword_l_val=.TRUE., error=error)
-     CALL section_add_keyword(print_key,keyword,error=error)
-     CALL keyword_release(keyword,error=error)    
-     CALL keyword_create(keyword, name="basis_set",&
-          description="If the printkey is activated controls the printing of basis set information",&
-          default_l_val=.FALSE., lone_keyword_l_val=.TRUE., error=error)
-     CALL section_add_keyword(print_key,keyword,error=error)
-     CALL keyword_release(keyword,error=error)    
-     CALL section_add_subsection(section,print_key,error=error)
-     CALL section_release(print_key,error=error)
-
-     CALL cp_print_key_section_create(print_key,"BASIC_DATA_TYPES",&
-          description="Controls the printing of the basic data types.", &
+     CALL cp_print_key_section_create(print_key,"PW_GRID_INFORMATION",&
+          description="Controls the printing of information regarding the pw_grid structure.",&
           print_level=high_print_level,each=(/1/),filename="__STD_OUT__",&
           error=error)
      CALL section_add_subsection(section,print_key,error=error)
      CALL section_release(print_key,error=error)
 
-     CALL cp_print_key_section_create(print_key,"radii",&
-          description="controls the output of radii information",&
-          print_level=high_print_level, filename="",error=error)
-     CALL keyword_create(keyword, name="core_charges_radii",&
-          description="If the printkey is activated controls the printing of the radii of the core charges",&
-          default_l_val=.TRUE., lone_keyword_l_val=.TRUE., error=error)
-     CALL section_add_keyword(print_key,keyword,error=error)
-     CALL keyword_release(keyword,error=error)    
-     CALL keyword_create(keyword, name="pgf_radii",&
-          description="If the printkey is activated controls the printing of the core gaussian radii",&
-          default_l_val=.TRUE., lone_keyword_l_val=.TRUE., error=error)
-     CALL section_add_keyword(print_key,keyword,error=error)
-     CALL keyword_release(keyword,error=error) 
-   
-     CALL keyword_create(keyword, name="set_radii",&
-          description="If the printkey is activated controls the printing of the set_radii",&
-          default_l_val=.TRUE., lone_keyword_l_val=.TRUE., error=error)
-     CALL section_add_keyword(print_key,keyword,error=error)
-     CALL keyword_release(keyword,error=error)    
-
-     CALL keyword_create(keyword, name="kind_radii",&
-          description="If the printkey is activated controls the printing of the kind_radii",&
-          default_l_val=.TRUE., lone_keyword_l_val=.TRUE., error=error)
-     CALL section_add_keyword(print_key,keyword,error=error)
-     CALL keyword_release(keyword,error=error)    
-
-     CALL keyword_create(keyword, name="core_charge_radii",&
-          description="If the printkey is activated controls the printing of the core_charge_radii",&
-          default_l_val=.TRUE., lone_keyword_l_val=.TRUE., error=error)
-     CALL section_add_keyword(print_key,keyword,error=error)
-     CALL keyword_release(keyword,error=error)
-
-     CALL keyword_create(keyword, name="gth_ppl_radii",&
-          description="If the printkey is activated controls the printing of the "//&
-          "gth pseudo potential local radii",&
-          default_l_val=.TRUE., lone_keyword_l_val=.TRUE., error=error)
-     CALL section_add_keyword(print_key,keyword,error=error)
-     CALL keyword_release(keyword,error=error)    
-     CALL keyword_create(keyword, name="gth_ppnl_radii",&
-          description="If the printkey is activated controls the printing of the "//&
-          "gth pseudo potential non local radii",&
-          default_l_val=.TRUE., lone_keyword_l_val=.TRUE., error=error)
-     CALL section_add_keyword(print_key,keyword,error=error)
-     CALL keyword_release(keyword,error=error)    
-     CALL keyword_create(keyword, name="gapw_prj_radii",&
-          description="If the printkey is activated controls the printing of the gapw projector radii",&
-          default_l_val=.TRUE., lone_keyword_l_val=.TRUE., error=error)
-     CALL section_add_keyword(print_key,keyword,error=error)
-     CALL keyword_release(keyword,error=error)    
+     CALL cp_print_key_section_create(print_key,"RS_GRID_INFORMATION",&
+          description="Controls the printing of information regarding the rs_grid structure.",&
+          print_level=high_print_level,each=(/1/),filename="__STD_OUT__",&
+          error=error)
      CALL section_add_subsection(section,print_key,error=error)
      CALL section_release(print_key,error=error)
 

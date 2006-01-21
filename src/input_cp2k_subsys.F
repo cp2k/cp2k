@@ -292,8 +292,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     LOGICAL                                  :: failure
-    TYPE(section_type), POINTER              :: subsection
-
+    TYPE(section_type), POINTER              :: subsection, print_key
+    TYPE(keyword_type), POINTER              :: keyword
     failure=.FALSE.
 
     CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
@@ -303,7 +303,7 @@ CONTAINS
             n_keywords=5, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
             error=error)
 
-       NULLIFY(subsection)
+       NULLIFY(subsection,print_key,keyword)
        CALL create_cell_section(subsection,error=error)
        CALL section_add_subsection(section,subsection,error=error)
        CALL section_release(subsection,error=error)
@@ -332,6 +332,142 @@ CONTAINS
        CALL section_add_subsection(section, subsection, error=error)
        CALL section_release(subsection,error=error)
 
+       CALL section_create(subsection,name="print",&
+            description="Controls printings related to the subsys",&
+            n_keywords=1, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+            error=error)
+
+       CALL cp_print_key_section_create(print_key,"atomic_coordinates",&
+            description="controls the output of the atomic coordinates "//&
+            "(check IF trajectory is not what you want)",&
+            print_level=medium_print_level, filename="__STD_OUT__",error=error)
+       CALL section_add_subsection(subsection,print_key,error=error)
+       CALL section_release(print_key,error=error)
+       
+       CALL cp_print_key_section_create(print_key,"interatomic_distances",&
+            description="controls the output of the interatomic distances",&
+            print_level=debug_print_level, filename="__STD_OUT__",error=error)
+       CALL section_add_subsection(subsection,print_key,error=error)
+       CALL section_release(print_key,error=error)
+       
+       CALL cp_print_key_section_create(print_key, "topology_info", description=&
+            "controls the printing of information in the topology settings", &
+            print_level=high_print_level,filename="__STD_OUT__",&
+            error=error)
+       CALL keyword_create(keyword,"pdb_info",&
+            description="if the printkey is active prints information regarding PDB",&
+            default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,error=error)
+       CALL section_add_keyword(print_key,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+       CALL keyword_create(keyword,"xyz_info",&
+            description="if the printkey is active prints information regarding XYZ",&
+            default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,error=error)
+       CALL section_add_keyword(print_key,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+       CALL keyword_create(keyword,"psf_info",&
+            description="if the printkey is active prints information regarding PSF",&
+            default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,error=error)
+       CALL section_add_keyword(print_key,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+       CALL keyword_create(keyword,"util_info",&
+            description="if the printkey is active prints information regarding topology utilities",&
+            default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,error=error)
+       CALL section_add_keyword(print_key,keyword,error=error)
+       CALL keyword_release(keyword,error=error)       
+       CALL section_add_subsection(subsection,print_key,error=error)
+       CALL section_release(print_key,error=error)  
+
+       CALL cp_print_key_section_create(print_key,"cell",&
+            description="controls the output of the cell parameters",&
+            print_level=medium_print_level, filename="__STD_OUT__",error=error)
+       CALL section_add_subsection(subsection,print_key,error=error)
+       CALL section_release(print_key,error=error)
+
+       CALL cp_print_key_section_create(print_key,"subcell",&
+            description="controls the output of the subcell parameters"//&
+            " during the construction of the neighbouring lists.",&
+            print_level=high_print_level, filename="__STD_OUT__",error=error)
+       CALL section_add_subsection(subsection,print_key,error=error)
+       CALL section_release(print_key,error=error)
+     
+       CALL cp_print_key_section_create(print_key,"kinds",&
+            description="controls the output of information on the kinds",&
+            print_level=medium_print_level, filename="__STD_OUT__",error=error)
+       CALL keyword_create(keyword, name="potential",&
+            description="If the printkey is activated controls the printing of the"//&
+            " elp_potential, gth_potential or all electron potential information",&
+            default_l_val=.FALSE., lone_keyword_l_val=.TRUE., error=error)
+       CALL section_add_keyword(print_key,keyword,error=error)
+       CALL keyword_release(keyword,error=error)    
+       CALL keyword_create(keyword, name="basis_set",&
+            description="If the printkey is activated controls the printing of basis set information",&
+            default_l_val=.FALSE., lone_keyword_l_val=.TRUE., error=error)
+       CALL section_add_keyword(print_key,keyword,error=error)
+       CALL keyword_release(keyword,error=error)    
+       CALL section_add_subsection(subsection,print_key,error=error)
+       CALL section_release(print_key,error=error)
+       
+       CALL cp_print_key_section_create(print_key,"molecules",&
+            description="controls the output of information on the molecules",&
+            print_level=medium_print_level, filename="__STD_OUT__",error=error)
+       CALL section_add_subsection(subsection,print_key,error=error)
+       CALL section_release(print_key,error=error)
+
+       CALL cp_print_key_section_create(print_key,"radii",&
+            description="controls the output of radii information",&
+            print_level=high_print_level, filename="__STD_OUT__",error=error)
+       CALL keyword_create(keyword, name="core_charges_radii",&
+            description="If the printkey is activated controls the printing of the radii of the core charges",&
+            default_l_val=.TRUE., lone_keyword_l_val=.TRUE., error=error)
+       CALL section_add_keyword(print_key,keyword,error=error)
+       CALL keyword_release(keyword,error=error)    
+       CALL keyword_create(keyword, name="pgf_radii",&
+            description="If the printkey is activated controls the printing of the core gaussian radii",&
+            default_l_val=.TRUE., lone_keyword_l_val=.TRUE., error=error)
+       CALL section_add_keyword(print_key,keyword,error=error)
+       CALL keyword_release(keyword,error=error) 
+       
+       CALL keyword_create(keyword, name="set_radii",&
+            description="If the printkey is activated controls the printing of the set_radii",&
+            default_l_val=.TRUE., lone_keyword_l_val=.TRUE., error=error)
+       CALL section_add_keyword(print_key,keyword,error=error)
+       CALL keyword_release(keyword,error=error)    
+       
+       CALL keyword_create(keyword, name="kind_radii",&
+            description="If the printkey is activated controls the printing of the kind_radii",&
+            default_l_val=.TRUE., lone_keyword_l_val=.TRUE., error=error)
+       CALL section_add_keyword(print_key,keyword,error=error)
+       CALL keyword_release(keyword,error=error)    
+       
+       CALL keyword_create(keyword, name="core_charge_radii",&
+            description="If the printkey is activated controls the printing of the core_charge_radii",&
+            default_l_val=.TRUE., lone_keyword_l_val=.TRUE., error=error)
+       CALL section_add_keyword(print_key,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+       
+       CALL keyword_create(keyword, name="gth_ppl_radii",&
+            description="If the printkey is activated controls the printing of the "//&
+            "gth pseudo potential local radii",&
+            default_l_val=.TRUE., lone_keyword_l_val=.TRUE., error=error)
+       CALL section_add_keyword(print_key,keyword,error=error)
+       CALL keyword_release(keyword,error=error)    
+       CALL keyword_create(keyword, name="gth_ppnl_radii",&
+            description="If the printkey is activated controls the printing of the "//&
+            "gth pseudo potential non local radii",&
+            default_l_val=.TRUE., lone_keyword_l_val=.TRUE., error=error)
+       CALL section_add_keyword(print_key,keyword,error=error)
+       CALL keyword_release(keyword,error=error)    
+       CALL keyword_create(keyword, name="gapw_prj_radii",&
+            description="If the printkey is activated controls the printing of the gapw projector radii",&
+            default_l_val=.TRUE., lone_keyword_l_val=.TRUE., error=error)
+       CALL section_add_keyword(print_key,keyword,error=error)
+       CALL keyword_release(keyword,error=error)    
+       CALL section_add_subsection(subsection,print_key,error=error)
+       CALL section_release(print_key,error=error)       
+       
+       CALL section_add_subsection(section,subsection,error=error)
+       CALL section_release(subsection,error=error)       
+       
     END IF
   END SUBROUTINE create_subsys_section
 

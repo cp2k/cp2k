@@ -51,7 +51,8 @@ MODULE kg_environment_types
                                              dyn_coeff_set_type
   USE input_section_types,             ONLY: section_vals_type,&
                                              section_vals_retain,&
-                                             section_vals_release
+                                             section_vals_release,&
+                                             section_vals_get_subs_vals
   USE kg_energy_types,                 ONLY: deallocate_kg_energy,&
                                              kg_energy_type
   USE kg_gpw_fm_mol_types,             ONLY: kg_fm_mol_set_release,&
@@ -392,8 +393,6 @@ CONTAINS
     TYPE(mol_new_list_type), POINTER           :: molecules_new
     TYPE(particle_list_type), POINTER          :: particles
 
-!   ---------------------------------------------------------------------------
-!   ---------------------------------------------------------------------------
 
     failure=.FALSE.
 !    CPPrecondition(ASSOCIATED(kg_env),cp_failure_level,routineP,error,failure)
@@ -446,7 +445,7 @@ CONTAINS
     END IF
     IF (PRESENT(rspw)) THEN ! accepts also null pointers !
       IF (ASSOCIATED(rspw)) CALL kg_rspw_retain(rspw,error=error)
-      CALL kg_rspw_release(kg_env%rspw,error=error)
+      CALL kg_rspw_release(kg_env%rspw,force_env_section=kg_env%input,error=error)
       kg_env%rspw => rspw
     END IF
     IF (PRESENT(scf_env)) THEN 
@@ -689,7 +688,7 @@ SUBROUTINE kg_env_release(kg_env,error)
         END IF
  
         CALL kg_rho_release(kg_env%rho, error=error)
-        CALL kg_rspw_release(kg_env%rspw, error=error)
+        CALL kg_rspw_release(kg_env%rspw, force_env_section=kg_env%input, error=error)
         CALL dyn_coeff_set_release(kg_env%dyn_coeff_set,error=error)
         CALL scf_c_release(kg_env%scf_control, error=error)
         CALL cp_para_env_release(kg_env%para_env,error=error)

@@ -56,6 +56,9 @@ MODULE kg_environment_methods
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE topology,                        ONLY: topology_control
+  USE input_section_types,             ONLY: section_vals_type,&
+       section_vals_get_subs_vals
+    
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -95,7 +98,6 @@ CONTAINS
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
 
-!***************************************************************************
   failure=.FALSE.
   my_kg_gpw = .FALSE.
   IF(PRESENT(kg_gpw)) my_kg_gpw=kg_gpw
@@ -121,7 +123,7 @@ CONTAINS
       IF (.NOT.ASSOCIATED(rspw)) THEN
          CALL kg_rspw_create(rspw,kg_env=kg_env,error=error)
          CALL set_kg_env(kg_env,rspw=rspw)
-         CALL kg_rspw_release(rspw,error=error)
+         CALL kg_rspw_release(rspw,force_env_section=kg_env%input,error=error)
       ELSE
          CALL kg_rspw_rebuild(rspw,kg_env=kg_env,error=error)
       END IF

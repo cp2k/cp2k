@@ -96,6 +96,8 @@ MODULE kg_force
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE xc,                              ONLY: xc_vxc_pw_create1
+  USE cp_output_handling,              ONLY: cp_print_key_unit_nr, &
+                                             cp_print_key_finished_output
   USE pw_poisson_types, ONLY: pw_poisson_type
   USE pw_poisson_methods, ONLY: pw_poisson_solve
   USE input_section_types, ONLY: section_vals_type, section_vals_get_subs_vals
@@ -831,9 +833,12 @@ END SUBROUTINE kg_calculate_forces
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(qs_rho_type), POINTER               :: rho
     TYPE(scf_control_type), POINTER          :: scf_control
+    INTEGER :: output_unit
+    TYPE(cp_logger_type), POINTER            :: logger
 
-!------------------------------------------------------------------------------
-
+    failure = .FALSE.
+    NULLIFY(logger)
+    logger => cp_error_get_logger(error)
     CALL write_checkpoint_information("entering "//routineP,globenv,error)
 
     CALL timeset(routine_name,"I","",handle)
@@ -965,8 +970,11 @@ END SUBROUTINE kg_calculate_forces
       force(ikind)%total(1:3,i)=force(ikind)%total(1:3,i)+force(ikind)%other(1:3,i)
       particle_set(iatom)%f = -force(ikind)%total(1:3,i)
     END DO
-
-    CALL write_forces(force,atomic_kind_set,3,globenv)
+    output_unit = cp_print_key_unit_nr(logger,kg_env%input,"DFT%PRINT%DERIVATIVES",&
+         extension=".Log",error=error)
+    CALL write_forces(force,atomic_kind_set,3,globenv,output_unit=output_unit)
+      CALL cp_print_key_finished_output(output_unit,logger,kg_env%input,&
+           "DFT%PRINT%DERIVATIVES",error=error)      
 
     CALL deallocate_matrix_set(matrix_w)
     CALL set_qs_env(qs_env=qs_env,matrix_w=matrix_w)

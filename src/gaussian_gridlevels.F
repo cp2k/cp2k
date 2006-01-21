@@ -1,12 +1,31 @@
-  ! Joost VandeVondele (27.02.02)
-  ! Code to return a gridlevel associated with a given gaussian exponent
+!-----------------------------------------------------------------------------!
+!   CP2K: A general program to perform molecular dynamics simulations         !
+!   Copyright (C) 2002  CP2K developers group                                 !
+!-----------------------------------------------------------------------------!
 
 
-  MODULE gaussian_gridlevels
+!!****h* cp2k/gaussian_gridlevels [1.0] *
+!!
+!!   NAME
+!!     gaussian_gridlevels
+!!
+!!   AUTHOR
+!!    Joost VandeVondele (27.02.02)
+!!
+!!   MODIFICATION HISTORY
+!!     Code to return a gridlevel associated with a given gaussian exponent
+!!
+!!   SOURCE
+!****************************************************************************
+MODULE gaussian_gridlevels
   USE global_types,                    ONLY: global_environment_type
   USE kinds,                           ONLY: dp
   USE message_passing,                 ONLY: mp_sum
   USE termination,                     ONLY: stop_memory
+  USE input_section_types,             ONLY: section_vals_type
+  USE cp_output_handling,              ONLY: cp_print_key_unit_nr, &
+                                             cp_print_key_finished_output
+
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -45,51 +64,49 @@ CONTAINS
        ENDDO
   END SUBROUTINE
  
-SUBROUTINE destroy_gaussian_gridlevel(gridlevel_info,globenv,error)
+SUBROUTINE destroy_gaussian_gridlevel(gridlevel_info,force_env_section,globenv,error)
     TYPE(gridlevel_info_type)                :: gridlevel_info
     TYPE(global_environment_type), &
       pointer, OPTIONAL           :: globenv
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
+    TYPE(section_vals_type), POINTER :: force_env_section
 
     CHARACTER(LEN=*), PARAMETER :: routine = &
       "SUBROUTINE destroy_gaussian_gridlevel (MODULE gaussian_gridlevels)"
 
-    INTEGER                                  :: group, i, istat,scr
-    LOGICAL                                  :: ionode, pw_grid_information
+    INTEGER                                  :: group, i, istat, output_unit
     TYPE(cp_logger_type), POINTER            :: logger
 
   NULLIFY(logger)
+  logger => cp_error_get_logger(error)
   IF (PRESENT(globenv)) THEN
      group=globenv%group
-     ionode=globenv%ionode
-     pw_grid_information=globenv%print%pw_grid_information
-     scr=globenv%scr
   ELSE
-     logger => cp_error_get_logger(error)
      group=logger%para_env%group
-     pw_grid_information=logger%print_keys%pw_grid_information
-     ionode=logger%para_env%source==logger%para_env%mepos
-     IF (ionode) scr=cp_logger_get_default_unit_nr(logger)
   END IF
+  output_unit = cp_print_key_unit_nr(logger,force_env_section,"PRINT%PW_GRID_INFORMATION",&
+         extension=".Log",error=error)
 
   DEALLOCATE (gridlevel_info%cutoff,STAT=istat)
   IF (istat /= 0) CALL stop_memory(routine,"gridlevel_info%cutoff")
   CALL mp_sum(gridlevel_info%total_count,group)
   CALL mp_sum(gridlevel_info%count,group)
-  IF (ionode.AND.pw_grid_information) THEN
-    WRITE(scr,'(/,T3,A)')         "---------------------------------------"
-    WRITE(scr,'(T3,A)')           "--           MULTIGRID INFO          --"
-    WRITE(scr,'(T3,A)')           "---------------------------------------"
-    WRITE(scr,'(T3,A,I14)')        "total gridlevel count  : ",&
+  IF (output_unit>0) THEN
+    WRITE(output_unit,'(/,T3,A)')         "---------------------------------------"
+    WRITE(output_unit,'(T3,A)')           "--           MULTIGRID INFO          --"
+    WRITE(output_unit,'(T3,A)')           "---------------------------------------"
+    WRITE(output_unit,'(T3,A,I14)')        "total gridlevel count  : ",&
       gridlevel_info%total_count
     DO i=1,gridlevel_info%ngrid_levels
-      WRITE(scr,'(T3,A,I4,A,I14)') "count for grid     ",i,": ",&
+      WRITE(output_unit,'(T3,A,I4,A,I14)') "count for grid     ",i,": ",&
        gridlevel_info%count(i)
     END DO
   END IF
   DEALLOCATE (gridlevel_info%count,STAT=istat)
   IF (istat /= 0) CALL stop_memory(routine,"gridlevel_info%count")
+  CALL cp_print_key_finished_output(output_unit,logger,force_env_section,&
+       "PRINT%PW_GRID_INFORMATION",error=error)  
   END SUBROUTINE
 
 ! ***************************************************************

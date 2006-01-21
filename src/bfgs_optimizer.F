@@ -42,13 +42,14 @@ MODULE bfgs_optimizer
   USE particle_types,                  ONLY: particle_type,&
                                              write_particle_coordinates,&
                                              write_particle_distances,&
-                                             write_qs_particle_coordinates,&
-                                             write_structure_data
+                                             write_qs_particle_coordinates
   USE cell_types,                 ONLY: cell_type
   USE termination,                     ONLY: external_control
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE input_constants,                 ONLY: dump_xmol
+  USE input_section_types, ONLY: section_vals_type, section_vals_get_subs_vals,&
+       section_vals_get, section_vals_val_get, section_vals_release
 #include "cp_common_uses.h"
   IMPLICIT NONE
 
@@ -66,12 +67,13 @@ CONTAINS
 
 !!*** **********************************************************************
 
-  SUBROUTINE geoopt_bfgs(force_env,globenv,gopt_param,error)
+  SUBROUTINE geoopt_bfgs(force_env,globenv,gopt_param,force_env_section,error)
 
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(global_environment_type), &
       pointer                             :: globenv
     TYPE(gopt_param_type), POINTER           :: gopt_param
+    TYPE(section_vals_type), POINTER :: force_env_section
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -189,9 +191,8 @@ CONTAINS
     CALL m_flush(output_unit)
   END IF
 
-  CALL write_qs_particle_coordinates(particle_set,cell,globenv,error) 
-  CALL write_particle_distances(particle_set,cell,globenv,error)
-  CALL write_structure_data(particle_set,cell,globenv)
+  CALL write_qs_particle_coordinates(particle_set,cell,force_env_section,error) 
+  CALL write_particle_distances(particle_set,cell,force_env_section,error)
 
   IF(ionode)THEN
     CALL open_file(file_name="HESSIAN",&
@@ -356,11 +357,10 @@ CONTAINS
      CALL write_particle_coordinates(particle_set,cell,dataunit,&
                                      dump_xmol,"POS",TRIM(title))
      CALL m_flush(dataunit)
-     CALL write_qs_particle_coordinates(particle_set,cell,globenv,error)
+     CALL write_qs_particle_coordinates(particle_set,cell,force_env_section,error)
    END IF
 
-   CALL write_particle_distances(particle_set,cell,globenv,error)
-   CALL write_structure_data(particle_set,cell,globenv)
+   CALL write_particle_distances(particle_set,cell,force_env_section,error)
 
    CALL energy_predict(ndf,work,hes,dr,g,ionode,output_unit,conv,pred)
 

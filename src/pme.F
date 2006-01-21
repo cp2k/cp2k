@@ -70,6 +70,7 @@ MODULE pme
                                              structure_factor_deallocate
   USE timings,                         ONLY: timeset,&
                                              timestop
+  USE input_section_types,             ONLY: section_vals_type
 #include "cp_common_uses.h"
   IMPLICIT NONE
 
@@ -102,7 +103,8 @@ CONTAINS
 !!   SOURCE
 !******************************************************************************
 
-  SUBROUTINE pme_evaluate ( ewald_env, ewald_pw, particle_set, vg_coulomb, fg_coulomb, pv_g, error )
+  SUBROUTINE pme_evaluate ( ewald_env, ewald_pw, particle_set, vg_coulomb, fg_coulomb,&
+       pv_g, force_env_section, error )
     IMPLICIT NONE
     ! Arguments
     TYPE(particle_type), DIMENSION(:), &
@@ -114,6 +116,7 @@ CONTAINS
       INTENT(OUT), OPTIONAL                  :: fg_coulomb, pv_g
     TYPE(cp_error_type), INTENT(inout), &
          OPTIONAL                               :: error
+    TYPE(section_vals_type), POINTER :: force_env_section
     ! Local Variables
     CHARACTER(LEN=*), PARAMETER :: routineN = "pme_evaluate", &
       routineP = moduleN//':'//routineN
@@ -162,7 +165,8 @@ CONTAINS
     CALL pw_pool_init_coeff ( pw_small_pool, rhos2, &
                               use_data = REALDATA3D )
 
-    call rs_grid_create( rden, grid_b, -MAXVAL ( grid_s % npts ) )
+    CALL rs_grid_create( rden, grid_b, -MAXVAL ( grid_s % npts ),&
+         force_env_section=force_env_section, error=error)
     rden % r = 0.0_dp
 
     IF ( rden % parallel .AND. rden % group_dim ( 1 ) /= 1 ) THEN
@@ -229,7 +233,8 @@ CONTAINS
     
     !--------END OF STRESS TENSOR CALCULATION -----------
 
-    CALL rs_grid_p_create ( drpot, 3, grid_b , -MAXVAL ( grid_s % npts ) )
+    CALL rs_grid_p_create ( drpot, 3, grid_b , -MAXVAL ( grid_s % npts ),&
+         force_env_section=force_env_section, error=error )
 
     DO i = 1, 3
        CALL pw_transfer ( dphi_g ( i )%pw, rhob_r )

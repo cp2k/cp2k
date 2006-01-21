@@ -100,6 +100,8 @@ MODULE force_env_methods
        section_describe_html, section_describe_index_html, section_vals_type,&
        section_vals_get_subs_vals, section_vals_get, section_vals_val_get
   USE constraint, only: fix_atom_control
+  USE cp_output_handling,              ONLY: cp_print_key_unit_nr, &
+                                             cp_print_key_finished_output  
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -624,7 +626,7 @@ RECURSIVE SUBROUTINE qmmm_energy_and_forces(force_env,calc_force,error)
        routineP=moduleN//':'//routineN
   TYPE(cp_subsystem_p_type), DIMENSION(:), POINTER :: subsys_qm,subsys_mm
   INTEGER, DIMENSION(:), POINTER :: qm_atom_index, qm_subsys_index
-  INTEGER :: ip, isubsys
+  INTEGER :: ip, isubsys, output_unit
   INTEGER, PARAMETER :: fist_subsys = 1, qs_subsys = 2
   TYPE(particle_type), DIMENSION(:), POINTER :: particles_qm, particles_mm
   REAL(KIND=dp), DIMENSION(3) :: min_coord,max_coord,transl_v
@@ -729,8 +731,7 @@ RECURSIVE SUBROUTINE qmmm_energy_and_forces(force_env,calc_force,error)
   CALL qmmm_validate_this_run(particles_qm, particles_mm, mm_cell, qm_cell, error=error)
 
   ! Dump out coordinates
-  CALL write_qs_particle_coordinates(particles_qm,qm_cell,&
-       force_env%sub_force_env(qs_subsys)%force_env%globenv,error)
+  CALL write_qs_particle_coordinates(particles_qm,qm_cell,force_env_section, error)
 
   ! Initialize ks_qmmm_env
   CALL ks_qmmm_env_rebuild(qs_env=force_env%sub_force_env(qs_subsys)%force_env%qs_env,&
@@ -753,21 +754,6 @@ RECURSIVE SUBROUTINE qmmm_energy_and_forces(force_env,calc_force,error)
   CALL force_env_get(force_env%sub_force_env(fist_subsys)%force_env,&
                      potential_energy=energy_mm,&
                      error=error)
-  print_key => section_vals_get_subs_vals(qmmm_section,"print%fist_derivatives",&
-       error=error)
-  IF (BTEST(cp_print_key_should_output(logger%iter_info,print_key,error=error),cp_p_file).AND.&
-       logger%para_env%mepos==logger%para_env%source) THEN
-     WRITE (unit=cp_logger_get_default_unit_nr(logger,local=.FALSE.),&
-          fmt='(/1X,A,F15.9)')"Energy after Fist calculation: ",energy_mm
-     IF (need_f) THEN
-        WRITE (unit=cp_logger_get_default_unit_nr(logger,local=.FALSE.),&
-             fmt='(/1X,A)')"Derivatives on all atoms after Fist calculation: "
-        DO ip=1,SIZE(particles_mm)
-           WRITE(unit=cp_logger_get_default_unit_nr(logger,local=.FALSE.),&
-                fmt='(1X,3F15.9)')particles_mm(ip)%f
-        END DO
-     END IF
-  END IF
   !
   ! QS
   CALL force_env_calc_energy_force(force_env%sub_force_env(qs_subsys)%force_env,&
@@ -778,22 +764,6 @@ RECURSIVE SUBROUTINE qmmm_energy_and_forces(force_env,calc_force,error)
   CALL force_env_get(force_env%sub_force_env(qs_subsys)%force_env,&
                      potential_energy=energy_qm,&
                      error=error)
-
-  print_key => section_vals_get_subs_vals(qmmm_section,"print%qs_derivatives",&
-       error=error)
-  IF (BTEST(cp_print_key_should_output(logger%iter_info,print_key,error=error),cp_p_file).AND.&
-       logger%para_env%mepos==logger%para_env%source) THEN
-     WRITE (unit=cp_logger_get_default_unit_nr(logger,local=.FALSE.),&  
-          fmt='(/1X,A,F15.9)')"Energy after QS calculation: ",energy_qm
-     IF (need_f) THEN
-        WRITE (unit=cp_logger_get_default_unit_nr(logger,local=.FALSE.),&  
-             fmt='(/1X,A)')"Derivatives on qm atoms after QS calculation: "
-        DO ip=1,SIZE(particles_qm)
-           WRITE (unit=cp_logger_get_default_unit_nr(logger,local=.FALSE.),&
-                fmt='(1X,3F15.9)')particles_qm(ip)%f
-        END DO
-     END IF
-  END IF
   !
   ! QM/MM Interaction Potential forces
   !
@@ -823,24 +793,22 @@ RECURSIVE SUBROUTINE qmmm_energy_and_forces(force_env,calc_force,error)
      END DO
      ! If add charges get rid of their derivatives right NOW!
      IF (qmmm_added_chrg) CALL qmmm_added_chrg_forces(force_env%qmmm_env, particles_mm, error)
+
   END IF
 
-  print_key => section_vals_get_subs_vals(qmmm_section,"print%qmmm_derivatives",&
-       error=error)
-  IF (BTEST(cp_print_key_should_output(logger%iter_info,print_key,error=error),cp_p_file).AND.&
-       logger%para_env%mepos==logger%para_env%source) THEN
-     WRITE (unit=cp_logger_get_default_unit_nr(logger,local=.FALSE.),&  
-          fmt='(/1X,A,F15.9)')"Energy after QMMM calculation: ",energy_qm
+  output_unit = cp_print_key_unit_nr(logger,force_env_section,"QMMM%PRINT%DERIVATIVES",&
+           extension=".Log",error=error)
+  IF (output_unit>0) THEN
+     WRITE (unit=output_unit,fmt='(/1X,A,F15.9)')"Energy after QMMM calculation: ",energy_qm
      IF (need_f) THEN
-        WRITE (unit=cp_logger_get_default_unit_nr(logger,local=.FALSE.),&
-             fmt='(/1X,A)')"Derivatives on all atoms after QMMM calculation: "
+        WRITE (unit=output_unit,fmt='(/1X,A)')"Derivatives on all atoms after QMMM calculation: "
         DO ip=1,SIZE(particles_mm)
-           WRITE (unit=cp_logger_get_default_unit_nr(logger,local=.FALSE.),&
-                fmt='(1X,3F15.9)')particles_mm(ip)%f
+           WRITE (unit=output_unit,fmt='(1X,3F15.9)')particles_mm(ip)%f
         END DO
      END IF
   END IF
-
+  CALL cp_print_key_finished_output(output_unit,logger,force_env_section,&
+       "QMMM%PRINT%DERIVATIVES",error=error)    
 END SUBROUTINE qmmm_energy_and_forces
 !***************************************************************************
 

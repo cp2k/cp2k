@@ -89,6 +89,8 @@ MODULE particle_types
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE util,                            ONLY: find_boundary
+  USE input_section_types, ONLY: section_vals_type, section_vals_get_subs_vals,&
+       section_vals_get, section_vals_val_get, section_vals_release
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -136,7 +138,6 @@ MODULE particle_types
             write_qs_particle_coordinates,&
             write_particle_distances, &
             write_particle_coordinates,&
-            write_structure_data,&
             clone_particle
 
 !!***
@@ -611,7 +612,7 @@ END SUBROUTINE clone_particle
 
 ! *****************************************************************************
 
-  SUBROUTINE write_qs_particle_coordinates(particle_set,cell,globenv,error)
+  SUBROUTINE write_qs_particle_coordinates(particle_set,cell,force_env_section,error)
 
 !   Purpose: Write the atomic coordinates to the output unit.
 
@@ -622,8 +623,7 @@ END SUBROUTINE clone_particle
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(cell_type), POINTER                 :: cell
-    TYPE(global_environment_type), &
-         POINTER                             :: globenv
+    TYPE(section_vals_type), POINTER :: force_env_section
     TYPE(cp_error_type), INTENT(INOUT), &
       OPTIONAL                               :: error
 
@@ -636,8 +636,8 @@ END SUBROUTINE clone_particle
     
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
-    iw = cp_print_key_unit_nr(logger,globenv%input_file,&
-         "FORCE_EVAL%PRINT%ATOMIC_COORDINATES",extension=".coordLog",error=error)
+    iw = cp_print_key_unit_nr(logger,force_env_section,&
+         "SUBSYS%PRINT%ATOMIC_COORDINATES",extension=".coordLog",error=error)
 
     IF (iw>0) THEN
 
@@ -673,181 +673,13 @@ END SUBROUTINE clone_particle
       END DO
     END IF
 
-    CALL cp_print_key_finished_output(iw,logger,globenv%input_file,&
-         "FORCE_EVAL%PRINT%ATOMIC_COORDINATES", error=error)
+    CALL cp_print_key_finished_output(iw,logger,force_env_section,&
+         "SUBSYS%PRINT%ATOMIC_COORDINATES", error=error)
 
   END SUBROUTINE write_qs_particle_coordinates
 
-! *****************************************************************************
 
-  SUBROUTINE write_structure_data(particle_set,cell,globenv)
-
-!   Purpose: Write structure data requested by a separate structure data input
-!            section to the output unit.
-
-!   History: - Creation (11.03.2004,MK)
-
-!   ***************************************************************************
-
-    TYPE(particle_type), DIMENSION(:), &
-      POINTER                                :: particle_set
-    TYPE(cell_type), POINTER                 :: cell
-    TYPE(global_environment_type), &
-      pointer                             :: globenv
-
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "write_structure_data", &
-      start_section_label = "STRUCTURE_DATA"
-
-    CHARACTER(LEN=3)                         :: test_result
-    CHARACTER(LEN=8)                         :: unit_of_length_name
-    CHARACTER(LEN=default_string_length)     :: string
-    INTEGER                                  :: handle, i, iatom, icode, &
-                                                jatom, katom, latom, natom, &
-                                                output_unit
-    INTEGER, DIMENSION(3)                    :: periodic
-    INTEGER, DIMENSION(4)                    :: atomic_index
-    LOGICAL                                  :: ionode, section_found
-    REAL(KIND=dp)                            :: dab, unit_of_length
-    REAL(KIND=dp), DIMENSION(3)              :: rab, rbc, rcd
-
-!   ---------------------------------------------------------------------------
-
-    CALL timeset(routine_name,"I",'',handle)
-
-    ionode = globenv%ionode
-    output_unit = globenv%scr
-
-    natom = SIZE(particle_set)
-
-    CALL get_cell(cell=cell,&
-                  periodic=periodic,&
-                  unit_of_length=unit_of_length,&
-                  unit_of_length_name=unit_of_length_name)
-
-    CALL start_parser(file_name=globenv%input_file_name,&
-                      globenv=globenv,&
-                      start_section_label=start_section_label,&
-                      section_found=section_found)
-
-    IF (section_found) THEN
-      IF (ionode) THEN
-        WRITE (UNIT=output_unit,FMT="(/,/,T2,A,/,/,4(T3,A,/))")&
-          "REQUESTED STRUCTURE DATA",&
-          "r(i)      : position vector of atom i in "//&
-          TRIM(unit_of_length_name),&
-          "r(i,j)    : distance vector from atom i to atom j in "//&
-          TRIM(unit_of_length_name),&
-          "a(i,j,k)  : angle between the distance vectors r(j,i) and r(j,k) "//&
-          "in DEGREE",&
-          "d(i,j,k,l): dihedral angle defined by the atoms i, j, k, and l "//&
-          "in DEGREE"
-      END IF
-      test_result = test_object()
-      IF (test_result /= "EOL") THEN
-        CALL read_object(string)
-        CALL stop_parser(routine_name,module_name,__LINE__,"INVALID_KEYWORD")
-      END IF
-      DO
-        test_result = test_object(newline=.TRUE.)
-        IF (test_result == "EOS") THEN
-          EXIT
-        ELSE IF (test_result == "EOF") THEN
-          CALL stop_parser(routine_name,module_name,__LINE__,"EOF")
-        ELSE
-          icode = 0
-          CALL read_object(iatom,newline=.TRUE.)
-          DO
-            icode = icode + 1
-            IF ((iatom < 1).OR.(iatom > natom)) THEN
-              CALL stop_parser(routine_name,module_name,__LINE__,&
-                               "The atomic index is out of range")
-            END IF
-            atomic_index(icode) = iatom
-            test_result = test_object()
-            IF (test_result == "EOL") THEN
-              EXIT
-            ELSE IF (icode == 4) THEN
-              CALL stop_parser(routine_name,module_name,__LINE__,&
-                               "Data beyond the 4th atomic index found")
-            END IF
-            CALL read_object(iatom)
-            DO i=1,icode-1
-              IF (iatom == atomic_index(i)) THEN
-                CALL stop_parser(routine_name,module_name,__LINE__,&
-                                 "Duplicate atomic indices found")
-              END IF
-            END DO
-          END DO
-          IF (ionode) THEN
-            SELECT CASE (icode)
-            CASE (1)
-              iatom = atomic_index(1)
-              string = ""
-              WRITE (UNIT=string,FMT="(A,I6,A)")&
-                "r(",iatom,")"
-              CALL compress(string,full=.TRUE.)
-              WRITE (UNIT=output_unit,FMT="(T3,A,T26,A1,3F12.6)")&
-                TRIM(string),"=",&
-                pbc(particle_set(iatom)%r(:),cell)/unit_of_length
-            CASE (2)
-              iatom = atomic_index(1)
-              jatom = atomic_index(2)
-              rab(:) = pbc(particle_set(iatom)%r(:),&
-                           particle_set(jatom)%r(:),cell)
-              dab = SQRT(rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3))
-              string = ""
-              WRITE (UNIT=string,FMT="(A,2(I6,A))")&
-                "r(",iatom,",",jatom,")"
-              CALL compress(string,full=.TRUE.)
-              WRITE (UNIT=output_unit,FMT="(T3,A,T26,A1,3F12.6,1X,A,F12.6)")&
-                TRIM(string),"=",rab(:)/unit_of_length,&
-                "|r| =",dab/unit_of_length
-            CASE (3)
-              iatom = atomic_index(1)
-              jatom = atomic_index(2)
-              katom = atomic_index(3)
-              rab(:) = pbc(particle_set(iatom)%r(:),&
-                           particle_set(jatom)%r(:),cell)
-              rbc(:) = pbc(particle_set(jatom)%r(:),&
-                           particle_set(katom)%r(:),cell)
-              string = ""
-              WRITE (UNIT=string,FMT="(A,3(I6,A))")&
-                "a(",iatom,",",jatom,",",katom,")"
-              CALL compress(string,full=.TRUE.)
-              WRITE (UNIT=output_unit,FMT="(T3,A,T26,A1,F8.2)")&
-                TRIM(string),"=",angle(-rab,rbc)*degree
-            CASE (4)
-              iatom = atomic_index(1)
-              jatom = atomic_index(2)
-              katom = atomic_index(3)
-              latom = atomic_index(4)
-              rab(:) = pbc(particle_set(iatom)%r(:),&
-                           particle_set(jatom)%r(:),cell)
-              rbc(:) = pbc(particle_set(jatom)%r(:),&
-                           particle_set(katom)%r(:),cell)
-              rcd(:) = pbc(particle_set(katom)%r(:),&
-                           particle_set(latom)%r(:),cell)
-              string = ""
-              WRITE (UNIT=string,FMT="(A,4(I6,A))")&
-                "d(",iatom,",",jatom,",",katom,",",latom,")"
-              CALL compress(string,full=.TRUE.)
-              WRITE (UNIT=output_unit,FMT="(T3,A,T26,A1,F8.2)")&
-                TRIM(string),"=",dihedral_angle(rab,rbc,rcd)*degree
-            END SELECT
-          END IF
-        END IF
-      END DO
-    END IF
-
-    CALL finish_parser()
-
-    CALL timestop(0.0_dp,handle)
-
-  END SUBROUTINE write_structure_data
-
-! *****************************************************************************
-
-  SUBROUTINE write_particle_distances(particle_set,cell,globenv,error)
+  SUBROUTINE write_particle_distances(particle_set,cell,force_env_section,error)
 
 !   Purpose: Write the matrix of the particle distances to the output unit.
 
@@ -858,6 +690,7 @@ END SUBROUTINE clone_particle
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(cell_type), POINTER                 :: cell
+    TYPE(section_vals_type), POINTER :: force_env_section
     TYPE(global_environment_type), &
          POINTER                             :: globenv
     TYPE(cp_error_type), INTENT(INOUT), &
@@ -879,8 +712,8 @@ END SUBROUTINE clone_particle
     
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
-    iw = cp_print_key_unit_nr(logger,globenv%input_file,&
-         "FORCE_EVAL%PRINT%INTERATOMIC_DISTANCES",extension=".distLog",error=error)
+    iw = cp_print_key_unit_nr(logger,force_env_section,&
+         "SUBSYS%PRINT%INTERATOMIC_DISTANCES",extension=".distLog",error=error)
 
     IF (iw>0) THEN
 
@@ -930,8 +763,8 @@ END SUBROUTINE clone_particle
 
     END IF
 
-    CALL cp_print_key_finished_output(iw,logger,globenv%input_file,&
-         "FORCE_EVAL%PRINT%INTERATOMIC_DISTANCES", error=error)
+    CALL cp_print_key_finished_output(iw,logger,force_env_section,&
+         "SUBSYS%PRINT%INTERATOMIC_DISTANCES", error=error)
   END SUBROUTINE write_particle_distances
 
 ! *****************************************************************************

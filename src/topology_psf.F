@@ -46,6 +46,7 @@ MODULE topology_psf
   USE string_utilities,                ONLY: uppercase
   USE cp_output_handling,              ONLY: cp_print_key_unit_nr, &
                                              cp_print_key_finished_output  
+  USE input_section_types,             ONLY: section_vals_type
 
 #include "cp_common_uses.h"
   IMPLICIT NONE
@@ -73,13 +74,14 @@ CONTAINS
 !!   SOURCE
 !******************************************************************************
 
-  SUBROUTINE read_topology_psf (topology,globenv, error)
+  SUBROUTINE read_topology_psf (topology,globenv,subsys_section, error)
     IMPLICIT NONE
     ! Arguments
     TYPE(topology_parameters_type), &
       INTENT(INOUT)                          :: topology
     TYPE(global_environment_type), &
       pointer, OPTIONAL                      :: globenv
+    TYPE(section_vals_type), POINTER :: subsys_section
     TYPE(cp_error_type), INTENT(inout), &
          OPTIONAL                               :: error 
     ! Local Variables
@@ -102,8 +104,8 @@ CONTAINS
     NULLIFY(parser, logger)
     logger => cp_error_get_logger(error)
     CALL write_checkpoint_information("Entering "//routineN,globenv,error)
-    iw = cp_print_key_unit_nr(logger,globenv%input_file,"FORCE_EVAL%MM%PRINT%TOPOLOGY_INFO/PSF_INFO",&
-         extension=".mmLog",error=error)    
+    iw = cp_print_key_unit_nr(logger,subsys_section,"PRINT%TOPOLOGY_INFO/PSF_INFO",&
+         extension=".subsysLog",error=error)    
     CALL timeset(routineN,'I','',handle)
     CALL parser_create(parser,topology%conn_file_name,para_env=globenv%para_env)
     
@@ -345,8 +347,8 @@ CONTAINS
     CALL parser_release(parser,error=error)
     CALL timestop(0.0_dp,handle)
     CALL write_checkpoint_information("exiting "//routineN,globenv,error)
-    CALL cp_print_key_finished_output(iw,logger,globenv%input_file,&
-         "FORCE_EVAL%MM%PRINT%TOPOLOGY_INFO/PSF_INFO",error=error)
+    CALL cp_print_key_finished_output(iw,logger,subsys_section,&
+         "PRINT%TOPOLOGY_INFO/PSF_INFO",error=error)
 
   END SUBROUTINE read_topology_psf
 
@@ -363,13 +365,14 @@ CONTAINS
 !!   SOURCE
 !******************************************************************************
 
-  SUBROUTINE write_topology_psf (topology,globenv,error)
+  SUBROUTINE write_topology_psf (topology,globenv,subsys_section,error)
     IMPLICIT NONE
     !Arguments
     TYPE(topology_parameters_type), &
       INTENT(INOUT)                          :: topology
     TYPE(global_environment_type), &
       pointer, OPTIONAL                   :: globenv
+    TYPE(section_vals_type), POINTER :: subsys_section
     TYPE(cp_error_type), INTENT(inout), &
          OPTIONAL                               :: error 
     ! Local Variables
@@ -389,8 +392,8 @@ CONTAINS
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
     CALL write_checkpoint_information("Entering "//routineN,globenv,error)
-    iw = cp_print_key_unit_nr(logger,globenv%input_file,"FORCE_EVAL%MM%PRINT%TOPOLOGY_INFO/PSF_INFO",&
-         extension=".mmLog",error=error)    
+    iw = cp_print_key_unit_nr(logger,subsys_section,"PRINT%TOPOLOGY_INFO/PSF_INFO",&
+         extension=".subsysLog",error=error)    
     CALL timeset(routineN,'I','',handle)
 
     atom_info => topology%atom_info
@@ -485,8 +488,8 @@ CONTAINS
 
     CALL timestop(0.0_dp,handle)
     CALL write_checkpoint_information("exiting "//routineN,globenv,error)
-    CALL cp_print_key_finished_output(iw,logger,globenv%input_file,&
-         "FORCE_EVAL%MM%PRINT%TOPOLOGY_INFO/PSF_INFO",error=error)  
+    CALL cp_print_key_finished_output(iw,logger,subsys_section,&
+         "MM%PRINT%TOPOLOGY_INFO/PSF_INFO",error=error)  
     
   END SUBROUTINE write_topology_psf
 

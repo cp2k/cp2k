@@ -266,41 +266,6 @@ contains
             error=error)
        CALL section_add_subsection(section,print_key,error=error)
        CALL section_release(print_key,error=error)
-
-       CALL cp_print_key_section_create(print_key,"PW_GRID_INFORMATION",&
-            description="Controls the printing of information regarding the pw_grid structure.",&
-            print_level=high_print_level,each=(/1/),filename="__STD_OUT__",&
-            error=error)
-       CALL section_add_subsection(section,print_key,error=error)
-       CALL section_release(print_key,error=error)
-
-    CALL cp_print_key_section_create(print_key, "topology_info", description=&
-         "controls the printing of information in the topology settings", &
-         print_level=high_print_level,filename="__STD_OUT__",&
-         error=error)
-    CALL keyword_create(keyword,"pdb_info",&
-         description="if the printkey is active prints information regarding PDB",&
-         default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,error=error)
-    CALL section_add_keyword(print_key,keyword,error=error)
-    CALL keyword_release(keyword,error=error)
-    CALL keyword_create(keyword,"xyz_info",&
-         description="if the printkey is active prints information regarding XYZ",&
-         default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,error=error)
-    CALL section_add_keyword(print_key,keyword,error=error)
-    CALL keyword_release(keyword,error=error)
-    CALL keyword_create(keyword,"psf_info",&
-         description="if the printkey is active prints information regarding PSF",&
-         default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,error=error)
-    CALL section_add_keyword(print_key,keyword,error=error)
-    CALL keyword_release(keyword,error=error)
-    CALL keyword_create(keyword,"util_info",&
-         description="if the printkey is active prints information regarding topology utilities",&
-         default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,error=error)
-    CALL section_add_keyword(print_key,keyword,error=error)
-    CALL keyword_release(keyword,error=error)
-
-    CALL section_add_subsection(section,print_key,error=error)
-    CALL section_release(print_key,error=error)
        
     CALL cp_print_key_section_create(print_key, "ff_info", description=&
          "controls the printing of information in the forcefield settings", &

@@ -872,7 +872,7 @@ CONTAINS
       IF (ionode) OPEN(UNIT=21,FILE=filename)
       WRITE(title,'(A7,I5.5,A1,I1.1,A1,6G10.4)') "WFN ",ivector,"_s",ispin," ",&
             centers(1:3,istate)*angstrom, centers(4:6,istate)*angstrom
-      CALL rs_pw_to_cube(wf_r%pw,21,ionode,title)
+      CALL rs_pw_to_cube(wf_r%pw,21,ionode,title,force_env_section=qs_env%input)
       IF (ionode) CLOSE(21)
     END DO 
 

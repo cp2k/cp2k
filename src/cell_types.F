@@ -794,7 +794,7 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE write_cell(cell,globenv,error)
+  SUBROUTINE write_cell(cell,force_env_section,error)
 
 !   Purpose: Write the cell parameters to the output unit.
 
@@ -803,8 +803,7 @@ CONTAINS
 !   ***************************************************************************
 
     TYPE(cell_type), POINTER                 :: cell
-    TYPE(global_environment_type), &
-      pointer                             :: globenv
+    TYPE(section_vals_type), POINTER :: force_env_section
     TYPE(cp_error_type), INTENT(inout), &
          OPTIONAL                               :: error
 
@@ -816,7 +815,7 @@ CONTAINS
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
 
-    output_unit = cp_print_key_unit_nr(logger,globenv%input_file,"FORCE_EVAL%PRINT%CELL",&
+    output_unit = cp_print_key_unit_nr(logger,force_env_section,"SUBSYS%PRINT%CELL",&
          extension=".Log",error=error)
     IF (output_unit>0) THEN
 
@@ -842,8 +841,8 @@ CONTAINS
      WRITE (UNIT=output_unit,FMT="(T2,A,T70,F11.3)")&
           "CELL| Grid size for subcell generation",cell%subcells
   END IF
-  CALL cp_print_key_finished_output(output_unit,logger,globenv%input_file,&
-       "FORCE_EVAL%PRINT%CELL",error=error)
+  CALL cp_print_key_finished_output(output_unit,logger,force_env_section,&
+       "SUBSYS%PRINT%CELL",error=error)
   
   END SUBROUTINE write_cell
 

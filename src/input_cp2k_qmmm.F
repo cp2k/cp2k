@@ -849,12 +849,6 @@ contains
             error=error)
 
        NULLIFY(print_key)
-       CALL cp_print_key_section_create(print_key,"fist_derivatives",&
-            description="Print all derivatives after FIST calculation", &
-            print_level=medium_print_level,each=(/1/),filename="__STD_OUT__",&
-            error=error)
-       CALL section_add_subsection(section,print_key,error=error)
-       CALL section_release(print_key,error=error)
 
        CALL cp_print_key_section_create(print_key,"PGF",&
             description="Controls the printing of the gaussian expansion basis set of the"//&
@@ -899,8 +893,8 @@ contains
        CALL section_add_subsection(section,print_key,error=error)
        CALL section_release(print_key,error=error)
 
-       CALL cp_print_key_section_create(print_key,"PW_GRID_INFORMATION",&
-            description="Controls the printing of information regarding the pw_grid structure.",&
+       CALL cp_print_key_section_create(print_key,"derivatives",&
+            description="Print all derivatives after QM/MM calculation", &
             print_level=high_print_level,each=(/1/),filename="__STD_OUT__",&
             error=error)
        CALL section_add_subsection(section,print_key,error=error)
@@ -908,13 +902,6 @@ contains
 
        CALL cp_print_key_section_create(print_key,"qmmm_charges",&
             description="Print all charges generating the QM/MM potential", &
-            print_level=medium_print_level,each=(/1/),filename="__STD_OUT__",&
-            error=error)
-       CALL section_add_subsection(section,print_key,error=error)
-       CALL section_release(print_key,error=error)
-
-       CALL cp_print_key_section_create(print_key,"qmmm_derivatives",&
-            description="Print all derivatives after QM/MM calculation", &
             print_level=medium_print_level,each=(/1/),filename="__STD_OUT__",&
             error=error)
        CALL section_add_subsection(section,print_key,error=error)

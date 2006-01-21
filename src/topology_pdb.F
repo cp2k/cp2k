@@ -66,7 +66,8 @@ MODULE topology_pdb
                                              parser_get_next_line
   USE cp_output_handling,              ONLY: cp_print_key_unit_nr, &
                                              cp_print_key_finished_output  
-
+  USE input_section_types,             ONLY: section_vals_type
+  
 #include "cp_common_uses.h"  
 
   IMPLICIT NONE
@@ -102,12 +103,13 @@ CONTAINS
 !------------------------------------------------------------------------------
 !------------------------------------------------------------------------------
 
-  SUBROUTINE read_coordinate_pdb (topology,globenv,error)
+  SUBROUTINE read_coordinate_pdb (topology,globenv,subsys_section,error)
     IMPLICIT NONE
     ! Arguments
     TYPE(topology_parameters_type)           :: topology
     TYPE(global_environment_type), &
          POINTER, OPTIONAL                   :: globenv
+    TYPE(section_vals_type), POINTER :: subsys_section
     TYPE(cp_error_type), INTENT(inout), &
          OPTIONAL                            :: error    
     ! Local Variables
@@ -127,8 +129,8 @@ CONTAINS
     NULLIFY(parser, logger)
     logger => cp_error_get_logger(error)
     CALL write_checkpoint_information("Entering "//routineN,globenv,error)
-    iw = cp_print_key_unit_nr(logger,globenv%input_file,"FORCE_EVAL%MM%PRINT%TOPOLOGY_INFO/PDB_INFO",&
-         extension=".mmLog",error=error)    
+    iw = cp_print_key_unit_nr(logger,subsys_section,"PRINT%TOPOLOGY_INFO/PDB_INFO",&
+         extension=".subsysLog",error=error)    
     CALL timeset(routineN,'I','',handle)
 
     atom_info => topology%atom_info
@@ -243,8 +245,8 @@ CONTAINS
     topology%natoms = natom
     CALL timestop(0.0_dp,handle)
     CALL write_checkpoint_information("exiting "//routineN,globenv,error)
-    CALL cp_print_key_finished_output(iw,logger,globenv%input_file,&
-         "FORCE_EVAL%MM%PRINT%TOPOLOGY_INFO/PDB_INFO",error=error)
+    CALL cp_print_key_finished_output(iw,logger,subsys_section,&
+         "PRINT%TOPOLOGY_INFO/PDB_INFO",error=error)
 
   END SUBROUTINE read_coordinate_pdb
 
@@ -261,11 +263,12 @@ CONTAINS
 !------------------------------------------------------------------------------
 !------------------------------------------------------------------------------
 
-  SUBROUTINE write_coordinate_pdb (topology,globenv,error)
+  SUBROUTINE write_coordinate_pdb (topology,globenv,subsys_section,error)
   
     TYPE(topology_parameters_type)           :: topology
     TYPE(global_environment_type), &
          POINTER, OPTIONAL                   :: globenv
+    TYPE(section_vals_type), POINTER :: subsys_section
     TYPE(cp_error_type), INTENT(inout), &
          OPTIONAL                               :: error    
     TYPE (atom_info_type),POINTER            :: atom_info
@@ -280,8 +283,8 @@ CONTAINS
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
     CALL write_checkpoint_information("Entering "//routineN,globenv,error)
-    iw = cp_print_key_unit_nr(logger,globenv%input_file,"FORCE_EVAL%MM%PRINT%TOPOLOGY_INFO/PDB_INFO",&
-         extension=".mmLog",error=error)    
+    iw = cp_print_key_unit_nr(logger,subsys_section,"PRINT%TOPOLOGY_INFO/PDB_INFO",&
+         extension=".subsysLog",error=error)    
     CALL write_checkpoint_information("entering "//routineN,globenv,error)
     
     CALL timeset(routineN,'I','',handle)
@@ -324,8 +327,8 @@ CONTAINS
 
     CALL timestop(0.0_dp,handle)
     CALL write_checkpoint_information("exiting "//routineN,globenv,error)
-    CALL cp_print_key_finished_output(iw,logger,globenv%input_file,&
-         "FORCE_EVAL%MM%PRINT%TOPOLOGY_INFO/PDB_INFO",error=error)
+    CALL cp_print_key_finished_output(iw,logger,subsys_section,&
+         "PRINT%TOPOLOGY_INFO/PDB_INFO",error=error)
 
   END SUBROUTINE write_coordinate_pdb
 
