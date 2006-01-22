@@ -2124,7 +2124,7 @@ CONTAINS
         bz = indco(3,jco)
 
         DO i=lb_grid,ub_grid
-          IF (pw%pw_grid%gsq(i) > gsq_max) EXIT
+          IF (pw%pw_grid%gsq(i) > gsq_max) CYCLE
           ig = pw%pw_grid%g_hat(1,i)
           jg = pw%pw_grid%g_hat(2,i)
           kg = pw%pw_grid%g_hat(3,i)

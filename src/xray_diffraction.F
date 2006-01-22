@@ -40,7 +40,8 @@ MODULE xray_diffraction
   USE mathconstants,                   ONLY: twopi
   USE memory_utilities,                ONLY: reallocate
   USE message_passing,                 ONLY: mp_gather,&
-                                             mp_gatherv
+                                             mp_gatherv,&
+                                             mp_sum
   USE orbital_pointers,                ONLY: nco,&
                                              ncoset,&
                                              nso,&
@@ -396,7 +397,13 @@ CONTAINS
         CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
       END IF
 
-      rho_total = -rhotot_elec_gspace%pw%cc(1)
+      IF (pw_grid%have_g0) THEN
+        rho_total = -rhotot_elec_gspace%pw%cc(1)
+      ELSE
+        rho_total = 0.0_dp
+      END IF
+      CALL mp_sum(rho_total,group)
+
       rho_hard = rho_total - rho_soft
 
       ! Calculate the coherent x-ray spectrum
@@ -593,7 +600,7 @@ CONTAINS
           "# Hard electronic charge (G-space) :",rho_hard,&
           "# Total electronic charge (G-space):",rho_total,&
           "# Density cutoff [Rydberg]         :",2.0_dp*pw_grid%cutoff,&
-          "# q(min) [1/Angstrom]              :",q_shell(1)/angstrom,&
+          "# q(min) [1/Angstrom]              :",q_shell(2)/angstrom,&
           "# q(max) [1/Angstrom]              :",q_shell(nshell)/angstrom
         WRITE (UNIT=unit_number,FMT="(A,2X,I8)")&
           "# Number of g-vectors (grid points):",pw_grid%ngpts,&
