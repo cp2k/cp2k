@@ -163,6 +163,11 @@ MODULE qs_core_hamiltonian
                                              timestop
   USE util,                            ONLY: locate,&
                                              sort
+  USE cp_output_handling,              ONLY: cp_print_key_unit_nr, &
+                                             cp_print_key_finished_output,&
+                                             cp_print_key_should_output,&
+                                             cp_p_file
+
 !!JCS
   USE virial_types,                    ONLY: virial_type
 #include "cp_common_uses.h"
@@ -339,9 +344,10 @@ CONTAINS
     REAL(dp) :: nans_dp
     nans_dp = z"7FF0000000000001"
 #endif
+    TYPE(cp_logger_type), POINTER            :: logger
 
-!   ---------------------------------------------------------------------------
-
+    NULLIFY(logger)
+    logger => cp_error_get_logger(error)
     CALL write_checkpoint_information("entering "//routine_name,globenv,error)
 
     NULLIFY (atomic_kind_set)
@@ -457,7 +463,9 @@ CONTAINS
 
       CALL timeset(routine_name,"I"," ",handle)
 
-      IF (globenv%print%derivatives.OR.globenv%print%optical_conductivity) THEN
+      IF (globenv%print%derivatives.OR.&
+           BTEST(cp_print_key_should_output(logger%iter_info,qs_env%input,&
+            "DFT%PRINT%OPTICAL_CONDUCTIVITY",error=error),cp_p_file)) THEN
         nder = 1
       ELSE
         nder = 0
@@ -466,7 +474,8 @@ CONTAINS
     END IF
 
     IF ((globenv%print%overlap_matrix.AND.globenv%print%derivatives).OR.&
-        globenv%print%optical_conductivity) THEN
+        BTEST(cp_print_key_should_output(logger%iter_info,qs_env%input,&
+            "DFT%PRINT%OPTICAL_CONDUCTIVITY",error=error),cp_p_file)) THEN
       return_s_derivatives = .TRUE.
     ELSE
       return_s_derivatives = .FALSE.

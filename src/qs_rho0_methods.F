@@ -67,6 +67,13 @@ MODULE qs_rho0_methods
   USE termination,                     ONLY: stop_memory
   USE timings,                         ONLY: timeset,&
                                              timestop
+  USE cp_output_handling,              ONLY: cp_print_key_unit_nr, &
+                                             cp_print_key_finished_output,&
+                                             cp_print_key_should_output,&
+                                             cp_p_file
+  USE input_section_types,             ONLY: section_vals_type,&
+                                             section_vals_get_subs_vals
+
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -349,13 +356,18 @@ MODULE qs_rho0_methods
                                                 max_rpgf0_s, &
                                                 total_rho_core_rspace, &
                                                 zetsoft_max
-    INTEGER  ::  iat, iatom, ikind, istat, l, l_rho1_max, laddg, lmaxg, max_nr, maxl, maxnset, maxso, nat, &
-                 natom, nchan_c, nchan_s, nkind, nr, nset, nsotot
+    INTEGER  ::  iat, iatom, ikind, istat, l, l_rho1_max, laddg,&
+         lmaxg, max_nr, maxl, maxnset, maxso, nat, &
+         natom, nchan_c, nchan_s, nkind, nr, nset, nsotot, output_unit
     REAL(KIND=dp)                            :: zeff
     INTEGER, DIMENSION(:), POINTER           :: atom_list
-    LOGICAL                                  :: paw_atom, my_tddft
+    LOGICAL                                  :: paw_atom, my_tddft, failure
+    TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(section_vals_type), POINTER         :: dft_section
 
-!   ---------------------------------------------------------------------------
+    failure = .FALSE.
+    NULLIFY(logger)
+    logger => cp_error_get_logger(error)
 
     NULLIFY(atomic_kind_set)
     NULLIFY(atom_kind)
@@ -559,8 +571,14 @@ MODULE qs_rho0_methods
        CALL rho0_s_grid_create(qs_env, rho0_mpole, .TRUE., error)
     END IF
 
-
-    CALL write_rho0_info(rho0_mpole,cell,error)
+    dft_section => section_vals_get_subs_vals(qs_env%input,"DFT",error=error)
+    output_unit = cp_print_key_unit_nr(logger,dft_section,"PRINT%GAPW/RHO0_INFORMATION",&
+         extension=".Log",error=error)
+    IF (output_unit>0) THEN
+       CALL write_rho0_info(rho0_mpole,cell,output_unit,error)
+    END IF
+    CALL cp_print_key_finished_output(output_unit,logger,dft_section,&
+         "PRINT%GAPW/RHO0_INFORMATION",error=error)
 
     END SUBROUTINE init_rho0
 

@@ -67,21 +67,10 @@ MODULE print_key_types
                hartree_matrix,&
                kinetic_energy_matrix,&
                kohn_sham_matrix
-    LOGICAL :: optical_conductivity,&
-               ortho_matrix,&
+    LOGICAL :: ortho_matrix,&
                overlap_matrix,&
-               potential_energy_matrix,&
-               projectors,&
-               rho0_information,&
-               sab_orb_neighbor_lists,&
-               sac_ppl_neighbor_lists,&
-               sac_ppnl_neighbor_lists,&
-               sbc_ppnl_neighbor_lists,&
-               sac_oce_neighbor_lists,&
-               sbc_oce_neighbor_lists,&
-               total_densities
+               potential_energy_matrix
     LOGICAL :: w_matrix
-    LOGICAL :: loc_info
   END TYPE print_keys_type
 
 !!*****
@@ -164,16 +153,7 @@ CONTAINS
     print_keys%kohn_sham_matrix = key_value(level,(/f,f,f/))
     print_keys%ortho_matrix = key_value(level,(/f,f,f/))
     print_keys%overlap_matrix = key_value(level,(/f,f,f/))
-    print_keys%projectors = key_value(level,(/f,f,f/))
     print_keys%potential_energy_matrix = key_value(level,(/f,f,f/))
-    print_keys%rho0_information = key_value(level,(/f,f,f/))
-    print_keys%sab_orb_neighbor_lists = key_value(level,(/f,f,f/))
-    print_keys%sac_ppl_neighbor_lists = key_value(level,(/f,f,f/))
-    print_keys%sac_ppnl_neighbor_lists = key_value(level,(/f,f,f/))
-    print_keys%sbc_ppnl_neighbor_lists = key_value(level,(/f,f,f/))
-    print_keys%sac_oce_neighbor_lists = key_value(level,(/f,f,f/))
-    print_keys%sbc_oce_neighbor_lists = key_value(level,(/f,f,f/))
-    print_keys%total_densities = key_value(level,(/f,f,f/))
     print_keys%w_matrix = key_value(level,(/f,f,f/))
 
   END SUBROUTINE print_keys_reset

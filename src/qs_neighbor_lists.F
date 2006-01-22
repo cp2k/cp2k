@@ -160,7 +160,7 @@ CONTAINS
 
     INTEGER :: atom_a, handle, iatom, iatom_local, ikind, istat, maxatom, &
       maxatom_local, natom_a, natom_local_a, natom_local_b, nkind, &
-      output_unit, imol
+      output_unit, imol, iw
     LOGICAL                                  :: all_potential_present,&
                                                 gth_potential_present, &
                                                 print_subcell_grid,&
@@ -576,9 +576,14 @@ CONTAINS
 
     CALL set_qs_env(qs_env=qs_env,sab_orb=sab_orb)
 
-    IF (globenv%print%sab_orb_neighbor_lists) THEN
-      CALL write_neighbor_lists(sab_orb,particle_set,cell,globenv,&
-                                "ORBITAL ORBITAL NEIGHBOR LISTS")
+    IF (BTEST(cp_print_key_should_output(logger%iter_info,&
+         force_env_section,"DFT%PRINT%NEIGHBOR_LISTS/SAB_ORB",error=error),cp_p_file)) THEN
+       iw = cp_print_key_unit_nr(logger,force_env_section,"DFT%PRINT%NEIGHBOR_LISTS/SAB_ORB",&
+            extension=".Log",error=error)
+      CALL write_neighbor_lists(sab_orb,particle_set,cell,globenv,iw,&
+           "ORBITAL ORBITAL NEIGHBOR LISTS",error)
+      CALL cp_print_key_finished_output(iw,logger,force_env_section,&
+           "DFT%PRINT%NEIGHBOR_LISTS/SAB_ORB",error=error)
     END IF
 
 !   *** Build orbital GTH-PPL operator overlap list ***
@@ -596,9 +601,14 @@ CONTAINS
 
         CALL set_qs_env(qs_env=qs_env,sac_ppl=sac_ppl)
 
-        IF (globenv%print%sac_ppl_neighbor_lists) THEN
-          CALL write_neighbor_lists(sac_ppl,particle_set,cell,globenv,&
-                                    "ORBITAL GTH-PPL NEIGHBOR LISTS")
+        IF (BTEST(cp_print_key_should_output(logger%iter_info,&
+             force_env_section,"DFT%PRINT%NEIGHBOR_LISTS/SAC_PPL",error=error),cp_p_file)) THEN
+           iw = cp_print_key_unit_nr(logger,force_env_section,"DFT%PRINT%NEIGHBOR_LISTS/SAC_PPL",&
+                extension=".Log",error=error)
+          CALL write_neighbor_lists(sac_ppl,particle_set,cell,globenv,iw,&
+                                    "ORBITAL GTH-PPL NEIGHBOR LISTS",error)
+           CALL cp_print_key_finished_output(iw,logger,force_env_section,&
+                "DFT%PRINT%NEIGHBOR_LISTS/SAC_PPL",error=error)
         END IF
 
       END IF
@@ -614,14 +624,24 @@ CONTAINS
 
         CALL set_qs_env(qs_env=qs_env,sac_ppnl=sac_ppnl,sbc_ppnl=sbc_ppnl)
 
-        IF (globenv%print%sac_ppnl_neighbor_lists) THEN
-          CALL write_neighbor_lists(sac_ppnl,particle_set,cell,globenv,&
-                                    "ORBITAL(A) GTH-PPNL NEIGHBOR LISTS")
+        IF (BTEST(cp_print_key_should_output(logger%iter_info,&
+             force_env_section,"DFT%PRINT%NEIGHBOR_LISTS/SAB_PPNL",error=error),cp_p_file)) THEN
+           iw = cp_print_key_unit_nr(logger,force_env_section,"DFT%PRINT%NEIGHBOR_LISTS/SAB_PPNL",&
+                extension=".Log",error=error)
+           CALL write_neighbor_lists(sac_ppnl,particle_set,cell,globenv,iw,&
+                "ORBITAL(A) GTH-PPNL NEIGHBOR LISTS",error)
+           CALL cp_print_key_finished_output(iw,logger,force_env_section,&
+                "DFT%PRINT%NEIGHBOR_LISTS/SAB_PPNL",error=error)           
         END IF
 
-        IF (globenv%print%sbc_ppnl_neighbor_lists) THEN
-          CALL write_neighbor_lists(sbc_ppnl,particle_set,cell,globenv,&
-                                    "ORBITAL(B) GTH-PPNL NEIGHBOR LISTS")
+        IF (BTEST(cp_print_key_should_output(logger%iter_info,&
+             force_env_section,"DFT%PRINT%NEIGHBOR_LISTS/SBC_PPNL",error=error),cp_p_file)) THEN
+           iw = cp_print_key_unit_nr(logger,force_env_section,"DFT%PRINT%NEIGHBOR_LISTS/SBC_PPNL",&
+                extension=".Log",error=error)
+           CALL write_neighbor_lists(sbc_ppnl,particle_set,cell,globenv,iw,&
+                "ORBITAL(B) GTH-PPNL NEIGHBOR LISTS",error)
+           CALL cp_print_key_finished_output(iw,logger,force_env_section,&
+                "DFT%PRINT%NEIGHBOR_LISTS/SBC_PPNL",error=error)
         END IF
 
       END IF
@@ -642,13 +662,23 @@ CONTAINS
 
         CALL set_qs_env(qs_env=qs_env,sac_oce=sac_oce,sbc_oce=sbc_oce)
 
-        IF (globenv%print%sac_oce_neighbor_lists) THEN
-          CALL write_neighbor_lists(sac_oce,particle_set,cell,globenv,&
-                                   "ORBITAL(A) PAW-PRJ NEIGHBOR LISTS")
+        IF (BTEST(cp_print_key_should_output(logger%iter_info,&
+             force_env_section,"DFT%PRINT%NEIGHBOR_LISTS/SAC_OCE",error=error),cp_p_file)) THEN
+           iw = cp_print_key_unit_nr(logger,force_env_section,"DFT%PRINT%NEIGHBOR_LISTS/SAC_OCE",&
+                extension=".Log",error=error)
+           CALL write_neighbor_lists(sac_oce,particle_set,cell,globenv,iw,&
+                "ORBITAL(A) PAW-PRJ NEIGHBOR LISTS",error)
+           CALL cp_print_key_finished_output(iw,logger,force_env_section,&
+                "DFT%PRINT%NEIGHBOR_LISTS/SAC_OCE",error=error)           
         END IF
-        IF (globenv%print%sbc_oce_neighbor_lists) THEN
-          CALL write_neighbor_lists(sbc_oce,particle_set,cell,globenv,&
-                                   "ORBITAL(B) PAW-PRJ NEIGHBOR LISTS")
+        IF (BTEST(cp_print_key_should_output(logger%iter_info,&
+             force_env_section,"DFT%PRINT%NEIGHBOR_LISTS/SBC_OCE",error=error),cp_p_file)) THEN
+           iw = cp_print_key_unit_nr(logger,force_env_section,"DFT%PRINT%NEIGHBOR_LISTS/SBC_OCE",&
+                extension=".Log",error=error)
+           CALL write_neighbor_lists(sbc_oce,particle_set,cell,globenv,iw,&
+                "ORBITAL(B) PAW-PRJ NEIGHBOR LISTS",error)
+           CALL cp_print_key_finished_output(iw,logger,force_env_section,&
+                "DFT%PRINT%NEIGHBOR_LISTS/SBC_OCE",error=error)                      
         END IF
       ENDIF
     END IF
@@ -666,9 +696,14 @@ CONTAINS
 
       CALL set_qs_env(qs_env=qs_env,sab_2c=sab_2c)
 
-      IF (globenv%print%sac_oce_neighbor_lists) THEN
-         CALL write_neighbor_lists(sab_2c,particle_set,cell,globenv,&
-                                 "2C VH(RHO0) NEIGHBOR LISTS")
+      IF (BTEST(cp_print_key_should_output(logger%iter_info,&
+           force_env_section,"DFT%PRINT%NEIGHBOR_LISTS/SAC_OCE",error=error),cp_p_file)) THEN
+         iw = cp_print_key_unit_nr(logger,force_env_section,"DFT%PRINT%NEIGHBOR_LISTS/SAC_OCE",&
+              extension=".Log",error=error)
+         CALL write_neighbor_lists(sab_2c,particle_set,cell,globenv,iw,&
+                                 "2C VH(RHO0) NEIGHBOR LISTS",error)
+         CALL cp_print_key_finished_output(iw,logger,force_env_section,&
+              "DFT%PRINT%NEIGHBOR_LISTS/SAC_OCE",error=error)  
       END IF
 
 !     *** Build the neighbor lists for the 3-centers Hartree_local terms ***
@@ -702,21 +737,36 @@ CONTAINS
 
       CALL set_qs_env(qs_env=qs_env,sac_3c=sac_3c,sbc_3c=sbc_3c)
 
-      IF (globenv%print%sac_oce_neighbor_lists) THEN
-         CALL write_neighbor_lists(sac_3c,particle_set,cell,globenv,&
-                             "ORBITAL(A) 3-CENTERS-VH NEIGHBOR LISTS")
+      IF (BTEST(cp_print_key_should_output(logger%iter_info,&
+           force_env_section,"DFT%PRINT%NEIGHBOR_LISTS/SAC_OCE",error=error),cp_p_file)) THEN
+         iw = cp_print_key_unit_nr(logger,force_env_section,"DFT%PRINT%NEIGHBOR_LISTS/SAC_OCE",&
+              extension=".Log",error=error)
+         CALL write_neighbor_lists(sac_3c,particle_set,cell,globenv,iw,&
+                             "ORBITAL(A) 3-CENTERS-VH NEIGHBOR LISTS",error)
+         CALL cp_print_key_finished_output(iw,logger,force_env_section,&
+              "DFT%PRINT%NEIGHBOR_LISTS/SAC_OCE",error=error)   
       END IF
-      IF (globenv%print%sbc_oce_neighbor_lists) THEN
-        CALL write_neighbor_lists(sbc_3c,particle_set,cell,globenv,&
-                             "ORBITAL(B) 3-CENTERS-VH NEIGHBOR LISTS")
+      IF (BTEST(cp_print_key_should_output(logger%iter_info,&
+           force_env_section,"DFT%PRINT%NEIGHBOR_LISTS/SBC_OCE",error=error),cp_p_file)) THEN
+         iw = cp_print_key_unit_nr(logger,force_env_section,"DFT%PRINT%NEIGHBOR_LISTS/SBC_OCE",&
+              extension=".Log",error=error)
+         CALL write_neighbor_lists(sbc_3c,particle_set,cell,globenv,iw,&
+              "ORBITAL(B) 3-CENTERS-VH NEIGHBOR LISTS",error)
+         CALL cp_print_key_finished_output(iw,logger,force_env_section,&
+              "DFT%PRINT%NEIGHBOR_LISTS/SBC_OCE",error=error)          
       END IF
 
     END IF
 
 !   *** Print particle distribution ***
-
-    CALL write_distribution(sab_orb,atomic_kind_set,qs_env%input,globenv,error)
-
+    IF (BTEST(cp_print_key_should_output(logger%iter_info,&
+         force_env_section,"PRINT%DISTRIBUTION",error=error),cp_p_file)) THEN
+         iw = cp_print_key_unit_nr(logger,force_env_section,"PRINT%DISTRIBUTION",&
+              extension=".Log",error=error)
+       CALL write_distribution(sab_orb,atomic_kind_set,iw,globenv,error)
+       CALL cp_print_key_finished_output(iw,logger,force_env_section,&
+            "PRINT%DISTRIBUTION",error=error)
+    END IF
 !   *** Release work storage ***
 
     DO ikind=1,nkind
@@ -2384,7 +2434,7 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE write_distribution(ab,atomic_kind_set,force_env_section,globenv,error)
+  SUBROUTINE write_distribution(ab,atomic_kind_set,output_unit,globenv,error)
 
 !   Purpose: Print the distribution of the simple pair neighbor list.
 
@@ -2398,35 +2448,25 @@ CONTAINS
       POINTER                                :: atomic_kind_set
     TYPE(global_environment_type), &
       pointer                             :: globenv
-    TYPE(section_vals_type), POINTER :: force_env_section
     TYPE(cp_error_type), INTENT(inout), &
          OPTIONAL                               :: error
+    INTEGER, INTENT(in) :: output_unit
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "write_distribution"
 
     INTEGER :: group, iab, ikind, ilist, ipe, istat, jkind, mype, n, nkind, &
-      nlist, nnode, npe, nsgf_a, nsgf_b, output_unit
+      nlist, nnode, npe, nsgf_a, nsgf_b
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: nblock, nelement
     LOGICAL                                  :: ionode
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
     TYPE(neighbor_list_set_type), POINTER    :: neighbor_list_set
     TYPE(neighbor_list_type), POINTER        :: neighbor_list
-    TYPE(cp_logger_type), POINTER            :: logger
 
-    NULLIFY(logger)
-    logger => cp_error_get_logger(error)
-!   ---------------------------------------------------------------------------
-!   *** Quick return, if no printing is requested ***
-
-    IF (.NOT.BTEST(cp_print_key_should_output(logger%iter_info,&
-         force_env_section,"PRINT%DISTRIBUTION",error=error),cp_p_file)) RETURN
 
     group = globenv%group
-    ionode = globenv%ionode
     mype = globenv%mepos + 1
     npe = globenv%num_pe
-    output_unit = globenv%scr
 
 !   *** Allocate work storage ***
 
@@ -2500,7 +2540,7 @@ CONTAINS
     CALL mp_sum(nblock,group)
     CALL mp_sum(nelement,group)
 
-    IF (ionode) THEN
+    IF (output_unit>0) THEN
       WRITE (UNIT=output_unit,&
              FMT="(/,/,T2,A,/,/,T3,A,/,/,(T4,I6,T27,I10,T55,I10))")&
         "DISTRIBUTION OF THE NEIGHBOR LISTS",&
@@ -2523,7 +2563,7 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE write_neighbor_lists(ab,particle_set,cell,globenv,name)
+  SUBROUTINE write_neighbor_lists(ab,particle_set,cell,globenv,output_unit,name,error)
 
 !   Purpose: Write a set of neighbor lists to the output unit.
 
@@ -2541,13 +2581,15 @@ CONTAINS
     TYPE(global_environment_type), &
       pointer                             :: globenv
     CHARACTER(LEN=*), INTENT(IN)             :: name
+    INTEGER, INTENT(in)                      :: output_unit
+    TYPE(cp_error_type), INTENT(inout), &
+         OPTIONAL                               :: error
 
     CHARACTER(LEN=8)                         :: unit_of_length_name
     CHARACTER(LEN=default_string_length)     :: string
     INTEGER                                  :: atom_a, atom_b, group, iab, &
                                                 ilist, inode, ipe, mype, &
-                                                nlist, nneighbor, nnode, npe, &
-                                                output_unit
+                                                nlist, nneighbor, nnode, npe
     INTEGER, DIMENSION(3)                    :: cell_a, cell_b
     LOGICAL                                  :: ionode, print_headline
     REAL(dp)                                 :: dab, unit_of_length
@@ -2559,17 +2601,15 @@ CONTAINS
 !   ---------------------------------------------------------------------------
 
     group = globenv%group
-    ionode = globenv%ionode
     mype = globenv%mepos + 1
     npe = globenv%num_pe
-    output_unit = globenv%scr
 
     CALL get_cell(cell=cell,&
                   unit_of_length=unit_of_length,&
                   unit_of_length_name=unit_of_length_name)
 
     CALL mp_sync(group)
-    IF(ionode) CALL m_flush(output_unit)
+    IF(output_unit>0) CALL m_flush(output_unit)
     CALL mp_sync(group)
 
 !   *** Create the headline ***
@@ -2594,7 +2634,7 @@ CONTAINS
        
        IF (ipe == mype) THEN          
           ! Print first part of headline ***
-          IF (ionode) WRITE (UNIT=output_unit,FMT="(/,/,T2,A)") TRIM(string)
+          IF (output_unit>0) WRITE (UNIT=output_unit,FMT="(/,/,T2,A)") TRIM(string)
           DO iab=1,SIZE(ab)
              neighbor_list_set => ab(iab)%neighbor_list_set
              
@@ -2613,8 +2653,7 @@ CONTAINS
                      nnode=nnode)
                 nneighbor = nneighbor + nnode
                 
-                IF (ionode) THEN
-                   IF (globenv%print%level > LOW) THEN
+                IF (output_unit>0) THEN
                       ! Print second part of headline ***
                       
                       IF (print_headline) THEN
@@ -2634,9 +2673,7 @@ CONTAINS
                       neighbor_node => first_node(neighbor_list)
                       
                       !  Traverse the neighbor list of the current ***
-                      !  atom and print the stored information     ***
-                      
-                      IF (globenv%print%level > MEDIUM) THEN
+                      !  atom and print the stored information     ***                      
                          
                          DO inode=1,nnode
                             
@@ -2656,9 +2693,7 @@ CONTAINS
                             
                          END DO
                          
-                      END IF
-                      
-                   END IF
+
                 END IF
                 
                 neighbor_list => next(neighbor_list)
@@ -2678,12 +2713,12 @@ CONTAINS
                   nneighbor
           END IF
           CALL compress(string)
-          IF (ionode) WRITE (UNIT=output_unit,FMT="(/,T2,A)") TRIM(string)
+          IF (output_unit>0) WRITE (UNIT=output_unit,FMT="(/,T2,A)") TRIM(string)
           
        END IF
        
        CALL mp_sync(group)
-       IF(ionode) CALL m_flush(output_unit)
+       IF(output_unit>0) CALL m_flush(output_unit)
        CALL mp_sync(group)
        
     END DO

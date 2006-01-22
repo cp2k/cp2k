@@ -230,7 +230,6 @@ CONTAINS
     END TYPE
     TYPE (evals_p_type), DIMENSION(:), POINTER :: unoccupied_evals
     INTEGER ::  handle, ispin, istat, n, nmo, output_unit
-    CHARACTER(LEN=200) :: file_name
     INTEGER            :: file_unit,ivector,nao,nlumos, homo, unit_nr
     LOGICAL            :: homoEQnmo
     CHARACTER(LEN=80)  :: filename
@@ -627,7 +626,7 @@ CONTAINS
              ENDDO
              CALL cp_print_key_finished_output(unit_nr,logger,input,&
                   "DFT%PRINT%OPTICAL_CONDUCTIVITY",error=error)
-             IF (ionode) WRITE(output_unit,*) " Results written to file ",File_name
+             IF (ionode) WRITE(output_unit,*) " Results written to file ",filename
            ENDIF
        ENDIF
 
@@ -656,16 +655,19 @@ CONTAINS
       q_max = section_get_rval(section_vals=dft_section,&
                                keyword_name="PRINT%XRAY_DIFFRACTION_SPECTRUM%Q_MAX",&
                                error=error)
-      file_name = "x-ray.dat"
+      unit_nr=cp_print_key_unit_nr(logger,input,"DFT%PRINT%XRAY_DIFFRACTION_SPECTRUM",&
+           extension=".data",middle_name="Xray",log_filename=.FALSE.,error=error)      
       CALL xray_diffraction_spectrum(qs_env=qs_env,&
-                                     file_name=file_name,&
+                                     unit_number=unit_nr,&
                                      q_max=q_max,&
                                      error=error)
+      CALL cp_print_key_finished_output(unit_nr,logger,input,&
+           "DFT%PRINT%XRAY_DIFFRACTION_SPECTRUM",error=error)
       IF (ionode) THEN
         WRITE (UNIT=output_unit,FMT="(/,/,T2,A,2(/,/,T3,A),/)")&
           "X-RAY DIFFRACTION SPECTRUM",&
           "The coherent X-ray diffraction spectrum was written to the file:",&
-          TRIM(file_name)
+          "-Xray"
       END IF
     END IF
 

@@ -35,8 +35,6 @@ MODULE xray_diffraction
                                              coeff_type,&
                                              coeff_zero
   USE cp_control_types,                ONLY: dft_control_type
-  USE cp_files,                        ONLY: close_file,&
-                                             open_file
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: twopi
@@ -91,16 +89,15 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE xray_diffraction_spectrum(qs_env,file_name,q_max,error)
+  SUBROUTINE xray_diffraction_spectrum(qs_env,unit_number,q_max,error)
 
     ! Calculate the coherent X-ray diffraction spectrum.
     ! The total electronic density in reciprocal space (g-space) is calculated.
 
     TYPE(qs_environment_type), POINTER           :: qs_env
-    CHARACTER(LEN=*), INTENT(IN)                 :: file_name
     REAL(KIND=dp), INTENT(IN)                    :: q_max
     TYPE(cp_error_type), OPTIONAL, INTENT(INOUT) :: error
-
+    INTEGER, INTENT(IN) :: unit_number
     ! Local parameter
 
     CHARACTER(LEN=*), PARAMETER :: routineN = "xray_diffraction_spectrum",&
@@ -129,7 +126,7 @@ CONTAINS
       iso1_pgf,iso1_set,ispin,istat,jco,jco1_pgf,jco1_set,jg,jpgf,jset,&
       jso,jso1_pgf,jso1_set,la,lb,maxco,maxso,mype,na,nb,natom,ncoa,ncob,&
       ncotot,ng,nkind,npe,nset,nshell,nshell_gather,nsoa,nsob,nsotot,nspin,&
-      source,unit_number
+      source
     LOGICAL                                  :: failure,ionode,paw_atom
 
     REAL(KIND=dp), DIMENSION(3)              :: dg,ra
@@ -221,7 +218,6 @@ CONTAINS
       mype = para_env%mepos
       npe = para_env%num_pe
       source = para_env%source
-      ionode = (mype == source)
       nkind = SIZE(atomic_kind_set)
       nspin = dft_control%nspins
 
@@ -479,7 +475,7 @@ CONTAINS
       ! Only the root process which has to print the full spectrum has to
       ! allocate here the receive buffers with their real sizes
 
-      IF (ionode) THEN
+      IF (unit_number>0) THEN
         nshell_gather = SUM(nshell_pe)
         offset_pe(0) = 0
         DO ipe=1,npe-1
@@ -517,7 +513,7 @@ CONTAINS
 
       ! Print X-ray diffraction spectrum (I/O node only)
 
-      IF (ionode) THEN
+      IF (unit_number>0) THEN
 
         CALL reallocate(index,1,nshell_gather)
 
@@ -588,12 +584,6 @@ CONTAINS
 
         ! Write the X-ray diffraction spectrum to the specified file
 
-        CALL open_file(file_name=TRIM(file_name),&
-                       file_action="WRITE",&
-                       file_form="FORMATTED",&
-                       file_status="REPLACE",&
-                       unit_number=unit_number)
-
         WRITE (UNIT=unit_number,FMT="(A)")&
           "#",&
           "# Coherent X-ray diffraction spectrum",&
@@ -626,8 +616,6 @@ CONTAINS
             (fsum(ishell)/REAL(ng_shell(ishell),KIND=dp))**2,&
             f4sum(ishell)/REAL(ng_shell(ishell),KIND=dp)
         END DO
-
-        CALL close_file(unit_number)
 
       END IF
 

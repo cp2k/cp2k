@@ -95,6 +95,11 @@ MODULE qs_kpp1_env_methods
   USE pw_poisson_methods, only: pw_poisson_solve
   USE input_section_types, ONLY: section_vals_type, section_vals_val_get, &
        section_vals_get_subs_vals, section_vals_get, section_get_ival, section_get_rval
+  USE cp_output_handling,              ONLY: cp_print_key_unit_nr, &
+                                             cp_print_key_finished_output,&
+                                             cp_print_key_should_output,&
+                                             cp_p_file
+
 #include "cp_common_uses.h"
   IMPLICIT NONE
 
@@ -242,7 +247,7 @@ CONTAINS
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
     TYPE(xc_rho_set_type), POINTER           :: rho1_set
     TYPE(pw_poisson_type), pointer           :: poisson_env
-    TYPE(section_vals_type), POINTER         :: input, xc_section, xc_fun_section
+    TYPE(section_vals_type), POINTER         :: input, xc_section, xc_fun_section, scf_section
     type(xc_rho_cflags_type) :: needs
 
     CALL timeset(routineN,"I","",handle)
@@ -250,7 +255,7 @@ CONTAINS
 
     NULLIFY(auxbas_pw_pool, pw_pools, pw_env, v_rspace_new, &
             rho1_r, rho1_g_pw, tau_pw, cell, v_xc, rho1_set,&
-            poisson_env, input)
+            poisson_env, input, scf_section)
     logger => cp_error_get_logger(error)
     ionode = logger%para_env%mepos==logger%para_env%source
 
@@ -278,6 +283,7 @@ CONTAINS
        lsd = (nspins==2)
 
        xc_section => section_vals_get_subs_vals(input,"DFT%XC",error=error)
+       scf_section => section_vals_get_subs_vals(input,"DFT%SCF",error=error)
        CALL section_vals_val_get(input,"DFT%EXCITATIONS",&
             i_val=excitations,error=error)
        IF (excitations==tddfpt_excitations) THEN
@@ -334,7 +340,13 @@ CONTAINS
        IF (gapw) &
             CALL coeff_sumup(p_env%local_rho_set%rho0_mpole%rho0_s_gs, rho1_tot_gspace)
 
-       CALL print_densities(kpp1_env, rho1, rho1_tot_gspace, error=error)
+       output_unit = cp_print_key_unit_nr(logger,scf_section,"PRINT%TOTAL_DENSITIES",&
+            extension=".scfLog",error=error)       
+       IF (output_unit>0) THEN
+          CALL print_densities(kpp1_env, rho1, rho1_tot_gspace, output_unit, error=error)
+       END IF
+       CALL cp_print_key_finished_output(output_unit,logger,scf_section,&
+            "PRINT%TOTAL_DENSITIES", error=error)
 
        IF (.NOT.(nspins==1 .AND. excitations==tddfpt_excitations .AND. &
                  res_etype /= tddfpt_singlet )) THEN
@@ -946,7 +958,7 @@ CONTAINS
   END SUBROUTINE kpp1_did_change
 ! ***************************************************************************
 
-  SUBROUTINE print_densities(kpp1_env, rho1, rho1_tot_gspace, error)
+  SUBROUTINE print_densities(kpp1_env, rho1, rho1_tot_gspace, output_unit, error)
     
     ! arguments
     TYPE(qs_kpp1_env_type), POINTER          :: kpp1_env
@@ -959,29 +971,17 @@ CONTAINS
     INTEGER                                  :: output_unit
     LOGICAL                                  :: ionode
     REAL(KIND=dp)                            :: total_rho_gspace
-    TYPE(cp_logger_type), POINTER            :: logger
 
     ! parameters
     CHARACTER(len=*), PARAMETER :: routineN = 'print_densities', &
                                    routineP = moduleN//':'//routineN
 
-    NULLIFY(logger)
-    logger => cp_error_get_logger(error)
-    ionode = (logger%para_env%mepos==logger%para_env%source)
-
-    IF (.NOT.ionode) RETURN
-
-    IF (logger%print_keys%total_densities) THEN
-       total_rho_gspace = calculate_total_rho(rho1_tot_gspace)
-       IF (logger%para_env%mepos==logger%para_env%source) THEN
-          output_unit=cp_logger_get_default_unit_nr(logger,local=.false.)
-          WRITE (UNIT=output_unit,FMT="(T3,A,T60,F20.10)")&
-               "KPP1 total charge density (r-space):",&
-               SUM(rho1%tot_rho_r),&
-               "KPP1 total charge density (g-space):",&
+    total_rho_gspace = calculate_total_rho(rho1_tot_gspace)
+    WRITE (UNIT=output_unit,FMT="(T3,A,T60,F20.10)")&
+         "KPP1 total charge density (r-space):",&
+         SUM(rho1%tot_rho_r),&
+         "KPP1 total charge density (g-space):",&
                total_rho_gspace
-       END IF
-    END IF
 
   END SUBROUTINE print_densities
 

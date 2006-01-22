@@ -446,8 +446,8 @@ END SUBROUTINE xc_functionals_expand
        CALL section_add_subsection(section,print_key,error=error)
        CALL section_release(print_key,error=error)       
 
-       CALL cp_print_key_section_create(print_key,"neighborlist",&
-            description="controls the printing of the neighborlists (debug).", &
+       CALL cp_print_key_section_create(print_key,"neighbor_lists",&
+            description="controls the printing of the neighbor lists", &
             print_level=debug_print_level,each=(/1/),filename="__STD_OUT__",&
             error=error)
        CALL keyword_create(keyword, name="sab_orb",&
@@ -603,7 +603,8 @@ END SUBROUTINE xc_functionals_expand
             print_level=debug_print_level,each=(/1/),filename="__STD_OUT__",&
             error=error)
        CALL keyword_create(keyword, name="projectors",&
-            description="If the printkey is activated controls if information on the projectors is printed.",&
+            description="If the printkey is activated controls if information on"//&
+            " the projectors is printed.",&
             default_l_val=.TRUE.,lone_keyword_l_val=.true., error=error)
        CALL section_add_keyword(print_key,keyword,error=error)
        CALL keyword_release(keyword,error=error)

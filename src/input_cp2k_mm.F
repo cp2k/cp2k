@@ -239,8 +239,7 @@ contains
        CALL section_add_subsection(section,print_key,error=error)
        CALL section_release(print_key,error=error)
 
-
-       CALL cp_print_key_section_create(print_key,"NEIGHBOUR_LISTS",&
+       CALL cp_print_key_section_create(print_key,"NEIGHBOR_LISTS",&
             description="Controls the printing of the set of neighbor lists.", &
             print_level=high_print_level,each=(/1/),filename="__STD_OUT__",&
             error=error)

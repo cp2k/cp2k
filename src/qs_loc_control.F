@@ -258,7 +258,7 @@ CONTAINS
 
     IF(.NOT. failure)  THEN
 
-      nullify (bounds, list ) 
+       NULLIFY (bounds, list ) 
 
       CALL section_vals_val_get(loc_section,"EACH_STEP",&
            i_val=localized_wfn_control%each_step,error=error)
@@ -308,9 +308,8 @@ CONTAINS
       CALL section_vals_val_get(loc_section,"FNAME",&
            c_val=localized_wfn_control%loc_rootfname,error=error)
 
-
            
-      IF(ionode .AND. logger%print_keys%loc_info) THEN
+      IF(ionode) THEN
 
         WRITE (UNIT=output_unit,FMT="(/,T3,A)")&
                  "Localization of a subset of KS orbitals"

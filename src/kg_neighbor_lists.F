@@ -123,7 +123,7 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routine_name = "build_kg_neighbor_lists1"
 
     INTEGER :: atom_a, handle, iatom, iatom_local, ikind, istat, maxatom, &
-      maxatom_local, natom_a, natom_local_a, nkind, output_unit
+      maxatom_local, natom_a, natom_local_a, nkind, output_unit, iw
     LOGICAL                                  :: elp_potential_present, &
                                                 gth_potential_present, &
                                                 print_subcell_grid
@@ -348,9 +348,14 @@ CONTAINS
 
         CALL set_kg_env(kg_env=kg_env,sac_ppl=sac_ppl)
 
-        IF (globenv%print%sac_ppl_neighbor_lists) THEN
-          CALL write_neighbor_lists(sac_ppl,particle_set,cell,globenv,&
-                                    "PPL NEIGHBOR LISTS")
+        IF (BTEST(cp_print_key_should_output(logger%iter_info,&
+             force_env_section,"DFT%PRINT%NEIGHBOR_LISTS/SAC_PPL",error=error),cp_p_file)) THEN
+           iw = cp_print_key_unit_nr(logger,force_env_section,"DFT%PRINT%NEIGHBOR_LISTS/SAC_PPL",&
+                extension=".Log",error=error)
+           CALL write_neighbor_lists(sac_ppl,particle_set,cell,globenv,iw,&
+                "PPL NEIGHBOR LISTS",error)
+           CALL cp_print_key_finished_output(iw,logger,force_env_section,&
+                "DFT%PRINT%NEIGHBOR_LISTS/SAC_PPL",error=error)
         END IF
 
       END IF
@@ -364,9 +369,14 @@ CONTAINS
 
         CALL set_kg_env(kg_env=kg_env,sac_ppl_aux=sac_ppl_aux)
 
-        IF (globenv%print%sac_ppl_neighbor_lists) THEN
-          CALL write_neighbor_lists(sac_ppl_aux,particle_set,cell,globenv,&
-                                    "PPL NEIGHBOR LISTS")
+        IF (BTEST(cp_print_key_should_output(logger%iter_info,&
+             force_env_section,"DFT%PRINT%NEIGHBOR_LISTS/SAC_PPL",error=error),cp_p_file)) THEN
+           iw = cp_print_key_unit_nr(logger,force_env_section,"DFT%PRINT%NEIGHBOR_LISTS/SAC_PPL",&
+                extension=".Log",error=error)
+           CALL write_neighbor_lists(sac_ppl_aux,particle_set,cell,globenv,iw,&
+                "PPL NEIGHBOR LISTS",error)
+           CALL cp_print_key_finished_output(iw,logger,force_env_section,&
+                "DFT%PRINT%NEIGHBOR_LISTS/SAC_PPL",error=error)
         END IF
 
       END IF

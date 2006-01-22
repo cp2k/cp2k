@@ -638,31 +638,20 @@ CONTAINS
   END SUBROUTINE initialize_mpole_rho
 ! ******************************************************************************
 
-  SUBROUTINE write_rho0_info(rho0_mpole,cell,error)
+  SUBROUTINE write_rho0_info(rho0_mpole,cell,output_unit,error)
 
     TYPE(rho0_mpole_type), POINTER           :: rho0_mpole
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
+    INTEGER, INTENT(in)                      :: output_unit
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "write_rho0_info"
 
-    INTEGER                                  :: ikind,l,nkind,output_unit
+    INTEGER                                  :: ikind,l,nkind
     CHARACTER(LEN=8)                         :: unit_of_length_name
     LOGICAL                                  :: ionode
     REAL(dp)                                 :: unit_of_length
-    TYPE(cp_logger_type), POINTER            :: logger
-
-!   ---------------------------------------------------------------------------
-    NULLIFY(logger)
-
-    logger => cp_error_get_logger(error)
-    IF (.NOT.logger%print_keys%rho0_information) RETURN
-    ionode = logger%para_env%mepos==logger%para_env%source
-    
-    IF (.NOT.ionode) RETURN
-
-    output_unit = cp_logger_get_default_unit_nr(logger)
 
     CALL get_cell(cell=cell,&
                   unit_of_length=unit_of_length,&

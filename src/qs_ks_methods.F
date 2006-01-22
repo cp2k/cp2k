@@ -323,7 +323,7 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:), POINTER :: scaling_factor,occupation_numbers
     TYPE(cp_fm_type), POINTER            :: mo_coeff,hc_tmp
     REAL(KIND=dp)                        :: mulliken_order_p
-    TYPE(section_vals_type), POINTER     :: input
+    TYPE(section_vals_type), POINTER     :: input, scf_section
     TYPE(qs_rho_type), POINTER           :: my_rho_xc
     TYPE(pw_poisson_type), pointer :: poisson_env
 ! shorter for output
@@ -331,7 +331,7 @@ CONTAINS
     failure=.FALSE.
     NULLIFY(matrix_h,matrix_s,dft_control,auxbas_pw_pool, pw_pools,&
          pw_env, cell, logger, v_rspace_new, v_tau_rspace,&
-         input, poisson_env)
+         input, poisson_env, scf_section)
 
     !   -----------------------------------------------------------------------
 
@@ -355,7 +355,8 @@ CONTAINS
          para_env=para_env,&
          input=input,&
          error=error)
-
+    
+    scf_section => section_vals_get_subs_vals(input,"DFT%SCF",error=error)
     nspins=dft_control%nspins
     CPPrecondition(ASSOCIATED(matrix_h),cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(matrix_s),cp_failure_level,routineP,error,failure)
@@ -406,8 +407,14 @@ CONTAINS
        END IF
 
        CALL calc_rho_tot_gspace(rho_tot_gspace, qs_env, rho)
-       IF (ionode) CALL print_densities(qs_env, rho_tot_gspace, rho, my_rho_xc)
 
+       output_unit = cp_print_key_unit_nr(logger,scf_section,"PRINT%TOTAL_DENSITIES",&
+            extension=".scfLog",error=error)       
+       IF (output_unit>0) THEN
+          CALL print_densities(qs_env, rho_tot_gspace, rho, my_rho_xc, output_unit, error)
+       END IF
+       CALL cp_print_key_finished_output(output_unit,logger,scf_section,&
+            "PRINT%TOTAL_DENSITIES", error=error)
        CALL pw_poisson_solve(poisson_env,rho_tot_gspace%pw,energy%hartree,&
             v_hartree_gspace%pw)
        ! In case decouple periodic images
@@ -433,7 +440,7 @@ CONTAINS
        IF(gapw) CALL Vh_1c_gg_integrals(qs_env,energy%hartree_1c)
 
        ! *** Add the QM/MM potential ***
-       If (qs_env%qmmm) Then
+       IF (qs_env%qmmm) THEN
           output_unit=cp_print_key_unit_nr(logger,input,"QMMM%PRINT%PROGRAM_RUN_INFO",&
                extension=".qmmmLog",error=error)
           IF (output_unit>0) &          
@@ -855,84 +862,79 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE print_densities(qs_env, rho_tot_gspace, rho, rho_xc, error)
+  SUBROUTINE print_densities(qs_env, rho_tot_gspace, rho, rho_xc, output_unit, error)
     ! ARGUMENTS
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(coeff_type), INTENT(IN)             :: rho_tot_gspace
     TYPE(qs_rho_type), POINTER               :: rho, rho_xc
     TYPE(cp_error_type), INTENT(INOUT), &
       OPTIONAL                               :: error
+    INTEGER, INTENT(IN) :: output_unit
     ! LOCALS
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(qs_charges_type), POINTER           :: qs_charges
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
-    INTEGER                                  :: n_electrons, output_unit, ispin
+    INTEGER                                  :: n_electrons, ispin
     REAL(dp)                                 :: tot1_h, tot1_s
 
-    logger => cp_error_get_logger(error)
 
-    IF (logger%print_keys%total_densities) THEN 
-       output_unit = cp_logger_get_default_unit_nr(logger)
-
-       NULLIFY(qs_charges, atomic_kind_set)
-       CALL get_qs_env(qs_env=qs_env, &
-                       atomic_kind_set=atomic_kind_set, &
-                       qs_charges=qs_charges)
-       CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set, &
-                                nelectron=n_electrons)
-       n_electrons = n_electrons - qs_env%dft_control%charge
-       
+    NULLIFY(qs_charges, atomic_kind_set)
+    CALL get_qs_env(qs_env=qs_env, &
+         atomic_kind_set=atomic_kind_set, &
+         qs_charges=qs_charges)
+    CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set, &
+         nelectron=n_electrons)
+    n_electrons = n_electrons - qs_env%dft_control%charge
+    
+    WRITE (UNIT=output_unit,FMT="(/,(T3,A,T40,2F20.10))")&
+         "Total electronic density (r-space): ",&
+         SUM(rho%tot_rho_r),&
+         SUM(rho%tot_rho_r) + &
+         REAL(n_electrons,dp),&
+         "Total core charge density (r-space):",&
+         qs_charges%total_rho_core_rspace,&
+         qs_charges%total_rho_core_rspace - REAL(n_electrons,dp)
+    IF(qs_env%dft_control%qs_control%gapw ) THEN
+       tot1_h =  qs_charges%total_rho1_hard(1)
+       tot1_s =  qs_charges%total_rho1_soft(1)
+       DO ispin=2,qs_env%dft_control%nspins
+          tot1_h = tot1_h + qs_charges%total_rho1_hard(ispin)
+          tot1_s = tot1_s + qs_charges%total_rho1_soft(ispin)
+       END DO
        WRITE (UNIT=output_unit,FMT="(/,(T3,A,T40,2F20.10))")&
-            "Total electronic density (r-space): ",&
-            SUM(rho%tot_rho_r),&
-            SUM(rho%tot_rho_r) + &
-            REAL(n_electrons,dp),&
-            "Total core charge density (r-space):",&
+            "Hard and soft densities (Lebedev):",&
+            tot1_h, tot1_s
+       WRITE (UNIT=output_unit,FMT="(T3,A,T60,F20.10)")&
+            "Total Rho_soft + Rho1_hard - Rho1_soft (r-space): ",&
+            SUM(rho%tot_rho_r)+ tot1_h - tot1_s ,&
+            "Total charge density (r-space):      ",&
+            SUM(rho%tot_rho_r)+ tot1_h - tot1_s &
+            + qs_charges%total_rho_core_rspace,&
+            "Total Rho_soft + Rho0_soft (g-space):",&
+            qs_charges%total_rho_gspace
+    ELSE IF( qs_env%dft_control%qs_control%gapw_xc) THEN
+       tot1_h =  qs_charges%total_rho1_hard(1)
+       tot1_s =  qs_charges%total_rho1_soft(1)
+       DO ispin=2,qs_env%dft_control%nspins
+          tot1_h = tot1_h + qs_charges%total_rho1_hard(ispin)
+          tot1_s = tot1_s + qs_charges%total_rho1_soft(ispin)
+       END DO
+       WRITE (UNIT=output_unit,FMT="(/,(T3,A,T40,2F20.10))")&
+            "Hard and soft densities (Lebedev):",&
+            tot1_h, tot1_s
+       WRITE (UNIT=output_unit,FMT="(T3,A,T60,F20.10)")&
+            "Total Rho_soft + Rho1_hard - Rho1_soft (r-space): ",&
+            SUM(rho_xc%tot_rho_r)+ tot1_h - tot1_s 
+    ELSE  
+       WRITE (UNIT=output_unit,FMT="(T3,A,T60,F20.10)")&
+            "Total charge density (r-space):     ",&
+            SUM(rho%tot_rho_r)+&
             qs_charges%total_rho_core_rspace,&
-            qs_charges%total_rho_core_rspace - REAL(n_electrons,dp)
-       IF(qs_env%dft_control%qs_control%gapw ) THEN
-          tot1_h =  qs_charges%total_rho1_hard(1)
-          tot1_s =  qs_charges%total_rho1_soft(1)
-          DO ispin=2,qs_env%dft_control%nspins
-             tot1_h = tot1_h + qs_charges%total_rho1_hard(ispin)
-             tot1_s = tot1_s + qs_charges%total_rho1_soft(ispin)
-          END DO
-          WRITE (UNIT=output_unit,FMT="(/,(T3,A,T40,2F20.10))")&
-               "Hard and soft densities (Lebedev):",&
-               tot1_h, tot1_s
-          WRITE (UNIT=output_unit,FMT="(T3,A,T60,F20.10)")&
-               "Total Rho_soft + Rho1_hard - Rho1_soft (r-space): ",&
-               SUM(rho%tot_rho_r)+ tot1_h - tot1_s ,&
-               "Total charge density (r-space):      ",&
-               SUM(rho%tot_rho_r)+ tot1_h - tot1_s &
-               + qs_charges%total_rho_core_rspace,&
-               "Total Rho_soft + Rho0_soft (g-space):",&
-               qs_charges%total_rho_gspace
-       ELSE IF( qs_env%dft_control%qs_control%gapw_xc) THEN
-         tot1_h =  qs_charges%total_rho1_hard(1)
-          tot1_s =  qs_charges%total_rho1_soft(1)
-          DO ispin=2,qs_env%dft_control%nspins
-             tot1_h = tot1_h + qs_charges%total_rho1_hard(ispin)
-             tot1_s = tot1_s + qs_charges%total_rho1_soft(ispin)
-          END DO
-          WRITE (UNIT=output_unit,FMT="(/,(T3,A,T40,2F20.10))")&
-               "Hard and soft densities (Lebedev):",&
-               tot1_h, tot1_s
-           WRITE (UNIT=output_unit,FMT="(T3,A,T60,F20.10)")&
-               "Total Rho_soft + Rho1_hard - Rho1_soft (r-space): ",&
-               SUM(rho_xc%tot_rho_r)+ tot1_h - tot1_s 
-       ELSE  
-          WRITE (UNIT=output_unit,FMT="(T3,A,T60,F20.10)")&
-               "Total charge density (r-space):     ",&
-               SUM(rho%tot_rho_r)+&
-               qs_charges%total_rho_core_rspace,&
-               "Total charge density (g-space):     ",&
-               qs_charges%total_rho_gspace
-       END IF
-
+            "Total charge density (g-space):     ",&
+            qs_charges%total_rho_gspace
     END IF
-       
+           
   END SUBROUTINE print_densities
 
 ! *****************************************************************************

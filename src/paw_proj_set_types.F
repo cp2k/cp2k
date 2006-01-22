@@ -398,7 +398,7 @@ CONTAINS
     paw_proj%nprj(0:maxl) = 0
 
     output_unit = cp_print_key_unit_nr(logger,force_env_section,&
-         "SUBSYS%PRINT%KINDS/BASIS_SET",extension=".Log",error=error)
+         "DFT%PRINT%GAPW/PROJECTORS",extension=".Log",error=error)
     
     IF (output_unit>0) THEN
        WRITE (UNIT=output_unit,FMT="(/,T2,A)")&
@@ -632,7 +632,7 @@ CONTAINS
 
     ENDDO                 ! lshell
     CALL cp_print_key_finished_output(output_unit,logger,force_env_section,&
-         "SUBSYS%PRINT%KINDS/BASIS_SET",error=error)
+         "DFT%PRINT%GAPW/PROJECTORS",error=error)
 
 !   *** Release the working storage for the current value lshell ***
     DEALLOCATE(set_radius,STAT=istat)
