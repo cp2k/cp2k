@@ -79,6 +79,10 @@ MODULE qs_environment_methods
                                              timestop
   USE input_section_types,             ONLY: section_vals_type,&
        section_vals_get_subs_vals
+  USE cp_output_handling,              ONLY: cp_print_key_unit_nr, &
+                                             cp_print_key_finished_output,&
+                                             cp_print_key_should_output,&
+                                             cp_p_file
   
 #include "cp_common_uses.h"
 
@@ -195,7 +199,7 @@ SUBROUTINE qs_env_setup(qs_env,error)
                                   molecule_set=molecule_set,&
                                   distribution_2d=distribution_2d,&
                                   blacs_env=qs_env%blacs_env,&
-                                  error=error)
+                                  force_env_section=qs_env%input, error=error)
 
      CALL set_qs_env(qs_env,distribution_2d=distribution_2d,error=error)
      CALL distribution_2d_release(distribution_2d, error=error)
@@ -541,7 +545,7 @@ END SUBROUTINE qs_env_update_rho_core
 !!
 !!*** **********************************************************************
   SUBROUTINE qs_distribution_2d_create(distribution_2d,atomic_kind_set,&
-       blacs_env, error)
+       blacs_env, force_env_section,error)
 
     TYPE(distribution_2d_type), POINTER      :: distribution_2d
     TYPE(atomic_kind_type), DIMENSION(:), &
@@ -549,6 +553,7 @@ END SUBROUTINE qs_env_update_rho_core
     TYPE(cp_blacs_env_type), POINTER         :: blacs_env
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
+    TYPE(section_vals_type), POINTER :: force_env_section
 
     CHARACTER(LEN=*), PARAMETER :: routineN = "qs_distribution_2d_create", &
       routineP = "SUBROUTINE "//routineN//" (MODULE "//moduleN//")"
@@ -713,7 +718,8 @@ END SUBROUTINE qs_env_update_rho_core
 
 !   *** Print distribution, if requested ***
     
-    IF (logger%print_keys%distribution) THEN
+    IF (BTEST(cp_print_key_should_output(logger%iter_info,&
+         force_env_section,"PRINT%DISTRIBUTION",error=error),cp_p_file)) THEN
 !     *** Print row distribution ***
 
       ALLOCATE (nparticle(nprow),STAT=stat)

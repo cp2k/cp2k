@@ -75,6 +75,13 @@ MODULE qs_overlap
                                              stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
+  USE cp_output_handling,              ONLY: cp_print_key_unit_nr, &
+                                             cp_print_key_finished_output,&
+                                             cp_print_key_should_output,&
+                                             cp_p_file
+  USE input_section_types,             ONLY: section_vals_type,&
+                                             section_vals_get_subs_vals
+
 
 #include "cp_common_uses.h"
 
@@ -472,7 +479,7 @@ CONTAINS
 
 !   *** Print the overlap matrix distribution ***
 
-    CALL write_matrix_distribution(matrix_s(1)%matrix,globenv)
+    CALL write_matrix_distribution(matrix_s(1)%matrix,qs_env%input,globenv,error)
 
 !   *** Print the overlap matrix, if requested ***
 
@@ -702,7 +709,7 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE write_matrix_distribution(matrix,globenv)
+  SUBROUTINE write_matrix_distribution(matrix,force_env_section,globenv,error)
 
 !   Purpose: Print the distribution of a sparse matrix.
 
@@ -713,7 +720,9 @@ CONTAINS
     TYPE(real_matrix_type), POINTER          :: matrix
     TYPE(global_environment_type), &
       pointer                             :: globenv
-
+    TYPE(section_vals_type), POINTER :: force_env_section
+    TYPE(cp_error_type), INTENT(inout), &
+         OPTIONAL                               :: error
     CHARACTER(LEN=*), PARAMETER :: routine_name = "write_matrix_distribution"
 
     CHARACTER(LEN=80)                        :: matrix_name, matrix_symmetry
@@ -724,11 +733,15 @@ CONTAINS
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: nblock, nelement
     LOGICAL                                  :: ionode
     REAL(KIND=dp)                            :: occupation
+    TYPE(cp_logger_type), POINTER            :: logger
 
+    NULLIFY(logger)
+    logger => cp_error_get_logger(error)
 !   ---------------------------------------------------------------------------
 !   *** Quick return, if no printing is requested ***
 
-    IF (.NOT.globenv%print%distribution) RETURN
+    IF (.NOT.BTEST(cp_print_key_should_output(logger%iter_info,&
+         force_env_section,"PRINT%DISTRIBUTION",error=error),cp_p_file)) RETURN
 
     group = globenv%group
     ionode = globenv%ionode

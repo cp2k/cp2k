@@ -80,7 +80,8 @@ MODULE qs_environment
                                              do_method_gapw_xc,&
                                              state_loc_all,&
                                              state_loc_none,&
-                                             xas_tp_hh, xas_tp_fh 
+                                             xas_tp_hh, xas_tp_fh
+  USE header,                          only: qs_header
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_val_get, &
                                              section_vals_get,&
@@ -323,7 +324,7 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER              :: routine_name = "qs_init_subsys"
 
     INTEGER :: handle, ispin, istat, lmax_sphere, maxl, maxlgto, maxlppl, &
-      maxlppnl, multiplicity, n_ao, nelectron, nkind, output_unit, natom
+      maxlppnl, multiplicity, n_ao, nelectron, nkind, output_unit, natom, iw
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: natom_of_kind
     INTEGER, DIMENSION(2)                    :: n_mo, nelectron_spin, nmoloc
     LOGICAL                                  :: all_potential_present, ionode,&
@@ -399,8 +400,11 @@ CONTAINS
     molecule_kind_set => subsystem%molecule_kinds_new%els
 
 !   *** Print the Quickstep program banner (copyright and version number) ***
-
-    CALL write_qs_program_banner(globenv)
+    iw = cp_print_key_unit_nr(logger,dft_section,"PRINT%PROGRAM_BANNER",&
+         extension=".Log",error=error)    
+    CALL qs_header(iw, iw>0)
+    CALL cp_print_key_finished_output(iw,logger,dft_section,&
+         "PRINT%PROGRAM_BANNER",error=error)    
 
 !   *** Read the input section with the DFT control parameters ***
 
@@ -458,7 +462,7 @@ CONTAINS
     IF (dft_control%forces) maxl = maxl + 1
 
     CALL init_orbital_pointers(maxl)
-    CALL init_spherical_harmonics(maxl,globenv)
+    CALL init_spherical_harmonics(maxl,globenv,error)
 
 !   *** Initialise the atomic kind set ***
 
@@ -495,7 +499,7 @@ CONTAINS
 
 !   *** Print the total number of kinds, atoms, basis functions etc. ***
 
-    CALL write_total_numbers(atomic_kind_set,particle_set,globenv)
+    CALL write_total_numbers(atomic_kind_set,particle_set,qs_env%input,error)
 
 !   *** Print the atomic coordinates ***
 
@@ -517,6 +521,7 @@ CONTAINS
                                  molecule_kind_set=molecule_kind_set,&
                                  molecule_set=molecule_set,&
                                  local_molecules=local_molecules,&
+                                 force_env_section=qs_env%input,&
                                  error=error)
 
 !   *** SCF parameters ***
@@ -798,70 +803,7 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE write_qs_program_banner(globenv)
-
-!   Purpose: Write the Quickstep program banner with the copyright and the
-!            program version information to the output unit.
-!   JVdV it is also a great place to provide references to QS related papers
-
-!   History: - Creation (15.06.2000, Matthias Krack)
-
-!   ***************************************************************************
-
-    TYPE(global_environment_type), &
-      pointer                             :: globenv
-
-    INTEGER                                  :: output_unit
-
-!   ---------------------------------------------------------------------------
-
-    IF (.NOT.globenv%ionode) RETURN
-
-    IF (globenv%print%program_banner) THEN
-
-      output_unit = globenv%scr
-
-      WRITE (UNIT=output_unit,FMT="(/,(T2,A79))")&
-        "*******************************************************************************",&
-        "*******************************************************************************",&
-        "**                                                                           **",&
-        "**     #####                         ##              ##                      **",&
-        "**    ##   ##            ##          ##              ##                      **",&
-        "**   ##     ##                       ##            ######                    **",&
-        "**   ##     ##  ##   ##  ##   #####  ##  ##   ####   ##    #####    #####    **",&
-        "**   ##     ##  ##   ##  ##  ##      ## ##   ##      ##   ##   ##  ##   ##   **",&
-        "**   ##  ## ##  ##   ##  ##  ##      ####     ###    ##   ######   ######    **",&
-        "**    ##  ###   ##   ##  ##  ##      ## ##      ##   ##   ##       ##        **",&
-        "**     #######   #####   ##   #####  ##  ##  ####    ##    #####   ##        **",&
-        "**           ##                                                    ##        **",&
-        "**                                                                           **",&
-        "**                                                ... make the atoms dance   **",&
-        "**                                                                           **",&
-        "**            Copyright (C) by CP2K Developers Group (2000 - 2005)           **",&
-        "**                                                                           **",&
-        "*******************************************************************************",&
-        "** G. Lippert, J. Hutter, and M. Parrinello,                                 **",&
-        "** A hybrid Gaussian and plane wave density functional scheme,               **",&
-        "** Molecular Physics, Vol. 92, Issue 3, 477-487 (1997)                       **",&
-        ! GAPW references
-        ! "*******************************************************************************",&
-        ! "** G. Lippert, J. Hutter, and M. Parrinello                                  **",&
-        ! "** The Gaussian and augmented-plane-wave density functional method for       **",&
-        ! "** ab initio molecular dynamics simulations                                  **",&
-        ! "** Theoretical Chemistry Accounts, Vol. 103, Issue 2, 124-140 (1999)         **",&
-        ! "*******************************************************************************",&
-        ! "** M. Krack and M. Parrinello                                                **",&
-        ! "** All-electron ab-initio molecular dynamics                                 **",&
-        ! "** Physical Chemistry Chemical Physics, Vol. 2, Issue 10, 2105-2112 (2000)   **",&
-        "*******************************************************************************"
-
-    END IF
-
-  END SUBROUTINE write_qs_program_banner
-
-! *****************************************************************************
-
-  SUBROUTINE write_total_numbers(atomic_kind_set,particle_set,globenv)
+  SUBROUTINE write_total_numbers(atomic_kind_set,particle_set,force_env_section,error)
 
 !   Purpose: Write the total number of kinds, atoms, etc. to the logical unit
 !            number lunit.
@@ -874,60 +816,63 @@ CONTAINS
       POINTER                                :: atomic_kind_set
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
-    TYPE(global_environment_type), &
-      pointer                             :: globenv
-
+    TYPE(section_vals_type), POINTER :: force_env_section
+    TYPE(cp_error_type), INTENT(inout), &
+         OPTIONAL                               :: error
+    
     INTEGER                                  :: maxlgto, maxlppl, maxlppnl, &
                                                 natom, ncgf, nkind, npgf, &
                                                 nset, nsgf, nshell, &
                                                 output_unit
+    TYPE(cp_logger_type), POINTER            :: logger
 
-!   ---------------------------------------------------------------------------
 
-    IF (.NOT.globenv%ionode) RETURN
+    NULLIFY(logger)
+    logger => cp_error_get_logger(error)
+    output_unit = cp_print_key_unit_nr(logger,force_env_section,"PRINT%TOTAL_NUMBERS",&
+         extension=".Log",error=error)
 
-    IF (globenv%print%total_numbers) THEN
+    IF (output_unit>0) THEN
+       natom = SIZE(particle_set)
+       nkind = SIZE(atomic_kind_set)
+       
+       CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
+                                maxlgto=maxlgto,&
+                                maxlppl=maxlppl,&
+                                maxlppnl=maxlppnl,&
+                                ncgf=ncgf,&
+                                npgf=npgf,&
+                                nset=nset,&
+                                nsgf=nsgf,&
+                                nshell=nshell)
+       
+       WRITE (UNIT=output_unit,FMT="(/,/,T2,A)")&
+            "TOTAL NUMBERS AND MAXIMUM NUMBERS"
+       
+       WRITE (UNIT=output_unit,FMT="(/,T3,A,(T30,A,T71,I10))")&
+            "Total number of",&
+            "- Atomic kinds:                  ",nkind,&
+            "- Atoms:                         ",natom,&
+            "- Shell sets:                    ",nset,&
+            "- Shells:                        ",nshell,&
+            "- Primitive Cartesian functions: ",npgf,&
+            "- Cartesian basis functions:     ",ncgf,&
+            "- Spherical basis functions:     ",nsgf
 
-      output_unit = globenv%scr
-
-      natom = SIZE(particle_set)
-      nkind = SIZE(atomic_kind_set)
-
-      CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
-                               maxlgto=maxlgto,&
-                               maxlppl=maxlppl,&
-                               maxlppnl=maxlppnl,&
-                               ncgf=ncgf,&
-                               npgf=npgf,&
-                               nset=nset,&
-                               nsgf=nsgf,&
-                               nshell=nshell)
-
-      WRITE (UNIT=output_unit,FMT="(/,/,T2,A)")&
-        "TOTAL NUMBERS AND MAXIMUM NUMBERS"
-
-      WRITE (UNIT=output_unit,FMT="(/,T3,A,(T30,A,T71,I10))")&
-        "Total number of",&
-        "- Atomic kinds:                  ",nkind,&
-        "- Atoms:                         ",natom,&
-        "- Shell sets:                    ",nset,&
-        "- Shells:                        ",nshell,&
-        "- Primitive Cartesian functions: ",npgf,&
-        "- Cartesian basis functions:     ",ncgf,&
-        "- Spherical basis functions:     ",nsgf
-
-      IF ((maxlppl > -1).OR.(maxlppnl > -1)) THEN
-        WRITE (UNIT=output_unit,FMT="(/,T3,A,(T30,A,T75,I6))")&
-          "Maximum angular momentum of the",&
-          "- Orbital basis functions:                   ",maxlgto,&
-          "- Local part of the GTH pseudopotential:     ",maxlppl,&
-          "- Non-local part of the GTH pseudopotential: ",maxlppnl
-      ELSE
-        WRITE (UNIT=output_unit,FMT="(/,T3,A,T75,I6))")&
-          "Maximum angular momentum of the orbital basis functions: ",maxlgto
-      END IF
+       IF ((maxlppl > -1).OR.(maxlppnl > -1)) THEN
+          WRITE (UNIT=output_unit,FMT="(/,T3,A,(T30,A,T75,I6))")&
+               "Maximum angular momentum of the",&
+               "- Orbital basis functions:                   ",maxlgto,&
+               "- Local part of the GTH pseudopotential:     ",maxlppl,&
+               "- Non-local part of the GTH pseudopotential: ",maxlppnl
+       ELSE
+          WRITE (UNIT=output_unit,FMT="(/,T3,A,T75,I6))")&
+               "Maximum angular momentum of the orbital basis functions: ",maxlgto
+       END IF
 
     END IF
+    CALL cp_print_key_finished_output(output_unit,logger,force_env_section,&
+         "PRINT%TOTAL_NUMBERS",error=error)
 
   END SUBROUTINE write_total_numbers
 

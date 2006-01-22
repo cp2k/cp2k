@@ -141,6 +141,7 @@ CONTAINS
                                   molecule_set=molecule_set,&
                                   distribution_2d=distribution_2d,&
                                   blacs_env=kg_env%blacs_env,&
+                                  force_env_section=kg_env%input,&
                                   error=error)
 
     CALL set_kg_env(kg_env,distribution_2d=distribution_2d,error=error)

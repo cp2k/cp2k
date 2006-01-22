@@ -40,7 +40,11 @@ MODULE orbital_transformation_matrices
                                              sgf_symbol
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
+  USE cp_output_handling,              ONLY: cp_print_key_unit_nr, &
+                                             cp_print_key_finished_output
 
+
+#include "cp_common_uses.h"
   IMPLICIT NONE
 
   PRIVATE
@@ -306,7 +310,7 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE init_spherical_harmonics(maxl,globenv)
+  SUBROUTINE init_spherical_harmonics(maxl,globenv,error)
 
 !   Purpose: Initialize or update the orbital transformation matrices.
 
@@ -324,13 +328,16 @@ CONTAINS
     INTEGER, INTENT(IN)                      :: maxl
     TYPE(global_environment_type), &
       pointer                             :: globenv
+    TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "init_spherical_harmonics"
 
     CHARACTER(LEN=78)                        :: headline
     INTEGER                                  :: l, nc, ns, output_unit
+    TYPE(cp_logger_type), POINTER            :: logger
 
-!   ---------------------------------------------------------------------------
+    NULLIFY(logger)
+    logger => cp_error_get_logger(error)
 
     IF (maxl < 0) THEN
       CALL stop_program(routine_name,module_name,__LINE__,&
@@ -345,32 +352,33 @@ CONTAINS
 
 !     *** Print the spherical harmonics and   ***
 !     *** the orbital transformation matrices ***
+      output_unit = cp_print_key_unit_nr(logger,globenv%input_file,"GLOBAL%PRINT/SPHERICAL_HARMONICS",&
+           extension=".Log",error=error)
+       IF (output_unit>0) THEN
 
-      IF (globenv%ionode.AND.globenv%print%spherical_harmonics) THEN
+          DO l=0,maxl
+             
+             nc = nco(l)
+             ns = nso(l)
+             
+             headline = "SPHERICAL HARMONICS"
+             CALL write_matrix(orbtramat(l)%slm,l,output_unit,headline)
+             
+             headline = "CARTESIAN ORBITAL TO SPHERICAL ORBITAL "//&
+                  "TRANSFORMATION MATRIX"
+             CALL write_matrix(orbtramat(l)%c2s,l,output_unit,headline)
+             
+             headline = "SPHERICAL ORBITAL TO CARTESIAN ORBITAL "//&
+                  "TRANSFORMATION MATRIX"
+             CALL write_matrix(orbtramat(l)%s2c,l,output_unit,headline)
+             
+          END DO
 
-        output_unit = globenv%scr
+          WRITE (UNIT=output_unit,FMT="(A)") ""
 
-        DO l=0,maxl
-
-          nc = nco(l)
-          ns = nso(l)
-
-          headline = "SPHERICAL HARMONICS"
-          CALL write_matrix(orbtramat(l)%slm,l,output_unit,headline)
-
-          headline = "CARTESIAN ORBITAL TO SPHERICAL ORBITAL "//&
-                     "TRANSFORMATION MATRIX"
-          CALL write_matrix(orbtramat(l)%c2s,l,output_unit,headline)
-
-          headline = "SPHERICAL ORBITAL TO CARTESIAN ORBITAL "//&
-                     "TRANSFORMATION MATRIX"
-          CALL write_matrix(orbtramat(l)%s2c,l,output_unit,headline)
-
-        END DO
-
-        WRITE (UNIT=output_unit,FMT="(A)") ""
-
-      END IF
+       END IF
+       CALL cp_print_key_finished_output(output_unit,logger,globenv%input_file,&
+            "GLOBAL%PRINT/SPHERICAL_HARMONICS",error=error)
 
     END IF
 

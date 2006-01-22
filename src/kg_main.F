@@ -25,7 +25,6 @@ MODULE kg_main
   USE force_env_methods,               ONLY: force_env_create
   USE force_env_types,                 ONLY: force_env_type
   USE global_types,                    ONLY: global_environment_type
-  USE header,                          ONLY: kg_header
   USE kg_environment,                  ONLY: kg_init
   USE kg_environment_types,            ONLY: kg_env_create,&
                                              kg_env_release,&
@@ -83,9 +82,6 @@ CONTAINS
 !   ---------------------------------------------------------------------------
 
     CALL timeset(routineN,"I","",handle)
-
-    IF ( globenv%ionode ) CALL kg_header ( globenv%scr )
-
 !dbg
     failure=.false.
 !dbg

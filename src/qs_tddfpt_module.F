@@ -34,14 +34,18 @@ MODULE qs_tddfpt_module
   USE qs_tddfpt_types,                 ONLY: tddfpt_env_type
   USE qs_tddfpt_utils,                 ONLY: find_contributions,&
                                              tddfpt_cleanup,&
-                                             tddfpt_init,&
-                                             tddfpt_write_banner
+                                             tddfpt_init
+  USE header,                          ONLY: tddfpt_header
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE xc_pot_saop,                     ONLY: add_saop_pot
   USE input_section_types, ONLY:section_vals_type, section_vals_val_get, &
        section_vals_get_subs_vals,  section_vals_retain, section_vals_create, &
        section_vals_set_subs_vals, section_vals_release, section_get_ival
+  USE cp_output_handling,              ONLY: cp_print_key_unit_nr, &
+                                             cp_print_key_finished_output
+
+
 #include "cp_common_uses.h"
   IMPLICIT NONE
 
@@ -75,25 +79,35 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'tddfpt_calculation', &
                                    routineP = moduleN//'/'//routineN
  
-    INTEGER                                  :: handle, excitations, oe_corr
+    INTEGER                                  :: handle, excitations, oe_corr, iw
     TYPE(qs_p_env_type), POINTER             :: p_env
     TYPE(tddfpt_env_type)                    :: t_env
-    TYPE(section_vals_type),POINTER          :: input
+    TYPE(section_vals_type),POINTER          :: input, dft_section
+    TYPE(cp_logger_type), POINTER            :: logger
+    LOGICAL :: failure 
 
+    failure = .FALSE.
+    NULLIFY(logger)
+    logger => cp_error_get_logger(error)
     NULLIFY(input)
     CALL get_qs_env(qs_env, input=input,error=error)
-    
-    IF (section_get_ival(input,"DFT%EXCITATIONS") /= tddfpt_excitations) RETURN
+    dft_section => section_vals_get_subs_vals(input,"DFT",error=error)
+
+    IF (section_get_ival(dft_section,"EXCITATIONS") /= tddfpt_excitations) RETURN
 
     CALL timeset(routineN,"I","",handle)
 
-    IF (section_get_ival(input,"DFT%TDDFPT%OE_CORR") /= oe_none) THEN
+    IF (section_get_ival(dft_section,"TDDFPT%OE_CORR") /= oe_none) THEN
        CALL orbital_eigenvalue_correction(qs_env, error)
     END IF
     
     NULLIFY(p_env)
 
-    CALL tddfpt_write_banner(glob_env)
+    iw = cp_print_key_unit_nr(logger,dft_section,"PRINT%PROGRAM_BANNER",&
+         extension=".Log",error=error)    
+    CALL tddfpt_header(iw, iw>0)
+    CALL cp_print_key_finished_output(iw,logger,dft_section,&
+         "PRINT%PROGRAM_BANNER",error=error)    
 
     !---------------------------------------!
     ! we don't want to update the KS matrix !

@@ -532,11 +532,6 @@ CONTAINS
                                    jacobi_threshold=scf_control%jacobi_threshold,&
                                    smear=scf_control%smear, error=error)
 
-          IF (logger%print_keys%each_scf_step) THEN
-             ! give data to ionode
-!             CALL give_mo_set(kg_fm_set,mo_set,ispin,mol_diis_iblock%imol_global,4,6,globenv)
-          END IF
-
           CALL calculate_mol_density_matrix(mo_set,mol_block,&
                             nat_mol,matrix_p(ispin)%matrix,error=error)
         END DO  ! ispin
@@ -547,10 +542,6 @@ CONTAINS
       IF (istat /= 0) CALL stop_memory(routineP,"aux2_matrix")
 
     END DO  ! imolecule_kind
-
-    IF (logger%print_keys%each_scf_step .AND. ionode) THEN
-!      CALL write_mo_set(kg_fm_set,4,6,globenv)
-    END IF
 
     CALL timestop(0.0_dp,handle)
 

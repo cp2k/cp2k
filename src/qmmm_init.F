@@ -24,6 +24,7 @@
 !!   SOURCE
 !****************************************************************************
 MODULE qmmm_init
+  USE header,                          ONLY: qmmm_header
   USE atomic_kind_list_types,          ONLY: atomic_kind_list_create,&
                                              atomic_kind_list_release,&
                                              atomic_kind_list_type
@@ -31,7 +32,14 @@ MODULE qmmm_init
                                              get_atomic_kind,&
                                              read_atomic_kind_set, &
                                              set_atomic_kind
-  USE cp_output_handling, ONLY: cp_print_key_should_output, cp_p_file
+  USE cp_output_handling,              ONLY: cp_print_key_should_output,&
+                                             cp_p_file,&
+                                             cp_print_key_unit_nr,&
+                                             cp_print_key_finished_output,&
+                                             cp_iter_string,&
+                                             cp_iterate,&
+                                             cp_add_iter_level,&
+                                             cp_rm_iter_level
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_subsystem_types,              ONLY: cp_subsys_get,&
                                              cp_subsys_release,&
@@ -106,6 +114,7 @@ MODULE qmmm_init
                                              set_potential,&
                                              get_potential
   USE fist_main,                       ONLY: fist_create_force_env
+
   USE input_section_types, ONLY: section_type, section_create, &
        section_add_keyword, section_add_subsection, section_release,&
        section_vals_type,&
@@ -165,7 +174,7 @@ CONTAINS
     CHARACTER(len=default_string_length), &
       DIMENSION(:), POINTER                  :: qm_atom_type
     INTEGER                                  :: handle, isubf, stat
-    INTEGER                                  :: iw
+    INTEGER                                  :: iw, iw2
     INTEGER, DIMENSION(:), POINTER           :: qm_atom_index, mm_atom_index, qm_subsys_index
     INTEGER, DIMENSION(:), POINTER           :: mm_link_atoms
     LOGICAL                                  :: failure, qmmm_link
@@ -364,6 +373,11 @@ CONTAINS
           CALL set_qs_env(qs_env, super_cell=super_cell, error=error)
           CALL cell_release(super_cell, error=error)
        END IF
+       iw2 = cp_print_key_unit_nr(logger,qmmm_section,"PRINT%PROGRAM_BANNER",&
+            extension=".qmmmLog",error=error)    
+       CALL qmmm_header(iw2, iw2>0)
+       CALL cp_print_key_finished_output(iw2,logger,qmmm_section,&
+         "PRINT%PROGRAM_BANNER",error=error)           
        !
        ! Initialize MM Potential fitted with Gaussian
        !

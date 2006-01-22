@@ -265,10 +265,9 @@ CONTAINS
 !   *** Initialize timing ***
 
     CALL timeset ("CP2K","I","",handle)
-
     output_unit=globenv%scr
 
-    IF (ionode.AND.globenv%print%program_banner) THEN
+    IF (ionode) THEN
       WRITE (UNIT=output_unit,&
              FMT="(/,A,T55,A26,/,A,T51,A30,/,A,T51,A30,/,A,T71,I10)")&
         "  **** **** ******  **  PROGRAM STARTED AT ",ADJUSTR(datx),&
@@ -336,9 +335,10 @@ SUBROUTINE cp2k_read(globenv,error)
 
 
 !   *** Read the input/output section ***
-
+    logger => cp_get_default_logger()
 #if defined(__HPM)
-    IF (globenv%print%HPM) THEN
+    IF (BTEST(cp_print_key_should_output(logger%iter_info,&
+         globenv%input_file,"GLOBAL%PERFORMANCE/HPM",error=error),cp_p_file)) THEN
         CALL f_hpminit(globenv%para_env%mepos,"CP2K") 
         use_HPM = .TRUE.
     ENDIF
@@ -349,7 +349,6 @@ SUBROUTINE cp2k_read(globenv,error)
     CALL read_cp2k_section(globenv)
 
     ! try to use better names for the local log if it is not too late
-    logger => cp_get_default_logger()
     CALL section_vals_val_get(globenv%input_file,"GLOBAL%OUTPUT_FILE_NAME",&
          c_val=c_val,error=error)
     IF (c_val/="") THEN
@@ -403,37 +402,43 @@ SUBROUTINE cp2k_read(globenv,error)
 !!     fawzi
 !!
 !!*** **********************************************************************
-SUBROUTINE cp2k_setup(globenv,error)
-  TYPE(global_environment_type), pointer :: globenv
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-  
-  logical :: failure
-  character(len=*), parameter :: routineN='cp2k_setup',&
-        routineP=module_name//':'//routineN
+  SUBROUTINE cp2k_setup(globenv,error)
+    TYPE(global_environment_type), pointer :: globenv
+    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+
+    logical :: failure
+    character(len=*), parameter :: routineN='cp2k_setup',&
+         routineP=module_name//':'//routineN
     INTEGER           :: initial_random,ipe,istat,l,output_unit,pid,&
-                         strstart,strend
+         strstart,strend
 
     INTEGER, DIMENSION(:), ALLOCATABLE   :: all_pid
     INTEGER, DIMENSION(:,:), ALLOCATABLE :: all_host
     TYPE(cp_logger_type), POINTER :: logger
-  failure=.false.
-  
-  IF (.NOT. failure) THEN
-!   *** Initialize random number generator ***
-    
-    CALL section_vals_val_get(globenv%input_file,"GLOBAL%SEED",&
-         i_val=globenv%idum)
-    initial_random = ran2(globenv%idum)
+    INTEGER :: iw
+    failure=.FALSE.
 
-!   *** Initialize the parallel random number generator ***
+    NULLIFY(logger)
+    logger => cp_error_get_logger(error)
+    IF (.NOT. failure) THEN
+       !   *** Initialize random number generator ***
 
-    CALL init_rng()
+       CALL section_vals_val_get(globenv%input_file,"GLOBAL%SEED",&
+            i_val=globenv%idum)
+       initial_random = ran2(globenv%idum)
 
-    IF (globenv%ionode.AND.globenv%print%rng_matrices) THEN
-      CALL write_rng_matrices(globenv%scr)
+       !   *** Initialize the parallel random number generator ***
+
+       CALL init_rng()
+       iw = cp_print_key_unit_nr(logger,globenv%input_file,"GLOBAL%PRINT/RNG_MATRICES",&
+            extension=".Log",error=error)
+       IF (iw>0) THEN
+          CALL write_rng_matrices(iw)
+       END IF
+       CALL cp_print_key_finished_output(iw,logger,globenv%input_file,&
+            "GLOBAL%PRINT/RNG_MATRICES",error=error)
     END IF
- END IF
-END SUBROUTINE cp2k_setup
+  END SUBROUTINE cp2k_setup
 !***************************************************************************
 
 !!****f* environment/read_global_section [1.0] *
@@ -695,9 +700,10 @@ END SUBROUTINE cp2k_setup
     CALL rm_mp_perf_env()
 
 #if defined(__HPM)
-    IF (globenv%print%HPM) THEN
-        CALL f_hpmterminate(globenv%group) 
-        use_HPM=.FALSE.
+    IF (BTEST(cp_print_key_should_output(logger%iter_info,&
+         globenv%input_file,"GLOBAL%PERFORMANCE/HPM",error=error),cp_p_file)) THEN
+       CALL f_hpmterminate(globenv%group) 
+       use_HPM=.FALSE.
     ENDIF
 #endif
 
@@ -729,7 +735,7 @@ END SUBROUTINE cp2k_setup
          CALL close_file(unit_number=unit_exit,file_status="DELETE")
       END IF
 
-      IF (globenv%ionode.AND.globenv%print%program_banner) THEN
+      IF (globenv%ionode) THEN
         WRITE (UNIT=iw,&
                FMT="(A,T55,A26,/,A,T51,A30,/,A,T51,A30,/,A,T71,I10)")&
          "  **** **** ******  **  PROGRAM ENDED AT   ",ADJUSTR(datx),&

@@ -19,6 +19,7 @@
 !******************************************************************************
 
 MODULE kg_environment
+  USE header,                          ONLY: kg_header
   USE cp_output_handling,              ONLY: cp_print_key_should_output,&
                                              cp_p_file,&
                                              cp_print_key_unit_nr,&
@@ -185,6 +186,7 @@ CONTAINS
                                                 poisson_section, dft_section
     REAL(kind=dp), DIMENSION(3)              :: abc
     TYPE(cp_logger_type), pointer            :: logger
+    INTEGER :: iw
 
     CALL write_checkpoint_information("entering "//routine_name,globenv,error)
 
@@ -221,6 +223,11 @@ CONTAINS
     poisson_section => section_vals_get_subs_vals(dft_section,&
          "POISSON_DFT",error=error)
 
+    iw = cp_print_key_unit_nr(logger,dft_section,"PRINT%PROGRAM_BANNER",&
+         extension=".Log",error=error)    
+    CALL kg_header(iw, iw>0)
+    CALL cp_print_key_finished_output(iw,logger,dft_section,&
+         "PRINT%PROGRAM_BANNER",error=error)    
 
     CALL set_kg_env(kg_env,input=force_env_section,&
          error=error)
@@ -268,7 +275,7 @@ CONTAINS
     IF (dft_control%forces) maxl = maxl + 1
 
     CALL init_orbital_pointers(maxl)
-    CALL init_spherical_harmonics(maxl,globenv)
+    CALL init_spherical_harmonics(maxl,globenv,error)
 
     ! Initialize the pretabulation for the calculation of the
     ! incomplete Gamma function F_n(t) after McMurchie-Davidson
@@ -280,7 +287,7 @@ CONTAINS
                               method=dft_control%qs_control%method)
     CALL write_atomic_kind_set(atomic_kind_set,kg_env%input,error)
     CALL write_molecule_kind_set(molecule_kind_set,force_env_section,error)
-    CALL write_total_numbers(atomic_kind_set,particle_set,globenv)
+    CALL write_total_numbers(atomic_kind_set,particle_set,kg_env%input,error)
 
     ! Print the atomic coordinates 
     CALL write_qs_particle_coordinates(particle_set,cell,kg_env%input,error)
@@ -299,6 +306,7 @@ CONTAINS
                                  molecule_kind_set=molecule_kind_set,&
                                  molecule_set=molecule_set,&
                                  local_molecules=local_molecules,&
+                                 force_env_section=kg_env%input,&
                                  error=error)
 
     ! If polarization is also present, allocate and initialize coefs pointer  
@@ -379,7 +387,7 @@ CONTAINS
 
 !***************************************************************************
 
-  SUBROUTINE write_total_numbers(atomic_kind_set,particle_set,globenv)
+  SUBROUTINE write_total_numbers(atomic_kind_set,particle_set,force_env_section,error)
 
 !   Purpose: Write the total number of kinds, atoms, etc. to the logical unit
 !            number lunit.
@@ -391,23 +399,25 @@ CONTAINS
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(particle_type), DIMENSION(:), &
-      POINTER                                :: particle_set
-    TYPE(global_environment_type), &
-      pointer                             :: globenv
+         POINTER                                :: particle_set
+    TYPE(section_vals_type), POINTER :: force_env_section
+    TYPE(cp_error_type), INTENT(inout), &
+         OPTIONAL                               :: error
+
 
     INTEGER                                  :: maxlgto, maxlppl, maxlppnl, &
                                                 natom, ncgf, nkind, npgf, &
                                                 nset, nsgf, nshell, &
                                                 output_unit
+   TYPE(cp_logger_type), POINTER            :: logger
 
-!   ---------------------------------------------------------------------------
 
-    IF (.NOT.globenv%ionode) RETURN
+    NULLIFY(logger)
+    logger => cp_error_get_logger(error)
+    output_unit = cp_print_key_unit_nr(logger,force_env_section,"PRINT%TOTAL_NUMBERS",&
+         extension=".Log",error=error)
 
-    IF (globenv%print%total_numbers) THEN
-
-      output_unit = globenv%scr
-
+    IF (output_unit>0) THEN
       natom = SIZE(particle_set)
       nkind = SIZE(atomic_kind_set)
 
@@ -451,6 +461,9 @@ CONTAINS
       END IF
 
     END IF
+    CALL cp_print_key_finished_output(output_unit,logger,force_env_section,&
+         "PRINT%TOTAL_NUMBERS",error=error)
+
 
   END SUBROUTINE write_total_numbers
 

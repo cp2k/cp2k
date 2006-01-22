@@ -19,7 +19,7 @@
 !******************************************************************************
 
 MODULE fist_environment
-
+  USE header,                          ONLY: fist_header
   USE atomic_kind_list_types,          ONLY: atomic_kind_list_create,&
                                              atomic_kind_list_release,&
                                              atomic_kind_list_type
@@ -84,6 +84,14 @@ MODULE fist_environment
   USE qmmm_types,                      ONLY: qmmm_env_mm_type
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type
+  USE cp_output_handling,              ONLY: cp_print_key_should_output,&
+                                             cp_p_file,&
+                                             cp_print_key_unit_nr,&
+                                             cp_print_key_finished_output,&
+                                             cp_iter_string,&
+                                             cp_iterate,&
+                                             cp_add_iter_level,&
+                                             cp_rm_iter_level  
 #include "cp_common_uses.h"
   IMPLICIT NONE
 
@@ -149,7 +157,7 @@ SUBROUTINE fist_init ( fist_env, globenv, error )
                                               local_particles
   TYPE ( ewald_environment_type ), POINTER :: ewald_env
   TYPE ( fist_nonbond_env_type ), POINTER  :: fist_nonbond_env
-  INTEGER                                  :: handle
+  INTEGER                                  :: handle, iw
   TYPE(section_vals_type), POINTER         :: cell_section, &
                                               poisson_section, &
                                               colvar_section,&
@@ -159,7 +167,12 @@ SUBROUTINE fist_init ( fist_env, globenv, error )
   REAL(KIND=dp), DIMENSION(3)              :: abc
   CHARACTER(LEN=*), PARAMETER :: routine_name = "fist_init"
   TYPE (qmmm_env_mm_type), POINTER :: qmmm_env
-
+  TYPE(cp_logger_type), POINTER            :: logger
+  LOGICAL :: failure
+  
+  failure = .FALSE.
+  NULLIFY(logger)
+  logger => cp_error_get_logger(error)  
   CALL write_checkpoint_information("Entering "//routine_name,globenv,error)
   CALL timeset(routine_name,"I",'',handle)
 
@@ -175,6 +188,13 @@ SUBROUTINE fist_init ( fist_env, globenv, error )
        "FORCE_EVAL%SUBSYS%CELL",error=error)
   poisson_section => section_vals_get_subs_vals(globenv%input_file,&
        "FORCE_EVAL%MM%POISSON_MM",error=error)
+
+  iw = cp_print_key_unit_nr(logger,mm_section,"PRINT%PROGRAM_BANNER",&
+       extension=".mmLog",error=error)    
+  CALL fist_header(iw, iw>0)
+  CALL cp_print_key_finished_output(iw,logger,mm_section,&
+       "PRINT%PROGRAM_BANNER",error=error)             
+
   CALL cp_subsys_create ( subsystem, para_env = globenv % para_env, error = error )
 
   ! read colvars and add to subsystem
@@ -301,6 +321,7 @@ SUBROUTINE fist_init ( fist_env, globenv, error )
                                  molecule_kind_set=molecule_kind_set,&
                                  molecule_set=molecule_set,&
                                  local_molecules=local_molecules,&
+                                 force_env_section=force_env_section,&
                                  error=error )
 
 ! Initialize ewald grids

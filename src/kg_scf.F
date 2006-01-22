@@ -125,6 +125,13 @@ MODULE kg_scf
                                              stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
+  USE input_section_types,             ONLY: section_vals_type
+  USE cp_output_handling,              ONLY: cp_print_key_unit_nr, &
+                                             cp_print_key_finished_output,&
+                                             cp_print_key_should_output,&
+                                             cp_p_file
+
+  
   USE input_constants, ONLY: atomic_guess, core_guess, random_guess, restart_guess
 #include "cp_common_uses.h"
   IMPLICIT NONE
@@ -236,12 +243,13 @@ CONTAINS
 !!   MODIFICATION HISTORY
 !!
 !!*** **********************************************************************
-  SUBROUTINE kg_qs_scf(kg_env,globenv,error)
+  SUBROUTINE kg_qs_scf(kg_env,globenv,scf_section,error)
     TYPE(kg_environment_type), POINTER       :: kg_env
     TYPE(global_environment_type), &
       POINTER                                :: globenv
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
+     TYPE(section_vals_type), POINTER :: scf_section
 
     CHARACTER(len=*), PARAMETER :: routineN = 'kg_qs_scf', &
       routineP = moduleN//':'//routineN
@@ -263,7 +271,7 @@ CONTAINS
            CALL kg_scf_env_release(scf_env)
            CALL get_kg_env(kg_env,scf_env=scf_env,error=error)
         END IF
-        CALL scf_env_do_scf(scf_env,my_kg_env,globenv,error=error)
+        CALL scf_env_do_scf(scf_env,my_kg_env,globenv,scf_section=scf_section,error=error)
      END IF
   END SUBROUTINE kg_qs_scf
 !***************************************************************************
@@ -297,7 +305,7 @@ CONTAINS
 !!     fully activated 12-04 MI 
 !!
 !!*** **********************************************************************
-  SUBROUTINE scf_env_do_scf(scf_env,kg_env,globenv,error)
+  SUBROUTINE scf_env_do_scf(scf_env,kg_env,globenv,scf_section,error)
 
     TYPE(kg_scf_env_type), POINTER             :: scf_env
     TYPE(kg_environment_type), POINTER         :: kg_env
@@ -305,6 +313,8 @@ CONTAINS
       POINTER                                  :: globenv
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                                 :: error
+    TYPE(section_vals_type), POINTER :: scf_section
+    
 
     CHARACTER(LEN=*), PARAMETER :: routineN = "scf_env_do_scf", &
       routineP = moduleN//':'//routineN
@@ -428,8 +438,9 @@ CONTAINS
             "Step","Update method","Time","Convergence","Total energy",&
             REPEAT("-",77)
     END IF
-    
-    IF (.NOT. logger%print_keys%timecumul) t1 = m_walltime()
+
+    IF (BTEST(cp_print_key_should_output(logger%iter_info,&
+         scf_section,"PRINT%ITERATION_INFO/TIME_CUMUL",error=error),cp_p_file)) t1 = m_walltime()    
 
 !   *** SCF loop ***
 
@@ -448,14 +459,12 @@ CONTAINS
                                 just_energy=energy_only)
 
        DO ispin=1,dft_control%nspins
-
-          IF (logger%print_keys%density_matrix.AND.&
-               logger%print_keys%each_scf_step) THEN
+          
+          IF (logger%print_keys%density_matrix) THEN
              CALL write_sparse_matrix(matrix_p(ispin)%matrix,4,6,qs_env,globenv)
           END IF
 
-          IF (logger%print_keys%kohn_sham_matrix.AND.&
-                         logger%print_keys%each_scf_step) THEN
+          IF (logger%print_keys%kohn_sham_matrix) THEN
              CALL write_sparse_matrix(matrix_ks(ispin)%matrix,4,6,qs_env,globenv)
           END IF
 
@@ -656,7 +665,8 @@ CONTAINS
           CALL write_mo_mol_restart(kg_fm,globenv,nspins=dft_control%nspins,id_nr=1,error=error)
        END IF
 
-       IF (.NOT. logger%print_keys%timecumul) t1 = m_walltime()
+       IF (BTEST(cp_print_key_should_output(logger%iter_info,&
+         scf_section,"PRINT%ITERATION_INFO/TIME_CUMUL",error=error),cp_p_file)) t1 = m_walltime()
 !
 !   *** mixing methods have the new density matrix in p_mix_new
        IF (scf_env%mixing_method.EQ.ao_mixing_nr) THEN

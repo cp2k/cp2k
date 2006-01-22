@@ -239,12 +239,6 @@ contains
        CALL section_add_subsection(section,print_key,error=error)
        CALL section_release(print_key,error=error)
 
-       CALL cp_print_key_section_create(print_key,"DISTRIBUTION",&
-            description="Controls the printing of the distribution of the simple pair neighbour list.", &
-            print_level=high_print_level,each=(/1/),filename="__STD_OUT__",&
-            error=error)
-       CALL section_add_subsection(section,print_key,error=error)
-       CALL section_release(print_key,error=error)
 
        CALL cp_print_key_section_create(print_key,"NEIGHBOUR_LISTS",&
             description="Controls the printing of the set of neighbor lists.", &

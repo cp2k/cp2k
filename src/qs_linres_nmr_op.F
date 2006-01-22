@@ -25,7 +25,12 @@
 !!****
 
 MODULE qs_linres_nmr_op
-
+  USE cp_output_handling,              ONLY: cp_print_key_unit_nr, &
+                                             cp_print_key_finished_output,&
+                                             cp_print_key_should_output,&
+                                             cp_p_file
+  USE input_section_types,             ONLY: section_vals_type,&
+                                             section_vals_get_subs_vals
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind_set
   USE cp_array_r_utils,                ONLY: cp_2d_r_p_type
@@ -124,21 +129,27 @@ CONTAINS
     TYPE(linres_control_type), POINTER          :: linres_control
     TYPE(mo_set_p_type), DIMENSION(:), POINTER  :: mos
     TYPE(particle_type), DIMENSION(:), POINTER  :: particle_set
+    TYPE(section_vals_type), POINTER :: lr_section
 
     failure = .FALSE.
 
-    NULLIFY(atomic_kind_set,cell,dft_control,linres_control,logger,mos,particle_set)
+    NULLIFY(atomic_kind_set,cell,dft_control,linres_control,logger,mos,particle_set,&
+         lr_section)
  
     logger => cp_error_get_logger(error)
     ionode = logger%para_env%mepos==logger%para_env%source
-    IF (ionode) output_unit = cp_logger_get_default_unit_nr(logger)
+    lr_section => section_vals_get_subs_vals(qs_env%input,"PROPERTIES%LINRES",error=error)
 
-    IF(ionode .AND. logger%print_keys%linres) THEN
+    output_unit = cp_print_key_unit_nr(logger,lr_section,"PRINT%PROGRAM_RUN_INFO",&
+         extension=".linresLog",error=error)
+    IF (output_unit>0) THEN
 
       WRITE (UNIT=output_unit,FMT="(T10,A,/)")&
          "Calculation of the p and (r-d)xp operators applied to psi0"
 
     END IF
+    CALL cp_print_key_finished_output(output_unit,logger,lr_section,&
+         "PRINT%PROGRAM_RUN_INFO",error=error)
 
     CALL get_qs_env(qs_env=qs_env, atomic_kind_set=atomic_kind_set, cell=cell, &
                     dft_control=dft_control, linres_control=linres_control,&

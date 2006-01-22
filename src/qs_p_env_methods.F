@@ -24,6 +24,10 @@
 !!
 !!****
 MODULE qs_p_env_methods
+ USE cp_output_handling,              ONLY: cp_print_key_unit_nr, &
+                                             cp_print_key_finished_output,&
+                                             cp_print_key_should_output,&
+                                             cp_p_file
   USE atomic_kind_types,               ONLY: atomic_kind_type
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm,&
@@ -667,7 +671,7 @@ END SUBROUTINE p_env_did_change
     END IF
 
     IF (.NOT.failure) THEN
-       
+       lr_section => section_vals_get_subs_vals(input,"PROPERTIES%LINRES")
        ! def psi0d
        IF (p_env%orthogonal_orbitals) THEN
           
@@ -754,16 +758,17 @@ END SUBROUTINE p_env_did_change
        ! updates K (if necessary)
        CALL qs_ks_update_qs_env(ks_env=ks_env,qs_env=qs_env,&
             error=error)
-
-       IF(ionode .AND. logger%print_keys%linres) THEN
-          lr_section => section_vals_get_subs_vals(input,"PROPERTIES%LINRES")
+       output_unit = cp_print_key_unit_nr(logger,lr_section,"PRINT%PROGRAM_RUN_INFO",&
+            extension=".linresLog",error=error)
+       IF (output_unit>0) THEN          
           CALL section_vals_get(lr_section,explicit=was_present,error=error)
           IF(was_present) THEN
             write(UNIT=output_unit,FMT="(/,(T3,A,T55,F25.14))") &
             "Total energy ground state:                     ", qs_env%energy%total
           END IF
        END IF
-       
+       CALL cp_print_key_finished_output(output_unit,logger,lr_section,&
+            "PRINT%PROGRAM_RUN_INFO",error=error)       
        !-----------------------------------------------------------------------|
        ! calculates                                                            |
        ! m_epsilon = - psi0d^T times K times psi0d                             |

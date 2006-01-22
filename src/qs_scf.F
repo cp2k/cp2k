@@ -48,7 +48,10 @@
 !******************************************************************************
 
 MODULE qs_scf
-
+  USE cp_output_handling,              ONLY: cp_print_key_unit_nr, &
+                                             cp_print_key_finished_output,&
+                                             cp_print_key_should_output,&
+                                             cp_p_file
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind,&
                                              get_atomic_kind_set
@@ -475,14 +478,15 @@ CONTAINS
     LOGICAL                                  :: harris_flag, &
                                                 EII_necessary
     TYPE(harris_env_type), POINTER           :: harris_env
-    TYPE(section_vals_type),POINTER           :: dft_section, input
+    TYPE(section_vals_type),POINTER           :: dft_section, input, scf_section
 !dbg
     LOGICAL :: l_val
 !   ---------------------------------------------------------------------------
 
     NULLIFY(dft_control,matrix_h,matrix_s,matrix_ks,matrix_p,rho,rho_xc,energy, &
             scf_control,logger,pw_env, qs_charges,ks_env,mos,atomic_kind_set, &
-            particle_set,scf_work1,ortho,scf_work2,harris_env,dft_section,input)
+            particle_set,scf_work1,ortho,scf_work2,harris_env,dft_section,input,&
+            scf_section)
 
     logger => cp_error_get_logger(error)
     t1 = m_walltime()
@@ -500,7 +504,7 @@ CONTAINS
          scf_control=scf_control)
 
     dft_section => section_vals_get_subs_vals(input,"DFT",error=error)
-
+    scf_section => section_vals_get_subs_vals(dft_section,"SCF",error=error)
 
 !   *** Quick return, if no SCF iteration is requested ***
 
@@ -602,8 +606,9 @@ CONTAINS
             "Step","Update method","Time","Convergence","Total energy",&
             REPEAT("-",77)
     END IF
-    
-    IF (.NOT.logger%print_keys%timecumul) t1 = m_walltime()
+   
+    IF (BTEST(cp_print_key_should_output(logger%iter_info,&
+         scf_section,"PRINT%ITERATION_INFO/TIME_CUMUL",error=error),cp_p_file)) t1 = m_walltime()
 
 !   *** SCF loop ***
 
@@ -684,7 +689,8 @@ CONTAINS
             IF (scf_env%iter_count > 1) THEN
                CALL qs_diis_b_step(scf_env%scf_diis_buffer,mos,scf_work1,&
                     scf_work2,scf_env%iter_delta,diis_error,diis_step,&
-                    scf_control%eps_diis,s_matrix=matrix_s,error=error)
+                    scf_control%eps_diis,s_matrix=matrix_s,scf_section=scf_section,&
+                    error=error)
             END IF
 
             do_level_shift = ((scf_control%level_shift /= 0.0_dp).AND.&
@@ -742,7 +748,7 @@ CONTAINS
             IF (scf_env%iter_count > 1) THEN
                CALL qs_diis_b_step(scf_env%scf_diis_buffer,mos,scf_work1,&
                     scf_work2,scf_env%iter_delta,diis_error,diis_step,&
-                    scf_control%eps_diis,error=error)
+                    scf_control%eps_diis,scf_section=scf_section,error=error)
             END IF
             do_level_shift = ((scf_control%level_shift /= 0.0_dp).AND.&
                ((scf_control%density_guess == core_guess).OR.(scf_env%iter_count > 1)))
@@ -849,7 +855,8 @@ CONTAINS
                id_nr=1)
        END IF
 
-       IF (.NOT.logger%print_keys%timecumul) t1 = m_walltime()
+       IF (BTEST(cp_print_key_should_output(logger%iter_info,&
+            scf_section,"PRINT%ITERATION_INFO/TIME_CUMUL",error=error),cp_p_file)) t1 = m_walltime()  
 
 !   *** mixing methods have the new density matrix in p_mix_new
        IF (scf_env%mixing_method.EQ.ao_mixing_nr) THEN

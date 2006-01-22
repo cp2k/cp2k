@@ -44,6 +44,12 @@ MODULE distribution_methods
   USE molecule_types_new,              ONLY: molecule_type
   USE particle_types,                  ONLY: particle_type
   USE termination,                     ONLY: stop_memory
+  USE input_section_types,             ONLY: section_vals_type,&
+                                             section_vals_get_subs_vals
+  USE cp_output_handling,              ONLY: cp_print_key_unit_nr, &
+                                             cp_print_key_finished_output,&
+                                             cp_print_key_should_output,&
+                                             cp_p_file
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -95,7 +101,7 @@ CONTAINS
   SUBROUTINE distribute_molecules_1d(particle_kind_set,particle_set,&
                                      local_particles,&
                                      molecule_kind_set,molecule_set,&
-                                     local_molecules, error)
+                                     local_molecules, force_env_section, error)
 
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: particle_kind_set
@@ -109,13 +115,14 @@ CONTAINS
     TYPE(distribution_1d_type), POINTER      :: local_molecules
     TYPE(cp_error_type), INTENT(INOUT), &
       OPTIONAL                               :: error
+    TYPE(section_vals_type), POINTER :: force_env_section
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "distribute_molecules_1d"
 
     INTEGER :: atom_a, group, iatom, imolecule, imolecule_kind, &
       imolecule_local, iparticle_kind, ipe, istat, jpe, kind_a, molecule_a, &
       mype, n, natom, nload, nmolecule, nmolecule_kind, nparticle_kind, npe, &
-      nsgf, output_unit
+      nsgf, output_unit,iw
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: nmolecule_local, &
                                                 nparticle_local, work, &
                                                 workload, workload_old
@@ -133,13 +140,6 @@ CONTAINS
     group = logger%para_env%group
     mype = logger%para_env%mepos + 1
     npe = logger%para_env%num_pe
-    ionode= (logger%para_env%mepos == logger%para_env%source)
-
-    IF (logger%print_keys%level > LOW) THEN
-       output_unit = cp_logger_get_default_unit_nr(logger,LOCAL=.TRUE.)
-    ELSE
-       IF (ionode) output_unit = cp_logger_get_default_unit_nr(logger)
-    ENDIF
 
     ALLOCATE (workload(npe),STAT=istat)
     IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
@@ -287,10 +287,6 @@ CONTAINS
                                kind_number=kind_a)
           nparticle_local(kind_a) = nparticle_local(kind_a) + 1
           local_particles%list(kind_a)%array(nparticle_local(kind_a)) = atom_a
-        !  ALLOCATE (particle_set(atom_a)%lpi,STAT=istat)
-        !  IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
-        !                                   "particle_set(atom_a)%lpi",0)
-        !  NULLIFY (particle_set(atom_a)%lpi%exclusion)
         END DO
       END DO
 
@@ -298,8 +294,15 @@ CONTAINS
 
 !   *** Print distribution, if requested ***
 
-    IF (logger%print_keys%distribution) THEN
+    IF (BTEST(cp_print_key_should_output(logger%iter_info,&
+         force_env_section,"PRINT%DISTRIBUTION",error=error),cp_p_file)) THEN
 
+       output_unit = cp_print_key_unit_nr(logger,force_env_section,"PRINT%DISTRIBUTION",&
+            extension=".Log",error=error)
+       
+       iw = output_unit
+       IF (output_unit<0) iw = cp_logger_get_default_unit_nr(logger,LOCAL=.TRUE.)
+      
 !     *** Print molecule distribution ***
 
       ALLOCATE (work(npe),STAT=istat)
@@ -310,43 +313,41 @@ CONTAINS
       work(mype) = SUM(nmolecule_local)
       CALL mp_sum(work,group)
 
-      IF (ionode) THEN
-        WRITE (UNIT=output_unit,&
-               FMT="(/,/,T2,A,/,/,T3,A,/,/,(T4,I6,T24,I8))")&
-          "DISTRIBUTION OF THE MOLECULES",&
-          "Process   Number of molecules",&
-          (ipe-1,work(ipe),ipe=1,npe)
-        WRITE (UNIT=output_unit,FMT="(/,T7,A3,T24,I8)")&
-          "Sum",SUM(work)
+      IF (output_unit>0) THEN    
+         WRITE (UNIT=output_unit,&
+              FMT="(/,/,T2,A,/,/,T3,A,/,/,(T4,I6,T24,I8))")&
+              "DISTRIBUTION OF THE MOLECULES",&
+              "Process   Number of molecules",&
+              (ipe-1,work(ipe),ipe=1,npe)
+         WRITE (UNIT=output_unit,FMT="(/,T7,A3,T24,I8)")&
+              "Sum",SUM(work)
          CALL m_flush(output_unit)
       END IF
-
+      
       CALL mp_sync(group)
-
-      IF (logger%print_keys%level > LOW) THEN
-        DO ipe=1,npe
-          IF (ipe == mype) THEN
-            WRITE (UNIT=output_unit,FMT="(/,T3,A)")&
-                "Process   Kind   Local molecules (global indices)"
+      
+      DO ipe=1,npe
+         IF (ipe == mype) THEN
+            WRITE (UNIT=iw,FMT="(/,T3,A)")&
+                 "Process   Kind   Local molecules (global indices)"
             DO imolecule_kind=1,nmolecule_kind
-              IF (imolecule_kind == 1) THEN
-                WRITE (UNIT=output_unit,FMT="(/,T4,I6,2X,I5,(T20,10I6))")&
-                  ipe-1,imolecule_kind,&
-                  (local_molecules%list(imolecule_kind)%array(imolecule),&
-                   imolecule=1,nmolecule_local(imolecule_kind))
-              ELSE
-                WRITE (UNIT=output_unit,FMT="(T12,I5,(T20,10I6))")&
-                  imolecule_kind,&
-                  (local_molecules%list(imolecule_kind)%array(imolecule),&
-                   imolecule=1,nmolecule_local(imolecule_kind))
-              END IF
+               IF (imolecule_kind == 1) THEN
+                  WRITE (UNIT=iw,FMT="(/,T4,I6,2X,I5,(T20,10I6))")&
+                       ipe-1,imolecule_kind,&
+                       (local_molecules%list(imolecule_kind)%array(imolecule),&
+                       imolecule=1,nmolecule_local(imolecule_kind))
+               ELSE
+                  WRITE (UNIT=iw,FMT="(T12,I5,(T20,10I6))")&
+                       imolecule_kind,&
+                       (local_molecules%list(imolecule_kind)%array(imolecule),&
+                       imolecule=1,nmolecule_local(imolecule_kind))
+               END IF
             END DO
-          END IF
-          CALL m_flush(output_unit)
-          CALL mp_sync(group)
-        END DO
-      END IF
-
+         END IF
+         CALL m_flush(iw)
+         CALL mp_sync(group)
+      END DO
+      
 !     *** Print particle distribution ***
 
       work(:) = 0
@@ -354,48 +355,46 @@ CONTAINS
       work(mype) = SUM(nparticle_local)
       CALL mp_sum(work,group)
 
-      IF (ionode) THEN
-        WRITE (UNIT=output_unit,&
-               FMT="(/,/,T2,A,/,/,T3,A,/,/,(T4,I6,T24,I8))")&
-          "DISTRIBUTION OF THE PARTICLES",&
-          "Process   Number of particles",&
-          (ipe-1,work(ipe),ipe=1,npe)
-        WRITE (UNIT=output_unit,FMT="(/,T7,A3,T24,I8)")&
-          "Sum",SUM(work)
-        CALL m_flush(output_unit)
+      IF (output_unit>0) THEN
+         WRITE (UNIT=output_unit,&
+              FMT="(/,/,T2,A,/,/,T3,A,/,/,(T4,I6,T24,I8))")&
+              "DISTRIBUTION OF THE PARTICLES",&
+              "Process   Number of particles",&
+              (ipe-1,work(ipe),ipe=1,npe)
+         WRITE (UNIT=output_unit,FMT="(/,T7,A3,T24,I8)")&
+              "Sum",SUM(work)
+         CALL m_flush(output_unit)
       END IF
-
+      
       CALL mp_sync(group)
-
-      IF (logger%print_keys%level > LOW) THEN
-        DO ipe=1,npe
-          IF (ipe == mype) THEN
-            WRITE (UNIT=output_unit,FMT="(/,T3,A)")&
-                "Process   Kind   Local particles (global indices)"
+      
+      DO ipe=1,npe
+         IF (ipe == mype) THEN
+            WRITE (UNIT=iw,FMT="(/,T3,A)")&
+                 "Process   Kind   Local particles (global indices)"
             DO iparticle_kind=1,nparticle_kind
-              IF (iparticle_kind == 1) THEN
-                WRITE (UNIT=output_unit,FMT="(/,T4,I6,2X,I5,(T20,10I6))")&
-                  ipe-1,iparticle_kind,&
-                  (local_particles%list(iparticle_kind)%array(iatom),&
-                   iatom=1,nparticle_local(iparticle_kind))
-              ELSE
-                WRITE (UNIT=output_unit,FMT="(T12,I5,(T20,10I6))")&
-                  iparticle_kind,&
-                  (local_particles%list(iparticle_kind)%array(iatom),&
-                   iatom=1,nparticle_local(iparticle_kind))
-              END IF
+               IF (iparticle_kind == 1) THEN
+                  WRITE (UNIT=iw,FMT="(/,T4,I6,2X,I5,(T20,10I6))")&
+                       ipe-1,iparticle_kind,&
+                       (local_particles%list(iparticle_kind)%array(iatom),&
+                       iatom=1,nparticle_local(iparticle_kind))
+               ELSE
+                  WRITE (UNIT=iw,FMT="(T12,I5,(T20,10I6))")&
+                       iparticle_kind,&
+                       (local_particles%list(iparticle_kind)%array(iatom),&
+                       iatom=1,nparticle_local(iparticle_kind))
+               END IF
             END DO
-          END IF
-          CALL m_flush(output_unit)
-          CALL mp_sync(group)
-        END DO
-      END IF
-
+         END IF
+         CALL m_flush(iw)
+         CALL mp_sync(group)
+      END DO
       DEALLOCATE (work,STAT=istat)
       IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,"work")
 
-    END IF
-
+      CALL cp_print_key_finished_output(output_unit,logger,force_env_section,&
+           "PRINT%DISTRIBUTION",error=error)           
+   END IF
 !   *** Release work storage ***
 
     DEALLOCATE (workload,STAT=istat)
@@ -466,7 +465,8 @@ CONTAINS
 
   SUBROUTINE distribute_molecules_2d(particle_kind_set,particle_set,&
                                      molecule_kind_set,molecule_set,&
-                                     distribution_2d,blacs_env,error)
+                                     distribution_2d,blacs_env,force_env_section,&
+                                     error)
 
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: particle_kind_set
@@ -480,13 +480,13 @@ CONTAINS
     TYPE(cp_blacs_env_type), POINTER         :: blacs_env
     TYPE(cp_error_type), INTENT(INOUT), &
       OPTIONAL                               :: error
-
+    TYPE(section_vals_type), POINTER :: force_env_section
     CHARACTER(LEN=*), PARAMETER :: routine_name = "distribute_molecules_2d"
 
     INTEGER :: atom_a, group, iatom, imolecule, imolecule_kind, &
       imolecule_local, iparticle_kind, ipcol, iprow, istat, jpcol, jprow, &
       kind_a, molecule_a, mypcol, myprow, n, natom, nload, nmolecule, &
-      nmolecule_kind, nparticle_kind, npcol, nprow, nsgf, output_unit
+      nmolecule_kind, nparticle_kind, npcol, nprow, nsgf, output_unit,iw
     INTEGER, ALLOCATABLE, DIMENSION(:) :: nmolecule_local_col, &
       nmolecule_local_row, nparticle_local_col, nparticle_local_row, work, &
       workload_col, workload_col_old, workload_row, workload_row_old
@@ -507,10 +507,6 @@ CONTAINS
     logger => cp_error_get_logger(error)
 
     group = blacs_env%para_env%group
-    ionode= (logger%para_env%mepos == logger%para_env%source)
-    IF (ionode) THEN
-        output_unit = cp_logger_get_default_unit_nr(logger)
-    ENDIF
 
     myprow = blacs_env%mepos(1) + 1
     mypcol = blacs_env%mepos(2) + 1
@@ -817,8 +813,11 @@ CONTAINS
     NULLIFY (col_distribution)
 
 !   *** Print distribution, if requested ***
+    IF (BTEST(cp_print_key_should_output(logger%iter_info,&
+         force_env_section,"PRINT%DISTRIBUTION",error=error),cp_p_file)) THEN
 
-    IF (logger%print_keys%distribution) THEN
+       output_unit = cp_print_key_unit_nr(logger,force_env_section,"PRINT%DISTRIBUTION",&
+            extension=".Log",error=error)
 
 !     *** Print row distribution ***
 
@@ -833,15 +832,15 @@ CONTAINS
 
       CALL mp_sum(work,group)
 
-      IF (ionode) THEN
-        WRITE (UNIT=output_unit,&
-               FMT="(/,/,T2,A,/,/,T3,A,/,/,(T4,I10,T26,I10,T53,I10))")&
-          "DISTRIBUTION OF THE PARTICLES (ROWS)",&
-          "Process row   Number of particles      Number of matrix rows",&
-          (iprow-1,work(iprow),workload_row(iprow),iprow=1,nprow)
-        WRITE (UNIT=output_unit,FMT="(/,T11,A3,T26,I10,T53,I10)")&
-          "Sum",SUM(work),SUM(workload_row)
-        CALL m_flush(output_unit)
+      IF (output_unit>0) THEN
+         WRITE (UNIT=output_unit,&
+              FMT="(/,/,T2,A,/,/,T3,A,/,/,(T4,I10,T26,I10,T53,I10))")&
+              "DISTRIBUTION OF THE PARTICLES (ROWS)",&
+              "Process row   Number of particles      Number of matrix rows",&
+              (iprow-1,work(iprow),workload_row(iprow),iprow=1,nprow)
+         WRITE (UNIT=output_unit,FMT="(/,T11,A3,T26,I10,T53,I10)")&
+              "Sum",SUM(work),SUM(workload_row)
+         CALL m_flush(output_unit)
       END IF
 
       DEALLOCATE (work,STAT=istat)
@@ -862,15 +861,15 @@ CONTAINS
 
       CALL mp_sum(work,group)
 
-      IF (ionode) THEN
-        WRITE (UNIT=output_unit,&
-               FMT="(/,/,T2,A,/,/,T3,A,/,/,(T4,I10,T26,I10,T53,I10))")&
-          "DISTRIBUTION OF THE PARTICLES (COLUMNS)",&
-          "Process col   Number of particles   Number of matrix columns",&
-          (ipcol-1,work(ipcol),workload_col(ipcol),ipcol=1,npcol)
-        WRITE (UNIT=output_unit,FMT="(/,T11,A3,T26,I10,T53,I10)")&
-          "Sum",SUM(work),SUM(workload_col)
-        CALL m_flush(output_unit)
+      IF (output_unit>0) THEN
+         WRITE (UNIT=output_unit,&
+              FMT="(/,/,T2,A,/,/,T3,A,/,/,(T4,I10,T26,I10,T53,I10))")&
+              "DISTRIBUTION OF THE PARTICLES (COLUMNS)",&
+              "Process col   Number of particles   Number of matrix columns",&
+              (ipcol-1,work(ipcol),workload_col(ipcol),ipcol=1,npcol)
+         WRITE (UNIT=output_unit,FMT="(/,T11,A3,T26,I10,T53,I10)")&
+              "Sum",SUM(work),SUM(workload_col)
+         CALL m_flush(output_unit)
       END IF
 
 
@@ -879,16 +878,18 @@ CONTAINS
         CALL stop_memory(routine_name,module_name,__LINE__,"work")
       END IF
 
-      IF (logger%print_keys%level > MEDIUM) THEN
-        output_unit = cp_logger_get_default_unit_nr(logger,local=.TRUE.)
-        CALL distribution_2d_write(distribution_2d,&
-                                   unit_nr=output_unit,&
-                                   local=.TRUE.,&
-                                   long_description=.TRUE.,&
-                                   error=error)
-      END IF
+      iw = output_unit
+      IF (output_unit<0) iw = cp_logger_get_default_unit_nr(logger,LOCAL=.TRUE.)
 
-    END IF
+      CALL distribution_2d_write(distribution_2d,&
+                                 unit_nr=iw,&
+                                 local=.TRUE.,&
+                                 long_description=.TRUE.,&
+                                 error=error)
+
+      CALL cp_print_key_finished_output(output_unit,logger,force_env_section,&
+           "PRINT%DISTRIBUTION",error=error)      
+   END IF
 
 !   *** Release work storage ***
 

@@ -26,7 +26,10 @@
 !!****
 
 MODULE qs_linres_module
-
+  USE cp_output_handling,              ONLY: cp_print_key_unit_nr, &
+                                             cp_print_key_finished_output,&
+                                             cp_print_key_should_output,&
+                                             cp_p_file
   USE cp_control_types,                ONLY: dft_control_type
   USE global_types,                    ONLY: global_environment_type
   USE input_constants,                 ONLY: lr_none, lr_chemshift,&
@@ -130,19 +133,17 @@ CONTAINS
 
     logger => cp_error_get_logger(error)
     ionode = (logger%para_env%mepos==logger%para_env%source)
-    IF(ionode) output_unit = cp_logger_get_default_unit_nr(logger)
-
     CPPrecondition(ASSOCIATED(qs_env),cp_failure_level,routineP,error,failure)
 
     ! The transition potential method to calculate XAS needs LSD
-    lr_section =>  section_vals_get_subs_vals(globenv%input_file, &
-                                          "FORCE_EVAL%PROPERTIES%LINRES")
-    call section_vals_get(lr_section,explicit=lr_calculation,error=error)
-
+    lr_section =>  section_vals_get_subs_vals(qs_env%input, &
+                                          "PROPERTIES%LINRES")
+    CALL section_vals_get(lr_section,explicit=lr_calculation,error=error)
     CALL linres_init(lr_section,p_env,qs_env,globenv,error=error)
 
     IF (lr_calculation) THEN
-
+       output_unit = cp_print_key_unit_nr(logger,lr_section,"PRINT%PROGRAM_RUN_INFO",&
+            extension=".linresLog",error=error)    
        CALL get_qs_env(qs_env=qs_env, dft_control=dft_control, &
             linres_control=linres_control)
 
@@ -178,21 +179,24 @@ CONTAINS
       
        CALL p_env_release(p_env)
 
-       IF(ionode .AND. logger%print_keys%linres) THEN
+       IF(output_unit>0) THEN
          WRITE (UNIT=output_unit,FMT="(/,T3,A,/,T25,A,/,T3,A,/)")&
             REPEAT("=",77),&
             "END LINRES CALCULATION",&
             REPEAT("=",77)
        END IF
-
-
+       CALL cp_print_key_finished_output(output_unit,logger,lr_section,&
+            "PRINT%PROGRAM_RUN_INFO",error=error)
     ELSE
-       IF(ionode)  WRITE (output_unit, "(2X,A)") "",&
-       "-----------------------------------------------------------------------------",&
-       "-              No LR calculation has been specified in the input            -",&
-       "                        cp2k is going to stop, bye bye                       ",&
-       "-----------------------------------------------------------------------------",&
-       ""    
+       IF(ionode) THEN 
+          output_unit = cp_logger_get_default_unit_nr(logger)
+          WRITE (output_unit, "(2X,A)") "",&
+               "-----------------------------------------------------------------------------",&
+               "-              No LR calculation has been specified in the input            -",&
+               "                        cp2k is going to stop, bye bye                       ",&
+               "-----------------------------------------------------------------------------",&
+               ""    
+       END IF
     END IF 
 
     CALL timestop(0.0_dp, handle)
@@ -245,9 +249,8 @@ CONTAINS
 
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
-    ionode = logger%para_env%mepos==logger%para_env%source
-    IF (ionode) output_unit= cp_logger_get_default_unit_nr(logger)
-
+    output_unit = cp_print_key_unit_nr(logger,lr_section,"PRINT%PROGRAM_RUN_INFO",&
+         extension=".linresLog",error=error)    
     NULLIFY(dft_control,linres_control,loc_section)
 
     CPPrecondition(.NOT.ASSOCIATED(p_env),cp_failure_level,routineP,error,failure)
@@ -264,7 +267,7 @@ CONTAINS
        CALL section_vals_val_get(lr_section,"LOCALIZE_PSI0",&
            l_val=linres_control%localized_psi0,error=error)
        IF(linres_control%localized_psi0) THEN
-         IF(ionode .AND. logger%print_keys%linres) THEN
+         IF(output_unit>0) THEN
            WRITE (UNIT=output_unit,FMT="(/,T3,A)")&
             "Localization of the ground state orbitals before starting the Linres calculation"
          END IF
@@ -286,7 +289,7 @@ CONTAINS
        CALL section_vals_val_get(lr_section,"CHECK_ORTHO",&
             l_val=linres_control%check_ortho,error=error)
        
-       IF(ionode .AND. logger%print_keys%linres) THEN
+       IF(output_unit>0) THEN
          WRITE (UNIT=output_unit,FMT="(/,T3,A,/,T25,A,/,T3,A,/)")&
             REPEAT("=",77),&
             "START LINRES CALCULATION",&
@@ -346,7 +349,8 @@ CONTAINS
        ! update the m_epsilon matrix
        CALL p_env_psi0_changed(p_env,qs_env,error=error)
     END IF
-
+    CALL cp_print_key_finished_output(output_unit,logger,lr_section,&
+         "PRINT%PROGRAM_RUN_INFO",error=error)    
   END SUBROUTINE linres_init
 
 

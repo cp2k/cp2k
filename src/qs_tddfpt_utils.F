@@ -87,7 +87,6 @@ MODULE qs_tddfpt_utils
   ! METHODS
   PUBLIC :: tddfpt_cleanup, &
             tddfpt_init, &
-            tddfpt_write_banner, &
             tddfpt_env_init, &
             co_initial_guess, &
             calc_norm, &
@@ -190,27 +189,6 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE tddfpt_write_banner(globenv)
-
-    
-    TYPE(global_environment_type), &
-      pointer                             :: globenv
-
-    IF (.NOT.globenv%ionode) RETURN
-    IF (globenv%print%program_banner) THEN
-       
-       WRITE (unit=globenv%scr, fmt="(2X,A)")&
-       "",&
-       "-----------------------------------------------------------------------------",&
-       "-                    Time-dependent calculation started                     -",&
-       "-----------------------------------------------------------------------------",&
-       ""    
-
-    END IF
-
-  END SUBROUTINE tddfpt_write_banner
-
-! *****************************************************************************
 
   SUBROUTINE tddfpt_cleanup(t_env, p_env)
 

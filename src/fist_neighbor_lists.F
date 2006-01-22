@@ -230,7 +230,7 @@ CONTAINS
 
 !   *** Print particle distribution ***
 
-    CALL write_distribution(nonbonded,atomic_kind_set,globenv)
+    CALL write_distribution(nonbonded,atomic_kind_set,force_env_section,globenv,error)
 
 !   *** Release work storage ***
 
@@ -639,7 +639,7 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE write_distribution(ab,atomic_kind_set,globenv)
+  SUBROUTINE write_distribution(ab,atomic_kind_set,force_env_section,globenv,error)
 
 !   Purpose: Print the distribution of the simple pair neighbor list.
 
@@ -653,6 +653,9 @@ CONTAINS
       POINTER                                :: atomic_kind_set
     TYPE(global_environment_type), &
       pointer                             :: globenv
+    TYPE(section_vals_type), POINTER :: force_env_section
+    TYPE(cp_error_type), INTENT(inout), &
+         OPTIONAL                               :: error
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "write_distribution"
 
@@ -664,11 +667,15 @@ CONTAINS
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
     TYPE(neighbor_list_set_type), POINTER    :: neighbor_list_set
     TYPE(neighbor_list_type), POINTER        :: neighbor_list
+    TYPE(cp_logger_type), POINTER            :: logger
 
+    NULLIFY(logger)
+    logger => cp_error_get_logger(error)
 !   ---------------------------------------------------------------------------
 !   *** Quick return, if no printing is requested ***
 
-    IF (.NOT.globenv%print%distribution) RETURN
+    IF (.NOT.BTEST(cp_print_key_should_output(logger%iter_info,&
+         force_env_section,"PRINT%DISTRIBUTION",error=error),cp_p_file)) RETURN
 
     group = globenv%group
     ionode = globenv%ionode

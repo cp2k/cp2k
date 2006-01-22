@@ -303,6 +303,7 @@ CONTAINS
                                  molecule_kind_set=molecule_kind_set, &
                                  molecule_set=molecule_set, &
                                  local_molecules=local_molecules, &
+                                 force_env_section=tbmd_env%tbmd_input, &
                                  error=error)
 
     natom = SIZE(particle_set)

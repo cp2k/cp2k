@@ -31,7 +31,12 @@
 !!****
 
 MODULE qs_linres_nmr_utils
-
+ USE cp_output_handling,              ONLY: cp_print_key_unit_nr, &
+                                             cp_print_key_finished_output,&
+                                             cp_print_key_should_output,&
+                                             cp_p_file
+  USE input_section_types,             ONLY: section_vals_type,&
+                                             section_vals_get_subs_vals
   USE atomic_kind_types,               ONLY: atomic_kind_type
   USE cp_array_r_utils,                ONLY: cp_2d_r_p_type
   USE cp_control_types,                ONLY: dft_control_type
@@ -103,7 +108,8 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'nmr_do_nmr', &
                                    routineP = moduleN//'/'//routineN
 
-    INTEGER ::  handle, iao, ii, iii, idir, idir2, ispin, istat, ist_true,  istate, istate2, output_unit
+    INTEGER ::  handle, iao, ii, iii, idir, idir2, ispin, istat, ist_true,&
+         istate, istate2, output_unit
     REAL(dp) :: dk(3), dkl(3), dl(3)
     REAL(dp), DIMENSION(:,:), POINTER           :: vecbuf_dklxp0
     TYPE(cp_2d_r_p_type), DIMENSION(3)          :: vecbuf_p0
@@ -117,19 +123,21 @@ CONTAINS
     TYPE(dft_control_type), POINTER             :: dft_control
     TYPE(linres_control_type), POINTER          :: linres_control
     TYPE(qs_matrix_pools_type), POINTER         :: mpools
-
+    TYPE(section_vals_type), POINTER :: lr_section
 
     failure   = .FALSE.
     CALL timeset(routineN,"I"," ",handle)
 
-    NULLIFY(ao_mo_fm_pools, cell, dft_control, linres_control)
+    NULLIFY(ao_mo_fm_pools, cell, dft_control, linres_control, lr_section)
     NULLIFY(logger, mpools, psi1,h1_psi0, vecbuf_dklxp0)
 
     logger => cp_error_get_logger(error)
     ionode = logger%para_env%mepos==logger%para_env%source
-    IF (ionode) output_unit = cp_logger_get_default_unit_nr(logger)
+    lr_section => section_vals_get_subs_vals(qs_env%input,"PROPERTIES%LINRES",error=error)
 
-    IF(ionode .AND. logger%print_keys%linres) THEN
+    output_unit = cp_print_key_unit_nr(logger,lr_section,"PRINT%PROGRAM_RUN_INFO",&
+         extension=".linresLog",error=error)
+    IF (output_unit>0) THEN
       WRITE (UNIT=output_unit,FMT="(T10,A,/)")&
          "*** Self consistent optimization of the response wavefunctions ***"
     END IF
@@ -155,7 +163,7 @@ CONTAINS
     DO idir = 1,3
       IF(.NOT. nmr_env%simplenmr_done(idir)) THEN
 
-         IF(ionode .AND. logger%print_keys%linres) THEN
+         IF(output_unit>0) THEN
            WRITE (UNIT=output_unit,FMT="(T10,A,I4/)")&
            "Response to the perturbation operator p in dir. ", idir
          END IF
@@ -176,7 +184,7 @@ CONTAINS
 
          IF(linres_control%converged) THEN
          !Calculate the contribution to the chemical shift
-!         IF(ionode .AND. logger%print_keys%linres) THEN
+!         IF(output_unit>0) THEN
 !           WRITE (UNIT=output_unit,FMT="(T10,A,/)")&
 !           "Calculate the contribution to the Chemical Shift tensor, Chi, and J matrixes "
 !         END IF
@@ -184,7 +192,7 @@ CONTAINS
 
            IF(nmr_env%current_density) THEN
             ! the optimized wfns are copied in the  fm
-             IF(ionode .AND. logger%print_keys%linres) THEN
+             IF(output_unit>0) THEN
                WRITE (UNIT=output_unit,FMT="(T10,A,/)")&
                "Store the psi1 for the calculation of the response current density "
              END IF
@@ -194,7 +202,7 @@ CONTAINS
            END IF
          END IF
 
-         IF(ionode .AND. logger%print_keys%linres) THEN
+         IF(output_unit>0) THEN
            WRITE (UNIT=output_unit,FMT="(T10,A,/)")&
             "Write the resulting psi1 in restart file "
          END IF
@@ -211,7 +219,7 @@ CONTAINS
 
       IF(.NOT. nmr_env%simplenmr_done(idir+3)) THEN
 
-         IF(ionode .AND. logger%print_keys%linres) THEN
+         IF(output_unit>0) THEN
            WRITE (UNIT=output_unit,FMT="(T10,A,I4/)")&
            "Response to the perturbation operator rxp in dir. ", idir
          END IF
@@ -233,7 +241,7 @@ CONTAINS
 
          IF(linres_control%converged) THEN
          !Calculate the contribution to the chemical shift
-!         IF(ionode .AND. logger%print_keys%linres) THEN
+!         IF(output_unit>0) THEN
 !           WRITE (UNIT=output_unit,FMT="(T10,A,/)")&
 !           "Calculate the contribution to the Chemical Shift tensor, Chi, and J matrixes "
 !         END IF
@@ -241,7 +249,7 @@ CONTAINS
 
            IF(nmr_env%current_density) THEN
            !   the optimized wfns are copied in the  fm
-             IF(ionode .AND. logger%print_keys%linres) THEN
+             IF(output_unit>0) THEN
                WRITE (UNIT=output_unit,FMT="(T10,A,/)")&
                "Store the psi1 for the calculation of the response current density "
              END IF
@@ -251,7 +259,7 @@ CONTAINS
            END IF
          END IF
 
-         IF(ionode .AND. logger%print_keys%linres) THEN
+         IF(output_unit>0) THEN
            WRITE (UNIT=output_unit,FMT="(T10,A,/)")&
             "Write the resulting psi1 in restart file "
          END IF
@@ -308,7 +316,7 @@ CONTAINS
               CALL linres_scf(p_env, qs_env, psi1, h1_psi0,error=error)
 
          !Calculate the contribution to the chemical shift
-!         IF(ionode .AND. logger%print_keys%linres) THEN
+!         IF(output_unit>0) THEN
 !           WRITE (UNIT=output_unit,FMT="(T10,A,/)")&
 !           "Calculate the contribution to the Chemical Shift tensor, Chi, and J matrixes "
 !         END IF
@@ -343,6 +351,8 @@ CONTAINS
      CALL fm_pools_give_back_fm_vect(ao_mo_fm_pools, psi1)
      CALL fm_pools_give_back_fm_vect(ao_mo_fm_pools, h1_psi0)
      NULLIFY(psi1,h1_psi0)
+     CALL cp_print_key_finished_output(output_unit,logger,lr_section,&
+          "PRINT%PROGRAM_RUN_INFO",error=error)     
 
     CALL timestop(0.0_dp, handle)
 
@@ -403,6 +413,7 @@ CONTAINS
     TYPE(scf_control_type), POINTER             :: scf_control
     TYPE(section_vals_type), POINTER            :: nmr_section
     TYPE(cell_type), POINTER                    :: cell
+    TYPE(section_vals_type), POINTER :: lr_section
 
     failure = .FALSE.
 
@@ -414,14 +425,17 @@ CONTAINS
 
     logger => cp_error_get_logger(error)
     ionode = logger%para_env%mepos==logger%para_env%source
-    IF (ionode) output_unit = cp_logger_get_default_unit_nr(logger)
+    lr_section => section_vals_get_subs_vals(qs_env%input,"PROPERTIES%LINRES",error=error)
+
+    output_unit = cp_print_key_unit_nr(logger,lr_section,"PRINT%PROGRAM_RUN_INFO",&
+         extension=".linresLog",error=error)
 
     IF(nmr_env%ref_count /= 0) THEN
       CALL nmr_env_cleanup(nmr_env,error=error)
     END IF
 
 
-    IF(ionode .AND. logger%print_keys%linres) THEN
+    IF(output_unit>0) THEN
 
       WRITE (UNIT=output_unit,FMT="(/,T20,A,/)")&
          "*** Start NMR Chemical Shift Calculation ***"
@@ -459,7 +473,7 @@ CONTAINS
 
     ! check that the psi0 are localized and you have all the centers
      CPPrecondition(linres_control%localized_psi0,cp_warning_level,routineP,error,failure)
-     IF(failure .AND. ionode) THEN
+     IF(failure .AND. (output_unit>0)) THEN
        WRITE (UNIT=output_unit,FMT='(A)') &
           ' To get NMR parameters within PBC you need localized zero order orbitals '
      END IF
@@ -651,6 +665,8 @@ CONTAINS
     ALLOCATE(nmr_env%fullnmr_done(3*dft_control%nspins,nstates),STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     nmr_env%fullnmr_done = .FALSE.
+    CALL cp_print_key_finished_output(output_unit,logger,lr_section,&
+         "PRINT%PROGRAM_RUN_INFO",error=error)
 
   END SUBROUTINE nmr_env_init
 

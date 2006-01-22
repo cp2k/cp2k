@@ -131,6 +131,12 @@ MODULE xas_methods
                                              xas_env_retain, &
                                              xas_environment_type
   USE xas_tp_scf,                      ONLY: xas_do_tp_scf
+  USE cp_output_handling,              ONLY: cp_print_key_unit_nr, &
+                                             cp_print_key_finished_output,&
+                                             cp_print_key_should_output,&
+                                             cp_p_file
+
+
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -243,7 +249,7 @@ CONTAINS
     TYPE( real_matrix_p_type ), DIMENSION(:,:), &
       POINTER                                   :: ostrength_sm
     TYPE(scf_control_type), POINTER             :: scf_control
-    TYPE(section_vals_type),POINTER             :: dft_section, input
+    TYPE(section_vals_type),POINTER             :: dft_section, xas_section
     TYPE(xas_environment_type), POINTER         :: xas_env
 
 
@@ -265,19 +271,23 @@ CONTAINS
     NULLIFY(all_evals,all_vectors)
     NULLIFY(atom_of_state,type_of_state,state_of_atom,stogto_overlap)
     NULLIFY(mykind_of_kind, state_of_mytype,max_overlap,sto_state_overlap)
-    NULLIFY(dft_section, input)
+    NULLIFY(dft_section, xas_section)
+    dft_section => section_vals_get_subs_vals(qs_env%input,"DFT",error=error)
+    xas_section => section_vals_get_subs_vals(dft_section,"XAS",error=error)
 
-    IF (ionode.AND.logger%print_keys%xas) THEN
+    output_unit = cp_print_key_unit_nr(logger,xas_section,"PRINT%PROGRAM_RUN_INFO",&
+         extension=".Log",error=error)
+    IF (output_unit>0) THEN
        WRITE (UNIT=output_unit,FMT="(/,T3,A,/,T25,A,/,T3,A,/)")&
             REPEAT("=",77),&
             "START XES/XAS CALCULATION",&
             REPEAT("=",77)
     END IF
-
+    
 !   Create the xas environment
     CALL get_qs_env(qs_env,xas_env=xas_env,error=error)
     IF (.NOT.ASSOCIATED(xas_env)) THEN
-       IF (ionode.AND.logger%print_keys%xas) THEN
+       IF (output_unit>0) THEN
           WRITE (UNIT=output_unit,FMT="(/,T10,A,/)")&
            "Create and initialize the xas environment"
        END IF
@@ -290,18 +300,17 @@ CONTAINS
 
 !   Initialize the type of calculation
     NULLIFY(atomic_kind_set, cell, dft_control, scf_control, mos, para_env, particle_set)
-    CALL get_qs_env(qs_env=qs_env, atomic_kind_set=atomic_kind_set, input=input,&
+    CALL get_qs_env(qs_env=qs_env, atomic_kind_set=atomic_kind_set, &
          cell = cell, dft_control=dft_control, scf_control=scf_control,&
          matrix_ks=matrix_ks,mos=mos, para_env=para_env, particle_set=particle_set )
 
-    dft_section => section_vals_get_subs_vals(input,"DFT",error=error)
 
 !   The eigenstate of the KS Hamiltonian are nedeed
     NULLIFY(mo_coeff,eigenvalues)
     IF(scf_control%use_ot) THEN
-       IF (ionode.AND.logger%print_keys%xas) THEN
+       IF (output_unit>0) THEN
           WRITE (UNIT=output_unit,FMT="(/,T10,A,/)")&
-           "Get eigenstates and eigenvalues from ground state MOs"
+               "Get eigenstates and eigenvalues from ground state MOs"
        END IF
       DO ispin = 1,dft_control%nspins
         CALL get_mo_set(mos(ispin)%mo_set, mo_coeff=mo_coeff,nao=nao,nmo=nmo,&
@@ -357,7 +366,7 @@ CONTAINS
 
     CALL get_xas_env(xas_env=xas_env, qs_loc_env=qs_loc_env)
 
-    IF (ionode.AND.logger%print_keys%xas) THEN
+    IF (output_unit>0) THEN
           WRITE (UNIT=output_unit,FMT="(/,T10,A,/,T10,A,I7,/)")&
            "Localize a set of MOs: those where to search the states to be excited",&
            "MOs to be localized from 1 to ",nexc_search
@@ -452,14 +461,14 @@ CONTAINS
   ! by taking the overlap with atomic-like states
 
   ! In the set of states, assign the index of the state to be excited for iatom
-    IF (ionode.AND.logger%print_keys%xas) THEN
+    IF (output_unit>0) THEN
           WRITE (UNIT=output_unit,FMT="(/,T10,A,/)")&
            "List the atoms to be excited and the relative of MOs index "
     END IF
     DO iat = 1,xas_control%nexc_atoms
       iatom = xas_control%exc_atoms(iat)
      state_of_atom(iat) = state_of_mytype(iatom)
-     IF(ionode .AND. logger%print_keys%xas) THEN
+     IF (output_unit>0) THEN
        WRITE(UNIT=output_unit,FMT="(T10,A,I6,T32,A,I6)") 'Atom: ',iatom ,&
        "localized MO index", state_of_atom(iat)
      END IF
@@ -512,7 +521,7 @@ CONTAINS
 
       IF (transition_potential) THEN
 
-         IF(ionode .AND. logger%print_keys%xas) THEN
+         IF (output_unit>0) THEN
            WRITE(UNIT=output_unit,FMT='(/,/,T10,A,I6)') &
                   "START XAS CALCULATION WITH TP APPROACH FOR ATOM   ", iatom 
          END IF
@@ -603,14 +612,15 @@ CONTAINS
 
     dft_control % xas_estate    = -1
 
-    IF (ionode.AND.logger%print_keys%xas) THEN
+    IF (output_unit>0) THEN
        WRITE (UNIT=output_unit,FMT="(/,T3,A,/,T25,A,/,T3,A,/)")&
             REPEAT("=",77),&
             "END XES/XAS CALCULATION",&
             REPEAT("=",77)
     END IF
 
-
+    CALL cp_print_key_finished_output(output_unit,logger,xas_section,&
+         "PRINT%PROGRAM_RUN_INFO",error=error)
     CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE  xas
@@ -1489,7 +1499,5 @@ CONTAINS
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
   END SUBROUTINE calc_stogto_overlap
-
-
 
 END MODULE xas_methods

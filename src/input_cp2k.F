@@ -397,7 +397,7 @@ contains
          default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,error=error)
     CALL section_add_keyword(print_key,keyword,error=error)
     CALL keyword_release(keyword,error=error)
-    CALL keyword_create(keyword,"rgn_matrices",&
+    CALL keyword_create(keyword,"rng_matrices",&
          description="if the printkey is active prints the random number generator matrices",&
          default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,error=error)
     CALL section_add_keyword(print_key,keyword,error=error)
@@ -600,7 +600,7 @@ contains
     CALL section_add_keyword(section,keyword,error=error)
     CALL keyword_release(keyword,error=error)
 
-    CALL keyword_create(keyword, name="random_number_generator",variants=(/"rgn"/),&
+    CALL keyword_create(keyword, name="random_number_generator",variants=(/"rng"/),&
          description=" Tests the parallel random number generator",&
          usage="random_number_generator",default_l_val=.FALSE.,&
          lone_keyword_l_val=.true.,error=error)

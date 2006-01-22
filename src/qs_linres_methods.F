@@ -24,7 +24,10 @@
 !!****
 
 MODULE qs_linres_methods
-
+  USE cp_output_handling,              ONLY: cp_print_key_unit_nr, &
+                                             cp_print_key_finished_output,&
+                                             cp_print_key_should_output,&
+                                             cp_p_file
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_fm_basic_linalg,              ONLY: cp_fm_column_scale,&
                                              cp_fm_scale,&
@@ -88,6 +91,9 @@ MODULE qs_linres_methods
                                              stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
+  USE input_section_types,             ONLY: section_vals_type,&
+                                             section_vals_get_subs_vals
+
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -238,15 +244,16 @@ CONTAINS
     TYPE(qs_matrix_pools_type), POINTER         :: mpools
     TYPE(real_matrix_p_type), DIMENSION(:), &
       POINTER                                   :: matrix_s
-    real(dp) :: tmp1, tmp2 
+    REAL(KIND=dp) :: tmp1, tmp2 
+    TYPE(section_vals_type), POINTER :: lr_section
 
      failure   = .FALSE.
      energy_only = .FALSE.
      CALL timeset(routineN,"I","",handle)
-
+     
      NULLIFY(ao_mo_fm_pools, blacs_env, dft_control, linres_control)
      NULLIFY(matrix_s, mos, mpools, para_env)
-     NULLIFY(Ab, b, logger,  R, X)
+     NULLIFY(Ab, b, logger,  R, X, lr_section)
 
      logger    => cp_error_get_logger(error)
      ionode    = (logger%para_env%mepos==logger%para_env%source)
@@ -259,7 +266,9 @@ CONTAINS
                      matrix_s=matrix_s,&
                      mpools=mpools, mos=mos,&
                      para_env=para_env)
-
+     lr_section => section_vals_get_subs_vals(qs_env%input,"PROPERTIES%LINRES",error=error)
+     output_unit = cp_print_key_unit_nr(logger,lr_section,"PRINT%PROGRAM_RUN_INFO",&
+          extension=".linresLog",error=error)
      IF(.NOT.  linres_control%do_kernel) THEN
      ! Check the max size of the perturbation operator matrix elements
        max_input_norm = 0.0_dp
@@ -279,7 +288,7 @@ CONTAINS
          DO ispin = 1,dft_control%nspins
            CALL cp_fm_set_all(psi1(ispin)%matrix,0.0_dp,error=error)
          END DO
-         IF(ionode .AND. logger%print_keys%linres) THEN
+         IF(output_unit>0) THEN
            WRITE (UNIT=output_unit,FMT="(T10,A/)")&
            "The Perturbation is too small, psi1 remain zero. "
          END IF
@@ -322,7 +331,7 @@ CONTAINS
 !     CALL p_preortho(p_env, qs_env, b(:))
 !     CALL normalize(b(:), R, matrix_s) ! R is temp
 
-     IF(ionode .AND. logger%print_keys%linres) THEN
+     IF(output_unit>0) THEN
        WRITE (UNIT=output_unit,&
             FMT="(/,T3,A,T10,A,T20,A,T38,A,T57,A,T82,A,/,T3,A)")&
             "Iter.","Method","Stepsize","G-norm","Convergence","Total energy",&
@@ -365,7 +374,7 @@ CONTAINS
        CALL linres_scf_mini(p_env,qs_env,linres_control,b,Ab,&
             dft_control%nspins,iter,error=error)
 
-       IF(ionode .AND. logger%print_keys%linres) THEN
+       IF(output_unit>0) THEN
          WRITE (UNIT=output_unit,&
             FMT="(T2,I5,T11,A,T20,1E8.2,T30,3F20.10)")&
             iter, linres_control%flag,linres_control%ds_min, &
@@ -387,7 +396,7 @@ CONTAINS
            out_of_ortho = 0.0_dp
            CALL cp_fm_maxabsval(p_env%buf2(ispin)%matrix,out_of_ortho,error=error)
            IF(out_of_ortho .GT. EPSILON(1.0_dp)) THEN
-             IF(ionode .AND. logger%print_keys%linres) THEN
+             IF(output_unit>0) THEN
                WRITE (UNIT=output_unit,FMT="(T3,A,E15.5)")&
                "WARNING: orthogonality not satisfied, max val |<psi1_k | psi0_l>|= ", out_of_ortho
                 WRITE (UNIT=output_unit,FMT="(T3,A,/)") "The orthogonalization should be refined" 
@@ -402,7 +411,7 @@ CONTAINS
        IF(iter /= 1) THEN
          IF(p_env%delta .LT. 1.E-5_dp) THEN !linres_control%eps_scf
            ! The opt has converged to a min.
-           IF(ionode .AND. logger%print_keys%linres) THEN
+           IF(output_unit>0) THEN
               WRITE (UNIT=output_unit,FMT="(T10,A,I4,A,/)")&
              "The SCF has converged in ", iter, " iterations"
            END IF
@@ -413,7 +422,7 @@ CONTAINS
 
        ! Max number of iteration reached, write restart and exit
        IF(iter == linres_control%max_scf) THEN 
-         IF(ionode .AND. logger%print_keys%linres) THEN
+         IF(output_unit>0) THEN
            WRITE (UNIT=output_unit,FMT="(T10,A/)")&
            "SCF has not converged: the max. number of iterations has been reached "
          END IF
@@ -437,7 +446,8 @@ CONTAINS
      CALL fm_pools_give_back_fm_vect(ao_mo_fm_pools, X)
      CALL fm_pools_give_back_fm_vect(ao_mo_fm_pools, R)
      NULLIFY(X, R, b, Ab)
-
+     CALL cp_print_key_finished_output(output_unit,logger,lr_section,&
+          "PRINT%PROGRAM_RUN_INFO",error=error)
     CALL timestop(0.0_dp, handle)
 
   END SUBROUTINE linres_scf

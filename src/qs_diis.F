@@ -47,6 +47,15 @@ MODULE qs_diis
   USE termination,                     ONLY: stop_memory
   USE timings,                         ONLY: timeset,&
                                              timestop
+  USE input_section_types,             ONLY: section_vals_type,&
+                                             section_vals_get_subs_vals
+ USE cp_output_handling,              ONLY: cp_print_key_unit_nr, &
+                                             cp_print_key_finished_output,&
+                                             cp_print_key_should_output,&
+                                             cp_p_file
+
+
+  
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -148,18 +157,20 @@ CONTAINS
 !!
 !!*** *********************************************************************
   SUBROUTINE qs_diis_b_check_i_alloc(diis_buffer,&
-       matrix_struct,nspin,error)
+       matrix_struct,nspin,scf_section,error)
 
     TYPE(qs_diis_buffer_type), POINTER       :: diis_buffer
     TYPE(cp_fm_struct_type), POINTER         :: matrix_struct
     INTEGER, INTENT(IN)                      :: nspin
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
+    TYPE(section_vals_type), POINTER :: scf_section
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_diis_b_check_i_alloc', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: ibuffer, ispin, istat, nbuffer
+    INTEGER                                  :: ibuffer, ispin, istat, nbuffer,&
+         output_unit
     LOGICAL                                  :: failure
     TYPE(cp_logger_type), POINTER            :: logger
 
@@ -215,11 +226,14 @@ CONTAINS
        IF (istat /= 0) CALL stop_memory(routineP,"diis_buffer%b_matrix",&
             (nbuffer + 1)**2*dp_size)
        diis_buffer%b_matrix=0.0_dp
-       IF (logger%para_env%source==logger%para_env%mepos.AND.&
-            logger%print_keys%diis_information) THEN
-          WRITE (UNIT=cp_logger_get_default_unit_nr(logger),FMT="(/,T2,A)")&
+      output_unit = cp_print_key_unit_nr(logger,scf_section,"PRINT%DIIS_INFO",&
+            extension=".scfLog",error=error)
+      IF (output_unit>0) THEN
+          WRITE (UNIT=output_unit,FMT="(/,T2,A)")&
                "The SCF DIIS buffer was allocated and initialised"
        END IF
+       CALL cp_print_key_finished_output(output_unit,logger,scf_section,&
+            "PRINT%DIIS_INFO",error=error)       
     END IF
 
   END SUBROUTINE qs_diis_b_check_i_alloc
@@ -264,7 +278,7 @@ CONTAINS
 !!
 !!*** *********************************************************************
   SUBROUTINE qs_diis_b_step(diis_buffer,mo_array,kc,sc,delta,error_max,&
-       diis_step,eps_diis,s_matrix,error)
+       diis_step,eps_diis,s_matrix,scf_section,error)
 
     TYPE(qs_diis_buffer_type), POINTER       :: diis_buffer
     TYPE(mo_set_p_type), DIMENSION(:), &
@@ -280,6 +294,7 @@ CONTAINS
       POINTER, OPTIONAL                      :: s_matrix
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
+    TYPE(section_vals_type), POINTER :: scf_section
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_diis_b_step', &
       routineP = moduleN//':'//routineN
@@ -323,7 +338,7 @@ CONTAINS
 
     CALL cp_fm_get_info(kc(1)%matrix,matrix_struct=matrix_struct,error=error)
     CALL qs_diis_b_check_i_alloc(diis_buffer,matrix_struct=matrix_struct,&
-         nspin=nspin)
+         nspin=nspin,scf_section=scf_section,error=error)
 
     error_max=0.0_dp
 
@@ -371,18 +386,21 @@ CONTAINS
        error_max=MAX(error_max,tmp)
 
     ENDDO
-
-    IF (ionode.AND.logger%print_keys%diis_information) THEN
+    output_unit = cp_print_key_unit_nr(logger,scf_section,"PRINT%DIIS_INFO",&
+         extension=".scfLog",error=error)
+    IF (output_unit>0) THEN
        WRITE (UNIT=output_unit,FMT="(/,T2,A,E12.3)")&
             "Maximum SCF DIIS error vector element:",error_max
     END IF
+    CALL cp_print_key_finished_output(output_unit,logger,scf_section,&
+         "PRINT%DIIS_INFO",error=error)    
 
     !   *** Check, if a DIIS step is appropiate ***
 
     diis_step = ((diis_buffer%ncall > 1).AND.(delta < eps_diis))
 
     !   *** Update the SCF DIIS buffer ***
-
+    
     IF (error_max < eps_diis) THEN
 
        b => diis_buffer%b_matrix
@@ -397,12 +415,14 @@ CONTAINS
           ENDDO
           b(ib,jb) = b(jb,ib)
        END DO
-
-       IF (ionode.AND.logger%print_keys%diis_information) THEN
+       output_unit = cp_print_key_unit_nr(logger,scf_section,"PRINT%DIIS_INFO",&
+            extension=".scfLog",error=error)
+       IF (output_unit>0) THEN
           WRITE (UNIT=output_unit,FMT="(/,T2,A)")&
                "The SCF DIIS buffer was updated"
        END IF
-
+       CALL cp_print_key_finished_output(output_unit,logger,scf_section,&
+            "PRINT%DIIS_INFO",error=error)
     ELSE
 
        diis_step = .FALSE.

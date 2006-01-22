@@ -22,7 +22,10 @@
 
 
 MODULE xas_tp_scf
-
+  USE cp_output_handling,              ONLY: cp_print_key_unit_nr, &
+                                             cp_print_key_finished_output,&
+                                             cp_print_key_should_output,&
+                                             cp_p_file
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind,&
                                              get_atomic_kind_set
@@ -199,14 +202,14 @@ CONTAINS
     TYPE (real_matrix_p_type), DIMENSION(:,:),&
       POINTER                                :: op_sm_set
     TYPE(scf_control_type), POINTER          :: scf_control
-    TYPE(section_vals_type),POINTER          :: dft_section, input
+    TYPE(section_vals_type),POINTER          :: dft_section, input, scf_section
 
     NULLIFY(dft_control,matrix_h,matrix_s,matrix_ks,matrix_p,rho,energy,scf_control,logger,&
          ks_env,mos,atomic_kind_set,particle_set,vecbuffer,vecbuffer2, occupation_numbers,&
          scf_work1,ortho,scf_work2,excvec_coeff,excvec_overlap,mo_coeff,fm_work,&
          col_indices, eigenvalues)
     NULLIFY(centers_wfn,qs_loc_env,localized_wfn_control,op_sm_set,op_fm_set,moloc_coeff,cell)
-    NULLIFY( dft_section, input)
+    NULLIFY( dft_section, scf_section,input)
 
     logger => cp_error_get_logger(error)
     t1 = m_walltime()
@@ -233,7 +236,7 @@ CONTAINS
     IF (ionode) output_unit = cp_logger_get_default_unit_nr(logger)
     energy_only = .FALSE.
     dft_section => section_vals_get_subs_vals(input,"DFT",error=error)
-
+    scf_section => section_vals_get_subs_vals(dft_section,"SCF",error=error)
     IF (ionode.AND.logger%print_keys%scf) THEN
        WRITE (UNIT=output_unit,FMT="(/,/,T2,A)")&
             "XAS_TP_SCF WAVEFUNCTION OPTIMIZATION"
@@ -298,7 +301,8 @@ CONTAINS
             REPEAT("-",77)
     END IF
     
-    IF (.NOT.logger%print_keys%timecumul) t1 = m_walltime()
+    IF (BTEST(cp_print_key_should_output(logger%iter_info,&
+         scf_section,"PRINT%ITERATION_INFO/TIME_CUMUL",error=error),cp_p_file)) t1 = m_walltime()    
 
 !   *** SCF loop ***
 
@@ -335,7 +339,8 @@ CONTAINS
             IF (iter_count > 1) THEN
                CALL qs_diis_b_step(scf_env%scf_diis_buffer,mos,scf_work1,&
                     scf_work2,scf_env%iter_delta,diis_error,diis_step,&
-                    xas_env%eps_diis,s_matrix=matrix_s,error=error)
+                    xas_env%eps_diis,s_matrix=matrix_s,scf_section=scf_section,&
+                    error=error)
             END IF
 
             do_level_shift = ((scf_control%level_shift /= 0.0_dp).AND.&
@@ -470,10 +475,8 @@ CONTAINS
                   CALL xas_smearing(mos(ispin)%mo_set,xas_control,dft_control%xas_estate,error=error)
                END IF
 
-               IF (logger%print_keys%each_scf_step) THEN
-                  CALL write_mo_set(mos(ispin)%mo_set,atomic_kind_set,particle_set,&
-                       4,6,dft_section,globenv)
-               END IF
+               CALL write_mo_set(mos(ispin)%mo_set,atomic_kind_set,particle_set,&
+                    4,6,dft_section,globenv)
 
                CALL calculate_density_matrix(mos(ispin)%mo_set,&
                     scf_env%p_mix_new(ispin)%matrix,error=error)
@@ -595,7 +598,8 @@ CONTAINS
           EXIT scf_loop
        END IF
 
-       IF (.NOT.logger%print_keys%timecumul) t1 = m_walltime()
+    IF (BTEST(cp_print_key_should_output(logger%iter_info,&
+         scf_section,"PRINT%ITERATION_INFO/TIME_CUMUL",error=error),cp_p_file)) t1 = m_walltime()
 
 !   *** mixing methods have the new density matrix in p_mix_new
        IF (scf_env%mixing_method.EQ.ao_mixing_nr) THEN

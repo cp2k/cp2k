@@ -2184,7 +2184,7 @@ CONTAINS
 
 !   *** Print the distribution of the overlap matrix blocks ***
 
-    CALL write_matrix_distribution(matrix_s(1)%matrix,globenv)
+    CALL write_matrix_distribution(matrix_s(1)%matrix,qs_env%input,globenv,error)
 
 !   *** Print the overlap integral matrix, if requested ***
 

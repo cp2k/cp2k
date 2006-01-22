@@ -64,10 +64,6 @@ MODULE print_key_types
                core_hamiltonian_matrix,&
                density_matrix,&
                derivatives,&
-               diis_information,&
-               distribution,&
-               each_scf_step,&
-               forces,&
                hartree_matrix,&
                kinetic_energy_matrix,&
                kohn_sham_matrix
@@ -75,10 +71,8 @@ MODULE print_key_types
                ortho_matrix,&
                overlap_matrix,&
                potential_energy_matrix,&
-               program_banner,&
                projectors,&
                rho0_information,&
-               rng_matrices,&
                sab_orb_neighbor_lists,&
                sac_ppl_neighbor_lists,&
                sac_ppnl_neighbor_lists,&
@@ -87,17 +81,12 @@ MODULE print_key_types
                sbc_oce_neighbor_lists,&
                scf,&
                scf_energies,&
-               spherical_harmonics,&
-               title,&
-               total_densities,&
-               total_numbers
+               total_densities
     LOGICAL :: w_matrix,&
                mo_orthonormality
     LOGICAL :: ep_matrixes, ep_operator
-    LOGICAL :: timecumul
     INTEGER    nlumos,nhomos
-    LOGICAL :: HPM
-    LOGICAL :: xas, linres, loc_info
+    LOGICAL :: loc_info
   END TYPE print_keys_type
 
 !!*****
@@ -175,22 +164,16 @@ CONTAINS
     print_keys%core_hamiltonian_matrix = key_value(level,(/f,f,t/))
     print_keys%density_matrix = key_value(level,(/f,f,t/))
     print_keys%derivatives = key_value(level,(/f,f,f/))
-    print_keys%diis_information = key_value(level,(/f,f,t/))
-    print_keys%distribution = key_value(level,(/f,t,t/))
-    print_keys%each_scf_step = key_value(level,(/f,f,t/))
     print_keys%ep_matrixes = key_value(level,(/f,f,t/))
     print_keys%ep_operator = key_value(level,(/f,f,t/))
-    print_keys%forces = key_value(level,(/f,t,t/))
     print_keys%hartree_matrix = key_value(level,(/f,f,t/))
     print_keys%kinetic_energy_matrix = key_value(level,(/f,f,t/))
     print_keys%kohn_sham_matrix = key_value(level,(/f,f,t/))
     print_keys%ortho_matrix = key_value(level,(/f,f,t/))
     print_keys%overlap_matrix = key_value(level,(/f,f,t/))
-    print_keys%program_banner = key_value(level,(/t,t,t/))
     print_keys%projectors = key_value(level,(/f,t,t/))
     print_keys%potential_energy_matrix = key_value(level,(/f,f,f/))
     print_keys%rho0_information = key_value(level,(/f,t,t/))
-    print_keys%rng_matrices = key_value(level,(/f,f,t/))
     print_keys%sab_orb_neighbor_lists = key_value(level,(/f,f,t/))
     print_keys%sac_ppl_neighbor_lists = key_value(level,(/f,f,t/))
     print_keys%sac_ppnl_neighbor_lists = key_value(level,(/f,f,t/))
@@ -199,16 +182,9 @@ CONTAINS
     print_keys%sbc_oce_neighbor_lists = key_value(level,(/f,f,t/))
     print_keys%scf = key_value(level,(/t,t,t/))
     print_keys%scf_energies = key_value(level,(/f,t,t/))
-    print_keys%spherical_harmonics = key_value(level,(/f,f,t/))
-    print_keys%title = key_value(level,(/t,t,t/))
     print_keys%total_densities = key_value(level,(/f,t,t/))
-    print_keys%total_numbers = key_value(level,(/t,t,t/))
     print_keys%w_matrix = key_value(level,(/f,f,f/))
     print_keys%mo_orthonormality = key_value(level,(/f,f,t/))
-    print_keys%timecumul = key_value(level,(/f,f,f/))
-    print_keys%HPM = key_value(level,(/f,f,f/))
-    print_keys%xas = key_value(level,(/t,t,t/))
-    print_keys%linres = key_value(level,(/t,t,t/))
 
   END SUBROUTINE print_keys_reset
 
