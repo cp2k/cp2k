@@ -157,6 +157,11 @@ CONTAINS
 !!
 !!   NOTES
 !!     globenv should be eliminated
+!!     this function changes mo_eigenvectors and mo_eigenvalues, depending on the print keys.
+!!     In particular, MO_CUBES causes the MOs to be rotated to make them eigenstates of the KS
+!!     matrix, and mo_eigenvalues is updated accordingly. This can, for unconverged wavefunctions,
+!!     change afterwards slightly the forces (hence small numerical differences between MD
+!!     with and without the debug print level). Ideally this should not happen... 
 !!
 !!   ARGUMENTS
 !!     - scf_env: the scf_env whose info should be written out
