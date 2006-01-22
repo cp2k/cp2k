@@ -325,8 +325,8 @@ CONTAINS
     ! SCF parameters
     IF ( dft_control % qs_control % method /= "KG_NOPOL" ) THEN
       CALL scf_c_create(scf_control)
-      CALL scf_c_read_parameters(scf_control,globenv)
-      CALL scf_c_write_parameters(scf_control,globenv)
+      CALL scf_c_read_parameters(scf_control,globenv,kg_env%input,error=error)
+      CALL scf_c_write_parameters(scf_control,globenv,kg_env%input,error=error)
       CALL set_kg_env(kg_env=kg_env,scf_control=scf_control)
       CALL scf_c_release(scf_control,error=error)  
     END IF

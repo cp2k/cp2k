@@ -527,8 +527,8 @@ CONTAINS
 !   *** SCF parameters ***
 
     CALL scf_c_create(scf_control)
-    CALL scf_c_read_parameters(scf_control,globenv)
-    CALL scf_c_write_parameters(scf_control,globenv)
+    CALL scf_c_read_parameters(scf_control,globenv,qs_env%input,error=error)
+    CALL scf_c_write_parameters(scf_control,globenv,qs_env%input,error=error)
 
 !   *** Use the just read block sizes to set the optimal values in cp_fm_struct ***
 

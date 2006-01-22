@@ -249,7 +249,7 @@ CONTAINS
     TYPE( real_matrix_p_type ), DIMENSION(:,:), &
       POINTER                                   :: ostrength_sm
     TYPE(scf_control_type), POINTER             :: scf_control
-    TYPE(section_vals_type),POINTER             :: dft_section, xas_section
+    TYPE(section_vals_type),POINTER             :: dft_section, xas_section, scf_section
     TYPE(xas_environment_type), POINTER         :: xas_env
 
 
@@ -273,6 +273,7 @@ CONTAINS
     NULLIFY(mykind_of_kind, state_of_mytype,max_overlap,sto_state_overlap)
     NULLIFY(dft_section, xas_section)
     dft_section => section_vals_get_subs_vals(qs_env%input,"DFT",error=error)
+    scf_section => section_vals_get_subs_vals(dft_section,"SCF",error=error)
     xas_section => section_vals_get_subs_vals(dft_section,"XAS",error=error)
 
     output_unit = cp_print_key_unit_nr(logger,xas_section,"PRINT%PROGRAM_RUN_INFO",&
@@ -529,7 +530,7 @@ CONTAINS
          CALL get_qs_env(qs_env,scf_env=scf_env,error=error)
 
          CALL init_scf_run(scf_env=scf_env,qs_env=qs_env,&
-                 globenv=globenv, error=error)
+                 globenv=globenv, scf_section=scf_section, error=error)
 
          CALL xas_do_tp_scf(xas_control,xas_env,iatom,scf_env,qs_env,globenv,error=error)
 

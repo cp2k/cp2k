@@ -289,8 +289,6 @@ OBJECTS_GENERIC =\
  qs_environment.o\
  qs_environment_methods.o\
  qs_environment_types.o\
- qs_ep_methods.o\
- qs_ep_types.o\
  qs_force.o\
  qs_force_types.o\
  qs_gapw_densities.o\

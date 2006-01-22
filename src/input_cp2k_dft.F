@@ -655,33 +655,6 @@ END SUBROUTINE xc_functionals_expand
        CALL section_add_subsection(section,print_key,error=error)
        CALL section_release(print_key,error=error)
 
-       CALL cp_print_key_section_create(print_key,"EP_RHO_CUBE",&
-            description="Controls the printing of a cube file with electronic density during EP.", &
-            print_level=high_print_level,each=(/1/),filename="",&
-            error=error)
-
-       CALL keyword_create(keyword, name="stride",&
-            description="the stride used to write the cube file "//&
-            "(the bigger, the smaller the cube gets)",&
-            default_i_val=2, error=error)
-       CALL section_add_keyword(print_key,keyword,error=error)
-       CALL keyword_release(keyword,error=error) 
-
-       CALL keyword_create(keyword, name="rho0",&
-            description="If the printkey is activated controls if rho0 cube is printed.",&
-            default_l_val=.FALSE.,lone_keyword_l_val=.TRUE., error=error) 
-       CALL section_add_keyword(print_key,keyword,error=error) 
-       CALL keyword_release(keyword,error=error) 
-
-       CALL keyword_create(keyword, name="rho1",&
-            description="If the printkey is activated controls if  rho1 cube is printed.",&
-            default_l_val=.FALSE.,lone_keyword_l_val=.TRUE., error=error)
-       CALL section_add_keyword(print_key,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
-       CALL section_add_subsection(section,print_key,error=error)
-       CALL section_release(print_key,error=error)
-
        CALL cp_print_key_section_create(print_key,"LOCALIZATION",&
             Description="Controls the printing of the Wannier centers.", &
             print_level=high_print_level,each=(/1/),filename="__STD_OUT__",&
@@ -2092,6 +2065,20 @@ SUBROUTINE create_tddfpt_section(section,error)
        CALL keyword_release(keyword,error=error)    
        CALL section_add_subsection(subsection,print_key,error=error)
        CALL section_release(print_key,error=error)
+
+       CALL cp_print_key_section_create(print_key,"program_run_info",&
+            description="Controls the printing of basic information during the SCF", &
+            print_level=low_print_level,each=(/1/),add_last=(/1/),filename="__STD_OUT__",&
+            error=error)
+       CALL section_add_subsection(subsection,print_key,error=error)
+       CALL section_release(print_key,error=error) 
+
+       CALL cp_print_key_section_create(print_key,"MO_ORTHONORMALITY",&
+            description="Controls the printing relative to the orthonormality of MOs", &
+            print_level=medium_print_level,each=(/1/),add_last=(/1/),filename="__STD_OUT__",&
+            error=error)
+       CALL section_add_subsection(subsection,print_key,error=error)
+       CALL section_release(print_key,error=error)      
 
        CALL cp_print_key_section_create(print_key,"detailed_energy",&
             description="Controls the printing of detailed energy information.", &

@@ -529,6 +529,8 @@ CONTAINS
         CALL cp_fm_release(svec)
       ELSE
         ! orthogonal basis C^T C
+        CALL cp_fm_get_info(mo_array(ispin)%mo_set%mo_coeff,&
+             nrow_global=n,ncol_global=k)
         CALL cp_fm_struct_create(tmp_fm_struct,nrow_global=k,ncol_global=k, &
              para_env=mo_array(ispin)%mo_set%mo_coeff%matrix_struct%para_env, &
              context=mo_array(ispin)%mo_set%mo_coeff%matrix_struct%context)
@@ -536,7 +538,6 @@ CONTAINS
         CALL cp_fm_struct_release(tmp_fm_struct)
         CALL cp_fm_gemm('T','N',k,k,n,1.0_dp, mo_array(ispin)%mo_set%mo_coeff,&
              mo_array(ispin)%mo_set%mo_coeff,0.0_dp,overlap)
-        CALL cp_fm_release(svec)
       ENDIF
       CALL cp_fm_get_info(overlap,nrow_local=nrow_local,ncol_local=ncol_local, &
            row_indices=row_indices,col_indices=col_indices)

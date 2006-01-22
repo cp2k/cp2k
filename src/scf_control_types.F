@@ -33,9 +33,15 @@ MODULE scf_control_types
   USE input_cp2k_dft, only: create_scf_section
   USE input_constants, ONLY: atomic_guess, core_guess
   USE input_section_types, ONLY: section_vals_type, section_vals_get_subs_vals,&
-       section_vals_val_get, section_vals_retain, section_vals_release,section_release, section_type, section_get_keyword
+       section_vals_val_get, section_vals_retain, section_vals_release,section_release,&
+       section_type, section_get_keyword
   USE input_keyword_types, ONLY: keyword_type, keyword_get
   USE input_enumeration_types, ONLY: enumeration_type, enum_i2c
+  USE cp_output_handling,              ONLY: cp_print_key_unit_nr, &
+                                             cp_print_key_finished_output,&
+                                             cp_print_key_should_output,&
+                                             cp_p_file
+
 #include "cp_common_uses.h"
   IMPLICIT NONE
   PRIVATE
@@ -105,7 +111,6 @@ MODULE scf_control_types
                               use_cholesky,use_ot
      INTEGER               :: ref_count,id_nr
      INTEGER, DIMENSION(2) :: added_mos
-     TYPE(section_vals_type), pointer :: scf_section
   END TYPE scf_control_type
 !!***
 !****************************************************************************
@@ -184,7 +189,6 @@ CONTAINS
        scf_control%write_restart_each=10
        scf_control%added_mos=0
        scf_control%max_scf_aspc = 1
-       nullify(scf_control%scf_section)
     END IF
   END SUBROUTINE scf_c_create
 !***************************************************************************
@@ -284,7 +288,6 @@ CONTAINS
        CPPrecondition(scf_control%ref_count>0,cp_failure_level,routineP,error,failure)
        scf_control%ref_count=scf_control%ref_count-1
        IF (scf_control%ref_count<1) THEN
-          CALL section_vals_release(scf_control%scf_section,error=error)
           DEALLOCATE(scf_control,stat=stat)
           CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
        END IF
@@ -324,12 +327,13 @@ CONTAINS
 !!     09.2002 creaded separated scf_control type [fawzi]
 !!
 !!*** **********************************************************************
-  SUBROUTINE scf_c_read_parameters(scf_control, globenv,error)
+  SUBROUTINE scf_c_read_parameters(scf_control, globenv, force_env_section, error)
     TYPE(scf_control_type), POINTER          :: scf_control
     TYPE(global_environment_type), &
       pointer                             :: globenv
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
+    TYPE(section_vals_type), POINTER :: force_env_section
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'scf_c_read_parameters', &
       routineP = moduleN//':'//routineN
@@ -343,11 +347,8 @@ CONTAINS
     CPPrecondition(scf_control%ref_count>0,cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(globenv%input_file),cp_failure_level,routineP,error,failure)
     IF (.NOT.failure) THEN
-       scf_section => section_vals_get_subs_vals(globenv%input_file,&
-            "FORCE_EVAL%DFT%SCF",error=error)
-       CALL section_vals_retain(scf_section,error=error)
-       CALL section_vals_release(scf_control%scf_section,error=error)
-       scf_control%scf_section => scf_section
+       scf_section => section_vals_get_subs_vals(force_env_section,&
+            "DFT%SCF",error=error)
        CALL section_vals_val_get(scf_section,"nrow_block",&
             i_val=scf_control%nrow_block,error=error)
        CALL section_vals_val_get(scf_section,"ncol_block",&
@@ -444,12 +445,13 @@ CONTAINS
 !!     09.2002 created separated scf_control type [fawzi]
 !!
 !!*** **********************************************************************
-  SUBROUTINE scf_c_write_parameters(scf_control,globenv, error)
+  SUBROUTINE scf_c_write_parameters(scf_control,globenv, force_env_section, error)
     TYPE(scf_control_type), POINTER          :: scf_control
     TYPE(global_environment_type), &
       pointer                             :: globenv
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
+    TYPE(section_vals_type), POINTER :: force_env_section
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'scf_c_write_parameters', &
       routineP = moduleN//':'//routineN
@@ -457,24 +459,27 @@ CONTAINS
     INTEGER                                  :: output_unit
     LOGICAL                                  :: failure
     TYPE(enumeration_type), pointer :: enum
-    TYPE(section_type), pointer :: scf_sect
+    TYPE(section_type), POINTER :: scf_sect
     TYPE(keyword_type), pointer :: keyword
+    TYPE(section_vals_type), POINTER :: scf_section
+    TYPE(cp_logger_type), POINTER            :: logger
 
-    failure=.FALSE.
-
+    failure = .FALSE.
+    NULLIFY(logger)
+    logger => cp_error_get_logger(error)
+    NULLIFY(scf_sect, scf_section)
     CPPrecondition(ASSOCIATED(scf_control),cp_failure_level,routineP,error,failure)
     CPPrecondition(scf_control%ref_count>0,cp_failure_level,routineP,error,failure)
     IF (.NOT.failure) THEN
-       IF (.NOT.globenv%ionode) RETURN
+       scf_section => section_vals_get_subs_vals(force_env_section,"DFT%SCF",error=error)
+       output_unit=cp_print_key_unit_nr(logger,scf_section,"PRINT%PROGRAM_RUN_INFO",&
+            extension=".scfLog",error=error)
+       IF (output_unit>0) THEN
+          IF (scf_control%max_scf < 1) RETURN
+          CALL create_scf_section(scf_sect,error=error)
+          keyword => section_get_keyword(scf_sect,"SCF_GUESS",error=error)
+          CALL keyword_get(keyword,enum=enum,error=error)          
 
-       IF (scf_control%max_scf < 1) RETURN
-       nullify(scf_sect)
-       CALL create_scf_section(scf_sect,error=error)
-       keyword => section_get_keyword(scf_sect,"SCF_GUESS",error=error)
-       CALL keyword_get(keyword,enum=enum,error=error)
-
-       IF (globenv%print%scf) THEN
-          output_unit = globenv%scr
           WRITE (UNIT=output_unit,&
            FMT="(/,/,T2,A,T25,A,T71,A10,/,T25,56('-'),4(/,T25,A,T76,I5),"//&
                  "T25,56('-'),5(/,T25,A,T72,ES9.2),T25,56('-'),"//&
@@ -495,8 +500,11 @@ CONTAINS
                "level_shift [a.u.]:",scf_control%level_shift,&
                "smear [a.u.]:      ",scf_control%smear,&
                "added MOs          ",scf_control%added_mos
+
+          CALL section_release(scf_sect,error=error)
        END IF
-       CALL section_release(scf_sect,error=error)
+       CALL cp_print_key_finished_output(output_unit,logger,scf_section,&
+            "PRINT%PROGRAM_RUN_INFO", error=error)
     END IF
   END SUBROUTINE scf_c_write_parameters
 

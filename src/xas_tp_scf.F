@@ -233,11 +233,12 @@ CONTAINS
     CALL timeset(routineN,"I"," ",handle)
 
     ionode = logger%para_env%source==logger%para_env%mepos
-    IF (ionode) output_unit = cp_logger_get_default_unit_nr(logger)
     energy_only = .FALSE.
     dft_section => section_vals_get_subs_vals(input,"DFT",error=error)
     scf_section => section_vals_get_subs_vals(dft_section,"SCF",error=error)
-    IF (ionode.AND.logger%print_keys%scf) THEN
+    output_unit=cp_print_key_unit_nr(logger,scf_section,"PRINT%PROGRAM_RUN_INFO",&
+         extension=".scfLog",error=error)
+    IF (output_unit>0) THEN
        WRITE (UNIT=output_unit,FMT="(/,/,T2,A)")&
             "XAS_TP_SCF WAVEFUNCTION OPTIMIZATION"
     END IF
@@ -294,7 +295,7 @@ CONTAINS
     diis_step = .FALSE.
     use_jacobi = .FALSE.
 
-    IF (ionode.AND.logger%print_keys%scf) THEN
+    IF (output_unit>0) THEN
        WRITE (UNIT=output_unit,&
             FMT="(/,T3,A,T9,A,T36,A,T49,A,T68,A,/,T3,A)")&
             "Step","Update method","Time","Convergence","Total energy",&
@@ -407,7 +408,6 @@ CONTAINS
                       centers_wfn(3,istate) = localized_wfn_control%centers_set(1)%array(3,istate)
                       rc(1:3) = centers_wfn(1:3,istate)
                       rac = pbc(ra,rc,cell)
-                      IF(ionode) WRITE(*,'(I4,4f12.6 )' ) istate, rac, eigenvalues(istate)
                    END DO 
                  END IF
 !TEST
@@ -459,10 +459,7 @@ CONTAINS
 
                  ! IOnization Potential
                  IP_energy = eigenvalues(dft_control% xas_estate)
-!dbg
-!         IF(ionode) WRITE(*,'(A, I4, A,f5.2)') ' st ', dft_control% xas_estate,&
-!                ' occ ',  occupation_numbers(dft_control% xas_estate)
-!dbg
+
                  CALL set_mo_set(mos(1)%mo_set,&
                       uniform_occupation=uniform_occupation)
                  CALL cp_fm_get_submatrix(mo_coeff,vecbuffer,1,dft_control%xas_estate,&
@@ -572,7 +569,7 @@ CONTAINS
 
        t2 = m_walltime()
 
-       IF (ionode.AND.logger%print_keys%scf.and.scf_env%print_iter_line) THEN
+       IF (output_unit>0.and.scf_env%print_iter_line) THEN
           WRITE (UNIT=output_unit,&
                FMT="(T2,I5,2X,A,T22,E10.2,T32,F8.2,T40,2F20.10)")&
                iter_count,TRIM(scf_env%iter_method),&
@@ -582,7 +579,7 @@ CONTAINS
 ! ** convergence check
        CALL external_control(should_stop,"SCF",globenv,error)
        IF (scf_env%iter_delta < xas_control%eps_scf) THEN
-          IF (ionode.AND.logger%print_keys%scf) THEN
+          IF (output_unit>0) THEN
              WRITE(UNIT=output_unit,FMT="(/,T3,A,I5,A/)")&
                   "*** SCF run converged in ",iter_count," steps ***"
           END IF
@@ -590,7 +587,7 @@ CONTAINS
           EXIT scf_loop
        ELSE IF (should_stop.OR.&
             iter_count == xas_control%max_scf) THEN
-          IF (ionode.AND.logger%print_keys%scf) THEN
+          IF (output_unit>0) THEN
              WRITE(UNIT=output_unit,FMT="(/,T3,A,/)")&
                   "*** SCF run NOT converged ***"
           END IF
@@ -621,7 +618,7 @@ CONTAINS
        CALL timestop(0.0_dp,handle2)
 
     END DO scf_loop
-    IF (ionode.AND.logger%print_keys%scf) THEN
+    IF (output_unit>0) THEN
          WRITE (UNIT=output_unit,FMT="(/,(T3,A,T55,F25.14))")&
             "Overlap energy of the core charge distribution:",energy%core_overlap,&
             "Self energy of the core charge distribution:   ",energy%core_self,&
@@ -730,6 +727,8 @@ CONTAINS
       END DO 
     END IF
 
+    CALL cp_print_key_finished_output(output_unit,logger,scf_section,&
+         "PRINT%PROGRAM_RUN_INFO", error=error)    
     CALL timestop(0.0_dp,handle)
 
     CALL write_checkpoint_information("leaving "//routineN,globenv,error)

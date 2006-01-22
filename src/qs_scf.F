@@ -481,6 +481,7 @@ CONTAINS
     TYPE(section_vals_type),POINTER           :: dft_section, input, scf_section
 !dbg
     LOGICAL :: l_val
+    INTEGER :: iw
 !   ---------------------------------------------------------------------------
 
     NULLIFY(dft_control,matrix_h,matrix_s,matrix_ks,matrix_p,rho,rho_xc,energy, &
@@ -513,9 +514,9 @@ CONTAINS
     CALL write_checkpoint_information("entering "//routineN,globenv,error)
 
     CALL timeset(routineN,"I"," ",handle)
-
+    output_unit=cp_print_key_unit_nr(logger,scf_section,"PRINT%PROGRAM_RUN_INFO",&
+         extension=".scfLog",error=error)
     ionode = logger%para_env%source==logger%para_env%mepos
-    IF (ionode) output_unit = cp_logger_get_default_unit_nr(logger)
     energy_only = .FALSE.
     EII_necessary = .TRUE.
 
@@ -523,13 +524,13 @@ CONTAINS
     IF (dft_control%restricted) THEN
        ! OT only right now
        IF (scf_env%method .NE. ot_method_nr) THEN 
-          IF (ionode) write(output_unit,*) "OT only for restricted"
+          IF (output_unit>0) write(output_unit,*) "OT only for restricted"
           CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
        ENDIF
        CPPrecondition(dft_control%nspins.EQ.2,cp_failure_level,routineP,error,failure)
     ENDIF
 
-    IF (ionode.AND.logger%print_keys%scf) THEN
+    IF (output_unit>0) THEN
        WRITE (UNIT=output_unit,FMT="(/,/,T2,A)")&
             "SCF WAVEFUNCTION OPTIMIZATION"
     END IF
@@ -546,10 +547,10 @@ CONTAINS
 
     IF (PRESENT(calc_forces)) THEN
       CALL init_scf_run(scf_env=scf_env, qs_env=qs_env, globenv=globenv, &
-                        calc_forces=calc_forces, error=error)
+                        calc_forces=calc_forces, scf_section=scf_section, error=error)
     ELSE
       CALL init_scf_run(scf_env=scf_env, qs_env=qs_env, &
-                        globenv=globenv, error=error)
+                        globenv=globenv, scf_section=scf_section, error=error)
     END IF
 
     CALL get_qs_env(qs_env=qs_env,&
@@ -600,7 +601,7 @@ CONTAINS
     diis_step = .FALSE.
     use_jacobi = .FALSE.
 
-    IF (ionode.AND.logger%print_keys%scf) THEN
+    IF (output_unit>0) THEN
        WRITE (UNIT=output_unit,&
             FMT="(/,T3,A,T9,A,T36,A,T49,A,T68,A,/,T3,A)")&
             "Step","Update method","Time","Convergence","Total energy",&
@@ -658,16 +659,21 @@ CONTAINS
 
        ENDDO
 
-       IF (logger%print_keys%mo_orthonormality) THEN
+       IF (BTEST(cp_print_key_should_output(logger%iter_info,&
+            scf_section,"PRINT%MO_ORTHONORMALITY",error=error),cp_p_file)) THEN
           IF(scf_env%method==special_diag_method_nr) THEN
             CALL calculate_orthonormality(orthonormality,mos)
           ELSE
             CALL calculate_orthonormality(orthonormality,mos,matrix_s(1)%matrix)
           END IF
-          IF (ionode) THEN
+          iw=cp_print_key_unit_nr(logger,scf_section,"PRINT%MO_ORTHONORMALITY",&
+               extension=".scfLog",error=error)
+          IF (iw>0) THEN
              WRITE(output_unit,'(T8,A,T60,E20.4)')  &
                     " Maximum deviation from MO S-orthonormality",orthonormality
           ENDIF
+          CALL cp_print_key_finished_output(iw,logger,scf_section,&
+               "PRINT%MO_ORTHONORMALITY", error=error)
        ENDIF
 
        scf_env%p_mix = scf_control%p_mix
@@ -818,7 +824,7 @@ CONTAINS
 
        t2 = m_walltime()
 
-       IF (ionode.AND.logger%print_keys%scf.and.scf_env%print_iter_line) THEN
+       IF ((output_unit>0).and.scf_env%print_iter_line) THEN
           WRITE (UNIT=output_unit,&
                FMT="(T2,I5,2X,A,T22,E10.2,T32,F8.2,T40,2F20.10)")&
                scf_env%iter_count,TRIM(scf_env%iter_method),&
@@ -832,7 +838,7 @@ CONTAINS
 ! ** convergence check
        CALL external_control(should_stop,"SCF",globenv,error)
        IF (scf_env%iter_delta < scf_control%eps_scf) THEN
-          IF (ionode.AND.logger%print_keys%scf) THEN
+          IF (output_unit>0) THEN
              WRITE(UNIT=output_unit,FMT="(/,T3,A,I5,A/)")&
                   "*** SCF run converged in ",scf_env%iter_count," steps ***"
           END IF
@@ -840,7 +846,7 @@ CONTAINS
           EXIT scf_loop
        ELSE IF (should_stop.OR.&
             scf_env%iter_count == scf_control%max_scf) THEN
-          IF (ionode.AND.logger%print_keys%scf) THEN
+          IF (output_unit>0) THEN
              WRITE(UNIT=output_unit,FMT="(/,T3,A,/)")&
                   "*** SCF run NOT converged ***"
           END IF
@@ -882,7 +888,7 @@ CONTAINS
 
     END DO scf_loop
 
-    IF (ionode.AND.logger%print_keys%scf) THEN
+    IF (output_unit>0) THEN
        WRITE (UNIT=output_unit,FMT="(/,(T3,A,T40,2F20.10))")&
             "Total electronic density (r-space): ",&
             SUM(rho%tot_rho_r),&
@@ -1107,7 +1113,7 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE init_scf_run(scf_env,qs_env,globenv,calc_forces,error)
+  SUBROUTINE init_scf_run(scf_env,qs_env,globenv,calc_forces,scf_section,error)
 
 !   Purpose: Initialise a SCF run.
 
@@ -1122,7 +1128,7 @@ CONTAINS
     LOGICAL, INTENT(IN), OPTIONAL            :: calc_forces
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
-
+    TYPE(section_vals_type), POINTER :: scf_section
     CHARACTER(LEN=*), PARAMETER :: routineN = "init_scf_run", &
       routineP = moduleN//':'//routineN
 
@@ -1184,9 +1190,6 @@ CONTAINS
         ENDIF
     END IF
 
-    ionode = logger%para_env%source == logger%para_env%mepos
-    IF (ionode) output_unit = cp_logger_get_default_unit_nr(logger)
-
     scf_work2 => scf_env%scf_work2
     ortho => scf_env%ortho
 
@@ -1202,13 +1205,17 @@ CONTAINS
                                      calculate_forces=dft_control%forces,&
                                      error=error)
       END IF
-      IF (ionode.AND.logger%print_keys%scf_energies) THEN
+      output_unit=cp_print_key_unit_nr(logger,scf_section,"PRINT%DETAILED_ENERGY",&
+           extension=".scfLog",error=error)
+      IF (output_unit>0) THEN
          WRITE (UNIT=output_unit,FMT="(/,(T3,A,T60,F20.10))")&
               "Overlap energy of the core charge distribution:",&
               qs_env%energy%core_overlap,&
               "Self energy of the core charge distribution:   ",&
               qs_env%energy%core_self
       END IF
+      CALL cp_print_key_finished_output(output_unit,logger,scf_section,&
+            "PRINT%DETAILED_ENERGY", error=error)
     END IF
 
 ! updates the total number of electrons
@@ -1216,7 +1223,9 @@ CONTAINS
          nelectron=scf_env%nelectron)
     scf_env%nelectron = scf_env%nelectron - dft_control%charge
 ! print occupation numbers
-    IF (ionode.AND.logger%print_keys%scf) THEN
+    output_unit=cp_print_key_unit_nr(logger,scf_section,"PRINT%PROGRAM_RUN_INFO",&
+         extension=".scfLog",error=error)
+    IF (output_unit>0) THEN
        DO ispin=1,dft_control%nspins
           CALL get_mo_set(mo_set=mos(ispin)%mo_set,&
                homo=homo, &
@@ -1232,7 +1241,8 @@ CONTAINS
        WRITE (UNIT=output_unit,FMT="((T3,A,T31,I10))")&
          "Number of orbital functions:",nao
     END IF
-
+    CALL cp_print_key_finished_output(output_unit,logger,scf_section,&
+         "PRINT%PROGRAM_RUN_INFO", error=error)
 ! calc ortho matrix
     ndep = 0
     IF (scf_env%method /= ot_method_nr .AND. &
@@ -1243,10 +1253,14 @@ CONTAINS
        ELSE
           CALL calculate_ortho_matrix(ortho,matrix_s(1)%matrix,scf_work2,ndep,&
                scf_control%eps_eigval,scf_control%work_syevx)
-          IF (ionode.and.logger%print_keys%scf) THEN
+          output_unit=cp_print_key_unit_nr(logger,scf_section,"PRINT%PROGRAM_RUN_INFO",&
+               extension=".scfLog",error=error)
+          IF (output_unit>0) THEN
              WRITE (UNIT=output_unit,FMT="(T3,A,I10)")&
                   "Number of independent orbital functions:",nao - ndep
           END IF
+          CALL cp_print_key_finished_output(output_unit,logger,scf_section,&
+               "PRINT%PROGRAM_RUN_INFO", error=error)
        ENDIF
     ENDIF
     IF (logger%print_keys%ortho_matrix) THEN
@@ -1260,7 +1274,7 @@ CONTAINS
         CALL loc_initialize_rho(qs_env,error=error)  
     ELSE
       CALL scf_env_initial_rho_setup(scf_env,qs_env=qs_env,&
-           globenv=globenv,error=error)
+           globenv=globenv, scf_section=scf_section, error=error)
     END IF
 
 ! *** method dependent initializations ***
@@ -2398,19 +2412,19 @@ CONTAINS
 !!     02.2003 created [fawzi]
 !!
 !!*** **********************************************************************
-  SUBROUTINE scf_env_initial_rho_setup(scf_env, qs_env, globenv, error)
+  SUBROUTINE scf_env_initial_rho_setup(scf_env, qs_env, globenv, scf_section, error)
     TYPE(qs_scf_env_type), POINTER           :: scf_env
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(global_environment_type), &
       POINTER                                :: globenv
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
-
+    TYPE(section_vals_type), POINTER :: scf_section
     CHARACTER(len=*), PARAMETER :: routineN = 'scf_env_initial_rho_setup', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: extrapolation_method_nr, &
-                                                handle, ispin, nmo
+                                                handle, ispin, nmo, output_unit
     LOGICAL                                  :: failure, gapw, gapw_xc, ionode, orthogonal_wf
     TYPE(cp_fm_type), POINTER                :: mo_coeff
     TYPE(cp_logger_type), POINTER            :: logger
@@ -2421,7 +2435,6 @@ CONTAINS
     gapw = qs_env%dft_control%qs_control%gapw
     gapw_xc = qs_env%dft_control%qs_control%gapw_xc
     logger => cp_error_get_logger(error)
-    ionode = logger%para_env%source==logger%para_env%mepos
     CPPrecondition(ASSOCIATED(scf_env),cp_failure_level,routineP,error,failure)
     CPPrecondition(scf_env%ref_count>0,cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(qs_env),cp_failure_level,routineP,error,failure)
@@ -2446,10 +2459,15 @@ CONTAINS
              END DO
           END IF
        END IF
-       IF (ionode.AND.logger%print_keys%scf) &
-       WRITE (UNIT=cp_logger_get_default_unit_nr(logger),FMT="(/,T3,A)")&
-         "Extrapolation method: "//&
-         TRIM(wfi_get_method_label(extrapolation_method_nr,error=error))
+       output_unit=cp_print_key_unit_nr(logger,scf_section,"PRINT%PROGRAM_RUN_INFO",&
+            extension=".scfLog",error=error)
+       IF (output_unit>0) THEN
+          WRITE (UNIT=output_unit,FMT="(/,T3,A)")&
+               "Extrapolation method: "//&
+               TRIM(wfi_get_method_label(extrapolation_method_nr,error=error))
+       END IF
+       CALL cp_print_key_finished_output(output_unit,logger,scf_section,&
+            "PRINT%PROGRAM_RUN_INFO", error=error)
        IF (extrapolation_method_nr==wfi_use_guess_method_nr) THEN
           CALL calculate_first_density_matrix(scf_env=scf_env,qs_env=qs_env,&
                globenv=globenv, error=error)

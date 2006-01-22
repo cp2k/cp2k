@@ -112,6 +112,12 @@ MODULE nddo_methods
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE util,                            ONLY: get_limit
+  USE cp_output_handling,              ONLY: cp_print_key_unit_nr, &
+                                             cp_print_key_finished_output,&
+                                             cp_print_key_should_output,&
+                                             cp_p_file
+
+
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -195,11 +201,11 @@ CONTAINS
                                                 occupation_numbers
     TYPE(cp_fm_type), POINTER                :: mo_coeff
     INTEGER                                  :: ncol_global
-
+    TYPE(section_vals_type), POINTER :: scf_section
 !   ----------------------------------------------------------------------------
 
     failure=.FALSE.
-    NULLIFY(matrix_h,matrix_p,dft_control,cell,force,particle_set,logger)
+    NULLIFY(matrix_h,matrix_p,dft_control,cell,force,particle_set,logger,scf_section)
 
     CALL timeset(routineN,"I","",handle)
 
@@ -207,8 +213,6 @@ CONTAINS
     CPPrecondition(ks_env%ref_count>0,cp_failure_level,routineP,error,failure)
 
     logger => cp_error_get_logger(error)
-    ionode = logger%para_env%mepos==logger%para_env%source
-    IF (ionode) output_unit = cp_logger_get_default_unit_nr(logger)
 
     CALL get_qs_env(qs_env=qs_env,&
          dft_control=dft_control,&
@@ -216,6 +220,7 @@ CONTAINS
          cell=cell,&
          para_env=para_env)
 
+    scf_section => section_vals_get_subs_vals(qs_env%input,"DFT%SCF",error=error)
     nspins=dft_control%nspins
     ewald =dft_control%qs_control%se_control%ewald
     CPPrecondition(ASSOCIATED(matrix_h),cp_failure_level,routineP,error,failure)
@@ -481,16 +486,19 @@ CONTAINS
        energy%total = energy%core + energy%core_overlap + 0.5_dp*energy%hartree + &
             energy%qmmm_el + energy%mulliken
 
-       IF (ionode.AND.logger%print_keys%scf_energies) THEN
+       output_unit=cp_print_key_unit_nr(logger,scf_section,"PRINT%DETAILED_ENERGY",&
+            extension=".scfLog",error=error)
+       IF (output_unit>0) THEN
           WRITE (UNIT=output_unit,FMT="(/,(T3,A,T60,F20.10))")&
                "Core Hamiltonian energy:                       ",energy%core,&
                "Two-electron integral energy:                  ",energy%hartree
+          IF (qs_env%qmmm) THEN
+             WRITE (UNIT=output_unit,FMT="(T3,A,T60,F20.10)")&
+                  "QM/MM Electrostatic energy:                    ",energy%qmmm_el
+          END IF
        END IF
-       IF (qs_env%qmmm) THEN
-          WRITE (UNIT=output_unit,FMT="(T3,A,T60,F20.10)")&
-               "QM/MM Electrostatic energy:                    ",energy%qmmm_el
-       END IF
-
+       CALL cp_print_key_finished_output(output_unit,logger,scf_section,&
+            "PRINT%DETAILED_ENERGY", error=error)       
        ! here we compute dE/dC if needed. Assumes dE/dC is H_{ks}C (plus occupation numbers)
        IF (qs_env%requires_mo_derivs .AND. .NOT. just_energy) THEN
           CALL get_qs_env(qs_env,mo_derivs=mo_derivs,mos=mo_array)

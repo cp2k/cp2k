@@ -79,13 +79,8 @@ MODULE print_key_types
                sbc_ppnl_neighbor_lists,&
                sac_oce_neighbor_lists,&
                sbc_oce_neighbor_lists,&
-               scf,&
-               scf_energies,&
                total_densities
-    LOGICAL :: w_matrix,&
-               mo_orthonormality
-    LOGICAL :: ep_matrixes, ep_operator
-    INTEGER    nlumos,nhomos
+    LOGICAL :: w_matrix
     LOGICAL :: loc_info
   END TYPE print_keys_type
 
@@ -164,8 +159,6 @@ CONTAINS
     print_keys%core_hamiltonian_matrix = key_value(level,(/f,f,f/))
     print_keys%density_matrix = key_value(level,(/f,f,f/))
     print_keys%derivatives = key_value(level,(/f,f,f/))
-    print_keys%ep_matrixes = key_value(level,(/f,f,f/))
-    print_keys%ep_operator = key_value(level,(/f,f,f/))
     print_keys%hartree_matrix = key_value(level,(/f,f,f/))
     print_keys%kinetic_energy_matrix = key_value(level,(/f,f,f/))
     print_keys%kohn_sham_matrix = key_value(level,(/f,f,f/))
@@ -180,11 +173,8 @@ CONTAINS
     print_keys%sbc_ppnl_neighbor_lists = key_value(level,(/f,f,f/))
     print_keys%sac_oce_neighbor_lists = key_value(level,(/f,f,f/))
     print_keys%sbc_oce_neighbor_lists = key_value(level,(/f,f,f/))
-    print_keys%scf = key_value(level,(/t,t,t/))
-    print_keys%scf_energies = key_value(level,(/t,t,t/))
     print_keys%total_densities = key_value(level,(/f,f,f/))
     print_keys%w_matrix = key_value(level,(/f,f,f/))
-    print_keys%mo_orthonormality = key_value(level,(/f,f,f/))
 
   END SUBROUTINE print_keys_reset
 
