@@ -3541,7 +3541,9 @@ CONTAINS
              iatom = last - first + 1
              IF(iatom /= counter) THEN
                 CALL stop_program ("topology_molecules_check",&
-                     "different number of atoms for same molecule kind")
+                     "different number of atoms for same molecule kind"//&
+                     " imol_typ= "//cp_to_string(imol_typ)//&
+                     " imol= "//cp_to_string(imol))
              END IF
           END DO
        END IF
