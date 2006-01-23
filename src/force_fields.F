@@ -2218,7 +2218,8 @@ CONTAINS
              IF(iw>0) WRITE(iw,*) "    Bond ",j," : ",&
                   TRIM(name_atm_a)," ",&
                   TRIM(name_atm_b)
-             CALL stop_program("FF_pack","missing bond parm")
+             CALL stop_program("FF_pack","missing bond parm"//&
+                                         TRIM(name_atm_a)//" "//TRIM(name_atm_b))
           END IF
           !
           ! QM/MM modifications
@@ -2309,7 +2310,9 @@ CONTAINS
                   TRIM(name_atm_a)," ",&
                   TRIM(name_atm_b)," ",&
                   TRIM(name_atm_c)
-             CALL stop_program("FF_pack","missing bend parm")
+             CALL stop_program("FF_pack","missing bend parm "//TRIM(name_atm_a)//&
+                                                          " "//TRIM(name_atm_b)//&
+                                                          " "//TRIM(name_atm_c))
           END IF
           !
           ! QM/MM modifications
@@ -3089,7 +3092,7 @@ CONTAINS
              IF(iw>0) WRITE(iw,*) "    spline_nonbond_env ",j," : ",&
                   TRIM(name_atm_a)," ",&
                   TRIM(name_atm_b)
-             CALL stop_program("FF_pack","missing pair pot")
+             CALL stop_program("FF_pack","missing pair pot "//TRIM(name_atm_a)//" "//TRIM(name_atm_b))
           END IF
 
           IF (only_qm) THEN
