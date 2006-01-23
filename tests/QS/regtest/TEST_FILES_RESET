@@ -69,3 +69,6 @@ H2-geo-3.inp
 H2-geo-4.inp
 # corrected pbe bug
 N3-5.inp
+#reset after print_keys
+H2O-debug-2.inp
+H2O-debug-3.inp
