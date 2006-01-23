@@ -63,3 +63,5 @@ cu_eam_2.inp              2
 # Fumi-Tosi Potential
 NaCl.inp                  2
 NaCl-H2O.inp              2
+# test topology generate/dump feature
+acn.inp                   2
