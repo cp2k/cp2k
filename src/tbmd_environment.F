@@ -177,7 +177,8 @@ CONTAINS
       tbmd_section => section_vals_get_subs_vals(force_env_section, &
                                                  "TBMD", error=error)
 
-      CALL tbmd_env_set(tbmd_env=tbmd_env, tbmd_input=tbmd_section, error=error)
+      CALL tbmd_env_set(tbmd_env=tbmd_env, tbmd_input=tbmd_section, &
+                        force_env_input=force_env_section, error=error)
 
       CALL read_cell(cell=cell, cell_ref=cell_ref, globenv=globenv, &
                      use_ref_cell=use_ref_cell, cell_section=cell_section, &
@@ -192,7 +193,7 @@ CONTAINS
                             molecule_kind_set, molecule_set, &
                             globenv, error=error)
 
-      CALL read_atomic_kind_set(atomic_kind_set, globenv)
+      !CALL read_atomic_kind_set(atomic_kind_set, globenv)
 
       CALL particle_list_create(particles, els_ptr=particle_set, error=error)
       CALL atomic_kind_list_create(atomic_kinds, els_ptr=atomic_kind_set, error=error)
@@ -209,7 +210,7 @@ CONTAINS
       CALL tbmd_init_subsys(tbmd_env=tbmd_env, subsystem=subsystem, cell=cell, &
                             cell_ref=cell_ref, use_ref_cell=use_ref_cell, &
                             globenv=globenv, error=error)
-      
+
       CALL cell_release(cell, error=error)
       CALL cell_release(cell_ref, error=error)
       CALL cp_subsys_release(subsystem, error=error)
@@ -311,14 +312,14 @@ CONTAINS
     CALL tbmd_force_create(tbmd_force=tbmd_force, natom=natom, error=error)
     CALL tbmd_model_create(tbmd_model=tbmd_model, error=error)
 
-    CALL tbmd_init_tb_model(tbmd_env=tbmd_env, globenv=globenv, error=error)
-
     CALL tbmd_env_set(tbmd_env=tbmd_env, tbmd_energy=tbmd_energy, &
                       tbmd_force=tbmd_force, tbmd_model=tbmd_model, &
                       subsystem=subsystem, local_molecules=local_molecules, &
                       local_particles=local_particles, cell=cell, &
                       cell_ref=cell_ref, use_ref_cell=use_ref_cell, &
                       para_env=globenv%para_env, error=error)
+
+    CALL tbmd_init_tb_model(tbmd_env=tbmd_env, globenv=globenv, error=error)
 
     CALL distribution_1d_release(local_particles, error=error)
     CALL distribution_1d_release(local_molecules, error=error)
@@ -364,7 +365,7 @@ CONTAINS
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atomic_kind_ptr
     INTEGER                                  :: i
-    CHARACTER(LEN=default_string_length)     :: tb_model_name
+    CHARACTER(LEN=default_string_length)     :: tb_atomic_kind_name
     REAL(KIND=dp)                            :: eV, &
                                                 Am, &
                                                 a_latt
@@ -389,7 +390,7 @@ CONTAINS
                                                      "TB_MODEL", error=error)
 
     atomic_kind_set => tbmd_env%subsystem%atomic_kinds%els
-    
+
     eV = 1/evolt
     Am = 1/angstrom
 
@@ -397,13 +398,16 @@ CONTAINS
     DO i=1,SIZE(atomic_kind_set)
       atomic_kind_ptr => tbmd_env%subsystem%atomic_kinds%els(i)
       CALL get_atomic_kind(atomic_kind=atomic_kind_ptr, &
-                           name=tb_model_name)
-      SELECT CASE(tb_model_name)
+                           name=tb_atomic_kind_name)
+      SELECT CASE(tb_atomic_kind_name)
         CASE("SI", "Si")
           a_latt = 5.43*Am
+          CALL section_vals_val_get(section_vals=tbmd_model_section, &
+                                    keyword_name="TB-Model", &
+                                    i_val=tbmd_model%tb_model_name, &
+                                    error=error)
           SELECT CASE(tbmd_model%tb_model_name)
             CASE(use_gsp)
-              tbmd_model%tb_model_name = use_gsp
               CALL section_vals_val_get(section_vals=tbmd_section, &
                                         keyword_name="Noisy_TB", &
                                         l_val=tbmd_model%noisy_tb, &
@@ -452,7 +456,6 @@ CONTAINS
                    "parametrization isn't implemented yet.", &
                    error=error, error_level=cp_failure_level)
 
-              tbmd_model%tb_model_name = use_kwon
               CALL section_vals_val_get(section_vals=tbmd_section, &
                                         keyword_name="Noisy_TB", &
                                         l_val=tbmd_model%noisy_tb, &
@@ -468,7 +471,6 @@ CONTAINS
                    "parametrization isn't implemented yet.", &
                    error=error, error_level=cp_failure_level)
 
-              tbmd_model%tb_model_name = use_lenosky
               CALL section_vals_val_get(section_vals=tbmd_section, &
                                         keyword_name="Noisy_TB", &
                                         l_val=tbmd_model%noisy_tb, &
@@ -479,7 +481,6 @@ CONTAINS
                                         error=error)
 
             CASE(use_udp)
-              tbmd_model%tb_model_name = use_udp
               CALL section_vals_val_get(section_vals=tbmd_section, &
                                         keyword_name="Noisy_TB", &
                                         l_val=tbmd_model%noisy_tb, &

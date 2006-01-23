@@ -275,7 +275,7 @@ RECURSIVE SUBROUTINE force_env_release(force_env, error)
           CALL qs_env_release(force_env%qs_env,error=error)
         CASE ( use_kg_force )
           CALL kg_env_release(force_env%kg_env,error=error)
-        CASE (use_tbmd_force )
+        CASE ( use_tbmd_force )
           CALL tbmd_env_release(force_env%tbmd_env, error=error)
         END SELECT
         IF (ASSOCIATED(force_env%subsys)) THEN
@@ -436,7 +436,7 @@ RECURSIVE SUBROUTINE force_env_get(force_env, in_use, force_env_list, &
         CPPreconditionNoFail(.NOT. PRESENT(kg_env), cp_warning_level, routineP, error)
         CPPreconditionNoFail(.NOT. PRESENT(fist_env), cp_warning_level, routineP, error)
 
-        !CALL tbmd_env_get()
+        CALL tbmd_env_get(force_env%tbmd_env, cell=cell, cell_ref=cell_ref, error=error)
 
         !IF (PRESENT(potential_energy)) potential_energy=
         !IF (PRESENT(kinetic_energy)) kinetic_energy=

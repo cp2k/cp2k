@@ -277,21 +277,21 @@ CONTAINS
         IF (ASSOCIATED(tbmd_env%subsystem)) THEN
           CALL cp_subsys_release(tbmd_env%subsystem, error=error)
         END IF
-        IF (ASSOCIATED(tbmd_env%tbmd_input)) THEN
-          CALL section_vals_release(tbmd_env%tbmd_input, error=error)
-        END IF
-        IF (ASSOCIATED(tbmd_env%force_env_input)) THEN
-          CALL section_vals_release(tbmd_env%force_env_input, error=error)
-        END IF
+        !IF (ASSOCIATED(tbmd_env%tbmd_input)) THEN
+        !  CALL section_vals_release(tbmd_env%tbmd_input, error=error)
+        !END IF
+        !IF (ASSOCIATED(tbmd_env%force_env_input)) THEN
+        !  CALL section_vals_release(tbmd_env%force_env_input, error=error)
+        !END IF
         IF (ASSOCIATED(tbmd_env%cell)) THEN
           CALL cell_release(tbmd_env%cell, error=error)
         END IF
         IF (ASSOCIATED(tbmd_env%cell_ref)) THEN
           CALL cell_release(tbmd_env%cell_ref, error=error)
         END IF
-        IF (ASSOCIATED(tbmd_env%para_env)) THEN
-          CALL cp_para_env_release(tbmd_env%para_env,error=error)
-        END IF
+        !IF (ASSOCIATED(tbmd_env%para_env)) THEN
+        !  CALL cp_para_env_release(tbmd_env%para_env,error=error)
+        !END IF
         DEALLOCATE(tbmd_env, stat=stat)
         CPPostconditionNoFail(stat==0, cp_warning_level, routineP, error)
       END IF

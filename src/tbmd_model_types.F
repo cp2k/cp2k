@@ -583,8 +583,8 @@ CONTAINS
 
     failure = .FALSE.
 
-    !ALLOCATE(tbmd_model%f_total(3), stat=stat)
-    !CPPostcondition(stat == 0, cp_failure_level, routineP, error, failure)
+    ALLOCATE(tbmd_model, stat=stat)
+    CPPostcondition(stat == 0, cp_failure_level, routineP, error, failure)
 
     IF (.NOT. failure) THEN
       tbmd_model%ref_count = 1
