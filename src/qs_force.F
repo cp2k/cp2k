@@ -63,7 +63,9 @@ MODULE qs_force
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE cp_output_handling,              ONLY: cp_print_key_unit_nr, &
-                                             cp_print_key_finished_output
+                                             cp_print_key_finished_output,&
+                                             cp_print_key_should_output,&
+                                             cp_p_file
   
 #include "cp_common_uses.h"
 
@@ -139,7 +141,7 @@ CONTAINS
     TYPE(virial_type), POINTER                       :: virial
     TYPE(qs_ks_env_type), POINTER                    :: new_ks_env
     TYPE(harris_force_type), POINTER         :: harris_force
-    INTEGER :: output_unit
+    INTEGER :: output_unit, iw
     TYPE(cp_logger_type), POINTER            :: logger
 
     failure = .FALSE.
@@ -255,8 +257,13 @@ CONTAINS
             CALL calculate_w_matrix(mo_set,matrix_w(ispin)%matrix)
           END IF
         ENDIF
-        IF (globenv%print%w_matrix) THEN
-          CALL write_sparse_matrix(matrix_w(ispin)%matrix,4,6,qs_env,globenv)
+        IF (BTEST(cp_print_key_should_output(logger%iter_info,&
+             qs_env%input,"DFT%PRINT%AO_MATRICES/W_MATRIX",error=error),cp_p_file)) THEN
+           iw = cp_print_key_unit_nr(logger,qs_env%input,"DFT%PRINT%AO_MATRICES/W_MATRIX",&
+                extension=".Log",error=error)
+           CALL write_sparse_matrix(matrix_w(ispin)%matrix,4,6,qs_env,globenv,output_unit=iw)
+           CALL cp_print_key_finished_output(iw,logger,qs_env%input,&
+                "DFT%PRINT%AO_MATRICES/W_MATRIX", error=error)
         END IF
       END DO
     END IF
@@ -442,7 +449,7 @@ CONTAINS
        
        !   *** Variable precision output of the forces ***
        
-       ndigits = MAX(6 + globenv%print%precision,1)
+       ndigits = 6 
        
        fmtstr1 = "(/,/,T2,A,/,/,T3,A,T11,A,T23,A,T40,A1,2(  X,A1))"
        WRITE (UNIT=fmtstr1(41:42),FMT="(I2)") ndigits + 5
@@ -469,7 +476,7 @@ CONTAINS
        
        grand_total(:) = 0.0_dp
        
-       IF (globenv%print%level <= MEDIUM) THEN
+       IF (globenv%print_level <= MEDIUM) THEN
           my_ftype=-1
        ELSE
           my_ftype=ftype

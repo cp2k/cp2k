@@ -36,15 +36,6 @@ MODULE global_types
   USE kinds,                           ONLY: default_path_length,&
                                              default_string_length,&
                                              dp
-  USE print_key_types,                 ONLY: DEBUG,&
-                                             HIGH,&
-                                             LOW,&
-                                             MEDIUM,&
-                                             SILENT,&
-                                             print_keys_create,&
-                                             print_keys_release,&
-                                             print_keys_retain,&
-                                             print_keys_type
   USE machine,                         ONLY: m_walltime
 
 #include "cp_common_uses.h"
@@ -55,7 +46,13 @@ MODULE global_types
 
 ! *** Public parameters ***
 
-  PUBLIC :: DEBUG,HIGH,LOW,MEDIUM,SILENT
+! *** Print level parameters ***
+  INTEGER, PARAMETER, PUBLIC :: SILENT = 0,&
+                        LOW = 1,&
+                        MEDIUM = 2,&
+                        HIGH = 3,&
+                        DEBUG = 4
+
   PUBLIC :: BLACS_GRID_SQUARE, BLACS_GRID_ROW, BLACS_GRID_COL
 
 ! *** Public data types
@@ -104,7 +101,6 @@ MODULE global_types
   TYPE global_environment_type
      INTEGER :: id_nr, ref_count
      TYPE(cp_para_env_type), POINTER         :: para_env
-     TYPE(print_keys_type), POINTER          :: PRINT
      CHARACTER(LEN=default_path_length)      :: input_file_name
      CHARACTER(LEN=default_string_length)    :: default_fft_library,&
                                                 project_name,&
@@ -153,12 +149,11 @@ CONTAINS
 !!
 !!*** **********************************************************************
   SUBROUTINE globenv_create(globenv, para_env,  output_unit, &
-       input_file_name, print_keys, close_output_unit, error)
+       input_file_name, close_output_unit, error)
     TYPE(global_environment_type), POINTER   :: globenv
     TYPE(cp_para_env_type), POINTER          :: para_env
     INTEGER, INTENT(in)                      :: output_unit
     CHARACTER(len=*), INTENT(in), OPTIONAL   :: input_file_name
-    TYPE(print_keys_type), OPTIONAL, POINTER :: print_keys
     LOGICAL, INTENT(in), OPTIONAL            :: close_output_unit
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
@@ -181,12 +176,6 @@ CONTAINS
        globenv%close_output_unit=.FALSE.
        IF(PRESENT(close_output_unit))globenv%close_output_unit=close_output_unit
        CALL cp_para_env_retain(para_env,error=error)
-       IF (PRESENT(print_keys)) THEN
-          globenv%print => print_keys
-          CALL print_keys_retain(print_keys)
-       ELSE
-          CALL print_keys_create(globenv%print)
-       END IF
        globenv%input_file_name=""
        IF (PRESENT(input_file_name)) globenv%input_file_name=input_file_name
        globenv%run_type_id=0
@@ -289,7 +278,6 @@ SUBROUTINE globenv_release(globenv, error)
      IF (globenv%ref_count==0) THEN
         CALL section_vals_release(globenv%input_file,error=error)
         CALL cp_para_env_release(globenv%para_env,error=error)
-        CALL print_keys_release(globenv%print)
         IF (globenv%close_output_unit) THEN
            IF (globenv%ionode) CALL close_file(globenv%scr)
         END IF

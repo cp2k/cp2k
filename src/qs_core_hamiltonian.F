@@ -266,7 +266,7 @@ CONTAINS
                           maxco,maxdco,maxder,maxl,maxlgto,maxlppl,maxlppnl,&
                           maxppnl,maxsgf,n,nat,natom,ncoa,ncoa_sum,ncob,ncoc,ncol,&
                           nder,nkind,nlist,nneighbor,nnode,nnode_c,nppnl,nprjc,&
-                          nrow,nseta,nsetb,nsgf,prjc,sgfa,sgfb,unit_number
+                          nrow,nseta,nsetb,nsgf,prjc,sgfa,sgfb,unit_number, iw
     LOGICAL            :: all_potential_present,&
                           build_kinetic_energy_matrix,gth_potential_present,&
                           new_atom_b,ppl_present,ppnl_present,&
@@ -463,7 +463,8 @@ CONTAINS
 
       CALL timeset(routine_name,"I"," ",handle)
 
-      IF (globenv%print%derivatives.OR.&
+      IF (BTEST(cp_print_key_should_output(logger%iter_info,qs_env%input,&
+            "DFT%PRINT%AO_MATRICES/DERIVATIVES",error=error),cp_p_file).OR.&
            BTEST(cp_print_key_should_output(logger%iter_info,qs_env%input,&
             "DFT%PRINT%OPTICAL_CONDUCTIVITY",error=error),cp_p_file)) THEN
         nder = 1
@@ -473,7 +474,10 @@ CONTAINS
 
     END IF
 
-    IF ((globenv%print%overlap_matrix.AND.globenv%print%derivatives).OR.&
+    IF ((BTEST(cp_print_key_should_output(logger%iter_info,qs_env%input,&
+            "DFT%PRINT%AO_MATRICES/OVERLAP",error=error),cp_p_file).AND.&
+         BTEST(cp_print_key_should_output(logger%iter_info,qs_env%input,&
+            "DFT%PRINT%AO_MATRICES/DERIVATIVES",error=error),cp_p_file)).OR.&
         BTEST(cp_print_key_should_output(logger%iter_info,qs_env%input,&
             "DFT%PRINT%OPTICAL_CONDUCTIVITY",error=error),cp_p_file)) THEN
       return_s_derivatives = .TRUE.
@@ -566,15 +570,18 @@ CONTAINS
     xas_calculation = (added_mos>0)
     
     build_kinetic_energy_matrix = (scf_control%use_ot.OR.&
-                                   globenv%print%kinetic_energy_matrix.OR.&
-                                   globenv%print%potential_energy_matrix.OR.&
+                                   BTEST(cp_print_key_should_output(logger%iter_info,&
+         qs_env%input,"DFT%PRINT%AO_MATRICES/KINETIC_ENERGY",error=error),cp_p_file).OR.&
+                                    BTEST(cp_print_key_should_output(logger%iter_info,&
+         qs_env%input,"DFT%PRINT%AO_MATRICES/POTENTIAL_ENERGY",error=error),cp_p_file).OR.&
                                    globenv%run_type_id==ep_run .OR. &
                                    lr_precond == lr_precond_kinetic .OR. xas_calculation)
     ! assume false by default
     return_t_derivatives = .FALSE.
 
     IF (build_kinetic_energy_matrix) THEN
-      IF (globenv%print%derivatives) THEN
+      IF (BTEST(cp_print_key_should_output(logger%iter_info,qs_env%input,&
+           "DFT%PRINT%AO_MATRICES/DERIVATIVES",error=error),cp_p_file)) THEN
         CALL allocate_matrix_set(matrix_t,maxder)
         return_t_derivatives = .TRUE.
       ELSE
@@ -2197,42 +2204,64 @@ CONTAINS
 
 !   *** Print the overlap integral matrix, if requested ***
 
-    IF (globenv%print%overlap_matrix) THEN
-      CALL write_sparse_matrix(matrix_s(1)%matrix,4,6,qs_env,globenv)
-      IF (globenv%print%derivatives) THEN
-        DO i=2,SIZE(matrix_s)
-          CALL write_sparse_matrix(matrix_s(i)%matrix,4,6,qs_env,globenv)
-        END DO
+    IF (BTEST(cp_print_key_should_output(logger%iter_info,&
+         qs_env%input,"DFT%PRINT%AO_MATRICES/OVERLAP",error=error),cp_p_file)) THEN
+       iw = cp_print_key_unit_nr(logger,qs_env%input,"DFT%PRINT%AO_MATRICES/OVERLAP",&
+            extension=".Log",error=error)
+      CALL write_sparse_matrix(matrix_s(1)%matrix,4,6,qs_env,globenv,output_unit=iw)
+      IF (BTEST(cp_print_key_should_output(logger%iter_info,qs_env%input,&
+           "DFT%PRINT%AO_MATRICES/DERIVATIVES",error=error),cp_p_file)) THEN
+         DO i=2,SIZE(matrix_s)
+            CALL write_sparse_matrix(matrix_s(i)%matrix,4,6,qs_env,globenv,output_unit=iw)
+         END DO
       END IF
+      CALL cp_print_key_finished_output(iw,logger,qs_env%input,&
+           "DFT%PRINT%AO_MATRICES/OVERLAP", error=error)      
     END IF
 
 !   *** Print the kinetic energy integral matrix, if requested ***
 
-    IF (globenv%print%kinetic_energy_matrix) THEN
-      CALL write_sparse_matrix(matrix_t(1)%matrix,4,6,qs_env,globenv)
-      IF (globenv%print%derivatives) THEN
-        DO i=2,SIZE(matrix_t)
-          CALL write_sparse_matrix(matrix_t(i)%matrix,4,6,qs_env,globenv)
-        END DO
-      END IF
+    IF (BTEST(cp_print_key_should_output(logger%iter_info,&
+         qs_env%input,"DFT%PRINT%AO_MATRICES/KINETIC_ENERGY",error=error),cp_p_file)) THEN
+       iw = cp_print_key_unit_nr(logger,qs_env%input,"DFT%PRINT%AO_MATRICES/KINETIC_ENERGY",&
+            extension=".Log",error=error)
+       CALL write_sparse_matrix(matrix_t(1)%matrix,4,6,qs_env,globenv,output_unit=iw)
+       IF (BTEST(cp_print_key_should_output(logger%iter_info,qs_env%input,&
+            "DFT%PRINT%AO_MATRICES/DERIVATIVES",error=error),cp_p_file)) THEN
+          DO i=2,SIZE(matrix_t)
+             CALL write_sparse_matrix(matrix_t(i)%matrix,4,6,qs_env,globenv,output_unit=iw)
+          END DO
+       END IF
+      CALL cp_print_key_finished_output(iw,logger,qs_env%input,&
+            "DFT%PRINT%AO_MATRICES/KINETIC_ENERGY", error=error)
     END IF
 
 !   *** Print the potential energy matrix, if requested ***
 
-    IF (globenv%print%potential_energy_matrix) THEN
+    IF (BTEST(cp_print_key_should_output(logger%iter_info,&
+         qs_env%input,"DFT%PRINT%AO_MATRICES/POTENTIAL_ENERGY",error=error),cp_p_file)) THEN
+       iw = cp_print_key_unit_nr(logger,qs_env%input,"DFT%PRINT%AO_MATRICES/POTENTIAL_ENERGY",&
+            extension=".Log",error=error)
       CALL allocate_matrix_set(matrix_v,1)
       CALL replicate_matrix_structure(source=matrix_h(1)%matrix,&
                                       target=matrix_v(1)%matrix,&
                                       target_name="POTENTIAL ENERGY MATRIX")
       CALL add_matrices(matrix_v(1)%matrix,1.0_dp,matrix_h(1)%matrix,-1.0_dp,matrix_t(1)%matrix)
-      CALL write_sparse_matrix(matrix_v(1)%matrix,4,6,qs_env,globenv)
+      CALL write_sparse_matrix(matrix_v(1)%matrix,4,6,qs_env,globenv,output_unit=iw)
       CALL deallocate_matrix_set(matrix_v)
+      CALL cp_print_key_finished_output(iw,logger,qs_env%input,&
+            "DFT%PRINT%AO_MATRICES/POTENTIAL_ENERGY", error=error)
     END IF
 
 !   *** Print the core Hamiltonian matrix, if requested ***
 
-    IF (globenv%print%core_hamiltonian_matrix) THEN
-      CALL write_sparse_matrix(matrix_h(1)%matrix,4,6,qs_env,globenv)
+    IF (BTEST(cp_print_key_should_output(logger%iter_info,&
+         qs_env%input,"DFT%PRINT%AO_MATRICES/CORE_HAMILTONIAN",error=error),cp_p_file)) THEN
+       iw = cp_print_key_unit_nr(logger,qs_env%input,"DFT%PRINT%AO_MATRICES/CORE_HAMILTONIAN",&
+            extension=".Log",error=error)
+       CALL write_sparse_matrix(matrix_h(1)%matrix,4,6,qs_env,globenv,output_unit=iw)
+       CALL cp_print_key_finished_output(iw,logger,qs_env%input,&
+            "DFT%PRINT%AO_MATRICES/CORE_HAMILTONIAN", error=error)       
     END IF
 
     CALL write_checkpoint_information("leaving "//routine_name,globenv,error)

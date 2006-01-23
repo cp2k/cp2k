@@ -251,7 +251,6 @@ OBJECTS_GENERIC =\
  physcon.o\
  pme.o\
  preconditioner.o\
- print_key_types.o\
  pw_env_methods.o\
  pw_env_types.o\
  pw_grid_types.o\

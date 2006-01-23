@@ -51,8 +51,6 @@
 MODULE cp_log_handling
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_files,                        ONLY: open_file,close_file
-  USE print_key_types,                    ONLY: print_keys_create,&
-                                             print_keys_type, print_keys_release
   USE kinds,                           ONLY: dp, default_string_length
   USE machine,                         ONLY: m_abort,&
                                              m_datum,&
@@ -212,7 +210,6 @@ MODULE cp_log_handling
      LOGICAL :: close_local_unit_on_dealloc, close_global_unit_on_dealloc
      CHARACTER(len=10) :: suffix
      CHARACTER(len=50) :: local_filename, global_filename
-     TYPE(print_keys_type), POINTER :: print_keys
      TYPE(cp_para_env_type), POINTER :: para_env
      TYPE(cp_iteration_info_type), pointer :: iter_info
   END TYPE cp_logger_type
@@ -410,7 +407,7 @@ CONTAINS
   SUBROUTINE cp_logger_create(logger, para_env,print_level,&
        default_global_unit_nr,default_local_unit_nr, global_filename,&
        local_filename, close_global_unit_on_dealloc,iter_info,&
-       close_local_unit_on_dealloc, print_keys, suffix, template_logger)
+       close_local_unit_on_dealloc, suffix, template_logger)
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), OPTIONAL, &
       POINTER                                :: para_env
@@ -421,7 +418,6 @@ CONTAINS
                                                 local_filename
     LOGICAL, INTENT(in), OPTIONAL            :: close_global_unit_on_dealloc, &
                                                 close_local_unit_on_dealloc
-    TYPE(print_keys_type), OPTIONAL, POINTER :: print_keys
     CHARACTER(len=*), INTENT(in), OPTIONAL   :: suffix
     TYPE(cp_iteration_info_type), POINTER, optional :: iter_info
     TYPE(cp_logger_type), OPTIONAL, POINTER  :: template_logger
@@ -434,7 +430,7 @@ CONTAINS
     ALLOCATE(logger, stat=stat)
     IF (stat/=0) CALL mp_stop(104,routineP//" could not ALLOCATE a logger")
 
-    NULLIFY(logger%para_env,logger%print_keys)
+    NULLIFY(logger%para_env)
     logger%ref_count=1
     last_logger_id_nr=last_logger_id_nr+1
     logger%id_nr=last_logger_id_nr
@@ -458,7 +454,6 @@ CONTAINS
       END IF
       logger%local_filename=template_logger%local_filename
       logger%global_filename=template_logger%global_filename
-      logger%print_keys => template_logger%print_keys
       logger%para_env => template_logger%para_env
       logger%suffix=template_logger%suffix
       logger%iter_info => template_logger%iter_info
@@ -515,16 +510,6 @@ CONTAINS
        END IF
     END IF
 
-    IF (PRESENT(print_keys)) logger%print_keys => print_keys
-    IF (ASSOCIATED(logger%print_keys)) THEN
-       IF (logger%print_keys%ref_count<1) THEN
-          CALL mp_stop(108,routineP//" print_keys%ref_count<1")
-       END IF
-       logger%print_keys%ref_count=logger%print_keys%ref_count+1
-    ELSE
-       nullify(logger%print_keys)
-       CALL print_keys_create(logger%print_keys,level=3-logger%print_level)
-    END IF
     IF (logger%default_local_unit_nr==-1) THEN
        IF (logger%para_env%mepos==logger%para_env%source) THEN
           logger%default_local_unit_nr=logger%default_global_unit_nr
@@ -638,7 +623,6 @@ CONTAINS
              logger%close_local_unit_on_dealloc=.FALSE.
              logger%default_local_unit_nr=-1
           END IF
-          call print_keys_release(logger%print_keys)
           CALL my_cp_para_env_release(logger%para_env)
           call cp_iteration_info_release(logger%iter_info)
           DEALLOCATE(logger,stat=stat)

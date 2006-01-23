@@ -93,7 +93,6 @@ MODULE cp2k_runs
   USE metadynamics_types,              ONLY: meta_env_type, &
                                              meta_env_release
   USE metadynamics,                    ONLY: metadyn_read
-  USE print_key_types,                 ONLY: print_keys_release
   USE qmmm_init,                       ONLY: qmmm_create_force_env
   USE qs_debug,                        ONLY: qs_debug_energy_and_forces
   USE qs_linres_module,                ONLY: linres_calculation

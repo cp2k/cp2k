@@ -113,12 +113,7 @@ INTEGER, PUBLIC, PARAMETER :: cp_out_none=0, cp_out_file_if=IBSET(0,cp_p_file_if
 
 INTEGER, SAVE, private :: last_flags_id=0
 
-!FMINTERFACE cp_should_output
-!FM   MODULE procedure cp_out_flags_should_output, cp_print_key_should_output
-!FMEND INTERFACE
-!FMINTERFACE cp_unitnr_for_output
-!FM   MODULE PROCEDURE cp_print_key_unitnr, cp_out_flags_unit_nr
-!FMEND INTERFACE
+
 !!***
 !****************************************************************************
 

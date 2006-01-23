@@ -722,7 +722,7 @@ CONTAINS
     TYPE(section_vals_type), POINTER :: dft_section, input
     TYPE(cp_rs_pool_type), POINTER           :: auxbas_rs_pool
     TYPE(realspace_grid_type), POINTER       :: rs
-    INTEGER            :: handle
+    INTEGER            :: handle, iw
     CHARACTER(LEN=80)  :: filename
 
     CALL timeset(routineN,handle)
@@ -871,9 +871,13 @@ CONTAINS
 !    *** write the density matrix ***
        IF (BTEST(cp_print_key_should_output(logger%iter_info,input,&
             "DFT%PRINT%AO_MATRICES/DENSITY",error=error),cp_p_file)) THEN
+          iw = cp_print_key_unit_nr(logger,input,"DFT%PRINT%AO_MATRICES/DENSITY",&
+               extension=".Log",error=error)
           DO ispin=1,dft_control%nspins
-             CALL write_sparse_matrix(rho%rho_ao(ispin)%matrix,4,6,qs_env,globenv)
+             CALL write_sparse_matrix(rho%rho_ao(ispin)%matrix,4,6,qs_env,globenv,output_unit=iw)
           END DO
+          CALL cp_print_key_finished_output(iw,logger,input,&
+               "DFT%PRINT%AO_MATRICES/DENSITY", error=error)
        END IF
 
 !    **** the Kohn-Sham matrix itself
@@ -883,7 +887,11 @@ CONTAINS
                error=error,&
                calculate_forces=.FALSE.,just_energy=.FALSE.)
           CALL qs_ks_did_change(qs_env%ks_env,rho_changed=.TRUE.)
-          CALL Write_sparse_matrix(ks_rmpv(1)%matrix,4,6,Qs_env,Globenv)
+          iw = cp_print_key_unit_nr(logger,input,"DFT%PRINT%AO_MATRICES/KOHN_SHAM_MATRIX",&
+               extension=".Log",error=error)
+          CALL Write_sparse_matrix(ks_rmpv(1)%matrix,4,6,Qs_env,Globenv,output_unit=iw)
+          CALL cp_print_key_finished_output(iw,logger,input,&
+               "DFT%PRINT%AO_MATRICES/KOHN_SHAM_MATRIX", error=error)
        END IF
     END IF
 

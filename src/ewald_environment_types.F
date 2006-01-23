@@ -39,7 +39,7 @@ MODULE ewald_environment_types
                                              do_ewald_spme,&
                                              ewald_name_types
   USE physcon, only: angstrom
-  USE print_key_types,                 ONLY: DEBUG,&
+  USE global_types,                    ONLY: DEBUG,&
                                              HIGH,&
                                              LOW,&
                                              MEDIUM,& 

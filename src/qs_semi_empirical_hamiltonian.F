@@ -60,6 +60,11 @@ MODULE qs_semi_empirical_hamiltonian
   USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
+  USE cp_output_handling,              ONLY: cp_print_key_unit_nr, &
+                                             cp_print_key_finished_output,&
+                                             cp_print_key_should_output,&
+                                             cp_p_file
+
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -121,8 +126,11 @@ CONTAINS
     TYPE(real_matrix_p_type), DIMENSION(:), &
       POINTER                                :: matrix_h, matrix_p, matrix_s
     TYPE(semi_empirical_type), POINTER       :: se_kind_a, se_kind_b
+    INTEGER :: iw
+    TYPE(cp_logger_type), POINTER            :: logger
 
-!   ---------------------------------------------------------------------------
+    NULLIFY(logger)
+    logger => cp_error_get_logger(error)
 
      NULLIFY ( matrix_h,matrix_s,matrix_p,rho,force,atomic_kind_set,sab_orb,&
                particle_set )
@@ -434,9 +442,14 @@ CONTAINS
      qs_env%energy%core_overlap = enuclear
      qs_env%energy%core_self    = econst
 
-     IF (globenv%print%core_hamiltonian_matrix) THEN
+    IF (BTEST(cp_print_key_should_output(logger%iter_info,&
+         qs_env%input,"DFT%PRINT%AO_MATRICES/CORE_HAMILTONIAN",error=error),cp_p_file)) THEN
+       iw = cp_print_key_unit_nr(logger,qs_env%input,"DFT%PRINT%AO_MATRICES/CORE_HAMILTONIAN",&
+            extension=".Log",error=error)
        CALL write_sparse_matrix(matrix_h(1)%matrix,4,6,qs_env,globenv,&
-             scale=evolt)
+             scale=evolt,output_unit=iw)
+       CALL cp_print_key_finished_output(iw,logger,qs_env%input,&
+            "DFT%PRINT%AO_MATRICES/CORE_HAMILTONIAN", error=error)
      END IF
 
      !deallocate overlap matrix for orthogonal methods

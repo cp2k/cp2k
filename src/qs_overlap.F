@@ -172,8 +172,11 @@ CONTAINS
 
     TYPE(block_p_type), DIMENSION(:), ALLOCATABLE :: sint
     INTEGER                                  :: neighbor_list_id
+    TYPE(cp_logger_type), POINTER            :: logger
+    INTEGER :: iw
 
-!   ---------------------------------------------------------------------------
+    NULLIFY(logger)
+    logger => cp_error_get_logger(error)
 
     CALL write_checkpoint_information("entering "//routine_name,globenv,error)
 
@@ -483,13 +486,19 @@ CONTAINS
 
 !   *** Print the overlap matrix, if requested ***
 
-    IF (globenv%print%overlap_matrix) THEN
-      CALL write_sparse_matrix(matrix_s(1)%matrix,4,6,qs_env,globenv)
-      IF (globenv%print%derivatives) THEN
-        DO i=2,maxder
-          CALL write_sparse_matrix(matrix_s(i)%matrix,4,6,qs_env,globenv)
-        END DO
-      END IF
+    IF (BTEST(cp_print_key_should_output(logger%iter_info,&
+         qs_env%input,"DFT%PRINT%AO_MATRICES/OVERLAP",error=error),cp_p_file)) THEN
+       iw = cp_print_key_unit_nr(logger,qs_env%input,"DFT%PRINT%AO_MATRICES/OVERLAP",&
+            extension=".Log",error=error)
+       CALL write_sparse_matrix(matrix_s(1)%matrix,4,6,qs_env,globenv,output_unit=iw)
+       IF (BTEST(cp_print_key_should_output(logger%iter_info,&
+            qs_env%input,"DFT%PRINT%AO_MATRICES/DERIVATIVES",error=error),cp_p_file)) THEN
+          DO i=2,maxder
+             CALL write_sparse_matrix(matrix_s(i)%matrix,4,6,qs_env,globenv,output_unit=iw)
+          END DO
+       END IF
+       CALL cp_print_key_finished_output(iw,logger,qs_env%input,&
+            "DFT%PRINT%AO_MATRICES/OVERLAP", error=error)
     END IF
 
     CALL write_checkpoint_information("leaving "//routine_name,globenv,error)
@@ -499,7 +508,7 @@ CONTAINS
 ! *****************************************************************************
 
   SUBROUTINE write_fm_with_basis_info(blacs_matrix,before,after,qs_env,globenv,&
-                                      first_row,last_row,first_col,last_col)
+                                      first_row,last_row,first_col,last_col,output_unit)
 
 !   Purpose: Print a spherical matrix of blacs type.
 
@@ -515,13 +524,13 @@ CONTAINS
       pointer                             :: globenv
     INTEGER, INTENT(IN), OPTIONAL            :: first_row, last_row, &
                                                 first_col, last_col
-
+    INTEGER, INTENT(IN)                      :: output_unit
     CHARACTER(LEN=*), PARAMETER :: routine_name = "write_fm_with_basis_info"
 
     CHARACTER(LEN=60)                        :: matrix_name
     INTEGER                                  :: col1, col2, group, istat, &
                                                 ncol_global, nrow_global, &
-                                                nsgf, output_unit, row1, row2
+                                                nsgf,  row1, row2
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: matrix
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
@@ -529,7 +538,6 @@ CONTAINS
 !   ---------------------------------------------------------------------------
 
     group = globenv%group
-    output_unit = globenv%scr
     IF (.NOT.ASSOCIATED(blacs_matrix)) RETURN
     CALL cp_fm_get_info(blacs_matrix,name=matrix_name,nrow_global=nrow_global,ncol_global=ncol_global)
 
@@ -567,7 +575,7 @@ CONTAINS
     END IF
 
     CALL write_matrix(matrix,matrix_name,before,after,qs_env,globenv,&
-                      row1,row2,col1,col2)
+                      row1,row2,col1,col2,output_unit)
 
 !   *** Release work storage ***
 
@@ -582,7 +590,7 @@ CONTAINS
 ! *****************************************************************************
 
   SUBROUTINE write_matrix(matrix,matrix_name,before,after,qs_env,globenv,&
-                          first_row,last_row,first_col,last_col)
+                          first_row,last_row,first_col,last_col,output_unit)
 
 !   Purpose: Write a matrix or a sub-matrix to the output unit.
 
@@ -595,9 +603,9 @@ CONTAINS
     INTEGER, INTENT(IN)                      :: before, after
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(global_environment_type), &
-      pointer                             :: globenv
+         POINTER                             :: globenv
     INTEGER, INTENT(IN)                      :: first_row, last_row, &
-                                                first_col, last_col
+                                                first_col, last_col, output_unit
 
     CHARACTER(LEN=*), PARAMETER              :: routine_name = "write_matrix"
 
@@ -606,7 +614,7 @@ CONTAINS
     CHARACTER(LEN=35)                        :: fmtstr2
     CHARACTER(LEN=6), DIMENSION(:), POINTER  :: sgf_symbol
     INTEGER :: from, group, iatom, icol, irow, iset, isgf, ishell, iso, jcol, &
-      l, left, natom, ncol, ndigits, nset, nsgf, output_unit, right, to, width
+      l, left, natom, ncol, ndigits, nset, nsgf, right, to, width
     INTEGER, DIMENSION(:), POINTER           :: nshell
     INTEGER, DIMENSION(:, :), POINTER        :: lshell
     LOGICAL                                  :: ionode
@@ -619,11 +627,8 @@ CONTAINS
 !   ---------------------------------------------------------------------------
 
     group = globenv%group
-    ionode = globenv%ionode
-    output_unit = globenv%scr
 
-
-    IF (ionode) THEN
+    IF (output_unit>0) THEN
       CALL m_flush(output_unit)
 
       CALL get_qs_env(qs_env=qs_env,&
@@ -645,7 +650,7 @@ CONTAINS
 
 !     *** Write the variable format strings ***
 
-      ndigits = after + globenv%print%precision
+      ndigits = after 
 
       width = before + ndigits + 3
       ncol = INT(56/width)
@@ -703,7 +708,7 @@ CONTAINS
     END IF
 
     CALL mp_sync(group)
-    IF(ionode) CALL m_flush(output_unit)
+    IF(output_unit>0) CALL m_flush(output_unit)
 
   END SUBROUTINE write_matrix
 
@@ -812,7 +817,8 @@ CONTAINS
 ! *****************************************************************************
 
   SUBROUTINE write_sparse_matrix(sparse_matrix,before,after,qs_env,globenv,&
-                                 first_row,last_row,first_col,last_col,scale)
+                                 first_row,last_row,first_col,last_col,scale,&
+                                 output_unit)
 
 !   Purpose: Print a spherical matrix of sparse_matrix_type.
 
@@ -828,6 +834,7 @@ CONTAINS
       pointer                             :: globenv
     INTEGER, INTENT(IN), OPTIONAL            :: first_row, last_row, &
                                                 first_col, last_col
+    INTEGER, INTENT(IN)                      :: output_unit
     REAL(dp), INTENT(IN), OPTIONAL           :: scale
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "write_sparse_matrix"
@@ -835,7 +842,7 @@ CONTAINS
     CHARACTER(LEN=40)                        :: matrix_symmetry
     CHARACTER(LEN=80)                        :: matrix_name
     INTEGER                                  :: col1, col2, group, istat, &
-                                                nsgf, output_unit, row1, row2
+                                                nsgf, row1, row2
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: matrix
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
@@ -843,7 +850,6 @@ CONTAINS
 !   ---------------------------------------------------------------------------
 
     group = globenv%group
-    output_unit = globenv%scr
 
     CALL get_matrix_info(matrix=sparse_matrix,&
                          matrix_name=matrix_name,&
@@ -898,7 +904,7 @@ CONTAINS
     END IF
 
     CALL write_matrix(matrix,matrix_name,before,after,qs_env,globenv,&
-                      row1,row2,col1,col2)
+                      row1,row2,col1,col2, output_unit)
 
     IF (ASSOCIATED(matrix)) THEN
       DEALLOCATE (matrix,STAT=istat)

@@ -76,7 +76,6 @@ MODULE environment
                                              write_rng_matrices
   USE physcon,                         ONLY: init_physcon,&
                                              write_physcon
-  USE print_key_types,                 ONLY: print_keys_reset
   USE string_utilities,                ONLY: ascii_to_string,&
                                              string_to_ascii
   USE termination,                     ONLY: set_error_unit,&
@@ -208,7 +207,6 @@ CONTAINS
     END IF
     NULLIFY(logger)
     CALL cp_logger_create(logger,para_env=globenv%para_env,&
-         print_keys=globenv%print, &
          default_global_unit_nr=output_unit, &
          close_global_unit_on_dealloc=.FALSE.)
     CALL cp_add_default_logger(logger)
@@ -363,8 +361,6 @@ SUBROUTINE cp2k_read(globenv,error)
     END IF
     logger%iter_info%project_name=c_val
     logger%iter_info%print_level=globenv%print_level
-    globenv%print%level=globenv%print_level
-    CALL print_keys_reset(globenv%print,globenv%print_level)
 
     iw = cp_print_key_unit_nr(logger,globenv%input_file,"GLOBAL%PRINT/BASIC_DATA_TYPES",&
          extension=".Log",error=error)

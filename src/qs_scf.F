@@ -644,17 +644,27 @@ CONTAINS
 
        DO ispin=1,dft_control%nspins
 
-          IF (logger%print_keys%density_matrix) THEN
-             CALL write_sparse_matrix(matrix_p(ispin)%matrix,4,6,qs_env,globenv)
+          IF (BTEST(cp_print_key_should_output(logger%iter_info,&
+               qs_env%input,"DFT%PRINT%AO_MATRICES/DENSITY",error=error),cp_p_file)) THEN
+             iw = cp_print_key_unit_nr(logger,qs_env%input,"DFT%PRINT%AO_MATRICES/DENSITY",&
+                  extension=".Log",error=error)
+             CALL write_sparse_matrix(matrix_p(ispin)%matrix,4,6,qs_env,globenv,output_unit=iw)
+             CALL cp_print_key_finished_output(iw,logger,qs_env%input,&
+                  "DFT%PRINT%AO_MATRICES/DENSITY", error=error)
           END IF
 
-          IF (logger%print_keys%kohn_sham_matrix) THEN
+          IF (BTEST(cp_print_key_should_output(logger%iter_info,&
+               qs_env%input,"DFT%PRINT%AO_MATRICES/KOHN_SHAM_MATRIX",error=error),cp_p_file)) THEN
+             iw = cp_print_key_unit_nr(logger,qs_env%input,"DFT%PRINT%AO_MATRICES/KOHN_SHAM_MATRIX",&
+                  extension=".Log",error=error)
              IF (dft_control%qs_control%semi_empirical) THEN
-               CALL write_sparse_matrix(matrix_ks(ispin)%matrix,4,6,qs_env,globenv,&
-                    scale=evolt)
+                CALL write_sparse_matrix(matrix_ks(ispin)%matrix,4,6,qs_env,globenv,&
+                     scale=evolt,output_unit=iw)
              ELSE
-               CALL write_sparse_matrix(matrix_ks(ispin)%matrix,4,6,qs_env,globenv)
+                CALL write_sparse_matrix(matrix_ks(ispin)%matrix,4,6,qs_env,globenv,output_unit=iw)
              END IF
+             CALL cp_print_key_finished_output(iw,logger,qs_env%input,&
+                  "DFT%PRINT%AO_MATRICES/KOHN_SHAM_MATRIX", error=error)              
           END IF
 
        ENDDO
@@ -1153,10 +1163,8 @@ CONTAINS
     TYPE(scf_control_type), POINTER          :: scf_control
     LOGICAL                                  :: has_unit_metric,do_rotation
     TYPE(real_matrix_type), POINTER          :: orthogonality_metric
+    INTEGER :: i, iw
 
-!dbg 
-    INTEGER :: i
-!   ---------------------------------------------------------------------------
 
     CALL timeset("init_scf_run","I"," ",handle)
 
@@ -1263,8 +1271,14 @@ CONTAINS
                "PRINT%PROGRAM_RUN_INFO", error=error)
        ENDIF
     ENDIF
-    IF (logger%print_keys%ortho_matrix) THEN
-       CALL write_fm_with_basis_info(ortho,4,6,qs_env,globenv)
+
+    IF (BTEST(cp_print_key_should_output(logger%iter_info,&
+         qs_env%input,"DFT%PRINT%AO_MATRICES/ORTHO",error=error),cp_p_file)) THEN
+       iw = cp_print_key_unit_nr(logger,qs_env%input,"DFT%PRINT%AO_MATRICES/ORTHO",&
+            extension=".Log",error=error)
+       CALL write_fm_with_basis_info(ortho,4,6,qs_env,globenv,output_unit=iw)
+       CALL cp_print_key_finished_output(iw,logger,qs_env%input,&
+            "DFT%PRINT%AO_MATRICES/ORTHO", error=error)
     END IF
 
     my_transition_potential = (dft_control%do_xas_calculation .AND. dft_control%xas_estate>0)

@@ -545,7 +545,7 @@ END SUBROUTINE qs_env_update_rho_core
 !!
 !!*** **********************************************************************
   SUBROUTINE qs_distribution_2d_create(distribution_2d,atomic_kind_set,&
-       blacs_env, force_env_section,error)
+       blacs_env, force_env_section, error)
 
     TYPE(distribution_2d_type), POINTER      :: distribution_2d
     TYPE(atomic_kind_type), DIMENSION(:), &
@@ -769,7 +769,7 @@ END SUBROUTINE qs_env_update_rho_core
       DEALLOCATE (nparticle,STAT=stat)
       IF (stat /= 0) CALL stop_memory(routineP,"nparticle")
 
-      IF (logger%print_keys%level>MEDIUM) THEN
+      IF (logger%print_level>MEDIUM) THEN
          CALL distribution_2d_write(distribution_2d, &
               unit_nr=cp_logger_get_default_unit_nr(logger,local=.TRUE.),&
               local=.TRUE.,long_description=.TRUE.,&

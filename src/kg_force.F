@@ -97,7 +97,9 @@ MODULE kg_force
                                              timestop
   USE xc,                              ONLY: xc_vxc_pw_create1
   USE cp_output_handling,              ONLY: cp_print_key_unit_nr, &
-                                             cp_print_key_finished_output
+                                             cp_print_key_finished_output,&
+                                             cp_print_key_should_output,&
+                                             cp_p_file
   USE pw_poisson_types, ONLY: pw_poisson_type
   USE pw_poisson_methods, ONLY: pw_poisson_solve
   USE input_section_types, ONLY: section_vals_type, section_vals_get_subs_vals
@@ -432,7 +434,7 @@ SUBROUTINE kgpol_calculate_forces ( kg_env, globenv, error )
                  energy% bond_corr
      
 ! print
-    IF (ionode.AND.(globenv%print%level>3)) THEN
+    IF (ionode.AND.(globenv%print_level>3)) THEN
        WRITE (UNIT=output_unit,FMT="(/,(T3,A,T40,F20.10))")&
             "Total electronic density (r-space): ",&
             total_rho0_rspace,  &
@@ -703,7 +705,7 @@ SUBROUTINE kg_calculate_forces ( kg_env, globenv,error )
      
 ! print
 !    IF (ionode) THEN
-    IF (ionode.AND.(globenv%print%level>3)) THEN
+    IF (ionode.AND.(globenv%print_level>3)) THEN
        WRITE (UNIT=output_unit,FMT="(/,(T3,A,T40,F20.10))")&
             "Total electronic density (r-space): ",&
             total_rho0_rspace,  &
@@ -833,7 +835,7 @@ END SUBROUTINE kg_calculate_forces
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(qs_rho_type), POINTER               :: rho
     TYPE(scf_control_type), POINTER          :: scf_control
-    INTEGER :: output_unit
+    INTEGER :: output_unit,iw
     TYPE(cp_logger_type), POINTER            :: logger
 
     failure = .FALSE.
@@ -915,8 +917,13 @@ END SUBROUTINE kg_calculate_forces
                                   matrix_w(ispin)%matrix,ispin,error=error)
          END IF
       END IF
-      IF (globenv%print%w_matrix) THEN
-          CALL write_sparse_matrix(matrix_w(ispin)%matrix,4,6,qs_env,globenv)
+      IF (BTEST(cp_print_key_should_output(logger%iter_info,&
+           qs_env%input,"DFT%PRINT%AO_MATRICES/W_MATRIX",error=error),cp_p_file)) THEN
+         iw = cp_print_key_unit_nr(logger,qs_env%input,"DFT%PRINT%AO_MATRICES/W_MATRIX",&
+              extension=".Log",error=error)
+         CALL write_sparse_matrix(matrix_w(ispin)%matrix,4,6,qs_env,globenv,output_unit=iw)
+         CALL cp_print_key_finished_output(iw,logger,qs_env%input,&
+              "DFT%PRINT%AO_MATRICES/W_MATRIX", error=error)         
       END IF
     END DO
 

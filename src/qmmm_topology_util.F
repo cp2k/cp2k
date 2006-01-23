@@ -87,7 +87,7 @@ CONTAINS
     iw = globenv%scr
     CALL write_checkpoint_information("entering "//routineN,globenv,error)
     CALL timeset(routineN,'I','',handle)
-    IF((globenv%ionode).AND.(globenv%print%level>0))THEN
+    IF((globenv%ionode).AND.(globenv%print_level>0))THEN
        WRITE(iw,*) "  Entering qmmm_coordinate_control"
     END IF
     !
@@ -115,7 +115,7 @@ CONTAINS
        END DO
     END IF
     !
-    IF((globenv%ionode).AND.(globenv%print%level>0))THEN
+    IF((globenv%ionode).AND.(globenv%print_level>0))THEN
        WRITE(iw,*) "  Exiting  qmmm_coordinate_control"
     END IF
     
@@ -170,13 +170,13 @@ CONTAINS
     CALL write_checkpoint_information("entering "//routineN,globenv,error)
     CALL timeset(routineN,'I','',handle)
     IF (.NOT.failure) THEN
-       IF((globenv%ionode).AND.(globenv%print%level>0))THEN
+       IF((globenv%ionode).AND.(globenv%print_level>0))THEN
           WRITE(iw,*) "  Entering qmmm_connectivity_control"
        END IF
        qm_mol_num    = 0
        qm_atom_index => qmmm_env%qm_atom_index
        DO imolecule=1,SIZE(molecule_set)
-          IF ((globenv%ionode).AND.(globenv%print%level>1))&
+          IF ((globenv%ionode).AND.(globenv%print_level>1))&
                WRITE(iw,*)"Entering molecule number ::",imolecule
           molecule => molecule_set(imolecule)
           CALL get_molecule(molecule,molecule_kind=molecule_kind,&
@@ -189,7 +189,7 @@ CONTAINS
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        qm_mol_num    = 0
        DO imolecule=1,SIZE(molecule_set)
-          IF ((globenv%ionode).AND.(globenv%print%level>1))&
+          IF ((globenv%ionode).AND.(globenv%print_level>1))&
                WRITE(iw,*)"Entering molecule number ::",imolecule
           molecule => molecule_set(imolecule)
           CALL get_molecule(molecule,molecule_kind=molecule_kind,&
@@ -220,13 +220,13 @@ CONTAINS
        IF (ASSOCIATED(qmmm_env%qm_molecule_index)) DEALLOCATE(qmmm_env%qm_molecule_index)
        NULLIFY(qmmm_env%qm_molecule_index)
        qmmm_env%qm_molecule_index => qm_molecule_index
-       IF((globenv%ionode).AND.(globenv%print%level>0))THEN
+       IF((globenv%ionode).AND.(globenv%print_level>0))THEN
           WRITE(iw,*) "    QM molecule index ::",qm_molecule_index
           WRITE(iw,*) "  Exiting qmmm_connectivity_control"
        END IF
     END IF
     CALL timestop(0.0_dp,handle)
-    IF((globenv%ionode).AND.(globenv%print%level>0))THEN
+    IF((globenv%ionode).AND.(globenv%print_level>0))THEN
        WRITE(iw,*) "  Leaving qmmm_connectivity_control"
     END IF
     CALL write_checkpoint_information("leaving "//routineN,globenv,error)

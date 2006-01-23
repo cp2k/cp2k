@@ -487,11 +487,6 @@ END SUBROUTINE xc_functionals_expand
             description="Controls the printing of the ao (i.e. contracted gaussian) matrices (debug).", &
             print_level=debug_print_level,each=(/1/),filename="__STD_OUT__",&
             error=error)
-       CALL keyword_create(keyword, name="charge_density",&
-            description="If the printkey is activated controls the printing of the charge density matrix",&
-            default_l_val=.false., lone_keyword_l_val=.TRUE., error=error)
-       CALL section_add_keyword(print_key,keyword,error=error)
-       CALL keyword_release(keyword,error=error)    
        CALL keyword_create(keyword, name="core_hamiltonian",&
             description="If the printkey is activated controls the printing of the hamiltonian matrix",&
             default_l_val=.false., lone_keyword_l_val=.TRUE., error=error)
@@ -502,11 +497,7 @@ END SUBROUTINE xc_functionals_expand
             default_l_val=.false., lone_keyword_l_val=.TRUE., error=error)
        CALL section_add_keyword(print_key,keyword,error=error)
        CALL keyword_release(keyword,error=error)    
-       CALL keyword_create(keyword, name="hartree",&
-            description="If the printkey is activated controls the printing of the hartree matrix",&
-            default_l_val=.false., lone_keyword_l_val=.TRUE., error=error)
-       CALL section_add_keyword(print_key,keyword,error=error)
-       CALL keyword_release(keyword,error=error)    
+   
        CALL keyword_create(keyword, name="kinetic_energy",&
             description="If the printkey is activated controls the printing of the kinetic energy matrix",&
             default_l_val=.false., lone_keyword_l_val=.TRUE., error=error)
@@ -536,12 +527,11 @@ END SUBROUTINE xc_functionals_expand
             description="If the printkey is activated controls the printing of the w matrix",&
             default_l_val=.false., lone_keyword_l_val=.TRUE., error=error)
        CALL section_add_keyword(print_key,keyword,error=error)
-       CALL keyword_release(keyword,error=error)    
-       CALL keyword_create(keyword, name="derivative_order",&
+       CALL keyword_release(keyword,error=error)
+       CALL keyword_create(keyword, name="derivatives",&
             description="If the printkey is activated controls the printing "//&
-            "of the order of derivatives that should be output (for the "//&
-            "matrixes that support this)",&
-            default_i_val=0, error=error)
+           "of derivatives (for the matrixes that support this)",&
+            default_l_val=.false., lone_keyword_l_val=.TRUE., error=error)
        CALL section_add_keyword(print_key,keyword,error=error)
        CALL keyword_release(keyword,error=error)    
        CALL section_add_subsection(section,print_key,error=error)

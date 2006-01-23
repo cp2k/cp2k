@@ -976,7 +976,7 @@ CONTAINS
 
       END DO
 
-      IF (globenv%print%level > LOW) THEN
+      IF (globenv%print_level > LOW) THEN
         CALL write_mo_set(mo_array(ispin)%mo_set,atomic_kind_set,particle_set,&
                           4,6,dft_section,globenv)
       END IF
