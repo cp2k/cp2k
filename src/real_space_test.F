@@ -106,7 +106,7 @@ SUBROUTINE rs_test ( globenv, error )
   CALL cell_create(box)
   IF ( globenv % ionode ) &
        WRITE(iw,'(/,A,/)') " Test of Real Space Grid Routines"
-  NULLIFY(force_env_section)
+  NULLIFY(force_env_section,grid)
   force_env_section =>section_vals_get_subs_vals(globenv%input_file,"FORCE_EVAL",error=error)
 
 !..the unit cell
@@ -234,73 +234,75 @@ SUBROUTINE rs_test ( globenv, error )
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! TEST 3, distributed grid, parallel calculation
 
-  IF ( globenv % ionode ) &
-    WRITE(iw,'(/,A,/)') " Start Test 3: Distributed grid, parallel calculation"
   tstart = m_cputime ( )
   CALL rs_grid_create ( rden, grid, MAXVAL ( bsize(1:nparticle) ), force_env_section=force_env_section,&
        error=error)
   CALL rs_grid_zero ( rden )
   dir = rden%direction
-  DO i = 1, nparticle
-     refco(:,i) = refpt(:,i) + rden%lb(:) - 1
-  END DO
-  IF ( rden%parallel ) THEN
-    CALL mp_environ ( n, me, rden%group )
-  ELSE
-    n  = 1
-    me = 0
+  IF (dir /= 0) THEN
+     IF ( globenv % ionode ) &
+          WRITE(iw,'(/,A,/)') " Start Test 3: Distributed grid, parallel calculation"
+     DO i = 1, nparticle
+        refco(:,i) = refpt(:,i) + rden%lb(:) - 1
+     END DO
+     IF ( rden%parallel ) THEN
+        CALL mp_environ ( n, me, rden%group )
+     ELSE
+        n  = 1
+        me = 0
+     END IF
+     bo = get_limit ( nparticle, n, me )
+     npme = bo(2) - bo(1) + 1
+     ALLOCATE ( tasks ( 2, npme ), STAT=ierr )
+     IF ( ierr /= 0 ) CALL stop_memory ( "rs_test", "tasks", 2*npme )
+     DO i = bo(1), bo(2)
+        j = i - bo(1) + 1
+        tasks ( 1, j ) = i
+        tasks ( 2, j ) = refco(dir,i)
+     END DO
+     CALL rs_get_my_tasks ( rden, tasks, npme )
+     DO i = 1, npme
+        j = tasks ( 1, i )
+        pt = refco(:,j) - rden%lb_local(:) + 1
+        no = bsize ( j )
+        CALL put_on_grid ( rden%r, pt, no, bval(j), dir )
+     END DO
+     DEALLOCATE ( tasks, STAT=ierr )
+     IF ( ierr /= 0 ) CALL stop_memory ( "rs_test", "tasks" )
+     CALL pw_create ( pw_c, grid, REALDATA3D )
+     CALL rs_pw_transfer ( rden, pw_c, rs2pw )
+     pw_c%cr3d = pw_c%cr3d**(1.0_dp/3.0_dp)
+     CALL rs_grid_zero ( rden )
+     CALL rs_pw_transfer ( rden, pw_c, pw2rs )
+     IF ( rden%parallel ) THEN
+        CALL mp_environ ( n, me, rden%group )
+     ELSE
+        n  = 1
+        me = 0
+     END IF
+     bo = get_limit ( nparticle, n, me )
+     npme = bo(2) - bo(1) + 1
+     ALLOCATE ( tasks ( 2, npme ), STAT=ierr )
+     IF ( ierr /= 0 ) CALL stop_memory ( "rs_test", "tasks", 3*npme )
+     DO i = bo(1), bo(2)
+        j = i - bo(1) + 1
+        tasks ( 1, j ) = i
+        tasks ( 2, j ) = refco(dir,i)
+     END DO
+     CALL rs_get_my_tasks ( rden, tasks, npme )
+     energy3 = 0.0_dp
+     DO i = 1, npme
+        j = tasks ( 1, i )
+        pt = refco(:,j) - rden%lb_local(:) + 1
+        no = bsize ( j )
+        CALL int_on_grid ( rden%r, pt, no, bval(j), dir, integral )
+        energy3 = energy3 + integral
+     END DO
+     DEALLOCATE ( tasks, STAT=ierr )
+     IF ( ierr /= 0 ) CALL stop_memory ( "rs_test", "tasks" )
+     IF ( rden%parallel ) CALL mp_sum ( energy3, rden%group )
+     memory3 = SIZE ( rden%r ) + SIZE ( pw_c%cr3d )
   END IF
-  bo = get_limit ( nparticle, n, me )
-  npme = bo(2) - bo(1) + 1
-  ALLOCATE ( tasks ( 2, npme ), STAT=ierr )
-  IF ( ierr /= 0 ) CALL stop_memory ( "rs_test", "tasks", 2*npme )
-  DO i = bo(1), bo(2)
-    j = i - bo(1) + 1
-    tasks ( 1, j ) = i
-    tasks ( 2, j ) = refco(dir,i)
-  END DO
-  CALL rs_get_my_tasks ( rden, tasks, npme )
-  DO i = 1, npme
-    j = tasks ( 1, i )
-    pt = refco(:,j) - rden%lb_local(:) + 1
-    no = bsize ( j )
-    CALL put_on_grid ( rden%r, pt, no, bval(j), dir )
-  END DO
-  DEALLOCATE ( tasks, STAT=ierr )
-  IF ( ierr /= 0 ) CALL stop_memory ( "rs_test", "tasks" )
-  CALL pw_create ( pw_c, grid, REALDATA3D )
-  CALL rs_pw_transfer ( rden, pw_c, rs2pw )
-  pw_c%cr3d = pw_c%cr3d**(1.0_dp/3.0_dp)
-  CALL rs_grid_zero ( rden )
-  CALL rs_pw_transfer ( rden, pw_c, pw2rs )
-  IF ( rden%parallel ) THEN
-    CALL mp_environ ( n, me, rden%group )
-  ELSE
-    n  = 1
-    me = 0
-  END IF
-  bo = get_limit ( nparticle, n, me )
-  npme = bo(2) - bo(1) + 1
-  ALLOCATE ( tasks ( 2, npme ), STAT=ierr )
-  IF ( ierr /= 0 ) CALL stop_memory ( "rs_test", "tasks", 3*npme )
-  DO i = bo(1), bo(2)
-    j = i - bo(1) + 1
-    tasks ( 1, j ) = i
-    tasks ( 2, j ) = refco(dir,i)
-  END DO
-  CALL rs_get_my_tasks ( rden, tasks, npme )
-  energy3 = 0.0_dp
-  DO i = 1, npme
-    j = tasks ( 1, i )
-    pt = refco(:,j) - rden%lb_local(:) + 1
-    no = bsize ( j )
-    CALL int_on_grid ( rden%r, pt, no, bval(j), dir, integral )
-    energy3 = energy3 + integral
-  END DO
-  DEALLOCATE ( tasks, STAT=ierr )
-  IF ( ierr /= 0 ) CALL stop_memory ( "rs_test", "tasks" )
-  IF ( rden%parallel ) CALL mp_sum ( energy3, rden%group )
-  memory3 = SIZE ( rden%r ) + SIZE ( pw_c%cr3d )
   CALL rs_grid_release ( rden )
   tend  = m_cputime ( )
   t3 = tend - tstart
@@ -310,20 +312,20 @@ SUBROUTINE rs_test ( globenv, error )
     WRITE(iw,'(///,A,/)') " Results of Tests"
     WRITE(iw,'(A,T61,F20.4)') " Timing Test 1 [seconds] ",t1
     WRITE(iw,'(A,T61,F20.4)') " Timing Test 2 [seconds] ",t2
-    WRITE(iw,'(A,T61,F20.4)') " Timing Test 3 [seconds] ",t3
+    IF (dir /= 0) WRITE(iw,'(A,T61,F20.4)') " Timing Test 3 [seconds] ",t3
     WRITE(iw,'(/,A,T61,I20)') " Memory Test 1 [words] ",memory1
     WRITE(iw,'(A,T61,I20)') " Memory Test 2 [words] ",memory2
-    WRITE(iw,'(A,T61,I20)') " Memory Test 3 [words] ",memory3
+    IF (dir /= 0) WRITE(iw,'(A,T61,I20)') " Memory Test 3 [words] ",memory3
     WRITE(iw,'(/,A,T61,F20.12)') " Integral Test 1 ",energy1*grid%dvol
     WRITE(iw,'(A,T61,F20.12)') " Integral Test 2 ",energy2*grid%dvol
-    WRITE(iw,'(A,T61,F20.12)') " Integral Test 3 ",energy3*grid%dvol
+    IF (dir /= 0) WRITE(iw,'(A,T61,F20.12)') " Integral Test 3 ",energy3*grid%dvol
   END IF
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
   CALL pw_release ( pw_a )
   CALL pw_release ( pw_b )
   CALL pw_release ( pw_c )
-  call cell_release(box)
+  CALL cell_release(box)
 END SUBROUTINE rs_test
 
 ! *****************************************************************************

@@ -4,6 +4,7 @@
  RUN_TYPE     NONE
 &END GLOBAL
 &TEST
+   MEMORY  50000000
    COPY           1
    MATMUL         1
    FFT            1

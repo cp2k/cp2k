@@ -587,6 +587,7 @@ SUBROUTINE fft_test ( globenv )
       method = "FFTSGI"
     END SELECT
     n = 4
+    zz =0.0_dp
     CALL fft3d ( 1, n, zz, status=stat )
     IF ( stat == 0 ) THEN
       DO it = 1, 3
@@ -721,7 +722,7 @@ SUBROUTINE pw_fft_test ( globenv )
 
 !..the unit cell
 
-  NULLIFY(box)
+  NULLIFY(box,grid)
   CALL cell_create(box)
   box % hmat = RESHAPE ( (/10.0_dp,0.0_dp,0.0_dp,0.0_dp,8.0_dp,0.0_dp,&
                            0.0_dp,0.0_dp,7.0_dp/), (/3,3/) )
