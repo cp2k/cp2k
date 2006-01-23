@@ -29,7 +29,8 @@ MODULE tbmd_main
   USE kinds,                           ONLY: dp
   USE tbmd_environment,                ONLY: tbmd_init
   USE tbmd_environment_types,          ONLY: tbmd_environment_type, &
-                                             tbmd_env_create
+                                             tbmd_env_create, &
+                                             tbmd_env_release
   USE timings,                         ONLY: timeset, &
                                              timestop
 
@@ -93,6 +94,8 @@ CONTAINS
 
     CALL force_env_create(force_env, tbmd_env=tbmd_env, globenv=globenv, &
                           error=error)
+
+    CALL tbmd_env_release(tbmd_env, error=error)
 
     CALL timestop(0.0_dp, handle)
 

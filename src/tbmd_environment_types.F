@@ -109,6 +109,7 @@ MODULE tbmd_environment_types
 !!     - virial: Dummy virial pointer
 !!     - subsystem: the particles, molecules,... of this environment
 !!     - tbmd_input: Pointer to the TBMD input section
+!!     - force_env_input: Pointer to the force_env input section
 !!     - cell: The simulation cell
 !!     - cell_ref: The reference simulation cell
 !!     - use_ref_cell: Logical which indicates if reference 
@@ -131,7 +132,8 @@ MODULE tbmd_environment_types
     TYPE(tbmd_model_type), POINTER                   :: tbmd_model
     TYPE(virial_type), POINTER                       :: virial
     TYPE(cp_subsystem_type), POINTER                 :: subsystem
-    TYPE(section_vals_type), POINTER                 :: tbmd_input
+    TYPE(section_vals_type), POINTER                 :: tbmd_input, &
+                                                        force_env_input
     TYPE(cell_type), POINTER                         :: cell
     TYPE(cell_type), POINTER                         :: cell_ref
     LOGICAL                                          :: use_ref_cell
@@ -276,7 +278,10 @@ CONTAINS
           CALL cp_subsys_release(tbmd_env%subsystem, error=error)
         END IF
         IF (ASSOCIATED(tbmd_env%tbmd_input)) THEN
-          CALL section_vals_release(tbmd_env%tbmd_input,error=error)
+          CALL section_vals_release(tbmd_env%tbmd_input, error=error)
+        END IF
+        IF (ASSOCIATED(tbmd_env%force_env_input)) THEN
+          CALL section_vals_release(tbmd_env%force_env_input, error=error)
         END IF
         IF (ASSOCIATED(tbmd_env%cell)) THEN
           CALL cell_release(tbmd_env%cell, error=error)
@@ -316,13 +321,14 @@ CONTAINS
 !!     - tbmd_model: The tight-binding parametrization model
 !!     - virial: Dummy virial pointer
 !!     - subsystem: the particles, molecules,... of this environment
-!!     - atomic_kind_set:
-!!     - particle_set:
-!!     - local_particles:
-!!     - molecule_kind_set:
-!!     - molecule_set:
-!!     - local_molecules:
+!!     - atomic_kind_set: The set of all atomic kinds involved
+!!     - particle_set: The set of all particles
+!!     - local_particles: All particles on this particular node
+!!     - molecule_kind_set: The set of all different molecule kinds involved
+!!     - molecule_set: The set of all molecules
+!!     - local_molecules: All molecules on this particular node
 !!     - tbmd_input: the pointer to the TBMD input section
+!!     - force_env_input: Pointer to the force_env input section
 !!     - cell: The simulation cell
 !!     - cell_ref: The reference simulation cell
 !!     - use_ref_cell: Logical which indicates if reference 
@@ -343,7 +349,8 @@ CONTAINS
                           virial, subsystem, atomic_kind_set, particle_set , &
                           local_particles, molecule_kind_set, molecule_set, &
                           local_molecules, tbmd_input, cell, cell_ref, &
-                          use_ref_cell, para_env, id_nr, error)
+                          use_ref_cell, para_env, id_nr, force_env_input, &
+                          error)
 
     TYPE(tbmd_environment_type), POINTER         :: tbmd_env
     TYPE(tbmd_energy_type), POINTER, OPTIONAL    :: tbmd_energy
@@ -366,7 +373,8 @@ CONTAINS
     TYPE(cell_type), POINTER, OPTIONAL           :: cell_ref
     LOGICAL, INTENT(OUT), OPTIONAL               :: use_ref_cell
     TYPE(cp_para_env_type), POINTER, OPTIONAL    :: para_env
-    TYPE(section_vals_type), POINTER, OPTIONAL   :: tbmd_input
+    TYPE(section_vals_type), POINTER, OPTIONAL   :: tbmd_input, &
+                                                    force_env_input
     INTEGER, INTENT(OUT), OPTIONAL               :: id_nr
     TYPE(cp_error_type), INTENT(INOUT), &
          OPTIONAL                                :: error
@@ -407,6 +415,7 @@ CONTAINS
       IF (PRESENT(molecule_kind_set)) molecule_kind_set => molecule_kinds_new%els
       IF (PRESENT(molecule_set)) molecule_set => molecules_new%els
       IF (PRESENT(tbmd_input)) tbmd_input => tbmd_env%tbmd_input
+      IF (PRESENT(force_env_input)) force_env_input => tbmd_env%force_env_input
       IF (PRESENT(cell)) cell => tbmd_env%cell
       IF (PRESENT(cell_ref)) cell_ref => tbmd_env%cell_ref
       IF (PRESENT(use_ref_cell)) use_ref_cell = tbmd_env%use_ref_cell
@@ -437,13 +446,14 @@ CONTAINS
 !!     - tbmd_model: The tight-binding parametrization model
 !!     - virial: Dummy virial pointer
 !!     - subsystem: the particles, molecules,... of this environment
-!!     - atomic_kind_set:
-!!     - particle_set:
-!!     - local_particles:
-!!     - molecule_kind_set:
-!!     - molecule_set:
-!!     - local_molecules:
+!!     - atomic_kind_set: The set of all atomic kinds involved
+!!     - particle_set: The set of all particles
+!!     - local_particles: All particles on this particular node
+!!     - molecule_kind_set: The set of all different molecule kinds involved
+!!     - molecule_set: The set of all molecules
+!!     - local_molecules: All molecules on this particular node
 !!     - tbmd_input: the pointer to the TBMD input section
+!!     - force_env_input: Pointer to the force_env input section
 !!     - cell: The simulation cell
 !!     - cell_ref: The reference simulation cell
 !!     - use_ref_cell: Logical which indicates if reference 
@@ -464,7 +474,8 @@ CONTAINS
                           virial, subsystem, atomic_kind_set, particle_set, &
                           local_particles, molecule_kind_set, molecule_set, &
                           local_molecules, tbmd_input, cell, cell_ref, &
-                          use_ref_cell, para_env, id_nr, error)
+                          use_ref_cell, para_env, id_nr, force_env_input, &
+                          error)
 
     TYPE(tbmd_environment_type), POINTER         :: tbmd_env
     TYPE(tbmd_energy_type), POINTER, OPTIONAL    :: tbmd_energy
@@ -483,7 +494,8 @@ CONTAINS
     TYPE(distribution_1d_type), OPTIONAL, &
          POINTER                                 :: local_particles, &
                                                     local_molecules
-    TYPE(section_vals_type), POINTER, OPTIONAL   :: tbmd_input
+    TYPE(section_vals_type), POINTER, OPTIONAL   :: tbmd_input, &
+                                                    force_env_input
     TYPE(cell_type), POINTER, OPTIONAL           :: cell
     TYPE(cell_type), POINTER, OPTIONAL           :: cell_ref
     LOGICAL, INTENT(IN), OPTIONAL                :: use_ref_cell
@@ -567,6 +579,9 @@ CONTAINS
         CALL mol_new_list_release(molecules_new,error=error)
       END IF
       IF (PRESENT(tbmd_input)) tbmd_env%tbmd_input => tbmd_input
+      IF (PRESENT(force_env_input)) THEN
+        tbmd_env%force_env_input => force_env_input
+      END IF
       IF (PRESENT(cell)) THEN
         CALL cell_retain(cell, error=error)
         CALL cell_release(tbmd_env%cell,error=error)
@@ -647,6 +662,9 @@ CONTAINS
       IF (ASSOCIATED(tbmd_env%tbmd_input)) THEN
         CALL section_vals_release(tbmd_env%tbmd_input, error=error)
       END IF
+      IF (ASSOCIATED(tbmd_env%force_env_input)) THEN
+        CALL section_vals_release(tbmd_env%force_env_input, error=error)
+      END IF
       IF (ASSOCIATED(tbmd_env%cell)) THEN
         CALL cell_release(tbmd_env%cell, error=error)
       END IF
@@ -716,6 +734,7 @@ CONTAINS
     NULLIFY(tbmd_env%cell)
     NULLIFY(tbmd_env%cell_ref)
     NULLIFY(tbmd_env%para_env)
+    NULLIFY(tbmd_env%force_env_input)
    
     IF (.NOT. failure) THEN
       tbmd_env%ref_count = 1
