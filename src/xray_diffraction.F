@@ -96,9 +96,10 @@ CONTAINS
     ! The total electronic density in reciprocal space (g-space) is calculated.
 
     TYPE(qs_environment_type), POINTER           :: qs_env
+    INTEGER, INTENT(IN)                          :: unit_number
     REAL(KIND=dp), INTENT(IN)                    :: q_max
     TYPE(cp_error_type), OPTIONAL, INTENT(INOUT) :: error
-    INTEGER, INTENT(IN) :: unit_number
+
     ! Local parameter
 
     CHARACTER(LEN=*), PARAMETER :: routineN = "xray_diffraction_spectrum",&
@@ -482,7 +483,7 @@ CONTAINS
       ! Only the root process which has to print the full spectrum has to
       ! allocate here the receive buffers with their real sizes
 
-      IF (unit_number>0) THEN
+      IF (unit_number > 0) THEN
         nshell_gather = SUM(nshell_pe)
         offset_pe(0) = 0
         DO ipe=1,npe-1
@@ -520,7 +521,7 @@ CONTAINS
 
       ! Print X-ray diffraction spectrum (I/O node only)
 
-      IF (unit_number>0) THEN
+      IF (unit_number > 0) THEN
 
         CALL reallocate(index,1,nshell_gather)
 

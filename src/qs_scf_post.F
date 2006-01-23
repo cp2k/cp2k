@@ -650,25 +650,37 @@ CONTAINS
                    section_vals=input,&
                    subsection_name="DFT%PRINT%XRAY_DIFFRACTION_SPECTRUM",&
                    error=error)
-    IF (BTEST(cp_print_key_should_output(logger%iter_info,print_key,&
-            error=error),cp_p_file)) THEN
-      q_max = section_get_rval(section_vals=dft_section,&
-                               keyword_name="PRINT%XRAY_DIFFRACTION_SPECTRUM%Q_MAX",&
-                               error=error)
-      unit_nr=cp_print_key_unit_nr(logger,input,"DFT%PRINT%XRAY_DIFFRACTION_SPECTRUM",&
-           extension=".data",middle_name="Xray",log_filename=.FALSE.,error=error)      
+    IF (BTEST(cp_print_key_should_output(logger%iter_info,print_key,error=error),&
+              cp_p_file)) THEN
+      q_max = section_get_rval(&
+                section_vals=dft_section,&
+                keyword_name="PRINT%XRAY_DIFFRACTION_SPECTRUM%Q_MAX",&
+                error=error)
+      unit_nr = cp_print_key_unit_nr(&
+                  logger=logger,&
+                  basis_section=input,&
+                  print_key_path="DFT%PRINT%XRAY_DIFFRACTION_SPECTRUM",&
+                  extension=".dat",&
+                  middle_name="xray",&
+                  log_filename=.FALSE.,&
+                  error=error)      
       CALL xray_diffraction_spectrum(qs_env=qs_env,&
                                      unit_number=unit_nr,&
                                      q_max=q_max,&
                                      error=error)
-      CALL cp_print_key_finished_output(unit_nr,logger,input,&
-           "DFT%PRINT%XRAY_DIFFRACTION_SPECTRUM",error=error)
       IF (ionode) THEN
+        INQUIRE (UNIT=unit_nr,NAME=filename)
         WRITE (UNIT=output_unit,FMT="(/,/,T2,A,2(/,/,T3,A),/)")&
           "X-RAY DIFFRACTION SPECTRUM",&
           "The coherent X-ray diffraction spectrum was written to the file:",&
-          "-Xray"
+          TRIM(filename)
       END IF
+      CALL cp_print_key_finished_output(&
+             unit_nr=unit_nr,&
+             logger=logger,&
+             basis_section=input,&
+             print_key_path="DFT%PRINT%XRAY_DIFFRACTION_SPECTRUM",&
+             error=error)
     END IF
 
     CALL timestop(0.0_dp,handle)
