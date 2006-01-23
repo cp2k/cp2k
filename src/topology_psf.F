@@ -489,7 +489,7 @@ CONTAINS
     CALL timestop(0.0_dp,handle)
     CALL write_checkpoint_information("exiting "//routineN,globenv,error)
     CALL cp_print_key_finished_output(iw,logger,subsys_section,&
-         "MM%PRINT%TOPOLOGY_INFO/PSF_INFO",error=error)  
+         "PRINT%TOPOLOGY_INFO/PSF_INFO",error=error)  
     
   END SUBROUTINE write_topology_psf
 

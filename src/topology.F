@@ -2,10 +2,10 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2004  CP2K developers group                                 !
 !-----------------------------------------------------------------------------!
-!!****** cp2k/topology_control [1.0] *
+!!****** cp2k/topology [1.0] *
 !!
 !!   NAME
-!!     topology_control
+!!     topology
 !!
 !!   FUNCTION
 !!     Control for reading in different topologies and coordinates
