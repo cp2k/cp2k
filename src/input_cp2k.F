@@ -545,7 +545,7 @@ contains
     NULLIFY(keyword)
     CALL keyword_create(keyword, name="memory",&
          description="tries to allocate the given amount of memory ",&
-         usage="BLACS_GRID SQUARE",default_r_val=256.e6_dp, error=error)
+         usage="MEMORY <REAL>",default_r_val=256.e6_dp, error=error)
     CALL section_add_keyword(section,keyword,error=error)
     CALL keyword_release(keyword,error=error)
 
