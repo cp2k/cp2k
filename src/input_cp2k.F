@@ -103,6 +103,10 @@ contains
        CALL section_add_subsection(root_section,section,error=error)
        CALL section_release(section,error=error)
 
+       CALL create_test_section(section,error=error)
+       CALL section_add_subsection(root_section,section,error=error)
+       CALL section_release(section,error=error)
+
        CALL create_motion_section(section,error=error)
        CALL section_add_subsection(root_section,section,error=error)
        CALL section_release(section,error=error)
@@ -538,7 +542,7 @@ contains
          n_keywords=7, n_subsections=0, repeats=.FALSE., required=.true.,&
          error=error)
 
-    nullify(keyword)
+    NULLIFY(keyword)
     CALL keyword_create(keyword, name="memory",&
          description="tries to allocate the given amount of memory ",&
          usage="BLACS_GRID SQUARE",default_r_val=256.e6_dp, error=error)

@@ -16,7 +16,6 @@
 !!   MODIFICATION HISTORY
 !!     30-Nov-2000 (JGH) added input 
 !!     02-Jan-2001 (JGH) Parallel FFT
-!!     15-Feb-2002 (JGH) XC-Functionals
 !!     28-Feb-2002 (JGH) Clebsch-Gordon Coefficients
 !!     06-Jun-2003 (JGH) Real space grid test
 !!     Eigensolver test (29.08.05,MK)
@@ -123,44 +122,44 @@ CONTAINS
 !!     none
 !!
 !!*** *************************************************************************
-
-SUBROUTINE lib_test ( globenv, error )
+  
+  SUBROUTINE lib_test ( globenv, error )
 
     TYPE(global_environment_type), pointer :: globenv
     TYPE(cp_error_type), INTENT(INOUT)        :: error
 
     INTEGER                                  :: iw
 
-  iw = globenv % scr
-  IF ( globenv % ionode ) THEN
-    WRITE ( iw, '(T2,79("*"))' )
-    WRITE ( iw, '(A,T31,A,T80,A)' ) ' *',' PERFORMANCE TESTS ','*'
-    WRITE ( iw, '(T2,79("*"))' )
-  END IF
-!
-  CALL test_input ( globenv )
-!
-  IF ( runtest ( 1 ) /= 0 ) CALL copy_test ( globenv )
-!
-  IF ( runtest ( 2 ) /= 0 ) CALL matmul_test ( globenv )
-!
-  IF ( runtest ( 3 ) /= 0 ) CALL fft_test ( globenv )
-!
-  IF ( runtest ( 4 ) /= 0 ) CALL pw_fft_test ( globenv )
-!
-  IF ( runtest ( 6 ) /= 0 ) CALL clebsch_gordon_test ( globenv )
-!
-  IF ( runtest ( 7 ) /= 0 ) CALL rs_test ( globenv, error )
-!
-  IF ( runtest ( 8 ) /= 0 ) CALL mpi_test ( globenv%group )
-!
-  IF ( runtest ( 9 ) /= 0 ) CALL rng_test ( globenv )
-!
-  IF (runtest(10) /= 0) THEN
-    CALL eigensolver_test(runtest(10),runtest(11),globenv,error)
-  END IF
+    iw = globenv % scr
+    IF ( globenv % ionode ) THEN
+       WRITE ( iw, '(T2,79("*"))' )
+       WRITE ( iw, '(A,T31,A,T80,A)' ) ' *',' PERFORMANCE TESTS ','*'
+       WRITE ( iw, '(T2,79("*"))' )
+    END IF
+    !
+    CALL test_input ( globenv )
+    !
+    IF ( runtest ( 1 ) /= 0 ) CALL copy_test ( globenv )
+    !
+    IF ( runtest ( 2 ) /= 0 ) CALL matmul_test ( globenv )
+    !
+    IF ( runtest ( 3 ) /= 0 ) CALL fft_test ( globenv )
+    !
+    IF ( runtest ( 4 ) /= 0 ) CALL pw_fft_test ( globenv )
+    !
+    IF ( runtest ( 6 ) /= 0 ) CALL clebsch_gordon_test ( globenv )
+    !
+    IF ( runtest ( 7 ) /= 0 ) CALL rs_test ( globenv, error )
+    !
+    IF ( runtest ( 8 ) /= 0 ) CALL mpi_test ( globenv%group )
+    !
+    IF ( runtest ( 9 ) /= 0 ) CALL rng_test ( globenv )
+    !
+    IF (runtest(10) /= 0) THEN
+       CALL eigensolver_test(runtest(10),runtest(11),globenv,error)
+    END IF
 
-END SUBROUTINE lib_test
+  END SUBROUTINE lib_test
 
 !******************************************************************************
 !!****** library_tests/test_input [1.0] *
@@ -175,7 +174,7 @@ END SUBROUTINE lib_test
 !!     JGH 30-NOV-2000
 !!
 !!   MODIFICATION HISTORY
-!!     JGH (15-02-2002) Added functionals keyword
+!!
 !!
 !!   NOTES
 !!I---------------------------------------------------------------------------I
@@ -226,7 +225,7 @@ SUBROUTINE test_input ( globenv , error)
   CALL section_vals_val_get(test_section,'fft',i_val=runtest ( 3 ),error=error )
   CALL section_vals_val_get(test_section,'pw_fft',i_val=runtest ( 4 ),error=error )
   CALL section_vals_val_get(test_section,'clebsch_gordon',i_val=runtest ( 6 ),error=error )
-  CALL section_vals_val_get(test_section,'rs_grid',i_val=runtest ( 7 ),error=error )
+  CALL section_vals_val_get(test_section,'rs_grids',i_val=runtest ( 7 ),error=error )
   CALL section_vals_val_get(test_section,'mpi',i_val=runtest ( 8 ),error=error )
   CALL section_vals_val_get(test_section,'rng',l_val=l_val,error=error )
   if (l_val) runtest ( 9 )=1

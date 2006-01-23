@@ -1,17 +1,15 @@
-&CP2K
+&GLOBAL
  PROGRAM      TEST
- IOLEVEL      10
  FFTLIB       FFTSG
-&END
-
+ RUN_TYPE     NONE
+&END GLOBAL
 &TEST
    COPY           1
    MATMUL         1
    FFT            1
    PW_FFT         1
-   FUNCTIONALS    1
-   Clebsch-Gordon 1
-   RS_GRID        1
+   Clebsch_Gordon 1
+   RS_GRIDS       1
    MPI            6
    RNG            1
    EIGENSOLVER    400 100
@@ -19,8 +17,8 @@
 
 # generate a symmetric 400x400 matrix with random numbers and calculate
 # only the first 100 eigenvalues/eigenvectors:
-   EIGENSOLVER    400 100
+#  EIGENSOLVER    400 100
 
 # read a symmetric 400x400 matrix from the formatted file MATRIX and
 # calculate the first 100 eigenvalues/eigenvectors:
-   EIGENSOLVER   -400 100
+#  EIGENSOLVER   -400 100
