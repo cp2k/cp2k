@@ -61,7 +61,8 @@ MODULE library_tests
   USE machine,                         ONLY: m_cputime
   USE message_passing,                 ONLY: mp_bcast,&
                                              mp_max,&
-                                             mp_sum
+                                             mp_sum,&
+                                             mp_sync
   USE parallel_rng_types,              ONLY: advance_rng_state,&
                                              create_rng_stream,&
                                              delete_rng_stream,&
@@ -100,6 +101,7 @@ MODULE library_tests
 
   INTEGER :: runtest ( 100 )
   REAL (KIND=dp) :: max_memory
+  REAL(KIND=dp), PARAMETER :: threshold=1.0E-8_dp
 
 !!***
 !******************************************************************************
@@ -233,6 +235,7 @@ SUBROUTINE test_input ( globenv , error)
   runtest(10)=i_vals(1)
   runtest(11) = MIN(MAX(1,i_vals(2)),i_vals(1))
 
+  CALL mp_sync(globenv%group)
 END SUBROUTINE test_input
 
 !******************************************************************************
@@ -258,13 +261,13 @@ END SUBROUTINE test_input
 !!*** *************************************************************************
 
 SUBROUTINE copy_test ( globenv )
+  IMPLICIT NONE
+  TYPE(global_environment_type), &
+       POINTER                             :: globenv
 
-    TYPE(global_environment_type), &
-      pointer                             :: globenv
-
-    INTEGER                                  :: i, ierr, iw, j, len, ntim, siz
-    REAL(KIND=dp)                                :: perf, t, tend, tstart
-    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)     :: ca, cb
+  INTEGER                                  :: i, ierr, iw, j, len, ntim, siz
+  REAL(KIND=dp)                                :: perf, t, tend, tstart
+  REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)     :: ca, cb
 
 ! test for copy --> Cache size
 
@@ -290,7 +293,7 @@ SUBROUTINE copy_test ( globenv )
       ca ( 1 ) = REAL ( j,KIND=dp)
     END DO
     tend = m_cputime ( )
-    t = tend - tstart
+    t = tend - tstart + threshold
     IF ( t > 0.0_dp ) THEN
        perf = REAL ( ntim,KIND=dp) * REAL ( len,KIND=dp) * 1.e-6_dp / t
     ELSE
@@ -307,7 +310,7 @@ SUBROUTINE copy_test ( globenv )
     DEALLOCATE ( cb , STAT = ierr )
     IF ( ierr /= 0 ) CALL stop_memory ( "lib_test", "cb" )
   END DO
-
+  CALL mp_sync(globenv%group)
 END SUBROUTINE copy_test
 
 !******************************************************************************
@@ -329,12 +332,12 @@ END SUBROUTINE copy_test
 !!*** *************************************************************************
 
 SUBROUTINE matmul_test ( globenv )
-
+  IMPLICIT NONE
     TYPE(global_environment_type), &
-      pointer                             :: globenv
+      pointer                                :: globenv
 
     INTEGER                                  :: i, ierr, iw, j, len, ntim, siz
-    REAL(KIND=dp)                                :: perf, t, tend, tstart
+    REAL(KIND=dp)                                :: perf, t, tend, tstart, xdum
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)  :: ma, mb, mc
 
 ! test for matrix multpies
@@ -352,33 +355,32 @@ SUBROUTINE matmul_test ( globenv )
     ALLOCATE ( mc ( len, len ), STAT = ierr )
     IF ( ierr /= 0 ) EXIT
 
-    CALL random_number ( ma )
-    CALL random_number ( mb )
+    CALL random_number ( xdum )
+    ma = xdum
+    CALL random_number ( xdum )
+    mb = xdum
     ntim = NINT ( 1.e8_dp / ( 2.0_dp * REAL ( len,KIND=dp)**3 ) )
     ntim = MAX ( ntim, 1 )
     ntim = MIN ( ntim, siz * 200 )
-
     tstart = m_cputime ( )
     DO j = 1, ntim
       mc = matmul ( ma, mb )
       ma ( 1, 1 ) = REAL ( j,KIND=dp)
     END DO
     tend = m_cputime ( )
-    t = tend - tstart
+    t = tend - tstart + threshold
     perf = REAL ( ntim,KIND=dp) * 2.0_dp * REAL ( len,KIND=dp)**3 * 1.e-6_dp / t
-
     IF ( globenv % ionode ) THEN
       WRITE ( iw, '(A,i6,T59,F14.4,A)' ) &
        " Matrix multiply test: c = a * b         Size = ",len, perf," Mflop/s"
     END IF
-
     tstart = m_cputime ( )
     DO j = 1, ntim
       ma = matmul ( ma, mb )
       ma ( 1, 1 ) = REAL ( j,KIND=dp)
     END DO
     tend = m_cputime ( )
-    t = tend - tstart
+    t = tend - tstart +threshold
     IF ( t > 0.0_dp ) THEN
        perf = REAL ( ntim,KIND=dp) * 2.0_dp * REAL ( len,KIND=dp)**3 * 1.e-6_dp / t
     ELSE
@@ -396,7 +398,7 @@ SUBROUTINE matmul_test ( globenv )
       ma ( 1, 1 ) = REAL ( j,KIND=dp)
     END DO
     tend = m_cputime ( )
-    t = tend - tstart
+    t = tend - tstart + threshold
     IF ( t > 0.0_dp ) THEN
        perf = REAL ( ntim,KIND=dp) * 2.0_dp * REAL ( len,KIND=dp)**3 * 1.e-6_dp / t
     ELSE
@@ -414,7 +416,7 @@ SUBROUTINE matmul_test ( globenv )
       ma ( 1, 1 ) = REAL ( j,KIND=dp)
     END DO
     tend = m_cputime ( )
-    t = tend - tstart
+    t = tend - tstart +threshold
     IF ( t > 0.0_dp ) THEN
        perf = REAL ( ntim,KIND=dp) * 2.0_dp * REAL ( len,KIND=dp)**3 * 1.e-6_dp / t
     ELSE
@@ -446,8 +448,10 @@ SUBROUTINE matmul_test ( globenv )
     ALLOCATE ( mc ( len, len ), STAT = ierr )
     IF ( ierr /= 0 ) EXIT
 
-    CALL random_number ( ma )
-    CALL random_number ( mb )
+    CALL random_number ( xdum )
+    ma = xdum
+    CALL random_number ( xdum )
+    mb = xdum
     ntim = NINT ( 1.e8_dp / ( 2.0_dp * REAL ( len,KIND=dp)**3 ) )
     ntim = MAX ( ntim, 1 )
     ntim = MIN ( ntim, 1000 )
@@ -457,7 +461,7 @@ SUBROUTINE matmul_test ( globenv )
       CALL dgemm ( "N", "N", len, len, len, 1.0_dp, ma, len, mb, len, 0.0_dp, mc, len )
     END DO
     tend = m_cputime ( )
-    t = tend - tstart
+    t = tend - tstart+threshold
     IF ( t > 0.0_dp ) THEN
        perf = REAL ( ntim,KIND=dp) * 2.0_dp * REAL ( len,KIND=dp)**3 * 1.e-6_dp / t
     ELSE
@@ -474,7 +478,7 @@ SUBROUTINE matmul_test ( globenv )
       CALL dgemm ( "N", "N", len, len, len, 1.0_dp, ma, len, mb, len, 0.0_dp, mc, len )
     END DO
     tend = m_cputime ( )
-    t = tend - tstart
+    t = tend - tstart+threshold
     IF ( t > 0.0_dp ) THEN
        perf = REAL ( ntim,KIND=dp) * 2.0_dp * REAL ( len,KIND=dp)**3 * 1.e-6_dp / t
     ELSE
@@ -491,7 +495,7 @@ SUBROUTINE matmul_test ( globenv )
       CALL dgemm ( "N", "T", len, len, len, 1.0_dp, ma, len, mb, len, 0.0_dp, mc, len )
     END DO
     tend = m_cputime ( )
-    t = tend - tstart
+    t = tend - tstart+threshold
     IF ( t > 0.0_dp ) THEN
        perf = REAL ( ntim,KIND=dp) * 2.0_dp * REAL ( len,KIND=dp)**3 * 1.e-6_dp / t
     ELSE
@@ -508,7 +512,7 @@ SUBROUTINE matmul_test ( globenv )
       CALL dgemm ( "T", "N", len, len, len, 1.0_dp, ma, len, mb, len, 0.0_dp, mc, len )
     END DO
     tend = m_cputime ( )
-    t = tend - tstart
+    t = tend - tstart+threshold
     IF ( t > 0.0_dp ) THEN
        perf = REAL ( ntim,KIND=dp) * 2.0_dp * REAL ( len,KIND=dp)**3 * 1.e-6_dp / t
     ELSE
@@ -527,7 +531,7 @@ SUBROUTINE matmul_test ( globenv )
     DEALLOCATE ( mc , STAT = ierr )
     IF ( ierr /= 0 ) CALL stop_memory ( "lib_test", "mc" )
   END DO
-
+  CALL mp_sync(globenv%group)
 END SUBROUTINE matmul_test
 
 !******************************************************************************
@@ -615,7 +619,7 @@ SUBROUTINE fft_test ( globenv )
             CALL fft3d ( BWFFT, n, ca, SCALE = scale )
           END DO
           tend = m_cputime ( )
-          t = tend - tstart
+          t = tend - tstart+threshold
           IF ( t > 0.0_dp ) THEN
              perf = REAL ( ntim,KIND=dp) * 2.0_dp * flops * 1.e-6_dp / t
           ELSE
@@ -770,7 +774,7 @@ SUBROUTINE pw_fft_test ( globenv )
     CALL coeff_transform_space ( cb, cc )
   END DO
   tend = m_cputime ( )
-  t = tend - tstart
+  t = tend - tstart+threshold
   IF ( t > 0.0_dp ) THEN
      perf = REAL ( ntim,KIND=dp) * 2.0_dp * flops * 1.e-6_dp / t
   ELSE
@@ -834,7 +838,7 @@ SUBROUTINE pw_fft_test ( globenv )
     CALL coeff_transform_space ( cb, cc )
   END DO
   tend = m_cputime ( )
-  t = tend - tstart
+  t = tend - tstart+threshold
   IF ( t > 0.0_dp ) THEN
      perf = REAL ( ntim,KIND=dp) * 2.0_dp * flops * 1.e-6_dp / t
   ELSE
@@ -899,7 +903,7 @@ SUBROUTINE pw_fft_test ( globenv )
     CALL coeff_transform_space ( cb, cc )
   END DO
   tend = m_cputime ( )
-  t = tend - tstart
+  t = tend - tstart+threshold
   IF ( t > 0.0_dp ) THEN
      perf = REAL ( ntim,KIND=dp) * 2.0_dp * flops * 1.e-6_dp / t
   ELSE
@@ -963,7 +967,7 @@ SUBROUTINE pw_fft_test ( globenv )
     CALL coeff_transform_space ( cb, cc )
   END DO
   tend = m_cputime ( )
-  t = tend - tstart
+  t = tend - tstart+threshold
   IF ( t > 0.0_dp ) THEN
      perf = REAL ( ntim,KIND=dp) * 2.0_dp * flops * 1.e-6_dp / t
   ELSE
@@ -1080,7 +1084,7 @@ SUBROUTINE mpi_test(comm)
           CALL MPI_BARRIER(comm,ierror)
           t1=MPI_WTIME()
           IF (ionode) CALL simple_copy(buffer1,buffer2,ncount)
-          t2=t2+MPI_WTIME()-t1
+          t2=t2+MPI_WTIME()-t1 +threshold
        ENDDO
        CALL MPI_REDUCE(t2,t1,1, MPI_DOUBLE_PRECISION, MPI_MAX, 0, comm, ierror)
        IF (ionode) THEN
@@ -1102,7 +1106,7 @@ SUBROUTINE mpi_test(comm)
           CALL MPI_BARRIER(comm,ierror)
           t1=MPI_WTIME()
           CALL simple_copy(buffer1,buffer2,ncount)
-          t2=t2+MPI_WTIME()-t1
+          t2=t2+MPI_WTIME()-t1+threshold
        ENDDO
        CALL MPI_REDUCE(t2,t1,1, MPI_DOUBLE_PRECISION, MPI_MAX, 0, comm, ierror)
        IF (ionode) THEN
@@ -1129,7 +1133,7 @@ SUBROUTINE mpi_test(comm)
         IF (taskid.EQ. jtask) THEN
            CALL MPI_RECV(buffer1, ncount, MPI_DOUBLE_PRECISION, itask, itask*jtask, comm, status, ierror)
         ENDIF
-        send_timings(itask,jtask)=MPI_WTIME()-t1      
+        send_timings(itask,jtask)=MPI_WTIME()-t1+threshold  
      ENDDO
     ENDDO
     send_timings2=send_timings 
@@ -1160,7 +1164,7 @@ SUBROUTINE mpi_test(comm)
           ELSE
              CALL MPI_RECV(buffer1, ncount, MPI_DOUBLE_PRECISION, taskid-1, 0 , comm, status, ierror)
           ENDIF
-          t2=t2+MPI_WTIME()-t1
+          t2=t2+MPI_WTIME()-t1+threshold
        ENDDO
        CALL MPI_REDUCE(t2,t1,1, MPI_DOUBLE_PRECISION, MPI_MAX, 0, comm, ierror)
        IF (ionode) THEN
@@ -1187,7 +1191,7 @@ SUBROUTINE mpi_test(comm)
           ELSE
             CALL MPI_RECV(buffer1, ncount, MPI_DOUBLE_PRECISION, taskid-nprocs/2, 0 , comm, status, ierror)
           ENDIF
-          t2=t2+MPI_WTIME()-t1
+          t2=t2+MPI_WTIME()-t1+threshold
        ENDDO
        CALL MPI_REDUCE(t2,t1,1, MPI_DOUBLE_PRECISION, MPI_MAX, 0, comm, ierror)
        IF (ionode) THEN
@@ -1208,7 +1212,7 @@ SUBROUTINE mpi_test(comm)
           CALL MPI_BARRIER(comm,ierror)
           t1=MPI_WTIME()
           CALL  MPI_BCAST(buffer1, ncount, MPI_DOUBLE_PRECISION, 0, comm, ierror)
-          t2=t2+MPI_WTIME()-t1
+          t2=t2+MPI_WTIME()-t1+threshold
        ENDDO
        CALL MPI_REDUCE(t2,t1,1, MPI_DOUBLE_PRECISION, MPI_MAX, 0, comm, ierror)
        IF (ionode) THEN
@@ -1228,7 +1232,7 @@ SUBROUTINE mpi_test(comm)
           CALL MPI_BARRIER(comm,ierror)
           t1=MPI_WTIME()
           CALL  MPI_ALLREDUCE(buffer1,buffer2,ncount,MPI_DOUBLE_PRECISION,MPI_SUM,comm,ierr)
-          t2=t2+MPI_WTIME()-t1
+          t2=t2+MPI_WTIME()-t1+threshold
        ENDDO
        CALL MPI_REDUCE(t2,t1,1, MPI_DOUBLE_PRECISION, MPI_MAX, 0, comm, ierror)
        IF (ionode) THEN
@@ -1256,7 +1260,7 @@ SUBROUTINE mpi_test(comm)
           t1=MPI_WTIME()
           CALL mpi_alltoallv ( buffer1, scount, sdispl, MPI_DOUBLE_PRECISION, &
                                buffer2, rcount, rdispl, MPI_DOUBLE_PRECISION, comm, ierr )
-          t2=t2+MPI_WTIME()-t1
+          t2=t2+MPI_WTIME()-t1+threshold
        ENDDO
        CALL MPI_REDUCE(t2,t1,1, MPI_DOUBLE_PRECISION, MPI_MAX, 0, comm, ierror)
        IF (ionode) THEN
@@ -1280,7 +1284,7 @@ SUBROUTINE mpi_test(comm)
        ENDDO
        t1=MPI_WTIME()
        CALL MPI_REDUCE_SCATTER(grid, lgrid, rcount, MPI_DOUBLE_PRECISION, MPI_SUM, comm, ierr)
-       t2=MPI_WTIME()-t1
+       t2=MPI_WTIME()-t1+threshold
        CALL mpi_allreduce(t2,res,1,MPI_DOUBLE_PRECISION,MPI_MAX,comm, ierr)
        IF (ionode) write(6,*) "MPI_REDUCE_SCATTER    ",res
 ! *** simple shift ***
@@ -1298,7 +1302,7 @@ SUBROUTINE mpi_test(comm)
           IF (i.EQ.nprocs) EXIT
           CALL MPI_SENDRECV_REPLACE(lgrid2,nloc,MPI_DOUBLE_PRECISION,right,0,left,0,comm,status,ierr)
        ENDDO
-       t4=MPI_WTIME()-t3
+       t4=MPI_WTIME()-t3+threshold
        CALL mpi_allreduce(t4,res,1,MPI_DOUBLE_PRECISION,MPI_MAX,comm, ierr)
        maxdiff=MAXVAL(ABS(lgrid2-lgrid))
        CALL mpi_allreduce(maxdiff,res2,1,MPI_DOUBLE_PRECISION,MPI_MAX,comm, ierr)
@@ -1330,7 +1334,7 @@ SUBROUTINE mpi_test(comm)
              grid3(:,i+1)=grid3(:,i+1)+lgrid3(:)
           ENDDO
        ENDIF
-       t4=MPI_WTIME()-t3
+       t4=MPI_WTIME()-t3+threshold
        ! now send a given buffer from 1 to 3 to 5 .. adding the right part of the data
        ! since we've summed an lgrid does only need to pass by even or odd tasks
        left =MODULO(taskid-2,Nprocs)
@@ -1342,7 +1346,7 @@ SUBROUTINE mpi_test(comm)
           IF (i.EQ.nprocs-1) EXIT
           CALL MPI_SENDRECV_REPLACE(lgrid3,nloc,MPI_DOUBLE_PRECISION,right,0,left,0,comm,status,ierr)
        ENDDO
-       t5=MPI_WTIME()-t3
+       t5=MPI_WTIME()-t3+threshold
        CALL mpi_allreduce(t4,res,1,MPI_DOUBLE_PRECISION,MPI_MAX,comm, ierr)
        CALL mpi_allreduce(t5,res2,1,MPI_DOUBLE_PRECISION,MPI_MAX,comm, ierr)
        maxdiff=MAXVAL(ABS(lgrid3-lgrid))
