@@ -38,8 +38,7 @@
 !*****************************************************************************
 MODULE cp_linked_list_fm
   USE kinds, only: dp
-USE cp_fm_types, ONLY: cp_fm_type, cp_fm_p_type,&
-        cp_fm_write
+USE cp_fm_types, ONLY: cp_fm_type, cp_fm_p_type
 #include "cp_common_uses.h"
   IMPLICIT NONE
   PRIVATE
@@ -59,7 +58,7 @@ USE cp_fm_types, ONLY: cp_fm_type, cp_fm_p_type,&
 ! structure manipulation
   PUBLIC :: cp_insert, cp_remove_first_el, cp_remove_el, cp_remove_all
 ! low level
-  PUBLIC :: cp_dealloc_node, cp_write
+  PUBLIC :: cp_dealloc_node
 
   ! underlying routines
   PUBLIC :: cp_sll_fm_create, cp_sll_fm_dealloc,&
@@ -71,7 +70,7 @@ USE cp_fm_types, ONLY: cp_fm_type, cp_fm_p_type,&
        cp_sll_fm_insert_el, cp_sll_fm_insert_el_at,&
        cp_sll_fm_rm_first_el, cp_sll_fm_rm_el_at,&
        cp_sll_fm_rm_all_el, &
-       cp_sll_fm_write, cp_sll_fm_to_array,&
+       cp_sll_fm_to_array,&
        cp_sll_fm_from_array, cp_sll_fm_insert_ordered,&
        cp_sll_fm_insert_ordered2
 
@@ -146,10 +145,6 @@ USE cp_fm_types, ONLY: cp_fm_type, cp_fm_p_type,&
 ! remove all the elments
   INTERFACE cp_remove_all
      MODULE PROCEDURE cp_sll_fm_rm_all_el
-  END INTERFACE
-! writes the list (low-level)
-  INTERFACE cp_write
-     MODULE PROCEDURE cp_sll_fm_write
   END INTERFACE
 ! transorms the list in array
   INTERFACE cp_to_array
@@ -1048,51 +1043,6 @@ CPSourceFileRef,&
   END SUBROUTINE cp_sll_fm_rm_all_el
 !***************************************************************************
 
-!!****f* cp_linked_list_fm/cp_sll_fm_write [1.0] *
-!!
-!!   NAME
-!!     cp_sll_fm_write
-!!
-!!   FUNCTION
-!!     writes the list as a comma separated parentized list to the given
-!!     unit
-!!
-!!   NOTES
-!!     low level
-!!
-!!   INPUTS
-!!     sll: the list to output
-!!     unit_nr: the unit to write to (defaults to the standard out)
-!!     error: variable to control error logging, stopping,... 
-!!            see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     4.2002 created [fawzi]
-!!
-!!*** **********************************************************************
-  SUBROUTINE cp_sll_fm_write(sll,unit_nr,error)
-    TYPE(cp_sll_fm_type), POINTER :: sll
-    INTEGER, INTENT(in) :: unit_nr
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-
-    LOGICAL :: failure
-    TYPE(cp_sll_fm_type), POINTER :: iterator
-    CHARACTER(len=*), PARAMETER :: routineN='cp_sll_fm_write',&
-         routineP=moduleN//':'//routineN
-    type(cp_fm_type),pointer :: el
-    failure=.FALSE.
-    iterator => sll
-  
-    DO
-       IF (.NOT.cp_sll_fm_next(iterator,el_att=el,error=error)) EXIT
-       CALL cp_fm_write(el, unit_nr=unit_nr, error=error)
-    END DO
-  END SUBROUTINE cp_sll_fm_write
-!***************************************************************************
-
 !!****f* cp_linked_list_fm/cp_sll_fm_to_array [1.0] *
 !!
 !!   NAME
@@ -1315,8 +1265,7 @@ SUBROUTINE cp_sll_fm_insert_ordered2(sll,el,compare_function,&
   INTERFACE
      FUNCTION compare_function(el1,el2)
        USE kinds, only: dp
-USE cp_fm_types, ONLY: cp_fm_type, cp_fm_p_type,&
-        cp_fm_write
+USE cp_fm_types, ONLY: cp_fm_type, cp_fm_p_type
        INTEGER :: compare_function
        type(cp_fm_type), pointer :: el1,el2
      END FUNCTION compare_function
@@ -1476,8 +1425,7 @@ FUNCTION cp_sll_fm_contains2(sll,el,compare_function,ordered,error)&
   INTERFACE
      FUNCTION compare_function(el1,el2)
        USE kinds, only: dp
-USE cp_fm_types, ONLY: cp_fm_type, cp_fm_p_type,&
-        cp_fm_write
+USE cp_fm_types, ONLY: cp_fm_type, cp_fm_p_type
        INTEGER :: compare_function
        type(cp_fm_type), pointer :: el1,el2
      END FUNCTION compare_function

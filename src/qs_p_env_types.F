@@ -27,8 +27,7 @@ MODULE qs_p_env_types
   USE cp_fm_types,                     ONLY: cp_fm_release,&
                                              cp_fm_p_type,&
                                              cp_fm_type
-  USE cp_fm_vect,                      ONLY: cp_fm_vect_dealloc,&
-                                             cp_fm_vect_write
+  USE cp_fm_vect,                      ONLY: cp_fm_vect_dealloc
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE hartree_local_types,             ONLY: hartree_local_release,&
                                              hartree_local_type
@@ -50,7 +49,7 @@ MODULE qs_p_env_types
   IMPLICIT NONE
   PRIVATE
   PUBLIC :: qs_p_env_type, qs_p_env_p_type
-  PUBLIC :: p_env_retain, p_env_release, p_env_write
+  PUBLIC :: p_env_retain, p_env_release
 
   LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
   CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='qs_p_env_types'
@@ -308,157 +307,6 @@ END SUBROUTINE p_env_retain
     END IF
     NULLIFY(p_env)
   END SUBROUTINE p_env_release
-!***************************************************************************
-
-!!****f* qs_p_env_types/p_env_write [1.0] *
-!!
-!!   NAME
-!!     p_env_write
-!!
-!!   SYNOPSIS
-!!     Subroutine p_env_write(p_env, unit_nr, long_description, local,&
-!!         error)
-!!       Type(qs_p_env_type), Pointer:: p_env
-!!       Integer, Intent (IN):: unit_nr
-!!       Logical, Optional, Intent (IN):: long_description, local
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine p_env_write
-!!
-!!   FUNCTION
-!!     writes the content of the p_env to the given output unit
-!!
-!!   NOTES
-!!     remove all iostat checks??
-!!
-!!   ARGUMENTS
-!!     - p_env: the p_env to output
-!!     - unit_nr: the unit where to output
-!!     - long_description: if a long description should be written
-!!       (defaults to false)
-!!     - local: if the unit is a local unit or a global unit 
-!!       (defaults to false, i.e. global)
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!   MODIFICATION HISTORY
-!!     12.2002 created [fawzi]
-!!
-!!*** **********************************************************************
-  SUBROUTINE p_env_write(p_env, unit_nr, long_description, local, error)
-    TYPE(qs_p_env_type), POINTER             :: p_env
-    INTEGER, INTENT(in)                      :: unit_nr
-    LOGICAL, INTENT(in), OPTIONAL            :: long_description, local
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'p_env_write', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: i, iostat
-    INTEGER, SAVE                            :: uniquing_nr = 0
-    LOGICAL                                  :: failure, my_local, &
-                                                my_long_description, should_w
-    TYPE(cp_logger_type), POINTER            :: logger
-    TYPE(cp_para_env_type), POINTER          :: para_env
-
-    failure=.FALSE.; my_local=.FALSE.; my_long_description=.FALSE.
-    iostat=0
-
-    IF (PRESENT(local)) my_local=local
-    IF (PRESENT(long_description)) my_long_description=long_description
-    logger=>cp_error_get_logger(error) 
-    para_env=>logger%para_env
-    should_w=my_local .OR. para_env%mepos==para_env%source
-
-    IF (ASSOCIATED(p_env)) THEN
-       IF (should_w) THEN
-          WRITE (unit=unit_nr,&
-               fmt="(' <p_env>:{ id_nr=',i10,' ref_count=',i10,',')",&
-               iostat=iostat) p_env%id_nr, p_env%ref_count
-          CPInvariantNoFail(iostat==0,cp_warning_level,routineP,error)
-          WRITE (unit=unit_nr,&
-               fmt="(' iter=',i10,', orthogonal_orbitals=',l1,',')",&
-               iostat=iostat) p_env%iter,p_env%orthogonal_orbitals
-          CPInvariantNoFail(iostat==0,cp_warning_level,routineP,error)
-          WRITE (unit=unit_nr,&
-               fmt="(' n_mo=',2i10,', n_ao=',2i10,',')",&
-               iostat=iostat) p_env%n_mo, p_env%n_ao
-          CPInvariantNoFail(iostat==0,cp_warning_level,routineP,error)
-          WRITE (unit=unit_nr,fmt="(a)",iostat=iostat) " m_epsilon="
-          CPInvariantNoFail(iostat==0,cp_warning_level,routineP,error)
-       END IF
-       CALL cp_fm_vect_write(p_env%m_epsilon,unit_nr=unit_nr,&
-            long_description=my_long_description, local=my_local,&
-            error=error)
-       IF (should_w) WRITE(unit=unit_nr,fmt="(a)",iostat=iostat)" , psi0d="
-       CPInvariantNoFail(iostat==0,cp_warning_level,routineP,error)
-       CALL cp_fm_vect_write(p_env%psi0d,unit_nr=unit_nr,&
-            long_description=my_long_description, local=my_local,&
-           error=error)
-       IF (should_w) WRITE(unit=unit_nr,fmt="(a)",iostat=iostat)" , S_psi0="
-       CPInvariantNoFail(iostat==0,cp_warning_level,routineP,error)
-       CALL cp_fm_vect_write(p_env%S_psi0,unit_nr=unit_nr,&
-            long_description=my_long_description, local=my_local,&
-            error=error)
-       IF (should_w) WRITE(unit=unit_nr,fmt="(a)",iostat=iostat)" , Smo_inv="
-       CPInvariantNoFail(iostat==0,cp_warning_level,routineP,error)
-       CALL cp_fm_vect_write(p_env%Smo_inv,unit_nr=unit_nr,&
-            long_description=my_long_description, local=my_local,&
-            error=error)
-       IF (should_w) WRITE(unit=unit_nr,fmt="(a)",iostat=iostat, advance='no')&
-            " , kpp1="
-       CPInvariantNoFail(iostat==0,cp_warning_level,routineP,error)
-       IF (ASSOCIATED(p_env%kpp1)) THEN
-!FM          IF (my_long_description) THEN
-!FM             IF (should_w) WRITE(unit=unit_nr,fmt="(a)",iostat=iostat) " ("
-!FM             CPInvariantNoFail(iostat==0,cp_warning_level,routineP,error)
-!FM             uniquing_nr=uniquing_nr+1
-!FM             DO i=1,SIZE(p_env%kpp1)
-!FM                CALL cp_sm_output(logger,&
-!FM                     outputName="p_env"//cp_to_string(p_env%id_nr)//'kpp1-'//&
-!FM                     cp_to_string(i),&
-!FM                     fromWhere=routineP,iter=uniquing_nr,&
-!FM                     matrix=p_env%kpp1(i)%matrix,&
-!FM                     para_env=para_env, comment='kpp1 matrix',error=error)
-!FM                IF (should_w.and.i/=SIZE(p_env%kpp1)) THEN
-!FM                   WRITE(unit=unit_nr,fmt="(a)",iostat=iostat)" ,"
-!FM                   CPInvariantNoFail(iostat==0,cp_warning_level,routineP,error)
-!FM                END IF
-!FM             END DO
-!FM             IF (should_w) WRITE(unit=unit_nr,fmt="(a)",iostat=iostat) " ),"
-!FM             CPInvariantNoFail(iostat==0,cp_warning_level,routineP,error)
-!FM          ELSE
-             IF (should_w) THEN
-                WRITE(unit=unit_nr, fmt="(a)") '*associated*,'
-             END IF
-!FM          END IF
-       ELSE
-          WRITE(unit=unit_nr, fmt="(a)") '*null*,'
-       END IF
-       IF (should_w) THEN
-          WRITE(unit=unit_nr,fmt="(a)",iostat=iostat, advance='no')" kpp1_env="
-          CPInvariantNoFail(iostat==0,cp_warning_level,routineP,error)
-          IF (ASSOCIATED(p_env%kpp1_env)) THEN
-             WRITE(unit=unit_nr,fmt="(a)",iostat=iostat)" *associated*,"
-          ELSE
-             WRITE(unit=unit_nr,fmt="(a)",iostat=iostat)" *null*,"
-          END IF
-!FM       call kpp1_env_write(p_env%kpp1_env,unit_nr=unit_nr,&
-!FM            long_description=my_long_description, local=my_local,&
-!FM            error=error)
-       END IF
-       IF (should_w) WRITE(unit=unit_nr,fmt="(a)",iostat=iostat)" }"
-       CPInvariantNoFail(iostat==0,cp_warning_level,routineP,error)
-    ELSE
-       IF (should_w) THEN
-          WRITE (unit=unit_nr,fmt="(a)",iostat=iostat) " <p_env>:*null*"
-          CPInvariantNoFail(iostat==0,cp_warning_level,routineP,error)
-       END IF
-    END IF
-  END SUBROUTINE p_env_write
 !***************************************************************************
 
 END MODULE qs_p_env_types

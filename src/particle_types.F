@@ -70,12 +70,6 @@ MODULE particle_types
                                              femtoseconds,&
                                              massunit
   USE qmmm_ff_fist,                    ONLY: qmmm_ff_precond_only_qm
-  USE qs_parser,                       ONLY: finish_parser,&
-                                             integer_object,&
-                                             read_object,&
-                                             start_parser,&
-                                             stop_parser,&
-                                             test_object
   USE cell_types,                 ONLY: cell_type,&
                                              get_cell,&
                                              pbc,&

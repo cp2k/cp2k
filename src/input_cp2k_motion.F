@@ -1042,7 +1042,7 @@ CONTAINS
        CALL cp_print_key_section_create(print_key,"energy",&
             description="controls the output the ener file",&
             print_level=debug_print_level, filename="",error=error)
-       CALL section_add_subsection(section,print_key,error=error)
+       CALL section_add_subsection(subsection,print_key,error=error)
        CALL section_release(print_key,error=error)
               
        CALL cp_print_key_section_create(print_key,"COEFFICIENTS",&

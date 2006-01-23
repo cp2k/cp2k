@@ -46,11 +46,6 @@ MODULE cell_types
                                              det_3x3,&
                                              inv_3x3
   USE physcon,                         ONLY: bohr
-  USE qs_parser,                       ONLY: finish_parser,&
-                                             read_object,&
-                                             start_parser,&
-                                             stop_parser,&
-                                             test_object
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&

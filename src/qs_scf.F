@@ -83,8 +83,7 @@ MODULE qs_scf
                                              cp_fm_release,&
                                              cp_fm_set_element,&
                                              cp_fm_to_fm,&
-                                             cp_fm_type,&
-                                             cp_fm_write
+                                             cp_fm_type
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_sm_fm_interactions,           ONLY: copy_sm_to_fm,&
                                              cp_sm_fm_multiply
