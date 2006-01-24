@@ -109,12 +109,13 @@ MODULE qs_p_env_types
      ! Linear Response Modules
 
      TYPE(cp_fm_p_type), DIMENSION(:), POINTER  :: PS_psi0
+     TYPE(cp_fm_p_type), DIMENSION(:), POINTER  :: ev_h0
      TYPE(cp_fm_p_type), DIMENSION(:), POINTER  :: d_psi1, g_psi1, g_psi1_old
      TYPE(cp_fm_p_type), DIMENSION(:), POINTER  :: buf1, buf2, os_psi0 
-     TYPE(cp_fm_type), POINTER :: sinv_test
+!     TYPE(cp_fm_type), POINTER :: sinv_test
 
      ! preconditioner matrix should be symmetric and positive definite
-     TYPE(preconditioner_type), POINTER :: preconditioner
+     TYPE(preconditioner_type), DIMENSION(:), POINTER :: preconditioner
      LOGICAL :: new_preconditioner
 
      !factors
@@ -246,7 +247,7 @@ END SUBROUTINE p_env_retain
     CHARACTER(len=*), PARAMETER :: routineN = 'p_env_release', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: ip, ispin, stat
+    INTEGER                                  :: ip, stat
     LOGICAL                                  :: failure
 
     failure=.FALSE.
@@ -277,6 +278,13 @@ END SUBROUTINE p_env_retain
           IF(ASSOCIATED(p_env%PS_psi0)) THEN
             CALL cp_fm_vect_dealloc(p_env%PS_psi0, error=error)  
           END IF
+          IF(ASSOCIATED(p_env%ev_h0)) THEN
+            DO ip = 1,SIZE(p_env%ev_h0,1)
+              NULLIFY(p_env%ev_h0(ip)%matrix)
+            END DO 
+            DEALLOCATE(p_env%ev_h0, STAT=stat)
+            CPPostcondition((stat==0),cp_failure_level,routineP,error,failure)  
+          END IF
           IF(ASSOCIATED(p_env%g_psi1_old)) THEN
             CALL cp_fm_vect_dealloc(p_env%g_psi1_old, error=error)  
           END IF
@@ -296,11 +304,15 @@ END SUBROUTINE p_env_retain
             CALL cp_fm_vect_dealloc(p_env%os_psi0, error=error)
           END IF
           IF(ASSOCIATED(p_env%preconditioner)) THEN
-            CALL destroy_preconditioner(p_env%preconditioner)
+            DO ip=1,SIZE(p_env%preconditioner,1)
+              CALL destroy_preconditioner(p_env%preconditioner(ip))
+            END DO
+            DEALLOCATE(p_env%preconditioner,STAT=stat)
+            CPPostcondition((stat==0),cp_failure_level,routineP,error,failure)
           END IF
-          IF(ASSOCIATED(p_env%sinv_test)) THEN
-            CALL cp_fm_release(p_env%sinv_test)
-          END IF
+!          IF(ASSOCIATED(p_env%sinv_test)) THEN
+!            CALL cp_fm_release(p_env%sinv_test)
+!          END IF
        END IF
        DEALLOCATE(p_env,stat=stat)
        CPPostcondition((stat==0),cp_failure_level,routineP,error,failure)

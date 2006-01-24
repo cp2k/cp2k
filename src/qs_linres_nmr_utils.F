@@ -40,6 +40,7 @@ MODULE qs_linres_nmr_utils
   USE atomic_kind_types,               ONLY: atomic_kind_type
   USE cp_array_r_utils,                ONLY: cp_2d_r_p_type
   USE cp_control_types,                ONLY: dft_control_type
+  USE cp_fm_basic_linalg,              ONLY: cp_fm_scale
   USE cp_fm_pool_types,                ONLY: cp_fm_pool_p_type,&
                                              fm_pool_create_fm,&
                                              fm_pools_create_fm_vect,&
@@ -170,9 +171,13 @@ CONTAINS
 
         !Initial guess for psi1
         !Maybe it could be better than this
-         DO ispin = 1,dft_control%nspins
-           CALL cp_fm_set_all(psi1(ispin)%matrix,0.0_dp,error=error)
-         END DO 
+      !   IF(idir==1) THEN
+           DO ispin = 1,dft_control%nspins
+             CALL cp_fm_set_all(psi1(ispin)%matrix,0.0_dp,error=error)
+      !       CALL cp_fm_to_fm(nmr_env%p_psi0(ispin,idir)%matrix, psi1(ispin)%matrix,error=error)
+      !       CALL cp_fm_scale(-1.0_dp,psi1(ispin)%matrix,error=error)
+           END DO 
+      !   END IF
 
          !DO scf cycle to optimize psi1
          DO ispin = 1,dft_control%nspins
@@ -180,7 +185,6 @@ CONTAINS
          END DO
          linres_control%converged = .FALSE.
          CALL linres_scf(p_env, qs_env, psi1, h1_psi0,error=error)
- stop 'wait'
 
          IF(linres_control%converged) THEN
          !Calculate the contribution to the chemical shift
@@ -225,9 +229,11 @@ CONTAINS
          END IF
 
          !Initial guess for psi1
-         !Maybe it could be beter than this
+         !Maybe it could be better than this
          DO ispin = 1,dft_control%nspins
            CALL cp_fm_set_all(psi1(ispin)%matrix,0.0_dp,error=error)
+!             CALL cp_fm_to_fm(nmr_env%rxp_psi0(ispin,idir)%matrix, psi1(ispin)%matrix,error=error)
+!             CALL cp_fm_scale(-1.0_dp,psi1(ispin)%matrix,error=error)
          END DO 
 
          !DO scf cycle to optimize psi1
@@ -269,6 +275,7 @@ CONTAINS
         END IF
      END DO ! idir
 
+ stop 'wait'
      IF(nmr_env%full_nmr) THEN
        DO ispin = 1,dft_control%nspins
          CALL cp_fm_set_all(psi1(ispin)%matrix,0.0_dp,error=error)

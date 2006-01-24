@@ -3611,14 +3611,13 @@ END SUBROUTINE create_ot_section
       CALL keyword_create(keyword, name="PRECONDITIONER",&
            description="Type of preconditioner to be used with all minimization schemes."//&
                        "They differ in effectiveness, cost of construction, cost of application.",&
-           usage="PRECONDITIONER FULL_SINGLE",&
+           usage="PRECONDITIONER FULL_S_INVERSE",&
            default_i_val=lr_precond_none,&
-           enum_c_vals=s2a("FULL_ALL","FULL_SINGLE","FULL_KINETIC","FULL_S_INVERSE","NONE"),&
-           enum_desc=s2a("State selective, similar to full_single","Based on diagonalisation",&
-                         "Cholesky inversion of S and T", &
-                         "Cholesky inversion of S", "skip preconditioning"),&
-           enum_i_vals=(/lr_precond_full_all,lr_precond_single,lr_precond_kinetic,lr_precond_s_inverse,&
-                         lr_precond_none/), error=error)
+           enum_c_vals=s2a("FULL_ALL","FULL_S_INVERSE","FULL_H0","NONE"),&
+           enum_desc=s2a("State selective, similar to full_single",&
+                         "Cholesky inversion of S", "full H0","skip preconditioning"),&
+           enum_i_vals=(/lr_precond_full_all,lr_precond_s_inverse,&
+                         lr_precond_h0_inverse,lr_precond_none/), error=error)
      CALL section_add_keyword(section,keyword,error=error)
      CALL keyword_release(keyword,error=error)
 

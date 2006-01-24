@@ -61,8 +61,10 @@ MODULE qs_linres_methods
   USE input_constants,                 ONLY: do_loc_none,state_loc_all,&
                                              op_loc_berry, lr_diis, lr_cg,&
                                              lr_sd,lr_precond_none,&
-                                             lr_ls_none, lr_ls_2pnt, lr_ls_3pnt, lr_ls_gold
+                                             lr_ls_none, lr_ls_2pnt, &
+                                             lr_ls_3pnt, lr_ls_gold
   USE preconditioner,                  ONLY: apply_preconditioner, &
+                                             apply_preconditioner_lr,&
                                              make_preconditioner
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
@@ -226,7 +228,7 @@ CONTAINS
 
 
     INTEGER ::  handle, homo, i, ik, istat, ispin, iter, last_ik, nvectors, output_unit
-    LOGICAL                                     :: ionode, failure,energy_only
+    LOGICAL                                     :: ionode, failure,energy_only,vec_zero
     REAL(dp) :: eps_perturbation, max_input_norm, out_of_ortho,tmp
     REAL(dp), DIMENSION(:), POINTER             :: occupations, vectorsnorm
     TYPE(cp_blacs_env_type), POINTER            :: blacs_env
@@ -328,8 +330,17 @@ CONTAINS
      CALL check_p_env_init(p_env,linres_control, dft_control%nspins, error=error)
 
     !Orthogonalize with respect to the psi0
-!     CALL p_preortho(p_env, qs_env, b(:))
-!     CALL normalize(b(:), R, matrix_s) ! R is temp
+     vec_zero = .FALSE.
+     DO ispin = 1, dft_control%nspins
+       CALL cp_fm_maxabsval(b(ispin)%matrix,tmp,error=error)
+       IF(tmp<=EPSILON(1.0_dp)) THEN
+         vec_zero = .TRUE.
+       END IF
+     END DO 
+     IF(.NOT. vec_zero) THEN
+       CALL p_preortho(p_env, qs_env, b(:))
+       CALL normalize(b(:), R, matrix_s) ! R is temp
+     END IF
 
      IF(output_unit>0) THEN
        WRITE (UNIT=output_unit,&
@@ -384,18 +395,12 @@ CONTAINS
     !  Check ortho
 !       IF(linres_control%check_ortho) THEN
          DO ispin=1, dft_control%nspins
-!          CALL cp_fm_get_info(p_env%S_psi0(1)%matrix,nrow_global=nao,ncol_global=nmo)
            CALL  cp_fm_gemm('T','N',p_env%n_mo(ispin),p_env%n_mo(ispin),p_env%n_ao(ispin),&   
                 1.0_dp,p_env%S_psi0(ispin)%matrix,&
                 b(ispin)%matrix,0.0_dp,p_env%buf2(ispin)%matrix)
-!dbg
-!     do i = 1,nmo
-!     write(*,'(I4,100f12.8)')   i, (p_env%buf2(1)%matrix%local_data(i,j),j=1,nmo)
-!     end do 
-!dbg
            out_of_ortho = 0.0_dp
            CALL cp_fm_maxabsval(p_env%buf2(ispin)%matrix,out_of_ortho,error=error)
-           IF(out_of_ortho .GT. EPSILON(1.0_dp)) THEN
+           IF(out_of_ortho .GT. 1.0E-10_dp) THEN
              IF(output_unit>0) THEN
                WRITE (UNIT=output_unit,FMT="(T3,A,E15.5)")&
                "WARNING: orthogonality not satisfied, max val |<psi1_k | psi0_l>|= ", out_of_ortho
@@ -430,9 +435,6 @@ CONTAINS
        ENDIF
 
      END DO  iteration
-
- stop 'min'
-    ! Copy the optimized wavefunctions
 
     !----------!
     ! clean up !
@@ -469,8 +471,7 @@ CONTAINS
 
     p_env%iter = 0
     p_env%only_energy = .FALSE.
-    p_env%new_preconditioner = .TRUE.
-    p_env%os_valid = .FALSE.
+    p_env%ls_count=0
 
 
     IF(linres_control%opt_method == lr_cg ) THEN
@@ -568,19 +569,18 @@ CONTAINS
          error=error)
 
     IF(linres_control%preconditioner_type /= lr_precond_none) THEN
-
       IF(p_env%new_preconditioner) THEN
         p_env%os_valid = .FALSE.
-        CALL get_mo_set(mo_set=mos(1)%mo_set, mo_coeff=mo_coeff)
-        CALL make_preconditioner(p_env%preconditioner,linres_control%preconditioner_type,&
-               matrix_ks(1)%matrix,matrix_s(1)%matrix,matrix_t(1)%matrix,&
-               mo_coeff,linres_control%energy_gap)
+        CALL make_preconditioner(p_env%preconditioner,&
+               linres_control%preconditioner_type,p_env%ev_h0,&
+               matrix_ks,matrix_s(1)%matrix,&
+               linres_control%energy_gap)
 
-        DO ispin = 1,nspins
-           PS_psi0(ispin)%matrix => p_env%PS_psi0(ispin)%matrix
-        END DO
         p_env%new_preconditioner = .FALSE.
       ENDIF
+      DO ispin = 1,nspins
+         PS_psi0(ispin)%matrix => p_env%PS_psi0(ispin)%matrix
+      END DO
     ELSE
       DO ispin = 1,nspins
         PS_psi0(ispin)%matrix => p_env%S_psi0(ispin)%matrix
@@ -590,7 +590,7 @@ CONTAINS
     IF(.NOT.p_env%os_valid) THEN
       DO ispin = 1,nspins
           IF(ASSOCIATED(p_env%preconditioner)) THEN
-             CALL apply_preconditioner(p_env%preconditioner,p_env%S_psi0(ispin)%matrix,&
+             CALL apply_preconditioner_lr(p_env%preconditioner(ispin),p_env%S_psi0(ispin)%matrix,&
                    p_env%PS_psi0(ispin)%matrix)
           END IF
           CALL cp_fm_get_info(p_env%S_psi0(ispin)%matrix,nrow_global=nao,ncol_global=nmo)
@@ -599,7 +599,6 @@ CONTAINS
           CALL cp_fm_cholesky_decompose(p_env%os_psi0(ispin)%matrix,error=error)
           CALL cp_fm_cholesky_invert(p_env%os_psi0(ispin)%matrix,error=error)
       END DO
-
       p_env%os_valid = .TRUE.
     END IF
 
@@ -613,7 +612,7 @@ CONTAINS
             p_env%gnorm = 0.0_dp
             DO ispin=1,nspins
                IF(linres_control%preconditioner_type /= lr_precond_none) THEN
-                 CALL apply_preconditioner(p_env%preconditioner,&
+                 CALL apply_preconditioner_lr(p_env%preconditioner(ispin),&
                       p_env%g_psi1(ispin)%matrix,p_env%d_psi1(ispin)%matrix)
                  linres_control%flag="LR P-SD"
                ELSE
@@ -656,7 +655,7 @@ CONTAINS
                p_env%gnorm_cross = p_env%gnorm_cross + tmp
 
                IF(linres_control%preconditioner_type /= lr_precond_none) THEN  
-                  CALL apply_preconditioner(p_env%preconditioner,&
+                  CALL apply_preconditioner_lr(p_env%preconditioner(ispin),&
                        p_env%g_psi1(ispin)%matrix,p_env%g_psi1_old(ispin)%matrix)
                   CALL cp_fm_trace(p_env%g_psi1(ispin)%matrix,&
                        p_env%g_psi1_old(ispin)%matrix,tmp,error=error)
@@ -750,17 +749,6 @@ CONTAINS
        CALL cp_fm_gemm('N','N',n_ao,n_mo,n_mo,-1.0_dp,p_env%S_psi0(ispin)%matrix,&
             p_env%buf2(ispin)%matrix,1.0_dp,p_env%g_psi1(ispin)%matrix)
 
-
-!       CALL cp_fm_symm('L','U',n_ao,n_mo,1.0_dp,p_env%sinv_test,Ab(ispin)%matrix,0.0_dp,&
-!            p_env%g_psi1(ispin)%matrix,error=error)  
-!       CALL cp_fm_gemm('T','N',n_mo,n_mo,n_ao,1.0_dp,PS_psi0(ispin)%matrix,&
-!            p_env%g_psi1(ispin)%matrix,0.0_dp,p_env%buf1(ispin)%matrix) 
-!       CALL cp_fm_symm('L','U',n_mo,n_mo,1.0_dp,p_env%os_psi0(ispin)%matrix,&
-!            p_env%buf1(ispin)%matrix,0.0_dp,p_env%buf2(ispin)%matrix)
-!       CALL cp_fm_gemm('N','N',n_ao,n_mo,n_mo,-1.0_dp,p_env%S_psi0(ispin)%matrix,&
-!            p_env%buf2(ispin)%matrix,1.0_dp,p_env%g_psi1(ispin)%matrix)
-!       CALL cp_fm_gemm('N','N',n_ao,n_mo,n_mo,-1.0_dp,p_env%S_psi0(ispin)%matrix,&
-!            p_env%buf1(ispin)%matrix,1.0_dp,p_env%g_psi1(ispin)%matrix)
     END DO ! ispin
 
   END SUBROUTINE linres_derivative
@@ -834,15 +822,12 @@ CONTAINS
          c = p_env%ls_energy(1)
          b = p_env%ls_grad(1)
          a = (p_env%ls_energy(2)-b*x1-c)/(x1*x1)
-!    write(*,*) 'a', a, b, c, x1,p_env%ls_energy(2)
          IF(a .le. 0.0_dp) a = 1.E-15_dp
          pos = -b/(2.0_dp*a)
          val = a*pos*pos+b*pos+c 
-!    write(*,*) 'pos', pos, ' val ', val
          IF(val .LT. c .AND. val .LE. p_env%ls_energy(2)) THEN
            ls_pos(count+1) = MAX(MAXVAL(ls_pos(1:2))*0.01_dp,&
               MIN(pos,MAXVAL(ls_pos(1:2))*4.0_dp)) 
-!write(*,*) 'minval ',ls_pos(1),ls_pos(2),pos
          ELSE
            ls_pos(count+1) = MAXVAL(ls_pos(1:2))*2.0_dp
          END IF
@@ -903,13 +888,9 @@ CONTAINS
          f2 = p_env%ls_energy(2)
          x3 = ls_pos(3)
          f3 = p_env%ls_energy(3)
- !dbg
-!   write(*,*) 'f ', f1,f2,f3
-!   write(*,*) 'x ', x1,x2,x3
 
          nom =  (x2-x1)**2*(f2-f3)-(x2-x3)**2*(f2-f1) 
          den =  (x2-x1)*(f2-f3)-(x2-x3)*(f2-f1)
-!   write(*,*) 'nom ', nom, den
          IF(ABS(den).LE.EPSILON(1.0_dp)*MAX(ABS(f2-f1),ABS(f2-f3))) THEN
             pos = x2
          ELSE
@@ -918,7 +899,6 @@ CONTAINS
          val = (pos-x1)*(pos-x2)*f3/((x3-x1)*(x3-x2))+ &
                (pos-x2)*(pos-x3)*f1/((x1-x2)*(x1-x3))+ &
                (pos-x3)*(pos-x1)*f2/((x2-x3)*(x2-x1))
-!   write(*,*) 'pos ', pos, ' val ', val
          IF(val .LT. f1 .AND. val .LE. f2 .AND. val .LE. f3) THEN
              ls_pos(count+1) = MAX(MAXVAL(ls_pos(1:3))*0.01_dp,&
                    MIN(pos,MAXVAL(ls_pos(1:3))*4.0_dp))
@@ -944,3 +924,4 @@ CONTAINS
 
 ! *****************************************************************************
 END MODULE qs_linres_methods
+

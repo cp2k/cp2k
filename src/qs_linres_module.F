@@ -31,13 +31,15 @@ MODULE qs_linres_module
                                              cp_print_key_should_output,&
                                              cp_p_file
   USE cp_control_types,                ONLY: dft_control_type
+  USE cp_fm_types,                     ONLY: cp_fm_to_fm,&
+                                             cp_fm_type
   USE global_types,                    ONLY: global_environment_type
   USE input_constants,                 ONLY: lr_none, lr_chemshift,&
                                              state_loc_all,&
                                              lr_cg,lr_diis,lr_sd,&
                                              lr_ls_none,lr_ls_2pnt,lr_ls_3pnt,lr_ls_gold,&
                                              lr_precond_none,lr_precond_single,&
-                                             lr_precond_kinetic,lr_precond_full_all
+                                             lr_precond_s_inverse,lr_precond_full_all
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&
                                              section_vals_get_subs_vals2,&
@@ -60,12 +62,18 @@ MODULE qs_linres_module
   USE qs_loc_control,                  ONLY: read_loc_section,&
                                              set_loc_centers,&
                                              set_loc_wfn_lists
+  USE qs_mo_methods,                   ONLY: calculate_subspace_eigenvalues,&
+                                             calculate_density_matrix
   USE qs_mo_types,                     ONLY: get_mo_set,&
                                              mo_set_p_type
   USE qs_p_env_methods,                ONLY: p_env_create,&
                                              p_env_psi0_changed
   USE qs_p_env_types,                  ONLY: p_env_release,&
                                              qs_p_env_type
+  USE qs_rho_atom_methods,             ONLY: calculate_rho_atom_coeff
+  USE qs_rho_methods,                  ONLY: qs_rho_update_rho
+  USE qs_rho_types,                    ONLY: qs_rho_type
+  USE sparse_matrix_types,             ONLY: real_matrix_p_type
   USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -237,12 +245,19 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'linres_init', &
                                    routineP = moduleN//'/'//routineN
  
-    INTEGER :: istat, ispin, n_mo(2),nelectron,nmoloc(2),output_unit
+    INTEGER :: i, istat, ispin, j, nelectron,nmoloc(2),nspins,output_unit
     LOGICAL :: failure, do_it, ionode
     REAL(dp) :: maxocc
+    REAL(dp), DIMENSION(:), POINTER  :: evals 
+    TYPE(cp_fm_type), POINTER                   :: mo_coeff
     TYPE(cp_logger_type), POINTER               :: logger
     TYPE(dft_control_type), POINTER             :: dft_control
     TYPE(linres_control_type), POINTER          :: linres_control
+    TYPE(mo_set_p_type), DIMENSION(:), &
+      POINTER                                   :: mos
+    TYPE(qs_rho_type), POINTER                  :: rho
+    TYPE(real_matrix_p_type), DIMENSION(:), &
+      POINTER                                   :: matrix_ks, matrix_s
     TYPE(section_vals_type), POINTER            :: loc_section
 
     failure = .FALSE.
@@ -251,7 +266,7 @@ CONTAINS
     logger => cp_error_get_logger(error)
     output_unit = cp_print_key_unit_nr(logger,lr_section,"PRINT%PROGRAM_RUN_INFO",&
          extension=".linresLog",error=error)    
-    NULLIFY(dft_control,linres_control,loc_section)
+    NULLIFY(dft_control,linres_control,loc_section,rho,mos,matrix_ks,matrix_s,evals)
 
     CPPrecondition(.NOT.ASSOCIATED(p_env),cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
@@ -261,11 +276,12 @@ CONTAINS
        CALL set_qs_env(qs_env=qs_env, linres_control=linres_control)
        CALL linres_control_release(linres_control,error=error)
        CALL get_qs_env(qs_env=qs_env, linres_control=linres_control,&
-                       dft_control=dft_control)
+                       dft_control=dft_control,matrix_ks=matrix_ks,mos=mos,rho=rho)
   
        ! Localized Psi0 are required when the position operator has to be defined (nmr)
        CALL section_vals_val_get(lr_section,"LOCALIZE_PSI0",&
            l_val=linres_control%localized_psi0,error=error)
+ 
        IF(linres_control%localized_psi0) THEN
          IF(output_unit>0) THEN
            WRITE (UNIT=output_unit,FMT="(/,T3,A)")&
@@ -276,6 +292,16 @@ CONTAINS
          CALL read_loc_section(linres_control%localized_wfn_control,loc_section,error=error)
          CALL linres_localize(linres_control%localized_wfn_control,qs_env,&
                dft_control%nspins,globenv,error=error)
+
+         DO ispin=1,dft_control%nspins
+            CALL calculate_density_matrix(mos(ispin)%mo_set,&
+                     rho%rho_ao(ispin)%matrix,error=error)
+         ENDDO
+! ** update qs_env%rho
+         CALL qs_rho_update_rho(rho, qs_env=qs_env, gapw=dft_control%qs_control%gapw, error=error)
+         IF(dft_control%qs_control%gapw ) THEN
+           CALL calculate_rho_atom_coeff(qs_env,rho%rho_ao)
+         ENDIF
        END IF
 
        CALL section_vals_val_get(lr_section,"OPT_METHOD",i_val=linres_control%opt_method,error=error)
@@ -328,9 +354,9 @@ CONTAINS
          IF(linres_control%preconditioner_type==lr_precond_single) &
             WRITE (UNIT=output_unit,FMT="(T2,A,T60,A)")&
             "LINRES|             Preconditioner","        FULL SINGLE"
-         IF(linres_control%preconditioner_type==lr_precond_kinetic) &
+         IF(linres_control%preconditioner_type==lr_precond_s_inverse) &
             WRITE (UNIT=output_unit,FMT="(T2,A,T60,A)")&
-            "LINRES|             Preconditioner","       FULL KINETIC"
+            "LINRES|             Preconditioner","     FULL S_INVERSE"
          IF(linres_control%preconditioner_type==lr_precond_full_all) &
             WRITE (UNIT=output_unit,FMT="(T2,A,T60,A)")&
             "LINRES|             Preconditioner","           FULL ALL"
@@ -348,6 +374,41 @@ CONTAINS
 
        ! update the m_epsilon matrix
        CALL p_env_psi0_changed(p_env,qs_env,error=error)
+
+       ! calculate eigenvectros and eigenvalues of K
+       p_env%os_valid = .FALSE.
+       IF(linres_control%preconditioner_type/= lr_precond_none) THEN
+         p_env%new_preconditioner = .TRUE.
+         CALL get_qs_env(qs_env=qs_env,matrix_ks=matrix_ks,&
+              matrix_s=matrix_s,mos=mos)
+         nspins = SIZE(p_env%preconditioner,1)
+         DO ispin = 1,nspins
+           CALL get_mo_set(mo_set=mos(ispin)%mo_set, mo_coeff=mo_coeff)
+           p_env%ev_h0(ispin)%matrix => mo_coeff
+!           CALL cp_fm_to_fm(mo_coeff,p_env%ev_h0(ispin)%matrix,p_env%n_mo(ispin),1,1) 
+           ALLOCATE(p_env%preconditioner(ispin)%occ_evals(p_env%n_mo(ispin)),STAT=istat)
+           CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+           CALL calculate_subspace_eigenvalues(p_env%ev_h0(ispin)%matrix,&
+                matrix_ks(ispin)%matrix,evals_arg=p_env%preconditioner(ispin)%occ_evals,&
+                para_env=mo_coeff%matrix_struct%para_env, do_rotation = .FALSE.)
+
+           IF(output_unit>0) THEN
+             DO i = 1,p_env%n_mo(ispin),4
+               j=MIN(3,p_env%n_mo(ispin)-i)
+               SELECT CASE (j)
+               CASE(3)
+                 WRITE(output_unit,'(1X,4F16.8)') p_env%preconditioner(ispin)%occ_evals(i:i+j)
+               CASE(2)
+                 WRITE(output_unit,'(1X,3F16.8)') p_env%preconditioner(ispin)%occ_evals(i:i+j)
+               CASE(1)
+                 WRITE(output_unit,'(1X,2F16.8)') p_env%preconditioner(ispin)%occ_evals(i:i+j)
+               CASE(0)
+                 WRITE(output_unit,'(1X,1F16.8)') p_env%preconditioner(ispin)%occ_evals(i:i+j)
+               END SELECT
+             END DO
+           END IF
+         END DO 
+       END IF
     END IF
     CALL cp_print_key_finished_output(output_unit,logger,lr_section,&
          "PRINT%PROGRAM_RUN_INFO",error=error)    

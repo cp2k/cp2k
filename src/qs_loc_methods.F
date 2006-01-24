@@ -715,7 +715,6 @@ CONTAINS
     IF(my_one_spin) my_nspins = 1
  
     DO ispin = 1,my_nspins
-
        loc_method = localized_wfn_control%localization_method
        SELECT CASE (localized_wfn_control%operator_type)
        CASE(op_loc_berry)
@@ -758,7 +757,7 @@ CONTAINS
        ELSE
          nmosub = localized_wfn_control%nloc_states(ispin)
 
-         CALL cp_fm_to_fm(moloc_coeff(ispin)%matrix,mo_coeff,1,lb)
+         CALL cp_fm_to_fm(moloc_coeff(ispin)%matrix,mo_coeff,nmosub,lb,1)
 
        END IF
 

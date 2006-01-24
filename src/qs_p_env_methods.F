@@ -221,7 +221,7 @@ CONTAINS
             p_env%buf2,&
             p_env%os_psi0,&
             p_env%preconditioner,&
-            p_env%sinv_test)
+            p_env%ev_h0)
 
 
        p_env%ref_count=1
@@ -335,8 +335,6 @@ CONTAINS
               name="p_env"//TRIM(ADJUSTL(cp_to_string(p_env%id_nr)))//"%d_psi1",&
               error=error)
 
-         
-
          CALL fm_pools_create_fm_vect(ao_mo_fm_pools,elements=p_env%g_psi1,&
               name="p_env"//TRIM(ADJUSTL(cp_to_string(p_env%id_nr)))//"%g_psi1",&
               error=error)
@@ -362,30 +360,29 @@ CONTAINS
          IF(linres_control%preconditioner_type/= lr_precond_none) THEN
          ! Initialize the preconditioner matrix
            IF (.NOT.ASSOCIATED(p_env%preconditioner)) THEN
-             ALLOCATE(p_env%preconditioner, STAT=stat)
+
+             ALLOCATE(p_env%preconditioner(n_spins), STAT=stat)
              CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-             CALL init_preconditioner(p_env%preconditioner,para_env=qs_env%para_env,blacs_env=qs_env%blacs_env)
+             DO spin =1,n_spins
+               CALL init_preconditioner(p_env%preconditioner(spin),&
+                    para_env=qs_env%para_env,blacs_env=qs_env%blacs_env)
+             END DO
              p_env%os_valid = .FALSE.
 
              CALL fm_pools_create_fm_vect(ao_mo_fm_pools,elements=p_env%PS_psi0,&
                   name="p_env"//TRIM(ADJUSTL(cp_to_string(p_env%id_nr)))//"%PS_psi0",&
                   error=error)
+
+             ALLOCATE(p_env%ev_h0(n_spins),STAT=stat)
+             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+!             CALL fm_pools_create_fm_vect(ao_mo_fm_pools,elements=p_env%ev_h0,&
+!                  name="p_env"//TRIM(ADJUSTL(cp_to_string(p_env%id_nr)))//"%ev_h0",&
+!                  error=error)
            END IF
          END IF
          IF(linres_control%ls_method /= lr_ls_none) THEN
          ! Initialize the required variables for the line search
          END IF
-
-         ao_mo_fmstruct => fm_pool_get_el_struct(ao_mo_fm_pools(1)%pool,&
-            error=error)
-         CALL cp_fm_struct_create(fm_struct_tmp, nrow_global=p_env%n_ao(1),&
-              ncol_global=p_env%n_ao(1),template_fmstruct=ao_mo_fmstruct, error=error)
-         CALL cp_fm_create(p_env%sinv_test,fm_struct_tmp, name="sinv_test")
-         CALL cp_fm_struct_release(fm_struct_tmp)
-
-         CALL copy_sm_to_fm(qs_env%matrix_s(1)%matrix,p_env%sinv_test)
-         CALL cp_fm_cholesky_decompose(p_env%sinv_test,error=error)
-         CALL cp_fm_cholesky_invert(p_env%sinv_test,error=error)
 
        END IF
 
