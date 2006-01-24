@@ -412,10 +412,6 @@ CONTAINS
                                         keyword_name="Noisy_TB", &
                                         l_val=tbmd_model%noisy_tb, &
                                         error=error)
-              CALL section_vals_val_get(section_vals=tbmd_model_section, &
-                                        keyword_name="r_cutoff", &
-                                        r_val=tbmd_model%r_cutoff, &
-                                        error=error)
 
               tbmd_model%h_ssS         = -1.82_dp*eV
               tbmd_model%h_spS         =  1.96_dp*eV
@@ -445,10 +441,6 @@ CONTAINS
                                         keyword_name="Noisy_TB", &
                                         l_val=tbmd_model%noisy_tb, &
                                         error=error)
-              CALL section_vals_val_get(section_vals=tbmd_model_section, &
-                                        keyword_name="r_cutoff", &
-                                        r_val=tbmd_model%r_cutoff, &
-                                        error=error)
 
             CASE(use_kwon)
               CALL cp_unimplemented_error(fromWhere=routineP, &
@@ -459,10 +451,6 @@ CONTAINS
               CALL section_vals_val_get(section_vals=tbmd_section, &
                                         keyword_name="Noisy_TB", &
                                         l_val=tbmd_model%noisy_tb, &
-                                        error=error)
-              CALL section_vals_val_get(section_vals=tbmd_model_section, &
-                                        keyword_name="r_cutoff", &
-                                        r_val=tbmd_model%r_cutoff, &
                                         error=error)
 
             CASE(use_lenosky)
@@ -475,19 +463,11 @@ CONTAINS
                                         keyword_name="Noisy_TB", &
                                         l_val=tbmd_model%noisy_tb, &
                                         error=error)
-              CALL section_vals_val_get(section_vals=tbmd_model_section, &
-                                        keyword_name="r_cutoff", &
-                                        r_val=tbmd_model%r_cutoff, &
-                                        error=error)
 
             CASE(use_udp)
               CALL section_vals_val_get(section_vals=tbmd_section, &
                                         keyword_name="Noisy_TB", &
                                         l_val=tbmd_model%noisy_tb, &
-                                        error=error)
-              CALL section_vals_val_get(section_vals=tbmd_model_section, &
-                                        keyword_name="r_cutoff", &
-                                        r_val=tbmd_model%r_cutoff, &
                                         error=error)
 
               CALL section_vals_val_get(section_vals=tbmd_model_section, &

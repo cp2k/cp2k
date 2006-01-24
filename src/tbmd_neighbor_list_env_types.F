@@ -71,13 +71,13 @@ MODULE tbmd_neighbor_list_env_types
 !!     - unit_type:
 !!     - counter:
 !!     - last_update:
-!!     - num_update:
-!!     - verlet_skin:
+!!     - num_update: Number of neighbor-list updates
+!!     - verlet_skin: The additional cutoff boundary layer thickness
+!!     - r_cutoff: The cutoff radius for the neighbor-list
 !!     - lup:
 !!     - aup:
 !!     - r_last_update:
-!!     - rlist_cutsq:
-!!     - tbmd_neighbor_list:
+!!     - tbmd_neighbor_list: The actual TBMD neighbor-lists
 !!
 !!   AUTHOR
 !!     Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
@@ -98,7 +98,7 @@ MODULE tbmd_neighbor_list_env_types
                                                         lup, &
                                                         aup
     REAL(KIND=dp), DIMENSION(:,:), POINTER           :: r_last_update, &
-                                                        rlist_cutsq
+                                                        r_cutoff
     TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                     :: tbmd_neighbor_list
   END TYPE tbmd_neighbor_list_env_type
@@ -260,13 +260,13 @@ CONTAINS
 !!     - unit_type:
 !!     - counter:
 !!     - last_update:
-!!     - num_update:
-!!     - verlet_skin:
+!!     - num_update: Number of neighbor-list updates
+!!     - verlet_skin: The additional cutoff boundary layer thickness
+!!     - r_cutoff: The cutoff radius for the neighbor-list
 !!     - lup:
 !!     - aup:
 !!     - r_last_update:
-!!     - rlist_cutsq:
-!!     - tbmd_neighbor_list:
+!!     - tbmd_neighbor_list: The actual TBMD neighbor-lists
 !!     - error: variable to control error logging, stopping,... 
 !!       see module cp_error_handling
 !!
@@ -283,7 +283,7 @@ CONTAINS
   SUBROUTINE tbmd_neighbor_list_env_get(tbmd_neighbor_list_env, id_nr, &
                                         unit_type, counter, last_update, &
                                         num_update, verlet_skin, lup, aup, &
-                                        r_last_update, rlist_cutsq, &
+                                        r_last_update, r_cutoff, &
                                         tbmd_neighbor_list, error)
 
     TYPE(tbmd_neighbor_list_env_type), POINTER   :: tbmd_neighbor_list_env
@@ -298,7 +298,7 @@ CONTAINS
                                                     aup
     REAL(KIND=dp), DIMENSION(:,:), POINTER, &
          OPTIONAL                                :: r_last_update, &
-                                                    rlist_cutsq
+                                                    r_cutoff
     TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER, OPTIONAL                       :: tbmd_neighbor_list
     TYPE(cp_error_type), INTENT(INOUT), &
@@ -334,8 +334,8 @@ CONTAINS
       IF (PRESENT(r_last_update)) THEN
         r_last_update => tbmd_neighbor_list_env%r_last_update
       END IF
-      IF (PRESENT(rlist_cutsq)) THEN
-        rlist_cutsq => tbmd_neighbor_list_env%rlist_cutsq
+      IF (PRESENT(r_cutoff)) THEN
+        r_cutoff => tbmd_neighbor_list_env%r_cutoff
       END IF
       IF (PRESENT(tbmd_neighbor_list)) THEN
         tbmd_neighbor_list => tbmd_neighbor_list_env%tbmd_neighbor_list
@@ -362,13 +362,13 @@ CONTAINS
 !!     - unit_type:
 !!     - counter:
 !!     - last_update:
-!!     - num_update:
-!!     - verlet_skin:
+!!     - num_update: Number of neighbor-list updates
+!!     - verlet_skin: The additional cutoff boundary layer thickness
+!!     - r_cutoff: The cutoff radius for the neighbor-list
 !!     - lup:
 !!     - aup:
 !!     - r_last_update:
-!!     - rlist_cutsq:
-!!     - tbmd_neighbor_list:
+!!     - tbmd_neighbor_list: The actual TBMD neighbor-lists
 !!     - error: variable to control error logging, stopping,... 
 !!       see module cp_error_handling
 !!
@@ -385,7 +385,7 @@ CONTAINS
   SUBROUTINE tbmd_neighbor_list_env_set(tbmd_neighbor_list_env, id_nr, &
                                         unit_type, counter, last_update, &
                                         num_update, verlet_skin, lup, aup, &
-                                        r_last_update, rlist_cutsq, &
+                                        r_last_update, r_cutoff, &
                                         tbmd_neighbor_list, error)
 
     TYPE(tbmd_neighbor_list_env_type), POINTER   :: tbmd_neighbor_list_env
@@ -400,7 +400,7 @@ CONTAINS
                                                     aup
     REAL(KIND=dp), DIMENSION(:,:), POINTER, &
          OPTIONAL                                :: r_last_update, &
-                                                    rlist_cutsq
+                                                    r_cutoff
     TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER, OPTIONAL                       :: tbmd_neighbor_list
     TYPE(cp_error_type), INTENT(INOUT), &
@@ -436,8 +436,8 @@ CONTAINS
       IF (PRESENT(r_last_update)) THEN
         tbmd_neighbor_list_env%r_last_update => r_last_update
       END IF
-      IF (PRESENT(rlist_cutsq)) THEN
-        tbmd_neighbor_list_env%rlist_cutsq => rlist_cutsq
+      IF (PRESENT(r_cutoff)) THEN
+        tbmd_neighbor_list_env%r_cutoff = r_cutoff
       END IF
       IF (PRESENT(tbmd_neighbor_list)) THEN
         tbmd_neighbor_list_env%tbmd_neighbor_list => tbmd_neighbor_list
@@ -502,7 +502,7 @@ CONTAINS
       tbmd_neighbor_list_env%lup                = 0.0_dp
       tbmd_neighbor_list_env%aup                = 0.0_dp
       tbmd_neighbor_list_env%r_last_update(:,:) = 0.0_dp
-      tbmd_neighbor_list_env%rlist_cutsq(:,:)   = 0.0_dp
+      tbmd_neighbor_list_env%r_cutoff(:,:)      = 0.0_dp
       IF (ASSOCIATED(tbmd_neighbor_list_env%tbmd_neighbor_list)) THEN
         DO i=1,SIZE(tbmd_neighbor_list_env%tbmd_neighbor_list)
             neighbor_list_set_ptr => tbmd_neighbor_list_env%tbmd_neighbor_list(i)%neighbor_list_set

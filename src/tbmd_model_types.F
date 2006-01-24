@@ -77,7 +77,6 @@ MODULE tbmd_model_types
 !!     - dEpsilon: s-p energy splitting
 !!     - E_s: Energy of the s-Orbital
 !!     - E_0: Energy shift constant
-!!     - r_cutoff: Cutoff radius, after which interactions are neglected
 !!     - r_calpha: Individual cutoffs for each hopping parameter
 !!     - n_calpha: Individual exponents for each hopping parameter
 !!     - C14: Paramters C1-C4 of Kwon's 4th order polynomial for the 
@@ -108,8 +107,7 @@ MODULE tbmd_model_types
                                                         m_c, &
                                                         dEpsilon, &
                                                         E_s, &
-                                                        E_0, &
-                                                        r_cutoff
+                                                        E_0
     REAL(KIND=dp), DIMENSION(4)                      :: r_calpha, &
                                                         n_calpha, &
                                                         C14
@@ -278,7 +276,6 @@ CONTAINS
 !!     - dEpsilon: s-p energy splitting
 !!     - E_s: Energy of the s-Orbital
 !!     - E_0: Energy shift constant
-!!     - r_cutoff: Cutoff radius, after which interactions are neglected
 !!     - r_calpha: Individual cutoffs for each hopping parameter
 !!     - n_calpha: Individual exponents for each hopping parameter
 !!     - C14: Paramters C1-C4 of Kwon's 4th order polynomial for the 
@@ -295,8 +292,8 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE tbmd_model_get(tbmd_model, id_nr, h_ssS, h_spS, h_ppS, h_ppP, &
                             n, r_0, Phi, m, d_c, m_c, dEpsilon, E_s, E_0, &
-                            r_cutoff, r_calpha, n_calpha, C14, &
-                            tb_model_name, noisy_tb, error)
+                            r_calpha, n_calpha, C14, tb_model_name, &
+                            noisy_tb, error)
 
     TYPE(tbmd_model_type), POINTER                     :: tbmd_model
     INTEGER, INTENT(OUT), OPTIONAL                     :: id_nr, &
@@ -314,8 +311,7 @@ CONTAINS
                                                           m_c, &
                                                           dEpsilon, &
                                                           E_s, &
-                                                          E_0, &
-                                                          r_cutoff
+                                                          E_0
     REAL(KIND=dp), DIMENSION(4), INTENT(OUT), OPTIONAL :: r_calpha, &
                                                           n_calpha, &
                                                           C14
@@ -354,7 +350,6 @@ CONTAINS
       IF (PRESENT(dEpsilon)) dEpsilon = tbmd_model%dEpsilon
       IF (PRESENT(E_s)) E_s = tbmd_model%E_s
       IF (PRESENT(E_0)) E_0 = tbmd_model%E_0
-      IF (PRESENT(r_cutoff)) r_cutoff = tbmd_model%r_cutoff
       IF (PRESENT(r_calpha)) r_calpha = tbmd_model%r_calpha
       IF (PRESENT(n_calpha)) n_calpha = tbmd_model%n_calpha
       IF (PRESENT(C14)) C14 = tbmd_model%C14
@@ -394,7 +389,6 @@ CONTAINS
 !!     - dEpsilon: s-p energy splitting
 !!     - E_s: Energy of the s-Orbital
 !!     - E_0: Energy shift constant
-!!     - r_cutoff: Cutoff radius, after which interactions are neglected
 !!     - r_calpha: Individual cutoffs for each hopping parameter
 !!     - n_calpha: Individual exponents for each hopping parameter
 !!     - C14: Paramters C1-C4 of Kwon's 4th order polynomial for the 
@@ -411,8 +405,8 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE tbmd_model_set(tbmd_model, id_nr, h_ssS, h_spS, h_ppS, h_ppP, &
                             n, r_0, Phi, m, d_c, m_c, dEpsilon, E_s, E_0, &
-                            r_cutoff, r_calpha, n_calpha, C14, &
-                            tb_model_name, noisy_tb, error)
+                            r_calpha, n_calpha, C14, tb_model_name, &
+                            noisy_tb, error)
 
     TYPE(tbmd_model_type), POINTER                    :: tbmd_model
     INTEGER, INTENT(IN), OPTIONAL                     :: id_nr, &
@@ -430,8 +424,7 @@ CONTAINS
                                                          m_c, &
                                                          dEpsilon, &
                                                          E_s, &
-                                                         E_0, &
-                                                         r_cutoff
+                                                         E_0
     REAL(KIND=dp), DIMENSION(4), INTENT(IN), OPTIONAL :: r_calpha, &
                                                          n_calpha, &
                                                          C14
@@ -470,7 +463,6 @@ CONTAINS
       IF (PRESENT(dEpsilon)) tbmd_model%dEpsilon = dEpsilon
       IF (PRESENT(E_s)) tbmd_model%E_s = E_s
       IF (PRESENT(E_0)) tbmd_model%E_0 = E_0
-      IF (PRESENT(r_cutoff)) tbmd_model%r_cutoff = r_cutoff
       IF (PRESENT(r_calpha)) tbmd_model%r_calpha = r_calpha
       IF (PRESENT(n_calpha)) tbmd_model%n_calpha = n_calpha
       IF (PRESENT(C14)) tbmd_model%C14 = C14
@@ -534,7 +526,6 @@ CONTAINS
       tbmd_model%dEpsilon      = 0.0_dp
       tbmd_model%E_s           = 0.0_dp
       tbmd_model%E_0           = 0.0_dp
-      tbmd_model%r_cutoff      = 0.0_dp
       tbmd_model%r_calpha(:)   = 0.0_dp
       tbmd_model%n_calpha(:)   = 0.0_dp
       tbmd_model%C14(:)        = 0.0_dp

@@ -139,7 +139,7 @@ CONTAINS
                                                          lup
     REAL(KIND=dp), DIMENSION(3)                       :: dr
     REAL(KIND=dp), DIMENSION(:, :), POINTER           :: r_last_update, &
-                                                         rlist_cutsq
+                                                         r_cutoff
     INTEGER                                           :: istat, &
                                                          iparticle, &
                                                          iparticle_kind, &
@@ -165,7 +165,7 @@ CONTAINS
 ! *** Assigning local pointers ***
   CALL tbmd_neighbor_list_env_get(tbmd_neighbor_list_env, &
                                   tbmd_neighbor_list=tbmd_neighbor_list, &
-                                  rlist_cutsq=rlist_cutsq, &
+                                  r_cutoff=r_cutoff, &
                                   aup=aup, lup=lup, &
                                   counter=counter, &
                                   r_last_update=r_last_update, &
@@ -223,7 +223,7 @@ CONTAINS
 
     IF (update_neighbor_lists) THEN
       CALL build_tbmd_neighbor_lists(atomic_kind_set, particle_set, &
-                                     local_particles, cell, r_max=rlist_cutsq, &
+                                     local_particles, cell, r_max=r_cutoff, &
                                      tbmd_neighbor_list=tbmd_neighbor_list, &
                                      build_from_scratch=build_from_scratch, &
                                      force_env_section=force_env_section, &
@@ -411,9 +411,9 @@ CONTAINS
 !     *** Calculate PBC coordinates ***
       DO iatom = 1,natom_a
         atom_a = atom(ikind)%list(iatom)
-        r_pbc(:) = pbc(particle_set(atom_a)%r(:),cell)
+        r_pbc(:) = pbc(particle_set(atom_a)%r(:), cell)
         atom(ikind)%r_pbc(:,iatom) = r_pbc(:)
-        atom(ikind)%s_pbc(:,iatom) = real_to_scaled(r_pbc(:),cell)
+        atom(ikind)%s_pbc(:,iatom) = real_to_scaled(r_pbc(:), cell)
       END DO
 
     END DO

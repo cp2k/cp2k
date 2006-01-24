@@ -87,12 +87,16 @@ CONTAINS
     IF (.NOT. failure) THEN
        CALL section_create(section,name="TBMD", &
             description="This section contains all information to run a TBMD calculation.", &
-            n_keywords=1, n_subsections=2, repeats=.FALSE., required=.TRUE., &
+            n_keywords=1, n_subsections=3, repeats=.FALSE., required=.TRUE., &
             error=error)
 
        NULLIFY(subsection)
 
        CALL create_tb_model_section(subsection, error=error)
+       CALL section_add_subsection(section, subsection, error=error)
+       CALL section_release(subsection, error=error)
+
+       CALL create_tb_neighbor_list_section(subsection, error=error)
        CALL section_add_subsection(section, subsection, error=error)
        CALL section_release(subsection, error=error)
 
@@ -156,7 +160,7 @@ CONTAINS
     IF (.NOT. failure) THEN
        CALL section_create(section,name="TB_Model", &
             description="This section specifies the Tight-Binding parametrization model.", &
-            n_keywords=18, n_subsections=0, repeats=.FALSE., required=.TRUE., &
+            n_keywords=17, n_subsections=0, repeats=.FALSE., required=.TRUE., &
             error=error)
 
        NULLIFY(keyword)
@@ -168,14 +172,6 @@ CONTAINS
             enum_c_vals=s2a("GSP", "Sawada", "Kwon", "Lenosky", "UDP"), &
             enum_i_vals=(/use_gsp, use_sawada, use_kwon, use_lenosky, use_udp/), &
             default_i_val=use_gsp, error=error)
-       CALL section_add_keyword(section, keyword, error=error)
-       CALL keyword_release(keyword, error=error)
-
-       CALL keyword_create(keyword, name="r_cutoff", &
-            description="Cutoff length: More distant interactions are neglected.", &
-            usage="r_cutoff 3.75", required=.TRUE., type_of_var=real_t, &
-            n_var=1, repeats=.FALSE., default_r_val=3.75_dp, &
-            unit_str="angstrom", error=error)
        CALL section_add_keyword(section, keyword, error=error)
        CALL keyword_release(keyword, error=error)
 
@@ -318,13 +314,79 @@ CONTAINS
   END SUBROUTINE create_tb_model_section
 !***************************************************************************
 
+!!****f* input_cp2k_tbmd/create_tb_neighbor_list_section [1.0] *
+!!
+!!   NAME
+!!     create_tb_neighbor_list_section
+!!
+!!   FUNCTION
+!!     Creates the tbmd neighbor-list, which contains all keyword
+!!     necessary to properly initialize the neighbor-list.
+!!
+!!   NOTES
+!!     -
+!!
+!!   ARGUMENTS
+!!     - section: the section to create
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
+!!
+!!   AUTHOR
+!!     Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
+!!
+!!   MODIFICATION HISTORY
+!!     01.2006 created
+!!
+!!   SOURCE
+!!*** **********************************************************************
+  SUBROUTINE create_tb_neighbor_list_section(section, error)
+    TYPE(section_type), POINTER                  :: section
+    TYPE(cp_error_type), OPTIONAL, INTENT(INOUT) :: error
+
+    LOGICAL :: failure
+    CHARACTER(len=*), PARAMETER :: routineN='create_tb_neighbor_list_section', &
+         routineP=moduleN//':'//routineN
+    TYPE(keyword_type), POINTER :: keyword
+
+!   ------------------------------------------------------------------------
+
+    failure=.FALSE.
+
+    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+    IF (.NOT. failure) THEN
+       CALL section_create(section,name="TBMD_Neighbor_List", &
+            description="This section specifies all paramterers necessary for the"//&
+                        " tight-binding neighbor-lists", &
+            n_keywords=2, n_subsections=0, repeats=.FALSE., required=.TRUE., &
+            error=error)
+
+       NULLIFY(keyword)
+
+       CALL keyword_create(keyword, name="r_cutoff", &
+            description="Cutoff length: More distant interactions are neglected.", &
+            usage="r_cutoff 3.75", required=.TRUE., type_of_var=real_t, &
+            n_var=1, repeats=.FALSE., default_r_val=3.75_dp, &
+            unit_str="angstrom", error=error)
+       CALL section_add_keyword(section, keyword, error=error)
+       CALL keyword_release(keyword, error=error)
+
+       CALL keyword_create(keyword, name="verlet_skin", &
+            description="Verlet skin: Additional boundary layer thickness", &
+            usage="verlet_skin", required=.TRUE., type_of_var=real_t, &
+            n_var=1, repeats=.FALSE., default_r_val=1.0_dp, &
+            unit_str="angstrom", error=error)
+    END IF
+
+  END SUBROUTINE create_tb_neighbor_list_section
+!***************************************************************************
+
 !!****f* input_cp2k_tbmd/create_tb_print_section [1.0] *
 !!
 !!   NAME
 !!     create_tb_print_section
 !!
 !!   FUNCTION
-!!     Creates the print section section for the tbmd subsection
+!!     Creates the print section for the tbmd subsection
 !!
 !!   NOTES
 !!     -
