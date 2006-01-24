@@ -243,10 +243,10 @@ CONTAINS
     IF(.NOT.topology%para_res) atom_info%label_resid(:) = 1
     
     topology%natoms = natom
-    CALL timestop(0.0_dp,handle)
-    CALL write_checkpoint_information("exiting "//routineN,globenv,error)
     CALL cp_print_key_finished_output(iw,logger,subsys_section,&
          "PRINT%TOPOLOGY_INFO/PDB_INFO",error=error)
+    CALL write_checkpoint_information("exiting "//routineN,globenv,error)
+    CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE read_coordinate_pdb
 
