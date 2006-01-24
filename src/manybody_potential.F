@@ -58,7 +58,8 @@ FUNCTION manybody_pot ( pot, r )
      manybody_pot = 0._dp
   ELSE
      WRITE(*,*) "pot%type = ",pot%type
-     CALL stop_program("manybody_potential%ener_pot","Potential type unknown")
+     CALL stop_program("manybody_potential%ener_pot","Potential type unknown"//&
+                                                     " pot%type = "//TRIM(pot%type))
   END IF
 
 END FUNCTION manybody_pot

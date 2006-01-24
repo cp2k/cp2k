@@ -109,8 +109,8 @@ FUNCTION ener_pot ( pot, qi, qj, r, vdw_scale14 )
   ELSE IF (pot%type=='NULL') THEN
      ener_pot = 0.0_dp
   ELSE
-     WRITE(*,*) "pot%type = ",pot%type
-     CALL stop_program("pair_potential%ener_pot","Potential type unknown")
+     CALL stop_program("pair_potential%ener_pot","Potential type unknown "//&
+                                                 "pot%type = "//TRIM(pot%type))
   END IF
 
 END FUNCTION ener_pot
