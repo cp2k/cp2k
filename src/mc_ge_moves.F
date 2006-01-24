@@ -285,9 +285,8 @@ CONTAINS
             energies=-BETA*((SUM(new_energy(:))-SUM(bias_energy_new(:)))&
                -(SUM(old_energy(:))-SUM(bias_energy_old(:))))
 
-            
 ! used to prevent over and underflows
-            IF(energies .GE. 0.0_dp) THEN
+            IF(energies .GE. -1.0E-8) THEN
                w=1.0_dp
             ELSEIF(energies .LE. -500.0_dp) THEN
                w=0.0_dp
@@ -732,11 +731,11 @@ CONTAINS
 
          IF(lbias) THEN
             CALL mc_make_dat_file(r_insert(:,:),ins_atoms,&
-               abc_insert(1:3)*angstrom,dat_file(insert_box),&
+               abc_insert(:)*angstrom,dat_file(insert_box),&
                bias_env(insert_box)%force_env,TRIM(fft_lib))
          ELSE
             CALL mc_make_dat_file(r_insert(:,:),ins_atoms,&
-               abc_insert(1:3)*angstrom,dat_file(insert_box),&
+               abc_insert(:)*angstrom,dat_file(insert_box),&
                force_env(insert_box)%force_env,TRIM(fft_lib))
          ENDIF
       ENDIF
@@ -749,11 +748,11 @@ CONTAINS
          IF(ionode) THEN
             IF(lbias) THEN
                CALL mc_make_dat_file(r_remove(:,:),rem_atoms,&
-                  abc_remove(1:3)*angstrom,dat_file(remove_box),&
+                  abc_remove(:)*angstrom,dat_file(remove_box),&
                   bias_env(remove_box)%force_env,TRIM(fft_lib))
             ELSE
                CALL mc_make_dat_file(r_remove(:,:),rem_atoms,&
-                  abc_remove(1:3)*angstrom,dat_file(remove_box),&
+                  abc_remove(:)*angstrom,dat_file(remove_box),&
                   force_env(remove_box)%force_env,TRIM(fft_lib))
             ENDIF
          ENDIF
@@ -780,11 +779,11 @@ CONTAINS
          IF (ionode) THEN
             IF(lbias) THEN
                CALL mc_make_dat_file(r_remove(:,:),rem_atoms,&
-                  abc_remove(1:3)*angstrom,dat_file(remove_box),&
+                  abc_remove(:)*angstrom,dat_file(remove_box),&
                   bias_env(remove_box)%force_env,TRIM(fft_lib))
             ELSE
                CALL mc_make_dat_file(r_remove(:,:),rem_atoms,&
-                  abc_remove(1:3)*angstrom,dat_file(remove_box),&
+                  abc_remove(:)*angstrom,dat_file(remove_box),&
                   force_env(remove_box)%force_env,TRIM(fft_lib))
             ENDIF
          ENDIF
@@ -913,7 +912,7 @@ CONTAINS
 
 ! first, the environment to which we added a molecule
          IF(ionode) CALL mc_make_dat_file(r_cbmc(:,:),ins_atoms,&
-            abc_insert(1:3)*angstrom,dat_file(insert_box),&
+            abc_insert(:)*angstrom,dat_file(insert_box),&
             force_env(insert_box)%force_env,TRIM(fft_lib))
          insert_env_bias => insert_env
          NULLIFY(insert_env)
@@ -929,7 +928,7 @@ CONTAINS
 ! now the environment that has one less molecule
          IF (nchain(remove_box)-1 == 0) THEN
             IF(ionode) CALL mc_make_dat_file(r_remove(:,:),rem_atoms,&
-               abc_remove(1:3)*angstrom,dat_file(remove_box),&
+               abc_remove(:)*angstrom,dat_file(remove_box),&
                force_env(remove_box)%force_env,TRIM(fft_lib))
             remove_env_bias => remove_env
             NULLIFY(remove_env)
@@ -940,7 +939,7 @@ CONTAINS
             bias_energy_new(remove_box)=0.0E0_dp
          ELSE
             IF(ionode) CALL mc_make_dat_file(r_remove(:,:),rem_atoms,&
-               abc_remove(1:3)*angstrom,dat_file(remove_box),&
+               abc_remove(:)*angstrom,dat_file(remove_box),&
                force_env(remove_box)%force_env,TRIM(fft_lib))
             remove_env_bias => remove_env
             NULLIFY(remove_env)
@@ -1338,7 +1337,7 @@ CONTAINS
 
 ! make the new dat file
             IF (ionode) CALL mc_make_dat_file(r(:,:,ibox),0,&
-               old_cell_length(1:3,ibox)*angstrom,dat_file(ibox),&
+               old_cell_length(:,ibox)*angstrom,dat_file(ibox),&
                force_env(ibox)%force_env,TRIM(fft_lib))
             
          ELSE
@@ -1355,7 +1354,7 @@ CONTAINS
 
 ! make the new dat file
             IF(ionode) CALL mc_make_dat_file(r(:,:,ibox),nunits_tot(ibox),&
-               old_cell_length(1:3,ibox)*angstrom,dat_file(ibox),&
+               old_cell_length(:,ibox)*angstrom,dat_file(ibox),&
                force_env(ibox)%force_env,TRIM(fft_lib))
 
          ENDIF
@@ -1445,7 +1444,7 @@ CONTAINS
                
 ! make the new dat file
             IF(ionode) CALL mc_make_dat_file(r(:,:,ibox),0,&
-               new_cell_length(1:3,ibox)*angstrom,dat_file(ibox),&
+               new_cell_length(:,ibox)*angstrom,dat_file(ibox),&
                force_env(ibox)%force_env,TRIM(fft_lib))
 
          ELSE
@@ -1456,7 +1455,7 @@ CONTAINS
             ENDDO
                
             IF(ionode) CALL mc_make_dat_file(r(:,:,ibox),&
-               nunits_tot(ibox),new_cell_length(1:3,ibox)*angstrom,&
+               nunits_tot(ibox),new_cell_length(:,ibox)*angstrom,&
                dat_file(ibox),force_env(ibox)%force_env,TRIM(fft_lib))
          ENDIF
       ENDDO
