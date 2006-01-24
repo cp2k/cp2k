@@ -3071,7 +3071,7 @@ CONTAINS
     INTEGER                                  :: first, last,search1,search2
     REAL(KIND=dp)                            :: xdum
     INTEGER, DIMENSION(:), POINTER           :: molecule_list
-    CHARACTER(LEN=default_string_length)  :: name,element_symbol
+    CHARACTER(LEN=default_string_length)  :: name,element_symbol,molname
     TYPE(atomic_kind_type), POINTER        :: atomic_kind
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
     TYPE(molecule_type), POINTER        :: molecule    
@@ -3085,8 +3085,9 @@ CONTAINS
     TYPE ( local_dist_constraint_type ), DIMENSION ( : ) , POINTER :: ldist
     TYPE ( local_g3x3_constraint_type ), DIMENSION ( : ) , POINTER :: lg3x3
     TYPE ( local_g4x6_constraint_type ), DIMENSION ( : ) , POINTER :: lg4x6
-    LOGICAL :: failure
+    LOGICAL :: failure,fix_atom_qmmm,fix_atom_molname
     TYPE(cp_logger_type), POINTER            :: logger
+    LOGICAL, DIMENSION(:), ALLOCATABLE       :: missed_molname
 
     failure = .FALSE.
     NULLIFY(logger)
@@ -3409,23 +3410,34 @@ CONTAINS
     ! 8. Set the group fixed_atom constraint fixd_list
     !-----------------------------------------------------------------------------
     IF(topology%const_atom) THEN
+       ALLOCATE(missed_molname(SIZE(cons_info%fixed_molnames,1)),STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       missed_molname=.TRUE.
        DO i=1,SIZE(molecule_kind_set)
           molecule_kind => molecule_kind_set(i)
           CALL get_molecule_kind(molecule_kind=molecule_kind,&
-               nmolecule=nmolecule,molecule_list=molecule_list)
+               nmolecule=nmolecule,molecule_list=molecule_list, name=molname)
+          WHERE(molname.EQ.cons_info%fixed_molnames)
+            missed_molname=.FALSE.
+          END WHERE
           ! Try to figure out how many atoms of the list belong to this molecule_kind
           nfixed_atoms = 0
           DO j=1,nmolecule
              molecule => molecule_set(molecule_list(j))
              CALL get_molecule ( molecule, first_atom = first, last_atom = last )
+             fix_atom_molname=.FALSE.
+             IF (ASSOCIATED(cons_info%fixed_molnames)) THEN
+                IF (ANY(cons_info%fixed_molnames.EQ.molname)) fix_atom_molname=.TRUE.
+             ENDIF
+             fix_atom_qmmm=.FALSE.
+             IF (PRESENT(qmmm_env)) THEN
+                IF  ((cons_info%freeze_qm.AND.ANY(qmmm_env%qm_molecule_index == molecule_list(j))).OR.&
+                     (cons_info%freeze_mm.AND.ALL(qmmm_env%qm_molecule_index /= molecule_list(j)))) THEN
+                  fix_atom_qmmm=.TRUE.
+                ENDIF
+             ENDIF
              DO k = first, last
-                IF (PRESENT(qmmm_env)) THEN
-                   IF  (ANY(cons_info%fixed_atoms == k).OR.&
-                        (cons_info%freeze_qm.AND.ANY(qmmm_env%qm_molecule_index == molecule_list(j))).OR.&
-                        (cons_info%freeze_mm.AND.ALL(qmmm_env%qm_molecule_index /= molecule_list(j))))&
-                        nfixed_atoms = nfixed_atoms + 1 
-                ELSE
-                   IF  (ANY(cons_info%fixed_atoms == k))&
+                IF  (ANY(cons_info%fixed_atoms == k) .OR. fix_atom_qmmm .OR. fix_atom_molname) THEN
                         nfixed_atoms = nfixed_atoms + 1 
                 END IF
              END DO
@@ -3436,32 +3448,36 @@ CONTAINS
           DO j=1,nmolecule
              molecule => molecule_set(molecule_list(j))
              CALL get_molecule ( molecule, first_atom = first, last_atom = last )
+             fix_atom_molname=.FALSE.
+             IF (ASSOCIATED(cons_info%fixed_molnames)) THEN
+                IF (ANY(cons_info%fixed_molnames.EQ.molname)) fix_atom_molname=.TRUE.
+             ENDIF
+             fix_atom_qmmm=.FALSE.
+             IF (PRESENT(qmmm_env)) THEN
+                IF  ((cons_info%freeze_qm.AND.ANY(qmmm_env%qm_molecule_index == molecule_list(j))).OR.&
+                     (cons_info%freeze_mm.AND.ALL(qmmm_env%qm_molecule_index /= molecule_list(j)))) THEN
+                  fix_atom_qmmm=.TRUE.
+                ENDIF
+             ENDIF
              DO k = first, last
-                IF (PRESENT(qmmm_env)) THEN
-                   IF  (ANY(cons_info%fixed_atoms == k).OR.&
-                        (cons_info%freeze_qm.AND.ANY(qmmm_env%qm_molecule_index == molecule_list(j))).OR.&
-                        (cons_info%freeze_mm.AND.ALL(qmmm_env%qm_molecule_index /= molecule_list(j)))) THEN
+                IF  (ANY(cons_info%fixed_atoms == k) .OR. fix_atom_qmmm .OR. fix_atom_molname) THEN                     
                       kk = kk + 1
                       fixd_list(kk)%fixd = k
                       particle_set(k)%is_fixed = .TRUE.
-                   END IF
-                ELSE
-                   IF  (ANY(cons_info%fixed_atoms == k)) THEN                     
-                      kk = kk + 1
-                      fixd_list(kk)%fixd = k
-                      particle_set(k)%is_fixed = .TRUE.
-                   END IF
                 END IF
              END DO
           END DO
           IF (iw>0) WRITE(iw,*)"FIXD_LIST ::",fixd_list
           CALL set_molecule_kind(molecule_kind, nfixd=nfixed_atoms, fixd_list=fixd_list)
        END DO
+       CPPostcondition(COUNT(missed_molname)==0,cp_failure_level,routineP,error,failure)
+       DEALLOCATE(missed_molname,STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
-    CALL timestop(0.0_dp,handle)
     CALL write_checkpoint_information("exiting "//routineN,globenv,error)
     CALL cp_print_key_finished_output(iw,logger,subsys_section,&
          "PRINT%TOPOLOGY_INFO/UTIL_INFO",error=error)
+    CALL timestop(0.0_dp,handle)
   END SUBROUTINE topology_constraint_pack
 !
 !******************************************************************************

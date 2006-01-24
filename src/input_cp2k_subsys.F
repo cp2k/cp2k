@@ -1274,6 +1274,13 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
+       CALL keyword_create(keyword, name="MOLNAME",&
+            description="Specifies the name of the molecule to fix",&
+            usage="MOLNAME WAT MEOH", required=.TRUE., repeats=.TRUE.,&
+            n_var=-1,type_of_var=char_t, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
        CALL keyword_create(keyword, name="MM_SUBSYS",&
             variants=(/"PROTEIN"/),&
             description="In a QM/MM run all  MM atoms are fixed. Only the QM fragment is allowed to move."//&

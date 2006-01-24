@@ -35,7 +35,7 @@ MODULE topology_input
        section_add_keyword, section_add_subsection, section_release,&
        section_vals_type,&
        section_vals_get_subs_vals, section_vals_get, section_vals_val_get
-  USE kinds, ONLY: dp
+  USE kinds, ONLY: dp, default_string_length
   USE input_constants,                 ONLY: do_conn_psf,&
                                              do_conn_generate,&
                                              do_conn_off,&
@@ -202,6 +202,7 @@ SUBROUTINE read_constraints_section(topology, globenv, constraint_section, error
   INTEGER :: ncons, stat, isize, j, k, jj, icons, ig, n_rep
   INTEGER, DIMENSION(:), POINTER       :: ilist, tmplist
   REAL(KIND=dp), DIMENSION(:), POINTER :: rlist 
+  CHARACTER(LEN=default_string_length), DIMENSION(:), POINTER :: tmpstringlist
 
   cons_info    => topology%cons_info
   failure = .FALSE.
@@ -296,9 +297,10 @@ SUBROUTINE read_constraints_section(topology, globenv, constraint_section, error
      ! FIXED ATOMS
      CALL section_vals_get(fix_atom_section,explicit=explicit, n_repetition=ncons, error=error)
      IF (explicit) THEN
-        NULLIFY(tmplist)
+        NULLIFY(tmplist,tmpstringlist)
         isize = 0
         ALLOCATE(cons_info%fixed_atoms(isize),stat=stat)
+        ALLOCATE(cons_info%fixed_molnames(0),stat=stat)
         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
         DO ig = 1, ncons
            CALL section_vals_val_get(fix_atom_section,"LIST", i_rep_section=ig, n_rep_val=n_rep, error=error)
@@ -321,12 +323,20 @@ SUBROUTINE read_constraints_section(topology, globenv, constraint_section, error
               END DO
               isize = SIZE(cons_info%fixed_atoms)
            END IF
+           CALL section_vals_val_get(fix_atom_section,"MOLNAME", i_rep_section=ig, n_rep_val=n_rep, error=error)
+           IF (n_rep /= 0) THEN
+              CALL section_vals_val_get(fix_atom_section,"MOLNAME", i_rep_section=ig, &
+                   c_vals=tmpstringlist, error=error)
+              ALLOCATE(cons_info%fixed_molnames(1:SIZE(tmpstringlist,1)))
+              cons_info%fixed_molnames(:)=tmpstringlist(:)
+           END IF
            CALL section_vals_val_get(fix_atom_section,"MM_SUBSYS",l_val=freeze_mm,i_rep_section=ig,error=error)
            CALL section_vals_val_get(fix_atom_section,"QM_SUBSYS",l_val=freeze_qm,i_rep_section=ig,error=error)
            cons_info%freeze_mm = cons_info%freeze_mm .OR. freeze_mm
            cons_info%freeze_qm = cons_info%freeze_qm .OR. freeze_qm
         END DO
-        IF (isize /= 0 .OR. cons_info%freeze_mm .OR. cons_info%freeze_qm ) THEN
+        IF (isize /= 0 .OR. cons_info%freeze_mm .OR. cons_info%freeze_qm &
+                       .OR. SIZE(cons_info%fixed_molnames,1)>0 ) THEN
            topology%const_atom    = .TRUE.
            cons_info%nfixed_atoms =  isize
         END IF

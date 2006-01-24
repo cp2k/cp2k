@@ -76,6 +76,7 @@ MODULE topology_types
      INTEGER          :: nfixed_atoms
      INTEGER, POINTER :: fixed_atoms(:)
      LOGICAL          :: freeze_qm, freeze_mm
+     CHARACTER(LEN=default_string_length), POINTER :: fixed_molnames(:)
      ! Distance
      INTEGER          :: nconst_dist
      INTEGER, POINTER :: const_dist_mol(:)
@@ -309,6 +310,7 @@ SUBROUTINE init_constraint(constraint_info)
   constraint_info%freeze_mm = .FALSE.
   constraint_info%freeze_qm = .FALSE.
   NULLIFY(constraint_info%fixed_atoms)
+  NULLIFY(constraint_info%fixed_molnames)
   ! Distance
   constraint_info%nconst_dist = 0
   NULLIFY(constraint_info%const_dist_mol)
@@ -582,6 +584,10 @@ SUBROUTINE deallocate_constraint(constraint_info, error)
      ! Fixed Atoms
      IF(ASSOCIATED(constraint_info%fixed_atoms)) THEN
         DEALLOCATE(constraint_info%fixed_atoms, stat=stat)
+        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+     END IF
+     IF(ASSOCIATED(constraint_info%fixed_molnames)) THEN
+        DEALLOCATE(constraint_info%fixed_molnames, stat=stat)
         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
      END IF
      ! Distance
