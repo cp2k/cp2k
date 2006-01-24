@@ -24,7 +24,8 @@
 !****************************************************************************
 MODULE tbmd_neighbor_list_env_types
   USE fist_neighbor_list_types,           ONLY: neighbor_list_set_p_type, &
-                                                deallocate_neighbor_list_set
+                                                deallocate_neighbor_list_set, &
+                                                neighbor_list_set_type
   USE kinds,                              ONLY: dp, &
                                                 default_string_length
 
@@ -215,8 +216,10 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'tbmd_neighbor_list_env_release', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                    :: stat
+    INTEGER                                    :: stat, &
+                                                  i
     LOGICAL                                    :: failure
+    TYPE(neighbor_list_set_type), POINTER      :: neighbor_list_set_ptr
 
 !   ------------------------------------------------------------------------
 
@@ -227,7 +230,10 @@ CONTAINS
       tbmd_neighbor_list_env%ref_count = tbmd_neighbor_list_env%ref_count-1
       IF (tbmd_neighbor_list_env%ref_count<1) THEN
         IF (ASSOCIATED(tbmd_neighbor_list_env%tbmd_neighbor_list)) THEN
-          !CALL dellocate_neighbor_list_set(tbmd_neighbor_list_env%tbmd_neighbor_list)
+          DO i=1,SIZE(tbmd_neighbor_list_env%tbmd_neighbor_list)
+            neighbor_list_set_ptr => tbmd_neighbor_list_env%tbmd_neighbor_list(i)%neighbor_list_set
+            CALL deallocate_neighbor_list_set(neighbor_list_set_ptr)
+          END DO
         END IF
         DEALLOCATE(tbmd_neighbor_list_env, stat=stat)
         CPPostconditionNoFail(stat==0, cp_warning_level, routineP, error)
@@ -477,6 +483,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     LOGICAL                                    :: failure
+    INTEGER                                    :: i
+    TYPE(neighbor_list_set_type), POINTER      :: neighbor_list_set_ptr    
 
 !   ------------------------------------------------------------------------
 
@@ -496,7 +504,10 @@ CONTAINS
       tbmd_neighbor_list_env%r_last_update(:,:) = 0.0_dp
       tbmd_neighbor_list_env%rlist_cutsq(:,:)   = 0.0_dp
       IF (ASSOCIATED(tbmd_neighbor_list_env%tbmd_neighbor_list)) THEN
-        !CALL deallocate_neighbor_list_set(tbmd_neighbor_list_env%tbmd_neighbor_list)
+        DO i=1,SIZE(tbmd_neighbor_list_env%tbmd_neighbor_list)
+            neighbor_list_set_ptr => tbmd_neighbor_list_env%tbmd_neighbor_list(i)%neighbor_list_set
+          CALL deallocate_neighbor_list_set(neighbor_list_set_ptr)
+        END DO
       END IF
      ELSE
       CALL tbmd_neighbor_list_env_create(tbmd_neighbor_list_env, error=error)
@@ -549,21 +560,13 @@ CONTAINS
     ALLOCATE(tbmd_neighbor_list_env, stat=stat)
     CPPostcondition(stat == 0, cp_failure_level, routineP, error, failure)
 
+    NULLIFY(tbmd_neighbor_list_env%tbmd_neighbor_list)
+
     IF (.NOT. failure) THEN
       tbmd_neighbor_list_env%ref_count = 1
       last_tbmd_id=last_tbmd_id+1
       tbmd_neighbor_list_env%id_nr = last_tbmd_id
-      tbmd_neighbor_list_env%unit_type          = ""
-      tbmd_neighbor_list_env%counter            = 0
-      tbmd_neighbor_list_env%last_update        = 0
-      tbmd_neighbor_list_env%num_update         = 0
-      tbmd_neighbor_list_env%verlet_skin        = 0.0_dp
-      tbmd_neighbor_list_env%lup                = 0.0_dp
-      tbmd_neighbor_list_env%aup                = 0.0_dp
-      tbmd_neighbor_list_env%r_last_update(:,:) = 0.0_dp
-      tbmd_neighbor_list_env%rlist_cutsq(:,:)   = 0.0_dp
-      !CALL allocate_neighbor_list_set(tbmd_neighbor_list_env%tbmd_neighbor_list, &
-      !                                r_max=verlet_skin + r_cutoff)
+      CALL tbmd_neighbor_list_env_clear(tbmd_neighbor_list_env, error=error)
     END IF
   END SUBROUTINE tbmd_neighbor_list_env_create
 !***************************************************************************

@@ -23,6 +23,7 @@
 !!   SOURCE
 !****************************************************************************
 MODULE input_cp2k_tbmd
+  USE cp_output_handling,  ONLY: cp_print_key_section_create
   USE input_constants
   USE input_keyword_types, ONLY: keyword_type, keyword_create,&
        keyword_release
@@ -78,13 +79,15 @@ CONTAINS
     TYPE(section_type), POINTER :: subsection
     TYPE(keyword_type), POINTER :: keyword
 
+!   ------------------------------------------------------------------------
+
     failure=.FALSE.
 
     CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
        CALL section_create(section,name="TBMD", &
             description="This section contains all information to run a TBMD calculation.", &
-            n_keywords=0, n_subsections=1, repeats=.FALSE., required=.TRUE., &
+            n_keywords=1, n_subsections=2, repeats=.FALSE., required=.TRUE., &
             error=error)
 
        NULLIFY(subsection)
@@ -102,6 +105,10 @@ CONTAINS
             default_l_val=.FALSE., lone_keyword_l_val=.TRUE., error=error)
        CALL section_add_keyword(section, keyword, error=error)
        CALL keyword_release(keyword, error=error)
+
+       CALL create_tb_print_section(subsection, error=error)
+       CALL section_add_subsection(section, subsection, error)
+       CALL section_release(subsection, error=error)
 
     END IF
 
@@ -140,6 +147,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN='create_tb_model_section', &
          routineP=moduleN//':'//routineN
     TYPE(keyword_type), POINTER :: keyword
+
+!   ------------------------------------------------------------------------
 
     failure=.FALSE.
 
@@ -307,6 +316,63 @@ CONTAINS
 
     END IF
   END SUBROUTINE create_tb_model_section
+!***************************************************************************
+
+!!****f* input_cp2k_tbmd/create_tb_print_section [1.0] *
+!!
+!!   NAME
+!!     create_tb_print_section
+!!
+!!   FUNCTION
+!!     Creates the print section section for the tbmd subsection
+!!
+!!   NOTES
+!!     -
+!!
+!!   ARGUMENTS
+!!     - section: the section to create
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
+!!
+!!   AUTHOR
+!!     Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
+!!
+!!   MODIFICATION HISTORY
+!!     01.2006 created
+!!
+!!   SOURCE
+!!*** **********************************************************************
+  SUBROUTINE create_tb_print_section(section, error)
+    TYPE(section_type), POINTER                  :: section
+    TYPE(cp_error_type), OPTIONAL, INTENT(INOUT) :: error
+
+    LOGICAL :: failure
+    CHARACTER(len=*), PARAMETER :: routineN='create_tb_print_section', &
+         routineP=moduleN//':'//routineN
+    TYPE(section_type), POINTER :: print_key
+
+!   ------------------------------------------------------------------------
+
+    failure=.FALSE.
+
+    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+    IF (.NOT. failure) THEN
+       CALL section_create(section, name="PRINT", &
+            description="Section of possible print options in TBMD code.", &
+            n_keywords=0, n_subsections=1, repeats=.FALSE., required=.TRUE., &
+            error=error)
+
+       NULLIFY(print_key)
+
+       CALL cp_print_key_section_create(print_key, "NEIGHBOR_LISTS", &
+            description="Controls the printing of the set of neighbor lists.", &
+            print_level=high_print_level, each=(/1/), filename="__STD_OUT__", &
+            error=error)
+       CALL section_add_subsection(section, print_key, error=error)
+       CALL section_release(print_key, error=error)
+
+    END IF
+  END SUBROUTINE create_tb_print_section
 !***************************************************************************
 
 END MODULE input_cp2k_tbmd

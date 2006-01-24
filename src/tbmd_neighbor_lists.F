@@ -225,10 +225,9 @@ CONTAINS
       CALL build_tbmd_neighbor_lists(atomic_kind_set, particle_set, &
                                      local_particles, cell, r_max=rlist_cutsq, &
                                      tbmd_neighbor_list=tbmd_neighbor_list, &
-                                     globenv=globenv, &
                                      build_from_scratch=build_from_scratch, &
                                      force_env_section=force_env_section, &
-                                     error=error)
+                                     globenv=globenv, error=error)
 
       IF ( counter > 0 ) THEN
         num_update = num_update + 1
@@ -242,18 +241,17 @@ CONTAINS
         aup = 0.0_dp
       END IF
 
-      CALL tbmd_neighbor_list_env_set(tbmd_neighbor_list_env, &
-                                      lup=lup, aup=aup, &
+      CALL tbmd_neighbor_list_env_set(tbmd_neighbor_list_env, lup=lup, aup=aup, &
                                       r_last_update=r_last_update, &
                                       tbmd_neighbor_list=tbmd_neighbor_list, &
                                       num_update=num_update, &
-                                      last_update=last_update)
+                                      last_update=last_update, error=error)
 
       IF ((globenv%print_level >= 2).AND.(globenv%ionode)) THEN
-        WRITE (UNIT=globenv%scr,&
+        WRITE (UNIT=globenv%scr, &
                FMT="(/,T2,A,/,T52,A,/,A,T31,A,T49,2(1X,F15.2),/,T2,A,/)")&
           REPEAT("*",79),"INSTANTANEOUS        AVERAGES",&
-          " LIST UPDATES[steps]","= ",lup,aup,REPEAT("*",79)
+          " LIST UPDATES[steps]","= ", lup, aup, REPEAT("*",79)
       END IF
     END IF
 

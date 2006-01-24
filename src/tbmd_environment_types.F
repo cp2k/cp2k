@@ -63,6 +63,10 @@ MODULE tbmd_environment_types
   USE tbmd_model_types,                         ONLY: tbmd_model_type, &
                                                       tbmd_model_release, &
                                                       tbmd_model_clear
+  USE tbmd_neighbor_list_env_types,             ONLY: tbmd_neighbor_list_env_type, &
+                                                      tbmd_neighbor_list_env_release, &
+                                                      tbmd_neighbor_list_env_clear, &
+                                                      tbmd_neighbor_list_env_create
   USE virial_types,                             ONLY: virial_type, &
                                                       zero_virial, &
                                                       virial_release
@@ -115,6 +119,7 @@ MODULE tbmd_environment_types
 !!     - use_ref_cell: Logical which indicates if reference 
 !!                     simulation cell is used
 !!     - para_env: The parallel environment
+!!     - tbmd_neighbor_list_env: The TBMD neighbor-list environment
 !!
 !!   AUTHOR
 !!     Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
@@ -138,6 +143,7 @@ MODULE tbmd_environment_types
     TYPE(cell_type), POINTER                         :: cell_ref
     LOGICAL                                          :: use_ref_cell
     TYPE(cp_para_env_type), POINTER                  :: para_env
+    TYPE(tbmd_neighbor_list_env_type), POINTER       :: tbmd_neighbor_list_env
 
   END TYPE tbmd_environment_type
 !!***
@@ -292,6 +298,10 @@ CONTAINS
         !IF (ASSOCIATED(tbmd_env%para_env)) THEN
         !  CALL cp_para_env_release(tbmd_env%para_env,error=error)
         !END IF
+        IF (ASSOCIATED(tbmd_env%tbmd_neighbor_list_env)) THEN
+          CALL tbmd_neighbor_list_env_release(tbmd_env%tbmd_neighbor_list_env, &
+                                              error=error)
+        END IF
         DEALLOCATE(tbmd_env, stat=stat)
         CPPostconditionNoFail(stat==0, cp_warning_level, routineP, error)
       END IF
@@ -334,6 +344,7 @@ CONTAINS
 !!     - use_ref_cell: Logical which indicates if reference 
 !!                     simulation cell is used
 !!     - para_env: The parallel environment
+!!     - tbmd_neighbor_list_env: The TBMD neighbor-list environment
 !!
 !!     For possible missing arguments see the attributes of 
 !!     tbmd_environment_type
@@ -350,7 +361,7 @@ CONTAINS
                           local_particles, molecule_kind_set, molecule_set, &
                           local_molecules, tbmd_input, cell, cell_ref, &
                           use_ref_cell, para_env, id_nr, force_env_input, &
-                          error)
+                          tbmd_neighbor_list_env, error)
 
     TYPE(tbmd_environment_type), POINTER         :: tbmd_env
     TYPE(tbmd_energy_type), POINTER, OPTIONAL    :: tbmd_energy
@@ -375,6 +386,8 @@ CONTAINS
     TYPE(cp_para_env_type), POINTER, OPTIONAL    :: para_env
     TYPE(section_vals_type), POINTER, OPTIONAL   :: tbmd_input, &
                                                     force_env_input
+    TYPE(tbmd_neighbor_list_env_type), POINTER, &
+         OPTIONAL                                :: tbmd_neighbor_list_env
     INTEGER, INTENT(OUT), OPTIONAL               :: id_nr
     TYPE(cp_error_type), INTENT(INOUT), &
          OPTIONAL                                :: error
@@ -391,6 +404,8 @@ CONTAINS
 !   ------------------------------------------------------------------------
 
     failure = .FALSE.
+
+    NULLIFY(atomic_kinds, particles, molecules_new, molecule_kinds_new)
 
     CPPrecondition(ASSOCIATED(tbmd_env), cp_failure_level, routineP, error, failure)
     CPPrecondition(tbmd_env%ref_count>0, cp_failure_level, routineP, error, failure)
@@ -420,6 +435,9 @@ CONTAINS
       IF (PRESENT(cell_ref)) cell_ref => tbmd_env%cell_ref
       IF (PRESENT(use_ref_cell)) use_ref_cell = tbmd_env%use_ref_cell
       IF (PRESENT(para_env)) para_env => tbmd_env%para_env
+      IF (PRESENT(tbmd_neighbor_list_env)) THEN
+        tbmd_neighbor_list_env => tbmd_env%tbmd_neighbor_list_env
+      END IF
     END IF
 
   END SUBROUTINE tbmd_env_get
@@ -459,6 +477,7 @@ CONTAINS
 !!     - use_ref_cell: Logical which indicates if reference 
 !!                     simulation cell is used
 !!     - para_env: The parallel environment
+!!     - tbmd_neighbor_list_env: The TBMD neighbor-list environment
 !!
 !!     For possible missing arguments see the attributes of 
 !!     tbmd_environment_type
@@ -475,7 +494,7 @@ CONTAINS
                           local_particles, molecule_kind_set, molecule_set, &
                           local_molecules, tbmd_input, cell, cell_ref, &
                           use_ref_cell, para_env, id_nr, force_env_input, &
-                          error)
+                          tbmd_neighbor_list_env, error)
 
     TYPE(tbmd_environment_type), POINTER         :: tbmd_env
     TYPE(tbmd_energy_type), POINTER, OPTIONAL    :: tbmd_energy
@@ -500,7 +519,8 @@ CONTAINS
     TYPE(cell_type), POINTER, OPTIONAL           :: cell_ref
     LOGICAL, INTENT(IN), OPTIONAL                :: use_ref_cell
     TYPE(cp_para_env_type), POINTER, OPTIONAL    :: para_env
-
+    TYPE(tbmd_neighbor_list_env_type), POINTER, &
+         OPTIONAL                                :: tbmd_neighbor_list_env
     INTEGER, INTENT(IN), OPTIONAL                :: id_nr
     TYPE(cp_error_type), INTENT(INOUT), &
          OPTIONAL                                :: error
@@ -517,6 +537,8 @@ CONTAINS
 !   ------------------------------------------------------------------------
 
     failure = .FALSE.
+
+    NULLIFY(atomic_kinds, particles, molecules_new, molecule_kinds_new)
   
     CPPrecondition(ASSOCIATED(tbmd_env), cp_failure_level, routineP, error, failure)
     CPPrecondition(tbmd_env%ref_count>0, cp_failure_level, routineP, error, failure)
@@ -594,6 +616,9 @@ CONTAINS
       END IF
       IF (PRESENT(use_ref_cell)) tbmd_env%use_ref_cell = use_ref_cell
       IF (PRESENT(para_env)) tbmd_env%para_env => para_env
+      IF (PRESENT(tbmd_neighbor_list_env)) THEN
+        tbmd_env%tbmd_neighbor_list_env => tbmd_neighbor_list_env
+      END IF
     END IF
   END SUBROUTINE tbmd_env_set
 !***************************************************************************
@@ -674,6 +699,10 @@ CONTAINS
       IF (ASSOCIATED(tbmd_env%para_env)) THEN
         CALL cp_para_env_release(tbmd_env%para_env, error=error)
       END IF
+      IF (ASSOCIATED(tbmd_env%tbmd_neighbor_list_env)) THEN
+        CALL tbmd_neighbor_list_env_clear(tbmd_env%tbmd_neighbor_list_env, &
+                                          error=error)
+      END IF
      ELSE
       CALL tbmd_env_create(tbmd_env, error=error)
     END IF
@@ -735,12 +764,14 @@ CONTAINS
     NULLIFY(tbmd_env%cell_ref)
     NULLIFY(tbmd_env%para_env)
     NULLIFY(tbmd_env%force_env_input)
+    NULLIFY(tbmd_env%tbmd_neighbor_list_env)
    
     IF (.NOT. failure) THEN
       tbmd_env%ref_count = 1
       last_tbmd_id=last_tbmd_id+1
       tbmd_env%id_nr = last_tbmd_id
       tbmd_env%use_ref_cell = .FALSE.
+      !CALL tbmd_env_clear(tbmd_env, error=error)
     END IF
   END SUBROUTINE tbmd_env_create
 !***************************************************************************
