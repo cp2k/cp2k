@@ -20,10 +20,28 @@
 !!     An empty list is represented by an unassociated pointer.
 !!
 !!   NOTES
+!!    ____              _ _     __  __           _ _  __         _____ _     _       _____ _ _      _ 
+!!   |  _ \  ___  _ __ ( ) |_  |  \/  | ___   __| (_)/ _|_   _  |_   _| |__ (_)___  |  ___(_) | ___| |
+!!   | | | |/ _ \| '_ \|/| __| | |\/| |/ _ \ / _` | | |_| | | |   | | | '_ \| / __| | |_  | | |/ _ \ |
+!!   | |_| | (_) | | | | | |_  | |  | | (_) | (_| | |  _| |_| |   | | | | | | \__ \ |  _| | | |  __/_|
+!!   |____/ \___/|_| |_|  \__| |_|  |_|\___/ \__,_|_|_|  \__, |   |_| |_| |_|_|___/ |_|   |_|_|\___(_)
+!!                                                       |___/                                        
+!!     ____ _                  ___                              _ _       _       _       
+!!    / ___| | ___  ___  ___  |_ _|_ __ ___  _ __ ___   ___  __| (_) __ _| |_ ___| |_   _ 
+!!   | |   | |/ _ \/ __|/ _ \  | || '_ ` _ \| '_ ` _ \ / _ \/ _` | |/ _` | __/ _ \ | | | |
+!!   | |___| | (_) \__ \  __/  | || | | | | | | | | | |  __/ (_| | | (_| | ||  __/ | |_| |
+!!    \____|_|\___/|___/\___| |___|_| |_| |_|_| |_| |_|\___|\__,_|_|\__,_|\__\___|_|\__, |
+!!                                                                                  |___/ 
+!!    _____ _     _       _____ _ _      _ 
+!!   |_   _| |__ (_)___  |  ___(_) | ___| |
+!!     | | | '_ \| / __| | |_  | | |/ _ \ |
+!!     | | | | | | \__ \ |  _| | | |  __/_|
+!!     |_| |_| |_|_|___/ |_|   |_|_|\___(_)
+!!   
 !!     This is a template
 !!
 !!     **** DO NOT MODIFY THE .F FILES ****
-!!     modify the .template and .instantition files
+!!     modify the .template and .instantition instead
 !!
 !!   AUTHOR
 !!     @author Fawzi Mohamed
@@ -37,10 +55,9 @@
 !!   SOURCE
 !*****************************************************************************
 MODULE cp_linked_list_rs
-  USE kinds, only: dp
-USE realspace_grid_types, ONLY: realspace_grid_type, realspace_grid_p_type,&
-    rs_grid_write
 #include "cp_common_uses.h"
+  USE kinds, only: dp
+USE realspace_grid_types, ONLY: realspace_grid_type, realspace_grid_p_type
   IMPLICIT NONE
   PRIVATE
 
@@ -59,7 +76,7 @@ USE realspace_grid_types, ONLY: realspace_grid_type, realspace_grid_p_type,&
 ! structure manipulation
   PUBLIC :: cp_insert, cp_remove_first_el, cp_remove_el, cp_remove_all
 ! low level
-  PUBLIC :: cp_dealloc_node, cp_write
+  PUBLIC :: cp_dealloc_node
 
   ! underlying routines
   PUBLIC :: cp_sll_rs_create, cp_sll_rs_dealloc,&
@@ -71,7 +88,7 @@ USE realspace_grid_types, ONLY: realspace_grid_type, realspace_grid_p_type,&
        cp_sll_rs_insert_el, cp_sll_rs_insert_el_at,&
        cp_sll_rs_rm_first_el, cp_sll_rs_rm_el_at,&
        cp_sll_rs_rm_all_el, &
-       cp_sll_rs_write, cp_sll_rs_to_array,&
+       cp_sll_rs_to_array,&
        cp_sll_rs_from_array, cp_sll_rs_insert_ordered,&
        cp_sll_rs_insert_ordered2
 
@@ -146,10 +163,6 @@ USE realspace_grid_types, ONLY: realspace_grid_type, realspace_grid_p_type,&
 ! remove all the elments
   INTERFACE cp_remove_all
      MODULE PROCEDURE cp_sll_rs_rm_all_el
-  END INTERFACE
-! writes the list (low-level)
-  INTERFACE cp_write
-     MODULE PROCEDURE cp_sll_rs_write
   END INTERFACE
 ! transorms the list in array
   INTERFACE cp_to_array
@@ -1048,51 +1061,6 @@ CPSourceFileRef,&
   END SUBROUTINE cp_sll_rs_rm_all_el
 !***************************************************************************
 
-!!****f* cp_linked_list_rs/cp_sll_rs_write [1.0] *
-!!
-!!   NAME
-!!     cp_sll_rs_write
-!!
-!!   FUNCTION
-!!     writes the list as a comma separated parentized list to the given
-!!     unit
-!!
-!!   NOTES
-!!     low level
-!!
-!!   INPUTS
-!!     sll: the list to output
-!!     unit_nr: the unit to write to (defaults to the standard out)
-!!     error: variable to control error logging, stopping,... 
-!!            see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     4.2002 created [fawzi]
-!!
-!!*** **********************************************************************
-  SUBROUTINE cp_sll_rs_write(sll,unit_nr,error)
-    TYPE(cp_sll_rs_type), POINTER :: sll
-    INTEGER, INTENT(in) :: unit_nr
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-
-    LOGICAL :: failure
-    TYPE(cp_sll_rs_type), POINTER :: iterator
-    CHARACTER(len=*), PARAMETER :: routineN='cp_sll_rs_write',&
-         routineP=moduleN//':'//routineN
-    type(realspace_grid_type),pointer :: el
-    failure=.FALSE.
-    iterator => sll
-  
-    DO
-       IF (.NOT.cp_sll_rs_next(iterator,el_att=el,error=error)) EXIT
-       CALL rs_grid_write(el, unit_nr=unit_nr, error=error)
-    END DO
-  END SUBROUTINE cp_sll_rs_write
-!***************************************************************************
-
 !!****f* cp_linked_list_rs/cp_sll_rs_to_array [1.0] *
 !!
 !!   NAME
@@ -1168,7 +1136,7 @@ END FUNCTION cp_sll_rs_to_array
 !!
 !!*** **********************************************************************
 FUNCTION cp_sll_rs_from_array(array,error) RESULT(res)
-  TYPE(realspace_grid_p_type), DIMENSION(:), POINTER :: array
+  type(realspace_grid_p_type), DIMENSION(:), INTENT(in) :: array
   TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
   TYPE(cp_sll_rs_type), POINTER :: res
   
@@ -1315,8 +1283,7 @@ SUBROUTINE cp_sll_rs_insert_ordered2(sll,el,compare_function,&
   INTERFACE
      FUNCTION compare_function(el1,el2)
        USE kinds, only: dp
-USE realspace_grid_types, ONLY: realspace_grid_type, realspace_grid_p_type,&
-    rs_grid_write
+USE realspace_grid_types, ONLY: realspace_grid_type, realspace_grid_p_type
        INTEGER :: compare_function
        type(realspace_grid_type), pointer :: el1,el2
      END FUNCTION compare_function
@@ -1476,8 +1443,7 @@ FUNCTION cp_sll_rs_contains2(sll,el,compare_function,ordered,error)&
   INTERFACE
      FUNCTION compare_function(el1,el2)
        USE kinds, only: dp
-USE realspace_grid_types, ONLY: realspace_grid_type, realspace_grid_p_type,&
-    rs_grid_write
+USE realspace_grid_types, ONLY: realspace_grid_type, realspace_grid_p_type
        INTEGER :: compare_function
        type(realspace_grid_type), pointer :: el1,el2
      END FUNCTION compare_function
@@ -1523,8 +1489,7 @@ END FUNCTION cp_sll_rs_contains2
 !  = = "=>"
 !  USE = 
 !    "USE kinds, only: dp
-!     USE realspace_grid_types, ONLY: realspace_grid_type, realspace_grid_p_type,&
-!         rs_grid_write"
+!     USE realspace_grid_types, ONLY: realspace_grid_type, realspace_grid_p_type"
 !  array= = "=>"
 !  arrayEl = "%rs_grid"
 !  defines = 
@@ -1540,7 +1505,7 @@ END FUNCTION cp_sll_rs_contains2
 !  type1arrayEl = "type(realspace_grid_p_type)"
 !  type1in = "type(realspace_grid_type), pointer"
 !  type1out = "type(realspace_grid_type), pointer"
-!  write_el = "rs_grid_write"
+!  write_el = ""
 
 
 END MODULE cp_linked_list_rs

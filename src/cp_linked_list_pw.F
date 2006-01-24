@@ -20,10 +20,28 @@
 !!     An empty list is represented by an unassociated pointer.
 !!
 !!   NOTES
+!!    ____              _ _     __  __           _ _  __         _____ _     _       _____ _ _      _ 
+!!   |  _ \  ___  _ __ ( ) |_  |  \/  | ___   __| (_)/ _|_   _  |_   _| |__ (_)___  |  ___(_) | ___| |
+!!   | | | |/ _ \| '_ \|/| __| | |\/| |/ _ \ / _` | | |_| | | |   | | | '_ \| / __| | |_  | | |/ _ \ |
+!!   | |_| | (_) | | | | | |_  | |  | | (_) | (_| | |  _| |_| |   | | | | | | \__ \ |  _| | | |  __/_|
+!!   |____/ \___/|_| |_|  \__| |_|  |_|\___/ \__,_|_|_|  \__, |   |_| |_| |_|_|___/ |_|   |_|_|\___(_)
+!!                                                       |___/                                        
+!!     ____ _                  ___                              _ _       _       _       
+!!    / ___| | ___  ___  ___  |_ _|_ __ ___  _ __ ___   ___  __| (_) __ _| |_ ___| |_   _ 
+!!   | |   | |/ _ \/ __|/ _ \  | || '_ ` _ \| '_ ` _ \ / _ \/ _` | |/ _` | __/ _ \ | | | |
+!!   | |___| | (_) \__ \  __/  | || | | | | | | | | | |  __/ (_| | | (_| | ||  __/ | |_| |
+!!    \____|_|\___/|___/\___| |___|_| |_| |_|_| |_| |_|\___|\__,_|_|\__,_|\__\___|_|\__, |
+!!                                                                                  |___/ 
+!!    _____ _     _       _____ _ _      _ 
+!!   |_   _| |__ (_)___  |  ___(_) | ___| |
+!!     | | | '_ \| / __| | |_  | | |/ _ \ |
+!!     | | | | | | \__ \ |  _| | | |  __/_|
+!!     |_| |_| |_|_|___/ |_|   |_|_|\___(_)
+!!   
 !!     This is a template
 !!
 !!     **** DO NOT MODIFY THE .F FILES ****
-!!     modify the .template and .instantition files
+!!     modify the .template and .instantition instead
 !!
 !!   AUTHOR
 !!     @author Fawzi Mohamed
@@ -37,9 +55,9 @@
 !!   SOURCE
 !*****************************************************************************
 MODULE cp_linked_list_pw
+#include "cp_common_uses.h"
   USE kinds, only: dp
 USE pw_types, ONLY: pw_type, pw_p_type, pw_write
-#include "cp_common_uses.h"
   IMPLICIT NONE
   PRIVATE
 
@@ -58,7 +76,7 @@ USE pw_types, ONLY: pw_type, pw_p_type, pw_write
 ! structure manipulation
   PUBLIC :: cp_insert, cp_remove_first_el, cp_remove_el, cp_remove_all
 ! low level
-  PUBLIC :: cp_dealloc_node, cp_write
+  PUBLIC :: cp_dealloc_node
 
   ! underlying routines
   PUBLIC :: cp_sll_pw_create, cp_sll_pw_dealloc,&
@@ -70,7 +88,7 @@ USE pw_types, ONLY: pw_type, pw_p_type, pw_write
        cp_sll_pw_insert_el, cp_sll_pw_insert_el_at,&
        cp_sll_pw_rm_first_el, cp_sll_pw_rm_el_at,&
        cp_sll_pw_rm_all_el, &
-       cp_sll_pw_write, cp_sll_pw_to_array,&
+       cp_sll_pw_to_array,&
        cp_sll_pw_from_array, cp_sll_pw_insert_ordered,&
        cp_sll_pw_insert_ordered2
 
@@ -145,10 +163,6 @@ USE pw_types, ONLY: pw_type, pw_p_type, pw_write
 ! remove all the elments
   INTERFACE cp_remove_all
      MODULE PROCEDURE cp_sll_pw_rm_all_el
-  END INTERFACE
-! writes the list (low-level)
-  INTERFACE cp_write
-     MODULE PROCEDURE cp_sll_pw_write
   END INTERFACE
 ! transorms the list in array
   INTERFACE cp_to_array
@@ -1047,51 +1061,6 @@ CPSourceFileRef,&
   END SUBROUTINE cp_sll_pw_rm_all_el
 !***************************************************************************
 
-!!****f* cp_linked_list_pw/cp_sll_pw_write [1.0] *
-!!
-!!   NAME
-!!     cp_sll_pw_write
-!!
-!!   FUNCTION
-!!     writes the list as a comma separated parentized list to the given
-!!     unit
-!!
-!!   NOTES
-!!     low level
-!!
-!!   INPUTS
-!!     sll: the list to output
-!!     unit_nr: the unit to write to (defaults to the standard out)
-!!     error: variable to control error logging, stopping,... 
-!!            see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     4.2002 created [fawzi]
-!!
-!!*** **********************************************************************
-  SUBROUTINE cp_sll_pw_write(sll,unit_nr,error)
-    TYPE(cp_sll_pw_type), POINTER :: sll
-    INTEGER, INTENT(in) :: unit_nr
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-
-    LOGICAL :: failure
-    TYPE(cp_sll_pw_type), POINTER :: iterator
-    CHARACTER(len=*), PARAMETER :: routineN='cp_sll_pw_write',&
-         routineP=moduleN//':'//routineN
-    type(pw_type),pointer :: el
-    failure=.FALSE.
-    iterator => sll
-  
-    DO
-       IF (.NOT.cp_sll_pw_next(iterator,el_att=el,error=error)) EXIT
-       CALL pw_write(el, unit_nr=unit_nr, error=error)
-    END DO
-  END SUBROUTINE cp_sll_pw_write
-!***************************************************************************
-
 !!****f* cp_linked_list_pw/cp_sll_pw_to_array [1.0] *
 !!
 !!   NAME
@@ -1536,7 +1505,7 @@ END FUNCTION cp_sll_pw_contains2
 !  type1arrayEl = "type(pw_p_type)"
 !  type1in = "type(pw_type), pointer"
 !  type1out = "type(pw_type), pointer"
-!  write_el = "pw_write"
+!  write_el = ""
 
 
 END MODULE cp_linked_list_pw

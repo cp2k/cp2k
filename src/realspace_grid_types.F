@@ -74,7 +74,6 @@ MODULE realspace_grid_types
             rs_grid_zero,&
             rs_grid_to_cube, &
             rs_pw_to_cube,&
-            rs_grid_write,&
             rs_get_my_tasks,&
             rs_get_loop_vars,&
             rs_grid_create,&
@@ -1078,48 +1077,6 @@ SUBROUTINE rs_pw_to_cube ( pw, iunit, ionode, title, rs, particles, stride,&
 END SUBROUTINE rs_pw_to_cube
 !******************************************************************************
 
-!!****f* realspace_grid_types/rs_grid_write [1.0] *
-!!
-!!   NAME
-!!     rs_grid_write
-!!
-!!   FUNCTION
-!!     writes out information about the given rs grid
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - rs: the realspace grid to output
-!!     - unit_nr: the unit number to output to
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!   MODIFICATION HISTORY
-!!     03.2003 created [fawzi]
-!!
-!!*** **********************************************************************
-SUBROUTINE rs_grid_write(rs,unit_nr,error)
-    TYPE(realspace_grid_type), POINTER       :: rs
-    INTEGER, INTENT(in)                      :: unit_nr
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'rs_grid_write', &
-      routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: failure
-
-  failure=.FALSE.
-  
-  CALL cp_unimplemented_error(fromWhere=routineP, message="at "//&
-       CPSourceFileRef,&
-       error=error)
-END SUBROUTINE rs_grid_write
-!***************************************************************************
 
 !!****f* realspace_grid_types/rs_grid_create [1.0] *
 !!

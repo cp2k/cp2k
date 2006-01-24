@@ -1,19 +1,4 @@
 [
-{'el_typename':'mol_struct',
-'el_type':'type(molecule_structure_type)',
-'USE':"""use molecule_types, only: molecule_structure_type""",
-'deallocate_els_code':
-"""DEALLOCATE(list%els,stat=stat)
-              CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)"""
-},
-{'el_typename':'mol_kind',
-'el_type':'type(molecule_type)',
-'USE':"""use molecule_types, only: molecule_type""",
-'deallocate_els_code':
-"""DEALLOCATE(list%els,stat=stat)
-              CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-              CPAssertNoFail(.false.,cp_warning_level,routineP,error)"""
-},
 {'el_typename':'particle',
 'el_type':'type(particle_type)',
 'USE':"""use particle_types, only: particle_type, deallocate_particle_set""",

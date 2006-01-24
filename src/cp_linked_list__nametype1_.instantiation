@@ -5,8 +5,7 @@
  'type1in':'integer, intent(in)',
  'type1out':'integer, intent(out)',
  'USE':
-"""USE kinds, only: dp
-USE cp_array_i_utils, ONLY: cp_i_write""",
+"""USE kinds, only: dp """,
  'defines':
 """#define CP_SLL_I_LESS_Q(el1,el2) ( el1 < el2 )
 #define CP_SLL_I_EQUAL_Q(el1,el2) ( el1 == el2 )
@@ -17,7 +16,7 @@ USE cp_array_i_utils, ONLY: cp_i_write""",
  'arrayEl':'',
  'lessQ':'CP_SLL_I_LESS_Q',
  'equalQ':'CP_SLL_I_EQUAL_Q',
- 'write_el':'cp_i_write',
+ 'write_el':'',
  'private_routines':''
 },
 {
@@ -26,8 +25,7 @@ USE cp_array_i_utils, ONLY: cp_i_write""",
  'type1in':'real(kind=dp), intent(in)',
  'type1out':'real(kind=dp), intent(out)',
  'USE':
-"""USE kinds, only: dp
-USE cp_array_r_utils, ONLY: cp_r_write""",
+"""USE kinds, only: dp""",
  'defines':
 """#define CP_SLL_R_LESS_Q(el1,el2) ( el1 < el2 )
 #define CP_SLL_R_EQUAL_Q(el1,el2) ( el1 == el2 )
@@ -38,7 +36,7 @@ USE cp_array_r_utils, ONLY: cp_r_write""",
  'arrayEl':'',
  'lessQ':'CP_SLL_R_LESS_Q',
  'equalQ':'CP_SLL_R_EQUAL_Q',
- 'write_el':'cp_r_write',
+ 'write_el':'',
  'private_routines':''
 },
 {
@@ -47,7 +45,7 @@ USE cp_array_r_utils, ONLY: cp_r_write""",
  'type1in':'logical, intent(in)',
  'type1out':'logical, intent(out)',
  'USE':
-"""USE cp_array_logical_utils, ONLY: cp_logical_write""",
+""" """,
  'defines':
 """#define CP_SLL_L_LESS_Q(el1,el2) ( .not.el1.and.el2 )
 #define CP_SLL_L_EQUAL_Q(el1,el2) ( el1.EQV.el2 )
@@ -58,7 +56,7 @@ USE cp_array_r_utils, ONLY: cp_r_write""",
  'arrayEl':'',
  'lessQ':'CP_SLL_L_LESS_Q',
  'equalQ':'CP_SLL_L_EQUAL_Q',
- 'write_el':'cp_logical_write',
+ 'write_el':'',
  'private_routines':''
 },
 {
@@ -78,7 +76,7 @@ USE cp_array_r_utils, ONLY: cp_r_write""",
  'arrayEl':'',
  'lessQ':'CP_SLL_C_LESS_Q',
  'equalQ':'CP_SLL_C_EQUAL_Q',
- 'write_el':'write_string',
+ 'write_el':'',
  'private_routines':"""subroutine write_string(str,unit_nr,error)
   character(len=*),intent(in) :: str
   integer, intent(in) :: unit_nr
@@ -89,29 +87,6 @@ end subroutine write_string
 """
 },
 
-#{
-# 'nametype1':'int_ptr', 
-# 'type1':'integer, pointer', 
-# 'type1in':'integer, intent(in),target',
-# 'type1out':'integer, pointer',
-# 'USE':
-#"""USE kinds, only: dp
-#USE cp_array_i_utils, ONLY: cp_i_write""",
-# 'defines':
-#"""#define CP_SLL_I_LESS_Q(el1,el2) ( el1 < el2 )
-##define CP_SLL_I_EQUAL_Q(el1,el2) ( el1 == el2 )
-##define PW_WRITE_UNIMPLEMENTED(el, unit, err)
-#""",
-# '=':'=>',
-# 'type1arrayEl':'integer',
-# 'array=':'=',
-# 'arrayEl':'',
-# 'lessQ':'CP_SLL_I_LESS_Q',
-# 'equalQ':'CP_SLL_I_EQUAL_Q',
-# 'write_el':'cp_i_write', # careful:no check for unassociated pointers!
-# 'private_routines':''
-#}
-#,
 {
  'nametype1':'pw', 
  'type1':'type(pw_type),pointer', 
@@ -131,7 +106,7 @@ USE pw_types, ONLY: pw_type, pw_p_type, pw_write""",
  'arrayEl':'%pw',
  'lessQ':'CP_SLL_PW_LESS_Q',
  'equalQ':'CP_SLL_PW_EQUAL_Q',
- 'write_el':'pw_write',
+ 'write_el':'',
  'private_routines':''
 }
 ,
@@ -142,8 +117,7 @@ USE pw_types, ONLY: pw_type, pw_p_type, pw_write""",
  'type1out':'type(cp_fm_type), pointer',
  'USE':
 """USE kinds, only: dp
-USE cp_fm_types, ONLY: cp_fm_type, cp_fm_p_type,&
-        cp_fm_write""",
+USE cp_fm_types, ONLY: cp_fm_type, cp_fm_p_type""",
  'defines':
 """! less not much meningful...
 #define CP_SLL_FM_LESS_Q(el1,el2) ( el1 %id_nr < el2 %id_nr )
@@ -155,7 +129,7 @@ USE cp_fm_types, ONLY: cp_fm_type, cp_fm_p_type,&
  'arrayEl':'%matrix',
  'lessQ':'CP_SLL_FM_LESS_Q',
  'equalQ':'CP_SLL_FM_EQUAL_Q',
- 'write_el':'cp_fm_write',
+ 'write_el':'',
  'private_routines':''
 }
 ,
@@ -167,8 +141,7 @@ USE cp_fm_types, ONLY: cp_fm_type, cp_fm_p_type,&
  'USE':
 """USE kinds, only: dp
 USE sparse_matrix_types, ONLY: real_matrix_type, real_matrix_p_type,&
-     cp_sm_get_id_nr
-USE cp_matrix_utils, ONLY: cp_sm_write""",
+     cp_sm_get_id_nr""",
  'defines':
 """! less not much meningful...
 #define CP_SLL_SM_LESS_Q(el1,el2) ( cp_sm_get_id_nr(el1) < cp_sm_get_id_nr(el2) )
@@ -180,7 +153,7 @@ USE cp_matrix_utils, ONLY: cp_sm_write""",
  'arrayEl':'%matrix',
  'lessQ':'CP_SLL_SM_LESS_Q',
  'equalQ':'CP_SLL_SM_EQUAL_Q',
- 'write_el':'cp_sm_write',
+ 'write_el':'',
  'private_routines':''
 }
 ,
@@ -191,8 +164,7 @@ USE cp_matrix_utils, ONLY: cp_sm_write""",
  'type1out':'type(realspace_grid_type), pointer',
  'USE':
 """USE kinds, only: dp
-USE realspace_grid_types, ONLY: realspace_grid_type, realspace_grid_p_type,&
-    rs_grid_write""",
+USE realspace_grid_types, ONLY: realspace_grid_type, realspace_grid_p_type""",
  'defines':
 """! less not much meningful...
 #define CP_SLL_RS_LESS_Q(el1,el2) ( el1%id_nr < el2%id_nr )
@@ -204,7 +176,7 @@ USE realspace_grid_types, ONLY: realspace_grid_type, realspace_grid_p_type,&
  'arrayEl':'%rs_grid',
  'lessQ':'CP_SLL_RS_LESS_Q',
  'equalQ':'CP_SLL_RS_EQUAL_Q',
- 'write_el':'rs_grid_write',
+ 'write_el':'',
  'private_routines':''
 },
 {
@@ -214,7 +186,7 @@ USE realspace_grid_types, ONLY: realspace_grid_type, realspace_grid_p_type,&
  'type1out':'real(kind=dp),dimension(:,:,:), pointer',
  'USE':
 """USE kinds, only: dp
-USE cp_array_r_utils, only: cp_3d_r_p_type, cp_3d_r_write""",
+USE cp_array_r_utils, only: cp_3d_r_p_type""",
  'defines':
 """! less not much meningful... and defines oly a partial ordering.
 #define CP_SLL_R_LESS_Q(el1,el2) ( all(el1 < el2) )
@@ -226,7 +198,7 @@ USE cp_array_r_utils, only: cp_3d_r_p_type, cp_3d_r_write""",
  'arrayEl':'%array',
  'lessQ':'CP_SLL_R_LESS_Q',
  'equalQ':'CP_SLL_R_EQUAL_Q',
- 'write_el':'cp_3d_r_write',
+ 'write_el':'',
  'private_routines':''
 },
 {
@@ -236,7 +208,7 @@ USE cp_array_r_utils, only: cp_3d_r_p_type, cp_3d_r_write""",
  'type1out':'type(xc_derivative_type),pointer',
  'USE':
 """USE kinds, only: dp
-USE xc_derivative_types, only: xc_derivative_type,xc_derivative_p_type,xc_derivative_write""",
+USE xc_derivative_types, only: xc_derivative_type,xc_derivative_p_type""",
  'defines':
 """#define CP_SLL_DERIV_LESS_Q(el1,el2) cp_sll_deriv_less_q(el1,el2,error)
 #define CP_SLL_DERIV_EQUAL_Q(el1,el2) ( el1%desc == el2%desc )
@@ -247,7 +219,7 @@ USE xc_derivative_types, only: xc_derivative_type,xc_derivative_p_type,xc_deriva
  'arrayEl':'%deriv',
  'lessQ':'cp_sll_deriv_less_q',
  'equalQ':'CP_SLL_DERIV_EQUAL_Q',
- 'write_el':'xc_derivative_write',
+ 'write_el':'',
  'private_routines':"""!private compare function
 function cp_sll_deriv_less_q(el1,el2,error) result(res)
   type(xc_derivative_type), pointer :: el1,el2
@@ -272,7 +244,7 @@ end function
  'type1in':'type(val_type),pointer',
  'type1out':'type(val_type),pointer',
  'USE':
-"""USE input_val_types, only: val_type, val_p_type, val_write""",
+"""USE input_val_types, only: val_type, val_p_type""",
  'defines':
 """#define CP_SLL_VAL_LESS_Q(el1,el2) el1%id_nr<el2%id_nr
 #define CP_SLL_VAL_EQUAL_Q(el1,el2) ( el1%id_nr == el2%id_nr )
@@ -283,6 +255,6 @@ end function
  'arrayEl':'%val',
  'lessQ':'CP_SLL_VAL_LESS_Q',
  'equalQ':'CP_SLL_VAL_EQUAL_Q',
- 'write_el':'val_write',
+ 'write_el':'',
  'private_routines':""
 }]

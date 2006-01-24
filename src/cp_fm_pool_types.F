@@ -3,7 +3,6 @@
 !   Copyright (C) 2002  CP2K developers group                                 !
 !-----------------------------------------------------------------------------!
 
-
 !!****h* cp2k/cp_fm_pool_types [1.0] *
 !!
 !!   NAME
@@ -13,10 +12,28 @@
 !!     pool for for elements that are retained and released
 !!
 !!   NOTES
+!!    ____              _ _     __  __           _ _  __         _____ _     _       _____ _ _      _ 
+!!   |  _ \  ___  _ __ ( ) |_  |  \/  | ___   __| (_)/ _|_   _  |_   _| |__ (_)___  |  ___(_) | ___| |
+!!   | | | |/ _ \| '_ \|/| __| | |\/| |/ _ \ / _` | | |_| | | |   | | | '_ \| / __| | |_  | | |/ _ \ |
+!!   | |_| | (_) | | | | | |_  | |  | | (_) | (_| | |  _| |_| |   | | | | | | \__ \ |  _| | | |  __/_|
+!!   |____/ \___/|_| |_|  \__| |_|  |_|\___/ \__,_|_|_|  \__, |   |_| |_| |_|_|___/ |_|   |_|_|\___(_)
+!!                                                       |___/                                        
+!!     ____ _                  ___                              _ _       _       _       
+!!    / ___| | ___  ___  ___  |_ _|_ __ ___  _ __ ___   ___  __| (_) __ _| |_ ___| |_   _ 
+!!   | |   | |/ _ \/ __|/ _ \  | || '_ ` _ \| '_ ` _ \ / _ \/ _` | |/ _` | __/ _ \ | | | |
+!!   | |___| | (_) \__ \  __/  | || | | | | | | | | | |  __/ (_| | | (_| | ||  __/ | |_| |
+!!    \____|_|\___/|___/\___| |___|_| |_| |_|_| |_| |_|\___|\__,_|_|\__,_|\__\___|_|\__, |
+!!                                                                                  |___/ 
+!!    _____ _     _       _____ _ _      _ 
+!!   |_   _| |__ (_)___  |  ___(_) | ___| |
+!!     | | | '_ \| / __| | |_  | | |/ _ \ |
+!!     | | | | | | \__ \ |  _| | | |  __/_|
+!!     |_| |_| |_|_|___/ |_|   |_|_|\___(_)
+!!   
 !!     This is a template
 !!
 !!     **** DO NOT MODIFY THE .F FILES ****
-!!     modify the .template and .instantition
+!!     modify the .template and .instantition instead
 !!
 !!   AUTHOR
 !!     Fawzi Mohamed
@@ -27,25 +44,23 @@
 !!   SOURCE
 !****************************************************************************
 MODULE cp_fm_pool_types
-  USE cp_fm_struct,                    ONLY: cp_fm_struct_release,&
-                                             cp_fm_struct_retain,&
-                                             cp_fm_struct_type
-  USE cp_fm_types,                     ONLY: cp_fm_create,&
-                                             cp_fm_p_type,&
-                                             cp_fm_release,&
-                                             cp_fm_type
-  USE cp_linked_list_fm,               ONLY: cp_sll_fm_dealloc,&
+  USE cp_linked_list_fm,        ONLY: cp_sll_fm_dealloc,&
                                              cp_sll_fm_get_first_el,&
                                              cp_sll_fm_insert_el,&
-                                             cp_sll_fm_insert_ordered,&
                                              cp_sll_fm_next,&
                                              cp_sll_fm_rm_first_el,&
-                                             cp_sll_fm_type
+                                             cp_sll_fm_type,&
+                                             cp_sll_fm_insert_ordered
+  USE cp_para_types,                   ONLY: cp_para_env_type
   USE kinds,                           ONLY: dp
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "cp_common_uses.h"
-
+  USE cp_fm_struct, ONLY: cp_fm_struct_retain, cp_fm_struct_release,&
+        cp_fm_struct_type
+    USE cp_fm_types,  ONLY: cp_fm_type, cp_fm_p_type,&
+        cp_fm_create, cp_fm_release
+        
   IMPLICIT NONE
   PRIVATE
 
@@ -92,7 +107,7 @@ MODULE cp_fm_pool_types
   TYPE cp_fm_pool_type
      PRIVATE
      INTEGER :: ref_count, id_nr
-     TYPE(cp_fm_struct_type), POINTER :: el_struct
+     type(cp_fm_struct_type), POINTER :: el_struct
      
      TYPE(cp_sll_fm_type), POINTER :: cache
   END TYPE cp_fm_pool_type
@@ -157,17 +172,15 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE fm_pool_create(pool, el_struct,&
         error)
-    TYPE(cp_fm_pool_type), POINTER           :: pool
-    TYPE(cp_fm_struct_type), POINTER         :: el_struct
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_fm_pool_type), POINTER :: pool
+    type(cp_fm_struct_type), POINTER :: el_struct
+    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'fm_pool_create', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: stat
-    LOGICAL                                  :: failure
-
+    LOGICAL :: failure
+    CHARACTER(len=*), PARAMETER :: routineN='fm_pool_create',&
+         routineP=moduleN//':'//routineN
+    INTEGER :: stat
     failure=.FALSE.
 
     ALLOCATE(pool, stat=stat)
@@ -208,15 +221,12 @@ CONTAINS
 !!
 !!*** **********************************************************************
   SUBROUTINE fm_pool_retain(pool,error)
-    TYPE(cp_fm_pool_type), POINTER           :: pool
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_fm_pool_type), POINTER :: pool
+    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'fm_pool_retain', &
-      routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: failure
-
+    LOGICAL :: failure
+    CHARACTER(len=*), PARAMETER :: routineN='fm_pool_retain',&
+         routineP=moduleN//':'//routineN
     failure=.FALSE.
 
     CPPrecondition(ASSOCIATED(pool),cp_failure_level,routineP,error,failure)
@@ -252,17 +262,14 @@ CONTAINS
 !!
 !!*** **********************************************************************
   SUBROUTINE fm_pool_flush_cache(pool,error)
-    TYPE(cp_fm_pool_type), POINTER           :: pool
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_fm_pool_type), POINTER :: pool
+    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'fm_pool_flush_cache', &
-      routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: failure
-    TYPE(cp_fm_type), POINTER                :: el_att
-    TYPE(cp_sll_fm_type), POINTER            :: iterator
-
+    LOGICAL :: failure
+    CHARACTER(len=*), PARAMETER :: routineN='fm_pool_flush_cache',&
+         routineP=moduleN//':'//routineN
+    TYPE(cp_sll_fm_type), POINTER :: iterator
+    type(cp_fm_type), POINTER :: el_att
     failure=.FALSE.
 
     CPPrecondition(ASSOCIATED(pool),cp_failure_level,routineP,error,failure)
@@ -302,16 +309,15 @@ CONTAINS
 !!
 !!*** **********************************************************************
   SUBROUTINE fm_pool_release(pool,error)
-    TYPE(cp_fm_pool_type), POINTER           :: pool
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_fm_pool_type), POINTER :: pool
+    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_pool_release', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: stat
-    LOGICAL                                  :: failure
-
+    LOGICAL :: failure
+    CHARACTER(len=*), PARAMETER :: routineN='cp_fm_pool_release',&
+         routineP=moduleN//':'//routineN
+    TYPE(cp_sll_fm_type), POINTER :: iterator
+    type(cp_fm_type), POINTER :: el_att
+    INTEGER :: stat
     failure=.FALSE.
 
     IF (ASSOCIATED(pool)) THEN
@@ -358,16 +364,15 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE fm_pool_create_fm(pool, element,&
        name, error)
-    TYPE(cp_fm_pool_type), POINTER           :: pool
-    TYPE(cp_fm_type), POINTER                :: element
-    CHARACTER(len=*), INTENT(in), OPTIONAL   :: name
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_fm_pool_type), POINTER :: pool
+    type(cp_fm_type), POINTER :: element
+    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    character(len=*), intent(in), optional :: name
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'fm_pool_create_fm', &
-      routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: failure
+    LOGICAL :: failure
+    CHARACTER(len=*), PARAMETER :: routineN='fm_pool_create_fm',&
+         routineP=moduleN//':'//routineN
+    INTEGER :: stat
 
     failure=.FALSE.
 
@@ -380,14 +385,14 @@ CONTAINS
           
        ELSE
           NULLIFY(element)
-              CALL cp_fm_create(element,matrix_struct=pool%el_struct,error=error)
+              call cp_fm_create(element,matrix_struct=pool%el_struct,error=error)
        END IF
        
-    IF (PRESENT(name)) THEN
+    IF (present(name)) THEN
       element%name=name
       element%print_count=0
     ELSE
-      element%name="tmp-"//TRIM(ADJUSTL(cp_to_string(element%id_nr)))
+      element%name="tmp-"//trim(adjustl(cp_to_string(element%id_nr)))
       element%print_count=0
       ! guarantee output unicity?
     END IF
@@ -427,19 +432,16 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE fm_pool_create_fm_vect(pool, n_elements,&
        elements, name, error)
-    TYPE(cp_fm_pool_type), POINTER           :: pool
-    INTEGER, INTENT(in)                      :: n_elements
-    TYPE(cp_fm_p_type), DIMENSION(:), &
-      POINTER                                :: elements
-    CHARACTER(len=*), INTENT(in), OPTIONAL   :: name
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_fm_pool_type), POINTER :: pool
+    INTEGER, INTENT(in) :: n_elements
+    type(cp_fm_p_type), DIMENSION(:), POINTER :: elements
+    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    character(len=*),intent(in),optional :: name
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'fm_pool_create_fm_vect', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: i, stat
-    LOGICAL                                  :: failure
+    LOGICAL :: failure
+    CHARACTER(len=*), PARAMETER :: routineN='fm_pool_create_fm_vect',&
+         routineP=moduleN//':'//routineN
+    INTEGER :: stat,i
 
     failure=.FALSE.
 
@@ -451,15 +453,14 @@ CONTAINS
        DO i=1,n_elements
           NULLIFY(elements(i)%matrix)
           IF (PRESENT(name)) THEN
-         CALL fm_pool_create_fm(pool,elements(i)%matrix,&
+         call fm_pool_create_fm(pool,elements(i)%matrix,&
            name=name//"-"//ADJUSTL(cp_to_string(i)),&
            error=error)
       ELSE
-         CALL fm_pool_create_fm(pool,elements(i)%matrix,&
+         call fm_pool_create_fm(pool,elements(i)%matrix,&
            error=error)
       END IF
-!          CALL fm_pool_create_fm(pool,elements(i)%matrix,&
-!               name, error=error)
+
        END DO
        
     END IF
@@ -493,16 +494,14 @@ CONTAINS
 !!
 !!*** **********************************************************************
   SUBROUTINE fm_pool_give_back_fm(pool, element, error)
-    TYPE(cp_fm_pool_type), POINTER           :: pool
-    TYPE(cp_fm_type), POINTER                :: element
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_fm_pool_type), POINTER :: pool
+    type(cp_fm_type), POINTER :: element
+    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'fm_pool_give_back_fm', &
-      routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: did_insert, failure
-
+    LOGICAL :: failure, did_insert
+    CHARACTER(len=*), PARAMETER :: routineN='fm_pool_give_back_fm',&
+         routineP=moduleN//':'//routineN
+    INTEGER :: stat
     failure=.FALSE.
 
     CPPrecondition(ASSOCIATED(pool),cp_failure_level,routineP,error,failure)
@@ -558,19 +557,14 @@ CONTAINS
 !!
 !!*** **********************************************************************
   SUBROUTINE fm_pool_give_back_fm_vect(pool, elements, error)
-    TYPE(cp_fm_pool_type), POINTER           :: pool
-    TYPE(cp_fm_p_type), DIMENSION(:), &
-      POINTER                                :: elements
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_fm_pool_type), POINTER :: pool
+    type(cp_fm_p_type), DIMENSION(:), POINTER :: elements
+    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
 
-    CHARACTER(len=*), PARAMETER :: &
-      routineN = 'fm_pool_give_back_elements_vect', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: i, stat
-    LOGICAL                                  :: failure
-
+    LOGICAL :: failure
+    CHARACTER(len=*), PARAMETER :: routineN='fm_pool_give_back_elements_vect',&
+         routineP=moduleN//':'//routineN
+    INTEGER :: stat,i
     failure=.FALSE.
 
     CPPrecondition(ASSOCIATED(pool),cp_failure_level,routineP,error,failure)
@@ -615,16 +609,13 @@ CONTAINS
 !!
 !!*** **********************************************************************
 FUNCTION fm_pool_get_el_struct(pool,error) RESULT(res)
-    TYPE(cp_fm_pool_type), POINTER           :: pool
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
-    TYPE(cp_fm_struct_type), POINTER         :: res
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'fm_pool_get_el_struct', &
-      routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: failure
-
+  type(cp_fm_struct_type), POINTER :: res
+  TYPE(cp_fm_pool_type), POINTER :: pool
+  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+  
+  LOGICAL :: failure
+  CHARACTER(len=*), PARAMETER :: routineN='fm_pool_get_el_struct',&
+        routineP=moduleN//':'//routineN
   failure=.FALSE.
   
   CPPrecondition(ASSOCIATED(pool),cp_failure_level,routineP,error,failure)
@@ -664,17 +655,14 @@ END FUNCTION fm_pool_get_el_struct
 !!
 !!*** **********************************************************************
 SUBROUTINE fm_pools_copy(source_pools, target_pools, error)
-    TYPE(cp_fm_pool_p_type), DIMENSION(:), &
-      POINTER                                :: source_pools, target_pools
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'fm_pools_copy', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: i, stat
-    LOGICAL                                  :: failure
-
+  TYPE(cp_fm_pool_p_type), DIMENSION(:), POINTER :: source_pools,&
+       target_pools
+  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+  
+  LOGICAL :: failure
+  INTEGER :: stat, i
+  CHARACTER(len=*), PARAMETER :: routineN='fm_pools_copy',&
+        routineP=moduleN//':'//routineN
   failure=.FALSE.
   
   CPPrecondition(ASSOCIATED(source_pools),cp_failure_level,routineP,error,failure)
@@ -715,17 +703,13 @@ END SUBROUTINE fm_pools_copy
 !!
 !!*** **********************************************************************
 SUBROUTINE fm_pools_dealloc(pools, error)
-    TYPE(cp_fm_pool_p_type), DIMENSION(:), &
-      POINTER                                :: pools
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'fm_pools_dealloc', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: i, stat
-    LOGICAL                                  :: failure
-
+  TYPE(cp_fm_pool_p_type), DIMENSION(:), POINTER :: pools
+  TYPE(cp_error_type), OPTIONAL, INTENT(inout)   :: error
+  
+  LOGICAL :: failure
+  INTEGER :: stat, i
+  CHARACTER(len=*), PARAMETER :: routineN='fm_pools_dealloc',&
+        routineP=moduleN//':'//routineN
   failure=.FALSE.
   
   IF (ASSOCIATED(pools)) THEN
@@ -762,17 +746,13 @@ END SUBROUTINE fm_pools_dealloc
 !!
 !!*** **********************************************************************
 SUBROUTINE fm_pools_flush_cache(pools, error)
-    TYPE(cp_fm_pool_p_type), DIMENSION(:), &
-      POINTER                                :: pools
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'fm_pools_flush_cache', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: i
-    LOGICAL                                  :: failure
-
+  TYPE(cp_fm_pool_p_type), DIMENSION(:), POINTER :: pools
+  TYPE(cp_error_type), OPTIONAL, INTENT(inout)   :: error
+  
+  LOGICAL :: failure
+  INTEGER :: stat,i
+  CHARACTER(len=*), PARAMETER :: routineN='fm_pools_flush_cache',&
+        routineP=moduleN//':'//routineN
   failure=.FALSE.
   
   CPPrecondition(ASSOCIATED(pools),cp_failure_level,routineP,error,failure)
@@ -811,20 +791,16 @@ END SUBROUTINE fm_pools_flush_cache
 !!*** **********************************************************************
 SUBROUTINE fm_pools_create_fm_vect(pools,elements,&
      name,error)
-    TYPE(cp_fm_pool_p_type), DIMENSION(:), &
-      POINTER                                :: pools
-    TYPE(cp_fm_p_type), DIMENSION(:), &
-      POINTER                                :: elements
-    CHARACTER(len=*), INTENT(in), OPTIONAL   :: name
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'fm_pools_create_fm_vect', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: i, stat
-    LOGICAL                                  :: failure
-    TYPE(cp_fm_pool_type), POINTER           :: pool
+  TYPE(cp_fm_pool_p_type), DIMENSION(:), POINTER :: pools
+  type(cp_fm_p_type), DIMENSION(:), POINTER :: elements
+  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+  character(len=*),intent(in),optional :: name
+  
+  LOGICAL :: failure
+  INTEGER :: stat,i
+  CHARACTER(len=*), PARAMETER :: routineN='fm_pools_create_fm_vect',&
+        routineP=moduleN//':'//routineN
+  TYPE(cp_fm_pool_type), POINTER :: pool
 
   failure=.FALSE.
   NULLIFY(pool)
@@ -839,15 +815,14 @@ SUBROUTINE fm_pools_create_fm_vect(pools,elements,&
         NULLIFY(elements(i)%matrix)
         pool => pools(i)%pool
         IF (PRESENT(name)) THEN
-         CALL fm_pool_create_fm(pool,elements(i)%matrix,&
+         call fm_pool_create_fm(pool,elements(i)%matrix,&
            name=name//"-"//ADJUSTL(cp_to_string(i)),&
            error=error)
       ELSE
-         CALL fm_pool_create_fm(pool,elements(i)%matrix,&
+         call fm_pool_create_fm(pool,elements(i)%matrix,&
            error=error)
       END IF
-!           CALL fm_pool_create_type(cp_fm_type)(pools(i)%pool,&
-!               elements(i)%matrix,error=error)
+
      END DO
      
   END IF
@@ -880,19 +855,14 @@ END SUBROUTINE fm_pools_create_fm_vect
 !!
 !!*** **********************************************************************
 SUBROUTINE fm_pools_give_back_fm_vect(pools,elements,error)
-    TYPE(cp_fm_pool_p_type), DIMENSION(:), &
-      POINTER                                :: pools
-    TYPE(cp_fm_p_type), DIMENSION(:), &
-      POINTER                                :: elements
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'fm_pools_give_back_fm_vect', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: i, stat
-    LOGICAL                                  :: failure
-
+  TYPE(cp_fm_pool_p_type), DIMENSION(:), POINTER :: pools
+  type(cp_fm_p_type), DIMENSION(:), POINTER :: elements
+  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+  
+  LOGICAL :: failure
+  INTEGER :: i, stat
+  CHARACTER(len=*), PARAMETER :: routineN='fm_pools_give_back_fm_vect',&
+        routineP=moduleN//':'//routineN
   failure=.FALSE.
   
   CPPrecondition(ASSOCIATED(pools),cp_failure_level,routineP,error,failure)
@@ -906,7 +876,7 @@ SUBROUTINE fm_pools_give_back_fm_vect(pools,elements,error)
      DEALLOCATE(elements, stat=stat)
      CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
   END IF
-  NULLIFY(elements)
+  nullify(elements)
 END SUBROUTINE fm_pools_give_back_fm_vect
 !***************************************************************************
 

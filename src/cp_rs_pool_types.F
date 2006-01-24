@@ -3,7 +3,6 @@
 !   Copyright (C) 2002  CP2K developers group                                 !
 !-----------------------------------------------------------------------------!
 
-
 !!****h* cp2k/cp_rs_pool_types [1.0] *
 !!
 !!   NAME
@@ -13,10 +12,28 @@
 !!     pool for for elements that are retained and released
 !!
 !!   NOTES
+!!    ____              _ _     __  __           _ _  __         _____ _     _       _____ _ _      _ 
+!!   |  _ \  ___  _ __ ( ) |_  |  \/  | ___   __| (_)/ _|_   _  |_   _| |__ (_)___  |  ___(_) | ___| |
+!!   | | | |/ _ \| '_ \|/| __| | |\/| |/ _ \ / _` | | |_| | | |   | | | '_ \| / __| | |_  | | |/ _ \ |
+!!   | |_| | (_) | | | | | |_  | |  | | (_) | (_| | |  _| |_| |   | | | | | | \__ \ |  _| | | |  __/_|
+!!   |____/ \___/|_| |_|  \__| |_|  |_|\___/ \__,_|_|_|  \__, |   |_| |_| |_|_|___/ |_|   |_|_|\___(_)
+!!                                                       |___/                                        
+!!     ____ _                  ___                              _ _       _       _       
+!!    / ___| | ___  ___  ___  |_ _|_ __ ___  _ __ ___   ___  __| (_) __ _| |_ ___| |_   _ 
+!!   | |   | |/ _ \/ __|/ _ \  | || '_ ` _ \| '_ ` _ \ / _ \/ _` | |/ _` | __/ _ \ | | | |
+!!   | |___| | (_) \__ \  __/  | || | | | | | | | | | |  __/ (_| | | (_| | ||  __/ | |_| |
+!!    \____|_|\___/|___/\___| |___|_| |_| |_|_| |_| |_|\___|\__,_|_|\__,_|\__\___|_|\__, |
+!!                                                                                  |___/ 
+!!    _____ _     _       _____ _ _      _ 
+!!   |_   _| |__ (_)___  |  ___(_) | ___| |
+!!     | | | '_ \| / __| | |_  | | |/ _ \ |
+!!     | | | | | | \__ \ |  _| | | |  __/_|
+!!     |_| |_| |_|_|___/ |_|   |_|_|\___(_)
+!!   
 !!     This is a template
 !!
 !!     **** DO NOT MODIFY THE .F FILES ****
-!!     modify the .template and .instantition
+!!     modify the .template and .instantition instead
 !!
 !!   AUTHOR
 !!     Fawzi Mohamed
@@ -27,26 +44,25 @@
 !!   SOURCE
 !****************************************************************************
 MODULE cp_rs_pool_types
-  USE cp_linked_list_rs,               ONLY: cp_sll_rs_dealloc,&
+  USE cp_linked_list_rs,        ONLY: cp_sll_rs_dealloc,&
                                              cp_sll_rs_get_first_el,&
                                              cp_sll_rs_insert_el,&
-                                             cp_sll_rs_insert_ordered,&
                                              cp_sll_rs_next,&
                                              cp_sll_rs_rm_first_el,&
-                                             cp_sll_rs_type
+                                             cp_sll_rs_type,&
+                                             cp_sll_rs_insert_ordered
+  USE cp_para_types,                   ONLY: cp_para_env_type
   USE kinds,                           ONLY: dp
-  USE pw_grid_types,                   ONLY: pw_grid_type
-  USE pw_grids,                        ONLY: pw_grid_release,&
-                                             pw_grid_retain
-  USE realspace_grid_types,            ONLY: realspace_grid_p_type,&
-                                             realspace_grid_type,&
-                                             rs_grid_create,&
-                                             rs_grid_release
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE input_section_types,             ONLY: section_vals_type
 #include "cp_common_uses.h"
-
+  USE pw_grid_types, ONLY: pw_grid_type
+    USE pw_grids, ONLY: pw_grid_retain, pw_grid_release
+    USE realspace_grid_types,  ONLY: realspace_grid_type,&
+        realspace_grid_p_type,&
+        rs_grid_create, rs_grid_release
+    USE input_section_types,  ONLY: section_vals_type
+        
   IMPLICIT NONE
   PRIVATE
 
@@ -93,7 +109,7 @@ MODULE cp_rs_pool_types
   TYPE cp_rs_pool_type
      PRIVATE
      INTEGER :: ref_count, id_nr
-     TYPE(pw_grid_type), POINTER :: el_struct
+     type(pw_grid_type), POINTER :: el_struct
      INTEGER :: nsmax
      TYPE(cp_sll_rs_type), POINTER :: cache
   END TYPE cp_rs_pool_type
@@ -158,18 +174,15 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE rs_pool_create(pool, el_struct,&
        nsmax, error)
-    TYPE(cp_rs_pool_type), POINTER           :: pool
-    TYPE(pw_grid_type), POINTER              :: el_struct
-    INTEGER, INTENT(IN)                      :: nsmax
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_rs_pool_type), POINTER :: pool
+    type(pw_grid_type), POINTER :: el_struct
+    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    INTEGER, INTENT(IN) :: nsmax
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'rs_pool_create', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: stat
-    LOGICAL                                  :: failure
-
+    LOGICAL :: failure
+    CHARACTER(len=*), PARAMETER :: routineN='rs_pool_create',&
+         routineP=moduleN//':'//routineN
+    INTEGER :: stat
     failure=.FALSE.
 
     ALLOCATE(pool, stat=stat)
@@ -210,15 +223,12 @@ CONTAINS
 !!
 !!*** **********************************************************************
   SUBROUTINE rs_pool_retain(pool,error)
-    TYPE(cp_rs_pool_type), POINTER           :: pool
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_rs_pool_type), POINTER :: pool
+    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'rs_pool_retain', &
-      routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: failure
-
+    LOGICAL :: failure
+    CHARACTER(len=*), PARAMETER :: routineN='rs_pool_retain',&
+         routineP=moduleN//':'//routineN
     failure=.FALSE.
 
     CPPrecondition(ASSOCIATED(pool),cp_failure_level,routineP,error,failure)
@@ -254,17 +264,14 @@ CONTAINS
 !!
 !!*** **********************************************************************
   SUBROUTINE rs_pool_flush_cache(pool,error)
-    TYPE(cp_rs_pool_type), POINTER           :: pool
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_rs_pool_type), POINTER :: pool
+    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'rs_pool_flush_cache', &
-      routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: failure
-    TYPE(cp_sll_rs_type), POINTER            :: iterator
-    TYPE(realspace_grid_type), POINTER       :: el_att
-
+    LOGICAL :: failure
+    CHARACTER(len=*), PARAMETER :: routineN='rs_pool_flush_cache',&
+         routineP=moduleN//':'//routineN
+    TYPE(cp_sll_rs_type), POINTER :: iterator
+    type(realspace_grid_type), POINTER :: el_att
     failure=.FALSE.
 
     CPPrecondition(ASSOCIATED(pool),cp_failure_level,routineP,error,failure)
@@ -304,16 +311,15 @@ CONTAINS
 !!
 !!*** **********************************************************************
   SUBROUTINE rs_pool_release(pool,error)
-    TYPE(cp_rs_pool_type), POINTER           :: pool
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_rs_pool_type), POINTER :: pool
+    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'cp_rs_pool_release', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: stat
-    LOGICAL                                  :: failure
-
+    LOGICAL :: failure
+    CHARACTER(len=*), PARAMETER :: routineN='cp_rs_pool_release',&
+         routineP=moduleN//':'//routineN
+    TYPE(cp_sll_rs_type), POINTER :: iterator
+    type(realspace_grid_type), POINTER :: el_att
+    INTEGER :: stat
     failure=.FALSE.
 
     IF (ASSOCIATED(pool)) THEN
@@ -357,17 +363,17 @@ CONTAINS
 !!     08.2002 created [fawzi]
 !!
 !!*** **********************************************************************
-  SUBROUTINE rs_pool_create_rs(pool, element, force_env_section, error)
-    TYPE(cp_rs_pool_type), POINTER           :: pool
-    TYPE(realspace_grid_type), POINTER       :: element
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+  SUBROUTINE rs_pool_create_rs(pool, element,&
+       force_env_section, error)
+    TYPE(cp_rs_pool_type), POINTER :: pool
+    type(realspace_grid_type), POINTER :: element
+    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
     TYPE(section_vals_type), POINTER :: force_env_section
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'rs_pool_create_rs', &
-      routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: failure
+    LOGICAL :: failure
+    CHARACTER(len=*), PARAMETER :: routineN='rs_pool_create_rs',&
+         routineP=moduleN//':'//routineN
+    INTEGER :: stat
 
     failure=.FALSE.
 
@@ -380,8 +386,8 @@ CONTAINS
           
        ELSE
           NULLIFY(element)
-          CALL rs_grid_create(element,pw_grid=pool%el_struct,&
-         nsmax=pool%nsmax,force_env_section=force_env_section, error=error)
+          call rs_grid_create(element,pw_grid=pool%el_struct,&
+         nsmax=pool%nsmax,force_env_section=force_env_section,error=error)
        END IF
        
     END IF
@@ -417,20 +423,17 @@ CONTAINS
 !!
 !!*** **********************************************************************
   SUBROUTINE rs_pool_create_rs_vect(pool, n_elements,&
-       elements,  force_env_section, error)
-    TYPE(cp_rs_pool_type), POINTER           :: pool
-    INTEGER, INTENT(in)                      :: n_elements
-    TYPE(realspace_grid_p_type), &
-      DIMENSION(:), POINTER                  :: elements
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+       elements, force_env_section, error)
+    TYPE(cp_rs_pool_type), POINTER :: pool
+    INTEGER, INTENT(in) :: n_elements
+    type(realspace_grid_p_type), DIMENSION(:), POINTER :: elements
+    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
     TYPE(section_vals_type), POINTER :: force_env_section
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'rs_pool_create_rs_vect', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: i, stat
-    LOGICAL                                  :: failure
+    LOGICAL :: failure
+    CHARACTER(len=*), PARAMETER :: routineN='rs_pool_create_rs_vect',&
+         routineP=moduleN//':'//routineN
+    INTEGER :: stat,i
 
     failure=.FALSE.
 
@@ -442,7 +445,8 @@ CONTAINS
        DO i=1,n_elements
           NULLIFY(elements(i)%rs_grid)
           CALL rs_pool_create_rs(pool,elements(i)%rs_grid,&
-               force_env_section=force_env_section,error=error)
+	force_env_section=force_env_section,error=error)
+
        END DO
        
     END IF
@@ -476,16 +480,14 @@ CONTAINS
 !!
 !!*** **********************************************************************
   SUBROUTINE rs_pool_give_back_rs(pool, element, error)
-    TYPE(cp_rs_pool_type), POINTER           :: pool
-    TYPE(realspace_grid_type), POINTER       :: element
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_rs_pool_type), POINTER :: pool
+    type(realspace_grid_type), POINTER :: element
+    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'rs_pool_give_back_rs', &
-      routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: did_insert, failure
-
+    LOGICAL :: failure, did_insert
+    CHARACTER(len=*), PARAMETER :: routineN='rs_pool_give_back_rs',&
+         routineP=moduleN//':'//routineN
+    INTEGER :: stat
     failure=.FALSE.
 
     CPPrecondition(ASSOCIATED(pool),cp_failure_level,routineP,error,failure)
@@ -541,19 +543,14 @@ CONTAINS
 !!
 !!*** **********************************************************************
   SUBROUTINE rs_pool_give_back_rs_vect(pool, elements, error)
-    TYPE(cp_rs_pool_type), POINTER           :: pool
-    TYPE(realspace_grid_p_type), &
-      DIMENSION(:), POINTER                  :: elements
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+    TYPE(cp_rs_pool_type), POINTER :: pool
+    type(realspace_grid_p_type), DIMENSION(:), POINTER :: elements
+    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
 
-    CHARACTER(len=*), PARAMETER :: &
-      routineN = 'rs_pool_give_back_elements_vect', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: i, stat
-    LOGICAL                                  :: failure
-
+    LOGICAL :: failure
+    CHARACTER(len=*), PARAMETER :: routineN='rs_pool_give_back_elements_vect',&
+         routineP=moduleN//':'//routineN
+    INTEGER :: stat,i
     failure=.FALSE.
 
     CPPrecondition(ASSOCIATED(pool),cp_failure_level,routineP,error,failure)
@@ -598,16 +595,13 @@ CONTAINS
 !!
 !!*** **********************************************************************
 FUNCTION rs_pool_get_el_struct(pool,error) RESULT(res)
-    TYPE(cp_rs_pool_type), POINTER           :: pool
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
-    TYPE(pw_grid_type), POINTER              :: res
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'rs_pool_get_el_struct', &
-      routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: failure
-
+  type(pw_grid_type), POINTER :: res
+  TYPE(cp_rs_pool_type), POINTER :: pool
+  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+  
+  LOGICAL :: failure
+  CHARACTER(len=*), PARAMETER :: routineN='rs_pool_get_el_struct',&
+        routineP=moduleN//':'//routineN
   failure=.FALSE.
   
   CPPrecondition(ASSOCIATED(pool),cp_failure_level,routineP,error,failure)
@@ -647,17 +641,14 @@ END FUNCTION rs_pool_get_el_struct
 !!
 !!*** **********************************************************************
 SUBROUTINE rs_pools_copy(source_pools, target_pools, error)
-    TYPE(cp_rs_pool_p_type), DIMENSION(:), &
-      POINTER                                :: source_pools, target_pools
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'rs_pools_copy', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: i, stat
-    LOGICAL                                  :: failure
-
+  TYPE(cp_rs_pool_p_type), DIMENSION(:), POINTER :: source_pools,&
+       target_pools
+  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+  
+  LOGICAL :: failure
+  INTEGER :: stat, i
+  CHARACTER(len=*), PARAMETER :: routineN='rs_pools_copy',&
+        routineP=moduleN//':'//routineN
   failure=.FALSE.
   
   CPPrecondition(ASSOCIATED(source_pools),cp_failure_level,routineP,error,failure)
@@ -698,17 +689,13 @@ END SUBROUTINE rs_pools_copy
 !!
 !!*** **********************************************************************
 SUBROUTINE rs_pools_dealloc(pools, error)
-    TYPE(cp_rs_pool_p_type), DIMENSION(:), &
-      POINTER                                :: pools
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'rs_pools_dealloc', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: i, stat
-    LOGICAL                                  :: failure
-
+  TYPE(cp_rs_pool_p_type), DIMENSION(:), POINTER :: pools
+  TYPE(cp_error_type), OPTIONAL, INTENT(inout)   :: error
+  
+  LOGICAL :: failure
+  INTEGER :: stat, i
+  CHARACTER(len=*), PARAMETER :: routineN='rs_pools_dealloc',&
+        routineP=moduleN//':'//routineN
   failure=.FALSE.
   
   IF (ASSOCIATED(pools)) THEN
@@ -745,17 +732,13 @@ END SUBROUTINE rs_pools_dealloc
 !!
 !!*** **********************************************************************
 SUBROUTINE rs_pools_flush_cache(pools, error)
-    TYPE(cp_rs_pool_p_type), DIMENSION(:), &
-      POINTER                                :: pools
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'rs_pools_flush_cache', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: i
-    LOGICAL                                  :: failure
-
+  TYPE(cp_rs_pool_p_type), DIMENSION(:), POINTER :: pools
+  TYPE(cp_error_type), OPTIONAL, INTENT(inout)   :: error
+  
+  LOGICAL :: failure
+  INTEGER :: stat,i
+  CHARACTER(len=*), PARAMETER :: routineN='rs_pools_flush_cache',&
+        routineP=moduleN//':'//routineN
   failure=.FALSE.
   
   CPPrecondition(ASSOCIATED(pools),cp_failure_level,routineP,error,failure)
@@ -791,21 +774,18 @@ END SUBROUTINE rs_pools_flush_cache
 !!     09.2002 created [fawzi]
 !!
 !!*** **********************************************************************
-SUBROUTINE rs_pools_create_rs_vect(pools,elements,force_env_section, error)
-    TYPE(cp_rs_pool_p_type), DIMENSION(:), &
-      POINTER                                :: pools
-    TYPE(realspace_grid_p_type), &
-      DIMENSION(:), POINTER                  :: elements
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
-    TYPE(section_vals_type), POINTER :: force_env_section
-    
-    CHARACTER(len=*), PARAMETER :: routineN = 'rs_pools_create_rs_vect', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: i, stat
-    LOGICAL                                  :: failure
-    TYPE(cp_rs_pool_type), POINTER           :: pool
+SUBROUTINE rs_pools_create_rs_vect(pools,elements,&
+     force_env_section,error)
+  TYPE(cp_rs_pool_p_type), DIMENSION(:), POINTER :: pools
+  type(realspace_grid_p_type), DIMENSION(:), POINTER :: elements
+  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+  TYPE(section_vals_type), POINTER :: force_env_section
+  
+  LOGICAL :: failure
+  INTEGER :: stat,i
+  CHARACTER(len=*), PARAMETER :: routineN='rs_pools_create_rs_vect',&
+        routineP=moduleN//':'//routineN
+  TYPE(cp_rs_pool_type), POINTER :: pool
 
   failure=.FALSE.
   NULLIFY(pool)
@@ -820,7 +800,8 @@ SUBROUTINE rs_pools_create_rs_vect(pools,elements,force_env_section, error)
         NULLIFY(elements(i)%rs_grid)
         pool => pools(i)%pool
         CALL rs_pool_create_rs(pool,elements(i)%rs_grid,&
-             force_env_section=force_env_section,error=error)
+	force_env_section=force_env_section,error=error)
+
      END DO
      
   END IF
@@ -853,19 +834,14 @@ END SUBROUTINE rs_pools_create_rs_vect
 !!
 !!*** **********************************************************************
 SUBROUTINE rs_pools_give_back_rs_vect(pools,elements,error)
-    TYPE(cp_rs_pool_p_type), DIMENSION(:), &
-      POINTER                                :: pools
-    TYPE(realspace_grid_p_type), &
-      DIMENSION(:), POINTER                  :: elements
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'rs_pools_give_back_rs_vect', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: i, stat
-    LOGICAL                                  :: failure
-
+  TYPE(cp_rs_pool_p_type), DIMENSION(:), POINTER :: pools
+  type(realspace_grid_p_type), DIMENSION(:), POINTER :: elements
+  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+  
+  LOGICAL :: failure
+  INTEGER :: i, stat
+  CHARACTER(len=*), PARAMETER :: routineN='rs_pools_give_back_rs_vect',&
+        routineP=moduleN//':'//routineN
   failure=.FALSE.
   
   CPPrecondition(ASSOCIATED(pools),cp_failure_level,routineP,error,failure)
@@ -879,7 +855,7 @@ SUBROUTINE rs_pools_give_back_rs_vect(pools,elements,error)
      DEALLOCATE(elements, stat=stat)
      CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
   END IF
-  NULLIFY(elements)
+  nullify(elements)
 END SUBROUTINE rs_pools_give_back_rs_vect
 !***************************************************************************
 

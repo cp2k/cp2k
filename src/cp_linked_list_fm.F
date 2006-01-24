@@ -20,10 +20,28 @@
 !!     An empty list is represented by an unassociated pointer.
 !!
 !!   NOTES
+!!    ____              _ _     __  __           _ _  __         _____ _     _       _____ _ _      _ 
+!!   |  _ \  ___  _ __ ( ) |_  |  \/  | ___   __| (_)/ _|_   _  |_   _| |__ (_)___  |  ___(_) | ___| |
+!!   | | | |/ _ \| '_ \|/| __| | |\/| |/ _ \ / _` | | |_| | | |   | | | '_ \| / __| | |_  | | |/ _ \ |
+!!   | |_| | (_) | | | | | |_  | |  | | (_) | (_| | |  _| |_| |   | | | | | | \__ \ |  _| | | |  __/_|
+!!   |____/ \___/|_| |_|  \__| |_|  |_|\___/ \__,_|_|_|  \__, |   |_| |_| |_|_|___/ |_|   |_|_|\___(_)
+!!                                                       |___/                                        
+!!     ____ _                  ___                              _ _       _       _       
+!!    / ___| | ___  ___  ___  |_ _|_ __ ___  _ __ ___   ___  __| (_) __ _| |_ ___| |_   _ 
+!!   | |   | |/ _ \/ __|/ _ \  | || '_ ` _ \| '_ ` _ \ / _ \/ _` | |/ _` | __/ _ \ | | | |
+!!   | |___| | (_) \__ \  __/  | || | | | | | | | | | |  __/ (_| | | (_| | ||  __/ | |_| |
+!!    \____|_|\___/|___/\___| |___|_| |_| |_|_| |_| |_|\___|\__,_|_|\__,_|\__\___|_|\__, |
+!!                                                                                  |___/ 
+!!    _____ _     _       _____ _ _      _ 
+!!   |_   _| |__ (_)___  |  ___(_) | ___| |
+!!     | | | '_ \| / __| | |_  | | |/ _ \ |
+!!     | | | | | | \__ \ |  _| | | |  __/_|
+!!     |_| |_| |_|_|___/ |_|   |_|_|\___(_)
+!!   
 !!     This is a template
 !!
 !!     **** DO NOT MODIFY THE .F FILES ****
-!!     modify the .template and .instantition files
+!!     modify the .template and .instantition instead
 !!
 !!   AUTHOR
 !!     @author Fawzi Mohamed
@@ -37,9 +55,9 @@
 !!   SOURCE
 !*****************************************************************************
 MODULE cp_linked_list_fm
+#include "cp_common_uses.h"
   USE kinds, only: dp
 USE cp_fm_types, ONLY: cp_fm_type, cp_fm_p_type
-#include "cp_common_uses.h"
   IMPLICIT NONE
   PRIVATE
 
@@ -1471,8 +1489,7 @@ END FUNCTION cp_sll_fm_contains2
 !  = = "=>"
 !  USE = 
 !    "USE kinds, only: dp
-!     USE cp_fm_types, ONLY: cp_fm_type, cp_fm_p_type,&
-!             cp_fm_write"
+!     USE cp_fm_types, ONLY: cp_fm_type, cp_fm_p_type"
 !  array= = "=>"
 !  arrayEl = "%matrix"
 !  defines = 
@@ -1488,7 +1505,7 @@ END FUNCTION cp_sll_fm_contains2
 !  type1arrayEl = "type(cp_fm_p_type)"
 !  type1in = "type(cp_fm_type), pointer"
 !  type1out = "type(cp_fm_type), pointer"
-!  write_el = "cp_fm_write"
+!  write_el = ""
 
 
 END MODULE cp_linked_list_fm

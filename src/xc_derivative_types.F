@@ -18,7 +18,6 @@
 !!     
 !!****
 MODULE xc_derivative_types
-  USE cp_array_r_utils,                ONLY: cp_3d_r_write
   USE kinds,                           ONLY: dp
   USE pw_pool_types,                   ONLY: pw_pool_give_back_cr3d,&
                                              pw_pool_type
@@ -38,7 +37,7 @@ MODULE xc_derivative_types
 
    PUBLIC :: xc_derivative_type, xc_derivative_p_type
    PUBLIC :: xc_derivative_create, xc_derivative_release, xc_derivative_retain,&
-        xc_derivative_get, xc_derivative_write
+        xc_derivative_get
    
 !!*** *************************************************************************
 
@@ -349,97 +348,6 @@ SUBROUTINE xc_derivative_get(deriv,desc,split_desc,&
      IF (PRESENT(order)) order=SIZE(deriv%split_desc)
   END IF
 END SUBROUTINE xc_derivative_get
-!***************************************************************************
-
-!!****f* xc_derivative_types/xc_derivative_write [1.0] *
-!!
-!!   NAME
-!!     xc_derivative_write
-!!
-!!   SYNOPSIS
-!!     Subroutine xc_derivative_write(deriv, unit_nr, long_description,&
-!!         error)
-!!       Type(xc_derivative_type), Pointer:: deriv
-!!       Integer, Intent (IN):: unit_nr
-!!       Logical, Intent (IN), Optional:: long_description
-!!       Type(cp_error_type), Intent (INOUT), Optional:: error
-!!     End Subroutine xc_derivative_write
-!!
-!!   FUNCTION
-!!     writes information about the current derivative to the given unit
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - deriv: the derivative to write out
-!!     - unit_nr: the unit where to write
-!!     - long_description: if a long description (with the derivative data)
-!!       should be written out. Defaults to false
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!   MODIFICATION HISTORY
-!!     12.2003 created [fawzi]
-!!
-!!*** **********************************************************************
-SUBROUTINE xc_derivative_write(deriv,unit_nr,long_description,error)
-    TYPE(xc_derivative_type), POINTER        :: deriv
-    INTEGER, INTENT(in)                      :: unit_nr
-    LOGICAL, INTENT(in), OPTIONAL            :: long_description
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'xc_derivative_write', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: i
-    LOGICAL                                  :: failure, my_long_description
-
-  failure=.FALSE.
-  my_long_description=.FALSE.
-  IF (PRESENT(long_description)) my_long_description=long_description
-  
-  IF (ASSOCIATED(deriv)) THEN
-     WRITE(unit=unit_nr,fmt="(' <xc_derivative_type>{ id_nr=',i6,' ref_count=',i6,',')")&
-          deriv%id_nr,deriv%ref_count
-     WRITE(unit=unit_nr,fmt="(' desc=',a,',')") TRIM(deriv%desc)
-     IF (ASSOCIATED(deriv%split_desc)) THEN
-        WRITE(unit=unit_nr,fmt="(' split_desc=(')", advance="NO")
-        DO i=1,SIZE(deriv%split_desc)-1
-           WRITE(unit=unit_nr,fmt="(a,',')", advance="NO") &
-                TRIM(deriv%split_desc(i))
-        END DO
-        IF (SIZE(deriv%split_desc)>0) THEN
-           WRITE(unit=unit_nr,fmt="(a,')')")&
-                TRIM(deriv%split_desc(SIZE(deriv%split_desc)))
-        ELSE
-           WRITE(unit=unit_nr,fmt="(')')")
-        END IF
-     ELSE
-        WRITE(unit=unit_nr,fmt="(' split_desc=*null*')")
-     END IF
-     IF (ASSOCIATED(deriv%deriv_data)) THEN
-        IF (my_long_description) THEN
-           WRITE(unit=unit_nr,fmt="(' deriv_data=')")
-           CALL cp_3d_r_write(deriv%deriv_data,unit_nr=unit_nr,error=error)
-        ELSE
-           WRITE(unit=unit_nr,fmt="(' deriv_data=<array(',i6,':',i6,',',i6,':',i6,',',i6,':',i6,')>')")&
-                LBOUND(deriv%deriv_data,1),UBOUND(deriv%deriv_data,1),&
-                LBOUND(deriv%deriv_data,2),UBOUND(deriv%deriv_data,2),&
-                LBOUND(deriv%deriv_data,3),UBOUND(deriv%deriv_data,3)
-        END IF
-     ELSE
-        WRITE(unit=unit_nr,fmt="(' deriv_data=*null*')")
-     END IF
-     WRITE(unit=unit_nr,fmt="(' }')")
-  ELSE
-     WRITE(unit=unit_nr,fmt="(' <xc_derivative_type*null*>')")
-  END IF
-END SUBROUTINE xc_derivative_write
 !***************************************************************************
 
 END MODULE xc_derivative_types

@@ -3,8 +3,6 @@
 !   Copyright (C) 2002  CP2K developers group                                 !
 !-----------------------------------------------------------------------------!
 
-#include "cp_prep_globals.h"
-
 !!****h* cp2k/cp_[el_name]_pool_types [1.0] *
 !!
 !!   NAME
@@ -14,10 +12,28 @@
 !!     pool for for elements that are retained and released
 !!
 !!   NOTES
+!!    ____              _ _     __  __           _ _  __         _____ _     _       _____ _ _      _ 
+!!   |  _ \  ___  _ __ ( ) |_  |  \/  | ___   __| (_)/ _|_   _  |_   _| |__ (_)___  |  ___(_) | ___| |
+!!   | | | |/ _ \| '_ \|/| __| | |\/| |/ _ \ / _` | | |_| | | |   | | | '_ \| / __| | |_  | | |/ _ \ |
+!!   | |_| | (_) | | | | | |_  | |  | | (_) | (_| | |  _| |_| |   | | | | | | \__ \ |  _| | | |  __/_|
+!!   |____/ \___/|_| |_|  \__| |_|  |_|\___/ \__,_|_|_|  \__, |   |_| |_| |_|_|___/ |_|   |_|_|\___(_)
+!!                                                       |___/                                        
+!!     ____ _                  ___                              _ _       _       _       
+!!    / ___| | ___  ___  ___  |_ _|_ __ ___  _ __ ___   ___  __| (_) __ _| |_ ___| |_   _ 
+!!   | |   | |/ _ \/ __|/ _ \  | || '_ ` _ \| '_ ` _ \ / _ \/ _` | |/ _` | __/ _ \ | | | |
+!!   | |___| | (_) \__ \  __/  | || | | | | | | | | | |  __/ (_| | | (_| | ||  __/ | |_| |
+!!    \____|_|\___/|___/\___| |___|_| |_| |_|_| |_| |_|\___|\__,_|_|\__,_|\__\___|_|\__, |
+!!                                                                                  |___/ 
+!!    _____ _     _       _____ _ _      _ 
+!!   |_   _| |__ (_)___  |  ___(_) | ___| |
+!!     | | | '_ \| / __| | |_  | | |/ _ \ |
+!!     | | | | | | \__ \ |  _| | | |  __/_|
+!!     |_| |_| |_|_|___/ |_|   |_|_|\___(_)
+!!   
 !!     This is a template
 !!
 !!     **** DO NOT MODIFY THE .F FILES ****
-!!     modify the .template and .instantition
+!!     modify the .template and .instantition instead
 !!
 !!   AUTHOR
 !!     Fawzi Mohamed
@@ -28,17 +44,6 @@
 !!   SOURCE
 !****************************************************************************
 MODULE cp_[el_name]_pool_types
-  USE cp_error_handling,               ONLY: cp_a_l,&
-                                             cp_assert,&
-                                             cp_assertion_failed,&
-                                             cp_debug,&
-                                             cp_error_dealloc_ref,&
-                                             cp_error_get_logger,&
-                                             cp_error_init,&
-                                             cp_error_message,&
-                                             cp_error_type,&
-                                             cp_internal_error,&
-                                             cp_unimplemented_error
   USE cp_linked_list_[el_name],        ONLY: cp_sll_[el_name]_dealloc,&
                                              cp_sll_[el_name]_get_first_el,&
                                              cp_sll_[el_name]_insert_el,&
@@ -46,16 +51,11 @@ MODULE cp_[el_name]_pool_types
                                              cp_sll_[el_name]_rm_first_el,&
                                              cp_sll_[el_name]_type,&
                                              cp_sll_[el_name]_insert_ordered
-  USE cp_log_handling,                 ONLY: cp_failure_level,&
-                                             cp_fatal_level,&
-                                             cp_log,&
-                                             cp_note_level,&
-                                             cp_to_string,&
-                                             cp_warning_level
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE kinds,                           ONLY: dp
   USE timings,                         ONLY: timeset,&
                                              timestop
+#include "cp_common_uses.h"
   [use]
   IMPLICIT NONE
   PRIVATE
@@ -438,8 +438,7 @@ CONTAINS
        DO i=1,n_elements
           NULLIFY(elements(i)[%array_el])
           [create_els-create_el_commands]
-!          CALL [el_name]_pool_create_[el_name](pool,elements(i)[%array_el],&
-!               [create_el-extra_args] error=error)
+
        END DO
        [create_els-post_create_commands]
     END IF
@@ -789,8 +788,7 @@ SUBROUTINE [el_name]_pools_create_[el_name]_vect(pools,elements,&
         NULLIFY(elements(i)[%array_el])
         pool => pools(i)%pool
         [create_els-create_el_commands]
-!           CALL [el_name]_pool_create_[el_type](pools(i)%pool,&
-!               elements(i)[%array_el],error=error)
+
      END DO
      [create_els-post_create_commands]
   END IF

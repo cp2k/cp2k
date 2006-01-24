@@ -3,7 +3,6 @@
 !   Copyright (C) 2002  CP2K developers group                                 !
 !-----------------------------------------------------------------------------!
 
-
 !!****h* cp2k/atomic_kind_list_types [1.0] *
 !!
 !!   NAME
@@ -13,10 +12,28 @@
 !!     represent a simple array based list of the given type
 !!
 !!   NOTES
+!!    ____              _ _     __  __           _ _  __         _____ _     _       _____ _ _      _ 
+!!   |  _ \  ___  _ __ ( ) |_  |  \/  | ___   __| (_)/ _|_   _  |_   _| |__ (_)___  |  ___(_) | ___| |
+!!   | | | |/ _ \| '_ \|/| __| | |\/| |/ _ \ / _` | | |_| | | |   | | | '_ \| / __| | |_  | | |/ _ \ |
+!!   | |_| | (_) | | | | | |_  | |  | | (_) | (_| | |  _| |_| |   | | | | | | \__ \ |  _| | | |  __/_|
+!!   |____/ \___/|_| |_|  \__| |_|  |_|\___/ \__,_|_|_|  \__, |   |_| |_| |_|_|___/ |_|   |_|_|\___(_)
+!!                                                       |___/                                        
+!!     ____ _                  ___                              _ _       _       _       
+!!    / ___| | ___  ___  ___  |_ _|_ __ ___  _ __ ___   ___  __| (_) __ _| |_ ___| |_   _ 
+!!   | |   | |/ _ \/ __|/ _ \  | || '_ ` _ \| '_ ` _ \ / _ \/ _` | |/ _` | __/ _ \ | | | |
+!!   | |___| | (_) \__ \  __/  | || | | | | | | | | | |  __/ (_| | | (_| | ||  __/ | |_| |
+!!    \____|_|\___/|___/\___| |___|_| |_| |_|_| |_| |_|\___|\__,_|_|\__,_|\__\___|_|\__, |
+!!                                                                                  |___/ 
+!!    _____ _     _       _____ _ _      _ 
+!!   |_   _| |__ (_)___  |  ___(_) | ___| |
+!!     | | | '_ \| / __| | |_  | | |/ _ \ |
+!!     | | | | | | \__ \ |  _| | | |  __/_|
+!!     |_| |_| |_|_|___/ |_|   |_|_|\___(_)
+!!   
 !!     This is a template
 !!
 !!     **** DO NOT MODIFY THE .F FILES ****
-!!     modify the .template and .instantition
+!!     modify the .template and .instantition instead
 !!
 !!   AUTHOR
 !!     Fawzi Mohamed
@@ -27,11 +44,9 @@
 !!   SOURCE
 !****************************************************************************
 MODULE atomic_kind_list_types
-  USE atomic_kind_types,               ONLY: atomic_kind_type,&
-                                             deallocate_atomic_kind_set
-  USE kinds,                           ONLY: dp
-  USE timings,                         ONLY: timeset,&
-                                             timestop
+  USE kinds, ONLY: dp
+  USE timings, ONLY: timeset, timestop
+  use atomic_kind_types, only: atomic_kind_type,deallocate_atomic_kind_set
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -79,7 +94,7 @@ MODULE atomic_kind_list_types
   TYPE atomic_kind_list_type
      INTEGER :: id_nr, ref_count, n_els
      LOGICAL :: owns_els
-     TYPE(atomic_kind_type), DIMENSION(:), POINTER :: els
+     type(atomic_kind_type), DIMENSION(:), POINTER :: els
   END TYPE atomic_kind_list_type
 !!***
 !****************************************************************************
@@ -145,20 +160,16 @@ CONTAINS
 !!*** **********************************************************************
 SUBROUTINE atomic_kind_list_create(list, els_ptr, &
      owns_els, n_els, error)
-    TYPE(atomic_kind_list_type), OPTIONAL, &
-      POINTER                                :: list
-    TYPE(atomic_kind_type), DIMENSION(:), &
-      OPTIONAL, POINTER                      :: els_ptr
-    LOGICAL, INTENT(in), OPTIONAL            :: owns_els
-    INTEGER, INTENT(in), OPTIONAL            :: n_els
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'atomic_kind_list_create', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: stat
-    LOGICAL                                  :: failure
+  TYPE(atomic_kind_list_type), POINTER, OPTIONAL :: list
+  type(atomic_kind_type), DIMENSION(:), POINTER, OPTIONAL :: els_ptr
+  LOGICAL, INTENT(in), OPTIONAL :: owns_els
+  INTEGER, INTENT(in), OPTIONAL :: n_els
+  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+  
+  LOGICAL :: failure
+  CHARACTER(len=*), PARAMETER :: routineN='atomic_kind_list_create',&
+        routineP=moduleN//':'//routineN
+  INTEGER :: stat
 
   failure=.FALSE.
 
@@ -216,14 +227,12 @@ END SUBROUTINE atomic_kind_list_create
 !!
 !!*** **********************************************************************
 SUBROUTINE atomic_kind_list_retain(list, error)
-    TYPE(atomic_kind_list_type), POINTER     :: list
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'atomic_kind_list_retain', &
-      routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: failure
+  TYPE(atomic_kind_list_type), POINTER :: list
+  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+  
+  LOGICAL :: failure
+  CHARACTER(len=*), PARAMETER :: routineN='atomic_kind_list_retain',&
+        routineP=moduleN//':'//routineN
 
   failure=.FALSE.
   
@@ -259,15 +268,13 @@ END SUBROUTINE atomic_kind_list_retain
 !!
 !!*** **********************************************************************
 SUBROUTINE atomic_kind_list_release(list, error)
-    TYPE(atomic_kind_list_type), POINTER     :: list
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'atomic_kind_list_release', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: stat
-    LOGICAL                                  :: failure
+  TYPE(atomic_kind_list_type), POINTER :: list
+  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+  
+  LOGICAL :: failure
+  CHARACTER(len=*), PARAMETER :: routineN='atomic_kind_list_release',&
+        routineP=moduleN//':'//routineN
+  INTEGER :: stat
 
   failure=.FALSE.
   
@@ -277,7 +284,7 @@ SUBROUTINE atomic_kind_list_release(list, error)
      IF (list%ref_count==0) THEN
         IF (list%owns_els) THEN
            IF (ASSOCIATED(list%els)) THEN
-              CALL deallocate_atomic_kind_set(list%els)
+              call deallocate_atomic_kind_set(list%els)
            END IF
         END IF
         NULLIFY(list%els)
