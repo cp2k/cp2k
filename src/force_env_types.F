@@ -53,7 +53,8 @@ MODULE force_env_types
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_env_release,&
                                              qs_environment_type
-  USE cell_types,                 ONLY: cell_type
+  USE cell_types,                      ONLY: cell_type
+  USE tbmd_energy_types,               ONLY: tbmd_energy_type
   USE tbmd_environment_types,          ONLY: tbmd_environment_type, &
                                              tbmd_env_release, &
                                              tbmd_env_get
@@ -370,7 +371,7 @@ RECURSIVE SUBROUTINE force_env_get(force_env, in_use, force_env_list, &
     TYPE(cell_type), OPTIONAL, POINTER       :: cell_ref
     TYPE(force_env_p_type), DIMENSION(:), POINTER, OPTIONAL :: sub_force_env
     TYPE(qmmm_env_qm_type), POINTER, OPTIONAL :: qmmm_env
-    TYPE ( virial_type ), POINTER, OPTIONAL :: virial
+    TYPE ( virial_type ), POINTER, OPTIONAL  :: virial
     LOGICAL, INTENT(out), optional           :: box_changed
     TYPE(global_environment_type), POINTER, optional :: globenv
     TYPE(section_vals_type), POINTER, optional :: input
@@ -389,7 +390,9 @@ RECURSIVE SUBROUTINE force_env_get(force_env, in_use, force_env_list, &
     TYPE(qs_environment_type), POINTER       :: my_qs_env
 
     TYPE(fist_energy_type), POINTER          :: thermo
-    REAL(KIND=dp) :: penergy_mm,penergy_qm
+    REAL(KIND=dp)                            :: penergy_mm,&
+                                                penergy_qm
+    TYPE(tbmd_energy_type), POINTER          :: tbmd_energy
 
 
   failure=.FALSE.
@@ -436,10 +439,14 @@ RECURSIVE SUBROUTINE force_env_get(force_env, in_use, force_env_list, &
         CPPreconditionNoFail(.NOT. PRESENT(kg_env), cp_warning_level, routineP, error)
         CPPreconditionNoFail(.NOT. PRESENT(fist_env), cp_warning_level, routineP, error)
 
-        CALL tbmd_env_get(force_env%tbmd_env, cell=cell, cell_ref=cell_ref, error=error)
+        CALL tbmd_env_get(force_env%tbmd_env, tbmd_energy=tbmd_energy, cell=cell, &
+                          cell_ref=cell_ref, error=error)
 
-        !IF (PRESENT(potential_energy)) potential_energy=
-        !IF (PRESENT(kinetic_energy)) kinetic_energy=
+        IF (PRESENT(potential_energy)) THEN
+          potential_energy = tbmd_energy%E_bandstructure + tbmd_energy%E_repulsion &
+                                                         + tbmd_energy%E_correction
+        END IF
+        IF (PRESENT(kinetic_energy)) kinetic_energy = tbmd_energy%E_kinetic
      CASE (use_kg_force)
         CPPrecondition(ASSOCIATED(force_env%kg_env),cp_failure_level,routineP,error,failure)
         ! do not check ?

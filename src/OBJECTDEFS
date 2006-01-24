@@ -379,6 +379,8 @@ OBJECTS_GENERIC =\
  tbmd_force_types.o\
  tbmd_main.o\
  tbmd_model_types.o\
+ tbmd_neighbor_lists.o\
+ tbmd_neighbor_list_env_types.o\
  termination.o\
  timings.o\
  topology.o\

@@ -59,7 +59,7 @@ MODULE fist_neighbor_lists
                                              deallocate_subcell,&
                                              local_atoms_type,&
                                              subcell_type
-  USE cell_types,                 ONLY: cell_type,&
+  USE cell_types,                      ONLY: cell_type,&
                                              get_cell,&
                                              pbc,&
                                              plane_distance,&
@@ -87,7 +87,10 @@ MODULE fist_neighbor_lists
 
 ! *** Public subroutines ***
 
-  PUBLIC :: build_fist_neighbor_lists
+  PUBLIC :: build_fist_neighbor_lists, &
+            build_neighbor_lists, &
+            write_neighbor_lists, &
+            write_distribution
 
 ! *****************************************************************************
 
@@ -119,7 +122,7 @@ CONTAINS
       POINTER                                :: globenv
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
-    TYPE(section_vals_type), POINTER :: force_env_section
+    TYPE(section_vals_type), POINTER         :: force_env_section
 
     LOGICAL, INTENT(IN)                      :: build_from_scratch
 
@@ -242,6 +245,7 @@ CONTAINS
        CALL cp_print_key_finished_output(iw,logger,force_env_section,&
             "PRINT%DISTRIBUTION",error=error)
     END IF
+
 !   *** Release work storage ***
 
     DO ikind=1,nkind

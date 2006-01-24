@@ -34,7 +34,7 @@ MODULE fist_neighbor_list_control
                                              dp_size
   USE message_passing,                 ONLY: mp_max
   USE particle_types,                  ONLY: particle_type
-  USE cell_types,                 ONLY: cell_type,&
+  USE cell_types,                      ONLY: cell_type,&
                                              real_to_scaled,&
                                              scaled_to_real
   USE termination,                     ONLY: stop_memory
