@@ -1761,7 +1761,7 @@ END SUBROUTINE section_vals_val_set
 !!
 !!   FUNCTION
 !!     unsets (removes) the requested value (if it is a keyword repetitions
-!!     removes the repetition, so be careful: the repetition indeces bigger
+!!     removes the repetition, so be careful: the repetition indices bigger
 !!     than the actual change.
 !!
 !!   NOTES
@@ -1775,8 +1775,6 @@ END SUBROUTINE section_vals_val_set
 !!       (defaults to 1)
 !!     - ival: which repetition of the keyword/val you are interested in
 !!       (defaults to 1)
-!!     - l_val,i_val,r_val,c_val: sets the logical,integer,real or
-!!       character value
 !!     - error: variable to control error logging, stopping,... 
 !!       see module cp_error_handling 
 !!
@@ -1785,25 +1783,14 @@ END SUBROUTINE section_vals_val_set
 !!
 !!*** **********************************************************************
 SUBROUTINE section_vals_val_unset(section_vals,keyword_name,i_rep_section,&
-     i_rep_val,n_rep_val,val,&
-     l_val,i_val,r_val,c_val,l_vals,i_vals,r_vals,c_vals,ignore_required,error)
+     i_rep_val,n_rep_val,error)
   TYPE(section_vals_type),pointer :: section_vals
   CHARACTER(len=*), intent(in) :: keyword_name
   INTEGER, INTENT(in), OPTIONAL :: i_rep_section, i_rep_val
   INTEGER,INTENT(out), optional :: n_rep_val
-  TYPE(val_type), POINTER, OPTIONAL :: val
-  LOGICAL, OPTIONAL, INTENT(out) :: l_val
-  LOGICAL, DIMENSION(:), OPTIONAL, POINTER :: l_vals
-  INTEGER, OPTIONAL, INTENT(out) :: i_val
-  INTEGER, DIMENSION(:), OPTIONAL, POINTER :: i_vals
-  REAL(KIND=DP), OPTIONAL, INTENT(out) :: r_val
-  REAL(KIND=DP), DIMENSION(:), OPTIONAL, POINTER :: r_vals
-  CHARACTER(LEN=*), OPTIONAL, INTENT(out) :: c_val
-  CHARACTER(LEN=DEFAULT_STRING_LENGTH), DIMENSION(:), OPTIONAL, POINTER :: c_vals
-  LOGICAL, OPTIONAL, INTENT(in) :: ignore_required
   type(cp_error_type), optional, intent(inout) :: error
 
-  LOGICAL :: failure,valRequested, my_ignore_required
+  LOGICAL :: failure
   character(len=*), parameter :: routineN='section_val_unset',&
        routineP=moduleN//':'//routineN
   INTEGER :: ik,irs,irk,my_index,tmp_index,len_key
@@ -1819,8 +1806,6 @@ SUBROUTINE section_vals_val_unset(section_vals,keyword_name,i_rep_section,&
   CPPrecondition(ASSOCIATED(section_vals),cp_failure_level,routineP,error,failure)
   CPPrecondition(section_vals%ref_count>0,cp_failure_level,routineP,error,failure)
 
-  my_ignore_required=.false.
-  if (present(ignore_required)) my_ignore_required=ignore_required
   my_index=INDEX(keyword_name,'%')+1
   len_key=len_trim(keyword_name)
   IF (my_index>1) THEN
@@ -1839,9 +1824,7 @@ SUBROUTINE section_vals_val_unset(section_vals,keyword_name,i_rep_section,&
   irs=1
   if (present(i_rep_section)) irs=i_rep_section
   if (present(i_rep_val)) irk=i_rep_val
-  if (present(val)) nullify(val)
   section => s_vals%section
-  CPPrecondition(valRequested,cp_failure_level,routineP,error,failure)
   IF (.NOT. failure) THEN
      ik=section_get_keyword_index(s_vals%section,keyword_name(my_index:len_key),error=error)
      CALL cp_assert(ik/=-2,cp_failure_level,cp_assertion_failed,routineP,&

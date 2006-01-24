@@ -262,7 +262,9 @@ FUNCTION pw_grid_find_n ( cell, cutoff, fft_usage, grid_span,&
 
   CALL timeset("pw_grid_find_n","I","",handle)
   failure=.false.
-
+  
+  my_grid_span=FULLSPACE
+  if (present(grid_span)) my_grid_span=grid_span
   ! default is to use only fft compatible grids
   IF ( PRESENT ( fft_usage ) ) THEN
     fft = fft_usage
