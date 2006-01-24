@@ -375,6 +375,8 @@ CONTAINS
             usage="verlet_skin", required=.TRUE., type_of_var=real_t, &
             n_var=1, repeats=.FALSE., default_r_val=1.0_dp, &
             unit_str="angstrom", error=error)
+       CALL section_add_keyword(section, keyword, error=error)
+       CALL keyword_release(keyword, error=error)
     END IF
 
   END SUBROUTINE create_tb_neighbor_list_section
