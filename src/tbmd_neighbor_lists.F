@@ -63,6 +63,7 @@ MODULE tbmd_neighbor_lists
   USE termination,                            ONLY: stop_memory
   USE timings,                                ONLY: timeset, &
                                                     timestop
+  USE message_passing,                        ONLY: mp_max
 
 #include "cp_common_uses.h"
   IMPLICIT NONE
@@ -194,9 +195,7 @@ CONTAINS
         END DO
       END DO
 
-#if defined(__parallel)
       CALL mp_max(dr2_max, globenv%group)
-#endif
 
       IF (dr2_max > 0.25_dp*verlet_skin**2) THEN
         DO iparticle = 1,nparticle
