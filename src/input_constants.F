@@ -437,4 +437,5 @@ MODULE input_constants
                                 use_lenosky=4,&
                                 use_udp=5
 
+  INTEGER, PARAMETER, PUBLIC :: xc_pbe_orig=11,xc_rev_pbe=12
 END MODULE input_constants

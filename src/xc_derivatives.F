@@ -108,10 +108,10 @@ MODULE xc_derivatives
   USE xc_thomas_fermi_new,             ONLY: thomas_fermi_info,&
                                              thomas_fermi_lda_eval,&
                                              thomas_fermi_lsd_eval
-  USE xc_tpss,                         ONLY: my_tpss_lda_eval => tpss_lda_eval,&
-                                             my_tpss_lda_info => tpss_lda_info,&
-                                             my_tpss_lsd_eval => tpss_lsd_eval,&
-                                             my_tpss_lsd_info => tpss_lsd_info
+  USE xc_tpss,                         ONLY: tpss_lda_eval, &
+                                             tpss_lda_info, &
+                                             tpss_lsd_eval, &
+                                             tpss_lsd_info
   USE xc_vwn_new,                      ONLY: vwn_lda_eval,&
                                              vwn_lda_info
   USE xc_xalpha_new,                   ONLY: xalpha_info,&
@@ -263,9 +263,11 @@ SUBROUTINE xc_functional_get_info(functional,lsd,reference,shortform,&
              xa_parameter=r_param,error=error)
      CASE("TPSS")
         IF (lsd) THEN
-           CALL my_tpss_lsd_info(reference,shortform,needs,max_deriv,error=error)
+           CALL tpss_lsd_info(functional,reference,shortform,needs,max_deriv,&
+                error=error)
         ELSE
-           CALL my_tpss_lda_info(reference,shortform,needs,max_deriv,error=error)
+           CALL tpss_lda_info(functional,reference,shortform,needs,max_deriv,&
+                error=error)
         END IF
      CASE("PBE")
         IF (lsd) THEN
@@ -447,9 +449,9 @@ SUBROUTINE xc_functional_eval(functional, lsd, rho_set, deriv_set, &
         END IF
      CASE("TPSS")
         IF (lsd) THEN
-           CALL my_tpss_lsd_eval(rho_set,deriv_set,deriv_order,error=error)
+           CALL tpss_lsd_eval(rho_set,deriv_set,deriv_order,functional,error=error)
         ELSE
-           CALL my_tpss_lda_eval(rho_set,deriv_set,deriv_order,error=error)
+           CALL tpss_lda_eval(rho_set,deriv_set,deriv_order,functional, error=error)
         END IF
      CASE("PBE")
         IF (lsd) THEN

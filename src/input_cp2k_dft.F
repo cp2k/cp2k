@@ -1468,6 +1468,16 @@ SUBROUTINE create_xc_fun_section(section,error)
           lone_keyword_l_val=.TRUE.,default_l_val=.FALSE.,error=error)
      CALL section_add_keyword(subsection,keyword,error=error)
      CALL keyword_release(keyword,error=error)
+     CALL keyword_create(keyword,"scale_x",&
+          description="scales the exchange part of the functional",&
+          default_r_val=1._dp,error=error)
+     CALL section_add_keyword(subsection,keyword,error=error)
+     CALL keyword_release(keyword,error=error)
+     CALL keyword_create(keyword,"scale_c",&
+          description="scales the correlation part of the functional",&
+          default_r_val=1._dp,error=error)
+     CALL section_add_keyword(subsection,keyword,error=error)
+     CALL keyword_release(keyword,error=error)
      CALL section_add_subsection(section,subsection,error=error)
      CALL section_release(subsection,error=error)
      
@@ -1478,6 +1488,23 @@ SUBROUTINE create_xc_fun_section(section,error)
      CALL keyword_create(keyword,"_SECTION_PARAMETERS_",&
           description="activates the functional",&
           lone_keyword_l_val=.TRUE.,default_l_val=.FALSE.,error=error)
+     CALL section_add_keyword(subsection,keyword,error=error)
+     CALL keyword_release(keyword,error=error)
+     CALL keyword_create(keyword,"parametrization",&
+          description="switches between the original pbe and the revised pbe "//&
+          "proposed ba Yingkai Zhang and Weitao Yang",&
+          enum_i_vals=(/xc_pbe_orig,xc_rev_pbe/),enum_c_vals=(/"ORIG  ","revPBE"/),&
+          default_i_val=xc_pbe_orig,error=error)
+     CALL section_add_keyword(subsection,keyword,error=error)
+     CALL keyword_release(keyword,error=error)
+     CALL keyword_create(keyword,"scale_x",&
+          description="scales the exchange part of the functional",&
+          default_r_val=1._dp,error=error)
+     CALL section_add_keyword(subsection,keyword,error=error)
+     CALL keyword_release(keyword,error=error)
+     CALL keyword_create(keyword,"scale_c",&
+          description="scales the correlation part of the functional",&
+          default_r_val=1._dp,error=error)
      CALL section_add_keyword(subsection,keyword,error=error)
      CALL keyword_release(keyword,error=error)
      CALL section_add_subsection(section,subsection,error=error)
