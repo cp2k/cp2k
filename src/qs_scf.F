@@ -607,9 +607,6 @@ CONTAINS
             REPEAT("-",77)
     END IF
    
-    IF (BTEST(cp_print_key_should_output(logger%iter_info,&
-         scf_section,"PRINT%ITERATION_INFO/TIME_CUMUL",error=error),cp_p_file)) t1 = m_walltime()
-
 !   *** SCF loop ***
 
     scf_loop: DO
@@ -870,7 +867,7 @@ CONTAINS
                id_nr=1)
        END IF
 
-       IF (BTEST(cp_print_key_should_output(logger%iter_info,&
+       IF (.NOT.BTEST(cp_print_key_should_output(logger%iter_info,&
             scf_section,"PRINT%ITERATION_INFO/TIME_CUMUL",error=error),cp_p_file)) t1 = m_walltime()  
 
 !   *** mixing methods have the new density matrix in p_mix_new
