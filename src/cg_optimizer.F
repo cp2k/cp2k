@@ -51,6 +51,10 @@ MODULE cg_optimizer
   USE termination,                     ONLY: external_control
   USE input_section_types, ONLY: section_vals_type, section_vals_get_subs_vals,&
        section_vals_get, section_vals_val_get, section_vals_release
+  USE cp_output_handling,              ONLY: cp_print_key_unit_nr, &
+                                             cp_print_key_finished_output,&
+                                            cp_print_key_should_output,&
+                                             cp_p_file
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -98,7 +102,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'geoopt_cg', &
       routineP = moduleN//':'//routineN
     INTEGER :: atom, handle, iatom, ikind, indf, j, &
-      natom, ndf, nfixed, nfree, nkind, output_unit, stat, dataunit
+      natom, ndf, nfixed, nfree, nkind, output_unit, stat
     INTEGER, DIMENSION(:), POINTER           :: atom_list
     LOGICAL                                  :: conv, ionode
     REAL(KIND=dp), DIMENSION(:), POINTER     :: x
@@ -113,13 +117,18 @@ CONTAINS
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     LOGICAL                                  :: failure
+    TYPE(cp_logger_type), POINTER            :: logger
 
+    NULLIFY(logger)
+    logger => cp_error_get_logger(error)
     failure = .FALSE.
     CALL write_checkpoint_information("Entering "//routineN,globenv,error)
     CALL timeset(routineN,"I","",handle)   
     IF (.NOT.failure) THEN
        ionode      = globenv%ionode
-       output_unit = globenv%scr
+       output_unit = cp_print_key_unit_nr(logger,globenv%input_file,&
+         "MOTION%GEOOPT%PRINT%PROGRAM_RUN_INFO",&
+         extension=".geoLog",error=error)
 
        conv        = .FALSE.
        CALL force_env_get(force_env,&
@@ -156,7 +165,7 @@ CONTAINS
           END DO
        END DO
        
-       IF(ionode)THEN
+       IF(output_unit>0)THEN
           WRITE(UNIT=output_unit,FMT="(/,T2,A)") REPEAT("*",79)
           WRITE(UNIT=output_unit,FMT="(T2,A,T28,A,T78,A)")&
                "***","STARTING GEOMETRY OPTIMIZATION","***"
@@ -168,23 +177,20 @@ CONTAINS
                "Number of degrees of freedom = ",ndf
           CALL m_flush(output_unit)
           
-          CALL open_file(file_name="bfgs.data",&
-                         file_status="UNKNOWN",&
-                         file_form="FORMATTED",&
-                         file_action="WRITE",&
-                         unit_number=dataunit)
        END IF
 
        CALL write_qs_particle_coordinates(particle_set,cell,force_env_section,error) 
        CALL write_particle_distances(particle_set,cell,force_env_section,error)
-       
-       CALL  cp_cg_main(force_env, x, gopt_param, ionode, output_unit, dataunit, &
+  
+       CALL  cp_cg_main(force_env, x, gopt_param, output_unit>0, output_unit, &
             globenv, force_env_section, error)
 
        CALL write_particle_distances(particle_set,cell,force_env_section,error)
    
        DEALLOCATE(x, stat=stat)
        CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+       CALL cp_print_key_finished_output(output_unit,logger,globenv%input_file,&
+            "MOTION%GEOOPT%PRINT%PROGRAM_RUN_INFO", error=error)
     END IF
     CALL timestop(0.0_dp,handle)
     CALL write_checkpoint_information("Leaving "//routineN,globenv,error)
@@ -314,13 +320,13 @@ CONTAINS
 !!     10.2005 created [tlaino] 
 !!
 !!*** **********************************************************************
-  SUBROUTINE cp_cg_main(force_env, xvec, gopt_param, ionode, output_unit, dataunit,&
+  SUBROUTINE cp_cg_main(force_env, xvec, gopt_param, ionode, output_unit,&
        globenv, force_env_section, error)
     IMPLICIT NONE
     ! Arguments
     TYPE(force_env_type), POINTER            :: force_env
     REAL(KIND=dp), DIMENSION(:), POINTER     :: xvec
-    INTEGER, INTENT(IN)                      :: output_unit, dataunit
+    INTEGER, INTENT(IN)                      :: output_unit
     TYPE(section_vals_type), POINTER :: force_env_section
     LOGICAL, INTENT(IN)                      :: ionode
     TYPE(gopt_param_type), POINTER           :: gopt_param
@@ -331,7 +337,7 @@ CONTAINS
     ! Local Variables
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_cg_main', &
       routineP = moduleN//':'//routineN
-    INTEGER                                  :: its, stat, maxiter, brent_max_iter
+    INTEGER                                  :: its, stat, maxiter, brent_max_iter, dataunit
     REAL(KIND=dp)                            :: dgg, gam, gg, emin, eold, opt_energy
     REAL(KIND=dp)                            :: brent_tol, brack_limit, step, res_lim
     REAL(KIND=dp), DIMENSION(:), POINTER     :: g, h, xi
@@ -348,8 +354,11 @@ CONTAINS
     LOGICAL                                  :: failure,  Fletcher_Reeves_ON, use_fit
     LOGICAL                                  :: should_stop
     INTEGER                                  :: max_steep_steps
+    TYPE(cp_logger_type), POINTER            :: logger
 
     failure = .FALSE.
+    NULLIFY(logger)
+    logger => cp_error_get_logger(error)
     NULLIFY(g, h, xi)
     IF (.NOT.failure) THEN
        maxiter            = gopt_param%max_iter
@@ -399,18 +408,24 @@ CONTAINS
                wildcard=wildcard)
           CALL check_converg(SIZE(xvec),xvec-xold,xi,ionode,output_unit,conv,gopt_param)
           wildcard = "   CG"
-          IF (ionode) THEN
-             CALL force_env_get(force_env,&
-                                cell=cell,&
-                                subsys=subsys)           
-             CALL cp_subsys_get(subsys=subsys(1)%subsys,&
-                                particles=particles)
-             particle_set => particles%els              
-
-             WRITE (UNIT=title,FMT="(A,I8,A,F20.10)") " i =",its,", E =",opt_energy
-             CALL write_particle_coordinates(particle_set,cell,dataunit,&
-                                             dump_xmol,"POS",TRIM(title))
-             CALL m_flush(dataunit)
+          IF (globenv%ionode) THEN
+             dataunit = cp_print_key_unit_nr(logger,globenv%input_file,&
+                  "MOTION%PRINT%TRAJECTORY",extension=".xyz",error=error)
+             IF (dataunit>0) THEN
+                CALL force_env_get(force_env,&
+                     cell=cell,&
+                     subsys=subsys)           
+                CALL cp_subsys_get(subsys=subsys(1)%subsys,&
+                     particles=particles)
+                particle_set => particles%els              
+                
+                WRITE (UNIT=title,FMT="(A,I8,A,F20.10)") " i =",its,", E =",opt_energy
+                CALL write_particle_coordinates(particle_set,cell,dataunit,&
+                     dump_xmol,"POS",TRIM(title))
+                CALL m_flush(dataunit)
+             END IF
+             CALL cp_print_key_finished_output(dataunit,logger,globenv%input_file,&
+                  "MOTION%PRINT%TRAJECTORY", error=error)
              CALL write_qs_particle_coordinates(particle_set,cell,force_env_section,error)
           END IF
           IF (conv.OR.(its==maxiter))  EXIT

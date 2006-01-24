@@ -41,6 +41,25 @@ MODULE cp_lbfgs_optimizer_gopt
   USE message_passing, ONLY: mp_bcast
   USE input_section_types, ONLY: section_vals_type, section_vals_get_subs_vals,&
        section_vals_get, section_vals_val_get, section_vals_release
+  USE input_constants,                 ONLY: dump_xmol
+  USE cp_output_handling,              ONLY: cp_print_key_unit_nr, &
+                                             cp_print_key_finished_output,&
+                                             cp_print_key_should_output,&
+                                             cp_p_file
+  USE force_env_types,                 ONLY: force_env_get,&
+                                             force_env_type
+  USE cell_types,                 ONLY: cell_type
+  USE bfgs_optimizer,                  ONLY: write_cycle_infos,&
+                                             check_converg
+  USE particle_types,                  ONLY: particle_type,&
+                                             write_particle_distances,&
+                                             write_qs_particle_coordinates,&
+                                             write_particle_coordinates
+  USE cp_subsystem_types,              ONLY: cp_subsys_get,&
+                                             cp_subsystem_p_type  
+  USE machine,                         ONLY: m_flush
+  USE gopt_f_types,                    ONLY: gopt_param_type
+  USE particle_list_types,             ONLY: particle_list_type
 #include "cp_common_uses.h"
   USE gopt_f_types, ONLY: gopt_f_type, gopt_f_eval_at,gopt_f_release,gopt_f_retain
   IMPLICIT NONE
@@ -185,7 +204,7 @@ MODULE cp_lbfgs_optimizer_gopt
      INTEGER :: ref_count, id_nr
      INTEGER, DIMENSION(:), POINTER :: kind_of_bound, i_work_array, isave
      REAL(kind=dp) :: f, wanted_relative_f_delta, wanted_projected_gradient,&
-          last_f, projected_gradient
+          last_f, projected_gradient, eold, emin
      REAL(kind=dp), DIMENSION(:), POINTER :: x,lower_bound,upper_bound,&
           gradient,dsave,work_array
      TYPE(cp_para_env_type), POINTER :: para_env
@@ -263,7 +282,7 @@ CONTAINS
        optimizer%obj_funct => obj_funct
        CALL gopt_f_retain(obj_funct, error=error)
        optimizer%max_f_per_iter=20
-       optimizer%print_every=1
+       optimizer%print_every=-1
        optimizer%n_iter=0
        optimizer%f=-1.0_dp
        optimizer%last_f=-1.0_dp
@@ -574,26 +593,44 @@ END SUBROUTINE cp_opt_gopt_release
 !!
 !!*** **********************************************************************
   SUBROUTINE cp_opt_gopt_step(optimizer,n_iter,f,last_f,&
-       projected_gradient, converged, force_env_section, error)
+       projected_gradient, converged, force_env_section, input, force_env,&
+       gopt_param, error)
     TYPE(cp_lbfgs_opt_gopt_type), pointer :: optimizer
     INTEGER, INTENT(out), OPTIONAL :: n_iter
     REAL(kind=dp), INTENT(out), OPTIONAL :: f, last_f, projected_gradient
-    TYPE(section_vals_type), POINTER :: force_env_section	
+    TYPE(section_vals_type), POINTER :: force_env_section, input	
     LOGICAL, INTENT(out), OPTIONAL :: converged
-
+    TYPE(force_env_type), POINTER            :: force_env
     TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(gopt_param_type), POINTER           :: gopt_param
 
     LOGICAL :: failure, justEntred, is_master
-    INTEGER :: handle
+    INTEGER :: handle, dataunit
     CHARACTER(len=*), PARAMETER :: routineN='cp_opt_gopt_step',&
          routineP=moduleN//':'//routineN
+    TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(cell_type), POINTER                 :: cell
+    TYPE(cp_subsystem_p_type), &
+      DIMENSION(:), POINTER                  :: subsys
+    TYPE(particle_list_type), POINTER        :: particles
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particle_set
+    CHARACTER(LEN=80)                        :: title
+    CHARACTER(LEN=5)                         :: wildcard
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: xold
+    INTEGER       :: stat
+    LOGICAL       :: conv
 
+    NULLIFY(logger,xold)
+    logger => cp_error_get_logger(error)
     CALL timeset(routineN//','//moduleN,'I',"",handle)
-
     failure=.FALSE.
     justEntred=.TRUE.
     is_master=optimizer%master==optimizer%para_env%mepos
     IF (PRESENT(converged)) converged = optimizer%status==4
+    ALLOCATE(xold(SIZE(optimizer%x)),stat=stat)
+    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+    xold = optimizer%x
 
     CPPrecondition(ASSOCIATED(optimizer),cp_failure_level,routineP,error,failure)
     CPPrecondition(optimizer%ref_count>0,cp_failure_level,routineP,error,failure)
@@ -679,9 +716,28 @@ END SUBROUTINE cp_opt_gopt_release
                      error)
              END IF
           END IF ifMaster
-          justEntred=.FALSE.
           CALL mp_bcast(optimizer%status,optimizer%master, &
                optimizer%para_env%group)
+          ! Dump info
+          IF (optimizer%status == 3) THEN
+             dataunit = cp_print_key_unit_nr(logger,input,&
+                  "MOTION%PRINT%TRAJECTORY",extension=".xyz",error=error)
+             IF (dataunit>0) THEN
+                CALL force_env_get(force_env,&
+                     cell=cell,&
+                     subsys=subsys)           
+                CALL cp_subsys_get(subsys=subsys(1)%subsys,&
+                     particles=particles)
+                particle_set => particles%els              
+                WRITE (UNIT=title,FMT="(A,I8,A,F20.10)") " i =",optimizer%isave(30),", E =",optimizer%f
+                CALL write_particle_coordinates(particle_set,cell,dataunit,&
+                     dump_xmol,"POS",TRIM(title))                
+                CALL m_flush(dataunit)
+             END IF
+             CALL cp_print_key_finished_output(dataunit,logger,input,&
+                  "MOTION%PRINT%TRAJECTORY", error=error)
+          END IF
+          !
           SELECT CASE (optimizer%status)
           CASE (1)
              !op=1 evaluate f and g
@@ -708,10 +764,36 @@ END SUBROUTINE cp_opt_gopt_release
              CALL mp_bcast(optimizer%x,optimizer%master,&
                   optimizer%para_env%group)
           CASE (3)
-             !op=3 ended iter
+             !op=3 ended iter             
+             wildcard = "LBFGS"
+             dataunit = cp_print_key_unit_nr(logger,input,&
+                  "MOTION%GEOOPT%PRINT%PROGRAM_RUN_INFO",extension=".geoLog",error=error)
+             IF (dataunit>0) THEN
+                CALL write_cycle_infos(dataunit,optimizer%isave(30),optimizer%f,&
+                     optimizer%f-optimizer%eold,emin=optimizer%emin,wildcard=wildcard)
+             END IF
+             CALL check_converg(SIZE(optimizer%x),optimizer%x-xold,optimizer%gradient,&
+                  dataunit>0,dataunit,conv,gopt_param)
+             CALL cp_print_key_finished_output(dataunit,logger,input,&
+                  "MOTION%GEOOPT%PRINT%PROGRAM_RUN_INFO", error=error)
+             optimizer%eold = optimizer%f
+             optimizer%emin = MIN(optimizer%emin,optimizer%eold)
+             xold = optimizer%x
+             IF (PRESENT(converged)) converged=conv
              EXIT
           CASE (4)
-             !op=4 (convergence - normal exit)     
+             !op=4 (convergence - normal exit)
+             ! Specific L-BFGS convergence cryteria.. overrides the convergence cryteria on
+             ! stepsize and gradients
+             dataunit = cp_print_key_unit_nr(logger,input,&
+                  "MOTION%GEOOPT%PRINT%PROGRAM_RUN_INFO",extension=".geoLog",error=error)
+             IF (dataunit>0) THEN
+                WRITE(dataunit,'(T2,A)')"*****"
+                WRITE(dataunit,'(T2,A)')"* Specific L-BFGS convergence cryteria met.. CONVERGED!"
+                WRITE(dataunit,'(T2,A)')"*****"
+             END IF
+             CALL cp_print_key_finished_output(dataunit,logger,input,&
+                  "MOTION%GEOOPT%PRINT%PROGRAM_RUN_INFO", error=error)
              IF (PRESENT(converged)) converged=.TRUE.
              EXIT
           CASE (5)
@@ -733,6 +815,11 @@ END SUBROUTINE cp_opt_gopt_release
              optimizer%status=5
              EXIT
           END SELECT
+          IF (optimizer%status == 1 .AND. justEntred) THEN 
+             optimizer%eold = optimizer%f
+             optimizer%emin = optimizer%eold
+          END IF
+          justEntred=.FALSE.
        END DO
        CALL mp_bcast(optimizer%x,optimizer%master,&
             optimizer%para_env%group)
@@ -741,6 +828,8 @@ END SUBROUTINE cp_opt_gopt_release
             f=optimizer%f, last_f=optimizer%last_f,&
             projected_gradient=optimizer%projected_gradient)
     END IF
+    DEALLOCATE(xold,stat=stat)
+    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
     IF (PRESENT(f)) f=optimizer%f
     IF (PRESENT(last_f)) last_f=optimizer%last_f
     IF (PRESENT(projected_gradient)) &
@@ -839,12 +928,15 @@ END SUBROUTINE cp_opt_gopt_release
 !!
 !!*** **********************************************************************
   FUNCTION cp_opt_gopt_next(optimizer,n_iter,f,last_f,&
-       projected_gradient, converged, force_env_section,error) RESULT(res)
+       projected_gradient, converged, force_env_section,input, force_env,&
+       gopt_param,error) RESULT(res)
     TYPE(cp_lbfgs_opt_gopt_type), POINTER :: optimizer
     INTEGER, INTENT(out), OPTIONAL :: n_iter
     REAL(kind=dp), INTENT(out), OPTIONAL :: f, last_f, projected_gradient
-    TYPE(section_vals_type), POINTER :: force_env_section
+    TYPE(section_vals_type), POINTER :: force_env_section, input	
     LOGICAL, INTENT(out), OPTIONAL :: converged
+    TYPE(force_env_type), POINTER            :: force_env
+    TYPE(gopt_param_type), POINTER           :: gopt_param
     LOGICAL ::res
     TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
 
@@ -861,7 +953,8 @@ END SUBROUTINE cp_opt_gopt_release
     IF (.NOT. failure) THEN
        CALL cp_opt_gopt_step(optimizer,n_iter=n_iter,f=f,&
             last_f=last_f, projected_gradient=projected_gradient,&
-            converged=converged,force_env_section=force_env_section,error=error)
+            converged=converged,force_env_section=force_env_section,&
+            input=input,force_env=force_env,gopt_param=gopt_param,error=error)
        res= optimizer%status<4
     ELSE
        res=.FALSE.

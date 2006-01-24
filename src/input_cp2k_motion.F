@@ -520,6 +520,7 @@ CONTAINS
 
     LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
+    TYPE(section_type), POINTER              :: subsection, print_key
 
     failure=.FALSE.
 
@@ -658,7 +659,7 @@ CONTAINS
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="RESTART",&
-            description="The guess starting HESSIAN is read from the RESTART.",&
+            description="The guess starting HESSIAN is read from the RESTART (only for BFGS)",&
             usage="RESTART",&
             default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,error=error)
        CALL section_add_keyword(section,keyword,error=error)
@@ -670,6 +671,21 @@ CONTAINS
             default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
+
+       NULLIFY(subsection)
+       CALL section_create(subsection,name="print",&
+            description="Controls the printing properties during a geometry optimization run",&
+            n_keywords=0, n_subsections=1, repeats=.TRUE., required=.FALSE.,&
+            error=error)
+       NULLIFY(print_key)
+       CALL cp_print_key_section_create(print_key,"program_run_info",&
+            description="Controls the printing of basic information during the Geometry Optimization", &
+            print_level=low_print_level,each=(/1/),add_last=(/1/),filename="__STD_OUT__",&
+            error=error)
+       CALL section_add_subsection(subsection,print_key,error=error)
+       CALL section_release(print_key,error=error)        
+       CALL section_add_subsection(section,subsection,error=error)
+       CALL section_release(subsection,error=error)    
 
     END IF
 

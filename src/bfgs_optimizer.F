@@ -50,6 +50,11 @@ MODULE bfgs_optimizer
   USE input_constants,                 ONLY: dump_xmol
   USE input_section_types, ONLY: section_vals_type, section_vals_get_subs_vals,&
        section_vals_get, section_vals_val_get, section_vals_release
+  USE cp_output_handling,              ONLY: cp_print_key_unit_nr, &
+                                             cp_print_key_finished_output,&
+                                             cp_print_key_should_output,&
+                                             cp_p_file
+
 #include "cp_common_uses.h"
   IMPLICIT NONE
 
@@ -99,18 +104,24 @@ CONTAINS
     TYPE(particle_list_type), POINTER        :: particles
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
+    TYPE(cp_logger_type), POINTER            :: logger
+
+    NULLIFY(logger)
+    logger => cp_error_get_logger(error)
 
     CALL write_checkpoint_information("Entering "//routine_name,globenv,error)
-
     CALL timeset(routine_name,"I","",handle)
 
     ionode      = globenv%ionode
-    output_unit = globenv%scr
     maxiter     = gopt_param%max_iter
     hesrest     = gopt_param%hesrest
     conv        = .FALSE.
     rad         = 0.10_dp
     rat         = 0.0_dp
+
+    output_unit = cp_print_key_unit_nr(logger,globenv%input_file,&
+         "MOTION%GEOOPT%PRINT%PROGRAM_RUN_INFO",&
+         extension=".geoLog",error=error)
 
     CALL force_env_get(force_env,&
                        cell=cell,&
@@ -180,7 +191,7 @@ CONTAINS
 
 ! Geometry optimization starts now
 
-  IF(ionode)THEN
+  IF(output_unit>0)THEN
     WRITE(UNIT=output_unit,FMT="(/,T2,A)") REPEAT("*",79)
     WRITE(UNIT=output_unit,FMT="(T2,A,T28,A,T78,A)")&
       "***","STARTING GEOMETRY OPTIMIZATION","***"
@@ -200,12 +211,6 @@ CONTAINS
                    file_form="UNFORMATTED",&
                    file_action="READWRITE",&
                    unit_number=hesunit)
-
-    CALL open_file(file_name="bfgs.data",&
-                   file_status="UNKNOWN",&
-                   file_form="FORMATTED",&
-                   file_action="WRITE",&
-                   unit_number=dataunit)
   END IF
 
 ! Calculate Energy & Gradients
@@ -242,7 +247,7 @@ CONTAINS
      it = it + 1
 
      IF(it > maxiter )THEN
-       IF(ionode)THEN
+       IF(output_unit>0)THEN
          WRITE(UNIT=output_unit,FMT="(/,T2,A)")&
            "*** MAXIMUM NUMBER OF OPTIMIZATION STEPS REACHED ***"
          WRITE(UNIT=output_unit,FMT="(T2,A)")&
@@ -255,7 +260,7 @@ CONTAINS
      CALL external_control(should_stop,"GEO",globenv,error)
      IF(should_stop) EXIT
 
-     IF (ionode)THEN
+     IF (output_unit>0)THEN
        WRITE(UNIT=output_unit,FMT="(/,T2,26('-'))")
        WRITE(UNIT=output_unit,FMT="(T2,A,I6)")&
          "OPTIMIZATION STEP: ",it
@@ -266,44 +271,40 @@ CONTAINS
 !    ** Hessian update/restarting **
 
      IF ((it == 1).AND.hesrest) THEN
-
-       IF(ionode)THEN
-         DO i=1,SIZE(hes)
-           READ(UNIT=hesunit,IOSTAT=istat)hes(i)
-         END DO
-         REWIND(hesunit)
-         IF(istat /= 0)THEN
-           WRITE(UNIT=output_unit,FMT="(/,T2,A)")&
-           "**  Error while reading HESSIAN **"
-           conv = .TRUE.
-         ELSE
-           WRITE(UNIT=output_unit,FMT="(/,T2,A)")&
-             "*** Initial Hessian has been restarted successfully ***"
-         END IF
-  
-       END IF
-
-       CALL mp_bcast(hes,globenv%source,globenv%group)
-
-     ELSE IF( it > 1 ) THEN
-
+        IF(ionode)THEN
+           DO i=1,SIZE(hes)
+              READ(UNIT=hesunit,IOSTAT=istat)hes(i)
+           END DO
+           REWIND(hesunit)
+           IF (istat /= 0) THEN
+              WRITE(UNIT=output_unit,FMT="(/,T2,A)")&
+                   "**  Error while reading HESSIAN **"
+              conv = .TRUE.
+           ELSE
+              WRITE(UNIT=output_unit,FMT="(/,T2,A)")&
+                   "*** Initial Hessian has been restarted successfully ***"
+           END IF
+           
+        END IF        
+        CALL mp_bcast(hes,globenv%source,globenv%group)        
+     ELSE IF( it > 1 ) THEN        
         DO indf = 1, ndf
-          dx(indf) = x(indf) - xold(indf)
-          dg(indf) = g(indf) - gold(indf)     
+           dx(indf) = x(indf) - xold(indf)
+           dg(indf) = g(indf) - gold(indf)     
         END DO
-
+        
         CALL bfgs(ndf,dx,dg,hes,work)
-
+        
         IF(ionode)THEN
            DO i = 1, SIZE(hes)
-             WRITE(UNIT=hesunit)hes(i)
-            CALL m_flush(hesunit)
+              WRITE(UNIT=hesunit)hes(i)
+              CALL m_flush(hesunit)
            END DO
            REWIND(hesunit)
         END IF
-     END IF   
-
-!    ** Setting the present positions & gradients as old **
+     END IF
+     
+     !    ** Setting the present positions & gradients as old **
 
      CALL DCOPY(ndf,x,1,xold,1)
      CALL DCOPY(ndf,g,1,gold,1)
@@ -328,7 +329,7 @@ CONTAINS
 
      CALL geoopt_get_step(ndf,eigval,eigvec,hes_mat,dr,g)
 
-     CALL trust_radius(ndf,nfree,step,rad,rat,dr,output_unit,ionode)
+     CALL trust_radius(ndf,nfree,step,rad,rat,dr,output_unit,output_unit>0)
      
 !   ** Updating the present positions ** 
 
@@ -353,16 +354,22 @@ CONTAINS
 !  Printing section
 
    IF (ionode) THEN
-     WRITE (UNIT=title,FMT="(A,I8,A,F20.10)") " i =",it,", E =",etot
-     CALL write_particle_coordinates(particle_set,cell,dataunit,&
-                                     dump_xmol,"POS",TRIM(title))
-     CALL m_flush(dataunit)
-     CALL write_qs_particle_coordinates(particle_set,cell,force_env_section,error)
+      dataunit = cp_print_key_unit_nr(logger,globenv%input_file,&
+           "MOTION%PRINT%TRAJECTORY",extension=".xyz",error=error)
+      IF (dataunit>0) THEN
+         WRITE (UNIT=title,FMT="(A,I8,A,F20.10)") " i =",it,", E =",etot
+         CALL write_particle_coordinates(particle_set,cell,dataunit,&
+              dump_xmol,"POS",TRIM(title))
+         CALL m_flush(dataunit)
+      END IF
+      CALL cp_print_key_finished_output(dataunit,logger,globenv%input_file,&
+           "MOTION%PRINT%TRAJECTORY", error=error)     
+      CALL write_qs_particle_coordinates(particle_set,cell,force_env_section,error)
    END IF
 
    CALL write_particle_distances(particle_set,cell,force_env_section,error)
 
-   CALL energy_predict(ndf,work,hes,dr,g,ionode,output_unit,conv,pred)
+   CALL energy_predict(ndf,work,hes,dr,g,output_unit>0,output_unit,conv,pred)
 
    IF (conv) EXIT
 
@@ -393,14 +400,14 @@ CONTAINS
 
     ediff = etot - eold
 
-    IF(ionode) CALL write_cycle_infos &
-               (output_unit,it,etot,ediff,pred,rat,step,rad,emin," BFGS")
+    IF(output_unit>0) CALL write_cycle_infos &
+         (output_unit,it,etot,ediff,pred,rat,step,rad,emin," BFGS")
 
     IF(etot < emin ) emin = etot 
 
     CALL update_trust_rad(rat,rad,step,ediff)
 
-    CALL check_converg(ndf,dr,g,ionode,output_unit,conv,gopt_param)
+    CALL check_converg(ndf,dr,g,output_unit>0,output_unit,conv,gopt_param)
 
 
     IF(conv) EXIT
@@ -422,8 +429,9 @@ CONTAINS
 
     IF(ionode)THEN
         CALL close_file(unit_number=hesunit)
-        CALL close_file(unit_number=dataunit)
     END IF
+    CALL cp_print_key_finished_output(output_unit,logger,globenv%input_file,&
+            "MOTION%GEOOPT%PRINT%PROGRAM_RUN_INFO", error=error)     
 
     CALL timestop(0.0_dp,handle)
 

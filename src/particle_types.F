@@ -665,6 +665,7 @@ END SUBROUTINE clone_particle
             particle_set(iatom)%r(1:3)/unit_of_length,zeff,mass/massunit
         END IF
       END DO
+      WRITE (iw,'(/)')
     END IF
 
     CALL cp_print_key_finished_output(iw,logger,force_env_section,&
