@@ -4,7 +4,7 @@ echo "This script will clean the directory" $PWD "from scratch files.."
 echo 
 foreach file (`cvs update -A|grep '? '|awk '{print $2}'`)
   if ( ${file:e} == 'inp' ) then
-     echo "This files could be a new input file you don't want to be deleted.. Is it correct?"
+     echo "This files could be a new input file you don't want to be deleted.. Do you really want it deleted?"
      rm -i $file
   else
      rm -f $file
