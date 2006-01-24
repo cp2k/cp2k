@@ -73,3 +73,10 @@ N3-5.inp
 H2O-debug-2.inp
 H2O-debug-3.inp
 H2O-debug-1.inp
+# pbe (just numeric) and tpss (numeric for lda, bug for lsd)
+H2O-tddfpt-saop.inp
+Ar-9.inp
+Ar-10.inp
+Ar-11.inp
+H2O-tpss.inp
+H2O-tpss_new.inp
