@@ -80,3 +80,5 @@ Ar-10.inp
 Ar-11.inp
 H2O-tpss.inp
 H2O-tpss_new.inp
+# pbe again (numeric error on linux bigger than on mac)
+N3-5.inp
