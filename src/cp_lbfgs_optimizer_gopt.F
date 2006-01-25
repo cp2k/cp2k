@@ -52,6 +52,7 @@
 !*****************************************************************************
 MODULE cp_lbfgs_optimizer_gopt
   USE cp_lbfgs, ONLY: setulb, cp_lbfgs_unit_nr
+  USE global_types,                    ONLY: global_environment_type  
   USE kinds, ONLY: dp
   USE cp_para_types, ONLY: cp_para_env_type
   USE cp_para_env, ONLY: cp_para_env_retain, cp_para_env_release
@@ -259,9 +260,12 @@ CONTAINS
   SUBROUTINE cp_opt_gopt_create(optimizer, para_env, &
        obj_funct, x0, m, print_every, &
        wanted_relative_f_delta, wanted_projected_gradient,&
-       lower_bound,upper_bound, kind_of_bound, master, max_f_per_iter, error)
+       lower_bound,upper_bound, kind_of_bound, master, max_f_per_iter,globenv,&
+       error)
     TYPE(cp_lbfgs_opt_gopt_type), POINTER :: optimizer
     TYPE(cp_para_env_type), POINTER :: para_env
+    TYPE(global_environment_type), &
+         POINTER                  :: globenv
     type(gopt_f_type), pointer :: obj_funct
     REAL(kind=dp), DIMENSION(:), INTENT(in) :: x0
     INTEGER, INTENT(in), OPTIONAL :: m,print_every, master, max_f_per_iter
@@ -294,7 +298,7 @@ CONTAINS
        n=SIZE(x0)
        optimizer%m=4
        IF (PRESENT(m)) optimizer%m=m
-       optimizer%master= 0
+       optimizer%master= globenv%source
        optimizer%para_env => para_env
        CALL cp_para_env_retain(para_env)
        optimizer%obj_funct => obj_funct
@@ -790,6 +794,7 @@ END SUBROUTINE cp_opt_gopt_release
                 CALL write_cycle_infos(dataunit,optimizer%isave(30),optimizer%f,&
                      optimizer%f-optimizer%eold,emin=optimizer%emin,wildcard=wildcard)
              END IF
+             IF (is_master) &
              CALL check_converg(SIZE(optimizer%x),optimizer%x-xold,optimizer%gradient,&
                   dataunit>0,dataunit,conv,gopt_param)
              CALL cp_print_key_finished_output(dataunit,logger,input,&
@@ -947,7 +952,7 @@ END SUBROUTINE cp_opt_gopt_release
 !!*** **********************************************************************
   FUNCTION cp_opt_gopt_next(optimizer,n_iter,f,last_f,&
        projected_gradient, converged, force_env_section,input, force_env,&
-       gopt_param,error) RESULT(res)
+       gopt_param, error) RESULT(res)
     TYPE(cp_lbfgs_opt_gopt_type), POINTER :: optimizer
     INTEGER, INTENT(out), OPTIONAL :: n_iter
     REAL(kind=dp), INTENT(out), OPTIONAL :: f, last_f, projected_gradient
@@ -972,7 +977,8 @@ END SUBROUTINE cp_opt_gopt_release
        CALL cp_opt_gopt_step(optimizer,n_iter=n_iter,f=f,&
             last_f=last_f, projected_gradient=projected_gradient,&
             converged=converged,force_env_section=force_env_section,&
-            input=input,force_env=force_env,gopt_param=gopt_param,error=error)
+            input=input,force_env=force_env,gopt_param=gopt_param,&
+            error=error)
        res= optimizer%status<4
     ELSE
        res=.FALSE.

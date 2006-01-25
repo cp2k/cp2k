@@ -196,7 +196,7 @@ MODULE geo_opt
         CALL cp_opt_gopt_create(optimizer, para_env=para_env, &
              obj_funct=gopt_env, x0=x0, wanted_relative_f_delta=gopt_param%wanted_rel_f_error,&
              wanted_projected_gradient=gopt_param%wanted_proj_gradient, m=gopt_param%max_h_rank,&
-             max_f_per_iter=gopt_param%max_f_per_iter, error=error)
+             max_f_per_iter=gopt_param%max_f_per_iter, globenv=globenv, error=error)
 
         DEALLOCATE(x0,stat=stat)
         CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
