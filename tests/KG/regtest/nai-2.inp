@@ -1,0 +1,91 @@
+
+&FORCE_EVAL
+  &DFT
+    BASIS_SET_FILE_NAME BASIS_SET
+    POTENTIAL_FILE_NAME POTENTIAL
+    &MGRID
+      CUTOFF 20.0
+      NGRIDS 1
+    &END MGRID
+    &QS
+      EPS_CORE_CHARGE 1.0E-96
+      EPS_GVG_RSPACE 1.0E-16
+      EPS_PGF_ORB 1.0E-16
+      EPS_PPL 1.0E-96
+      EPS_RHO 1.0E-16
+      METHOD KG_POL
+    &END QS
+    &SCF
+      EPS_SCF 1.0E-5
+      MAX_DIIS 5
+      MAX_SCF 300
+      SCF_GUESS atomic
+      WRITE_RESTART_EACH 100
+    &END SCF
+    &XC
+      &XC_FUNCTIONAL
+        &PADE
+        &END PADE
+        &TF
+        &END TF
+      &END XC_FUNCTIONAL
+    &END XC
+  &END DFT
+  &SUBSYS
+    &CELL
+      ABC 7.940 7.940 7.940
+      UNIT ANGSTROM
+    &END CELL
+    &COORD
+       I      0.05444808     -0.15740044      0.24414683
+      Na      3.31665718     -0.15142475     -0.25449516
+    &END COORD
+    &KIND Na
+      BASIS_SET KG-PDM-CPMD
+      POTENTIAL ELP
+    &END KIND
+    &KIND I
+      AUX_BASIS_SET I_DRHO
+      BASIS_SET KG-PDM-CPMD
+      POTENTIAL ELP
+    &END KIND
+    &TOPOLOGY
+      NHCOPT GLOBAL
+    &END TOPOLOGY
+  &END SUBSYS
+&END FORCE_EVAL
+&GLOBAL
+  FFTLIB FFTSG
+  PROGRAM kg
+  PROJECT nai
+  RUN_TYPE MD
+  PRINT_LEVEL MEDIUM
+&END GLOBAL
+&MOTION
+  &MD
+    ENSEMBLE nvt
+    RESTART posvel
+    STEPS 5
+    TEMPERATURE 300.0000
+    TIMESTEP 0.5
+    &KG_COEFF
+      ENSEMBLE NVT
+      NHCOPT GLOBAL
+      RESTART pos
+      STORAGE kind
+      TEMPERATURE 2.0
+      &NOSE
+        LENGTH 1
+        MTS 2
+        TIMECON [fs] 100.
+        YOSHIDA 3
+      &END NOSE
+    &END KG_COEFF
+    &NOSE
+      LENGTH 1
+      MTS 2
+      TIMECON [fs] 1000.
+      YOSHIDA 3
+    &END NOSE
+  &END MD
+&END MOTION
