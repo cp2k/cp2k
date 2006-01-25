@@ -12,6 +12,7 @@ h2o_energy.inp 1
 nai-0.inp 0
 # then run md
 nai-1.inp 2
+nai-2.inp 2
 # KG_GPW
 kg_gpw_1H2O_TF.inp 1
 kg_gpw_2H2O_llp.inp 1
