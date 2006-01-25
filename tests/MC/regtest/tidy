@@ -10,3 +10,4 @@ foreach file (`cvs update -A|grep '? '|awk '{print $2}'`)
      rm -f $file
   endif
 end
+rm -f *.bak
