@@ -59,7 +59,9 @@ MODULE realspace_grid_types
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type  
   USE cp_output_handling,              ONLY: cp_print_key_unit_nr, &
-                                             cp_print_key_finished_output
+                                             cp_print_key_finished_output,&
+                                             cp_print_key_should_output,&
+                                             cp_p_file
   USE atomic_kind_types, only: get_atomic_kind
   USE particle_list_types, only: particle_list_type
 #include "cp_common_uses.h"
@@ -272,13 +274,14 @@ CONTAINS
 !!   SOURCE
   !******************************************************************************
 
-  SUBROUTINE rs_grid_setup_1 ( rs, pw_grid, nsmax, iounit, error)
+  SUBROUTINE rs_grid_setup_1 ( rs, pw_grid, nsmax, should_output, iounit, error)
     IMPLICIT NONE
     ! Arguments
     TYPE(realspace_grid_type), POINTER       :: rs
     TYPE(pw_grid_type), INTENT(IN)           :: pw_grid
     INTEGER, INTENT(IN)                      :: nsmax
-    INTEGER, INTENT(IN), OPTIONAL            :: iounit
+    LOGICAL, INTENT(IN)                      :: should_output
+    INTEGER, INTENT(IN)                      :: iounit
     TYPE(cp_error_type), INTENT(inout), &
          OPTIONAL                               :: error
     ! Local Variables
@@ -395,10 +398,9 @@ CONTAINS
 
     END IF
 
-    IF ( PRESENT ( iounit ) ) THEN
-       IF ( iounit >= 0 ) THEN
+    IF ( should_output ) THEN
           IF ( rs % parallel ) THEN
-             IF ( rs % group_head ) THEN
+             IF ( iounit>0) THEN
                 WRITE ( iounit, '(/,A,T71,I10)' ) &
                      " RS_GRID: Information for grid number ", rs % grid_id 
                 DO i = 1, 3
@@ -429,7 +431,7 @@ CONTAINS
              nn = rs % npts_local ( dir )
              CALL mp_min ( nn, rs % group )
              pp ( 3 ) = REAL ( nn, KIND=dp )
-             IF ( rs % group_head ) THEN
+             IF ( iounit > 0) THEN
                 WRITE ( iounit, '(A,T48,A)' ) " RS_GRID:   Distribution", &
                      "  Average         Max         Min"
                 WRITE ( iounit, '(A,T45,F12.1,2I12)' ) " RS_GRID:   Planes   ", &
@@ -437,15 +439,16 @@ CONTAINS
                 WRITE ( iounit, '(/)' )
              END IF
           ELSE
-             WRITE ( iounit, '(/,A,T71,I10)' ) &
-                  " RS_GRID: Information for grid number ", rs % grid_id
-             DO i = 1, 3
-                WRITE ( iounit, '(A,I3,T30,2I8,T62,A,T71,I10)' ) " RS_GRID:   Bounds ", &
-                     i, rs % lb ( i ), rs % ub ( i ), "Points:", rs % npts ( i )
-             END DO
-             WRITE ( iounit, '(/)' )
+             IF (iounit>0) THEN
+               WRITE ( iounit, '(/,A,T71,I10)' ) &
+                    " RS_GRID: Information for grid number ", rs % grid_id
+               DO i = 1, 3
+                  WRITE ( iounit, '(A,I3,T30,2I8,T62,A,T71,I10)' ) " RS_GRID:   Bounds ", &
+                       i, rs % lb ( i ), rs % ub ( i ), "Points:", rs % npts ( i )
+               END DO
+               WRITE ( iounit, '(/)' )
+             ENDIF
           END IF
-       END IF
     END IF
     CALL rs_grid_allocate_1 ( rs, error )
 
@@ -453,13 +456,14 @@ CONTAINS
 
   !******************************************************************************
 
-  SUBROUTINE rs_grid_setup_n ( rs, pw_grid, nsmax, iounit, error)
+  SUBROUTINE rs_grid_setup_n ( rs, pw_grid, nsmax, should_output, iounit, error)
 
     TYPE(realspace_grid_p_type), &
          DIMENSION(:), POINTER               :: rs
     TYPE(pw_grid_type), INTENT(IN)           :: pw_grid
     INTEGER, INTENT(IN)                      :: nsmax
-    INTEGER, INTENT(IN), OPTIONAL            :: iounit
+    LOGICAL, INTENT(IN)                      :: should_output
+    INTEGER, INTENT(IN)                      :: iounit
     TYPE(cp_error_type), INTENT(inout), &
          OPTIONAL                               :: error
     ! Local Variables
@@ -470,9 +474,9 @@ CONTAINS
     
     failure = .FALSE.
 
-    CALL rs_grid_setup_1 ( rs ( 1 ) % rs_grid , pw_grid, nsmax, iounit )
+    CALL rs_grid_setup_1 ( rs ( 1 ) % rs_grid , pw_grid, nsmax, should_output, iounit )
     DO i = 2, SIZE ( rs )
-       CALL rs_grid_setup_1 ( rs ( i ) % rs_grid , pw_grid, nsmax )
+       CALL rs_grid_setup_1 ( rs ( i ) % rs_grid , pw_grid, nsmax, .FALSE., 0 )
     END DO
 
   END SUBROUTINE rs_grid_setup_n
@@ -1115,7 +1119,7 @@ SUBROUTINE rs_grid_create(rs_grid, pw_grid, nsmax, force_env_section, error)
 
     INTEGER                                  :: my_nsmax, &
                                                 output_unit, stat
-    LOGICAL                                  :: failure, ionode
+    LOGICAL                                  :: failure, should_output 
     TYPE(cp_logger_type), POINTER            :: logger
 
   failure=.FALSE.
@@ -1131,7 +1135,9 @@ SUBROUTINE rs_grid_create(rs_grid, pw_grid, nsmax, force_env_section, error)
   IF (.NOT. failure) THEN
      output_unit = cp_print_key_unit_nr(logger,force_env_section,"PRINT%RS_GRID_INFORMATION",&
           extension=".Log",error=error)     
-     CALL rs_grid_setup(rs_grid, pw_grid, my_nsmax, iounit=output_unit)
+     should_output=btest(cp_print_key_should_output(logger%iter_info,&
+          force_env_section,"PRINT%RS_GRID_INFORMATION",error=error),cp_p_file)
+     CALL rs_grid_setup(rs_grid, pw_grid, my_nsmax,should_output=should_output, iounit=output_unit)
      CALL cp_print_key_finished_output(output_unit,logger,force_env_section,&
           "PRINT%RS_GRID_INFORMATION",error=error)  
   END IF
@@ -1268,10 +1274,8 @@ SUBROUTINE rs_grid_p_create(rs_p_grid, ndim, pw_grid, nsmax, force_env_section, 
     INTEGER                                  :: my_nsmax, &
                                                 output_unit, stat, j
     LOGICAL                                  :: failure, ionode
-    TYPE(cp_logger_type), POINTER            :: logger
 
   failure=.FALSE.
-  logger => cp_error_get_logger(error)
   my_nsmax = -1
   IF (PRESENT(nsmax)) my_nsmax=nsmax
   
