@@ -79,6 +79,10 @@ MODULE tbmd_environment
                                                     tbmd_force_create
   USE tbmd_model_types,                       ONLY: tbmd_model_type, &
                                                     tbmd_model_create
+  USE tbmd_neighbor_list_env_types,           ONLY: tbmd_neighbor_list_env_type, &
+                                                    tbmd_neighbor_list_env_create
+  USE timings,                                ONLY: timeset, &
+                                                    timestop
   USE topology,                               ONLY: topology_control
 
 #include "cp_common_uses.h"
@@ -154,8 +158,11 @@ CONTAINS
     TYPE(mol_new_list_type), POINTER         :: molecules
     TYPE(mol_kind_new_list_type), POINTER    :: molecule_kinds
     TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
+    INTEGER                                  :: handle
  
 !   ------------------------------------------------------------------------
+
+    CALL timeset(routineN, "I", "", handle)
 
     failure = .FALSE.
   
@@ -215,6 +222,9 @@ CONTAINS
       CALL cell_release(cell_ref, error=error)
       CALL cp_subsys_release(subsystem, error=error)
     END IF
+
+    CALL timestop(0.0_dp, handle)
+
   END SUBROUTINE tbmd_init
 !***************************************************************************
 
@@ -271,14 +281,19 @@ CONTAINS
     TYPE(tbmd_energy_type), POINTER          :: tbmd_energy
     TYPE(tbmd_force_type), POINTER           :: tbmd_force
     TYPE(tbmd_model_type), POINTER           :: tbmd_model
+    TYPE(tbmd_neighbor_list_env_type), &
+      POINTER                                :: tbmd_neighbor_list_env
     TYPE(distribution_1d_type), POINTER      :: local_molecules, &
                                                 local_particles
+    INTEGER                                  :: handle
 
 !   ------------------------------------------------------------------------
 
+    CALL timeset(routineN, "I", "", handle)
+
     NULLIFY(atomic_kind_set, molecule_kind_set, molecule_set, particle_set, &
             tbmd_energy, tbmd_force, tbmd_model, local_molecules, &
-            local_particles)
+            local_particles, tbmd_neighbor_list_env)
 
     particle_set => subsystem%particles%els
     atomic_kind_set => subsystem%atomic_kinds%els
@@ -311,20 +326,107 @@ CONTAINS
     CALL tbmd_energy_create(tbmd_energy=tbmd_energy, error=error)
     CALL tbmd_force_create(tbmd_force=tbmd_force, natom=natom, error=error)
     CALL tbmd_model_create(tbmd_model=tbmd_model, error=error)
+    CALL tbmd_neighbor_list_env_create(tbmd_neighbor_list_env=tbmd_neighbor_list_env, &
+                                       error=error)
 
     CALL tbmd_env_set(tbmd_env=tbmd_env, tbmd_energy=tbmd_energy, &
                       tbmd_force=tbmd_force, tbmd_model=tbmd_model, &
+                      tbmd_neighbor_list_env=tbmd_neighbor_list_env, &
                       subsystem=subsystem, local_molecules=local_molecules, &
                       local_particles=local_particles, cell=cell, &
                       cell_ref=cell_ref, use_ref_cell=use_ref_cell, &
                       para_env=globenv%para_env, error=error)
 
     CALL tbmd_init_tb_model(tbmd_env=tbmd_env, globenv=globenv, error=error)
+    CALL tbmd_init_tb_neighbor_list(tbmd_env=tbmd_env, globenv=globenv, &
+                                    error=error)
 
     CALL distribution_1d_release(local_particles, error=error)
     CALL distribution_1d_release(local_molecules, error=error)
 
+    CALL timestop(0.0_dp, handle)
+
   END SUBROUTINE tbmd_init_subsys
+!***************************************************************************
+
+!!****f* tbmd_environment/tbmd_init_tb_neighbor_list [1.0] *
+!!
+!!   NAME
+!!     tbmd_init_tb_neighbor_list
+!!
+!!   FUNCTION
+!!     Initialize the tight-binding neighbor-list environment
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     - tbmd_env: The tbmd environment to retain
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling
+!!
+!!   AUTHOR
+!!     Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
+!!
+!!   MODIFICATION HISTORY
+!!     01.2006 initial create [tdk]
+!!
+!!*** **********************************************************************
+  SUBROUTINE tbmd_init_tb_neighbor_list(tbmd_env, globenv, error)
+    TYPE(tbmd_environment_type), POINTER     :: tbmd_env
+    TYPE(global_environment_type), POINTER   :: globenv
+    TYPE(cp_error_type), INTENT(INOUT), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'tbmd_init_tb_neighbor_list', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    INTEGER                                  :: handle, &
+                                                stat, &
+                                                nkinds
+    TYPE(tbmd_neighbor_list_env_type), &
+      POINTER                                :: tbmd_neighbor_list_env
+    TYPE(section_vals_type), POINTER         :: force_env_section, &
+                                                tbmd_section, &
+                                                tbmd_neighbor_list_section
+    REAL(KIND=dp)                            :: r_cutoff
+    TYPE(atomic_kind_type), DIMENSION(:), &
+      POINTER                                :: atomic_kind_set
+
+!   ------------------------------------------------------------------------
+
+    CALL timeset(routineN, "I", "", handle)
+
+    NULLIFY(tbmd_neighbor_list_env, force_env_section, tbmd_section, &
+            tbmd_neighbor_list_section, atomic_kind_set)
+
+    tbmd_neighbor_list_env => tbmd_env%tbmd_neighbor_list_env
+
+    force_env_section => section_vals_get_subs_vals(globenv%input_file, &
+                                                    "FORCE_EVAL", error=error)
+    tbmd_section => section_vals_get_subs_vals(force_env_section, &
+                                               "TBMD", error=error)
+    tbmd_neighbor_list_section => section_vals_get_subs_vals(tbmd_section, &
+                                         "TBMD_NEIGHBOR_LIST", error=error)
+
+    CALL section_vals_val_get(section_vals=tbmd_neighbor_list_section, &
+                              keyword_name="VERLET_SKIN", &
+                              r_val=tbmd_neighbor_list_env%verlet_skin, &
+                              error=error)
+    CALL section_vals_val_get(section_vals=tbmd_neighbor_list_section, &
+                              keyword_name="R_CUTOFF", &
+                              r_val=r_cutoff, error=error)
+
+    atomic_kind_set => tbmd_env%subsystem%atomic_kinds%els
+    nkinds = SIZE(atomic_kind_set)
+    ALLOCATE(tbmd_neighbor_list_env%r_cutoff(nkinds,nkinds), STAT=stat)
+    CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
+    tbmd_neighbor_list_env%r_cutoff(:,:) = r_cutoff
+
+    CALL timestop(0.0_dp, handle)
+
+  END SUBROUTINE tbmd_init_tb_neighbor_list
 !***************************************************************************
 
 !!****f* tbmd_environment/tbmd_init_tb_model [1.0] *
@@ -359,12 +461,12 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'tbmd_init_tb_model', &
       routineP = moduleN//':'//routineN
 
-    TYPE(section_vals_type), POINTER         :: tbmd_input
     TYPE(tbmd_model_type), POINTER           :: tbmd_model
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atomic_kind_ptr
-    INTEGER                                  :: i
+    INTEGER                                  :: i, &
+                                                handle
     CHARACTER(LEN=default_string_length)     :: tb_atomic_kind_name
     REAL(KIND=dp)                            :: eV, &
                                                 Am, &
@@ -376,10 +478,11 @@ CONTAINS
 
 !   ------------------------------------------------------------------------
 
-    NULLIFY(tbmd_input, tbmd_model, atomic_kind_set, atomic_kind_ptr, &
-            force_env_section, tbmd_section, tbmd_model_section, vector_ptr)
+    CALL timeset(routineN, "I", "", handle)
 
-    tbmd_input => tbmd_env%tbmd_input
+    NULLIFY(tbmd_model, atomic_kind_set, atomic_kind_ptr, force_env_section, &
+            tbmd_section, tbmd_model_section, vector_ptr)
+
     tbmd_model => tbmd_env%tbmd_model
 
     force_env_section => section_vals_get_subs_vals(globenv%input_file, &
@@ -554,6 +657,8 @@ CONTAINS
                error=error, error_level=cp_failure_level)
       END SELECT
     END DO
+
+    CALL timestop(0.0_dp, handle)
 
   END SUBROUTINE tbmd_init_tb_model
 !***************************************************************************

@@ -139,7 +139,7 @@ CONTAINS
                                                          aup, &
                                                          lup
     REAL(KIND=dp), DIMENSION(3)                       :: dr
-    REAL(KIND=dp), DIMENSION(:, :), POINTER           :: r_last_update, &
+    REAL(KIND=dp), DIMENSION(:,:), POINTER            :: r_last_update, &
                                                          r_cutoff
     INTEGER                                           :: istat, &
                                                          iparticle, &

@@ -68,15 +68,14 @@ MODULE tbmd_neighbor_list_env_types
 !!   ATTRIBUTES
 !!     - id_nr: unique identifier
 !!     - ref_count: reference counter (see doc/ReferenceCounting.html)
-!!     - unit_type:
-!!     - counter:
-!!     - last_update:
+!!     - counter: Iteration counter
+!!     - last_update: Iteration number of the last update
 !!     - num_update: Number of neighbor-list updates
 !!     - verlet_skin: The additional cutoff boundary layer thickness
 !!     - r_cutoff: The cutoff radius for the neighbor-list
 !!     - lup:
 !!     - aup:
-!!     - r_last_update:
+!!     - r_last_update: The positions during the last update
 !!     - tbmd_neighbor_list: The actual TBMD neighbor-lists
 !!
 !!   AUTHOR
@@ -90,7 +89,6 @@ MODULE tbmd_neighbor_list_env_types
   TYPE tbmd_neighbor_list_env_type
     INTEGER                                          :: id_nr, &
                                                         ref_count
-    CHARACTER(len = default_string_length)           :: unit_type
     INTEGER                                          :: counter, &
                                                         last_update, &
                                                         num_update
@@ -257,15 +255,14 @@ CONTAINS
 !!   ARGUMENTS
 !!     - tbmd_neighbor_list_env: The enquired tbmd neighbor-list environment
 !!     - id_nr: unique identifier
-!!     - unit_type:
-!!     - counter:
-!!     - last_update:
+!!     - counter: Iteration counter
+!!     - last_update: Iteration number of the last update
 !!     - num_update: Number of neighbor-list updates
 !!     - verlet_skin: The additional cutoff boundary layer thickness
 !!     - r_cutoff: The cutoff radius for the neighbor-list
 !!     - lup:
 !!     - aup:
-!!     - r_last_update:
+!!     - r_last_update: The positions during the last update
 !!     - tbmd_neighbor_list: The actual TBMD neighbor-lists
 !!     - error: variable to control error logging, stopping,... 
 !!       see module cp_error_handling
@@ -281,15 +278,13 @@ CONTAINS
 !!
 !!*** **********************************************************************
   SUBROUTINE tbmd_neighbor_list_env_get(tbmd_neighbor_list_env, id_nr, &
-                                        unit_type, counter, last_update, &
+                                        counter, last_update, &
                                         num_update, verlet_skin, lup, aup, &
                                         r_last_update, r_cutoff, &
                                         tbmd_neighbor_list, error)
 
     TYPE(tbmd_neighbor_list_env_type), POINTER   :: tbmd_neighbor_list_env
     INTEGER, INTENT(OUT), OPTIONAL               :: id_nr
-    CHARACTER(len = default_string_length), &
-         INTENT(OUT), OPTIONAL                   :: unit_type
     INTEGER, INTENT(OUT), OPTIONAL               :: counter, &
                                                     last_update, &
                                                     num_update
@@ -318,7 +313,6 @@ CONTAINS
 
     IF (.NOT. failure) THEN
       IF (PRESENT(id_nr)) id_nr = tbmd_neighbor_list_env%id_nr
-      IF (PRESENT(unit_type)) unit_type = tbmd_neighbor_list_env%unit_type
       IF (PRESENT(counter)) counter = tbmd_neighbor_list_env%counter
       IF (PRESENT(last_update)) THEN
         last_update = tbmd_neighbor_list_env%last_update
@@ -359,15 +353,14 @@ CONTAINS
 !!   ARGUMENTS
 !!     - tbmd_neighbor_list_env: The enquired tbmd neighbor-list environment
 !!     - id_nr: unique identifier
-!!     - unit_type:
-!!     - counter:
-!!     - last_update:
+!!     - counter: Iteration counter
+!!     - last_update: Iteration number of the last update
 !!     - num_update: Number of neighbor-list updates
 !!     - verlet_skin: The additional cutoff boundary layer thickness
 !!     - r_cutoff: The cutoff radius for the neighbor-list
 !!     - lup:
 !!     - aup:
-!!     - r_last_update:
+!!     - r_last_update: The positions during the last update
 !!     - tbmd_neighbor_list: The actual TBMD neighbor-lists
 !!     - error: variable to control error logging, stopping,... 
 !!       see module cp_error_handling
@@ -383,15 +376,13 @@ CONTAINS
 !!
 !!*** **********************************************************************
   SUBROUTINE tbmd_neighbor_list_env_set(tbmd_neighbor_list_env, id_nr, &
-                                        unit_type, counter, last_update, &
+                                        counter, last_update, &
                                         num_update, verlet_skin, lup, aup, &
                                         r_last_update, r_cutoff, &
                                         tbmd_neighbor_list, error)
 
     TYPE(tbmd_neighbor_list_env_type), POINTER   :: tbmd_neighbor_list_env
     INTEGER, INTENT(OUT), OPTIONAL               :: id_nr
-    CHARACTER(len = default_string_length), &
-         INTENT(OUT), OPTIONAL                   :: unit_type
     INTEGER, INTENT(OUT), OPTIONAL               :: counter, &
                                                     last_update, &
                                                     num_update
@@ -420,7 +411,6 @@ CONTAINS
 
     IF (.NOT. failure) THEN
       IF (PRESENT(id_nr)) tbmd_neighbor_list_env%id_nr = id_nr
-      IF (PRESENT(unit_type)) tbmd_neighbor_list_env%unit_type = unit_type
       IF (PRESENT(counter)) tbmd_neighbor_list_env%counter = counter
       IF (PRESENT(last_update)) THEN
         tbmd_neighbor_list_env%last_update = last_update
@@ -494,7 +484,6 @@ CONTAINS
  
     IF (.NOT. failure) THEN
       !id_nr = 0
-      tbmd_neighbor_list_env%unit_type          = ""
       tbmd_neighbor_list_env%counter            = 0
       tbmd_neighbor_list_env%last_update        = 0
       tbmd_neighbor_list_env%num_update         = 0

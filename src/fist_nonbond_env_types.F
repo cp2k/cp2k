@@ -99,11 +99,11 @@ SUBROUTINE fist_nonbond_env_get (fist_nonbond_env, potparm, &
   REAL (KIND=dp), OPTIONAL                      :: verlet_skin
   REAL (KIND=dp), POINTER, OPTIONAL             :: r_last_update ( :, : )
   REAL (KIND=dp), OPTIONAL                      :: long_range_correction
-  REAL (KIND=dp), OPTIONAL                           :: lup, aup
-  INTEGER, OPTIONAL                           :: last_update, &
-                                                 num_update, natom_types, &
-                                                 counter
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+  REAL (KIND=dp), OPTIONAL                      :: lup, aup
+  INTEGER, OPTIONAL                             :: last_update, &
+                                                   num_update, natom_types, &
+                                                   counter
+  TYPE(cp_error_type), OPTIONAL, INTENT(inout)  :: error
 
   IF ( PRESENT ( potparm ) ) potparm => fist_nonbond_env % potparm
   IF ( PRESENT ( rlist_cutsq ) ) rlist_cutsq => fist_nonbond_env % rlist_cutsq
