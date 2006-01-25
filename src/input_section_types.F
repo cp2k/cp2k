@@ -1999,9 +1999,11 @@ END SUBROUTINE section_vals_write
         REPEAT(" ",l1)//"<DESCRIPTION>"//TRIM(section%description)//&
         "</DESCRIPTION>"
 
-      DO i=1,section%n_keywords
-        CALL write_keyword_xml(section%keywords(i)%keyword,l1,unit_number,&
-                               error)
+      DO i=-1,section%n_keywords
+        IF (ASSOCIATED(section%keywords(i)%keyword)) THEN
+          CALL write_keyword_xml(section%keywords(i)%keyword,l1,unit_number,&
+                                 error)
+        END IF
       END DO
 
       DO i=1,section%n_subsections
