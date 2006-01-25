@@ -373,9 +373,11 @@ OBJECTS_GENERIC =\
  string_utilities.o\
  structure_factor_types.o\
  structure_factors.o\
+ tbmd_energy.o\
  tbmd_energy_types.o\
  tbmd_environment.o\
  tbmd_environment_types.o\
+ tbmd_force.o\
  tbmd_force_types.o\
  tbmd_main.o\
  tbmd_model_types.o\

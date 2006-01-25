@@ -140,7 +140,8 @@ CONTAINS
                                                          lup
     REAL(KIND=dp), DIMENSION(3)                       :: dr
     REAL(KIND=dp), DIMENSION(:,:), POINTER            :: r_last_update, &
-                                                         r_cutoff
+                                                         r_cutoff, &
+                                                         r_max
     INTEGER                                           :: istat, &
                                                          iparticle, &
                                                          iparticle_kind, &
@@ -153,7 +154,8 @@ CONTAINS
                                                          num_update, &
                                                          last_update
     LOGICAL                                           :: build_from_scratch, &
-                                                         update_neighbor_lists
+                                                         update_neighbor_lists, &
+                                                         failure
     TYPE(neighbor_list_set_p_type), &
       DIMENSION(:), POINTER                           :: tbmd_neighbor_list
 
@@ -176,6 +178,10 @@ CONTAINS
 
     nparticle_kind = SIZE(atomic_kind_set)
     nparticle = SIZE(particle_set)
+
+    ALLOCATE(r_max(nparticle_kind,nparticle_kind), STAT=istat)
+    CPPostcondition(istat==0, cp_failure_level, routineN, error, failure)
+    r_max(:,:) = r_cutoff(:,:) + verlet_skin
 
 ! *** Check, if the neighbor lists have to be built or updated ***
     update_neighbor_lists = .FALSE.
@@ -222,7 +228,7 @@ CONTAINS
 
     IF (update_neighbor_lists) THEN
       CALL build_tbmd_neighbor_lists(atomic_kind_set, particle_set, &
-                                     local_particles, cell, r_max=r_cutoff, &
+                                     local_particles, cell, r_max=r_max, &
                                      tbmd_neighbor_list=tbmd_neighbor_list, &
                                      build_from_scratch=build_from_scratch, &
                                      force_env_section=force_env_section, &
@@ -256,6 +262,9 @@ CONTAINS
 
     counter = counter + 1
     CALL tbmd_neighbor_list_env_set(tbmd_neighbor_list_env, counter=counter)
+
+    DEALLOCATE(r_max, STAT=istat)
+    CPPostcondition(istat==0, cp_failure_level, routineN, error, failure)
 
     CALL timestop(0.0_dp, handle)
 

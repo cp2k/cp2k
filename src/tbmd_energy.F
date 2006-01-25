@@ -1,0 +1,150 @@
+!-----------------------------------------------------------------------------!
+!   CP2K: A general program to perform molecular dynamics simulations         !
+!   Copyright (C) 2000-2006  CP2K developers group                            !
+!-----------------------------------------------------------------------------!
+
+!!****h* cp2k/tbmd_energy [1.0] *
+!!
+!!   NAME
+!!     tbmd_energy
+!!
+!!   FUNCTION
+!!     TBMD energy calculation
+!!
+!!   NOTES
+!!     -
+!!     
+!!   AUTHOR
+!!     Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
+!!
+!!   MODIFICATION HISTORY
+!!     01.2006 initial create [tdk]
+!!
+!!   SOURCE
+!****************************************************************************
+MODULE tbmd_energy
+  USE atomic_kind_types,                      ONLY: atomic_kind_type
+  USE cell_types,                             ONLY: cell_type
+  USE distribution_1d_types,                  ONLY: distribution_1d_type
+  USE global_types,                           ONLY: global_environment_type
+  USE input_section_types,                    ONLY: section_vals_type, &
+                                                    section_vals_get_subs_vals
+  USE kinds,                                  ONLY: dp
+  USE molecule_kind_types,                    ONLY: molecule_kind_type
+  USE molecule_types_new,                     ONLY: molecule_type
+  USE particle_types,                         ONLY: particle_type
+  USE tbmd_energy_types,                      ONLY: tbmd_energy_type
+  USE tbmd_environment_types,                 ONLY: tbmd_environment_type, &
+                                                    tbmd_env_get
+  USE tbmd_neighbor_list_env_types,           ONLY: tbmd_neighbor_list_env_type
+  USE tbmd_neighbor_lists,                    ONLY: tbmd_neighbor_list_control
+  USE timings,                                ONLY: timeset, &
+                                                    timestop
+
+#include "cp_common_uses.h"
+  IMPLICIT NONE
+
+  PRIVATE
+
+! *** Global parameters ***
+
+  CHARACTER(LEN=*), PARAMETER :: moduleN = "tbmd_energy"
+
+! *** Public subroutines ***
+
+  PUBLIC :: tbmd_energies
+
+!!***
+! *****************************************************************************
+
+CONTAINS
+
+!!****f* tbmd_energy/tbmd_energies [1.0] *
+!!
+!!   NAME
+!!     tbmd_energies
+!!
+!!   FUNCTION
+!!     Main routine for calculating the TBMD energies.
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     - tbmd_env: The tbmd environment to retain
+!!     - globenv: The global environment
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling
+!!
+!!   AUTHOR
+!!     Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
+!!
+!!   MODIFICATION HISTORY
+!!     01.2006 initial create [tdk]
+!!
+!!*** **********************************************************************
+  SUBROUTINE tbmd_energies(tbmd_env, globenv, error)
+    TYPE(tbmd_environment_type), POINTER     :: tbmd_env
+    TYPE(global_environment_type), POINTER   :: globenv
+    TYPE(cp_error_type), INTENT(INOUT), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'tbmd_energies', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    INTEGER                                  :: handle
+    TYPE(tbmd_energy_type), POINTER          :: tbmd_energy
+    TYPE(atomic_kind_type), DIMENSION(:), &
+      POINTER                                :: atomic_kind_set
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particle_set
+    TYPE(distribution_1d_type), POINTER      :: local_particles, &
+                                                local_molecules
+    TYPE(molecule_kind_type), DIMENSION(:), &
+      POINTER                                :: molecule_kind_set
+    TYPE(molecule_type), DIMENSION(:), &
+      POINTER                                :: molecule_set
+    TYPE(tbmd_neighbor_list_env_type), &
+      POINTER                                :: tbmd_neighbor_list_env
+    TYPE(cell_type), POINTER                 :: cell
+    TYPE(section_vals_type), POINTER         :: force_env_section
+
+!   ------------------------------------------------------------------------
+
+    CALL timeset(routineN, "I", "", handle)
+
+    NULLIFY(tbmd_energy, atomic_kind_set, particle_set, local_particles, &
+            local_molecules, molecule_kind_set, molecule_set, tbmd_neighbor_list_env, &
+            cell)
+
+    failure = .FALSE.
+  
+    CPPrecondition(ASSOCIATED(tbmd_env), cp_failure_level, routineP, error, failure)
+ 
+    IF (.NOT. failure) THEN
+      force_env_section => section_vals_get_subs_vals(globenv%input_file, "FORCE_EVAL", &
+                                                      error=error)
+
+      CALL tbmd_env_get(tbmd_env=tbmd_env, tbmd_energy=tbmd_energy, &
+                        local_particles=local_particles, particle_set=particle_set, &
+                        atomic_kind_set=atomic_kind_set, molecule_set=molecule_set, &
+                        local_molecules=local_molecules, &
+                        molecule_kind_set=molecule_kind_set,  &
+                        tbmd_neighbor_list_env=tbmd_neighbor_list_env, cell=cell, &
+                        error=error)
+
+      CALL tbmd_neighbor_list_control(atomic_kind_set=atomic_kind_set, &
+                                      particle_set=particle_set, &
+                                      local_particles=local_particles, cell=cell, &
+                                      tbmd_neighbor_list_env=tbmd_neighbor_list_env, &
+                                      globenv=globenv, &
+                                      force_env_section=force_env_section, error=error)
+    END IF
+
+    CALL timestop(0.0_dp, handle)
+
+  END SUBROUTINE tbmd_energies
+!***************************************************************************
+
+END MODULE tbmd_energy

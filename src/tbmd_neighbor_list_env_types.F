@@ -227,10 +227,21 @@ CONTAINS
       CPPrecondition(tbmd_neighbor_list_env%ref_count>0, cp_failure_level, routineP, error, failure)
       tbmd_neighbor_list_env%ref_count = tbmd_neighbor_list_env%ref_count-1
       IF (tbmd_neighbor_list_env%ref_count<1) THEN
+        IF (ASSOCIATED(tbmd_neighbor_list_env%r_last_update)) THEN
+          DEALLOCATE(tbmd_neighbor_list_env%r_last_update, stat=stat)
+          CPPostconditionNoFail(stat==0, cp_warning_level, routineP, error)
+        END IF
+        IF (ASSOCIATED(tbmd_neighbor_list_env%r_cutoff)) THEN
+          DEALLOCATE(tbmd_neighbor_list_env%r_cutoff, stat=stat)
+          CPPostconditionNoFail(stat==0, cp_warning_level, routineP, error)
+        END IF
         IF (ASSOCIATED(tbmd_neighbor_list_env%tbmd_neighbor_list)) THEN
           DO i=1,SIZE(tbmd_neighbor_list_env%tbmd_neighbor_list)
             neighbor_list_set_ptr => tbmd_neighbor_list_env%tbmd_neighbor_list(i)%neighbor_list_set
             CALL deallocate_neighbor_list_set(neighbor_list_set_ptr)
+
+            DEALLOCATE(tbmd_neighbor_list_env%tbmd_neighbor_list, stat=stat)
+          CPPostconditionNoFail(stat==0, cp_warning_level, routineP, error)
           END DO
         END IF
         DEALLOCATE(tbmd_neighbor_list_env, stat=stat)
@@ -490,8 +501,12 @@ CONTAINS
       tbmd_neighbor_list_env%verlet_skin        = 0.0_dp
       tbmd_neighbor_list_env%lup                = 0.0_dp
       tbmd_neighbor_list_env%aup                = 0.0_dp
-      tbmd_neighbor_list_env%r_last_update(:,:) = 0.0_dp
-      tbmd_neighbor_list_env%r_cutoff(:,:)      = 0.0_dp
+      IF (ASSOCIATED(tbmd_neighbor_list_env%r_last_update)) THEN
+        tbmd_neighbor_list_env%r_last_update(:,:) = 0.0_dp
+      END IF
+      IF (ASSOCIATED(tbmd_neighbor_list_env%r_cutoff)) THEN
+        tbmd_neighbor_list_env%r_cutoff(:,:)      = 0.0_dp
+      END IF
       IF (ASSOCIATED(tbmd_neighbor_list_env%tbmd_neighbor_list)) THEN
         DO i=1,SIZE(tbmd_neighbor_list_env%tbmd_neighbor_list)
             neighbor_list_set_ptr => tbmd_neighbor_list_env%tbmd_neighbor_list(i)%neighbor_list_set
@@ -549,6 +564,8 @@ CONTAINS
     ALLOCATE(tbmd_neighbor_list_env, stat=stat)
     CPPostcondition(stat == 0, cp_failure_level, routineP, error, failure)
 
+    NULLIFY(tbmd_neighbor_list_env%r_cutoff)
+    NULLIFY(tbmd_neighbor_list_env%r_last_update)
     NULLIFY(tbmd_neighbor_list_env%tbmd_neighbor_list)
 
     IF (.NOT. failure) THEN

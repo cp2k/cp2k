@@ -78,12 +78,12 @@ MODULE force_env_methods
                                              set_qs_env
   USE qs_force,                        ONLY: qs_forces
   USE qs_numerical_pressure,           ONLY: qs_calc_numerical_pressure
-  USE cell_types,                 ONLY: cell_type
-  !USE tbmd_energy_methods,             ONLY: tbmd_energies
+  USE cell_types,                      ONLY: cell_type
+  USE tbmd_energy,                     ONLY: tbmd_energies
   USE tbmd_environment_types,          ONLY: tbmd_environment_type, &
                                              tbmd_env_get, &
                                              tbmd_env_retain
-  !USE tbmd_force_methods,              ONLY: tbmd_forces
+  USE tbmd_force,                      ONLY: tbmd_forces
   USE virial_types,                    ONLY: virial_create, &
                                              virial_type,&
                                              virial_retain,&
@@ -213,9 +213,9 @@ RECURSIVE SUBROUTINE force_env_calc_energy_force ( force_env, &
         END IF
      CASE (use_tbmd_force)
         IF (.NOT. need_f) THEN
-          !CALL tbmd_energies(force_env%tbmd_env, force_env%globenv, error=error)
+          CALL tbmd_energies(force_env%tbmd_env, force_env%globenv, error=error)
         ELSE
-          !CALL tbmd_forces(force_env%tbmd_env, force_env%globenv, error=error)
+          CALL tbmd_forces(force_env%tbmd_env, force_env%globenv, error=error)
         END IF
      CASE ( use_qmmm )
         CALL qmmm_energy_and_forces(force_env,need_f,error)

@@ -138,6 +138,7 @@ CONTAINS
 
     LOGICAL                                  :: failure, &
                                                 use_ref_cell
+    INTEGER                                  :: handle
     TYPE(section_vals_type), POINTER         :: force_env_section, &
                                                 cell_section, &
                                                 colvar_section, &
@@ -158,7 +159,6 @@ CONTAINS
     TYPE(mol_new_list_type), POINTER         :: molecules
     TYPE(mol_kind_new_list_type), POINTER    :: molecule_kinds
     TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
-    INTEGER                                  :: handle
  
 !   ------------------------------------------------------------------------
 
