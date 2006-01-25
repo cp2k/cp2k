@@ -50,7 +50,6 @@ MODULE force_env_methods
                                              use_pol_force,&
                                              use_qs_force,&
                                              use_qmmm,&
-                                             use_list_force, &
                                              use_tbmd_force
   USE global_types,                    ONLY: global_environment_type,&
        globenv_retain, globenv_release
@@ -220,19 +219,6 @@ RECURSIVE SUBROUTINE force_env_calc_energy_force ( force_env, &
         END IF
      CASE ( use_qmmm )
         CALL qmmm_energy_and_forces(force_env,need_f,error)
-     CASE ( use_list_force )
-!HAF: we could split this out into a separate subroutine, but for now:
-!HAF: atm we assume all sub-force_env's share the same para_env, just like QS
-        CPPrecondition(ASSOCIATED(force_env%force_env_list),cp_failure_level, routineP,error,failure)
-        IF (.NOT.failure) THEN
-           DO i = 1, SIZE (force_env%force_env_list)
-              call cp_assert(ASSOCIATED(force_env%force_env_list(i)%force_env),&
-                   cp_failure_level,cp_assertion_failed,routineP,&
-                   "ASSOCIATED(force_env%force_env_list(i)%force_env)",error,failure)
-              CALL force_env_calc_energy_force(force_env%force_env_list(i)%force_env, &
-                                               calc_force=need_f, error=error)
-           END DO
-        END IF
      CASE default
         CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
      END SELECT
@@ -275,11 +261,9 @@ END SUBROUTINE force_env_calc_energy_force
 !!     04.2003 created [fawzi]
 !!
 !!*** **********************************************************************
-SUBROUTINE force_env_create(force_env,globenv,force_env_list,fist_env,&
+SUBROUTINE force_env_create(force_env,globenv,fist_env,&
      qs_env,kg_env,tbmd_env,meta_env,sub_force_env,qmmm_env,error)
     TYPE(force_env_type), POINTER            :: force_env
-    TYPE(force_env_p_type), DIMENSION(:), OPTIONAL, &
-      POINTER                                :: force_env_list
     TYPE(fist_environment_type), OPTIONAL, &
       POINTER                                :: fist_env
     TYPE(qs_environment_type), OPTIONAL, &
@@ -291,9 +275,6 @@ SUBROUTINE force_env_create(force_env,globenv,force_env_list,fist_env,&
     TYPE(global_environment_type), &
       POINTER                                :: globenv
     TYPE(meta_env_type), OPTIONAL, POINTER   :: meta_env
-!!HAF: ARGHHHHH now we have the following new from the main branch.... :
-!!HAF I guess I can delete my version force_env_list now...
-!!HAF why do I even bother doing anything here???? *sigh*
     TYPE(force_env_p_type), DIMENSION(:), POINTER, OPTIONAL :: sub_force_env
     TYPE(qmmm_env_qm_type), POINTER, OPTIONAL   :: qmmm_env
     TYPE(cp_error_type), INTENT(inout), &
@@ -318,7 +299,7 @@ SUBROUTINE force_env_create(force_env,globenv,force_env_list,fist_env,&
      NULLIFY ( force_env%subsys, force_env%fist_env, &
                force_env%kg_env, force_env%qs_env,   &
                force_env%para_env, force_env%globenv, &
-               force_env%dyn_coeff_set, force_env%force_env_list, &
+               force_env%dyn_coeff_set,&
                force_env%meta_env, force_env%sub_force_env, &
                force_env%qmmm_env )
      last_force_env_id=last_force_env_id+1
@@ -331,19 +312,6 @@ SUBROUTINE force_env_create(force_env,globenv,force_env_list,fist_env,&
      CALL globenv_retain(force_env%globenv,error=error)
      force_env%para_env => globenv%para_env
      CALL cp_para_env_retain(force_env%para_env, error=error)
-     IF (PRESENT(force_env_list)) THEN
-        IF (ASSOCIATED(force_env_list)) THEN
-           CPPrecondition(force_env%in_use==0,cp_failure_level,routineP,error,failure)
-           force_env%in_use=use_list_force
-           force_env%force_env_list => force_env_list
-           DO i = 1, SIZE(force_env_list)
-              IF (ASSOCIATED(force_env_list(i)%force_env)) THEN
-                 CALL force_env_retain (force_env_list(i)%force_env, &
-                                        error = error )
-              END IF
-           END DO
-        END IF
-     END IF
      IF (PRESENT(fist_env)) THEN
         IF (ASSOCIATED(fist_env)) THEN
            CPPrecondition(force_env%in_use==0,cp_failure_level,routineP,error,failure)
@@ -405,54 +373,6 @@ SUBROUTINE force_env_create(force_env,globenv,force_env_list,fist_env,&
         CALL meta_env_retain(meta_env,error=error)
      END IF
      SELECT CASE(force_env%in_use)
-     CASE(use_list_force)
-        j = 0;
-! get total number of subsystems
-        DO i = 1, SIZE(force_env%force_env_list)
-           IF (.NOT. ASSOCIATED(force_env%force_env_list(i)%force_env)) THEN
-             CALL cp_assert(.FALSE., cp_failure_level, cp_precondition_failed, &
-                            routineP, "ASSOCIATED(force_env%force_env_list(i)%force_env)", &
-                            error, failure)
-           END IF
-           CALL force_env_get ( force_env % force_env_list (i) % force_env, &
-                                 subsys = subsys, error = error )
-           j = j + SIZE(subsys)
-        END DO
-        ALLOCATE ( force_env % subsys ( j ), stat = stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-! assign subsystems
-        k = 0
-        DO i = 1, SIZE(force_env%force_env_list)
-           CALL force_env_get ( force_env % force_env_list (i) % force_env, &
-                            subsys = subsys, error = error ) 
-           DO j = 1, SIZE(subsys)
-              force_env % subsys ( k + j ) = subsys( j )
-              CALL cp_subsys_retain ( force_env % subsys ( k + j ) % subsys, &
-                                       error = error ) 
-           END DO
-           k = k + SIZE(subsys)
-        END DO
-! same procedure for dyn_coeff_set:
-        j = 0;
-        DO i = 1, SIZE(force_env%force_env_list)
-           CALL force_env_get ( force_env % force_env_list (i) % force_env, &
-                                dyn_coeff_set = sub_dyn_coeff, error = error )
-           j = j + SIZE(sub_dyn_coeff)
-        END DO
-        ALLOCATE ( force_env % dyn_coeff_set ( j ), stat = stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-        k = 0
-        DO i = 1, SIZE(force_env%force_env_list)
-           CALL force_env_get ( force_env % force_env_list (i) % force_env,&
-                                dyn_coeff_set = sub_dyn_coeff, error = error )
-           DO j = 1, SIZE(sub_dyn_coeff)
-              force_env % dyn_coeff_set ( k + j ) = sub_dyn_coeff(j)
-              CALL dyn_coeff_set_retain( &
-                     force_env%dyn_coeff_set(k+j)%dyn_coeff_set,error=error)
-           END DO
-           k = k + SIZE(sub_dyn_coeff)
-        END DO
-
      CASE(use_fist_force)
         ALLOCATE ( force_env % subsys ( 1 ), stat = stat)
         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -571,11 +491,6 @@ RECURSIVE SUBROUTINE force_env_set_cell(force_env, cell, error)
              cell=cell,&
              error=error)
         CALL qs_env_rebuild_pw_env(force_env%qs_env,error=error) !avoidable?
-     CASE (use_list_force)
-        DO i = 1, SIZE(force_env%force_env_list)
-           CALL force_env_set_cell(force_env%force_env_list(i)%force_env, &
-                cell, error)
-        END DO
      CASE (use_fist_force)
         CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
      CASE (use_kg_force)

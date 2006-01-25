@@ -32,8 +32,7 @@ MODULE md_energies
                                              use_qs_force,& 
                                              use_kg_force,& 
                                              use_pol_force,& 
-                                             use_qmmm, &
-                                             use_list_force
+                                             use_qmmm
   USE global_types,                    ONLY: global_environment_type
   USE kinds,                           ONLY: dp,&
                                              default_string_length
