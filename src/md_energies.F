@@ -461,7 +461,7 @@ CONTAINS
           WRITE ( iw, '( A,T61,A )' ) ' ENSEMBLE TYPE                = ', &
                ADJUSTR ( ensemble_name_types(simpar%ensemble)(1:20))
           WRITE ( iw, '( A,T71,I10 )' ) ' STEP NUMBER                  = ', itimes
-          WRITE ( iw, '( A,T60,1(1X,F20.12) )' ) ' TIME [FS]                    = ', t
+          WRITE ( iw, '( A,T60,1(1X,F20.6) )' ) ' TIME [FS]                    = ', t
           WRITE ( iw, '( A,T60,1(1X,E20.12) )' ) ' CONSERVED QNTY               = ', &
                cons
           WRITE ( iw, '( )' )
