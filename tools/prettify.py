@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 import sys
-import re
+import re, tempfile
 import os, os.path
 import normalizeFortranFile
 import replacer
@@ -59,7 +59,9 @@ def prettifyFile(infile,outfile,normalize_use=1, upcase_keywords=1,
     if interfaces_dir is defined (and contains the directory with the
     interfaces) updates the synopsis
     if replace does the replacements contained in replacer.py (defaults
-    to false)"""
+    to false)
+
+    closes the input file"""
     ifile=infile
     try:
         if normalize_use:
@@ -106,57 +108,102 @@ def prettifyFile(infile,outfile,normalize_use=1, upcase_keywords=1,
         ifile.close()
     except:
         logFile.write("error processing file '"+infile.name+"'\n")
-        outfile.close()
-        os.rename(outfile.name,outfile.name+".err")
         raise
 
+def prettfyInplace(fileName,bkDir="preprettify",normalize_use=1,
+                   upcase_keywords=1, interfaces_dir=None,
+                   replace=None,logFile=sys.stdout):
+    """Same as prettify, but inplace, replaces only if needed"""
+    infile=open(fileName,'r')
+    outfile=tempfile.TemporaryFile()
+    prettifyFile(infile,outfile, normalize_use,
+                 upcase_keywords, interfaces_dir, replace)
+    infile=open(fileName,'r')
+    outfile.seek(0)
+    same=1
+    while 1:
+        l1=outfile.readline()
+        l2=infile.readline()
+        if (l1!=l2):
+            same=0
+            break
+        if not l1:
+            break
+    infile.close()
+    if (not same):
+        bkName=os.path.join(bkDir,os.path.basename(fileName))
+        bName=bkName
+        i=0
+        while os.path.exists(bkName):
+            i+=1
+            bkName=bName+"."+str(i)
+        os.rename(fileName,bkName)
+        outfile.seek(0)
+        newFile=file(fileName,'w')
+        while 1:
+            l1=outfile.readline()
+            if not l1: break
+            newFile.write(l1)
+        newFile.close()
+    outfile.close()
+
+                   
 if __name__ == '__main__':
+    defaultsDict={'upcase':1,'normalize-use':1,'replace':0,
+                  'interface-dir':None,
+                  'backup-dir':'preprettify'}
     usageDesc=("usage:\n"+sys.argv[0]+ """
     [--[no-]upcase] [--[no-]normalize-use] [--[no-]replace]
     [--interface-dir=~/cp2k/obj/platform/target] [--help]
-    out_dir file1 [file2 ...]
+    [--backup-dir=bk_dir] file1 [file2 ...]
 
-    Writes file1,... to outdir after performing on them upcase of the
-    fortran keywords, and normalizion the use statements.
+    replaces file1,... with their prettified version after performing on
+    them upcase of the fortran keywords, and normalizion the use statements.
     If the interface direcory is given updates also the synopsis.
     If requested the replacements performed by the replacer.py script
-    are also preformed""")
-    argStart=1
-    normalize_use=1
-    upcase_keywords=1,
-    interfaces_dir=None
+    are also preformed.
+    """+str(defaultsDict))
+    
     replace=None
     if "--help" in sys.argv:
         print usageDesc
         sys.exit(0)
-    for i in range(1,len(sys.argv)):
-        if (sys.argv[i][:2]!="--"): break
-        argStart=i+1
-        m=re.match(r"--(no-)?(normalize-use|upcase)",sys.argv[i])
+    args=[]
+    for arg in sys.argv[1:]:
+        m=re.match(r"--(no-)?(normalize-use|upcase|replace)",arg)
         if m:
-            if (m.groups()[1]=="upcase"):
-                upcase_keywords=not m.groups()[0]
-            else:
-                normalize_use=not m.groups()[0]
+            defaultsDict[m.groups()[1]]=not m.groups()[0]
         else:
-            m=re.match(r"--interface-dir=(.*)",sys.argv[i])
+            m=re.match(r"--(interface-dir|backup-dir)=(.*)",arg)
             if m:
-                interfaces_dir=os.path.expanduser(m.groups()[0])
+                path=os.path.abspath(os.path.expanduser(m.groups()[1]))
+                defaultsDict[m.groups()[0]]=path
             else:
-                print "ignoring unknown directive",sys.argv[i]
-    if len(sys.argv)-argStart<2:
+                args.append(arg)
+    if len(args)<1:
         print usageDesc
     else:
-        outDir=sys.argv[argStart]
-        if not os.path.isdir(outDir):
-            print "out_dir must be a directory"
+        bkDir=defaultsDict['backup-dir']
+        if not os.path.exists(bkDir):
+            os.mkdir(bkDir)
+        if not os.path.isdir(bkDir):
+            print "bk-dir must be a directory"
             print usageDesc
         else:
-            for fileName in sys.argv[argStart+1:]:
-                infile=open(fileName,'r')
-                outfile=open(os.path.join(outDir,
-                                          os.path.basename(fileName)),'w')
-                prettifyFile(infile,outfile,normalize_use=normalize_use,
-                             upcase_keywords=upcase_keywords,
-                             interfaces_dir=interfaces_dir,
-                             replace=replace)
+            for fileName in args:
+                if not os.path.isfile(fileName):
+                    print "file",fileName,"does not exists!"
+                else:
+                    try:
+                        prettfyInplace(fileName,bkDir,
+                                       normalize_use=defaultsDict['normalize-use'],
+                                       upcase_keywords=defaultsDict['upcase'],
+                                       interfaces_dir=defaultsDict['interface-dir'],
+                                       replace=defaultsDict['replace'])
+                    except:
+                        import traceback
+                        sys.stdout.write('-'*60+"\n")
+                        traceback.print_exc(file=sys.stdout)
+                        sys.stdout.write('-'*60+"\n")
+                        
+                        sys.stdout.write("Processing file '"+fileName+"'\n")                    

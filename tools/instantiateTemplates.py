@@ -2,6 +2,10 @@
 
 import sys, re
 from sys import argv
+import prettify
+import normalizeFortranFile
+import replacer
+import addSynopsis
 
 def instantiateTemplate(infile,outfile,subs,logFile=sys.stdout):
   import re
@@ -101,6 +105,7 @@ def evaluateInstantiationFile(instantiationFile,logFile=sys.stdout,outDir=None):
           logFile.write("ERROR opening template '"+outName+"'\n")
           raise
         instantiateTemplate(infile,outfile,substitution,logFile)
+        prettify.prettfyInplace(outName,logFile=logFile)
         generatedFiles.append(outName)
     except:
         import sys
