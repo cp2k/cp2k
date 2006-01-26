@@ -61,7 +61,7 @@ PROGRAM cp2k
   ! do the initial setup of cp2k, provides a default_para_env
   CALL init_cp2k(init_mpi=.TRUE.,ierr=ierr)
 
-  IF (ierr==0) then
+  IF (ierr==0) THEN
 #if defined(__HMD)
      DO i=0,default_para_env%num_pe-1
         IF (default_para_env%mepos==i) THEN
@@ -103,11 +103,11 @@ arg_loop: DO WHILE (i_arg<n_arg)
         CASE("--check","-c")
            check=.TRUE.
            run_it=.FALSE.
-           echo_input=.false.
+           echo_input=.FALSE.
         CASE("--echo","-e")
            check=.TRUE.
            run_it=.FALSE.
-           echo_input=.true.
+           echo_input=.TRUE.
         CASE("--html-manual")
            manual=.TRUE.
            run_it=.FALSE.
@@ -218,7 +218,7 @@ arg_loop: DO WHILE (i_arg<n_arg)
           END IF
         END IF
 
-        IF (check) then
+        IF (check) THEN
            CALL check_input(input_file_name,output_file_name,echo_input=echo_input,&
                 ierr=ierr)
            IF (default_para_env%source==default_para_env%mepos) THEN
