@@ -123,7 +123,7 @@ MODULE cp_control_utils
        xc_functionals_get_needs
   USE xc_rho_cflags_types,             ONLY: xc_rho_cflags_setall,&
                                              xc_rho_cflags_type
-  USE input_cp2k_dft, only: xc_functionals_expand
+  USE input_cp2k_check, only: xc_functionals_expand
   USE cp_output_handling,              ONLY: cp_print_key_unit_nr, &
                                              cp_print_key_finished_output,&
                                              cp_print_key_should_output,&

@@ -54,7 +54,7 @@ MODULE input_cp2k
   LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
   CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='input_cp2k'
   
-  PUBLIC :: create_cp2k_root_section, check_cp2k_input, parsed_cp2k_input,&
+  PUBLIC :: create_cp2k_root_section, parsed_cp2k_input,&
        create_global_section
 !!***
 !****************************************************************************
@@ -119,6 +119,10 @@ contains
        CALL section_add_subsection(root_section,section,error=error)
        CALL section_release(section,error=error)
 
+       CALL create_ext_restart_section(section,error=error)
+       CALL section_add_subsection(root_section,section,error=error)
+       CALL section_release(section,error=error)
+
        NULLIFY(keyword)
        CALL keyword_create(keyword,name="_DEFAULT_KEYWORD_",&
             description="ignores lines outside sections",&
@@ -129,47 +133,6 @@ contains
     END IF
   END SUBROUTINE create_cp2k_root_section
 !***************************************************************************
-
-!!****f* input_cp2k/check_cp2k_input *
-!!
-!!   NAME
-!!     check_cp2k_input
-!!
-!!   FUNCTION
-!!     performs further checks on an input that parsed successfully
-!!
-!!   NOTES
-!!     at the moment does nothing
-!!
-!!   ARGUMENTS
-!!     - input_file: the parsed input
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!*** **********************************************************************
-  SUBROUTINE check_cp2k_input(input_file,error)
-    TYPE(section_vals_type), pointer :: input_file
-    type(cp_error_type), optional, intent(inout) :: error
-
-    logical :: failure
-    character(len=*), parameter :: routineN='check_cp2k_input',&
-         routineP=moduleN//':'//routineN
-
-    failure=.false.
-
-    CPPrecondition(ASSOCIATED(input_file),cp_failure_level,routineP,error,failure)
-    IF (.NOT.failure) THEN
-       CPPrecondition(input_file%ref_count>0,cp_failure_level,routineP,error,failure)
-    END IF
-    IF (.NOT. failure) THEN
-! do the checks!!! (Yes, I agree, but, aren't they done elsewhere already ?)
-    END IF
-  END SUBROUTINE check_cp2k_input
-!***************************************************************************
-
 
 !!****f* input_cp2k/parsed_cp2k_input *
 !!
@@ -696,6 +659,101 @@ contains
     CALL section_release(subsection,error=error)
 
   END SUBROUTINE create_force_eval_section
+!***************************************************************************
+
+!!****f* input_cp2k/create_ext_restart_section [1.0] *
+!!
+!!   NAME
+!!     create_ext_restart_section
+!!
+!!   FUNCTION
+!!     Creates the exteranal restart section
+!!
+!!   NOTES
+!!     -
+!!
+!!   ARGUMENTS
+!!     - section: the section to create
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     fawzi
+!!
+!!*** **********************************************************************
+  SUBROUTINE create_ext_restart_section(section,error)
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_ext_restart_section', &
+         routineP = moduleN//':'//routineN
+    
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
+
+    failure=.FALSE.
+
+    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+    IF (.NOT. failure) THEN
+       CALL section_create(section,name="EXT_RESTART",&
+            description="Section for external restart, specifies an external "//&
+            "input file where to take positions,...",&
+            n_keywords=1, n_subsections=0, repeats=.FALSE., required=.FALSE.,&
+            error=error)
+       NULLIFY(keyword)
+
+       CALL keyword_create(keyword, name="EXTERNAL_FILE",&
+            description="Specify tha external input file to read",&
+            default_c_val=" ", error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+       CALL keyword_create(keyword, name="RESTART_POS",&
+            description="Takes the positions from the external file",&
+            default_l_val=.true., error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+       CALL keyword_create(keyword, name="RESTART_VEL",&
+            description="Takes the velocities from the external file",&
+            default_l_val=.true., error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+      CALL keyword_create(keyword, name="RESTART_RANDOMG",&
+            description="Restarts the random number generator from the external file",&
+            default_l_val=.true., error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+       CALL keyword_create(keyword, name="RESTART_KG_COEFF",&
+            description="Restarts the coefficents of kg from the external file",&
+            default_l_val=.true., error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+       CALL keyword_create(keyword, name="RESTART_KG_NOSE",&
+            description="Restarts the nose thermostats of the kg coefficents "//&
+            "from the EXTERNAL file",&
+            default_l_val=.true., error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+       CALL keyword_create(keyword, name="RESTART_BAROSTAT",&
+            description="Restarts the barostat from the external file",&
+            default_l_val=.true., error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+       CALL keyword_create(keyword, name="RESTART_NOSE",&
+            description="Restarts the nose thermostats of the particles "//&
+            "from the EXTERNAL file",&
+            default_l_val=.true., error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+       CALL keyword_create(keyword, name="CUSTOM_PATH",&
+            description="Takes the given path "//&
+            "from the EXTERNAL file",&
+            type_of_var=char_t,repeats=.TRUE., error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+    END IF
+  END SUBROUTINE create_ext_restart_section
 !***************************************************************************
 
 !!****f* input_cp2k/create_farming_section *

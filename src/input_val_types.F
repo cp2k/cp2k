@@ -27,7 +27,11 @@ MODULE input_val_types
 
   USE cp_units,                        ONLY: cp_unit_desc,&
                                              cp_unit_from_cp2k,&
-                                             cp_unit_type
+                                             cp_unit_type,&
+                                             cp_unit_from_cp2k1,&
+                                             cp_unit_retain,&
+                                             cp_unit_release,&
+                                             cp_unit_create
   USE input_enumeration_types,         ONLY: enum_i2c,&
                                              enum_release,&
                                              enum_retain,&
@@ -530,11 +534,14 @@ END SUBROUTINE val_get
 !!     writes out the valuse stored in the val
 !!
 !!   NOTES
-!!     -
+!!     unit of mesure used only for reals
 !!
 !!   INPUTS
 !!     - val: the val to write
-!!     - unit_nr: the unit to write to
+!!     - unit_nr: the number of the unit to write to
+!!     - unit: the unit of mesure in wich the output should be written
+!!       (overrides unit_str)
+!!     - unit_str: the unit of mesure in wich the output should be written
 !!     - error: variable to control error logging, stopping,... 
 !!       see module cp_error_handling 
 !!
@@ -542,9 +549,11 @@ END SUBROUTINE val_get
 !!     fawzi
 !!
 !!*** **********************************************************************
-SUBROUTINE val_write(val,unit_nr,error)
+SUBROUTINE val_write(val,unit_nr,unit,unit_str,error)
     TYPE(val_type), POINTER                  :: val
     INTEGER, INTENT(in)                      :: unit_nr
+    TYPE(cp_unit_type), POINTER, optional    :: unit
+    CHARACTER(len=*), INTENT(in), optional :: unit_str
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -554,9 +563,17 @@ SUBROUTINE val_write(val,unit_nr,error)
     CHARACTER(len=default_string_length)     :: c_string
     INTEGER                                  :: i, l
     LOGICAL                                  :: failure
+    TYPE(cp_unit_type), pointer :: my_unit
 
   failure=.FALSE.
 
+  NULLIFY(my_unit)
+  IF (present(unit)) my_unit => unit
+  IF (ASSOCIATED(my_unit)) THEN
+     CALL cp_unit_retain(my_unit,error=error)
+  ELSE IF (PRESENT(unit_str)) THEN
+     CALL cp_unit_create(my_unit,unit_str,error=error)
+  END IF
   IF (ASSOCIATED(val)) THEN
      SELECT CASE(val%type_of_var)
      CASE (logical_t)
@@ -583,8 +600,13 @@ SUBROUTINE val_write(val,unit_nr,error)
         IF (ASSOCIATED(val%r_val)) THEN
            DO i=1,SIZE(val%r_val)
               IF (MODULO(i,10)==0) WRITE(unit=unit_nr,fmt="(' \')")
-              WRITE(unit=unit_nr,fmt="(' ',es16.8)",advance="NO")&
-                   val%r_val(i)
+              IF (ASSOCIATED(my_unit)) THEN
+                 WRITE(unit=unit_nr,fmt="(' ',es16.8)",advance="NO")&
+                      cp_unit_from_cp2k1(val%r_val(i),my_unit,error=error)
+              ELSE
+                 WRITE(unit=unit_nr,fmt="(' ',es16.8)",advance="NO")&
+                      val%r_val(i)
+              END IF
            END DO
         ELSE
            CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
@@ -593,13 +615,20 @@ SUBROUTINE val_write(val,unit_nr,error)
         IF (ASSOCIATED(val%c_val)) THEN
            l=0
            DO i=1,SIZE(val%c_val)
+              IF (i>1) WRITE (unit=unit_nr,fmt="(' ')")
+              l=l+1
               IF (l>10.AND.l+LEN_TRIM(val%c_val(i))>76)THEN
-                 WRITE(unit=unit_nr,fmt="(' \')")
+                 WRITE(unit=unit_nr,fmt="('\')")
                  l=0
-              ELSE
+                 WRITE(unit=unit_nr,fmt='(a)',advance="NO") TRIM(val%c_val(i))
                  l=l+LEN_TRIM(val%c_val(i))+3
+              ELSE IF (len_trim(val%c_val(i))>0) then
+                 l=l+LEN_TRIM(val%c_val(i))
+                 WRITE(unit=unit_nr,fmt='(a)',advance="NO") TRIM(val%c_val(i))
+              ELSE
+                 l=l+3
+                 write (unit=unit_nr,fmt="(a)",advance="NO") '" "'
               END IF
-              WRITE(unit=unit_nr,fmt='(a)',advance="NO") TRIM(val%c_val(i))
            END DO
         ELSE
            CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
@@ -630,6 +659,7 @@ SUBROUTINE val_write(val,unit_nr,error)
   ELSE
      WRITE(unit=unit_nr,fmt="(' *null*')",advance="NO")
   END IF
+  IF (ASSOCIATED(my_unit)) CALL cp_unit_release(my_unit,error=error)
   WRITE(unit=unit_nr,fmt="()")
 END SUBROUTINE val_write
 

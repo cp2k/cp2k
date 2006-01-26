@@ -150,6 +150,7 @@ OBJECTS_GENERIC =\
  init_extended_system_types.o\
  input_constants.o\
  input_cp2k.o\
+ input_cp2k_check.o\
  input_cp2k_colvar.o\
  input_cp2k_dft.o\
  input_cp2k_mm.o\

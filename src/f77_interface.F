@@ -50,8 +50,8 @@ MODULE f77_interface
                                              force_env_retain
   USE global_types,                    ONLY: global_environment_type,&
                                              globenv_create
-  USE input_cp2k,                      ONLY: check_cp2k_input,&
-                                             create_cp2k_root_section
+  USE input_cp2k_check,                ONLY: check_cp2k_input
+  USE input_cp2k,                      ONLY: create_cp2k_root_section
   USE input_constants,                 ONLY: do_qs,&
                                              do_fist,&
                                              do_kg,&
@@ -691,7 +691,7 @@ END SUBROUTINE f_env_rm_defaults
     globenv%input_file => input_file
     CALL cp_error_check(error,failure)
     IF (.NOT.failure) THEN
-       CALL check_cp2k_input(input_file,error=error)
+       CALL check_cp2k_input(input_file,para_env=para_env,error=error)
        CALL cp_error_check(error,failure)
     END IF
     NULLIFY(input_file)
@@ -1376,7 +1376,7 @@ END SUBROUTINE f_env_rm_defaults
                unit_nr=cp_logger_get_default_unit_nr(logger,local=.false.),hide_root=.TRUE.,&
                error=error)
        END IF
-       CALL check_cp2k_input(input_file,error=error)
+       CALL check_cp2k_input(input_file,para_env=para_env,error=error)
     END IF
     CALL section_vals_release(input_file,error=error)
 

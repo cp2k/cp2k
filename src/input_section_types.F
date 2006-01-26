@@ -1903,13 +1903,19 @@ RECURSIVE SUBROUTINE section_vals_write(section_vals,unit_nr,hide_root,error)
      CALL section_vals_get(section_vals,n_repetition=nr, section=section,&
           error=error)
      DO i_rep_s=1,nr
-        if (.not.my_hide_root) WRITE(unit=unit_nr,fmt="('&',a)") TRIM(section%name)
+        IF (.NOT.my_hide_root) THEN
+           IF (ASSOCIATED(section%keywords(-1)%keyword)) THEN
+              WRITE(unit=unit_nr,fmt="('&',a,' ')",advance="NO") TRIM(section%name)
+           ELSE
+              WRITE(unit=unit_nr,fmt="('&',a)") TRIM(section%name)
+           END IF
+        END IF
         defaultSection=(SIZE(section_vals%values,2)==0)
         IF (.NOT.(section%required.AND.defaultSection)) THEN
            DO ik=-1,section%n_keywords
               keyword => section%keywords(ik)%keyword
               IF (ASSOCIATED(keyword)) THEN
-                 IF (keyword%type_of_var/=no_t) THEN
+                 IF (keyword%type_of_var/=no_t.and.keyword%names(1)(1:2)/="__") THEN
                     CALL section_vals_val_get(section_vals,keyword%names(1),&
                          i_rep_s,n_rep_val=nval,error=error)
                     DO ival=1,nval
@@ -1918,9 +1924,13 @@ RECURSIVE SUBROUTINE section_vals_write(section_vals,unit_nr,hide_root,error)
                        CALL cp_error_propagate_error(suberror, fromWhere=routineP,&
                             message="for val "// TRIM(keyword%names(1))//" in section "//&
                             TRIM(section%name),error=error, failure=failure)
-                       WRITE(unit=unit_nr,fmt="(' ',a,' ')",advance="NO")&
-                            TRIM(keyword%names(1))
-                       CALL val_write(val,unit_nr=unit_nr,error=suberror)
+                       IF (keyword%names(1)/='_DEFAULT_KEYWORD_'.AND.&
+                            keyword%names(1)/='_SECTION_PARAMETERS_') then
+                          WRITE(unit=unit_nr,fmt="(' ',a,' ')",advance="NO")&
+                               TRIM(keyword%names(1))
+                       END IF
+                       CALL val_write(val,unit_nr=unit_nr,unit=keyword%unit,&
+                            error=suberror)
                        CALL cp_error_propagate_error(suberror, fromWhere=routineP,&
                             message="for val "// TRIM(keyword%names(1))//" in section "//&
                             TRIM(section%name),error=error, failure=failure)

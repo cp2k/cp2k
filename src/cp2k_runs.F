@@ -61,8 +61,8 @@ MODULE cp2k_runs
                                              bsse_run,&
                                              linear_response_run,&
                                              qs_debug_run
+  USE input_cp2k_check,                ONLY: check_cp2k_input
   USE input_cp2k,                      ONLY: create_cp2k_root_section,&
-                                             check_cp2k_input, &
                                              create_global_section
   USE input_keyword_types,             ONLY: keyword_release
   USE input_parsing,                   ONLY: section_vals_parse
@@ -212,7 +212,7 @@ CONTAINS
     END IF
 
     IF (.NOT.failure) THEN
-       CALL check_cp2k_input(input_file,error=error)
+       CALL check_cp2k_input(input_file,para_env=para_env,error=error)
     END IF
     globenv%input_file => input_file
     nullify(input_file)

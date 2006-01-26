@@ -565,7 +565,7 @@ CONTAINS
     ! The transition potential method may need the kinetic matrix
     xas_section =>  section_vals_get_subs_vals(input, &
                                                  "DFT%XAS")
-!    call section_vals_get(xas_section,explicit=xas_calculation)
+!    call section_vals_val_get(xas_section,"_SECTION_PARAMETERS_",l_val=xas_calculation)
     call section_vals_val_get(xas_section,"ADDED_MOS",i_val=added_mos)
     xas_calculation = (added_mos>0)
     

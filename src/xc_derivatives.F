@@ -20,7 +20,7 @@ MODULE xc_derivatives
   USE input_keyword_types,             ONLY: keyword_create,&
                                              keyword_release,&
                                              keyword_type
-  USE input_cp2k_dft, only: xc_functionals_expand
+  USE input_cp2k_check, only: xc_functionals_expand
   USE input_section_types,             ONLY: section_add_keyword,&
                                              section_add_subsection,&
                                              section_create,&

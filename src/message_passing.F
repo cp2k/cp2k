@@ -72,9 +72,9 @@ MODULE message_passing
   ! PUBLIC :: mp_group
 
   ! default communicators
-  PUBLIC :: MPI_COMM_SELF, MPI_COMM_WORLD
+  PUBLIC :: MPI_COMM_SELF, MPI_COMM_WORLD, MPI_COMM_NULL
 #ifndef __parallel
-  INTEGER, PARAMETER :: MPI_COMM_SELF=0,MPI_COMM_WORLD=0
+  INTEGER, PARAMETER :: MPI_COMM_SELF=0,MPI_COMM_WORLD=0, MPI_COMM_NULL=-1
 #endif
 
   !
@@ -131,7 +131,7 @@ MODULE message_passing
   END INTERFACE
 
   INTERFACE mp_environ
-     MODULE PROCEDURE mp_environ_l, mp_environ_c
+     MODULE PROCEDURE mp_environ_l, mp_environ_c, mp_environ_c2
   END INTERFACE
 
   INTERFACE mp_alltoall
@@ -648,6 +648,28 @@ SUBROUTINE mp_environ_c ( numtask, dims, task_coor, groupid )
 
 END SUBROUTINE mp_environ_c
 
+SUBROUTINE mp_environ_c2 ( comm, ndims, dims, task_coor, periods )
+
+
+    INTEGER, INTENT(IN)                      :: comm
+    INTEGER, INTENT(in)                      :: ndims
+    INTEGER, INTENT(OUT)                     :: dims( ndims ), &
+                                                task_coor( ndims )
+    LOGICAL, INTENT(out)                     :: periods( ndims )
+
+    INTEGER                                  :: ierr
+
+  ierr = 0
+  task_coor = 0
+  dims = 1
+  periods=.false.
+#if defined(__parallel)
+  CALL mpi_cart_get ( groupid, ndims, dims, periods, task_coor, ierr )
+  IF ( ierr /= 0 ) CALL mp_stop ( ierr, "mpi_cart_get @ mp_environ_c" )
+#endif
+
+END SUBROUTINE mp_environ_c2
+
 !******************************************************************************
 
 
@@ -663,8 +685,10 @@ SUBROUTINE mp_cart_create ( comm_old, ndims, dims, pos, comm_cart )
     LOGICAL                                  :: period(1:ndims), reorder
 
   ierr = 0
-  pos ( 1:ndims ) = 1
+  pos ( 1:ndims ) = 0
   comm_cart = comm_old
+  dims = 1
+  comm_cart = 0
 #if defined(__parallel)
 
   t_start = m_walltime ( )
@@ -679,15 +703,14 @@ SUBROUTINE mp_cart_create ( comm_old, ndims, dims, pos, comm_cart )
   CALL mpi_cart_create ( comm_old, ndims, dims, period, reorder, comm_cart, &
        ierr )
   IF ( ierr /= 0 ) CALL mp_stop ( ierr, "mpi_cart_create @ mp_cart_create" )
-
-  CALL mpi_cart_get ( comm_cart, ndims, dims, period, pos, ierr )
-  IF ( ierr /= 0 ) CALL mp_stop ( ierr, "mpi_cart_get @ mp_cart_create" )
+  
+  IF (comm_cart /= MPI_COMM_NULL) THEN
+     CALL mpi_cart_get ( comm_cart, ndims, dims, period, pos, ierr )
+     IF ( ierr /= 0 ) CALL mp_stop ( ierr, "mpi_cart_get @ mp_cart_create" )
+  END IF
   t_end = m_walltime ( )
   CALL add_perf(perf_id=1,count=1)
   CALL add_perf(perf_id=2,time=t_end-t_start)
-#else
-  dims = 1
-  comm_cart = 0
 #endif
   
 END SUBROUTINE mp_cart_create

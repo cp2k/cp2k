@@ -25,7 +25,7 @@
 !!   SOURCE
 !****************************************************************************
 MODULE cp_para_env
-  USE cp_para_types,                   ONLY: cp_para_env_type
+  USE cp_para_types,                   ONLY: cp_para_env_type, cp_para_cart_type
   USE kinds,                           ONLY: dp
   USE message_passing,                 ONLY: mp_comm_dup,&
                                              mp_comm_free,&
@@ -92,6 +92,7 @@ CONTAINS
 
     failure=.FALSE.
 
+    CPPrecondition(.NOT.ASSOCIATED(para_env),cp_failure_level,routineP,error,failure)
     ALLOCATE(para_env,stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     IF (.NOT.failure) THEN
@@ -373,6 +374,193 @@ SUBROUTINE cp_para_env_write(para_env,unit_nr,error)
      CPInvariant(iostat==0,cp_failure_level,routineP,error,failure)
   END IF
 END SUBROUTINE cp_para_env_write
+!***************************************************************************
+
+!!****f* cp_para_env/cp_cart_create *
+!!
+!!   NAME
+!!     cp_cart_create
+!!
+!!   FUNCTION
+!!     creates a cart (multidimensional parallel environment)
+!!
+!!   NOTES
+!!     -
+!!
+!!   ARGUMENTS
+!!     - cart: the cart environment to create
+!!     - group: the mpi communicator
+!!     - ndims: the number of dimensions of the cart
+!!     - owns_group: if this object owns the underlying cart (and should
+!!       free it)
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     fawzi
+!!
+!!*** **********************************************************************
+SUBROUTINE cp_cart_create(cart, group, ndims,owns_group, error)
+    TYPE(cp_para_cart_type), POINTER         :: cart
+    INTEGER, INTENT(in)                      :: group
+    INTEGER, INTENT(in) :: ndims
+    LOGICAL, INTENT(in), OPTIONAL :: owns_group
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_cart_create', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: stat
+    LOGICAL                                  :: failure
+
+    failure=.FALSE.
+
+    CPPrecondition(.NOT.ASSOCIATED(cart),cp_failure_level,routineP,error,failure)
+    ALLOCATE(cart,stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    IF (.NOT.failure) THEN
+       cart%owns_group=.true.
+       IF (PRESENT(owns_group)) cart%owns_group=owns_group
+       cart%ndims=ndims
+       cart%group=group
+       
+       ALLOCATE(cart%source(ndims),cart%periodic(ndims),cart%mepos(ndims),stat=stat)
+       CPPostcondition(stat==0,cp_fatal_level,routineP,error,failure)
+       
+       cart%source=0
+       cart%mepos=0
+       cart%periodic=.false.
+       cart%ref_count=1
+       cart%ntask=1
+       CALL cp_cart_update(cart,error=error)
+    END IF
+  END SUBROUTINE cp_cart_create
+!***************************************************************************
+
+!!****f* cp_para_env/cp_cart_update *
+!!
+!!   NAME
+!!     cp_cart_update
+!!
+!!   FUNCTION
+!!     updates the information about the given cart
+!!
+!!   NOTES
+!!     -
+!!
+!!   ARGUMENTS
+!!     - cart: the cart to update
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     fawzi
+!!
+!!*** **********************************************************************
+SUBROUTINE cp_cart_update(cart,error)
+  TYPE(cp_para_cart_type), pointer :: cart
+  type(cp_error_type), optional, intent(inout) :: error
+  
+  logical :: failure
+  character(len=*), parameter :: routineN='cp_cart_update',&
+        routineP=moduleN//':'//routineN
+
+  failure=.false.
+  
+  CPPrecondition(ASSOCIATED(cart),cp_failure_level,routineP,error,failure)
+  CPPrecondition(cart%ref_count>0,cp_failure_level,routineP,error,failure)
+  IF (.NOT. failure) THEN
+     CALL mp_environ( cart%group, cart%ndims, cart%num_pe, task_coor=cart%mepos, &
+          periods=cart%periodic)
+     CALL mp_environ( numtask=cart%ntask, taskid=cart%rank, groupid=cart%group)
+  END IF
+END SUBROUTINE cp_cart_update
+!***************************************************************************
+
+!!****f* cp_para_env/cp_cart_release *
+!!
+!!   NAME
+!!     cp_cart_release
+!!
+!!   FUNCTION
+!!     releases the given cart
+!!
+!!   NOTES
+!!     -
+!!
+!!   ARGUMENTS
+!!     - cart: the cart to release
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     fawzi
+!!
+!!*** **********************************************************************
+SUBROUTINE cp_cart_release(cart,error)
+  TYPE(cp_para_cart_type), pointer :: cart
+  type(cp_error_type), optional, intent(inout) :: error
+  
+  logical :: failure
+  character(len=*), parameter :: routineN='cp_cart_release',&
+        routineP=moduleN//':'//routineN
+  integer :: stat
+
+  failure=.false.
+  
+  IF (ASSOCIATED(cart)) THEN
+     CPPrecondition(cart%ref_count>0,cp_failure_level,routineP,error,failure)
+     cart%ref_count=cart%ref_count-1
+     IF (cart%ref_count==0) THEN
+        if (cart%owns_group) then
+            CALL mp_comm_free(cart%group)
+         END IF
+        deallocate(cart%source,cart%periodic,cart%mepos,stat=stat)
+        CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+        DEALLOCATE(cart,stat=stat)
+     END IF
+  END IF
+  nullify(cart)
+END SUBROUTINE cp_cart_release
+!***************************************************************************
+
+!!****f* cp_para_env/cp_cart_retain *
+!!
+!!   NAME
+!!     cp_cart_retain
+!!
+!!   FUNCTION
+!!     retains the given cart
+!!
+!!   NOTES
+!!     -
+!!
+!!   ARGUMENTS
+!!     - cart: the cart to retain
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     fawzi
+!!
+!!*** **********************************************************************
+SUBROUTINE cp_cart_retain(cart,error)
+  TYPE(cp_para_cart_type), pointer :: cart
+  type(cp_error_type), optional, intent(inout) :: error
+  
+  logical :: failure
+  character(len=*), parameter :: routineN='cp_cart_retain',&
+        routineP=moduleN//':'//routineN
+
+  failure=.false.
+  
+  CPPrecondition(ASSOCIATED(cart),cp_failure_level,routineP,error,failure)
+  IF (.NOT. failure) THEN
+     CPPrecondition(cart%ref_count>0,cp_failure_level,routineP,error,failure)
+     cart%ref_count=cart%ref_count+1
+  END IF
+END SUBROUTINE cp_cart_retain
 !***************************************************************************
 
 END MODULE cp_para_env

@@ -934,7 +934,7 @@ contains
     IF (.NOT. failure) THEN
        CALL section_create(section,name="williams",&
             description="This section specifies the input parameters for WILLIAMS potential type.",&
-            n_keywords=1, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+            n_keywords=1, n_subsections=0, repeats=.TRUE., required=.TRUE.,&
             error=error)
 
        NULLIFY(keyword)
@@ -1013,7 +1013,7 @@ contains
     IF (.NOT. failure) THEN
        CALL section_create(section,name="goodwin",&
             description="This section specifies the input parameters for GOODWIN potential type.",&
-            n_keywords=1, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+            n_keywords=1, n_subsections=0, repeats=.TRUE., required=.TRUE.,&
             error=error)
 
        NULLIFY(keyword)
@@ -1106,7 +1106,7 @@ contains
     IF (.NOT. failure) THEN
        CALL section_create(section,name="ipbv",&
             description="This section specifies the input parameters for IPBV potential type.",&
-            n_keywords=1, n_subsections=0, repeats=.FALSE., required=.FALSE.,&
+            n_keywords=1, n_subsections=0, repeats=.TRUE., required=.FALSE.,&
             error=error)
 
        NULLIFY(keyword)
@@ -1165,7 +1165,7 @@ contains
     IF (.NOT. failure) THEN
        CALL section_create(section,name="BMHFT",&
             description="This section specifies the input parameters for BMHFT potential type.",&
-            n_keywords=1, n_subsections=0, repeats=.FALSE., required=.FALSE.,&
+            n_keywords=1, n_subsections=0, repeats=.TRUE., required=.FALSE.,&
             error=error)
 
        NULLIFY(keyword)

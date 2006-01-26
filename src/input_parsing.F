@@ -152,6 +152,13 @@ CONTAINS
              //TRIM(parser_location(parser,error=error)), error,failure)
      END IF
   END IF
+  IF (.NOT.failure) THEN
+     CALL cp_assert(section%repeats.OR.SIZE(section_vals%values,2)==0,&
+          cp_failure_level,cp_assertion_failed,routineP,&
+          "Section "//TRIM(section%name)//&
+          " should not repeat "//TRIM(parser_location(parser,error=error)),&
+          error,failure)
+  END IF
   IF (.NOT. failure) THEN
      skip_description=.FALSE.
      skip_help=.FALSE.
@@ -326,10 +333,11 @@ CONTAINS
                           PRINT *, "Keyword "//TRIM(token)//&
                          " in section "//TRIM(section%name)//" should not repeat."
                           PRINT *, "new_val="
-                          CALL val_write(el,6,error)
+                          CALL val_write(el,6,keyword%unit,error=error)
                           PRINT *,"old_val="
                        DO
-                          CALL val_write(last_val%first_el,6,error)
+                          CALL val_write(last_val%first_el,6,keyword%unit,&
+                               error=error)
                           if (.not.ASSOCIATED(last_val%rest)) exit
                           last_val => last_val%rest
                        END DO

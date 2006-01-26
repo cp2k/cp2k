@@ -472,6 +472,7 @@ SUBROUTINE parser_next_token(parser,string_length,error)
         !     *** Search for the end of the next input string ***
         IF(.NOT.failure) THEN
            DO
+              IF (parser%icol > LEN_TRIM(parser%input_line)) EXIT
               parser%icol = parser%icol + 1
               IF ((parser%icol > LEN_TRIM(parser%input_line)).OR.&
                    (parser%input_line(parser%icol:parser%icol) == blank_character).OR.&
@@ -1212,6 +1213,7 @@ END SUBROUTINE parser_next_token
           parser%para_env => para_env
           CALL cp_para_env_retain(para_env,error=error)
        ELSE
+          NULLIFY(parser%para_env)
           CALL cp_para_env_create(parser%para_env, group=MPI_COMM_SELF, source=0,&
                mepos=0, num_pe=1, owns_group=.FALSE.,error=error)
        END IF
@@ -1343,7 +1345,7 @@ END SUBROUTINE parser_next_token
           DO iz=1,nz
 
              IF (LEN_TRIM(string(iz)) == 0) THEN
-                test_result = "EOL"
+                test_result = "STR"
                 EXIT
              END IF
 

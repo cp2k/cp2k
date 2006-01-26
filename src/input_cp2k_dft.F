@@ -51,7 +51,6 @@ MODULE input_cp2k_dft
   PUBLIC :: create_bsse_section
   PUBLIC :: create_multipole_section, create_gspace_interp_section
   PUBLIC :: create_properties_section, create_scf_section
-  public :: xc_functionals_expand
 !***
 !****************************************************************************
 contains
@@ -191,89 +190,6 @@ contains
   END SUBROUTINE create_dft_section
 !***************************************************************************
 
-!!****f* input_cp2k_dft/xc_functionals_expand *
-!!
-!!   NAME
-!!     xc_functionals_expand
-!!
-!!   FUNCTION
-!!     expand a shortcutted functional section
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - functionals: the functional section to expand
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!*** **********************************************************************
-SUBROUTINE xc_functionals_expand(functionals,error)
-  TYPE(section_vals_type), pointer :: functionals
-  type(cp_error_type), optional, intent(inout) :: error
-  
-  logical :: failure
-  character(len=*), parameter :: routineN='xc_functionals_expand',&
-        routineP=moduleN//':'//routineN
-  integer :: shortcut
-  failure=.false.
-  
-  IF (.NOT. failure) THEN
-     CALL section_vals_val_get(functionals,"_SECTION_PARAMETERS_",&
-          i_val=shortcut,error=error)
-     SELECT CASE(shortcut)
-     CASE(xc_funct_no_shortcut)
-        ! nothing to expand
-     CASE(xc_funct_blyp)
-        CALL section_vals_val_set(functionals,"BECKE88%_SECTION_PARAMETERS_",&
-             l_val=.TRUE.,error=error)
-        CALL section_vals_val_set(functionals,"LYP%_SECTION_PARAMETERS_",&
-             l_val=.TRUE.,error=error)
-        CALL section_vals_val_set(functionals,"_SECTION_PARAMETERS_",&
-             i_val=xc_funct_no_shortcut,error=error)
-     CASE(xc_funct_pade)
-        CALL section_vals_val_set(functionals,"PADE%_SECTION_PARAMETERS_",&
-             l_val=.TRUE.,error=error)
-        CALL section_vals_val_set(functionals,"_SECTION_PARAMETERS_",&
-             i_val=xc_funct_no_shortcut,error=error)
-     CASE(xc_funct_pbe)
-        CALL section_vals_val_set(functionals,"PBE%_SECTION_PARAMETERS_",&
-             l_val=.TRUE.,error=error)
-        CALL section_vals_val_set(functionals,"_SECTION_PARAMETERS_",&
-             i_val=xc_funct_no_shortcut,error=error)
-     CASE(xc_funct_tpss)
-        CALL section_vals_val_set(functionals,"TPSS%_SECTION_PARAMETERS_",&
-             l_val=.TRUE.,error=error)
-        CALL section_vals_val_set(functionals,"_SECTION_PARAMETERS_",&
-             i_val=xc_funct_no_shortcut,error=error)
-     CASE(xc_funct_olyp)
-        CALL section_vals_val_set(functionals,"OPTX%_SECTION_PARAMETERS_",&
-             l_val=.TRUE.,error=error)
-        CALL section_vals_val_set(functionals,"LYP%_SECTION_PARAMETERS_",&
-             l_val=.TRUE.,error=error)
-        CALL section_vals_val_set(functionals,"_SECTION_PARAMETERS_",&
-             i_val=xc_funct_no_shortcut,error=error)
-     CASE(xc_funct_hcth120)
-        CALL section_vals_val_set(functionals,"HCTH%_SECTION_PARAMETERS_",&
-             l_val=.TRUE.,error=error)
-        CALL section_vals_val_set(functionals,"HCTH%PARAMETER_SET",&
-             i_val=120,error=error)
-        CALL section_vals_val_set(functionals,"_SECTION_PARAMETERS_",&
-             i_val=xc_funct_no_shortcut,error=error)
-        
-     CASE default
-        CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
-             routineP,"unknown shortcut "//TRIM(ADJUSTL(cp_to_string(shortcut))),&
-             error,failure)
-     END SELECT
-  END IF
-END SUBROUTINE xc_functionals_expand
-!***************************************************************************
-
-
 !****f* input_cp2k_dft/create_localize_section *
 !!
 !!   NAME
@@ -307,7 +223,7 @@ END SUBROUTINE xc_functionals_expand
       CALL section_create(section,name="LOCALIZE",&
            description="Use one of the available methods to define the localization "//&
            " and possibly to optimize it to a minimum or a maximum.",&
-           n_keywords=8, n_subsections=0, repeats=.TRUE., required=.false.,&
+           n_keywords=8, n_subsections=0, repeats=.TRUE., required=.TRUE.,&
            error=error)
 
       CALL keyword_create(keyword,name="MIN_OR_MAX",&

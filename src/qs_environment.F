@@ -653,7 +653,8 @@ CONTAINS
     ! The transition potential method to calculate XAS needs LSD
     xas_section =>  section_vals_get_subs_vals(globenv%input_file, &
                                                  "FORCE_EVAL%DFT%XAS")
-    call section_vals_get(xas_section,explicit=xas_calculation,error=error)
+    CALL section_vals_val_get(xas_section,"_SECTION_PARAMETERS_",&
+         l_val=xas_calculation,error=error)
 
     IF(xas_calculation .AND. (dft_control%nspins == 1) ) THEN
       CALL stop_program(routine_name,module_name,__LINE__,&

@@ -33,7 +33,8 @@ MODULE cp_para_types
   LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
   CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='cp_para_types'
 
-  PUBLIC :: cp_para_env_type, cp_blacs_env_type, cp_para_env_p_type
+  PUBLIC :: cp_para_env_type, cp_blacs_env_type, cp_para_env_p_type,&
+       cp_para_cart_type
 !***
 !****************************************************************************
 
@@ -136,8 +137,10 @@ MODULE cp_para_types
   !***************************************************************************
   TYPE cp_para_cart_type
      LOGICAL :: owns_group
-     INTEGER, DIMENSION(:), POINTER :: mepos, source, num_pe
-     INTEGER :: group, kind, ref_count
+     INTEGER :: ndims, rank, ntask
+     INTEGER, DIMENSION(:), pointer :: mepos, source, num_pe
+     LOGICAL, DIMENSION(:), pointer :: periodic
+     INTEGER :: group, ref_count
   END TYPE cp_para_cart_type
 !!***
   !****************************************************************************

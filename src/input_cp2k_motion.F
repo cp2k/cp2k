@@ -1574,7 +1574,7 @@ END SUBROUTINE create_nose_section
        CALL section_create(section,name="HMC",&
             description="This section specifies the parameters for the "//&
                         "Hybrid Metropolis Monte Carlo simulation",&
-            n_keywords=14, n_subsections=0, repeats=.FALSE., required=.FALSE.,&
+            n_keywords=14, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
             error=error)
 
        NULLIFY(keyword)
