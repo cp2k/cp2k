@@ -153,11 +153,12 @@ CONTAINS
   DO ikind=1,nkind
      local_coeffs => dyn_coeff_set%coeffs_of_kind(ikind)%coeffs
      IF(ASSOCIATED(local_coeffs))THEN
-       CALL get_dyn_coeff(coeffs=local_coeffs, ncoef_of_kind=ncoef_of_kind)
+      CALL get_dyn_coeff(coeffs=local_coeffs, ncoef_of_kind=ncoef_of_kind)
        ncoef=ncoef + ncoef_of_kind
      END IF
   END DO
 
+ IF (ncoef/=0) THEN
 ! allocating the arrays
   ALLOCATE(cg(ncoef), STAT=stat) 
   IF ( stat /= 0 )  CALL stop_memory (routineP, 'cg', ncoef)
@@ -215,23 +216,26 @@ CONTAINS
      ENDDO
   ENDDO
   maxerr=MAXVAL(abs(eg))
-  CALL mp_max(maxerr,kg_env%para_env%group)
+ ELSE
+  maxerr=0
+ END IF
+ CALL mp_max(maxerr,kg_env%para_env%group)
 ! estimate new coefficents
+ IF (ncoef/=0) THEN
   icoef=0
   DO ikind= 1, nkind
-     local_coeffs => dyn_coeff_set%coeffs_of_kind(ikind)%coeffs
-     IF(ASSOCIATED(local_coeffs))THEN
-       CALL get_dyn_coeff(coeffs=local_coeffs,pos=pos,&
+    local_coeffs => dyn_coeff_set%coeffs_of_kind(ikind)%coeffs
+    IF(ASSOCIATED(local_coeffs))THEN
+      CALL get_dyn_coeff(coeffs=local_coeffs,pos=pos,&
                           n_els=n_els,ncoef_atom=ncoef_atom)
-       DO i=1,n_els
-          DO icoef_atom = 1, ncoef_atom
-             icoef=icoef+1
-             pos(i,icoef_atom)=pos(i,icoef_atom) - eg(icoef)*diis_info%hess(icoef)
-          END DO
-       END DO
-     END IF
+      DO i=1,n_els
+         DO icoef_atom = 1, ncoef_atom
+            icoef=icoef+1
+            pos(i,icoef_atom)=pos(i,icoef_atom) - eg(icoef)*diis_info%hess(icoef)
+         END DO
+      END DO
+    END IF
   ENDDO
-
 ! deallocating the arrays
   DEALLOCATE(cg,STAT=stat)
   IF ( stat /= 0 )  CALL stop_memory (routineP, 'deall cg' )
@@ -241,6 +245,7 @@ CONTAINS
   IF ( stat /= 0 )  CALL stop_memory (routineP, 'deall eg' )
   DEALLOCATE(dcg,STAT=stat)
   IF ( stat /= 0 )  CALL stop_memory (routineP, 'deall dcg' )
+  END IF
   return
   END SUBROUTINE do_diis_step
 !------------------------------------------------------------------------------!

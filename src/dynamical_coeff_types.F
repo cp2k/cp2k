@@ -46,7 +46,8 @@ MODULE dynamical_coeff_types
                                              mp_sum
   USE cp_files,                        ONLY: close_file,&
                                              open_file
-  USE termination,                     ONLY: stop_memory
+  USE termination,                     ONLY: stop_memory,&
+                                             stop_program
   USE util,                            ONLY: gasdev,&
                                              locate
 #include "cp_common_uses.h"
@@ -140,24 +141,20 @@ SUBROUTINE dyn_coeff_set_create(dyn_coeff_set,atomic_kind_set,&
      NULLIFY(dyn_coeff_set%distribution, dyn_coeff_set%coeffs_of_kind)
 !    set coeffs_of_kind
      nkind=size(atomic_kind_set)
-     ALLOCATE(dyn_coeff_set%coeffs_of_kind(nkind), stat=stat)
-     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-     DO ikind=1,nkind
-       NULLIFY(dyn_coeff_set%coeffs_of_kind(ikind)%coeffs)
-       atomic_kind => atomic_kind_set(ikind)
-       CALL get_atomic_kind(atomic_kind,aux_basis_set=aux_basis_set)
-       IF (.NOT.ASSOCIATED(aux_basis_set)) CYCLE
-       CALL dyn_coeff_create(dyn_coeff_set%coeffs_of_kind(ikind)%coeffs,&
-                             error=error)
-     END DO
      IF (PRESENT(distribution)) THEN
        IF (ASSOCIATED(distribution)) THEN
+         ALLOCATE(dyn_coeff_set%coeffs_of_kind(nkind), stat=stat)
+         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
          dyn_coeff_set%distribution_method=dyn_coeff_distributed
          DO ikind=1,nkind 
+            NULLIFY(dyn_coeff_set%coeffs_of_kind(ikind)%coeffs)
             atomic_kind => atomic_kind_set(ikind)
             CALL get_atomic_kind(atomic_kind,aux_basis_set=aux_basis_set)
-            IF (.NOT.ASSOCIATED(aux_basis_set)) CYCLE
             n_els = distribution%n_el(ikind)
+            IF ((.NOT.ASSOCIATED(aux_basis_set)).OR.(n_els ==0)) CYCLE
+!dbg           write(6,*) 'dyncoeffsetcreate: n_els, ikind', n_els, ikind 
+            CALL dyn_coeff_create(dyn_coeff_set%coeffs_of_kind(ikind)%coeffs,&
+                             error=error)
             CALL setup_dyn_coeff(dyn_coeff_set%coeffs_of_kind(ikind)%coeffs,&
                aux_basis_set=aux_basis_set, n_els=n_els, error=error)
          END DO
@@ -167,15 +164,7 @@ SUBROUTINE dyn_coeff_set_create(dyn_coeff_set,atomic_kind_set,&
        END IF
      ELSE 
        dyn_coeff_set%distribution_method=dyn_coeff_replicated
-       DO ikind=1,nkind
-         atomic_kind => atomic_kind_set(ikind)
-         CALL get_atomic_kind(atomic_kind=atomic_kind,&
-                              aux_basis_set=aux_basis_set,&
-                              natom=n_els)         
-         IF (.NOT.ASSOCIATED(aux_basis_set)) CYCLE
-         CALL setup_dyn_coeff(dyn_coeff_set%coeffs_of_kind(ikind)%coeffs,&
-               aux_basis_set=aux_basis_set, n_els=n_els, error=error)
-       END DO
+       CALL stop_program ('dyn_coeff_set_create','replicated coefs NYI')
      END IF
   END IF
 
