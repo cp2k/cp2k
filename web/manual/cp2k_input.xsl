@@ -73,16 +73,28 @@
   <xsl:call-template name="section_index">
    <xsl:with-param name="path" select="$local_path"/>
    <xsl:with-param name="expand_list" select="$expand_list"/>
-   <xsl:with-param name="start" select="count(KEYWORD)"/>
+   <xsl:with-param name="start" select="count(SECTION_PARAMETERS)+count(DEFAULT_KEYWORD)+count(KEYWORD)"/>
   </xsl:call-template>
  </xsl:for-each>
 </xsl:template>
 
 <xsl:template name="keyword_index">
  <xsl:param name="path"/>
+ <xsl:variable name="nsecpar" select="count(SECTION_PARAMETERS)"/>
+ <xsl:variable name="ndefpar" select="count(DEFAULT_KEYWORD)"/>
+ <xsl:for-each select="SECTION_PARAMETERS">
+  <xsl:sort select="NAME[@type='default']"/>
+  <xsl:variable name="local_path" select="concat($path,'.sub[0]')"/>
+  <xsl:value-of select="$local_path"/> = new sub('<a href="#key_des_{generate-id(NAME[@type='default'])}" id="key_ind_{generate-id(NAME[@type='default'])}"><xsl:value-of select="NAME[@type='default']"/></a>');
+ </xsl:for-each>
+ <xsl:for-each select="DEFAULT_KEYWORD">
+  <xsl:sort select="NAME[@type='default']"/>
+  <xsl:variable name="local_path" select="concat($path,'.sub[',string($nsecpar),']')"/>
+  <xsl:value-of select="$local_path"/> = new sub('<a href="#key_des_{generate-id(NAME[@type='default'])}" id="key_ind_{generate-id(NAME[@type='default'])}"><xsl:value-of select="NAME[@type='default']"/></a>');
+ </xsl:for-each>
  <xsl:for-each select="KEYWORD">
   <xsl:sort select="NAME[@type='default']"/>
-  <xsl:variable name="local_path" select="concat($path,'.sub[',string(position()-1),']')"/>
+  <xsl:variable name="local_path" select="concat($path,'.sub[',string($nsecpar+$ndefpar+position()-1),']')"/>
   <xsl:value-of select="$local_path"/> = new sub('<a href="#key_des_{generate-id(NAME[@type='default'])}" id="key_ind_{generate-id(NAME[@type='default'])}"><xsl:value-of select="NAME[@type='default']"/></a>');
  </xsl:for-each>
 </xsl:template>
@@ -94,8 +106,22 @@
   <ul class="none">
    <li>
     <em><xsl:value-of select="DESCRIPTION"/></em>
+   </li>
+  </ul>
+  <xsl:if test="count(SECTION_PARAMETERS) > 0">
+   <xsl:call-template name="describe_keywords">
+    <xsl:with-param name="element" select="SECTION_PARAMETERS"/>
+   </xsl:call-template>
+  </xsl:if>
+  <xsl:if test="count(DEFAULT_KEYWORD) > 0">
+   <xsl:call-template name="describe_keywords">
+    <xsl:with-param name="element" select="DEFAULT_KEYWORD"/>
+   </xsl:call-template>
+  </xsl:if>
+  <ul class="none">
+   <li>
     <xsl:if test="count(KEYWORD) > 0">
-     <h4>Keywords:</h4>
+     <h3>Keywords:</h3>
      <xsl:call-template name="describe_keywords"></xsl:call-template>
     </xsl:if>
    </li>
@@ -105,9 +131,10 @@
 </xsl:template>
 
 <xsl:template name="describe_keywords">
+ <xsl:param name="element" select="KEYWORD"/>
  <ul class="none">
   <li>
-  <xsl:for-each select="KEYWORD">
+  <xsl:for-each select="$element">
    <xsl:sort select="NAME"/>
    <xsl:if test="not(starts-with(NAME,'__'))">
     <dl>

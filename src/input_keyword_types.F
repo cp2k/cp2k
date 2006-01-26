@@ -898,6 +898,8 @@ END SUBROUTINE keyword_describe_html
 
   SUBROUTINE write_keyword_xml(keyword,level,unit_number,error)
 
+    ! Dump a (special) keyword section in XML format (26.01.2006,MK)
+
     TYPE(keyword_type), POINTER                  :: keyword
     INTEGER, INTENT(IN)                          :: level,unit_number
     TYPE(cp_error_type), OPTIONAL, INTENT(INOUT) :: error
@@ -945,13 +947,25 @@ END SUBROUTINE keyword_describe_html
         repeats = "no "
       END IF
 
-!     *** Write keyword element ***
+!     *** Write (special) keyword element ***
 
-      WRITE (UNIT=unit_number,FMT="(A)")&
-        REPEAT(" ",l0)//"<KEYWORD required="""//TRIM(required)//&
-        """ repeats="""//TRIM(repeats)//""">",&
-        REPEAT(" ",l1)//"<NAME type=""default"">"//&
-        TRIM(keyword%names(1))//"</NAME>"
+      IF (keyword%names(1) == "_SECTION_PARAMETERS_") THEN
+        WRITE (UNIT=unit_number,FMT="(A)")&
+          REPEAT(" ",l0)//"<SECTION_PARAMETERS required="""//TRIM(required)//&
+          """ repeats="""//TRIM(repeats)//""">",&
+          REPEAT(" ",l1)//"<NAME type=""default"">SECTION_PARAMETERS</NAME>"
+      ELSE IF (keyword%names(1) == "_DEFAULT_KEYWORD_") THEN
+        WRITE (UNIT=unit_number,FMT="(A)")&
+          REPEAT(" ",l0)//"<DEFAULT_KEYWORD required="""//TRIM(required)//&
+          """ repeats="""//TRIM(repeats)//""">",&
+          REPEAT(" ",l1)//"<NAME type=""default"">DEFAULT_KEYWORD</NAME>"
+      ELSE
+        WRITE (UNIT=unit_number,FMT="(A)")&
+          REPEAT(" ",l0)//"<KEYWORD required="""//TRIM(required)//&
+          """ repeats="""//TRIM(repeats)//""">",&
+          REPEAT(" ",l1)//"<NAME type=""default"">"//&
+          TRIM(keyword%names(1))//"</NAME>"
+      END IF
 
       DO i=2,SIZE(keyword%names)
         WRITE (UNIT=unit_number,FMT="(A)")&
@@ -1049,7 +1063,18 @@ END SUBROUTINE keyword_describe_html
           TRIM(ADJUSTL(string))//"</LONE_KEYWORD_VALUE>"
       END IF
 
-      WRITE (UNIT=unit_number,FMT="(A)") REPEAT(" ",l0)//"</KEYWORD>"
+      ! Close (special) keyword section
+
+      IF (keyword%names(1) == "_SECTION_PARAMETERS_") THEN
+        WRITE (UNIT=unit_number,FMT="(A)")&
+          REPEAT(" ",l0)//"</SECTION_PARAMETERS>"
+      ELSE IF (keyword%names(1) == "_DEFAULT_KEYWORD_") THEN
+        WRITE (UNIT=unit_number,FMT="(A)")&
+          REPEAT(" ",l0)//"</DEFAULT_KEYWORD>"
+      ELSE
+        WRITE (UNIT=unit_number,FMT="(A)")&
+          REPEAT(" ",l0)//"</KEYWORD>"
+      END IF
 
     END IF
 
