@@ -162,8 +162,10 @@ CONTAINS
 
       DO jpgf=1,npgfb
 
-!       *** Screening ***
+        ss = 0.0_dp
+        sc = 0.0_dp
 
+!       *** Screening ***
         IF (rpgfa(ipgf) + rpgfb(jpgf) < dab) THEN
           DO j=nb+1,nb+ncoset(lb_max)
             DO i=na+1,na+ncoset(la_max)
@@ -651,8 +653,10 @@ CONTAINS
 
         END IF
 
-        DO j=ncoset(lb_min-1)+1,ncoset(lb_max)
-          DO i=ncoset(la_min-1)+1,ncoset(la_max)
+ !       DO j=ncoset(lb_min-1)+1,ncoset(lb_max)
+ !         DO i=ncoset(la_min-1)+1,ncoset(la_max)
+        do j =1,ncoset(lb_max)
+          do i = 1, ncoset(la_max)
             cosab(na+i,nb+j) = sc(i,j)
             sinab(na+i,nb+j) = ss(i,j)
           END DO
@@ -1205,7 +1209,7 @@ CONTAINS
     INTEGER                                  :: istat, lda_min, ldb_min, lmax, lds
     REAL(KIND=dp)                            :: dab, rab2
     REAL(KIND=dp), DIMENSION(npgfa*ncoset(la_max+1),&
-      npgfb*ncoset(lb_max+1))           :: sab, sabdx, sabdy, sabdz
+      npgfb*ncoset(lb_max+1))           :: sab
     REAL(KIND=dp), DIMENSION(:,:,:), ALLOCATABLE :: s
 
 !   ---------------------------------------------------------------------------
@@ -1217,7 +1221,8 @@ CONTAINS
     lmax = MAX(la_max+1,lb_max+1)
     lds = ncoset(lmax+1)
     ALLOCATE(s(lds,lds,ncoset(1)),STAT=istat)
-    
+    sab = 0.0_dp 
+    s = 0.0_dp
     CALL overlap(la_max+1,lda_min,npgfa,rpgfa,zeta,&
                  lb_max+1,ldb_min,npgfb,rpgfb,zetb,&
                  rab,dab,sab,0,.FALSE.,s,lds)

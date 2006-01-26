@@ -140,7 +140,7 @@ CONTAINS
     right_iteration_level = .TRUE.
     !right_iteration_level = (MODULO(iter_count,dft_control%xas_control%each_step)==0)
     IF(dft_control%do_xas_calculation .AND. right_iteration_level ) THEN
-      CALL xas(qs_env, dft_control%xas_control, globenv)
+      CALL xas(qs_env, dft_control%xas_control, globenv,error=error)
     END IF
 
     CALL timestop(0.0_dp,handle)

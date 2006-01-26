@@ -21,6 +21,7 @@ MODULE xas_control
   USE global_types,                    ONLY: global_environment_type
   USE input_constants,                 ONLY: xas_tp_hh, &
                                              xas_tp_fh, xes_tp_val,&
+                                             xas_tp_xhh, xas_tp_xfh,&
                                              xas_tddft, xas_dscf,&
                                              xas_1s_type
   USE input_section_types,             ONLY: section_vals_get,&
@@ -92,6 +93,8 @@ MODULE xas_control
     REAL(dp)                            :: p_mix
     REAL(dp)                            :: eps_added
     REAL(dp)                            :: smear
+    REAL(dp)                            :: xes_core_occupation
+    REAL(dp)                            :: occ_estate, occ_homo 
     TYPE(localized_wfn_control_type), &
       POINTER                           :: localized_wfn_control
   END TYPE xas_control_type
@@ -195,6 +198,9 @@ CONTAINS
 
     CALL section_vals_val_get(xas_section,"FERMI", &
          l_val=xas_control%fermidist,error=error)
+
+    CALL section_vals_val_get(xas_section,"XES_CORE", &
+         r_val=xas_control%xes_core_occupation,error=error)
 
     CALL section_vals_val_get(xas_section,"ATOMS_LU_BOUNDS",&
          i_vals=bounds,error=error) 
@@ -354,10 +360,18 @@ CONTAINS
           WRITE (UNIT=output_unit,FMT="(/,T2,A,T40,A)")&
                 "XAS| Method:",&
                    "      Transition potential with half hole" 
+        CASE(xas_tp_xhh)
+          WRITE (UNIT=output_unit,FMT="(/,T2,A,T40,A)")&
+                "XAS| Method:",&
+                   "      Transition potential with excited half hole" 
         CASE(xas_tp_fh)
           WRITE (UNIT=output_unit,FMT="(/,T2,A,T40,A)")&
                 "XAS| Method:",&
                    "      Transition potential with full hole" 
+        CASE(xas_tp_xfh)
+          WRITE (UNIT=output_unit,FMT="(/,T2,A,T40,A)")&
+                "XAS| Method:",&
+                   "      Transition potential with excited full hole" 
         CASE(xes_tp_val)
           WRITE (UNIT=output_unit,FMT="(/,T2,A,T40,A)")&
                 "XAS| Method:",&
@@ -415,6 +429,8 @@ CONTAINS
     xas_control%ref_count= 1
     xas_control%each_step= 1
     xas_control%xas_method = xas_tp_hh
+    xas_control%occ_estate = 0.5_dp
+    xas_control%occ_homo = 1.0_dp
     xas_control%xas_rootfname = ""
     xas_control%nexc_atoms = 1
     xas_control%nexc_search = -1
@@ -425,6 +441,7 @@ CONTAINS
     xas_control%eps_scf = 0.5d-6
     xas_control%localized_wfn = .FALSE. 
     xas_control%added_mos=0
+    xas_control%xes_core_occupation=1.0_dp
     NULLIFY(xas_control%localized_wfn_control)
     CALL localized_wfn_control_create(xas_control%localized_wfn_control,error=error)
     NULLIFY(xas_control%exc_atoms)

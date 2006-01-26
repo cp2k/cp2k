@@ -60,6 +60,7 @@ MODULE xas_methods
   USE global_types,                    ONLY: global_environment_type
   USE input_constants,                 ONLY: xas_none, xas_tp_hh, &
                                              xas_tp_fh, xes_tp_val,&
+                                             xas_tp_xhh, xas_tp_xfh,&
                                              xas_tddft, xas_dscf,&
                                              xas_1s_type, xas_2s_type, &
                                              xas_2p_type, xas_dip_len,&
@@ -336,9 +337,7 @@ CONTAINS
 
     nexc_search = xas_control%nexc_search
     nspins = dft_control%nspins
-    transition_potential = (xas_control%xas_method==xas_tp_hh).OR.&
-                           (xas_control%xas_method==xas_tp_fh).OR.&
-                           (xas_control%xas_method==xes_tp_val).OR.&
+    transition_potential = (xas_control%xas_method.LT.xas_tddft).OR.&
                            (xas_control%xas_method==xas_dscf)
     IF(nspins ==1 .AND. transition_potential) THEN
        CALL stop_program(routineP,"xas with tp method requires LSD calculations")
@@ -504,11 +503,11 @@ CONTAINS
        ! determine which state has to be excited in the global list
        state_to_be_excited = state_of_atom(iat)
        dft_control % xas_estate  = state_to_be_excited
-!IF (ionode ) WRITE(*,*) 'estate ',  dft_control % xas_estate
       ! Take the state_to_be_excited vector from the full set and copy into excvec_coeff
        CALL get_mo_set(mos(1)%mo_set, mo_coeff=mo_coeff,&
             occupation_numbers=occupation_numbers,homo=homo,nmo=nmo,nelectron=nelectron)
-       IF(xas_control%xas_method == xas_dscf) THEN
+       IF(xas_control%xas_method==xas_dscf .OR. xas_control%xas_method==xas_tp_xhh &
+         .OR.  xas_control%xas_method==xas_tp_xfh) THEN
           CPPrecondition(.NOT.(nmo==homo),cp_failure_level,routineP,error,failure)
           homo = nelectron + 1
           CALL set_mo_set(mos(1)%mo_set, homo = homo)
@@ -782,12 +781,29 @@ CONTAINS
       nspins = SIZE(mos,1)
 
       ! initialize operators for the calculation of the oscillator strengts
-      IF (xas_control%xas_method==xas_tp_hh .OR. xas_control%xas_method==xas_tp_fh &
-         .OR. xas_control%xas_method==xes_tp_val .OR. &
-          xas_control%xas_method==xas_dscf) THEN
+      IF (xas_control%xas_method.LT.xas_tddft &
+          .OR. xas_control%xas_method==xas_dscf) THEN
         
-!        CALL fm_pool_create_fm(xas_env%ao_mo_fm_pools(1)%pool,&
-!               xas_env%fm_work,name="xas_env%fm_work",error=error)
+        IF (xas_control%xas_method==xas_tp_hh) THEN
+          xas_control%occ_estate = 0.5_dp
+          xas_control%occ_homo = 1.0_dp
+        ELSEIF(xas_control%xas_method==xas_tp_xhh) THEN
+          xas_control%occ_estate = 0.5_dp
+          xas_control%occ_homo = 0.5_dp
+        ELSEIF(xas_control%xas_method==xas_tp_fh) THEN
+          xas_control%occ_estate = 0.0_dp
+          xas_control%occ_homo = 1.0_dp
+        ELSEIF(xas_control%xas_method==xas_tp_xfh) THEN
+          xas_control%occ_estate = 0.0_dp
+          xas_control%occ_homo = 1.0_dp
+        ELSEIF(xas_control%xas_method==xes_tp_val) THEN
+          xas_control%occ_estate = xas_control%xes_core_occupation
+          xas_control%occ_homo = 1.0_dp-xas_control%xes_core_occupation
+        ELSEIF(xas_control%xas_method==xas_dscf) THEN
+          xas_control%occ_estate = 0.0_dp
+          xas_control%occ_homo = 1.0_dp
+        ENDIF
+
         NULLIFY(tmp_fm_struct)
         nwork = MAX(xas_env%nvirtual,nmo)
         CALL cp_fm_struct_create(tmp_fm_struct,nrow_global=nao,ncol_global=nwork,&

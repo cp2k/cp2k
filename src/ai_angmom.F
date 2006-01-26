@@ -96,6 +96,7 @@ CONTAINS
 
 !   *** Loop over all pairs of primitive Gaussian-type functions ***
 
+
     na = 0
 
     DO ipgf=1,npgfa
@@ -103,6 +104,9 @@ CONTAINS
       nb = 0
 
       DO jpgf=1,npgfb
+
+        s=0.0_dp
+        as=0.0_dp
 
 !       *** Screening ***
 

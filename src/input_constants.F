@@ -397,8 +397,9 @@ MODULE input_constants
   INTEGER, PARAMETER, PUBLIC :: xc_pot_none = 1000, xc_pot_saop = 1001
  
   ! X-Ray spectra Calculation
-  INTEGER, PARAMETER, PUBLIC :: xas_none=0, xas_tp_hh=1, xas_tp_fh=2, xes_tp_val=3, &
-                                xas_tddft=4, xas_dscf=5 
+  INTEGER, PARAMETER, PUBLIC :: xas_none=0, xas_tp_hh=1, xas_tp_fh=2,&
+                                xes_tp_val=3, xas_tp_xhh=4,xas_tp_xfh=5,&
+                                xas_tddft=6, xas_dscf=7 
   INTEGER, PARAMETER, PUBLIC :: xas_1s_type=1, xas_2s_type=2, xas_2p_type=3,&
                                 xas_3s_type=4, xas_3p_type=5, xas_3d_type=6,&
                                 xas_4s_type=7, xas_4p_type=8, xas_4d_type=9, xas_4f_type=10

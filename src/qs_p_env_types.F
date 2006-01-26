@@ -310,9 +310,6 @@ END SUBROUTINE p_env_retain
             DEALLOCATE(p_env%preconditioner,STAT=stat)
             CPPostcondition((stat==0),cp_failure_level,routineP,error,failure)
           END IF
-!          IF(ASSOCIATED(p_env%sinv_test)) THEN
-!            CALL cp_fm_release(p_env%sinv_test)
-!          END IF
        END IF
        DEALLOCATE(p_env,stat=stat)
        CPPostcondition((stat==0),cp_failure_level,routineP,error,failure)

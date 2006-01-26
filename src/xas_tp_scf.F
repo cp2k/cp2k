@@ -57,6 +57,7 @@ MODULE xas_tp_scf
                                              init_preconditioner,&
                                              make_preconditioner,&
                                              preconditioner_type
+  USE qs_charges_types,                ONLY: qs_charges_type
   USE qs_diis,                         ONLY: qs_diis_b_step
   USE qs_energy_types,                 ONLY: qs_energy_type
   USE qs_environment_types,            ONLY: get_qs_env,&
@@ -155,15 +156,18 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = "xas_tp_scf", &
       routineP = module_name//':'//routineN
 
-    INTEGER                                  :: handle, handle2,  homo, ic_max, ir_max,ispin, &
+    INTEGER                                  :: handle, handle2,  homo, ic_max, &
+                                                ir_max,ispin, &
                                                 istat, iter_count, nao, nmo,nvirtual2, &
                                                 nvirtual1,output_unit,i,istate,uno_iter
     INTEGER :: m, n
     LOGICAL :: diis_step, do_level_shift, energy_only, failure,& 
-               gapw, ionode, should_stop, uniform_occupation, use_cholesky, use_jacobi, id_equal
+               gapw, ionode, should_stop, uniform_occupation, use_cholesky,&
+                use_jacobi, id_equal
     REAL(KIND=dp)                            :: a_max,b_max, diis_error, IP_energy, &
                                                 orthonormality, uno_eps, &
-                                                ra(3), rac(3), rc(3), t1, t2, tot1_h, tot1_s
+                                                ra(3), rac(3), rc(3), t1, t2,&
+                                                tot1_h, tot1_s
     REAL(dp), DIMENSION(6)                   :: weights
     REAL(KIND=dp), DIMENSION(:), POINTER     :: occupation_numbers, eigenvalues
     REAL(KIND=dp), DIMENSION(:), POINTER     :: all_evals
@@ -191,12 +195,14 @@ CONTAINS
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(preconditioner_type), POINTER       :: preconditioner
+    TYPE(qs_charges_type), POINTER           :: qs_charges
     TYPE(qs_energy_type), POINTER            :: energy
     TYPE(qs_ks_env_type), POINTER            :: ks_env
     TYPE( qs_loc_env_new_type ), POINTER     :: qs_loc_env
     TYPE(qs_rho_type), POINTER               :: rho
     TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_h, matrix_ks, matrix_p, matrix_s
+      POINTER                                :: matrix_h, matrix_ks,&
+                                                matrix_p, matrix_s
     TYPE(real_matrix_type), POINTER          :: orthogonality_metric
     INTEGER, DIMENSION(:), POINTER           :: col_indices
     TYPE (real_matrix_p_type), DIMENSION(:,:),&
@@ -204,12 +210,14 @@ CONTAINS
     TYPE(scf_control_type), POINTER          :: scf_control
     TYPE(section_vals_type),POINTER          :: dft_section, input, scf_section
 
-    NULLIFY(dft_control,matrix_h,matrix_s,matrix_ks,matrix_p,rho,energy,scf_control,logger,&
-         ks_env,mos,atomic_kind_set,particle_set,vecbuffer,vecbuffer2, occupation_numbers,&
-         scf_work1,ortho,scf_work2,excvec_coeff,excvec_overlap,mo_coeff,fm_work,&
-         col_indices, eigenvalues)
-    NULLIFY(centers_wfn,qs_loc_env,localized_wfn_control,op_sm_set,op_fm_set,moloc_coeff,cell)
-    NULLIFY( dft_section, scf_section,input)
+    NULLIFY(dft_control,matrix_h,matrix_s,matrix_ks,matrix_p)
+    NULLIFY(rho,energy,scf_control,logger, ks_env,mos,atomic_kind_set)
+    NULLIFY(particle_set,vecbuffer,vecbuffer2, occupation_numbers)
+    NULLIFY( scf_work1,ortho,scf_work2,excvec_coeff,excvec_overlap,mo_coeff)
+    NULLIFY(fm_work, col_indices, eigenvalues)
+    NULLIFY(centers_wfn,qs_loc_env,localized_wfn_control)
+    NULLIFY(op_sm_set,op_fm_set,moloc_coeff,cell)
+    NULLIFY( dft_section, scf_section,input,qs_charges)
 
     logger => cp_error_get_logger(error)
     t1 = m_walltime()
@@ -228,7 +236,7 @@ CONTAINS
          scf_control=scf_control,&
          input=input)
 
-    CALL write_checkpoint_information("entering "//routineN,globenv,error)
+    CALL write_checkpoint_information("entering "//routineN,globenv,error=error)
 
     CALL timeset(routineN,"I"," ",handle)
 
@@ -250,6 +258,7 @@ CONTAINS
          matrix_h=matrix_h,&
          matrix_s=matrix_s,energy=energy,&
          particle_set=particle_set,&
+         qs_charges=qs_charges,&
          ks_env=ks_env)
 
     scf_work1 => scf_env%scf_work1
@@ -302,8 +311,6 @@ CONTAINS
             REPEAT("-",77)
     END IF
     
-    IF (BTEST(cp_print_key_should_output(logger%iter_info,&
-         scf_section,"PRINT%ITERATION_INFO/TIME_CUMUL",error=error),cp_p_file)) t1 = m_walltime()    
 
 !   *** SCF loop ***
 
@@ -319,7 +326,6 @@ CONTAINS
        CALL qs_ks_update_qs_env(ks_env,qs_env=qs_env,&
             error=error,&
             calculate_forces=.FALSE.,just_energy=energy_only)
-
 
        scf_env%p_mix = xas_env%p_mix
        scf_env%iter_param = 0.0_dp
@@ -374,7 +380,8 @@ CONTAINS
 
             DO ispin=1,dft_control%nspins
 
-               CALL eigensolver(scf_work1(ispin)%matrix, mos(ispin)%mo_set,ortho,scf_work2,&
+               CALL eigensolver(scf_work1(ispin)%matrix,&
+                    mos(ispin)%mo_set,ortho,scf_work2,&
                     do_level_shift,scf_control%level_shift,&
                     use_cholesky=use_cholesky,&
                     work_syevx=scf_control%work_syevx,&
@@ -440,21 +447,9 @@ CONTAINS
                    ir_max = dft_control% xas_estate
                    dft_control% xas_estate = ic_max
 
-                   IF(xas_control%xas_method == xas_tp_hh) THEN
-                       occupation_numbers(dft_control%xas_estate) = 0.5_dp
-                       occupation_numbers(ir_max) = 1.0_dp
-                   ELSE IF(xas_control%xas_method == xas_tp_fh) THEN
-                       occupation_numbers(dft_control%xas_estate) = 0.0_dp
-                       occupation_numbers(ir_max) = 1.0_dp
-                   ELSE IF(xas_control%xas_method == xas_dscf) THEN
-                       occupation_numbers(dft_control%xas_estate) = 0.0_dp
-                       occupation_numbers(ir_max) = 1.0_dp
-                   ELSE IF(xas_control%xas_method == xes_tp_val) THEN
-                       occupation_numbers(dft_control%xas_estate) = 1.00_dp
-                       occupation_numbers(ir_max) = 1.0_dp
-                       occupation_numbers(homo) = 0.0_dp
-                   END IF
-
+                   occupation_numbers(dft_control%xas_estate) = xas_control%occ_estate
+                   occupation_numbers(ir_max) = 1.0_dp
+                   occupation_numbers(homo) =  xas_control%occ_homo
                  END IF
 
                  ! IOnization Potential
@@ -522,21 +517,9 @@ CONTAINS
                    ir_max = dft_control% xas_estate
                    dft_control% xas_estate = ic_max
 
-                   IF(xas_control%xas_method == xas_tp_hh) THEN
-                       occupation_numbers(dft_control%xas_estate) = 0.5_dp
-                       occupation_numbers(ir_max) = 1.0_dp
-                   ELSE IF(xas_control%xas_method == xas_tp_fh) THEN
-                       occupation_numbers(dft_control%xas_estate) = 0.0_dp
-                       occupation_numbers(ir_max) = 1.0_dp
-                   ELSE IF(xas_control%xas_method == xas_dscf) THEN
-                       occupation_numbers(dft_control%xas_estate) = 0.0_dp
-                       occupation_numbers(ir_max) = 1.0_dp
-                   ELSE IF(xas_control%xas_method == xes_tp_val) THEN
-                       occupation_numbers(dft_control%xas_estate) = 0.80_dp
-                       occupation_numbers(ir_max) = 1.0_dp
-                       occupation_numbers(homo) = 0.2_dp
-                   END IF
-
+                   occupation_numbers(dft_control%xas_estate) = xas_control%occ_estate
+                   occupation_numbers(ir_max) = 1.0_dp
+                   occupation_numbers(homo) =  xas_control%occ_homo
                  END IF
 
                  ! IOnization Potential
@@ -595,7 +578,7 @@ CONTAINS
           EXIT scf_loop
        END IF
 
-    IF (BTEST(cp_print_key_should_output(logger%iter_info,&
+    IF (.NOT.BTEST(cp_print_key_should_output(logger%iter_info,&
          scf_section,"PRINT%ITERATION_INFO/TIME_CUMUL",error=error),cp_p_file)) t1 = m_walltime()
 
 !   *** mixing methods have the new density matrix in p_mix_new
@@ -618,7 +601,41 @@ CONTAINS
        CALL timestop(0.0_dp,handle2)
 
     END DO scf_loop
+
     IF (output_unit>0) THEN
+       WRITE (UNIT=output_unit,FMT="(/,(T3,A,T40,2F20.10))")&
+            "Total electronic density (r-space): ",&
+            SUM(rho%tot_rho_r),&
+            SUM(rho%tot_rho_r)+ REAL(scf_env%nelectron,dp),&
+            "Total core charge density (r-space):",&
+            qs_charges%total_rho_core_rspace,&
+            qs_charges%total_rho_core_rspace - REAL(scf_env%nelectron+dft_control%charge,dp)
+       IF(gapw) THEN
+          tot1_h =  qs_charges%total_rho1_hard(1)
+          tot1_s =  qs_charges%total_rho1_soft(1)
+          DO ispin=2,dft_control%nspins
+            tot1_h = tot1_h + qs_charges%total_rho1_hard(ispin)
+            tot1_s = tot1_s + qs_charges%total_rho1_soft(ispin)
+          END DO
+          WRITE (UNIT=output_unit,FMT="(/,(T3,A,T40,2F20.10))")&
+                "Hard and soft densities (Lebedev):",&
+                tot1_h, tot1_s
+          WRITE (UNIT=output_unit,FMT="(T3,A,T60,F20.10)")&
+               "Total Rho_soft + Rho1_hard - Rho1_soft (r-space): ",&
+               SUM(rho%tot_rho_r)+ tot1_h - tot1_s ,&
+               "Total charge density (r-space):      ",&
+               SUM(rho%tot_rho_r)+ tot1_h - tot1_s &
+               + qs_charges%total_rho_core_rspace,&
+               "Total Rho_soft + Rho0_soft (g-space):",&
+               qs_charges%total_rho_gspace
+       ELSE
+         WRITE (UNIT=output_unit,FMT="(T3,A,T60,F20.10)")&
+            "Total charge density (r-space):     ",&
+            SUM(rho%tot_rho_r)+&
+            qs_charges%total_rho_core_rspace,&
+            "Total charge density (g-space):     ",qs_charges%total_rho_gspace
+       END IF
+
          WRITE (UNIT=output_unit,FMT="(/,(T3,A,T55,F25.14))")&
             "Overlap energy of the core charge distribution:",energy%core_overlap,&
             "Self energy of the core charge distribution:   ",energy%core_self,&
@@ -644,10 +661,6 @@ CONTAINS
     DEALLOCATE(vecbuffer,vecbuffer2,STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
-    !Still not sure if this is really possible
-!dbg
-!     write(*,*) xas_env%scf_method, xas_scf_general
-!dbg
     IF(.NOT.xas_env%scf_method==xas_scf_general) THEN
     ! Rotate the wfn to get the eugenstate of the KS hamiltonian
     ! Only ispin=1 should be needed
@@ -662,9 +675,6 @@ CONTAINS
     END IF
 
     !Calculate the virtual states from the KS matrix matrix_ks(1)
-!dbg
-!     write(*,*) 'nv2 ', nvirtual2
-!dbg
     IF(nvirtual2 .GT. 0) THEN
       NULLIFY(mo_coeff,uno_orbs,uno_evals,preconditioner)
       ALLOCATE(preconditioner,STAT=istat)

@@ -80,6 +80,10 @@ CONTAINS
     na = 0
     nda = 0
 
+    dabdx=0.0_dp
+    dabdy=0.0_dp
+    dabdz=0.0_dp
+
     DO ipgf=1,npgfa
 
       fa = 2.0_dp*zeta(ipgf)

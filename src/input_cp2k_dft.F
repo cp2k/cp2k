@@ -2114,7 +2114,7 @@ SUBROUTINE create_tddfpt_section(section,error)
 
        CALL cp_print_key_section_create(print_key,"total_densities",&
             description="Controls the printing of total densities.", &
-            print_level=high_print_level,each=(/0/),add_last=(/1/),filename="__STD_OUT__",&
+            print_level=medium_print_level,each=(/1/),add_last=(/1/),filename="__STD_OUT__",&
             error=error)
        CALL section_add_subsection(subsection,print_key,error=error)
        CALL section_release(print_key,error=error)
@@ -3294,12 +3294,22 @@ END SUBROUTINE create_ot_section
            description="Method to be used to calculate XAS",&
            usage="METHOD TP_HH",&
            default_i_val=xas_none,&
-           enum_c_vals=s2a( "NONE", "TP_HH", "TP_FH", "TP_VAL", "TDDFT","DSCF"),&
+           enum_c_vals=s2a( "NONE", "TP_HH", "TP_FH", "TP_VAL", "TP_XHH","TP_XFH", "TDDFT","DSCF"),&
            enum_desc=s2a("No XAS is calculated", "Transition potential halfhole",&
                          "Transition potential fullhole", "Hole in homo for XES " , &
+                         "Transition potential excited halfhole", &
+                         "Transition potential excited fullhole " , &
                          "Excitations by TDDFT","DSCF calculations for the first excited state"),&
-           enum_i_vals=(/xas_none,xas_tp_hh,xas_tp_fh,xes_tp_val,xas_tddft,xas_dscf/),&
-           error=error)
+           enum_i_vals=(/xas_none,xas_tp_hh,xas_tp_fh,xes_tp_val,xas_tp_xhh,&
+           xas_tp_xfh,xas_tddft,xas_dscf/), error=error)
+      CALL section_add_keyword(section,keyword,error=error)
+      CALL keyword_release(keyword,error=error)
+
+      CALL keyword_create(keyword, name="XES_CORE",&
+           description="occupation of the core state in XES calculation by TP_VAL."//&
+           "The homo is emptied by the same amount",&
+           usage="XES_CORE 0.5",&
+           default_r_val=1._dp,error=error)
       CALL section_add_keyword(section,keyword,error=error)
       CALL keyword_release(keyword,error=error)
 

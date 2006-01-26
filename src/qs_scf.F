@@ -101,7 +101,9 @@ MODULE qs_scf
   USE input_constants,                 ONLY: ot_precond_none,&
                                              ot_precond_full_all,&
                                              xas_tp_hh, &
+                                             xas_tp_xhh, &
                                              xas_tp_fh, &
+                                             xas_tp_xfh, &
                                              xes_tp_val, &
                                              qs_debug_run, &
                                              xas_dscf,&
@@ -1511,21 +1513,11 @@ CONTAINS
           IF(my_transition_potential .AND. ispin==1) THEN
             CALL get_mo_set(mos(ispin)%mo_set,&
                  occupation_numbers=occupation_numbers)
-            IF(dft_control%xas_control%xas_method == xas_tp_hh) THEN
-               occupation_numbers(dft_control%xas_estate) = 0.5_dp
-               uniform_occupation = .FALSE.
-            ELSE IF(dft_control%xas_control%xas_method == xas_tp_fh) THEN
-               occupation_numbers(dft_control%xas_estate) = 0.0_dp
-               uniform_occupation = .FALSE.    
-            ELSE IF(dft_control%xas_control%xas_method == xas_dscf) THEN
-               occupation_numbers(dft_control%xas_estate) = 0.0_dp
-               uniform_occupation = .FALSE.
-               occupation_numbers(homo) = 1.0_dp
-            ELSE IF(dft_control%xas_control%xas_method == xes_tp_val) THEN
-               occupation_numbers(dft_control%xas_estate) = 1.0_dp
-               uniform_occupation = .FALSE.
-               occupation_numbers(homo) = 0.0_dp
-            END IF
+            occupation_numbers(dft_control%xas_estate) = &
+                 dft_control%xas_control%occ_estate
+            occupation_numbers(homo) = dft_control%xas_control%occ_homo
+            uniform_occupation = .FALSE.
+
             CALL set_mo_set(mos(ispin)%mo_set,&
                  uniform_occupation=uniform_occupation)
           END IF

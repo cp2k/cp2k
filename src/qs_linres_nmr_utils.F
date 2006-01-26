@@ -71,7 +71,7 @@ MODULE qs_linres_nmr_utils
                                              qs_matrix_pools_type
   USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
   USE qs_operators_ao,                 ONLY: set_up_op_rmd
-  USE qs_p_env_types,                  ONLY: qs_p_env_type
+  USE qs_p_env_types,                  ONLY: qs_p_env_type, p_env_release
   USE scf_control_types,               ONLY: scf_control_type
   USE cell_types,                 ONLY: cell_type, pbc
   USE sparse_matrix_types,             ONLY: allocate_matrix_set,cp_sm_scale_and_add,&
@@ -275,7 +275,6 @@ CONTAINS
         END IF
      END DO ! idir
 
- stop 'wait'
      IF(nmr_env%full_nmr) THEN
        DO ispin = 1,dft_control%nspins
          CALL cp_fm_set_all(psi1(ispin)%matrix,0.0_dp,error=error)
@@ -300,6 +299,12 @@ CONTAINS
               CALL set_vecp(idir,ii,iii)
               dk(1:3) = nmr_env%centers_set(ispin)%array(1:3,ist_true)
               
+              IF(output_unit>0) THEN
+                WRITE (UNIT=output_unit,FMT="(T10,A,I4,A,I4/)")&
+               "Response to the perturbation operator (dk-dl)xp for the k state ",&
+                ist_true, " in dir. ", idir
+              END IF
+
               DO istate2 = 1,nmr_env%nstates(ispin)
                 dl(1:3)  = nmr_env%centers_set(ispin)%array(1:3,istate2)
                 dkl = pbc(dl,dk,cell)
@@ -347,10 +352,23 @@ CONTAINS
        END DO  ! ispin
      END IF
 
+    !If current density and shift are calculated here
+    ! probably a lot of memory is required
+    ! Better to free what is not anymore necessary in p_env
+     CALL p_env_release(p_env)
+
     !Calculate current density and induced field
      IF(nmr_env%current_density) THEN
 !      CALL current_density(nmr_env,error=error)
+       ! The 3 density matrix obtained from nmr_env%psi1_p are always needed
+       
+       !The three direction of B are treated separatedly
+       DO idir = 1,3
+
+       END DO
+
      END IF
+ stop 'wait'
 
     !----------!
     ! clean up !

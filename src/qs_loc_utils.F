@@ -32,8 +32,6 @@ MODULE qs_loc_utils
                                              gto_basis_set_type
   USE coefficient_types,               ONLY: coeff_type
   USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm
-!  USE cp_fm_pool_types,                ONLY: cp_fm_pool_p_type,&
-!                                             fm_pool_create_fm
   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                              cp_fm_struct_release,&
                                              cp_fm_struct_type
@@ -68,7 +66,6 @@ MODULE qs_loc_utils
                                              state_loc_fromitoj,&
                                              state_loc_list
   USE mathconstants,                   ONLY: pi, twopi
-  USE memory_utilities,                ONLY: reallocate
   USE orbital_pointers,                ONLY: nco,&
                                              ncoset
   USE particle_types,                  ONLY: particle_type
@@ -91,7 +88,6 @@ MODULE qs_loc_utils
                                              neighbor_list_type,&
                                              neighbor_node_type,&
                                              next
-!  USE qs_matrix_pools,                 ONLY: mpools_get
   USE qs_mo_types,                     ONLY: get_mo_set,&
                                              mo_set_p_type
   USE cell_types,                 ONLY: cell_type,&
@@ -666,9 +662,12 @@ END SUBROUTINE qs_loc_env_init
     ldab = ldwork
     nthread = 1
 !$  nthread = omp_get_max_threads()
-    CALL reallocate(cosabt,1,ldab,1,ldab,0,nthread-1) 
-    CALL reallocate(sinabt,1,ldab,1,ldab,0,nthread-1) 
-    CALL reallocate(workt,1,ldwork,1,ldwork,0,nthread-1)
+    ALLOCATE(cosabt(ldab,ldab,0:nthread-1))
+    cosabt = 0.0_dp
+    ALLOCATE(sinabt(ldab,ldab,0:nthread-1))
+    sinabt = 0.0_dp
+    ALLOCATE(workt(ldwork,ldwork,0:nthread-1))
+    workt = 0.0_dp
 
     ALLOCATE (op_cost(3,0:nthread-1),STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
