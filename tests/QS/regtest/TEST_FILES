@@ -164,3 +164,10 @@ H-gapw-all.inp     1
 # test the full_all with LSD and GAPW
 He2-all.inp        1
 He2-all-md.inp     1
+#XAS
+CO.inp             1
+CO_xastphh.inp     1
+CO_xastpfh.inp     1
+CO_xastpxhh.inp    1
+CO_xastpxfh.inp    1
+CO_xastpval.inp    1
