@@ -48,12 +48,15 @@ MODULE bfgs_optimizer
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE input_constants,                 ONLY: dump_xmol
-  USE input_section_types, ONLY: section_vals_type, section_vals_get_subs_vals,&
+  USE input_section_types,             ONLY: section_vals_type, section_vals_get_subs_vals,&
        section_vals_get, section_vals_val_get, section_vals_release
   USE cp_output_handling,              ONLY: cp_print_key_unit_nr, &
                                              cp_print_key_finished_output,&
                                              cp_print_key_should_output,&
-                                             cp_p_file
+                                             cp_p_file,&
+                                             cp_add_iter_level,&
+                                             cp_rm_iter_level,&
+                                             cp_iterate
 
 #include "cp_common_uses.h"
   IMPLICIT NONE
@@ -76,39 +79,41 @@ CONTAINS
 
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(global_environment_type), &
-      pointer                             :: globenv
+         pointer                             :: globenv
     TYPE(gopt_param_type), POINTER           :: gopt_param
     TYPE(section_vals_type), POINTER :: force_env_section
     TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+         OPTIONAL                               :: error
 
     CHARACTER(LEN=*), PARAMETER              :: routine_name = 'geoopt_bfgs'
     REAL(KIND=dp), PARAMETER                 :: one = 1.0_dp, zero = 0.0_dp
 
     CHARACTER(LEN=80)                        :: title
     INTEGER :: atom, dataunit, handle, hesunit, i, iatom, ikind, indf, istat, &
-      it, j, maxiter, natom, ndf, nfixed, nfree, nkind, output_unit
+         it, j, maxiter, natom, ndf, nfixed, nfree, nkind, output_unit
     INTEGER, DIMENSION(:), POINTER           :: atom_list
     LOGICAL                                  :: conv, hesrest, ionode,should_stop
     REAL(KIND=dp)                            :: ediff, emin, eold, etot, &
-                                                pred, rad, rat, step
+         pred, rad, rat, step
     REAL(KIND=dp), ALLOCATABLE :: dg(:), dr(:), dx(:), eigval(:), &
-      eigvec(:,:), g(:), gold(:), hes(:), hes_mat(:,:), work(:), x(:), xold(:)
+         eigvec(:,:), g(:), gold(:), hes(:), hes_mat(:,:), work(:), x(:), xold(:)
     TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
     TYPE(atomic_kind_type), DIMENSION(:), &
-      POINTER                                :: atomic_kind_set
+         POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_subsystem_p_type), &
-      DIMENSION(:), POINTER                  :: subsys
+         DIMENSION(:), POINTER                  :: subsys
     TYPE(particle_list_type), POINTER        :: particles
     TYPE(particle_type), DIMENSION(:), &
-      POINTER                                :: particle_set
+         POINTER                                :: particle_set
     TYPE(cp_logger_type), POINTER            :: logger
+    INTEGER :: ihandle
 
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
 
+    CALL cp_add_iter_level(logger%iter_info,"GEO_OPT",ihandle,error)
     CALL write_checkpoint_information("Entering "//routine_name,globenv,error)
     CALL timeset(routine_name,"I","",handle)
 
@@ -124,12 +129,12 @@ CONTAINS
          extension=".geoLog",error=error)
 
     CALL force_env_get(force_env,&
-                       cell=cell,&
-                       subsys=subsys)
+         cell=cell,&
+         subsys=subsys)
 
     CALL cp_subsys_get(subsys=subsys(1)%subsys,&
-                       atomic_kinds=atomic_kinds,&
-                       particles=particles)
+         atomic_kinds=atomic_kinds,&
+         particles=particles)
 
     nkind = atomic_kinds%n_els
     atomic_kind_set => atomic_kinds%els
@@ -137,7 +142,7 @@ CONTAINS
     natom = particles%n_els  
     particle_set => particles%els    
 
-!   Atom fixing constraints for optimizer
+    !   Atom fixing constraints for optimizer
 
     nfixed = COUNT(particle_set(:)%is_fixed)
     nfree = natom - nfixed
@@ -156,263 +161,263 @@ CONTAINS
     ALLOCATE(work(ndf))
     ALLOCATE(dr(ndf))
 
-!   *** Store the coordinates ***
+    !   *** Store the coordinates ***
 
     indf = 0
 
     DO ikind=1,nkind
-      atomic_kind => atomic_kind_set(ikind)
-      CALL get_atomic_kind(atomic_kind=atomic_kind,&
-                           atom_list=atom_list)
-      natom = SIZE(atom_list)
-      DO iatom=1,natom
-         atom = atom_list(iatom)
-         IF (.NOT.particle_set(atom)%is_fixed) THEN
-            DO j = 1, 3
-              indf = indf + 1
-              x(indf) = particle_set(atom)%r(j)
-              xold(indf) = x(indf)
-            END DO
-         END IF
-      END DO
+       atomic_kind => atomic_kind_set(ikind)
+       CALL get_atomic_kind(atomic_kind=atomic_kind,&
+            atom_list=atom_list)
+       natom = SIZE(atom_list)
+       DO iatom=1,natom
+          atom = atom_list(iatom)
+          IF (.NOT.particle_set(atom)%is_fixed) THEN
+             DO j = 1, 3
+                indf = indf + 1
+                x(indf) = particle_set(atom)%r(j)
+                xold(indf) = x(indf)
+             END DO
+          END IF
+       END DO
     END DO
 
-!  Initialize hessian (hes = unitary matrix ) 
-   
-   DO indf = 1, ndf
-     DO j = 1, indf
-        i = indf * (indf - 1)/2 + j
-        hes(i) = zero
-     END DO
-     i = indf * (indf-1)/2 + indf
-     hes(i) = one
-   END DO 
+    !  Initialize hessian (hes = unitary matrix ) 
 
-
-! Geometry optimization starts now
-
-  IF(output_unit>0)THEN
-    WRITE(UNIT=output_unit,FMT="(/,T2,A)") REPEAT("*",79)
-    WRITE(UNIT=output_unit,FMT="(T2,A,T28,A,T78,A)")&
-      "***","STARTING GEOMETRY OPTIMIZATION","***"
-    WRITE(UNIT=output_unit,FMT="(T2,A)") REPEAT("*",79)
-    WRITE(UNIT=output_unit,FMT="(/,(T2,A,I10))")&
-      "Number of free atoms         = ",nfree,&
-      "Number of degrees of freedom = ",ndf
-    CALL m_flush(output_unit)
-  END IF
-
-  CALL write_qs_particle_coordinates(particle_set,cell,force_env_section,error) 
-  CALL write_particle_distances(particle_set,cell,force_env_section,error)
-
-  IF(ionode)THEN
-    CALL open_file(file_name="HESSIAN",&
-                   file_status="UNKNOWN",&
-                   file_form="UNFORMATTED",&
-                   file_action="READWRITE",&
-                   unit_number=hesunit)
-  END IF
-
-! Calculate Energy & Gradients
-
-  CALL force_env_calc_energy_force(force_env,calc_force=.TRUE.,error=error)
-
-! Copy forces to g, the gradients
-
-  indf = 0
-  DO ikind=1,nkind
-       atomic_kind => atomic_kind_set(ikind)
-       CALL get_atomic_kind(atomic_kind=atomic_kind,&
-                           atom_list=atom_list)
-        natom = SIZE(atom_list)
-        DO iatom=1,natom
-            atom = atom_list(iatom)
-            IF (.NOT.particle_set(atom)%is_fixed) THEN
-              DO j = 1, 3
-                indf = indf + 1
-                g(indf) = -particle_set(atom)%f(j)
-              END DO
-            END IF
-        END DO
-  END DO
-
-  CALL force_env_get(force_env=force_env,potential_energy=etot)
-
-  emin = etot
-
-  it = 0
-  
-  DO 
-
-     it = it + 1
-
-     IF(it > maxiter )THEN
-       IF(output_unit>0)THEN
-         WRITE(UNIT=output_unit,FMT="(/,T2,A)")&
-           "*** MAXIMUM NUMBER OF OPTIMIZATION STEPS REACHED ***"
-         WRITE(UNIT=output_unit,FMT="(T2,A)")&
-           "***        EXITING GEOMETRY OPTIMIZATION         ***" 
-         CALL m_flush(output_unit)
-       END IF
-       EXIT
-     END IF
-     ! check for an external exit command 
-     CALL external_control(should_stop,"GEO",globenv,error)
-     IF(should_stop) EXIT
-
-     IF (output_unit>0)THEN
-       WRITE(UNIT=output_unit,FMT="(/,T2,26('-'))")
-       WRITE(UNIT=output_unit,FMT="(T2,A,I6)")&
-         "OPTIMIZATION STEP: ",it
-       WRITE(UNIT=output_unit,FMT="(T2,26('-'))")
-       CALL m_flush(output_unit)
-     END IF
-
-!    ** Hessian update/restarting **
-
-     IF ((it == 1).AND.hesrest) THEN
-        IF(ionode)THEN
-           DO i=1,SIZE(hes)
-              READ(UNIT=hesunit,IOSTAT=istat)hes(i)
-           END DO
-           REWIND(hesunit)
-           IF (istat /= 0) THEN
-              WRITE(UNIT=output_unit,FMT="(/,T2,A)")&
-                   "**  Error while reading HESSIAN **"
-              conv = .TRUE.
-           ELSE
-              WRITE(UNIT=output_unit,FMT="(/,T2,A)")&
-                   "*** Initial Hessian has been restarted successfully ***"
-           END IF
-           
-        END IF        
-        CALL mp_bcast(hes,globenv%source,globenv%group)        
-     ELSE IF( it > 1 ) THEN        
-        DO indf = 1, ndf
-           dx(indf) = x(indf) - xold(indf)
-           dg(indf) = g(indf) - gold(indf)     
-        END DO
-        
-        CALL bfgs(ndf,dx,dg,hes,work)
-        
-        IF(ionode)THEN
-           DO i = 1, SIZE(hes)
-              WRITE(UNIT=hesunit)hes(i)
-              CALL m_flush(hesunit)
-           END DO
-           REWIND(hesunit)
-        END IF
-     END IF
-     
-     !    ** Setting the present positions & gradients as old **
-
-     CALL DCOPY(ndf,x,1,xold,1)
-     CALL DCOPY(ndf,g,1,gold,1)
-
-!    ** Copying hessian hes to (ndf x ndf) matrix hes_mat for diagonalization **
-
-     DO indf = 1, ndf
+    DO indf = 1, ndf
        DO j = 1, indf
-         i = indf*(indf-1)/2 + j
-         eigvec(indf,j) = hes(i)
-         eigvec(j,indf) = hes(i)
+          i = indf * (indf - 1)/2 + j
+          hes(i) = zero
        END DO
-     END DO
+       i = indf * (indf-1)/2 + indf
+       hes(i) = one
+    END DO
 
-     CALL diamat_all(eigvec,eigval,dac=.FALSE.)
 
-     CALL set_hes_eig(ndf,eigval,work)
+    ! Geometry optimization starts now
 
-     CALL DCOPY(ndf,eigval,1,dx,1)
+    IF(output_unit>0)THEN
+       WRITE(UNIT=output_unit,FMT="(/,T2,A)") REPEAT("*",79)
+       WRITE(UNIT=output_unit,FMT="(T2,A,T28,A,T78,A)")&
+            "***","STARTING GEOMETRY OPTIMIZATION","***"
+       WRITE(UNIT=output_unit,FMT="(T2,A)") REPEAT("*",79)
+       WRITE(UNIT=output_unit,FMT="(/,(T2,A,I10))")&
+            "Number of free atoms         = ",nfree,&
+            "Number of degrees of freedom = ",ndf
+       CALL m_flush(output_unit)
+    END IF
 
-     CALL rat_fun_opt(ndf,dg,eigval,work,eigvec,g)
+    CALL write_qs_particle_coordinates(particle_set,cell,force_env_section,error) 
+    CALL write_particle_distances(particle_set,cell,force_env_section,error)
 
-     CALL geoopt_get_step(ndf,eigval,eigvec,hes_mat,dr,g)
+    IF(ionode)THEN
+       CALL open_file(file_name="HESSIAN",&
+            file_status="UNKNOWN",&
+            file_form="UNFORMATTED",&
+            file_action="READWRITE",&
+            unit_number=hesunit)
+    END IF
 
-     CALL trust_radius(ndf,nfree,step,rad,rat,dr,output_unit,output_unit>0)
-     
-!   ** Updating the present positions ** 
+    ! Calculate Energy & Gradients
+
+    CALL force_env_calc_energy_force(force_env,calc_force=.TRUE.,error=error)
+
+    ! Copy forces to g, the gradients
 
     indf = 0
     DO ikind=1,nkind
        atomic_kind => atomic_kind_set(ikind)
        CALL get_atomic_kind(atomic_kind=atomic_kind,&
-                           atom_list=atom_list)
-        natom = SIZE(atom_list)
-        DO iatom=1,natom
-            atom = atom_list(iatom)
-            IF (.NOT.particle_set(atom)%is_fixed) THEN
-              DO j = 1, 3
-                indf = indf + 1
-                particle_set(atom)%r(j) = particle_set(atom)%r(j) + dr(indf)
-                x(indf) = x(indf) + dr(indf)
-              END DO
-            END IF
-        END DO
-    END DO     
-
-!  Printing section
-
-   IF (ionode) THEN
-      dataunit = cp_print_key_unit_nr(logger,globenv%input_file,&
-           "MOTION%PRINT%TRAJECTORY",extension=".xyz",error=error)
-      IF (dataunit>0) THEN
-         WRITE (UNIT=title,FMT="(A,I8,A,F20.10)") " i =",it,", E =",etot
-         CALL write_particle_coordinates(particle_set,cell,dataunit,&
-              dump_xmol,"POS",TRIM(title))
-         CALL m_flush(dataunit)
-      END IF
-      CALL cp_print_key_finished_output(dataunit,logger,globenv%input_file,&
-           "MOTION%PRINT%TRAJECTORY", error=error)     
-      CALL write_qs_particle_coordinates(particle_set,cell,force_env_section,error)
-   END IF
-
-   CALL write_particle_distances(particle_set,cell,force_env_section,error)
-
-   CALL energy_predict(ndf,work,hes,dr,g,output_unit>0,output_unit,conv,pred)
-
-   IF (conv) EXIT
-
-     eold = etot
-
-!    ** Energy & Gradients at new step **
-
-     CALL force_env_calc_energy_force(force_env,calc_force=.TRUE.,error=error)
-
-     indf = 0
-     DO ikind=1,nkind
-       atomic_kind => atomic_kind_set(ikind)
-       CALL get_atomic_kind(atomic_kind=atomic_kind,&
-                           atom_list=atom_list)
-        natom = SIZE(atom_list)
-        DO iatom=1,natom
-            atom = atom_list(iatom)
-            IF (.NOT.particle_set(atom)%is_fixed) THEN
-              DO j = 1, 3
+            atom_list=atom_list)
+       natom = SIZE(atom_list)
+       DO iatom=1,natom
+          atom = atom_list(iatom)
+          IF (.NOT.particle_set(atom)%is_fixed) THEN
+             DO j = 1, 3
                 indf = indf + 1
                 g(indf) = -particle_set(atom)%f(j)
-              END DO
-            END IF
-        END DO
-     END DO
+             END DO
+          END IF
+       END DO
+    END DO
 
     CALL force_env_get(force_env=force_env,potential_energy=etot)
 
-    ediff = etot - eold
+    emin = etot
 
-    IF(output_unit>0) CALL write_cycle_infos &
-         (output_unit,it,etot,ediff,pred,rat,step,rad,emin," BFGS")
+    it = 0
 
-    IF(etot < emin ) emin = etot 
+    DO 
+       
+       it = it + 1
+       CALL cp_iterate(logger%iter_info,iter_nr=it,error=error)
+       IF(it > maxiter )THEN
+          IF(output_unit>0)THEN
+             WRITE(UNIT=output_unit,FMT="(/,T2,A)")&
+                  "*** MAXIMUM NUMBER OF OPTIMIZATION STEPS REACHED ***"
+             WRITE(UNIT=output_unit,FMT="(T2,A)")&
+                  "***        EXITING GEOMETRY OPTIMIZATION         ***" 
+             CALL m_flush(output_unit)
+          END IF
+          EXIT
+       END IF
+       ! check for an external exit command 
+       CALL external_control(should_stop,"GEO",globenv,error)
+       IF(should_stop) EXIT
 
-    CALL update_trust_rad(rat,rad,step,ediff)
+       IF (output_unit>0)THEN
+          WRITE(UNIT=output_unit,FMT="(/,T2,26('-'))")
+          WRITE(UNIT=output_unit,FMT="(T2,A,I6)")&
+               "OPTIMIZATION STEP: ",it
+          WRITE(UNIT=output_unit,FMT="(T2,26('-'))")
+          CALL m_flush(output_unit)
+       END IF
 
-    CALL check_converg(ndf,dr,g,output_unit>0,output_unit,conv,gopt_param)
+       !    ** Hessian update/restarting **
+
+       IF ((it == 1).AND.hesrest) THEN
+          IF(ionode)THEN
+             DO i=1,SIZE(hes)
+                READ(UNIT=hesunit,IOSTAT=istat)hes(i)
+             END DO
+             REWIND(hesunit)
+             IF (istat /= 0) THEN
+                WRITE(UNIT=output_unit,FMT="(/,T2,A)")&
+                     "**  Error while reading HESSIAN **"
+                conv = .TRUE.
+             ELSE
+                WRITE(UNIT=output_unit,FMT="(/,T2,A)")&
+                     "*** Initial Hessian has been restarted successfully ***"
+             END IF
+
+          END IF
+          CALL mp_bcast(hes,globenv%source,globenv%group)        
+       ELSE IF( it > 1 ) THEN        
+          DO indf = 1, ndf
+             dx(indf) = x(indf) - xold(indf)
+             dg(indf) = g(indf) - gold(indf)     
+          END DO
+
+          CALL bfgs(ndf,dx,dg,hes,work)
+
+          IF(ionode)THEN
+             DO i = 1, SIZE(hes)
+                WRITE(UNIT=hesunit)hes(i)
+                CALL m_flush(hesunit)
+             END DO
+             REWIND(hesunit)
+          END IF
+       END IF
+
+       !    ** Setting the present positions & gradients as old **
+
+       CALL DCOPY(ndf,x,1,xold,1)
+       CALL DCOPY(ndf,g,1,gold,1)
+
+       !    ** Copying hessian hes to (ndf x ndf) matrix hes_mat for diagonalization **
+
+       DO indf = 1, ndf
+          DO j = 1, indf
+             i = indf*(indf-1)/2 + j
+             eigvec(indf,j) = hes(i)
+             eigvec(j,indf) = hes(i)
+          END DO
+       END DO
+
+       CALL diamat_all(eigvec,eigval,dac=.FALSE.)
+
+       CALL set_hes_eig(ndf,eigval,work)
+
+       CALL DCOPY(ndf,eigval,1,dx,1)
+
+       CALL rat_fun_opt(ndf,dg,eigval,work,eigvec,g)
+
+       CALL geoopt_get_step(ndf,eigval,eigvec,hes_mat,dr,g)
+
+       CALL trust_radius(ndf,nfree,step,rad,rat,dr,output_unit,output_unit>0)
+
+       !   ** Updating the present positions ** 
+
+       indf = 0
+       DO ikind=1,nkind
+          atomic_kind => atomic_kind_set(ikind)
+          CALL get_atomic_kind(atomic_kind=atomic_kind,&
+               atom_list=atom_list)
+          natom = SIZE(atom_list)
+          DO iatom=1,natom
+             atom = atom_list(iatom)
+             IF (.NOT.particle_set(atom)%is_fixed) THEN
+                DO j = 1, 3
+                   indf = indf + 1
+                   particle_set(atom)%r(j) = particle_set(atom)%r(j) + dr(indf)
+                   x(indf) = x(indf) + dr(indf)
+                END DO
+             END IF
+          END DO
+       END DO
+
+       !  Printing section
+
+       IF (ionode) THEN
+          dataunit = cp_print_key_unit_nr(logger,globenv%input_file,&
+               "MOTION%PRINT%TRAJECTORY",extension=".xyz",error=error)
+          IF (dataunit>0) THEN
+             WRITE (UNIT=title,FMT="(A,I8,A,F20.10)") " i =",it,", E =",etot
+             CALL write_particle_coordinates(particle_set,cell,dataunit,&
+                  dump_xmol,"POS",TRIM(title))
+             CALL m_flush(dataunit)
+          END IF
+          CALL cp_print_key_finished_output(dataunit,logger,globenv%input_file,&
+               "MOTION%PRINT%TRAJECTORY", error=error)     
+          CALL write_qs_particle_coordinates(particle_set,cell,force_env_section,error)
+       END IF
+
+       CALL write_particle_distances(particle_set,cell,force_env_section,error)
+
+       CALL energy_predict(ndf,work,hes,dr,g,output_unit>0,output_unit,conv,pred)
+
+       IF (conv) EXIT
+
+       eold = etot
+
+       !    ** Energy & Gradients at new step **
+
+       CALL force_env_calc_energy_force(force_env,calc_force=.TRUE.,error=error)
+
+       indf = 0
+       DO ikind=1,nkind
+          atomic_kind => atomic_kind_set(ikind)
+          CALL get_atomic_kind(atomic_kind=atomic_kind,&
+               atom_list=atom_list)
+          natom = SIZE(atom_list)
+          DO iatom=1,natom
+             atom = atom_list(iatom)
+             IF (.NOT.particle_set(atom)%is_fixed) THEN
+                DO j = 1, 3
+                   indf = indf + 1
+                   g(indf) = -particle_set(atom)%f(j)
+                END DO
+             END IF
+          END DO
+       END DO
+
+       CALL force_env_get(force_env=force_env,potential_energy=etot)
+
+       ediff = etot - eold
+
+       IF(output_unit>0) CALL write_cycle_infos &
+            (output_unit,it,etot,ediff,pred,rat,step,rad,emin," BFGS")
+
+       IF(etot < emin ) emin = etot 
+
+       CALL update_trust_rad(rat,rad,step,ediff)
+
+       CALL check_converg(ndf,dr,g,output_unit>0,output_unit,conv,gopt_param)
 
 
-    IF(conv) EXIT
+       IF(conv) EXIT
 
-  END DO
+    END DO
 
     DEALLOCATE(x)
     DEALLOCATE(hes)
@@ -428,16 +433,17 @@ CONTAINS
     DEALLOCATE(dr)
 
     IF(ionode)THEN
-        CALL close_file(unit_number=hesunit)
+       CALL close_file(unit_number=hesunit)
     END IF
     CALL cp_print_key_finished_output(output_unit,logger,globenv%input_file,&
-            "MOTION%GEOOPT%PRINT%PROGRAM_RUN_INFO", error=error)     
+         "MOTION%GEOOPT%PRINT%PROGRAM_RUN_INFO", error=error)     
 
+    CALL cp_rm_iter_level(logger%iter_info,ihandle,error)
     CALL timestop(0.0_dp,handle)
 
     CALL write_checkpoint_information("Leaving "//routine_name,globenv,error)
 
-    END SUBROUTINE geoopt_bfgs 
+  END SUBROUTINE geoopt_bfgs
 
 ! *********************************************************************************
 

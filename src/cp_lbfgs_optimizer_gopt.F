@@ -64,7 +64,8 @@ MODULE cp_lbfgs_optimizer_gopt
   USE cp_output_handling,              ONLY: cp_print_key_unit_nr, &
                                              cp_print_key_finished_output,&
                                              cp_print_key_should_output,&
-                                             cp_p_file
+                                             cp_p_file,&
+                                             cp_iterate
   USE force_env_types,                 ONLY: force_env_get,&
                                              force_env_type
   USE cell_types,                 ONLY: cell_type
@@ -742,6 +743,7 @@ END SUBROUTINE cp_opt_gopt_release
                optimizer%para_env%group)
           ! Dump info
           IF (optimizer%status == 3) THEN
+	     CALL cp_iterate(logger%iter_info,iter_nr=optimizer%isave(30),error=error)
              dataunit = cp_print_key_unit_nr(logger,input,&
                   "MOTION%PRINT%TRAJECTORY",extension=".xyz",error=error)
              IF (dataunit>0) THEN
@@ -787,7 +789,7 @@ END SUBROUTINE cp_opt_gopt_release
                   optimizer%para_env%group)
           CASE (3)
              !op=3 ended iter             
-             wildcard = "LBFGS"
+             wildcard = "LBFGS"	     
              dataunit = cp_print_key_unit_nr(logger,input,&
                   "MOTION%GEOOPT%PRINT%PROGRAM_RUN_INFO",extension=".geoLog",error=error)
              IF (dataunit>0) THEN

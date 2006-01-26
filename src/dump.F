@@ -32,12 +32,10 @@ MODULE dump
                                              md_environment_type
   USE memory_utilities,                ONLY: reallocate
   USE message_passing,                 ONLY: mp_bcast, mp_allgather
-  USE cp_files,                        ONLY: close_file,&
-                                             open_file,&
-                                             move_file
   USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
+  USE global_types,                    ONLY: global_environment_type
 
 #include "cp_common_uses.h"
 
@@ -80,21 +78,21 @@ CONTAINS
 !!
 !!*** **********************************************************************
 
-  SUBROUTINE dump_variables(md_env,dump_file_name,error)
+  SUBROUTINE dump_variables(md_env,dump_unit,globenv,error)
 
     TYPE(md_environment_type), POINTER       :: md_env
-    CHARACTER(LEN=*), INTENT(IN)             :: dump_file_name
+    INTEGER, INTENT(IN)                      :: dump_unit
     TYPE(cp_error_type), INTENT(INOUT), &
-      OPTIONAL                               :: error
+         OPTIONAL                            :: error
+    TYPE(global_environment_type), POINTER   :: globenv
 
     CHARACTER(LEN=*), PARAMETER :: routineN = "dump_force_env_variables", &
       routineP = moduleN//":"//routineN
 
-    INTEGER                                  :: dump_unit, handle, i, j, size1, size2
+    INTEGER                                  :: handle, i, j, size1, size2
     INTEGER                                  :: nhc_len, num_nhc, isos, numneed
-    INTEGER                                  :: tot_nhcneed, iproc, counter
-    TYPE(cp_error_type)                      :: new_error
-    TYPE(cp_logger_type), POINTER            :: logger, new_logger
+    INTEGER                                  :: tot_nhcneed, iproc, counter   
+    TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(force_env_p_type), DIMENSION(:), POINTER  :: force_env_p
     TYPE(lnhc_parameters_type), POINTER      :: nhc_part( : ), nhc_coef( : ), &
@@ -106,39 +104,20 @@ CONTAINS
     CHARACTER (LEN=default_string_length)    :: cmdstr, bak_file_name
     LOGICAL                                  :: found
 
-!   ---------------------------------------------------------------------------
-
     CALL get_md_env ( md_env, force_env_p = force_env_p, nhc_part = nhc_part, &
                       nhc_baro = nhc_baro, npt = npt )
     CALL timeset(routineN,"I",'',handle)
 
-    NULLIFY (para_env,new_logger)
-
+    NULLIFY (para_env,logger)
     CALL get_md_env ( md_env, para_env = para_env )
 
     logger => cp_error_get_logger(error)
-    CALL cp_logger_create(new_logger,para_env=para_env,template_logger=logger)
-    CALL cp_error_init(new_error,logger=new_logger,template_error=error)
-
-    IF (para_env%mepos==para_env%source) THEN
-
-      INQUIRE(FILE=dump_file_name,EXIST=found)
-      IF (found) THEN
-         bak_file_name = TRIM(dump_file_name)//".bak"
-         CALL move_file(TRIM(dump_file_name), TRIM(bak_file_name))
-      END IF
-      
-      CALL open_file(file_name=dump_file_name,&
-                     file_action="WRITE",&
-                     file_form="FORMATTED",&
-                     file_status="REPLACE",&
-                     unit_number=dump_unit)
-    END IF
 
     IF (ASSOCIATED(force_env_p)) THEN
        DO i = 1, SIZE(force_env_p)
           CALL force_env_write_variables(force_env_p(i)%force_env, &
-                                           unit_nr=dump_unit,error=new_error)
+                                         unit_nr=dump_unit,globenv=globenv,&
+                                         error=error)
        END DO
     END IF
 
@@ -166,7 +145,7 @@ CONTAINS
 ! This is only activated for NVE runs to print so one can use the
 ! ALL restart option with NVE
  
- IF (para_env%mepos==para_env%source) THEN
+ IF (dump_unit>0) THEN
      IF ( ( nhc_len == 0 ).AND. ( tot_nhcneed == 0 ) ) THEN
         WRITE (UNIT=dump_unit,FMT=*) nhc_len, tot_nhcneed
      END IF
@@ -331,7 +310,7 @@ CONTAINS
 
   IF ( ( nhc_part ( 1 ) % dis_type=='DIS_REP' ) .OR.  &
        ( nhc_part ( 1 ) % dis_type == 'NONE') ) THEN
-    IF (para_env%mepos==para_env%source) THEN
+    IF (dump_unit>0) THEN
 
        size1 = SIZE(eta)
 
@@ -354,7 +333,7 @@ CONTAINS
        END DO
     END IF
   ELSEIF ( nhc_part ( 1 ) % dis_type=='INTER_REP' ) THEN
-    IF (para_env%mepos==para_env%source) THEN
+    IF (dump_unit>0) THEN
 
        size1 = SIZE(nhc_part(1)%nvt,1)
        size2 = SIZE(nhc_part(1)%nvt,2)
@@ -400,7 +379,7 @@ CONTAINS
   IF ( isos /= 0 ) CALL stop_program ( 'initialize_nhc', &
                                'failed to deallocate mnhc')
 
-  IF (para_env%mepos==para_env%source) THEN
+  IF (dump_unit>0) THEN
 
 !     *** barostat thermostat variables***
        size1 = SIZE(nhc_baro(1)%nvt,1)
@@ -449,15 +428,7 @@ CONTAINS
            WRITE (UNIT=dump_unit,FMT=*) npt(i,j)%mass
          END DO
        END DO
-
-!MK!     *** Close dump unit and keep it ***
-
-      CALL close_file (unit_number=dump_unit)
-
   END IF
-
-  CALL cp_error_dealloc_ref(new_error)
-  CALL cp_logger_release(new_logger)
 
   CALL timestop(0.0_dp,handle)
 

@@ -34,7 +34,8 @@
 !*****************************************************************************
 MODULE cp_output_handling
   USE cp_files,                        ONLY: close_file,&
-                                             open_file
+                                             open_file,&
+                                             move_file
   USE input_constants,                 ONLY: debug_print_level,&
                                              high_print_level,&
                                              low_print_level,&
@@ -72,11 +73,7 @@ MODULE cp_output_handling
   PUBLIC :: cp_print_key_should_output, cp_iterate, cp_add_iter_level, cp_rm_iter_level
   PUBLIC :: cp_iter_string, cp_print_key_section_create
   PUBLIC :: cp_print_key_unit_nr, cp_print_key_finished_output
-!FM  public :: cp_out_flags_type
-!FM  PUBLIC :: cp_out_flags_create, cp_out_flags_retain, cp_out_flags_release,&
-!FM       cp_out_flags_set_flag, cp_out_flags_get_flag, cp_out_flags_get,&
-!FM       cp_out_flags_should_output, cp_out_flags_copy
-!FM  PUBLIC :: cp_out_flags_unit_nr, cp_out_flags_finished_output
+  PUBLIC :: cp_print_key_generate_filename
 
 !! flags controlling the printing and storing of a property.
 !!
@@ -839,15 +836,86 @@ END SUBROUTINE cp_rm_iter_level
 !!
 !!
 !!*** *********************************************************************
+
+FUNCTION cp_print_key_generate_filename(logger,print_key,middle_name,extension,&
+     my_local, error) RESULT(filename)
+  IMPLICIT NONE
+  TYPE(cp_logger_type), POINTER            :: logger
+  TYPE(section_vals_type), POINTER         :: print_key
+  CHARACTER(len=*), INTENT(in)             :: extension
+  CHARACTER(len=*), INTENT(in),OPTIONAL    :: middle_name
+  LOGICAL, INTENT(IN)                      :: my_local
+  TYPE(cp_error_type), INTENT(inout), &
+       OPTIONAL                               :: error
+  CHARACTER(len=default_path_length)       :: filename,root,postfix
+  CHARACTER(len=default_string_length)     :: my_middle_name, outPath 
+  LOGICAL :: build_complete_name
+  INTEGER :: my_ind1, my_ind2
+
+  CALL section_vals_val_get(print_key,"FILENAME",c_val=outPath,error=error)
+
+  ! find out if the extension is present in the input provided name
+  my_ind2 = INDEX(outPath,"/")
+  IF (my_ind2 /= 0) THEN
+     build_complete_name = .FALSE.
+     DO WHILE (INDEX(outPath(my_ind2+1:),"/")/=0)
+        my_ind2 = INDEX(outPath(my_ind2+1:),"/") + my_ind2 
+     END DO
+     my_ind1 = INDEX(outPath(my_ind2:),".")
+  ELSE
+     build_complete_name = .TRUE.
+     my_ind1 = INDEX(outPath,".")     
+  END IF
+  IF (my_ind1 /= 0) THEN
+     build_complete_name  = .FALSE.
+  END IF
+
+  IF (build_complete_name) THEN
+     IF (PRESENT(middle_name)) THEN
+        IF (outPath.EQ."") THEN
+           my_middle_name="-"//middle_name
+        ELSE
+           my_middle_name="-"//TRIM(outPath)//"-"//middle_name
+        END IF
+     ELSE                 
+        IF (outPath.EQ."") THEN
+           my_middle_name="" 
+        ELSE
+           my_middle_name="-"//outPath
+        ENDIF
+     ENDIF
+     IF (my_middle_name.EQ."-") my_middle_name=""
+     root=TRIM(logger%iter_info%project_name)//TRIM(my_middle_name)
+
+     ! use the cp_iter_string as a postfix
+     postfix="-"//TRIM(cp_iter_string(logger%iter_info,print_key=print_key,for_file=.TRUE.,error=error))
+     IF (TRIM(postfix)=="-") postfix=""
+     
+     ! and add the extension
+     postfix=TRIM(postfix)//extension
+     
+  ELSE
+     root=outPath
+     postfix=""
+  ENDIF
+  ! and let the logger generate the filename
+  CALL cp_logger_generate_filename(logger,res=filename,&
+       root=root, postfix=postfix,local=my_local)
+
+END FUNCTION cp_print_key_generate_filename
+
 FUNCTION cp_print_key_unit_nr(logger, basis_section, print_key_path, extension,&
-     middle_name, local, log_filename,ignore_should_output, error) RESULT(res)
+     middle_name, local, log_filename,ignore_should_output, file_form, file_position,&
+     file_action, do_backup, error) RESULT(res)
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(section_vals_type), POINTER         :: basis_section
     CHARACTER(len=*), INTENT(in)             :: print_key_path
     CHARACTER(len=*), INTENT(in)             :: extension
-    CHARACTER(len=*), INTENT(in), OPTIONAL   :: middle_name
+    CHARACTER(len=*), INTENT(in), OPTIONAL   :: middle_name, file_form, file_position,&
+         file_action
     LOGICAL, INTENT(in), OPTIONAL            :: local, log_filename, &
-         ignore_should_output
+         ignore_should_output, do_backup
+
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
     INTEGER                                  :: res
@@ -856,15 +924,25 @@ FUNCTION cp_print_key_unit_nr(logger, basis_section, print_key_path, extension,&
       routineP = moduleN//':'//routineN
 
     CHARACTER(len=default_path_length)       :: filename,root,postfix
-    CHARACTER(len=default_string_length)     :: my_middle_name, outPath
+    CHARACTER(len=default_string_length)     :: my_middle_name, outPath, my_file_form,&
+         my_file_position, my_file_action
     LOGICAL                                  :: failure, my_local, &
-         my_should_output
+         my_should_output, found, my_do_backup
     TYPE(section_vals_type), POINTER         :: print_key
 
   failure=.FALSE.
   my_local=.FALSE.
+  my_do_backup = .FALSE.
+  found = .FALSE.
   res=-1
-  nullify(print_key)
+  my_file_form="FORMATTED"
+  my_file_position="APPEND"
+  my_file_action="WRITE"
+  IF (PRESENT(file_form)) my_file_form = file_form
+  IF (PRESENT(file_position)) my_file_position = file_position
+  IF (PRESENT(file_action)) my_file_action = file_action
+  IF (PRESENT(do_backup)) my_do_backup = do_backup
+  NULLIFY(print_key)
   IF (PRESENT(local)) my_local=local
   CPPrecondition(ASSOCIATED(basis_section),cp_failure_level,routineP,error,failure)
   CPPrecondition(ASSOCIATED(logger),cp_failure_level,routineP,error,failure)
@@ -879,6 +957,7 @@ FUNCTION cp_print_key_unit_nr(logger, basis_section, print_key_path, extension,&
      IF (.NOT.my_should_output) RETURN
      IF (my_local.OR.&
           logger%para_env%mepos==logger%para_env%source) THEN
+
         CALL section_vals_val_get(print_key,"FILENAME",c_val=outPath,error=error)
         IF (outPath=='__STD_OUT__') THEN
            res=cp_logger_get_default_unit_nr(logger,local=my_local)
@@ -889,37 +968,17 @@ FUNCTION cp_print_key_unit_nr(logger, basis_section, print_key_path, extension,&
            !   2)  If outPath contains '/' (as in ./filename) do not prepend the project_name
            !
            ! if it is actually a full path, use it as the root
-           IF (INDEX(outPath,"/").EQ.0) THEN
-              IF (PRESENT(middle_name)) THEN
-                 IF (outPath.EQ."") THEN
-                    my_middle_name="-"//middle_name
-                 ELSE
-                    my_middle_name="-"//TRIM(outPath)//"-"//middle_name
-                 END IF
-              ELSE
-                 IF (outPath.EQ."") THEN
-                    my_middle_name="" !"-"//print_key%section%name
-                 ELSE
-                    my_middle_name="-"//outPath
-                 ENDIF
-              ENDIF
-              IF (my_middle_name.EQ."-") my_middle_name=""
-              root=TRIM(logger%iter_info%project_name)//TRIM(my_middle_name)
-           ELSE
-              root=outPath
-           ENDIF
-           ! use the cp_iter_string as a postfix
-           postfix="-"//TRIM(cp_iter_string(logger%iter_info,&
-                              print_key=print_key,for_file=.TRUE.,error=error))
-           IF (TRIM(postfix)=="-") postfix=""
-           ! and add the extension
-           postfix=TRIM(postfix)//extension
-           ! and let the logger generate the filename
-           CALL cp_logger_generate_filename(logger,res=filename,&
-                   root=root, postfix=postfix,local=my_local)
+           filename = cp_print_key_generate_filename(logger,print_key,middle_name,extension,&
+                my_local,error)
+           IF (my_do_backup) THEN
+              INQUIRE(FILE=filename,EXIST=found)
+              IF (found) THEN
+                 CALL move_file(TRIM(filename), TRIM(filename)//".bak")
+              END IF
+           END IF
            CALL open_file(file_name=filename,file_status="UNKNOWN",&
-                file_form="FORMATTED",file_action="WRITE",&
-                file_position="APPEND",unit_number=res)
+                file_form=my_file_form,file_action=my_file_action,&
+                file_position=my_file_position,unit_number=res)
            IF (PRESENT(log_filename)) THEN
               IF (log_filename) THEN
                  CALL cp_log(logger=logger, level=cp_note_level, &
@@ -1116,759 +1175,5 @@ SUBROUTINE cp_iter_compare(iter1,iter2,equal,common_equal, ascending,&
 END SUBROUTINE cp_iter_compare
 !***************************************************************************
 
-!TMP!!****f* cp_output_handling/cp_out_flags_create *
-!TMP!!
-!TMP!!   NAME
-!TMP!!     cp_out_flags_create
-!TMP!!
-!TMP!!   FUNCTION
-!TMP!!     allocates and initializes a store for controlling printing flags
-!TMP!!
-!TMP!!   NOTES
-!TMP!!     -
-!TMP!!
-!TMP!!   ARGUMENTS
-!TMP!!     - error: variable to control error logging, stopping,... 
-!TMP!!       see module cp_error_handling 
-!TMP!!
-!TMP!!   AUTHOR
-!TMP!!     fawzi
-!TMP!!
-!TMP!!*** **********************************************************************
-!TMPSUBROUTINE cp_out_flags_create(flags_env,input,logger,capacity,strict,&
-!TMP     default_val,error)
-!TMP  TYPE(cp_out_flags_type), pointer :: flags_env
-!TMP  TYPE(section_vals_type), pointer :: input
-!TMP  TYPE(cp_logger_type), pointer :: logger
-!TMP  INTEGER, OPTIONAL, intent(in) :: capacity
-!TMP  LOGICAL, INTENT(in), OPTIONAL :: strict
-!TMP  INTEGER, INTENT(in), optional :: default_val
-!TMP  type(cp_error_type), optional, intent(inout) :: error
-!TMP  
-!TMP  logical :: failure
-!TMP  character(len=*), parameter :: routineN='cp_out_flags_create',&
-!TMP        routineP=moduleN//':'//routineN
-!TMP  INTEGER :: my_capacity, stat
-!TMP
-!TMP  failure=.false.
-!TMP  
-!TMP  CPPrecondition(.NOT.ASSOCIATED(flags_env),cp_failure_level,routineP,error,failure)
-!TMP  IF (.NOT. failure) THEN
-!TMP     ALLOCATE(flags_env,stat=stat)
-!TMP     CPPostcondition(stat==0,cp_fatal_level,routineP,error,failure)
-!TMP  END IF
-!TMP  IF (.NOT.failure) THEN
-!TMP     flags_env%ref_count=1
-!TMP     last_flags_id=last_flags_id+1
-!TMP     flags_env%id_nr=last_flags_id
-!TMP     flags_env%n_flags=0
-!TMP     my_capacity=10
-!TMP     if (present(capacity)) my_capacity=capacity
-!TMP     ALLOCATE(flags_env%names(my_capacity),stat=stat)
-!TMP     CPPostcondition(stat==0,cp_fatal_level,routineP,error,failure)
-!TMP     ALLOCATE(flags_env%control_val(my_capacity),stat=stat)
-!TMP     CPPostcondition(stat==0,cp_fatal_level,routineP,error,failure)
-!TMP     NULLIFY(flags_env%input,flags_env%logger)
-!TMP     CALL section_vals_retain(input,error=error)
-!TMP     flags_env%input => input
-!TMP     CALL cp_logger_retain(logger)
-!TMP     flags_env%logger => logger
-!TMP     flags_env%strict=.false.
-!TMP     if (present(strict)) flags_env%strict=strict
-!TMP     flags_env%default_val=cp_out_default
-!TMP     if (present(default_val)) flags_env%default_val=default_val
-!TMP  END IF
-!TMP  IF (.NOT.failure) THEN
-!TMP     flags_env%names=""
-!TMP     flags_env%control_val=0
-!TMP  END IF
-!TMPEND SUBROUTINE cp_out_flags_create
-!TMP!***************************************************************************
-!TMP
-!TMP!!****f* cp_output_handling/cp_str_binsearch *
-!TMP!!
-!TMP!!   NAME
-!TMP!!     cp_str_binsearch
-!TMP!!
-!TMP!!   FUNCTION
-!TMP!!     makes a binary search in an array of strings and returns the index
-!TMP!!     where the element is (or the element after which it should be inserted)
-!TMP!!
-!TMP!!   NOTES
-!TMP!!     -
-!TMP!!
-!TMP!!   ARGUMENTS
-!TMP!!     - el: the element to search
-!TMP!!     - list: the list to search (should be ordered in growing order)
-!TMP!!     - lb: lower bound for the search (defaults to 1)
-!TMP!!     - ub: upper bound for the search (defaults to size(list))
-!TMP!!     - error: variable to control error logging, stopping,... 
-!TMP!!       see module cp_error_handling 
-!TMP!!
-!TMP!!   AUTHOR
-!TMP!!     fawzi
-!TMP!!
-!TMP!!*** **********************************************************************
-!TMPFUNCTION cp_str_binsearch(el,list,lb,ub,error)RESULT(res)
-!TMP  CHARACTER(len=*), intent(in) :: el
-!TMP  CHARACTER(len=default_string_length), DIMENSION(:), intent(in) :: list
-!TMP  INTEGER, INTENT(in), OPTIONAL :: lb,ub
-!TMP  type(cp_error_type), optional, intent(inout) :: error
-!TMP  integer :: res
-!TMP  
-!TMP  logical :: failure
-!TMP  character(len=*), parameter :: routineN='cp_str_binsearch',&
-!TMP        routineP=moduleN//':'//routineN
-!TMP  INTEGER :: ui,li,mi
-!TMP
-!TMP  failure=.false.
-!TMP  li=1
-!TMP  if (present(lb)) li=lb
-!TMP  ui=size(list)
-!TMP  if (present(ub)) ui=ub
-!TMP  CPPrecondition(ui<=SIZE(list),cp_failure_level,routineP,error,failure)
-!TMP  IF (.NOT. failure) THEN
-!TMP     DO
-!TMP        if (li>ui) exit
-!TMP        mi=(li+ui)/2
-!TMP        IF (el<list(mi)) THEN
-!TMP           ui=mi-1
-!TMP        ELSE
-!TMP           li=mi+1
-!TMP        END IF
-!TMP     END DO
-!TMP     res=ui
-!TMP  END IF
-!TMPEND FUNCTION cp_str_binsearch
-!TMP!***************************************************************************
-!TMP
-!TMP!!****f* cp_output_handling/cp_out_flags_set_flag *
-!TMP!!
-!TMP!!   NAME
-!TMP!!     cp_out_flags_set_flag
-!TMP!!
-!TMP!!   FUNCTION
-!TMP!!     sets a flag (adds if it is new)
-!TMP!!
-!TMP!!   NOTES
-!TMP!!     -
-!TMP!!
-!TMP!!   ARGUMENTS
-!TMP!!     - flags_env: the flags_env structure
-!TMP!!     - name: the name of the flag (can be a path)
-!TMP!!     - value: the value to store
-!TMP!!     - virtual: if the value doe not directly correspond to a print_key,
-!TMP!!       defaults to false.
-!TMP!!     - error: variable to control error logging, stopping,... 
-!TMP!!       see module cp_error_handling 
-!TMP!!
-!TMP!!   AUTHOR
-!TMP!!     fawzi
-!TMP!!
-!TMP!!*** **********************************************************************
-!TMPSUBROUTINE cp_out_flags_set_flag(flags_env,name,value,virtual,error)
-!TMP  TYPE(cp_out_flags_type), pointer :: flags_env
-!TMP  CHARACTER(len=*), intent(in) :: name
-!TMP  LOGICAL, INTENT(in), optional :: virtual
-!TMP  integer :: value
-!TMP  type(cp_error_type), optional, intent(inout) :: error
-!TMP  
-!TMP  character(len=*), parameter :: routineN='cp_out_flags_set_flag',&
-!TMP        routineP=moduleN//':'//routineN
-!TMP
-!TMP  LOGICAL :: failure, my_virtual
-!TMP  INTEGER :: pos_name, path_end, stat, i
-!TMP  INTEGER, DIMENSION(:), POINTER :: n_val
-!TMP  CHARACTER(len=default_string_length), DIMENSION(:), pointer :: n_names
-!TMP  TYPE(section_vals_type), pointer :: printkey
-!TMP  TYPE(val_type), pointer :: val
-!TMP
-!TMP  failure=.false.
-!TMP  
-!TMP  CPPrecondition(ASSOCIATED(flags_env),cp_failure_level,routineP,error,failure)
-!TMP  CPPrecondition(flags_env%ref_count>0,cp_failure_level,routineP,error,failure)
-!TMP  CPPrecondition(LEN_TRIM(name)<=default_string_length,cp_failure_level,routineP,error,failure)
-!TMP  my_virtual=.false.
-!TMP  if (present(virtual)) my_virtual=virtual
-!TMP  IF (.NOT. failure) THEN
-!TMP     IF (name=="_DEFAULT_") THEN
-!TMP        flags_env%default_val=value
-!TMP        RETURN
-!TMP     END IF
-!TMP     pos_name=cp_str_binsearch(name,flags_env%names,ub=flags_env%n_flags,error=error)
-!TMP     IF (pos_name>0) THEN
-!TMP        IF (flags_env%names(pos_name)==name) THEN
-!TMP           flags_env%control_val(pos_name)=value
-!TMP           return
-!TMP        END IF
-!TMP     END IF
-!TMP     IF (SIZE(flags_env%control_val)==flags_env%n_flags) THEN
-!TMP        ALLOCATE(n_val(flags_env%n_flags+10),n_names(flags_env%n_flags+10),stat=stat)
-!TMP        CPPostcondition(stat==0,cp_fatal_level,routineP,error,failure)
-!TMP        n_val(:pos_name)=flags_env%control_val(:pos_name)
-!TMP        n_val(pos_name+1)=value
-!TMP        n_val(pos_name+2:flags_env%n_flags+1)=flags_env%control_val(pos_name+1:flags_env%n_flags)
-!TMP        n_val(flags_env%n_flags+2:)=0
-!TMP        n_names(:pos_name)=flags_env%names(:pos_name)
-!TMP        n_names(pos_name+1)=name
-!TMP        n_names(pos_name+2:flags_env%n_flags+1)=flags_env%names(pos_name+1:flags_env%n_flags)
-!TMP        n_names(flags_env%n_flags+2:)=""
-!TMP        DEALLOCATE(flags_env%control_val,flags_env%names,stat=stat)
-!TMP        CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-!TMP        flags_env%control_val => n_val
-!TMP        flags_env%names => n_names
-!TMP        flags_env%n_flags=flags_env%n_flags+1
-!TMP     ELSE
-!TMP        DO i=flags_env%n_flags,pos_name+1,-1
-!TMP           flags_env%control_val(i+1)=flags_env%control_val(i)
-!TMP        END DO
-!TMP        DO i=flags_env%n_flags,pos_name+1,-1
-!TMP           flags_env%names(i+1)=flags_env%names(i)
-!TMP        END DO
-!TMP        flags_env%names(pos_name+1)=name
-!TMP        flags_env%control_val(pos_name+1)=value
-!TMP        flags_env%n_flags=flags_env%n_flags+1
-!TMP     END IF
-!TMP     IF (.not.my_virtual) THEN
-!TMP        path_end=INDEX(name,"/",.TRUE.)
-!TMP        IF (path_end<1.OR.path_end>LEN_TRIM(name)) path_end=LEN_TRIM(name)
-!TMP        printkey => section_vals_get_subs_vals(flags_env%input,name(1:path_end-1),&
-!TMP             can_return_null=.TRUE.,error=error)
-!TMP        CPAssert(ASSOCIATED(printkey),cp_failure_level,routineP,error,failure)
-!TMP        IF (path_end<LEN_TRIM(name)) THEN
-!TMP           CALL section_vals_val_get(printkey,name(path_end+1:LEN_TRIM(name)),&
-!TMP                val=val,error=error)
-!TMP           CPAssert(ASSOCIATED(val),cp_failure_level,routineP,error,failure)
-!TMP        END IF
-!TMP     END IF
-!TMP  END IF
-!TMPEND SUBROUTINE cp_out_flags_set_flag
-!TMP!***************************************************************************
-!TMP
-!TMP!!****f* cp_output_handling/cp_out_flags_get_flag *
-!TMP!!
-!TMP!!   NAME
-!TMP!!     cp_out_flags_get_flag
-!TMP!!
-!TMP!!   FUNCTION
-!TMP!!     returns the value of the given flag
-!TMP!!
-!TMP!!   NOTES
-!TMP!!     -
-!TMP!!
-!TMP!!   INPUTS
-!TMP!!     - flags_env: the plage from where to take the flag
-!TMP!!     - name: the name of the requested flag
-!TMP!!     - was_default: returns true if the flags was not explictly present
-!TMP!!       and the default value was returned.
-!TMP!!       If given does not give an error with strict checking. 
-!TMP!!       
-!TMP!!                   
-!TMP!!     - error: variable to control error logging, stopping,... 
-!TMP!!       see module cp_error_handling 
-!TMP!!
-!TMP!!   AUTHOR
-!TMP!!     fawzi
-!TMP!!
-!TMP!!*** **********************************************************************
-!TMPFUNCTION cp_out_flags_get_flag(flags_env,name,was_default,error) RESULT(res)
-!TMP  TYPE(cp_out_flags_type), pointer :: flags_env
-!TMP  CHARACTER(len=*), intent(in) :: name
-!TMP  LOGICAL, INTENT(out), optional :: was_default
-!TMP  type(cp_error_type), optional, intent(inout) :: error
-!TMP  integer :: res
-!TMP  
-!TMP  logical :: failure
-!TMP  character(len=*), parameter :: routineN='cp_out_flags_get_flag',&
-!TMP        routineP=moduleN//':'//routineN
-!TMP  INTEGER :: pos_name
-!TMP
-!TMP  failure=.false.
-!TMP  
-!TMP  CPPrecondition(ASSOCIATED(flags_env),cp_failure_level,routineP,error,failure)
-!TMP  CPPrecondition(flags_env%ref_count>0,cp_failure_level,routineP,error,failure)
-!TMP  IF (.NOT. failure) THEN
-!TMP     res=flags_env%default_val
-!TMP     pos_name=cp_str_binsearch(name,flags_env%names,ub=flags_env%n_flags,error=error)
-!TMP     IF (pos_name>0) THEN
-!TMP        IF (flags_env%names(pos_name)==name) THEN
-!TMP           if (present(was_default)) was_default=.false.
-!TMP           res=flags_env%control_val(pos_name)
-!TMP           return
-!TMP        END IF
-!TMP     END IF
-!TMP     CALL cp_assert(.NOT.flags_env%strict.or.present(was_default),&
-!TMP          cp_failure_level,cp_assertion_failed,&
-!TMP          routineP,"no control flag for "//TRIM(name),error,failure)
-!TMP     if (present(was_default)) was_default=.true.
-!TMP  END IF
-!TMPEND FUNCTION cp_out_flags_get_flag
-!TMP!***************************************************************************
-!TMP
-!TMP!!****f* cp_output_handling/cp_out_flags_should_output *
-!TMP!!
-!TMP!!   NAME
-!TMP!!     cp_out_flags_should_output
-!TMP!!
-!TMP!!   FUNCTION
-!TMP!!     returns what operations should be done for the given printkey
-!TMP!!
-!TMP!!   NOTES
-!TMP!!     -
-!TMP!!
-!TMP!!   ARGUMENTS
-!TMP!!     - flags_env: the flags_env to check
-!TMP!!     - name: name of the printkey (can be a path)
-!TMP!!     - printkey: optional, a place to *return* the printkey
-!TMP!!     - virtual: if the keyword can be unassociated with a prinkey
-!TMP!!       defaults to false
-!TMP!!     - error: variable to control error logging, stopping,... 
-!TMP!!       see module cp_error_handling 
-!TMP!!
-!TMP!!   AUTHOR
-!TMP!!     fawzi
-!TMP!!
-!TMP!!*** **********************************************************************
-!TMPFUNCTION cp_out_flags_should_output(flags_env,name,print_key,virtual,error)&
-!TMP     RESULT(res)
-!TMP  TYPE(cp_out_flags_type), pointer :: flags_env
-!TMP  CHARACTER(len=*), intent(in) :: name
-!TMP  LOGICAL, OPTIONAL, intent(in) :: virtual
-!TMP  TYPE(section_vals_type), POINTER, OPTIONAL :: print_key
-!TMP  type(cp_error_type), optional, intent(inout) :: error
-!TMP  integer :: res
-!TMP  
-!TMP  LOGICAL :: failure, my_virtual,sub_stat
-!TMP  character(len=*), parameter :: routineN='cp_out_flags_should_output',&
-!TMP        routineP=moduleN//':'//routineN
-!TMP  TYPE(section_vals_type), pointer :: printkey
-!TMP  TYPE(val_type), pointer :: val
-!TMP  INTEGER :: control_val,path_end
-!TMP
-!TMP  failure=.false.
-!TMP  
-!TMP  my_virtual=.false.
-!TMP  if (present(virtual)) my_virtual=virtual
-!TMP  CPPrecondition(ASSOCIATED(flags_env),cp_failure_level,routineP,error,failure)
-!TMP  CPPrecondition(flags_env%ref_count>0,cp_failure_level,routineP,error,failure)
-!TMP  IF (.NOT. failure) THEN
-!TMP     control_val=cp_out_flags_get_flag(flags_env,name,error=error)
-!TMP     path_end=INDEX(name,"/",.TRUE.)-1
-!TMP     IF (path_end<1.OR.path_end>LEN_TRIM(name)) path_end=LEN_TRIM(name)
-!TMP     printkey => section_vals_get_subs_vals(flags_env%input,name(1:path_end),&
-!TMP          can_return_null=.TRUE.,error=error)
-!TMP     IF (ASSOCIATED(printkey).and.path_end<LEN_TRIM(name)) THEN
-!TMP        CALL section_vals_val_get(printkey,name(path_end+2:LEN_TRIM(name)),&
-!TMP             val=val,error=error)
-!TMP        IF (ASSOCIATED(val)) THEN
-!TMP           CALL val_get(val,l_val=sub_stat,error=error)
-!TMP           IF (.NOT.sub_stat) THEN
-!TMP              control_val=IBCLR(control_val,cp_p_store_if)
-!TMP              control_val=IBCLR(control_val,cp_p_file_if)
-!TMP           END IF
-!TMP        ELSE
-!TMP           CALL cp_assert(my_virtual,cp_failure_level,cp_assertion_failed,&
-!TMP                routineP,"non virtual print_key "//TRIM(name)//&
-!TMP                " has no value",error,failure)
-!TMP        END IF
-!TMP     ELSE IF (.NOT.ASSOCIATED(printkey)) THEN
-!TMP        CALL cp_assert(my_virtual,cp_failure_level,cp_assertion_failed,&
-!TMP             routineP,"non virtual print_key "//TRIM(name)//&
-!TMP             " does not exist",error,failure)
-!TMP     END IF
-!TMP     res=cp_print_key_should_output(flags_env%logger%iter_info,printkey,,&
-!TMP          error=error)
-!TMP     IF (PRESENT(print_key)) print_key => printkey
-!TMP  END IF
-!TMPEND FUNCTION cp_out_flags_should_output
-!TMP!***************************************************************************
-!TMP
-!TMP!!****f* cp_output_handling/cp_out_flags_retain *
-!TMP!!
-!TMP!!   NAME
-!TMP!!     cp_out_flags_retain
-!TMP!!
-!TMP!!   FUNCTION
-!TMP!!     retains the given flags_env
-!TMP!!
-!TMP!!   NOTES
-!TMP!!     -
-!TMP!!
-!TMP!!   INPUTS
-!TMP!!     - flags_env: the flags_env to retain
-!TMP!!     - error: variable to control error logging, stopping,... 
-!TMP!!       see module cp_error_handling 
-!TMP!!
-!TMP!!   AUTHOR
-!TMP!!     fawzi
-!TMP!!
-!TMP!!*** **********************************************************************
-!TMPSUBROUTINE cp_out_flags_retain(flags_env,error)
-!TMP  TYPE(cp_out_flags_type), pointer :: flags_env
-!TMP  type(cp_error_type), optional, intent(inout) :: error
-!TMP  
-!TMP  logical :: failure
-!TMP  character(len=*), parameter :: routineN='cp_out_flags_type',&
-!TMP        routineP=moduleN//':'//routineN
-!TMP  failure=.false.
-!TMP  
-!TMP  CPPrecondition(ASSOCIATED(flags_env),cp_failure_level,routineP,error,failure)
-!TMP  IF (.NOT. failure) THEN
-!TMP     CPPrecondition(flags_env%ref_count>0,cp_failure_level,routineP,error,failure)
-!TMP     flags_env%ref_count=flags_env%ref_count+1
-!TMP  END IF
-!TMPEND SUBROUTINE cp_out_flags_retain
-!TMP!***************************************************************************
-!TMP
-!TMP!!****f* cp_output_handling/cp_out_flags_release *
-!TMP!!
-!TMP!!   NAME
-!TMP!!     cp_out_flags_release
-!TMP!!
-!TMP!!   FUNCTION
-!TMP!!     releases the given flags_env
-!TMP!!
-!TMP!!   NOTES
-!TMP!!     -
-!TMP!!
-!TMP!!   INPUTS
-!TMP!!     - flags_env: the flags_env to release
-!TMP!!     - error: variable to control error logging, stopping,... 
-!TMP!!       see module cp_error_handling 
-!TMP!!
-!TMP!!   AUTHOR
-!TMP!!     fawzi
-!TMP!!
-!TMP!!*** **********************************************************************
-!TMPSUBROUTINE cp_out_flags_release(flags_env,error)
-!TMP  TYPE(cp_out_flags_type), pointer :: flags_env
-!TMP  type(cp_error_type), optional, intent(inout) :: error
-!TMP  
-!TMP  LOGICAL :: failure
-!TMP  CHARACTER(len=*), PARAMETER :: routineN='cp_out_flags_release',&
-!TMP       routineP=moduleN//':'//routineN
-!TMP  INTEGER :: stat
-!TMP
-!TMP  failure=.false.
-!TMP  
-!TMP  IF (ASSOCIATED(flags_env)) THEN
-!TMP     CPPrecondition(flags_env%ref_count>0,cp_failure_level,routineP,error,failure)
-!TMP     flags_env%ref_count=flags_env%ref_count-1
-!TMP     IF (flags_env%ref_count==0) THEN
-!TMP        DEALLOCATE(flags_env%names,stat=stat)
-!TMP        CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-!TMP        DEALLOCATE(flags_env%control_val,stat=stat)
-!TMP        CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-!TMP        CALL section_vals_release(flags_env%input,error=error)
-!TMP        CALL cp_logger_release(flags_env%logger)
-!TMP        DEALLOCATE(flags_env,stat=stat)
-!TMP     END IF
-!TMP  END IF
-!TMP  NULLIFY(flags_env)
-!TMPEND SUBROUTINE cp_out_flags_release
-!TMP!***************************************************************************
-!TMP
-!TMP!!****f* cp_output_handling/cp_out_flags_set *
-!TMP!!
-!TMP!!   NAME
-!TMP!!     cp_out_flags_set
-!TMP!!
-!TMP!!   FUNCTION
-!TMP!!     changes various attributes in the given flags_env
-!TMP!!
-!TMP!!   NOTES
-!TMP!!     -
-!TMP!!
-!TMP!!   INPUTS
-!TMP!!     - flags_env: the flags_env to change
-!TMP!!     - error: variable to control error logging, stopping,... 
-!TMP!!       see module cp_error_handling 
-!TMP!!
-!TMP!!     see cp_out_flags_type for a description of the arguments
-!TMP!!
-!TMP!!   AUTHOR
-!TMP!!     fawzi
-!TMP!!
-!TMP!!*** **********************************************************************
-!TMPSUBROUTINE cp_out_flags_set(flags_env,input,logger,default_value,&
-!TMP     strict,error)
-!TMP  TYPE(cp_out_flags_type), pointer :: flags_env
-!TMP  TYPE(section_vals_type), pointer, optional :: input
-!TMP  TYPE(cp_logger_type), POINTER, optional :: logger
-!TMP  INTEGER, INTENT(in), optional :: default_value
-!TMP  LOGICAL, INTENT(in), optional :: strict
-!TMP  type(cp_error_type), optional, intent(inout) :: error
-!TMP  
-!TMP  logical :: failure
-!TMP  character(len=*), parameter :: routineN='cp_out_flags_set',&
-!TMP        routineP=moduleN//':'//routineN
-!TMP  failure=.false.
-!TMP  
-!TMP  CPPrecondition(ASSOCIATED(flags_env),cp_failure_level,routineP,error,failure)
-!TMP  CPPrecondition(flags_env%ref_count>0,cp_failure_level,routineP,error,failure)
-!TMP  IF (.NOT. failure) THEN
-!TMP     IF (PRESENT(input)) THEN
-!TMP        CALL section_vals_retain(input,error=error)
-!TMP        CALL section_vals_release(flags_env%input,error=error)
-!TMP        flags_env%input => input
-!TMP     END IF
-!TMP     IF (PRESENT(logger)) THEN
-!TMP        CALL cp_logger_retain(logger)
-!TMP        call cp_logger_release(flags_env%logger)
-!TMP        flags_env%logger => logger
-!TMP     END IF
-!TMP     IF (PRESENT(default_value)) flags_env%default_val=default_value
-!TMP     IF (PRESENT(strict)) flags_env%strict=strict
-!TMP  END IF
-!TMPEND SUBROUTINE cp_out_flags_set
-!TMP!***************************************************************************
-!TMP
-!TMP!!****f* cp_output_handling/cp_out_flags_get *
-!TMP!!
-!TMP!!   NAME
-!TMP!!     cp_out_flags_get
-!TMP!!
-!TMP!!   FUNCTION
-!TMP!!     returns the value of various attributes of flags_env
-!TMP!!
-!TMP!!   NOTES
-!TMP!!     -
-!TMP!!
-!TMP!!   INPUTS
-!TMP!!     - flags_env: the flags_env to change
-!TMP!!     - error: variable to control error logging, stopping,... 
-!TMP!!       see module cp_error_handling 
-!TMP!!
-!TMP!!     see cp_out_flags_type for a description of the arguments
-!TMP!!
-!TMP!!   AUTHOR
-!TMP!!     fawzi
-!TMP!!
-!TMP!!*** **********************************************************************
-!TMPSUBROUTINE cp_out_flags_get(flags_env,input,logger,default_val,&
-!TMP     strict,error)
-!TMP  TYPE(cp_out_flags_type), pointer :: flags_env
-!TMP  TYPE(section_vals_type), pointer, optional :: input
-!TMP  TYPE(cp_logger_type), POINTER, optional :: logger
-!TMP  INTEGER, INTENT(out), optional :: default_val
-!TMP  LOGICAL, INTENT(out), optional :: strict
-!TMP  type(cp_error_type), optional, intent(inout) :: error
-!TMP  
-!TMP  logical :: failure
-!TMP  character(len=*), parameter :: routineN='cp_out_flags_get',&
-!TMP        routineP=moduleN//':'//routineN
-!TMP  failure=.false.
-!TMP  
-!TMP  CPPrecondition(ASSOCIATED(flags_env),cp_failure_level,routineP,error,failure)
-!TMP  CPPrecondition(flags_env%ref_count>0,cp_failure_level,routineP,error,failure)
-!TMP  IF (.NOT. failure) THEN
-!TMP     IF (PRESENT(input)) input => flags_env%input
-!TMP     IF (PRESENT(logger)) logger => flags_env%logger
-!TMP     IF (PRESENT(default_val)) default_val=flags_env%default_val
-!TMP     IF (PRESENT(strict)) strict=flags_env%strict
-!TMP  END IF
-!TMPEND SUBROUTINE cp_out_flags_get
-!TMP!***************************************************************************
-!TMP
-!TMP!!****f* cp_output_handling/cp_out_flags_copy *
-!TMP!!
-!TMP!!   NAME
-!TMP!!     cp_out_flags_copy
-!TMP!!
-!TMP!!   FUNCTION
-!TMP!!     copies the contents from a flags_env to another
-!TMP!!
-!TMP!!   NOTES
-!TMP!!     -
-!TMP!!
-!TMP!!   INPUTS
-!TMP!!     - flags_env_in: the flags_env to copy
-!TMP!!     - flags_env_out: the flags_env where to store the copy
-!TMP!!     - merge: if the flags explicitly present in flags_env_out but not in
-!TMP!!       flags_env_inshould be preserved
-!TMP!!     - error: variable to control error logging, stopping,... 
-!TMP!!       see module cp_error_handling 
-!TMP!!
-!TMP!!   AUTHOR
-!TMP!!     fawzi
-!TMP!!
-!TMP!!*** **********************************************************************
-!TMPSUBROUTINE cp_out_flags_copy(flags_env_in,flags_env_out,merge,flags_only,error)
-!TMP  TYPE(cp_out_flags_type), POINTER :: flags_env_in, flags_env_out
-!TMP  LOGICAL, INTENT(in), OPTIONAL :: merge,flags_only
-!TMP  type(cp_error_type), optional, intent(inout) :: error
-!TMP  
-!TMP  LOGICAL :: failure, my_merge, my_flags_only
-!TMP  character(len=*), parameter :: routineN='cp_out_flags_copy',&
-!TMP        routineP=moduleN//':'//routineN
-!TMP  INTEGER :: i, stat
-!TMP
-!TMP  failure=.false.
-!TMP  my_merge=.false.
-!TMP  if (present(merge)) my_merge=merge
-!TMP  my_flags_only=.FALSE.
-!TMP  if (present(flags_only)) my_flags_only=flags_only
-!TMP  CPPrecondition(ASSOCIATED(flags_env_in),cp_failure_level,routineP,error,failure)
-!TMP  CPPrecondition(flags_env_in%ref_count>0,cp_failure_level,routineP,error,failure)
-!TMP  CPPrecondition(ASSOCIATED(flags_env_out),cp_failure_level,routineP,error,failure)
-!TMP  CPPrecondition(flags_env_out%ref_count>0,cp_failure_level,routineP,error,failure)
-!TMP  IF (.NOT. failure) THEN
-!TMP     if (flags_env_out%id_nr==flags_env_in%id_nr) return
-!TMP     IF (merge) THEN
-!TMP        DO i=1,flags_env_in%n_flags
-!TMP           CALL cp_out_flags_set_flag(flags_env_out,flags_env_in%names(i),&
-!TMP                value=flags_env_in%control_val(i),error=error)
-!TMP        END DO
-!TMP     ELSE
-!TMP        IF (SIZE(flags_env_out%names)<flags_env_in%n_flags.OR.&
-!TMP             SIZE(flags_env_out%names)>flags_env_in%n_flags+10) then
-!TMP           DEALLOCATE(flags_env_out%control_val,flags_env_out%names,stat=stat)
-!TMP           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-!TMP           ALLOCATE(flags_env_out%names(flags_env_in%n_flags),&
-!TMP                flags_env_out%control_val(flags_env_in%n_flags),stat=stat)
-!TMP           CPPostcondition(stat==0,cp_fatal_level,routineP,error,failure)
-!TMP        END IF
-!TMP        flags_env_out%control_val(:flags_env_in%n_flags)=&
-!TMP             flags_env_in%control_val(:flags_env_in%n_flags)
-!TMP        flags_env_out%control_val(flags_env_in%n_flags+1:)=0
-!TMP        flags_env_out%names(:flags_env_in%n_flags)=&
-!TMP             flags_env_in%names(:flags_env_in%n_flags)
-!TMP        flags_env_out%names(flags_env_in%n_flags+1:)=""
-!TMP     END IF
-!TMP     flags_env_out%default_val=flags_env_in%default_val
-!TMP     IF (.NOT.my_flags_only) THEN
-!TMP        CALL cp_logger_retain(flags_env_in%logger)
-!TMP        CALL cp_logger_release(flags_env_out%logger)
-!TMP        flags_env_out%logger => flags_env_in%logger
-!TMP        CALL section_vals_retain(flags_env_in%input,error=error)
-!TMP        CALL section_vals_release(flags_env_out%input,error=error)
-!TMP        flags_env_out%input => flags_env_in%input
-!TMP        flags_env_out%strict=flags_env_in%strict
-!TMP     END IF
-!TMP  END IF
-!TMPEND SUBROUTINE cp_out_flags_copy
-!TMP!***************************************************************************
-!TMP
-!TMP!!****f* cp_output_handling/cp_out_flags_unit_nr *
-!TMP!!
-!TMP!!   NAME
-!TMP!!     cp_out_flags_unit_nr
-!TMP!!
-!TMP!!   FUNCTION
-!TMP!!     returns a unit number for the given output (or -1 if no input should
-!TMP!!     be written (if the output unit should be global only one processor
-!TMP!!     recives a unit_nr > 1)
-!TMP!!     You should call cp_out_flags_finished_output when you are done with
-!TMP!!     the unit.
-!TMP!!
-!TMP!!   NOTES
-!TMP!!     -
-!TMP!!
-!TMP!!   ARGUMENTS
-!TMP!!     - flags_env: the flags environment that controls the output
-!TMP!!     - name: the name of the flag to check (can be a path)
-!TMP!!     - extension: the extension to use for the filename
-!TMP!!     - middle_name: the name to add to the project_name (defaults to
-!TMP!!       the printsection name)
-!TMP!!     - local: if the output should be local to each mpi task (defaults to
-!TMP!!       false)
-!TMP!!     - log_filename: if the generated filename (if it is needed to generate
-!TMP!!       one) should be written to the standard log.
-!TMP!!     - virtual: if the name can refer to a non existing printkey (defaults
-!TMP!!       to false)
-!TMP!!     - error: variable to control error logging, stopping,... 
-!TMP!!       see module cp_error_handling 
-!TMP!!
-!TMP!!   AUTHOR
-!TMP!!     fawzi
-!TMP!!
-!TMP!!*** **********************************************************************
-!TMPFUNCTION cp_out_flags_unit_nr(flags_env, name, extension, middle_name,&
-!TMP     local, log_filename,virtual,error) RESULT(res)
-!TMP  type(cp_out_flags_type), pointer :: flags_env
-!TMP  CHARACTER(len=*), intent(in) :: name
-!TMP  CHARACTER(len=*), INTENT(in) :: extension
-!TMP  CHARACTER(len=*), INTENT(in), OPTIONAL :: middle_name
-!TMP  LOGICAL, INTENT(in), OPTIONAL :: local, log_filename, virtual
-!TMP  type(cp_error_type), optional, intent(inout) :: error
-!TMP  integer :: res
-!TMP  
-!TMP  logical :: failure
-!TMP  character(len=*), parameter :: routineN='cp_out_flags_unit_nr',&
-!TMP        routineP=moduleN//':'//routineN
-!TMP  integer :: out_flags
-!TMP  TYPE(section_vals_type), pointer :: pk
-!TMP
-!TMP  failure=.false.
-!TMP  nullify(pk)
-!TMP  res=-1
-!TMP  CPPrecondition(ASSOCIATED(flags_env),cp_failure_level,routineP,error,failure)
-!TMP  CPPrecondition(flags_env%ref_count>0,cp_failure_level,routineP,error,failure)
-!TMP  IF (.NOT. failure) THEN
-!TMP     out_flags=cp_out_flags_should_output(flags_env,name,print_key=pk,&
-!TMP          virtual=virtual,error=error)
-!TMP     IF (BTEST(out_flags,cp_p_file)) THEN
-!TMP        res=cp_print_key_unit_nr(flags_env%logger,pk,extension,middle_name,local,&
-!TMP             log_filename,error=error)
-!TMP     END IF
-!TMP  END IF
-!TMPEND FUNCTION cp_out_flags_unit_nr
-!TMP!***************************************************************************
-!TMP
-!TMP!!****f* cp_output_handling/cp_out_flags_finished_output [1.0] *
-!TMP!!
-!TMP!!   NAME
-!TMP!!     cp_out_flags_finished_output
-!TMP!!
-!TMP!!   FUNCTION
-!TMP!!     should be called after you finish working with a unit obtained with
-!TMP!!     cp_out_flags_unit_nr, so that the file that might have been opened
-!TMP!!     can be closed.
-!TMP!!
-!TMP!!   NOTES
-!TMP!!     closes if the corresponding filename of the printkey is
-!TMP!!      not __STD_OUT__
-!TMP!!
-!TMP!!   INPUTS
-!TMP!!     the inputs should be exactly the same of the corresponding
-!TMP!!     cp_out_flags_unit_nr
-!TMP!!
-!TMP!!   AUTHOR
-!TMP!!     Fawzi Mohamed
-!TMP!!
-!TMP!!   MODIFICATION HISTORY
-!TMP!!     08.2002 created [fawzi]
-!TMP!!
-!TMP!!*** **********************************************************************
-!TMP  SUBROUTINE cp_out_flags_finished_output(unit_nr, flags_env,name, local,&
-!TMP       error)
-!TMP    INTEGER, INTENT(inout)                   :: unit_nr
-!TMP    TYPE(cp_out_flags_type), pointer         :: flags_env
-!TMP    CHARACTER(len=*), intent(in)             :: name
-!TMP    LOGICAL, INTENT(in), OPTIONAL            :: local
-!TMP    TYPE(cp_error_type), INTENT(inout), &
-!TMP      OPTIONAL                               :: error
-!TMP
-!TMP    CHARACTER(len=*), PARAMETER :: routineN = 'cp_out_flags_finished_output', &
-!TMP      routineP = moduleN//':'//routineN
-!TMP
-!TMP    LOGICAL                                  :: failure
-!TMP    TYPE(section_vals_type), pointer :: pk
-!TMP    integer :: out_flags
-!TMP
-!TMP    failure=.FALSE.
-!TMP    nullify(pk)
-!TMP    CPPrecondition(ASSOCIATED(flags_env),cp_failure_level,routineP,error,failure)
-!TMP    CPPrecondition(flags_env%ref_count>0,cp_failure_level,routineP,error,failure)
-!TMP    IF (.NOT. failure) THEN
-!TMP       out_flags=cp_out_flags_should_output(flags_env,name,print_key=pk,&
-!TMP            virtual=.true.,error=error)
-!TMP       IF (BTEST(out_flags,cp_p_file)) THEN
-!TMP          CALL cp_print_key_finished_output(unit_nr,flags_env%logger,pk,local,error=error)
-!TMP       ENDIF
-!TMP    END IF
-!TMP  END SUBROUTINE cp_out_flags_finished_output
-!TMP!***************************************************************************
-!TMP
 END MODULE cp_output_handling
 

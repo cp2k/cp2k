@@ -56,7 +56,6 @@ MODULE md_run
   USE kinds,                           ONLY: dp
   USE machine,                         ONLY: m_walltime
   USE md,                              ONLY: initialize_velocities,&
-                                             mdio_parameters_type,&
                                              read_md_section,&
                                              simulation_parameters_type
   USE md_energies,                     ONLY: md_energy
@@ -89,6 +88,13 @@ MODULE md_run
   USE virial_types,                    ONLY: virial_type,&
                                              virial_set
 !JCS
+  USE input_section_types,             ONLY: section_vals_type,&
+                                             section_vals_get_subs_vals  
+  USE cp_output_handling,              ONLY: cp_print_key_unit_nr, &
+                                             cp_print_key_finished_output,&
+                                             cp_print_key_should_output,&
+                                             cp_p_file
+
 #include "cp_common_uses.h"
 
 
@@ -177,11 +183,9 @@ CONTAINS
     TYPE(particle_list_type), POINTER        :: particles
     TYPE(simulation_parameters_type), &
       POINTER                                :: simpar
-    TYPE(mdio_parameters_type), &
-      POINTER                                :: mdio
     TYPE(virial_type), POINTER               :: virial
-    INTEGER                                  :: in_use
-
+    INTEGER                                  :: in_use, ires
+    TYPE(section_vals_type), POINTER         :: motion_section
 !   ---------------------------------------------------------------------------
 
     CALL write_checkpoint_information("Entering "//routine_name,globenv,error)
@@ -190,10 +194,11 @@ CONTAINS
 
     failure=.FALSE.
     NULLIFY ( particles, local_molecules, cell, cell_ref, dyn_coeff_set,&
-              mdio, simpar,itimes,used_time,subsys,nhc_part,nhc_baro )
+              simpar,itimes,used_time,subsys,nhc_part,nhc_baro, motion_section )
     NULLIFY (md_env,molecule_kinds_new, molecules_new)
     logger => cp_error_get_logger(error)
 
+    motion_section => section_vals_get_subs_vals(globenv%input_file,"MOTION",error=error)
     CPPrecondition(ASSOCIATED(globenv),cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(force_env_p),cp_failure_level,routineP,error,failure)
     nbeads = SIZE ( force_env_p )
@@ -204,18 +209,12 @@ CONTAINS
     ALLOCATE (simpar,STAT=istat)
     IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
                                      "simpar",0)
-    ALLOCATE (mdio,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
-                                     "mdio",0)
 
-    CALL read_md_section ( simpar, globenv, mdio, error )
-
-!    CALL force_env_get(force_env,subsys=subsys, cell=cell,&
-!                       dyn_coeff_set=dyn_coeff_set, error=error)
-!    !FM probably in some cases it might also be good to connect the same
-!    !FM termostat to different subsystems (add a way in the input to specify 
-!    !FM this?)
-!    ALLOCATE (extended_type%nhc_part(SIZE(subsys)),STAT=istat)
+    CALL cp_add_iter_level(logger%iter_info,"MD",n_rlevel_new=iter_level,&
+         error=error)
+    CALL cp_iterate(logger%iter_info,last=.FALSE.,iter_nr=1,error=error)    
+    CALL read_md_section ( simpar, globenv, error )
+    
     CALL extended_type_init(extended_type)
     ALLOCATE (extended_type%nhc_part(nbeads),STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
@@ -255,7 +254,8 @@ CONTAINS
          IF (ASSOCIATED(dyn_coeff_set)) THEN
             CALL initialize_nhc_coef(dyn_coeff_set(isubsys)%dyn_coeff_set,&
                                    globenv,extended_type%nhc_coef(ibead))
-            CALL dyn_coeff_set_initialize(dyn_coeff_set(isubsys)%dyn_coeff_set,globenv) 
+            CALL dyn_coeff_set_initialize(dyn_coeff_set(isubsys)%dyn_coeff_set,globenv,&
+                 error=error) 
             CALL init_nhc_forces (nhc_coef=extended_type% nhc_coef(ibead))
           END IF
 
@@ -321,7 +321,6 @@ CONTAINS
 
     CALL set_md_env(md_env=md_env,&
                     simpar=simpar,&
-                    mdio=mdio,&
                     nhc_part=extended_type%nhc_part,&
                     nhc_baro=extended_type%nhc_baro,&
                     npt=extended_type%npt_info,&
@@ -334,7 +333,7 @@ CONTAINS
 
     IF (simpar%ensemble == langevin_ensemble) THEN
       CALL create_wiener_process(md_env,error)
-      CALL read_md_restart_file(md_env,error)
+      CALL read_md_restart_file(md_env,globenv,error)
     END IF
 
     time_iter_start=m_walltime()
@@ -345,10 +344,9 @@ CONTAINS
        CALL force_env_calc_energy_force ( force_env_p(ibead)%force_env,&
             calc_force=.TRUE.,error=error)
     END DO
-    CALL md_energy ( md_env, globenv ) ! inits the print env at itimes == 0
     
-    CALL cp_add_iter_level(logger%iter_info,"MD",n_rlevel_new=iter_level,&
-         error=error)
+    CALL md_energy ( md_env, globenv, error ) ! inits the print env at itimes == 0
+
     DO istep=1,simpar%nsteps
       itimes = itimes + 1
       CALL cp_iterate(logger%iter_info,last=(istep==simpar%nsteps),&
@@ -360,15 +358,20 @@ CONTAINS
       time_iter_stop=m_walltime()
       used_time = time_iter_stop - time_iter_start
       time_iter_start=time_iter_stop
-      CALL md_energy ( md_env, globenv )
-      IF (MODULO(itimes,mdio%idump) == 0) THEN
-        IF (simpar%ensemble == langevin_ensemble) THEN
-          CALL write_md_restart_file(md_env, error=error)
-        ELSE
-          CALL dump_variables(md_env,mdio%dump_file_name,error)
-        END IF
+      CALL md_energy ( md_env, globenv, error )
+      IF (BTEST(cp_print_key_should_output(logger%iter_info,&
+           motion_section,"MD%PRINT%RESTART",error=error),cp_p_file)) THEN
+         ires = cp_print_key_unit_nr(logger,motion_section,"MD%PRINT%RESTART",&
+              extension=".restart",  do_backup=.TRUE., &
+              error=error)
+         IF (simpar%ensemble == langevin_ensemble) THEN
+            CALL write_md_restart_file(md_env, ires, error=error)
+         ELSE
+            CALL dump_variables(md_env,ires,globenv,error)
+         END IF
+         CALL cp_print_key_finished_output(ires,logger,motion_section,&
+              "MD%PRINT%RESTART", error=error)
       END IF
-
       ! test for EXIT_MD to exit
       CALL external_control(should_stop,"MD",globenv,error=error)
       IF (should_stop) EXIT
@@ -386,7 +389,6 @@ CONTAINS
     CALL lnhc_dealloc(extended_type%nhc_coef)
     CALL npt_dealloc(extended_type%npt_info)
     DEALLOCATE(simpar,STAT=istat)
-    DEALLOCATE(mdio,STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
     CALL timestop(0.0_dp,handle)

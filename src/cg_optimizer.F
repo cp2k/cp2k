@@ -53,8 +53,11 @@ MODULE cg_optimizer
        section_vals_get, section_vals_val_get, section_vals_release
   USE cp_output_handling,              ONLY: cp_print_key_unit_nr, &
                                              cp_print_key_finished_output,&
-                                            cp_print_key_should_output,&
-                                             cp_p_file
+                                             cp_print_key_should_output,&
+                                             cp_p_file,&
+                                             cp_add_iter_level,&
+                                             cp_rm_iter_level,&
+                                             cp_iterate
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -118,9 +121,11 @@ CONTAINS
       POINTER                                :: particle_set
     LOGICAL                                  :: failure
     TYPE(cp_logger_type), POINTER            :: logger
-
+    integer :: ihandle
+    
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
+    CALL cp_add_iter_level(logger%iter_info,"GEO_OPT",ihandle,error)
     failure = .FALSE.
     CALL write_checkpoint_information("Entering "//routineN,globenv,error)
     CALL timeset(routineN,"I","",handle)   
@@ -192,6 +197,7 @@ CONTAINS
        CALL cp_print_key_finished_output(output_unit,logger,globenv%input_file,&
             "MOTION%GEOOPT%PRINT%PROGRAM_RUN_INFO", error=error)
     END IF
+    CALL cp_rm_iter_level(logger%iter_info,ihandle,error)
     CALL timestop(0.0_dp,handle)
     CALL write_checkpoint_information("Leaving "//routineN,globenv,error)
   END SUBROUTINE geoopt_cg
@@ -386,6 +392,7 @@ CONTAINS
        ! Main Loop
        wildcard = "   SD"
        DO its = 1, maxiter
+          CALL cp_iterate(logger%iter_info,iter_nr=its,error=error)
           xold = xvec
           eold = opt_energy
           emin = MIN(emin, opt_energy)

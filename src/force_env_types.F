@@ -61,7 +61,7 @@ MODULE force_env_types
   USE virial_types,                    ONLY: virial_type,&
                                              virial_retain, &
                                              virial_release
-  USE input_section_types, only: section_vals_type
+  USE input_section_types, ONLY: section_vals_type, section_vals_get_subs_vals
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -537,13 +537,13 @@ END SUBROUTINE force_env_get
 !!     09.2003 created [fawzi]
 !!
 !!*** **********************************************************************
-SUBROUTINE force_env_write_variables(force_env, unit_nr, local, error)
+SUBROUTINE force_env_write_variables(force_env, unit_nr, local, globenv, error)
     TYPE(force_env_type), POINTER            :: force_env
     INTEGER, INTENT(in)                      :: unit_nr
     LOGICAL, INTENT(in), OPTIONAL            :: local
     TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
-
+         OPTIONAL                               :: error
+    TYPE(global_environment_type), POINTER   :: globenv
     CHARACTER(len=*), PARAMETER :: routineN = 'force_env_write_variables', &
       routineP = moduleN//':'//routineN
 
@@ -558,9 +558,11 @@ SUBROUTINE force_env_write_variables(force_env, unit_nr, local, error)
     TYPE(dyn_coeff_set_p_type), &
       DIMENSION(:), POINTER                  :: dyn_coeff_set
     TYPE(particle_list_type), POINTER        :: particles
+    TYPE(section_vals_type), POINTER         :: md_section
 
   failure=.FALSE.
-  NULLIFY(subsys,cell,atomic_kinds,dyn_coeff_set, particles)
+
+  NULLIFY(subsys,cell,atomic_kinds,dyn_coeff_set, particles, md_section,logger)
   logger => cp_error_get_logger(error)
   CPPrecondition(ASSOCIATED(force_env),cp_failure_level,routineP,error,failure)
   IF (.NOT.failure) THEN
@@ -568,12 +570,10 @@ SUBROUTINE force_env_write_variables(force_env, unit_nr, local, error)
   END IF
   my_local=.FALSE.
   IF (PRESENT(local)) my_local=local
-  should_write=my_local.or.(logger%para_env%mepos==logger%para_env%source)
+  should_write=my_local.or.(unit_nr>0)
 
   IF (.NOT. failure) THEN
      CALL force_env_get(force_env,subsys=subsys,cell=cell,cell_ref = cell_ref, error=error)
-
-!FM cell should be written out here
 
      ! method specific global output
      SELECT CASE(force_env%in_use)
@@ -581,16 +581,19 @@ SUBROUTINE force_env_write_variables(force_env, unit_nr, local, error)
      CASE (use_qmmm)
      CASE (use_fist_force)
      CASE (use_kg_force)
-     CASE (use_tbmd_force)
        CALL force_env_get(force_env,dyn_coeff_set=dyn_coeff_set)
        IF(ASSOCIATED(dyn_coeff_set))THEN
-         DO isubsys=1,SIZE(dyn_coeff_set)
-           CALL cp_subsys_get(subsys(isubsys)%subsys,&
-                              atomic_kinds=atomic_kinds)
-           CALL dyn_coeff_set_dump(dyn_coeff_set(isubsys)%dyn_coeff_set,&
-                                   atomic_kinds%els,error=error)
-         END DO
+          DO isubsys=1,SIZE(dyn_coeff_set)
+             CALL cp_subsys_get(subsys(isubsys)%subsys,&
+                  atomic_kinds=atomic_kinds)
+             md_section => section_vals_get_subs_vals(globenv%input_file,&
+                  "MOTION%MD",error=error)
+             CALL dyn_coeff_set_dump(dyn_coeff_set(isubsys)%dyn_coeff_set,&
+                  atomic_kinds%els,md_section=md_section,&
+                  error=error)
+          END DO
        END IF
+     CASE (use_tbmd_force)
      CASE default
         CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
              routineP,"unknown in_use flag value "//&

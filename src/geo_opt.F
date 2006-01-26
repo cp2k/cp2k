@@ -58,7 +58,8 @@ MODULE geo_opt
                                              default_cg_method_id
   USE input_section_types, ONLY: section_vals_type, section_vals_get_subs_vals,&
        section_vals_get, section_vals_val_get, section_vals_release
-   
+  USE cp_output_handling,              ONLY: cp_add_iter_level,&
+                                             cp_rm_iter_level
 #include "cp_common_uses.h"
 
  IMPLICIT NONE
@@ -177,11 +178,13 @@ MODULE geo_opt
           DIMENSION(:), POINTER                  :: subsys
      TYPE(gopt_f_type), POINTER               :: gopt_env
      TYPE(particle_list_type), POINTER        :: particles
-
+     INTEGER :: ihandle
+     
      CALL timeset(routineN,"I","",handle)
      failure=.FALSE.
      NULLIFY(gopt_env, optimizer, para_env, cell, particles, subsys, x0)
      logger => cp_error_get_logger(error)
+     CALL cp_add_iter_level(logger%iter_info,"GEO_OPT",ihandle,error)
      CPPrecondition(ASSOCIATED(force_env),cp_failure_level,routineP,error,failure)
      CPPrecondition(ASSOCIATED(gopt_param),cp_failure_level,routineP,error,failure)
      CPPrecondition(gopt_param%ref_count>0,cp_failure_level,routineP,error,failure)
@@ -234,6 +237,7 @@ MODULE geo_opt
         CALL gopt_f_release(gopt_env, error=error)
 
      END IF
+     CALL cp_rm_iter_level(logger%iter_info,ihandle,error)
      CALL timestop(0.0_dp,handle)
    END SUBROUTINE gopt_do_opt
 !***************************************************************************

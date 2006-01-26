@@ -72,7 +72,9 @@
       ENSEMBLE NVT
       NHCOPT GLOBAL
       RESTART pos
-      STORAGE kind
+      &STORAGE 
+         TYPE kind
+      &END
       TEMPERATURE 2.0
       &NOSE
         LENGTH 1

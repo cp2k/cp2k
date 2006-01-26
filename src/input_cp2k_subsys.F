@@ -515,8 +515,8 @@ CONTAINS
 
        CALL keyword_create(keyword, name="_DEFAULT_KEYWORD_",&
             description="The atoms velocities in xyz format. The same order as"//&
-            " the atom's order is assumed.",repeats=.TRUE.,&
-            usage="<REAL> <REAL> <REAL>", type_of_var=char_t, n_var=-2, error=error)
+            " the atom's order is assumed.",repeats=.TRUE.,required=.TRUE.,&
+            usage="<REAL> <REAL> <REAL>", type_of_var=real_t, n_var=3, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 

@@ -44,7 +44,6 @@ MODULE force_env_methods
                                              force_env_retain,&
                                              force_env_set,&
                                              force_env_type,&
-                                             force_env_write_variables,&
                                              use_fist_force,&
                                              use_kg_force,&
                                              use_pol_force,&
@@ -628,7 +627,6 @@ RECURSIVE SUBROUTINE qmmm_energy_and_forces(force_env,calc_force,error)
           " Translating the system in order to center the QM fragment in the QM box."
      IF (.NOT.force_env%qmmm_env%center_qm_subsys) do_translate = .FALSE.
   END IF
-  !  CALL force_env_write_variables(force_env, 6, .true., error)
   isubsys=-1
   DO ip=1,SIZE(qm_atom_index)
      IF (isubsys/=qm_subsys_index(ip)) THEN

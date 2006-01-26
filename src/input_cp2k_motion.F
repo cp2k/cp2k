@@ -120,7 +120,8 @@ CONTAINS
        nullify(keyword)
        CALL cp_print_key_section_create(print_key,"trajectory",&
             description="controls the output of the trajectory",&
-            print_level=low_print_level, filename="",error=error)
+            print_level=low_print_level, common_iter_levels=1,&
+            filename="",error=error)
        CALL keyword_create(keyword, name="format",&
             description="Specifies the format of the output file for the trajectory.",&
             usage="FORMAT (ATOMIC|XMOL|DCD)",&
@@ -135,7 +136,8 @@ CONTAINS
        
        CALL cp_print_key_section_create(print_key,"velocities",&
             description="controls the output of the velocities",&
-            print_level=low_print_level, filename="",error=error)
+            print_level=low_print_level, common_iter_levels=1,&
+            filename="",error=error)
        CALL keyword_create(keyword, name="format",&
             description="Specifies the format of the output file for the trajectory.",&
             usage="FORMAT (ATOMIC|XMOL|DCD)",&
@@ -150,7 +152,8 @@ CONTAINS
        
        CALL cp_print_key_section_create(print_key,"forces",&
             description="controls the output of the forces",&
-            print_level=high_print_level, filename="",error=error)
+            print_level=high_print_level, common_iter_levels=1,&
+            filename="",error=error)
        CALL keyword_create(keyword, name="format",&
             description="Specifies the format of the output file for the trajectory.",&
             usage="FORMAT (ATOMIC|XMOL|DCD)",&
@@ -1057,39 +1060,41 @@ CONTAINS
        nullify(print_key)
        CALL cp_print_key_section_create(print_key,"energy",&
             description="controls the output the ener file",&
-            print_level=debug_print_level, filename="",error=error)
+            print_level=debug_print_level, common_iter_levels=1,&
+            filename="",error=error)
        CALL section_add_subsection(subsection,print_key,error=error)
        CALL section_release(print_key,error=error)
               
        CALL cp_print_key_section_create(print_key,"COEFFICIENTS",&
             description="Controls the printing of coefficients during an MD run.", &
-            print_level=medium_print_level,each=(/1/),&
-            error=error)
+            print_level=medium_print_level,common_iter_levels=1,&
+            filename="",error=error)
        CALL section_add_subsection(subsection,print_key,error=error)
        CALL section_release(print_key,error=error)
 
-       CALL cp_print_key_section_create(print_key,"PRESSURE",&
-            description="Controls the printing of the Pressure info during an MD run.", &
-            print_level=silent_print_level,each=(/1/),&
-            error=error)
-       CALL section_add_subsection(subsection,print_key,error=error)
-       CALL section_release(print_key,error=error)
-
-
-       CALL cp_print_key_section_create(print_key,"TEMPERATURE",&
-            description="Controls the printing of temperature info during an MD run.", &
-            print_level=silent_print_level,each=(/1/),&
-            error=error)
+       CALL cp_print_key_section_create(print_key,"HMC",&
+            description="Controls the printing of information during HMC run", &
+            print_level=silent_print_level, common_iter_levels=1,&
+            filename="",error=error)
        CALL section_add_subsection(subsection,print_key,error=error)
        CALL section_release(print_key,error=error)
 
        CALL cp_print_key_section_create(print_key,"RESTART",&
             description="Controls the dumping of the restart file during an MD run.", &
-            print_level=silent_print_level,each=(/1/),&
-            error=error)
+            print_level=silent_print_level, common_iter_levels=1,&
+            filename="",error=error)
        CALL section_add_subsection(subsection,print_key,error=error)
        CALL section_release(print_key,error=error)
        
+       CALL cp_print_key_section_create(print_key,"program_run_info",&
+            description="Controls the printing of basic and summary information during the"//&
+            " Molecular Dynamics", &
+            print_level=low_print_level,each=(/1/),add_last=(/1/),filename="__STD_OUT__",&
+            error=error)
+       CALL section_add_subsection(subsection,print_key,error=error)
+       CALL section_release(print_key,error=error)        
+
+
        CALL section_add_subsection(section,subsection,error=error)
        CALL section_release(subsection, error=error)
 
@@ -1383,7 +1388,12 @@ SUBROUTINE create_coeff_section(coeff_section, error)
        CALL section_add_keyword(coeff_section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
-       CALL keyword_create(keyword, name="storage",&
+      CALL section_create(subsection,name="storage",&
+            description="Specify information on the setup of the effective masses in KG-POL",&
+            n_keywords=2, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+            error=error)       
+
+       CALL keyword_create(keyword, name="type",&
             description="method to store the effective masses for"//&
             "KG-POL coefficients", usage="storage global", &
             default_i_val=dyn_coeff_mass_global,&
@@ -1395,8 +1405,19 @@ SUBROUTINE create_coeff_section(coeff_section, error)
             enum_i_vals=(/dyn_coeff_mass_global,dyn_coeff_mass_kind,&
                           dyn_coeff_mass_atom,dyn_coeff_mass_coeff/),&
             error=error)
-       CALL section_add_keyword(coeff_section,keyword,error=error)
+       CALL section_add_keyword(subsection,keyword,error=error)
        CALL keyword_release(keyword,error=error)
+       
+       CALL keyword_create(keyword, name="FILENAME",&
+            description="Specify the filename where the masses are stored",repeats=.FALSE.,&
+            usage="FILENAME <CHARACTER>", type_of_var=char_t, default_c_val="CMASSES", &
+            error=error)
+       CALL section_add_keyword(subsection,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL section_add_subsection(coeff_section,subsection,error=error)
+       CALL section_release(subsection,error=error)
+
 
        CALL keyword_create(&
              keyword=keyword,&
@@ -1754,7 +1775,7 @@ END SUBROUTINE create_nose_section
 
        CALL keyword_create(keyword, name="_DEFAULT_KEYWORD_",&
             description="Specify velocities of the system",repeats=.TRUE.,&
-            usage="<REAL> <REAL> .. <REAL>", type_of_var=char_t, n_var=-2, error=error)
+            usage="<REAL> <REAL> .. <REAL>", type_of_var=real_t, n_var=-1, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
@@ -1806,7 +1827,7 @@ END SUBROUTINE create_nose_section
 
        CALL keyword_create(keyword, name="_DEFAULT_KEYWORD_",&
             description="Specify positions of the system",repeats=.TRUE.,&
-            usage="<REAL> <REAL> .. <REAL>", type_of_var=char_t, n_var=-2, error=error)
+            usage="<REAL> <REAL> .. <REAL>", type_of_var=real_t, n_var=-1, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
@@ -1858,7 +1879,7 @@ END SUBROUTINE create_nose_section
 
        CALL keyword_create(keyword, name="_DEFAULT_KEYWORD_",&
             description="Specify forces of the system",repeats=.TRUE.,&
-            usage="<REAL> <REAL> .. <REAL>", type_of_var=char_t, n_var=-2, error=error)
+            usage="<REAL> <REAL> .. <REAL>", type_of_var=real_t, n_var=-1, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 

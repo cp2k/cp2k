@@ -42,4 +42,9 @@
     TEMPERATURE 298
     RESTART INIT
   &END MD
+  &PRINT
+    &TRAJECTORY
+      FILENAME deca_ala2.xyz
+    &END
+  &END
 &END MOTION

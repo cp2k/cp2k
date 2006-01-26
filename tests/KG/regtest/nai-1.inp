@@ -73,7 +73,9 @@
       MASS 250.0
       NHCOPT GLOBAL
       RESTART pos
-      STORAGE global
+      &STORAGE 
+        TYPE global
+      &END
       TEMPERATURE 2.0
       &NOSE
         LENGTH 1

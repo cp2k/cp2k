@@ -38,8 +38,7 @@ MODULE wiener_process
                                              md_pos_restart,&
                                              md_pos_vel_restart
   USE kinds,                           ONLY: dp
-  USE md,                              ONLY: mdio_parameters_type,&
-                                             simulation_parameters_type
+  USE md,                              ONLY: simulation_parameters_type
   USE md_environment_types,            ONLY: get_md_env,&
                                              md_environment_type
   USE message_passing,                 ONLY: mp_bcast,&
@@ -50,7 +49,10 @@ MODULE wiener_process
                                              read_rng_stream
   USE particle_list_types,             ONLY: particle_list_type
   USE string_utilities,                ONLY: ascii_to_string,&
-                                             string_to_ascii
+                                             string_to_ascii,&
+                                             xstring
+  USE global_types,                    ONLY: global_environment_type
+
 #include "cp_common_uses.h"
   IMPLICIT NONE
 
@@ -208,7 +210,7 @@ CONTAINS
 
   ! ***************************************************************************
 
-  SUBROUTINE read_md_restart_file(md_env,error)
+  SUBROUTINE read_md_restart_file(md_env,globenv,error)
 
     ! Purpose: Read the data needed/requested for a restart of a MD run from
     !          the restart unit unit_number.
@@ -219,7 +221,7 @@ CONTAINS
 
     TYPE(md_environment_type), POINTER           :: md_env
     TYPE(cp_error_type), OPTIONAL, INTENT(INOUT) :: error
-
+    TYPE(global_environment_type), POINTER       :: globenv
     ! Local parameters
 
     CHARACTER(LEN=*), PARAMETER :: routineN = "read_md_restart_file",&
@@ -230,7 +232,6 @@ CONTAINS
     TYPE(atomic_kind_list_type), POINTER      :: atomic_kinds
     TYPE(cp_para_env_type), POINTER           :: para_env
     TYPE(distribution_1d_type), POINTER       :: local_particles
-    TYPE(mdio_parameters_type), POINTER       :: mdio
     TYPE(particle_list_type), POINTER         :: particles
     TYPE(simulation_parameters_type), POINTER :: simpar
 
@@ -238,7 +239,8 @@ CONTAINS
     CHARACTER(LEN=240) :: end_section,section
 
     INTEGER :: i,inumber,iparticle,iparticle_kind,iparticle_local,istat,&
-               isubsys,nparticle,nparticle_kind,nparticle_local,unit_number
+               isubsys,nparticle,nparticle_kind,nparticle_local,unit_number,&
+               ia, ie
     LOGICAL :: failure,section_read
 
     TYPE(cp_subsystem_p_type), DIMENSION(:), POINTER :: subsys
@@ -256,7 +258,6 @@ CONTAINS
 
     CALL get_md_env(md_env=md_env,&
                     force_env_p=force_env_p,&
-                    mdio=mdio,&
                     para_env=para_env,&
                     simpar=simpar)
 
@@ -265,7 +266,8 @@ CONTAINS
     IF (simpar%read_type == md_init_start) RETURN
 
     IF (para_env%mepos == para_env%source) THEN
-      CALL open_file(file_name=mdio%dump_file_name,&
+       CALL xstring ( globenv % project_name, ia, ie )
+      CALL open_file(file_name=globenv % project_name ( ia:ie ) // '-1.restart',&
                      file_action="READ",&
                      file_form="FORMATTED",&
                      file_status="OLD",&
@@ -444,7 +446,7 @@ CONTAINS
 
   ! ***************************************************************************
 
-  SUBROUTINE write_md_restart_file(md_env,hmc,error)
+  SUBROUTINE write_md_restart_file(md_env,unit_number,hmc,error)
 
     ! Purpose: Write the data needed for a restart of a MD run to the restart
     !          unit unit_number.
@@ -455,6 +457,7 @@ CONTAINS
 
     TYPE(md_environment_type), POINTER           :: md_env
     LOGICAL, OPTIONAL                            :: hmc
+    INTEGER, intent(in)                          :: unit_number
     TYPE(cp_error_type), OPTIONAL, INTENT(INOUT) :: error
 
     ! Local parameters
@@ -467,14 +470,13 @@ CONTAINS
     TYPE(atomic_kind_list_type), POINTER      :: atomic_kinds
     TYPE(cp_para_env_type), POINTER           :: para_env
     TYPE(distribution_1d_type), POINTER       :: local_particles
-    TYPE(mdio_parameters_type), POINTER       :: mdio
     TYPE(particle_list_type), POINTER         :: particles
     TYPE(simulation_parameters_type), POINTER :: simpar
 
     CHARACTER(LEN=404) :: string
 
     INTEGER :: i,iparticle,iparticle_kind,iparticle_local,istat,isubsys,&
-               nparticle,nparticle_kind,nparticle_local,unit_number
+               nparticle,nparticle_kind,nparticle_local
     LOGICAL :: failure, hmc_flag
 
     TYPE(cp_subsystem_p_type), DIMENSION(:), POINTER :: subsys
@@ -496,23 +498,14 @@ CONTAINS
 
     CALL get_md_env(md_env=md_env,&
                     force_env_p=force_env_p,&
-                    mdio=mdio,&
                     para_env=para_env,&
                     simpar=simpar)
-
-    IF (para_env%mepos == para_env%source) THEN
-      CALL open_file(file_name=mdio%dump_file_name,&
-                     file_action="WRITE",&
-                     file_form="FORMATTED",&
-                     file_status="REPLACE",&
-                     unit_number=unit_number)
-    END IF
 
     IF (ASSOCIATED(force_env_p)) THEN
 
       DO i=1,SIZE(force_env_p)
 
-        IF (para_env%mepos == para_env%source) THEN
+        IF (unit_number>0) THEN
           WRITE (UNIT=unit_number,FMT="(A,I5)") "&FORCE_ENVIRONMENT",i
         END IF
 
@@ -520,7 +513,7 @@ CONTAINS
 
         DO isubsys=1,SIZE(subsys)
 
-          IF (para_env%mepos == para_env%source) THEN
+          IF (unit_number>0) THEN
             WRITE (UNIT=unit_number,FMT="(A,I5)") " &SUBSYSTEM",isubsys
           END IF
 
@@ -533,7 +526,7 @@ CONTAINS
           nparticle_kind = atomic_kinds%n_els
           nparticle = particles%n_els
 
-          IF (para_env%mepos == para_env%source) THEN
+          IF (unit_number>0) THEN
 
             ! Write the current particle coordinates to the restart unit
 
@@ -576,7 +569,7 @@ CONTAINS
 
           CALL mp_sum(ascii,para_env%group)
 
-          IF (para_env%mepos == para_env%source) THEN
+          IF (unit_number>0) THEN
             WRITE (UNIT=unit_number,FMT="(A)") "  &WIENER_PROCESS"
             DO iparticle=1,nparticle
               CALL ascii_to_string(ascii(:,iparticle),string)
@@ -590,22 +583,18 @@ CONTAINS
 
           END IF
 
-          IF (para_env%mepos == para_env%source) THEN
+          IF (unit_number>0) THEN
             WRITE (UNIT=unit_number,FMT="(A,I5)") " &END SUBSYSTEM",isubsys
           END IF
 
         END DO
 
-        IF (para_env%mepos == para_env%source) THEN
+        IF (unit_number>0) THEN
           WRITE (UNIT=unit_number,FMT="(A,I5)") "&END FORCE_ENVIRONMENT",i
         END IF
 
       END DO
 
-    END IF
-
-    IF (para_env%mepos == para_env%source) THEN
-      CALL close_file(unit_number=unit_number)
     END IF
 
   END SUBROUTINE write_md_restart_file

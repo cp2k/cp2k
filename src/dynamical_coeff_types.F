@@ -39,7 +39,8 @@ MODULE dynamical_coeff_types
                                              kg_coeff_pos_vel_restart
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type,&
-                                             section_vals_val_get
+                                             section_vals_val_get,&
+                                             section_get_cval
   USE kinds,                           ONLY: dp, default_string_length
   USE message_passing,                 ONLY: mp_bcast,&
                                              mp_max,&
@@ -50,6 +51,11 @@ MODULE dynamical_coeff_types
                                              stop_program
   USE util,                            ONLY: gasdev,&
                                              locate
+  USE cp_output_handling,              ONLY: cp_print_key_unit_nr, &
+                                             cp_print_key_finished_output,&
+                                             cp_print_key_should_output,&
+                                             cp_p_file
+
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -417,11 +423,14 @@ SUBROUTINE get_dyn_coeff(coeffs,pos,vel,forces,masses,n_els,&
 
 END SUBROUTINE get_dyn_coeff
 !***************************************************************************
-SUBROUTINE dyn_coeff_set_initialize(dyn_coeff_set,globenv)         
+SUBROUTINE dyn_coeff_set_initialize(dyn_coeff_set,globenv,error)         
 
     TYPE(dyn_coeff_set_type), POINTER        :: dyn_coeff_set
     TYPE(global_environment_type), &
       pointer                          :: globenv
+
+    TYPE(cp_error_type), INTENT(inout), &
+         OPTIONAL                               :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dyn_coeff_set_initialize', &
       routineP = moduleN//':'//routineN
@@ -432,10 +441,9 @@ SUBROUTINE dyn_coeff_set_initialize(dyn_coeff_set,globenv)
     REAL(kind=dp)                            :: kg_coeff_target_temp
     REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: mbuffer
     TYPE(dyn_coeff_type), POINTER            :: coeffs
-    type(section_vals_type), pointer         :: coeff_section
+    TYPE(section_vals_type), POINTER         :: coeff_section, storage_section
 
 !***************************************************************************
-
   group=globenv%group
   source=globenv%source
 
@@ -452,7 +460,8 @@ SUBROUTINE dyn_coeff_set_initialize(dyn_coeff_set,globenv)
 
   NULLIFY(coeff_section)
   coeff_section => section_vals_get_subs_vals(globenv%input_file,"MOTION%MD%KG_COEFF")
-  call section_vals_val_get(coeff_section,"storage",i_val=dyn_coeff_set%mass_storage)
+  storage_section =>  section_vals_get_subs_vals(coeff_section,"STORAGE")
+  call section_vals_val_get(storage_section,"type",i_val=dyn_coeff_set%mass_storage)
   call section_vals_val_get(coeff_section,"mass",r_val=dyn_coeff_set%global_mass)
   call section_vals_val_get(coeff_section,"restart",i_val=restart_coeff)
   call section_vals_val_get(coeff_section,"temperature",r_val=kg_coeff_target_temp)
@@ -489,7 +498,7 @@ SUBROUTINE dyn_coeff_set_initialize(dyn_coeff_set,globenv)
   dyn_coeff_set%ncoef_tot=ncoef_tot 
   dyn_coeff_set%ncoef_atom_max=ncoef_atom_max
 
-  CALL dyn_coeff_set_init_masses(dyn_coeff_set,mbuffer,globenv)
+  CALL dyn_coeff_set_init_masses(dyn_coeff_set,mbuffer,storage_section,globenv,error)
 
   CALL dyn_coeff_set_init_vel(kg_coeff_target_temp,dyn_coeff_set,mbuffer,globenv)   
 
@@ -701,7 +710,7 @@ SUBROUTINE write_coeff_restart(dyn_coeff_set,atomic_kind_set,globenv,error)
   END SUBROUTINE write_coeff_restart
 
 !***************************************************************************
-SUBROUTINE dyn_coeff_set_dump(dyn_coeff_set,atomic_kind_set,error)
+SUBROUTINE dyn_coeff_set_dump(dyn_coeff_set,atomic_kind_set,md_section,error)
 
     TYPE(dyn_coeff_set_type), POINTER        :: dyn_coeff_set
     TYPE(atomic_kind_type), DIMENSION(:), &
@@ -709,33 +718,28 @@ SUBROUTINE dyn_coeff_set_dump(dyn_coeff_set,atomic_kind_set,error)
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-    CHARACTER(len=*), PARAMETER :: file_name = 'coeffs_dump', &
-      routineN = 'dyn_coeff_set_dump', routineP = moduleN//':'//routineN
+    CHARACTER(len=*), PARAMETER :: routineN = 'dyn_coeff_set_dump',&
+         routineP = moduleN//':'//routineN
 
     INTEGER                                  :: cdump_unit, group, i, iatom, &
                                                 icoef, iel, ikind, ioff, &
                                                 istat, natom, nc, nkind, &
                                                 offset
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: index, ncoef
-    LOGICAL                                  :: should_write
     REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: cbuffer, fbuffer, vbuffer
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(dyn_coeff_type), POINTER            :: coeffs
+    TYPE(section_vals_type), POINTER         :: md_section
 
-!---------------------------------------------------------------------------
 
-  NULLIFY (coeffs,atomic_kind)
+  NULLIFY (coeffs,atomic_kind,logger)
   logger => cp_error_get_logger(error)
-  should_write=(logger%para_env%mepos==logger%para_env%source)
   group = logger%para_env%group
-  IF (should_write) THEN
-    CALL open_file(file_name=file_name,&
-                   file_action="WRITE",&
-                   file_form="FORMATTED",&
-                   file_status="REPLACE",&
-                   unit_number=cdump_unit)
-    WRITE (cdump_unit,*) dyn_coeff_set%nel_tot, dyn_coeff_set%ncoef_atom_max
+  cdump_unit = cp_print_key_unit_nr(logger,md_section,"PRINT%COEFFICIENTS",&
+            middle_name="coeffs",extension=".out",error=error)
+  IF (cdump_unit>0) THEN     
+     WRITE (cdump_unit,*) dyn_coeff_set%nel_tot, dyn_coeff_set%ncoef_atom_max
   END IF
 
   ALLOCATE (cbuffer(dyn_coeff_set%nel_tot,dyn_coeff_set%ncoef_atom_max),STAT=istat)
@@ -782,7 +786,7 @@ SUBROUTINE dyn_coeff_set_dump(dyn_coeff_set,atomic_kind_set,error)
   CALL mp_sum(fbuffer,group)
   CALL mp_sum(index,group)
   CALL mp_sum(ncoef,group)
-  IF (should_write) THEN
+  IF (cdump_unit > 0) THEN
     DO i=1,dyn_coeff_set%nel_tot
       nc=dyn_coeff_set%ncoef_atom_max
       WRITE(cdump_unit,'(2I6,6f20.10)') index(i),ncoef(i),cbuffer(i,1:nc)
@@ -807,23 +811,24 @@ SUBROUTINE dyn_coeff_set_dump(dyn_coeff_set,atomic_kind_set,error)
   DEALLOCATE(ncoef,STAT=istat)
   IF (istat /= 0) CALL stop_memory(routineP,"ncoef")
 
-  IF (should_write) THEN
-   CALL close_file(unit_number=cdump_unit)
-  END IF
+  CALL cp_print_key_finished_output(cdump_unit,logger,md_section,&
+       "PRINT%COEFFICIENTS",error=error)
 
   END SUBROUTINE dyn_coeff_set_dump
 
 !!*************************************************************************
-SUBROUTINE dyn_coeff_set_init_masses(dyn_coeff_set,mbuffer,globenv)
+  SUBROUTINE dyn_coeff_set_init_masses(dyn_coeff_set,mbuffer,storage_section,globenv,error)
 
     TYPE(dyn_coeff_set_type), POINTER        :: dyn_coeff_set
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(INOUT)                          :: mbuffer
     TYPE(global_environment_type), &
       pointer                             :: globenv
+    TYPE(section_vals_type), POINTER         :: storage_section
+    TYPE(cp_error_type), INTENT(inout), &
+         OPTIONAL                               :: error
 
-    CHARACTER(len=*), PARAMETER :: file_name = 'CMASSES', &
-      routineN = 'dyn_coeff_set_init_masses', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'dyn_coeff_set_init_masses', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: cmass_unit, group, i, iatom, &
@@ -833,119 +838,108 @@ SUBROUTINE dyn_coeff_set_init_masses(dyn_coeff_set,mbuffer,globenv)
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: index
     REAL(dp), ALLOCATABLE, DIMENSION(:)      :: ckind, nel_kind
     TYPE(dyn_coeff_type), POINTER            :: coeffs
+    
+    group=globenv%group
+    source=globenv%source
+    nkind=SIZE(dyn_coeff_set%coeffs_of_kind)
 
-  group=globenv%group
-  source=globenv%source
-  nkind=SIZE(dyn_coeff_set%coeffs_of_kind)
+    IF (dyn_coeff_set%mass_storage /= dyn_coeff_mass_global) THEN
+       ALLOCATE (INDEX(dyn_coeff_set%nel_tot),STAT=stat)
+       IF (stat /= 0) CALL stop_memory(routineP,"index")
+       INDEX(:)=0
 
-  ALLOCATE (index(dyn_coeff_set%nel_tot),STAT=stat)
-  IF (stat /= 0) CALL stop_memory(routineP,"index")
-  index(:)=0
-
-! initialize coefficient effective masses
-
-
-  SELECT CASE (dyn_coeff_set%mass_storage)
-  CASE (dyn_coeff_mass_kind)
-    IF(.not.ALLOCATED(ckind)) THEN
-      ALLOCATE(ckind(nkind),stat=stat) 
-      IF(stat/=0) CALL stop_memory('routineP','ckind',nkind)
-    END IF
-    IF(.not.ALLOCATED(nel_kind)) THEN
-      ALLOCATE(nel_kind(nkind),stat=stat) 
-      IF(stat/=0) CALL stop_memory('routineP','nel_kind',nkind)
-    END IF
-    IF (globenv%ionode) THEN
-      CALL open_file(file_name=file_name,&
-                   file_action="READ",&
-                   file_form="FORMATTED",&
-                   unit_number=cmass_unit)
-      READ (cmass_unit,*) ckind(1:nkind)
-      READ (cmass_unit,*) nel_kind(1:nkind)
-    END IF
-    CALL mp_bcast(ckind,source,group)
-    DO ikind=1,nkind
-      coeffs=> dyn_coeff_set%coeffs_of_kind(ikind)%coeffs
-      IF(.not.ASSOCIATED(coeffs)) CYCLE
-      coeffs%masses(:,:)=ckind(ikind)
-    END DO
-    IF (globenv%ionode) THEN
-      ioff=0
-      DO ikind=1,nkind
-        istart=ioff+1
-        ifin=ioff+nel_kind(ikind)
-        coeffs=> dyn_coeff_set%coeffs_of_kind(ikind)%coeffs
-        IF(ASSOCIATED(coeffs)) THEN
-          mbuffer(istart:ifin,:)=ckind(ikind)  
-          ioff =ioff+nel_kind(ikind)
-        END IF
-      END DO
-    END IF
-    DEALLOCATE(ckind,STAT=stat)
-    IF (stat /= 0) CALL stop_memory(routineP,"ckind")
-    DEALLOCATE(nel_kind,STAT=stat)
-    IF (stat /= 0) CALL stop_memory(routineP,"nel_kind")
-  CASE (dyn_coeff_mass_atom)
-    IF (globenv%ionode) THEN
-      CALL open_file(file_name=file_name,&
-                   file_action="READ",&
-                   file_form="FORMATTED",&
-                   unit_number=cmass_unit)
-      DO i=1,dyn_coeff_set%nel_tot 
-        READ (cmass_unit,*) index(i),mbuffer(i,1:1)
-      END DO
-    END IF
-    CALL mp_bcast(mbuffer,source,group)
-    CALL mp_bcast(index,source,group)
-    DO ikind=1, nkind
-      coeffs=>dyn_coeff_set%coeffs_of_kind(ikind)%coeffs
-      IF(ASSOCIATED(coeffs))THEN
-        DO iel= 1,coeffs%n_els
-          iatom=dyn_coeff_set%distribution%list(ikind)%array(iel)
-          i=locate(index,iatom)
-          DO icoef=1,coeffs%ncoef_atom
-            coeffs%masses(iel,icoef)=mbuffer(i,1)
-            mbuffer(i,icoef)=mbuffer(i,1)
+       IF (globenv%ionode) THEN
+          CALL open_file(file_name=section_get_cval(storage_section,"FILENAME",error=error),&
+               file_action="READ",&
+               file_form="FORMATTED",&
+               unit_number=cmass_unit)
+       END IF
+       ! initialize coefficient effective masses
+       SELECT CASE (dyn_coeff_set%mass_storage)
+       CASE (dyn_coeff_mass_kind)
+          IF(.NOT.ALLOCATED(ckind)) THEN
+             ALLOCATE(ckind(nkind),stat=stat) 
+             IF(stat/=0) CALL stop_memory('routineP','ckind',nkind)
+          END IF
+          IF(.NOT.ALLOCATED(nel_kind)) THEN
+             ALLOCATE(nel_kind(nkind),stat=stat) 
+             IF(stat/=0) CALL stop_memory('routineP','nel_kind',nkind)
+          END IF
+          IF (globenv%ionode) THEN
+             READ (cmass_unit,*) ckind(1:nkind)
+             READ (cmass_unit,*) nel_kind(1:nkind)
+          END IF
+          CALL mp_bcast(ckind,source,group)
+          DO ikind=1,nkind
+             coeffs=> dyn_coeff_set%coeffs_of_kind(ikind)%coeffs
+             IF(.NOT.ASSOCIATED(coeffs)) CYCLE
+             coeffs%masses(:,:)=ckind(ikind)
           END DO
-        END DO
-      END IF
-    END DO
-    IF (globenv%ionode) THEN
-      CALL close_file(unit_number=cmass_unit)
-    END IF
-  CASE (dyn_coeff_mass_coeff)
-    IF (globenv%ionode) THEN
-      CALL open_file(file_name=file_name,&
-                   file_action="READ",&
-                   file_form="FORMATTED",&
-                   unit_number=cmass_unit)
-      DO i=1,dyn_coeff_set%nel_tot
-        READ (cmass_unit,*) index(i),mbuffer(i,1:dyn_coeff_set%ncoef_atom_max)
-      END DO
-    END IF
-    CALL mp_bcast(mbuffer,source,group)
-    CALL mp_bcast(index,source,group)
-    DO ikind=1, nkind
-      coeffs=>dyn_coeff_set%coeffs_of_kind(ikind)%coeffs
-      IF(ASSOCIATED(coeffs))THEN
-        DO iel= 1,coeffs%n_els
-          iatom=dyn_coeff_set%distribution%list(ikind)%array(iel)
-          i=locate(index,iatom)
-          DO icoef=1,coeffs%ncoef_atom
-             coeffs%masses(iel,icoef)=mbuffer(i,icoef)
+          IF (globenv%ionode) THEN
+             ioff=0
+             DO ikind=1,nkind
+                istart=ioff+1
+                ifin=ioff+nel_kind(ikind)
+                coeffs=> dyn_coeff_set%coeffs_of_kind(ikind)%coeffs
+                IF(ASSOCIATED(coeffs)) THEN
+                   mbuffer(istart:ifin,:)=ckind(ikind)  
+                   ioff =ioff+nel_kind(ikind)
+                END IF
+             END DO
+          END IF
+          DEALLOCATE(ckind,STAT=stat)
+          IF (stat /= 0) CALL stop_memory(routineP,"ckind")
+          DEALLOCATE(nel_kind,STAT=stat)
+          IF (stat /= 0) CALL stop_memory(routineP,"nel_kind")
+       CASE (dyn_coeff_mass_atom)
+          IF (globenv%ionode) THEN
+             DO i=1,dyn_coeff_set%nel_tot 
+                READ (cmass_unit,*) INDEX(i),mbuffer(i,1:1)
+             END DO
+          END IF
+          CALL mp_bcast(mbuffer,source,group)
+          CALL mp_bcast(index,source,group)
+          DO ikind=1, nkind
+             coeffs=>dyn_coeff_set%coeffs_of_kind(ikind)%coeffs
+             IF(ASSOCIATED(coeffs))THEN
+                DO iel= 1,coeffs%n_els
+                   iatom=dyn_coeff_set%distribution%list(ikind)%array(iel)
+                   i=locate(index,iatom)
+                   DO icoef=1,coeffs%ncoef_atom
+                      coeffs%masses(iel,icoef)=mbuffer(i,1)
+                      mbuffer(i,icoef)=mbuffer(i,1)
+                   END DO
+                END DO
+             END IF
           END DO
-        END DO
-      END IF
-    END DO
-    IF (globenv%ionode) THEN
-      CALL close_file(unit_number=cmass_unit)
+       CASE (dyn_coeff_mass_coeff)
+          IF (globenv%ionode) THEN
+             DO i=1,dyn_coeff_set%nel_tot
+                READ (cmass_unit,*) INDEX(i),mbuffer(i,1:dyn_coeff_set%ncoef_atom_max)
+             END DO
+          END IF
+          CALL mp_bcast(mbuffer,source,group)
+          CALL mp_bcast(index,source,group)
+          DO ikind=1, nkind
+             coeffs=>dyn_coeff_set%coeffs_of_kind(ikind)%coeffs
+             IF(ASSOCIATED(coeffs))THEN
+                DO iel= 1,coeffs%n_els
+                   iatom=dyn_coeff_set%distribution%list(ikind)%array(iel)
+                   i=locate(index,iatom)
+                   DO icoef=1,coeffs%ncoef_atom
+                      coeffs%masses(iel,icoef)=mbuffer(i,icoef)
+                   END DO
+                END DO
+             END IF
+          END DO
+       END SELECT
+       IF (globenv%ionode) THEN
+          CALL close_file(unit_number=cmass_unit)
+       END IF
+       DEALLOCATE (index,STAT=stat)
+       IF (stat /= 0) CALL stop_memory(routineP,"index")
     END IF
-  END SELECT
-
-  DEALLOCATE (index,STAT=stat)
-  IF (stat /= 0) CALL stop_memory(routineP,"index")
-
-END SUBROUTINE dyn_coeff_set_init_masses
+  END SUBROUTINE dyn_coeff_set_init_masses
 !*************************************************************************
 SUBROUTINE dyn_coeff_set_init_vel(kg_coeff_target_temp,dyn_coeff_set,mbuffer,globenv)
 

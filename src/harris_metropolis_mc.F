@@ -78,11 +78,11 @@ MODULE harris_metropolis_mc
   USE input_section_types,             ONLY: section_vals_type,section_vals_get_subs_vals
   USE kg_environment_types,            ONLY: kg_environment_type
   USE kinds,                           ONLY: dp, &
-                                             dp_size
+                                             dp_size,&
+                                             default_string_length
   USE machine,                         ONLY: m_walltime, &
                                              m_flush
-  USE md,                              ONLY: mdio_parameters_type, &
-                                             read_md_section, &
+  USE md,                              ONLY: read_md_section, &
                                              simulation_parameters_type, &
                                              initialize_velocities
   USE md_conserved_quantities,         ONLY: compute_conserved_quantity
@@ -92,7 +92,6 @@ MODULE harris_metropolis_mc
                                              md_env_release, &
                                              get_md_env, &
                                              set_md_env
-  USE md_energies,                     ONLY: open_md_file
   USE md_run,                          ONLY: temperature_control
   USE message_passing,                 ONLY: mp_bcast, &
                                              mp_sum
@@ -126,6 +125,11 @@ MODULE harris_metropolis_mc
   USE wiener_process,                  ONLY: create_wiener_process,&
                                              read_md_restart_file,&
                                              write_md_restart_file
+  USE cp_output_handling,              ONLY: cp_print_key_unit_nr, &
+                                             cp_print_key_finished_output,&
+                                             cp_print_key_should_output,&
+                                             cp_p_file
+
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -258,99 +262,97 @@ CONTAINS
   SUBROUTINE harris_mc_md(force_env_p, globenv, error)
 
     TYPE(force_env_p_type), DIMENSION(:), &
-      POINTER                                :: force_env_p
+         POINTER                                :: force_env_p
     TYPE(global_environment_type), POINTER   :: globenv
     TYPE(cp_error_type), INTENT(INOUT), &
-      OPTIONAL                               :: error
+         OPTIONAL                               :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = "harris_mc_md", &
-      routineP = moduleN//':'//routineN
+         routineP = moduleN//':'//routineN
 
     TYPE(cp_logger_type), POINTER            :: logger
     INTEGER                                  :: handle, &
-                                                nbeads, &
-                                                i, &
-                                                istat, &
-                                                ibead, &
-                                                isubsys, &
-                                                iter_level, &
-                                                istep, &
-                                                iparticles, &
-                                                ikind, &
-                                                atom, &
-                                                iatom, &
-                                                iw, &
-                                                max_scf_tmp, &
-                                                reject, &
-                                                accept, &
-                                                in_use, &
-                                                force_env_in_use, &
-                                                md_method, &
-                                                mc_method, &
-                                                md_approach_nr, &
-                                                accepted_md
+         nbeads, &
+         i, &
+         istat, &
+         ibead, &
+         isubsys, &
+         iter_level, &
+         istep, &
+         iparticles, &
+         ikind, &
+         atom, &
+         iatom, &
+         iw, &
+         max_scf_tmp, &
+         reject, &
+         accept, &
+         in_use, &
+         force_env_in_use, &
+         md_method, &
+         mc_method, &
+         md_approach_nr, &
+         accepted_md
     INTEGER, POINTER                         :: itimes
     LOGICAL                                  :: failure, &
-                                                accepted, &
-                                                tot_energy, &
-                                                ext_temp, &
-                                                ionode, &
-                                                qs_ener, &
-                                                use_harris_tmp, &
-                                                rand_vel, &
-                                                vel_scaling, &
-                                                start_qs, &
-                                                restore_wf_past, &
-                                                restore_velocities, &
-                                                semi_hybrid, &
-                                                file_exists
+         accepted, &
+         tot_energy, &
+         ext_temp, &
+         ionode, &
+         qs_ener, &
+         use_harris_tmp, &
+         rand_vel, &
+         vel_scaling, &
+         start_qs, &
+         restore_wf_past, &
+         restore_velocities, &
+         semi_hybrid, &
+         file_exists
     REAL(KIND=dp)                            :: md_run_start_time, &
-                                                time_iter_start, &
-                                                time_iter_stop, &
-                                                prev_ldmc_energy, &
-                                                new_ldmc_energy, &
-                                                random_number, &
-                                                prob, &
-                                                temperature, &
-                                                e_kinetic, &
-                                                v2, &
-                                                mass, &
-                                                Ekin_prev, &
-                                                Ekin_new, &
-                                                Epot_prev, &
-                                                Epot_new, &
-                                                Econs, &
-                                                akin, &
-                                                temp, &
-                                                denom, &
-                                                sigma, &
-                                                eps_default_tmp, &
-                                                eps_scf_tmp, &
-                                                acceptance_rate
+         time_iter_start, &
+         time_iter_stop, &
+         prev_ldmc_energy, &
+         new_ldmc_energy, &
+         random_number, &
+         prob, &
+         temperature, &
+         e_kinetic, &
+         v2, &
+         mass, &
+         Ekin_prev, &
+         Ekin_new, &
+         Epot_prev, &
+         Epot_new, &
+         Econs, &
+         akin, &
+         temp, &
+         denom, &
+         sigma, &
+         eps_default_tmp, &
+         eps_scf_tmp, &
+         acceptance_rate
     REAL(KIND=dp), DIMENSION(3)              :: vcom, &
-                                                vcom_new
+         vcom_new
     REAL(KIND=dp), POINTER                   :: used_time
     TYPE(extended_system_type)               :: extended_type
     TYPE(cp_subsystem_p_type), &
-      DIMENSION(:), POINTER                  :: subsys
+         DIMENSION(:), POINTER                  :: subsys
     TYPE(cell_type), POINTER                 :: cell, &
-                                                cell_ref
+         cell_ref
     TYPE(lnhc_parameters_type), POINTER      :: nhc_baro, &
-                                                nhc_part
+         nhc_part
     TYPE(dyn_coeff_set_p_type), &
-      DIMENSION(:), POINTER                  :: dyn_coeff_set
+         DIMENSION(:), POINTER                  :: dyn_coeff_set
     TYPE(md_environment_type), POINTER       :: md_env
     TYPE(mol_kind_new_list_type), POINTER    :: molecule_kinds_new
     TYPE(mol_new_list_type), POINTER         :: molecules_new
     TYPE(distribution_1d_type), POINTER      :: local_molecules
     TYPE(particle_list_type), POINTER        :: particles
     TYPE(simulation_parameters_type), &
-      POINTER                                :: simpar
-    TYPE(mdio_parameters_type), &
-      POINTER                                :: mdio
+         POINTER                                :: simpar
     TYPE(rng_stream_type), POINTER           :: rng_stream
     TYPE(reduced_particle_type), &
-      DIMENSION(:), POINTER                  :: tmp_particle_set
+         DIMENSION(:), POINTER                  :: tmp_particle_set
     TYPE(distribution_1d_type), POINTER      :: local_particles
     TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
@@ -359,18 +361,18 @@ CONTAINS
     TYPE(qs_wf_history_type), POINTER        :: tmp_wf_history
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(section_vals_type),POINTER          :: dft_section, input
+    TYPE(section_vals_type),POINTER          :: dft_section, input, motion_section
     TYPE(kg_environment_type), POINTER       :: kg_env
     TYPE(particle_type), DIMENSION(:), &
-      POINTER                                :: particle_set
+         POINTER                                :: particle_set
     TYPE(atomic_kind_type), DIMENSION(:), &
-      POINTER                                :: atomic_kind_set
+         POINTER                                :: atomic_kind_set
     INTEGER, SAVE                            :: hmc, &
-                                                md_approach_old, &
-                                                accepted_md_old
-    CHARACTER(LEN=50)                        :: hmc_file_name
-
-!   ------------------------------------------------------------------------
+         md_approach_old, &
+         accepted_md_old
+    INTEGER :: ires
+    CHARACTER(LEN=default_string_length) :: my_act, my_pos
+    !   ------------------------------------------------------------------------
 
     CALL write_checkpoint_information("Entering "//routineN, globenv, error)
 
@@ -384,47 +386,48 @@ CONTAINS
     accept = 0
     reject = 0
 
-    NULLIFY(logger, simpar, mdio, subsys, dyn_coeff_set, md_env, nhc_baro, &
-            nhc_part, molecule_kinds_new, molecules_new, local_molecules, &
-            particles, itimes, used_time, rng_stream, tmp_particle_set, &
-            local_particles, atomic_kind, atomic_kinds, atom_list, unit, &
-            tmp_wf_history, dft_control, qs_env, kg_env, particle_set, atomic_kind_set)
-    NULLIFY(dft_section, input)
+    NULLIFY(logger, simpar, subsys, dyn_coeff_set, md_env, nhc_baro, &
+         nhc_part, molecule_kinds_new, molecules_new, local_molecules, &
+         particles, itimes, used_time, rng_stream, tmp_particle_set, &
+         local_particles, atomic_kind, atomic_kinds, atom_list, unit, &
+         tmp_wf_history, dft_control, qs_env, kg_env, particle_set, atomic_kind_set)
+    NULLIFY(dft_section, input, motion_section)
     logger => cp_error_get_logger(error)
+
+    CALL cp_add_iter_level(logger%iter_info, "HMC", n_rlevel_new=iter_level, &
+         error=error)
+
+    CALL cp_iterate(logger%iter_info, last=.FALSE., &
+         iter_nr=1, error=error)
 
     CPPrecondition(ASSOCIATED(globenv), cp_failure_level, routineP, error, failure)
     CPPrecondition(ASSOCIATED(force_env_p), cp_failure_level, routineP, error, failure)
 
     CALL create_rng_stream(rng_stream=rng_stream, name="MonteCarlo acceptance", &
-                           extended_precision=.TRUE., error=error)
+         extended_precision=.TRUE., error=error)
 
     IF (globenv%prog_name_id == do_qs) THEN
-      CALL force_env_get(force_env=force_env_p(1)%force_env, in_use=force_env_in_use, qs_env=qs_env, &
-                         error=error)
+       CALL force_env_get(force_env=force_env_p(1)%force_env, in_use=force_env_in_use, qs_env=qs_env, &
+            error=error)
     ELSE IF (globenv%prog_name_id == do_kg) THEN
-      CALL force_env_get(force_env=force_env_p(1)%force_env, in_use=force_env_in_use, kg_env=kg_env, &
-                         error=error)
+       CALL force_env_get(force_env=force_env_p(1)%force_env, in_use=force_env_in_use, kg_env=kg_env, &
+            error=error)
     END IF
     IF (force_env_in_use == use_qs_force) THEN
-      CALL get_qs_env(qs_env=qs_env, dft_control=dft_control, particle_set=particle_set, &
-                      atomic_kind_set=atomic_kind_set,input=input, error=error)
+       CALL get_qs_env(qs_env=qs_env, dft_control=dft_control, particle_set=particle_set, &
+            atomic_kind_set=atomic_kind_set,input=input, error=error)
     END IF
 
     nbeads = SIZE(force_env_p)
     DO i = 1, nbeads
-      CPPrecondition(ASSOCIATED(force_env_p(i)%force_env), cp_failure_level, routineP, error, failure)
+       CPPrecondition(ASSOCIATED(force_env_p(i)%force_env), cp_failure_level, routineP, error, failure)
     END DO
 
     ALLOCATE (simpar,STAT=istat)
     IF (istat /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
-                                     "simpar", 0)
-    ALLOCATE (mdio,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
-                                     "mdio", 0)
+         "simpar", 0)
 
-    CALL read_md_section(simpar, globenv, mdio, error)
-
-    hmc_file_name = mdio%hmc_file_name    
+    CALL read_md_section(simpar, globenv, error)
 
     tot_energy = simpar%tot_energy
     ext_temp = simpar%ext_temp
@@ -437,6 +440,7 @@ CONTAINS
     semi_hybrid = simpar%semi_hybrid
     md_method = simpar%md_method
     mc_method = simpar%mc_method
+    motion_section => section_vals_get_subs_vals(globenv%input_file,"MOTION",error=error)
 
     CALL extended_type_init(extended_type)
     ALLOCATE(extended_type%nhc_part(nbeads), STAT=istat)
@@ -454,171 +458,175 @@ CONTAINS
     ! loop over number of beads
     DO ibead = 1,nbeads
 
-      CALL force_env_get(force_env_p(ibead)%force_env, subsys=subsys, &
-                         dyn_coeff_set=dyn_coeff_set, in_use=in_use, &
-                         cell=cell, cell_ref = cell_ref, error=error )
+       CALL force_env_get(force_env_p(ibead)%force_env, subsys=subsys, &
+            dyn_coeff_set=dyn_coeff_set, in_use=in_use, &
+            cell=cell, cell_ref = cell_ref, error=error )
 
-! Define a reference cell for compatibility with MD restarts
+       ! Define a reference cell for compatibility with MD restarts
 
-      DO isubsys = 1,SIZE(subsys)
-         CALL cp_subsys_get(subsys(isubsys)%subsys, &
-              local_molecules_new=local_molecules, &
-              molecule_kinds_new=molecule_kinds_new, &
-              molecules_new=molecules_new, &
-              particles=particles, &
-              error=error)
+       DO isubsys = 1,SIZE(subsys)
+          CALL cp_subsys_get(subsys(isubsys)%subsys, &
+               local_molecules_new=local_molecules, &
+               molecule_kinds_new=molecule_kinds_new, &
+               molecules_new=molecules_new, &
+               particles=particles, &
+               error=error)
 
-         CALL initialize_nhc_part(cell,simpar,local_molecules, &
-                                  molecules_new%els, molecule_kinds_new%els, &
-                                  globenv, extended_type%nhc_part(ibead))
-         CALL initialize_nhc_baro(simpar,globenv, extended_type%nhc_baro(ibead))
-! initialize coef thermostats and setup coefficient forces, velocities and effective masses
-         IF (ASSOCIATED(dyn_coeff_set)) THEN
-            CALL initialize_nhc_coef(dyn_coeff_set(isubsys)%dyn_coeff_set, &
-                                     globenv, extended_type%nhc_coef(ibead))
-            CALL dyn_coeff_set_initialize(dyn_coeff_set(isubsys)%dyn_coeff_set, globenv) 
-            CALL init_nhc_forces(nhc_coef=extended_type%nhc_coef(ibead))
+          CALL initialize_nhc_part(cell,simpar,local_molecules, &
+               molecules_new%els, molecule_kinds_new%els, &
+               globenv, extended_type%nhc_part(ibead))
+          CALL initialize_nhc_baro(simpar,globenv, extended_type%nhc_baro(ibead))
+          ! initialize coef thermostats and setup coefficient forces, velocities and effective masses
+          IF (ASSOCIATED(dyn_coeff_set)) THEN
+             CALL initialize_nhc_coef(dyn_coeff_set(isubsys)%dyn_coeff_set, &
+                  globenv, extended_type%nhc_coef(ibead))
+             CALL dyn_coeff_set_initialize(dyn_coeff_set(isubsys)%dyn_coeff_set, globenv,&
+                  error=error) 
+             CALL init_nhc_forces(nhc_coef=extended_type%nhc_coef(ibead))
           END IF
 
-      END DO
-      CALL initialize_npt(simpar, globenv, extended_type%npt_info, cell)
+       END DO
+       CALL initialize_npt(simpar, globenv, extended_type%npt_info, cell)
 
-! Always initialize velocities (to be overwritten if needed)
-      DO isubsys = 1,SIZE(subsys)
-         CALL cp_subsys_get(subsys(isubsys)%subsys, &
-              particles=particles, &
-              error=error)
-         CALL initialize_velocities(simpar, &
-              particles%els, globenv)
-      END DO
-
-      IF (simpar%ensemble /= langevin_ensemble) THEN
-        SELECT CASE(simpar%read_type)
-        CASE(md_pos_restart)
-!FM should be adapted to the existence of many fragments
-          CPPrecondition(SIZE(subsys)==1,cp_failure_level,routineP,error,failure)
-          isubsys=1
+       ! Always initialize velocities (to be overwritten if needed)
+       DO isubsys = 1,SIZE(subsys)
           CALL cp_subsys_get(subsys(isubsys)%subsys, &
                particles=particles, &
                error=error)
-          nhc_part => extended_type%nhc_part(ibead)
-          nhc_baro => extended_type%nhc_baro(ibead)
-          CALL read_md_restart(in_use, simpar%read_type, globenv, &
-               particles%els, cell, cell_ref, &
-               nhc_part, nhc_baro, extended_type%npt_info)
-          CALL initialize_velocities(simpar, particles%els, globenv)
-        CASE(md_pos_vel_restart, md_all_restart)
+          CALL initialize_velocities(simpar, &
+               particles%els, globenv)
+       END DO
+
+       IF (simpar%ensemble /= langevin_ensemble) THEN
+          SELECT CASE(simpar%read_type)
+          CASE(md_pos_restart)
 !FM should be adapted to the existence of many fragments
-          CPPrecondition(SIZE(subsys)==1, cp_failure_level, routineP, error, failure)
-          isubsys=1
+             CPPrecondition(SIZE(subsys)==1,cp_failure_level,routineP,error,failure)
+             isubsys=1
+             CALL cp_subsys_get(subsys(isubsys)%subsys, &
+                  particles=particles, &
+                  error=error)
+             nhc_part => extended_type%nhc_part(ibead)
+             nhc_baro => extended_type%nhc_baro(ibead)
+             CALL read_md_restart(in_use, simpar%read_type, globenv, &
+                  particles%els, cell, cell_ref, &
+                  nhc_part, nhc_baro, extended_type%npt_info)
+             CALL initialize_velocities(simpar, particles%els, globenv)
+          CASE(md_pos_vel_restart, md_all_restart)
+!FM should be adapted to the existence of many fragments
+             CPPrecondition(SIZE(subsys)==1, cp_failure_level, routineP, error, failure)
+             isubsys=1
+             CALL cp_subsys_get(subsys(isubsys)%subsys, &
+                  particles=particles, &
+                  error=error)
+             nhc_part => extended_type%nhc_part(ibead)
+             nhc_baro => extended_type%nhc_baro(ibead)
+             CALL read_md_restart(in_use, simpar%read_type, globenv, &
+                  particles%els, &
+                  cell, cell_ref, &
+                  nhc_part, &
+                  nhc_baro, &
+                  extended_type%npt_info)
+          END SELECT
+       END IF
+
+       nhc_part => extended_type%nhc_part(ibead)
+       nhc_baro => extended_type%nhc_baro(ibead)
+       CALL init_nhc_forces (nhc_part=nhc_part, nhc_baro=nhc_baro)
+
+       DO isubsys=1,SIZE(subsys)
           CALL cp_subsys_get(subsys(isubsys)%subsys, &
                particles=particles, &
+               local_molecules_new=local_molecules, &
                error=error)
-          nhc_part => extended_type%nhc_part(ibead)
-          nhc_baro => extended_type%nhc_baro(ibead)
-          CALL read_md_restart(in_use, simpar%read_type, globenv, &
-                              particles%els, &
-                              cell, cell_ref, &
-                              nhc_part, &
-                              nhc_baro, &
-                              extended_type%npt_info)
-        END SELECT
-      END IF
-
-      nhc_part => extended_type%nhc_part(ibead)
-      nhc_baro => extended_type%nhc_baro(ibead)
-      CALL init_nhc_forces (nhc_part=nhc_part, nhc_baro=nhc_baro)
-
-      DO isubsys=1,SIZE(subsys)
-        CALL cp_subsys_get(subsys(isubsys)%subsys, &
-                           particles=particles, &
-                           local_molecules_new=local_molecules, &
-                           error=error)
-      END DO
-! end loop over number of beads
+       END DO
+       ! end loop over number of beads
     END DO
 
     CALL md_env_create(md_env, globenv%para_env, error=error)
 
     CALL set_md_env(md_env=md_env, &
-                    simpar=simpar, &
-                    mdio=mdio, &
-                    nhc_part=extended_type%nhc_part, &
-                    nhc_baro=extended_type%nhc_baro, &
-                    npt=extended_type%npt_info, &
-                    cell=cell, &
-                    force_env_p=force_env_p)
+         simpar=simpar, &
+         nhc_part=extended_type%nhc_part, &
+         nhc_baro=extended_type%nhc_baro, &
+         npt=extended_type%npt_info, &
+         cell=cell, &
+         force_env_p=force_env_p)
 
     IF (ASSOCIATED(dyn_coeff_set)) THEN
        CALL set_md_env(md_env, nhc_coef=extended_type%nhc_coef)
     END IF
 
     IF (simpar%ensemble == langevin_ensemble) THEN
-      CALL create_wiener_process(md_env,error)
-      CALL read_md_restart_file(md_env,error)
+       CALL create_wiener_process(md_env,error)
+       CALL read_md_restart_file(md_env,globenv,error)
     END IF
 
     time_iter_start=m_walltime()
 
     CALL get_md_env(md_env, force_env_p=force_env_p, itimes=itimes, &
-                    used_time = used_time)
+         used_time = used_time)
 
     DO ibead = 1,nbeads
-      IF (start_qs .AND. (globenv%prog_name_id == do_qs)) THEN
-        use_harris_tmp = qs_env%use_harris
-        max_scf_tmp = qs_env%scf_control%max_scf
+       IF (start_qs .AND. (globenv%prog_name_id == do_qs)) THEN
+          use_harris_tmp = qs_env%use_harris
+          max_scf_tmp = qs_env%scf_control%max_scf
 
-        eps_default_tmp = MAX(dft_control%qs_control%eps_rho_rspace, &
-                              dft_control%qs_control%eps_rho_gspace)
-        eps_scf_tmp = qs_env%scf_control%eps_scf
+          eps_default_tmp = MAX(dft_control%qs_control%eps_rho_rspace, &
+               dft_control%qs_control%eps_rho_gspace)
+          eps_scf_tmp = qs_env%scf_control%eps_scf
 
-        qs_env%use_harris = .FALSE.
-        qs_env%scf_control%max_scf = 100
+          qs_env%use_harris = .FALSE.
+          qs_env%scf_control%max_scf = 100
 
-        qs_env%scf_control%eps_scf = 1.0e-8
-        dft_control%qs_control%eps_rho_rspace = 1.0e-16
-        dft_control%qs_control%eps_rho_gspace = 1.0e-16
-        dft_control%qs_control%eps_gvg_rspace = 1.0e-4
-        dft_control%qs_control%eps_core_charge = 1.0e-18
-        dft_control%qs_control%eps_pgf_orb = 1.0e-4
-        dft_control%qs_control%eps_ppl = 1.0e-18
-        dft_control%qs_control%eps_ppnl = 1.0e-18
-        CALL force_env_calc_energy_force(force_env=force_env_p(1)%force_env, &
-                                         calc_force=.FALSE., error=error)
-        qs_env%use_harris = use_harris_tmp
-        qs_env%scf_control%max_scf = max_scf_tmp
+          qs_env%scf_control%eps_scf = 1.0e-8
+          dft_control%qs_control%eps_rho_rspace = 1.0e-16
+          dft_control%qs_control%eps_rho_gspace = 1.0e-16
+          dft_control%qs_control%eps_gvg_rspace = 1.0e-4
+          dft_control%qs_control%eps_core_charge = 1.0e-18
+          dft_control%qs_control%eps_pgf_orb = 1.0e-4
+          dft_control%qs_control%eps_ppl = 1.0e-18
+          dft_control%qs_control%eps_ppnl = 1.0e-18
+          CALL force_env_calc_energy_force(force_env=force_env_p(1)%force_env, &
+               calc_force=.FALSE., error=error)
+          qs_env%use_harris = use_harris_tmp
+          qs_env%scf_control%max_scf = max_scf_tmp
 
-        qs_env%scf_control%eps_scf = eps_scf_tmp
-        dft_control%qs_control%eps_rho_rspace = eps_default_tmp
-        dft_control%qs_control%eps_rho_gspace = eps_default_tmp
-        dft_control%qs_control%eps_gvg_rspace = SQRT(eps_default_tmp)
-        dft_control%qs_control%eps_core_charge = eps_default_tmp/100.0_dp
-        dft_control%qs_control%eps_pgf_orb = SQRT(eps_default_tmp)
-        dft_control%qs_control%eps_ppl = eps_default_tmp/100.0_dp
-        dft_control%qs_control%eps_ppnl = eps_default_tmp/100.0_dp
-      ELSE
-        CALL force_env_calc_energy_force(force_env=force_env_p(1)%force_env, &
-                                         calc_force=.FALSE., error=error)
-      END IF
+          qs_env%scf_control%eps_scf = eps_scf_tmp
+          dft_control%qs_control%eps_rho_rspace = eps_default_tmp
+          dft_control%qs_control%eps_rho_gspace = eps_default_tmp
+          dft_control%qs_control%eps_gvg_rspace = SQRT(eps_default_tmp)
+          dft_control%qs_control%eps_core_charge = eps_default_tmp/100.0_dp
+          dft_control%qs_control%eps_pgf_orb = SQRT(eps_default_tmp)
+          dft_control%qs_control%eps_ppl = eps_default_tmp/100.0_dp
+          dft_control%qs_control%eps_ppnl = eps_default_tmp/100.0_dp
+       ELSE
+          CALL force_env_calc_energy_force(force_env=force_env_p(1)%force_env, &
+               calc_force=.FALSE., error=error)
+       END IF
     END DO
 
     CALL md_energy(md_env, globenv) ! inits the print env at itimes == 0
 
-    CALL cp_add_iter_level(logger%iter_info, "HMC", n_rlevel_new=iter_level, &
-                           error=error)
-
-    IF (simpar%ensemble == langevin_ensemble) THEN
-      CALL write_md_restart_file(md_env, error=error)
-    ELSE
-      CALL dump_variables(md_env, mdio%dump_file_name, error)
+    IF (BTEST(cp_print_key_should_output(logger%iter_info,&
+         motion_section,"MD%PRINT%RESTART",error=error),cp_p_file)) THEN
+       ires = cp_print_key_unit_nr(logger,motion_section,"MD%PRINT%RESTART",&
+            extension=".restart", do_backup=.TRUE., error=error)
+       IF (simpar%ensemble == langevin_ensemble) THEN
+          CALL write_md_restart_file(md_env, ires, error=error)
+       ELSE
+          CALL dump_variables(md_env,ires,globenv,error)
+       END IF
+       CALL cp_print_key_finished_output(ires,logger,motion_section,&
+            "MD%PRINT%RESTART", error=error)
     END IF
 
     ! Save the wavefunction history to be able to restore it in case the 
     ! first MD approach is rejected
     IF (restore_wf_past) THEN
-      CALL wfi_duplicate_history(input_wf_history=qs_env%wf_history, &
-                                 output_wf_history=tmp_wf_history, &
-                                 qs_env=qs_env, error=error)
+       CALL wfi_duplicate_history(input_wf_history=qs_env%wf_history, &
+            output_wf_history=tmp_wf_history, &
+            qs_env=qs_env, error=error)
     END IF
     !IF ((qs_env%scf_control%density_guess == restart_guess) .AND. &
     !    (dft_control%qs_control%wf_interpolation_method_nr == wfi_use_guess_method_nr)) THEN
@@ -626,55 +634,60 @@ CONTAINS
     !END IF
 
     DO isubsys = 1,SIZE(subsys)
-      !CALL cp_subsys_get(subsys=subsys(isubsys)%subsys, &
-      !                   particles=particles, &
-      !                   error=error)
+       !CALL cp_subsys_get(subsys=subsys(isubsys)%subsys, &
+       !                   particles=particles, &
+       !                   error=error)
 
-      ALLOCATE(tmp_particle_set(particles%n_els), stat=istat)
-      IF (istat /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
-                                     "tmp_particle_set", particles%n_els*dp_size*6)
+       ALLOCATE(tmp_particle_set(particles%n_els), stat=istat)
+       IF (istat /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
+            "tmp_particle_set", particles%n_els*dp_size*6)
 
-      IF (restore_velocities) THEN
-        DO iparticles = 1, particles%n_els
-          tmp_particle_set(iparticles)%r(1:3) = particles%els(iparticles)%r(1:3)
-          tmp_particle_set(iparticles)%v(1:3) = particles%els(iparticles)%v(1:3)
-        END DO
-      ELSE
-        DO iparticles = 1, particles%n_els
-          tmp_particle_set(iparticles)%r(1:3) = particles%els(iparticles)%r(1:3)
-          tmp_particle_set(iparticles)%v(1:3) = 0.0_dp
-        END DO
-      END IF
+       IF (restore_velocities) THEN
+          DO iparticles = 1, particles%n_els
+             tmp_particle_set(iparticles)%r(1:3) = particles%els(iparticles)%r(1:3)
+             tmp_particle_set(iparticles)%v(1:3) = particles%els(iparticles)%v(1:3)
+          END DO
+       ELSE
+          DO iparticles = 1, particles%n_els
+             tmp_particle_set(iparticles)%r(1:3) = particles%els(iparticles)%r(1:3)
+             tmp_particle_set(iparticles)%v(1:3) = 0.0_dp
+          END DO
+       END IF
     END DO
 
-    IF (globenv%ionode) THEN
-      IF (simpar%read_type == md_init_start) THEN
-        CALL open_md_file(file_name=hmc_file_name, unit_number=hmc, replace_file=.TRUE.)
-        md_approach_old = 0
-        accepted_md_old = 0
-      ELSE
-        CALL open_md_file(file_name=hmc_file_name, unit_number=hmc, replace_file=.FALSE.)
-        INQUIRE (FILE=hmc_file_name, EXIST=file_exists)
-        IF (file_exists) THEN
-          BACKSPACE(UNIT=hmc, IOSTAT=istat)
-          IF (istat /= 0) THEN
-            CALL stop_program(routineN, moduleN, __LINE__, &
-                              "BACKSPACE command failed for file <"//&
-                              TRIM(hmc_file_name)//">")
-          END IF
-
+    IF (simpar%read_type == md_init_start) THEN
+       my_pos = "REWIND"
+       my_act = "WRITE"
+    ELSE
+       my_pos = "APPEND"
+       my_act = "READWRITE"
+    END IF
+    hmc = cp_print_key_unit_nr(logger,motion_section,"MD%PRINT%HMC",&
+         extension=".hmc",file_position=my_pos, file_action=my_act, error=error)    
+    IF (.NOT.(simpar%read_type == md_init_start)) THEN
+       BACKSPACE (UNIT=hmc,IOSTAT=istat)                                             
+       IF (istat /= 0) THEN
+          CALL print_warning(routineN,&
+               "The ener file provided is empty.  MD step number and time are set to zero.")
+          md_approach_old = 0
+          accepted_md_old = 0
+       ELSE
           READ (UNIT=hmc, FMT=*, IOSTAT=istat) md_approach_old, accepted_md_old
           IF (istat /= 0) THEN
-            CALL print_warning(routineN, &
-                               "Could not read the last line of the file <"//&
-                               TRIM(hmc_file_name)//">. MD step number "//&
-                               "and time are set to zero.")
-            md_approach_old = 0
-            accepted_md_old = 0
+             CALL print_warning(routineN,&
+                  "Could not read the last line of the .ener file. MD step number "//&
+                  "and time are set to zero.")
+             md_approach_old = 0
+             accepted_md_old = 0
           END IF
-        END IF
-      END IF
+       END IF
+    ELSE
+       md_approach_old = 0
+       accepted_md_old = 0 
     END IF
+    CALL cp_print_key_finished_output(hmc,logger,motion_section,&
+         "MD%PRINT%HMC", error=error)    
+
     CALL mp_bcast(md_approach_old, globenv%source, globenv%group)
     CALL mp_bcast(accepted_md_old, globenv%source, globenv%group)
     md_approach_nr = md_approach_old
@@ -682,397 +695,412 @@ CONTAINS
 
     istep = 1
     DO WHILE (istep < simpar%nsteps)
-      ! previous energy
-      !IF (accepted) THEN
-        IF (qs_ener .AND. (globenv%prog_name_id == do_qs)) THEN
+       ! previous energy
+       !IF (accepted) THEN
+       IF (qs_ener .AND. (globenv%prog_name_id == do_qs)) THEN
           use_harris_tmp = qs_env%use_harris
           max_scf_tmp = qs_env%scf_control%max_scf
           qs_env%use_harris = .FALSE.
           qs_env%scf_control%max_scf = 100
           CALL force_env_calc_energy_force(force_env=force_env_p(1)%force_env, &
-                                           calc_force=.FALSE., error=error)
+               calc_force=.FALSE., error=error)
           qs_env%use_harris = use_harris_tmp
           qs_env%scf_control%max_scf = max_scf_tmp
-        ELSE
+       ELSE
           CALL force_env_calc_energy_force(force_env=force_env_p(1)%force_env, &
-                                           calc_force=.FALSE., error=error)
-        END IF
+               calc_force=.FALSE., error=error)
+       END IF
 
-        IF (globenv%prog_name_id == do_kg) THEN
+       IF (globenv%prog_name_id == do_kg) THEN
           Epot_prev = force_env_p(1)%force_env%kg_env%energy%total
-            CALL compute_conserved_quantity(md_env=md_env, cons=Econs, epot=Epot_prev, ekin=Ekin_prev)
+          CALL compute_conserved_quantity(md_env=md_env, cons=Econs, epot=Epot_prev, ekin=Ekin_prev)
           IF (.NOT. tot_energy) THEN
-            prev_ldmc_energy = Epot_prev
+             prev_ldmc_energy = Epot_prev
           ELSE
-            prev_ldmc_energy = Econs
+             prev_ldmc_energy = Econs
           END IF
-        ELSE
+       ELSE
           Epot_prev = force_env_p(1)%force_env%qs_env%energy%total
           CALL compute_conserved_quantity(md_env=md_env, cons=Econs, epot=Epot_prev, ekin=Ekin_prev)
           IF (.NOT. tot_energy) THEN
-            prev_ldmc_energy = Epot_prev
+             prev_ldmc_energy = Epot_prev
           ELSE
-            prev_ldmc_energy = Econs
+             prev_ldmc_energy = Econs
           END IF
-        END IF
+       END IF
 
-        IF (globenv%ionode .AND. globenv%print_level >= 1) THEN
+       IF (globenv%ionode .AND. globenv%print_level >= 1) THEN
           iw = globenv%scr
           WRITE(iw, *) ""
           WRITE(iw, *) "Kinetic Energy =", Ekin_prev, " & Potential Energy = ", Epot_prev
           WRITE(iw, *) "prev_ldmc_energy =", prev_ldmc_energy
           WRITE(iw, *) ""
-        END IF
-      !END IF
+       END IF
+       !END IF
 
-      ! MC MD-approach
-      md_approach_nr = md_approach_nr+1
-      CALL harris_mc_md_approach(md_env, globenv, simpar, logger, error)
+       ! MC MD-approach
+       md_approach_nr = md_approach_nr+1
+       CALL harris_mc_md_approach(md_env, globenv, simpar, logger, error)
 
-      ! Compare energies
-      IF (qs_ener .AND. (globenv%prog_name_id == do_qs)) THEN
-        use_harris_tmp = qs_env%use_harris
-        max_scf_tmp = qs_env%scf_control%max_scf
-        qs_env%use_harris = .FALSE.
-        qs_env%scf_control%max_scf = 100
-        CALL force_env_calc_energy_force(force_env=force_env_p(1)%force_env, &
-                                         calc_force=.FALSE., error=error)
-        qs_env%use_harris = use_harris_tmp
-        qs_env%scf_control%max_scf = max_scf_tmp
-      ELSE
-        CALL force_env_calc_energy_force(force_env=force_env_p(1)%force_env, &
-                                         calc_force=.FALSE., error=error)
-      END IF
+       ! Compare energies
+       IF (qs_ener .AND. (globenv%prog_name_id == do_qs)) THEN
+          use_harris_tmp = qs_env%use_harris
+          max_scf_tmp = qs_env%scf_control%max_scf
+          qs_env%use_harris = .FALSE.
+          qs_env%scf_control%max_scf = 100
+          CALL force_env_calc_energy_force(force_env=force_env_p(1)%force_env, &
+               calc_force=.FALSE., error=error)
+          qs_env%use_harris = use_harris_tmp
+          qs_env%scf_control%max_scf = max_scf_tmp
+       ELSE
+          CALL force_env_calc_energy_force(force_env=force_env_p(1)%force_env, &
+               calc_force=.FALSE., error=error)
+       END IF
 
-      ! new energy
-      IF (globenv%prog_name_id == do_kg) THEN
-        Epot_new = force_env_p(1)%force_env%kg_env%energy%total
-        CALL compute_conserved_quantity(md_env=md_env, cons=Econs, epot=Epot_new, ekin=Ekin_new)
-        IF (.NOT. tot_energy) THEN
-          new_ldmc_energy = Epot_new
-        ELSE
-          new_ldmc_energy = Econs
-        END IF
-      ELSE
-        Epot_new = force_env_p(1)%force_env%qs_env%energy%total
-        CALL compute_conserved_quantity(md_env=md_env, cons=Econs, epot=Epot_new, ekin=Ekin_new)
-        IF (.NOT. tot_energy) THEN
-          new_ldmc_energy = Epot_new
-        ELSE
-          new_ldmc_energy = Econs
-        END IF
-      END IF
+       ! new energy
+       IF (globenv%prog_name_id == do_kg) THEN
+          Epot_new = force_env_p(1)%force_env%kg_env%energy%total
+          CALL compute_conserved_quantity(md_env=md_env, cons=Econs, epot=Epot_new, ekin=Ekin_new)
+          IF (.NOT. tot_energy) THEN
+             new_ldmc_energy = Epot_new
+          ELSE
+             new_ldmc_energy = Econs
+          END IF
+       ELSE
+          Epot_new = force_env_p(1)%force_env%qs_env%energy%total
+          CALL compute_conserved_quantity(md_env=md_env, cons=Econs, epot=Epot_new, ekin=Ekin_new)
+          IF (.NOT. tot_energy) THEN
+             new_ldmc_energy = Epot_new
+          ELSE
+             new_ldmc_energy = Econs
+          END IF
+       END IF
 
-      ! Metropolis Monte Carlo acceptance criterion
-      ionode = globenv%ionode
-      iw = globenv%scr
-      !direct accept
-      IF (new_ldmc_energy < prev_ldmc_energy) THEN
-      !IF (new_ldmc_energy > prev_ldmc_energy) THEN
-        accepted = .TRUE.
-        accepted_md = accepted_md+1
-        accept = accept + 1
-        acceptance_rate = 100*(DBLE(accept)/DBLE(accept+reject))
-        prob = 1.0_dp
-        IF (ionode .AND. globenv%print_level >= 1) THEN
-          WRITE(iw, *) ""
-          WRITE(iw, *) "Kinetic Energy =", Ekin_new, " & Potential Energy = ", Epot_new
-          WRITE(iw, *) ""
-          WRITE(iw, *) "New Energy =", new_ldmc_energy, "<", prev_ldmc_energy, "= Previous Energy"
-          WRITE(iw, *) "Energy difference = ", new_ldmc_energy - prev_ldmc_energy
-          WRITE(iw, *) ""
-          WRITE(iw, *) "This HMC approach is directly accepted"
-          WRITE(iw, *) "Current acceptance ration =", acceptance_rate, "%"
-          WRITE(iw, *) "accepts =", accept, "  rejects =", reject
-          WRITE(iw, *) ""
-        END IF
-        random_number = 0.0_dp
-      ELSE
-        ! Random Number
-        random_number = next_random_number(rng_stream=rng_stream, error=error); 
-
-        IF (.NOT. ext_temp) THEN
-          ! *** Calculate the current temperature ***
-          DO isubsys=1,SIZE(subsys)
-
-            CALL cp_subsys_get(subsys(isubsys)%subsys,&
-                 local_particles=local_particles,&
-                 particles=particles, atomic_kinds=atomic_kinds,&
-                 error=error)
-
-            e_kinetic = 0.0_dp
-
-            DO ikind=1,SIZE(particles%els)
-              atomic_kind => atomic_kinds%els(ikind)
-              CALL get_atomic_kind(atomic_kind=atomic_kind,&
-                   mass=mass)
-              atom_list => local_particles%list(ikind)%array
-              v2 = 0.0_dp
-              DO iatom=1,SIZE(atom_list)
-                atom = atom_list(iatom)
-                v2 = v2 + particles%els(atom)%v(1)*particles%els(atom)%v(1) +&
-                     particles%els(atom)%v(2)*particles%els(atom)%v(2) +&
-                     particles%els(atom)%v(3)*particles%els(atom)%v(3)
-              END DO
-              e_kinetic = e_kinetic + 0.5_dp*mass*v2
-            END DO
-          END DO
-          CALL mp_sum(e_kinetic, globenv%para_env%group) !FM loop on all particles and avoid sum?
-
-          temperature = 2.0_dp*e_kinetic/REAL(simpar%nfree,dp)
-        END IF
-
-        !prob = EXP((-1)*(ABS(prev_ldmc_energy-new_ldmc_energy)/(boltzmann* &
-        !                 (simpar%temp_beta*(simpar%temp_ext)+simpar%temp_alpha))))
-        IF (.NOT. ext_temp) THEN
-          prob = EXP((-1)*(ABS(prev_ldmc_energy-new_ldmc_energy)/(simpar%temp_beta* &
-                               temperature+simpar%temp_alpha)))
-        ELSE
-          prob = EXP((-1)*(ABS(prev_ldmc_energy-new_ldmc_energy)/(simpar%temp_beta* &
-                               simpar%temp_ext+simpar%temp_alpha)))
-        END IF
-
-        IF (prob > random_number) THEN
+       ! Metropolis Monte Carlo acceptance criterion
+       ionode = globenv%ionode
+       iw = globenv%scr
+       !direct accept
+       IF (new_ldmc_energy < prev_ldmc_energy) THEN
+          !IF (new_ldmc_energy > prev_ldmc_energy) THEN
           accepted = .TRUE.
           accepted_md = accepted_md+1
           accept = accept + 1
           acceptance_rate = 100*(DBLE(accept)/DBLE(accept+reject))
+          prob = 1.0_dp
           IF (ionode .AND. globenv%print_level >= 1) THEN
-            WRITE(iw, *) ""
-
-            WRITE(iw, *) ""
-            WRITE(iw, *) "New Energy             =", new_ldmc_energy, ">", prev_ldmc_energy, "= Previous Energy"
-            WRITE(iw, *) "Energy difference = ", new_ldmc_energy - prev_ldmc_energy
-            WRITE(iw, *) "Transition probability =", prob, ">", random_number, "= Random Number"
-            WRITE(iw, *) ""
-            WRITE(iw, *) "This HMC approach is accepted"
-            WRITE(iw, *) "Current acceptance ratio =", (accept*100)/(accept+reject), "%"
-            WRITE(iw, *) "accepts =", accept, "  rejects =", reject
-            WRITE(iw, *) ""
-          END IF 
-        ELSE
-          accepted = .FALSE.
-          reject = reject + 1
-          acceptance_rate = 100*(DBLE(accept)/DBLE(accept+reject))
-          IF (ionode .AND. globenv%print_level >= 1) THEN
-            WRITE(iw, *) ""
-
-            WRITE(iw, *) ""
-            WRITE(iw, *) "New Energy             =", new_ldmc_energy, ">", prev_ldmc_energy, "= Previous Energy"
-            WRITE(iw, *) "Energy difference = ", new_ldmc_energy - prev_ldmc_energy
-            WRITE(iw, *) "Transition probability =", prob, "<", random_number, "= Random Number"
-            WRITE(iw, *) ""
-            WRITE(iw, *) "This HMC approach is rejected"
-            WRITE(iw, *) "Current acceptance ratio =", acceptance_rate, "%"
-            WRITE(iw, *) "accepts =", accept, "  rejects =", reject
-            WRITE(iw, *) ""
+             WRITE(iw, *) ""
+             WRITE(iw, *) "Kinetic Energy =", Ekin_new, " & Potential Energy = ", Epot_new
+             WRITE(iw, *) ""
+             WRITE(iw, *) "New Energy =", new_ldmc_energy, "<", prev_ldmc_energy, "= Previous Energy"
+             WRITE(iw, *) "Energy difference = ", new_ldmc_energy - prev_ldmc_energy
+             WRITE(iw, *) ""
+             WRITE(iw, *) "This HMC approach is directly accepted"
+             WRITE(iw, *) "Current acceptance ration =", acceptance_rate, "%"
+             WRITE(iw, *) "accepts =", accept, "  rejects =", reject
+             WRITE(iw, *) ""
           END IF
-        END IF
-      END IF
+          random_number = 0.0_dp
+       ELSE
+          ! Random Number
+          random_number = next_random_number(rng_stream=rng_stream, error=error); 
 
-      ! New maxwell distributed momenta
-      IF (rand_vel .OR. (semi_hybrid .AND. (.NOT. accepted))) THEN
-!      IF (rand_vel) THEN
-        IF (vel_scaling) THEN
-          CALL initialize_velocities(simpar, particles%els, globenv)
-        ELSE
-          iw = globenv%scr
-          IF (globenv%ionode .AND. globenv%print_level >= 1) THEN
-            WRITE ( iw, '( A, A, A )' ) ' **********************', &
-                 ' begin of velocity initialization ', '***********************'
+          IF (.NOT. ext_temp) THEN
+             ! *** Calculate the current temperature ***
+             DO isubsys=1,SIZE(subsys)
+
+                CALL cp_subsys_get(subsys(isubsys)%subsys,&
+                     local_particles=local_particles,&
+                     particles=particles, atomic_kinds=atomic_kinds,&
+                     error=error)
+
+                e_kinetic = 0.0_dp
+
+                DO ikind=1,SIZE(particles%els)
+                   atomic_kind => atomic_kinds%els(ikind)
+                   CALL get_atomic_kind(atomic_kind=atomic_kind,&
+                        mass=mass)
+                   atom_list => local_particles%list(ikind)%array
+                   v2 = 0.0_dp
+                   DO iatom=1,SIZE(atom_list)
+                      atom = atom_list(iatom)
+                      v2 = v2 + particles%els(atom)%v(1)*particles%els(atom)%v(1) +&
+                           particles%els(atom)%v(2)*particles%els(atom)%v(2) +&
+                           particles%els(atom)%v(3)*particles%els(atom)%v(3)
+                   END DO
+                   e_kinetic = e_kinetic + 0.5_dp*mass*v2
+                END DO
+             END DO
+             CALL mp_sum(e_kinetic, globenv%para_env%group) !FM loop on all particles and avoid sum?
+
+             temperature = 2.0_dp*e_kinetic/REAL(simpar%nfree,dp)
           END IF
 
-          CALL get_cp2k_units(unit)
-
-          ! initializing the velocities
-          IF (globenv%ionode) THEN
-
-            denom = 0.0_dp
-            vcom = 0.0_dp
-            ! computing the COM velocities
-            DO i = 1,SIZE(particles%els)
-              CALL get_atomic_kind(atomic_kind = particles%els(i)%atomic_kind, mass=mass)
-              IF (particles%els(i)%is_fixed) THEN
-                particles%els(i)%v = 0.0_dp
-              ELSE
-                sigma = SQRT(simpar%temp_ext/mass)
-                particles%els(i)%v(1) = gasdev(globenv%idum) * sigma
-                particles%els(i)%v(2) = gasdev(globenv%idum) * sigma
-                particles%els(i)%v(3) = gasdev(globenv%idum) * sigma
-                vcom(1) = vcom(1) + mass * particles%els(i)%v(1)
-                vcom(2) = vcom(2) + mass * particles%els(i)%v(2)
-                vcom(3) = vcom(3) + mass * particles%els(i)%v(3)
-                denom = denom + mass
-              END IF
-            END DO
-            vcom = vcom / denom
-
-            akin = 0.0_dp
-            vcom_new = 0.0_dp
-            DO i = 1,SIZE(particles%els)
-              atomic_kind => particles%els(i)%atomic_kind
-              CALL get_atomic_kind (atomic_kind = atomic_kind, mass = mass)
-              ! first subtract the COM
-              IF (.NOT.particles%els(i)%is_fixed) THEN
-                particles%els(i)%v(:) = particles%els(i)%v(:) - vcom(:)
-                ! now compute the temp
-                akin = akin + 0.5_dp * (mass * particles%els(i)%v(1) * particles%els(i)%v(1))
-                akin = akin + 0.5_dp * (mass * particles%els(i)%v(2) * particles%els(i)%v(2))
-                akin = akin + 0.5_dp * (mass * particles%els(i)%v(3) * particles%els(i)%v(3))
-              END IF
-              vcom_new(:) = vcom_new(:) + mass * particles%els(i)%v(:)
-            END DO
-          END IF
-        
-#if defined(__parallel)
-          DO i = 1,SIZE(particles%els)
-            CALL mp_bcast(particles%els(i)%v, globenv%source, globenv%group)
-          END DO
-#endif
-
-          temp = 0.0_dp
-          IF (globenv%ionode .AND. globenv%print_level >= 1) THEN
-            IF (simpar % nfree == 0) THEN
-              temp = 2.0_dp * akin / REAL(1, KIND=dp) ! Should always be zero...
-            ELSE
-              temp = 2.0_dp * akin / REAL(simpar%nfree, KIND=dp)
-            END IF
-            WRITE ( iw, '( A, T61, F18.2, A2 )' ) &
-                 ' Initial Temperature ', temp / unit%kelvin, " K"
-            WRITE ( iw, '( A, T61, F20.12 )' ) &
-                 ' Centre of mass velocity in direction x:', vcom_new(1)
-            WRITE ( iw, '( A, T61, F20.12 )' ) &
-                 ' Centre of mass velocity in direction y:', vcom_new(2)
-            WRITE ( iw, '( A, T61, F20.12 )' ) &
-                 ' Centre of mass velocity in direction z:', vcom_new(3)
-            WRITE ( iw, '( A, A, A, / )' ) ' ***********************', &
-                 ' end of velocity initialization ', '************************'
-          END IF
-        END IF
-      ELSE
-        ! Restore old momenta if the velocities are not choosen at random.
-      END IF ! rand_vel
-
-      ! Write .hmc file
-      IF (ionode) THEN
-        WRITE(hmc,"(I6, I5, F18.9, F18.9, F18.9, F18.9, F18.9, F18.9, F18.9, F18.9, F18.9, I8, I8, F8.4)") &
-              md_approach_nr, accepted_md, prev_ldmc_energy, Epot_prev, Ekin_prev, new_ldmc_energy, &
-              Epot_new, Ekin_new, (new_ldmc_energy-prev_ldmc_energy), prob, random_number, accept, &
-              reject, acceptance_rate
-        CALL m_flush(hmc)
-      END IF
-
-      IF (accepted) THEN
-      ! prev_ldmc_energy = new_ldmc_energy
-
-        !itimes = itimes + simpar%ld_steps
-        istep = istep + simpar%ld_steps
-        !CALL cp_iterate(logger%iter_info, last=(istep>=simpar%nsteps), &
-        !                iter_nr=itimes, error=error)
-
-        IF (restore_wf_past) THEN
-          !CALL wfi_copy_history(input_wf_history=force_env_p(1)%force_env%qs_env%wf_history, &
-          !                      output_wf_history=tmp_wf_history, &
-          !                      qs_env=force_env_p(1)%force_env%qs_env, error=error)
-          CALL wfi_release(wf_history=tmp_wf_history, error=error)
-          CALL wfi_duplicate_history(input_wf_history=qs_env%wf_history, &
-                                     output_wf_history=tmp_wf_history, &
-                                     qs_env=qs_env, error=error)
-        END IF
-        !IF ((qs_env%scf_control%density_guess == restart_guess) .AND. &
-        !    (dft_control%qs_control%wf_interpolation_method_nr == wfi_use_guess_method_nr)) THEN
-        !  CALL write_mo_set(qs_env%mos, atomic_kind_set, particle_set, globenv, id_nr=1)
-        !END IF
-
-        ! If accepted, save velocities and positions
-        IF (restore_velocities) THEN
-          DO isubsys = 1,SIZE(subsys)
-            DO iparticles = 1,particles%n_els
-              tmp_particle_set(iparticles)%r(1:3) = particles%els(iparticles)%r(1:3)
-              tmp_particle_set(iparticles)%v(1:3) = particles%els(iparticles)%v(1:3)
-            END DO
-          END DO
-        ELSE
-          DO isubsys = 1,SIZE(subsys)
-            DO iparticles = 1,particles%n_els
-              tmp_particle_set(iparticles)%r(1:3) = particles%els(iparticles)%r(1:3)
-            END DO
-          END DO
-        END IF
-
-        !IF (MODULO(itimes, mdio%idump) == 0) THEN
-          IF (simpar%ensemble == langevin_ensemble) THEN
-            CALL write_md_restart_file(md_env, error=error)
+          !prob = EXP((-1)*(ABS(prev_ldmc_energy-new_ldmc_energy)/(boltzmann* &
+          !                 (simpar%temp_beta*(simpar%temp_ext)+simpar%temp_alpha))))
+          IF (.NOT. ext_temp) THEN
+             prob = EXP((-1)*(ABS(prev_ldmc_energy-new_ldmc_energy)/(simpar%temp_beta* &
+                  temperature+simpar%temp_alpha)))
           ELSE
-            CALL dump_variables(md_env, mdio%dump_file_name, error)
+             prob = EXP((-1)*(ABS(prev_ldmc_energy-new_ldmc_energy)/(simpar%temp_beta* &
+                  simpar%temp_ext+simpar%temp_alpha)))
           END IF
-        !END IF
-      ELSE
-        IF (restore_wf_past) THEN
-          ! Restore the state of the wavefunction history as it was before the unsuccessful MD approach
-          !CALL wfi_copy_history(input_wf_history=tmp_wf_history, &
-          !                      output_wf_history=force_env_p(1)%force_env%qs_env%wf_history, &
-          !                      qs_env=force_env_p(1)%force_env%qs_env, error=error)
-          CALL wfi_release(wf_history=qs_env%wf_history, error=error)
-          CALL wfi_duplicate_history(input_wf_history=tmp_wf_history, &
-                                     output_wf_history=qs_env%wf_history, &
-                                     qs_env=qs_env, error=error)
-        END IF
-        IF ((qs_env%scf_control%density_guess == restart_guess) .AND. &
-            (dft_control%qs_control%wf_interpolation_method_nr == wfi_use_guess_method_nr)) THEN
-          dft_section =>  section_vals_get_subs_vals(input,"DFT",error=error)
-          CALL read_mo_set(qs_env%mos, atomic_kind_set, particle_set, globenv,&
-               id_nr=1,dft_section=dft_section)
-        END IF
 
-        ! If not accepted, set back velocities and positions
-        IF (restore_velocities) THEN
-          DO isubsys = 1,SIZE(subsys)
-            DO iparticles = 1,particles%n_els
-              particles%els(iparticles)%r(1:3) = tmp_particle_set(iparticles)%r(1:3)
-              particles%els(iparticles)%v(1:3) = tmp_particle_set(iparticles)%v(1:3)
-            END DO
-          END DO
-        ELSE
-          DO isubsys = 1,SIZE(subsys)
-            DO iparticles = 1,particles%n_els
-              particles%els(iparticles)%r(1:3) = tmp_particle_set(iparticles)%r(1:3)
-            END DO
-          END DO
-        END IF
+          IF (prob > random_number) THEN
+             accepted = .TRUE.
+             accepted_md = accepted_md+1
+             accept = accept + 1
+             acceptance_rate = 100*(DBLE(accept)/DBLE(accept+reject))
+             IF (ionode .AND. globenv%print_level >= 1) THEN
+                WRITE(iw, *) ""
 
-        itimes = itimes - simpar%ld_steps
-        CALL cp_iterate(logger%iter_info, last=.FALSE., &
-                        iter_nr=itimes, error=error)
-      END IF
+                WRITE(iw, *) ""
+                WRITE(iw, *) "New Energy             =", new_ldmc_energy, ">", prev_ldmc_energy, "= Previous Energy"
+                WRITE(iw, *) "Energy difference = ", new_ldmc_energy - prev_ldmc_energy
+                WRITE(iw, *) "Transition probability =", prob, ">", random_number, "= Random Number"
+                WRITE(iw, *) ""
+                WRITE(iw, *) "This HMC approach is accepted"
+                WRITE(iw, *) "Current acceptance ratio =", (accept*100)/(accept+reject), "%"
+                WRITE(iw, *) "accepts =", accept, "  rejects =", reject
+                WRITE(iw, *) ""
+             END IF
+          ELSE
+             accepted = .FALSE.
+             reject = reject + 1
+             acceptance_rate = 100*(DBLE(accept)/DBLE(accept+reject))
+             IF (ionode .AND. globenv%print_level >= 1) THEN
+                WRITE(iw, *) ""
+
+                WRITE(iw, *) ""
+                WRITE(iw, *) "New Energy             =", new_ldmc_energy, ">", prev_ldmc_energy, "= Previous Energy"
+                WRITE(iw, *) "Energy difference = ", new_ldmc_energy - prev_ldmc_energy
+                WRITE(iw, *) "Transition probability =", prob, "<", random_number, "= Random Number"
+                WRITE(iw, *) ""
+                WRITE(iw, *) "This HMC approach is rejected"
+                WRITE(iw, *) "Current acceptance ratio =", acceptance_rate, "%"
+                WRITE(iw, *) "accepts =", accept, "  rejects =", reject
+                WRITE(iw, *) ""
+             END IF
+          END IF
+       END IF
+
+       ! New maxwell distributed momenta
+       IF (rand_vel .OR. (semi_hybrid .AND. (.NOT. accepted))) THEN
+          !      IF (rand_vel) THEN
+          IF (vel_scaling) THEN
+             CALL initialize_velocities(simpar, particles%els, globenv)
+          ELSE
+             iw = globenv%scr
+             IF (globenv%ionode .AND. globenv%print_level >= 1) THEN
+                WRITE ( iw, '( A, A, A )' ) ' **********************', &
+                     ' begin of velocity initialization ', '***********************'
+             END IF
+
+             CALL get_cp2k_units(unit)
+
+             ! initializing the velocities
+             IF (globenv%ionode) THEN
+
+                denom = 0.0_dp
+                vcom = 0.0_dp
+                ! computing the COM velocities
+                DO i = 1,SIZE(particles%els)
+                   CALL get_atomic_kind(atomic_kind = particles%els(i)%atomic_kind, mass=mass)
+                   IF (particles%els(i)%is_fixed) THEN
+                      particles%els(i)%v = 0.0_dp
+                   ELSE
+                      sigma = SQRT(simpar%temp_ext/mass)
+                      particles%els(i)%v(1) = gasdev(globenv%idum) * sigma
+                      particles%els(i)%v(2) = gasdev(globenv%idum) * sigma
+                      particles%els(i)%v(3) = gasdev(globenv%idum) * sigma
+                      vcom(1) = vcom(1) + mass * particles%els(i)%v(1)
+                      vcom(2) = vcom(2) + mass * particles%els(i)%v(2)
+                      vcom(3) = vcom(3) + mass * particles%els(i)%v(3)
+                      denom = denom + mass
+                   END IF
+                END DO
+                vcom = vcom / denom
+
+                akin = 0.0_dp
+                vcom_new = 0.0_dp
+                DO i = 1,SIZE(particles%els)
+                   atomic_kind => particles%els(i)%atomic_kind
+                   CALL get_atomic_kind (atomic_kind = atomic_kind, mass = mass)
+                   ! first subtract the COM
+                   IF (.NOT.particles%els(i)%is_fixed) THEN
+                      particles%els(i)%v(:) = particles%els(i)%v(:) - vcom(:)
+                      ! now compute the temp
+                      akin = akin + 0.5_dp * (mass * particles%els(i)%v(1) * particles%els(i)%v(1))
+                      akin = akin + 0.5_dp * (mass * particles%els(i)%v(2) * particles%els(i)%v(2))
+                      akin = akin + 0.5_dp * (mass * particles%els(i)%v(3) * particles%els(i)%v(3))
+                   END IF
+                   vcom_new(:) = vcom_new(:) + mass * particles%els(i)%v(:)
+                END DO
+             END IF
+
+#if defined(__parallel)
+             DO i = 1,SIZE(particles%els)
+                CALL mp_bcast(particles%els(i)%v, globenv%source, globenv%group)
+             END DO
+#endif
+             temp = 0.0_dp
+             IF (globenv%ionode .AND. globenv%print_level >= 1) THEN
+                IF (simpar % nfree == 0) THEN
+                   temp = 2.0_dp * akin / REAL(1, KIND=dp) ! Should always be zero...
+                ELSE
+                   temp = 2.0_dp * akin / REAL(simpar%nfree, KIND=dp)
+                END IF
+                WRITE ( iw, '( A, T61, F18.2, A2 )' ) &
+                     ' Initial Temperature ', temp / unit%kelvin, " K"
+                WRITE ( iw, '( A, T61, F20.12 )' ) &
+                     ' Centre of mass velocity in direction x:', vcom_new(1)
+                WRITE ( iw, '( A, T61, F20.12 )' ) &
+                     ' Centre of mass velocity in direction y:', vcom_new(2)
+                WRITE ( iw, '( A, T61, F20.12 )' ) &
+                     ' Centre of mass velocity in direction z:', vcom_new(3)
+                WRITE ( iw, '( A, A, A, / )' ) ' ***********************', &
+                     ' end of velocity initialization ', '************************'
+             END IF
+          END IF
+       ELSE
+          ! Restore old momenta if the velocities are not choosen at random.
+       END IF ! rand_vel
+
+       ! Write .hmc file
+       hmc = cp_print_key_unit_nr(logger,motion_section,"MD%PRINT%HMC",&
+            extension=".hmc", error=error)
+       IF (hmc>0) THEN
+          WRITE(hmc,"(I6, I5, F18.9, F18.9, F18.9, F18.9, F18.9, F18.9, F18.9, F18.9, F18.9, I8, I8, F8.4)") &
+               md_approach_nr, accepted_md, prev_ldmc_energy, Epot_prev, Ekin_prev, new_ldmc_energy, &
+               Epot_new, Ekin_new, (new_ldmc_energy-prev_ldmc_energy), prob, random_number, accept, &
+               reject, acceptance_rate
+          CALL m_flush(hmc)
+       END IF
+       CALL cp_print_key_finished_output(hmc,logger,motion_section,&
+            "MD%PRINT%HMC", error=error) 
+
+       IF (accepted) THEN
+          ! prev_ldmc_energy = new_ldmc_energy
+
+          !itimes = itimes + simpar%ld_steps
+          istep = istep + simpar%ld_steps
+          !CALL cp_iterate(logger%iter_info, last=(istep>=simpar%nsteps), &
+          !                iter_nr=itimes, error=error)
+
+          IF (restore_wf_past) THEN
+             !CALL wfi_copy_history(input_wf_history=force_env_p(1)%force_env%qs_env%wf_history, &
+             !                      output_wf_history=tmp_wf_history, &
+             !                      qs_env=force_env_p(1)%force_env%qs_env, error=error)
+             CALL wfi_release(wf_history=tmp_wf_history, error=error)
+             CALL wfi_duplicate_history(input_wf_history=qs_env%wf_history, &
+                  output_wf_history=tmp_wf_history, &
+                  qs_env=qs_env, error=error)
+          END IF
+          !IF ((qs_env%scf_control%density_guess == restart_guess) .AND. &
+          !    (dft_control%qs_control%wf_interpolation_method_nr == wfi_use_guess_method_nr)) THEN
+          !  CALL write_mo_set(qs_env%mos, atomic_kind_set, particle_set, globenv, id_nr=1)
+          !END IF
+
+          ! If accepted, save velocities and positions
+          IF (restore_velocities) THEN
+             DO isubsys = 1,SIZE(subsys)
+                DO iparticles = 1,particles%n_els
+                   tmp_particle_set(iparticles)%r(1:3) = particles%els(iparticles)%r(1:3)
+                   tmp_particle_set(iparticles)%v(1:3) = particles%els(iparticles)%v(1:3)
+                END DO
+             END DO
+          ELSE
+             DO isubsys = 1,SIZE(subsys)
+                DO iparticles = 1,particles%n_els
+                   tmp_particle_set(iparticles)%r(1:3) = particles%els(iparticles)%r(1:3)
+                END DO
+             END DO
+          END IF
+
+          IF (BTEST(cp_print_key_should_output(logger%iter_info,&
+               motion_section,"MD%PRINT%RESTART",error=error),cp_p_file)) THEN
+             ires = cp_print_key_unit_nr(logger,motion_section,"MD%PRINT%RESTART",&
+                  extension=".restart", do_backup=.TRUE., error=error)
+             IF (simpar%ensemble == langevin_ensemble) THEN
+                CALL write_md_restart_file(md_env, ires, error=error)
+             ELSE
+                CALL dump_variables(md_env,ires,globenv,error)
+             END IF
+             CALL cp_print_key_finished_output(ires,logger,motion_section,&
+                  "MD%PRINT%RESTART", error=error)
+          END IF
+
+       ELSE
+          IF (restore_wf_past) THEN
+             ! Restore the state of the wavefunction history as it was before the unsuccessful MD approach
+             !CALL wfi_copy_history(input_wf_history=tmp_wf_history, &
+             !                      output_wf_history=force_env_p(1)%force_env%qs_env%wf_history, &
+             !                      qs_env=force_env_p(1)%force_env%qs_env, error=error)
+             CALL wfi_release(wf_history=qs_env%wf_history, error=error)
+             CALL wfi_duplicate_history(input_wf_history=tmp_wf_history, &
+                  output_wf_history=qs_env%wf_history, &
+                  qs_env=qs_env, error=error)
+          END IF
+          IF ((qs_env%scf_control%density_guess == restart_guess) .AND. &
+               (dft_control%qs_control%wf_interpolation_method_nr == wfi_use_guess_method_nr)) THEN
+             dft_section =>  section_vals_get_subs_vals(input,"DFT",error=error)
+             CALL read_mo_set(qs_env%mos, atomic_kind_set, particle_set, globenv,&
+                  id_nr=1,dft_section=dft_section)
+          END IF
+
+          ! If not accepted, set back velocities and positions
+          IF (restore_velocities) THEN
+             DO isubsys = 1,SIZE(subsys)
+                DO iparticles = 1,particles%n_els
+                   particles%els(iparticles)%r(1:3) = tmp_particle_set(iparticles)%r(1:3)
+                   particles%els(iparticles)%v(1:3) = tmp_particle_set(iparticles)%v(1:3)
+                END DO
+             END DO
+          ELSE
+             DO isubsys = 1,SIZE(subsys)
+                DO iparticles = 1,particles%n_els
+                   particles%els(iparticles)%r(1:3) = tmp_particle_set(iparticles)%r(1:3)
+                END DO
+             END DO
+          END IF
+
+          itimes = itimes - simpar%ld_steps
+          CALL cp_iterate(logger%iter_info, last=.FALSE., &
+               iter_nr=itimes, error=error)
+       END IF
     END DO
     ! Last iteration
     time_iter_start = m_walltime()
 
     itimes = itimes + 1
     CALL cp_iterate(logger%iter_info, last=.TRUE., &
-                    iter_nr=itimes, error=error)
+         iter_nr=itimes, error=error)
 
     CALL velocity_verlet(md_env,error=error)
     DO ibead=1,nbeads
-      CALL temperature_control(simpar,force_env_p(ibead)%force_env,error)
+       CALL temperature_control(simpar,force_env_p(ibead)%force_env,error)
     END DO
     time_iter_stop = m_walltime()
     used_time = time_iter_stop - time_iter_start
     CALL md_energy(md_env, globenv)
 
-    IF (simpar%ensemble == langevin_ensemble) THEN
-      CALL write_md_restart_file(md_env, error=error)
-    ELSE
-      CALL dump_variables(md_env, mdio%dump_file_name, error)
+    IF (BTEST(cp_print_key_should_output(logger%iter_info,&
+         motion_section,"MD%PRINT%RESTART",error=error),cp_p_file)) THEN
+       ires = cp_print_key_unit_nr(logger,motion_section,"MD%PRINT%RESTART",&
+            extension=".restart", do_backup=.TRUE., error=error)
+       IF (simpar%ensemble == langevin_ensemble) THEN
+          CALL write_md_restart_file(md_env, ires, error=error)
+       ELSE
+          CALL dump_variables(md_env,ires,globenv,error)
+       END IF
+       CALL cp_print_key_finished_output(ires,logger,motion_section,&
+            "MD%PRINT%RESTART", error=error)
     END IF
-    !CALL write_mo_set(qs_env%mos, atomic_kind_set, particle_set, globenv, id_nr=1)
 
     IF (ionode .AND. globenv%print_level >= 1) THEN
-      accept = accept+1
-      acceptance_rate = 100*(DBLE(accept)/DBLE(accept+reject))
-      WRITE(iw, *) "Final acceptance ratio =", acceptance_rate, "%"
-      WRITE(iw, *) "accepts =", accept, "  rejects =", reject
+       accept = accept+1
+       acceptance_rate = 100*(DBLE(accept)/DBLE(accept+reject))
+       WRITE(iw, *) "Final acceptance ratio =", acceptance_rate, "%"
+       WRITE(iw, *) "accepts =", accept, "  rejects =", reject
     END IF
 
     CALL cp_rm_iter_level(logger%iter_info,n_rlevel_att=iter_level,&
@@ -1088,15 +1116,13 @@ CONTAINS
     CALL npt_dealloc(extended_type%npt_info)
     DEALLOCATE(simpar, STAT=istat)
     CPPostcondition(istat==0, cp_failure_level, routineP, error, failure)
-    DEALLOCATE(mdio, STAT=istat)
-    CPPostcondition(istat==0, cp_failure_level, routineP, error, failure)
     DEALLOCATE(tmp_particle_set, STAT=istat)
     CPPostcondition(istat==0, cp_failure_level, routineP, error, failure)
 
     CALL delete_rng_stream(rng_stream=rng_stream, error=error)
 
     CALL wfi_release(wf_history=tmp_wf_history, error=error)
-    
+
     CALL timestop(0.0_dp, handle)
 
     CALL write_checkpoint_information("Leaving "//routineN,globenv,error)
@@ -1182,15 +1208,6 @@ CONTAINS
       used_time = time_iter_stop - time_iter_start
       time_iter_start = time_iter_stop
       CALL md_energy(md_env, globenv, error)
-
-      !IF (MODULO(itimes, mdio%idump) == 0) THEN
-      !  IF (simpar%ensemble == langevin_ensemble) THEN
-      !    CALL write_md_restart_file(md_env, error=error)
-      !  ELSE
-      !    CALL dump_variables(md_env, mdio%dump_file_name, error)
-      !  END IF
-      !END IF
-
       CALL external_control(should_stop,"HMC",globenv,error)
       IF (should_stop) EXIT
 

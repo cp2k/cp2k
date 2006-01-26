@@ -326,7 +326,7 @@ SUBROUTINE read_md_restart ( in_use,rtype, globenv, particle_set, cell, cell_ref
   size_baro2=0
 
   CALL xstring ( globenv % project_name, ia, ie )
-  filen = globenv % project_name ( ia:ie ) // '.restart'
+  filen = globenv % project_name ( ia:ie ) // '-1.restart'
   ia = MIN ( LEN ( filen ), 20 )
   IF (globenv % ionode) &
     WRITE ( iw, '( A, T61, A )' ) ' READ MD| Read pos/vel/eta from file ', &
