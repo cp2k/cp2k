@@ -45,7 +45,9 @@ MODULE tbmd_hamiltonian
   USE molecule_kind_types,                    ONLY: molecule_kind_type
   USE particle_types,                         ONLY: particle_type
   USE sparse_matrix_types,                    ONLY: real_matrix_type, &
+                                                    real_matrix_p_type, &
                                                     allocate_matrix, &
+                                                    allocate_matrix_set, &
                                                     replicate_matrix_structure, &
                                                     add_block_node
   USE tbmd_environment_types,                 ONLY: tbmd_environment_type, &
@@ -138,7 +140,8 @@ CONTAINS
                                                 stat, &
                                                 irow, &
                                                 icol, &
-                                                i
+                                                i, &
+                                                i_dim
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(particle_type), DIMENSION(:), &
@@ -161,14 +164,20 @@ CONTAINS
                                                 m, &
                                                 n, &
                                                 distance, &
-                                                temp_sm_st
+                                                temp_sm_st, &
+                                                temp_dsm_st, &
+                                                cos_temp, &
+                                                dl, &
+                                                dm, &
+                                                dn
     REAL(KIND=dp), DIMENSION(3)              :: dra, &
                                                 drb, &
                                                 rab
     REAL(KIND=dp), DIMENSION(:,:), POINTER   :: r_last_update
     TYPE(cell_type), POINTER                 :: cell
-    TYPE(real_matrix_type), POINTER          :: matrix_h, &
-                                                matrix_dh
+    TYPE(real_matrix_type), POINTER          :: matrix_h
+    TYPE(real_matrix_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_dh
     TYPE(distribution_2d_type), POINTER      :: distribution_2d
     INTEGER, DIMENSION(:), ALLOCATABLE       :: first_index_vec, &
                                                 last_index_vec
@@ -232,16 +241,21 @@ CONTAINS
       CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
 
       IF (derivative) THEN
-        CALL replicate_matrix_structure(source=tbmd_env%matrix_h, TARGET=tbmd_env%matrix_dh, &
-                                        target_name="Derivative of the Tight-Binding " //&
-                                        "Hamiltonian Matrix WITH respect to the nuclear "//&
-                                        "coordinates", target_symmetry="symmetric") ! antisymmetric?
+        CALL allocate_matrix_set(tbmd_env%matrix_dh,3)
+
+        DO i_dim = 1,3
+          CALL replicate_matrix_structure(source=tbmd_env%matrix_h, &
+                                          TARGET=tbmd_env%matrix_dh(i_dim)%matrix, &
+                                          target_name="Derivative of the Tight-Binding " //&
+                                          "Hamiltonian Matrix WITH respect to the nuclear "//&
+                                          "coordinates", target_symmetry="symmetric") ! antisymmetric?
+        END DO
         
-        ALLOCATE(sint(2), STAT=stat)
+        ALLOCATE(sint(4), STAT=stat)
         CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
 
-        DO i = 1,2        
-          NULLIFY(sint(i)%block)
+        DO i = 1,4        
+          NULLIFY(sint(4)%block)
         END DO
       ELSE
         ALLOCATE(sint(1), STAT=stat)
@@ -315,12 +329,6 @@ CONTAINS
                 CALL add_block_node(matrix=tbmd_env%matrix_h, block_row=irow, &
                                     block_col=icol, BLOCK=sint(1)%block, error=error)
 
-                IF (derivative) THEN
-                  NULLIFY(sint(2)%block)
-                  CALL add_block_node(matrix=tbmd_env%matrix_dh, block_row=irow, &
-                                      block_col=icol, BLOCK=sint(2)%block, error=error)
-                END IF
-                
                 ! Cosines
                 distance = SQRT(rab2)
                 l = rab(1)/distance
@@ -329,40 +337,133 @@ CONTAINS
 
                 ! Scaling function
                 temp_sm_st = 1.0_dp
-                
-                IF (atom_a == atom_b) THEN   ! diagonal-block
+
+                ! The 4x4 tight-binding hamiltonian matrix-blocks
+                IF (atom_a == atom_b) THEN   ! diagonal-blocks
+                  sint(1)%block(:,:) = 0.0_dp
+
                   sint(1)%block(1,1) = Es
                   sint(1)%block(2,2) = Es + dEpsilon
                   sint(1)%block(3,3) = Es + dEpsilon
                   sint(1)%block(4,4) = Es + dEpsilon
-                ELSE                         ! off-diagonal-block
-                  ! Diagonal elements of an off-diagonal-block
+                ELSE                         ! off-diagonal-blocks
+                  ! *** Diagonal elements of an off-diagonal-block *** !
+                  ! H_ss = V_ssS(r_ij)
                   sint(1)%block(1,1) = temp_sm_st * ssS
+
+                  ! H_xx = (l_ij)^2 * V_ppS(r_ij) + (1 - (l_ij)^2) * V_ppP(r_ij)
                   sint(1)%block(2,2) = temp_sm_st * (ppS * l*l + (1.0_dp - l*l) * ppP)
                   sint(1)%block(3,3) = temp_sm_st * (ppS * m*m + (1.0_dp - m*m) * ppP)
                   sint(1)%block(4,4) = temp_sm_st * (ppS * n*n + (1.0_dp - n*n) * ppP)
 
-                  ! s-p orbtial interactions
+                  ! *** s-p orbtial interactions *** !
+                  ! H_sx = l_ij * V_spS(r_ij)
                   sint(1)%block(1,2) = temp_sm_st * spS * l
                   sint(1)%block(1,3) = temp_sm_st * spS * m
                   sint(1)%block(1,4) = temp_sm_st * spS * n
 
+                  ! H_xs = -H_sx
                   sint(1)%block(2,1) = -sint(1)%block(1,2)
                   sint(1)%block(3,1) = -sint(1)%block(1,3)
                   sint(1)%block(4,1) = -sint(1)%block(1,4)
 
-                  ! p-p orbital interactions
+                  ! *** p-p orbital interactions *** !
+                  ! H_xy = l_ij*m_ij * V_ppS(r_ij) - l_ij*m_ij * V_ppP(r_ij)
+                  !      = l_ij*m_ij * (V_ppS(r_ij) - V_ppP(r_ij))
                   sint(1)%block(2,3) = temp_sm_st * l*m * (ppS - ppP)
                   sint(1)%block(2,4) = temp_sm_st * l*n * (ppS - ppP)
                   sint(1)%block(3,4) = temp_sm_st * m*n * (ppS - ppP)
 
+                  ! H_yx = H_xy
                   sint(1)%block(3,2) = sint(1)%block(2,3)
                   sint(1)%block(4,2) = sint(1)%block(2,4)
                   sint(1)%block(4,3) = sint(1)%block(3,4)
                 END IF
 
+                ! dH/dR Matrix built-up
                 IF (derivative) THEN
-                  ! dH/dR Matrix built-up
+                  DO i_dim = 1,3
+                    NULLIFY(sint(i_dim+1)%block)
+                    CALL add_block_node(matrix=tbmd_env%matrix_dh(i_dim)%matrix, block_row=irow, &
+                                        block_col=icol, BLOCK=sint(i_dim+1)%block, error=error)
+
+
+                    ! Derivatives of the cosines with respect to x_{i_dim}
+                    SELECT CASE(i_dim)
+                      CASE(1)
+                        cos_temp = l
+                        dl = 1.0_dp/distance * (1.0_dp - cos_temp*cos_temp)
+                        dm = -cos_temp*m/distance
+                        dn = -cos_temp*n/distance
+                      CASE(2)
+                        cos_temp = m
+                        dl = -cos_temp*l/distance
+                        dm = 1.0_dp/distance * (1.0_dp - cos_temp*cos_temp)
+                        dn = -cos_temp*n/distance
+                      CASE(3)
+                        cos_temp = n
+                        dl = -cos_temp*l/distance
+                        dm = -cos_temp*m/distance
+                        dn = 1.0_dp/distance * (1.0_dp - cos_temp*cos_temp)
+                      CASE DEFAULT
+
+                    END SELECT
+
+                    ! Scaling function
+                    temp_dsm_st = 1.0_dp
+
+                    ! The 4x4 tight-binding dH/dR_i matrix-blocks
+                    IF (atom_a == atom_b) THEN   ! diagonal-blocks
+                      sint(i_dim+1)%block(:,:) = 0.0_dp
+                    ELSE
+                      ! *** Diagonal elements of an off-diagonal-block *** !
+                      ! d/dR_i <H_ss> = d/dR_i <V_ssS(r_ij)>
+                      sint(i_dim+1)%block(1,1) = temp_dsm_st * cos_temp * ssS
+
+                      ! d/dR_i <H_xx> = d/dR_i <(l_ij)^2 * V_ppS(r_ij) + (1 - (l_ij)^2) * V_ppP(r_ij)>
+                      sint(i_dim+1)%block(2,2) = temp_dsm_st * cos_temp &
+                                                 * (ppS * l*l + (1.0_dp - l*l) * ppP) &
+                                                 + temp_sm_st * 2.0_dp * l * dl * (ppS - ppP)
+                      sint(i_dim+1)%block(3,3) = temp_dsm_st * cos_temp &
+                                                 * (ppS * m*m + (1.0_dp - m*m) * ppP) &
+                                                 + temp_sm_st * 2.0_dp * m * dm * (ppS - ppP)
+                      sint(i_dim+1)%block(4,4) = temp_dsm_st * cos_temp &
+                                                 * (ppS * n*n + (1.0_dp - n*n) * ppP) &
+                                                 + temp_sm_st * 2.0_dp * n * dn * (ppS - ppP)
+
+                      ! *** s-p orbtial interactions *** !
+                      ! d/dR_i <H_sx> = d/dR_i <l_ij * V_spS(r_ij)>
+                      sint(i_dim+1)%block(1,2) = temp_dsm_st * cos_temp * spS * l &
+                                                 + temp_sm_st * spS * dl
+                      sint(i_dim+1)%block(1,3) = temp_dsm_st * cos_temp * spS * m &
+                                                 + temp_sm_st * spS * dm
+                      sint(i_dim+1)%block(1,4) = temp_dsm_st * cos_temp * spS * n &
+                                                 + temp_sm_st * spS * dn
+
+                      ! d/dR_i <H_xs> = -d/dR_i <H_sx>
+                      sint(i_dim+1)%block(2,1) = -sint(i_dim+1)%block(1,2)
+                      sint(i_dim+1)%block(3,1) = -sint(i_dim+1)%block(1,3)
+                      sint(i_dim+1)%block(4,1) = -sint(i_dim+1)%block(1,4)
+
+                      ! *** p-p orbital interactions *** !
+                      ! d/dR_i <H_xy> = d/dR_i <l_ij*m_ij * V_ppS(r_ij) - l_ij*m_ij * V_ppP(r_ij)>
+                      !               = d/dR_i <l_ij*m_ij * (V_ppS(r_ij) - V_ppP(r_ij))>
+                      sint(i_dim+1)%block(2,3) = temp_dsm_st * cos_temp * l * m * (ppS - ppP) &
+                                                 + temp_sm_st * dl * m * (ppS - ppP) &
+                                                 + temp_sm_st * l * dm * (ppS - ppP)
+                      sint(i_dim+1)%block(2,4) = temp_dsm_st * cos_temp * l * n * (ppS - ppP) &
+                                                 + temp_sm_st * dl * n * (ppS - ppP) &
+                                                 + temp_sm_st * l * dn * (ppS - ppP)
+                      sint(i_dim+1)%block(3,4) = temp_dsm_st * cos_temp * m * n * (ppS - ppP) &
+                                                 + temp_sm_st * dm * n * (ppS - ppP) &
+                                                 + temp_sm_st * m * dn * (ppS - ppP)
+
+                      ! d/dR_i <H_yx> = d/dR_i <H_xy>
+                      sint(i_dim+1)%block(3,2) = sint(i_dim+1)%block(2,3)
+                      sint(i_dim+1)%block(4,2) = sint(i_dim+1)%block(2,4)
+                      sint(i_dim+1)%block(4,3) = sint(i_dim+1)%block(3,4)
+                    END IF
+                  END DO
                 END IF
 
               END IF
