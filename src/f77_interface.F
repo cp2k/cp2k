@@ -1371,12 +1371,12 @@ END SUBROUTINE f_env_rm_defaults
     CALL parser_release(cpparser,error=error)
     CALL cp_error_check(error,failure)
     IF (.NOT.failure) THEN
+       CALL check_cp2k_input(input_file,para_env=para_env,error=error)
        IF (my_echo_input.AND.para_env%mepos==para_env%source) THEN
           CALL section_vals_write(input_file,&
                unit_nr=cp_logger_get_default_unit_nr(logger,local=.false.),hide_root=.TRUE.,&
                error=error)
        END IF
-       CALL check_cp2k_input(input_file,para_env=para_env,error=error)
     END IF
     CALL section_vals_release(input_file,error=error)
 

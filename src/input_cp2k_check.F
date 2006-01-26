@@ -276,7 +276,7 @@ SUBROUTINE handle_ext_restart(input_file,para_env,error)
            CALL section_vals_set_subs_vals(input_file,"FORCE_EVAL%SUBSYS%VELOCITY",&
                 section,error=error)
         END IF
-        CALL section_vals_val_get(r_section,"RESTART_BAROSTATS",l_val=flag,&
+        CALL section_vals_val_get(r_section,"RESTART_BAROSTAT",l_val=flag,&
              error=error)
         IF (flag) THEN
            section => section_vals_get_subs_vals(restart_input,&
@@ -340,7 +340,7 @@ SUBROUTINE handle_ext_restart(input_file,para_env,error)
            CALL section_vals_set_subs_vals(input_file,"GLOBAL%RNG_INIT",&
                 section,error=error)
         END IF
-        CALL section_vals_val_get(r_section,"CUSTOM_PATH",n_rep_val,&
+        CALL section_vals_val_get(r_section,"CUSTOM_PATH",n_rep_val=n_rep_val,&
              error=error)
         DO i_rep_val=1,n_rep_val
            CALL section_vals_val_get(r_section,"CUSTOM_PATH",&
