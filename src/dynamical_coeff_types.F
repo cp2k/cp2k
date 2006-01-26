@@ -1043,10 +1043,10 @@ SUBROUTINE dyn_coeff_set_init_vel(kg_coeff_target_temp,dyn_coeff_set,mbuffer,glo
         END IF
       END DO
     END DO
+    vcom=vcom/denom
 
   END IF
   CALL mp_bcast(vbuffer,globenv%source,group)
-  vcom=vcom/denom
 
   DO ikind=1, nkind
     n_els_of_kind(ikind) = dyn_coeff_set%distribution%n_el(ikind)
