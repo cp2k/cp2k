@@ -28,16 +28,17 @@
 !!   SOURCE
 !****************************************************************************
 MODULE replica_types
-  use kinds, only: dp
-  use cp_para_types, only: cp_para_env_type
-  use timings, only: timeset, timestop
+  USE cp_para_types,                   ONLY: cp_para_env_type
+  USE kinds,                           ONLY: dp
+  USE timings,                         ONLY: timeset,&
+                                             timestop
 #include "cp_common_uses.h"
 
-  implicit none
-  private
+  IMPLICIT NONE
+  PRIVATE
 
-  logical, private, parameter :: debug_this_module=.true.
-  character(len=*), private, parameter :: moduleN='replica_types'
+  LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
+  CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='replica_types'
 
   PUBLIC :: replica_env_type
   PUBLIC :: rep_env_retain, rep_env_release
@@ -66,14 +67,14 @@ MODULE replica_types
   TYPE replica_env_type
      INTEGER :: ref_count, id_nr, f_env_id
      REAL(kind=dp), DIMENSION(:,:,:), POINTER :: x,v,f
-     INTEGER, DIMENSION(:), pointer :: replica_owner
-     TYPE(cp_para_cart_type), pointer :: para_cart
-     TYPE(cp_para_env_type), pointer :: para_env
+     INTEGER, DIMENSION(:), POINTER :: replica_owner
+     TYPE(cp_para_cart_type), POINTER :: para_cart
+     TYPE(cp_para_env_type), POINTER :: para_env
   END TYPE replica_env_type
   !!***
   !****************************************************************************
 
-contains
+CONTAINS
 
 !!****f* replica_types/rep_env_retain *
 !!
@@ -96,13 +97,16 @@ contains
 !!
 !!*** **********************************************************************
 SUBROUTINE rep_env_retain(rep_env,error)
-  type(cp_error_type), optional, intent(inout) :: error
-  
-  logical :: failure
-  character(len=*), parameter :: routineN='rep_env_retain',&
-        routineP=moduleN//':'//routineN
+    TYPE(replica_env_type), POINTER          :: rep_env
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-  failure=.false.
+    CHARACTER(len=*), PARAMETER :: routineN = 'rep_env_retain', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+
+  failure=.FALSE.
   CPPrecondition(ASSOCIATED(rep_env),cp_fm_types,routineP,error,failure)
   IF (.NOT. failure) THEN
      CPPrecondition(rep_env%ref_count>0,cp_failure_level,routineP,error,failure)
@@ -132,15 +136,18 @@ END SUBROUTINE rep_env_retain
 !!
 !!*** **********************************************************************
 SUBROUTINE rep_env_release(rep_env,error)
-  type(cp_error_type), optional, intent(inout) :: error
-  
-  logical :: failure
-  character(len=*), parameter :: routineN='rep_env_release',&
-        routineP=moduleN//':'//routineN
-  integer :: stat
+    TYPE(replica_env_type), POINTER          :: rep_env
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-  failure=.false.
-  IF (associated(rep_env)) THEN
+    CHARACTER(len=*), PARAMETER :: routineN = 'rep_env_release', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: stat
+    LOGICAL                                  :: failure
+
+  failure=.FALSE.
+  IF (ASSOCIATED(rep_env)) THEN
      CPPrecondition(rep_env%ref_count>0,cp_failure_level,routineP,error,failure)
      rep_env%ref_count=rep_env%ref_count-1
      IF (rep_env%ref_count==0) THEN
