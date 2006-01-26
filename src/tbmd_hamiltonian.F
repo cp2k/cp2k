@@ -50,6 +50,8 @@ MODULE tbmd_hamiltonian
                                                     add_block_node
   USE tbmd_environment_types,                 ONLY: tbmd_environment_type, &
                                                     tbmd_env_get
+  USE tbmd_model_types,                       ONLY: tbmd_model_type, &
+                                                    tbmd_model_get
   USE tbmd_neighbor_list_env_types,           ONLY: tbmd_neighbor_list_env_type, &
                                                     tbmd_neighbor_list_env_get
   USE timings,                                ONLY: timeset, &
@@ -148,7 +150,18 @@ CONTAINS
     TYPE(neighbor_list_type), POINTER        :: neighbor_list
     TYPE(neighbor_node_type), POINTER        :: neighbor_node
     REAL(KIND=dp)                            :: rab2_max, &
-                                                rab2
+                                                rab2, &
+                                                Es, &
+                                                dEpsilon, &
+                                                ssS, &
+                                                spS, &
+                                                ppS, &
+                                                ppP, &
+                                                l, &
+                                                m, &
+                                                n, &
+                                                distance, &
+                                                temp_sm_st
     REAL(KIND=dp), DIMENSION(3)              :: dra, &
                                                 drb, &
                                                 rab
@@ -161,6 +174,7 @@ CONTAINS
                                                 last_index_vec
     TYPE(block_p_type), DIMENSION(:), &
       ALLOCATABLE                            :: sint
+    TYPE(tbmd_model_type), POINTER           :: tbmd_model
 
 !   ------------------------------------------------------------------------
 
@@ -168,7 +182,7 @@ CONTAINS
 
     NULLIFY(atomic_kind_set, particle_set, subsystem, tbmd_neighbor_list_env, &
             neighbor_list_set, neighbor_list, neighbor_node, r_last_update, &
-            cell, matrix_h, matrix_dh, distribution_2d)
+            cell, matrix_h, matrix_dh, distribution_2d, tbmd_model)
 
     failure = .FALSE.
   
@@ -179,7 +193,7 @@ CONTAINS
       CALL tbmd_env_get(tbmd_env=tbmd_env, subsystem=subsystem, &
                         tbmd_neighbor_list_env=tbmd_neighbor_list_env, &
                         cell=cell, matrix_h=matrix_h, matrix_dh=matrix_dh, &
-                        error=error)
+                        tbmd_model=tbmd_model, error=error)
 
       particle_set => subsystem%particles%els
       atomic_kind_set => subsystem%atomic_kinds%els
@@ -188,6 +202,10 @@ CONTAINS
 
       CALL tbmd_neighbor_list_env_get(tbmd_neighbor_list_env=tbmd_neighbor_list_env, &
                                       r_last_update=r_last_update, error=error)
+      
+      CALL tbmd_model_get(tbmd_model=tbmd_model, E_s=Es, dEpsilon=dEpsilon, h_ssS=ssS, &
+                          h_spS=spS, h_ppS=ppS, h_ppP=ppP, error=error)
+
 
       ALLOCATE(first_index_vec(natoms), STAT=stat)
       CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
@@ -204,8 +222,8 @@ CONTAINS
                            first_col=first_index_vec, last_col=last_index_vec, &
                            matrix_name="Tight-Binding Hamiltonian Matrix", &
                            matrix_symmetry="symmetric", &
-                           sparsity_id=tbmd_neighbor_list_env%id_nr)
-                           !distribution_2d=distribution_2d)
+                           sparsity_id=tbmd_neighbor_list_env%id_nr, &
+                           distribution_2d=distribution_2d)
 
       DEALLOCATE(first_index_vec, STAT=stat)
       CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
@@ -301,6 +319,50 @@ CONTAINS
                   NULLIFY(sint(2)%block)
                   CALL add_block_node(matrix=tbmd_env%matrix_dh, block_row=irow, &
                                       block_col=icol, BLOCK=sint(2)%block, error=error)
+                END IF
+                
+                ! Cosines
+                distance = SQRT(rab2)
+                l = rab(1)/distance
+                m = rab(2)/distance
+                n = rab(3)/distance
+
+                ! Scaling function
+                temp_sm_st = 1.0_dp
+                
+                IF (atom_a == atom_b) THEN   ! diagonal-block
+                  sint(1)%block(1,1) = Es
+                  sint(1)%block(2,2) = Es + dEpsilon
+                  sint(1)%block(3,3) = Es + dEpsilon
+                  sint(1)%block(4,4) = Es + dEpsilon
+                ELSE                         ! off-diagonal-block
+                  ! Diagonal elements of an off-diagonal-block
+                  sint(1)%block(1,1) = temp_sm_st * ssS
+                  sint(1)%block(2,2) = temp_sm_st * (ppS * l*l + (1.0_dp - l*l) * ppP)
+                  sint(1)%block(3,3) = temp_sm_st * (ppS * m*m + (1.0_dp - m*m) * ppP)
+                  sint(1)%block(4,4) = temp_sm_st * (ppS * n*n + (1.0_dp - n*n) * ppP)
+
+                  ! s-p orbtial interactions
+                  sint(1)%block(1,2) = temp_sm_st * spS * l
+                  sint(1)%block(1,3) = temp_sm_st * spS * m
+                  sint(1)%block(1,4) = temp_sm_st * spS * n
+
+                  sint(1)%block(2,1) = -sint(1)%block(1,2)
+                  sint(1)%block(3,1) = -sint(1)%block(1,3)
+                  sint(1)%block(4,1) = -sint(1)%block(1,4)
+
+                  ! p-p orbital interactions
+                  sint(1)%block(2,3) = temp_sm_st * l*m * (ppS - ppP)
+                  sint(1)%block(2,4) = temp_sm_st * l*n * (ppS - ppP)
+                  sint(1)%block(3,4) = temp_sm_st * m*n * (ppS - ppP)
+
+                  sint(1)%block(3,2) = sint(1)%block(2,3)
+                  sint(1)%block(4,2) = sint(1)%block(2,4)
+                  sint(1)%block(4,3) = sint(1)%block(3,4)
+                END IF
+
+                IF (derivative) THEN
+                  ! dH/dR Matrix built-up
                 END IF
 
               END IF
