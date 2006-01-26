@@ -118,10 +118,10 @@ CONTAINS
 
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(global_environment_type), &
-      pointer                             :: globenv
+      pointer                                :: globenv
     INTEGER,INTENT(IN), OPTIONAL             :: nderivative
     TYPE(cp_error_type), INTENT(inout), &
-         OPTIONAL                               :: error
+         OPTIONAL                              :: error
 !   *** Local types ***
 
     TYPE block_p_type

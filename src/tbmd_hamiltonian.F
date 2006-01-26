@@ -30,6 +30,7 @@ MODULE tbmd_hamiltonian
   USE cell_types,                             ONLY: cell_type, &
                                                     scaled_to_real
   USE cp_subsystem_types,                     ONLY: cp_subsystem_type
+  USE distribution_2d_types,                  ONLY: distribution_2d_type
   USE fist_neighbor_list_types,               ONLY: neighbor_list_set_type, &
                                                     neighbor_list_type, &
                                                     neighbor_node_type, &
@@ -43,6 +44,10 @@ MODULE tbmd_hamiltonian
   USE kinds,                                  ONLY: dp
   USE molecule_kind_types,                    ONLY: molecule_kind_type
   USE particle_types,                         ONLY: particle_type
+  USE sparse_matrix_types,                    ONLY: real_matrix_type, &
+                                                    allocate_matrix, &
+                                                    replicate_matrix_structure, &
+                                                    add_block_node
   USE tbmd_environment_types,                 ONLY: tbmd_environment_type, &
                                                     tbmd_env_get
   USE tbmd_neighbor_list_env_types,           ONLY: tbmd_neighbor_list_env_type, &
@@ -101,14 +106,20 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE tbmd_build_hamiltonian(tbmd_env, derivative, error)
     TYPE(tbmd_environment_type), POINTER     :: tbmd_env
-    LOGICAL                                  :: derivative
+    LOGICAL, INTENT(IN)                      :: derivative
     TYPE(cp_error_type), INTENT(INOUT), &
       OPTIONAL                               :: error
+
+    ! *** Local types *** !
+    TYPE block_p_type
+      REAL(KIND = dp), DIMENSION(:,:), POINTER :: block
+    END TYPE block_p_type
 
     CHARACTER(len=*), PARAMETER :: routineN = 'tbmd_build_hamiltonian', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
+    LOGICAL                                  :: failure, &
+                                                new_atom_b
     INTEGER                                  :: handle, &
                                                 ikind, &
                                                 jkind, &
@@ -120,7 +131,12 @@ CONTAINS
                                                 inode, &
                                                 nnode, &
                                                 atom_a, &
-                                                atom_b
+                                                atom_b, &
+                                                last_atom_b, &
+                                                stat, &
+                                                irow, &
+                                                icol, &
+                                                i
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(particle_type), DIMENSION(:), &
@@ -138,13 +154,21 @@ CONTAINS
                                                 rab
     REAL(KIND=dp), DIMENSION(:,:), POINTER   :: r_last_update
     TYPE(cell_type), POINTER                 :: cell
+    TYPE(real_matrix_type), POINTER          :: matrix_h, &
+                                                matrix_dh
+    TYPE(distribution_2d_type), POINTER      :: distribution_2d
+    INTEGER, DIMENSION(:), ALLOCATABLE       :: first_index_vec, &
+                                                last_index_vec
+    TYPE(block_p_type), DIMENSION(:), &
+      ALLOCATABLE                            :: sint
 
 !   ------------------------------------------------------------------------
 
     CALL timeset(routineN, "I", "", handle)
 
     NULLIFY(atomic_kind_set, particle_set, subsystem, tbmd_neighbor_list_env, &
-            neighbor_list_set, neighbor_list, neighbor_node, r_last_update, cell)
+            neighbor_list_set, neighbor_list, neighbor_node, r_last_update, &
+            cell, matrix_h, matrix_dh, distribution_2d)
 
     failure = .FALSE.
   
@@ -154,7 +178,9 @@ CONTAINS
 
       CALL tbmd_env_get(tbmd_env=tbmd_env, subsystem=subsystem, &
                         tbmd_neighbor_list_env=tbmd_neighbor_list_env, &
-                        cell=cell, error=error)
+                        cell=cell, matrix_h=matrix_h, matrix_dh=matrix_dh, &
+                        error=error)
+
       particle_set => subsystem%particles%els
       atomic_kind_set => subsystem%atomic_kinds%els
       nkinds = SIZE(atomic_kind_set)
@@ -162,6 +188,46 @@ CONTAINS
 
       CALL tbmd_neighbor_list_env_get(tbmd_neighbor_list_env=tbmd_neighbor_list_env, &
                                       r_last_update=r_last_update, error=error)
+
+      ALLOCATE(first_index_vec(natoms), STAT=stat)
+      CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
+      
+      ALLOCATE(last_index_vec(natoms), STAT=stat)
+      CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
+
+      CALL allocate_matrix(matrix=tbmd_env%matrix_h, nrow=4*natoms, ncol=4*natoms, &
+                           nblock_row=natoms, nblock_col=natoms, &
+                           first_row=first_index_vec, last_row=last_index_vec, &
+                           first_col=first_index_vec, last_col=last_index_vec, &
+                           matrix_name="Tight-Binding Hamiltonian Matrix", &
+                           matrix_symmetry="symmetric", &
+                           sparsity_id=tbmd_neighbor_list_env%id_nr)
+                           !distribution_2d=distribution_2d)
+
+      DEALLOCATE(first_index_vec, STAT=stat)
+      CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
+
+      DEALLOCATE(last_index_vec, STAT=stat)
+      CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
+
+      IF (derivative) THEN
+        CALL replicate_matrix_structure(source=tbmd_env%matrix_h, TARGET=tbmd_env%matrix_dh, &
+                                        target_name="Derivative of the Tight-Binding " //&
+                                        "Hamiltonian Matrix WITH respect to the nuclear "//&
+                                        "coordinates", target_symmetry="symmetric") ! antisymmetric?
+        
+        ALLOCATE(sint(1), STAT=stat)
+        CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
+
+        NULLIFY(sint(1)%block)
+      ELSE
+        ALLOCATE(sint(2), STAT=stat)
+        CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
+
+        DO i = 1,2
+          NULLIFY(sint(i)%block)
+        END DO
+      END IF
 
       ! Loop over the neighbor-list
       DO ikind = 1,nkinds
@@ -205,7 +271,33 @@ CONTAINS
               rab2 = rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3)
 
               IF (rab2 <= rab2_max) THEN
-                 ! Tight-binding Hamiltonian build-up
+
+                ! Tight-binding Hamiltonian build-up
+                IF (atom_b /= last_atom_b) THEN
+                  new_atom_b = .TRUE.
+                  last_atom_b = atom_b
+                ELSE
+                  new_atom_b = .FALSE.
+                END IF
+
+                IF (new_atom_b) THEN
+                  IF (atom_a <= atom_b) THEN
+                    irow = atom_a
+                    icol = atom_b
+                  ELSE
+                    irow = atom_b
+                    icol = atom_a
+                  END IF
+                END IF
+
+                CALL add_block_node(matrix=tbmd_env%matrix_h, block_row=irow, &
+                                    block_col=icol, BLOCK=sint(1)%block, error=error)
+
+                IF (derivative) THEN
+                  CALL add_block_node(matrix=tbmd_env%matrix_dh, block_row=irow, &
+                                      block_col=icol, BLOCK=sint(2)%block, error=error)
+                END IF
+
               END IF
 
               neighbor_node => next(neighbor_node)

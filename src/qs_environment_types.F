@@ -129,7 +129,7 @@ MODULE qs_environment_types
   USE scf_control_types,               ONLY: scf_c_release,&
                                              scf_c_retain,&
                                              scf_control_type
-  USE cell_types,                 ONLY: cell_release,&
+  USE cell_types,                      ONLY: cell_release,&
                                              cell_retain,&
                                              cell_type
   USE sparse_matrix_types,             ONLY: deallocate_matrix_set,&

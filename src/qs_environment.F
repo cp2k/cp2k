@@ -135,7 +135,7 @@ MODULE qs_environment
                                              scf_c_release,&
                                              scf_c_write_parameters,&
                                              scf_control_type
-  USE cell_types,                 ONLY: cell_release,&
+  USE cell_types,                      ONLY: cell_release,&
                                              cell_type,&
                                              read_cell,&
                                              write_cell,&
