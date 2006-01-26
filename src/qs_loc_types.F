@@ -247,6 +247,8 @@ CONTAINS
          CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
        END IF
        
+       DEALLOCATE(qs_loc_env,STAT=istat)
+       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     END IF 
 
   END SUBROUTINE qs_loc_env_destroy

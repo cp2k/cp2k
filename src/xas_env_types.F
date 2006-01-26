@@ -366,6 +366,8 @@ CONTAINS
              CALL fm_pool_give_back_fm(xas_env%ao_mo_fm_pools(i)%pool,&
                   xas_env%groundstate_coeff(i)%matrix, error=error)
            END DO
+           DEALLOCATE(xas_env%groundstate_coeff,STAT=istat)
+           CPPostcondition(istat==0,cp_warning_level,routineP,error,failure)
          END IF
          IF(ASSOCIATED(xas_env%dip_fm_set)) THEN
            DO i = 1,SIZE(xas_env%dip_fm_set,2)
@@ -373,6 +375,8 @@ CONTAINS
                CALL cp_fm_release(xas_env%dip_fm_set(j,i)%matrix, error=error)
              END DO
            END DO
+           DEALLOCATE(xas_env%dip_fm_set,STAT=istat)
+           CPPostcondition(istat==0,cp_warning_level,routineP,error,failure)
          END IF
 
          IF(ASSOCIATED(xas_env%excvec_coeff)) THEN
@@ -385,8 +389,6 @@ CONTAINS
            CALL cp_fm_release(xas_env%unoccupied_orbs,error=error)
          END IF
          IF(ASSOCIATED(xas_env%fm_work)) THEN
-!           CALL fm_pool_give_back_fm(xas_env%ao_mo_fm_pools(1)%pool,&
-!                  xas_env%fm_work,error=error)
            CALL cp_fm_release(xas_env%fm_work,error=error)
          END IF
          NULLIFY(xas_env%ao_mo_fm_pools)
@@ -402,6 +404,8 @@ CONTAINS
                 CALL deallocate_matrix(xas_env%ostrength_sm(j,i)%matrix)
               END DO 
            END DO
+           DEALLOCATE(xas_env%ostrength_sm,STAT=istat)
+           CPPostcondition(istat==0,cp_warning_level,routineP,error,failure)
          END IF
          IF(ASSOCIATED(xas_env%qs_loc_env)) THEN
             CALL qs_loc_env_release(xas_env%qs_loc_env, error=error)
