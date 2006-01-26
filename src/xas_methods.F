@@ -508,8 +508,8 @@ CONTAINS
             occupation_numbers=occupation_numbers,homo=homo,nmo=nmo,nelectron=nelectron)
        IF(xas_control%xas_method==xas_dscf .OR. xas_control%xas_method==xas_tp_xhh &
          .OR.  xas_control%xas_method==xas_tp_xfh) THEN
-          CPPrecondition(.NOT.(nmo==homo),cp_failure_level,routineP,error,failure)
           homo = nelectron + 1
+          CPPrecondition(.NOT.(nmo<homo),cp_failure_level,routineP,error,failure)
           CALL set_mo_set(mos(1)%mo_set, homo = homo)
        END IF
        occupation_numbers(1:homo)  = 1.0_dp
