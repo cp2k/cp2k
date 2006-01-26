@@ -195,6 +195,9 @@ CONTAINS
       ALLOCATE(last_index_vec(natoms), STAT=stat)
       CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
 
+      CALL tbmd_init_index_vec(first_index_vec=first_index_vec, last_index_vec=last_index_vec, &
+                               natoms=natoms, error=error)
+
       CALL allocate_matrix(matrix=tbmd_env%matrix_h, nrow=4*natoms, ncol=4*natoms, &
                            nblock_row=natoms, nblock_col=natoms, &
                            first_row=first_index_vec, last_row=last_index_vec, &
@@ -216,17 +219,17 @@ CONTAINS
                                         "Hamiltonian Matrix WITH respect to the nuclear "//&
                                         "coordinates", target_symmetry="symmetric") ! antisymmetric?
         
+        ALLOCATE(sint(2), STAT=stat)
+        CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
+
+        DO i = 1,2        
+          NULLIFY(sint(i)%block)
+        END DO
+      ELSE
         ALLOCATE(sint(1), STAT=stat)
         CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
 
         NULLIFY(sint(1)%block)
-      ELSE
-        ALLOCATE(sint(2), STAT=stat)
-        CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
-
-        DO i = 1,2
-          NULLIFY(sint(i)%block)
-        END DO
       END IF
 
       ! Loop over the neighbor-list
@@ -290,10 +293,12 @@ CONTAINS
                   END IF
                 END IF
 
+                NULLIFY(sint(1)%block)
                 CALL add_block_node(matrix=tbmd_env%matrix_h, block_row=irow, &
                                     block_col=icol, BLOCK=sint(1)%block, error=error)
 
                 IF (derivative) THEN
+                  NULLIFY(sint(2)%block)
                   CALL add_block_node(matrix=tbmd_env%matrix_dh, block_row=irow, &
                                       block_col=icol, BLOCK=sint(2)%block, error=error)
                 END IF
@@ -317,6 +322,57 @@ CONTAINS
     CALL timestop(0.0_dp, handle)
 
   END SUBROUTINE tbmd_build_hamiltonian
+!***************************************************************************
+
+!!****f* tbmd_hamiltonian/tbmd_init_index_vec [1.0] *
+!!
+!!   NAME
+!!     tbmd_init_index_vec
+!!
+!!   FUNCTION
+!!     Correctly initializes the first and last index vectors, nedded for 
+!!     the sparse H & dH/dR matrix allocation.
+!!
+!!   NOTES
+!!     In this first orthogonal tight-binding implementation I'm only constructing a 
+!!     s-p orbitals Hamiltonian matrix, which I consider as sufficient for my purposes 
+!!     in mind. The resulting matrix blocks are therefore of dimensionality 4x4.
+!!
+!!   INPUTS
+!!     - first_index_vec: Vector of the first entry indices of the individual
+!!                        blocks of the sparse tight-binding Hamiltonian matrix.
+!!     - last_index_vec: Vector consisting of the last indices of the individual
+!!                       blocks of the sparse tight-binding Hamiltonian matrix.
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling
+!!
+!!   AUTHOR
+!!     Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
+!!
+!!   MODIFICATION HISTORY
+!!     01.2006 initial create [tdk]
+!!
+!!*** **********************************************************************
+  SUBROUTINE tbmd_init_index_vec(first_index_vec, last_index_vec, natoms, error)
+    INTEGER, DIMENSION(:), INTENT(INOUT)     :: first_index_vec, &
+                                                last_index_vec
+    INTEGER, INTENT(IN)                      :: natoms
+    TYPE(cp_error_type), INTENT(INOUT), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'tbmd_init_index_vec', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i
+
+!   ------------------------------------------------------------------------
+
+   DO i = 1,natoms
+     first_index_vec(i) = 4*(i-1) + 1
+     last_index_vec(i)  = 4*i
+   END DO
+
+  END SUBROUTINE tbmd_init_index_vec
 !***************************************************************************
 
 END MODULE tbmd_hamiltonian
