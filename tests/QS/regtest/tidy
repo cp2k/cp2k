@@ -5,7 +5,12 @@ echo
 foreach file (`cvs update -A|grep '? '|awk '{print $2}'`)
   if ( ${file:e} == 'inp' ) then
      echo "This files could be a new input file you don't want to be deleted.. Do you really want it deleted?"
-     rm -i $file
+     if ( $1 == "-int" ) then
+       echo "You requested to run the cleaning script interactively! Forget about complains!"
+       rm -f $file
+     else
+       rm -i $file
+     endif
   else
      rm -f $file
   endif
