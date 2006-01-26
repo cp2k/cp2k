@@ -54,6 +54,8 @@ MODULE tbmd_environment_types
                                                       particle_list_create, &
                                                       particle_list_release
   USE particle_types,                           ONLY: particle_type
+  USE sparse_matrix_types,                      ONLY: real_matrix_type, &
+                                                      deallocate_matrix
   USE tbmd_energy_types,                        ONLY: tbmd_energy_type, &
                                                       tbmd_energy_release, &
                                                       tbmd_energy_clear
@@ -120,6 +122,8 @@ MODULE tbmd_environment_types
 !!                     simulation cell is used
 !!     - para_env: The parallel environment
 !!     - tbmd_neighbor_list_env: The TBMD neighbor-list environment
+!!     - matrix_h: The tight-binding hamiltonian matrix
+!!     - matrix_dh: The derivative of the tight-binding hamiltonian matrix
 !!
 !!   AUTHOR
 !!     Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
@@ -144,6 +148,8 @@ MODULE tbmd_environment_types
     LOGICAL                                          :: use_ref_cell
     TYPE(cp_para_env_type), POINTER                  :: para_env
     TYPE(tbmd_neighbor_list_env_type), POINTER       :: tbmd_neighbor_list_env
+    TYPE(real_matrix_type), POINTER                  :: matrix_h, &
+                                                        matrix_dh
 
   END TYPE tbmd_environment_type
 !!***
@@ -302,6 +308,12 @@ CONTAINS
           CALL tbmd_neighbor_list_env_release(tbmd_env%tbmd_neighbor_list_env, &
                                               error=error)
         END IF
+        IF (ASSOCIATED(tbmd_env%matrix_h)) THEN
+          CALL deallocate_matrix(tbmd_env%matrix_h)
+        END IF 
+        IF (ASSOCIATED(tbmd_env%matrix_dh)) THEN
+          CALL deallocate_matrix(tbmd_env%matrix_dh)
+        END IF
         DEALLOCATE(tbmd_env, stat=stat)
         CPPostconditionNoFail(stat==0, cp_warning_level, routineP, error)
       END IF
@@ -345,6 +357,8 @@ CONTAINS
 !!                     simulation cell is used
 !!     - para_env: The parallel environment
 !!     - tbmd_neighbor_list_env: The TBMD neighbor-list environment
+!!     - matrix_h: The tight-binding hamiltonian matrix
+!!     - matrix_dh: The derivative of the tight-binding hamiltonian matrix
 !!
 !!     For possible missing arguments see the attributes of 
 !!     tbmd_environment_type
@@ -361,7 +375,7 @@ CONTAINS
                           local_particles, molecule_kind_set, molecule_set, &
                           local_molecules, tbmd_input, cell, cell_ref, &
                           use_ref_cell, para_env, id_nr, force_env_input, &
-                          tbmd_neighbor_list_env, error)
+                          tbmd_neighbor_list_env, matrix_h, matrix_dh, error)
 
     TYPE(tbmd_environment_type), POINTER         :: tbmd_env
     TYPE(tbmd_energy_type), POINTER, OPTIONAL    :: tbmd_energy
@@ -388,6 +402,8 @@ CONTAINS
                                                     force_env_input
     TYPE(tbmd_neighbor_list_env_type), POINTER, &
          OPTIONAL                                :: tbmd_neighbor_list_env
+    TYPE(real_matrix_type), POINTER, OPTIONAL    :: matrix_h, &
+                                                    matrix_dh
     INTEGER, INTENT(OUT), OPTIONAL               :: id_nr
     TYPE(cp_error_type), INTENT(INOUT), &
          OPTIONAL                                :: error
@@ -438,6 +454,12 @@ CONTAINS
       IF (PRESENT(tbmd_neighbor_list_env)) THEN
         tbmd_neighbor_list_env => tbmd_env%tbmd_neighbor_list_env
       END IF
+      IF (PRESENT(matrix_h)) THEN
+        matrix_h => tbmd_env%matrix_h
+      END IF
+      IF (PRESENT(matrix_dh)) THEN
+        matrix_dh => tbmd_env%matrix_dh
+      END IF
     END IF
 
   END SUBROUTINE tbmd_env_get
@@ -478,6 +500,8 @@ CONTAINS
 !!                     simulation cell is used
 !!     - para_env: The parallel environment
 !!     - tbmd_neighbor_list_env: The TBMD neighbor-list environment
+!!     - matrix_h: The tight-binding hamiltonian matrix
+!!     - matrix_dh: The derivative of the tight-binding hamiltonian matrix
 !!
 !!     For possible missing arguments see the attributes of 
 !!     tbmd_environment_type
@@ -494,7 +518,7 @@ CONTAINS
                           local_particles, molecule_kind_set, molecule_set, &
                           local_molecules, tbmd_input, cell, cell_ref, &
                           use_ref_cell, para_env, id_nr, force_env_input, &
-                          tbmd_neighbor_list_env, error)
+                          tbmd_neighbor_list_env, matrix_h, matrix_dh, error)
 
     TYPE(tbmd_environment_type), POINTER         :: tbmd_env
     TYPE(tbmd_energy_type), POINTER, OPTIONAL    :: tbmd_energy
@@ -521,6 +545,8 @@ CONTAINS
     TYPE(cp_para_env_type), POINTER, OPTIONAL    :: para_env
     TYPE(tbmd_neighbor_list_env_type), POINTER, &
          OPTIONAL                                :: tbmd_neighbor_list_env
+    TYPE(real_matrix_type), POINTER, OPTIONAL    :: matrix_h, &
+                                                    matrix_dh
     INTEGER, INTENT(IN), OPTIONAL                :: id_nr
     TYPE(cp_error_type), INTENT(INOUT), &
          OPTIONAL                                :: error
@@ -619,6 +645,12 @@ CONTAINS
       IF (PRESENT(tbmd_neighbor_list_env)) THEN
         tbmd_env%tbmd_neighbor_list_env => tbmd_neighbor_list_env
       END IF
+      IF (PRESENT(matrix_h)) THEN
+        tbmd_env%matrix_h => matrix_h
+      END IF
+      IF (PRESENT(matrix_dh)) THEN
+        tbmd_env%matrix_dh => matrix_dh
+      END IF
     END IF
   END SUBROUTINE tbmd_env_set
 !***************************************************************************
@@ -703,6 +735,12 @@ CONTAINS
         CALL tbmd_neighbor_list_env_clear(tbmd_env%tbmd_neighbor_list_env, &
                                           error=error)
       END IF
+      IF (ASSOCIATED(tbmd_env%matrix_h)) THEN
+        CALL deallocate_matrix(tbmd_env%matrix_h)
+      END IF
+      IF (ASSOCIATED(tbmd_env%matrix_dh)) THEN
+        CALL deallocate_matrix(tbmd_env%matrix_dh)
+      END IF
      ELSE
       CALL tbmd_env_create(tbmd_env, error=error)
     END IF
@@ -765,6 +803,8 @@ CONTAINS
     NULLIFY(tbmd_env%para_env)
     NULLIFY(tbmd_env%force_env_input)
     NULLIFY(tbmd_env%tbmd_neighbor_list_env)
+    NULLIFY(tbmd_env%matrix_h)
+    NULLIFY(tbmd_env%matrix_dh)
    
     IF (.NOT. failure) THEN
       tbmd_env%ref_count = 1

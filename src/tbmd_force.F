@@ -36,6 +36,7 @@ MODULE tbmd_force
   USE tbmd_environment_types,                 ONLY: tbmd_environment_type, &
                                                     tbmd_env_get
   USE tbmd_force_types,                       ONLY: tbmd_force_type
+  USE tbmd_hamiltonian,                       ONLY: tbmd_build_hamiltonian
   USE tbmd_neighbor_list_env_types,           ONLY: tbmd_neighbor_list_env_type
   USE tbmd_neighbor_lists,                    ONLY: tbmd_neighbor_list_control
   USE timings,                                ONLY: timeset, &
@@ -65,8 +66,8 @@ CONTAINS
 !!     tbmd_forces
 !!
 !!   FUNCTION
-!!     Main routine for calculating the TBMD forces by using the 
-!!     Hellman-Feynman theorem.
+!!     Main routine for calculating the TBMD forces yet by using the 
+!!     subtle Hellman-Feynman theorem.
 !!
 !!   NOTES
 !!     -
@@ -141,6 +142,8 @@ CONTAINS
                                       tbmd_neighbor_list_env=tbmd_neighbor_list_env, &
                                       globenv=globenv, &
                                       force_env_section=force_env_section, error=error)
+
+      CALL tbmd_build_hamiltonian(tbmd_env=tbmd_env, derivative=.TRUE., error=error)
     END IF
 
     CALL timestop(0.0_dp, handle)

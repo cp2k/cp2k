@@ -380,6 +380,7 @@ OBJECTS_GENERIC =\
  tbmd_environment_types.o\
  tbmd_force.o\
  tbmd_force_types.o\
+ tbmd_hamiltonian.o\
  tbmd_main.o\
  tbmd_model_types.o\
  tbmd_neighbor_lists.o\

@@ -36,6 +36,7 @@ MODULE tbmd_energy
   USE tbmd_energy_types,                      ONLY: tbmd_energy_type
   USE tbmd_environment_types,                 ONLY: tbmd_environment_type, &
                                                     tbmd_env_get
+  USE tbmd_hamiltonian,                       ONLY: tbmd_build_hamiltonian
   USE tbmd_neighbor_list_env_types,           ONLY: tbmd_neighbor_list_env_type
   USE tbmd_neighbor_lists,                    ONLY: tbmd_neighbor_list_control
   USE timings,                                ONLY: timeset, &
@@ -140,6 +141,8 @@ CONTAINS
                                       tbmd_neighbor_list_env=tbmd_neighbor_list_env, &
                                       globenv=globenv, &
                                       force_env_section=force_env_section, error=error)
+
+      CALL tbmd_build_hamiltonian(tbmd_env=tbmd_env, derivative=.FALSE., error=error)
     END IF
 
     CALL timestop(0.0_dp, handle)

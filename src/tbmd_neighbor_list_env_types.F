@@ -73,8 +73,8 @@ MODULE tbmd_neighbor_list_env_types
 !!     - num_update: Number of neighbor-list updates
 !!     - verlet_skin: The additional cutoff boundary layer thickness
 !!     - r_cutoff: The cutoff radius for the neighbor-list
-!!     - lup:
-!!     - aup:
+!!     - lup: Instantaneous list updates
+!!     - aup: Averaged list updates
 !!     - r_last_update: The positions during the last update
 !!     - tbmd_neighbor_list: The actual TBMD neighbor-lists
 !!
@@ -271,8 +271,8 @@ CONTAINS
 !!     - num_update: Number of neighbor-list updates
 !!     - verlet_skin: The additional cutoff boundary layer thickness
 !!     - r_cutoff: The cutoff radius for the neighbor-list
-!!     - lup:
-!!     - aup:
+!!     - lup: Instantaneous list updates
+!!     - aup: Averaged list updates
 !!     - r_last_update: The positions during the last update
 !!     - tbmd_neighbor_list: The actual TBMD neighbor-lists
 !!     - error: variable to control error logging, stopping,... 
@@ -369,8 +369,8 @@ CONTAINS
 !!     - num_update: Number of neighbor-list updates
 !!     - verlet_skin: The additional cutoff boundary layer thickness
 !!     - r_cutoff: The cutoff radius for the neighbor-list
-!!     - lup:
-!!     - aup:
+!!     - lup: Instantaneous list updates
+!!     - aup: Averaged list updates
 !!     - r_last_update: The positions during the last update
 !!     - tbmd_neighbor_list: The actual TBMD neighbor-lists
 !!     - error: variable to control error logging, stopping,... 
