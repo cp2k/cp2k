@@ -620,7 +620,7 @@ END SUBROUTINE cp_opt_gopt_release
     TYPE(cp_lbfgs_opt_gopt_type), pointer :: optimizer
     INTEGER, INTENT(out), OPTIONAL :: n_iter
     REAL(kind=dp), INTENT(out), OPTIONAL :: f, last_f, projected_gradient
-    TYPE(section_vals_type), POINTER :: force_env_section, input	
+    TYPE(section_vals_type), POINTER :: force_env_section, input
     LOGICAL, INTENT(out), OPTIONAL :: converged
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
@@ -767,7 +767,7 @@ END SUBROUTINE cp_opt_gopt_release
                   f=optimizer%f,&
                   gradient=optimizer%gradient,&
                   master=optimizer%master,para_env=optimizer%para_env,&
-	          force_env_section=force_env_section,&
+                  force_env_section=force_env_section,&
                   error=error) ! do not use keywords?
              IF (is_master) THEN
                 CALL setulb (SIZE(optimizer%x), optimizer%m, optimizer%x, &
@@ -956,7 +956,7 @@ END SUBROUTINE cp_opt_gopt_release
     TYPE(cp_lbfgs_opt_gopt_type), POINTER :: optimizer
     INTEGER, INTENT(out), OPTIONAL :: n_iter
     REAL(kind=dp), INTENT(out), OPTIONAL :: f, last_f, projected_gradient
-    TYPE(section_vals_type), POINTER :: force_env_section, input	
+    TYPE(section_vals_type), POINTER :: force_env_section, input
     LOGICAL, INTENT(out), OPTIONAL :: converged
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(gopt_param_type), POINTER           :: gopt_param
