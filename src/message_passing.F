@@ -664,7 +664,7 @@ SUBROUTINE mp_environ_c2 ( comm, ndims, dims, task_coor, periods )
   dims = 1
   periods=.false.
 #if defined(__parallel)
-  CALL mpi_cart_get ( groupid, ndims, dims, periods, task_coor, ierr )
+  CALL mpi_cart_get ( comm, ndims, dims, periods, task_coor, ierr )
   IF ( ierr /= 0 ) CALL mp_stop ( ierr, "mpi_cart_get @ mp_environ_c" )
 #endif
 
