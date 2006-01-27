@@ -685,10 +685,8 @@ SUBROUTINE mp_cart_create ( comm_old, ndims, dims, pos, comm_cart )
     LOGICAL                                  :: period(1:ndims), reorder
 
   ierr = 0
-  pos ( 1:ndims ) = 0
+  pos ( 1:ndims ) = 1
   comm_cart = comm_old
-  dims = 1
-  comm_cart = 0
 #if defined(__parallel)
 
   t_start = m_walltime ( )
