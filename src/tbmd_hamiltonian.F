@@ -169,10 +169,15 @@ CONTAINS
                                                 cos_temp, &
                                                 dl, &
                                                 dm, &
-                                                dn
+                                                dn, &
+                                                n_exp, &
+                                                r_0, &
+                                                r_cutoff
     REAL(KIND=dp), DIMENSION(3)              :: dra, &
                                                 drb, &
                                                 rab
+    REAL(KIND=dp), DIMENSION(4)              :: r_calpha, &
+                                                n_calpha
     REAL(KIND=dp), DIMENSION(:,:), POINTER   :: r_last_update
     TYPE(cell_type), POINTER                 :: cell
     TYPE(real_matrix_type), POINTER          :: matrix_h
@@ -336,7 +341,11 @@ CONTAINS
                 n = rab(3)/distance
 
                 ! Scaling function
-                temp_sm_st = 1.0_dp
+                CALL tbmd_model_get(tbmd_model=tbmd_model, n=n_exp, r_0=r_0, &
+                                    r_calpha=r_calpha, n_calpha=n_calpha, error=error)
+                r_cutoff = tbmd_neighbor_list_env%r_cutoff(ikind,jkind)
+                temp_sm_st = tbmd_sm_st(r_0=r_0, r=distance, n=n_exp, r_calpha=r_calpha(1), &
+                                        n_calpha=n_calpha(1), r_cutoff=r_cutoff)
 
                 ! The 4x4 tight-binding hamiltonian matrix-blocks
                 IF (atom_a == atom_b) THEN   ! diagonal-blocks
@@ -410,7 +419,10 @@ CONTAINS
                     END SELECT
 
                     ! Scaling function
-                    temp_dsm_st = 1.0_dp
+                    CALL tbmd_model_get(tbmd_model=tbmd_model, n=n_exp, r_0=r_0, &
+                                        r_calpha=r_calpha, n_calpha=n_calpha, error=error)
+                    temp_dsm_st = tbmd_dsm_st(r_0=r_0, r=distance, n=n_exp, &
+                                              r_calpha=r_calpha(1), n_calpha=n_calpha(1))
 
                     ! The 4x4 tight-binding dH/dR_i matrix-blocks
                     IF (atom_a == atom_b) THEN   ! diagonal-blocks
@@ -536,6 +548,102 @@ CONTAINS
    END DO
 
   END SUBROUTINE tbmd_init_index_vec
+!***************************************************************************
+
+!!****f* tbmd_hamiltonian/tbmd_sm_st [1.0] *
+!!
+!!   NAME
+!!     tbmd_sm_st
+!!
+!!   FUNCTION
+!!     Calculates the scaling function
+!!
+!!   NOTES
+!!     (r_0/r)**n * exp{n*[-(r/r_calpha)**n_calpha + (r_0/r_calpha)**n_calpha]}
+!!
+!!   INPUTS
+!!     - r_0: Nearest neighbor distance
+!!     - r: The distance between the interacting atoms
+!!     - n: The hopping exponent
+!!     - r_calpha: Individual cutoffs for each hopping parameter
+!!     - n_calpha: Individual exponents for each hopping parameter
+!!     - r_cutoff: The cutoff length, after which interactions are neglected
+!!
+!!   RESULT
+!!     - res: The scaling factor
+!!
+!!   AUTHOR
+!!     Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
+!!
+!!   MODIFICATION HISTORY
+!!     01.2006 initial create [tdk]
+!!
+!!*** **********************************************************************
+  FUNCTION tbmd_sm_st(r_0, r, n, r_calpha, n_calpha, r_cutoff) RESULT(res)
+    REAL(KIND=dp), INTENT(IN)                           :: r_0, &
+                                                           r, &
+                                                           n, &
+                                                           r_calpha, &
+                                                           n_calpha, &
+                                                           r_cutoff
+    REAL(KIND=dp)                                       :: res
+
+!   ------------------------------------------------------------------------
+
+    res = (r_0/r)**n * EXP(n*(-(r/r_calpha)**n_calpha &
+        + (r_0/r_calpha)**n_calpha))
+
+    res  = res - (r_0/r_cutoff)**n * EXP(n*(-(r_cutoff/r_calpha)**n_calpha &
+         + (r_0/r_calpha)**n_calpha))
+
+  END FUNCTION tbmd_sm_st
+!***************************************************************************
+
+!!****f* tbmd_hamiltonian/tbmd_dsm_st [1.0] *
+!!
+!!   NAME
+!!     tbmd_dsm_st
+!!
+!!   FUNCTION
+!!     Calculates the scaling function for the derivative with respect to the 
+!!     coordinates.
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     - r_0: Nearest neighbor distance
+!!     - r: The distance between the interacting atoms
+!!     - n: The hopping exponent
+!!     - r_calpha: Individual cutoffs for each hopping parameter
+!!     - n_calpha: Individual exponents for each hopping parameter
+!!
+!!   RESULT
+!!     - res: The scaling factor
+!!
+!!   AUTHOR
+!!     Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
+!!
+!!   MODIFICATION HISTORY
+!!     01.2006 initial create [tdk]
+!!
+!!*** **********************************************************************
+  FUNCTION tbmd_dsm_st(r_0, r, n, r_calpha, n_calpha) RESULT(res)
+    REAL(KIND=dp), INTENT(IN)                           :: r_0, &
+                                                           r, &
+                                                           n, &
+                                                           r_calpha, &
+                                                           n_calpha                              
+    REAL(KIND=dp)                                       :: res
+
+!   ------------------------------------------------------------------------
+
+    res = (r_0/r)**n * EXP(n*(-(r/r_calpha)**n_calpha &
+        + (r_0/r_calpha)**n_calpha))
+
+    res = res * (-(n/r)) * (1.0_dp + n_calpha * (r/r_calpha)**n_calpha)
+
+  END FUNCTION tbmd_dsm_st
 !***************************************************************************
 
 END MODULE tbmd_hamiltonian

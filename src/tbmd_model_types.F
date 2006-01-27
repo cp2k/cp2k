@@ -56,7 +56,13 @@ MODULE tbmd_model_types
 !!     The TBMD model type
 !!
 !!   NOTES
-!!     -
+!!     E_tot = Sum_n[2*<Psi_n|H_TB|Psi_n> + E_rep + E_0*N_at]
+!!     My general form for hopping parameters and pair potentials: 
+!!     h_alpha(r) = h_alpha(r_0)(r_0/r)**n * exp{n*[-(r/r_calpha)**n_calpha + 
+!!                                               (r_0/r_calpha)**n_calpha]}
+!!     E_rep = Sum_i[f*Sum_j[Phi(r_ij)]], 
+!!             with f(x)=C_1*x + C_2*x**2 + C_3*x**3 + C_4*x**4 and
+!!     Phi(r) = Phi(1)*(r_0/r)**m * exp{m*[-(r/d_c)**m_c + (r_0/d_c)**m_c]}
 !!
 !!   ATTRIBUTES
 !!     - id_nr: unique identifier
