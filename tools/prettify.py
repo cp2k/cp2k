@@ -51,9 +51,10 @@ def upcaseKeywords(infile,outfile,logFile=sys.stdout):
         e.text=line
         raise
 
-def prettifyFile(infile,outfile,normalize_use=1, upcase_keywords=1,
+def prettifyFile(infile,normalize_use=1, upcase_keywords=1,
              interfaces_dir=None,replace=None,logFile=sys.stdout):
-    """prettifyes the fortran source in infile into outfile
+    """prettifyes the fortran source in infile into a temporary file that is
+    returned. It can be the same as infile.
     if normalize_use normalizes the use statements (defaults to true)
     if upcase_keywords upcases the keywords (defaults to true)
     if interfaces_dir is defined (and contains the directory with the
@@ -61,26 +62,33 @@ def prettifyFile(infile,outfile,normalize_use=1, upcase_keywords=1,
     if replace does the replacements contained in replacer.py (defaults
     to false)
 
-    closes the input file"""
+    does not close the input file"""
     ifile=infile
+    tmpfile=None
     try:
         if normalize_use:
-            tmpfile=os.tmpfile()
-            normalizeFortranFile.rewriteFortranFile(ifile,tmpfile,logFile)
-            tmpfile.seek(0)
-            ifile.close()
+            tmpfile2=os.tmpfile()
+            normalizeFortranFile.rewriteFortranFile(ifile,tmpfile2,logFile)
+            tmpfile2.seek(0)
+            if tmpfile:
+                tmpfile.close()
+            tmpfile=tmpfile2
             ifile=tmpfile
         if replace:
-            tmpfile=os.tmpfile()
-            replacer.replaceWords(ifile,tmpfile,logFile)
-            tmpfile.seek(0)
-            ifile.close()
+            tmpfile2=os.tmpfile()
+            replacer.replaceWords(ifile,tmpfile2,logFile)
+            tmpfile2.seek(0)
+            if tmpfile:
+                tmpfile.close()
+            tmpfile=tmpfile2
             ifile=tmpfile
         if upcase_keywords:
-            tmpfile=os.tmpfile()
-            upcaseKeywords(ifile,tmpfile,logFile)
-            tmpfile.seek(0)
-            ifile.close()
+            tmpfile2=os.tmpfile()
+            upcaseKeywords(ifile,tmpfile2,logFile)
+            tmpfile2.seek(0)
+            if tmpfile:
+                tmpfile.close()
+            tmpfile=tmpfile2
             ifile=tmpfile
         if interfaces_dir:
             fileName=os.path.basename(infile.name)
@@ -95,17 +103,15 @@ def prettifyFile(infile,outfile,normalize_use=1, upcase_keywords=1,
                 logFile.write("skipping addSynopsis step for "+fileName+"\n")
                 interfaceFile=None
             if interfaceFile:
-                tmpfile=os.tmpfile()
+                tmpfile2=os.tmpfile()
                 addSynopsis.addSynopsisToFile(interfaceFile,ifile,
-                                              tmpfile,logFile=logFile)
-                tmpfile.seek(0)
-                ifile.close()
+                                              tmpfile2,logFile=logFile)
+                tmpfile2.seek(0)
+                if tmpfile:
+                    tmpfile.close()
+                tmpfile=tmpfile2
                 ifile=tmpfile
-        while 1:
-            line=ifile.readline()
-            if not line: break
-            outfile.write(line)
-        ifile.close()
+        return ifile
     except:
         logFile.write("error processing file '"+infile.name+"'\n")
         raise
@@ -114,11 +120,16 @@ def prettfyInplace(fileName,bkDir="preprettify",normalize_use=1,
                    upcase_keywords=1, interfaces_dir=None,
                    replace=None,logFile=sys.stdout):
     """Same as prettify, but inplace, replaces only if needed"""
+    if not os.path.exists(bkDir):
+        os.mkdir(bkDir)
+    if not os.path.isdir(bkDir):
+        raise Error("bk-dir must be a directory, was "+bkDir)
     infile=open(fileName,'r')
-    outfile=tempfile.TemporaryFile()
-    prettifyFile(infile,outfile, normalize_use,
-                 upcase_keywords, interfaces_dir, replace)
-    infile=open(fileName,'r')
+    outfile=prettifyFile(infile, normalize_use,
+                         upcase_keywords, interfaces_dir, replace)
+    if (infile==outfile):
+        return
+    infile.seek(0)
     outfile.seek(0)
     same=1
     while 1:
@@ -129,7 +140,6 @@ def prettfyInplace(fileName,bkDir="preprettify",normalize_use=1,
             break
         if not l1:
             break
-    infile.close()
     if (not same):
         bkName=os.path.join(bkDir,os.path.basename(fileName))
         bName=bkName
@@ -137,7 +147,13 @@ def prettfyInplace(fileName,bkDir="preprettify",normalize_use=1,
         while os.path.exists(bkName):
             i+=1
             bkName=bName+"."+str(i)
-        os.rename(fileName,bkName)
+        infile.seek(0)
+        bkFile=file(bkName,"w")
+        while 1:
+            l1=infile.readline()
+            if not l1: break
+            bkFile.write(l1)
+        bkFile.close()
         outfile.seek(0)
         newFile=file(fileName,'w')
         while 1:
@@ -145,6 +161,7 @@ def prettfyInplace(fileName,bkDir="preprettify",normalize_use=1,
             if not l1: break
             newFile.write(l1)
         newFile.close()
+    infile.close()
     outfile.close()
 
                    
