@@ -709,7 +709,8 @@ def cleanUse(modulesDict,rest,implicitUses=None,logFile=sys.stdout):
                         del els[j]
             if len(modules[i]['only'])==0:
                 if modules[i]['comments']:
-                    modulesDict['preComments'].extend(modules[i]['comments'])
+                    modulesDict['preComments'].extend(
+                        map(lambda x:x+"\n",modules[i]['comments']))
                 del modules[i]
 
 def rewriteFortranFile(inFile,outFile,logFile=sys.stdout):
