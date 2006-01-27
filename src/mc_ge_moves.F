@@ -834,7 +834,8 @@ CONTAINS
          CALL generate_cbmc_swap_config(insert_env,&
             BETA,nswapmoves,weight_new,nchain(insert_box)+1,loverlap_ins,&
             bias_energy_new(insert_box),&
-            bias_energy_old(insert_box),ionode,source,group,rng_stream)
+            bias_energy_old(insert_box),ionode,source,group,rng_stream,&
+            error)
 
 ! the energy that comes out of the above routine is the difference...we want
 ! the real energy for the acceptance rule...we don't do this for the 
@@ -847,7 +848,7 @@ CONTAINS
             BETA,nswapmoves,weight_new,nchain(insert_box)+1,&
             loverlap_ins,new_energy(insert_box),&
             old_energy(insert_box),ionode,source,group,&
-            rng_stream)
+            rng_stream,error)
       ENDIF
          
       CALL force_env_get(insert_env,&
@@ -972,12 +973,12 @@ CONTAINS
           CALL generate_cbmc_swap_config(bias_env(remove_box)%force_env,&
             BETA,nswapmoves,weight_old,nchain(remove_box),loverlap_rem,rdum,&
             bias_energy_new(remove_box),&
-            ionode,source,group,rng_stream,rem_molecule=imolecule)
+            ionode,source,group,rng_stream,error,rem_molecule=imolecule)
       ELSE
          CALL generate_cbmc_swap_config(force_env(remove_box)%force_env,&
             BETA,nswapmoves,weight_old,nchain(remove_box),loverlap_rem,rdum,&
             new_energy(remove_box),&
-            ionode,source,group,rng_stream,rem_molecule=imolecule)
+            ionode,source,group,rng_stream,error,rem_molecule=imolecule)
       ENDIF
 
 ! figure out the prefactor to the boltzmann weight in the acceptance

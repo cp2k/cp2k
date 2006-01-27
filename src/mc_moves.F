@@ -2321,7 +2321,7 @@ CONTAINS
 ! do CBMC for the old config
             CALL generate_cbmc_swap_config( bias_env, BETA, nswapmoves,&
                weight_old,imolecule,ldum, rdum,&
-               bias_energy_old,ionode,source,group,rng_stream,&
+               bias_energy_old,ionode,source,group,rng_stream,error,&
                avbmc_atom=avbmc_atom,&
                rmin=avbmc_rmin,rmax=avbmc_rmax,move_type='out',&
                mol_target=mol_target,rem_molecule=imolecule)
@@ -2331,7 +2331,7 @@ CONTAINS
 ! do CBMC for the old config
            CALL generate_cbmc_swap_config( bias_env, BETA, nswapmoves,&
                weight_old,imolecule,ldum, rdum,&
-               bias_energy_old,ionode,source,group,rng_stream,&
+               bias_energy_old,ionode,source,group,rng_stream,error,&
                avbmc_atom=avbmc_atom,&
                rmin=avbmc_rmin,rmax=avbmc_rmax,move_type='in',&
                mol_target=mol_target,rem_molecule=imolecule)
@@ -2341,7 +2341,7 @@ CONTAINS
 ! generate the new config
          CALL generate_cbmc_swap_config( bias_env, BETA, nswapmoves,&
             weight_new,imolecule,loverlap, bias_energy_new,&
-            bias_energy_old,ionode,source,group,rng_stream,&
+            bias_energy_old,ionode,source,group,rng_stream,error,&
             avbmc_atom=avbmc_atom,&
             rmin=avbmc_rmin,rmax=avbmc_rmax,move_type=move_type,&
             mol_target=mol_target)
@@ -2360,7 +2360,7 @@ CONTAINS
 ! find the weight of the old config
             CALL generate_cbmc_swap_config( force_env, BETA, nswapmoves,&
                weight_old,imolecule,ldum,rdum,old_energy,&
-               ionode,source,group,rng_stream,avbmc_atom=avbmc_atom,&
+               ionode,source,group,rng_stream,error,avbmc_atom=avbmc_atom,&
                rmin=avbmc_rmin,rmax=avbmc_rmax,move_type='out',&
                mol_target=mol_target,rem_molecule=imolecule)
             
@@ -2369,7 +2369,7 @@ CONTAINS
 ! find the weight of the old config
             CALL generate_cbmc_swap_config( force_env, BETA, nswapmoves,&
                weight_old,imolecule,ldum,rdum,old_energy,&
-               ionode,source,group,rng_stream,avbmc_atom=avbmc_atom,&
+               ionode,source,group,rng_stream,error,avbmc_atom=avbmc_atom,&
                rmin=avbmc_rmin,rmax=avbmc_rmax,move_type='in',&
                mol_target=mol_target,rem_molecule=imolecule)
             
@@ -2378,7 +2378,7 @@ CONTAINS
  ! generate the new config...do this after, because it changes the force_env
         CALL generate_cbmc_swap_config( force_env, BETA, nswapmoves,&
             weight_new,imolecule,loverlap,new_energy,old_energy,&
-            ionode,source,group,rng_stream,avbmc_atom=avbmc_atom,&
+            ionode,source,group,rng_stream,error,avbmc_atom=avbmc_atom,&
             rmin=avbmc_rmin,rmax=avbmc_rmax,move_type=move_type,&
             mol_target=mol_target)
 

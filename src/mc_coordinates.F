@@ -907,6 +907,7 @@ END SUBROUTINE mc_coordinate_fold
 !!     - source: the MPI source value, for broadcasts
 !!     - group: the MPI group value, for broadcasts
 !!     - rng_stream: the random number stream that we draw from
+!!     - error: the the cp_error type
 !!     - rem_molecule: if this is for the removal box, this is the molecule
 !!                     that has been removed...not needed for insertions
 !!     OPTIONAL AVBMC FLAGS
@@ -926,7 +927,7 @@ END SUBROUTINE mc_coordinate_fold
 !!*****************************************************************************
 SUBROUTINE generate_cbmc_swap_config( force_env, BETA, nswapmoves,&
       rosenbluth_weight, mol_move,loverlap, choosen_energy,&
-      old_energy,ionode,source,group,rng_stream,rem_molecule,&
+      old_energy,ionode,source,group,rng_stream,error,rem_molecule,&
       avbmc_atom,rmin,rmax,move_type,mol_target)
 
     TYPE(force_env_type), POINTER            :: force_env
@@ -941,6 +942,7 @@ SUBROUTINE generate_cbmc_swap_config( force_env, BETA, nswapmoves,&
     LOGICAL, INTENT(IN)                      :: ionode
     REAL(KIND=dp),INTENT(OUT)                :: choosen_energy
     TYPE(rng_stream_type), POINTER           :: rng_stream
+    TYPE(cp_error_type)                      :: error
     REAL(KIND=dp),INTENT(IN),OPTIONAL        :: rmin,rmax
     CHARACTER(LEN=*),INTENT(IN),OPTIONAL     :: move_type
 
@@ -966,7 +968,6 @@ SUBROUTINE generate_cbmc_swap_config( force_env, BETA, nswapmoves,&
                                                 diff,abc
     TYPE(cp_subsystem_p_type), &
       DIMENSION(:), POINTER                  :: oldsys
-    TYPE(cp_error_type)                      :: error
     TYPE(cell_type), POINTER                 :: cell
     TYPE(particle_list_type), POINTER        :: particles
     TYPE(mol_kind_new_list_type), POINTER    :: molecule_kinds_new
