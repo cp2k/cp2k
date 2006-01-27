@@ -743,7 +743,8 @@ END SUBROUTINE cp_opt_[nametype1]_release
                optimizer%para_env%group)
           ! Dump info
           IF (optimizer%status == 3) THEN
-	     CALL cp_iterate(logger%iter_info,iter_nr=optimizer%isave(30),error=error)
+	     if (is_master) &
+             CALL cp_iterate(logger%iter_info,iter_nr=optimizer%isave(30),error=error)
              dataunit = cp_print_key_unit_nr(logger,input,&
                   "MOTION%PRINT%TRAJECTORY",extension=".xyz",error=error)
              IF (dataunit>0) THEN
