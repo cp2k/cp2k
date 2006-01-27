@@ -2009,7 +2009,7 @@ SUBROUTINE create_tddfpt_section(section,error)
 
        CALL cp_print_key_section_create(print_key,"MO_ORTHONORMALITY",&
             description="Controls the printing relative to the orthonormality of MOs", &
-            print_level=medium_print_level,each=(/1/),add_last=(/1/),filename="__STD_OUT__",&
+            print_level=high_print_level,each=(/1/),add_last=(/1/),filename="__STD_OUT__",&
             error=error)
        CALL section_add_subsection(subsection,print_key,error=error)
        CALL section_release(print_key,error=error)      
