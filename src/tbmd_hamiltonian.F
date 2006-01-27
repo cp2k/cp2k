@@ -593,8 +593,8 @@ CONTAINS
     res = (r_0/r)**n * EXP(n*(-(r/r_calpha)**n_calpha &
         + (r_0/r_calpha)**n_calpha))
 
-    res  = res - (r_0/r_cutoff)**n * EXP(n*(-(r_cutoff/r_calpha)**n_calpha &
-         + (r_0/r_calpha)**n_calpha))
+    !res  = res - (r_0/r_cutoff)**n * EXP(n*(-(r_cutoff/r_calpha)**n_calpha &
+    !     + (r_0/r_calpha)**n_calpha))
 
   END FUNCTION tbmd_sm_st
 !***************************************************************************
