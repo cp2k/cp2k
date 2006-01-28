@@ -31,12 +31,12 @@
     <xsl:value-of select="COMPILE_LASTCVS"/>.
    <h2>Input structure</h2>
     All sections and keywords that can be part of a CP2K input file are shown
-    with their allowed nestings. Click on <img src="p.gif"/> to expand and on
-    <img src="m.gif"/> to collapse the current index level. A detailed
-    description can be obtained by clicking on the links. The links in the
-    detailed descriptions switch back to the corresponding index entries if
-    they are currently expanded. In this way a toggling between the index and
-    the detailed description is feasible.
+    with their allowed nestings. Click on <img src="p.gif" alt="expand"/> to
+    expand and on <img src="m.gif" alt="collapse"/> to collapse the current
+    index level. A detailed description can be obtained by clicking on the
+    links. The links in the detailed descriptions switch back to the
+    corresponding index entries if they are currently expanded. In this way
+    a toggling between the index and the detailed description is feasible.
    <h2>Index of all input sections and keywords</h2>
     <h4>Last update: <xsl:value-of select="COMPILE_DATE"/></h4>
     <script type="text/javascript" language="javascript1.2">
