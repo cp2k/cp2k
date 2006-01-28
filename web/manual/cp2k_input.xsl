@@ -103,11 +103,15 @@
  <xsl:for-each select="SECTION">
   <xsl:sort select="NAME"/>
   <h3><a href="#sec_ind_{generate-id(NAME)}" id="sec_des_{generate-id(NAME)}">Section &amp;<xsl:value-of select="NAME"/></a></h3>
-  <ul class="none">
-   <li>
-    <em><xsl:value-of select="DESCRIPTION"/></em>
-   </li>
-  </ul>
+  <xsl:if test="string-length(DESCRIPTION) > 0">
+   <ul class="none">
+    <li>
+     <em>
+      <xsl:value-of select="DESCRIPTION"/>
+     </em>
+    </li>
+   </ul>
+  </xsl:if>
   <xsl:if test="count(SECTION_PARAMETERS) > 0">
    <xsl:call-template name="describe_keywords">
     <xsl:with-param name="element" select="SECTION_PARAMETERS"/>
@@ -118,14 +122,14 @@
     <xsl:with-param name="element" select="DEFAULT_KEYWORD"/>
    </xsl:call-template>
   </xsl:if>
-  <ul class="none">
-   <li>
-    <xsl:if test="count(KEYWORD) > 0">
+  <xsl:if test="count(KEYWORD) > 0">
+   <ul class="none">
+    <li>
      <h3>Keywords:</h3>
      <xsl:call-template name="describe_keywords"></xsl:call-template>
-    </xsl:if>
-   </li>
-  </ul>
+    </li>
+   </ul>
+  </xsl:if>
   <xsl:call-template name="describe_sections"></xsl:call-template>
  </xsl:for-each>
 </xsl:template>
@@ -134,70 +138,99 @@
  <xsl:param name="element" select="KEYWORD"/>
  <ul class="none">
   <li>
-  <xsl:for-each select="$element">
-   <xsl:sort select="NAME"/>
-   <xsl:if test="not(starts-with(NAME,'__'))">
-    <dl>
-     <dt>
-      <a href="#key_ind_{generate-id(NAME[@type='default'])}" id="key_des_{generate-id(NAME[@type='default'])}"><xsl:value-of select="NAME[@type='default']"/></a>
-      <!--a href="#sec_ind_{generate-id(../NAME)}"><xsl:value-of select="NAME[@type='default']"/></a-->
-      <xsl:if test="NAME[@type='alias']">
-       (alias:
-       <xsl:for-each select="NAME[@type='alias']">
-        <xsl:sort select="NAME[@type='alias']"/>
-        <xsl:choose>
-         <xsl:when test="position() = last()">
-          <xsl:value-of select="."/>)
-         </xsl:when>
-         <xsl:otherwise>
-          <xsl:value-of select="."/>,
-         </xsl:otherwise>
-        </xsl:choose>
-       </xsl:for-each>
-      </xsl:if>
-     </dt>
-     <dd><p><em><xsl:value-of select="DESCRIPTION"/></em></p></dd>
-     <dd>
-      <p>
-       Data type: <big class="uctt"><xsl:value-of select="DATA_TYPE/@kind"/></big>
-       <xsl:if test="DATA_TYPE/ENUMERATION">
-        <p>List of valid keys:</p>
-        <ul class="none">
-        <xsl:for-each select="DATA_TYPE/ENUMERATION/ITEM">
-         <xsl:sort select="NAME"/>
-         <dl>
-          <dt><big class="uctt"><xsl:value-of select="NAME"/></big></dt>
-          <dd><em><xsl:value-of select="DESCRIPTION"/></em></dd>
-         </dl>
+   <xsl:for-each select="$element">
+    <xsl:sort select="NAME"/>
+    <xsl:if test="not(starts-with(NAME,'__'))">
+     <dl>
+      <dt>
+       <a href="#key_ind_{generate-id(NAME[@type='default'])}" id="key_des_{generate-id(NAME[@type='default'])}"><xsl:value-of select="NAME[@type='default']"/></a>
+       <!--a href="#sec_ind_{generate-id(../NAME)}"><xsl:value-of select="NAME[@type='default']"/></a-->
+       <xsl:if test="NAME[@type='alias']">
+        (alias:
+        <xsl:for-each select="NAME[@type='alias']">
+         <xsl:sort select="NAME[@type='alias']"/>
+         <xsl:choose>
+          <xsl:when test="position() = last()">
+           <xsl:value-of select="."/>)
+          </xsl:when>
+          <xsl:otherwise>
+           <xsl:value-of select="."/>,
+          </xsl:otherwise>
+         </xsl:choose>
         </xsl:for-each>
+       </xsl:if>
+      </dt>
+      <dd>
+       <p>
+        <em>
+         <xsl:value-of select="DESCRIPTION"/>
+        </em>
+       </p>
+      </dd>
+      <dd>
+       <p>
+        Data type: <big class="uctt"><xsl:value-of select="DATA_TYPE/@kind"/></big>
+       </p>
+       <xsl:if test="DATA_TYPE/ENUMERATION">
+        <p>
+         List of valid keys:
+        </p>
+        <ul class="none">
+         <li>
+          <xsl:for-each select="DATA_TYPE/ENUMERATION/ITEM">
+           <xsl:sort select="NAME"/>
+           <dl>
+            <dt>
+             <big class="uctt">
+              <xsl:value-of select="NAME"/>
+             </big>
+            </dt>
+            <xsl:if test="string-length(DESCRIPTION) > 0">
+             <dd>
+              <em>
+               <xsl:value-of select="DESCRIPTION"/>
+              </em>
+             </dd>
+            </xsl:if>
+           </dl>
+          </xsl:for-each>
+         </li>
         </ul>
        </xsl:if>
-      </p>
-     </dd>
-     <dd><p>Usage example: <big class="uctt"><xsl:value-of select="USAGE"/></big></p></dd>
-     <xsl:if test="string-length(DEFAULT_VALUE) > 0">
-      <dd>
-       <p>
-        Default value:
-        <big class="uctt">
-         <xsl:value-of select="DEFAULT_VALUE"/>
-        </big>
-       </p>
       </dd>
-     </xsl:if>
-     <xsl:if test="string-length(DEFAULT_UNIT) > 0">
-      <dd>
-       <p>
-        Default unit:
-        <big class="uctt">
-         <xsl:value-of select="DEFAULT_UNIT"/>
-        </big>
-       </p>
-      </dd>
-     </xsl:if>
-    </dl>
-   </xsl:if>
-  </xsl:for-each>
+      <xsl:if test="string-length(USAGE) > 0">
+       <dd>
+        <p>
+         Usage example:
+         <big class="uctt">
+          <xsl:value-of select="USAGE"/>
+         </big>
+        </p>
+       </dd>
+      </xsl:if>
+      <xsl:if test="string-length(DEFAULT_VALUE) > 0">
+       <dd>
+        <p>
+         Default value:
+         <big class="uctt">
+          <xsl:value-of select="DEFAULT_VALUE"/>
+         </big>
+        </p>
+       </dd>
+      </xsl:if>
+      <xsl:if test="string-length(DEFAULT_UNIT) > 0">
+       <dd>
+        <p>
+         Default unit:
+         <big class="uctt">
+          <xsl:value-of select="DEFAULT_UNIT"/>
+         </big>
+        </p>
+       </dd>
+      </xsl:if>
+     </dl>
+    </xsl:if>
+   </xsl:for-each>
   </li>
  </ul>
 </xsl:template>
