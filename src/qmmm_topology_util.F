@@ -38,6 +38,11 @@ MODULE qmmm_topology_util
        section_vals_get_subs_vals, section_vals_get, section_vals_val_get
   USE qmmm_types,                      ONLY: qmmm_env_mm_type
   USE string_utilities,                ONLY: compress
+  USE cp_output_handling,              ONLY: cp_print_key_unit_nr, &
+                                             cp_print_key_finished_output,&
+                                             cp_print_key_should_output,&
+                                             cp_p_file
+
 #include "cp_common_uses.h"
   IMPLICIT NONE
   PRIVATE
@@ -82,14 +87,16 @@ CONTAINS
     CHARACTER (LEN=default_string_length)    :: prefix_lnk
     INTEGER                                  :: handle, iw, iatm
     INTEGER                                  :: ifirst, ilast, myind
-    
+    TYPE(cp_logger_type), POINTER            :: logger
+
     failure = .FALSE.
-    iw = globenv%scr
+    NULLIFY(logger)
+    logger => cp_error_get_logger(error)    
     CALL write_checkpoint_information("entering "//routineN,globenv,error)
     CALL timeset(routineN,'I','',handle)
-    IF((globenv%ionode).AND.(globenv%print_level>0))THEN
-       WRITE(iw,*) "  Entering qmmm_coordinate_control"
-    END IF
+    iw = cp_print_key_unit_nr(logger,subsys_section,"PRINT%TOPOLOGY_INFO/UTIL_INFO",&
+         extension=".subsysLog",error=error)
+    IF (iw>0) WRITE(iw,*) "  Entering qmmm_coordinate_control"
     !
     ! setting ilast and ifirst for QM molecule
     !
@@ -115,10 +122,9 @@ CONTAINS
        END DO
     END IF
     !
-    IF((globenv%ionode).AND.(globenv%print_level>0))THEN
-       WRITE(iw,*) "  Exiting  qmmm_coordinate_control"
-    END IF
-    
+    IF (iw>0) WRITE(iw,*) "  Exiting  qmmm_coordinate_control"
+    CALL cp_print_key_finished_output(iw,logger,subsys_section,&
+         "PRINT%TOPOLOGY_INFO/UTIL_INFO",error=error)    
     CALL timestop(0.0_dp,handle)
     CALL write_checkpoint_information("leaving "//routineN,globenv,error)
   END SUBROUTINE qmmm_coordinate_control

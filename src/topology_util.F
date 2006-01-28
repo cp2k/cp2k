@@ -362,7 +362,7 @@ CONTAINS
     TYPE(connectivity_info_type),POINTER     :: conn_info    
     INTEGER                                  :: first, iatom, iiatom, iii, &
                                                 inum, stat, itype, iw, last, &
-                                                natom, nbond, nnum, ntype
+                                                natom, nbond, nnum, ntype, jump1, jump2
     INTEGER                                  :: map_mol_typ_orig, jump
     INTEGER                                  :: ifirst, ilast, myind, iatm, jatm
     INTEGER, POINTER, DIMENSION(:)           :: checkme, qm_atom_index
@@ -447,10 +447,8 @@ CONTAINS
        inum = 0
 
        IF (first /= last) THEN
-
           DO iatom=first,last
-             checkme(:) = 0
-             
+             checkme(:) = 0             
              IF(atom_info%map_mol_num(iatom)==0) THEN
                 inum=inum+1
                 checkme(iatom)=1
@@ -458,7 +456,7 @@ CONTAINS
                    DO iiatom=first,last
                       IF((checkme(iiatom)==1)) THEN
                          checkme(iiatom)=0
-                         atom_info%map_mol_num(iiatom)=inum
+                         atom_info%map_mol_num(iiatom) = inum
                          DO iii=1,nbond
                             IF((conn_info%bond_a(iii)==iiatom).AND.&
                                  (atom_info%map_mol_num(conn_info%bond_b(iii))==0)) THEN 
@@ -472,9 +470,10 @@ CONTAINS
                       END IF
                    END DO
                 END DO
-             END IF
-             
+             END IF             
           END DO
+       ELSE          
+          atom_info%map_mol_num(first) = 1
        END IF
     END DO
     
@@ -501,6 +500,13 @@ CONTAINS
        END DO
     END IF
     
+    IF(iw>0) THEN
+       DO iatom=1,natom
+          WRITE(iw,*) "      iatom,map_mol_typ,map_mol_num ",iatom,&
+               atom_info%map_mol_typ(iatom),atom_info%map_mol_num(iatom)
+       END DO
+    END IF
+
     IF (my_qmmm) THEN
        do_again = .FALSE.
        IF (iw>0) WRITE(iw,*)"MAP_MOL_NUM ",atom_info%map_mol_num
@@ -510,24 +516,12 @@ CONTAINS
        qm_atom_index = qmmm_env%qm_atom_index
        CPPostcondition(ALL(qm_atom_index /= 0),cp_failure_level,routineP,error,failure)
        DO myind = 1, SIZE(qm_atom_index)
-          ifirst = qm_atom_index(myind)
-          IF ( ifirst == 0 ) CYCLE
-          ilast  = ifirst
-          DO WHILE ((atom_info%map_mol_num(ifirst) == atom_info%map_mol_num(ilast)).AND.&
-               (atom_info%map_mol_typ(ifirst) == atom_info%map_mol_typ(ilast)).AND.&
-               ifirst > 1)
-             ifirst = ifirst - 1
-          END DO
-          CPPostcondition(ifirst>=1,cp_failure_level,routineP,error,failure)
-          IF ( ifirst > 1 ) ifirst = ifirst + 1
-          DO WHILE ((atom_info%map_mol_num(ifirst) == atom_info%map_mol_num(ilast)).AND.&
-               (atom_info%map_mol_typ(ifirst) == atom_info%map_mol_typ(ilast)).AND.&
-               ilast < natom )
-             ilast = ilast + 1
-          END DO
-          CPPostcondition(ilast<=natom,cp_failure_level,routineP,error,failure)
-          IF ( ilast < natom ) ilast = ilast - 1
+          IF (qm_atom_index(myind) ==0) cycle
+          CALL find_boundary(atom_info%map_mol_typ,natom,ifirst,ilast,atom_info%map_mol_typ(qm_atom_index(myind)))
+          CALL find_boundary(atom_info%map_mol_typ,atom_info%map_mol_num,natom,ifirst,ilast,&
+               atom_info%map_mol_typ(qm_atom_index(myind)),atom_info%map_mol_num(qm_atom_index(myind)))
           IF (iw>0) WRITE(iw,*)"qm fragment:: ifirst, ilast",ifirst,ilast
+          CPPostcondition(((ifirst/=0).OR.(ilast/=natom)),cp_failure_level,routineP,error,failure)
           DO iatm = ifirst, ilast
              atom_info%label_molname(iatm) = "_QM_"//&
                   TRIM(atom_info%label_molname(iatm))
@@ -541,57 +535,79 @@ CONTAINS
              IF ( ANY(qm_atom_index == iatm) ) do_again = .TRUE.
           END DO
           IF (iw>0) WRITE(iw,*)" Another QM fragment? :: ",do_again
-          DO iatm = ifirst, ilast
-             atom_info%map_mol_num(iatm) = 1           
-          END DO
-          map_mol_typ_orig = atom_info%map_mol_typ(ifirst)
+
           IF (ifirst /= 1) THEN
-             IF (atom_info%map_mol_typ(ifirst-1) == map_mol_typ_orig) THEN
-                DO iatm = ifirst, ilast
-                   atom_info%map_mol_typ(iatm) = map_mol_typ_orig + 1
-                END DO
-             END IF
+             jump1 = atom_info%map_mol_typ(ifirst)  - atom_info%map_mol_typ(ifirst-1)
+             CPPostcondition(jump1<=1.AND.jump1>=0,cp_failure_level,routineP,error,failure)
+             jump1 = ABS(jump1-1)
+          ELSE
+             jump1 = 0
           END IF
           IF (ilast /= natom) THEN
-             inum = atom_info%map_mol_num(ilast+1)
-             DO iatm = ilast+1, natom
-                IF (atom_info%map_mol_num(iatm) == 1) EXIT
-                atom_info%map_mol_num(iatm) = atom_info%map_mol_num(iatm) - inum +1
-             END DO
-             map_mol_typ_orig = atom_info%map_mol_typ(ifirst)
-             IF (atom_info%map_mol_typ(ilast+1) < map_mol_typ_orig+1) THEN
-                jump = 2
-                IF (ifirst == 1) jump = 1
-                DO iatm = ilast+1, natom
-                   atom_info%map_mol_typ(iatm) =  atom_info%map_mol_typ(iatm) + jump
-                END DO
-             ELSE IF (atom_info%map_mol_typ(ilast+1) > map_mol_typ_orig+1) THEN
-                CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
-             END IF
+             jump2 = atom_info%map_mol_typ(ilast+1) - atom_info%map_mol_typ(ilast)
+             CPPostcondition(jump2<=1.AND.jump2>=0,cp_failure_level,routineP,error,failure)
+             jump2 = ABS(jump2-1)
+          ELSE
+             jump2 = 0
           END IF
+
+          ! Changing mol_type consistently
+          DO iatm = ifirst, natom
+             atom_info%map_mol_typ(iatm) = atom_info%map_mol_typ(iatm) + jump1
+          END DO
+          DO iatm = ilast+1, natom
+             atom_info%map_mol_typ(iatm) = atom_info%map_mol_typ(iatm) + jump2
+          END DO
+
+          IF (jump1 == 1) THEN
+             DO iatm = ifirst, ilast
+                atom_info%map_mol_num(iatm) = 1
+             END DO
+          END IF
+          
+          IF (jump2 == 1) THEN
+             CALL find_boundary(atom_info%map_mol_typ,natom,first,last,atom_info%map_mol_typ(ilast+1))
+             CALL find_boundary(atom_info%map_mol_typ,atom_info%map_mol_num,natom,ifirst,ilast,&
+                  atom_info%map_mol_typ(ilast+1),atom_info%map_mol_num(ilast+1))
+             atom_in_mol = ilast-ifirst+1
+             inum = 1
+             DO iatm = first, last, atom_in_mol
+                atom_info%map_mol_num(iatm:iatm+atom_in_mol-1) = inum
+                inum = inum + 1
+             END DO
+          END IF
+
           IF (.NOT.do_again) EXIT
        END DO
        DEALLOCATE(qm_atom_index,stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    END IF
-    
-    IF(iw>0) THEN
-       DO iatom=1,natom
-          WRITE(iw,*) "      iatom,map_mol_typ,map_mol_num ",iatom,&
-               atom_info%map_mol_typ(iatom),atom_info%map_mol_num(iatom)
-       END DO
+
+       IF(iw>0) THEN
+          WRITE(iw,*)"After the QM/MM Setup:"
+          DO iatom=1,natom
+             WRITE(iw,*) "      iatom,map_mol_typ,map_mol_num ",iatom,&
+                  atom_info%map_mol_typ(iatom),atom_info%map_mol_num(iatom)
+          END DO
+       END IF
     END IF
     !
     ! Further check : see if the number of atoms belonging to same molecule kinds
     !                 are equal
     ntype = MAXVAL(atom_info%map_mol_typ)
+    IF (iw>0) WRITE(*,*)"SUMMARY:: Number of molecules type found:",ntype
     DO i = 1, ntype
        atom_in_kind   = COUNT(atom_info%map_mol_typ == i)
+       IF (iw>0) WRITE(*,*)"Molecule type: ",i,"contains ",atom_in_kind,' atoms'
        IF (atom_in_kind <= 1) CYCLE
        CALL find_boundary(atom_info%map_mol_typ,natom,first,last,i)
+       IF (iw>0) WRITE(*,*)"Boundary atoms: ",first, last
        CPPostcondition(last-first+1==atom_in_kind,cp_failure_level,routineP,error,failure)
        max_mol_num    = MAXVAL(atom_info%map_mol_num(first:last))
+       IF (iw>0) WRITE(*,*)"Number of molecules of type ",i," is ::",max_mol_num       
        atom_in_mol    = atom_in_kind / max_mol_num
+       IF (iw>0) WRITE(*,*)"Number of atoms per each molecule: ",atom_in_mol
+       IF (iw>0) WRITE(*,*)"MAP_MOL_TYP:: ",atom_info%map_mol_typ(first:last)
+       IF (iw>0) WRITE(*,*)"MAP_MOL_NUM:: ",atom_info%map_mol_num(first:last)
        !
        DO j = 1, max_mol_num
           IF (COUNT(atom_info%map_mol_num(first:last)==j) /= atom_in_mol) THEN
@@ -600,7 +616,7 @@ CONTAINS
                      " atoms instead of ",atom_in_mol," ."
              END IF
              CALL stop_program ("topology_generate_molecule","Two molecules of the same kind"//&
-                  " have been created with different numbers of atom!")
+                  " have been created with different numbers of atoms!")
           END IF
        END DO
     END DO
