@@ -368,7 +368,8 @@ CONTAINS
     INTEGER, POINTER, DIMENSION(:)           :: checkme, qm_atom_index
     LOGICAL                                  :: my_qmmm, do_again
     LOGICAL                                  :: failure
-    INTEGER                                  :: jtype,nmol,handle
+    INTEGER                                  :: jtype,nmol,handle,atom_in_kind,max_mol_num,&
+                                                atom_in_mol, i, j
     TYPE(cp_logger_type), POINTER            :: logger
 
     failure = .FALSE.
@@ -444,34 +445,37 @@ CONTAINS
        IF(iw>0) WRITE(iw,*) "      itype ",itype,first,last
        
        inum = 0
-       
-       DO iatom=first,last
-          checkme(:) = 0
-          
-          IF(atom_info%map_mol_num(iatom)==0) THEN
-             inum=inum+1
-             checkme(iatom)=1
-             DO WHILE (SUM(checkme)>0)
-                DO iiatom=first,last
-                   IF((checkme(iiatom)==1)) THEN
-                      checkme(iiatom)=0
-                      atom_info%map_mol_num(iiatom)=inum
-                      DO iii=1,nbond
-                         IF((conn_info%bond_a(iii)==iiatom).AND.&
-                              (atom_info%map_mol_num(conn_info%bond_b(iii))==0)) THEN 
-                            checkme(conn_info%bond_b(iii))=1
-                         END IF
-                         IF((conn_info%bond_b(iii)==iiatom).AND.&
-                              (atom_info%map_mol_num(conn_info%bond_a(iii))==0)) THEN
-                            checkme(conn_info%bond_a(iii))=1
-                         END IF
-                      END DO
-                   END IF
+
+       IF (first /= last) THEN
+
+          DO iatom=first,last
+             checkme(:) = 0
+             
+             IF(atom_info%map_mol_num(iatom)==0) THEN
+                inum=inum+1
+                checkme(iatom)=1
+                DO WHILE (SUM(checkme)>0)
+                   DO iiatom=first,last
+                      IF((checkme(iiatom)==1)) THEN
+                         checkme(iiatom)=0
+                         atom_info%map_mol_num(iiatom)=inum
+                         DO iii=1,nbond
+                            IF((conn_info%bond_a(iii)==iiatom).AND.&
+                                 (atom_info%map_mol_num(conn_info%bond_b(iii))==0)) THEN 
+                               checkme(conn_info%bond_b(iii))=1
+                            END IF
+                            IF((conn_info%bond_b(iii)==iiatom).AND.&
+                                 (atom_info%map_mol_num(conn_info%bond_a(iii))==0)) THEN
+                               checkme(conn_info%bond_a(iii))=1
+                            END IF
+                         END DO
+                      END IF
+                   END DO
                 END DO
-             END DO
-          END IF
-          
-       END DO
+             END IF
+             
+          END DO
+       END IF
     END DO
     
     DEALLOCATE(checkme,STAT=stat)
@@ -577,12 +581,34 @@ CONTAINS
                atom_info%map_mol_typ(iatom),atom_info%map_mol_num(iatom)
        END DO
     END IF
+    !
+    ! Further check : see if the number of atoms belonging to same molecule kinds
+    !                 are equal
+    ntype = MAXVAL(atom_info%map_mol_typ)
+    DO i = 1, ntype
+       atom_in_kind   = COUNT(atom_info%map_mol_typ == i)
+       IF (atom_in_kind <= 1) CYCLE
+       CALL find_boundary(atom_info%map_mol_typ,natom,first,last,i)
+       CPPostcondition(last-first+1==atom_in_kind,cp_failure_level,routineP,error,failure)
+       max_mol_num    = MAXVAL(atom_info%map_mol_num(first:last))
+       atom_in_mol    = atom_in_kind / max_mol_num
+       !
+       DO j = 1, max_mol_num
+          IF (COUNT(atom_info%map_mol_num(first:last)==j) /= atom_in_mol) THEN
+             IF(iw>0) THEN
+                WRITE(iw,*)"molecule type:",i,"molecule num:",j," has ",COUNT(atom_info%map_mol_num(first:last)==j),&
+                     " atoms instead of ",atom_in_mol," ."
+             END IF
+             CALL stop_program ("topology_generate_molecule","Two molecules of the same kind"//&
+                  " have been created with different numbers of atom!")
+          END IF
+       END DO
+    END DO
     
-    CALL timestop(0.0_dp,handle)
-    CALL write_checkpoint_information("exiting "//routineN,globenv,error)
     CALL cp_print_key_finished_output(iw,logger,subsys_section,&
          "PRINT%TOPOLOGY_INFO/UTIL_INFO",error=error)
-
+    CALL timestop(0.0_dp,handle)
+    CALL write_checkpoint_information("exiting "//routineN,globenv,error)
   END SUBROUTINE topology_generate_molecule
 
 !
@@ -2360,6 +2386,7 @@ CONTAINS
     ALLOCATE(charge(topology%natoms),STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     work(:)=""
+    IF (iw>0) WRITE(iw,*)"molecule_kind_set ::",SIZE(molecule_kind_set)
     DO i = 1, SIZE(molecule_kind_set)
        DO j=1,SIZE(molecule_set)
           molecule => molecule_set(j)
@@ -2367,10 +2394,12 @@ CONTAINS
           CALL get_molecule_kind(molecule_kind=molecule_kind,kind_number=ikind)
           IF(ikind==i) EXIT
        END DO
+       IF (iw>0) WRITE(iw,*)"molecule number ::",j," has molecule kind number ::",i
        CALL get_molecule_kind(molecule_kind=molecule_kind,&
             natom=natom,atom_list=atom_list)
        CALL get_molecule(molecule=molecule,&
             first_atom=first,last_atom=last)
+       IF (iw>0) WRITE(iw,*)"boundaries of molecules (first, last) ::",first,last
        DO j = 1, natom
           position=str_search(work,counter,atom_list(j)%name)
           IF(position==0)THEN
