@@ -77,7 +77,7 @@ MODULE tbmd_model_types
 !!     - n: The hopping exponent
 !!     - r_0: Nearest neighbor distance 
 !!     - Phi: The pair-potential parameter Phi(1)
-!!     - m: The value of the pair-potnetial exponent
+!!     - m: The value of the pair-potential exponent
 !!     - d_c: The pair-potential cutoff
 !!     - m_c: Pair-potential exponent m_c
 !!     - dEpsilon: s-p energy splitting

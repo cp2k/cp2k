@@ -50,8 +50,10 @@ MODULE tbmd_hamiltonian
                                                     allocate_matrix_set, &
                                                     replicate_matrix_structure, &
                                                     add_block_node
+  USE tbmd_energy_types,                      ONLY: tbmd_energy_type
   USE tbmd_environment_types,                 ONLY: tbmd_environment_type, &
                                                     tbmd_env_get
+  USE tbmd_force_types,                       ONLY: tbmd_force_type
   USE tbmd_model_types,                       ONLY: tbmd_model_type, &
                                                     tbmd_model_get
   USE tbmd_neighbor_list_env_types,           ONLY: tbmd_neighbor_list_env_type, &
@@ -170,9 +172,12 @@ CONTAINS
                                                 dl, &
                                                 dm, &
                                                 dn, &
+                                                m_exp, &
                                                 n_exp, &
                                                 r_0, &
-                                                r_cutoff
+                                                r_cutoff, &
+                                                Phi, &
+                                                temp_pair_repulsion_force
     REAL(KIND=dp), DIMENSION(3)              :: dra, &
                                                 drb, &
                                                 rab
@@ -189,6 +194,8 @@ CONTAINS
     TYPE(block_p_type), DIMENSION(:), &
       ALLOCATABLE                            :: sint
     TYPE(tbmd_model_type), POINTER           :: tbmd_model
+    TYPE(tbmd_energy_type), POINTER          :: tbmd_energy
+    TYPE(tbmd_force_type), POINTER           :: tbmd_force
 
 !   ------------------------------------------------------------------------
 
@@ -196,7 +203,8 @@ CONTAINS
 
     NULLIFY(atomic_kind_set, particle_set, subsystem, tbmd_neighbor_list_env, &
             neighbor_list_set, neighbor_list, neighbor_node, r_last_update, &
-            cell, matrix_h, matrix_dh, distribution_2d, tbmd_model)
+            cell, matrix_h, matrix_dh, distribution_2d, tbmd_model, tbmd_energy, &
+            tbmd_force)
 
     failure = .FALSE.
   
@@ -205,6 +213,7 @@ CONTAINS
     IF (.NOT. failure) THEN
 
       CALL tbmd_env_get(tbmd_env=tbmd_env, subsystem=subsystem, &
+                        tbmd_energy=tbmd_energy, tbmd_force=tbmd_force, &
                         tbmd_neighbor_list_env=tbmd_neighbor_list_env, &
                         cell=cell, matrix_h=matrix_h, matrix_dh=matrix_dh, &
                         tbmd_model=tbmd_model, error=error)
@@ -341,8 +350,8 @@ CONTAINS
                 n = rab(3)/distance
 
                 ! Scaling function
-                CALL tbmd_model_get(tbmd_model=tbmd_model, n=n_exp, r_0=r_0, &
-                                    r_calpha=r_calpha, n_calpha=n_calpha, error=error)
+                CALL tbmd_model_get(tbmd_model=tbmd_model, n=n_exp, m=m_exp, r_0=r_0, &
+                                    r_calpha=r_calpha, n_calpha=n_calpha, Phi=Phi, error=error)
                 r_cutoff = tbmd_neighbor_list_env%r_cutoff(ikind,jkind)
                 temp_sm_st = tbmd_sm_st(r_0=r_0, r=distance, n=n_exp, r_calpha=r_calpha(1), &
                                         n_calpha=n_calpha(1), r_cutoff=r_cutoff)
@@ -387,6 +396,14 @@ CONTAINS
                   sint(1)%block(3,2) = sint(1)%block(2,3)
                   sint(1)%block(4,2) = sint(1)%block(2,4)
                   sint(1)%block(4,3) = sint(1)%block(3,4)
+
+                  ! the pair-repulsion energy
+                  tbmd_energy%E_repulsion = tbmd_energy%E_repulsion &
+                                          + tbmd_pair_repulsion_energy(r_0=r_0, r=distance, &
+                                                                       m=m_exp, r_calpha=r_calpha(1), &
+                                                                       n_calpha=n_calpha(1), &
+                                                                       r_cutoff=r_cutoff) &
+                                          * Phi
                 END IF
 
                 ! dH/dR Matrix built-up
@@ -474,6 +491,18 @@ CONTAINS
                       sint(i_dim+1)%block(3,2) = sint(i_dim+1)%block(2,3)
                       sint(i_dim+1)%block(4,2) = sint(i_dim+1)%block(2,4)
                       sint(i_dim+1)%block(4,3) = sint(i_dim+1)%block(3,4)
+
+                      ! the pair-repulsion force
+                      temp_pair_repulsion_force = (-1)*tbmd_pair_repulsion_force(r_0=r_0, r=distance, &
+                                                                                 m=m_exp, &
+                                                                                 r_calpha=r_calpha(1), &
+                                                                                 n_calpha=n_calpha(1))
+                      tbmd_force%f_repulsion(atom_a,1) = tbmd_force%f_repulsion(atom_a,1) &
+                                                       + temp_pair_repulsion_force * l * Phi
+                      tbmd_force%f_repulsion(atom_a,2) = tbmd_force%f_repulsion(atom_a,2) &
+                                                       + temp_pair_repulsion_force * m * Phi
+                      tbmd_force%f_repulsion(atom_a,3) = tbmd_force%f_repulsion(atom_a,3) &
+                                                       + temp_pair_repulsion_force * n * Phi
                     END IF
                   END DO
                 END IF
@@ -599,6 +628,55 @@ CONTAINS
   END FUNCTION tbmd_sm_st
 !***************************************************************************
 
+!!****f* tbmd_energy/tbmd_pair_repulsion_energy [1.0] *
+!!
+!!   NAME
+!!     tbmd_pair_repulsion_energy
+!!
+!!   FUNCTION
+!!     Calculates the energy of the pair repuslsion term.
+!!
+!!   NOTES
+!!     (r_0/r)**n * exp{n*[-(r/r_calpha)**n_calpha + (r_0/r_calpha)**n_calpha]}
+!!
+!!   INPUTS
+!!     - r_0: Nearest neighbor distance
+!!     - r: The distance between the interacting atoms
+!!     - m: The pair-repulsion exponent
+!!     - r_calpha: Individual cutoffs for each hopping parameter
+!!     - n_calpha: Individual exponents for each hopping parameter
+!!     - r_cutoff: The cutoff length, after which interactions are neglected
+!!
+!!   RESULT
+!!     - res: The pair repulsion energy
+!!
+!!   AUTHOR
+!!     Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
+!!
+!!   MODIFICATION HISTORY
+!!     01.2006 initial create [tdk]
+!!
+!!*** **********************************************************************
+  FUNCTION tbmd_pair_repulsion_energy(r_0, r, m, r_calpha, n_calpha, r_cutoff) RESULT(res)
+    REAL(KIND=dp), INTENT(IN)                           :: r_0, &
+                                                           r, &
+                                                           m, &
+                                                           r_calpha, &
+                                                           n_calpha, &
+                                                           r_cutoff
+    REAL(KIND=dp)                                       :: res
+
+!   ------------------------------------------------------------------------
+
+    res = (r_0/r)**m * EXP(m*(-(r/r_calpha)**n_calpha &
+        + (r_0/r_calpha)**n_calpha))
+
+    !res  = res - (r_0/r_cutoff)**m * EXP(n*(-(r_cutoff/r_calpha)**n_calpha &
+    !     + (r_0/r_calpha)**n_calpha))
+
+  END FUNCTION tbmd_pair_repulsion_energy
+!***************************************************************************
+
 !!****f* tbmd_hamiltonian/tbmd_dsm_st [1.0] *
 !!
 !!   NAME
@@ -644,6 +722,52 @@ CONTAINS
     res = res * (-(n/r)) * (1.0_dp + n_calpha * (r/r_calpha)**n_calpha)
 
   END FUNCTION tbmd_dsm_st
+!***************************************************************************
+
+!!****f* tbmd_forces/tbmd_pair_repulsion_force [1.0] *
+!!
+!!   NAME
+!!     tbmd_pair_repulsion_repulsion
+!!
+!!   FUNCTION
+!!     Calculates the forces of the pair repulsion term.
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     - r_0: Nearest neighbor distance
+!!     - r: The distance between the interacting atoms
+!!     - m: The pair-repulsion exponent
+!!     - r_calpha: Individual cutoffs for each hopping parameter
+!!     - n_calpha: Individual exponents for each hopping parameter
+!!
+!!   RESULT
+!!     - res: The forces of the pair repulsion
+!!
+!!   AUTHOR
+!!     Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
+!!
+!!   MODIFICATION HISTORY
+!!     01.2006 initial create [tdk]
+!!
+!!*** **********************************************************************
+  FUNCTION tbmd_pair_repulsion_force(r_0, r, m, r_calpha, n_calpha) RESULT(res)
+    REAL(KIND=dp), INTENT(IN)                           :: r_0, &
+                                                           r, &
+                                                           m, &
+                                                           r_calpha, &
+                                                           n_calpha                  
+    REAL(KIND=dp)                                       :: res
+
+!   ------------------------------------------------------------------------
+
+    res = (r_0/r)**m * EXP(m*(-(r/r_calpha)**n_calpha &
+        + (r_0/r_calpha)**n_calpha))
+
+    res = res * (-(m/r)) * (1.0_dp + n_calpha * (r/r_calpha)**n_calpha)
+
+  END FUNCTION tbmd_pair_repulsion_force
 !***************************************************************************
 
 END MODULE tbmd_hamiltonian
