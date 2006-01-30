@@ -43,7 +43,7 @@ MODULE qs_interactions
                                              set_paw_proj_set
   USE qs_all_potential,                ONLY: radii_3c_orbxall
   USE qs_util,                         ONLY: exp_radius
-  USE cell_types,                 ONLY: cell_type,&
+  USE cell_types,                      ONLY: cell_type,&
                                              get_cell
   USE string_utilities,                ONLY: uppercase
   USE termination,                     ONLY: stop_memory,&
