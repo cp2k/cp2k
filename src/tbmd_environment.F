@@ -36,6 +36,8 @@ MODULE tbmd_environment
                                                     get_cell, &
                                                     cell_release,&
                                                     write_cell
+  USE cp_fm_struct,                           ONLY: optimal_blacs_col_block_size, &
+                                                    optimal_blacs_row_block_size
   USE cp_subsystem_methods,                   ONLY: cp_subsys_read_colvar
   USE cp_subsystem_types,                     ONLY: cp_subsystem_type, &
                                                     cp_subsys_create, &
@@ -76,6 +78,7 @@ MODULE tbmd_environment
                                                     mo_set_type
   USE tbmd_energy_types,                      ONLY: tbmd_energy_type, &
                                                     tbmd_energy_create
+  USE tbmd_environment_methods,               ONLY: tbmd_env_setup
   USE tbmd_environment_types,                 ONLY: tbmd_environment_type, &
                                                     tbmd_env_set
   USE tbmd_force_types,                       ONLY: tbmd_force_type, &
@@ -384,6 +387,11 @@ CONTAINS
 
     CALL distribution_1d_release(local_particles, error=error)
     CALL distribution_1d_release(local_molecules, error=error)
+
+    optimal_blacs_row_block_size=32
+    optimal_blacs_col_block_size=32
+
+    CALL tbmd_env_setup(tbmd_env=tbmd_env, error=error)
 
     CALL timestop(0.0_dp, handle)
 

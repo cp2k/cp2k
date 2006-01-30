@@ -377,6 +377,7 @@ OBJECTS_GENERIC =\
  tbmd_energy.o\
  tbmd_energy_types.o\
  tbmd_environment.o\
+ tbmd_environment_methods.o\
  tbmd_environment_types.o\
  tbmd_force.o\
  tbmd_force_types.o\

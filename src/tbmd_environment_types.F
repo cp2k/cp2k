@@ -31,15 +31,21 @@ MODULE tbmd_environment_types
   USE cell_types,                               ONLY: cell_type, &
                                                       cell_retain, &
                                                       cell_release
+  USE cp_blacs_env,                             ONLY: cp_blacs_env_create, &
+                                                      cp_blacs_env_release
   USE cp_para_env,                              ONLY: cp_para_env_retain, &
                                                       cp_para_env_release
-  USE cp_para_types,                            ONLY: cp_para_env_type
+  USE cp_para_types,                            ONLY: cp_para_env_type, &
+                                                      cp_blacs_env_type
   USE cp_subsystem_types,                       ONLY: cp_subsys_get, &
                                                       cp_subsys_set, &
                                                       cp_subsys_release, &
                                                       cp_subsys_retain, &
                                                       cp_subsystem_type
   USE distribution_1d_types,                    ONLY: distribution_1d_type
+  USE distribution_2d_types,                    ONLY: distribution_2d_release,&
+                                                      distribution_2d_retain,&
+                                                      distribution_2d_type
   USE input_section_types,                      ONLY: section_vals_type, &
                                                       section_vals_release
   USE mol_kind_new_list_types,                  ONLY: mol_kind_new_list_type, &
@@ -71,8 +77,7 @@ MODULE tbmd_environment_types
                                                       tbmd_model_clear
   USE tbmd_neighbor_list_env_types,             ONLY: tbmd_neighbor_list_env_type, &
                                                       tbmd_neighbor_list_env_release, &
-                                                      tbmd_neighbor_list_env_clear, &
-                                                      tbmd_neighbor_list_env_create
+                                                      tbmd_neighbor_list_env_clear
   USE virial_types,                             ONLY: virial_type, &
                                                       zero_virial, &
                                                       virial_release
@@ -132,6 +137,8 @@ MODULE tbmd_environment_types
 !!     - matrix_p: The density matrix
 !!     - mos: The molecular orbitlas, the plain mo_set_type is used, 
 !!            since there is no partition into spins
+!!     - distribution_2d: distribution of the atom pairs between the processors
+!!     - blacs_env: parallel environement needed by scalapack (full matrixes)
 !!
 !!   AUTHOR
 !!     Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
@@ -160,6 +167,8 @@ MODULE tbmd_environment_types
                                                         matrix_p
     TYPE(real_matrix_p_type), DIMENSION(:), POINTER  :: matrix_dh
     TYPE(mo_set_type), POINTER                       :: mos
+    TYPE(distribution_2d_type), POINTER              :: distribution_2d
+    TYPE(cp_blacs_env_type), POINTER                 :: blacs_env
 
   END TYPE tbmd_environment_type
 !!***
@@ -273,8 +282,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'tbmd_env_release', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat, &
-                                                i
+    INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
 !   ------------------------------------------------------------------------
@@ -331,6 +339,12 @@ CONTAINS
         IF (ASSOCIATED(tbmd_env%mos)) THEN
           CALL deallocate_mo_set(tbmd_env%mos)
         END IF
+        IF (ASSOCIATED(tbmd_env%distribution_2d)) THEN
+          CALL distribution_2d_release(tbmd_env%distribution_2d)
+        ENDIF
+        IF (ASSOCIATED(tbmd_env%blacs_env)) THEN
+          CALL cp_blacs_env_release(tbmd_env%blacs_env, error=error)
+        END IF
         DEALLOCATE(tbmd_env, stat=stat)
         CPPostconditionNoFail(stat==0, cp_warning_level, routineP, error)
       END IF
@@ -380,6 +394,8 @@ CONTAINS
 !!     - matrix_p: The density matrix
 !!     - mos: The molecular orbitlas, the plain mo_set_type is used, 
 !!            since there is no partition into spins
+!!     - distribution_2d: distribution of the atom pairs between the processors
+!!     - blacs_env: parallel environement needed by scalapack (full matrixes)
 !!
 !!     For possible missing arguments see the attributes of 
 !!     tbmd_environment_type
@@ -397,7 +413,7 @@ CONTAINS
                           local_molecules, tbmd_input, cell, cell_ref, &
                           use_ref_cell, para_env, id_nr, force_env_input, &
                           tbmd_neighbor_list_env, matrix_h, matrix_dh, mos, &
-                          matrix_p, error)
+                          matrix_p, distribution_2d, blacs_env, error)
 
     TYPE(tbmd_environment_type), POINTER         :: tbmd_env
     TYPE(tbmd_energy_type), POINTER, OPTIONAL    :: tbmd_energy
@@ -429,6 +445,10 @@ CONTAINS
     TYPE(real_matrix_p_type), POINTER, &
          DIMENSION(:), OPTIONAL                  :: matrix_dh
     TYPE(mo_set_type), POINTER, OPTIONAL         :: mos
+    TYPE(distribution_2d_type), OPTIONAL, &
+      POINTER                                    :: distribution_2d
+    TYPE(cp_blacs_env_type), OPTIONAL, &
+      POINTER                                    :: blacs_env
     INTEGER, INTENT(OUT), OPTIONAL               :: id_nr
     TYPE(cp_error_type), INTENT(INOUT), &
          OPTIONAL                                :: error
@@ -491,6 +511,12 @@ CONTAINS
       IF (PRESENT(mos)) THEN
         mos => tbmd_env%mos
       END IF
+      IF (PRESENT(distribution_2d)) THEN
+        distribution_2d => tbmd_env%distribution_2d
+      END IF
+      IF (PRESENT(blacs_env)) THEN
+        blacs_env => tbmd_env%blacs_env
+      END IF
     END IF
 
   END SUBROUTINE tbmd_env_get
@@ -537,6 +563,8 @@ CONTAINS
 !!     - matrix_p: The density matrix
 !!     - mos: The molecular orbitlas, the plain mo_set_type is used, 
 !!            since there is no partition into spins
+!!     - distribution_2d: distribution of the atom pairs between the processors
+!!     - blacs_env: parallel environement needed by scalapack (full matrixes)
 !!
 !!     For possible missing arguments see the attributes of 
 !!     tbmd_environment_type
@@ -554,7 +582,7 @@ CONTAINS
                           local_molecules, tbmd_input, cell, cell_ref, &
                           use_ref_cell, para_env, id_nr, force_env_input, &
                           tbmd_neighbor_list_env, matrix_h, matrix_dh, mos, &
-                          matrix_p, error)
+                          matrix_p, distribution_2d, blacs_env, error)
 
     TYPE(tbmd_environment_type), POINTER         :: tbmd_env
     TYPE(tbmd_energy_type), POINTER, OPTIONAL    :: tbmd_energy
@@ -586,6 +614,10 @@ CONTAINS
     TYPE(real_matrix_p_type), POINTER, &
          DIMENSION(:), OPTIONAL                  :: matrix_dh
     TYPE(mo_set_type), POINTER, OPTIONAL         :: mos
+    TYPE(distribution_2d_type), OPTIONAL, &
+      POINTER                                    :: distribution_2d
+    TYPE(cp_blacs_env_type), OPTIONAL, &
+      POINTER                                    :: blacs_env
     INTEGER, INTENT(IN), OPTIONAL                :: id_nr
     TYPE(cp_error_type), INTENT(INOUT), &
          OPTIONAL                                :: error
@@ -696,6 +728,14 @@ CONTAINS
       IF (PRESENT(mos)) THEN
         tbmd_env%mos => mos
       END IF
+      IF (PRESENT(distribution_2d)) THEN
+        CALL distribution_2d_retain(distribution_2d)
+        CALL distribution_2d_release(tbmd_env%distribution_2d)
+        tbmd_env%distribution_2d => distribution_2d
+      ENDIF
+      IF (PRESENT(blacs_env)) THEN
+        tbmd_env%blacs_env => blacs_env
+      END IF
     END IF
   END SUBROUTINE tbmd_env_set
 !***************************************************************************
@@ -736,8 +776,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     LOGICAL                                  :: failure
-    INTEGER                                  :: natom, &
-                                                i
+    INTEGER                                  :: natom
 
 !   ------------------------------------------------------------------------
 
@@ -792,6 +831,12 @@ CONTAINS
        END IF
        IF (ASSOCIATED(tbmd_env%matrix_p)) THEN
          CALL deallocate_matrix(tbmd_env%matrix_p)
+       END IF
+       IF (ASSOCIATED(tbmd_env%distribution_2d)) THEN
+         CALL distribution_2d_release(tbmd_env%distribution_2d)
+       ENDIF
+       IF (ASSOCIATED(tbmd_env%blacs_env)) THEN
+         CALL cp_blacs_env_release(tbmd_env%blacs_env, error=error)
        END IF
     ELSE
       CALL tbmd_env_create(tbmd_env, error=error)
@@ -859,6 +904,8 @@ CONTAINS
     NULLIFY(tbmd_env%matrix_dh)
     NULLIFY(tbmd_env%matrix_p)
     NULLIFY(tbmd_env%mos)
+    NULLIFY(tbmd_env%distribution_2d)
+    NULLIFY(tbmd_env%blacs_env)
    
     IF (.NOT. failure) THEN
       tbmd_env%ref_count = 1

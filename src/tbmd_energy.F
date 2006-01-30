@@ -105,7 +105,9 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     LOGICAL                                  :: failure, &
-                                                ortho_basis
+                                                ortho_basis, &
+                                                use_cholesky, &
+                                                use_jacobi
     INTEGER                                  :: handle
     TYPE(tbmd_energy_type), POINTER          :: tbmd_energy
     TYPE(atomic_kind_type), DIMENSION(:), &
@@ -126,7 +128,9 @@ CONTAINS
                                                 matrix_p
     TYPE(mo_set_type), POINTER               :: mos
     TYPE(cp_fm_pool_type), POINTER           :: fm_pool
-    TYPE(cp_fm_type), POINTER                :: fm_matrix_h
+    TYPE(cp_fm_type), POINTER                :: fm_matrix_h, &
+                                                fm_matrix_ortho, &
+                                                fm_matrix_work
 
 !   ------------------------------------------------------------------------
 
@@ -134,7 +138,8 @@ CONTAINS
 
     NULLIFY(tbmd_energy, atomic_kind_set, particle_set, local_particles, &
             local_molecules, molecule_kind_set, molecule_set, tbmd_neighbor_list_env, &
-            cell, force_env_section, matrix_h, mos, fm_pool, matrix_p, fm_matrix_h)
+            cell, force_env_section, matrix_h, mos, fm_pool, matrix_p, fm_matrix_h, &
+            fm_matrix_ortho, fm_matrix_work)
 
     failure = .FALSE.
 
@@ -143,6 +148,9 @@ CONTAINS
     ELSE
       ortho_basis = .TRUE.
     END IF
+
+    use_cholesky = .TRUE.
+    use_jacobi   = .FALSE.
   
     CPPrecondition(ASSOCIATED(tbmd_env), cp_failure_level, routineP, error, failure)
  
@@ -175,22 +183,17 @@ CONTAINS
                                  do_level_shift=.FALSE., level_shift=0.0_dp, &
                                  work_syevx=1.0_dp, smear=0.0_dp, error=error)
 
-!         CALL write_mo_set(mos(ispin)%mo_set,atomic_kind_set,particle_set,&
-!                    4,6,dft_section,globenv)
-
          CALL calculate_density_matrix(mo_set=mos, density_matrix=matrix_p, error=error)
 
       ELSE
          CALL init_mo_set(mo_set=mos, fm_pool=fm_pool, name="TBMD MO set", error=error)
 
          CALL copy_sm_to_fm(real_matrix=matrix_h, fm=fm_matrix_h, error=error)
-!        CALL eigensolver(matrix_ks=fm_matrix_h, mo_set=mos, ortho=, work=, &
-!                         do_level_shift=.FALSE., level_shift=0.0_dp, &
-!                         use_cholesky=, work_syevx=1.0_dp, use_jacobi=, &
-!                         jacobi_threshold=, smear=0.0_dp, error=error)
-
-!         CALL write_mo_set(mos(ispin)%mo_set,atomic_kind_set,particle_set,&
-!                    4,6,dft_section,globenv)
+         CALL eigensolver(matrix_ks=fm_matrix_h, mo_set=mos, ortho=fm_matrix_ortho, &
+                          work=fm_matrix_work, do_level_shift=.FALSE., &
+                          level_shift=0.0_dp, use_cholesky=use_cholesky, &
+                          work_syevx=1.0_dp, use_jacobi=use_jacobi, &
+                          jacobi_threshold=1.0e-7_dp, smear=0.0_dp, error=error)
 
          CALL calculate_density_matrix(mo_set=mos, density_matrix=matrix_p, error=error)
 
