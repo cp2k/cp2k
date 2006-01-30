@@ -29,7 +29,13 @@ MODULE tbmd_environment
   USE atomic_kind_types,                      ONLY: atomic_kind_type, &
                                                     read_atomic_kind_set, &
                                                     get_atomic_kind, &
+                                                    get_atomic_kind_set, &
                                                     write_atomic_kind_set
+  USE cell_types,                             ONLY: cell_type, &
+                                                    read_cell, &
+                                                    get_cell, &
+                                                    cell_release,&
+                                                    write_cell
   USE cp_subsystem_methods,                   ONLY: cp_subsys_read_colvar
   USE cp_subsystem_types,                     ONLY: cp_subsystem_type, &
                                                     cp_subsys_create, &
@@ -66,11 +72,8 @@ MODULE tbmd_environment
                                                     write_qs_particle_coordinates
   USE physcon,                                ONLY: evolt, &
                                                     angstrom
-  USE cell_types,                             ONLY: cell_type, &
-                                                    read_cell, &
-                                                    get_cell, &
-                                                    cell_release,&
-                                                    write_cell
+  USE qs_mo_types,                            ONLY: allocate_mo_set, &
+                                                    mo_set_type
   USE tbmd_energy_types,                      ONLY: tbmd_energy_type, &
                                                     tbmd_energy_create
   USE tbmd_environment_types,                 ONLY: tbmd_environment_type, &
@@ -277,7 +280,15 @@ CONTAINS
       POINTER                                :: molecule_set
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
-    INTEGER                                  :: natom
+    INTEGER                                  :: natom, &
+                                                handle, &
+                                                nelectron, &
+                                                n_ao, &
+                                                ikind, &
+                                                temp_zeff, &
+                                                stat
+    LOGICAL                                  :: failure
+    INTEGER, DIMENSION(:), ALLOCATABLE       :: temp_natom_of_kind
     TYPE(tbmd_energy_type), POINTER          :: tbmd_energy
     TYPE(tbmd_force_type), POINTER           :: tbmd_force
     TYPE(tbmd_model_type), POINTER           :: tbmd_model
@@ -285,7 +296,9 @@ CONTAINS
       POINTER                                :: tbmd_neighbor_list_env
     TYPE(distribution_1d_type), POINTER      :: local_molecules, &
                                                 local_particles
-    INTEGER                                  :: handle
+    TYPE(mo_set_type), POINTER               :: mos
+    CHARACTER(LEN=2)                         :: element_symbol
+    TYPE(atomic_kind_type), POINTER          :: atomic_kind_ptr
 
 !   ------------------------------------------------------------------------
 
@@ -293,7 +306,13 @@ CONTAINS
 
     NULLIFY(atomic_kind_set, molecule_kind_set, molecule_set, particle_set, &
             tbmd_energy, tbmd_force, tbmd_model, local_molecules, &
-            local_particles, tbmd_neighbor_list_env)
+            local_particles, tbmd_neighbor_list_env, mos, atomic_kind_ptr)
+
+    failure = .FALSE.
+
+    nelectron = 0
+    n_ao      = 0
+    temp_zeff = 0
 
     particle_set => subsystem%particles%els
     atomic_kind_set => subsystem%atomic_kinds%els
@@ -329,13 +348,35 @@ CONTAINS
     CALL tbmd_neighbor_list_env_create(tbmd_neighbor_list_env=tbmd_neighbor_list_env, &
                                        error=error)
 
+    ALLOCATE(temp_natom_of_kind(SIZE(atomic_kind_set)), STAT=stat)
+    CPPostcondition(stat==0, cp_failure_level, routineN, error, failure)
+
+    CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set, natom_of_kind=temp_natom_of_kind)
+    DO ikind = 1,SIZE(atomic_kind_set)
+      atomic_kind_ptr => atomic_kind_set(ikind)
+      CALL get_atomic_kind(atomic_kind=atomic_kind_ptr, element_symbol=element_symbol)
+      SELECT CASE(element_symbol)
+        CASE("SI", "Si", "C")
+          temp_zeff = 4
+        CASE default
+          temp_zeff = 0
+      END SELECT
+      nelectron = nelectron + temp_natom_of_kind(ikind)*temp_zeff
+    END DO
+
+    DEALLOCATE(temp_natom_of_kind, STAT=stat)
+    CPPostcondition(stat==0, cp_failure_level, routineN, error, failure)
+
+    CALL allocate_mo_set(mo_set=mos, nao=4*natom, nmo=nelectron/2, nelectron=nelectron, &
+                         maxocc=2.0_dp, error=error)
+
     CALL tbmd_env_set(tbmd_env=tbmd_env, tbmd_energy=tbmd_energy, &
                       tbmd_force=tbmd_force, tbmd_model=tbmd_model, &
                       tbmd_neighbor_list_env=tbmd_neighbor_list_env, &
                       subsystem=subsystem, local_molecules=local_molecules, &
                       local_particles=local_particles, cell=cell, &
                       cell_ref=cell_ref, use_ref_cell=use_ref_cell, &
-                      para_env=globenv%para_env, error=error)
+                      para_env=globenv%para_env, mos=mos, error=error)
 
     CALL tbmd_init_tb_model(tbmd_env=tbmd_env, globenv=globenv, error=error)
     CALL tbmd_init_tb_neighbor_list(tbmd_env=tbmd_env, globenv=globenv, &

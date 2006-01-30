@@ -54,6 +54,8 @@ MODULE tbmd_environment_types
                                                       particle_list_create, &
                                                       particle_list_release
   USE particle_types,                           ONLY: particle_type
+  USE qs_mo_types,                              ONLY: mo_set_type, &
+                                                      deallocate_mo_set
   USE sparse_matrix_types,                      ONLY: real_matrix_type, &
                                                       real_matrix_p_type, &
                                                       deallocate_matrix, &
@@ -127,6 +129,9 @@ MODULE tbmd_environment_types
 !!     - matrix_h: The tight-binding hamiltonian matrix
 !!     - matrix_dh: The derivatives of the tight-binding hamiltonian 
 !!                  matrix with respect to the coordinates (x,y,z)
+!!     - matrix_p: The density matrix
+!!     - mos: The molecular orbitlas, the plain mo_set_type is used, 
+!!            since there is no partition into spins
 !!
 !!   AUTHOR
 !!     Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
@@ -151,8 +156,10 @@ MODULE tbmd_environment_types
     LOGICAL                                          :: use_ref_cell
     TYPE(cp_para_env_type), POINTER                  :: para_env
     TYPE(tbmd_neighbor_list_env_type), POINTER       :: tbmd_neighbor_list_env
-    TYPE(real_matrix_type), POINTER                  :: matrix_h
+    TYPE(real_matrix_type), POINTER                  :: matrix_h, &
+                                                        matrix_p
     TYPE(real_matrix_p_type), DIMENSION(:), POINTER  :: matrix_dh
+    TYPE(mo_set_type), POINTER                       :: mos
 
   END TYPE tbmd_environment_type
 !!***
@@ -266,7 +273,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'tbmd_env_release', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
+    INTEGER                                  :: stat, &
+                                                i
     LOGICAL                                  :: failure
 
 !   ------------------------------------------------------------------------
@@ -313,9 +321,15 @@ CONTAINS
         END IF
         IF (ASSOCIATED(tbmd_env%matrix_h)) THEN
           CALL deallocate_matrix(tbmd_env%matrix_h)
-        END IF 
+        END IF
         IF (ASSOCIATED(tbmd_env%matrix_dh)) THEN
           CALL deallocate_matrix_set(tbmd_env%matrix_dh)
+        END IF
+        IF (ASSOCIATED(tbmd_env%matrix_p)) THEN
+          CALL deallocate_matrix(tbmd_env%matrix_p)
+        END IF
+        IF (ASSOCIATED(tbmd_env%mos)) THEN
+          CALL deallocate_mo_set(tbmd_env%mos)
         END IF
         DEALLOCATE(tbmd_env, stat=stat)
         CPPostconditionNoFail(stat==0, cp_warning_level, routineP, error)
@@ -363,6 +377,9 @@ CONTAINS
 !!     - matrix_h: The tight-binding hamiltonian matrix
 !!     - matrix_dh: The derivatives of the tight-binding hamiltonian 
 !!                  matrix with respect to the coordinates (x,y,z)
+!!     - matrix_p: The density matrix
+!!     - mos: The molecular orbitlas, the plain mo_set_type is used, 
+!!            since there is no partition into spins
 !!
 !!     For possible missing arguments see the attributes of 
 !!     tbmd_environment_type
@@ -379,7 +396,8 @@ CONTAINS
                           local_particles, molecule_kind_set, molecule_set, &
                           local_molecules, tbmd_input, cell, cell_ref, &
                           use_ref_cell, para_env, id_nr, force_env_input, &
-                          tbmd_neighbor_list_env, matrix_h, matrix_dh, error)
+                          tbmd_neighbor_list_env, matrix_h, matrix_dh, mos, &
+                          matrix_p, error)
 
     TYPE(tbmd_environment_type), POINTER         :: tbmd_env
     TYPE(tbmd_energy_type), POINTER, OPTIONAL    :: tbmd_energy
@@ -406,9 +424,11 @@ CONTAINS
                                                     force_env_input
     TYPE(tbmd_neighbor_list_env_type), POINTER, &
          OPTIONAL                                :: tbmd_neighbor_list_env
-    TYPE(real_matrix_type), POINTER, OPTIONAL    :: matrix_h
+    TYPE(real_matrix_type), POINTER, OPTIONAL    :: matrix_h, &
+                                                    matrix_p
     TYPE(real_matrix_p_type), POINTER, &
          DIMENSION(:), OPTIONAL                  :: matrix_dh
+    TYPE(mo_set_type), POINTER, OPTIONAL         :: mos
     INTEGER, INTENT(OUT), OPTIONAL               :: id_nr
     TYPE(cp_error_type), INTENT(INOUT), &
          OPTIONAL                                :: error
@@ -465,6 +485,12 @@ CONTAINS
       IF (PRESENT(matrix_dh)) THEN
         matrix_dh => tbmd_env%matrix_dh
       END IF
+      IF (PRESENT(matrix_p)) THEN
+        matrix_p => tbmd_env%matrix_p
+      END IF
+      IF (PRESENT(mos)) THEN
+        mos => tbmd_env%mos
+      END IF
     END IF
 
   END SUBROUTINE tbmd_env_get
@@ -508,6 +534,9 @@ CONTAINS
 !!     - matrix_h: The tight-binding hamiltonian matrix
 !!     - matrix_dh: The derivatives of the tight-binding hamiltonian 
 !!                  matrix with respect to the coordinates (x,y,z)
+!!     - matrix_p: The density matrix
+!!     - mos: The molecular orbitlas, the plain mo_set_type is used, 
+!!            since there is no partition into spins
 !!
 !!     For possible missing arguments see the attributes of 
 !!     tbmd_environment_type
@@ -524,7 +553,8 @@ CONTAINS
                           local_particles, molecule_kind_set, molecule_set, &
                           local_molecules, tbmd_input, cell, cell_ref, &
                           use_ref_cell, para_env, id_nr, force_env_input, &
-                          tbmd_neighbor_list_env, matrix_h, matrix_dh, error)
+                          tbmd_neighbor_list_env, matrix_h, matrix_dh, mos, &
+                          matrix_p, error)
 
     TYPE(tbmd_environment_type), POINTER         :: tbmd_env
     TYPE(tbmd_energy_type), POINTER, OPTIONAL    :: tbmd_energy
@@ -551,9 +581,11 @@ CONTAINS
     TYPE(cp_para_env_type), POINTER, OPTIONAL    :: para_env
     TYPE(tbmd_neighbor_list_env_type), POINTER, &
          OPTIONAL                                :: tbmd_neighbor_list_env
-    TYPE(real_matrix_type), POINTER, OPTIONAL    :: matrix_h
+    TYPE(real_matrix_type), POINTER, OPTIONAL    :: matrix_h, &
+                                                    matrix_p
     TYPE(real_matrix_p_type), POINTER, &
          DIMENSION(:), OPTIONAL                  :: matrix_dh
+    TYPE(mo_set_type), POINTER, OPTIONAL         :: mos
     INTEGER, INTENT(IN), OPTIONAL                :: id_nr
     TYPE(cp_error_type), INTENT(INOUT), &
          OPTIONAL                                :: error
@@ -658,6 +690,12 @@ CONTAINS
       IF (PRESENT(matrix_dh)) THEN
         tbmd_env%matrix_dh => matrix_dh
       END IF
+      IF (PRESENT(matrix_p)) THEN
+        tbmd_env%matrix_p => matrix_p
+      END IF
+      IF (PRESENT(mos)) THEN
+        tbmd_env%mos => mos
+      END IF
     END IF
   END SUBROUTINE tbmd_env_set
 !***************************************************************************
@@ -698,7 +736,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     LOGICAL                                  :: failure
-    INTEGER                                  :: natom
+    INTEGER                                  :: natom, &
+                                                i
 
 !   ------------------------------------------------------------------------
 
@@ -748,7 +787,13 @@ CONTAINS
       IF (ASSOCIATED(tbmd_env%matrix_dh)) THEN
         CALL deallocate_matrix_set(tbmd_env%matrix_dh)
       END IF
-     ELSE
+      IF (ASSOCIATED(tbmd_env%mos)) THEN
+        CALL deallocate_mo_set(tbmd_env%mos)
+       END IF
+       IF (ASSOCIATED(tbmd_env%matrix_p)) THEN
+         CALL deallocate_matrix(tbmd_env%matrix_p)
+       END IF
+    ELSE
       CALL tbmd_env_create(tbmd_env, error=error)
     END IF
   END SUBROUTINE tbmd_env_clear
@@ -812,6 +857,8 @@ CONTAINS
     NULLIFY(tbmd_env%tbmd_neighbor_list_env)
     NULLIFY(tbmd_env%matrix_h)
     NULLIFY(tbmd_env%matrix_dh)
+    NULLIFY(tbmd_env%matrix_p)
+    NULLIFY(tbmd_env%mos)
    
     IF (.NOT. failure) THEN
       tbmd_env%ref_count = 1

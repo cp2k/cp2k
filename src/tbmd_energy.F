@@ -33,6 +33,11 @@ MODULE tbmd_energy
   USE molecule_kind_types,                    ONLY: molecule_kind_type
   USE molecule_types_new,                     ONLY: molecule_type
   USE particle_types,                         ONLY: particle_type
+  USE qs_mo_methods,                          ONLY: calculate_density_matrix
+  USE qs_mo_types,                            ONLY: write_mo_set
+  USE qs_scf,                                 ONLY: eigensolver, &
+                                                    simple_eigensolver
+  USE sparse_matrix_types,                    ONLY: real_matrix_type
   USE tbmd_energy_types,                      ONLY: tbmd_energy_type
   USE tbmd_environment_types,                 ONLY: tbmd_environment_type, &
                                                     tbmd_env_get
@@ -84,16 +89,18 @@ CONTAINS
 !!     01.2006 initial create [tdk]
 !!
 !!*** **********************************************************************
-  SUBROUTINE tbmd_energies(tbmd_env, globenv, error)
+  SUBROUTINE tbmd_energies(tbmd_env, globenv, orthogonal_basis, error)
     TYPE(tbmd_environment_type), POINTER     :: tbmd_env
     TYPE(global_environment_type), POINTER   :: globenv
+    LOGICAL, INTENT(IN), OPTIONAL            :: orthogonal_basis
     TYPE(cp_error_type), INTENT(INOUT), &
       OPTIONAL                               :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'tbmd_energies', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
+    LOGICAL                                  :: failure, &
+                                                ortho_basis
     INTEGER                                  :: handle
     TYPE(tbmd_energy_type), POINTER          :: tbmd_energy
     TYPE(atomic_kind_type), DIMENSION(:), &
@@ -110,6 +117,7 @@ CONTAINS
       POINTER                                :: tbmd_neighbor_list_env
     TYPE(cell_type), POINTER                 :: cell
     TYPE(section_vals_type), POINTER         :: force_env_section
+    TYPE(real_matrix_type), POINTER          :: matrix_h
 
 !   ------------------------------------------------------------------------
 
@@ -117,9 +125,15 @@ CONTAINS
 
     NULLIFY(tbmd_energy, atomic_kind_set, particle_set, local_particles, &
             local_molecules, molecule_kind_set, molecule_set, tbmd_neighbor_list_env, &
-            cell)
+            cell, force_env_section, matrix_h)
 
     failure = .FALSE.
+
+    IF (PRESENT(orthogonal_basis)) THEN
+      ortho_basis = orthogonal_basis
+    ELSE
+      ortho_basis = .TRUE.
+    END IF
   
     CPPrecondition(ASSOCIATED(tbmd_env), cp_failure_level, routineP, error, failure)
  
@@ -130,7 +144,7 @@ CONTAINS
       CALL tbmd_env_get(tbmd_env=tbmd_env, tbmd_energy=tbmd_energy, &
                         local_particles=local_particles, particle_set=particle_set, &
                         atomic_kind_set=atomic_kind_set, molecule_set=molecule_set, &
-                        local_molecules=local_molecules, &
+                        local_molecules=local_molecules, matrix_h=matrix_h, &
                         molecule_kind_set=molecule_kind_set,  &
                         tbmd_neighbor_list_env=tbmd_neighbor_list_env, cell=cell, &
                         error=error)
@@ -143,6 +157,30 @@ CONTAINS
                                       force_env_section=force_env_section, error=error)
 
       CALL tbmd_build_hamiltonian(tbmd_env=tbmd_env, derivative=.FALSE., error=error)
+
+      IF (ortho_basis) THEN
+!        CALL simple_eigensolver(matrix_ks=, mo_set=, do_level_shift=, level_shift=, &
+!             work_syevx=, smear=, error=error)
+
+!         CALL write_mo_set(mos(ispin)%mo_set,atomic_kind_set,particle_set,&
+!                    4,6,dft_section,globenv)
+
+!         CALL calculate_density_matrix(mos(ispin)%mo_set,&
+!                    scf_env%p_mix_new(ispin)%matrix,error=error)
+
+      ELSE
+!        CALL eigensolver(matrix_ks=, mo_set=, ortho=, work=, do_level_shift=, level_shift=, &
+!       use_cholesky=, work_syevx=, use_jacobi=, jacobi_threshold=, smear=, &
+!       error=error)
+
+!         CALL write_mo_set(mos(ispin)%mo_set,atomic_kind_set,particle_set,&
+!                    4,6,dft_section,globenv)
+
+!         CALL calculate_density_matrix(mos(ispin)%mo_set,&
+!                    scf_env%p_mix_new(ispin)%matrix,error=error)
+
+      END IF
+
     END IF
 
     CALL timestop(0.0_dp, handle)
