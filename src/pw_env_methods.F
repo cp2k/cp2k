@@ -41,7 +41,8 @@ MODULE pw_env_methods
                                              init_cube_info
   USE gaussian_gridlevels,             ONLY: destroy_gaussian_gridlevel,&
                                              gaussian_gridlevel,&
-                                             init_gaussian_gridlevel
+                                             init_gaussian_gridlevel,&
+                                             destroy_gaussian_gridlevel
   USE kinds,                           ONLY: dp
   USE l_utils,                         ONLY: init_l_info,&
                                              l_info_release,&
@@ -422,6 +423,7 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
            CALL pw_find_cutoff ( pw_pools ( igrid_level ) % pool % pw_grid % bounds, cell%h_inv, my_cutoff )
            cutoff (igrid_level) = my_cutoff
          ENDDO
+         CALL destroy_gaussian_gridlevel (pw_env%gridlevel_info, input, error=error )
          CALL init_gaussian_gridlevel(pw_env%gridlevel_info,&
               ngrid_levels=ngrid_level,cutoff=cutoff,rel_cutoff=rel_cutoff)
          CALL pw_poisson_set(pw_env%poisson_env,cell=cell,pw_pools=pw_env%pw_pools,&
