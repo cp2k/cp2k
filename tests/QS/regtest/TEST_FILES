@@ -171,3 +171,6 @@ CO_xastpfh.inp     1
 CO_xastpxhh.inp    1
 CO_xastpxfh.inp    1
 CO_xastpval.inp    1
+#Ref grid
+H2O-ref-1.inp      1
+H2O-ref-2.inp      1
