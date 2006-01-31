@@ -25,15 +25,14 @@ MODULE qs_linres_types
   USE cp_fm_pool_types,                ONLY: cp_fm_pool_p_type
   USE cp_fm_types,                     ONLY: cp_fm_p_type
   USE kinds,                           ONLY: dp
-  USE qs_loc_control,                  ONLY: localized_wfn_control_create ,&
+  USE qs_loc_control,                  ONLY: localized_wfn_control_create,&
                                              localized_wfn_control_release,&
-                                             localized_wfn_control_retain ,&
                                              localized_wfn_control_type
   USE qs_rho_atom_types,               ONLY: rho_atom_p_type
   USE qs_rho_types,                    ONLY: qs_rho_p_type
-  USE sparse_matrix_types,             ONLY: deallocate_matrix_set,&
-                                             real_matrix_p_type
+  USE sparse_matrix_types,             ONLY: real_matrix_p_type
 #include "cp_common_uses.h"
+
   IMPLICIT NONE
 
   PRIVATE
@@ -174,14 +173,15 @@ CONTAINS
 
   SUBROUTINE linres_control_create(linres_control,error)
  
-     TYPE(linres_control_type), POINTER        ::  linres_control
-     TYPE(cp_error_type), INTENT(inout), &
-       OPTIONAL                                :: error
-     CHARACTER(len=*), PARAMETER :: routineN = 'linres_control_create', &
-      routineP = module_name//':'//routineN
-     INTEGER                                   :: istat
-     LOGICAL                                   :: failure
+    TYPE(linres_control_type), POINTER       :: linres_control
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
+    CHARACTER(len=*), PARAMETER :: routineN = 'linres_control_create', &
+      routineP = module_name//':'//routineN
+
+    INTEGER                                  :: istat
+    LOGICAL                                  :: failure
 
      failure =.FALSE.
 
@@ -199,13 +199,15 @@ CONTAINS
 
   SUBROUTINE linres_control_release(linres_control,error)
  
-     TYPE(linres_control_type), POINTER        ::  linres_control
-     TYPE(cp_error_type), INTENT(inout), &
-       OPTIONAL                                :: error
-     CHARACTER(len=*), PARAMETER :: routineN = 'linres_control_release', &
+    TYPE(linres_control_type), POINTER       :: linres_control
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'linres_control_release', &
       routineP = module_name//':'//routineN
-     INTEGER                                   :: istat
-     LOGICAL                                   :: failure
+
+    INTEGER                                  :: istat
+    LOGICAL                                  :: failure
 
      failure =.FALSE.
      
@@ -223,13 +225,14 @@ CONTAINS
 
   SUBROUTINE linres_control_retain(linres_control,error)
  
-     TYPE(linres_control_type), POINTER        ::  linres_control
-     TYPE(cp_error_type), INTENT(inout), &
-       OPTIONAL                                :: error
-     CHARACTER(len=*), PARAMETER :: routineN = 'linres_control_retain', &
+    TYPE(linres_control_type), POINTER       :: linres_control
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'linres_control_retain', &
       routineP = module_name//':'//routineN
-     INTEGER                                   :: istat
-     LOGICAL                                   :: failure
+
+    LOGICAL                                  :: failure
 
      failure =.FALSE.
 
@@ -243,13 +246,14 @@ CONTAINS
 
   SUBROUTINE nmr_env_create(nmr_env,error)
 
-    TYPE(nmr_env_type)                         :: nmr_env
+    TYPE(nmr_env_type)                       :: nmr_env
     TYPE(cp_error_type), INTENT(inout), &
-       OPTIONAL                                :: error
-     CHARACTER(len=*), PARAMETER :: routineN = 'nmr_env_create', &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'nmr_env_create', &
       routineP = module_name//':'//routineN
-     INTEGER                                   :: istat
-     LOGICAL                                   :: failure
+
+    LOGICAL                                  :: failure
 
      failure =.FALSE.
 

@@ -22,36 +22,37 @@
 
 
 MODULE xas_tp_scf
-  USE cp_output_handling,              ONLY: cp_print_key_unit_nr, &
-                                             cp_print_key_finished_output,&
-                                             cp_print_key_should_output,&
-                                             cp_p_file
-  USE atomic_kind_types,               ONLY: atomic_kind_type,&
-                                             get_atomic_kind,&
-                                             get_atomic_kind_set
+  USE atomic_kind_types,               ONLY: atomic_kind_type
+  USE cell_types,                      ONLY: cell_type,&
+                                             pbc
   USE checkpoint_handler,              ONLY: write_checkpoint_information
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm
-  USE cp_fm_types,                     ONLY: cp_fm_get_submatrix,&
-                                             cp_fm_get_info,&
-                                             cp_fm_maxabsval,&
-                                             cp_fm_p_type,&
+  USE cp_fm_types,                     ONLY: cp_fm_get_info,&
+                                             cp_fm_get_submatrix,&
                                              cp_fm_init_random,&
+                                             cp_fm_p_type,&
                                              cp_fm_set_submatrix,&
-                                             cp_fm_type,cp_fm_to_fm
+                                             cp_fm_to_fm,&
+                                             cp_fm_type
+  USE cp_output_handling,              ONLY: cp_p_file,&
+                                             cp_print_key_finished_output,&
+                                             cp_print_key_should_output,&
+                                             cp_print_key_unit_nr
   USE cp_sm_fm_interactions,           ONLY: copy_sm_to_fm,&
                                              cp_sm_fm_multiply
   USE global_types,                    ONLY: global_environment_type
-  USE input_constants,                 ONLY: xas_tp_hh, xas_tp_fh, xes_tp_val,&
-                                             xas_dscf, do_loc_none , core_guess,&
+  USE input_constants,                 ONLY: core_guess,&
+                                             do_loc_none,&
                                              ot_precond_full_kinetic,&
-                                             xas_scf_general,xas_scf_ot
-  USE input_section_types,             ONLY: section_vals_type, section_vals_val_get,&
-                                             section_vals_get_subs_vals
+                                             xas_dscf,&
+                                             xas_scf_general,&
+                                             xas_scf_ot
+  USE input_section_types,             ONLY: section_vals_get_subs_vals,&
+                                             section_vals_type
   USE kinds,                           ONLY: dp
   USE machine,                         ONLY: m_flush,&
                                              m_walltime
-  USE qs_ot_scf,                       ONLY: ot_scf_mini
   USE particle_types,                  ONLY: particle_type
   USE preconditioner,                  ONLY: destroy_preconditioner,&
                                              init_preconditioner,&
@@ -65,38 +66,35 @@ MODULE xas_tp_scf
   USE qs_ks_methods,                   ONLY: qs_ks_did_change,&
                                              qs_ks_update_qs_env
   USE qs_ks_types,                     ONLY: qs_ks_env_type
-  USE qs_loc_methods,                  ONLY: optimize_loc_berry  
-  USE qs_loc_types,                    ONLY: get_qs_loc_env,& 
-                                             qs_loc_env_new_type
   USE qs_loc_control,                  ONLY: localized_wfn_control_type
+  USE qs_loc_methods,                  ONLY: optimize_loc_berry
+  USE qs_loc_types,                    ONLY: get_qs_loc_env,&
+                                             qs_loc_env_new_type
   USE qs_mo_methods,                   ONLY: calculate_density_matrix,&
                                              calculate_subspace_eigenvalues
-  USE qs_mo_types,                     ONLY: get_mo_set,set_mo_set,&
-                                             mo_set_p_type,mo_set_type,&
+  USE qs_mo_types,                     ONLY: get_mo_set,&
+                                             mo_set_p_type,&
+                                             mo_set_type,&
+                                             set_mo_set,&
                                              write_mo_set
-  USE qs_ot_eigensolver,                ONLY: ot_eigensolver
+  USE qs_ot_eigensolver,               ONLY: ot_eigensolver
+  USE qs_ot_scf,                       ONLY: ot_scf_mini
   USE qs_rho_atom_methods,             ONLY: calculate_rho_atom_coeff
   USE qs_rho_methods,                  ONLY: qs_rho_update_rho
   USE qs_rho_types,                    ONLY: qs_rho_type
   USE qs_scf,                          ONLY: eigensolver,&
-                                             init_scf_run,&
                                              scf_env_density_mixing
   USE qs_scf_types,                    ONLY: ao_mixing_nr,&
-                                             special_diag_method_nr,&
-                                             general_diag_method_nr,&
-                                             ot_method_nr,&
                                              qs_scf_env_type
   USE scf_control_types,               ONLY: scf_control_type
-  USE cell_types,                 ONLY: cell_type,pbc
-  USE sparse_matrix_types,             ONLY: real_matrix_p_type, &
+  USE sparse_matrix_types,             ONLY: real_matrix_p_type,&
                                              real_matrix_type,&
-                                             set_matrix,&
                                              transfer_matrix
   USE termination,                     ONLY: external_control
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE xas_control,                     ONLY: xas_control_type
-  USE xas_env_types,                   ONLY: get_xas_env, set_xas_env,&
+  USE xas_env_types,                   ONLY: get_xas_env,&
                                              xas_environment_type
 #include "cp_common_uses.h"
 
@@ -148,48 +146,44 @@ CONTAINS
     INTEGER, INTENT(IN)                      :: iatom
     TYPE(qs_scf_env_type), POINTER           :: scf_env
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(global_environment_type), &
-      POINTER                                :: globenv
+    TYPE(global_environment_type), POINTER   :: globenv
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = "xas_tp_scf", &
       routineP = module_name//':'//routineN
 
-    INTEGER                                  :: handle, handle2,  homo, ic_max, &
-                                                ir_max,ispin, &
-                                                istat, iter_count, nao, nmo,nvirtual2, &
-                                                nvirtual1,output_unit,i,istate,uno_iter
-    INTEGER :: m, n
-    LOGICAL :: diis_step, do_level_shift, energy_only, failure,& 
-               gapw, ionode, should_stop, uniform_occupation, use_cholesky,&
-                use_jacobi, id_equal
-    REAL(KIND=dp)                            :: a_max,b_max, diis_error, IP_energy, &
-                                                orthonormality, uno_eps, &
-                                                ra(3), rac(3), rc(3), t1, t2,&
-                                                tot1_h, tot1_s
+    INTEGER :: handle, handle2, homo, i, ic_max, ir_max, ispin, istat, &
+      istate, iter_count, m, n, nao, nmo, nvirtual1, nvirtual2, output_unit, &
+      uno_iter
+    INTEGER, DIMENSION(:), POINTER           :: col_indices
+    LOGICAL :: diis_step, do_level_shift, energy_only, failure, gapw, &
+      id_equal, ionode, should_stop, uniform_occupation, use_cholesky, &
+      use_jacobi
     REAL(dp), DIMENSION(6)                   :: weights
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: occupation_numbers, eigenvalues
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: all_evals
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: uno_evals
-    REAL(dp), DIMENSION(:,:), POINTER        :: centers_wfn
-    REAL(KIND=dp), DIMENSION(:,:), POINTER   :: vecbuffer,vecbuffer2
+    REAL(dp), DIMENSION(:, :), POINTER       :: centers_wfn
+    REAL(KIND=dp)                            :: a_max, b_max, diis_error, &
+                                                IP_energy, ra(3), rac(3), &
+                                                rc(3), t1, t2, tot1_h, &
+                                                tot1_s, uno_eps
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: all_evals, eigenvalues, &
+                                                occupation_numbers, uno_evals
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: vecbuffer, vecbuffer2
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
-    TYPE(cell_type), POINTER                     :: cell
+    TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_fm_p_type), DIMENSION(:), &
-      POINTER                                :: scf_work1
-    TYPE(cp_fm_type), POINTER                :: all_vectors
-    TYPE(cp_fm_type), POINTER                :: excvec_coeff
-    TYPE(cp_fm_type), POINTER                :: excvec_overlap
-    TYPE(cp_fm_type), POINTER                :: ortho, scf_work2,fm_work
-    TYPE(cp_fm_type), POINTER                :: mo_coeff
-    TYPE(cp_fm_type), POINTER                :: uno_orbs
-    TYPE(cp_fm_p_type), DIMENSION(:,:), POINTER  :: op_fm_set
-    TYPE(cp_fm_p_type), DIMENSION(:), POINTER    :: moloc_coeff
+      POINTER                                :: moloc_coeff, scf_work1
+    TYPE(cp_fm_p_type), DIMENSION(:, :), &
+      POINTER                                :: op_fm_set
+    TYPE(cp_fm_type), POINTER                :: all_vectors, excvec_coeff, &
+                                                excvec_overlap, fm_work, &
+                                                mo_coeff, ortho, scf_work2, &
+                                                uno_orbs
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(dft_control_type), POINTER          :: dft_control
-    TYPE(localized_wfn_control_type), POINTER :: localized_wfn_control
+    TYPE(localized_wfn_control_type), &
+      POINTER                                :: localized_wfn_control
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos
     TYPE(particle_type), DIMENSION(:), &
@@ -198,17 +192,17 @@ CONTAINS
     TYPE(qs_charges_type), POINTER           :: qs_charges
     TYPE(qs_energy_type), POINTER            :: energy
     TYPE(qs_ks_env_type), POINTER            :: ks_env
-    TYPE( qs_loc_env_new_type ), POINTER     :: qs_loc_env
+    TYPE(qs_loc_env_new_type), POINTER       :: qs_loc_env
     TYPE(qs_rho_type), POINTER               :: rho
     TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_h, matrix_ks,&
+      POINTER                                :: matrix_h, matrix_ks, &
                                                 matrix_p, matrix_s
+    TYPE(real_matrix_p_type), &
+      DIMENSION(:, :), POINTER               :: op_sm_set
     TYPE(real_matrix_type), POINTER          :: orthogonality_metric
-    INTEGER, DIMENSION(:), POINTER           :: col_indices
-    TYPE (real_matrix_p_type), DIMENSION(:,:),&
-      POINTER                                :: op_sm_set
     TYPE(scf_control_type), POINTER          :: scf_control
-    TYPE(section_vals_type),POINTER          :: dft_section, input, scf_section
+    TYPE(section_vals_type), POINTER         :: dft_section, input, &
+                                                scf_section
 
     NULLIFY(dft_control,matrix_h,matrix_s,matrix_ks,matrix_p)
     NULLIFY(rho,energy,scf_control,logger, ks_env,mos,atomic_kind_set)
@@ -752,14 +746,15 @@ CONTAINS
 
     TYPE(mo_set_type), POINTER               :: mo_set
     TYPE(xas_control_type)                   :: xas_control
-    INTEGER,INTENT(IN) :: estate
-    
+    INTEGER, INTENT(IN)                      :: estate
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-    INTEGER ::  homo, imin, imo, lfomo, nelectron, nmo, nomo
-    REAL(dp) :: e1, e2, edelta, edist, nelec, occ_estate, smear
-    REAL(dp), DIMENSION(:), POINTER :: eigenvalues, occupation
+    INTEGER                                  :: homo, imin, imo, lfomo, &
+                                                nelectron, nmo, nomo
+    REAL(dp)                                 :: e1, e2, edelta, edist, nelec, &
+                                                occ_estate, smear
+    REAL(dp), DIMENSION(:), POINTER          :: eigenvalues, occupation
 
     CALL get_mo_set(mo_set,eigenvalues=eigenvalues,&
          occupation_numbers=occupation,nelectron=nelectron,nmo=nmo)

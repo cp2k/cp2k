@@ -27,14 +27,13 @@ MODULE xas_env_types
   USE cp_array_r_utils,                ONLY: cp_2d_r_p_type
   USE cp_fm_pool_types,                ONLY: cp_fm_pool_p_type,&
                                              fm_pool_give_back_fm
-  USE cp_fm_types,                     ONLY: cp_fm_create,&
-                                             cp_fm_p_type,&
+  USE cp_fm_types,                     ONLY: cp_fm_p_type,&
                                              cp_fm_release,&
                                              cp_fm_type
   USE kinds,                           ONLY: dp
-  USE qs_loc_types,                    ONLY: qs_loc_env_release,&
-                                             qs_loc_env_retain,&
-                                             qs_loc_env_new_type
+  USE qs_loc_types,                    ONLY: qs_loc_env_new_type,&
+                                             qs_loc_env_release,&
+                                             qs_loc_env_retain
   USE sparse_matrix_types,             ONLY: deallocate_matrix,&
                                              real_matrix_p_type
 #include "cp_common_uses.h"
@@ -149,49 +148,45 @@ CONTAINS
              all_vectors,all_evals,eps_diis,p_mix, my_gto_basis,qs_loc_env,&
              stogto_overlap,error)
 
-    TYPE(xas_environment_type), POINTER         :: xas_env
-    INTEGER, INTENT(OUT), OPTIONAL              :: iter_count
-    INTEGER, INTENT(OUT), OPTIONAL              :: nao,exc_state
-    INTEGER, INTENT(OUT), OPTIONAL              :: nvirtual
-    INTEGER, INTENT(OUT), OPTIONAL              :: nvirtual1
-    INTEGER, INTENT(OUT), OPTIONAL              :: nvirtual2
-    INTEGER, INTENT(OUT), OPTIONAL              :: unoccupied_max_iter
-    INTEGER, DIMENSION(:), POINTER, OPTIONAL    :: state_of_atom
-    INTEGER, DIMENSION(:), POINTER, OPTIONAL    :: atom_of_state
-    INTEGER, DIMENSION(:), POINTER, OPTIONAL    :: type_of_state
-    INTEGER, DIMENSION(:), POINTER, OPTIONAL    :: mykind_of_atom
-    INTEGER, DIMENSION(:), POINTER, OPTIONAL    :: mykind_of_kind
-    REAL(dp), OPTIONAL                          :: eps_diis, p_mix
-    REAL(dp), OPTIONAL                          :: unoccupied_eps
-    REAL(dp), DIMENSION(:), POINTER, OPTIONAL   :: unoccupied_evals
-    REAL(dp), DIMENSION(:), POINTER, OPTIONAL   :: all_evals
-    REAL(dp), DIMENSION(:,:), POINTER, OPTIONAL :: spectrum
-    REAL(dp), DIMENSION(:,:), POINTER, OPTIONAL :: centers_wfn
+    TYPE(xas_environment_type), POINTER      :: xas_env
+    INTEGER, INTENT(OUT), OPTIONAL           :: iter_count, exc_state, nao, &
+                                                nvirtual, nvirtual1, nvirtual2
+    REAL(dp), DIMENSION(:, :), OPTIONAL, &
+      POINTER                                :: centers_wfn
+    INTEGER, DIMENSION(:), OPTIONAL, POINTER :: atom_of_state, type_of_state, &
+                                                mykind_of_atom, &
+                                                mykind_of_kind, state_of_atom
+    REAL(dp), DIMENSION(:, :), OPTIONAL, &
+      POINTER                                :: spectrum
+    TYPE(cp_fm_p_type), DIMENSION(:), &
+      OPTIONAL, POINTER                      :: groundstate_coeff
+    TYPE(real_matrix_p_type), &
+      DIMENSION(:, :), OPTIONAL, POINTER     :: ostrength_sm
+    TYPE(cp_fm_p_type), DIMENSION(:, :), &
+      OPTIONAL, POINTER                      :: dip_fm_set
+    TYPE(cp_fm_type), OPTIONAL, POINTER      :: excvec_coeff, excvec_overlap, &
+                                                fm_work, unoccupied_orbs
+    REAL(dp), DIMENSION(:), OPTIONAL, &
+      POINTER                                :: unoccupied_evals
+    INTEGER, INTENT(OUT), OPTIONAL           :: unoccupied_max_iter
+    REAL(dp), OPTIONAL                       :: unoccupied_eps
+    TYPE(cp_fm_type), OPTIONAL, POINTER      :: all_vectors
+    REAL(dp), DIMENSION(:), OPTIONAL, &
+      POINTER                                :: all_evals
+    REAL(dp), OPTIONAL                       :: eps_diis, p_mix
+    TYPE(gto_basis_set_p_type), &
+      DIMENSION(:), OPTIONAL, POINTER        :: my_gto_basis
+    TYPE(qs_loc_env_new_type), OPTIONAL, &
+      POINTER                                :: qs_loc_env
     TYPE(cp_2d_r_p_type), DIMENSION(:), &
-      POINTER, OPTIONAL                         :: stogto_overlap
-    TYPE( cp_fm_p_type ), DIMENSION(:), &
-      POINTER, OPTIONAL                         :: groundstate_coeff
-    TYPE( cp_fm_p_type ), DIMENSION(:,:), &
-      POINTER, OPTIONAL                         :: dip_fm_set
-    TYPE( cp_fm_type ), POINTER, OPTIONAL       :: excvec_coeff
-    TYPE( cp_fm_type ), POINTER, OPTIONAL       :: excvec_overlap
-    TYPE( cp_fm_type ), POINTER, OPTIONAL       :: unoccupied_orbs
-    TYPE( cp_fm_type ), POINTER, OPTIONAL       :: all_vectors
-    TYPE( cp_fm_type ), POINTER, OPTIONAL       :: fm_work
-    TYPE(gto_basis_set_p_type), DIMENSION(:),&
-      POINTER, OPTIONAL                         :: my_gto_basis
-    TYPE( real_matrix_p_type ), DIMENSION(:,:), &
-      POINTER, OPTIONAL                         :: ostrength_sm
-    TYPE( qs_loc_env_new_type ), POINTER, &
-      OPTIONAL                                  :: qs_loc_env
+      OPTIONAL, POINTER                      :: stogto_overlap
     TYPE(cp_error_type), INTENT(inout), &
-       OPTIONAL                                 :: error
+      OPTIONAL                               :: error
 
     CHARACTER(len=*), PARAMETER :: routine_name = 'get_xas_env', &
       routineP = module_name//':'//routine_name
 
-    INTEGER                                    :: istat
-    LOGICAL                                    :: failure
+    LOGICAL                                  :: failure
 
      failure =.FALSE.
      CPPrecondition(ASSOCIATED(xas_env),cp_failure_level,routineP,error,failure)
@@ -234,19 +229,17 @@ CONTAINS
 
   SUBROUTINE set_xas_env(xas_env,iter_count, qs_loc_env,error)
 
-    TYPE(xas_environment_type), POINTER         :: xas_env
-    INTEGER, INTENT(IN), OPTIONAL               :: iter_count
-    TYPE( qs_loc_env_new_type ), POINTER, &
-      OPTIONAL                                  :: qs_loc_env
+    TYPE(xas_environment_type), POINTER      :: xas_env
+    INTEGER, INTENT(IN), OPTIONAL            :: iter_count
+    TYPE(qs_loc_env_new_type), OPTIONAL, &
+      POINTER                                :: qs_loc_env
     TYPE(cp_error_type), INTENT(inout), &
-       OPTIONAL                                 :: error
-
+      OPTIONAL                               :: error
 
     CHARACTER(len=*), PARAMETER :: routine_name = 'set_qs_loc_env', &
       routineP = module_name//':'//routine_name
 
-    INTEGER                                    :: istat
-    LOGICAL                                    :: failure
+    LOGICAL                                  :: failure
 
     failure =.FALSE.
 
@@ -289,11 +282,11 @@ CONTAINS
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-    CHARACTER(len=*), PARAMETER :: routine_name='xas_env_create',&
+    CHARACTER(len=*), PARAMETER :: routine_name = 'xas_env_create', &
       routineP = module_name//':'//routine_name
 
-    INTEGER ::  istat 
-    LOGICAL :: failure
+    INTEGER                                  :: istat
+    LOGICAL                                  :: failure
 
     failure=.FALSE.
     ALLOCATE(xas_env,STAT=istat)
@@ -330,11 +323,11 @@ CONTAINS
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-    CHARACTER(len=*), PARAMETER :: routine_name='xas_env_release',&
+    CHARACTER(len=*), PARAMETER :: routine_name = 'xas_env_release', &
       routineP = module_name//':'//routine_name
 
-    INTEGER :: i, ik, istat, j
-    LOGICAL :: failure
+    INTEGER                                  :: i, ik, istat, j
+    LOGICAL                                  :: failure
 
     failure=.FALSE.
 
@@ -441,11 +434,10 @@ CONTAINS
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-    CHARACTER(len=*), PARAMETER :: routine_name='xas_env_retain',&
+    CHARACTER(len=*), PARAMETER :: routine_name = 'xas_env_retain', &
       routineP = module_name//':'//routine_name
 
-    INTEGER :: istat
-    LOGICAL :: failure
+    LOGICAL                                  :: failure
 
     failure=.FALSE.
 

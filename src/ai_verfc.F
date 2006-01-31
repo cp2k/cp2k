@@ -83,7 +83,6 @@ MODULE ai_verfc
   USE mathconstants,                   ONLY: pi
   USE orbital_pointers,                ONLY: coset,&
                                              ncoset
-  USE termination,                     ONLY: stop_memory
 
   IMPLICIT NONE
 
@@ -116,9 +115,9 @@ CONTAINS
 
     INTEGER, INTENT(IN)                      :: la_max, npgfa
     REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: zeta, rpgfa
-    INTEGER, INTENT(IN)                      :: la_min, lb_max
+    INTEGER, INTENT(IN)                      :: la_min, lb_max, npgfb
     REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: zetb, rpgfb
-    INTEGER, INTENT(IN)                      :: lb_min, npgfb
+    INTEGER, INTENT(IN)                      :: lb_min
     REAL(KIND=dp), INTENT(IN)                :: zetc, rpgfc, zc, cerf
     REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: rab
     REAL(KIND=dp), INTENT(IN)                :: rab2
@@ -128,24 +127,23 @@ CONTAINS
     REAL(KIND=dp), INTENT(IN)                :: rbc2
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(INOUT)                          :: vabc
-    REAL(KIND=dp),DIMENSION(0:)              :: f
-    REAL(KIND=dp), DIMENSION(:,:,:)          :: verf, vnuc
+    REAL(KIND=dp), DIMENSION(:, :, :)        :: verf, vnuc
+    REAL(KIND=dp), DIMENSION(0:)             :: f
     INTEGER, INTENT(IN), OPTIONAL            :: maxder
-    REAL(KIND=dp), DIMENSION(:,:), OPTIONAL  :: vabc_plus
+    REAL(KIND=dp), DIMENSION(:, :), OPTIONAL :: vabc_plus
 
-    CHARACTER(LEN=*), PARAMETER   :: routine_name = "verfc"
+    CHARACTER(LEN=*), PARAMETER              :: routine_name = "verfc"
 
     INTEGER                                  :: ax, ay, az, bx, by, bz, i, &
                                                 ipgf, j, jpgf, la, la_start, &
-                                                lb, n, na, nb, nmax
-    INTEGER                                  :: istat,maxder_local, nap
+                                                lb, maxder_local, n, na, nap, &
+                                                nb, nmax
     REAL(KIND=dp)                            :: dab, dac, dbc, f0, f1, f2, &
                                                 f3, f4, ferf, fnuc, fx, fy, &
                                                 fz, rcp2, t, zetp, zetq, zetw
     REAL(KIND=dp), DIMENSION(3)              :: rap, rbp, rcp, rpw
 
 !   ---------------------------------------------------------------------------
-
 
     nmax = la_max + lb_max + 1
 

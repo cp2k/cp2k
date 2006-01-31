@@ -31,57 +31,52 @@
 !!****
 
 MODULE qs_linres_nmr_utils
- USE cp_output_handling,              ONLY: cp_print_key_unit_nr, &
-                                             cp_print_key_finished_output,&
-                                             cp_print_key_should_output,&
-                                             cp_p_file
-  USE input_section_types,             ONLY: section_vals_type,&
-                                             section_vals_get_subs_vals
   USE atomic_kind_types,               ONLY: atomic_kind_type
+  USE cell_types,                      ONLY: cell_type,&
+                                             pbc
   USE cp_array_r_utils,                ONLY: cp_2d_r_p_type
   USE cp_control_types,                ONLY: dft_control_type
-  USE cp_fm_basic_linalg,              ONLY: cp_fm_scale
   USE cp_fm_pool_types,                ONLY: cp_fm_pool_p_type,&
                                              fm_pool_create_fm,&
+                                             fm_pool_give_back_fm,&
                                              fm_pools_create_fm_vect,&
-                                             fm_pools_give_back_fm_vect,&
-                                             fm_pool_give_back_fm
-  USE cp_fm_types,                     ONLY: cp_fm_p_type,&
-                                             cp_fm_get_submatrix,&
-                                             cp_fm_set_submatrix,&
+                                             fm_pools_give_back_fm_vect
+  USE cp_fm_types,                     ONLY: cp_fm_get_submatrix,&
+                                             cp_fm_p_type,&
                                              cp_fm_set_all,&
+                                             cp_fm_set_submatrix,&
                                              cp_fm_to_fm
+  USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
+                                             cp_print_key_unit_nr
   USE global_types,                    ONLY: global_environment_type
   USE input_constants,                 ONLY: restart_guess
-  USE input_section_types,             ONLY: section_vals_get,&
-                                             section_vals_get_subs_vals,&
+  USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type,&
                                              section_vals_val_get
   USE kinds,                           ONLY: dp
   USE particle_types,                  ONLY: particle_type
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
-  USE qs_linres_methods,               ONLY: linres_localize, linres_scf
+  USE qs_linres_methods,               ONLY: linres_scf
   USE qs_linres_nmr_op,                ONLY: set_vecp
   USE qs_linres_types,                 ONLY: linres_control_type,&
-                                             nmr_env_create, nmr_env_type
-  USE qs_mo_types,                     ONLY: get_mo_set,&
-                                             mo_set_p_type
+                                             nmr_env_create,&
+                                             nmr_env_type
   USE qs_matrix_pools,                 ONLY: mpools_get,&
                                              qs_matrix_pools_type
+  USE qs_mo_types,                     ONLY: get_mo_set,&
+                                             mo_set_p_type
   USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
   USE qs_operators_ao,                 ONLY: set_up_op_rmd
-  USE qs_p_env_types,                  ONLY: qs_p_env_type, p_env_release
+  USE qs_p_env_types,                  ONLY: p_env_release,&
+                                             qs_p_env_type
   USE scf_control_types,               ONLY: scf_control_type
-  USE cell_types,                 ONLY: cell_type, pbc
-  USE sparse_matrix_types,             ONLY: allocate_matrix_set,cp_sm_scale_and_add,&
-                                             deallocate_matrix_set,&
+  USE sparse_matrix_types,             ONLY: allocate_matrix_set,&
                                              deallocate_matrix,&
+                                             deallocate_matrix_set,&
                                              real_matrix_p_type,&
-                                             real_matrix_type,&
                                              replicate_matrix_structure,&
-                                             set_matrix,&
-                                             transfer_matrix
+                                             set_matrix
   USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -98,33 +93,33 @@ CONTAINS
 
   SUBROUTINE nmr_do_nmr(nmr_env,p_env,qs_env,globenv,error)
 
-    TYPE(nmr_env_type)                          :: nmr_env
-    TYPE(qs_p_env_type), POINTER                :: p_env
-    TYPE(qs_environment_type), POINTER          :: qs_env
-    TYPE(global_environment_type), &
-      POINTER                                   :: globenv
-    TYPE(cp_error_type), & 
-         INTENT(INOUT), OPTIONAL                :: error
+    TYPE(nmr_env_type)                       :: nmr_env
+    TYPE(qs_p_env_type), POINTER             :: p_env
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(global_environment_type), POINTER   :: globenv
+    TYPE(cp_error_type), INTENT(INOUT), &
+      OPTIONAL                               :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'nmr_do_nmr', &
-                                   routineP = moduleN//'/'//routineN
+      routineP = moduleN//'/'//routineN
 
-    INTEGER ::  handle, iao, ii, iii, idir, idir2, ispin, istat, ist_true,&
-         istate, istate2, output_unit
-    REAL(dp) :: dk(3), dkl(3), dl(3)
-    REAL(dp), DIMENSION(:,:), POINTER           :: vecbuf_dklxp0
-    TYPE(cp_2d_r_p_type), DIMENSION(3)          :: vecbuf_p0
-    LOGICAL                                     :: ionode, failure
-    TYPE(cell_type), POINTER                    :: cell
+    INTEGER                                  :: handle, iao, idir, idir2, ii, &
+                                                iii, ispin, ist_true, istat, &
+                                                istate, istate2, output_unit
+    LOGICAL                                  :: failure, ionode
+    REAL(dp)                                 :: dk(3), dkl(3), dl(3)
+    REAL(dp), DIMENSION(:, :), POINTER       :: vecbuf_dklxp0
+    TYPE(cell_type), POINTER                 :: cell
+    TYPE(cp_2d_r_p_type), DIMENSION(3)       :: vecbuf_p0
     TYPE(cp_fm_p_type), DIMENSION(:), &
-      POINTER                                   :: psi1,h1_psi0
+      POINTER                                :: h1_psi0, psi1
     TYPE(cp_fm_pool_p_type), DIMENSION(:), &
-      POINTER                                   :: ao_mo_fm_pools
-    TYPE(cp_logger_type), POINTER               :: logger 
-    TYPE(dft_control_type), POINTER             :: dft_control
-    TYPE(linres_control_type), POINTER          :: linres_control
-    TYPE(qs_matrix_pools_type), POINTER         :: mpools
-    TYPE(section_vals_type), POINTER :: lr_section
+      POINTER                                :: ao_mo_fm_pools
+    TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(linres_control_type), POINTER       :: linres_control
+    TYPE(qs_matrix_pools_type), POINTER      :: mpools
+    TYPE(section_vals_type), POINTER         :: lr_section
 
     failure   = .FALSE.
     CALL timeset(routineN,"I"," ",handle)
@@ -368,7 +363,7 @@ CONTAINS
        END DO
 
      END IF
- stop 'wait'
+ STOP 'wait'
 
     !----------!
     ! clean up !
@@ -404,41 +399,39 @@ CONTAINS
 
   SUBROUTINE nmr_env_init(nmr_env,qs_env,globenv,error)
 
-    TYPE(nmr_env_type)                          :: nmr_env
-    TYPE(qs_environment_type), POINTER          :: qs_env
-    TYPE(global_environment_type), &
-      POINTER                                   :: globenv
-    TYPE(cp_error_type), & 
-         INTENT(INOUT), OPTIONAL                :: error
+    TYPE(nmr_env_type)                       :: nmr_env
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(global_environment_type), POINTER   :: globenv
+    TYPE(cp_error_type), INTENT(INOUT), &
+      OPTIONAL                               :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'nmr_env_init', &
-                                   routineP = moduleN//'/'//routineN
- 
-    INTEGER                                     :: homo, icount,idir,ini, ispin,istat,&
-                                                   istate,istate2,istate_next,j,k,&
-                                                   n_mo(2),nao,natom,nmoloc,&
-                                                   nstates, output_unit
-    LOGICAL                                     :: ionode, failure
-    LOGICAL, DIMENSION(:,:), ALLOCATABLE          :: state_done
-    REAL(dp) :: center(3), center2(3), dist, mdist, rab(3)
-    REAL(dp), DIMENSION(:,:), POINTER           :: centers
-    TYPE(atomic_kind_type), DIMENSION(:),&
-      POINTER                                   :: atomic_kind_set
-    TYPE(cp_logger_type), POINTER               :: logger
-    TYPE(dft_control_type), POINTER             :: dft_control
-    TYPE(linres_control_type), POINTER          :: linres_control
+      routineP = moduleN//'/'//routineN
+
+    INTEGER :: homo, icount, idir, ini, ispin, istat, istate, istate2, &
+      istate_next, j, k, n_mo(2), nao, natom, nmoloc, nstates, output_unit
+    LOGICAL                                  :: failure, ionode
+    LOGICAL, ALLOCATABLE, DIMENSION(:, :)    :: state_done
+    REAL(dp)                                 :: center(3), center2(3), dist, &
+                                                mdist, rab(3)
+    REAL(dp), DIMENSION(:, :), POINTER       :: centers
+    TYPE(atomic_kind_type), DIMENSION(:), &
+      POINTER                                :: atomic_kind_set
+    TYPE(cell_type), POINTER                 :: cell
+    TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(linres_control_type), POINTER       :: linres_control
     TYPE(mo_set_p_type), DIMENSION(:), &
-      POINTER                                   :: mos
+      POINTER                                :: mos
     TYPE(neighbor_list_set_p_type), &
-      DIMENSION(:),           POINTER           :: sab_orb
-    TYPE(particle_type), DIMENSION(:), POINTER  :: particle_set
-    TYPE(qs_matrix_pools_type), POINTER         :: mpools
+      DIMENSION(:), POINTER                  :: sab_orb
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particle_set
+    TYPE(qs_matrix_pools_type), POINTER      :: mpools
     TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                   :: matrix_s
-    TYPE(scf_control_type), POINTER             :: scf_control
-    TYPE(section_vals_type), POINTER            :: nmr_section
-    TYPE(cell_type), POINTER                    :: cell
-    TYPE(section_vals_type), POINTER :: lr_section
+      POINTER                                :: matrix_s
+    TYPE(scf_control_type), POINTER          :: scf_control
+    TYPE(section_vals_type), POINTER         :: lr_section, nmr_section
 
     failure = .FALSE.
 
@@ -508,7 +501,7 @@ CONTAINS
      DO ispin = 1,dft_control%nspins
        CALL get_mo_set(mo_set=mos(ispin)%mo_set,nao=nao,nmo=n_mo(ispin),homo=homo)
 !       centers => linres_control%localized_wfn_control%centers_set(ispin)%array
-       nmoloc = size(linres_control%localized_wfn_control%centers_set(ispin)%array,2)
+       nmoloc = SIZE(linres_control%localized_wfn_control%centers_set(ispin)%array,2)
        CPPrecondition(nmoloc==homo,cp_warning_level,routineP,error,failure)
        ALLOCATE(nmr_env%centers_set(ispin)%array(3,nmoloc),STAT=istat)
        CPPrecondition(istat==0,cp_warning_level,routineP,error,failure)
@@ -516,7 +509,7 @@ CONTAINS
        DO idir = 1,3
          nmr_env%centers_set(ispin)%array(idir,:) = &
            linres_control%localized_wfn_control%centers_set(ispin)%array(idir,:)
-       end do
+       END DO
        nmr_env%nstates(ispin) = homo
        nstates = MAX(nstates,homo)
      END DO  
@@ -526,18 +519,18 @@ CONTAINS
      nmr_env%statetrueindex = 0
      ALLOCATE(state_done(3,nstates),STAT=istat)
      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-     state_done = .false.
+     state_done = .FALSE.
 
      nmr_env%statetrueindex(1,1) = 1
      center(1)  = nmr_env%centers_set(1)%array(1,1)
      center(2)  = nmr_env%centers_set(1)%array(2,1)
      center(3)  = nmr_env%centers_set(1)%array(3,1)
-     state_done(1,1) = .true. 
+     state_done(1,1) = .TRUE. 
      icount = 1
 
      DO idir = 1,3
        ini = 1
-       if(idir == 1) ini = 2
+       IF(idir == 1) ini = 2
        DO istate = ini, nstates
          mdist = 100.0_dp
 
@@ -549,7 +542,7 @@ CONTAINS
 
              rab = pbc(center,center2,cell)
              CALL set_vecp(idir,j,k)
-             dist = sqrt(rab(j)*rab(j)+rab(k)*rab(k))
+             dist = SQRT(rab(j)*rab(j)+rab(k)*rab(k))
 
              IF(dist .LT. mdist) THEN
                 mdist =dist
@@ -559,7 +552,7 @@ CONTAINS
          END DO  ! istate2
 
          icount = icount + 1
-         state_done(idir,istate_next) = .true. 
+         state_done(idir,istate_next) = .TRUE. 
          nmr_env%statetrueindex(idir,icount) = istate_next
 
          center(1)  = nmr_env%centers_set(1)%array(1,istate_next)
@@ -716,15 +709,15 @@ CONTAINS
 
   SUBROUTINE nmr_env_cleanup(nmr_env,error)
 
-    TYPE(nmr_env_type)                          :: nmr_env
-    TYPE(cp_error_type), & 
-         INTENT(INOUT), OPTIONAL                :: error
+    TYPE(nmr_env_type)                       :: nmr_env
+    TYPE(cp_error_type), INTENT(INOUT), &
+      OPTIONAL                               :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'nmr_env_cleanup', &
-                                   routineP = moduleN//'/'//routineN
- 
-    INTEGER                                     :: idir,ispin,istat
-    LOGICAL                                     :: failure
+      routineP = moduleN//'/'//routineN
+
+    INTEGER                                  :: idir, ispin, istat
+    LOGICAL                                  :: failure
 
     failure=.FALSE.
     IF(.NOT. failure) THEN

@@ -311,6 +311,11 @@ MODULE  hartree_local_3centers
     CPC_ab = 0.0_dp
     hab    = 0.0_dp
     Int_ab_sum = 0.0_dp
+    IF(calculate_forces) THEN
+      ALLOCATE(Int_dab_sum(1,1,3),Int_adb_sum(1,1,3))
+      Int_dab_sum=0.0_dp
+      Int_adb_sum=0.0_dp
+    END IF
 
     ALLOCATE(int_tmpp(maxco_global,maxco_global,maxch0),STAT=istat)
     IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&

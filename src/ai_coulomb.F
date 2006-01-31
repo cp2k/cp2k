@@ -58,9 +58,9 @@ MODULE ai_coulomb
   USE mathconstants,                   ONLY: pi
   USE orbital_pointers,                ONLY: coset,&
                                              ncoset
-  USE termination,                     ONLY: stop_memory
   USE timings,                         ONLY: timeset,&
                                              timestop
+
   IMPLICIT NONE
 
   PRIVATE
@@ -89,32 +89,30 @@ CONTAINS
 
     INTEGER, INTENT(IN)                      :: la_max, npgfa
     REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: zeta, rpgfa
-    INTEGER, INTENT(IN)                      :: la_min, lc_max
+    INTEGER, INTENT(IN)                      :: la_min, lc_max, npgfc
     REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: zetc, rpgfc
-    INTEGER, INTENT(IN)                      :: lc_min, npgfc
+    INTEGER, INTENT(IN)                      :: lc_min
     REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: rac
     REAL(KIND=dp), INTENT(IN)                :: rac2
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(INOUT)                          :: vac
+    REAL(KIND=dp), DIMENSION(:, :, :)        :: v
     REAL(KIND=dp), DIMENSION(0:)             :: f
-     REAL(KIND=dp), DIMENSION(:,:,:)         :: v
     INTEGER, INTENT(IN), OPTIONAL            :: maxder
-    REAL(KIND=dp), DIMENSION(:,:), OPTIONAL  :: vac_plus
+    REAL(KIND=dp), DIMENSION(:, :), OPTIONAL :: vac_plus
 
-    CHARACTER(LEN=*), PARAMETER   :: routine_name = "coulomb2"
+    CHARACTER(LEN=*), PARAMETER              :: routine_name = "coulomb2"
 
     INTEGER                                  :: ax, ay, az, coc, cocx, cocy, &
-                                                cocz, cx, cy, cz, i, ipgf, istat, j, &
-                                                jpgf, la, lc, n, na, nc, nmax
-    INTEGER                                  :: handle
-    INTEGER                                  :: maxder_local, nap
+                                                cocz, cx, cy, cz, i, ipgf, j, &
+                                                jpgf, la, lc, maxder_local, &
+                                                n, na, nap, nc, nmax
     REAL(KIND=dp)                            :: dac, f0, f1, f2, f3, f4, f5, &
                                                 f6, fcx, fcy, fcz, rho, t, &
                                                 zetp, zetq, zetw
     REAL(KIND=dp), DIMENSION(3)              :: raw, rcw
 
 !   ---------------------------------------------------------------------------
-
 !    CALL timeset(routine_name,"I"," ",handle)
 
     v = 0.0_dp
@@ -447,10 +445,9 @@ CONTAINS
 
     INTEGER, INTENT(IN)                      :: la_max, npgfa
     REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: zeta, rpgfa
-    INTEGER, INTENT(IN)                      :: la_min, lb_max
+    INTEGER, INTENT(IN)                      :: la_min, lb_max, npgfb
     REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: zetb, rpgfb
-    INTEGER, INTENT(IN)                      :: lb_min, npgfb
-    INTEGER, INTENT(IN)                      :: lc_max
+    INTEGER, INTENT(IN)                      :: lb_min, lc_max
     REAL(KIND=dp), INTENT(IN)                :: zetc, rpgfc
     INTEGER, INTENT(IN)                      :: lc_min
     REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: gccc
@@ -462,23 +459,18 @@ CONTAINS
     REAL(KIND=dp), INTENT(IN)                :: rbc2
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(INOUT)                          :: vabc
-    REAL(KIND=dp), DIMENSION(:,:,:), &
+    REAL(KIND=dp), DIMENSION(:, :, :), &
       INTENT(OUT)                            :: int_abc
     REAL(KIND=dp), DIMENSION(:, :, :, :)     :: v
     REAL(KIND=dp), DIMENSION(0:)             :: f
     INTEGER, INTENT(IN), OPTIONAL            :: maxder
-    REAL(KIND=dp), DIMENSION(:,:),OPTIONAL   :: vabc_plus
+    REAL(KIND=dp), DIMENSION(:, :), OPTIONAL :: vabc_plus
 
-    CHARACTER(LEN=*), PARAMETER   :: routine_name = "coulomb3"
+    CHARACTER(LEN=*), PARAMETER              :: routine_name = "coulomb3"
 
-
-    INTEGER                                  :: ax, ay, az, bx, by, bz, coc, &
-                                                cocx, cocy, cocz, cx, cy, cz, &
-                                                i, ipgf, istat, j, jpgf, k, kk, la, &
-                                                la_start, lb, lc, n, na, nb, &
-                                                nmax
-    INTEGER                                  :: maxder_local, nap
-    INTEGER                                  :: handle
+    INTEGER :: ax, ay, az, bx, by, bz, coc, cocx, cocy, cocz, cx, cy, cz, i, &
+      ipgf, j, jpgf, k, kk, la, la_start, lb, lc, maxder_local, n, na, nap, &
+      nb, nmax
     REAL(KIND=dp)                            :: dab, dac, dbc, f0, f1, f2, &
                                                 f3, f4, f5, f6, f7, fcx, fcy, &
                                                 fcz, fx, fy, fz, t, zetp, &
@@ -486,7 +478,6 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(3)              :: rap, rbp, rcp, rcw, rpw
 
 !   ---------------------------------------------------------------------------
-
 !    CALL timeset(routine_name,"I"," ",handle)
 
     v = 0.0_dp

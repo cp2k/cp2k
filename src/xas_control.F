@@ -18,15 +18,19 @@
 
 MODULE xas_control
 
+  USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
+                                             cp_print_key_unit_nr
   USE global_types,                    ONLY: global_environment_type
-  USE input_constants,                 ONLY: xas_tp_hh, &
-                                             xas_tp_fh, xes_tp_val,&
-                                             xas_tp_xhh, xas_tp_xfh,&
-                                             xas_tddft, xas_dscf,&
-                                             xas_1s_type
+  USE input_constants,                 ONLY: xas_1s_type,&
+                                             xas_dscf,&
+                                             xas_tddft,&
+                                             xas_tp_fh,&
+                                             xas_tp_hh,&
+                                             xas_tp_xfh,&
+                                             xas_tp_xhh,&
+                                             xes_tp_val
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&
-                                             section_vals_get_subs_vals2,&
                                              section_vals_type,&
                                              section_vals_val_get
   USE kinds,                           ONLY: dp
@@ -35,17 +39,7 @@ MODULE xas_control
                                              localized_wfn_control_release,&
                                              localized_wfn_control_type,&
                                              read_loc_section
-  USE string_utilities,                ONLY: uppercase,&
-                                             xstring
-  USE termination,                     ONLY: stop_memory,&
-                                             stop_program
-  USE cp_output_handling,              ONLY: cp_print_key_unit_nr, &
-                                             cp_print_key_finished_output,&
-                                             cp_print_key_should_output,&
-                                             cp_p_file
-
 #include "cp_common_uses.h"
-
 
   IMPLICIT NONE
 
@@ -141,19 +135,19 @@ CONTAINS
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-    CHARACTER(LEN=*), PARAMETER ::  routineN = "read_xas_control_new", &
+    CHARACTER(LEN=*), PARAMETER :: routineN = "read_xas_control_new", &
       routineP = moduleN//"/"//routineN
 
-    INTEGER                                  :: i,ir,istat,ncubes,nex_at,n_rep
-    INTEGER,DIMENSION(:) , POINTER           :: bounds,list
+    INTEGER                                  :: i, ir, istat, n_rep, ncubes, &
+                                                nex_at
+    INTEGER, DIMENSION(:), POINTER           :: bounds, list
     LOGICAL                                  :: failure, was_present
-    TYPE(section_vals_type), POINTER         :: xas_section, loc_section
-
+    TYPE(section_vals_type), POINTER         :: loc_section, xas_section
 
     failure=.FALSE.
     was_present = .FALSE.
 
-    nullify(xas_section, loc_section)
+    NULLIFY(xas_section, loc_section)
     xas_section => section_vals_get_subs_vals(globenv%input_file,"FORCE_EVAL",error=error)
     xas_section => section_vals_get_subs_vals(xas_section,"DFT",error=error)
     xas_section => section_vals_get_subs_vals(xas_section,"XAS",error=error)
@@ -270,10 +264,10 @@ CONTAINS
          l_val=xas_control%localized_wfn,error=error)
 
     loc_section =>section_vals_get_subs_vals(xas_section,"LOCALIZE",error=error)
-    call section_vals_get(loc_section,explicit=was_present,error=error)
-    if (was_present) then
+    CALL section_vals_get(loc_section,explicit=was_present,error=error)
+    IF (was_present) THEN
       CALL read_loc_section(xas_control%localized_wfn_control,loc_section,error=error)
-    end if
+    END IF
 
     NULLIFY(bounds,list)
     CALL section_vals_val_get(xas_section,"CUBES",&
@@ -338,15 +332,15 @@ CONTAINS
   SUBROUTINE write_xas_control(xas_control,dft_section, error)
 
     TYPE(xas_control_type)                   :: xas_control
-    TYPE(section_vals_type), POINTER :: dft_section
+    TYPE(section_vals_type), POINTER         :: dft_section
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-    CHARACTER(LEN=*), PARAMETER ::  routineN = "write_xas_control_new", &
+    CHARACTER(LEN=*), PARAMETER :: routineN = "write_xas_control_new", &
       routineP = moduleN//"/"//routineN
 
-    INTEGER :: output_unit
-    LOGICAL                                  :: failure, ionode
+    INTEGER                                  :: output_unit
+    LOGICAL                                  :: failure
     TYPE(cp_logger_type), POINTER            :: logger
 
 !   ---------------------------------------------------------------------------
@@ -411,15 +405,16 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE xas_control_create(xas_control,error)
 
+    TYPE(xas_control_type), POINTER          :: xas_control
     TYPE(cp_error_type), INTENT(inout), &
-       OPTIONAL                               :: error
-    TYPE(xas_control_type), POINTER           :: xas_control
- 
-    CHARACTER(len=*), PARAMETER :: routineN = 'xas_control_create', &
-       routineP = moduleN//':'//routineN
+      OPTIONAL                               :: error
 
-    INTEGER ::  stat
-    LOGICAL :: failure
+    CHARACTER(len=*), PARAMETER :: routineN = 'xas_control_create', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: stat
+    LOGICAL                                  :: failure
+
     failure=.FALSE.
 
     CPPrecondition(.NOT.ASSOCIATED(xas_control),cp_failure_level,routineP,error,failure)
@@ -453,14 +448,16 @@ CONTAINS
 
   SUBROUTINE xas_control_release(xas_control,error)
 
+    TYPE(xas_control_type), POINTER          :: xas_control
     TYPE(cp_error_type), INTENT(inout), &
-       OPTIONAL                               :: error
-    TYPE(xas_control_type), POINTER           :: xas_control
+      OPTIONAL                               :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'xas_control_release', &
-       routineP = moduleN//':'//routineN
-    INTEGER :: istat
-    LOGICAL :: failure
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: istat
+    LOGICAL                                  :: failure
+
     failure=.FALSE.
     IF(ASSOCIATED(xas_control)) THEN
       CPPrecondition(xas_control%ref_count>0,cp_failure_level,routineP,error,failure)
@@ -486,14 +483,15 @@ CONTAINS
 
   SUBROUTINE xas_control_retain(xas_control,error)
 
+    TYPE(xas_control_type), POINTER          :: xas_control
     TYPE(cp_error_type), INTENT(inout), &
-       OPTIONAL                               :: error
-    TYPE(xas_control_type), POINTER           :: xas_control
+      OPTIONAL                               :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'xas_control_retain', &
-       routineP = moduleN//':'//routineN
-    INTEGER :: istat
-    LOGICAL :: failure
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+
     failure=.FALSE.
 
     CPPrecondition(ASSOCIATED(xas_control),cp_failure_level,routineP,error,failure)

@@ -25,6 +25,7 @@
 MODULE qs_loc_methods
 ! *****************************************************************************
 
+  USE cell_types,                      ONLY: cell_type
   USE coefficient_types,               ONLY: coeff_type
   USE cp_cfm_basic_linalg,             ONLY: cp_cfm_lu_decompose
   USE cp_cfm_types,                    ONLY: cp_cfm_create,&
@@ -32,42 +33,25 @@ MODULE qs_loc_methods
                                              cp_cfm_type
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_files,                        ONLY: open_file
-  USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm,&
-                                             cp_fm_scale_and_add,&
-                                             cp_fm_trace,&
-                                             cp_fm_transpose
-  USE cp_fm_pool_types,                ONLY: cp_fm_pool_type,&
-                                             cp_fm_pool_p_type,&
+  USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm
+  USE cp_fm_pool_types,                ONLY: cp_fm_pool_p_type,&
                                              fm_pool_create_fm
-  USE cp_fm_types,                     ONLY: cp_fm_create,&
-                                             cp_fm_get_element,&
-                                             cp_fm_get_info,&
-                                             cp_fm_get_submatrix,&
-                                             cp_fm_maxabsval,&
-                                             cp_fm_p_type,&
-                                             cp_fm_release,&
-                                             cp_fm_set_all,&
-                                             cp_fm_set_submatrix,&
-                                             cp_fm_to_fm,&
-                                             cp_fm_type
+  USE cp_fm_types,                     ONLY: &
+       cp_fm_create, cp_fm_get_element, cp_fm_get_info, cp_fm_get_submatrix, &
+       cp_fm_p_type, cp_fm_release, cp_fm_set_all, cp_fm_set_submatrix, &
+       cp_fm_to_fm, cp_fm_type
   USE cp_sm_fm_interactions,           ONLY: copy_sm_to_fm,&
                                              cp_sm_fm_multiply
-  USE input_constants,                 ONLY: do_loc_min,&
-                                             do_loc_max,&
-                                             do_loc_jacobi,&
-                                             do_loc_crazy,&
+  USE input_constants,                 ONLY: do_loc_crazy,&
                                              do_loc_direct,&
+                                             do_loc_jacobi,&
                                              do_loc_none,&
                                              op_loc_berry,&
                                              op_loc_boys,&
                                              op_loc_pipek,&
-                                             state_loc_all,&
-                                             state_loc_upton,&
-                                             state_loc_fromitoj,&
-                                             state_loc_list,&
-                                             state_loc_none
+                                             state_loc_list
   USE kinds,                           ONLY: dp
-  USE mathconstants,                   ONLY: pi, twopi
+  USE mathconstants,                   ONLY: twopi
   USE particle_types,                  ONLY: get_particle_set,&
                                              particle_type
   USE physcon,                         ONLY: angstrom
@@ -76,7 +60,6 @@ MODULE qs_loc_methods
   USE pw_pool_types,                   ONLY: pw_pool_give_back_coeff,&
                                              pw_pool_init_coeff,&
                                              pw_pool_type
-  USE qs_rho_types,                    ONLY: qs_rho_type
   USE pw_types,                        ONLY: COMPLEXDATA1D,&
                                              REALDATA3D,&
                                              REALSPACE,&
@@ -86,9 +69,8 @@ MODULE qs_loc_methods
                                              qs_environment_type
   USE qs_ks_methods,                   ONLY: qs_ks_did_change
   USE qs_loc_control,                  ONLY: localized_wfn_control_type
-  USE qs_loc_types,                    ONLY: get_qs_loc_env,& 
-                                             qs_loc_env_new_type, &
-                                             set_qs_loc_env
+  USE qs_loc_types,                    ONLY: get_qs_loc_env,&
+                                             qs_loc_env_new_type
   USE qs_loc_utils,                    ONLY: jacobi_rotation_pipek
   USE qs_localization_methods,         ONLY: crazy_rotations,&
                                              direct_mini,&
@@ -99,13 +81,11 @@ MODULE qs_loc_methods
                                              mo_set_p_type
   USE qs_rho_atom_methods,             ONLY: calculate_rho_atom_coeff
   USE qs_rho_methods,                  ONLY: qs_rho_update_rho
+  USE qs_rho_types,                    ONLY: qs_rho_type
   USE realspace_grid_types,            ONLY: rs_pw_to_cube
-  USE cell_types,                 ONLY: cell_type
   USE sparse_matrix_types,             ONLY: real_matrix_p_type
-  USE string_utilities,                ONLY: uppercase,&
-                                             xstring
-  USE termination,                     ONLY: stop_memory,&
-                                             stop_program
+  USE string_utilities,                ONLY: xstring
+  USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "cp_common_uses.h"
@@ -132,27 +112,29 @@ CONTAINS
   SUBROUTINE centers_spreads_berry( localized_wfn_control, zij, nmoloc, &
                                     cell, weights, ispin, ionode, error)
 
-     TYPE(localized_wfn_control_type), POINTER  :: localized_wfn_control
-     TYPE(cp_fm_p_type), INTENT(INOUT)          :: zij( :, : )
-     TYPE(cell_type), POINTER                   :: cell
-     REAL(dp), DIMENSION(:)                     :: weights
-     INTEGER, INTENT(IN)                        :: ispin, nmoloc
-     LOGICAL, INTENT(IN)                        :: ionode
-     TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                                  :: error
+    TYPE(localized_wfn_control_type), &
+      POINTER                                :: localized_wfn_control
+    TYPE(cp_fm_p_type), INTENT(INOUT)        :: zij( :, : )
+    INTEGER, INTENT(IN)                      :: nmoloc
+    TYPE(cell_type), POINTER                 :: cell
+    REAL(dp), DIMENSION(:)                   :: weights
+    INTEGER, INTENT(IN)                      :: ispin
+    LOGICAL, INTENT(IN)                      :: ionode
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
     CHARACTER(len=*), PARAMETER :: routine_name = 'centers_spreads_berry', &
       routineP = module_name//':'//routine_name
 
-
-     CHARACTER(len = 50)                      :: filename1, filename2
-     COMPLEX(KIND=dp)                         :: almost_determinant, z
-     INTEGER :: idir, istate, iter, nstates, out_c, out_s, scr
-     LOGICAL :: failure, file_exists
-     REAL(KIND=dp)                            :: imagpart, realpart
-     REAL(dp), DIMENSION(3)                   :: spreadtot
-     REAL(dp), DIMENSION(:,:), POINTER        :: centers
-     TYPE(cp_cfm_type), POINTER               :: complexresult
+    CHARACTER(len=50)                        :: filename1, filename2
+    COMPLEX(KIND=dp)                         :: almost_determinant, z
+    INTEGER                                  :: idir, istate, iter, nstates, &
+                                                out_c, out_s, scr
+    LOGICAL                                  :: failure, file_exists
+    REAL(dp), DIMENSION(3)                   :: spreadtot
+    REAL(dp), DIMENSION(:, :), POINTER       :: centers
+    REAL(KIND=dp)                            :: imagpart, realpart
+    TYPE(cp_cfm_type), POINTER               :: complexresult
 
      failure = .FALSE.
      out_c = 21
@@ -249,8 +231,8 @@ CONTAINS
              spreadtot(1:3)
        WRITE(out_s,'(A,3F16.10)')  " Total ",  spreadtot(1:3) 
 
-       close(out_c)
-       close(out_s)
+       CLOSE(out_c)
+       CLOSE(out_s)
      ENDIF
 
   END SUBROUTINE centers_spreads_berry
@@ -298,27 +280,28 @@ CONTAINS
   SUBROUTINE optimize_loc_berry( method, localized_wfn_control, vectors, op_sm_set, &
                                  zij_fm_set, cell, weights,  ispin, ionode, error)
 
-    INTEGER, INTENT(IN)                         :: method 
-    TYPE(localized_wfn_control_type), POINTER   :: localized_wfn_control
-    TYPE(cp_fm_type), POINTER                   :: vectors
-    TYPE (real_matrix_p_type), DIMENSION(:,:),&
-      POINTER                                   :: op_sm_set
-    TYPE(cp_fm_p_type), DIMENSION(:,:),POINTER  :: zij_fm_set
-    TYPE(cell_type), POINTER                    :: cell
-    REAL(dp), DIMENSION(:)                      :: weights
-    INTEGER , INTENT(IN)                        :: ispin
-    LOGICAL, INTENT(IN)                         :: ionode
+    INTEGER, INTENT(IN)                      :: method
+    TYPE(localized_wfn_control_type), &
+      POINTER                                :: localized_wfn_control
+    TYPE(cp_fm_type), POINTER                :: vectors
+    TYPE(real_matrix_p_type), &
+      DIMENSION(:, :), POINTER               :: op_sm_set
+    TYPE(cp_fm_p_type), DIMENSION(:, :), &
+      POINTER                                :: zij_fm_set
+    TYPE(cell_type), POINTER                 :: cell
+    REAL(dp), DIMENSION(:)                   :: weights
+    INTEGER, INTENT(IN)                      :: ispin
+    LOGICAL, INTENT(IN)                      :: ionode
     TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                                 :: error
+      OPTIONAL                               :: error
 
     CHARACTER(len=*), PARAMETER :: routine_name = 'optimize_loc_berry', &
       routineP = module_name//':'//routine_name
 
-
-    INTEGER                                   :: handle, i, j, k, l, nao, &
-                                                 nmoloc, sweeps, scr
-    LOGICAL                                   :: my_ionode
-    TYPE(cp_fm_type), POINTER                 :: opvec
+    INTEGER                                  :: handle, i, j, nao, nmoloc, &
+                                                scr, sweeps
+    LOGICAL                                  :: my_ionode
+    TYPE(cp_fm_type), POINTER                :: opvec
 
     CALL timeset(routineP,"I",'',handle)
 
@@ -380,32 +363,33 @@ CONTAINS
   SUBROUTINE  optimize_loc_pipek(qs_env, method, localized_wfn_control,&
               vectors, zij_fm_set,  ispin, ionode, error)
 
-    TYPE(qs_environment_type), POINTER           :: qs_env
-    INTEGER, INTENT(IN)                          :: method 
-    TYPE(localized_wfn_control_type), POINTER    :: localized_wfn_control
-    TYPE(cp_fm_type), POINTER                    :: vectors
-    TYPE(cp_fm_p_type), DIMENSION(:,:),POINTER   :: zij_fm_set
-    INTEGER, INTENT(IN)                          :: ispin
-    LOGICAL, INTENT(IN)                          :: ionode
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    INTEGER, INTENT(IN)                      :: method
+    TYPE(localized_wfn_control_type), &
+      POINTER                                :: localized_wfn_control
+    TYPE(cp_fm_type), POINTER                :: vectors
+    TYPE(cp_fm_p_type), DIMENSION(:, :), &
+      POINTER                                :: zij_fm_set
+    INTEGER, INTENT(IN)                      :: ispin
+    LOGICAL, INTENT(IN)                      :: ionode
     TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                                   :: error
+      OPTIONAL                               :: error
 
     CHARACTER(len=*), PARAMETER :: routine_name = 'optimize_loc_pipek', &
       routineP = module_name//':'//routine_name
 
-    INTEGER  :: handle, iatom, isgf, istat, ldz, nao, natom,&
-                ncol, nmoloc, scr, sweeps
-    INTEGER, DIMENSION(:), ALLOCATABLE           :: first_sgf, &
-                                                    last_sgf, nsgf
-    LOGICAL :: failure, my_ionode
+    INTEGER                                  :: handle, iatom, isgf, istat, &
+                                                ldz, nao, natom, ncol, &
+                                                nmoloc, scr, sweeps
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: first_sgf, last_sgf, nsgf
+    LOGICAL                                  :: failure, my_ionode
     TYPE(cp_fm_pool_p_type), DIMENSION(:), &
-       POINTER                                   :: ao_ao_fm_pools
-    TYPE(cp_fm_type), POINTER                    :: ov_fm
-    TYPE(cp_fm_type), POINTER                    :: opvec
+      POINTER                                :: ao_ao_fm_pools
+    TYPE(cp_fm_type), POINTER                :: opvec, ov_fm
     TYPE(particle_type), DIMENSION(:), &
-      POINTER                                    :: particle_set
+      POINTER                                :: particle_set
     TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                    :: matrix_s
+      POINTER                                :: matrix_s
 
 !   ---------------------------------------------------------------------------
 
@@ -520,26 +504,29 @@ CONTAINS
 
   SUBROUTINE centers_spreads_pipek(localized_wfn_control,zij_fm_set,particle_set,ispin,ionode,error)
 
-    TYPE(cp_fm_p_type), DIMENSION(:,:), POINTER :: zij_fm_set
-    TYPE(localized_wfn_control_type), POINTER   :: localized_wfn_control
+    TYPE(localized_wfn_control_type), &
+      POINTER                                :: localized_wfn_control
+    TYPE(cp_fm_p_type), DIMENSION(:, :), &
+      POINTER                                :: zij_fm_set
     TYPE(particle_type), DIMENSION(:), &
-      POINTER                                    :: particle_set
-    INTEGER, INTENT(IN)                         :: ispin
-    LOGICAL, INTENT(IN)                         :: ionode
+      POINTER                                :: particle_set
+    INTEGER, INTENT(IN)                      :: ispin
+    LOGICAL, INTENT(IN)                      :: ionode
     TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                                  :: error 
+      OPTIONAL                               :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'centers_spreads_pipek', &
       routineP = module_name//':'//routineN
 
-    CHARACTER(len = 50)                      :: filename1, filename2
-    INTEGER :: iatom, istat, istate, iter,  natom, nstate, out_c, out_s
+    CHARACTER(len=50)                        :: filename1, filename2
+    INTEGER                                  :: iatom, istat, istate, iter, &
+                                                natom, nstate, out_c, out_s
     INTEGER, DIMENSION(:), POINTER           :: atom_of_state
     LOGICAL                                  :: failure, file_exists
     REAL(dp)                                 :: r(3)
-    REAL(dp), DIMENSION(:,:), POINTER        :: centers
-    REAL(dp), DIMENSION(:), ALLOCATABLE      :: Qii,ziimax
-    REAL(dp), DIMENSION(:,:), ALLOCATABLE    :: diag
+    REAL(dp), ALLOCATABLE, DIMENSION(:)      :: Qii, ziimax
+    REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: diag
+    REAL(dp), DIMENSION(:, :), POINTER       :: centers
 
     failure =.FALSE. 
     file_exists = .FALSE.
@@ -605,7 +592,7 @@ CONTAINS
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     diag = 0.0_dp
 
-    Do iatom = 1,natom
+    DO iatom = 1,natom
       DO istate = 1,nstate
         CALL cp_fm_get_element(zij_fm_set(iatom,1)%matrix,istate,istate,diag(istate,iatom))
       END DO
@@ -666,33 +653,36 @@ CONTAINS
 
   SUBROUTINE qs_loc_driver(qs_env,qs_loc_env,ionode,onlyspin1,error)
 
-    TYPE(qs_environment_type), POINTER           :: qs_env
-    TYPE(qs_loc_env_new_type), POINTER           :: qs_loc_env
-    LOGICAL, INTENT(IN)                          :: ionode
-    LOGICAL, INTENT(IN), OPTIONAL                :: onlyspin1
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(qs_loc_env_new_type), POINTER       :: qs_loc_env
+    LOGICAL, INTENT(IN)                      :: ionode
+    LOGICAL, INTENT(IN), OPTIONAL            :: onlyspin1
     TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                                   :: error
+      OPTIONAL                               :: error
 
     CHARACTER(len=*), PARAMETER :: routine_name = 'qs_loc_driver', &
       routineP = module_name//':'//routine_name
 
-    INTEGER :: i, ispin, imo, imoloc, istat, istate, iter, ivector, lb, loc_method,&
-               my_nspins, nao, nmosub, ub
-    INTEGER, DIMENSION(:), POINTER               :: state_list
-    LOGICAL :: failure, my_one_spin
-    REAL(dp), DIMENSION(6)                       :: weights
-    REAL(KIND=dp), DIMENSION(:, :), POINTER      :: vecbuffer
-    REAL(KIND=dp), DIMENSION(:, :), POINTER      :: centers
-    TYPE(cell_type), POINTER                     :: cell
-    TYPE(cp_fm_p_type), DIMENSION(:), POINTER    :: moloc_coeff
-    TYPE(cp_fm_p_type), DIMENSION(:,:), POINTER  :: op_fm_set
-    TYPE(cp_fm_type),  POINTER                   :: mo_coeff
-    TYPE(dft_control_type), POINTER              :: dft_control
-    TYPE(localized_wfn_control_type), POINTER    :: localized_wfn_control
+    INTEGER                                  :: i, imo, imoloc, ispin, istat, &
+                                                istate, iter, lb, loc_method, &
+                                                my_nspins, nao, nmosub, ub
+    INTEGER, DIMENSION(:), POINTER           :: state_list
+    LOGICAL                                  :: failure, my_one_spin
+    REAL(dp), DIMENSION(6)                   :: weights
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: centers, vecbuffer
+    TYPE(cell_type), POINTER                 :: cell
+    TYPE(cp_fm_p_type), DIMENSION(:), &
+      POINTER                                :: moloc_coeff
+    TYPE(cp_fm_p_type), DIMENSION(:, :), &
+      POINTER                                :: op_fm_set
+    TYPE(cp_fm_type), POINTER                :: mo_coeff
+    TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(localized_wfn_control_type), &
+      POINTER                                :: localized_wfn_control
     TYPE(mo_set_p_type), DIMENSION(:), &
-      POINTER                                    :: mos
-    TYPE (real_matrix_p_type), DIMENSION(:,:),&
-      POINTER                                    :: op_sm_set
+      POINTER                                :: mos
+    TYPE(real_matrix_p_type), &
+      DIMENSION(:, :), POINTER               :: op_sm_set
 
     failure = .FALSE.
     my_one_spin = .FALSE.
@@ -822,27 +812,28 @@ CONTAINS
   SUBROUTINE qs_print_cubes(qs_env,mo_coeff,nstates,state_list,centers,&
              iter,ispin,ionode,root,state0,error)
 
-    TYPE(qs_environment_type), POINTER           :: qs_env
-    TYPE(cp_fm_type),  POINTER                   :: mo_coeff
-    INTEGER, INTENT(IN)                          :: nstates, iter, ispin
-    INTEGER, DIMENSION(:), POINTER               :: state_list
-    REAL(dp), DIMENSION(:,:), POINTER            :: centers
-    LOGICAL, INTENT(IN)                          :: ionode
-    CHARACTER(LEN=*)                             :: root
-    INTEGER, OPTIONAL                            :: state0
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(cp_fm_type), POINTER                :: mo_coeff
+    INTEGER, INTENT(IN)                      :: nstates
+    INTEGER, DIMENSION(:), POINTER           :: state_list
+    REAL(dp), DIMENSION(:, :), POINTER       :: centers
+    INTEGER, INTENT(IN)                      :: iter, ispin
+    LOGICAL, INTENT(IN)                      :: ionode
+    CHARACTER(LEN=*)                         :: root
+    INTEGER, OPTIONAL                        :: state0
     TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                                   :: error
+      OPTIONAL                               :: error
 
     CHARACTER(len=*), PARAMETER :: routine_name = 'qs_print_cubes', &
       routineP = module_name//':'//routine_name
 
-    CHARACTER(LEN=80)  :: filename
-    CHARACTER(LEN=80)  :: title
-    INTEGER :: ia, ie, istat, istate, ivector, my_state0
-    LOGICAL                                      :: failure
-    TYPE(coeff_type)                             :: wf_g, wf_r
-    TYPE(pw_env_type), POINTER                   :: pw_env
-    TYPE(pw_pool_type), POINTER                  :: auxbas_pw_pool
+    CHARACTER(LEN=80)                        :: filename, title
+    INTEGER                                  :: ia, ie, istate, ivector, &
+                                                my_state0
+    LOGICAL                                  :: failure
+    TYPE(coeff_type)                         :: wf_g, wf_r
+    TYPE(pw_env_type), POINTER               :: pw_env
+    TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
 
     failure = .FALSE.
     NULLIFY(auxbas_pw_pool, pw_env)
@@ -890,8 +881,7 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = "loc_initialize_rho", &
       routineP = module_name//":"//routineN
 
-    INTEGER                                  :: handle, ispin, nmo, &
-                                                istat
+    INTEGER                                  :: handle, ispin
     LOGICAL                                  :: failure, gapw
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(mo_set_p_type), DIMENSION(:), &

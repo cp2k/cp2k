@@ -67,18 +67,19 @@ CONTAINS
                              jatom,ncob,nsgfb,sgfb,sphi_b,ldsb,&
                              cosab,sinab,ldab,work,ldwork)
 
-    REAL(dp), DIMENSION(:,:), POINTER       :: cos_block, sin_block
-    INTEGER, INTENT(IN)                     :: iatom,ncoa,nsgfa,sgfa
-    REAL(dp), DIMENSION(:,:), INTENT(IN)    :: sphi_a
-    INTEGER, INTENT(IN)                     :: ldsa,jatom,ncob,nsgfb,sgfb
-    REAL(dp), DIMENSION(:,:), INTENT(IN)    :: sphi_b
-    REAL(dp), DIMENSION(:,:), INTENT(IN)    :: cosab, sinab
-    INTEGER, INTENT(IN)                     :: ldsb,ldab
-    REAL(dp), DIMENSION(:,:)                :: work
-    INTEGER, INTENT(IN)                     :: ldwork
+    REAL(dp), DIMENSION(:, :), POINTER       :: cos_block, sin_block
+    INTEGER, INTENT(IN)                      :: iatom, ncoa, nsgfa, sgfa
+    REAL(dp), DIMENSION(:, :), INTENT(IN)    :: sphi_a
+    INTEGER, INTENT(IN)                      :: ldsa, jatom, ncob, nsgfb, sgfb
+    REAL(dp), DIMENSION(:, :), INTENT(IN)    :: sphi_b
+    INTEGER, INTENT(IN)                      :: ldsb
+    REAL(dp), DIMENSION(:, :), INTENT(IN)    :: cosab, sinab
+    INTEGER, INTENT(IN)                      :: ldab
+    REAL(dp), DIMENSION(:, :)                :: work
+    INTEGER, INTENT(IN)                      :: ldwork
 
+! Calculate cosine
 
-       ! Calculate cosine
        CALL dgemm("N","N",ncoa,nsgfb,ncob,&
                    1.0_dp,cosab(1,1),ldab,&
                    sphi_b(1,sgfb),ldsb,&
@@ -127,20 +128,20 @@ CONTAINS
                     lb_max,npgfb,zetb,rpgfb,lb_min,&
                     rac,rbc,kvec,cosab,sinab)
 
-    INTEGER, INTENT(IN)                      :: la_max,la_min,npgfa
+    INTEGER, INTENT(IN)                      :: la_max, npgfa
     REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: zeta, rpgfa
-    INTEGER, INTENT(IN)                      :: lb_max,lb_min,npgfb
+    INTEGER, INTENT(IN)                      :: la_min, lb_max, npgfb
     REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: zetb, rpgfb
-    REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: rac, rbc
-    REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: kvec
+    INTEGER, INTENT(IN)                      :: lb_min
+    REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: rac, rbc, kvec
     REAL(KIND=dp), DIMENSION(:, :), &
-      INTENT(OUT)                            :: cosab,sinab
+      INTENT(INOUT)                          :: cosab, sinab
 
     INTEGER                                  :: ax, ay, az, bx, by, bz, i, &
                                                 ipgf, j, jpgf, la, la_start, &
                                                 lb, na, nb
     REAL(KIND=dp)                            :: dab, f0, f1, f2, f3, fx, fy, &
-                                                fz, zetp, k2, kdp, rab2, s
+                                                fz, k2, kdp, rab2, s, zetp
     REAL(KIND=dp), DIMENSION(3)              :: rab, rap, rbp
     REAL(KIND=dp), DIMENSION(ncoset(la_max),&
       ncoset(lb_max))                        :: sc, ss
@@ -653,10 +654,10 @@ CONTAINS
 
         END IF
 
- !       DO j=ncoset(lb_min-1)+1,ncoset(lb_max)
- !         DO i=ncoset(la_min-1)+1,ncoset(la_max)
-        do j =1,ncoset(lb_max)
-          do i = 1, ncoset(la_max)
+       DO j=ncoset(lb_min-1)+1,ncoset(lb_max)
+         DO i=ncoset(la_min-1)+1,ncoset(la_max)
+!        do j =1,ncoset(lb_max)
+!          do i = 1, ncoset(la_max)
             cosab(na+i,nb+j) = sc(i,j)
             sinab(na+i,nb+j) = ss(i,j)
           END DO
@@ -680,24 +681,26 @@ CONTAINS
 
     INTEGER, INTENT(IN)                      :: la_max, npgfa
     REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: zeta, rpgfa
-    INTEGER, INTENT(IN)                      :: la_min, lb_max, npgfb, lc_max
+    INTEGER, INTENT(IN)                      :: la_min, lb_max, npgfb
     REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: zetb, rpgfb
-    INTEGER, INTENT(IN)                      :: lb_min
+    INTEGER, INTENT(IN)                      :: lb_min, lc_max
     REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: rac, rbc
     REAL(KIND=dp), DIMENSION(:, :, :), &
-      INTENT(OUT)                            :: mab
+      INTENT(INOUT)                          :: mab
 
     INTEGER                                  :: ax, ay, az, bx, by, bz, i, &
-                                                ipgf, j, jpgf, la, la_start, &
-                                                lb, na, nb, k, l, lx, ly, lz, &
-                                                lx1, ly1, lz1, l1, l2, ni
-    REAL(KIND=dp)                            :: dab, f0, f1, f2, f3, fx, fy, &
-                                                fz, zetp, rab2, f2x, f2y, f2z
+                                                ipgf, j, jpgf, k, l, l1, l2, &
+                                                la, la_start, lb, lx, lx1, &
+                                                ly, ly1, lz, lz1, na, nb, ni
+    REAL(KIND=dp)                            :: dab, f0, f1, f2, f2x, f2y, &
+                                                f2z, f3, fx, fy, fz, rab2, &
+                                                zetp
     REAL(KIND=dp), DIMENSION(3)              :: rab, rap, rbp, rpc
     REAL(KIND=dp), DIMENSION(ncoset(la_max),&
-      ncoset(lb_max),ncoset(lc_max))         :: s
+      ncoset(lb_max), ncoset(lc_max))        :: s
 
 !   ---------------------------------------------------------------------------
+
     rab = rac - rbc
     rab2= SUM( rab**2 )
     dab = SQRT(rab2)
@@ -712,6 +715,7 @@ CONTAINS
 
       DO jpgf=1,npgfb
 
+        s = 0.0_dp
 !       *** Screening ***
 
         IF (rpgfa(ipgf) + rpgfb(jpgf) < dab) THEN
@@ -1197,22 +1201,25 @@ CONTAINS
                     lb_max,npgfb,zetb,rpgfb,lb_min,&
                     rab,difab)
 
-    INTEGER, INTENT(IN)                      :: la_max,npgfa
+    INTEGER, INTENT(IN)                      :: la_max, npgfa
     REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: zeta, rpgfa
-    INTEGER, INTENT(IN)                      :: la_min,npgfb,lb_max
+    INTEGER, INTENT(IN)                      :: la_min, lb_max, npgfb
     REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: zetb, rpgfb
     INTEGER, INTENT(IN)                      :: lb_min
     REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: rab
     REAL(KIND=dp), DIMENSION(:, :, :), &
       INTENT(OUT)                            :: difab
 
-    INTEGER                                  :: istat, lda_min, ldb_min, lmax, lds
+    INTEGER                                  :: istat, lda_min, ldb_min, lds, &
+                                                lmax
     REAL(KIND=dp)                            :: dab, rab2
-    REAL(KIND=dp), DIMENSION(npgfa*ncoset(la_max+1),&
-      npgfb*ncoset(lb_max+1))           :: sab
-    REAL(KIND=dp), DIMENSION(:,:,:), ALLOCATABLE :: s
+    REAL(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:, :, :)                     :: s
+    REAL(KIND=dp), DIMENSION(npgfa*ncoset(&
+      la_max+1), npgfb*ncoset(lb_max+1))     :: sab
 
 !   ---------------------------------------------------------------------------
+
     rab2= SUM( rab**2 )
     dab = SQRT(rab2)
 

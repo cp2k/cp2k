@@ -25,28 +25,21 @@
 !!****
 
 MODULE qs_linres_nmr_op
-  USE cp_output_handling,              ONLY: cp_print_key_unit_nr, &
-                                             cp_print_key_finished_output,&
-                                             cp_print_key_should_output,&
-                                             cp_p_file
-  USE input_section_types,             ONLY: section_vals_type,&
-                                             section_vals_get_subs_vals
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind_set
+  USE cell_types,                      ONLY: cell_type,&
+                                             pbc
   USE cp_array_r_utils,                ONLY: cp_2d_r_p_type
   USE cp_control_types,                ONLY: dft_control_type
-  USE cp_fm_basic_linalg,              ONLY: cp_fm_scale,&
-                                             cp_fm_symm,&
-                                             cp_fm_scale_and_add,&
-                                             cp_fm_trace
-  USE cp_fm_types,                     ONLY: cp_fm_get_element,&
-                                             cp_fm_get_submatrix,&
-                                             cp_fm_p_type,&
-                                             cp_fm_set_element,&
+  USE cp_fm_types,                     ONLY: cp_fm_get_submatrix,&
                                              cp_fm_set_all,&
                                              cp_fm_set_submatrix,&
                                              cp_fm_type
+  USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
+                                             cp_print_key_unit_nr
   USE cp_sm_fm_interactions,           ONLY: cp_sm_fm_multiply
+  USE input_section_types,             ONLY: section_vals_get_subs_vals,&
+                                             section_vals_type
   USE kinds,                           ONLY: dp
   USE particle_types,                  ONLY: get_particle_set,&
                                              particle_type
@@ -56,10 +49,8 @@ MODULE qs_linres_nmr_op
                                              nmr_env_type
   USE qs_mo_types,                     ONLY: get_mo_set,&
                                              mo_set_p_type
-  USE qs_operators_ao,                 ONLY: p_xyz_ao,rmc_x_p_xyz_ao
-  USE cell_types,                 ONLY: cell_type, pbc
-  USE sparse_matrix_types,             ONLY: real_matrix_p_type,&
-                                             real_matrix_type
+  USE qs_operators_ao,                 ONLY: p_xyz_ao,&
+                                             rmc_x_p_xyz_ao
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -103,33 +94,35 @@ CONTAINS
 
   SUBROUTINE nmr_operators(nmr_env,qs_env,error)
 
-    TYPE(nmr_env_type)                          :: nmr_env
-    TYPE(qs_environment_type), POINTER          :: qs_env
-    TYPE(cp_error_type), & 
-         INTENT(INOUT), OPTIONAL                :: error
+    TYPE(nmr_env_type)                       :: nmr_env
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(cp_error_type), INTENT(INOUT), &
+      OPTIONAL                               :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'nmr_operators', &
-                                   routineP = moduleN//'/'//routineN
+      routineP = moduleN//'/'//routineN
 
-    INTEGER :: homo, iao, iatom, idir, idir2, ii, iii, ispin, istat, &
-               istate, nao, natom, nmo, nsgf,output_unit
-    INTEGER, DIMENSION(:), ALLOCATABLE          :: first_sgf,&
-                                                   last_sgf
-    LOGICAL :: failure,ionode
-    REAL(dp) :: ck(3),ckdk(3),dk(3)
-    TYPE(atomic_kind_type), DIMENSION(:),&
-      POINTER                                   :: atomic_kind_set
-    TYPE(cell_type), POINTER                    :: cell
-    TYPE(cp_2d_r_p_type), DIMENSION(3)          :: vecbuf_p0
-    TYPE(cp_2d_r_p_type), DIMENSION(3)          :: vecbuf_rxp0
-    TYPE(cp_2d_r_p_type), DIMENSION(3)          :: vecbuf_cmd
-    TYPE(cp_fm_type), POINTER                   :: mo_coeff
-    TYPE(cp_logger_type), POINTER               :: logger
-    TYPE(dft_control_type), POINTER             :: dft_control
-    TYPE(linres_control_type), POINTER          :: linres_control
-    TYPE(mo_set_p_type), DIMENSION(:), POINTER  :: mos
-    TYPE(particle_type), DIMENSION(:), POINTER  :: particle_set
-    TYPE(section_vals_type), POINTER :: lr_section
+    INTEGER                                  :: homo, iao, iatom, idir, &
+                                                idir2, ii, iii, ispin, istat, &
+                                                istate, nao, natom, nmo, &
+                                                nsgf, output_unit
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: first_sgf, last_sgf
+    LOGICAL                                  :: failure, ionode
+    REAL(dp)                                 :: ck(3), ckdk(3), dk(3)
+    TYPE(atomic_kind_type), DIMENSION(:), &
+      POINTER                                :: atomic_kind_set
+    TYPE(cell_type), POINTER                 :: cell
+    TYPE(cp_2d_r_p_type), DIMENSION(3)       :: vecbuf_cmd, vecbuf_p0, &
+                                                vecbuf_rxp0
+    TYPE(cp_fm_type), POINTER                :: mo_coeff
+    TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(linres_control_type), POINTER       :: linres_control
+    TYPE(mo_set_p_type), DIMENSION(:), &
+      POINTER                                :: mos
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particle_set
+    TYPE(section_vals_type), POINTER         :: lr_section
 
     failure = .FALSE.
 
@@ -286,8 +279,8 @@ CONTAINS
 !****************************************************************************
   SUBROUTINE set_vecp(i1,i2,i3)
 
-    INTEGER, INTENT(IN)        :: i1
-    INTEGER, INTENT(OUT)       :: i2,i3
+    INTEGER, INTENT(IN)                      :: i1
+    INTEGER, INTENT(OUT)                     :: i2, i3
 
     IF(i1==1) THEN
       i2=2

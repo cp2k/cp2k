@@ -24,16 +24,12 @@
 !!****
 
 MODULE qs_linres_methods
-  USE cp_output_handling,              ONLY: cp_print_key_unit_nr, &
-                                             cp_print_key_finished_output,&
-                                             cp_print_key_should_output,&
-                                             cp_p_file
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_fm_basic_linalg,              ONLY: cp_fm_column_scale,&
-                                             cp_fm_scale,&
                                              cp_fm_gemm,&
-                                             cp_fm_symm,&
+                                             cp_fm_scale,&
                                              cp_fm_scale_and_add,&
+                                             cp_fm_symm,&
                                              cp_fm_trace
   USE cp_fm_cholesky,                  ONLY: cp_fm_cholesky_decompose,&
                                              cp_fm_cholesky_invert
@@ -41,30 +37,26 @@ MODULE qs_linres_methods
                                              fm_pool_create_fm,&
                                              fm_pools_create_fm_vect,&
                                              fm_pools_give_back_fm_vect
-  USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
-                                             cp_fm_struct_release, &
-                                             cp_fm_struct_p_type,&
-                                             cp_fm_struct_type
-  USE cp_fm_types,                     ONLY: cp_fm_create,&
-                                             cp_fm_get_info,&
+  USE cp_fm_types,                     ONLY: cp_fm_get_info,&
+                                             cp_fm_maxabsval,&
                                              cp_fm_p_type,&
                                              cp_fm_release,&
                                              cp_fm_set_all,&
-                                             cp_fm_type,&
                                              cp_fm_to_fm,&
-                                             cp_fm_vectorsnorm,&
-                                             cp_fm_maxabsval
+                                             cp_fm_type,&
+                                             cp_fm_vectorsnorm
+  USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
+                                             cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_blacs_env_type,&
                                              cp_para_env_type
-  USE global_types,                    ONLY: global_environment_type 
+  USE global_types,                    ONLY: global_environment_type
+  USE input_constants,                 ONLY: &
+       do_loc_none, lr_cg, lr_diis, lr_ls_2pnt, lr_ls_3pnt, lr_ls_gold, &
+       lr_ls_none, lr_precond_none, lr_sd, op_loc_berry, state_loc_all
+  USE input_section_types,             ONLY: section_vals_get_subs_vals,&
+                                             section_vals_type
   USE kinds,                           ONLY: dp
-  USE input_constants,                 ONLY: do_loc_none,state_loc_all,&
-                                             op_loc_berry, lr_diis, lr_cg,&
-                                             lr_sd,lr_precond_none,&
-                                             lr_ls_none, lr_ls_2pnt, &
-                                             lr_ls_3pnt, lr_ls_gold
-  USE preconditioner,                  ONLY: apply_preconditioner, &
-                                             apply_preconditioner_lr,&
+  USE preconditioner,                  ONLY: apply_preconditioner_lr,&
                                              make_preconditioner
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
@@ -73,29 +65,22 @@ MODULE qs_linres_methods
                                              set_loc_centers,&
                                              set_loc_wfn_lists
   USE qs_loc_methods,                  ONLY: qs_loc_driver
-  USE qs_loc_types,                    ONLY: qs_loc_env_release,&
-                                             qs_loc_env_retain,&
-                                             qs_loc_env_create,&
+  USE qs_loc_types,                    ONLY: qs_loc_env_create,&
                                              qs_loc_env_destroy,&
                                              qs_loc_env_new_type
-  USE qs_linres_nmr_op,                ONLY: nmr_operators
   USE qs_loc_utils,                    ONLY: qs_loc_env_init
-  USE qs_matrix_pools,                 ONLY: mpools_get, qs_matrix_pools_type
+  USE qs_matrix_pools,                 ONLY: mpools_get,&
+                                             qs_matrix_pools_type
   USE qs_mo_types,                     ONLY: get_mo_set,&
                                              mo_set_p_type
-  USE qs_p_env_methods,                ONLY: p_postortho,&
-                                             p_preortho
+  USE qs_p_env_methods,                ONLY: p_preortho
   USE qs_p_env_types,                  ONLY: qs_p_env_type
   USE qs_tddfpt_eigensolver,           ONLY: apply_op
   USE qs_tddfpt_utils,                 ONLY: normalize
   USE sparse_matrix_types,             ONLY: real_matrix_p_type
-  USE termination,                     ONLY: stop_memory,&
-                                             stop_program
+  USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE input_section_types,             ONLY: section_vals_type,&
-                                             section_vals_get_subs_vals
-
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -135,24 +120,27 @@ CONTAINS
 
   SUBROUTINE linres_localize(localized_wfn_control,qs_env,nspins,globenv,centers_only,error)
 
-    TYPE(localized_wfn_control_type), POINTER   :: localized_wfn_control
-    TYPE(qs_environment_type), POINTER          :: qs_env
-    INTEGER, INTENT(IN)                         :: nspins
-    LOGICAL, INTENT(IN), OPTIONAL               :: centers_only
-    TYPE(global_environment_type),  &
-      POINTER                                   :: globenv
-    TYPE(cp_error_type), & 
-         INTENT(INOUT), OPTIONAL                :: error
+    TYPE(localized_wfn_control_type), &
+      POINTER                                :: localized_wfn_control
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    INTEGER, INTENT(IN)                      :: nspins
+    TYPE(global_environment_type), POINTER   :: globenv
+    LOGICAL, INTENT(IN), OPTIONAL            :: centers_only
+    TYPE(cp_error_type), INTENT(INOUT), &
+      OPTIONAL                               :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'boh', &
-                                   routineP = moduleN//'/'//routineN
+      routineP = moduleN//'/'//routineN
 
-    INTEGER :: ispin, istat, n_mo(2), nelectron, nmoloc(2)
-    LOGICAL :: failure, ionode, my_centers_only
-    REAL(dp) :: maxocc
-    TYPE(cp_logger_type), POINTER               :: logger
-    TYPE(mo_set_p_type), DIMENSION(:), POINTER  :: mos
-    TYPE(qs_loc_env_new_type), POINTER          :: qs_loc_env     
+    INTEGER                                  :: ispin, istat, n_mo(2), &
+                                                nelectron, nmoloc(2)
+    LOGICAL                                  :: failure, ionode, &
+                                                my_centers_only
+    REAL(dp)                                 :: maxocc
+    TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(mo_set_p_type), DIMENSION(:), &
+      POINTER                                :: mos
+    TYPE(qs_loc_env_new_type), POINTER       :: qs_loc_env
 
     failure = .FALSE.
     NULLIFY(logger)
@@ -216,38 +204,41 @@ CONTAINS
 
   SUBROUTINE linres_scf(p_env, qs_env, psi1, h1_psi0, error)
  
-    TYPE(qs_p_env_type), POINTER                :: p_env
-    TYPE(qs_environment_type), POINTER          :: qs_env
+    TYPE(qs_p_env_type), POINTER             :: p_env
+    TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(cp_fm_p_type), DIMENSION(:), &
-      POINTER                                   :: psi1, h1_psi0
-    TYPE(cp_error_type), &
-         INTENT(INOUT), OPTIONAL                :: error
+      POINTER                                :: psi1, h1_psi0
+    TYPE(cp_error_type), INTENT(INOUT), &
+      OPTIONAL                               :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'linres_scf', &
-                                   routineP = moduleN//'/'//routineN
+      routineP = moduleN//'/'//routineN
 
-
-    INTEGER ::  handle, homo, i, ik, istat, ispin, iter, last_ik, nvectors, output_unit
-    LOGICAL                                     :: ionode, failure,energy_only,vec_zero
-    REAL(dp) :: eps_perturbation, max_input_norm, out_of_ortho,tmp
-    REAL(dp), DIMENSION(:), POINTER             :: occupations, vectorsnorm
-    TYPE(cp_blacs_env_type), POINTER            :: blacs_env
+    INTEGER                                  :: handle, homo, i, ik, ispin, &
+                                                istat, iter, last_ik, &
+                                                nvectors, output_unit
+    LOGICAL                                  :: energy_only, failure, ionode, &
+                                                vec_zero
+    REAL(dp)                                 :: eps_perturbation, &
+                                                max_input_norm, out_of_ortho, &
+                                                tmp
+    REAL(dp), DIMENSION(:), POINTER          :: occupations, vectorsnorm
+    REAL(KIND=dp)                            :: tmp1, tmp2
+    TYPE(cp_blacs_env_type), POINTER         :: blacs_env
     TYPE(cp_fm_p_type), DIMENSION(:), &
-      POINTER                                   :: R, X
-    TYPE(cp_fm_p_type), DIMENSION(:), &
-      POINTER                                   :: b, Ab
+      POINTER                                :: Ab, b, R, X
     TYPE(cp_fm_pool_p_type), DIMENSION(:), &
-      POINTER                                   :: ao_mo_fm_pools
-    TYPE(cp_logger_type), POINTER               :: logger
-    TYPE(cp_para_env_type), POINTER                       :: para_env
-    TYPE(dft_control_type), POINTER             :: dft_control
-    TYPE(linres_control_type), POINTER          :: linres_control
-    TYPE(mo_set_p_type), DIMENSION(:), POINTER  :: mos
-    TYPE(qs_matrix_pools_type), POINTER         :: mpools
+      POINTER                                :: ao_mo_fm_pools
+    TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(linres_control_type), POINTER       :: linres_control
+    TYPE(mo_set_p_type), DIMENSION(:), &
+      POINTER                                :: mos
+    TYPE(qs_matrix_pools_type), POINTER      :: mpools
     TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                   :: matrix_s
-    REAL(KIND=dp) :: tmp1, tmp2 
-    TYPE(section_vals_type), POINTER :: lr_section
+      POINTER                                :: matrix_s
+    TYPE(section_vals_type), POINTER         :: lr_section
 
      failure   = .FALSE.
      energy_only = .FALSE.
@@ -456,16 +447,17 @@ CONTAINS
 
   SUBROUTINE check_p_env_init(p_env,linres_control, nspins, error)
 
-    TYPE(qs_p_env_type), POINTER                :: p_env
-    TYPE(linres_control_type), POINTER          :: linres_control
-    INTEGER, INTENT(IN)                         :: nspins
-    TYPE(cp_error_type), &
-         INTENT(INOUT), OPTIONAL                :: error
+    TYPE(qs_p_env_type), POINTER             :: p_env
+    TYPE(linres_control_type), POINTER       :: linres_control
+    INTEGER, INTENT(IN)                      :: nspins
+    TYPE(cp_error_type), INTENT(INOUT), &
+      OPTIONAL                               :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'check_p_env_init', &
-                                   routineP = moduleN//'/'//routineN
-    LOGICAL :: failure
-    INTEGER :: ispin, nrow, ncol
+      routineP = moduleN//'/'//routineN
+
+    INTEGER                                  :: ispin, ncol, nrow
+    LOGICAL                                  :: failure
 
     failure = .FALSE.
 
@@ -518,7 +510,7 @@ CONTAINS
     IF(linres_control%preconditioner_type /= lr_precond_none) THEN
 
       CPPrecondition(ASSOCIATED(p_env%preconditioner),cp_failure_level,routineP,error,failure)
-      Do ispin = 1,nspins
+      DO ispin = 1,nspins
         CALL cp_fm_get_info(p_env%PS_psi0(ispin)%matrix,nrow_global=nrow,ncol_global=ncol)
         CPPrecondition(nrow==p_env%n_ao(ispin),cp_failure_level,routineP,error,failure)
         CPPrecondition(ncol==p_env%n_mo(ispin),cp_failure_level,routineP,error,failure)
@@ -532,29 +524,27 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE linres_scf_mini(p_env,qs_env,linres_control,b,Ab,nspins,iter,error)
 
-    TYPE(qs_p_env_type), POINTER                :: p_env
-    TYPE(qs_environment_type), POINTER          :: qs_env
-    TYPE(linres_control_type), POINTER          :: linres_control
+    TYPE(qs_p_env_type), POINTER             :: p_env
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(linres_control_type), POINTER       :: linres_control
     TYPE(cp_fm_p_type), DIMENSION(:), &
-      POINTER                                   :: b, Ab
-    INTEGER, INTENT(IN)                         :: iter,nspins
-    TYPE(cp_error_type), &
-         INTENT(INOUT), OPTIONAL                :: error
+      POINTER                                :: b, Ab
+    INTEGER, INTENT(IN)                      :: nspins, iter
+    TYPE(cp_error_type), INTENT(INOUT), &
+      OPTIONAL                               :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'linres_scf_mini', &
-                                   routineP = moduleN//'/'//routineN
+      routineP = moduleN//'/'//routineN
 
-    INTEGER :: ip, ispin, istat, k, nao, nmo
-    LOGICAL :: failure
-    REAL(dp) :: polak_gamma, test_down, tmp, tmp_e
-    TYPE(cp_fm_p_type), DIMENSION(2)            :: PS_psi0
-    TYPE(cp_fm_type), POINTER                   :: mo_coeff
+    INTEGER                                  :: ispin, k, nao, nmo
+    LOGICAL                                  :: failure
+    REAL(dp)                                 :: polak_gamma, test_down, tmp
+    TYPE(cp_fm_p_type), DIMENSION(2)         :: PS_psi0
+    TYPE(cp_fm_type), POINTER                :: mo_coeff
     TYPE(mo_set_p_type), DIMENSION(:), &
-      POINTER                                   :: mos
+      POINTER                                :: mos
     TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                   :: matrix_ks, matrix_t, matrix_s
-
-    integer :: i,j
+      POINTER                                :: matrix_ks, matrix_s, matrix_t
 
     failure = .FALSE.
 
@@ -723,18 +713,18 @@ CONTAINS
   SUBROUTINE linres_derivative(Ab,PS_psi0,p_env,nspins,error)
 
     TYPE(cp_fm_p_type), DIMENSION(:), &
-      POINTER                                   :: Ab
-    TYPE(cp_fm_p_type), DIMENSION(2)            :: PS_psi0
-    TYPE(qs_p_env_type), POINTER                :: p_env
-    INTEGER :: nspins
+      POINTER                                :: Ab
+    TYPE(cp_fm_p_type), DIMENSION(2)         :: PS_psi0
+    TYPE(qs_p_env_type), POINTER             :: p_env
+    INTEGER                                  :: nspins
     TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                                  :: error
+      OPTIONAL                               :: error
 
-    CHARACTER(len=*), PARAMETER :: routine_name='linres_derivative',&
+    CHARACTER(len=*), PARAMETER :: routine_name = 'linres_derivative', &
       routineP = moduleN//':'//routine_name
 
-    INTEGER :: fcol, ip, ispin, lcol, n_ao, n_mo, n_range
-    LOGICAL :: failure
+    INTEGER                                  :: ispin, n_ao, n_mo
+    LOGICAL                                  :: failure
 
     failure = .FALSE.
     DO ispin = 1,nspins
@@ -756,16 +746,16 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE do_lr_line_search(p_env,vectors,linres_control,nspins,error)
 
-    TYPE(qs_p_env_type), POINTER                :: p_env
+    TYPE(qs_p_env_type), POINTER             :: p_env
     TYPE(cp_fm_p_type), DIMENSION(:), &
-      POINTER                                   :: vectors
-    TYPE(linres_control_type), POINTER          :: linres_control
-    INTEGER :: nspins
+      POINTER                                :: vectors
+    TYPE(linres_control_type), POINTER       :: linres_control
+    INTEGER                                  :: nspins
     TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                                  :: error
+      OPTIONAL                               :: error
 
-    INTEGER  :: ispin
-    REAL(dp) :: ds
+    INTEGER                                  :: ispin
+    REAL(dp)                                 :: ds
 
     SELECT CASE(linres_control%ls_method)
 
@@ -790,19 +780,18 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE do_lr_ls_2pnt(p_env,vectors,ds_min,nspins,error)
 
-    TYPE(qs_p_env_type), POINTER                :: p_env
+    TYPE(qs_p_env_type), POINTER             :: p_env
     TYPE(cp_fm_p_type), DIMENSION(:), &
-      POINTER                                   :: vectors
-    REAL(dp)                                    :: ds_min
-    INTEGER                                     :: nspins
-    TYPE(cp_error_type), &
-         INTENT(INOUT), OPTIONAL                :: error
+      POINTER                                :: vectors
+    REAL(dp)                                 :: ds_min
+    INTEGER                                  :: nspins
+    TYPE(cp_error_type), INTENT(INOUT), &
+      OPTIONAL                               :: error
 
-    INTEGER :: count, ispin
-    REAL(dp) :: a, b, c, ds, pos, val, x0, x1
-    REAL(DP), DIMENSION(:), POINTER             :: ls_pos 
+    INTEGER                                  :: count, ispin
+    REAL(dp)                                 :: a, b, c, ds, pos, val, x0, x1
+    REAL(DP), DIMENSION(:), POINTER          :: ls_pos
 
-    
     NULLIFY(ls_pos)
     p_env%ls_count = p_env%ls_count + 1
     count = p_env%ls_count 
@@ -822,7 +811,7 @@ CONTAINS
          c = p_env%ls_energy(1)
          b = p_env%ls_grad(1)
          a = (p_env%ls_energy(2)-b*x1-c)/(x1*x1)
-         IF(a .le. 0.0_dp) a = 1.E-15_dp
+         IF(a .LE. 0.0_dp) a = 1.E-15_dp
          pos = -b/(2.0_dp*a)
          val = a*pos*pos+b*pos+c 
          IF(val .LT. c .AND. val .LE. p_env%ls_energy(2)) THEN
@@ -851,20 +840,20 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE do_lr_ls_3pnt(p_env,vectors,ds_min,nspins,error)
 
-    TYPE(qs_p_env_type), POINTER                :: p_env
+    TYPE(qs_p_env_type), POINTER             :: p_env
     TYPE(cp_fm_p_type), DIMENSION(:), &
-      POINTER                                   :: vectors
-    REAL(dp)                                    :: ds_min
-    INTEGER                                     :: nspins
-    TYPE(cp_error_type), &
-         INTENT(INOUT), OPTIONAL                :: error
+      POINTER                                :: vectors
+    REAL(dp)                                 :: ds_min
+    INTEGER                                  :: nspins
+    TYPE(cp_error_type), INTENT(INOUT), &
+      OPTIONAL                               :: error
 
-    INTEGER :: count, ispin
-    REAL(dp) :: den, ds, f1, f2, f3, nom, pos, val, x1, x2, x3
-    REAL(DP), DIMENSION(:), POINTER             :: ls_pos 
+    INTEGER                                  :: count, ispin
+    REAL(dp)                                 :: den, ds, f1, f2, f3, nom, &
+                                                pos, val, x1, x2, x3
+    REAL(DP), DIMENSION(:), POINTER          :: ls_pos
 
-
-    nullify(ls_pos)  
+    NULLIFY(ls_pos)  
     p_env%ls_count = p_env%ls_count + 1
     count = p_env%ls_count 
     p_env%only_energy = .TRUE.

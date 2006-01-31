@@ -26,44 +26,35 @@
 !!****
 
 MODULE qs_linres_module
-  USE cp_output_handling,              ONLY: cp_print_key_unit_nr, &
-                                             cp_print_key_finished_output,&
-                                             cp_print_key_should_output,&
-                                             cp_p_file
   USE cp_control_types,                ONLY: dft_control_type
-  USE cp_fm_types,                     ONLY: cp_fm_to_fm,&
-                                             cp_fm_type
+  USE cp_fm_types,                     ONLY: cp_fm_type
+  USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
+                                             cp_print_key_unit_nr
   USE global_types,                    ONLY: global_environment_type
-  USE input_constants,                 ONLY: lr_none, lr_chemshift,&
-                                             state_loc_all,&
-                                             lr_cg,lr_diis,lr_sd,&
-                                             lr_ls_none,lr_ls_2pnt,lr_ls_3pnt,lr_ls_gold,&
-                                             lr_precond_none,lr_precond_single,&
-                                             lr_precond_s_inverse,lr_precond_full_all
+  USE input_constants,                 ONLY: &
+       lr_cg, lr_chemshift, lr_diis, lr_ls_2pnt, lr_ls_3pnt, lr_ls_gold, &
+       lr_ls_none, lr_none, lr_precond_full_all, lr_precond_none, &
+       lr_precond_s_inverse, lr_precond_single, lr_sd
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&
-                                             section_vals_get_subs_vals2,&
                                              section_vals_type,&
                                              section_vals_val_get
   USE kinds,                           ONLY: dp
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type,&
                                              set_qs_env
+  USE qs_linres_methods,               ONLY: linres_localize
+  USE qs_linres_nmr_op,                ONLY: nmr_operators
   USE qs_linres_nmr_utils,             ONLY: nmr_do_nmr,&
                                              nmr_env_cleanup,&
                                              nmr_env_init
-  USE qs_linres_methods,               ONLY: linres_localize
-  USE qs_linres_nmr_op,                ONLY: nmr_operators
   USE qs_linres_types,                 ONLY: linres_control_create,&
                                              linres_control_release,&
-                                             linres_control_retain,&
                                              linres_control_type,&
                                              nmr_env_type
-  USE qs_loc_control,                  ONLY: read_loc_section,&
-                                             set_loc_centers,&
-                                             set_loc_wfn_lists
-  USE qs_mo_methods,                   ONLY: calculate_subspace_eigenvalues,&
-                                             calculate_density_matrix
+  USE qs_loc_control,                  ONLY: read_loc_section
+  USE qs_mo_methods,                   ONLY: calculate_density_matrix,&
+                                             calculate_subspace_eigenvalues
   USE qs_mo_types,                     ONLY: get_mo_set,&
                                              mo_set_p_type
   USE qs_p_env_methods,                ONLY: p_env_create,&
@@ -113,24 +104,23 @@ CONTAINS
 
   SUBROUTINE linres_calculation(qs_env, globenv, error)
 
-    TYPE(qs_environment_type), POINTER          :: qs_env
-    TYPE(global_environment_type),  &
-      POINTER                                   :: globenv
-    TYPE(cp_error_type), &
-         INTENT(INOUT), OPTIONAL                :: error
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(global_environment_type), POINTER   :: globenv
+    TYPE(cp_error_type), INTENT(INOUT), &
+      OPTIONAL                               :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'linres_calculation', &
-                                   routineP = moduleN//'/'//routineN
- 
-    INTEGER                                     :: handle,output_unit
-    LOGICAL                                     :: ionode, failure, &
-                                                   lr_calculation, was_present
-    TYPE(cp_logger_type), POINTER               :: logger    
-    TYPE(dft_control_type), POINTER             :: dft_control
-    TYPE(linres_control_type), POINTER          :: linres_control
-    TYPE(nmr_env_type)                          :: nmr_env
-    TYPE(qs_p_env_type), POINTER                :: p_env
-    TYPE(section_vals_type), POINTER            :: lr_section, prop_section
+      routineP = moduleN//'/'//routineN
+
+    INTEGER                                  :: handle, output_unit
+    LOGICAL                                  :: failure, ionode, &
+                                                lr_calculation, was_present
+    TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(linres_control_type), POINTER       :: linres_control
+    TYPE(nmr_env_type)                       :: nmr_env
+    TYPE(qs_p_env_type), POINTER             :: p_env
+    TYPE(section_vals_type), POINTER         :: lr_section, prop_section
 
     CALL timeset(routineN,"I"," ",handle)    
     failure = .FALSE. 
@@ -177,8 +167,8 @@ CONTAINS
          CALL nmr_env_init(nmr_env,qs_env,globenv,error=error)
          CALL nmr_operators(nmr_env,qs_env,error=error)
          CALL nmr_do_nmr(nmr_env,p_env,qs_env,globenv,error=error)
-     write(*,*) 'donmr'
-     stop 'lr_calculation'
+     WRITE(*,*) 'donmr'
+     STOP 'lr_calculation'
          CALL nmr_env_cleanup(nmr_env,error=error)
 
        END IF
@@ -234,31 +224,30 @@ CONTAINS
 
   SUBROUTINE linres_init(lr_section,p_env,qs_env,globenv,error)
 
-    TYPE(section_vals_type), POINTER            :: lr_section
-    TYPE(qs_environment_type), POINTER          :: qs_env
-    TYPE(qs_p_env_type), POINTER                :: p_env
-    TYPE(global_environment_type),  &
-      POINTER                                   :: globenv
-    TYPE(cp_error_type), & 
-         INTENT(INOUT), OPTIONAL                :: error
+    TYPE(section_vals_type), POINTER         :: lr_section
+    TYPE(qs_p_env_type), POINTER             :: p_env
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(global_environment_type), POINTER   :: globenv
+    TYPE(cp_error_type), INTENT(INOUT), &
+      OPTIONAL                               :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'linres_init', &
-                                   routineP = moduleN//'/'//routineN
- 
-    INTEGER :: i, istat, ispin, j, nelectron,nmoloc(2),nspins,output_unit
-    LOGICAL :: failure, do_it, ionode
-    REAL(dp) :: maxocc
-    REAL(dp), DIMENSION(:), POINTER  :: evals 
-    TYPE(cp_fm_type), POINTER                   :: mo_coeff
-    TYPE(cp_logger_type), POINTER               :: logger
-    TYPE(dft_control_type), POINTER             :: dft_control
-    TYPE(linres_control_type), POINTER          :: linres_control
+      routineP = moduleN//'/'//routineN
+
+    INTEGER                                  :: i, ispin, istat, j, nspins, &
+                                                output_unit
+    LOGICAL                                  :: do_it, failure
+    REAL(dp), DIMENSION(:), POINTER          :: evals
+    TYPE(cp_fm_type), POINTER                :: mo_coeff
+    TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(linres_control_type), POINTER       :: linres_control
     TYPE(mo_set_p_type), DIMENSION(:), &
-      POINTER                                   :: mos
-    TYPE(qs_rho_type), POINTER                  :: rho
+      POINTER                                :: mos
+    TYPE(qs_rho_type), POINTER               :: rho
     TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                   :: matrix_ks, matrix_s
-    TYPE(section_vals_type), POINTER            :: loc_section
+      POINTER                                :: matrix_ks, matrix_s
+    TYPE(section_vals_type), POINTER         :: loc_section
 
     failure = .FALSE.
 

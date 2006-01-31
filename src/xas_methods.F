@@ -22,11 +22,9 @@
 
 MODULE xas_methods
 
-  USE ai_moments,                      ONLY: diffop
   USE ai_overlap_new,                  ONLY: overlap
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
-                                             get_atomic_kind,&
-                                             get_atomic_kind_set
+                                             get_atomic_kind
   USE basis_set_types,                 ONLY: allocate_sto_basis_set,&
                                              create_gto_from_sto_basis,&
                                              deallocate_sto_basis_set,&
@@ -35,109 +33,84 @@ MODULE xas_methods
                                              init_orb_basis_set,&
                                              set_sto_basis_set,&
                                              sto_basis_set_type
-  USE checkpoint_handler,              ONLY: write_checkpoint_information
+  USE cell_types,                      ONLY: cell_type,&
+                                             pbc
   USE cp_array_r_utils,                ONLY: cp_2d_r_p_type
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_files,                        ONLY: open_file
   USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm
-  USE cp_fm_pool_types,                ONLY: cp_fm_pool_p_type,&
-                                             fm_pool_create_fm
+  USE cp_fm_pool_types,                ONLY: fm_pool_create_fm
   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                              cp_fm_struct_release,&
                                              cp_fm_struct_type
   USE cp_fm_types,                     ONLY: cp_fm_create,&
                                              cp_fm_get_element,&
-                                             cp_fm_get_info,&
-                                             cp_fm_p_type,&
-                                             cp_fm_release,&
-                                             cp_fm_to_fm,&
                                              cp_fm_get_submatrix,&
+                                             cp_fm_p_type,&
                                              cp_fm_set_all,&
                                              cp_fm_set_submatrix,&
+                                             cp_fm_to_fm,&
                                              cp_fm_type
+  USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
+                                             cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_sm_fm_interactions,           ONLY: cp_sm_fm_multiply
   USE global_types,                    ONLY: global_environment_type
-  USE input_constants,                 ONLY: xas_none, xas_tp_hh, &
-                                             xas_tp_fh, xes_tp_val,&
-                                             xas_tp_xhh, xas_tp_xfh,&
-                                             xas_tddft, xas_dscf,&
-                                             xas_1s_type, xas_2s_type, &
-                                             xas_2p_type, xas_dip_len,&
-                                             xas_scf_default,xas_scf_general,xas_scf_ot,&
-                                             do_loc_none, op_loc_berry,&
-                                             state_loc_upton
-  USE input_section_types,             ONLY: section_vals_type, section_vals_val_get,&
-                                             section_vals_get_subs_vals
+  USE input_constants,                 ONLY: &
+       do_loc_none, op_loc_berry, state_loc_upton, xas_1s_type, xas_2p_type, &
+       xas_2s_type, xas_dip_len, xas_dscf, xas_scf_default, xas_scf_general, &
+       xas_scf_ot, xas_tddft, xas_tp_fh, xas_tp_hh, xas_tp_xfh, xas_tp_xhh, &
+       xes_tp_val
+  USE input_section_types,             ONLY: section_vals_get_subs_vals,&
+                                             section_vals_type
   USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: twopi
-  USE memory_utilities,                ONLY: reallocate
-  USE orbital_pointers,                ONLY: nco,&
-                                             ncoset
-  USE particle_types,                  ONLY: get_particle_set,particle_type
+  USE orbital_pointers,                ONLY: ncoset
+  USE particle_types,                  ONLY: get_particle_set,&
+                                             particle_type
   USE periodic_table,                  ONLY: ptable
   USE physcon,                         ONLY: evolt
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type,&
                                              set_qs_env
-  USE qs_loc_control,                  ONLY: localized_wfn_control_type,&
-                                             localized_wfn_control_release,&
+  USE qs_loc_control,                  ONLY: localized_wfn_control_release,&
                                              localized_wfn_control_retain,&
+                                             localized_wfn_control_type,&
                                              set_loc_centers,&
                                              set_loc_wfn_lists
-  USE qs_loc_methods,                  ONLY: qs_loc_driver,qs_print_cubes
-  USE qs_loc_types,                    ONLY: qs_loc_env_release,&
-                                             qs_loc_env_retain,&
-                                             qs_loc_env_create,&
-                                             qs_loc_env_new_type
+  USE qs_loc_methods,                  ONLY: qs_loc_driver,&
+                                             qs_print_cubes
+  USE qs_loc_types,                    ONLY: qs_loc_env_create,&
+                                             qs_loc_env_new_type,&
+                                             qs_loc_env_release
   USE qs_loc_utils,                    ONLY: qs_loc_env_init
-  USE qs_matrix_pools,                 ONLY: mpools_get, &
+  USE qs_matrix_pools,                 ONLY: mpools_get,&
                                              qs_matrix_pools_type
   USE qs_mo_methods,                   ONLY: calculate_subspace_eigenvalues
   USE qs_mo_types,                     ONLY: get_mo_set,&
-                                             mo_set_p_type,mo_set_type,&
-                                             set_mo_set,write_mo_set
-  USE qs_neighbor_list_types,          ONLY: find_neighbor_list,&
-                                             first_list,&
-                                             first_node,&
-                                             get_neighbor_list,&
-                                             get_neighbor_list_set,&
-                                             get_neighbor_node,&
-                                             block_p_type,&
-                                             neighbor_list_set_p_type,&
-                                             neighbor_list_type,&
-                                             neighbor_node_type,&
-                                             next
+                                             mo_set_p_type,&
+                                             set_mo_set,&
+                                             write_mo_set
   USE qs_operators_ao,                 ONLY: p_xyz_ao
   USE qs_scf,                          ONLY: init_scf_run,&
                                              scf_env_cleanup
   USE qs_scf_types,                    ONLY: qs_scf_env_type
   USE scf_control_types,               ONLY: scf_control_type
   USE semi_empirical_parameters,       ONLY: srules
-  USE cell_types,                 ONLY: cell_type, pbc
-  USE sparse_matrix_types,             ONLY: get_block_node,&
-                                             real_matrix_p_type, &
-                                             real_matrix_type,&
+  USE sparse_matrix_types,             ONLY: real_matrix_p_type,&
                                              replicate_matrix_structure,&
                                              set_matrix
-  USE string_utilities,                ONLY: uppercase,&
-                                             xstring
-  USE termination,                     ONLY: stop_memory,&
-                                             stop_program
+  USE string_utilities,                ONLY: xstring
+  USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE xas_control,                     ONLY: xas_control_type
-  USE xas_env_types,                   ONLY: get_xas_env, set_xas_env, &  
-                                             xas_env_create, xas_env_release,&
-                                             xas_env_retain, &
+  USE xas_env_types,                   ONLY: get_xas_env,&
+                                             set_xas_env,&
+                                             xas_env_create,&
+                                             xas_env_release,&
                                              xas_environment_type
   USE xas_tp_scf,                      ONLY: xas_do_tp_scf
-  USE cp_output_handling,              ONLY: cp_print_key_unit_nr, &
-                                             cp_print_key_finished_output,&
-                                             cp_print_key_should_output,&
-                                             cp_p_file
-
-
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -190,69 +163,65 @@ CONTAINS
 
   SUBROUTINE xas(qs_env, xas_control, globenv, error)
 
-    TYPE(qs_environment_type), POINTER          :: qs_env
-    TYPE(xas_control_type)                      :: xas_control
-    TYPE(global_environment_type), &
-      POINTER                                   :: globenv
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(xas_control_type)                   :: xas_control
+    TYPE(global_environment_type), POINTER   :: globenv
     TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                                  :: error
+      OPTIONAL                               :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = "xas", &
       routineP = module_name//':'//routineN
 
-    INTEGER :: handle, homo, i, iat, iatom, ikind, iset, &
-               isgf, ispin, istat, istate, iter, &
-               j, la,  my_homo(2),my_kind, nao, natom, nelectron, nmo,  &
-               nspins, nexc_search, nvirtual2, output_unit,& 
-               state_to_be_excited, xas_iter_count
-    INTEGER, ALLOCATABLE, DIMENSION(:)          :: first_sgf
-    INTEGER, DIMENSION(:), POINTER              :: atom_of_state
-    INTEGER, DIMENSION(:), POINTER              :: type_of_state
-    INTEGER, DIMENSION(:), POINTER              :: state_of_atom
-    INTEGER, DIMENSION(:), POINTER              :: state_of_mytype
-    INTEGER, DIMENSION(:), POINTER              :: mykind_of_kind
-
-    LOGICAL :: failure, ionode, my_uocc(2), transition_potential, uocc
-    REAL(dp) :: component, dist, distmin,  maxocc, &
-                ra(3), rac(3), rc(3)
-    REAL(dp), DIMENSION(:), POINTER             :: occupation_numbers
-    REAL(dp), DIMENSION(:), POINTER             :: max_overlap, sto_state_overlap
-    REAL(dp), DIMENSION(:), POINTER             :: eigenvalues
-    REAL(dp), DIMENSION(:), POINTER             :: all_evals
-    REAL(dp), DIMENSION(:,:), ALLOCATABLE       :: orb_char
-    REAL(dp), DIMENSION(:,:), POINTER           :: spectrum, zet
-    REAL(dp), DIMENSION(:,:), POINTER           :: centers_wfn
-    REAL(dp), DIMENSION(:,:), POINTER           :: vecbuffer
+    INTEGER :: handle, homo, i, iat, iatom, ikind, isgf, ispin, istat, &
+      istate, iter, j, my_homo(2), my_kind, nao, natom, nelectron, &
+      nexc_search, nmo, nspins, nvirtual2, output_unit, state_to_be_excited, &
+      xas_iter_count
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: first_sgf
+    INTEGER, DIMENSION(:), POINTER           :: atom_of_state, &
+                                                mykind_of_kind, &
+                                                state_of_atom, &
+                                                state_of_mytype, type_of_state
+    LOGICAL                                  :: failure, ionode, my_uocc(2), &
+                                                transition_potential, uocc
+    REAL(dp)                                 :: component, dist, distmin, &
+                                                maxocc, ra(3), rac(3), rc(3)
+    REAL(dp), DIMENSION(:), POINTER          :: all_evals, eigenvalues, &
+                                                max_overlap, &
+                                                occupation_numbers, &
+                                                sto_state_overlap
+    REAL(dp), DIMENSION(:, :), POINTER       :: centers_wfn, spectrum, &
+                                                vecbuffer
     TYPE(atomic_kind_type), DIMENSION(:), &
-      POINTER                                   :: atomic_kind_set
-    TYPE(atomic_kind_type), POINTER             :: atomic_kind    
-    TYPE(cell_type), POINTER                    :: cell
-    TYPE(cp_2d_r_p_type), DIMENSION(:), POINTER :: stogto_overlap
-    TYPE( cp_fm_p_type ), DIMENSION(:),  &
-      POINTER                                   :: groundstate_coeff
-    TYPE( cp_fm_p_type ), DIMENSION(:,:),  &
-      POINTER                                   :: dip_fm_set
-    TYPE(cp_fm_type), POINTER                   :: mo_coeff
-    TYPE(cp_fm_type), POINTER                   :: fm_work
-    TYPE(cp_fm_type), POINTER                   :: excvec_coeff
-    TYPE(cp_fm_type), POINTER                   :: all_vectors
-    TYPE(cp_logger_type), POINTER               :: logger
-    TYPE(cp_para_env_type), POINTER             :: para_env
-    TYPE(dft_control_type), POINTER             :: dft_control
-    TYPE(localized_wfn_control_type), POINTER   :: my_localized_wfn_control
-    TYPE(mo_set_p_type), DIMENSION(:), POINTER  :: mos
+      POINTER                                :: atomic_kind_set
+    TYPE(atomic_kind_type), POINTER          :: atomic_kind
+    TYPE(cell_type), POINTER                 :: cell
+    TYPE(cp_2d_r_p_type), DIMENSION(:), &
+      POINTER                                :: stogto_overlap
+    TYPE(cp_fm_p_type), DIMENSION(:), &
+      POINTER                                :: groundstate_coeff
+    TYPE(cp_fm_p_type), DIMENSION(:, :), &
+      POINTER                                :: dip_fm_set
+    TYPE(cp_fm_type), POINTER                :: all_vectors, excvec_coeff, &
+                                                fm_work, mo_coeff
+    TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(localized_wfn_control_type), &
+      POINTER                                :: my_localized_wfn_control
+    TYPE(mo_set_p_type), DIMENSION(:), &
+      POINTER                                :: mos
     TYPE(particle_type), DIMENSION(:), &
-      POINTER                                   :: particle_set
-    TYPE( qs_loc_env_new_type ), POINTER        :: qs_loc_env
-    TYPE(qs_scf_env_type), POINTER              :: scf_env
-    TYPE(real_matrix_p_type), DIMENSION(:),  &
-      POINTER                                   :: op_sm, matrix_ks
-    TYPE( real_matrix_p_type ), DIMENSION(:,:), &
-      POINTER                                   :: ostrength_sm
-    TYPE(scf_control_type), POINTER             :: scf_control
-    TYPE(section_vals_type),POINTER             :: dft_section, xas_section, scf_section
-    TYPE(xas_environment_type), POINTER         :: xas_env
-
+      POINTER                                :: particle_set
+    TYPE(qs_loc_env_new_type), POINTER       :: qs_loc_env
+    TYPE(qs_scf_env_type), POINTER           :: scf_env
+    TYPE(real_matrix_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_ks, op_sm
+    TYPE(real_matrix_p_type), &
+      DIMENSION(:, :), POINTER               :: ostrength_sm
+    TYPE(scf_control_type), POINTER          :: scf_control
+    TYPE(section_vals_type), POINTER         :: dft_section, scf_section, &
+                                                xas_section
+    TYPE(xas_environment_type), POINTER      :: xas_env
 
     CALL timeset(routineN,"I",'',handle)
 
@@ -339,10 +308,9 @@ CONTAINS
     nspins = dft_control%nspins
     transition_potential = (xas_control%xas_method.LT.xas_tddft).OR.&
                            (xas_control%xas_method==xas_dscf)
-    IF(nspins ==1 .AND. transition_potential) THEN
+    IF(nspins==1 .AND. transition_potential) THEN
        CALL stop_program(routineP,"xas with tp method requires LSD calculations")
     END IF
-
 !   Set of states among which there is the state to be excited
     CALL get_mo_set(mos(1)%mo_set,nao=nao,homo=homo)
     IF(nexc_search < 0) nexc_search = homo
@@ -422,7 +390,8 @@ CONTAINS
            distmin = dist
         END IF
       END DO
-! if(ionode) WRITE(*,'(I4,A,I4,6f10.5)') istate, 'atom ', atom_of_state(istate),  particle_set(atom_of_state(istate))%r(1:3), centers_wfn(1:3,istate)
+! WRITE(*,'(I4,A,I4,6f10.5)') istate, 'atom ', atom_of_state(istate), &
+!         particle_set(atom_of_state(istate))%r(1:3), centers_wfn(1:3,istate)
       IF(atom_of_state(istate) /= 0) THEN 
       !Character of the state
          CALL cp_fm_get_submatrix(mo_coeff,vecbuffer,1,istate,&
@@ -533,6 +502,9 @@ CONTAINS
 
          CALL xas_do_tp_scf(xas_control,xas_env,iatom,scf_env,qs_env,globenv,error=error)
 
+!dbg 
+!  write(*,*) iat, state_to_be_excited
+! stop 'check'
          IF(iat == xas_control%nexc_atoms) THEN 
             CALL scf_env_cleanup(scf_env,qs_env=qs_env,error=error)
          END IF
@@ -656,43 +628,42 @@ CONTAINS
     TYPE(xas_environment_type), POINTER      :: xas_env
     TYPE(xas_control_type)                   :: xas_control
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(global_environment_type), &
-      POINTER                                :: globenv
+    TYPE(global_environment_type), POINTER   :: globenv
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-    CHARACTER(len=*), PARAMETER :: routine_name='xas_env_init',&
+    CHARACTER(len=*), PARAMETER :: routine_name = 'xas_env_init', &
       routineP = module_name//':'//routine_name
 
-    INTEGER :: homo, i, iat, iatom, ik, ikind, ispin, istat, j, &
-               nao, nexc_atoms, nexc_search, n_mo(2), nj, nk, nkind,&
-               nmo, nmoloc(2), norb(0:3), nsgf_gto, nsgf_sto, nspins, nwork
+    INTEGER :: homo, i, iat, iatom, ik, ikind, ispin, istat, j, l, n_mo(2), &
+      nao, nexc_atoms, nexc_search, nj, nk, nkind, nmo, nmoloc(2), norb(0:3), &
+      nsgf_gto, nsgf_sto, nspins, nwork
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: kind_type_tmp, kind_z_tmp
     INTEGER, DIMENSION(4, 7)                 :: ne
-    INTEGER                                  ::  l
-
-    INTEGER, DIMENSION(:), ALLOCATABLE          :: kind_type_tmp, kind_z_tmp
-    INTEGER, DIMENSION(:), POINTER              :: lq, nq
-    LOGICAL :: failure, ihavethis
-    REAL(dp) :: zatom
-    REAL(dp), DIMENSION(:), POINTER             :: sto_zet
-    REAL(dp), DIMENSION(:,:), POINTER           :: sto_alpha
+    INTEGER, DIMENSION(:), POINTER           :: lq, nq
+    LOGICAL                                  :: failure, ihavethis
+    REAL(dp)                                 :: zatom
+    REAL(dp), DIMENSION(:), POINTER          :: sto_zet
+    REAL(dp), DIMENSION(:, :), POINTER       :: sto_alpha
     TYPE(atomic_kind_type), DIMENSION(:), &
-      POINTER                                   :: atomic_kind_set
-    TYPE(atomic_kind_type), POINTER             :: atomic_kind    
-    TYPE(dft_control_type), POINTER             :: dft_control
-    TYPE(cp_fm_type), POINTER                   :: mo_coeff
-    TYPE(cp_fm_struct_type), POINTER            :: tmp_fm_struct
-    TYPE(cp_para_env_type), POINTER             :: para_env
-    TYPE(gto_basis_set_type), POINTER           :: orb_basis_set
-    TYPE(localized_wfn_control_type), POINTER   :: my_localized_wfn_control
-    TYPE(mo_set_p_type), DIMENSION(:), POINTER  :: mos
+      POINTER                                :: atomic_kind_set
+    TYPE(atomic_kind_type), POINTER          :: atomic_kind
+    TYPE(cp_fm_struct_type), POINTER         :: tmp_fm_struct
+    TYPE(cp_fm_type), POINTER                :: mo_coeff
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
+    TYPE(localized_wfn_control_type), &
+      POINTER                                :: my_localized_wfn_control
+    TYPE(mo_set_p_type), DIMENSION(:), &
+      POINTER                                :: mos
     TYPE(particle_type), DIMENSION(:), &
-      POINTER                                   :: particle_set
-    TYPE(qs_matrix_pools_type), POINTER         :: mpools
+      POINTER                                :: particle_set
+    TYPE(qs_matrix_pools_type), POINTER      :: mpools
     TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                   :: matrix_s
-    TYPE(scf_control_type), POINTER             :: scf_control
-    TYPE(sto_basis_set_type), POINTER           :: sto_basis_set
+      POINTER                                :: matrix_s
+    TYPE(scf_control_type), POINTER          :: scf_control
+    TYPE(sto_basis_set_type), POINTER        :: sto_basis_set
 
 !------------------------------------------------------------------------------
 
@@ -1033,20 +1004,21 @@ CONTAINS
 
   SUBROUTINE xas_write(xas_control, spectrum, estate, homo, iatom, iter, ionode, error)
 
-    TYPE(xas_control_type)                      :: xas_control
-    REAL(dp), DIMENSION(:,:),POINTER            :: spectrum
-    INTEGER, INTENT(IN)                         :: estate, homo, iatom, iter
-    LOGICAL, INTENT(IN)                         :: ionode
+    TYPE(xas_control_type)                   :: xas_control
+    REAL(dp), DIMENSION(:, :), POINTER       :: spectrum
+    INTEGER, INTENT(IN)                      :: estate, homo, iatom, iter
+    LOGICAL, INTENT(IN)                      :: ionode
     TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                                  :: error
+      OPTIONAL                               :: error
 
     CHARACTER(len=*), PARAMETER :: routine_name = 'xas_write', &
       routineP = module_name//':'//routine_name
 
-    CHARACTER(len = 50)                      :: filename
-    INTEGER :: ia, ie, istate, istate0, out_sp
-    LOGICAL :: failure, file_exists
-    
+    CHARACTER(len=50)                        :: filename
+    INTEGER                                  :: ia, ie, istate, istate0, &
+                                                out_sp
+    LOGICAL                                  :: failure, file_exists
+
     failure = .FALSE.
     out_sp = 23
     file_exists = .FALSE.
@@ -1092,7 +1064,7 @@ CONTAINS
          END DO 
       END IF
 
-      close(out_sp)
+      CLOSE(out_sp)
     END IF
 
   END SUBROUTINE xas_write
@@ -1124,24 +1096,24 @@ CONTAINS
 
   SUBROUTINE  xas_print_cubes(xas_control,qs_env,mos,all_vectors,iter,iatom,ionode,error)
 
-    TYPE(xas_control_type)                       :: xas_control
-    TYPE(qs_environment_type), POINTER           :: qs_env
+    TYPE(xas_control_type)                   :: xas_control
+    TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(mo_set_p_type), DIMENSION(:), &
-      POINTER                                    :: mos
-    TYPE(cp_fm_type),  POINTER                   :: all_vectors
-    INTEGER, INTENT(IN)                          :: iter,iatom
-    LOGICAL, INTENT(IN)                          :: ionode
+      POINTER                                :: mos
+    TYPE(cp_fm_type), POINTER                :: all_vectors
+    INTEGER, INTENT(IN)                      :: iter, iatom
+    LOGICAL, INTENT(IN)                      :: ionode
     TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                                   :: error
+      OPTIONAL                               :: error
 
     CHARACTER(len=*), PARAMETER :: routine_name = 'xas_print_cubes', &
       routineP = module_name//':'//routine_name
 
-    CHARACTER(len=50) :: flag
-    INTEGER :: homo, ispin, istat, istate, istate0, nspins, nstates
-    LOGICAL :: failure
-
-    REAL(dp), DIMENSION(:,:), POINTER             :: centers
+    CHARACTER(len=50)                        :: flag
+    INTEGER                                  :: homo, istat, istate0, nspins, &
+                                                nstates
+    LOGICAL                                  :: failure
+    REAL(dp), DIMENSION(:, :), POINTER       :: centers
 
     failure = .FALSE.
 
@@ -1212,31 +1184,33 @@ CONTAINS
   SUBROUTINE spectrum_dip_len(xas_control,fm_set,op_sm,mos,excvec,&
              all_vectors,all_evals,fm_work,cell,spectrum,estate,error)
 
-    TYPE(xas_control_type)                      :: xas_control
-    TYPE( cp_fm_p_type ), DIMENSION(:,:),  &
-      POINTER                                   :: fm_set
-    TYPE( real_matrix_p_type ), DIMENSION(:,:), &
-      POINTER                                   :: op_sm
-    TYPE(mo_set_p_type), DIMENSION(:), POINTER  :: mos
-    TYPE(cp_fm_type), POINTER                   :: excvec
-    TYPE(cp_fm_type), POINTER                   :: all_vectors
-    REAL(dp), DIMENSION(:), POINTER             :: all_evals
-    TYPE(cp_fm_type), POINTER                   :: fm_work
-    TYPE(cell_type), POINTER                    :: cell
-    REAL(dp), DIMENSION(:,:), POINTER           :: spectrum
-    INTEGER, INTENT(IN)                         :: estate
-
+    TYPE(xas_control_type)                   :: xas_control
+    TYPE(cp_fm_p_type), DIMENSION(:, :), &
+      POINTER                                :: fm_set
+    TYPE(real_matrix_p_type), &
+      DIMENSION(:, :), POINTER               :: op_sm
+    TYPE(mo_set_p_type), DIMENSION(:), &
+      POINTER                                :: mos
+    TYPE(cp_fm_type), POINTER                :: excvec, all_vectors
+    REAL(dp), DIMENSION(:), POINTER          :: all_evals
+    TYPE(cp_fm_type), POINTER                :: fm_work
+    TYPE(cell_type), POINTER                 :: cell
+    REAL(dp), DIMENSION(:, :), POINTER       :: spectrum
+    INTEGER, INTENT(IN)                      :: estate
     TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                                  :: error
+      OPTIONAL                               :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = "spectrum_dip_len", &
       routineP = module_name//':'//routineN
 
-    COMPLEX(KIND=dp)                            :: z
-    INTEGER :: homo, i, istate, istate0, j, nao, nvirtual, nmo
-    LOGICAL :: failure
-    REAL(dp) :: ene_i, ene_f, imagpart, ra(3), realpart
-    REAL(dp), DIMENSION(:), POINTER             :: eigenvalues
+    COMPLEX(KIND=dp)                         :: z
+    INTEGER                                  :: homo, i, istate, j, nao, nmo, &
+                                                nvirtual
+    LOGICAL                                  :: failure
+    REAL(dp)                                 :: ene_f, ene_i, imagpart, &
+                                                ra(3), realpart
+    REAL(dp), DIMENSION(:), POINTER          :: eigenvalues
+
 !    TYPE(cp_fm_type), POINTER                   :: mo_coeff
 
     failure = .FALSE.
@@ -1320,29 +1294,29 @@ CONTAINS
   SUBROUTINE spectrum_dip_vel(xas_control, fm_set,op_sm,mos,excvec, &
              all_vectors,all_evals,fm_work,spectrum,estate,error)
 
-    TYPE(xas_control_type)                      :: xas_control
-    TYPE( cp_fm_p_type ), DIMENSION(:,:),  &
-      POINTER                                   :: fm_set
-    TYPE( real_matrix_p_type ), DIMENSION(:,:), &
-      POINTER                                   :: op_sm
-    TYPE(mo_set_p_type), DIMENSION(:), POINTER  :: mos
-    TYPE(cp_fm_type), POINTER                   :: excvec
-    TYPE(cp_fm_type), POINTER                   :: all_vectors
-    REAL(dp), DIMENSION(:), POINTER             :: all_evals
-    TYPE(cp_fm_type), POINTER                   :: fm_work
-    REAL(dp), DIMENSION(:,:), POINTER           :: spectrum
-    INTEGER, INTENT(IN)                         :: estate
-
+    TYPE(xas_control_type)                   :: xas_control
+    TYPE(cp_fm_p_type), DIMENSION(:, :), &
+      POINTER                                :: fm_set
+    TYPE(real_matrix_p_type), &
+      DIMENSION(:, :), POINTER               :: op_sm
+    TYPE(mo_set_p_type), DIMENSION(:), &
+      POINTER                                :: mos
+    TYPE(cp_fm_type), POINTER                :: excvec, all_vectors
+    REAL(dp), DIMENSION(:), POINTER          :: all_evals
+    TYPE(cp_fm_type), POINTER                :: fm_work
+    REAL(dp), DIMENSION(:, :), POINTER       :: spectrum
+    INTEGER, INTENT(IN)                      :: estate
     TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                                  :: error
+      OPTIONAL                               :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = "spectrum_dip_vel", &
       routineP = module_name//':'//routineN
 
-    INTEGER :: homo, i, istate,istate0, j, nao, nvirtual, nmo
-    LOGICAL :: failure
-    REAL(dp) :: ene_i, ene_f,  dip(3)
-    REAL(dp), DIMENSION(:), POINTER             :: eigenvalues
+    INTEGER                                  :: homo, i, istate, nao, nmo, &
+                                                nvirtual
+    LOGICAL                                  :: failure
+    REAL(dp)                                 :: dip(3), ene_f, ene_i
+    REAL(dp), DIMENSION(:), POINTER          :: eigenvalues
 
     failure = .FALSE.
 
@@ -1405,25 +1379,27 @@ CONTAINS
 
   SUBROUTINE calc_stogto_overlap(base_a, base_b, matrix,error)
 
-    TYPE(gto_basis_set_type), POINTER           :: base_a, base_b
-    REAL(dp), DIMENSION(:,:), POINTER           :: matrix
+    TYPE(gto_basis_set_type), POINTER        :: base_a, base_b
+    REAL(dp), DIMENSION(:, :), POINTER       :: matrix
     TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                                  :: error
+      OPTIONAL                               :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = "calc_stogto_overlap", &
       routineP = module_name//':'//routineN
 
-    INTEGER :: ic, iset, istat, jset, ldai, ldsab, maxcoa, maxcob, maxl, maxla, maxlb, &
-               ncoa, ncob, nseta, nsetb, nsgfa, nsgfb, sgfa, sgfb
-    INTEGER, DIMENSION(:), POINTER    :: la_max,la_min,lb_max,lb_min,&
-                                         npgfa,npgfb,nsgfa_set,nsgfb_set
-    INTEGER, DIMENSION(:,:), POINTER  :: first_sgfa,first_sgfb
-    LOGICAL :: failure
-    REAL(dp) :: rab(3)
-    REAL(KIND = dp), DIMENSION(:,:), POINTER :: rpgfa, rpgfb, sphi_a, sphi_b, zeta, zetb
-    REAL(dp), DIMENSION(:,:), ALLOCATABLE :: sab, work
-    REAL(dp), DIMENSION(:,:,:), ALLOCATABLE ::  ai_work
-
+    INTEGER :: iset, istat, jset, ldai, ldsab, maxcoa, maxcob, maxl, maxla, &
+      maxlb, ncoa, ncob, nseta, nsetb, nsgfa, nsgfb, sgfa, sgfb
+    INTEGER, DIMENSION(:), POINTER           :: la_max, la_min, lb_max, &
+                                                lb_min, npgfa, npgfb, &
+                                                nsgfa_set, nsgfb_set
+    INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa, first_sgfb
+    LOGICAL                                  :: failure
+    REAL(dp)                                 :: rab(3)
+    REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: sab, work
+    REAL(dp), ALLOCATABLE, &
+      DIMENSION(:, :, :)                     :: ai_work
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: rpgfa, rpgfb, sphi_a, sphi_b, &
+                                                zeta, zetb
 
     failure = .FALSE.
 
@@ -1479,7 +1455,7 @@ CONTAINS
           CALL overlap(la_max(iset),la_min(iset),npgfa(iset),&
                rpgfa(:,iset),zeta(:,iset),&
                lb_max(jset),lb_min(jset),npgfb(jset),&
-               rpgfb(:,jset),zetb(:,jset),rab,0.0_dp,sab,0,.false.,ai_work,ldai)
+               rpgfb(:,jset),zetb(:,jset),rab,0.0_dp,sab,0,.FALSE.,ai_work,ldai)
 ! write(*,*) 'sab '
 !    do ic = 1,ncoa
 !      write(*,'(I4,10F12.6)') ic, sab(ic,1:ncob)

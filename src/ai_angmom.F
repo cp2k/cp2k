@@ -66,9 +66,9 @@ CONTAINS
                     lb_max,npgfb,zetb,rpgfb,lb_min,&
                     rac,rbc,angab)
 
-    INTEGER, INTENT(IN)                      :: la_max,npgfa
+    INTEGER, INTENT(IN)                      :: la_max, npgfa
     REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: zeta, rpgfa
-    INTEGER, INTENT(IN)                      :: la_min, lb_max,npgfb
+    INTEGER, INTENT(IN)                      :: la_min, lb_max, npgfb
     REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: zetb, rpgfb
     INTEGER, INTENT(IN)                      :: lb_min
     REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: rac, rbc
@@ -79,13 +79,13 @@ CONTAINS
                                                 ipgf, j, jpgf, la, la_start, &
                                                 lb, na, nb
     REAL(KIND=dp)                            :: dab, f0, f1, f2, f3, fx, fy, &
-                                                fz, zetp, rab2
-    REAL(KIND=dp), DIMENSION(3)              :: rab, rap, rbp, bc1, bc2, bc3, &
-                                                ac1, ac2, ac3
-    REAL(KIND=dp), DIMENSION(ncoset(la_max),&
-      ncoset(lb_max),3)                      :: as
+                                                fz, rab2, zetp
+    REAL(KIND=dp), DIMENSION(3)              :: ac1, ac2, ac3, bc1, bc2, bc3, &
+                                                rab, rap, rbp
     REAL(KIND=dp), DIMENSION(ncoset(la_max),&
       ncoset(lb_max))                        :: s
+    REAL(KIND=dp), DIMENSION(ncoset(la_max),&
+      ncoset(lb_max), 3)                     :: as
 
 !   ---------------------------------------------------------------------------
 !   *** Calculate the distance between the centers a and b ***
