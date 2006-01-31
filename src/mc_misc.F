@@ -870,6 +870,7 @@ SUBROUTINE mc_make_dat_file(coordinates,natoms_tot,box_length,filename,&
             WRITE(unit,10000) '       &CELL_REF'
             WRITE(unit,40000) '         ABC ',&
                abc(1:3)*angstrom
+            WRITE(unit,10000) '         UNIT ANGSTROM'
             WRITE(unit,10000) '       &END CELL_REF'
          ENDIF
       ENDIF
@@ -948,34 +949,6 @@ SUBROUTINE mc_make_dat_file(coordinates,natoms_tot,box_length,filename,&
       WRITE(unit,20001) ' FFTLIB       ',fft_lib
       WRITE(unit,10000) ' PRINT_LEVEL  LOW'
       WRITE(unit,10000) "&END"
-
-      SELECT CASE ( force_env%in_use )
-      CASE ( use_fist_force )
-
-      CASE ( use_qs_force )
-
-! let's try to deal with the reference cell
-         IF(use_ref_cell) THEN
-            WRITE(unit,10000) '&CELL_REF'
-            WRITE(unit,10000) ' UNIT         ANGSTROM'
-            WRITE(unit,40000) '  ABC          ',&
-               abc(1:3)*angstrom
-            WRITE(unit,10000) "&END"
-            WRITE(unit,*) 
-         ENDIF
-      CASE ( use_kg_force )
-! let's try to deal with the reference cell
-         IF(use_ref_cell) THEN
-            WRITE(unit,10000) '&CELL_REF'
-            WRITE(unit,10000) ' UNIT         ANGSTROM'
-            WRITE(unit,40000) '  ABC          ',&
-               abc(1:3)*angstrom
-            WRITE(unit,10000) "&END"
-            WRITE(unit,*) 
-         ENDIF
-      CASE default
-        CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
-      END SELECT
 
 ! close the file
       CALL close_file(unit_number=unit)
