@@ -25,7 +25,7 @@
 MODULE tbmd_energy
   USE atomic_kind_types,                      ONLY: atomic_kind_type
   USE cell_types,                             ONLY: cell_type
-  USE cp_fm_pool_types,                       ONLY: cp_fm_pool_type
+  USE cp_fm_pool_types,                       ONLY: fm_pool_create_fm
   USE cp_sm_fm_interactions,                  ONLY: copy_sm_to_fm
   USE cp_fm_types,                            ONLY: cp_fm_type
   USE distribution_1d_types,                  ONLY: distribution_1d_type
@@ -36,6 +36,7 @@ MODULE tbmd_energy
   USE molecule_kind_types,                    ONLY: molecule_kind_type
   USE molecule_types_new,                     ONLY: molecule_type
   USE particle_types,                         ONLY: particle_type
+  USE qs_matrix_pools,                        ONLY: qs_matrix_pools_type
   USE qs_mo_methods,                          ONLY: calculate_density_matrix
   USE qs_mo_types,                            ONLY: write_mo_set, &
                                                     mo_set_type, &
@@ -124,13 +125,11 @@ CONTAINS
       POINTER                                :: tbmd_neighbor_list_env
     TYPE(cell_type), POINTER                 :: cell
     TYPE(section_vals_type), POINTER         :: force_env_section
-    TYPE(real_matrix_type), POINTER          :: matrix_h, &
-                                                matrix_p
     TYPE(mo_set_type), POINTER               :: mos
-    TYPE(cp_fm_pool_type), POINTER           :: fm_pool
     TYPE(cp_fm_type), POINTER                :: fm_matrix_h, &
                                                 fm_matrix_ortho, &
                                                 fm_matrix_work
+    TYPE(qs_matrix_pools_type), POINTER      :: matrix_pools
 
 !   ------------------------------------------------------------------------
 
@@ -138,8 +137,8 @@ CONTAINS
 
     NULLIFY(tbmd_energy, atomic_kind_set, particle_set, local_particles, &
             local_molecules, molecule_kind_set, molecule_set, tbmd_neighbor_list_env, &
-            cell, force_env_section, matrix_h, mos, fm_pool, matrix_p, fm_matrix_h, &
-            fm_matrix_ortho, fm_matrix_work)
+            cell, force_env_section, mos, fm_matrix_h, fm_matrix_ortho, &
+            fm_matrix_work, matrix_pools)
 
     failure = .FALSE.
 
@@ -161,10 +160,10 @@ CONTAINS
       CALL tbmd_env_get(tbmd_env=tbmd_env, tbmd_energy=tbmd_energy, &
                         local_particles=local_particles, particle_set=particle_set, &
                         atomic_kind_set=atomic_kind_set, molecule_set=molecule_set, &
-                        local_molecules=local_molecules, matrix_h=matrix_h, &
-                        molecule_kind_set=molecule_kind_set, mos=mos, &
-                        tbmd_neighbor_list_env=tbmd_neighbor_list_env, cell=cell, &
-                        matrix_p=matrix_p, error=error)
+                        local_molecules=local_molecules, mos=mos, cell=cell, &
+                        molecule_kind_set=molecule_kind_set, &
+                        tbmd_neighbor_list_env=tbmd_neighbor_list_env, &
+                        matrix_pools=matrix_pools, error=error)
 
       CALL tbmd_neighbor_list_control(atomic_kind_set=atomic_kind_set, &
                                       particle_set=particle_set, &
@@ -176,28 +175,33 @@ CONTAINS
       CALL tbmd_build_hamiltonian(tbmd_env=tbmd_env, derivative=.FALSE., error=error)
 
       IF (ortho_basis) THEN
-         CALL init_mo_set(mo_set=mos, fm_pool=fm_pool, name="TBMD MO set", error=error)
+         CALL init_mo_set(mo_set=mos, fm_pool=matrix_pools%ao_mo_fm_pools(1)%pool, &
+                          name="TBMD MO set", error=error)
 
-         CALL copy_sm_to_fm(real_matrix=matrix_h, fm=fm_matrix_h, error=error)
+         CALL fm_pool_create_fm(pool=matrix_pools%ao_ao_fm_pools(1)%pool, &
+                                element=fm_matrix_h, name="Full H-Matrix", error=error)
+
+         CALL copy_sm_to_fm(real_matrix=tbmd_env%matrix_h, fm=fm_matrix_h, error=error)
          CALL simple_eigensolver(matrix_ks=fm_matrix_h, mo_set=mos, &
                                  do_level_shift=.FALSE., level_shift=0.0_dp, &
                                  work_syevx=1.0_dp, smear=0.0_dp, error=error)
-
-         CALL calculate_density_matrix(mo_set=mos, density_matrix=matrix_p, error=error)
-
       ELSE
-         CALL init_mo_set(mo_set=mos, fm_pool=fm_pool, name="TBMD MO set", error=error)
+         CALL init_mo_set(mo_set=mos, fm_pool=matrix_pools%ao_mo_fm_pools(1)%pool, &
+                          name="TBMD MO set", error=error)
 
-         CALL copy_sm_to_fm(real_matrix=matrix_h, fm=fm_matrix_h, error=error)
+         CALL fm_pool_create_fm(pool=matrix_pools%ao_ao_fm_pools(1)%pool, &
+                                element=fm_matrix_h, name="Full H-Matrix", error=error)
+
+         CALL copy_sm_to_fm(real_matrix=tbmd_env%matrix_h, fm=fm_matrix_h, error=error)
          CALL eigensolver(matrix_ks=fm_matrix_h, mo_set=mos, ortho=fm_matrix_ortho, &
                           work=fm_matrix_work, do_level_shift=.FALSE., &
                           level_shift=0.0_dp, use_cholesky=use_cholesky, &
                           work_syevx=1.0_dp, use_jacobi=use_jacobi, &
                           jacobi_threshold=1.0e-7_dp, smear=0.0_dp, error=error)
-
-         CALL calculate_density_matrix(mo_set=mos, density_matrix=matrix_p, error=error)
-
       END IF
+
+      CALL calculate_density_matrix(mo_set=mos, density_matrix=tbmd_env%matrix_p, &
+                                    error=error)
 
     END IF
 

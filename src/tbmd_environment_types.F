@@ -60,6 +60,8 @@ MODULE tbmd_environment_types
                                                       particle_list_create, &
                                                       particle_list_release
   USE particle_types,                           ONLY: particle_type
+  USE qs_matrix_pools,                          ONLY: qs_matrix_pools_type, &
+                                                      mpools_release
   USE qs_mo_types,                              ONLY: mo_set_type, &
                                                       deallocate_mo_set
   USE sparse_matrix_types,                      ONLY: real_matrix_type, &
@@ -139,6 +141,8 @@ MODULE tbmd_environment_types
 !!            since there is no partition into spins
 !!     - distribution_2d: distribution of the atom pairs between the processors
 !!     - blacs_env: parallel environement needed by scalapack (full matrixes)
+!!     - matrix_pools: The matrix pools, needed e.g. for the molecular 
+!!                     orbitals (MOs).
 !!
 !!   AUTHOR
 !!     Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
@@ -169,6 +173,7 @@ MODULE tbmd_environment_types
     TYPE(mo_set_type), POINTER                       :: mos
     TYPE(distribution_2d_type), POINTER              :: distribution_2d
     TYPE(cp_blacs_env_type), POINTER                 :: blacs_env
+    TYPE(qs_matrix_pools_type), POINTER              :: matrix_pools
 
   END TYPE tbmd_environment_type
 !!***
@@ -345,6 +350,9 @@ CONTAINS
         IF (ASSOCIATED(tbmd_env%blacs_env)) THEN
           CALL cp_blacs_env_release(tbmd_env%blacs_env, error=error)
         END IF
+        IF (ASSOCIATED(tbmd_env%matrix_pools)) THEN
+          CALL mpools_release(tbmd_env%matrix_pools, error=error)
+        END IF
         DEALLOCATE(tbmd_env, stat=stat)
         CPPostconditionNoFail(stat==0, cp_warning_level, routineP, error)
       END IF
@@ -396,6 +404,8 @@ CONTAINS
 !!            since there is no partition into spins
 !!     - distribution_2d: distribution of the atom pairs between the processors
 !!     - blacs_env: parallel environement needed by scalapack (full matrixes)
+!!     - matrix_pools: The matrix pools, needed e.g. for the molecular 
+!!                     orbitals (MOs).
 !!
 !!     For possible missing arguments see the attributes of 
 !!     tbmd_environment_type
@@ -413,7 +423,8 @@ CONTAINS
                           local_molecules, tbmd_input, cell, cell_ref, &
                           use_ref_cell, para_env, id_nr, force_env_input, &
                           tbmd_neighbor_list_env, matrix_h, matrix_dh, mos, &
-                          matrix_p, distribution_2d, blacs_env, error)
+                          matrix_p, distribution_2d, blacs_env, &
+                          matrix_pools, error)
 
     TYPE(tbmd_environment_type), POINTER         :: tbmd_env
     TYPE(tbmd_energy_type), POINTER, OPTIONAL    :: tbmd_energy
@@ -449,6 +460,8 @@ CONTAINS
       POINTER                                    :: distribution_2d
     TYPE(cp_blacs_env_type), OPTIONAL, &
       POINTER                                    :: blacs_env
+    TYPE(qs_matrix_pools_type), POINTER, &
+      OPTIONAL                                   :: matrix_pools
     INTEGER, INTENT(OUT), OPTIONAL               :: id_nr
     TYPE(cp_error_type), INTENT(INOUT), &
          OPTIONAL                                :: error
@@ -517,6 +530,9 @@ CONTAINS
       IF (PRESENT(blacs_env)) THEN
         blacs_env => tbmd_env%blacs_env
       END IF
+      IF (PRESENT(matrix_pools)) THEN
+        matrix_pools => tbmd_env%matrix_pools
+      END IF
     END IF
 
   END SUBROUTINE tbmd_env_get
@@ -565,6 +581,8 @@ CONTAINS
 !!            since there is no partition into spins
 !!     - distribution_2d: distribution of the atom pairs between the processors
 !!     - blacs_env: parallel environement needed by scalapack (full matrixes)
+!!     - matrix_pools: The matrix pools, needed e.g. for the molecular 
+!!                     orbitals (MOs).
 !!
 !!     For possible missing arguments see the attributes of 
 !!     tbmd_environment_type
@@ -582,7 +600,8 @@ CONTAINS
                           local_molecules, tbmd_input, cell, cell_ref, &
                           use_ref_cell, para_env, id_nr, force_env_input, &
                           tbmd_neighbor_list_env, matrix_h, matrix_dh, mos, &
-                          matrix_p, distribution_2d, blacs_env, error)
+                          matrix_p, distribution_2d, blacs_env, &
+                          matrix_pools, error)
 
     TYPE(tbmd_environment_type), POINTER         :: tbmd_env
     TYPE(tbmd_energy_type), POINTER, OPTIONAL    :: tbmd_energy
@@ -618,6 +637,8 @@ CONTAINS
       POINTER                                    :: distribution_2d
     TYPE(cp_blacs_env_type), OPTIONAL, &
       POINTER                                    :: blacs_env
+    TYPE(qs_matrix_pools_type), POINTER, &
+      OPTIONAL                                   :: matrix_pools
     INTEGER, INTENT(IN), OPTIONAL                :: id_nr
     TYPE(cp_error_type), INTENT(INOUT), &
          OPTIONAL                                :: error
@@ -736,6 +757,9 @@ CONTAINS
       IF (PRESENT(blacs_env)) THEN
         tbmd_env%blacs_env => blacs_env
       END IF
+      IF (PRESENT(matrix_pools)) THEN
+        tbmd_env%matrix_pools => matrix_pools
+      END IF
     END IF
   END SUBROUTINE tbmd_env_set
 !***************************************************************************
@@ -776,7 +800,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     LOGICAL                                  :: failure
-    INTEGER                                  :: natom
+    INTEGER                                  :: natom, &
+                                                i
 
 !   ------------------------------------------------------------------------
 
@@ -837,6 +862,9 @@ CONTAINS
        ENDIF
        IF (ASSOCIATED(tbmd_env%blacs_env)) THEN
          CALL cp_blacs_env_release(tbmd_env%blacs_env, error=error)
+       END IF
+       IF (ASSOCIATED(tbmd_env%matrix_pools)) THEN
+         CALL mpools_release(tbmd_env%matrix_pools, error=error)
        END IF
     ELSE
       CALL tbmd_env_create(tbmd_env, error=error)
@@ -906,6 +934,7 @@ CONTAINS
     NULLIFY(tbmd_env%mos)
     NULLIFY(tbmd_env%distribution_2d)
     NULLIFY(tbmd_env%blacs_env)
+    NULLIFY(tbmd_env%matrix_pools)
    
     IF (.NOT. failure) THEN
       tbmd_env%ref_count = 1

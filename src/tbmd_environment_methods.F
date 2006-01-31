@@ -24,12 +24,16 @@
 !****************************************************************************
 MODULE tbmd_environment_methods
   USE atomic_kind_types,                      ONLY: atomic_kind_type
+  USE cp_para_types,                          ONLY: cp_para_env_type
   USE distribution_2d_types,                  ONLY: distribution_2d_type
   USE distribution_methods,                   ONLY: distribute_molecules_2d
   USE kinds,                                  ONLY: dp
   USE molecule_kind_types,                    ONLY: molecule_kind_type
   USE molecule_types_new,                     ONLY: molecule_type
   USE particle_types,                         ONLY: particle_type
+  USE qs_matrix_pools,                        ONLY: mpools_rebuild_fm_pools
+  USE qs_mo_types,                            ONLY: mo_set_type, &
+                                                    mo_set_p_type
   USE tbmd_environment_types,                 ONLY: tbmd_environment_type, &
                                                     tbmd_env_set, &
                                                     tbmd_env_get
@@ -86,7 +90,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     LOGICAL                                  :: failure
-    INTEGER                                  :: handle
+    INTEGER                                  :: handle, &
+                                                stat
     TYPE(distribution_2d_type), POINTER      :: distribution_2d
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
@@ -96,6 +101,10 @@ CONTAINS
       POINTER                                :: molecule_set
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(mo_set_type), POINTER               :: mos
+    TYPE(mo_set_p_type), DIMENSION(:), &
+      POINTER                                :: mos_ptr
  
 !   ------------------------------------------------------------------------
 
@@ -104,17 +113,28 @@ CONTAINS
     failure = .FALSE.
 
     NULLIFY(distribution_2d, atomic_kind_set, molecule_kind_set, molecule_set, &
-            particle_set)
+            particle_set, para_env, mos, mos_ptr)
   
     CPPrecondition(ASSOCIATED(tbmd_env), cp_failure_level, routineP, error, failure)
  
     IF (.NOT. failure) THEN
 
       CALL tbmd_env_get(tbmd_env=tbmd_env, atomic_kind_set=atomic_kind_set, &
-                        particle_set=particle_set, &
+                        particle_set=particle_set, para_env=para_env, mos=mos, &
                         molecule_kind_set=molecule_kind_set, molecule_set=molecule_set, &
                         error=error)
       CPPrecondition(ASSOCIATED(atomic_kind_set), cp_failure_level, routineP, error, failure)
+
+      ALLOCATE(mos_ptr(1), STAT=stat)
+      CPPostcondition(stat==0, cp_failure_level, routineN, error, failure)
+      mos_ptr(1)%mo_set => mos
+
+      CALL mpools_rebuild_fm_pools(mpools=tbmd_env%matrix_pools, mos=mos_ptr, &
+                                   blacs_env=tbmd_env%blacs_env, para_env=para_env, &
+                                   nrow_block=32, ncol_block=32, error=error)
+
+      DEALLOCATE(mos_ptr, STAT=stat)
+      CPPostcondition(stat==0, cp_failure_level, routineN, error, failure)
 
       CALL distribute_molecules_2d(particle_kind_set=atomic_kind_set, &
                                    particle_set=particle_set, &
