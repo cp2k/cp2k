@@ -262,6 +262,9 @@ CONTAINS
       END DO
       CALL initialize_npt (simpar,globenv,extended_type%npt_info,cell)
 
+      CALL virial_set ( virial,pv_availability=simpar%pv_availability,&
+                        pv_numer=simpar%pv_numerical)
+
 ! Always initialize velocities (to be overwritten if needed)
       DO isubsys=1,SIZE(subsys)
          CALL cp_subsys_get(subsys(isubsys)%subsys,&
@@ -272,23 +275,24 @@ CONTAINS
       END DO
 
       IF (simpar%ensemble /= langevin_ensemble) THEN
-      SELECT CASE ( simpar % read_type )
-      CASE ( md_pos_restart )
+        SELECT CASE ( simpar % read_type )
+        CASE ( md_pos_restart )
 !FM should be adapted to the existence of many fragments
-         CPPrecondition(SIZE(subsys)==1,cp_failure_level,routineP,error,failure)
-         isubsys=1
-         CALL cp_subsys_get(subsys(isubsys)%subsys,&
+           CPPrecondition(SIZE(subsys)==1,cp_failure_level,routineP,error,failure)
+           isubsys=1
+           CALL cp_subsys_get(subsys(isubsys)%subsys,&
               particles=particles,&
               error=error)
-         nhc_part => extended_type%nhc_part(ibead)
-         nhc_baro => extended_type%nhc_baro(ibead)
-         CALL read_md_restart ( in_use, simpar % read_type, globenv,   &
+           nhc_part => extended_type%nhc_part(ibead)
+           nhc_baro => extended_type%nhc_baro(ibead)
+           CALL read_md_restart ( in_use, simpar % read_type, globenv,   &
               particles%els, cell, cell_ref,  &
               nhc_part, nhc_baro, extended_type%npt_info )
-         CALL initialize_velocities ( simpar, particles%els, globenv )
-      CASE ( md_pos_vel_restart, md_all_restart )
+          CALL initialize_velocities ( simpar, particles%els, globenv )
+          
+        CASE ( md_pos_vel_restart, md_all_restart )
 !FM should be adapted to the existence of many fragments
-         CPPrecondition(SIZE(subsys)==1,cp_failure_level,routineP,error,failure)
+          CPPrecondition(SIZE(subsys)==1,cp_failure_level,routineP,error,failure)
           isubsys=1
           CALL cp_subsys_get(subsys(isubsys)%subsys,&
                particles=particles,&
@@ -301,8 +305,13 @@ CONTAINS
                                  nhc_part, &
                                  nhc_baro, &
                                  extended_type%npt_info )
-       END SELECT
+         END SELECT
        END IF
+
+! Set V0 if needed
+       IF ( ASSOCIATED ( cell_ref ) ) THEN
+          IF ( simpar % v0 == 0._dp ) simpar % v0 = cell_ref % deth
+       ENDIF 
 
        nhc_part => extended_type%nhc_part(ibead)
        nhc_baro => extended_type%nhc_baro(ibead)

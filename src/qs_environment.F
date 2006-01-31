@@ -255,8 +255,8 @@ CONTAINS
          globenv, error)
 
 !   *** Print the cell parameters ***
+    CALL write_cell(my_cell,force_env_section,cell_ref=my_cell_ref,error=error)
 
-    CALL write_cell(my_cell,force_env_section,error)
     IF (PRESENT(subsystem)) THEN 
        my_subsystem => subsystem
        CALL read_atomic_kind_set(my_subsystem%atomic_kinds%els, globenv,error)

@@ -118,6 +118,7 @@ SUBROUTINE dg_pme_grid_setup ( box_b, npts_s, cutoff_radius, grid_s, grid_b, &
   CALL dg_find_cutoff ( box_b, npts_s, cutoff_radius, grid_s, grid_b, cutoff )
   
   ecut = 0.5_dp * cutoff * cutoff
+!  ecut = cutoff
   
   IF ( PRESENT ( grid_ref ) ) THEN
      CALL pw_grid_setup ( box_b, grid_b, cutoff = ecut, &
@@ -187,6 +188,7 @@ SUBROUTINE dg_find_cutoff ( box_b, npts_s, cutoff_radius, grid_s,  &
   grid_s % npts = nout
 
   CALL pw_find_cutoff ( grid_b % npts, box_b, cutoff )
+  !CALL pw_find_cutoff ( grid_b % bounds, box_b % h_inv, cutoff )
 
 END SUBROUTINE  dg_find_cutoff 
 !******************************************************************************

@@ -226,7 +226,7 @@ RECURSIVE SUBROUTINE force_env_calc_energy_force ( force_env, &
      IF (ASSOCIATED(force_env%meta_env)) THEN
         CALL metadyn_add_forces(force_env%meta_env,force_env, error=error)
      END IF
-     force_env%box_changed=.FALSE.
+!     force_env%box_changed=.FALSE.
      
      ! Constraint ONLY of Fixed Atom type
      CALL fix_atom_control(force_env, error=error)

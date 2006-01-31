@@ -877,6 +877,7 @@ SUBROUTINE pw_fft_test ( globenv )
 
   CALL pw_find_cutoff ( np, box, cutoff )
   cutoff = 0.5_dp * cutoff * cutoff
+ ! CALL pw_find_cutoff ( grid % bounds, box % h_inv, cutoff )
 
   CALL pw_grid_setup ( box, grid, cutoff = cutoff, &
                        info = globenv % scr, rs_dims=(/globenv%num_pe,1/) )
@@ -941,6 +942,7 @@ SUBROUTINE pw_fft_test ( globenv )
   grid % grid_span = HALFSPACE
   CALL pw_find_cutoff ( np, box, cutoff )
   cutoff = cutoff * cutoff
+!  CALL pw_find_cutoff ( grid%bounds, box%h_inv, cutoff )
 
   CALL pw_grid_setup ( box, grid, cutoff = cutoff, &
                        info = globenv % scr, rs_dims=(/globenv%num_pe,1/) )

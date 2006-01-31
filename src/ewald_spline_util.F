@@ -138,11 +138,13 @@ CONTAINS
 
        CALL cell_create(cell, hmat=hmat, periodic=(/1,1,1/), error=error)
        CALL pw_grid_create( pw_grid, globenv%para_env%group, local=.TRUE., error=error )
-       CALL pw_find_cutoff ( npts, cell, cutoff )
        pw_grid % grid_span       =  HALFSPACE
        pw_grid % bounds ( 1, 1:3 ) = 0
        pw_grid % bounds ( 2, 1:3 ) = npts(1:3) - 1
+       CALL pw_find_cutoff ( npts, cell, cutoff )
        ecut = 0.5_dp * cutoff * cutoff
+      ! CALL pw_find_cutoff ( pw_grid % bounds , cell % h_inv, cutoff )
+      ! ecut =  cutoff 
        ! pw_grid initialized NOT DISTRIBUTED
        CALL pw_grid_setup(cell, pw_grid, cutoff = ecut, info = globenv%scr, fft_usage = .TRUE.)
        ! pw_pool initialized

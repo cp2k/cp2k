@@ -305,7 +305,7 @@ CONTAINS
           WRITE(iw,'(A,I6)')" Number of QM atoms: ",qmmm_env_qm%num_qm_atoms 
           WRITE(iw,'(A,I6)')" Number of MM atoms: ",qmmm_env_qm%num_mm_atoms
           WRITE(iw,'(A)')" QM cell ::"
-          CALL write_cell(qm_cell_small, force_env_section, error)
+          CALL write_cell(qm_cell_small, force_env_section, error=error)
        END IF
        CALL get_cell(qm_cell_small, abc=abc)
        !

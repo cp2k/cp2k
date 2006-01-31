@@ -54,7 +54,8 @@ MODULE pw_env_methods
   USE pw_grids,                        ONLY: pw_grid_change,&
                                              pw_grid_create,&
                                              pw_grid_release,&
-                                             pw_grid_setup
+                                             pw_grid_setup, &
+                                             pw_find_cutoff
   USE pw_pool_types,                   ONLY: pw_pool_create,&
                                              pw_pool_p_type,&
                                              pw_pools_dealloc,&
@@ -197,7 +198,7 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
-    TYPE(cell_type), POINTER                 :: cell, cell_ref
+    TYPE(cell_type), POINTER                 :: cell, cell_ref, my_cell
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_rs_pool_p_type), DIMENSION(:), &
@@ -210,6 +211,7 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
       POINTER                                :: pw_pools
     TYPE(rho0_mpole_type), POINTER           :: nddo_mpole, rho0_mpole
     TYPE(section_vals_type), POINTER :: input, poisson_section
+    REAL ( KIND=dp ) :: my_cutoff
     INTEGER :: output_unit
 
   CALL timeset(routineN,"I","",handle)
@@ -222,7 +224,7 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
   failure=.FALSE.
   NULLIFY(cutoff,cell,pw_grid,old_pw_grid,dft_control,atomic_kind_set,&
           pw_pools,rho0_mpole,rs_pools, para_env,cell_ref, mt_super_ref_grid,&
-          input,poisson_section,xc_super_ref_grid,super_ref_grid)
+          input,poisson_section,xc_super_ref_grid,super_ref_grid,my_cell)
   logger => cp_error_get_logger(error)
   output_unit = cp_print_key_unit_nr(logger,qs_env%input,"PRINT%PW_GRID_INFORMATION",&
        extension=".Log",error=error)      
@@ -294,6 +296,9 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
           dft_control=dft_control,atomic_kind_set=atomic_kind_set,&
           cell_ref=cell_ref,cell=cell,para_env=para_env, input=input,&
           error=error)
+     CALL get_qs_env ( qs_env, use_ref_cell = use_ref_cell )
+     IF ( use_ref_cell ) my_cell => cell_ref
+     IF ( .NOT. use_ref_cell ) my_cell => cell
      rel_cutoff = dft_control%qs_control%relative_cutoff
      cutoff => dft_control%qs_control%e_cutoff
      CALL section_vals_val_get(input,"DFT%XC%XC_GRID%USE_FINER_GRID",&
@@ -330,7 +335,7 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
      END IF
 
      CALL setup_super_ref_grid(super_ref_grid,mt_super_ref_grid,&
-          xc_super_ref_grid, cutilev, grid_span, cell_ref, para_env, &
+          xc_super_ref_grid, cutilev, grid_span, my_cell, para_env, &
           qs_env%input, ncommensurate, uf_grid=uf_grid,&
           info_unit=output_unit,error=error) 
      old_pw_grid => super_ref_grid
@@ -353,14 +358,14 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
 
         IF (igrid_level == 1) THEN
            IF (ASSOCIATED(old_pw_grid)) THEN
-              CALL pw_grid_setup(cell_ref,pw_grid,cutilev,&
+              CALL pw_grid_setup(my_cell,pw_grid,cutilev,&
                    ref_grid=old_pw_grid,&
                    info= output_unit, &
                    blocked=.FALSE.,ncommensurate=ncommensurate,&
                    icommensurate=igrid_level, rs_dims=(/para_env%num_pe,1/))
               old_pw_grid => pw_grid
            ELSE
-              CALL pw_grid_setup(cell_ref,pw_grid,cutilev,&
+              CALL pw_grid_setup(my_cell,pw_grid,cutilev,&
                    info= output_unit,&
                    blocked=.FALSE.,ncommensurate=ncommensurate,&
                    icommensurate=igrid_level, rs_dims=(/para_env%num_pe,1/))
@@ -403,10 +408,28 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
      END IF
      poisson_section => section_vals_get_subs_vals(input,"DFT%POISSON_DFT",&
           error=error)
-     CALL pw_poisson_set(pw_env%poisson_env,cell=cell_ref,pw_pools=pw_env%pw_pools,&
+     CALL pw_poisson_set(pw_env%poisson_env,cell=my_cell,pw_pools=pw_env%pw_pools,&
           parameters=poisson_section,mt_super_ref_pw_grid=mt_super_ref_grid,&
           use_level=pw_env%auxbas_grid,error=error)
      CALL pw_grid_release(mt_super_ref_grid,error=error)
+!
+! If reference cell is present, then use pw_grid_change to keep bounds constant...
+!
+!
+    IF ( use_ref_cell ) THEN
+         DO igrid_level = 1, SIZE ( pw_pools )
+           CALL pw_grid_change ( cell, pw_pools ( igrid_level ) % pool % pw_grid )
+           CALL pw_find_cutoff ( pw_pools ( igrid_level ) % pool % pw_grid % bounds, cell%h_inv, my_cutoff )
+           cutoff (igrid_level) = my_cutoff
+         ENDDO
+         CALL init_gaussian_gridlevel(pw_env%gridlevel_info,&
+              ngrid_levels=ngrid_level,cutoff=cutoff,rel_cutoff=rel_cutoff)
+         CALL pw_poisson_set(pw_env%poisson_env,cell=cell,pw_pools=pw_env%pw_pools,&
+          parameters=poisson_section,mt_super_ref_pw_grid=mt_super_ref_grid,&
+          use_level=pw_env%auxbas_grid,error=error)
+        ! CALL pw_poisson_set(pw_env%poisson_env,cell=cell,pw_pools=pw_env%pw_pools,&
+        !      error=error)
+    ENDIF
 !
 !
 !    determine the maximum radii for mapped gaussians, needed to
@@ -583,18 +606,6 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
  
   END IF
 
-!
-! If reference cell is present, then use pw_grid_change to keep bounds constant...
-!
-!
-  CALL get_qs_env ( qs_env, use_ref_cell = use_ref_cell )
-  IF ( use_ref_cell ) THEN
-      DO igrid_level = 1, SIZE ( pw_pools )
-        CALL pw_grid_change ( cell, pw_pools ( igrid_level ) % pool % pw_grid )
-      ENDDO
-      CALL pw_poisson_set(pw_env%poisson_env,cell=cell,pw_pools=pw_env%pw_pools,&
-           error=error)
-  ENDIF
   CALL cp_print_key_finished_output(output_unit,logger,qs_env%input,&
        "PRINT%PW_GRID_INFORMATION",error=error)  
   CALL timestop(0.0_dp,handle)

@@ -248,7 +248,7 @@ CONTAINS
     CALL get_cell( cell, abc=abc)    
 
 !   *** Print the cell parameters ***
-    CALL write_cell ( cell, force_env_section, error)
+    CALL write_cell ( cell, force_env_section, error=error)
 
     ! topology
     CALL topology_control (atomic_kind_set,particle_set,&

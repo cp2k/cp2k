@@ -1570,7 +1570,7 @@ SUBROUTINE pw_sumup ( pw1, pw2, alpha, alpha_im )
            END IF
 
         ELSEIF ( ( pw1 % pw_grid %id_nr == pw2 % pw_grid % reference ) ) THEN
-
+  
            IF (my_alpha_c==CMPLX(1.0_dp,0.0_dp,dp)) THEN
               IF( ng1 >= ng2 ) THEN
                  !$omp parallel do private(i,j)

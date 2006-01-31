@@ -48,6 +48,7 @@ MODULE pw_grids
                                              fft_radix_operations
   USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: twopi
+  USE mathlib,                         ONLY: inv_3x3
   USE message_passing,                 ONLY: mp_cart_coords,&
                                              mp_cart_create,&
                                              mp_cart_rank,&
@@ -87,6 +88,10 @@ MODULE pw_grids
 
   INTEGER :: grid_tag = 0
   CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='pw_grids'
+
+  INTERFACE pw_find_cutoff
+     MODULE PROCEDURE pw_find_cutoff_qs, pw_find_cutoff_fist
+  END INTERFACE
 !!***
 !******************************************************************************
 
@@ -2324,7 +2329,7 @@ SUBROUTINE pw_grid_change ( cell, pw_grid )
 END SUBROUTINE pw_grid_change
 
 !****************************************************************************
-!!****** pw_grids/pw_find_cutoff [1.1] *
+!!****** pw_grids/pw_find_cutoff_qs [1.1] *
 !!
 !!   NAME
 !!     pw_find_cutoff
@@ -2347,39 +2352,102 @@ END SUBROUTINE pw_grid_change
 !!
 !!*** *************************************************************************
 
-SUBROUTINE pw_find_cutoff ( npts, box, cutoff, error )
+SUBROUTINE pw_find_cutoff_qs ( bounds, h_inv, cutoff, error )
 
 
-    INTEGER, DIMENSION(:), INTENT(IN)        :: npts
-    TYPE(cell_type), INTENT(IN)              :: box
-    REAL(KIND=dp), INTENT(OUT)               :: cutoff
-    TYPE(cp_error_type), OPTIONAL, intent(inout) :: error
+    INTEGER, DIMENSION(:,:), INTENT(IN)  :: bounds
+    REAL (KIND=dp), DIMENSION (:, :)   :: h_inv
+    REAL(KIND=dp), INTENT(OUT)         :: cutoff
+    TYPE (cp_error_type), OPTIONAL, INTENT ( INOUT ) :: error
 
-    REAL(KIND=dp)                            :: gcut, gdum( 3 ), length
+    REAL(KIND=dp)                      :: gcut, length
+    REAL(KIND=dp), DIMENSION (3, 3)    :: gmat, gmat_inv
+    INTEGER, PARAMETER                       :: lwork = 20
+
+    INTEGER                                  :: handle, info
+    REAL(KIND=dp)                            :: vec (3), eig( 3 ), work( lwork )
+    REAL(KIND=dp)                            :: vec1 (3)
 
 !------------------------------------------------------------------------------
-! compute 2*pi*h_inv^t*g  where g = (npts[1],0,0)
 
-  gdum ( : ) = twopi * box % h_inv ( 1, : ) &
-       * REAL ( ( npts ( 1 ) - 1 ) / 2,KIND=dp)
-  length = SQRT ( dotprod_3d ( gdum, gdum ) )
+   gmat = MATMUL ( h_inv, TRANSPOSE ( h_inv ) )
+   CALL dsyev("V","U",3,gmat,3,eig,work,lwork,info)
+   IF ( info /= 0 ) CALL stop_program ( "pw_find_cutoff", "dsyev:info" )
+   eig = twopi * SQRT ( eig )
+   gmat_inv = inv_3x3 ( gmat )
+   vec1(:)=REAL ( bounds(2,:), dp )
+   vec(:) = MATVEC_3x3 ( gmat_inv (:,:), vec1( : ) )
+   length = vec ( 1 ) * eig ( 1 )
+   length = CEILING ( length * length * 0.5_dp )
+   gcut = length 
+   length =  vec ( 2 ) * eig ( 2 ) 
+   length = CEILING ( length * length * 0.5_dp )
+   gcut = MIN ( gcut, length )
+   length =  vec ( 3 ) * eig ( 3 ) 
+   length = CEILING ( length * length * 0.5_dp )
+   gcut = MIN ( gcut, length )
+   cutoff = gcut 
+
+END SUBROUTINE pw_find_cutoff_qs
+
+!****************************************************************************
+!!****** pw_grids/pw_find_cutoff_fist [1.1] *
+!!
+!!   NAME
+!!     pw_find_cutoff
+!!
+!!   FUNCTION
+!!     Given a grid and a box, calculate the corresponding cutoff
+!!     *** This routine calculates the cutoff in MOMENTUM UNITS! ***
+!!
+!!   AUTHOR
+!!     apsi
+!!     Christopher Mundy
+!!
+!!   MODIFICATION HISTORY
+!!     JGH (20-12-2000) : Deleted some strange comments
+!!
+!!   NOTES
+!!     This routine is local. It works independent from the distribution
+!!     of PW on processors.
+!!     npts is the grid size for the full box.
+!!
+!!*** *************************************************************************
+
+SUBROUTINE pw_find_cutoff_fist ( npts, box, cutoff, error )
+
+
+    INTEGER, DIMENSION(:), INTENT(IN)  :: npts
+    TYPE ( cell_type ), INTENT ( IN )  :: box
+    REAL(KIND=dp), INTENT(OUT)         :: cutoff
+    TYPE (cp_error_type), OPTIONAL, INTENT ( INOUT ) :: error
+
+    REAL(KIND=dp)                      :: gcut, length
+    REAL(KIND=dp)                      :: gdum( 3 )
+
+!------------------------------------------------------------------------------
+
+! compute 2*pi*h_inv^t*g  where g = (bounds[1],0,0)
+
+  gdum ( : ) = twopi *  box % h_inv ( 1, : ) &
+       * REAL ( ( npts ( 1 ) - 1 ) / 2 ,KIND=dp )
+  length = SQRT ( DOTPROD_3D ( gdum, gdum ) )
   gcut = length
 
-! compute 2*pi*h_inv^t*g  where g = (0,npts[2],0)
-  gdum ( : ) = twopi * box % h_inv ( 2, : ) &
-       * REAL ( ( npts ( 2 ) - 1 ) / 2,KIND=dp)
-  length = SQRT ( dotprod_3d ( gdum, gdum ) )
+! compute 2*pi*h_inv^t*g  where g = (0,bounds[2],0)
+  gdum ( : ) = twopi *  box % h_inv ( 2, : ) &
+       * REAL ( ( npts ( 2 ) - 1 ) / 2 ,KIND=dp )
+  length = SQRT ( DOTPROD_3D ( gdum, gdum ) )
   gcut = MIN ( gcut, length )
 
-! compute 2*pi*h_inv^t*g  where g = (0,0,npts[3])
-  gdum ( : ) = twopi * box % h_inv ( 3, : ) &
-       * REAL ( ( npts ( 3 ) - 1 ) / 2,KIND=dp)
-  length = SQRT ( dotprod_3d ( gdum, gdum ) )
+! compute 2*pi*h_inv^t*g  where g = (0,0,bounds[3])
+  gdum ( : ) = twopi *  box % h_inv ( 3, : ) &
+       * REAL ( ( npts ( 3 ) - 1 ) / 2 ,KIND=dp )
+  length = SQRT ( DOTPROD_3D ( gdum, gdum ) )
   gcut = MIN ( gcut, length )
+  cutoff = gcut - 1.e-5_dp
 
-  cutoff = gcut - 1.0E-5_dp
-
-END SUBROUTINE pw_find_cutoff
+END SUBROUTINE pw_find_cutoff_fist
 
 !******************************************************************************
 

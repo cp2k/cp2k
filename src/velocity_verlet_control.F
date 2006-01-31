@@ -137,7 +137,11 @@ SUBROUTINE velocity_verlet ( md_env, error )
     CASE (reftraj_ensemble)
       CALL reftraj ( md_env, error  )
     CASE (langevin_ensemble)
-      CALL langevin(md_env, error )
+      CALL langevin(md_env)
+    CASE ( nph_uniaxial_ensemble)
+       CALL nph_uniaxial ( md_env )
+    CASE ( nph_uniaxial_damped_ensemble )
+       CALL nph_uniaxial_damped ( md_env )
     CASE DEFAULT
       CALL stop_program("velocity_verlet",&
                         "integrator not implemented for a generic force_env")

@@ -632,7 +632,6 @@ CONTAINS
           call cell_create(cell_ref)
        END IF
        
-       IF(PRESENT(use_ref_cell)  ) use_ref_cell = .FALSE.
        IF (PRESENT(check_for_ref)) my_check     =  check_for_ref
        
        cell%unit_of_length_name = "BOHR"
@@ -724,9 +723,10 @@ CONTAINS
        IF (parsed_cp2k_input(cell_ref_section,check_this_section=.TRUE.,error=error)) THEN
           IF(PRESENT(use_ref_cell) ) use_ref_cell = .TRUE.
           CALL read_cell_new(cell_ref, cell_ref, globenv, use_ref_cell, error=error,&
-               cell_section=cell_section, check_for_ref=.FALSE.)
+               cell_section=cell_ref_section, check_for_ref=.FALSE.)
        ELSE
           CALL cell_clone (cell, cell_ref, error)
+          IF ( PRESENT ( use_ref_cell ) ) use_ref_cell = .FALSE.
        END IF
     END IF
   END SUBROUTINE read_cell_new
@@ -789,7 +789,7 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE write_cell(cell,force_env_section,error)
+  SUBROUTINE write_cell(cell,force_env_section,cell_ref,error)
 
 !   Purpose: Write the cell parameters to the output unit.
 
@@ -799,6 +799,7 @@ CONTAINS
 
     TYPE(cell_type), POINTER                 :: cell
     TYPE(section_vals_type), POINTER :: force_env_section
+    TYPE(cell_type), POINTER,OPTIONAL     :: cell_ref
     TYPE(cp_error_type), INTENT(inout), &
          OPTIONAL                               :: error
 
@@ -835,10 +836,36 @@ CONTAINS
           "CELL| Angle (a,b) [degree]: ",gamma
      WRITE (UNIT=output_unit,FMT="(T2,A,T70,F11.3)")&
           "CELL| Grid size for subcell generation",cell%subcells
-  END IF
-  CALL cp_print_key_finished_output(output_unit,logger,force_env_section,&
-       "SUBSYS%PRINT%CELL",error=error)
   
+     IF ( PRESENT ( cell_ref ) ) THEN
+        WRITE (UNIT=output_unit, FMT='( )' ) 
+        CALL get_cell(cell=cell_ref,abc=abc,alpha=alpha,beta=beta,gamma=gamma)
+
+        WRITE (UNIT=output_unit,FMT="(T2,A,T61,F20.3)")&
+          "CELL_REF| Volume ["//TRIM(cell_ref%unit_of_length_name)//"**3]:",&
+          cell_ref%deth/cell%unit_of_length**3
+        WRITE (UNIT=output_unit,FMT="(T2,A,T30,3F10.3,4X,A6,F11.3)")&
+          "CELL_REF| Vector a ["//TRIM(cell_ref%unit_of_length_name)//"]:",&
+          cell_ref%hmat(:,1)/cell_ref%unit_of_length,&
+          "|a| = ",abc(1)/cell_ref%unit_of_length,&
+          "CELL_REF| Vector b ["//TRIM(cell_ref%unit_of_length_name)//"]:",&
+          cell_ref%hmat(:,2)/cell_ref%unit_of_length,&
+          "|b| = ",abc(2)/cell_ref%unit_of_length,&
+          "CELL_REF| Vector c ["//TRIM(cell_ref%unit_of_length_name)//"]:",&
+          cell_ref%hmat(:,3)/cell_ref%unit_of_length,&
+          "|c| = ",abc(3)/cell_ref%unit_of_length
+        WRITE (UNIT=output_unit,FMT="(T2,A,T70,F11.3)")&
+          "CELL_REF| Angle (b,c) [degree]: ",alpha,&
+          "CELL_REF| Angle (a,c) [degree]: ",beta,&
+          "CELL_REF| Angle (a,b) [degree]: ",gamma
+        WRITE (UNIT=output_unit,FMT="(T2,A,T70,F11.3)")&
+          "CELL_REF| Grid size for subcell generation",cell_ref%subcells
+      ENDIF
+
+    END IF
+    CALL cp_print_key_finished_output(output_unit,logger,force_env_section,&
+       "SUBSYS%PRINT%CELL",error=error)
+
   END SUBROUTINE write_cell
 
 ! *****************************************************************************

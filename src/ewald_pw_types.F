@@ -300,8 +300,10 @@ SUBROUTINE ewald_pw_init ( ewald_pw, cell, cell_ref, ewald_env, force_env_sectio
        pw_big_grid % grid_span = HALFSPACE
 
        CALL pw_find_cutoff ( npts_s, cell_ref, cutoff )
-
        ecut = 0.5_dp * cutoff * cutoff
+      ! CALL pw_find_cutoff ( pw_big_grid % bounds, cell_ref % h_inv, cutoff )
+      ! ecut = cutoff 
+
        CALL pw_grid_setup ( cell_ref, pw_big_grid, cutoff = ecut, &
                            info = output_unit, fft_usage = .FALSE. )
        NULLIFY ( pw_pool )
@@ -361,12 +363,14 @@ SUBROUTINE ewald_pw_init ( ewald_pw, cell, cell_ref, ewald_env, force_env_sectio
        CALL pw_grid_create( pw_big_grid, para_env%group )
      ! set up SPME
        npts_s = (/ gmax, gmax, gmax /)
-       CALL pw_find_cutoff ( npts_s, cell_ref, cutoff )
        pw_big_grid % grid_span = HALFSPACE
        pw_big_grid % bounds ( 1, : ) = -gmax/2
        pw_big_grid % bounds ( 2, : ) = -gmax/2 + gmax - 1
 
+       CALL pw_find_cutoff ( npts_s, cell_ref, cutoff )
        ecut = 0.5_dp * cutoff * cutoff
+     !  CALL pw_find_cutoff ( pw_big_grid % bounds, cell_ref % h_inv, cutoff )
+     !  ecut = cutoff 
        CALL pw_grid_setup( cell_ref, pw_big_grid, cutoff = ecut, &
             info = output_unit, &
             fft_usage = .TRUE., rs_dims=(/para_env%num_pe,1/))

@@ -243,10 +243,21 @@ CONTAINS
             variants=(/"UNIT"/),& 
             description="Specify the global units used in the input.",&
             usage="UNITS ANGSTROM",&
-            enum_c_vals=s2a( "ANGSTROM","SCALED_ANGSTROM","BOHR","SCALED_BOHR"),&
+            enum_c_vals=s2a( "ANGSTROM","BOHR","SCALED_ANGSTROM","SCALED_BOHR"),&
             enum_i_vals=(/ use_unit_angstrom, use_unit_bohr,&
             use_unit_scaled_angstrom, use_unit_scaled_bohr/),&
             default_i_val=use_unit_bohr, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)     
+
+       CALL keyword_create(keyword, name="PERIODIC",&
+            description="Specify the directions on wich apply PBC ",&
+            usage="PERIODIC (x|y|z|xy|xz|yz|xyz|none)",&
+            enum_c_vals=s2a( "x","y","z","xy","xz","yz","xyz","none"),&
+            enum_i_vals=(/ use_perd_x,  use_perd_y,   use_perd_z,&
+                           use_perd_xy, use_perd_xz, use_perd_yz,&
+                           use_perd_xyz, use_perd_none /),&
+            default_i_val=use_perd_xyz, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)     
 

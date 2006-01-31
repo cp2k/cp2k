@@ -174,11 +174,11 @@ MODULE qs_numerical_pressure
        CALL get_hinv ( cell )
        force_env%box_changed = .TRUE.
        force_env%qs_env%use_ref_cell=.TRUE.
-       CALL qs_env_rebuild_pw_env(force_env%qs_env,error=error)
-       CALL qs_ks_create ( new_ks_env, force_env%qs_env, error=error )
-       CALL set_qs_env(force_env%qs_env, ks_env=new_ks_env,error=error)
-       CALL qs_ks_release ( new_ks_env, error=error )
-       force_env%box_changed = .FALSE.
+!       CALL qs_env_rebuild_pw_env(force_env%qs_env,error=error)
+!       CALL qs_ks_create ( new_ks_env, force_env%qs_env, error=error )
+!       CALL set_qs_env(force_env%qs_env, ks_env=new_ks_env,error=error)
+!       CALL qs_ks_release ( new_ks_env, error=error )
+!       force_env%box_changed = .FALSE.
 !      CALL qs_energies(force_env%qs_env,globenv,&
 !                       consistent_energies=.TRUE.,box_changed=.TRUE.)
 

@@ -127,7 +127,7 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER              :: routineN = "md_energy"
 
     CHARACTER (LEN=200)                      :: title
-    INTEGER                                  :: crd, vel, ene 
+    INTEGER                                  :: crd, vel, ene, pte 
     INTEGER                                  :: handle, istat, isubsys, iw, delta_t, i
     INTEGER                                  :: group, source
     INTEGER                                  :: nat
