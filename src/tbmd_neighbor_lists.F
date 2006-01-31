@@ -438,7 +438,7 @@ CONTAINS
                                  "TBMD%PRINT%NEIGHBOR_LISTS", &
                                  extension=".mmLog", error=error)
        CALL write_neighbor_lists(tbmd_neighbor_list, particle_set, cell, &
-                                 globenv, iw, "NONBONDED NEIGHBOR LISTS", &
+                                 globenv, iw, "TBMD NEIGHBOR LISTS", &
                                  error=error)
        CALL cp_print_key_finished_output(iw, logger, force_env_section, &
                                          "TBMD%PRINT%NEIGHBOR_LISTS", &

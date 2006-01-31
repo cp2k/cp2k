@@ -36,6 +36,7 @@ MODULE tbmd_environment
                                                     get_cell, &
                                                     cell_release,&
                                                     write_cell
+  USE cp_blacs_env,                           ONLY: cp_blacs_env_create
   USE cp_fm_struct,                           ONLY: optimal_blacs_col_block_size, &
                                                     optimal_blacs_row_block_size
   USE cp_subsystem_methods,                   ONLY: cp_subsys_read_colvar
@@ -191,7 +192,11 @@ CONTAINS
                                                  "TBMD", error=error)
 
       CALL tbmd_env_set(tbmd_env=tbmd_env, tbmd_input=tbmd_section, &
-                        force_env_input=force_env_section, error=error)
+                        force_env_input=force_env_section, para_env=globenv%para_env, &
+                        error=error)
+
+      CALL cp_blacs_env_create(blacs_env=tbmd_env%blacs_env, para_env=tbmd_env%para_env, &
+                               error=error)
 
       CALL read_cell(cell=cell, cell_ref=cell_ref, globenv=globenv, &
                      use_ref_cell=use_ref_cell, cell_section=cell_section, &
