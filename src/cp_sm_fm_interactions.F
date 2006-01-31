@@ -1270,7 +1270,6 @@ END SUBROUTINE cp_sm_plus_fm_fm_t
       POINTER                                :: v_in, v_out
     TYPE(cp_para_env_type), POINTER          :: fm_para_env
     TYPE(real_block_node_type), POINTER      :: block_node
-    TYPE(cp_logger_type), pointer :: logger
 
     CALL timeset(routineN,"I","Gflops",handle)
     failure=.false.
@@ -1282,7 +1281,6 @@ END SUBROUTINE cp_sm_plus_fm_fm_t
          local_atomic_cols)
     NULLIFY(blacs2mpi,sparse_block,block_node,&
          v_in,v_out,fm_para_env)
-    logger => cp_error_get_logger(error)
     CPPrecondition(ASSOCIATED(sm),cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(fm_in),cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(fm_out),cp_failure_level,routineP,error,failure)

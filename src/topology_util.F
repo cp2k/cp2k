@@ -3556,7 +3556,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'topology_molecules_check', &
       routineP = moduleN//':'//routineN
     TYPE(atom_info_type),POINTER             :: atom_info
-    TYPE(connectivity_info_type),POINTER     :: conn_info
 
     INTEGER                                  :: iw, stat
     INTEGER                                  :: counter,iatom,imol,nmol,nmol_typ
@@ -3574,7 +3573,6 @@ CONTAINS
     CALL timeset(routineN,'I','',handle)
 
     atom_info => topology%atom_info
-    conn_info => topology%conn_info
     
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------

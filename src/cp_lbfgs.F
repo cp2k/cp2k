@@ -4122,7 +4122,16 @@ CONTAINS
     CASE = 1
     IF (MOD(job,10) /= 0) CASE = 2
     IF (MOD(job,100)/10 /= 0) CASE = CASE + 2
-    go to (20,50,80,110), CASE
+    SELECT CASE(CASE)
+    CASE(1)
+      GOTO 20
+    CASE(2) 
+      GOTO 50
+    CASE(3)
+      GOTO 80
+    CASE(4)
+      GOTO 110
+    END SELECT
     
     ! solve t*x=b for t lower triangular
     

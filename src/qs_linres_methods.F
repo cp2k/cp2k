@@ -540,7 +540,6 @@ CONTAINS
     LOGICAL                                  :: failure
     REAL(dp)                                 :: polak_gamma, test_down, tmp
     TYPE(cp_fm_p_type), DIMENSION(2)         :: PS_psi0
-    TYPE(cp_fm_type), POINTER                :: mo_coeff
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos
     TYPE(real_matrix_p_type), DIMENSION(:), &
@@ -549,7 +548,7 @@ CONTAINS
     failure = .FALSE.
 
     NULLIFY(PS_psi0(1)%matrix,PS_psi0(2)%matrix)
-    NULLIFY(matrix_ks,matrix_s,matrix_t,mo_coeff,mos)
+    NULLIFY(matrix_ks,matrix_s,matrix_t,mos)
  
     CALL get_qs_env(qs_env=qs_env,&
          matrix_ks=matrix_ks,&

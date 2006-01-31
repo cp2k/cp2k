@@ -433,13 +433,11 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:), POINTER     :: evals
     TYPE(cp_cfm_type), POINTER               :: cmat_A, cmat_R, cmat_t1
     TYPE(cp_fm_type), POINTER                :: mat_R, mat_t, mat_U
-    TYPE(cp_logger_type), pointer            :: logger
 
     CALL timeset("crazy_rotations","I"," ",handle)
     NULLIFY(row_indices,col_indices)
     NULLIFY(mat_U,mat_t,mat_R)
     NULLIFY(cmat_A,cmat_R,cmat_t1)
-    logger => cp_error_get_logger(error)
     CALL cp_fm_get_info(zij(1,1)%matrix,nrow_global=nrow_global, ncol_global=ncol_global, &
                                         row_indices=row_indices, col_indices=col_indices, &
                                         nrow_local=nrow_local, ncol_local=ncol_local)

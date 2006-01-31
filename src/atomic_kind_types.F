@@ -1663,11 +1663,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'write_atomic_kind', &
       routineP = module_name//':'//routineN
     LOGICAL :: failure
-    TYPE(cp_logger_type), POINTER            :: logger
 
     failure = .FALSE.
-    NULLIFY(logger)
-    logger => cp_error_get_logger(error)       
 
     IF (output_unit>0) THEN
        IF (ASSOCIATED(atomic_kind)) THEN

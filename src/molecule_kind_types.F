@@ -907,12 +907,9 @@ CONTAINS
     INTEGER                                  :: iatom, imolecule, natom, &
                                                 nmolecule
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
-    TYPE(cp_logger_type), POINTER            :: logger
     logical :: failure
 
     failure = .FALSE.
-    NULLIFY(logger)
-    logger => cp_error_get_logger(error)       
     IF (output_unit>0) THEN
       IF (ASSOCIATED(molecule_kind)) THEN
         natom = SIZE(molecule_kind%atom_list)

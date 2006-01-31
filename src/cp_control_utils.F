@@ -166,7 +166,7 @@ CONTAINS
     TYPE(cp_error_type)                      :: sub_error
     TYPE(section_vals_type), POINTER         :: dft_section, tmp_section, &
                                                 xc_fun_section, &
-                                                xc_grid_section, xc_section
+                                                xc_section
     CHARACTER(len=default_string_length) :: basis_set_file_name, potential_file_name
     REAL(kind=dp) :: density_cut, gradient_cut, tau_cut
     TYPE(xc_rho_cflags_type) :: needs
@@ -176,13 +176,12 @@ CONTAINS
 
     failure=.FALSE.
     was_present = .FALSE.
-    NULLIFY(dft_section,tmp_section,xc_fun_section,xc_grid_section,xc_section)
+    NULLIFY(dft_section,tmp_section,xc_fun_section,xc_section)
 
     CALL dft_control_create(dft_control, error=error)
     dft_section => section_vals_get_subs_vals(globenv%input_file,"FORCE_EVAL",error=error)
     dft_section => section_vals_get_subs_vals(dft_section,"DFT",error=error)
     xc_section => section_vals_get_subs_vals(dft_section,"XC",error=error)
-    xc_grid_section => section_vals_get_subs_vals(xc_section,"XC_GRID",error=error)
     xc_fun_section => section_vals_get_subs_vals(xc_section,"XC_FUNCTIONAL",&
          error=error)
     
@@ -558,12 +557,12 @@ CONTAINS
     INTEGER                                  :: i
     LOGICAL                                  :: failure, kenergy_den, was_present
     TYPE(section_vals_type), POINTER         :: t_section, sic_section, xc_section
-    TYPE(section_vals_type), POINTER         :: tmp_section, xc_grid, xc_fun
+    TYPE(section_vals_type), POINTER         :: tmp_section
 
 
     failure=.FALSE.
     kenergy_den = .FALSE.
-    nullify(sic_section, t_section, xc_section, xc_grid, xc_fun)
+    nullify(sic_section, t_section, xc_section )
     t_section => section_vals_get_subs_vals(globenv%input_file,"FORCE_EVAL",error=error)
     t_section => section_vals_get_subs_vals(t_section,"DFT",error=error)
     t_section => section_vals_get_subs_vals(t_section,"TDDFPT",error=error)

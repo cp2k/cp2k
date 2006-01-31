@@ -187,7 +187,6 @@ CONTAINS
     TYPE(cp_fm_pool_p_type), DIMENSION(:), &
       POINTER                                :: ao_mo_fm_pools, mo_mo_fm_pools
     TYPE(cp_fm_type), POINTER                :: qs_env_c
-    TYPE(cp_fm_struct_type), POINTER         :: ao_mo_fmstruct,fm_struct_tmp
 
  integer :: i,j
 ! code
@@ -197,7 +196,7 @@ CONTAINS
     n_spins = qs_env%dft_control%nspins
 
     failure=.FALSE.
-    NULLIFY( ao_mo_fm_pools, mo_mo_fm_pools,ao_mo_fmstruct,fm_struct_tmp)
+    NULLIFY( ao_mo_fm_pools, mo_mo_fm_pools)
     
     ALLOCATE(p_env,stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)

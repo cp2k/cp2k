@@ -2069,7 +2069,6 @@ SUBROUTINE create_tddfpt_section(section,error)
     LOGICAL :: failure
     CHARACTER(len=*), PARAMETER :: routineN='create_properties_section',&
          routineP=moduleN//':'//routineN
-    TYPE(keyword_type), POINTER :: keyword
     TYPE(section_type), POINTER :: subsection
     failure=.FALSE.
     
@@ -2080,7 +2079,6 @@ SUBROUTINE create_tddfpt_section(section,error)
             n_keywords=3, n_subsections=1, repeats=.FALSE., required=.TRUE.,&
             error=error)
 
-       NULLIFY (keyword)
        NULLIFY (subsection)
 
        CALL create_linres_section(subsection,error)
@@ -2124,7 +2122,6 @@ SUBROUTINE create_tddfpt_section(section,error)
     CHARACTER(len=*), PARAMETER :: routineN='create_fitcharge_section',&
          routineP=moduleN//':'//routineN
     TYPE(keyword_type), POINTER :: keyword
-    TYPE(section_type), POINTER :: subsection
     failure=.FALSE.
     
     CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
@@ -2133,7 +2130,7 @@ SUBROUTINE create_tddfpt_section(section,error)
             description="This section is used to set up calculation of density derived atomic point charges.",&
             print_level=high_print_level,filename="__STD_OUT__",error=error)
 
-       NULLIFY(keyword, subsection)
+       NULLIFY(keyword )
 
        CALL keyword_create(keyword, name="NUM_GAUSS",&
             description="Specifies the numbers of gaussian used to fit the QM density for each atomic site.",&
@@ -2739,11 +2736,10 @@ SUBROUTINE create_tddfpt_section(section,error)
     logical :: failure
     character(len=*), parameter :: routineN='create_mgrid_section',&
          routineP=moduleN//':'//routineN
-    TYPE(section_type), POINTER :: subsection,print_key
+    TYPE(section_type), POINTER :: subsection
     TYPE(keyword_type), pointer :: keyword
     failure=.false.
 
-    nullify(print_key)
     CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
        CALL section_create(section,name="mgrid",&
@@ -3601,11 +3597,10 @@ END SUBROUTINE create_ot_section
     logical :: failure
     character(len=*), parameter :: routineN='create_linres_section',&
          routineP=moduleN//':'//routineN
-    TYPE(section_type), POINTER :: subsection
     TYPE(keyword_type), pointer :: keyword
  
     failure=.false.
-    NULLIFY(keyword,subsection)
+    NULLIFY(keyword)
 
     CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN

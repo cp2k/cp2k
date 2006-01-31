@@ -1806,14 +1806,12 @@ END SUBROUTINE pw_nn_compose_r
     REAL(kind=dp), DIMENSION(:,:,:), POINTER :: coarse_coeffs, fine_values
     REAL(kind=dp), DIMENSION(:,:), POINTER :: u_boundary1,u_boundary2,&
          l_boundary1, l_boundary2, tmp1,tmp2
-    TYPE(cp_logger_type), pointer :: logger
 
     CALL timeset(routineN,"I","",handle)
 !    CALL timeset(routineN//"_pre","I","",handle2)
     failure=.FALSE.
     safe_calc=.false.
     if (present(safe_computation)) safe_calc=safe_computation
-    logger => cp_error_get_logger(error)
     CALL mp_comm_compare(coarse_coeffs_pw%pw_grid%para%group,&
          fine_values_pw%pw_grid%para%group,ii)
     IF (ii>1) then
@@ -2640,7 +2638,6 @@ END SUBROUTINE pw_nn_compose_r
     INTEGER, DIMENSION(:), ALLOCATABLE :: send_size, send_offset, rcv_size,&
          rcv_offset, sent_size, pp_lb, pp_ub, real_rcv_size
     REAL(kind=dp), DIMENSION(:), ALLOCATABLE :: send_buf, rcv_buf
-    TYPE(cp_logger_type), pointer :: logger
 
     failure=.FALSE.
     CALL timeset(routineN,"I","",handle)
@@ -2648,7 +2645,6 @@ END SUBROUTINE pw_nn_compose_r
     IF (.NOT. failure) THEN
        safe_calc=.FALSE.
        IF (PRESENT(safe_computation)) safe_calc=safe_computation
-       logger => cp_error_get_logger(error)
 
        my_coarse_bo=coarse_coeffs_pw%pw_grid%bounds_local
        coarse_gbo=coarse_coeffs_pw%pw_grid%bounds
@@ -3849,12 +3845,10 @@ END SUBROUTINE pw_nn_compose_r
     REAL(kind=dp) :: eps_r,eps_x, max_diff
     INTEGER, save :: ifile=0
     CHARACTER(80) :: filename
-    TYPE(cp_logger_type), pointer :: logger
     logical :: pbc
 
     failure=.false.
     ifile=ifile+1
-    logger => cp_error_get_logger(error)
     CALL timeset(routineN,"I","",handle)
     IF (.NOT. failure) THEN
        CALL section_vals_val_get(param_section,"safe_computation", &
@@ -3968,7 +3962,6 @@ END SUBROUTINE pw_nn_compose_r
     REAL(kind=dp) :: eps_x, eps_r, max_diff
     TYPE(pw_spline_precond_type), pointer :: precond
     TYPE(section_vals_type), pointer :: print_key
-    TYPE(cp_logger_type), pointer :: logger
     INTEGER, save :: ifile=0
     character(len=80) :: filename
     logical :: pbc
@@ -3979,7 +3972,6 @@ END SUBROUTINE pw_nn_compose_r
     CALL timeset(routineN,"I","",handle)
     IF (.NOT. failure) THEN
        NULLIFY(coeffs)
-       logger => cp_error_get_logger(error)
        CALL pw_pool_create_pw(coarse_pool,coeffs, use_data=REALDATA3D,&
             in_space=REALSPACE,error=error)
        bo=pw_coarse_in%pw_grid%bounds_local
@@ -4094,9 +4086,7 @@ END SUBROUTINE pw_nn_compose_r
     REAL(kind=dp), DIMENSION(:, :), POINTER  :: l_boundary, tmp, u_boundary
     REAL(kind=dp), DIMENSION(:,:,:), POINTER :: in_val, out_val
     REAL(kind=dp), parameter :: w_border=0.0_dp
-    TYPE(cp_logger_type), pointer :: logger
 
-    logger => cp_error_get_logger(error)
     bo=pw_in%pw_grid%bounds_local
     gbo=pw_in%pw_grid%bounds
     in_val => pw_in%cr3d

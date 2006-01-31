@@ -192,7 +192,6 @@ MODULE ewald_environment_types
     TYPE ( cp_error_type ), INTENT ( INOUT ), OPTIONAL :: error
 
     LOGICAL :: failure
-    TYPE(section_vals_type), POINTER    :: ewald_section
     CHARACTER(len=*), PARAMETER :: routineN='ewald_env_set',&
                                    routineP=moduleN//':'//routineN
 
@@ -215,9 +214,6 @@ MODULE ewald_environment_types
          CALL section_vals_retain(poisson_section,error=error)
          CALL section_vals_release(ewald_env%poisson_section,error=error)
          ewald_env%poisson_section => poisson_section
-         ewald_section => section_vals_get_subs_vals(poisson_section,"EWALD",&
-              error=error)
-         !FM call read_ewald_section1(ewald_env, ewald_section, error=error)
       END IF
     ENDIF
 

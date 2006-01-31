@@ -552,7 +552,6 @@ SUBROUTINE force_env_write_variables(force_env, unit_nr, local, globenv, error)
                                                 should_write
     TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
     TYPE(cell_type), POINTER                 :: cell, cell_ref
-    TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_subsystem_p_type), &
       DIMENSION(:), POINTER                  :: subsys
     TYPE(dyn_coeff_set_p_type), &
@@ -562,8 +561,7 @@ SUBROUTINE force_env_write_variables(force_env, unit_nr, local, globenv, error)
 
   failure=.FALSE.
 
-  NULLIFY(subsys,cell,atomic_kinds,dyn_coeff_set, particles, md_section,logger)
-  logger => cp_error_get_logger(error)
+  NULLIFY(subsys,cell,atomic_kinds,dyn_coeff_set, particles, md_section)
   CPPrecondition(ASSOCIATED(force_env),cp_failure_level,routineP,error,failure)
   IF (.NOT.failure) THEN
      CPPrecondition(force_env%ref_count>0,cp_failure_level,routineP,error,failure)

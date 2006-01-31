@@ -884,11 +884,10 @@ SUBROUTINE create_f_env_print_section(section,error)
   character(len=*), parameter :: routineN='create_f_env_print_section',&
        routineP=moduleN//':'//routineN
   TYPE(section_type), pointer :: print_key
-  TYPE(keyword_type), pointer :: keyword
 
   failure=.FALSE.
 
-  NULLIFY(print_key,keyword)
+  NULLIFY(print_key)
   CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
   IF (.NOT. failure) THEN
      CALL section_create(section,name="print",&

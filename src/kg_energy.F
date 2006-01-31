@@ -165,11 +165,8 @@ SUBROUTINE kg_only_energies ( kg_env, globenv, error )
     LOGICAL                                  :: ionode, should_stop, failure
     LOGICAL                                  :: calculate_forces
     REAL(KIND=dp)                            :: dvol, total_rho0_rspace
-    TYPE(atomic_kind_type), DIMENSION(:), &
-      POINTER                                :: atomic_kind_set
     TYPE(coeff_type), POINTER                :: rho_core, rho_r, rho_g,&
-                                                v_gspace, &
-                                                v_rspace
+                                                v_gspace
     TYPE(pw_p_type), DIMENSION(:), POINTER   :: my_vxc_r, my_vxc_tau, &
                                                 my_rho_r, my_rho_g,&
                                                 my_tau
@@ -189,8 +186,8 @@ SUBROUTINE kg_only_energies ( kg_env, globenv, error )
   failure=.FALSE.
   ionode=globenv%ionode
   output_unit=globenv%scr
-  NULLIFY(atomic_kind_set,energy,dft_control,cell,rho)
-  NULLIFY(rspw,auxbas_pw_pool,v_gspace,v_rspace,poisson_env)
+  NULLIFY(energy,dft_control,cell,rho)
+  NULLIFY(rspw,auxbas_pw_pool,v_gspace,poisson_env)
   NULLIFY(rho_r,rho_g,rho_core, my_vxc_r, my_vxc_tau, my_rho_g, my_tau)
   xc_section => section_vals_get_subs_vals(globenv%input_file,&
        "FORCE_EVAL%DFT%XC", error=error)

@@ -329,7 +329,7 @@ CONTAINS
     INTEGER :: neighbor_list_id
 
     TYPE(harris_env_type), POINTER              :: harris_env
-    TYPE(section_vals_type), POINTER            :: print_key, input
+    TYPE(section_vals_type), POINTER            :: input
     TYPE(section_vals_type), POINTER            :: lr_section, xas_section
 
     TYPE(virial_type), POINTER                  :: virial
@@ -378,7 +378,6 @@ CONTAINS
     NULLIFY (matrix_v)
     NULLIFY (workt)
     NULLIFY (harris_env)
-    NULLIFY(print_key,input)
 
 
 ! Default

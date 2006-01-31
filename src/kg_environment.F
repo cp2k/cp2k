@@ -183,7 +183,7 @@ CONTAINS
     TYPE(scf_control_type), POINTER          :: scf_control
     TYPE(section_vals_type), POINTER         :: cell_section,&
                                                 force_env_section,&
-                                                poisson_section, dft_section
+                                                dft_section
     REAL(kind=dp), DIMENSION(3)              :: abc
     TYPE(cp_logger_type), pointer            :: logger
     INTEGER :: iw
@@ -198,7 +198,7 @@ CONTAINS
     
     ! nullifying  pointers
     NULLIFY ( atomic_kind_set )
-    NULLIFY ( cell_section, force_env_section, poisson_section)
+    NULLIFY ( cell_section, force_env_section )
     NULLIFY ( cell)
     NULLIFY ( dft_control )
     NULLIFY ( dyn_coeff_set )
@@ -210,7 +210,7 @@ CONTAINS
     NULLIFY ( particle_set )
     NULLIFY ( scf_control )
     NULLIFY ( cell_ref )
-    NULLIFY ( cell_section, force_env_section, poisson_section )
+    NULLIFY ( cell_section, force_env_section )
     NULLIFY ( logger )
 
     logger => cp_error_get_logger(error)
@@ -220,8 +220,6 @@ CONTAINS
          "SUBSYS%CELL",error=error) 
     dft_section =>  section_vals_get_subs_vals(force_env_section,&
          "DFT",error=error)
-    poisson_section => section_vals_get_subs_vals(dft_section,&
-         "POISSON_DFT",error=error)
 
     iw = cp_print_key_unit_nr(logger,dft_section,"PRINT%PROGRAM_BANNER",&
          extension=".Log",error=error)    

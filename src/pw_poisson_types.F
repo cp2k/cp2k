@@ -233,7 +233,6 @@ CONTAINS
     INTEGER, DIMENSION(2, 3) :: bounds1, bounds2
     REAL(KIND=dp) :: my_cutilev, mt_rel_cutoff, xc_cut
     LOGICAL :: failure, grid_info, mt_s_grid,symmetry
-    TYPE(cp_logger_type), pointer :: logger
 
     failure = .FALSE.
     NULLIFY(poisson_section)
@@ -243,7 +242,6 @@ CONTAINS
     symmetry=.false.
     if (present(symm_usage)) symmetry=symm_usage
     IF (.NOT. failure) THEN
-       logger => cp_error_get_logger(error)
        poisson_section => section_vals_get_subs_vals(input,"DFT%POISSON_DFT",error=error)    
        CALL section_vals_val_get(poisson_section,"POISSON_SOLVER",i_val=my_val,error=error)
        !

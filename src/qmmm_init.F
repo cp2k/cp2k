@@ -191,7 +191,7 @@ CONTAINS
     REAL(dp), DIMENSION(:), POINTER          :: mm_atom_chrg, mm_el_pot_radius, mm_el_pot_radius_corr 
     REAL(KIND=dp)                            :: eps_mm_rspace
     INTEGER                                  :: qmmm_coupl_type
-    TYPE(section_vals_type), POINTER         :: force_env_section, qmmm_section, poisson_section, print_section,&
+    TYPE(section_vals_type), POINTER         :: force_env_section, qmmm_section, print_section,&
                                                 qmmm_periodic
     TYPE(qmmm_links_type), pointer           :: qmmm_links
     REAL(KIND=dp),  DIMENSION(:), POINTER    :: mm_link_scale_factor, fist_scale_charge_link
@@ -209,7 +209,7 @@ CONTAINS
          qmmm_env_qm, subsys_mm,subsys_qm, mm_cell, qm_cell_small,       &
          qs_env, para_env, mm_atom_chrg,mm_el_pot_radius, qmmm_env_mm,   &
          mm_link_atoms, mm_link_scale_factor, qmmm_links, added_charges, &
-         fist_scale_charge_link, poisson_section, print_section,  &
+         fist_scale_charge_link, print_section,  &
          print_gen, logger, mm_el_pot_radius_corr, super_cell)
     para_env => globenv%para_env
     iw = globenv%scr
@@ -220,7 +220,6 @@ CONTAINS
        qmmm_section => section_vals_get_subs_vals(force_env_section,"QMMM",error=error)
        qmmm_periodic => section_vals_get_subs_vals(qmmm_section,"PERIODIC",error=error)
        print_section => section_vals_get_subs_vals(qmmm_section,"PRINT",error=error)
-       poisson_section => section_vals_get_subs_vals(force_env_section,"DFT%POISSON_DFT",error=error)
        print_gen => section_vals_get_subs_vals(print_section,"PROGRAM_RUN_INFO",error=error)
        ALLOCATE(sub_force_env(2),stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)

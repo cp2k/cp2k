@@ -259,7 +259,6 @@ SUBROUTINE ewald_pw_init ( ewald_pw, cell, cell_ref, ewald_env, force_env_sectio
   TYPE ( pw_pool_type ), POINTER :: pw_pool
   TYPE(pw_pool_p_type), DIMENSION(:), POINTER :: pw_pools
   INTEGER :: ewald_type
-  REAL (KIND=dp), DIMENSION ( :, : ), POINTER ::  p3m_coeff
   TYPE(section_vals_type), pointer :: poisson_section
   CHARACTER(len=*), PARAMETER :: routineN='ewald_pw_init',&
         routineP=moduleN//':'//routineN
@@ -269,7 +268,7 @@ SUBROUTINE ewald_pw_init ( ewald_pw, cell, cell_ref, ewald_env, force_env_sectio
   failure=.FALSE.
 
   NULLIFY ( pw_big_grid )
-  NULLIFY ( pw_small_grid, p3m_coeff, poisson_section )
+  NULLIFY ( pw_small_grid, poisson_section )
   logger => cp_error_get_logger ( error )
   output_unit = cp_print_key_unit_nr(logger,force_env_section,"PRINT%PW_GRID_INFORMATION",&
          extension=".Log",error=error)

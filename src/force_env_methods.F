@@ -547,7 +547,7 @@ RECURSIVE SUBROUTINE qmmm_energy_and_forces(force_env,calc_force,error)
   TYPE(cell_type), POINTER :: qm_cell, mm_cell
   REAL(KIND=dp) :: energy_mm, energy_qm
   TYPE(cp_logger_type), pointer :: logger
-  TYPE(section_vals_type), POINTER :: print_key, force_env_section, qmmm_section
+  TYPE(section_vals_type), POINTER :: force_env_section
   TYPE(qmmm_links_type), POINTER :: qmmm_links
   LOGICAL, SAVE :: do_translate=.TRUE.
   
@@ -561,11 +561,10 @@ RECURSIVE SUBROUTINE qmmm_energy_and_forces(force_env,calc_force,error)
   logger => cp_error_get_logger(error)
   IF (PRESENT(calc_force)) need_f=calc_force
   NULLIFY(subsys_mm, subsys_qm, qm_atom_index,particles_mm,particles_qm, qm_cell, mm_cell)
-  NULLIFY(print_key, force_env_section, qmmm_section)
+  NULLIFY(force_env_section )
   force_env_section => &
        section_vals_get_subs_vals(force_env%sub_force_env(qs_subsys)%force_env%globenv%input_file,&
        "FORCE_EVAL",error=error)
-  qmmm_section => section_vals_get_subs_vals(force_env_section,"QMMM",error=error)
 
   CPPrecondition(ASSOCIATED(force_env),cp_failure_level,routineP,error,failure)
   CPPrecondition(force_env%ref_count>0,cp_failure_level,routineP,error,failure)

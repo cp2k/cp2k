@@ -253,15 +253,11 @@ CONTAINS
     REAL(KIND=dp)                            :: dx, dy, dz, omega
     TYPE(pw_grid_type), POINTER              :: grid
     REAL(KIND=dp), DIMENSION(3)              :: box, box2
-    INTEGER, DIMENSION(:,:), POINTER         :: bo
-    INTEGER, DIMENSION(:), POINTER           :: glb
 
     CALL timeset(routineN,"I","",handle)
     failure=.FALSE.
     IF (.NOT.failure) THEN
        grid => screen_function%pw_grid
-       bo   => grid%bounds_local
-       glb  => grid%bounds(1,:)
        box = REAL(grid%npts,kind=dp)*grid%dr
        box2 = box/2.0_dp
        omega = PRODUCT(box)

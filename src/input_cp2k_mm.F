@@ -211,10 +211,8 @@ contains
     CHARACTER(len=*), PARAMETER :: routineN='create_print_mm_section',&
          routineP=moduleN//':'//routineN
     TYPE(section_type), POINTER :: print_key
-    TYPE(keyword_type), POINTER :: keyword
 
     failure=.FALSE.
-    NULLIFY(keyword)
     CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
        CALL section_create(section,name="print",&

@@ -333,14 +333,12 @@ SUBROUTINE gopt_f_eval_at(gopt_env, x, f, gradient, master, para_env, force_env_
     INTEGER                                  :: handle, idg, idir, ip, isubsys
     LOGICAL                                  :: failure
     TYPE(cell_type), POINTER                 :: cell
-    TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_subsystem_p_type), &
       DIMENSION(:), POINTER                  :: subsys
     TYPE(particle_list_type), POINTER        :: particles
 
   failure=.FALSE.
   NULLIFY(particles, subsys, cell)
-  logger => cp_error_get_logger(error)
   
   CALL timeset(routineN,"I","",handle)
   

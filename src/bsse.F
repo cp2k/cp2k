@@ -300,16 +300,15 @@ CONTAINS
     INTEGER, DIMENSION(:), POINTER           :: atom_list
     CHARACTER(LEN=default_string_length)     :: name
     TYPE(qs_environment_type), POINTER       :: qs_env    
-    TYPE(section_vals_type), POINTER         :: force_env_section, poisson_section
+    TYPE(section_vals_type), POINTER         :: force_env_section
     REAL(KIND=dp), DIMENSION(3)              :: abc
 
     failure = .FALSE.
     CALL section_vals_get(n_frags,n_repetition=num_of_frag,error=error)
     CPPostcondition(SIZE(conf)==num_of_frag,cp_failure_level,routineP,error,failure)
     NULLIFY(subsys_loc, subsys, particles, para_env, cell, atom_index, atom_type, tmplist,&
-         force_env_section, poisson_section)
+         force_env_section )
     force_env_section => section_vals_get_subs_vals(globenv%input_file,"FORCE_EVAL",error=error)
-    poisson_section => section_vals_get_subs_vals(force_env_section,"DFT%POISSON_DFT",error=error)
     IF (.NOT.failure) THEN
        ALLOCATE(my_conf(SIZE(conf)), stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
