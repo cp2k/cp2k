@@ -43,7 +43,8 @@ MODULE tbmd_force
                                                     init_mo_set
   USE qs_scf,                                 ONLY: eigensolver, &
                                                     simple_eigensolver
-  USE sparse_matrix_types,                    ONLY: real_matrix_type
+  USE sparse_matrix_types,                    ONLY: real_matrix_type, &
+                                                    replicate_matrix_structure
   USE tbmd_environment_types,                 ONLY: tbmd_environment_type, &
                                                     tbmd_env_get
   USE tbmd_force_types,                       ONLY: tbmd_force_type
@@ -200,7 +201,11 @@ CONTAINS
                           work_syevx=1.0_dp, use_jacobi=use_jacobi, &
                           jacobi_threshold=1.0e-7_dp, smear=0.0_dp, error=error)
       END IF
-PRINT *, "diagnolization: done!"
+
+      CALL replicate_matrix_structure(source=tbmd_env%matrix_h, TARGET=tbmd_env%matrix_p, &
+                                      target_name="Density-Matrix", &
+                                      target_symmetry="symmetric")
+
       CALL calculate_density_matrix(mo_set=mos, density_matrix=tbmd_env%matrix_p, &
                                     error=error)
 
