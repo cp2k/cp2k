@@ -445,7 +445,7 @@ CONTAINS
                extension=".qmmmLog",error=error)
           IF (output_unit>0) &          
                WRITE (UNIT=output_unit,FMT="(T3,A)")&
-               "Adding QM/MM Electrostatic Potential to the Kohn-Sham Matrix.."
+               "Adding QM/MM electrostatic potential to the Kohn-Sham potential.."
            CALL qmmm_calculate_energy (qs_env=qs_env,&
                                        rho=rho%rho_r,&
                                        v_qmmm=qs_env%ks_qmmm_env%v_qmmm_rspace,&
