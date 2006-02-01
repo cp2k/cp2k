@@ -45,7 +45,8 @@ MODULE tbmd_force
   USE qs_scf,                                 ONLY: eigensolver, &
                                                     simple_eigensolver
   USE sparse_matrix_types,                    ONLY: real_matrix_type, &
-                                                    replicate_matrix_structure
+                                                    replicate_matrix_structure, &
+                                                    cp_sm_sm_trace
   USE tbmd_environment_types,                 ONLY: tbmd_environment_type, &
                                                     tbmd_env_get
   USE tbmd_force_types,                       ONLY: tbmd_force_type
@@ -113,7 +114,8 @@ CONTAINS
                                                 use_cholesky, &
                                                 use_jacobi
     INTEGER                                  :: handle, &
-                                                stat
+                                                stat, &
+                                                i
     TYPE(tbmd_force_type), POINTER           :: tbmd_force
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
@@ -134,6 +136,7 @@ CONTAINS
                                                 fm_matrix_ortho, &
                                                 fm_matrix_work
     TYPE(qs_matrix_pools_type), POINTER      :: matrix_pools
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: trace_vec_ptr
 
 !   ------------------------------------------------------------------------
 
@@ -142,7 +145,7 @@ CONTAINS
     NULLIFY(tbmd_force, atomic_kind_set, particle_set, local_particles, &
             local_molecules, molecule_kind_set, molecule_set, tbmd_neighbor_list_env, &
             cell, force_env_section, mos, fm_matrix_h, fm_matrix_ortho, &
-            fm_matrix_work, matrix_pools)
+            fm_matrix_work, matrix_pools, trace_vec_ptr)
 
     failure = .FALSE.
 
@@ -212,6 +215,12 @@ CONTAINS
                                     error=error)
 
       ! F=Tr[p*(dH/dR)]
+      DO i = 1,3
+        trace_vec_ptr => tbmd_env%tbmd_force%f_bandstruct(:,1)
+        CALL cp_sm_sm_trace(matrix1=tbmd_env%matrix_p, matrix2=tbmd_env%matrix_dh(i)%matrix, &
+                            trace_vec=trace_vec_ptr, &
+                            para_env=tbmd_env%para_env, error=error)
+      END DO
 
       CALL fm_pool_give_back_fm(pool=matrix_pools%ao_mo_fm_pools(1)%pool, &
                                 element=mos%mo_coeff, error=error)

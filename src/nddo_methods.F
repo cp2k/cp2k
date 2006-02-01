@@ -476,7 +476,8 @@ CONTAINS
        energy%hartree=energy%hartree-energy%core
        DO ispin=1,nspins
           CALL cp_sm_sm_trace(ks_matrix(ispin)%matrix,&
-                              matrix_p(ispin)%matrix,ecoul,para_env,error)
+                              matrix_p(ispin)%matrix,trace=ecoul,&
+                              para_env=para_env,error=error)
           energy%hartree=energy%hartree+ecoul
        END DO
 

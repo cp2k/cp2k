@@ -45,7 +45,8 @@ MODULE tbmd_energy
   USE qs_scf,                                 ONLY: eigensolver, &
                                                     simple_eigensolver
   USE sparse_matrix_types,                    ONLY: real_matrix_type, &
-                                                    replicate_matrix_structure
+                                                    replicate_matrix_structure, &
+                                                    cp_sm_sm_trace
   USE tbmd_energy_types,                      ONLY: tbmd_energy_type
   USE tbmd_environment_types,                 ONLY: tbmd_environment_type, &
                                                     tbmd_env_get
@@ -211,6 +212,9 @@ CONTAINS
                                     error=error)
 
       ! E=Tr[p*H]
+      CALL cp_sm_sm_trace(matrix1=tbmd_env%matrix_p, matrix2=tbmd_env%matrix_h, &
+                          trace=tbmd_env%tbmd_energy%E_bandstructure, &
+                          para_env=tbmd_env%para_env, error=error)
 
       CALL fm_pool_give_back_fm(pool=matrix_pools%ao_mo_fm_pools(1)%pool, &
                                 element=mos%mo_coeff, error=error)

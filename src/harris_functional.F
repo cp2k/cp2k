@@ -440,7 +440,7 @@ CONTAINS
       nspins = dft_control%nspins
       DO ispin = 1,nspins
         CALL cp_sm_sm_trace(matrix_ks(ispin)%matrix, rho_ao(ispin)%matrix, &
-                            harris_energy%sum_of_eigenvalues, &
+                            trace=harris_energy%sum_of_eigenvalues, &
                             para_env=para_env, error=error)
       END DO
 
@@ -523,7 +523,7 @@ CONTAINS
       nspins = dft_control%nspins
       DO ispin = 1,nspins
         CALL cp_sm_sm_trace(matrix_ks(ispin)%matrix, scf_env%p_mix_new(ispin)%matrix, &
-                            harris_energy%sum_of_eigenvalues, &
+                            trace=harris_energy%sum_of_eigenvalues, &
                             para_env=para_env, error=error)
       END DO
 
