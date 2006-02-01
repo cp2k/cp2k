@@ -12,6 +12,7 @@
       EXTRAPOLATION_ORDER 3
       METHOD GAPW
       EPS_SVD 0.0
+      FULL_GAPW
     &END QS
     &SCF
       EPS_SCF 1.0E-5
