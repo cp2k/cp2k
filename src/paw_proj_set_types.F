@@ -349,6 +349,7 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:), POINTER :: set_radius
     REAL(KIND=dp), DIMENSION(:, :, :), &
       POINTER                                :: gcca
+    REAL(KIND=dp), DIMENSION(:,:,:), POINTER :: set_radius2
 
     REAL(dp), DIMENSION(:), POINTER :: ei, er,worka
     REAL(dp), DIMENSION(:,:), POINTER :: aa, vl, vr
@@ -364,7 +365,7 @@ CONTAINS
 
 !   ***************************************************************************
 
-    NULLIFY (first_cgf,first_sgf,last_cgf,last_sgf,gcc,l,set_radius)
+    NULLIFY (first_cgf,first_sgf,last_cgf,last_sgf,gcc,l,set_radius,set_radius2)
     NULLIFY (cphi,sphi,lmax,lmin,npgf,nshell,zet,zetp,smat,work,gcca)
 
     failure =.FALSE.
@@ -415,22 +416,57 @@ CONTAINS
       END DO  ! is
     END DO  ! iset
 
+!dbg
+    ALLOCATE(set_radius2(maxpgf,0:maxl,nset),STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routine,error,failure)
+    set_radius2 = 0.0_dp
+    DO iset = 1,nset
+      DO lshell = lmin(iset),lmax(iset)
+        DO ip = 1, npgf(iset)
+          set_radius2(ip,lshell,iset) =  &
+            exp_radius(lshell,orb_basis%zet(ip,iset),eps_orb,1.0_dp)
+        END DO
+      END DO  ! is
+    END DO  ! iset
+!dbg
+
 !   *** Determine the max # of projectors for an ang. mom. q.n. ***
+!    maxnprj = 0
+!    DO lshell = 0,maxl     ! lshell
+!      np = 0
+!      DO iset = 1,nset
+!        IF (lshell >= lmin(iset) .AND. lshell <= lmax(iset))THEN
+!          IF(set_radius(iset)<max_rad_local) THEN
+!            np = np + npgf(iset)
+!          END IF
+!        ENDIF
+!      ENDDO
+!      maxnprj = MAX(maxnprj,np)
+!      
+!      paw_proj%nprj(lshell) = np 
+! !dbg
+!!   write(*,*) 'L ', lshell, ' num prj ', np
+!  !dbg
+!    ENDDO                  ! lshell
+
+!dbg
     maxnprj = 0
     DO lshell = 0,maxl     ! lshell
       np = 0
       DO iset = 1,nset
         IF (lshell >= lmin(iset) .AND. lshell <= lmax(iset))THEN
-          IF(set_radius(iset)<max_rad_local) THEN
-            np = np + npgf(iset)
-          END IF
+          DO ip = 1,npgf(iset)
+            IF(set_radius2(ip,lshell,iset)<max_rad_local) THEN
+              np = np + 1
+            END IF
+          END DO
         ENDIF
       ENDDO
       maxnprj = MAX(maxnprj,np)
-      
       paw_proj%nprj(lshell) = np 
-
+!   write(*,*) 'L ', lshell, ' num prj ', np
     ENDDO                  ! lshell
+!dbg
 
  
 !   *** Allocate exponents and coefficients ***
@@ -467,15 +503,24 @@ CONTAINS
       work(:,:) = 0.0_dp
 
       npgfg = 0
+      notprj = 0
 !     *** Collect all the exponent which contribute to lshell ***
       DO iset = 1,nset     ! iset
         IF (lshell >= lmin(iset) .AND. lshell <= lmax(iset))THEN
-          IF(set_radius(iset)<max_rad_local) THEN
-            zet(npgfg+1:npgfg+npgf(iset)) = orb_basis%zet(1:npgf(iset),iset)
-            npgfg = npgfg + npgf(iset)
-          ELSE
-            notprj =  notprj +  npgf(iset)
-          END IF
+          DO ip = 1,npgf(iset)
+            IF(set_radius2(ip,lshell,iset)<max_rad_local) THEN
+              npgfg = npgfg + 1
+              zet(npgfg) = orb_basis%zet(ip,iset)
+            ELSE
+              notprj =  notprj +  1
+            END IF
+          END DO
+!          IF(set_radius(iset)<max_rad_local) THEN
+!            zet(npgfg+1:npgfg+npgf(iset)) = orb_basis%zet(1:npgf(iset),iset)
+!            npgfg = npgfg + npgf(iset)
+!          ELSE
+!            notprj =  notprj +  npgf(iset)
+!          END IF
         ENDIF
       ENDDO                ! iset
 
@@ -590,16 +635,29 @@ CONTAINS
       paw_proj%isoprj(1:np,lshell) = isoprj(1:np)
 
       npgfg = 0
+      notprj = 0
       DO iset = 1,nset     ! iset
         IF (lshell >= lmin(iset) .AND. lshell <= lmax(iset))THEN
-          IF(set_radius(iset)<max_rad_local) THEN
-            paw_proj%gccprj(1:np,1:npgf(iset),lshell,iset) = &
-                 gcc(1:np,npgfg+1:npgfg+npgf(iset))
-            npgfg = npgfg + npgf(iset)
-          ELSE 
-            paw_proj%gccprj(1:np,1:npgf(iset),lshell,iset) = 0.0_dp
-            notprj =  notprj +  npgf(iset)
-          END IF
+          DO ip = 1,npgf(iset)
+            IF(set_radius2(ip,lshell,iset)<max_rad_local) THEN
+              npgfg = npgfg + 1
+              paw_proj%gccprj(1:np,ip,lshell,iset) = gcc(1:np,npgfg)
+            ELSE
+              notprj =  notprj +  1
+              paw_proj%gccprj(1:np,ip,lshell,iset) = 0.0_dp
+            END IF
+          END DO
+!dbg
+!          IF(set_radius(iset)<max_rad_local) THEN
+!            paw_proj%gccprj(1:np,1:npgf(iset),lshell,iset) = &
+!                 gcc(1:np,npgfg+1:npgfg+npgf(iset))
+!            npgfg = npgfg + npgf(iset)
+!          ELSE 
+!            paw_proj%gccprj(1:np,1:npgf(iset),lshell,iset) = 0.0_dp
+!            notprj =  notprj +  npgf(iset)
+!          END IF
+!dbg
+
         ENDIF
       ENDDO                ! iset
 
@@ -636,6 +694,8 @@ CONTAINS
 
 !   *** Release the working storage for the current value lshell ***
     DEALLOCATE(set_radius,STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routine,error,failure)
+    DEALLOCATE(set_radius2,STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routine,error,failure)
 
 !   *** Count primitives basis functions for the projectors
@@ -844,6 +904,9 @@ CONTAINS
       END DO  ! ipgf
     END DO  ! iset
     END IF  ! failure
+ !dbg
+ ! stop 'paw new'
+ !dbg
   END SUBROUTINE  build_projector
 
 ! *****************************************************************************

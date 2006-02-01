@@ -455,6 +455,7 @@ CONTAINS
     CALL section_vals_val_get(qs_section,"ALPHA0_SOFT",r_val=qs_control%gapw_control%alpha0_soft,error=error)
     qs_control%gapw_control%alpha0_soft_from_input = .FALSE.
     IF(qs_control%gapw_control%alpha0_soft/=0.0_dp) qs_control%gapw_control%alpha0_soft_from_input = .TRUE.
+    CALL section_vals_val_get(qs_section,"FULL_GAPW",l_val=qs_control%gapw_control%full_gapw,error=error)
     CALL section_vals_val_get(qs_section,"MAX_RAD_LOCAL",r_val=qs_control%gapw_control%max_rad_local,error=error)
 
     ! Logicals

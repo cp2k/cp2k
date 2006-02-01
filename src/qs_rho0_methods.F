@@ -491,7 +491,6 @@ MODULE qs_rho0_methods
 
       rho0_mpole%zet0_h =  0.1_dp
       DO
-!        radius=exp_radius(rho0_mpole%lmax_0,rho0_mpole%zet0_h,eps_fit,1.0_dp)
         radius=exp_radius(rho0_mpole%lmax_0,rho0_mpole%zet0_h,eps_Vrho0,1.0_dp)
         IF (radius<=rc_min) EXIT
         rho0_mpole%zet0_h=rho0_mpole%zet0_h+0.1_dp 
@@ -499,30 +498,37 @@ MODULE qs_rho0_methods
 
     END IF
 
-    IF(gapw_control%alpha0_soft_from_input) THEN
-!   The Exponent for the compensation charge rho0_soft is read from input
+    IF(gapw_control%full_gapw) THEN
+!   The compensation charges are not the same if the exponents are not set equal
+!   all the 2 and 3 center terms need to be calculated (time demanding!!)
+      IF(gapw_control%alpha0_soft_from_input) THEN
+!     The Exponent for the compensation charge rho0_soft is read from input
 
-      rho0_mpole%zet0_s = gapw_control%alpha0_soft
+        rho0_mpole%zet0_s = gapw_control%alpha0_soft
 
+      ELSE
+!     Calculate the exponent for the compensation charge rho0_soft
+
+          rho0_mpole%zet0_s = 0.25_dp/rho0_mpole%zet0_h
+        DO
+          gcut=exp_radius(rho0_mpole%lmax_0,rho0_mpole%zet0_s,eps_Vrho0,1.0_dp)
+          IF (gcut<=SQRT(2.0_dp*ecut)) EXIT
+          rho0_mpole%zet0_s=rho0_mpole%zet0_s*1.1_dp 
+        END DO
+        rho0_mpole%zet0_s=0.25_dp/rho0_mpole%zet0_s
+
+!       rho0_mpole%zet0_s can be as big as the largest exponent of the soft density
+!       that is collocated on the grid
+        IF(rho0_mpole%zet0_s < zetsoft_max) rho0_mpole%zet0_s = zetsoft_max
+
+        IF(rho0_mpole%zet0_s > 0.9_dp*rho0_mpole%zet0_h) &
+            rho0_mpole%zet0_s=0.9_dp*rho0_mpole%zet0_h
+      END IF
     ELSE
-!   Calculate the exponent for the compensation charge rho0_soft
-
-      rho0_mpole%zet0_s = 0.25_dp/rho0_mpole%zet0_h
-      DO
-!        gcut=exp_radius(rho0_mpole%lmax_0,rho0_mpole%zet0_s,eps_fit,1.0_dp)
-        gcut=exp_radius(rho0_mpole%lmax_0,rho0_mpole%zet0_s,eps_Vrho0,1.0_dp)
-        IF (gcut<=SQRT(2.0_dp*ecut)) EXIT
-        rho0_mpole%zet0_s=rho0_mpole%zet0_s*1.1_dp 
-      END DO
-      rho0_mpole%zet0_s=0.25_dp/rho0_mpole%zet0_s
-
-!     rho0_mpole%zet0_s can be as big as the largest exponent of the soft density
-!     that is collocated on the grid
-      IF(rho0_mpole%zet0_s < zetsoft_max) rho0_mpole%zet0_s = zetsoft_max
-
-      IF(rho0_mpole%zet0_s > 0.9_dp*rho0_mpole%zet0_h) &
-           rho0_mpole%zet0_s=0.9_dp*rho0_mpole%zet0_h
+!   The hard and soft exponents for the compensation chargesare equal 
+      rho0_mpole%zet0_s = rho0_mpole%zet0_h
     END IF
+
 
 !   Allocate and calculate the normalization factors for g0_lm_h and g0_lm_s
     CALL reallocate(rho0_mpole%norm_g0l_h,0,rho0_mpole%lmax_0)

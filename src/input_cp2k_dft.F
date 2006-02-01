@@ -818,6 +818,16 @@ SUBROUTINE create_qs_section(section,error)
      CALL section_add_keyword(section,keyword,error=error)
      CALL keyword_release(keyword,error=error)
 
+     CALL keyword_create(keyword, name="FULL_GAPW",&
+          description="Perform a full GAPW calculations, with all the terms"//&
+          " if alpha0_h/=alpha0_s (much more expensive). Otherwise the "//&
+          "compensation densities are set equal and the 2/3 center terms cancel out",&
+          usage="FULL_GAPW",&
+          default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,error=error)
+     CALL section_add_keyword(section,keyword,error=error)
+     CALL keyword_release(keyword,error=error)
+
+
      CALL keyword_create(keyword, name="MAX_RAD_LOCAL",&
           description="GAPW : maximum radius of gaussian functions"//&
           " included in the generation of projectors",&
@@ -2122,6 +2132,7 @@ SUBROUTINE create_tddfpt_section(section,error)
     CHARACTER(len=*), PARAMETER :: routineN='create_fitcharge_section',&
          routineP=moduleN//':'//routineN
     TYPE(keyword_type), POINTER :: keyword
+    TYPE(section_type), POINTER :: subsection
     failure=.FALSE.
     
     CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
