@@ -25,7 +25,8 @@
 MODULE tbmd_energy
   USE atomic_kind_types,                      ONLY: atomic_kind_type
   USE cell_types,                             ONLY: cell_type
-  USE cp_fm_pool_types,                       ONLY: fm_pool_create_fm
+  USE cp_fm_pool_types,                       ONLY: fm_pool_create_fm, &
+                                                    fm_pool_give_back_fm
   USE cp_sm_fm_interactions,                  ONLY: copy_sm_to_fm
   USE cp_fm_types,                            ONLY: cp_fm_type
   USE distribution_1d_types,                  ONLY: distribution_1d_type
@@ -43,7 +44,8 @@ MODULE tbmd_energy
                                                     init_mo_set
   USE qs_scf,                                 ONLY: eigensolver, &
                                                     simple_eigensolver
-  USE sparse_matrix_types,                    ONLY: real_matrix_type
+  USE sparse_matrix_types,                    ONLY: real_matrix_type, &
+                                                    replicate_matrix_structure
   USE tbmd_energy_types,                      ONLY: tbmd_energy_type
   USE tbmd_environment_types,                 ONLY: tbmd_environment_type, &
                                                     tbmd_env_get
@@ -200,8 +202,19 @@ CONTAINS
                           jacobi_threshold=1.0e-7_dp, smear=0.0_dp, error=error)
       END IF
 
+      CALL replicate_matrix_structure(source=tbmd_env%matrix_h, TARGET=tbmd_env%matrix_p, &
+                                      target_name="Density-Matrix", &
+                                      target_symmetry="symmetric")
+
       CALL calculate_density_matrix(mo_set=mos, density_matrix=tbmd_env%matrix_p, &
                                     error=error)
+
+      ! E=Tr[p*H]
+
+      CALL fm_pool_give_back_fm(pool=matrix_pools%ao_mo_fm_pools(1)%pool, &
+                                element=mos%mo_coeff, error=error)
+      CALL fm_pool_give_back_fm(pool=matrix_pools%ao_ao_fm_pools(1)%pool, &
+                                element=fm_matrix_h, error=error)
 
     END IF
 

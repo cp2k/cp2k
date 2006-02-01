@@ -216,7 +216,8 @@ CONTAINS
                         tbmd_energy=tbmd_energy, tbmd_force=tbmd_force, &
                         tbmd_neighbor_list_env=tbmd_neighbor_list_env, &
                         cell=cell, matrix_h=matrix_h, matrix_dh=matrix_dh, &
-                        tbmd_model=tbmd_model, error=error)
+                        tbmd_model=tbmd_model, distribution_2d=distribution_2d, &
+                        error=error)
 
       particle_set => subsystem%particles%els
       atomic_kind_set => subsystem%atomic_kinds%els

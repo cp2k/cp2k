@@ -287,7 +287,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'tbmd_env_release', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
+    INTEGER                                  :: stat, &
+                                                i
     LOGICAL                                  :: failure
 
 !   ------------------------------------------------------------------------
@@ -336,7 +337,9 @@ CONTAINS
           CALL deallocate_matrix(tbmd_env%matrix_h)
         END IF
         IF (ASSOCIATED(tbmd_env%matrix_dh)) THEN
-          CALL deallocate_matrix_set(tbmd_env%matrix_dh)
+          DO i = 1,SIZE(tbmd_env%matrix_dh)
+            CALL deallocate_matrix_set(tbmd_env%matrix_dh)
+          END DO
         END IF
         IF (ASSOCIATED(tbmd_env%matrix_p)) THEN
           CALL deallocate_matrix(tbmd_env%matrix_p)

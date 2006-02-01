@@ -25,7 +25,8 @@
 MODULE tbmd_force
   USE atomic_kind_types,                      ONLY: atomic_kind_type
   USE cell_types,                             ONLY: cell_type
-  USE cp_fm_pool_types,                       ONLY: fm_pool_create_fm
+  USE cp_fm_pool_types,                       ONLY: fm_pool_create_fm, &
+                                                    fm_pool_give_back_fm
   USE cp_sm_fm_interactions,                  ONLY: copy_sm_to_fm
   USE cp_fm_types,                            ONLY: cp_fm_type
   USE distribution_1d_types,                  ONLY: distribution_1d_type
@@ -208,6 +209,13 @@ CONTAINS
 
       CALL calculate_density_matrix(mo_set=mos, density_matrix=tbmd_env%matrix_p, &
                                     error=error)
+
+      ! F=Tr[p*(dH/dR)]
+
+      CALL fm_pool_give_back_fm(pool=matrix_pools%ao_mo_fm_pools(1)%pool, &
+                                element=mos%mo_coeff, error=error)
+      CALL fm_pool_give_back_fm(pool=matrix_pools%ao_ao_fm_pools(1)%pool, &
+                                element=fm_matrix_h, error=error)
 
     END IF
 
