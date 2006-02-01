@@ -74,7 +74,7 @@ MODULE qs_collocate_density
   USE mathconstants,                   ONLY: pi,&
                                              twopi
   USE memory_utilities,                ONLY: reallocate
-  USE message_passing,                 ONLY: mp_sum
+  USE message_passing,                 ONLY: mp_sum,mp_sync,mp_max
   USE orbital_pointers,                ONLY: coset,&
                                              indco,&
                                              ncoset
@@ -665,6 +665,11 @@ CONTAINS
     LOGICAL                                  :: distributed_rs_grids
     TYPE(section_vals_type), POINTER :: input, interp_section
     integer :: interp_kind
+    !PARATIME
+    !PARATIME  REAL                                     :: time_t1,time_t2 
+    !PARATIME  REAL(kind=dp)                            :: time_min,time_max
+    !PARATIME  INTEGER                                  :: unit_nr
+    !PARATIME  TYPE(cp_logger_type), POINTER            :: logger
 !   ---------------------------------------------------------------------------
 
     failure=.FALSE.
@@ -757,6 +762,10 @@ CONTAINS
     map_consistent = dft_control%qs_control%map_consistent
     nthread = 1
 !$  nthread = omp_get_max_threads()
+
+!   *** From here on there should be no parallel sync anymore if replicated grids are used.
+    !PARATIME CALL mp_sync(para_env%group)
+    !PARATIME CALL CPU_TIME(time_t1)
 
 !   *** Allocate work storage ***
 
@@ -1201,6 +1210,7 @@ CONTAINS
 
     END DO
 
+
 !   *** Release work storage ***
 
     IF (distributed_rs_grids) CALL deallocate_matrix ( deltap )
@@ -1215,6 +1225,22 @@ CONTAINS
     IF (istat /= 0) CALL stop_memory(routine,"pabt,workt,ntasks,"//&
         "tasks,tasks_local,ival,latom,dist_ab,dab_local,asets,atasks")
 
+!   *** find the parallel min-max timings ***
+    !PARATIME CALL CPU_TIME(time_t2)
+    !PARATIME CALL mp_sync(para_env%group)
+    !PARATIME time_max=time_t2-time_t1
+    !PARATIME CALL mp_max(time_max,para_env%group)
+    !PARATIME time_min=-(time_t2-time_t1)
+    !PARATIME CALL mp_max(time_min,para_env%group)
+    !PARATIME time_min=-time_min
+    !PARATIME logger => cp_error_get_logger(error)
+    !PARATIME IF (logger%para_env%source==logger%para_env%mepos) THEN
+    !PARATIME   unit_nr=cp_logger_get_default_unit_nr(logger,local=.FALSE.)
+    !PARATIME   WRITE (unit_nr,'(T3,A,F0.3,A,F0.3)') "calculate rho, grid bit. maximum time: ", &
+    !PARATIME                                            time_max," , minimum time: ",time_min
+    !PARATIME END IF
+
+!   *** get densities on the full grids
     IF (gridlevel_info%ngrid_levels==1) THEN
        CALL rs_pw_transfer(rs_rho(1)%rs_grid,rho%pw,rs2pw)
        CALL rs_pools_give_back_rs_vect(rs_pools, rs_rho, error=error)
