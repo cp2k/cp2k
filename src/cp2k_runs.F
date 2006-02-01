@@ -215,7 +215,7 @@ CONTAINS
        CALL check_cp2k_input(input_file,para_env=para_env,error=error)
     END IF
     globenv%input_file => input_file
-    nullify(input_file)
+    NULLIFY(input_file)
     CALL cp_error_check(error,failure)
 
     IF (.NOT.failure) THEN

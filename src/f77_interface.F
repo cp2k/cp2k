@@ -1349,11 +1349,12 @@ END SUBROUTINE f_env_rm_defaults
        unit_nr=-1
     END IF
 
-    nullify(logger)
+    NULLIFY(logger)
     CALL cp_logger_create(logger, para_env=para_env,&
          default_global_unit_nr=unit_nr, &
          close_global_unit_on_dealloc=.FALSE.)
     CALL cp_add_default_logger(logger)
+    CALL cp_logger_release(logger)
     CALL cp_error_init(error,logger=logger,stop_level=cp_fatal_level)
 
     NULLIFY(input_structure, default_units)

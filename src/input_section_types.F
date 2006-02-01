@@ -1947,7 +1947,7 @@ RECURSIVE SUBROUTINE section_vals_write(section_vals,unit_nr,hide_root,error)
                             TRIM(section%name),error=error, failure=failure)
                        IF (keyword%names(1)/='_DEFAULT_KEYWORD_'.AND.&
                             keyword%names(1)/='_SECTION_PARAMETERS_') then
-                          WRITE(unit=unit_nr,fmt="("//TRIM(myfmt)//",a,' ')",advance="NO")&
+                          WRITE(unit=unit_nr,fmt="("//TRIM(myfmt)//"a,' ')",advance="NO")&
                                TRIM(keyword%names(1))
                        ELSEIF (keyword%names(1) =='_DEFAULT_KEYWORD_') THEN
                           WRITE(unit=unit_nr,fmt="("//TRIM(myfmt)//"'')",advance="NO")

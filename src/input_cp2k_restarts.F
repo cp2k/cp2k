@@ -554,6 +554,12 @@ CONTAINS
              CALL section_vals_val_set(work_section,"_DEFAULT_KEYWORD_",r_vals_ptr=buffer,&
                   i_rep_val=irep,error=error)    
           END DO
+          DEALLOCATE (pbuffer,STAT=stat)
+          CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)   
+          DEALLOCATE (vbuffer,STAT=stat)
+          CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)   
+          DEALLOCATE (cindex,STAT=stat)
+          CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
        END IF
        IF (ASSOCIATED(nhc_coef)) THEN
           !
@@ -619,31 +625,48 @@ CONTAINS
     TYPE(cp_error_type), INTENT(INOUT), &
       OPTIONAL                               :: error
 
+    CHARACTER(LEN=*), PARAMETER :: routineN = "set_template_restart", &
+      routineP = moduleN//":"//routineN
     TYPE(section_vals_type), POINTER         :: coord, force, mass, velocity
+    INTEGER :: stat
+    LOGICAL :: failure
 
+    failure = .FALSE.
     NULLIFY(coord, force, velocity, mass)
     IF (PRESENT(eta)) THEN
        IF (SIZE(eta)>0) THEN
           coord => section_vals_get_subs_vals(work_section,"COORD",error=error)
           CALL section_vals_val_set(coord,"_DEFAULT_KEYWORD_",r_vals_ptr=eta,error=error)
+       ELSE
+          DEALLOCATE(eta, stat=stat)
+          CPPrecondition(stat==0,cp_failure_level,routineP,error,failure) 
        END IF
     END IF
     IF (PRESENT(veta)) THEN
        IF (SIZE(veta)>0) THEN
           velocity => section_vals_get_subs_vals(work_section,"VELOCITY",error=error)
           CALL section_vals_val_set(velocity,"_DEFAULT_KEYWORD_",r_vals_ptr=veta,error=error)
+       ELSE
+          DEALLOCATE(veta, stat=stat)
+          CPPrecondition(stat==0,cp_failure_level,routineP,error,failure) 
        END IF
     END IF
     IF (PRESENT(fnhc)) THEN
        IF (SIZE(fnhc)>0) THEN
           force => section_vals_get_subs_vals(work_section,"FORCE",error=error)
           CALL section_vals_val_set(force,"_DEFAULT_KEYWORD_",r_vals_ptr=fnhc,error=error)
+       ELSE
+          DEALLOCATE(fnhc, stat=stat)
+          CPPrecondition(stat==0,cp_failure_level,routineP,error,failure) 
        END IF
     END IF
     IF (PRESENT(mnhc)) THEN
        IF (SIZE(mnhc)>0) THEN
           mass => section_vals_get_subs_vals(work_section,"MASS",error=error)
           CALL section_vals_val_set(mass,"_DEFAULT_KEYWORD_",r_vals_ptr=mnhc,error=error)
+       ELSE
+          DEALLOCATE(mnhc, stat=stat)
+          CPPrecondition(stat==0,cp_failure_level,routineP,error,failure) 
        END IF
     END IF
   END SUBROUTINE set_template_restart
