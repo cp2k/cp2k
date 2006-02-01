@@ -60,10 +60,10 @@ CONTAINS
 
 !   ***************************************************************************
 
-    CHARACTER(LEN=*), INTENT(IN)                :: checkpoint
+    CHARACTER(LEN=*), INTENT(IN)                 :: checkpoint
     TYPE(global_environment_type), &
-         POINTER                                :: globenv
-    TYPE(cp_error_type), INTENT(inout)          :: error
+         POINTER                                 :: globenv
+    TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
 
     TYPE(cp_logger_type), POINTER            :: logger
     INTEGER :: iw
@@ -110,7 +110,7 @@ CONTAINS
                                                 output_unit, pid
     INTEGER, DIMENSION(:,:), ALLOCATABLE     :: myconvertedstring
     LOGICAL                                  :: ionode
-    TYPE(cp_error_type), INTENT(inout)       :: error
+    TYPE(cp_error_type), INTENT(inout), OPTIONAL       :: error
 
     TYPE(cp_logger_type), POINTER            :: logger
     INTEGER :: iw
