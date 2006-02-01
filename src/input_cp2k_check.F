@@ -30,7 +30,7 @@ MODULE input_cp2k_check
        section_type,section_vals_create,&
        section_vals_type, section_vals_get_subs_vals,&
        section_vals_val_get, section_vals_get, section_vals_set_subs_vals,&
-       section_vals_val_set
+       section_vals_val_set, section_vals_release
   USE input_cp2k,                      ONLY: create_cp2k_root_section
   USE input_constants, ONLY: xc_funct_no_shortcut, xc_funct_blyp,&
        xc_funct_pade, xc_funct_pbe, xc_funct_tpss, xc_funct_olyp, xc_funct_hcth120
@@ -260,12 +260,28 @@ SUBROUTINE handle_ext_restart(input_file,para_env,error)
         CALL cp_unit_set_release(default_units,error=error)
         CALL parser_release(cpparser,error=error)
 
+        CALL section_vals_val_get(r_section,"RESTART_CELL",l_val=flag,&
+             error=error)
+        IF (flag) THEN
+           section => section_vals_get_subs_vals(restart_input,&
+                "FORCE_EVAL%SUBSYS%CELL",error=error)
+           CALL section_vals_set_subs_vals(input_file,"FORCE_EVAL%SUBSYS%CELL",&
+                section,error=error)
+        END IF
         CALL section_vals_val_get(r_section,"RESTART_POS",l_val=flag,&
              error=error)
         IF (flag) THEN
            section => section_vals_get_subs_vals(restart_input,&
                 "FORCE_EVAL%SUBSYS%COORD",error=error)
            CALL section_vals_set_subs_vals(input_file,"FORCE_EVAL%SUBSYS%COORD",&
+                section,error=error)
+        END IF
+        CALL section_vals_val_get(r_section,"RESTART_RANDOMG",l_val=flag,&
+             error=error)
+        IF (flag) THEN
+           section => section_vals_get_subs_vals(restart_input,&
+                "FORCE_EVAL%SUBSYS%RNG_INIT",error=error)
+           CALL section_vals_set_subs_vals(input_file,"FORCE_EVAL%SUBSYS%RNG_INIT",&
                 section,error=error)
         END IF
         CALL section_vals_val_get(r_section,"RESTART_VEL",l_val=flag,&
@@ -280,28 +296,52 @@ SUBROUTINE handle_ext_restart(input_file,para_env,error)
              error=error)
         IF (flag) THEN
            section => section_vals_get_subs_vals(restart_input,&
-                "MOTION%MD%BAROSTAT%COORD",error=error)
-           CALL section_vals_set_subs_vals(input_file,"MOTION%MD%BAROSTAT%COORD",&
-                section,error=error)
-           section => section_vals_get_subs_vals(restart_input,&
-                "MOTION%MD%BAROSTAT%FORCE",error=error)
-           CALL section_vals_set_subs_vals(input_file,"MOTION%MD%BAROSTAT%FORCE",&
+                "MOTION%MD%BAROSTAT%MASS",error=error)
+           CALL section_vals_set_subs_vals(input_file,"MOTION%MD%BAROSTAT%MASS",&
                 section,error=error)
            section => section_vals_get_subs_vals(restart_input,&
                 "MOTION%MD%BAROSTAT%VELOCITY",error=error)
            CALL section_vals_set_subs_vals(input_file,"MOTION%MD%BAROSTAT%VELOCITY",&
                 section,error=error)
         END IF
-        CALL section_vals_val_get(r_section,"RESTART_KG_COEFF",l_val=flag,&
+        CALL section_vals_val_get(r_section,"RESTART_BAROSTAT_NOSE",l_val=flag,&
              error=error)
         IF (flag) THEN
+           section => section_vals_get_subs_vals(restart_input,&
+                "MOTION%MD%BAROSTAT%NOSE%COORD",error=error)
+           CALL section_vals_set_subs_vals(input_file,"MOTION%MD%BAROSTAT%NOSE%COORD",&
+                section,error=error)
+           section => section_vals_get_subs_vals(restart_input,&
+                "MOTION%MD%BAROSTAT%NOSE%VELOCITY",error=error)
+           CALL section_vals_set_subs_vals(input_file,"MOTION%MD%BAROSTAT%NOSE%VELOCITY",&
+                section,error=error)
+           section => section_vals_get_subs_vals(restart_input,&
+                "MOTION%MD%BAROSTAT%NOSE%MASS",error=error)
+           CALL section_vals_set_subs_vals(input_file,"MOTION%MD%BAROSTAT%NOSE%MASS",&
+                section,error=error)
+           section => section_vals_get_subs_vals(restart_input,&
+                "MOTION%MD%BAROSTAT%NOSE%FORCE",error=error)
+           CALL section_vals_set_subs_vals(input_file,"MOTION%MD%BAROSTAT%NOSE%FORCE",&
+                section,error=error)
+        END IF
+        CALL section_vals_val_get(r_section,"RESTART_KG_COEFF_POS",l_val=flag,&
+             error=error)
+        IF (flag) THEN
+           section => section_vals_get_subs_vals(restart_input,&
+                "MOTION%MD%KG_COEFF%RESTART_INDEX",error=error)
+           CALL section_vals_set_subs_vals(input_file,"MOTION%MD%KG_COEFF%RESTART_INDEX",&
+                section,error=error)
            section => section_vals_get_subs_vals(restart_input,&
                 "MOTION%MD%KG_COEFF%COORD",error=error)
            CALL section_vals_set_subs_vals(input_file,"MOTION%MD%KG_COEFF%COORD",&
                 section,error=error)
+        END IF
+        CALL section_vals_val_get(r_section,"RESTART_KG_COEFF_VEL",l_val=flag,&
+             error=error)
+        IF (flag) THEN
            section => section_vals_get_subs_vals(restart_input,&
-                "MOTION%MD%KG_COEFF%FORCE",error=error)
-           CALL section_vals_set_subs_vals(input_file,"MOTION%MD%KG_COEFF%FORCE",&
+                "MOTION%MD%KG_COEFF%RESTART_INDEX",error=error)
+           CALL section_vals_set_subs_vals(input_file,"MOTION%MD%KG_COEFF%RESTART_INDEX",&
                 section,error=error)
            section => section_vals_get_subs_vals(restart_input,&
                 "MOTION%MD%KG_COEFF%VELOCITY",error=error)
@@ -319,6 +359,14 @@ SUBROUTINE handle_ext_restart(input_file,para_env,error)
                 "MOTION%MD%KG_COEFF%NOSE%VELOCITY",error=error)
            CALL section_vals_set_subs_vals(input_file,"MOTION%MD%KG_COEFF%NOSE%VELOCITY",&
                 section,error=error)
+           section => section_vals_get_subs_vals(restart_input,&
+                "MOTION%MD%KG_COEFF%NOSE%MASS",error=error)
+           CALL section_vals_set_subs_vals(input_file,"MOTION%MD%KG_COEFF%NOSE%MASS",&
+                section,error=error)
+           section => section_vals_get_subs_vals(restart_input,&
+                "MOTION%MD%KG_COEFF%NOSE%FORCE",error=error)
+           CALL section_vals_set_subs_vals(input_file,"MOTION%MD%KG_COEFF%NOSE%FORCE",&
+                section,error=error)
         END IF
         CALL section_vals_val_get(r_section,"RESTART_NOSE",l_val=flag,&
              error=error)
@@ -331,13 +379,13 @@ SUBROUTINE handle_ext_restart(input_file,para_env,error)
                 "MOTION%MD%NOSE%VELOCITY",error=error)
            CALL section_vals_set_subs_vals(input_file,"MOTION%MD%NOSE%VELOCITY",&
                 section,error=error)
-        END IF
-        CALL section_vals_val_get(r_section,"RESTART_RANDOMG",l_val=flag,&
-             error=error)
-        IF (flag) THEN
            section => section_vals_get_subs_vals(restart_input,&
-                "GLOBAL%RNG_INIT",error=error)
-           CALL section_vals_set_subs_vals(input_file,"GLOBAL%RNG_INIT",&
+                "MOTION%MD%NOSE%MASS",error=error)
+           CALL section_vals_set_subs_vals(input_file,"MOTION%MD%NOSE%MASS",&
+                section,error=error)
+           section => section_vals_get_subs_vals(restart_input,&
+                "MOTION%MD%NOSE%FORCE",error=error)
+           CALL section_vals_set_subs_vals(input_file,"MOTION%MD%NOSE%FORCE",&
                 section,error=error)
         END IF
         CALL section_vals_val_get(r_section,"CUSTOM_PATH",n_rep_val=n_rep_val,&
@@ -355,6 +403,7 @@ SUBROUTINE handle_ext_restart(input_file,para_env,error)
         END DO
         CALL section_vals_val_set(r_section,"EXTERNAL_FILE",&
              c_val=" ",error=error)
+        CALL section_vals_release(restart_input,error=error)
      END IF
   END IF
 END SUBROUTINE handle_ext_restart

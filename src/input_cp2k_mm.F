@@ -411,7 +411,7 @@ contains
        CALL section_create(section,name="TORSION",&
             description="This section specifies the torsion potential of the MM system."//&
             "JORGENSEN type potential supported.",&
-            n_keywords=1, n_subsections=0, repeats=.TRUE., required=.FALSE.,&
+            n_keywords=1, n_subsections=0, repeats=.TRUE., required=.TRUE.,&
             error=error)
 
        NULLIFY(keyword)
@@ -484,7 +484,7 @@ contains
        CALL section_create(section,name="BEND",&
             description="This section specifies the bend potential of the MM system."//&
             "HARMONIC type potential supported.",&
-            n_keywords=1, n_subsections=0, repeats=.TRUE., required=.FALSE.,&
+            n_keywords=1, n_subsections=0, repeats=.TRUE., required=.TRUE.,&
             error=error)
 
        NULLIFY(keyword)
@@ -550,7 +550,7 @@ contains
     IF (.NOT. failure) THEN
        CALL section_create(section,name="BOND",&
             description="This section specifies the potential of the bond of the MM system",&
-            n_keywords=1, n_subsections=0, repeats=.TRUE., required=.FALSE.,&
+            n_keywords=1, n_subsections=0, repeats=.TRUE., required=.TRUE.,&
             error=error)
 
        NULLIFY(keyword)
@@ -616,7 +616,7 @@ contains
     IF (.NOT. failure) THEN
        CALL section_create(section,name="charge",&
             description="This section specifies the charge of the MM atoms",&
-            n_keywords=1, n_subsections=0, repeats=.TRUE., required=.FALSE.,&
+            n_keywords=1, n_subsections=0, repeats=.TRUE., required=.TRUE.,&
             error=error)
 
        NULLIFY(keyword)
@@ -1104,7 +1104,7 @@ contains
     IF (.NOT. failure) THEN
        CALL section_create(section,name="ipbv",&
             description="This section specifies the input parameters for IPBV potential type.",&
-            n_keywords=1, n_subsections=0, repeats=.TRUE., required=.FALSE.,&
+            n_keywords=1, n_subsections=0, repeats=.TRUE., required=.TRUE.,&
             error=error)
 
        NULLIFY(keyword)
@@ -1163,7 +1163,7 @@ contains
     IF (.NOT. failure) THEN
        CALL section_create(section,name="BMHFT",&
             description="This section specifies the input parameters for BMHFT potential type.",&
-            n_keywords=1, n_subsections=0, repeats=.TRUE., required=.FALSE.,&
+            n_keywords=1, n_subsections=0, repeats=.TRUE., required=.TRUE.,&
             error=error)
 
        NULLIFY(keyword)

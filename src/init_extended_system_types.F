@@ -50,6 +50,15 @@ MODULE init_extended_system_types
                                              nph_uniaxial_damped_ensemble,&
                                              isokin_ensemble, &
                                              md_all_restart
+  USE input_section_types,             ONLY: section_vals_type,&
+                                             section_vals_get_subs_vals,&
+                                             section_vals_write,&
+                                             section_vals_get,&
+                                             section_vals_val_get
+  
+
+#include "cp_common_uses.h"
+
   IMPLICIT NONE
 
   PUBLIC :: initialize_nhc_part, initialize_nhc_baro, initialize_npt, &
@@ -80,61 +89,100 @@ CONTAINS
 !!   SOURCE
 !******************************************************************************
 
-SUBROUTINE initialize_npt ( simpar, globenv, npt_info, box )
+  SUBROUTINE initialize_npt ( simpar, globenv, npt_info, box, work_section, error)
 
 
     TYPE(simulation_parameters_type), &
-      INTENT(INOUT)                          :: simpar
+         INTENT(INOUT)                          :: simpar
     TYPE(global_environment_type), &
-      pointer                          :: globenv
+         pointer                          :: globenv
     TYPE(npt_info_type), DIMENSION(:, :), &
-      POINTER                                :: npt_info
+         POINTER                                :: npt_info
     TYPE(cell_type), INTENT(inout)           :: box
+    TYPE(section_vals_type), POINTER :: work_section
+    TYPE(cp_error_type), INTENT(inout), &
+         OPTIONAL                               :: error
+    CHARACTER(LEN=*), PARAMETER :: routineN = "initialize_npt", &
+         routineP = moduleN//':'//routineN   
 
-    INTEGER                                  :: isos
+    INTEGER                                  :: isos,i,j,ind
     REAL ( KIND=dp )                         :: temp
+    REAL(KIND=dp), DIMENSION(:), POINTER :: buffer
+    LOGICAL :: explicit, failure, restart
+    TYPE(section_vals_type), POINTER :: work_section2
+    !------------------------------------------------------------------------------
+    ! first allocating the npt_info_type
+    NULLIFY(work_section2)
+    explicit = .FALSE.
+    failure=.FALSE.
+    restart = .FALSE.
+    SELECT CASE ( simpar % ensemble )
+    CASE ( npt_i_ensemble )
+       ALLOCATE ( npt_info ( 1, 1 ), STAT = isos )
+       IF ( isos /= 0 ) CALL stop_program ( 'initial_npt', &
+            'failed to allocate npt_info')
+       npt_info  ( :, : ) % eps = LOG ( box % deth ) / 3.0_dp
+       temp = simpar % temp_ext
 
-!------------------------------------------------------------------------------
-! first allocating the npt_info_type
+    CASE ( npt_f_ensemble )
+       ALLOCATE ( npt_info ( 3, 3 ), STAT = isos )
+       IF ( isos /= 0 ) CALL stop_program ( 'initial_npt', &
+            'failed to allocate npt_info')
+       temp = simpar % temp_ext
 
-  SELECT CASE ( simpar % ensemble )
-  CASE ( npt_i_ensemble )
-     ALLOCATE ( npt_info ( 1, 1 ), STAT = isos )
-     IF ( isos /= 0 ) CALL stop_program ( 'initial_npt', &
-          'failed to allocate npt_info')
-     npt_info  ( :, : ) % eps = LOG ( box % deth ) / 3.0_dp
-     temp = simpar % temp_ext
+    CASE ( nph_uniaxial_ensemble )
+       ALLOCATE ( npt_info ( 1, 1 ), STAT = isos )
+       IF ( isos /= 0 ) CALL stop_program ( 'initial_npt', &
+            'failed to allocate npt_info')
+       temp = simpar % temp_ext
 
-  CASE ( npt_f_ensemble )
-     ALLOCATE ( npt_info ( 3, 3 ), STAT = isos )
-     IF ( isos /= 0 ) CALL stop_program ( 'initial_npt', &
-          'failed to allocate npt_info')
-     temp = simpar % temp_ext
+    CASE (  nph_uniaxial_damped_ensemble )
+       ALLOCATE ( npt_info ( 1, 1 ), STAT = isos )
+       IF ( isos /= 0 ) CALL stop_program ( 'initial_npt', &
+            'failed to allocate npt_info')
+       temp = simpar % temp_ext
 
-  CASE ( nph_uniaxial_ensemble )
-     ALLOCATE ( npt_info ( 1, 1 ), STAT = isos )
-     IF ( isos /= 0 ) CALL stop_program ( 'initial_npt', &
-          'failed to allocate npt_info')
-     temp = simpar % temp_ext
+    CASE  DEFAULT
+       ALLOCATE ( npt_info ( 0, 0 ), STAT = isos )
+       IF ( isos /= 0 ) CALL stop_program ( 'initial_npt', &
+            'failed to allocate npt_info')
+    END SELECT
 
-  CASE (  nph_uniaxial_damped_ensemble )
-     ALLOCATE ( npt_info ( 1, 1 ), STAT = isos )
-     IF ( isos /= 0 ) CALL stop_program ( 'initial_npt', &
-          'failed to allocate npt_info')
-     temp = simpar % temp_ext
+    IF (ASSOCIATED(work_section)) THEN
+       work_section2 => section_vals_get_subs_vals(work_section,"VELOCITY",error=error)
+       CALL section_vals_get(work_section2, explicit=explicit, error=error)
+       restart=explicit
+       work_section2 => section_vals_get_subs_vals(work_section,"MASS",error=error)
+       CALL section_vals_get(work_section2, explicit=explicit, error=error)
+       CALL cp_assert(restart.or..not.explicit,cp_failure_level,cp_assertion_failed,routineP,&
+            "You need to define both VELOCITY and MASS section (or none) in the BAROSTAT section",&
+            error=error, failure=failure)
+       restart=explicit.and.restart
+    END IF
 
-  CASE  DEFAULT
-     ALLOCATE ( npt_info ( 0, 0 ), STAT = isos )
-     IF ( isos /= 0 ) CALL stop_program ( 'initial_npt', &
-          'failed to allocate npt_info')
-  END SELECT
-
-  IF ( simpar % read_type /= md_all_restart ) &
-  CALL init_barostat_variables ( npt_info, simpar % tau_cell, temp,  &
-                                 box % deth, simpar % nfree, simpar % ensemble, &
-                                 simpar % cmass, globenv )
-
-END SUBROUTINE initialize_npt
+    IF ( restart ) THEN
+       CALL section_vals_val_get(work_section,"VELOCITY%_DEFAULT_KEYWORD_",r_vals=buffer,error=error)
+       ind = 0
+       DO i = 1, SIZE(npt_info,1)
+          DO j = 1, SIZE(npt_info,2)
+             ind = ind + 1
+             npt_info ( i, j ) % v = buffer(ind)
+          ENDDO
+       ENDDO
+       CALL section_vals_val_get(work_section,"MASS%_DEFAULT_KEYWORD_",r_vals=buffer,error=error)
+       ind = 0
+       DO i = 1, SIZE(npt_info,1)
+          DO j = 1, SIZE(npt_info,2)
+             ind = ind + 1
+             npt_info ( i, j ) % mass = buffer(ind)
+          ENDDO
+       ENDDO
+    ELSE
+       CALL init_barostat_variables ( npt_info, simpar % tau_cell, temp,  &
+            box % deth, simpar % nfree, simpar % ensemble, &
+            simpar % cmass, globenv )
+    END IF
+  END SUBROUTINE initialize_npt
 
 !******************************************************************************
 !!****** initialize_extended_types/initialize_nhc_baro [1.0] *
@@ -153,46 +201,116 @@ END SUBROUTINE initialize_npt
 !!   SOURCE
 !******************************************************************************
 
-SUBROUTINE initialize_nhc_baro ( simpar, globenv, nhc )
+  SUBROUTINE initialize_nhc_baro ( simpar, globenv, nhc, work_section, error )
 
 
     TYPE(simulation_parameters_type), &
-      INTENT(INOUT)                          :: simpar
+         INTENT(INOUT)                          :: simpar
     TYPE(global_environment_type), &
-      pointer                          :: globenv
+         pointer                          :: globenv
     TYPE(lnhc_parameters_type), &
-      INTENT(INOUT)                          :: nhc
+         INTENT(INOUT)                          :: nhc
+    TYPE(section_vals_type), POINTER :: work_section
+    TYPE(cp_error_type), INTENT(inout), &
+         OPTIONAL                               :: error
+    CHARACTER(len=*), PARAMETER :: routineN = 'initialize_nhc_baro', &
+         routineP = moduleN//':'//routineN
 
     REAL ( KIND = dp )                       :: temp
     INTEGER                                  :: isos
+    REAL(KIND=dp), DIMENSION(:), POINTER :: buffer
+    INTEGER                                  :: i, j, ind
+    LOGICAL :: explicit, restart
+    TYPE(section_vals_type), POINTER :: work_section2
+    !------------------------------------------------------------------------------
+    ! fire up the thermostats, if NPT
+    NULLIFY(buffer,work_section2)
+    CALL nhc_to_barostat_mapping ( simpar, nhc, globenv )
+    explicit = .FALSE.
+    restart = .FALSE.
+    ! Set up the Yoshida weights
+    IF ( nhc % nyosh > 0 ) THEN
+       ALLOCATE ( nhc % dt_yosh ( 1 : nhc%nyosh ), STAT = isos )
+       IF ( isos /= 0 ) CALL stop_memory ( 'initialize_nhc_baro', &
+            'nhc%dt_yosh', nhc % nyosh )
+       CALL set_yoshida_coef ( nhc, simpar % dt )
+    ENDIF
 
-!------------------------------------------------------------------------------
-! fire up the thermostats, if NPT
+    IF (ASSOCIATED(work_section)) THEN
+       work_section2 => section_vals_get_subs_vals(work_section,"VELOCITY",error=error)
+       CALL section_vals_get(work_section2, explicit=explicit, error=error)
+       restart=explicit
+       work_section2 => section_vals_get_subs_vals(work_section,"COORD",error=error)
+       CALL section_vals_get(work_section2, explicit=explicit, error=error)
+       CALL cp_assert(restart.or..not.explicit,cp_failure_level,cp_assertion_failed,routineP,&
+            "You need to define both VELOCITY and COORD and MASS and FORCE section (or none) in the NOSE section",&
+            error=error)
+       restart=explicit.and.restart
+       work_section2 => section_vals_get_subs_vals(work_section,"MASS",error=error)
+       CALL section_vals_get(work_section2, explicit=explicit, error=error)
+       CALL cp_assert(restart.or..not.explicit,cp_failure_level,cp_assertion_failed,routineP,&
+            "You need to define both VELOCITY and COORD and MASS and FORCE section (or none) in the NOSE section",&
+            error=error)
+       restart=explicit.and.restart
+       work_section2 => section_vals_get_subs_vals(work_section,"FORCE",error=error)
+       CALL section_vals_get(work_section2, explicit=explicit, error=error)
+       CALL cp_assert(restart.or..not.explicit,cp_failure_level,cp_assertion_failed,routineP,&
+            "You need to define both VELOCITY and COORD and MASS and FORCE section (or none) in the NOSE section",&
+            error=error)
+       restart=explicit.and.restart
+    END IF
 
-  CALL nhc_to_barostat_mapping ( simpar, nhc, globenv )
+    IF ( restart ) THEN
+       CALL section_vals_val_get(work_section,"COORD%_DEFAULT_KEYWORD_",r_vals=buffer,error=error)
+       DO i = 1, SIZE ( nhc % nvt, 2)
+          ind = nhc % INDEX(i)
+          ind = (ind-1) * nhc % nhc_len
+          DO j = 1, size(nhc % nvt, 1)
+             ind = ind + 1
+             nhc % nvt(j,i) % eta = buffer ( ind )
+          END DO
+       END DO
+       CALL section_vals_val_get(work_section,"VELOCITY%_DEFAULT_KEYWORD_",r_vals=buffer,error=error)
+       DO i = 1, SIZE ( nhc % nvt, 2)
+          ind = nhc % INDEX(i)
+          ind = (ind-1) * nhc % nhc_len
+          DO j = 1, size(nhc % nvt, 1)
+             ind = ind + 1
+             nhc % nvt(j,i) % v = buffer ( ind )
+          END DO
+       END DO
+       CALL section_vals_val_get(work_section,"MASS%_DEFAULT_KEYWORD_",r_vals=buffer,error=error)
+       DO i = 1, SIZE ( nhc % nvt, 2)
+          ind = nhc % INDEX(i)
+          ind = (ind-1) * nhc % nhc_len
+          DO j = 1, size(nhc % nvt, 1)
+             ind = ind + 1
+             nhc % nvt(j,i) % mass = buffer ( ind )
+          END DO
+       END DO
+       CALL section_vals_val_get(work_section,"FORCE%_DEFAULT_KEYWORD_",r_vals=buffer,error=error)
+       DO i = 1, SIZE ( nhc % nvt, 2)
+          ind = nhc % INDEX(i)
+          ind = (ind-1) * nhc % nhc_len
+          DO j = 1, size(nhc % nvt, 1)
+             ind = ind + 1
+             nhc % nvt(j,i) % f = buffer ( ind )
+          END DO
+       END DO
+    ELSE
+       ! Initializing thermostat forces and velocities for the Nose-Hoover
+       ! Chain variables
+       SELECT CASE (simpar % ensemble )
+       CASE DEFAULT
+          temp = simpar % temp_ext 
+       END SELECT
 
-! Set up the Yoshida weights
-  IF ( nhc % nyosh > 0 ) THEN
-    ALLOCATE ( nhc % dt_yosh ( 1 : nhc%nyosh ), STAT = isos )
-    IF ( isos /= 0 ) CALL stop_memory ( 'initialize_nhc_baro', &
-      'nhc%dt_yosh', nhc % nyosh )
-    CALL set_yoshida_coef ( nhc, simpar % dt )
-  ENDIF
-  IF ( simpar % read_type /= md_all_restart ) THEN
+       IF ( nhc % nhc_len /= 0 ) &
+            CALL init_nhc_variables ( nhc, simpar % tau_nhc,  &
+            temp, globenv )
+    END IF
 
-! Initializing thermostat forces and velocities for the Nose-Hoover
-! Chain variables
-      SELECT CASE (simpar % ensemble )
-      CASE DEFAULT
-        temp = simpar % temp_ext 
-      END SELECT
-
-      IF ( nhc % nhc_len /= 0 ) &
-      CALL init_nhc_variables ( nhc, simpar % tau_nhc,  &
-                            temp, globenv )
-  END IF
-
-END SUBROUTINE initialize_nhc_baro
+  END SUBROUTINE initialize_nhc_baro
 
 !******************************************************************************
 !!****** initialize_extended_types/initialize_nhc_part [1.0] *
@@ -210,75 +328,143 @@ END SUBROUTINE initialize_nhc_baro
 !!   SOURCE
 !******************************************************************************
 
-SUBROUTINE initialize_nhc_part ( box, simpar, local_molecules, molecule, &
-                                 molecule_kind_set, globenv, nhc )
+  SUBROUTINE initialize_nhc_part ( box, simpar, local_molecules, molecule, &
+       molecule_kind_set, globenv, nhc, work_section, error)
 
 
     TYPE(cell_type), INTENT(IN)              :: box
     TYPE(simulation_parameters_type), &
-      INTENT(INOUT)                          :: simpar
+         INTENT(INOUT)                          :: simpar
     TYPE(distribution_1d_type), POINTER      :: local_molecules
     TYPE(molecule_type), POINTER             :: molecule( : )
     TYPE(molecule_kind_type), POINTER        :: molecule_kind_set( : )
     TYPE(global_environment_type), &
-      pointer                          :: globenv
+         pointer                          :: globenv
     TYPE(lnhc_parameters_type), &
-      INTENT(INOUT)                          :: nhc
+         INTENT(INOUT)                          :: nhc
+    TYPE(section_vals_type), POINTER :: work_section
+    TYPE(cp_error_type), INTENT(inout), &
+         OPTIONAL                               :: error
+    CHARACTER(len=*), PARAMETER :: routineN = 'initialize_nhc_part', &
+         routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: iw, natom, nconstraint, nfree, isos
+    REAL(KIND=dp), DIMENSION(:), POINTER :: buffer
+    INTEGER                                  :: iw, natom, nconstraint, nfree, isos, i, j, ind
+    LOGICAL :: explicit, restart
+    TYPE(section_vals_type), POINTER :: work_section2
+    !------------------------------------------------------------------------------
+    ! Initialize simpar%nfree to dim (because at this point no
+    ! assumptions have been made about thermostatting options
+    ! and COM is ALWAYS zeroed in this code.  If there are
+    ! multiple thermostats etc...simpar % nfree will be set
+    ! to zero in nhc_particle_setup.f)
 
-!------------------------------------------------------------------------------
-! Initialize simpar%nfree to dim (because at this point no
-! assumptions have been made about thermostatting options
-! and COM is ALWAYS zeroed in this code.  If there are
-! multiple thermostats etc...simpar % nfree will be set
-! to zero in nhc_particle_setup.f)
+    NULLIFY(buffer, work_section2)
+    simpar % nfree = 6 - SUM ( box % perd ( 1:3 ) )
+    explicit = .FALSE.
+    restart = .FALSE.
+    ! fire up the thermostats, if not NVE
+    CALL nhc_to_particle_mapping ( simpar, local_molecules, molecule, &
+         molecule_kind_set, nhc, globenv )
 
-  simpar % nfree = 6 - SUM ( box % perd ( 1:3 ) )
+    ! Set up the Yoshida weights
+    IF ( nhc % nyosh > 0 ) THEN
+       ALLOCATE ( nhc % dt_yosh ( 1 : nhc%nyosh ), STAT = isos )
+       IF ( isos /= 0 ) CALL stop_memory ( 'initialize_nhc_part', &
+            'nhc%dt_yosh', nhc % nyosh )
+       CALL set_yoshida_coef ( nhc, simpar % dt )
+    ENDIF
 
-! fire up the thermostats, if not NVE
-  CALL nhc_to_particle_mapping ( simpar, local_molecules, molecule, &
-                                 molecule_kind_set, nhc, globenv )
+    IF (ASSOCIATED(work_section)) THEN
+       work_section2 => section_vals_get_subs_vals(work_section,"VELOCITY",error=error)
+       CALL section_vals_get(work_section2, explicit=explicit, error=error)
+       restart=explicit
+       work_section2 => section_vals_get_subs_vals(work_section,"COORD",error=error)
+       CALL section_vals_get(work_section2, explicit=explicit, error=error)
+       CALL cp_assert(restart.or..not.explicit,cp_failure_level,cp_assertion_failed,routineP,&
+            "You need to define both VELOCITY and COORD and MASS and FORCE section (or none) in the NOSE section",&
+            error=error)
+       restart=explicit.and.restart
+       work_section2 => section_vals_get_subs_vals(work_section,"MASS",error=error)
+       CALL section_vals_get(work_section2, explicit=explicit, error=error)
+       CALL cp_assert(restart.or..not.explicit,cp_failure_level,cp_assertion_failed,routineP,&
+            "You need to define both VELOCITY and COORD and MASS and FORCE section (or none) in the NOSE section",&
+            error=error)
+       restart=explicit.and.restart
+       work_section2 => section_vals_get_subs_vals(work_section,"FORCE",error=error)
+       CALL section_vals_get(work_section2, explicit=explicit, error=error)
+       CALL cp_assert(restart.or..not.explicit,cp_failure_level,cp_assertion_failed,routineP,&
+            "You need to define both VELOCITY and COORD and MASS and FORCE section (or none) in the NOSE section",&
+            error=error)
+       restart=explicit.and.restart
+    END IF
 
-! Set up the Yoshida weights
-  IF ( nhc % nyosh > 0 ) THEN
-    ALLOCATE ( nhc % dt_yosh ( 1 : nhc%nyosh ), STAT = isos )
-    IF ( isos /= 0 ) CALL stop_memory ( 'initialize_nhc_part', &
-      'nhc%dt_yosh', nhc % nyosh )
-    CALL set_yoshida_coef ( nhc, simpar % dt )
-  ENDIF
+    IF (restart) THEN
+       CALL section_vals_val_get(work_section,"COORD%_DEFAULT_KEYWORD_",r_vals=buffer,error=error)
+       DO i = 1, SIZE ( nhc % nvt, 2)
+          ind = nhc % INDEX(i)
+          ind = (ind-1) * nhc % nhc_len
+          DO j = 1, size(nhc % nvt, 1)
+             ind = ind + 1
+             nhc % nvt(j,i) % eta = buffer ( ind )
+          END DO
+       END DO
+       CALL section_vals_val_get(work_section,"VELOCITY%_DEFAULT_KEYWORD_",r_vals=buffer,error=error)
+       DO i = 1, SIZE ( nhc % nvt, 2)
+          ind = nhc % INDEX(i)
+          ind = (ind-1) * nhc % nhc_len
+          DO j = 1, size(nhc % nvt, 1)
+             ind = ind + 1
+             nhc % nvt(j,i) % v = buffer ( ind )
+          END DO
+       END DO
+       CALL section_vals_val_get(work_section,"MASS%_DEFAULT_KEYWORD_",r_vals=buffer,error=error)
+       DO i = 1, SIZE ( nhc % nvt, 2)
+          ind = nhc % INDEX(i)
+          ind = (ind-1) * nhc % nhc_len
+          DO j = 1, size(nhc % nvt, 1)
+             ind = ind + 1
+             nhc % nvt(j,i) % mass = buffer ( ind )
+          END DO
+       END DO
+       CALL section_vals_val_get(work_section,"FORCE%_DEFAULT_KEYWORD_",r_vals=buffer,error=error)
+       DO i = 1, SIZE ( nhc % nvt, 2)
+          ind = nhc % INDEX(i)
+          ind = (ind-1) * nhc % nhc_len
+          DO j = 1, size(nhc % nvt, 1)
+             ind = ind + 1
+             nhc % nvt(j,i) % f = buffer ( ind )
+          END DO
+       END DO
+    ELSE
+       ! Initializing thermostat forces and velocities for the Nose-Hoover
+       ! Chain variables
+       IF ( nhc % nhc_len /= 0 ) &
+            CALL init_nhc_variables ( nhc, simpar % tau_nhc,  &
+            simpar % temp_ext, globenv )
 
-  IF ( simpar % read_type /= md_all_restart ) THEN
+    ENDIF
 
-! Initializing thermostat forces and velocities for the Nose-Hoover
-! Chain variables
-     IF ( nhc % nhc_len /= 0 ) &
-       CALL init_nhc_variables ( nhc, simpar % tau_nhc,  &
-                                 simpar % temp_ext, globenv )
+    ! compute the total number of degrees of freedom for temperature
+    CALL get_molecule_kind_set(molecule_kind_set=molecule_kind_set,&
+         natom=natom, nconstraint=nconstraint)
 
-  ENDIF
+    nfree = 3*natom - nconstraint - simpar%nfree
 
-! compute the total number of degrees of freedom for temperature
-  CALL get_molecule_kind_set(molecule_kind_set=molecule_kind_set,&
-                             natom=natom, nconstraint=nconstraint)
+    IF (globenv%ionode.AND.globenv%print_level > 2) THEN
+       iw = globenv % scr
+       WRITE ( iw, '( /, A )' ) ' Calculation of degrees of freedom'
+       WRITE ( iw, '( T48, A, T71, I10 )' ) '       Number of atoms:', natom
+       WRITE ( iw, '( T48, A, T71, I10 )' ) ' Number of constraints:', nconstraint
+       WRITE ( iw, '( T34, A, T71, I10 )' ) &
+            ' Invariants(translation + rotations):', simpar % nfree
+       WRITE ( iw, '( T48, A, T71, I10 )' ) '    Degrees of freedom:', nfree
+       WRITE ( iw, '()' )
+    END IF
 
-  nfree = 3*natom - nconstraint - simpar%nfree
+    simpar%nfree = nfree
 
-  IF (globenv%ionode.AND.globenv%print_level > 2) THEN
-    iw = globenv % scr
-    WRITE ( iw, '( /, A )' ) ' Calculation of degrees of freedom'
-    WRITE ( iw, '( T48, A, T71, I10 )' ) '       Number of atoms:', natom
-    WRITE ( iw, '( T48, A, T71, I10 )' ) ' Number of constraints:', nconstraint
-    WRITE ( iw, '( T34, A, T71, I10 )' ) &
-         ' Invariants(translation + rotations):', simpar % nfree
-    WRITE ( iw, '( T48, A, T71, I10 )' ) '    Degrees of freedom:', nfree
-    WRITE ( iw, '()' )
-  END IF
-
-  simpar%nfree = nfree
-
-
-END SUBROUTINE initialize_nhc_part
+  END SUBROUTINE initialize_nhc_part
 
 !******************************************************************************
 !!****** initialize_extended_types/initialize_nhc_coef [1.0] *
@@ -297,58 +483,124 @@ END SUBROUTINE initialize_nhc_part
 !!   SOURCE
 !******************************************************************************
 
-SUBROUTINE initialize_nhc_coef ( dyn_coeff_set, globenv, nhc )
+  SUBROUTINE initialize_nhc_coef ( dyn_coeff_set, globenv, nhc, work_section, error )
 
-!  IMPLICIT NONE
+    !  IMPLICIT NONE
 
     TYPE(dyn_coeff_set_type), POINTER        :: dyn_coeff_set
     TYPE(global_environment_type), &
-      pointer                          :: globenv
+         pointer                          :: globenv
     TYPE(lnhc_parameters_type), &
-      INTENT(INOUT)                          :: nhc
+         INTENT(INOUT)                          :: nhc
+    TYPE(section_vals_type), POINTER :: work_section
+    TYPE(cp_error_type), INTENT(inout), &
+         OPTIONAL                               :: error
+
 
     CHARACTER(len=*), PARAMETER :: routineN = 'initialize_nhc_coef', &
-      routineP = moduleN//':'//routineN
+         routineP = moduleN//':'//routineN
     REAL(KIND=dp)                            :: kg_coeff_target_temp, &
-                                                tau_nhc, dt 
+         tau_nhc, dt 
     TYPE(section_vals_type), POINTER         :: coeff_section, nose_section, &
-                                                md_new_section
-    INTEGER                                  :: isos
+         md_new_section
+    INTEGER                                  :: isos,i,j,ind
+    LOGICAL :: explicit, restart
+    REAL(KIND=dp), DIMENSION(:), POINTER :: buffer
+    TYPE(section_vals_type), POINTER :: work_section2
+    !------------------------------------------------------------------------------
+    NULLIFY(coeff_section,nose_section,buffer,work_section2) 
+    explicit  =.FALSE.
+    restart = .FALSE.
+    md_new_section => section_vals_get_subs_vals(globenv%input_file,"MOTION%MD")
+    coeff_section => section_vals_get_subs_vals(md_new_section,"KG_COEFF")
+    nose_section => section_vals_get_subs_vals(coeff_section,"nose")
+    call section_vals_val_get(nose_section,"timecon",r_val=tau_nhc)
+    call section_vals_val_get(coeff_section,"temperature",r_val=kg_coeff_target_temp)
+    call section_vals_val_get(md_new_section,"timestep",r_val=dt)
 
-!------------------------------------------------------------------------------
-  NULLIFY(coeff_section,nose_section) 
-  md_new_section => section_vals_get_subs_vals(globenv%input_file,"MOTION%MD")
-  coeff_section => section_vals_get_subs_vals(md_new_section,"KG_COEFF")
-  nose_section => section_vals_get_subs_vals(coeff_section,"nose")
-  call section_vals_val_get(nose_section,"timecon",r_val=tau_nhc)
-  call section_vals_val_get(coeff_section,"temperature",r_val=kg_coeff_target_temp)
-  call section_vals_val_get(md_new_section,"timestep",r_val=dt)
+    ! fire up the thermostats
+    CALL nhc_to_coef_mapping ( dyn_coeff_set, nhc, globenv )
 
-! fire up the thermostats
-  CALL nhc_to_coef_mapping ( dyn_coeff_set, nhc, globenv )
+    IF (ASSOCIATED(work_section)) THEN
+       work_section2 => section_vals_get_subs_vals(work_section,"VELOCITY",error=error)
+       CALL section_vals_get(work_section2, explicit=explicit, error=error)
+       restart=explicit
+       work_section2 => section_vals_get_subs_vals(work_section,"COORD",error=error)
+       CALL section_vals_get(work_section2, explicit=explicit, error=error)
+       CALL cp_assert(restart.or..not.explicit,cp_failure_level,cp_assertion_failed,routineP,&
+            "You need to define both VELOCITY and COORD and MASS and FORCE section (or none) in the NOSE section",&
+            error=error)
+       restart=explicit.and.restart
+       work_section2 => section_vals_get_subs_vals(work_section,"MASS",error=error)
+       CALL section_vals_get(work_section2, explicit=explicit, error=error)
+       CALL cp_assert(restart.or..not.explicit,cp_failure_level,cp_assertion_failed,routineP,&
+            "You need to define both VELOCITY and COORD and MASS and FORCE section (or none) in the NOSE section",&
+            error=error)
+       restart=explicit.and.restart
+       work_section2 => section_vals_get_subs_vals(work_section,"FORCE",error=error)
+       CALL section_vals_get(work_section2, explicit=explicit, error=error)
+       CALL cp_assert(restart.or..not.explicit,cp_failure_level,cp_assertion_failed,routineP,&
+            "You need to define both VELOCITY and COORD and MASS and FORCE section (or none) in the NOSE section",&
+            error=error)
+       restart=explicit.and.restart
+    END IF
 
-!  gt restart from nhc parameters for kg_coef not implemented !
-!!  call section_vals_val_get(coeff_section,"restart",i_val=restart_coeff)
-!!  IF ( restart_coeff /= all) THEN
-!!  END IF
+    IF ( nhc % nhc_len /= 0 ) THEN
+       IF (restart) THEN
+          CALL section_vals_val_get(work_section,"COORD%_DEFAULT_KEYWORD_",r_vals=buffer,error=error)
+          DO i = 1, SIZE ( nhc % nvt, 2)
+             ind = nhc % INDEX(i)
+             ind = (ind-1) * nhc % nhc_len
+             DO j = 1, size(nhc % nvt, 1)
+                ind = ind + 1
+                nhc % nvt(j,i) % eta = buffer ( ind )
+             END DO
+          END DO
+          CALL section_vals_val_get(work_section,"VELOCITY%_DEFAULT_KEYWORD_",r_vals=buffer,error=error)
+          DO i = 1, SIZE ( nhc % nvt, 2)
+             ind = nhc % INDEX(i)
+             ind = (ind-1) * nhc % nhc_len
+             DO j = 1, size(nhc % nvt, 1)
+                ind = ind + 1
+                nhc % nvt(j,i) % v = buffer ( ind )
+             END DO
+          END DO
+          CALL section_vals_val_get(work_section,"MASS%_DEFAULT_KEYWORD_",r_vals=buffer,error=error)
+          DO i = 1, SIZE ( nhc % nvt, 2)
+             ind = nhc % INDEX(i)
+             ind = (ind-1) * nhc % nhc_len
+             DO j = 1, size(nhc % nvt, 1)
+                ind = ind + 1
+                nhc % nvt(j,i) % mass = buffer ( ind )
+             END DO
+          END DO
+          CALL section_vals_val_get(work_section,"FORCE%_DEFAULT_KEYWORD_",r_vals=buffer,error=error)
+          DO i = 1, SIZE ( nhc % nvt, 2)
+             ind = nhc % INDEX(i)
+             ind = (ind-1) * nhc % nhc_len
+             DO j = 1, size(nhc % nvt, 1)
+                ind = ind + 1
+                nhc % nvt(j,i) % f = buffer ( ind )
+             END DO
+          END DO
+       ELSE
+          ! Initializing thermostat forces and velocities for the Nose-Hoover
+          ! Chain variables
+          CALL init_nhc_variables (nhc, tau_nhc, kg_coeff_target_temp, globenv)
+          ! Set up the Yoshida weights
+          IF ( nhc % nyosh > 0 ) THEN
+             ALLOCATE ( nhc % dt_yosh ( 1 : nhc%nyosh ), STAT = isos )
+             IF ( isos /= 0 ) CALL stop_memory ( 'initialize_nhc_coef', &
+                  'nhc%dt_yosh', nhc % nyosh )
+             CALL set_yoshida_coef ( nhc, dt )
+          ENDIF
+       END IF
+    ELSE
+       CALL stop_program(routineN,moduleN,__LINE__,&
+            "nve for coefs implemented but not tested")
+    END IF
 
-! Initializing thermostat forces and velocities for the Nose-Hoover
-! Chain variables
-   IF ( nhc % nhc_len /= 0 ) THEN
-      CALL init_nhc_variables (nhc, tau_nhc, kg_coeff_target_temp, globenv)
-! Set up the Yoshida weights
-      IF ( nhc % nyosh > 0 ) THEN
-        ALLOCATE ( nhc % dt_yosh ( 1 : nhc%nyosh ), STAT = isos )
-        IF ( isos /= 0 ) CALL stop_memory ( 'initialize_nhc_coef', &
-        'nhc%dt_yosh', nhc % nyosh )
-        CALL set_yoshida_coef ( nhc, dt )
-      ENDIF
-   ELSE
-      CALL stop_program(routineN,moduleN,__LINE__,&
-        "nve for coefs implemented but not tested")
-   END IF
-
- END SUBROUTINE initialize_nhc_coef
+  END SUBROUTINE initialize_nhc_coef
 
 !!*****
 !******************************************************************************

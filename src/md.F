@@ -662,7 +662,7 @@ CONTAINS
   !!
   !!*** *************************************************************************
 
-  SUBROUTINE initialize_velocities ( simpar, part, globenv )
+  SUBROUTINE initialize_velocities ( simpar, part, globenv, work_section, error )
 
 
     TYPE(simulation_parameters_type), &
@@ -671,13 +671,17 @@ CONTAINS
          INTENT(INOUT)                          :: part
     TYPE(global_environment_type), &
          pointer                          :: globenv
+    TYPE(section_vals_type), POINTER :: work_section
+    TYPE(cp_error_type), INTENT(inout), &
+         OPTIONAL                               :: error
 
     INTEGER                                  :: i, iw, natoms
     REAL(KIND=dp)                                :: akin, denom, mass, sc, temp, mass_tot
-    REAL(KIND=dp), DIMENSION(3)                  :: vcom, vcom_new
+    REAL(KIND=dp), DIMENSION(3)                  :: vcom, vcom_new, v
+    REAL(KIND=dp), DIMENSION(:), POINTER         :: vel
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(unit_convert_type), POINTER         :: unit
-
+    LOGICAL :: explicit
     !------------------------------------------------------------------------------
 
     iw = globenv % scr
@@ -692,13 +696,14 @@ CONTAINS
     vcom_new = 0.0_dp
     denom = 0.0_dp
     natoms = SIZE ( part )
+    explicit = .FALSE.
 
     CALL get_cp2k_units ( unit ) 
-
-    ! initializing velocities
-    IF (globenv % ionode) THEN
-
-       ! computing the COM velocities
+    IF (ASSOCIATED(work_section)) &
+         CALL section_vals_get(work_section,explicit=explicit,error=error)
+    
+    IF (explicit) THEN
+       akin = 0.0_dp
        DO i = 1, natoms
           atomic_kind => part ( i ) % atomic_kind
           CALL get_atomic_kind ( atomic_kind = atomic_kind, mass = mass )
@@ -708,71 +713,105 @@ CONTAINS
              part ( i ) % v ( 2 ) = 0.0_dp
              part ( i ) % v ( 3 ) = 0.0_dp
           ELSE
-             part ( i ) % v ( 1 ) = gasdev ( globenv % idum )
-             part ( i ) % v ( 2 ) = gasdev ( globenv % idum )
-             part ( i ) % v ( 3 ) = gasdev ( globenv % idum )
-             vcom ( 1 ) = vcom ( 1 ) + mass * part ( i ) % v ( 1 )
-             vcom ( 2 ) = vcom ( 2 ) + mass * part ( i ) % v ( 2 )
-             vcom ( 3 ) = vcom ( 3 ) + mass * part ( i ) % v ( 3 )
+             CALL section_vals_val_get(work_section,"_DEFAULT_KEYWORD_",i_rep_val=i,r_vals=vel,error=error)
+             part ( i ) % v  = vel
+             vcom  = vcom + mass * part ( i ) % v 
              denom = denom + mass
           END IF
        END DO
        vcom = vcom / denom
-
-       akin = 0.0_dp
        DO i = 1, natoms
           atomic_kind => part ( i ) % atomic_kind
           CALL get_atomic_kind ( atomic_kind = atomic_kind, mass = mass )
           ! first subtract the COM
           IF (.NOT.part(i)%is_fixed) THEN
-             part ( i ) % v ( : ) = part ( i ) % v ( : ) - vcom ( : )
+             v = part ( i ) % v ( : ) - vcom ( : )
              ! now compute the temp
+             akin = akin + 0.5_dp * mass * SUM( v * v)
+          END IF
+       END DO
+       temp = 0.0_dp
+       IF (simpar % nfree /= 0) THEN 
+          temp = 2.0_dp * akin / REAL ( simpar % nfree,KIND=dp)
+       END IF
+       vcom_new=vcom
+    ELSE
+       ! initializing velocities
+       IF (globenv % ionode) THEN
+          ! computing the COM velocities
+          DO i = 1, natoms
+             atomic_kind => part ( i ) % atomic_kind
+             CALL get_atomic_kind ( atomic_kind = atomic_kind, mass = mass )
+             mass_tot = mass_tot + mass
+             IF (part(i)%is_fixed) THEN
+                part ( i ) % v ( 1 ) = 0.0_dp
+                part ( i ) % v ( 2 ) = 0.0_dp
+                part ( i ) % v ( 3 ) = 0.0_dp
+             ELSE
+                part ( i ) % v ( 1 ) = gasdev ( globenv % idum )
+                part ( i ) % v ( 2 ) = gasdev ( globenv % idum )
+                part ( i ) % v ( 3 ) = gasdev ( globenv % idum )
+                vcom ( 1 ) = vcom ( 1 ) + mass * part ( i ) % v ( 1 )
+                vcom ( 2 ) = vcom ( 2 ) + mass * part ( i ) % v ( 2 )
+                vcom ( 3 ) = vcom ( 3 ) + mass * part ( i ) % v ( 3 )
+                denom = denom + mass
+             END IF
+          END DO
+          vcom = vcom / denom
+
+          akin = 0.0_dp
+          DO i = 1, natoms
+             atomic_kind => part ( i ) % atomic_kind
+             CALL get_atomic_kind ( atomic_kind = atomic_kind, mass = mass )
+             ! first subtract the COM
+             IF (.NOT.part(i)%is_fixed) THEN
+                part ( i ) % v ( : ) = part ( i ) % v ( : ) - vcom ( : )
+                ! now compute the temp
+                akin = akin + 0.5_dp *  &
+                     ( mass * part ( i ) % v ( 1 ) * part ( i ) % v ( 1 ) )
+                akin = akin + 0.5_dp *  &
+                     ( mass * part ( i ) % v ( 2 ) * part ( i ) % v ( 2 ) )
+                akin = akin + 0.5_dp *  &
+                     ( mass * part ( i ) % v ( 3 ) * part ( i ) % v ( 3 ) )
+             END IF
+          END DO
+          temp = 0.0_dp
+          sc   = 0.0_dp
+          IF (simpar % nfree /= 0) THEN 
+             temp = 2.0_dp * akin / REAL ( simpar % nfree,KIND=dp)
+             ! scale velocities to get the correct initial temperature and
+             sc = SQRT ( simpar % temp_ext / temp )
+          END IF
+          DO i = 1, natoms
+             atomic_kind => part ( i ) % atomic_kind
+             CALL get_atomic_kind ( atomic_kind = atomic_kind, mass = mass )
+             part ( i ) % v ( 1 ) = sc * part ( i ) % v ( 1 )
+             part ( i ) % v ( 2 ) = sc * part ( i ) % v ( 2 )
+             part ( i ) % v ( 3 ) = sc * part ( i ) % v ( 3 )
+          END DO
+
+          ! Moving the velocities so that the COM velocity is zero
+          akin = 0.0_dp
+          vcom_new = 0.0_dp
+          DO i = 1, natoms
+             atomic_kind => part ( i ) % atomic_kind
+             CALL get_atomic_kind ( atomic_kind = atomic_kind, mass = mass )
+             vcom_new ( : ) = vcom_new ( : ) + mass * part ( i ) % v ( : )
              akin = akin + 0.5_dp *  &
                   ( mass * part ( i ) % v ( 1 ) * part ( i ) % v ( 1 ) )
              akin = akin + 0.5_dp *  &
                   ( mass * part ( i ) % v ( 2 ) * part ( i ) % v ( 2 ) )
              akin = akin + 0.5_dp *  &
                   ( mass * part ( i ) % v ( 3 ) * part ( i ) % v ( 3 ) )
-          END IF
-       END DO
-       temp = 0.0_dp
-       sc   = 0.0_dp
-       IF (simpar % nfree /= 0) THEN 
-          temp = 2.0_dp * akin / REAL ( simpar % nfree,KIND=dp)
-          ! scale velocities to get the correct initial temperature and
-          sc = SQRT ( simpar % temp_ext / temp )
+          END DO
        END IF
-       DO i = 1, natoms
-          atomic_kind => part ( i ) % atomic_kind
-          CALL get_atomic_kind ( atomic_kind = atomic_kind, mass = mass )
-          part ( i ) % v ( 1 ) = sc * part ( i ) % v ( 1 )
-          part ( i ) % v ( 2 ) = sc * part ( i ) % v ( 2 )
-          part ( i ) % v ( 3 ) = sc * part ( i ) % v ( 3 )
-       END DO
-
-       ! Moving the velocities so that the COM velocity is zero
-       akin = 0.0_dp
-       vcom_new = 0.0_dp
-       DO i = 1, natoms
-          atomic_kind => part ( i ) % atomic_kind
-          CALL get_atomic_kind ( atomic_kind = atomic_kind, mass = mass )
-          vcom_new ( : ) = vcom_new ( : ) + mass * part ( i ) % v ( : )
-          akin = akin + 0.5_dp *  &
-               ( mass * part ( i ) % v ( 1 ) * part ( i ) % v ( 1 ) )
-          akin = akin + 0.5_dp *  &
-               ( mass * part ( i ) % v ( 2 ) * part ( i ) % v ( 2 ) )
-          akin = akin + 0.5_dp *  &
-               ( mass * part ( i ) % v ( 3 ) * part ( i ) % v ( 3 ) )
-       END DO
-    END IF
-
-
 #if defined(__parallel)
-    CALL mp_bcast ( mass_tot, globenv % source, globenv % group )
-    DO i = 1, natoms
-       CALL mp_bcast ( part ( i ) % v, globenv % source, globenv % group )
-    END DO
+       CALL mp_bcast ( mass_tot, globenv % source, globenv % group )
+       DO i = 1, natoms
+          CALL mp_bcast ( part ( i ) % v, globenv % source, globenv % group )
+       END DO
 #endif
+    END IF
 
     IF ( (simpar % read_type == md_init_start ) .AND. &
          globenv % ionode .AND. globenv % print_level > 1 ) THEN

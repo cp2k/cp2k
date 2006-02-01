@@ -28,7 +28,6 @@ MODULE harris_metropolis_mc
   USE atomic_kind_list_types,          ONLY: atomic_kind_list_type
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind
-  USE atoms_input,                     ONLY: read_md_restart
   USE checkpoint_handler,              ONLY: write_checkpoint_information
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_output_handling,              ONLY: cp_add_iter_level, &
@@ -39,7 +38,6 @@ MODULE harris_metropolis_mc
   USE cp2k_units,                      ONLY: get_cp2k_units, &
                                              unit_convert_type
   USE distribution_1d_types,           ONLY: distribution_1d_type
-  USE dump,                            ONLY: dump_variables
   USE dynamical_coeff_types,           ONLY: dyn_coeff_set_p_type, &
                                              dyn_coeff_set_initialize
   USE extended_system_types,           ONLY: extended_system_type, &
@@ -75,7 +73,8 @@ MODULE harris_metropolis_mc
                                              KG_MC_method, &
                                              QS_MC_method, &
                                              Harris_MC_method
-  USE input_section_types,             ONLY: section_vals_type,section_vals_get_subs_vals
+  USE input_section_types,             ONLY: section_vals_type,section_vals_get_subs_vals,&
+                                             section_vals_write
   USE kg_environment_types,            ONLY: kg_environment_type
   USE kinds,                           ONLY: dp, &
                                              dp_size,&
@@ -122,13 +121,12 @@ MODULE harris_metropolis_mc
                                              timestop
   USE util,                            ONLY: gasdev
   USE velocity_verlet_control,         ONLY: velocity_verlet
-  USE wiener_process,                  ONLY: create_wiener_process,&
-                                             read_md_restart_file,&
-                                             write_md_restart_file
+  USE wiener_process,                  ONLY: create_wiener_process
   USE cp_output_handling,              ONLY: cp_print_key_unit_nr, &
                                              cp_print_key_finished_output,&
                                              cp_print_key_should_output,&
                                              cp_p_file
+  USE input_cp2k_restarts,             ONLY: update_input
 
 #include "cp_common_uses.h"
 
@@ -197,10 +195,6 @@ CONTAINS
     ALLOCATE(force_env_p(1), stat=stat)
     CPPostconditionNoFail(stat==0,cp_failure_level,routineP,error)
     force_env_p(1)%force_env => force_env
-    !CALL harris_mc_md(force_env_p, globenv, total_energy=.TRUE., &
-    !                  external_temp=.TRUE., qs_accept=.FALSE., &
-    !                  random_velocities=.TRUE., velocity_scaling=.FALSE., &
-    !                  qs_start=.TRUE., restore_wf_history=.TRUE., error=error)
     CALL harris_mc_md(force_env_p=force_env_p, globenv=globenv, error=error)
 
   END SUBROUTINE harris_mc_ld
@@ -361,7 +355,7 @@ CONTAINS
     TYPE(qs_wf_history_type), POINTER        :: tmp_wf_history
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(section_vals_type),POINTER          :: dft_section, input, motion_section
+    TYPE(section_vals_type),POINTER          :: dft_section, input
     TYPE(kg_environment_type), POINTER       :: kg_env
     TYPE(particle_type), DIMENSION(:), &
          POINTER                                :: particle_set
@@ -372,11 +366,18 @@ CONTAINS
          accepted_md_old
     INTEGER :: ires
     CHARACTER(LEN=default_string_length) :: my_act, my_pos
+    TYPE(section_vals_type), POINTER         :: motion_section, force_env_section,&
+                                                work_section, restart_section, subsys_section
     !   ------------------------------------------------------------------------
 
     CALL write_checkpoint_information("Entering "//routineN, globenv, error)
 
     CALL timeset(routineN, "I", "", handle)
+    NULLIFY(force_env_section, motion_section, restart_section, subsys_section)
+    force_env_section => section_vals_get_subs_vals(globenv%input_file,"FORCE_EVAL",error=error)
+    motion_section => section_vals_get_subs_vals(globenv%input_file,"MOTION",error=error)
+    restart_section => section_vals_get_subs_vals(globenv%input_file,"EXT_RESTART",error=error)
+    subsys_section => section_vals_get_subs_vals(force_env_section,"SUBSYS",error=error)
 
     ! will be used to stop if a maximum walltime is given
     md_run_start_time=m_walltime()
@@ -410,8 +411,7 @@ CONTAINS
        CALL force_env_get(force_env=force_env_p(1)%force_env, in_use=force_env_in_use, qs_env=qs_env, &
             error=error)
     ELSE IF (globenv%prog_name_id == do_kg) THEN
-       CALL force_env_get(force_env=force_env_p(1)%force_env, in_use=force_env_in_use, kg_env=kg_env, &
-            error=error)
+       CPPrecondition(.FALSE., cp_failure_level, routineP, error, failure)       
     END IF
     IF (force_env_in_use == use_qs_force) THEN
        CALL get_qs_env(qs_env=qs_env, dft_control=dft_control, particle_set=particle_set, &
@@ -455,88 +455,81 @@ CONTAINS
        CALL lnhc_init(extended_type%nhc_coef(ibead))
     ENDDO
 
-    ! loop over number of beads
-    DO ibead = 1,nbeads
+    DO ibead = 1, nbeads
 
-       CALL force_env_get(force_env_p(ibead)%force_env, subsys=subsys, &
-            dyn_coeff_set=dyn_coeff_set, in_use=in_use, &
-            cell=cell, cell_ref = cell_ref, error=error )
+       CALL force_env_get( force_env_p(ibead)%force_env, subsys=subsys, &
+                          dyn_coeff_set=dyn_coeff_set,in_use=in_use,&
+                          cell=cell, cell_ref = cell_ref,&
+                          error=error )
 
-       ! Define a reference cell for compatibility with MD restarts
-
-       DO isubsys = 1,SIZE(subsys)
-          CALL cp_subsys_get(subsys(isubsys)%subsys, &
-               local_molecules_new=local_molecules, &
-               molecule_kinds_new=molecule_kinds_new, &
-               molecules_new=molecules_new, &
-               particles=particles, &
-               error=error)
-
-          CALL initialize_nhc_part(cell,simpar,local_molecules, &
-               molecules_new%els, molecule_kinds_new%els, &
-               globenv, extended_type%nhc_part(ibead))
-          CALL initialize_nhc_baro(simpar,globenv, extended_type%nhc_baro(ibead))
-          ! initialize coef thermostats and setup coefficient forces, velocities and effective masses
-          IF (ASSOCIATED(dyn_coeff_set)) THEN
-             CALL initialize_nhc_coef(dyn_coeff_set(isubsys)%dyn_coeff_set, &
-                  globenv, extended_type%nhc_coef(ibead))
-             CALL dyn_coeff_set_initialize(dyn_coeff_set(isubsys)%dyn_coeff_set, globenv,&
-                  error=error) 
-             CALL init_nhc_forces(nhc_coef=extended_type%nhc_coef(ibead))
-          END IF
-
-       END DO
-       CALL initialize_npt(simpar, globenv, extended_type%npt_info, cell)
-
-       ! Always initialize velocities (to be overwritten if needed)
-       DO isubsys = 1,SIZE(subsys)
-          CALL cp_subsys_get(subsys(isubsys)%subsys, &
-               particles=particles, &
-               error=error)
-          CALL initialize_velocities(simpar, &
-               particles%els, globenv)
-       END DO
-
-       IF (simpar%ensemble /= langevin_ensemble) THEN
-          SELECT CASE(simpar%read_type)
-          CASE(md_pos_restart)
-!FM should be adapted to the existence of many fragments
-             CPPrecondition(SIZE(subsys)==1,cp_failure_level,routineP,error,failure)
-             isubsys=1
-             CALL cp_subsys_get(subsys(isubsys)%subsys, &
-                  particles=particles, &
-                  error=error)
-             nhc_part => extended_type%nhc_part(ibead)
-             nhc_baro => extended_type%nhc_baro(ibead)
-             CALL read_md_restart(in_use, simpar%read_type, globenv, &
-                  particles%els, cell, cell_ref, &
-                  nhc_part, nhc_baro, extended_type%npt_info)
-             CALL initialize_velocities(simpar, particles%els, globenv)
-          CASE(md_pos_vel_restart, md_all_restart)
-!FM should be adapted to the existence of many fragments
-             CPPrecondition(SIZE(subsys)==1, cp_failure_level, routineP, error, failure)
-             isubsys=1
-             CALL cp_subsys_get(subsys(isubsys)%subsys, &
-                  particles=particles, &
-                  error=error)
-             nhc_part => extended_type%nhc_part(ibead)
-             nhc_baro => extended_type%nhc_baro(ibead)
-             CALL read_md_restart(in_use, simpar%read_type, globenv, &
-                  particles%els, &
-                  cell, cell_ref, &
-                  nhc_part, &
-                  nhc_baro, &
-                  extended_type%npt_info)
-          END SELECT
-       END IF
-
-       nhc_part => extended_type%nhc_part(ibead)
-       nhc_baro => extended_type%nhc_baro(ibead)
-       CALL init_nhc_forces (nhc_part=nhc_part, nhc_baro=nhc_baro)
+! Define a reference cell for compatibility with MD restarts
 
        DO isubsys=1,SIZE(subsys)
-          CALL cp_subsys_get(subsys(isubsys)%subsys, &
-               particles=particles, &
+          CALL cp_subsys_get(subsys(isubsys)%subsys,&
+              local_molecules_new=local_molecules,&
+              molecule_kinds_new=molecule_kinds_new,&
+              atomic_kinds=atomic_kinds,&
+              local_particles=local_particles,&
+              molecules_new=molecules_new,&
+              particles=particles,&
+              error=error)
+          !
+          ! Possibly restart Nose particles
+          !
+          NULLIFY(work_section)
+          work_section => section_vals_get_subs_vals(motion_section,"MD%NOSE",error=error)
+          CALL initialize_nhc_part(cell,simpar,local_molecules, &
+                                   molecules_new%els, molecule_kinds_new%els,&
+                                   globenv, extended_type%nhc_part(ibead),work_section=work_section,error=error)
+          CALL init_nhc_forces ( nhc_part=extended_type%nhc_part(ibead),error=error)
+          !
+          ! Possibly restart barostat
+          !
+          NULLIFY(work_section)
+          work_section => section_vals_get_subs_vals(motion_section,"MD%BAROSTAT%NOSE",error=error)
+          CALL initialize_nhc_baro(simpar,globenv, extended_type%nhc_baro(ibead),work_section=work_section,error=error)
+          CALL init_nhc_forces ( nhc_baro=extended_type%nhc_baro(ibead),error=error)
+
+          IF (ASSOCIATED(dyn_coeff_set)) THEN
+             !
+             ! Initialize coef thermostats and setup coefficient forces, velocities and effective masses
+             ! Possibly restart KG coefficients
+             !
+             NULLIFY(work_section)
+             work_section => section_vals_get_subs_vals(motion_section,"MD%KG_COEFF%NOSE",error=error)
+             CALL initialize_nhc_coef(dyn_coeff_set(isubsys)%dyn_coeff_set,&
+                                   globenv,extended_type%nhc_coef(ibead),work_section=work_section,error=error)
+
+             NULLIFY(work_section)
+             work_section => section_vals_get_subs_vals(motion_section,"MD%KG_COEFF",error=error)
+             CALL dyn_coeff_set_initialize(dyn_coeff_set(isubsys)%dyn_coeff_set,globenv,&
+                  work_section=work_section,error=error)
+             CALL init_nhc_forces (nhc_coef=extended_type% nhc_coef(ibead),error=error)
+          END IF
+       END DO
+       !
+       ! Possibly restart Barostat
+       !
+       NULLIFY(work_section)
+       work_section => section_vals_get_subs_vals(motion_section,"MD%BAROSTAT",error=error)
+       CALL initialize_npt (simpar,globenv,extended_type%npt_info,cell,work_section=work_section,error=error)
+
+       !
+       ! Always initialize velocities 
+       ! and possibly restart them
+       !
+       DO isubsys=1,SIZE(subsys)
+          CALL cp_subsys_get(subsys(isubsys)%subsys,&
+              particles=particles,&
+              error=error)
+          NULLIFY(work_section)
+          work_section => section_vals_get_subs_vals(subsys_section,"VELOCITY",error=error)       
+          CALL initialize_velocities ( simpar, particles%els, globenv, work_section=work_section,error=error)
+       END DO
+       
+       DO isubsys=1,SIZE(subsys)
+          CALL cp_subsys_get(subsys(isubsys)%subsys,&
+               particles=particles,&
                local_molecules_new=local_molecules, &
                error=error)
        END DO
@@ -558,8 +551,7 @@ CONTAINS
     END IF
 
     IF (simpar%ensemble == langevin_ensemble) THEN
-       CALL create_wiener_process(md_env,error)
-       CALL read_md_restart_file(md_env,globenv,error)
+       CALL create_wiener_process(md_env,subsys_section,error)
     END IF
 
     time_iter_start=m_walltime()
@@ -612,11 +604,13 @@ CONTAINS
          motion_section,"MD%PRINT%RESTART",error=error),cp_p_file)) THEN
        ires = cp_print_key_unit_nr(logger,motion_section,"MD%PRINT%RESTART",&
             extension=".restart", do_backup=.TRUE., error=error)
-       IF (simpar%ensemble == langevin_ensemble) THEN
-          CALL write_md_restart_file(md_env, ires, error=error)
-       ELSE
-          CALL dump_variables(md_env,ires,globenv,error)
-       END IF
+
+         CALL update_input(md_env=md_env,globenv=globenv,force_env_section=force_env_section,&
+              error=error)
+         IF (ires>0) &
+         CALL section_vals_write(globenv%input_file,unit_nr=ires,&
+              hide_root=.TRUE., error=error)         
+
        CALL cp_print_key_finished_output(ires,logger,motion_section,&
             "MD%PRINT%RESTART", error=error)
     END IF
@@ -628,15 +622,8 @@ CONTAINS
             output_wf_history=tmp_wf_history, &
             qs_env=qs_env, error=error)
     END IF
-    !IF ((qs_env%scf_control%density_guess == restart_guess) .AND. &
-    !    (dft_control%qs_control%wf_interpolation_method_nr == wfi_use_guess_method_nr)) THEN
-    !  CALL write_mo_set(qs_env%mos, atomic_kind_set, particle_set, globenv, id_nr=1)
-    !END IF
 
     DO isubsys = 1,SIZE(subsys)
-       !CALL cp_subsys_get(subsys=subsys(isubsys)%subsys, &
-       !                   particles=particles, &
-       !                   error=error)
 
        ALLOCATE(tmp_particle_set(particles%n_els), stat=istat)
        IF (istat /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
@@ -884,10 +871,10 @@ CONTAINS
        END IF
 
        ! New maxwell distributed momenta
-       IF (rand_vel .OR. (semi_hybrid .AND. (.NOT. accepted))) THEN
-          !      IF (rand_vel) THEN
+       IF (rand_vel .OR. (semi_hybrid .AND. (.NOT. accepted))) THEN         
           IF (vel_scaling) THEN
-             CALL initialize_velocities(simpar, particles%els, globenv)
+             NULLIFY(work_section)
+             CALL initialize_velocities ( simpar, particles%els, globenv, work_section=work_section,error=error)
           ELSE
              iw = globenv%scr
              IF (globenv%ionode .AND. globenv%print_level >= 1) THEN
@@ -1020,11 +1007,13 @@ CONTAINS
                motion_section,"MD%PRINT%RESTART",error=error),cp_p_file)) THEN
              ires = cp_print_key_unit_nr(logger,motion_section,"MD%PRINT%RESTART",&
                   extension=".restart", do_backup=.TRUE., error=error)
-             IF (simpar%ensemble == langevin_ensemble) THEN
-                CALL write_md_restart_file(md_env, ires, error=error)
-             ELSE
-                CALL dump_variables(md_env,ires,globenv,error)
-             END IF
+
+             CALL update_input(md_env=md_env,globenv=globenv,force_env_section=force_env_section,&
+              error=error)
+             IF (ires>0) &
+             CALL section_vals_write(globenv%input_file,unit_nr=ires,&
+                  hide_root=.TRUE., error=error)         
+
              CALL cp_print_key_finished_output(ires,logger,motion_section,&
                   "MD%PRINT%RESTART", error=error)
           END IF
@@ -1087,11 +1076,13 @@ CONTAINS
          motion_section,"MD%PRINT%RESTART",error=error),cp_p_file)) THEN
        ires = cp_print_key_unit_nr(logger,motion_section,"MD%PRINT%RESTART",&
             extension=".restart", do_backup=.TRUE., error=error)
-       IF (simpar%ensemble == langevin_ensemble) THEN
-          CALL write_md_restart_file(md_env, ires, error=error)
-       ELSE
-          CALL dump_variables(md_env,ires,globenv,error)
-       END IF
+
+         CALL update_input(md_env=md_env,globenv=globenv,force_env_section=force_env_section,&
+              error=error)
+         IF (ires>0) &
+         CALL section_vals_write(globenv%input_file,unit_nr=ires,&
+              hide_root=.TRUE., error=error)         
+
        CALL cp_print_key_finished_output(ires,logger,motion_section,&
             "MD%PRINT%RESTART", error=error)
     END IF

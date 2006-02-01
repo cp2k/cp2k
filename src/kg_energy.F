@@ -29,9 +29,7 @@ MODULE kg_energy
   USE cp_control_types,                ONLY: dft_control_type
   USE dynamical_coeff_types,           ONLY: dyn_coeff_set_type,&
                                              dyn_coeff_type,&
-                                             get_dyn_coeff,&
-                                             read_coeff_restart,&
-                                             write_coeff_restart
+                                             get_dyn_coeff
   USE global_types,                    ONLY: global_environment_type
   USE kg_core,                         ONLY: calculate_ecore_rspace,&
                                              calculate_eself
@@ -89,7 +87,13 @@ MODULE kg_energy
                                              timestop
   USE xc,                              ONLY: xc_vxc_pw_create1
   USE input_constants, only: restart_guess
-  USE input_section_types, ONLY: section_vals_type, section_vals_get_subs_vals
+  USE input_section_types, ONLY: section_vals_type, section_vals_get_subs_vals,&
+       section_vals_write
+ USE cp_output_handling,              ONLY: cp_print_key_unit_nr, &
+                                             cp_print_key_finished_output,&
+                                             cp_print_key_should_output,&
+                                             cp_p_file
+ USE input_cp2k_restarts, only: update_input
   IMPLICIT NONE
 
   PRIVATE
@@ -335,7 +339,7 @@ SUBROUTINE kg_std_energies ( kg_env, globenv, error )
       routine = "SUBROUTINE kg_std_energies (MODULE kg_energy)"
 
     INTEGER                                  :: handle, handle2, i, stat, &
-                                                iter, output_unit
+                                                iter, output_unit, ires
     LOGICAL                                  :: ionode, should_stop, failure
     REAL(KIND=dp)                                :: maxerr, maxgrad, t1, t2
     TYPE(atomic_kind_type), DIMENSION(:), &
@@ -346,9 +350,12 @@ SUBROUTINE kg_std_energies ( kg_env, globenv, error )
     TYPE(kg_rspw_type), POINTER              :: rspw
     TYPE(scf_control_type), POINTER          :: scf_control
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
+    TYPE(cp_logger_type), POINTER            :: logger
 
-!------------------------------------------------------------------------------
-
+ 
+    NULLIFY(logger)
+    logger => cp_error_get_logger(error)
+ 
   CALL write_checkpoint_information("Entering "//routine,globenv,error)
   CALL timeset ( 'kg_std_energies','I',' ',handle )
 
@@ -422,12 +429,6 @@ scf_loop: DO
       EXIT 
     END IF
 
-!   *** Write restart file ***
-    IF (scf_control%write_restart_each>0.AND.&
-         MODULO(iter,scf_control%write_restart_each)==0) THEN
-       CALL write_coeff_restart(dyn_coeff_set,atomic_kind_set,globenv)  
-    END IF
-
     t1 = m_walltime()
 
     CALL timestop(0.0_dp,handle2)
@@ -438,9 +439,20 @@ scf_loop: DO
   DEALLOCATE(vxc_r,stat=stat)
   CPPostconditionNoFail(stat==0,cp_warning_level,routine,error)
   
-!   *** Write restart file ***
-  IF (scf_control%write_restart_each>=0) THEN
-    CALL write_coeff_restart(dyn_coeff_set,atomic_kind_set,globenv)  
+  IF (BTEST(cp_print_key_should_output(logger%iter_info,&
+       globenv%input_file,"MOTION%MD%PRINT%RESTART",error=error),cp_p_file)) THEN
+     ires = cp_print_key_unit_nr(logger,globenv%input_file,"MOTION%MD%PRINT%RESTART",&
+          extension=".restart",  do_backup=.TRUE., &
+          error=error)
+     
+     CALL update_input(kg_env=kg_env, globenv=globenv,force_env_section=kg_env%input,&
+          error=error)
+     IF (ires>0) &
+     CALL section_vals_write(globenv%input_file,unit_nr=ires,&
+          hide_root=.TRUE., error=error)         
+     
+     CALL cp_print_key_finished_output(ires,logger,globenv%input_file,&
+          "MOTION%MD%PRINT%RESTART", error=error)
   END IF
   
   CALL diis_info_destroy(diis_info)
@@ -633,10 +645,6 @@ SUBROUTINE init_energy_calculation ( kg_env, vxc_r, globenv, error)
 ! add the frozen electronic density to the core density 
   CALL coeff_sumup(rho_g,rho_core)
 
-!  read coef from restart file
-  IF (scf_control%density_guess == restart_guess) THEN
-    CALL read_coeff_restart(dyn_coeff_set,globenv)
-  END IF    
   CALL timestop(0.0_dp,handle)
   CALL write_checkpoint_information("Leaving "//routine,globenv,error)
 

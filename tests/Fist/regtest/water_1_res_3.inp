@@ -45,7 +45,6 @@
     STEPS 10
     TIMESTEP 2.5
     TEMPERATURE 298
-    RESTART ALL
     &NOSE
       LENGTH 3
       YOSHIDA 3
@@ -54,3 +53,7 @@
     &END NOSE
   &END MD
 &END MOTION
+&EXT_RESTART
+  EXTERNAL_FILE water_1-1.restart
+&END
+

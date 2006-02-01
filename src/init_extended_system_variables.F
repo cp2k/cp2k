@@ -36,6 +36,12 @@ MODULE init_extended_system_variables
                                              nph_uniaxial_ensemble,&
                                              nph_uniaxial_damped_ensemble,&
                                              isokin_ensemble
+  USE input_section_types,             ONLY: section_vals_type,&
+                                             section_vals_get_subs_vals,&
+                                             section_vals_write
+
+#include "cp_common_uses.h"
+
   IMPLICIT NONE
 
   PRIVATE
@@ -338,11 +344,13 @@ END SUBROUTINE init_barostat_variables
 !!
 !!   SOURCE
 !******************************************************************************
-SUBROUTINE init_nhc_forces ( nhc_part, nhc_baro, nhc_coef )
+SUBROUTINE init_nhc_forces ( nhc_part, nhc_baro, nhc_coef , error)
     TYPE(lnhc_parameters_type), &
       INTENT(INOUT), OPTIONAL                :: nhc_part, nhc_baro, nhc_coef
 
     INTEGER                                  :: i, j
+    TYPE(cp_error_type), INTENT(inout), &
+         OPTIONAL                               :: error
 
 ! assign the forces
 

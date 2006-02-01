@@ -549,18 +549,18 @@ END SUBROUTINE val_get
 !!     fawzi
 !!
 !!*** **********************************************************************
-SUBROUTINE val_write(val,unit_nr,unit,unit_str,error)
+SUBROUTINE val_write(val,unit_nr,unit,unit_str,fmt,error)
     TYPE(val_type), POINTER                  :: val
     INTEGER, INTENT(in)                      :: unit_nr
     TYPE(cp_unit_type), POINTER, optional    :: unit
-    CHARACTER(len=*), INTENT(in), optional :: unit_str
+    CHARACTER(len=*), INTENT(in), OPTIONAL :: unit_str, fmt
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'val_write', &
       routineP = moduleN//':'//routineN
 
-    CHARACTER(len=default_string_length)     :: c_string
+    CHARACTER(len=default_string_length)     :: c_string, myfmt
     INTEGER                                  :: i, l
     LOGICAL                                  :: failure
     TYPE(cp_unit_type), pointer :: my_unit
@@ -568,6 +568,8 @@ SUBROUTINE val_write(val,unit_nr,unit,unit_str,error)
   failure=.FALSE.
 
   NULLIFY(my_unit)
+  myfmt = ""
+  IF (PRESENT(fmt)) myfmt = fmt
   IF (present(unit)) my_unit => unit
   IF (ASSOCIATED(my_unit)) THEN
      CALL cp_unit_retain(my_unit,error=error)
@@ -579,7 +581,10 @@ SUBROUTINE val_write(val,unit_nr,unit,unit_str,error)
      CASE (logical_t)
         IF (ASSOCIATED(val%l_val)) THEN
            DO i=1,SIZE(val%l_val)
-              IF (MODULO(i,20)==0) WRITE(unit=unit_nr,fmt="(' \')")
+              IF (MODULO(i,20)==0) THEN 
+                 WRITE(unit=unit_nr,fmt="(' \')")
+                 WRITE(unit=unit_nr,fmt="("//TRIM(myfmt)//"'')",advance="NO")
+              END IF
               WRITE(unit=unit_nr,fmt="(' ',l1)",advance="NO")&
                    val%l_val(i)
            END DO
@@ -589,7 +594,10 @@ SUBROUTINE val_write(val,unit_nr,unit,unit_str,error)
      CASE (integer_t)
         IF (ASSOCIATED(val%i_val)) THEN
            DO i=1,SIZE(val%i_val)
-              IF (MODULO(i,10)==0) WRITE(unit=unit_nr,fmt="(' \')")
+              IF (MODULO(i,10)==0) THEN 
+                 WRITE(unit=unit_nr,fmt="(' \')")
+                 WRITE(unit=unit_nr,fmt="("//TRIM(myfmt)//"'')",advance="NO")
+              END IF
               WRITE(unit=unit_nr,fmt="(' ',i14)",advance="NO")&
                    val%i_val(i)
            END DO
@@ -599,7 +607,10 @@ SUBROUTINE val_write(val,unit_nr,unit,unit_str,error)
      CASE (real_t)
         IF (ASSOCIATED(val%r_val)) THEN
            DO i=1,SIZE(val%r_val)
-              IF (MODULO(i,10)==0) WRITE(unit=unit_nr,fmt="(' \')")
+              IF (MODULO(i,10)==0) THEN 
+                 WRITE(unit=unit_nr,fmt="(' \')")
+                 WRITE(unit=unit_nr,fmt="("//TRIM(myfmt)//"'')",advance="NO")
+              END IF
               IF (ASSOCIATED(my_unit)) THEN
                  WRITE(unit=unit_nr,fmt="(' ',es16.8)",advance="NO")&
                       cp_unit_from_cp2k1(val%r_val(i),my_unit,error=error)
@@ -615,10 +626,11 @@ SUBROUTINE val_write(val,unit_nr,unit,unit_str,error)
         IF (ASSOCIATED(val%c_val)) THEN
            l=0
            DO i=1,SIZE(val%c_val)
-              IF (i>1) WRITE (unit=unit_nr,fmt="(' ')")
+              IF (i>1) WRITE (unit=unit_nr,fmt="(' ')",advance="NO")
               l=l+1
               IF (l>10.AND.l+LEN_TRIM(val%c_val(i))>76)THEN
                  WRITE(unit=unit_nr,fmt="('\')")
+                 WRITE(unit=unit_nr,fmt="("//TRIM(myfmt)//"'')",advance="NO")
                  l=0
                  WRITE(unit=unit_nr,fmt='(a)',advance="NO") TRIM(val%c_val(i))
                  l=l+LEN_TRIM(val%c_val(i))+3
@@ -640,6 +652,7 @@ SUBROUTINE val_write(val,unit_nr,unit,unit_str,error)
               c_string=enum_i2c(val%enum,val%i_val(i),error=error)
               IF (l>10.AND.l+LEN_TRIM(c_string)>76)THEN
                  WRITE(unit=unit_nr,fmt="(' \')")
+                 WRITE(unit=unit_nr,fmt="("//TRIM(myfmt)//"'')",advance="NO")
                  l=0
               ELSE
                  l=l+LEN_TRIM(c_string)+3

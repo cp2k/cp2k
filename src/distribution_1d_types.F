@@ -42,10 +42,20 @@ MODULE distribution_1d_types
   USE message_passing,                 ONLY: mp_max,&
                                              mp_sum
   USE parallel_rng_types,              ONLY: delete_rng_stream,&
-                                             rng_stream_p_type
+                                             rng_stream_p_type,&
+                                             read_rng_stream
   USE timings,                         ONLY: timeset,&
                                              timestop
+  USE string_utilities,                ONLY: ascii_to_string,&
+                                             string_to_ascii,&
+                                             xstring
   USE util,                            ONLY: sort
+  USE input_section_types,             ONLY: section_vals_type,&
+                                             section_vals_get_subs_vals,&
+                                             section_vals_get,&
+                                             section_vals_val_get
+  USE kinds,                           ONLY: dp
+
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -61,7 +71,7 @@ MODULE distribution_1d_types
        distribution_1d_build_gdist, distribution_1d_destroy_gdist,&
        distribution_1d_search_el, distribution_1d_sort_list, distribution_1d_write
 
-  PUBLIC :: local_particle_type
+  PUBLIC :: local_particle_type, init_local_particle_set
 
   TYPE local_particle_type
     TYPE(rng_stream_p_type), DIMENSION(:), POINTER :: rng
@@ -162,7 +172,7 @@ CONTAINS
 !!
 !!   FUNCTION
 !!     creates a local list
-!!
+!!CALL ascii_to_string(ascii(:,iparticle),string)
 !!   NOTES
 !!     -
 !!
@@ -392,6 +402,68 @@ SUBROUTINE distribution_1d_release(distribution_1d,error)
 END SUBROUTINE distribution_1d_release
 !***************************************************************************
 
+SUBROUTINE init_local_particle_set(distribution_1d,nparticle_kind,nparticle,work_section,error)
+  TYPE(distribution_1d_type), POINTER      :: distribution_1d
+  TYPE(cp_error_type), OPTIONAL, INTENT(INOUT) :: error
+  TYPE(section_vals_type), POINTER :: work_section
+  INTEGER, INTENT(in) :: nparticle_kind, nparticle
+  ! Local parameters
+  
+  CHARACTER(LEN=*), PARAMETER :: routineN = "init_local_particle_set",&
+                                   routineP = moduleN//":"//routineN
+
+    ! Local variables
+
+    INTEGER :: i,inumber,iparticle,iparticle_kind,iparticle_local,istat,&
+               isubsys,nparticle_local,unit_number,ia, ie
+    LOGICAL :: failure,section_read, explicit
+
+    INTEGER, DIMENSION(:), POINTER :: my_ascii
+    INTEGER, DIMENSION(:,:), ALLOCATABLE :: ascii
+    REAL(KIND=dp), DIMENSION(:,:), ALLOCATABLE :: buffer
+    CHARACTER(LEN=404) :: string
+
+    ! -------------------------------------------------------------------------
+
+    failure = .FALSE.
+
+    CPPrecondition (ASSOCIATED(distribution_1d),cp_failure_level,routineP,error,failure)
+
+    IF (ASSOCIATED(work_section)) THEN
+       CALL section_vals_get(work_section, explicit=explicit, error=error)
+       IF (explicit) THEN
+          ALLOCATE (ascii(LEN(string),nparticle),STAT=istat)
+          CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)      
+          DO i = 1, nparticle
+             CALL section_vals_val_get(work_section,"_DEFAULT_KEYWORD_",i_rep_val=i,&
+                  i_vals=my_ascii, error=error)
+             ascii(:,i) = my_ascii
+          END DO
+          
+          DO iparticle_kind=1,nparticle_kind
+             nparticle_local = distribution_1d%n_el(iparticle_kind)
+             DO iparticle_local=1,nparticle_local
+                iparticle = distribution_1d%list(iparticle_kind)%&
+                     &array(iparticle_local)
+                IF (iparticle == distribution_1d%list(iparticle_kind)%&
+                     &array(iparticle_local)) THEN
+                   CALL ascii_to_string(ascii(:,iparticle),string)
+                   CALL read_rng_stream(rng_stream=distribution_1d%&
+                        &local_particle_set(iparticle_kind)%&
+                        &rng(iparticle_local)%stream,&
+                        rng_record=string,&
+                        error=error)
+                END IF
+             END DO
+          END DO
+          DEALLOCATE (ascii,STAT=istat)
+          CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+       END IF
+    END IF
+
+  END SUBROUTINE init_local_particle_set
+
+  ! ***************************************************************************
 !!****f* distribution_1d_types/distribution_1d_sort_list [1.0] *
 !!
 !!   NAME

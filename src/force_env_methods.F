@@ -39,7 +39,6 @@ MODULE force_env_methods
   USE fist_force,                      ONLY: fist_force_control
   USE force_env_types,                 ONLY: force_env_get,&
                                              force_env_p_type,&
-                                             force_env_read_variables,&
                                              force_env_release,&
                                              force_env_retain,&
                                              force_env_set,&

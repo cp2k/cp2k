@@ -950,7 +950,7 @@ CPSourceFileRef,&
        IF (index==-1) THEN
           pos => cp_sll_[nametype1]_get_rest(sll, iter=-1,error=error)
        ELSE
-          pos => cp_sll_[nametype1]_get_rest(sll, iter=index-1,error=error)
+          pos => cp_sll_[nametype1]_get_rest(sll, iter=index-2,error=error)
        END IF
        CPPrecondition(ASSOCIATED(pos),cp_failure_level,routineP,error,failure)
        IF (.NOT.failure) THEN

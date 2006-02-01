@@ -413,63 +413,9 @@ contains
     CALL section_add_subsection(section,print_key,error=error)
     CALL section_release(print_key,error=error)
 
-    CALL create_random_section(subsection,error=error)
-    CALL section_add_subsection(section,subsection,error=error)
-    CALL section_release(subsection,error=error)    
-
  END SUBROUTINE create_global_section
 
-!***************************************************************************
-!!****f* input_cp2k/create_random_section [1.0] *
-!!
-!!   NAME
-!!     create_random_section
-!!
-!!   FUNCTION
-!!     Creates the random number restart section
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - section: the section to create
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     teo
-!!
-!!*** **********************************************************************
-  SUBROUTINE create_random_section(section,error)
-    TYPE(section_type), POINTER              :: section
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'create_random_section', &
-         routineP = moduleN//':'//routineN
-    
-    LOGICAL                                  :: failure
-    TYPE(keyword_type), POINTER              :: keyword
-
-    failure=.FALSE.
-
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
-    IF (.NOT. failure) THEN
-       CALL section_create(section,name="RNG_INIT",&
-            description="Information to initialize the parallel random number generator",&
-            n_keywords=1, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
-            error=error)
-       NULLIFY(keyword)
-
-       CALL keyword_create(keyword, name="_DEFAULT_KEYWORD_",&
-            description="Specify an initializian stream",repeats=.TRUE.,&
-            type_of_var=char_t, n_var=-2, error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
-    END IF
-  END SUBROUTINE create_random_section
-!***************************************************************************
 
 !!****f* input_cp2k/create_test_section [1.0] *
 !!
@@ -624,8 +570,8 @@ contains
          n_keywords=0, n_subsections=8, repeats=.FALSE., required=.TRUE.,&
          error=error)
 
+    NULLIFY(subsection)
 
-    nullify(subsection)
     CALL create_dft_section(subsection,error)
     CALL section_add_subsection(section, subsection, error=error)
     CALL section_release(subsection,error=error)
@@ -708,41 +654,58 @@ contains
             default_c_val=" ", error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
+
        CALL keyword_create(keyword, name="RESTART_POS",&
             description="Takes the positions from the external file",&
-            default_l_val=.true., error=error)
+            default_l_val=.TRUE., lone_keyword_l_val=.TRUE.,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
        CALL keyword_create(keyword, name="RESTART_VEL",&
             description="Takes the velocities from the external file",&
-            default_l_val=.true., error=error)
+            default_l_val=.true., lone_keyword_l_val=.TRUE.,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
       CALL keyword_create(keyword, name="RESTART_RANDOMG",&
             description="Restarts the random number generator from the external file",&
-            default_l_val=.true., error=error)
+            default_l_val=.true., lone_keyword_l_val=.TRUE.,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
-       CALL keyword_create(keyword, name="RESTART_KG_COEFF",&
-            description="Restarts the coefficents of kg from the external file",&
-            default_l_val=.true., error=error)
+       CALL keyword_create(keyword, name="RESTART_KG_COEFF_POS",&
+            description="Restarts the positions of coefficents of kg from the external file",&
+            default_l_val=.true., lone_keyword_l_val=.TRUE.,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+       CALL keyword_create(keyword, name="RESTART_KG_COEFF_VEL",&
+            description="Restarts the velocity of coefficents of kg from the external file",&
+            default_l_val=.true., lone_keyword_l_val=.TRUE.,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
        CALL keyword_create(keyword, name="RESTART_KG_NOSE",&
             description="Restarts the nose thermostats of the kg coefficents "//&
             "from the EXTERNAL file",&
-            default_l_val=.true., error=error)
+            default_l_val=.true., lone_keyword_l_val=.TRUE.,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
        CALL keyword_create(keyword, name="RESTART_BAROSTAT",&
             description="Restarts the barostat from the external file",&
-            default_l_val=.true., error=error)
+            default_l_val=.true., lone_keyword_l_val=.TRUE.,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+       CALL keyword_create(keyword, name="RESTART_BAROSTAT_NOSE",&
+            description="Restarts the barostat thermostat from the external file",&
+            default_l_val=.true., lone_keyword_l_val=.TRUE.,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
        CALL keyword_create(keyword, name="RESTART_NOSE",&
             description="Restarts the nose thermostats of the particles "//&
             "from the EXTERNAL file",&
-            default_l_val=.true., error=error)
+            default_l_val=.true., lone_keyword_l_val=.TRUE.,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+       CALL keyword_create(keyword, name="RESTART_CELL",&
+            description="Restarts the cell (and cell_ref) "//&
+            "from the EXTERNAL file",&
+            default_l_val=.true., lone_keyword_l_val=.TRUE.,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
        CALL keyword_create(keyword, name="CUSTOM_PATH",&

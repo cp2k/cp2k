@@ -52,7 +52,8 @@ MODULE kg_environment
   USE distribution_methods,            ONLY: distribute_molecules_1d
   USE dynamical_coeff_types,           ONLY: dyn_coeff_set_create,&
                                              dyn_coeff_set_release,&
-                                             dyn_coeff_set_type
+                                             dyn_coeff_set_type,&
+                                             dyn_coeff_set_initialize
   USE gamma,                           ONLY: init_md_ftable
   USE global_types,                    ONLY: global_environment_type
   USE input_section_types,             ONLY: section_vals_get
@@ -183,7 +184,7 @@ CONTAINS
     TYPE(scf_control_type), POINTER          :: scf_control
     TYPE(section_vals_type), POINTER         :: cell_section,&
                                                 force_env_section,&
-                                                dft_section
+                                                dft_section, work_section
     REAL(kind=dp), DIMENSION(3)              :: abc
     TYPE(cp_logger_type), pointer            :: logger
     INTEGER :: iw
@@ -313,6 +314,8 @@ CONTAINS
                                  atomic_kind_set=atomic_kind_set,&
                                  distribution=local_particles,&
                                  error=error)
+       work_section => section_vals_get_subs_vals(globenv%input_file,"MOTION%MD%KG_COEFF",error=error)
+       CALL dyn_coeff_set_initialize(dyn_coeff_set,globenv,work_section,skipvel=.TRUE.,error=error)         
        CALL set_kg_env (kg_env=kg_env, dyn_coeff_set=dyn_coeff_set) 
        CALL dyn_coeff_set_release(dyn_coeff_set, error=error)
     END IF

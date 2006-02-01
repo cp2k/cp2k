@@ -54,8 +54,8 @@
 !!   SOURCE
 !*****************************************************************************
 MODULE cp_linked_list_logical
-#include "cp_common_uses.h"
    
+#include "cp_common_uses.h"
   IMPLICIT NONE
   PRIVATE
 
@@ -164,7 +164,7 @@ MODULE cp_linked_list_logical
   END INTERFACE
 ! transorms the list in array
   INTERFACE cp_to_array
-     module procedure cp_sll_logical_to_array
+     MODULE PROCEDURE cp_sll_logical_to_array
   END INTERFACE
 !!***
 !****************************************************************************
@@ -205,7 +205,7 @@ MODULE cp_linked_list_logical
 !!   SOURCE
 !***************************************************************************
   TYPE cp_sll_logical_type
-     logical :: first_el
+     LOGICAL :: first_el
      TYPE(cp_sll_logical_type), POINTER :: rest
   END TYPE cp_sll_logical_type
 !!***
@@ -270,14 +270,19 @@ CONTAINS
 !!
 !!*** **********************************************************************
   SUBROUTINE cp_sll_logical_create(sll,first_el,rest,error)
-    TYPE(cp_sll_logical_type), POINTER :: sll
-    logical, intent(in), OPTIONAL :: first_el
-    TYPE(cp_sll_logical_type), POINTER, OPTIONAL :: rest
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(cp_sll_logical_type), POINTER       :: sll
+    LOGICAL, INTENT(in), OPTIONAL            :: first_el
+    TYPE(cp_sll_logical_type), OPTIONAL, &
+      POINTER                                :: rest
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineP='cp_linked_list_logical:cp_sll_logical_create'
-    INTEGER :: stat
+    CHARACTER(len=*), PARAMETER :: &
+      routineP = 'cp_linked_list_logical:cp_sll_logical_create'
+
+    INTEGER                                  :: stat
+    LOGICAL                                  :: failure
+
     failure=.FALSE.
 
     IF (.NOT.PRESENT(first_el)) THEN
@@ -322,10 +327,12 @@ CONTAINS
 !!
 !!*** **********************************************************************
   SUBROUTINE cp_sll_logical_dealloc(sll,error)
-    TYPE(cp_sll_logical_type), POINTER :: sll
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(cp_sll_logical_type), POINTER       :: sll
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    CHARACTER(len=*), PARAMETER :: routineP='cp_linked_list_logical/cp_sll_logical_dealloc'
+    CHARACTER(len=*), PARAMETER :: &
+      routineP = 'cp_linked_list_logical/cp_sll_logical_dealloc'
 
     CALL cp_sll_logical_rm_all_el(sll,error)
   END SUBROUTINE cp_sll_logical_dealloc
@@ -357,12 +364,16 @@ CONTAINS
 !!
 !!*** **********************************************************************
   SUBROUTINE cp_sll_logical_dealloc_node(sll,error)
-    TYPE(cp_sll_logical_type), POINTER :: sll
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(cp_sll_logical_type), POINTER       :: sll
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineP='cp_linked_list_logical/cp_sll_logical_dealloc_node'
-    INTEGER:: stat
+    CHARACTER(len=*), PARAMETER :: &
+      routineP = 'cp_linked_list_logical/cp_sll_logical_dealloc_node'
+
+    INTEGER                                  :: stat
+    LOGICAL                                  :: failure
+
     failure=.FALSE.
 
     DEALLOCATE(sll, stat=stat)
@@ -400,13 +411,18 @@ CONTAINS
 !!
 !!*** **********************************************************************
   SUBROUTINE cp_sll_logical_set(sll,first_el,rest,error)
-    TYPE(cp_sll_logical_type), POINTER :: sll
-    logical, intent(in), OPTIONAL :: first_el
-    TYPE(cp_sll_logical_type), POINTER, OPTIONAL :: rest
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(cp_sll_logical_type), POINTER       :: sll
+    LOGICAL, INTENT(in), OPTIONAL            :: first_el
+    TYPE(cp_sll_logical_type), OPTIONAL, &
+      POINTER                                :: rest
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineP='cp_linked_list_logical:cp_set_sll_logical'
+    CHARACTER(len=*), PARAMETER :: &
+      routineP = 'cp_linked_list_logical:cp_set_sll_logical'
+
+    LOGICAL                                  :: failure
+
     failure=.FALSE.
 
     IF (.NOT.ASSOCIATED(sll)) THEN
@@ -449,15 +465,20 @@ CONTAINS
 !!
 !!*** **********************************************************************
   SUBROUTINE cp_sll_logical_get(sll,first_el,rest,empty,length,error)
-    TYPE(cp_sll_logical_type), POINTER :: sll
-    logical, intent(out), OPTIONAL :: first_el
-    TYPE(cp_sll_logical_type), OPTIONAL, POINTER :: rest
-    LOGICAL, OPTIONAL, INTENT(out) :: empty
-    INTEGER, INTENT(out), OPTIONAL :: length
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(cp_sll_logical_type), POINTER       :: sll
+    LOGICAL, INTENT(out), OPTIONAL           :: first_el
+    TYPE(cp_sll_logical_type), OPTIONAL, &
+      POINTER                                :: rest
+    LOGICAL, INTENT(out), OPTIONAL           :: empty
+    INTEGER, INTENT(out), OPTIONAL           :: length
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineP='cp_linked_list_logical:cp_sll_logical_get'
+    CHARACTER(len=*), PARAMETER :: &
+      routineP = 'cp_linked_list_logical:cp_sll_logical_get'
+
+    LOGICAL                                  :: failure
+
     failure=.FALSE.
 
     IF (.NOT.ASSOCIATED(sll)) THEN
@@ -499,12 +520,16 @@ CONTAINS
 !!
 !!*** **********************************************************************
   FUNCTION cp_sll_logical_get_first_el(sll,error) RESULT(res)
-    TYPE(cp_sll_logical_type), POINTER :: sll
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-    logical :: res
+    TYPE(cp_sll_logical_type), POINTER       :: sll
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+    LOGICAL                                  :: res
 
-    LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineP='cp_linked_list_logical:cp_sll_logical_get_first'
+    CHARACTER(len=*), PARAMETER :: &
+      routineP = 'cp_linked_list_logical:cp_sll_logical_get_first'
+
+    LOGICAL                                  :: failure
+
     failure=.FALSE.
 
     IF (cp_debug) THEN
@@ -542,14 +567,18 @@ CONTAINS
 !!
 !!*** **********************************************************************
   FUNCTION cp_sll_logical_get_rest(sll, iter, error) RESULT(res)
-    TYPE(cp_sll_logical_type), POINTER :: sll
-    INTEGER, OPTIONAL :: iter
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-    TYPE(cp_sll_logical_type), POINTER :: res
+    TYPE(cp_sll_logical_type), POINTER       :: sll
+    INTEGER, OPTIONAL                        :: iter
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+    TYPE(cp_sll_logical_type), POINTER       :: res
 
-    LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineP='cp_linked_list_logical:cp_sll_logical_get_first'
-    INTEGER :: i
+    CHARACTER(len=*), PARAMETER :: &
+      routineP = 'cp_linked_list_logical:cp_sll_logical_get_first'
+
+    INTEGER                                  :: i
+    LOGICAL                                  :: failure
+
     failure=.FALSE.
 
     IF (.NOT.ASSOCIATED(sll)) THEN
@@ -615,12 +644,16 @@ CPSourceFileRef,&
 !!
 !!*** **********************************************************************
   FUNCTION cp_sll_logical_get_empty(sll,error) RESULT(res)
-    LOGICAL :: res
-    TYPE(cp_sll_logical_type), POINTER :: sll
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(cp_sll_logical_type), POINTER       :: sll
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+    LOGICAL                                  :: res
 
-    LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineP='cp_linked_list_logical:cp_sll_logical_get_empty'
+    CHARACTER(len=*), PARAMETER :: &
+      routineP = 'cp_linked_list_logical:cp_sll_logical_get_empty'
+
+    LOGICAL                                  :: failure
+
     failure=.FALSE.
 
     res = .NOT.ASSOCIATED(sll)
@@ -651,13 +684,17 @@ CPSourceFileRef,&
 !!
 !!*** **********************************************************************
   FUNCTION cp_sll_logical_get_length(sll,error) RESULT(res)
-    TYPE(cp_sll_logical_type), pointer :: sll
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-    INTEGER ::res
+    TYPE(cp_sll_logical_type), POINTER       :: sll
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+    INTEGER                                  :: res
 
-    LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineP='cp_linked_list_logical/cp_sll_logical_get_length'
-    TYPE(cp_sll_logical_type), POINTER :: iterator
+    CHARACTER(len=*), PARAMETER :: &
+      routineP = 'cp_linked_list_logical/cp_sll_logical_get_length'
+
+    LOGICAL                                  :: failure
+    TYPE(cp_sll_logical_type), POINTER       :: iterator
+
     failure=.FALSE.
 
     res=0
@@ -698,14 +735,18 @@ CPSourceFileRef,&
 !!
 !!*** **********************************************************************
   FUNCTION cp_sll_logical_get_el_at(sll,index,error) RESULT(res)
-    logical :: res
-    TYPE(cp_sll_logical_type), POINTER :: sll
-    INTEGER, INTENT(in) :: index
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(cp_sll_logical_type), POINTER       :: sll
+    INTEGER, INTENT(in)                      :: index
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+    LOGICAL                                  :: res
 
-    LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineP='cp_linked_list_logical/cp_sll_logical_get_el_at'
-    TYPE(cp_sll_logical_type), POINTER :: pos
+    CHARACTER(len=*), PARAMETER :: &
+      routineP = 'cp_linked_list_logical/cp_sll_logical_get_el_at'
+
+    LOGICAL                                  :: failure
+    TYPE(cp_sll_logical_type), POINTER       :: pos
+
     failure=.FALSE.
 
     IF (cp_debug) THEN
@@ -750,14 +791,18 @@ CPSourceFileRef,&
 !!
 !!*** **********************************************************************
   SUBROUTINE cp_sll_logical_set_el_at(sll,index,value,error)
-    logical, intent(in) :: value
-    TYPE(cp_sll_logical_type), POINTER :: sll
-    INTEGER, INTENT(in) :: index
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(cp_sll_logical_type), POINTER       :: sll
+    INTEGER, INTENT(in)                      :: index
+    LOGICAL, INTENT(in)                      :: value
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineP='cp_linked_list_logical/cp_sll_logical_set_el_at'
-    TYPE(cp_sll_logical_type), POINTER :: pos
+    CHARACTER(len=*), PARAMETER :: &
+      routineP = 'cp_linked_list_logical/cp_sll_logical_set_el_at'
+
+    LOGICAL                                  :: failure
+    TYPE(cp_sll_logical_type), POINTER       :: pos
+
     failure=.FALSE.
 
     IF (index==-1) THEN
@@ -800,18 +845,22 @@ CPSourceFileRef,&
 !!
 !!*** **********************************************************************
   FUNCTION cp_sll_logical_next(iterator,el_att,error) RESULT(res)
-    TYPE(cp_sll_logical_type), POINTER :: iterator
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-    logical, intent(out), OPTIONAL :: el_att
-    LOGICAL :: res
+    TYPE(cp_sll_logical_type), POINTER       :: iterator
+    LOGICAL, INTENT(out), OPTIONAL           :: el_att
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+    LOGICAL                                  :: res
 
-    LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineP='cp_linked_list_logical:cp_sll_logical_next'
+    CHARACTER(len=*), PARAMETER :: &
+      routineP = 'cp_linked_list_logical:cp_sll_logical_next'
+
+    LOGICAL                                  :: failure
+
     failure=.FALSE.
 
     IF (ASSOCIATED(iterator)) THEN
        res=.NOT.failure
-       if (present(el_att)) el_att = iterator%first_el
+       IF (PRESENT(el_att)) el_att = iterator%first_el
        iterator => iterator%rest
     ELSE
        res=.FALSE.
@@ -847,13 +896,16 @@ CPSourceFileRef,&
 !!
 !!*** **********************************************************************
   SUBROUTINE cp_sll_logical_insert_el(sll,el,error)
-    TYPE(cp_sll_logical_type), POINTER :: sll
-    logical, intent(in):: el
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(cp_sll_logical_type), POINTER       :: sll
+    LOGICAL, INTENT(in)                      :: el
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineP='cp_linked_list_logical:cp_sll_logical_add_el'
-    TYPE(cp_sll_logical_type), POINTER :: newSlot
+    CHARACTER(len=*), PARAMETER :: &
+      routineP = 'cp_linked_list_logical:cp_sll_logical_add_el'
+
+    LOGICAL                                  :: failure
+    TYPE(cp_sll_logical_type), POINTER       :: newSlot
 
     failure=.FALSE.
     NULLIFY(newSlot)
@@ -888,12 +940,16 @@ CPSourceFileRef,&
 !!
 !!*** **********************************************************************
   SUBROUTINE cp_sll_logical_rm_first_el(sll,error)
-    TYPE(cp_sll_logical_type), POINTER :: sll
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(cp_sll_logical_type), POINTER       :: sll
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineP='cp_linked_list_logical/cp_sll_logical_rm_first_el'
-    TYPE(cp_sll_logical_type), POINTER :: node_to_rm
+    CHARACTER(len=*), PARAMETER :: &
+      routineP = 'cp_linked_list_logical/cp_sll_logical_rm_first_el'
+
+    LOGICAL                                  :: failure
+    TYPE(cp_sll_logical_type), POINTER       :: node_to_rm
+
     failure=.FALSE.
     node_to_rm => sll
 
@@ -936,14 +992,18 @@ CPSourceFileRef,&
 !!
 !!*** **********************************************************************
   SUBROUTINE cp_sll_logical_insert_el_at(sll,el,index,error)
-    logical, intent(in) :: el
-    INTEGER, INTENT(in) :: index
-    TYPE(cp_sll_logical_type), POINTER :: sll
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(cp_sll_logical_type), POINTER       :: sll
+    LOGICAL, INTENT(in)                      :: el
+    INTEGER, INTENT(in)                      :: index
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineP='cp_linked_list_logical/cp_sll_logical_insert_el_at'
-    TYPE(cp_sll_logical_type), POINTER :: pos
+    CHARACTER(len=*), PARAMETER :: &
+      routineP = 'cp_linked_list_logical/cp_sll_logical_insert_el_at'
+
+    LOGICAL                                  :: failure
+    TYPE(cp_sll_logical_type), POINTER       :: pos
+
     failure=.FALSE.
 
     IF (index==1) THEN
@@ -952,7 +1012,7 @@ CPSourceFileRef,&
        IF (index==-1) THEN
           pos => cp_sll_logical_get_rest(sll, iter=-1,error=error)
        ELSE
-          pos => cp_sll_logical_get_rest(sll, iter=index-1,error=error)
+          pos => cp_sll_logical_get_rest(sll, iter=index-2,error=error)
        END IF
        CPPrecondition(ASSOCIATED(pos),cp_failure_level,routineP,error,failure)
        IF (.NOT.failure) THEN
@@ -988,13 +1048,17 @@ CPSourceFileRef,&
 !!
 !!*** **********************************************************************
   SUBROUTINE cp_sll_logical_rm_el_at(sll,index,error)
-    TYPE(cp_sll_logical_type), POINTER :: sll
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-    INTEGER, INTENT(in)::index
+    TYPE(cp_sll_logical_type), POINTER       :: sll
+    INTEGER, INTENT(in)                      :: index
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineP='cp_linked_list_logical/cp_sll_logical_remove_el_at'
-    TYPE(cp_sll_logical_type), POINTER :: pos
+    CHARACTER(len=*), PARAMETER :: &
+      routineP = 'cp_linked_list_logical/cp_sll_logical_remove_el_at'
+
+    LOGICAL                                  :: failure
+    TYPE(cp_sll_logical_type), POINTER       :: pos
+
     failure=.FALSE.
     
     IF (cp_debug) THEN
@@ -1040,12 +1104,16 @@ CPSourceFileRef,&
 !!
 !!*** **********************************************************************
   SUBROUTINE cp_sll_logical_rm_all_el(sll,error)
-    TYPE(cp_sll_logical_type), POINTER :: sll
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(cp_sll_logical_type), POINTER       :: sll
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineP='cp_linked_list_logical/cp_sll_logical_rm_all_el'
-    TYPE(cp_sll_logical_type), POINTER :: next_node, actual_node
+    CHARACTER(len=*), PARAMETER :: &
+      routineP = 'cp_linked_list_logical/cp_sll_logical_rm_all_el'
+
+    LOGICAL                                  :: failure
+    TYPE(cp_sll_logical_type), POINTER       :: actual_node, next_node
+
     failure=.FALSE.
 
     actual_node => sll
@@ -1084,15 +1152,18 @@ CPSourceFileRef,&
 !!
 !!*** **********************************************************************
 FUNCTION cp_sll_logical_to_array(sll,error) RESULT(res)
-  TYPE(cp_sll_logical_type), POINTER :: sll
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-  logical, DIMENSION(:), POINTER :: res
-  
-  LOGICAL :: failure
-  CHARACTER(len=*), PARAMETER :: routineN='cp_sll_logical_to_array',&
-        routineP=moduleN//':'//routineN
-  INTEGER :: len,stat,i
-  TYPE(cp_sll_logical_type), POINTER :: iter
+    TYPE(cp_sll_logical_type), POINTER       :: sll
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+    LOGICAL, DIMENSION(:), POINTER           :: res
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_sll_logical_to_array', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i, len, stat
+    LOGICAL                                  :: failure
+    TYPE(cp_sll_logical_type), POINTER       :: iter
+
   failure=.FALSE.
   
   len=cp_sll_logical_get_length(sll,error)
@@ -1134,15 +1205,18 @@ END FUNCTION cp_sll_logical_to_array
 !!
 !!*** **********************************************************************
 FUNCTION cp_sll_logical_from_array(array,error) RESULT(res)
-  logical, DIMENSION(:), INTENT(in) :: array
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-  TYPE(cp_sll_logical_type), POINTER :: res
-  
-  LOGICAL :: failure
-  CHARACTER(len=*), PARAMETER :: routineN='cp_sll_logical_from_array',&
-        routineP=moduleN//':'//routineN
-  INTEGER :: i
-  TYPE(cp_sll_logical_type), POINTER :: last_el
+    LOGICAL, DIMENSION(:), INTENT(in)        :: array
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+    TYPE(cp_sll_logical_type), POINTER       :: res
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_sll_logical_from_array', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i
+    LOGICAL                                  :: failure
+    TYPE(cp_sll_logical_type), POINTER       :: last_el
+
   failure=.FALSE.
   
   NULLIFY(res,last_el)
@@ -1192,17 +1266,22 @@ END FUNCTION cp_sll_logical_from_array
 !!*** **********************************************************************
 SUBROUTINE cp_sll_logical_insert_ordered(sll,el,insert_equals,&
      did_insert,pos,error)
-  TYPE(cp_sll_logical_type), POINTER :: sll
-  logical, intent(in) :: el
-  LOGICAL, OPTIONAL, INTENT(in) :: insert_equals
-  LOGICAL, OPTIONAL, INTENT(out) :: did_insert
-  TYPE(cp_sll_logical_type), POINTER, OPTIONAL :: pos
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-  
-  LOGICAL :: failure,i_eq
-  CHARACTER(len=*), PARAMETER :: routineN='cp_sll_logical_insert_ordered',&
-        routineP=moduleN//':'//routineN
-  TYPE(cp_sll_logical_type), POINTER :: iter
+    TYPE(cp_sll_logical_type), POINTER       :: sll
+    LOGICAL, INTENT(in)                      :: el
+    LOGICAL, INTENT(in), OPTIONAL            :: insert_equals
+    LOGICAL, INTENT(out), OPTIONAL           :: did_insert
+    TYPE(cp_sll_logical_type), OPTIONAL, &
+      POINTER                                :: pos
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: &
+      routineN = 'cp_sll_logical_insert_ordered', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure, i_eq
+    TYPE(cp_sll_logical_type), POINTER       :: iter
+
   failure=.FALSE.
   i_eq=.FALSE.
   
@@ -1276,25 +1355,30 @@ END SUBROUTINE cp_sll_logical_insert_ordered
 !!*** **********************************************************************
 SUBROUTINE cp_sll_logical_insert_ordered2(sll,el,compare_function,&
      insert_equals,did_insert,pos,error)
-  TYPE(cp_sll_logical_type), POINTER :: sll
-  logical, intent(in) :: el
+    TYPE(cp_sll_logical_type), POINTER       :: sll
+    LOGICAL, INTENT(in)                      :: el
   INTERFACE
      FUNCTION compare_function(el1,el2)
         
        INTEGER :: compare_function
-       logical, intent(in) :: el1,el2
+       LOGICAL, INTENT(in) :: el1,el2
      END FUNCTION compare_function
   END INTERFACE
-  LOGICAL, OPTIONAL, INTENT(in) :: insert_equals
-  LOGICAL, OPTIONAL, INTENT(out) :: did_insert
-  TYPE(cp_sll_logical_type), POINTER, OPTIONAL :: pos
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-  
-  LOGICAL :: failure,i_eq
-  CHARACTER(len=*), PARAMETER :: routineN='cp_sll_logical_insert_ordered2',&
-        routineP=moduleN//':'//routineN
-  INTEGER :: comp
-  TYPE(cp_sll_logical_type), POINTER :: iter
+    LOGICAL, INTENT(in), OPTIONAL            :: insert_equals
+    LOGICAL, INTENT(out), OPTIONAL           :: did_insert
+    TYPE(cp_sll_logical_type), OPTIONAL, &
+      POINTER                                :: pos
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: &
+      routineN = 'cp_sll_logical_insert_ordered2', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: comp
+    LOGICAL                                  :: failure, i_eq
+    TYPE(cp_sll_logical_type), POINTER       :: iter
+
   failure=.FALSE.
   i_eq=.FALSE.
   
@@ -1367,17 +1451,19 @@ END SUBROUTINE cp_sll_logical_insert_ordered2
 !!
 !!*** **********************************************************************
 FUNCTION cp_sll_logical_contains(sll,el,ordered,error) RESULT(res)
-  LOGICAL ::res
-  TYPE(cp_sll_logical_type), POINTER :: sll
-  logical, intent(in) :: el
-  LOGICAL, INTENT(in), OPTIONAL :: ordered
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-  
-  LOGICAL :: failure,ord
-  CHARACTER(len=*), PARAMETER :: routineN='cp_sll_logical_contains',&
-        routineP=moduleN//':'//routineN
-  TYPE(cp_sll_logical_type), POINTER :: iter
-  logical :: el_att
+    TYPE(cp_sll_logical_type), POINTER       :: sll
+    LOGICAL, INTENT(in)                      :: el
+    LOGICAL, INTENT(in), OPTIONAL            :: ordered
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+    LOGICAL                                  :: res
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_sll_logical_contains', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: el_att, failure, ord
+    TYPE(cp_sll_logical_type), POINTER       :: iter
+
   failure=.FALSE.; ord=.FALSE.
   res=.FALSE.
   
@@ -1434,25 +1520,27 @@ END FUNCTION cp_sll_logical_contains
 !!*** **********************************************************************
 FUNCTION cp_sll_logical_contains2(sll,el,compare_function,ordered,error)&
      RESULT(res)
-  LOGICAL ::res
-  TYPE(cp_sll_logical_type), POINTER :: sll
-  logical, intent(in) :: el
+    TYPE(cp_sll_logical_type), POINTER       :: sll
+    LOGICAL, INTENT(in)                      :: el
   INTERFACE
      FUNCTION compare_function(el1,el2)
         
        INTEGER :: compare_function
-       logical, intent(in) :: el1,el2
+       LOGICAL, INTENT(in) :: el1,el2
      END FUNCTION compare_function
   END INTERFACE
-  LOGICAL, INTENT(in), OPTIONAL :: ordered
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-  
-  LOGICAL :: failure
-  INTEGER :: comp
-  CHARACTER(len=*), PARAMETER :: routineN='cp_sll_logical_contains2',&
-        routineP=moduleN//':'//routineN
-  TYPE(cp_sll_logical_type), POINTER :: iter
-  logical :: el_att
+    LOGICAL, INTENT(in), OPTIONAL            :: ordered
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+    LOGICAL                                  :: res
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_sll_logical_contains2', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: comp
+    LOGICAL                                  :: el_att, failure
+    TYPE(cp_sll_logical_type), POINTER       :: iter
+
   failure=.FALSE.
   res=.FALSE.
   

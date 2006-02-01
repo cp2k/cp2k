@@ -37,7 +37,7 @@ MODULE input_section_types
        cp_sll_val_next, cp_sll_val_dealloc, cp_sll_val_get_length,&
        cp_sll_val_get_el_at, cp_sll_val_p_type, cp_sll_val_insert_el_at,&
        cp_sll_val_set_el_at, cp_sll_val_rm_el_at
-  USE string_utilities, only: uppercase
+  USE string_utilities, ONLY: uppercase,compress
   USE output_utilities, only: print_message
 #include "cp_common_uses.h"
 
@@ -65,7 +65,8 @@ MODULE input_section_types
 
   PUBLIC :: section_get_ival,&
             section_get_rval,&
-            section_get_cval
+            section_get_cval,&
+            section_get_lval
 
 !!***
 !****************************************************************************
@@ -1428,6 +1429,18 @@ FUNCTION section_get_ival(section_vals,keyword_name,error) RESULT(res)
 
 END FUNCTION section_get_ival
 
+FUNCTION section_get_lval(section_vals,keyword_name,error) RESULT(res)
+
+  TYPE(section_vals_type),pointer :: section_vals
+  CHARACTER(len=*), intent(in) :: keyword_name
+  type(cp_error_type), optional, intent(inout) :: error
+
+  LOGICAL :: res
+
+  CALL section_vals_val_get(section_vals, keyword_name, l_val=res, error=error)
+
+END FUNCTION section_get_lval
+
 
 !***************************************************************************
 
@@ -1891,6 +1904,9 @@ RECURSIVE SUBROUTINE section_vals_write(section_vals,unit_nr,hide_root,error)
   type(cp_error_type) :: suberror
   TYPE(val_type), pointer :: val
   LOGICAL :: my_hide_root,defaultSection
+  INTEGER, SAVE :: indent
+  DATA indent/1/
+  CHARACTER(len=default_string_length) :: myfmt
 
   failure=.false.
   my_hide_root=.false.
@@ -1904,14 +1920,19 @@ RECURSIVE SUBROUTINE section_vals_write(section_vals,unit_nr,hide_root,error)
           error=error)
      DO i_rep_s=1,nr
         IF (.NOT.my_hide_root) THEN
+           WRITE(myfmt,*)indent,"X,"
+           CALL compress(myfmt,full=.TRUE.)
            IF (ASSOCIATED(section%keywords(-1)%keyword)) THEN
-              WRITE(unit=unit_nr,fmt="('&',a,' ')",advance="NO") TRIM(section%name)
+              WRITE(unit=unit_nr,fmt="("//TRIM(myfmt)//"'&',a,' ')",advance="NO") TRIM(section%name)
            ELSE
-              WRITE(unit=unit_nr,fmt="('&',a)") TRIM(section%name)
+              WRITE(unit=unit_nr,fmt="("//TRIM(myfmt)//"'&',a)") TRIM(section%name)
            END IF
         END IF
         defaultSection=(SIZE(section_vals%values,2)==0)
         IF (.NOT.(section%required.AND.defaultSection)) THEN
+           IF (.NOT.my_hide_root) indent = indent + 2
+           WRITE(myfmt,*)indent,"X,"
+           CALL compress(myfmt,full=.TRUE.)           
            DO ik=-1,section%n_keywords
               keyword => section%keywords(ik)%keyword
               IF (ASSOCIATED(keyword)) THEN
@@ -1926,11 +1947,13 @@ RECURSIVE SUBROUTINE section_vals_write(section_vals,unit_nr,hide_root,error)
                             TRIM(section%name),error=error, failure=failure)
                        IF (keyword%names(1)/='_DEFAULT_KEYWORD_'.AND.&
                             keyword%names(1)/='_SECTION_PARAMETERS_') then
-                          WRITE(unit=unit_nr,fmt="(' ',a,' ')",advance="NO")&
+                          WRITE(unit=unit_nr,fmt="("//TRIM(myfmt)//",a,' ')",advance="NO")&
                                TRIM(keyword%names(1))
+                       ELSEIF (keyword%names(1) =='_DEFAULT_KEYWORD_') THEN
+                          WRITE(unit=unit_nr,fmt="("//TRIM(myfmt)//"'')",advance="NO")
                        END IF
                        CALL val_write(val,unit_nr=unit_nr,unit=keyword%unit,&
-                            error=suberror)
+                            fmt=myfmt,error=suberror)
                        CALL cp_error_propagate_error(suberror, fromWhere=routineP,&
                             message="for val "// TRIM(keyword%names(1))//" in section "//&
                             TRIM(section%name),error=error, failure=failure)
@@ -1942,7 +1965,7 @@ RECURSIVE SUBROUTINE section_vals_write(section_vals,unit_nr,hide_root,error)
            END DO
            IF (.NOT.failure) THEN
               IF (ASSOCIATED(section_vals%subs_vals)) THEN
-                 DO isec=1,SIZE(section_vals%subs_vals)
+                 DO isec=1,SIZE(section_vals%subs_vals,1)
                     sval => section_vals%subs_vals(isec,i_rep_s)%section_vals
                     IF (ASSOCIATED(sval)) THEN
                        CALL section_vals_write(sval,unit_nr=unit_nr,error=error)
@@ -1951,8 +1974,11 @@ RECURSIVE SUBROUTINE section_vals_write(section_vals,unit_nr,hide_root,error)
               END IF
            END IF
         END IF
-        if (.not.my_hide_root) &
-             WRITE(unit=unit_nr,fmt="('&END ',a)") TRIM(section%name)
+        IF (.NOT.my_hide_root) indent = indent - 2
+        WRITE(myfmt,*)indent,"X,"
+        CALL compress(myfmt,full=.TRUE.)
+        IF (.NOT.my_hide_root) &
+             WRITE(unit=unit_nr,fmt="("//TRIM(myfmt)//"'&END ',a)") TRIM(section%name)
      END DO
   END IF
   CALL cp_error_dealloc_ref(suberror)

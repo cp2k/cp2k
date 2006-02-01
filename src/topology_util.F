@@ -2559,6 +2559,7 @@ CONTAINS
        IF (iw>0) THEN
           WRITE(iw,*)"atom number :: ",i,"kind number ::",ikind
        END IF
+       particle_set(i)%molname =  atom_info%label_molname(i)
        particle_set(i)%atomic_kind => atomic_kind_set(ikind)
        particle_set(i)%r(:) = atom_info%r(:,i)
        NULLIFY(particle_set(i)%lpi)

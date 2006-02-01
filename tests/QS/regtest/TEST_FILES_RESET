@@ -82,3 +82,9 @@ H2O-tpss.inp
 H2O-tpss_new.inp
 # pbe again (numeric error on linux bigger than on mac)
 N3-5.inp
+# reset due to the new restart
+H2O-OT-4.inp
+H2O-OT-HMC-2.inp
+H2O-OT-LDMC-3.inp
+H2O-langevin-2.inp
+

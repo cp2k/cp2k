@@ -10,3 +10,6 @@ nai-1.inp
 kg_gpw_1H2O_TF.inp
 # reset for wrong test type
 h2o_energy.inp
+#reset after new restart
+nai-1.inp
+nai-2.inp

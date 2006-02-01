@@ -166,7 +166,57 @@ CONTAINS
     END IF
   END SUBROUTINE create_cell_section
 
+!***************************************************************************
+!!****f* input_cp2k/create_random_section [1.0] *
+!!
+!!   NAME
+!!     create_random_section
+!!
+!!   FUNCTION
+!!     Creates the random number restart section
+!!
+!!   NOTES
+!!     -
+!!
+!!   ARGUMENTS
+!!     - section: the section to create
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     teo
+!!
+!!*** **********************************************************************
+  SUBROUTINE create_random_section(section,error)
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_random_section', &
+         routineP = moduleN//':'//routineN
+    
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
+
+    failure=.FALSE.
+
+    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+    IF (.NOT. failure) THEN
+       CALL section_create(section,name="RNG_INIT",&
+            description="Information to initialize the parallel random number generator",&
+            n_keywords=1, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+            error=error)
+       NULLIFY(keyword)
+
+       CALL keyword_create(keyword, name="_DEFAULT_KEYWORD_",&
+            description="Specify an initializian stream",repeats=.TRUE.,&
+            type_of_var=integer_t, n_var=-1, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+    END IF
+  END SUBROUTINE create_random_section
+!***************************************************************************
 
 !!****f* input_cp2k_subsys/create_cell_ref_section *
 !!
@@ -315,6 +365,11 @@ CONTAINS
             error=error)
 
        NULLIFY(subsection,print_key,keyword)
+
+       CALL create_random_section(subsection,error=error)
+       CALL section_add_subsection(section,subsection,error=error)
+       CALL section_release(subsection,error=error)
+
        CALL create_cell_section(subsection,error=error)
        CALL section_add_subsection(section,subsection,error=error)
        CALL section_release(subsection,error=error)

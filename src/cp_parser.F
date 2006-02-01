@@ -1384,7 +1384,7 @@ END SUBROUTINE parser_next_token
        !   *** Reset to old status ***
 
        IF (parser%para_env%mepos==parser%para_env%source) THEN
-          IF (nline > 0) THEN
+          IF (parser%input_line_number>old_input_line_number) THEN
              DO iline=1,parser%input_line_number-old_input_line_number
                 BACKSPACE (parser%input_unit)
              END DO
