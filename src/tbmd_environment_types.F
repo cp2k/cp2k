@@ -753,10 +753,10 @@ CONTAINS
         tbmd_env%mos => mos
       END IF
       IF (PRESENT(distribution_2d)) THEN
-        CALL distribution_2d_retain(distribution_2d)
-        CALL distribution_2d_release(tbmd_env%distribution_2d)
+        !CALL distribution_2d_retain(distribution_2d)
+        !CALL distribution_2d_release(tbmd_env%distribution_2d)
         tbmd_env%distribution_2d => distribution_2d
-      ENDIF
+      END IF
       IF (PRESENT(blacs_env)) THEN
         tbmd_env%blacs_env => blacs_env
       END IF

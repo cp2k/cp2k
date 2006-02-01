@@ -238,10 +238,10 @@ CONTAINS
         num_update = num_update + 1
         lup = counter + 1 - last_update
         last_update = counter + 1
-        aup = aup + (lup - aup)/REAL(num_update,KIND=dp)
+        aup = aup + (lup - aup)/REAL(num_update, KIND=dp)
       ELSE
         num_update = 0
-        lup = 0
+        lup = 0.0_dp
         last_update = 1
         aup = 0.0_dp
       END IF

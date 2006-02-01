@@ -112,7 +112,8 @@ CONTAINS
                                                 ortho_basis, &
                                                 use_cholesky, &
                                                 use_jacobi
-    INTEGER                                  :: handle
+    INTEGER                                  :: handle, &
+                                                stat
     TYPE(tbmd_force_type), POINTER           :: tbmd_force
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
@@ -214,6 +215,12 @@ CONTAINS
 
       CALL fm_pool_give_back_fm(pool=matrix_pools%ao_mo_fm_pools(1)%pool, &
                                 element=mos%mo_coeff, error=error)
+      
+      DEALLOCATE(mos%eigenvalues, stat=stat)
+      CPPostconditionNoFail(stat==0, cp_warning_level, routineP, error)
+      DEALLOCATE(mos%occupation_numbers, stat=stat)
+      CPPostconditionNoFail(stat==0, cp_warning_level, routineP, error)
+
       CALL fm_pool_give_back_fm(pool=matrix_pools%ao_ao_fm_pools(1)%pool, &
                                 element=fm_matrix_h, error=error)
 
