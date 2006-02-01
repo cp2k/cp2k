@@ -1004,7 +1004,7 @@ CONTAINS
     CHARACTER(LEN=*), INTENT(IN)             :: checkpoint
     TYPE(global_environment_type), &
       pointer                             :: globenv
-    TYPE(cp_error_type), INTENT(inout), OPTIONAL          :: error 
+    TYPE(cp_error_type), INTENT(inout)    :: error 
 
     CHARACTER(LEN=LEN_TRIM(checkpoint)+7)    :: string
     INTEGER                                  :: group, ipe, mype, npe
