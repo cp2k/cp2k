@@ -33,10 +33,7 @@ MODULE dynamical_coeff_types
   USE input_constants,                 ONLY: dyn_coeff_mass_atom,&
                                              dyn_coeff_mass_coeff,&
                                              dyn_coeff_mass_global,&
-                                             dyn_coeff_mass_kind,&
-                                             kg_coeff_init_start,&
-                                             kg_coeff_pos_restart,&
-                                             kg_coeff_pos_vel_restart
+                                             dyn_coeff_mass_kind
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type,&
                                              section_vals_val_get,&
@@ -437,8 +434,7 @@ SUBROUTINE dyn_coeff_set_initialize(dyn_coeff_set,globenv,work_section,skipvel,e
        routineP = moduleN//':'//routineN
 
   INTEGER :: group, ikind, n_els, ncoef_atom, ncoef_atom_max, &
-       ncoef_of_kind, ncoef_tot, nel_tot, nkind, source, stat,&
-       restart_coeff
+       ncoef_of_kind, ncoef_tot, nel_tot, nkind, source, stat
   REAL(kind=dp)                            :: kg_coeff_target_temp
   REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: mbuffer
   TYPE(dyn_coeff_type), POINTER            :: coeffs
@@ -471,7 +467,6 @@ SUBROUTINE dyn_coeff_set_initialize(dyn_coeff_set,globenv,work_section,skipvel,e
   storage_section =>  section_vals_get_subs_vals(coeff_section,"STORAGE")
   call section_vals_val_get(storage_section,"type",i_val=dyn_coeff_set%mass_storage)
   call section_vals_val_get(coeff_section,"mass",r_val=dyn_coeff_set%global_mass)
-  call section_vals_val_get(coeff_section,"restart",i_val=restart_coeff)
   call section_vals_val_get(coeff_section,"temperature",r_val=kg_coeff_target_temp)
 
   ! get total numbers

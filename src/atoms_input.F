@@ -51,10 +51,6 @@ MODULE atoms_input
   USE topology_types,                  ONLY: topology_parameters_type,&
                                              atom_info_type
   USE util,                            ONLY: get_unit
-  USE input_constants,                 ONLY: md_init_start,&
-                                             md_pos_restart,&
-                                             md_pos_vel_restart,&
-                                             md_all_restart
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&
                                              section_vals_get_subs_vals2,&

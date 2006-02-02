@@ -121,21 +121,6 @@ MODULE input_constants
 
   INTEGER, PARAMETER, PUBLIC :: nhc_global=101,nhc_massive=102
   !
-  ! MD restart
-  !
-  CHARACTER (LEN=default_string_length), PARAMETER, DIMENSION(4), PUBLIC :: restart_name_types=&
-       (/"init  ",&
-         "pos   ",&
-         "posvel",&
-         "all   "/)
-  INTEGER, PARAMETER, PUBLIC :: md_init_start=1,&
-                                md_pos_restart=2,&
-                                md_pos_vel_restart=3,&
-                                md_all_restart=4
-  INTEGER, PARAMETER, PUBLIC, DIMENSION(4) :: restart_name_index=&
-       (/md_init_start,md_pos_restart, md_pos_vel_restart, md_all_restart/)
-
-  !
   ! Run Types
   INTEGER, PARAMETER, public :: none_run=1,&
                                 energy_run=2,&
@@ -316,8 +301,6 @@ MODULE input_constants
                         ot_precond_full_all=6
   INTEGER, PARAMETER,PUBLIC :: dyn_coeff_mass_global=1, dyn_coeff_mass_kind=2,&
    dyn_coeff_mass_atom=3, dyn_coeff_mass_coeff=4
-  INTEGER, PARAMETER, PUBLIC :: kg_coeff_init_start=1,kg_coeff_pos_restart=2, &
-   kg_coeff_pos_vel_restart=3
 
   INTEGER, PUBLIC, PARAMETER :: default_lbfgs_method_id=1,&
                                 default_bfgs_method_id=2,&

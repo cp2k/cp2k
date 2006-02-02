@@ -33,11 +33,7 @@ MODULE wiener_process
        init_local_particle_set
   USE force_env_types,                 ONLY: force_env_get,&
                                              force_env_p_type
-  USE input_constants,                 ONLY: langevin_ensemble,&
-                                             md_all_restart,&
-                                             md_init_start,&
-                                             md_pos_restart,&
-                                             md_pos_vel_restart
+  USE input_constants,                 ONLY: langevin_ensemble
   USE kinds,                           ONLY: dp
   USE md,                              ONLY: simulation_parameters_type
   USE md_environment_types,            ONLY: get_md_env,&

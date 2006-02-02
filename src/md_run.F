@@ -76,11 +76,7 @@ MODULE md_run
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE velocity_verlet_control,         ONLY: velocity_verlet
-  USE input_constants,                 ONLY: langevin_ensemble,&
-                                             md_init_start,&
-                                             md_pos_restart,&
-                                             md_pos_vel_restart,&
-                                             md_all_restart
+  USE input_constants,                 ONLY: langevin_ensemble
   USE wiener_process,                  ONLY: create_wiener_process
 !JCS 
   USE virial_types,                    ONLY: virial_type,&

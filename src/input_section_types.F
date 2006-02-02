@@ -36,7 +36,7 @@ MODULE input_section_types
   USE cp_linked_list_val, ONLY: cp_sll_val_type, cp_sll_val_create,&
        cp_sll_val_next, cp_sll_val_dealloc, cp_sll_val_get_length,&
        cp_sll_val_get_el_at, cp_sll_val_p_type, cp_sll_val_insert_el_at,&
-       cp_sll_val_set_el_at, cp_sll_val_rm_el_at
+       cp_sll_val_set_el_at, cp_sll_val_rm_el_at,cp_sll_val_get_rest
   USE string_utilities, ONLY: uppercase,compress
   USE output_utilities, only: print_message
 #include "cp_common_uses.h"
@@ -1813,9 +1813,10 @@ SUBROUTINE section_vals_val_unset(section_vals,keyword_name,i_rep_section,&
   TYPE(cp_sll_val_type), pointer :: vals
   TYPE(val_type), POINTER :: my_val, old_val
   type(cp_error_type) :: sub_error
+  TYPE(cp_sll_val_type), POINTER           :: pos
 
   failure=.false.
-
+  NULLIFY(pos)
   CPPrecondition(ASSOCIATED(section_vals),cp_failure_level,routineP,error,failure)
   CPPrecondition(section_vals%ref_count>0,cp_failure_level,routineP,error,failure)
 
@@ -1855,11 +1856,18 @@ SUBROUTINE section_vals_val_unset(section_vals,keyword_name,i_rep_section,&
              "section repetition requested ("//cp_to_string(irs)//&
              ") out of bounds (1:"//cp_to_string(SIZE(s_vals%subs_vals,2))&
              //")",error,failure)
-        old_val => cp_sll_val_get_el_at(s_vals%values(ik,irs)%list,index=irk,&
-             error=error)
-        CALL val_release(old_val,error=error)
-        CALL cp_sll_val_rm_el_at(s_vals%values(ik,irs)%list,index=irk,&
-             error=error)
+        IF (irk==-1) THEN
+           pos => cp_sll_val_get_rest(s_vals%values(ik,irs)%list, iter=-1,error=error)
+        ELSE
+           pos => cp_sll_val_get_rest(s_vals%values(ik,irs)%list, iter=irk-1,error=error)
+        END IF
+        IF (ASSOCIATED(pos)) THEN
+           old_val => cp_sll_val_get_el_at(s_vals%values(ik,irs)%list,index=irk,&
+                error=error)
+           CALL val_release(old_val,error=error)
+           CALL cp_sll_val_rm_el_at(s_vals%values(ik,irs)%list,index=irk,&
+                error=error)
+        END IF
      END IF
   END IF
 

@@ -46,7 +46,8 @@ MODULE input_cp2k_restarts
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type,&
                                              section_vals_val_get,&
-                                             section_vals_val_set
+                                             section_vals_val_set,&
+                                             section_vals_val_unset
   USE kg_environment_types,            ONLY: get_kg_env,&
                                              kg_environment_type
   USE kinds,                           ONLY: default_string_length,&
@@ -915,12 +916,7 @@ CONTAINS
        !     CELL VECTORS - C
        work(1:3) = cell%hmat(3,1:3)/conv_factor
        CALL section_vals_val_set(work_section,"C",r_vals_ptr=work,error=error)
-       ALLOCATE(work(3),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       !     CELL VECTORS - ABC
-       work(1:3) = (/(cell%hmat(1,1)/conv_factor),(cell%hmat(2,2)/conv_factor),&
-                     (cell%hmat(3,3)/conv_factor)/)
-       CALL section_vals_val_set(work_section,"ABC",r_vals_ptr=work,error=error)
+       CALL section_vals_val_unset(work_section,"ABC",error=error)
        !
        ! CELL_REF
        ! 

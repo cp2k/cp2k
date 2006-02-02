@@ -41,12 +41,6 @@ MODULE md
        nhc_massive,&
        ensemble_name_types,&
        ensemble_name_index,&
-       md_init_start,&
-       md_pos_restart,&
-       md_pos_vel_restart,&
-       md_all_restart,&
-       restart_name_types,&
-       restart_name_index,&
        dump_atomic,&
        dump_xmol,&
        dump_dcd,&
@@ -135,7 +129,6 @@ MODULE md
      REAL (KIND=dp) :: f_annealing
      REAL (KIND=dp) :: gamma_nph
      INTEGER        :: ensemble
-     INTEGER        :: read_type
      INTEGER        :: output_format
      LOGICAL :: constraint
      LOGICAL :: annealing
@@ -325,8 +318,6 @@ CONTAINS
             ADJUSTR ( output_name_types(simpar % output_format)(1:20))
        WRITE ( iw, '( A,T61,A )' ) ' MD| Ensemble Type ', & 
             ADJUSTR ( ensemble_name_types(simpar % ensemble)(1:20))
-       WRITE ( iw, '( A,T61,A )' ) ' MD| Restart Type ', &
-            ADJUSTR ( restart_name_types(simpar % read_type)(1:20))
        WRITE ( iw, '( A,T71,I10 )' ) ' MD| Number of Time Steps ', &
             simpar % nsteps
        WRITE ( iw, '( A,A2,A,T71,F10.2 )' ) ' MD| Time Step [','fs','] ',&
@@ -467,7 +458,6 @@ CONTAINS
        CALL section_vals_val_get(md_section,"TIMESTEP",r_val=simpar%dt,error=error)
        CALL section_vals_val_get(md_section,"TEMPERATURE",r_val=simpar%temp_ext,error=error)
        CALL section_vals_val_get(md_section,"TEMP_TOL",r_val=simpar%temp_tol,error=error)
-       CALL section_vals_val_get(md_section,"RESTART",i_val=simpar%read_type,error=error)
        CALL section_vals_val_get(md_section,"PV_AVA",l_val=simpar%pv_availability,error=error)
        CALL section_vals_val_get(md_section,"PV_NUM",l_val=simpar%pv_numerical,error=error)
 
@@ -594,7 +584,6 @@ CONTAINS
     simpar % temp_tol = 0.0_dp
     simpar % p_ext = 0.0_dp
     simpar % f_annealing = 1.0_dp
-    simpar % read_type = md_pos_restart
     simpar % constraint = .FALSE.
     simpar % annealing = .FALSE.
     simpar % pv_numerical=.FALSE.
@@ -685,7 +674,7 @@ CONTAINS
     !------------------------------------------------------------------------------
 
     iw = globenv % scr
-    IF (globenv % ionode .AND. globenv % print_level>1) THEN
+    IF (iw>0) THEN
        WRITE ( iw, '( A, A, A )' ) ' **********************', &
             ' begin of velocity initialization ', '***********************'
     END IF
@@ -813,8 +802,7 @@ CONTAINS
 #endif
     END IF
 
-    IF ( (simpar % read_type == md_init_start ) .AND. &
-         globenv % ionode .AND. globenv % print_level > 1 ) THEN
+    IF (iw>0) THEN
        IF (simpar % nfree == 0) THEN
           temp = 2.0_dp * akin / REAL ( 1,KIND=dp) ! Should always be zero...
        ELSE

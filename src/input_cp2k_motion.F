@@ -960,20 +960,6 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
-       CALL keyword_create(keyword, name="restart",&
-            description="The way the trajectory should be done (init: from the "//&
-            "initial (input file) positions, with velocities from a Boltzmann "//&
-            "distribution; pos: using the latest positions stored in the restart"//&
-            " file, with with velocities from a Boltzmann distribution"//&
-            "; posvel: using both the latest positions and velocites stored in "//&
-            "the restart file; all: restarts all.", usage="RESTART posvel", &
-            default_i_val=md_init_start,&
-            enum_c_vals=restart_name_types,&
-            enum_i_vals=restart_name_index,&
-            error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
        CALL keyword_create(&
              keyword=keyword,&
              name="temperature",&
@@ -1455,19 +1441,6 @@ SUBROUTINE create_coeff_section(coeff_section, error)
        CALL keyword_create(keyword, name="mass",&
             description="mass of the KG-POL coeffs if storage is global",&
             default_r_val=1.0_dp, usage="mass 1.0",unit_str='au_m',&
-            error=error)
-       CALL section_add_keyword(coeff_section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
-       CALL keyword_create(keyword, name="restart",&
-            description="The way the coefficents should initialized.", usage="RESTART posvel", &
-            default_i_val=kg_coeff_init_start,&
-            enum_c_vals=s2a("init","pos","posvel"),&
-            enum_desc=s2a("from scratch",&
-            "position from restart, velocities from Boltzmann distribution",&
-            "positions and velocities from restart"),&
-            enum_i_vals=(/kg_coeff_init_start,kg_coeff_pos_restart, &
-            kg_coeff_pos_vel_restart/),&
             error=error)
        CALL section_add_keyword(coeff_section,keyword,error=error)
        CALL keyword_release(keyword,error=error)

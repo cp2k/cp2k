@@ -65,9 +65,6 @@ MODULE md_energies
                                              nph_uniaxial_damped_ensemble,&
                                              isokin_ensemble, &
                                              ensemble_name_types,&
-                                             md_init_start,&
-                                             md_pos_restart,&
-                                             md_pos_vel_restart,&
                                              dump_xmol,&
                                              dump_dcd
   USE input_section_types,             ONLY: section_vals_type,&
@@ -132,7 +129,7 @@ CONTAINS
     INTEGER                                  :: group, source
     INTEGER                                  :: nat
     INTEGER, POINTER                         :: itimes
-    LOGICAL                                  :: file_exists, replace_file
+    LOGICAL                                  :: file_exists
     LOGICAL                                  :: ionode
     REAL(KIND = dp), SAVE                    :: econs_avg, t_old, itimes_old
     REAL ( dp )                              :: abc ( 3 ), cell_angle ( 3 )
@@ -249,17 +246,12 @@ CONTAINS
          beta = cell_angle ( 2 ), &
          gamma = cell_angle ( 1 ) )
 
-    replace_file = (simpar%read_type == md_init_start)
-    IF (replace_file.AND.(itimes==0)) THEN
+    IF (itimes==0) THEN
        my_pos = "REWIND"
        my_act = "WRITE"
     ELSE
        my_pos = "APPEND"
-       IF (itimes==0) THEN
-          my_act = "READWRITE"
-       ELSE
-          my_act = "WRITE"
-       END IF
+       my_act = "WRITE"
     END IF
     my_form = "FORMATTED"
     my_ext  = ".xyz"
@@ -293,27 +285,8 @@ CONTAINS
              WRITE (iw,*) "Format of the energy file"
              WRITE (iw,*) "Step Nr.    Time[fs]  Kin.[a.u.]     Temp[K]  Pot.[a.u.]    Cons Qty UsedTime[s]"
           END IF
-          IF (.NOT.replace_file) THEN
-             BACKSPACE (UNIT=ene,IOSTAT=istat)                                             
-             IF (istat /= 0) THEN
-                CALL print_warning(routineN,&
-                     "The ener file provided is empty.  MD step number and time are set to zero.")
-                itimes_old = 0
-                t_old = 0.0_dp
-             ELSE
-                READ (UNIT=ene,FMT=*,IOSTAT=istat) itimes_old,t_old
-                IF (istat /= 0) THEN
-                   CALL print_warning(routineN,&
-                        "Could not read the last line of the .ener file. MD step number "//&
-                        "and time are set to zero.")
-                   itimes_old = 0
-                   t_old = 0.0_dp
-                END IF
-             END IF
-          ELSE
-             itimes_old = 0
-             t_old = 0.0_dp
-          END IF
+          itimes_old = 0       ! TEO FIX THIS
+          t_old      = 0.0_dp  ! TEO FIX THIS
           IF(simpar%output_format==dump_dcd) THEN
              !Lets write the header now
              WRITE(crd) "CORD",0,itimes,&

@@ -61,11 +61,7 @@ MODULE harris_metropolis_mc
   USE input_constants,                 ONLY: langevin_ensemble, &
                                              do_qs, &
                                              do_kg, &
-                                             md_pos_restart, &
-                                             md_pos_vel_restart, &
                                              restart_guess,&
-                                             md_all_restart, &
-                                             md_init_start, &
                                              FIST_MD_method, &
                                              KG_MD_method, &
                                              QS_MD_method, &
@@ -642,38 +638,8 @@ CONTAINS
        END IF
     END DO
 
-    IF (simpar%read_type == md_init_start) THEN
-       my_pos = "REWIND"
-       my_act = "WRITE"
-    ELSE
-       my_pos = "APPEND"
-       my_act = "READWRITE"
-    END IF
-    hmc = cp_print_key_unit_nr(logger,motion_section,"MD%PRINT%HMC",&
-         extension=".hmc",file_position=my_pos, file_action=my_act, error=error)    
-    IF (.NOT.(simpar%read_type == md_init_start)) THEN
-       BACKSPACE (UNIT=hmc,IOSTAT=istat)                                             
-       IF (istat /= 0) THEN
-          CALL print_warning(routineN,&
-               "The ener file provided is empty.  MD step number and time are set to zero.")
-          md_approach_old = 0
-          accepted_md_old = 0
-       ELSE
-          READ (UNIT=hmc, FMT=*, IOSTAT=istat) md_approach_old, accepted_md_old
-          IF (istat /= 0) THEN
-             CALL print_warning(routineN,&
-                  "Could not read the last line of the .ener file. MD step number "//&
-                  "and time are set to zero.")
-             md_approach_old = 0
-             accepted_md_old = 0
-          END IF
-       END IF
-    ELSE
-       md_approach_old = 0
-       accepted_md_old = 0 
-    END IF
-    CALL cp_print_key_finished_output(hmc,logger,motion_section,&
-         "MD%PRINT%HMC", error=error)    
+    md_approach_old = 0 !TEO DIX THIS
+    accepted_md_old = 0 !TEO FIX THIS
 
     CALL mp_bcast(md_approach_old, globenv%source, globenv%group)
     CALL mp_bcast(accepted_md_old, globenv%source, globenv%group)

@@ -587,14 +587,14 @@ CONTAINS
     INTEGER, DIMENSION(3)                    :: lb, ub,glb,gub
     LOGICAL                                  :: failure
     TYPE(pw_p_type), DIMENSION(:), POINTER   :: grids
-    real(kind=dp), DIMENSION(:,:), pointer :: tmp
+    REAL(kind=dp), DIMENSION(:,:), POINTER :: tmp
     INTEGER, DIMENSION(:), pointer :: pos_of_x
 
 ! Statements
 
     failure=.FALSE.
     CALL timeset(routineN,"I","",handle)
-    NULLIFY(grids)
+    NULLIFY(grids,tmp)
     CPPrecondition(ASSOCIATED(mm_particles),cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(qmmm_env%mm_atom_chrg),cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(qmmm_env%mm_atom_index),cp_failure_level,routineP,error,failure)
@@ -671,7 +671,11 @@ CONTAINS
        END DO
        grids(auxbas_grid) % pw %cr3d(ub(1)+1,ub(2)+1,ub(3)+1)=tmp(lb(2),lb(3))
     END IF
-
+    IF (ASSOCIATED(tmp)) THEN 
+       DEALLOCATE(tmp, stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       NULLIFY(tmp)
+    END IF
     CALL section_vals_val_get(interp_section,"kind", i_val=kind_interp, error=error)
     ! RealSpace Interpolation
     SELECT CASE(kind_interp)
