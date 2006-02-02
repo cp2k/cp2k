@@ -1,26 +1,18 @@
-rm -f *.crd \
- *.bak\
- *.xyz \
- *.ener \
- *.restart \
- *.vel \
- *.cube\
- RESTART \
- HESSIAN \
- bfgs.data\
- COLVAR-H2O\
- CONDUCTIVITY\
- HESSIAN\
- HILLS-H2O\
- HOMO_CENTERS_1\
- LUMO_CENTERS_1\
- MOLECULAR_DIPOLES\
- Molecular_DOS\
- P_magnitude\
- RESTARTFARM\
- S_MAGNITUDE\
- bfgs.data\
- dir1/FARMING_OUT_00001\
- dir1/HOMO_CENTERS_1\
- dir1/RESTART
-
+#!/bin/tcsh
+# Script to clean files after execution of a test
+echo "This script will clean the directory" $PWD "from scratch files.."
+echo 
+foreach file (`cvs update -A|grep '? '|awk '{print $2}'`)
+  if ( ${file:e} == 'inp' ) then
+     echo "This files could be a new input file you don't want to be deleted.. Do you really want it deleted?"
+     if ( $1 == "-int" ) then
+       echo "You requested to run the cleaning script interactively! Forget about complains!"
+       rm -f $file
+     else
+       rm -i $file
+     endif
+  else
+     rm -f $file
+  endif
+end
+rm -f *.bak

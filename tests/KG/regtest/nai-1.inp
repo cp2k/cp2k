@@ -64,7 +64,6 @@
 &MOTION
   &MD
     ENSEMBLE nvt
-    RESTART init
     STEPS 5
     TEMPERATURE 300.0000
     TIMESTEP 0.5

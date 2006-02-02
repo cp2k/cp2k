@@ -1,106 +1,110 @@
-&CP2K  
-  PROGRAM   QMMM
-  PROJECT   butane
-  IOLEVEL   1
-  FFTLIB    FFTSG
-  RUN_TYPE  GEO_OPT
-&END
-
-&PRINT MEDIUM
-&END
-
-&GEOOPT
- OPTIMIZER BFGS
- MAX_ITER  500
-&END
+WARNING duplicate non firstlevel section QM_KIND
+        having keywords, mixing new/old input?
+WARNING duplicate non firstlevel section LINK
+        having keywords, mixing new/old input?
+WARNING duplicate non firstlevel section MM_KIND
+        having keywords, mixing new/old input?
 
 &FORCE_EVAL
-        &QMMM
-         ECOUPL GAUSS
-         ABC_QM  12.0 12.0 12.0
-         #
-         # QM_KINDS
-         #
-         &QM_KIND C
-          mm_index   5 8 
-         &END QM_KIND
-         &QM_KIND H
-          mm_index  6 7 9 10 
-         &END QM_KIND
-         #
-         # MM_KINDS
-         #
-         &MM_KIND CTL3
-          radius 0.78
-         &END MM_KIND
-         &MM_KIND HAL3
-          radius 0.78
-         &END MM_KIND
-         #
-         # LINKS
-         # 
-         &LINK
-          LINK_TYPE IMOMM
-          QM_INDEX 5
-          MM_INDEX 1
-          ALPHA  1.50
-         &END LINK
-         &LINK
-          LINK_TYPE IMOMM
-          QM_INDEX 8
-          MM_INDEX 11
-          ALPHA  1.50
-         &END LINK
-         #
-        &END QMMM
+  &DFT
+    BASIS_SET_FILE_NAME GTH_BASIS_SETS
+    POTENTIAL_FILE_NAME POTENTIAL
+    &MGRID
+      COMMENSURATE
+      CUTOFF 100
+    &END MGRID
+    &QS
+    &END QS
+    &SCF
+      SCF_GUESS atomic
+    &END SCF
+    &XC
+      &XC_FUNCTIONAL pade
+      &END XC_FUNCTIONAL
+    &END XC
+  &END DFT
+  &MM
+    &FORCEFIELD
+      parmfile ../Fist/sample_pot/butane.pot
+      parmtype CHM
+    &END FORCEFIELD
+    &POISSON_MM
+      &EWALD
+        EWALD_TYPE spme
+        ALPHA .44
+        GMAX 24
+        O_SPLINE 6
+      &END EWALD
+    &END POISSON_MM
+  &END MM
+  &QMMM
+    ABC_QM 12.0 12.0 12.0
+    ECOUPL GAUSS
+    &LINK
+      ALPHA 1.50
+      LINK_TYPE IMOMM
+      MM_INDEX 1
+      QM_INDEX 5
+    &END LINK
+    &LINK
+      ALPHA 1.50
+      LINK_TYPE IMOMM
+      MM_INDEX 11
+      QM_INDEX 8
+    &END LINK
+    &MM_KIND CTL3
+      RADIUS 0.78
+    &END MM_KIND
+    &MM_KIND HAL3
+      RADIUS 0.78
+    &END MM_KIND
+    &QM_KIND C
+      MM_INDEX 5 8
+    &END QM_KIND
+    &QM_KIND H
+      MM_INDEX 6 7 9 10
+    &END QM_KIND
+  # 
+  # QM_KINDS
+  # 
+  # 
+  # MM_KINDS
+  # 
+  # 
+  # LINKS
+  # 
+  # 
+  &END QMMM
+  &SUBSYS
+    &CELL
+      ABC 25.0 25.0 25.0
+      UNIT ANGSTROM
+    &END CELL
+    &KIND H
+      BASIS_SET SZV-GTH
+      POTENTIAL GTH-PADE-q1
+    &END KIND
+    &KIND C
+      BASIS_SET SZV-GTH
+      POTENTIAL GTH-PADE-q4
+    &END KIND
+    &TOPOLOGY
+      CHARGE_BETA
+      COORD_FILE ../Fist/sample_pdb/butane.pdb
+      COORDINATE pdb
+    &END TOPOLOGY
+  &END SUBSYS
 &END FORCE_EVAL
-
-&TOPOLOGY
- coord_file     ../Fist/sample_pdb/butane.pdb
- coordinate     pdb
- CHARGE_BETA
-&END
-
-&EWALD
- units angstrom
- ewald_type spme
- ewald_param .44 24 6
-&END
-
-&FORCE_FIELD
- PARMFILE CHM ../Fist/sample_pot/butane.pot
-&END
-
-&CELL
- UNIT         ANGSTROM
- ABC          25.0 25.0 25.0
-&END
-
-&IO
- BASIS_SET_FILE GTH_BASIS_SETS
- POTENTIAL_FILE POTENTIAL
-&END
-
-&DFT
- FUNCTIONAL  pade
-&END
-
-&QS
- CUTOFF       100
- COMMENSURATE
-&END
-
-&SCF
- GUESS        atomic
-&END
-
-&KIND H
- BASIS_SET    SZV-GTH
- POTENTIAL    GTH-PADE-q1
-&END
-
-&KIND C
- BASIS_SET    SZV-GTH
- POTENTIAL    GTH-PADE-q4
-&END
-
+&GLOBAL
+  FFTLIB FFTSG
+  PRINT_LEVEL MEDIUM
+  PROGRAM QMMM
+  PROJECT butane
+  RUN_TYPE GEO_OPT
+&END GLOBAL
+&MOTION
+  &GEOOPT
+    MAX_ITER 500
+    OPTIMIZER BFGS
+  &END GEOOPT
+&END MOTION

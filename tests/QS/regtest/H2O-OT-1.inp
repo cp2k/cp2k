@@ -54,7 +54,6 @@
     STEPS 5
     TIMESTEP 0.1
     TEMPERATURE 300.0
-    RESTART INIT
     &NOSE
       LENGTH 3
       YOSHIDA 3
