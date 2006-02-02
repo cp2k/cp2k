@@ -847,7 +847,8 @@ MODULE qs_rho_atom_methods
     max_s_harm = nsoset(llmax)
     max_s_set = nsoset(maxlgto)
 
-    lcleb = MAX(llmax,2*maxlgto)
+    lcleb = MAX(llmax,2*maxlgto,1)
+
 !   *** allocate calculate the CG coefficients up to the maxl *** 
     CALL clebsch_gordon_init ( lcleb )
     CALL reallocate(my_CG,1,max_s_set,1,max_s_set,1,max_s_harm)
