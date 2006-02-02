@@ -70,7 +70,7 @@ MODULE particle_types
                                              femtoseconds,&
                                              massunit
   USE qmmm_ff_fist,                    ONLY: qmmm_ff_precond_only_qm
-  USE cell_types,                 ONLY: cell_type,&
+  USE cell_types,                      ONLY: cell_type,&
                                              get_cell,&
                                              pbc,&
                                              scaled_to_real

@@ -47,7 +47,8 @@ MODULE tbmd_energy
   USE sparse_matrix_types,                    ONLY: real_matrix_type, &
                                                     replicate_matrix_structure, &
                                                     cp_sm_sm_trace
-  USE tbmd_energy_types,                      ONLY: tbmd_energy_type
+  USE tbmd_energy_types,                      ONLY: tbmd_energy_type, &
+                                                    tbmd_energy_clear
   USE tbmd_environment_types,                 ONLY: tbmd_environment_type, &
                                                     tbmd_env_get
   USE tbmd_hamiltonian,                       ONLY: tbmd_build_hamiltonian
@@ -177,6 +178,8 @@ CONTAINS
                                       force_env_section=force_env_section, error=error)
 
       CALL tbmd_build_hamiltonian(tbmd_env=tbmd_env, derivative=.FALSE., error=error)
+
+      CALL tbmd_energy_clear(tbmd_env%tbmd_energy, error=error)
 
       IF (ortho_basis) THEN
          CALL init_mo_set(mo_set=mos, fm_pool=matrix_pools%ao_mo_fm_pools(1)%pool, &

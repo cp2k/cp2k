@@ -302,8 +302,9 @@ CONTAINS
                                    atom=atom_a,&
                                    nnode=nnode)
 
-            dra(:) = particle_set(atom_a)%r(:) - &
-                     scaled_to_real(r_last_update(:,atom_a), cell)
+            !dra(:) = particle_set(atom_a)%r(:) - &
+            !         scaled_to_real(r_last_update(:,atom_a), cell)
+            dra(:) = particle_set(atom_a)%r(:) - r_last_update(:,atom_a)
 
             neighbor_node => first_node(neighbor_list)
 
@@ -313,10 +314,12 @@ CONTAINS
                                      neighbor=atom_b,&
                                      r=rab)
 
-              drb(:) = particle_set(atom_b)%r(:) -&
-                       scaled_to_real(r_last_update(:,atom_b),cell)
+              !drb(:) = particle_set(atom_b)%r(:) -&
+              !         scaled_to_real(r_last_update(:,atom_b),cell)
+              drb(:) = particle_set(atom_b)%r(:) - r_last_update(:,atom_b)
 
-              rab(:) = scaled_to_real(rab(:),cell) - dra(:) + drb(:)
+              !rab(:) = scaled_to_real(rab(:),cell) - dra(:) + drb(:)
+              rab(:) = rab(:) - dra(:) + drb(:)
 
               rab2 = rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3)
 

@@ -479,7 +479,7 @@ CONTAINS
     LOGICAL                                  :: harris_flag, &
                                                 EII_necessary
     TYPE(harris_env_type), POINTER           :: harris_env
-    TYPE(section_vals_type),POINTER           :: dft_section, input, scf_section
+    TYPE(section_vals_type),POINTER          :: dft_section, input, scf_section
 !dbg
     LOGICAL :: l_val
     INTEGER :: iw

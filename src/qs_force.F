@@ -140,7 +140,7 @@ CONTAINS
     TYPE(harris_env_type), POINTER                   :: harris_env
     TYPE(virial_type), POINTER                       :: virial
     TYPE(qs_ks_env_type), POINTER                    :: new_ks_env
-    TYPE(harris_force_type), POINTER         :: harris_force
+    TYPE(harris_force_type), POINTER                 :: harris_force
     INTEGER :: output_unit, iw
     TYPE(cp_logger_type), POINTER            :: logger
 

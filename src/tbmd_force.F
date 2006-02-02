@@ -49,7 +49,8 @@ MODULE tbmd_force
                                                     cp_sm_sm_trace
   USE tbmd_environment_types,                 ONLY: tbmd_environment_type, &
                                                     tbmd_env_get
-  USE tbmd_force_types,                       ONLY: tbmd_force_type
+  USE tbmd_force_types,                       ONLY: tbmd_force_type, &
+                                                    tbmd_force_clear
   USE tbmd_hamiltonian,                       ONLY: tbmd_build_hamiltonian
   USE tbmd_neighbor_list_env_types,           ONLY: tbmd_neighbor_list_env_type
   USE tbmd_neighbor_lists,                    ONLY: tbmd_neighbor_list_control
@@ -115,7 +116,9 @@ CONTAINS
                                                 use_jacobi
     INTEGER                                  :: handle, &
                                                 stat, &
-                                                i
+                                                i, &
+                                                iatom, &
+                                                natom
     TYPE(tbmd_force_type), POINTER           :: tbmd_force
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
@@ -137,6 +140,7 @@ CONTAINS
                                                 fm_matrix_work
     TYPE(qs_matrix_pools_type), POINTER      :: matrix_pools
     REAL(KIND=dp), DIMENSION(:), POINTER     :: trace_vec_ptr
+    REAL(KIND=dp)                            :: maxabsval
 
 !   ------------------------------------------------------------------------
 
@@ -157,7 +161,7 @@ CONTAINS
 
     use_cholesky = .TRUE.
     use_jacobi   = .FALSE.
-  
+
     CPPrecondition(ASSOCIATED(tbmd_env), cp_failure_level, routineP, error, failure)
  
     IF (.NOT. failure) THEN
@@ -180,6 +184,9 @@ CONTAINS
                                       force_env_section=force_env_section, error=error)
 
       CALL tbmd_build_hamiltonian(tbmd_env=tbmd_env, derivative=.TRUE., error=error)
+
+      natom = SIZE(particle_set)
+      CALL tbmd_force_clear(tbmd_env%tbmd_force, natom=natom, error=error)
 
       IF (ortho_basis) THEN
          CALL init_mo_set(mo_set=mos, fm_pool=matrix_pools%ao_mo_fm_pools(1)%pool, &
@@ -214,17 +221,21 @@ CONTAINS
       CALL calculate_density_matrix(mo_set=mos, density_matrix=tbmd_env%matrix_p, &
                                     error=error)
 
+
       ! F=Tr[p*(dH/dR)]
       DO i = 1,3
         trace_vec_ptr => tbmd_env%tbmd_force%f_bandstruct(:,1)
         CALL cp_sm_sm_trace(matrix1=tbmd_env%matrix_p, matrix2=tbmd_env%matrix_dh(i)%matrix, &
                             trace_vec=trace_vec_ptr, &
                             para_env=tbmd_env%para_env, error=error)
+
+         tbmd_env%tbmd_force%f_bandstruct(:,i) = (-1)*trace_vec_ptr(:)
+
       END DO
 
       CALL fm_pool_give_back_fm(pool=matrix_pools%ao_mo_fm_pools(1)%pool, &
                                 element=mos%mo_coeff, error=error)
-      
+
       DEALLOCATE(mos%eigenvalues, stat=stat)
       CPPostconditionNoFail(stat==0, cp_warning_level, routineP, error)
       DEALLOCATE(mos%occupation_numbers, stat=stat)
@@ -232,6 +243,13 @@ CONTAINS
 
       CALL fm_pool_give_back_fm(pool=matrix_pools%ao_ao_fm_pools(1)%pool, &
                                 element=fm_matrix_h, error=error)
+
+      tbmd_env%tbmd_force%f_tb(:,:) = tbmd_env%tbmd_force%f_bandstruct(:,:) &
+                                    + tbmd_env%tbmd_force%f_repulsion(:,:)
+
+      DO iatom = 1,natom
+        particle_set(iatom)%f(1:3) = tbmd_env%tbmd_force%f_tb(iatom, 1:3)
+      END DO
 
     END IF
 
