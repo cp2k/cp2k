@@ -118,7 +118,8 @@ CONTAINS
 !!
 !****************************************************************************
 
-  SUBROUTINE linres_localize(localized_wfn_control,qs_env,nspins,globenv,centers_only,error)
+  SUBROUTINE linres_localize(localized_wfn_control,qs_env,nspins,globenv,&
+             centers_only,error)
 
     TYPE(localized_wfn_control_type), &
       POINTER                                :: localized_wfn_control
@@ -129,7 +130,7 @@ CONTAINS
     TYPE(cp_error_type), INTENT(INOUT), &
       OPTIONAL                               :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'boh', &
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'linres_localize', &
       routineP = moduleN//'/'//routineN
 
     INTEGER                                  :: ispin, istat, n_mo(2), &
@@ -159,7 +160,8 @@ CONTAINS
 
     CALL get_qs_env(qs_env=qs_env, mos=mos)
     DO ispin = 1,nspins
-       CALL get_mo_set(mos(ispin)%mo_set,nmo=n_mo(ispin),nelectron=nelectron,maxocc=maxocc)
+       CALL get_mo_set(mos(ispin)%mo_set,nmo=n_mo(ispin),&
+            nelectron=nelectron,maxocc=maxocc)
        IF(localized_wfn_control%set_of_states == state_loc_all) THEN
          nmoloc(ispin) = NINT(nelectron/maxocc)
        ELSE
@@ -189,7 +191,8 @@ CONTAINS
 !!
 !!   FUNCTION
 !!     scf loop to optimize the first order wavefunctions (psi1)
-!!     given a perturbation as an operator applied to the ground state orbitals (h1_psi0) 
+!!     given a perturbation as an operator applied to the ground 
+!!     state orbitals (h1_psi0) 
 !!
 !!   NOTES
 !!     -
@@ -912,4 +915,5 @@ CONTAINS
 
 ! *****************************************************************************
 END MODULE qs_linres_methods
+
 

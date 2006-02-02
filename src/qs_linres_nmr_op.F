@@ -209,6 +209,7 @@ CONTAINS
       DO iao = first_sgf(iatom),last_sgf(iatom)
         DO idir = 1,3
           vecbuf_cmd(idir)%array(1,iao) = particle_set(iatom)%r(idir)
+          nmr_env%basisfun_center(idir,iao) = particle_set(iatom)%r(idir)
         END DO
       END DO
     END DO
@@ -241,6 +242,9 @@ CONTAINS
            DO iao = 1,nao
              DO idir2 = 1,3
                ck(idir2) = vecbuf_cmd(idir2)%array(1,iao)
+!dbg
+               ck(idir2) = nmr_env%basisfun_center(idir2,iao)
+!dbg
              END DO
 ! write(*,*) 'iao', iao, 'ck ', ck
              ckdk = pbc(dk,ck,cell)

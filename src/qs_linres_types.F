@@ -112,15 +112,16 @@ MODULE qs_linres_types
 !!                   one for each psi1_D_j vector
 !!   - chemical_shift: the tensor for each atom
 !!   - chi_tensor  : the susceptibility tensor
-!!   - jp1_Bx_ao, jp1_By_ao, jp1_Bz_ao :
-!!                   current density matrixes. One set for each dir. of B
+!!   - jp1_ao :      current density matrices. One set for each dir. of B&
+!!                   and for each cartesian component
 !!                   If the current density has to be calculated,
-!!                   we need to store the current density matrixes, in the dir. x,y,and z 
+!!                   to store the current density matrixes, in the dir. x,y,and z 
 !!                   This is a sparse matrix not symmetric
-!!                   The contributions can be added avery time a new psi1 is calculated
+!!                   The contributions can be added very time a new psi1 is calculated
 !!                   For psi1_p and psi1_rxp the contribution is a sum over the states 
 !!                   contributions. For psi1_D instead, at each new scf only one 
 !!                   state contributes.
+!!   - jp2_ao :      density matrices used to compute the r-dependent terms
 !!   - jrho1_set   : current density on the global grid, if gapw this is only the soft part
 !!   - jrho1_atom_set : current density on the local atomic grids (only if gapw)
 !!
@@ -139,6 +140,7 @@ MODULE qs_linres_types
                                                     restart_nmr
      LOGICAL,DIMENSION(:,:), POINTER             :: fullnmr_done
      REAL(dp)                                    :: chi_tensor(3,3)
+     REAL(dp), DIMENSION(:,:), POINTER           :: basisfun_center
      REAL(dp),DIMENSION(:,:,:), POINTER          :: chemical_shift
      TYPE(cp_2d_r_p_type), DIMENSION(:),POINTER  :: centers_set
      TYPE(cp_fm_pool_p_type), DIMENSION(:), &
@@ -147,7 +149,9 @@ MODULE qs_linres_types
           POINTER                                :: op_p_ao, op_rmd_ao
      TYPE(cp_fm_p_type), DIMENSION(:,:), POINTER :: psi1_p, psi1_rxp, psi1_D
      TYPE(real_matrix_p_type), DIMENSION(:,:), &
-          POINTER                                :: jp1_Bx_ao,jp1_By_ao,jp1_Bz_ao
+          POINTER                                :: jp2_ao
+     TYPE(real_matrix_p_type), DIMENSION(:,:,:), &
+          POINTER                                :: jp1_ao
      TYPE(cp_fm_p_type), DIMENSION(:,:), POINTER :: p_psi0, rxp_psi0
      TYPE(cp_fm_p_type), DIMENSION(:,:), POINTER :: p_psi1
      TYPE(qs_rho_p_type),DIMENSION(:),   POINTER :: jrho1_set
@@ -267,15 +271,15 @@ CONTAINS
        NULLIFY(nmr_env%psi1_p)
        NULLIFY(nmr_env%psi1_rxp)
        NULLIFY(nmr_env%psi1_D)
-       NULLIFY(nmr_env%jp1_Bx_ao)
-       NULLIFY(nmr_env%jp1_By_ao)
-       NULLIFY(nmr_env%jp1_Bz_ao)
+       NULLIFY(nmr_env%jp1_ao)
+       NULLIFY(nmr_env%jp2_ao)
        NULLIFY(nmr_env%p_psi0)
        NULLIFY(nmr_env%rxp_psi0)
        NULLIFY(nmr_env%p_psi1)
        NULLIFY(nmr_env%jrho1_set)
        NULLIFY(nmr_env%jrho1_atom_set)
        NULLIFY(nmr_env%fullnmr_done)
+       NULLIFY(nmr_env%basisfun_center)
        NULLIFY(nmr_env%chemical_shift)
        NULLIFY(nmr_env%statetrueindex)
      END IF 

@@ -660,10 +660,6 @@ CONTAINS
       CALL stop_program(routine_name,module_name,__LINE__,&
                    "Use the LSD option for XAS with transition potential.")
     END IF
-!    IF(xas_calculation .AND.  (scf_control%smear /= 0.0_dp)) THEN
-!      CALL stop_program(routine_name,module_name,__LINE__,&
-!          "transition potential XAS and smearing not implemented.")
-!    END IF
 
 !   assigning the number of states per spin initial version, not yet very
 !   general. Should work for an even number of electrons and a single

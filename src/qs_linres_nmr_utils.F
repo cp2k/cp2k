@@ -58,6 +58,7 @@ MODULE qs_linres_nmr_utils
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
   USE qs_linres_methods,               ONLY: linres_scf
+  USE qs_linres_nmr_current,           ONLY: nmr_response_current
   USE qs_linres_nmr_op,                ONLY: set_vecp
   USE qs_linres_types,                 ONLY: linres_control_type,&
                                              nmr_env_create,&
@@ -354,14 +355,7 @@ CONTAINS
 
     !Calculate current density and induced field
      IF(nmr_env%current_density) THEN
-!      CALL current_density(nmr_env,error=error)
-       ! The 3 density matrix obtained from nmr_env%psi1_p are always needed
-       
-       !The three direction of B are treated separatedly
-       DO idir = 1,3
-
-       END DO
-
+      CALL nmr_response_current(nmr_env,qs_env,psi1,h1_psi0,error=error)
      END IF
  STOP 'wait'
 
@@ -408,7 +402,7 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'nmr_env_init', &
       routineP = moduleN//'/'//routineN
 
-    INTEGER :: homo, icount, idir, ini, ispin, istat, istate, istate2, &
+    INTEGER :: homo, i_B, icount, idir, ini, ispin, istat, istate, istate2, &
       istate_next, j, k, n_mo(2), nao, natom, nmoloc, nstates, output_unit
     LOGICAL                                  :: failure, ionode
     LOGICAL, ALLOCATABLE, DIMENSION(:, :)    :: state_done
@@ -644,30 +638,29 @@ CONTAINS
 
     IF(nmr_env%current_density) THEN
     ! Current density matrix in x y and z:
-       ALLOCATE( nmr_env%jp1_Bx_ao(dft_control%nspins,3),STAT=istat)
-       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-       ALLOCATE( nmr_env%jp1_By_ao(dft_control%nspins,3),STAT=istat)
-       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-       ALLOCATE( nmr_env%jp1_Bz_ao(dft_control%nspins,3),STAT=istat)
+       ALLOCATE( nmr_env%jp1_ao(3,dft_control%nspins,3),STAT=istat)
        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
-       DO idir = 1,3 
+       DO i_B = 1,3 
          DO ispin = 1,dft_control%nspins
-           NULLIFY(nmr_env%jp1_Bx_ao(ispin,idir)%matrix)
-           NULLIFY(nmr_env%jp1_By_ao(ispin,idir)%matrix)
-           NULLIFY(nmr_env%jp1_Bz_ao(ispin,idir)%matrix)
+           DO idir = 1,3
+             NULLIFY(nmr_env%jp1_ao(idir,ispin,i_B)%matrix)
+             CALL replicate_matrix_structure( nmr_env%op_rmd_ao(1)%matrix, &
+               nmr_env%jp1_ao(idir,ispin,i_B)%matrix,"nmr_env%jp1_ao"//&
+               "-"//TRIM(ADJUSTL(cp_to_string(idir))),target_symmetry="none")
+             CALL set_matrix(nmr_env%jp1_ao(idir,ispin,i_B)%matrix,0.0_dp)
+           END DO
+         END DO
+       END DO
+
+       ALLOCATE( nmr_env%jp2_ao(2,dft_control%nspins),STAT=istat)
+       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+       DO ispin = 1,dft_control%nspins
+         DO idir = 1,2
+           NULLIFY(nmr_env%jp2_ao(idir,ispin)%matrix)
            CALL replicate_matrix_structure( nmr_env%op_rmd_ao(1)%matrix, &
-              nmr_env%jp1_Bx_ao(ispin,idir)%matrix,"nmr_env%jp1_Bx_ao"//&
+              nmr_env%jp2_ao(idir,ispin)%matrix,"nmr_env%jp2_ao"//&
               "-"//TRIM(ADJUSTL(cp_to_string(idir))),target_symmetry="none")
-           CALL set_matrix(nmr_env%jp1_Bx_ao(ispin,idir)%matrix,0.0_dp)
-           CALL replicate_matrix_structure( nmr_env%op_rmd_ao(1)%matrix, &
-              nmr_env%jp1_By_ao(ispin,idir)%matrix,"nmr_env%jp1_Bx_ao"//&
-              "-"//TRIM(ADJUSTL(cp_to_string(idir))),target_symmetry="none")
-           CALL set_matrix(nmr_env%jp1_By_ao(ispin,idir)%matrix,0.0_dp)
-           CALL replicate_matrix_structure( nmr_env%op_rmd_ao(1)%matrix, &
-              nmr_env%jp1_Bz_ao(ispin,idir)%matrix,"nmr_env%jp1_Bz_ao"//&
-              "-"//TRIM(ADJUSTL(cp_to_string(idir))),target_symmetry="none")
-           CALL set_matrix(nmr_env%jp1_Bz_ao(ispin,idir)%matrix,0.0_dp)
          END DO
        END DO
      END IF
@@ -679,6 +672,9 @@ CONTAINS
     ALLOCATE(nmr_env%chemical_shift(3,3,natom),STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     nmr_env%chemical_shift = 0.0_dp
+    ALLOCATE(nmr_env%basisfun_center(3,nmr_env%nao),STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    nmr_env%basisfun_center = 0.0_dp
     nmr_env%simplenmr_done(1:6) = .FALSE.
     ALLOCATE(nmr_env%fullnmr_done(3*dft_control%nspins,nstates),STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
@@ -716,7 +712,7 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'nmr_env_cleanup', &
       routineP = moduleN//'/'//routineN
 
-    INTEGER                                  :: idir, ispin, istat
+    INTEGER                                  :: i_B, idir, ispin, istat
     LOGICAL                                  :: failure
 
     failure=.FALSE.
@@ -807,20 +803,26 @@ CONTAINS
         IF(ASSOCIATED(nmr_env%op_rmd_ao)) THEN
           CALL deallocate_matrix_set(nmr_env%op_rmd_ao)
         END IF
-        !jp1_Bx_ao jp1_By_ao jp1_Bz_ao
-        IF(ASSOCIATED(nmr_env%jp1_Bx_ao)) THEN
-          DO idir = 1,3
-            DO ispin = 1,SIZE(nmr_env%jp1_Bx_ao,1)
-              CALL deallocate_matrix(nmr_env%jp1_Bx_ao(ispin,idir)%matrix)
-              CALL deallocate_matrix(nmr_env%jp1_By_ao(ispin,idir)%matrix)
-              CALL deallocate_matrix(nmr_env%jp1_Bz_ao(ispin,idir)%matrix)
+        !jp1_ao 
+        IF(ASSOCIATED(nmr_env%jp1_ao)) THEN
+          DO i_B = 1,3
+            DO ispin = 1,SIZE(nmr_env%jp1_ao,1)
+              DO idir = 1,3
+                CALL deallocate_matrix(nmr_env%jp1_ao(idir,ispin,i_B)%matrix)
+              END DO
             END DO
           END DO
-          DEALLOCATE(nmr_env%jp1_Bx_ao,STAT=istat)
+          DEALLOCATE(nmr_env%jp1_ao,STAT=istat)
           CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-          DEALLOCATE(nmr_env%jp1_By_ao,STAT=istat)
-          CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-          DEALLOCATE(nmr_env%jp1_Bz_ao,STAT=istat)
+        END IF
+        !jp2_ao 
+        IF(ASSOCIATED(nmr_env%jp2_ao)) THEN
+          DO ispin = 1,SIZE(nmr_env%jp2_ao,1)
+            DO idir = 1,3
+              CALL deallocate_matrix(nmr_env%jp2_ao(idir,ispin)%matrix)
+            END DO
+          END DO
+          DEALLOCATE(nmr_env%jp2_ao,STAT=istat)
           CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
         END IF
         !fullnmr_done
@@ -831,6 +833,10 @@ CONTAINS
         !chemical_shift
         IF(ASSOCIATED(nmr_env%chemical_shift)) THEN
           DEALLOCATE(nmr_env%chemical_shift,STAT=istat)
+          CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+        END IF
+        IF(ASSOCIATED(nmr_env%basisfun_center)) THEN
+          DEALLOCATE(nmr_env%basisfun_center,STAT=istat)
           CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
         END IF
         IF(ASSOCIATED(nmr_env%statetrueindex)) THEN
