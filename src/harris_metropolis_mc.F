@@ -70,7 +70,7 @@ MODULE harris_metropolis_mc
                                              QS_MC_method, &
                                              Harris_MC_method
   USE input_section_types,             ONLY: section_vals_type,section_vals_get_subs_vals,&
-                                             section_vals_write
+                                             section_vals_write, section_vals_val_get
   USE kg_environment_types,            ONLY: kg_environment_type
   USE kinds,                           ONLY: dp, &
                                              dp_size,&
@@ -273,6 +273,7 @@ CONTAINS
          ikind, &
          atom, &
          iatom, &
+         myi,&
          iw, &
          max_scf_tmp, &
          reject, &
@@ -280,10 +281,11 @@ CONTAINS
          in_use, &
          force_env_in_use, &
          md_method, &
-         mc_method, &
-         md_approach_nr, &
+         mc_method
+    INTEGER, POINTER ::  md_approach_nr, &
          accepted_md
     INTEGER, POINTER                         :: itimes
+    REAL(KIND=dp), POINTER :: t
     LOGICAL                                  :: failure, &
          accepted, &
          tot_energy, &
@@ -357,9 +359,7 @@ CONTAINS
          POINTER                                :: particle_set
     TYPE(atomic_kind_type), DIMENSION(:), &
          POINTER                                :: atomic_kind_set
-    INTEGER, SAVE                            :: hmc, &
-         md_approach_old, &
-         accepted_md_old
+    INTEGER, SAVE                            :: hmc
     INTEGER :: ires
     CHARACTER(LEN=default_string_length) :: my_act, my_pos
     TYPE(section_vals_type), POINTER         :: motion_section, force_env_section,&
@@ -369,7 +369,8 @@ CONTAINS
     CALL write_checkpoint_information("Entering "//routineN, globenv, error)
 
     CALL timeset(routineN, "I", "", handle)
-    NULLIFY(force_env_section, motion_section, restart_section, subsys_section)
+    NULLIFY(force_env_section, motion_section, restart_section, subsys_section, md_approach_nr,&
+         accepted_md)
     force_env_section => section_vals_get_subs_vals(globenv%input_file,"FORCE_EVAL",error=error)
     motion_section => section_vals_get_subs_vals(globenv%input_file,"MOTION",error=error)
     restart_section => section_vals_get_subs_vals(globenv%input_file,"EXT_RESTART",error=error)
@@ -385,7 +386,7 @@ CONTAINS
 
     NULLIFY(logger, simpar, subsys, dyn_coeff_set, md_env, nhc_baro, &
          nhc_part, molecule_kinds_new, molecules_new, local_molecules, &
-         particles, itimes, used_time, rng_stream, tmp_particle_set, &
+         particles, itimes, used_time, rng_stream, tmp_particle_set, t, &
          local_particles, atomic_kind, atomic_kinds, atom_list, unit, &
          tmp_wf_history, dft_control, qs_env, kg_env, particle_set, atomic_kind_set)
     NULLIFY(dft_section, input, motion_section)
@@ -552,8 +553,8 @@ CONTAINS
 
     time_iter_start=m_walltime()
 
-    CALL get_md_env(md_env, force_env_p=force_env_p, itimes=itimes, &
-         used_time = used_time)
+    CALL get_md_env(md_env, force_env_p=force_env_p, itimes=itimes, t =t , &
+         used_time = used_time, md_approach_nr = md_approach_nr, accepted_md = accepted_md)
 
     DO ibead = 1,nbeads
        IF (start_qs .AND. (globenv%prog_name_id == do_qs)) THEN
@@ -593,6 +594,16 @@ CONTAINS
                calc_force=.FALSE., error=error)
        END IF
     END DO
+
+    CALL section_vals_val_get(motion_section,"MD%STEP_START_VAL",i_val=itimes,error=error)
+    CALL section_vals_val_get(motion_section,"MD%TIME_START_VAL",r_val=t,error=error)
+
+    CALL section_vals_val_get(motion_section,"MD%HMC%MD_APPROACH_START_VAL",&
+         i_val=myi,error=error)
+    md_approach_nr = myi
+    CALL section_vals_val_get(motion_section,"MD%HMC%ACCEPTED_MD_START_VAL",&
+         i_val=myi,error=error)    
+    accepted_md = myi
 
     CALL md_energy(md_env, globenv) ! inits the print env at itimes == 0
 
@@ -637,14 +648,6 @@ CONTAINS
           END DO
        END IF
     END DO
-
-    md_approach_old = 0 !TEO DIX THIS
-    accepted_md_old = 0 !TEO FIX THIS
-
-    CALL mp_bcast(md_approach_old, globenv%source, globenv%group)
-    CALL mp_bcast(accepted_md_old, globenv%source, globenv%group)
-    md_approach_nr = md_approach_old
-    accepted_md = accepted_md_old
 
     istep = 1
     DO WHILE (istep < simpar%nsteps)
@@ -734,7 +737,6 @@ CONTAINS
        iw = globenv%scr
        !direct accept
        IF (new_ldmc_energy < prev_ldmc_energy) THEN
-          !IF (new_ldmc_energy > prev_ldmc_energy) THEN
           accepted = .TRUE.
           accepted_md = accepted_md+1
           accept = accept + 1
@@ -932,27 +934,14 @@ CONTAINS
             "MD%PRINT%HMC", error=error) 
 
        IF (accepted) THEN
-          ! prev_ldmc_energy = new_ldmc_energy
-
-          !itimes = itimes + simpar%ld_steps
           istep = istep + simpar%ld_steps
-          !CALL cp_iterate(logger%iter_info, last=(istep>=simpar%nsteps), &
-          !                iter_nr=itimes, error=error)
 
           IF (restore_wf_past) THEN
-             !CALL wfi_copy_history(input_wf_history=force_env_p(1)%force_env%qs_env%wf_history, &
-             !                      output_wf_history=tmp_wf_history, &
-             !                      qs_env=force_env_p(1)%force_env%qs_env, error=error)
              CALL wfi_release(wf_history=tmp_wf_history, error=error)
              CALL wfi_duplicate_history(input_wf_history=qs_env%wf_history, &
                   output_wf_history=tmp_wf_history, &
                   qs_env=qs_env, error=error)
           END IF
-          !IF ((qs_env%scf_control%density_guess == restart_guess) .AND. &
-          !    (dft_control%qs_control%wf_interpolation_method_nr == wfi_use_guess_method_nr)) THEN
-          !  CALL write_mo_set(qs_env%mos, atomic_kind_set, particle_set, globenv, id_nr=1)
-          !END IF
-
           ! If accepted, save velocities and positions
           IF (restore_velocities) THEN
              DO isubsys = 1,SIZE(subsys)
@@ -986,10 +975,6 @@ CONTAINS
 
        ELSE
           IF (restore_wf_past) THEN
-             ! Restore the state of the wavefunction history as it was before the unsuccessful MD approach
-             !CALL wfi_copy_history(input_wf_history=tmp_wf_history, &
-             !                      output_wf_history=force_env_p(1)%force_env%qs_env%wf_history, &
-             !                      qs_env=force_env_p(1)%force_env%qs_env, error=error)
              CALL wfi_release(wf_history=qs_env%wf_history, error=error)
              CALL wfi_duplicate_history(input_wf_history=tmp_wf_history, &
                   output_wf_history=qs_env%wf_history, &

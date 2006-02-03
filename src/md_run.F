@@ -86,7 +86,8 @@ MODULE md_run
   USE input_section_types,             ONLY: section_vals_type,&
                                              section_vals_get_subs_vals,&
                                              section_vals_write,&
-                                             section_get_lval
+                                             section_get_lval,&
+                                             section_vals_val_get
   USE cp_output_handling,              ONLY: cp_print_key_unit_nr, &
                                              cp_print_key_finished_output,&
                                              cp_print_key_should_output,&
@@ -165,6 +166,7 @@ CONTAINS
     LOGICAL                                  :: failure, should_stop
     REAL(KIND=dp)                            :: time_iter_start, &
                                                 time_iter_stop
+    REAL(KIND=dp),POINTER                    :: t 
     REAL(KIND=dp), POINTER                   :: used_time
     TYPE(cell_type), POINTER                 :: cell, cell_ref
     TYPE(cp_logger_type), POINTER            :: logger
@@ -197,7 +199,7 @@ CONTAINS
     NULLIFY ( particles, local_molecules, cell, cell_ref, dyn_coeff_set,&
               simpar,itimes,used_time,subsys,nhc_part,nhc_baro, motion_section )
     NULLIFY (md_env,molecule_kinds_new, molecules_new, force_env_section,&
-         work_section, restart_section, atomic_kinds, local_particles)
+         work_section, restart_section, atomic_kinds, local_particles, t)
     logger => cp_error_get_logger(error)
 
     force_env_section => section_vals_get_subs_vals(globenv%input_file,"FORCE_EVAL",error=error)
@@ -337,7 +339,7 @@ CONTAINS
     time_iter_start=m_walltime()
 
     CALL get_md_env ( md_env, force_env_p=force_env_p, itimes = itimes, &
-                      used_time = used_time ) 
+                      t = t, used_time = used_time ) 
 
     DO ibead = 1, nbeads
        CALL force_env_calc_energy_force ( force_env_p(ibead)%force_env,&
@@ -358,6 +360,8 @@ CONTAINS
 
     END DO
 
+    CALL section_vals_val_get(motion_section,"MD%STEP_START_VAL",i_val=itimes,error=error)
+    CALL section_vals_val_get(motion_section,"MD%TIME_START_VAL",r_val=t,error=error)
     CALL md_energy ( md_env, globenv, error ) ! inits the print env at itimes == 0
 
     DO istep=1,simpar%nsteps

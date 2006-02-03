@@ -655,6 +655,11 @@ contains
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
+       CALL keyword_create(keyword, name="RESTART_COUNTERS",&
+            description="Restarts the counters in MD schemes",&
+            default_l_val=.TRUE., lone_keyword_l_val=.TRUE.,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
        CALL keyword_create(keyword, name="RESTART_POS",&
             description="Takes the positions from the external file",&
             default_l_val=.TRUE., lone_keyword_l_val=.TRUE.,error=error)

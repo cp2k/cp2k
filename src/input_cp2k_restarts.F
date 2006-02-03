@@ -219,19 +219,27 @@ CONTAINS
                                                 nhc_part( : )
     TYPE(npt_info_type), POINTER             :: npt( :, : )
     TYPE(section_vals_type), POINTER         :: work_section
+    REAL(KIND=dp), POINTER                   :: t
+    INTEGER, POINTER                         :: itimes, accepted_md, md_approach_nr
+    REAL(KIND=dp)                            :: my_t
+    INTEGER                                  :: my_itimes, my_accepted_md, my_md_approach_nr
     
 
     failure = .FALSE.
     CALL timeset(routineN,"I",'',handle)
     NULLIFY (para_env,logger,nhc_part,nhc_baro,npt,para_env)
-    NULLIFY (atomic_kind_set, work_section, dyn_coeff_set)
-    NULLIFY (atomic_kind, coeffs, aux_basis_set, nhc_coef)
+    NULLIFY (atomic_kind_set, work_section, dyn_coeff_set, md_approach_nr, accepted_md)
+    NULLIFY (atomic_kind, coeffs, aux_basis_set, nhc_coef, t, itimes)
     IF (PRESENT(md_env)) THEN
        CALL get_md_env ( md_env=md_env,&
                          nhc_part=nhc_part,&
                          nhc_baro=nhc_baro,&
                          nhc_coef=nhc_coef,&
                          npt=npt,&
+                         t=t,&
+                         itimes=itimes,&
+                         accepted_md=accepted_md,&
+                         md_approach_nr=md_approach_nr,&
                          para_env=para_env)
     ELSE
        IF (ASSOCIATED(force_env)) THEN
@@ -242,7 +250,25 @@ CONTAINS
           CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
        END IF
     END IF
-
+    
+    IF (ASSOCIATED(itimes)) THEN
+       my_itimes = itimes
+       CALL section_vals_val_set(motion_section,"MD%STEP_START_VAL",i_val=my_itimes,error=error)
+    END IF
+    IF (ASSOCIATED(t)) THEN
+       my_t = t
+       CALL section_vals_val_set(motion_section,"MD%TIME_START_VAL",r_val=my_t,error=error)
+    END IF
+    IF (ASSOCIATED(md_approach_nr)) THEN
+       my_md_approach_nr = md_approach_nr
+       CALL section_vals_val_set(motion_section,"MD%HMC%MD_APPROACH_START_VAL",i_val=my_md_approach_nr,&
+            error=error)
+    END IF
+    IF (ASSOCIATED(accepted_md)) THEN
+       my_accepted_md = accepted_md
+       CALL section_vals_val_set(motion_section,"MD%HMC%ACCEPTED_MD_START_VAL",i_val=my_accepted_md,&
+            error=error)
+    END IF
     !
     ! PARTICLE THERMOSTAT
     !

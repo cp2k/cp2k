@@ -226,18 +226,20 @@ SUBROUTINE handle_ext_restart(input_file,para_env,error)
   TYPE(cp_para_env_type), pointer :: para_env
   type(cp_error_type), optional, intent(inout) :: error
 
-  LOGICAL :: failure, flag
+  LOGICAL :: failure, flag, explicit1, explicit2
   character(len=*), parameter :: routineN='handle_ext_restart',&
        routineP=moduleN//':'//routineN
-  TYPE(section_vals_type), POINTER :: restart_input, r_section, section
+  TYPE(section_vals_type), POINTER :: restart_input, r_section, section, work_section
   CHARACTER(default_string_length) :: r_file_path, path
   TYPE(section_type), POINTER              :: input_structure
   TYPE(cp_unit_set_type), POINTER :: default_units
   TYPE(cp_parser_type), POINTER            :: cpparser
   INTEGER :: n_rep_val, i_rep_val
+  REAL(KIND=dp) :: myt
+  INTEGER       :: myi
 
   failure=.false.
-
+  NULLIFY(work_section)
   IF (.NOT. failure) THEN
      r_section => section_vals_get_subs_vals(input_file,&
           "EXT_RESTART",error=error)
@@ -291,6 +293,31 @@ SUBROUTINE handle_ext_restart(input_file,para_env,error)
                 "FORCE_EVAL%SUBSYS%VELOCITY",error=error)
            CALL section_vals_set_subs_vals(input_file,"FORCE_EVAL%SUBSYS%VELOCITY",&
                 section,error=error)
+        END IF
+        CALL section_vals_val_get(r_section,"RESTART_COUNTERS",l_val=flag,&
+             error=error)
+        IF (flag) THEN
+           work_section => section_vals_get_subs_vals(input_file,"MOTION%MD",error=error)
+           CALL section_vals_get(work_section,explicit=explicit1,error=error)
+           work_section => section_vals_get_subs_vals(restart_input,"MOTION%MD",error=error)
+           CALL section_vals_get(work_section,explicit=explicit2,error=error)
+           IF (explicit1.AND.explicit2) THEN
+              CALL section_vals_val_get(restart_input,"MOTION%MD%STEP_START_VAL",i_val=myi,error=error)
+              CALL section_vals_val_get(restart_input,"MOTION%MD%TIME_START_VAL",r_val=myt,error=error)
+              CALL section_vals_val_set(input_file,"MOTION%MD%STEP_START_VAL",i_val=myi,error=error)
+              CALL section_vals_val_set(input_file,"MOTION%MD%TIME_START_VAL",r_val=myt,error=error)
+           END IF
+           !
+           work_section => section_vals_get_subs_vals(input_file,"MOTION%MD%HMC",error=error)
+           CALL section_vals_get(work_section,explicit=explicit1,error=error)
+           work_section => section_vals_get_subs_vals(restart_input,"MOTION%MD%HMC",error=error)
+           CALL section_vals_get(work_section,explicit=explicit2,error=error)
+           IF (explicit1.AND.explicit2) THEN
+              CALL section_vals_val_get(restart_input,"MOTION%MD%HMC%MD_APPROACH_START_VAL",i_val=myi,error=error)
+              CALL section_vals_val_set(input_file,"MOTION%MD%HMC%MD_APPROACH_START_VAL",i_val=myi,error=error)
+              CALL section_vals_val_get(restart_input,"MOTION%MD%HMC%ACCEPTED_MD_START_VAL",i_val=myi,error=error)
+              CALL section_vals_val_set(input_file,"MOTION%MD%HMC%ACCEPTED_MD_START_VAL",i_val=myi,error=error)
+           END IF
         END IF
         CALL section_vals_val_get(r_section,"RESTART_BAROSTAT",l_val=flag,&
              error=error)

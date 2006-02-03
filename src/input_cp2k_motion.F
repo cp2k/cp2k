@@ -962,6 +962,28 @@ CONTAINS
 
        CALL keyword_create(&
              keyword=keyword,&
+             name="step_start_val",&
+             description="The starting step value for the MD",&
+             usage="step_start_val <integer>",&
+             default_i_val=0,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(&
+             keyword=keyword,&
+             name="time_start_val",&
+             description="The starting timer value for the MD",&
+             usage="time_start_val <real>",&
+             default_r_val=cp_unit_to_cp2k(value=0.0_dp,&
+                                           unit_str="fs",&
+                                           error=error),&
+             unit_str="fs",&
+             error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(&
+             keyword=keyword,&
              name="temperature",&
              description="The temperature in K used to initialize "//&
                          "the velocities with init and pos restart, "//&
@@ -1610,12 +1632,23 @@ END SUBROUTINE create_nose_section
 
        NULLIFY(keyword)
 
-       !CALL keyword_create(keyword, name="gamma",&
-       !     description="Gamma parameter for the Langevin dynamics",&
-       !     usage="gamma 0.001",&
-       !     default_r_val=0.0_dp, unit_str='fs^-1',error=error)
-       !CALL section_add_keyword(section,keyword,error=error)
-       !CALL keyword_release(keyword,error=error)
+       CALL keyword_create(&
+             keyword=keyword,&
+             name="MD_APPROACH_START_VAL",&
+             description="The starting  value for the MD approach in the HMC scheme",&
+             usage="MD_APPROACH_START_VAL <integer>",&
+             default_i_val=0,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(&
+             keyword=keyword,&
+             name="ACCEPTED_MD_START_VAL",&
+             description="The starting  value for the accepted MD steps in the HMC scheme",&
+             usage="ACCEPTERD_MD_START_VAL <integer>",&
+             default_i_val=0,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
        
        CALL keyword_create(keyword, name="ld_steps", &
             description="Number of LD steps per MC cycle.", &

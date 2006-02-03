@@ -45,8 +45,8 @@ MODULE md_environment_types
      PRIVATE
      INTEGER :: id_nr, ref_count
      TYPE (cp_para_env_type), POINTER :: para_env 
-     INTEGER, POINTER :: itimes
-     REAL (KIND=dp), POINTER  :: used_time
+     INTEGER, POINTER :: itimes, md_approach_nr, accepted_md
+     REAL (KIND=dp), POINTER  :: used_time, t
      REAL (KIND=dp), POINTER :: constant
      TYPE ( cell_type ), POINTER :: cell
      TYPE ( force_env_p_type ), POINTER :: force_env_p ( : )
@@ -81,15 +81,16 @@ CONTAINS
 
   SUBROUTINE get_md_env ( md_env, itimes, constant, used_time, cell,  &
                           simpar, nhc_part, nhc_coef, nhc_baro, &
-                          npt, force_env_p, para_env, reftraj_info )
+                          npt, force_env_p, para_env, reftraj_info, t,&
+                          md_approach_nr, accepted_md)
 
 !   Purpose: Get the integrator environment
 
 !   ***************************************************************************
 
     TYPE(md_environment_type), POINTER       :: md_env
-    INTEGER, OPTIONAL, POINTER               :: itimes
-    REAL(KIND=dp), OPTIONAL, POINTER             :: constant, used_time
+    INTEGER, OPTIONAL, POINTER               :: itimes, md_approach_nr, accepted_md
+    REAL(KIND=dp), OPTIONAL, POINTER             :: constant, used_time, t
     TYPE(cell_type), OPTIONAL, POINTER       :: cell
     TYPE(simulation_parameters_type), &
       OPTIONAL, POINTER                      :: simpar
@@ -108,8 +109,11 @@ CONTAINS
 !   ---------------------------------------------------------------------------
 
     IF ( PRESENT ( itimes ) ) itimes => md_env % itimes
+    IF ( PRESENT ( md_approach_nr ) ) md_approach_nr => md_env % md_approach_nr
+    IF ( PRESENT ( accepted_md ) ) accepted_md => md_env % accepted_md
     IF ( PRESENT ( constant ) ) constant => md_env % constant
     IF ( PRESENT ( used_time ) ) used_time => md_env % used_time
+    IF ( PRESENT ( t ) ) t => md_env % t
     IF ( PRESENT ( cell ) ) cell => md_env % cell 
     IF ( PRESENT ( simpar ) ) simpar => md_env % simpar
     IF ( PRESENT ( nhc_part ) ) nhc_part => md_env % nhc_part 
@@ -152,6 +156,9 @@ CONTAINS
 
     NULLIFY ( md_env % itimes )
     NULLIFY ( md_env % constant )
+    nullify ( md_env % t )
+    NULLIFY ( md_env % md_approach_nr )
+    NULLIFY ( md_env % accepted_md )
     NULLIFY ( md_env % cell )
     NULLIFY ( md_env % simpar )
     NULLIFY ( md_env % nhc_part )
@@ -163,13 +170,22 @@ CONTAINS
     CALL cp_para_env_retain ( md_env % para_env )
     ALLOCATE( md_env % itimes , stat=istat )
     CPPostconditionNoFail(istat==0,cp_warning_level,routineP,error)
+    ALLOCATE( md_env % md_approach_nr , stat=istat )
+    CPPostconditionNoFail(istat==0,cp_warning_level,routineP,error)
+    ALLOCATE( md_env % accepted_md , stat=istat )
+    CPPostconditionNoFail(istat==0,cp_warning_level,routineP,error)
     ALLOCATE( md_env % constant , stat=istat )
     CPPostconditionNoFail(istat==0,cp_warning_level,routineP,error)
     ALLOCATE( md_env % used_time , stat=istat )
     CPPostconditionNoFail(istat==0,cp_warning_level,routineP,error)
+    ALLOCATE( md_env % t , stat=istat )
+    CPPostconditionNoFail(istat==0,cp_warning_level,routineP,error)
     md_env % itimes    = 0
-    md_env % constant  = 0
-    md_env % used_time = 0
+    md_env % md_approach_nr = 0
+    md_env % accepted_md = 0
+    md_env % constant  = 0.0_dp
+    md_env % used_time = 0.0_dp
+    md_env % t         = 0.0_dp
     ALLOCATE ( md_env % reftraj_info )
     md_env % reftraj_info % unit =-1
 
@@ -262,9 +278,15 @@ SUBROUTINE md_env_release(md_env, error)
         CALL cp_para_env_release ( md_env % para_env, error = error )
         DEALLOCATE( md_env % itimes , stat=istat )
         CPPostconditionNoFail(istat==0,cp_warning_level,routineP,error)
+        DEALLOCATE( md_env % md_approach_nr , stat=istat )
+        CPPostconditionNoFail(istat==0,cp_warning_level,routineP,error)
+        DEALLOCATE( md_env % accepted_md , stat=istat )
+        CPPostconditionNoFail(istat==0,cp_warning_level,routineP,error)
         DEALLOCATE( md_env % constant , stat=istat )
         CPPostconditionNoFail(istat==0,cp_warning_level,routineP,error)
         DEALLOCATE( md_env % used_time , stat=istat )
+        CPPostconditionNoFail(istat==0,cp_warning_level,routineP,error)
+        DEALLOCATE( md_env % t , stat=istat )
         CPPostconditionNoFail(istat==0,cp_warning_level,routineP,error)
         DEALLOCATE( md_env % reftraj_info , stat=istat )
         CPPostconditionNoFail(istat==0,cp_warning_level,routineP,error)
@@ -292,14 +314,14 @@ END SUBROUTINE md_env_release
 ! *****************************************************************************
   SUBROUTINE set_md_env ( md_env, itimes, constant, cell, simpar, &
                           nhc_part, nhc_coef, nhc_baro, &
-                          npt, force_env_p, para_env )
+                          npt, force_env_p, para_env, accepted_md, md_approach_nr )
 
 !   Purpose: Set the integrator environment to the correct program.
 
 !   ***************************************************************************
 
     TYPE(md_environment_type), POINTER       :: md_env
-    INTEGER, OPTIONAL, POINTER               :: itimes
+    INTEGER, OPTIONAL, POINTER               :: itimes, accepted_md, md_approach_nr
     REAL(KIND=dp), OPTIONAL, POINTER             :: constant
     TYPE(cell_type), OPTIONAL, POINTER       :: cell
     TYPE(simulation_parameters_type), &
@@ -325,6 +347,8 @@ END SUBROUTINE md_env_release
     IF ( PRESENT ( nhc_baro ) ) md_env % nhc_baro => nhc_baro
     IF ( PRESENT ( npt ) ) md_env % npt => npt
     IF ( PRESENT ( itimes ) ) md_env % itimes => itimes
+    IF ( PRESENT ( accepted_md ) ) md_env % accepted_md => accepted_md
+    IF ( PRESENT ( md_approach_nr ) ) md_env % md_approach_nr => md_approach_nr
     IF ( PRESENT ( constant ) ) md_env % constant => constant
     IF ( PRESENT ( force_env_p ) ) THEN
 ! accept null pointers?

@@ -135,10 +135,10 @@ CONTAINS
     REAL ( dp )                              :: abc ( 3 ), cell_angle ( 3 )
     REAL ( dp )                              :: pv_scalar, econs, pv_xx
     REAL(KIND=dp)                            :: cons, ekin, &
-         ekin_coefs, epot, rcons, t, &
+         ekin_coefs, epot, rcons, &
          temp, temp_coefs, temp_baro, &
          hugoniot
-    REAL(KIND=dp), POINTER                   :: constant, used_time
+    REAL(KIND=dp), POINTER                   :: constant, used_time, t
     TYPE ( unit_convert_type ), POINTER      :: unit
     TYPE(cell_type), POINTER                 :: cell, cell_ref
     TYPE(cp_subsystem_p_type), &
@@ -155,7 +155,8 @@ CONTAINS
     CHARACTER (LEN=80)                       :: remark1,remark2,my_pos,my_act,my_form,my_ext
     TYPE(section_vals_type), POINTER         :: motion_section
     TYPE(cp_logger_type), POINTER            :: logger
-
+    LOGICAL, SAVE                            :: init
+    DATA init /.TRUE./
 
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
@@ -170,6 +171,7 @@ CONTAINS
     CALL get_md_env(md_env=md_env,&
          itimes=itimes,&
          constant=constant,&
+         t=t,&
          used_time = used_time, &
          simpar=simpar,         &
          force_env_p=force_env_p )
@@ -207,11 +209,11 @@ CONTAINS
        pv_xx = virial%pv_total(1,1)/cell%deth*unit%bar
     ENDIF
 
-    IF (itimes == 0) THEN
+    IF (init) THEN
        IF ( simpar % ensemble == nph_ensemble .OR.&
             simpar % ensemble == nph_uniaxial_ensemble .OR.&
             simpar % ensemble == nph_uniaxial_damped_ensemble ) THEN
-          IF ( simpar % v0 == 0._dp ) simpar % v0 = cell_ref % deth
+          IF ( simpar % v0 == 0.0_dp ) simpar % v0 = cell_ref % deth
        ENDIF
     ENDIF
 
@@ -246,11 +248,10 @@ CONTAINS
          beta = cell_angle ( 2 ), &
          gamma = cell_angle ( 1 ) )
 
-    IF (itimes==0) THEN
+    my_pos = "APPEND"
+    my_act = "WRITE"
+    IF (init.AND.(itimes==0)) THEN
        my_pos = "REWIND"
-       my_act = "WRITE"
-    ELSE
-       my_pos = "APPEND"
        my_act = "WRITE"
     END IF
     my_form = "FORMATTED"
@@ -270,7 +271,7 @@ CONTAINS
          extension=my_ext, file_position=my_pos, file_action=my_act,&
          file_form=my_form, middle_name="vel", error=error)
 
-    IF (itimes == 0) THEN
+    IF (init) THEN
        IF ( simpar % ensemble == nph_ensemble .OR.&
             simpar % ensemble == nph_uniaxial_ensemble .OR.&
             simpar % ensemble == nph_uniaxial_damped_ensemble ) THEN
@@ -285,8 +286,8 @@ CONTAINS
              WRITE (iw,*) "Format of the energy file"
              WRITE (iw,*) "Step Nr.    Time[fs]  Kin.[a.u.]     Temp[K]  Pot.[a.u.]    Cons Qty UsedTime[s]"
           END IF
-          itimes_old = 0       ! TEO FIX THIS
-          t_old      = 0.0_dp  ! TEO FIX THIS
+          itimes_old = itimes
+          t_old      = t
           IF(simpar%output_format==dump_dcd) THEN
              !Lets write the header now
              WRITE(crd) "CORD",0,itimes,&
@@ -309,10 +310,6 @@ CONTAINS
              CALL m_flush(vel)
           END IF
        END IF
-       CALL mp_bcast(itimes_old,source,group)
-       CALL mp_bcast(t_old,source,group)
-       itimes = itimes_old
-       t = t_old
        constant = cons
        CALL set_md_env(md_env=md_env,constant=constant)
        IF ( simpar % ensemble == nph_ensemble .OR.&
@@ -368,12 +365,12 @@ CONTAINS
             hugoniot = epot + ekin - simpar % e0 -  &
             .5_dp * ( pv_xx/unit%bar + simpar % p0 ) * &
             ( simpar % v0 - cell % deth )
-       t = t_old + REAL(itimes-itimes_old,dp)*simpar%dt*femtoseconds
+       t = t_old + REAL(itimes-itimes_old,dp)*simpar%dt
        econs = (cons-constant)/nat*kelvin
     END IF
 
 
-    IF (itimes > itimes_old) THEN
+    IF (.NOT.init) THEN
        IF (ionode) THEN
 
           IF (simpar%output_format == dump_xmol) THEN
@@ -438,7 +435,7 @@ CONTAINS
           END SELECT
           !
 
-          IF ( ( delta_t /= 0 ) .AND. ( iw>0 ) ) THEN
+          IF ( iw>0  ) THEN
 
              WRITE ( iw, '( )' )
              WRITE ( iw, '( A,A )' ) ' **************************************', &
@@ -446,7 +443,7 @@ CONTAINS
              WRITE ( iw, '( A,T61,A )' ) ' ENSEMBLE TYPE                = ', &
                   ADJUSTR ( ensemble_name_types(simpar%ensemble)(1:20))
              WRITE ( iw, '( A,T71,I10 )' ) ' STEP NUMBER                  = ', itimes
-             WRITE ( iw, '( A,T60,1(1X,F20.6) )' ) ' TIME [FS]                    = ', t
+             WRITE ( iw, '( A,T60,1(1X,F20.6) )' ) ' TIME [FS]                    = ', t*femtoseconds
              WRITE ( iw, '( A,T60,1(1X,E20.12) )' ) ' CONSERVED QNTY               = ', &
                   cons
              WRITE ( iw, '( )' )
@@ -542,7 +539,8 @@ CONTAINS
          "PRINT%TRAJECTORY", error=error)
     CALL cp_print_key_finished_output(vel,logger,motion_section,&
          "PRINT%VELOCITIES", error=error)
-    
+
+    init = .FALSE.
     CALL timestop(zero,handle)
 
   END SUBROUTINE md_energy
