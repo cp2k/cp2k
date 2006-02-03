@@ -58,7 +58,7 @@ MODULE qs_linres_nmr_utils
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
   USE qs_linres_methods,               ONLY: linres_scf
-  USE qs_linres_nmr_current,           ONLY: nmr_response_current
+!Tmp_Bug_fix  USE qs_linres_nmr_current,           ONLY: nmr_response_current
   USE qs_linres_nmr_op,                ONLY: set_vecp
   USE qs_linres_types,                 ONLY: linres_control_type,&
                                              nmr_env_create,&
@@ -355,7 +355,7 @@ CONTAINS
 
     !Calculate current density and induced field
      IF(nmr_env%current_density) THEN
-      CALL nmr_response_current(nmr_env,qs_env,psi1,h1_psi0,error=error)
+  !Tmp_Bug_fix    CALL nmr_response_current(nmr_env,qs_env,psi1,h1_psi0,error=error)
      END IF
  STOP 'wait'
 

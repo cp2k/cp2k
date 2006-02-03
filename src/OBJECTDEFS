@@ -305,7 +305,6 @@ OBJECTS_GENERIC =\
  qs_ks_types.o\
  qs_linres_methods.o\
  qs_linres_module.o\
- qs_linres_nmr_current.o\
  qs_linres_nmr_op.o\
  qs_linres_nmr_utils.o\
  qs_linres_types.o\
