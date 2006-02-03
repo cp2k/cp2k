@@ -277,6 +277,8 @@ CONTAINS
             simpar % ensemble == nph_uniaxial_damped_ensemble ) THEN
           IF ( simpar % e0 == 0._dp ) simpar % e0 = epot + ekin
        ENDIF
+       itimes_old = itimes
+       t_old      = t
        IF (ionode) THEN
           IF (iw >0) THEN
              WRITE (iw,*)
@@ -286,8 +288,6 @@ CONTAINS
              WRITE (iw,*) "Format of the energy file"
              WRITE (iw,*) "Step Nr.    Time[fs]  Kin.[a.u.]     Temp[K]  Pot.[a.u.]    Cons Qty UsedTime[s]"
           END IF
-          itimes_old = itimes
-          t_old      = t
           IF(simpar%output_format==dump_dcd) THEN
              !Lets write the header now
              WRITE(crd) "CORD",0,itimes,&
