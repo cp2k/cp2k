@@ -583,7 +583,7 @@ SUBROUTINE val_write(val,unit_nr,unit,unit_str,fmt,error)
            DO i=1,SIZE(val%l_val)
               IF (MODULO(i,20)==0) THEN 
                  WRITE(unit=unit_nr,fmt="(' \')")
-                 WRITE(unit=unit_nr,fmt="("//TRIM(myfmt)//"'')",advance="NO")
+                 WRITE(unit=unit_nr,fmt="("//TRIM(myfmt)//")",advance="NO")
               END IF
               WRITE(unit=unit_nr,fmt="(' ',l1)",advance="NO")&
                    val%l_val(i)
@@ -596,7 +596,7 @@ SUBROUTINE val_write(val,unit_nr,unit,unit_str,fmt,error)
            DO i=1,SIZE(val%i_val)
               IF (MODULO(i,10)==0) THEN 
                  WRITE(unit=unit_nr,fmt="(' \')")
-                 WRITE(unit=unit_nr,fmt="("//TRIM(myfmt)//"'')",advance="NO")
+                 WRITE(unit=unit_nr,fmt="("//TRIM(myfmt)//")",advance="NO")
               END IF
               WRITE(unit=unit_nr,fmt="(' ',i14)",advance="NO")&
                    val%i_val(i)
@@ -609,7 +609,7 @@ SUBROUTINE val_write(val,unit_nr,unit,unit_str,fmt,error)
            DO i=1,SIZE(val%r_val)
               IF (MODULO(i,10)==0) THEN 
                  WRITE(unit=unit_nr,fmt="(' \')")
-                 WRITE(unit=unit_nr,fmt="("//TRIM(myfmt)//"'')",advance="NO")
+                 WRITE(unit=unit_nr,fmt="("//TRIM(myfmt)//")",advance="NO")
               END IF
               IF (ASSOCIATED(my_unit)) THEN
                  WRITE(unit=unit_nr,fmt="(' ',es16.8)",advance="NO")&
@@ -630,7 +630,7 @@ SUBROUTINE val_write(val,unit_nr,unit,unit_str,fmt,error)
               l=l+1
               IF (l>10.AND.l+LEN_TRIM(val%c_val(i))>76)THEN
                  WRITE(unit=unit_nr,fmt="('\')")
-                 WRITE(unit=unit_nr,fmt="("//TRIM(myfmt)//"'')",advance="NO")
+                 WRITE(unit=unit_nr,fmt="("//TRIM(myfmt)//")",advance="NO")
                  l=0
                  WRITE(unit=unit_nr,fmt='(a)',advance="NO") TRIM(val%c_val(i))
                  l=l+LEN_TRIM(val%c_val(i))+3
@@ -652,7 +652,7 @@ SUBROUTINE val_write(val,unit_nr,unit,unit_str,fmt,error)
               c_string=enum_i2c(val%enum,val%i_val(i),error=error)
               IF (l>10.AND.l+LEN_TRIM(c_string)>76)THEN
                  WRITE(unit=unit_nr,fmt="(' \')")
-                 WRITE(unit=unit_nr,fmt="("//TRIM(myfmt)//"'')",advance="NO")
+                 WRITE(unit=unit_nr,fmt="("//TRIM(myfmt)//")",advance="NO")
                  l=0
               ELSE
                  l=l+LEN_TRIM(c_string)+3
