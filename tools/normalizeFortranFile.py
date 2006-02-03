@@ -453,15 +453,21 @@ def cleanDeclarations(routine,logFile=sys.stdout):
         
         sortDeclarations(paramDecl)
         sortDeclarations(decls)
+        has_routinen=0
+        pos_routinep=-1
         for d in paramDecl:
             for i in xrange(len(d['vars'])):
                 v=d['vars'][i]
                 m=varRe.match(v)
                 lowerV=m.group("var").lower()
                 if lowerV=="routinen":
+                    has_routinen=1
                     d['vars'][i]="routineN = '"+routine['name']+"'"
                 elif lowerV=="routinep":
+                    pos_routinep=i
                     d['vars'][i]="routineP = moduleN//':'//routineN"
+            if not has_routinen and pos_routinep>=0:
+                d['vars'].insert(pos_routinep,"routineN = '"+routine['name']+"'")
 
 
         if routine['arguments']:
