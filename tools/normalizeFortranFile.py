@@ -27,7 +27,7 @@ def readFortranLine(infile):
     lines=[]
     continuation=0
     while 1:
-        line=infile.readline()
+        line=infile.readline().replace("\t",8*" ")
         if not line: break
         m=lineRe.match(line)
         if not m or m.span()[1]!=len(line):
@@ -421,6 +421,7 @@ def cleanDeclarations(routine,logFile=sys.stdout):
     removes unused variables"""
     global rVar
     commentToRemoveRe=re.compile(r" *! *(?:interface|arguments|parameters|locals?|\** *local +variables *\**|\** *local +parameters *\**) *$",re.IGNORECASE)
+    nullifyRe=re.compile(r" *nullify *\(([^()]+)\) *\n?",re.IGNORECASE|re.MULTILINE)
 
     if not routine['kind']: return
     if (routine['core'] and
@@ -433,6 +434,8 @@ def cleanDeclarations(routine,logFile=sys.stdout):
         return
     try:
         rest="".join(routine['strippedCore']).lower()
+        nullifys="".join(nullifyRe.findall(rest))
+        rest=nullifyRe.sub("",rest)
         paramDecl=[]
         decls=[]
         for d in routine['parsedDeclarations']:
@@ -447,9 +450,19 @@ def cleanDeclarations(routine,logFile=sys.stdout):
                 paramDecl.append(d)
             else:
                 decls.append(d)
-
+        
         sortDeclarations(paramDecl)
         sortDeclarations(decls)
+        for d in paramDecl:
+            for i in xrange(len(d['vars'])):
+                v=d['vars'][i]
+                m=varRe.match(v)
+                lowerV=m.group("var").lower()
+                if lowerV=="routinen":
+                    d['vars'][i]="routineN = '"+routine['name']+"'"
+                elif lowerV=="routinep":
+                    d['vars'][i]="routineP = moduleN//':'//routineN"
+
 
         if routine['arguments']:
             routine['lowercaseArguments']=map(lambda x:x.lower(),routine['arguments'])
@@ -464,7 +477,8 @@ def cleanDeclarations(routine,logFile=sys.stdout):
             localD['vars']=[]
             argD=None
             for v in d['vars']:
-                lowerV=varRe.match(v).group("var").lower()
+                m=varRe.match(v)
+                lowerV=m.group("var").lower()
                 if lowerV in routine['lowercaseArguments']:
                     argD={}
                     argD.update(d)
@@ -479,6 +493,11 @@ def cleanDeclarations(routine,logFile=sys.stdout):
                     if (pos!=-1):
                         localD['vars'].append(v)
                     else:
+                        if findWord(lowerV,nullifys)!=-1:
+                            if not rmNullify(lowerV,routine['core']):
+                                raise SyntaxError(
+                                    "could not remove nullify of "+lowerV+
+                                    " as expected, routine="+routine['name'])
                         logFile.write("removed var %s in routine %s\n" %
                                       (lowerV,routine['name']))
                         rVar+=1
@@ -530,7 +549,65 @@ def cleanDeclarations(routine,logFile=sys.stdout):
             logFile.write("**** exception cleaning routine "+routine['name']+" ****")
         logFile.write("parsedDeclartions="+str(routine['parsedDeclarations']))
         raise
+
+def rmNullify(var,strings):
+    removed=0
+    var=var.lower()
+    nullifyRe=re.compile(r" *nullify *\(", re.IGNORECASE)
+    nullify2Re=re.compile(r"(?P<nullif> *nullify *\()(?P<vars>[^()!&]+)\)",re.IGNORECASE)
     
+    for i in xrange(len(strings)-1,-1,-1):
+        line=strings[i]
+        comments=[]
+        if nullifyRe.match(line) and findWord(var,line)!=-1:
+            core=""
+            comments=[]
+            for l in line.splitlines():
+                pos=l.find("&")
+                pos2=l.find("!")
+                if pos==-1:
+                    if pos2==-1:
+                        core+=l
+                    else:
+                        core+=l[:pos2]
+                        comments.append(l[pos2:]+"\n")
+                else:
+                    core+=l[:pos]
+                    if pos2!=-1:
+                        comments.append(l[pos2:]+"\n")
+            m=nullify2Re.match(core)
+            if not m:
+                raise SyntaxError("could not match nullify to "+repr(core)+
+                                  "in"+repr(line))
+            allVars=[]
+            vars=m.group("vars")
+            v= map(string.strip,vars.split(","))
+            removedNow=0
+            for j in xrange(len(v)-1,-1,-1):
+                if v[j].lower()==var:
+                    del v[j]
+                    removedNow=1
+            if removedNow:
+                if len(v)==0:
+                    if not comments:
+                        del strings[i]
+                    else:
+                        strings[i]="".join(comments)
+                else:
+                    for j in xrange(len(v)-1):
+                        v[j]+=", "
+                    v[-1]+=")"
+                    newS=StringIO()
+                    v.insert(0,m.group("nullif"))
+                    writeInCols(v,len(v[0])-len(v[0].lstrip())+5,77,0,newS)
+                    newS.write("\n")
+                    if comments:
+                        for c in comments:
+                            newS.write(c)
+                    strings[i]=newS.getvalue()
+                removed+=1
+    return removed
+
 def parseUse(inFile):
     """Parses the use statements in inFile
     The parsing stops at the first non use statement.
@@ -713,7 +790,16 @@ def cleanUse(modulesDict,rest,implicitUses=None,logFile=sys.stdout):
                         map(lambda x:x+"\n",modules[i]['comments']))
                 del modules[i]
 
-def rewriteFortranFile(inFile,outFile,logFile=sys.stdout):
+def resetModuleN(moduleName,lines):
+    "resets the moduleN variable to the module name in the lines lines"
+    moduleNRe=re.compile(r".*:: *moduleN *= *(['\"])[a-zA-Z_0-9]+\1",
+                         flags=re.IGNORECASE)
+    for i in xrange(len(lines)):
+        lines[i]=moduleNRe.sub(
+            "  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = '"+moduleName+"'",
+            lines[i])
+
+def rewriteFortranFile(inFile,outFile,logFile=sys.stdout,orig_filename=None):
     """rewrites the use statements and declarations of inFile to outFile.
     It sorts them and removes the repetitions."""
     import os.path
@@ -730,7 +816,8 @@ def rewriteFortranFile(inFile,outFile,logFile=sys.stdout):
         outFile.write(line)
         m=moduleRe.match(line)
         if m:
-            if (m.group('moduleName')!=os.path.basename(inFile.name)[0:-2]) :
+            if not orig_filename: orig_filename=inFile.name
+            if (m.group('moduleName')!=os.path.basename(orig_filename)[0:-2]) :
                 raise SyntaxError("Module name is different from filename ("+
                                   m.group('moduleName')+
                                   "!="+os.path.basename(inFile.name)[0:-2]+")")
@@ -741,6 +828,8 @@ def rewriteFortranFile(inFile,outFile,logFile=sys.stdout):
         coreLines.append(modulesDict['postLine'])
         routine=parseRoutine(inFile)
         coreLines.extend(routine['preRoutine'])
+        if m:
+            resetModuleN(m.group('moduleName'),routine['preRoutine'])
         routines.append(routine)
         while routine['kind']:
             routine=parseRoutine(inFile)

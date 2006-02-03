@@ -64,19 +64,21 @@ def prettifyFile(infile,normalize_use=1, upcase_keywords=1,
 
     does not close the input file"""
     ifile=infile
+    orig_filename=infile.name
     tmpfile=None
     try:
-        if normalize_use:
+        if replace:
             tmpfile2=os.tmpfile()
-            normalizeFortranFile.rewriteFortranFile(ifile,tmpfile2,logFile)
+            replacer.replaceWords(ifile,tmpfile2,logFile=logFile)
             tmpfile2.seek(0)
             if tmpfile:
                 tmpfile.close()
             tmpfile=tmpfile2
             ifile=tmpfile
-        if replace:
+        if normalize_use:
             tmpfile2=os.tmpfile()
-            replacer.replaceWords(ifile,tmpfile2,logFile)
+            normalizeFortranFile.rewriteFortranFile(ifile,tmpfile2,logFile,
+                                                    orig_filename=orig_filename)
             tmpfile2.seek(0)
             if tmpfile:
                 tmpfile.close()
@@ -166,7 +168,7 @@ def prettfyInplace(fileName,bkDir="preprettify",normalize_use=1,
 
                    
 if __name__ == '__main__':
-    defaultsDict={'upcase':1,'normalize-use':1,'replace':0,
+    defaultsDict={'upcase':1,'normalize-use':1,'replace':1,
                   'interface-dir':None,
                   'backup-dir':'preprettify'}
     usageDesc=("usage:\n"+sys.argv[0]+ """

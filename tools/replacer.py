@@ -4,23 +4,11 @@ import re
 import sys
 
 repl={
-    'force_control':'force_env_types',
-    'fragment':'subsys',
-    'cp_fragment_types':'cp_subsystem_types',
-    'cp_fragment_type':'cp_subsystem_type',
-    'cp_fragment_p_type':'cp_subsystem_p_type',
-    'fragment_create':'cp_subsys_create',
-    'fragment_retain':'cp_subsys_retain',
-    'fragment_release':'cp_subsys_release',
-    'fragment_get':'cp_subsys_get',
-    'fragment_set':'cp_subsys_set',
-    'qs_geoopt':'geo_opt',
-    'qs_md':'md_run',
-    'md_qs_energies':'md_energies',
+    'routine_name':'routineN',
+    'module_name':'moduleN'
     }
-
 specialRepl=None
-# { re.compile(r"%fragment",flags=re.IGNORECASE):r"%subsys" }
+# { re.compile(r"(.*:: *moduleN) *= *(['\"])[a-zA-Z_0-9]+\2",flags=re.IGNORECASE):r"character(len=*), parameter :: moduleN = '__MODULE_NAME__'" }
 
 def replaceWords(infile,outfile,replacements=repl,
                  specialReplacements=specialRepl,
@@ -32,6 +20,7 @@ def replaceWords(infile,outfile,replacements=repl,
     """
     lineNr=0
     nonWordRe=re.compile(r"(\W+)")
+    
     while 1:
         line= infile.readline()
         lineNr=lineNr+1
