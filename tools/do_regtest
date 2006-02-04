@@ -74,12 +74,14 @@
 # - cp2k_version: sopt,sdbg,popt....
 # - dir_triplet: the result of tools/get_arch_name, where the executable can be found 
 # - cp2k_dir: normally cp2k
+# - maxtasks: how many instances of cp2k should run simultaneously (~> #CPUs)
 #
 export FORT_C_NAME=g95
-dir_base=/data1/vondele/rt/g95
+dir_base=/users/vondele/clean
 cp2k_version=sdbg
-dir_triplet=Linux-i686-g95
+dir_triplet=Linux-x86-64-g95
 cp2k_dir=cp2k
+maxtasks=2
 
 #
 # The following variables typically need no changes on Linux machine, but might need changes on
@@ -346,8 +348,6 @@ done
 # *** files are run in order so that they can e.g. restart
 #
 ###################################################################################
-out_runtime_errors=""
-out_wrong_results=""
 n_runtime_error=0
 n_wrong_results=0
 n_correct=0
@@ -380,8 +380,23 @@ dirs=$new_dirs
 #
 # execute all regtests
 #
+cd ${dir_base}
+rm -f REGTEST_RUNNING-* REGTEST_TASK_RESULT-* REGTEST_TASK_TESTS-*
+
 for dir in ${dirs};
 do
+ #
+ # tests in different dirs can run in parallel. We spawn processes up to a given maximum
+ #
+ task=${dir//\//-}
+ (
+  touch ${dir_base}/REGTEST_RUNNING-$task
+  n_runtime_error=0
+  n_wrong_results=0
+  n_correct=0
+  n_tests=0
+  n_new=0
+
   cd ${dir_base}/${cp2k_dir}/tests/${dir}
   mkdir -p ${dir_out}/${dir}
   mkdir -p ${dir_last}/${dir}
@@ -403,7 +418,8 @@ do
   #
   # run the tests now
   #
-  echo "Running tests in ${dir_base}/${cp2k_dir}/tests/${dir}"
+  echo "Starting tests in ${dir_base}/${cp2k_dir}/tests/${dir}"
+  echo ">>>>>>>>>>>>>>>>> ${dir_base}/${cp2k_dir}/tests/${dir}" > ${dir_base}/REGTEST_TASK_TESTS-$task
   ntest=`grep -v "#" TEST_FILES | ${awk} '{c=c+1}END{print c}'`
   for ((itest=1;itest<=ntest;itest++));
   do
@@ -414,8 +430,7 @@ do
      test_types=`grep -v "#" TEST_FILES | ${awk} -v itest=$itest '{c=c+1;if (c==itest) print $2}'`
      output_file=${dir_out}/${dir}/${input_file}.out
      output_last=${dir_last}/${dir}/${input_file}.out
-     ${cp2k_prefix} ${input_file} ${cp2k_postfix} &> ${output_file}
-
+     ( ulimit -t 300 -v 2000000 ; ${cp2k_prefix} ${input_file} ${cp2k_postfix} &> ${output_file} )
      # *** cp2k failed obviously
      if (( $? )); then
         echo "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" >> ${error_description_file}
@@ -470,9 +485,50 @@ do
         timing=`grep -a "CP2K   " ${output_file} | ${awk} '{printf("%6.2f",$4)}'`
         this_test="${this_test} (${timing} sec)" ;;
      esac
-     printf "%50s %20s\n" "${dir}/${input_file}" "${this_test}"
+     printf "%50s %20s\n" "${dir}/${input_file}" "${this_test}" >> ${dir_base}/REGTEST_TASK_TESTS-$task
   done
+  echo "<<<<<<<<<<<<<<<<< ${dir_base}/${cp2k_dir}/tests/${dir}" >> ${dir_base}/REGTEST_TASK_TESTS-$task
+  echo "${n_runtime_error} ${n_wrong_results} ${n_correct} ${n_new} ${n_tests}" > ${dir_base}/REGTEST_TASK_RESULT-$task
+  cat ${dir_base}/REGTEST_TASK_TESTS-$task
+  rm -f ${dir_base}/REGTEST_TASK_TESTS-$task ${dir_base}/REGTEST_RUNNING-$task
+ )&
+
+ #
+ # here we allow only a given maximum of tasks
+ #
+ runningtasks=10000
+ while (( runningtasks >= maxtasks ))
+ do
+   sleep 1
+   runningtasks=`ls -1 ${dir_base}/REGTEST_RUNNING-* 2> /dev/null | awk 'BEGIN{c=0}{c=c+1}END{print c}'`
+ done
+
 done
+
+#
+# wait for all tasks to finish
+#
+wait
+#
+# generate results
+#
+for dir in ${dirs};
+do
+  task=${dir//\//-}
+  file=${dir_base}/REGTEST_TASK_RESULT-$task
+  tmp=`awk '{print $1}' $file`
+  n_runtime_error=$((n_runtime_error+tmp))
+  tmp=`awk '{print $2}' $file`
+  n_wrong_results=$((n_wrong_results+tmp))
+  tmp=`awk '{print $3}' $file`
+  n_correct=$((n_correct+tmp))
+  tmp=`awk '{print $4}' $file`
+  n_new=$((n_new+tmp))
+  tmp=`awk '{print $5}' $file`
+  n_tests=$((n_tests+tmp))
+  rm -f $file
+done
+
 echo "--------------------------------------------------------------------------"
 cat "${error_description_file}"
 echo "--------------------------------- summary --------------------------------"
