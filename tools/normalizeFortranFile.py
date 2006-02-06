@@ -433,7 +433,7 @@ def cleanDeclarations(routine,logFile=sys.stdout):
         return
     try:
         rest="".join(routine['strippedCore']).lower()
-        nullifys="".join(nullifyRe.findall(rest))
+        nullifys=",".join(nullifyRe.findall(rest))
         rest=nullifyRe.sub("",rest)
         paramDecl=[]
         decls=[]
