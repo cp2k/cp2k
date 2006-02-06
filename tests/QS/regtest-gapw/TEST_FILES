@@ -1,0 +1,27 @@
+# runs are executed in the same order as in this file
+# the second field tells which test should be run in order to compare with the last available output
+# e.g. 0 means do not compare anything, running is enough
+#      1 compares the last total energy in the file
+#      for details see cp2k/tools/do_regtest
+# tests GAPW GTH and ALL
+H2O-gapw-gth.inp   1
+H2O-gapw-all.inp   1
+H2O-gapwxc-gth.inp 1
+# test with presence of soft S
+H2S-gapw.inp       1
+# tests GAPW  6-311++G(3df,3pd)
+HF_gapw_all_LB.inp 1
+# tests GAPW  6-311++G(3df,3pd) and LSD
+OF_gapw_all_lsd_LB.inp 1
+# keep special case alive
+H-gapw-all.inp     1
+# test the full_all with LSD and GAPW
+He2-all.inp        1
+He2-all-md.inp     1
+#XAS
+CO.inp             1
+CO_xastphh.inp     1
+CO_xastpfh.inp     1
+CO_xastpxhh.inp    1
+CO_xastpxfh.inp    1
+CO_xastpval.inp    1

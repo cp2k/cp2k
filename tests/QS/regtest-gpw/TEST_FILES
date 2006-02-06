@@ -5,17 +5,6 @@
 #      for details see cp2k/tools/do_regtest
 Ar.inp             1
 NO2_lsd.inp        1
-H2O.inp            1
-#restart
-H2O-OT-1.inp       1
-#restart
-H2O-OT-2.inp       1
-#restart
-H2O-OT-3.inp       1
-#restart
-H2O-OT-4.inp       1
-# restart, state selective
-H2O-OT-5.inp       1
 #Harris funcional 
 H2O-harris.inp     1
 H2O-MD-harris.inp  1
@@ -25,10 +14,6 @@ SiO2_aux_basis_set.inp 1
 #Force consistency via FDs
 H2O-Harris-Debug-SCF.inp 1
 H2O-Harris-Debug-NoSCF.inp 1
-#HMC
-H2O-OT-HMC-1.inp   1
-H2O-OT-HMC-2.inp   1
-H2O-OT-LDMC-3.inp  1
 #QS
 Ar-2.inp           1
 Ar-3.inp           1
@@ -57,10 +42,6 @@ ZrO.inp            1
 # new xc routines
 Ar-12.inp          1
 Ar-13.inp          1
-# LSD 
-H2-1.inp           1
-H2-2.inp           1
-H2-3.inp           1
 # Metadynamics
 H2O-meta.inp       1
 # tpss
@@ -73,70 +54,17 @@ farming.inp        0
 H2O-5.inp          1
 # the added_MOs keyword
 H2O-6.inp          1
-# more complete OT testing
-Ar-14.inp          1
-Ar-15.inp          1
-Ar-16.inp          1
-Ar-17.inp          1
-Ar-18.inp          1
-Ar-19.inp          1
-Ar-20.inp          1
-Ar-21.inp          1
-# OT and occuation
-H2O-7.inp          1
-H2O-8.inp          1
-H2O-9.inp          1
-H2O-10.inp         1
 # tests BFGS and LBFGS and CG
 H2-geo-1.inp       1
 H2-geo-2.inp       1
 H2-geo-3.inp       1
 H2-geo-4.inp       1
-# tests GAPW GTH and ALL
-H2O-gapw-gth.inp   1
-H2O-gapw-all.inp   1
-H2O-gapwxc-gth.inp 1
-# test with presence of soft S
-H2S-gapw.inp       1
-# tests GAPW  6-311++G(3df,3pd)
-HF_gapw_all_LB.inp 1
-# tests GAPW  6-311++G(3df,3pd) and LSD
-OF_gapw_all_lsd_LB.inp 1
 # some problems with CU
 Cu.inp             1
-# some tests of restricted
-N3-1.inp           1
-N3-2.inp           1
-# some tests of SIC needs restarting from N3-1 for stability
-N3-1.inp           1
-N3-3.inp           1
-N3-1.inp           1
-N3-4.inp           1
-N3-1.inp           1
-N3-5.inp           1
-N3-1.inp           1
-N3-6.inp           1
-N3-1.inp           1
-N3-7.inp           1
-N3-1.inp           1
-N3-8.inp           1
-N3-1.inp           1
-N3-9.inp           1
-N3-1.inp           1
-N3-10.inp          1
-# further sics
-H2O-sic-ad-1.inp   1
-H2O-sic-ad-2.inp   1
-# running H LSD
-H-1.inp            1
-H-2.inp            1
 # test derivatives and keywords
 H2O-debug-1.inp    1
 H2O-debug-2.inp    1
 H2O-debug-3.inp    1
-# test mulliken constraints
-C2H4-init.inp      1
-C2H4.inp           1
 # Martyna-Tuckerman 3D
 H+.inp             1
 H+.TI.inp          1
@@ -157,18 +85,6 @@ rsgrid-dist-1.inp  1
 # Langevin dynamics
 H2O-langevin-1.inp 1
 H2O-langevin-2.inp 1
-# keep special case alive
-H-gapw-all.inp     1
-# test the full_all with LSD and GAPW
-He2-all.inp        1
-He2-all-md.inp     1
-#XAS
-CO.inp             1
-CO_xastphh.inp     1
-CO_xastpfh.inp     1
-CO_xastpxhh.inp    1
-CO_xastpxfh.inp    1
-CO_xastpval.inp    1
 #Ref grid
 H2O-ref-1.inp      1
 H2O-ref-2.inp      1
