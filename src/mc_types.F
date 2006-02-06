@@ -21,21 +21,23 @@
 !******************************************************************************
 
 MODULE mc_types
+  USE cell_types,                      ONLY: cell_type,&
+                                             get_cell
   USE convert_units,                   ONLY: convert_to_cp2k_units
   USE fist_environment_types,          ONLY: fist_environment_type,&
                                              get_fist_env
-  USE fist_nonbond_env_types,          ONLY: fist_nonbond_env_type,&
-                                             fist_nonbond_env_get
+  USE fist_nonbond_env_types,          ONLY: fist_nonbond_env_get,&
+                                             fist_nonbond_env_type
   USE force_env_types,                 ONLY: force_env_get,&
                                              force_env_type
   USE global_types,                    ONLY: global_environment_type
+  USE input_constants,                 ONLY: do_fist,&
+                                             do_kg,&
+                                             do_qs
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type,&
-                                             section_vals_val_set,&
-                                             section_vals_val_get
-  USE input_constants,                 ONLY: do_qs,&
-                                             do_fist,&
-                                             do_kg
+                                             section_vals_val_get,&
+                                             section_vals_val_set
   USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: pi
   USE molecule_kind_types,             ONLY: get_molecule_kind,&
@@ -44,8 +46,6 @@ MODULE mc_types
   USE physcon,                         ONLY: angstrom,&
                                              boltzmann,&
                                              joule
-  USE cell_types,                 ONLY: cell_type,&
-                                             get_cell
   USE string_utilities,                ONLY: xstring
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -55,8 +55,6 @@ MODULE mc_types
 
   PRIVATE 
 ! *** Global parameters ***
-
-  CHARACTER(LEN=*), PARAMETER :: module_name = "mc_types"
 
  PUBLIC :: mc_simulation_parameters_type,&
             mc_simulation_parameters_p_type,&
@@ -103,7 +101,7 @@ MODULE mc_types
       CHARACTER ( LEN = 40 ) :: data_file
       CHARACTER ( LEN = 200 ) :: box2_file
       CHARACTER ( LEN = 200 ) :: fft_lib
-      CHARACTER ( LEN = 50 ) :: program
+      CHARACTER ( LEN = 50 ) :: PROGRAM
       REAL ( dp ) :: discrete_step
       REAL ( dp ) :: rmvolume
       REAL ( dp ) :: rmbond
@@ -165,7 +163,7 @@ MODULE mc_types
       TYPE ( accattempt ), POINTER :: avbmc_outout
       TYPE ( accattempt ), POINTER :: Quickstep
       REAL(KIND = dp) :: bias_energy,trans_dis,qtrans_dis
-      integer :: empty,grown,empty_conf,empty_avbmc
+      INTEGER :: empty,grown,empty_conf,empty_avbmc
   END TYPE mc_moves_type
 
   TYPE accattempt
@@ -179,7 +177,7 @@ MODULE mc_types
   END TYPE mc_moves_p_type
 
 ! *** Global parameters ***
-  CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='mc_types'
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'mc_types'
 
 CONTAINS
 !****************************************************************************
@@ -188,7 +186,7 @@ CONTAINS
        nunits,nunits_tot,nmoves,nvolmoves,nswapmoves,rm,cl,diff,nstart,&
        source,group,lbias,ionode,lrestart,lstop,rmvolume,rmbond,rmangle,&
        rmrot,rmtrans,temp,pressure,BETA,pmswap,pmvolume,pmtraion,pmtrans,&
-       ensemble,program,restart_file_name,molecules_file,moves_file,coords_file,&
+       ensemble,PROGRAM,restart_file_name,molecules_file,moves_file,coords_file,&
        energy_file,displacement_file,cell_file,dat_file,data_file,box2_file,&
        cutoff,inner_cutoff,fft_lib,iprint,rcut,ldiscrete,discrete_step,&
        conf_prob,pmavbmc,pbias,avbmc_atom,avbmc_rmin,avbmc_rmax,rmdihedral)
@@ -212,28 +210,33 @@ CONTAINS
 !!
 !!*****************************************************************************
 
-    TYPE(mc_simulation_parameters_type), POINTER       :: mc_par
-    INTEGER,INTENT(OUT),OPTIONAL :: nstep,iuptrans,iupvolume,nchain,nunits,&
-      nunits_tot,nmoves,nvolmoves,nswapmoves,rm,cl,diff,nstart,source,&
-      group,iprint,avbmc_atom
+    TYPE(mc_simulation_parameters_type), &
+      POINTER                                :: mc_par
+    INTEGER, INTENT(OUT), OPTIONAL :: nstep, iuptrans, iupvolume, nchain, &
+      nunits, nunits_tot, nmoves, nvolmoves, nswapmoves, rm, cl, diff, &
+      nstart, source, group
+    LOGICAL, INTENT(OUT), OPTIONAL           :: lbias, ionode, lrestart, lstop
+    REAL(KIND=dp), INTENT(OUT), OPTIONAL :: rmvolume, rmbond, rmangle, rmrot, &
+      rmtrans, temp, pressure, BETA, pmswap, pmvolume, pmtraion, pmtrans
+    CHARACTER(LEN=*), INTENT(OUT), OPTIONAL :: ensemble, PROGRAM, &
+      restart_file_name, molecules_file, moves_file, coords_file, &
+      energy_file, displacement_file, cell_file, dat_file, data_file, &
+      box2_file
+    REAL(KIND=dp), INTENT(OUT), OPTIONAL     :: cutoff, inner_cutoff
+    CHARACTER(LEN=*), INTENT(OUT), OPTIONAL  :: fft_lib
+    INTEGER, INTENT(OUT), OPTIONAL           :: iprint
+    REAL(KIND=dp), INTENT(OUT), OPTIONAL     :: rcut
+    LOGICAL, INTENT(OUT), OPTIONAL           :: ldiscrete
+    REAL(KIND=dp), INTENT(OUT), OPTIONAL     :: discrete_step
+    REAL(KIND=dp), DIMENSION(1:3), &
+      INTENT(OUT), OPTIONAL                  :: conf_prob
+    REAL(KIND=dp), INTENT(OUT), OPTIONAL     :: pmavbmc, pbias
+    INTEGER, INTENT(OUT), OPTIONAL           :: avbmc_atom
+    REAL(KIND=dp), INTENT(OUT), OPTIONAL     :: avbmc_rmin, avbmc_rmax, &
+                                                rmdihedral
 
-    LOGICAL,INTENT(OUT),OPTIONAL     :: lbias,ionode,lrestart,lstop,&
-      ldiscrete
-
-    REAL(KIND=dp),INTENT(OUT),OPTIONAL   :: rmvolume,rmbond,rmangle,rmrot,&
-      rmtrans,temp,pressure,BETA,pmswap,pmvolume,pmtraion,pmtrans,cutoff,&
-      inner_cutoff,rcut,discrete_step,pmavbmc,pbias,avbmc_rmin,avbmc_rmax,&
-      rmdihedral
-
-    REAL(KIND=dp),DIMENSION(1:3),INTENT(OUT),OPTIONAL   :: conf_prob
-
-    CHARACTER(LEN=*),INTENT(OUT),OPTIONAL :: ensemble,program,restart_file_name,&
-       molecules_file,moves_file,coords_file,&
-       energy_file,displacement_file,cell_file,dat_file,data_file,box2_file,&
-       fft_lib
-
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "get_mc_par", &
-      routineP = module_name//':'//routine_name
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'get_mc_par', &
+      routineP = moduleN//':'//routineN
 
 !   ---------------------------------------------------------------------------
 
@@ -286,7 +289,7 @@ CONTAINS
     IF ( PRESENT ( pbias) ) pbias = mc_par % pbias
 
     IF ( PRESENT ( ensemble ) ) ensemble = mc_par % ensemble
-    IF ( PRESENT ( program ) ) program = mc_par % program
+    IF ( PRESENT ( PROGRAM ) ) PROGRAM = mc_par % program
     IF ( PRESENT ( restart_file_name ) ) restart_file_name = &
       mc_par % restart_file_name
     IF ( PRESENT ( moves_file ) ) moves_file = mc_par % moves_file
@@ -305,7 +308,7 @@ CONTAINS
   END SUBROUTINE get_mc_par
 
  SUBROUTINE set_mc_par ( mc_par, nchain,nunits,nunits_tot,rm,cl,&
-      diff,nstart,rmvolume,rmbond,rmangle,rmdihedral,rmrot,rmtrans,program,&
+      diff,nstart,rmvolume,rmbond,rmangle,rmdihedral,rmrot,rmtrans,PROGRAM,&
       nmoves,nswapmoves,lstop,temp,pressure,iuptrans,iupvolume,&
       pmswap,pmvolume,pmtraion,pmtrans,BETA,rcut,iprint,lbias,nstep,&
       lrestart,ldiscrete,discrete_step,pmavbmc)
@@ -329,23 +332,29 @@ CONTAINS
 !!
 !!*****************************************************************************
 
-    TYPE(mc_simulation_parameters_type), POINTER       :: mc_par
-    INTEGER,INTENT(IN),OPTIONAL :: nchain,nunits,nmoves,nswapmoves,&
-      nunits_tot,rm,cl,diff,nstart,iprint,nstep,iuptrans,iupvolume
+    TYPE(mc_simulation_parameters_type), &
+      POINTER                                :: mc_par
+    INTEGER, INTENT(IN), OPTIONAL            :: nchain, nunits, nunits_tot, &
+                                                rm, cl, diff, nstart
+    REAL(KIND=dp), INTENT(IN), OPTIONAL      :: rmvolume, rmbond, rmangle, &
+                                                rmdihedral, rmrot, rmtrans
+    CHARACTER(LEN=*), INTENT(IN), OPTIONAL   :: PROGRAM
+    INTEGER, INTENT(IN), OPTIONAL            :: nmoves, nswapmoves
+    LOGICAL, INTENT(IN), OPTIONAL            :: lstop
+    REAL(KIND=dp), INTENT(IN), OPTIONAL      :: temp, pressure
+    INTEGER, INTENT(IN), OPTIONAL            :: iuptrans, iupvolume
+    REAL(KIND=dp), INTENT(IN), OPTIONAL      :: pmswap, pmvolume, pmtraion, &
+                                                pmtrans, BETA, rcut
+    INTEGER, INTENT(IN), OPTIONAL            :: iprint
+    LOGICAL, INTENT(IN), OPTIONAL            :: lbias
+    INTEGER, INTENT(IN), OPTIONAL            :: nstep
+    LOGICAL, INTENT(IN), OPTIONAL            :: lrestart, ldiscrete
+    REAL(KIND=dp), INTENT(IN), OPTIONAL      :: discrete_step, pmavbmc
 
-    REAL(KIND=dp),INTENT(IN),OPTIONAL   :: rmvolume,rmbond,&
-      rmangle,rmrot,rmtrans,BETA,rcut,temp,pressure,pmswap,pmtrans,&
-      pmvolume,pmtraion,discrete_step,pmavbmc,rmdihedral
-
-    LOGICAL,INTENT(IN),OPTIONAL   :: lstop,ldiscrete,lbias,lrestart
-
-    CHARACTER(LEN=*),INTENT(IN),OPTIONAL :: program
-
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "set_mc_par", &
-      routineP = module_name//':'//routine_name
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'set_mc_par', &
+      routineP = moduleN//':'//routineN
 
 !   ---------------------------------------------------------------------------
-
 ! These are the only values that change during the course of the simulation
 ! or are computed outside of this module
 
@@ -386,7 +395,7 @@ CONTAINS
     IF ( PRESENT ( rmrot ) ) mc_par % rmrot = rmrot
     IF ( PRESENT ( rmtrans ) ) mc_par % rmtrans = rmtrans
 
-    IF ( PRESENT ( program ) ) mc_par % program = program
+    IF ( PRESENT ( PROGRAM ) ) mc_par % program = PROGRAM
 
   END SUBROUTINE set_mc_par
 
@@ -475,16 +484,13 @@ SUBROUTINE read_mc_section ( mc_par, globenv,error )
 
     TYPE(mc_simulation_parameters_type), &
       INTENT(OUT)                            :: mc_par
-    TYPE(global_environment_type), &
-      pointer                             :: globenv
-    TYPE(cp_error_type), INTENT(inout)          :: error
+    TYPE(global_environment_type), POINTER   :: globenv
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(LEN=*), PARAMETER      &
-      :: routineN = "read_mc_section"
+    CHARACTER(LEN=*), PARAMETER              :: routineN = 'read_mc_section'
 
+    INTEGER                                  :: handle, ia, ie, iw, stop_num
     TYPE(section_vals_type), POINTER         :: mc_section
-    INTEGER                                  :: handle, ia, ie, &
-                                                iw, stop_num
 
 !------------------------------------------------------------------------------
 ! begin the timing of the subroutine
@@ -786,24 +792,23 @@ SUBROUTINE find_mc_rcut ( mc_par, force_env, lterminate )
 
 
     TYPE(mc_simulation_parameters_type), &
-      INTENT(INOUT)                            :: mc_par
-    TYPE(force_env_type), POINTER              :: force_env
-    LOGICAL,INTENT(OUT)                      :: lterminate
+      INTENT(INOUT)                          :: mc_par
+    TYPE(force_env_type), POINTER            :: force_env
+    LOGICAL, INTENT(OUT)                     :: lterminate
 
-    CHARACTER(LEN=*), PARAMETER      &
-      :: routineN = "find_mc_rcut"
+    CHARACTER(LEN=*), PARAMETER              :: routineN = 'find_mc_rcut'
 
-    TYPE(cp_error_type)                      :: error
-    TYPE(cell_type),POINTER                  :: cell
-    TYPE(pair_potential_pp_type), POINTER    :: potparm
-    TYPE(fist_nonbond_env_type), POINTER     :: fist_nonbond_env
-    TYPE ( fist_environment_type ), &
-      POINTER                                :: fist_env 
-    INTEGER                                  :: itype,jtype
-    REAL(KIND=dp),DIMENSION(1:3)             :: abc
+    INTEGER                                  :: itype, jtype
     REAL(KIND=dp)                            :: rcutsq_max
+    REAL(KIND=dp), DIMENSION(1:3)            :: abc
+    TYPE(cell_type), POINTER                 :: cell
+    TYPE(cp_error_type)                      :: error
+    TYPE(fist_environment_type), POINTER     :: fist_env
+    TYPE(fist_nonbond_env_type), POINTER     :: fist_nonbond_env
+    TYPE(pair_potential_pp_type), POINTER    :: potparm
 
 !------------------------------------------------------------------------------
+
       NULLIFY(cell,potparm,fist_nonbond_env,fist_env)
 
       lterminate=.FALSE.
@@ -860,16 +865,14 @@ SUBROUTINE determine_conf_prob ( mc_par, molecule_kind)
 
 
     TYPE(mc_simulation_parameters_type), &
-      INTENT(INOUT)                            :: mc_par
+      INTENT(INOUT)                          :: mc_par
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
 
-    CHARACTER(LEN=*), PARAMETER      &
-      :: routineN = "determine_conf_prob"
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'determine_conf_prob'
 
-    INTEGER :: nbond,nbend,ntorsion,total
+    INTEGER                                  :: nbend, nbond, ntorsion, total
 
 !------------------------------------------------------------------------------
-
 
       CALL get_molecule_kind(molecule_kind,nbond=nbond,nbend=nbend,&
          ntorsion=ntorsion)
