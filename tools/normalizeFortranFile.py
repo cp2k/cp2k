@@ -193,17 +193,16 @@ def parseRoutine(inFile):
         (jline,comments,lines)=readFortranLine(inFile)
     return routine
 
-def findWord(word,text):
+def findWord(word,text,options=re.IGNORECASE):
     """Returns the position of word in text or -1 if not found.
     A match is valid only if it is a whole word (i.e. findWord('try','retry')
     returns false)"""
-    pos=text.find(word)
-    while((pos>0 and (text[pos-1].isalnum() or
-                      text[pos-1]=='%' or (text[pos-1]=='_'and
-                       (pos==1 or text[pos-2].isalpha())) )) or
-          (pos>=0 and pos+len(word)<len(text) and
-           (text[pos+len(word)].isalnum() or text[pos+len(word)]=='_'))):
-        pos=text.find(word,pos+1)
+    wordRe=re.compile("(?<![a-zA-Z_0-9])"+word+"(?![a-zA-Z_0-9])",options)
+    m=wordRe.search(text)
+    if m:
+        pos=m.span()[0]
+    else:
+        pos=-1
     return pos
 
 def enforceDeclDependecies(declarations):
