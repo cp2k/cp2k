@@ -213,16 +213,8 @@ if __name__ == '__main__':
                 if not os.path.isfile(fileName):
                     print "file",fileName,"does not exists!"
                 else:
-                    try:
-                        prettfyInplace(fileName,bkDir,
-                                       normalize_use=defaultsDict['normalize-use'],
-                                       upcase_keywords=defaultsDict['upcase'],
-                                       interfaces_dir=defaultsDict['interface-dir'],
-                                       replace=defaultsDict['replace'])
-                    except:
-                        import traceback
-                        sys.stdout.write('-'*60+"\n")
-                        traceback.print_exc(file=sys.stdout)
-                        sys.stdout.write('-'*60+"\n")
-                        
-                        sys.stdout.write("Processing file '"+fileName+"'\n")                    
+                    prettfyInplace(fileName,bkDir,
+                                   normalize_use=defaultsDict['normalize-use'],
+                                   upcase_keywords=defaultsDict['upcase'],
+                                   interfaces_dir=defaultsDict['interface-dir'],
+                                   replace=defaultsDict['replace'])
