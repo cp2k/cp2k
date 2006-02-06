@@ -209,12 +209,22 @@ if __name__ == '__main__':
             print "bk-dir must be a directory"
             print usageDesc
         else:
+            failure=0
             for fileName in args:
                 if not os.path.isfile(fileName):
                     print "file",fileName,"does not exists!"
                 else:
-                    prettfyInplace(fileName,bkDir,
+                    try:
+                        prettfyInplace(fileName,bkDir,
                                    normalize_use=defaultsDict['normalize-use'],
                                    upcase_keywords=defaultsDict['upcase'],
                                    interfaces_dir=defaultsDict['interface-dir'],
                                    replace=defaultsDict['replace'])
+                    except:
+                        failure+=1
+                        import traceback
+                        sys.stdout.write('-'*60+"\n")
+                        traceback.print_exc(file=sys.stdout)
+                        sys.stdout.write('-'*60+"\n")
+                        sys.stdout.write("Processing file '"+fileName+"'\n")
+            sys.exit(failure>0)
