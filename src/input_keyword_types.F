@@ -678,6 +678,8 @@ SUBROUTINE keyword_describe(keyword, unit_nr, level,error)
               ELSE
                  WRITE(unit_nr,"(i6,' words are expected')") keyword%n_var
               END IF
+           CASE (lchar_t)
+              WRITE(unit_nr,"('  A string is expected')")
            CASE (enum_t)
               IF (keyword%n_var==-1) THEN
                  WRITE(unit_nr,"('  A list of keywords is expected')")
@@ -834,6 +836,8 @@ SUBROUTINE keyword_describe_html(keyword, unit_nr, error)
                ELSE
                   WRITE(unit_nr,'(a,i6,a)',ADVANCE="NO") 'expects precisely',keyword%n_var,' words'
                END IF
+      CASE (lchar_t)
+               WRITE(unit_nr,'(a)',ADVANCE="NO") 'expects a string'
       CASE (enum_t)
                IF (keyword%n_var==-1) THEN
                   WRITE(unit_nr,'(a)',ADVANCE="NO") 'expects a list of keywords'
@@ -985,6 +989,9 @@ END SUBROUTINE keyword_describe_html
       CASE (char_t)
         WRITE (UNIT=unit_number,FMT="(A)")&
           REPEAT(" ",l1)//"<DATA_TYPE kind=""STRING"">"
+      CASE (lchar_t)
+        WRITE (UNIT=unit_number,FMT="(A)")&
+          REPEAT(" ",l1)//"<DATA_TYPE kind=""LONG_STRING"">"
       CASE (enum_t)
         WRITE (UNIT=unit_number,FMT="(A)")&
           REPEAT(" ",l1)//"<DATA_TYPE kind=""ENUMERATION"">"

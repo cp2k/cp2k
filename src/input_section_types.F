@@ -1799,11 +1799,17 @@ SUBROUTINE section_vals_val_set(section_vals,keyword_name,i_rep_section,&
         CPPrecondition(valSet,cp_failure_level,routineP,error,failure)
         CALL cp_error_init(sub_error,template_error=error,&
              stop_level=cp_fatal_level)
-        CALL val_create(my_val,l_val=l_val,i_val=i_val,r_val=r_val,&
-             c_val=c_val,l_vals_ptr=l_vals_ptr,i_vals_ptr=i_vals_ptr,&
-             r_vals_ptr=r_vals_ptr,&
-             c_vals_ptr=c_vals_ptr,enum=keyword%enum,error=sub_error)
+        IF (keyword%type_of_var==lchar_t) THEN
+           CALL val_create(my_val, lc_val=c_val, lc_vals_ptr=c_vals_ptr,&
+                error=sub_error)
+        ELSE
+           CALL val_create(my_val,l_val=l_val,i_val=i_val,r_val=r_val,&
+                c_val=c_val,l_vals_ptr=l_vals_ptr,i_vals_ptr=i_vals_ptr,&
+                r_vals_ptr=r_vals_ptr,&
+                c_vals_ptr=c_vals_ptr,enum=keyword%enum,error=sub_error)
+        END IF
         CPPostcondition(ASSOCIATED(my_val),cp_failure_level,routineP,sub_error,failure)
+        CPPostcondition(my_val%type_of_var==keyword%type_of_var,cp_failure_level,routineP,error,failure)
         CALL cp_error_propagate_error(sub_error,routineP,&
              "setting value from  keyword "//TRIM(keyword_name(my_index:len_key))//&
              " of section "// TRIM(section%name),error=error,failure=failure)
