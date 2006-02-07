@@ -486,7 +486,7 @@ CONTAINS
              ! "Step Nr.    Time[fs]  Kin.[a.u.]     Temp[K]  Pot.[a.u.]    Cons Qty UsedTime[s]"
              !
              WRITE (ene,"(I8,F12.3,F20.9,F20.9,F20.9,F20.9,F20.9)")&
-                  itimes,t,ekin,temp,epot,cons,used_time
+                  itimes,t*femtoseconds,ekin,temp,epot,cons,used_time
              CALL m_flush(ene)
           END IF
 
