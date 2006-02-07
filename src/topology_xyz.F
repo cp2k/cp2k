@@ -20,39 +20,29 @@ MODULE topology_xyz
 
   USE checkpoint_handler,              ONLY: write_checkpoint_information
   USE convert_units,                   ONLY: convert_to_cp2k_units
-  USE global_types,                    ONLY: global_environment_type
-  USE kinds,                           ONLY: dp,&
-       default_string_length
-  USE memory_utilities,                ONLY: reallocate
-  USE physcon,                         ONLY: bohr
-  USE cp_files,                        ONLY: close_file,&
-       open_file
-  USE string_utilities,                ONLY: uppercase
-  USE termination,                     ONLY: stop_memory,&
-                                             stop_program
-  USE timings,                         ONLY: timeset,&
-       timestop
-  USE topology_types,                  ONLY: topology_parameters_type,&
-       atom_info_type
-  USE cp_parser,                       ONLY: parser_release,&
-                                             parser_get_object,&
-                                             parser_search_string,&
+  USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
+                                             cp_print_key_unit_nr
+  USE cp_parser,                       ONLY: cp_parser_type,&
                                              parser_create,&
-                                             parser_test_next_token,&
-                                             cp_parser_type,&
-                                             parser_get_next_line
-  USE cp_output_handling,              ONLY: cp_print_key_unit_nr, &
-                                             cp_print_key_finished_output  
+                                             parser_get_next_line,&
+                                             parser_get_object,&
+                                             parser_release
+  USE global_types,                    ONLY: global_environment_type
   USE input_section_types,             ONLY: section_vals_type
-
-  
-
+  USE kinds,                           ONLY: default_string_length,&
+                                             dp
+  USE memory_utilities,                ONLY: reallocate
+  USE string_utilities,                ONLY: uppercase
+  USE termination,                     ONLY: stop_program
+  USE timings,                         ONLY: timeset,&
+                                             timestop
+  USE topology_types,                  ONLY: atom_info_type,&
+                                             topology_parameters_type
 #include "cp_common_uses.h"  
-
 
   IMPLICIT NONE
 
-  CHARACTER(LEN=*), PARAMETER, PRIVATE :: moduleN = "topology_xyz"
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'topology_xyz'
 
   PRIVATE
   PUBLIC :: read_coordinate_xyz
@@ -82,27 +72,24 @@ CONTAINS
   !     Each atom is designated by the atomic number and then the x, y, and z coordinate value.
   !     Separate each value by at least 1 space; there is no strict format for these lines.
   SUBROUTINE read_coordinate_xyz (topology,globenv,subsys_section,error)
-    IMPLICIT NONE
-    ! Arguments
-    TYPE(topology_parameters_type)              :: topology
+    TYPE(topology_parameters_type)           :: topology
     TYPE(global_environment_type), &
-         pointer, OPTIONAL                   :: globenv
-    TYPE(section_vals_type), POINTER :: subsys_section
-
+      OPTIONAL, POINTER                      :: globenv
+    TYPE(section_vals_type), POINTER         :: subsys_section
     TYPE(cp_error_type), INTENT(inout), &
-         OPTIONAL                               :: error
-    ! Local Variables
-    TYPE (atom_info_type),POINTER               :: atom_info
-    CHARACTER(len=*), PARAMETER :: routineN = 'read_coordinate_xyz', &
-         routineP = moduleN//':'//routineN
-    INTEGER, PARAMETER                          :: nblock_atom = 1000
+      OPTIONAL                               :: error
 
-    CHARACTER(LEN=default_string_length)        :: root_mol_name
-    INTEGER                                     :: handle, iw, natom, i, j, inum_mol
-    INTEGER                                     :: frame
-    LOGICAL                                     ::  my_end
-    TYPE(cp_parser_type), POINTER               :: parser    
+    CHARACTER(len=*), PARAMETER :: routineN = 'read_coordinate_xyz', &
+      routineP = moduleN//':'//routineN
+    INTEGER, PARAMETER                       :: nblock_atom = 1000
+
+    CHARACTER(LEN=default_string_length)     :: root_mol_name
+    INTEGER                                  :: frame, handle, i, inum_mol, &
+                                                iw, j, natom
+    LOGICAL                                  :: my_end
+    TYPE(atom_info_type), POINTER            :: atom_info
     TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(cp_parser_type), POINTER            :: parser
 
     NULLIFY(parser, logger)
     logger => cp_error_get_logger(error)

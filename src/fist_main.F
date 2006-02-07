@@ -29,9 +29,9 @@ MODULE fist_main
   USE force_env_types,                 ONLY: force_env_type
   USE global_types,                    ONLY: global_environment_type
   USE kinds,                           ONLY: dp
+  USE qmmm_types,                      ONLY: qmmm_env_mm_type
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE qmmm_types,                      ONLY: qmmm_env_mm_type
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -40,7 +40,7 @@ MODULE fist_main
 
 ! *** Global parameters ***
 
-  CHARACTER(LEN=*), PARAMETER :: moduleN = "fist_main"
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'fist_main'
 
 ! *** Global variables ***
 
@@ -86,16 +86,17 @@ SUBROUTINE fist_create_force_env ( force_env, globenv, qmmm, qmmm_env, error )
 ! Argument
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(global_environment_type), POINTER   :: globenv
+    LOGICAL, OPTIONAL                        :: qmmm
+    TYPE(qmmm_env_mm_type), OPTIONAL, &
+      POINTER                                :: qmmm_env
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
-    LOGICAL, OPTIONAL                        :: qmmm
-    TYPE(qmmm_env_mm_type), POINTER, optional :: qmmm_env
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = "fist_create_force_env", &
-      routineP = moduleN//":"//routineN
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'fist_create_force_env', &
+      routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: myqmmm
     INTEGER                                  :: handle
+    LOGICAL                                  :: myqmmm
     TYPE(fist_environment_type), POINTER     :: fist_env
 
 !------------------------------------------------------------------------------

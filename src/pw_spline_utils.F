@@ -28,49 +28,46 @@
 !!   SOURCE
 !****************************************************************************
 MODULE pw_spline_utils
-  USE cp_files,                        ONLY: open_file,close_file
+  USE cell_types,                      ONLY: cell_type
+  USE cp_output_handling,              ONLY: cp_add_iter_level,&
+                                             cp_iterate,&
+                                             cp_print_key_should_output,&
+                                             cp_rm_iter_level
+  USE input_constants,                 ONLY: no_precond,&
+                                             precond_spl3_1,&
+                                             precond_spl3_2,&
+                                             precond_spl3_3,&
+                                             precond_spl3_aint,&
+                                             precond_spl3_aint2,&
+                                             spline3_nopbc_interp,&
+                                             spline3_pbc_interp
+  USE input_section_types,             ONLY: section_vals_get_subs_vals,&
+                                             section_vals_type,&
+                                             section_vals_val_get
   USE kinds,                           ONLY: dp
-  USE machine, only: m_flush
   USE mathconstants,                   ONLY: twopi
-  USE message_passing,                 ONLY: mp_sendrecv, mp_isend,mp_irecv,&
-       mp_waitall, mp_alltoall, mp_sync, mp_comm_compare
+  USE message_passing,                 ONLY: mp_alltoall,&
+                                             mp_comm_compare,&
+                                             mp_sendrecv
   USE pw_grid_types,                   ONLY: FULLSPACE
-  USE pw_types,                        ONLY: COMPLEXDATA1D,&
-                                             REALDATA3D,&
-                                             REALSPACE,&
-                                             RECIPROCALSPACE,&
-                                             pw_p_type,&
-                                             pw_type,&
-                                             pw_prolongate_l,&
-                                             pw_zero,&
-                                             pw_transfer,&
-                                             pw_sumup,&
-                                             pw_copy,&
-                                             pw_compare_debug,&
-                                             pw_create, pw_release,&
-                                             pw_integral_ab, pw_integral_aa, SQUARE
-  USE pw_pool_types, ONLY: pw_pool_type, pw_pool_create_pw,&
-       pw_pool_give_back_pw, pw_pool_retain, pw_pool_release
-  USE cell_types,                 ONLY: cell_type
+  USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
+                                             pw_pool_give_back_pw,&
+                                             pw_pool_release,&
+                                             pw_pool_retain,&
+                                             pw_pool_type
+  USE pw_types,                        ONLY: &
+       COMPLEXDATA1D, REALDATA3D, REALSPACE, RECIPROCALSPACE, SQUARE, &
+       pw_copy, pw_integral_aa, pw_integral_ab, pw_p_type, pw_sumup, pw_type, &
+       pw_zero
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE realspace_grid_types,            ONLY: rs_pw_to_cube
-  USE input_section_types, ONLY: section_vals_type, section_vals_get_subs_vals,&
-       section_vals_val_get
-  USE input_keyword_types, only: keyword_type
-  USE input_constants, ONLY: spline3_nopbc_interp, spline3_pbc_interp
-  USE cp_output_handling, ONLY: cp_print_key_should_output, cp_iter_string,&
-       cp_iterate, cp_add_iter_level, cp_rm_iter_level
-  USE string_utilities, ONLY: compress
-  USE input_constants, ONLY: no_precond,precond_spl3_aint, precond_spl3_1,&
-       precond_spl3_aint2, precond_spl3_2, precond_spl3_3
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
   PRIVATE
 
   LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
-  CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='pw_spline_utils'
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'pw_spline_utils'
 
     REAL ( KIND = dp ), PUBLIC, PARAMETER, DIMENSION(4) :: nn10_coeffs=&
          (/ 125._dp/216._dp, 25._dp/432._dp, 5._dp/864._dp, 1._dp/1728._dp /),&
@@ -146,13 +143,13 @@ MODULE pw_spline_utils
   !!
   !!   SOURCE
   !***************************************************************************
-  type pw_spline_precond_type
+  TYPE pw_spline_precond_type
      INTEGER :: ref_count,id_nr, kind
      REAL(kind=dp), DIMENSION(4) :: coeffs
      REAL(kind=dp), DIMENSION(3) :: coeffs_1d
      LOGICAL :: sharpen, normalize, pbc, transpose
-     TYPE(pw_pool_type), pointer :: pool
-  end type pw_spline_precond_type
+     TYPE(pw_pool_type), POINTER :: pool
+  END TYPE pw_spline_precond_type
   !!***
   !****************************************************************************
 
@@ -1195,12 +1192,11 @@ SUBROUTINE pw_compose_stripe(weights,in_val,in_val_first,in_val_last,&
      out_val,n_el)
     REAL(kind=dp), DIMENSION(0:2), &
       INTENT(in)                             :: weights
-    INTEGER                                  :: n_el
-    REAL(kind=dp), DIMENSION(*),&!1:n_el), &
+    REAL(kind=dp), DIMENSION(*), INTENT(in)  :: in_val
+    REAL(kind=dp), INTENT(in)                :: in_val_first, in_val_last
+    REAL(kind=dp), DIMENSION(*), &
       INTENT(inout)                          :: out_val
-    REAL(kind=dp), INTENT(in)                :: in_val_last, in_val_first
-    REAL(kind=dp), DIMENSION(*),&!1:n_el), &
-      INTENT(in)                             :: in_val
+    INTEGER                                  :: n_el
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_compose_stripe', &
       routineP = moduleN//':'//routineN
@@ -1208,6 +1204,9 @@ SUBROUTINE pw_compose_stripe(weights,in_val,in_val_first,in_val_last,&
     INTEGER                                  :: i
     LOGICAL                                  :: failure
     REAL(kind=dp)                            :: v0, v1, v2
+
+!1:n_el), &
+!1:n_el), &
 
   IF (n_el<1) RETURN
   failure=.FALSE.
@@ -1291,17 +1290,18 @@ SUBROUTINE pw_compose_stripe2(weights,in_val,in_val_first,in_val_last,&
      out_val,first_val,last_val,myj,myk,j,k)
     REAL(kind=dp), DIMENSION(0:2), &
       INTENT(in)                             :: weights
-    INTEGER, intent(in)                      :: first_val,last_val,j,k,myj,myk
-    REAL(kind=dp), DIMENSION(:,:,:), &
-      pointer                          :: out_val
-    REAL(kind=dp), INTENT(in)                :: in_val_last, in_val_first
-    REAL(kind=dp), DIMENSION(:,:,:), &
-      pointer                             :: in_val
+    REAL(kind=dp), DIMENSION(:, :, :), &
+      POINTER                                :: in_val
+    REAL(kind=dp), INTENT(in)                :: in_val_first, in_val_last
+    REAL(kind=dp), DIMENSION(:, :, :), &
+      POINTER                                :: out_val
+    INTEGER, INTENT(in)                      :: first_val, last_val, myj, &
+                                                myk, j, k
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'pw_compose_stripe', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'pw_compose_stripe2', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i,n_el
+    INTEGER                                  :: i, n_el
     LOGICAL                                  :: failure
     REAL(kind=dp)                            :: v0, v1, v2
 
@@ -1414,29 +1414,29 @@ END SUBROUTINE pw_compose_stripe2
 !!
 !!*** **********************************************************************
 SUBROUTINE pw_nn_compose_r_work(weights,in_val,out_val,pw_in,bo,error)
-  REAL(kind=dp), DIMENSION(0:2, 0:2, 0:2)  :: weights
-  INTEGER, DIMENSION(2, 3)                 :: bo
-  TYPE(pw_type), POINTER                   :: pw_in
-  REAL(kind=dp), DIMENSION(bo(1, 1):bo(2, &
-       1), bo(1, 2):bo(2, 2), bo(1, 3):bo(2, &
-       3)), INTENT(inout)                     :: out_val
-  REAL(kind=dp), DIMENSION(bo(1, 1):bo(2, &
-       1), bo(1, 2):bo(2, 2), bo(1, 3):bo(2, &
-       3)), INTENT(in)                        :: in_val
-  TYPE(cp_error_type), INTENT(inout), &
-       OPTIONAL                               :: error
+    REAL(kind=dp), DIMENSION(0:2, 0:2, 0:2)  :: weights
+    INTEGER, DIMENSION(2, 3)                 :: bo
+    TYPE(pw_type), POINTER                   :: pw_in
+    REAL(kind=dp), DIMENSION(bo(1, 1):bo(2, &
+      1), bo(1, 2):bo(2, 2), bo(1, 3):bo(2, &
+      3)), INTENT(inout)                     :: out_val
+    REAL(kind=dp), DIMENSION(bo(1, 1):bo(2, &
+      1), bo(1, 2):bo(2, 2), bo(1, 3):bo(2, &
+      3)), INTENT(in)                        :: in_val
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-  CHARACTER(len=*), PARAMETER :: routineN = "pw_nn_compose_r_work", &
-       routineP = moduleN//":"//routineN
+    CHARACTER(len=*), PARAMETER :: routineN = 'pw_nn_compose_r_work', &
+      routineP = moduleN//':'//routineN
 
-  INTEGER                                  :: i, j, jw, k, kw, myj, myk, &
-       stat
-  INTEGER, DIMENSION(2, 3)                 :: gbo
-  INTEGER, DIMENSION(3)                    :: s
-  LOGICAL                                  :: failure, has_boundary, &
-       yderiv, zderiv
-  REAL(kind=dp)                            :: in_val_f, in_val_l
-  REAL(kind=dp), DIMENSION(:, :), POINTER  :: l_boundary, tmp, u_boundary
+    INTEGER                                  :: i, j, jw, k, kw, myj, myk, &
+                                                stat
+    INTEGER, DIMENSION(2, 3)                 :: gbo
+    INTEGER, DIMENSION(3)                    :: s
+    LOGICAL                                  :: failure, has_boundary, &
+                                                yderiv, zderiv
+    REAL(kind=dp)                            :: in_val_f, in_val_l
+    REAL(kind=dp), DIMENSION(:, :), POINTER  :: l_boundary, tmp, u_boundary
 
   zderiv=ALL(weights(:,:,1)==0.0_dp)
   yderiv=ALL(weights(:,1,:)==0.0_dp)
@@ -1607,7 +1607,7 @@ END SUBROUTINE pw_nn_compose_r
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'pw_nn_smear_g', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'pw_nn_smear_r', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, j, k
@@ -1780,41 +1780,48 @@ END SUBROUTINE pw_nn_compose_r
 !!*** **********************************************************************
   SUBROUTINE add_coarse2fine(coarse_coeffs_pw,fine_values_pw,&
        weights_1d,w_border0,w_border1,pbc,safe_computation,error)
-    TYPE(pw_type), POINTER :: coarse_coeffs_pw, fine_values_pw
-    REAL(kind=dp), DIMENSION(4), INTENT(in) :: weights_1d
-    REAL(kind=dp), intent(in) :: w_border0
-    REAL(kind=dp), DIMENSION(3), INTENT(in) :: w_border1
-    LOGICAL, intent(in) :: pbc
-    LOGICAL, OPTIONAL, intent(in) :: safe_computation
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(pw_type), POINTER                   :: coarse_coeffs_pw, &
+                                                fine_values_pw
+    REAL(kind=dp), DIMENSION(4), INTENT(in)  :: weights_1d
+    REAL(kind=dp), INTENT(in)                :: w_border0
+    REAL(kind=dp), DIMENSION(3), INTENT(in)  :: w_border1
+    LOGICAL, INTENT(in)                      :: pbc
+    LOGICAL, INTENT(in), OPTIONAL            :: safe_computation
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    LOGICAL :: failure, is_split, has_i_ubound, has_i_lbound, safe_calc
-    CHARACTER(len=*), PARAMETER :: routineN='add_coarse2fine',&
-         routineP=moduleN//':'//routineN
-    INTEGER :: i,j,k,fi,fj,fk,ii,ij,ik,rest_b,s(3), reqs(3), nReq, f_shift(3)
-    INTEGER :: rcv_tot_size, ip, send_tot_size, x, xx, x_att, p, p_old, p_lb,&
-         p_ub, fi_lb, fi_ub,  n_procs, coarse_slice_size, stat, ss, sf,handle,&
-         handle2,my_lb,my_ub,shift
-    REAL(kind=dp) :: wk,wj,wi,v0,v1,v2,v3
-    REAL(kind=dp),DIMENSION(3) :: ww0, w_0
-    REAL(kind=dp),DIMENSION(4) :: ww1, w_1
-    INTEGER, DIMENSION(2,3) :: coarse_bo,coarse_gbo,fine_bo,fine_gbo, my_coarse_bo
-    INTEGER, DIMENSION(:), POINTER :: pos_of_x
-    INTEGER, DIMENSION(:), ALLOCATABLE :: send_size, send_offset, rcv_size,&
-         rcv_offset, sent_size, real_rcv_size
-    REAL(kind=dp), DIMENSION(:), ALLOCATABLE :: send_buf, rcv_buf
-    REAL(kind=dp), DIMENSION(:,:,:), POINTER :: coarse_coeffs, fine_values
-    REAL(kind=dp), DIMENSION(:,:), POINTER :: u_boundary1,u_boundary2,&
-         l_boundary1, l_boundary2, tmp1,tmp2
+    CHARACTER(len=*), PARAMETER :: routineN = 'add_coarse2fine', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER :: coarse_slice_size, f_shift(3), fi, fi_lb, fi_ub, fj, fk, &
+      handle, handle2, i, ii, ij, ik, ip, j, k, my_lb, my_ub, n_procs, p, &
+      p_lb, p_old, p_ub, rcv_tot_size, rest_b, s(3), send_tot_size, sf, &
+      shift, ss, stat, x, x_att, xx
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: rcv_offset, rcv_size, &
+                                                real_rcv_size, send_offset, &
+                                                send_size, sent_size
+    INTEGER, DIMENSION(2, 3)                 :: coarse_bo, coarse_gbo, &
+                                                fine_bo, fine_gbo, &
+                                                my_coarse_bo
+    INTEGER, DIMENSION(:), POINTER           :: pos_of_x
+    LOGICAL                                  :: failure, has_i_lbound, &
+                                                has_i_ubound, is_split, &
+                                                safe_calc
+    REAL(kind=dp)                            :: v0, v1, v2, v3, wi, wj, wk
+    REAL(kind=dp), ALLOCATABLE, DIMENSION(:) :: rcv_buf, send_buf
+    REAL(kind=dp), DIMENSION(3)              :: w_0, ww0
+    REAL(kind=dp), DIMENSION(4)              :: w_1, ww1
+    REAL(kind=dp), DIMENSION(:, :, :), &
+      POINTER                                :: coarse_coeffs, fine_values
 
     CALL timeset(routineN,"I","",handle)
 !    CALL timeset(routineN//"_pre","I","",handle2)
     failure=.FALSE.
-    safe_calc=.false.
-    if (present(safe_computation)) safe_calc=safe_computation
+    safe_calc=.FALSE.
+    IF (PRESENT(safe_computation)) safe_calc=safe_computation
     CALL mp_comm_compare(coarse_coeffs_pw%pw_grid%para%group,&
          fine_values_pw%pw_grid%para%group,ii)
-    IF (ii>1) then
+    IF (ii>1) THEN
        CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
     END IF
     IF (.NOT. failure) THEN
@@ -2064,7 +2071,7 @@ END SUBROUTINE pw_nn_compose_r
           CALL mp_alltoall(send_size,real_rcv_size,1,coarse_coeffs_pw%pw_grid%para%group)
           CPAssert(ALL(real_rcv_size==rcv_size),cp_failure_level,routineP,error,failure)
           ! all2all
-          call mp_alltoall( sb=send_buf, scount=send_size, sdispl=send_offset,&
+          CALL mp_alltoall( sb=send_buf, scount=send_size, sdispl=send_offset,&
                rb=rcv_buf, rcount=rcv_size, rdispl=rcv_offset, &
                group=coarse_coeffs_pw%pw_grid%para%group )
 
@@ -2312,7 +2319,7 @@ END SUBROUTINE pw_nn_compose_r
                          v2= coarse_coeffs(i+2,j,k)
                          fi=2*i+f_shift(1)+1
                          IF (.NOT.(fi+1==fine_bo(1,1).OR.&
-                              fi+2==fine_bo(1,1))) then
+                              fi+2==fine_bo(1,1))) THEN
                             CALL cp_assert(.FALSE.,cp_failure_level,&
                                  cp_assertion_failed,routineN,&
                                  "unexpected start index "//&
@@ -2330,7 +2337,7 @@ END SUBROUTINE pw_nn_compose_r
                       END IF
 !                      CALL timestop(0._dp,handle2)
 !                      CALL timeset(routineN//"_core","I","",handle2)
-                      DO i=coarse_bo(1,1)+3,floor((fine_bo(2,1)-f_shift(1))/2.)-3,4
+                      DO i=coarse_bo(1,1)+3,FLOOR((fine_bo(2,1)-f_shift(1))/2.)-3,4
                          v3=coarse_coeffs(i,j,k)
                          fi=fi+1
                          fine_values(fi,fj,fk)=fine_values(fi,fj,fk)+&
@@ -2370,9 +2377,9 @@ END SUBROUTINE pw_nn_compose_r
                       END DO
 !                      CALL timestop(0._dp,handle2)
 !                      CALL timeset(routineN//"_clean","I","",handle2)
-                      rest_b=MODULO(floor((fine_bo(2,1)-f_shift(1))/2.)-coarse_bo(1,1)-3+1,4)
+                      rest_b=MODULO(FLOOR((fine_bo(2,1)-f_shift(1))/2.)-coarse_bo(1,1)-3+1,4)
                       IF (rest_b>0) THEN
-                         i=floor((fine_bo(2,1)-f_shift(1))/2.)-rest_b+1
+                         i=FLOOR((fine_bo(2,1)-f_shift(1))/2.)-rest_b+1
                          v3=coarse_coeffs(i,j,k)
                          fi=fi+1
                          fine_values(fi,fj,fk)=fine_values(fi,fj,fk)+&
@@ -2472,7 +2479,7 @@ END SUBROUTINE pw_nn_compose_r
                                fine_values(fi,fj,fk)=fine_values(fi,fj,fk)+&
                                     w_border0*wj*v0
                             END IF
-                         ELSE if (pbc.and..not.is_split) then
+                         ELSE IF (pbc.and..not.is_split) THEN
                             v0=coarse_coeffs(coarse_bo(1,1),j,k)
                             fi=fi+1
                             fine_values(fi,fj,fk)=fine_values(fi,fj,fk)+&
@@ -2507,7 +2514,7 @@ END SUBROUTINE pw_nn_compose_r
                             fine_values(fi,fj,fk)=fine_values(fi,fj,fk)+&
                                  w_border0*wj*v3
                          END IF
-                      ELSE if (pbc.and..not.is_split) then
+                      ELSE IF (pbc.and..not.is_split) THEN
                          v3=coarse_coeffs(coarse_bo(1,1),j,k)
                          fi=fi+1
                          fine_values(fi,fj,fk)=fine_values(fi,fj,fk)+&
@@ -2519,7 +2526,7 @@ END SUBROUTINE pw_nn_compose_r
                          fi=fi+1
                          fine_values(fi,fj,fk)=fine_values(fi,fj,fk)+&
                               ww1(1)*v1+ww1(2)*v2+ww1(3)*v3+ww1(4)*v0
-                      ELSE IF (has_i_ubound) then
+                      ELSE IF (has_i_ubound) THEN
                          v3=coarse_coeffs(i,j,k)
                          fi=fi+1
                          fine_values(fi,fj,fk)=fine_values(fi,fj,fk)+&
@@ -2611,33 +2618,40 @@ END SUBROUTINE pw_nn_compose_r
 !!*** **********************************************************************
   SUBROUTINE add_fine2coarse(fine_values_pw,coarse_coeffs_pw,&
        weights_1d,w_border0,w_border1,pbc,safe_computation,error)
-    TYPE(pw_type), POINTER :: coarse_coeffs_pw, fine_values_pw
-    REAL(kind=dp), DIMENSION(4), INTENT(in) :: weights_1d
-    REAL(kind=dp), intent(in) :: w_border0
-    REAL(kind=dp), DIMENSION(3), INTENT(in) :: w_border1
-    LOGICAL, intent(in) :: pbc
-    LOGICAL, OPTIONAL, intent(in) :: safe_computation
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(pw_type), POINTER                   :: fine_values_pw, &
+                                                coarse_coeffs_pw
+    REAL(kind=dp), DIMENSION(4), INTENT(in)  :: weights_1d
+    REAL(kind=dp), INTENT(in)                :: w_border0
+    REAL(kind=dp), DIMENSION(3), INTENT(in)  :: w_border1
+    LOGICAL, INTENT(in)                      :: pbc
+    LOGICAL, INTENT(in), OPTIONAL            :: safe_computation
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    REAL(kind=dp), DIMENSION(:,:,:), POINTER :: fine_values, coarse_coeffs
     CHARACTER(len=*), PARAMETER :: routineN = 'add_fine2coarse', &
-         routineP = moduleN//':'//routineN
+      routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: fi, fj, fk, i, ij, ik, j, k, &
-         rest_b, ii, s(3), f_shift(3)
-    INTEGER :: rcv_tot_size, ip, send_tot_size, x, xx, x_att, p, p_old, p_lb,&
-         p_ub, fi_lb, fi_ub,  n_procs, coarse_slice_size, stat, ss,&
-         sf,handle,handle2
-    INTEGER, DIMENSION(2,3) :: coarse_bo,coarse_gbo,fine_bo, fine_gbo, my_coarse_bo
-    LOGICAL                                  :: failure, is_split, has_i_ubound, &
-         has_i_lbound, local_data, safe_calc
-    REAL(kind=dp)                            :: vv0, vv1, vv2, vv3,vv4,vv5,vv6,vv7, wj, wk, wi
+    INTEGER :: coarse_slice_size, f_shift(3), fi, fj, fk, handle, handle2, i, &
+      ii, ij, ik, ip, j, k, n_procs, p, p_old, rcv_tot_size, rest_b, s(3), &
+      send_tot_size, ss, stat, x, x_att
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: pp_lb, pp_ub, rcv_offset, &
+                                                rcv_size, real_rcv_size, &
+                                                send_offset, send_size, &
+                                                sent_size
+    INTEGER, DIMENSION(2, 3)                 :: coarse_bo, coarse_gbo, &
+                                                fine_bo, fine_gbo, &
+                                                my_coarse_bo
+    INTEGER, DIMENSION(:), POINTER           :: pos_of_x
+    LOGICAL                                  :: failure, has_i_lbound, &
+                                                has_i_ubound, is_split, &
+                                                local_data, safe_calc
+    REAL(kind=dp)                            :: vv0, vv1, vv2, vv3, vv4, vv5, &
+                                                vv6, vv7, wi, wj, wk
+    REAL(kind=dp), ALLOCATABLE, DIMENSION(:) :: rcv_buf, send_buf
     REAL(kind=dp), DIMENSION(3)              :: w_0, ww0
     REAL(kind=dp), DIMENSION(4)              :: w_1, ww1
-    INTEGER, DIMENSION(:), POINTER :: pos_of_x
-    INTEGER, DIMENSION(:), ALLOCATABLE :: send_size, send_offset, rcv_size,&
-         rcv_offset, sent_size, pp_lb, pp_ub, real_rcv_size
-    REAL(kind=dp), DIMENSION(:), ALLOCATABLE :: send_buf, rcv_buf
+    REAL(kind=dp), DIMENSION(:, :, :), &
+      POINTER                                :: coarse_coeffs, fine_values
 
     failure=.FALSE.
     CALL timeset(routineN,"I","",handle)
@@ -2971,7 +2985,7 @@ END SUBROUTINE pw_nn_compose_r
                                        +ww1(4)*vv4+ww0(3)*vv5+ww1(3)*vv6+ww0(2)*vv7+vv0*ww1(2)
                                   coarse_coeffs(i+3,j,k)=coarse_coeffs(i+3,j,k)&
                                        +ww1(4)*vv6+ww0(3)*vv7+vv0*ww1(3)
-                               ELSEIF (pbc.and..not.is_split) then
+                               ELSEIF (pbc.and..not.is_split) THEN
                                   fi=fi+1
                                   vv0=fine_values(fi,fj,fk)
                                   vv1=fine_values(fine_bo(1,1),fj,fk)
@@ -3203,7 +3217,7 @@ END SUBROUTINE pw_nn_compose_r
              send_offset(ip)=send_tot_size
              send_tot_size=send_tot_size+send_size(ip)
           END DO
-          call cp_assert(send_tot_size==&
+          CALL cp_assert(send_tot_size==&
                (coarse_bo(2,1)-coarse_bo(1,1)+1)*coarse_slice_size,&
                cp_failure_level,cp_assertion_failed,routineP,&
                "Error calculating send_tot_size "//&
@@ -3250,7 +3264,7 @@ END SUBROUTINE pw_nn_compose_r
           DEALLOCATE(coarse_coeffs,stat=stat)
           CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
        ELSE
-          nullify(coarse_coeffs)
+          NULLIFY(coarse_coeffs)
        END IF
 
           CPPostcondition(ALL(sent_size(:n_procs-2)==send_offset(1:)),cp_failure_level,routineP,error,failure)
@@ -3260,7 +3274,7 @@ END SUBROUTINE pw_nn_compose_r
 
           CPAssert(ALL(real_rcv_size==rcv_size),cp_failure_level,routineP,error,failure)
           ! all2all
-          call mp_alltoall( sb=send_buf, scount=send_size, sdispl=send_offset,&
+          CALL mp_alltoall( sb=send_buf, scount=send_size, sdispl=send_offset,&
                rb=rcv_buf, rcount=rcv_size, rdispl=rcv_offset, &
                group=coarse_coeffs_pw%pw_grid%para%group )
 
@@ -3364,18 +3378,20 @@ END SUBROUTINE pw_nn_compose_r
   !!*** **********************************************************************
   SUBROUTINE pw_spline_precond_create(preconditioner,precond_kind,&
        pool,pbc,transpose,error)
-    TYPE(pw_spline_precond_type), pointer :: preconditioner
-    INTEGER, intent(in) :: precond_kind
-    TYPE(pw_pool_type), pointer :: pool
-    LOGICAL, INTENT(in) :: pbc, transpose
-    type(cp_error_type), optional, intent(inout) :: error
+    TYPE(pw_spline_precond_type), POINTER    :: preconditioner
+    INTEGER, INTENT(in)                      :: precond_kind
+    TYPE(pw_pool_type), POINTER              :: pool
+    LOGICAL, INTENT(in)                      :: pbc, transpose
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    logical :: failure
-    character(len=*), parameter :: routineN='pw_spline_precond_create',&
-         routineP=moduleN//':'//routineN
-    integer :: stat
+    CHARACTER(len=*), PARAMETER :: routineN = 'pw_spline_precond_create', &
+      routineP = moduleN//':'//routineN
 
-    failure=.false.
+    INTEGER                                  :: stat
+    LOGICAL                                  :: failure
+
+    failure=.FALSE.
 
     ALLOCATE(preconditioner,stat=stat)
     CPPostcondition(stat==0,cp_fatal_level,routineP,error,failure)
@@ -3416,58 +3432,60 @@ END SUBROUTINE pw_nn_compose_r
   !!*** **********************************************************************
   SUBROUTINE pw_spline_precond_set_kind(preconditioner,precond_kind,pbc,&
        transpose,error)
-    TYPE(pw_spline_precond_type), pointer :: preconditioner
-    INTEGER, intent(in) :: precond_kind
-    LOGICAL, INTENT(in), OPTIONAL :: pbc, transpose
-    type(cp_error_type), optional, intent(inout) :: error
+    TYPE(pw_spline_precond_type), POINTER    :: preconditioner
+    INTEGER, INTENT(in)                      :: precond_kind
+    LOGICAL, INTENT(in), OPTIONAL            :: pbc, transpose
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    LOGICAL :: failure,do_3d_coeff
-    INTEGER :: i,j,k
-    real(kind=dp) :: s
-    character(len=*), parameter :: routineN='pw_spline_precond_set_kind',&
-         routineP=moduleN//':'//routineN
-    failure=.false.
+    CHARACTER(len=*), PARAMETER :: routineN = 'pw_spline_precond_set_kind', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: do_3d_coeff, failure
+    REAL(kind=dp)                            :: s
+
+    failure=.FALSE.
 
     CPPrecondition(ASSOCIATED(preconditioner),cp_failure_level,routineP,error,failure)
     CPPrecondition(preconditioner%ref_count>0,cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
        IF (PRESENT(transpose)) preconditioner%transpose=transpose
-       do_3d_coeff=.false.
+       do_3d_coeff=.FALSE.
        preconditioner%kind=precond_kind
-       if (present(pbc)) preconditioner%pbc=pbc
+       IF (PRESENT(pbc)) preconditioner%pbc=pbc
        SELECT CASE(precond_kind)
        CASE(no_precond)
        CASE (precond_spl3_aint2)
           preconditioner%coeffs_1d=(/ -1.66_dp*0.25_dp,1.66_dp,-1.66_dp*0.25_dp /)
-          preconditioner%sharpen=.false.
-          preconditioner%normalize=.false.
-          do_3d_coeff=.true.
+          preconditioner%sharpen=.FALSE.
+          preconditioner%normalize=.FALSE.
+          do_3d_coeff=.TRUE.
        CASE (precond_spl3_3)
           preconditioner%coeffs_1d(1)=-0.25_dp*1.6_dp
           preconditioner%coeffs_1d(2)=1.6_dp
           preconditioner%coeffs_1d(3)=-0.25_dp*1.6_dp
-          preconditioner%sharpen=.false.
-          preconditioner%normalize=.false.
-          do_3d_coeff=.true.
+          preconditioner%sharpen=.FALSE.
+          preconditioner%normalize=.FALSE.
+          do_3d_coeff=.TRUE.
        CASE (precond_spl3_2)
           preconditioner%coeffs_1d(1)=-0.26_dp*1.76_dp
           preconditioner%coeffs_1d(2)=1.76_dp
           preconditioner%coeffs_1d(3)=-0.26_dp*1.76_dp
-          preconditioner%sharpen=.false.
-          preconditioner%normalize=.false.
-          do_3d_coeff=.true.
+          preconditioner%sharpen=.FALSE.
+          preconditioner%normalize=.FALSE.
+          do_3d_coeff=.TRUE.
        CASE (precond_spl3_aint)
           preconditioner%coeffs_1d=spl3_1d_coeffs0
-          preconditioner%sharpen=.true.
-          preconditioner%normalize=.true.
-          do_3d_coeff=.true.
+          preconditioner%sharpen=.TRUE.
+          preconditioner%normalize=.TRUE.
+          do_3d_coeff=.TRUE.
        CASE (precond_spl3_1)
           preconditioner%coeffs_1d(1)=0.5_dp/3._dp**(1._dp/3._dp)
           preconditioner%coeffs_1d(2)=4._dp/3._dp**(1._dp/3._dp)
           preconditioner%coeffs_1d(3)=0.5_dp/3._dp**(1._dp/3._dp)
-          preconditioner%sharpen=.true.
-          preconditioner%normalize=.false.
-          do_3d_coeff=.true.
+          preconditioner%sharpen=.TRUE.
+          preconditioner%normalize=.FALSE.
+          do_3d_coeff=.TRUE.
        CASE default
           CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
        END SELECT
@@ -3524,20 +3542,22 @@ END SUBROUTINE pw_nn_compose_r
   !!
   !!*** **********************************************************************
   SUBROUTINE pw_spline_precond_retain(preconditioner,error)
-    TYPE(pw_spline_precond_type), pointer :: preconditioner
-    type(cp_error_type), optional, intent(inout) :: error
+    TYPE(pw_spline_precond_type), POINTER    :: preconditioner
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    logical :: failure
-    character(len=*), parameter :: routineN='pw_spline_precond_retain',&
-         routineP=moduleN//':'//routineN
+    CHARACTER(len=*), PARAMETER :: routineN = 'pw_spline_precond_retain', &
+      routineP = moduleN//':'//routineN
 
-    failure=.false.
+    LOGICAL                                  :: failure
+
+    failure=.FALSE.
 
     CPPrecondition(ASSOCIATED(preconditioner),cp_failure_level,routineP,error,failure)
-    if (.not. failure) then
+    IF (.NOT. failure) THEN
        CPPreconditionNoFail(preconditioner%ref_count>1,cp_failure_level,routineP,error)
        preconditioner%ref_count=preconditioner%ref_count+1
-    end if
+    END IF
   END SUBROUTINE pw_spline_precond_retain
   !***************************************************************************
 
@@ -3562,17 +3582,19 @@ END SUBROUTINE pw_nn_compose_r
   !!
   !!*** **********************************************************************
   SUBROUTINE pw_spline_precond_release(preconditioner,error)
-    TYPE(pw_spline_precond_type), pointer :: preconditioner
-    type(cp_error_type), optional, intent(inout) :: error
+    TYPE(pw_spline_precond_type), POINTER    :: preconditioner
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    logical :: failure
-    character(len=*), parameter :: routineN='pw_spline_precond_release',&
-         routineP=moduleN//':'//routineN
-    integer :: stat
+    CHARACTER(len=*), PARAMETER :: routineN = 'pw_spline_precond_release', &
+      routineP = moduleN//':'//routineN
 
-    failure=.false.
+    INTEGER                                  :: stat
+    LOGICAL                                  :: failure
 
-    if (associated(preconditioner)) then
+    failure=.FALSE.
+
+    IF (ASSOCIATED(preconditioner)) THEN
        CPPreconditionNoFail(preconditioner%ref_count>0,cp_failure_level,routineP,error)
        preconditioner%ref_count=preconditioner%ref_count-1
        IF (preconditioner%ref_count==0) THEN
@@ -3580,7 +3602,7 @@ END SUBROUTINE pw_nn_compose_r
           DEALLOCATE(preconditioner,stat=stat)
           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
        END IF
-    end if
+    END IF
   END SUBROUTINE pw_spline_precond_release
   !***************************************************************************
 
@@ -3608,16 +3630,17 @@ END SUBROUTINE pw_nn_compose_r
   !!
   !!*** **********************************************************************
   SUBROUTINE pw_spline_do_precond(preconditioner,in_v,out_v,error)
-    TYPE(pw_spline_precond_type), pointer :: preconditioner
-    TYPE(pw_type), POINTER :: in_v, out_v
-    type(cp_error_type), optional, intent(inout) :: error
+    TYPE(pw_spline_precond_type), POINTER    :: preconditioner
+    TYPE(pw_type), POINTER                   :: in_v, out_v
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    logical :: failure
-    character(len=*), parameter :: routineN='pw_spline_do_precond',&
-         routineP=moduleN//':'//routineN
-    TYPE(pw_type), pointer :: pw_tmp
+    CHARACTER(len=*), PARAMETER :: routineN = 'pw_spline_do_precond', &
+      routineP = moduleN//':'//routineN
 
-    failure=.false.
+    LOGICAL                                  :: failure
+
+    failure=.FALSE.
 
     CPPrecondition(ASSOCIATED(preconditioner),cp_failure_level,routineP,error,failure)
     CPPrecondition(preconditioner%ref_count>0,cp_failure_level,routineP,error,failure)
@@ -3688,36 +3711,41 @@ END SUBROUTINE pw_nn_compose_r
   !!*** **********************************************************************
   FUNCTION find_coeffs(values,coeffs,linOp,preconditioner, pool, &
        eps_r,eps_x,max_iter,print_section,error) RESULT(res)
-    TYPE(pw_type), POINTER :: values,coeffs
-    type(cp_error_type), optional, intent(inout) :: error
-    TYPE(pw_spline_precond_type), pointer :: preconditioner
-    TYPE(pw_pool_type), pointer :: pool
-    INTEGER, intent(in) :: max_iter
-    REAL(kind=dp), INTENT(in) :: eps_r, eps_x
-    TYPE(section_vals_type), POINTER, optional :: print_section
-    logical :: res
+    TYPE(pw_type), POINTER                   :: values, coeffs
     INTERFACE
        SUBROUTINE linOp(pw_in,pw_out,error)
-         USE pw_types, only: pw_type
-         USE cp_error_handling, only: cp_error_type
+         USE pw_types, ONLY: pw_type
+         USE cp_error_handling, ONLY: cp_error_type
          TYPE(pw_type), POINTER :: pw_in,pw_out
-         TYPE(cp_error_type), INTENT(inout), optional :: error
+         TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
        END SUBROUTINE linOp
     END INTERFACE
+    TYPE(pw_spline_precond_type), POINTER    :: preconditioner
+    TYPE(pw_pool_type), POINTER              :: pool
+    REAL(kind=dp), INTENT(in)                :: eps_r, eps_x
+    INTEGER, INTENT(in)                      :: max_iter
+    TYPE(section_vals_type), OPTIONAL, &
+      POINTER                                :: print_section
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+    LOGICAL                                  :: res
 
-    LOGICAL :: failure, last
-    character(len=*), parameter :: routineN='find_coeffs',&
-         routineP=moduleN//':'//routineN
-    TYPE(pw_type), POINTER :: r,z,p,Ap
-    REAL(kind=dp) :: alpha,beta,r_z,r_z_new,eps_x_att,eps_r_att
-    INTEGER :: i,j,k,iter,iiter,n_rlevel
-    INTEGER, DIMENSION(2,3) :: bo
-    TYPE(section_vals_type), pointer :: print_key
-    TYPE(cp_logger_type), pointer :: logger
-    failure=.false.
-    last=.false.
+    CHARACTER(len=*), PARAMETER :: routineN = 'find_coeffs', &
+      routineP = moduleN//':'//routineN
 
-    res=.false.
+    INTEGER                                  :: i, iiter, iter, j, k, n_rlevel
+    INTEGER, DIMENSION(2, 3)                 :: bo
+    LOGICAL                                  :: failure, last
+    REAL(kind=dp)                            :: alpha, beta, eps_r_att, &
+                                                eps_x_att, r_z, r_z_new
+    TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(pw_type), POINTER                   :: Ap, p, r, z
+    TYPE(section_vals_type), POINTER         :: print_key
+
+    failure=.FALSE.
+    last=.FALSE.
+
+    res=.FALSE.
     IF (.NOT. failure) THEN
        logger => cp_error_get_logger(error)
        CALL pw_pool_create_pw(pool,r,use_data=REALDATA3D,in_space=REALSPACE,&
@@ -3729,7 +3757,7 @@ END SUBROUTINE pw_nn_compose_r
        CALL pw_pool_create_pw(pool,Ap,use_data=REALDATA3D,in_space=REALSPACE,&
             error=error)
 
-       nullify(print_key)
+       NULLIFY(print_key)
        IF (PRESENT(print_section)) THEN
           IF (ASSOCIATED(print_section)) THEN
              print_key => section_vals_get_subs_vals(print_section,"conv_info",&
@@ -3748,10 +3776,10 @@ END SUBROUTINE pw_nn_compose_r
           r_z=pw_integral_ab(r,z)
 
           DO iter=iiter,MIN(iiter+9,max_iter)
-             eps_r_att=sqrt(pw_integral_aa(r,SQUARE))
+             eps_r_att=SQRT(pw_integral_aa(r,SQUARE))
              IF (eps_r_att==0._dp) THEN
                 eps_x_att=0._dp
-                last=.true.
+                last=.TRUE.
              ELSE
                 CALL pw_zero(Ap)
                 CALL linOp(pw_in=p,pw_out=Ap,error=error)
@@ -3766,13 +3794,13 @@ END SUBROUTINE pw_nn_compose_r
              IF (cp_print_key_should_output(logger%iter_info,&
                   print_key,error=error)/=0.AND.&
                   logger%para_env%mepos==logger%para_env%source) THEN
-                WRITE (unit=cp_logger_get_default_unit_nr(logger,local=.false.),&
+                WRITE (unit=cp_logger_get_default_unit_nr(logger,local=.FALSE.),&
                      fmt="(i6,' eps_x=',e12.4,' eps_r=',e12.4)")&
                      iter,eps_x_att,eps_r_att
              END IF
              IF (last) THEN
-                res=.true.
-                exit ext_do
+                res=.TRUE.
+                EXIT ext_do
              END IF
 
              CALL pw_sumup(Ap,r,alpha=-alpha)
@@ -3827,27 +3855,27 @@ END SUBROUTINE pw_nn_compose_r
   !!*** **********************************************************************
   SUBROUTINE pw_restrict_s3(pw_fine_in,pw_coarse_out,coarse_pool,param_section,&
        error)
-    TYPE(pw_type), pointer :: pw_fine_in
-    TYPE(pw_type), pointer :: pw_coarse_out
-    TYPE(pw_pool_type), POINTER :: coarse_pool
-    TYPE(section_vals_type), pointer :: param_section
-    type(cp_error_type), optional, intent(inout) :: error
+    TYPE(pw_type), POINTER                   :: pw_fine_in, pw_coarse_out
+    TYPE(pw_pool_type), POINTER              :: coarse_pool
+    TYPE(section_vals_type), POINTER         :: param_section
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    LOGICAL :: failure,safe_computation
-    character(len=*), parameter :: routineN='pw_restrict_s3',&
-         routineP=moduleN//':'//routineN
-    TYPE(pw_type), POINTER :: values,coeffs,tst_pw
-    INTEGER :: i,j,k, max_iter, aint_precond, precond_kind, unit_nr,&
-         interp_kind,handle
-    INTEGER, DIMENSION(2,3) :: bo
-    TYPE(pw_spline_precond_type), pointer :: precond
-    logical :: success
-    REAL(kind=dp) :: eps_r,eps_x, max_diff
-    INTEGER, save :: ifile=0
-    CHARACTER(80) :: filename
-    logical :: pbc
+    CHARACTER(len=*), PARAMETER :: routineN = 'pw_restrict_s3', &
+      routineP = moduleN//':'//routineN
 
-    failure=.false.
+    INTEGER                                  :: aint_precond, handle, i, &
+                                                interp_kind, max_iter, &
+                                                precond_kind
+    INTEGER, DIMENSION(2, 3)                 :: bo
+    INTEGER, SAVE                            :: ifile = 0
+    LOGICAL                                  :: failure, pbc, &
+                                                safe_computation, success
+    REAL(kind=dp)                            :: eps_r, eps_x
+    TYPE(pw_spline_precond_type), POINTER    :: precond
+    TYPE(pw_type), POINTER                   :: coeffs, values
+
+    failure=.FALSE.
     ifile=ifile+1
     CALL timeset(routineN,"I","",handle)
     IF (.NOT. failure) THEN
@@ -3872,7 +3900,7 @@ END SUBROUTINE pw_nn_compose_r
        NULLIFY(values,coeffs)
        CALL pw_pool_create_pw(coarse_pool,values, use_data=REALDATA3D,&
             in_space=REALSPACE,error=error)
-       call pw_zero(values)
+       CALL pw_zero(values)
 
 !FM       nullify(tst_pw)
 !FM       CALL pw_pool_create_pw(coarse_pool,tst_pw, use_data=REALDATA3D,&
@@ -3884,7 +3912,7 @@ END SUBROUTINE pw_nn_compose_r
 !FM            w_border1=spl3_1d_transf_border1/2._dp,pbc=pbc,&
 !FM            safe_computation=.false.,error=error)
 
-       call add_fine2coarse(fine_values_pw=pw_fine_in,&
+       CALL add_fine2coarse(fine_values_pw=pw_fine_in,&
             coarse_coeffs_pw=values,&
             weights_1d=spl3_1d_transf_coeffs/2._dp, w_border0=0.5_dp,&
             w_border1=spl3_1d_transf_border1/2._dp,pbc=pbc,&
@@ -3896,8 +3924,8 @@ END SUBROUTINE pw_nn_compose_r
 
        CALL pw_pool_create_pw(coarse_pool,coeffs, use_data=REALDATA3D,&
             in_space=REALSPACE,error=error)
-       nullify(precond)
-       call pw_spline_precond_create(precond,precond_kind=aint_precond,&
+       NULLIFY(precond)
+       CALL pw_spline_precond_create(precond,precond_kind=aint_precond,&
             pool=coarse_pool,pbc=pbc,transpose=.TRUE.,error=error)
        CALL pw_spline_do_precond(precond,values,coeffs,error=error)
        CALL pw_spline_precond_set_kind(precond,precond_kind,error=error)
@@ -3914,7 +3942,7 @@ END SUBROUTINE pw_nn_compose_r
        END IF
        CALL pw_spline_precond_release(precond,error=error)
 
-       call pw_zero(pw_coarse_out)
+       CALL pw_zero(pw_coarse_out)
        CALL pw_sumup(coeffs,pw_coarse_out)
 
        CALL pw_pool_give_back_pw(coarse_pool,values,error=error)
@@ -3947,26 +3975,27 @@ END SUBROUTINE pw_nn_compose_r
   !!*** **********************************************************************
   SUBROUTINE pw_prolongate_s3(pw_coarse_in,pw_fine_out,coarse_pool,&
        param_section,error)
-    TYPE(pw_type), pointer :: pw_coarse_in
-    TYPE(pw_type), pointer :: pw_fine_out
-    TYPE(pw_pool_type), POINTER :: coarse_pool
-    TYPE(section_vals_type), pointer :: param_section
-    type(cp_error_type), optional, intent(inout) :: error
+    TYPE(pw_type), POINTER                   :: pw_coarse_in, pw_fine_out
+    TYPE(pw_pool_type), POINTER              :: coarse_pool
+    TYPE(section_vals_type), POINTER         :: param_section
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    LOGICAL :: failure, success, safe_computation
-    character(len=*), parameter :: routineN='pw_prolongate_s3',&
-         routineP=moduleN//':'//routineN
-    TYPE(pw_type), POINTER :: coeffs, tst_pw
-    INTEGER :: i,j,k, handle,aint_precond,precond_kind,max_iter,unit_nr, interp_kind
-    INTEGER, DIMENSION(2,3) :: bo
-    REAL(kind=dp) :: eps_x, eps_r, max_diff
-    TYPE(pw_spline_precond_type), pointer :: precond
-    TYPE(section_vals_type), pointer :: print_key
-    INTEGER, save :: ifile=0
-    character(len=80) :: filename
-    logical :: pbc
+    CHARACTER(len=*), PARAMETER :: routineN = 'pw_prolongate_s3', &
+      routineP = moduleN//':'//routineN
 
-    failure=.false.
+    INTEGER                                  :: aint_precond, handle, i, &
+                                                interp_kind, max_iter, &
+                                                precond_kind
+    INTEGER, DIMENSION(2, 3)                 :: bo
+    INTEGER, SAVE                            :: ifile = 0
+    LOGICAL                                  :: failure, pbc, &
+                                                safe_computation, success
+    REAL(kind=dp)                            :: eps_r, eps_x
+    TYPE(pw_spline_precond_type), POINTER    :: precond
+    TYPE(pw_type), POINTER                   :: coeffs
+
+    failure=.FALSE.
 
     ifile=ifile+1
     CALL timeset(routineN,"I","",handle)
@@ -3992,8 +4021,8 @@ END SUBROUTINE pw_nn_compose_r
 
        pbc=(interp_kind==spline3_pbc_interp)
        CPPrecondition(pbc.OR.interp_kind==spline3_nopbc_interp,cp_failure_level,routineP,error,failure)
-       nullify(precond)
-       call pw_spline_precond_create(precond,precond_kind=aint_precond,&
+       NULLIFY(precond)
+       CALL pw_spline_precond_create(precond,precond_kind=aint_precond,&
             pool=coarse_pool,pbc=pbc,transpose=.FALSE.,error=error)
        CALL pw_spline_do_precond(precond,pw_coarse_in,coeffs,error=error)
        CALL pw_spline_precond_set_kind(precond,precond_kind,error=error)
@@ -4068,37 +4097,41 @@ END SUBROUTINE pw_nn_compose_r
        sharpen,normalize,transpose,smooth_boundary,error)
     REAL(kind=dp), DIMENSION(-1:1)           :: weights_1d
     TYPE(pw_type), POINTER                   :: pw_in, pw_out
-    LOGICAL, INTENT(in), OPTIONAL            :: sharpen,normalize,transpose,smooth_boundary
+    LOGICAL, INTENT(in), OPTIONAL            :: sharpen, normalize, &
+                                                transpose, smooth_boundary
     TYPE(cp_error_type), INTENT(inout), &
-         OPTIONAL                            :: error
+      OPTIONAL                               :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = "pw_nn_compose_r_work", &
-         routineP = moduleN//":"//routineN
+    CHARACTER(len=*), PARAMETER :: routineN = 'pw_nn_compose_r_no_pbc', &
+      routineP = moduleN//':'//routineN
+    REAL(kind=dp), PARAMETER                 :: w_border = 0.0_dp
 
-    INTEGER                                  :: i, j, jw, k, kw, myj, myk, &
-         stat,n_els,first_index, last_index
-    INTEGER, DIMENSION(2, 3)                 :: bo,gbo
+    INTEGER                                  :: first_index, i, j, jw, k, kw, &
+                                                last_index, myj, myk, n_els, &
+                                                stat
+    INTEGER, DIMENSION(2, 3)                 :: bo, gbo
     INTEGER, DIMENSION(3)                    :: s
-    LOGICAL                                  :: failure, has_l_boundary, &
-         has_u_boundary,is_split,my_sharpen,my_normalize, my_transpose,my_smooth_boundary
-    REAL(kind=dp)                            :: in_val_f, in_val_l,w_k,w_j, in_val_tmp
+    LOGICAL :: failure, has_l_boundary, has_u_boundary, is_split, &
+      my_normalize, my_sharpen, my_smooth_boundary, my_transpose
+    REAL(kind=dp)                            :: in_val_f, in_val_l, &
+                                                in_val_tmp, w_j, w_k
     REAL(kind=dp), DIMENSION(-1:1)           :: w
     REAL(kind=dp), DIMENSION(:, :), POINTER  :: l_boundary, tmp, u_boundary
-    REAL(kind=dp), DIMENSION(:,:,:), POINTER :: in_val, out_val
-    REAL(kind=dp), parameter :: w_border=0.0_dp
+    REAL(kind=dp), DIMENSION(:, :, :), &
+      POINTER                                :: in_val, out_val
 
     bo=pw_in%pw_grid%bounds_local
     gbo=pw_in%pw_grid%bounds
     in_val => pw_in%cr3d
     out_val => pw_out%cr3d
-    my_sharpen=.false.
-    if (present(sharpen)) my_sharpen=sharpen
-    my_normalize=.false.
-    if (present(normalize)) my_normalize=normalize
+    my_sharpen=.FALSE.
+    IF (PRESENT(sharpen)) my_sharpen=sharpen
+    my_normalize=.FALSE.
+    IF (PRESENT(normalize)) my_normalize=normalize
     my_transpose=.FALSE.
-    if (present(transpose)) my_transpose=transpose
-    my_smooth_boundary=.false.
-    if (present(smooth_boundary)) my_smooth_boundary=smooth_boundary
+    IF (PRESENT(transpose)) my_transpose=transpose
+    my_smooth_boundary=.FALSE.
+    IF (PRESENT(smooth_boundary)) my_smooth_boundary=smooth_boundary
     CPAssert(.not.my_normalize.OR.my_sharpen,cp_failure_level,routineP,error,failure)
     CPAssert(.NOT.my_smooth_boundary.OR..NOT.my_sharpen,cp_failure_level,routineP,error,failure)
     DO i=1,3
@@ -4338,7 +4371,7 @@ END SUBROUTINE pw_nn_compose_r
                    IF (my_transpose) THEN
                       IF (bo(1,1)-1==gbo(1,1)) THEN
                          in_val_f=0._dp
-                      ELSE IF (bo(2,1)+1==gbo(2,1)) then
+                      ELSE IF (bo(2,1)+1==gbo(2,1)) THEN
                          in_val_l=0._dp
                       END IF
                    END IF
@@ -4354,7 +4387,7 @@ END SUBROUTINE pw_nn_compose_r
                    ELSE
                       w=weights_1d*w_j
                    END IF
-                   IF (my_smooth_boundary.AND.(.NOT.my_transpose)) then
+                   IF (my_smooth_boundary.AND.(.NOT.my_transpose)) THEN
                       IF (gbo(1,1)+1>=bo(1,1).AND.&
                            gbo(1,1)+1<=bo(2,1).AND.gbo(2,1)-gbo(1,1)>2) THEN
                          IF (gbo(1,1)>=bo(1,1)) THEN
@@ -4404,13 +4437,14 @@ END SUBROUTINE pw_nn_compose_r
        DEALLOCATE(l_boundary,u_boundary,stat=stat)
        CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
     END IF
-666 continue
+666 CONTINUE
   END SUBROUTINE pw_nn_compose_r_no_pbc
   !***************************************************************************
 
   SUBROUTINE spl3_nopbc(pw_in,pw_out,error)
-    TYPE(pw_type), POINTER :: pw_in, pw_out
-    TYPE(cp_error_type), INTENT(inout), optional :: error
+    TYPE(pw_type), POINTER                   :: pw_in, pw_out
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
     CALL pw_zero(pw_out)
     CALL pw_nn_compose_r_no_pbc(weights_1d=spl3_1d_coeffs0,pw_in=pw_in,&
@@ -4418,8 +4452,9 @@ END SUBROUTINE pw_nn_compose_r
   END SUBROUTINE spl3_nopbc
 
   SUBROUTINE spl3_nopbct(pw_in,pw_out,error)
-    TYPE(pw_type), POINTER :: pw_in, pw_out
-    TYPE(cp_error_type), INTENT(inout), optional :: error
+    TYPE(pw_type), POINTER                   :: pw_in, pw_out
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
     CALL pw_zero(pw_out)
     CALL pw_nn_compose_r_no_pbc(weights_1d=spl3_1d_coeffs0,pw_in=pw_in,&
@@ -4428,8 +4463,9 @@ END SUBROUTINE pw_nn_compose_r
   END SUBROUTINE spl3_nopbct
 
   SUBROUTINE spl3_pbc(pw_in,pw_out,error)
-    TYPE(pw_type), POINTER :: pw_in, pw_out
-    TYPE(cp_error_type), INTENT(inout), optional :: error
+    TYPE(pw_type), POINTER                   :: pw_in, pw_out
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
     CALL pw_zero(pw_out)
     CALL pw_nn_smear_r(pw_in,pw_out,coeffs=spline3_coeffs,&
@@ -4457,27 +4493,29 @@ END SUBROUTINE pw_nn_compose_r
   !!
   !!*** **********************************************************************
   FUNCTION Eval_Interp_Spl3_pbc(vec,pw,error) RESULT(val)
-    IMPLICIT NONE
-    ! Arguments
-    REAL(KIND=dp), DIMENSION(3), INTENT(in)      :: vec
-    TYPE(pw_type), POINTER                       :: pw
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-    REAL(KIND=dp)                                :: val
-    ! Local Variables
-    CHARACTER(len=*), PARAMETER :: routineN='Eval_Interp_Spl3_pbc',&
-         routineP=moduleN//':'//routineN
-    INTEGER       :: ivec(3), npts(3)
-    INTEGER       :: ik1, ik2, ik3, ik4, ij1, ij2, ij3, ij4, ii1, ii2, ii3, ii4
-    REAL(KIND=dp) :: dr1, dr2, dr3, xd1, xd2, xd3
-    REAL(KIND=dp) :: aaa, aba, aca, ada, aab, abb, acb, adb, aac, abc, acc, adc, aad, abd, acd, add   
-    REAL(KIND=dp) :: baa, bba, bca, bda, bab, bbb, bcb, bdb, bac, bbc, bcc, bdc, bad, bbd, bcd, bdd 
-    REAL(KIND=dp) :: caa, cba, cca, cda, cab, cbb, ccb, cdb, cac, cbc, ccc, cdc, cad, cbd, ccd, cdd 
-    REAL(KIND=dp) :: daa, dba, dca, dda, dab, dbb, dcb, ddb, dac, dbc, dcc, ddc, dad, dbd, dcd, ddd 
-    REAL(KIND=dp) :: a1, a2, a3, b1, b2, b3, c1, c2, c3, d1, d2, d3, t1, t2, t3, t4
-    REAL(KIND=dp) :: e1, e2, e3, f1, f2, f3, g1, g2, g3, h1, h2, h3, s1, s2, s3, s4
-    REAL(KIND=dp) :: p1, p2, p3, q1, q2, q3, r1, r2, r3, u1, u2, u3, v1, v2, v3, v4
-    REAL(KIND=dp), DIMENSION(:,:,:), POINTER    :: grid
-    LOGICAL       :: failure
+    REAL(KIND=dp), DIMENSION(3), INTENT(in)  :: vec
+    TYPE(pw_type), POINTER                   :: pw
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+    REAL(KIND=dp)                            :: val
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'Eval_Interp_Spl3_pbc', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: ii1, ii2, ii3, ii4, ij1, ij2, &
+                                                ij3, ij4, ik1, ik2, ik3, ik4, &
+                                                ivec(3), npts(3)
+    LOGICAL                                  :: failure
+    REAL(KIND=dp) :: a1, a2, a3, aaa, aab, aac, aad, aba, abb, abc, abd, aca, &
+      acb, acc, acd, ada, adb, adc, add, b1, b2, b3, baa, bab, bac, bad, bba, &
+      bbb, bbc, bbd, bca, bcb, bcc, bcd, bda, bdb, bdc, bdd, c1, c2, c3, caa, &
+      cab, cac, cad, cba, cbb, cbc, cbd, cca, ccb, ccc, ccd, cda, cdb, cdc, &
+      cdd, d1, d2, d3, daa, dab, dac, dad, dba, dbb, dbc, dbd, dca, dcb, dcc, &
+      dcd, dda, ddb, ddc, ddd, dr1, dr2, dr3, e1, e2, e3, f1, f2, f3, g1, g2, &
+      g3, h1, h2, h3, p1, p2, p3, q1, q2, q3, r1, r2, r3, s1, s2, s3, s4, t1, &
+      t2, t3, t4, u1, u2, u3, v1, v2, v3, v4, xd1, xd2, xd3
+    REAL(KIND=dp), DIMENSION(:, :, :), &
+      POINTER                                :: grid
 
     NULLIFY(grid)
     failure=.FALSE.
@@ -4664,30 +4702,32 @@ END SUBROUTINE pw_nn_compose_r
   !!
   !!*** **********************************************************************
   FUNCTION Eval_d_Interp_Spl3_pbc(vec,pw,error) RESULT(val)
-    IMPLICIT NONE
-    ! Arguments
-    REAL(KIND=dp), DIMENSION(3), INTENT(in)      :: vec
-    TYPE(pw_type), POINTER                       :: pw
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-    REAL(KIND=dp)                                :: val(3)
-    ! Local Variables
-    CHARACTER(len=*), PARAMETER :: routineN='Eval_d_Interp_Spl3_pbc',&
-         routineP=moduleN//':'//routineN
-    INTEGER       :: ivec(3), npts(3)
-    INTEGER       :: ik1, ik2, ik3, ik4, ij1, ij2, ij3, ij4, ii1, ii2, ii3, ii4
-    REAL(KIND=dp) :: dr1, dr2, dr3, xd1, xd2, xd3, dr1i, dr2i, dr3i
-    REAL(KIND=dp) :: aaa, aba, aca, ada, aab, abb, acb, adb, aac, abc, acc, adc, aad, abd, acd, add   
-    REAL(KIND=dp) :: baa, bba, bca, bda, bab, bbb, bcb, bdb, bac, bbc, bcc, bdc, bad, bbd, bcd, bdd 
-    REAL(KIND=dp) :: caa, cba, cca, cda, cab, cbb, ccb, cdb, cac, cbc, ccc, cdc, cad, cbd, ccd, cdd 
-    REAL(KIND=dp) :: daa, dba, dca, dda, dab, dbb, dcb, ddb, dac, dbc, dcc, ddc, dad, dbd, dcd, ddd 
-    REAL(KIND=dp) :: a1, a2, a3, b1, b2, b3, c1, c2, c3, d1, d2, d3, t1o, t2o, t3o, t4o
-    REAL(KIND=dp) :: t1d, t2d, t3d, t4d, t1, t2, t3, t4
-    REAL(KIND=dp) :: e1, e2, e3, f1, f2, f3, g1, g2, g3, h1, h2, h3, s1o, s2o, s3o, s4o
-    REAL(KIND=dp) :: s1d, s2d, s3d, s4d, s1, s2, s3, s4
-    REAL(KIND=dp) :: p1, p2, p3, q1, q2, q3, r1, r2, r3, u1, u2, u3, v1o, v2o, v3o, v4o
-    REAL(KIND=dp) :: v1d, v2d, v3d, v4d, v1, v2, v3, v4
-    REAL(KIND=dp), DIMENSION(:,:,:), POINTER    :: grid
-    LOGICAL       :: failure
+    REAL(KIND=dp), DIMENSION(3), INTENT(in)  :: vec
+    TYPE(pw_type), POINTER                   :: pw
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+    REAL(KIND=dp)                            :: val(3)
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'Eval_d_Interp_Spl3_pbc', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: ii1, ii2, ii3, ii4, ij1, ij2, &
+                                                ij3, ij4, ik1, ik2, ik3, ik4, &
+                                                ivec(3), npts(3)
+    LOGICAL                                  :: failure
+    REAL(KIND=dp) :: a1, a2, a3, aaa, aab, aac, aad, aba, abb, abc, abd, aca, &
+      acb, acc, acd, ada, adb, adc, add, b1, b2, b3, baa, bab, bac, bad, bba, &
+      bbb, bbc, bbd, bca, bcb, bcc, bcd, bda, bdb, bdc, bdd, c1, c2, c3, caa, &
+      cab, cac, cad, cba, cbb, cbc, cbd, cca, ccb, ccc, ccd, cda, cdb, cdc, &
+      cdd, d1, d2, d3, daa, dab, dac, dad, dba, dbb, dbc, dbd, dca, dcb, dcc, &
+      dcd, dda, ddb, ddc, ddd, dr1, dr1i, dr2, dr2i, dr3, dr3i, e1, e2, e3, &
+      f1, f2, f3, g1, g2, g3, h1, h2, h3, p1, p2, p3, q1, q2, q3, r1, r2, r3, &
+      s1, s1d, s1o, s2, s2d, s2o, s3, s3d, s3o, s4, s4d, s4o, t1, t1d, t1o, &
+      t2, t2d, t2o, t3, t3d, t3o, t4, t4d, t4o, u1
+    REAL(KIND=dp) :: u2, u3, v1, v1d, v1o, v2, v2d, v2o, v3, v3d, v3o, v4, &
+      v4d, v4o, xd1, xd2, xd3
+    REAL(KIND=dp), DIMENSION(:, :, :), &
+      POINTER                                :: grid
 
     NULLIFY(grid)
     failure=.FALSE.

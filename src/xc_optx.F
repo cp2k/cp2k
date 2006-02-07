@@ -23,22 +23,21 @@
 MODULE xc_optx
   USE cp_array_r_utils,                ONLY: cp_3d_r_p_type
   USE kinds,                           ONLY: dp
-  USE mathconstants,                   ONLY: pi
   USE timings,                         ONLY: timeset,&
-       timestop
+                                             timestop
   USE xc_derivative_set_types,         ONLY: xc_derivative_set_type,&
-       xc_dset_get_derivative
+                                             xc_dset_get_derivative
   USE xc_derivative_types,             ONLY: xc_derivative_get,&
-       xc_derivative_type
+                                             xc_derivative_type
   USE xc_rho_cflags_types,             ONLY: xc_rho_cflags_type
   USE xc_rho_set_types,                ONLY: xc_rho_set_get,&
-       xc_rho_set_type
+                                             xc_rho_set_type
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
   PRIVATE
 
-  CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='xc_optx'
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'xc_optx'
 
   PUBLIC :: optx_lda_info, optx_lda_eval, optx_lsd_info, optx_lsd_eval
   !!***
@@ -71,13 +70,13 @@ CONTAINS
   SUBROUTINE optx_lda_info(reference,shortform, needs, max_deriv, error)
     CHARACTER(LEN=*), INTENT(OUT), OPTIONAL  :: reference, shortform
     TYPE(xc_rho_cflags_type), &
-         INTENT(inout), OPTIONAL                :: needs
+      INTENT(inout), OPTIONAL                :: needs
     INTEGER, INTENT(out), OPTIONAL           :: max_deriv
     TYPE(cp_error_type), INTENT(inout), &
-         OPTIONAL                               :: error
+      OPTIONAL                               :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'optx_lda_info', &
-         routineP = moduleN//':'//routineN
+      routineP = moduleN//':'//routineN
 
     IF ( PRESENT ( reference ) ) THEN
        reference = "OPTX, Handy NC and Cohen AJ,  JCP 116, p. 5411 (2002) (LDA)"
@@ -119,13 +118,13 @@ CONTAINS
   SUBROUTINE optx_lsd_info(reference,shortform, needs, max_deriv, error)
     CHARACTER(LEN=*), INTENT(OUT), OPTIONAL  :: reference, shortform
     TYPE(xc_rho_cflags_type), &
-         INTENT(inout), OPTIONAL                :: needs
+      INTENT(inout), OPTIONAL                :: needs
     INTEGER, INTENT(out), OPTIONAL           :: max_deriv
     TYPE(cp_error_type), INTENT(inout), &
-         OPTIONAL                               :: error
+      OPTIONAL                               :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'optx_lsd_info', &
-         routineP = moduleN//':'//routineN
+      routineP = moduleN//':'//routineN
 
     IF ( PRESENT ( reference ) ) THEN
        reference = "OPTX, Handy NC and Cohen AJ,  JCP 116, p. 5411 (2002), (LSD) "
@@ -170,17 +169,18 @@ CONTAINS
     TYPE(xc_derivative_set_type), POINTER    :: deriv_set
     INTEGER, INTENT(in)                      :: grad_deriv
     TYPE(cp_error_type), INTENT(inout), &
-         OPTIONAL                               :: error
+      OPTIONAL                               :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'optx_lda_eval', &
-         routineP = moduleN//':'//routineN
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: npoints
     INTEGER, DIMENSION(:, :), POINTER        :: bo
     LOGICAL                                  :: failure
     REAL(kind=dp)                            :: epsilon_drho, epsilon_rho
-    REAL(kind=dp), DIMENSION(:, :, :), POINTER :: e_0, e_ndrho, &
-         e_rho, norm_drho, rho
+    REAL(kind=dp), DIMENSION(:, :, :), &
+      POINTER                                :: e_0, e_ndrho, e_rho, &
+                                                norm_drho, rho
     TYPE(xc_derivative_type), POINTER        :: deriv
 
     failure=.FALSE.
@@ -248,16 +248,18 @@ CONTAINS
     TYPE(xc_derivative_set_type), POINTER    :: deriv_set
     INTEGER, INTENT(in)                      :: grad_deriv
     TYPE(cp_error_type), INTENT(inout), &
-         OPTIONAL                               :: error
+      OPTIONAL                               :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'optx_lsd_eval', &
-         routineP = moduleN//':'//routineN
-    INTEGER                                  :: npoints,ispin, stat
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: ispin, npoints
     INTEGER, DIMENSION(:, :), POINTER        :: bo
     LOGICAL                                  :: failure
     REAL(kind=dp)                            :: epsilon_drho, epsilon_rho
-    REAL(kind=dp), DIMENSION(:, :, :), POINTER :: e_0
-    TYPE(cp_3d_r_p_type), DIMENSION(2)       :: e_rho,e_ndrho,rho,ndrho
+    REAL(kind=dp), DIMENSION(:, :, :), &
+      POINTER                                :: e_0
+    TYPE(cp_3d_r_p_type), DIMENSION(2)       :: e_ndrho, e_rho, ndrho, rho
     TYPE(xc_derivative_type), POINTER        :: deriv
 
     failure=.FALSE.
@@ -339,16 +341,21 @@ CONTAINS
   !!*** *********************************************************************
   SUBROUTINE optx_lda_calc(rho,norm_drho,e_0,e_rho,e_ndrho,&
        epsilon_rho,epsilon_drho,npoints,error)
-    REAL(KIND=dp), DIMENSION(*), INTENT(IN) :: rho, norm_drho
-    REAL(KIND=dp), DIMENSION(*), INTENT(INOUT) :: e_0, e_rho, e_ndrho
-    REAL(kind=dp), INTENT(in) :: epsilon_rho, epsilon_drho
-    INTEGER, INTENT(in) :: npoints
-    TYPE(cp_error_type), INTENT(inout), optional :: error
- 
-    REAL(KIND=dp), PARAMETER :: o43=4.0_dp/3.0_dp ,gam=0.006_dp, &
-                               a1cx=0.9784571170284421_dp,a2=1.43169_dp
-    REAL(KIND=dp) :: myrho,myndrho,xs,denom,rho43,ex,gamxsxs,tmp
-    INTEGER :: ii
+    REAL(KIND=dp), DIMENSION(*), INTENT(IN)  :: rho, norm_drho
+    REAL(KIND=dp), DIMENSION(*), &
+      INTENT(INOUT)                          :: e_0, e_rho, e_ndrho
+    REAL(kind=dp), INTENT(in)                :: epsilon_rho, epsilon_drho
+    INTEGER, INTENT(in)                      :: npoints
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    REAL(KIND=dp), PARAMETER :: a1cx = 0.9784571170284421_dp, &
+      a2 = 1.43169_dp, gam = 0.006_dp, o43 = 4.0_dp/3.0_dp 
+
+    INTEGER                                  :: ii
+    REAL(KIND=dp)                            :: denom, ex, gamxsxs, myndrho, &
+                                                myrho, rho43, tmp, xs
+
     DO ii=1,npoints
        ! we get the full density and need spin parts -> 0.5
        myrho   = 0.5_dp * rho(ii)
@@ -399,16 +406,21 @@ CONTAINS
   !!*** *********************************************************************
   SUBROUTINE optx_lsd_calc(rho,norm_drho,e_0,e_rho,e_ndrho,&
        epsilon_rho,epsilon_drho,npoints,error)
-    REAL(KIND=dp), DIMENSION(*), INTENT(IN) :: rho, norm_drho
-    REAL(KIND=dp), DIMENSION(*), INTENT(INOUT) :: e_0, e_rho, e_ndrho
-    REAL(kind=dp), INTENT(in) :: epsilon_rho, epsilon_drho
-    INTEGER, INTENT(in) :: npoints
-    TYPE(cp_error_type), INTENT(inout), optional :: error
+    REAL(KIND=dp), DIMENSION(*), INTENT(IN)  :: rho, norm_drho
+    REAL(KIND=dp), DIMENSION(*), &
+      INTENT(INOUT)                          :: e_0, e_rho, e_ndrho
+    REAL(kind=dp), INTENT(in)                :: epsilon_rho, epsilon_drho
+    INTEGER, INTENT(in)                      :: npoints
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    REAL(KIND=dp), PARAMETER :: o43=4.0_dp/3.0_dp ,gam=0.006_dp, &
-                               a1cx=0.9784571170284421_dp,a2=1.43169_dp
-    REAL(KIND=dp) :: myrho,myndrho,xs,denom,rho43,ex,gamxsxs,tmp
-    INTEGER :: ii
+    REAL(KIND=dp), PARAMETER :: a1cx = 0.9784571170284421_dp, &
+      a2 = 1.43169_dp, gam = 0.006_dp, o43 = 4.0_dp/3.0_dp 
+
+    INTEGER                                  :: ii
+    REAL(KIND=dp)                            :: denom, ex, gamxsxs, myndrho, &
+                                                myrho, rho43, tmp, xs
+
     DO ii=1,npoints
        ! we do have the spin density already
        myrho   = rho(ii)

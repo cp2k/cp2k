@@ -21,58 +21,56 @@ MODULE mc_misc
                                              get_atomic_kind
   USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                              gto_basis_set_type
+  USE cell_types,                      ONLY: cell_type,&
+                                             get_cell
   USE convert_units,                   ONLY: convert_to_cp2k_units
+  USE cp_files,                        ONLY: close_file,&
+                                             open_file
   USE cp_subsystem_types,              ONLY: cp_subsys_get,&
                                              cp_subsystem_p_type
 !  USE cp_control_types,                ONLY: dft_control_type
 !  USE cp_control_utils,                ONLY: xc_get_rho_smooth_label,&
 !                                             xc_get_deriv_method_label
-  USE external_potential_types,        ONLY: get_potential,&
-                                             gth_potential_type,&
-                                             elp_potential_type
-  USE ewald_environment_types ,        ONLY: ewald_environment_type,&
-                                             ewald_env_get
+  USE ewald_environment_types,         ONLY: ewald_env_get,&
+                                             ewald_environment_type
+  USE external_potential_types,        ONLY: elp_potential_type,&
+                                             get_potential,&
+                                             gth_potential_type
   USE fist_environment_types,          ONLY: fist_environment_type,&
                                              get_fist_env
-  USE fist_nonbond_env_types,          ONLY: fist_nonbond_env_type,&
-                                             fist_nonbond_env_get
+  USE fist_nonbond_env_types,          ONLY: fist_nonbond_env_get,&
+                                             fist_nonbond_env_type
   USE force_env_types,                 ONLY: force_env_get,&
                                              force_env_type,&
                                              use_fist_force,&
                                              use_kg_force,&
                                              use_qs_force
-  USE input_constants,                 ONLY: do_ewald_none,&
-                                             do_ewald_ewald,&
+  USE input_constants,                 ONLY: do_ewald_ewald,&
+                                             do_ewald_none,&
                                              do_ewald_pme,&
                                              do_ewald_spme
-  USE input_section_types,             ONLY: section_vals_type,&
-                                             section_vals_val_get,&
+  USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_get_subs_vals2,&
-                                             section_vals_get_subs_vals
-  USE kg_environment_types,            ONLY: kg_environment_type,&
-                                             get_kg_env
+                                             section_vals_type,&
+                                             section_vals_val_get
+  USE kg_environment_types,            ONLY: get_kg_env,&
+                                             kg_environment_type
   USE kinds,                           ONLY: default_string_length,&
                                              dp
   USE mathconstants,                   ONLY: pi
-  USE mc_types,                        ONLY: mc_averages_type,&
+  USE mc_types,                        ONLY: get_mc_par,&
+                                             mc_averages_type,&
                                              mc_moves_type,&
-                                             mc_simulation_parameters_type,&
-                                             get_mc_par
+                                             mc_simulation_parameters_type
   USE mol_kind_new_list_types,         ONLY: mol_kind_new_list_type
-  USE molecule_kind_types,             ONLY: get_molecule_kind,&
-                                             molecule_kind_type,&
-                                             atom_type
+  USE molecule_kind_types,             ONLY: atom_type,&
+                                             get_molecule_kind,&
+                                             molecule_kind_type
   USE pair_potential_types,            ONLY: pair_potential_pp_type
-  USE particle_list_types,             ONLY: particle_list_type
   USE physcon,                         ONLY: angstrom,&
-                                             n_avogadro,&
                                              kelvin
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
-  USE cp_files,                        ONLY: close_file,&
-                                             open_file
-  USE cell_types,                 ONLY: cell_type,&
-                                             get_cell
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
   USE timings,                         ONLY: timeset,&
@@ -84,7 +82,7 @@ MODULE mc_misc
   PUBLIC :: final_mc_write,mc_averages_create,mc_averages_release,&
             mc_make_dat_file
 
-  CHARACTER(LEN=*), PARAMETER :: module_name = "mc_misc"
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'mc_misc'
 
 !******************************************************************************
 
@@ -114,8 +112,7 @@ SUBROUTINE mc_averages_create ( averages  )
 
     TYPE(mc_averages_type), POINTER          :: averages
 
-    CHARACTER(LEN=*), PARAMETER              :: &
-      routineN = "mc_averages_create"
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'mc_averages_create'
 
     INTEGER                                  :: handle, stat
 
@@ -126,7 +123,7 @@ SUBROUTINE mc_averages_create ( averages  )
 
 ! allocate all the structures...not sure why, but it won't work otherwise
       ALLOCATE (averages,stat=stat)
-      IF (stat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
+      IF (stat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "averages",0)
 
       averages%ave_energy=0.0E0_dp
@@ -167,8 +164,7 @@ SUBROUTINE mc_averages_release ( averages  )
 
     TYPE(mc_averages_type), POINTER          :: averages
 
-    CHARACTER(LEN=*), PARAMETER              :: &
-      routineN = "release_mc_averages"
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'mc_averages_release'
 
     INTEGER                                  :: handle, stat
 
@@ -179,7 +175,7 @@ SUBROUTINE mc_averages_release ( averages  )
 
 ! deallocate 
       DEALLOCATE (averages,stat=stat)
-      IF (stat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
+      IF (stat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "averages")
 
       NULLIFY(averages)
@@ -229,13 +225,14 @@ SUBROUTINE final_mc_write (mc_par,moves,iw,energy_check,initial_energy,&
                                                 final_energy
     TYPE(mc_averages_type), POINTER          :: averages
 
-    CHARACTER(LEN=*), PARAMETER              :: &
-      routineN = "final_mc_write"
+    CHARACTER(LEN=*), PARAMETER              :: routineN = 'final_mc_write'
 
+    INTEGER                                  :: handle, nvolmoves
     LOGICAL                                  :: lbias
-    INTEGER                                  :: handle,nvolmoves
-    REAL(KIND=dp)                            :: pmswap,rmvolume,rmbond,&
-      rmangle,rmdihedral,rmtrans,rmrot
+    REAL(KIND=dp)                            :: pmswap, rmangle, rmbond, &
+                                                rmdihedral, rmrot, rmtrans, &
+                                                rmvolume
+
 !------------------------------------------------------------------------------
 ! begin the timing of the subroutine
 
@@ -597,46 +594,43 @@ SUBROUTINE mc_make_dat_file(coordinates,natoms_tot,box_length,filename,&
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(INOUT)                          :: coordinates
     INTEGER, INTENT(IN)                      :: natoms_tot
-    REAL(KIND=dp), DIMENSION(1:3),INTENT(IN) :: box_length
+    REAL(KIND=dp), DIMENSION(1:3), &
+      INTENT(IN)                             :: box_length
     CHARACTER(LEN=*), INTENT(IN)             :: filename
+    TYPE(force_env_type), POINTER            :: force_env
     CHARACTER(LEN=*), INTENT(IN)             :: fft_lib
-    TYPE(force_env_type),POINTER             :: force_env
 
-    TYPE(cp_error_type)                      :: error
-    CHARACTER(LEN=*), PARAMETER :: routineN = "mc_make_dat_file", &
-      routineP = module_name//':'//routineN
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'mc_make_dat_file', &
+      routineP = moduleN//':'//routineN
 
-    TYPE(cell_type),POINTER                  :: cell_ref,cell
-    TYPE(qs_environment_type),POINTER        :: qs_env
+    CHARACTER(LEN=2)                         :: element_symbol
+    CHARACTER(LEN=5)                         :: cfile
+    CHARACTER(LEN=default_string_length)     :: c_val, name, unit_type
+    INTEGER :: ewald_type, gmax, handle, i_val, iatom, ichain, ifunct, itype, &
+      jtype, natoms, nchains, ns_max, ntypes, o_spline, unit
+    LOGICAL                                  :: failure, use_ref_cell
+    REAL(KIND=dp)                            :: alpha, charge, epsilon, r_val
+    REAL(KIND=dp), DIMENSION(1:3)            :: abc
+    TYPE(atom_type), DIMENSION(:), POINTER   :: atom_list
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
-    TYPE(gth_potential_type), POINTER      :: gth_potential
-    TYPE(elp_potential_type), POINTER      :: elp_potential
-    TYPE(pair_potential_pp_type), POINTER      :: potparm
-    TYPE(fist_nonbond_env_type), POINTER      :: fist_nonbond_env
-    TYPE(gto_basis_set_type), POINTER      :: orb_basis_set
-    TYPE ( kg_environment_type ), &
-      POINTER                                :: kg_env                     
-    TYPE ( fist_environment_type ), &
-      POINTER                                :: fist_env 
-    TYPE ( ewald_environment_type ), POINTER      :: ewald_env
+    TYPE(cell_type), POINTER                 :: cell, cell_ref
+    TYPE(cp_error_type)                      :: error
     TYPE(cp_subsystem_p_type), &
       DIMENSION(:), POINTER                  :: subsys
+    TYPE(elp_potential_type), POINTER        :: elp_potential
+    TYPE(ewald_environment_type), POINTER    :: ewald_env
+    TYPE(fist_environment_type), POINTER     :: fist_env
+    TYPE(fist_nonbond_env_type), POINTER     :: fist_nonbond_env
+    TYPE(gth_potential_type), POINTER        :: gth_potential
+    TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
+    TYPE(kg_environment_type), POINTER       :: kg_env
     TYPE(mol_kind_new_list_type), POINTER    :: molecule_kinds_new
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
-    TYPE(atom_type), DIMENSION(:),POINTER    :: atom_list
-  
-    INTEGER                                  :: handle, iatom, unit,&
-      itype,ntypes,gmax,o_spline,ns_max,ewald_type,jtype,ichain,&
-      nchains,natoms,i_val,ifunct
-    LOGICAL                                  :: use_ref_cell,failure
-    REAL(KIND=dp),DIMENSION(1:3)             :: abc
-    REAL(KIND=dp)                            :: alpha,epsilon,charge,r_val
-    CHARACTER(LEN=5)                         :: cfile
-    CHARACTER(LEN=2)                         :: element_symbol
-    CHARACTER(LEN=default_string_length)     :: name,unit_type,c_val
-    TYPE(section_vals_type), POINTER         :: input,xc_fun,xc_fun_section
+    TYPE(pair_potential_pp_type), POINTER    :: potparm
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(section_vals_type), POINTER         :: input, xc_fun, xc_fun_section
 
 !------------------------------------------------------------------------------
 ! begin the timing of the subroutine

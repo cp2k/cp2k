@@ -34,31 +34,26 @@
 MODULE kg_gpw_fm_mol_methods
 
   USE atomic_kind_types,               ONLY: get_atomic_kind
-  USE distribution_1d_types,           ONLY: distribution_1d_type 
-  USE kg_gpw_fm_mol_types,             ONLY: allocate_fm_mol_blocks,&
-                                             allocate_mol_mo_set,&
-                                             get_fm_mol_block,&
-                                             get_kg_fm_mol_set,&
-                                             get_mol_mo_set,&
-                                             fm_mol_blocks_type,&
-                                             init_mol_mo_set,&
-                                             kg_fm_mol_set_type, &
-                                             mol_mo_set_p_type,&
-                                             mol_mo_set_type,&
-                                             set_kg_fm_mol_set,&
-                                             set_mol_mo_set
+  USE distribution_1d_types,           ONLY: distribution_1d_type
+  USE kg_gpw_fm_mol_types,             ONLY: &
+       allocate_fm_mol_blocks, allocate_mol_mo_set, fm_mol_blocks_type, &
+       get_fm_mol_block, get_kg_fm_mol_set, get_mol_mo_set, init_mol_mo_set, &
+       kg_fm_mol_set_type, mol_mo_set_p_type, mol_mo_set_type, &
+       set_kg_fm_mol_set, set_mol_mo_set
   USE kg_gpw_fm_mol_utils,             ONLY: copy_sparse2mol_block,&
                                              fm_mol_cholesky_restore,&
                                              fm_mol_syevd,&
                                              fm_mol_syevx
-  USE kinds,                           ONLY: dp,dp_size,int_size
+  USE kinds,                           ONLY: dp,&
+                                             dp_size,&
+                                             int_size
   USE memory_utilities,                ONLY: reallocate
-  USE molecule_kind_types,             ONLY: get_molecule_kind,molecule_kind_type
+  USE molecule_kind_types,             ONLY: get_molecule_kind,&
+                                             molecule_kind_type
   USE molecule_types_new,              ONLY: molecule_type
   USE particle_types,                  ONLY: particle_type
   USE qs_mo_types,                     ONLY: set_mo_occupation
   USE sparse_matrix_types,             ONLY: get_block_node,&
-                                             real_matrix_p_type,&
                                              real_matrix_type
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
@@ -70,7 +65,7 @@ MODULE kg_gpw_fm_mol_methods
 
   PRIVATE
 
-  CHARACTER(LEN=*), PARAMETER :: module_name = "kg_gpw_fm_mol_methods"
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'kg_gpw_fm_mol_methods'
 
 ! *** Public subroutines ***
 
@@ -98,37 +93,35 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(kg_fm_mol_set_type), TARGET           :: fm_mol_set
-    TYPE(molecule_kind_type), POINTER          :: molecule_kind 
-    TYPE(distribution_1d_type), POINTER        :: local_molecules
+    TYPE(kg_fm_mol_set_type), TARGET         :: fm_mol_set
+    TYPE(molecule_kind_type), POINTER        :: molecule_kind
+    INTEGER, INTENT(IN)                      :: imolkind
+    TYPE(distribution_1d_type), POINTER      :: local_molecules
     TYPE(molecule_type), DIMENSION(:), &
-      POINTER                                  :: molecule_set
+      POINTER                                :: molecule_set
     TYPE(particle_type), DIMENSION(:), &
-      POINTER                                  :: particle_set
-    INTEGER, INTENT(IN)                        :: imolkind, nspins
-    LOGICAL, INTENT(IN)                        :: nmo_eq_nao
-    INTEGER, DIMENSION(2), INTENT(IN)          :: added_mos
-    LOGICAL, INTENT(IN)                        :: use_cholesky
-    INTEGER , INTENT(INOUT)                    :: nelectron_global
-    INTEGER , INTENT(INOUT)                    :: nao_global
-    INTEGER , INTENT(INOUT)                    :: nao_max, nmo_max
-    REAL(dp), DIMENSION(2), INTENT(INOUT)      :: maxocc_global
+      POINTER                                :: particle_set
+    INTEGER, INTENT(IN)                      :: nspins
+    LOGICAL, INTENT(IN)                      :: nmo_eq_nao
+    INTEGER, DIMENSION(2), INTENT(IN)        :: added_mos
+    LOGICAL, INTENT(IN)                      :: use_cholesky
+    INTEGER, INTENT(INOUT)                   :: nelectron_global, nao_global, &
+                                                nao_max, nmo_max
+    REAL(dp), DIMENSION(2), INTENT(INOUT)    :: maxocc_global
     TYPE(cp_error_type), INTENT(inout), &
-       OPTIONAL                                :: error
+      OPTIONAL                               :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'build_local_fm_mol',&
-      routineP = module_name//':'//routineN
+    CHARACTER(len=*), PARAMETER :: routineN = 'build_local_fm_mol', &
+      routineP = moduleN//':'//routineN
 
-    TYPE(molecule_type), POINTER              :: molecule
-
-    INTEGER  :: iao, iat, iatom, iglobal, ikind, imol, ispin, istat, &
-               multiplicity, n_ao, n_mo(2), natom, nelectron,&
-               nelectron_spin(2), nmol_global, nmol_local, nsgf
-    REAL(dp) :: maxocc
-    INTEGER, DIMENSION(:), POINTER            :: index_mol_local
-    INTEGER, DIMENSION(:), POINTER            :: molecule_list
-    LOGICAL                                   :: failure
-    TYPE(kg_fm_mol_set_type), POINTER         :: fm_mol_set_p
+    INTEGER :: iao, iat, iatom, iglobal, ikind, imol, ispin, istat, &
+      multiplicity, n_ao, n_mo(2), natom, nelectron, nelectron_spin(2), &
+      nmol_global, nmol_local, nsgf
+    INTEGER, DIMENSION(:), POINTER           :: index_mol_local, molecule_list
+    LOGICAL                                  :: failure
+    REAL(dp)                                 :: maxocc
+    TYPE(kg_fm_mol_set_type), POINTER        :: fm_mol_set_p
+    TYPE(molecule_type), POINTER             :: molecule
 
     failure = .FALSE.
  
@@ -144,7 +137,7 @@ CONTAINS
 !   the right number of molecular orbitals and te occupation numbers
 
     IF ((MODULO(nelectron,2) /= 0).AND.(nspins == 1)) THEN
-      CALL stop_program(routineN,module_name,__LINE__,&
+      CALL stop_program(routineN,moduleN,__LINE__,&
                    "Use the LSD option for an odd number of electrons.")
     END IF
 
@@ -167,7 +160,7 @@ CONTAINS
       nelectron_spin(2) = 0
       n_mo(1) = nelectron/2
       n_mo(2) = 0
-      maxocc_global(1) = max( maxocc_global(1),maxocc)
+      maxocc_global(1) = MAX( maxocc_global(1),maxocc)
       maxocc_global(2) = 0.0_dp
     ELSE
 
@@ -177,7 +170,7 @@ CONTAINS
 !     *** need additional user input
 
       IF (MODULO(nelectron + multiplicity - 1,2) /= 0) THEN
-        CALL stop_program(routineN,module_name,__LINE__,&
+        CALL stop_program(routineN,moduleN,__LINE__,&
                           "LSD: try to use a different multiplicity.")
       END IF
 
@@ -185,14 +178,14 @@ CONTAINS
       nelectron_spin(2) = (nelectron - multiplicity + 1)/2
 
       IF (nelectron_spin(2) < 0) THEN
-        CALL stop_program(routineN,module_name,__LINE__,&
+        CALL stop_program(routineN,moduleN,__LINE__,&
                          "LSD: too few electrons for this multiplicity.")
       END IF
 
       n_mo(1) = nelectron_spin(1)
       n_mo(2) = nelectron_spin(2)
-      maxocc_global(1) = max( maxocc_global(1),maxocc)
-      maxocc_global(2) = max( maxocc_global(2),maxocc)
+      maxocc_global(1) = MAX( maxocc_global(1),maxocc)
+      maxocc_global(2) = MAX( maxocc_global(2),maxocc)
 
     END IF
 
@@ -232,24 +225,24 @@ CONTAINS
                                n_mo(ispin),error=error)
         END DO
         ALLOCATE(fm_mol_set%fm_mol_blocks(imol)%ortho(n_ao,n_ao),STAT=istat)
-        IF(istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
+        IF(istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                         "ortho",n_ao*n_ao*dp_size)
 
         ALLOCATE(fm_mol_set%fm_mol_blocks(imol)%index_atom(natom),STAT=istat)
-        IF(istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
+        IF(istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                         "index_atom",natom*int_size)
         ALLOCATE(fm_mol_set%fm_mol_blocks(imol)%index_kind(natom),STAT=istat)
-        IF(istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
+        IF(istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                         "index_kind",natom*int_size)
         ALLOCATE(fm_mol_set%fm_mol_blocks(imol)%ifirst_ao(natom),STAT=istat)
-        IF(istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
+        IF(istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                         "ifirst_ao",natom*int_size)
         ALLOCATE(fm_mol_set%fm_mol_blocks(imol)%ilast_ao(natom),STAT=istat)
-        IF(istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
+        IF(istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                         "ilast_ao",natom*int_size)
 
         ALLOCATE(fm_mol_set%fm_mol_blocks(imol)%work(n_ao,n_ao),STAT=istat)
-        IF(istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
+        IF(istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                         "work",n_ao*n_ao*dp_size)
 
         iao = 0
@@ -272,33 +265,25 @@ CONTAINS
 
   SUBROUTINE calculate_mol_density_matrix(mo_set,mol_block,natom,p_ispin,error)
 
-    TYPE(mol_mo_set_type), POINTER           :: mo_set 
+    TYPE(mol_mo_set_type), POINTER           :: mo_set
     TYPE(fm_mol_blocks_type), POINTER        :: mol_block
-    TYPE(real_matrix_type), POINTER          ::  p_ispin
-    INTEGER                                  ::  natom
+    INTEGER                                  :: natom
+    TYPE(real_matrix_type), POINTER          :: p_ispin
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_mol_density_matrix', &
+      routineP = moduleN//':'//routineN
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = "calculate_mol_density_matrix",&
-      routineP = module_name//':'//routineN
-
-    INTEGER                                  :: col_first, col_last, &
-                                                handle, homo, i, iat, iatom,&
-                                                icol, icol_mol_p, irow, &
-                                                irow_mol_p, ispin, istat, & 
-                                                jat, jatom, lfomo, ncol, &
-                                                ncol_max, nrow, nspins, &
-                                                row_first, row_last
-
-    INTEGER, DIMENSION(:), POINTER           :: i_atom,ifirst_ao,ilast_ao
-    REAL(dp) :: alpha, maxocc
-    REAL(dp), DIMENSION(:),  POINTER         :: occupation
-    REAL(dp), DIMENSION(:,:),  POINTER       :: p_block
-    REAL(dp), DIMENSION(:,:), POINTER        :: mol_p
-    REAL(dp), DIMENSION(:,:), POINTER        :: mo_coeff
-    REAL(dp), DIMENSION(:,:), POINTER        :: fmo_coeff
-    LOGICAL :: failure, smear
+    INTEGER :: col_first, col_last, handle, homo, i, iat, iatom, icol, &
+      icol_mol_p, irow, irow_mol_p, istat, jat, jatom, lfomo, ncol, ncol_max, &
+      nrow, row_first, row_last
+    INTEGER, DIMENSION(:), POINTER           :: i_atom, ifirst_ao, ilast_ao
+    LOGICAL                                  :: failure, smear
+    REAL(dp)                                 :: alpha, maxocc
+    REAL(dp), DIMENSION(:), POINTER          :: occupation
+    REAL(dp), DIMENSION(:, :), POINTER       :: fmo_coeff, mo_coeff, mol_p, &
+                                                p_block
 
 !   ---------------------------------------------------------------------------
 
@@ -416,10 +401,10 @@ CONTAINS
 !
 !   ***************************************************************************
 
-    REAL(dp), DIMENSION(:,:), POINTER        :: ks_mol_block
+    REAL(dp), DIMENSION(:, :), POINTER       :: ks_mol_block
     TYPE(mol_mo_set_type), POINTER           :: mo_set
-    REAL(dp), DIMENSION(:,:), POINTER        :: ortho
-    REAL(dp), DIMENSION(:,:)                 :: aux_nxn
+    REAL(dp), DIMENSION(:, :), POINTER       :: ortho
+    REAL(dp), DIMENSION(:, :)                :: aux_nxn
     INTEGER, INTENT(IN)                      :: ldaux
     LOGICAL, INTENT(IN)                      :: do_level_shift
     REAL(KIND=dp), INTENT(IN)                :: level_shift
@@ -429,18 +414,17 @@ CONTAINS
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = "fm_mol_eigensolver", &
-      routineP = module_name//":"//routineN
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'fm_mol_eigensolver', &
+      routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, homo, info, imo, &
-                                                itype, istat, lfomo, &
-                                                mo_ncol, nao, nelectron, nmo, p, q
-    LOGICAL                                  :: failure,  mo_uocc
-    REAL(KIND=dp)                            :: alpha, c, maxocc, tan_theta, tau, s
-    REAL(dp), DIMENSION(:), POINTER          :: mo_eigenvalues,&
-                                                mo_occupation
-    REAL(dp), DIMENSION(:), ALLOCATABLE      :: vec_tmp
-    REAL(dp), DIMENSION(:,:), POINTER        :: mo_coeff
+    INTEGER                                  :: handle, homo, imo, info, &
+                                                istat, itype, lfomo, mo_ncol, &
+                                                nao, nelectron, nmo, p, q
+    LOGICAL                                  :: failure, mo_uocc
+    REAL(dp), ALLOCATABLE, DIMENSION(:)      :: vec_tmp
+    REAL(dp), DIMENSION(:), POINTER          :: mo_eigenvalues, mo_occupation
+    REAL(dp), DIMENSION(:, :), POINTER       :: mo_coeff
+    REAL(KIND=dp)                            :: c, maxocc, s, tan_theta, tau
 
 !   ---------------------------------------------------------------------------
 
@@ -585,32 +569,32 @@ CONTAINS
 
   SUBROUTINE fm_mol_orthonormality(orthonormality,kg_fm_mol_set,overlap,nspins,error)
 
-    REAL(dp), DIMENSION(:)                     :: orthonormality
-    TYPE(kg_fm_mol_set_type), DIMENSION(:),&
-      POINTER                                  :: kg_fm_mol_set
-    TYPE(real_matrix_type), POINTER, OPTIONAL  :: overlap
-    INTEGER, INTENT(IN)                        :: nspins
+    REAL(dp), DIMENSION(:)                   :: orthonormality
+    TYPE(kg_fm_mol_set_type), DIMENSION(:), &
+      POINTER                                :: kg_fm_mol_set
+    TYPE(real_matrix_type), OPTIONAL, &
+      POINTER                                :: overlap
+    INTEGER, INTENT(IN)                      :: nspins
     TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                                 :: error
+      OPTIONAL                               :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routine_name = 'fm_mol_orthonormality', &
-      routineP = module_name//':'//routine_name
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'fm_mol_orthonormality', &
+      routineP = moduleN//':'//routineN
 
-    INTEGER :: icol, imol, imolecule_kind, irow, istat, ispin, ldaux2, ldc, &
-               ldcsc, mo_ncol, mo_ncol_old, n_ao_kind, nat_mol, nmol_local, nmolecule_kind
-    LOGICAL :: failure
-    REAL(dp)                                   :: csc_val, max_csc_offd
-    REAL(dp), DIMENSION(:,:), POINTER          :: aux1_matrix,&
-                                                  aux2_matrix,&
-                                                  csc_matrix,&
-                                                  mo_coeff
+    INTEGER :: icol, imol, imolecule_kind, irow, ispin, istat, ldaux2, ldc, &
+      ldcsc, mo_ncol, mo_ncol_old, n_ao_kind, nat_mol, nmol_local, &
+      nmolecule_kind
+    LOGICAL                                  :: failure
+    REAL(dp)                                 :: csc_val, max_csc_offd
+    REAL(dp), DIMENSION(:, :), POINTER       :: aux1_matrix, aux2_matrix, &
+                                                csc_matrix, mo_coeff
     TYPE(fm_mol_blocks_type), DIMENSION(:), &
-      POINTER                                  :: fm_mol_blocks
-    TYPE(fm_mol_blocks_type), POINTER          :: mol_block
-    TYPE(kg_fm_mol_set_type), POINTER          :: fm_mol_set
-    TYPE(mol_mo_set_p_type), DIMENSION(:),&
-      POINTER                                  :: mos
-    TYPE(mol_mo_set_type), POINTER             :: mo_set
+      POINTER                                :: fm_mol_blocks
+    TYPE(fm_mol_blocks_type), POINTER        :: mol_block
+    TYPE(kg_fm_mol_set_type), POINTER        :: fm_mol_set
+    TYPE(mol_mo_set_p_type), DIMENSION(:), &
+      POINTER                                :: mos
+    TYPE(mol_mo_set_type), POINTER           :: mo_set
 
 ! -----------------------------------------------------------------------------------
 
@@ -696,23 +680,26 @@ CONTAINS
   SUBROUTINE mol_make_basis(matrix_mo, ncol, matrix_ortho, otype,&
                             matrix_p, work, error)
 
-    REAL(dp), DIMENSION(:,:), POINTER            :: matrix_mo
-    INTEGER, INTENT(IN)                          :: ncol
-    REAL(dp), DIMENSION(:,:), POINTER, OPTIONAL  :: matrix_ortho
-    CHARACTER(LEN=*), INTENT(IN), OPTIONAL       :: otype
-    REAL(dp), DIMENSION(:,:), POINTER, OPTIONAL  :: matrix_p,work
+    REAL(dp), DIMENSION(:, :), POINTER       :: matrix_mo
+    INTEGER, INTENT(IN)                      :: ncol
+    REAL(dp), DIMENSION(:, :), OPTIONAL, &
+      POINTER                                :: matrix_ortho
+    CHARACTER(LEN=*), INTENT(IN), OPTIONAL   :: otype
+    REAL(dp), DIMENSION(:, :), OPTIONAL, &
+      POINTER                                :: matrix_p, work
     TYPE(cp_error_type), INTENT(inout), &
-       OPTIONAL                                  :: error
+      OPTIONAL                               :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN ="mol_make_basis",&
-         routineP = module_name//':'//routineN
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'mol_make_basis', &
+      routineP = moduleN//':'//routineN
 
-    INTEGER :: i, info, istat, lda, ldb, ldc, nrow 
-    LOGICAL                                      :: failure, found_type, &
-                                                    use_cholesky, use_pmatrix, &
-                                                    use_simple, use_sv 
-    REAL(dp)                                     :: rone, rzero
-    REAL(dp), DIMENSION(:,:), ALLOCATABLE        :: matrix_cc
+    INTEGER                                  :: i, info, istat, lda, ldb, &
+                                                ldc, nrow
+    LOGICAL                                  :: failure, found_type, &
+                                                use_cholesky, use_pmatrix, &
+                                                use_simple, use_sv
+    REAL(dp)                                 :: rone, rzero
+    REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: matrix_cc
 
 !   ----------------------------------------------------------------------
 
@@ -766,8 +753,8 @@ CONTAINS
       CPPostcondition(info==0,cp_failure_level,routineP,error,failure)
 
     ELSE
-      write(*,*) 'make_basis, nosv option not checked' 
-      stop 'how am I suppose to know matrix_cc'
+      WRITE(*,*) 'make_basis, nosv option not checked' 
+      STOP 'how am I suppose to know matrix_cc'
       CALL DSYRK('U','T',ncol,nrow,rone,matrix_cc(1,1),lda,rzero,matrix_cc,ldc)
       CALL DPOTRF('U',ncol,matrix_cc(1,1),ldc,info)
       CPPostcondition(info==0,cp_failure_level,routineP,error,failure)
@@ -790,26 +777,21 @@ CONTAINS
 
     TYPE(real_matrix_type), POINTER          :: matrix
     TYPE(fm_mol_blocks_type), POINTER        :: mol_block
-    INTEGER, INTENT(IN)                      :: natom,nmo
-    REAL(dp), DIMENSION(:,:), POINTER        :: vectors
-    REAL(dp), DIMENSION(:,:), POINTER        :: mat_x_vec
+    INTEGER, INTENT(IN)                      :: natom
+    REAL(dp), DIMENSION(:, :), POINTER       :: vectors
+    INTEGER, INTENT(IN)                      :: nmo
+    REAL(dp), DIMENSION(:, :), POINTER       :: mat_x_vec
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = "multiply_sparse_mol_mo",&
-      routineP = module_name//":"//routineN
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'multiply_sparse_mol_mo', &
+      routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: col_first, col_last, &
-                                                iat, iatom,&
-                                                icol, icol_mol_s, irow, &
-                                                irow_mol_s, & 
-                                                jat, jatom, ldb, ldc, nrow, &
-                                                row_first, row_last , i
-
-    INTEGER, DIMENSION(:), POINTER           :: i_atom,ifirst_ao,ilast_ao
-    REAL(dp), DIMENSION(:,:),  POINTER       :: s_block
-    REAL(dp), DIMENSION(:,:), POINTER        :: mol_s
+    INTEGER :: col_first, col_last, iat, iatom, icol, icol_mol_s, irow, &
+      irow_mol_s, jat, jatom, ldb, ldc, nrow, row_first, row_last
+    INTEGER, DIMENSION(:), POINTER           :: i_atom, ifirst_ao, ilast_ao
     LOGICAL                                  :: failure
+    REAL(dp), DIMENSION(:, :), POINTER       :: mol_s, s_block
 
 !   ---------------------------------------------------------------------------
 

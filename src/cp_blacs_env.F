@@ -26,26 +26,20 @@
 !****************************************************************************
 MODULE cp_blacs_env
   USE cp_array_i_utils,                ONLY: cp_2d_i_write
-  USE cp_blacs_calls,                  ONLY: cp_blacs_get,&
-                                             cp_blacs_gridexit,&
+  USE cp_blacs_calls,                  ONLY: cp_blacs_gridexit,&
                                              cp_blacs_gridinfo,&
-                                             cp_blacs_gridinit,&
-                                             cp_blacs_pinfo
+                                             cp_blacs_gridinit
   USE cp_para_env,                     ONLY: cp_para_env_release,&
                                              cp_para_env_retain
   USE cp_para_types,                   ONLY: cp_blacs_env_type,&
                                              cp_para_env_type
   USE global_types,                    ONLY: BLACS_GRID_COL,&
                                              BLACS_GRID_ROW,&
-                                             BLACS_GRID_SQUARE,&
-                                             global_environment_type
-  USE kinds,                           ONLY: dp,&
-                                             int_size
+                                             BLACS_GRID_SQUARE
+  USE kinds,                           ONLY: dp
   USE machine,                         ONLY: m_flush
-  USE message_passing,                 ONLY: mp_sum,&
-                                             mp_sync
-  USE termination,                     ONLY: stop_memory,&
-                                             stop_program
+  USE message_passing,                 ONLY: mp_sum
+  USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "cp_common_uses.h"
@@ -54,7 +48,7 @@ MODULE cp_blacs_env
   PRIVATE
 
   LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
-  CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='cp_blacs_env'
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_blacs_env'
 
   PUBLIC :: cp_blacs_env_type ! make it accessible only through cp_para_types?
   PUBLIC :: cp_blacs_env_create, cp_blacs_env_retain, cp_blacs_env_release
@@ -141,11 +135,10 @@ SUBROUTINE cp_blacs_env_create(blacs_env,para_env,error)
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_blacs_env_create', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: ipcol, iprow, stat
+    INTEGER                                  :: blacs_grid_layout, ipcol, &
+                                                ipe, iprow, npcol, npe, &
+                                                nprow, stat
     LOGICAL                                  :: failure
-    INTEGER                                  :: nprow, npcol, npe,ipe
-    INTEGER, ALLOCATABLE, DIMENSION(:)       :: pcol, pcon, prow
-    INTEGER                                  :: blacs_grid_layout
 
   failure=.FALSE.
 

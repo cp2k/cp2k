@@ -23,24 +23,20 @@ MODULE xc_perdew86_new
 
 ! *****************************************************************************
 
-  USE kinds,                           ONLY: dp
-  USE termination,                     ONLY: stop_memory,&
-                                             stop_program
-  USE xc_derivative_set_types,         ONLY: xc_derivative_set_type,&
-       xc_dset_get_derivative
-  USE xc_functionals_utilities,        ONLY: calc_rs_pw,&
-                                             set_util,&
-                                             setup_calculation
-  USE xc_perdew_zunger_new,            ONLY: pz_lda_eval
   USE input_constants,                 ONLY: pz_orig
-  USE cp_array_r_utils,                ONLY: cp_3d_r_p_type
+  USE kinds,                           ONLY: dp
   USE timings,                         ONLY: timeset,&
-       timestop
+                                             timestop
+  USE xc_derivative_set_types,         ONLY: xc_derivative_set_type,&
+                                             xc_dset_get_derivative
   USE xc_derivative_types,             ONLY: xc_derivative_get,&
-       xc_derivative_type
-  USE xc_rho_cflags_types,                ONLY: xc_rho_cflags_type
+                                             xc_derivative_type
+  USE xc_functionals_utilities,        ONLY: calc_rs_pw,&
+                                             set_util
+  USE xc_perdew_zunger_new,            ONLY: pz_lda_eval
+  USE xc_rho_cflags_types,             ONLY: xc_rho_cflags_type
   USE xc_rho_set_types,                ONLY: xc_rho_set_get,&
-       xc_rho_set_type
+                                             xc_rho_set_type
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -70,7 +66,7 @@ MODULE xc_perdew86_new
                           pc1 = 0.001667_dp, &
                           pc2 = 0.002568_dp, &
                           pci = pc1+pc2
-  CHARACTER(len=*), PARAMETER, private :: moduleN="xc_perdew_zunger_new"
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'xc_perdew86_new'
 
 !!***
 ! *****************************************************************************
@@ -81,7 +77,7 @@ CONTAINS
 
   SUBROUTINE p86_init ( cutoff, debug )
 
-    REAL(KIND=dp), INTENT(IN)                    :: cutoff
+    REAL(KIND=dp), INTENT(IN)                :: cutoff
     LOGICAL, INTENT(IN), OPTIONAL            :: debug
 
     eps_rho = cutoff
@@ -100,10 +96,10 @@ CONTAINS
   SUBROUTINE p86_lda_info ( reference, shortform, needs, max_deriv, error)
     CHARACTER(LEN=*), INTENT(OUT), OPTIONAL  :: reference, shortform
     TYPE(xc_rho_cflags_type), &
-         INTENT(inout), OPTIONAL                :: needs
+      INTENT(inout), OPTIONAL                :: needs
     INTEGER, INTENT(out), OPTIONAL           :: max_deriv
     TYPE(cp_error_type), INTENT(inout), &
-         OPTIONAL                               :: error
+      OPTIONAL                               :: error
 
     IF ( PRESENT ( reference ) ) THEN
       reference = "J. P. Perdew, Phys. Rev. B, 33, 8822 (1986) {LDA version}"
@@ -112,10 +108,10 @@ CONTAINS
       shortform = "Perdew 1986 correlation energy functional {LDA}"
     END IF
     IF ( PRESENT(needs) ) THEN
-       needs%rho=.true.
-       needs%norm_drho=.true.
+       needs%rho=.TRUE.
+       needs%norm_drho=.TRUE.
     END IF
-    if (present(max_deriv)) max_deriv=3
+    IF (PRESENT(max_deriv)) max_deriv=3
 
   END SUBROUTINE p86_lda_info
 
@@ -127,26 +123,27 @@ CONTAINS
 
     TYPE(xc_rho_set_type), POINTER           :: rho_set
     TYPE(xc_derivative_set_type), POINTER    :: deriv_set
-    INTEGER, INTENT(IN)            :: order
-    TYPE(cp_error_type), INTENT(inout), optional :: error
+    INTEGER, INTENT(IN)                      :: order
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN="p86_lda_eval",&
-         routineP=moduleN//':'//routineN
-    INTEGER, DIMENSION(:,:), pointer  :: bo
-    REAL(KIND=dp), DIMENSION(:,:,:), POINTER :: rho, grho, e_0,e_rho,e_ndrho,&
-         e_rho_rho, e_rho_ndrho, e_ndrho_ndrho,&
-         e_rho_rho_rho, e_rho_rho_ndrho, e_rho_ndrho_ndrho, e_ndrho_ndrho_ndrho
-    INTEGER                                  :: stat, m, handle, npoints
-    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)     :: rs
-    REAL(KIND=dp) :: rho_cutoff, drho_cutoff
-    logical :: failure
+    CHARACTER(len=*), PARAMETER :: routineN = 'p86_lda_eval', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, m, npoints, stat
+    INTEGER, DIMENSION(:, :), POINTER        :: bo
+    LOGICAL                                  :: failure
+    REAL(KIND=dp)                            :: drho_cutoff, rho_cutoff
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: rs
+    REAL(KIND=dp), DIMENSION(:, :, :), POINTER :: e_0, e_ndrho, &
+      e_ndrho_ndrho, e_ndrho_ndrho_ndrho, e_rho, e_rho_ndrho, &
+      e_rho_ndrho_ndrho, e_rho_rho, e_rho_rho_ndrho, e_rho_rho_rho, grho, rho
     TYPE(xc_derivative_type), POINTER        :: deriv
 
+!   ---------------------------------------------------------------------------
 
-    !   ---------------------------------------------------------------------------
-
-    call timeset(routineN,"I","",handle)
-    failure=.false.
+    CALL timeset(routineN,"I","",handle)
+    failure=.FALSE.
     NULLIFY(bo,rho,e_0,e_rho,e_ndrho,&
          e_rho_rho, e_rho_ndrho, e_ndrho_ndrho,&
          e_rho_rho_rho, e_rho_rho_ndrho, e_rho_ndrho_ndrho, e_ndrho_ndrho_ndrho)
@@ -163,7 +160,7 @@ CONTAINS
             norm_drho=grho,local_bounds=bo,rho_cutoff=rho_cutoff,&
             drho_cutoff=drho_cutoff,error=error)
        npoints=(bo(2,1)-bo(1,1)+1)*(bo(2,2)-bo(1,2)+1)*(bo(2,3)-bo(1,3)+1)
-       call p86_init(rho_cutoff)
+       CALL p86_init(rho_cutoff)
        m = ABS(order)
 
        ALLOCATE ( rs(npoints), STAT=stat )
@@ -173,17 +170,17 @@ CONTAINS
        IF ( order>=0 ) THEN
           deriv => xc_dset_get_derivative(deriv_set,"",&
                allocate_deriv=.TRUE., error=error)
-          call xc_derivative_get(deriv,deriv_data=e_0,error=error)
+          CALL xc_derivative_get(deriv,deriv_data=e_0,error=error)
 
           CALL p86_u_0 ( rho, rs, grho, e_0, npoints, error )
        END IF
        IF ( order>=1 .OR. order==-1 ) THEN
           deriv => xc_dset_get_derivative(deriv_set,"(rho)",&
                allocate_deriv=.TRUE.,error=error)
-          call xc_derivative_get(deriv,deriv_data=e_rho,error=error)
+          CALL xc_derivative_get(deriv,deriv_data=e_rho,error=error)
           deriv => xc_dset_get_derivative(deriv_set,"(norm_drho)",&
                allocate_deriv=.TRUE.,error=error)
-          call xc_derivative_get(deriv,deriv_data=e_ndrho,error=error)
+          CALL xc_derivative_get(deriv,deriv_data=e_ndrho,error=error)
 
           CALL p86_u_1 ( rho, grho, rs, e_rho,&
                e_ndrho, npoints, error )
@@ -191,13 +188,13 @@ CONTAINS
        IF ( order>=2 .OR. order==-2 ) THEN
           deriv => xc_dset_get_derivative(deriv_set,"(rho)(rho)",&
                allocate_deriv=.TRUE.,error=error)
-          call xc_derivative_get(deriv,deriv_data=e_rho_rho,error=error)
+          CALL xc_derivative_get(deriv,deriv_data=e_rho_rho,error=error)
           deriv => xc_dset_get_derivative(deriv_set,"(rho)(norm_drho)",&
-               allocate_deriv=.true.,error=error)
-          call xc_derivative_get(deriv,deriv_data=e_rho_ndrho,error=error)
+               allocate_deriv=.TRUE.,error=error)
+          CALL xc_derivative_get(deriv,deriv_data=e_rho_ndrho,error=error)
           deriv => xc_dset_get_derivative(deriv_set,&
                "(norm_drho)(norm_drho)", allocate_deriv=.TRUE.,error=error)
-          call xc_derivative_get(deriv,deriv_data=e_ndrho_ndrho,error=error)
+          CALL xc_derivative_get(deriv,deriv_data=e_ndrho_ndrho,error=error)
 
           CALL p86_u_2 ( rho, grho, rs, e_rho_rho,&
                e_rho_ndrho, e_ndrho_ndrho, npoints, error )
@@ -205,17 +202,17 @@ CONTAINS
        IF ( order>=3 .OR. order ==-3 ) THEN
           deriv => xc_dset_get_derivative(deriv_set,"(rho)(rho)(rho)",&
                allocate_deriv=.TRUE.,error=error)
-          call xc_derivative_get(deriv,deriv_data=e_rho_rho_rho,error=error)
+          CALL xc_derivative_get(deriv,deriv_data=e_rho_rho_rho,error=error)
           deriv => xc_dset_get_derivative(deriv_set,&
-               "(rho)(rho)(norm_drho)",allocate_deriv=.true.,error=error)
-          call xc_derivative_get(deriv,deriv_data=e_rho_rho_ndrho,error=error)
+               "(rho)(rho)(norm_drho)",allocate_deriv=.TRUE.,error=error)
+          CALL xc_derivative_get(deriv,deriv_data=e_rho_rho_ndrho,error=error)
           deriv => xc_dset_get_derivative(deriv_set,&
-               "(rho)(norm_drho)(norm_drho)",allocate_deriv=.true.,error=error)
-          call xc_derivative_get(deriv,deriv_data=e_rho_ndrho_ndrho,error=error)
+               "(rho)(norm_drho)(norm_drho)",allocate_deriv=.TRUE.,error=error)
+          CALL xc_derivative_get(deriv,deriv_data=e_rho_ndrho_ndrho,error=error)
           deriv => xc_dset_get_derivative(deriv_set,&
                "(norm_drho)(norm_drho)(norm_drho)", allocate_deriv=.TRUE.,&
                error=error)
-          call xc_derivative_get(deriv,deriv_data=e_ndrho_ndrho_ndrho,error=error)
+          CALL xc_derivative_get(deriv,deriv_data=e_ndrho_ndrho_ndrho,error=error)
 
           CALL p86_u_3 ( rho, grho, rs, e_rho_rho_rho,&
                e_rho_rho_ndrho, e_rho_ndrho_ndrho, e_ndrho_ndrho_ndrho,&
@@ -237,12 +234,15 @@ CONTAINS
 
   SUBROUTINE p86_u_0 ( rho, rs, grho, e_0, npoints, error )
 
-    REAL(KIND=dp), DIMENSION(*), INTENT(IN)      :: rho, rs, grho
-    REAL(KIND=dp), DIMENSION(*), INTENT(INOUT)     :: e_0
-    INTEGER, INTENT(in) :: npoints
-    TYPE(cp_error_type), INTENT(inout), optional :: error
+    REAL(KIND=dp), DIMENSION(*), INTENT(IN)  :: rho, rs, grho
+    REAL(KIND=dp), DIMENSION(*), &
+      INTENT(INOUT)                          :: e_0
+    INTEGER, INTENT(in)                      :: npoints
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
     INTEGER                                  :: ip
-    REAL(KIND=dp)                                :: cr, ep, g, or, phi, r, x
+    REAL(KIND=dp)                            :: cr, ep, g, or, phi, r, x
 
 !   ---------------------------------------------------------------------------
 
@@ -268,13 +268,14 @@ CONTAINS
 
   SUBROUTINE p86_u_1 ( rho, grho, rs, e_rho, e_ndrho, npoints, error )
 
-    REAL(KIND=dp), DIMENSION(*), INTENT(IN)      :: rho, grho, rs
-    REAL(KIND=dp), DIMENSION(*), INTENT(OUT)  :: e_rho, e_ndrho
-    INTEGER, INTENT(in) :: npoints
-    TYPE(cp_error_type), INTENT(inout), optional :: error
+    REAL(KIND=dp), DIMENSION(*), INTENT(IN)  :: rho, grho, rs
+    REAL(KIND=dp), DIMENSION(*), INTENT(OUT) :: e_rho, e_ndrho
+    INTEGER, INTENT(in)                      :: npoints
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
     INTEGER                                  :: ip
-    REAL(KIND=dp)                                :: cr, dcr, dpv, dphig, dphir, &
+    REAL(KIND=dp)                            :: cr, dcr, dphig, dphir, dpv, &
                                                 dq, ep, ff, g, or, p, phi, q, &
                                                 r, x
 
@@ -312,16 +313,18 @@ CONTAINS
   SUBROUTINE p86_u_2 ( rho, grho, rs, e_rho_rho, e_rho_ndrho, e_ndrho_ndrho,&
        npoints, error)
 
-    REAL(KIND=dp), DIMENSION(*), INTENT(IN)      :: rho, grho, rs
-    REAL(KIND=dp), DIMENSION(*), INTENT(INOUT)  :: e_rho_rho, e_rho_ndrho,&
-         e_ndrho_ndrho
-    INTEGER, INTENT(in) :: npoints
-    TYPE(cp_error_type), INTENT(inout), optional :: error
+    REAL(KIND=dp), DIMENSION(*), INTENT(IN)  :: rho, grho, rs
+    REAL(KIND=dp), DIMENSION(*), &
+      INTENT(INOUT)                          :: e_rho_rho, e_rho_ndrho, &
+                                                e_ndrho_ndrho
+    INTEGER, INTENT(in)                      :: npoints
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
     INTEGER                                  :: ip
-    REAL(KIND=dp)                                :: cr, d2cr, d2p, d2phir, d2q, &
-                                                dcr, dpv, dphig, dphigr, &
-                                                dphir, dq, ep, g, or, p, phi, &
+    REAL(KIND=dp)                            :: cr, d2cr, d2p, d2phir, d2q, &
+                                                dcr, dphig, dphigr, dphir, &
+                                                dpv, dq, ep, g, or, p, phi, &
                                                 q, r, x
 
 !   ---------------------------------------------------------------------------
@@ -373,16 +376,20 @@ CONTAINS
        e_rho_rho_ndrho, e_rho_ndrho_ndrho, e_ndrho_ndrho_ndrho,&
        npoints, error)
 
-    REAL(KIND=dp), DIMENSION(*), INTENT(IN)      :: rho, grho, rs
-    REAL(KIND=dp), DIMENSION(*), INTENT(INOUT)  :: e_rho_rho_rho, &
-         e_rho_rho_ndrho, e_rho_ndrho_ndrho, e_ndrho_ndrho_ndrho
-    INTEGER, intent(in) :: npoints
-    TYPE(cp_error_type), INTENT(inout), optional :: error
+    REAL(KIND=dp), DIMENSION(*), INTENT(IN)  :: rho, grho, rs
+    REAL(KIND=dp), DIMENSION(*), &
+      INTENT(INOUT)                          :: e_rho_rho_rho, &
+                                                e_rho_rho_ndrho, &
+                                                e_rho_ndrho_ndrho, &
+                                                e_ndrho_ndrho_ndrho
+    INTEGER, INTENT(in)                      :: npoints
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
     INTEGER                                  :: ip
     REAL(KIND=dp) :: cr, d2cr, d2p, d2phir, d2phirg, d2pq, d2q, d2z, d3cr, &
-      d3phir, d3pq, d3q, d3z, dcr, dpv, dphig, dphigr, dphir, dpq, dq, dz, ep, &
-      g, or, oz, p, phi, pq, q, r, x
+      d3phir, d3pq, d3q, d3z, dcr, dphig, dphigr, dphir, dpq, dpv, dq, dz, &
+      ep, g, or, oz, p, phi, pq, q, r, x
 
 !   ---------------------------------------------------------------------------
 

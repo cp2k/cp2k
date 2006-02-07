@@ -31,7 +31,7 @@ MODULE timings
                                              mp_environ
   USE string_utilities,                ONLY: uppercase
   USE util,                            ONLY: sort
-  
+
   PRIVATE
 
   INTERFACE timeset
@@ -90,7 +90,7 @@ MODULE timings
    INTEGER, SAVE, PRIVATE :: stack_pointer = 0       ! position in timer_env_stack
    INTEGER, SAVE, PRIVATE :: last_timer_env_id = 0
    TYPE(timer_env_p_type), DIMENSION(max_timer_env_stack) :: timer_env_stack 
-   CHARACTER(len=*), PARAMETER :: moduleN="timings"
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'timings'
 
 !!*****
 !******************************************************************************
@@ -336,7 +336,7 @@ SUBROUTINE timeset_full ( name, ct, pu, handle )
    ENDIF
    IF (LEN_TRIM(name)>LEN(timer_env%clock_name)) THEN
       PRINT *,"timings:timeset, timer name too long: '",TRIM(name),"'"
-      call mp_abort()
+      CALL mp_abort()
    END IF
    timer_env => timer_env_stack(stack_pointer)%timer_env
 !..add name to subroutine stack
@@ -354,8 +354,8 @@ SUBROUTINE timeset_full ( name, ct, pu, handle )
 !..it was a new timer
   IF (timer_env%num_timer>=max_timer) THEN
      PRINT *,'ERROR hit max_timer in timeset'
-     print *,"name ",name,timer_env%num_timer
-     print *,timer_env%clock_name
+     PRINT *,"name ",name,timer_env%num_timer
+     PRINT *,timer_env%clock_name
      CALL mp_abort()
   ENDIF
 
@@ -538,10 +538,9 @@ END SUBROUTINE timestop_full
 !******************************************************************************
  
 SUBROUTINE timeprint(iw,r_timings)
-    IMPLICIT NONE
-    REAL(KIND=dp), INTENT(IN)                :: r_timings
     INTEGER, INTENT(IN)                      :: iw
-    
+    REAL(KIND=dp), INTENT(IN)                :: r_timings
+
     INTEGER                                  :: i, j
     CHARACTER(LEN=1), DIMENSION(0:1)         :: ct = (/"I","E"/)
     INTEGER, DIMENSION(max_timer)            :: index
@@ -745,22 +744,24 @@ END SUBROUTINE print_stack
 !!
 !!*** **********************************************************************
 FUNCTION timer_binsearch(el,list,ord_idx,lb,ub)RESULT(res)
-  CHARACTER(len=*), intent(in) :: el
-  CHARACTER(len=80), DIMENSION(:), intent(in) :: list
-  INTEGER, DIMENSION(:), intent(in) :: ord_idx
-  INTEGER, INTENT(in) :: lb,ub
-  integer :: res
-  
-  logical :: failure
-  character(len=*), parameter :: routineN='timer_binsearch',&
-        routineP=moduleN//':'//routineN
-  INTEGER :: ui,li,mi
+    CHARACTER(len=*), INTENT(in)             :: el
+    CHARACTER(len=80), DIMENSION(:), &
+      INTENT(in)                             :: list
+    INTEGER, DIMENSION(:), INTENT(in)        :: ord_idx
+    INTEGER, INTENT(in)                      :: lb, ub
+    INTEGER                                  :: res
 
-  failure=.false.
+    CHARACTER(len=*), PARAMETER :: routineN = 'timer_binsearch', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: li, mi, ui
+    LOGICAL                                  :: failure
+
+  failure=.FALSE.
   li=lb
   ui=ub
   IF (ui>SIZE(list)) THEN
-     PRINT *, "error in timings:timer_binsearch, ui>size(list)",ui,size(list)
+     PRINT *, "error in timings:timer_binsearch, ui>size(list)",ui,SIZE(list)
      CALL mp_abort()
   END IF
   DO

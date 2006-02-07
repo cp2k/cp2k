@@ -28,7 +28,7 @@ MODULE cp_blacs_calls
   USE kinds,                           ONLY: dp
 
   IMPLICIT NONE
-  CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='cp_blacs_calls'
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_blacs_calls'
   PRIVATE
   ! setup / info calls
   PUBLIC :: cp_blacs_gridinit, cp_blacs_get, cp_blacs_pnum, &

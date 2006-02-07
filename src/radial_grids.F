@@ -33,7 +33,7 @@ MODULE radial_grids
   PUBLIC :: radial_grid_type, init_radial_grid
 
   TYPE radial_grid_type
-    CHARACTER (LEN=30) :: type
+    CHARACTER (LEN=30) :: TYPE
     CHARACTER (LEN=60) :: form
     INTEGER :: n
     REAL(KIND=dp) :: h
@@ -67,30 +67,30 @@ CONTAINS
 !!   SOURCE
 !-----------------------------------------------------------------------------!
 
-  SUBROUTINE init_radial_grid ( rg, type, n, z, b, rmax )
+  SUBROUTINE init_radial_grid ( rg, TYPE, n, z, b, rmax )
 
     TYPE(radial_grid_type), INTENT(OUT)      :: rg
-    CHARACTER(LEN=*), INTENT(IN)             :: type
+    CHARACTER(LEN=*), INTENT(IN)             :: TYPE
     INTEGER, INTENT(IN)                      :: n
-    REAL(KIND=dp), INTENT(IN)                    :: z
-    REAL(KIND=dp), DIMENSION(:), INTENT(IN), &
-      OPTIONAL                               :: b
-    REAL(KIND=dp), INTENT(IN), OPTIONAL          :: rmax
+    REAL(KIND=dp), INTENT(IN)                :: z
+    REAL(KIND=dp), DIMENSION(:), &
+      INTENT(IN), OPTIONAL                   :: b
+    REAL(KIND=dp), INTENT(IN), OPTIONAL      :: rmax
 
     INTEGER                                  :: i, ierr, m
-    REAL(KIND=dp)                                :: ab, abt, p, s, t, t0, tm, &
+    REAL(KIND=dp)                            :: ab, abt, p, s, t, t0, tm, &
                                                 ts2, tt
 
 !------------------------------------------------------------------------------
 
   ALLOCATE ( rg % r ( 0:n+1 ), STAT = ierr )
-  IF ( ierr /= 0 ) call stop_memory ( "init_radial_grid", "rg % r", n+2 )
+  IF ( ierr /= 0 ) CALL stop_memory ( "init_radial_grid", "rg % r", n+2 )
   ALLOCATE ( rg % w ( 0:n+1 ), STAT = ierr )
-  IF ( ierr /= 0 ) call stop_memory ( "init_radial_grid", "rg % w", n+2 )
+  IF ( ierr /= 0 ) CALL stop_memory ( "init_radial_grid", "rg % w", n+2 )
   ALLOCATE ( rg % wdd ( 0:n+1 ), STAT = ierr )
-  IF ( ierr /= 0 ) call stop_memory ( "init_radial_grid", "rg % wdd", n+2 )
+  IF ( ierr /= 0 ) CALL stop_memory ( "init_radial_grid", "rg % wdd", n+2 )
 
-  rg % type = type
+  rg % type = TYPE
   CALL uppercase ( rg % type )
   rg % n = n
   rg % z = z
@@ -111,7 +111,7 @@ CONTAINS
   SELECT CASE ( rg % type )
 
   CASE DEFAULT
-    call stop_program ( "init_radial_grid", "Variable transformation unknown" )
+    CALL stop_program ( "init_radial_grid", "Variable transformation unknown" )
 
   CASE ( "RATIONAL" )
     rg % form = "(b/Z)[Ts/(1-Ts)]"
@@ -182,8 +182,8 @@ CONTAINS
   CASE ( "LOG" )
     rg % form = "(b/Z)[EXP(Ts) - 1]"
     ab = rg % z / rg % b(1)
-    t0 = log ( rg % b(1) )
-    tm = log ( z * rg % rmax + rg % b(1) )
+    t0 = LOG ( rg % b(1) )
+    tm = LOG ( z * rg % rmax + rg % b(1) )
     t = tm - t0
     abt = SQRT ( ab / t )
     DO i = 0, n+1

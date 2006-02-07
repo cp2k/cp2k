@@ -20,7 +20,8 @@
 
 MODULE mol_force
 
-  USE kinds,                           ONLY: dp, default_string_length
+  USE kinds,                           ONLY: default_string_length,&
+                                             dp
 
   PRIVATE
   PUBLIC :: force_bonds, force_bends, force_torsions, force_imp_torsions
@@ -56,14 +57,15 @@ CONTAINS
 !******************************************************************************
 SUBROUTINE force_bonds_3 ( rij, r0, k, energy, fscalar )
 
-    REAL(KIND=dp), DIMENSION(:), INTENT(IN)      :: rij
-    REAL(KIND=dp), INTENT(IN)                    :: r0, k(3)
-    REAL(KIND=dp), INTENT(OUT)                   :: energy, fscalar
+    REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: rij
+    REAL(KIND=dp), INTENT(IN)                :: r0, k(3)
+    REAL(KIND=dp), INTENT(OUT)               :: energy, fscalar
 
-    REAL(KIND=dp)                                :: dij,disp
-    REAL(KIND=dp), PARAMETER                     :: f12=1.0_dp/2.0_dp, &
-                                                    f13=1.0_dp/3.0_dp, &
-                                                    f14=1.0_dp/4.0_dp
+    REAL(KIND=dp), PARAMETER                 :: f12 = 1.0_dp/2.0_dp, &
+                                                f13 = 1.0_dp/3.0_dp, &
+                                                f14 = 1.0_dp/4.0_dp
+
+    REAL(KIND=dp)                            :: dij, disp
 
 !------------------------------------------------------------------------------
 
@@ -77,12 +79,13 @@ END SUBROUTINE force_bonds_3
 SUBROUTINE force_bonds_1 ( rij, r0, k, energy, fscalar )
 
 
-    REAL(KIND=dp), DIMENSION(:), INTENT(IN)      :: rij
-    REAL(KIND=dp), INTENT(IN)                    :: r0, k
-    REAL(KIND=dp), INTENT(OUT)                   :: energy, fscalar
+    REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: rij
+    REAL(KIND=dp), INTENT(IN)                :: r0, k
+    REAL(KIND=dp), INTENT(OUT)               :: energy, fscalar
 
-    REAL(KIND=dp)                                :: dij,disp
-    REAL(KIND=dp), PARAMETER                     :: f12=1.0_dp/2.0_dp
+    REAL(KIND=dp), PARAMETER                 :: f12 = 1.0_dp/2.0_dp
+
+    REAL(KIND=dp)                            :: dij, disp
 
 !------------------------------------------------------------------------------
 
@@ -115,13 +118,13 @@ SUBROUTINE force_bends ( b12, b32, d12, d32, id12, id32, dist, &
      theta, theta0, k, g1, g2, g3, energy, fscalar )
 
 
-    REAL(KIND=dp), DIMENSION(:), INTENT(IN)      :: b12, b32
-    REAL(KIND=dp), INTENT(IN)                    :: d12, d32, id12, id32, dist, &
+    REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: b12, b32
+    REAL(KIND=dp), INTENT(IN)                :: d12, d32, id12, id32, dist, &
                                                 theta, theta0, k
-    REAL(KIND=dp), DIMENSION(:), INTENT(OUT)     :: g1, g2, g3
-    REAL(KIND=dp), INTENT(OUT)                   :: energy, fscalar
+    REAL(KIND=dp), DIMENSION(:), INTENT(OUT) :: g1, g2, g3
+    REAL(KIND=dp), INTENT(OUT)               :: energy, fscalar
 
-    REAL(KIND=dp)                                :: denom
+    REAL(KIND=dp)                            :: denom
 
 !------------------------------------------------------------------------------
 ! define denom
@@ -132,7 +135,7 @@ SUBROUTINE force_bends ( b12, b32, d12, d32, id12, id32, dist, &
   energy = 0.5_dp * k * ( theta - theta0 ) ** 2
 
 ! compute fscalar
-  fscalar = k*(theta-theta0)/sin(theta)
+  fscalar = k*(theta-theta0)/SIN(theta)
 
 ! compute the gradients
   g1 = (b32*d12*d32-dist*d32*id12*b12)*denom
@@ -161,20 +164,22 @@ END SUBROUTINE force_bends
 !******************************************************************************
 
 SUBROUTINE force_torsions ( is32, dist1, dist2, u1, u2, iw1, iw2, &
-           a, k, cosphi0, m, type, gt1, gt2, gt3, gt4, energy, fscalar )
+           a, k, cosphi0, m, TYPE, gt1, gt2, gt3, gt4, energy, fscalar )
 
 
-    REAL(KIND=dp), INTENT(IN)                                    :: is32, dist1, dist2
-    REAL(KIND=dp), DIMENSION(:), INTENT(IN)                      :: u1, u2
-    REAL(KIND=dp), INTENT(IN)                                    :: iw1, iw2
-    REAL(KIND=dp), DIMENSION(0:3), INTENT(IN)                    :: a
-    REAL(KIND=dp), INTENT(IN)                                    :: k, cosphi0
-    INTEGER, INTENT(IN)                                      :: m
-    CHARACTER ( len = default_string_length ), INTENT ( IN ) :: type
-    REAL(KIND=dp), DIMENSION(:), INTENT(OUT)                     :: gt1, gt2, gt3, gt4
-    REAL(KIND=dp), INTENT(OUT)                                   :: energy, fscalar
+    REAL(KIND=dp), INTENT(IN)                :: is32, dist1, dist2
+    REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: u1, u2
+    REAL(KIND=dp), INTENT(IN)                :: iw1, iw2
+    REAL(KIND=dp), DIMENSION(0:3), &
+      INTENT(IN)                             :: a
+    REAL(KIND=dp), INTENT(IN)                :: k, cosphi0
+    INTEGER, INTENT(IN)                      :: m
+    CHARACTER(len=default_string_length), &
+      INTENT(IN)                             :: TYPE
+    REAL(KIND=dp), DIMENSION(:), INTENT(OUT) :: gt1, gt2, gt3, gt4
+    REAL(KIND=dp), INTENT(OUT)               :: energy, fscalar
 
-    REAL(KIND=dp)                                :: cosphi, trig
+    REAL(KIND=dp)                            :: cosphi, trig
 
 !------------------------------------------------------------------------------
 ! define cosphi
@@ -182,7 +187,7 @@ SUBROUTINE force_torsions ( is32, dist1, dist2, u1, u2, iw1, iw2, &
   cosphi = DOT_PRODUCT ( u1, u2 ) * iw1 * iw2
 
 ! compute energy
-  SELECT CASE ( type )
+  SELECT CASE ( TYPE )
   CASE ( "CHARMM" )
      SELECT CASE ( m )
        CASE ( 0 )
@@ -258,14 +263,14 @@ END SUBROUTINE force_torsions
 SUBROUTINE force_imp_torsions ( s32, is32, ism, isn,  dist1, dist2, tm, tn, t12, t32, &
                                 k, phi0, gt1, gt2, gt3, gt4, energy, fscalar )
 
-    IMPLICIT NONE
-    REAL(KIND=dp), INTENT(IN)                    :: is32, s32, dist1, dist2, ism, isn
-    REAL(KIND=dp), DIMENSION(:), INTENT(IN)      :: tm, tn,  t32, t12
-    REAL(KIND=dp), INTENT(IN)                    :: k, phi0
-    REAL(KIND=dp), DIMENSION(:), INTENT(OUT)     :: gt1, gt2, gt3, gt4
-    REAL(KIND=dp), INTENT(OUT)                   :: energy, fscalar
+    REAL(KIND=dp), INTENT(IN)                :: s32, is32, ism, isn, dist1, &
+                                                dist2
+    REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: tm, tn, t12, t32
+    REAL(KIND=dp), INTENT(IN)                :: k, phi0
+    REAL(KIND=dp), DIMENSION(:), INTENT(OUT) :: gt1, gt2, gt3, gt4
+    REAL(KIND=dp), INTENT(OUT)               :: energy, fscalar
 
-    REAL(KIND=dp)                                :: cosphi, phi
+    REAL(KIND=dp)                            :: cosphi, phi
 
 !------------------------------------------------------------------------------
 ! define cosphi
@@ -273,7 +278,7 @@ SUBROUTINE force_imp_torsions ( s32, is32, ism, isn,  dist1, dist2, tm, tn, t12,
   cosphi = DOT_PRODUCT ( tm, tn ) * ism * isn
   IF(cosphi > 1.0_dp) cosphi = 1.0_dp
   IF(cosphi < -1.0_dp) cosphi = -1.0_dp
-  phi = SIGN ( acos ( cosphi ), DOT_PRODUCT ( t12, tn ) )
+  phi = SIGN ( ACOS ( cosphi ), DOT_PRODUCT ( t12, tn ) )
 ! compute energy
   energy = 0.5_dp * k * ( phi - phi0 ) * ( phi - phi0 ) 
 
@@ -308,7 +313,7 @@ END SUBROUTINE force_imp_torsions
 !******************************************************************************
 
 SUBROUTINE get_pv_bond(f1,f2,r1,r2,pv_bond)
-    REAL(KIND=dp), DIMENSION(3), INTENT(IN)      :: f1, f2, r1, r2
+    REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: f1, f2, r1, r2
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(INOUT)                          :: pv_bond
 
@@ -366,7 +371,7 @@ END SUBROUTINE get_pv_bond
 SUBROUTINE get_pv_bend(f1,f2,f3,r1,r2,r3,pv_bend)
 
 
-    REAL(KIND=dp), DIMENSION(3), INTENT(IN)      :: f1, f2, f3, r1, r2, r3
+    REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: f1, f2, f3, r1, r2, r3
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(INOUT)                          :: pv_bend
 
@@ -433,7 +438,7 @@ END SUBROUTINE get_pv_bend
 SUBROUTINE get_pv_torsion(f1,f2,f3,f4,r1,r2,r3,r4,pv_torsion)
 
 
-    REAL(KIND=dp), DIMENSION(3), INTENT(IN)      :: f1, f2, f3, f4, r1, r2, r3, r4
+    REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: f1, f2, f3, f4, r1, r2, r3, r4
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(INOUT)                          :: pv_torsion
 

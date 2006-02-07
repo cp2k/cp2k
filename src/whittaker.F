@@ -18,15 +18,17 @@
 !------------------------------------------------------------------------------!
 
   USE kinds,                           ONLY: dp
-  USE mathconstants,                   ONLY: rootpi, fac, dfac
+  USE mathconstants,                   ONLY: dfac,&
+                                             fac,&
+                                             rootpi
   USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
-
 !
+
   IMPLICIT NONE
 
-  CHARACTER(LEN=*), PARAMETER :: module_name = "whittaker"
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'whittaker'
 
   PRIVATE
 
@@ -51,26 +53,23 @@ CONTAINS
 !   l        :: L-quantum number
 !   n        :: number of points
 !
-    INTEGER, INTENT (IN)                     :: l, n
-    REAL(KIND=dp), DIMENSION(n)              :: wc, r, expa, erfa
-    REAL(KIND=dp), INTENT (IN)               :: alpha
+    INTEGER, INTENT(IN)                      :: n, l
+    REAL(KIND=dp), INTENT(IN)                :: alpha
+    REAL(KIND=dp), DIMENSION(n)              :: erfa, expa, r, wc
 
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "whittaker_c0"
+    CHARACTER(LEN=*), PARAMETER              :: routineN = 'whittaker_c0'
 
-    REAL ( dp ) :: t1,t2,t3,t4,t5,t6,t7,t8,t9,t10,t11,t12,t13,t14,t15,t16,t17,&
-                   t18,t19,t20,t21,t22,t23,t24,t25,t26,t27,t28,t29,t30,t31,&
-                   t32,t33,t34,t35,t36,t37,t38,t39,t40,t41,t42,t43,t44,t45,&
-                   t46,t47,t48,t49,t50,t51,t52,t53,t54,t55,t56,t57,t58,t59,&
-                   t60,t61
-    REAL ( dp ) :: x
-    INTEGER     :: handle, i, k
+    INTEGER                                  :: handle, i, k
+    REAL(dp) :: t1, t10, t11, t12, t13, t14, t16, t17, t18, t19, t2, t21, &
+      t22, t23, t25, t28, t3, t30, t31, t34, t36, t39, t4, t41, t44, t45, &
+      t46, t5, t50, t51, t52, t56, t6, t61, t7, t8, t9, x
 
 ! -----------------------------------------------------------------------------
 
     CALL timeset("whittaker_c0","I"," ",handle)
 
     IF ( MOD(l,2) /= 0 ) THEN
-        CALL stop_program(module_name,routine_name,__LINE__,&
+        CALL stop_program(moduleN,routineN,__LINE__,&
              "Angular momentum has to be even")
     END IF
 
@@ -78,7 +77,7 @@ CONTAINS
 
       CASE DEFAULT
 
-        t1 = sqrt(alpha)
+        t1 = SQRT(alpha)
         DO i = 1, n
           x  = r(i)
           wc(i) = -rootpi*erfa(i)*alpha*dfac(l+1)
@@ -91,7 +90,7 @@ CONTAINS
 
       CASE (0)
 
-        t1 = sqrt(alpha)
+        t1 = SQRT(alpha)
         t2 = t1**2
         t11 = rootpi                      
         DO i = 1, n
@@ -105,7 +104,7 @@ CONTAINS
 
       CASE (2)
 
-        t1 = sqrt(alpha)
+        t1 = SQRT(alpha)
         t2 = t1**2
         t3 = t2**2
         t17 = rootpi                      
@@ -120,7 +119,7 @@ CONTAINS
 
       CASE (4)
 
-        t1 = sqrt(alpha)
+        t1 = SQRT(alpha)
         t2 = t1**2
         t3 = t2*t1
         t4 = t2**2
@@ -138,7 +137,7 @@ CONTAINS
 
       CASE (6)
 
-        t8 = sqrt(alpha)
+        t8 = SQRT(alpha)
         t9 = t8**2
         t10 = t9**2
         t11 = t10**2
@@ -158,7 +157,7 @@ CONTAINS
 
       CASE (8)
 
-        t8 = sqrt(alpha)
+        t8 = SQRT(alpha)
         t9 = t8**2
         t10 = t9*t8
         t11 = t9**2
@@ -180,7 +179,7 @@ CONTAINS
 
       CASE (10)
 
-        t9 = sqrt(alpha)
+        t9 = SQRT(alpha)
         t10 = t9**2
         t11 = t10**2
         t12 = t11*t9
@@ -205,7 +204,7 @@ CONTAINS
 
       CASE (12)
 
-        t9 = sqrt(alpha)
+        t9 = SQRT(alpha)
         t10 = t9**2
         t11 = t10*t9
         t12 = t10**2
@@ -232,7 +231,7 @@ CONTAINS
 
       CASE (14)
 
-        t10 = sqrt(alpha)
+        t10 = SQRT(alpha)
         t11 = t10**2
         t12 = t11**2
         t13 = t12**2
@@ -283,24 +282,23 @@ CONTAINS
 !   l        :: L-quantum number
 !   n        :: number of points
 !
-    INTEGER, INTENT (IN)                     :: l, n
-    REAL(KIND=dp), DIMENSION(n)              :: wc, r, expa
-    REAL(KIND=dp), INTENT (IN)               :: alpha
+    INTEGER, INTENT(IN)                      :: n, l
+    REAL(KIND=dp), INTENT(IN)                :: alpha
+    REAL(KIND=dp), DIMENSION(n)              :: expa, r, wc
 
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "whittaker_ci"
+    CHARACTER(LEN=*), PARAMETER              :: routineN = 'whittaker_ci'
 
-    REAL ( dp ) :: t1,t2,t3,t4,t5,t6,t7,t8,t9,t10,t11,t12,t13,t14,t15,t16,t17,&
-                   t18,t19,t20,t21,t22,t23,t24,t25,t26,t27,t28,t29,t30,t31,&
-                   t32,t33
-    REAL ( dp ) :: x
-    INTEGER     :: handle, i ,k
+    INTEGER                                  :: handle, i, k
+    REAL(dp)                                 :: t1, t10, t13, t14, t17, t18, &
+                                                t2, t21, t25, t29, t3, t30, &
+                                                t33, t4, t5, t6, t7, t8, t9, x
 
 ! -----------------------------------------------------------------------------
 
     CALL timeset("whittaker_ci","I"," ",handle)
 
     IF ( MOD(l,2) /= 0 ) THEN
-        CALL stop_program(module_name,routine_name,__LINE__,&
+        CALL stop_program(moduleN,routineN,__LINE__,&
              "Angular momentum has to be even")
     END IF
 

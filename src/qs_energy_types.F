@@ -30,7 +30,7 @@ MODULE qs_energy_types
 
   PRIVATE
 
-  CHARACTER(len=*), PARAMETER :: moduleN = 'qs_energy_types'
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_energy_types'
 
   TYPE qs_energy_type
     REAL(KIND = dp) :: core,&
@@ -188,8 +188,7 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE duplicate_qs_energy(qs_energy_in, qs_energy_out)
 
-    TYPE(qs_energy_type), POINTER                   :: qs_energy_in, &
-                                                       qs_energy_out
+    TYPE(qs_energy_type), POINTER            :: qs_energy_in, qs_energy_out
 
 !   ------------------------------------------------------------------------
 
@@ -232,8 +231,7 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE copy_qs_energy(qs_energy_in, qs_energy_out)
 
-    TYPE(qs_energy_type), POINTER                   :: qs_energy_in, &
-                                                       qs_energy_out
+    TYPE(qs_energy_type), POINTER            :: qs_energy_in, qs_energy_out
 
     CHARACTER(LEN=*), PARAMETER :: &
       routine = "SUBROUTINE copy_qs_energy (MODULE qs_energy_types)"

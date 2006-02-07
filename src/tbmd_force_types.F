@@ -24,14 +24,13 @@
 !****************************************************************************
 MODULE tbmd_force_types
   USE kinds,                           ONLY: dp
-
 #include "cp_common_uses.h"
- 
+
   IMPLICIT NONE
   PRIVATE
 
-  CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='tbmd_force_types'
-  INTEGER, PRIVATE, save :: last_tbmd_id=0
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'tbmd_force_types'
+  INTEGER, PRIVATE, SAVE :: last_tbmd_id=0
 
   ! *** Public data types ***
   PUBLIC :: tbmd_force_type, &
@@ -155,7 +154,7 @@ CONTAINS
     LOGICAL                                  :: failure
 
 !   ------------------------------------------------------------------------
-   
+
     failure = .FALSE.
   
     CPPrecondition(ASSOCIATED(tbmd_force), cp_failure_level, routineP, error, failure)
@@ -191,15 +190,15 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE tbmd_force_release(tbmd_force, error)
 
-    TYPE(tbmd_force_type), POINTER                  :: tbmd_force
+    TYPE(tbmd_force_type), POINTER           :: tbmd_force
     TYPE(cp_error_type), INTENT(INOUT), &
-      OPTIONAL                                      :: error
+      OPTIONAL                               :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'tbmd_force_release', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                         :: stat
-    LOGICAL                                         :: failure
+    INTEGER                                  :: stat
+    LOGICAL                                  :: failure
 
 !   ------------------------------------------------------------------------
 
@@ -275,20 +274,20 @@ CONTAINS
   SUBROUTINE tbmd_force_get(tbmd_force, id_nr, f_kinetic, f_bandstruct, &
                             f_repulsion, f_tb, f_total, error)
 
-    TYPE(tbmd_force_type), POINTER                   :: tbmd_force
-    INTEGER, INTENT(OUT), OPTIONAL                   :: id_nr
-    REAL(KIND=dp), DIMENSION(:,:), POINTER, OPTIONAL :: f_kinetic, &
-                                                        f_bandstruct, &
-                                                        f_repulsion, &
-                                                        f_tb
-    REAL(KIND=dp), DIMENSION(:), POINTER, OPTIONAL   :: f_total
+    TYPE(tbmd_force_type), POINTER           :: tbmd_force
+    INTEGER, INTENT(OUT), OPTIONAL           :: id_nr
+    REAL(KIND=dp), DIMENSION(:, :), &
+      OPTIONAL, POINTER                      :: f_kinetic, f_bandstruct, &
+                                                f_repulsion, f_tb
+    REAL(KIND=dp), DIMENSION(:), OPTIONAL, &
+      POINTER                                :: f_total
     TYPE(cp_error_type), INTENT(INOUT), &
-      OPTIONAL                                       :: error
+      OPTIONAL                               :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'tbmd_force_get', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                          :: failure
+    LOGICAL                                  :: failure
 
 !   ------------------------------------------------------------------------
 
@@ -346,20 +345,20 @@ CONTAINS
   SUBROUTINE tbmd_force_set(tbmd_force, id_nr, f_kinetic, f_bandstruct, &
                             f_repulsion, f_tb, f_total, error)
 
-    TYPE(tbmd_force_type), POINTER                   :: tbmd_force
-    INTEGER, INTENT(IN), OPTIONAL                    :: id_nr
-    REAL(KIND=dp), DIMENSION(:,:), POINTER, OPTIONAL :: f_kinetic, &
-                                                        f_bandstruct, &
-                                                        f_repulsion, &
-                                                        f_tb
-    REAL(KIND=dp), DIMENSION(:), POINTER, OPTIONAL   :: f_total
+    TYPE(tbmd_force_type), POINTER           :: tbmd_force
+    INTEGER, INTENT(IN), OPTIONAL            :: id_nr
+    REAL(KIND=dp), DIMENSION(:, :), &
+      OPTIONAL, POINTER                      :: f_kinetic, f_bandstruct, &
+                                                f_repulsion, f_tb
+    REAL(KIND=dp), DIMENSION(:), OPTIONAL, &
+      POINTER                                :: f_total
     TYPE(cp_error_type), INTENT(INOUT), &
-      OPTIONAL                                       :: error
+      OPTIONAL                               :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'tbmd_force_set', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                          :: failure
+    LOGICAL                                  :: failure
 
 !   ------------------------------------------------------------------------
 
@@ -407,16 +406,16 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE tbmd_force_clear(tbmd_force, natom, error)
 
-    TYPE(tbmd_force_type), POINTER                  :: tbmd_force
-    INTEGER                                         :: natom
+    TYPE(tbmd_force_type), POINTER           :: tbmd_force
+    INTEGER                                  :: natom
     TYPE(cp_error_type), INTENT(INOUT), &
-      OPTIONAL                                      :: error
-    INTEGER                                         :: i, j
+      OPTIONAL                               :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'tbmd_force_clear', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                         :: failure
+    INTEGER                                  :: i, j
+    LOGICAL                                  :: failure
 
 !   ------------------------------------------------------------------------
 
@@ -466,16 +465,16 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE tbmd_force_create(tbmd_force, natom, error)
 
-    TYPE(tbmd_force_type), POINTER                  :: tbmd_force
-    INTEGER                                         :: natom
+    TYPE(tbmd_force_type), POINTER           :: tbmd_force
+    INTEGER                                  :: natom
     TYPE(cp_error_type), INTENT(INOUT), &
-      OPTIONAL                                      :: error
+      OPTIONAL                               :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'tbmd_force_create', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                         :: stat
-    LOGICAL                                         :: failure
+    INTEGER                                  :: stat
+    LOGICAL                                  :: failure
 
 !   ------------------------------------------------------------------------
 

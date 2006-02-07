@@ -23,6 +23,12 @@
 MODULE xc_exchange_gga_new
 ! *****************************************************************************
   USE cp_array_r_utils,                ONLY: cp_3d_r_p_type
+  USE input_constants,                 ONLY: xgga_b88,&
+                                             xgga_opt,&
+                                             xgga_pbe,&
+                                             xgga_pw86,&
+                                             xgga_pw91,&
+                                             xgga_revpbe
   USE kinds,                           ONLY: dp
   USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
@@ -36,13 +42,8 @@ MODULE xc_exchange_gga_new
   USE xc_rho_cflags_types,             ONLY: xc_rho_cflags_type
   USE xc_rho_set_types,                ONLY: xc_rho_set_get,&
                                              xc_rho_set_type
-  USE input_constants,                 ONLY: xgga_b88,&
-                                             xgga_opt,&
-                                             xgga_pbe,&
-                                             xgga_pw86,&
-                                             xgga_pw91,&
-                                             xgga_revpbe
 #include "cp_common_uses.h"
+
   IMPLICIT NONE
 
   PRIVATE
@@ -60,7 +61,7 @@ MODULE xc_exchange_gga_new
   REAL(KIND=dp) :: cx, flda, flsd, sfac, t13
   REAL(KIND=dp) :: fact, tact
   REAL(KIND=dp) :: eps_rho
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN="xc_exchange_gga_new"  
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'xc_exchange_gga_new'  
 
 ! *****************************************************************************
 
@@ -239,14 +240,13 @@ CONTAINS
                                                 nspin, stat
     INTEGER, DIMENSION(:, :), POINTER        :: bo
     LOGICAL                                  :: failure
-    REAL(KIND=dp), DIMENSION(:, :, :), POINTER :: e_0, e_ndrho, e_ndrho_ndrho, &
-      e_ndrho_ndrho_ndrho, e_rho, e_rho_ndrho, e_rho_ndrho_ndrho, e_rho_rho, &
-      e_rho_rho_ndrho, e_rho_rho_rho
-    REAL(KIND=dp)                           :: drho_cutoff, rho_cutoff
-    REAL(KIND=dp), ALLOCATABLE, &
-      DIMENSION(:)                           :: s
+    REAL(KIND=dp)                            :: drho_cutoff, rho_cutoff
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: s
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: fs
+    REAL(KIND=dp), DIMENSION(:, :, :), POINTER :: e_0, e_ndrho, &
+      e_ndrho_ndrho, e_ndrho_ndrho_ndrho, e_rho, e_rho_ndrho, &
+      e_rho_ndrho_ndrho, e_rho_rho, e_rho_rho_ndrho, e_rho_rho_rho
     TYPE(cp_3d_r_p_type), DIMENSION(2)       :: norm_drho, rho, rho_1_3
     TYPE(xc_derivative_type), POINTER        :: deriv
 
@@ -401,7 +401,7 @@ CONTAINS
 
   SUBROUTINE xgga_init ( cutoff )
 
-    REAL(KIND=dp), INTENT(IN)                    :: cutoff
+    REAL(KIND=dp), INTENT(IN)                :: cutoff
 
     eps_rho = cutoff
     CALL set_util ( cutoff )
@@ -419,9 +419,11 @@ CONTAINS
 
   SUBROUTINE x_p_0 ( rho, r13, fs, e_0, npoints, error )
 
-    REAL(KIND=dp), DIMENSION(*), INTENT(IN)      :: rho, r13
-    REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)   :: fs
-    REAL(KIND=dp), DIMENSION(*), INTENT(INOUT)   :: e_0
+    REAL(KIND=dp), DIMENSION(*), INTENT(IN)  :: rho, r13
+    REAL(KIND=dp), DIMENSION(:, :), &
+      INTENT(IN)                             :: fs
+    REAL(KIND=dp), DIMENSION(*), &
+      INTENT(INOUT)                          :: e_0
     INTEGER, INTENT(in)                      :: npoints
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
@@ -445,15 +447,17 @@ CONTAINS
 
   SUBROUTINE x_p_1 ( rho, grho, r13, s, fs, e_rho,e_ndrho,npoints,error )
 
-    REAL(KIND=dp), DIMENSION(*), INTENT(IN)      :: rho, grho, r13, s
-    REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)   :: fs
-    REAL(KIND=dp), DIMENSION(*), INTENT(INOUT)   :: e_rho, e_ndrho
+    REAL(KIND=dp), DIMENSION(*), INTENT(IN)  :: rho, grho, r13, s
+    REAL(KIND=dp), DIMENSION(:, :), &
+      INTENT(IN)                             :: fs
+    REAL(KIND=dp), DIMENSION(*), &
+      INTENT(INOUT)                          :: e_rho, e_ndrho
     INTEGER, INTENT(in)                      :: npoints
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
     INTEGER                                  :: ip
-    REAL(KIND=dp)                                :: a0, a1, sx, sy
+    REAL(KIND=dp)                            :: a0, a1, sx, sy
 
 !   ---------------------------------------------------------------------------
 
@@ -480,16 +484,18 @@ CONTAINS
   SUBROUTINE x_p_2 ( rho, grho, r13, s, fs, e_rho_rho, e_rho_ndrho, &
        e_ndrho_ndrho, npoints, error )
 
-    REAL(KIND=dp), DIMENSION(*), INTENT(IN)      :: rho, grho, r13, s
-    REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)   :: fs
-    REAL(KIND=dp), DIMENSION(*), INTENT(INOUT)   :: e_rho_rho, e_rho_ndrho, &
+    REAL(KIND=dp), DIMENSION(*), INTENT(IN)  :: rho, grho, r13, s
+    REAL(KIND=dp), DIMENSION(:, :), &
+      INTENT(IN)                             :: fs
+    REAL(KIND=dp), DIMENSION(*), &
+      INTENT(INOUT)                          :: e_rho_rho, e_rho_ndrho, &
                                                 e_ndrho_ndrho
     INTEGER, INTENT(in)                      :: npoints
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
     INTEGER                                  :: ip
-    REAL(KIND=dp)                                :: a0, a1, a2, sx, sxx, sxy, sy
+    REAL(KIND=dp)                            :: a0, a1, a2, sx, sxx, sxy, sy
 
 !   ---------------------------------------------------------------------------
 
@@ -522,9 +528,11 @@ CONTAINS
   SUBROUTINE x_p_3 ( rho, grho, r13, s, fs, e_rho_rho_rho, e_rho_rho_ndrho,&
        e_rho_ndrho_ndrho, e_ndrho_ndrho_ndrho, npoints,error )
 
-    REAL(KIND=dp), DIMENSION(*), INTENT(IN)      :: rho, grho, r13, s
-    REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)   :: fs
-    REAL(KIND=dp), DIMENSION(*), INTENT(INOUT)   :: e_rho_rho_rho, &
+    REAL(KIND=dp), DIMENSION(*), INTENT(IN)  :: rho, grho, r13, s
+    REAL(KIND=dp), DIMENSION(:, :), &
+      INTENT(IN)                             :: fs
+    REAL(KIND=dp), DIMENSION(*), &
+      INTENT(INOUT)                          :: e_rho_rho_rho, &
                                                 e_rho_rho_ndrho, &
                                                 e_rho_ndrho_ndrho, &
                                                 e_ndrho_ndrho_ndrho
@@ -533,7 +541,7 @@ CONTAINS
       OPTIONAL                               :: error
 
     INTEGER                                  :: ip
-    REAL(KIND=dp)                                :: a0, a1, a2, a3, sx, sxx, &
+    REAL(KIND=dp)                            :: a0, a1, a2, a3, sx, sxx, &
                                                 sxxx, sxxy, sxy, sy
 
 !   ---------------------------------------------------------------------------
@@ -579,15 +587,15 @@ CONTAINS
 ! Enhancement Factors
 ! *****************************************************************************
   SUBROUTINE efactor_b88 ( s, fs, m )
-    REAL(KIND=dp), DIMENSION(:), INTENT(IN)      :: s
+    REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: s
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(INOUT)                          :: fs
     INTEGER, INTENT(IN)                      :: m
 
     INTEGER                                  :: ip
-    REAL(KIND=dp) :: as, asp, beta, bs, f0, p, q, sas, sbs, sbs3, t1, t10, t13, &
-      t15, t16, t19, t2, t22, t24, t25, t32, t34, t36, t39, t4, t40, t41, &
-      t44, t48, t49, t5, t6, t65, t8, t87, t9, x, ys
+    REAL(KIND=dp) :: as, asp, beta, bs, f0, p, q, sas, sbs, sbs3, t1, t10, &
+      t13, t15, t16, t19, t2, t22, t24, t25, t32, t34, t36, t39, t4, t40, &
+      t41, t44, t48, t49, t5, t6, t65, t8, t87, t9, x, ys
 
     beta = 0.0042_dp
     f0 = 1.0_dp/sfac
@@ -667,13 +675,13 @@ CONTAINS
   END SUBROUTINE efactor_b88
 ! *****************************************************************************
   SUBROUTINE efactor_pw86 ( s, fs, m )
-    REAL(KIND=dp), DIMENSION(:), INTENT(IN)      :: s
+    REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: s
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(INOUT)                          :: fs
     INTEGER, INTENT(IN)                      :: m
 
     INTEGER                                  :: ip
-    REAL(KIND=dp)                                :: f15, p0, p1, p15, s2, s4, s6, &
+    REAL(KIND=dp)                            :: f15, p0, p1, p15, s2, s4, s6, &
                                                 t1, t10, t12, t13, t14, t19, &
                                                 t2, t25, t3, t8, t9
 
@@ -729,16 +737,17 @@ CONTAINS
   END SUBROUTINE efactor_pw86
 ! *****************************************************************************
   SUBROUTINE efactor_optx ( s, fs, m )
-    REAL(KIND=dp), DIMENSION(:), INTENT(IN)      :: s
-    REAL(KIND=dp), DIMENSION(:, :), INTENT(OUT)  :: fs
+    REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: s
+    REAL(KIND=dp), DIMENSION(:, :), &
+      INTENT(OUT)                            :: fs
     INTEGER, INTENT(IN)                      :: m
 
-    REAL(KIND=dp), PARAMETER                     :: a1 = 1.05151_dp, &
+    REAL(KIND=dp), PARAMETER                 :: a1 = 1.05151_dp, &
                                                 a2 = 1.43169_dp, &
                                                 gamma_bo = 0.006_dp
 
     INTEGER                                  :: ip
-    REAL(KIND=dp)                                :: a, b, f0, x, y
+    REAL(KIND=dp)                            :: a, b, f0, x, y
 
     f0 = 1.0_dp/sfac
     b = -a2/flsd
@@ -772,19 +781,19 @@ CONTAINS
 ! *****************************************************************************
 
   SUBROUTINE efactor_pw91 ( s, fs, m )
-    REAL(KIND=dp), DIMENSION(:), INTENT(IN)      :: s
-    REAL(KIND=dp), DIMENSION(:, :), INTENT(OUT)  :: fs
+    REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: s
+    REAL(KIND=dp), DIMENSION(:, :), &
+      INTENT(OUT)                            :: fs
     INTEGER, INTENT(IN)                      :: m
 
     INTEGER                                  :: ip
-    REAL(KIND=dp)                            :: b, a1, a2, a3, a4, a5, o,  &
-                                                x
-    REAL(dp) :: t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t12, t13, t14, t15, t16, &
-                t17, t18, t19, t20, t21, t22, t23, t25, t26, t27, t28, t29, t30, &
-                t31, t33, t35, t37, t38, t39, t40, t44, t47, t48, t50, t51, t53,&
-                t55, t56, t57, t58, t59, t60, t64, t65, t69, t70, t71, t73, t77,&
-                t78, t80,  t82, t90, t93,  t94, t96, t98, t101, t106, t109, t111,&
-                t113, t119, t123,  t124
+    REAL(dp) :: t1, t10, t101, t106, t109, t111, t113, t119, t12, t123, t124, &
+      t13, t14, t15, t16, t17, t18, t19, t2, t20, t21, t22, t23, t25, t26, &
+      t27, t28, t29, t3, t30, t31, t33, t35, t37, t38, t39, t4, t40, t44, &
+      t47, t48, t5, t50, t51, t53, t55, t56, t57, t58, t59, t6, t60, t64, &
+      t65, t69, t7, t70, t71, t73, t77, t78, t8, t80, t82, t9, t90, t93, t94, &
+      t96, t98
+    REAL(KIND=dp)                            :: a1, a2, a3, a4, a5, b, o, x
 
     o=1.0_dp
     a1 = 0.19645_dp
@@ -836,7 +845,7 @@ CONTAINS
         x = s(ip)
         t1 = b**2     
         t2 = x**2
-        t5 = sqrt(o+t1*t2)
+        t5 = SQRT(o+t1*t2)
         t7 = o/t5*t1
         t9 = b+t7*x
         t12 = b*x+t5
@@ -850,11 +859,11 @@ CONTAINS
         t27 = t12**2
         t30 = t16*t26/t27
         t31 = a3*a4
-        t33 = exp(-a4*t2)
+        t33 = EXP(-a4*t2)
         t37 = a4**2
         t39 = t2**2
         t44 = a3*t33
-        t47 = log(t12)
+        t47 = LOG(t12)
         t48 = t16*t47
         t50 = o+t48+a5*t39
         t53 = a1*t47
@@ -937,12 +946,13 @@ CONTAINS
 
 ! *****************************************************************************
   SUBROUTINE efactor_pw91_old ( s, fs, m )
-    REAL(KIND=dp), DIMENSION(:), INTENT(IN)      :: s
-    REAL(KIND=dp), DIMENSION(:, :), INTENT(OUT)  :: fs
+    REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: s
+    REAL(KIND=dp), DIMENSION(:, :), &
+      INTENT(OUT)                            :: fs
     INTEGER, INTENT(IN)                      :: m
 
     INTEGER                                  :: ip
-    REAL(KIND=dp)                                :: a, a1, a2, a3, a4, b1, o, s1, &
+    REAL(KIND=dp)                            :: a, a1, a2, a3, a4, b1, o, s1, &
                                                 s2, s3, x
 
     o=1.0_dp
@@ -1032,16 +1042,17 @@ CONTAINS
   END SUBROUTINE efactor_pw91_old
 ! *****************************************************************************
   SUBROUTINE efactor_pbex ( s, fs, m, pset )
-    REAL(KIND=dp), DIMENSION(:), INTENT(IN)      :: s
-    REAL(KIND=dp), DIMENSION(:, :), INTENT(OUT)  :: fs
+    REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: s
+    REAL(KIND=dp), DIMENSION(:, :), &
+      INTENT(OUT)                            :: fs
     INTEGER, INTENT(IN)                      :: m, pset
 
-    REAL(KIND=dp), PARAMETER                     :: kappa1 = 0.804_dp, &
+    REAL(KIND=dp), PARAMETER                 :: kappa1 = 0.804_dp, &
                                                 kappa2 = 1.245_dp, &
                                                 mu = 0.2195149727645171_dp
 
     INTEGER                                  :: ip
-    REAL(KIND=dp)                                :: f0, mk, x, x2, y
+    REAL(KIND=dp)                            :: f0, mk, x, x2, y
 
     IF( pset==1 ) mk=mu/kappa1
     IF( pset==2 ) mk=mu/kappa2

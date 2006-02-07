@@ -74,7 +74,7 @@ MODULE  hartree_local_2centers
 
 ! *** Global parameters (only in this module)
 
-  CHARACTER(LEN=*), PARAMETER :: module_name = "hartree_local_3centers"
+  CHARACTER(LEN=*), PARAMETER :: moduleN = "hartree_local_3centers"
 
 ! Public Subroutine
  
@@ -96,7 +96,7 @@ MODULE  hartree_local_2centers
     LOGICAL, INTENT(IN), OPTIONAL              :: tddft
     TYPE(qs_p_env_type), POINTER, OPTIONAL     :: p_env
 
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "integrate_vhg0_g0"
+    CHARACTER(LEN=*), PARAMETER :: routineN = "integrate_vhg0_g0"
 
     TYPE(atomic_kind_type), DIMENSION(:),&
                                   POINTER      :: atomic_kind_set
@@ -182,10 +182,10 @@ MODULE  hartree_local_2centers
     maxder = 0
     IF (calculate_forces) THEN
  
-      CALL timeset(routine_name//" (forces)","I"," ",handle)
+      CALL timeset(routineN//" (forces)","I"," ",handle)
 
       ALLOCATE (atom_of_kind(natom),STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
            "atom_of_kind",natom*int_size)
 
       CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
@@ -196,7 +196,7 @@ MODULE  hartree_local_2centers
       maxder = 1
     ELSE
      
-      CALL timeset(routine_name,"I"," ",handle)
+      CALL timeset(routineN,"I"," ",handle)
 
     END IF
 
@@ -209,33 +209,33 @@ MODULE  hartree_local_2centers
 
     maxch0 = ncoset(lmax_0)
     ALLOCATE(nhard_a(0:lmax_0),nhard_b(0:lmax_0),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
          "nhard_a,nhard_b",(2+2*lmax_0)*dp_size)
     nhard_a(0:) = 0.0_dp
     nhard_b(0:) = 0.0_dp
     ALLOCATE(QN_h_a(maxch0),QN_h_b(maxch0),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
          "QN_h_a,QN_h_b",(2*maxch0)*dp_size)
     QN_h_a(:) = 0.0_dp
     QN_h_b(:) = 0.0_dp
     ALLOCATE(QN_s_a(maxch0),QN_s_b(maxch0),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
          "QN_s_a,QN_s_b",(2*maxch0)*dp_size)
     QN_s_a(:) = 0.0_dp
     QN_s_b(:) = 0.0_dp
     ALLOCATE(Isum_a_car(maxch0,natom),Isum_a_sph(maxch0),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
          "Isum_a_car, Isum_a_sph",(natom*maxch0+maxch0)*dp_size)
     Isum_a_car = 0.0_dp
 
     ALLOCATE(vab(maxch0,maxch0),STAT = istat)
-    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
          "vab",maxch0*maxch0*dp_size)
     ALLOCATE(vv(ncoset(lmax_01),maxch0,lmax_01+lmax_0+1),STAT = istat)
-    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
          "vv",maxch0*maxch0*(lmax_01+lmax_0+1)*dp_size)
     ALLOCATE(ff(0:lmax_01+lmax_0),STAT = istat)
-    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
          "ff", (lmax_0+lmax_0+1)*dp_size)
 
     DO ikind = 1,nkind
@@ -470,19 +470,19 @@ MODULE  hartree_local_2centers
 100 CONTINUE
 
     DEALLOCATE(vab,vv,ff,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
           "vab.vv.ff")
 
     DEALLOCATE(nhard_a, nhard_b, QN_h_a, QN_h_b, QN_s_a, QN_s_b, STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
          "nhard_a, nhard_b, QN_h_a, QN_h_b, QN_s_a, QN_s_b")
     DEALLOCATE(Isum_a_car, Isum_a_sph, STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
          "Isum_a_car, Isum_a_sph")
 
     IF (calculate_forces) THEN
        DEALLOCATE(atom_of_kind,STAT=istat)
-       IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+       IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
             "atom_of_kind")
     END IF
 
@@ -515,7 +515,7 @@ MODULE  hartree_local_2centers
     REAL(dp), DIMENSION(:,:)              :: vab
     REAL(dp), DIMENSION(:,:,:)            :: vv
 
-    CHARACTER(LEN=*), PARAMETER           :: routine_name = "sumup_2c_integrals"
+    CHARACTER(LEN=*), PARAMETER           :: routineN = "sumup_2c_integrals"
 
     INTEGER  :: icoa, icoap, icoam, icob, idir, l, la(3), lam(3), lap(3), &
                 istat, nch_a, nch_a_p, nch_b
@@ -533,7 +533,7 @@ MODULE  hartree_local_2centers
 
       nch_a_p = ncoset(l0_a+1)
       ALLOCATE(vab_plus(nch_a_p,nch_b), I_tmp(nch_a_p), STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
            "vab_plus,I_tmp",nch_a*nch_b*dp_size+nch_a_p*dp_size)
 
       ene_2c = 0.0_dp
@@ -658,7 +658,7 @@ MODULE  hartree_local_2centers
       END DO  ! idir
 
       DEALLOCATE(vab_plus, I_tmp, STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
            "vab_plus,I_tmp")
 
 

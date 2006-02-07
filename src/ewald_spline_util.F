@@ -25,58 +25,43 @@ MODULE ewald_spline_util
 !!
 !!   SOURCE
 !****************************************************************************  
-  USE cp_output_handling,              ONLY: cp_print_key_should_output,&
-                                             cp_p_file,&
-                                             cp_print_key_unit_nr,&
-                                             cp_print_key_finished_output
-  USE cp_para_types,                   ONLY: cp_para_env_type
-  USE kinds,                           ONLY: default_string_length,&
-                                             dp
-  USE timings,                         ONLY: timeset,&
-                                             timestop
-  USE cell_types,                 ONLY: cell_type,&
-                                             cell_create,&
-                                             cell_release
-  USE memory_utilities,                ONLY: reallocate
+  USE cell_types,                      ONLY: cell_create,&
+                                             cell_release,&
+                                             cell_type
+  USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
+                                             cp_print_key_unit_nr
   USE global_types,                    ONLY: global_environment_type
-  USE input_section_types,             ONLY: section_type,&
-                                             section_create,&
-                                             section_add_keyword,&
-                                             section_add_subsection,&
-                                             section_release,&
+  USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type,&
-                                             section_vals_get_subs_vals,&
-                                             section_vals_get,&
-                                             section_vals_val_get  
-  USE pw_grid_types,                   ONLY: pw_grid_type, &
-                                             HALFSPACE
-  USE pw_types,                        ONLY: pw_type,&
-                                             REALDATA3D,&
-                                             REALSPACE,&
-                                             pw_zero
-  USE pw_pool_types,                   ONLY: pw_pool_type,&
+                                             section_vals_val_get
+  USE kinds,                           ONLY: dp
+  USE pw_grid_types,                   ONLY: HALFSPACE,&
+                                             pw_grid_type
+  USE pw_grids,                        ONLY: pw_find_cutoff,&
+                                             pw_grid_create,&
+                                             pw_grid_setup
+  USE pw_pool_types,                   ONLY: pw_pool_create,&
                                              pw_pool_create_pw,&
                                              pw_pool_give_back_pw,&
-                                             pw_pool_create
-  USE pw_grids,                        ONLY: pw_grid_setup, &
-                                             pw_grid_create, &
-                                             pw_find_cutoff
-  USE realspace_grid_types,            ONLY: rs_pw_to_cube
-  USE pw_spline_utils,                 ONLY: pw_spline_precond_create,&
-                                             pw_spline_do_precond,&
-                                             pw_spline_precond_set_kind,&
-                                             find_coeffs,&
-                                             pw_spline_precond_release,&
-                                             pw_spline_precond_type,&
-                                             spl3_nopbc, spl3_pbc,&
-                                             Eval_Interp_Spl3_pbc,&
-                                             Eval_d_Interp_Spl3_pbc
+                                             pw_pool_type
+  USE pw_spline_utils,                 ONLY: &
+       Eval_Interp_Spl3_pbc, Eval_d_Interp_Spl3_pbc, find_coeffs, &
+       pw_spline_do_precond, pw_spline_precond_create, &
+       pw_spline_precond_release, pw_spline_precond_set_kind, &
+       pw_spline_precond_type, spl3_pbc
+  USE pw_types,                        ONLY: REALDATA3D,&
+                                             REALSPACE,&
+                                             pw_type,&
+                                             pw_zero
+  USE timings,                         ONLY: timeset,&
+                                             timestop
 #include "cp_common_uses.h"
+
   IMPLICIT NONE
   PRIVATE
 
   LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
-  CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='ewald_spline_util'
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'ewald_spline_util'
   PUBLIC :: Setup_Ewald_Spline
   
 CONTAINS
@@ -105,26 +90,25 @@ CONTAINS
 !!*** ********************************************************************** 
   SUBROUTINE Setup_Ewald_Spline(pw_grid, pw_pool, coeff, LG, gx, gy, gz, hmat, npts,&
        param_section, tag, globenv, error)
-    IMPLICIT NONE
-    ! Arguments
-    TYPE ( pw_pool_type ),                   POINTER :: pw_pool
-    TYPE ( pw_grid_type ),                   POINTER :: pw_grid
-    TYPE ( pw_type ),                        POINTER :: coeff
-    REAL(KIND=dp), DIMENSION(:), POINTER             :: LG, gx, gy, gz
-    INTEGER, INTENT(IN)                              :: npts(3)
-    REAL(KIND=dp), INTENT(IN)                        :: hmat(3,3)
-    TYPE(section_vals_type), POINTER                 :: param_section
-    CHARACTER(LEN=*), INTENT(IN)                     :: tag
+    TYPE(pw_grid_type), POINTER              :: pw_grid
+    TYPE(pw_pool_type), POINTER              :: pw_pool
+    TYPE(pw_type), POINTER                   :: coeff
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: LG, gx, gy, gz
+    REAL(KIND=dp), INTENT(IN)                :: hmat(3,3)
+    INTEGER, INTENT(IN)                      :: npts(3)
+    TYPE(section_vals_type), POINTER         :: param_section
+    CHARACTER(LEN=*), INTENT(IN)             :: tag
+    TYPE(global_environment_type), POINTER   :: globenv
     TYPE(cp_error_type), INTENT(inout), &
-         OPTIONAL                                    :: error
-    TYPE(global_environment_type), POINTER           :: globenv
-    ! Local Variables
+      OPTIONAL                               :: error
+
     CHARACTER(len=*), PARAMETER :: routineN = 'Setup_Ewald_Spline', &
       routineP = moduleN//':'//routineN
-    TYPE(cell_type), POINTER                         :: cell
-    TYPE(pw_type), POINTER                           :: pw
-    LOGICAL                                          :: failure 
-    REAL(KIND=dp)                                    :: cutoff, ecut
+
+    LOGICAL                                  :: failure
+    REAL(KIND=dp)                            :: cutoff, ecut
+    TYPE(cell_type), POINTER                 :: cell
+    TYPE(pw_type), POINTER                   :: pw
 
     failure = .FALSE.
     IF (.NOT.failure) THEN
@@ -188,30 +172,28 @@ CONTAINS
 !!*** ********************************************************************** 
   SUBROUTINE eval_pw_TabLR( grid, pw_pool, TabLR, Lg, gx, gy, gz, hmat_mm,&
        param_section, tag, error)
-    IMPLICIT NONE
-    ! Arguments
     TYPE(pw_type), POINTER                   :: grid
-    TYPE ( pw_pool_type ), POINTER           :: pw_pool
-    TYPE ( pw_type ),      POINTER           :: TabLR
+    TYPE(pw_pool_type), POINTER              :: pw_pool
+    TYPE(pw_type), POINTER                   :: TabLR
     REAL(KIND=dp), DIMENSION(:), POINTER     :: Lg, gx, gy, gz
-    REAL(KIND=dp), DIMENSION(3,3)            :: hmat_mm
+    REAL(KIND=dp), DIMENSION(3, 3)           :: hmat_mm
     TYPE(section_vals_type), POINTER         :: param_section
     CHARACTER(LEN=*), INTENT(IN)             :: tag
     TYPE(cp_error_type), INTENT(inout), &
-         OPTIONAL                               :: error
-    ! Local Variables
+      OPTIONAL                               :: error
+
     CHARACTER(len=*), PARAMETER :: routineN = 'eval_pw_TabLR', &
-      routineP = moduleN//':'//routineN    
-    INTEGER                                  :: handle, i, j, k, my_k, my_j, my_i, is, js, ks
-    INTEGER                                  :: n1, n2, n3, kg, nxlim, nylim, nzlim
+      routineP = moduleN//':'//routineN
+
+    INTEGER :: aint_precond, handle, i, is, j, js, k, kg, ks, max_iter, my_i, &
+      my_j, my_k, n1, n2, n3, nxlim, nylim, nzlim, precond_kind
     INTEGER, DIMENSION(2, 3)                 :: gbo
-    REAL(KIND=dp)                            :: dr1, dr2, dr3, Term, xs1, xs2, xs3
+    LOGICAL                                  :: success
+    REAL(KIND=dp)                            :: dr1, dr2, dr3, eps_r, eps_x, &
+                                                Term, xs1, xs2, xs3
     REAL(KIND=dp), DIMENSION(3)              :: vec
     TYPE(pw_spline_precond_type), POINTER    :: precond
     TYPE(section_vals_type), POINTER         :: interp_section
-    INTEGER                                  :: aint_precond, precond_kind, max_iter
-    REAL(kind=dp)                            :: eps_x, eps_r
-    LOGICAL                                  :: success
 
     CALL timeset(routineN,"I","",handle)
     n1  = grid%pw_grid%npts(1)
@@ -323,22 +305,21 @@ CONTAINS
 !!*** ********************************************************************** 
   SUBROUTINE check_spline_interp_TabLR(hmat_mm, Lg, gx, gy, gz, TabLR,&
        param_section, tag, error)
-    IMPLICIT NONE
-    ! Arguments
+    REAL(KIND=dp), DIMENSION(3, 3)           :: hmat_mm
     REAL(KIND=dp), DIMENSION(:), POINTER     :: Lg, gx, gy, gz
-    REAL(KIND=dp), DIMENSION(3,3)            :: hmat_mm
+    TYPE(pw_type), POINTER                   :: TabLR
     TYPE(section_vals_type), POINTER         :: param_section
     CHARACTER(LEN=*), INTENT(IN)             :: tag
-    TYPE ( pw_type ),      POINTER           :: TabLR
     TYPE(cp_error_type), INTENT(inout), &
-          OPTIONAL                           :: error
-    ! Local Variables
+      OPTIONAL                               :: error
+
     CHARACTER(len=*), PARAMETER :: routineN = 'check_spline_interp_TabLR', &
-      routineP = moduleN//':'//routineN    
-    INTEGER                                  :: npoints, iw, i, kg, handle
-    REAL(KIND=dp)                            :: dr1, dr2, dr3, xs1, xs2, xs3, errf, maxerrorf, dn(3),&
-                                                Term, Fterm, vec(3), dxTerm, dyTerm, dzTerm, Na, Nn,&
-                                                errd, maxerrord, tmp1, tmp2
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, i, iw, kg, npoints
+    REAL(KIND=dp) :: dn(3), dr1, dr2, dr3, dxTerm, dyTerm, dzTerm, errd, &
+      errf, Fterm, maxerrord, maxerrorf, Na, Nn, Term, tmp1, tmp2, vec(3), &
+      xs1, xs2, xs3
     TYPE(cp_logger_type), POINTER            :: logger
 
     NULLIFY(logger)

@@ -23,29 +23,33 @@
 !!   SOURCE
 !****************************************************************************
 MODULE input_cp2k_subsys
-  USE kinds, ONLY: dp
-  USE cp_para_types, ONLY: cp_para_env_type
-  USE timings, ONLY: timeset, timestop
-  USE input_section_types, ONLY: section_type, section_create, &
-       section_add_keyword, section_add_subsection, section_release,&
-       section_vals_type,&
-       section_vals_get_subs_vals, section_vals_get
+  USE cp_output_handling,              ONLY: cp_print_key_section_create
   USE input_constants
-  USE input_cp2k_colvar,   ONLY: create_colvar_section  
-  USE input_keyword_types, ONLY: keyword_type, keyword_create,&
-       keyword_release
-  USE input_val_types, ONLY: val_type, no_t, logical_t, integer_t, real_t, char_t,&
-       enum_t, lchar_t
-  USE cp_output_handling, ONLY: cp_print_key_section_create
-  USE string_utilities, ONLY: s2a
-  USE physcon, ONLY: bohr
+  USE input_cp2k_colvar,               ONLY: create_colvar_section
+  USE input_keyword_types,             ONLY: keyword_create,&
+                                             keyword_release,&
+                                             keyword_type
+  USE input_section_types,             ONLY: section_add_keyword,&
+                                             section_add_subsection,&
+                                             section_create,&
+                                             section_release,&
+                                             section_type
+  USE input_val_types,                 ONLY: char_t,&
+                                             integer_t,&
+                                             lchar_t,&
+                                             real_t
+  USE kinds,                           ONLY: dp
+  USE physcon,                         ONLY: bohr
+  USE string_utilities,                ONLY: s2a
+  USE timings,                         ONLY: timeset,&
+                                             timestop
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
   PRIVATE
 
   LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
-  CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='input_cp2k_subsys'
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'input_cp2k_subsys'
 
 PUBLIC :: create_subsys_section
 !***
@@ -193,8 +197,8 @@ CONTAINS
       OPTIONAL                               :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'create_random_section', &
-         routineP = moduleN//':'//routineN
-    
+      routineP = moduleN//':'//routineN
+
     LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
 
@@ -353,8 +357,9 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     LOGICAL                                  :: failure
-    TYPE(section_type), POINTER              :: subsection, print_key
     TYPE(keyword_type), POINTER              :: keyword
+    TYPE(section_type), POINTER              :: print_key, subsection
+
     failure=.FALSE.
 
     CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
@@ -564,8 +569,8 @@ CONTAINS
       OPTIONAL                               :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'create_velocity_section', &
-         routineP = moduleN//':'//routineN
-    
+      routineP = moduleN//':'//routineN
+
     LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
 

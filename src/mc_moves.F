@@ -22,8 +22,9 @@
 !******************************************************************************
 
 MODULE mc_moves
-  USE atomic_kind_types,               ONLY: atomic_kind_type,&
-                                             get_atomic_kind
+  USE atomic_kind_types,               ONLY: get_atomic_kind
+  USE cell_types,                      ONLY: cell_type,&
+                                             get_cell
   USE cp_subsystem_types,              ONLY: cp_subsys_get,&
                                              cp_subsys_set,&
                                              cp_subsystem_p_type
@@ -33,37 +34,30 @@ MODULE mc_moves
                                              force_env_type,&
                                              use_fist_force
   USE global_types,                    ONLY: global_environment_type
-  USE input_constants,                 ONLY: dump_xmol
   USE kinds,                           ONLY: dp,&
                                              dp_size
   USE mathconstants,                   ONLY: pi
   USE mc_control,                      ONLY: mc_create_force_env
-  USE mc_coordinates,                  ONLY: get_center_of_mass,&
-                                             check_for_overlap,&
-                                             mc_coordinate_fold,&
+  USE mc_coordinates,                  ONLY: check_for_overlap,&
+                                             create_discrete_array,&
                                              generate_cbmc_swap_config,&
-                                             create_discrete_array
+                                             get_center_of_mass,&
+                                             mc_coordinate_fold
   USE mc_misc,                         ONLY: mc_make_dat_file
-  USE mc_move_control,                 ONLY: move_q_reinit,&
-                                             q_move_accept
   USE mc_types,                        ONLY: get_mc_par,&
                                              mc_moves_type,&
                                              mc_simulation_parameters_type
   USE message_passing,                 ONLY: mp_bcast
   USE mol_kind_new_list_types,         ONLY: mol_kind_new_list_type
-  USE molecule_kind_types,             ONLY: get_molecule_kind,&
-                                             molecule_kind_type,&
+  USE molecule_kind_types,             ONLY: bend_type,&
                                              bond_type,&
-                                             bend_type,&
-                                             torsion_type,&
-                                             atom_type
-  USE parallel_rng_types,              ONLY: rng_stream_type,&
-                                             next_random_number
+                                             get_molecule_kind,&
+                                             molecule_kind_type,&
+                                             torsion_type
+  USE parallel_rng_types,              ONLY: next_random_number,&
+                                             rng_stream_type
   USE particle_list_types,             ONLY: particle_list_type
-  USE particle_types,                  ONLY: write_particle_coordinates
   USE physcon,                         ONLY: angstrom
-  USE cell_types,                 ONLY: cell_type,&
-                                             get_cell
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
   USE timings,                         ONLY: timeset,&
@@ -77,7 +71,7 @@ MODULE mc_moves
 
 ! *** Global parameters ***
 
-  CHARACTER(LEN=*), PARAMETER :: module_name = "mc_moves"
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'mc_moves'
 
   PUBLIC :: mc_atom_translation,mc_molecule_translation,&
             mc_molecule_rotation,mc_volume_move,mc_avbmc_move
@@ -117,12 +111,11 @@ CONTAINS
       connectivity,atom) 
 
 !     ***************************************************************************
-    INTEGER, INTENT(IN)                      :: current_atom,avoid_atom
-    INTEGER,DIMENSION(:,:),INTENT(IN)        :: connectivity
-    INTEGER,DIMENSION(:),INTENT(INOUT)        :: atom
+    INTEGER, INTENT(IN)                      :: current_atom, avoid_atom
+    INTEGER, DIMENSION(:, :), INTENT(IN)     :: connectivity
+    INTEGER, DIMENSION(:), INTENT(INOUT)     :: atom
 
     INTEGER                                  :: iatom
-
 
 !   ---------------------------------------------------------------------------
 
@@ -182,37 +175,36 @@ CONTAINS
 
     TYPE(mc_simulation_parameters_type), &
       POINTER                                :: mc_par
-    TYPE(force_env_type), POINTER            :: force_env,bias_env
+    TYPE(force_env_type), POINTER            :: force_env, bias_env
     TYPE(mc_moves_type), POINTER             :: moves, move_updates
     INTEGER, INTENT(IN)                      :: mol
     REAL(KIND=dp), INTENT(INOUT)             :: bias_energy
-    TYPE(cp_error_type), INTENT(INOUT), &
-      OPTIONAL                               :: error
     CHARACTER(LEN=*), INTENT(IN)             :: move_type
     LOGICAL, INTENT(OUT)                     :: lreject
     TYPE(rng_stream_type), POINTER           :: rng_stream
+    TYPE(cp_error_type), INTENT(INOUT), &
+      OPTIONAL                               :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = "mc_atom_translation"
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'mc_atom_translation'
 
-    INTEGER                                  :: handle, imol, ipart,&
-                                                istat,nchain,nunits_tot,&
-                                                nunits,group,source
-    LOGICAL                                  :: lbias,&
-      loverlap,ionode
-    REAL(KIND=dp)                            :: bias_energy_new, &
-                                                bias_energy_old, &
-                                                dis_length, rand, w, BETA
+    INTEGER                                  :: group, handle, imol, ipart, &
+                                                istat, nchain, nunits, &
+                                                nunits_tot, source
+    LOGICAL                                  :: ionode, lbias, loverlap
+    REAL(KIND=dp)                            :: BETA, bias_energy_new, &
+                                                bias_energy_old, dis_length, &
+                                                rand, w
+    REAL(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:, :)                        :: r_new, r_old
     TYPE(cp_subsystem_p_type), &
       DIMENSION(:), POINTER                  :: subsys
-    REAL(KIND=dp), DIMENSION(:, :),&
-      ALLOCATABLE                            :: r_old, r_new
-    TYPE(particle_list_type), POINTER        :: particles
     TYPE(mol_kind_new_list_type), POINTER    :: molecule_kinds_new
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
+    TYPE(particle_list_type), POINTER        :: particles
 
 !   ---------------------------------------------------------------------------
-
 ! begin the timing of the subroutine
+
       CALL timeset(routineN,'I','',handle)
       
 ! get a bunch of stuff from mc_par
@@ -225,10 +217,10 @@ CONTAINS
 
 ! do some allocation
       ALLOCATE (r_old(1:3,1:nunits_tot),STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                        "r",3*nunits_tot*dp_size)
       ALLOCATE (r_new(1:3,1:nunits_tot),STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                        "r_new",3*nunits_tot*dp_size)
 
 ! are we biasing this move?
@@ -362,7 +354,7 @@ CONTAINS
 ! accept or reject the move based on the Metropolis rule with a 
 ! correction factor for the change in phase space...dis_length is
 ! made unitless in change_bond_length
-            w=exp(-BETA*(bias_energy_new-&
+            w=EXP(-BETA*(bias_energy_new-&
                bias_energy_old))*dis_length**2
          ENDIF
 
@@ -425,10 +417,10 @@ CONTAINS
 
 ! deallocate some stuff
       DEALLOCATE(r_old,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                        "r")
       DEALLOCATE(r_new,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                        "r_new")
 
 ! end the timing
@@ -477,31 +469,30 @@ CONTAINS
 
     TYPE(mc_simulation_parameters_type), &
       POINTER                                :: mc_par
-    TYPE(force_env_type), POINTER            :: force_env,bias_env
+    TYPE(force_env_type), POINTER            :: force_env, bias_env
     TYPE(mc_moves_type), POINTER             :: moves, move_updates
     INTEGER, INTENT(IN)                      :: mol
     REAL(KIND=dp), INTENT(INOUT)             :: bias_energy
+    LOGICAL, INTENT(OUT)                     :: lreject
+    TYPE(rng_stream_type), POINTER           :: rng_stream
     TYPE(cp_error_type), INTENT(INOUT), &
       OPTIONAL                               :: error
-    LOGICAL,INTENT(OUT)                      :: lreject
-    TYPE(rng_stream_type), POINTER           :: rng_stream
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = "mc_molecule_translation"
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'mc_molecule_translation'
 
-    INTEGER                                  :: handle, i, imol, ipart, &
-                                                iparticle,istat,nchain,&
-                                                nunits_tot,nunits,&
-                                                group,source
-    REAL(KIND=dp)                            :: bias_energy_new, &
-                                                bias_energy_old, &
-                                                dis_mol, rand, w, BETA,&
-                                          rmtrans
+    INTEGER                                  :: group, handle, i, imol, &
+                                                ipart, iparticle, istat, &
+                                                nchain, nunits, nunits_tot, &
+                                                source
+    LOGICAL                                  :: ionode, lbias, loverlap
+    REAL(KIND=dp)                            :: BETA, bias_energy_new, &
+                                                bias_energy_old, dis_mol, &
+                                                rand, rmtrans, w
+    REAL(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:, :)                        :: r_old
     TYPE(cp_subsystem_p_type), &
       DIMENSION(:), POINTER                  :: subsys
-    REAL(KIND=dp), DIMENSION(:, :),&
-      ALLOCATABLE                            :: r_old
     TYPE(particle_list_type), POINTER        :: particles
-    LOGICAL                                  :: lbias,loverlap,ionode
 
 !   *** Local Counters ***
 !   ---------------------------------------------------------------------------
@@ -520,7 +511,7 @@ CONTAINS
 
 ! do some allocation
       ALLOCATE (r_old(1:3,1:nunits_tot),STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                        "r",3*nunits_tot*dp_size)
 
 ! are we biasing this move?
@@ -604,7 +595,7 @@ CONTAINS
             CALL force_env_get(bias_env,&
                potential_energy=bias_energy_new,error=error)
 ! accept or reject the move based on the Metropolis rule
-            w=exp(-BETA*(bias_energy_new-&
+            w=EXP(-BETA*(bias_energy_new-&
                bias_energy_old))
          ENDIF
 
@@ -648,7 +639,7 @@ CONTAINS
 
 ! deallocate some stuff
       DEALLOCATE(r_old,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                        "r")
 
 ! end the timing
@@ -698,32 +689,33 @@ CONTAINS
 
     TYPE(mc_simulation_parameters_type), &
       POINTER                                :: mc_par
-    TYPE(force_env_type), POINTER            :: force_env,bias_env
+    TYPE(force_env_type), POINTER            :: force_env, bias_env
     TYPE(mc_moves_type), POINTER             :: moves, move_updates
     INTEGER, INTENT(IN)                      :: mol
     REAL(KIND=dp), INTENT(INOUT)             :: bias_energy
-    LOGICAL,INTENT(OUT)                      :: lreject
+    LOGICAL, INTENT(OUT)                     :: lreject
     TYPE(rng_stream_type), POINTER           :: rng_stream
     TYPE(cp_error_type), INTENT(INOUT), &
       OPTIONAL                               :: error
- 
-    CHARACTER(LEN=*), PARAMETER :: routineN = "mc_molecule_rotation"
 
-    REAL(KIND=dp), DIMENSION(:), ALLOCATABLE :: mass 
-    INTEGER                                  :: dir, handle, ii, imol, ipart, &
-                                                iunit,istat,nchain,nunits_tot,&
-                                                nunits,iatom,natoms,&
-                                                group,source
-    LOGICAL                                  :: lx, ly,lbias,loverlap,ionode
-    REAL(KIND=dp) :: bias_energy_new, bias_energy_old, cosdg, &
-      dgamma, nxcm, nycm, nzcm, rand, rx, rxnew, ry, rynew, rz, rznew, sindg, &
-      w,BETA,rmrot,masstot
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'mc_molecule_rotation'
+
+    INTEGER                                  :: dir, group, handle, iatom, &
+                                                ii, imol, ipart, istat, &
+                                                iunit, natoms, nchain, &
+                                                nunits, nunits_tot, source
+    LOGICAL                                  :: ionode, lbias, loverlap, lx, &
+                                                ly
+    REAL(KIND=dp) :: BETA, bias_energy_new, bias_energy_old, cosdg, dgamma, &
+      masstot, nxcm, nycm, nzcm, rand, rmrot, rx, rxnew, ry, rynew, rz, &
+      rznew, sindg, w
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: mass
+    REAL(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:, :)                        :: r_old
     TYPE(cp_subsystem_p_type), &
       DIMENSION(:), POINTER                  :: subsys
     TYPE(mol_kind_new_list_type), POINTER    :: molecule_kinds_new
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
-    REAL(KIND=dp), DIMENSION(:, :),&
-      ALLOCATABLE                            :: r_old
     TYPE(particle_list_type), POINTER        :: particles
 
 !   *** Local Counters ***
@@ -742,7 +734,7 @@ CONTAINS
 
 ! do some allocation
       ALLOCATE (r_old(1:3,1:nunits_tot),STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                        "r",3*nunits_tot*dp_size)
 
 ! initialize some stuff
@@ -779,7 +771,7 @@ CONTAINS
       molecule_kind => molecule_kinds_new%els(1)
       CALL get_molecule_kind(molecule_kind,natom=natoms)   
       ALLOCATE(mass(1:natoms),STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                        "mass",natoms*dp_size)
       DO iatom=1,natoms
          CALL get_atomic_kind(particles%els(iatom)%atomic_kind,&
@@ -910,7 +902,7 @@ CONTAINS
             CALL force_env_get(bias_env,&
             potential_energy=bias_energy_new,error=error)
 ! accept or reject the move based on the Metropolis rule
-            w=exp(-BETA*(bias_energy_new-&
+            w=EXP(-BETA*(bias_energy_new-&
                bias_energy_old))
          ENDIF
 
@@ -951,10 +943,10 @@ CONTAINS
 
 ! deallocate some stuff
       DEALLOCATE(r_old,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                        "r_old")
       DEALLOCATE(mass,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                        "mass")
 
 ! end the timing
@@ -1010,51 +1002,43 @@ CONTAINS
       POINTER                                :: mc_par
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(mc_moves_type), POINTER             :: moves, move_updates
-    INTEGER, INTENT(IN)                      :: nnstep,iw
+    INTEGER, INTENT(IN)                      :: nnstep
     REAL(KIND=dp), INTENT(INOUT)             :: old_energy
     TYPE(global_environment_type), POINTER   :: globenv
     REAL(KIND=dp), INTENT(INOUT)             :: energy_check
-    INTEGER,DIMENSION(1:3, 1:2), &
-      INTENT(INOUT)                          :: discrete_array
-    REAL(KIND=dp),DIMENSION(:, :), &
+    REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(INOUT)                          :: r_old
+    INTEGER, INTENT(IN)                      :: iw
+    INTEGER, DIMENSION(1:3, 1:2), &
+      INTENT(INOUT)                          :: discrete_array
     TYPE(rng_stream_type), POINTER           :: rng_stream
     TYPE(cp_error_type), INTENT(INOUT), &
       OPTIONAL                               :: error
 
-    CHARACTER(LEN=*), PARAMETER              :: &
-      routineN = "mc_volume_move", &
-      routineP = module_name//':'//routineN
-    REAL(KIND=dp), DIMENSION(:), ALLOCATABLE :: mass
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'mc_volume_move', &
+      routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, i, iatom, &
-                                                istat,nchain,&
-                                                source,group,nunits_tot,&
-                                                nunits,cl,&
-                                                natoms,iunit,icurrent,&
-                                                iside,iside_change
-    REAL(KIND=dp) :: new_energy, rand, vol_dis, w,discrete_step,energy_term,&
-      BETA,rmvolume,pressure,rcut,value,&
-      pressure_term,volume_term
-    REAL(KIND=dp), DIMENSION(1:3)            :: center_of_mass, &
-                                                center_of_mass_new, diff,&
-                                                abc,test_cell_length,&
-                                                new_cell_length,&
-                                              old_cell_length
-    TYPE(mol_kind_new_list_type), POINTER    :: molecule_kinds_new
-    TYPE(molecule_kind_type), POINTER        :: molecule_kind
-    TYPE(force_env_type), POINTER            :: test_env
+    CHARACTER(LEN=200)                       :: fft_lib
+    CHARACTER(LEN=40)                        :: dat_file
+    INTEGER :: cl, group, handle, i, iatom, icurrent, iside, iside_change, &
+      istat, iunit, natoms, nchain, nunits, nunits_tot, source
+    LOGICAL                                  :: ionode, ldiscrete, lincrease, &
+                                                loverlap, ltoo_small
+    REAL(KIND=dp) :: BETA, discrete_step, energy_term, new_energy, pressure, &
+      pressure_term, rand, rcut, rmvolume, value, vol_dis, volume_term, w
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: mass
+    REAL(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:, :)                        :: r
+    REAL(KIND=dp), DIMENSION(1:3) :: abc, center_of_mass, center_of_mass_new, &
+      diff, new_cell_length, old_cell_length, test_cell_length
+    TYPE(cell_type), POINTER                 :: cell_old
     TYPE(cp_subsystem_p_type), &
       DIMENSION(:), POINTER                  :: oldsys, testsys
-    TYPE(cell_type), POINTER                 :: cell_old
-    REAL(KIND=dp), DIMENSION(:, :),&
-      ALLOCATABLE                            :: r
+    TYPE(force_env_type), POINTER            :: test_env
+    TYPE(mol_kind_new_list_type), POINTER    :: molecule_kinds_new
+    TYPE(molecule_kind_type), POINTER        :: molecule_kind
     TYPE(particle_list_type), POINTER        :: particles_old, particles_test
-    LOGICAL                                  :: ionode,&
-      ltoo_small,ldiscrete,lincrease
-    LOGICAL                                  :: loverlap
-    CHARACTER(LEN=40)                        :: dat_file
-    CHARACTER(LEN=200)                       :: fft_lib
+
 !   ---------------------------------------------------------------------------
 ! begin the timing of the subroutine
 
@@ -1074,7 +1058,7 @@ CONTAINS
 
 ! do some allocation
       ALLOCATE (r(1:3,1:nunits_tot),STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
          "r",3*nunits_tot*dp_size)
 
 ! record the attempt
@@ -1092,7 +1076,7 @@ CONTAINS
       molecule_kind => molecule_kinds_new%els(1)
       CALL get_molecule_kind(molecule_kind,natom=natoms)   
       ALLOCATE(mass(1:natoms),STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                        "mass",natoms*dp_size)
       DO iatom=1,natoms
          CALL get_atomic_kind(particles_old%els(iatom)%atomic_kind,&
@@ -1143,9 +1127,9 @@ CONTAINS
 ! find the test cell lenghts for the discrete volume move
       IF(ldiscrete) THEN
          IF(rand .LT. 0.5_dp) THEN
-            lincrease=.true.
+            lincrease=.TRUE.
          ELSE
-            lincrease=.false.
+            lincrease=.FALSE.
          ENDIF
          
          new_cell_length(1:3)=test_cell_length(1:3)
@@ -1249,10 +1233,10 @@ CONTAINS
       IF(loverlap) THEN
 ! deallocate some stuff
          DEALLOCATE(r,STAT=istat)
-         IF (istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
+         IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
             "r")
          DEALLOCATE(mass,STAT=istat)
-         IF (istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
+         IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
             "mass")
 
          IF(ionode) WRITE(globenv%scr,*) &
@@ -1289,7 +1273,7 @@ CONTAINS
 
 ! now compute the energy
       CALL force_env_calc_energy_force(test_env,calc_force=.FALSE.,error=error)
-      test_env%box_changed=.false.
+      test_env%box_changed=.FALSE.
       CALL force_env_get(test_env,&
          potential_energy=new_energy,error=error)
            
@@ -1307,7 +1291,7 @@ CONTAINS
       ELSEIF(value .LT. -500.0_dp) THEN
          w=0.0_dp
       ELSE
-         w=exp(value)
+         w=EXP(value)
       ENDIF
  
 !!!!!!!!!!!!!!!! for E_V curves
@@ -1386,10 +1370,10 @@ CONTAINS
 
 ! deallocate some stuff
       DEALLOCATE(r,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                        "r")
       DEALLOCATE(mass,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                        "mass")
 
 ! end the timing
@@ -1432,31 +1416,33 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(mc_simulation_parameters_type), &
-      POINTER                                :: mc_par
-    REAL(KIND=dp),DIMENSION(:,:), &
-      INTENT(OUT)                            :: r_new
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(IN)                             :: r_old
+    REAL(KIND=dp), DIMENSION(:, :), &
+      INTENT(OUT)                            :: r_new
+    TYPE(mc_simulation_parameters_type), &
+      POINTER                                :: mc_par
     INTEGER, INTENT(IN)                      :: mol
+    TYPE(molecule_kind_type), POINTER        :: molecule_kind
     REAL(KIND=dp), INTENT(OUT)               :: dis_length
-    TYPE(molecule_kind_type),POINTER         :: molecule_kind
     TYPE(particle_list_type), POINTER        :: particles
     TYPE(rng_stream_type), POINTER           :: rng_stream
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = "change_bond_length"
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'change_bond_length'
 
-    TYPE(bond_type),DIMENSION(:),POINTER     :: bond_list
-    INTEGER                                  :: handle, i, ipart,&
-      nunits_tot,nbond,bond_number,natom,istat,iatom,ibond,&
-      group,source
-    REAL(KIND=dp)                            :: old_length, rand,rmbond,&
-      mass_a,mass_b,atom_mass,new_length_a,new_length_b
-    REAL(KIND=dp), DIMENSION(1:3)            :: bond_a,bond_b
-    INTEGER,DIMENSION(:),ALLOCATABLE                     :: counter,&
-      atom_a,atom_b
-    INTEGER,DIMENSION(:,:),ALLOCATABLE       :: connection,connectivity
+    INTEGER                                  :: bond_number, group, handle, &
+                                                i, iatom, ibond, ipart, &
+                                                istat, natom, nbond, &
+                                                nunits_tot, source
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: atom_a, atom_b, counter
+    INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: connection, connectivity
     LOGICAL                                  :: ionode
+    REAL(KIND=dp)                            :: atom_mass, mass_a, mass_b, &
+                                                new_length_a, new_length_b, &
+                                                old_length, rand, rmbond
+    REAL(KIND=dp), DIMENSION(1:3)            :: bond_a, bond_b
+    TYPE(bond_type), DIMENSION(:), POINTER   :: bond_list
+
 !   ---------------------------------------------------------------------------
 ! begin the timing of the subroutine
 
@@ -1482,20 +1468,20 @@ CONTAINS
       bond_number=CEILING(rand*REAL(nbond,dp))
 
       ALLOCATE(connection(1:natom,1:2),STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                        "connection",2*natom*dp_size)
 ! assume at most six bonds per atom
       ALLOCATE(connectivity(1:6,1:natom),STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                        "connectivity",6*natom*dp_size)
       ALLOCATE(counter(1:natom),STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                        "counter",natom)
       ALLOCATE(atom_a(1:natom),STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                        "atom_a",natom)
       ALLOCATE(atom_b(1:natom),STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                        "atom_b",natom)
       connection(:,:)=0.0_dp
       connectivity(:,:)=0.0_dp
@@ -1583,19 +1569,19 @@ CONTAINS
       dis_length=(old_length+dis_length)/old_length
 
       DEALLOCATE(connection,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                        "connection")
       DEALLOCATE(connectivity,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                        "connectivity")
       DEALLOCATE(counter,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                        "counter")
       DEALLOCATE(atom_a,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                        "atom_a")
       DEALLOCATE(atom_b,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                        "atom_b")
 ! end the timing
       CALL timestop(0.0E0_dp,handle)
@@ -1636,36 +1622,34 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(mc_simulation_parameters_type), &
-      POINTER                                :: mc_par
+    REAL(KIND=dp), DIMENSION(:, :), &
+      INTENT(IN)                             :: r_old
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(OUT)                            :: r_new
-    REAL(KIND=dp), DIMENSION(:,:), &
-      INTENT(IN)                             :: r_old
+    TYPE(mc_simulation_parameters_type), &
+      POINTER                                :: mc_par
     INTEGER, INTENT(IN)                      :: mol
-    TYPE(molecule_kind_type),POINTER         :: molecule_kind
+    TYPE(molecule_kind_type), POINTER        :: molecule_kind
     TYPE(particle_list_type), POINTER        :: particles
     TYPE(rng_stream_type), POINTER           :: rng_stream
 
-    CHARACTER(LEN=*), PARAMETER              :: &
-      routineN = "change_bond_angle"
+    CHARACTER(LEN=*), PARAMETER              :: routineN = 'change_bond_angle'
 
-! local variables
-
-    TYPE(bend_type),DIMENSION(:),POINTER     :: bend_list
-    TYPE(bond_type),DIMENSION(:),POINTER     :: bond_list
-    INTEGER                                  :: handle, i, ipart,nunits_tot,&
-      group,source,nbend,bend_number,natom,istat,iatom,ibond,nbond
-    REAL(KIND=dp)                            :: bis_length, dis_angle, &
-      old_angle, mass_a,mass_c, rand,&
-      rmangle,atom_mass,old_length_a,old_length_c,temp_length,&
-      new_angle_a,new_angle_c,dis_angle_a,dis_angle_c
-    REAL(KIND=dp), DIMENSION(1:3)            :: bisector, &
-      bond_a,bond_c,cross_prod,cross_prod_plane,temp
+    INTEGER                                  :: bend_number, group, handle, &
+                                                i, iatom, ibond, ipart, &
+                                                istat, natom, nbend, nbond, &
+                                                nunits_tot, source
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: atom_a, atom_c, counter
+    INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: connection, connectivity
     LOGICAL                                  :: ionode
-    INTEGER,DIMENSION(:),ALLOCATABLE                     :: counter,&
-      atom_a,atom_c
-    INTEGER,DIMENSION(:,:),ALLOCATABLE       :: connection,connectivity
+    REAL(KIND=dp) :: atom_mass, bis_length, dis_angle, dis_angle_a, &
+      dis_angle_c, mass_a, mass_c, new_angle_a, new_angle_c, old_angle, &
+      old_length_a, old_length_c, rand, rmangle, temp_length
+    REAL(KIND=dp), DIMENSION(1:3)            :: bisector, bond_a, bond_c, &
+                                                cross_prod, cross_prod_plane, &
+                                                temp
+    TYPE(bend_type), DIMENSION(:), POINTER   :: bend_list
+    TYPE(bond_type), DIMENSION(:), POINTER   :: bond_list
 
 !   ---------------------------------------------------------------------------
 ! begin the timing of the subroutine
@@ -1692,20 +1676,20 @@ CONTAINS
       bend_number=CEILING(rand*REAL(nbend,dp))
 
       ALLOCATE(connection(1:natom,1:2),STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                        "connection",2*natom*dp_size)
 ! assume at most six bonds per atom
       ALLOCATE(connectivity(1:6,1:natom),STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                        "connectivity",6*natom*dp_size)
       ALLOCATE(counter(1:natom),STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                        "counter",natom)
       ALLOCATE(atom_a(1:natom),STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                        "atom_a",natom)
       ALLOCATE(atom_c(1:natom),STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                        "atom_c",natom)
       connection(:,:)=0.0_dp
       connectivity(:,:)=0.0_dp
@@ -1828,8 +1812,8 @@ CONTAINS
             new_angle_a=ACOS(DOT_PRODUCT(bisector,temp(1:3))/&
                (temp_length))+dis_angle_a
 
-            r_new(1:3,mol-1+iatom)=cos(new_angle_a)*temp_length*bisector(1:3)-&
-               sin(new_angle_a)*temp_length*cross_prod_plane(1:3)+&
+            r_new(1:3,mol-1+iatom)=COS(new_angle_a)*temp_length*bisector(1:3)-&
+               SIN(new_angle_a)*temp_length*cross_prod_plane(1:3)+&
                DOT_PRODUCT(cross_prod(1:3),r_new(1:3,mol-1+iatom))*&
                cross_prod(1:3)
             ELSE
@@ -1838,8 +1822,8 @@ CONTAINS
             new_angle_a=ACOS(DOT_PRODUCT(bisector,temp(1:3))/&
                (temp_length))-dis_angle_a
 
-            r_new(1:3,mol-1+iatom)=cos(new_angle_a)*temp_length*bisector(1:3)+&
-               sin(new_angle_a)*temp_length*cross_prod_plane(1:3)+&
+            r_new(1:3,mol-1+iatom)=COS(new_angle_a)*temp_length*bisector(1:3)+&
+               SIN(new_angle_a)*temp_length*cross_prod_plane(1:3)+&
                DOT_PRODUCT(cross_prod(1:3),r_new(1:3,mol-1+iatom))*&
                cross_prod(1:3)
             ENDIF
@@ -1854,16 +1838,16 @@ CONTAINS
             new_angle_c=ACOS(DOT_PRODUCT(bisector(1:3),temp(1:3))/&
                (temp_length))-dis_angle_c
 
-            r_new(1:3,mol-1+iatom)=cos(new_angle_c)*temp_length*bisector(1:3)-&
-               sin(new_angle_c)*temp_length*cross_prod_plane(1:3)+&
+            r_new(1:3,mol-1+iatom)=COS(new_angle_c)*temp_length*bisector(1:3)-&
+               SIN(new_angle_c)*temp_length*cross_prod_plane(1:3)+&
                DOT_PRODUCT(cross_prod(1:3),r_new(1:3,mol-1+iatom))*&
                cross_prod(1:3)
             ELSE
             new_angle_c=ACOS(DOT_PRODUCT(bisector(1:3),temp(1:3))/&
                (temp_length))+dis_angle_c
 
-            r_new(1:3,mol-1+iatom)=cos(new_angle_c)*temp_length*bisector(1:3)+&
-               sin(new_angle_c)*temp_length*cross_prod_plane(1:3)+&
+            r_new(1:3,mol-1+iatom)=COS(new_angle_c)*temp_length*bisector(1:3)+&
+               SIN(new_angle_c)*temp_length*cross_prod_plane(1:3)+&
                DOT_PRODUCT(cross_prod(1:3),r_new(1:3,mol-1+iatom))*&
                cross_prod(1:3)
             ENDIF
@@ -1878,19 +1862,19 @@ CONTAINS
 
 ! deallocate some stuff
       DEALLOCATE(connection,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                        "connection")
       DEALLOCATE(connectivity,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                        "connectivity")
       DEALLOCATE(counter,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                        "counter")
       DEALLOCATE(atom_a,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                        "atom_a")
       DEALLOCATE(atom_c,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                        "atom_c")
 
 ! end the timing
@@ -1935,36 +1919,30 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(mc_simulation_parameters_type), &
-      POINTER                                :: mc_par
+    REAL(KIND=dp), DIMENSION(:, :), &
+      INTENT(IN)                             :: r_old
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(OUT)                            :: r_new
-    REAL(KIND=dp), DIMENSION(:,:), &
-      INTENT(IN)                             :: r_old
+    TYPE(mc_simulation_parameters_type), &
+      POINTER                                :: mc_par
     INTEGER, INTENT(IN)                      :: mol
-    TYPE(molecule_kind_type),POINTER         :: molecule_kind
+    TYPE(molecule_kind_type), POINTER        :: molecule_kind
     TYPE(particle_list_type), POINTER        :: particles
     TYPE(rng_stream_type), POINTER           :: rng_stream
 
-    CHARACTER(LEN=*), PARAMETER              :: &
-      routineN = "change_dihedral"
+    CHARACTER(LEN=*), PARAMETER              :: routineN = 'change_dihedral'
 
-! local variables
-
-    TYPE(bond_type),DIMENSION(:),POINTER     :: bond_list
-    TYPE(torsion_type),DIMENSION(:),POINTER     :: torsion_list
-    INTEGER                                  :: handle, i, ipart,nunits_tot,&
-      group,source,natom,istat,iatom,ibond,nbond,&
-      ntorsion,torsion_number
-    REAL(KIND=dp)                            :: dis_angle, &
-      mass_a,mass_d, rand,rmdihedral,x,y,z,u,v,w,&
-      atom_mass,old_length_a,&
-      dis_angle_a,dis_angle_d
-    REAL(KIND=dp), DIMENSION(1:3)            :: bond_a,temp
+    INTEGER :: group, handle, i, iatom, ibond, ipart, istat, natom, nbond, &
+      ntorsion, nunits_tot, source, torsion_number
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: atom_a, atom_d, counter
+    INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: connection, connectivity
     LOGICAL                                  :: ionode
-    INTEGER,DIMENSION(:),ALLOCATABLE                     :: counter,&
-      atom_a,atom_d
-    INTEGER,DIMENSION(:,:),ALLOCATABLE       :: connection,connectivity
+    REAL(KIND=dp) :: atom_mass, dis_angle, dis_angle_a, dis_angle_d, mass_a, &
+      mass_d, old_length_a, rand, rmdihedral, u, v, w, x, y, z
+    REAL(KIND=dp), DIMENSION(1:3)            :: bond_a, temp
+    TYPE(bond_type), DIMENSION(:), POINTER   :: bond_list
+    TYPE(torsion_type), DIMENSION(:), &
+      POINTER                                :: torsion_list
 
 !   ---------------------------------------------------------------------------
 ! begin the timing of the subroutine
@@ -1992,20 +1970,20 @@ CONTAINS
       torsion_number=CEILING(rand*REAL(ntorsion,dp))
 
       ALLOCATE(connection(1:natom,1:2),STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                        "connection",2*natom*dp_size)
 ! assume at most six bonds per atom
       ALLOCATE(connectivity(1:6,1:natom),STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                        "connectivity",6*natom*dp_size)
       ALLOCATE(counter(1:natom),STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                        "counter",natom)
       ALLOCATE(atom_a(1:natom),STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                        "atom_a",natom)
       ALLOCATE(atom_d(1:natom),STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                        "atom_d",natom)
       connection(:,:)=0.0_dp
       connectivity(:,:)=0.0_dp
@@ -2085,12 +2063,12 @@ CONTAINS
                x=r_new(1,mol-1+iatom)
                y=r_new(2,mol-1+iatom)
                z=r_new(3,mol-1+iatom)
-               temp(1)=(u*(u*x+v*y+w*z)+(x*(v**2+w**2)-u*(v*y+w*z))*cos(dis_angle_a)+&
-                  SQRT(u**2+v**2+w**2)*(v*z-w*y)*sin(dis_angle_a))/(u**2+v**2+w**2)
-               temp(2)=(v*(u*x+v*y+w*z)+(y*(u**2+w**2)-v*(u*x+w*z))*cos(dis_angle_a)+&
-                  SQRT(u**2+v**2+w**2)*(w*x-u*z)*sin(dis_angle_a))/(u**2+v**2+w**2)
-               temp(3)=(w*(u*x+v*y+w*z)+(z*(v**2+u**2)-w*(u*x+v*y))*cos(dis_angle_a)+&
-                  SQRT(u**2+v**2+w**2)*(u*y-v*x)*sin(dis_angle_a))/(u**2+v**2+w**2)
+               temp(1)=(u*(u*x+v*y+w*z)+(x*(v**2+w**2)-u*(v*y+w*z))*COS(dis_angle_a)+&
+                  SQRT(u**2+v**2+w**2)*(v*z-w*y)*SIN(dis_angle_a))/(u**2+v**2+w**2)
+               temp(2)=(v*(u*x+v*y+w*z)+(y*(u**2+w**2)-v*(u*x+w*z))*COS(dis_angle_a)+&
+                  SQRT(u**2+v**2+w**2)*(w*x-u*z)*SIN(dis_angle_a))/(u**2+v**2+w**2)
+               temp(3)=(w*(u*x+v*y+w*z)+(z*(v**2+u**2)-w*(u*x+v*y))*COS(dis_angle_a)+&
+                  SQRT(u**2+v**2+w**2)*(u*y-v*x)*SIN(dis_angle_a))/(u**2+v**2+w**2)
 
 ! shift back to the original position
             temp(1:3)=temp(1:3)+r_new(1:3,mol-1+torsion_list(torsion_number)%b)
@@ -2109,12 +2087,12 @@ CONTAINS
                x=r_new(1,mol-1+iatom)
                y=r_new(2,mol-1+iatom)
                z=r_new(3,mol-1+iatom)
-               temp(1)=(u*(u*x+v*y+w*z)+(x*(v**2+w**2)-u*(v*y+w*z))*cos(dis_angle_d)+&
-                  SQRT(u**2+v**2+w**2)*(v*z-w*y)*sin(dis_angle_d))/(u**2+v**2+w**2)
-               temp(2)=(v*(u*x+v*y+w*z)+(y*(u**2+w**2)-v*(u*x+w*z))*cos(dis_angle_d)+&
-                  SQRT(u**2+v**2+w**2)*(w*x-u*z)*sin(dis_angle_d))/(u**2+v**2+w**2)
-               temp(3)=(w*(u*x+v*y+w*z)+(z*(v**2+u**2)-w*(u*x+v*y))*cos(dis_angle_d)+&
-                  SQRT(u**2+v**2+w**2)*(u*y-v*x)*sin(dis_angle_d))/(u**2+v**2+w**2)
+               temp(1)=(u*(u*x+v*y+w*z)+(x*(v**2+w**2)-u*(v*y+w*z))*COS(dis_angle_d)+&
+                  SQRT(u**2+v**2+w**2)*(v*z-w*y)*SIN(dis_angle_d))/(u**2+v**2+w**2)
+               temp(2)=(v*(u*x+v*y+w*z)+(y*(u**2+w**2)-v*(u*x+w*z))*COS(dis_angle_d)+&
+                  SQRT(u**2+v**2+w**2)*(w*x-u*z)*SIN(dis_angle_d))/(u**2+v**2+w**2)
+               temp(3)=(w*(u*x+v*y+w*z)+(z*(v**2+u**2)-w*(u*x+v*y))*COS(dis_angle_d)+&
+                  SQRT(u**2+v**2+w**2)*(u*y-v*x)*SIN(dis_angle_d))/(u**2+v**2+w**2)
 
 ! shift back to the original position
             temp(1:3)=temp(1:3)+r_new(1:3,mol-1+torsion_list(torsion_number)%c)
@@ -2124,19 +2102,19 @@ CONTAINS
 
 ! deallocate some stuff
       DEALLOCATE(connection,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                        "connection")
       DEALLOCATE(connectivity,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                        "connectivity")
       DEALLOCATE(counter,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                        "counter")
       DEALLOCATE(atom_a,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                        "atom_a")
       DEALLOCATE(atom_d,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                        "atom_d")
 
 ! end the timing
@@ -2187,40 +2165,37 @@ CONTAINS
 
     TYPE(mc_simulation_parameters_type), &
       POINTER                                :: mc_par
-    TYPE(force_env_type), POINTER            :: force_env,bias_env
+    TYPE(force_env_type), POINTER            :: force_env, bias_env
     TYPE(mc_moves_type), POINTER             :: moves
-    INTEGER, INTENT(IN)                      :: mol_swap,mol_target
-    REAL(KIND=dp), INTENT(INOUT)             :: bias_energy_old,old_energy,&
-      energy_check
-    REAL(KIND=dp), DIMENSION(:,:),INTENT(INOUT)     &
-      :: r_old
-    TYPE(cp_error_type), INTENT(INOUT), &
-      OPTIONAL                               :: error
+    REAL(KIND=dp), INTENT(INOUT)             :: energy_check
+    REAL(KIND=dp), DIMENSION(:, :), &
+      INTENT(INOUT)                          :: r_old
+    REAL(KIND=dp), INTENT(INOUT)             :: old_energy
+    INTEGER, INTENT(IN)                      :: mol_swap, mol_target
+    REAL(KIND=dp), INTENT(INOUT)             :: bias_energy_old
     CHARACTER(LEN=*), INTENT(IN)             :: move_type
     TYPE(rng_stream_type), POINTER           :: rng_stream
+    TYPE(cp_error_type), INTENT(INOUT), &
+      OPTIONAL                               :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = "mc_avbmc_move"
+    CHARACTER(LEN=*), PARAMETER              :: routineN = 'mc_avbmc_move'
 
-    INTEGER                                  :: handle, ipart,&
-                                                istat,nchain,nunits_tot,&
-                                                avbmc_atom,nswapmoves,&
-                                                source,group,imolecule,&
-                                                natom
-    LOGICAL                                  :: lbias,&
-      loverlap,ionode,ldum,lin
-    REAL(KIND=dp),DIMENSION(1:3)             :: abc,RIJ
-    REAL(KIND=dp)                            :: bias_energy_new, &
-      rand, w, BETA,&
-      avbmc_rmin,avbmc_rmax,rdum,new_energy,weight_new,weight_old,&
-      volume_in,volume_out,del_quickstep_energy,prefactor,distance,pbias
+    INTEGER :: avbmc_atom, group, handle, imolecule, ipart, istat, natom, &
+      nchain, nswapmoves, nunits_tot, source
+    LOGICAL                                  :: ionode, lbias, ldum, lin, &
+                                                loverlap
+    REAL(KIND=dp) :: avbmc_rmax, avbmc_rmin, BETA, bias_energy_new, &
+      del_quickstep_energy, distance, new_energy, pbias, prefactor, rand, &
+      rdum, volume_in, volume_out, w, weight_new, weight_old
+    REAL(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:, :)                        :: r_new
+    REAL(KIND=dp), DIMENSION(1:3)            :: abc, RIJ
+    TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_subsystem_p_type), &
-      DIMENSION(:), POINTER                  :: subsys,subsys_force
-    REAL(KIND=dp), DIMENSION(:, :),&
-      ALLOCATABLE                            :: r_new
-    TYPE(particle_list_type), POINTER        :: particles,particles_force
+      DIMENSION(:), POINTER                  :: subsys, subsys_force
     TYPE(mol_kind_new_list_type), POINTER    :: molecule_kinds_new
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
-      TYPE(cell_type), POINTER                 :: cell
+    TYPE(particle_list_type), POINTER        :: particles, particles_force
 
 !   ---------------------------------------------------------------------------
 
@@ -2243,7 +2218,7 @@ CONTAINS
 
 ! do some allocation
       ALLOCATE (r_new(1:3,1:nunits_tot),STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                        "r_new",3*nunits_tot*dp_size)
 
 ! now we need to grab and save coordinates, in case we reject
@@ -2291,9 +2266,9 @@ CONTAINS
          particles%els(mol_target+avbmc_atom-1)%r(3))/abc(3))
       distance=SQRT(RIJ(1)**2+RIJ(2)**2+RIJ(3)**2)
       IF(distance .LE. avbmc_rmax .AND. distance .GE. avbmc_rmin) THEN
-         lin=.true.
+         lin=.TRUE.
       ELSE
-         lin=.false.
+         lin=.FALSE.
       ENDIF
 
 ! increment the counter of the particular move we've done
@@ -2386,7 +2361,7 @@ CONTAINS
 
       IF(loverlap) THEN
          DEALLOCATE(r_new,STAT=istat)
-         IF (istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
+         IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
             "r_new")
 
 ! need to reset the old coordinates
@@ -2549,7 +2524,7 @@ CONTAINS
 
 ! deallocate some stuff
       DEALLOCATE(r_new,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                        "r_new")
 ! end the timing
   CALL timestop(0.0E0_dp,handle)

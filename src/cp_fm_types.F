@@ -25,15 +25,13 @@
 !!   SOURCE
 !****************************************************************************
 MODULE cp_fm_types
-  USE cp_array_utils,                  ONLY: cp_2d_r_write
   USE cp_blacs_calls,                  ONLY: cp_blacs_dgebr2d,&
                                              cp_blacs_dgebs2d
   USE cp_fm_struct,                    ONLY: cp_fm_struct_equivalent,&
                                              cp_fm_struct_get,&
                                              cp_fm_struct_release,&
                                              cp_fm_struct_retain,&
-                                             cp_fm_struct_type,&
-                                             cp_fm_struct_write
+                                             cp_fm_struct_type
   USE cp_para_types,                   ONLY: cp_blacs_env_type,&
                                              cp_para_env_type
   USE kinds,                           ONLY: dp
@@ -41,9 +39,6 @@ MODULE cp_fm_types
                                              mp_bcast,&
                                              mp_max,&
                                              mp_sum
-  USE cp_files,                        ONLY: close_file,&
-                                             open_file
-  USE string_utilities,                ONLY: compress
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "cp_common_uses.h"
@@ -52,7 +47,7 @@ MODULE cp_fm_types
   PRIVATE
 
   LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
-  CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='cp_fm_types'
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_fm_types'
 
   INTEGER,SAVE,PRIVATE :: last_fm_id_nr=0
 
@@ -391,7 +386,7 @@ CONTAINS
     my_ncol = matrix%matrix_struct%ncol_global
     IF (PRESENT(ncol)) my_ncol=ncol
     n = matrix%matrix_struct%nrow_global
-    call cp_assert(matrix%matrix_struct%ncol_global>=(my_start_col+my_ncol-1),&
+    CALL cp_assert(matrix%matrix_struct%ncol_global>=(my_start_col+my_ncol-1),&
          cp_failure_level,cp_assertion_failed,routineP,&
          "matrix%matrix_struct%ncol_global>=(my_start_col+my_ncol-1)",&
          error,failure)
@@ -803,9 +798,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_get_submatrix', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: handle, i, i0, j, j0, ncol, ncol_global, &
-      ncol_local, nrow, nrow_global, nrow_local, this_col, &
-      this_row
+    INTEGER :: handle, i, i0, j, j0, ncol, ncol_global, ncol_local, nrow, &
+      nrow_global, nrow_local, this_col, this_row
     INTEGER, DIMENSION(:), POINTER           :: col_indices, row_indices
     LOGICAL                                  :: failure, tr_a
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: full_block
@@ -989,7 +983,7 @@ CONTAINS
   SUBROUTINE cp_fm_maxabsval(matrix,a_max,ir_max,ic_max,error)
     TYPE(cp_fm_type), POINTER                :: matrix
     REAL(KIND=dp), INTENT(OUT)               :: a_max
-    INTEGER, INTENT(OUT), OPTIONAL           :: ir_max,ic_max
+    INTEGER, INTENT(OUT), OPTIONAL           :: ir_max, ic_max
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -997,13 +991,14 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, i, ic_max_local, &
-                                                ir_max_local, istat, j, mepos, &
-                                                ncol_local, nrow_local, num_pe
-    INTEGER, DIMENSION(:), ALLOCATABLE       :: ir_max_vec, ic_max_vec
-    INTEGER, DIMENSION(:), POINTER           :: row_indices, col_indices
-    LOGICAL :: failure
+                                                ir_max_local, istat, j, &
+                                                mepos, ncol_local, &
+                                                nrow_local, num_pe
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: ic_max_vec, ir_max_vec
+    INTEGER, DIMENSION(:), POINTER           :: col_indices, row_indices
+    LOGICAL                                  :: failure
     REAL(dp)                                 :: my_max
-    REAL(dp), DIMENSION(:), ALLOCATABLE      :: a_max_vec
+    REAL(dp), ALLOCATABLE, DIMENSION(:)      :: a_max_vec
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: my_block
 
 !   ---------------------------------------------------------------------------
@@ -1149,10 +1144,9 @@ CONTAINS
     TYPE(cp_fm_type), POINTER                :: matrix
     REAL(KIND=dp), DIMENSION(:), INTENT(OUT) :: norm_array
 
-    INTEGER                                  :: handle, i, j, ncol_local, &
-                                                ncol_global, nrow_local
+    INTEGER                                  :: handle, i, j, ncol_global, &
+                                                ncol_local, nrow_local
     INTEGER, DIMENSION(:), POINTER           :: col_indices
-    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: values
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: my_block
 
 !   ---------------------------------------------------------------------------

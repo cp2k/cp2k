@@ -28,17 +28,19 @@ MODULE integrator
   USE atomic_kind_list_types,          ONLY: atomic_kind_list_type
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind
+  USE cell_types,                      ONLY: cell_type,&
+                                             get_hinv
   USE constraint,                      ONLY: getold,&
+                                             pv_constraint,&
                                              rattle_control,&
-                                             shake_control, &
-                                             shake_roll_control, &
-                                             rattle_roll_control, &
-                                             pv_constraint
+                                             rattle_roll_control,&
+                                             shake_control,&
+                                             shake_roll_control
   USE convert_units,                   ONLY: convert_to_cp2k_units
+  USE cp_files,                        ONLY: open_file
+  USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_subsystem_types,              ONLY: cp_subsys_get,&
                                              cp_subsystem_p_type
-  USE cp_para_types,                   ONLY: cp_para_env_type
-  USE cp_files,                        ONLY: open_file
   USE distribution_1d_types,           ONLY: distribution_1d_type
   USE dynamical_coeff_types,           ONLY: dyn_coeff_p_type,&
                                              dyn_coeff_set_p_type,&
@@ -46,33 +48,34 @@ MODULE integrator
                                              get_dyn_coeff_set
   USE eigenvalueproblems,              ONLY: diagonalise
   USE extended_system_dynamics,        ONLY: lnhc
-  USE extended_system_types,           ONLY: lnhc_parameters_type, npt_info_type
+  USE extended_system_types,           ONLY: lnhc_parameters_type,&
+                                             npt_info_type
   USE force_env_methods,               ONLY: force_env_calc_energy_force
   USE force_env_types,                 ONLY: force_env_get,&
-                                             force_env_set,&
-                                             force_env_p_type
-  USE global_types,                    ONLY: global_environment_type
-  USE input_constants,                 ONLY: dyn_coeff_mass_atom,&
-                                             dyn_coeff_mass_coeff,&
-                                             dyn_coeff_mass_global,&
-                                             dyn_coeff_mass_kind
+                                             force_env_p_type,&
+                                             force_env_set
+  USE input_constants,                 ONLY: &
+       dyn_coeff_mass_atom, dyn_coeff_mass_coeff, dyn_coeff_mass_global, &
+       dyn_coeff_mass_kind, nph_ensemble, nph_uniaxial_damped_ensemble, &
+       nph_uniaxial_ensemble, npt_f_ensemble, npt_i_ensemble
   USE kinds,                           ONLY: dp,&
                                              dp_size
   USE md,                              ONLY: simulation_parameters_type
   USE md_environment_types,            ONLY: get_md_env,&
-                                             md_environment_type, &
+                                             md_environment_type,&
                                              reftraj_type
   USE message_passing,                 ONLY: mp_sum
   USE mol_kind_new_list_types,         ONLY: mol_kind_new_list_type
   USE mol_new_list_types,              ONLY: mol_new_list_type
   USE molecule_kind_types,             ONLY: molecule_kind_type
-  USE molecule_types_new,              ONLY: molecule_type, get_molecule
+  USE molecule_types_new,              ONLY: get_molecule,&
+                                             molecule_type
   USE parallel_rng_types,              ONLY: next_random_number,&
                                              rng_stream_type
   USE particle_list_types,             ONLY: particle_list_type
   USE particle_types,                  ONLY: particle_type
-  USE cell_types,                 ONLY: cell_type, get_hinv
-  USE termination,                     ONLY: stop_memory, stop_program
+  USE termination,                     ONLY: stop_memory,&
+                                             stop_program
 !  USE transformations,                 ONLY: fr2fu,&
 !                                             u2r
   USE util,                            ONLY: matmul_3x3,&
@@ -80,21 +83,13 @@ MODULE integrator
                                              transpose_3d
   USE virial_methods,                  ONLY: virial_evaluate
   USE virial_types,                    ONLY: virial_type
-  USE input_section_types, ONLY: section_vals_type, section_vals_val_get
-  USE input_constants,                 ONLY: nve_ensemble,&
-                                             nvt_ensemble,&
-                                             npt_i_ensemble,&
-                                             npt_f_ensemble,&
-                                             nph_ensemble,&
-                                             nph_uniaxial_ensemble,&
-                                             nph_uniaxial_damped_ensemble  
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
 
   PRIVATE
 
-  CHARACTER(LEN=*), PARAMETER :: module_name = "integrator"
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'integrator'
 
   TYPE old_variables_type
      REAL (KIND=dp), POINTER, DIMENSION ( :, : ) :: v
@@ -151,31 +146,27 @@ CONTAINS
 
     TYPE(md_environment_type), POINTER       :: md_env
     TYPE(cp_error_type), INTENT(inout), &
-         OPTIONAL                               :: error
+      OPTIONAL                               :: error
 
-    CHARACTER(LEN=*), PARAMETER              :: routine_name = "langevin"
+    CHARACTER(LEN=*), PARAMETER              :: routineN = 'langevin'
 
-    INTEGER :: i,icoef, iparticle, iparticle_kind, iparticle_local, istat, &
-      isubsys, mass_storage, nmolecule, nmolecule_kind, nparticle, &
-      nparticle_kind, nparticle_local
-    REAL(KIND=dp)                            :: c,c1,c2,c3,c4,dm,dmcoef,dt,&
-                                                global_mass, &
-                                                mass, gam, w_norm, random_number
+    INTEGER :: iparticle, iparticle_kind, iparticle_local, istat, isubsys, &
+      nmolecule, nmolecule_kind, nparticle, nparticle_kind, nparticle_local
+    REAL(KIND=dp)                            :: c, c1, c2, c3, c4, dm, dt, &
+                                                gam, mass, w_norm
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: pos, vel, w
     TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_subsystem_p_type), &
       DIMENSION(:), POINTER                  :: subsys
     TYPE(distribution_1d_type), POINTER      :: local_molecules, &
                                                 local_particles
-    TYPE(dyn_coeff_p_type), DIMENSION(:), &
-      POINTER                                :: coeffs_of_kind
     TYPE(dyn_coeff_set_p_type), &
       DIMENSION(:), POINTER                  :: dyn_coeff_set
-    TYPE(dyn_coeff_type), POINTER            :: coeffs
     TYPE(force_env_p_type), DIMENSION(:), &
       POINTER                                :: force_env_p
     TYPE(lnhc_parameters_type), &
@@ -189,15 +180,14 @@ CONTAINS
     TYPE(particle_list_type), POINTER        :: particles
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
+    TYPE(rng_stream_type), POINTER           :: rng_stream
     TYPE(simulation_parameters_type), &
       POINTER                                :: simpar
     TYPE(virial_type), POINTER               :: virial
-    TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(rng_stream_type), POINTER           :: rng_stream
 
 !   ---------------------------------------------------------------------------
 
-    NULLIFY (dyn_coeff_set,coeffs_of_kind,coeffs,nhc_coef,para_env)
+    NULLIFY (dyn_coeff_set, nhc_coef, para_env)
     CALL get_md_env(md_env=md_env,simpar=simpar,force_env_p=force_env_p,&
                     nhc_coef=nhc_coef, para_env = para_env)
 
@@ -234,25 +224,25 @@ CONTAINS
 !     *** Allocate work storage for positions ***
 
       ALLOCATE (pos(3,nparticle),STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                        "pos",3*nparticle*dp_size)
       pos(:,:) = 0.0_dp
 
       ALLOCATE (vel(3,nparticle),STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                        "vel",3*nparticle*dp_size)
       vel(:,:) = 0.0_dp
 
 !     *** Generate Gaussian random variables for Wiener process ***
 
       ALLOCATE (w(3,nparticle),STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                        "w",3*nparticle*dp_size)
       w(:,:) = 0.0_dp
 
 !     *** Velocity Verlet (first part) ***
 
-      c = exp(-0.25_dp*dt*gam)
+      c = EXP(-0.25_dp*dt*gam)
       c2 = c*c
       c4 = c2*c2
       c1 = dt*c2
@@ -285,7 +275,7 @@ CONTAINS
       CALL update_particle_set(particle_set,para_env%group,pos=pos)
 
       DEALLOCATE (pos,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,"pos")
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"pos")
 
 !     *** Update forces ***
 
@@ -312,10 +302,10 @@ CONTAINS
       CALL update_particle_set(particle_set,para_env%group,vel=vel)
 
       DEALLOCATE (vel,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,"vel")
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"vel")
 
       DEALLOCATE (w,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,"w")
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"w")
 
     END DO ! next subsys or sub-system
 
@@ -343,9 +333,10 @@ CONTAINS
   SUBROUTINE nve ( md_env, error)
 
     TYPE(md_environment_type), POINTER       :: md_env
-   TYPE(cp_error_type), INTENT(inout), &
-         OPTIONAL                               :: error
-    CHARACTER(LEN=*), PARAMETER              :: routine_name = "nve_new"
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(LEN=*), PARAMETER              :: routineN = 'nve'
 
     INTEGER :: icoef, iparticle, iparticle_kind, iparticle_local, istat, &
       isubsys, mass_storage, nmolecule, nmolecule_kind, nparticle, &
@@ -358,6 +349,7 @@ CONTAINS
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_subsystem_p_type), &
       DIMENSION(:), POINTER                  :: subsys
     TYPE(distribution_1d_type), POINTER      :: local_molecules, &
@@ -383,7 +375,6 @@ CONTAINS
     TYPE(simulation_parameters_type), &
       POINTER                                :: simpar
     TYPE(virial_type), POINTER               :: virial
-    TYPE(cp_para_env_type), POINTER          :: para_env
 
 !   ---------------------------------------------------------------------------
 
@@ -421,10 +412,10 @@ CONTAINS
 !     *** Allocate work storage for positions and velocities ***
 
       ALLOCATE (pos(3,nparticle),STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                        "pos",3*nparticle*dp_size)
       ALLOCATE (vel(3,nparticle),STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                        "vel",3*nparticle*dp_size)
       pos(:,:) = 0.0_dp
       vel(:,:) = 0.0_dp
@@ -458,7 +449,7 @@ CONTAINS
       CALL update_particle_set ( particle_set, para_env % group, pos = pos )
 
       DEALLOCATE (pos,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,"pos")
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"pos")
 
 !     *** coefficients
     
@@ -522,7 +513,7 @@ CONTAINS
       CALL update_particle_set ( particle_set, para_env % group, vel = vel )
 
       DEALLOCATE (vel,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,"vel")
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"vel")
 
 !     *** coefficients
 
@@ -599,9 +590,10 @@ CONTAINS
   SUBROUTINE isokin ( md_env, error )
 
     TYPE(md_environment_type), POINTER       :: md_env
-   TYPE(cp_error_type), INTENT(inout), &
-         OPTIONAL                               :: error
-    CHARACTER(LEN=*), PARAMETER              :: routine_name = "isokin"
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(LEN=*), PARAMETER              :: routineN = 'isokin'
 
     INTEGER :: iparticle, iparticle_kind, iparticle_local, istat, isubsys, &
       nparticle, nparticle_kind, nparticle_local
@@ -613,6 +605,7 @@ CONTAINS
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_subsystem_p_type), &
       DIMENSION(:), POINTER                  :: subsys
     TYPE(distribution_1d_type), POINTER      :: local_particles
@@ -623,7 +616,6 @@ CONTAINS
       POINTER                                :: particle_set
     TYPE(simulation_parameters_type), &
       POINTER                                :: simpar
-    TYPE(cp_para_env_type), POINTER          :: para_env
 
 !   ---------------------------------------------------------------------------
 
@@ -664,7 +656,7 @@ CONTAINS
 
 !     *** Allocate work storage for positions and velocities ***
       ALLOCATE (work(3,nparticle),STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                        "work",3*nparticle*dp_size)
       work(:,:) = 0.0_dp
 
@@ -726,7 +718,7 @@ CONTAINS
       END DO
 
       DEALLOCATE (work,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,"work")
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"work")
 
     END DO do_subsys
   CONTAINS
@@ -776,12 +768,12 @@ CONTAINS
 !******************************************************************************
 
   SUBROUTINE nvt ( md_env, error)
-    IMPLICIT NONE
 
     TYPE(md_environment_type), POINTER       :: md_env
-   TYPE(cp_error_type), INTENT(inout), &
-         OPTIONAL                               :: error
-    CHARACTER(LEN=*), PARAMETER              :: routine_name = "nvt"
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(LEN=*), PARAMETER              :: routineN = 'nvt'
 
     INTEGER :: icoef, iparticle, iparticle_kind, iparticle_local, istat, &
       isubsys, mass_storage, nmolecule, nmolecule_kind, nparticle, &
@@ -794,6 +786,7 @@ CONTAINS
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_subsystem_p_type), &
       DIMENSION(:), POINTER                  :: subsys
     TYPE(distribution_1d_type), POINTER      :: local_molecules, &
@@ -819,8 +812,7 @@ CONTAINS
       POINTER                                :: particle_set
     TYPE(simulation_parameters_type), &
       POINTER                                :: simpar
-    TYPE ( virial_type ), POINTER            :: virial
-    TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(virial_type), POINTER               :: virial
 
 !   ---------------------------------------------------------------------------
 
@@ -859,10 +851,10 @@ CONTAINS
 !     *** Allocate work storage for positions and velocities ***
 
       ALLOCATE (pos(3,nparticle),STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                        "pos",3*nparticle*dp_size)
       ALLOCATE (vel(3,nparticle),STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                        "vel",3*nparticle*dp_size)
       pos(:,:) = 0.0_dp
       vel(:,:) = 0.0_dp
@@ -897,7 +889,7 @@ CONTAINS
       CALL update_particle_set ( particle_set, para_env % group, pos = pos )
 
       DEALLOCATE (pos,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,"work")
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"work")
 
 !     *** coefficients
 
@@ -972,7 +964,7 @@ CONTAINS
                                                       para_env % group )
 
       DEALLOCATE (vel,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,"vel")
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"vel")
 
 !     *** coefficients
 
@@ -1040,58 +1032,58 @@ CONTAINS
 
  SUBROUTINE npt_i ( md_env, error )
   
-    IMPLICIT NONE
     TYPE(md_environment_type), POINTER       :: md_env
-   TYPE(cp_error_type), INTENT(inout), &
-         OPTIONAL                               :: error
-    CHARACTER(LEN=*), PARAMETER              :: routine_name = "npt_i"
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    INTEGER :: iparticle, iparticle_kind, iparticle_local, istat, &
-               isubsys,  nmolecule, nmolecule_kind, nparticle, &
-               nparticle_kind, nparticle_local
-    INTEGER, POINTER :: itimes
-    REAL(KIND=dp)                            :: dm, dt, global_mass, &
-                                                mass
+    CHARACTER(LEN=*), PARAMETER              :: routineN = 'npt_i'
+    LOGICAL, PARAMETER                       :: box_change = .TRUE.
+    REAL(KIND=dp), PARAMETER                 :: e2 = 1.0_dp/6.0_dp, &
+                                                e4 = e2/20.0_dp, &
+                                                e6 = e4/42.0_dp, &
+                                                e8 = e6/72.0_dp
+
+    INTEGER :: iparticle, iparticle_kind, iparticle_local, iroll, istat, &
+      isubsys, nmolecule, nmolecule_kind, nparticle, nparticle_kind, &
+      nparticle_local
+    INTEGER, POINTER                         :: itimes
+    LOGICAL                                  :: first
+    LOGICAL, SAVE                            :: first_time = .TRUE.
+    REAL(dp)                                 :: kin
+    REAL(dp), DIMENSION(3, 3)                :: pv_kin
+    REAL(KIND=dp)                            :: arg_r, arg_v, dm, dt, infree, &
+                                                mass, poly_r, poly_v, &
+                                                roll_tol, scale_r, scale_v
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: pos, vel
+    REAL(KIND=dp), DIMENSION(3)              :: vector_r, vector_v
+    REAL(KIND=dp), SAVE                      :: eps_0
     TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
+    TYPE(cell_type), POINTER                 :: cell
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_subsystem_p_type), &
       DIMENSION(:), POINTER                  :: subsys
     TYPE(distribution_1d_type), POINTER      :: local_molecules, &
                                                 local_particles
-    TYPE(force_env_p_type), DIMENSION(:), POINTER :: force_env_p
-    TYPE(lnhc_parameters_type), POINTER      :: nhc_part( : ), nhc_baro ( : )
-    TYPE ( npt_info_type ), POINTER          :: npt ( :, : )
+    TYPE(force_env_p_type), DIMENSION(:), &
+      POINTER                                :: force_env_p
+    TYPE(lnhc_parameters_type), POINTER      :: nhc_baro( : ), nhc_part( : )
     TYPE(mol_kind_new_list_type), POINTER    :: molecule_kinds
     TYPE(mol_new_list_type), POINTER         :: molecules
     TYPE(molecule_kind_type), DIMENSION(:), &
       POINTER                                :: molecule_kind_set
     TYPE(molecule_type), DIMENSION(:), &
       POINTER                                :: molecule_set
+    TYPE(npt_info_type), POINTER             :: npt( :, : )
     TYPE(particle_list_type), POINTER        :: particles
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(simulation_parameters_type), &
       POINTER                                :: simpar
-    TYPE(cell_type), POINTER                 :: cell
-    TYPE ( virial_type ), POINTER            :: virial
-    REAL (KIND=dp), PARAMETER :: e2 = 1.0_dp/6.0_dp, e4 = e2/20.0_dp, &
-       e6 = e4/42.0_dp, e8 = e6/72.0_dp
-    REAL (KIND=dp), SAVE :: eps_0
-    REAL (KIND=dp) :: arg_r, poly_r, scale_r, roll_tol
-    REAL (KIND=dp) :: arg_v, poly_v, scale_v, infree
-    REAL (KIND=dp), DIMENSION (3) :: vector_r, vector_v
-    REAL ( dp ), DIMENSION (3,3) :: pv_kin
-    REAL ( dp ) :: kin
-    LOGICAL, PARAMETER :: box_change = .TRUE.
-    LOGICAL :: first
-    INTEGER :: iroll
-    TYPE(cp_para_env_type), POINTER          :: para_env
-    LOGICAL, SAVE                            :: first_time=.TRUE.
-
+    TYPE(virial_type), POINTER               :: virial
 
     CALL get_md_env(md_env=md_env,simpar=simpar,force_env_p=force_env_p,&
                     nhc_part=nhc_part, nhc_baro=nhc_baro, npt = npt, &
@@ -1137,10 +1129,10 @@ CONTAINS
       CALL allocate_old ( particle_set, npt )
 
       ALLOCATE (pos(3,nparticle),STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                        "pos",3*nparticle*dp_size)
       ALLOCATE (vel(3,nparticle),STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                        "vel",3*nparticle*dp_size)
       pos(:,:) = 0.0_dp
       vel(:,:) = 0.0_dp
@@ -1235,7 +1227,7 @@ CONTAINS
       CALL update_particle_set ( particle_set, para_env % group, pos = pos )
 
       DEALLOCATE (pos,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,"work")
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"work")
 
 
 !     *** Update forces ***
@@ -1300,7 +1292,7 @@ CONTAINS
                                                       para_env % group )
 
       DEALLOCATE (vel,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,"vel")
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"vel")
 
       CALL virial_evaluate ( atomic_kind_set, particle_set,  &
                              local_particles, virial, para_env % group  )
@@ -1333,21 +1325,22 @@ CONTAINS
 !!*** **********************************************************************
  SUBROUTINE reftraj ( md_env, error )
     TYPE(md_environment_type), POINTER       :: md_env
-   TYPE(cp_error_type), INTENT(inout), &
-         OPTIONAL                               :: error
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(LEN=10)                        :: AA
+    CHARACTER(LEN=80)                        :: title
+    INTEGER                                  :: I, istat, nparticle, Nread
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: pos
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_subsystem_p_type), &
       DIMENSION(:), POINTER                  :: subsys
+    TYPE(force_env_p_type), DIMENSION(:), &
+      POINTER                                :: force_env_p
     TYPE(particle_list_type), POINTER        :: particles
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
-   TYPE(force_env_p_type), DIMENSION(:), &
-      POINTER                                :: force_env_p
-    TYPE(cp_para_env_type), POINTER          :: para_env
-    INTEGER                                  :: I,Nread,istat,nparticle
-    CHARACTER(LEN=10)                        :: AA
-    CHARACTER(LEN=80)                        :: title
     TYPE(reftraj_type), POINTER              :: reftraj_info
 
     CALL get_md_env(md_env=md_env, reftraj_info=reftraj_info, &
@@ -1365,7 +1358,7 @@ CONTAINS
     nparticle = particles%n_els
     particle_set => particles%els
     ALLOCATE (pos(3,nparticle),STAT=istat)
-    IF (istat /= 0) CALL stop_memory("reftraj",module_name,__LINE__,&
+    IF (istat /= 0) CALL stop_memory("reftraj",moduleN,__LINE__,&
                                               "pos",3*nparticle*dp_size)
 
     ! read from file
@@ -1374,10 +1367,10 @@ CONTAINS
        IF (reftraj_info%unit<0) THEN
           CALL open_file("reftraj.xyz",unit_number=reftraj_info%unit)
        ENDIF
-       read(reftraj_info%unit,*,ERR=999,END=998) Nread
-       read(reftraj_info%unit,'(A)',ERR=999,END=998) title
+       READ(reftraj_info%unit,*,ERR=999,END=998) Nread
+       READ(reftraj_info%unit,'(A)',ERR=999,END=998) title
        DO I=1,Nread
-          read(reftraj_info%unit,*,ERR=999,END=998) AA,pos(:,I)
+          READ(reftraj_info%unit,*,ERR=999,END=998) AA,pos(:,I)
           CALL convert_to_cp2k_units("ANGSTROM",length=pos(1,I))
           CALL convert_to_cp2k_units("ANGSTROM",length=pos(2,I))
           CALL convert_to_cp2k_units("ANGSTROM",length=pos(3,I))
@@ -1428,56 +1421,55 @@ CONTAINS
 
  SUBROUTINE nph_uniaxial ( md_env, error )
   
-    IMPLICIT NONE
     TYPE(md_environment_type), POINTER       :: md_env
-   TYPE(cp_error_type), INTENT(inout), &
-         OPTIONAL                               :: error
-    CHARACTER(LEN=*), PARAMETER              :: routine_name = "npt_uniaxial"
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    INTEGER :: iparticle, iparticle_kind, iparticle_local, istat, &
-               isubsys,  nmolecule, nmolecule_kind, nparticle, &
-               nparticle_kind, nparticle_local
-    REAL(KIND=dp)                            :: dm, dt, global_mass, &
-                                                mass
+    CHARACTER(LEN=*), PARAMETER              :: routineN = 'nph_uniaxial'
+    LOGICAL, PARAMETER                       :: box_change = .TRUE.
+    REAL(dp), PARAMETER                      :: e2 = 1._dp/6._dp, &
+                                                e4 = e2/20._dp, &
+                                                e6 = e4/42._dp, e8 = e6/72._dp
+
+    INTEGER :: iparticle, iparticle_kind, iparticle_local, iroll, istat, &
+      isubsys, nmolecule, nmolecule_kind, nparticle, nparticle_kind, &
+      nparticle_local
+    LOGICAL                                  :: first
+    LOGICAL, SAVE                            :: first_time = .TRUE.
+    REAL(dp)                                 :: arg_r, arg_v, arg_vx, infree, &
+                                                kin, poly_r, poly_v, poly_vx, &
+                                                roll_tol, scale_r, scale_v, &
+                                                scale_vx
+    REAL(dp), DIMENSION(3)                   :: vector_r, vector_v
+    REAL(dp), DIMENSION(3, 3)                :: pv_kin
+    REAL(KIND=dp)                            :: dm, dt, mass
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: pos, vel
     TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
+    TYPE(cell_type), POINTER                 :: cell
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_subsystem_p_type), &
       DIMENSION(:), POINTER                  :: subsys
     TYPE(distribution_1d_type), POINTER      :: local_molecules, &
                                                 local_particles
-    TYPE(force_env_p_type), DIMENSION(:), POINTER :: force_env_p
-    TYPE ( npt_info_type ), POINTER          :: npt ( :, : )
+    TYPE(force_env_p_type), DIMENSION(:), &
+      POINTER                                :: force_env_p
     TYPE(mol_kind_new_list_type), POINTER    :: molecule_kinds
     TYPE(mol_new_list_type), POINTER         :: molecules
     TYPE(molecule_kind_type), DIMENSION(:), &
       POINTER                                :: molecule_kind_set
     TYPE(molecule_type), DIMENSION(:), &
       POINTER                                :: molecule_set
+    TYPE(npt_info_type), POINTER             :: npt( :, : )
     TYPE(particle_list_type), POINTER        :: particles
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(simulation_parameters_type), &
       POINTER                                :: simpar
-    TYPE(cell_type), POINTER                 :: cell
-    TYPE ( virial_type ), POINTER            :: virial
-    REAL ( dp ), PARAMETER :: e2 = 1._dp/6._dp, e4 = e2/20._dp, &
-       e6 = e4/42._dp, e8 = e6/72._dp
-    REAL ( dp ) :: arg_r, poly_r, scale_r, roll_tol
-    REAL ( dp ) :: arg_v, poly_v, scale_v, infree
-    REAL ( dp ) :: arg_vx, poly_vx, scale_vx
-    REAL ( dp ), DIMENSION (3) :: vector_r, vector_v
-    REAL ( dp ), DIMENSION (3,3) :: pv_kin
-    REAL ( dp ) :: kin
-    LOGICAL, PARAMETER :: box_change = .TRUE.
-    LOGICAL :: first
-    INTEGER :: iroll
-    TYPE(cp_para_env_type), POINTER          :: para_env
-    LOGICAL, SAVE                            :: first_time=.TRUE.
-
+    TYPE(virial_type), POINTER               :: virial
 
     CALL get_md_env(md_env=md_env,simpar=simpar,force_env_p=force_env_p,&
                     npt = npt, para_env=para_env)
@@ -1521,10 +1513,10 @@ CONTAINS
       CALL allocate_old ( particle_set, npt )
 
       ALLOCATE (pos(3,nparticle),STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                        "pos",3*nparticle*dp_size)
       ALLOCATE (vel(3,nparticle),STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                        "vel",3*nparticle*dp_size)
       pos(:,:) = 0.0_dp
       vel(:,:) = 0.0_dp
@@ -1614,7 +1606,7 @@ CONTAINS
       CALL update_particle_set ( particle_set, para_env % group, pos = pos )
 
       DEALLOCATE (pos,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,"work")
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"work")
 
 
 !     *** Update forces (and stress)***
@@ -1677,7 +1669,7 @@ CONTAINS
                                                       para_env % group )
 
       DEALLOCATE (vel,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,"vel")
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"vel")
 
       CALL virial_evaluate ( atomic_kind_set, particle_set,  &
                              local_particles, virial, para_env % group  )
@@ -1719,54 +1711,53 @@ CONTAINS
 
  SUBROUTINE nph_uniaxial_damped ( md_env, error )
   
-    IMPLICIT NONE
     TYPE(md_environment_type), POINTER       :: md_env
-   TYPE(cp_error_type), INTENT(inout), &
-         OPTIONAL                               :: error
-    CHARACTER(LEN=*), PARAMETER              :: routine_name = "nph_uniaxial_damped"
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    INTEGER :: iparticle, iparticle_kind, iparticle_local, istat, &
-               isubsys,  nmolecule, nmolecule_kind, nparticle, &
-               nparticle_kind, nparticle_local
-    REAL(KIND=dp)                            :: dm, dt, global_mass, &
-                                                mass
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'nph_uniaxial_damped'
+    LOGICAL, PARAMETER                       :: box_change = .TRUE.
+    REAL(dp), PARAMETER                      :: e2 = 1._dp/6._dp, &
+                                                e4 = e2/20._dp, &
+                                                e6 = e4/42._dp, e8 = e6/72._dp
+
+    INTEGER :: iparticle, iparticle_kind, iparticle_local, iroll, istat, &
+      isubsys, nmolecule, nmolecule_kind, nparticle, nparticle_kind, &
+      nparticle_local
+    LOGICAL                                  :: first
+    LOGICAL, SAVE                            :: first_time
+    REAL(dp) :: aa, aax, arg_r, arg_v, arg_vx, gamma1, infree, kin, poly_r, &
+      poly_v, poly_vx, roll_tol, scale_r, scale_v, scale_vx
+    REAL(dp), DIMENSION(3)                   :: vector_r, vector_v
+    REAL(dp), DIMENSION(3, 3)                :: pv_kin
+    REAL(KIND=dp)                            :: dm, dt, mass
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: pos, vel
     TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
+    TYPE(cell_type), POINTER                 :: cell
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_subsystem_p_type), &
       DIMENSION(:), POINTER                  :: subsys
     TYPE(distribution_1d_type), POINTER      :: local_molecules, &
                                                 local_particles
-    TYPE(force_env_p_type), DIMENSION(:), POINTER :: force_env_p
-    TYPE ( npt_info_type ), POINTER          :: npt ( :, : )
+    TYPE(force_env_p_type), DIMENSION(:), &
+      POINTER                                :: force_env_p
     TYPE(mol_kind_new_list_type), POINTER    :: molecule_kinds
     TYPE(mol_new_list_type), POINTER         :: molecules
     TYPE(molecule_kind_type), DIMENSION(:), &
       POINTER                                :: molecule_kind_set
     TYPE(molecule_type), DIMENSION(:), &
       POINTER                                :: molecule_set
+    TYPE(npt_info_type), POINTER             :: npt( :, : )
     TYPE(particle_list_type), POINTER        :: particles
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(simulation_parameters_type), &
       POINTER                                :: simpar
-    TYPE(cell_type), POINTER                 :: cell
-    TYPE ( virial_type ), POINTER            :: virial
-    REAL ( dp ), PARAMETER :: e2 = 1._dp/6._dp, e4 = e2/20._dp, &
-       e6 = e4/42._dp, e8 = e6/72._dp
-    REAL ( dp ) :: arg_r, poly_r, scale_r, roll_tol
-    REAL ( dp ) :: arg_v, poly_v, scale_v, kin, infree
-    REAL ( dp ) :: arg_vx, poly_vx, scale_vx, gamma1, aax, aa
-    REAL ( dp ), DIMENSION (3,3) :: pv_kin
-    REAL ( dp ), DIMENSION (3) :: vector_r, vector_v
-    LOGICAL, PARAMETER :: box_change = .TRUE.
-    LOGICAL :: first
-    INTEGER :: iroll
-    TYPE(cp_para_env_type), POINTER          :: para_env
-    LOGICAL, SAVE                            :: first_time
+    TYPE(virial_type), POINTER               :: virial
 
     CALL get_md_env(md_env=md_env,simpar=simpar,force_env_p=force_env_p,&
                     npt = npt, para_env=para_env)
@@ -1812,10 +1803,10 @@ CONTAINS
       CALL allocate_old ( particle_set, npt )
 
       ALLOCATE (pos(3,nparticle),STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                        "pos",3*nparticle*dp_size)
       ALLOCATE (vel(3,nparticle),STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                        "vel",3*nparticle*dp_size)
       pos(:,:) = 0.0_dp
       vel(:,:) = 0.0_dp
@@ -1920,7 +1911,7 @@ CONTAINS
       CALL update_particle_set ( particle_set, para_env % group, pos = pos )
 
       DEALLOCATE (pos,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,"work")
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"work")
 
 
 !     *** Update forces ***
@@ -1993,7 +1984,7 @@ CONTAINS
                                                       para_env % group )
 
       DEALLOCATE (vel,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,"vel")
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"vel")
 
       CALL virial_evaluate ( atomic_kind_set, particle_set,  &
                              local_particles, virial, para_env % group  )
@@ -2025,19 +2016,22 @@ CONTAINS
 SUBROUTINE set_particle_set ( atomic_kind_set, particle_set, local_particles, cell , npt, char )
 
 
-! Arguments
-  TYPE ( atomic_kind_type ), POINTER :: atomic_kind_set ( : )
-  TYPE ( particle_type ), POINTER :: particle_set ( : )
-  TYPE ( distribution_1d_type ), POINTER :: local_particles
-  TYPE ( cell_type ), POINTER :: cell
-  TYPE (npt_info_type ), DIMENSION ( :, : ), POINTER :: npt
-  CHARACTER ( LEN = * ), INTENT ( IN ) :: char
+    TYPE(atomic_kind_type), POINTER          :: atomic_kind_set( : )
+    TYPE(particle_type), POINTER             :: particle_set( : )
+    TYPE(distribution_1d_type), POINTER      :: local_particles
+    TYPE(cell_type), POINTER                 :: cell
+    TYPE(npt_info_type), DIMENSION(:, :), &
+      POINTER                                :: npt
+    CHARACTER(LEN=*), INTENT(IN)             :: char
 
-! Locals
-  INTEGER :: idim, iparticle_kind, nparticle_kind, nparticle_local, iparticle
-  INTEGER :: iparticle_local
+    INTEGER                                  :: idim, iparticle, &
+                                                iparticle_kind, &
+                                                iparticle_local, &
+                                                nparticle_kind, &
+                                                nparticle_local
 
 !------------------------------------------------------------------------------
+
   nparticle_kind = SIZE ( atomic_kind_set )
   SELECT CASE (char)
   CASE ( 'F') ! forward assigning the old
@@ -2092,20 +2086,23 @@ END SUBROUTINE set_particle_set
 SUBROUTINE set_vel ( atomic_kind_set, particle_set, vel, local_particles, cell , npt, char )
 
 
-! Arguments
-  TYPE ( atomic_kind_type ), POINTER :: atomic_kind_set ( : )
-  TYPE ( particle_type ), POINTER :: particle_set ( : )
-  REAL (KIND=dp), INTENT ( INOUT ) :: vel ( :, : )
-  TYPE ( distribution_1d_type ), POINTER :: local_particles
-  TYPE ( cell_type ), POINTER :: cell
-  TYPE (npt_info_type ), DIMENSION ( :, : ), POINTER :: npt
-  CHARACTER ( LEN = * ), INTENT ( IN ) :: char
+    TYPE(atomic_kind_type), POINTER          :: atomic_kind_set( : )
+    TYPE(particle_type), POINTER             :: particle_set( : )
+    REAL(KIND=dp), INTENT(INOUT)             :: vel( :, : )
+    TYPE(distribution_1d_type), POINTER      :: local_particles
+    TYPE(cell_type), POINTER                 :: cell
+    TYPE(npt_info_type), DIMENSION(:, :), &
+      POINTER                                :: npt
+    CHARACTER(LEN=*), INTENT(IN)             :: char
 
-! Locals
-  INTEGER :: idim, iparticle_kind, nparticle_kind, nparticle_local, iparticle
-  INTEGER :: iparticle_local
+    INTEGER                                  :: idim, iparticle, &
+                                                iparticle_kind, &
+                                                iparticle_local, &
+                                                nparticle_kind, &
+                                                nparticle_local
 
 !------------------------------------------------------------------------------
+
   nparticle_kind = SIZE ( atomic_kind_set )
   SELECT CASE (char)
   CASE ( 'F') ! forward assigning the old
@@ -2159,14 +2156,11 @@ END SUBROUTINE set_vel
 
 SUBROUTINE allocate_old ( particle_set, npt )
 
-  IMPLICIT NONE
 
-! Arguments
-  TYPE ( particle_type ), POINTER :: particle_set ( : )
-  TYPE ( npt_info_type ), POINTER :: npt ( :, : )
+    TYPE(particle_type), POINTER             :: particle_set( : )
+    TYPE(npt_info_type), POINTER             :: npt( :, : )
 
-! Locals
-  INTEGER :: isos, idim, jdim, natoms
+    INTEGER                                  :: idim, isos, jdim, natoms
 
 !------------------------------------------------------------------------------
 
@@ -2219,15 +2213,11 @@ END SUBROUTINE allocate_old
 
 SUBROUTINE deallocate_old 
 
-  IMPLICIT NONE
 
-! Arguments
 
-! Locals
-  INTEGER :: isos 
+    INTEGER                                  :: isos
 
 !------------------------------------------------------------------------------
-
 
   isos = 0
   DEALLOCATE ( old % v, STAT = isos )
@@ -2275,61 +2265,60 @@ END SUBROUTINE deallocate_old
 
  SUBROUTINE npt_f ( md_env, error )
   
-    IMPLICIT NONE
 
-! Arguments
-    TYPE ( md_environment_type ), POINTER :: md_env
-   TYPE(cp_error_type), INTENT(inout), &
-         OPTIONAL                               :: error
-! Locals
-    CHARACTER(LEN=*), PARAMETER              :: routine_name = "npt_f"
-  
-    INTEGER :: iparticle, iparticle_kind, iparticle_local, istat, &
-               isubsys,  nmolecule, nmolecule_kind, nparticle, &
-               nparticle_kind, nparticle_local
-    INTEGER, POINTER :: itimes
-    INTEGER :: i, j, iroll
-    REAL(KIND=dp)                            :: dm, dt, global_mass, &
-                                                mass
+    TYPE(md_environment_type), POINTER       :: md_env
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(LEN=*), PARAMETER              :: routineN = 'npt_f'
+    LOGICAL, PARAMETER                       :: box_change = .TRUE.
+    REAL(KIND=dp), PARAMETER                 :: e2 = 1.0_dp/6.0_dp, &
+                                                e4 = e2/20.0_dp, &
+                                                e6 = e4/42.0_dp, &
+                                                e8 = e6/72.0_dp
+
+    INTEGER :: i, iparticle, iparticle_kind, iparticle_local, iroll, istat, &
+      isubsys, j, nmolecule, nmolecule_kind, nparticle, nparticle_kind, &
+      nparticle_local
+    INTEGER, POINTER                         :: itimes
+    LOGICAL                                  :: first
+    LOGICAL, SAVE                            :: first_time = .TRUE.
+    REAL(dp)                                 :: kin
+    REAL(dp), DIMENSION(3, 3)                :: pv_kin
+    REAL(KIND=dp)                            :: dm, dt, infree, mass, &
+                                                roll_tol, trvg
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: pos, vel
+    REAL(KIND=dp), DIMENSION(3)              :: arg_r, arg_v, e_val, poly_r, &
+                                                poly_v, scale_r, scale_v, uf, &
+                                                ur, uv, vector_v
+    REAL(KIND=dp), DIMENSION(3, 3)           :: u, uh
     TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
+    TYPE(cell_type), POINTER                 :: cell
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_subsystem_p_type), &
       DIMENSION(:), POINTER                  :: subsys
     TYPE(distribution_1d_type), POINTER      :: local_molecules, &
                                                 local_particles
-    TYPE(force_env_p_type), DIMENSION(:), POINTER :: force_env_p
-    TYPE(lnhc_parameters_type), POINTER      :: nhc_part( : ), nhc_baro ( : )
-    TYPE ( npt_info_type ), POINTER          :: npt ( :, : )
+    TYPE(force_env_p_type), DIMENSION(:), &
+      POINTER                                :: force_env_p
+    TYPE(lnhc_parameters_type), POINTER      :: nhc_baro( : ), nhc_part( : )
     TYPE(mol_kind_new_list_type), POINTER    :: molecule_kinds
     TYPE(mol_new_list_type), POINTER         :: molecules
     TYPE(molecule_kind_type), DIMENSION(:), &
       POINTER                                :: molecule_kind_set
     TYPE(molecule_type), DIMENSION(:), &
       POINTER                                :: molecule_set
+    TYPE(npt_info_type), POINTER             :: npt( :, : )
     TYPE(particle_list_type), POINTER        :: particles
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(simulation_parameters_type), &
       POINTER                                :: simpar
-    TYPE(cell_type), POINTER                 :: cell
-    TYPE ( virial_type ), POINTER            :: virial
-    REAL (KIND=dp), PARAMETER :: e2 = 1.0_dp/6.0_dp, e4 = e2/20.0_dp, &
-       e6 = e4/42.0_dp, e8 = e6/72.0_dp
-    REAL (KIND=dp), DIMENSION (3,3) ::  u, uh
-    REAL (KIND=dp), DIMENSION (3) :: arg_r, poly_r, scale_r, e_val, ur, uv, uf
-    REAL (KIND=dp), DIMENSION (3) :: arg_v, poly_v, scale_v
-    REAL (KIND=dp) :: roll_tol, infree, trvg
-    REAL (KIND=dp), DIMENSION (3) :: vector_v
-    REAL ( dp ), DIMENSION (3,3) :: pv_kin
-    REAL ( dp ) :: kin
-    LOGICAL, PARAMETER :: box_change = .TRUE.
-    LOGICAL :: first
-    TYPE(cp_para_env_type), POINTER          :: para_env
-    LOGICAL, SAVE                            :: first_time=.TRUE.
+    TYPE(virial_type), POINTER               :: virial
 
     CALL get_md_env(md_env=md_env,simpar=simpar,force_env_p=force_env_p,&
                     nhc_part=nhc_part, nhc_baro=nhc_baro, npt = npt, &
@@ -2374,10 +2363,10 @@ END SUBROUTINE deallocate_old
       CALL allocate_old ( particle_set, npt )
 
       ALLOCATE (pos(3,nparticle),STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                        "pos",3*nparticle*dp_size)
       ALLOCATE (vel(3,nparticle),STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                        "vel",3*nparticle*dp_size)
       pos(:,:) = 0.0_dp
       vel(:,:) = 0.0_dp
@@ -2487,7 +2476,7 @@ END SUBROUTINE deallocate_old
        CALL update_particle_set ( particle_set, para_env % group, pos = pos )
 
        DEALLOCATE (pos,STAT=istat)
-       IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,"work")
+       IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"work")
 
 !     *** Update forces ***
 
@@ -2552,7 +2541,7 @@ END SUBROUTINE deallocate_old
                                                      particle_set, virial, &
                                                      para_env % group )
      DEALLOCATE (vel,STAT=istat)
-     IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,"vel")
+     IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"vel")
 
      CALL virial_evaluate ( atomic_kind_set, particle_set,  &
                             local_particles, virial, para_env % group  )
@@ -2585,23 +2574,25 @@ END SUBROUTINE deallocate_old
 SUBROUTINE damp_v_particle_set (molecule_kind_set, molecule_set, atomic_kind_set,&
                                 particle_set, local_molecules, gamma1, npt, dt, group )
 
-    TYPE(atomic_kind_type), POINTER          :: atomic_kind_set( : )
-    TYPE ( particle_type ), POINTER          :: particle_set ( : )
     TYPE(molecule_kind_type), POINTER        :: molecule_kind_set( : )
     TYPE(molecule_type), POINTER             :: molecule_set( : )
+    TYPE(atomic_kind_type), POINTER          :: atomic_kind_set( : )
+    TYPE(particle_type), POINTER             :: particle_set( : )
     TYPE(distribution_1d_type), POINTER      :: local_molecules
-    TYPE(npt_info_type), INTENT ( IN )       :: npt
-    REAL (KIND=dp), INTENT ( IN )            :: gamma1, dt
+    REAL(KIND=dp), INTENT(IN)                :: gamma1
+    TYPE(npt_info_type), INTENT(IN)          :: npt
+    REAL(KIND=dp), INTENT(IN)                :: dt
     INTEGER, INTENT(IN)                      :: group
 
-    INTEGER                                  :: handle, ikind,        &
-                                                ipart,  npart_local, &
-                                                imol_local, imol,    &
-                                                nmol_local, first_atom, last_atom
-    REAL(KIND=dp)                            :: mass, scale, kin, ikin, alpha
-    TYPE(molecule_type), POINTER             :: molecule
+    INTEGER                                  :: first_atom, ikind, imol, &
+                                                imol_local, ipart, last_atom, &
+                                                nmol_local
+    REAL(KIND=dp)                            :: alpha, ikin, kin, mass, scale
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
+    TYPE(molecule_type), POINTER             :: molecule
+
 ! Compute the total kinetic energy
+
   kin = 0.0_dp
   DO ikind = 1, SIZE ( molecule_kind_set )
     nmol_local = local_molecules % n_el ( ikind )
@@ -2668,26 +2659,26 @@ END SUBROUTINE damp_v_particle_set
 SUBROUTINE damp_v_velocity (molecule_kind_set, molecule_set, atomic_kind_set,&
                             particle_set, local_molecules, vel, gamma1, npt, dt, group )
 
-    TYPE(atomic_kind_type), POINTER          :: atomic_kind_set( : )
-    TYPE ( particle_type ), POINTER          :: particle_set ( : )
     TYPE(molecule_kind_type), POINTER        :: molecule_kind_set( : )
     TYPE(molecule_type), POINTER             :: molecule_set( : )
+    TYPE(atomic_kind_type), POINTER          :: atomic_kind_set( : )
+    TYPE(particle_type), POINTER             :: particle_set( : )
     TYPE(distribution_1d_type), POINTER      :: local_molecules
-    TYPE(npt_info_type), INTENT ( IN )       :: npt
-    REAL (KIND=dp), INTENT ( INOUT )         :: vel ( :, : )
-    REAL (KIND=dp), INTENT ( IN )            :: gamma1, dt
+    REAL(KIND=dp), INTENT(INOUT)             :: vel( :, : )
+    REAL(KIND=dp), INTENT(IN)                :: gamma1
+    TYPE(npt_info_type), INTENT(IN)          :: npt
+    REAL(KIND=dp), INTENT(IN)                :: dt
     INTEGER, INTENT(IN)                      :: group
 
-    INTEGER                                  :: handle, ikind,       &
-                                                ipart,  npart_local, &
-                                                imol_local, imol,    &
-                                                nmol_local, first_atom, last_atom
-    REAL(KIND=dp)                            :: mass, scale, kin, ikin, alpha
-    TYPE(molecule_type), POINTER             :: molecule
+    INTEGER                                  :: first_atom, ikind, imol, &
+                                                imol_local, ipart, last_atom, &
+                                                nmol_local
+    REAL(KIND=dp)                            :: alpha, ikin, kin, mass, scale
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
-
+    TYPE(molecule_type), POINTER             :: molecule
 
 ! Compute the total kinetic energy
+
   kin = 0.0_dp
   DO ikind = 1, SIZE ( molecule_kind_set )
     nmol_local = local_molecules % n_el ( ikind )
@@ -2750,14 +2741,13 @@ END SUBROUTINE damp_v_velocity
 
 SUBROUTINE damp_veps ( npt, gamma1, dt )
 
-    TYPE(npt_info_type), INTENT ( INOUT )    :: npt
-    REAL (KIND=dp), INTENT ( IN )            :: dt
-    REAL ( KIND=dp ), INTENT ( IN )          :: gamma1
+    TYPE(npt_info_type), INTENT(INOUT)       :: npt
+    REAL(KIND=dp), INTENT(IN)                :: gamma1, dt
 
-    REAL ( KIND = dp )                       :: scale
+    REAL(KIND=dp)                            :: scale
 
   scale = 1.0_dp 
-  scale = scale * exp ( -gamma1 * 0.25_dp * dt )
+  scale = scale * EXP ( -gamma1 * 0.25_dp * dt )
 ! Scale 
   npt % v = npt % v * scale
 
@@ -2785,35 +2775,35 @@ SUBROUTINE rattle_roll_setup ( atomic_kind_set, particle_set, local_particles, &
                                vel, cell, npt, simpar, virial, vector_v,  &
                                roll_tol, iroll, infree, first, para_env, u )
 
-  IMPLICIT NONE
 
-! Arguments
-  TYPE ( atomic_kind_type ), POINTER :: atomic_kind_set ( : )
-  TYPE ( particle_type ), POINTER :: particle_set ( : )
-  TYPE ( molecule_type ), POINTER  :: molecule_set ( : )
-  TYPE ( molecule_kind_type ), POINTER  :: molecule_kind_set ( : )
-  TYPE ( distribution_1d_type ), POINTER :: local_particles, local_molecules
-  TYPE ( cell_type ), POINTER :: cell
-  TYPE (simulation_parameters_type ), INTENT ( IN ) :: simpar
-  TYPE (virial_type ), POINTER :: virial
-  TYPE (npt_info_type ), DIMENSION ( :, : ), POINTER :: npt
-  REAL (KIND=dp), INTENT ( IN ) :: infree
-  REAL (KIND=dp), INTENT ( INOUT ) :: vel ( :, : )
-  LOGICAL, INTENT ( INOUT ) :: first
-  REAL (KIND=dp), INTENT ( OUT ) :: roll_tol
-  REAL (KIND=dp), INTENT ( IN ), DIMENSION ( : ) :: vector_v
-  INTEGER, INTENT ( INOUT ) :: iroll
-  TYPE ( cp_para_env_type ), INTENT ( IN ) :: para_env
-  REAL (KIND=dp), INTENT ( IN ), OPTIONAL :: u ( : , : )
+    TYPE(atomic_kind_type), POINTER          :: atomic_kind_set( : )
+    TYPE(particle_type), POINTER             :: particle_set( : )
+    TYPE(distribution_1d_type), POINTER      :: local_particles
+    TYPE(molecule_kind_type), POINTER        :: molecule_kind_set( : )
+    TYPE(molecule_type), POINTER             :: molecule_set( : )
+    TYPE(distribution_1d_type), POINTER      :: local_molecules
+    REAL(KIND=dp), INTENT(INOUT)             :: vel( :, : )
+    TYPE(cell_type), POINTER                 :: cell
+    TYPE(npt_info_type), DIMENSION(:, :), &
+      POINTER                                :: npt
+    TYPE(simulation_parameters_type), &
+      INTENT(IN)                             :: simpar
+    TYPE(virial_type), POINTER               :: virial
+    REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: vector_v
+    REAL(KIND=dp), INTENT(OUT)               :: roll_tol
+    INTEGER, INTENT(INOUT)                   :: iroll
+    REAL(KIND=dp), INTENT(IN)                :: infree
+    LOGICAL, INTENT(INOUT)                   :: first
+    TYPE(cp_para_env_type), INTENT(IN)       :: para_env
+    REAL(KIND=dp), INTENT(IN), OPTIONAL      :: u( : , : )
 
-! Locals
-  TYPE ( npt_info_type ), DIMENSION ( 3, 3 ) :: npt_loc
-  REAL (KIND = dp ), DIMENSION ( 3, 3 ) :: pv_kin
-  REAL (KIND = dp ) :: kin
+    REAL(KIND=dp)                            :: kin
+    REAL(KIND=dp), DIMENSION(3, 3)           :: pv_kin
+    TYPE(npt_info_type), DIMENSION(3, 3)     :: npt_loc
 
 !------------------------------------------------------------------------------
-
 ! update veps using multiplier obtained from SHAKE
+
   IF ( first ) THEN
       CALL update_pv ( simpar, atomic_kind_set, vel, particle_set, &
                        local_molecules, molecule_set, molecule_kind_set, &
@@ -2871,25 +2861,28 @@ END SUBROUTINE rattle_roll_setup
 SUBROUTINE update_pv_particle_set ( simpar, atomic_kind_set, particle_set,  &
                                    local_molecules, molecule_set, molecule_kind_set, &
                                    local_particles, kin, pv_kin, virial, int_group )
-! Arguments
-  TYPE ( atomic_kind_type ), POINTER :: atomic_kind_set ( : )
-  TYPE ( particle_type ), POINTER :: particle_set ( : )
-  TYPE ( molecule_type ), POINTER  :: molecule_set ( : )
-  TYPE ( molecule_kind_type ), POINTER  :: molecule_kind_set ( : )
-  TYPE ( distribution_1d_type ), POINTER :: local_particles, local_molecules
-  TYPE (simulation_parameters_type ), INTENT ( IN ) :: simpar
-  TYPE (virial_type ), INTENT ( INOUT ) :: virial
-  REAL ( KIND = dp ), INTENT ( OUT ) :: kin
-  REAL ( KIND = dp ), INTENT ( OUT ), DIMENSION ( 3, 3 ) :: pv_kin
-  INTEGER, INTENT ( IN ) :: int_group
+    TYPE(simulation_parameters_type), &
+      INTENT(IN)                             :: simpar
+    TYPE(atomic_kind_type), POINTER          :: atomic_kind_set( : )
+    TYPE(particle_type), POINTER             :: particle_set( : )
+    TYPE(distribution_1d_type), POINTER      :: local_molecules
+    TYPE(molecule_type), POINTER             :: molecule_set( : )
+    TYPE(molecule_kind_type), POINTER        :: molecule_kind_set( : )
+    TYPE(distribution_1d_type), POINTER      :: local_particles
+    REAL(KIND=dp), INTENT(OUT)               :: kin
+    REAL(KIND=dp), DIMENSION(3, 3), &
+      INTENT(OUT)                            :: pv_kin
+    TYPE(virial_type), INTENT(INOUT)         :: virial
+    INTEGER, INTENT(IN)                      :: int_group
 
-! locals
-  INTEGER :: i, j, iatom, ii
-  INTEGER :: iparticle_kind, nparticle_local, iparticle_local, iparticle
-  REAL ( KIND=dp ) ::  mass
-  TYPE ( atomic_kind_type ), POINTER :: atomic_kind
+    INTEGER                                  :: i, iparticle, iparticle_kind, &
+                                                iparticle_local, j, &
+                                                nparticle_local
+    REAL(KIND=dp)                            :: mass
+    TYPE(atomic_kind_type), POINTER          :: atomic_kind
 
 ! initializing locals
+
   pv_kin = 0.0_dp
    
   kin = 0.0_dp
@@ -2952,26 +2945,29 @@ END SUBROUTINE update_pv_particle_set
 SUBROUTINE update_pv_velocity ( simpar, atomic_kind_set, vel, particle_set,  &
                                 local_molecules, molecule_set, molecule_kind_set, &
                                 local_particles, kin, pv_kin, virial, int_group )
-! Arguments
-  TYPE ( atomic_kind_type ), POINTER :: atomic_kind_set ( : )
-  REAL (KIND=dp), INTENT ( INOUT ) :: vel ( :, : )
-  TYPE ( particle_type ), POINTER :: particle_set ( : )
-  TYPE ( molecule_type ), POINTER  :: molecule_set ( : )
-  TYPE ( molecule_kind_type ), POINTER  :: molecule_kind_set ( : )
-  TYPE ( distribution_1d_type ), POINTER :: local_particles, local_molecules
-  TYPE (simulation_parameters_type ), INTENT ( IN ) :: simpar
-  TYPE (virial_type ), INTENT ( INOUT ) :: virial
-  REAL ( KIND = dp ), INTENT ( OUT ) :: kin
-  REAL ( KIND = dp ), INTENT ( OUT ), DIMENSION ( :, : ) :: pv_kin
-  INTEGER, INTENT ( IN ) :: int_group
+    TYPE(simulation_parameters_type), &
+      INTENT(IN)                             :: simpar
+    TYPE(atomic_kind_type), POINTER          :: atomic_kind_set( : )
+    REAL(KIND=dp), INTENT(INOUT)             :: vel( :, : )
+    TYPE(particle_type), POINTER             :: particle_set( : )
+    TYPE(distribution_1d_type), POINTER      :: local_molecules
+    TYPE(molecule_type), POINTER             :: molecule_set( : )
+    TYPE(molecule_kind_type), POINTER        :: molecule_kind_set( : )
+    TYPE(distribution_1d_type), POINTER      :: local_particles
+    REAL(KIND=dp), INTENT(OUT)               :: kin
+    REAL(KIND=dp), DIMENSION(:, :), &
+      INTENT(OUT)                            :: pv_kin
+    TYPE(virial_type), INTENT(INOUT)         :: virial
+    INTEGER, INTENT(IN)                      :: int_group
 
-! locals
-  INTEGER :: i, j, iatom, ii
-  INTEGER :: iparticle_kind, nparticle_local, iparticle_local, iparticle
-  REAL ( KIND=dp ) ::  mass
-  TYPE ( atomic_kind_type ), POINTER :: atomic_kind
+    INTEGER                                  :: i, iparticle, iparticle_kind, &
+                                                iparticle_local, j, &
+                                                nparticle_local
+    REAL(KIND=dp)                            :: mass
+    TYPE(atomic_kind_type), POINTER          :: atomic_kind
 
 ! initializing locals
+
   pv_kin = 0.0_dp
 
   kin = 0._dp
@@ -3029,23 +3025,26 @@ END SUBROUTINE update_pv_velocity
 
 SUBROUTINE update_veps ( box, npt, simpar, pv_kin, kin, virial, infree )
 
-! Arguments
-  TYPE (cell_type ), INTENT ( IN ) :: box
-  TYPE (simulation_parameters_type ), INTENT ( IN ) :: simpar
-  TYPE (virial_type ), INTENT ( INOUT ) :: virial
-  TYPE (npt_info_type ), INTENT ( INOUT ), DIMENSION ( :, : ) :: npt
-  REAL (KIND=dp), INTENT ( IN ) :: infree, kin
-  REAL (KIND=dp), INTENT ( IN ), DIMENSION ( :, : ) :: pv_kin
+    TYPE(cell_type), INTENT(IN)              :: box
+    TYPE(npt_info_type), DIMENSION(:, :), &
+      INTENT(INOUT)                          :: npt
+    TYPE(simulation_parameters_type), &
+      INTENT(IN)                             :: simpar
+    REAL(KIND=dp), DIMENSION(:, :), &
+      INTENT(IN)                             :: pv_kin
+    REAL(KIND=dp), INTENT(IN)                :: kin
+    TYPE(virial_type), INTENT(INOUT)         :: virial
+    REAL(KIND=dp), INTENT(IN)                :: infree
 
-! locals
-  INTEGER :: ii, jj
-  REAL ( KIND=dp ) :: fdotr,mass,v0,v0i,v,vi
-  REAL ( KIND=dp), DIMENSION ( 3, 3 ) :: unit
+    INTEGER                                  :: ii
+    REAL(KIND=dp)                            :: fdotr, mass, v, v0, v0i, vi
+    REAL(KIND=dp), DIMENSION(3, 3)           :: unit
+
 ! dbg ISOTROPIC LIMIT
 !  REAL (KIND=dp) :: trace
 ! dbg
-
 ! initialize unit
+
   unit = 0.0_dp
   unit(1,1) = 1.0_dp
   unit(2,2) = 1.0_dp
@@ -3109,7 +3108,7 @@ SUBROUTINE update_particle_set ( particle_set, int_group,  pos, vel )
                                 
     TYPE(particle_type), POINTER             :: particle_set( : )
     INTEGER, INTENT(IN)                      :: int_group
-    REAL(KIND=dp), INTENT(INOUT), OPTIONAL       :: pos( :, : ), vel( :, : )
+    REAL(KIND=dp), INTENT(INOUT), OPTIONAL   :: pos( :, : ), vel( :, : )
 
     INTEGER                                  :: iparticle, nparticle
 

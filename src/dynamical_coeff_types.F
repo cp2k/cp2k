@@ -26,6 +26,8 @@ MODULE dynamical_coeff_types
                                              gto_basis_set_type
   USE cp2k_units,                      ONLY: get_cp2k_units,&
                                              unit_convert_type
+  USE cp_files,                        ONLY: close_file,&
+                                             open_file
   USE distribution_1d_types,           ONLY: distribution_1d_release,&
                                              distribution_1d_retain,&
                                              distribution_1d_type
@@ -34,26 +36,19 @@ MODULE dynamical_coeff_types
                                              dyn_coeff_mass_coeff,&
                                              dyn_coeff_mass_global,&
                                              dyn_coeff_mass_kind
-  USE input_section_types,             ONLY: section_vals_get_subs_vals,&
+  USE input_section_types,             ONLY: section_get_cval,&
+                                             section_vals_get,&
+                                             section_vals_get_subs_vals,&
                                              section_vals_type,&
-                                             section_vals_val_get,&
-                                             section_get_cval,&
-                                             section_vals_get
-  USE kinds,                           ONLY: dp, default_string_length
+                                             section_vals_val_get
+  USE kinds,                           ONLY: dp
   USE message_passing,                 ONLY: mp_bcast,&
                                              mp_max,&
                                              mp_sum
-  USE cp_files,                        ONLY: close_file,&
-                                             open_file
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
   USE util,                            ONLY: gasdev,&
                                              locate
-  USE cp_output_handling,              ONLY: cp_print_key_unit_nr, &
-                                             cp_print_key_finished_output,&
-                                             cp_print_key_should_output,&
-                                             cp_p_file
-
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -62,7 +57,7 @@ MODULE dynamical_coeff_types
 
 ! *** Global parameters (in this module) ***
 
-  CHARACTER(LEN=*), PRIVATE, PARAMETER :: moduleN='dynamical_coeff_type'
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dynamical_coeff_types'
   INTEGER, PRIVATE, SAVE :: last_coeff_id=0
   INTEGER, PRIVATE, SAVE :: last_coeff_set_id=0
 
@@ -118,7 +113,7 @@ SUBROUTINE dyn_coeff_set_create(dyn_coeff_set,atomic_kind_set,&
 
     TYPE(dyn_coeff_set_type), POINTER        :: dyn_coeff_set
     TYPE(atomic_kind_type), DIMENSION(:), &
-      pointer                                :: atomic_kind_set
+      POINTER                                :: atomic_kind_set
     TYPE(distribution_1d_type), OPTIONAL, &
       POINTER                                :: distribution
     TYPE(cp_error_type), INTENT(inout), &
@@ -143,7 +138,7 @@ SUBROUTINE dyn_coeff_set_create(dyn_coeff_set,atomic_kind_set,&
      dyn_coeff_set%ref_count=1
      NULLIFY(dyn_coeff_set%distribution, dyn_coeff_set%coeffs_of_kind)
 !    set coeffs_of_kind
-     nkind=size(atomic_kind_set)
+     nkind=SIZE(atomic_kind_set)
      IF (PRESENT(distribution)) THEN
        IF (ASSOCIATED(distribution)) THEN
          ALLOCATE(dyn_coeff_set%coeffs_of_kind(nkind), stat=stat)
@@ -422,29 +417,29 @@ END SUBROUTINE get_dyn_coeff
 !***************************************************************************
 SUBROUTINE dyn_coeff_set_initialize(dyn_coeff_set,globenv,work_section,skipvel,error)         
 
-  TYPE(dyn_coeff_set_type), POINTER        :: dyn_coeff_set
-  TYPE(global_environment_type), &
-       pointer                          :: globenv
-  TYPE(section_vals_type), POINTER :: work_section
-  TYPE(cp_error_type), INTENT(inout), &
-       OPTIONAL                               :: error
-  LOGICAL, INTENT(IN), OPTIONAL :: skipvel
+    TYPE(dyn_coeff_set_type), POINTER        :: dyn_coeff_set
+    TYPE(global_environment_type), POINTER   :: globenv
+    TYPE(section_vals_type), POINTER         :: work_section
+    LOGICAL, INTENT(IN), OPTIONAL            :: skipvel
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-  CHARACTER(len=*), PARAMETER :: routineN = 'dyn_coeff_set_initialize', &
-       routineP = moduleN//':'//routineN
+    CHARACTER(len=*), PARAMETER :: routineN = 'dyn_coeff_set_initialize', &
+      routineP = moduleN//':'//routineN
 
-  INTEGER :: group, ikind, n_els, ncoef_atom, ncoef_atom_max, &
-       ncoef_of_kind, ncoef_tot, nel_tot, nkind, source, stat
-  REAL(kind=dp)                            :: kg_coeff_target_temp
-  REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: mbuffer
-  TYPE(dyn_coeff_type), POINTER            :: coeffs
-  TYPE(section_vals_type), POINTER         :: coeff_section, storage_section
-  LOGICAL :: restart, explicit, my_skipvel
-  TYPE(section_vals_type), POINTER :: work_section2
-  REAL(KIND=dp), DIMENSION(:), POINTER :: buffer
-  INTEGER, POINTER, DIMENSION(:) :: ibuffer
-  INTEGER :: iel, iatom, i,icoef
-  !***************************************************************************
+    INTEGER :: group, i, iatom, icoef, iel, ikind, n_els, ncoef_atom, &
+      ncoef_atom_max, ncoef_of_kind, ncoef_tot, nel_tot, nkind, source, stat
+    INTEGER, DIMENSION(:), POINTER           :: ibuffer
+    LOGICAL                                  :: explicit, my_skipvel, restart
+    REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: mbuffer
+    REAL(kind=dp)                            :: kg_coeff_target_temp
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: buffer
+    TYPE(dyn_coeff_type), POINTER            :: coeffs
+    TYPE(section_vals_type), POINTER         :: coeff_section, &
+                                                storage_section, work_section2
+
+!***************************************************************************
+
   group=globenv%group
   source=globenv%source
   restart = .FALSE.
@@ -465,9 +460,9 @@ SUBROUTINE dyn_coeff_set_initialize(dyn_coeff_set,globenv,work_section,skipvel,e
   NULLIFY(coeff_section)
   coeff_section => section_vals_get_subs_vals(globenv%input_file,"MOTION%MD%KG_COEFF")
   storage_section =>  section_vals_get_subs_vals(coeff_section,"STORAGE")
-  call section_vals_val_get(storage_section,"type",i_val=dyn_coeff_set%mass_storage)
-  call section_vals_val_get(coeff_section,"mass",r_val=dyn_coeff_set%global_mass)
-  call section_vals_val_get(coeff_section,"temperature",r_val=kg_coeff_target_temp)
+  CALL section_vals_val_get(storage_section,"type",i_val=dyn_coeff_set%mass_storage)
+  CALL section_vals_val_get(coeff_section,"mass",r_val=dyn_coeff_set%global_mass)
+  CALL section_vals_val_get(coeff_section,"temperature",r_val=kg_coeff_target_temp)
 
   ! get total numbers
   nkind=SIZE(dyn_coeff_set%coeffs_of_kind)
@@ -557,11 +552,10 @@ END SUBROUTINE dyn_coeff_set_initialize
     TYPE(dyn_coeff_set_type), POINTER        :: dyn_coeff_set
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(INOUT)                          :: mbuffer
-    TYPE(global_environment_type), &
-      pointer                             :: globenv
     TYPE(section_vals_type), POINTER         :: storage_section
+    TYPE(global_environment_type), POINTER   :: globenv
     TYPE(cp_error_type), INTENT(inout), &
-         OPTIONAL                               :: error
+      OPTIONAL                               :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dyn_coeff_set_init_masses', &
       routineP = moduleN//':'//routineN
@@ -573,7 +567,7 @@ END SUBROUTINE dyn_coeff_set_initialize
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: index
     REAL(dp), ALLOCATABLE, DIMENSION(:)      :: ckind, nel_kind
     TYPE(dyn_coeff_type), POINTER            :: coeffs
-    
+
     group=globenv%group
     source=globenv%source
     nkind=SIZE(dyn_coeff_set%coeffs_of_kind)
@@ -682,8 +676,7 @@ SUBROUTINE dyn_coeff_set_init_vel(kg_coeff_target_temp,dyn_coeff_set,mbuffer,glo
     TYPE(dyn_coeff_set_type), POINTER        :: dyn_coeff_set
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(IN)                             :: mbuffer
-    TYPE(global_environment_type), &
-      pointer                          :: globenv
+    TYPE(global_environment_type), POINTER   :: globenv
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dyn_coeff_set_init_vel', &
       routineP = moduleN//':'//routineN
@@ -695,7 +688,7 @@ SUBROUTINE dyn_coeff_set_init_vel(kg_coeff_target_temp,dyn_coeff_set,mbuffer,glo
     LOGICAL                                  :: gmass
     REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: vbuffer
     REAL(KIND=dp)                            :: denom, ekin, scale, &
-                                                temp_coefs, vcom 
+                                                temp_coefs, vcom
     TYPE(dyn_coeff_type), POINTER            :: coeffs
     TYPE(unit_convert_type), POINTER         :: unit
 

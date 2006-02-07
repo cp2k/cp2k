@@ -25,40 +25,21 @@
 !!   SOURCE
 !****************************************************************************
 MODULE mm_collocate_potential
-  USE cp_para_types,                   ONLY: cp_para_env_type
-  USE timings,                         ONLY: timeset,&
-                                             timestop  
-  USE kinds,                           ONLY: dp
-  USE cell_types,                 ONLY: cell_type
+  USE cell_types,                      ONLY: cell_type
   USE cube_utils,                      ONLY: cube_info_type,&
                                              return_cube
-  USE pw_types,                        ONLY: COMPLEXDATA1D,&
-                                             REALDATA3D,&
-                                             REALSPACE,&
-                                             RECIPROCALSPACE,&
-                                             pw_p_type
-  USE pw_pool_types,                   ONLY: pw_pool_give_back_coeff,&
-                                             pw_pool_init_coeff,&
-                                             pw_pool_p_type,&
-                                             pw_pool_retain,&
-                                             pw_pool_type
-  USE pw_env_types,                    ONLY: pw_env_get,&
-                                             pw_env_type
+  USE kinds,                           ONLY: dp
   USE pw_types,                        ONLY: pw_type
-  USE cp_rs_pool_types,                ONLY: cp_rs_pool_p_type,&
-                                             cp_rs_pool_type,&
-                                             rs_pool_create_rs,&
-                                             rs_pool_give_back_rs,&
-                                             rs_pools_create_rs_vect,&
-                                             rs_pools_give_back_rs_vect
   USE qs_util,                         ONLY: exp_radius
+  USE timings,                         ONLY: timeset,&
+                                             timestop
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
   PRIVATE
 
   LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
-  CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='mm_collocate_potential'
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'mm_collocate_potential'
 
   PUBLIC :: collocate_gf_rspace_NoPBC,&
             integrate_gf_rspace_NoPBC
@@ -90,32 +71,27 @@ CONTAINS
 !!**************************************************************************
   SUBROUTINE collocate_gf_rspace_NoPBC(zetp,rp,scale,W,pwgrid,cube_info,&
        eps_mm_rspace,ithread,xdat,ydat,zdat,bo2, n_rep_real, mm_cell)
-    IMPLICIT NONE
-    ! Arguments
     REAL(KIND=dp), INTENT(IN)                :: zetp
     REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: rp
     REAL(KIND=dp), INTENT(IN)                :: scale, W
     TYPE(pw_type), POINTER                   :: pwgrid
     TYPE(cube_info_type), INTENT(IN)         :: cube_info
-    REAL(KIND=dp), INTENT(IN)                :: eps_mm_rspace    
+    REAL(KIND=dp), INTENT(IN)                :: eps_mm_rspace
     INTEGER, INTENT(IN), OPTIONAL            :: ithread
     REAL(KIND=dp), DIMENSION(:), POINTER     :: xdat, ydat, zdat
-    INTEGER, DIMENSION(2,3), INTENT(IN)      :: bo2
+    INTEGER, DIMENSION(2, 3), INTENT(IN)     :: bo2
     INTEGER, DIMENSION(3), INTENT(IN)        :: n_rep_real
     TYPE(cell_type), POINTER                 :: mm_cell
-    ! Local Variables
-    INTEGER                                  :: ithread_l
-    INTEGER                                  :: zub,zlb,yub,ylb,xub,xlb,ix,iy,iz
-    INTEGER                                  :: ig
-    REAL(KIND=dp)                           :: radius,  rpg, zap, yap, xap
-    REAL(KIND=dp), DIMENSION(3)              :: dr, my_shift
-    INTEGER, DIMENSION(3)                    :: cubecenter, lb_cube, &
-                                                ub_cube
+
+    INTEGER                                  :: ig, ithread_l, ix, iy, iz, &
+                                                xlb, xub, ylb, yub, zlb, zub
+    INTEGER, DIMENSION(2, 3)                 :: bo, gbo
+    INTEGER, DIMENSION(3)                    :: cubecenter, lb_cube, ub_cube
+    INTEGER, DIMENSION(:), POINTER           :: sphere_bounds
+    REAL(KIND=dp)                            :: radius, rpg, xap, yap, zap
+    REAL(KIND=dp), DIMENSION(3)              :: dr, my_shift, rpl
     REAL(KIND=dp), DIMENSION(:, :, :), &
       POINTER                                :: grid
-    INTEGER, DIMENSION(2,3)                  :: bo, gbo
-    INTEGER, DIMENSION(:), POINTER           :: sphere_bounds
-    REAL(KIND=dp), DIMENSION(3)              :: rpl
 
     IF (PRESENT(ithread)) THEN
        ithread_l=ithread
@@ -234,35 +210,31 @@ CONTAINS
   SUBROUTINE integrate_gf_rspace_NoPBC(zetp,rp,scale,W,pwgrid,cube_info,&
        eps_mm_rspace,ithread,xdat,ydat,zdat,xder,yder,zder,bo2,wrk,iwrk,force,&
        n_rep_real, mm_cell)
-    IMPLICIT NONE
-    ! Arguments
-    REAL(KIND=dp), INTENT(IN)                 :: zetp
-    REAL(KIND=dp), DIMENSION(3), INTENT(IN)   :: rp
-    REAL(KIND=dp), INTENT(IN)                 :: scale, W
-    TYPE(pw_type), POINTER                    :: pwgrid
-    TYPE(cube_info_type), INTENT(IN)          :: cube_info
-    REAL(KIND=dp), INTENT(IN)                 :: eps_mm_rspace    
-    INTEGER, INTENT(IN), OPTIONAL             :: ithread
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: xdat, ydat, zdat
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: xder, yder, zder, wrk
-    REAL(KIND=dp), DIMENSION(3), INTENT(OUT) :: force
-    INTEGER, DIMENSION(2,3), INTENT(IN)      :: bo2
+    REAL(KIND=dp), INTENT(IN)                :: zetp
+    REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: rp
+    REAL(KIND=dp), INTENT(IN)                :: scale, W
+    TYPE(pw_type), POINTER                   :: pwgrid
+    TYPE(cube_info_type), INTENT(IN)         :: cube_info
+    REAL(KIND=dp), INTENT(IN)                :: eps_mm_rspace
+    INTEGER, INTENT(IN), OPTIONAL            :: ithread
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: xdat, ydat, zdat, xder, yder, &
+                                                zder
+    INTEGER, DIMENSION(2, 3), INTENT(IN)     :: bo2
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: wrk
     INTEGER, INTENT(IN)                      :: iwrk
+    REAL(KIND=dp), DIMENSION(3), INTENT(OUT) :: force
     INTEGER, DIMENSION(3), INTENT(IN)        :: n_rep_real
     TYPE(cell_type), POINTER                 :: mm_cell
-    ! Local Variables
-    INTEGER                                   :: ithread_l
-    INTEGER                                   :: zub,zlb,yub,ylb,xub,xlb,ix,iy,iz
-    INTEGER                                   :: ig
-    REAL(KIND=dp)                            :: radius,  rpg, zap, yap, xap
-    REAL(KIND=dp), DIMENSION(3)               :: dr, my_shift
-    INTEGER, DIMENSION(3)                     :: cubecenter, lb_cube, &
-                                                 ub_cube
+
+    INTEGER                                  :: ig, ithread_l, ix, iy, iz, &
+                                                xlb, xub, ylb, yub, zlb, zub
+    INTEGER, DIMENSION(2, 3)                 :: bo, bo2l, gbo
+    INTEGER, DIMENSION(3)                    :: cubecenter, lb_cube, ub_cube
+    INTEGER, DIMENSION(:), POINTER           :: sphere_bounds
+    REAL(KIND=dp)                            :: radius, rpg, xap, yap, zap
+    REAL(KIND=dp), DIMENSION(3)              :: dr, my_shift, rpl
     REAL(KIND=dp), DIMENSION(:, :, :), &
-      POINTER                                 :: grid
-    INTEGER, DIMENSION(2,3)                   :: bo, gbo, bo2l
-    INTEGER, DIMENSION(:), POINTER            :: sphere_bounds
-    REAL(KIND=dp), DIMENSION(3)               :: rpl
+      POINTER                                :: grid
 
     IF (PRESENT(ithread)) THEN
        ithread_l=ithread

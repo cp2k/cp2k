@@ -101,7 +101,7 @@ MODULE xas_tp_scf
   IMPLICIT NONE
   PRIVATE
 
-  CHARACTER(len=*), PRIVATE, PARAMETER :: module_name='xas_tp_scf'  
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'xas_tp_scf'  
 
 ! *** Public subroutines ***
 
@@ -150,8 +150,8 @@ CONTAINS
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = "xas_tp_scf", &
-      routineP = module_name//':'//routineN
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'xas_do_tp_scf', &
+      routineP = moduleN//':'//routineN
 
     INTEGER :: handle, handle2, homo, i, ic_max, ir_max, ispin, istat, &
       istate, iter_count, m, n, nao, nmo, nvirtual1, nvirtual2, output_unit, &

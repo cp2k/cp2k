@@ -21,21 +21,30 @@
 
 MODULE md_energies
 
+  USE cell_types,                      ONLY: cell_type,&
+                                             get_cell
+  USE cp2k_units,                      ONLY: get_cp2k_units,&
+                                             unit_convert_type
+  USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
+                                             cp_print_key_unit_nr
   USE cp_subsystem_types,              ONLY: cp_subsys_get,&
                                              cp_subsystem_p_type
-  USE cp2k_units,                      ONLY: unit_convert_type, &
-                                             get_cp2k_units
   USE dynamical_coeff_types,           ONLY: dyn_coeff_set_p_type
   USE force_env_types,                 ONLY: force_env_get,&
-                                             force_env_p_type, &
-                                             use_fist_force, &
-                                             use_qs_force,& 
-                                             use_kg_force,& 
-                                             use_pol_force,& 
-                                             use_qmmm
+                                             force_env_p_type
   USE global_types,                    ONLY: global_environment_type
-  USE kinds,                           ONLY: dp,&
-                                             default_string_length
+  USE input_constants,                 ONLY: dump_dcd,&
+                                             dump_xmol,&
+                                             ensemble_name_types,&
+                                             nph_ensemble,&
+                                             nph_uniaxial_damped_ensemble,&
+                                             nph_uniaxial_ensemble,&
+                                             npt_f_ensemble,&
+                                             npt_i_ensemble
+  USE input_section_types,             ONLY: section_get_ival,&
+                                             section_vals_get_subs_vals,&
+                                             section_vals_type
+  USE kinds,                           ONLY: dp
   USE machine,                         ONLY: m_flush
   USE mathconstants,                   ONLY: zero
   USE md,                              ONLY: simulation_parameters_type
@@ -43,44 +52,20 @@ MODULE md_energies
   USE md_environment_types,            ONLY: get_md_env,&
                                              md_environment_type,&
                                              set_md_env
-  USE message_passing,                 ONLY: mp_bcast
-  USE output_utilities,                ONLY: print_warning
   USE particle_list_types,             ONLY: particle_list_type
-  USE particle_types,                  ONLY: write_particle_coordinates,&
-                                             write_qs_particle_coordinates
+  USE particle_types,                  ONLY: write_particle_coordinates
   USE physcon,                         ONLY: femtoseconds,&
                                              kelvin
-  USE cp_files,                        ONLY: open_file,close_file
-  USE cell_types,                 ONLY: cell_type, get_cell
-  USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE virial_types,                    ONLY: virial_type
-  USE input_constants,                 ONLY: nve_ensemble,&
-                                             nvt_ensemble,&
-                                             npt_i_ensemble,&
-                                             npt_f_ensemble,&
-                                             nph_ensemble,&
-                                             nph_uniaxial_ensemble,&
-                                             nph_uniaxial_damped_ensemble,&
-                                             isokin_ensemble, &
-                                             ensemble_name_types,&
-                                             dump_xmol,&
-                                             dump_dcd
-  USE input_section_types,             ONLY: section_vals_type,&
-                                             section_vals_get_subs_vals,&
-                                             section_get_ival
-  USE cp_output_handling,              ONLY: cp_print_key_unit_nr, &
-                                             cp_print_key_finished_output,&
-                                             cp_print_key_should_output,&
-                                             cp_p_file
-
 #include "cp_common_uses.h"
+
   IMPLICIT NONE
 
   PRIVATE
 
-  CHARACTER(LEN=*), PARAMETER :: moduleN = "md_energies"
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'md_energies'
 
   TYPE average_quantities_type
      REAL ( dp ) :: avetemp, avepot, avekin, avevol, aveca, avecb, avecc
@@ -116,46 +101,44 @@ CONTAINS
 
   SUBROUTINE md_energy(md_env, globenv, error)
 
-    TYPE ( md_environment_type ), POINTER       :: md_env
-    TYPE ( global_environment_type ), POINTER   :: globenv
-    TYPE ( cp_error_type ), INTENT ( inout ), &
-         OPTIONAL                                  :: error
-    ! locals
-    CHARACTER(LEN=*), PARAMETER              :: routineN = "md_energy"
+    TYPE(md_environment_type), POINTER       :: md_env
+    TYPE(global_environment_type), POINTER   :: globenv
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    CHARACTER (LEN=200)                      :: title
-    INTEGER                                  :: crd, vel, ene, pte 
-    INTEGER                                  :: handle, istat, isubsys, iw, delta_t, i
-    INTEGER                                  :: group, source
-    INTEGER                                  :: nat
+    CHARACTER(LEN=*), PARAMETER              :: routineN = 'md_energy'
+
+    CHARACTER(LEN=200)                       :: title
+    CHARACTER(LEN=80)                        :: my_act, my_ext, my_form, &
+                                                my_pos, remark1, remark2
+    INTEGER                                  :: crd, delta_t, ene, group, &
+                                                handle, i, isubsys, iw, nat, &
+                                                source, vel
     INTEGER, POINTER                         :: itimes
-    LOGICAL                                  :: file_exists
     LOGICAL                                  :: ionode
-    REAL(KIND = dp), SAVE                    :: econs_avg, t_old, itimes_old
-    REAL ( dp )                              :: abc ( 3 ), cell_angle ( 3 )
-    REAL ( dp )                              :: pv_scalar, econs, pv_xx
-    REAL(KIND=dp)                            :: cons, ekin, &
-         ekin_coefs, epot, rcons, &
-         temp, temp_coefs, temp_baro, &
-         hugoniot
-    REAL(KIND=dp), POINTER                   :: constant, used_time, t
-    TYPE ( unit_convert_type ), POINTER      :: unit
-    TYPE(cell_type), POINTER                 :: cell, cell_ref
-    TYPE(cp_subsystem_p_type), &
-         DIMENSION(:), POINTER                  :: subsys
-    TYPE(dyn_coeff_set_p_type), &
-         DIMENSION(:), POINTER                  :: dyn_coeff_set
-    TYPE(force_env_p_type), POINTER          :: force_env_p ( : )
-    TYPE(particle_list_type), POINTER        :: particles
-    TYPE(simulation_parameters_type), &
-         POINTER                                :: simpar
-    TYPE ( virial_type ), POINTER            :: virial
-    TYPE (average_quantities_type ), SAVE    :: averages
-    LOGICAL                                  :: binary
-    CHARACTER (LEN=80)                       :: remark1,remark2,my_pos,my_act,my_form,my_ext
-    TYPE(section_vals_type), POINTER         :: motion_section
-    TYPE(cp_logger_type), POINTER            :: logger
     LOGICAL, SAVE                            :: init
+    REAL(dp)                                 :: abc( 3 ), cell_angle( 3 ), &
+                                                econs, pv_scalar, pv_xx
+    REAL(KIND=dp)                            :: cons, ekin, ekin_coefs, epot, &
+                                                hugoniot, temp, temp_baro, &
+                                                temp_coefs
+    REAL(KIND=dp), POINTER                   :: constant, t, used_time
+    REAL(KIND=dp), SAVE                      :: econs_avg, itimes_old, t_old
+    TYPE(average_quantities_type), SAVE      :: averages
+    TYPE(cell_type), POINTER                 :: cell, cell_ref
+    TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(cp_subsystem_p_type), &
+      DIMENSION(:), POINTER                  :: subsys
+    TYPE(dyn_coeff_set_p_type), &
+      DIMENSION(:), POINTER                  :: dyn_coeff_set
+    TYPE(force_env_p_type), POINTER          :: force_env_p( : )
+    TYPE(particle_list_type), POINTER        :: particles
+    TYPE(section_vals_type), POINTER         :: motion_section
+    TYPE(simulation_parameters_type), &
+      POINTER                                :: simpar
+    TYPE(unit_convert_type), POINTER         :: unit
+    TYPE(virial_type), POINTER               :: virial
+
     DATA init /.TRUE./
 
     NULLIFY(logger)
@@ -324,37 +307,37 @@ CONTAINS
           WRITE ( iw, '( A,A )' ) ' ******************************** ', &
                'GO CP2K GO! **********************************'
           WRITE ( iw, '( A,A,T40,A,T60,1(1X,E20.12) )' ) ' INITIAL POTENTIAL ENERGY', &
-               adjustl( unit % e_label), '= ', epot
+               ADJUSTL( unit % e_label), '= ', epot
           WRITE ( iw, '( A,A,T40,A,T60,1(1X,E20.12) )' ) ' INITIAL KINETIC ENERGY', &
-               adjustl( unit % e_label), '= ', ekin
+               ADJUSTL( unit % e_label), '= ', ekin
           WRITE ( iw, '( A,A,T40,A,T60,1(1X,F20.3) )' ) ' INITIAL TEMPERATURE', &
-               adjustl( unit % temp_label ), '= ', temp
+               ADJUSTL( unit % temp_label ), '= ', temp
           IF ( simpar % ensemble == nph_ensemble .OR.&
                simpar % ensemble == nph_uniaxial_ensemble .OR.&
                simpar % ensemble == nph_uniaxial_damped_ensemble.OR.&
                simpar % ensemble == npt_i_ensemble.OR.&
                simpar % ensemble == npt_f_ensemble ) &
                WRITE ( iw, '( A,A,T40,A,T60,1(1X,E20.12) )' ) ' INITIAL BAROSTAT TEMP', &
-               adjustl( unit % temp_label), '= ', temp_baro
+               ADJUSTL( unit % temp_label), '= ', temp_baro
           IF ( virial % pv_availability ) &
                WRITE ( iw, '( A,A,T40,A,T60,1(1X,E20.12) )' ) ' INITIAL PRESSURE', &
-               adjustl( unit % pres_label), '= ', pv_scalar
+               ADJUSTL( unit % pres_label), '= ', pv_scalar
           IF ( simpar % ensemble == nph_ensemble .OR.&
                simpar % ensemble == nph_uniaxial_ensemble .OR.&
                simpar % ensemble == nph_uniaxial_damped_ensemble)&
                WRITE ( iw, '( A,A,T40,A,T60,1(1X,E20.12) )' ) ' INITIAL HUGONIOT CONSTRAINT', &
-               adjustl( unit % temp_label), '= ', hugoniot
+               ADJUSTL( unit % temp_label), '= ', hugoniot
           IF ( simpar % ensemble == nph_ensemble .OR.&
                simpar % ensemble == nph_uniaxial_ensemble .OR.&
                simpar % ensemble == nph_uniaxial_damped_ensemble)&
                WRITE ( iw, '( A,A,T40,A,T60,1(1X,E20.12) )' ) ' INITIAL E0', &
-               adjustl( unit % e_label), '= ', simpar % e0
+               ADJUSTL( unit % e_label), '= ', simpar % e0
           WRITE ( iw, '( A,A,T40,A,T60,1(1X,E20.12) )' ) ' INITIAL VOLUME', &
-               adjustl( unit % vol_label), '= ', cell%deth
+               ADJUSTL( unit % vol_label), '= ', cell%deth
           WRITE ( iw, '( A,A,T29,A,T33,3(1X,E15.7) )' ) ' INITIAL CELL LNTHS', &
-               adjustl(unit % l_label), '= ', abc(1), abc(2), abc(3)
+               ADJUSTL(unit % l_label), '= ', abc(1), abc(2), abc(3)
           WRITE ( iw, '( A,A,T29,A,T33,3(1X,E15.7) )' ) ' INITIAL CELL ANGLS', &
-               adjustl(unit % angl_label), '= ', cell_angle(3), cell_angle(2), cell_angle(1)
+               ADJUSTL(unit % angl_label), '= ', cell_angle(3), cell_angle(2), cell_angle(1)
           WRITE ( iw, '( A,A )' ) ' ******************************** ', &
                'GO CP2K GO! **********************************'
        ENDIF
@@ -453,21 +436,21 @@ CONTAINS
              WRITE ( iw, '( A,T39,2(1X,E20.12) )' ) ' {E-E0}/{k_b*N_at}            = ', &
                   econs, econs_avg/REAL( delta_t,dp)
              WRITE ( iw, '( A,A,T31,A,T39,2(1X,E20.12) )' ) ' POTENTIAL ENERGY', &
-                  adjustl(unit % e_label), '= ', epot, averages%avepot
+                  ADJUSTL(unit % e_label), '= ', epot, averages%avepot
              WRITE ( iw, '( A,A,T31,A,T39,2(1X,E20.12) )' ) ' KINETIC ENERGY', &
-                  adjustl(unit % e_label), '= ', ekin, averages%avekin
+                  ADJUSTL(unit % e_label), '= ', ekin, averages%avekin
              WRITE ( iw, '( A,A,T31,A,T39,2(1X,F20.3) )' ) ' TEMPERATURE', &
-                  adjustl(unit % temp_label), '= ', temp, averages%avetemp
+                  ADJUSTL(unit % temp_label), '= ', temp, averages%avetemp
              IF ( virial % pv_availability ) &
                   WRITE ( iw, '( A,A,T31,A,T39,2(1X,E20.12) )' ) ' PRESSURE', &
-                  adjustl(unit % pres_label), '= ', pv_scalar, averages%avepress
+                  ADJUSTL(unit % pres_label), '= ', pv_scalar, averages%avepress
              IF ( simpar % ensemble == nph_ensemble .OR.&
                   simpar % ensemble == nph_uniaxial_ensemble .OR.&
                   simpar % ensemble == nph_uniaxial_damped_ensemble) THEN
                 WRITE ( iw, '( A,A,T31,A,T39,2(1X,E20.12) )' ) ' P_XX', &
-                     adjustl(unit % pres_label), '= ', pv_xx, averages%avepxx
+                     ADJUSTL(unit % pres_label), '= ', pv_xx, averages%avepxx
                 WRITE ( iw, '( A,A,T31,A,T39,2(1X,E20.12) )' ) ' HUGONIOT', &
-                     adjustl(unit % temp_label), '= ', hugoniot/3._dp/nat*kelvin,&
+                     ADJUSTL(unit % temp_label), '= ', hugoniot/3._dp/nat*kelvin,&
                      averages%avehugoniot/3._dp/nat*kelvin
              END IF
              IF ( simpar % ensemble == nph_ensemble .OR.&
@@ -476,20 +459,20 @@ CONTAINS
                   simpar % ensemble == npt_i_ensemble.OR.&
                   simpar % ensemble == npt_f_ensemble ) THEN
                 WRITE ( iw, '( A,A,T31,A,T39,2(1X,E20.12) )' ) ' BAROSTAT TEMP', &
-                     adjustl(unit % temp_label), '= ', temp_baro, averages%avetemp_baro
+                     ADJUSTL(unit % temp_label), '= ', temp_baro, averages%avetemp_baro
                 WRITE ( iw, '( A,A,T31,A,T39,2(1X,E20.12) )' ) ' VOLUME', &
-                     adjustl(unit % vol_label), '= ', cell%deth, averages%avevol
+                     ADJUSTL(unit % vol_label), '= ', cell%deth, averages%avevol
                 WRITE ( iw, '( A,A,T31,A,T33,3(1X,E15.7) )' ) ' CELL LNTHS', &
-                     adjustl(unit % l_label), '= ', abc(1), abc(2), abc(3)
+                     ADJUSTL(unit % l_label), '= ', abc(1), abc(2), abc(3)
                 WRITE ( iw, '( A,A,T31,A,T33,3(1X,E15.7) )' ) ' AVE. CELL LNTHS', &
-                     adjustl(unit % l_label), '= ', averages%aveca, averages%avecb, &
+                     ADJUSTL(unit % l_label), '= ', averages%aveca, averages%avecb, &
                      averages%avecc
              END IF
              IF (simpar%ensemble==npt_f_ensemble) THEN
                 WRITE ( iw, '( A,A,T31,A,T33,3(1X,E15.7) )' ) ' CELL ANGLS', &
-                     adjustl(unit % angl_label), '= ', cell_angle(3), cell_angle(2), cell_angle(1)
+                     ADJUSTL(unit % angl_label), '= ', cell_angle(3), cell_angle(2), cell_angle(1)
                 WRITE ( iw, '( A,A,T31,A,T33,3(1X,E15.7) )' ) ' AVE. CELL ANGLS', &
-                     adjustl(unit % angl_label), '= ', averages%aveal, averages%avebe, &
+                     ADJUSTL(unit % angl_label), '= ', averages%aveal, averages%avebe, &
                      averages%avega
              END IF
              WRITE ( iw, '( A,A )' ) ' **************************************', &

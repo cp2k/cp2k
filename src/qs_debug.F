@@ -33,24 +33,21 @@
 !!   SOURCE
 !****************************************************************************
 MODULE qs_debug
-  USE global_types,                    ONLY: global_environment_type
-  USE cp_subsystem_types,              ONLY: cp_subsys_retain,&
-                                             cp_subsys_get,&
-                                             cp_subsystem_p_type
+  USE cp_subsystem_types,              ONLY: cp_subsystem_p_type
   USE force_env_methods,               ONLY: force_env_calc_energy_force
-  USE force_env_types,                 ONLY: force_env_type, &
-                                             force_env_release,&
-                                             force_env_set, force_env_get
-  USE input_section_types,             ONLY: section_vals_get_subs_vals, &
-                                             section_vals_val_get, &
-                                             section_vals_type
+  USE force_env_types,                 ONLY: force_env_get,&
+                                             force_env_type
+  USE global_types,                    ONLY: global_environment_type
+  USE input_section_types,             ONLY: section_vals_get_subs_vals,&
+                                             section_vals_type,&
+                                             section_vals_val_get
   USE kinds,                           ONLY: dp
   USE particle_types,                  ONLY: particle_type
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
   PRIVATE
-  CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='qs_debug'
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_debug'
 
   PUBLIC :: qs_debug_energy_and_forces
   REAL(KIND=dp), PRIVATE, PARAMETER :: MaxErr = 1.0_dp
@@ -58,25 +55,27 @@ MODULE qs_debug
 CONTAINS
 
   SUBROUTINE qs_debug_energy_and_forces(force_env, globenv, error)
-    IMPLICIT NONE
-    ! Arguments
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(global_environment_type), POINTER   :: globenv
     TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error    
-    ! Local
+      OPTIONAL                               :: error
+
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_debug_energy_and_forces', &
-      routineP = moduleN//':'//routineN    
-    INTEGER :: iw, stat, iseq, isubsys, ip, k, j
-    LOGICAL :: failure, harris_flag
-    REAL(kind=dp) :: std_value
-    REAL(kind=dp), PARAMETER :: Dx=0.001_dp
-    REAL(kind=dp), DIMENSION(2) :: numer_energy
-    REAL(kind=dp), DIMENSION(3) :: Err, my_maxerr
-    REAL(kind=dp), DIMENSION(:,:), POINTER     :: analyt_forces, numer_forces
-    TYPE(cp_subsystem_p_type), DIMENSION(:), POINTER :: subsys
-    TYPE(particle_type), POINTER, DIMENSION(:) :: particles
-    TYPE(section_vals_type), POINTER           :: harris_section
+      routineP = moduleN//':'//routineN
+    REAL(kind=dp), PARAMETER                 :: Dx = 0.001_dp
+
+    INTEGER                                  :: ip, iseq, isubsys, iw, j, k, &
+                                                stat
+    LOGICAL                                  :: failure, harris_flag
+    REAL(kind=dp)                            :: std_value
+    REAL(kind=dp), DIMENSION(2)              :: numer_energy
+    REAL(kind=dp), DIMENSION(3)              :: Err, my_maxerr
+    REAL(kind=dp), DIMENSION(:, :), POINTER  :: analyt_forces, numer_forces
+    TYPE(cp_subsystem_p_type), &
+      DIMENSION(:), POINTER                  :: subsys
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particles
+    TYPE(section_vals_type), POINTER         :: harris_section
 
     failure = .FALSE.
     NULLIFY(analyt_forces, numer_forces, subsys, particles)

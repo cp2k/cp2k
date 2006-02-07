@@ -68,7 +68,7 @@ MODULE cp_rs_pool_types
   PRIVATE
 
   LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
-  CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='cp_rs_pool_types'
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_rs_pool_types'
   INTEGER, SAVE, PRIVATE :: last_rs_pool_id_nr=0
 
   PUBLIC :: cp_rs_pool_type, cp_rs_pool_p_type
@@ -325,7 +325,7 @@ CONTAINS
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'cp_rs_pool_release', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'rs_pool_release', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: stat
@@ -460,7 +460,7 @@ CONTAINS
        DO i=1,n_elements
           NULLIFY(elements(i)%rs_grid)
           CALL rs_pool_create_rs(pool,elements(i)%rs_grid,&
-	force_env_section=force_env_section,error=error)
+        force_env_section=force_env_section,error=error)
 
        END DO
        
@@ -566,8 +566,7 @@ CONTAINS
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-    CHARACTER(len=*), PARAMETER :: &
-      routineN = 'rs_pool_give_back_elements_vect', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'rs_pool_give_back_rs_vect', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, stat
@@ -840,7 +839,7 @@ SUBROUTINE rs_pools_create_rs_vect(pools,elements,&
         NULLIFY(elements(i)%rs_grid)
         pool => pools(i)%pool
         CALL rs_pool_create_rs(pool,elements(i)%rs_grid,&
-	force_env_section=force_env_section,error=error)
+        force_env_section=force_env_section,error=error)
 
      END DO
      

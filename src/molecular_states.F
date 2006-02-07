@@ -34,15 +34,20 @@ MODULE molecular_states
                                              cp_fm_release,&
                                              cp_fm_to_fm,&
                                              cp_fm_type
+  USE cp_output_handling,              ONLY: cp_p_file,&
+                                             cp_print_key_finished_output,&
+                                             cp_print_key_should_output,&
+                                             cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_sm_fm_interactions,           ONLY: cp_sm_fm_multiply
   USE global_types,                    ONLY: global_environment_type
+  USE input_section_types,             ONLY: section_get_ival,&
+                                             section_vals_type
   USE kinds,                           ONLY: default_string_length,&
                                              dp
   USE message_passing,                 ONLY: mp_bcast,&
                                              mp_maxloc
   USE molecule_types_new,              ONLY: molecule_type
-  USE pw_env_types,                    ONLY: pw_env_type
   USE qs_collocate_density,            ONLY: calculate_wavefunction
   USE qs_environment_types,            ONLY: qs_environment_type
   USE realspace_grid_types,            ONLY: rs_pw_to_cube
@@ -50,18 +55,6 @@ MODULE molecular_states
   USE termination,                     ONLY: stop_memory
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE cp_output_handling,              ONLY: cp_print_key_unit_nr, &
-                                             cp_print_key_finished_output,&
-                                             cp_print_key_should_output,&
-                                             cp_p_file
-  USE input_section_types,             ONLY: section_vals_type, &
-                                             section_vals_val_get,&
-                                             section_vals_get_subs_vals, &
-                                             section_vals_get_subs_vals2, &
-                                             section_get_rval,&
-                                             section_get_ival,&
-                                             section_get_cval,&
-                                             section_vals_get
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -70,7 +63,7 @@ MODULE molecular_states
 
 ! *** Global parameters ***
 
-  CHARACTER(LEN=*), PARAMETER, PRIVATE :: moduleN = "molecular_states"
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'molecular_states'
 
   LOGICAL, PARAMETER, PRIVATE :: debug_this_module=.FALSE.
 
@@ -95,28 +88,28 @@ SUBROUTINE construct_molecular_states(molecule_set, mo_localized, &
     TYPE(cp_fm_type), POINTER                :: mo_localized, mo_coeff
     REAL(KIND=dp), DIMENSION(:), POINTER     :: mo_eigenvalues
     TYPE(real_matrix_type), POINTER          :: Hks, matrix_S
-    TYPE(global_environment_type), &
-      pointer                                :: globenv
-    TYPE(section_vals_type), POINTER :: force_env_section
+    TYPE(global_environment_type), POINTER   :: globenv
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(coeff_type), INTENT(INOUT)          :: wf_r, wf_g
+    TYPE(section_vals_type), POINTER         :: force_env_section
+    TYPE(cp_error_type), INTENT(INOUT), &
+      OPTIONAL                               :: error
 
     CHARACTER(LEN=default_string_length)     :: filename
     INTEGER                                  :: i, imol, iproc, isos, j, k, &
                                                 ncol_global, nproc, &
-                                                nrow_global, ns, unit_report
+                                                nrow_global, ns, unit_nr, &
+                                                unit_report
     INTEGER, DIMENSION(:), POINTER           :: ind
     INTEGER, POINTER                         :: nstates(:), states(:)
+    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: tmp
     REAL(KIND=dp), ALLOCATABLE               :: evals( : )
-    TYPE(cp_error_type), OPTIONAL, INTENT(INOUT) :: error
     TYPE(cp_fm_struct_type), POINTER         :: fm_struct_tmp
     TYPE(cp_fm_type), POINTER                :: b, c, d, D_igk, e_vectors, &
                                                 rot_e_vectors, smo
-    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_logger_type), POINTER            :: logger
-    LOGICAL :: failure
-    INTEGER :: unit_nr
+    TYPE(cp_para_env_type), POINTER          :: para_env
 
     failure = .FALSE.
     NULLIFY(logger)
@@ -259,7 +252,7 @@ SUBROUTINE construct_molecular_states(molecule_set, mo_localized, &
        DO k=1,ncol_global
           CALL cp_fm_get_element(D_igk,i,k,tmp)
           IF (globenv%ionode) THEN
-             write(unit_report,*) tmp**2
+             WRITE(unit_report,*) tmp**2
           ENDIF
        ENDDO
     ENDDO

@@ -25,33 +25,26 @@ MODULE fist_nonbond_force
 
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind
+  USE cell_types,                      ONLY: cell_type,&
+                                             scaled_to_real
   USE distribution_1d_types,           ONLY: distribution_1d_type
   USE ewald_environment_types,         ONLY: ewald_env_get,&
                                              ewald_environment_type
-  USE fist_neighbor_list_types,        ONLY: first_list,&
-                                             first_node,&
-                                             get_neighbor_list,&
-                                             get_neighbor_list_set,&
-                                             get_neighbor_node,&
-                                             neighbor_list_set_p_type,&
-                                             neighbor_list_set_type,&
-                                             neighbor_list_type,&
-                                             neighbor_node_type,&
-                                             next
+  USE fist_neighbor_list_types,        ONLY: &
+       first_list, first_node, get_neighbor_list, get_neighbor_list_set, &
+       get_neighbor_node, neighbor_list_set_p_type, neighbor_list_set_type, &
+       neighbor_list_type, neighbor_node_type, next
   USE fist_nonbond_env_types,          ONLY: fist_nonbond_env_get,&
                                              fist_nonbond_env_type
-  USE global_types,                    ONLY: global_environment_type 
-  USE kinds,                           ONLY: dp, dp_size
+  USE global_types,                    ONLY: global_environment_type
+  USE kinds,                           ONLY: dp,&
+                                             dp_size
   USE mathconstants,                   ONLY: pi
   USE message_passing,                 ONLY: mp_sum
-  USE manybody_potential,              ONLY: rho_s
   USE pair_potential,                  ONLY: potential_s
   USE pair_potential_types,            ONLY: pair_potential_pp_type,&
                                              pair_potential_single_type
   USE particle_types,                  ONLY: particle_type
-  USE cell_types,                      ONLY: cell_type,&
-                                             real_to_scaled,&
-                                             scaled_to_real
   USE splines,                         ONLY: spline_data_type
   USE termination,                     ONLY: stop_memory
   USE timings,                         ONLY: timeset,&
@@ -61,7 +54,7 @@ MODULE fist_nonbond_force
 
   PRIVATE
 
-  CHARACTER(LEN=*), PARAMETER :: module_name = "fist_nonbond_force"
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'fist_nonbond_force'
 
   PUBLIC :: force_nonbond, bonded_correct_gaussian, density_nonbond, energy_manybody
 
@@ -85,13 +78,13 @@ SUBROUTINE force_nonbond ( fist_nonbond_env, particle_set, cell,  &
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(OUT)                            :: f_nonbond, ptens_nonbond
 
-    CHARACTER(LEN=*), PARAMETER              :: routine_name = "force_nonbond"
+    CHARACTER(LEN=*), PARAMETER              :: routineN = 'force_nonbond'
 
     INTEGER                                  :: ab, atom_a, atom_b, handle, &
                                                 ikind, ilist, inode, jkind, &
                                                 nkinds, nlist, nnode
-    REAL(KIND=dp)                            :: energy, flops, fscalar, rab2, &
-                                                rab2_max, f_eam
+    REAL(KIND=dp)                            :: energy, f_eam, flops, &
+                                                fscalar, rab2, rab2_max
     REAL(KIND=dp), DIMENSION(3)              :: dra, drb, fr, rab
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: r_last_update
     TYPE(neighbor_list_set_p_type), &
@@ -99,13 +92,14 @@ SUBROUTINE force_nonbond ( fist_nonbond_env, particle_set, cell,  &
     TYPE(neighbor_list_set_type), POINTER    :: neighbor_list_set
     TYPE(neighbor_list_type), POINTER        :: neighbor_list
     TYPE(neighbor_node_type), POINTER        :: neighbor_node
-    TYPE(pair_potential_pp_type), POINTER       :: potparm
-    TYPE(pair_potential_single_type), POINTER   ::pot
+    TYPE(pair_potential_pp_type), POINTER    :: potparm
+    TYPE(pair_potential_single_type), &
+      POINTER                                :: pot
     TYPE(spline_data_type), POINTER          :: spline_data
 
 !------------------------------------------------------------------------------
 
-  CALL timeset ( routine_name, 'E', 'Mflops', handle )
+  CALL timeset ( routineN, 'E', 'Mflops', handle )
   flops = 0.0_dp
   CALL fist_nonbond_env_get ( fist_nonbond_env, nonbonded = nonbonded, &
                              r_last_update = r_last_update,            &
@@ -236,20 +230,17 @@ SUBROUTINE density_nonbond ( fist_nonbond_env, particle_set, cell, globenv )
 !
 
     TYPE(fist_nonbond_env_type), POINTER     :: fist_nonbond_env
-    TYPE ( global_environment_type ), pointer :: globenv
     TYPE(particle_type), DIMENSION(:), &
-      INTENT (INOUT)                         :: particle_set
+      INTENT(INOUT)                          :: particle_set
     TYPE(cell_type), POINTER                 :: cell
+    TYPE(global_environment_type), POINTER   :: globenv
 
-    CHARACTER(LEN=*), PARAMETER              :: routine_name = "density_nonbond"
+    CHARACTER(LEN=*), PARAMETER              :: routineN = 'density_nonbond'
 
-    INTEGER                                  :: ab, atom_a, atom_b, handle, &
-                                                ikind, ilist, inode, jkind, &
-                                                nkinds, nlist, nnode, iparticle, &
-                                                nparticle, istat
-
+    INTEGER :: ab, atom_a, atom_b, handle, ikind, ilist, inode, iparticle, &
+      istat, jkind, nkinds, nlist, nnode, nparticle
     REAL(KIND=dp)                            :: flops, rab2, rab2_max
-    REAL(KIND=dp), DIMENSION(3)              :: dra, drb, fr, rab
+    REAL(KIND=dp), DIMENSION(3)              :: dra, drb, rab
     REAL(KIND=dp), DIMENSION(:), POINTER     :: rho
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: r_last_update
     TYPE(neighbor_list_set_p_type), &
@@ -257,13 +248,14 @@ SUBROUTINE density_nonbond ( fist_nonbond_env, particle_set, cell, globenv )
     TYPE(neighbor_list_set_type), POINTER    :: neighbor_list_set
     TYPE(neighbor_list_type), POINTER        :: neighbor_list
     TYPE(neighbor_node_type), POINTER        :: neighbor_node
-    TYPE(pair_potential_pp_type), POINTER       :: potparm
-    TYPE(pair_potential_single_type), POINTER :: pot
+    TYPE(pair_potential_pp_type), POINTER    :: potparm
+    TYPE(pair_potential_single_type), &
+      POINTER                                :: pot
     TYPE(spline_data_type), POINTER          :: spline_data
 
 !------------------------------------------------------------------------------
 
-  CALL timeset ( routine_name, 'E', 'Mflops', handle )
+  CALL timeset ( routineN, 'E', 'Mflops', handle )
   flops = 0.0_dp
   CALL fist_nonbond_env_get ( fist_nonbond_env, nonbonded = nonbonded, &
                               r_last_update = r_last_update,           &
@@ -271,7 +263,7 @@ SUBROUTINE density_nonbond ( fist_nonbond_env, particle_set, cell, globenv )
 
   nparticle = SIZE ( particle_set )
   ALLOCATE ( rho ( nparticle ), STAT = istat )
-  IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+  IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                    "rho",nparticle*dp_size)
   rho ( : ) = 0._dp
 ! starting the force loop
@@ -347,7 +339,7 @@ SUBROUTINE density_nonbond ( fist_nonbond_env, particle_set, cell, globenv )
     END DO
     
     DEALLOCATE ( rho, STAT = istat )
-    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                     "deallocate rho")
 
   CALL timestop ( flops, handle )
@@ -359,24 +351,28 @@ SUBROUTINE energy_manybody ( fist_nonbond_env, atomic_kind_set, &
 
 ! computes the embedding contribution to the energy 
 
-  TYPE(fist_nonbond_env_type), POINTER     :: fist_nonbond_env
-  TYPE(atomic_kind_type), POINTER          :: atomic_kind_set( : )
-  TYPE(distribution_1d_type), POINTER      :: local_particles
-  TYPE(particle_type), POINTER             :: particle_set( : )
-  REAL ( dp ), INTENT ( INOUT )            :: pot_manybody
-  TYPE ( global_environment_type ), pointer :: globenv
-! locals
-  CHARACTER(LEN=*), PARAMETER   :: routine_name = "energy_manybody"
-  INTEGER :: index, iparticle_local, iparticle, nparticle_local, nparticle
-  INTEGER :: handle, flops, ikind, istat
-  REAL ( dp ) :: embed, qr
-  REAL ( dp ), POINTER :: fembed ( : )
-  TYPE ( pair_potential_single_type ), POINTER :: pot
-  TYPE ( pair_potential_pp_type ), POINTER :: potparm
+    TYPE(fist_nonbond_env_type), POINTER     :: fist_nonbond_env
+    TYPE(atomic_kind_type), POINTER          :: atomic_kind_set( : )
+    TYPE(distribution_1d_type), POINTER      :: local_particles
+    TYPE(particle_type), POINTER             :: particle_set( : )
+    REAL(dp), INTENT(INOUT)                  :: pot_manybody
+    TYPE(global_environment_type), POINTER   :: globenv
+
+    CHARACTER(LEN=*), PARAMETER              :: routineN = 'energy_manybody'
+
+    INTEGER                                  :: flops, ikind, index, &
+                                                iparticle, iparticle_local, &
+                                                istat, nparticle, &
+                                                nparticle_local
+    REAL(dp)                                 :: embed, qr
+    REAL(dp), POINTER                        :: fembed( : )
+    TYPE(pair_potential_pp_type), POINTER    :: potparm
+    TYPE(pair_potential_single_type), &
+      POINTER                                :: pot
 
   flops = 0.0_dp
 
-!  CALL timeset ( routine_name, 'E', 'Mflops', handle )
+!  CALL timeset ( routineN, 'E', 'Mflops', handle )
 
   CALL fist_nonbond_env_get ( fist_nonbond_env, potparm = potparm )
   DO ikind = 1, SIZE ( atomic_kind_set )
@@ -388,7 +384,7 @@ SUBROUTINE energy_manybody ( fist_nonbond_env, atomic_kind_set, &
       
       nparticle = SIZE ( particle_set )
       ALLOCATE ( fembed ( nparticle ), STAT = istat )
-      IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                    "fembed",nparticle*dp_size)
       fembed ( : ) = 0._dp
 ! computation of embedding function and energy
@@ -414,7 +410,7 @@ SUBROUTINE energy_manybody ( fist_nonbond_env, atomic_kind_set, &
       END DO
     
       DEALLOCATE ( fembed, STAT = istat )
-      IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                     "deallocate fembed")
     END SELECT
   END DO
@@ -422,14 +418,17 @@ SUBROUTINE energy_manybody ( fist_nonbond_env, atomic_kind_set, &
 END SUBROUTINE energy_manybody
 !******************************************************************************
 SUBROUTINE get_rho_eam ( potparm, rab2, atom_a, atom_b, rho )
-    TYPE(pair_potential_single_type), POINTER       :: potparm
-    REAL ( dp ), INTENT ( IN )               :: rab2
-    INTEGER, INTENT ( IN )                   :: atom_a, atom_b
-    REAL ( dp ), INTENT ( INOUT )            :: rho ( : )
-! locals
-    INTEGER :: index
-    REAL ( dp ) :: rab, qq, rhoi, rhoj
+    TYPE(pair_potential_single_type), &
+      POINTER                                :: potparm
+    REAL(dp), INTENT(IN)                     :: rab2
+    INTEGER, INTENT(IN)                      :: atom_a, atom_b
+    REAL(dp), INTENT(INOUT)                  :: rho( : )
+
+    INTEGER                                  :: index
+    REAL(dp)                                 :: qq, rab, rhoi, rhoj
+
 ! Computation of rhotot
+
     rab = SQRT ( rab2 )
     index = INT ( rab / potparm % eam % drar ) + 1
 
@@ -449,17 +448,18 @@ SUBROUTINE get_rho_eam ( potparm, rab2, atom_a, atom_b, rho )
 END SUBROUTINE get_rho_eam 
 !******************************************************************************
 SUBROUTINE get_force_eam ( rab2, potparm, particle_set, atom_a, atom_b, f_eam )
-    REAL ( dp ), INTENT ( IN )               :: rab2
-    TYPE ( pair_potential_single_type ), POINTER    :: potparm
-    TYPE ( particle_type ), INTENT ( IN ) :: particle_set ( : )
-    INTEGER, INTENT ( IN )                   :: atom_a, atom_b
-    REAL ( dp ), INTENT ( OUT )              :: f_eam
-! locals
-    INTEGER :: index
-    REAL ( dp ) :: rab, qq
-    REAL ( dp ) :: denspi, denspj, fcp
+    REAL(dp), INTENT(IN)                     :: rab2
+    TYPE(pair_potential_single_type), &
+      POINTER                                :: potparm
+    TYPE(particle_type), INTENT(IN)          :: particle_set( : )
+    INTEGER, INTENT(IN)                      :: atom_a, atom_b
+    REAL(dp), INTENT(OUT)                    :: f_eam
+
+    INTEGER                                  :: index
+    REAL(dp)                                 :: denspi, denspj, fcp, qq, rab
 
 ! compute scaler part of the force
+
     f_eam = 0._dp
     rab = SQRT ( rab2 )
     index = INT ( rab / potparm % eam % drar ) + 1

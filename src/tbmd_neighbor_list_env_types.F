@@ -23,21 +23,20 @@
 !!   SOURCE
 !****************************************************************************
 MODULE tbmd_neighbor_list_env_types
-  USE fist_neighbor_list_types,           ONLY: neighbor_list_set_p_type, &
-                                                deallocate_neighbor_list_set, &
-                                                neighbor_list_set_type
-  USE kinds,                              ONLY: dp, &
-                                                default_string_length
-
+  USE fist_neighbor_list_types,        ONLY: deallocate_neighbor_list_set,&
+                                             neighbor_list_set_p_type,&
+                                             neighbor_list_set_type
+  USE kinds,                           ONLY: dp
 #include "cp_common_uses.h"
+
   IMPLICIT NONE
 
   PRIVATE
 
 ! *** Global parameters ***
 
-  CHARACTER(LEN=*), PARAMETER :: moduleN = "tbmd_neighbor_list_env_types"
-  INTEGER, PRIVATE, save :: last_tbmd_id=0
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'tbmd_neighbor_list_env_types'
+  INTEGER, PRIVATE, SAVE :: last_tbmd_id=0
 
   ! *** Public data types ***
   PUBLIC :: tbmd_neighbor_list_env_type, &
@@ -160,17 +159,19 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE tbmd_neighbor_list_env_retain(tbmd_neighbor_list_env, error)
 
-    TYPE(tbmd_neighbor_list_env_type), POINTER :: tbmd_neighbor_list_env
+    TYPE(tbmd_neighbor_list_env_type), &
+      POINTER                                :: tbmd_neighbor_list_env
     TYPE(cp_error_type), INTENT(INOUT), &
-      OPTIONAL                                 :: error
+      OPTIONAL                               :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'tbmd_neighbor_list_env_retain', &
+    CHARACTER(len=*), PARAMETER :: &
+      routineN = 'tbmd_neighbor_list_env_retain', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                    :: failure
+    LOGICAL                                  :: failure
 
 !   ------------------------------------------------------------------------
-   
+
     failure = .FALSE.
   
     CPPrecondition(ASSOCIATED(tbmd_neighbor_list_env), cp_failure_level, routineP, error, failure)
@@ -207,17 +208,18 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE tbmd_neighbor_list_env_release(tbmd_neighbor_list_env, error)
 
-    TYPE(tbmd_neighbor_list_env_type), POINTER :: tbmd_neighbor_list_env
+    TYPE(tbmd_neighbor_list_env_type), &
+      POINTER                                :: tbmd_neighbor_list_env
     TYPE(cp_error_type), INTENT(INOUT), &
-      OPTIONAL                                 :: error
+      OPTIONAL                               :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'tbmd_neighbor_list_env_release', &
+    CHARACTER(len=*), PARAMETER :: &
+      routineN = 'tbmd_neighbor_list_env_release', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                    :: stat, &
-                                                  i
-    LOGICAL                                    :: failure
-    TYPE(neighbor_list_set_type), POINTER      :: neighbor_list_set_ptr
+    INTEGER                                  :: i, stat
+    LOGICAL                                  :: failure
+    TYPE(neighbor_list_set_type), POINTER    :: neighbor_list_set_ptr
 
 !   ------------------------------------------------------------------------
 
@@ -294,26 +296,22 @@ CONTAINS
                                         r_last_update, r_cutoff, &
                                         tbmd_neighbor_list, error)
 
-    TYPE(tbmd_neighbor_list_env_type), POINTER   :: tbmd_neighbor_list_env
-    INTEGER, INTENT(OUT), OPTIONAL               :: id_nr
-    INTEGER, INTENT(OUT), OPTIONAL               :: counter, &
-                                                    last_update, &
-                                                    num_update
-    REAL(KIND=dp), INTENT(OUT), OPTIONAL         :: verlet_skin, &
-                                                    lup, &
-                                                    aup
-    REAL(KIND=dp), DIMENSION(:,:), POINTER, &
-         OPTIONAL                                :: r_last_update, &
-                                                    r_cutoff
-    TYPE(neighbor_list_set_p_type), DIMENSION(:), &
-         POINTER, OPTIONAL                       :: tbmd_neighbor_list
+    TYPE(tbmd_neighbor_list_env_type), &
+      POINTER                                :: tbmd_neighbor_list_env
+    INTEGER, INTENT(OUT), OPTIONAL           :: id_nr, counter, last_update, &
+                                                num_update
+    REAL(KIND=dp), INTENT(OUT), OPTIONAL     :: verlet_skin, lup, aup
+    REAL(KIND=dp), DIMENSION(:, :), &
+      OPTIONAL, POINTER                      :: r_last_update, r_cutoff
+    TYPE(neighbor_list_set_p_type), &
+      DIMENSION(:), OPTIONAL, POINTER        :: tbmd_neighbor_list
     TYPE(cp_error_type), INTENT(INOUT), &
-         OPTIONAL                                :: error
+      OPTIONAL                               :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'tbmd_neighbor_list_env_get', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                      :: failure
+    LOGICAL                                  :: failure
 
 !   ------------------------------------------------------------------------
 
@@ -392,26 +390,22 @@ CONTAINS
                                         r_last_update, r_cutoff, &
                                         tbmd_neighbor_list, error)
 
-    TYPE(tbmd_neighbor_list_env_type), POINTER   :: tbmd_neighbor_list_env
-    INTEGER, INTENT(OUT), OPTIONAL               :: id_nr
-    INTEGER, INTENT(OUT), OPTIONAL               :: counter, &
-                                                    last_update, &
-                                                    num_update
-    REAL(KIND=dp), INTENT(OUT), OPTIONAL         :: verlet_skin, &
-                                                    lup, &
-                                                    aup
-    REAL(KIND=dp), DIMENSION(:,:), POINTER, &
-         OPTIONAL                                :: r_last_update, &
-                                                    r_cutoff
-    TYPE(neighbor_list_set_p_type), DIMENSION(:), &
-         POINTER, OPTIONAL                       :: tbmd_neighbor_list
+    TYPE(tbmd_neighbor_list_env_type), &
+      POINTER                                :: tbmd_neighbor_list_env
+    INTEGER, INTENT(OUT), OPTIONAL           :: id_nr, counter, last_update, &
+                                                num_update
+    REAL(KIND=dp), INTENT(OUT), OPTIONAL     :: verlet_skin, lup, aup
+    REAL(KIND=dp), DIMENSION(:, :), &
+      OPTIONAL, POINTER                      :: r_last_update, r_cutoff
+    TYPE(neighbor_list_set_p_type), &
+      DIMENSION(:), OPTIONAL, POINTER        :: tbmd_neighbor_list
     TYPE(cp_error_type), INTENT(INOUT), &
-         OPTIONAL                                :: error
+      OPTIONAL                               :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'tbmd_neighbor_list_env_set', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                      :: failure
+    LOGICAL                                  :: failure
 
 !   ------------------------------------------------------------------------
 
@@ -476,16 +470,17 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE tbmd_neighbor_list_env_clear(tbmd_neighbor_list_env, error)
 
-    TYPE(tbmd_neighbor_list_env_type), POINTER :: tbmd_neighbor_list_env
+    TYPE(tbmd_neighbor_list_env_type), &
+      POINTER                                :: tbmd_neighbor_list_env
     TYPE(cp_error_type), INTENT(INOUT), &
-      OPTIONAL                                 :: error
+      OPTIONAL                               :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'tbmd_neighbor_list_env_clear', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                    :: failure
-    INTEGER                                    :: i
-    TYPE(neighbor_list_set_type), POINTER      :: neighbor_list_set_ptr    
+    INTEGER                                  :: i
+    LOGICAL                                  :: failure
+    TYPE(neighbor_list_set_type), POINTER    :: neighbor_list_set_ptr
 
 !   ------------------------------------------------------------------------
 
@@ -547,15 +542,17 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE tbmd_neighbor_list_env_create(tbmd_neighbor_list_env, error)
 
-    TYPE(tbmd_neighbor_list_env_type), POINTER :: tbmd_neighbor_list_env
+    TYPE(tbmd_neighbor_list_env_type), &
+      POINTER                                :: tbmd_neighbor_list_env
     TYPE(cp_error_type), INTENT(INOUT), &
-      OPTIONAL                                 :: error
+      OPTIONAL                               :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'tbmd_neighbor_list_env_create', &
+    CHARACTER(len=*), PARAMETER :: &
+      routineN = 'tbmd_neighbor_list_env_create', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                    :: stat
-    LOGICAL                                    :: failure
+    INTEGER                                  :: stat
+    LOGICAL                                  :: failure
 
 !   ------------------------------------------------------------------------
 

@@ -25,6 +25,7 @@
 !*****************************************************************************
 MODULE geo_opt
   USE bfgs_optimizer,                  ONLY: geoopt_bfgs
+  USE cell_types,                      ONLY: cell_type
   USE cg_optimizer,                    ONLY: geoopt_cg
   USE checkpoint_handler,              ONLY: write_checkpoint_information
   USE cp_lbfgs_optimizer_gopt,         ONLY: cp_lbfgs_opt_gopt_type,&
@@ -32,6 +33,8 @@ MODULE geo_opt
                                              cp_opt_gopt_next,&
                                              cp_opt_gopt_release,&
                                              cp_opt_gopt_stop
+  USE cp_output_handling,              ONLY: cp_add_iter_level,&
+                                             cp_rm_iter_level
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_subsystem_types,              ONLY: cp_subsys_get,&
                                              cp_subsystem_p_type
@@ -46,26 +49,23 @@ MODULE geo_opt
                                              gopt_param_read,&
                                              gopt_param_release,&
                                              gopt_param_type
+  USE input_constants,                 ONLY: default_bfgs_method_id,&
+                                             default_cg_method_id,&
+                                             default_lbfgs_method_id
+  USE input_section_types,             ONLY: section_vals_get_subs_vals,&
+                                             section_vals_type
   USE kinds,                           ONLY: dp
-  USE termination,                     ONLY: external_control
   USE particle_list_types,             ONLY: particle_list_type
   USE particle_types,                  ONLY: write_particle_distances
-  USE cell_types,                 ONLY: cell_type
+  USE termination,                     ONLY: external_control
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE input_constants,                 ONLY: default_lbfgs_method_id,&
-                                             default_bfgs_method_id,&
-                                             default_cg_method_id
-  USE input_section_types, ONLY: section_vals_type, section_vals_get_subs_vals,&
-       section_vals_get, section_vals_val_get, section_vals_release
-  USE cp_output_handling,              ONLY: cp_add_iter_level,&
-                                             cp_rm_iter_level
 #include "cp_common_uses.h"
 
  IMPLICIT NONE
  PRIVATE
 
- CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='geo_opt'
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'geo_opt'
 
  PUBLIC :: qs_geo_opt
 
@@ -94,18 +94,17 @@ MODULE geo_opt
 !!
 !!*** **********************************************************************
    SUBROUTINE qs_geo_opt(force_env, globenv, error)
-     IMPLICIT NONE
-     ! Arguments
-     TYPE(force_env_type), POINTER            :: force_env
-     TYPE(global_environment_type), POINTER   :: globenv
-     TYPE(cp_error_type), INTENT(inout), &
-          OPTIONAL                               :: error
-     ! Local Variables
-     CHARACTER(len=*), PARAMETER :: routineN = 'qs_geo_opt', &
-          routineP = moduleN//':'//routineN
-     LOGICAL                                  :: failure
-     TYPE(gopt_param_type), POINTER           :: gopt_param
-     TYPE(section_vals_type), POINTER :: force_env_section
+    TYPE(force_env_type), POINTER            :: force_env
+    TYPE(global_environment_type), POINTER   :: globenv
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'qs_geo_opt', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(gopt_param_type), POINTER           :: gopt_param
+    TYPE(section_vals_type), POINTER         :: force_env_section
 
      CALL write_checkpoint_information("Entering "//routineN,globenv,error)
      CPPrecondition(ASSOCIATED(force_env),cp_failure_level,routineP,error,failure)
@@ -154,32 +153,30 @@ MODULE geo_opt
 !!
 !!*** **********************************************************************
    SUBROUTINE gopt_do_opt(force_env, gopt_param, globenv, force_env_section,error)
-     IMPLICIT NONE
-     ! Arguments
-     TYPE(force_env_type), POINTER            :: force_env
-     TYPE(gopt_param_type), POINTER           :: gopt_param
-     TYPE(section_vals_type), POINTER :: force_env_section
-     TYPE(global_environment_type), &
-          pointer                  :: globenv
-     TYPE(cp_error_type), INTENT(inout), &
-          OPTIONAL                               :: error
-     ! Local Variables
-     CHARACTER(len=*), PARAMETER :: routineN = 'gopt_do_opt', &
-          routineP = moduleN//':'//routineN
-     INTEGER                                  :: handle, i, isubsys, stat
-     LOGICAL                                  :: failure, should_stop
-     REAL(KIND=dp)                            :: f
-     REAL(KIND=dp), DIMENSION(:), POINTER     :: x0
-     TYPE(cell_type), POINTER                 :: cell
-     TYPE(cp_lbfgs_opt_gopt_type), POINTER    :: optimizer
-     TYPE(cp_logger_type), POINTER            :: logger
-     TYPE(cp_para_env_type), POINTER          :: para_env
-     TYPE(cp_subsystem_p_type), &
-          DIMENSION(:), POINTER                  :: subsys
-     TYPE(gopt_f_type), POINTER               :: gopt_env
-     TYPE(particle_list_type), POINTER        :: particles
-     INTEGER :: ihandle
-     
+    TYPE(force_env_type), POINTER            :: force_env
+    TYPE(gopt_param_type), POINTER           :: gopt_param
+    TYPE(global_environment_type), POINTER   :: globenv
+    TYPE(section_vals_type), POINTER         :: force_env_section
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'gopt_do_opt', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, i, ihandle, isubsys, &
+                                                stat
+    LOGICAL                                  :: failure, should_stop
+    REAL(KIND=dp)                            :: f
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: x0
+    TYPE(cell_type), POINTER                 :: cell
+    TYPE(cp_lbfgs_opt_gopt_type), POINTER    :: optimizer
+    TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(cp_subsystem_p_type), &
+      DIMENSION(:), POINTER                  :: subsys
+    TYPE(gopt_f_type), POINTER               :: gopt_env
+    TYPE(particle_list_type), POINTER        :: particles
+
      CALL timeset(routineN,"I","",handle)
      failure=.FALSE.
      NULLIFY(gopt_env, optimizer, para_env, cell, particles, subsys, x0)

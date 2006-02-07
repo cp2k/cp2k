@@ -25,7 +25,15 @@ MODULE cg_optimizer
   USE atomic_kind_list_types,          ONLY: atomic_kind_list_type
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind
+  USE bfgs_optimizer,                  ONLY: check_converg,&
+                                             write_cycle_infos
+  USE cell_types,                      ONLY: cell_type
   USE checkpoint_handler,              ONLY: write_checkpoint_information
+  USE cp_output_handling,              ONLY: cp_add_iter_level,&
+                                             cp_iterate,&
+                                             cp_print_key_finished_output,&
+                                             cp_print_key_unit_nr,&
+                                             cp_rm_iter_level
   USE cp_subsystem_types,              ONLY: cp_subsys_get,&
                                              cp_subsystem_p_type
   USE force_env_methods,               ONLY: force_env_calc_energy_force
@@ -33,31 +41,19 @@ MODULE cg_optimizer
                                              force_env_type
   USE global_types,                    ONLY: global_environment_type
   USE gopt_f_types,                    ONLY: gopt_param_type
+  USE input_constants,                 ONLY: dump_xmol
+  USE input_section_types,             ONLY: section_vals_type
   USE kinds,                           ONLY: dp
   USE machine,                         ONLY: m_flush
+  USE memory_utilities,                ONLY: reallocate
   USE particle_list_types,             ONLY: particle_list_type
   USE particle_types,                  ONLY: particle_type,&
+                                             write_particle_coordinates,&
                                              write_particle_distances,&
-                                             write_qs_particle_coordinates,&
-                                             write_particle_coordinates
-  USE cell_types,                 ONLY: cell_type
+                                             write_qs_particle_coordinates
+  USE termination,                     ONLY: external_control
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE bfgs_optimizer,                  ONLY: write_cycle_infos,&
-                                             check_converg
-  USE input_constants,                 ONLY: dump_xmol
-  USE cp_files,                        ONLY: close_file,open_file
-  USE memory_utilities,                ONLY: reallocate
-  USE termination,                     ONLY: external_control
-  USE input_section_types, ONLY: section_vals_type, section_vals_get_subs_vals,&
-       section_vals_get, section_vals_val_get, section_vals_release
-  USE cp_output_handling,              ONLY: cp_print_key_unit_nr, &
-                                             cp_print_key_finished_output,&
-                                             cp_print_key_should_output,&
-                                             cp_p_file,&
-                                             cp_add_iter_level,&
-                                             cp_rm_iter_level,&
-                                             cp_iterate
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -65,7 +61,7 @@ MODULE cg_optimizer
   PUBLIC :: geoopt_cg
 
   LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
-  CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='cg_optimizer'
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cg_optimizer'
 
 CONTAINS
 
@@ -92,37 +88,35 @@ CONTAINS
 !!
 !!*** ********************************************************************** 
   SUBROUTINE geoopt_cg(force_env,gopt_param,globenv,force_env_section,error)
-    IMPLICIT NONE
-    ! Arguments
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(gopt_param_type), POINTER           :: gopt_param
-    TYPE(global_environment_type), &
-         POINTER                             :: globenv
-    TYPE(section_vals_type), POINTER :: force_env_section
+    TYPE(global_environment_type), POINTER   :: globenv
+    TYPE(section_vals_type), POINTER         :: force_env_section
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
-    ! Local Variables
+
     CHARACTER(len=*), PARAMETER :: routineN = 'geoopt_cg', &
       routineP = moduleN//':'//routineN
-    INTEGER :: atom, handle, iatom, ikind, indf, j, &
-      natom, ndf, nfixed, nfree, nkind, output_unit, stat
+
+    INTEGER                                  :: atom, handle, iatom, ihandle, &
+                                                ikind, indf, j, natom, ndf, &
+                                                nfixed, nfree, nkind, &
+                                                output_unit, stat
     INTEGER, DIMENSION(:), POINTER           :: atom_list
-    LOGICAL                                  :: conv, ionode
+    LOGICAL                                  :: conv, failure, ionode
     REAL(KIND=dp), DIMENSION(:), POINTER     :: x
     TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cell_type), POINTER                 :: cell
+    TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_subsystem_p_type), &
       DIMENSION(:), POINTER                  :: subsys
     TYPE(particle_list_type), POINTER        :: particles
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
-    LOGICAL                                  :: failure
-    TYPE(cp_logger_type), POINTER            :: logger
-    integer :: ihandle
-    
+
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
     CALL cp_add_iter_level(logger%iter_info,"GEO_OPT",ihandle,error)
@@ -225,8 +219,6 @@ CONTAINS
 !!
 !!*** **********************************************************************
   SUBROUTINE get_energy_and_gradients(force_env,xvec,energy,grad,error)
-    IMPLICIT NONE
-    ! Arguments
     TYPE(force_env_type), POINTER            :: force_env
     REAL(KIND=dp), DIMENSION(:), POINTER     :: xvec
     REAL(KIND=dp), INTENT(OUT), OPTIONAL     :: energy
@@ -234,7 +226,7 @@ CONTAINS
       POINTER                                :: grad
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
-    ! Local Variables
+
     INTEGER                                  :: atom, iatom, ikind, indf, j, &
                                                 natom, nkind
     INTEGER, DIMENSION(:), POINTER           :: atom_list
@@ -328,39 +320,39 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE cp_cg_main(force_env, xvec, gopt_param, ionode, output_unit,&
        globenv, force_env_section, error)
-    IMPLICIT NONE
-    ! Arguments
     TYPE(force_env_type), POINTER            :: force_env
     REAL(KIND=dp), DIMENSION(:), POINTER     :: xvec
-    INTEGER, INTENT(IN)                      :: output_unit
-    TYPE(section_vals_type), POINTER :: force_env_section
-    LOGICAL, INTENT(IN)                      :: ionode
     TYPE(gopt_param_type), POINTER           :: gopt_param
-    TYPE(global_environment_type), &
-      pointer                             :: globenv
+    LOGICAL, INTENT(IN)                      :: ionode
+    INTEGER, INTENT(IN)                      :: output_unit
+    TYPE(global_environment_type), POINTER   :: globenv
+    TYPE(section_vals_type), POINTER         :: force_env_section
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
-    ! Local Variables
+
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_cg_main', &
       routineP = moduleN//':'//routineN
-    INTEGER                                  :: its, stat, maxiter, brent_max_iter, dataunit
-    REAL(KIND=dp)                            :: dgg, gam, gg, emin, eold, opt_energy
-    REAL(KIND=dp)                            :: brent_tol, brack_limit, step, res_lim
+
+    CHARACTER(LEN=5)                         :: wildcard
+    CHARACTER(LEN=80)                        :: title
+    INTEGER                                  :: brent_max_iter, dataunit, &
+                                                its, max_steep_steps, &
+                                                maxiter, stat
+    LOGICAL                                  :: conv, failure, &
+                                                Fletcher_Reeves_ON, &
+                                                should_stop, use_fit
+    REAL(KIND=dp)                            :: brack_limit, brent_tol, dgg, &
+                                                emin, eold, gam, gg, &
+                                                opt_energy, res_lim, step
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: xold
     REAL(KIND=dp), DIMENSION(:), POINTER     :: g, h, xi
-    LOGICAL                                  :: conv
-    REAL(KIND=dp), DIMENSION(:), ALLOCATABLE :: xold
     TYPE(cell_type), POINTER                 :: cell
+    TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_subsystem_p_type), &
       DIMENSION(:), POINTER                  :: subsys
     TYPE(particle_list_type), POINTER        :: particles
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
-    CHARACTER(LEN=80)                        :: title
-    CHARACTER(LEN=5)                         :: wildcard
-    LOGICAL                                  :: failure,  Fletcher_Reeves_ON, use_fit
-    LOGICAL                                  :: should_stop
-    INTEGER                                  :: max_steep_steps
-    TYPE(cp_logger_type), POINTER            :: logger
 
     failure = .FALSE.
     NULLIFY(logger)
@@ -503,26 +495,27 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE LinMinE(force_env, xvec, xi, opt_energy, brent_tol, brent_max_iter, &
        brack_limit, step, output_unit, ionode, gopt_param, globenv, error)
-    IMPLICIT NONE
-    ! Arguments
     TYPE(force_env_type), POINTER            :: force_env
     REAL(KIND=dp), DIMENSION(:), POINTER     :: xvec, xi
-    REAL(KIND=dp)                            :: opt_energy, brent_tol, brack_limit, step
-    INTEGER                                  :: brent_max_iter, output_unit
+    REAL(KIND=dp)                            :: opt_energy, brent_tol
+    INTEGER                                  :: brent_max_iter
+    REAL(KIND=dp)                            :: brack_limit, step
+    INTEGER                                  :: output_unit
     LOGICAL                                  :: ionode
     TYPE(gopt_param_type), POINTER           :: gopt_param
-    TYPE(global_environment_type), &
-         POINTER                             :: globenv
+    TYPE(global_environment_type), POINTER   :: globenv
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
-    ! Local Variables
+
     CHARACTER(len=*), PARAMETER :: routineN = 'LinMinE', &
-      routineP = moduleN//':'//routineN    
-    INTEGER                                  :: stat, odim, loc_iter
-    REAL(KIND=dp)                            :: ax, bx, xmin, xx, fprev, rms_force, rms_dr, scale
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: pcom, xicom
-    REAL(KIND=dp), DIMENSION(:,:), POINTER   :: hist
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: loc_iter, odim, stat
     LOGICAL                                  :: failure, should_stop
+    REAL(KIND=dp)                            :: ax, bx, fprev, rms_dr, &
+                                                rms_force, scale, xmin, xx
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: pcom, xicom
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: hist
 
     failure = .FALSE.
     NULLIFY(pcom,xicom,hist)
@@ -605,24 +598,24 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE LinMin(force_env, xvec, xi, opt_energy, brent_tol, brent_max_iter, &
        brack_limit, step, output_unit, ionode, globenv, error)
-    IMPLICIT NONE
-    ! Arguments
     TYPE(force_env_type), POINTER            :: force_env
     REAL(KIND=dp), DIMENSION(:), POINTER     :: xvec, xi
-    REAL(KIND=dp)                            :: opt_energy, brent_tol, brack_limit, step
-    INTEGER                                  :: brent_max_iter, output_unit
+    REAL(KIND=dp)                            :: opt_energy, brent_tol
+    INTEGER                                  :: brent_max_iter
+    REAL(KIND=dp)                            :: brack_limit, step
+    INTEGER                                  :: output_unit
     LOGICAL                                  :: ionode
-    TYPE(global_environment_type), &
-         POINTER                             :: globenv
+    TYPE(global_environment_type), POINTER   :: globenv
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
-    ! Local Variables
+
     CHARACTER(len=*), PARAMETER :: routineN = 'LinMin', &
-      routineP = moduleN//':'//routineN    
+      routineP = moduleN//':'//routineN
+
     INTEGER                                  :: stat
+    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: ax, bx, xmin, xx
     REAL(KIND=dp), DIMENSION(:), POINTER     :: pcom, xicom
-    LOGICAL                                  :: failure
 
     failure = .FALSE.
     NULLIFY(pcom,xicom)
@@ -678,26 +671,25 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE cg_mnbrak(force_env, ax, bx, cx, pcom, xicom, brack_limit, output_unit, ionode,&
        histpoint, globenv, error)
-    IMPLICIT NONE
-    ! Arguments
     TYPE(force_env_type), POINTER            :: force_env
-    REAL(KIND=dp)                            :: ax, bx, cx, brack_limit
+    REAL(KIND=dp)                            :: ax, bx, cx
     REAL(KIND=dp), DIMENSION(:), POINTER     :: pcom, xicom
-    REAL(KIND=dp), DIMENSION(:,:), POINTER,&
-         OPTIONAL                            :: histpoint
+    REAL(KIND=dp)                            :: brack_limit
     INTEGER                                  :: output_unit
     LOGICAL                                  :: ionode
-    TYPE(global_environment_type), &
-         POINTER                             :: globenv
+    REAL(KIND=dp), DIMENSION(:, :), &
+      OPTIONAL, POINTER                      :: histpoint
+    TYPE(global_environment_type), POINTER   :: globenv
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
-    ! Local Variables
+
     CHARACTER(len=*), PARAMETER :: routineN = 'cg_mnbrak', &
       routineP = moduleN//':'//routineN
-    REAL(KIND=dp)                            :: dum, fa, fb, fc, fu, q, r, u, &
-                                                ulim, gold
-    LOGICAL                                  :: failure, hist, should_stop
+
     INTEGER                                  :: loc_iter, odim, stat
+    LOGICAL                                  :: failure, hist, should_stop
+    REAL(KIND=dp)                            :: dum, fa, fb, fc, fu, gold, q, &
+                                                r, u, ulim
 
     failure = .FALSE.
     hist    = PRESENT(histpoint)
@@ -877,31 +869,30 @@ CONTAINS
 !!*** **********************************************************************
   FUNCTION cg_dbrent(force_env,ax,bx,cx,tol,itmax,xmin,pcom,xicom,output_unit,&
        ionode, globenv, error) RESULT(dbrent)
-    IMPLICIT NONE
-    ! Arguments
     TYPE(force_env_type), POINTER            :: force_env
-    REAL(KIND=dp)                            :: ax, bx, cx, tol, xmin
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: pcom, xicom
-    REAL(KIND=dp)                            :: dbrent
+    REAL(KIND=dp)                            :: ax, bx, cx, tol
     INTEGER                                  :: itmax
+    REAL(KIND=dp)                            :: xmin
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: pcom, xicom
     INTEGER                                  :: output_unit
     LOGICAL                                  :: ionode
-    TYPE(global_environment_type), &
-         POINTER                             :: globenv
+    TYPE(global_environment_type), POINTER   :: globenv
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
-    ! Local Variables
+    REAL(KIND=dp)                            :: dbrent
+
     CHARACTER(len=*), PARAMETER :: routineN = 'cg_dbrent', &
       routineP = moduleN//':'//routineN
     REAL(KIND=dp), PARAMETER                 :: zeps = 1.0E-8_dp
+
     INTEGER                                  :: iter, loc_iter
-    LOGICAL                                  :: ok1, ok2, skip0, skip1
+    LOGICAL                                  :: failure, ok1, ok2, &
+                                                should_stop, skip0, skip1
     REAL(KIND=dp)                            :: a, b, d, d1, d2, du, dv, dw, &
                                                 dx, e, fu, fv, fw, fx, olde, &
                                                 tol1, tol2, u, u1, u2, v, w, &
                                                 x, xm
-    LOGICAL                                  :: failure, should_stop
-    
+
     failure = .FALSE.
     IF (.NOT.failure) THEN
        a  = MIN(ax,cx)
@@ -1038,20 +1029,19 @@ CONTAINS
 !!
 !!*** **********************************************************************  
   FUNCTION cg_eval1d(force_env,x,pcom,xicom,error) RESULT(my_val)
-    IMPLICIT NONE
-    ! Arguments
     TYPE(force_env_type), POINTER            :: force_env
     REAL(KIND=dp)                            :: x
     REAL(KIND=dp), DIMENSION(:), POINTER     :: pcom, xicom
-    REAL(KIND=dp)                            :: my_val
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
-    ! Local Variables
+    REAL(KIND=dp)                            :: my_val
+
     CHARACTER(len=*), PARAMETER :: routineN = 'cg_eval1d', &
       routineP = moduleN//':'//routineN
+
     INTEGER                                  :: stat
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: xvec
     LOGICAL                                  :: failure
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: xvec
 
     failure = .FALSE.
     IF (.NOT.failure) THEN
@@ -1088,21 +1078,21 @@ CONTAINS
 !!
 !!*** **********************************************************************
   FUNCTION cg_deval1d(force_env,x,pcom,xicom,fval,error) RESULT(my_val)
-    IMPLICIT NONE
-    ! Arguments
     TYPE(force_env_type), POINTER            :: force_env
     REAL(KIND=dp)                            :: x
     REAL(KIND=dp), DIMENSION(:), POINTER     :: pcom, xicom
-    REAL(KIND=dp)                            :: my_val, fval
+    REAL(KIND=dp)                            :: fval
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
-    ! Local Variables
+    REAL(KIND=dp)                            :: my_val
+
     CHARACTER(len=*), PARAMETER :: routineN = 'cg_deval1d', &
       routineP = moduleN//':'//routineN
+
     INTEGER                                  :: stat
+    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: energy
     REAL(KIND=dp), DIMENSION(:), POINTER     :: grad, xvec
-    LOGICAL                                  :: failure
 
     failure = .FALSE.
     IF (.NOT.failure) THEN
@@ -1145,22 +1135,25 @@ CONTAINS
 !!
 !!*** **********************************************************************
   FUNCTION FindMin(x,y,dy,error) RESULT(res)
-    IMPLICIT NONE
-    ! Arguments
-    REAL(kind=dp), DIMENSION(:) :: x,y,dy
-    REAL(kind=dp) :: res
+    REAL(kind=dp), DIMENSION(:)              :: x, y, dy
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
-    ! Local Variables
-    CHARACTER(len=*), PARAMETER :: routineN = 'findMin', &
+    REAL(kind=dp)                            :: res
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'FindMin', &
       routineP = moduleN//':'//routineN
-    REAL(kind=dp), DIMENSION(2*SIZE(x)) :: w,b
-    REAL(kind=dp), DIMENSION(2*SIZE(x),3) ::f
-    REAL(kind=dp) :: sum_x,sum_xx,spread,diag(3),u(2*SIZE(x),3),vt(3,3), res1(3),res2(3),tmpw(1),res3(3)
+
+    INTEGER                                  :: i, info, iwork(8*3), lwork, &
+                                                min_pos, np, stat
+    LOGICAL                                  :: failure
+    REAL(kind=dp)                            :: diag(3), res1(3), res2(3), &
+                                                res3(3), spread, sum_x, &
+                                                sum_xx, tmpw(1), vt(3,3)
     REAL(kind=dp), ALLOCATABLE, DIMENSION(:) :: work
-    INTEGER :: i,np,min_pos,lwork, iwork(8*3), info, stat
-    LOGICAL :: failure
-    
+    REAL(kind=dp), DIMENSION(2*SIZE(x), 3)   :: f
+    REAL(kind=dp), DIMENSION(2*SIZE(x))      :: b, w
+    REAL(kind=dp)                            :: u(2*SIZE(x),3)
+
     failure=.FALSE.
     np=SIZE(x)
     CPPrecondition(np>1,cp_failure_level,routineP,error,failure)
@@ -1193,7 +1186,7 @@ CONTAINS
        lwork=-1
        CALL dgesdd('S',SIZE(f,1),SIZE(f,2),f,SIZE(f,1),diag,u,SIZE(u,1),vt,SIZE(vt,1),tmpw,lwork,&
             iwork,info)
-       lwork=ceiling(tmpw(1))
+       lwork=CEILING(tmpw(1))
        ALLOCATE(work(lwork),stat=stat)
        CALL dgesdd('S',SIZE(f,1),SIZE(f,2),f,SIZE(f,1),diag,u,SIZE(u,1),vt,SIZE(vt,1),work,lwork,&
             iwork,info)

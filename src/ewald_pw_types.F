@@ -19,60 +19,53 @@
 !******************************************************************************
 
 MODULE ewald_pw_types
-  USE message_passing, only: MPI_COMM_SELF
+  USE cell_types,                      ONLY: cell_release,&
+                                             cell_retain,&
+                                             cell_type
+  USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
+                                             cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
+  USE dg_types,                        ONLY: dg_create,&
+                                             dg_release,&
+                                             dg_retain,&
+                                             dg_type
   USE dgs,                             ONLY: dg_pme_grid_setup
-  USE dg_types,                        ONLY: dg_type, &
-                                             dg_create, &
-                                             dg_retain, &
-                                             dg_release
-  USE ewald_environment_types,         ONLY: ewald_environment_type, &
-                                             ewald_env_get
-  USE kinds,                           ONLY: dp, &
-                                             default_string_length
-  USE mathconstants,                   ONLY: zero, pi
-  USE pw_grid_types,                   ONLY: pw_grid_type, &
-                                             HALFSPACE
-  USE pw_grids,                        ONLY: pw_grid_release, &
-                                             pw_grid_setup, &
-                                             pw_grid_create, &
-                                             pw_find_cutoff
-  USE pw_pool_types,                   ONLY: pw_pool_release,&
-                                             pw_pool_type, &
-                                             pw_pool_create, &
-                                             pw_pool_retain,&
-                                             pw_pool_p_type
-  USE pw_types,                        ONLY: COMPLEXDATA1D,&
-                                             COMPLEXDATA3D,&
-                                             REALDATA3D,&
-                                             REALSPACE,&
-                                             RECIPROCALSPACE,&
-                                             pw_type
-  USE qs_util,                         ONLY: exp_radius
-  USE cell_types,                 ONLY: cell_type, &
-                                             cell_retain, &
-                                             cell_release
-  USE termination,                     ONLY: stop_memory,&
-                                             stop_program
-  USE timings,                         ONLY: timeset,&
-                                             timestop
-  USE input_constants,                 ONLY: do_ewald_none,&
-                                             do_ewald_ewald,&
+  USE ewald_environment_types,         ONLY: ewald_env_get,&
+                                             ewald_environment_type
+  USE input_constants,                 ONLY: do_ewald_ewald,&
+                                             do_ewald_none,&
                                              do_ewald_pme,&
                                              do_ewald_spme
-  USE input_section_types, ONLY: section_vals_type
-  USE pw_poisson_types, ONLY: pw_poisson_type, pw_poisson_release, &
-       pw_poisson_retain, pw_poisson_create
-  USE pw_poisson_methods, only: pw_poisson_set
-  USE cp_output_handling,              ONLY: cp_print_key_unit_nr, &
-                                             cp_print_key_finished_output
-
-
+  USE input_section_types,             ONLY: section_vals_type
+  USE kinds,                           ONLY: dp
+  USE mathconstants,                   ONLY: pi
+  USE message_passing,                 ONLY: MPI_COMM_SELF
+  USE pw_grid_types,                   ONLY: HALFSPACE,&
+                                             pw_grid_type
+  USE pw_grids,                        ONLY: pw_find_cutoff,&
+                                             pw_grid_create,&
+                                             pw_grid_release,&
+                                             pw_grid_setup
+  USE pw_poisson_methods,              ONLY: pw_poisson_set
+  USE pw_poisson_types,                ONLY: pw_poisson_create,&
+                                             pw_poisson_release,&
+                                             pw_poisson_retain,&
+                                             pw_poisson_type
+  USE pw_pool_types,                   ONLY: pw_pool_create,&
+                                             pw_pool_p_type,&
+                                             pw_pool_release,&
+                                             pw_pool_retain,&
+                                             pw_pool_type
+  USE qs_util,                         ONLY: exp_radius
+  USE termination,                     ONLY: stop_program
+  USE timings,                         ONLY: timeset,&
+                                             timestop
 #include "cp_common_uses.h"
+
   IMPLICIT NONE
 
   PRIVATE
-  CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='ewald_pw_types'
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'ewald_pw_types'
   INTEGER, PRIVATE, SAVE :: last_ewald_pw_id_nr=0
   PUBLIC :: ewald_pw_type, ewald_pw_release, &
             ewald_pw_retain, ewald_pw_create, &
@@ -85,7 +78,7 @@ MODULE ewald_pw_types
      TYPE ( pw_pool_type ), POINTER       :: pw_small_pool
      TYPE ( pw_pool_type ), POINTER       :: pw_big_pool
      TYPE ( cell_type ),    POINTER       :: cell, cell_ref
-     TYPE ( pw_poisson_type ), pointer    :: poisson_env
+     TYPE ( pw_poisson_type ), POINTER    :: poisson_env
      TYPE ( dg_type ), POINTER            :: dg
   END TYPE ewald_pw_type
 !-----------------------------------------------------------------------------!
@@ -107,12 +100,15 @@ CONTAINS
 !!
 !!*** **********************************************************************
 SUBROUTINE ewald_pw_retain(ewald_pw,error)
-  TYPE(ewald_pw_type), POINTER :: ewald_pw
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
- 
-  LOGICAL :: failure
-  CHARACTER(len=*), PARAMETER :: routineN='ewald_pw_retain',&
-        routineP=moduleN//':'//routineN
+    TYPE(ewald_pw_type), POINTER             :: ewald_pw
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'ewald_pw_retain', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+
   failure=.FALSE.
  
   CPPrecondition(ASSOCIATED(ewald_pw),cp_failure_level,routineP,error,failure)
@@ -134,18 +130,19 @@ END SUBROUTINE ewald_pw_retain
 !!
 !!*** **********************************************************************
 SUBROUTINE ewald_pw_create ( ewald_pw, cell, cell_ref, ewald_env, force_env_section, error )
-  TYPE(ewald_pw_type), POINTER :: ewald_pw
-  TYPE ( cell_type ), POINTER :: cell, cell_ref
-  TYPE(ewald_environment_type), POINTER :: ewald_env
-  TYPE(cp_error_type), OPTIONAL, INTENT ( inout ) :: error
-  TYPE(section_vals_type), POINTER :: force_env_section
+    TYPE(ewald_pw_type), POINTER             :: ewald_pw
+    TYPE(cell_type), POINTER                 :: cell, cell_ref
+    TYPE(ewald_environment_type), POINTER    :: ewald_env
+    TYPE(section_vals_type), POINTER         :: force_env_section
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-! Locals 
-  TYPE ( dg_type ), POINTER :: dg
-  LOGICAL :: failure
-  CHARACTER(len=*), PARAMETER :: routineN='ewald_pw_create',&
-        routineP=moduleN//':'//routineN
-  INTEGER :: stat
+    CHARACTER(len=*), PARAMETER :: routineN = 'ewald_pw_create', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: stat
+    LOGICAL                                  :: failure
+    TYPE(dg_type), POINTER                   :: dg
 
   NULLIFY ( dg )
   failure=.FALSE.
@@ -180,21 +177,19 @@ END SUBROUTINE ewald_pw_create
 !!*** **********************************************************************
   SUBROUTINE ewald_pw_release ( ewald_pw, error )               
 
-  IMPLICIT NONE
 
-!arguments
-    TYPE(ewald_pw_type), POINTER       :: ewald_pw
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout)            :: error
+    TYPE(ewald_pw_type), POINTER             :: ewald_pw
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-!Locals
-    CHARACTER(len=*), PARAMETER :: routineN='ewald_pw_release',&
-       routineP=moduleN//':'//routineN
+    CHARACTER(len=*), PARAMETER :: routineN = 'ewald_pw_release', &
+      routineP = moduleN//':'//routineN
 
-    LOGICAL :: failure
-    INTEGER :: stat,handle
+    INTEGER                                  :: handle, stat
+    LOGICAL                                  :: failure
 
 !   ---------------------------------------------------------------------------
- 
+
    CALL timeset(routineN,"I","",handle)
    failure=.FALSE.  
    IF (ASSOCIATED(ewald_pw)) THEN
@@ -237,33 +232,34 @@ END SUBROUTINE ewald_pw_create
 !******************************************************************************
 SUBROUTINE ewald_pw_init ( ewald_pw, cell, cell_ref, ewald_env, force_env_section, error )
   
-  IMPLICIT NONE
 
-! Arguments
-  TYPE ( ewald_environment_type ), POINTER :: ewald_env
-  TYPE ( ewald_pw_type ), POINTER :: ewald_pw
-  TYPE ( cell_type ), POINTER :: cell, cell_ref
-  TYPE ( cp_error_type ), OPTIONAL, INTENT ( inout ) :: error
-  TYPE(section_vals_type), POINTER :: force_env_section
-  
-! Locals
-  INTEGER :: ns_max, o_spline, n, isos
-  REAL (KIND=dp) :: alpha, epsilon
-  TYPE ( pw_grid_type ), POINTER :: pw_big_grid
-  TYPE ( pw_grid_type ), POINTER :: pw_small_grid
-  INTEGER ::  iat, jat, gmax, npts_s ( 3 ), iw, output_unit, handle,stat
-  REAL (KIND=dp) :: i, cutoff, ecut, alphasq, norm, cutoff_radius
-  TYPE ( cp_para_env_type ), POINTER :: para_env
-  LOGICAL :: failure
-  TYPE ( cp_logger_type ), POINTER :: logger
-  TYPE ( pw_pool_type ), POINTER :: pw_pool
-  TYPE(pw_pool_p_type), DIMENSION(:), POINTER :: pw_pools
-  INTEGER :: ewald_type
-  TYPE(section_vals_type), pointer :: poisson_section
-  CHARACTER(len=*), PARAMETER :: routineN='ewald_pw_init',&
-        routineP=moduleN//':'//routineN
+    TYPE(ewald_pw_type), POINTER             :: ewald_pw
+    TYPE(cell_type), POINTER                 :: cell, cell_ref
+    TYPE(ewald_environment_type), POINTER    :: ewald_env
+    TYPE(section_vals_type), POINTER         :: force_env_section
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'ewald_pw_init', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: ewald_type, gmax, handle, &
+                                                npts_s( 3 ), ns_max, &
+                                                o_spline, output_unit, stat
+    LOGICAL                                  :: failure
+    REAL(KIND=dp)                            :: alpha, alphasq, cutoff, &
+                                                cutoff_radius, ecut, epsilon, &
+                                                i, norm
+    TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(pw_grid_type), POINTER              :: pw_big_grid, pw_small_grid
+    TYPE(pw_pool_p_type), DIMENSION(:), &
+      POINTER                                :: pw_pools
+    TYPE(pw_pool_type), POINTER              :: pw_pool
+    TYPE(section_vals_type), POINTER         :: poisson_section
 
 !------------------------------------------------------------------------------
+
   CALL timeset("ewald_pw_init","I","",handle)
   failure=.FALSE.
 
@@ -416,16 +412,14 @@ END SUBROUTINE ewald_pw_init
 !
 ! ***************************************************************************
 
-    TYPE ( ewald_pw_type ), POINTER          :: ewald_pw
-    TYPE ( pw_pool_type ), POINTER, OPTIONAL :: pw_big_pool
-    TYPE ( pw_pool_type ), POINTER, OPTIONAL :: pw_small_pool
-    TYPE ( dg_type ), POINTER, OPTIONAL      :: dg
-    TYPE(pw_poisson_type), POINTER, OPTIONAL :: poisson_env
-    TYPE ( cell_type ), POINTER, OPTIONAL    :: cell
-    TYPE ( cell_type ), POINTER, OPTIONAL    :: cell_ref
+    TYPE(ewald_pw_type), POINTER             :: ewald_pw
+    TYPE(cell_type), OPTIONAL, POINTER       :: cell, cell_ref
+    TYPE(pw_pool_type), OPTIONAL, POINTER    :: pw_big_pool, pw_small_pool
+    TYPE(pw_poisson_type), OPTIONAL, POINTER :: poisson_env
+    TYPE(dg_type), OPTIONAL, POINTER         :: dg
 
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "ewald_pw_get", &
-      routineP = moduleN//':'//routine_name
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'ewald_pw_get', &
+      routineP = moduleN//':'//routineN
 
     IF ( PRESENT ( poisson_env ) ) poisson_env => ewald_pw % poisson_env
     IF ( PRESENT ( pw_big_pool ) )  pw_big_pool => ewald_pw % pw_big_pool
@@ -444,17 +438,16 @@ END SUBROUTINE ewald_pw_init
 
 !   ***************************************************************************
 
-    TYPE ( ewald_pw_type ), POINTER          :: ewald_pw
-    TYPE ( pw_pool_type ), POINTER, OPTIONAL :: pw_big_pool
-    TYPE ( pw_pool_type ), POINTER, OPTIONAL :: pw_small_pool
-    TYPE ( dg_type ), POINTER, OPTIONAL      :: dg
-    TYPE ( cell_type ), POINTER, OPTIONAL    :: cell
-    TYPE ( cell_type ), POINTER, OPTIONAL    :: cell_ref
-    TYPE(pw_poisson_type), POINTER, OPTIONAL :: poisson_env
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(ewald_pw_type), POINTER             :: ewald_pw
+    TYPE(cell_type), OPTIONAL, POINTER       :: cell, cell_ref
+    TYPE(pw_pool_type), OPTIONAL, POINTER    :: pw_big_pool, pw_small_pool
+    TYPE(dg_type), OPTIONAL, POINTER         :: dg
+    TYPE(pw_poisson_type), OPTIONAL, POINTER :: poisson_env
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "ewald_pw_set", &
-      routineP = moduleN//':'//routine_name
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'ewald_pw_set', &
+      routineP = moduleN//':'//routineN
 
     IF ( PRESENT ( pw_big_pool ) )  THEN 
         CALL pw_pool_retain ( pw_big_pool )

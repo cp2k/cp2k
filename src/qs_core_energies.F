@@ -23,12 +23,18 @@ MODULE qs_core_energies
 
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind
+  USE cell_types,                      ONLY: cell_type,&
+                                             get_cell,&
+                                             pbc,&
+                                             real_to_scaled,&
+                                             scaled_to_real
+  USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
+                                             cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE distribution_2d_types,           ONLY: distribution_2d_type
   USE distribution_1d_types,           ONLY: distribution_1d_type
+  USE distribution_2d_types,           ONLY: distribution_2d_type
   USE erf_fn,                          ONLY: erfc
-  USE global_types,                    ONLY: LOW,&
-                                             global_environment_type
+  USE global_types,                    ONLY: global_environment_type
   USE kinds,                           ONLY: dp,&
                                              dp_size,&
                                              int_size
@@ -44,11 +50,6 @@ MODULE qs_core_energies
                                              deallocate_subcell,&
                                              local_atoms_type,&
                                              subcell_type
-  USE cell_types,                 ONLY: cell_type,&
-                                             get_cell,&
-                                             pbc,&
-                                             real_to_scaled,&
-                                             scaled_to_real
   USE sparse_matrix_types,             ONLY: first_block_node,&
                                              get_block_node,&
                                              get_matrix_info,&
@@ -59,19 +60,15 @@ MODULE qs_core_energies
                                              stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE cp_output_handling,              ONLY: cp_print_key_unit_nr, &
-                                             cp_print_key_finished_output,&
-                                             cp_print_key_should_output,&
-                                             cp_p_file
-
 #include "cp_common_uses.h"
+
   IMPLICIT NONE
 
   PRIVATE
 
 ! *** Global parameters ***
 
-  CHARACTER(LEN=*), PARAMETER :: module_name = "qs_core_energies"
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_core_energies'
 
   PUBLIC :: calculate_ecore,&
             calculate_ecore_overlap,&
@@ -102,8 +99,8 @@ CONTAINS
     REAL(KIND=dp), INTENT(OUT)               :: ecore
     TYPE(cp_para_env_type), POINTER          :: para_env
 
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "calculate_ecore", &
-      routine = "SUBROUTINE "//routine_name//" (MODULE "//module_name//")"
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_ecore', &
+      routine = "SUBROUTINE "//routineN//" (MODULE "//moduleN//")"
 
     INTEGER                                  :: handle, i, iblock_col, &
                                                 iblock_row, j, jblock_col, &
@@ -114,7 +111,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL timeset(routine_name,"I",'',handle)
+    CALL timeset(routineN,"I",'',handle)
 
     ecore = 0.0_dp
 
@@ -183,29 +180,30 @@ CONTAINS
 !   ***************************************************************************
 
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(global_environment_type), &
-      pointer                             :: globenv
+    TYPE(global_environment_type), POINTER   :: globenv
     LOGICAL, INTENT(IN)                      :: calculate_forces
     LOGICAL, INTENT(IN), OPTIONAL            :: molecular
     REAL(KIND=dp), INTENT(OUT), OPTIONAL     :: E_overlap_core
     TYPE(cp_error_type), INTENT(inout), &
-         OPTIONAL                               :: error
+      OPTIONAL                               :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "calculate_ecore_overlap", &
-      routine = "SUBROUTINE "//routine_name//" (MODULE "//module_name//")"
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_ecore_overlap', &
+      routine = "SUBROUTINE "//routineN//" (MODULE "//moduleN//")"
 
     CHARACTER(LEN=8)                         :: unit_of_length_name
     INTEGER :: atom_a, atom_b, group, handle, i, iatom, iatom_local, &
       iatom_subcell, icell, ikind, istat, j, jatom, jatom_local, jcell, &
       jkind, k, kcell, maxatom_local, natom, natom_local_a, natom_local_b, &
       nkind, output_unit
-    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: zeff
     INTEGER, DIMENSION(3)                    :: cell_b, ncell, nsubcell, &
                                                 periodic
-    LOGICAL                                  :: cell000, include_ab, ionode, only_molecule
+    INTEGER, DIMENSION(:), POINTER           :: local_cols_array, &
+                                                local_rows_array
+    LOGICAL                                  :: cell000, include_ab, &
+                                                only_molecule
     REAL(KIND=dp) :: aab, dab, eab, ecore_overlap, f, fab, r_skin, rab2, &
       rab2_max, rab_max, rootaab, subcells, unit_of_length, zab
-    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: alpha, radius
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: alpha, radius, zeff
     REAL(KIND=dp), DIMENSION(3)              :: deab, r, r_pbc, rab, rb, s, &
                                                 sab_max, sb, sb_max, sb_min, &
                                                 sb_pbc
@@ -213,8 +211,9 @@ CONTAINS
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cell_type), POINTER                 :: cell
-    TYPE(distribution_2d_type), POINTER      :: distribution_2d
+    TYPE(cp_logger_type), POINTER            :: logger
     TYPE(distribution_1d_type), POINTER      :: distribution_1d
+    TYPE(distribution_2d_type), POINTER      :: distribution_2d
     TYPE(local_atoms_type), ALLOCATABLE, &
       DIMENSION(:)                           :: atom
     TYPE(particle_type), DIMENSION(:), &
@@ -224,13 +223,10 @@ CONTAINS
       POINTER                                :: force
     TYPE(subcell_type), DIMENSION(:, :, :), &
       POINTER                                :: subcell
-    INTEGER, DIMENSION(:), POINTER           :: local_rows_array, &
-                                                local_cols_array
-    TYPE(cp_logger_type), POINTER            :: logger
 
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
-    CALL timeset(routine_name,"I",'',handle)
+    CALL timeset(routineN,"I",'',handle)
 
     NULLIFY (atomic_kind)
     NULLIFY (atomic_kind_set)
@@ -728,11 +724,12 @@ CONTAINS
     TYPE(qs_environment_type), POINTER       :: qs_env
     REAL(KIND=dp), INTENT(OUT), OPTIONAL     :: E_self_core
 
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "calculate_ecore_self", &
-      routine = "SUBROUTINE "//routine_name//" (MODULE "//module_name//")"
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_ecore_self', &
+      routine = "SUBROUTINE "//routineN//" (MODULE "//moduleN//")"
 
     INTEGER                                  :: handle, ikind, natom
-    REAL(KIND=dp)                            :: alpha_core_charge, ecore_self, zeff
+    REAL(KIND=dp)                            :: alpha_core_charge, &
+                                                ecore_self, zeff
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
@@ -740,7 +737,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL timeset(routine_name,"I","",handle)
+    CALL timeset(routineN,"I","",handle)
 
     CALL get_qs_env(qs_env=qs_env,&
                     atomic_kind_set=atomic_kind_set,&

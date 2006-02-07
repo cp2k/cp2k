@@ -53,20 +53,20 @@ CONTAINS
 !!   SOURCE
 !******************************************************************************
 
-SUBROUTINE fft_get_lengths ( data, max_length )
+SUBROUTINE fft_get_lengths ( DATA, max_length )
 
 
-    INTEGER, DIMENSION(:), POINTER           :: data
+    INTEGER, DIMENSION(:), POINTER           :: DATA
     INTEGER, INTENT(IN)                      :: max_length
 
     INTEGER, PARAMETER                       :: rlen = 81
-    INTEGER, DIMENSION(rlen), PARAMETER :: radix = (/ &
-         &   2,   4,   6,   8,   9,  12,  15,  16,  18,  20,  24,  25,&
-         &  27,  30,  32,  36,  40,  45,  48,  54,  60,  64,  72,  75,  80,  81,  90,&
-         &  96, 100, 108, 120, 125, 128, 135, 144, 150, 160, 162, 180, 192, 200, 216,&
-         & 225, 240, 243, 256, 270, 288, 300, 320, 324, 360, 375, 384, 400, 405, 432,&
-         & 450, 480, 486, 500, 512, 540, 576, 600, 625, 640, 648, 675, 720, 729, 750,&
-         & 768, 800, 810, 864, 900, 960, 972, 1000, 1024 /)
+    INTEGER, DIMENSION(rlen), PARAMETER :: radix = (/    2,   4,   6,   8,   9&
+      ,  12,  15,  16,  18,  20,  24,  25,  27,  30,  32,  36,  40,  45,  48, &
+      54,  60,  64,  72,  75,  80,  81,  90,  96, 100, 108, 120, 125, 128, 135&
+      , 144, 150, 160, 162, 180, 192, 200, 216, 225, 240, 243, 256, 270, 288, &
+      300, 320, 324, 360, 375, 384, 400, 405, 432, 450, 480, 486, 500, 512, &
+      540, 576, 600, 625, 640, 648, 675, 720, 729, 750, 768, 800, 810, 864, &
+      900, 960, 972, 1000, 1024 /)
 
     INTEGER                                  :: allocstat, i, ndata
 
@@ -74,16 +74,16 @@ SUBROUTINE fft_get_lengths ( data, max_length )
 
   ndata = 0
   DO i = 1, rlen
-    IF ( radix ( i ) > max_length ) EXIT
+    IF ( RADIX ( i ) > max_length ) EXIT
     ndata = ndata + 1
   END DO
 
-  ALLOCATE ( data ( ndata ), STAT = allocstat )
+  ALLOCATE ( DATA ( ndata ), STAT = allocstat )
   IF ( allocstat /= 0 ) THEN
      CALL stop_memory ( "fft_get_lengths", "data", ndata )
   END IF
 
-  data ( 1:ndata ) = radix ( 1:ndata )
+  DATA ( 1:ndata ) = RADIX ( 1:ndata )
 
 END SUBROUTINE fft_get_lengths
 
@@ -111,14 +111,15 @@ SUBROUTINE fft3d ( fsign, scale, n, zg, zg_out )
 
 
     INTEGER, INTENT(INOUT)                   :: fsign
-    REAL(KIND=dp), INTENT(IN), OPTIONAL          :: scale
+    REAL(KIND=dp), INTENT(IN), OPTIONAL      :: scale
     INTEGER, DIMENSION(:), INTENT(IN)        :: n
     COMPLEX(KIND=dp), DIMENSION(:, :, :), &
       INTENT(INOUT)                          :: zg
     COMPLEX(KIND=dp), DIMENSION(:, :, :), &
       INTENT(INOUT), OPTIONAL                :: zg_out
 
-    COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:)  :: xf, yf
+    COMPLEX(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:)                           :: xf, yf
     INTEGER                                  :: ierr, ldox, ldoy, ldoz, ldx, &
                                                 ldy, ldz, nx, ny, nz, sign_fft
     LOGICAL                                  :: fft_in_place
@@ -126,9 +127,9 @@ SUBROUTINE fft3d ( fsign, scale, n, zg, zg_out )
 !------------------------------------------------------------------------------
 
   IF ( PRESENT ( zg_out ) ) THEN
-     fft_in_place = .false.
+     fft_in_place = .FALSE.
   ELSE
-     fft_in_place = .true.
+     fft_in_place = .TRUE.
   END IF
 
   sign_fft = fsign
@@ -146,9 +147,9 @@ SUBROUTINE fft3d ( fsign, scale, n, zg, zg_out )
   IF ( fft_in_place ) THEN
 
     ALLOCATE ( xf ( ldx*ldy*ldz ), STAT = ierr )
-    IF ( ierr /= 0 ) call stop_memory ( "fft3d", "xf", ldx*ldy*ldz )
+    IF ( ierr /= 0 ) CALL stop_memory ( "fft3d", "xf", ldx*ldy*ldz )
     ALLOCATE ( yf ( ldx*ldy*ldz ), STAT = ierr )
-    IF ( ierr /= 0 ) call stop_memory ( "fft3d", "yf", ldx*ldy*ldz )
+    IF ( ierr /= 0 ) CALL stop_memory ( "fft3d", "yf", ldx*ldy*ldz )
 
     CALL mltfftsg ( 'N', 'T', zg, ldx, ldy*ldz, xf, ldy*ldz, ldx, nx, &
                     ldy*ldz, sign_fft, 1.0_dp )
@@ -163,9 +164,9 @@ SUBROUTINE fft3d ( fsign, scale, n, zg, zg_out )
     END IF
 
     DEALLOCATE ( xf, STAT = ierr )
-    IF ( ierr /= 0 ) call stop_memory ( "fft3d", "xf" )
+    IF ( ierr /= 0 ) CALL stop_memory ( "fft3d", "xf" )
     DEALLOCATE ( yf, STAT = ierr )
-    IF ( ierr /= 0 ) call stop_memory ( "fft3d", "yf" )
+    IF ( ierr /= 0 ) CALL stop_memory ( "fft3d", "yf" )
 
   ELSE
 
@@ -174,7 +175,7 @@ SUBROUTINE fft3d ( fsign, scale, n, zg, zg_out )
     ldoz = SIZE ( zg_out, 3 )
 
     ALLOCATE ( xf ( ldx*ldy*ldz ), STAT = ierr )
-    IF ( ierr /= 0 ) call stop_memory ( "fft3d", "xf", ldx*ldy*ldz )
+    IF ( ierr /= 0 ) CALL stop_memory ( "fft3d", "xf", ldx*ldy*ldz )
 
     CALL mltfftsg ( 'N', 'T', zg, ldx, ldy*ldz, zg_out, ldy*ldz, ldx, nx, &
                     ldy*ldz, sign_fft, 1.0_dp )
@@ -189,7 +190,7 @@ SUBROUTINE fft3d ( fsign, scale, n, zg, zg_out )
     END IF
 
     DEALLOCATE ( xf, STAT = ierr )
-    IF ( ierr /= 0 ) call stop_memory ( "fft3d", "xf" )
+    IF ( ierr /= 0 ) CALL stop_memory ( "fft3d", "xf" )
 
   END IF
 
@@ -250,7 +251,7 @@ SUBROUTINE mfft2d ( rin, rout, fsign, scale, n1, n2, nm, zin, zout )
 
   ll = MAX ( li1*li2*li3, lo1*lo2*lo3 )
   ALLOCATE ( xf ( ll ), STAT = ierr )
-  IF ( ierr /= 0 ) call stop_memory ( "mfft2d", "xf", ll )
+  IF ( ierr /= 0 ) CALL stop_memory ( "mfft2d", "xf", ll )
 
   IF ( rin(1:1) == "T" .OR.  rin(1:1) == "t" ) THEN
     IF ( rout(1:1) == "T" .OR.  rout(1:1) == "t" ) THEN
@@ -277,7 +278,7 @@ SUBROUTINE mfft2d ( rin, rout, fsign, scale, n1, n2, nm, zin, zout )
   END IF
 
   DEALLOCATE ( xf, STAT = ierr )
-  IF ( ierr /= 0 ) call stop_memory ( "mfft2d", "xf" )
+  IF ( ierr /= 0 ) CALL stop_memory ( "mfft2d", "xf" )
 
 #else
 

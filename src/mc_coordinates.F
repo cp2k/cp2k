@@ -16,41 +16,38 @@
 !!
 !******************************************************************************
 MODULE mc_coordinates
-  USE atomic_kind_types,               ONLY: atomic_kind_type,&
-                                             get_atomic_kind
+  USE atomic_kind_types,               ONLY: get_atomic_kind
+  USE cell_types,                      ONLY: cell_type,&
+                                             get_cell
   USE cp_subsystem_types,              ONLY: cp_subsys_get,&
                                              cp_subsystem_p_type,&
                                              cp_subsystem_pp_type
   USE force_env_methods,               ONLY: force_env_calc_energy_force
   USE force_env_types,                 ONLY: force_env_get,&
-                                             force_env_type,&
-                                             force_env_p_type
+                                             force_env_p_type,&
+                                             force_env_type
   USE kinds,                           ONLY: dp,&
                                              dp_size
   USE mathconstants,                   ONLY: pi
-  USE mc_types,                        ONLY: mc_averages_type,&
-                                             mc_moves_type
+  USE mc_types,                        ONLY: mc_averages_type
   USE message_passing,                 ONLY: mp_bcast
-  USE mol_kind_new_list_types,         ONLY: mol_kind_new_list_type,&
-                                             mol_kind_new_list_p_type
+  USE mol_kind_new_list_types,         ONLY: mol_kind_new_list_p_type,&
+                                             mol_kind_new_list_type
   USE mol_new_list_types,              ONLY: mol_new_list_type
   USE molecule_kind_types,             ONLY: get_molecule_kind,&
-                                             molecule_kind_type,&
-                                             atom_type
+                                             molecule_kind_type
   USE molecule_types_new,              ONLY: get_molecule,&
                                              molecule_type
-  USE parallel_rng_types,              ONLY: rng_stream_type,&
-                                             next_random_number
+  USE parallel_rng_types,              ONLY: next_random_number,&
+                                             rng_stream_type
   USE particle_list_types,             ONLY: particle_list_type
-  USE physcon,                         ONLY: angstrom,&
-                                             n_avogadro
-  USE cell_types,                 ONLY: cell_type,&
-                                             get_cell
+  USE physcon,                         ONLY: angstrom
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "cp_common_uses.h"
+
   IMPLICIT NONE
 
   PRIVATE :: nonbonded_energy, nonbonded_energy_spce,&
@@ -63,7 +60,7 @@ MODULE mc_coordinates
             create_discrete_array,&
             check_for_overlap
 
-  CHARACTER(LEN=*), PARAMETER :: module_name = "mc_coordinates"
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'mc_coordinates'
 
 !******************************************************************************
 
@@ -105,7 +102,7 @@ SUBROUTINE get_water_data ( force_env,averages,nnstep,nchain,DATA  )
     TYPE(mc_averages_type), POINTER          :: averages
     INTEGER, INTENT(IN)                      :: nnstep, nchain, DATA
 
-    CHARACTER(LEN=*), PARAMETER        :: routineN = "get_water_data"
+    CHARACTER(LEN=*), PARAMETER              :: routineN = 'get_water_data'
 
     INTEGER                                  :: handle, iimol, imol
     REAL(KIND=dp)                            :: angle_loc, bond1_loc, &
@@ -218,29 +215,27 @@ SUBROUTINE mc_classical_energy ( force_env, classical_energy_new,&
 
     TYPE(force_env_type), POINTER            :: force_env
     REAL(KIND=dp), INTENT(OUT)               :: classical_energy_new
-    INTEGER, INTENT(IN)                      :: nstart, nend
-    INTEGER, INTENT(IN)                      :: nchain
+    INTEGER, INTENT(IN)                      :: nchain, nstart, nend
     REAL(KIND=dp), INTENT(IN)                :: rcut
-    REAL(KIND=dp), INTENT(IN), OPTIONAL      :: cell_length
     LOGICAL, INTENT(OUT)                     :: loverlap
+    REAL(KIND=dp), INTENT(IN), OPTIONAL      :: cell_length
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = "mc_classical_energy"
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'mc_classical_energy'
 
     INTEGER                                  :: handle, imol, ipart, jmol, &
                                                 jpart, jstart
     LOGICAL                                  :: lall, lcalc_charge
-    REAL(KIND=dp) :: bend_energy, box_length, charge_energy, dist, kstretch, &
-      LJ_energy, rijx, rijy, rijz, &
-      stretch_energy, charge_energy_mol,LJ_energy_mol,&
-      oo_min_cutoff,oh_min_cutoff,hh_min_cutoff
-    REAL(KIND=dp), DIMENSION(1:3)            :: charges, kbend, RIJ,&
-                                                abc
+    REAL(KIND=dp) :: bend_energy, box_length, charge_energy, &
+      charge_energy_mol, dist, hh_min_cutoff, kstretch, LJ_energy, &
+      LJ_energy_mol, oh_min_cutoff, oo_min_cutoff, rijx, rijy, rijz, &
+      stretch_energy
+    REAL(KIND=dp), DIMENSION(1:3)            :: abc, charges, kbend, RIJ
+    REAL(KIND=dp), &
+      DIMENSION(1:3, 1:3, 1:nchain)          :: r
+    TYPE(cell_type), POINTER                 :: cell
+    TYPE(cp_error_type)                      :: error
     TYPE(cp_subsystem_p_type), &
       DIMENSION(:), POINTER                  :: oldsys
-    TYPE(cp_error_type)                      :: error
-    TYPE(cell_type), POINTER                 :: cell
-    REAL(KIND=dp), &
-      DIMENSION(1:3, 1:3, 1:nchain)   :: r
     TYPE(particle_list_type), POINTER        :: particles
 
 !------------------------------------------------------------------------------
@@ -457,34 +452,31 @@ SUBROUTINE check_for_overlap ( force_env, nchain, nstart, nend,loverlap,&
                                  cell_length)
 
     TYPE(force_env_type), POINTER            :: force_env
-    INTEGER, INTENT(IN)                      :: nstart, nend
-    INTEGER, INTENT(IN)                      :: nchain
-    REAL(KIND=dp), DIMENSION(1:3),INTENT(IN), OPTIONAL  :: cell_length
+    INTEGER, INTENT(IN)                      :: nchain, nstart, nend
     LOGICAL, INTENT(OUT)                     :: loverlap
+    REAL(KIND=dp), DIMENSION(1:3), &
+      INTENT(IN), OPTIONAL                   :: cell_length
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = "check_for_overlap"
+    CHARACTER(LEN=*), PARAMETER              :: routineN = 'check_for_overlap'
 
-    INTEGER                                  :: handle, imol, jmol, &
-                                                junit,iunit, jstart,istat,&
-                                                nunits
+    INTEGER                                  :: handle, imol, istat, iunit, &
+                                                jmol, jstart, junit, nunits
     LOGICAL                                  :: lall
-    REAL(KIND=dp) :: dist, rmin
-    REAL(KIND=dp), DIMENSION(1:3)            :: RIJ,&
-                                                abc,box_length
+    REAL(KIND=dp)                            :: dist, rmin
+    REAL(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:, :, :)                     :: r
+    REAL(KIND=dp), DIMENSION(1:3)            :: abc, box_length, RIJ
+    TYPE(cell_type), POINTER                 :: cell
+    TYPE(cp_error_type)                      :: error
     TYPE(cp_subsystem_p_type), &
       DIMENSION(:), POINTER                  :: oldsys
-    TYPE(cp_error_type)                      :: error
-    TYPE(cell_type), POINTER                 :: cell
-    REAL(KIND=dp), &
-      DIMENSION(:, :, :),ALLOCATABLE   :: r
-    TYPE(particle_list_type), POINTER        :: particles
-    TYPE(mol_kind_new_list_type), POINTER  &
-                                             :: molecule_kinds_new
+    TYPE(mol_kind_new_list_type), POINTER    :: molecule_kinds_new
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
+    TYPE(particle_list_type), POINTER        :: particles
 
 !------------------------------------------------------------------------------
 ! begin the timing of the subroutine
-      
+
       CALL timeset(routineN,'I','',handle)
 
       NULLIFY(oldsys,particles,molecule_kinds_new,molecule_kind)
@@ -502,7 +494,7 @@ SUBROUTINE check_for_overlap ( force_env, nchain, nstart, nend,loverlap,&
       molecule_kind => molecule_kinds_new%els(1)
       CALL get_molecule_kind(molecule_kind,natom=nunits)
       ALLOCATE(r(1:3,1:nunits,1:nchain),STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                        "mass",3*nunits*nchain*dp_size)
 
       IF( PRESENT(cell_length)) THEN
@@ -547,7 +539,7 @@ SUBROUTINE check_for_overlap ( force_env, nchain, nstart, nend,loverlap,&
                   IF (dist < rmin ) THEN
                      loverlap=.TRUE.
                      DEALLOCATE(r,STAT=istat)
-                     IF (istat /= 0) CALL stop_memory(routineN,module_name,&
+                     IF (istat /= 0) CALL stop_memory(routineN,moduleN,&
                      __LINE__,"r")
                      
                      CALL timestop(0.0E0_dp,handle)
@@ -560,7 +552,7 @@ SUBROUTINE check_for_overlap ( force_env, nchain, nstart, nend,loverlap,&
       ENDDO
 
       DEALLOCATE(r,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,module_name,&
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,&
          __LINE__,"r")
 
 ! end the timing
@@ -729,7 +721,7 @@ SUBROUTINE nonbonded_energy_spce(dist,ljfake,ntij)
     INTEGER, INTENT(IN)                      :: ntij
 
     INTEGER                                  :: index
-    REAL(KIND=dp)                            :: epsilon,sigma
+    REAL(KIND=dp)                            :: epsilon, sigma
 
       index=0
       IF (ntij == 1 ) index=1
@@ -789,7 +781,7 @@ SUBROUTINE get_center_of_mass ( coordinates,natom,center_of_mass,&
       INTENT(OUT)                            :: center_of_mass
     REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: mass
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = "get_center_of_mass"
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'get_center_of_mass'
 
     INTEGER                                  :: handle, i, iatom
     REAL(KIND=dp)                            :: total_mass
@@ -843,14 +835,15 @@ SUBROUTINE mc_coordinate_fold(coordinates,natoms_tot,mass,nunits,box_length)
 
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(INOUT)                          :: coordinates
-    INTEGER, INTENT(IN)                      :: natoms_tot,nunits
-    REAL(KIND=dp), DIMENSION(1:3),INTENT(IN) :: box_length
-    REAL(KIND=dp), DIMENSION(:),INTENT(IN)   :: mass
+    INTEGER, INTENT(IN)                      :: natoms_tot
+    REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: mass
+    INTEGER, INTENT(IN)                      :: nunits
+    REAL(KIND=dp), DIMENSION(1:3), &
+      INTENT(IN)                             :: box_length
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = "mc_coordinate_fold"
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'mc_coordinate_fold'
 
-    INTEGER                                  :: handle, iatom,jatom,&
-      iunit
+    INTEGER                                  :: handle, iatom, iunit, jatom
     REAL(KIND=dp), DIMENSION(1:3)            :: center_of_mass
 
 !------------------------------------------------------------------------------
@@ -931,47 +924,44 @@ SUBROUTINE generate_cbmc_swap_config( force_env, BETA, nswapmoves,&
       avbmc_atom,rmin,rmax,move_type,mol_target)
 
     TYPE(force_env_type), POINTER            :: force_env
-    REAL(KIND=dp),INTENT(IN)                 :: BETA
-    REAL(KIND=dp),INTENT(IN)                 :: old_energy
-    REAL(KIND=dp),INTENT(OUT)                :: rosenbluth_weight
-    INTEGER, INTENT(IN)                      :: nswapmoves,source,group,&
-      mol_move
-    INTEGER, INTENT(IN),OPTIONAL             :: rem_molecule,avbmc_atom,&
-      mol_target
+    REAL(KIND=dp), INTENT(IN)                :: BETA
+    INTEGER, INTENT(IN)                      :: nswapmoves
+    REAL(KIND=dp), INTENT(OUT)               :: rosenbluth_weight
+    INTEGER, INTENT(IN)                      :: mol_move
     LOGICAL, INTENT(OUT)                     :: loverlap
+    REAL(KIND=dp), INTENT(OUT)               :: choosen_energy
+    REAL(KIND=dp), INTENT(IN)                :: old_energy
     LOGICAL, INTENT(IN)                      :: ionode
-    REAL(KIND=dp),INTENT(OUT)                :: choosen_energy
+    INTEGER, INTENT(IN)                      :: source, group
     TYPE(rng_stream_type), POINTER           :: rng_stream
     TYPE(cp_error_type)                      :: error
-    REAL(KIND=dp),INTENT(IN),OPTIONAL        :: rmin,rmax
-    CHARACTER(LEN=*),INTENT(IN),OPTIONAL     :: move_type
+    INTEGER, INTENT(IN), OPTIONAL            :: rem_molecule, avbmc_atom
+    REAL(KIND=dp), INTENT(IN), OPTIONAL      :: rmin, rmax
+    CHARACTER(LEN=*), INTENT(IN), OPTIONAL   :: move_type
+    INTEGER, INTENT(IN), OPTIONAL            :: mol_target
 
-    CHARACTER(LEN=*), PARAMETER &
-      :: routineN = "generate_cbmc_swap_config"
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'generate_cbmc_swap_config'
 
-    INTEGER                                  :: natoms_tot,handle,istat,&
-       iatom,imove,nmols,i,choosen,start_atom,end_atom,imolecule,natom
-    LOGICAL,DIMENSION(:),ALLOCATABLE         :: loverlap_array
-    LOGICAL                                  :: all_overlaps 
-    REAL(KIND=dp)                            :: rand,&
-                                                bias_energy,&
-                                                total_running_weight,&
-                                                exponent
-    REAL(KIND=dp), DIMENSION(:,:,:),&
-      ALLOCATABLE                            :: r
-    REAL(KIND=dp), DIMENSION(:,:),&
-      ALLOCATABLE                            :: r_old
-    REAL(KIND=dp), DIMENSION(:),&
-      ALLOCATABLE                            :: boltz_weights,mass,&
-      trial_energy
-    REAL(KIND=dp), DIMENSION(1:3)            :: r_insert,center_of_mass,&
-                                                diff,abc
+    INTEGER :: choosen, end_atom, handle, i, iatom, imolecule, imove, istat, &
+      natom, natoms_tot, nmols, start_atom
+    LOGICAL                                  :: all_overlaps
+    LOGICAL, ALLOCATABLE, DIMENSION(:)       :: loverlap_array
+    REAL(KIND=dp)                            :: bias_energy, exponent, rand, &
+                                                total_running_weight
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: boltz_weights, mass, &
+                                                trial_energy
+    REAL(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:, :)                        :: r_old
+    REAL(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:, :, :)                     :: r
+    REAL(KIND=dp), DIMENSION(1:3)            :: abc, center_of_mass, diff, &
+                                                r_insert
+    TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_subsystem_p_type), &
       DIMENSION(:), POINTER                  :: oldsys
-    TYPE(cell_type), POINTER                 :: cell
-    TYPE(particle_list_type), POINTER        :: particles
     TYPE(mol_kind_new_list_type), POINTER    :: molecule_kinds_new
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
+    TYPE(particle_list_type), POINTER        :: particles
 
 !------------------------------------------------------------------------------
 ! begin the timing of the subroutine
@@ -988,7 +978,7 @@ SUBROUTINE generate_cbmc_swap_config( force_env, BETA, nswapmoves,&
       CALL get_molecule_kind(molecule_kind,natom=natom,nmolecule=nmols)  
       natoms_tot=natom*nmols
       ALLOCATE(mass(1:natoms_tot),STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                        "mass",natoms_tot*dp_size)
       DO iatom=1,natoms_tot
          CALL get_atomic_kind(particles%els(iatom)%atomic_kind,&
@@ -999,7 +989,7 @@ SUBROUTINE generate_cbmc_swap_config( force_env, BETA, nswapmoves,&
       IF(PRESENT(avbmc_atom)) THEN
          IF( .NOT. PRESENT(rmin) .OR. .NOT. PRESENT(rmax) .OR. &
             .NOT. PRESENT(move_type) .OR. .NOT. PRESENT(mol_target)) THEN
-           CALL stop_program(routineN,module_name,__LINE__,&
+           CALL stop_program(routineN,moduleN,__LINE__,&
                'AVBMC swap move is missing information!')
          ENDIF
       ENDIF
@@ -1015,19 +1005,19 @@ SUBROUTINE generate_cbmc_swap_config( force_env, BETA, nswapmoves,&
       ENDIF
 
       ALLOCATE(r_old(1:3,1:natoms_tot),STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
          "r_old",3*natoms_tot*dp_size)
       ALLOCATE(r(1:3,1:natoms_tot,1:nswapmoves),STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
          "r",3*natoms_tot*nswapmoves*dp_size)
       ALLOCATE(trial_energy(1:nswapmoves),STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
          "trial_energy",nswapmoves*dp_size)
       ALLOCATE(boltz_weights(1:nswapmoves),STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
          "boltz_weights",nswapmoves*dp_size)
       ALLOCATE(loverlap_array(1:nswapmoves),STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
          "loverlap_array",nswapmoves)
 
 ! initialize the arrays that need it
@@ -1063,7 +1053,7 @@ SUBROUTINE generate_cbmc_swap_config( force_env, BETA, nswapmoves,&
                   WRITE(6,*) r(1:3,iatom,1)
                ENDDO
             ENDIF
-            CALL stop_program(routineN,module_name,__LINE__,&
+            CALL stop_program(routineN,moduleN,__LINE__,&
                'CBMC swap move found an overlap in the old config')
          ENDIF
       ENDIF
@@ -1191,34 +1181,34 @@ SUBROUTINE generate_cbmc_swap_config( force_env, BETA, nswapmoves,&
                   WRITE(6,*) r(1:3,iatom,1)
                ENDDO
             ENDIF
-            CALL stop_program(routineN,module_name,__LINE__,&
+            CALL stop_program(routineN,moduleN,__LINE__,&
             'CBMC swap move found all overlaps for the remove config')
          ENDIF
 
          DEALLOCATE(mass,STAT=istat)
-         IF (istat /= 0) CALL stop_memory(routineN,module_name,&
+         IF (istat /= 0) CALL stop_memory(routineN,moduleN,&
             __LINE__,"mass")
          DEALLOCATE(r_old,STAT=istat)
-         IF (istat /= 0) CALL stop_memory(routineN,module_name,&
+         IF (istat /= 0) CALL stop_memory(routineN,moduleN,&
             __LINE__,"r_old")
          DEALLOCATE(r,STAT=istat)
-         IF (istat /= 0) CALL stop_memory(routineN,module_name,&
+         IF (istat /= 0) CALL stop_memory(routineN,moduleN,&
             __LINE__,"r")
          DEALLOCATE(trial_energy,STAT=istat)
-         IF (istat /= 0) CALL stop_memory(routineN,module_name,&
+         IF (istat /= 0) CALL stop_memory(routineN,moduleN,&
             __LINE__,"trial_energy")
          DEALLOCATE(boltz_weights,STAT=istat)
-         IF (istat /= 0) CALL stop_memory(routineN,module_name,&
+         IF (istat /= 0) CALL stop_memory(routineN,moduleN,&
             __LINE__,"boltz_weights")
          DEALLOCATE(loverlap_array,STAT=istat)
-         IF (istat /= 0) CALL stop_memory(routineN,module_name,&
+         IF (istat /= 0) CALL stop_memory(routineN,moduleN,&
             __LINE__,"loverlap_array")
          CALL timestop(0.0E0_dp,handle)
          RETURN
       ENDIF
 
 ! make sure a configuration was choosen
-      IF(choosen == 0) CALL stop_program(routineN,module_name,&
+      IF(choosen == 0) CALL stop_program(routineN,moduleN,&
          __LINE__,'CBMC swap move failed to select config')
 
 ! if this is an old configuration, we always choose the first one
@@ -1233,22 +1223,22 @@ SUBROUTINE generate_cbmc_swap_config( force_env, BETA, nswapmoves,&
       ENDDO
 
       DEALLOCATE(mass,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,module_name,&
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,&
          __LINE__,"mass")
       DEALLOCATE(r_old,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,module_name,&
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,&
          __LINE__,"r_old")
       DEALLOCATE(r,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,module_name,&
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,&
          __LINE__,"r")
       DEALLOCATE(trial_energy,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,module_name,&
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,&
          __LINE__,"trial_energy")
       DEALLOCATE(boltz_weights,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,module_name,&
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,&
          __LINE__,"boltz_weights")
       DEALLOCATE(loverlap_array,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,module_name,&
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,&
          __LINE__,"loverlap_array")
 
 ! end the timing
@@ -1281,17 +1271,20 @@ END SUBROUTINE generate_cbmc_swap_config
 !!*****************************************************************************
 SUBROUTINE rotate_molecule(r,mass,natoms,rng_stream)
 
-    INTEGER,INTENT(IN)                            :: natoms
-    REAL(KIND=dp),DIMENSION(1:3,1:natoms),INTENT(INOUT)  :: r
-    REAL(KIND=dp),DIMENSION(1:natoms),INTENT(IN):: mass 
+    INTEGER, INTENT(IN)                      :: natoms
+    REAL(KIND=dp), DIMENSION(1:natoms), &
+      INTENT(IN)                             :: mass
+    REAL(KIND=dp), &
+      DIMENSION(1:3, 1:natoms), &
+      INTENT(INOUT)                          :: r
     TYPE(rng_stream_type), POINTER           :: rng_stream
 
-    CHARACTER(LEN=*), PARAMETER &
-      :: routineN = "rotate_molecule"
+    CHARACTER(LEN=*), PARAMETER              :: routineN = 'rotate_molecule'
 
-    INTEGER                                  :: iunit,handle
-    REAL(KIND=dp)                            :: cosdg,sindg,ry,rz,rynew,&
-      rznew,rxnew,rx,dgamma,rand
+    INTEGER                                  :: handle, iunit
+    REAL(KIND=dp)                            :: cosdg, dgamma, rand, rx, &
+                                                rxnew, ry, rynew, rz, rznew, &
+                                                sindg
     REAL(KIND=dp), DIMENSION(1:3)            :: center_of_mass
 
 !------------------------------------------------------------------------------
@@ -1386,29 +1379,31 @@ SUBROUTINE find_mc_test_molecule(force_env,mol_number,box_number,nchain,&
 
     TYPE(force_env_p_type), DIMENSION(:), &
       POINTER                                :: force_env
-    INTEGER, INTENT(OUT)                     :: mol_number
-    INTEGER, INTENT(OUT)                     :: box_number
-    INTEGER, INTENT(IN),DIMENSION(:)         :: nchain
+    INTEGER, INTENT(OUT)                     :: mol_number, box_number
+    INTEGER, DIMENSION(:), INTENT(IN)        :: nchain
     TYPE(rng_stream_type), POINTER           :: rng_stream
-    INTEGER, INTENT(IN),OPTIONAL             :: box
+    INTEGER, INTENT(IN), OPTIONAL            :: box
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = "find_mc_test_molecule",&
-        routineP = module_name//':'//routineN
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'find_mc_test_molecule', &
+      routineP = moduleN//':'//routineN
 
-    TYPE(mol_kind_new_list_p_type),DIMENSION(:),POINTER :: mol_kinds
-    TYPE(cp_subsystem_pp_type),DIMENSION(:),POINTER :: subsys
-    TYPE(molecule_type),POINTER              :: molecule
-    TYPE(mol_new_list_type),POINTER          :: molecules_new
-
-    INTEGER                                  :: handle,ibox,nboxes,stat,&
-      target_molecule,nmols,imol,start_box,end_box
-    REAL(KIND=dp)                            :: rand
+    INTEGER                                  :: end_box, handle, ibox, imol, &
+                                                nboxes, nmols, start_box, &
+                                                stat, target_molecule
     LOGICAL                                  :: failure
+    REAL(KIND=dp)                            :: rand
+    TYPE(cp_subsystem_pp_type), &
+      DIMENSION(:), POINTER                  :: subsys
+    TYPE(mol_kind_new_list_p_type), &
+      DIMENSION(:), POINTER                  :: mol_kinds
+    TYPE(mol_new_list_type), POINTER         :: molecules_new
+    TYPE(molecule_type), POINTER             :: molecule
 
 !------------------------------------------------------------------------------
 ! begin the timing of the subroutine
+
       CALL timeset(routineN,'I','',handle)
 
       NULLIFY(mol_kinds,subsys)
@@ -1505,12 +1500,15 @@ SUBROUTINE create_discrete_array(cell,discrete_array,step_size)
 ! 1 is for increase, 2 is for decrease
 ! 1 is for "yes, we can do the move", 0 is for no
 
-      REAL(dp),INTENT(IN)   :: step_size
-      REAL(dp),DIMENSION(1:3),INTENT(IN)   :: cell
-      INTEGER,DIMENSION(1:3,1:2),INTENT(OUT)   :: discrete_array
+    REAL(dp), DIMENSION(1:3), INTENT(IN)     :: cell
+    INTEGER, DIMENSION(1:3, 1:2), &
+      INTENT(OUT)                            :: discrete_array
+    REAL(dp), INTENT(IN)                     :: step_size
 
-      REAL(dp) :: length1,length2,high_value,low_value
-      INTEGER :: iside
+    INTEGER                                  :: iside
+    REAL(dp)                                 :: high_value, length1, length2, &
+                                                low_value
+
 !------------------------------------------------------------------------------
 
       discrete_array(:,:)=0
@@ -1579,16 +1577,20 @@ END SUBROUTINE create_discrete_array
 SUBROUTINE generate_avbmc_insertion( rmin,rmax,r_target,&
       move_type,r_insert,abc,rng_stream)
 
-      REAL(KIND=dp),DIMENSION(1:3),INTENT(OUT) :: r_insert
-      REAL(KIND=dp),DIMENSION(1:3),INTENT(IN)  :: r_target,abc
-      REAL(KIND=dp),INTENT(IN)                 :: rmin,rmax
-      CHARACTER(LEN=*),INTENT(IN)              :: move_type
-      TYPE(rng_stream_type), POINTER           :: rng_stream
+    REAL(KIND=dp), INTENT(IN)                :: rmin, rmax
+    REAL(KIND=dp), DIMENSION(1:3), &
+      INTENT(IN)                             :: r_target
+    CHARACTER(LEN=*), INTENT(IN)             :: move_type
+    REAL(KIND=dp), DIMENSION(1:3), &
+      INTENT(OUT)                            :: r_insert
+    REAL(KIND=dp), DIMENSION(1:3), &
+      INTENT(IN)                             :: abc
+    TYPE(rng_stream_type), POINTER           :: rng_stream
 
-      REAL(dp),DIMENSION(1:3)                  :: RIJ
-      REAL(dp)                                 :: dist,rand,eta_1,&
-         eta_2,eta_sq
-      INTEGER                                  :: i
+    INTEGER                                  :: i
+    REAL(dp)                                 :: dist, eta_1, eta_2, eta_sq, &
+                                                rand
+    REAL(dp), DIMENSION(1:3)                 :: RIJ
 
       r_insert(1:3)=0.0_dp
 

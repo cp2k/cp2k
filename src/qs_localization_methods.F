@@ -22,6 +22,7 @@
 !******************************************************************************
 MODULE qs_localization_methods
 ! *****************************************************************************
+  USE cell_types,                      ONLY: cell_type
   USE cp_cfm_basic_linalg,             ONLY: cp_cfm_column_scale,&
                                              cp_cfm_gemm,&
                                              cp_cfm_schur_product
@@ -39,23 +40,16 @@ MODULE qs_localization_methods
                                              cp_fm_trace,&
                                              cp_fm_transpose
   USE cp_fm_diag,                      ONLY: cp_fm_syevd
-  USE cp_fm_types,                     ONLY: cp_fm_create,&
-                                             cp_fm_get_element,&
-                                             cp_fm_get_info,&
-                                             cp_fm_maxabsval,&
-                                             cp_fm_p_type,&
-                                             cp_fm_release,&
-                                             cp_fm_set_all,&
-                                             cp_fm_to_fm,&
-                                             cp_fm_type
+  USE cp_fm_types,                     ONLY: &
+       cp_fm_create, cp_fm_get_element, cp_fm_get_info, cp_fm_maxabsval, &
+       cp_fm_p_type, cp_fm_release, cp_fm_set_all, cp_fm_to_fm, cp_fm_type
   USE kinds,                           ONLY: dp
-  USE machine,                         ONLY: m_flush
   USE mathconstants,                   ONLY: pi
   USE message_passing,                 ONLY: mp_max
-  USE cell_types,                 ONLY: cell_type
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "cp_common_uses.h"
+
   IMPLICIT NONE
   PUBLIC :: jacobi_rotations, initialize_weights, crazy_rotations,&
             direct_mini, rotate_orbitals
@@ -414,8 +408,9 @@ CONTAINS
     TYPE(cp_fm_p_type), INTENT(INOUT)        :: ZIJ( :, : )
     TYPE(cp_fm_type), POINTER                :: vectors
     INTEGER                                  :: iterations
-    LOGICAL, INTENT(out), optional           :: converged
-    TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
+    LOGICAL, INTENT(out), OPTIONAL           :: converged
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
     COMPLEX(KIND=dp), PARAMETER              :: cone = (1.0_dp,0.0_dp), &
                                                 czero = (0.0_dp,0.0_dp)
@@ -532,7 +527,7 @@ CONTAINS
       IF (tolerance .LT. 1.0E-4_dp .OR. iterations.gt.200) EXIT
     ENDDO
 
-    if (present(converged)) converged=(tolerance .LT. 1.0E-4_dp)
+    IF (PRESENT(converged)) converged=(tolerance .LT. 1.0E-4_dp)
 
     CALL cp_cfm_release(cmat_A)
     CALL cp_cfm_release(cmat_R)

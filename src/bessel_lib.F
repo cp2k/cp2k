@@ -40,8 +40,8 @@ CONTAINS
   FUNCTION bessj0 ( x )
 
 
-    REAL(KIND=dp), INTENT(IN)                    :: x
-    REAL(KIND=dp)                                :: bessj0
+    REAL(KIND=dp), INTENT(IN)                :: x
+    REAL(KIND=dp)                            :: bessj0
 
     REAL(KIND=dp), PARAMETER :: p1 = 1.0_dp, p2 = -0.1098628627e-2_dp, &
       p3 = 0.2734510407e-4_dp, p4 = -0.2073370639e-5_dp, &
@@ -53,7 +53,7 @@ CONTAINS
       s1 = 57568490411.0_dp, s2 = 1029532985.0_dp, s3 = 9494680.718_dp, &
       s4 = 59272.64853_dp, s5 = 267.8532712_dp, s6 = 1.0_dp
 
-    REAL(KIND=dp)                                :: ax, xx, y, z
+    REAL(KIND=dp)                            :: ax, xx, y, z
 
     IF ( ABS ( x ) < 8.0_dp ) THEN
       y = x * x
@@ -78,20 +78,20 @@ CONTAINS
   FUNCTION bessj1 ( x )
 
 
-    REAL(KIND=dp), INTENT(IN)                    :: x
-    REAL(KIND=dp)                                :: bessj1
+    REAL(KIND=dp), INTENT(IN)                :: x
+    REAL(KIND=dp)                            :: bessj1
 
     REAL(KIND=dp), PARAMETER :: p1 = 1.0_dp, p2 = -0.183105e-2_dp, &
       p3 = -0.3516396496e-4_dp, p4 = 0.2457520174e-5_dp, &
       p5 = -0.240337019e-6_dp, q1 = 0.04687499995_dp, &
       q2 = -0.2002690873e-3_dp, q3 = 0.8449199096e-5_dp, &
-      q4 = -0.88228987e-6_dp, q5 = 0.105787412e-6_dp, &
-      r1 = 72362614232.0_dp, r2 = -7895059235.0_dp, r3 = 242396853.1_dp, &
-      r4 = -2972611.439_dp, r5 = 15704.48260_dp, r6 = -30.16036606_dp, &
-      s1 = 144725228442.0_dp, s2 = 2300535178.0_dp, s3 = 18583304.74_dp, &
-      s4 = 99447.43394_dp, s5 = 376.9991397_dp, s6 = 1.0_dp
+      q4 = -0.88228987e-6_dp, q5 = 0.105787412e-6_dp, r1 = 72362614232.0_dp, &
+      r2 = -7895059235.0_dp, r3 = 242396853.1_dp, r4 = -2972611.439_dp, &
+      r5 = 15704.48260_dp, r6 = -30.16036606_dp, s1 = 144725228442.0_dp, &
+      s2 = 2300535178.0_dp, s3 = 18583304.74_dp, s4 = 99447.43394_dp, &
+      s5 = 376.9991397_dp, s6 = 1.0_dp
 
-    REAL(KIND=dp)                                :: ax, xx, y, z
+    REAL(KIND=dp)                            :: ax, xx, y, z
 
       IF ( ABS ( x ) <  8.0_dp ) THEN
         y = x * x
@@ -115,8 +115,8 @@ CONTAINS
   FUNCTION bessk0 ( x )
 
 
-    REAL(KIND=dp), INTENT(IN)                    :: x
-    REAL(KIND=dp)                                :: bessk0
+    REAL(KIND=dp), INTENT(IN)                :: x
+    REAL(KIND=dp)                            :: bessk0
 
     REAL(KIND=dp), PARAMETER :: p1 = -0.57721566_dp, p2 = 0.42278420_dp, &
       p3 = 0.23069756_dp, p4 = 0.3488590e-1_dp, p5 = 0.262698e-2_dp, &
@@ -124,7 +124,7 @@ CONTAINS
       q2 = -0.7832358e-1_dp, q3 = 0.2189568e-1_dp, q4 = -0.1062446e-1_dp, &
       q5 = 0.587872e-2_dp, q6 = -0.251540e-2_dp, q7 = 0.53208e-3_dp
 
-    REAL(KIND=dp)                                :: y
+    REAL(KIND=dp)                            :: y
 
     IF ( x < 2.0_dp ) THEN
       y = x * x / 4.0_dp
@@ -143,8 +143,8 @@ CONTAINS
   FUNCTION bessk1 ( x )
 
 
-    REAL(KIND=dp), INTENT(IN)                    :: x
-    REAL(KIND=dp)                                :: bessk1
+    REAL(KIND=dp), INTENT(IN)                :: x
+    REAL(KIND=dp)                            :: bessk1
 
     REAL(KIND=dp), PARAMETER :: p1 = 1.0_dp, p2 = 0.15443144_dp, &
       p3 = -0.67278579_dp, p4 = -0.18156897_dp, p5 = -0.1919402e-1_dp, &
@@ -152,7 +152,7 @@ CONTAINS
       q2 = 0.23498619_dp, q3 = -0.3655620e-1_dp, q4 = 0.1504268e-1_dp, &
       q5 = -0.780353e-2_dp, q6 = 0.325614e-2_dp, q7 = -0.68245e-3_dp
 
-    REAL(KIND=dp)                                :: y
+    REAL(KIND=dp)                            :: y
 
     IF ( x < 2.0_dp ) THEN
       y = x * x / 4.0_dp
@@ -172,8 +172,8 @@ CONTAINS
   FUNCTION bessi0 ( x )
 
 
-    REAL(KIND=dp), INTENT(IN)                    :: x
-    REAL(KIND=dp)                                :: bessi0
+    REAL(KIND=dp), INTENT(IN)                :: x
+    REAL(KIND=dp)                            :: bessi0
 
     REAL(KIND=dp), PARAMETER :: p1 = 1.0_dp, p2 = 3.5156229_dp, &
       p3 = 3.0899424_dp, p4 = 1.2067492_dp, p5 = 0.2659732_dp, &
@@ -182,7 +182,7 @@ CONTAINS
       q5 = 0.916281e-2_dp, q6 = -0.2057706e-1_dp, q7 = 0.2635537e-1_dp, &
       q8 = -0.1647633e-1_dp, q9 = 0.392377e-2_dp
 
-    REAL(KIND=dp)                                :: ax, y
+    REAL(KIND=dp)                            :: ax, y
 
     IF ( ABS ( x ) < 3.75_dp ) THEN
       y = ( x / 3.75_dp ) ** 2
@@ -203,8 +203,8 @@ CONTAINS
   FUNCTION bessi1 ( x )
 
 
-    REAL(KIND=dp), INTENT(IN)                    :: x
-    REAL(KIND=dp)                                :: bessi1
+    REAL(KIND=dp), INTENT(IN)                :: x
+    REAL(KIND=dp)                            :: bessi1
 
     REAL(KIND=dp), PARAMETER :: p1 = 0.5_dp, p2 = 0.87890594_dp, &
       p3 = 0.51498869_dp, p4 = 0.15084934e0_dp, p5 = 0.2658733e-1_dp, &
@@ -213,7 +213,7 @@ CONTAINS
       q5 = -0.1031555e-1_dp, q6 = 0.2282967e-1_dp, q7 = -0.2895312e-1_dp, &
       q8 = 0.1787654e-1_dp, q9 = -0.420059e-2_dp
 
-    REAL(KIND=dp)                                :: ax, y
+    REAL(KIND=dp)                            :: ax, y
 
     IF ( ABS ( x ) < 3.75_dp ) THEN
       y = ( x / 3.75_dp ) ** 2

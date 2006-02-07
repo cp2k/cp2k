@@ -40,7 +40,7 @@ MODULE qs_p_sparse_psi
   PRIVATE
 
   LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
-  CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='qs_p_sparse_psi'
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_p_sparse_psi'
   INTEGER, SAVE, PRIVATE :: last_proj_id_nr=0
 
   PUBLIC :: qs_p_projection_type, qs_p_projection_p_type

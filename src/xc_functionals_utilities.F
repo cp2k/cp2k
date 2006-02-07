@@ -41,7 +41,7 @@ MODULE xc_functionals_utilities
                           f53 = 5.0_dp*f13
   REAL(KIND=dp), PARAMETER :: fxfac = 1.923661050931536319759455_dp ! 1/(2^(4/3) - 2)
 
-  CHARACTER(len=*), PARAMETER :: moduleN="xc_functionals_utilities"
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'xc_functionals_utilities'
 
   PUBLIC :: set_util, setup_calculation, calc_rs, calc_rho13, calc_fx, &
             calc_wave_vector, calc_srs, calc_z, calc_rs_pw, calc_srs_pw
@@ -65,7 +65,7 @@ CONTAINS
 
     SUBROUTINE set_util(cutoff)
 
-    REAL(KIND=dp)                                :: cutoff
+    REAL(KIND=dp)                            :: cutoff
 
     eps_rho = cutoff
 
@@ -161,8 +161,8 @@ CONTAINS
 !   rs parameter : f*rho**(-1/3)
 !   ---------------------------------------------------------------------------
 
-    REAL(KIND=dp), INTENT(IN)                    :: rho
-    REAL(KIND=dp), INTENT(OUT)                   :: rs
+    REAL(KIND=dp), INTENT(IN)                :: rho
+    REAL(KIND=dp), INTENT(OUT)               :: rs
 
 !   ---------------------------------------------------------------------------
 
@@ -182,8 +182,8 @@ CONTAINS
 !   rs parameter : f*rho**(-1/3)
 !   ---------------------------------------------------------------------------
 
-    REAL(KIND=dp), DIMENSION(:), INTENT(IN)      :: rho
-    REAL(KIND=dp), DIMENSION(:), INTENT(OUT)     :: rs
+    REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: rho
+    REAL(KIND=dp), DIMENSION(:), INTENT(OUT) :: rs
 
     INTEGER                                  :: k
 
@@ -212,9 +212,8 @@ CONTAINS
 !   rs parameter : f*rho**(-1/3)
 !   ---------------------------------------------------------------------------
 
-    REAL(KIND=dp), DIMENSION(*), INTENT(IN) :: rho
-    REAL(KIND=dp), DIMENSION(*), &
-      INTENT(OUT)                            :: rs
+    REAL(KIND=dp), DIMENSION(*), INTENT(IN)  :: rho
+    REAL(KIND=dp), DIMENSION(*), INTENT(OUT) :: rs
     INTEGER, INTENT(IN)                      :: n
 
     INTEGER                                  :: k
@@ -242,8 +241,8 @@ CONTAINS
 !   x = sqrt(rs)
 !   ---------------------------------------------------------------------------
 
-    REAL(KIND=dp), DIMENSION(*), INTENT(IN)      :: rho
-    REAL(KIND=dp), DIMENSION(*), INTENT(OUT)     :: x
+    REAL(KIND=dp), DIMENSION(*), INTENT(IN)  :: rho
+    REAL(KIND=dp), DIMENSION(*), INTENT(OUT) :: x
     INTEGER, INTENT(in)                      :: n
 
     INTEGER                                  :: ip
@@ -268,8 +267,8 @@ CONTAINS
 !   x = sqrt(rs)
 !   ---------------------------------------------------------------------------
 
-    REAL(KIND=dp), DIMENSION(:), INTENT(IN)      :: rho
-    REAL(KIND=dp), DIMENSION(:), INTENT(OUT)     :: x
+    REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: rho
+    REAL(KIND=dp), DIMENSION(:), INTENT(OUT) :: x
 
     INTEGER                                  :: ip, n
 
@@ -291,8 +290,8 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    REAL(KIND=dp), DIMENSION(:), INTENT(IN)      :: rho
-    REAL(KIND=dp), DIMENSION(:), INTENT(OUT)     :: r13
+    REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: rho
+    REAL(KIND=dp), DIMENSION(:), INTENT(OUT) :: r13
 
     INTEGER                                  :: ip, n
 
@@ -322,11 +321,11 @@ CONTAINS
 !   ---------------------------------------------------------------------------
 
     CHARACTER(len=*), INTENT(IN)             :: tag
-    REAL(KIND=dp), DIMENSION(*), INTENT(IN)      :: rho, grho
-    REAL(KIND=dp), DIMENSION(:), INTENT(OUT)     :: s
+    REAL(KIND=dp), DIMENSION(*), INTENT(IN)  :: rho, grho
+    REAL(KIND=dp), DIMENSION(:), INTENT(OUT) :: s
 
     INTEGER                                  :: ip, n
-    REAL(KIND=dp)                                :: fac
+    REAL(KIND=dp)                            :: fac
 
 !   TAGS: U: total density, spin wave vector
 !         R: spin density, total density wave vector
@@ -368,15 +367,16 @@ CONTAINS
 !   ---------------------------------------------------------------------------
 
     INTEGER, INTENT(IN)                      :: n
-    REAL(KIND=dp), DIMENSION(*), INTENT(IN)      :: rhoa, rhob
-    REAL(KIND=dp), DIMENSION(:, :), INTENT(OUT)  :: fx
+    REAL(KIND=dp), DIMENSION(*), INTENT(IN)  :: rhoa, rhob
+    REAL(KIND=dp), DIMENSION(:, :), &
+      INTENT(OUT)                            :: fx
     INTEGER, INTENT(IN)                      :: m
 
-    CHARACTER(len=*), PARAMETER :: routineN = "calc_fx_array", &
-      routineP = moduleN//"/"//routineN
+    CHARACTER(len=*), PARAMETER :: routineN = 'calc_fx_array', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ip
-    REAL(KIND=dp)                                :: rhoab, x
+    REAL(KIND=dp)                            :: rhoab, x
 
 ! number of points
 ! order of derivatives
@@ -440,11 +440,11 @@ CONTAINS
 !
 !   ---------------------------------------------------------------------------
 
-    REAL(KIND=dp), INTENT(IN)                    :: rhoa, rhob
-    REAL(KIND=dp), DIMENSION(:), INTENT(OUT)     :: fx
+    REAL(KIND=dp), INTENT(IN)                :: rhoa, rhob
+    REAL(KIND=dp), DIMENSION(:), INTENT(OUT) :: fx
     INTEGER, INTENT(IN)                      :: m
 
-    REAL(KIND=dp)                                :: rhoab, x
+    REAL(KIND=dp)                            :: rhoab, x
 
 !   ---------------------------------------------------------------------------
 
@@ -484,12 +484,12 @@ CONTAINS
   SUBROUTINE calc_z ( a, b, z, order )
 
 
-    REAL(KIND=dp), INTENT(IN)                    :: a, b
+    REAL(KIND=dp), INTENT(IN)                :: a, b
     REAL(KIND=dp), DIMENSION(0:, 0:), &
       INTENT(OUT)                            :: z
     INTEGER, INTENT(IN)                      :: order
 
-    REAL(KIND=dp)                                :: c, d
+    REAL(KIND=dp)                            :: c, d
 
     c = a+b
 

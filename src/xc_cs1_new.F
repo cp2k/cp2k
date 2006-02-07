@@ -24,23 +24,18 @@ MODULE xc_cs1_new
 ! *****************************************************************************
 
   USE kinds,                           ONLY: dp
-  USE termination,                     ONLY: stop_memory,&
-                                             stop_program
-  USE xc_derivative_set_types,         ONLY: xc_derivative_set_type,&
-       xc_dset_get_derivative
-  USE xc_functionals_utilities,        ONLY: calc_rho13,&
-                                             set_util,&
-                                             setup_calculation
-  USE cp_array_r_utils,                ONLY: cp_3d_r_p_type
+  USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
-       timestop
+                                             timestop
+  USE xc_derivative_set_types,         ONLY: xc_derivative_set_type,&
+                                             xc_dset_get_derivative
   USE xc_derivative_types,             ONLY: xc_derivative_get,&
-       xc_derivative_type
+                                             xc_derivative_type
+  USE xc_functionals_utilities,        ONLY: set_util
   USE xc_rho_cflags_types,             ONLY: xc_rho_cflags_type
   USE xc_rho_set_types,                ONLY: xc_rho_set_get,&
-       xc_rho_set_type
+                                             xc_rho_set_type
 #include "cp_common_uses.h"
-
 
   IMPLICIT NONE
 
@@ -70,7 +65,7 @@ MODULE xc_cs1_new
                           c3 = 0.159068_dp, &
                           c4 = -0.007953_dp
 
-  character(len=*), private, parameter :: moduleN='xc_cs1_new'
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'xc_cs1_new'
 
 !!***
 ! *****************************************************************************
@@ -100,13 +95,13 @@ CONTAINS
   SUBROUTINE cs1_lda_info(reference,shortform, needs, max_deriv, error)
     CHARACTER(LEN=*), INTENT(OUT), OPTIONAL  :: reference, shortform
     TYPE(xc_rho_cflags_type), &
-         INTENT(inout), optional                :: needs
+      INTENT(inout), OPTIONAL                :: needs
     INTEGER, INTENT(out), OPTIONAL           :: max_deriv
     TYPE(cp_error_type), INTENT(inout), &
-         OPTIONAL                               :: error
+      OPTIONAL                               :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cs1_lda_info', &
-         routineP = moduleN//':'//routineN
+      routineP = moduleN//':'//routineN
 
     IF ( PRESENT ( reference ) ) THEN
       reference = "N.C. Handy and A.J. Cohen, J. Chem. Phys., 116, 5411 (2002)"//&
@@ -116,11 +111,11 @@ CONTAINS
       shortform = "CS1: Handy improved LYP correlation energy functional {LDA}"
     END IF
     IF (PRESENT(needs)) THEN
-       needs%rho=.true.
-       needs%rho_1_3=.true.
-       needs%norm_drho=.true.
+       needs%rho=.TRUE.
+       needs%rho_1_3=.TRUE.
+       needs%norm_drho=.TRUE.
     END IF
-    if (present(max_deriv)) max_deriv=3
+    IF (PRESENT(max_deriv)) max_deriv=3
 
   END SUBROUTINE cs1_lda_info
   !***************************************************************************
@@ -148,13 +143,13 @@ CONTAINS
   SUBROUTINE cs1_lsd_info(reference,shortform, needs, max_deriv, error)
     CHARACTER(LEN=*), INTENT(OUT), OPTIONAL  :: reference, shortform
     TYPE(xc_rho_cflags_type), &
-         INTENT(inout), optional                :: needs
+      INTENT(inout), OPTIONAL                :: needs
     INTEGER, INTENT(out), OPTIONAL           :: max_deriv
     TYPE(cp_error_type), INTENT(inout), &
-         OPTIONAL                               :: error
+      OPTIONAL                               :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cs1_lsd_info', &
-         routineP = moduleN//':'//routineN
+      routineP = moduleN//':'//routineN
 
     IF ( PRESENT ( reference ) ) THEN
       reference = "N.C. Handy and A.J. Cohen, J. Chem. Phys., 116, 5411 (2002)"
@@ -163,11 +158,11 @@ CONTAINS
       shortform = "CS1: Handy improved LYP correlation energy functional"
     END IF
     IF (PRESENT(needs)) THEN
-       needs%rho_spin=.true.
-       needs%rho_spin_1_3=.true.
-       needs%norm_drho_spin=.true.
+       needs%rho_spin=.TRUE.
+       needs%rho_spin_1_3=.TRUE.
+       needs%norm_drho_spin=.TRUE.
     END IF
-    if (present(max_deriv)) max_deriv=1
+    IF (PRESENT(max_deriv)) max_deriv=1
 
   END SUBROUTINE cs1_lsd_info
   !***************************************************************************
@@ -176,7 +171,7 @@ CONTAINS
 
   SUBROUTINE cs1_init ( cutoff, debug )
 
-    REAL(KIND=dp), INTENT(IN)                    :: cutoff
+    REAL(KIND=dp), INTENT(IN)                :: cutoff
     LOGICAL, INTENT(IN), OPTIONAL            :: debug
 
     eps_rho = cutoff
@@ -195,25 +190,27 @@ CONTAINS
 ! *****************************************************************************
 
   SUBROUTINE cs1_lda_eval (rho_set,deriv_set,order,error)
-    TYPE(xc_rho_set_type), pointer :: rho_set
-    TYPE(xc_derivative_set_type), pointer :: deriv_set
-    INTEGER, INTENT(in) :: order
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(xc_rho_set_type), POINTER           :: rho_set
+    TYPE(xc_derivative_set_type), POINTER    :: deriv_set
+    INTEGER, INTENT(in)                      :: order
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineN='cs1_lda_eval',&
-         routineP=moduleN//':'//routineN
-    INTEGER :: npoints, handle
-    integer, DIMENSION(:,:), pointer :: bo
-    REAL(KIND=dp),DIMENSION(:,:,:), POINTER :: rho, rho13, grho, e_0,e_rho,e_ndrho,&
-         e_rho_rho, e_rho_ndrho, e_ndrho_ndrho,&
-         e_rho_rho_rho, e_rho_rho_ndrho, e_rho_ndrho_ndrho, e_ndrho_ndrho_ndrho
-    TYPE(xc_derivative_type), POINTER :: deriv
-    REAL(KIND=dp) :: epsilon_rho
-    INTEGER :: m
+    CHARACTER(len=*), PARAMETER :: routineN = 'cs1_lda_eval', &
+      routineP = moduleN//':'//routineN
 
-    call timeset(routineN,"I","",handle)
-    failure=.false.
+    INTEGER                                  :: handle, m, npoints
+    INTEGER, DIMENSION(:, :), POINTER        :: bo
+    LOGICAL                                  :: failure
+    REAL(KIND=dp)                            :: epsilon_rho
+    REAL(KIND=dp), DIMENSION(:, :, :), POINTER :: e_0, e_ndrho, &
+      e_ndrho_ndrho, e_ndrho_ndrho_ndrho, e_rho, e_rho_ndrho, &
+      e_rho_ndrho_ndrho, e_rho_rho, e_rho_rho_ndrho, e_rho_rho_rho, grho, &
+      rho, rho13
+    TYPE(xc_derivative_type), POINTER        :: deriv
+
+    CALL timeset(routineN,"I","",handle)
+    failure=.FALSE.
     NULLIFY(bo,rho, rho13, grho, e_0,e_rho,e_ndrho,&
          e_rho_rho, e_rho_ndrho, e_ndrho_ndrho,&
          e_rho_rho_rho, e_rho_rho_ndrho, e_rho_ndrho_ndrho, &
@@ -229,22 +226,22 @@ CONTAINS
             error=error)
        npoints=(bo(2,1)-bo(1,1)+1)*(bo(2,2)-bo(1,2)+1)*(bo(2,3)-bo(1,3)+1)
        m=ABS(order)
-       call cs1_init(epsilon_rho)
+       CALL cs1_init(epsilon_rho)
 
        IF ( order>=0 ) THEN
           deriv => xc_dset_get_derivative(deriv_set,"",&
                allocate_deriv=.TRUE., error=error)
-          call xc_derivative_get(deriv,deriv_data=e_0,error=error)
+          CALL xc_derivative_get(deriv,deriv_data=e_0,error=error)
 
           CALL cs1_u_0 ( rho, grho, rho13, e_0,npoints, error)
        END IF
        IF ( order>=1 .OR. order==-1 ) THEN
           deriv => xc_dset_get_derivative(deriv_set,"(rho)",&
                allocate_deriv=.TRUE.,error=error)
-          call xc_derivative_get(deriv,deriv_data=e_rho,error=error)
+          CALL xc_derivative_get(deriv,deriv_data=e_rho,error=error)
           deriv => xc_dset_get_derivative(deriv_set,"(norm_drho)",&
                allocate_deriv=.TRUE.,error=error)
-          call xc_derivative_get(deriv,deriv_data=e_ndrho,error=error)
+          CALL xc_derivative_get(deriv,deriv_data=e_ndrho,error=error)
 
           CALL cs1_u_1 ( rho, grho, rho13, e_rho, e_ndrho,&
                npoints,error)
@@ -266,17 +263,17 @@ CONTAINS
        IF ( order>=3.OR.order==-3 ) THEN
           deriv => xc_dset_get_derivative(deriv_set,"(rho)(rho)(rho)",&
                allocate_deriv=.TRUE.,error=error)
-          call xc_derivative_get(deriv,deriv_data=e_rho_rho_rho,error=error)
+          CALL xc_derivative_get(deriv,deriv_data=e_rho_rho_rho,error=error)
           deriv => xc_dset_get_derivative(deriv_set,&
-               "(rho)(rho)(norm_drho)",allocate_deriv=.true.,error=error)
-          call xc_derivative_get(deriv,deriv_data=e_rho_rho_ndrho,error=error)
+               "(rho)(rho)(norm_drho)",allocate_deriv=.TRUE.,error=error)
+          CALL xc_derivative_get(deriv,deriv_data=e_rho_rho_ndrho,error=error)
           deriv => xc_dset_get_derivative(deriv_set,&
-               "(rho)(norm_drho)(norm_drho)",allocate_deriv=.true.,error=error)
-          call xc_derivative_get(deriv,deriv_data=e_rho_ndrho_ndrho,error=error)
+               "(rho)(norm_drho)(norm_drho)",allocate_deriv=.TRUE.,error=error)
+          CALL xc_derivative_get(deriv,deriv_data=e_rho_ndrho_ndrho,error=error)
           deriv => xc_dset_get_derivative(deriv_set,&
                "(norm_drho)(norm_drho)(norm_drho)", allocate_deriv=.TRUE.,&
                error=error)
-          call xc_derivative_get(deriv,deriv_data=e_ndrho_ndrho_ndrho,error=error)
+          CALL xc_derivative_get(deriv,deriv_data=e_ndrho_ndrho_ndrho,error=error)
 
           CALL cs1_u_3 ( rho, grho, rho13, e_rho_rho_rho, e_rho_rho_ndrho,&
                e_rho_ndrho_ndrho, e_ndrho_ndrho_ndrho, npoints, error)
@@ -294,24 +291,29 @@ CONTAINS
 ! *****************************************************************************
 
   SUBROUTINE cs1_lsd_eval (rho_set,deriv_set,order,error)
-    TYPE(xc_rho_set_type), pointer :: rho_set
-    TYPE(xc_derivative_set_type), pointer :: deriv_set
-    INTEGER, INTENT(in) :: order
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(xc_rho_set_type), POINTER           :: rho_set
+    TYPE(xc_derivative_set_type), POINTER    :: deriv_set
+    INTEGER, INTENT(in)                      :: order
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineN='cs1_lsd_eval',&
-         routineP=moduleN//':'//routineN
-    INTEGER :: npoints, handle
-    integer, DIMENSION(:,:), pointer :: bo
-    REAL(KIND=dp),DIMENSION(:,:,:), POINTER :: rhoa,rhob,norm_drhoa,&
-         rhoa_1_3, rhob_1_3,norm_drhob, e_0,e_rhoa,e_rhob,e_ndrhoa,e_ndrhob
-    TYPE(xc_derivative_type), POINTER :: deriv
-    REAL(KIND=dp) :: epsilon_rho
+    CHARACTER(len=*), PARAMETER :: routineN = 'cs1_lsd_eval', &
+      routineP = moduleN//':'//routineN
 
-    call timeset(routineN,"I","",handle)
-    failure=.false.
-    nullify(bo)
+    INTEGER                                  :: handle, npoints
+    INTEGER, DIMENSION(:, :), POINTER        :: bo
+    LOGICAL                                  :: failure
+    REAL(KIND=dp)                            :: epsilon_rho
+    REAL(KIND=dp), DIMENSION(:, :, :), &
+      POINTER                                :: e_0, e_ndrhoa, e_ndrhob, &
+                                                e_rhoa, e_rhob, norm_drhoa, &
+                                                norm_drhob, rhoa, rhoa_1_3, &
+                                                rhob, rhob_1_3
+    TYPE(xc_derivative_type), POINTER        :: deriv
+
+    CALL timeset(routineN,"I","",handle)
+    failure=.FALSE.
+    NULLIFY(bo)
 
     CPPrecondition(ASSOCIATED(rho_set),cp_failure_level,routineP,error,failure)
     CPPrecondition(rho_set%ref_count>0,cp_failure_level,routineP,error,failure)
@@ -323,12 +325,12 @@ CONTAINS
             norm_drhoa=norm_drhoa,norm_drhob=norm_drhob,&
             local_bounds=bo,rho_cutoff=epsilon_rho, error=error)
        npoints=(bo(2,1)-bo(1,1)+1)*(bo(2,2)-bo(1,2)+1)*(bo(2,3)-bo(1,3)+1)
-       call cs1_init(epsilon_rho)
+       CALL cs1_init(epsilon_rho)
 
        IF ( order>=0 ) THEN
           deriv => xc_dset_get_derivative(deriv_set,"",&
                allocate_deriv=.TRUE., error=error)
-          call xc_derivative_get(deriv,deriv_data=e_0,error=error)
+          CALL xc_derivative_get(deriv,deriv_data=e_0,error=error)
 
           CALL cs1_ss_0 ( rhoa, rhob, norm_drhoa, norm_drhob,&
                rhoa_1_3, rhob_1_3, e_0,npoints,error)
@@ -351,8 +353,8 @@ CONTAINS
                rhoa_1_3, rhob_1_3, e_rhoa, e_rhob, e_ndrhoa, e_ndrhob,&
                npoints,error)
        END IF
-       if ( order>1 .or. order<1 ) then
-          call cp_unimplemented_error(fromWhere=routineP, &
+       IF ( order>1 .OR. order<1 ) THEN
+          CALL cp_unimplemented_error(fromWhere=routineP, &
                message="derivatives bigger than 3 not implemented", &
                error=error, error_level=cp_failure_level)
        END IF
@@ -364,13 +366,15 @@ CONTAINS
 
   SUBROUTINE cs1_u_0 ( rho, grho, r13, e_0, npoints, error )
 
-    REAL(KIND=dp), DIMENSION(*), INTENT(IN)      :: rho, grho, r13
-    REAL(KIND=dp), DIMENSION(*), INTENT(INOUT)     :: e_0
-    INTEGER, intent(in) :: npoints
-    TYPE(cp_error_type), INTENT(inout), optional :: error
+    REAL(KIND=dp), DIMENSION(*), INTENT(IN)  :: rho, grho, r13
+    REAL(KIND=dp), DIMENSION(*), &
+      INTENT(INOUT)                          :: e_0
+    INTEGER, INTENT(in)                      :: npoints
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
     INTEGER                                  :: ip
-    REAL(KIND=dp)                                :: c2p, c3p, c4p, cp, dpv, F1, &
+    REAL(KIND=dp)                            :: c2p, c3p, c4p, cp, dpv, F1, &
                                                 F2, F3, F4, g, oc, ocp, od, &
                                                 odp, r, r3, x
 
@@ -409,13 +413,15 @@ CONTAINS
 
   SUBROUTINE cs1_u_1 ( rho, grho, r13, e_rho, e_ndrho, npoints, error )
 
-    REAL(KIND=dp), DIMENSION(*), INTENT(IN)      :: rho, grho, r13
-    REAL(KIND=dp), DIMENSION(*), INTENT(INOUT)  :: e_rho, e_ndrho
-    INTEGER, intent(in) :: npoints
-    TYPE(cp_error_type), INTENT(inout), optional :: error
+    REAL(KIND=dp), DIMENSION(*), INTENT(IN)  :: rho, grho, r13
+    REAL(KIND=dp), DIMENSION(*), &
+      INTENT(INOUT)                          :: e_rho, e_ndrho
+    INTEGER, INTENT(in)                      :: npoints
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
     INTEGER                                  :: ip
-    REAL(KIND=dp)                                :: c2p, c3p, c4p, cp, dF1, dF3, &
+    REAL(KIND=dp)                            :: c2p, c3p, c4p, cp, dF1, dF3, &
                                                 dgF2, dgF4, dpv, drF2, drF4, &
                                                 g, oc, ocp, od, odp, r, r3
 
@@ -459,14 +465,16 @@ CONTAINS
   SUBROUTINE cs1_u_2 ( rho, grho, r13, e_rho_rho, e_rho_ndrho, e_ndrho_ndrho,&
        npoints, error)
 
-    REAL(KIND=dp), DIMENSION(*), INTENT(IN)      :: rho, grho, r13
-    REAL(KIND=dp), DIMENSION(*), INTENT(INOUT)  :: e_rho_rho, e_rho_ndrho,&
-         e_ndrho_ndrho
-    INTEGER, intent(in) :: npoints
-    TYPE(cp_error_type), INTENT(inout), optional :: error
+    REAL(KIND=dp), DIMENSION(*), INTENT(IN)  :: rho, grho, r13
+    REAL(KIND=dp), DIMENSION(*), &
+      INTENT(INOUT)                          :: e_rho_rho, e_rho_ndrho, &
+                                                e_ndrho_ndrho
+    INTEGER, INTENT(in)                      :: npoints
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
     INTEGER                                  :: ip
-    REAL(KIND=dp)                                :: c2p, c3p, c4p, cp, d2F1, &
+    REAL(KIND=dp)                            :: c2p, c3p, c4p, cp, d2F1, &
                                                 d2F3, d2gF2, d2gF4, d2rF2, &
                                                 d2rF4, dpv, drgF2, drgF4, g, &
                                                 oc, ocp, od, odp, r, r3
@@ -521,18 +529,22 @@ CONTAINS
   SUBROUTINE cs1_u_3 ( rho, grho, r13, e_rho_rho_rho, e_rho_rho_ndrho,&
        e_rho_ndrho_ndrho, e_ndrho_ndrho_ndrho, npoints, error)
 
-    REAL(KIND=dp), DIMENSION(*), INTENT(IN)      :: rho, grho, r13
-    REAL(KIND=dp), DIMENSION(*), INTENT(INOUT)  :: e_rho_rho_rho, e_rho_rho_ndrho,&
-       e_rho_ndrho_ndrho, e_ndrho_ndrho_ndrho
-    INTEGER, intent(in) :: npoints
-    TYPE(cp_error_type), INTENT(inout), optional :: error
+    REAL(KIND=dp), DIMENSION(*), INTENT(IN)  :: rho, grho, r13
+    REAL(KIND=dp), DIMENSION(*), &
+      INTENT(INOUT)                          :: e_rho_rho_rho, &
+                                                e_rho_rho_ndrho, &
+                                                e_rho_ndrho_ndrho, &
+                                                e_ndrho_ndrho_ndrho
+    INTEGER, INTENT(in)                      :: npoints
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
     INTEGER                                  :: ip
-    REAL(KIND=dp) :: c2p, c3p, c4p, cp, d2rgF2, d2rgF4, d3F1, d3F3, d3gF2, d3gF4, &
-      d3rF2, d3rF4, dpv, dr2gF2, dr2gF4, g, oc, ocp, od, odp, r, r3, t1, t10, &
-      t11, t13, t15, t16, t17, t19, t2, t22, t23, t26, t29, t3, t32, t33, &
-      t37, t4, t44, t45, t50, t51, t52, t58, t6, t61, t7, t74, t76, t77, t8, &
-      t80, t81, t82, t9
+    REAL(KIND=dp) :: c2p, c3p, c4p, cp, d2rgF2, d2rgF4, d3F1, d3F3, d3gF2, &
+      d3gF4, d3rF2, d3rF4, dpv, dr2gF2, dr2gF4, g, oc, ocp, od, odp, r, r3, &
+      t1, t10, t11, t13, t15, t16, t17, t19, t2, t22, t23, t26, t29, t3, t32, &
+      t33, t37, t4, t44, t45, t50, t51, t52, t58, t6, t61, t7, t74, t76, t77, &
+      t8, t80, t81, t82, t9
 
 !   ---------------------------------------------------------------------------
 
@@ -614,22 +626,25 @@ CONTAINS
   SUBROUTINE cs1_ss_0 ( rhoa, rhob, grhoa, grhob, r13a, r13b, e_0,&
        npoints,error)
 
-    REAL(KIND=dp), DIMENSION(*), INTENT(IN)      :: rhoa, rhob, grhoa, grhob, &
+    REAL(KIND=dp), DIMENSION(*), INTENT(IN)  :: rhoa, rhob, grhoa, grhob, &
                                                 r13a, r13b
-    REAL(KIND=dp), DIMENSION(*), INTENT(INOUT)     :: e_0
-    INTEGER, intent(in) :: npoints
-    TYPE(cp_error_type), INTENT(inout), optional :: error
+    REAL(KIND=dp), DIMENSION(*), &
+      INTENT(INOUT)                          :: e_0
+    INTEGER, INTENT(in)                      :: npoints
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'cs1_ss_0', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ip
-    REAL(KIND=dp)                                :: F1a, F1b, F2a, F2b, ga, gb, &
+    REAL(KIND=dp)                            :: F1a, F1b, F2a, F2b, ga, gb, &
                                                 oca, ocb, oda, odb, r3a, r3b, &
                                                 ra, rb, xa, xb
-    CHARACTER(len=*), PARAMETER :: routineN="cs1_ss_0",&
-         routineP=moduleN//':'//routineN
 
 !   ---------------------------------------------------------------------------
+!FM IF ( .NOT. debug_flag ) CALL stop_program("cs1_ss_0","Routine not tested")
 
-    !FM IF ( .NOT. debug_flag ) CALL stop_program("cs1_ss_0","Routine not tested")
     CALL cp_assert(.FALSE.,cp_warning_level, cp_assertion_failed,routineP,&
          "not tested!"//&
          CPSourceFileRef,&
@@ -675,21 +690,23 @@ CONTAINS
   SUBROUTINE cs1_ss_1 ( rhoa, rhob, grhoa, grhob, r13a, r13b, e_rhoa,&
        e_rhob, e_ndrhoa, e_ndrhob, npoints, error )
 
-    REAL(KIND=dp), DIMENSION(*), INTENT(IN)      :: rhoa, rhob, grhoa, grhob, &
+    REAL(KIND=dp), DIMENSION(*), INTENT(IN)  :: rhoa, rhob, grhoa, grhob, &
                                                 r13a, r13b
-    REAL(KIND=dp), DIMENSION(*), INTENT(INOUT)  :: e_rhoa,&
-       e_rhob, e_ndrhoa, e_ndrhob
-    INTEGER, intent(in) :: npoints
-    TYPE(cp_error_type), INTENT(inout), optional :: error
+    REAL(KIND=dp), DIMENSION(*), &
+      INTENT(INOUT)                          :: e_rhoa, e_rhob, e_ndrhoa, &
+                                                e_ndrhob
+    INTEGER, INTENT(in)                      :: npoints
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
+    CHARACTER(len=*), PARAMETER :: routineN = 'cs1_ss_1', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ip
-    REAL(KIND=dp)                                :: dF1a, dF1b, dgF2a, dgF2b, &
+    REAL(KIND=dp)                            :: dF1a, dF1b, dgF2a, dgF2b, &
                                                 drF2a, drF2b, ga, gb, oca, &
                                                 ocb, oda, odb, r3a, r3b, ra, &
                                                 rb
-    CHARACTER(len=*), PARAMETER :: routineN="cs1_ss_1",&
-         routineP=moduleN//':'//routineN
 
 !   ---------------------------------------------------------------------------
 

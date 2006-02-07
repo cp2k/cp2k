@@ -25,8 +25,15 @@ MODULE bfgs_optimizer
   USE atomic_kind_list_types,          ONLY: atomic_kind_list_type
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind
+  USE cell_types,                      ONLY: cell_type
   USE checkpoint_handler,              ONLY: write_checkpoint_information
-  USE cp_files,                        ONLY: close_file,open_file
+  USE cp_files,                        ONLY: close_file,&
+                                             open_file
+  USE cp_output_handling,              ONLY: cp_add_iter_level,&
+                                             cp_iterate,&
+                                             cp_print_key_finished_output,&
+                                             cp_print_key_unit_nr,&
+                                             cp_rm_iter_level
   USE cp_subsystem_types,              ONLY: cp_subsys_get,&
                                              cp_subsystem_p_type
   USE force_env_methods,               ONLY: force_env_calc_energy_force
@@ -34,6 +41,8 @@ MODULE bfgs_optimizer
                                              force_env_type
   USE global_types,                    ONLY: global_environment_type
   USE gopt_f_types,                    ONLY: gopt_param_type
+  USE input_constants,                 ONLY: dump_xmol
+  USE input_section_types,             ONLY: section_vals_type
   USE kinds,                           ONLY: dp
   USE machine,                         ONLY: m_flush
   USE mathlib,                         ONLY: diamat_all
@@ -43,22 +52,11 @@ MODULE bfgs_optimizer
                                              write_particle_coordinates,&
                                              write_particle_distances,&
                                              write_qs_particle_coordinates
-  USE cell_types,                 ONLY: cell_type
   USE termination,                     ONLY: external_control
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE input_constants,                 ONLY: dump_xmol
-  USE input_section_types,             ONLY: section_vals_type, section_vals_get_subs_vals,&
-       section_vals_get, section_vals_val_get, section_vals_release
-  USE cp_output_handling,              ONLY: cp_print_key_unit_nr, &
-                                             cp_print_key_finished_output,&
-                                             cp_print_key_should_output,&
-                                             cp_p_file,&
-                                             cp_add_iter_level,&
-                                             cp_rm_iter_level,&
-                                             cp_iterate
-
 #include "cp_common_uses.h"
+
   IMPLICIT NONE
 
   PRIVATE
@@ -68,7 +66,7 @@ MODULE bfgs_optimizer
             check_converg
 
   LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
-  CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='bfgs_optimizer'
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'bfgs_optimizer'
 
 
 CONTAINS
@@ -78,44 +76,44 @@ CONTAINS
   SUBROUTINE geoopt_bfgs(force_env,globenv,gopt_param,force_env_section,error)
 
     TYPE(force_env_type), POINTER            :: force_env
-    TYPE(global_environment_type), &
-         pointer                             :: globenv
+    TYPE(global_environment_type), POINTER   :: globenv
     TYPE(gopt_param_type), POINTER           :: gopt_param
-    TYPE(section_vals_type), POINTER :: force_env_section
+    TYPE(section_vals_type), POINTER         :: force_env_section
     TYPE(cp_error_type), INTENT(inout), &
-         OPTIONAL                               :: error
+      OPTIONAL                               :: error
 
-    CHARACTER(LEN=*), PARAMETER              :: routine_name = 'geoopt_bfgs'
+    CHARACTER(LEN=*), PARAMETER              :: routineN = 'geoopt_bfgs'
     REAL(KIND=dp), PARAMETER                 :: one = 1.0_dp, zero = 0.0_dp
 
     CHARACTER(LEN=80)                        :: title
-    INTEGER :: atom, dataunit, handle, hesunit, i, iatom, ikind, indf, istat, &
-         it, j, maxiter, natom, ndf, nfixed, nfree, nkind, output_unit
+    INTEGER :: atom, dataunit, handle, hesunit, i, iatom, ihandle, ikind, &
+      indf, istat, it, j, maxiter, natom, ndf, nfixed, nfree, nkind, &
+      output_unit
     INTEGER, DIMENSION(:), POINTER           :: atom_list
-    LOGICAL                                  :: conv, hesrest, ionode,should_stop
+    LOGICAL                                  :: conv, hesrest, ionode, &
+                                                should_stop
     REAL(KIND=dp)                            :: ediff, emin, eold, etot, &
-         pred, rad, rat, step
+                                                pred, rad, rat, step
     REAL(KIND=dp), ALLOCATABLE :: dg(:), dr(:), dx(:), eigval(:), &
-         eigvec(:,:), g(:), gold(:), hes(:), hes_mat(:,:), work(:), x(:), xold(:)
+      eigvec(:,:), g(:), gold(:), hes(:), hes_mat(:,:), work(:), x(:), xold(:)
     TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
     TYPE(atomic_kind_type), DIMENSION(:), &
-         POINTER                                :: atomic_kind_set
+      POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cell_type), POINTER                 :: cell
+    TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_subsystem_p_type), &
-         DIMENSION(:), POINTER                  :: subsys
+      DIMENSION(:), POINTER                  :: subsys
     TYPE(particle_list_type), POINTER        :: particles
     TYPE(particle_type), DIMENSION(:), &
-         POINTER                                :: particle_set
-    TYPE(cp_logger_type), POINTER            :: logger
-    INTEGER :: ihandle
+      POINTER                                :: particle_set
 
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
 
     CALL cp_add_iter_level(logger%iter_info,"GEO_OPT",ihandle,error)
-    CALL write_checkpoint_information("Entering "//routine_name,globenv,error)
-    CALL timeset(routine_name,"I","",handle)
+    CALL write_checkpoint_information("Entering "//routineN,globenv,error)
+    CALL timeset(routineN,"I","",handle)
 
     ionode      = globenv%ionode
     maxiter     = gopt_param%max_iter
@@ -441,7 +439,7 @@ CONTAINS
     CALL cp_rm_iter_level(logger%iter_info,ihandle,error)
     CALL timestop(0.0_dp,handle)
 
-    CALL write_checkpoint_information("Leaving "//routine_name,globenv,error)
+    CALL write_checkpoint_information("Leaving "//routineN,globenv,error)
 
   END SUBROUTINE geoopt_bfgs
 
@@ -789,8 +787,9 @@ CONTAINS
  SUBROUTINE write_cycle_infos(output_unit,it,etot,ediff,pred,rat,step,rad,emin,wildcard)
 
     INTEGER, INTENT(IN)                      :: output_unit, it
-    REAL(KIND=dp), INTENT(IN)                :: etot, ediff, emin
+    REAL(KIND=dp), INTENT(IN)                :: etot, ediff
     REAL(KIND=dp), INTENT(IN), OPTIONAL      :: pred, rat, step, rad
+    REAL(KIND=dp), INTENT(IN)                :: emin
     CHARACTER(LEN=5), OPTIONAL               :: wildcard
 
      WRITE(UNIT=output_unit,FMT="(/,T2,8('-'),A,I5,1X,12('-'))")&

@@ -28,19 +28,11 @@ MODULE qs_ot_scf
                                              cp_fm_type
   USE cp_sm_fm_interactions,           ONLY: cp_sm_fm_multiply
   USE global_types,                    ONLY: global_environment_type
-  USE input_constants,                 ONLY: ot_ls_2pnt,&
-                                             ot_ls_3pnt,&
-                                             ot_ls_gold,&
-                                             ot_ls_none,&
-                                             ot_mini_cg,&
-                                             ot_mini_diis,&
-                                             ot_mini_sd,&
-                                             ot_precond_full_kinetic,&
-                                             ot_precond_full_single,&
-                                             ot_precond_full_all,&
-                                             ot_precond_none,&
-                                             ot_precond_s_inverse,&
-                                             ot_precond_sparse_diag
+  USE input_constants,                 ONLY: &
+       ot_ls_2pnt, ot_ls_3pnt, ot_ls_gold, ot_ls_none, ot_mini_cg, &
+       ot_mini_diis, ot_mini_sd, ot_precond_full_all, &
+       ot_precond_full_kinetic, ot_precond_full_single, ot_precond_none, &
+       ot_precond_s_inverse, ot_precond_sparse_diag
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&
                                              section_vals_type,&
@@ -79,17 +71,15 @@ CONTAINS
 
   SUBROUTINE ot_scf_read_input(qs_ot_env,globenv)
     TYPE(qs_ot_type), DIMENSION(:), POINTER  :: qs_ot_env
-    TYPE(global_environment_type), &
-         pointer                             :: globenv
+    TYPE(global_environment_type), POINTER   :: globenv
 
-    CHARACTER(LEN=40)                        :: keyword, value
+    CHARACTER(LEN=40)                        :: value
     INTEGER                                  :: handle, ispin, ls_method, &
-         nspin, ot_method, &
-         preconditioner_method
-    LOGICAL                                  :: explicit, found
+                                                nspin, ot_method
+    LOGICAL                                  :: explicit
     TYPE(section_vals_type), POINTER         :: ot_section
 
-    ! executable
+! executable
 
     CALL timeset("ot_scf_read_input","I","",handle)
 
@@ -252,7 +242,7 @@ SUBROUTINE ot_scf_mini(mo_array,matrix_dedc,matrix_s,energy, &
     REAL(KIND=dp)                            :: delta
     TYPE(qs_ot_type), DIMENSION(:), POINTER  :: qs_ot_env
 
-    CHARACTER(LEN=*), PARAMETER              :: RoutineN = "ot_scf_mini"
+    CHARACTER(LEN=*), PARAMETER              :: routineN = 'ot_scf_mini'
 
     INTEGER                                  :: handle, ispin, k, n, nspin
     TYPE(cp_fm_type), POINTER                :: mo_coeff

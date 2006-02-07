@@ -26,14 +26,17 @@ MODULE distribution_methods
                                              get_atomic_kind,&
                                              get_atomic_kind_set
   USE cp_array_i_utils,                ONLY: cp_1d_i_p_type
+  USE cp_output_handling,              ONLY: cp_p_file,&
+                                             cp_print_key_finished_output,&
+                                             cp_print_key_should_output,&
+                                             cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_blacs_env_type
   USE distribution_1d_types,           ONLY: distribution_1d_create,&
                                              distribution_1d_type
   USE distribution_2d_types,           ONLY: distribution_2d_create,&
                                              distribution_2d_type,&
                                              distribution_2d_write
-  USE global_types,                    ONLY: LOW,&
-                                             MEDIUM
+  USE input_section_types,             ONLY: section_vals_type
   USE kinds,                           ONLY: dp,&
                                              int_size
   USE machine,                         ONLY: m_flush
@@ -44,12 +47,6 @@ MODULE distribution_methods
   USE molecule_types_new,              ONLY: molecule_type
   USE particle_types,                  ONLY: particle_type
   USE termination,                     ONLY: stop_memory
-  USE input_section_types,             ONLY: section_vals_type,&
-                                             section_vals_get_subs_vals
-  USE cp_output_handling,              ONLY: cp_print_key_unit_nr, &
-                                             cp_print_key_finished_output,&
-                                             cp_print_key_should_output,&
-                                             cp_p_file
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -58,7 +55,7 @@ MODULE distribution_methods
 
 ! *** Global parameters (in this module) ***
 
-  CHARACTER(LEN=*), PARAMETER :: module_name = "distribution_methods"
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'distribution_methods'
 
 ! *** Public subroutines ***
 
@@ -113,21 +110,20 @@ CONTAINS
     TYPE(molecule_type), DIMENSION(:), &
       POINTER                                :: molecule_set
     TYPE(distribution_1d_type), POINTER      :: local_molecules
+    TYPE(section_vals_type), POINTER         :: force_env_section
     TYPE(cp_error_type), INTENT(INOUT), &
       OPTIONAL                               :: error
-    TYPE(section_vals_type), POINTER :: force_env_section
 
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "distribute_molecules_1d"
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'distribute_molecules_1d'
 
     INTEGER :: atom_a, group, iatom, imolecule, imolecule_kind, &
-      imolecule_local, iparticle_kind, ipe, istat, jpe, kind_a, molecule_a, &
-      mype, n, natom, nload, nmolecule, nmolecule_kind, nparticle_kind, npe, &
-      nsgf, output_unit,iw
+      imolecule_local, iparticle_kind, ipe, istat, iw, jpe, kind_a, &
+      molecule_a, mype, n, natom, nload, nmolecule, nmolecule_kind, &
+      nparticle_kind, npe, nsgf, output_unit
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: nmolecule_local, &
                                                 nparticle_local, work, &
                                                 workload, workload_old
     INTEGER, DIMENSION(:), POINTER           :: molecule_list
-    LOGICAL                                  :: ionode
     TYPE(cp_1d_i_p_type), ALLOCATABLE, &
       DIMENSION(:)                           :: local_molecule
     TYPE(cp_logger_type), POINTER            :: logger
@@ -142,30 +138,30 @@ CONTAINS
     npe = logger%para_env%num_pe
 
     ALLOCATE (workload(npe),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "workload",npe*int_size)
     workload(:) = 0
 
     ALLOCATE (workload_old(npe),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "workload_old",npe*int_size)
     workload_old(:) = 0
 
     nmolecule_kind = SIZE(molecule_kind_set)
 
     ALLOCATE (nmolecule_local(nmolecule_kind),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "nmolecule_local",nmolecule_kind*int_size)
     nmolecule_local(:) = 0
 
     ALLOCATE (local_molecule(nmolecule_kind),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "local_molecule",nmolecule_kind*int_size)
 
     nparticle_kind = SIZE(particle_kind_set)
 
     ALLOCATE (nparticle_local(nparticle_kind),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "nparticle_local",nparticle_kind*int_size)
     nparticle_local(:) = 0
 
@@ -218,7 +214,7 @@ CONTAINS
       IF (n > 0) THEN
         ALLOCATE (local_molecule(imolecule_kind)%array(n),STAT=istat)
         IF (istat /= 0) THEN
-           CALL stop_memory(routine_name,module_name,__LINE__,&
+           CALL stop_memory(routineN,moduleN,__LINE__,&
                             "local_molecule(imolecule_kind)%array",&
                             n*int_size)
         END IF
@@ -306,7 +302,7 @@ CONTAINS
 !     *** Print molecule distribution ***
 
       ALLOCATE (work(npe),STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                        "work",npe*int_size)
       work(:) = 0
 
@@ -390,7 +386,7 @@ CONTAINS
          CALL mp_sync(group)
       END DO
       DEALLOCATE (work,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,"work")
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"work")
 
       CALL cp_print_key_finished_output(output_unit,logger,force_env_section,&
            "PRINT%DISTRIBUTION",error=error)           
@@ -398,32 +394,32 @@ CONTAINS
 !   *** Release work storage ***
 
     DEALLOCATE (workload,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "workload")
 
     DEALLOCATE (workload_old,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "workload_old")
 
     DEALLOCATE (nmolecule_local,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "nmolecule_local")
 
     DEALLOCATE (nparticle_local,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "nparticle_local")
 
     DO imolecule_kind=1,nmolecule_kind
       IF (ASSOCIATED(local_molecule(imolecule_kind)%array)) THEN
         DEALLOCATE (local_molecule(imolecule_kind)%array,STAT=istat)
         IF (istat /= 0) THEN
-          CALL stop_memory(routine_name,module_name,__LINE__,&
+          CALL stop_memory(routineN,moduleN,__LINE__,&
                            "local_molecule(imolecule_kind)%array")
         END IF
       END IF
     END DO
     DEALLOCATE (local_molecule,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "local_molecule")
 
   END SUBROUTINE distribute_molecules_1d
@@ -478,22 +474,22 @@ CONTAINS
       POINTER                                :: molecule_set
     TYPE(distribution_2d_type), POINTER      :: distribution_2d
     TYPE(cp_blacs_env_type), POINTER         :: blacs_env
+    TYPE(section_vals_type), POINTER         :: force_env_section
     TYPE(cp_error_type), INTENT(INOUT), &
       OPTIONAL                               :: error
-    TYPE(section_vals_type), POINTER :: force_env_section
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "distribute_molecules_2d"
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'distribute_molecules_2d'
 
     INTEGER :: atom_a, group, iatom, imolecule, imolecule_kind, &
-      imolecule_local, iparticle_kind, ipcol, iprow, istat, jpcol, jprow, &
+      imolecule_local, iparticle_kind, ipcol, iprow, istat, iw, jpcol, jprow, &
       kind_a, molecule_a, mypcol, myprow, n, natom, nload, nmolecule, &
-      nmolecule_kind, nparticle_kind, npcol, nprow, nsgf, output_unit,iw
+      nmolecule_kind, nparticle_kind, npcol, nprow, nsgf, output_unit
     INTEGER, ALLOCATABLE, DIMENSION(:) :: nmolecule_local_col, &
       nmolecule_local_row, nparticle_local_col, nparticle_local_row, work, &
       workload_col, workload_col_old, workload_row, workload_row_old
     INTEGER, DIMENSION(:), POINTER           :: col_distribution, &
                                                 molecule_list, &
                                                 row_distribution
-    LOGICAL                                  :: ionode
     TYPE(cp_1d_i_p_type), DIMENSION(:), &
       POINTER                                :: local_molecule_col, &
                                                 local_molecule_row, &
@@ -514,43 +510,43 @@ CONTAINS
     npcol = blacs_env%num_pe(2)
 
     ALLOCATE (workload_row(nprow),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "workload_row",nprow*int_size)
     workload_row(:) = 0
 
     ALLOCATE (workload_row_old(nprow),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "workload_row_old",nprow*int_size)
 
     ALLOCATE (workload_col(npcol),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "workload_col",npcol*int_size)
     workload_col(:) = 0
 
     ALLOCATE (workload_col_old(npcol),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "workload_col_old",npcol*int_size)
 
     nmolecule_kind = SIZE(molecule_kind_set)
 
     ALLOCATE (local_molecule_row(nmolecule_kind),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "local_molecule_row",&
                                      nmolecule_kind*int_size)
 
     ALLOCATE (local_molecule_col(nmolecule_kind),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "local_molecule_col",&
                                      nmolecule_kind*int_size)
 
     ALLOCATE (nmolecule_local_row(nmolecule_kind),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "nmolecule_local_row",&
                                      nmolecule_kind*int_size)
     nmolecule_local_row(:) = 0
 
     ALLOCATE (nmolecule_local_col(nmolecule_kind),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "nmolecule_local_col",&
                                      nmolecule_kind*int_size)
     nmolecule_local_col(:) = 0
@@ -558,23 +554,23 @@ CONTAINS
     nparticle_kind = SIZE(particle_kind_set)
 
     ALLOCATE (local_particle_row(nparticle_kind),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "local_particle_row",&
                                      nparticle_kind*int_size)
 
     ALLOCATE (local_particle_col(nparticle_kind),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "local_particle_col",&
                                      nparticle_kind*int_size)
 
     ALLOCATE (nparticle_local_row(nparticle_kind),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "nparticle_local_row",&
                                      nparticle_kind*int_size)
     nparticle_local_row(:) = 0
 
     ALLOCATE (nparticle_local_col(nparticle_kind),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "nparticle_local_col",&
                                      nparticle_kind*int_size)
     nparticle_local_col(:) = 0
@@ -582,12 +578,12 @@ CONTAINS
     CALL get_atomic_kind_set(atomic_kind_set=particle_kind_set,natom=natom)
 
     ALLOCATE (row_distribution(natom),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "row_distribution",natom*int_size)
     row_distribution(:) = 0
 
     ALLOCATE (col_distribution(natom),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "col_distribution",natom*int_size)
     col_distribution(:) = 0
 
@@ -658,7 +654,7 @@ CONTAINS
       !JVDV IF (n > 0) THEN
         ALLOCATE (local_molecule_row(imolecule_kind)%array(n),STAT=istat)
         IF (istat /= 0) THEN
-          CALL stop_memory(routine_name,module_name,__LINE__,&
+          CALL stop_memory(routineN,moduleN,__LINE__,&
                            "local_molecule_row(imolecule_kind)%array",&
                            n*int_size)
         END IF
@@ -697,7 +693,7 @@ CONTAINS
       !JVDV IF (n > 0) THEN
         ALLOCATE (local_molecule_col(imolecule_kind)%array(n),STAT=istat)
         IF (istat /= 0) THEN
-          CALL stop_memory(routine_name,module_name,__LINE__,&
+          CALL stop_memory(routineN,moduleN,__LINE__,&
                            "local_molecule_col(imolecule_kind)%array",&
                            n*int_size)
         END IF
@@ -740,7 +736,7 @@ CONTAINS
       !JVDV IF (n > 0) THEN
         ALLOCATE (local_particle_row(iparticle_kind)%array(n),STAT=istat)
         IF (istat /= 0) THEN
-          CALL stop_memory(routine_name,module_name,__LINE__,&
+          CALL stop_memory(routineN,moduleN,__LINE__,&
                            "local_particle_row(iparticle_kind)%array",&
                            n*int_size)
         END IF
@@ -753,7 +749,7 @@ CONTAINS
       !JVDV IF (n > 0) THEN
         ALLOCATE (local_particle_col(iparticle_kind)%array(n),STAT=istat)
         IF (istat /= 0) THEN
-          CALL stop_memory(routine_name,module_name,__LINE__,&
+          CALL stop_memory(routineN,moduleN,__LINE__,&
                            "local_particle_col(iparticle_kind)%array",&
                            n*int_size)
         END IF
@@ -823,7 +819,7 @@ CONTAINS
 
       ALLOCATE (work(nprow),STAT=istat)
       IF (istat /= 0) THEN
-        CALL stop_memory(routine_name,module_name,__LINE__,&
+        CALL stop_memory(routineN,moduleN,__LINE__,&
                          "work",nprow*int_size)
       END IF
       work(:) = 0
@@ -845,14 +841,14 @@ CONTAINS
 
       DEALLOCATE (work,STAT=istat)
       IF (istat /= 0) THEN
-        CALL stop_memory(routine_name,module_name,__LINE__,"work")
+        CALL stop_memory(routineN,moduleN,__LINE__,"work")
       END IF
 
 !     *** Print column distribution ***
 
       ALLOCATE (work(npcol),STAT=istat)
       IF (istat /= 0) THEN
-        CALL stop_memory(routine_name,module_name,__LINE__,&
+        CALL stop_memory(routineN,moduleN,__LINE__,&
                          "work",npcol*int_size)
       END IF
       work(:) = 0
@@ -875,7 +871,7 @@ CONTAINS
 
       DEALLOCATE (work,STAT=istat)
       IF (istat /= 0) THEN
-        CALL stop_memory(routine_name,module_name,__LINE__,"work")
+        CALL stop_memory(routineN,moduleN,__LINE__,"work")
       END IF
 
       iw = output_unit
@@ -894,61 +890,61 @@ CONTAINS
 !   *** Release work storage ***
 
     DEALLOCATE (workload_row,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                     "workload_row")
 
     DEALLOCATE (workload_row_old,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                     "workload_row_old")
 
     DEALLOCATE (workload_col,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                     "workload_col")
 
     DEALLOCATE (workload_col_old,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                     "workload_col_old")
 
     DO imolecule_kind=1,nmolecule_kind
       IF (ASSOCIATED(local_molecule_row(imolecule_kind)%array)) THEN
         DEALLOCATE (local_molecule_row(imolecule_kind)%array,STAT=istat)
         IF (istat /= 0) THEN
-          CALL stop_memory(routine_name,module_name,__LINE__,&
+          CALL stop_memory(routineN,moduleN,__LINE__,&
                            "local_molecule_row(imolecule_kind)%array")
         END IF
       END IF
     END DO
     DEALLOCATE (local_molecule_row,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "local_molecule_row")
 
     DO imolecule_kind=1,nmolecule_kind
       IF (ASSOCIATED(local_molecule_col(imolecule_kind)%array)) THEN
         DEALLOCATE (local_molecule_col(imolecule_kind)%array,STAT=istat)
         IF (istat /= 0) THEN
-          CALL stop_memory(routine_name,module_name,__LINE__,&
+          CALL stop_memory(routineN,moduleN,__LINE__,&
                            "local_molecule_col(imolecule_kind)%array")
         END IF
       END IF
     END DO
     DEALLOCATE (local_molecule_col,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "local_molecule_col")
 
     DEALLOCATE (nmolecule_local_row,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "nmolecule_local_row")
 
     DEALLOCATE (nmolecule_local_col,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "nmolecule_local_col")
 
     DEALLOCATE (nparticle_local_row,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "nparticle_local_row")
 
     DEALLOCATE (nparticle_local_col,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "nparticle_local_col")
 
   END SUBROUTINE distribute_molecules_2d

@@ -21,8 +21,8 @@
 
 MODULE machine_dec
 
-  USE kinds,                           ONLY: dp,sp
-                                             
+  USE kinds,                           ONLY: dp,&
+                                             sp
 
   IMPLICIT NONE
 
@@ -38,7 +38,7 @@ MODULE machine_dec
 CONTAINS
 
 FUNCTION m_loc_r(a) RESULT(res)
-    REAL(KIND=dp), DIMENSION(*), INTENT(in) :: a
+    REAL(KIND=dp), DIMENSION(*), INTENT(in)  :: a
     INTEGER                                  :: res
 
   res=-1
@@ -69,7 +69,7 @@ END FUNCTION m_iargc
 !******************************************************************************
 !!  cpu time in seconds
 FUNCTION m_cputime() RESULT (ct)
-    REAL(KIND=dp)                                :: ct
+    REAL(KIND=dp)                            :: ct
 
     REAL(KIND=4)                             :: etime, timearray( 2 )
 
@@ -78,9 +78,9 @@ END FUNCTION m_cputime
 !******************************************************************************
 !!  wall clock time in seconds
 FUNCTION m_walltime() RESULT (wt)
-    REAL(KIND=dp)                                :: wt
+    REAL(KIND=dp)                            :: wt
 
-    REAL(sp)                                :: etime
+    REAL(sp)                                 :: etime
 
   TYPE tb_type
      SEQUENCE

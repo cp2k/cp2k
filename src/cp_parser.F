@@ -26,7 +26,8 @@
 !******************************************************************************
 
 MODULE cp_parser
-  USE cp_files,                        ONLY: open_file, close_file
+  USE cp_files,                        ONLY: close_file,&
+                                             open_file
   USE cp_para_env,                     ONLY: cp_para_env_create,&
                                              cp_para_env_release,&
                                              cp_para_env_retain
@@ -53,7 +54,7 @@ MODULE cp_parser
 
 ! *** Global parameters ***
 
-  CHARACTER(LEN=*), PARAMETER :: moduleN = "cp_parser"
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_parser'
 
   INTEGER, PARAMETER, PUBLIC :: max_line_length = 240
 
@@ -137,8 +138,8 @@ CONTAINS
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = "broadcast_input_information", &
-      routineP = moduleN//":"//routineN
+    CHARACTER(len=*), PARAMETER :: routineN = 'broadcast_input_information', &
+      routineP = moduleN//':'//routineN
 
     LOGICAL                                  :: failure
     TYPE(cp_para_env_type), POINTER          :: para_env
@@ -213,7 +214,7 @@ END SUBROUTINE parser_retain
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = "parser_release", &
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'parser_release', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: stat
@@ -252,7 +253,7 @@ END SUBROUTINE parser_retain
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = "parser_get_next_line", &
+    CHARACTER(len=*), PARAMETER :: routineN = 'parser_get_next_line', &
       routineP = moduleN//':'//routineN
 
     LOGICAL                                  :: my_at_end
@@ -336,21 +337,21 @@ SUBROUTINE parser_skip_space(parser,multiline,error)
 
   !   ***************************************************************************
     TYPE(cp_parser_type), POINTER            :: parser
-    LOGICAL, INTENT(in), OPTIONAL :: multiline
+    LOGICAL, INTENT(in), OPTIONAL            :: multiline
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = "parser_skip_space", &
-      routineP = moduleN//":"//routineN
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'parser_skip_space', &
+      routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, length
+    INTEGER                                  :: i
     LOGICAL                                  :: failure, my_continue
 
 !   ---------------------------------------------------------------------------
 
   failure=.FALSE.
-  my_continue=.true.
-  if (present(multiline)) my_continue=multiline
+  my_continue=.TRUE.
+  IF (PRESENT(multiline)) my_continue=multiline
   CPPrecondition(ASSOCIATED(parser),cp_failure_level,routineP,error,failure)
   IF (.NOT.failure) THEN
      CPPrecondition(parser%ref_count>0,cp_failure_level,routineP,error,failure)
@@ -434,8 +435,8 @@ SUBROUTINE parser_next_token(parser,string_length,error)
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = "parser_next_token", &
-      routineP = moduleN//":"//routineN
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'parser_next_token', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, length
     LOGICAL                                  :: failure
@@ -656,7 +657,7 @@ END SUBROUTINE parser_next_token
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = "parser_get_integer", &
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'parser_get_integer', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: nline
@@ -737,7 +738,7 @@ END SUBROUTINE parser_next_token
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = "parser_get_logical", &
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'parser_get_logical', &
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=max_line_length)           :: input_string
@@ -827,8 +828,8 @@ END SUBROUTINE parser_next_token
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = "parser_read_line", &
-      routineP = moduleN//":"//routineN
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'parser_read_line', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: icomment, iline, istat
     LOGICAL                                  :: failure
@@ -934,8 +935,8 @@ END SUBROUTINE parser_next_token
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = "parser_get_real", &
-      routineP = moduleN//":"//routineN
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'parser_get_real', &
+      routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=max_line_length), &
       DIMENSION(2)                           :: string
@@ -1069,8 +1070,8 @@ END SUBROUTINE parser_next_token
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = "parser_get_string", &
-      routineP = moduleN//":"//routineN
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'parser_get_string', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: input_string_length, nline
     LOGICAL                                  :: failure, my_at_end
@@ -1155,13 +1156,13 @@ END SUBROUTINE parser_next_token
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = "parser_search_string", &
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'parser_search_string', &
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=LEN(string))               :: pattern
     CHARACTER(LEN=max_line_length+1)         :: current_line
     INTEGER                                  :: ipattern
-    LOGICAL                                  :: at_end, failure, begin
+    LOGICAL                                  :: at_end, begin, failure
 
 !   ---------------------------------------------------------------------------
 
@@ -1261,8 +1262,8 @@ END SUBROUTINE parser_next_token
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = "parser_create", &
-      routineP = moduleN//":"//routineN
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'parser_create', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: stat
     LOGICAL                                  :: failure
@@ -1362,8 +1363,8 @@ END SUBROUTINE parser_next_token
       OPTIONAL                               :: error
     CHARACTER(LEN=3)                         :: test_result
 
-    CHARACTER(len=*), PARAMETER :: routineN = "parser_test_next_token", &
-      routineP = moduleN//":"//routineN
+    CHARACTER(len=*), PARAMETER :: routineN = 'parser_test_next_token', &
+      routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=max_line_length)           :: old_input_line
     CHARACTER(LEN=max_line_length), &

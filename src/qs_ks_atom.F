@@ -29,24 +29,17 @@ MODULE qs_ks_atom
                                              gto_basis_set_type
   USE cp_array_r_utils,                ONLY: cp_2d_r_p_type
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE input_constants,                 ONLY: tddfpt_singlet
-  USE kinds,                           ONLY: dp, dp_size, int_size
-  USE memory_utilities,                ONLY: reallocate
+  USE kinds,                           ONLY: dp,&
+                                             dp_size,&
+                                             int_size
   USE message_passing,                 ONLY: mp_sum
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
   USE qs_force_types,                  ONLY: qs_force_type
-  USE qs_neighbor_list_types,          ONLY: find_neighbor_list,&
-                                             first_list,&
-                                             first_node,&
-                                             get_neighbor_list,&
-                                             get_neighbor_list_set,&
-                                             get_neighbor_node,&
-                                             neighbor_list_set_p_type,&
-                                             neighbor_list_type,&
-                                             neighbor_node_type,&
-                                             next,&
-                                             reduced_3c_list_type
+  USE qs_neighbor_list_types,          ONLY: &
+       first_list, first_node, get_neighbor_list, get_neighbor_list_set, &
+       get_neighbor_node, neighbor_list_set_p_type, neighbor_list_type, &
+       neighbor_node_type, next, reduced_3c_list_type
   USE qs_oce_types,                    ONLY: oce_matrix_type
   USE qs_p_env_types,                  ONLY: qs_p_env_type
   USE qs_rho_atom_types,               ONLY: get_rho_atom,&
@@ -64,7 +57,7 @@ MODULE qs_ks_atom
 
   PRIVATE
 
-  CHARACTER(LEN=*), PRIVATE, PARAMETER :: module_name='qs_ks_atom'
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_ks_atom'
 
   PUBLIC :: update_ks_atom
 
@@ -104,42 +97,37 @@ CONTAINS
   SUBROUTINE update_ks_atom(qs_env,ks,p,forces,tddft,p_env,error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(real_matrix_p_type), DIMENSION(:),&
+    TYPE(real_matrix_p_type), DIMENSION(:), &
       INTENT(INOUT)                          :: ks
-    TYPE(real_matrix_p_type), DIMENSION(:),&
+    TYPE(real_matrix_p_type), DIMENSION(:), &
       INTENT(IN)                             :: p
     LOGICAL, INTENT(IN)                      :: forces
     LOGICAL, INTENT(IN), OPTIONAL            :: tddft
-    TYPE(qs_p_env_type), POINTER, OPTIONAL   :: p_env
+    TYPE(qs_p_env_type), OPTIONAL, POINTER   :: p_env
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
     CHARACTER(LEN=*), PARAMETER              :: routine = "update_ks_atom"
 
     INTEGER :: handle, i, ia_kind, iab, iat, iatom, ikind, ilist, inode, &
-               ispin, istat, ja_kind, jatom, jkind, ka_kind, katom, &
-               kkind, knode, last_jatom, last_katom, lC_int, ldCPC, lPC,&
-               max_gau, max_nsgf, &
-               maxsoc, nat, natom, nkind, nlist, nnode, nnode_c, &
-               nsetc, nsgfa, nsgfb, nsoctot, nspins
+      ispin, istat, ja_kind, jatom, jkind, ka_kind, katom, kkind, knode, &
+      last_jatom, last_katom, lC_int, ldCPC, lPC, max_gau, max_nsgf, maxsoc, &
+      nat, natom, nkind, nlist, nnode, nnode_c, nsetc, nsgfa, nsgfb, nsoctot, &
+      nspins
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: atom_of_kind
     INTEGER, DIMENSION(:), POINTER           :: atom_list
-    LOGICAL                                  ::  my_tddft, &
-                                                 new_atom_b, new_atom_c,&
-                                                 paw_atom
-    REAL(KIND=dp), ALLOCATABLE, &
-      DIMENSION(:,:,:)                       :: C_int_h, C_int_s
+    LOGICAL                                  :: my_tddft, new_atom_b, &
+                                                new_atom_c, paw_atom
+    REAL(dp), DIMENSION(3, 3)                :: force_tmp
+    REAL(kind=dp)                            :: factor
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: dCPC_h, dCPC_s
     REAL(KIND=dp), ALLOCATABLE, &
-      DIMENSION(:,:,:)                       :: PC_h, PC_s
-    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: h_block, p_block
-    REAL(dp), DIMENSION(3,3)                 :: force_tmp
-    REAL(kind=dp)                            :: factor
+      DIMENSION(:, :, :)                     :: C_int_h, C_int_s, PC_h, PC_s
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
-    TYPE(cp_2d_r_p_type), DIMENSION(:),&
+    TYPE(cp_2d_r_p_type), DIMENSION(:), &
       POINTER                                :: mat_h, mat_p
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(gto_basis_set_type), POINTER        :: orb_basis
@@ -191,11 +179,11 @@ CONTAINS
 
     ALLOCATE (C_int_h(max_gau,max_nsgf,nspins),STAT=istat)
     ALLOCATE (C_int_s(max_gau,max_nsgf,nspins),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,module_name,__LINE__,&
+    IF (istat /= 0) CALL stop_memory(routine,moduleN,__LINE__,&
                         "C_int_h,C_int_s",2*max_gau*max_nsgf*nspins*dp_size)
     lC_int = max_gau
     ALLOCATE(mat_h(nspins),mat_p(nspins), STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,module_name,__LINE__,&
+    IF (istat /= 0) CALL stop_memory(routine,moduleN,__LINE__,&
                         "mat_h,mat_p")
     DO ispin = 1,nspins
       NULLIFY(mat_h(ispin)%array,mat_p(ispin)%array)
@@ -204,18 +192,18 @@ CONTAINS
 
     IF(forces) THEN
       ALLOCATE (atom_of_kind(natom),STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine,module_name,__LINE__,&
+      IF (istat /= 0) CALL stop_memory(routine,moduleN,__LINE__,&
            "atom_of_kind",natom*int_size)
       CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
                                atom_of_kind=atom_of_kind)
       ALLOCATE(dCPC_h(max_gau,max_gau),STAT=istat)
       ALLOCATE(dCPC_s(max_gau,max_gau),STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine,module_name,__LINE__,&
+      IF (istat /= 0) CALL stop_memory(routine,moduleN,__LINE__,&
             "dCPC_h,dCPC_s",2*(max_gau*max_gau)*dp_size)
       ldCPC = max_gau
       ALLOCATE(PC_h(max_nsgf,max_gau,nspins),STAT=istat)
       ALLOCATE(PC_s(max_nsgf,max_gau,nspins),STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine,module_name,__LINE__,&
+      IF (istat /= 0) CALL stop_memory(routine,moduleN,__LINE__,&
             "PC_h,PC_s",2*(max_nsgf*max_gau*nspins)*dp_size)
       lPC = max_nsgf
     END IF
@@ -412,16 +400,16 @@ CONTAINS
     ENDDO    ! ikind
 
     DEALLOCATE (C_int_h,C_int_s,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,module_name,__LINE__,&
+    IF (istat /= 0) CALL stop_memory(routine,moduleN,__LINE__,&
                               "C_int_h,C_int_s")
 
     DEALLOCATE(mat_h,mat_p, STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,module_name,__LINE__,&
+    IF (istat /= 0) CALL stop_memory(routine,moduleN,__LINE__,&
                               "mat_h,mat_p")
 
     IF(forces) THEN
        DEALLOCATE (atom_of_kind,STAT=istat)
-       IF (istat /= 0) CALL stop_memory(routine,module_name,__LINE__,&
+       IF (istat /= 0) CALL stop_memory(routine,moduleN,__LINE__,&
          "atom_of_kind")
        DEALLOCATE(DCPC_h,dCPC_s,PC_h,PC_s,STAT=istat)
     END IF
@@ -434,28 +422,24 @@ CONTAINS
   SUBROUTINE add_vhxca_to_ks(mat_h,oce,rho_atom,nspins,ia,na,ja,nb,&
                              ka,nsp,factor,C_int_h,C_int_s)
 
-!   Arguments
-    TYPE(cp_2d_r_p_type), DIMENSION(:),&
+    TYPE(cp_2d_r_p_type), DIMENSION(:), &
       POINTER                                :: mat_h
     TYPE(oce_matrix_type), POINTER           :: oce
     TYPE(rho_atom_type), POINTER             :: rho_atom
     INTEGER, INTENT(IN)                      :: nspins, ia, na, ja, nb, ka, &
                                                 nsp
     REAL(KIND=dp), INTENT(IN)                :: factor
-    REAL(KIND=dp), DIMENSION(:,:,:)          :: C_int_h,C_int_s
+    REAL(KIND=dp), DIMENSION(:, :, :)        :: C_int_h, C_int_s
 
-!   Parameters
     CHARACTER(LEN=*), PARAMETER              :: routine = "add_vhxca_to_ks"
 
-!   Local Variables
-    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: C_ss , C_hh , h_block
-    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: int_hard, int_soft
+    INTEGER                                  :: ispin
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: C_hh, C_ss, h_block, &
+                                                int_hard, int_soft
     TYPE(rho_atom_coeff), DIMENSION(:), &
-      POINTER                                :: int_local_h,int_local_s
-    INTEGER                                  :: is1, is2, ispin, istat
+      POINTER                                :: int_local_h, int_local_s
 
 !******************************************************************************
-
 
     NULLIFY(int_local_h,int_local_s,int_hard,int_soft)
     CALL get_rho_atom(rho_atom=rho_atom,&
@@ -579,31 +563,30 @@ CONTAINS
 
 ! *****************************************************************************
 
-    TYPE(cp_2d_r_p_type), DIMENSION(:),&
+    TYPE(cp_2d_r_p_type), DIMENSION(:), &
       POINTER                                :: mat_p
     TYPE(oce_matrix_type), POINTER           :: oce
     TYPE(rho_atom_type), POINTER             :: rho_atom
-    REAL(dp), DIMENSION(3,3)                 :: force
+    REAL(dp), DIMENSION(3, 3)                :: force
     INTEGER, INTENT(IN)                      :: nspins, ia, na, ja, nb, ka, &
                                                 nsp
-    INTEGER, INTENT(IN)                      :: ldCPC, lPC
     REAL(KIND=dp), DIMENSION(:, :)           :: dCPC_h, dCPC_s
-    REAL(KIND=dp), DIMENSION(:,:, :)         :: PC_h, PC_s
+    INTEGER, INTENT(IN)                      :: ldCPC
+    REAL(KIND=dp), DIMENSION(:, :, :)        :: PC_h, PC_s
+    INTEGER, INTENT(IN)                      :: lPC
 
     CHARACTER(LEN=*), PARAMETER              :: routine = "add_vhxca_forces"
 
     INTEGER                                  :: dir, ispin
+    REAL(dp), DIMENSION(:, :), POINTER       :: int_hard, int_soft
     REAL(KIND=dp)                            :: ieqj, trace
-    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: C_hh, C_ss
-    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: p_block
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: C_hh, C_ss, p_block
     TYPE(rho_atom_coeff), DIMENSION(:), &
-      POINTER                                :: int_local_h,int_local_s
-    REAL(dp), DIMENSION(:,:), POINTER        :: int_hard, int_soft
-    INTEGER                                  :: ig, jg, is1, is2, istat
+      POINTER                                :: int_local_h, int_local_s
 
 ! *****************************************************************************
-
 !   *** factor 2 because only half of the pairs with ia =/ ja are  considered
+
     ieqj = 2.0_dp
     IF(ia == ja) ieqj = 1.0_dp
 

@@ -19,11 +19,11 @@
 
 MODULE convert_units
 
+  USE cell_types,                      ONLY: cell_type
   USE cp2k_units,                      ONLY: get_cp2k_units,&
                                              unit_convert_type
   USE kinds,                           ONLY: dp
   USE particle_types,                  ONLY: particle_type
-  USE cell_types,                 ONLY: cell_type
 
   IMPLICIT NONE
 
@@ -58,12 +58,15 @@ SUBROUTINE convert_to_cp2k_units ( unit_char, time, temperature, pressure, lengt
 
 
     CHARACTER(len=*), INTENT(IN), OPTIONAL   :: unit_char
-    REAL(KIND=dp), INTENT(INOUT), OPTIONAL       :: time, temperature, pressure, &
-                                                length, tau_nhc, mass, eps0, energy,angle
-    INTEGER, INTENT(IN), OPTIONAL            :: l_power,t_power
+    REAL(KIND=dp), INTENT(INOUT), OPTIONAL   :: time, temperature, pressure, &
+                                                length, tau_nhc, mass, angle, &
+                                                eps0
+    INTEGER, INTENT(IN), OPTIONAL            :: l_power, t_power
     TYPE(particle_type), INTENT(INOUT), &
       OPTIONAL                               :: part( : )
     TYPE(cell_type), INTENT(INOUT), OPTIONAL :: box
+    REAL(KIND=dp), INTENT(INOUT), OPTIONAL   :: energy
+
     INTEGER                                  :: i, ll, tt
     TYPE(unit_convert_type), POINTER         :: units
 

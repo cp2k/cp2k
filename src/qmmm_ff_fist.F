@@ -21,12 +21,13 @@
 
 
 MODULE qmmm_ff_fist
-  USE kinds,                           ONLY: dp,&
-                                             default_string_length
+  USE kinds,                           ONLY: default_string_length,&
+                                             dp
 #include "cp_common_uses.h"
+
   IMPLICIT NONE
   PRIVATE
-  CHARACTER(LEN=*), PARAMETER, PRIVATE :: moduleN = "qmmm_ff_fist"
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qmmm_ff_fist'
 
   PUBLIC :: qmmm_ff_precond_only_qm
 
@@ -58,15 +59,16 @@ CONTAINS
   !!
   !!*************************************************************************
   FUNCTION qmmm_ff_precond_only_qm(id1, id2, id3, id4, is_link) RESULT(only_qm)
-    IMPLICIT NONE
-    ! Arguments
-    CHARACTER(LEN=default_string_length), INTENT(INOUT) :: id1
-    CHARACTER(LEN=default_string_length), INTENT(INOUT), OPTIONAL :: id2, id3, id4
-    LOGICAL, OPTIONAL, INTENT(OUT)  :: is_link
-    LOGICAL :: only_qm, my_link
-    ! Local Variables
-    CHARACTER(LEN=default_string_length) :: tmp
-    INTEGER :: j, my_index
+    CHARACTER(LEN=default_string_length), &
+      INTENT(INOUT)                          :: id1
+    CHARACTER(LEN=default_string_length), &
+      INTENT(INOUT), OPTIONAL                :: id2, id3, id4
+    LOGICAL, INTENT(OUT), OPTIONAL           :: is_link
+    LOGICAL                                  :: only_qm
+
+    CHARACTER(LEN=default_string_length)     :: tmp
+    INTEGER                                  :: j, my_index
+    LOGICAL                                  :: my_link
 
     only_qm = .FALSE.
     my_link = .FALSE.
@@ -126,14 +128,13 @@ CONTAINS
 
    
    FUNCTION qmmm_ff_precond_only_link(id1) RESULT(is_link)
-     IMPLICIT NONE
-    ! Arguments
-    CHARACTER(LEN=default_string_length), INTENT(INOUT) :: id1
-    LOGICAL :: is_link
-    ! Local Variables
-    CHARACTER(LEN=default_string_length) :: tmp
-    INTEGER :: j, my_index
-    
+    CHARACTER(LEN=default_string_length), &
+      INTENT(INOUT)                          :: id1
+    LOGICAL                                  :: is_link
+
+    CHARACTER(LEN=default_string_length)     :: tmp
+    INTEGER                                  :: j, my_index
+
     is_link = .FALSE.
     DO WHILE (INDEX(id1,"_LNK") /= 0 )
        my_index=INDEX(id1,"_LNK")+1

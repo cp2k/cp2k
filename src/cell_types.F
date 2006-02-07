@@ -19,50 +19,31 @@
 !******************************************************************************
 
 MODULE cell_types
+  USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
+                                             cp_print_key_unit_nr
   USE global_types,                    ONLY: global_environment_type
-  USE input_constants,                 ONLY: ANALYTIC0D,&
-                                             ANALYTIC1D,&
-                                             ANALYTIC2D,&
-                                             MT0D,&
-                                             MT1D,&
-                                             MT2D,&
-                                             PERIODIC3D,&
-                                             use_perd_x,&
-                                             use_perd_y,&
-                                             use_perd_z,&
-                                             use_perd_xy,&
-                                             use_perd_xz,&
-                                             use_perd_yz,&
-                                             use_perd_xyz,&
-                                             use_perd_none,&
-                                             use_unit_angstrom,&
-                                             use_unit_bohr,&
-                                             use_unit_scaled_angstrom,&
-                                             use_unit_scaled_bohr
-  USE input_cp2k, only: parsed_cp2k_input
+  USE input_constants,                 ONLY: &
+       use_perd_none, use_perd_x, use_perd_xy, use_perd_xyz, use_perd_xz, &
+       use_perd_y, use_perd_yz, use_perd_z, use_unit_angstrom, use_unit_bohr, &
+       use_unit_scaled_angstrom, use_unit_scaled_bohr
+  USE input_cp2k,                      ONLY: parsed_cp2k_input
+  USE input_section_types,             ONLY: section_vals_get_subs_vals,&
+                                             section_vals_type,&
+                                             section_vals_val_get
   USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: degree
   USE mathlib,                         ONLY: angle,&
                                              det_3x3,&
                                              inv_3x3
   USE physcon,                         ONLY: bohr
-  USE termination,                     ONLY: stop_memory,&
-                                             stop_program
-  USE input_section_types,             ONLY: section_vals_get_subs_vals,&
-                                             section_vals_type,&
-                                             section_vals_val_get
-  USE cp_output_handling,              ONLY: cp_print_key_unit_nr, &
-                                             cp_print_key_finished_output,&
-                                             cp_print_key_should_output,&
-                                             cp_p_file
-
+  USE termination,                     ONLY: stop_program
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
 
   PRIVATE
 
-  CHARACTER(LEN=*), PARAMETER :: module_name = "cell_types"
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cell_types'
 
   INTEGER, SAVE, PRIVATE :: last_cell_id=0
 
@@ -129,7 +110,8 @@ CONTAINS
     TYPE(cp_error_type), INTENT(INOUT), &
       OPTIONAL                               :: error
 
-    CHARACTER(len=*), PARAMETER :: RoutineP = module_name//":cell_clone"
+    CHARACTER(len=*), PARAMETER :: routineN = 'cell_clone', &
+      routineP = moduleN//':'//routineN
 
     LOGICAL                                  :: failure
 
@@ -234,7 +216,7 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(cell_type), POINTER      :: box
+    TYPE(cell_type), POINTER                 :: box
     REAL(KIND=dp), DIMENSION(3), INTENT(OUT) :: cell_length
     REAL(KIND=dp), DIMENSION(3), &
       INTENT(OUT), OPTIONAL                  :: cell_angle
@@ -258,17 +240,16 @@ CONTAINS
 ! *****************************************************************************
 
   SUBROUTINE get_hinv(box)
-    IMPLICIT NONE
 !   Purpose: Calculate the inverse of the h matrix.
 !   History: - Creation (16.01.2002, CJM,JGH,MK)
-    ! Arguments    
-    TYPE(cell_type), POINTER                :: box    
-    CHARACTER(LEN=*), PARAMETER              :: routine_name = "get_hinv"
+    TYPE(cell_type), POINTER                 :: box
+
+    CHARACTER(LEN=*), PARAMETER              :: routineN = 'get_hinv'
 
     box%deth = det_3x3(box%hmat)
 
     IF (box%deth < 1.0E-10_dp) THEN
-      CALL stop_program(module_name,routine_name,__LINE__,&
+      CALL stop_program(moduleN,routineN,__LINE__,&
                         "An invalid set of box vectors was specified. "//&
                         "The determinant det(h) is too small")
     END IF
@@ -324,8 +305,7 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: &
       routine = "SUBROUTINE init_cell (MODULE cell_types)"
 
-    INTEGER                                  :: dim, i
-    REAL(KIND=dp), DIMENSION(3)              :: abc
+    INTEGER                                  :: dim
 
 !   ---------------------------------------------------------------------------
 
@@ -366,13 +346,12 @@ CONTAINS
 
 !   ***************************************************************************
 
-    INTEGER, INTENT(IN)                      :: h,k,l
+    INTEGER, INTENT(IN)                      :: h, k, l
     TYPE(cell_type), POINTER                 :: cell
-
     REAL(KIND=dp)                            :: distance
 
-    REAL(KIND=dp)                            :: a,alpha,b,beta,c,cosa,cosb,&
-                                                cosg,d,gamma,x,y,z
+    REAL(KIND=dp)                            :: a, alpha, b, beta, c, cosa, &
+                                                cosb, cosg, d, gamma, x, y, z
     REAL(KIND=dp), DIMENSION(3)              :: abc
 
 !   ---------------------------------------------------------------------------
@@ -402,13 +381,13 @@ CONTAINS
       beta = beta/degree
       gamma = gamma/degree
 
-      cosa = cos(alpha)
-      cosb = cos(beta)
-      cosg = cos(gamma)
+      cosa = COS(alpha)
+      cosb = COS(beta)
+      cosg = COS(gamma)
 
-      d = ((x*b*c*sin(alpha))**2 +&
-           (y*c*a*sin(beta))**2 +&
-           (z*a*b*sin(gamma))**2 +&
+      d = ((x*b*c*SIN(alpha))**2 +&
+           (y*c*a*SIN(beta))**2 +&
+           (z*a*b*SIN(gamma))**2 +&
            2.0_dp*a*b*c*(x*y*c*(cosa*cosb - cosg) +&
                          z*x*b*(cosg*cosa - cosb) +&
                          y*z*a*(cosb*cosg - cosa)))/&
@@ -557,19 +536,14 @@ CONTAINS
 !   ***************************************************************************
 
     TYPE(cell_type), POINTER                 :: cell, cell_ref
-    TYPE(global_environment_type), &
-      pointer                             :: globenv
+    TYPE(global_environment_type), POINTER   :: globenv
     LOGICAL, INTENT(OUT), OPTIONAL           :: use_ref_cell
-    TYPE(section_vals_type), POINTER, OPTIONAL :: cell_section
-    TYPE(cp_error_type), INTENT(inout)            :: error
+    TYPE(cp_error_type), INTENT(inout)       :: error
+    TYPE(section_vals_type), OPTIONAL, &
+      POINTER                                :: cell_section
 
     CHARACTER(LEN=*), PARAMETER :: &
       routine = "SUBROUTINE read_cell (MODULE cell_types)"
-
-    CHARACTER(LEN=40)                        :: keyword, string
-    INTEGER                                  :: istat
-    LOGICAL                                  :: section_found
-
 
     CALL read_cell_new(cell, cell_ref, globenv, use_ref_cell, error=error, cell_section=cell_section)
 
@@ -600,24 +574,21 @@ CONTAINS
 
   RECURSIVE SUBROUTINE read_cell_new ( cell, cell_ref, globenv, use_ref_cell, error, cell_section,&
        check_for_ref)
-    IMPLICIT NONE
-    ! Arguments
     TYPE(cell_type), POINTER                 :: cell, cell_ref
-    TYPE(global_environment_type), &
-      pointer                             :: globenv
+    TYPE(global_environment_type), POINTER   :: globenv
     LOGICAL, INTENT(OUT), OPTIONAL           :: use_ref_cell
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+    TYPE(section_vals_type), OPTIONAL, &
+      POINTER                                :: cell_section
     LOGICAL, INTENT(IN), OPTIONAL            :: check_for_ref
-    TYPE(section_vals_type), POINTER, OPTIONAL :: cell_section
-    TYPE(section_vals_type), POINTER           :: cell_ref_section
-    TYPE(cp_error_type), INTENT(INOUT) :: error
-    ! Local Variables
-    CHARACTER(len=*), PARAMETER :: routineN = 'read_cell', &
-      routineP = module_name//':'//routineN
-    REAL(KIND=dp), DIMENSION(:),POINTER      :: cell_par
-    CHARACTER(LEN=40)                        :: keyword, string
-    INTEGER                                  :: istat, n_rep, my_per, my_val
-    LOGICAL                                  :: section_found, failure, my_check
 
+    CHARACTER(len=*), PARAMETER :: routineN = 'read_cell_new', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: my_per, my_val, n_rep
+    LOGICAL                                  :: failure, my_check
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: cell_par
+    TYPE(section_vals_type), POINTER         :: cell_ref_section
 
     failure  = .FALSE.
     my_check = .TRUE.
@@ -629,7 +600,7 @@ CONTAINS
        END IF
        
        IF (.NOT.ASSOCIATED(cell_ref)) THEN
-          call cell_create(cell_ref)
+          CALL cell_create(cell_ref)
        END IF
        
        IF (PRESENT(check_for_ref)) my_check     =  check_for_ref
@@ -798,10 +769,10 @@ CONTAINS
 !   ***************************************************************************
 
     TYPE(cell_type), POINTER                 :: cell
-    TYPE(section_vals_type), POINTER :: force_env_section
-    TYPE(cell_type), POINTER,OPTIONAL     :: cell_ref
+    TYPE(section_vals_type), POINTER         :: force_env_section
+    TYPE(cell_type), OPTIONAL, POINTER       :: cell_ref
     TYPE(cp_error_type), INTENT(inout), &
-         OPTIONAL                               :: error
+      OPTIONAL                               :: error
 
     INTEGER                                  :: output_unit
     REAL(KIND=dp)                            :: alpha, beta, gamma
@@ -905,7 +876,7 @@ CONTAINS
       OPTIONAL                               :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cell_create', &
-      routineP = module_name//':'//routineN
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: stat
     LOGICAL                                  :: failure
@@ -955,7 +926,7 @@ SUBROUTINE cell_retain(cell,error)
       OPTIONAL                               :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cell_retain', &
-      routineP = module_name//':'//routineN
+      routineP = moduleN//':'//routineN
 
     LOGICAL                                  :: failure
 
@@ -998,7 +969,7 @@ SUBROUTINE cell_release(cell,error)
       OPTIONAL                               :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cell_release', &
-      routineP = module_name//':'//routineN
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: stat
     LOGICAL                                  :: failure

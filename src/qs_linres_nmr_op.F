@@ -58,7 +58,7 @@ MODULE qs_linres_nmr_op
   PRIVATE
   PUBLIC :: nmr_operators, set_vecp
 
-  CHARACTER(LEN=*), PARAMETER :: moduleN='qs_linres_nmr_utils'
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_linres_nmr_op'
 
 !!***
 ! *****************************************************************************
@@ -100,7 +100,7 @@ CONTAINS
       OPTIONAL                               :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'nmr_operators', &
-      routineP = moduleN//'/'//routineN
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: homo, iao, iatom, idir, &
                                                 idir2, ii, iii, ispin, istat, &

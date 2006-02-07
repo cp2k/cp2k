@@ -24,18 +24,12 @@
 !!
 !!****
 MODULE qs_p_env_methods
- USE cp_output_handling,              ONLY: cp_print_key_unit_nr, &
-                                             cp_print_key_finished_output,&
-                                             cp_print_key_should_output,&
-                                             cp_p_file
-  USE atomic_kind_types,               ONLY: atomic_kind_type
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm,&
                                              cp_fm_scale_and_add,&
                                              cp_fm_symm,&
                                              cp_fm_triangular_multiply
-  USE cp_fm_cholesky,                  ONLY: cp_fm_cholesky_decompose,&
-                                             cp_fm_cholesky_invert
+  USE cp_fm_cholesky,                  ONLY: cp_fm_cholesky_decompose
   USE cp_fm_pool_types,                ONLY: cp_fm_pool_p_type,&
                                              cp_fm_pool_type,&
                                              fm_pool_create_fm,&
@@ -56,15 +50,20 @@ MODULE qs_p_env_methods
                                              cp_fm_type
   USE cp_fm_vect,                      ONLY: cp_fm_vect_copy,&
                                              cp_fm_vect_dealloc
+  USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
+                                             cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_sm_fm_interactions,           ONLY: cp_sm_fm_multiply,&
-                                             cp_sm_plus_fm_fm_t,&
-                                             copy_sm_to_fm
+                                             cp_sm_plus_fm_fm_t
   USE cp_sm_pool_types,                ONLY: cp_sm_pool_p_type
-  USE global_types,                    ONLY: global_environment_type
   USE hartree_local_methods,           ONLY: init_coulomb_local
   USE hartree_local_types,             ONLY: hartree_local_create
-  USE input_constants,                 ONLY: lr_cg, lr_ls_none, lr_precond_none
+  USE input_constants,                 ONLY: lr_cg,&
+                                             lr_ls_none,&
+                                             lr_precond_none
+  USE input_section_types,             ONLY: section_vals_get,&
+                                             section_vals_get_subs_vals,&
+                                             section_vals_type
   USE kinds,                           ONLY: dp
   USE preconditioner,                  ONLY: init_preconditioner
   USE qs_environment_types,            ONLY: get_qs_env,&
@@ -83,13 +82,13 @@ MODULE qs_p_env_methods
   USE qs_mo_types,                     ONLY: get_mo_set,&
                                              mo_set_p_type
   USE qs_p_env_types,                  ONLY: qs_p_env_type
+  USE qs_rho0_methods,                 ONLY: init_rho0
   USE qs_rho_atom_methods,             ONLY: allocate_rho_atom_internals,&
                                              calculate_rho_atom_coeff
   USE qs_rho_methods,                  ONLY: qs_rho_rebuild,&
                                              qs_rho_update_rho
   USE qs_rho_types,                    ONLY: qs_rho_release,&
                                              qs_rho_type
-  USE qs_rho0_methods,                 ONLY: init_rho0
   USE sparse_matrix_types,             ONLY: cp_sm_scale_and_add,&
                                              deallocate_matrix_set,&
                                              real_matrix_p_type,&
@@ -97,18 +96,14 @@ MODULE qs_p_env_methods
                                              replicate_matrix_structure,&
                                              set_matrix,&
                                              transfer_matrix
-  USE input_section_types,             ONLY: section_vals_type, &
-                                             section_vals_get,&
-                                             section_vals_get_subs_vals
   USE string_utilities,                ONLY: compress
-  USE termination,                     ONLY: stop_memory
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
 
-  CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='qs_p_env_methods'
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_p_env_methods'
   INTEGER, PRIVATE, SAVE :: last_p_env_id=0
   LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.FALSE.
 
@@ -165,30 +160,30 @@ CONTAINS
        psi0d, orthogonal_orbitals,linres_control, error)
 
 
-    TYPE(qs_p_env_type), POINTER              :: p_env
-    TYPE(qs_environment_type), POINTER        :: qs_env
-    TYPE(qs_kpp1_env_type), POINTER, OPTIONAL :: kpp1_env
+    TYPE(qs_p_env_type), POINTER             :: p_env
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(qs_kpp1_env_type), OPTIONAL, &
+      POINTER                                :: kpp1_env
     TYPE(real_matrix_p_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: p1_option
     TYPE(cp_fm_p_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: psi0d
     LOGICAL, INTENT(in), OPTIONAL            :: orthogonal_orbitals
-    TYPE(linres_control_type), POINTER,&
-      OPTIONAL                               :: linres_control
+    TYPE(linres_control_type), OPTIONAL, &
+      POINTER                                :: linres_control
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'p_env_create', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, ip, ispin, n_ao, n_mo, n_spins, &
-                                                spin, stat
+    INTEGER                                  :: handle, i, n_ao, n_mo, &
+                                                n_spins, spin, stat
     LOGICAL                                  :: failure
     TYPE(cp_fm_pool_p_type), DIMENSION(:), &
       POINTER                                :: ao_mo_fm_pools, mo_mo_fm_pools
     TYPE(cp_fm_type), POINTER                :: qs_env_c
 
- integer :: i,j
 ! code
 
     CALL timeset(routineN,"I"," ",handle)
@@ -427,7 +422,7 @@ CONTAINS
 
     CHARACTER(len=25)                        :: name
     INTEGER                                  :: handle, ispin, nspins, stat
-    LOGICAL                                  :: failure,gapw_xc
+    LOGICAL                                  :: failure, gapw_xc
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(real_matrix_p_type), DIMENSION(:), &
       POINTER                                :: matrix_s
@@ -595,7 +590,7 @@ END SUBROUTINE p_env_did_change
     TYPE(qs_p_env_type), POINTER             :: p_env
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(cp_fm_p_type), DIMENSION(:), &
-         OPTIONAL, POINTER                   :: psi0
+      OPTIONAL, POINTER                      :: psi0
     TYPE(cp_fm_p_type), DIMENSION(:), &
       INTENT(inout), OPTIONAL                :: Hrho_psi0d
     TYPE(cp_error_type), INTENT(inout), &
@@ -605,8 +600,8 @@ END SUBROUTINE p_env_did_change
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, lfomo, n_spins, nmo, &
-                                                output_unit,spin, stat
-    LOGICAL                                  :: failure,ionode,was_present
+                                                output_unit, spin, stat
+    LOGICAL                                  :: failure, ionode, was_present
     REAL(KIND=dp)                            :: maxocc
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: my_psi0
@@ -622,7 +617,7 @@ END SUBROUTINE p_env_did_change
     TYPE(qs_rho_type), POINTER               :: rho
     TYPE(real_matrix_p_type), DIMENSION(:), &
       POINTER                                :: matrix_s
-    TYPE(section_vals_type), POINTER         :: input,lr_section
+    TYPE(section_vals_type), POINTER         :: input, lr_section
 
 ! code
 
@@ -759,7 +754,7 @@ END SUBROUTINE p_env_did_change
        IF (output_unit>0) THEN          
           CALL section_vals_get(lr_section,explicit=was_present,error=error)
           IF(was_present) THEN
-            write(UNIT=output_unit,FMT="(/,(T3,A,T55,F25.14))") &
+            WRITE(UNIT=output_unit,FMT="(/,(T3,A,T55,F25.14))") &
             "Total energy ground state:                     ", qs_env%energy%total
           END IF
        END IF
@@ -938,7 +933,7 @@ END SUBROUTINE p_env_did_change
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'p_op_l1', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'p_op_l1_spin', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, ncol
@@ -1038,12 +1033,12 @@ END SUBROUTINE p_env_did_change
       POINTER                                :: p1
     TYPE(cp_fm_p_type), DIMENSION(:), &
       INTENT(INOUT)                          :: res
-    REAL(KIND=dp), INTENT(in), OPTIONAL     :: alpha, beta
+    REAL(KIND=dp), INTENT(in), OPTIONAL      :: alpha, beta
     TYPE(cp_error_type), INTENT(INOUT), &
       OPTIONAL                               :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'p_op_l2', &
-                                   routineP = moduleN//':'//routineN
+      routineP = moduleN//':'//routineN
     LOGICAL, PARAMETER                       :: fdiff = .FALSE.
 
     INTEGER                                  :: handle, ispin, n_spins
@@ -1451,11 +1446,11 @@ END SUBROUTINE p_env_did_change
       INTENT(in)                             :: v
     TYPE(cp_fm_p_type), DIMENSION(:), &
       INTENT(inout)                          :: res
-    REAL(KIND=dp), INTENT(in), OPTIONAL     :: alpha, beta
+    REAL(KIND=dp), INTENT(in), OPTIONAL      :: alpha, beta
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'p_op_l2', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'p_op_l2_fawzi', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, ispin, lfomo, &
@@ -1469,7 +1464,7 @@ END SUBROUTINE p_env_did_change
       POINTER                                :: mos
     TYPE(qs_rho_type), POINTER               :: rho
     TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                :: p1_new, matrix_s
+      POINTER                                :: matrix_s, p1_new
 
     CALL timeset(routineN,"I"," ",handle)
 

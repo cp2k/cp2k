@@ -31,7 +31,7 @@ MODULE xc_tfw_new
   USE xc_derivative_types,             ONLY: xc_derivative_get,&
                                              xc_derivative_type
   USE xc_functionals_utilities,        ONLY: set_util
-  USE xc_rho_cflags_types,                ONLY: xc_rho_cflags_type
+  USE xc_rho_cflags_types,             ONLY: xc_rho_cflags_type
   USE xc_rho_set_types,                ONLY: xc_rho_set_get,&
                                              xc_rho_set_type
 #include "cp_common_uses.h"
@@ -52,7 +52,7 @@ MODULE xc_tfw_new
 
   REAL(KIND=dp) :: cf, flda, flsd, fvw
   REAL(KIND=dp) :: eps_rho
-  CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='xc_tfw_new'
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'xc_tfw_new'
 
 ! *****************************************************************************
 
@@ -62,7 +62,7 @@ CONTAINS
 
   SUBROUTINE tfw_init ( cutoff )
 
-    REAL(KIND=dp), INTENT(IN)                    :: cutoff
+    REAL(KIND=dp), INTENT(IN)                :: cutoff
 
     eps_rho = cutoff
     CALL set_util ( cutoff )
@@ -139,8 +139,8 @@ CONTAINS
     INTEGER                                  :: handle, npoints, stat
     INTEGER, DIMENSION(:, :), POINTER        :: bo
     LOGICAL                                  :: failure
-    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)     :: s
-    REAL(KIND=dp)                           :: epsilon_rho
+    REAL(KIND=dp)                            :: epsilon_rho
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: s
     REAL(KIND=dp), DIMENSION(:, :, :), POINTER :: e_0, e_ndrho, &
       e_ndrho_ndrho, e_rho, e_rho_ndrho, e_rho_ndrho_ndrho, e_rho_rho, &
       e_rho_rho_ndrho, e_rho_rho_rho, grho, r13, rho
@@ -224,8 +224,8 @@ CONTAINS
 
 ! *****************************************************************************
   SUBROUTINE calc_s(rho,grho,s, npoints)
-    REAL(KIND=dp), DIMENSION(*), INTENT(in)      :: rho, grho
-    REAL(KIND=dp), DIMENSION(*), INTENT(out)     :: s
+    REAL(KIND=dp), DIMENSION(*), INTENT(in)  :: rho, grho
+    REAL(KIND=dp), DIMENSION(*), INTENT(out) :: s
     INTEGER, INTENT(in)                      :: npoints
 
     INTEGER                                  :: ip
@@ -258,11 +258,11 @@ CONTAINS
                                                 stat
     INTEGER, DIMENSION(:, :), POINTER        :: bo
     LOGICAL                                  :: failure
-    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)     :: s
-    REAL(KIND=dp), DIMENSION(:, :, :), POINTER :: e_0, e_ndrho, e_ndrho_ndrho, &
-      e_rho, e_rho_ndrho, e_rho_ndrho_ndrho, e_rho_rho, e_rho_rho_ndrho, &
-      e_rho_rho_rho
-    REAL(KIND=dp)                           :: epsilon_rho
+    REAL(KIND=dp)                            :: epsilon_rho
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: s
+    REAL(KIND=dp), DIMENSION(:, :, :), POINTER :: e_0, e_ndrho, &
+      e_ndrho_ndrho, e_rho, e_rho_ndrho, e_rho_ndrho_ndrho, e_rho_rho, &
+      e_rho_rho_ndrho, e_rho_rho_rho
     TYPE(cp_3d_r_p_type), DIMENSION(2)       :: norm_drho, rho, rho_1_3
     TYPE(xc_derivative_type), POINTER        :: deriv
 
@@ -361,8 +361,9 @@ CONTAINS
 
   SUBROUTINE tfw_u_0 ( rho, r13, s, e_0, npoints, error )
 
-    REAL(KIND=dp), DIMENSION(*), INTENT(IN)      :: rho, r13, s
-    REAL(KIND=dp), DIMENSION(*), INTENT(INOUT)   :: e_0
+    REAL(KIND=dp), DIMENSION(*), INTENT(IN)  :: rho, r13, s
+    REAL(KIND=dp), DIMENSION(*), &
+      INTENT(INOUT)                          :: e_0
     INTEGER, INTENT(in)                      :: npoints
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
@@ -388,14 +389,15 @@ CONTAINS
 
   SUBROUTINE tfw_u_1 ( rho, grho, r13, s, e_rho, e_ndrho, npoints, error )
 
-    REAL(KIND=dp), DIMENSION(*), INTENT(IN)      :: rho, grho, r13, s
-    REAL(KIND=dp), DIMENSION(*), INTENT(INOUT)   :: e_rho, e_ndrho
+    REAL(KIND=dp), DIMENSION(*), INTENT(IN)  :: rho, grho, r13, s
+    REAL(KIND=dp), DIMENSION(*), &
+      INTENT(INOUT)                          :: e_rho, e_ndrho
     INTEGER, INTENT(in)                      :: npoints
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
     INTEGER                                  :: ip
-    REAL(KIND=dp)                                :: f
+    REAL(KIND=dp)                            :: f
 
 !   ---------------------------------------------------------------------------
 
@@ -420,15 +422,16 @@ CONTAINS
   SUBROUTINE tfw_u_2 ( rho, grho, r13, s, e_rho_rho, e_rho_ndrho, e_ndrho_ndrho,&
        npoints, error)
 
-    REAL(KIND=dp), DIMENSION(*), INTENT(IN)      :: rho, grho, r13, s
-    REAL(KIND=dp), DIMENSION(*), INTENT(INOUT)   :: e_rho_rho, e_rho_ndrho, &
+    REAL(KIND=dp), DIMENSION(*), INTENT(IN)  :: rho, grho, r13, s
+    REAL(KIND=dp), DIMENSION(*), &
+      INTENT(INOUT)                          :: e_rho_rho, e_rho_ndrho, &
                                                 e_ndrho_ndrho
     INTEGER, INTENT(in)                      :: npoints
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
     INTEGER                                  :: ip
-    REAL(KIND=dp)                                :: f
+    REAL(KIND=dp)                            :: f
 
 !   ---------------------------------------------------------------------------
 
@@ -454,8 +457,9 @@ CONTAINS
   SUBROUTINE tfw_u_3 ( rho, grho, r13, s, e_rho_rho_rho, e_rho_rho_ndrho,&
        e_rho_ndrho_ndrho, npoints, error)
 
-    REAL(KIND=dp), DIMENSION(*), INTENT(IN)      :: rho, grho, r13, s
-    REAL(KIND=dp), DIMENSION(*), INTENT(INOUT)   :: e_rho_rho_rho, &
+    REAL(KIND=dp), DIMENSION(*), INTENT(IN)  :: rho, grho, r13, s
+    REAL(KIND=dp), DIMENSION(*), &
+      INTENT(INOUT)                          :: e_rho_rho_rho, &
                                                 e_rho_rho_ndrho, &
                                                 e_rho_ndrho_ndrho
     INTEGER, INTENT(in)                      :: npoints
@@ -463,7 +467,7 @@ CONTAINS
       OPTIONAL                               :: error
 
     INTEGER                                  :: ip
-    REAL(KIND=dp)                                :: f
+    REAL(KIND=dp)                            :: f
 
 !   ---------------------------------------------------------------------------
 
@@ -490,8 +494,9 @@ CONTAINS
 
   SUBROUTINE tfw_p_0 ( rhoa, grhoa, r13a, sa, e_0, npoints, error )
 
-    REAL(KIND=dp), DIMENSION(*), INTENT(IN)      :: rhoa, grhoa, r13a, sa
-    REAL(KIND=dp), DIMENSION(*), INTENT(INOUT)   :: e_0
+    REAL(KIND=dp), DIMENSION(*), INTENT(IN)  :: rhoa, grhoa, r13a, sa
+    REAL(KIND=dp), DIMENSION(*), &
+      INTENT(INOUT)                          :: e_0
     INTEGER, INTENT(in)                      :: npoints
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
@@ -516,14 +521,15 @@ CONTAINS
   SUBROUTINE tfw_p_1 ( rhoa, grhoa, r13a, sa, e_rho, e_ndrho, npoints,&
        error )
 
-    REAL(KIND=dp), DIMENSION(*), INTENT(IN)      :: rhoa, grhoa, r13a, sa
-    REAL(KIND=dp), DIMENSION(*), INTENT(INOUT)   :: e_rho, e_ndrho
+    REAL(KIND=dp), DIMENSION(*), INTENT(IN)  :: rhoa, grhoa, r13a, sa
+    REAL(KIND=dp), DIMENSION(*), &
+      INTENT(INOUT)                          :: e_rho, e_ndrho
     INTEGER, INTENT(in)                      :: npoints
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
     INTEGER                                  :: ip
-    REAL(KIND=dp)                                :: f
+    REAL(KIND=dp)                            :: f
 
 !   ---------------------------------------------------------------------------
 
@@ -546,15 +552,16 @@ CONTAINS
   SUBROUTINE tfw_p_2 ( rhoa, grhoa, r13a, sa, e_rho_rho, e_rho_ndrho,&
        e_ndrho_ndrho, npoints, error )
 
-    REAL(KIND=dp), DIMENSION(*), INTENT(IN)      :: rhoa, grhoa, r13a, sa
-    REAL(KIND=dp), DIMENSION(*), INTENT(INOUT)   :: e_rho_rho, e_rho_ndrho, &
+    REAL(KIND=dp), DIMENSION(*), INTENT(IN)  :: rhoa, grhoa, r13a, sa
+    REAL(KIND=dp), DIMENSION(*), &
+      INTENT(INOUT)                          :: e_rho_rho, e_rho_ndrho, &
                                                 e_ndrho_ndrho
     INTEGER, INTENT(in)                      :: npoints
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
     INTEGER                                  :: ip
-    REAL(KIND=dp)                                :: f
+    REAL(KIND=dp)                            :: f
 
 !   ---------------------------------------------------------------------------
 
@@ -580,8 +587,9 @@ CONTAINS
   SUBROUTINE tfw_p_3 ( rhoa, grhoa, r13a, sa, e_rho_rho_rho, e_rho_rho_ndrho,&
        e_rho_ndrho_ndrho, npoints, error )
 
-    REAL(KIND=dp), DIMENSION(*), INTENT(IN)      :: rhoa, grhoa, r13a, sa
-    REAL(KIND=dp), DIMENSION(*), INTENT(INOUT)   :: e_rho_rho_rho, &
+    REAL(KIND=dp), DIMENSION(*), INTENT(IN)  :: rhoa, grhoa, r13a, sa
+    REAL(KIND=dp), DIMENSION(*), &
+      INTENT(INOUT)                          :: e_rho_rho_rho, &
                                                 e_rho_rho_ndrho, &
                                                 e_rho_ndrho_ndrho
     INTEGER, INTENT(in)                      :: npoints
@@ -589,7 +597,7 @@ CONTAINS
       OPTIONAL                               :: error
 
     INTEGER                                  :: ip
-    REAL(KIND=dp)                                :: f
+    REAL(KIND=dp)                            :: f
 
 !   ---------------------------------------------------------------------------
 

@@ -38,7 +38,7 @@ MODULE machine_sx
 CONTAINS
 
 FUNCTION m_loc_r(a) RESULT(res)
-    REAL(KIND=dp), DIMENSION(*), INTENT(in) :: a
+    REAL(KIND=dp), DIMENSION(*), INTENT(in)  :: a
     INTEGER                                  :: res
 
   res=-1
@@ -69,7 +69,7 @@ END FUNCTION m_iargc
 !******************************************************************************
 !!  cpu time in seconds
 FUNCTION m_cputime() RESULT (ct)
-    REAL(KIND=dp)                                :: ct
+    REAL(KIND=dp)                            :: ct
 
     INTEGER                                  :: mclock
 
@@ -78,9 +78,9 @@ END FUNCTION m_cputime
 !******************************************************************************
 !!  wall clock time in seconds
 FUNCTION m_walltime() RESULT (wt)
-    REAL(KIND=dp)                                :: wt
+    REAL(KIND=dp)                            :: wt
 
-    REAL(sp)                                :: etime
+    REAL(sp)                                 :: etime
 
   TYPE tb_type
      SEQUENCE

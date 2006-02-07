@@ -22,54 +22,27 @@
 
 MODULE md
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
-       get_atomic_kind
-  USE convert_units,                   ONLY: convert_to_cp2k_units
+                                             get_atomic_kind
   USE cp2k_units,                      ONLY: get_cp2k_units,&
-       unit_convert_type
+                                             unit_convert_type
+  USE cp_output_handling,              ONLY: cp_print_key_generate_filename
+  USE cp_units,                        ONLY: cp_unit_from_cp2k
   USE global_types,                    ONLY: global_environment_type
-  USE input_constants,                 ONLY: nve_ensemble,&
-       nvt_ensemble,&
-       npt_i_ensemble,&
-       npt_f_ensemble,&
-       nph_ensemble,&
-       nph_uniaxial_ensemble,&
-       nph_uniaxial_damped_ensemble,&
-       isokin_ensemble, &
-       reftraj_ensemble,&
-       langevin_ensemble,&
-       nhc_global,&
-       nhc_massive,&
-       ensemble_name_types,&
-       ensemble_name_index,&
-       dump_atomic,&
-       dump_xmol,&
-       dump_dcd,&
-       output_name_types,&
-       output_name_index,&
-       method_name_types, &
-       hmc_run, &
-       ldmc_run, &
-       FIST_MD_method, &
-       KG_MD_method, &
-       QS_MD_method, &
-       Harris_MD_method, &
-       KG_MC_method, &
-       QS_MC_method, &
-       Harris_MC_method
-  USE input_section_types,             ONLY: section_vals_get_subs_vals,&
-       section_vals_type,&
-       section_vals_get,&
-       section_vals_val_get,&
-       section_get_ival
-  USE kinds,                           ONLY: dp,&
-       default_path_length
+  USE input_constants,                 ONLY: &
+       Harris_MC_method, Harris_MD_method, dump_xmol, ensemble_name_types, &
+       hmc_run, isokin_ensemble, langevin_ensemble, ldmc_run, &
+       method_name_types, nph_ensemble, nph_uniaxial_damped_ensemble, &
+       nph_uniaxial_ensemble, npt_f_ensemble, npt_i_ensemble, nve_ensemble, &
+       nvt_ensemble, output_name_types
+  USE input_section_types,             ONLY: section_vals_get,&
+                                             section_vals_get_subs_vals,&
+                                             section_vals_type,&
+                                             section_vals_val_get
+  USE kinds,                           ONLY: default_path_length,&
+                                             dp
   USE message_passing,                 ONLY: mp_bcast
   USE particle_types,                  ONLY: particle_type
-  USE string_utilities,                ONLY: uppercase,&
-       xstring
   USE util,                            ONLY: gasdev
-  USE cp_output_handling,              ONLY: cp_print_key_generate_filename
-  USE cp_units, only: cp_unit_from_cp2k
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -165,7 +138,7 @@ MODULE md
   END TYPE simulation_parameters_type
 
   ! *** Global parameters ***
-  CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='md'
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'md'
 
   !!***
   !******************************************************************************
@@ -191,23 +164,19 @@ CONTAINS
   !!*** ************************************************************************
 
   SUBROUTINE read_md_section ( simpar, globenv, error)
-    IMPLICIT NONE
-    ! Arguments
     TYPE(simulation_parameters_type), &
-         INTENT(OUT)                            :: simpar
-    TYPE(global_environment_type), &
-         pointer                             :: globenv
-    TYPE(cp_error_type), INTENT(inout)          :: error
-    ! Local Variables
-    CHARACTER(LEN=20)                        :: string
-    CHARACTER(LEN=5)                         :: label
-    INTEGER                                  :: ia, ie, ierror, ILEN, iw
-    TYPE(section_vals_type), POINTER         :: md_section, print_key,motion_section
-    TYPE(unit_convert_type), POINTER         :: unit
-    REAL(kind=dp) :: tmp_r
-    TYPE(cp_logger_type), POINTER            :: logger
-    INTEGER, POINTER, DIMENSION(:)           :: iprint
+      INTENT(OUT)                            :: simpar
+    TYPE(global_environment_type), POINTER   :: globenv
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
     CHARACTER(LEN=default_path_length)       :: filename
+    INTEGER                                  :: iw
+    INTEGER, DIMENSION(:), POINTER           :: iprint
+    REAL(kind=dp)                            :: tmp_r
+    TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(section_vals_type), POINTER         :: md_section, motion_section, &
+                                                print_key
+    TYPE(unit_convert_type), POINTER         :: unit
 
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
@@ -434,20 +403,17 @@ CONTAINS
   !!
   !!*** *************************************************************************  
   SUBROUTINE read_md_new_section(simpar, globenv, md_section, error)
-    IMPLICIT NONE
-    ! Arguments
     TYPE(simulation_parameters_type), &
-         INTENT(INOUT)                          :: simpar
-    TYPE(global_environment_type), &
-         pointer                             :: globenv
-    TYPE(cp_error_type), INTENT(inout)          :: error
-    TYPE(section_vals_type), POINTER            :: md_section
-    ! Local Variables
-    CHARACTER(len=*), PARAMETER :: routineN = 'read_md_section', &
-         routineP = moduleN//':'//routineN
-    TYPE(section_vals_type), POINTER            :: tmp_section
-    LOGICAL :: explicit, failure
-    INTEGER :: n_rep
+      INTENT(INOUT)                          :: simpar
+    TYPE(global_environment_type), POINTER   :: globenv
+    TYPE(section_vals_type), POINTER         :: md_section
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'read_md_new_section', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: explicit, failure
+    TYPE(section_vals_type), POINTER         :: tmp_section
 
     failure = .FALSE.
     IF (.NOT.failure) THEN
@@ -561,14 +527,9 @@ CONTAINS
   !!
   !!*** *************************************************************************  
   SUBROUTINE set_md_defaults(simpar, globenv)
-    IMPLICIT NONE
-    ! Arguments
     TYPE(simulation_parameters_type), &
-         INTENT(OUT)                            :: simpar
-    TYPE(global_environment_type), &
-         pointer                             :: globenv
-    ! Local Variables
-    INTEGER                                  :: ia, ie
+      INTENT(OUT)                            :: simpar
+    TYPE(global_environment_type), POINTER   :: globenv
 
     simpar % units % time = 'FS'
     simpar % units % press = 'BAR'
@@ -655,23 +616,24 @@ CONTAINS
 
 
     TYPE(simulation_parameters_type), &
-         INTENT(INOUT)                          :: simpar
+      INTENT(INOUT)                          :: simpar
     TYPE(particle_type), DIMENSION(:), &
-         INTENT(INOUT)                          :: part
-    TYPE(global_environment_type), &
-         pointer                          :: globenv
-    TYPE(section_vals_type), POINTER :: work_section
+      INTENT(INOUT)                          :: part
+    TYPE(global_environment_type), POINTER   :: globenv
+    TYPE(section_vals_type), POINTER         :: work_section
     TYPE(cp_error_type), INTENT(inout), &
-         OPTIONAL                               :: error
+      OPTIONAL                               :: error
 
     INTEGER                                  :: i, iw, natoms
-    REAL(KIND=dp)                                :: akin, denom, mass, sc, temp, mass_tot
-    REAL(KIND=dp), DIMENSION(3)                  :: vcom, vcom_new, v
-    REAL(KIND=dp), DIMENSION(:), POINTER         :: vel
+    LOGICAL                                  :: explicit
+    REAL(KIND=dp)                            :: akin, denom, mass, mass_tot, &
+                                                sc, temp
+    REAL(KIND=dp), DIMENSION(3)              :: v, vcom, vcom_new
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: vel
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(unit_convert_type), POINTER         :: unit
-    LOGICAL :: explicit
-    !------------------------------------------------------------------------------
+
+!------------------------------------------------------------------------------
 
     iw = globenv % scr
     IF (iw>0) THEN

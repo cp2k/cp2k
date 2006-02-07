@@ -33,8 +33,8 @@ CONTAINS
 
   !******************************************************************************
   SUBROUTINE qmmm_header (iw, ionode)
-    INTEGER,INTENT(in)        :: iw
-    LOGICAL,INTENT(in)        :: ionode
+    INTEGER, INTENT(in)                      :: iw
+    LOGICAL, INTENT(in)                      :: ionode
 
     IF (.NOT.ionode) RETURN
     WRITE ( iw, '( / )' )
@@ -65,9 +65,9 @@ CONTAINS
   END SUBROUTINE qmmm_header
   
   SUBROUTINE tddfpt_header(iw, ionode)
-    INTEGER,INTENT(in)        :: iw
-    LOGICAL,INTENT(in)        :: ionode
-    
+    INTEGER, INTENT(in)                      :: iw
+    LOGICAL, INTENT(in)                      :: ionode
+
     IF (.NOT.ionode) RETURN       
     WRITE (unit=iw, fmt="(7(2X,A,/))")&
          " _____ _                  ____                            _            _   ",&
@@ -80,8 +80,8 @@ CONTAINS
   END SUBROUTINE tddfpt_header
 
   SUBROUTINE fist_header ( iw, ionode )
-    INTEGER,INTENT(in)        :: iw
-    LOGICAL,INTENT(in)        :: ionode
+    INTEGER, INTENT(in)                      :: iw
+    LOGICAL, INTENT(in)                      :: ionode
 
     IF (.NOT.ionode) RETURN
     WRITE ( iw, '( / )' )
@@ -104,8 +104,8 @@ CONTAINS
   END SUBROUTINE fist_header
 
   SUBROUTINE tbmd_header ( iw, ionode )
-    INTEGER,INTENT(in)                  :: iw
-    LOGICAL,intent(in)                  :: ionode
+    INTEGER, INTENT(in)                      :: iw
+    LOGICAL, INTENT(in)                      :: ionode
 
     IF (.NOT.ionode) RETURN
 
@@ -140,6 +140,7 @@ CONTAINS
 
     INTEGER                                  :: output_unit
     LOGICAL                                  :: ionode
+
     IF (.NOT.ionode) RETURN
     WRITE (UNIT=output_unit,FMT="(/,(T2,A79))")&
          "*******************************************************************************",&
@@ -199,9 +200,8 @@ CONTAINS
   !******************************************************************************
 
   SUBROUTINE kg_header ( iw, ionode )
-    IMPLICIT NONE
-    INTEGER             :: iw
-    LOGICAL, INTENT(in) :: ionode
+    INTEGER                                  :: iw
+    LOGICAL, INTENT(in)                      :: ionode
 
     IF (.NOT.ionode) RETURN
 

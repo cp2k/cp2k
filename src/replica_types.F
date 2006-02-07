@@ -38,7 +38,7 @@ MODULE replica_types
   PRIVATE
 
   LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
-  CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='replica_types'
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'replica_types'
 
   PUBLIC :: replica_env_type
   PUBLIC :: rep_env_retain, rep_env_release

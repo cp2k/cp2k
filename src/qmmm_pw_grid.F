@@ -18,57 +18,29 @@
 !!   SOURCE
 !******************************************************************************
 MODULE qmmm_pw_grid
+  USE cell_types,                      ONLY: cell_type
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE kinds,                           ONLY: default_string_length,&
-                                             dp
-  USE global_types,                    ONLY: global_environment_type
-  USE particle_list_types,             ONLY: particle_list_create,&
-                                             particle_list_release,&
-                                             particle_list_type
-  USE particle_types,                  ONLY: particle_type
-  USE timings,                         ONLY: timeset,&
-                                             timestop
-  USE memory_utilities,                ONLY: reallocate
-  USE qs_environment_types,            ONLY: get_qs_env,&
-                                             qs_environment_type
-  USE qs_rho_types,                    ONLY: qs_rho_type
-  USE coefficient_types,               ONLY: coeff_add,&
-                                             coeff_init,&
-                                             coeff_sumup,&
-                                             coeff_transform_space,&
-                                             coeff_type,&
-                                             coeff_zero
-  USE qmmm_types,                      ONLY: qmmm_env_qm_type
-  USE pw_types,                        ONLY: COMPLEXDATA1D,&
-                                             REALDATA3D,&
-                                             REALSPACE,&
-                                             RECIPROCALSPACE,&
-                                             pw_p_type
-  USE pw_pool_types,                   ONLY: pw_pool_give_back_coeff,&
-                                             pw_pool_init_coeff,&
-                                             pw_pool_p_type,&
-                                             pw_pool_retain,&
-                                             pw_pool_type,&
-                                             pw_pools_dealloc,&
-                                             pw_pool_create
+  USE input_constants,                 ONLY: do_qmmm_gauss
+  USE kinds,                           ONLY: dp
   USE pw_env_types,                    ONLY: pw_env_get,&
                                              pw_env_type
-  USE pw_grid_types,                   ONLY: pw_grid_type, &
-                                             PW_MODE_LOCAL
-  USE pw_grids,                        ONLY: pw_grid_create,&
-                                             pw_grid_release,&
-                                             pw_grid_create_copy_no_pbc
-  USE qs_ks_qmmm_types,                ONLY: qs_ks_qmmm_env_type
-  USE qs_ks_types,                     ONLY: qs_ks_env_type
-  USE mathconstants,                   ONLY: pi
-  USE cell_types,                 ONLY: cell_type
-  USE input_constants, ONLY: do_qmmm_grid, do_qmmm_gauss, do_qmmm_none
+  USE pw_grid_types,                   ONLY: pw_grid_type
+  USE pw_grids,                        ONLY: pw_grid_create_copy_no_pbc,&
+                                             pw_grid_release
+  USE pw_pool_types,                   ONLY: pw_pool_create,&
+                                             pw_pool_p_type,&
+                                             pw_pool_type,&
+                                             pw_pools_dealloc
+  USE qmmm_types,                      ONLY: qmmm_env_qm_type
+  USE timings,                         ONLY: timeset,&
+                                             timestop
 #include "cp_common_uses.h"
+
   IMPLICIT NONE
 
   PRIVATE
   PUBLIC :: qmmm_pw_grid_init
-  CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='qmmm_pw_grid'
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qmmm_pw_grid'
 
 CONTAINS
 
@@ -97,28 +69,26 @@ CONTAINS
 !!
 !!*** **********************************************************************
   SUBROUTINE qmmm_pw_grid_init(qmmm_env, pw_env, cell, para_env, error)
-    IMPLICIT NONE
-    ! Arguments
-    TYPE(qmmm_env_qm_type), POINTER           :: qmmm_env  
-    TYPE(pw_env_type), POINTER                :: pw_env  
-    TYPE(cp_para_env_type), POINTER           :: para_env
+    TYPE(qmmm_env_qm_type), POINTER          :: qmmm_env
+    TYPE(pw_env_type), POINTER               :: pw_env
+    TYPE(cell_type), POINTER                 :: cell
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                                :: error
-    ! Local Variables
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_pw_grid_init', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: auxbas_grid, Ilevel, stat
+    LOGICAL                                  :: failure
+    REAL(KIND=dp), DIMENSION(3)              :: Maxdr, Mindr
+    TYPE(pw_grid_type), POINTER              :: el_struct
     TYPE(pw_pool_p_type), DIMENSION(:), &
-         POINTER                              :: pw_pools
-    TYPE(pw_pool_type), POINTER               :: pool
-    TYPE(cell_type), POINTER                  :: cell
-    LOGICAL :: failure
-    INTEGER :: auxbas_grid, stat
-    INTEGER :: Ilevel
-    TYPE (pw_grid_type), POINTER :: el_struct
-    REAL(KIND=dp), DIMENSION(3) :: Maxdr, Mindr
-    CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_el_coupling', &
-         routineP = moduleN//':'//routineN
+      POINTER                                :: pw_pools
+    TYPE(pw_pool_type), POINTER              :: pool
 
     NULLIFY(el_struct)
-    failure = .false.
+    failure = .FALSE.
     Maxdr   = TINY(0.0_dp)
     Mindr   = HUGE(0.0_dp)
     IF (qmmm_env%qmmm_coupl_type == do_qmmm_gauss) THEN 

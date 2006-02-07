@@ -65,15 +65,15 @@ SUBROUTINE diagonalise_ssyev ( matrix, mysize, storageform, eigenvalues, &
      eigenvectors )
 
 
-    REAL(KIND=dp), INTENT(IN)               :: matrix( :, : )
+    REAL(KIND=dp), INTENT(IN)                :: matrix( :, : )
     INTEGER, INTENT(IN)                      :: mysize
     CHARACTER(LEN=*), INTENT(IN)             :: storageform
-    REAL(KIND=dp), INTENT(OUT)              :: eigenvalues( : ), &
+    REAL(KIND=dp), INTENT(OUT)               :: eigenvalues( : ), &
                                                 eigenvectors( :, : )
 
     CHARACTER                                :: jobz = "V", uplo
     INTEGER                                  :: info, lda, lwork
-    REAL(KIND=dp)                           :: work( 3 * mysize - 1 )
+    REAL(KIND=dp)                            :: work( 3 * mysize - 1 )
 
 !------------------------------------------------------------------------------
 
@@ -83,7 +83,7 @@ SUBROUTINE diagonalise_ssyev ( matrix, mysize, storageform, eigenvalues, &
      uplo = "L"
   ELSE IF ( storageform ( 1:5 ) == "Upper" .OR. &
        storageform ( 1:5 ) == "upper" .OR. &
-       storageform ( 1:5 ) == "UPPER" ) then
+       storageform ( 1:5 ) == "UPPER" ) THEN
      uplo = "U"
   ELSE
      CALL stop_program ( "diagonalise_ssyev", "unknown form of storage" )
@@ -108,16 +108,16 @@ SUBROUTINE diagonalise_chpev ( matrix, mysize, storageform, eigenvalues, &
      eigenvectors )
 
 
-    COMPLEX(KIND=dp), INTENT(INOUT)         :: matrix( : )
+    COMPLEX(KIND=dp), INTENT(INOUT)          :: matrix( : )
     INTEGER, INTENT(IN)                      :: mysize
     CHARACTER(LEN=*), INTENT(IN)             :: storageform
-    REAL(KIND=dp), INTENT(OUT)              :: eigenvalues( : )
-    COMPLEX(KIND=dp), INTENT(OUT)           :: eigenvectors( :, : )
+    REAL(KIND=dp), INTENT(OUT)               :: eigenvalues( : )
+    COMPLEX(KIND=dp), INTENT(OUT)            :: eigenvectors( :, : )
 
     CHARACTER                                :: jobz = "V", uplo
     INTEGER                                  :: info
-    COMPLEX(KIND=dp)                        :: work( 2 * mysize - 1 )
-    REAL(KIND=dp)                           :: rwork( 3 * mysize - 2 )
+    COMPLEX(KIND=dp)                         :: work( 2 * mysize - 1 )
+    REAL(KIND=dp)                            :: rwork( 3 * mysize - 2 )
 
 !------------------------------------------------------------------------------
 
@@ -127,7 +127,7 @@ SUBROUTINE diagonalise_chpev ( matrix, mysize, storageform, eigenvalues, &
      uplo = "L"
   ELSE IF ( storageform ( 1:5 ) == "Upper" .OR. &
        storageform ( 1:5 ) == "upper" .OR. &
-       storageform ( 1:5 ) == "UPPER" ) then
+       storageform ( 1:5 ) == "UPPER" ) THEN
      uplo = "U"
   ELSE
      CALL stop_program ( "diagonalise_chpev", "unknown form of storage" )
@@ -143,19 +143,19 @@ END SUBROUTINE diagonalise_chpev
 
 !******************************************************************************
 
-SUBROUTINE diagonalise_sspgv ( matrix, overlap, mysize, type, storageform, &
+SUBROUTINE diagonalise_sspgv ( matrix, overlap, mysize, TYPE, storageform, &
      eigenvalues, eigenvectors )
 
 
-    REAL(KIND=dp), INTENT(INOUT)            :: matrix( : ), overlap( : )
-    INTEGER, INTENT(IN)                      :: mysize, type
+    REAL(KIND=dp), INTENT(INOUT)             :: matrix( : ), overlap( : )
+    INTEGER, INTENT(IN)                      :: mysize, TYPE
     CHARACTER(LEN=*), INTENT(IN)             :: storageform
-    REAL(KIND=dp), INTENT(OUT)              :: eigenvalues( : ), &
+    REAL(KIND=dp), INTENT(OUT)               :: eigenvalues( : ), &
                                                 eigenvectors( :, : )
 
     CHARACTER                                :: jobz = "V", uplo
     INTEGER                                  :: info
-    REAL(KIND=dp)                           :: work( 2 * mysize - 1 )
+    REAL(KIND=dp)                            :: work( 2 * mysize - 1 )
 
 !----------------------------------------------------------------------
 
@@ -165,13 +165,13 @@ SUBROUTINE diagonalise_sspgv ( matrix, overlap, mysize, type, storageform, &
      uplo = "L"
   ELSE IF ( storageform ( 1:5 ) == "Upper" .OR. &
        storageform ( 1:5 ) == "upper" .OR. &
-       storageform ( 1:5 ) == "UPPER" ) then
+       storageform ( 1:5 ) == "UPPER" ) THEN
      uplo = "U"
   ELSE
      CALL stop_program ( "diagonalise_sspgv", "unknown form of storage" )
   END IF
 
-  CALL lapack_sspgv ( type, jobz, uplo, mysize, matrix, overlap, eigenvalues, &
+  CALL lapack_sspgv ( TYPE, jobz, uplo, mysize, matrix, overlap, eigenvalues, &
        eigenvectors, mysize, work, info )
   IF ( info /= 0 ) THEN
      CALL stop_program ( "diagonalise_sspgv", "error in diagonalisation" )
@@ -181,20 +181,20 @@ END SUBROUTINE diagonalise_sspgv
 
 !******************************************************************************
 
-SUBROUTINE diagonalise_chpgv ( matrix, overlap, mysize, type, storageform, &
+SUBROUTINE diagonalise_chpgv ( matrix, overlap, mysize, TYPE, storageform, &
      eigenvalues, eigenvectors )
 
 
-    COMPLEX(KIND=dp), INTENT(INOUT)         :: matrix( : ), overlap( : )
-    INTEGER, INTENT(IN)                      :: mysize, type
+    COMPLEX(KIND=dp), INTENT(INOUT)          :: matrix( : ), overlap( : )
+    INTEGER, INTENT(IN)                      :: mysize, TYPE
     CHARACTER(LEN=*), INTENT(IN)             :: storageform
-    REAL(KIND=dp), INTENT(OUT)              :: eigenvalues( : )
-    COMPLEX(KIND=dp), INTENT(OUT)           :: eigenvectors( :, : )
+    REAL(KIND=dp), INTENT(OUT)               :: eigenvalues( : )
+    COMPLEX(KIND=dp), INTENT(OUT)            :: eigenvectors( :, : )
 
     CHARACTER                                :: jobz = "V", uplo
     INTEGER                                  :: info
-    COMPLEX(KIND=dp)                        :: work( 2 * mysize - 1 )
-    REAL(KIND=dp)                           :: rwork( 3 * mysize - 2 )
+    COMPLEX(KIND=dp)                         :: work( 2 * mysize - 1 )
+    REAL(KIND=dp)                            :: rwork( 3 * mysize - 2 )
 
 !----------------------------------------------------------------------
 
@@ -204,13 +204,13 @@ SUBROUTINE diagonalise_chpgv ( matrix, overlap, mysize, type, storageform, &
      uplo = "L"
   ELSE IF ( storageform ( 1:5 ) == "Upper" .OR. &
        storageform ( 1:5 ) == "upper" .OR. &
-       storageform ( 1:5 ) == "UPPER" ) then
+       storageform ( 1:5 ) == "UPPER" ) THEN
      uplo = "U"
   ELSE
      CALL stop_program ( "diagonalise_chpgv", "unknown form of storage" )
   END IF
 
-  CALL lapack_chpgv ( type, jobz, uplo, mysize, matrix, overlap, eigenvalues, &
+  CALL lapack_chpgv ( TYPE, jobz, uplo, mysize, matrix, overlap, eigenvalues, &
        eigenvectors, mysize, work, rwork, info )
   IF ( info /= 0 ) THEN
      CALL stop_program ( "diagonalise_chpgv", "error in diagonalisation" )
@@ -223,15 +223,15 @@ END SUBROUTINE diagonalise_chpgv
 SUBROUTINE cp2k_sgesvd ( matrix, svalues, mrow, ncol, uvec, vtvec )
 
 
-    REAL(KIND=dp), INTENT(IN)               :: matrix( :, : )
-    REAL(KIND=dp), INTENT(OUT)              :: svalues( : )
+    REAL(KIND=dp), INTENT(IN)                :: matrix( :, : )
+    REAL(KIND=dp), INTENT(OUT)               :: svalues( : )
     INTEGER, INTENT(IN)                      :: mrow, ncol
-    REAL(KIND=dp), INTENT(OUT)              :: uvec( :, : ), vtvec( :, : )
+    REAL(KIND=dp), INTENT(OUT)               :: uvec( :, : ), vtvec( :, : )
 
     CHARACTER, PARAMETER                     :: jobu = "A", jobvt = "A"
 
     INTEGER                                  :: info, lda, ldu, ldvt, lwork
-    REAL(KIND=dp)                           :: work( 25 * ( mrow + ncol ) )
+    REAL(KIND=dp)                            :: work( 25 * ( mrow + ncol ) )
 
 !----------------------------------------------------------------------
 
@@ -254,16 +254,16 @@ END SUBROUTINE cp2k_sgesvd
 SUBROUTINE cp2k_cgesvd ( matrix, svalues, mrow, ncol, uvec, vtvec )
 
 
-    COMPLEX(KIND=dp), INTENT(IN)            :: matrix( :, : )
-    REAL(KIND=dp), INTENT(OUT)              :: svalues( : )
+    COMPLEX(KIND=dp), INTENT(IN)             :: matrix( :, : )
+    REAL(KIND=dp), INTENT(OUT)               :: svalues( : )
     INTEGER, INTENT(IN)                      :: mrow, ncol
-    COMPLEX(KIND=dp), INTENT(OUT)           :: uvec( :, : ), vtvec( :, : )
+    COMPLEX(KIND=dp), INTENT(OUT)            :: uvec( :, : ), vtvec( :, : )
 
     CHARACTER, PARAMETER                     :: jobu = "A", jobvt = "A"
 
     INTEGER                                  :: info, lda, ldu, ldvt, lwork
-    COMPLEX(KIND=dp)                        :: work( 25 * ( mrow + ncol ) )
-    REAL(KIND=dp)                           :: rwork( 25 * ( mrow + ncol ) )
+    COMPLEX(KIND=dp)                         :: work( 25 * ( mrow + ncol ) )
+    REAL(KIND=dp)                            :: rwork( 25 * ( mrow + ncol ) )
 
 !----------------------------------------------------------------------
 

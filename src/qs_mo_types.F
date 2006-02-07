@@ -30,19 +30,13 @@
 !******************************************************************************
 
 MODULE qs_mo_types
-  USE cp_output_handling,              ONLY: cp_print_key_should_output,&
-                                             cp_p_file,&
-                                             cp_print_key_unit_nr,&
-                                             cp_print_key_finished_output,&
-                                             cp_iter_string,&
-                                             cp_iterate,&
-                                             cp_add_iter_level,&
-                                             cp_rm_iter_level
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind,&
                                              get_atomic_kind_set
   USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                              gto_basis_set_type
+  USE cp_files,                        ONLY: close_file,&
+                                             open_file
   USE cp_fm_pool_types,                ONLY: cp_fm_pool_type,&
                                              fm_pool_create_fm
   USE cp_fm_types,                     ONLY: cp_fm_get_info,&
@@ -52,30 +46,32 @@ MODULE qs_mo_types
                                              cp_fm_set_submatrix,&
                                              cp_fm_to_fm,&
                                              cp_fm_type
+  USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
+                                             cp_print_key_unit_nr
   USE global_types,                    ONLY: LOW,&
                                              global_environment_type
+  USE input_section_types,             ONLY: section_vals_type,&
+                                             section_vals_val_get
   USE kinds,                           ONLY: dp,&
                                              dp_size,&
                                              int_size
   USE message_passing,                 ONLY: mp_bcast
-  USE orbital_pointers,                ONLY: nco,nso
+  USE orbital_pointers,                ONLY: nco,&
+                                             nso
   USE orbital_transformation_matrices, ONLY: orbtramat
   USE output_utilities,                ONLY: print_warning
   USE particle_types,                  ONLY: particle_type
-  USE cp_files,                        ONLY: close_file,&
-                                             open_file
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE input_section_types, ONLY: section_vals_val_get, section_vals_get_subs_vals,&
-       section_vals_type, section_vals_release
 #include "cp_common_uses.h"
+
   IMPLICIT NONE
 
   PRIVATE
 
-  CHARACTER(len=*), PARAMETER :: module_name = "qs_mo_types"
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_mo_types'
 
   TYPE mo_set_type
     ! the actual MO coefficients as a matrix
@@ -261,7 +257,7 @@ CONTAINS
       OPTIONAL                               :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'init_mo_set', &
-      routineP = module_name//':'//routineN
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: istat, nao, nmo
     LOGICAL                                  :: failure
@@ -316,18 +312,18 @@ CONTAINS
       POINTER                                :: mo_array
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
-    LOGICAL :: failure
 
+    CHARACTER(LEN=*), PARAMETER              :: routineN = 'mo_set_restrict'
 
-    CHARACTER(LEN=*), PARAMETER :: routine_name="mo_set_restrict"
-    INTEGER :: handle
+    INTEGER                                  :: handle
+    LOGICAL                                  :: failure
 
-    CALL timeset(routine_name,"I","",handle)
+    CALL timeset(routineN,"I","",handle)
     failure=.FALSE.
 
-    CPPrecondition(ASSOCIATED(mo_array),cp_failure_level,routine_name,error,failure)
-    CPPrecondition(SIZE(mo_array).EQ.2,cp_failure_level,routine_name,error,failure)
-    CPPrecondition(mo_array(1)%mo_set%nmo>=mo_array(2)%mo_set%nmo,cp_failure_level,routine_name,error,failure)
+    CPPrecondition(ASSOCIATED(mo_array),cp_failure_level,routineN,error,failure)
+    CPPrecondition(SIZE(mo_array).EQ.2,cp_failure_level,routineN,error,failure)
+    CPPrecondition(mo_array(1)%mo_set%nmo>=mo_array(2)%mo_set%nmo,cp_failure_level,routineN,error,failure)
 
     ! first nmo_beta orbitals are copied from alpha to beta
     IF (.NOT. failure) THEN
@@ -351,8 +347,8 @@ CONTAINS
     TYPE(mo_set_type), POINTER               :: mo_set
     REAL(KIND=dp), INTENT(IN)                :: level_shift
 
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "correct_mo_eigenvalues", &
-      routine = "SUBROUTINE "//routine_name//" (MODULE "//module_name//")"
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'correct_mo_eigenvalues', &
+      routine = "SUBROUTINE "//routineN//" (MODULE "//moduleN//")"
 
     INTEGER                                  :: imo
 
@@ -378,8 +374,8 @@ CONTAINS
 
     TYPE(mo_set_type), POINTER               :: mo_set
 
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "deallocate_mo_set", &
-      routine = "SUBROUTINE "//routine_name//" (MODULE "//module_name//")"
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'deallocate_mo_set', &
+      routine = "SUBROUTINE "//routineN//" (MODULE "//moduleN//")"
 
     INTEGER                                  :: istat
 
@@ -420,11 +416,11 @@ CONTAINS
     REAL(KIND=dp), INTENT(OUT), OPTIONAL     :: maxocc
     INTEGER, INTENT(OUT), OPTIONAL           :: homo, lfomo, nao, nelectron, &
                                                 nmo
-    LOGICAL, INTENT(OUT), OPTIONAL           :: uniform_occupation
     REAL(KIND=dp), DIMENSION(:), OPTIONAL, &
       POINTER                                :: eigenvalues, &
                                                 occupation_numbers
     TYPE(cp_fm_type), OPTIONAL, POINTER      :: mo_coeff
+    LOGICAL, INTENT(OUT), OPTIONAL           :: uniform_occupation
 
 !   ---------------------------------------------------------------------------
 
@@ -454,20 +450,19 @@ CONTAINS
 
 !   ***************************************************************************
 
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: occupation
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: eigenvalues
-    INTEGER, INTENT(IN)                      :: nelectron
-    INTEGER, INTENT(OUT)                     :: homo,lfomo
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: occupation, eigenvalues
+    INTEGER, INTENT(OUT)                     :: homo, lfomo
     REAL(KIND=dp), INTENT(IN)                :: maxocc
+    INTEGER, INTENT(IN)                      :: nelectron
     LOGICAL, INTENT(INOUT)                   :: uocc
     REAL(KIND=dp), INTENT(IN), OPTIONAL      :: smear
 
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "set_mo_occupation", &
-      routine = "SUBROUTINE "//routine_name//" (MODULE "//module_name//")"
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'set_mo_occupation', &
+      routine = "SUBROUTINE "//routineN//" (MODULE "//moduleN//")"
 
     INTEGER                                  :: imo, nmo, nomo
-    REAL(KIND=dp)                            :: e1, e2, edelta, edist, nelec
-    REAL(KIND=dp)                            :: my_smear
+    REAL(KIND=dp)                            :: e1, e2, edelta, edist, &
+                                                my_smear, nelec
 
 !   ---------------------------------------------------------------------------
 
@@ -561,10 +556,10 @@ CONTAINS
       POINTER                                :: eigenvalues, &
                                                 occupation_numbers
     TYPE(cp_fm_type), OPTIONAL, POINTER      :: mo_coeff
-    LOGICAL,INTENT(IN), OPTIONAL             :: uniform_occupation
+    LOGICAL, INTENT(IN), OPTIONAL            :: uniform_occupation
 
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "set_mo_set", &
-      routine = "SUBROUTINE "//routine_name//" (MODULE "//module_name//")"
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'set_mo_set', &
+      routine = "SUBROUTINE "//routineN//" (MODULE "//moduleN//")"
 
     INTEGER                                  :: istat
 
@@ -601,28 +596,28 @@ CONTAINS
       POINTER                                :: atomic_kind_set
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
-    TYPE(global_environment_type), &
-      pointer                             :: globenv
+    TYPE(global_environment_type), POINTER   :: globenv
     INTEGER, INTENT(in)                      :: id_nr
-    TYPE(cp_error_type), INTENT(inout), optional :: error
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "write_mo_set_to_restart", &
-      routine = "SUBROUTINE "//routine_name//" (MODULE "//module_name//")"
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'write_mo_set_to_restart', &
+      routine = "SUBROUTINE "//routineN//" (MODULE "//moduleN//")"
 
     CHARACTER(LEN=200)                       :: file_name
-    INTEGER :: handle, i, iatom, iset, ishell, ispin, istat, lshell, nao, &
-      natom, nmo, nset, nset_max, nsgf, nshell_max, nspin, restart_unit
+    INTEGER :: handle, i, i_block, iatom, iset, ishell, ispin, istat, j, &
+      lshell, max_block, nao, natom, nmo, nset, nset_max, nsgf, nshell_max, &
+      nspin, restart_unit
     INTEGER, DIMENSION(:), POINTER           :: nset_info, nshell
     INTEGER, DIMENSION(:, :), POINTER        :: l, nshell_info
     INTEGER, DIMENSION(:, :, :), POINTER     :: nso_info
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: vecbuffer
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
-    INTEGER                                  :: max_block,i_block,j
 
 !   *** Local paramters ***
 !   ---------------------------------------------------------------------------
 
-    CALL timeset(routine_name,"I","",handle)
+    CALL timeset(routineN,"I","",handle)
 
     nspin = SIZE(mo_array)
 
@@ -633,7 +628,7 @@ CONTAINS
        CALL section_vals_val_get(globenv%input_file,"FORCE_EVAL%DFT%RESTART_FILE_NAME",&
             c_val=file_name,error=error)
       IF (id_nr/=1) THEN
-        file_name(len_trim(file_name):len(file_name)) = "-"//&
+        file_name(LEN_TRIM(file_name):LEN(file_name)) = "-"//&
                     ADJUSTL(cp_to_string(id_nr))
       END IF
 
@@ -763,14 +758,14 @@ CONTAINS
       POINTER                                :: atomic_kind_set
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
-    TYPE(global_environment_type), &
-      pointer                             :: globenv
+    TYPE(global_environment_type), POINTER   :: globenv
     INTEGER, INTENT(in)                      :: id_nr
     TYPE(section_vals_type), POINTER         :: dft_section
-    TYPE(cp_error_type), INTENT(inout), optional :: error
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "read_mo_set_from_restart", &
-      routine = "SUBROUTINE "//routine_name//" (MODULE "//module_name//")"
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'read_mo_set_from_restart', &
+      routine = "SUBROUTINE "//routineN//" (MODULE "//moduleN//")"
 
     CHARACTER(LEN=200)                       :: file_name
     INTEGER :: group, handle, i, iatom, irow, iset, iset_read, ishell, &
@@ -787,7 +782,7 @@ CONTAINS
 !   *** Local paramters ***
 !   ---------------------------------------------------------------------------
 
-    CALL timeset(routine_name,"I","",handle)
+    CALL timeset(routineN,"I","",handle)
 
     group = globenv%group
     source = globenv%source
@@ -803,7 +798,7 @@ CONTAINS
       CALL section_vals_val_get(globenv%input_file,"FORCE_EVAL%DFT%RESTART_FILE_NAME",&
            c_val=file_name,error=error)
       IF (id_nr/=1) THEN
-        file_name(len_trim(file_name):len(file_name)) = "-"//&
+        file_name(LEN_TRIM(file_name):LEN(file_name)) = "-"//&
                          ADJUSTL(cp_to_string(id_nr))
       END IF
 
@@ -1026,33 +1021,33 @@ CONTAINS
     
     TYPE(mo_set_type), POINTER               :: mo_set
     TYPE(atomic_kind_type), DIMENSION(:), &
-         POINTER                                :: atomic_kind_set
+      POINTER                                :: atomic_kind_set
     TYPE(particle_type), DIMENSION(:), &
-         POINTER                                :: particle_set
+      POINTER                                :: particle_set
     INTEGER, INTENT(IN)                      :: before, after
-    TYPE(section_vals_type),POINTER          :: dft_section
-    TYPE(global_environment_type), &
-         pointer                             :: globenv
-    TYPE(cp_error_type), INTENT(inout), optional :: error
+    TYPE(section_vals_type), POINTER         :: dft_section
+    TYPE(global_environment_type), POINTER   :: globenv
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "write_mo_set_to_output_unit"
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'write_mo_set_to_output_unit'
 
+    CHARACTER(LEN=12), DIMENSION(:), POINTER :: cgf_symbol
     CHARACTER(LEN=2)                         :: element_symbol
     CHARACTER(LEN=22)                        :: fmtstr2
     CHARACTER(LEN=25)                        :: fmtstr1
     CHARACTER(LEN=38)                        :: fmtstr3
-    CHARACTER(LEN=12), DIMENSION(:), POINTER :: cgf_symbol
     CHARACTER(LEN=6), DIMENSION(:), POINTER  :: sgf_symbol
     CHARACTER(LEN=80)                        :: name
-    INTEGER :: from, iatom, icol, irow, iset, isgf, ishell, iso, istat, jcol, &
-         left, lshell, natom, ncol, ncol_global, nrow_global, nset, nsgf, &
-         iw, right, to, width, icgf, ncgf, ico
+    INTEGER :: from, iatom, icgf, ico, icol, irow, iset, isgf, ishell, iso, &
+      istat, iw, jcol, left, lshell, natom, ncgf, ncol, ncol_global, &
+      nrow_global, nset, nsgf, right, to, width
     INTEGER, DIMENSION(:), POINTER           :: nshell
     INTEGER, DIMENSION(:, :), POINTER        :: l
-    LOGICAL                                  :: p_cart,p_eval,p_evec,p_occ
-    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: cmatrix,smatrix
-    TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
+    LOGICAL                                  :: p_cart, p_eval, p_evec, p_occ
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: cmatrix, smatrix
     TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
 
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
@@ -1068,14 +1063,14 @@ CONTAINS
             ncol_global=ncol_global)
        ALLOCATE(smatrix(nrow_global,ncol_global),STAT=istat)
        IF (istat /= 0) THEN
-          CALL stop_memory(routine_name,module_name,__LINE__,&
+          CALL stop_memory(routineN,moduleN,__LINE__,&
                "smatrix",nrow_global*ncol_global*dp_size)
        END IF
        CALL cp_fm_get_submatrix(mo_set%mo_coeff,smatrix)
        IF (.NOT.globenv%ionode) THEN
           DEALLOCATE(smatrix,STAT=istat)
           IF (istat /= 0) THEN
-             CALL stop_memory(routine_name,module_name,__LINE__,"smatrix")
+             CALL stop_memory(routineN,moduleN,__LINE__,"smatrix")
           END IF
        END IF
     END IF
@@ -1120,7 +1115,7 @@ CONTAINS
 
              ALLOCATE(cmatrix(ncgf,ncgf),STAT=istat)
              IF (istat /= 0) THEN
-                CALL stop_memory(routine_name,module_name,__LINE__,&
+                CALL stop_memory(routineN,moduleN,__LINE__,&
                      "cmatrix",ncgf*ncgf*dp_size)
              END IF
 
@@ -1260,12 +1255,12 @@ CONTAINS
        IF (p_evec) THEN
           DEALLOCATE (smatrix,STAT=istat)
           IF (istat /= 0) THEN
-             CALL stop_memory(routine_name,module_name,__LINE__,"smatrix")
+             CALL stop_memory(routineN,moduleN,__LINE__,"smatrix")
           END IF
           IF (p_cart) THEN
              DEALLOCATE (cmatrix,STAT=istat)
              IF (istat /= 0) THEN
-                CALL stop_memory(routine_name,module_name,__LINE__,"cmatrix")
+                CALL stop_memory(routineN,moduleN,__LINE__,"cmatrix")
              END IF
           END IF
        END IF

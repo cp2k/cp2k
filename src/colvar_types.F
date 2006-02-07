@@ -1,12 +1,12 @@
 MODULE colvar_types
-  USE kinds,                           ONLY: default_path_length,&
-                                             dp
+  USE kinds,                           ONLY: dp
 #include "cp_common_uses.h"
+
   IMPLICIT NONE
 
   PRIVATE 
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: ModuleN='colvar_types'
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'colvar_types'
 
   PUBLIC :: colvar_type, coord_colvar_type,dist_colvar_type,colvar_init,&
         colvar_dealloc_ref,torsion_colvar_type
@@ -106,8 +106,8 @@ SUBROUTINE colvar_init(colvar,error)
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-    CHARACTER(len=*), PARAMETER :: routinen = 'colvar_init', &
-      routinep = modulen//':'//routinen
+    CHARACTER(len=*), PARAMETER :: routineN = 'colvar_init', &
+      routineP = moduleN//':'//routineN
 
     LOGICAL                                  :: failure
 
@@ -155,8 +155,8 @@ SUBROUTINE colvar_dealloc_ref(colvar,error)
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-    CHARACTER(len=*), PARAMETER :: routinen = 'colvar_dealloc_ref', &
-      routinep = modulen//':'//routinen
+    CHARACTER(len=*), PARAMETER :: routineN = 'colvar_dealloc_ref', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: stat
     LOGICAL                                  :: failure

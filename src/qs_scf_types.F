@@ -30,7 +30,6 @@ MODULE qs_scf_types
   USE cp_fm_vect,                      ONLY: cp_fm_vect_dealloc
   USE kinds,                           ONLY: dp
   USE preconditioner,                  ONLY: destroy_preconditioner,&
-                                             preconditioner_type,&
                                              preconditioner_p_type
   USE qs_diis_types,                   ONLY: qs_diis_b_release,&
                                              qs_diis_buffer_type
@@ -46,7 +45,7 @@ MODULE qs_scf_types
   PRIVATE
 
   LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
-  CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='qs_scf_types'
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_scf_types'
 
   INTEGER, PARAMETER, PUBLIC :: &
                                 general_diag_method_nr=1,&

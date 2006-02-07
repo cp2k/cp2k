@@ -53,7 +53,7 @@ MODULE ai_kinetic
 
   PRIVATE
 
-  CHARACTER(LEN=*), PARAMETER :: module_name = "ai_kinetic"
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'ai_kinetic'
 
 ! *** Public subroutines ***
 
@@ -98,7 +98,7 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(3), &
       INTENT(OUT), OPTIONAL                  :: force_a
 
-    CHARACTER(LEN=*), PARAMETER              :: routine_name = "kinetic"
+    CHARACTER(LEN=*), PARAMETER              :: routineN = 'kinetic'
 
     INTEGER :: ax, ay, az, bx, by, bz, cda, cdax, cday, cdaz, coa, coam2x, &
       coam2y, coam2z, coamx, coamy, coamz, coapx, coapy, coapz, cob, cobm2x, &

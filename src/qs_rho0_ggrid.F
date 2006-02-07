@@ -21,37 +21,39 @@ MODULE qs_rho0_ggrid
                                              get_atomic_kind
   USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                              gto_basis_set_type
+  USE cell_types,                      ONLY: cell_type,&
+                                             pbc
   USE coefficient_types,               ONLY: coeff_copy,&
                                              coeff_deallocate,&
+                                             coeff_sumup,&
                                              coeff_transform_space,&
                                              coeff_type,&
-                                             coeff_sumup,coeff_zero
+                                             coeff_zero
   USE cp_control_types,                ONLY: dft_control_type
-  USE input_constants,                 ONLY: tddfpt_singlet
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE cp_rs_pool_types,                ONLY: cp_rs_pool_type,&
-                                             cp_rs_pool_p_type,&
-                                             rs_pool_give_back_rs,&
-                                             rs_pool_create_rs
+  USE cp_rs_pool_types,                ONLY: cp_rs_pool_p_type,&
+                                             cp_rs_pool_type,&
+                                             rs_pool_create_rs,&
+                                             rs_pool_give_back_rs
   USE cube_utils,                      ONLY: cube_info_type
-  USE gaussian_gridlevels,             ONLY: gaussian_gridlevel,&
-                                             gridlevel_info_type
-  USE kinds,                           ONLY: dp,&
-                                             int_size
+  USE input_constants,                 ONLY: tddfpt_singlet
+  USE kinds,                           ONLY: dp
   USE l_utils,                         ONLY: l_info_type
-  USE mathconstants,                   ONLY: dfac,fourpi,pi
+  USE mathconstants,                   ONLY: dfac,&
+                                             fourpi
   USE memory_utilities,                ONLY: reallocate
-  USE message_passing,                 ONLY: mp_sum
-  USE orbital_pointers,                ONLY: indco, &
-                                             nco,ncoset,&
-                                             nso,nsoset
+  USE orbital_pointers,                ONLY: indco,&
+                                             nco,&
+                                             ncoset,&
+                                             nso,&
+                                             nsoset
   USE orbital_transformation_matrices, ONLY: orbtramat
   USE particle_types,                  ONLY: particle_type
   USE pw_env_types,                    ONLY: pw_env_get,&
                                              pw_env_type
   USE pw_pool_types,                   ONLY: pw_pool_give_back_coeff,&
                                              pw_pool_init_coeff,&
-                                             pw_pool_p_type, &
+                                             pw_pool_p_type,&
                                              pw_pool_type
   USE pw_types,                        ONLY: COMPLEXDATA1D,&
                                              REALDATA3D,&
@@ -60,39 +62,35 @@ MODULE qs_rho0_ggrid
   USE qs_collocate_density,            ONLY: calculate_total_rho,&
                                              collocate_pgf_product_rspace
   USE qs_environment_types,            ONLY: get_qs_env,&
-                                             qs_environment_type,&
-                                             set_qs_env
+                                             qs_environment_type
   USE qs_force_types,                  ONLY: qs_force_type
   USE qs_harmonics_atom,               ONLY: harmonics_atom_type
   USE qs_integrate_potential,          ONLY: integrate_pgf_product_rspace
-  USE qs_local_rho_types,              ONLY: local_rho_type
   USE qs_p_env_types,                  ONLY: qs_p_env_type
   USE qs_rho0_types,                   ONLY: get_rho0_mpole,&
                                              rho0_mpole_type
   USE qs_rho_atom_types,               ONLY: get_rho_atom,&
                                              rho_atom_coeff,&
                                              rho_atom_type
-  USE realspace_grid_types,            ONLY: realspace_grid_type,&
+  USE realspace_grid_types,            ONLY: pw2rs,&
+                                             realspace_grid_type,&
+                                             rs2pw,&
                                              rs_get_my_tasks,&
                                              rs_grid_zero,&
-                                             rs_pw_transfer,&
-                                             rs2pw,&
-                                             pw2rs
-  USE cell_types,                 ONLY: cell_type,&
-                                             pbc
+                                             rs_pw_transfer
   USE termination,                     ONLY: stop_memory
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE util,                            ONLY: get_limit
 #include "cp_common_uses.h"
- 
+
   IMPLICIT NONE
 
   PRIVATE
 
 ! *** Global parameters (only in this module)
 
-  CHARACTER(LEN=*), PARAMETER :: module_name = "qs_rho0_ggrid"
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_rho0_ggrid'
 
 ! *** Public subroutines ***
 
@@ -106,28 +104,37 @@ MODULE qs_rho0_ggrid
 
   SUBROUTINE put_rho0_s_on_grid(qs_env, atom_set, rho0, tot_rs_int, error)
 
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(atomic_kind_type), DIMENSION(:), &
+      POINTER                                :: atom_set
+    TYPE(rho0_mpole_type), POINTER           :: rho0
+    REAL(dp), INTENT(OUT)                    :: tot_rs_int
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
-    TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(rho0_mpole_type),      POINTER      :: rho0
-    TYPE(atomic_kind_type), DIMENSION(:), &
-                                 POINTER     :: atom_set
-    REAL(dp), INTENT(OUT)                    :: tot_rs_int
 
-    CHARACTER(LEN=*), PARAMETER         :: routine_name = "put_rho0_s_on_grid", &
-                         routineP = module_name//':'//routine_name
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'put_rho0_s_on_grid', &
+      routineP = moduleN//':'//routineN
 
-
+    INTEGER :: auxbas_grid, bo(2), dir, handle, iat, iatom, igrid, ikind, &
+      istat, ithread, j, l0_ikind, lmax0, nat, nch_ik, nch_max, ncurr, nkind, &
+      npme, omp_get_thread_num
+    INTEGER, DIMENSION(:), POINTER           :: atom_list
+    INTEGER, DIMENSION(:, :), POINTER        :: tasks
+    LOGICAL                                  :: failure
+    REAL(KIND=dp)                            :: eps_rho_rspace, r_V0, &
+                                                rpgf0_s, zet0_s
+    REAL(KIND=dp), DIMENSION(3)              :: ra
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: Qlm_c
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: pab
     TYPE(atomic_kind_type), POINTER          :: atom_kind
     TYPE(cell_type), POINTER                 :: cell
-    TYPE(coeff_type), POINTER                :: rho0_s_rs,rho0_s_gs
-    TYPE(coeff_type), POINTER                :: coeff_rspace,& 
-                                                coeff_gspace
+    TYPE(coeff_type), POINTER                :: coeff_gspace, coeff_rspace, &
+                                                rho0_s_gs, rho0_s_rs
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_rs_pool_p_type), DIMENSION(:), &
       POINTER                                :: pools
     TYPE(cp_rs_pool_type), POINTER           :: pool
-    TYPE(cube_info_type) , DIMENSION(:), &
+    TYPE(cube_info_type), DIMENSION(:), &
       POINTER                                :: cube_info
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(l_info_type)                        :: l_info
@@ -138,20 +145,6 @@ MODULE qs_rho0_ggrid
       POINTER                                :: pw_pools
     TYPE(pw_pool_type), POINTER              :: pw_pool
     TYPE(realspace_grid_type), POINTER       :: rs_grid
-    REAL(KIND=dp)                            :: eps_rho_rspace,r_V0,rpgf0_s,zet0_s
-    REAL(KIND=dp), DIMENSION(3)              :: ra
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: Qlm_c
-    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: pab
-
-    INTEGER                                  :: auxbas_grid,bo(2), dir,&
-                                                handle, igrid, iat,&
-                                                iatom, ikind, ithread, istat, j,&
-                                                l0_ikind, lmax0,  nat, nch_ik,&
-                                                nch_max, ncurr, nkind, npme,&
-                                                omp_get_thread_num
-    INTEGER, DIMENSION(:), POINTER           :: atom_list
-    INTEGER, DIMENSION(:, :), POINTER        :: tasks
-    LOGICAL                                  :: failure
 
 !   ---------------------------------------------------------------------------
 
@@ -330,14 +323,13 @@ MODULE qs_rho0_ggrid
       OPTIONAL                               :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'rho0_s_grid_create', &
-      routineP = module_name//':'//routineN
+      routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat, igrid
+    INTEGER                                  :: stat
     LOGICAL                                  :: failure, my_tddft
-    TYPE(coeff_type), POINTER                :: rho_rs,rho_gs
+    TYPE(coeff_type), POINTER                :: rho_gs, rho_rs
     TYPE(pw_env_type), POINTER               :: new_pw_env
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
-    REAL(dp)                                 :: zet
 
 !   ---------------------------------------------------------------------------
 
@@ -405,27 +397,41 @@ MODULE qs_rho0_ggrid
     TYPE(coeff_type)                         :: v_rspace
     LOGICAL, INTENT(IN)                      :: calculate_forces
     LOGICAL, INTENT(IN), OPTIONAL            :: tddft
-    TYPE(qs_p_env_type), POINTER, OPTIONAL   :: p_env
+    TYPE(qs_p_env_type), OPTIONAL, POINTER   :: p_env
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = "integrate_vhg0_rspace",&
-                     routineP = module_name//':'//routineN
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'integrate_vhg0_rspace', &
+      routineP = moduleN//':'//routineN
 
-    TYPE(atomic_kind_type), DIMENSION(:),&
-                            POINTER          :: atomic_kind_set
+    INTEGER :: auxbas_grid, bo(2), dir, handle, iat, iatom, ic, icg, ico, &
+      ig1, ig2, igrid, ikind, ipgf1, ipgf2, is, iset1, iset2, iso, iso1, &
+      iso2, ispin, istat, ithread, j, l0_ikind, lmax0, lshell, lx, ly, lz, &
+      m1, m2, maxso, n1, n2, nat, natom, nch_ik, nch_max, ncurr, npme, nset, &
+      nspins, nthread, omp_get_max_threads, omp_get_thread_num
+    INTEGER, DIMENSION(:), POINTER           :: atom_list, lmax, npgf
+    INTEGER, DIMENSION(:, :), POINTER        :: tasks
+    LOGICAL                                  :: failure, my_tddft, paw_atom
+    REAL(dp)                                 :: c4pi, eps_rho_rspace, &
+                                                force_tmp(3), r_V0, ra(3), &
+                                                rpgf0_s, scale, zet0_s
+    REAL(dp), DIMENSION(:), POINTER          :: hab_sph, norm_l, Qlm
+    REAL(dp), DIMENSION(:, :), POINTER       :: hab, hab_spht, hdab_sph, pab
+    REAL(dp), DIMENSION(:, :, :), POINTER    :: habt, hadb, hdab, hdab_spht, &
+                                                Qlm_gg
+    REAL(dp), DIMENSION(:, :, :, :), POINTER :: hadbt, hdabt
+    TYPE(atomic_kind_type), DIMENSION(:), &
+      POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atom_kind
     TYPE(cell_type), POINTER                 :: cell
-    TYPE(coeff_type), POINTER                :: coeff_rspace,&
-                                                coeff_gaux,&
-                                                coeff_gspace,&
-                                                coeff_raux
+    TYPE(coeff_type), POINTER                :: coeff_gaux, coeff_gspace, &
+                                                coeff_raux, coeff_rspace
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_rs_pool_p_type), DIMENSION(:), &
       POINTER                                :: rs_pools
     TYPE(cp_rs_pool_type), POINTER           :: rs_pool
-    TYPE(cube_info_type),  DIMENSION(:), &
-                         POINTER             :: cube_info
+    TYPE(cube_info_type), DIMENSION(:), &
+      POINTER                                :: cube_info
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
     TYPE(harmonics_atom_type), POINTER       :: harmonics
@@ -433,41 +439,21 @@ MODULE qs_rho0_ggrid
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(pw_env_type), POINTER               :: pw_env
+    TYPE(pw_pool_p_type), DIMENSION(:), &
+      POINTER                                :: pw_pools
+    TYPE(pw_pool_type), POINTER              :: pw_aux, pw_pool
     TYPE(qs_force_type), DIMENSION(:), &
       POINTER                                :: force
     TYPE(realspace_grid_type), POINTER       :: rs_v
-    TYPE(pw_pool_p_type), DIMENSION(:), &
-      POINTER                                :: pw_pools
-    TYPE(pw_pool_type), POINTER              :: pw_pool, pw_aux
-    TYPE(rho0_mpole_type),      POINTER      :: rho0_mpole
-    TYPE(rho_atom_type), DIMENSION(:), &
-                                     POINTER   :: rho_atom_set
-    TYPE(rho_atom_type),       POINTER         :: rho_atom
+    TYPE(rho0_mpole_type), POINTER           :: rho0_mpole
     TYPE(rho_atom_coeff), DIMENSION(:), &
-        POINTER                                :: int_local_h,int_local_s
+      POINTER                                :: int_local_h, int_local_s
+    TYPE(rho_atom_type), DIMENSION(:), &
+      POINTER                                :: rho_atom_set
+    TYPE(rho_atom_type), POINTER             :: rho_atom
 
-    INTEGER :: auxbas_grid, bo(2), dir, handle, iat, iatom, ic, icg, ico, ig1, ig2,&
-               igrid, ikind, ipgf1, ipgf2, is, iset1, iset2, iso, iso1, iso2, ispin,&
-               istat, ithread, j, lmax0, l0_ikind, lshell, lx, ly, lz, m1, m2, &
-               maxso, n1, n2, nat, natom, nch_ik, nch_max, ncurr, npme, nset, &
-               nthread, omp_get_thread_num, nspins
-    INTEGER, DIMENSION(:), POINTER           :: atom_list,&
-                                                lmax,npgf
-    INTEGER, DIMENSION(:,:), POINTER         :: tasks
-    INTEGER                                  :: omp_get_max_threads
-    REAL(dp)  :: c4pi, eps_rho_rspace, force_tmp(3), ra(3), scale, zet0_s
-    REAL(dp)  :: r_V0,rpgf0_s
-    REAL(dp), DIMENSION(:), POINTER          :: norm_l
-    REAL(dp), DIMENSION(:),     POINTER      :: Qlm
-    REAL(dp), DIMENSION(:), POINTER          :: hab_sph
-    REAL(dp), DIMENSION(:,:), POINTER        :: hab_spht
-    REAL(dp), DIMENSION(:,:), POINTER        :: hab, hdab_sph, pab
-    REAL(dp), DIMENSION(:,:,:), POINTER      :: habt, hdab_spht
-    REAL(dp), DIMENSION(:,:,:),  POINTER     :: Qlm_gg
-    REAL(dp), DIMENSION(:,:,:), POINTER      :: hdab, hadb
-    REAL(dp), DIMENSION(:,:,:,:), POINTER    :: hdabt, hadbt
-    LOGICAL                                  :: failure, paw_atom, my_tddft
 !   ---------------------------------------------------------------------------
+
     failure=.FALSE.
     c4pi = fourpi
 

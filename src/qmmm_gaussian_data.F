@@ -28,7 +28,7 @@
 !****************************************************************************
 MODULE qmmm_gaussian_data
 
-  USE kinds,                           ONLY: dp  
+  USE kinds,                           ONLY: dp
 
   IMPLICIT NONE
   INTEGER, PARAMETER, PUBLIC       :: min_geep_lib_gauss = 2

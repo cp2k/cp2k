@@ -38,7 +38,7 @@ MODULE machine_intel
 CONTAINS
 
 FUNCTION m_loc_r(a) RESULT(res)
-    REAL(KIND=dp), DIMENSION(*), INTENT(in) :: a
+    REAL(KIND=dp), DIMENSION(*), INTENT(in)  :: a
     INTEGER                                  :: res
 
   res=-1
@@ -69,7 +69,8 @@ END FUNCTION m_iargc
 !******************************************************************************
 !!  cpu time in seconds
 FUNCTION m_cputime() RESULT (ct)
-    REAL(KIND=dp)                                :: ct
+    REAL(KIND=dp)                            :: ct
+
     CALL CPU_TIME(ct)
 END FUNCTION m_cputime
 !******************************************************************************
@@ -84,7 +85,7 @@ FUNCTION m_walltime() RESULT (wt)
     ! non-standard, but available with ifort, will not wraparound easily
     INTEGER*8 :: count,count_rate 
 #endif
-    CALL system_clock(count=count,count_rate=count_rate) 
+    CALL SYSTEM_CLOCK(count=count,count_rate=count_rate) 
     wt=REAL(count,KIND=dp)/REAL(count_rate,KIND=dp)
 END FUNCTION m_walltime
 !******************************************************************************
@@ -178,6 +179,7 @@ END SUBROUTINE m_chdir
 !******************************************************************************
 SUBROUTINE m_getlog(user)
     CHARACTER(len=*), INTENT(OUT)            :: user
+
     user="username"
     ! intel 8.0 return 'binary' data here...
     ! CALL getlog(user)

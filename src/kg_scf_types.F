@@ -23,12 +23,11 @@
 !!***
 !****************************************************************************
 MODULE kg_scf_types
-  USE kinds,                           ONLY: dp
-  USE preconditioner,                  ONLY: destroy_preconditioner,&
-                                             preconditioner_type,&
-                                             preconditioner_p_type
   USE kg_diis_types,                   ONLY: kg_diis_b_release,&
                                              kg_diis_buffer_type
+  USE kinds,                           ONLY: dp
+  USE preconditioner,                  ONLY: destroy_preconditioner,&
+                                             preconditioner_p_type
   USE qs_ot,                           ONLY: qs_ot_destroy,&
                                              qs_ot_type
   USE sparse_matrix_types,             ONLY: deallocate_matrix_set,&
@@ -37,14 +36,13 @@ MODULE kg_scf_types
                                              timestop
 #include "cp_common_uses.h"
 
-
   IMPLICIT NONE
   PRIVATE
 
   INTEGER, SAVE, PRIVATE :: last_scf_env_id=0
 
   LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
-  CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='kg_scf_types'
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'kg_scf_types'
 
   PUBLIC :: kg_scf_env_type, kg_scf_env_p_type,&
             kg_scf_env_retain, kg_scf_env_release

@@ -33,7 +33,8 @@ MODULE extended_system_dynamics
   USE kinds,                           ONLY: dp
   USE message_passing,                 ONLY: mp_sum
   USE molecule_kind_types,             ONLY: molecule_kind_type
-  USE molecule_types_new,              ONLY: molecule_type, get_molecule
+  USE molecule_types_new,              ONLY: get_molecule,&
+                                             molecule_type
   USE particle_types,                  ONLY: particle_type
   USE pw_types,                        ONLY: pw_type
   USE timings,                         ONLY: timeset,&
@@ -80,7 +81,7 @@ SUBROUTINE lnhc_coefs ( nhc, dyn_coeff_set, group )
                                                 inc, inhc, iyosh, n, nkind, &
                                                 nx1, nx2
     LOGICAL                                  :: gmass
-    REAL(KIND=dp)                                :: flops, scale
+    REAL(KIND=dp)                            :: flops, scale
     TYPE(dyn_coeff_type), POINTER            :: coeffs
 
   CALL timeset('LNHC','I','Mflops',handle)
@@ -132,7 +133,7 @@ YOSH:     DO iyosh = 1, nhc % nyosh
 ! update velocity of other thermostats on chain (from nhc_len-1 to 1)  ! O2
       DO n = 1, nhc % num_nhc
         DO inhc = nhc % nhc_len - 1, 1, -1
-          scale = exp (-0.125_dp * nhc % nvt ( inhc+1, n )% v * &
+          scale = EXP (-0.125_dp * nhc % nvt ( inhc+1, n )% v * &
                  nhc % dt_yosh ( iyosh ) )
           nhc % nvt ( inhc, n ) % v = nhc % nvt ( inhc, n ) % v * scale     ! scale
           nhc % nvt ( inhc, n ) % v = nhc % nvt ( inhc, n ) % v + &
@@ -148,7 +149,7 @@ YOSH:     DO iyosh = 1, nhc % nyosh
 ! now accumulate the scale factor for particle velocities
       DO n = 1, nhc % num_nhc
         nhc % v_scale ( n ) = nhc % v_scale ( n ) * &
-        exp ( -0.5_dp * nhc % dt_yosh ( &
+        EXP ( -0.5_dp * nhc % dt_yosh ( &
              iyosh ) * nhc % nvt ( 1, n ) % v )
       END DO
 ! the core of the operator ------ END ------
@@ -164,7 +165,7 @@ YOSH:     DO iyosh = 1, nhc % nyosh
 ! update velocity of other thermostats on chain (from 1 to nhc_len-1)  ! O2
       DO inhc = 1, nhc % nhc_len - 1
         DO n = 1, nhc % num_nhc
-          scale = exp( -0.125_dp *nhc % nvt ( inhc+1, n ) % v * & 
+          scale = EXP( -0.125_dp *nhc % nvt ( inhc+1, n ) % v * & 
             nhc % dt_yosh ( iyosh ) ) 
           nhc % nvt ( inhc, n ) % v = nhc % nvt( inhc, n ) % v * scale ! scale
           nhc % nvt ( inhc, n ) % v = nhc % nvt( inhc, n ) % v + &
@@ -231,7 +232,7 @@ SUBROUTINE lnhc_pw ( nhc, pw, group )
 
     INTEGER                                  :: handle, i, inc, inhc, iyosh, &
                                                 n, ncoef, nx1, nx2
-    REAL(KIND=dp)                                :: flops, scale
+    REAL(KIND=dp)                            :: flops, scale
 
   CALL timeset('LNHC','I','Mflops',handle)
   flops = 0.0_dp
@@ -269,7 +270,7 @@ YOSH:     DO iyosh = 1, nhc % nyosh
 ! update velocity of other thermostats on chain (from nhc_len-1 to 1)  ! O2
       DO n = 1, nhc % num_nhc
         DO inhc = nhc % nhc_len - 1, 1, -1
-          scale = exp (-0.125_dp * nhc % nvt ( inhc+1, n )% v * &
+          scale = EXP (-0.125_dp * nhc % nvt ( inhc+1, n )% v * &
                  nhc % dt_yosh ( iyosh ) )
           nhc % nvt ( inhc, n ) % v = nhc % nvt ( inhc, n ) % v * scale     ! scale
           nhc % nvt ( inhc, n ) % v = nhc % nvt ( inhc, n ) % v + &
@@ -285,7 +286,7 @@ YOSH:     DO iyosh = 1, nhc % nyosh
 ! now accumulate the scale factor for particle velocities
       DO n = 1, nhc % num_nhc
         nhc % v_scale ( n ) = nhc % v_scale ( n ) * &
-        exp ( -0.5_dp * nhc % dt_yosh ( &
+        EXP ( -0.5_dp * nhc % dt_yosh ( &
              iyosh ) * nhc % nvt ( 1, n ) % v )
       END DO
 ! the core of the operator ------ END ------
@@ -301,7 +302,7 @@ YOSH:     DO iyosh = 1, nhc % nyosh
 ! update velocity of other thermostats on chain (from 1 to nhc_len-1)  ! O2
       DO inhc = 1, nhc % nhc_len - 1
         DO n = 1, nhc % num_nhc
-          scale = exp( -0.125_dp *nhc % nvt ( inhc+1, n ) % v * & 
+          scale = EXP( -0.125_dp *nhc % nvt ( inhc+1, n ) % v * & 
             nhc % dt_yosh ( iyosh ) ) 
           nhc % nvt ( inhc, n ) % v = nhc % nvt( inhc, n ) % v * scale ! scale
           nhc % nvt ( inhc, n ) % v = nhc % nvt( inhc, n ) % v + &
@@ -362,7 +363,7 @@ SUBROUTINE lnhc_barostat ( nhc, npt, group )
 
     INTEGER                                  :: handle, i, inc, inhc, iyosh, &
                                                 j, n, ncoef, nx1, nx2
-    REAL(KIND=dp)                                :: flops, scale
+    REAL(KIND=dp)                            :: flops, scale
 
 !------------------------------------------------------------------------------
 
@@ -407,7 +408,7 @@ SUBROUTINE lnhc_barostat ( nhc, npt, group )
 ! update velocity of other thermostats on chain (from nhc_len-1 to 1)  ! O2
         DO n = 1, nhc % num_nhc
            DO inhc = nhc % nhc_len - 1, 1, -1
-              scale = exp(-0.125_dp*nhc % nvt(inhc+1,n) % v*nhc % dt_yosh(iyosh) &
+              scale = EXP(-0.125_dp*nhc % nvt(inhc+1,n) % v*nhc % dt_yosh(iyosh) &
                    )
               nhc % nvt(inhc,n) % v = nhc % nvt(inhc,n) % v*scale ! scale
               nhc % nvt(inhc,n) % v = nhc % nvt(inhc,n) % v + &
@@ -425,7 +426,7 @@ SUBROUTINE lnhc_barostat ( nhc, npt, group )
         flops = flops + REAL(2*nx1*nx2)
 ! now accumulate the scale factor for particle velocities
         DO n = 1, nhc % num_nhc
-           nhc % v_scale(n) = nhc % v_scale(n)*exp(-0.5_dp*nhc % dt_yosh( &
+           nhc % v_scale(n) = nhc % v_scale(n)*EXP(-0.5_dp*nhc % dt_yosh( &
                 iyosh)*nhc % nvt(1,n) % v)
         END DO
         flops = flops + REAL(nhc % num_nhc*4)
@@ -442,7 +443,7 @@ SUBROUTINE lnhc_barostat ( nhc, npt, group )
 ! update velocity of other thermostats on chain (from 1 to nhc_len-1)  ! O2
         DO inhc = 1, nhc % nhc_len - 1
            DO n = 1, nhc % num_nhc
-              scale = exp(-0.125_dp*nhc % nvt(inhc+1,n) % v*nhc % dt_yosh(iyosh) &
+              scale = EXP(-0.125_dp*nhc % nvt(inhc+1,n) % v*nhc % dt_yosh(iyosh) &
                    )
               nhc % nvt(inhc,n) % v = nhc % nvt(inhc,n) % v*scale ! scale
               nhc % nvt(inhc,n) % v = nhc % nvt(inhc,n) % v + &
@@ -504,22 +505,20 @@ SUBROUTINE lnhc_particle_set ( nhc, molecule_kind_set, molecule_set,  &
 
     TYPE(lnhc_parameters_type), &
       INTENT(INOUT)                          :: nhc
-    TYPE ( particle_type ), POINTER          :: particle_set ( : )
-    TYPE(atomic_kind_type), POINTER          :: atomic_kind_set( : )
     TYPE(molecule_kind_type), POINTER        :: molecule_kind_set( : )
     TYPE(molecule_type), POINTER             :: molecule_set( : )
-!    TYPE(distribution_1d_type), POINTER      :: particles
+    TYPE(atomic_kind_type), POINTER          :: atomic_kind_set( : )
+    TYPE(particle_type), POINTER             :: particle_set( : )
     TYPE(distribution_1d_type), POINTER      :: local_molecules
     INTEGER, INTENT(IN)                      :: group
 
-    INTEGER                                  :: handle, i, ikind, inc, inhc, &
-                                                ipart, iyosh, n, npart_local, &
-                                                nx1, nx2, ii, imol_local, imol, &
-                                                nmol_local, first_atom, last_atom
-    REAL(KIND=dp)                                :: flops, mass, scale
+    INTEGER :: first_atom, handle, i, ii, ikind, imol, imol_local, inc, inhc, &
+      ipart, iyosh, last_atom, n, nmol_local, npart_local, nx1, nx2
+    REAL(KIND=dp)                            :: flops, mass, scale
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(molecule_type), POINTER             :: molecule
 
+!    TYPE(distribution_1d_type), POINTER      :: particles
 !------------------------------------------------------------------------------
 
   CALL timeset('LNHC','I','Mflops',handle)
@@ -580,7 +579,7 @@ SUBROUTINE lnhc_particle_set ( nhc, molecule_kind_set, molecule_set,  &
 ! update velocity of other thermostats on chain (from nhc_len-1 to 1)  ! O2
         DO n = 1, nhc % num_nhc
            DO inhc = nhc % nhc_len - 1, 1, -1
-              scale = exp(-0.125_dp*nhc % nvt(inhc+1,n) % v*nhc % dt_yosh(iyosh) &
+              scale = EXP(-0.125_dp*nhc % nvt(inhc+1,n) % v*nhc % dt_yosh(iyosh) &
                    )
               nhc % nvt(inhc,n) % v = nhc % nvt(inhc,n) % v*scale ! scale
               nhc % nvt(inhc,n) % v = nhc % nvt(inhc,n) % v + &
@@ -598,7 +597,7 @@ SUBROUTINE lnhc_particle_set ( nhc, molecule_kind_set, molecule_set,  &
         flops = flops + REAL(2*nx1*nx2)
 ! now accumulate the scale factor for particle velocities
         DO n = 1, nhc % num_nhc
-           nhc % v_scale(n) = nhc % v_scale(n)*exp(-0.5_dp*nhc % dt_yosh( &
+           nhc % v_scale(n) = nhc % v_scale(n)*EXP(-0.5_dp*nhc % dt_yosh( &
                 iyosh)*nhc % nvt(1,n) % v)
         END DO
         flops = flops + REAL(nhc % num_nhc*4)
@@ -615,7 +614,7 @@ SUBROUTINE lnhc_particle_set ( nhc, molecule_kind_set, molecule_set,  &
 ! update velocity of other thermostats on chain (from 1 to nhc_len-1)  ! O2
         DO inhc = 1, nhc % nhc_len - 1
            DO n = 1, nhc % num_nhc
-              scale = exp(-0.125_dp*nhc % nvt(inhc+1,n) % v*nhc % dt_yosh(iyosh) &
+              scale = EXP(-0.125_dp*nhc % nvt(inhc+1,n) % v*nhc % dt_yosh(iyosh) &
                    )
               nhc % nvt(inhc,n) % v = nhc % nvt(inhc,n) % v*scale ! scale
               nhc % nvt(inhc,n) % v = nhc % nvt(inhc,n) % v + &
@@ -688,21 +687,19 @@ SUBROUTINE lnhc_particles ( nhc, molecule_kind_set, molecule_set,  &
 
     TYPE(lnhc_parameters_type), &
       INTENT(INOUT)                          :: nhc
-    TYPE(atomic_kind_type), POINTER          :: atomic_kind_set( : )
-    TYPE ( particle_type ), POINTER          :: particle_set ( : )
     TYPE(molecule_kind_type), POINTER        :: molecule_kind_set( : )
     TYPE(molecule_type), POINTER             :: molecule_set( : )
+    TYPE(atomic_kind_type), POINTER          :: atomic_kind_set( : )
+    TYPE(particle_type), POINTER             :: particle_set( : )
     TYPE(distribution_1d_type), POINTER      :: local_molecules
-    REAL (KIND=dp), INTENT ( INOUT )           :: vel ( :, : )
+    REAL(KIND=dp), INTENT(INOUT)             :: vel( :, : )
     INTEGER, INTENT(IN)                      :: group
 
-    INTEGER                                  :: handle, i, ikind, inc, inhc, &
-                                                ipart, iyosh, n, npart_local, &
-                                                nx1, nx2, ii, imol_local, imol, &
-                                                nmol_local, first_atom, last_atom
-    REAL(KIND=dp)                                :: flops, mass, scale
-    TYPE(molecule_type), POINTER             :: molecule
+    INTEGER :: first_atom, handle, i, ii, ikind, imol, imol_local, inc, inhc, &
+      ipart, iyosh, last_atom, n, nmol_local, npart_local, nx1, nx2
+    REAL(KIND=dp)                            :: flops, mass, scale
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
+    TYPE(molecule_type), POINTER             :: molecule
 
 !------------------------------------------------------------------------------
 
@@ -761,7 +758,7 @@ SUBROUTINE lnhc_particles ( nhc, molecule_kind_set, molecule_set,  &
 ! update velocity of other thermostats on chain (from nhc_len-1 to 1)  ! O2
         DO n = 1, nhc % num_nhc
            DO inhc = nhc % nhc_len - 1, 1, -1
-              scale = exp(-0.125_dp*nhc % nvt(inhc+1,n) % v*nhc % dt_yosh(iyosh) &
+              scale = EXP(-0.125_dp*nhc % nvt(inhc+1,n) % v*nhc % dt_yosh(iyosh) &
                    )
               nhc % nvt(inhc,n) % v = nhc % nvt(inhc,n) % v*scale ! scale
               nhc % nvt(inhc,n) % v = nhc % nvt(inhc,n) % v + &
@@ -779,7 +776,7 @@ SUBROUTINE lnhc_particles ( nhc, molecule_kind_set, molecule_set,  &
         flops = flops + REAL(2*nx1*nx2)
 ! now accumulate the scale factor for particle velocities
         DO n = 1, nhc % num_nhc
-           nhc % v_scale(n) = nhc % v_scale(n)*exp(-0.5_dp*nhc % dt_yosh( &
+           nhc % v_scale(n) = nhc % v_scale(n)*EXP(-0.5_dp*nhc % dt_yosh( &
                 iyosh)*nhc % nvt(1,n) % v)
         END DO
         flops = flops + REAL(nhc % num_nhc*4)
@@ -796,7 +793,7 @@ SUBROUTINE lnhc_particles ( nhc, molecule_kind_set, molecule_set,  &
 ! update velocity of other thermostats on chain (from 1 to nhc_len-1)  ! O2
         DO inhc = 1, nhc % nhc_len - 1
            DO n = 1, nhc % num_nhc
-              scale = exp(-0.125_dp*nhc % nvt(inhc+1,n) % v*nhc % dt_yosh(iyosh) &
+              scale = EXP(-0.125_dp*nhc % nvt(inhc+1,n) % v*nhc % dt_yosh(iyosh) &
                    )
               nhc % nvt(inhc,n) % v = nhc % nvt(inhc,n) % v*scale ! scale
               nhc % nvt(inhc,n) % v = nhc % nvt(inhc,n) % v + &

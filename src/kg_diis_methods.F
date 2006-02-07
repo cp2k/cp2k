@@ -22,19 +22,19 @@
 
 MODULE kg_diis_methods
   USE kg_diis_types,                   ONLY: allocate_diis_block,&
+                                             get_mol_diis_set,&
                                              init_mol_diis_set,&
                                              kg_diis_buffer_type,&
                                              mol_diis_block_type,&
-                                             mol_diis_buffer_set_type,&
-                                             get_mol_diis_set
+                                             mol_diis_buffer_set_type
   USE kg_gpw_fm_mol_methods,           ONLY: calculate_mol_density_matrix,&
                                              fm_mol_eigensolver
   USE kg_gpw_fm_mol_types,             ONLY: fm_mol_blocks_type,&
-                                             get_kg_fm_mol_set,&
                                              get_fm_mol_block,&
+                                             get_kg_fm_mol_set,&
                                              get_mol_mo_set,&
-                                             kg_fm_p_type,&
                                              kg_fm_mol_set_type,&
+                                             kg_fm_p_type,&
                                              mol_mo_set_p_type,&
                                              mol_mo_set_type
   USE kg_gpw_fm_mol_utils,             ONLY: copy_sparse2mol_block
@@ -43,12 +43,10 @@ MODULE kg_diis_methods
   USE scf_control_types,               ONLY: scf_control_type
   USE sparse_matrix_types,             ONLY: real_matrix_p_type,&
                                              real_matrix_type
-  USE termination,                     ONLY: stop_memory,&
-                                             stop_program
+  USE termination,                     ONLY: stop_memory
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "cp_common_uses.h"
-
 
   IMPLICIT NONE
 
@@ -56,7 +54,7 @@ MODULE kg_diis_methods
 
 ! *** Global parameters ***
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: module_name="kg_diis_methods"
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'kg_diis_methods'
 
 ! *** Global variables ***
 
@@ -75,17 +73,18 @@ CONTAINS
 
   SUBROUTINE alloc_mol_diis_iblock(scf_diis_buffer,mol_diis_iblock,nao,error)
 
-    TYPE(kg_diis_buffer_type), POINTER         :: scf_diis_buffer
-    TYPE(mol_diis_block_type) , POINTER        :: mol_diis_iblock
-    INTEGER, INTENT(IN)                        :: nao
+    TYPE(kg_diis_buffer_type), POINTER       :: scf_diis_buffer
+    TYPE(mol_diis_block_type), POINTER       :: mol_diis_iblock
+    INTEGER, INTENT(IN)                      :: nao
     TYPE(cp_error_type), INTENT(inout), &
-       OPTIONAL                                :: error
-    CHARACTER(len=*), PARAMETER :: routine_name="alloc_mol_diis_iblock",&
-        routineP = module_name//':'//routine_name
+      OPTIONAL                               :: error
 
-    INTEGER                                    :: ibuffer, ispin, istat,&
-                                                  nbuffer, nspins
-    LOGICAL                                    :: failure
+    CHARACTER(len=*), PARAMETER :: routineN = 'alloc_mol_diis_iblock', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: ibuffer, ispin, istat, &
+                                                nbuffer, nspins
+    LOGICAL                                  :: failure
 
     failure = .FALSE.
     nbuffer = scf_diis_buffer%nbuffer
@@ -138,19 +137,19 @@ CONTAINS
 
   SUBROUTINE kg_diis_b_clear(scf_diis_buffer,error)
 
-    TYPE(kg_diis_buffer_type), POINTER         :: scf_diis_buffer
+    TYPE(kg_diis_buffer_type), POINTER       :: scf_diis_buffer
     TYPE(cp_error_type), INTENT(inout), &
-       OPTIONAL                                :: error
+      OPTIONAL                               :: error
 
-    CHARACTER(len=*), PARAMETER :: routine_name="kg_diis_b_clear",&
-        routineP = module_name//':'//routine_name
+    CHARACTER(len=*), PARAMETER :: routineN = 'kg_diis_b_clear', &
+      routineP = moduleN//':'//routineN
 
-    LOGICAL                                    :: failure
+    LOGICAL                                  :: failure
 
     failure=.FALSE.
 
-    CPPrecondition(ASSOCIATED(scf_diis_buffer),cp_failure_level,routine_name,error,failure)
-    CPPrecondition(scf_diis_buffer%ref_count>=1,cp_failure_level,routine_name,error,failure)
+    CPPrecondition(ASSOCIATED(scf_diis_buffer),cp_failure_level,routineN,error,failure)
+    CPPrecondition(scf_diis_buffer%ref_count>=1,cp_failure_level,routineN,error,failure)
     IF (.NOT. failure) THEN
        scf_diis_buffer%ncall=0
     END IF
@@ -167,20 +166,22 @@ CONTAINS
 ! 
 ! *****************************************************************************
 
-    TYPE(kg_diis_buffer_type), POINTER         :: scf_diis_buffer
-    TYPE(kg_fm_mol_set_type), DIMENSION(:),&
-      POINTER                                  :: kg_fm_mol_set
-    INTEGER, INTENT(IN)                        :: nbuffer, nspins
+    TYPE(kg_diis_buffer_type), POINTER       :: scf_diis_buffer
+    TYPE(kg_fm_mol_set_type), DIMENSION(:), &
+      POINTER                                :: kg_fm_mol_set
+    INTEGER, INTENT(IN)                      :: nbuffer, nspins
     TYPE(cp_error_type), INTENT(inout), &
-       OPTIONAL                                :: error
+      OPTIONAL                               :: error
 
-    CHARACTER(len=*), PARAMETER :: routine_name = 'kg_diis_b_create',&
-     routineP = module_name//':'//routine_name
+    CHARACTER(len=*), PARAMETER :: routineN = 'kg_diis_b_create', &
+      routineP = moduleN//':'//routineN
 
-    INTEGER :: ikind, imol, istat, natom, nmol_global, nmol_kind, nmol_local
-    LOGICAL :: failure
-    TYPE(kg_fm_mol_set_type), POINTER          :: fm_mol_set
-    TYPE(mol_diis_buffer_set_type), POINTER    :: diis_set
+    INTEGER                                  :: ikind, istat, natom, &
+                                                nmol_global, nmol_kind, &
+                                                nmol_local
+    LOGICAL                                  :: failure
+    TYPE(kg_fm_mol_set_type), POINTER        :: fm_mol_set
+    TYPE(mol_diis_buffer_set_type), POINTER  :: diis_set
 
     failure=.FALSE.
 
@@ -223,43 +224,40 @@ CONTAINS
 
 !   First part of the Diis update : create the diis matrix for each molecule
 
-    TYPE(kg_diis_buffer_type), POINTER         :: diis_buffer
-    INTEGER, INTENT(IN)                        :: ibuffer, nb_active
-    TYPE(kg_fm_mol_set_type), DIMENSION(:),&
-      POINTER                                  :: kg_fm_mol_set
-    REAL(dp), DIMENSION(:,:), POINTER          :: diis_mat
-    INTEGER, INTENT(IN)                        :: nspins
-    REAL(dp), INTENT(INOUT)                    :: diis_error
+    TYPE(kg_diis_buffer_type), POINTER       :: diis_buffer
+    INTEGER, INTENT(IN)                      :: ibuffer, nb_active
+    TYPE(kg_fm_mol_set_type), DIMENSION(:), &
+      POINTER                                :: kg_fm_mol_set
+    REAL(dp), DIMENSION(:, :), POINTER       :: diis_mat
+    INTEGER, INTENT(IN)                      :: nspins
+    REAL(dp), INTENT(INOUT)                  :: diis_error
     TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                  :: matrix_ks
-    TYPE(real_matrix_type), POINTER, OPTIONAL  :: overlap
+      POINTER                                :: matrix_ks
+    TYPE(real_matrix_type), OPTIONAL, &
+      POINTER                                :: overlap
     TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                                 :: error
+      OPTIONAL                               :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routine_name = 'kg_diis_step_A', &
-      routineP = module_name//':'//routine_name
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'kg_diis_step_A', &
+      routineP = moduleN//':'//routineN
 
-    INTEGER :: handle, homo, icol, ib, irow, imol, imolecule_kind, ispin, istat, jb, &
-               ldaux1, ldaux2, ldc, ldks, lder, mo_ncol, n_ao_kind, nat_mol,&
-               nmol_local, nmolecule_kind, i
-    LOGICAL                                    :: failure
-    REAL(dp)                                   :: tmp
-    REAL(dp), DIMENSION(:,:), ALLOCATABLE      :: aux2_matrix
-    REAL(dp), DIMENSION(:,:), POINTER          :: aux1_matrix,&
-                                                  mo_coeff
-    REAL(dp), DIMENSION(:,:), POINTER          :: b_buffer
-    REAL(dp), DIMENSION(:,:), POINTER          :: ks_ib
-    REAL(dp), DIMENSION(:,:), POINTER          :: er_ib, er_jb
+    INTEGER :: handle, homo, i, ib, icol, imol, imolecule_kind, irow, ispin, &
+      istat, jb, ldaux1, ldaux2, ldc, lder, ldks, mo_ncol, n_ao_kind, &
+      nat_mol, nmol_local, nmolecule_kind
+    LOGICAL                                  :: failure
+    REAL(dp)                                 :: tmp
+    REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: aux2_matrix
+    REAL(dp), DIMENSION(:, :), POINTER       :: aux1_matrix, b_buffer, er_ib, &
+                                                er_jb, ks_ib, mo_coeff
     TYPE(fm_mol_blocks_type), DIMENSION(:), &
-      POINTER                                  :: fm_mol_blocks
-    TYPE(fm_mol_blocks_type), POINTER          :: mol_block
-    TYPE(kg_fm_mol_set_type), POINTER          :: fm_mol_set
-    TYPE(mol_mo_set_p_type), DIMENSION(:),&
-      POINTER                                  :: mos
-    TYPE(mol_mo_set_type), POINTER             :: mo_set
-    TYPE(mol_diis_buffer_set_type), POINTER    :: mol_diis_set
-    TYPE(mol_diis_block_type) , POINTER        :: mol_diis_iblock
-
+      POINTER                                :: fm_mol_blocks
+    TYPE(fm_mol_blocks_type), POINTER        :: mol_block
+    TYPE(kg_fm_mol_set_type), POINTER        :: fm_mol_set
+    TYPE(mol_diis_block_type), POINTER       :: mol_diis_iblock
+    TYPE(mol_diis_buffer_set_type), POINTER  :: mol_diis_set
+    TYPE(mol_mo_set_p_type), DIMENSION(:), &
+      POINTER                                :: mos
+    TYPE(mol_mo_set_type), POINTER           :: mo_set
 
 !   ---------------------------------------------------------------------------
 
@@ -408,44 +406,39 @@ CONTAINS
 
 !   Second part of the DIIS update : modify the mos
 
-    TYPE(kg_diis_buffer_type), POINTER         :: diis_buffer
-    INTEGER, INTENT(IN)                        :: ibuffer, nb_active
-    TYPE(kg_fm_p_type), POINTER                :: kg_fm_set
-    TYPE(scf_control_type), POINTER            :: scf_control
-    REAL(dp), DIMENSION(:), POINTER            :: diis_ev
-    INTEGER, INTENT(IN)                        :: nspins
+    TYPE(kg_diis_buffer_type), POINTER       :: diis_buffer
+    INTEGER, INTENT(IN)                      :: ibuffer, nb_active
+    TYPE(kg_fm_p_type), POINTER              :: kg_fm_set
+    TYPE(scf_control_type), POINTER          :: scf_control
+    REAL(dp), DIMENSION(:), POINTER          :: diis_ev
+    INTEGER, INTENT(IN)                      :: nspins
     TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                  :: matrix_ks
-    TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                  :: matrix_p
-    LOGICAL, INTENT(IN)                        :: do_iter,diis_step,&
-                                                  do_level_shift,use_jacobi
+      POINTER                                :: matrix_ks, matrix_p
+    LOGICAL, INTENT(IN)                      :: do_iter, diis_step, &
+                                                do_level_shift, use_jacobi
     TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                                 :: error
+      OPTIONAL                               :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routine_name = 'kg_diis_step_B', &
-      routineP = module_name//':'//routine_name
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'kg_diis_step_B', &
+      routineP = moduleN//':'//routineN
 
-    INTEGER :: handle, imol, imolecule_kind, ispin, istat, jb, ldaux1, ldaux2, &
-               ldks, n_ao_kind, nat_mol, nmol_local, nmolecule_kind, i
-    LOGICAL                                    :: ionode, failure
-    REAL(dp)                                   :: tmp
-    REAL(dp), DIMENSION(:,:), ALLOCATABLE      :: aux2_matrix
-    REAL(dp), DIMENSION(:,:), POINTER          :: aux1_matrix,&
-                                                  ortho
-    REAL(dp), DIMENSION(:,:), POINTER          :: ks_ib
-    TYPE(cp_logger_type), POINTER              :: logger
+    INTEGER :: handle, i, imol, imolecule_kind, ispin, istat, jb, ldaux1, &
+      ldks, n_ao_kind, nat_mol, nmol_local, nmolecule_kind
+    LOGICAL                                  :: failure, ionode
+    REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: aux2_matrix
+    REAL(dp), DIMENSION(:, :), POINTER       :: aux1_matrix, ks_ib, ortho
+    TYPE(cp_logger_type), POINTER            :: logger
     TYPE(fm_mol_blocks_type), DIMENSION(:), &
-      POINTER                                  :: fm_mol_blocks
-    TYPE(fm_mol_blocks_type), POINTER          :: mol_block
-    TYPE(kg_fm_mol_set_type), DIMENSION(:),&
-      POINTER                                  :: kg_fm_mol_set
-    TYPE(kg_fm_mol_set_type), POINTER          :: fm_mol_set
-    TYPE(mol_mo_set_p_type), DIMENSION(:),&
-      POINTER                                  :: mos
-    TYPE(mol_mo_set_type), POINTER             :: mo_set
-    TYPE(mol_diis_buffer_set_type), POINTER    :: mol_diis_set
-    TYPE(mol_diis_block_type) , POINTER        :: mol_diis_iblock
+      POINTER                                :: fm_mol_blocks
+    TYPE(fm_mol_blocks_type), POINTER        :: mol_block
+    TYPE(kg_fm_mol_set_type), DIMENSION(:), &
+      POINTER                                :: kg_fm_mol_set
+    TYPE(kg_fm_mol_set_type), POINTER        :: fm_mol_set
+    TYPE(mol_diis_block_type), POINTER       :: mol_diis_iblock
+    TYPE(mol_diis_buffer_set_type), POINTER  :: mol_diis_set
+    TYPE(mol_mo_set_p_type), DIMENSION(:), &
+      POINTER                                :: mos
+    TYPE(mol_mo_set_type), POINTER           :: mo_set
 
 !   ---------------------------------------------------------------------------
 

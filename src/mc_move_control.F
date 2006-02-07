@@ -22,9 +22,9 @@
 MODULE mc_move_control
   USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: pi
-  USE mc_types,                        ONLY: mc_moves_type,&
+  USE mc_types,                        ONLY: get_mc_par,&
+                                             mc_moves_type,&
                                              mc_simulation_parameters_type,&
-                                             get_mc_par,&
                                              set_mc_par
   USE physcon,                         ONLY: angstrom
   USE termination,                     ONLY: stop_memory,&
@@ -38,7 +38,7 @@ MODULE mc_move_control
 
 ! *** Global parameters ***
 
-  CHARACTER(LEN=*), PARAMETER :: module_name = "mc_move_control"
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'mc_move_control'
 
   PUBLIC :: init_mc_moves, &
            mc_move_update,move_q_reinit,q_move_accept,mc_moves_release,&
@@ -71,8 +71,7 @@ CONTAINS
 
     TYPE(mc_moves_type), POINTER             :: moves
 
-    CHARACTER(LEN=*), PARAMETER              :: &
-      routineN = "init_mc_moves"
+    CHARACTER(LEN=*), PARAMETER              :: routineN = 'init_mc_moves'
 
     INTEGER                                  :: handle, stat
 
@@ -83,58 +82,58 @@ CONTAINS
 
 ! allocate all the structures
       ALLOCATE (moves,stat=stat)
-      IF (stat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
+      IF (stat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "moves",0)
       ALLOCATE (moves%bond,stat=stat)
-      IF (stat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
+      IF (stat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "moves%bond",0)
       ALLOCATE (moves%angle,stat=stat)
-      IF (stat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
+      IF (stat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "moves%angle",0)
       ALLOCATE (moves%dihedral,stat=stat)
-      IF (stat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
+      IF (stat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "moves%dihedral",0)
       ALLOCATE (moves%trans,stat=stat)
-      IF (stat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
+      IF (stat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "moves%trans",0)
       ALLOCATE (moves%rot,stat=stat)
-      IF (stat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
+      IF (stat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "moves%rot",0)
       ALLOCATE (moves%bias_bond,stat=stat)
-      IF (stat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
+      IF (stat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "moves%bias_bond",0)
       ALLOCATE (moves%bias_angle,stat=stat)
-      IF (stat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
+      IF (stat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "moves%bias_angle",0)
       ALLOCATE (moves%bias_dihedral,stat=stat)
-      IF (stat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
+      IF (stat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "moves%bias_dihedral",0)
       ALLOCATE (moves%bias_trans,stat=stat)
-      IF (stat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
+      IF (stat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "moves%bias_trans",0)
       ALLOCATE (moves%bias_rot,stat=stat)
-      IF (stat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
+      IF (stat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "moves%bias_rot",0)
       ALLOCATE (moves%volume,stat=stat)
-      IF (stat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
+      IF (stat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "moves%volume",0)
       ALLOCATE (moves%avbmc_inin,stat=stat)
-      IF (stat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
+      IF (stat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "moves%avbmc_inin",0)
       ALLOCATE (moves%avbmc_inout,stat=stat)
-      IF (stat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
+      IF (stat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "moves%avbmc_inout",0)
       ALLOCATE (moves%avbmc_outin,stat=stat)
-      IF (stat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
+      IF (stat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "moves%avbmc_outin",0)
       ALLOCATE (moves%avbmc_outout,stat=stat)
-      IF (stat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
+      IF (stat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "moves%avbmc_outout",0)
       ALLOCATE (moves%swap,stat=stat)
-      IF (stat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
+      IF (stat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "moves%swap",0)
       ALLOCATE (moves%Quickstep,stat=stat)
-      IF (stat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
+      IF (stat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "moves%Quickstep",0)
 ! set all the counters equal to zero
       moves%bias_bond%attempts=0
@@ -225,8 +224,7 @@ CONTAINS
 
     TYPE(mc_moves_type), POINTER             :: moves
 
-    CHARACTER(LEN=*), PARAMETER              :: &
-      routineN = "mc_moves_release"
+    CHARACTER(LEN=*), PARAMETER              :: routineN = 'mc_moves_release'
 
     INTEGER                                  :: handle, stat
 
@@ -237,59 +235,59 @@ CONTAINS
 
 ! allocate all the structures
       DEALLOCATE (moves%bond,stat=stat)
-      IF (stat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
+      IF (stat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "moves%bond",0)
       DEALLOCATE (moves%angle,stat=stat)
-      IF (stat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
+      IF (stat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "moves%angle",0)
       DEALLOCATE (moves%dihedral,stat=stat)
-      IF (stat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
+      IF (stat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "moves%dihedral",0)
       DEALLOCATE (moves%trans,stat=stat)
-      IF (stat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
+      IF (stat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "moves%trans",0)
       DEALLOCATE (moves%rot,stat=stat)
-      IF (stat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
+      IF (stat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "moves%rot",0)
       DEALLOCATE (moves%bias_bond,stat=stat)
-      IF (stat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
+      IF (stat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "moves%bias_bond",0)
       DEALLOCATE (moves%bias_angle,stat=stat)
-      IF (stat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
+      IF (stat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "moves%bias_angle",0)
       DEALLOCATE (moves%bias_dihedral,stat=stat)
-      IF (stat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
+      IF (stat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "moves%bias_dihedral",0)
       DEALLOCATE (moves%bias_trans,stat=stat)
-      IF (stat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
+      IF (stat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "moves%bias_trans",0)
       DEALLOCATE (moves%bias_rot,stat=stat)
-      IF (stat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
+      IF (stat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "moves%bias_rot",0)
       DEALLOCATE (moves%volume,stat=stat)
-      IF (stat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
+      IF (stat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "moves%volume",0)
       DEALLOCATE (moves%avbmc_inin,stat=stat)
-      IF (stat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
+      IF (stat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "moves%avbmc_inin",0)
       DEALLOCATE (moves%avbmc_inout,stat=stat)
-      IF (stat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
+      IF (stat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "moves%avbmc_inout",0)
       DEALLOCATE (moves%avbmc_outin,stat=stat)
-      IF (stat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
+      IF (stat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "moves%avbmc_outin",0)
       DEALLOCATE (moves%avbmc_outout,stat=stat)
-      IF (stat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
+      IF (stat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "moves%avbmc_outout",0)
       DEALLOCATE (moves%swap,stat=stat)
-      IF (stat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
+      IF (stat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "moves%swap",0)
       DEALLOCATE (moves%Quickstep,stat=stat)
-      IF (stat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
+      IF (stat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "moves%Quickstep",0)
 
       DEALLOCATE (moves,stat=stat)
-      IF (stat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
+      IF (stat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "moves",0)
 
 ! now nullify the moves
@@ -328,9 +326,9 @@ CONTAINS
 SUBROUTINE move_q_reinit ( moves , lbias )
 
     TYPE(mc_moves_type), POINTER             :: moves
-      LOGICAL,INTENT(IN)                     :: lbias
-    CHARACTER(LEN=*), PARAMETER              :: &
-      routineN = "move_q_reinit"
+    LOGICAL, INTENT(IN)                      :: lbias
+
+    CHARACTER(LEN=*), PARAMETER              :: routineN = 'move_q_reinit'
 
     INTEGER                                  :: handle
 
@@ -385,13 +383,12 @@ SUBROUTINE move_q_reinit ( moves , lbias )
 !!*****************************************************************************
 SUBROUTINE q_move_accept(moves,lbias)
 
-      TYPE(mc_moves_type), POINTER             :: moves
-      LOGICAL,INTENT(IN)                       :: lbias
+    TYPE(mc_moves_type), POINTER             :: moves
+    LOGICAL, INTENT(IN)                      :: lbias
 
-      CHARACTER(LEN=*), PARAMETER              :: &
-      routineN = "q_move_accept"
-      
-      INTEGER                                  :: handle
+    CHARACTER(LEN=*), PARAMETER              :: routineN = 'q_move_accept'
+
+    INTEGER                                  :: handle
 
 !   ---------------------------------------------------------------------------
 ! begin the timing of the subroutine
@@ -467,8 +464,7 @@ SUBROUTINE write_move_stats(moves,nnstep,unit)
     TYPE(mc_moves_type), POINTER             :: moves
     INTEGER, INTENT(IN)                      :: nnstep, unit
 
-    CHARACTER(LEN=*), PARAMETER              :: &
-      routineN = "write_move_stats"
+    CHARACTER(LEN=*), PARAMETER              :: routineN = 'write_move_stats'
 
     INTEGER                                  :: handle
 
@@ -559,15 +555,15 @@ SUBROUTINE write_move_stats(moves,nnstep,unit)
     TYPE(mc_moves_type), POINTER             :: move_updates
     CHARACTER(LEN=*), INTENT(IN)             :: flag
     INTEGER, INTENT(IN)                      :: nnstep
-    LOGICAL,INTENT(IN)                       :: ionode
+    LOGICAL, INTENT(IN)                      :: ionode
 
-    CHARACTER(LEN=*), PARAMETER              :: &
-      routineN = "mc_move_update"
+    CHARACTER(LEN=*), PARAMETER              :: routineN = 'mc_move_update'
 
-    INTEGER                                  :: handle,rm
-    REAL(KIND=dp)                            :: test_ratio,rmbond,rmangle,&
-      rmtrans,rmrot,rmvolume,rmdihedral
-     
+    INTEGER                                  :: handle, rm
+    REAL(KIND=dp)                            :: rmangle, rmbond, rmdihedral, &
+                                                rmrot, rmtrans, rmvolume, &
+                                                test_ratio
+
 !   ---------------------------------------------------------------------------
 ! begin the timing of the subroutine
 

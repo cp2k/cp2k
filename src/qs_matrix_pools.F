@@ -61,7 +61,7 @@ MODULE qs_matrix_pools
   PRIVATE
 
   LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
-  CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='qs_matrix_pools'
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_matrix_pools'
   INTEGER, SAVE, PRIVATE :: last_mpools_id=0
 
   PUBLIC :: qs_matrix_pools_type
@@ -276,10 +276,9 @@ SUBROUTINE mpools_set(mpools,ao_mo_fm_pools,ao_ao_fm_pools,&
      mo_mo_fm_pools,ao_mosub_fm_pools,mosub_mosub_fm_pools,&
      S_sm_pools,error)
     TYPE(qs_matrix_pools_type), POINTER      :: mpools
-    TYPE(cp_fm_pool_p_type), DIMENSION(:), &
-      OPTIONAL, POINTER                      :: ao_mo_fm_pools, &
-                                                ao_ao_fm_pools, mo_mo_fm_pools,&
-                                                ao_mosub_fm_pools,mosub_mosub_fm_pools
+    TYPE(cp_fm_pool_p_type), DIMENSION(:), OPTIONAL, POINTER :: &
+      ao_mo_fm_pools, ao_ao_fm_pools, mo_mo_fm_pools, ao_mosub_fm_pools, &
+      mosub_mosub_fm_pools
     TYPE(cp_sm_pool_p_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: S_sm_pools
     TYPE(cp_error_type), INTENT(inout), &
@@ -382,10 +381,9 @@ SUBROUTINE mpools_get(mpools,ao_mo_fm_pools,ao_ao_fm_pools,&
      maxao_maxmo_fm_pool, maxao_maxao_fm_pool, maxmo_maxmo_fm_pool,&
      S_sm_pools,error)
     TYPE(qs_matrix_pools_type), POINTER      :: mpools
-    TYPE(cp_fm_pool_p_type), DIMENSION(:), &
-      OPTIONAL, POINTER                      :: ao_mo_fm_pools, &
-                                                ao_ao_fm_pools, mo_mo_fm_pools,&
-                                                ao_mosub_fm_pools, mosub_mosub_fm_pools
+    TYPE(cp_fm_pool_p_type), DIMENSION(:), OPTIONAL, POINTER :: &
+      ao_mo_fm_pools, ao_ao_fm_pools, mo_mo_fm_pools, ao_mosub_fm_pools, &
+      mosub_mosub_fm_pools
     TYPE(cp_fm_pool_type), OPTIONAL, POINTER :: maxao_maxmo_fm_pool, &
                                                 maxao_maxao_fm_pool, &
                                                 maxmo_maxmo_fm_pool
@@ -542,7 +540,7 @@ SUBROUTINE mpools_rebuild_fm_pools(mpools, mos, blacs_env, para_env,&
     TYPE(cp_blacs_env_type), POINTER         :: blacs_env
     TYPE(cp_para_env_type), POINTER          :: para_env
     INTEGER, INTENT(in)                      :: nrow_block, ncol_block
-    INTEGER, DIMENSION(2), INTENT(IN),&
+    INTEGER, DIMENSION(2), INTENT(IN), &
       OPTIONAL                               :: nmosub
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
@@ -553,8 +551,8 @@ SUBROUTINE mpools_rebuild_fm_pools(mpools, mos, blacs_env, para_env,&
     INTEGER                                  :: handle, ispin, max_nmo, &
                                                 min_nmo, nao, ncg, nmo, nrg, &
                                                 nspins, stat
-    LOGICAL                                  :: failure, should_rebuild
-    LOGICAL                                  :: prepare_subset
+    LOGICAL                                  :: failure, prepare_subset, &
+                                                should_rebuild
     TYPE(cp_fm_pool_type), POINTER           :: p_att
     TYPE(cp_fm_struct_type), POINTER         :: fmstruct
 

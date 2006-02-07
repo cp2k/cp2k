@@ -19,38 +19,17 @@
 MODULE qs_loc_control
 
   USE cp_array_r_utils,                ONLY: cp_2d_r_p_type
-  USE cp_keywords,                     ONLY: find_keyword,&
-                                             keyword_type,&
-                                             list_keywords
+  USE cp_output_handling,              ONLY: cp_p_file,&
+                                             cp_print_key_should_output
   USE global_types,                    ONLY: global_environment_type
-  USE input_constants,                 ONLY: do_loc_min,&
-                                             do_loc_max,&
-                                             do_loc_jacobi,&
-                                             do_loc_crazy,&
-                                             do_loc_direct,&
-                                             do_loc_none,&
-                                             op_loc_berry,&
-                                             op_loc_boys,&
-                                             op_loc_pipek,&
-                                             state_loc_all,&
-                                             state_loc_upton,&
-                                             state_loc_fromitoj,&
-                                             state_loc_list,&
-                                             state_loc_none
-  USE input_section_types,             ONLY: section_vals_get,&
-                                             section_vals_get_subs_vals,&
-                                             section_vals_get_subs_vals2,&
-                                             section_vals_type,&
+  USE input_constants,                 ONLY: &
+       do_loc_crazy, do_loc_direct, do_loc_jacobi, do_loc_max, do_loc_min, &
+       do_loc_none, op_loc_berry, op_loc_boys, op_loc_pipek, state_loc_all, &
+       state_loc_fromitoj, state_loc_list, state_loc_none, state_loc_upton
+  USE input_section_types,             ONLY: section_vals_type,&
                                              section_vals_val_get
   USE memory_utilities,                ONLY: reallocate
-  USE string_utilities,                ONLY: uppercase,&
-                                             xstring
-  USE termination,                     ONLY: stop_memory,&
-                                             stop_program
-  USE cp_output_handling,              ONLY: cp_print_key_unit_nr, &
-                                             cp_print_key_finished_output,&
-                                             cp_print_key_should_output,&
-                                             cp_p_file
+  USE string_utilities,                ONLY: xstring
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -108,7 +87,7 @@ MODULE qs_loc_control
     CHARACTER ( LEN = 50 ),DIMENSION(2):: spreads_file_name
   END TYPE localized_wfn_control_type
 
-  CHARACTER(LEN=*), PARAMETER :: module_name = "qs_loc_control"
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_loc_control'
 
 ! *** Public data types ***
 
@@ -144,14 +123,17 @@ CONTAINS
 !!   SOURCE
 !!*** **********************************************************************
   SUBROUTINE localized_wfn_control_create(localized_wfn_control,error)
-   TYPE(cp_error_type), INTENT(inout), &
+    TYPE(localized_wfn_control_type), &
+      POINTER                                :: localized_wfn_control
+    TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
-   TYPE(localized_wfn_control_type), POINTER :: localized_wfn_control
-   CHARACTER(len=*), PARAMETER :: routineN = 'localized_wfn_control_create', &
-      routineP = module_name//':'//routineN
 
-   INTEGER :: stat
-   LOGICAL :: failure
+    CHARACTER(len=*), PARAMETER :: routineN = 'localized_wfn_control_create', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: stat
+    LOGICAL                                  :: failure
+
    failure=.FALSE.
 
    CPPrecondition(.NOT.ASSOCIATED(localized_wfn_control),cp_failure_level,routineP,error,failure)
@@ -179,13 +161,18 @@ CONTAINS
 
   SUBROUTINE localized_wfn_control_release(localized_wfn_control,error)
 
+    TYPE(localized_wfn_control_type), &
+      POINTER                                :: localized_wfn_control
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
-    TYPE(localized_wfn_control_type), POINTER :: localized_wfn_control
-    CHARACTER(len=*), PARAMETER :: routineN = 'localized_wfn_control_release', &
-       routineP = module_name//':'//routineN
-    INTEGER :: istat
-    LOGICAL :: failure
+
+    CHARACTER(len=*), PARAMETER :: &
+      routineN = 'localized_wfn_control_release', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: istat
+    LOGICAL                                  :: failure
+
     failure=.FALSE.
     IF(ASSOCIATED(localized_wfn_control)) THEN
       CPPrecondition(localized_wfn_control%ref_count>0,cp_failure_level,routineP,error,failure)
@@ -205,12 +192,16 @@ CONTAINS
   END SUBROUTINE localized_wfn_control_release
 
   SUBROUTINE localized_wfn_control_retain(localized_wfn_control,error)
-   TYPE(cp_error_type), INTENT(inout), &
+    TYPE(localized_wfn_control_type), &
+      POINTER                                :: localized_wfn_control
+    TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
-   TYPE(localized_wfn_control_type), POINTER :: localized_wfn_control
-   CHARACTER(len=*), PARAMETER :: routineN = 'localized_wfn_control_retain', &
-      routineP = module_name//':'//routineN
-   LOGICAL :: failure
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'localized_wfn_control_retain', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+
    failure=.FALSE.
    CPPrecondition(ASSOCIATED(localized_wfn_control),cp_failure_level,routineP,error,failure)
 
@@ -235,18 +226,19 @@ CONTAINS
 
   SUBROUTINE read_loc_section(localized_wfn_control,loc_section,error)
 
-    TYPE(localized_wfn_control_type), POINTER :: localized_wfn_control
-    TYPE(section_vals_type), POINTER          :: loc_section
+    TYPE(localized_wfn_control_type), &
+      POINTER                                :: localized_wfn_control
+    TYPE(section_vals_type), POINTER         :: loc_section
     TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                                :: error
+      OPTIONAL                               :: error
 
-    CHARACTER(LEN=*), PARAMETER ::  routine_name = "read_loc_section", &
-      routineP = module_name//"/"//routine_name
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'read_loc_section', &
+      routineP = moduleN//':'//routineN
 
-    INTEGER                                   :: nloc_now, i, istat,output_unit
-    INTEGER,DIMENSION(:) , POINTER            :: bounds,list
-    LOGICAL                                   :: failure,ionode
-    TYPE(cp_logger_type), POINTER             :: logger
+    INTEGER                                  :: i, istat, output_unit
+    INTEGER, DIMENSION(:), POINTER           :: bounds, list
+    LOGICAL                                  :: failure, ionode
+    TYPE(cp_logger_type), POINTER            :: logger
 
     failure=.FALSE.
     CPPrecondition(ASSOCIATED(loc_section),cp_failure_level,routineP,error,failure)
@@ -380,18 +372,18 @@ CONTAINS
 
   SUBROUTINE set_loc_centers(localized_wfn_control,nmoloc,nspins,globenv,error)
 
-    TYPE(localized_wfn_control_type)          :: localized_wfn_control
-    INTEGER, DIMENSION(2), INTENT(IN)         :: nmoloc
-    INTEGER, INTENT(IN)                       :: nspins
-    TYPE(global_environment_type), POINTER    :: globenv
+    TYPE(localized_wfn_control_type)         :: localized_wfn_control
+    INTEGER, DIMENSION(2), INTENT(IN)        :: nmoloc
+    INTEGER, INTENT(IN)                      :: nspins
+    TYPE(global_environment_type), POINTER   :: globenv
     TYPE(cp_error_type), INTENT(inout), &
-       OPTIONAL                               :: error
+      OPTIONAL                               :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'set_loc_centers', &
-       routineP = module_name//':'//routineN
+      routineP = moduleN//':'//routineN
 
-    INTEGER :: ia, ie, ispin, istat
-    LOGICAL :: failure
+    INTEGER                                  :: ia, ie, ispin, istat
+    LOGICAL                                  :: failure
     TYPE(cp_logger_type), POINTER            :: logger
 
     failure = .FALSE.
@@ -453,22 +445,23 @@ CONTAINS
 
   SUBROUTINE set_loc_wfn_lists(localized_wfn_control,nmoloc,nmo,nspins,error)
 
-    TYPE(localized_wfn_control_type)          :: localized_wfn_control
-    INTEGER, DIMENSION(2), INTENT(IN)         :: nmoloc,nmo
-    INTEGER, INTENT(IN)                       :: nspins
+    TYPE(localized_wfn_control_type)         :: localized_wfn_control
+    INTEGER, DIMENSION(2), INTENT(IN)        :: nmoloc, nmo
+    INTEGER, INTENT(IN)                      :: nspins
     TYPE(cp_error_type), INTENT(inout), &
-       OPTIONAL                               :: error
+      OPTIONAL                               :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'set_loc_wfn_lists', &
-       routineP = module_name//':'//routineN
+      routineP = moduleN//':'//routineN
 
-    INTEGER :: i, iloc, ispin, istat, max_iloc, max_nmoloc
-    LOGICAL :: failure
+    INTEGER                                  :: i, iloc, ispin, istat, &
+                                                max_iloc, max_nmoloc
+    LOGICAL                                  :: failure
 
     failure = .FALSE.
 
     localized_wfn_control%nloc_states(1:2) = nmoloc(1:2)
-    max_nmoloc = max(nmoloc(1),nmoloc(2))
+    max_nmoloc = MAX(nmoloc(1),nmoloc(2))
 
 
     IF(localized_wfn_control%set_of_states == state_loc_list) THEN

@@ -1,39 +1,36 @@
 
 MODULE mt_util
+  USE cell_types,                      ONLY: cell_type
   USE erf_fn,                          ONLY: erf
   USE input_constants,                 ONLY: MT0D,&
                                              MT1D,&
                                              MT2D
   USE kinds,                           ONLY: dp
-  USE mathconstants,                   ONLY: pi,&
-                                             fourpi
+  USE mathconstants,                   ONLY: fourpi,&
+                                             pi
   USE pw_grid_types,                   ONLY: pw_grid_type
-  USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
+  USE pw_pool_types,                   ONLY: pw_pool_create,&
+                                             pw_pool_create_pw,&
                                              pw_pool_give_back_pw,&
+                                             pw_pool_release,&
                                              pw_pool_type
   USE pw_types,                        ONLY: COMPLEXDATA1D,&
                                              REALDATA3D,&
-                                             REALDATA1D,&
-                                             COMPLEXDATA3D,&
                                              REALSPACE,&
                                              RECIPROCALSPACE,&
-                                             pw_transfer,&
                                              pw_sumup,&
-                                             pw_zero,&
-                                             pw_type
+                                             pw_transfer,&
+                                             pw_type,&
+                                             pw_zero
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE cell_types,                 ONLY: cell_type
-  USE cp_para_types,                   ONLY: cp_para_env_type
-  USE pw_grids, ONLY: pw_grid_setup, pw_grid_create, pw_grid_release
-  USE pw_pool_types, ONLY: pw_pool_create, pw_pool_release
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
   
   PRIVATE
   LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
-  CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='mt_util'
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'mt_util'
   
   PUBLIC :: MTin_create_screen_fn
 CONTAINS
@@ -58,23 +55,24 @@ CONTAINS
        special_dimension, slab_size, super_ref_pw_grid, error)
     TYPE(pw_type), POINTER                   :: screen_function
     TYPE(pw_pool_type), POINTER              :: pw_pool
-    TYPE (pw_grid_type), POINTER             :: super_ref_pw_grid
-    INTEGER, INTENT(IN)                      :: method, special_dimension
-    REAL(KIND=dp), INTENT(in)                :: alpha, rel_cutoff, slab_size
+    INTEGER, INTENT(IN)                      :: method
+    REAL(KIND=dp), INTENT(in)                :: alpha, rel_cutoff
     TYPE(cell_type), POINTER                 :: cell
+    INTEGER, INTENT(IN)                      :: special_dimension
+    REAL(KIND=dp), INTENT(in)                :: slab_size
+    TYPE(pw_grid_type), POINTER              :: super_ref_pw_grid
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'MTin_create_screen_fn', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, stat
+    INTEGER                                  :: handle, ig, iz
     LOGICAL                                  :: failure
-    TYPE(pw_type), POINTER                   :: Vloc, Vlocg
+    REAL(KIND=dp)                            :: alpha2, g2, g3d, gxy, gz, &
+                                                zlength
     TYPE(pw_pool_type), POINTER              :: pw_pool_aux
-    REAL(KIND=dp) :: ecut, alpha2
-    INTEGER                                  :: ig, iz
-    REAL(KIND=dp)                            :: g2, g3d, zlength, gz, gxy
+    TYPE(pw_type), POINTER                   :: Vloc, Vlocg
 
     CALL timeset(routineN,"I","",handle)
     failure=.FALSE.
@@ -168,14 +166,14 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'mt0din', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, i, j, k, ii, jj, kk
-    LOGICAL                                  :: failure
-    REAL(KIND=dp)                            :: dx, dy, dz, r, r2, &
-                                                rmin, x, y, y2, z, z2, omega, fact
-    TYPE(pw_grid_type), POINTER              :: grid
-    REAL(KIND=dp), DIMENSION(3)              :: box, box2
-    INTEGER, DIMENSION(:,:), POINTER         :: bo
+    INTEGER                                  :: handle, i, ii, j, jj, k, kk
     INTEGER, DIMENSION(:), POINTER           :: glb
+    INTEGER, DIMENSION(:, :), POINTER        :: bo
+    LOGICAL                                  :: failure
+    REAL(KIND=dp)                            :: dx, dy, dz, fact, omega, r, &
+                                                r2, x, y, y2, z, z2
+    REAL(KIND=dp), DIMENSION(3)              :: box, box2
+    TYPE(pw_grid_type), POINTER              :: grid
 
     CALL timeset(routineN,"I","",handle)
     failure=.FALSE.
@@ -238,21 +236,19 @@ CONTAINS
 !!   SOURCE
 !******************************************************************************
   SUBROUTINE mt1din(screen_function,iz,error)
-    IMPLICIT NONE
-    ! Arguments
     TYPE(pw_type), POINTER                   :: screen_function
     INTEGER, INTENT(IN)                      :: iz
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
-    ! Local Variables
+
     CHARACTER(len=*), PARAMETER :: routineN = 'mt1din', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: dx, dy, dz, omega
-    TYPE(pw_grid_type), POINTER              :: grid
     REAL(KIND=dp), DIMENSION(3)              :: box, box2
+    TYPE(pw_grid_type), POINTER              :: grid
 
     CALL timeset(routineN,"I","",handle)
     failure=.FALSE.

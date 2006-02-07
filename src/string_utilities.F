@@ -62,79 +62,100 @@ CONTAINS
 !!   SOURCE
 !!*** **********************************************************************
 PURE FUNCTION s2a_1(s1) RESULT(a)
-  character(LEN=*), INTENT(IN) :: s1
-  character(LEN=1000), DIMENSION(1) :: a
+    CHARACTER(LEN=*), INTENT(IN)             :: s1
+    CHARACTER(LEN=1000), DIMENSION(1)        :: a
+
   a(1)=s1
 END FUNCTION
 PURE FUNCTION s2a_2(s1,s2) RESULT(a)
-  character(LEN=*), INTENT(IN) :: s1,s2
-  character(LEN=1000), DIMENSION(2) :: a
+    CHARACTER(LEN=*), INTENT(IN)             :: s1, s2
+    CHARACTER(LEN=1000), DIMENSION(2)        :: a
+
   a(1)=s1; a(2)=s2
 END FUNCTION
 PURE FUNCTION s2a_3(s1,s2,s3) RESULT(a)
-  character(LEN=*), INTENT(IN) :: s1,s2,s3
-  character(LEN=1000), DIMENSION(3) :: a
+    CHARACTER(LEN=*), INTENT(IN)             :: s1, s2, s3
+    CHARACTER(LEN=1000), DIMENSION(3)        :: a
+
   a(1)=s1; a(2)=s2; a(3)=s3
 END FUNCTION
 PURE FUNCTION s2a_4(s1,s2,s3,s4) RESULT(a)
-  character(LEN=*), INTENT(IN) :: s1,s2,s3,s4
-  character(LEN=1000), DIMENSION(4) :: a
+    CHARACTER(LEN=*), INTENT(IN)             :: s1, s2, s3, s4
+    CHARACTER(LEN=1000), DIMENSION(4)        :: a
+
   a(1)=s1; a(2)=s2; a(3)=s3; a(4)=s4
 END FUNCTION
 PURE FUNCTION s2a_5(s1,s2,s3,s4,s5) RESULT(a)
-  character(LEN=*), INTENT(IN) :: s1,s2,s3,s4,s5
-  character(LEN=1000), DIMENSION(5) :: a
+    CHARACTER(LEN=*), INTENT(IN)             :: s1, s2, s3, s4, s5
+    CHARACTER(LEN=1000), DIMENSION(5)        :: a
+
   a(1)=s1; a(2)=s2; a(3)=s3; a(4)=s4; a(5)=s5
 END FUNCTION
 PURE FUNCTION s2a_6(s1,s2,s3,s4,s5,s6) RESULT(a)
-  character(LEN=*), INTENT(IN) :: s1,s2,s3,s4,s5,s6
-  character(LEN=1000), DIMENSION(6) :: a
+    CHARACTER(LEN=*), INTENT(IN)             :: s1, s2, s3, s4, s5, s6
+    CHARACTER(LEN=1000), DIMENSION(6)        :: a
+
   a(1)=s1; a(2)=s2; a(3)=s3; a(4)=s4; a(5)=s5; a(6)=s6
 END FUNCTION
 PURE FUNCTION s2a_7(s1,s2,s3,s4,s5,s6,s7) RESULT(a)
-  character(LEN=*), INTENT(IN) :: s1,s2,s3,s4,s5,s6,s7
-  character(LEN=1000), DIMENSION(7) :: a
+    CHARACTER(LEN=*), INTENT(IN)             :: s1, s2, s3, s4, s5, s6, s7
+    CHARACTER(LEN=1000), DIMENSION(7)        :: a
+
   a(1)=s1; a(2)=s2; a(3)=s3; a(4)=s4; a(5)=s5; a(6)=s6; a(7)=s7
 END FUNCTION
 PURE FUNCTION s2a_8(s1,s2,s3,s4,s5,s6,s7,s8) RESULT(a)
-  character(LEN=*), INTENT(IN) :: s1,s2,s3,s4,s5,s6,s7,s8
-  character(LEN=1000), DIMENSION(8) :: a
+    CHARACTER(LEN=*), INTENT(IN)             :: s1, s2, s3, s4, s5, s6, s7, s8
+    CHARACTER(LEN=1000), DIMENSION(8)        :: a
+
   a(1)=s1; a(2)=s2; a(3)=s3; a(4)=s4; a(5)=s5; a(6)=s6; a(7)=s7
   a(8)=s8
 END FUNCTION
 PURE FUNCTION s2a_9(s1,s2,s3,s4,s5,s6,s7,s8,s9) RESULT(a)
-  character(LEN=*), INTENT(IN) :: s1,s2,s3,s4,s5,s6,s7,s8,s9
-  character(LEN=1000), DIMENSION(9) :: a
+    CHARACTER(LEN=*), INTENT(IN)             :: s1, s2, s3, s4, s5, s6, s7, &
+                                                s8, s9
+    CHARACTER(LEN=1000), DIMENSION(9)        :: a
+
   a(1)=s1; a(2)=s2; a(3)=s3; a(4)=s4; a(5)=s5; a(6)=s6; a(7)=s7
   a(8)=s8; a(9)=s9
 END FUNCTION
 PURE FUNCTION s2a_10(s1,s2,s3,s4,s5,s6,s7,s8,s9,s10) RESULT(a)
-  character(LEN=*), INTENT(IN) :: s1,s2,s3,s4,s5,s6,s7,s8,s9,s10
-  character(LEN=1000), DIMENSION(10) :: a
+    CHARACTER(LEN=*), INTENT(IN)             :: s1, s2, s3, s4, s5, s6, s7, &
+                                                s8, s9, s10
+    CHARACTER(LEN=1000), DIMENSION(10)       :: a
+
   a(1)=s1; a(2)=s2; a(3)=s3; a(4)=s4; a(5)=s5; a(6)=s6; a(7)=s7
   a(8)=s8; a(9)=s9; a(10)=s10
 END FUNCTION
 PURE FUNCTION s2a_11(s1,s2,s3,s4,s5,s6,s7,s8,s9,s10,s11) RESULT(a)
-  character(LEN=*), INTENT(IN) :: s1,s2,s3,s4,s5,s6,s7,s8,s9,s10,s11
-  character(LEN=1000), DIMENSION(11) :: a
+    CHARACTER(LEN=*), INTENT(IN)             :: s1, s2, s3, s4, s5, s6, s7, &
+                                                s8, s9, s10, s11
+    CHARACTER(LEN=1000), DIMENSION(11)       :: a
+
   a(1)=s1; a(2)=s2; a(3)=s3; a(4)=s4; a(5)=s5; a(6)=s6; a(7)=s7
   a(8)=s8; a(9)=s9; a(10)=s10; a(11)=s11
 END FUNCTION
 PURE FUNCTION s2a_12(s1,s2,s3,s4,s5,s6,s7,s8,s9,s10,s11,s12) RESULT(a)
-  character(LEN=*), INTENT(IN) :: s1,s2,s3,s4,s5,s6,s7,s8,s9,s10,s11,s12
-  character(LEN=1000), DIMENSION(12) :: a
+    CHARACTER(LEN=*), INTENT(IN)             :: s1, s2, s3, s4, s5, s6, s7, &
+                                                s8, s9, s10, s11, s12
+    CHARACTER(LEN=1000), DIMENSION(12)       :: a
+
   a(1)=s1; a(2)=s2; a(3)=s3; a(4)=s4; a(5)=s5; a(6)=s6; a(7)=s7
   a(8)=s8; a(9)=s9; a(10)=s10; a(11)=s11; a(12)=s12
 END FUNCTION
 PURE FUNCTION s2a_13(s1,s2,s3,s4,s5,s6,s7,s8,s9,s10,s11,s12,s13) RESULT(a)
-  character(LEN=*), INTENT(IN) :: s1,s2,s3,s4,s5,s6,s7,s8,s9,s10,s11,s12,s13
-  character(LEN=1000), DIMENSION(13) :: a
+    CHARACTER(LEN=*), INTENT(IN)             :: s1, s2, s3, s4, s5, s6, s7, &
+                                                s8, s9, s10, s11, s12, s13
+    CHARACTER(LEN=1000), DIMENSION(13)       :: a
+
   a(1)=s1; a(2)=s2; a(3)=s3; a(4)=s4; a(5)=s5; a(6)=s6; a(7)=s7
   a(8)=s8; a(9)=s9; a(10)=s10; a(11)=s11; a(12)=s12; a(13)=s13
 END FUNCTION
 PURE FUNCTION s2a_14(s1,s2,s3,s4,s5,s6,s7,s8,s9,s10,s11,s12,s13,s14) RESULT(a)
-  character(LEN=*), INTENT(IN) :: s1,s2,s3,s4,s5,s6,s7,s8,s9,s10,s11,s12,s13,s14
-  character(LEN=1000), DIMENSION(14) :: a
+    CHARACTER(LEN=*), INTENT(IN)             :: s1, s2, s3, s4, s5, s6, s7, &
+                                                s8, s9, s10, s11, s12, s13, &
+                                                s14
+    CHARACTER(LEN=1000), DIMENSION(14)       :: a
+
   a(1)=s1; a(2)=s2; a(3)=s3; a(4)=s4; a(5)=s5; a(6)=s6; a(7)=s7
   a(8)=s8; a(9)=s9; a(10)=s10; a(11)=s11; a(12)=s12; a(13)=s13; a(14)=s14
 END FUNCTION
@@ -274,12 +295,12 @@ END FUNCTION
 
 !   ***************************************************************************
 
-    CHARACTER(LEN=*), INTENT(IN)  :: inp_string
-    CHARACTER(LEN=*), INTENT(OUT) :: out_string
-    LOGICAL, OPTIONAL, INTENT(IN) :: ltu
+    CHARACTER(LEN=*), INTENT(IN)             :: inp_string
+    CHARACTER(LEN=*), INTENT(OUT)            :: out_string
+    LOGICAL, INTENT(IN), OPTIONAL            :: ltu
 
-    CHARACTER(LEN=LEN(inp_string)) :: string
-    INTEGER :: i,j
+    CHARACTER(LEN=LEN(inp_string))           :: string
+    INTEGER                                  :: i, j
 
 !   ---------------------------------------------------------------------------
 

@@ -80,7 +80,7 @@ CONTAINS
 
   SUBROUTINE clebsch_gordon_complex (l1,m1,l2,m2,clm)
     INTEGER, INTENT(IN)                      :: l1, m1, l2, m2
-    REAL(KIND=dp), DIMENSION(:), INTENT(OUT)     :: clm
+    REAL(KIND=dp), DIMENSION(:), INTENT(OUT) :: clm
 
     INTEGER                                  :: icase, ind, l, lm, lp, n
 
@@ -105,11 +105,12 @@ CONTAINS
 
   SUBROUTINE clebsch_gordon_real (l1,m1,l2,m2,rlm)
     INTEGER, INTENT(IN)                      :: l1, m1, l2, m2
-    REAL(KIND=dp), DIMENSION(:, :), INTENT(OUT)  :: rlm
+    REAL(KIND=dp), DIMENSION(:, :), &
+      INTENT(OUT)                            :: rlm
 
     INTEGER                                  :: icase1, icase2, ind, l, lm, &
                                                 lp, mm(2), n
-    REAL(KIND=dp)                                :: xsi
+    REAL(KIND=dp)                            :: xsi
 
      l = l1 + l2
      IF (l > lmax) CALL clebsch_gordon_init ( l )
@@ -159,7 +160,7 @@ CONTAINS
 
   FUNCTION get_factor(m1,m2,m) RESULT(f)
     INTEGER, INTENT(IN)                      :: m1, m2, m
-    REAL(KIND=dp)                                :: f
+    REAL(KIND=dp)                            :: f
 
     INTEGER                                  :: mx, my
 
@@ -199,7 +200,8 @@ CONTAINS
 
 ! *****************************************************************************
   SUBROUTINE clebsch_gordon_deallocate
-     INTEGER  :: ierr
+    INTEGER                                  :: ierr
+
      IF ( ALLOCATED ( cg_table ) ) THEN
         DEALLOCATE ( cg_table, STAT=ierr )
         IF ( ierr /= 0 ) CALL stop_memory ("clebsch_gordon_deallocate","cg_table")
@@ -259,17 +261,17 @@ CONTAINS
 
   FUNCTION cgc(l1,m1,l2,m2,lp,mp)
     INTEGER, INTENT(IN)                      :: l1, m1, l2, m2, lp, mp
-    REAL(KIND=dp)                                :: cgc
+    REAL(KIND=dp)                            :: cgc
 
     INTEGER                                  :: la, lb, ll, ma, mb, s, t, &
                                                 tmax, tmin, z1, z2, z3, z4, z5
-    REAL(KIND=dp)                                :: f1, f2, pref
+    REAL(KIND=dp)                            :: f1, f2, pref
 
 ! m1 >= 0; m2 >= 0; mp >= 0
 
     IF ( m1<0 .OR. m2<0 .OR. mp<0 ) THEN
-       write(6,*) l1,l2,lp
-       write(6,*) m1,m2,mp
+       WRITE(6,*) l1,l2,lp
+       WRITE(6,*) m1,m2,mp
        CALL stop_program ( "cgc", "Illegal input values" )
     END IF
     IF ( l2 < l1 ) THEN
@@ -314,14 +316,14 @@ CONTAINS
 
   FUNCTION sfac ( n ) RESULT (fval)
     INTEGER                                  :: n
-    REAL(KIND=dp)                                :: fval
+    REAL(KIND=dp)                            :: fval
 
     INTEGER                                  :: i
 
     IF ( n > maxfac ) THEN
        fval = fac(maxfac)
        DO i = maxfac+1, n
-          fval = real(i,dp)*fval
+          fval = REAL(i,dp)*fval
        END DO
     ELSE IF ( n >= 0 ) THEN
        fval = fac(n)
@@ -359,25 +361,26 @@ CONTAINS
 !
 ! Input: r == (x,y,z) : normalised    x^2 + y^2 + z^2 = 1
 !
-    REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)   :: r
-    REAL(KIND=dp), DIMENSION(:), INTENT(OUT)     :: y
+    REAL(KIND=dp), DIMENSION(:, :), &
+      INTENT(IN)                             :: r
+    REAL(KIND=dp), DIMENSION(:), INTENT(OUT) :: y
     INTEGER, INTENT(IN)                      :: l, m
 
     INTEGER                                  :: i
-    REAL(KIND=dp)                                :: cp, lmm, lpm, pf, plm, rxy, &
+    REAL(KIND=dp)                            :: cp, lmm, lpm, pf, plm, rxy, &
                                                 sp, t, z
 
   SELECT CASE ( l )
   CASE ( : -1 )
-    call stop_program("y_lm","Negative l value")
+    CALL stop_program("y_lm","Negative l value")
   CASE ( 0 )
     pf = SQRT ( 1.0_dp / ( 4.0_dp * pi ) )
-    IF ( m /= 0 )  call stop_program("y_lm","l = 0 and m value out of bounds")
+    IF ( m /= 0 )  CALL stop_program("y_lm","l = 0 and m value out of bounds")
     y(:) = pf
   CASE ( 1 )
     SELECT CASE ( m )
     CASE DEFAULT
-      call stop_program("y_lm","l = 1 and m value out of bounds")
+      CALL stop_program("y_lm","l = 1 and m value out of bounds")
     CASE ( 1 )
       pf = SQRT ( 3.0_dp / ( 4.0_dp * pi ) )
       y ( : ) = pf * r ( 1, : )
@@ -391,7 +394,7 @@ CONTAINS
   CASE ( 2 )
     SELECT CASE ( m )
     CASE DEFAULT
-      call stop_program("y_lm","l = 2 and m value out of bounds")
+      CALL stop_program("y_lm","l = 2 and m value out of bounds")
     CASE ( 2 )
       pf = SQRT ( 15.0_dp / ( 16.0_dp * pi ) )
       y ( : ) = pf * ( r ( 1, : ) * r ( 1, : ) - r ( 2, : ) * r ( 2, : ) )
@@ -411,7 +414,7 @@ CONTAINS
   CASE ( 3 )
     SELECT CASE ( m )
     CASE DEFAULT
-      call stop_program("y_lm","l = 3 and m value out of bounds")
+      CALL stop_program("y_lm","l = 3 and m value out of bounds")
     CASE ( 3 )
       pf = SQRT ( 35.0_dp / ( 32.0_dp * pi ) )
       y ( : ) = pf * r ( 1, : ) * ( r ( 1, : )**2 - 3.0_dp * r ( 2, : )**2 )
@@ -435,7 +438,7 @@ CONTAINS
       y ( : ) = pf * r ( 2, : ) * ( 3.0_dp * r ( 1, : )**2 - r ( 2, : )**2 )
     END SELECT
   CASE DEFAULT
-    IF ( m < -l .OR. m > l ) call stop_program("y_lm","m value out of bounds")
+    IF ( m < -l .OR. m > l ) CALL stop_program("y_lm","m value out of bounds")
     lpm = fac ( l + ABS ( m ) )
     lmm = fac ( l - ABS ( m ) )
     IF ( m == 0 ) THEN
@@ -448,7 +451,7 @@ CONTAINS
     ELSE
       pf = ( REAL ( 2*l+1,KIND=dp) * lmm ) / ( t * lpm )
     ENDIF
-    pf = sqrt ( pf )
+    pf = SQRT ( pf )
     DO i = 1, SIZE ( r ,2 )
       z = r ( 3, i )
 !      plm = legendre ( z, l, m )
@@ -486,24 +489,24 @@ CONTAINS
 !
 ! Input: r == (x,y,z) : normalised    x^2 + y^2 + z^2 = 1
 !
-    REAL(KIND=dp), DIMENSION(:), INTENT(IN)      :: r
-    REAL(KIND=dp), INTENT(OUT)                   :: y
+    REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: r
+    REAL(KIND=dp), INTENT(OUT)               :: y
     INTEGER, INTENT(IN)                      :: l, m
 
-    REAL(KIND=dp)                                :: cp, lmm, lpm, pf, plm, rxy, &
+    REAL(KIND=dp)                            :: cp, lmm, lpm, pf, plm, rxy, &
                                                 sp, t, z
 
   SELECT CASE ( l )
   CASE ( : -1 )
-    call stop_program("y_lm","Negative l value")
+    CALL stop_program("y_lm","Negative l value")
   CASE ( 0 )
     pf = SQRT ( 1.0_dp / ( 4.0_dp * pi ) )
-    IF ( m /= 0 )  call stop_program("y_lm","l = 0 and m value out of bounds")
+    IF ( m /= 0 )  CALL stop_program("y_lm","l = 0 and m value out of bounds")
     y = pf
   CASE ( 1 )
     SELECT CASE ( m )
     CASE DEFAULT
-      call stop_program("y_lm","l = 1 and m value out of bounds")
+      CALL stop_program("y_lm","l = 1 and m value out of bounds")
     CASE ( 1 )
       pf = SQRT ( 3.0_dp / ( 4.0_dp * pi ) )
       y = pf * r ( 1 )
@@ -517,7 +520,7 @@ CONTAINS
   CASE ( 2 )
     SELECT CASE ( m )
     CASE DEFAULT
-      call stop_program("y_lm","l = 2 and m value out of bounds")
+      CALL stop_program("y_lm","l = 2 and m value out of bounds")
     CASE ( 2 )
       pf = SQRT ( 15.0_dp / ( 16.0_dp * pi ) )
       y = pf * ( r ( 1 ) * r ( 1 ) - r ( 2 ) * r ( 2 ) )
@@ -537,7 +540,7 @@ CONTAINS
   CASE ( 3 )
     SELECT CASE ( m )
     CASE DEFAULT
-      call stop_program("y_lm","l = 3 and m value out of bounds")
+      CALL stop_program("y_lm","l = 3 and m value out of bounds")
     CASE ( 3 )
       pf = SQRT ( 35.0_dp / ( 32.0_dp * pi ) )
       y = pf * r ( 1 ) * ( r ( 1 )**2 - 3.0_dp * r ( 2 )**2 )
@@ -561,7 +564,7 @@ CONTAINS
       y = pf * r ( 2 ) * ( 3.0_dp * r ( 1 )**2 - r ( 2 )**2 )
     END SELECT
   CASE DEFAULT
-    IF ( m < -l .OR. m > l ) call stop_program("y_lm","m value out of bounds")
+    IF ( m < -l .OR. m > l ) CALL stop_program("y_lm","m value out of bounds")
     lpm = fac ( l + ABS ( m ) )
     lmm = fac ( l - ABS ( m ) )
     IF ( m == 0 ) THEN
@@ -574,7 +577,7 @@ CONTAINS
     ELSE
       pf = ( REAL ( 2*l+1,KIND=dp) * lmm ) / ( t * lpm )
     ENDIF
-    pf = sqrt ( pf )
+    pf = SQRT ( pf )
     z = r ( 3 )
     plm = legendre ( z, l, m )
     IF ( m == 0 ) THEN
@@ -609,26 +612,28 @@ CONTAINS
 !
 ! Input: r == (x,y,z) : normalised    x^2 + y^2 + z^2 = 1
 !
-    REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)   :: r
-    COMPLEX(KIND=dp), DIMENSION(:), INTENT(OUT)  :: y
+    REAL(KIND=dp), DIMENSION(:, :), &
+      INTENT(IN)                             :: r
+    COMPLEX(KIND=dp), DIMENSION(:), &
+      INTENT(OUT)                            :: y
     INTEGER, INTENT(IN)                      :: l, m
 
     INTEGER                                  :: i, n
-    REAL(KIND=dp)                                :: cp, lmm, lpm, pf, plm, rxy, &
+    REAL(KIND=dp)                            :: cp, lmm, lpm, pf, plm, rxy, &
                                                 sp, t, ym, yp, z
 
   n = SIZE ( r ,2 )
   SELECT CASE ( l )
   CASE ( : -1 )
-    call stop_program("y_lm","Negative l value")
+    CALL stop_program("y_lm","Negative l value")
   CASE ( 0 )
     pf = SQRT ( 1.0_dp / ( 4.0_dp * pi ) )
-    IF ( m /= 0 )  call stop_program("y_lm","l = 0 and m value out of bounds")
+    IF ( m /= 0 )  CALL stop_program("y_lm","l = 0 and m value out of bounds")
     y(:) = pf
   CASE ( 1 )
     SELECT CASE ( m )
     CASE DEFAULT
-      call stop_program("y_lm","l = 1 and m value out of bounds")
+      CALL stop_program("y_lm","l = 1 and m value out of bounds")
     CASE ( 1 )
       pf = SQRT ( 3.0_dp / ( 8.0_dp * pi ) )
       DO i = 1, n
@@ -650,7 +655,7 @@ CONTAINS
   CASE ( 2 )
     SELECT CASE ( m )
     CASE DEFAULT
-      call stop_program("y_lm","l = 2 and m value out of bounds")
+      CALL stop_program("y_lm","l = 2 and m value out of bounds")
     CASE ( 2 )
       pf = SQRT ( 15.0_dp / ( 32.0_dp * pi ) )
       DO i = 1, n
@@ -686,7 +691,7 @@ CONTAINS
   CASE ( 3 )
     SELECT CASE ( m )
     CASE DEFAULT
-      call stop_program("y_lm","l = 3 and m value out of bounds")
+      CALL stop_program("y_lm","l = 3 and m value out of bounds")
     CASE ( 3 )
       pf = SQRT ( 35.0_dp / ( 64.0_dp * pi ) )
       DO i = 1, n
@@ -734,7 +739,7 @@ CONTAINS
       END DO
     END SELECT
   CASE DEFAULT
-    IF ( m < -l .OR. m > l ) call stop_program("y_lm","m value out of bounds")
+    IF ( m < -l .OR. m > l ) CALL stop_program("y_lm","m value out of bounds")
     lpm = fac ( l + ABS ( m ) )
     lmm = fac ( l - ABS ( m ) )
     t = 4.0_dp * pi
@@ -743,7 +748,7 @@ CONTAINS
     ELSE
       pf = ( REAL ( 2*l+1,KIND=dp) * lmm ) / ( t * lpm )
     ENDIF
-    pf = sqrt ( pf )
+    pf = SQRT ( pf )
     DO i = 1, n
       z = r ( 3, i )
       plm = legendre ( z, l, m )
@@ -784,24 +789,24 @@ CONTAINS
 !
 ! Input: r == (x,y,z) : normalised    x^2 + y^2 + z^2 = 1
 !
-    REAL(KIND=dp), DIMENSION(:), INTENT(IN)      :: r
-    COMPLEX(KIND=dp), INTENT(OUT)                :: y
+    REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: r
+    COMPLEX(KIND=dp), INTENT(OUT)            :: y
     INTEGER, INTENT(IN)                      :: l, m
 
-    REAL(KIND=dp)                                :: cp, lmm, lpm, pf, plm, rxy, &
+    REAL(KIND=dp)                            :: cp, lmm, lpm, pf, plm, rxy, &
                                                 sp, t, ym, yp, z
 
   SELECT CASE ( l )
   CASE ( : -1 )
-    call stop_program("y_lm","Negative l value")
+    CALL stop_program("y_lm","Negative l value")
   CASE ( 0 )
     pf = SQRT ( 1.0_dp / ( 4.0_dp * pi ) )
-    IF ( m /= 0 )  call stop_program("y_lm","l = 0 and m value out of bounds")
+    IF ( m /= 0 )  CALL stop_program("y_lm","l = 0 and m value out of bounds")
     y = pf
   CASE ( 1 )
     SELECT CASE ( m )
     CASE DEFAULT
-      call stop_program("y_lm","l = 1 and m value out of bounds")
+      CALL stop_program("y_lm","l = 1 and m value out of bounds")
     CASE ( 1 )
       pf = SQRT ( 3.0_dp / ( 8.0_dp * pi ) )
       yp = r ( 1 )
@@ -819,7 +824,7 @@ CONTAINS
   CASE ( 2 )
     SELECT CASE ( m )
     CASE DEFAULT
-      call stop_program("y_lm","l = 2 and m value out of bounds")
+      CALL stop_program("y_lm","l = 2 and m value out of bounds")
     CASE ( 2 )
       pf = SQRT ( 15.0_dp / ( 32.0_dp * pi ) )
       yp = ( r ( 1 ) * r ( 1 ) - r ( 2 ) * r ( 2 ) )
@@ -847,7 +852,7 @@ CONTAINS
   CASE ( 3 )
     SELECT CASE ( m )
     CASE DEFAULT
-      call stop_program("y_lm","l = 3 and m value out of bounds")
+      CALL stop_program("y_lm","l = 3 and m value out of bounds")
     CASE ( 3 )
       pf = SQRT ( 35.0_dp / ( 64.0_dp * pi ) )
       yp = r ( 1 ) * ( r ( 1 )**2 - 3.0_dp * r ( 2 )**2 )
@@ -883,7 +888,7 @@ CONTAINS
       y = pf * CMPLX ( yp, -ym,KIND=dp)
     END SELECT
   CASE DEFAULT
-    IF ( m < -l .OR. m > l ) call stop_program("y_lm","m value out of bounds")
+    IF ( m < -l .OR. m > l ) CALL stop_program("y_lm","m value out of bounds")
     lpm = fac ( l + ABS ( m ) )
     lmm = fac ( l - ABS ( m ) )
     t = 4.0_dp * pi
@@ -892,7 +897,7 @@ CONTAINS
     ELSE
       pf = ( REAL ( 2*l+1,KIND=dp) * lmm ) / ( t * lpm )
     ENDIF
-    pf = sqrt ( pf )
+    pf = SQRT ( pf )
     z = r ( 3 )
     plm = legendre ( z, l, m )
     IF ( m == 0 ) THEN
@@ -923,23 +928,23 @@ CONTAINS
 
   FUNCTION legendre ( x, l, m ) RESULT ( plm )
 
-    REAL(KIND=dp), INTENT(IN)                    :: x
+    REAL(KIND=dp), INTENT(IN)                :: x
     INTEGER, INTENT(IN)                      :: l, m
-    REAL(KIND=dp)                                :: plm
+    REAL(KIND=dp)                            :: plm
 
     INTEGER                                  :: il, im, mm
-    REAL(KIND=dp)                                :: fact, pll, pmm, pmmp1, somx2
+    REAL(KIND=dp)                            :: fact, pll, pmm, pmmp1, somx2
 
-  IF ( ABS ( x ) > 1.0_dp ) call stop_program("legendre","x value > 1")
+  IF ( ABS ( x ) > 1.0_dp ) CALL stop_program("legendre","x value > 1")
   SELECT CASE ( l )
   CASE ( : -1 )
-    call stop_program("legendre","Negative l value")
+    CALL stop_program("legendre","Negative l value")
   CASE ( 0 )
     plm = 1.0_dp
   CASE ( 1 )
     SELECT CASE ( ABS ( m ) )
     CASE DEFAULT
-      call stop_program("legendre","l = 1 and m value out of bounds")
+      CALL stop_program("legendre","l = 1 and m value out of bounds")
     CASE ( 1 )
       plm = SQRT ( 1.0_dp - x * x )
     CASE ( 0 )
@@ -948,7 +953,7 @@ CONTAINS
   CASE ( 2 )
     SELECT CASE ( ABS ( m ) )
     CASE DEFAULT
-      call stop_program("legendre","l = 2 and m value out of bounds")
+      CALL stop_program("legendre","l = 2 and m value out of bounds")
     CASE ( 2 )
       plm = 3.0_dp * ( 1.0_dp - x * x )
     CASE ( 1 )
@@ -959,7 +964,7 @@ CONTAINS
   CASE ( 3 )
     SELECT CASE ( ABS ( m ) )
     CASE DEFAULT
-      call stop_program("legendre","l = 3 and m value out of bounds")
+      CALL stop_program("legendre","l = 3 and m value out of bounds")
     CASE ( 3 )
       plm = 15.0_dp * ( 1.0_dp - x * x ) ** 1.5_dp
     CASE ( 2 )
@@ -972,7 +977,7 @@ CONTAINS
   CASE ( 4 )
     SELECT CASE ( ABS ( m ) )
     CASE DEFAULT
-      call stop_program("legendre","l = 4 and m value out of bounds")
+      CALL stop_program("legendre","l = 4 and m value out of bounds")
     CASE ( 4 )
       plm = 105.0_dp * ( 1.0_dp - x * x ) ** 2
     CASE ( 3 )
@@ -987,7 +992,7 @@ CONTAINS
   CASE ( 5 )
     SELECT CASE ( ABS ( m ) )
     CASE DEFAULT
-      call stop_program("legendre","l = 5 and m value out of bounds")
+      CALL stop_program("legendre","l = 5 and m value out of bounds")
     CASE ( 5 )
       plm = 945.0_dp * ( 1.0_dp - x * x ) ** 2.5_dp
     CASE ( 4 )
@@ -1005,7 +1010,7 @@ CONTAINS
   CASE ( 6 )
     SELECT CASE ( ABS ( m ) )
     CASE DEFAULT
-      call stop_program("legendre","l = 6 and m value out of bounds")
+      CALL stop_program("legendre","l = 6 and m value out of bounds")
     CASE ( 6 )
       plm = 10395.0_dp * ( 1.0_dp - x * x ) ** 3
     CASE ( 5 )
@@ -1027,11 +1032,11 @@ CONTAINS
     END SELECT
   CASE DEFAULT
     mm = ABS ( m )
-    IF ( mm > l ) call stop_program ( " legendre ","m out of bounds" )
+    IF ( mm > l ) CALL stop_program ( " legendre ","m out of bounds" )
 ! use recurence from numerical recipies
     pmm = 1.0_dp
     IF ( mm > 0 ) THEN
-      somx2 = sqrt((1.0_dp-x)*(1.0_dp+x))
+      somx2 = SQRT((1.0_dp-x)*(1.0_dp+x))
       fact = 1.0_dp
       DO im = 1, mm
         pmm = pmm * fact * somx2
@@ -1061,21 +1066,18 @@ CONTAINS
 ! *****************************************************************************
 
   FUNCTION dlegendre (x, l, m) RESULT (dplm)
-    REAL(KIND=dp), INTENT(IN)                    :: x
+    REAL(KIND=dp), INTENT(IN)                :: x
     INTEGER, INTENT(IN)                      :: l, m
-    REAL(KIND=dp)                                :: dplm
+    REAL(KIND=dp)                            :: dplm
 
-    INTEGER                                  :: il, im, mm
-    REAL(KIND=dp)                                :: fact, pll, pmm, pmmp1, somx2
-
-  IF ( ABS ( x ) > 1.0_dp ) call stop_program("legendre","x value > 1")
+  IF ( ABS ( x ) > 1.0_dp ) CALL stop_program("legendre","x value > 1")
   SELECT CASE ( l )
   CASE ( : 3 )
-    call stop_program("dlegendre"," l < 4 no need of dplm")
+    CALL stop_program("dlegendre"," l < 4 no need of dplm")
   CASE ( 4 )
     SELECT CASE ( ABS ( m ) )
     CASE DEFAULT
-      call stop_program("legendre","l = 4 and m value out of bounds")
+      CALL stop_program("legendre","l = 4 and m value out of bounds")
     CASE ( 4 )
       dplm = - 105.0_dp * 4.0_dp * ( 1.0_dp - x * x ) * x
     CASE ( 3 )
@@ -1095,7 +1097,7 @@ CONTAINS
   CASE ( 5 )
     SELECT CASE ( ABS ( m ) )
     CASE DEFAULT
-      call stop_program("legendre","l = 5 and m value out of bounds")
+      CALL stop_program("legendre","l = 5 and m value out of bounds")
     CASE ( 5 )
       dplm = -945.0_dp * 5.0_dp * x * ( 1.0_dp - x * x ) ** 1.5_dp
     CASE ( 4 )
@@ -1119,7 +1121,7 @@ CONTAINS
   CASE ( 6 )
     SELECT CASE ( ABS ( m ) )
     CASE DEFAULT
-      call stop_program("legendre","l = 6 and m value out of bounds")
+      CALL stop_program("legendre","l = 6 and m value out of bounds")
     CASE ( 6 )
       dplm = -10395.0_dp * 6.0_dp * x * ( 1.0_dp - x * x ) ** 2
     CASE ( 5 )
@@ -1145,7 +1147,7 @@ CONTAINS
             6.5625_dp * 2.0_dp * x 
     END SELECT
   CASE DEFAULT
-    call stop_program("dlegendre","l > 6 dplm not implemented")
+    CALL stop_program("dlegendre","l > 6 dplm not implemented")
   END SELECT
 
 
@@ -1154,15 +1156,15 @@ CONTAINS
 
   FUNCTION dPof1(x, l) 
 
+    REAL(KIND=dp), INTENT(IN)                :: x
     INTEGER, INTENT(IN)                      :: l
-    REAL(KIND=dp), INTENT(IN)                    :: x
-    REAL(KIND=dp)                                :: dPof1
+    REAL(KIND=dp)                            :: dPof1
 
     IF ( ABS ( x ) -1.0_dp > EPSILON(1.0_dp)) CALL stop_program("dPof1","|x| is not 1")
     IF (x > 0.0_dp) THEN
       SELECT CASE ( l )
       CASE ( : -1 )
-        call stop_program("dPof1","Negative l value")
+        CALL stop_program("dPof1","Negative l value")
       CASE ( 0 )
         dPof1 = 0.0_dp
       CASE ( 1 )
@@ -1178,12 +1180,12 @@ CONTAINS
       CASE ( 6 ) 
         dPof1 = 21.0_dp
       CASE ( 7 :  )
-        call stop_program("dPof1","Not implemented")
+        CALL stop_program("dPof1","Not implemented")
       END SELECT
     ELSE
       SELECT CASE ( l )
       CASE ( : -1 )
-        call stop_program("dPof1","Negative l value")
+        CALL stop_program("dPof1","Negative l value")
       CASE ( 0 )
         dPof1 = 0.0_dp
       CASE ( 1 )
@@ -1199,7 +1201,7 @@ CONTAINS
       CASE ( 6 ) 
         dPof1 = -21.0_dp
       CASE ( 7 :  )
-        call stop_program("dPof1","Not implemented")
+        CALL stop_program("dPof1","Not implemented")
       END SELECT
     END IF
 
@@ -1210,7 +1212,7 @@ CONTAINS
   FUNCTION choose ( n, k )
 
     INTEGER, INTENT(IN)                      :: n, k
-    REAL(KIND=dp)                                :: choose
+    REAL(KIND=dp)                            :: choose
 
   IF ( n >= k ) THEN
     choose = REAL ( NINT ( fac ( n ) / ( fac ( k ) * fac ( n - k ) ) ),KIND=dp)
@@ -1225,13 +1227,13 @@ CONTAINS
   FUNCTION cosn ( n, c, s )
 
     INTEGER, INTENT(IN)                      :: n
-    REAL(KIND=dp), INTENT(IN)                    :: c, s
-    REAL(KIND=dp)                                :: cosn
+    REAL(KIND=dp), INTENT(IN)                :: c, s
+    REAL(KIND=dp)                            :: cosn
 
     INTEGER                                  :: i, j
 
   cosn = 0.0_dp
-  IF( abs(c) < EPSILON ( 1.0_dp ) .OR. n==0 ) THEN
+  IF( ABS(c) < EPSILON ( 1.0_dp ) .OR. n==0 ) THEN
     IF ( MOD(n,2) == 0 ) THEN
       cosn = (-1.0_dp)**INT(n/2)
     ELSE
@@ -1268,8 +1270,8 @@ CONTAINS
   FUNCTION dcosn_dcp ( n, c, s )
 
     INTEGER, INTENT(IN)                      :: n
-    REAL(KIND=dp), INTENT(IN)                    :: c, s
-    REAL(KIND=dp)                                :: dcosn_dcp
+    REAL(KIND=dp), INTENT(IN)                :: c, s
+    REAL(KIND=dp)                            :: dcosn_dcp
 
     INTEGER                                  :: i, j
 
@@ -1299,8 +1301,8 @@ CONTAINS
   FUNCTION dcosn_dsp ( n, c, s )
 
     INTEGER, INTENT(IN)                      :: n
-    REAL(KIND=dp), INTENT(IN)                    :: c, s
-    REAL(KIND=dp)                                :: dcosn_dsp
+    REAL(KIND=dp), INTENT(IN)                :: c, s
+    REAL(KIND=dp)                            :: dcosn_dsp
 
     INTEGER                                  :: i, j
 
@@ -1329,8 +1331,8 @@ CONTAINS
   FUNCTION sinn ( n, c, s )
 
     INTEGER, INTENT(IN)                      :: n
-    REAL(KIND=dp), INTENT(IN)                    :: c, s
-    REAL(KIND=dp)                                :: sinn
+    REAL(KIND=dp), INTENT(IN)                :: c, s
+    REAL(KIND=dp)                            :: sinn
 
     INTEGER                                  :: i, j
 
@@ -1371,8 +1373,8 @@ CONTAINS
   FUNCTION dsinn_dcp ( n, c, s )
 
     INTEGER, INTENT(IN)                      :: n
-    REAL(KIND=dp), INTENT(IN)                    :: c, s
-    REAL(KIND=dp)                                :: dsinn_dcp
+    REAL(KIND=dp), INTENT(IN)                :: c, s
+    REAL(KIND=dp)                            :: dsinn_dcp
 
     INTEGER                                  :: i, j
 
@@ -1402,8 +1404,8 @@ CONTAINS
   FUNCTION dsinn_dsp ( n, c, s )
 
     INTEGER, INTENT(IN)                      :: n
-    REAL(KIND=dp), INTENT(IN)                    :: c, s
-    REAL(KIND=dp)                                :: dsinn_dsp
+    REAL(KIND=dp), INTENT(IN)                :: c, s
+    REAL(KIND=dp)                            :: dsinn_dsp
 
     INTEGER                                  :: i, j
 
@@ -1440,26 +1442,28 @@ CONTAINS
 !
 ! Input: r == (x,y,z) : normalised    x^2 + y^2 + z^2 = 1
 !
-    REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)   :: r
-    REAL(KIND=dp), DIMENSION(:,:), INTENT(OUT)    :: dy
+    REAL(KIND=dp), DIMENSION(:, :), &
+      INTENT(IN)                             :: r
+    REAL(KIND=dp), DIMENSION(:, :), &
+      INTENT(OUT)                            :: dy
     INTEGER, INTENT(IN)                      :: l, m
 
     INTEGER                                  :: i
-    REAL(KIND=dp)                                :: cp, dplm, dcp_dx, dcp_dy, dsp_dx, dsp_dy,&
-                                                lmm, lpm, pf, plm, rxy, &
-                                                sp, t, z
+    REAL(KIND=dp)                            :: cp, dcp_dx, dcp_dy, dplm, &
+                                                dsp_dx, dsp_dy, lmm, lpm, pf, &
+                                                plm, rxy, sp, t, z
 
   SELECT CASE ( l )
   CASE ( : -1 )
-    call stop_program("y_lm","Negative l value")
+    CALL stop_program("y_lm","Negative l value")
   CASE ( 0 )
     pf = SQRT ( 1.0_dp / ( 4.0_dp * pi ) )
-    IF ( m /= 0 )  call stop_program("y_lm","l = 0 and m value out of bounds")
+    IF ( m /= 0 )  CALL stop_program("y_lm","l = 0 and m value out of bounds")
     dy(1:3,:) = 0.0_dp
   CASE ( 1 )
     SELECT CASE ( m )
     CASE DEFAULT
-      call stop_program("y_lm","l = 1 and m value out of bounds")
+      CALL stop_program("y_lm","l = 1 and m value out of bounds")
     CASE ( 1 )
       pf = SQRT ( 3.0_dp / ( 4.0_dp * pi ) )
       dy (1, : ) = pf 
@@ -1479,7 +1483,7 @@ CONTAINS
   CASE ( 2 )
     SELECT CASE ( m )
     CASE DEFAULT
-      call stop_program("y_lm","l = 2 and m value out of bounds")
+      CALL stop_program("y_lm","l = 2 and m value out of bounds")
     CASE ( 2 )
       pf = SQRT ( 15.0_dp / ( 16.0_dp * pi ) )
       dy (1, : ) =  pf * 2.0_dp * r ( 1, : ) 
@@ -1509,7 +1513,7 @@ CONTAINS
   CASE ( 3 )
     SELECT CASE ( m )
     CASE DEFAULT
-      call stop_program("y_lm","l = 3 and m value out of bounds")
+      CALL stop_program("y_lm","l = 3 and m value out of bounds")
     CASE ( 3 )
       pf = SQRT ( 35.0_dp / ( 32.0_dp * pi ) )
       dy (1, : ) =  pf * 3.0_dp * ( r ( 1, : )*r ( 1, : ) - r ( 2, : )* r ( 2, : ))
@@ -1547,7 +1551,7 @@ CONTAINS
       dy (3, : ) =  0.0_dp
     END SELECT
   CASE DEFAULT
-    IF ( m < -l .OR. m > l ) call stop_program("y_lm","m value out of bounds")
+    IF ( m < -l .OR. m > l ) CALL stop_program("y_lm","m value out of bounds")
     lpm = fac ( l + ABS ( m ) )
     lmm = fac ( l - ABS ( m ) )
     IF ( m == 0 ) THEN
@@ -1560,7 +1564,7 @@ CONTAINS
     ELSE
       pf = ( REAL ( 2*l+1,KIND=dp) * lmm ) / ( t * lpm )
     ENDIF
-    pf = sqrt ( pf )
+    pf = SQRT ( pf )
     DO i = 1, SIZE ( r ,2 )
       z = r ( 3, i )
       dplm = dlegendre ( z, l, ABS ( m ) )

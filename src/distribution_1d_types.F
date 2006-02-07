@@ -39,23 +39,19 @@ MODULE distribution_1d_types
   USE cp_para_env,                     ONLY: cp_para_env_release,&
                                              cp_para_env_retain
   USE cp_para_types,                   ONLY: cp_para_env_type
+  USE input_section_types,             ONLY: section_vals_get,&
+                                             section_vals_type,&
+                                             section_vals_val_get
+  USE kinds,                           ONLY: dp
   USE message_passing,                 ONLY: mp_max,&
                                              mp_sum
   USE parallel_rng_types,              ONLY: delete_rng_stream,&
-                                             rng_stream_p_type,&
-                                             read_rng_stream
+                                             read_rng_stream,&
+                                             rng_stream_p_type
+  USE string_utilities,                ONLY: ascii_to_string
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE string_utilities,                ONLY: ascii_to_string,&
-                                             string_to_ascii,&
-                                             xstring
   USE util,                            ONLY: sort
-  USE input_section_types,             ONLY: section_vals_type,&
-                                             section_vals_get_subs_vals,&
-                                             section_vals_get,&
-                                             section_vals_val_get
-  USE kinds,                           ONLY: dp
-
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -63,7 +59,7 @@ MODULE distribution_1d_types
   PRIVATE
 
   LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
-  CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='distribution_1d_types'
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'distribution_1d_types'
   INTEGER, SAVE, PRIVATE :: distribution_1d_last_id_nr=0
 
   PUBLIC :: distribution_1d_type, distribution_1d_p_type
@@ -343,11 +339,13 @@ SUBROUTINE distribution_1d_release(distribution_1d,error)
     CHARACTER(len=*), PARAMETER :: routineN = 'distribution_1d_release', &
       routineP = moduleN//':'//routineN
 
-    TYPE(local_particle_type), DIMENSION(:), POINTER :: local_particle_set
-    INTEGER :: iparticle_kind,iparticle_local,nparticle_kind,nparticle_local
-
-    INTEGER                                  :: ilist, stat
+    INTEGER                                  :: ilist, iparticle_kind, &
+                                                iparticle_local, &
+                                                nparticle_kind, &
+                                                nparticle_local, stat
     LOGICAL                                  :: failure
+    TYPE(local_particle_type), &
+      DIMENSION(:), POINTER                  :: local_particle_set
 
   failure=.FALSE.
   
@@ -403,27 +401,24 @@ END SUBROUTINE distribution_1d_release
 !***************************************************************************
 
 SUBROUTINE init_local_particle_set(distribution_1d,nparticle_kind,nparticle,work_section,error)
-  TYPE(distribution_1d_type), POINTER      :: distribution_1d
-  TYPE(cp_error_type), OPTIONAL, INTENT(INOUT) :: error
-  TYPE(section_vals_type), POINTER :: work_section
-  INTEGER, INTENT(in) :: nparticle_kind, nparticle
-  ! Local parameters
-  
-  CHARACTER(LEN=*), PARAMETER :: routineN = "init_local_particle_set",&
-                                   routineP = moduleN//":"//routineN
+    TYPE(distribution_1d_type), POINTER      :: distribution_1d
+    INTEGER, INTENT(in)                      :: nparticle_kind, nparticle
+    TYPE(section_vals_type), POINTER         :: work_section
+    TYPE(cp_error_type), INTENT(INOUT), &
+      OPTIONAL                               :: error
 
-    ! Local variables
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'init_local_particle_set', &
+      routineP = moduleN//':'//routineN
 
-    INTEGER :: i,inumber,iparticle,iparticle_kind,iparticle_local,istat,&
-               isubsys,nparticle_local,unit_number,ia, ie
-    LOGICAL :: failure,section_read, explicit
+    CHARACTER(LEN=404)                       :: string
+    INTEGER                                  :: i, iparticle, iparticle_kind, &
+                                                iparticle_local, istat, &
+                                                nparticle_local
+    INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: ascii
+    INTEGER, DIMENSION(:), POINTER           :: my_ascii
+    LOGICAL                                  :: explicit, failure
 
-    INTEGER, DIMENSION(:), POINTER :: my_ascii
-    INTEGER, DIMENSION(:,:), ALLOCATABLE :: ascii
-    REAL(KIND=dp), DIMENSION(:,:), ALLOCATABLE :: buffer
-    CHARACTER(LEN=404) :: string
-
-    ! -------------------------------------------------------------------------
+! -------------------------------------------------------------------------
 
     failure = .FALSE.
 
@@ -896,18 +891,18 @@ END SUBROUTINE distribution_1d_destroy_gdist
 !!
 !!*** **********************************************************************
 SUBROUTINE distribution_1d_write(distribution_1d, unit_nr, error)
-    TYPE(distribution_1d_type), pointer      :: distribution_1d
+    TYPE(distribution_1d_type), POINTER      :: distribution_1d
     INTEGER, INTENT(in)                      :: unit_nr
-    type(cp_error_type), intent(inout), &
-      optional                               :: error
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    character(len=*), parameter :: routineN = 'distribution_1d_write', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'distribution_1d_write', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, ilist
-    logical                                  :: failure
+    LOGICAL                                  :: failure
 
-  failure=.false.
+  failure=.FALSE.
 
   IF (ASSOCIATED(distribution_1d)) THEN
      WRITE(unit=unit_nr, fmt="(' <distribution_1d>{ id_nr=',i8,',ref_count=',i8,',')")&
@@ -923,7 +918,7 @@ SUBROUTINE distribution_1d_write(distribution_1d, unit_nr, error)
      END IF
      IF (ASSOCIATED(distribution_1d%list)) THEN
         WRITE(unit=unit_nr, fmt="(' list=(')")
-        DO ilist=1,size(distribution_1d%list)
+        DO ilist=1,SIZE(distribution_1d%list)
            IF (ASSOCIATED(distribution_1d%list(ilist)%array)) THEN
               WRITE(unit=unit_nr, fmt="('  (')", advance="no")
               DO i=1,SIZE(distribution_1d%list(ilist)%array)

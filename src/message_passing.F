@@ -43,7 +43,7 @@ MODULE message_passing
   LOGICAL, PARAMETER :: cp2k_is_parallel=.FALSE.
 #endif
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN="message_passing"
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'message_passing'
   ! init and error
   PUBLIC :: mp_world_init, mp_world_finalize
   PUBLIC :: mp_stop, mp_abort
@@ -364,11 +364,11 @@ END SUBROUTINE mp_perf_env_retain
 
 !.. reports the performance counters for the MPI run
 SUBROUTINE mp_perf_env_describe ( perf_env, mp_comm, scr )
-  TYPE(mp_perf_env_type), POINTER :: perf_env
+    TYPE(mp_perf_env_type), POINTER          :: perf_env
     INTEGER, INTENT(IN)                      :: mp_comm, scr
 
-    INTEGER                                  :: i, ierr, iw, numtask, taskid
-    REAL(KIND=dp)                                :: per, vol
+    INTEGER                                  :: i, iw, numtask, taskid
+    REAL(KIND=dp)                            :: per, vol
 
   IF (.not.ASSOCIATED(perf_env)) THEN
      CALL mp_stop ( 1, "unassociated perf_env : message_passing @ mp_perf_env_describe" )   
@@ -651,8 +651,7 @@ END SUBROUTINE mp_environ_c
 SUBROUTINE mp_environ_c2 ( comm, ndims, dims, task_coor, periods )
 
 
-    INTEGER, INTENT(IN)                      :: comm
-    INTEGER, INTENT(in)                      :: ndims
+    INTEGER, INTENT(IN)                      :: comm, ndims
     INTEGER, INTENT(OUT)                     :: dims( ndims ), &
                                                 task_coor( ndims )
     LOGICAL, INTENT(out)                     :: periods( ndims )
@@ -662,7 +661,7 @@ SUBROUTINE mp_environ_c2 ( comm, ndims, dims, task_coor, periods )
   ierr = 0
   task_coor = 0
   dims = 1
-  periods=.false.
+  periods=.FALSE.
 #if defined(__parallel)
   CALL mpi_cart_get ( comm, ndims, dims, periods, task_coor, ierr )
   IF ( ierr /= 0 ) CALL mp_stop ( ierr, "mpi_cart_get @ mp_environ_c" )
@@ -778,9 +777,9 @@ SUBROUTINE mp_comm_compare ( comm1, comm2, RESULT)
   IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_comm_compare @ mp_comm_compare" )
   SELECT CASE(iout)
   CASE(MPI_IDENT)
-     result=0
+     RESULT=0
   CASE(MPI_CONGRUENT)
-     result=1
+     RESULT=1
   CASE(MPI_SIMILAR)
      RESULT=2
   CASE (MPI_UNEQUAL)
@@ -1103,9 +1102,9 @@ END SUBROUTINE mp_alltoall_i11v
 SUBROUTINE mp_alltoall_r11v ( sb, scount, sdispl, rb, rcount, rdispl, group )
 
 
-    REAL(KIND=dp), DIMENSION(:), INTENT(IN)      :: sb
+    REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: sb
     INTEGER, DIMENSION(:), INTENT(IN)        :: scount, sdispl
-    REAL(KIND=dp), DIMENSION(:), INTENT(OUT)     :: rb
+    REAL(KIND=dp), DIMENSION(:), INTENT(OUT) :: rb
     INTEGER, DIMENSION(:), INTENT(IN)        :: rcount, rdispl
     INTEGER, INTENT(IN)                      :: group
 
@@ -1231,7 +1230,7 @@ SUBROUTINE mp_bcast_im(msg,source,gid)
 #endif
 END SUBROUTINE mp_bcast_im
 SUBROUTINE mp_bcast_r1(msg,source,gid)
-    REAL(KIND=dp)                                :: msg
+    REAL(KIND=dp)                            :: msg
     INTEGER                                  :: source, gid
 
     INTEGER                                  :: ierr, msglen
@@ -1247,7 +1246,7 @@ SUBROUTINE mp_bcast_r1(msg,source,gid)
 #endif
 END SUBROUTINE mp_bcast_r1
 SUBROUTINE mp_bcast_rv(msg,source,gid)
-    REAL(KIND=dp)                                :: msg( : )
+    REAL(KIND=dp)                            :: msg( : )
     INTEGER                                  :: source, gid
 
     INTEGER                                  :: ierr, msglen
@@ -1263,7 +1262,7 @@ SUBROUTINE mp_bcast_rv(msg,source,gid)
 #endif
 END SUBROUTINE mp_bcast_rv
 SUBROUTINE mp_bcast_rm(msg,source,gid)
-    REAL(KIND=dp)                                :: msg( :, : )
+    REAL(KIND=dp)                            :: msg( :, : )
     INTEGER                                  :: source, gid
 
     INTEGER                                  :: ierr, msglen
@@ -1279,7 +1278,7 @@ SUBROUTINE mp_bcast_rm(msg,source,gid)
 #endif
 END SUBROUTINE mp_bcast_rm
 SUBROUTINE mp_bcast_rm3(msg,source,gid)
-    REAL(KIND=dp)                                :: msg( :, :, : )
+    REAL(KIND=dp)                            :: msg( :, :, : )
     INTEGER                                  :: source, gid
 
     INTEGER                                  :: ierr, msglen
@@ -1295,7 +1294,7 @@ SUBROUTINE mp_bcast_rm3(msg,source,gid)
 #endif
 END SUBROUTINE mp_bcast_rm3
 SUBROUTINE mp_bcast_c1(msg,source,gid)
-    COMPLEX(KIND=dp)                             :: msg
+    COMPLEX(KIND=dp)                         :: msg
     INTEGER                                  :: source, gid
 
     INTEGER                                  :: ierr, msglen
@@ -1311,7 +1310,7 @@ SUBROUTINE mp_bcast_c1(msg,source,gid)
 #endif
 END SUBROUTINE mp_bcast_c1
 SUBROUTINE mp_bcast_cv(msg,source,gid)
-    COMPLEX(KIND=dp)                             :: msg( : )
+    COMPLEX(KIND=dp)                         :: msg( : )
     INTEGER                                  :: source, gid
 
     INTEGER                                  :: ierr, msglen
@@ -1327,7 +1326,7 @@ SUBROUTINE mp_bcast_cv(msg,source,gid)
 #endif
 END SUBROUTINE mp_bcast_cv
 SUBROUTINE mp_bcast_cm(msg,source,gid)
-    COMPLEX(KIND=dp)                             :: msg( :, : )
+    COMPLEX(KIND=dp)                         :: msg( :, : )
     INTEGER                                  :: source, gid
 
     INTEGER                                  :: ierr, msglen
@@ -1471,11 +1470,11 @@ SUBROUTINE mp_sum_im3(msg,gid)
 #endif
 END SUBROUTINE mp_sum_im3
 SUBROUTINE mp_sum_r1(msg,gid)
-    REAL(KIND=dp), INTENT(INOUT)                 :: msg
+    REAL(KIND=dp), INTENT(INOUT)             :: msg
     INTEGER, INTENT(IN)                      :: gid
 
     INTEGER                                  :: ierr, msglen
-    REAL(KIND=dp)                                :: res
+    REAL(KIND=dp)                            :: res
 
   msglen = 1
 #if defined(__parallel)
@@ -1632,10 +1631,10 @@ SUBROUTINE mp_sum_root_rm3(msg,root,gid)
 #endif
 END SUBROUTINE mp_sum_root_rm3
 SUBROUTINE mp_sum_c1(msg,gid)
-    COMPLEX(KIND=dp), INTENT(INOUT)              :: msg
+    COMPLEX(KIND=dp), INTENT(INOUT)          :: msg
     INTEGER, INTENT(IN)                      :: gid
 
-    COMPLEX(KIND=dp)                             :: res
+    COMPLEX(KIND=dp)                         :: res
     INTEGER                                  :: ierr, msglen
 
   msglen = 2
@@ -1994,16 +1993,14 @@ END SUBROUTINE mp_gather_rv
 
   SUBROUTINE mp_gatherv_iv(sendbuf,recvbuf,recvcounts,displs,root,comm)
 
-    INTEGER, DIMENSION(:), INTENT(IN)  :: sendbuf
-    INTEGER, DIMENSION(:), INTENT(OUT) :: recvbuf
-    INTEGER, DIMENSION(:), INTENT(IN)  :: recvcounts,displs
-    INTEGER, INTENT(IN)                :: root,comm
+    INTEGER, DIMENSION(:), INTENT(IN)        :: sendbuf
+    INTEGER, DIMENSION(:), INTENT(OUT)       :: recvbuf
+    INTEGER, DIMENSION(:), INTENT(IN)        :: recvcounts, displs
+    INTEGER, INTENT(IN)                      :: root, comm
 
-    ! Local variables
+    INTEGER                                  :: ierr, sendcount
 
-    INTEGER :: ierr,sendcount
-
-    ! -------------------------------------------------------------------------
+! -------------------------------------------------------------------------
 
     sendcount = SIZE(sendbuf)
 #if defined(__parallel)
@@ -2029,14 +2026,12 @@ END SUBROUTINE mp_gather_rv
 
     REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: sendbuf
     REAL(KIND=dp), DIMENSION(:), INTENT(OUT) :: recvbuf
-    INTEGER, DIMENSION(:), INTENT(IN)        :: recvcounts,displs
-    INTEGER, INTENT(IN)                      :: root,comm
+    INTEGER, DIMENSION(:), INTENT(IN)        :: recvcounts, displs
+    INTEGER, INTENT(IN)                      :: root, comm
 
-    ! Local variables
+    INTEGER                                  :: ierr, sendcount
 
-    INTEGER :: ierr,sendcount
-
-    ! -------------------------------------------------------------------------
+! -------------------------------------------------------------------------
 
     sendcount = SIZE(sendbuf)
 #if defined(__parallel)

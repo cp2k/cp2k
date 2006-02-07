@@ -31,74 +31,56 @@
 !!   SOURCE
 !****************************************************************************
 MODULE pw_poisson_types
-  use kinds, only: dp
-  use timings, only: timeset, timestop
-USE cp_error_handling, only: cp_error_type
- USE input_constants,                 ONLY: ANALYTIC0D,&
-                                             ANALYTIC1D,&
-                                             ANALYTIC2D,&
-                                             MT0D,&
-                                             MT1D,&
-                                             MT2D,&
-                                             PERIODIC3D,&
-                                             MULTIPOLE0D,&
-                                             use_periodic,&
-                                             use_analytic,&
-                                             use_mt,&
-                                             use_none,&
-                                             use_multipole,&
-                                             use_perd_x,&
-                                             use_perd_y,&
-                                             use_perd_z,&
-                                             use_perd_xy,&
-                                             use_perd_xz,&
-                                             use_perd_yz,&
-                                             use_perd_xyz,&
-                                             use_perd_none,&
-                                             do_ewald_none,&
-                                             do_ewald_spme
-  USE fft_tools,                       ONLY: FFT_RADIX_NEXT,&
-                                             FFT_RADIX_NEXT_ODD,&
-                                             fft_radix_operations
+  USE bessel_lib,                      ONLY: bessj0,&
+                                             bessj1,&
+                                             bessk0,&
+                                             bessk1
+  USE cell_types,                      ONLY: cell_release,&
+                                             cell_type
+  USE cp_para_types,                   ONLY: cp_para_env_type
+  USE input_constants,                 ONLY: &
+       ANALYTIC0D, ANALYTIC1D, ANALYTIC2D, MT0D, MT1D, MT2D, MULTIPOLE0D, &
+       PERIODIC3D, do_ewald_none, do_ewald_spme, use_analytic, use_mt, &
+       use_multipole, use_none, use_perd_none, use_perd_x, use_perd_xy, &
+       use_perd_xyz, use_perd_xz, use_perd_y, use_perd_yz, use_perd_z, &
+       use_periodic
+  USE input_section_types,             ONLY: section_vals_get_subs_vals,&
+                                             section_vals_release,&
+                                             section_vals_type,&
+                                             section_vals_val_get
+  USE kinds,                           ONLY: dp
+  USE mathconstants,                   ONLY: fourpi,&
+                                             twopi
   USE mt_util,                         ONLY: MTin_create_screen_fn
+  USE pw_grid_types,                   ONLY: HALFSPACE,&
+                                             pw_grid_type
+  USE pw_grids,                        ONLY: pw_cutoff_from_n,&
+                                             pw_grid_bounds_from_n,&
+                                             pw_grid_create,&
+                                             pw_grid_find_n,&
+                                             pw_grid_n_for_fft,&
+                                             pw_grid_n_from_cutoff,&
+                                             pw_grid_release,&
+                                             pw_grid_setup1
   USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
                                              pw_pool_give_back_pw,&
-                                             pw_pool_type,&
                                              pw_pool_p_type,&
+                                             pw_pool_type,&
                                              pw_pools_dealloc
-  USE pw_types,                        ONLY: REALDATA1D,&
+  USE pw_types,                        ONLY: COMPLEXDATA1D,&
+                                             REALDATA1D,&
                                              RECIPROCALSPACE,&
-                                             COMPLEXDATA1D,&
-                                             pw_type,&
                                              pw_release,&
-                                             pw_transfer
-  USE input_section_types,             ONLY: section_vals_get_subs_vals,&
-                                             section_vals_type,&
-                                             section_vals_val_get,&
-                                             section_vals_release,&
-                                             section_vals_retain
-  USE cell_types,                 ONLY: cell_type, cell_release
-  USE cp_para_types,                   ONLY: cp_para_env_type
-  USE pw_grid_types,                   ONLY: pw_grid_type,&
-                                             HALFSPACE
-  USE pw_grids,                        ONLY: pw_grid_create,&
-                                             pw_grid_find_bounds,&
-                                             pw_grid_setup,&
-                                             pw_grid_release,&
-                                             pw_cutoff_from_n,&
-                                             pw_grid_find_n,&
-                                             pw_grid_n_from_cutoff,&
-                                             pw_grid_n_for_fft,&
-                                             pw_grid_bounds_from_n,&
-                                             pw_grid_setup1
-  USE mathconstants, ONLY: fourpi, twopi
-  USE bessel_lib, ONLY: bessj0, bessj1, bessk0, bessk1
+                                             pw_type
+  USE timings,                         ONLY: timeset,&
+                                             timestop
 #include "cp_common_uses.h"
-  IMPLICIT NONE
-  private
 
-  logical, private, parameter :: debug_this_module=.true.
-  character(len=*), private, parameter :: moduleN='pw_poisson_types'
+  IMPLICIT NONE
+  PRIVATE
+
+  LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'pw_poisson_types'
 
   PUBLIC :: pw_poisson_type
   PUBLIC :: pw_poisson_create, pw_poisson_retain, &
@@ -137,12 +119,12 @@ USE cp_error_handling, only: cp_error_type
   !***************************************************************************
   TYPE pw_poisson_type
      INTEGER :: ref_count, id_nr
-     integer :: pw_level
-     integer :: method
-     logical :: rebuild
-     TYPE ( greens_fn_type ), pointer :: green_fft
-     TYPE (section_vals_type), pointer :: parameters
-     TYPE (cell_type), pointer :: cell
+     INTEGER :: pw_level
+     INTEGER :: method
+     LOGICAL :: rebuild
+     TYPE ( greens_fn_type ), POINTER :: green_fft
+     TYPE (section_vals_type), POINTER :: parameters
+     TYPE (cell_type), POINTER :: cell
      TYPE(pw_pool_p_type), DIMENSION(:), POINTER :: pw_pools
      TYPE ( pw_grid_type), POINTER :: mt_super_ref_pw_grid
   END TYPE pw_poisson_type
@@ -211,50 +193,51 @@ CONTAINS
        xc_super_ref_pw_grid, cutilev, grid_span,&
        cell_ref, para_env, input, my_ncommensurate, uf_grid,info_unit, &
        symm_usage, error)
-    IMPLICIT NONE
-    ! Arguments
-    TYPE(pw_grid_type), POINTER       :: mt_super_ref_pw_grid,super_ref_pw_grid,&
-         xc_super_ref_pw_grid
-    TYPE(section_vals_type), POINTER          :: input
-    REAL(KIND=dp), INTENT(IN) :: cutilev
-    INTEGER, INTENT(IN)       :: grid_span, my_ncommensurate, info_unit
-    TYPE(cell_type), pointer  :: cell_ref
-    TYPE(cp_para_env_type), POINTER :: para_env
-    LOGICAL, intent(in) :: uf_grid
-    LOGICAL, INTENT(in),optional :: symm_usage
+    TYPE(pw_grid_type), POINTER              :: super_ref_pw_grid, &
+                                                mt_super_ref_pw_grid, &
+                                                xc_super_ref_pw_grid
+    REAL(KIND=dp), INTENT(IN)                :: cutilev
+    INTEGER, INTENT(IN)                      :: grid_span
+    TYPE(cell_type), POINTER                 :: cell_ref
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(section_vals_type), POINTER         :: input
+    INTEGER, INTENT(IN)                      :: my_ncommensurate
+    LOGICAL, INTENT(in)                      :: uf_grid
+    INTEGER, INTENT(IN)                      :: info_unit
+    LOGICAL, INTENT(in), OPTIONAL            :: symm_usage
     TYPE(cp_error_type), INTENT(inout), &
-         OPTIONAL                               :: error    
-    ! Local Variables
-    CHARACTER(len=*), PARAMETER :: routineN = "setup_super_ref_grid", &
-         routineP = moduleN//':'//routineN
-    TYPE(section_vals_type), POINTER          :: poisson_section
-    INTEGER :: my_val, stat,  nlowest, nlowest_new, ntest(3),&
-         n_orig(3), n_new(3)
-    INTEGER, DIMENSION(2, 3) :: bounds1, bounds2
-    REAL(KIND=dp) :: my_cutilev, mt_rel_cutoff, xc_cut
-    LOGICAL :: failure, grid_info, mt_s_grid,symmetry
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'setup_super_ref_grid', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: my_val, n_new(3), n_orig(3)
+    LOGICAL                                  :: failure, mt_s_grid, symmetry
+    REAL(KIND=dp)                            :: mt_rel_cutoff, my_cutilev, &
+                                                xc_cut
+    TYPE(section_vals_type), POINTER         :: poisson_section
 
     failure = .FALSE.
     NULLIFY(poisson_section)
     CPPrecondition(.NOT.ASSOCIATED(mt_super_ref_pw_grid),cp_failure_level,routineP,error,failure)
     CPPrecondition(.NOT.ASSOCIATED(xc_super_ref_pw_grid),cp_failure_level,routineP,error,failure)
     CPPrecondition(.NOT.ASSOCIATED(super_ref_pw_grid),cp_failure_level,routineP,error,failure)
-    symmetry=.false.
-    if (present(symm_usage)) symmetry=symm_usage
+    symmetry=.FALSE.
+    IF (PRESENT(symm_usage)) symmetry=symm_usage
     IF (.NOT. failure) THEN
        poisson_section => section_vals_get_subs_vals(input,"DFT%POISSON_DFT",error=error)    
        CALL section_vals_val_get(poisson_section,"POISSON_SOLVER",i_val=my_val,error=error)
        !
        ! Check if grids will be the same... In this case we don't use a super-reference grid
        !
-       mt_s_grid=.false.
+       mt_s_grid=.FALSE.
        IF (my_val==use_mt) THEN
           CALL section_vals_val_get(poisson_section,"MT%REL_CUTOFF",&
                r_val=mt_rel_cutoff,error=error)
-          IF (mt_rel_cutoff>1._dp) mt_s_grid=.true.
+          IF (mt_rel_cutoff>1._dp) mt_s_grid=.TRUE.
        END IF
        
-       n_orig=pw_grid_find_n( cell=cell_ref, cutoff=abs(cutilev),&
+       n_orig=pw_grid_find_n( cell=cell_ref, cutoff=ABS(cutilev),&
             fft_usage=.TRUE., grid_span=grid_span,&
             symm_usage=symm_usage, spherical=cutilev>0._dp,&
             ncommensurate=my_ncommensurate, error=error)
@@ -316,33 +299,32 @@ CONTAINS
   !******************************************************************************
   SUBROUTINE pw_green_create ( green, poisson_section, cell, pw_pool, &
        mt_super_ref_pw_grid, error )
-    IMPLICIT NONE
-    ! Arguments
-    TYPE(greens_fn_type), POINTER       :: green
-    TYPE(section_vals_type), POINTER          :: poisson_section
-    TYPE(cell_type), pointer :: cell
-    TYPE(pw_pool_type), pointer :: pw_pool
-    TYPE(pw_grid_type), pointer :: mt_super_ref_pw_grid
+    TYPE(greens_fn_type), POINTER            :: green
+    TYPE(section_vals_type), POINTER         :: poisson_section
+    TYPE(cell_type), POINTER                 :: cell
+    TYPE(pw_pool_type), POINTER              :: pw_pool
+    TYPE(pw_grid_type), POINTER              :: mt_super_ref_pw_grid
     TYPE(cp_error_type), INTENT(inout), &
-         OPTIONAL                                :: error
-    ! Local Variables
-    CHARACTER(len=*), PARAMETER :: routineN = "pw_green_setup", &
-         routineP = moduleN//':'//routineN
-    TYPE(section_vals_type), POINTER          :: mt_section
-    LOGICAL :: failure
-    INTEGER :: dim, i, my_val, my_per, ewald_kind,stat
-    INTEGER, DIMENSION(3) :: perd
-    REAL(KIND=dp), DIMENSION(3)   :: abc
-    TYPE(section_vals_type), pointer :: ewald_section
-    INTEGER                                  :: ig, iz, nz, n
-    REAL(KIND=dp)                            :: alpha, g2, g3d, gg, &
-         gxy, j0g, j1g, k0g, k1g, rlength, zlength
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'pw_green_create', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: dim, ewald_kind, i, ig, iz, &
+                                                my_per, my_val, n, nz, stat
+    INTEGER, DIMENSION(3)                    :: perd
+    LOGICAL                                  :: failure
+    REAL(KIND=dp)                            :: alpha, g2, g3d, gg, gxy, j0g, &
+                                                j1g, k0g, k1g, rlength, &
+                                                zlength
+    REAL(KIND=dp), DIMENSION(3)              :: abc
     TYPE(pw_grid_type), POINTER              :: grid
     TYPE(pw_type), POINTER                   :: gf
+    TYPE(section_vals_type), POINTER         :: ewald_section, mt_section
 
     failure = .FALSE.
-    nullify(ewald_section)
-    CPPrecondition(associated(cell),cp_failure_level,routineP,error,failure)
+    NULLIFY(ewald_section)
+    CPPrecondition(ASSOCIATED(cell),cp_failure_level,routineP,error,failure)
     CPPrecondition(.NOT.(ASSOCIATED(green)),cp_failure_level,routineP,error,failure)
     IF (.NOT.failure) THEN       
        ALLOCATE(green, stat=stat)
@@ -480,7 +462,7 @@ CONTAINS
        CASE ( PERIODIC3D, ANALYTIC2D, ANALYTIC1D, ANALYTIC0D, MT2D, MT1D, MT0D, MULTIPOLE0D)
           CALL pw_pool_create_pw ( pw_pool, green % influence_fn,&
                use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE )
-          if (ewald_kind==do_ewald_spme) then
+          IF (ewald_kind==do_ewald_spme) THEN
              green % p3m = .TRUE.
              CALL section_vals_val_get(ewald_section,"o_spline",&
                   i_val=green % p3m_order,error=error)
@@ -493,7 +475,7 @@ CONTAINS
              CALL pw_pool_create_pw ( pw_pool, green % p3m_charge, use_data=REALDATA1D, &
                   in_space=RECIPROCALSPACE)
              CALL influence_factor ( green )
-             call calc_p3m_charge(green)
+             CALL calc_p3m_charge(green)
           ELSE
              green % p3m = .FALSE.
           END IF
@@ -593,13 +575,13 @@ CONTAINS
   !!
   !******************************************************************************
   SUBROUTINE pw_green_retain(gftype,error)
-    ! Arguments
-    TYPE(greens_fn_type),pointer       :: gftype
+    TYPE(greens_fn_type), POINTER            :: gftype
     TYPE(cp_error_type), INTENT(inout), &
-         OPTIONAL                               :: error    
-    ! Local Variables
+      OPTIONAL                               :: error
+
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_green_retain', &
-         routineP = moduleN//':'//routineN
+      routineP = moduleN//':'//routineN
+
     LOGICAL                                  :: failure
 
     failure=.FALSE.
@@ -630,17 +612,16 @@ CONTAINS
   !!   SOURCE
   !******************************************************************************
   SUBROUTINE pw_green_release ( gftype, pw_pool, error )
-    IMPLICIT NONE
-    ! Arguments
-    TYPE(greens_fn_type),pointer       :: gftype
-    TYPE(pw_pool_type), POINTER, OPTIONAL :: pw_pool
+    TYPE(greens_fn_type), POINTER            :: gftype
+    TYPE(pw_pool_type), OPTIONAL, POINTER    :: pw_pool
     TYPE(cp_error_type), INTENT(inout), &
-         OPTIONAL                               :: error    
-    ! Local Variables
+      OPTIONAL                               :: error
+
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_green_release', &
-         routineP = moduleN//':'//routineN    
-    LOGICAL :: failure , can_give_back
-    INTEGER :: stat
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: stat
+    LOGICAL                                  :: can_give_back, failure
 
     failure = .FALSE.
     IF (.NOT.failure) THEN
@@ -693,23 +674,22 @@ CONTAINS
   !!   SOURCE
   !******************************************************************************
   SUBROUTINE influence_factor ( gftype, error )
-    IMPLICIT NONE
-    ! Arguments
-    TYPE(greens_fn_type), POINTER  :: gftype
+    TYPE(greens_fn_type), POINTER            :: gftype
     TYPE(cp_error_type), INTENT(inout), &
-         OPTIONAL                               :: error
-    ! Local Variables
-    CHARACTER(len=*), PARAMETER :: routineN='influence_factor',&
-         routineP=moduleN//':'//routineN
-    COMPLEX(KIND=dp)                             :: b_m, exp_m, sum_m
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'influence_factor', &
+      routineP = moduleN//':'//routineN
+
+    COMPLEX(KIND=dp)                         :: b_m, exp_m, sum_m
     INTEGER                                  :: dim, ierr, j, k, l, n, pt
     INTEGER, DIMENSION(3)                    :: npts
     INTEGER, DIMENSION(:), POINTER           :: lb, ub
-    REAL(KIND=dp)                                :: l_arg, prod_arg, val
-    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)     :: m_assign
-    logical :: failure
+    LOGICAL                                  :: failure
+    REAL(KIND=dp)                            :: l_arg, prod_arg, val
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: m_assign
 
-    failure=.false.
+    failure=.FALSE.
     CPPrecondition(ASSOCIATED(gftype),cp_failure_level,routineP,error,failure)
     CPPrecondition(gftype%ref_count>0,cp_failure_level,routineP,error,failure)
     n = gftype % p3m_order
@@ -766,11 +746,11 @@ CONTAINS
 SUBROUTINE calc_p3m_charge ( gf )
 
 
-    TYPE(greens_fn_type), pointer      :: gf
+    TYPE(greens_fn_type), POINTER            :: gf
 
     INTEGER                                  :: ig, l, m, n
-    REAL(KIND=dp)                                :: arg, novol
-    REAL(KIND=dp), DIMENSION(:, :), POINTER      :: bm2
+    REAL(KIND=dp)                            :: arg, novol
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: bm2
     TYPE(pw_grid_type), POINTER              :: grid
     TYPE(pw_type), POINTER                   :: pc
 
@@ -814,17 +794,17 @@ END SUBROUTINE calc_p3m_charge
   !!*** *************************************************************************
   SUBROUTINE pw_poisson_create ( poisson_env, error )
 
-    TYPE(pw_poisson_type), pointer :: poisson_env
+    TYPE(pw_poisson_type), POINTER           :: poisson_env
     TYPE(cp_error_type), INTENT(inout), &
-         OPTIONAL                               :: error
+      OPTIONAL                               :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_poisson_create', &
-         routineP = moduleN//':'//routineN
+      routineP = moduleN//':'//routineN
 
+    INTEGER                                  :: stat
     LOGICAL                                  :: failure
-    integer :: stat
 
-    !------------------------------------------------------------------------------
+!------------------------------------------------------------------------------
 
     failure=.FALSE.
 
@@ -838,7 +818,7 @@ END SUBROUTINE calc_p3m_charge
        poisson_env%id_nr=last_poisson_id
        poisson_env%ref_count=1
        poisson_env%method=use_none
-       poisson_env%rebuild=.true.
+       poisson_env%rebuild=.TRUE.
        NULLIFY(poisson_env%parameters,poisson_env%green_fft,poisson_env%cell,&
             poisson_env%pw_pools,poisson_env%green_fft,&
             poisson_env%mt_super_ref_pw_grid)
@@ -869,14 +849,16 @@ END SUBROUTINE calc_p3m_charge
   !!
   !!*** **********************************************************************
   SUBROUTINE pw_poisson_retain(poisson_env,error)
-    TYPE(pw_poisson_type), pointer :: poisson_env
-    type(cp_error_type), optional, intent(inout) :: error
+    TYPE(pw_poisson_type), POINTER           :: poisson_env
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    logical :: failure
-    character(len=*), parameter :: routineN='pw_poisson_retain',&
-         routineP=moduleN//':'//routineN
+    CHARACTER(len=*), PARAMETER :: routineN = 'pw_poisson_retain', &
+      routineP = moduleN//':'//routineN
 
-    failure=.false.
+    LOGICAL                                  :: failure
+
+    failure=.FALSE.
 
     CPPrecondition(ASSOCIATED(poisson_env),cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
@@ -903,17 +885,17 @@ END SUBROUTINE calc_p3m_charge
   !!*** *************************************************************************
   SUBROUTINE pw_poisson_release ( poisson_env, error)
 
-    TYPE(pw_poisson_type), pointer :: poisson_env
+    TYPE(pw_poisson_type), POINTER           :: poisson_env
     TYPE(cp_error_type), INTENT(inout), &
-         OPTIONAL                               :: error
+      OPTIONAL                               :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_poisson_release', &
-         routineP = moduleN//':'//routineN
+      routineP = moduleN//':'//routineN
 
-    integer :: stat
+    INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
-    !------------------------------------------------------------------------------
+!------------------------------------------------------------------------------
 
     failure=.FALSE.
     IF (ASSOCIATED(poisson_env)) THEN
@@ -961,8 +943,8 @@ SUBROUTINE spme_coeff_calculate ( n, coeff )
       INTENT(OUT)                            :: coeff
 
     INTEGER                                  :: i, j, l, m
-    REAL(KIND=dp)                                :: b
-    REAL(KIND=dp), DIMENSION(n, -n:n, 0:n-1)     :: a
+    REAL(KIND=dp)                            :: b
+    REAL(KIND=dp), DIMENSION(n, -n:n, 0:n-1) :: a
 
 !------------------------------------------------------------------------------
 

@@ -26,16 +26,16 @@
 MODULE input_enumeration_types
   USE kinds,                           ONLY: default_string_length,&
                                              dp
+  USE string_utilities,                ONLY: uppercase
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE string_utilities,                ONLY: uppercase
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
   PRIVATE
 
   LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
-  CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='input_enumeration_types'
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'input_enumeration_types'
   INTEGER, SAVE, PRIVATE :: last_enumeration_id=0
 
   INTEGER, PARAMETER, PUBLIC :: keyword_desc_length=default_string_length
@@ -109,7 +109,7 @@ SUBROUTINE enum_create(enum,c_vals,i_vals,desc,strict,error)
       INTENT(in)                             :: c_vals
     INTEGER, DIMENSION(:), INTENT(in)        :: i_vals
     CHARACTER(len=*), DIMENSION(:), &
-      INTENT(in), optional                   :: desc
+      INTENT(in), OPTIONAL                   :: desc
     LOGICAL, INTENT(in), OPTIONAL            :: strict
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
@@ -117,7 +117,7 @@ SUBROUTINE enum_create(enum,c_vals,i_vals,desc,strict,error)
     CHARACTER(len=*), PARAMETER :: routineN = 'enum_create', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat,i
+    INTEGER                                  :: i, stat
     LOGICAL                                  :: failure
 
   failure=.FALSE.
@@ -136,7 +136,7 @@ SUBROUTINE enum_create(enum,c_vals,i_vals,desc,strict,error)
      CPPostcondition(stat==0,cp_fatal_level,routineP,error,failure)
      DO i=1,SIZE(enum%c_vals)
         enum%c_vals(i)=c_vals(i)
-        call uppercase(enum%c_vals(i))
+        CALL uppercase(enum%c_vals(i))
      END DO
      ALLOCATE(enum%i_vals(SIZE(i_vals)),stat=stat)
      CPPostcondition(stat==0,cp_fatal_level,routineP,error,failure)
@@ -298,13 +298,13 @@ FUNCTION enum_i2c(enum,i,error) RESULT(res)
         END IF
      END DO
      IF (.NOT.found) THEN
-        if (enum%strict) then
+        IF (enum%strict) THEN
          DO j=1,SIZE(enum%desc)
-          print *, trim(enum%desc(j))
-          print *, trim(enum%c_vals(j))
+          PRINT *, TRIM(enum%desc(j))
+          PRINT *, TRIM(enum%c_vals(j))
          ENDDO
-          print *, enum%i_vals
-        end if
+          PRINT *, enum%i_vals
+        END IF
         CALL cp_assert(.NOT.enum%strict,cp_failure_level,cp_assertion_failed,&
              routineP,"invalid value for enumeration:"//cp_to_string(i),&
              error,failure)
@@ -344,7 +344,8 @@ FUNCTION enum_c2i(enum,c,error) RESULT(res)
 
     CHARACTER(len=*), PARAMETER :: routineN = 'enum_c2i', &
       routineP = moduleN//':'//routineN
-    character(len=default_string_length) :: upc
+
+    CHARACTER(len=default_string_length)     :: upc
     INTEGER                                  :: iostat, j
     LOGICAL                                  :: failure, found
 
@@ -353,7 +354,7 @@ FUNCTION enum_c2i(enum,c,error) RESULT(res)
   CPPrecondition(ASSOCIATED(enum),cp_failure_level,routineP,error,failure)
   CPPrecondition(enum%ref_count>0,cp_failure_level,routineP,error,failure)
   upc=c
-  call uppercase(upc)
+  CALL uppercase(upc)
   IF (.NOT. failure) THEN
      found=.FALSE.
      DO j=1,SIZE(enum%c_vals)

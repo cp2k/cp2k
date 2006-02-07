@@ -34,8 +34,8 @@
 !*****************************************************************************
 MODULE cp_output_handling
   USE cp_files,                        ONLY: close_file,&
-                                             open_file,&
-                                             move_file
+                                             move_file,&
+                                             open_file
   USE input_constants,                 ONLY: debug_print_level,&
                                              high_print_level,&
                                              low_print_level,&
@@ -50,15 +50,12 @@ MODULE cp_output_handling
   USE input_section_types,             ONLY: section_add_keyword,&
                                              section_create,&
                                              section_type,&
-                                             section_vals_type,&
-                                             section_vals_val_get,&
                                              section_vals_get_subs_vals,&
-                                             section_vals_retain,&
-                                             section_vals_release
+                                             section_vals_type,&
+                                             section_vals_val_get
   USE input_val_types,                 ONLY: val_create,&
                                              val_release,&
-                                             val_type,&
-                                             val_get
+                                             val_type
   USE kinds,                           ONLY: default_path_length,&
                                              default_string_length,&
                                              dp
@@ -69,7 +66,7 @@ MODULE cp_output_handling
   PRIVATE
 
   LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
-  CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='cp_output_handling'
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_output_handling'
   PUBLIC :: cp_print_key_should_output, cp_iterate, cp_add_iter_level, cp_rm_iter_level
   PUBLIC :: cp_iter_string, cp_print_key_section_create
   PUBLIC :: cp_print_key_unit_nr, cp_print_key_finished_output
@@ -108,7 +105,7 @@ INTEGER, PUBLIC, PARAMETER :: cp_out_none=0, cp_out_file_if=IBSET(0,cp_p_file_if
      cp_out_store_each=IBSET(0,cp_p_store_each),&
      cp_out_default=cp_out_file_if
 
-INTEGER, SAVE, private :: last_flags_id=0
+INTEGER, SAVE, PRIVATE :: last_flags_id=0
 
 
 !!***
@@ -154,10 +151,10 @@ INTEGER, SAVE, private :: last_flags_id=0
      INTEGER :: ref_count, id_nr, n_flags
      CHARACTER(default_string_length), DIMENSION(:), POINTER :: names
      INTEGER, DIMENSION(:), POINTER :: control_val
-     TYPE(section_vals_type), pointer :: input
-     TYPE(cp_logger_type), pointer :: logger
-     logical :: strict
-     integer :: default_val
+     TYPE(section_vals_type), POINTER :: input
+     TYPE(cp_logger_type), POINTER :: logger
+     LOGICAL :: strict
+     INTEGER :: default_val
   END TYPE cp_out_flags_type
 !!***
 !****************************************************************************
@@ -196,7 +193,7 @@ CONTAINS
     INTEGER, INTENT(in), OPTIONAL            :: print_level
     INTEGER, DIMENSION(:), INTENT(in), &
       OPTIONAL                               :: each, add_last
-    CHARACTER(LEN=*), INTENT(in), OPTIONAL          :: filename
+    CHARACTER(LEN=*), INTENT(in), OPTIONAL   :: filename
     INTEGER, INTENT(in), OPTIONAL            :: common_iter_levels
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
@@ -343,8 +340,9 @@ CONTAINS
        RESULT(res)
     TYPE(cp_iteration_info_type), POINTER    :: iteration_info
     TYPE(section_vals_type), POINTER         :: basis_section
-    CHARACTER(len=*), INTENT(in), OPTIONAL :: print_key_path
-    TYPE(section_vals_type), POINTER,OPTIONAL :: used_print_key
+    CHARACTER(len=*), INTENT(in), OPTIONAL   :: print_key_path
+    TYPE(section_vals_type), OPTIONAL, &
+      POINTER                                :: used_print_key
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
     INTEGER                                  :: res
@@ -352,15 +350,16 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_print_key_should_output', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL :: is_on, is_iter, failure, flags
-    INTEGER                                  :: my_control_val,to_path,end_str
+    INTEGER                                  :: end_str, my_control_val, &
+                                                to_path
+    LOGICAL                                  :: failure, flags, is_iter, is_on
     TYPE(section_vals_type), POINTER         :: print_key
-    
-    failure=.false.
+
+    failure=.FALSE.
     res=0
     CPPrecondition(ASSOCIATED(basis_section),cp_failure_level,routineP,error,failure)
     CPPrecondition(basis_section%ref_count>0,cp_failure_level,routineP,error,failure)
-    if (present(used_print_key)) nullify(used_print_key)
+    IF (PRESENT(used_print_key)) NULLIFY(used_print_key)
     IF (failure) THEN
        IF (iteration_info%print_level>=debug_print_level) res=cp_out_default
        RETURN
@@ -389,9 +388,9 @@ CONTAINS
        END IF
     ELSE
        print_key => basis_section
-       flags=.true.
+       flags=.TRUE.
     END IF
-    if (present(used_print_key)) used_print_key => print_key
+    IF (PRESENT(used_print_key)) used_print_key => print_key
 
     IF (.NOT.flags) RETURN
     
@@ -402,17 +401,17 @@ CONTAINS
 
     IF (BTEST(my_control_val,cp_p_store)) THEN
        res=IBSET(res,cp_p_store)
-    ELSE IF (BTEST(my_control_val,cp_p_store_if).and.is_iter.and.is_on) then
+    ELSE IF (BTEST(my_control_val,cp_p_store_if).and.is_iter.and.is_on) THEN
        res=IBSET(res,cp_p_store)
-    ELSE IF (BTEST(my_control_val,cp_p_store_each).and.is_iter) then
+    ELSE IF (BTEST(my_control_val,cp_p_store_each).and.is_iter) THEN
        res=IBSET(res,cp_p_store)
     END IF
 
     IF (BTEST(my_control_val,cp_p_file)) THEN
        res=IBSET(res,cp_p_file)
-    ELSE IF (BTEST(my_control_val,cp_p_file_if).and.is_iter.and.is_on) then
+    ELSE IF (BTEST(my_control_val,cp_p_file_if).and.is_iter.and.is_on) THEN
        res=IBSET(res,cp_p_file)
-    ELSE IF (BTEST(my_control_val,cp_p_file_each).and.is_iter) then
+    ELSE IF (BTEST(my_control_val,cp_p_file_each).and.is_iter) THEN
        res=IBSET(res,cp_p_file)
     END IF
     IF (BTEST(my_control_val,cp_p_calc).OR.res/=0) THEN
@@ -444,17 +443,19 @@ CONTAINS
 !!
 !!*** **********************************************************************
 FUNCTION cp_printkey_is_on(iteration_info,print_key,error) RESULT(res)
-  TYPE(cp_iteration_info_type), POINTER    :: iteration_info
-  TYPE(section_vals_type), POINTER         :: print_key
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-  logical :: res
+    TYPE(cp_iteration_info_type), POINTER    :: iteration_info
+    TYPE(section_vals_type), POINTER         :: print_key
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+    LOGICAL                                  :: res
 
-  logical :: failure
-  character(len=*), parameter :: routineN='cp_printkey_is_on',&
-        routineP=moduleN//':'//routineN
-  integer :: print_level
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_printkey_is_on', &
+      routineP = moduleN//':'//routineN
 
-  failure=.false.
+    INTEGER                                  :: print_level
+    LOGICAL                                  :: failure
+
+  failure=.FALSE.
   CPPrecondition(ASSOCIATED(iteration_info),cp_failure_level,routineP,error,failure)
   CPPrecondition(iteration_info%ref_count>0,cp_failure_level,routineP,error,failure)
   IF (.NOT. failure) THEN
@@ -500,7 +501,7 @@ END FUNCTION cp_printkey_is_on
       OPTIONAL                               :: error
     LOGICAL                                  :: res
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'cp_printkey_is_on', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_printkey_is_iter', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ilevel, ival
@@ -588,7 +589,7 @@ FUNCTION cp_iter_string(iter_info,print_key,for_file,error) RESULT(res)
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: c_i_level, ilevel, n_rlevel, &
-                                                shift, s_level
+                                                s_level, shift
     INTEGER, DIMENSION(:), POINTER           :: add_last, each
     LOGICAL                                  :: failure, my_for_file
     TYPE(section_vals_type), POINTER         :: my_print_key
@@ -841,18 +842,19 @@ END SUBROUTINE cp_rm_iter_level
 
 FUNCTION cp_print_key_generate_filename(logger,print_key,middle_name,extension,&
      my_local, error) RESULT(filename)
-  IMPLICIT NONE
-  TYPE(cp_logger_type), POINTER            :: logger
-  TYPE(section_vals_type), POINTER         :: print_key
-  CHARACTER(len=*), INTENT(in)             :: extension
-  CHARACTER(len=*), INTENT(in),OPTIONAL    :: middle_name
-  LOGICAL, INTENT(IN)                      :: my_local
-  TYPE(cp_error_type), INTENT(inout), &
-       OPTIONAL                               :: error
-  CHARACTER(len=default_path_length)       :: filename,root,postfix
-  CHARACTER(len=default_string_length)     :: my_middle_name, outPath 
-  LOGICAL :: build_complete_name
-  INTEGER :: my_ind1, my_ind2
+    TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(section_vals_type), POINTER         :: print_key
+    CHARACTER(len=*), INTENT(in), OPTIONAL   :: middle_name
+    CHARACTER(len=*), INTENT(in)             :: extension
+    LOGICAL, INTENT(IN)                      :: my_local
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+    CHARACTER(len=default_path_length)       :: filename
+
+    CHARACTER(len=default_path_length)       :: postfix, root
+    CHARACTER(len=default_string_length)     :: my_middle_name, outPath
+    INTEGER                                  :: my_ind1, my_ind2
+    LOGICAL                                  :: build_complete_name
 
   CALL section_vals_val_get(print_key,"FILENAME",c_val=outPath,error=error)
 
@@ -911,13 +913,13 @@ FUNCTION cp_print_key_unit_nr(logger, basis_section, print_key_path, extension,&
      file_action, do_backup, error) RESULT(res)
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(section_vals_type), POINTER         :: basis_section
-    CHARACTER(len=*), INTENT(in)             :: print_key_path
-    CHARACTER(len=*), INTENT(in)             :: extension
-    CHARACTER(len=*), INTENT(in), OPTIONAL   :: middle_name, file_form, file_position,&
-         file_action
+    CHARACTER(len=*), INTENT(in)             :: print_key_path, extension
+    CHARACTER(len=*), INTENT(in), OPTIONAL   :: middle_name
     LOGICAL, INTENT(in), OPTIONAL            :: local, log_filename, &
-         ignore_should_output, do_backup
-
+                                                ignore_should_output
+    CHARACTER(len=*), INTENT(in), OPTIONAL   :: file_form, file_position, &
+                                                file_action
+    LOGICAL, INTENT(in), OPTIONAL            :: do_backup
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
     INTEGER                                  :: res
@@ -925,11 +927,11 @@ FUNCTION cp_print_key_unit_nr(logger, basis_section, print_key_path, extension,&
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_print_key_unit_nr', &
       routineP = moduleN//':'//routineN
 
-    CHARACTER(len=default_path_length)       :: filename,root,postfix
-    CHARACTER(len=default_string_length)     :: my_middle_name, outPath, my_file_form,&
-         my_file_position, my_file_action
-    LOGICAL                                  :: failure, my_local, &
-         my_should_output, found, my_do_backup
+    CHARACTER(len=default_path_length)       :: filename
+    CHARACTER(len=default_string_length)     :: my_file_action, my_file_form, &
+                                                my_file_position, outPath
+    LOGICAL                                  :: failure, found, my_do_backup, &
+                                                my_local, my_should_output
     TYPE(section_vals_type), POINTER         :: print_key
 
   failure=.FALSE.
@@ -953,7 +955,7 @@ FUNCTION cp_print_key_unit_nr(logger, basis_section, print_key_path, extension,&
      CPPrecondition(logger%ref_count>0,cp_failure_level,routineP,error,failure)
   END IF
   IF (.NOT.failure) THEN
-     my_should_output=btest(cp_print_key_should_output(logger%iter_info,&
+     my_should_output=BTEST(cp_print_key_should_output(logger%iter_info,&
           basis_section,print_key_path,used_print_key=print_key,error=error),cp_p_file)
      IF (PRESENT(ignore_should_output)) my_should_output=my_should_output.or.ignore_should_output
      IF (.NOT.my_should_output) RETURN
@@ -1028,7 +1030,7 @@ END FUNCTION cp_print_key_unit_nr
     INTEGER, INTENT(inout)                   :: unit_nr
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(section_vals_type), POINTER         :: basis_section
-    CHARACTER(len=*), INTENT(in), OPTIONAL :: print_key_path
+    CHARACTER(len=*), INTENT(in), OPTIONAL   :: print_key_path
     LOGICAL, INTENT(in), OPTIONAL            :: local, ignore_should_output
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
@@ -1036,21 +1038,22 @@ END FUNCTION cp_print_key_unit_nr
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_print_key_finished_output', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure, my_local, my_should_output
     CHARACTER(len=default_string_length)     :: outPath
+    LOGICAL                                  :: failure, my_local, &
+                                                my_should_output
     TYPE(section_vals_type), POINTER         :: print_key
 
     failure=.FALSE.
-    my_local=.false.
+    my_local=.FALSE.
     NULLIFY(print_key)
     IF (PRESENT(local)) my_local=local
     CPPrecondition(ASSOCIATED(basis_section),cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(logger),cp_failure_level,routineP,error,failure)
     CPPrecondition(basis_section%ref_count>0,cp_failure_level,routineP,error,failure)
     CPPrecondition(logger%ref_count>0,cp_failure_level,routineP,error,failure)
-    my_should_output=btest(cp_print_key_should_output(logger%iter_info,basis_section,&
+    my_should_output=BTEST(cp_print_key_should_output(logger%iter_info,basis_section,&
          print_key_path,used_print_key=print_key,error=error),cp_p_file)
-    if (present(ignore_should_output)) my_should_output=my_should_output.or.ignore_should_output
+    IF (PRESENT(ignore_should_output)) my_should_output=my_should_output.or.ignore_should_output
     IF (my_should_output.and.(my_local.OR.&
          logger%para_env%source==logger%para_env%mepos)) THEN
         CALL section_vals_val_get(print_key,"FILENAME",c_val=outPath,error=error)
@@ -1098,57 +1101,62 @@ END FUNCTION cp_print_key_unit_nr
 !!*** **********************************************************************
 SUBROUTINE cp_iter_compare(iter1,iter2,equal,common_equal, ascending,&
      descending, offset, common_offset, error)
-  INTEGER, DIMENSION(max_iter_r_level), intent(in) :: iter1, iter2
-  LOGICAL, OPTIONAL, INTENT(out) :: equal, common_equal, ascending, &
-       descending
-  INTEGER, OPTIONAL, intent(out) :: offset, common_offset
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-  
-  LOGICAL :: failure, my_equal,my_ascending, my_common_equal,my_descending
-  character(len=*), parameter :: routineN='cp_iter_compare',&
-        routineP=moduleN//':'//routineN
-  INTEGER :: i,my_common_offset,my_offset
+    INTEGER, DIMENSION(max_iter_r_level), &
+      INTENT(in)                             :: iter1, iter2
+    LOGICAL, INTENT(out), OPTIONAL           :: equal, common_equal, &
+                                                ascending, descending
+    INTEGER, INTENT(out), OPTIONAL           :: offset, common_offset
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-  failure=.false.
-  my_equal=.true.
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_iter_compare', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i, my_common_offset, my_offset
+    LOGICAL                                  :: failure, my_ascending, &
+                                                my_common_equal, &
+                                                my_descending, my_equal
+
+  failure=.FALSE.
+  my_equal=.TRUE.
   my_common_equal=.TRUE.
-  my_ascending=.false.
-  my_descending=.false.
+  my_ascending=.FALSE.
+  my_descending=.FALSE.
   DO i=1,max_iter_r_level
      IF (iter1(i)/=iter2(i)) THEN
-        my_equal=.false.
+        my_equal=.FALSE.
         IF (iter1(i)==cp_iter_undefined.OR.iter2(i)==cp_iter_undefined) THEN
-           my_common_equal=.true.
+           my_common_equal=.TRUE.
            IF (iter1(i)==cp_iter_undefined) THEN
               my_offset=HUGE(0)
            ELSE
               my_offset=-HUGE(0)
            END IF
         ELSE
-           my_common_equal=.false.
+           my_common_equal=.FALSE.
            IF (i<max_iter_r_level) THEN
               IF (iter1(i+1)==cp_iter_undefined.OR.iter2(i+1)==cp_iter_undefined) THEN
                  my_common_offset=iter2(i)-iter1(i)
                  IF (iter1(i+1)==cp_iter_undefined.AND.iter2(i+1)==cp_iter_undefined) THEN
                     my_offset=iter2(i)-iter1(i)
-                 ELSE IF (iter1(i+1)==cp_iter_undefined) then
-                    my_ascending=.true.
-                    my_descending=.false.
+                 ELSE IF (iter1(i+1)==cp_iter_undefined) THEN
+                    my_ascending=.TRUE.
+                    my_descending=.FALSE.
                     my_offset=HUGE(0)
                  ELSE
-                    my_ascending=.false.
-                    my_descending=.true.
-                    my_offset=-huge(0)
+                    my_ascending=.FALSE.
+                    my_descending=.TRUE.
+                    my_offset=-HUGE(0)
                  END IF
               ELSE
                  IF (iter1(i)<iter2(i)) THEN
-                    my_ascending=.true.
-                    my_descending=.false.
+                    my_ascending=.TRUE.
+                    my_descending=.FALSE.
                     my_offset=HUGE(0)
                     my_common_offset=HUGE(0)
                  ELSE
-                    my_ascending=.false.
-                    my_descending=.true.
+                    my_ascending=.FALSE.
+                    my_descending=.TRUE.
                     my_common_offset=-HUGE(0)
                     my_offset=-HUGE(0)
                  END IF

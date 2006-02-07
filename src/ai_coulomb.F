@@ -101,7 +101,7 @@ CONTAINS
     INTEGER, INTENT(IN), OPTIONAL            :: maxder
     REAL(KIND=dp), DIMENSION(:, :), OPTIONAL :: vac_plus
 
-    CHARACTER(LEN=*), PARAMETER              :: routine_name = "coulomb2"
+    CHARACTER(LEN=*), PARAMETER              :: routineN = 'coulomb2'
 
     INTEGER                                  :: ax, ay, az, coc, cocx, cocy, &
                                                 cocz, cx, cy, cz, i, ipgf, j, &
@@ -113,7 +113,7 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(3)              :: raw, rcw
 
 !   ---------------------------------------------------------------------------
-!    CALL timeset(routine_name,"I"," ",handle)
+!    CALL timeset(routineN,"I"," ",handle)
 
     v = 0.0_dp
 
@@ -466,7 +466,7 @@ CONTAINS
     INTEGER, INTENT(IN), OPTIONAL            :: maxder
     REAL(KIND=dp), DIMENSION(:, :), OPTIONAL :: vabc_plus
 
-    CHARACTER(LEN=*), PARAMETER              :: routine_name = "coulomb3"
+    CHARACTER(LEN=*), PARAMETER              :: routineN = 'coulomb3'
 
     INTEGER :: ax, ay, az, bx, by, bz, coc, cocx, cocy, cocz, cx, cy, cz, i, &
       ipgf, j, jpgf, k, kk, la, la_start, lb, lc, maxder_local, n, na, nap, &
@@ -478,7 +478,7 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(3)              :: rap, rbp, rcp, rcw, rpw
 
 !   ---------------------------------------------------------------------------
-!    CALL timeset(routine_name,"I"," ",handle)
+!    CALL timeset(routineN,"I"," ",handle)
 
     v = 0.0_dp
 

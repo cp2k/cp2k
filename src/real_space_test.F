@@ -25,14 +25,20 @@ MODULE real_space_test
 
 ! *****************************************************************************
 
+  USE cell_types,                      ONLY: cell_create,&
+                                             cell_release,&
+                                             cell_type,&
+                                             get_hinv
   USE global_types,                    ONLY: global_environment_type
+  USE input_section_types,             ONLY: section_vals_get_subs_vals,&
+                                             section_vals_type
   USE kinds,                           ONLY: dp
   USE machine,                         ONLY: m_cputime
   USE message_passing,                 ONLY: mp_bcast,&
                                              mp_environ,&
                                              mp_sum
   USE pw_grid_types,                   ONLY: FULLSPACE,&
-                                             PW_MODE_LOCAL, &
+                                             PW_MODE_LOCAL,&
                                              pw_grid_type
   USE pw_grids,                        ONLY: pw_grid_create,&
                                              pw_grid_setup
@@ -40,39 +46,30 @@ MODULE real_space_test
                                              pw_create,&
                                              pw_release,&
                                              pw_type
-  USE realspace_grid_types,            ONLY: realspace_grid_type,&
-                                             rs_get_my_tasks,&
-                                             realspace_grid_p_type,&
-                                             rs_grid_release,&
-                                             rs_grid_create,&
-                                             rs_grid_zero,&
-                                             rs_pw_transfer,&
+  USE realspace_grid_types,            ONLY: pw2rs,&
+                                             realspace_grid_type,&
                                              rs2pw,&
-                                             pw2rs
-  USE cell_types,                 ONLY: cell_type,&
-                                             get_hinv,&
-                                             cell_create,&
-                                             cell_release
+                                             rs_get_my_tasks,&
+                                             rs_grid_create,&
+                                             rs_grid_release,&
+                                             rs_grid_zero,&
+                                             rs_pw_transfer
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
   USE util,                            ONLY: get_limit
-  USE input_section_types,             ONLY: section_vals_type,&
-                                             section_vals_get_subs_vals
-
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
   PRIVATE
   PUBLIC :: rs_test
-  CHARACTER(len=*), PARAMETER :: moduleN = 'real_space_test'
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'real_space_test'
 
 CONTAINS
 
 !******************************************************************************
 SUBROUTINE rs_test ( globenv, error )
 
-    TYPE(global_environment_type), &
-      pointer                             :: globenv
+    TYPE(global_environment_type), POINTER   :: globenv
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -88,17 +85,17 @@ SUBROUTINE rs_test ( globenv, error )
     INTEGER, DIMENSION(3, nparticle)         :: refco, refpt
     INTEGER, DIMENSION(:, :), POINTER        :: tasks
     INTEGER, DIMENSION(nparticle)            :: bsize
-    REAL(KIND=dp)                                :: energy1, energy2, energy3, &
+    REAL(KIND=dp)                            :: energy1, energy2, energy3, &
                                                 integral, t1, t2, t3, tend, &
                                                 tstart
-    REAL(KIND=dp), DIMENSION(3)                  :: s
-    REAL(KIND=dp), DIMENSION(3, nparticle)       :: coord
-    REAL(KIND=dp), DIMENSION(nparticle)          :: bval
+    REAL(KIND=dp), DIMENSION(3)              :: s
+    REAL(KIND=dp), DIMENSION(3, nparticle)   :: coord
+    REAL(KIND=dp), DIMENSION(nparticle)      :: bval
     TYPE(cell_type), POINTER                 :: box
-    TYPE(pw_grid_type),pointer               :: grid
+    TYPE(pw_grid_type), POINTER              :: grid
     TYPE(pw_type), POINTER                   :: pw_a, pw_b, pw_c
     TYPE(realspace_grid_type), POINTER       :: rden
-  TYPE(section_vals_type), POINTER :: force_env_section  
+    TYPE(section_vals_type), POINTER         :: force_env_section
 
   iw =globenv % scr
   NULLIFY(pw_a,pw_b,pw_c)
@@ -127,16 +124,16 @@ SUBROUTINE rs_test ( globenv, error )
   np ( : ) =  128
 
   IF ( globenv % ionode ) THEN
-    CALL random_number ( coord )
-    coord = matmul ( box % hmat, coord )
-    CALL random_number ( bval )
+    CALL RANDOM_NUMBER ( coord )
+    coord = MATMUL ( box % hmat, coord )
+    CALL RANDOM_NUMBER ( bval )
     bsize = MAX ( NINT ( 32.0_dp*bval ), 1 )
-    CALL random_number ( bval )
+    CALL RANDOM_NUMBER ( bval )
     bval = bval * 0.001_dp
   END IF
-  call mp_bcast ( coord, globenv%source, globenv%group )
-  call mp_bcast ( bsize, globenv%source, globenv%group )
-  call mp_bcast ( bval , globenv%source, globenv%group )
+  CALL mp_bcast ( coord, globenv%source, globenv%group )
+  CALL mp_bcast ( bsize, globenv%source, globenv%group )
+  CALL mp_bcast ( bval , globenv%source, globenv%group )
 
   DO i = 1, nparticle
     s = MATMUL ( box % h_inv, coord ( :, i ) )
@@ -332,9 +329,9 @@ END SUBROUTINE rs_test
 
 SUBROUTINE put_on_grid ( r, nc, np, val, dir )
 
-    REAL(KIND=dp), DIMENSION(:, :, :)            :: r
+    REAL(KIND=dp), DIMENSION(:, :, :)        :: r
     INTEGER, DIMENSION(3)                    :: nc, np
-    REAL(KIND=dp)                                :: val
+    REAL(KIND=dp)                            :: val
     INTEGER                                  :: dir
 
     INTEGER                                  :: i, ii, j, jj, k, kk, ns, nx, &
@@ -348,7 +345,7 @@ SUBROUTINE put_on_grid ( r, nc, np, val, dir )
   nu = np + nl - 1
   IF ( dir > 0 ) THEN
     ns = SIZE ( r, dir )
-    IF ( nc(dir) + nl(dir) <= 0 .OR. nc(dir) + nu(dir) > ns ) stop "out of bounds"
+    IF ( nc(dir) + nl(dir) <= 0 .OR. nc(dir) + nu(dir) > ns ) STOP "out of bounds"
   END IF
 
   DO i = nl(3), nu(3)
@@ -371,11 +368,11 @@ END SUBROUTINE put_on_grid
 
 SUBROUTINE int_on_grid ( r, nc, np, val, dir, integral )
 
-    REAL(KIND=dp), DIMENSION(:, :, :)            :: r
+    REAL(KIND=dp), DIMENSION(:, :, :)        :: r
     INTEGER, DIMENSION(3)                    :: nc, np
-    REAL(KIND=dp)                                :: val
+    REAL(KIND=dp)                            :: val
     INTEGER                                  :: dir
-    REAL(KIND=dp)                                :: integral
+    REAL(KIND=dp)                            :: integral
 
     INTEGER                                  :: i, ii, j, jj, k, kk, ns, nx, &
                                                 ny, nz
@@ -389,7 +386,7 @@ SUBROUTINE int_on_grid ( r, nc, np, val, dir, integral )
   nu = np + nl - 1
   IF ( dir > 0 ) THEN
     ns = SIZE ( r, dir )
-    IF ( nc(dir) + nl(dir) <= 0 .OR. nc(dir) + nu(dir) > ns ) stop "out of bounds"
+    IF ( nc(dir) + nl(dir) <= 0 .OR. nc(dir) + nu(dir) > ns ) STOP "out of bounds"
   END IF
 
   DO i = nl(3), nu(3)
@@ -420,7 +417,7 @@ SUBROUTINE rs_pw_get ( rs, pw )
     INTEGER, DIMENSION(3)                    :: lb, ub
     INTEGER, DIMENSION(:, :), POINTER        :: pbo
     INTEGER, DIMENSION(:, :, :), POINTER     :: bo
-    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)     :: rlocal
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: rlocal
 
 !-----------------------------------------------------------------------------!
 

@@ -24,14 +24,13 @@
 !****************************************************************************
 MODULE tbmd_energy_types
   USE kinds,                           ONLY: dp
-
 #include "cp_common_uses.h"
- 
+
   IMPLICIT NONE
   PRIVATE
 
-  CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='tbmd_energy_types'
-  INTEGER, PRIVATE, save :: last_tbmd_id=0
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'tbmd_energy_types'
+  INTEGER, PRIVATE, SAVE :: last_tbmd_id=0
 
   ! *** Public data types ***
   PUBLIC :: tbmd_energy_type, &
@@ -153,7 +152,7 @@ CONTAINS
     LOGICAL                                  :: failure
 
 !   ------------------------------------------------------------------------
-   
+
     failure = .FALSE.
   
     CPPrecondition(ASSOCIATED(tbmd_energy), cp_failure_level, routineP, error, failure)
@@ -250,20 +249,18 @@ CONTAINS
                              E_bandstructure, E_repulsion, &
                              E_correction, E_tb, error)
 
-    TYPE(tbmd_energy_type), POINTER            :: tbmd_energy
-    INTEGER, INTENT(OUT), OPTIONAL             :: id_nr
-    REAL(KIND=dp), INTENT(OUT), OPTIONAL       :: E_kinetic, &
-                                                  E_bandstructure, &
-                                                  E_repulsion, &
-                                                  E_correction, &
-                                                  E_tb
+    TYPE(tbmd_energy_type), POINTER          :: tbmd_energy
+    INTEGER, INTENT(OUT), OPTIONAL           :: id_nr
+    REAL(KIND=dp), INTENT(OUT), OPTIONAL     :: E_kinetic, E_bandstructure, &
+                                                E_repulsion, E_correction, &
+                                                E_tb
     TYPE(cp_error_type), INTENT(INOUT), &
-         OPTIONAL                              :: error
+      OPTIONAL                               :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'tbmd_energy_get', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                    :: failure
+    LOGICAL                                  :: failure
 
 !   ------------------------------------------------------------------------
 
@@ -320,20 +317,18 @@ CONTAINS
                              E_bandstructure, E_repulsion, &
                              E_correction, E_tb, error)
 
-    TYPE(tbmd_energy_type), POINTER            :: tbmd_energy
-    INTEGER, INTENT(IN), OPTIONAL              :: id_nr
-    REAL(KIND=dp), INTENT(IN), OPTIONAL        :: E_kinetic, &
-                                                  E_bandstructure, &
-                                                  E_repulsion, &
-                                                  E_correction, &
-                                                  E_tb
+    TYPE(tbmd_energy_type), POINTER          :: tbmd_energy
+    INTEGER, INTENT(IN), OPTIONAL            :: id_nr
+    REAL(KIND=dp), INTENT(IN), OPTIONAL      :: E_kinetic, E_bandstructure, &
+                                                E_repulsion, E_correction, &
+                                                E_tb
     TYPE(cp_error_type), INTENT(INOUT), &
-         OPTIONAL                              :: error
+      OPTIONAL                               :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'tbmd_energy_set', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                    :: failure
+    LOGICAL                                  :: failure
 
 !   ------------------------------------------------------------------------
 

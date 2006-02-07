@@ -19,43 +19,35 @@
 !******************************************************************************
 
 MODULE qs_ks_qmmm_methods
+  USE coefficient_types,               ONLY: coeff_type
+  USE cp_control_types,                ONLY: dft_control_type
+  USE cube_utils,                      ONLY: cube_info_type,&
+                                             init_cube_info
+  USE input_constants,                 ONLY: do_qmmm_gauss
+  USE kinds,                           ONLY: dp
+  USE pw_env_types,                    ONLY: pw_env_get,&
+                                             pw_env_retain
+  USE pw_pool_types,                   ONLY: pw_pool_init_coeff,&
+                                             pw_pool_p_type,&
+                                             pw_pool_type
+  USE pw_types,                        ONLY: REALDATA3D,&
+                                             REALSPACE,&
+                                             pw_integral_ab
+  USE qmmm_types,                      ONLY: qmmm_env_qm_type
   USE qs_environment_types,            ONLY: get_qs_env,&
-                                             qs_env_retain,&
                                              qs_environment_type,&
                                              set_qs_env
-  USE qmmm_types,                      ONLY: qmmm_env_qm_type
-  USE cube_utils,                      ONLY: init_cube_info,&
-                                             cube_info_type
-  USE pw_env_types,                    ONLY: pw_env_get,&
-                                             pw_env_type, pw_env_retain
-  USE pw_pool_types,                   ONLY: pw_pool_give_back_coeff,&
-                                             pw_pool_init_coeff,&
-                                             pw_pool_p_type,&
-                                             pw_pool_retain,&
-                                             pw_pool_type
-  USE pw_types,                        ONLY: COMPLEXDATA1D,&
-                                             REALDATA3D,&
-                                             REALSPACE,&
-                                             RECIPROCALSPACE,&
-                                             pw_p_type,&
-                                             pw_integral_ab
   USE qs_ks_qmmm_types,                ONLY: qs_ks_qmmm_env_type,&
                                              qs_ks_qmmm_release
-  USE kinds,                           ONLY: dp
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE coefficient_types,               ONLY: coeff_type,&
-                                             coeff_zero
-  USE cp_control_types,                ONLY: dft_control_type
-  USE input_constants, ONLY: do_qmmm_grid, do_qmmm_gauss, do_qmmm_none
-  USE input_section_types,             ONLY: section_vals_type,&
-       section_vals_get_subs_vals
 #include "cp_common_uses.h"
+
   IMPLICIT NONE
 
   PRIVATE
 
-  CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='qs_ks_qmmm_methods'
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_ks_qmmm_methods'
   INTEGER, SAVE, PRIVATE :: last_ks_qmmm_nr=0
 
   PUBLIC :: ks_qmmm_env_rebuild, qs_ks_qmmm_create,qmmm_calculate_energy,&
@@ -85,15 +77,14 @@ CONTAINS
   !!
   !!*** **********************************************************************
   SUBROUTINE ks_qmmm_env_rebuild(qs_env,qmmm_env,error)
-    ! Arguments
-    TYPE(cp_error_type), INTENT(inout), &
-         OPTIONAL                               :: error
     TYPE(qs_environment_type), OPTIONAL, &
-         POINTER                                :: qs_env 
+      POINTER                                :: qs_env
+    TYPE(qmmm_env_qm_type), POINTER          :: qmmm_env
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
     TYPE(qs_ks_qmmm_env_type), POINTER       :: ks_qmmm_env
-    TYPE(qmmm_env_qm_type), POINTER             :: qmmm_env
-    ! Local Variables
-    
+
     NULLIFY(ks_qmmm_env)
     CALL get_qs_env(qs_env=qs_env,&
          ks_qmmm_env=ks_qmmm_env)
@@ -134,20 +125,22 @@ CONTAINS
 !!
 !!*** **********************************************************************
   SUBROUTINE qs_ks_qmmm_create(ks_qmmm_env, qs_env, qmmm_env, error)
-    TYPE(qs_ks_qmmm_env_type), POINTER            :: ks_qmmm_env
-    TYPE(qmmm_env_qm_type), pointer :: qmmm_env
-    TYPE(qs_environment_type), POINTER            :: qs_env
+    TYPE(qs_ks_qmmm_env_type), POINTER       :: ks_qmmm_env
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(qmmm_env_qm_type), POINTER          :: qmmm_env
     TYPE(cp_error_type), INTENT(inout), &
-         OPTIONAL                               :: error
+      OPTIONAL                               :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_ks_qmmm_create', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, stat, cmax, igrid
+    INTEGER                                  :: cmax, handle, igrid, stat
     LOGICAL                                  :: failure
+    TYPE(cube_info_type), DIMENSION(:), &
+      POINTER                                :: cube_info
+    TYPE(pw_pool_p_type), DIMENSION(:), &
+      POINTER                                :: pools
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
-    TYPE(pw_pool_p_type), DIMENSION (:), pointer :: pools
-    TYPE(cube_info_type), DIMENSION(:), pointer :: cube_info
 
     CALL timeset(routineN,"I","",handle)
 
@@ -221,7 +214,7 @@ CONTAINS
       OPTIONAL                               :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_calculate_energy', &
-      routineP = moduleN//':'//routineN   
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, ispin
     LOGICAL                                  :: failure
@@ -271,7 +264,7 @@ CONTAINS
       OPTIONAL                               :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_modify_hartree_pot', &
-      routineP = moduleN//':'//routineN   
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle
     LOGICAL                                  :: failure

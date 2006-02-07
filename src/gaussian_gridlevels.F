@@ -18,14 +18,13 @@
 !!   SOURCE
 !****************************************************************************
 MODULE gaussian_gridlevels
+  USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
+                                             cp_print_key_unit_nr
   USE global_types,                    ONLY: global_environment_type
+  USE input_section_types,             ONLY: section_vals_type
   USE kinds,                           ONLY: dp
   USE message_passing,                 ONLY: mp_sum
   USE termination,                     ONLY: stop_memory
-  USE input_section_types,             ONLY: section_vals_type
-  USE cp_output_handling,              ONLY: cp_print_key_unit_nr, &
-                                             cp_print_key_finished_output
-
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -66,11 +65,11 @@ CONTAINS
  
 SUBROUTINE destroy_gaussian_gridlevel(gridlevel_info,force_env_section,globenv,error)
     TYPE(gridlevel_info_type)                :: gridlevel_info
+    TYPE(section_vals_type), POINTER         :: force_env_section
     TYPE(global_environment_type), &
-      pointer, OPTIONAL           :: globenv
+      OPTIONAL, POINTER                      :: globenv
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
-    TYPE(section_vals_type), POINTER :: force_env_section
 
     CHARACTER(LEN=*), PARAMETER :: routine = &
       "SUBROUTINE destroy_gaussian_gridlevel (MODULE gaussian_gridlevels)"

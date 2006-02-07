@@ -60,7 +60,7 @@ MODULE cp_sm_fm_interactions
        cp_sm_fm_multiply, &
        cp_sm_plus_fm_fm_t
 
-  CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='cp_sm_fm_interactions'
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_sm_fm_interactions'
   
   !****************************************************************************
 
@@ -702,7 +702,7 @@ CONTAINS
     CPPrecondition(ncol.le.v_in%matrix_struct%ncol_global,cp_failure_level,routineP,error,failure)
     CPPrecondition(ncol.le.v_out%matrix_struct%ncol_global,cp_failure_level,routineP,error,failure)
     CPPrecondition(ncol.ge.0,cp_failure_level,routineP,error,failure)
-    IF (ncol .EQ. 0) return
+    IF (ncol .EQ. 0) RETURN
     CALL timeset(routineN,"I","",handle)
     ! 
     ! para_env of the sparse and the full matrices should be compatible
@@ -1260,8 +1260,8 @@ END SUBROUTINE cp_sm_plus_fm_fm_t
     INTEGER, DIMENSION(:), POINTER :: atomic_col_distribution, &
       atomic_row_distribution, col_offset_in_junk, fm_col_indices, &
       fm_row_indices, local_atomic_cols, local_atomic_rows, &
-      ncol_global_of_junk,  row_offset_in_junk, &
-      sm_first_col, sm_first_row, sm_last_col, sm_last_row
+      ncol_global_of_junk, row_offset_in_junk, sm_first_col, sm_first_row, &
+      sm_last_col, sm_last_row
     INTEGER, DIMENSION(:, :), POINTER        :: blacs2mpi
     LOGICAL                                  :: failure, transpose_block
     REAL(KIND=dp)                            :: alpha_ji, flops, flops_l
@@ -1272,7 +1272,7 @@ END SUBROUTINE cp_sm_plus_fm_fm_t
     TYPE(real_block_node_type), POINTER      :: block_node
 
     CALL timeset(routineN,"I","Gflops",handle)
-    failure=.false.
+    failure=.FALSE.
     NULLIFY( &
          col_offset_in_junk, row_offset_in_junk, fm_row_indices, fm_col_indices,&
          sm_last_row,&
@@ -1573,9 +1573,8 @@ END SUBROUTINE cp_sm_plus_fm_fm_t
     INTEGER, DIMENSION(4)                    :: reqs
     INTEGER, DIMENSION(:), POINTER :: atomic_col_distribution, &
       atomic_row_distribution, col_offset_in_junk, flat_local_cols, &
-      flat_local_rows, fm_col_indices, fm_row_indices,  &
-      ncol_global_of_junk, row_offset_in_junk, &
-      sm_first_col, sm_first_row, sm_last_col, sm_last_row
+      flat_local_rows, fm_col_indices, fm_row_indices, ncol_global_of_junk, &
+      row_offset_in_junk, sm_first_col, sm_first_row, sm_last_col, sm_last_row
     INTEGER, DIMENSION(:, :), POINTER        :: blacs2mpi
     LOGICAL                                  :: failure, transpose_block
     REAL(KIND=dp)                            :: flops, flops_l, my_alpha

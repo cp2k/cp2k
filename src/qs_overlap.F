@@ -32,8 +32,13 @@ MODULE qs_overlap
   USE cp_fm_types,                     ONLY: cp_fm_get_info,&
                                              cp_fm_get_submatrix,&
                                              cp_fm_type
+  USE cp_output_handling,              ONLY: cp_p_file,&
+                                             cp_print_key_finished_output,&
+                                             cp_print_key_should_output,&
+                                             cp_print_key_unit_nr
   USE distribution_2d_types,           ONLY: distribution_2d_type
   USE global_types,                    ONLY: global_environment_type
+  USE input_section_types,             ONLY: section_vals_type
   USE kinds,                           ONLY: dp,&
                                              dp_size,&
                                              int_size
@@ -49,18 +54,12 @@ MODULE qs_overlap
   USE particle_types,                  ONLY: get_particle_set,&
                                              particle_type
   USE qs_environment_types,            ONLY: get_qs_env,&
-                                             set_qs_env,&
-                                             qs_environment_type
-  USE qs_neighbor_list_types,          ONLY: first_list,&
-                                             first_node,&
-                                             get_neighbor_list,&
-                                             get_neighbor_list_set,&
-                                             get_neighbor_node,&
-                                             neighbor_list_set_p_type,&
-                                             neighbor_list_set_type,&
-                                             neighbor_list_type,&
-                                             neighbor_node_type,&
-                                             next
+                                             qs_environment_type,&
+                                             set_qs_env
+  USE qs_neighbor_list_types,          ONLY: &
+       first_list, first_node, get_neighbor_list, get_neighbor_list_set, &
+       get_neighbor_node, neighbor_list_set_p_type, neighbor_list_set_type, &
+       neighbor_list_type, neighbor_node_type, next
   USE sparse_matrix_types,             ONLY: add_block_node,&
                                              allocate_matrix,&
                                              allocate_matrix_set,&
@@ -75,14 +74,6 @@ MODULE qs_overlap
                                              stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE cp_output_handling,              ONLY: cp_print_key_unit_nr, &
-                                             cp_print_key_finished_output,&
-                                             cp_print_key_should_output,&
-                                             cp_p_file
-  USE input_section_types,             ONLY: section_vals_type,&
-                                             section_vals_get_subs_vals
-
-
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -91,7 +82,7 @@ MODULE qs_overlap
 
 ! *** Global parameters ***
 
-  CHARACTER(LEN=*), PARAMETER :: module_name = "qs_overlap"
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_overlap'
 
 ! *** Public subroutines ***
 
@@ -117,11 +108,11 @@ CONTAINS
 !   ***************************************************************************
 
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(global_environment_type), &
-      pointer                                :: globenv
-    INTEGER,INTENT(IN), OPTIONAL             :: nderivative
+    TYPE(global_environment_type), POINTER   :: globenv
+    INTEGER, INTENT(IN), OPTIONAL            :: nderivative
     TYPE(cp_error_type), INTENT(inout), &
-         OPTIONAL                              :: error
+      OPTIONAL                               :: error
+
 !   *** Local types ***
 
     TYPE block_p_type
@@ -130,7 +121,7 @@ CONTAINS
 
 !   *** Local parameters ***
 
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "build_overlap_matrix"
+    CHARACTER(LEN=*), PARAMETER :: routineN = "build_overlap_matrix"
 
 !   *** Local variables ***
 
@@ -178,9 +169,9 @@ CONTAINS
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
 
-    CALL write_checkpoint_information("entering "//routine_name,globenv,error)
+    CALL write_checkpoint_information("entering "//routineN,globenv,error)
 
-    CALL timeset(routine_name,"I","",handle)
+    CALL timeset(routineN,"I","",handle)
 
     NULLIFY ( atomic_kind_set,particle_set,matrix_s,sab_orb,distribution_2d)
     CALL get_qs_env(qs_env=qs_env,&
@@ -208,10 +199,10 @@ CONTAINS
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,nsgf=nsgf)
 
     ALLOCATE (first_sgf(natom),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "first_sgf",natom*int_size)
     ALLOCATE (last_sgf(natom),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "last_sgf",natom*int_size)
 
     CALL get_particle_set(particle_set=particle_set,&
@@ -234,10 +225,10 @@ CONTAINS
                          distribution_2d=distribution_2d)
 
     DEALLOCATE (first_sgf,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "first_sgf")
     DEALLOCATE (last_sgf,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "last_sgf")
 
     DO i=2,maxder
@@ -264,22 +255,22 @@ CONTAINS
 
     ALLOCATE (ai_work(ldai,ldai,ncoset(nder)),STAT=istat)
     IF (istat /= 0) THEN
-      CALL stop_memory(routine_name,module_name,__LINE__,&
+      CALL stop_memory(routineN,moduleN,__LINE__,&
                        "ai_work",ldai*ldai*ncoset(nder)*dp_size)
     END IF
 
     ALLOCATE (sab(maxco,maxco*maxder),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "sab",maxco*maxco*maxder*dp_size)
     sab(:,:) = 0.0_dp
 
     ALLOCATE (work(maxco,maxsgf),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "work",maxco*maxsgf*dp_size)
     work(:,:) = 0.0_dp
 
     ALLOCATE (sint(maxder),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "sint",maxder*int_size)
     DO i=1,maxder
       NULLIFY (sint(i)%block)
@@ -458,22 +449,22 @@ CONTAINS
 !   *** Release work storage ***
 
     DEALLOCATE (ai_work,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "ai_work")
 
     DEALLOCATE (sab,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "sab")
 
     DEALLOCATE (work,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "work")
 
     DO i=1,maxder
       NULLIFY (sint(i)%block)
     END DO
     DEALLOCATE (sint,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "sint")
 
     CALL set_qs_env(qs_env=qs_env,&
@@ -501,7 +492,7 @@ CONTAINS
             "DFT%PRINT%AO_MATRICES/OVERLAP", error=error)
     END IF
 
-    CALL write_checkpoint_information("leaving "//routine_name,globenv,error)
+    CALL write_checkpoint_information("leaving "//routineN,globenv,error)
 
   END SUBROUTINE build_overlap_matrix
 
@@ -520,17 +511,17 @@ CONTAINS
     TYPE(cp_fm_type), POINTER                :: blacs_matrix
     INTEGER, INTENT(IN)                      :: before, after
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(global_environment_type), &
-      pointer                             :: globenv
+    TYPE(global_environment_type), POINTER   :: globenv
     INTEGER, INTENT(IN), OPTIONAL            :: first_row, last_row, &
                                                 first_col, last_col
     INTEGER, INTENT(IN)                      :: output_unit
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "write_fm_with_basis_info"
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'write_fm_with_basis_info'
 
     CHARACTER(LEN=60)                        :: matrix_name
     INTEGER                                  :: col1, col2, group, istat, &
                                                 ncol_global, nrow_global, &
-                                                nsgf,  row1, row2
+                                                nsgf, row1, row2
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: matrix
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
@@ -581,7 +572,7 @@ CONTAINS
 
     IF (ASSOCIATED(matrix)) THEN
       DEALLOCATE (matrix,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                        "matrix")
     END IF
 
@@ -602,12 +593,12 @@ CONTAINS
     CHARACTER(LEN=*), INTENT(IN)             :: matrix_name
     INTEGER, INTENT(IN)                      :: before, after
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(global_environment_type), &
-         POINTER                             :: globenv
+    TYPE(global_environment_type), POINTER   :: globenv
     INTEGER, INTENT(IN)                      :: first_row, last_row, &
-                                                first_col, last_col, output_unit
+                                                first_col, last_col, &
+                                                output_unit
 
-    CHARACTER(LEN=*), PARAMETER              :: routine_name = "write_matrix"
+    CHARACTER(LEN=*), PARAMETER              :: routineN = 'write_matrix'
 
     CHARACTER(LEN=2)                         :: element_symbol
     CHARACTER(LEN=25)                        :: fmtstr1
@@ -617,7 +608,6 @@ CONTAINS
       l, left, natom, ncol, ndigits, nset, nsgf, right, to, width
     INTEGER, DIMENSION(:), POINTER           :: nshell
     INTEGER, DIMENSION(:, :), POINTER        :: lshell
-    LOGICAL                                  :: ionode
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
@@ -723,12 +713,12 @@ CONTAINS
 !   ***************************************************************************
 
     TYPE(real_matrix_type), POINTER          :: matrix
-    TYPE(global_environment_type), &
-      pointer                             :: globenv
-    TYPE(section_vals_type), POINTER :: force_env_section
+    TYPE(section_vals_type), POINTER         :: force_env_section
+    TYPE(global_environment_type), POINTER   :: globenv
     TYPE(cp_error_type), INTENT(inout), &
-         OPTIONAL                               :: error
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "write_matrix_distribution"
+      OPTIONAL                               :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'write_matrix_distribution'
 
     CHARACTER(LEN=80)                        :: matrix_name, matrix_symmetry
     INTEGER                                  :: group, ipe, istat, mype, &
@@ -757,12 +747,12 @@ CONTAINS
 !   *** Allocate work storage ***
 
     ALLOCATE (nblock(npe),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "nblock",npe*int_size)
     nblock(:) = 0
 
     ALLOCATE (nelement(npe),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "nelement",npe*int_size)
     nelement(:) = 0
 
@@ -805,11 +795,11 @@ CONTAINS
 !   *** Release work storage ***
 
     DEALLOCATE (nblock,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "nblock")
 
     DEALLOCATE (nelement,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "nelement")
 
   END SUBROUTINE write_matrix_distribution
@@ -830,14 +820,13 @@ CONTAINS
     TYPE(real_matrix_type), POINTER          :: sparse_matrix
     INTEGER, INTENT(IN)                      :: before, after
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(global_environment_type), &
-      pointer                             :: globenv
+    TYPE(global_environment_type), POINTER   :: globenv
     INTEGER, INTENT(IN), OPTIONAL            :: first_row, last_row, &
                                                 first_col, last_col
-    INTEGER, INTENT(IN)                      :: output_unit
     REAL(dp), INTENT(IN), OPTIONAL           :: scale
+    INTEGER, INTENT(IN)                      :: output_unit
 
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "write_sparse_matrix"
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'write_sparse_matrix'
 
     CHARACTER(LEN=40)                        :: matrix_symmetry
     CHARACTER(LEN=80)                        :: matrix_name
@@ -864,7 +853,7 @@ CONTAINS
     ELSE IF (matrix_symmetry == "antisymmetric") THEN
       CALL symmetrize_matrix(matrix,"anti_upper_to_lower")
     ELSE IF (matrix_symmetry /= "none") THEN
-      CALL stop_program(routine_name,module_name,__LINE__,&
+      CALL stop_program(routineN,moduleN,__LINE__,&
                         "Invalid matrix structure",globenv)
     END IF
 
@@ -908,7 +897,7 @@ CONTAINS
 
     IF (ASSOCIATED(matrix)) THEN
       DEALLOCATE (matrix,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                        "matrix")
     END IF
 

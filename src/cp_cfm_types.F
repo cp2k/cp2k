@@ -33,16 +33,16 @@ MODULE cp_cfm_types
   USE cp_para_types,                   ONLY: cp_blacs_env_type,&
                                              cp_para_env_type
   USE kinds,                           ONLY: dp
+  USE message_passing,                 ONLY: cp2k_is_parallel
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE message_passing,                 ONLY: cp2k_is_parallel
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
   PRIVATE
 
   LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
-  CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='cp_cfm_types'
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_cfm_types'
 
   INTEGER,SAVE,PRIVATE :: last_cfm_id_nr=0
 
@@ -378,7 +378,7 @@ CONTAINS
 !   ---------------------------------------------------------------------------
 
     matrix%local_data(:,:) = alpha
-    IF (present(beta)) THEN
+    IF (PRESENT(beta)) THEN
       DO i=1,matrix%matrix_struct%nrow_global
          CALL cp_cfm_set_element(matrix,i,i,beta)
       ENDDO

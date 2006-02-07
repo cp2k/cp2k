@@ -47,7 +47,7 @@ MODULE orbital_pointers
 
 ! *** Global parameters ***
 
-  CHARACTER(LEN=*), PARAMETER :: module_name = "orbital_pointers"
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'orbital_pointers'
 
   INTEGER, SAVE :: current_maxl = -1
 
@@ -92,20 +92,20 @@ CONTAINS
 
     INTEGER, INTENT(IN)                      :: maxl
 
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "create_orbital_pointers"
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'create_orbital_pointers'
 
-    INTEGER                                  :: istat, iso, l, lx, ly, lz, m
+    INTEGER                                  :: iso, istat, l, lx, ly, lz, m
 
 !   ---------------------------------------------------------------------------
 
     IF (current_maxl > -1) THEN
-      CALL stop_program(routine_name,module_name,__LINE__,&
+      CALL stop_program(routineN,moduleN,__LINE__,&
                         "Orbital pointers are already allocated. "//&
                         "Use the init routine for an update")
     END IF
 
     IF (maxl < 0) THEN
-      CALL stop_program(routine_name,module_name,__LINE__,&
+      CALL stop_program(routineN,moduleN,__LINE__,&
                         "A negative maximum angular momentum quantum "//&
                         "number is invalid")
     END IF
@@ -114,7 +114,7 @@ CONTAINS
 
     ALLOCATE (nco(-1:maxl),STAT=istat)
     IF (istat /= 0) THEN
-      CALL stop_memory(routine_name,module_name,__LINE__,&
+      CALL stop_memory(routineN,moduleN,__LINE__,&
                        "nco",(maxl+2)*int_size)
     END IF
 
@@ -128,7 +128,7 @@ CONTAINS
 
     ALLOCATE (ncoset(-1:maxl),STAT=istat)
     IF (istat /= 0) THEN
-      CALL stop_memory(routine_name,module_name,__LINE__,&
+      CALL stop_memory(routineN,moduleN,__LINE__,&
                        "ncoset",(maxl+2)*int_size)
     END IF
 
@@ -142,7 +142,7 @@ CONTAINS
 
     ALLOCATE (co(0:maxl,0:maxl,0:maxl),STAT=istat)
     IF (istat /= 0) THEN
-      CALL stop_memory(routine_name,module_name,__LINE__,&
+      CALL stop_memory(routineN,moduleN,__LINE__,&
                        "co",(maxl+1)**3*int_size)
     END IF
 
@@ -150,7 +150,7 @@ CONTAINS
 
     ALLOCATE (coset(-1:maxl,-1:maxl,-1:maxl),STAT=istat)
     IF (istat /= 0) THEN
-      CALL stop_memory(routine_name,module_name,__LINE__,&
+      CALL stop_memory(routineN,moduleN,__LINE__,&
                        "coset",(maxl+2)**3*int_size)
     END IF
 
@@ -173,7 +173,7 @@ CONTAINS
 
     ALLOCATE (indco(3,ncoset(maxl)),STAT=istat)
     IF (istat /= 0) THEN
-      CALL stop_memory(routine_name,module_name,__LINE__,&
+      CALL stop_memory(routineN,moduleN,__LINE__,&
                        "indco",3*ncoset(maxl)*int_size)
     END IF
 
@@ -192,7 +192,7 @@ CONTAINS
 
     ALLOCATE (nso(-1:maxl),STAT=istat)
     IF (istat /= 0) THEN
-      CALL stop_memory(routine_name,module_name,__LINE__,&
+      CALL stop_memory(routineN,moduleN,__LINE__,&
                        "nso",(maxl+2)*int_size)
     END IF
 
@@ -206,7 +206,7 @@ CONTAINS
 
     ALLOCATE (nsoset(-1:maxl),STAT=istat)
     IF (istat /= 0) THEN
-      CALL stop_memory(routine_name,module_name,__LINE__,&
+      CALL stop_memory(routineN,moduleN,__LINE__,&
                        "nsoset",(maxl+2)*int_size)
     END IF
 
@@ -218,7 +218,7 @@ CONTAINS
 
     ALLOCATE (indso(2,nsoset(maxl)),STAT=istat)
     IF (istat /= 0) THEN
-      CALL stop_memory(routine_name,module_name,__LINE__,&
+      CALL stop_memory(routineN,moduleN,__LINE__,&
                        "indso",2*nsoset(maxl)*int_size)
     END IF
 
@@ -234,7 +234,7 @@ CONTAINS
 
     ALLOCATE (so(0:maxl,-maxl:maxl),soset(0:maxl,-maxl:maxl),STAT=istat)
     IF (istat /= 0) THEN
-      CALL stop_memory(routine_name,module_name,__LINE__,&
+      CALL stop_memory(routineN,moduleN,__LINE__,&
                     "so,soset",2*(1+maxl)*(2*maxl+1)*int_size)
     END IF
 
@@ -262,7 +262,7 @@ CONTAINS
 
 !   ***************************************************************************
 
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "deallocate_orbital_pointers"
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'deallocate_orbital_pointers'
 
     INTEGER                                  :: istat
 
@@ -272,52 +272,52 @@ CONTAINS
 
       DEALLOCATE (co,STAT=istat)
       IF (istat /= 0) THEN
-        CALL stop_memory(routine_name,module_name,__LINE__,"co")
+        CALL stop_memory(routineN,moduleN,__LINE__,"co")
       END IF
 
       DEALLOCATE (coset,STAT=istat)
       IF (istat /= 0) THEN
-        CALL stop_memory(routine_name,module_name,__LINE__,"coset")
+        CALL stop_memory(routineN,moduleN,__LINE__,"coset")
       END IF
 
       DEALLOCATE (indco,STAT=istat)
       IF (istat /= 0) THEN
-        CALL stop_memory(routine_name,module_name,__LINE__,"indco")
+        CALL stop_memory(routineN,moduleN,__LINE__,"indco")
       END IF
 
       DEALLOCATE (indso,STAT=istat)
       IF (istat /= 0) THEN
-        CALL stop_memory(routine_name,module_name,__LINE__,"indso")
+        CALL stop_memory(routineN,moduleN,__LINE__,"indso")
       END IF
 
       DEALLOCATE (nco,STAT=istat)
       IF (istat /= 0) THEN
-        CALL stop_memory(routine_name,module_name,__LINE__,"nco")
+        CALL stop_memory(routineN,moduleN,__LINE__,"nco")
       END IF
 
       DEALLOCATE (ncoset,STAT=istat)
       IF (istat /= 0) THEN
-        CALL stop_memory(routine_name,module_name,__LINE__,"ncoset")
+        CALL stop_memory(routineN,moduleN,__LINE__,"ncoset")
       END IF
 
       DEALLOCATE (nso,STAT=istat)
       IF (istat /= 0) THEN
-        CALL stop_memory(routine_name,module_name,__LINE__,"nso")
+        CALL stop_memory(routineN,moduleN,__LINE__,"nso")
       END IF
 
       DEALLOCATE (nsoset,STAT=istat)
       IF (istat /= 0) THEN
-        CALL stop_memory(routine_name,module_name,__LINE__,"nsoset")
+        CALL stop_memory(routineN,moduleN,__LINE__,"nsoset")
       END IF
 
       DEALLOCATE (so,STAT=istat)
       IF (istat /= 0) THEN
-        CALL stop_memory(routine_name,module_name,__LINE__,"nsoset")
+        CALL stop_memory(routineN,moduleN,__LINE__,"nsoset")
       END IF
 
       DEALLOCATE (soset,STAT=istat)
       IF (istat /= 0) THEN
-        CALL stop_memory(routine_name,module_name,__LINE__,"nsoset")
+        CALL stop_memory(routineN,moduleN,__LINE__,"nsoset")
       END IF
 
       current_maxl = -1
@@ -338,12 +338,12 @@ CONTAINS
 
     INTEGER, INTENT(IN)                      :: maxl
 
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "init_orbital_pointers"
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'init_orbital_pointers'
 
 !   ---------------------------------------------------------------------------
 
     IF (maxl < 0) THEN
-      CALL stop_program(routine_name,module_name,__LINE__,&
+      CALL stop_program(routineN,moduleN,__LINE__,&
                         "A negative maximum angular momentum quantum "//&
                         "number is invalid")
     END IF

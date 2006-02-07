@@ -26,47 +26,38 @@
 !!   SOURCE
 !****************************************************************************
 MODULE tbmd_hamiltonian
-  USE atomic_kind_types,                      ONLY: atomic_kind_type
-  USE cell_types,                             ONLY: cell_type, &
-                                                    scaled_to_real
-  USE cp_subsystem_types,                     ONLY: cp_subsystem_type
-  USE distribution_2d_types,                  ONLY: distribution_2d_type
-  USE fist_neighbor_list_types,               ONLY: neighbor_list_set_type, &
-                                                    neighbor_list_type, &
-                                                    neighbor_node_type, &
-                                                    first_list, &
-                                                    first_node, &
-                                                    next, &
-                                                    get_neighbor_list, &
-                                                    get_neighbor_list_set, &
-                                                    get_neighbor_node
-  USE global_types,                           ONLY: global_environment_type
-  USE kinds,                                  ONLY: dp
-  USE molecule_kind_types,                    ONLY: molecule_kind_type
-  USE particle_types,                         ONLY: particle_type
-  USE sparse_matrix_types,                    ONLY: real_matrix_type, &
-                                                    real_matrix_p_type, &
-                                                    allocate_matrix, &
-                                                    allocate_matrix_set, &
-                                                    replicate_matrix_structure, &
-                                                    add_block_node
-  USE tbmd_energy_types,                      ONLY: tbmd_energy_type
-  USE tbmd_environment_types,                 ONLY: tbmd_environment_type, &
-                                                    tbmd_env_get
-  USE tbmd_force_types,                       ONLY: tbmd_force_type
-  USE tbmd_model_types,                       ONLY: tbmd_model_type, &
-                                                    tbmd_model_get
-  USE tbmd_neighbor_list_env_types,           ONLY: tbmd_neighbor_list_env_type, &
-                                                    tbmd_neighbor_list_env_get
-  USE timings,                                ONLY: timeset, &
-                                                    timestop
-
+  USE atomic_kind_types,               ONLY: atomic_kind_type
+  USE cell_types,                      ONLY: cell_type
+  USE cp_subsystem_types,              ONLY: cp_subsystem_type
+  USE distribution_2d_types,           ONLY: distribution_2d_type
+  USE fist_neighbor_list_types,        ONLY: &
+       first_list, first_node, get_neighbor_list, get_neighbor_list_set, &
+       get_neighbor_node, neighbor_list_set_type, neighbor_list_type, &
+       neighbor_node_type, next
+  USE kinds,                           ONLY: dp
+  USE particle_types,                  ONLY: particle_type
+  USE sparse_matrix_types,             ONLY: add_block_node,&
+                                             allocate_matrix,&
+                                             allocate_matrix_set,&
+                                             real_matrix_p_type,&
+                                             real_matrix_type,&
+                                             replicate_matrix_structure
+  USE tbmd_energy_types,               ONLY: tbmd_energy_type
+  USE tbmd_environment_types,          ONLY: tbmd_env_get,&
+                                             tbmd_environment_type
+  USE tbmd_force_types,                ONLY: tbmd_force_type
+  USE tbmd_model_types,                ONLY: tbmd_model_get,&
+                                             tbmd_model_type
+  USE tbmd_neighbor_list_env_types,    ONLY: tbmd_neighbor_list_env_get,&
+                                             tbmd_neighbor_list_env_type
+  USE timings,                         ONLY: timeset,&
+                                             timestop
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
   PRIVATE
 
-  CHARACTER(len=*), PARAMETER :: moduleN = 'tbmd_hamiltonian'
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'tbmd_hamiltonian'
 
   ! *** Public subroutines ***
   PUBLIC :: tbmd_build_hamiltonian
@@ -116,7 +107,8 @@ CONTAINS
     TYPE(cp_error_type), INTENT(INOUT), &
       OPTIONAL                               :: error
 
-    ! *** Local types *** !
+! *** Local types *** !
+
     TYPE block_p_type
       REAL(KIND = dp), DIMENSION(:,:), POINTER :: block
     END TYPE block_p_type
@@ -613,13 +605,9 @@ CONTAINS
 !!
 !!*** **********************************************************************
   FUNCTION tbmd_sm_st(r_0, r, n, r_calpha, n_calpha, r_cutoff) RESULT(res)
-    REAL(KIND=dp), INTENT(IN)                           :: r_0, &
-                                                           r, &
-                                                           n, &
-                                                           r_calpha, &
-                                                           n_calpha, &
-                                                           r_cutoff
-    REAL(KIND=dp)                                       :: res
+    REAL(KIND=dp), INTENT(IN)                :: r_0, r, n, r_calpha, &
+                                                n_calpha, r_cutoff
+    REAL(KIND=dp)                            :: res
 
 !   ------------------------------------------------------------------------
 
@@ -662,13 +650,9 @@ CONTAINS
 !!
 !!*** **********************************************************************
   FUNCTION tbmd_pair_repulsion_energy(r_0, r, m, r_calpha, n_calpha, r_cutoff) RESULT(res)
-    REAL(KIND=dp), INTENT(IN)                           :: r_0, &
-                                                           r, &
-                                                           m, &
-                                                           r_calpha, &
-                                                           n_calpha, &
-                                                           r_cutoff
-    REAL(KIND=dp)                                       :: res
+    REAL(KIND=dp), INTENT(IN)                :: r_0, r, m, r_calpha, &
+                                                n_calpha, r_cutoff
+    REAL(KIND=dp)                            :: res
 
 !   ------------------------------------------------------------------------
 
@@ -711,12 +695,8 @@ CONTAINS
 !!
 !!*** **********************************************************************
   FUNCTION tbmd_dsm_st(r_0, r, n, r_calpha, n_calpha) RESULT(res)
-    REAL(KIND=dp), INTENT(IN)                           :: r_0, &
-                                                           r, &
-                                                           n, &
-                                                           r_calpha, &
-                                                           n_calpha                              
-    REAL(KIND=dp)                                       :: res
+    REAL(KIND=dp), INTENT(IN)                :: r_0, r, n, r_calpha, n_calpha
+    REAL(KIND=dp)                            :: res
 
 !   ------------------------------------------------------------------------
 
@@ -757,12 +737,8 @@ CONTAINS
 !!
 !!*** **********************************************************************
   FUNCTION tbmd_pair_repulsion_force(r_0, r, m, r_calpha, n_calpha) RESULT(res)
-    REAL(KIND=dp), INTENT(IN)                           :: r_0, &
-                                                           r, &
-                                                           m, &
-                                                           r_calpha, &
-                                                           n_calpha                  
-    REAL(KIND=dp)                                       :: res
+    REAL(KIND=dp), INTENT(IN)                :: r_0, r, m, r_calpha, n_calpha
+    REAL(KIND=dp)                            :: res
 
 !   ------------------------------------------------------------------------
 

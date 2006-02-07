@@ -22,8 +22,7 @@
 
 MODULE machine_xt3
 
-  USE kinds,                           ONLY: dp,&
-                                             sp
+  USE kinds,                           ONLY: dp
 
   IMPLICIT NONE
 
@@ -39,7 +38,7 @@ MODULE machine_xt3
 CONTAINS
 
 FUNCTION m_loc_r(a) RESULT(res)
-    REAL(KIND=dp), DIMENSION(*), INTENT(in) :: a
+    REAL(KIND=dp), DIMENSION(*), INTENT(in)  :: a
     INTEGER                                  :: res
 
   res=-1
@@ -72,15 +71,19 @@ END FUNCTION m_iargc
 !******************************************************************************
 !!  cpu time in seconds
 FUNCTION m_cputime() RESULT (ct)
-  REAL(KIND=dp) :: ct
-  REAL(dp)      :: dclock
+    REAL(KIND=dp)                            :: ct
+
+    REAL(dp)                                 :: dclock
+
   ct = dclock()
 END FUNCTION m_cputime
 !******************************************************************************
 !!  wall clock time in seconds
 FUNCTION m_walltime() RESULT (wt)
-  REAL(KIND=dp) :: wt
-  REAL(KIND=dp) :: dclock
+    REAL(KIND=dp)                            :: wt
+
+    REAL(KIND=dp)                            :: dclock
+
   wt = dclock()
 END FUNCTION m_walltime
 !******************************************************************************

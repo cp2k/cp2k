@@ -40,7 +40,7 @@ MODULE kg_main
 
 ! *** Global parameters ***
 
-  CHARACTER(LEN=*), PARAMETER :: moduleN = "kg_main"
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'kg_main'
 
 ! *** Global variables ***
 
@@ -73,8 +73,8 @@ CONTAINS
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = "kg_create_force_env", &
-      routineP = moduleN//":"//routineN
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'kg_create_force_env', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle
     LOGICAL                                  :: failure
@@ -83,7 +83,7 @@ CONTAINS
 
     CALL timeset(routineN,"I","",handle)
 !dbg
-    failure=.false.
+    failure=.FALSE.
 !dbg
     CALL kg_env_create(kg_env,para_env=globenv%para_env,error=error)
 !   CALL cp_error_check(error,failure)

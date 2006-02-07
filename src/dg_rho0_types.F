@@ -19,22 +19,19 @@
 
 MODULE dg_rho0_types
 
-  USE cp_para_types,                   ONLY: cp_para_env_type
-  USE coefficient_types,               ONLY: coeff_type, &
-                                             coeff_allocate, &
-                                             coeff_deallocate, &
-                                             coeff_zero, &
+  USE coefficient_types,               ONLY: PW_REALDATA3D,&
+                                             coeff_allocate,&
+                                             coeff_deallocate,&
                                              coeff_init,&
-                                             PW_REALDATA3D, &
-                                             PW_COMPLEXDATA3D 
-  USE kinds, ONLY: dp, default_string_length
-  USE mathconstants, ONLY : pi
-  USE pw_grid_types, ONLY : pw_grid_type
-  USE termination, ONLY : stop_program
-  USE input_constants,                 ONLY: do_ewald_none,&
-                                             do_ewald_ewald,&
+                                             coeff_type,&
+                                             coeff_zero
+  USE input_constants,                 ONLY: do_ewald_ewald,&
+                                             do_ewald_none,&
                                              do_ewald_pme,&
-                                             do_ewald_spme  
+                                             do_ewald_spme
+  USE kinds,                           ONLY: dp
+  USE pw_grid_types,                   ONLY: pw_grid_type
+  USE termination,                     ONLY: stop_program
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -43,7 +40,7 @@ MODULE dg_rho0_types
   PUBLIC:: dg_rho0_type, dg_rho0_init, dg_rho0_set, dg_rho0_get, &
            dg_rho0_create, dg_rho0_retain, dg_rho0_release
 
-  CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='dg_rho0_types'
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dg_rho0_types'
   INTEGER, PRIVATE, SAVE :: last_dg_rho0_id_nr=0
 
   ! type = type of gaussian (PME)
@@ -66,63 +63,57 @@ MODULE dg_rho0_types
 
 CONTAINS
 !-----------------------------------------------------------------------------!
- SUBROUTINE dg_rho0_set ( dg_rho0, type, grid, kind, cutoff_radius, & 
+ SUBROUTINE dg_rho0_set ( dg_rho0, TYPE, grid, kind, cutoff_radius, & 
                           gcc, zet, density ) 
 
-    IMPLICIT NONE
 !   Purpose: Set the dg_rho0_type
 
 !   ***************************************************************************
 
-    TYPE ( dg_rho0_type ), POINTER :: dg_rho0
-    INTEGER, OPTIONAL :: grid, kind
-    REAL (KIND=dp), POINTER, OPTIONAL :: gcc ( : ), zet ( : )
-    REAL (KIND=dp), OPTIONAL :: cutoff_radius
-    TYPE ( coeff_type ), OPTIONAL :: density
-    INTEGER, OPTIONAL :: TYPE
-    
-!   ---------------------------------------------------------------------------
-!   *** Local parameters ***
+    TYPE(dg_rho0_type), POINTER              :: dg_rho0
+    INTEGER, OPTIONAL                        :: TYPE, grid, kind
+    REAL(KIND=dp), OPTIONAL                  :: cutoff_radius
+    REAL(KIND=dp), OPTIONAL, POINTER         :: gcc( : ), zet( : )
+    TYPE(coeff_type), OPTIONAL               :: density
 
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "dg_rho0_set",&
-         routineP=moduleN//':'//routine_name
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'dg_rho0_set', &
+      routineP = moduleN//':'//routineN
+
+!   ---------------------------------------------------------------------------
 
     IF ( PRESENT ( grid ) ) dg_rho0 % grid = grid
     IF ( PRESENT ( kind ) ) dg_rho0 % kind = kind
     IF ( PRESENT ( density ) ) dg_rho0 % density = density
     IF ( PRESENT ( gcc ) ) dg_rho0 % gcc => gcc
     IF ( PRESENT ( zet ) ) dg_rho0 % zet => zet
-    IF ( PRESENT ( type ) ) dg_rho0 % type = type
+    IF ( PRESENT ( TYPE ) ) dg_rho0 % type = TYPE
     IF ( PRESENT ( cutoff_radius ) ) dg_rho0 % cutoff_radius = cutoff_radius
 
   END SUBROUTINE dg_rho0_set
 !-----------------------------------------------------------------------------!
- SUBROUTINE dg_rho0_get ( dg_rho0, cutoff_radius, type, grid, kind, gcc, zet, density ) 
+ SUBROUTINE dg_rho0_get ( dg_rho0, cutoff_radius, TYPE, grid, kind, gcc, zet, density ) 
 
-    IMPLICIT NONE
 !   Purpose: Get the dg_rho0_type
 
 !   ***************************************************************************
 
-    TYPE ( dg_rho0_type ), POINTER :: dg_rho0
-    INTEGER, OPTIONAL :: grid, kind
-    REAL (KIND=dp), POINTER, OPTIONAL :: gcc ( : ), zet ( : )
-    REAL (KIND=dp), OPTIONAL :: cutoff_radius
-    TYPE ( coeff_type ), POINTER, OPTIONAL :: density
-    INTEGER, OPTIONAL :: TYPE
-    
-!   ---------------------------------------------------------------------------
-!   *** Local parameters ***
+    TYPE(dg_rho0_type), POINTER              :: dg_rho0
+    INTEGER, OPTIONAL                        :: kind, grid, TYPE
+    REAL(KIND=dp), OPTIONAL                  :: cutoff_radius
+    REAL(KIND=dp), OPTIONAL, POINTER         :: gcc( : ), zet( : )
+    TYPE(coeff_type), OPTIONAL, POINTER      :: density
 
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "dg_rho0_get",&
-         routineP=moduleN//':'//routine_name
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'dg_rho0_get', &
+      routineP = moduleN//':'//routineN
+
+!   ---------------------------------------------------------------------------
 
     IF ( PRESENT ( grid ) ) grid = dg_rho0 % grid
     IF ( PRESENT ( kind ) ) kind = dg_rho0 % kind
     IF ( PRESENT ( density ) ) density = dg_rho0 % density
     IF ( PRESENT ( gcc ) ) gcc => dg_rho0 % gcc
     IF ( PRESENT ( zet ) ) zet => dg_rho0 % zet
-    IF ( PRESENT ( type ) ) type = dg_rho0 % type
+    IF ( PRESENT ( TYPE ) ) TYPE = dg_rho0 % type
     IF ( PRESENT ( cutoff_radius ) ) cutoff_radius = dg_rho0 % cutoff_radius
 
   END SUBROUTINE dg_rho0_get
@@ -135,15 +126,17 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE( dg_rho0_type ), POINTER :: dg_rho0
-    TYPE ( cp_error_type ), INTENT ( INOUT ), OPTIONAL :: error
-!   *** Local parameters ***
+    TYPE(dg_rho0_type), POINTER              :: dg_rho0
+    TYPE(cp_error_type), INTENT(INOUT), &
+      OPTIONAL                               :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "dg_rho0_create",&
-         routineP=moduleN//':'//routine_name
-    INTEGER :: istat
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'dg_rho0_create', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: istat
 
 !   ---------------------------------------------------------------------------
+
     ALLOCATE ( dg_rho0, stat=istat )
     CPPostconditionNoFail(istat==0,cp_warning_level,routineP,error)
     NULLIFY ( dg_rho0 % gcc ) 
@@ -155,7 +148,7 @@ CONTAINS
     last_dg_rho0_id_nr=last_dg_rho0_id_nr+1
     dg_rho0%id_nr=last_dg_rho0_id_nr
     dg_rho0%ref_count=1
-    call coeff_init(dg_rho0%density,error=error)
+    CALL coeff_init(dg_rho0%density,error=error)
 
   END SUBROUTINE dg_rho0_create
 !***************************************************************************
@@ -190,12 +183,14 @@ CONTAINS
 !!
 !!*** **********************************************************************
 SUBROUTINE dg_rho0_retain ( dg_rho0, error)
-  TYPE(dg_rho0_type), POINTER :: dg_rho0
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-  
-  LOGICAL :: failure
-  CHARACTER(len=*), PARAMETER :: routineN='dg_rho0_retain',&
-        routineP=moduleN//':'//routineN
+    TYPE(dg_rho0_type), POINTER              :: dg_rho0
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'dg_rho0_retain', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
 
   failure=.FALSE.
   
@@ -236,13 +231,15 @@ END SUBROUTINE dg_rho0_retain
 !!
 !!*** **********************************************************************
 SUBROUTINE dg_rho0_release(dg_rho0, error)
-  TYPE(dg_rho0_type), POINTER :: dg_rho0
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-  
-  LOGICAL :: failure
-  CHARACTER(len=*), PARAMETER :: routineN='dg_rho0_release',&
-        routineP=moduleN//':'//routineN
-  INTEGER :: stat,i,istat
+    TYPE(dg_rho0_type), POINTER              :: dg_rho0
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'dg_rho0_release', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: stat
+    LOGICAL                                  :: failure
 
   failure=.FALSE.
   
@@ -254,7 +251,7 @@ SUBROUTINE dg_rho0_release(dg_rho0, error)
            DEALLOCATE ( dg_rho0 % gcc, stat=stat)
            CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
         END IF
-        IF ( ASSOCIATED ( dg_rho0 % zet ) ) then
+        IF ( ASSOCIATED ( dg_rho0 % zet ) ) THEN
            DEALLOCATE ( dg_rho0 % zet, stat=stat)
            CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
         END IF
@@ -271,10 +268,8 @@ END SUBROUTINE dg_rho0_release
 !******************************************************************************
 
 SUBROUTINE dg_rho0_init ( dg_rho0, pw_grid )
-  IMPLICIT NONE
-  ! Arguments
-  TYPE ( dg_rho0_type ), POINTER :: dg_rho0
-  TYPE ( pw_grid_type ), POINTER :: pw_grid
+    TYPE(dg_rho0_type), POINTER              :: dg_rho0
+    TYPE(pw_grid_type), POINTER              :: pw_grid
 
   CALL coeff_deallocate ( dg_rho0 % density )
   SELECT CASE ( dg_rho0 % type )
@@ -294,21 +289,20 @@ END SUBROUTINE dg_rho0_init
 
 SUBROUTINE dg_rho0_pme_gauss ( dg_rho0, alpha )
 
-  IMPLICIT NONE
 
-! Arguments
-  TYPE ( coeff_type ), INTENT ( INOUT ) :: dg_rho0
-  REAL (KIND=dp), INTENT ( IN ) :: alpha
+    TYPE(coeff_type), INTENT(INOUT)          :: dg_rho0
+    REAL(KIND=dp), INTENT(IN)                :: alpha
 
-! Locals
-  TYPE ( pw_grid_type ), POINTER :: pw_grid
-  INTEGER :: l0, m0, n0
-  INTEGER, PARAMETER :: IMPOSSIBLE = 10000
-  REAL (KIND=dp) :: const, e_gsq
-  INTEGER :: lp, mp, np, ln, mn, nn, gpt
-  INTEGER, DIMENSION ( :, : ), POINTER :: bds
-  INTEGER, DIMENSION ( : ), POINTER :: ghat
-  REAL (KIND=dp), DIMENSION ( :, :, : ), POINTER :: rho0
+    INTEGER, PARAMETER                       :: IMPOSSIBLE = 10000
+
+    INTEGER                                  :: gpt, l0, ln, lp, m0, mn, mp, &
+                                                n0, nn, np
+    INTEGER, DIMENSION(:), POINTER           :: ghat
+    INTEGER, DIMENSION(:, :), POINTER        :: bds
+    REAL(KIND=dp)                            :: const, e_gsq
+    REAL(KIND=dp), DIMENSION(:, :, :), &
+      POINTER                                :: rho0
+    TYPE(pw_grid_type), POINTER              :: pw_grid
 
 !------------------------------------------------------------------------------
 

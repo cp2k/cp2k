@@ -1,36 +1,31 @@
 MODULE metadynamics
   USE colvar_methods,                  ONLY: colvar_eval_f
-  USE convert_units,                   ONLY: convert_to_cp2k_units
+  USE colvar_types,                    ONLY: colvar_type
   USE cp_files,                        ONLY: open_file
   USE cp_para_env,                     ONLY: cp_para_env_retain
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE cp_subsystem_types,              ONLY: cp_subsystem_p_type,cp_subsys_get
+  USE cp_subsystem_types,              ONLY: cp_subsys_get,&
+                                             cp_subsystem_p_type
   USE force_env_types,                 ONLY: force_env_get,&
                                              force_env_type
   USE global_types,                    ONLY: global_environment_type
-  USE kinds,                           ONLY: default_string_length,&
-                                             dp
+  USE input_section_types,             ONLY: section_vals_get,&
+                                             section_vals_get_subs_vals,&
+                                             section_vals_type,&
+                                             section_vals_val_get
+  USE kinds,                           ONLY: dp
   USE machine,                         ONLY: m_flush
   USE message_passing,                 ONLY: mp_bcast
   USE metadynamics_types,              ONLY: hills_env_type,&
                                              meta_env_type,&
                                              metavar_type
   USE particle_list_types,             ONLY: particle_list_type
-  USE input_section_types,             ONLY: section_vals_get_subs_vals,&
-                                             section_vals_type,&
-                                             section_vals_val_get,&
-                                             section_vals_get
-  USE colvar_types,                    ONLY: colvar_type,&
-                                             coord_colvar_id,&
-                                             dist_colvar_id,&
-                                             no_colvar_id,&
-                                             torsion_colvar_id
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
   PRIVATE 
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: modulen='metadynamics'
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'metadynamics'
 
   INTEGER, SAVE, PRIVATE :: last_meta_env_id=0
   
@@ -72,8 +67,8 @@ SUBROUTINE metadyn_create(meta_env,n_colvar,dt,para_env,error)
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-    CHARACTER(len=*), PARAMETER :: routinen = 'metadyn_create', &
-      routinep = modulen//':'//routinen
+    CHARACTER(len=*), PARAMETER :: routineN = 'metadyn_create', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, stat
     LOGICAL                                  :: failure
@@ -136,14 +131,13 @@ SUBROUTINE metadyn_read(meta_env,globenv,metadyn_section,error)
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-    CHARACTER(len=*), PARAMETER :: routinen = 'read_metadyn', &
-      routinep = modulen//':'//routinen
+    CHARACTER(len=*), PARAMETER :: routineN = 'metadyn_read', &
+      routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, iw, kk, n_colvar, &
-                                                n_rep
+    INTEGER                                  :: i, iw, n_colvar, n_rep
     LOGICAL                                  :: explicit
     REAL(kind=dp)                            :: dt
-    TYPE(section_vals_type), POINTER         :: metavar_section, md_section
+    TYPE(section_vals_type), POINTER         :: md_section, metavar_section
 
   CALL section_vals_get(metadyn_section,explicit=explicit,error=error)
   IF (.NOT.explicit) RETURN
@@ -235,18 +229,19 @@ END SUBROUTINE metadyn_read
 !
 !
 SUBROUTINE metavar_read(metavar,extended_lagrange,icol,metavar_section,error)
-  TYPE(metavar_type), INTENT(INOUT)        :: metavar
-  LOGICAL                                  :: extended_lagrange
-  INTEGER, INTENT(IN)                      :: icol
-  TYPE(section_vals_type), OPTIONAL, &
-      POINTER                              :: metavar_section
-  TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                             :: error
+    TYPE(metavar_type), INTENT(INOUT)        :: metavar
+    LOGICAL                                  :: extended_lagrange
+    INTEGER, INTENT(IN)                      :: icol
+    TYPE(section_vals_type), OPTIONAL, &
+      POINTER                                :: metavar_section
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-  CHARACTER(len=*), PARAMETER :: routineN = 'metavar_read', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'metavar_read', &
       routineP = moduleN//':'//routineN
-  INTEGER                                  :: handle, n_rep
-  LOGICAL :: failure
+
+    INTEGER                                  :: n_rep
+    LOGICAL                                  :: failure
 
   failure=.FALSE.
   CALL section_vals_val_get(metavar_section,"SUBSYS",i_rep_section=icol,i_val=metavar%isubsys,error=error)
@@ -285,18 +280,18 @@ SUBROUTINE metadyn_add_forces(meta_env,force_env,error)
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-    CHARACTER(len=*), PARAMETER :: routinen = 'metadyn_add_forces', &
-      routinep = modulen//':'//routinen
+    CHARACTER(len=*), PARAMETER :: routineN = 'metadyn_add_forces', &
+      routineP = moduleN//':'//routineN
     REAL(kind=dp), PARAMETER                 :: FACTEM = 315795.260 
 
-    INTEGER                                  :: i, i_c, ii, isubsys,icolvar
+    INTEGER                                  :: i, i_c, icolvar, ii, isubsys
     LOGICAL                                  :: failure
     REAL(kind=dp)                            :: dt, ekin_w, fac_t, fft, norm, &
                                                 scal, ss0_test, tol_ekin
-    TYPE(colvar_type), POINTER, DIMENSION(:) :: colvar
-    TYPE(metavar_type), POINTER              :: CV
+    TYPE(colvar_type), DIMENSION(:), POINTER :: colvar
     TYPE(cp_subsystem_p_type), &
       DIMENSION(:), POINTER                  :: subsys
+    TYPE(metavar_type), POINTER              :: CV
     TYPE(particle_list_type), POINTER        :: particles
 
   NULLIFY(colvar,subsys)
@@ -453,8 +448,8 @@ END SUBROUTINE metadyn_add_forces
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-    CHARACTER(len=*), PARAMETER :: routinen = 'hills', &
-      routinep = modulen//':'//routinen
+    CHARACTER(len=*), PARAMETER :: routineN = 'hills', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, ih, n_colvar, n_step, &
                                                 stat, unit_number
@@ -462,10 +457,11 @@ END SUBROUTINE metadyn_add_forces
     LOGICAL                                  :: failure, MASTER
     REAL(dp)                                 :: dfunc, dp2, dum
     REAL(dp), DIMENSION(:, :), POINTER       :: ss_history, tmp
-    TYPE(metavar_type), DIMENSION(:), POINTER :: colvars
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(hills_env_type), POINTER            :: hills_env
     REAL(dp)                                 :: ddp(meta_env%n_colvar)
+    TYPE(metavar_type), DIMENSION(:), &
+      POINTER                                :: colvars
 
     failure=.FALSE.
     hills_env => meta_env%hills_env

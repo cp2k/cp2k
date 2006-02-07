@@ -32,27 +32,16 @@ MODULE qs_all_potential
                                              gto_basis_set_type
   USE external_potential_types,        ONLY: all_potential_type,&
                                              get_potential
-  USE kinds,                           ONLY: dp,dp_size,&
-                                             int_size
+  USE kinds,                           ONLY: dp,&
+                                             dp_size
   USE memory_utilities,                ONLY: reallocate
-  USE orbital_pointers,                ONLY: coset,indco,ncoset
-
-  USE qs_neighbor_list_types,          ONLY: find_neighbor_list,&
-                                             first_list,&
-                                             first_node,&
-                                             get_neighbor_list,&
-                                             get_neighbor_list_set,&
-                                             get_neighbor_node,&
-                                             neighbor_list_set_type,&
-                                             neighbor_list_type,&
-                                             neighbor_list_set_p_type,&
-                                             neighbor_node_type,&
-                                             next,&
+  USE orbital_pointers,                ONLY: coset,&
+                                             indco,&
+                                             ncoset
+  USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type,&
                                              qlist_type,&
                                              reduced_3c_list_type
-  USE termination,                     ONLY: stop_memory,&
-                                             stop_program
-  USE util,                            ONLY: locate
+  USE termination,                     ONLY: stop_memory
 
   IMPLICIT NONE
 
@@ -61,7 +50,7 @@ MODULE qs_all_potential
 
 ! *** Global parameters (only in this module)
 
-  CHARACTER(LEN=*), PARAMETER :: module_name = "qs_all_potential"
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_all_potential'
 
 ! *** Define vall type
   TYPE vall_type
@@ -91,44 +80,38 @@ MODULE qs_all_potential
                             rab,dab,jkind,jatom,nkind,sbc_3c,&
                             reduced_3c_rho0,vall,hab,nder,pab,f_a,f_b)
 
-    INTEGER, INTENT(IN)                        :: la_max, la_min, npgfa
-    REAL(dp), DIMENSION(:), INTENT(IN)         :: rpgfa, zeta
-    INTEGER, INTENT(IN)                        :: lb_max, lb_min, npgfb
-    REAL(dp), DIMENSION(:), INTENT(IN)         :: rpgfb, zetb
-    REAL(dp), DIMENSION(3), INTENT(IN)         :: rab
-    REAL(dp), INTENT(IN)                       :: dab
-    INTEGER, INTENT(IN)                        :: jkind,jatom,nkind
-    TYPE(neighbor_list_set_p_type), DIMENSION(:),&
-              POINTER                          :: sbc_3c
-    TYPE(reduced_3c_list_type), DIMENSION(:),&
-              POINTER                          :: reduced_3c_rho0
-    TYPE(vall_type), DIMENSION(:), POINTER     :: vall
-    REAL(dp), DIMENSION(:, :), INTENT(INOUT)   :: hab
-    INTEGER, INTENT(IN)                        :: nder
+    INTEGER, INTENT(IN)                      :: la_max, la_min, npgfa
+    REAL(dp), DIMENSION(:), INTENT(IN)       :: rpgfa, zeta
+    INTEGER, INTENT(IN)                      :: lb_max, lb_min, npgfb
+    REAL(dp), DIMENSION(:), INTENT(IN)       :: rpgfb, zetb
+    REAL(dp), DIMENSION(3), INTENT(IN)       :: rab
+    REAL(dp), INTENT(IN)                     :: dab
+    INTEGER, INTENT(IN)                      :: jkind, jatom, nkind
+    TYPE(neighbor_list_set_p_type), &
+      DIMENSION(:), POINTER                  :: sbc_3c
+    TYPE(reduced_3c_list_type), &
+      DIMENSION(:), POINTER                  :: reduced_3c_rho0
+    TYPE(vall_type), DIMENSION(:), POINTER   :: vall
+    REAL(dp), DIMENSION(:, :), INTENT(INOUT) :: hab
+    INTEGER, INTENT(IN)                      :: nder
     REAL(dp), DIMENSION(:, :), INTENT(IN), &
-             OPTIONAL                          :: pab
+      OPTIONAL                               :: pab
     REAL(dp), DIMENSION(3), INTENT(OUT), &
-             OPTIONAL                          :: f_a, f_b
+      OPTIONAL                               :: f_a, f_b
 
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "all_integrals"
-    REAL(dp), PARAMETER         :: EPS = 1.E-8_dp
+    CHARACTER(LEN=*), PARAMETER              :: routineN = 'all_integrals'
+    REAL(dp), PARAMETER                      :: EPS = 1.E-8_dp
 
-    TYPE(neighbor_list_type),     POINTER      :: sbc_3c_neighbor_list
-    TYPE(neighbor_node_type),     POINTER      :: sbc_3c_neighbor_node
-    TYPE(qlist_type), DIMENSION(:, :, :), &
-                                       POINTER :: tmp_neighbor
-    TYPE(qlist_type),             POINTER      :: sac_3c_neighbor
-    INTEGER  :: bc, i, istat, ic_a, ic_ap,&
-                ic_am, ic_b, ic_bm, icoa, icoa_plus, icoam_plus, icoap_plus, icob, &
-                icobm, ipgfa, ipgfb,  katom, kkind, kneighbor, knode, na_plus,&
-                na, nap, nb, nb_plus, ncoa, ncob, nnode_c 
-    INTEGER, DIMENSION(3)                      :: cell_c, la, lap, lam, lb, lbm
-    REAL(dp) :: cerf, der_intab_a, der_intab_b, force_a, force_b, &
-                rpgfc, zc, zetc, rab2, rac(3), &
-                rac2, rbc(3), rbc2, zax2, zbx2
-    REAL(dp), DIMENSION(:),   ALLOCATABLE      :: ff
-    REAL(dp), DIMENSION(:,:), ALLOCATABLE      :: Int_ab_sum, Int_ab_plus
-    REAL(dp), DIMENSION(:,:,:), ALLOCATABLE    :: vverf, vvnuc
+    INTEGER :: bc, i, ic_a, ic_am, ic_ap, ic_b, ic_bm, icoa, icoa_plus, &
+      icoam_plus, icoap_plus, icob, icobm, ipgfa, ipgfb, istat, katom, kkind, &
+      knode, na, na_plus, nap, nb, nb_plus, ncoa, ncob, nnode_c
+    INTEGER, DIMENSION(3)                    :: la, lam, lap, lb, lbm
+    REAL(dp) :: cerf, der_intab_a, der_intab_b, force_a, force_b, rab2, &
+      rac(3), rac2, rbc(3), rbc2, rpgfc, zax2, zbx2, zc, zetc
+    REAL(dp), ALLOCATABLE, DIMENSION(:)      :: ff
+    REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: Int_ab_plus, Int_ab_sum
+    REAL(dp), ALLOCATABLE, &
+      DIMENSION(:, :, :)                     :: vverf, vvnuc
 
 !   ---------------------------------------------------------------------------
 
@@ -138,7 +121,7 @@ MODULE qs_all_potential
 
     ALLOCATE(Int_ab_sum(ncoa,ncob),STAT = istat)
     IF (istat /= 0) THEN
-       CALL stop_memory(routine_name,module_name,__LINE__,"Int_ab_sum",ncoa*ncob*dp_size)
+       CALL stop_memory(routineN,moduleN,__LINE__,"Int_ab_sum",ncoa*ncob*dp_size)
     END IF
     Int_ab_sum = 0.0_dp
 
@@ -147,7 +130,7 @@ MODULE qs_all_potential
       nb_plus = npgfb*ncoset(lb_max)
       ALLOCATE(Int_ab_plus(na_plus,nb_plus),STAT=istat)
       IF (istat /= 0) THEN
-         CALL stop_memory(routine_name,module_name,__LINE__,"Int_ab_plus",&
+         CALL stop_memory(routineN,moduleN,__LINE__,"Int_ab_plus",&
                   na_plus*nb_plus*dp_size)
       END IF
       f_a = 0.0_dp
@@ -156,10 +139,10 @@ MODULE qs_all_potential
 
     ALLOCATE(vverf(ncoset(la_max+nder),ncoset(lb_max),la_max+nder+lb_max+1),STAT=istat)
     ALLOCATE(vvnuc(ncoset(la_max+nder),ncoset(lb_max),la_max+nder+lb_max+1),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
           "vverf,vvnuc",2*(ncoset(la_max+nder)*ncoset(lb_max)*(la_max+nder+lb_max+1))*dp_size)
     ALLOCATE(ff(0:la_max+nder+lb_max),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
           "ff",(1+la_max+nder+lb_max)*dp_size)
 
     DO kkind = 1,nkind
@@ -286,17 +269,17 @@ MODULE qs_all_potential
 
     IF (nder > 0) THEN
       DEALLOCATE(Int_ab_plus,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                        "Int_ab_plus")
     END IF
     DEALLOCATE(vverf,vvnuc,ff,STAT=istat)
     IF (istat /= 0) THEN
-      CALL stop_memory(routine_name,module_name,__LINE__,&
+      CALL stop_memory(routineN,moduleN,__LINE__,&
                        "vverf,vvnuc,ff")
     END IF
     DEALLOCATE(Int_ab_sum,STAT=istat)
     IF (istat /= 0) THEN
-      CALL stop_memory(routine_name,module_name,__LINE__,&
+      CALL stop_memory(routineN,moduleN,__LINE__,&
                        "Int_ab_sum")
     END IF
 
@@ -306,29 +289,29 @@ MODULE qs_all_potential
 
  SUBROUTINE radii_3c_orbxall(atomic_kind_set,all_potential)
 
-    TYPE(atomic_kind_type), DIMENSION(:),&
-                                  POINTER      :: atomic_kind_set
-    TYPE(all_potential_type), POINTER          :: all_potential
+    TYPE(atomic_kind_type), DIMENSION(:), &
+      POINTER                                :: atomic_kind_set
+    TYPE(all_potential_type), POINTER        :: all_potential
 
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "radii_3c_orbxall"
-    REAL(dp), PARAMETER         :: EPS = 1.E-06_dp
+    CHARACTER(LEN=*), PARAMETER              :: routineN = 'radii_3c_orbxall'
+    REAL(dp), PARAMETER                      :: EPS = 1.E-06_dp
 
-    TYPE(atomic_kind_type),       POINTER      :: atom_kind
-    TYPE(gto_basis_set_type),     POINTER      :: orb_basis
-
-    INTEGER :: i, ic, ico, ico0, icoa, ikind, ipgf, iset, is, istat, &
-               j, l0, la, lx, ly, lz, maxlgto, n, ncoc, ncoa, nkind, nseta
-    INTEGER, DIMENSION(:),        POINTER      :: la_max, la_min, npgfa 
-
-    REAL(dp) :: cerf, intmax0, r(3,0:60), r2(0:60), rab(3), rab2, rac(3), rac2, ri, &
-                rmax, rpgfc, zc, zetc
-    REAL(dp), DIMENSION(:),       POINTER      :: orb_rad
-    REAL(dp), DIMENSION(:,:),     POINTER      :: set_rad
-    REAL(dp), DIMENSION(:,:),     POINTER      :: rpgfa, sphi_a, zeta
-    REAL(dp), DIMENSION(:), ALLOCATABLE        :: r_cut_set 
-    REAL(dp), DIMENSION(:,:), ALLOCATABLE      :: int_tmp 
-    REAL(dp), DIMENSION(:,:,:), ALLOCATABLE    :: vverf, vvnuc
-    REAL(dp), DIMENSION(:), ALLOCATABLE        :: ff
+    INTEGER                                  :: i, ico, icoa, ikind, ipgf, &
+                                                iset, istat, maxlgto, n, &
+                                                ncoa, ncoc, nkind, nseta
+    INTEGER, DIMENSION(:), POINTER           :: la_max, la_min, npgfa
+    REAL(dp)                                 :: cerf, intmax0, r(3,0:60), &
+                                                r2(0:60), rab(3), rab2, &
+                                                rac(3), rac2, ri, rmax, &
+                                                rpgfc, zc, zetc
+    REAL(dp), ALLOCATABLE, DIMENSION(:)      :: ff, r_cut_set
+    REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: int_tmp
+    REAL(dp), ALLOCATABLE, &
+      DIMENSION(:, :, :)                     :: vverf, vvnuc
+    REAL(dp), DIMENSION(:), POINTER          :: orb_rad
+    REAL(dp), DIMENSION(:, :), POINTER       :: rpgfa, set_rad, sphi_a, zeta
+    TYPE(atomic_kind_type), POINTER          :: atom_kind
+    TYPE(gto_basis_set_type), POINTER        :: orb_basis
 
     NULLIFY(orb_rad,set_rad)
 
@@ -339,7 +322,7 @@ MODULE qs_all_potential
     ALLOCATE(vverf(ncoset(maxlgto),ncoset(maxlgto),1+maxlgto+maxlgto),STAT=istat)
     ALLOCATE(vvnuc(ncoset(maxlgto),ncoset(maxlgto),1+maxlgto+maxlgto),STAT=istat)
     ALLOCATE(ff(0:maxlgto+maxlgto),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
           "vverf,vvnuc,ff")
 
     ncoc = 1
@@ -353,11 +336,11 @@ MODULE qs_all_potential
     set_rad => all_potential%set_radius_3c
 
     rmax = 20.0_dp
-    do i=0,60
+    DO i=0,60
       ri=REAL(i,dp)*rmax/60._dp+0.01_dp
       r2(i)=ri**2
       r(:,i)=(/ri,0._dp,0._dp/)
-    enddo
+    ENDDO
     rab(1:3) = 0.0_dp
     rab2 = 0.0_dp
 
@@ -417,20 +400,20 @@ MODULE qs_all_potential
         set_rad(iset,ikind) = r_cut_set(iset)*r_cut_set(iset)  
 
         DEALLOCATE(int_tmp,STAT=istat)
-        IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+        IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "int_tmp")
 
       END DO  ! iset
 
       DEALLOCATE(r_cut_set,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "r_cut_set")
 
 !  write(*,'(I4,5f12.5)') ikind , orb_rad(ikind),set_rad(1:nseta,ikind)
     END DO  ! ikind
 
     DEALLOCATE(vverf,vvnuc,ff,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
           "vverf,vvnuc,ff")
 
   END SUBROUTINE radii_3c_orbxall

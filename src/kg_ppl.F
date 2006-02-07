@@ -61,13 +61,14 @@ MODULE kg_ppl
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "cp_common_uses.h"
+
   IMPLICIT NONE
 
   PRIVATE
 
 ! *** Global parameters ***
 
-  CHARACTER(LEN=*), PARAMETER :: module_name = "kg_ppl"
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'kg_ppl'
 
 
 
@@ -87,14 +88,13 @@ CONTAINS
 !   ***************************************************************************
 
     TYPE(kg_environment_type), POINTER       :: kg_env
-    TYPE(global_environment_type), &
-      pointer                             :: globenv
+    TYPE(global_environment_type), POINTER   :: globenv
     LOGICAL, INTENT(IN)                      :: calculate_forces
     TYPE(cp_error_type), INTENT(inout), &
-         OPTIONAL                               :: error
+      OPTIONAL                               :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "calculate_rho0_pp", &
-      routine = "SUBROUTINE "//routine_name//" (MODULE "//module_name//")"
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_rho0_ppl', &
+      routine = "SUBROUTINE "//routineN//" (MODULE "//moduleN//")"
 
     INTEGER :: ac, atom_a, atom_c, group, handle, i, ialpha, iatom, ikind, &
       iparticle_local, iset, istat, jkind, katom, kkind, knode, ldai, ldsab, &
@@ -108,14 +108,15 @@ CONTAINS
     LOGICAL                                  :: elp_potential_present, &
                                                 gth_potential_present, &
                                                 ionode, ppl_present
-    REAL(KIND=dp)                                :: alfa, dab, dac, dbc, e_ppl, &
+    REAL(KIND=dp)                            :: alfa, dab, dac, dbc, e_ppl, &
                                                 rab2, rac2, rbc2
-    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)     :: ppl_radius
-    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)  :: hab, pab, work
-    REAL(KIND=dp), DIMENSION(1)                  :: rpgfb, zetb
-    REAL(KIND=dp), DIMENSION(3)                  :: force_a, rab, rac, rbc
-    REAL(KIND=dp), DIMENSION(:), POINTER         :: cexp, set_radius_a
-    REAL(KIND=dp), DIMENSION(:, :), POINTER      :: rpgfa, sphi_a, zeta
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: ppl_radius
+    REAL(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:, :)                        :: hab, pab, work
+    REAL(KIND=dp), DIMENSION(1)              :: rpgfb, zetb
+    REAL(KIND=dp), DIMENSION(3)              :: force_a, rab, rac, rbc
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: cexp, set_radius_a
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: rpgfa, sphi_a, zeta
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
@@ -157,9 +158,9 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:,:), POINTER :: my_c 
 !   ---------------------------------------------------------------------------
 
-    CALL write_checkpoint_information("entering "//routine_name,globenv,error)
+    CALL write_checkpoint_information("entering "//routineN,globenv,error)
 
-    CALL timeset(routine_name,"I","",handle)
+    CALL timeset(routineN,"I","",handle)
     
     NULLIFY(atomic_kind_set,atomic_kind,cexp,elp_potential,gth_potential)
     NULLIFY(orb_basis_set,particle_set,sac_ppl,set_radius_a,rpgfa,sphi_a,zeta)
@@ -233,7 +234,7 @@ CONTAINS
     ldai = ncoset(maxl+nder+1)
     ALLOCATE (ai_work(ldai,ldai,ncoset(maxlppl),ncoset(nder+1)),STAT=istat)
     IF (istat /= 0) THEN
-      CALL stop_memory(routine_name,module_name,__LINE__,&
+      CALL stop_memory(routineN,moduleN,__LINE__,&
                        "ai_work",ldai*ldai*ncoset(maxlppl)*ncoset(nder+1)*dp_size)
     END IF
 
@@ -455,8 +456,8 @@ CONTAINS
 
 !             *** Calculate the GTH pseudo potential forces ***
 
-                DO ialpha=1,size(alpha_ppl(kkind)%alpha)
-                ncexp=size(cexp_ppl(kkind)%c,2)
+                DO ialpha=1,SIZE(alpha_ppl(kkind)%alpha)
+                ncexp=SIZE(cexp_ppl(kkind)%c,2)
 
                 IF (calculate_forces) THEN
 
@@ -572,7 +573,7 @@ CONTAINS
     END IF
 
     DEALLOCATE (ai_work,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "ai_work")
     DEALLOCATE (hab,STAT=istat)
     IF (istat /= 0) CALL stop_memory(routine,"hab")
@@ -591,7 +592,7 @@ CONTAINS
 
     energy%pseudo = e_ppl
 
-    CALL write_checkpoint_information("leaving "//routine_name,globenv,error)
+    CALL write_checkpoint_information("leaving "//routineN,globenv,error)
 
     CALL timestop(0.0_dp,handle)
 
@@ -603,14 +604,13 @@ CONTAINS
 !   ***************************************************************************
 
     TYPE(kg_environment_type), POINTER       :: kg_env
-    TYPE(global_environment_type), &
-      pointer                             :: globenv
+    TYPE(global_environment_type), POINTER   :: globenv
     LOGICAL, INTENT(IN)                      :: calculate_forces
     TYPE(cp_error_type), INTENT(inout), &
-         OPTIONAL                               :: error
+      OPTIONAL                               :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "calculate_drho_pp", &
-      routine = "SUBROUTINE "//routine_name//" (MODULE "//module_name//")"
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_drho_ppl', &
+      routine = "SUBROUTINE "//routineN//" (MODULE "//moduleN//")"
 
     INTEGER :: ac, atom_a, atom_c, group, handle, i, ialpha, iatom, ikind, &
       iparticle_local, iset, istat, jkind, katom, kkind, knode, ldai, ldsab, &
@@ -624,14 +624,15 @@ CONTAINS
     LOGICAL                                  :: elp_potential_present, &
                                                 gth_potential_present, &
                                                 ionode, ppl_present
-    REAL(KIND=dp)                                :: alfa, coef, dab, dac, dbc, &
+    REAL(KIND=dp)                            :: alfa, coef, dab, dac, dbc, &
                                                 e_ppl, rab2, rac2, rbc2
-    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)     :: ppl_radius
-    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)  :: hab, pab, work
-    REAL(KIND=dp), DIMENSION(1)                  :: rpgfb, zetb
-    REAL(KIND=dp), DIMENSION(3)                  :: force_a, rab, rac, rbc
-    REAL(KIND=dp), DIMENSION(:), POINTER         :: cexp, set_radius_a
-    REAL(KIND=dp), DIMENSION(:, :), POINTER      :: rpgfa, sphi_a, zeta
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: ppl_radius
+    REAL(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:, :)                        :: hab, pab, work
+    REAL(KIND=dp), DIMENSION(1)              :: rpgfb, zetb
+    REAL(KIND=dp), DIMENSION(3)              :: force_a, rab, rac, rbc
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: cexp, set_radius_a
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: rpgfa, sphi_a, zeta
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
@@ -674,9 +675,9 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL write_checkpoint_information("entering "//routine_name,globenv,error)
+    CALL write_checkpoint_information("entering "//routineN,globenv,error)
 
-    CALL timeset(routine_name,"I","",handle)
+    CALL timeset(routineN,"I","",handle)
     
     NULLIFY(atomic_kind_set,atomic_kind,cexp,elp_potential,gth_potential)
     NULLIFY(aux_basis_set,particle_set,sac_ppl_aux,set_radius_a,rpgfa,sphi_a,zeta)
@@ -757,7 +758,7 @@ CONTAINS
     ldai = ncoset(maxl+nder+1)
     ALLOCATE (ai_work(ldai,ldai,ncoset(maxlppl),ncoset(nder+1)),STAT=istat)
     IF (istat /= 0) THEN
-      CALL stop_memory(routine_name,module_name,__LINE__,&
+      CALL stop_memory(routineN,moduleN,__LINE__,&
                        "ai_work",ldai*ldai*ncoset(maxlppl)*ncoset(nder+1)*dp_size)
     END IF
 
@@ -973,8 +974,8 @@ CONTAINS
 
 !             *** Calculate the GTH pseudo potential forces ***
 
-                DO ialpha=1,size(alpha_ppl(kkind)%alpha)
-                ncexp=size(cexp_ppl(kkind)%c,2)
+                DO ialpha=1,SIZE(alpha_ppl(kkind)%alpha)
+                ncexp=SIZE(cexp_ppl(kkind)%c,2)
 
                   IF (calculate_forces) THEN
 
@@ -1091,7 +1092,7 @@ CONTAINS
     END IF
  
     DEALLOCATE (ai_work,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "ai_work")
  
     DEALLOCATE (hab,STAT=istat)
@@ -1111,7 +1112,7 @@ CONTAINS
 
     energy%ppseudo = e_ppl
 
-    CALL write_checkpoint_information("leaving "//routine_name,globenv,error)
+    CALL write_checkpoint_information("leaving "//routineN,globenv,error)
 
     CALL timestop(0.0_dp,handle)
 

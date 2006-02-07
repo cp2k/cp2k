@@ -21,55 +21,54 @@
 !******************************************************************************
 
 MODULE mc_control
-  USE cp_files,                        ONLY: open_file,&
-                                             close_file
-  USE cp_parser,                       ONLY: cp_parser_type, &
-                                             parser_create, &
+  USE cell_types,                      ONLY: cell_type,&
+                                             get_cell
+  USE cp_files,                        ONLY: close_file,&
+                                             open_file
+  USE cp_parser,                       ONLY: cp_parser_type,&
+                                             parser_create,&
                                              parser_release
   USE cp_subsystem_types,              ONLY: cp_subsys_get,&
                                              cp_subsystem_p_type
-  USE cp_units,                        ONLY: cp_unit_set_type, &
-                                             cp_unit_set_create, &
-                                             cp_unit_set_release
+  USE cp_units,                        ONLY: cp_unit_set_create,&
+                                             cp_unit_set_release,&
+                                             cp_unit_set_type
   USE fist_main,                       ONLY: fist_create_force_env
   USE force_env_types,                 ONLY: force_env_get,&
+                                             force_env_release,&
                                              force_env_type,&
                                              use_fist_force,&
                                              use_kg_force,&
-                                             use_qs_force,&
-                                             force_env_release
+                                             use_qs_force
   USE global_types,                    ONLY: global_environment_type
   USE input_cp2k,                      ONLY: create_cp2k_root_section
   USE input_parsing,                   ONLY: section_vals_parse
-  USE input_section_types,             ONLY: section_type, &
-                                             section_release,&
-                                             section_vals_type, &
-                                             section_vals_release, &
-                                             section_vals_create
+  USE input_section_types,             ONLY: section_release,&
+                                             section_type,&
+                                             section_vals_create,&
+                                             section_vals_release,&
+                                             section_vals_type
   USE kg_main,                         ONLY: kg_create_force_env
   USE kinds,                           ONLY: dp,&
                                              dp_size
   USE mc_misc,                         ONLY: mc_make_dat_file
-  USE mc_types,                        ONLY: mc_simulation_parameters_type,&
-                                             get_mc_par,&
+  USE mc_types,                        ONLY: get_mc_par,&
+                                             mc_simulation_parameters_type,&
                                              set_mc_par
   USE message_passing,                 ONLY: mp_bcast
   USE mol_kind_new_list_types,         ONLY: mol_kind_new_list_type
-  USE molecule_kind_types,             ONLY: get_molecule_kind,&
-                                             molecule_kind_type,&
-                                             atom_type
-  USE parallel_rng_types,              ONLY: rng_stream_type,&
-                                             next_random_number
+  USE molecule_kind_types,             ONLY: atom_type,&
+                                             get_molecule_kind,&
+                                             molecule_kind_type
+  USE parallel_rng_types,              ONLY: next_random_number,&
+                                             rng_stream_type
   USE particle_list_types,             ONLY: particle_list_type
   USE physcon,                         ONLY: angstrom
   USE qs_main,                         ONLY: quickstep_create_force_env
-  USE cell_types,                 ONLY: cell_type,&
-                                             get_cell
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
-
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -77,7 +76,7 @@ MODULE mc_control
   PRIVATE 
 ! *** Global parameters ***
 
-  CHARACTER(LEN=*), PARAMETER :: module_name = "mc_control"
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'mc_control'
 
   PUBLIC :: write_mc_restart,read_mc_restart,mc_create_force_env,&
       mc_create_bias_force_env
@@ -115,23 +114,23 @@ SUBROUTINE write_mc_restart ( nnstep, mc_par, force_env )
       POINTER                                :: mc_par
     TYPE(force_env_type), POINTER            :: force_env
 
-    CHARACTER(LEN=*), PARAMETER    &
-      :: routineN = "write_mc_restart"
+    CHARACTER(LEN=*), PARAMETER              :: routineN = 'write_mc_restart'
 
-    INTEGER                                  :: handle, unit,&
-      nunits_tot,nunits,ichain,iunit,nchain
-    REAL(KIND=dp),DIMENSION(1:3)             :: abc
-    TYPE(mol_kind_new_list_type), POINTER    :: molecule_kinds_new
-    TYPE(molecule_kind_type), POINTER        :: molecule_kind
-    TYPE(atom_type), DIMENSION(:),POINTER    :: atom_list
+    CHARACTER(LEN=20)                        :: ensemble
+    CHARACTER(LEN=40)                        :: restart_file_name
+    INTEGER                                  :: handle, ichain, iunit, &
+                                                nchain, nunits, nunits_tot, &
+                                                unit
+    REAL(KIND=dp)                            :: temp
+    REAL(KIND=dp), DIMENSION(1:3)            :: abc
+    TYPE(atom_type), DIMENSION(:), POINTER   :: atom_list
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_error_type)                      :: error
     TYPE(cp_subsystem_p_type), &
       DIMENSION(:), POINTER                  :: subsys
+    TYPE(mol_kind_new_list_type), POINTER    :: molecule_kinds_new
+    TYPE(molecule_kind_type), POINTER        :: molecule_kind
     TYPE(particle_list_type), POINTER        :: particles
-    CHARACTER(LEN=40)                        :: restart_file_name
-    CHARACTER(LEN=20)                        :: ensemble
-    REAL(KIND=dp)                            :: temp
 
 !------------------------------------------------------------------------------
 ! begin the timing of the subroutine
@@ -210,27 +209,23 @@ SUBROUTINE read_mc_restart ( mc_par, force_env, iw, rng_stream)
     INTEGER, INTENT(IN)                      :: iw
     TYPE(rng_stream_type), POINTER           :: rng_stream
 
-    CHARACTER(LEN=*), PARAMETER            &
-      :: routineN = "read_mc_restart"
+    CHARACTER(LEN=*), PARAMETER              :: routineN = 'read_mc_restart'
 
-    CHARACTER(LEN=40)                        :: restart_file_name,dat_file
+    CHARACTER(LEN=20)                        :: chardum, ensemble, mc_ensemble
     CHARACTER(LEN=200)                       :: fft_lib
-    CHARACTER(LEN=20)                        :: chardum, ensemble,&
-      mc_ensemble
-    INTEGER                                  :: handle, ipart, istat, &
-                                                nunits_tot, unit,mc_nunits,&
-                                                mc_nunits_tot,mc_nchain,&
-                                                nstart,i,iunit,group,source
-    REAL(KIND=dp)                            :: temp,mc_temp,rand
+    CHARACTER(LEN=40)                        :: dat_file, restart_file_name
+    INTEGER :: group, handle, i, ipart, istat, iunit, mc_nchain, mc_nunits, &
+      mc_nunits_tot, nstart, nunits_tot, source, unit
+    LOGICAL                                  :: ionode
+    REAL(KIND=dp)                            :: mc_temp, rand, temp
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: r
-    REAL(KIND=dp),DIMENSION(1:3)             :: abc,box_length
+    REAL(KIND=dp), DIMENSION(1:3)            :: abc, box_length
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_error_type)                      :: error
     TYPE(cp_subsystem_p_type), &
       DIMENSION(:), POINTER                  :: subsys
     TYPE(particle_list_type), POINTER        :: particles
-    LOGICAL                                  :: ionode
 
 !------------------------------------------------------------------------------
 ! begin the timing of the subroutine
@@ -265,7 +260,7 @@ SUBROUTINE read_mc_restart ( mc_par, force_env, iw, rng_stream)
             WRITE(iw,*) 'Input file temp =',mc_temp
             WRITE(iw,*) 'Restart file temp =',temp
          ENDIF
-         CALL stop_program(routineN,module_name,__LINE__,&
+         CALL stop_program(routineN,moduleN,__LINE__,&
             "Temperature difference between restart and input")
       ENDIF
       IF(nunits_tot .NE. mc_nunits_tot) THEN
@@ -285,7 +280,7 @@ SUBROUTINE read_mc_restart ( mc_par, force_env, iw, rng_stream)
             WRITE(iw,*) 'Input file ensemble =',mc_ensemble
             WRITE(iw,*) 'Restart file ensemble =',ensemble
          ENDIF
-         CALL stop_program(routineN,module_name,__LINE__,&
+         CALL stop_program(routineN,moduleN,__LINE__,&
             "Ensembles different between restart and input")
       ENDIF
 
@@ -316,7 +311,7 @@ SUBROUTINE read_mc_restart ( mc_par, force_env, iw, rng_stream)
 ! and write the dat file so we can make a new force_env
       IF(nunits_tot == 0) THEN
          ALLOCATE (r(3,mc_nunits),STAT=istat)
-         IF (istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
+         IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
             "r",3*mc_nunits*dp_size)
          DO iunit=1,mc_nunits
             r(1:3,iunit) = (/ REAL(iunit,dp), REAL(iunit,dp),REAL(iunit,dp) /)
@@ -330,7 +325,7 @@ SUBROUTINE read_mc_restart ( mc_par, force_env, iw, rng_stream)
          ENDIF
       ELSE
          ALLOCATE (r(3,nunits_tot),STAT=istat)
-         IF (istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
+         IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
             "r",3*nunits_tot*dp_size)
          
          IF(ionode) THEN
@@ -391,21 +386,22 @@ END SUBROUTINE read_mc_restart
 SUBROUTINE mc_create_force_env ( force_env, globenv, box_change, in_use, &
       error )
 
-      LOGICAL, INTENT(IN)                      :: box_change
-      INTEGER, INTENT(IN)                      :: in_use
-      TYPE(force_env_type), POINTER            :: force_env
-      TYPE(global_environment_type), POINTER   :: globenv
-      TYPE(cp_error_type), INTENT(INOUT), &
+    TYPE(force_env_type), POINTER            :: force_env
+    TYPE(global_environment_type), POINTER   :: globenv
+    LOGICAL, INTENT(IN)                      :: box_change
+    INTEGER, INTENT(IN)                      :: in_use
+    TYPE(cp_error_type), INTENT(INOUT), &
       OPTIONAL                               :: error
-      
-      CHARACTER(LEN=*), PARAMETER    &
-         :: routineN = "mc_create_force_env",&
-            routineP = module_name//':'//routineN
-      LOGICAL :: failure
-      TYPE(section_vals_type), POINTER :: input_file,file_temp
-      TYPE(section_type), POINTER :: input_structure
-      TYPE(cp_parser_type), pointer :: my_parser
-      TYPE(cp_unit_set_type), pointer :: default_units
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'mc_create_force_env', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(cp_parser_type), POINTER            :: my_parser
+    TYPE(cp_unit_set_type), POINTER          :: default_units
+    TYPE(section_type), POINTER              :: input_structure
+    TYPE(section_vals_type), POINTER         :: file_temp, input_file
+
 !***************************************************************************
 
       NULLIFY(file_temp,input_file,input_structure,my_parser,default_units)
@@ -417,7 +413,7 @@ SUBROUTINE mc_create_force_env ( force_env, globenv, box_change, in_use, &
       CALL parser_create(my_parser,file_name=globenv%input_file_name,&
          error=error)
       CALL cp_unit_set_create(default_units, "OUTPUT",error=error)
-      CALL section_vals_parse(input_file,my_parser,root_section=.false.,&
+      CALL section_vals_parse(input_file,my_parser,root_section=.FALSE.,&
       default_units=default_units,error=error)
       CALL cp_unit_set_release(default_units,error=error)
       CALL parser_release(my_parser,error=error)
@@ -428,7 +424,7 @@ SUBROUTINE mc_create_force_env ( force_env, globenv, box_change, in_use, &
       SELECT CASE ( in_use )
       CASE ( use_fist_force )
          CALL fist_create_force_env(force_env, globenv, error=error)
-         force_env%box_changed=.true.
+         force_env%box_changed=.TRUE.
       CASE ( use_qs_force )
          CALL quickstep_create_force_env(force_env, globenv, error=error)
       CASE ( use_kg_force )
@@ -473,28 +469,27 @@ END SUBROUTINE mc_create_force_env
 SUBROUTINE mc_create_bias_force_env (bias_env,force_env,&
             globenv,box_change,fft_lib,ionode,error)
 
-      LOGICAL, INTENT(IN)                      :: box_change
-      TYPE(force_env_type), POINTER            :: force_env
-      TYPE(force_env_type), POINTER            :: bias_env
-      TYPE(global_environment_type), POINTER   :: globenv
-      TYPE(cp_error_type), INTENT(INOUT)       :: error
-      CHARACTER(LEN=*),INTENT(IN)              :: fft_lib
-      LOGICAL,INTENT(IN)                       :: ionode
-      
-      TYPE(cp_subsystem_p_type), &
-         DIMENSION(:), POINTER                 :: subsys
-      TYPE(cell_type), POINTER                 :: cell
-      TYPE(particle_list_type), POINTER        :: particles
-      REAL(KIND=dp), ALLOCATABLE, &
-         DIMENSION(:, :)                       :: r
-      CHARACTER(LEN=*), PARAMETER    &
-         :: routineN = "mc_create_force_env",&
-            routineP = module_name//':'//routineN
-      INTEGER                                  :: nunits_tot,iparticle,&
-                istat
-      REAL(KIND=dp), DIMENSION(1:3)        :: abc
-                   
+    TYPE(force_env_type), POINTER            :: bias_env, force_env
+    TYPE(global_environment_type), POINTER   :: globenv
+    LOGICAL, INTENT(IN)                      :: box_change
+    CHARACTER(LEN=*), INTENT(IN)             :: fft_lib
+    LOGICAL, INTENT(IN)                      :: ionode
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'mc_create_bias_force_env', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: iparticle, istat, nunits_tot
+    REAL(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:, :)                        :: r
+    REAL(KIND=dp), DIMENSION(1:3)            :: abc
+    TYPE(cell_type), POINTER                 :: cell
+    TYPE(cp_subsystem_p_type), &
+      DIMENSION(:), POINTER                  :: subsys
+    TYPE(particle_list_type), POINTER        :: particles
+
 !-----------------------------------------------------------------------------
+
       NULLIFY(cell,subsys)
 
 ! create the bias_env from the template file
@@ -512,7 +507,7 @@ SUBROUTINE mc_create_bias_force_env (bias_env,force_env,&
 !  copy the data we need and make a new force_environment
       nunits_tot=SIZE(particles%els(:))
       ALLOCATE (r(3,nunits_tot),STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                        "particle_positions",3*nunits_tot*dp_size)
 
       DO iparticle=1,nunits_tot
@@ -530,7 +525,7 @@ SUBROUTINE mc_create_bias_force_env (bias_env,force_env,&
          use_fist_force,error=error)
 
       DEALLOCATE(r,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                        "r")
 
 END SUBROUTINE mc_create_bias_force_env

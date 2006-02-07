@@ -21,7 +21,16 @@
 MODULE basis_set_types
 
   USE ai_coulomb,                      ONLY: coulomb2
+  USE cp_output_handling,              ONLY: cp_p_file,&
+                                             cp_print_key_should_output
+  USE cp_parser,                       ONLY: cp_parser_type,&
+                                             parser_create,&
+                                             parser_get_object,&
+                                             parser_release,&
+                                             parser_search_string
   USE global_types,                    ONLY: global_environment_type
+  USE input_section_types,             ONLY: section_vals_type,&
+                                             section_vals_val_get
   USE kinds,                           ONLY: default_string_length,&
                                              dp,&
                                              dp_size
@@ -38,29 +47,19 @@ MODULE basis_set_types
   USE orbital_symbols,                 ONLY: cgf_symbol,&
                                              sgf_symbol
   USE orbital_transformation_matrices, ONLY: orbtramat
-  USE cp_parser,                       ONLY: cp_parser_type,&
-                                             parser_get_object,&
-                                             parser_search_string,&
-                                             parser_create,&
-                                             parser_release
   USE sto_ng,                          ONLY: get_sto_ng
-  USE string_utilities,                ONLY: uppercase,&
-                                             integer_to_string
+  USE string_utilities,                ONLY: integer_to_string,&
+                                             uppercase
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
-  USE input_section_types, ONLY: section_vals_val_get,&
-                                 section_vals_type
-  USE cp_output_handling,              ONLY: cp_print_key_unit_nr, &
-                                             cp_print_key_finished_output,&
-                                             cp_print_key_should_output,&
-                                             cp_p_file
 #include "cp_common_uses.h"
+
   IMPLICIT NONE
 
   PRIVATE
 
   ! *** Global parameters (only in this module) ***
-  CHARACTER(LEN=*), PARAMETER :: module_name = "basis_set_types)"
+  CHARACTER(LEN=*), PARAMETER :: moduleN = "basis_set_types)"
 
   ! *** Define the Gaussian-type orbital basis set type ***
   TYPE gto_basis_set_type
@@ -136,7 +135,7 @@ CONTAINS
 
     TYPE(gto_basis_set_type), POINTER        :: gto_basis_set
 
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "allocate_gto_basis_set"
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'allocate_gto_basis_set'
 
     INTEGER                                  :: istat
 
@@ -145,7 +144,7 @@ CONTAINS
     IF (ASSOCIATED(gto_basis_set)) CALL deallocate_gto_basis_set(gto_basis_set)
 
     ALLOCATE (gto_basis_set,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "gto_basis_set",0)
 
     NULLIFY (gto_basis_set%cgf_symbol)
@@ -188,114 +187,114 @@ CONTAINS
 
     TYPE(gto_basis_set_type), POINTER        :: gto_basis_set
 
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "deallocate_gto_basis_set"
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'deallocate_gto_basis_set'
 
     INTEGER                                  :: istat
 
 !   ---------------------------------------------------------------------------
 
     DEALLOCATE (gto_basis_set%cgf_symbol,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "gto_basis_set%cgf_symbol")
 
     DEALLOCATE (gto_basis_set%sgf_symbol,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "gto_basis_set%sgf_symbol")
 
     DEALLOCATE (gto_basis_set%norm_cgf,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "gto_basis_set%norm_cgf")
 
     DEALLOCATE (gto_basis_set%set_radius,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "gto_basis_set%set_radius")
 
     DEALLOCATE (gto_basis_set%lmax,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "gto_basis_set%lmax")
 
     DEALLOCATE (gto_basis_set%lmin,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "gto_basis_set%lmin")
 
     DEALLOCATE (gto_basis_set%lx,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "gto_basis_set%lx")
 
     DEALLOCATE (gto_basis_set%ly,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "gto_basis_set%ly")
 
     DEALLOCATE (gto_basis_set%lz,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "gto_basis_set%lz")
 
     DEALLOCATE (gto_basis_set%m,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "gto_basis_set%m")
 
     DEALLOCATE (gto_basis_set%ncgf_set,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "gto_basis_set%ncgf_set")
 
     DEALLOCATE (gto_basis_set%npgf,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "gto_basis_set%npgf")
 
     DEALLOCATE (gto_basis_set%nsgf_set,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "gto_basis_set%nsgf_set")
 
     DEALLOCATE (gto_basis_set%nshell,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "gto_basis_set%nshell")
 
     DEALLOCATE (gto_basis_set%cphi,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "gto_basis_set%cphi")
 
     DEALLOCATE (gto_basis_set%pgf_radius,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "gto_basis_set%pgf_radius")
 
     DEALLOCATE (gto_basis_set%sphi,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "gto_basis_set%sphi")
 
     DEALLOCATE (gto_basis_set%zet,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "gto_basis_set%zet")
 
     DEALLOCATE (gto_basis_set%first_cgf,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "gto_basis_set%first_cgf")
 
     DEALLOCATE (gto_basis_set%first_sgf,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "gto_basis_set%first_sgf")
 
     DEALLOCATE (gto_basis_set%l,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "gto_basis_set%l")
 
     DEALLOCATE (gto_basis_set%last_cgf,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "gto_basis_set%last_cgf")
 
     DEALLOCATE (gto_basis_set%last_sgf,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "gto_basis_set%last_sgf")
 
     DEALLOCATE (gto_basis_set%n,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "gto_basis_set%n")
 
     DEALLOCATE (gto_basis_set%gcc,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "gto_basis_set%gcc")
 
     DEALLOCATE (gto_basis_set,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "gto_basis_set")
 
   END SUBROUTINE deallocate_gto_basis_set
@@ -339,11 +338,11 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:, :, :), &
       OPTIONAL, POINTER                      :: gcc
     INTEGER, INTENT(OUT), OPTIONAL           :: maxco, maxl, maxpgf, &
-                                                maxsgf_set, maxshell, maxso,&
+                                                maxsgf_set, maxshell, maxso, &
                                                 nco_sum, npgf_sum, nshell_sum
     INTEGER, INTENT(IN), OPTIONAL            :: maxder
 
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "get_gto_basis_set"
+    CHARACTER(LEN=*), PARAMETER              :: routineN = 'get_gto_basis_set'
 
     INTEGER                                  :: iset, nder
 
@@ -435,7 +434,7 @@ CONTAINS
       IF (PRESENT(npgf_sum)) npgf_sum = SUM(gto_basis_set%npgf)
       IF (PRESENT(nshell_sum)) nshell_sum = SUM(gto_basis_set%nshell)
     ELSE
-      CALL stop_program(routine_name,module_name,__LINE__,&
+      CALL stop_program(routineN,moduleN,__LINE__,&
                         "The pointer gto_basis_set is not associated")
     END IF
 
@@ -453,7 +452,7 @@ CONTAINS
 
     TYPE(gto_basis_set_type), POINTER        :: gto_basis_set
 
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "init_aux_basis_set"
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'init_aux_basis_set'
 
 !   ---------------------------------------------------------------------------
 
@@ -468,7 +467,7 @@ CONTAINS
 ! WARNING this was never tested
       CALL init_norm_cgf_aux(gto_basis_set)
     CASE DEFAULT
-      CALL stop_program(routine_name,module_name,__LINE__,&
+      CALL stop_program(routineN,moduleN,__LINE__,&
                         "Normalization method not specified")
     END SELECT
 
@@ -549,18 +548,19 @@ CONTAINS
 
     TYPE(gto_basis_set_type), POINTER        :: gto_basis_set
 
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "init_norm_cgf_aux"
+    CHARACTER(LEN=*), PARAMETER              :: routineN = 'init_norm_cgf_aux'
 
     INTEGER                                  :: icgf, ico, ipgf, iset, &
                                                 ishell, istat, jco, jpgf, ll, &
                                                 lmax, lmin, lx, ly, lz, n, &
                                                 npgfa
     REAL(KIND=dp)                            :: fnorm, gcca, gccb
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: ff
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: gaa
+    REAL(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:, :, :)                     :: vv
     REAL(KIND=dp), DIMENSION(:), POINTER     :: rpgfa, zeta
-    REAL(KIND=dp), DIMENSION(:), ALLOCATABLE :: ff
-    REAL(KIND=dp), DIMENSION(:,:,:), ALLOCATABLE :: vv 
 
 !   ---------------------------------------------------------------------------
 
@@ -572,11 +572,11 @@ CONTAINS
     END DO
 
     ALLOCATE (gaa(n,n),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "gaa",n*n*dp_size)
     ALLOCATE (vv(ncoset(ll),ncoset(ll),ll+ll+1),STAT=istat)
     ALLOCATE (ff(0:ll+ll),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "vv,ff")
 
     DO iset=1,gto_basis_set%nset
@@ -614,7 +614,7 @@ CONTAINS
 
     DEALLOCATE (vv,ff, STAT=istat)
     DEALLOCATE (gaa,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "gaa")
 
   END SUBROUTINE init_norm_cgf_aux
@@ -632,7 +632,7 @@ CONTAINS
 
     TYPE(gto_basis_set_type), POINTER        :: gto_basis_set
 
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "init_norm_cgf_aux_2"
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'init_norm_cgf_aux_2'
 
     INTEGER                                  :: icgf, iset, ishell
 
@@ -717,7 +717,7 @@ CONTAINS
 
     TYPE(gto_basis_set_type), POINTER        :: gto_basis_set
 
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "init_norm_cgf_orb_den"
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'init_norm_cgf_orb_den'
 
     INTEGER                                  :: icgf, ipgf, iset, ishell, l
     REAL(KIND=dp)                            :: expzet, gcca, prefac, zeta
@@ -755,7 +755,7 @@ CONTAINS
 
     TYPE(gto_basis_set_type), POINTER        :: gto_basis_set
 
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "init_orb_basis_set"
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'init_orb_basis_set'
 
 !   ---------------------------------------------------------------------------
 
@@ -773,7 +773,7 @@ CONTAINS
       !   *** the contracted Gaussian-type functions ***
       CALL init_norm_cgf_orb(gto_basis_set)
     CASE DEFAULT
-      CALL stop_program(routine_name,module_name,__LINE__,&
+      CALL stop_program(routineN,moduleN,__LINE__,&
                         "Normalization method not specified")
     END SELECT 
 
@@ -830,19 +830,19 @@ CONTAINS
 
     CHARACTER(LEN=*), INTENT(IN)             :: element_symbol, basis_set_name
     TYPE(gto_basis_set_type), POINTER        :: gto_basis_set
-    TYPE(global_environment_type), &
-      pointer                             :: globenv
-    TYPE(cp_error_type), INTENT(inout), optional :: error
+    TYPE(global_environment_type), POINTER   :: globenv
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "read_gto_basis_set"
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'read_gto_basis_set'
 
     CHARACTER(LEN=240)                       :: line
     CHARACTER(LEN=242)                       :: line2
+    CHARACTER(len=default_string_length)     :: basis_set_file_name
     CHARACTER(LEN=LEN(basis_set_name))       :: bsname
     CHARACTER(LEN=LEN(basis_set_name)+2)     :: bsname2
     CHARACTER(LEN=LEN(element_symbol))       :: symbol
     CHARACTER(LEN=LEN(element_symbol)+2)     :: symbol2
-    character(len=default_string_length)     :: basis_set_file_name
     INTEGER :: i, ico, ipgf, iset, ishell, istat, lshell, m, maxco, maxl, &
       maxpgf, maxshell, ncgf, nmin, nset, nsgf, strlen1, strlen2
     INTEGER, DIMENSION(:), POINTER           :: lmax, lmin, npgf, nshell
@@ -851,7 +851,7 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: zet
     REAL(KIND=dp), DIMENSION(:, :, :), &
       POINTER                                :: gcc
-    TYPE(cp_parser_type), pointer :: parser
+    TYPE(cp_parser_type), POINTER            :: parser
 
 !   ---------------------------------------------------------------------------
 
@@ -866,7 +866,7 @@ CONTAINS
     CALL section_vals_val_get(globenv%input_file,&
          "FORCE_EVAL%DFT%BASIS_SET_FILE_NAME",&
          c_val=basis_set_file_name)
-    nullify(parser)
+    NULLIFY(parser)
     CALL parser_create(parser,basis_set_file_name,para_env=globenv%para_env)
 
 !   *** Search for the requested basis set in the basis set file   ***
@@ -1028,12 +1028,12 @@ CONTAINS
           CALL reallocate(gto_basis_set%norm_cgf,1,ncgf)
           ALLOCATE (gto_basis_set%cgf_symbol(ncgf),STAT=istat)
           IF (istat /= 0) THEN
-            CALL stop_memory(routine_name,module_name,__LINE__,&
+            CALL stop_memory(routineN,moduleN,__LINE__,&
                              "gto_basis_set%cgf_symbol",12*ncgf)
           END IF
           ALLOCATE (gto_basis_set%sgf_symbol(nsgf),STAT=istat)
           IF (istat /= 0) THEN
-            CALL stop_memory(routine_name,module_name,__LINE__,&
+            CALL stop_memory(routineN,moduleN,__LINE__,&
                              "gto_basis_set%sgf_symbol",6*nsgf)
           END IF
 
@@ -1064,7 +1064,7 @@ CONTAINS
 
           DEALLOCATE (gcc,l,lmax,lmin,n,npgf,nshell,zet,STAT=istat)
           IF (istat /= 0) THEN
-            CALL stop_memory(routine_name,module_name,__LINE__,&
+            CALL stop_memory(routineN,moduleN,__LINE__,&
                              "gcc,l,lmax,lmin,n,npgf,nshell,zet")
           END IF
 
@@ -1076,7 +1076,7 @@ CONTAINS
 
 !       *** Stop program, if the end of file is reached ***
 
-        CALL stop_program(routine_name,module_name,__LINE__,&
+        CALL stop_program(routineN,moduleN,__LINE__,&
                           "The requested basis set <"//TRIM(bsname)//&
                           "> for element <"//TRIM(symbol)//"> was not "//&
                           "found in the basis set file <"//&
@@ -1128,7 +1128,7 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:, :, :), &
       OPTIONAL, POINTER                      :: gcc
 
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "set_gto_basis_set"
+    CHARACTER(LEN=*), PARAMETER              :: routineN = 'set_gto_basis_set'
 
 !   ---------------------------------------------------------------------------
 
@@ -1165,7 +1165,7 @@ CONTAINS
       IF (PRESENT(n)) gto_basis_set%n(:,:) = n(:,:)
       IF (PRESENT(gcc)) gto_basis_set%gcc(:,:,:) = gcc(:,:,:)
     ELSE
-      CALL stop_program(routine_name,module_name,__LINE__,&
+      CALL stop_program(routineN,moduleN,__LINE__,&
                         "The pointer gto_basis_set is not associated")
     END IF
 
@@ -1183,13 +1183,12 @@ CONTAINS
 !   ***************************************************************************
 
     TYPE(gto_basis_set_type), POINTER        :: aux_basis_set
-    TYPE(section_vals_type), POINTER :: force_env_section
-    INTEGER, INTENT(in) :: output_unit
+    TYPE(section_vals_type), POINTER         :: force_env_section
+    INTEGER, INTENT(in)                      :: output_unit
     TYPE(cp_error_type), INTENT(inout), &
-         OPTIONAL                               :: error
+      OPTIONAL                               :: error
 
-    INTEGER                                  :: icgf, ico, ipgf, iset, &
-                                                ishell
+    INTEGER                                  :: icgf, ico, ipgf, iset, ishell
     TYPE(cp_logger_type), POINTER            :: logger
 
     NULLIFY(logger)
@@ -1254,9 +1253,9 @@ CONTAINS
 !   ***************************************************************************
 
     TYPE(gto_basis_set_type), POINTER        :: gto_basis_set
-    INTEGER, INTENT(in) :: output_unit
+    INTEGER, INTENT(in)                      :: output_unit
     TYPE(cp_error_type), INTENT(inout), &
-         OPTIONAL                               :: error
+      OPTIONAL                               :: error
 
     INTEGER                                  :: ipgf, iset, ishell
 
@@ -1294,13 +1293,12 @@ CONTAINS
 !   ***************************************************************************
 
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
-    TYPE(section_vals_type), POINTER :: force_env_section
-    INTEGER, INTENT(in) :: output_unit
+    TYPE(section_vals_type), POINTER         :: force_env_section
+    INTEGER, INTENT(in)                      :: output_unit
     TYPE(cp_error_type), INTENT(inout), &
-         OPTIONAL                               :: error
+      OPTIONAL                               :: error
 
-    INTEGER                                  :: icgf, ico, ipgf, iset, &
-                                                ishell
+    INTEGER                                  :: icgf, ico, ipgf, iset, ishell
     TYPE(cp_logger_type), POINTER            :: logger
 
     NULLIFY(logger)
@@ -1355,7 +1353,8 @@ CONTAINS
 
     TYPE(sto_basis_set_type), POINTER        :: sto_basis_set
 
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "allocate_sto_basis_set"
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'allocate_sto_basis_set'
+
     INTEGER                                  :: istat
 
 !   ---------------------------------------------------------------------------
@@ -1363,7 +1362,7 @@ CONTAINS
     IF (ASSOCIATED(sto_basis_set)) CALL deallocate_sto_basis_set(sto_basis_set)
 
     ALLOCATE (sto_basis_set,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "sto_basis_set",0)
 
     NULLIFY (sto_basis_set%symbol)
@@ -1379,7 +1378,8 @@ CONTAINS
 
     TYPE(sto_basis_set_type), POINTER        :: sto_basis_set
 
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "deallocate_sto_basis_set"
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'deallocate_sto_basis_set'
+
     INTEGER                                  :: istat
 
 !   ---------------------------------------------------------------------------
@@ -1387,27 +1387,27 @@ CONTAINS
     IF (ASSOCIATED(sto_basis_set)) THEN
        IF (ASSOCIATED(sto_basis_set%symbol)) THEN
           DEALLOCATE (sto_basis_set%symbol,STAT=istat)
-          IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+          IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                "sto_basis_set%symbol")
        END IF
        IF (ASSOCIATED(sto_basis_set%nq)) THEN
           DEALLOCATE (sto_basis_set%nq,STAT=istat)
-          IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+          IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                "sto_basis_set%nq")
        END IF
        IF (ASSOCIATED(sto_basis_set%lq)) THEN
           DEALLOCATE (sto_basis_set%lq,STAT=istat)
-          IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+          IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                "sto_basis_set%lq")
        ENDIF
        IF (ASSOCIATED(sto_basis_set%zet)) THEN
           DEALLOCATE (sto_basis_set%zet,STAT=istat)
-          IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+          IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                "sto_basis_set%zet")
        ENDIF
 
        DEALLOCATE (sto_basis_set,STAT=istat)
-       IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+       IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
             "sto_basis_set")
     END IF
   END SUBROUTINE deallocate_sto_basis_set
@@ -1423,12 +1423,12 @@ CONTAINS
     INTEGER, INTENT(OUT), OPTIONAL           :: nshell
     CHARACTER(LEN=6), DIMENSION(:), &
       OPTIONAL, POINTER                      :: symbol
-    INTEGER, DIMENSION(:), OPTIONAL, POINTER :: nq, lq 
-    REAL(KIND=dp), DIMENSION(:), &
-      OPTIONAL, POINTER                      :: zet
+    INTEGER, DIMENSION(:), OPTIONAL, POINTER :: nq, lq
+    REAL(KIND=dp), DIMENSION(:), OPTIONAL, &
+      POINTER                                :: zet
     INTEGER, INTENT(OUT), OPTIONAL           :: maxlq, numsto
 
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "get_sto_basis_set"
+    CHARACTER(LEN=*), PARAMETER              :: routineN = 'get_sto_basis_set'
 
     INTEGER                                  :: iset
 
@@ -1451,7 +1451,7 @@ CONTAINS
         END DO
       END IF
     ELSE
-      CALL stop_program(routine_name,module_name,__LINE__,&
+      CALL stop_program(routineN,moduleN,__LINE__,&
                         "The pointer sto_basis_set is not associated")
     END IF
 
@@ -1467,11 +1467,12 @@ CONTAINS
     INTEGER, INTENT(IN), OPTIONAL            :: nshell
     CHARACTER(LEN=6), DIMENSION(:), &
       OPTIONAL, POINTER                      :: symbol
-    INTEGER, DIMENSION(:), OPTIONAL, POINTER :: nq, lq 
-    REAL(KIND=dp), DIMENSION(:), &
-      OPTIONAL, POINTER                      :: zet
+    INTEGER, DIMENSION(:), OPTIONAL, POINTER :: nq, lq
+    REAL(KIND=dp), DIMENSION(:), OPTIONAL, &
+      POINTER                                :: zet
 
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "set_sto_basis_set"
+    CHARACTER(LEN=*), PARAMETER              :: routineN = 'set_sto_basis_set'
+
     INTEGER                                  :: ns
 
 !   ---------------------------------------------------------------------------
@@ -1479,7 +1480,7 @@ CONTAINS
     IF (ASSOCIATED(sto_basis_set)) THEN
       IF (PRESENT(name)) sto_basis_set%name = name
       IF (PRESENT(nshell)) sto_basis_set%nshell = nshell
-      IF (PRESENT(symbol)) then
+      IF (PRESENT(symbol)) THEN
          ns = SIZE(symbol)
          IF(ASSOCIATED(sto_basis_set%symbol)) DEALLOCATE(sto_basis_set%symbol)
          ALLOCATE(sto_basis_set%symbol(1:ns))
@@ -1501,7 +1502,7 @@ CONTAINS
          sto_basis_set%zet = zet(:)
       ENDIF
     ELSE
-      CALL stop_program(routine_name,module_name,__LINE__,&
+      CALL stop_program(routineN,moduleN,__LINE__,&
                         "The pointer sto_basis_set is not associated")
     END IF
 
@@ -1513,24 +1514,24 @@ CONTAINS
     TYPE(sto_basis_set_type), POINTER        :: sto_basis_set
     TYPE(gto_basis_set_type), POINTER        :: gto_basis_set
     INTEGER, OPTIONAL                        :: ngauss
-    TYPE(cp_error_type), INTENT(inout), optional :: error
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    INTEGER                                  :: ng = 6
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'create_gto_from_sto_basis'
     INTEGER, PARAMETER                       :: maxng = 6
-    CHARACTER(LEN=default_string_length)     :: name,sng
-    INTEGER                                  :: nshell, nset, maxl, iset, &
-                                                ipgf, maxco, ncgf, nsgf, &
-                                                lshell, ico, m, istat, np
-    INTEGER, DIMENSION(:), POINTER           :: nq, lq
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: zet
-    REAL(KIND=dp), DIMENSION(maxng)          :: zetg, gcc
 
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "create_gto_from_sto_basis"
+    CHARACTER(LEN=default_string_length)     :: name, sng
+    INTEGER                                  :: ico, ipgf, iset, istat, &
+                                                lshell, m, maxco, maxl, ncgf, &
+                                                ng = 6, np, nset, nsgf, nshell
+    INTEGER, DIMENSION(:), POINTER           :: lq, nq
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: zet
+    REAL(KIND=dp), DIMENSION(maxng)          :: gcc, zetg
 
 !   ---------------------------------------------------------------------------
 
     IF ( PRESENT(ngauss) ) ng=ngauss
-    IF ( ng > maxng ) CALL stop_program(routine_name,module_name,__LINE__,&
+    IF ( ng > maxng ) CALL stop_program(routineN,moduleN,__LINE__,&
                         "Too many Gaussian primitives requested")
  
     CALL allocate_gto_basis_set(gto_basis_set)
@@ -1556,7 +1557,7 @@ CONTAINS
     CALL reallocate(gto_basis_set%gcc,1,ng,1,1,1,nset)
 
     DO iset=1,nset
-      call get_sto_ng ( zet(iset), ng, nq(iset), lq(iset), zetg, gcc )
+      CALL get_sto_ng ( zet(iset), ng, nq(iset), lq(iset), zetg, gcc )
       gto_basis_set%lmax(iset) = lq(iset)
       gto_basis_set%lmin(iset) = lq(iset)
       gto_basis_set%npgf(iset) = ng
@@ -1611,12 +1612,12 @@ CONTAINS
     CALL reallocate(gto_basis_set%norm_cgf,1,ncgf)
     ALLOCATE (gto_basis_set%cgf_symbol(ncgf),STAT=istat)
     IF (istat /= 0) THEN
-      CALL stop_memory(routine_name,module_name,__LINE__,&
+      CALL stop_memory(routineN,moduleN,__LINE__,&
                        "gto_basis_set%cgf_symbol",12*ncgf)
     END IF
     ALLOCATE (gto_basis_set%sgf_symbol(nsgf),STAT=istat)
     IF (istat /= 0) THEN
-      CALL stop_memory(routine_name,module_name,__LINE__,&
+      CALL stop_memory(routineN,moduleN,__LINE__,&
                        "gto_basis_set%sgf_symbol",6*nsgf)
     END IF
 

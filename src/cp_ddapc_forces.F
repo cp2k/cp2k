@@ -24,63 +24,32 @@ MODULE cp_ddapc_forces
 !!
 !!   SOURCE
 !****************************************************************************  
-  USE cp2k_units,                      ONLY: get_cp2k_units,&
-                                             unit_convert_type
-  USE kinds,                           ONLY: default_string_length,&
-                                             dp
-  USE timings,                         ONLY: timeset,&
-                                             timestop
-  USE qs_environment_types,            ONLY: get_qs_env,&
-                                             qs_environment_type,&
-                                             set_qs_env
-  USE mathconstants,                   ONLY: rootpi, pi
-  USE pw_env_types,                    ONLY: pw_env_get,&
-                                             pw_env_type
-  USE pw_grid_types,                   ONLY: pw_grid_type 
-  USE pw_types,                        ONLY: pw_integral_ab,&
-                                             COMPLEXDATA1D,&
-                                             REALSPACE,&
-                                             REALDATA3D,&
-                                             RECIPROCALSPACE,&
-                                             pw_p_type,&
-                                             pw_sumup,&
-                                             pw_transfer,&
-                                             pw_type,&
-                                             pw_zero
-  USE particle_types,                  ONLY: particle_type 
-  USE qs_rho_types,                    ONLY: qs_rho_type
-  USE coefficient_types,               ONLY: coeff_type
-  USE input_section_types,             ONLY: section_type,&
-                                             section_create, &
-                                             section_add_keyword,&
-                                             section_add_subsection,&
-                                             section_release,&
-                                             section_vals_type,&
-                                             section_vals_get_subs_vals,&
-                                             section_vals_get,&
-                                             section_vals_val_get
-  USE message_passing,                 ONLY: mp_sum
-  USE input_constants,                 ONLY: use_multipole
-  USE cell_types,                 ONLY: cell_type,&
-                                             get_cell,&
-                                             pbc
-  USE qs_force_types,                  ONLY: qs_force_type
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind_set
+  USE cell_types,                      ONLY: cell_type
+  USE cp2k_units,                      ONLY: get_cp2k_units,&
+                                             unit_convert_type
   USE erf_fn,                          ONLY: erfc
-  USE qs_charges_types,                ONLY: qs_charges_type
-  USE cp_ddapc_types,                  ONLY: cp_ddapc_type,&
-                                             cp_ddapc_create,&
-                                             cp_ddapc_release,&
-                                             cp_ddapc_retain
+  USE input_section_types,             ONLY: section_vals_type,&
+                                             section_vals_val_get
+  USE kinds,                           ONLY: dp
+  USE mathconstants,                   ONLY: pi,&
+                                             rootpi
+  USE particle_types,                  ONLY: particle_type
   USE pw_spline_utils,                 ONLY: Eval_d_Interp_Spl3_pbc
+  USE pw_types,                        ONLY: pw_type
+  USE qs_environment_types,            ONLY: get_qs_env,&
+                                             qs_environment_type
+  USE qs_force_types,                  ONLY: qs_force_type
+  USE timings,                         ONLY: timeset,&
+                                             timestop
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
   PRIVATE
 
   LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
-  CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='cp_ddapc_forces'
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_ddapc_forces'
   PUBLIC :: ewald_ddapc_force, reset_ch_pulay
   
 CONTAINS
@@ -108,30 +77,33 @@ CONTAINS
 !!*** **********************************************************************
   RECURSIVE SUBROUTINE ewald_ddapc_force(qs_env, coeff, qmmm_periodic, multipole_section, &
        particle_set, radii, dq, charges, error)
-    IMPLICIT NONE
-    ! Arguments
-    TYPE(pw_type), POINTER                   :: coeff
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(section_vals_type), POINTER         :: multipole_section    
-    TYPE(particle_type), DIMENSION(:), &
-         POINTER                             :: particle_set
+    TYPE(pw_type), POINTER                   :: coeff
     LOGICAL, INTENT(IN)                      :: qmmm_periodic
-    REAL(KIND=dp), POINTER, DIMENSION(:)     :: radii
-    REAL(KIND=dp), POINTER, DIMENSION(:,:,:), OPTIONAL :: dq
-    REAL(KIND=dp), POINTER, DIMENSION(:),OPTIONAL      :: charges
+    TYPE(section_vals_type), POINTER         :: multipole_section
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particle_set
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: radii
+    REAL(KIND=dp), DIMENSION(:, :, :), &
+      OPTIONAL, POINTER                      :: dq
+    REAL(KIND=dp), DIMENSION(:), OPTIONAL, &
+      POINTER                                :: charges
     TYPE(cp_error_type), INTENT(inout), &
-         OPTIONAL                            :: error
-    ! Local Variables
+      OPTIONAL                               :: error
+
     CHARACTER(len=*), PARAMETER :: routineN = 'ewald_ddapc_force', &
-         routineP = moduleN//':'//routineN      
-    LOGICAL :: failure, analyt
-    INTEGER :: ip1, ip2, handle
-    INTEGER :: nmax1, nmax2, nmax3, k1, k2, k3, n_rep, rmax1, rmax2, rmax3, stat
-    INTEGER :: iparticle1, iparticle2, r1, r2, r3, sfact
-    REAL(KIND=dp) :: eps, rcut, tol, alpha, tol1, fac, galpha, gsq, dfact
-    REAL(KIND=dp) :: gsqi, fac3, r, fs, eps0, fac2, q1t, q2t, t1, t2
-    REAL(KIND=dp), DIMENSION(3) :: rvec, gvec, fvec, ra, rb, drvec
-    REAL(KIND=dp), DIMENSION(:,:), POINTER   :: d_el, M
+      routineP = moduleN//':'//routineN
+
+    INTEGER :: handle, ip1, ip2, iparticle1, iparticle2, k1, k2, k3, n_rep, &
+      nmax1, nmax2, nmax3, r1, r2, r3, rmax1, rmax2, rmax3, sfact, stat
+    LOGICAL                                  :: analyt, failure
+    REAL(KIND=dp)                            :: alpha, dfact, eps, eps0, fac, &
+                                                fac2, fac3, fs, galpha, gsq, &
+                                                gsqi, q1t, q2t, r, rcut, t1, &
+                                                t2, tol, tol1
+    REAL(KIND=dp), DIMENSION(3)              :: drvec, fvec, gvec, ra, rb, &
+                                                rvec
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: d_el, M
     TYPE(cell_type), POINTER                 :: cell
     TYPE(unit_convert_type), POINTER         :: units
 
@@ -284,29 +256,32 @@ CONTAINS
 !!
 !!*** **********************************************************************
   SUBROUTINE cp_decpl_ddapc_forces(qs_env, M, charges, dq, d_el, particle_set, error)
-    IMPLICIT NONE
-    ! Arguments
     TYPE(qs_environment_type), POINTER       :: qs_env
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: M
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: charges
+    REAL(KIND=dp), DIMENSION(:, :, :), &
+      POINTER                                :: dq
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: d_el
     TYPE(particle_type), DIMENSION(:), &
-         POINTER                             :: particle_set
-    REAL(KIND=dp), POINTER, DIMENSION(:,:)   :: M, d_el
-    REAL(KIND=dp), POINTER, DIMENSION(:)     :: charges    
-    REAL(KIND=dp), POINTER, DIMENSION(:,:,:) :: dq
+      POINTER                                :: particle_set
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
-    ! Local Variables
+
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_decpl_ddapc_forces', &
-      routineP = moduleN//':'//routineN          
-    LOGICAL :: failure
-    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)   :: uv
-    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:,:) :: chf
-    INTEGER :: handle,iatom, natom, i, stat, ikind, k, j
-    TYPE(qs_force_type), DIMENSION(:), &
-         POINTER                                     :: force
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, i, iatom, ikind, j, &
+                                                k, natom, stat
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: atom_of_kind, kind_of
+    LOGICAL                                  :: failure
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: uv
+    REAL(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:, :)                        :: chf
     TYPE(atomic_kind_type), DIMENSION(:), &
-         POINTER                                     :: atomic_kind_set
-    INTEGER, ALLOCATABLE, DIMENSION(:)               :: atom_of_kind, kind_of
-    
+      POINTER                                :: atomic_kind_set
+    TYPE(qs_force_type), DIMENSION(:), &
+      POINTER                                :: force
+
     failure = .FALSE.
     CALL timeset(routineN,"I","",handle)
     IF (.NOT.failure) THEN
@@ -370,18 +345,18 @@ CONTAINS
 !!
 !!*** **********************************************************************
   SUBROUTINE reset_ch_pulay(qs_env, error)
-    IMPLICIT NONE
-    ! Arguments
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
-    ! Local Variables
+
     CHARACTER(len=*), PARAMETER :: routineN = 'reset_ch_pulay', &
-      routineP = moduleN//':'//routineN          
-    LOGICAL :: failure
-    INTEGER :: ind, handle
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, ind
+    LOGICAL                                  :: failure
     TYPE(qs_force_type), DIMENSION(:), &
-         POINTER                                     :: force
+      POINTER                                :: force
+
     failure = .FALSE.
 
     CALL timeset(routineN,"I","",handle)

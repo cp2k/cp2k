@@ -22,6 +22,9 @@
 MODULE qs_environment_types
   USE atomic_kind_list_types,          ONLY: atomic_kind_list_type
   USE atomic_kind_types,               ONLY: atomic_kind_type
+  USE cell_types,                      ONLY: cell_release,&
+                                             cell_retain,&
+                                             cell_type
   USE coefficient_types,               ONLY: coeff_deallocate,&
                                              coeff_type
   USE cp_blacs_env,                    ONLY: cp_blacs_env_create,&
@@ -30,12 +33,17 @@ MODULE qs_environment_types
                                              dft_control_retain,&
                                              dft_control_type,&
                                              tddfpt_control_type
+  USE cp_ddapc_types,                  ONLY: cp_ddapc_ewald_release,&
+                                             cp_ddapc_ewald_type,&
+                                             cp_ddapc_release,&
+                                             cp_ddapc_retain,&
+                                             cp_ddapc_type
   USE cp_fm_pool_types,                ONLY: cp_fm_pool_type
   USE cp_fm_types,                     ONLY: cp_fm_create,&
                                              cp_fm_get_info,&
+                                             cp_fm_p_type,&
                                              cp_fm_release,&
-                                             cp_fm_type, &
-                                             cp_fm_p_type
+                                             cp_fm_type
   USE cp_para_env,                     ONLY: cp_para_env_release,&
                                              cp_para_env_retain
   USE cp_para_types,                   ONLY: cp_blacs_env_type,&
@@ -52,17 +60,17 @@ MODULE qs_environment_types
   USE distribution_2d_types,           ONLY: distribution_2d_release,&
                                              distribution_2d_retain,&
                                              distribution_2d_type
-  USE harris_env_types,                ONLY: harris_env_type, &
-                                             harris_env_release
+  USE harris_env_types,                ONLY: harris_env_release,&
+                                             harris_env_type
   USE hartree_local_types,             ONLY: ecoul_1center_type,&
                                              get_hartree_local,&
                                              hartree_local_create,&
                                              hartree_local_release,&
                                              hartree_local_type,&
                                              set_hartree_local
-  USE input_section_types,             ONLY: section_vals_type, section_vals_retain,&
-                                             section_vals_release,&
-                                             section_vals_get_subs_vals
+  USE input_section_types,             ONLY: section_vals_release,&
+                                             section_vals_retain,&
+                                             section_vals_type
   USE kg_gpw_pw_env_types,             ONLY: kg_sub_pw_env_release,&
                                              kg_sub_pw_env_retain,&
                                              kg_sub_pw_env_type
@@ -92,9 +100,9 @@ MODULE qs_environment_types
   USE qs_linres_types,                 ONLY: linres_control_release,&
                                              linres_control_retain,&
                                              linres_control_type
-  USE qs_local_rho_types,              ONLY: local_rho_set_create,&
+  USE qs_local_rho_types,              ONLY: get_local_rho,&
+                                             local_rho_set_create,&
                                              local_rho_set_release,&
-                                             get_local_rho,&
                                              local_rho_type,&
                                              rhoz_type,&
                                              set_local_rho
@@ -110,15 +118,12 @@ MODULE qs_environment_types
   USE qs_oce_types,                    ONLY: deallocate_oce_set,&
                                              oce_matrix_type,&
                                              vtriple_type
-  USE qs_rho_atom_types,               ONLY: deallocate_rho_atom_set, &
-                                             rho_atom_type
+  USE qs_rho0_types,                   ONLY: rho0_atom_type,&
+                                             rho0_mpole_type
+  USE qs_rho_atom_types,               ONLY: rho_atom_type
   USE qs_rho_types,                    ONLY: qs_rho_release,&
                                              qs_rho_retain,&
                                              qs_rho_type
-  USE qs_rho0_types,                   ONLY: deallocate_rho0_atom,&
-                                             deallocate_rho0_mpole,&
-                                             rho0_atom_type,&
-                                             rho0_mpole_type
   USE qs_scf_types,                    ONLY: ot_method_nr,&
                                              qs_scf_env_type,&
                                              scf_env_release,&
@@ -129,31 +134,23 @@ MODULE qs_environment_types
   USE scf_control_types,               ONLY: scf_c_release,&
                                              scf_c_retain,&
                                              scf_control_type
-  USE cell_types,                      ONLY: cell_release,&
-                                             cell_retain,&
-                                             cell_type
   USE sparse_matrix_types,             ONLY: deallocate_matrix_set,&
                                              real_matrix_p_type
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE xas_env_types,                   ONLY: xas_env_release,&
-                                             xas_env_retain,& 
-                                             xas_environment_type
-  USE cp_ddapc_types,                  ONLY: cp_ddapc_type,&
-                                             cp_ddapc_release,&
-                                             cp_ddapc_retain,&
-                                             cp_ddapc_ewald_type,&
-                                             cp_ddapc_ewald_release
-  USE virial_types,                    ONLY: virial_type,&
+  USE virial_types,                    ONLY: virial_release,&
                                              virial_retain,&
-                                             virial_release,&
-                                   virial_create
+                                             virial_type
+  USE xas_env_types,                   ONLY: xas_env_release,&
+                                             xas_env_retain,&
+                                             xas_environment_type
 #include "cp_common_uses.h"
+
   IMPLICIT NONE
 
   PRIVATE
 
-  CHARACTER(LEN=*), PRIVATE, PARAMETER :: moduleN='qs_environment_types'
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_environment_types'
   INTEGER, PRIVATE, SAVE :: last_qs_env_id_nr=0
 
 ! *** Public data types ***
@@ -371,34 +368,34 @@ CONTAINS
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(atomic_kind_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: atomic_kind_set
-    TYPE(cell_type), OPTIONAL, POINTER       :: cell, cell_ref, super_cell
+    TYPE(cell_type), OPTIONAL, POINTER       :: cell, super_cell, cell_ref
     LOGICAL, OPTIONAL                        :: use_ref_cell
     TYPE(dft_control_type), OPTIONAL, &
       POINTER                                :: dft_control
-    TYPE(section_vals_type), POINTER, optional :: input
     TYPE(mo_set_p_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: mos
     TYPE(neighbor_list_set_p_type), &
-      DIMENSION(:), OPTIONAL, POINTER        :: sab_orb, sac_erfc, sac_ppl, &
-                                                sac_ppnl, sbc_ppnl,&
-                                                sac_oce,sbc_oce,sab_2c,&
-                                                sac_3c,sbc_3c
+      DIMENSION(:), OPTIONAL, POINTER        :: sab_orb
     LOGICAL, OPTIONAL                        :: qmmm
+    TYPE(neighbor_list_set_p_type), &
+      DIMENSION(:), OPTIONAL, POINTER        :: sac_erfc, sac_ppl, sac_ppnl, &
+                                                sbc_ppnl, sac_oce, sbc_oce, &
+                                                sab_2c, sac_3c, sbc_3c
     TYPE(particle_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: particle_set
     TYPE(qs_energy_type), OPTIONAL, POINTER  :: energy
     TYPE(qs_force_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: force
-    LOGICAL, OPTIONAL                        :: use_harris
-    TYPE(harris_env_type), OPTIONAL, &
-       POINTER                               :: harris_env
+    TYPE(harris_env_type), OPTIONAL, POINTER :: harris_env
     TYPE(real_matrix_p_type), DIMENSION(:), &
-      OPTIONAL, POINTER                      :: matrix_h, matrix_ks, matrix_s, matrix_w
-    TYPE(qs_rho_type), OPTIONAL, POINTER     :: rho
-    TYPE(qs_rho_type), OPTIONAL, POINTER     :: rho_xc
+      OPTIONAL, POINTER                      :: matrix_h, matrix_ks, &
+                                                matrix_s, matrix_w
+    TYPE(qs_rho_type), OPTIONAL, POINTER     :: rho, rho_xc
     TYPE(pw_env_type), OPTIONAL, POINTER     :: pw_env
     TYPE(qs_matrix_pools_type), OPTIONAL, &
       POINTER                                :: mpools
+    TYPE(section_vals_type), OPTIONAL, &
+      POINTER                                :: input
     TYPE(cp_para_env_type), OPTIONAL, &
       POINTER                                :: para_env
     TYPE(cp_blacs_env_type), OPTIONAL, &
@@ -415,6 +412,7 @@ CONTAINS
     TYPE(qs_wf_history_type), OPTIONAL, &
       POINTER                                :: wf_history
     TYPE(qs_scf_env_type), OPTIONAL, POINTER :: scf_env
+    LOGICAL, OPTIONAL                        :: use_harris
     INTEGER, INTENT(out), OPTIONAL           :: id_nr
     TYPE(distribution_1d_type), OPTIONAL, &
       POINTER                                :: local_particles, &
@@ -427,38 +425,37 @@ CONTAINS
       OPTIONAL, POINTER                      :: molecule_set
     TYPE(cp_subsystem_type), OPTIONAL, &
       POINTER                                :: subsys
-    TYPE(cp_error_type), INTENT(INOUT), &
-      OPTIONAL                               :: error
     TYPE(oce_matrix_type), OPTIONAL, POINTER :: oce
     TYPE(rho_atom_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: rho_atom_set
     TYPE(rho0_atom_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: rho0_atom_set
-    TYPE(rho0_mpole_type), OPTIONAL, POINTER :: rho0_mpole
-    TYPE(rho0_mpole_type), OPTIONAL, POINTER :: nddo_mpole
+    TYPE(rho0_mpole_type), OPTIONAL, POINTER :: rho0_mpole, nddo_mpole
     TYPE(rhoz_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: rhoz_set
     TYPE(ecoul_1center_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: ecoul_1c
-    TYPE(vtriple_type), DIMENSION(:,:), &
+    TYPE(vtriple_type), DIMENSION(:, :), &
       OPTIONAL, POINTER                      :: VH_3c_list
-    TYPE(coeff_type), OPTIONAL, POINTER      :: rho0_s_rs,&
-                                                rho0_s_gs
+    TYPE(coeff_type), OPTIONAL, POINTER      :: rho0_s_rs, rho0_s_gs
     LOGICAL, OPTIONAL                        :: requires_mo_derivs
-    TYPE(cp_fm_p_type), OPTIONAL, POINTER,&
-      DIMENSION(:)                           :: mo_derivs 
-    TYPE(tddfpt_control_type), &
-         OPTIONAL, POINTER                   :: tddfpt_control
+    TYPE(cp_fm_p_type), DIMENSION(:), &
+      OPTIONAL, POINTER                      :: mo_derivs
+    TYPE(tddfpt_control_type), OPTIONAL, &
+      POINTER                                :: tddfpt_control
     INTEGER, OPTIONAL                        :: neighbor_list_id
-    TYPE(kg_sub_pw_env_type), OPTIONAL,&
+    TYPE(kg_sub_pw_env_type), OPTIONAL, &
       POINTER                                :: kg_sub_pw_env
-    TYPE(linres_control_type), OPTIONAL,&
+    TYPE(linres_control_type), OPTIONAL, &
       POINTER                                :: linres_control
-    TYPE(xas_environment_type), OPTIONAL,&
+    TYPE(xas_environment_type), OPTIONAL, &
       POINTER                                :: xas_env
-    TYPE(cp_ddapc_type), POINTER, OPTIONAL   :: cp_ddapc_env
-    TYPE(cp_ddapc_ewald_type), POINTER, OPTIONAL   :: cp_ddapc_ewald
     TYPE(virial_type), OPTIONAL, POINTER     :: virial
+    TYPE(cp_ddapc_type), OPTIONAL, POINTER   :: cp_ddapc_env
+    TYPE(cp_ddapc_ewald_type), OPTIONAL, &
+      POINTER                                :: cp_ddapc_ewald
+    TYPE(cp_error_type), INTENT(INOUT), &
+      OPTIONAL                               :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'get_qs_env', &
       routineP = moduleN//':'//routineN
@@ -693,22 +690,20 @@ CONTAINS
     LOGICAL, OPTIONAL                        :: qmmm
     TYPE(neighbor_list_set_p_type), &
       DIMENSION(:), OPTIONAL, POINTER        :: sab_orb, sac_erfc, sac_ppl, &
-                                                sac_ppnl, sbc_ppnl,&
-                                                sac_oce, sbc_oce,&
-                                                sab_2c,sac_3c,sbc_3c
+                                                sac_ppnl, sbc_ppnl, sac_oce, &
+                                                sbc_oce, sab_2c, sac_3c, &
+                                                sbc_3c
     TYPE(qs_energy_type), OPTIONAL, POINTER  :: energy
     TYPE(qs_force_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: force
-    LOGICAL, OPTIONAL                        :: use_harris
-    TYPE(harris_env_type), POINTER, &
-       OPTIONAL                              :: harris_env
+    TYPE(harris_env_type), OPTIONAL, POINTER :: harris_env
     TYPE(real_matrix_p_type), DIMENSION(:), &
-      OPTIONAL, POINTER                      :: matrix_h, matrix_ks, matrix_s, matrix_w
+      OPTIONAL, POINTER                      :: matrix_h, matrix_ks, &
+                                                matrix_s, matrix_w
     TYPE(pw_env_type), OPTIONAL, POINTER     :: pw_env
     TYPE(qs_matrix_pools_type), OPTIONAL, &
       POINTER                                :: mpools
-    TYPE(qs_rho_type), OPTIONAL, POINTER     :: rho
-    TYPE(qs_rho_type), OPTIONAL, POINTER     :: rho_xc
+    TYPE(qs_rho_type), OPTIONAL, POINTER     :: rho, rho_xc
     TYPE(real_matrix_p_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: kinetic
     TYPE(scf_control_type), OPTIONAL, &
@@ -721,8 +716,11 @@ CONTAINS
     TYPE(qs_wf_history_type), OPTIONAL, &
       POINTER                                :: wf_history
     TYPE(qs_scf_env_type), OPTIONAL, POINTER :: scf_env
+    LOGICAL, OPTIONAL                        :: use_harris
     TYPE(distribution_2d_type), OPTIONAL, &
       POINTER                                :: distribution_2d
+    TYPE(section_vals_type), OPTIONAL, &
+      POINTER                                :: dft_section, input
     TYPE(cp_subsystem_type), OPTIONAL, &
       POINTER                                :: subsys
     TYPE(oce_matrix_type), OPTIONAL, POINTER :: oce
@@ -730,37 +728,36 @@ CONTAINS
       OPTIONAL, POINTER                      :: rho_atom_set
     TYPE(rho0_atom_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: rho0_atom_set
-    TYPE(rho0_mpole_type), OPTIONAL, POINTER :: rho0_mpole
-    TYPE(rho0_mpole_type), OPTIONAL, POINTER :: nddo_mpole
+    TYPE(rho0_mpole_type), OPTIONAL, POINTER :: rho0_mpole, nddo_mpole
     TYPE(rhoz_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: rhoz_set
     REAL(dp), OPTIONAL                       :: rhoz_tot
     TYPE(ecoul_1center_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: ecoul_1c
-    TYPE(vtriple_type), DIMENSION(:,:),&
+    TYPE(vtriple_type), DIMENSION(:, :), &
       OPTIONAL, POINTER                      :: VH_3c_list
     TYPE(cp_error_type), INTENT(INOUT), &
       OPTIONAL                               :: error
-    TYPE(section_vals_type), POINTER, optional :: input
     LOGICAL, OPTIONAL                        :: requires_mo_derivs
-    TYPE(cp_fm_p_type), DIMENSION(:),&
-       POINTER, OPTIONAL                     :: mo_derivs
-    TYPE(section_vals_type), POINTER, optional :: dft_section
+    TYPE(cp_fm_p_type), DIMENSION(:), &
+      OPTIONAL, POINTER                      :: mo_derivs
     INTEGER, OPTIONAL                        :: neighbor_list_id
-    TYPE(kg_sub_pw_env_type), OPTIONAL,&
+    TYPE(kg_sub_pw_env_type), OPTIONAL, &
       POINTER                                :: kg_sub_pw_env
-    TYPE(linres_control_type), OPTIONAL,&
+    TYPE(linres_control_type), OPTIONAL, &
       POINTER                                :: linres_control
-    TYPE(xas_environment_type), OPTIONAL,&
+    TYPE(xas_environment_type), OPTIONAL, &
       POINTER                                :: xas_env
-    TYPE(cp_ddapc_type), OPTIONAL, POINTER   :: cp_ddapc_env
-    TYPE(cp_ddapc_ewald_type), OPTIONAL, POINTER   :: cp_ddapc_ewald
     TYPE(virial_type), OPTIONAL, POINTER     :: virial
+    TYPE(cp_ddapc_type), OPTIONAL, POINTER   :: cp_ddapc_env
+    TYPE(cp_ddapc_ewald_type), OPTIONAL, &
+      POINTER                                :: cp_ddapc_ewald
 
-    CHARACTER(len=*), PARAMETER :: routineN = "set_qs_env", &
+    CHARACTER(len=*), PARAMETER :: routineN = 'set_qs_env', &
       routineP = moduleN//':'//routineN
 
     LOGICAL                                  :: failure
+
 !   ---------------------------------------------------------------------------
 
     failure=.FALSE.

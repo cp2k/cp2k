@@ -45,7 +45,7 @@ MODULE machine_aix
 CONTAINS
 
 FUNCTION m_loc_r1(a) RESULT(res)
-    REAL(KIND=dp), DIMENSION(:), INTENT(in) :: a
+    REAL(KIND=dp), DIMENSION(:), INTENT(in)  :: a
     INTEGER(kind=8)                          :: res
 
   res=INT(loc(a),8)
@@ -123,7 +123,7 @@ END FUNCTION m_iargc
 !******************************************************************************
 !!  cpu time in seconds
 FUNCTION m_cputime() RESULT (ct)
-    REAL(KIND=dp)                                :: ct
+    REAL(KIND=dp)                            :: ct
 
     REAL                                     :: wtl
 

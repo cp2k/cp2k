@@ -25,8 +25,11 @@ MODULE fist_environment_types
                                              atomic_kind_list_release,&
                                              atomic_kind_list_type
   USE atomic_kind_types,               ONLY: atomic_kind_type
-  USE cp_para_env,                     ONLY: cp_para_env_retain,&
-                                             cp_para_env_release
+  USE cell_types,                      ONLY: cell_release,&
+                                             cell_retain,&
+                                             cell_type
+  USE cp_para_env,                     ONLY: cp_para_env_release,&
+                                             cp_para_env_retain
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_subsystem_types,              ONLY: cp_subsys_create,&
                                              cp_subsys_get,&
@@ -35,17 +38,17 @@ MODULE fist_environment_types
                                              cp_subsys_set,&
                                              cp_subsystem_type
   USE distribution_1d_types,           ONLY: distribution_1d_type
-  USE ewald_environment_types,         ONLY: ewald_environment_type, &
-                                             ewald_env_retain, &
-                                             ewald_env_release
-  USE ewald_pw_types,                  ONLY: ewald_pw_type, &
-                                             ewald_pw_retain, &
-                                             ewald_pw_release
-  USE fist_energy_types,               ONLY: fist_energy_type,&
-                                             deallocate_fist_energy
-  USE fist_nonbond_env_types,          ONLY: fist_nonbond_env_type, &
-                                             fist_nonbond_env_retain, &
-                                             fist_nonbond_env_release
+  USE ewald_environment_types,         ONLY: ewald_env_release,&
+                                             ewald_env_retain,&
+                                             ewald_environment_type
+  USE ewald_pw_types,                  ONLY: ewald_pw_release,&
+                                             ewald_pw_retain,&
+                                             ewald_pw_type
+  USE fist_energy_types,               ONLY: deallocate_fist_energy,&
+                                             fist_energy_type
+  USE fist_nonbond_env_types,          ONLY: fist_nonbond_env_release,&
+                                             fist_nonbond_env_retain,&
+                                             fist_nonbond_env_type
   USE kinds,                           ONLY: dp
   USE mol_kind_new_list_types,         ONLY: mol_kind_new_list_create,&
                                              mol_kind_new_list_release,&
@@ -55,20 +58,18 @@ MODULE fist_environment_types
                                              mol_new_list_type
   USE molecule_kind_types,             ONLY: molecule_kind_type
   USE molecule_types_new,              ONLY: molecule_type
-  USE particle_list_types,             ONLY: particle_list_type, &
-                                             particle_list_release, &
-                                             particle_list_create
+  USE particle_list_types,             ONLY: particle_list_create,&
+                                             particle_list_release,&
+                                             particle_list_type
   USE particle_types,                  ONLY: particle_type
-  USE cell_types,                      ONLY: cell_type, &
-                                             cell_retain, &
-                                             cell_release
+  USE qmmm_types,                      ONLY: qmmm_env_mm_create,&
+                                             qmmm_env_mm_release,&
+                                             qmmm_env_mm_retain,&
+                                             qmmm_env_mm_type
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE qmmm_types,                      ONLY: qmmm_env_mm_type,&
-                                             qmmm_env_mm_create,&
-                                             qmmm_env_mm_release,&
-                                             qmmm_env_mm_retain
 #include "cp_common_uses.h"
+
   IMPLICIT NONE
   PRIVATE
 !
@@ -130,7 +131,7 @@ MODULE fist_environment_types
             fist_env_release, &
             fist_env_retain
 
-  CHARACTER(LEN=*), PRIVATE, PARAMETER :: moduleN='fist_environment_types'
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'fist_environment_types'
   INTEGER, PRIVATE, SAVE :: last_fist_env_id_nr=0
 
 !***
@@ -145,39 +146,50 @@ CONTAINS
                            molecule_set, cell, cell_ref, ewald_env,  &
                            fist_nonbond_env, thermo, para_env, subsys,  &
                            qmmm, qmmm_env, error )
-    IMPLICIT NONE
 
 !   Purpose: Get the FIST environment.
 
 !   ***************************************************************************
 
-    TYPE ( fist_environment_type ), INTENT(IN)              :: fist_env
-    TYPE ( cell_type ), OPTIONAL, POINTER                   :: cell, cell_ref
-    TYPE ( ewald_environment_type ), OPTIONAL, POINTER      :: ewald_env
-    TYPE ( fist_energy_type ), OPTIONAL, POINTER            :: thermo
-    TYPE(atomic_kind_type), OPTIONAL, POINTER               :: atomic_kind_set ( : ) 
-    TYPE(ewald_pw_type), OPTIONAL, POINTER                  :: ewald_pw
-    TYPE(particle_type), OPTIONAL, POINTER                  :: particle_set ( : )
-    TYPE(fist_nonbond_env_type), OPTIONAL, POINTER          :: fist_nonbond_env
-    TYPE(cp_para_env_type), OPTIONAL, POINTER               :: para_env
-    TYPE(distribution_1d_type),OPTIONAL, POINTER            :: local_particles,&
-                                                               local_molecules
-    TYPE(cp_error_type), OPTIONAL,INTENT(INOUT)             :: error
-    TYPE(molecule_kind_type),  OPTIONAL, POINTER            :: molecule_kind_set ( : )
-    TYPE(molecule_type),  OPTIONAL, POINTER                 :: molecule_set ( : )
-    TYPE(cp_subsystem_type), POINTER, OPTIONAL              :: subsys
-    TYPE(qmmm_env_mm_type), POINTER, OPTIONAL               :: qmmm_env
-    LOGICAL, OPTIONAL :: qmmm
+    TYPE(fist_environment_type), INTENT(IN)  :: fist_env
+    TYPE(atomic_kind_type), OPTIONAL, &
+      POINTER                                :: atomic_kind_set( : )
+    TYPE(particle_type), OPTIONAL, POINTER   :: particle_set( : )
+    TYPE(ewald_pw_type), OPTIONAL, POINTER   :: ewald_pw
+    TYPE(distribution_1d_type), OPTIONAL, &
+      POINTER                                :: local_particles, &
+                                                local_molecules
+    TYPE(molecule_kind_type), OPTIONAL, &
+      POINTER                                :: molecule_kind_set( : )
+    TYPE(molecule_type), OPTIONAL, POINTER   :: molecule_set( : )
+    TYPE(cell_type), OPTIONAL, POINTER       :: cell, cell_ref
+    TYPE(ewald_environment_type), OPTIONAL, &
+      POINTER                                :: ewald_env
+    TYPE(fist_nonbond_env_type), OPTIONAL, &
+      POINTER                                :: fist_nonbond_env
+    TYPE(fist_energy_type), OPTIONAL, &
+      POINTER                                :: thermo
+    TYPE(cp_para_env_type), OPTIONAL, &
+      POINTER                                :: para_env
+    TYPE(cp_subsystem_type), OPTIONAL, &
+      POINTER                                :: subsys
+    LOGICAL, OPTIONAL                        :: qmmm
+    TYPE(qmmm_env_mm_type), OPTIONAL, &
+      POINTER                                :: qmmm_env
+    TYPE(cp_error_type), INTENT(INOUT), &
+      OPTIONAL                               :: error
 
-    LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineN='get_fist_env',&
-                                   routineP=moduleN//':'//routineN
-    TYPE (atomic_kind_list_type), POINTER :: atomic_kinds
-    TYPE (particle_list_type), POINTER :: particles
-    TYPE (mol_new_list_type), POINTER :: molecules_new
-    TYPE (mol_kind_new_list_type), POINTER :: molecule_kinds_new
+    CHARACTER(len=*), PARAMETER :: routineN = 'get_fist_env', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
+    TYPE(mol_kind_new_list_type), POINTER    :: molecule_kinds_new
+    TYPE(mol_new_list_type), POINTER         :: molecules_new
+    TYPE(particle_list_type), POINTER        :: particles
 
 !   ---------------------------------------------------------------------------
+
     failure=.FALSE.
     NULLIFY( atomic_kinds, particles, molecules_new, molecule_kinds_new )
 !    CPPrecondition(fist_env%ref_count>0,cp_failure_level,routineP,error,failure)
@@ -216,9 +228,10 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(fist_environment_type), INTENT(OUT)     :: fist_env
-    TYPE(cp_para_env_type), POINTER              :: para_env
-    TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
+    TYPE(fist_environment_type), INTENT(OUT) :: fist_env
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
 !   ---------------------------------------------------------------------------
 
@@ -249,35 +262,43 @@ CONTAINS
                            fist_nonbond_env, thermo, subsys, qmmm, qmmm_env, &
                            error )
 
-    IMPLICIT NONE
 !   Purpose: Set the FIST environment.
 
-    TYPE ( fist_environment_type ), POINTER                 :: fist_env
-    TYPE ( qmmm_env_mm_type ), POINTER, OPTIONAL            :: qmmm_env
-    TYPE ( cell_type ), OPTIONAL, POINTER                   :: cell
-    TYPE ( cell_type ), OPTIONAL, POINTER                   :: cell_ref
-    TYPE ( ewald_environment_type ), OPTIONAL, POINTER      :: ewald_env
-    TYPE ( ewald_pw_type ), OPTIONAL, POINTER               :: ewald_pw
-    TYPE ( fist_energy_type ), OPTIONAL, POINTER            :: thermo
-    TYPE ( fist_nonbond_env_type ), OPTIONAL, POINTER       :: fist_nonbond_env
-    TYPE(atomic_kind_type), OPTIONAL, POINTER               :: atomic_kind_set ( : )
-    TYPE(particle_type), OPTIONAL, POINTER                  :: particle_set ( : )
-    TYPE(distribution_1d_type),OPTIONAL, POINTER            :: local_particles,&
-                                                               local_molecules
-    TYPE(cp_error_type), OPTIONAL,INTENT(INOUT)             :: error
-    TYPE(molecule_kind_type),  OPTIONAL, POINTER            :: molecule_kind_set ( : )
-    TYPE(molecule_type),  OPTIONAL, POINTER                 :: molecule_set ( : )
-    TYPE(cp_subsystem_type), POINTER, OPTIONAL              :: subsys
-    LOGICAL,OPTIONAL                                        :: qmmm
-! locals
-    TYPE (atomic_kind_list_type), POINTER :: atomic_kinds
-    TYPE (particle_list_type), POINTER :: particles
-    TYPE (mol_new_list_type), POINTER :: molecules_new
-    TYPE (mol_kind_new_list_type), POINTER :: molecule_kinds_new
+    TYPE(fist_environment_type), POINTER     :: fist_env
+    TYPE(atomic_kind_type), OPTIONAL, &
+      POINTER                                :: atomic_kind_set( : )
+    TYPE(particle_type), OPTIONAL, POINTER   :: particle_set( : )
+    TYPE(ewald_pw_type), OPTIONAL, POINTER   :: ewald_pw
+    TYPE(distribution_1d_type), OPTIONAL, &
+      POINTER                                :: local_particles, &
+                                                local_molecules
+    TYPE(molecule_kind_type), OPTIONAL, &
+      POINTER                                :: molecule_kind_set( : )
+    TYPE(molecule_type), OPTIONAL, POINTER   :: molecule_set( : )
+    TYPE(cell_type), OPTIONAL, POINTER       :: cell, cell_ref
+    TYPE(ewald_environment_type), OPTIONAL, &
+      POINTER                                :: ewald_env
+    TYPE(fist_nonbond_env_type), OPTIONAL, &
+      POINTER                                :: fist_nonbond_env
+    TYPE(fist_energy_type), OPTIONAL, &
+      POINTER                                :: thermo
+    TYPE(cp_subsystem_type), OPTIONAL, &
+      POINTER                                :: subsys
+    LOGICAL, OPTIONAL                        :: qmmm
+    TYPE(qmmm_env_mm_type), OPTIONAL, &
+      POINTER                                :: qmmm_env
+    TYPE(cp_error_type), INTENT(INOUT), &
+      OPTIONAL                               :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN="set_fist_env",&
-         routineP=moduleN//':'//routineN
-    LOGICAL :: failure
+    CHARACTER(len=*), PARAMETER :: routineN = 'set_fist_env', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
+    TYPE(mol_kind_new_list_type), POINTER    :: molecule_kinds_new
+    TYPE(mol_new_list_type), POINTER         :: molecules_new
+    TYPE(particle_list_type), POINTER        :: particles
+
     failure=.FALSE.
     CPPrecondition(fist_env%ref_count>0,cp_failure_level,routineP,error,failure)
 
@@ -401,14 +422,16 @@ CONTAINS
 !
 !*** **********************************************************************
 SUBROUTINE fist_env_create(fist_env,para_env,error)
-  TYPE(fist_environment_type), POINTER :: fist_env
-  TYPE(cp_para_env_type), POINTER :: para_env
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-  
-  LOGICAL :: failure
-  CHARACTER(len=*), PARAMETER :: routineN='fist_env_create',&
-        routineP=moduleN//':'//routineN
-  INTEGER :: stat
+    TYPE(fist_environment_type), POINTER     :: fist_env
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'fist_env_create', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: stat
+    LOGICAL                                  :: failure
 
   failure=.FALSE.
   
@@ -450,12 +473,15 @@ END SUBROUTINE fist_env_create
 !
 !*** **********************************************************************
 SUBROUTINE fist_env_retain(fist_env,error)
-  TYPE(fist_environment_type), POINTER :: fist_env
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
- 
-  LOGICAL :: failure
-  CHARACTER(len=*), PARAMETER :: routineN='fist_env_retain',&
-        routineP=moduleN//':'//routineN
+    TYPE(fist_environment_type), POINTER     :: fist_env
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'fist_env_retain', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+
   failure=.FALSE.
 !!  
   CPPrecondition(ASSOCIATED(fist_env),cp_failure_level,routineP,error,failure)
@@ -496,13 +522,16 @@ END SUBROUTINE fist_env_retain
 !
 !*** **********************************************************************
 SUBROUTINE fist_env_release(fist_env,error)
-  TYPE(fist_environment_type), POINTER :: fist_env
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(fist_environment_type), POINTER     :: fist_env
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-  LOGICAL :: failure
-  CHARACTER(len=*), PARAMETER :: routineN='fist_env_release',&
-       routineP=moduleN//':'//routineN
-  INTEGER :: i, stat
+    CHARACTER(len=*), PARAMETER :: routineN = 'fist_env_release', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: stat
+    LOGICAL                                  :: failure
+
   failure=.FALSE.
 
   IF (ASSOCIATED(fist_env)) THEN
@@ -515,7 +544,7 @@ SUBROUTINE fist_env_release(fist_env,error)
         CALL ewald_pw_release(fist_env%ewald_pw)
         CALL ewald_env_release(fist_env%ewald_env)
         CALL cp_para_env_release(fist_env%para_env,error=error)
-        call deallocate_fist_energy(fist_env%thermo)
+        CALL deallocate_fist_energy(fist_env%thermo)
 
         CALL fist_nonbond_env_release ( fist_env % fist_nonbond_env, error = error )
 

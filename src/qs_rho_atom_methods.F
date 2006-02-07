@@ -18,7 +18,7 @@
 MODULE qs_rho_atom_methods
 
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
-                                            get_atomic_kind,&
+                                             get_atomic_kind,&
                                              get_atomic_kind_set
   USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                              gto_basis_set_type
@@ -26,16 +26,18 @@ MODULE qs_rho_atom_methods
                                              gapw_control_type
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE erf_fn,                          ONLY: erf
-  USE kinds,                           ONLY: dp, dp_size, int_size
+  USE kinds,                           ONLY: dp,&
+                                             dp_size,&
+                                             int_size
   USE lebedev,                         ONLY: deallocate_lebedev_grids,&
                                              get_number_of_lebedev_grid,&
                                              init_lebedev_grids,&
                                              lebedev_grid
-  USE mathconstants,                   ONLY: fourpi,pi
+  USE mathconstants,                   ONLY: fourpi,&
+                                             pi
   USE memory_utilities,                ONLY: reallocate
   USE message_passing,                 ONLY: mp_sum
   USE orbital_pointers,                ONLY: indso,&
-                                             ncoset,&
                                              nsoset
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type,&
@@ -44,17 +46,10 @@ MODULE qs_rho_atom_methods
                                              grid_atom_type
   USE qs_harmonics_atom,               ONLY: create_harmonics_atom,&
                                              harmonics_atom_type
-  USE qs_neighbor_list_types,          ONLY: find_neighbor_list,&
-                                             first_list,&
-                                             first_node,&
-                                             get_neighbor_list,&
-                                             get_neighbor_list_set,&
-                                             get_neighbor_node,&
-                                             neighbor_list_set_p_type,&
-                                             neighbor_list_type,&
-                                             neighbor_node_type,&
-                                             next,&
-                                             reduced_3c_list_type
+  USE qs_neighbor_list_types,          ONLY: &
+       first_list, first_node, get_neighbor_list, get_neighbor_list_set, &
+       get_neighbor_node, neighbor_list_set_p_type, neighbor_list_type, &
+       neighbor_node_type, next, reduced_3c_list_type
   USE qs_oce_types,                    ONLY: oce_matrix_type
   USE qs_rho_atom_types,               ONLY: allocate_rho_atom_set,&
                                              rho_atom_coeff,&
@@ -68,7 +63,8 @@ MODULE qs_rho_atom_methods
   USE termination,                     ONLY: stop_memory
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE util,                            ONLY: get_limit !,locate
+  USE util,                            ONLY: get_limit
+!,locate
   USE whittaker,                       ONLY: whittaker_c0,&
                                              whittaker_ci
 #include "cp_common_uses.h"
@@ -79,7 +75,7 @@ MODULE qs_rho_atom_methods
 
 ! *** Global parameters (only in this module)
 
-  CHARACTER(LEN=*), PARAMETER :: module_name = "qs_rho_atom_methods"
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_rho_atom_methods'
 
 ! *** Public subroutines ***
 
@@ -101,41 +97,37 @@ MODULE qs_rho_atom_methods
       POINTER                                :: rho_atom_set
     TYPE(atomic_kind_type), POINTER          :: atom_kind
     INTEGER, DIMENSION(:), INTENT(IN)        :: atom_list
-    TYPE(grid_atom_type),  INTENT(IN)        :: grid_atom
+    TYPE(grid_atom_type), INTENT(IN)         :: grid_atom
     INTEGER, INTENT(IN)                      :: natom, nspins
-    REAL(dp), DIMENSION(:), INTENT(INOUT)    :: tot_rho1_h,&
-                                                tot_rho1_s
+    REAL(dp), DIMENSION(:), INTENT(INOUT)    :: tot_rho1_h, tot_rho1_s
     TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                                  :: error
+      OPTIONAL                               :: error
 
-    CHARACTER(len=*), PARAMETER :: routine_name = 'calculate_rho_atom', &
-      routineP = module_name//':'//routine_name
+    CHARACTER(len=*), PARAMETER :: routineN = 'calculate_rho_atom', &
+      routineP = moduleN//':'//routineN
 
-    INTEGER :: handle, i, i1, i2, ia, iat, iatom, icg, &
-      ipgf1, ipgf2, ir, iset1, iset2, iso, iso1, &
-      iso1_first, iso1_last, iso2, iso2_first, iso2_last, istat, &
-      j, l, l_iso, l_sub, l_sum, lmax12, lmax_expansion, &
-      lmin12, m1s, m2s, max_iso_not0, maxcg, maxco, maxl, maxso, &
-      mepos, n1s, n2s, nr, nset, num_pe, size1, size2
+    INTEGER :: handle, i, i1, i2, iat, iatom, icg, ipgf1, ipgf2, ir, iset1, &
+      iset2, iso, iso1, iso1_first, iso1_last, iso2, iso2_first, iso2_last, &
+      istat, j, l, l_iso, l_sub, l_sum, lmax12, lmax_expansion, lmin12, m1s, &
+      m2s, max_iso_not0, maxcg, maxco, maxl, maxso, mepos, n1s, n2s, nr, &
+      nset, num_pe, size1, size2
     INTEGER, DIMENSION(2)                    :: bo
     INTEGER, DIMENSION(:), POINTER           :: lmax, lmin, npgf
-    LOGICAL :: failure
+    LOGICAL                                  :: failure
+    LOGICAL, ALLOCATABLE, DIMENSION(:, :)    :: done_vgg
     REAL(dp)                                 :: c1, c2, rho_h, rho_s, &
-                                                rho1h_iat, rho1s_iat, &
                                                 root_zet12, zet12
-    REAL(dp), ALLOCATABLE, DIMENSION(:)      :: erf_zet12, g1, g2, gg0, int1, int2
-    REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: dgg, gg
-    REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: CPCH_sphere,&
-                                                CPCS_sphere
-    REAL(dp), ALLOCATABLE, DIMENSION(:,:,:)  :: vgg
-    REAL(dp), DIMENSION(:, :), POINTER       :: coeff, &
-                                                zet
+    REAL(dp), ALLOCATABLE, DIMENSION(:)      :: erf_zet12, g1, g2, gg0, int1, &
+                                                int2
+    REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: CPCH_sphere, CPCS_sphere, &
+                                                dgg, gg
+    REAL(dp), ALLOCATABLE, &
+      DIMENSION(:, :, :)                     :: vgg
+    REAL(dp), DIMENSION(:, :), POINTER       :: coeff, zet
     REAL(dp), DIMENSION(:, :, :), POINTER    :: my_CG
     REAL(dp), DIMENSION(:, :, :, :), POINTER :: my_CG_dxyz
-    LOGICAL, DIMENSION(:,:), ALLOCATABLE     :: done_vgg
     TYPE(gto_basis_set_type), POINTER        :: orb_basis
     TYPE(harmonics_atom_type), POINTER       :: harmonics
-
 
 ! *****************************************************************************
 
@@ -167,19 +159,19 @@ MODULE qs_rho_atom_methods
 
     ALLOCATE(CPCH_sphere(nsoset(maxl),nsoset(maxl)),STAT=istat)
     ALLOCATE(CPCS_sphere(nsoset(maxl),nsoset(maxl)),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
          "CPCH_sphere,CPCS_sphere",2*nsoset(maxl)*nsoset(maxl)*dp_size)
     ALLOCATE(g1(nr),g2(nr),gg0(nr),gg(nr,0:2*maxl),dgg(nr,0:2*maxl),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
          "g1,g2,gg0,gg,dgg",3*nr+2*nr*(2*maxl+1)*dp_size)
     ALLOCATE(erf_zet12(nr),vgg(nr,0:2*maxl,0:indso(1,max_iso_not0)),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
          "erf_zet12,vgg",nr+nr*(2*maxl+1)*(2*maxl+1)*dp_size)
     ALLOCATE(done_vgg(0:2*maxl,0:indso(1,max_iso_not0)),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
          "done_vgg",(2*maxl+1)*(2*maxl+1)*int_size)
     ALLOCATE(int1(nr),int2(nr),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
          "int1,int2",2*nr*dp_size)
 
 !******************************************************************************
@@ -220,7 +212,7 @@ MODULE qs_rho_atom_methods
             vgg = 0.0_dp
             done_vgg = .FALSE.
 !test reduce expansion local densities
-       IF(lmin12 .le. lmax_expansion) THEN
+       IF(lmin12 .LE. lmax_expansion) THEN
             IF (lmin12 == 0) THEN
               gg(1:nr,lmin12) = g1(1:nr)*g2(1:nr)
               gg0(1:nr) = gg(1:nr,lmin12)
@@ -230,7 +222,7 @@ MODULE qs_rho_atom_methods
             END IF
            
 !test reduce expansion local densities
-            IF(lmax12 .gt. lmax_expansion) lmax12 = lmax_expansion
+            IF(lmax12 .GT. lmax_expansion) lmax12 = lmax_expansion
 
             DO l=lmin12+1,lmax12
               gg(1:nr,l) = grid_atom%rad(1:nr)*gg(1:nr,l-1)
@@ -398,12 +390,12 @@ MODULE qs_rho_atom_methods
 
     DEALLOCATE(CPCH_sphere,CPCS_sphere,STAT=istat)
     IF (istat /= 0) THEN
-       CALL stop_memory(routine_name,module_name,__LINE__,&
+       CALL stop_memory(routineN,moduleN,__LINE__,&
             "CPCH_sphere,CPCS_sphere")
     ENDIF
     DEALLOCATE(g1,g2,gg0,gg,dgg,vgg,done_vgg,erf_zet12,int1,int2,STAT=istat)
     IF (istat /= 0) THEN
-       CALL stop_memory(routine_name,module_name,__LINE__,&
+       CALL stop_memory(routineN,moduleN,__LINE__,&
             "g1,g2,gg0,gg,dgg,vgg,done_vgg,erf_zet12,int1,int2")
     ENDIF
 
@@ -419,34 +411,34 @@ MODULE qs_rho_atom_methods
     TYPE(real_matrix_p_type), DIMENSION(:), &
       POINTER                                :: rho_ao
     TYPE(rho_atom_type), DIMENSION(:), &
-      POINTER, OPTIONAL                      :: rho_atom_set
+      OPTIONAL, POINTER                      :: rho_atom_set
 
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_rho_atom_coeff'
 
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "calculate_rho_atom_coeff"
-
-    INTEGER :: handle, i, iab, iatom, icol, ikind, ilist, inode, irow, ispin, istat, j, &
-      jatom, jkind, katom, kkind, kneighbor, last_jatom, last_katom, max_gau, max_nsgf, &
-      maxsoc, natom, nat_kind, nkind, nlist, nnode, nnode_c, nsetc,  &
-      nsgfa, nsgfb, nsoctot, nspins
+    INTEGER :: handle, i, iab, iatom, icol, ikind, ilist, inode, irow, ispin, &
+      istat, j, jatom, jkind, katom, kkind, kneighbor, last_jatom, &
+      last_katom, max_gau, max_nsgf, maxsoc, nat_kind, natom, nkind, nlist, &
+      nnode, nnode_c, nsetc, nsgfa, nsgfb, nsoctot, nspins
     INTEGER, DIMENSION(:), POINTER           :: a_list
-    LOGICAL                                  :: new_atom_b, new_atom_c, paw_atom
+    LOGICAL                                  :: new_atom_b, new_atom_c, &
+                                                paw_atom
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: PC
-    REAL(KIND=dp), POINTER, DIMENSION(:, :)  :: C_coeff_hh_a, C_coeff_hh_b, &
-                                                C_coeff_ss_a, C_coeff_ss_b
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :, :)                     :: coef_aux_h, coef_aux_s
     REAL(KIND=dp), DIMENSION(3)              :: rab
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: C_coeff_hh_a, C_coeff_hh_b, &
+                                                C_coeff_ss_a, C_coeff_ss_b
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
     TYPE(neighbor_list_set_p_type), &
-      DIMENSION(:), POINTER                  :: sab_orb 
+      DIMENSION(:), POINTER                  :: sab_orb
     TYPE(neighbor_list_type), POINTER        :: sab_orb_neighbor_list, &
                                                 sab_orb_neighbor_list_local
-    TYPE(neighbor_node_type), POINTER        :: sab_orb_neighbor_node!
+    TYPE(neighbor_node_type), POINTER        :: sab_orb_neighbor_node
     TYPE(oce_matrix_type), POINTER           :: oce
     TYPE(reduced_3c_list_type), &
       DIMENSION(:), POINTER                  :: reduced_3c_oce
@@ -455,6 +447,7 @@ MODULE qs_rho_atom_methods
     TYPE(rho_atom_type), DIMENSION(:), &
       POINTER                                :: rho_atom
 
+!
 ! *****************************************************************************
 
     CALL timeset("calculate_rho_atom_coeff","I"," ",handle)
@@ -478,7 +471,7 @@ MODULE qs_rho_atom_methods
     nspins=dft_control%nspins
 
     ALLOCATE(p_block_spin(nspins),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                          "p_block_spin")
     DO ispin = 1,nspins
       NULLIFY(p_block_spin(ispin)%r_coef)
@@ -491,7 +484,7 @@ MODULE qs_rho_atom_methods
     ALLOCATE (PC(max_nsgf,max_gau),STAT=istat)
     ALLOCATE (coef_aux_h(max_gau,max_gau,nspins),STAT=istat)
     ALLOCATE (coef_aux_s(max_gau,max_gau,nspins),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
          "PC,coef_aux_h,coef_aux_s",3*nspins*max_gau*max_gau*dp_size)
 
     nkind = SIZE(atomic_kind_set)
@@ -784,10 +777,10 @@ MODULE qs_rho_atom_methods
     END DO
 
     DEALLOCATE (PC,coef_aux_h,coef_aux_s,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
         "PC,coef_aux_h,coef_aux_s")
     DEALLOCATE (p_block_spin, STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
         "p_block_spin")
 
    CALL timestop(0.0_dp,handle)
@@ -801,13 +794,11 @@ MODULE qs_rho_atom_methods
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(gapw_control_type), POINTER         :: gapw_control
 
-    CHARACTER(LEN=*), PARAMETER              :: routine_name = "init_rho_atom"
+    CHARACTER(LEN=*), PARAMETER              :: routineN = 'init_rho_atom'
 
-    INTEGER :: i, ia, iat, iatom, ikind, il, iso, iso1, iso2, istat, j, &
-      l1, l1l2, l2, lc1, lc2, lcleb, ll, llmax, lmax_sphere, lp, m1, m2, &
-      max_iso_not0, max_s_harm, max_s_set,maxco, maxlgto, maxso, mm, mp, &
-      na, nat, natom, ncotot, nkind, nr, nset, &
-      nsotot, nspins, quadrature
+    INTEGER :: ia, ikind, il, iso, iso1, iso2, istat, l1, l1l2, l2, lc1, lc2, &
+      lcleb, ll, llmax, lmax_sphere, lp, m1, m2, max_s_harm, max_s_set, &
+      maxlgto, mm, mp, na, nat, natom, nkind, nr, nspins, quadrature
     INTEGER, DIMENSION(:), POINTER           :: atom_list
     LOGICAL                                  :: paw_atom
     REAL(dp)                                 :: cosia, phi
@@ -956,7 +947,7 @@ MODULE qs_rho_atom_methods
         END IF
 
         grid_atom%sin_theta(ia) = SIN( grid_atom%theta(ia) ) 
-        IF(abs(grid_atom%sin_theta(ia)) > EPSILON(1.0_dp)) THEN
+        IF(ABS(grid_atom%sin_theta(ia)) > EPSILON(1.0_dp)) THEN
           grid_atom%usin_theta(ia)  = 1.0_dp/grid_atom%sin_theta(ia)
         ELSE
           grid_atom%usin_theta(ia) = 1.0_dp
@@ -986,18 +977,14 @@ MODULE qs_rho_atom_methods
 
   SUBROUTINE allocate_rho_atom_internals(qs_env, rho_atom_set)
 
-    ! ARGUMENTS
-    TYPE(qs_environment_type),POINTER        :: qs_env
+    TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(rho_atom_type), DIMENSION(:), &
       POINTER                                :: rho_atom_set
 
-    ! PARAMETERS
-    CHARACTER(LEN=*), PARAMETER              :: routine_name = &
-                                                "allocate_rho_atom_internals"
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'allocate_rho_atom_internals'
 
-    ! LOCALS
-    INTEGER :: iat, iatom,ikind, ispin, istat, j, max_iso_not0,&
-               maxso, nat, natom, nkind, nr, nset, nsotot, nspins, tmpstat
+    INTEGER :: iat, iatom, ikind, ispin, istat, j, max_iso_not0, maxso, nat, &
+      natom, nkind, nr, nset, nsotot, nspins, tmpstat
     INTEGER, DIMENSION(:), POINTER           :: atom_list
     LOGICAL                                  :: paw_atom
     TYPE(atomic_kind_type), DIMENSION(:), &
@@ -1007,7 +994,7 @@ MODULE qs_rho_atom_methods
     TYPE(harmonics_atom_type), POINTER       :: harmonics
 
 ! --------------------------------------------------------------------------
-    
+
     NULLIFY(atomic_kind_set)
     NULLIFY(rho_atom_set)
 
@@ -1045,7 +1032,7 @@ MODULE qs_rho_atom_methods
           ALLOCATE (rho_atom_set(iatom)%rho_rad_s(nspins),STAT=istat)
           ALLOCATE (rho_atom_set(iatom)%vrho_rad_h(nspins),STAT=istat)
           ALLOCATE (rho_atom_set(iatom)%vrho_rad_s(nspins),STAT=istat)
-          IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+          IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
               "rho_rad_h,rho_rad_s,vrho_rad_h,vrho_rad_s",4*nspins)
 
           istat = 0
@@ -1069,7 +1056,7 @@ MODULE qs_rho_atom_methods
              rho_atom_set(iatom)%vrho_rad_s(ispin)%r_coef=0.0_dp
 
           END DO
-          IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+          IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
               "r_coef of rho_rad_h,rho_rad_s,vrho_rad_h,vrho_rad_s",&
               4*nr*max_iso_not0*nspins*dp_size)
 
@@ -1080,14 +1067,14 @@ MODULE qs_rho_atom_methods
                     rho_atom_set(iatom)%rho_rad_h_d(3,nspins), &
                     rho_atom_set(iatom)%rho_rad_s_d(3,nspins), &
                     STAT=istat)
-          IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+          IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                "cpc_h,cpc_s,drho_rad_h,drho_rad_s,rho_rad_h_d,rho_rad_s_d")
 
 
           ALLOCATE (rho_atom_set(iatom)%ga_Vlocal_gb_h(nspins), &
                     rho_atom_set(iatom)%ga_Vlocal_gb_s(nspins), &
                     STAT=istat)
-          IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+          IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                           "ga_Vlocal_gb_h,ga_Vlocal_gb_s")
 
           IF (paw_atom) THEN 
@@ -1132,7 +1119,7 @@ MODULE qs_rho_atom_methods
                 rho_atom_set(iatom)%ga_Vlocal_gb_s(ispin)%r_coef = 0.0_dp
              END DO
 
-             IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+             IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                  " r_coef of cpc_h,cpc_s,drho_rad_h,drho_rad_s,rho_rad_h_d,"//&
                  "rho_rad_s_d",(5*nr*max_iso_not0+4*nsotot*nsotot)*nspins*dp_size)
           ELSE

@@ -24,31 +24,29 @@
 !!   SOURCE
 !****************************************************************************
 MODULE qmmm_gaussian_input
-  USE cp_para_types,                   ONLY: cp_para_env_type
+  USE cell_types,                      ONLY: cell_type
+  USE cp_parser,                       ONLY: cp_parser_type,&
+                                             parser_create,&
+                                             parser_get_object,&
+                                             parser_release,&
+                                             parser_search_string
+  USE global_types,                    ONLY: global_environment_type
+  USE input_section_types,             ONLY: section_vals_val_get
   USE kinds,                           ONLY: default_string_length,&
                                              dp
   USE mathconstants,                   ONLY: rootpi
-  USE cp_parser,                       ONLY: parser_release,&
-                                             parser_get_object,&
-                                             parser_search_string,&
-                                             parser_create,&
-                                             cp_parser_type
-  USE memory_utilities,                ONLY: reallocate
-  USE qmmm_gaussian_types,             ONLY: qmmm_gaussian_p_type,&
-                                             qmmm_gaussian_type
-  USE global_types,                    ONLY: global_environment_type
-  USE cell_types,                 ONLY: cell_type
-  USE termination,                     ONLY: stop_program
-  USE string_utilities,                ONLY: uppercase
   USE physcon,                         ONLY: bohr
   USE qmmm_gaussian_data
-  USE input_section_types, ONLY: section_vals_val_get,section_vals_type
+  USE qmmm_gaussian_types,             ONLY: qmmm_gaussian_p_type
+  USE string_utilities,                ONLY: uppercase
+  USE termination,                     ONLY: stop_program
 #include "cp_common_uses.h"
+
   IMPLICIT NONE
   PRIVATE
 
   LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
-  CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='qmmm_gaussian_input'
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qmmm_gaussian_input'
 
   PUBLIC  :: read_mm_potential, set_mm_potential
 !***
@@ -79,33 +77,32 @@ CONTAINS
   !!*************************************************************************
   SUBROUTINE read_mm_potential(globenv, qmmm_gaussian_fns, qm_cell_small,&
                                compatibility, error)
-    IMPLICIT NONE
-    ! Arguments
     TYPE(global_environment_type), POINTER   :: globenv
     TYPE(qmmm_gaussian_p_type), &
-         DIMENSION(:), POINTER               :: qmmm_gaussian_fns
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+      DIMENSION(:), POINTER                  :: qmmm_gaussian_fns
     TYPE(cell_type), POINTER                 :: qm_cell_small
     LOGICAL, INTENT(IN)                      :: compatibility
-    ! Local Variables
-    CHARACTER(len=*), PARAMETER :: routineN = 'read_mm_potential',&
-         routineP = moduleN//':'//routineN
-    INTEGER :: j, IRad, Nog, stat, Ival , Nval, istart
-    LOGICAL ::  Found, Found_Radius, failure
-    CHARACTER(LEN=240)                       :: line
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'read_mm_potential', &
+      routineP = moduleN//':'//routineN
+
+    CHARACTER(default_string_length)         :: mm_potential_file_name
     CHARACTER(len=10)                        :: Ftarget, Units
-    REAL(KIND=dp)                           :: Radius, fconv, my_radius
-    TYPE(cp_parser_type), pointer :: parser
-    CHARACTER(default_string_length) :: mm_potential_file_name
+    CHARACTER(LEN=240)                       :: line
+    INTEGER                                  :: IRad, istart, Ival, j, Nog, &
+                                                Nval, stat
+    LOGICAL                                  :: failure, Found, Found_Radius
+    REAL(KIND=dp)                            :: fconv, my_radius, Radius
+    TYPE(cp_parser_type), POINTER            :: parser
 
-
-    Nval = size(qmmm_gaussian_fns)
+    Nval = SIZE(qmmm_gaussian_fns)
     Ival = 0
     CALL section_vals_val_get(globenv%input_file,"FORCE_EVAL%QMMM%MM_POTENTIAL_FILE_NAME",&
          c_val=mm_potential_file_name,error=error)
 
-    nullify(parser)
+    NULLIFY(parser)
     CALL parser_create(parser,mm_potential_file_name,para_env=globenv%para_env)
 
     search_loop: DO
@@ -212,25 +209,24 @@ CONTAINS
   !!*************************************************************************
   SUBROUTINE set_mm_potential(globenv, qmmm_gaussian_fns, qm_cell_small,&
                                compatibility, num_geep_gauss, error)
-    IMPLICIT NONE
-    ! Arguments
     TYPE(global_environment_type), POINTER   :: globenv
     TYPE(qmmm_gaussian_p_type), &
-         DIMENSION(:), POINTER               :: qmmm_gaussian_fns
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+      DIMENSION(:), POINTER                  :: qmmm_gaussian_fns
     TYPE(cell_type), POINTER                 :: qm_cell_small
     LOGICAL, INTENT(IN)                      :: compatibility
     INTEGER, INTENT(IN)                      :: num_geep_gauss
-    ! Local Variables
-    CHARACTER(len=*), PARAMETER :: routineN = 'set_mm_potential',&
-         routineP = moduleN//':'//routineN
-    INTEGER :: j, IRad, Nog, stat, Ival , Nval, istart
-    LOGICAL ::  Found, Found_Radius, failure
-    REAL(KIND=dp)                            :: rc, radius, my_radius
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'set_mm_potential', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: IRad, istart, Nog, Nval, stat
+    LOGICAL                                  :: failure
+    REAL(KIND=dp)                            :: my_radius, radius, rc
 
     failure = .FALSE.
-    Nval = size(qmmm_gaussian_fns)
+    Nval = SIZE(qmmm_gaussian_fns)
     DO IRad = 1, Nval
        qmmm_gaussian_fns(IRad)%pgf%Number_of_Gaussians = num_geep_gauss
        radius = qmmm_gaussian_fns(Irad)%pgf%Elp_Radius

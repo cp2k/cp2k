@@ -19,30 +19,28 @@
 !******************************************************************************
 
 MODULE dgs
-  USE cp_para_types,                   ONLY: cp_para_env_type
+  USE cell_types,                      ONLY: cell_create,&
+                                             cell_release,&
+                                             cell_type,&
+                                             get_cell_param,&
+                                             get_hinv
   USE coefficient_types,               ONLY: PW_COMPLEXDATA3D,&
                                              PW_REALDATA3D,&
                                              coeff_type
+  USE cp_para_types,                   ONLY: cp_para_env_type
   USE fft_tools,                       ONLY: BWFFT,&
                                              FFT_RADIX_CLOSEST,&
-                                             FFT_RADIX_NEXT,&
-                                             FFT_RADIX_NEXT_ODD, &
+                                             FFT_RADIX_NEXT_ODD,&
                                              fft3d,&
                                              fft_radix_operations
-  USE global_types,                    ONLY: global_environment_type
   USE kinds,                           ONLY: dp
   USE pw_grid_types,                   ONLY: HALFSPACE,&
                                              pw_grid_type
   USE pw_grids,                        ONLY: pw_find_cutoff,&
                                              pw_grid_change,&
                                              pw_grid_setup
-  USE realspace_grid_types,            ONLY: realspace_grid_type,&
-                                             realspace_grid_p_type
-  USE cell_types,                 ONLY: cell_type,&
-                                             get_cell_param,&
-                                             get_hinv,&
-                                             cell_create,&
-                                             cell_release
+  USE realspace_grid_types,            ONLY: realspace_grid_p_type,&
+                                             realspace_grid_type
   USE structure_factors,               ONLY: structure_factor_evaluate
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
@@ -93,22 +91,23 @@ CONTAINS
 SUBROUTINE dg_pme_grid_setup ( box_b, npts_s, cutoff_radius, grid_s, grid_b, &
                                para_env, grid_ref, rs_dims, error )
 
-  TYPE(cell_type), POINTER                  :: box_b
-  INTEGER, DIMENSION(:), INTENT(IN)         :: npts_s
-  REAL(KIND=dp), INTENT(IN)                 :: cutoff_radius
-  TYPE(pw_grid_type), POINTER               :: grid_s, grid_b
-  TYPE(cp_para_env_type), POINTER           :: para_env
-  TYPE(pw_grid_type), INTENT(IN), OPTIONAL  :: grid_ref
-  INTEGER, DIMENSION(2), INTENT(in), optional :: rs_dims
-  TYPE ( cp_error_type ), OPTIONAL          :: error
-  
-  REAL(KIND=dp)                                :: cutoff, ecut
-  TYPE(cell_type), POINTER                 :: box_s, unit_box
-  INTEGER                                  :: output_unit
-  LOGICAL                                  :: ionode
-  TYPE ( cp_logger_type ), POINTER         :: logger
-  
-  nullify(box_s, unit_box)
+    TYPE(cell_type), POINTER                 :: box_b
+    INTEGER, DIMENSION(:), INTENT(IN)        :: npts_s
+    REAL(KIND=dp), INTENT(IN)                :: cutoff_radius
+    TYPE(pw_grid_type), POINTER              :: grid_s, grid_b
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(pw_grid_type), INTENT(IN), OPTIONAL :: grid_ref
+    INTEGER, DIMENSION(2), INTENT(in), &
+      OPTIONAL                               :: rs_dims
+    TYPE(cp_error_type), OPTIONAL            :: error
+
+    INTEGER                                  :: output_unit
+    LOGICAL                                  :: ionode
+    REAL(KIND=dp)                            :: cutoff, ecut
+    TYPE(cell_type), POINTER                 :: box_s, unit_box
+    TYPE(cp_logger_type), POINTER            :: logger
+
+  NULLIFY(box_s, unit_box)
   CALL cell_create(box_s)
   CALL cell_create(unit_box)
   logger => cp_error_get_logger(error)
@@ -147,10 +146,10 @@ SUBROUTINE dg_find_cutoff ( box_b, npts_s, cutoff_radius, grid_s,  &
     INTEGER, DIMENSION(:), INTENT(IN)        :: npts_s
     REAL(KIND=dp), INTENT(IN)                :: cutoff_radius
     TYPE(pw_grid_type), POINTER              :: grid_s, grid_b
-    REAL(KIND=dp), INTENT(OUT)                   :: cutoff
+    REAL(KIND=dp), INTENT(OUT)               :: cutoff
 
     INTEGER                                  :: nout( 3 )
-    REAL(KIND=dp)                             :: cell_lengths( 3 ), dr( 3 )
+    REAL(KIND=dp)                            :: cell_lengths( 3 ), dr( 3 )
 
   CALL fft_radix_operations ( npts_s ( 1 ), nout ( 1 ), &
        operation = FFT_RADIX_NEXT_ODD )
@@ -197,8 +196,8 @@ SUBROUTINE dg_get_spacing ( npts, cutoff_radius, dr )
 
 
     INTEGER, DIMENSION(:), INTENT(IN)        :: npts
-    REAL(KIND=dp), INTENT(IN)                    :: cutoff_radius
-    REAL(KIND=dp), DIMENSION(:), INTENT(OUT)     :: dr
+    REAL(KIND=dp), INTENT(IN)                :: cutoff_radius
+    REAL(KIND=dp), DIMENSION(:), INTENT(OUT) :: dr
 
 !------------------------------------------------------------------------------
 
@@ -210,13 +209,10 @@ SUBROUTINE dg_get_spacing ( npts, cutoff_radius, dr )
 
 
 SUBROUTINE dg_grid_change ( box_b, grid_b, grid_s )
-  IMPLICIT NONE
-  !Arguments
-  TYPE(cell_type), POINTER              :: box_b
-  TYPE(pw_grid_type), POINTER           :: grid_b
-  TYPE(pw_grid_type), POINTER           :: grid_s
-  ! Local Variables
-  TYPE(cell_type), POINTER              :: box_s, unit_box
+    TYPE(cell_type), POINTER                 :: box_b
+    TYPE(pw_grid_type), POINTER              :: grid_b, grid_s
+
+    TYPE(cell_type), POINTER                 :: box_s, unit_box
 
   NULLIFY(box_s, unit_box)
   CALL cell_create(unit_box )
@@ -233,8 +229,8 @@ END SUBROUTINE dg_grid_change
 SUBROUTINE dg_find_radix ( dr, cell_lengths, npts )
 
 
-    REAL(KIND=dp), INTENT(INOUT)                 :: dr( 3 )
-    REAL(KIND=dp), INTENT(IN)                    :: cell_lengths( 3 )
+    REAL(KIND=dp), INTENT(INOUT)             :: dr( 3 )
+    REAL(KIND=dp), INTENT(IN)                :: cell_lengths( 3 )
     INTEGER, DIMENSION(:), INTENT(OUT)       :: npts
 
     INTEGER, DIMENSION(3)                    :: nin
@@ -255,13 +251,10 @@ END SUBROUTINE dg_find_radix
 !******************************************************************************
 
 SUBROUTINE dg_find_basis( npts, box, unit_box )
-  IMPLICIT NONE
-  ! Arguments
-  INTEGER, DIMENSION(:), INTENT(IN)        :: npts
-  TYPE(cell_type), POINTER                 :: box
-  TYPE(cell_type), POINTER                 :: unit_box
-  ! Local Variables
-  INTEGER                                  :: i
+    INTEGER, DIMENSION(:), INTENT(IN)        :: npts
+    TYPE(cell_type), POINTER                 :: box, unit_box
+
+    INTEGER                                  :: i
 
   DO i = 1, 3
      unit_box % hmat ( :, i ) = box % hmat ( :, i ) / REAL ( npts ( : ),KIND=dp)
@@ -276,13 +269,11 @@ END SUBROUTINE dg_find_basis
 !! Calculation of the basis on the mesh 'box'
 
 SUBROUTINE dg_set_cell (npts, unit_box, box )
-  IMPLICIT NONE
-  ! Arguments
-  INTEGER, DIMENSION(:), INTENT(IN)        :: npts
-  TYPE(cell_type), POINTER                 :: unit_box
-  TYPE(cell_type), POINTER                 :: box
-  
-  ! computing the unit vector along a, b, c and scaling it to length dr:
+    INTEGER, DIMENSION(:), INTENT(IN)        :: npts
+    TYPE(cell_type), POINTER                 :: unit_box, box
+
+! computing the unit vector along a, b, c and scaling it to length dr:
+
   box % hmat ( :, 1 ) = unit_box % hmat ( :, 1 ) * npts ( 1 )
   box % hmat ( :, 2 ) = unit_box % hmat ( :, 2 ) * npts ( 2 )
   box % hmat ( :, 3 ) = unit_box % hmat ( :, 3 ) * npts ( 3 )
@@ -311,7 +302,7 @@ END SUBROUTINE dg_find_max_cutoff
 SUBROUTINE dg_get_strucfac ( box, r, npts_s, npts_b, centre, lb, ex, ey, ez )
 
     TYPE(cell_type), INTENT(IN)              :: box
-    REAL(KIND=dp), DIMENSION(:), INTENT(IN)      :: r
+    REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: r
     INTEGER, DIMENSION(:), INTENT(IN)        :: npts_s, npts_b
     INTEGER, INTENT(OUT)                     :: centre( 3 )
     INTEGER, INTENT(IN)                      :: lb( 3 )
@@ -322,7 +313,7 @@ SUBROUTINE dg_get_strucfac ( box, r, npts_s, npts_b, centre, lb, ex, ey, ez )
     COMPLEX(KIND=dp), DIMENSION(lb(3):), &
       INTENT(OUT)                            :: ez
 
-    REAL(KIND=dp)                                :: delta( 3 )
+    REAL(KIND=dp)                            :: delta( 3 )
 
 !------------------------------------------------------------------------------
 
@@ -337,13 +328,12 @@ END SUBROUTINE dg_get_strucfac
 SUBROUTINE dg_get_delta ( box, r, npts_s, npts_b, centre, delta )
 
     TYPE(cell_type), INTENT(IN)              :: box
-    REAL(KIND=dp), DIMENSION(:), INTENT(IN)      :: r
+    REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: r
     INTEGER, DIMENSION(:), INTENT(IN)        :: npts_s, npts_b
-    INTEGER, DIMENSION(:), INTENT(OUT)           :: centre
-    REAL(KIND=dp), DIMENSION(:), INTENT(OUT)     :: delta
+    INTEGER, DIMENSION(:), INTENT(OUT)       :: centre
+    REAL(KIND=dp), DIMENSION(:), INTENT(OUT) :: delta
 
-    INTEGER, DIMENSION(3)                        :: npts
-    REAL(KIND=dp), DIMENSION(3)                  :: grid_i, s
+    REAL(KIND=dp), DIMENSION(3)              :: grid_i, s
 
 !------------------------------------------------------------------------------
 ! compute the scaled coordinate of atomi
@@ -371,7 +361,7 @@ END SUBROUTINE dg_get_delta
 SUBROUTINE dg_sum_patch_coef ( rs, rhos, center )
 
 
-  TYPE(realspace_grid_type), POINTER         :: rs
+    TYPE(realspace_grid_type), POINTER       :: rs
     TYPE(coeff_type), INTENT(IN)             :: rhos
     INTEGER, DIMENSION(3), INTENT(IN)        :: center
 
@@ -439,7 +429,7 @@ END SUBROUTINE dg_sum_patch_coef
 SUBROUTINE dg_sum_patch_arr ( rs, rhos, center )
 
 
-    TYPE(realspace_grid_type), pointer              :: rs
+    TYPE(realspace_grid_type), POINTER       :: rs
     REAL(KIND=dp), DIMENSION(:, :, :), &
       INTENT(IN)                             :: rhos
     INTEGER, DIMENSION(3), INTENT(IN)        :: center
@@ -514,11 +504,11 @@ SUBROUTINE dg_sum_patch_force_arr_3d ( drpot, rhos, center, force )
 
 
     TYPE(realspace_grid_p_type), &
-         DIMENSION(:), POINTER            :: drpot
+      DIMENSION(:), POINTER                  :: drpot
     REAL(KIND=dp), DIMENSION(:, :, :), &
       INTENT(IN)                             :: rhos
     INTEGER, DIMENSION(3), INTENT(IN)        :: center
-    REAL(KIND=dp), DIMENSION(3), INTENT(OUT)     :: force
+    REAL(KIND=dp), DIMENSION(3), INTENT(OUT) :: force
 
     INTEGER                                  :: i, ia, ii
     INTEGER, DIMENSION(3)                    :: lb, nc, ns, ub
@@ -592,11 +582,11 @@ END SUBROUTINE dg_sum_patch_force_arr_3d
 SUBROUTINE dg_sum_patch_force_arr_1d ( drpot, rhos, center, force )
 
 
-  TYPE(realspace_grid_type), POINTER      :: drpot
+    TYPE(realspace_grid_type), POINTER       :: drpot
     REAL(KIND=dp), DIMENSION(:, :, :), &
       INTENT(IN)                             :: rhos
     INTEGER, DIMENSION(3), INTENT(IN)        :: center
-    REAL(KIND=dp), INTENT(OUT)                   :: force
+    REAL(KIND=dp), INTENT(OUT)               :: force
 
     INTEGER                                  :: i, ia, ii
     INTEGER, DIMENSION(3)                    :: lb, nc, ns, ub
@@ -669,10 +659,10 @@ SUBROUTINE dg_sum_patch_force_coef_3d ( drpot, rhos, center, force )
 
 
     TYPE(realspace_grid_p_type), &
-         DIMENSION(:),POINTER           :: drpot
+      DIMENSION(:), POINTER                  :: drpot
     TYPE(coeff_type), INTENT(IN)             :: rhos
     INTEGER, DIMENSION(3), INTENT(IN)        :: center
-    REAL(KIND=dp), DIMENSION(3), INTENT(OUT)     :: force
+    REAL(KIND=dp), DIMENSION(3), INTENT(OUT) :: force
 
     INTEGER                                  :: i, ia, ii
     INTEGER, DIMENSION(3)                    :: nc
@@ -741,10 +731,10 @@ END SUBROUTINE dg_sum_patch_force_coef_3d
 SUBROUTINE dg_sum_patch_force_coef_1d ( drpot, rhos, center, force )
 
 
-  TYPE(realspace_grid_type),POINTER          :: drpot
+    TYPE(realspace_grid_type), POINTER       :: drpot
     TYPE(coeff_type), INTENT(IN)             :: rhos
     INTEGER, DIMENSION(3), INTENT(IN)        :: center
-    REAL(KIND=dp), INTENT(OUT)                   :: force
+    REAL(KIND=dp), INTENT(OUT)               :: force
 
     INTEGER                                  :: i, ia, ii
     INTEGER, DIMENSION(3)                    :: nc
@@ -813,15 +803,16 @@ SUBROUTINE dg_get_patch_1 ( rho0, rhos1, charge1, ex1, ey1, ez1 )
 
     TYPE(coeff_type), INTENT(IN)             :: rho0
     TYPE(coeff_type), INTENT(INOUT)          :: rhos1
-    REAL(KIND=dp), INTENT(IN)                    :: charge1
-    COMPLEX(KIND=dp), DIMENSION(:), INTENT(IN)   :: ex1, ey1, ez1
+    REAL(KIND=dp), INTENT(IN)                :: charge1
+    COMPLEX(KIND=dp), DIMENSION(:), &
+      INTENT(IN)                             :: ex1, ey1, ez1
 
-    COMPLEX(KIND=dp)                             :: za, zb
+    COMPLEX(KIND=dp)                         :: za, zb
     COMPLEX(KIND=dp), ALLOCATABLE, &
       DIMENSION(:)                           :: zs
     COMPLEX(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :, :)                     :: cd
-    INTEGER                                  :: ierr, n, n1, n2, n3, nd( 3 )
+    INTEGER                                  :: ierr, n, nd( 3 )
 
 !------------------------------------------------------------------------------
 
@@ -841,10 +832,10 @@ SUBROUTINE dg_get_patch_1 ( rho0, rhos1, charge1, ex1, ey1, ez1 )
 !  ENDIF
 !  IF ( .NOT. ALLOCATED ( cd ) ) THEN
     ALLOCATE ( zs ( nd ( 1 ) * nd ( 2 ) ), STAT = ierr )
-    IF ( ierr /= 0 ) call stop_memory ( "dg_get_patch","zs",nd(1)*nd(2))
+    IF ( ierr /= 0 ) CALL stop_memory ( "dg_get_patch","zs",nd(1)*nd(2))
     zs=0.0_dp
     ALLOCATE ( cd ( nd ( 1 ), nd ( 2 ), nd ( 3 ) ), STAT = ierr )
-    IF ( ierr /= 0 ) call stop_memory ( "dg_get_patch", "cd", n )
+    IF ( ierr /= 0 ) CALL stop_memory ( "dg_get_patch", "cd", n )
     cd=0.0_dp
 !  ENDIF
 
@@ -873,15 +864,16 @@ SUBROUTINE dg_get_patch_2 ( rho0, rhos1, rhos2, charge1, charge2, &
 
     TYPE(coeff_type), INTENT(IN)             :: rho0
     TYPE(coeff_type), INTENT(INOUT)          :: rhos1, rhos2
-    REAL(KIND=dp), INTENT(IN)                    :: charge1, charge2
-    COMPLEX(KIND=dp), DIMENSION(:), INTENT(IN)   :: ex1, ey1, ez1, ex2, ey2, ez2
+    REAL(KIND=dp), INTENT(IN)                :: charge1, charge2
+    COMPLEX(KIND=dp), DIMENSION(:), &
+      INTENT(IN)                             :: ex1, ey1, ez1, ex2, ey2, ez2
 
-    COMPLEX(KIND=dp)                             :: za, zb
+    COMPLEX(KIND=dp)                         :: za, zb
     COMPLEX(KIND=dp), ALLOCATABLE, &
-      DIMENSION(:)                               :: zs
+      DIMENSION(:)                           :: zs
     COMPLEX(KIND=dp), ALLOCATABLE, &
-      DIMENSION(:, :, :)                         :: cd
-    INTEGER                                  :: ierr, n, n1, n2, n3, nd( 3 )
+      DIMENSION(:, :, :)                     :: cd
+    INTEGER                                  :: ierr, n, nd( 3 )
 
 !------------------------------------------------------------------------------
 
@@ -901,10 +893,10 @@ SUBROUTINE dg_get_patch_2 ( rho0, rhos1, rhos2, charge1, charge2, &
 !  ENDIF
  ! IF ( .NOT. ALLOCATED ( cd ) ) THEN
     ALLOCATE ( zs ( nd(1)*nd(2) ), STAT = ierr )
-    IF ( ierr /= 0 ) call stop_memory ( "dg_get_patch","allocate :: zs",nd(1)*nd(2))
+    IF ( ierr /= 0 ) CALL stop_memory ( "dg_get_patch","allocate :: zs",nd(1)*nd(2))
     zs=0.0_dp
     ALLOCATE ( cd ( nd(1),nd(2),nd(3) ), STAT = ierr )
-    IF ( ierr /= 0 ) call stop_memory ( "dg_get_patch","allocate :: cd",n)
+    IF ( ierr /= 0 ) CALL stop_memory ( "dg_get_patch","allocate :: cd",n)
     cd=0.0_dp
 !  ENDIF
 
@@ -933,8 +925,8 @@ END SUBROUTINE dg_get_patch_2
 SUBROUTINE dg_add_patch_simple ( rb, rs, ns, nc )
 
 
-    REAL(KIND=dp), INTENT(INOUT)                 :: rb( :, :, : )
-    REAL(KIND=dp), INTENT(IN)                    :: rs( :, :, : )
+    REAL(KIND=dp), INTENT(INOUT)             :: rb( :, :, : )
+    REAL(KIND=dp), INTENT(IN)                :: rs( :, :, : )
     INTEGER, INTENT(IN)                      :: ns( 3 ), nc( 3 )
 
     INTEGER                                  :: i, ii, j, jj, k, kk
@@ -959,8 +951,8 @@ END SUBROUTINE dg_add_patch_simple
 SUBROUTINE dg_add_patch_folded ( rb, rs, ns, px, py, pz )
 
 
-    REAL(KIND=dp), INTENT(INOUT)                 :: rb( :, :, : )
-    REAL(KIND=dp), INTENT(IN)                    :: rs( :, :, : )
+    REAL(KIND=dp), INTENT(INOUT)             :: rb( :, :, : )
+    REAL(KIND=dp), INTENT(IN)                :: rs( :, :, : )
     INTEGER, INTENT(IN)                      :: ns( : )
     INTEGER, DIMENSION(:), INTENT(IN)        :: px, py, pz
 
@@ -988,11 +980,11 @@ SUBROUTINE dg_int_patch_simple_3d ( rbx, rby, rbz, rs, f, ns, nc )
 
     REAL(KIND=dp), DIMENSION(:, :, :), &
       INTENT(IN)                             :: rbx, rby, rbz, rs
-    REAL(KIND=dp), DIMENSION(3), INTENT(OUT)     :: f
+    REAL(KIND=dp), DIMENSION(3), INTENT(OUT) :: f
     INTEGER, INTENT(IN)                      :: ns( 3 ), nc( 3 )
 
     INTEGER                                  :: i, ii, j, jj, k, kk
-    REAL(KIND=dp)                                :: s
+    REAL(KIND=dp)                            :: s
 
 !------------------------------------------------------------------------------
 
@@ -1020,11 +1012,11 @@ SUBROUTINE dg_int_patch_simple_1d ( rb, rs, f, ns, nc )
 
     REAL(KIND=dp), DIMENSION(:, :, :), &
       INTENT(IN)                             :: rb, rs
-    REAL(KIND=dp), INTENT(OUT)                   :: f
+    REAL(KIND=dp), INTENT(OUT)               :: f
     INTEGER, INTENT(IN)                      :: ns( 3 ), nc( 3 )
 
     INTEGER                                  :: i, ii, j, jj, k, kk
-    REAL(KIND=dp)                                :: s
+    REAL(KIND=dp)                            :: s
 
 !------------------------------------------------------------------------------
 
@@ -1050,12 +1042,13 @@ SUBROUTINE dg_int_patch_folded_3d ( rbx, rby, rbz, rs, f, ns, px, py, pz )
 
     REAL(KIND=dp), DIMENSION(:, :, :), &
       INTENT(IN)                             :: rbx, rby, rbz, rs
-    REAL(KIND=dp), DIMENSION(3), INTENT(INOUT)   :: f
+    REAL(KIND=dp), DIMENSION(3), &
+      INTENT(INOUT)                          :: f
     INTEGER, INTENT(IN)                      :: ns( 3 )
     INTEGER, DIMENSION(:), INTENT(IN)        :: px, py, pz
 
     INTEGER                                  :: i, ii, j, jj, k, kk
-    REAL(KIND=dp)                                :: s
+    REAL(KIND=dp)                            :: s
 
 !------------------------------------------------------------------------------
 
@@ -1083,12 +1076,12 @@ SUBROUTINE dg_int_patch_folded_1d ( rb, rs, f, ns, px, py, pz )
 
     REAL(KIND=dp), DIMENSION(:, :, :), &
       INTENT(IN)                             :: rb, rs
-    REAL(KIND=dp), INTENT(INOUT)                 :: f
+    REAL(KIND=dp), INTENT(INOUT)             :: f
     INTEGER, INTENT(IN)                      :: ns( 3 )
     INTEGER, DIMENSION(:), INTENT(IN)        :: px, py, pz
 
     INTEGER                                  :: i, ii, j, jj, k, kk
-    REAL(KIND=dp)                                :: s
+    REAL(KIND=dp)                            :: s
 
 !------------------------------------------------------------------------------
 

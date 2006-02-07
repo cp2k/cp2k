@@ -25,12 +25,15 @@ MODULE qs_scf_post
 
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind
+  USE cell_types,                      ONLY: cell_type,&
+                                             get_cell
   USE coefficient_types,               ONLY: coeff_copy,&
                                              coeff_reduce,&
                                              coeff_sumup,&
                                              coeff_type
   USE cp_control_types,                ONLY: dft_control_type,&
                                              tddfpt_control_type
+  USE cp_ddapc,                        ONLY: get_ddapc
   USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm
   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                              cp_fm_struct_release,&
@@ -42,11 +45,11 @@ MODULE qs_scf_post
                                              cp_fm_release,&
                                              cp_fm_to_fm,&
                                              cp_fm_type
-  USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
-                                             cp_iter_string,&
+  USE cp_output_handling,              ONLY: cp_iter_string,&
+                                             cp_p_file,&
+                                             cp_print_key_finished_output,&
                                              cp_print_key_should_output,&
-                                             cp_print_key_unit_nr,&
-                                             cp_p_file
+                                             cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_blacs_env_type,&
                                              cp_para_env_type
   USE cp_rs_pool_types,                ONLY: cp_rs_pool_type,&
@@ -56,17 +59,13 @@ MODULE qs_scf_post
   USE cp_subsystem_types,              ONLY: cp_subsys_get,&
                                              cp_subsystem_type
   USE global_types,                    ONLY: global_environment_type
-  USE input_constants,                 ONLY: ot_precond_full_all,&
-                                             do_loc_none
-  USE input_section_types,             ONLY: section_vals_type, &
-                                             section_vals_val_get,&
-                                             section_vals_get_subs_vals, &
-                                             section_vals_get_subs_vals2, &
+  USE input_constants,                 ONLY: do_loc_none,&
+                                             ot_precond_full_all
+  USE input_section_types,             ONLY: section_get_ival,&
                                              section_get_rval,&
-                                             section_get_ival,&
-                                             section_get_cval,&
-                                             section_vals_get
-  USE cp_ddapc,                        ONLY: get_ddapc
+                                             section_vals_get_subs_vals,&
+                                             section_vals_type,&
+                                             section_vals_val_get
   USE kinds,                           ONLY: default_string_length,&
                                              dp
   USE level_shift,                     ONLY: level_shift_testing
@@ -100,20 +99,19 @@ MODULE qs_scf_post
                                              qs_environment_type
   USE qs_ks_methods,                   ONLY: qs_ks_did_change,&
                                              qs_ks_update_qs_env
-  USE qs_loc_control,                  ONLY: localized_wfn_control_type,&
-                                             localized_wfn_control_release,&
-                                             localized_wfn_control_retain
+  USE qs_loc_control,                  ONLY: localized_wfn_control_release,&
+                                             localized_wfn_control_retain,&
+                                             localized_wfn_control_type
+  USE qs_loc_methods,                  ONLY: qs_loc_driver
+  USE qs_loc_types,                    ONLY: qs_loc_env_create,&
+                                             qs_loc_env_destroy,&
+                                             qs_loc_env_new_type
+  USE qs_loc_utils,                    ONLY: qs_loc_env_init
   USE qs_localization,                 ONLY: qs_loc_compute_properties,&
                                              qs_loc_destroy,&
                                              qs_loc_env_type,&
                                              qs_loc_init
-  USE qs_loc_methods,                  ONLY: qs_loc_driver
-  USE qs_loc_types       ,             ONLY: qs_loc_env_create,&
-                                             qs_loc_env_destroy,& 
-                                             qs_loc_env_new_type
-  USE qs_loc_utils,                    ONLY: qs_loc_env_init
-  USE qs_mo_methods,                   ONLY: calculate_density_matrix,&
-                                             calculate_subspace_eigenvalues
+  USE qs_mo_methods,                   ONLY: calculate_subspace_eigenvalues
   USE qs_mo_types,                     ONLY: get_mo_set,&
                                              mo_set_p_type,&
                                              write_mo_set
@@ -121,11 +119,9 @@ MODULE qs_scf_post
   USE qs_overlap,                      ONLY: write_sparse_matrix
   USE qs_rho_types,                    ONLY: qs_rho_type
   USE qs_scf_types,                    ONLY: qs_scf_env_type
-  USE realspace_grid_types,            ONLY: rs_pw_to_cube, & 
-                                             realspace_grid_type
+  USE realspace_grid_types,            ONLY: realspace_grid_type,&
+                                             rs_pw_to_cube
   USE scf_control_types,               ONLY: scf_control_type
-  USE cell_types,                 ONLY: cell_type,&
-                                             get_cell
   USE sparse_matrix_types,             ONLY: real_matrix_p_type
   USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
@@ -139,7 +135,7 @@ MODULE qs_scf_post
 
 ! *** Global parameters ***
 
-  CHARACTER(LEN=*), PARAMETER, PRIVATE :: moduleN = "qs_scf_post"
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_scf_post'
 
   PUBLIC :: scf_post_calculation
 
@@ -184,16 +180,16 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: dft_section
     TYPE(qs_scf_env_type), POINTER           :: scf_env
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(global_environment_type),POINTER    :: globenv
+    TYPE(global_environment_type), POINTER   :: globenv
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'scf_env_post_calc', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'scf_post_calculation', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure, ionode
-    LOGICAL                                  :: p_loc,p_molstates
-    LOGICAL                                  :: my_localized_wfn, was_present
+    LOGICAL                                  :: failure, ionode, &
+                                                my_localized_wfn, p_loc, &
+                                                p_molstates
     REAL(KIND=dp), DIMENSION(:), POINTER     :: mo_eigenvalues
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
@@ -206,19 +202,20 @@ CONTAINS
     TYPE(cp_fm_type), POINTER                :: mo_coeff, mo_localized
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(dft_control_type), POINTER          :: dft_control
-    TYPE(localized_wfn_control_type), POINTER :: my_localized_wfn_control
+    TYPE(localized_wfn_control_type), &
+      POINTER                                :: my_localized_wfn_control
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos
     TYPE(molecule_type), POINTER             :: molecule_set( : )
+    TYPE(particle_list_type), POINTER        :: particles
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
-    TYPE(particle_list_type), pointer :: particles
     TYPE(pw_env_type), POINTER               :: pw_env
     TYPE(pw_pool_p_type), DIMENSION(:), &
       POINTER                                :: pw_pools
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
+    TYPE(qs_loc_env_new_type), POINTER       :: qs_loc_env_new
     TYPE(qs_loc_env_type), POINTER           :: qs_loc_env
-    TYPE(qs_loc_env_new_type), POINTER           :: qs_loc_env_new
     TYPE(qs_rho_type), POINTER               :: rho
     TYPE(real_matrix_p_type), DIMENSION(:), &
       POINTER                                :: ks_rmpv, matrix_s
@@ -241,7 +238,7 @@ CONTAINS
     TYPE(cp_rs_pool_type), POINTER           :: auxbas_rs_pool
     TYPE(realspace_grid_type), POINTER       :: rs
     TYPE(preconditioner_type), POINTER       :: preconditioner
-    TYPE(cp_subsystem_type), pointer :: subsys
+    TYPE(cp_subsystem_type), POINTER :: subsys
  
     CALL timeset(routineN,"I",'',handle)
 
@@ -602,10 +599,10 @@ CONTAINS
            IF (ionode) WRITE(output_unit,*) " Computing the optical conductivity "
            IF (ionode) WRITE(output_unit,*) " Experimental version " 
            IF (ionode) WRITE(output_unit,*) " Check the code before believing results " 
-           homoEQnmo=.true.
+           homoEQnmo=.TRUE.
            DO ispin=1,dft_control%nspins
               CALL get_mo_set(mo_set=mos(ispin)%mo_set,homo=homo,nmo=nmo)
-              if (homo.NE.nmo) homoEQnmo=.false. 
+              IF (homo.NE.nmo) homoEQnmo=.FALSE. 
            ENDDO
            IF (.NOT. homoEQnmo) THEN
               IF (ionode) WRITE(output_unit,*) " homo.NE.nmo : skip optical conductivty "
@@ -691,8 +688,7 @@ CONTAINS
 
   SUBROUTINE write_available_results(qs_env,globenv,error)
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(global_environment_type), &
-      pointer                     :: globenv
+    TYPE(global_environment_type), POINTER   :: globenv
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -706,13 +702,14 @@ CONTAINS
     TYPE(cell_type), POINTER                 :: cell
     TYPE(coeff_type)                         :: wf_r
     TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(cp_subsystem_type), POINTER         :: subsys
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos
     TYPE(molecule_type), POINTER             :: molecule_set( : )
+    TYPE(particle_list_type), POINTER        :: particles
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
-    TYPE(particle_list_type), pointer :: particles
     TYPE(pw_env_type), POINTER               :: pw_env
     TYPE(pw_pool_p_type), DIMENSION(:), &
       POINTER                                :: pw_pools
@@ -721,7 +718,6 @@ CONTAINS
     TYPE(real_matrix_p_type), DIMENSION(:), &
       POINTER                                :: ks_rmpv, matrix_s
     TYPE(scf_control_type), POINTER          :: scf_control
-    TYPE(cp_subsystem_type), pointer :: subsys
 
     TYPE evals_p_type
          REAL(KIND = dp), DIMENSION(:), POINTER :: evals
@@ -893,7 +889,7 @@ CONTAINS
        END IF
 
 !    **** the Kohn-Sham matrix itself
-       IF (btest(cp_print_key_should_output(logger%iter_info,input,&
+       IF (BTEST(cp_print_key_should_output(logger%iter_info,input,&
             "DFT%PRINT%AO_MATRICES/KOHN_SHAM_MATRIX",error=error),cp_p_file)) THEN
           CALL qs_ks_update_qs_env(qs_env%ks_env,qs_env=qs_env,&
                error=error,&
@@ -942,8 +938,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'compute_s_square', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, j, na, nb, ncol_local, &
-                                                nrow, nrow_local, handle
+    INTEGER                                  :: handle, i, j, na, nb, &
+                                                ncol_local, nrow, nrow_local
     REAL(KIND=dp)                            :: tmp
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: local_data
     TYPE(cp_blacs_env_type), POINTER         :: context
@@ -1027,8 +1023,7 @@ SUBROUTINE calc_stupid_dipole(subsystem, rho_r, rho_core_g,aux_bas_pool,&
     TYPE(pw_type), POINTER                   :: rho_core_g
     TYPE(pw_pool_type), POINTER              :: aux_bas_pool
     TYPE(cell_type), POINTER                 :: cell
-    TYPE(global_environment_type), &
-      pointer                             :: globenv
+    TYPE(global_environment_type), POINTER   :: globenv
     INTEGER, INTENT(in)                      :: unit_nr
     LOGICAL, INTENT(in), OPTIONAL            :: print_header
     TYPE(cp_error_type), INTENT(inout), &
@@ -1043,7 +1038,7 @@ SUBROUTINE calc_stupid_dipole(subsystem, rho_r, rho_core_g,aux_bas_pool,&
     LOGICAL                                  :: failure, my_print_header
     REAL(kind=dp)                            :: mass, tot_m
     REAL(kind=dp), DIMENSION(3)              :: com, dipole_center, &
-                                                dipole_com, dr, r, r_com,&
+                                                dipole_com, dr, r, r_com, &
                                                 shift
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(particle_list_type), POINTER        :: particles

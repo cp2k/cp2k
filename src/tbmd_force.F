@@ -23,48 +23,46 @@
 !!   SOURCE
 !****************************************************************************
 MODULE tbmd_force
-  USE atomic_kind_types,                      ONLY: atomic_kind_type
-  USE cell_types,                             ONLY: cell_type
-  USE cp_fm_pool_types,                       ONLY: fm_pool_create_fm, &
-                                                    fm_pool_give_back_fm
-  USE cp_sm_fm_interactions,                  ONLY: copy_sm_to_fm
-  USE cp_fm_types,                            ONLY: cp_fm_type
-  USE distribution_1d_types,                  ONLY: distribution_1d_type
-  USE global_types,                           ONLY: global_environment_type
-  USE input_section_types,                    ONLY: section_vals_type, &
-                                                    section_vals_get_subs_vals
-  USE kinds,                                  ONLY: dp
-  USE molecule_kind_types,                    ONLY: molecule_kind_type
-  USE molecule_types_new,                     ONLY: molecule_type
-  USE particle_types,                         ONLY: particle_type
-  USE qs_matrix_pools,                        ONLY: qs_matrix_pools_type
-  USE qs_mo_methods,                          ONLY: calculate_density_matrix
-  USE qs_mo_types,                            ONLY: write_mo_set, &
-                                                    mo_set_type, &
-                                                    init_mo_set
-  USE qs_scf,                                 ONLY: eigensolver, &
-                                                    simple_eigensolver
-  USE sparse_matrix_types,                    ONLY: real_matrix_type, &
-                                                    replicate_matrix_structure, &
-                                                    cp_sm_sm_trace
-  USE tbmd_environment_types,                 ONLY: tbmd_environment_type, &
-                                                    tbmd_env_get
-  USE tbmd_force_types,                       ONLY: tbmd_force_type, &
-                                                    tbmd_force_clear
-  USE tbmd_hamiltonian,                       ONLY: tbmd_build_hamiltonian
-  USE tbmd_neighbor_list_env_types,           ONLY: tbmd_neighbor_list_env_type
-  USE tbmd_neighbor_lists,                    ONLY: tbmd_neighbor_list_control
-  USE timings,                                ONLY: timeset, &
-                                                    timestop
-
+  USE atomic_kind_types,               ONLY: atomic_kind_type
+  USE cell_types,                      ONLY: cell_type
+  USE cp_fm_pool_types,                ONLY: fm_pool_create_fm,&
+                                             fm_pool_give_back_fm
+  USE cp_fm_types,                     ONLY: cp_fm_type
+  USE cp_sm_fm_interactions,           ONLY: copy_sm_to_fm
+  USE distribution_1d_types,           ONLY: distribution_1d_type
+  USE global_types,                    ONLY: global_environment_type
+  USE input_section_types,             ONLY: section_vals_get_subs_vals,&
+                                             section_vals_type
+  USE kinds,                           ONLY: dp
+  USE molecule_kind_types,             ONLY: molecule_kind_type
+  USE molecule_types_new,              ONLY: molecule_type
+  USE particle_types,                  ONLY: particle_type
+  USE qs_matrix_pools,                 ONLY: qs_matrix_pools_type
+  USE qs_mo_methods,                   ONLY: calculate_density_matrix
+  USE qs_mo_types,                     ONLY: init_mo_set,&
+                                             mo_set_type
+  USE qs_scf,                          ONLY: eigensolver,&
+                                             simple_eigensolver
+  USE sparse_matrix_types,             ONLY: cp_sm_sm_trace,&
+                                             replicate_matrix_structure
+  USE tbmd_environment_types,          ONLY: tbmd_env_get,&
+                                             tbmd_environment_type
+  USE tbmd_force_types,                ONLY: tbmd_force_clear,&
+                                             tbmd_force_type
+  USE tbmd_hamiltonian,                ONLY: tbmd_build_hamiltonian
+  USE tbmd_neighbor_list_env_types,    ONLY: tbmd_neighbor_list_env_type
+  USE tbmd_neighbor_lists,             ONLY: tbmd_neighbor_list_control
+  USE timings,                         ONLY: timeset,&
+                                             timestop
 #include "cp_common_uses.h"
+
   IMPLICIT NONE
 
   PRIVATE
 
 ! *** Global parameters ***
 
-  CHARACTER(LEN=*), PARAMETER :: moduleN = "tbmd_force"
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'tbmd_force'
 
 ! *** Public subroutines ***
 
@@ -110,37 +108,29 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'tbmd_forces', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure, &
-                                                ortho_basis, &
-                                                use_cholesky, &
-                                                use_jacobi
-    INTEGER                                  :: handle, &
-                                                stat, &
-                                                i, &
-                                                iatom, &
-                                                natom
-    TYPE(tbmd_force_type), POINTER           :: tbmd_force
+    INTEGER                                  :: handle, i, iatom, natom, stat
+    LOGICAL                                  :: failure, ortho_basis, &
+                                                use_cholesky, use_jacobi
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: trace_vec_ptr
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
-    TYPE(particle_type), DIMENSION(:), &
-      POINTER                                :: particle_set
-    TYPE(distribution_1d_type), POINTER      :: local_particles, &
-                                                local_molecules
+    TYPE(cell_type), POINTER                 :: cell
+    TYPE(cp_fm_type), POINTER                :: fm_matrix_h, fm_matrix_ortho, &
+                                                fm_matrix_work
+    TYPE(distribution_1d_type), POINTER      :: local_molecules, &
+                                                local_particles
+    TYPE(mo_set_type), POINTER               :: mos
     TYPE(molecule_kind_type), DIMENSION(:), &
       POINTER                                :: molecule_kind_set
     TYPE(molecule_type), DIMENSION(:), &
       POINTER                                :: molecule_set
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particle_set
+    TYPE(qs_matrix_pools_type), POINTER      :: matrix_pools
+    TYPE(section_vals_type), POINTER         :: force_env_section
+    TYPE(tbmd_force_type), POINTER           :: tbmd_force
     TYPE(tbmd_neighbor_list_env_type), &
       POINTER                                :: tbmd_neighbor_list_env
-    TYPE(cell_type), POINTER                 :: cell
-    TYPE(section_vals_type), POINTER         :: force_env_section
-    TYPE(mo_set_type), POINTER               :: mos
-    TYPE(cp_fm_type), POINTER                :: fm_matrix_h, &
-                                                fm_matrix_ortho, &
-                                                fm_matrix_work
-    TYPE(qs_matrix_pools_type), POINTER      :: matrix_pools
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: trace_vec_ptr
-    REAL(KIND=dp)                            :: maxabsval
 
 !   ------------------------------------------------------------------------
 

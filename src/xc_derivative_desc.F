@@ -50,7 +50,7 @@ MODULE xc_derivative_desc
 
   LOGICAL, PARAMETER :: debug_this_module=.FALSE.
 
-  CHARACTER(len=*), PARAMETER :: moduleN='xc_derivative_desc'
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'xc_derivative_desc'
 
   PUBLIC :: MAX_DERIVATIVE_DESC_LENGTH, MAX_LABEL_LENGTH,&
             standardize_derivative_desc, &
@@ -76,10 +76,12 @@ CONTAINS
 !!
 !!****
  SUBROUTINE standardize_derivative_desc(deriv_desc,res,error)
-    CHARACTER(len=*), INTENT(in)                           :: deriv_desc
+    CHARACTER(len=*), INTENT(in)             :: deriv_desc
+    CHARACTER&
+      (LEN=MAX_DERIVATIVE_DESC_LENGTH), &
+      INTENT(OUT)                            :: res
     TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                                             :: error
-    CHARACTER(LEN=MAX_DERIVATIVE_DESC_LENGTH), INTENT(OUT) :: res
+      OPTIONAL                               :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'standardize_derivative_desc', &
       routineP = moduleN//':'//routineN
@@ -134,10 +136,10 @@ CONTAINS
 !!*** *********************************************************************
   SUBROUTINE create_split_derivative_desc(deriv_desc,res,error)
     CHARACTER(len=*), INTENT(in)             :: deriv_desc
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
     CHARACTER(len=MAX_LABEL_LENGTH), &
       DIMENSION(:), POINTER                  :: res
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'create_split_derivative_desc', &
       routineP = moduleN//':'//routineN

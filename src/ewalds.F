@@ -22,39 +22,35 @@ MODULE ewalds
 
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind
+  USE cell_types,                      ONLY: cell_type
   USE cp2k_units,                      ONLY: get_cp2k_units,&
                                              unit_convert_type
-  USE distribution_1d_types,           ONLY: distribution_1d_type
-  USE dg_types,                        ONLY: dg_type, dg_get
   USE dg_rho0_types,                   ONLY: dg_rho0_type
-  USE ewald_environment_types,         ONLY: ewald_environment_type, &
-                                             ewald_env_get
-  USE ewald_pw_types,                  ONLY: ewald_pw_type, &
-                                             ewald_pw_get
-  USE global_types,                    ONLY: global_environment_type
-  USE kinds,                           ONLY: dp, default_string_length
+  USE dg_types,                        ONLY: dg_get,&
+                                             dg_type
+  USE distribution_1d_types,           ONLY: distribution_1d_type
+  USE ewald_environment_types,         ONLY: ewald_env_get,&
+                                             ewald_environment_type
+  USE ewald_pw_types,                  ONLY: ewald_pw_get,&
+                                             ewald_pw_type
+  USE input_constants,                 ONLY: do_ewald_none
+  USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: pi
   USE message_passing,                 ONLY: mp_sum
   USE particle_types,                  ONLY: particle_type
-  USE pw_grid_types,                   ONLY: HALFSPACE,&
-                                             pw_grid_type
-  USE pw_types,                        ONLY: pw_type
+  USE pw_grid_types,                   ONLY: pw_grid_type
   USE pw_pool_types,                   ONLY: pw_pool_type
-  USE cell_types,                 ONLY: cell_type
+  USE pw_types,                        ONLY: pw_type
   USE structure_factor_types,          ONLY: structure_factor_type
   USE structure_factors,               ONLY: structure_factor_allocate,&
                                              structure_factor_deallocate,&
                                              structure_factor_evaluate
-  USE termination,                     ONLY: stop_memory,&
-                                             stop_program
+  USE termination,                     ONLY: stop_memory
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE util,                            ONLY: matvec_3x3
-  USE input_constants,                 ONLY: do_ewald_none,&
-                                             do_ewald_ewald,&
-                                             do_ewald_pme,&
-                                             do_ewald_spme
 #include "cp_common_uses.h"
+
   IMPLICIT NONE
 
   PRIVATE
@@ -89,38 +85,39 @@ MODULE ewalds
 
 SUBROUTINE ewald_evaluate (ewald_env, ewald_pw, atomic_kind_set, particle_set,  &
                            local_particles, fg_coulomb, vg_coulomb, pv_g )
-    TYPE ( ewald_environment_type ), POINTER   :: ewald_env
-    TYPE ( atomic_kind_type ), POINTER        :: atomic_kind_set ( : )
-    TYPE ( ewald_pw_type ), POINTER :: ewald_pw
-    TYPE ( particle_type ), POINTER :: particle_set ( : )
-    TYPE (distribution_1d_type), POINTER :: local_particles
-    REAL(KIND=dp), DIMENSION(:, :), INTENT(OUT)  :: fg_coulomb
-    REAL(KIND=dp), INTENT(OUT)                   :: vg_coulomb
-    REAL(KIND=dp), DIMENSION(:, :), INTENT(OUT)  :: pv_g
-! locals
-    TYPE ( cell_type ), POINTER :: cell
-    COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:)  :: summe
-    INTEGER                                  :: gpt, handle, isos, lp, mp, &
-                                                node, np, iparticle_kind, &
-                                                nparticle_kind, iparticle, &
-                                                iparticle_local, nparticle_local, &
-                                                group, nnodes
+    TYPE(ewald_environment_type), POINTER    :: ewald_env
+    TYPE(ewald_pw_type), POINTER             :: ewald_pw
+    TYPE(atomic_kind_type), POINTER          :: atomic_kind_set( : )
+    TYPE(particle_type), POINTER             :: particle_set( : )
+    TYPE(distribution_1d_type), POINTER      :: local_particles
+    REAL(KIND=dp), DIMENSION(:, :), &
+      INTENT(OUT)                            :: fg_coulomb
+    REAL(KIND=dp), INTENT(OUT)               :: vg_coulomb
+    REAL(KIND=dp), DIMENSION(:, :), &
+      INTENT(OUT)                            :: pv_g
+
+    COMPLEX(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:)                           :: summe
+    INTEGER :: gpt, group, handle, iparticle, iparticle_kind, &
+      iparticle_local, isos, lp, mp, nnodes, node, np, nparticle_kind, &
+      nparticle_local
     INTEGER, DIMENSION(:, :), POINTER        :: bds
-    REAL(KIND=dp)                                :: common, denom, &
-                                                e_igdotr, flops, &
+    REAL(KIND=dp)                            :: alpha, COMMON, denom, &
+                                                e_igdotr, eps0, flops, &
                                                 four_alpha_sq, gauss, gsq, &
-                                                pref, alpha, eps0, q
-    REAL(KIND=dp), DIMENSION(3)                  :: vec
-    REAL(KIND=dp), DIMENSION(:, :, :), POINTER   :: rho0
+                                                pref, q
+    REAL(KIND=dp), DIMENSION(3)              :: vec
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: charge
+    REAL(KIND=dp), DIMENSION(:, :, :), &
+      POINTER                                :: rho0
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
+    TYPE(cell_type), POINTER                 :: cell
+    TYPE(dg_rho0_type), POINTER              :: dg_rho0
+    TYPE(dg_type), POINTER                   :: dg
     TYPE(pw_grid_type), POINTER              :: pw_grid
+    TYPE(pw_pool_type), POINTER              :: pw_pool
+    TYPE(pw_type), POINTER                   :: pw
     TYPE(structure_factor_type)              :: exp_igr
-    TYPE ( pw_pool_type ), POINTER           :: pw_pool
-    TYPE ( pw_type ), POINTER                :: pw
-    TYPE ( cp_error_type ), POINTER          :: error
-    TYPE ( dg_type ), POINTER                :: dg
-    TYPE ( dg_rho0_type ), POINTER           :: dg_rho0
-    REAL (KIND=dp), DIMENSION ( : ), POINTER   :: charge
 
 !------------------------------------------------------------------------------
 
@@ -216,8 +213,8 @@ SUBROUTINE ewald_evaluate (ewald_env, ewald_pw, atomic_kind_set, particle_set,  
 
      gauss = ( rho0 ( lp, mp, np ) * pw_grid % vol ) ** 2 &
           / pw_grid % gsq ( gpt )
-     common = gauss * REAL ( summe ( gpt ) * CONJG ( summe ( gpt ) ) )
-     vg_coulomb = vg_coulomb + common
+     COMMON = gauss * REAL ( summe ( gpt ) * CONJG ( summe ( gpt ) ) )
+     vg_coulomb = vg_coulomb + COMMON
 
 ! computing the force
     node = 0
@@ -233,23 +230,23 @@ SUBROUTINE ewald_evaluate (ewald_env, ewald_pw, atomic_kind_set, particle_set,  
 ! compute the virial P*V
 
      denom = 1.0_dp / four_alpha_sq + 1.0_dp / pw_grid % gsq ( gpt )
-     pv_g(1,1) = pv_g(1,1) + common * ( 1.0_dp &
+     pv_g(1,1) = pv_g(1,1) + COMMON * ( 1.0_dp &
           - 2.0_dp * pw_grid % g ( 1, gpt ) * pw_grid % g ( 1, gpt ) * denom )
-     pv_g(1,2) = pv_g(1,2) - common * &
+     pv_g(1,2) = pv_g(1,2) - COMMON * &
           ( 2.0_dp * pw_grid % g ( 1, gpt ) * pw_grid % g ( 2, gpt ) * denom )
-     pv_g(1,3) = pv_g(1,3) - common * &
+     pv_g(1,3) = pv_g(1,3) - COMMON * &
           ( 2.0_dp * pw_grid % g ( 1, gpt ) * pw_grid % g ( 3, gpt ) * denom )
-     pv_g(2,1) = pv_g(2,1) - common * &
+     pv_g(2,1) = pv_g(2,1) - COMMON * &
           ( 2.0_dp * pw_grid % g ( 2, gpt ) * pw_grid % g ( 1, gpt ) * denom )
-     pv_g(2,2) = pv_g(2,2) + common * ( 1.0_dp &
+     pv_g(2,2) = pv_g(2,2) + COMMON * ( 1.0_dp &
           - 2.0_dp * pw_grid % g ( 2, gpt ) * pw_grid % g ( 2, gpt ) * denom )
-     pv_g(2,3) = pv_g(2,3) - common * &
+     pv_g(2,3) = pv_g(2,3) - COMMON * &
           ( 2.0_dp * pw_grid % g ( 2, gpt ) * pw_grid % g ( 3, gpt ) * denom )
-     pv_g(3,1) = pv_g(3,1) - common * &
+     pv_g(3,1) = pv_g(3,1) - COMMON * &
           ( 2.0_dp * pw_grid % g ( 3, gpt ) * pw_grid % g ( 1, gpt ) * denom )
-     pv_g(3,2) = pv_g(3,2) - common * &
+     pv_g(3,2) = pv_g(3,2) - COMMON * &
           ( 2.0_dp * pw_grid % g ( 3, gpt ) * pw_grid % g ( 2, gpt ) * denom )
-     pv_g(3,3) = pv_g(3,3) + common * ( 1.0_dp &
+     pv_g(3,3) = pv_g(3,3) + COMMON * ( 1.0_dp &
           - 2.0_dp * pw_grid % g ( 3, gpt ) * pw_grid % g ( 3, gpt ) * denom )
   END DO
 
@@ -300,19 +297,19 @@ END SUBROUTINE ewald_evaluate
 SUBROUTINE ewald_self ( ewald_env, atomic_kind_set,  &
                         local_particles, e_self, e_neut  )
 
-    TYPE ( ewald_environment_type ), POINTER  :: ewald_env
-    TYPE ( atomic_kind_type ), POINTER        :: atomic_kind_set ( : )
-    TYPE ( distribution_1d_type ), POINTER    :: local_particles 
-    REAL (KIND=dp), INTENT ( OUT )              :: e_self, e_neut
+    TYPE(ewald_environment_type), POINTER    :: ewald_env
+    TYPE(atomic_kind_type), POINTER          :: atomic_kind_set( : )
+    TYPE(distribution_1d_type), POINTER      :: local_particles
+    REAL(KIND=dp), INTENT(OUT)               :: e_self, e_neut
 
-    INTEGER                                  :: nparticle_kind, group
-    INTEGER                                  :: iparticle_kind, nparticle_local
-    REAL(KIND=dp)                                :: q, q_self, q_sum, eps0, alpha
+    INTEGER                                  :: ewald_type, group, &
+                                                iparticle_kind, &
+                                                nparticle_kind, &
+                                                nparticle_local
+    REAL(KIND=dp)                            :: alpha, eps0, q, q_self, q_sum
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
-    INTEGER     :: ewald_type
 
 !------------------------------------------------------------------------------
-
 
   CALL ewald_env_get ( ewald_env, ewald_type = ewald_type,  &
                        eps0 = eps0, alpha = alpha, group = group ) 
@@ -369,16 +366,16 @@ FUNCTION ewald_correction ( ewald_env, qi, qj, rcutsq ) &
 
 
     TYPE(ewald_environment_type), POINTER    :: ewald_env
-    REAL(KIND=dp), INTENT(IN)                    :: qi, qj, rcutsq
-    REAL(KIND=dp)                                :: e_cutoff_coul
+    REAL(KIND=dp), INTENT(IN)                :: qi, qj, rcutsq
+    REAL(KIND=dp)                            :: e_cutoff_coul
 
     REAL(KIND=dp), PARAMETER :: ac1 = 0.254829592_dp, ac2 = -0.284496736_dp, &
       ac3 = 1.421413741_dp, ac4 = -1.453152027_dp, ac5 = 1.061405429_dp, &
       pc = 0.3275911_dp
 
-    REAL(KIND=dp)                                :: arg, e_arg_arg, &
+    REAL(KIND=dp)                            :: alpha, arg, e_arg_arg, eps0, &
                                                 erfc_over_rij, erfcf, &
-                                                inv_fourpieps0, tc, eps0, alpha
+                                                inv_fourpieps0, tc
 
 !------------------------------------------------------------------------------
 ! compute the value of the real-space coulomb at the cut-off
@@ -417,7 +414,7 @@ SUBROUTINE ewald_print ( iw, cell, e_gspace, e_self, e_neut, e_bonded )
 
     INTEGER, INTENT(IN)                      :: iw
     TYPE(cell_type), INTENT(IN)              :: cell
-    REAL(KIND=dp), INTENT(IN)                    :: e_gspace, e_self, e_neut, &
+    REAL(KIND=dp), INTENT(IN)                :: e_gspace, e_self, e_neut, &
                                                 e_bonded
 
     TYPE(unit_convert_type), POINTER         :: units

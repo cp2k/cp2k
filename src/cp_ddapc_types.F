@@ -24,45 +24,36 @@
 !!   SOURCE
 !*****************************************************************************
 MODULE cp_ddapc_types
-  USE timings,                         ONLY: timeset,&
-                                             timestop
-  USE kinds,                           ONLY: dp
-  USE particle_types,                  ONLY: particle_type 
-  USE mathconstants,                   ONLY: rootpi, pi  
-  USE cp_ddapc_methods,                ONLY: ddapc_eval_gfunc,&
-                                             ddapc_eval_AmI,&
+  USE cell_types,                      ONLY: cell_release,&
+                                             cell_type,&
+                                             read_cell
+  USE cp_ddapc_methods,                ONLY: ddapc_eval_AmI,&
+                                             ddapc_eval_gfunc,&
                                              ewald_ddapc_pot
-  USE input_section_types,             ONLY: section_type,&
-                                             section_create, &
-                                             section_add_keyword,&
-                                             section_add_subsection,&
-                                             section_release,&
-                                             section_vals_type,&
+  USE ewald_spline_util,               ONLY: Setup_Ewald_Spline
+  USE global_types,                    ONLY: global_environment_type
+  USE input_constants,                 ONLY: use_multipole
+  USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&
-                                             section_vals_get,&
+                                             section_vals_type,&
                                              section_vals_val_get
-  USE pw_pool_types,                   ONLY: pw_pool_p_type,&
-                                             pw_pool_type,&
-                                             pw_pools_dealloc,&
-                                             pw_pool_give_back_pw,&
-                                             pw_pool_release
-  USE pw_types,                        ONLY: pw_type,&
-                                             pw_p_type,&
-                                             pw_release
+  USE kinds,                           ONLY: dp
+  USE mathconstants,                   ONLY: pi
+  USE particle_types,                  ONLY: particle_type
   USE pw_grid_types,                   ONLY: pw_grid_type
   USE pw_grids,                        ONLY: pw_grid_release
-  USE cell_types,                 ONLY: cell_type,&
-                                             cell_release,&
-                                             read_cell
-  USE input_constants,                 ONLY: use_multipole
-  USE ewald_spline_util,               ONLY: Setup_Ewald_Spline
-  USE global_types,                    ONLY: global_environment_type  
+  USE pw_pool_types,                   ONLY: pw_pool_give_back_pw,&
+                                             pw_pool_release,&
+                                             pw_pool_type
+  USE pw_types,                        ONLY: pw_type
+  USE timings,                         ONLY: timeset,&
+                                             timestop
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
   PRIVATE
   LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
-  CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='cp_ddapc_types'  
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_ddapc_types'  
   INTEGER, PRIVATE, SAVE :: last_cp_ddapc_id=0
   PUBLIC :: cp_ddapc_type, cp_ddapc_create, cp_ddapc_retain, cp_ddapc_release
   PUBLIC :: cp_ddapc_ewald_type, cp_ddapc_ewald_create, cp_ddapc_ewald_release
@@ -128,24 +119,26 @@ CONTAINS
   SUBROUTINE cp_ddapc_create(cp_ddapc_env, cp_ddapc_ewald, qmmm_periodic,&
        particle_set, radii, cell, super_cell, rho_tot_g, gcut, iw, Vol,  &
        fitcharge_section, only_charge, error)
-    ! Arguments
-    TYPE(cp_ddapc_type), POINTER               :: cp_ddapc_env
-    TYPE(cp_ddapc_ewald_type), POINTER         :: cp_ddapc_ewald
+    TYPE(cp_ddapc_type), POINTER             :: cp_ddapc_env
+    TYPE(cp_ddapc_ewald_type), POINTER       :: cp_ddapc_ewald
+    LOGICAL, INTENT(in)                      :: qmmm_periodic
     TYPE(particle_type), DIMENSION(:), &
-         POINTER                               :: particle_set
-    TYPE(section_vals_type), POINTER           :: fitcharge_section
-    REAL(kind=dp), DIMENSION(:), POINTER       :: radii
-    TYPE(pw_type), POINTER                     :: rho_tot_g
-    REAL(KIND=dp), INTENT(IN)                  :: gcut, Vol
-    LOGICAL, INTENT(in)                        :: qmmm_periodic, only_charge
-    INTEGER, INTENT(IN)                        :: iw
-    TYPE(cell_type), POINTER                   :: cell, super_cell
+      POINTER                                :: particle_set
+    REAL(kind=dp), DIMENSION(:), POINTER     :: radii
+    TYPE(cell_type), POINTER                 :: cell, super_cell
+    TYPE(pw_type), POINTER                   :: rho_tot_g
+    REAL(KIND=dp), INTENT(IN)                :: gcut
+    INTEGER, INTENT(IN)                      :: iw
+    REAL(KIND=dp), INTENT(IN)                :: Vol
+    TYPE(section_vals_type), POINTER         :: fitcharge_section
+    LOGICAL, INTENT(in)                      :: only_charge
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
-    ! Local Variables
+
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_ddapc_create', &
-         routineP = moduleN//':'//routineN
-    INTEGER                                  :: stat, handle
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, stat
     LOGICAL                                  :: failure
 
     failure=.FALSE.    
@@ -215,16 +208,15 @@ CONTAINS
 !!
 !!*** **********************************************************************
   SUBROUTINE cp_ddapc_retain(cp_ddapc_env, error)
-    ! Arguments
-    TYPE(cp_ddapc_type), POINTER               :: cp_ddapc_env
+    TYPE(cp_ddapc_type), POINTER             :: cp_ddapc_env
     TYPE(cp_error_type), INTENT(inout), &
-         OPTIONAL                               :: error
-    ! Local Variables
+      OPTIONAL                               :: error
+
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_ddapc_retain', &
-         routineP = moduleN//':'//routineN
-    
+      routineP = moduleN//':'//routineN
+
     LOGICAL                                  :: failure
-    
+
     failure=.FALSE.
     CPPrecondition(ASSOCIATED(cp_ddapc_env),cp_failure_level,routineP,error,failure)
     IF (.NOT.failure) THEN
@@ -254,16 +246,16 @@ CONTAINS
 !!
 !!*** **********************************************************************
   SUBROUTINE cp_ddapc_release(cp_ddapc_env, error)
-    ! Arguments
-    TYPE(cp_ddapc_type), POINTER               :: cp_ddapc_env
+    TYPE(cp_ddapc_type), POINTER             :: cp_ddapc_env
     TYPE(cp_error_type), INTENT(inout), &
-         OPTIONAL                               :: error
-    ! Local Variables
+      OPTIONAL                               :: error
+
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_ddapc_release', &
-         routineP = moduleN//':'//routineN  
+      routineP = moduleN//':'//routineN
+
     INTEGER                                  :: stat
     LOGICAL                                  :: failure
-    
+
     failure=.FALSE.    
     IF (ASSOCIATED(cp_ddapc_env)) THEN
        CPPreconditionNoFail(cp_ddapc_env%ref_count>0,cp_failure_level,routineP,error)
@@ -327,25 +319,27 @@ CONTAINS
 !!
 !!*** **********************************************************************
   SUBROUTINE cp_ddapc_ewald_create(cp_ddapc_ewald, qmmm, qm_cell, force_env_section, globenv, error)
-    ! Arguments
-    TYPE(cp_ddapc_ewald_type), POINTER          :: cp_ddapc_ewald
-    TYPE(section_vals_type), POINTER            :: force_env_section
-    TYPE(global_environment_type), POINTER      :: globenv
-    LOGICAL, INTENT(IN)                         :: qmmm
-    TYPE(cell_type), POINTER                    :: qm_cell
+    TYPE(cp_ddapc_ewald_type), POINTER       :: cp_ddapc_ewald
+    LOGICAL, INTENT(IN)                      :: qmmm
+    TYPE(cell_type), POINTER                 :: qm_cell
+    TYPE(section_vals_type), POINTER         :: force_env_section
+    TYPE(global_environment_type), POINTER   :: globenv
     TYPE(cp_error_type), INTENT(inout), &
-         OPTIONAL                               :: error
-    ! Local Variables
+      OPTIONAL                               :: error
+
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_ddapc_ewald_create', &
-         routineP = moduleN//':'//routineN   
-    LOGICAL                                     :: failure, analyt, qmmm_periodic
-    TYPE(section_vals_type), POINTER            :: qmmm_periodic_section,cell_section,&
-                                                   poisson_section, multipole_section
-    INTEGER                                     :: my_val, stat, npts(3)
-    REAL(KIND=dp)                               :: hmat(3,3)
-    REAL(KIND=dp), DIMENSION(:), POINTER        :: LG, gx, gy, gz
-    INTEGER, POINTER, DIMENSION(:)              :: ngrids
-    TYPE(cell_type), POINTER                    :: mm_cell, dummy_cell
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: my_val, npts(3), stat
+    INTEGER, DIMENSION(:), POINTER           :: ngrids
+    LOGICAL                                  :: analyt, failure, qmmm_periodic
+    REAL(KIND=dp)                            :: hmat(3,3)
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: gx, gy, gz, LG
+    TYPE(cell_type), POINTER                 :: dummy_cell, mm_cell
+    TYPE(section_vals_type), POINTER         :: cell_section, &
+                                                multipole_section, &
+                                                poisson_section, &
+                                                qmmm_periodic_section
 
     failure = .FALSE.
     CPPrecondition(.NOT.ASSOCIATED(cp_ddapc_ewald),cp_failure_level,routineP,error,failure)
@@ -419,20 +413,21 @@ CONTAINS
 
 
   SUBROUTINE eval_lg(multipole_section, hmat, deth, LG, gx, gy, gz, error)
-    IMPLICIT NONE
-    ! Arguments
-    REAL(KIND=dp), DIMENSION(:), POINTER        :: LG, gx, gy, gz 
-    TYPE(section_vals_type), POINTER            :: multipole_section
-    REAL(KIND=dp), INTENT(IN)                   :: hmat(3,3), deth
+    TYPE(section_vals_type), POINTER         :: multipole_section
+    REAL(KIND=dp), INTENT(IN)                :: hmat(3,3), deth
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: LG, gx, gy, gz
     TYPE(cp_error_type), INTENT(inout), &
-         OPTIONAL                               :: error
-    ! Local Variables
+      OPTIONAL                               :: error
+
     CHARACTER(len=*), PARAMETER :: routineN = 'eval_lg', &
-         routineP = moduleN//':'//routineN   
-    LOGICAL :: failure
-    REAL(KIND=dp) :: rcut, eps, tol, alpha, galpha, tol1, fac, fvec(3), fs, gsq, gsqi
-    INTEGER :: stat, n_rep, nmax1, nmax2, nmax3, ndim
-    INTEGER :: k1, k2, k3, i
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i, k1, k2, k3, n_rep, ndim, &
+                                                nmax1, nmax2, nmax3, stat
+    LOGICAL                                  :: failure
+    REAL(KIND=dp)                            :: alpha, eps, fac, fs, fvec(3), &
+                                                galpha, gsq, gsqi, rcut, tol, &
+                                                tol1
 
     failure = .FALSE.
     rcut = MIN(hmat(1,1),hmat(2,2),hmat(3,3))/2.0_dp
@@ -501,16 +496,16 @@ CONTAINS
 !!
 !!*** **********************************************************************
   SUBROUTINE cp_ddapc_ewald_release(cp_ddapc_ewald, error)
-    ! Arguments
-    TYPE(cp_ddapc_ewald_type), POINTER          :: cp_ddapc_ewald
+    TYPE(cp_ddapc_ewald_type), POINTER       :: cp_ddapc_ewald
     TYPE(cp_error_type), INTENT(inout), &
-         OPTIONAL                               :: error
-    ! Local Variables
+      OPTIONAL                               :: error
+
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_ddapc_ewald_release', &
-         routineP = moduleN//':'//routineN   
-    LOGICAL                                  :: failure
+      routineP = moduleN//':'//routineN
+
     INTEGER                                  :: stat
-    
+    LOGICAL                                  :: failure
+
     failure = .FALSE.
     IF (ASSOCIATED(cp_ddapc_ewald)) THEN
        IF (ASSOCIATED(cp_ddapc_ewald%coeff_qm)) THEN

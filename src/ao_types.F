@@ -24,7 +24,6 @@
 MODULE ao_types
   
   USE kinds,                           ONLY: dp
-  USE termination,                     ONLY: stop_memory
   USE timings,                         ONLY: timeset,&
                                              timestop
 

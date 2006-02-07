@@ -17,14 +17,12 @@
 
 MODULE hartree_local_types
 
-  USE kinds,                           ONLY: default_string_length,&
-                                             dp,&
+  USE kinds,                           ONLY: dp,&
                                              int_size
   USE qs_oce_types,                    ONLY: deallocate_vtriple,&
                                              vtriple_type
   USE qs_rho_atom_types,               ONLY: rho_atom_coeff
-  USE termination,                     ONLY: stop_memory,&
-                                             stop_program
+  USE termination,                     ONLY: stop_memory
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -33,7 +31,7 @@ MODULE hartree_local_types
 
 ! *** Global parameters (only in this module)
 
-  CHARACTER(LEN=*), PARAMETER :: module_name = "hartree_local_types"
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'hartree_local_types'
 
 ! *** Define the ecoul_1center_type ***
 
@@ -69,12 +67,13 @@ MODULE hartree_local_types
   SUBROUTINE  allocate_ecoul_1center(ecoul_1c,natom)
 
     TYPE(ecoul_1center_type), DIMENSION(:), &
-                                 POINTER        :: ecoul_1c
-    INTEGER, INTENT(IN)                         :: natom 
+      POINTER                                :: ecoul_1c
+    INTEGER, INTENT(IN)                      :: natom
 
-    CHARACTER(len=*), PARAMETER :: routine_name =  'allocate_ecoul_1center'
+    CHARACTER(len=*), PARAMETER :: routineN = 'allocate_ecoul_1center'
 
-    INTEGER                                     :: iat, istat
+    INTEGER                                  :: iat, istat
+
 !   ---------------------------------------------------------------------------
 
     IF(ASSOCIATED(ecoul_1c)) THEN
@@ -82,7 +81,7 @@ MODULE hartree_local_types
     END IF
 
     ALLOCATE(ecoul_1c(natom), STAT=istat) 
-    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                             "ecoul_1c",natom*int_size)
 
     DO iat = 1,natom
@@ -99,11 +98,12 @@ MODULE hartree_local_types
   SUBROUTINE  deallocate_ecoul_1center(ecoul_1c)
 
     TYPE(ecoul_1center_type), DIMENSION(:), &
-                                 POINTER        :: ecoul_1c
+      POINTER                                :: ecoul_1c
 
-    CHARACTER(len=*), PARAMETER :: routine_name =  'deallocate_ecoul_1center'
+    CHARACTER(len=*), PARAMETER :: routineN = 'deallocate_ecoul_1center'
 
-    INTEGER                                     :: iat, istat, natom
+    INTEGER                                  :: iat, istat, natom
+
 !   ---------------------------------------------------------------------------
 
     natom = SIZE(ecoul_1c,1)
@@ -111,18 +111,18 @@ MODULE hartree_local_types
     DO iat= 1,natom
       DEALLOCATE(ecoul_1c(iat)%Vh1_h%r_coef,STAT=istat)
       DEALLOCATE(ecoul_1c(iat)%Vh1_h,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                        "ecoul_1c%Vh1_h%r_coef")
 
       DEALLOCATE(ecoul_1c(iat)%Vh1_s%r_coef,STAT=istat)
       DEALLOCATE(ecoul_1c(iat)%Vh1_s,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                        "ecoul_1c%Vh1_s%r_coef")
 
     END DO
 
     DEALLOCATE(ecoul_1c, STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                        "ecoul_1c")
 
   END SUBROUTINE deallocate_ecoul_1center
@@ -131,9 +131,11 @@ MODULE hartree_local_types
 
   SUBROUTINE get_ecoul_1c(ecoul_1c,iatom,Vh1_h,Vh1_s)
 
-    TYPE(ecoul_1center_type), DIMENSION(:),POINTER  ::  ecoul_1c
-    REAL(dp), DIMENSION(:,:), OPTIONAL, POINTER   :: Vh1_h, Vh1_s
-    INTEGER, INTENT(IN), OPTIONAL                 :: iatom
+    TYPE(ecoul_1center_type), DIMENSION(:), &
+      POINTER                                :: ecoul_1c
+    INTEGER, INTENT(IN), OPTIONAL            :: iatom
+    REAL(dp), DIMENSION(:, :), OPTIONAL, &
+      POINTER                                :: Vh1_h, Vh1_s
 
 !   ---------------------------------------------------------------------------
 
@@ -148,13 +150,13 @@ MODULE hartree_local_types
 
   SUBROUTINE get_hartree_local(hartree_local,ecoul_1c,vtriple)
 
-    TYPE(hartree_local_type), POINTER   :: hartree_local
+    TYPE(hartree_local_type), POINTER        :: hartree_local
     TYPE(ecoul_1center_type), DIMENSION(:), &
-                            OPTIONAL, POINTER     :: ecoul_1c
-    TYPE(vtriple_type), DIMENSION(:,:), &
-                            OPTIONAL, POINTER     :: vtriple
+      OPTIONAL, POINTER                      :: ecoul_1c
+    TYPE(vtriple_type), DIMENSION(:, :), &
+      OPTIONAL, POINTER                      :: vtriple
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'get_hartree_local'
+    CHARACTER(len=*), PARAMETER              :: routineN = 'get_hartree_local'
 
 !   ---------------------------------------------------------------------------
 
@@ -167,16 +169,17 @@ MODULE hartree_local_types
 
   SUBROUTINE hartree_local_create(hartree_local, error)
 
-    TYPE(hartree_local_type), POINTER         :: hartree_local
+    TYPE(hartree_local_type), POINTER        :: hartree_local
     TYPE(cp_error_type), INTENT(inout), &
-           OPTIONAL                           :: error
+      OPTIONAL                               :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = "hartree_local_create" 
+    CHARACTER(len=*), PARAMETER :: routineN = 'hartree_local_create'
 
-    INTEGER                                    :: stat
-    LOGICAL                                    :: failure
+    INTEGER                                  :: stat
+    LOGICAL                                  :: failure
 
 !   ---------------------------------------------------------------------------
+
     failure=.FALSE.
 
     ALLOCATE(hartree_local, stat=stat)
@@ -191,16 +194,16 @@ MODULE hartree_local_types
 
   SUBROUTINE hartree_local_release(hartree_local, error)
 
-    TYPE(hartree_local_type), POINTER         :: hartree_local
+    TYPE(hartree_local_type), POINTER        :: hartree_local
     TYPE(cp_error_type), INTENT(inout), &
-                OPTIONAL                      :: error
+      OPTIONAL                               :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = "hartree_local_release" 
+    CHARACTER(len=*), PARAMETER :: routineN = 'hartree_local_release'
 
     INTEGER                                  :: stat
 
 !   ---------------------------------------------------------------------------
- 
+
     IF (ASSOCIATED(hartree_local)) THEN
       IF (ASSOCIATED(hartree_local%ecoul_1c)) THEN
         CALL deallocate_ecoul_1center(hartree_local%ecoul_1c)
@@ -220,10 +223,11 @@ MODULE hartree_local_types
 
   SUBROUTINE set_ecoul_1c(ecoul_1c,iatom,ecoul_1_h,ecoul_1_s,ecoul_1_z,ecoul_1_0)
 
-    TYPE(ecoul_1center_type), DIMENSION(:), POINTER ::  ecoul_1c
-    INTEGER, INTENT(IN), OPTIONAL                 :: iatom
-    REAL(dp), INTENT(IN),  OPTIONAL               :: ecoul_1_h, ecoul_1_s, &
-                                                     ecoul_1_z, ecoul_1_0
+    TYPE(ecoul_1center_type), DIMENSION(:), &
+      POINTER                                :: ecoul_1c
+    INTEGER, INTENT(IN), OPTIONAL            :: iatom
+    REAL(dp), INTENT(IN), OPTIONAL           :: ecoul_1_h, ecoul_1_s, &
+                                                ecoul_1_z, ecoul_1_0
 
 !   ---------------------------------------------------------------------------
 
@@ -240,13 +244,13 @@ MODULE hartree_local_types
 
   SUBROUTINE set_hartree_local(hartree_local,ecoul_1c,vtriple)
 
-    TYPE(hartree_local_type), POINTER :: hartree_local
+    TYPE(hartree_local_type), POINTER        :: hartree_local
     TYPE(ecoul_1center_type), DIMENSION(:), &
-                            OPTIONAL, POINTER        :: ecoul_1c
-    TYPE(vtriple_type), DIMENSION(:,:), &
-                            OPTIONAL, POINTER     :: vtriple
+      OPTIONAL, POINTER                      :: ecoul_1c
+    TYPE(vtriple_type), DIMENSION(:, :), &
+      OPTIONAL, POINTER                      :: vtriple
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'set_hartree_local'
+    CHARACTER(len=*), PARAMETER              :: routineN = 'set_hartree_local'
 
 !   ---------------------------------------------------------------------------
 

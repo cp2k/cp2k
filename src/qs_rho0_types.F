@@ -16,32 +16,33 @@
 
 MODULE qs_rho0_types
 
+  USE cell_types,                      ONLY: cell_type,&
+                                             get_cell
   USE coefficient_types,               ONLY: coeff_deallocate,&
                                              coeff_type
   USE erf_fn,                          ONLY: erf
-  USE global_types,                    ONLY: global_environment_type
-  USE kinds,                           ONLY: default_string_length,&
-                                             dp,dp_size,&
+  USE kinds,                           ONLY: dp,&
+                                             dp_size,&
                                              int_size
-  USE mathconstants,                   ONLY: fourpi,rootpi,pi
+  USE mathconstants,                   ONLY: fourpi,&
+                                             pi,&
+                                             rootpi
   USE memory_utilities,                ONLY: reallocate
   USE qs_grid_atom,                    ONLY: grid_atom_type
   USE qs_rho_atom_types,               ONLY: rho_atom_coeff
-  USE qs_util,                         ONLY: exp_radius
-  USE cell_types,                 ONLY: cell_type,&
-                                             get_cell
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
   USE whittaker,                       ONLY: whittaker_c0,&
                                              whittaker_ci
 #include "cp_common_uses.h"
+
   IMPLICIT NONE
 
   PRIVATE
 
 ! *** Global parameters (only in this module)
 
-  CHARACTER(LEN=*), PARAMETER :: module_name = "qs_rho0_types"
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_rho0_types'
 
 ! *** Define multipole type ***
 
@@ -105,13 +106,16 @@ CONTAINS
 !******************************************************************************
   SUBROUTINE allocate_multipoles(mp_rho,natom,mp_gau,nkind)
 
-    TYPE(mpole_rho_atom), DIMENSION(:),    POINTER :: mp_rho
-    TYPE(mpole_gau_overlap), DIMENSION(:), POINTER :: mp_gau
-    INTEGER, INTENT(IN)                            :: natom,nkind
+    TYPE(mpole_rho_atom), DIMENSION(:), &
+      POINTER                                :: mp_rho
+    INTEGER, INTENT(IN)                      :: natom
+    TYPE(mpole_gau_overlap), DIMENSION(:), &
+      POINTER                                :: mp_gau
+    INTEGER, INTENT(IN)                      :: nkind
 
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "allocate_multipoles" 
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'allocate_multipoles'
 
-    INTEGER                                        :: iat, ikind, istat
+    INTEGER                                  :: iat, ikind, istat
 
 !   ---------------------------------------------------------------------------
 
@@ -120,7 +124,7 @@ CONTAINS
     END IF
 
     ALLOCATE (mp_rho(natom),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                             "mp_rho",natom*int_size)
 
     DO iat = 1,natom
@@ -136,7 +140,7 @@ CONTAINS
     END IF
 
     ALLOCATE (mp_gau(nkind),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                             "mp_gau",nkind*int_size)
 
     DO ikind = 1,nkind
@@ -155,12 +159,12 @@ CONTAINS
   SUBROUTINE allocate_rho0_atom(rho0_set,natom)
 
     TYPE(rho0_atom_type), DIMENSION(:), &
-                                   POINTER :: rho0_set
-    INTEGER                                :: natom
-    
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "allocate_rho0_atom"
+      POINTER                                :: rho0_set
+    INTEGER                                  :: natom
 
-    INTEGER                                :: iat, istat
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'allocate_rho0_atom'
+
+    INTEGER                                  :: iat, istat
 
 !   ---------------------------------------------------------------------------
 
@@ -169,7 +173,7 @@ CONTAINS
     END IF 
 
     ALLOCATE (rho0_set(natom),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                             "rho0_atom_set",natom*int_size)
 
     DO iat = 1,natom 
@@ -184,12 +188,12 @@ CONTAINS
 
   SUBROUTINE allocate_rho0_atom_rad(rho0_atom,nr,nchannels)
 
-    TYPE(rho0_atom_type)                :: rho0_atom
-    INTEGER                             :: nr,nchannels
-    
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "allocate_rho0_atom_rad"
+    TYPE(rho0_atom_type)                     :: rho0_atom
+    INTEGER                                  :: nr, nchannels
 
-    INTEGER                             :: iat,istat,tmpstat
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'allocate_rho0_atom_rad'
+
+    INTEGER                                  :: istat, tmpstat
 
 !   ---------------------------------------------------------------------------
 
@@ -198,7 +202,7 @@ CONTAINS
     NULLIFY(rho0_atom%rho0_rad_h%r_coef)
     ALLOCATE (rho0_atom%rho0_rad_h%r_coef(1:nr,1:nchannels),STAT=tmpstat)
     istat = istat+tmpstat
-    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                             "rho0_rad_h",int_size)
     rho0_atom%rho0_rad_h%r_coef = 0.0_dp
 
@@ -207,7 +211,7 @@ CONTAINS
     NULLIFY(rho0_atom%rho0_rad_s%r_coef)
     ALLOCATE (rho0_atom%rho0_rad_s%r_coef(1:nr,1:nchannels),STAT=tmpstat)
     istat = istat + tmpstat
-    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                             "rho0_rad_s",int_size)
     rho0_atom%rho0_rad_s%r_coef = 0.0_dp
 
@@ -216,7 +220,7 @@ CONTAINS
     NULLIFY(rho0_atom%vrho0_rad_h%r_coef)
     ALLOCATE (rho0_atom%vrho0_rad_h%r_coef(1:nr,1:nchannels),STAT=tmpstat)
     istat = istat + tmpstat
-    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                             "vrho0_rad_h",int_size)
     rho0_atom%vrho0_rad_h%r_coef = 0.0_dp
 
@@ -225,11 +229,11 @@ CONTAINS
 
   SUBROUTINE allocate_rho0_mpole(rho0)
 
-    TYPE(rho0_mpole_type), POINTER    :: rho0
+    TYPE(rho0_mpole_type), POINTER           :: rho0
 
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "allocate_rho0_mpole"
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'allocate_rho0_mpole'
 
-    INTEGER                     :: istat
+    INTEGER                                  :: istat
 
 !   ---------------------------------------------------------------------------
 
@@ -238,7 +242,7 @@ CONTAINS
     END IF
 
     ALLOCATE (rho0,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                             "rho0_mpole",int_size)
 
     NULLIFY(rho0%mp_rho)
@@ -257,15 +261,17 @@ CONTAINS
 
   SUBROUTINE calculate_g0(rho0_mpole,grid_atom,ik)
 
-    TYPE(rho0_mpole_type), POINTER      :: rho0_mpole
-    TYPE(grid_atom_type), POINTER       :: grid_atom
-    INTEGER                             :: ik
+    TYPE(rho0_mpole_type), POINTER           :: rho0_mpole
+    TYPE(grid_atom_type), POINTER            :: grid_atom
+    INTEGER                                  :: ik
 
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "calculate_g0"
+    CHARACTER(LEN=*), PARAMETER              :: routineN = 'calculate_g0'
 
-    INTEGER                             :: ir, istat, l, lmax, nr
-    REAL(dp)                            :: c1, prefactor, root_z_h, z_h, z_s
-    REAL(dp), DIMENSION(:), ALLOCATABLE :: erf_z_h, gexp, gh_tmp, gs_tmp, int1, int2
+    INTEGER                                  :: ir, istat, l, lmax, nr
+    REAL(dp)                                 :: c1, prefactor, root_z_h, z_h, &
+                                                z_s
+    REAL(dp), ALLOCATABLE, DIMENSION(:)      :: erf_z_h, gexp, gh_tmp, &
+                                                gs_tmp, int1, int2
 
 !   ---------------------------------------------------------------------------
 
@@ -281,7 +287,7 @@ CONTAINS
     CALL reallocate(rho0_mpole%mp_gau(ik)%vg0_h,1,nr,0,lmax)
 
     ALLOCATE(gexp(nr),gh_tmp(nr),gs_tmp(nr),erf_z_h(nr),int1(nr),int2(nr),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                               "gexp,gh_tmp,gs_tmp,erf_z_h,in1,int2",6*nr*dp_size)
 
     gh_tmp(1:nr) = EXP(-z_h*grid_atom%rad2(1:nr))
@@ -337,7 +343,7 @@ CONTAINS
     END DO  ! l
 
     DEALLOCATE (gexp,erf_z_h,gh_tmp,gs_tmp,int1,int2,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "gexp,gh_tmp,gs_tmp,erf_z_h,int1,int2")
 
   END SUBROUTINE calculate_g0
@@ -346,13 +352,15 @@ CONTAINS
 
   SUBROUTINE deallocate_mpole_gau(mp_gau)
 
-    TYPE(mpole_gau_overlap), DIMENSION(:), POINTER :: mp_gau
+    TYPE(mpole_gau_overlap), DIMENSION(:), &
+      POINTER                                :: mp_gau
 
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "deallocate_mpole_gau"
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'deallocate_mpole_gau'
 
-    INTEGER                     :: ikind,istat,nkind
+    INTEGER                                  :: ikind, istat, nkind
 
 !   ---------------------------------------------------------------------------
+
     istat = 0
     nkind = SIZE(mp_gau)
 
@@ -360,25 +368,25 @@ CONTAINS
 
       IF(ASSOCIATED(mp_gau(ikind)%Qlm_gg)) THEN
         DEALLOCATE(mp_gau(ikind)%Qlm_gg,STAT=istat)
-        IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+        IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                       "Qlm_gg")
       END IF
 
       DEALLOCATE(mp_gau(ikind)%g0_h, STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                       "mp_gau(ikind)%g0_h")
 
       DEALLOCATE(mp_gau(ikind)%g0_s, STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                       "mp_gau(ikind)%g0_s")
 
       DEALLOCATE(mp_gau(ikind)%vg0_h, STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                       "mp_gau(ikind)%vg0_h")
     END DO
 
     DEALLOCATE(mp_gau, STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                       "mp_gau")
 
   END SUBROUTINE deallocate_mpole_gau
@@ -387,11 +395,12 @@ CONTAINS
 
   SUBROUTINE deallocate_mpole_rho(mp_rho)
 
-    TYPE(mpole_rho_atom), DIMENSION(:), POINTER :: mp_rho
+    TYPE(mpole_rho_atom), DIMENSION(:), &
+      POINTER                                :: mp_rho
 
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "deallocate_mpole_rho"
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'deallocate_mpole_rho'
 
-    INTEGER                     :: iat,istat,natom
+    INTEGER                                  :: iat, istat, natom
 
 !   ---------------------------------------------------------------------------
 
@@ -404,12 +413,12 @@ CONTAINS
       DEALLOCATE(mp_rho(iat)%Qlm_car_h,STAT=istat)
       DEALLOCATE(mp_rho(iat)%Qlm_car_s,STAT=istat)
 
-      IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                       "Qlm_h,Qlm_s,Qlm_tot,Qlm_car_h,Qlm_car_s")
     END DO
 
     DEALLOCATE(mp_rho,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                       "mp_rho")
 
   END SUBROUTINE deallocate_mpole_rho
@@ -419,11 +428,11 @@ CONTAINS
   SUBROUTINE deallocate_rho0_atom(rho0_atom_set)
 
     TYPE(rho0_atom_type), DIMENSION(:), &
-                                   POINTER :: rho0_atom_set
-    
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "deallocate_rho0_atom"
+      POINTER                                :: rho0_atom_set
 
-    INTEGER                                :: iat, istat, natom
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'deallocate_rho0_atom'
+
+    INTEGER                                  :: iat, istat, natom
 
 !   ---------------------------------------------------------------------------
 
@@ -447,11 +456,11 @@ CONTAINS
       ENDDO
 
       DEALLOCATE (rho0_atom_set,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                        "rho0_atom_set")
     ELSE
 
-      CALL stop_program(routine_name,module_name,__LINE__,&
+      CALL stop_program(routineN,moduleN,__LINE__,&
                         "The pointer rho0_atom_set is not associated and "//&
                         "cannot be deallocated")
     END IF
@@ -460,11 +469,11 @@ CONTAINS
 ! ******************************************************************************
   SUBROUTINE deallocate_rho0_mpole(rho0)
 
-    TYPE(rho0_mpole_type), POINTER    :: rho0
+    TYPE(rho0_mpole_type), POINTER           :: rho0
 
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "deallocate_rho0_mpole"
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'deallocate_rho0_mpole'
 
-    INTEGER                     :: istat
+    INTEGER                                  :: istat
 
 !   ---------------------------------------------------------------------------
 
@@ -476,31 +485,31 @@ CONTAINS
 
       IF (ASSOCIATED(rho0%lmax0_kind)) THEN
          DEALLOCATE(rho0%lmax0_kind,STAT=istat)
-         IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+         IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                          "rho0%lmax0_kind")
       END IF
 
       IF (ASSOCIATED(rho0%norm_g0l_h)) THEN
          DEALLOCATE(rho0%norm_g0l_h, STAT=istat)
-         IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+         IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                          "rho0%norm_g0l_h")
       END IF
 
       IF (ASSOCIATED(rho0%norm_g0l_s)) THEN
          DEALLOCATE(rho0%norm_g0l_s, STAT=istat)
-         IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+         IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                          "rho0%norm_g0l_s")
       END IF
 
       IF (ASSOCIATED(rho0%orb_radius_3c)) THEN
          DEALLOCATE(rho0%orb_radius_3c, STAT=istat)
-         IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+         IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                          "rho0%orb_radius_3c")
       END IF
 
       IF (ASSOCIATED(rho0%set_radius_3c)) THEN
          DEALLOCATE(rho0%set_radius_3c, STAT=istat)
-         IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+         IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                          "rho0%set_radius_3c")
       END IF
 
@@ -515,11 +524,11 @@ CONTAINS
       ENDIF
 
       DEALLOCATE (rho0,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                        "rho0_mpole")
     ELSE
 
-      CALL stop_program(routine_name,module_name,__LINE__,&
+      CALL stop_program(routineN,moduleN,__LINE__,&
                         "The pointer rho0 is not associated and "//&
                         "cannot be deallocated")
     END IF
@@ -533,31 +542,32 @@ CONTAINS
                             zet0_h, zet0_s, igrid_zet0_s, rpgf0_h,rpgf0_s, &
                             r_V0hmV0s, max_rpgf0_s, rho0_s_rs, rho0_s_gs)
 
-    TYPE(rho0_mpole_type),  POINTER              :: rho0_mpole
-
+    TYPE(rho0_mpole_type), POINTER           :: rho0_mpole
+    REAL(dp), DIMENSION(:, :), OPTIONAL, &
+      POINTER                                :: g0_h, g0_s, vg0_h
+    INTEGER, INTENT(IN), OPTIONAL            :: iat, ikind
+    INTEGER, INTENT(OUT), OPTIONAL           :: lmax_0, l0_ikind
+    INTEGER, DIMENSION(:), OPTIONAL, POINTER :: lmax0_kind
+    TYPE(mpole_gau_overlap), OPTIONAL, &
+      POINTER                                :: mp_gau_ikind
     TYPE(mpole_rho_atom), DIMENSION(:), &
-                             OPTIONAL,  POINTER  :: mp_rho
-    TYPE(mpole_gau_overlap), OPTIONAL, POINTER   :: mp_gau_ikind
-    REAL(dp), INTENT(OUT), OPTIONAL              :: zet0_h,zet0_s
-    REAL(dp), INTENT(OUT), OPTIONAL              :: rpgf0_h, rpgf0_s
-    REAL(dp), INTENT(OUT), OPTIONAL              :: r_V0hmV0s
-    REAL(dp), INTENT(OUT), OPTIONAL              :: max_rpgf0_s
-    REAL(dp), DIMENSION(:), OPTIONAL,POINTER     :: norm_g0l_h, &
-                                                    norm_g0l_s
-    REAL(dp), DIMENSION(:), OPTIONAL,POINTER     :: orb_radius_3c
-    REAL(dp), DIMENSION(:,:), OPTIONAL,POINTER   :: set_radius_3c
-    REAL(dp), DIMENSION(:), OPTIONAL,POINTER     :: Qlm_car_h, Qlm_car_s
-    REAL(dp), DIMENSION(:), OPTIONAL,POINTER     :: Qlm_tot
-    REAL(dp), DIMENSION(:,:), OPTIONAL,POINTER   :: g0_h, g0_s, vg0_h
-    REAL(dp), DIMENSION(:,:,:), OPTIONAL, & 
-                                       POINTER   :: Qlm_gg
-    INTEGER, DIMENSION(:),  OPTIONAL,POINTER     :: lmax0_kind
-    INTEGER ,INTENT(OUT), OPTIONAL               :: lmax_0, l0_ikind
-    INTEGER ,INTENT(OUT), OPTIONAL               :: igrid_zet0_s
-    INTEGER, INTENT(IN), OPTIONAL                :: iat, ikind
-    TYPE(coeff_type), OPTIONAL, POINTER          :: rho0_s_rs,&
-                                                    rho0_s_gs
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "get_rho0_mpole"
+      OPTIONAL, POINTER                      :: mp_rho
+    REAL(dp), DIMENSION(:), OPTIONAL, &
+      POINTER                                :: norm_g0l_h, norm_g0l_s, &
+                                                orb_radius_3c
+    REAL(dp), DIMENSION(:, :), OPTIONAL, &
+      POINTER                                :: set_radius_3c
+    REAL(dp), DIMENSION(:, :, :), OPTIONAL, &
+      POINTER                                :: Qlm_gg
+    REAL(dp), DIMENSION(:), OPTIONAL, &
+      POINTER                                :: Qlm_car_h, Qlm_car_s, Qlm_tot
+    REAL(dp), INTENT(OUT), OPTIONAL          :: zet0_h, zet0_s
+    INTEGER, INTENT(OUT), OPTIONAL           :: igrid_zet0_s
+    REAL(dp), INTENT(OUT), OPTIONAL          :: rpgf0_h, rpgf0_s, r_V0hmV0s, &
+                                                max_rpgf0_s
+    TYPE(coeff_type), OPTIONAL, POINTER      :: rho0_s_rs, rho0_s_gs
+
+    CHARACTER(LEN=*), PARAMETER              :: routineN = 'get_rho0_mpole'
 
 !   ---------------------------------------------------------------------------
 
@@ -595,7 +605,7 @@ CONTAINS
 
     ELSE
 
-      CALL stop_program(routine_name,module_name,__LINE__,&
+      CALL stop_program(routineN,moduleN,__LINE__,&
                         "The pointer rho0_mpole is not associated")
     END IF
 
@@ -604,13 +614,14 @@ CONTAINS
 ! ******************************************************************************
   SUBROUTINE initialize_mpole_rho(mp_rho,nchan_s,nchan_c,zeff,tddft)
 
-    TYPE(mpole_rho_atom)         :: mp_rho
-    INTEGER , INTENT(IN)         :: nchan_c, nchan_s 
-    REAL(KIND=dp), INTENT(IN)    :: zeff
-    LOGICAL, OPTIONAL            :: tddft
-    LOGICAL                      :: my_tddft
+    TYPE(mpole_rho_atom)                     :: mp_rho
+    INTEGER, INTENT(IN)                      :: nchan_s, nchan_c
+    REAL(KIND=dp), INTENT(IN)                :: zeff
+    LOGICAL, OPTIONAL                        :: tddft
 
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "initialize_mpole_rho"
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'initialize_mpole_rho'
+
+    LOGICAL                                  :: my_tddft
 
 !   ---------------------------------------------------------------------------
 
@@ -642,15 +653,14 @@ CONTAINS
 
     TYPE(rho0_mpole_type), POINTER           :: rho0_mpole
     TYPE(cell_type), POINTER                 :: cell
+    INTEGER, INTENT(in)                      :: output_unit
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
-    INTEGER, INTENT(in)                      :: output_unit
 
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "write_rho0_info"
+    CHARACTER(LEN=*), PARAMETER              :: routineN = 'write_rho0_info'
 
-    INTEGER                                  :: ikind,l,nkind
     CHARACTER(LEN=8)                         :: unit_of_length_name
-    LOGICAL                                  :: ionode
+    INTEGER                                  :: ikind, l, nkind
     REAL(dp)                                 :: unit_of_length
 
     CALL get_cell(cell=cell,&

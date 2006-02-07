@@ -67,7 +67,7 @@ MODULE cp_fm_pool_types
   PRIVATE
 
   LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
-  CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='cp_fm_pool_types'
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_fm_pool_types'
   INTEGER, SAVE, PRIVATE :: last_fm_pool_id_nr=0
 
   PUBLIC :: cp_fm_pool_type, cp_fm_pool_p_type
@@ -323,7 +323,7 @@ CONTAINS
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_pool_release', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'fm_pool_release', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: stat
@@ -580,8 +580,7 @@ CONTAINS
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-    CHARACTER(len=*), PARAMETER :: &
-      routineN = 'fm_pool_give_back_elements_vect', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'fm_pool_give_back_fm_vect', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, stat

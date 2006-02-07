@@ -27,43 +27,31 @@
 
 MODULE atoms_input
 
-  USE convert_units,                   ONLY: convert_to_cp2k_units
-  USE extended_system_types,           ONLY: lnhc_parameters_type,&
-                                             npt_info_type
-  USE force_env_types,                 ONLY: use_fist_force,&
-                                             use_kg_force,&
-                                             use_pol_force,&
-                                             use_qs_force,&
-                                             use_qmmm
-  USE global_types,                    ONLY: global_environment_type
-  USE kinds,                           ONLY: dp,&
-                                             default_string_length,&
-                                             default_path_length
-  USE memory_utilities,                ONLY: reallocate
-  USE message_passing,                 ONLY: mp_bcast
-  USE particle_types,                  ONLY: particle_type
-  USE cell_types,                 ONLY: cell_type,&
+  USE cell_types,                      ONLY: cell_type,&
                                              get_cell,&
-                                             scaled_to_real, &
-                                             get_hinv
-  USE string_utilities,                ONLY: xstring
-  USE termination,                     ONLY: stop_program
-  USE timings,                         ONLY: timeset,timestop
-  USE topology_types,                  ONLY: topology_parameters_type,&
-                                             atom_info_type
-  USE util,                            ONLY: get_unit
+                                             scaled_to_real
+  USE checkpoint_handler,              ONLY: Pwarning
+  USE global_types,                    ONLY: global_environment_type
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&
-                                             section_vals_get_subs_vals2,&
                                              section_vals_type,&
                                              section_vals_val_get
-  USE checkpoint_handler,              ONLY: Pwarning
+  USE kinds,                           ONLY: default_path_length,&
+                                             default_string_length,&
+                                             dp
+  USE memory_utilities,                ONLY: reallocate
+  USE termination,                     ONLY: stop_program
+  USE timings,                         ONLY: timeset,&
+                                             timestop
+  USE topology_types,                  ONLY: atom_info_type,&
+                                             topology_parameters_type
 #include "cp_common_uses.h"
+
   IMPLICIT NONE
 
   PRIVATE
   PUBLIC :: read_atoms_input
-  CHARACTER(len=*), PARAMETER :: moduleN="atoms_input"
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'atoms_input'
 !!*****
 !******************************************************************************
 
@@ -92,31 +80,30 @@ CONTAINS
 
     TYPE(topology_parameters_type)           :: topology
     TYPE(global_environment_type), &
-         pointer, OPTIONAL                   :: globenv
-    TYPE(section_vals_type), POINTER :: subsys_section
+      OPTIONAL, POINTER                      :: globenv
+    LOGICAL, INTENT(IN), OPTIONAL            :: overwrite
+    TYPE(section_vals_type), POINTER         :: subsys_section
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    LOGICAL, INTENT(IN), OPTIONAL         :: overwrite
-    TYPE(cp_error_type), INTENT(inout), optional :: error
-
+    CHARACTER(len=*), PARAMETER :: routineN = 'read_atoms_input', &
+      routineP = moduleN//':'//routineN
     INTEGER, PARAMETER                       :: nblock_atom = 10000
 
-    TYPE(cell_type), POINTER                 :: cell
-    TYPE(atom_info_type),POINTER             :: atom_info
-    CHARACTER(LEN=6)                         :: label
+    CHARACTER(len=default_path_length)       :: line_att
+    INTEGER                                  :: atm_equal_mol, end_c, iatom, &
+                                                ILEN, j, natom, start_c, wrd
+    LOGICAL                                  :: explicit, failure, &
+                                                my_overwrite, &
+                                                scaled_coordinates
     REAL(KIND=dp)                            :: unit_of_length
-    INTEGER                                  :: atm_equal_mol, iatom, ierror, &
-         ILEN, iw, natom, ia, ie, start_c,&
-         end_c,wrd, j
-    LOGICAL                                  :: scaled_coordinates, failure, my_overwrite
-    LOGICAL                                  :: explicit
-    TYPE(section_vals_type), pointer :: coord_section
-    CHARACTER(len=default_path_length) :: line_att
-    CHARACTER(len=*), PARAMETER :: routineN="read_atoms_input",&
-         routineP=moduleN//":"//routineN
+    TYPE(atom_info_type), POINTER            :: atom_info
+    TYPE(cell_type), POINTER                 :: cell
+    TYPE(section_vals_type), POINTER         :: coord_section
 
-    !   ---------------------------------------------------------------------------
+!   ---------------------------------------------------------------------------
 
-    failure=.false.
+    failure=.FALSE.
     my_overwrite = .FALSE.
     IF (PRESENT(overwrite)) my_overwrite=overwrite
     NULLIFY(coord_section)

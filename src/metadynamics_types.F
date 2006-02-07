@@ -1,17 +1,15 @@
 MODULE metadynamics_types
-  USE colvar_types,                    ONLY: colvar_type, coord_colvar_type, &
-                                             dist_colvar_type,&
-                                             colvar_dealloc_ref,torsion_colvar_type
-  USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_para_env,                     ONLY: cp_para_env_release
+  USE cp_para_types,                   ONLY: cp_para_env_type
   USE kinds,                           ONLY: default_path_length,&
                                              dp
 #include "cp_common_uses.h"
+
   IMPLICIT NONE
 
   PRIVATE 
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: modulen='metadynamics_types'
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'metadynamics_types'
 
   PUBLIC :: hills_env_type, meta_env_type, meta_env_retain, &
             meta_env_release, metavar_type
@@ -29,7 +27,7 @@ MODULE metadynamics_types
                       cv_energy,delta_s,ff_hills
      LOGICAL :: do_wall_p,do_wall_m
      REAL(kind=dp) :: wall_p,wall_m
-     REAL(kind=dp) :: target
+     REAL(kind=dp) :: TARGET
      INTEGER :: icolvar,isubsys
   END TYPE metavar_type
 
@@ -74,8 +72,8 @@ SUBROUTINE meta_env_retain(meta_env,error)
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-    CHARACTER(len=*), PARAMETER :: routinen = 'meta_env_retain', &
-      routinep = modulen//':'//routinen
+    CHARACTER(len=*), PARAMETER :: routineN = 'meta_env_retain', &
+      routineP = moduleN//':'//routineN
 
     LOGICAL                                  :: failure
 
@@ -111,10 +109,10 @@ SUBROUTINE meta_env_release(meta_env,error)
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-    CHARACTER(len=*), PARAMETER :: routinen = 'meta_env_release', &
-      routinep = modulen//':'//routinen
+    CHARACTER(len=*), PARAMETER :: routineN = 'meta_env_release', &
+      routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, stat
+    INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
   failure=.FALSE.

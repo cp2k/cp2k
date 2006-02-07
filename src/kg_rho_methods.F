@@ -24,12 +24,11 @@
 MODULE kg_rho_methods
   USE coefficient_types,               ONLY: coeff_deallocate
   USE cp_control_types,                ONLY: dft_control_type
-  USE cp_para_types,                   ONLY: cp_para_env_type
   USE kg_environment_types,            ONLY: get_kg_env,&
                                              kg_environment_type
   USE kg_rho_types,                    ONLY: kg_rho_type
-  USE kg_rspw_types,                   ONLY: kg_rspw_type,&
-                                             kg_rspw_get
+  USE kg_rspw_types,                   ONLY: kg_rspw_get,&
+                                             kg_rspw_type
   USE kinds,                           ONLY: dp
   USE pw_pool_types,                   ONLY: pw_pool_init_coeff,&
                                              pw_pool_type
@@ -45,7 +44,7 @@ MODULE kg_rho_methods
 
   PRIVATE
   LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
-  CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='kg_rho_methods'
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'kg_rho_methods'
   INTEGER, PRIVATE, SAVE :: last_rho_id_nr=0
 
   PUBLIC :: kg_rho_create
@@ -61,14 +60,15 @@ SUBROUTINE kg_rho_create(kg_rho,kg_env,error)
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-    TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
-    TYPE(kg_rspw_type), POINTER              :: kg_rspw
-    TYPE(dft_control_type), POINTER          :: dft_control
     CHARACTER(len=*), PARAMETER :: routineN = 'kg_rho_create', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle,stat
-    LOGICAL                                  :: failure,kgpol
+    INTEGER                                  :: handle, stat
+    LOGICAL                                  :: failure, kgpol
+    TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(kg_rspw_type), POINTER              :: kg_rspw
+    TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
+
 !-----------------------------------------------------------------------------!
 
   CALL timeset(routineN,'I',' ',handle)

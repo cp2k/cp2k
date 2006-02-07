@@ -25,6 +25,10 @@
 
 MODULE library_tests
   
+  USE cell_types,                      ONLY: cell_create,&
+                                             cell_release,&
+                                             cell_type,&
+                                             get_hinv
   USE cg_test,                         ONLY: clebsch_gordon_test
   USE coefficient_types,               ONLY: coeff_allocate,&
                                              coeff_deallocate,&
@@ -57,22 +61,20 @@ MODULE library_tests
                                              fft_radix_operations,&
                                              init_fft
   USE global_types,                    ONLY: global_environment_type
+  USE input_section_types,             ONLY: section_vals_get_subs_vals,&
+                                             section_vals_type,&
+                                             section_vals_val_get
   USE kinds,                           ONLY: dp
   USE machine,                         ONLY: m_cputime
   USE message_passing,                 ONLY: mp_bcast,&
                                              mp_max,&
                                              mp_sum,&
                                              mp_sync
-  USE parallel_rng_types,              ONLY: advance_rng_state,&
-                                             create_rng_stream,&
-                                             delete_rng_stream,&
-                                             next_random_number,&
-                                             reset_rng_stream,&
-                                             reset_rng_substream,&
-                                             reset_to_next_rng_substream,&
-                                             rng_stream_type,&
-                                             set_rng_stream,&
-                                             write_rng_matrices
+  USE parallel_rng_types,              ONLY: &
+       advance_rng_state, create_rng_stream, delete_rng_stream, &
+       next_random_number, reset_rng_stream, reset_rng_substream, &
+       reset_to_next_rng_substream, rng_stream_type, set_rng_stream, &
+       write_rng_matrices
   USE pw_grid_types,                   ONLY: FULLSPACE,&
                                              HALFSPACE,&
                                              pw_grid_type
@@ -85,15 +87,9 @@ MODULE library_tests
                                              REALDATA3D,&
                                              RECIPROCALSPACE
   USE real_space_test,                 ONLY: rs_test
-  USE cell_types,                 ONLY: cell_type,&
-                                             get_hinv,&
-                                             cell_create,&
-                                             cell_release
-  USE string_utilities,                ONLY: uppercase
   USE termination,                     ONLY: stop_memory
-  USE input_section_types, ONLY: section_vals_type, section_vals_val_get,&
-       section_vals_get_subs_vals
 #include "cp_common_uses.h"
+
   IMPLICIT NONE
 
   PRIVATE
@@ -127,8 +123,8 @@ CONTAINS
   
   SUBROUTINE lib_test ( globenv, error )
 
-    TYPE(global_environment_type), pointer :: globenv
-    TYPE(cp_error_type), INTENT(INOUT)        :: error
+    TYPE(global_environment_type), POINTER   :: globenv
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     INTEGER                                  :: iw
 
@@ -203,16 +199,15 @@ CONTAINS
 
 SUBROUTINE test_input ( globenv , error)
 
-    TYPE(global_environment_type), &
-      pointer                             :: globenv
-    TYPE(cp_error_type), INTENT(inout), optional :: error
+    TYPE(global_environment_type), POINTER   :: globenv
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    CHARACTER(LEN=20)                        :: string
-    CHARACTER(LEN=5)                         :: label
-    INTEGER                                  :: ierror, ilen, iw
-    TYPE(section_vals_type), pointer :: test_section
-    logical :: l_val
-    INTEGER, DIMENSION(:), pointer :: i_vals
+    INTEGER                                  :: iw
+    INTEGER, DIMENSION(:), POINTER           :: i_vals
+    LOGICAL                                  :: l_val
+    TYPE(section_vals_type), POINTER         :: test_section
+
 !
 
   iw = globenv % scr
@@ -230,7 +225,7 @@ SUBROUTINE test_input ( globenv , error)
   CALL section_vals_val_get(test_section,'rs_grids',i_val=runtest ( 7 ),error=error )
   CALL section_vals_val_get(test_section,'mpi',i_val=runtest ( 8 ),error=error )
   CALL section_vals_val_get(test_section,'rng',l_val=l_val,error=error )
-  if (l_val) runtest ( 9 )=1
+  IF (l_val) runtest ( 9 )=1
   CALL section_vals_val_get(test_section,'eigensolver',i_vals=i_vals,error=error )
   runtest(10)=i_vals(1)
   runtest(11) = MIN(MAX(1,i_vals(2)),i_vals(1))
@@ -261,13 +256,11 @@ END SUBROUTINE test_input
 !!*** *************************************************************************
 
 SUBROUTINE copy_test ( globenv )
-  IMPLICIT NONE
-  TYPE(global_environment_type), &
-       POINTER                             :: globenv
+    TYPE(global_environment_type), POINTER   :: globenv
 
-  INTEGER                                  :: i, ierr, iw, j, len, ntim, siz
-  REAL(KIND=dp)                                :: perf, t, tend, tstart
-  REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)     :: ca, cb
+    INTEGER                                  :: i, ierr, iw, j, len, ntim, siz
+    REAL(KIND=dp)                            :: perf, t, tend, tstart
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: ca, cb
 
 ! test for copy --> Cache size
 
@@ -282,7 +275,7 @@ SUBROUTINE copy_test ( globenv )
     ALLOCATE ( cb ( len ), STAT = ierr )
     IF ( ierr /= 0 ) EXIT
 
-    CALL random_number ( ca )
+    CALL RANDOM_NUMBER ( ca )
     ntim = NINT ( 1.e7_dp / REAL ( len,KIND=dp) )
     ntim = MAX ( ntim, 1 )
     ntim = MIN ( ntim, siz * 10000 )
@@ -332,13 +325,12 @@ END SUBROUTINE copy_test
 !!*** *************************************************************************
 
 SUBROUTINE matmul_test ( globenv )
-  IMPLICIT NONE
-    TYPE(global_environment_type), &
-      pointer                                :: globenv
+    TYPE(global_environment_type), POINTER   :: globenv
 
     INTEGER                                  :: i, ierr, iw, j, len, ntim, siz
-    REAL(KIND=dp)                                :: perf, t, tend, tstart, xdum
-    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)  :: ma, mb, mc
+    REAL(KIND=dp)                            :: perf, t, tend, tstart, xdum
+    REAL(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:, :)                        :: ma, mb, mc
 
 ! test for matrix multpies
 
@@ -355,16 +347,16 @@ SUBROUTINE matmul_test ( globenv )
     ALLOCATE ( mc ( len, len ), STAT = ierr )
     IF ( ierr /= 0 ) EXIT
 
-    CALL random_number ( xdum )
+    CALL RANDOM_NUMBER ( xdum )
     ma = xdum
-    CALL random_number ( xdum )
+    CALL RANDOM_NUMBER ( xdum )
     mb = xdum
     ntim = NINT ( 1.e8_dp / ( 2.0_dp * REAL ( len,KIND=dp)**3 ) )
     ntim = MAX ( ntim, 1 )
     ntim = MIN ( ntim, siz * 200 )
     tstart = m_cputime ( )
     DO j = 1, ntim
-      mc = matmul ( ma, mb )
+      mc = MATMUL ( ma, mb )
       ma ( 1, 1 ) = REAL ( j,KIND=dp)
     END DO
     tend = m_cputime ( )
@@ -376,7 +368,7 @@ SUBROUTINE matmul_test ( globenv )
     END IF
     tstart = m_cputime ( )
     DO j = 1, ntim
-      ma = matmul ( ma, mb )
+      ma = MATMUL ( ma, mb )
       ma ( 1, 1 ) = REAL ( j,KIND=dp)
     END DO
     tend = m_cputime ( )
@@ -394,7 +386,7 @@ SUBROUTINE matmul_test ( globenv )
 
     tstart = m_cputime ( )
     DO j = 1, ntim
-      mc = matmul ( ma, transpose ( mb ) )
+      mc = MATMUL ( ma, TRANSPOSE ( mb ) )
       ma ( 1, 1 ) = REAL ( j,KIND=dp)
     END DO
     tend = m_cputime ( )
@@ -412,7 +404,7 @@ SUBROUTINE matmul_test ( globenv )
 
     tstart = m_cputime ( )
     DO j = 1, ntim
-      mc = matmul ( transpose ( ma ), mb )
+      mc = MATMUL ( TRANSPOSE ( ma ), mb )
       ma ( 1, 1 ) = REAL ( j,KIND=dp)
     END DO
     tend = m_cputime ( )
@@ -448,9 +440,9 @@ SUBROUTINE matmul_test ( globenv )
     ALLOCATE ( mc ( len, len ), STAT = ierr )
     IF ( ierr /= 0 ) EXIT
 
-    CALL random_number ( xdum )
+    CALL RANDOM_NUMBER ( xdum )
     ma = xdum
-    CALL random_number ( xdum )
+    CALL RANDOM_NUMBER ( xdum )
     mb = xdum
     ntim = NINT ( 1.e8_dp / ( 2.0_dp * REAL ( len,KIND=dp)**3 ) )
     ntim = MAX ( ntim, 1 )
@@ -553,16 +545,15 @@ END SUBROUTINE matmul_test
 
 SUBROUTINE fft_test ( globenv )
 
-    TYPE(global_environment_type), &
-      pointer                             :: globenv
+    TYPE(global_environment_type), POINTER   :: globenv
 
     INTEGER :: iall, ierr, it, iw, j, len, n(3), &
       ndate( 3 ) = (/ 12, 48, 96 /), ntim, radix_in, radix_out, siz, stat
-    COMPLEX(KIND=dp), DIMENSION(4, 4, 4)         :: zz
+    COMPLEX(KIND=dp), DIMENSION(4, 4, 4)     :: zz
     COMPLEX(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :, :)                     :: ca, cb, cc
     CHARACTER(LEN=7)                         :: method
-    REAL(KIND=dp)                                :: flops, perf, scale, t, tdiff, &
+    REAL(KIND=dp)                            :: flops, perf, scale, t, tdiff, &
                                                 tend, tstart
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :, :)                     :: ra
@@ -604,9 +595,9 @@ SUBROUTINE fft_test ( globenv )
         IF ( ierr /= 0 ) CALL stop_memory ( "lib_test", "ra", len*len*len )
         ALLOCATE ( ca ( len, len, len ), STAT = ierr )
         IF ( ierr == 0 ) THEN
-          CALL random_number ( ra )
+          CALL RANDOM_NUMBER ( ra )
           ca = ra
-          CALL random_number ( ra )
+          CALL RANDOM_NUMBER ( ra )
           ca = ca + CMPLX ( 0.0_dp, 1.0_dp,KIND=dp) * ra
           flops = REAL ( len**3,KIND=dp) * 15.0_dp * LOG ( REAL ( len,KIND=dp) )
           ntim = NINT ( siz * 1.e7_dp / flops )
@@ -628,7 +619,7 @@ SUBROUTINE fft_test ( globenv )
 
           IF ( globenv % ionode ) THEN
             WRITE ( iw, '(T2,A,A,i6,T59,F14.4,A)' ) &
-             adjustr(method)," test (in-place)    Size = ",len, perf," Mflop/s"
+             ADJUSTR(method)," test (in-place)    Size = ",len, perf," Mflop/s"
           END IF
           DEALLOCATE ( ca , STAT = ierr )
           IF ( ierr /= 0 ) CALL stop_memory ( "lib_test", "ca" )
@@ -649,20 +640,20 @@ SUBROUTINE fft_test ( globenv )
       ALLOCATE ( cc ( len, len, len ), STAT = ierr )
       IF ( ierr /= 0 ) CALL stop_memory ( "lib_test", "cc", len*len*len )
 
-      CALL random_number ( ra )
+      CALL RANDOM_NUMBER ( ra )
       ca = ra
-      CALL random_number ( ra )
+      CALL RANDOM_NUMBER ( ra )
       ca = ca + CMPLX ( 0.0_dp, 1.0_dp,KIND=dp) * ra
       cc = ca
       CALL fft3d ( FWFFT, n, ca, cb )
       tdiff = MAXVAL ( ABS ( ca - cc ) )
       IF ( tdiff > 1.0E-12_dp ) THEN
         IF ( globenv % ionode ) &
-        WRITE ( iw, '(T2,A,A,A)' ) adjustr(method),"         FWFFT ", &
+        WRITE ( iw, '(T2,A,A,A)' ) ADJUSTR(method),"         FWFFT ", &
                "             Input array is changed in out-of-place FFT !"
       ELSE
         IF ( globenv % ionode ) &
-        WRITE ( iw, '(T2,A,A,A)' ) adjustr(method),"         FWFFT ", &
+        WRITE ( iw, '(T2,A,A,A)' ) ADJUSTR(method),"         FWFFT ", &
                "         Input array is not changed in out-of-place FFT !"
       END IF
       ca = cc
@@ -670,11 +661,11 @@ SUBROUTINE fft_test ( globenv )
       tdiff = MAXVAL ( ABS ( ca - cc ) )
       IF ( tdiff > 1.0E-12_dp ) THEN
         IF ( globenv % ionode ) &
-        WRITE ( iw, '(T2,A,A,A)' ) adjustr(method),"         BWFFT ", &
+        WRITE ( iw, '(T2,A,A,A)' ) ADJUSTR(method),"         BWFFT ", &
                "             Input array is changed in out-of-place FFT !"
       ELSE
         IF ( globenv % ionode ) &
-        WRITE ( iw, '(T2,A,A,A)' ) adjustr(method),"         BWFFT ", &
+        WRITE ( iw, '(T2,A,A,A)' ) ADJUSTR(method),"         BWFFT ", &
                "         Input array is not changed in out-of-place FFT !"
       END IF
       IF ( globenv % ionode ) WRITE ( iw, * )
@@ -711,18 +702,17 @@ END SUBROUTINE fft_test
 
 SUBROUTINE pw_fft_test ( globenv )
 
-    TYPE(global_environment_type), &
-      pointer                             :: globenv
+    TYPE(global_environment_type), POINTER   :: globenv
 
-    REAL(KIND=dp), PARAMETER                     :: toler = 1.e-11_dp
+    REAL(KIND=dp), PARAMETER                 :: toler = 1.e-11_dp
 
     INTEGER                                  :: ig, ip, iw, nn, ntim
     INTEGER, DIMENSION(3)                    :: no, np
-    REAL(KIND=dp)                                :: cutoff, em, et, flops, gsq, &
+    REAL(KIND=dp)                            :: cutoff, em, et, flops, gsq, &
                                                 perf, r, t, tend, tim, tstart
     TYPE(cell_type), POINTER                 :: box
     TYPE(coeff_type)                         :: ca, cb, cc
-    TYPE(pw_grid_type),pointer               :: grid
+    TYPE(pw_grid_type), POINTER              :: grid
 
 !..the unit cell
 
@@ -764,7 +754,7 @@ SUBROUTINE pw_fft_test ( globenv )
   nn = SIZE ( ca % pw % cc  )
   DO ig = 1, nn
     gsq = grid % gsq ( ig )
-    ca  % pw % cc ( ig ) = exp ( - gsq )
+    ca  % pw % cc ( ig ) = EXP ( - gsq )
   END DO
 
   flops = PRODUCT ( no ) * 30.0_dp * LOG ( REAL ( MAXVAL ( no ),KIND=dp) )
@@ -828,7 +818,7 @@ SUBROUTINE pw_fft_test ( globenv )
   nn = SIZE ( ca % pw % cc  )
   DO ig = 1, nn
     gsq = grid % gsq ( ig )
-    ca  % pw % cc ( ig ) = exp ( - gsq )
+    ca  % pw % cc ( ig ) = EXP ( - gsq )
   END DO
 
   flops = PRODUCT ( no ) * 30.0_dp * LOG ( REAL ( MAXVAL ( no ),KIND=dp) )
@@ -894,7 +884,7 @@ SUBROUTINE pw_fft_test ( globenv )
   nn = SIZE ( ca % pw % cc  )
   DO ig = 1, nn
     gsq = grid % gsq ( ig )
-    ca  % pw % cc ( ig ) = exp ( - gsq )
+    ca  % pw % cc ( ig ) = EXP ( - gsq )
   END DO
 
   flops = PRODUCT ( no ) * 30.0_dp * LOG ( REAL ( MAXVAL ( no ),KIND=dp) )
@@ -959,7 +949,7 @@ SUBROUTINE pw_fft_test ( globenv )
   nn = SIZE ( ca % pw % cc  )
   DO ig = 1, nn
     gsq = grid % gsq ( ig )
-    ca  % pw % cc ( ig ) = exp ( - gsq )
+    ca  % pw % cc ( ig ) = EXP ( - gsq )
   END DO
 
   flops = PRODUCT ( no ) * 30.0_dp * LOG ( REAL ( MAXVAL ( no ),KIND=dp) )
@@ -1001,7 +991,7 @@ SUBROUTINE pw_fft_test ( globenv )
       " Parallel FFT Tests: Performance [Mflops] ", perf
     WRITE ( iw, * )
   END IF
-  call cell_release(box)
+  CALL cell_release(box)
 END SUBROUTINE pw_fft_test
 
 !
@@ -1016,13 +1006,13 @@ SUBROUTINE mpi_test(comm)
   INTEGER :: comm
 
 #if defined(__parallel)
-    integer :: Ngrid
-    include 'mpif.h'
-    integer :: status(MPI_STATUS_SIZE)
-    integer :: ierror, ierr, taskid,nprocs
-    logical :: ionode
-    integer :: Ntot,Nloc,left,right,partner,I,J,itests,npow,itask,jtask,ncount,nbufmax
-    integer, ALLOCATABLE, DIMENSION(:) :: rcount,scount,sdispl,rdispl
+    INTEGER :: Ngrid
+    INCLUDE 'mpif.h'
+    INTEGER :: status(MPI_STATUS_SIZE)
+    INTEGER :: ierror, ierr, taskid,nprocs
+    LOGICAL :: ionode
+    INTEGER :: Ntot,Nloc,left,right,partner,I,J,itests,npow,itask,jtask,ncount,nbufmax
+    INTEGER, ALLOCATABLE, DIMENSION(:) :: rcount,scount,sdispl,rdispl
 
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:,:)  :: grid,grid2,grid3   ! for convenience
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)    :: lgrid,lgrid2,lgrid3
@@ -1035,14 +1025,14 @@ SUBROUTINE mpi_test(comm)
     npow = runtest(8)
     ngrid= 10**runtest(8)
 
-    call mpi_comm_rank(comm,taskid,ierror)
-    call mpi_comm_size(comm,Nprocs,ierror)
+    CALL mpi_comm_rank(comm,taskid,ierror)
+    CALL mpi_comm_size(comm,Nprocs,ierror)
     ionode=(taskid==0)
-    IF (ionode) write(6,*) "Running with ",nprocs
-    IF (ionode) write(6,*) "running messages with npow = ",npow
-    IF (ionode) write(6,*) "use MPI X in the input for larger (e.g. 6) of smaller (e.g. 3) messages"
+    IF (ionode) WRITE(6,*) "Running with ",nprocs
+    IF (ionode) WRITE(6,*) "running messages with npow = ",npow
+    IF (ionode) WRITE(6,*) "use MPI X in the input for larger (e.g. 6) of smaller (e.g. 3) messages"
     IF (MODULO(nprocs,2).NE.0) THEN
-       write(6,*) "Testing only with an even number of tasks"
+       WRITE(6,*) "Testing only with an even number of tasks"
        STOP
     ENDIF
 
@@ -1076,8 +1066,8 @@ SUBROUTINE mpi_test(comm)
     ! ------------------------------ some in memory tests                   ---------------------
     ! -------------------------------------------------------------------------------------------
     CALL MPI_BARRIER(comm,ierror)
-    IF (ionode) write(6,*) "Testing in memory copies just 1 CPU "
-    IF (ionode) write(6,*) "  could tell something about the motherboard / cache / compiler "
+    IF (ionode) WRITE(6,*) "Testing in memory copies just 1 CPU "
+    IF (ionode) WRITE(6,*) "  could tell something about the motherboard / cache / compiler "
     DO i=1,npow
        ncount=10**i
        t2=0.0E0_dp
@@ -1090,7 +1080,7 @@ SUBROUTINE mpi_test(comm)
        ENDDO
        CALL MPI_REDUCE(t2,t1,1, MPI_DOUBLE_PRECISION, MPI_MAX, 0, comm, ierror)
        IF (ionode) THEN
-          write(6,'(I9,A,F12.4,A)') 8*ncount," Bytes ",(3**(npow-i))*ncount*8.0E-6_dp/t1," Mb/s"
+          WRITE(6,'(I9,A,F12.4,A)') 8*ncount," Bytes ",(3**(npow-i))*ncount*8.0E-6_dp/t1," Mb/s"
        ENDIF
     ENDDO
     CALL MPI_BARRIER(comm,ierror)
@@ -1098,8 +1088,8 @@ SUBROUTINE mpi_test(comm)
     ! ------------------------------ some in memory tests                   ---------------------
     ! -------------------------------------------------------------------------------------------
     CALL MPI_BARRIER(comm,ierror)
-    IF (ionode) write(6,*) "Testing in memory copies all cpus"
-    IF (ionode) write(6,*) "  is the memory bandwidth affected on an SMP machine ?"
+    IF (ionode) WRITE(6,*) "Testing in memory copies all cpus"
+    IF (ionode) WRITE(6,*) "  is the memory bandwidth affected on an SMP machine ?"
     DO i=1,npow
        ncount=10**i
        t2=0.0E0_dp
@@ -1112,7 +1102,7 @@ SUBROUTINE mpi_test(comm)
        ENDDO
        CALL MPI_REDUCE(t2,t1,1, MPI_DOUBLE_PRECISION, MPI_MAX, 0, comm, ierror)
        IF (ionode) THEN
-          write(6,'(I9,A,F12.4,A)') 8*ncount," Bytes ",(3**(npow-i))*ncount*8.0E-6_dp/t1," Mb/s"
+          WRITE(6,'(I9,A,F12.4,A)') 8*ncount," Bytes ",(3**(npow-i))*ncount*8.0E-6_dp/t1," Mb/s"
        ENDIF
     ENDDO
     CALL MPI_BARRIER(comm,ierror)
@@ -1120,10 +1110,10 @@ SUBROUTINE mpi_test(comm)
     ! ------------------------------ first test point to point communication ---------------------
     ! -------------------------------------------------------------------------------------------
     CALL MPI_BARRIER(comm,ierror)
-    IF (ionode) write(6,*) "Testing truely point to point communication (i with j only)"
-    IF (ionode) write(6,*) "  is there some different connection between i j (e.g. shared memory comm)"
+    IF (ionode) WRITE(6,*) "Testing truely point to point communication (i with j only)"
+    IF (ionode) WRITE(6,*) "  is there some different connection between i j (e.g. shared memory comm)"
     ncount=10**npow
-    IF (ionode) write(6,*) "For messages of ",ncount*8," bytes"
+    IF (ionode) WRITE(6,*) "For messages of ",ncount*8," bytes"
     IF (ncount.GT.nbufmax) STOP
     DO itask=0,nprocs-1
      DO jtask=itask+1,nprocs-1
@@ -1143,7 +1133,7 @@ SUBROUTINE mpi_test(comm)
     IF (ionode) THEN
        DO itask=0,nprocs-1
         DO jtask=itask+1,nprocs-1
-         write(6,'(I4,I4,F12.4,A)') itask,jtask,ncount*8.0E-6_dp/send_timings(itask,jtask)," Mb/s"
+         WRITE(6,'(I4,I4,F12.4,A)') itask,jtask,ncount*8.0E-6_dp/send_timings(itask,jtask)," Mb/s"
         ENDDO
        ENDDO
     ENDIF
@@ -1152,8 +1142,8 @@ SUBROUTINE mpi_test(comm)
     ! ------------------------------ second test point to point communication -------------------
     ! -------------------------------------------------------------------------------------------
     CALL MPI_BARRIER(comm,ierror)
-    IF (ionode) write(6,*) "Testing all nearby point to point communication (0,1)(2,3)..."
-    IF (ionode) write(6,*) "    these could / should all be on the same shared memory node "
+    IF (ionode) WRITE(6,*) "Testing all nearby point to point communication (0,1)(2,3)..."
+    IF (ionode) WRITE(6,*) "    these could / should all be on the same shared memory node "
     DO i=1,npow
        ncount=10**i
        t2=0.0E0_dp
@@ -1170,7 +1160,7 @@ SUBROUTINE mpi_test(comm)
        ENDDO
        CALL MPI_REDUCE(t2,t1,1, MPI_DOUBLE_PRECISION, MPI_MAX, 0, comm, ierror)
        IF (ionode) THEN
-          write(6,'(I9,A,F12.4,A)') 8*ncount," Bytes ",(3**(npow-i))*ncount*8.0E-6_dp/t1," Mb/s"
+          WRITE(6,'(I9,A,F12.4,A)') 8*ncount," Bytes ",(3**(npow-i))*ncount*8.0E-6_dp/t1," Mb/s"
        ENDIF
     ENDDO
     CALL MPI_BARRIER(comm,ierror)
@@ -1178,8 +1168,8 @@ SUBROUTINE mpi_test(comm)
     ! ------------------------------ third test point to point communication -------------------
     ! -------------------------------------------------------------------------------------------
     CALL MPI_BARRIER(comm,ierror)
-    IF (ionode) write(6,*) "Testing all far point to point communication (0,nprocs/2),(1,nprocs/2+1),.."
-    IF (ionode) write(6,*) "    these could all be going over the network, and stress it a lot"
+    IF (ionode) WRITE(6,*) "Testing all far point to point communication (0,nprocs/2),(1,nprocs/2+1),.."
+    IF (ionode) WRITE(6,*) "    these could all be going over the network, and stress it a lot"
     DO i=1,npow
        ncount=10**i
        t2=0.0E0_dp
@@ -1197,15 +1187,15 @@ SUBROUTINE mpi_test(comm)
        ENDDO
        CALL MPI_REDUCE(t2,t1,1, MPI_DOUBLE_PRECISION, MPI_MAX, 0, comm, ierror)
        IF (ionode) THEN
-          write(6,'(I9,A,F12.4,A)') 8*ncount," Bytes ",(3**(npow-i))*ncount*8.0E-6_dp/t1," Mb/s"
+          WRITE(6,'(I9,A,F12.4,A)') 8*ncount," Bytes ",(3**(npow-i))*ncount*8.0E-6_dp/t1," Mb/s"
        ENDIF
     ENDDO
     ! -------------------------------------------------------------------------------------------
     ! ------------------------------ test root to all broadcast               -------------------
     ! -------------------------------------------------------------------------------------------
     CALL MPI_BARRIER(comm,ierror)
-    IF (ionode) write(6,*) "Testing root to all broadcast "
-    IF (ionode) write(6,*) "    using trees at least ? "
+    IF (ionode) WRITE(6,*) "Testing root to all broadcast "
+    IF (ionode) WRITE(6,*) "    using trees at least ? "
     DO i=1,npow
        ncount=10**i
        t2=0.0E0_dp
@@ -1218,14 +1208,14 @@ SUBROUTINE mpi_test(comm)
        ENDDO
        CALL MPI_REDUCE(t2,t1,1, MPI_DOUBLE_PRECISION, MPI_MAX, 0, comm, ierror)
        IF (ionode) THEN
-          write(6,'(I9,A,F12.4,A)') 8*ncount," Bytes ",(3**(npow-i))*ncount*8.0E-6_dp/t1," Mb/s"
+          WRITE(6,'(I9,A,F12.4,A)') 8*ncount," Bytes ",(3**(npow-i))*ncount*8.0E-6_dp/t1," Mb/s"
        ENDIF
     ENDDO
     ! -------------------------------------------------------------------------------------------
     ! ------------------------------ test mp_sum like behavior                -------------------
     ! -------------------------------------------------------------------------------------------
     CALL MPI_BARRIER(comm,ierror)
-    IF (ionode) write(6,*) "Test global summation (mp_sum / mpi_allreduce) "
+    IF (ionode) WRITE(6,*) "Test global summation (mp_sum / mpi_allreduce) "
     DO i=1,npow
        ncount=10**i
        t2=0.0E0_dp
@@ -1238,15 +1228,15 @@ SUBROUTINE mpi_test(comm)
        ENDDO
        CALL MPI_REDUCE(t2,t1,1, MPI_DOUBLE_PRECISION, MPI_MAX, 0, comm, ierror)
        IF (ionode) THEN
-          write(6,'(I9,A,F12.4,A)') 8*ncount," Bytes ",(3**(npow-i))*ncount*8.0E-6_dp/t1," Mb/s"
+          WRITE(6,'(I9,A,F12.4,A)') 8*ncount," Bytes ",(3**(npow-i))*ncount*8.0E-6_dp/t1," Mb/s"
        ENDIF
     ENDDO
     ! -------------------------------------------------------------------------------------------
     ! ------------------------------ test all to all communication            -------------------
     ! -------------------------------------------------------------------------------------------
     CALL MPI_BARRIER(comm,ierror)
-    IF (ionode) write(6,*) "Test all to all communication (mpi_alltoallv)"
-    IF (ionode) write(6,*) "    mpi/network getting confused ? "
+    IF (ionode) WRITE(6,*) "Test all to all communication (mpi_alltoallv)"
+    IF (ionode) WRITE(6,*) "    mpi/network getting confused ? "
     DO i=1,npow
        ncount=10**i
        t2=0.0E0_dp
@@ -1266,18 +1256,18 @@ SUBROUTINE mpi_test(comm)
        ENDDO
        CALL MPI_REDUCE(t2,t1,1, MPI_DOUBLE_PRECISION, MPI_MAX, 0, comm, ierror)
        IF (ionode) THEN
-          write(6,'(I9,A,F12.4,A)') 8*(ncount/nprocs)*nprocs," Bytes ",(3**(npow-i))*(ncount/nprocs)*nprocs*8.0E-6_dp/t1," Mb/s"
+          WRITE(6,'(I9,A,F12.4,A)') 8*(ncount/nprocs)*nprocs," Bytes ",(3**(npow-i))*(ncount/nprocs)*nprocs*8.0E-6_dp/t1," Mb/s"
        ENDIF
     ENDDO
 
     ! -------------------------------------------------------------------------------------------
     ! ------------------------------ other stuff                            ---------------------
     ! -------------------------------------------------------------------------------------------
-    IF (ionode) write(6,*) " Clean tests completed "
-    IF (ionode) write(6,*) " Testing MPI_REDUCE scatter"
+    IF (ionode) WRITE(6,*) " Clean tests completed "
+    IF (ionode) WRITE(6,*) " Testing MPI_REDUCE scatter"
     rcount=Nloc
     DO itests=1,3
-       IF (ionode) write(6,*) "------------------------------- test ",itests," ------------------------"
+       IF (ionode) WRITE(6,*) "------------------------------- test ",itests," ------------------------"
 ! *** reference ***
        DO j=1,Nprocs
          DO i=1,Nloc
@@ -1288,7 +1278,7 @@ SUBROUTINE mpi_test(comm)
        CALL MPI_REDUCE_SCATTER(grid, lgrid, rcount, MPI_DOUBLE_PRECISION, MPI_SUM, comm, ierr)
        t2=MPI_WTIME()-t1+threshold
        CALL mpi_allreduce(t2,res,1,MPI_DOUBLE_PRECISION,MPI_MAX,comm, ierr)
-       IF (ionode) write(6,*) "MPI_REDUCE_SCATTER    ",res
+       IF (ionode) WRITE(6,*) "MPI_REDUCE_SCATTER    ",res
 ! *** simple shift ***
        DO j=1,Nprocs
          DO i=1,Nloc
@@ -1308,7 +1298,7 @@ SUBROUTINE mpi_test(comm)
        CALL mpi_allreduce(t4,res,1,MPI_DOUBLE_PRECISION,MPI_MAX,comm, ierr)
        maxdiff=MAXVAL(ABS(lgrid2-lgrid))
        CALL mpi_allreduce(maxdiff,res2,1,MPI_DOUBLE_PRECISION,MPI_MAX,comm, ierr)
-       IF (ionode) write(6,*) "MPI_SENDRECV_REPLACE  ",res,res2
+       IF (ionode) WRITE(6,*) "MPI_SENDRECV_REPLACE  ",res,res2
 ! *** involved shift ****
        IF (MODULO(nprocs,2)/=0) STOP
        DO j=1,Nprocs
@@ -1353,7 +1343,7 @@ SUBROUTINE mpi_test(comm)
        CALL mpi_allreduce(t5,res2,1,MPI_DOUBLE_PRECISION,MPI_MAX,comm, ierr)
        maxdiff=MAXVAL(ABS(lgrid3-lgrid))
        CALL mpi_allreduce(maxdiff,res3,1,MPI_DOUBLE_PRECISION,MPI_MAX,comm, ierr)
-       IF (ionode) write(6,*) "INVOLVED SHIFT        ",res+res2,"(",res,",",res2,")",res3
+       IF (ionode) WRITE(6,*) "INVOLVED SHIFT        ",res+res2,"(",res,",",res2,")",res3
     ENDDO
     DEALLOCATE(rcount)
     DEALLOCATE(scount)
@@ -1372,15 +1362,17 @@ SUBROUTINE mpi_test(comm)
     DEALLOCATE(send_timings2)
 
 #else
-    write(6,*) "No MPI tests for a serial program"
+    WRITE(6,*) "No MPI tests for a serial program"
 #endif
 
 END SUBROUTINE mpi_test
 
 SUBROUTINE simple_copy(buf1,buf2,N)
-  REAL(KIND=KIND(0.0E0_dp)) buf1(*)
-  REAL(KIND=KIND(0.0E0_dp)) buf2(*)
-  INTEGER I,N
+    REAL(KIND=KIND(0.0E0_dp))                :: buf1(*), buf2(*)
+    INTEGER                                  :: N
+
+    INTEGER                                  :: I
+
   DO I=1,N
      buf2(I)=buf1(I)
   ENDDO
@@ -1392,16 +1384,15 @@ END SUBROUTINE simple_copy
 
     ! Test the parallel (pseudo)random number generator.
 
-    TYPE(global_environment_type), pointer :: globenv
+    TYPE(global_environment_type), POINTER   :: globenv
 
-    ! Local variables
+    INTEGER                                  :: i, output_unit, sumi
+    REAL(KIND=dp)                            :: sum, sum3
+    REAL(KIND=dp), DIMENSION(3, 2)           :: germe
+    TYPE(rng_stream_type), POINTER           :: cantor, g1, g2, g3, galois, &
+                                                laplace, poisson
 
-    TYPE(rng_stream_type), POINTER :: cantor,g1,g2,g3,galois,laplace,poisson
-    REAL(KIND=dp), DIMENSION(3,2)  :: germe
-    REAL(KIND=dp)                  :: sum,sum3
-    INTEGER                        :: i,output_unit,sumi
-
-    ! -------------------------------------------------------------------------
+! -------------------------------------------------------------------------
 
     output_unit = globenv%scr
 
@@ -1538,25 +1529,24 @@ END SUBROUTINE simple_copy
 
     ! Test eigensolver library routines.
 
-    INTEGER, INTENT(IN)                       :: nrow_global,neig
-    TYPE(global_environment_type), pointer :: globenv
-    TYPE(cp_error_type), INTENT(INOUT)        :: error
+    INTEGER, INTENT(IN)                      :: nrow_global, neig
+    TYPE(global_environment_type), POINTER   :: globenv
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
-    ! Local variables
+    INTEGER                                  :: group, i, istat, j, n, &
+                                                output_unit, source, &
+                                                unit_number
+    LOGICAL                                  :: ionode
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: eigenvalues
+    REAL(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:, :)                        :: buffer
+    TYPE(cp_blacs_env_type), POINTER         :: blacs_env
+    TYPE(cp_fm_struct_type), POINTER         :: fmstruct
+    TYPE(cp_fm_type), POINTER                :: eigenvectors, matrix, work
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(rng_stream_type), POINTER           :: rng_stream
 
-    TYPE(cp_blacs_env_type), POINTER :: blacs_env
-    TYPE(cp_fm_struct_type),POINTER  :: fmstruct
-    TYPE(cp_fm_type), POINTER        :: eigenvectors,matrix,work
-    TYPE(cp_para_env_type), POINTER  :: para_env
-    TYPE(rng_stream_type), POINTER   :: rng_stream
-
-    REAL(KIND=dp), DIMENSION(:), ALLOCATABLE   :: eigenvalues
-    REAL(KIND=dp), DIMENSION(:,:), ALLOCATABLE :: buffer
-
-    INTEGER :: group,i,istat,j,n,output_unit,source,unit_number
-    LOGICAL :: ionode
-
-    ! -------------------------------------------------------------------------
+! -------------------------------------------------------------------------
 
     group = globenv%group
     ionode = globenv%ionode

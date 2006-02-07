@@ -32,21 +32,21 @@ MODULE qs_wf_history_types
                                              kg_fm_p_type
   USE kinds,                           ONLY: dp
   USE pw_types,                        ONLY: pw_p_type
-  USE qs_rho_types,                    ONLY: qs_rho_type, &
-                                             qs_rho_release
+  USE qs_rho_types,                    ONLY: qs_rho_release,&
+                                             qs_rho_type
   USE sparse_matrix_types,             ONLY: deallocate_matrix,&
                                              deallocate_matrix_set,&
                                              real_matrix_p_type,&
                                              real_matrix_type
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE termination,                     ONLY: stop_program
 #include "cp_common_uses.h"
+
   IMPLICIT NONE
   PRIVATE
 
   LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
-  CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='qs_wf_history_types'
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_wf_history_types'
 
   INTEGER, PARAMETER, PUBLIC :: wfi_use_guess_method_nr=0,&
        wfi_use_prev_p_method_nr=1, wfi_use_prev_rho_r_method_nr=2,&
@@ -267,7 +267,7 @@ SUBROUTINE wfs_release(snapshot,error)
     CHARACTER(len=*), PARAMETER :: routineN = 'wfs_release', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, icount, stat
+    INTEGER                                  :: i, stat
     LOGICAL                                  :: failure
 
   failure=.FALSE.

@@ -105,7 +105,7 @@ END SUBROUTINE structure_factor_allocate
 SUBROUTINE structure_factor_evaluate ( delta, npts, lb, ex, ey, ez )
 
 
-    REAL(KIND=dp), DIMENSION(:), INTENT(in)      :: delta
+    REAL(KIND=dp), DIMENSION(:), INTENT(in)  :: delta
     INTEGER, DIMENSION(:), INTENT(IN)        :: npts
     INTEGER, DIMENSION(3), INTENT(IN)        :: lb
     COMPLEX(KIND=dp), DIMENSION(lb(1):), &
@@ -115,9 +115,9 @@ SUBROUTINE structure_factor_evaluate ( delta, npts, lb, ex, ey, ez )
     COMPLEX(KIND=dp), DIMENSION(lb(3):), &
       INTENT(out)                            :: ez
 
-    COMPLEX(KIND=dp)                             :: fm, fp
+    COMPLEX(KIND=dp)                         :: fm, fp
     INTEGER                                  :: j, l0, l1, m0, m1, n0, n1
-    REAL(KIND=dp)                                :: vec( 3 )
+    REAL(KIND=dp)                            :: vec( 3 )
 
 !------------------------------------------------------------------------------
 

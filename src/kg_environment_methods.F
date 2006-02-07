@@ -17,9 +17,9 @@
 
 MODULE kg_environment_methods
   USE atomic_kind_types,               ONLY: atomic_kind_type
+  USE cell_types,                      ONLY: cell_type
   USE cp_control_types,                ONLY: dft_control_type
-  USE cp_para_types,                   ONLY: cp_blacs_env_type,&
-                                             cp_para_env_type
+  USE cp_para_types,                   ONLY: cp_para_env_type
   USE distribution_2d_types,           ONLY: distribution_2d_release,&
                                              distribution_2d_type
   USE distribution_methods,            ONLY: distribute_molecules_2d
@@ -34,14 +34,12 @@ MODULE kg_environment_methods
   USE kg_rspw_methods,                 ONLY: kg_rspw_create,&
                                              kg_rspw_rebuild
   USE kg_rspw_types,                   ONLY: kg_rspw_release,&
-                                             kg_rspw_type 
+                                             kg_rspw_type
   USE kg_scf,                          ONLY: kg_scf_env_did_change
-  USE kinds,                           ONLY: dp,&
-                                             int_size
+  USE kinds,                           ONLY: dp
   USE molecule_kind_types,             ONLY: molecule_kind_type
   USE molecule_types_new,              ONLY: molecule_type
-  USE orbital_pointers,                ONLY: init_orbital_pointers
-  USE orbital_transformation_matrices, ONLY: init_spherical_harmonics
+  USE particle_types,                  ONLY: particle_type
   USE qs_collocate_density,            ONLY: calculate_rho_core
   USE qs_environment_methods,          ONLY: qs_env_rebuild_rho
   USE qs_environment_types,            ONLY: get_qs_env,&
@@ -49,16 +47,10 @@ MODULE kg_environment_methods
                                              set_qs_env
   USE qs_ks_methods,                   ONLY: qs_ks_did_change
   USE qs_matrix_pools,                 ONLY: mpools_rebuild_s_sm_pools
-  USE sparse_matrix_types,             ONLY: real_matrix_p_type, &
-                                             deallocate_matrix_set
-  USE particle_types,                  ONLY: particle_type  
-  USE cell_types,                 ONLY: cell_type
+  USE sparse_matrix_types,             ONLY: deallocate_matrix_set,&
+                                             real_matrix_p_type
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE topology,                        ONLY: topology_control
-  USE input_section_types,             ONLY: section_vals_type,&
-       section_vals_get_subs_vals
-    
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -67,7 +59,7 @@ MODULE kg_environment_methods
 
   PUBLIC :: kg_env_setup, kg_qs_env_update
 
-  CHARACTER(LEN=*), PARAMETER :: moduleN = "kg_environment_methods"
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'kg_environment_methods'
   
 !-----------------------------------------------------------------------------!
 
@@ -154,12 +146,12 @@ CONTAINS
 
   SUBROUTINE kg_qs_env_update(kg_env, qs_env, error)
 
-    TYPE(kg_environment_type), POINTER        :: kg_env
-    TYPE(qs_environment_type), POINTER        :: qs_env
+    TYPE(kg_environment_type), POINTER       :: kg_env
+    TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'kg_qs_env_update',&
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'kg_qs_env_update', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, nspins
@@ -170,7 +162,8 @@ CONTAINS
     TYPE(kg_sub_pw_env_type), POINTER        :: kg_sub_pw_env
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
-    TYPE(real_matrix_p_type), DIMENSION(:), POINTER :: matrix_ks
+    TYPE(real_matrix_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_ks
 
 !------------------------------------------------------------------------------  
 

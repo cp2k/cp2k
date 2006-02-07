@@ -38,7 +38,7 @@ MODULE input_cp2k_restarts
   USE force_env_types,                 ONLY: force_env_get,&
                                              force_env_p_type,&
                                              force_env_type
-  USE global_types,                    ONLY: global_environment_type 
+  USE global_types,                    ONLY: global_environment_type
   USE input_constants,                 ONLY: use_unit_angstrom,&
                                              use_unit_bohr,&
                                              use_unit_scaled_angstrom,&
@@ -70,7 +70,7 @@ MODULE input_cp2k_restarts
 
   PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN="input_cp2k_restarts"
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'input_cp2k_restarts'
 
   PUBLIC :: update_input
   
@@ -104,25 +104,26 @@ CONTAINS
 !!
 !!*** **********************************************************************
   SUBROUTINE update_input(md_env,force_env,kg_env,globenv,force_env_section,error)
-    TYPE(md_environment_type), POINTER,OPTIONAL       :: md_env
-    TYPE(force_env_type), POINTER,OPTIONAL            :: force_env
-    TYPE(kg_environment_type), POINTER,OPTIONAL  :: kg_env
+    TYPE(md_environment_type), OPTIONAL, &
+      POINTER                                :: md_env
+    TYPE(force_env_type), OPTIONAL, POINTER  :: force_env
+    TYPE(kg_environment_type), OPTIONAL, &
+      POINTER                                :: kg_env
     TYPE(global_environment_type), POINTER   :: globenv
     TYPE(section_vals_type), POINTER         :: force_env_section
     TYPE(cp_error_type), INTENT(INOUT), &
       OPTIONAL                               :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = "update_input", &
-      routineP = moduleN//":"//routineN
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'update_input', &
+      routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
+    LOGICAL                                  :: failure, lcond
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(force_env_p_type), DIMENSION(:), &
       POINTER                                :: force_env_p
     TYPE(force_env_type), POINTER            :: my_force_env
     TYPE(kg_environment_type), POINTER       :: my_kg_env
     TYPE(section_vals_type), POINTER         :: motion_section
-    LOGICAL :: lcond
 
     failure = .FALSE.
     NULLIFY(logger,motion_section,my_force_env,my_kg_env,force_env_p)
@@ -186,28 +187,33 @@ CONTAINS
 !!
 !!*** **********************************************************************
   SUBROUTINE update_motion(motion_section,md_env,force_env,kg_env,logger,error)
-    TYPE(section_vals_type), POINTER             :: motion_section
-    TYPE(md_environment_type), POINTER,OPTIONAL  :: md_env
-    TYPE(kg_environment_type), POINTER           :: kg_env
+    TYPE(section_vals_type), POINTER         :: motion_section
+    TYPE(md_environment_type), OPTIONAL, &
+      POINTER                                :: md_env
     TYPE(force_env_type), POINTER            :: force_env
+    TYPE(kg_environment_type), POINTER       :: kg_env
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_error_type), INTENT(INOUT), &
       OPTIONAL                               :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = "update_motion", &
-      routineP = moduleN//":"//routineN
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'update_motion', &
+      routineP = moduleN//':'//routineN
 
     INTEGER :: counter, handle, i, iatom, icoef, iel, ikind, ioff, iproc, &
-      irep, j, n_el, natom, nhc_len, nkind, nsgf, nsgf_max, num_nhc, numneed, &
-      offset, stat, tot_nhcneed
+      irep, j, my_accepted_md, my_itimes, my_md_approach_nr, n_el, natom, &
+      nhc_len, nkind, nsgf, nsgf_max, num_nhc, numneed, offset, stat, &
+      tot_nhcneed
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: cindex
-    INTEGER, POINTER                         :: INDEX(:), nhc_per_proc( : )
+    INTEGER, POINTER                         :: accepted_md, INDEX(:), &
+                                                itimes, md_approach_nr, &
+                                                nhc_per_proc( : )
     LOGICAL                                  :: failure
+    REAL(KIND=dp)                            :: my_t
     REAL(KIND=dp), ALLOCATABLE, &
-      DIMENSION(:, :)                        :: pbuffer, &
-                                                vbuffer
+      DIMENSION(:, :)                        :: pbuffer, vbuffer
     REAL(KIND=dp), DIMENSION(:), POINTER     :: buffer, eta, fnhc, mnhc, &
                                                 veta, work
+    REAL(KIND=dp), POINTER                   :: t
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
@@ -219,11 +225,6 @@ CONTAINS
                                                 nhc_part( : )
     TYPE(npt_info_type), POINTER             :: npt( :, : )
     TYPE(section_vals_type), POINTER         :: work_section
-    REAL(KIND=dp), POINTER                   :: t
-    INTEGER, POINTER                         :: itimes, accepted_md, md_approach_nr
-    REAL(KIND=dp)                            :: my_t
-    INTEGER                                  :: my_itimes, my_accepted_md, my_md_approach_nr
-    
 
     failure = .FALSE.
     CALL timeset(routineN,"I",'',handle)
@@ -652,11 +653,12 @@ CONTAINS
     TYPE(cp_error_type), INTENT(INOUT), &
       OPTIONAL                               :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = "set_template_restart", &
-      routineP = moduleN//":"//routineN
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'set_template_restart', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: stat
+    LOGICAL                                  :: failure
     TYPE(section_vals_type), POINTER         :: coord, force, mass, velocity
-    INTEGER :: stat
-    LOGICAL :: failure
 
     failure = .FALSE.
     NULLIFY(coord, force, velocity, mass)
@@ -727,8 +729,8 @@ CONTAINS
     TYPE(cp_error_type), INTENT(INOUT), &
       OPTIONAL                               :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = "update_force_eval", &
-      routineP = moduleN//":"//routineN
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'update_force_eval', &
+      routineP = moduleN//':'//routineN
 
     TYPE(section_vals_type), POINTER         :: rng_section, subsys_section
 
@@ -769,8 +771,8 @@ CONTAINS
     TYPE(cp_error_type), INTENT(INOUT), &
       OPTIONAL                               :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = "update_rng", &
-      routineP = moduleN//":"//routineN
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'update_rng', &
+      routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=404)                       :: string
     INTEGER :: iparticle, iparticle_kind, iparticle_local, isubsys, &
@@ -872,8 +874,8 @@ CONTAINS
     TYPE(cp_error_type), INTENT(INOUT), &
       OPTIONAL                               :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = "update_subsys", &
-      routineP = moduleN//":"//routineN
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'update_subsys', &
+      routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=default_string_length)     :: line, name
     INTEGER                                  :: i, isubsys, my_unit, stat

@@ -21,6 +21,10 @@
 
 
 MODULE mc_ensembles
+  USE cell_types,                      ONLY: cell_p_type,&
+                                             get_cell
+  USE cp_files,                        ONLY: close_file,&
+                                             open_file
   USE cp_subsystem_types,              ONLY: cp_subsys_get,&
                                              cp_subsystem_pp_type
   USE force_env_methods,               ONLY: force_env_calc_energy_force
@@ -28,20 +32,21 @@ MODULE mc_ensembles
                                              force_env_p_type,&
                                              force_env_release
   USE global_types,                    ONLY: global_environment_type
+  USE input_constants,                 ONLY: dump_xmol
   USE kinds,                           ONLY: dp,&
                                              dp_size
   USE machine,                         ONLY: m_flush
-  USE mc_control,                      ONLY: write_mc_restart,&
-                                             mc_create_bias_force_env
-  USE mc_coordinates,                  ONLY: find_mc_test_molecule,&
-                                             check_for_overlap,&
-                                             create_discrete_array
+  USE mc_control,                      ONLY: mc_create_bias_force_env,&
+                                             write_mc_restart
+  USE mc_coordinates,                  ONLY: check_for_overlap,&
+                                             create_discrete_array,&
+                                             find_mc_test_molecule
   USE mc_environment_types,            ONLY: get_mc_env,&
                                              mc_environment_p_type,&
                                              set_mc_env
   USE mc_ge_moves,                     ONLY: mc_ge_swap_move,&
-                                             mc_quickstep_move,&
-                                             mc_ge_volume_move
+                                             mc_ge_volume_move,&
+                                             mc_quickstep_move
   USE mc_misc,                         ONLY: final_mc_write,&
                                              mc_averages_create,&
                                              mc_averages_release
@@ -50,39 +55,35 @@ MODULE mc_ensembles
                                              mc_moves_release,&
                                              write_move_stats
   USE mc_moves,                        ONLY: mc_atom_translation,&
+                                             mc_avbmc_move,&
                                              mc_molecule_rotation,&
                                              mc_molecule_translation,&
-                                             mc_volume_move,&
-                                             mc_avbmc_move
+                                             mc_volume_move
   USE mc_types,                        ONLY: get_mc_par,&
                                              mc_averages_p_type,&
                                              mc_moves_p_type,&
                                              mc_simulation_parameters_p_type,&
                                              set_mc_par
   USE message_passing,                 ONLY: mp_bcast
+  USE parallel_rng_types,              ONLY: next_random_number,&
+                                             rng_stream_type
   USE particle_list_types,             ONLY: particle_list_p_type
   USE particle_types,                  ONLY: write_particle_coordinates
   USE physcon,                         ONLY: angstrom
-  USE parallel_rng_types,              ONLY: rng_stream_type,&
-                                             next_random_number
-  USE cp_files,                        ONLY: close_file,&
-                                             open_file
-  USE cell_types,                 ONLY: get_cell,&
-                                             cell_p_type
-  USE termination,                     ONLY: stop_memory,&
-                                             stop_program,&
-                                             external_control
+  USE termination,                     ONLY: external_control,&
+                                             stop_memory,&
+                                             stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE input_constants,                 ONLY: dump_xmol
 #include "cp_common_uses.h"
+
   IMPLICIT NONE
 
   PRIVATE
 
 ! *** Global parameters ***
 
-  CHARACTER(LEN=*), PARAMETER :: module_name = "mc_ensembles"
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'mc_ensembles'
 
   PUBLIC :: mc_run_ensemble
 
@@ -118,63 +119,53 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(mc_environment_p_type), POINTER,DIMENSION(:) &
-                                             :: mc_env
+    TYPE(mc_environment_p_type), &
+      DIMENSION(:), POINTER                  :: mc_env
     TYPE(global_environment_type), POINTER   :: globenv
-    INTEGER,INTENT(IN)                        :: nboxes
+    INTEGER, INTENT(IN)                      :: nboxes
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
     TYPE(rng_stream_type), POINTER           :: rng_stream
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = "mc_run_ensemble"
+    CHARACTER(LEN=*), PARAMETER              :: routineN = 'mc_run_ensemble'
 
-    INTEGER, DIMENSION(1:nboxes)             :: box_flag, data_unit,&
-                                                move_unit,istep,nchain,&
-                                                nunits_tot,diff,cl,rm
-    INTEGER,DIMENSION(1:3,1:2)               :: discrete_array
-    INTEGER                                  :: handle,imove,mol_target,&
-                                                iparticle, iw, nnstep,&
-                                                mol,istat,cell_unit,&
-                                                source,group,mol_swap,&
-                                                nstep,nstart,nmoves,&
-                                                iuptrans,iupvolume,iprint,&
-                                                box_number,ibox,&
-                                                com_ene,com_crd,com_mol
-    LOGICAL                               :: should_stop,ionode,&
-                                              lstop,&
-                                              loverlap,lbias,lnew_bias_env,&
-                                              lreject,ldiscrete
-    REAL(KIND=dp), DIMENSION(1:3,1:nboxes)    :: abc
-    REAL(KIND=dp)                    ::  rand,pmtraion,&
-                                         pmvolume,test_energy,&
-                                         pmtrans,cutoff,inner_cutoff,&
-                                         pmswap,discrete_step,pmavbmc,&
-                                         pbias
+    CHARACTER(LEN=40)                        :: cbox, fft_lib, move_type, &
+                                                move_type_avbmc
+    INTEGER, DIMENSION(1:nboxes)             :: box_flag, cl, data_unit, &
+                                                diff, istep, move_unit, &
+                                                nchain, nunits_tot, rm
+    INTEGER, DIMENSION(1:3, 1:2)             :: discrete_array
+    INTEGER :: box_number, cell_unit, com_crd, com_ene, com_mol, group, &
+      handle, ibox, imove, iparticle, iprint, istat, iuptrans, iupvolume, iw, &
+      mol, mol_swap, mol_target, nmoves, nnstep, nstart, nstep, source
+    CHARACTER(LEN=40), DIMENSION(1:nboxes) :: cell_file, coords_file, &
+      data_file, displacement_file, energy_file, molecules_file, moves_file
+    LOGICAL                                  :: ionode, lbias, ldiscrete, &
+                                                lnew_bias_env, loverlap, &
+                                                lreject, lstop, should_stop
+    REAL(dp), DIMENSION(1:3, 1:2)            :: conf_prob
+    REAL(KIND=dp) :: cutoff, discrete_step, inner_cutoff, pbias, pmavbmc, &
+      pmswap, pmtraion, pmtrans, pmvolume, rand, test_energy
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :, :)                     :: r_old
-    REAL(KIND=dp), DIMENSION(1:nboxes)       :: bias_energy,&
-                                              energy_check,final_energy,&
-                                              initial_energy,old_energy
-    REAL(dp),DIMENSION(1:3,1:2)              :: conf_prob
-    TYPE(cell_p_type),POINTER,DIMENSION(:) &
-                                             :: cell
+    REAL(KIND=dp), DIMENSION(1:3, 1:nboxes)  :: abc
+    REAL(KIND=dp), DIMENSION(1:nboxes)       :: bias_energy, energy_check, &
+                                                final_energy, initial_energy, &
+                                                old_energy
+    TYPE(cell_p_type), DIMENSION(:), POINTER :: cell
     TYPE(cp_subsystem_pp_type), &
       DIMENSION(:), POINTER                  :: oldsys
     TYPE(force_env_p_type), DIMENSION(:), &
-      POINTER                                :: force_env,bias_env
+      POINTER                                :: bias_env, force_env
     TYPE(mc_averages_p_type), DIMENSION(:), &
       POINTER                                :: averages
     TYPE(mc_moves_p_type), DIMENSION(:), &
       POINTER                                :: move_updates, moves
     TYPE(mc_simulation_parameters_p_type), &
       DIMENSION(:), POINTER                  :: mc_par
-    TYPE(particle_list_p_type), DIMENSION(:),POINTER &
-                                             :: particles_old
-    CHARACTER(LEN=40),DIMENSION(1:nboxes)    :: data_file,moves_file,&
-      energy_file,coords_file,displacement_file,cell_file,molecules_file
+    TYPE(particle_list_p_type), &
+      DIMENSION(:), POINTER                  :: particles_old
 
-    CHARACTER(LEN=40)                        :: fft_lib,cbox,move_type,&
-      move_type_avbmc
 !   ---------------------------------------------------------------------------
 ! begin the timing of the subroutine
 
@@ -185,31 +176,31 @@ CONTAINS
 
 ! allocate a whole bunch of stuff based on how many boxes we have
       ALLOCATE (force_env(1:nboxes),STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
          "force_env",1*dp_size*nboxes)
       ALLOCATE (bias_env(1:nboxes),STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
          "bias_env",1*dp_size*nboxes)
       ALLOCATE (cell(1:nboxes),STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
          "cell",1*dp_size*nboxes)
       ALLOCATE (particles_old(1:nboxes),STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
          "particles_old",1*dp_size*nboxes)
       ALLOCATE (oldsys(1:nboxes),STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
          "oldsys",1*dp_size*nboxes)
       ALLOCATE (averages(1:nboxes),STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
          "averages",1*dp_size*nboxes)
       ALLOCATE (moves(1:nboxes),STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
          "moves",1*dp_size*nboxes)
       ALLOCATE (move_updates(1:nboxes),STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
          "move_updates",1*dp_size*nboxes)
       ALLOCATE (mc_par(1:nboxes),STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
          "mc_par",1*dp_size*nboxes)
 
       DO ibox=1,nboxes
@@ -246,7 +237,7 @@ CONTAINS
 
 ! allocate the particle positions array for broadcasting
       ALLOCATE (r_old(3,SUM(nunits_tot),1:nboxes),STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                        "r_old",3*SUM(nunits_tot)*dp_size*nboxes)
 
 
@@ -304,7 +295,7 @@ CONTAINS
          lnew_bias_env=.FALSE.
          CALL check_for_overlap(force_env(ibox)%force_env,nchain(ibox),1,&
             nchain(ibox),loverlap)
-         IF(loverlap) CALL stop_program(routineN,module_name,__LINE__,&
+         IF(loverlap) CALL stop_program(routineN,moduleN,__LINE__,&
             "overlap in an initial configuration")
 
 ! get the subsystems and the cell information
@@ -388,7 +379,7 @@ CONTAINS
 ! that keeps track of which direction we can move in
       IF(ldiscrete) THEN
          IF(nboxes .NE. 1) &
-            CALL stop_program(routineN,module_name,__LINE__,&
+            CALL stop_program(routineN,moduleN,__LINE__,&
             'ldiscrete=.true. ONLY for systems with 1 box')
          CALL create_discrete_array(abc(:,1),discrete_array(:,:),&
             discrete_step)
@@ -762,14 +753,14 @@ CONTAINS
                   nchain(ibox),1,nchain(ibox),loverlap)
                IF(loverlap) THEN
                   IF(ionode) WRITE(iw,*) nnstep
-                  CALL stop_program(routineN,module_name,__LINE__,&
+                  CALL stop_program(routineN,moduleN,__LINE__,&
                   'coordinate overlap at the end of the above step')
                ENDIF
             ENDIF
          ENDDO
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! debug make sure the energies line up
-         IF(.false.) THEN
+         IF(.FALSE.) THEN
          DO ibox=1,nboxes
             IF(nchain(ibox) .NE. 0) THEN
                CALL force_env_calc_energy_force(force_env(ibox)%force_env,&
@@ -878,34 +869,34 @@ CONTAINS
       ENDDO
 
       DEALLOCATE(r_old,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                        "r_old")
       DEALLOCATE(force_env,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                        "force_env")
       DEALLOCATE(bias_env,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                        "bias_env")
       DEALLOCATE (cell,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                        "cell")
       DEALLOCATE (particles_old,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                        "particles_old")
       DEALLOCATE (oldsys,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                        "oldsys")
       DEALLOCATE (averages,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                        "averages")
       DEALLOCATE (moves,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                        "moves")
       DEALLOCATE (move_updates,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                        "move_updates")
       DEALLOCATE (mc_par,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                        "mc_par")
 
 ! end the timing

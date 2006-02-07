@@ -21,20 +21,31 @@
 MODULE topology
   USE atomic_kind_types,               ONLY: atomic_kind_type
   USE atoms_input,                     ONLY: read_atoms_input
+  USE cell_types,                      ONLY: read_cell
   USE checkpoint_handler,              ONLY: write_checkpoint_information
+  USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
+                                             cp_print_key_unit_nr
   USE global_types,                    ONLY: global_environment_type
+  USE input_constants,                 ONLY: do_conn_generate,&
+                                             do_conn_off,&
+                                             do_conn_psf,&
+                                             do_coord_pdb,&
+                                             do_coord_xyz
+  USE input_section_types,             ONLY: section_vals_get_subs_vals,&
+                                             section_vals_type
   USE kinds,                           ONLY: default_string_length,&
                                              dp
   USE molecule_kind_types,             ONLY: molecule_kind_type
   USE molecule_types_new,              ONLY: molecule_type
   USE particle_types,                  ONLY: particle_type
-  USE cell_types,                 ONLY: read_cell
+  USE qmmm_topology_util,              ONLY: qmmm_connectivity_control,&
+                                             qmmm_coordinate_control
+  USE qmmm_types,                      ONLY: qmmm_env_mm_type
   USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE topology_input,                  ONLY: read_constraints_section,&
                                              read_topology_section
-  USE topology_xyz,                    ONLY: read_coordinate_xyz
   USE topology_pdb,                    ONLY: read_coordinate_pdb,&
                                              write_coordinate_pdb
   USE topology_psf,                    ONLY: read_topology_psf,&
@@ -42,36 +53,20 @@ MODULE topology
   USE topology_types,                  ONLY: deallocate_topology,&
                                              init_topology,&
                                              topology_parameters_type
-  USE topology_util,                   ONLY: topology_connectivity_pack,&
-                                             topology_constraint_pack,&
-                                             topology_coordinate_pack,&
-                                             topology_set_atm_mass,&
-                                             topology_generate_bend,&
-                                             topology_generate_bond,&
-                                             topology_generate_dihe,&
-                                             topology_generate_impr,&
-                                             topology_generate_molecule,&
-                                             topology_generate_onfo,&
-                                             topology_generate_ub,&
-                                             topology_molecules_check,&
-                                             topology_reorder_atoms,&
-                                             check_subsys_element
-  USE qmmm_topology_util,              ONLY: qmmm_coordinate_control,&
-                                             qmmm_connectivity_control
-  USE qmmm_types,                      only: qmmm_env_mm_type
-  USE input_section_types,             ONLY: section_vals_get_subs_vals,&
-                                             section_vals_type  
-  USE input_constants,                 ONLY: do_conn_psf,&
-                                             do_conn_generate,&
-                                             do_conn_off,&
-                                             do_coord_pdb,&
-                                             do_coord_xyz
-  USE cp_output_handling,              ONLY: cp_print_key_unit_nr, &
-                                             cp_print_key_finished_output   
+  USE topology_util,                   ONLY: &
+       check_subsys_element, topology_connectivity_pack, &
+       topology_constraint_pack, topology_coordinate_pack, &
+       topology_generate_bend, topology_generate_bond, &
+       topology_generate_dihe, topology_generate_impr, &
+       topology_generate_molecule, topology_generate_onfo, &
+       topology_generate_ub, topology_molecules_check, &
+       topology_reorder_atoms, topology_set_atm_mass
+  USE topology_xyz,                    ONLY: read_coordinate_xyz
 #include "cp_common_uses.h"
+
   IMPLICIT NONE
 
-  CHARACTER(LEN=*), PARAMETER, PRIVATE :: moduleN = "topology"
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'topology'
 
   PRIVATE
 
@@ -106,29 +101,32 @@ CONTAINS
        molecule_kind_set,molecule_set,&
        globenv, qmmm, qmmm_env, error)
 
-    TYPE(atomic_kind_type), DIMENSION(:), POINTER    :: atomic_kind_set
-    TYPE(particle_type), DIMENSION(:), POINTER       :: particle_set
-    TYPE(molecule_kind_type), DIMENSION(:), POINTER  :: molecule_kind_set
-    TYPE(molecule_type), DIMENSION(:), POINTER       :: molecule_set
-    TYPE(global_environment_type), POINTER           :: globenv
-    TYPE(qmmm_env_mm_type), POINTER, OPTIONAL        :: qmmm_env
+    TYPE(atomic_kind_type), DIMENSION(:), &
+      POINTER                                :: atomic_kind_set
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particle_set
+    TYPE(molecule_kind_type), DIMENSION(:), &
+      POINTER                                :: molecule_kind_set
+    TYPE(molecule_type), DIMENSION(:), &
+      POINTER                                :: molecule_set
+    TYPE(global_environment_type), POINTER   :: globenv
+    LOGICAL, INTENT(IN), OPTIONAL            :: qmmm
+    TYPE(qmmm_env_mm_type), OPTIONAL, &
+      POINTER                                :: qmmm_env
     TYPE(cp_error_type), INTENT(inout), &
-         OPTIONAL                               :: error
-    LOGICAL, OPTIONAL, INTENT(IN) :: qmmm
+      OPTIONAL                               :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'topology_control', &
-         routineP = moduleN//':'//routineN
+      routineP = moduleN//':'//routineN
 
-    INTEGER                                          :: handle, iw
-    TYPE(topology_parameters_type)                   :: topology
-    LOGICAL                                          :: my_qmmm
-    TYPE(section_vals_type), POINTER                 :: cell_section,&
-         constraint_section,&
-         topology_section
-    LOGICAL :: failure
+    INTEGER                                  :: handle, iw
+    LOGICAL                                  :: failure, my_qmmm
     TYPE(cp_logger_type), POINTER            :: logger
-    TYPE(section_vals_type), POINTER :: subsys_section
-
+    TYPE(section_vals_type), POINTER         :: cell_section, &
+                                                constraint_section, &
+                                                subsys_section, &
+                                                topology_section
+    TYPE(topology_parameters_type)           :: topology
 
     failure = .FALSE.
     NULLIFY(logger)
@@ -274,21 +272,21 @@ CONTAINS
   SUBROUTINE connectivity_control(topology,globenv,qmmm,qmmm_env,subsys_section,error)
 
     TYPE(topology_parameters_type), &
-         INTENT(INOUT)                          :: topology
+      INTENT(INOUT)                          :: topology
     TYPE(global_environment_type), &
-         POINTER, OPTIONAL                   :: globenv
-    TYPE(section_vals_type), POINTER :: subsys_section
-
-    TYPE(qmmm_env_mm_type), POINTER, OPTIONAL :: qmmm_env
+      OPTIONAL, POINTER                      :: globenv
     LOGICAL, INTENT(in), OPTIONAL            :: qmmm
+    TYPE(qmmm_env_mm_type), OPTIONAL, &
+      POINTER                                :: qmmm_env
+    TYPE(section_vals_type), POINTER         :: subsys_section
     TYPE(cp_error_type), INTENT(inout), &
-         OPTIONAL                               :: error    
+      OPTIONAL                               :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'connectivity_control', &
-         routineP = moduleN//':'//routineN
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, iw
-    LOGICAL                                  :: found, my_qmmm, failure
+    LOGICAL                                  :: failure, found, my_qmmm
     TYPE(cp_logger_type), POINTER            :: logger
 
     failure = .FALSE.
@@ -399,20 +397,18 @@ CONTAINS
 
 
     TYPE(topology_parameters_type), &
-         INTENT(INOUT)                          :: topology
-    TYPE(global_environment_type), &
-         POINTER                             :: globenv
-    TYPE(section_vals_type), POINTER :: subsys_section
-
+      INTENT(INOUT)                          :: topology
+    TYPE(global_environment_type), POINTER   :: globenv
+    TYPE(section_vals_type), POINTER         :: subsys_section
     TYPE(cp_error_type), INTENT(inout), &
-         OPTIONAL                               :: error    
+      OPTIONAL                               :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'coordinate_control', &
-         routineP = moduleN//':'//routineN
+      routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, iw, i, id
-    LOGICAL                                  :: found, failure
     CHARACTER(len=default_string_length)     :: my_element
+    INTEGER                                  :: handle, i, id, iw
+    LOGICAL                                  :: failure, found
     TYPE(cp_logger_type), POINTER            :: logger
 
     failure = .FALSE.

@@ -29,7 +29,6 @@
                                              gmat
 !
 
-
       IMPLICIT NONE
 !
       PRIVATE
@@ -65,11 +64,11 @@
 !******************************************************************************
       SUBROUTINE m_integrals(l1,l2,r,tll,hmm)
     INTEGER, INTENT(IN)                      :: l1, l2
-    REAL(KIND=dp), INTENT(IN)                    :: r(3), tll(0:2*min(l1,l2))
-    REAL(KIND=dp), INTENT(OUT)                   :: hmm(0:2*l1,0:2*l2)
+    REAL(KIND=dp), INTENT(IN)                :: r(3), tll(0:2*MIN(l1,l2))
+    REAL(KIND=dp), INTENT(OUT)               :: hmm(0:2*l1,0:2*l2)
 
     INTEGER                                  :: i, m1, m2, mu
-    REAL(KIND=dp)                                :: dll(0:6,0:6,0:6), &
+    REAL(KIND=dp)                            :: dll(0:6,0:6,0:6), &
                                                 gmu(0:6,0:6,0:3)
 
         IF (l1+l2==0) THEN
@@ -94,7 +93,7 @@
           hmm(2,2) = tll(0)*r(2)*r(2) + tll(1)*(1.0_dp-r(2)*r(2))
         ELSE
           CALL gmat(l1,l2,r,gmu,dll)
-          mu = min(l1,l2)
+          mu = MIN(l1,l2)
           m1 = 2*l1
           m2 = 2*l2
           hmm(0:m1,0:m2) = 0.0_dp
@@ -107,17 +106,17 @@
 !------------------------------------------------------------------------------!
       SUBROUTINE dm_integrals(l1,l2,r,tllr,dtll,pmm,grad)
     INTEGER, INTENT(IN)                      :: l1, l2
-    REAL(KIND=dp), INTENT(IN)                    :: r(3), tllr(0:2*min(l1,l2)), &
-                                                dtll(0:2*min(l1,l2)), &
+    REAL(KIND=dp), INTENT(IN)                :: r(3), tllr(0:2*MIN(l1,l2)), &
+                                                dtll(0:2*MIN(l1,l2)), &
                                                 pmm(0:2*l1,0:2*l2)
-    REAL(KIND=dp), INTENT(OUT)                   :: grad(1:3)
+    REAL(KIND=dp), INTENT(OUT)               :: grad(1:3)
 
     INTEGER                                  :: i, j, m1, m2, mu
-    REAL(KIND=dp)                                :: ddll(0:6,0:6,0:6,1:3), &
+    REAL(KIND=dp)                            :: ddll(0:6,0:6,0:6,1:3), &
                                                 dgmu(0:6,0:6,0:3,1:3), &
                                                 hmm(0:6,0:6), ph
 
-        mu = min(l1,l2)
+        mu = MIN(l1,l2)
         m1 = 2*l1
         m2 = 2*l2
 
@@ -140,8 +139,8 @@
       END SUBROUTINE dm_integrals
 !------------------------------------------------------------------------------!
       FUNCTION trace_AB(A,B) RESULT(T)
-    REAL(KIND=dp), INTENT(IN)                    :: A(:,:), B(:,:)
-    REAL(KIND=dp)                                :: T
+    REAL(KIND=dp), INTENT(IN)                :: A(:,:), B(:,:)
+    REAL(KIND=dp)                            :: T
 
     INTEGER                                  :: i, m, n
 
@@ -149,7 +148,7 @@
         n = SIZE(A,2)
         T = 0.0_dp
         DO i = 1, m
-          T = T + dot_product(A(:,i),B(:,i))
+          T = T + DOT_PRODUCT(A(:,i),B(:,i))
         END DO
 
       END FUNCTION trace_AB

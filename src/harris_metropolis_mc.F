@@ -28,108 +28,96 @@ MODULE harris_metropolis_mc
   USE atomic_kind_list_types,          ONLY: atomic_kind_list_type
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind
+  USE cell_types,                      ONLY: cell_type
   USE checkpoint_handler,              ONLY: write_checkpoint_information
-  USE cp_control_types,                ONLY: dft_control_type
-  USE cp_output_handling,              ONLY: cp_add_iter_level, &
-                                             cp_rm_iter_level, &
-                                             cp_iterate
-  USE cp_subsystem_types,              ONLY: cp_subsystem_p_type, &
-                                             cp_subsys_get
-  USE cp2k_units,                      ONLY: get_cp2k_units, &
+  USE cp2k_units,                      ONLY: get_cp2k_units,&
                                              unit_convert_type
+  USE cp_control_types,                ONLY: dft_control_type
+  USE cp_output_handling,              ONLY: cp_add_iter_level,&
+                                             cp_iterate,&
+                                             cp_p_file,&
+                                             cp_print_key_finished_output,&
+                                             cp_print_key_should_output,&
+                                             cp_print_key_unit_nr,&
+                                             cp_rm_iter_level
+  USE cp_subsystem_types,              ONLY: cp_subsys_get,&
+                                             cp_subsystem_p_type
   USE distribution_1d_types,           ONLY: distribution_1d_type
-  USE dynamical_coeff_types,           ONLY: dyn_coeff_set_p_type, &
-                                             dyn_coeff_set_initialize
-  USE extended_system_types,           ONLY: extended_system_type, &
-                                             extended_type_init, &
-                                             lnhc_parameters_type, &
-                                             lnhc_init, &
-                                             lnhc_dealloc, &
+  USE dynamical_coeff_types,           ONLY: dyn_coeff_set_initialize,&
+                                             dyn_coeff_set_p_type
+  USE extended_system_types,           ONLY: extended_system_type,&
+                                             extended_type_init,&
+                                             lnhc_dealloc,&
+                                             lnhc_init,&
+                                             lnhc_parameters_type,&
                                              npt_dealloc
   USE force_env_methods,               ONLY: force_env_calc_energy_force
-  USE force_env_types,                 ONLY: force_env_p_type, &
-                                             force_env_type, &
-                                             force_env_get, &
-                                             use_qs_force, &
-                                             use_kg_force
+  USE force_env_types,                 ONLY: force_env_get,&
+                                             force_env_p_type,&
+                                             force_env_type,&
+                                             use_qs_force
   USE global_types,                    ONLY: global_environment_type
-  USE init_extended_system_types,      ONLY: initialize_nhc_part, &
-                                             initialize_nhc_baro, &
-                                             initialize_nhc_coef, &
+  USE init_extended_system_types,      ONLY: initialize_nhc_baro,&
+                                             initialize_nhc_coef,&
+                                             initialize_nhc_part,&
                                              initialize_npt
   USE init_extended_system_variables,  ONLY: init_nhc_forces
-  USE input_constants,                 ONLY: langevin_ensemble, &
-                                             do_qs, &
-                                             do_kg, &
-                                             restart_guess,&
-                                             FIST_MD_method, &
-                                             KG_MD_method, &
-                                             QS_MD_method, &
-                                             Harris_MD_method, &
-                                             KG_MC_method, &
-                                             QS_MC_method, &
-                                             Harris_MC_method
-  USE input_section_types,             ONLY: section_vals_type,section_vals_get_subs_vals,&
-                                             section_vals_write, section_vals_val_get
+  USE input_constants,                 ONLY: do_kg,&
+                                             do_qs,&
+                                             langevin_ensemble,&
+                                             restart_guess
+  USE input_cp2k_restarts,             ONLY: update_input
+  USE input_section_types,             ONLY: section_vals_get_subs_vals,&
+                                             section_vals_type,&
+                                             section_vals_val_get,&
+                                             section_vals_write
   USE kg_environment_types,            ONLY: kg_environment_type
-  USE kinds,                           ONLY: dp, &
-                                             dp_size,&
-                                             default_string_length
-  USE machine,                         ONLY: m_walltime, &
-                                             m_flush
-  USE md,                              ONLY: read_md_section, &
-                                             simulation_parameters_type, &
-                                             initialize_velocities
+  USE kinds,                           ONLY: dp,&
+                                             dp_size
+  USE machine,                         ONLY: m_flush,&
+                                             m_walltime
+  USE md,                              ONLY: initialize_velocities,&
+                                             read_md_section,&
+                                             simulation_parameters_type
   USE md_conserved_quantities,         ONLY: compute_conserved_quantity
   USE md_energies,                     ONLY: md_energy
-  USE md_environment_types,            ONLY: md_environment_type, &
-                                             md_env_create, &
-                                             md_env_release, &
-                                             get_md_env, &
+  USE md_environment_types,            ONLY: get_md_env,&
+                                             md_env_create,&
+                                             md_env_release,&
+                                             md_environment_type,&
                                              set_md_env
   USE md_run,                          ONLY: temperature_control
-  USE message_passing,                 ONLY: mp_bcast, &
+  USE message_passing,                 ONLY: mp_bcast,&
                                              mp_sum
   USE mol_kind_new_list_types,         ONLY: mol_kind_new_list_type
   USE mol_new_list_types,              ONLY: mol_new_list_type
-  USE output_utilities,                ONLY: print_warning
-  USE parallel_rng_types,              ONLY: rng_stream_type, &
-                                             create_rng_stream, &
-                                             next_random_number, &
-                                             delete_rng_stream
+  USE parallel_rng_types,              ONLY: create_rng_stream,&
+                                             delete_rng_stream,&
+                                             next_random_number,&
+                                             rng_stream_type
   USE particle_list_types,             ONLY: particle_list_type
   USE particle_types,                  ONLY: particle_type
-  USE physcon,                         ONLY: boltzmann
-  USE qs_environment_types,            ONLY: qs_environment_type, &
-                                             get_qs_env
+  USE qs_environment_types,            ONLY: get_qs_env,&
+                                             qs_environment_type
   USE qs_mo_types,                     ONLY: read_mo_set
-                                             !write_mo_set
-  USE qs_wf_history_methods,           ONLY: wfi_duplicate_history, &
-                                             wfi_copy_history
-  USE qs_wf_history_types,             ONLY: qs_wf_history_type, &
-                                             wfi_release, &
+!write_mo_set
+  USE qs_wf_history_methods,           ONLY: wfi_duplicate_history
+  USE qs_wf_history_types,             ONLY: qs_wf_history_type,&
+                                             wfi_release,&
                                              wfi_use_guess_method_nr
-  USE cell_types,                 ONLY: cell_type
-  USE termination,                     ONLY: stop_memory, &
-                                             external_control, &
-                                             stop_program
-  USE timings,                         ONLY: timeset, &
+  USE termination,                     ONLY: external_control,&
+                                             stop_memory
+  USE timings,                         ONLY: timeset,&
                                              timestop
   USE util,                            ONLY: gasdev
   USE velocity_verlet_control,         ONLY: velocity_verlet
   USE wiener_process,                  ONLY: create_wiener_process
-  USE cp_output_handling,              ONLY: cp_print_key_unit_nr, &
-                                             cp_print_key_finished_output,&
-                                             cp_print_key_should_output,&
-                                             cp_p_file
-  USE input_cp2k_restarts,             ONLY: update_input
-
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
   PRIVATE
 
-  CHARACTER(len=*), PARAMETER :: moduleN = 'harris_metropolis_mc'
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'harris_metropolis_mc'
 
   ! *** Data types ***
   TYPE reduced_particle_type
@@ -174,17 +162,17 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE harris_mc_ld(force_env, globenv, error)
 
-    TYPE(force_env_type), POINTER                   :: force_env
-    TYPE(global_environment_type), POINTER          :: globenv
+    TYPE(force_env_type), POINTER            :: force_env
+    TYPE(global_environment_type), POINTER   :: globenv
     TYPE(cp_error_type), INTENT(INOUT), &
-      OPTIONAL                                      :: error
+      OPTIONAL                               :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'harris_mc_ld', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                         :: stat
+    INTEGER                                  :: stat
     TYPE(force_env_p_type), DIMENSION(:), &
-      POINTER                                       :: force_env_p
+      POINTER                                :: force_env_p
 
 !   ------------------------------------------------------------------------
 
@@ -252,119 +240,65 @@ CONTAINS
   SUBROUTINE harris_mc_md(force_env_p, globenv, error)
 
     TYPE(force_env_p_type), DIMENSION(:), &
-         POINTER                                :: force_env_p
+      POINTER                                :: force_env_p
     TYPE(global_environment_type), POINTER   :: globenv
     TYPE(cp_error_type), INTENT(INOUT), &
-         OPTIONAL                               :: error
+      OPTIONAL                               :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = "harris_mc_md", &
-         routineP = moduleN//':'//routineN
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'harris_mc_md', &
+      routineP = moduleN//':'//routineN
 
+    INTEGER :: accept, atom, force_env_in_use, handle, i, iatom, ibead, &
+      ikind, in_use, iparticles, ires, istat, istep, isubsys, iter_level, iw, &
+      max_scf_tmp, mc_method, md_method, myi, nbeads, reject
+    INTEGER, DIMENSION(:), POINTER           :: atom_list
+    INTEGER, POINTER                         :: accepted_md, itimes, &
+                                                md_approach_nr
+    INTEGER, SAVE                            :: hmc
+    LOGICAL :: accepted, ext_temp, failure, ionode, qs_ener, rand_vel, &
+      restore_velocities, restore_wf_past, semi_hybrid, start_qs, tot_energy, &
+      use_harris_tmp, vel_scaling
+    REAL(KIND=dp) :: acceptance_rate, akin, denom, e_kinetic, Econs, &
+      Ekin_new, Ekin_prev, Epot_new, Epot_prev, eps_default_tmp, eps_scf_tmp, &
+      mass, md_run_start_time, new_ldmc_energy, prev_ldmc_energy, prob, &
+      random_number, sigma, temp, temperature, time_iter_start, &
+      time_iter_stop, v2
+    REAL(KIND=dp), DIMENSION(3)              :: vcom, vcom_new
+    REAL(KIND=dp), POINTER                   :: t, used_time
+    TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
+    TYPE(atomic_kind_type), DIMENSION(:), &
+      POINTER                                :: atomic_kind_set
+    TYPE(atomic_kind_type), POINTER          :: atomic_kind
+    TYPE(cell_type), POINTER                 :: cell, cell_ref
     TYPE(cp_logger_type), POINTER            :: logger
-    INTEGER                                  :: handle, &
-         nbeads, &
-         i, &
-         istat, &
-         ibead, &
-         isubsys, &
-         iter_level, &
-         istep, &
-         iparticles, &
-         ikind, &
-         atom, &
-         iatom, &
-         myi,&
-         iw, &
-         max_scf_tmp, &
-         reject, &
-         accept, &
-         in_use, &
-         force_env_in_use, &
-         md_method, &
-         mc_method
-    INTEGER, POINTER ::  md_approach_nr, &
-         accepted_md
-    INTEGER, POINTER                         :: itimes
-    REAL(KIND=dp), POINTER :: t
-    LOGICAL                                  :: failure, &
-         accepted, &
-         tot_energy, &
-         ext_temp, &
-         ionode, &
-         qs_ener, &
-         use_harris_tmp, &
-         rand_vel, &
-         vel_scaling, &
-         start_qs, &
-         restore_wf_past, &
-         restore_velocities, &
-         semi_hybrid, &
-         file_exists
-    REAL(KIND=dp)                            :: md_run_start_time, &
-         time_iter_start, &
-         time_iter_stop, &
-         prev_ldmc_energy, &
-         new_ldmc_energy, &
-         random_number, &
-         prob, &
-         temperature, &
-         e_kinetic, &
-         v2, &
-         mass, &
-         Ekin_prev, &
-         Ekin_new, &
-         Epot_prev, &
-         Epot_new, &
-         Econs, &
-         akin, &
-         temp, &
-         denom, &
-         sigma, &
-         eps_default_tmp, &
-         eps_scf_tmp, &
-         acceptance_rate
-    REAL(KIND=dp), DIMENSION(3)              :: vcom, &
-         vcom_new
-    REAL(KIND=dp), POINTER                   :: used_time
-    TYPE(extended_system_type)               :: extended_type
     TYPE(cp_subsystem_p_type), &
-         DIMENSION(:), POINTER                  :: subsys
-    TYPE(cell_type), POINTER                 :: cell, &
-         cell_ref
-    TYPE(lnhc_parameters_type), POINTER      :: nhc_baro, &
-         nhc_part
+      DIMENSION(:), POINTER                  :: subsys
+    TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(distribution_1d_type), POINTER      :: local_molecules, &
+                                                local_particles
     TYPE(dyn_coeff_set_p_type), &
-         DIMENSION(:), POINTER                  :: dyn_coeff_set
+      DIMENSION(:), POINTER                  :: dyn_coeff_set
+    TYPE(extended_system_type)               :: extended_type
+    TYPE(kg_environment_type), POINTER       :: kg_env
+    TYPE(lnhc_parameters_type), POINTER      :: nhc_baro, nhc_part
     TYPE(md_environment_type), POINTER       :: md_env
     TYPE(mol_kind_new_list_type), POINTER    :: molecule_kinds_new
     TYPE(mol_new_list_type), POINTER         :: molecules_new
-    TYPE(distribution_1d_type), POINTER      :: local_molecules
     TYPE(particle_list_type), POINTER        :: particles
-    TYPE(simulation_parameters_type), &
-         POINTER                                :: simpar
-    TYPE(rng_stream_type), POINTER           :: rng_stream
-    TYPE(reduced_particle_type), &
-         DIMENSION(:), POINTER                  :: tmp_particle_set
-    TYPE(distribution_1d_type), POINTER      :: local_particles
-    TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
-    TYPE(atomic_kind_type), POINTER          :: atomic_kind
-    INTEGER, DIMENSION(:), POINTER           :: atom_list
-    TYPE(unit_convert_type), POINTER         :: unit
-    TYPE(qs_wf_history_type), POINTER        :: tmp_wf_history
-    TYPE(dft_control_type), POINTER          :: dft_control
-    TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(section_vals_type),POINTER          :: dft_section, input
-    TYPE(kg_environment_type), POINTER       :: kg_env
     TYPE(particle_type), DIMENSION(:), &
-         POINTER                                :: particle_set
-    TYPE(atomic_kind_type), DIMENSION(:), &
-         POINTER                                :: atomic_kind_set
-    INTEGER, SAVE                            :: hmc
-    INTEGER :: ires
-    CHARACTER(LEN=default_string_length) :: my_act, my_pos
-    TYPE(section_vals_type), POINTER         :: motion_section, force_env_section,&
-                                                work_section, restart_section, subsys_section
-    !   ------------------------------------------------------------------------
+      POINTER                                :: particle_set
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(qs_wf_history_type), POINTER        :: tmp_wf_history
+    TYPE(reduced_particle_type), &
+      DIMENSION(:), POINTER                  :: tmp_particle_set
+    TYPE(rng_stream_type), POINTER           :: rng_stream
+    TYPE(section_vals_type), POINTER :: dft_section, force_env_section, &
+      input, motion_section, restart_section, subsys_section, work_section
+    TYPE(simulation_parameters_type), &
+      POINTER                                :: simpar
+    TYPE(unit_convert_type), POINTER         :: unit
+
+!   ------------------------------------------------------------------------
 
     CALL write_checkpoint_information("Entering "//routineN, globenv, error)
 
@@ -1108,21 +1042,17 @@ CONTAINS
     TYPE(cp_error_type), INTENT(INOUT), &
       OPTIONAL                               :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = "harris_mc_md", &
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'harris_mc_md_approach', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, &
-                                                iter, &
-                                                ibead, &
-                                                nbeads
-    LOGICAL                                  :: failure, &
-                                                should_stop
-    TYPE(force_env_p_type), DIMENSION(:), &
-      POINTER                                :: force_env_p
+    INTEGER                                  :: handle, ibead, iter, nbeads
     INTEGER, POINTER                         :: itimes
-    REAL(KIND=dp), POINTER                   :: used_time
+    LOGICAL                                  :: should_stop
     REAL(KIND=dp)                            :: time_iter_start, &
                                                 time_iter_stop
+    REAL(KIND=dp), POINTER                   :: used_time
+    TYPE(force_env_p_type), DIMENSION(:), &
+      POINTER                                :: force_env_p
 
 !   ------------------------------------------------------------------------
 

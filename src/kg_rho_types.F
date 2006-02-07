@@ -33,7 +33,7 @@ MODULE kg_rho_types
   IMPLICIT NONE
 
   PRIVATE
-  CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='kg_rho_types'
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'kg_rho_types'
   PUBLIC :: kg_rho_type, kg_rho_release, kg_rho_get, &
             kg_rho_retain
 
@@ -57,9 +57,7 @@ CONTAINS
 SUBROUTINE kg_rho_get(kg_rho, rho_r, rho_g, rhop_r, rhop_g, &
                       rho_core, error)
     TYPE(kg_rho_type), POINTER               :: kg_rho
-    TYPE(coeff_type), &
-      OPTIONAL, POINTER                      :: rho_r, rho_g,&
-                                                rhop_r, rhop_g,&
+    TYPE(coeff_type), OPTIONAL, POINTER      :: rho_r, rho_g, rhop_r, rhop_g, &
                                                 rho_core
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error

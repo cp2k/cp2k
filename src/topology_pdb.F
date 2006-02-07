@@ -43,36 +43,30 @@ MODULE topology_pdb
 
   USE checkpoint_handler,              ONLY: write_checkpoint_information
   USE convert_units,                   ONLY: convert_to_cp2k_units
-  USE global_types,                    ONLY: global_environment_type
-  USE kinds,                           ONLY: dp,&
-                                             default_string_length
-  USE memory_utilities,                ONLY: reallocate
-  USE physcon,                         ONLY: bohr
   USE cp_files,                        ONLY: close_file,&
                                              open_file
+  USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
+                                             cp_print_key_unit_nr
+  USE cp_parser,                       ONLY: cp_parser_type,&
+                                             parser_create,&
+                                             parser_get_next_line,&
+                                             parser_release
+  USE global_types,                    ONLY: global_environment_type
+  USE input_section_types,             ONLY: section_vals_type
+  USE kinds,                           ONLY: default_string_length,&
+                                             dp
+  USE memory_utilities,                ONLY: reallocate
+  USE physcon,                         ONLY: bohr
   USE string_utilities,                ONLY: uppercase
-  USE termination,                     ONLY: stop_memory,&
-                                             stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE topology_types,                  ONLY: topology_parameters_type,&
-                                             atom_info_type
-  USE cp_parser,                       ONLY: parser_release,&
-                                             parser_get_object,&
-                                             parser_search_string,&
-                                             parser_create,&
-                                             parser_test_next_token,&
-                                             cp_parser_type,&
-                                             parser_get_next_line
-  USE cp_output_handling,              ONLY: cp_print_key_unit_nr, &
-                                             cp_print_key_finished_output  
-  USE input_section_types,             ONLY: section_vals_type
-  
+  USE topology_types,                  ONLY: atom_info_type,&
+                                             topology_parameters_type
 #include "cp_common_uses.h"  
 
   IMPLICIT NONE
 
-  CHARACTER(LEN=*), PARAMETER, PRIVATE :: moduleN = "topology_pdb"
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'topology_pdb'
 
   PRIVATE
   PUBLIC :: read_coordinate_pdb,write_coordinate_pdb
@@ -104,27 +98,24 @@ CONTAINS
 !------------------------------------------------------------------------------
 
   SUBROUTINE read_coordinate_pdb (topology,globenv,subsys_section,error)
-    IMPLICIT NONE
-    ! Arguments
     TYPE(topology_parameters_type)           :: topology
     TYPE(global_environment_type), &
-         POINTER, OPTIONAL                   :: globenv
-    TYPE(section_vals_type), POINTER :: subsys_section
+      OPTIONAL, POINTER                      :: globenv
+    TYPE(section_vals_type), POINTER         :: subsys_section
     TYPE(cp_error_type), INTENT(inout), &
-         OPTIONAL                            :: error    
-    ! Local Variables
-    TYPE (atom_info_type),POINTER            :: atom_info
+      OPTIONAL                               :: error
+
     CHARACTER(len=*), PARAMETER :: routineN = 'read_coordinate_pdb', &
       routineP = moduleN//':'//routineN
     INTEGER, PARAMETER                       :: nblock_atom = 1000
 
     CHARACTER(LEN=default_string_length)     :: line, record, root_mol_name
-    INTEGER                                  :: handle, istat,&
-                                                iw, natom,i, inum_mol
-
+    INTEGER                                  :: handle, i, inum_mol, istat, &
+                                                iw, natom
     LOGICAL                                  :: my_end
-    TYPE(cp_parser_type), POINTER            :: parser
+    TYPE(atom_info_type), POINTER            :: atom_info
     TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(cp_parser_type), POINTER            :: parser
 
     NULLIFY(parser, logger)
     logger => cp_error_get_logger(error)
@@ -267,17 +258,18 @@ CONTAINS
   
     TYPE(topology_parameters_type)           :: topology
     TYPE(global_environment_type), &
-         POINTER, OPTIONAL                   :: globenv
-    TYPE(section_vals_type), POINTER :: subsys_section
+      OPTIONAL, POINTER                      :: globenv
+    TYPE(section_vals_type), POINTER         :: subsys_section
     TYPE(cp_error_type), INTENT(inout), &
-         OPTIONAL                               :: error    
-    TYPE (atom_info_type),POINTER            :: atom_info
+      OPTIONAL                               :: error
+
     CHARACTER(len=*), PARAMETER :: routineN = 'write_coordinate_pdb', &
-         routineP = moduleN//':'//routineN
-    
+      routineP = moduleN//':'//routineN
+
     CHARACTER(LEN=default_string_length)     :: record
-    INTEGER                                  :: handle, iw, natom,i
-    INTEGER                                  :: file_unit,imol,id1,id2
+    INTEGER                                  :: file_unit, handle, i, id1, &
+                                                id2, imol, iw, natom
+    TYPE(atom_info_type), POINTER            :: atom_info
     TYPE(cp_logger_type), POINTER            :: logger
 
     NULLIFY(logger)

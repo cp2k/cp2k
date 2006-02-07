@@ -54,53 +54,53 @@ CONTAINS
 !!   SOURCE
 !-----------------------------------------------------------------------------!
 
-  SUBROUTINE rad_kinetic ( p1, p2, l, rg, result )
+  SUBROUTINE rad_kinetic ( p1, p2, l, rg, RESULT )
 
 ! Kinetic energy integral < f1 T f2 > where p1 = r*f1(r) and p2 = r*f2(r)
-    REAL(KIND=dp), DIMENSION(0:), INTENT(IN)     :: p1, p2
+    REAL(KIND=dp), DIMENSION(0:), INTENT(IN) :: p1, p2
     INTEGER, INTENT(IN)                      :: l
     TYPE(radial_grid_type), INTENT(IN)       :: rg
-    REAL(KIND=dp), INTENT(OUT)                   :: result
+    REAL(KIND=dp), INTENT(OUT)               :: RESULT
 
     INTEGER                                  :: i, ierr, n
-    REAL(KIND=dp)                                :: int
-    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)     :: dp1, dp2, f
+    REAL(KIND=dp)                            :: int
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: dp1, dp2, f
 
 !------------------------------------------------------------------------------
 
     n = SIZE ( p1 ) - 2
     ALLOCATE ( dp1 ( 0:n+1 ), STAT = ierr )
-    IF ( ierr /= 0 ) call stop_memory ( "rad_kinetic", "dp1", n+2 )
+    IF ( ierr /= 0 ) CALL stop_memory ( "rad_kinetic", "dp1", n+2 )
     ALLOCATE ( dp2 ( 0:n+1 ), STAT = ierr )
-    IF ( ierr /= 0 ) call stop_memory ( "rad_kinetic", "dp2", n+2 )
+    IF ( ierr /= 0 ) CALL stop_memory ( "rad_kinetic", "dp2", n+2 )
     ALLOCATE ( f ( 0:n+1 ), STAT = ierr )
-    IF ( ierr /= 0 ) call stop_memory ( "rad_kinetic", "f", n+2 )
+    IF ( ierr /= 0 ) CALL stop_memory ( "rad_kinetic", "f", n+2 )
 
     CALL radial_diff ( n+2, p1, dp1, 1, rg, ierr )
-    IF ( ierr /= 0 ) call stop_program ( "rad_kinetic", "radial_diff: dp1" )
+    IF ( ierr /= 0 ) CALL stop_program ( "rad_kinetic", "radial_diff: dp1" )
     CALL radial_diff ( n+2, p2, dp2, 1, rg, ierr )
-    IF ( ierr /= 0 ) call stop_program ( "rad_kinetic", "radial_diff: dp2" )
+    IF ( ierr /= 0 ) CALL stop_program ( "rad_kinetic", "radial_diff: dp2" )
 
     f = dp1 * dp2
     CALL radial_integrate ( n+2, f, rg, int, ierr )
-    IF ( ierr /= 0 ) call stop_program ( "rad_kinetic", "radial_integrate: f" )
-    result = 0.5_dp * int
+    IF ( ierr /= 0 ) CALL stop_program ( "rad_kinetic", "radial_integrate: f" )
+    RESULT = 0.5_dp * int
     IF ( l > 0 ) THEN
       f ( 0 ) = 0.0_dp
       DO i = 1, n+1
         f ( i ) = p1 ( i ) * p2 ( i ) / rg % r ( i ) ** 2
       END DO
       CALL radial_integrate ( n+2, f, rg, int, ierr )
-      IF ( ierr /= 0 ) call stop_program ( "rad_kinetic", "radial_integrate: l" )
-      result = result + 0.5_dp * REAL ( l*(l+1),KIND=dp) * int
+      IF ( ierr /= 0 ) CALL stop_program ( "rad_kinetic", "radial_integrate: l" )
+      RESULT = RESULT + 0.5_dp * REAL ( l*(l+1),KIND=dp) * int
     END IF
 
     DEALLOCATE ( dp1, STAT = ierr )
-    IF ( ierr /= 0 ) call stop_memory ( "rad_kinetic", "dp1" )
+    IF ( ierr /= 0 ) CALL stop_memory ( "rad_kinetic", "dp1" )
     DEALLOCATE ( dp2, STAT = ierr )
-    IF ( ierr /= 0 ) call stop_memory ( "rad_kinetic", "dp2" )
+    IF ( ierr /= 0 ) CALL stop_memory ( "rad_kinetic", "dp2" )
     DEALLOCATE ( f, STAT = ierr )
-    IF ( ierr /= 0 ) call stop_memory ( "rad_kinetic", "f" )
+    IF ( ierr /= 0 ) CALL stop_memory ( "rad_kinetic", "f" )
 
   END SUBROUTINE rad_kinetic
 
@@ -122,32 +122,32 @@ CONTAINS
 !!   SOURCE
 !-----------------------------------------------------------------------------!
 
-  SUBROUTINE rad_potential ( p1, p2, v, rg, result )
+  SUBROUTINE rad_potential ( p1, p2, v, rg, RESULT )
 
 ! Calculates the integral < f1 V f2 >
 ! It is assumed that the s=0 term has been included correctly into V(s=0)
 ! This is only a problem if V(s->0) = s^2 or worse
-    REAL(KIND=dp), DIMENSION(0:), INTENT(IN)     :: p1, p2, v
+    REAL(KIND=dp), DIMENSION(0:), INTENT(IN) :: p1, p2, v
     TYPE(radial_grid_type), INTENT(IN)       :: rg
-    REAL(KIND=dp), INTENT(OUT)                   :: result
+    REAL(KIND=dp), INTENT(OUT)               :: RESULT
 
     INTEGER                                  :: ierr, n
-    REAL(KIND=dp)                                :: int
-    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)     :: f
+    REAL(KIND=dp)                            :: int
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: f
 
 !------------------------------------------------------------------------------
 
     n = SIZE ( p1 ) - 2
     ALLOCATE ( f ( 0:n+1 ), STAT = ierr )
-    IF ( ierr /= 0 ) call stop_memory ( "rad_potential", "f", n+2 )
+    IF ( ierr /= 0 ) CALL stop_memory ( "rad_potential", "f", n+2 )
 
     f = p1 * p2 * V
     CALL radial_integrate ( n+2, f, rg, int, ierr )
-    IF ( ierr /= 0 ) call stop_program ( "rad_potential", "radial_integrate" )
-    result = int
+    IF ( ierr /= 0 ) CALL stop_program ( "rad_potential", "radial_integrate" )
+    RESULT = int
 
     DEALLOCATE ( f, STAT = ierr )
-    IF ( ierr /= 0 ) call stop_memory ( "rad_potential", "f" )
+    IF ( ierr /= 0 ) CALL stop_memory ( "rad_potential", "f" )
 
   END SUBROUTINE rad_potential
 

@@ -28,9 +28,10 @@ MODULE cp_subsystem_methods
                                              atomic_kind_list_release,&
                                              atomic_kind_list_type
   USE atomic_kind_types,               ONLY: atomic_kind_type
-  USE colvar_types,                    ONLY: colvar_type,&
-                                             colvar_init
+  USE cell_types,                      ONLY: cell_retain,&
+                                             cell_type
   USE colvar_methods,                  ONLY: colvar_read
+  USE colvar_types,                    ONLY: colvar_init
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_subsystem_types,              ONLY: cp_subsys_create,&
                                              cp_subsys_get,&
@@ -38,6 +39,9 @@ MODULE cp_subsystem_methods
                                              cp_subsystem_p_type,&
                                              cp_subsystem_type
   USE global_types,                    ONLY: global_environment_type
+  USE input_section_types,             ONLY: section_vals_get,&
+                                             section_vals_get_subs_vals,&
+                                             section_vals_type
   USE kinds,                           ONLY: default_string_length,&
                                              dp
   USE mol_kind_new_list_types,         ONLY: mol_kind_new_list_create,&
@@ -52,31 +56,22 @@ MODULE cp_subsystem_methods
                                              particle_list_release,&
                                              particle_list_type
   USE particle_types,                  ONLY: particle_type
-  USE input_section_types,             ONLY: section_type,&
-                                             section_vals_type,&
-                                             section_vals_get
-  USE cell_types,                 ONLY: cell_retain,&
-                                             cell_type
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE topology,                        ONLY: connectivity_control
   USE topology_types,                  ONLY: deallocate_topology,&
                                              init_topology,&
                                              topology_parameters_type
-  USE topology_util,                   ONLY: topology_connectivity_pack,&
-                                             topology_coordinate_pack,&
-                                             check_subsys_element
-  USE input_section_types,             ONLY: section_vals_type,&
-                                             section_vals_get_subs_vals
-
-
+  USE topology_util,                   ONLY: check_subsys_element,&
+                                             topology_connectivity_pack,&
+                                             topology_coordinate_pack
 #include "cp_common_uses.h"
 
   IMPLICIT NONE 
   PRIVATE
 
   LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
-  CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='cp_subsystem_methods'
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_subsystem_methods'
 
   PUBLIC :: create_small_subsystem, cp_subsys_read_colvar
 
@@ -101,14 +96,17 @@ CONTAINS
 !!
 !!*** **********************************************************************
   SUBROUTINE cp_subsys_read_colvar(subsys,colvar_section,error)
-    TYPE(cp_subsystem_type), POINTER :: subsys
-    TYPE(section_vals_type), POINTER :: colvar_section
+    TYPE(cp_subsystem_type), POINTER         :: subsys
+    TYPE(section_vals_type), POINTER         :: colvar_section
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
+
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_subsys_read_colvar', &
       routineP = moduleN//':'//routineN
-    LOGICAL :: failure
-    INTEGER :: ig,ncol,stat
+
+    INTEGER                                  :: ig, ncol, stat
+    LOGICAL                                  :: failure
+
     failure=.FALSE.
     CALL section_vals_get(colvar_section,n_repetition=ncol,error=error)
     ALLOCATE(subsys%colvar(ncol),stat=stat)
@@ -159,19 +157,19 @@ CONTAINS
       DIMENSION(:), POINTER                  :: big_subsys
     TYPE(cell_type), POINTER                 :: small_cell
     TYPE(cp_para_env_type), POINTER          :: small_para_env
-    TYPE(section_vals_type), POINTER :: force_env_section
-
     INTEGER, DIMENSION(:), INTENT(in)        :: sub_atom_index, &
                                                 sub_subsys_index
     CHARACTER(len=default_string_length), &
       DIMENSION(:), INTENT(in)               :: sub_atom_kind_name
     TYPE(global_environment_type), POINTER   :: globenv
+    TYPE(section_vals_type), POINTER         :: force_env_section
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'create_small_subsystem', &
       routineP = moduleN//':'//routineN
 
+    CHARACTER(len=default_string_length)     :: my_element
     INTEGER                                  :: iat, id_, isubsys, nat, stat
     LOGICAL                                  :: failure
     TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
@@ -186,9 +184,8 @@ CONTAINS
     TYPE(particle_list_type), POINTER        :: particles
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
+    TYPE(section_vals_type), POINTER         :: subsys_section
     TYPE(topology_parameters_type)           :: topology
-    CHARACTER(len=default_string_length)     :: my_element
-    TYPE(section_vals_type), POINTER :: subsys_section
 
     failure=.FALSE.
     NULLIFY(mol_kinds,mols,particles,atomic_kinds, atomic_kind_set, particle_set, &

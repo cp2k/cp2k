@@ -29,12 +29,17 @@ MODULE qs_interactions
   USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                              gto_basis_set_type,&
                                              set_gto_basis_set
+  USE cell_types,                      ONLY: cell_type,&
+                                             get_cell
   USE cp_control_types,                ONLY: qs_control_type
+  USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
+                                             cp_print_key_unit_nr
   USE external_potential_types,        ONLY: all_potential_type,&
                                              elp_potential_type,&
                                              get_potential,&
                                              gth_potential_type,&
                                              set_potential
+  USE input_section_types,             ONLY: section_vals_type
   USE kinds,                           ONLY: default_string_length,&
                                              dp
   USE orbital_pointers,                ONLY: coset
@@ -43,18 +48,9 @@ MODULE qs_interactions
                                              set_paw_proj_set
   USE qs_all_potential,                ONLY: radii_3c_orbxall
   USE qs_util,                         ONLY: exp_radius
-  USE cell_types,                      ONLY: cell_type,&
-                                             get_cell
   USE string_utilities,                ONLY: uppercase
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
-  USE cp_output_handling,              ONLY: cp_print_key_unit_nr, &
-                                             cp_print_key_finished_output,&
-                                             cp_print_key_should_output,&
-                                             cp_p_file
-  USE input_section_types,             ONLY: section_vals_type
-
-
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -63,7 +59,7 @@ MODULE qs_interactions
 
 ! *** Global parameters (only in this module)
 
-  CHARACTER(LEN=*), PARAMETER :: module_name = "qs_interactions"
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_interactions'
 
 
 ! *** Public subroutines ***
@@ -88,44 +84,40 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(qs_control_type), INTENT(IN)       :: qs_control
+    TYPE(qs_control_type), INTENT(IN)        :: qs_control
     TYPE(cell_type), POINTER                 :: cell
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
-    TYPE(section_vals_type), POINTER :: force_env_section
+    TYPE(section_vals_type), POINTER         :: force_env_section
     TYPE(cp_error_type), INTENT(inout), &
-         OPTIONAL                               :: error
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "init_interaction_radii"
+      OPTIONAL                               :: error
 
-    INTEGER                                  :: i, iexp_ppl, ikind, ip, ipgf, &
-                                                iprj_ppnl, iset, ishell, istat, l, &
-                                                lppl, lppnl, lprj, lprj_ppnl, &
-                                                maxl, maxnset, nexp_ppl, nkind, nset
-    INTEGER, DIMENSION(:), POINTER           :: npgf, nprj_ppnl, nshell, &
-                                                nexp_ppl_elp
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'init_interaction_radii'
+
+    INTEGER :: i, iexp_ppl, ikind, ip, ipgf, iprj_ppnl, iset, ishell, istat, &
+      l, lppl, lppnl, lprj, lprj_ppnl, maxl, maxnset, nexp_ppl, nkind, nset
+    INTEGER, DIMENSION(:), POINTER           :: nexp_ppl_elp, npgf, nprj, &
+                                                nprj_ppnl, nshell
     INTEGER, DIMENSION(:, :), POINTER        :: lshell
-    INTEGER, DIMENSION(:), POINTER           :: nprj
-    REAL(KIND=dp)                            :: alpha_core_charge, alpha_ppl, &
-                                                ccore_charge, cerf_ppl, &
-                                                core_charge_radius, gcca, &
-                                                kind_radius, ppl_radius, &
-                                                ppnl_radius, zeta,rcprj
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: alpha_ppnl, cexp_ppl, &
-                                                set_radius, alpha_ppl_elp
-    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: cprj_ppnl, pgf_radius, zet, &
-                                                cexp_ppl_elp,rzetprj
+    LOGICAL                                  :: p_aux, p_ccr, p_orb, p_paw, &
+                                                p_ppl, p_ppnl, p_soft, &
+                                                paw_atom
+    REAL(KIND=dp) :: alpha_core_charge, alpha_ppl, ccore_charge, cerf_ppl, &
+      core_charge_radius, gcca, kind_radius, ppl_radius, ppnl_radius, rcprj, &
+      zeta
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: alpha_ppl_elp, alpha_ppnl, &
+                                                cexp_ppl, set_radius
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: cexp_ppl_elp, cprj_ppnl, &
+                                                pgf_radius, rzetprj, zet
     REAL(KIND=dp), DIMENSION(:, :, :), &
       POINTER                                :: gcc
-    LOGICAL                                  :: p_orb,p_aux,p_ccr,p_ppl,p_ppnl,&
-                                                p_soft,p_paw,paw_atom
-    TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(all_potential_type), POINTER        :: all_potential
-    TYPE(gth_potential_type), POINTER        :: gth_potential
+    TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(elp_potential_type), POINTER        :: elp_potential
-    TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
-    TYPE(gto_basis_set_type), POINTER        :: aux_basis_set
-    TYPE(gto_basis_set_type), POINTER        :: soft_basis
-    TYPE(paw_proj_set_type),  POINTER        :: paw_proj_set
+    TYPE(gth_potential_type), POINTER        :: gth_potential
+    TYPE(gto_basis_set_type), POINTER        :: aux_basis_set, orb_basis_set, &
+                                                soft_basis
+    TYPE(paw_proj_set_type), POINTER         :: paw_proj_set
 
 !   ---------------------------------------------------------------------------
 
@@ -226,7 +218,7 @@ CONTAINS
 
         ALLOCATE(all_potential%orb_radius_3c(nkind),STAT=istat)
         ALLOCATE(all_potential%set_radius_3c(maxnset,nkind),STAT=istat)
-        IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+        IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "orb_radius_3c,set_radius_3c")
 
         CALL radii_3c_orbxall(atomic_kind_set,all_potential)
@@ -311,7 +303,7 @@ CONTAINS
 
         ppl_radius = exp_radius(0,alpha_ppl_elp(1),qs_control%eps_ppl,cerf_ppl)
 
-        DO i=1,size(nexp_ppl_elp)
+        DO i=1,SIZE(nexp_ppl_elp)
           DO iexp_ppl=1,nexp_ppl_elp(i)
             lppl = 2*(iexp_ppl - 1)
             ppl_radius = MAX(ppl_radius,&
@@ -464,9 +456,9 @@ CONTAINS
     TYPE(cell_type), POINTER                 :: cell
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
-    TYPE(section_vals_type), POINTER :: force_env_section
+    TYPE(section_vals_type), POINTER         :: force_env_section
     TYPE(cp_error_type), INTENT(inout), &
-         OPTIONAL                               :: error
+      OPTIONAL                               :: error
 
     CHARACTER(LEN=8)                         :: unit_of_length_name
     CHARACTER(LEN=default_string_length)     :: name
@@ -475,9 +467,9 @@ CONTAINS
                                                 unit_of_length
     TYPE(all_potential_type), POINTER        :: all_potential
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
+    TYPE(cp_logger_type), POINTER            :: logger
     TYPE(elp_potential_type), POINTER        :: elp_potential
     TYPE(gth_potential_type), POINTER        :: gth_potential
-    TYPE(cp_logger_type), POINTER            :: logger
 
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
@@ -530,16 +522,16 @@ CONTAINS
 
 !   ***************************************************************************
 
-    CHARACTER (len=*)                        :: basis
+    CHARACTER(len=*)                         :: basis
     TYPE(cell_type), POINTER                 :: cell
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
-    TYPE(section_vals_type), POINTER :: force_env_section
+    TYPE(section_vals_type), POINTER         :: force_env_section
     TYPE(cp_error_type), INTENT(inout), &
-         OPTIONAL                               :: error
+      OPTIONAL                               :: error
 
-    CHARACTER(LEN=8)                         :: unit_of_length_name
     CHARACTER(LEN=10)                        :: bas
+    CHARACTER(LEN=8)                         :: unit_of_length_name
     CHARACTER(LEN=default_string_length)     :: name
     INTEGER                                  :: ikind, ipgf, iset, nkind, &
                                                 nset, output_unit
@@ -548,9 +540,8 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:), POINTER     :: set_radius
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: pgf_radius
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
-    TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
-    TYPE(gto_basis_set_type), POINTER        :: aux_basis_set
     TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(gto_basis_set_type), POINTER        :: aux_basis_set, orb_basis_set
 
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
@@ -716,18 +707,18 @@ CONTAINS
     TYPE(cell_type), POINTER                 :: cell
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
-    TYPE(section_vals_type), POINTER :: force_env_section
+    TYPE(section_vals_type), POINTER         :: force_env_section
     TYPE(cp_error_type), INTENT(inout), &
-         OPTIONAL                               :: error
+      OPTIONAL                               :: error
 
     CHARACTER(LEN=8)                         :: unit_of_length_name
     CHARACTER(LEN=default_string_length)     :: name
     INTEGER                                  :: ikind, nkind, output_unit
     REAL(KIND=dp)                            :: ppl_radius, unit_of_length
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
-    TYPE(gth_potential_type), POINTER        :: gth_potential
-    TYPE(elp_potential_type), POINTER        :: elp_potential
     TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(elp_potential_type), POINTER        :: elp_potential
+    TYPE(gth_potential_type), POINTER        :: gth_potential
 
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
@@ -779,18 +770,17 @@ CONTAINS
     TYPE(cell_type), POINTER                 :: cell
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
-    TYPE(section_vals_type), POINTER :: force_env_section
-
+    TYPE(section_vals_type), POINTER         :: force_env_section
     TYPE(cp_error_type), INTENT(inout), &
-         OPTIONAL                               :: error
+      OPTIONAL                               :: error
 
     CHARACTER(LEN=8)                         :: unit_of_length_name
     CHARACTER(LEN=default_string_length)     :: name
     INTEGER                                  :: ikind, nkind, output_unit
     REAL(KIND=dp)                            :: ppnl_radius, unit_of_length
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
-    TYPE(gth_potential_type), POINTER        :: gth_potential
     TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(gth_potential_type), POINTER        :: gth_potential
 
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
@@ -831,18 +821,18 @@ CONTAINS
     TYPE(cell_type), POINTER                 :: cell
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
-    TYPE(section_vals_type), POINTER :: force_env_section
+    TYPE(section_vals_type), POINTER         :: force_env_section
     TYPE(cp_error_type), INTENT(inout), &
-         OPTIONAL                               :: error
+      OPTIONAL                               :: error
 
     CHARACTER(LEN=8)                         :: unit_of_length_name
     CHARACTER(LEN=default_string_length)     :: name
     INTEGER                                  :: ikind, nkind, output_unit
+    LOGICAL                                  :: paw_atom
     REAL(KIND=dp)                            :: rcprj, unit_of_length
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
-    TYPE(paw_proj_set_type),  POINTER        :: paw_proj_set
-    LOGICAL                                  :: paw_atom
     TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(paw_proj_set_type), POINTER         :: paw_proj_set
 
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
@@ -881,20 +871,20 @@ CONTAINS
 ! centers
 !******
   FUNCTION exp_radius_very_extended(la_min,la_max,lb_min,lb_max,pab,o1,o2,ra,rb,rp,&
-                          zetp,eps,prefactor,cutoff) result(radius)
+                          zetp,eps,prefactor,cutoff) RESULT(radius)
 
-    integer, INTENT(IN)                      :: la_min, la_max, lb_min, lb_max
-    real(KIND=dp), DIMENSION(:, :), &
-      optional, POINTER                      :: pab
-    integer, optional                        :: o1, o2
-    real(KIND=dp), INTENT(IN)                :: ra(3), rb(3), rp(3), zetp, &
+    INTEGER, INTENT(IN)                      :: la_min, la_max, lb_min, lb_max
+    REAL(KIND=dp), DIMENSION(:, :), &
+      OPTIONAL, POINTER                      :: pab
+    INTEGER, OPTIONAL                        :: o1, o2
+    REAL(KIND=dp), INTENT(IN)                :: ra(3), rb(3), rp(3), zetp, &
                                                 eps, prefactor, cutoff
-    real(KIND=dp)                            :: radius
+    REAL(KIND=dp)                            :: radius
 
-    integer                                  :: d, i, ico, j, jco, k, la(3), &
+    INTEGER                                  :: d, i, ico, j, jco, k, la(3), &
                                                 lb(3), lxa, lxb, lya, lyb, &
                                                 lza, lzb
-    real(KIND=dp)                            :: bini, binj, coef(0:20,3), &
+    REAL(KIND=dp)                            :: bini, binj, coef(0:20,3), &
                                                 polycoef(0:60), &
                                                 prefactor_local, s1, s2
 
@@ -904,8 +894,8 @@ CONTAINS
     DO lxb=0,lb_max
        DO lya=0,la_max-lxa
        DO lyb=0,lb_max-lxb
-          DO lza=max(la_min-lxa-lya,0),la_max-lxa-lya
-          DO lzb=max(lb_min-lxb-lyb,0),lb_max-lxb-lyb
+          DO lza=MAX(la_min-lxa-lya,0),la_max-lxa-lya
+          DO lzb=MAX(lb_min-lxb-lyb,0),lb_max-lxb-lyb
              la=(/lxa,lya,lza/)
              lb=(/lxb,lyb,lzb/)
              ico=coset(lxa,lya,lza)
@@ -935,8 +925,8 @@ CONTAINS
              DO i=0,la(1)+lb(1)
              DO j=0,la(2)+lb(2)
              DO k=0,la(3)+lb(3)
-                polycoef(i+j+k)=max(polycoef(i+j+k),&
-                                    abs(prefactor_local*&
+                polycoef(i+j+k)=MAX(polycoef(i+j+k),&
+                                    ABS(prefactor_local*&
                                         coef(i,1)*coef(j,2)*coef(k,3)))
              ENDDO
              ENDDO
@@ -949,7 +939,7 @@ CONTAINS
     ENDDO
     ENDDO
     DO i=0,la_max+lb_max
-          radius=max(radius,exp_radius(i,zetp,eps,polycoef(i),1.0E-2_dp) )
+          radius=MAX(radius,exp_radius(i,zetp,eps,polycoef(i),1.0E-2_dp) )
     ENDDO
 
   END FUNCTION exp_radius_very_extended

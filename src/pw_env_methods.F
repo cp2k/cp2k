@@ -32,7 +32,10 @@ MODULE pw_env_methods
                                              get_atomic_kind_set
   USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                              gto_basis_set_type
+  USE cell_types,                      ONLY: cell_type
   USE cp_control_types,                ONLY: dft_control_type
+  USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
+                                             cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_rs_pool_types,                ONLY: cp_rs_pool_p_type,&
                                              rs_pool_create,&
@@ -41,51 +44,46 @@ MODULE pw_env_methods
                                              init_cube_info
   USE gaussian_gridlevels,             ONLY: destroy_gaussian_gridlevel,&
                                              gaussian_gridlevel,&
-                                             init_gaussian_gridlevel,&
-                                             destroy_gaussian_gridlevel
+                                             init_gaussian_gridlevel
+  USE input_constants,                 ONLY: do_rsgrid_distributed
+  USE input_section_types,             ONLY: section_vals_get_subs_vals,&
+                                             section_vals_type,&
+                                             section_vals_val_get
   USE kinds,                           ONLY: dp
   USE l_utils,                         ONLY: init_l_info,&
                                              l_info_release,&
                                              l_info_retain
-  USE orbital_pointers,                ONLY: init_orbital_pointers
   USE pw_env_types,                    ONLY: pw_env_type
   USE pw_grid_types,                   ONLY: FULLSPACE,&
                                              HALFSPACE,&
                                              pw_grid_type
-  USE pw_grids,                        ONLY: pw_grid_change,&
+  USE pw_grids,                        ONLY: pw_find_cutoff,&
+                                             pw_grid_change,&
                                              pw_grid_create,&
                                              pw_grid_release,&
-                                             pw_grid_setup, &
-                                             pw_find_cutoff
+                                             pw_grid_setup
+  USE pw_poisson_methods,              ONLY: pw_poisson_set
+  USE pw_poisson_types,                ONLY: pw_poisson_create,&
+                                             setup_super_ref_grid
   USE pw_pool_types,                   ONLY: pw_pool_create,&
                                              pw_pool_p_type,&
-                                             pw_pools_dealloc,&
                                              pw_pool_release,&
-                                             pw_pool_retain
+                                             pw_pool_retain,&
+                                             pw_pools_dealloc
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
-  USE qs_interactions,                 ONLY: exp_radius_very_extended
   USE qs_rho0_types,                   ONLY: get_rho0_mpole,&
                                              rho0_mpole_type
   USE qs_util,                         ONLY: exp_radius
-  USE cell_types,                 ONLY: cell_type
-  USE termination,                     ONLY: stop_memory,&
-                                             stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE cp_output_handling,              ONLY: cp_print_key_unit_nr, &
-                                             cp_print_key_finished_output  
-  USE pw_poisson_types, ONLY: setup_super_ref_grid, pw_poisson_type, pw_poisson_create
-  USE pw_poisson_methods, ONLY: pw_poisson_set
-  USE input_section_types, ONLY: section_vals_type, section_vals_get_subs_vals,&
-       section_vals_val_get
-  USE input_constants, ONLY: do_rsgrid_distributed
 #include "cp_common_uses.h"
+
   IMPLICIT NONE
   PRIVATE
 
   LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
-  CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='pw_env_methods'
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'pw_env_methods'
 
   PUBLIC :: pw_env_create, pw_env_rebuild
 !***
@@ -182,18 +180,19 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
       routineP = moduleN//':'//routineN
     REAL(KIND=dp), PARAMETER                 :: safety_factor = 1.2 
 
-    INTEGER :: cmax, grid_span, handle, i, igrid_level, igrid_zet0_s, &
-      ikind, ipgf, iset, ishell, istat, jkind, jpgf, jset, jshell, la, lb, &
-      lgrid_level, lmax_rho0, maxlgto, ncommensurate, ngrid_level, nkind, &
-      nseta, nsetb, nsmax, stat
+    INTEGER :: cmax, grid_span, handle, i, igrid_level, igrid_zet0_s, ikind, &
+      ipgf, iset, ishell, jkind, jpgf, jset, jshell, la, lb, lgrid_level, &
+      lmax_rho0, maxlgto, ncommensurate, ngrid_level, nkind, nseta, nsetb, &
+      nsmax, output_unit, stat
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: cmaxl
     INTEGER, DIMENSION(:), POINTER           :: npgfa, npgfb, nshella, nshellb
     INTEGER, DIMENSION(:, :), POINTER        :: lshella, lshellb
-    LOGICAL                                  :: failure, use_ref_cell, uf_grid
+    LOGICAL                                  :: failure, uf_grid, use_ref_cell
     REAL(KIND=dp)                            :: alpha, cutilev, drmin, &
                                                 max_rpgf0_s, maxradius, &
-                                                rel_cutoff, zet0_s, zetp
+                                                my_cutoff, rel_cutoff, &
+                                                zet0_s, zetp
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: radius
-    INTEGER, ALLOCATABLE, DIMENSION(:)       :: cmaxl
     REAL(KIND=dp), DIMENSION(:), POINTER     :: cutoff
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: zeta, zetb
     TYPE(atomic_kind_type), DIMENSION(:), &
@@ -206,14 +205,14 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
       POINTER                                :: rs_pools
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
-    TYPE(pw_grid_type), POINTER              :: old_pw_grid, pw_grid, &
-         mt_super_ref_grid, xc_super_ref_grid, super_ref_grid
+    TYPE(pw_grid_type), POINTER              :: mt_super_ref_grid, &
+                                                old_pw_grid, pw_grid, &
+                                                super_ref_grid, &
+                                                xc_super_ref_grid
     TYPE(pw_pool_p_type), DIMENSION(:), &
       POINTER                                :: pw_pools
     TYPE(rho0_mpole_type), POINTER           :: nddo_mpole, rho0_mpole
-    TYPE(section_vals_type), POINTER :: input, poisson_section
-    REAL ( KIND=dp ) :: my_cutoff
-    INTEGER :: output_unit
+    TYPE(section_vals_type), POINTER         :: input, poisson_section
 
   CALL timeset(routineN,"I","",handle)
 

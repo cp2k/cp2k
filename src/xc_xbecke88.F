@@ -28,27 +28,27 @@ MODULE xc_xbecke88
   USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: pi
   USE timings,                         ONLY: timeset,&
-       timestop
+                                             timestop
   USE xc_derivative_set_types,         ONLY: xc_derivative_set_type,&
-       xc_dset_get_derivative
+                                             xc_dset_get_derivative
   USE xc_derivative_types,             ONLY: xc_derivative_get,&
-       xc_derivative_type
-  USE xc_rho_cflags_types,                ONLY: xc_rho_cflags_type
+                                             xc_derivative_type
+  USE xc_rho_cflags_types,             ONLY: xc_rho_cflags_type
   USE xc_rho_set_types,                ONLY: xc_rho_set_get,&
-       xc_rho_set_type
+                                             xc_rho_set_type
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
-  private
+  PRIVATE
 
-  logical, private, parameter :: debug_this_module=.true.
-  character(len=*), private, parameter :: moduleN='xc_xbecke88'
+  LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'xc_xbecke88'
   REAL(kind=dp), PARAMETER :: beta=0.0042_dp
 
   PUBLIC :: xb88_lda_info, xb88_lsd_info, xb88_lda_eval, xb88_lsd_eval
   !!***
   !****************************************************************************
-contains
+CONTAINS
 
   !!****f* xc_xbecke88/xb88_lda_info [1.0] *
   !!
@@ -79,13 +79,13 @@ contains
   SUBROUTINE xb88_lda_info(reference,shortform, needs, max_deriv, error)
     CHARACTER(LEN=*), INTENT(OUT), OPTIONAL  :: reference, shortform
     TYPE(xc_rho_cflags_type), &
-         INTENT(inout), optional                :: needs
+      INTENT(inout), OPTIONAL                :: needs
     INTEGER, INTENT(out), OPTIONAL           :: max_deriv
     TYPE(cp_error_type), INTENT(inout), &
-         OPTIONAL                               :: error
+      OPTIONAL                               :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'xb88_lda_info', &
-         routineP = moduleN//':'//routineN
+      routineP = moduleN//':'//routineN
 
     IF ( PRESENT ( reference ) ) THEN
        reference = "A. Becke, Phys. Rev. A 38, 3098 (1988) {LDA version}"
@@ -94,11 +94,11 @@ contains
        shortform = "Becke 1988 Exchange Functional (LDA)"
     END IF
     IF (PRESENT(needs)) THEN
-       needs%rho=.true.
-       needs%rho_1_3=.true.
-       needs%norm_drho=.true.
+       needs%rho=.TRUE.
+       needs%rho_1_3=.TRUE.
+       needs%norm_drho=.TRUE.
     END IF
-    if (present(max_deriv)) max_deriv=3
+    IF (PRESENT(max_deriv)) max_deriv=3
 
   END SUBROUTINE xb88_lda_info
   !***************************************************************************
@@ -132,13 +132,13 @@ contains
   SUBROUTINE xb88_lsd_info(reference,shortform, needs, max_deriv, error)
     CHARACTER(LEN=*), INTENT(OUT), OPTIONAL  :: reference, shortform
     TYPE(xc_rho_cflags_type), &
-         INTENT(inout), optional                :: needs
+      INTENT(inout), OPTIONAL                :: needs
     INTEGER, INTENT(out), OPTIONAL           :: max_deriv
     TYPE(cp_error_type), INTENT(inout), &
-         OPTIONAL                               :: error
+      OPTIONAL                               :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'xb88_lsd_info', &
-         routineP = moduleN//':'//routineN
+      routineP = moduleN//':'//routineN
 
     IF ( PRESENT ( reference ) ) THEN
        reference = "A. Becke, Phys. Rev. A 38, 3098 (1988) {LSD version}"
@@ -147,11 +147,11 @@ contains
        shortform = "Becke 1988 Exchange Functional (LSD)"
     END IF
     IF (PRESENT(needs)) THEN
-       needs%rho_spin=.true.
-       needs%rho_spin_1_3=.true.
-       needs%norm_drho_spin=.true.
+       needs%rho_spin=.TRUE.
+       needs%rho_spin_1_3=.TRUE.
+       needs%norm_drho_spin=.TRUE.
     END IF
-    if (present(max_deriv)) max_deriv=3
+    IF (PRESENT(max_deriv)) max_deriv=3
 
   END SUBROUTINE xb88_lsd_info
   !***************************************************************************
@@ -185,27 +185,28 @@ contains
   !!
   !!*** **********************************************************************
   SUBROUTINE xb88_lda_eval(rho_set,deriv_set,grad_deriv,error)
-    TYPE(xc_rho_set_type), pointer :: rho_set
-    TYPE(xc_derivative_set_type), pointer :: deriv_set
-    INTEGER, INTENT(in) :: grad_deriv
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(xc_rho_set_type), POINTER           :: rho_set
+    TYPE(xc_derivative_set_type), POINTER    :: deriv_set
+    INTEGER, INTENT(in)                      :: grad_deriv
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineN='xb88_lda_eval',&
-         routineP=moduleN//':'//routineN
-    INTEGER :: npoints, handle
-    integer, DIMENSION(:,:), pointer :: bo
-    REAL(kind=dp),DIMENSION(:,:,:), POINTER :: dummy,rho, rho_1_3, norm_drho,&
-         e_0,e_rho,e_ndrho,e_rho_rho,e_ndrho_rho,&
-         e_ndrho_ndrho, e_rho_rho_rho, e_ndrho_rho_rho, e_ndrho_ndrho_rho,&
-         e_ndrho_ndrho_ndrho
-    TYPE(xc_derivative_type), POINTER :: deriv
-    REAL(kind=dp) :: epsilon_rho, epsilon_norm_drho
-    INTEGER :: stat
+    CHARACTER(len=*), PARAMETER :: routineN = 'xb88_lda_eval', &
+      routineP = moduleN//':'//routineN
 
-    call timeset(routineN,"I","",handle)
-    failure=.false.
-    nullify(bo)
+    INTEGER                                  :: handle, npoints, stat
+    INTEGER, DIMENSION(:, :), POINTER        :: bo
+    LOGICAL                                  :: failure
+    REAL(kind=dp)                            :: epsilon_norm_drho, epsilon_rho
+    REAL(kind=dp), DIMENSION(:, :, :), POINTER :: dummy, e_0, e_ndrho, &
+      e_ndrho_ndrho, e_ndrho_ndrho_ndrho, e_ndrho_ndrho_rho, e_ndrho_rho, &
+      e_ndrho_rho_rho, e_rho, e_rho_rho, e_rho_rho_rho, norm_drho, rho, &
+      rho_1_3
+    TYPE(xc_derivative_type), POINTER        :: deriv
+
+    CALL timeset(routineN,"I","",handle)
+    failure=.FALSE.
+    NULLIFY(bo)
 
     CPPrecondition(ASSOCIATED(rho_set),cp_failure_level,routineP,error,failure)
     CPPrecondition(rho_set%ref_count>0,cp_failure_level,routineP,error,failure)
@@ -240,44 +241,44 @@ contains
        IF (grad_deriv>=0) THEN
           deriv => xc_dset_get_derivative(deriv_set,"",&
                allocate_deriv=.TRUE., error=error)
-          call xc_derivative_get(deriv,deriv_data=e_0,error=error)
+          CALL xc_derivative_get(deriv,deriv_data=e_0,error=error)
        END IF
        IF (grad_deriv>=1.OR.grad_deriv==-1) THEN
           deriv => xc_dset_get_derivative(deriv_set,"(rho)",&
                allocate_deriv=.TRUE.,error=error)
-          call xc_derivative_get(deriv,deriv_data=e_rho,error=error)
+          CALL xc_derivative_get(deriv,deriv_data=e_rho,error=error)
           deriv => xc_dset_get_derivative(deriv_set,"(norm_drho)",&
                allocate_deriv=.TRUE.,error=error)
-          call xc_derivative_get(deriv,deriv_data=e_ndrho,error=error)
+          CALL xc_derivative_get(deriv,deriv_data=e_ndrho,error=error)
        END IF
        IF (grad_deriv>=2.OR.grad_deriv==-2) THEN
           deriv => xc_dset_get_derivative(deriv_set,"(rho)(rho)",&
                allocate_deriv=.TRUE.,error=error)
-          call xc_derivative_get(deriv,deriv_data=e_rho_rho,error=error)
+          CALL xc_derivative_get(deriv,deriv_data=e_rho_rho,error=error)
           deriv => xc_dset_get_derivative(deriv_set,"(norm_drho)(rho)",&
-               allocate_deriv=.true.,error=error)
-          call xc_derivative_get(deriv,deriv_data=e_ndrho_rho,error=error)
+               allocate_deriv=.TRUE.,error=error)
+          CALL xc_derivative_get(deriv,deriv_data=e_ndrho_rho,error=error)
           deriv => xc_dset_get_derivative(deriv_set,&
                "(norm_drho)(norm_drho)", allocate_deriv=.TRUE.,error=error)
-          call xc_derivative_get(deriv,deriv_data=e_ndrho_ndrho,error=error)
+          CALL xc_derivative_get(deriv,deriv_data=e_ndrho_ndrho,error=error)
        END IF
        IF (grad_deriv>=3.OR.grad_deriv==-3) THEN
           deriv => xc_dset_get_derivative(deriv_set,"(rho)(rho)(rho)",&
                allocate_deriv=.TRUE.,error=error)
-          call xc_derivative_get(deriv,deriv_data=e_rho_rho_rho,error=error)
+          CALL xc_derivative_get(deriv,deriv_data=e_rho_rho_rho,error=error)
           deriv => xc_dset_get_derivative(deriv_set,&
-               "(norm_drho)(rho)(rho)",allocate_deriv=.true.,error=error)
-          call xc_derivative_get(deriv,deriv_data=e_ndrho_rho_rho,error=error)
+               "(norm_drho)(rho)(rho)",allocate_deriv=.TRUE.,error=error)
+          CALL xc_derivative_get(deriv,deriv_data=e_ndrho_rho_rho,error=error)
           deriv => xc_dset_get_derivative(deriv_set,&
-               "(norm_drho)(norm_drho)(rho)",allocate_deriv=.true.,error=error)
-          call xc_derivative_get(deriv,deriv_data=e_ndrho_ndrho_rho,error=error)
+               "(norm_drho)(norm_drho)(rho)",allocate_deriv=.TRUE.,error=error)
+          CALL xc_derivative_get(deriv,deriv_data=e_ndrho_ndrho_rho,error=error)
           deriv => xc_dset_get_derivative(deriv_set,&
                "(norm_drho)(norm_drho)(norm_drho)", allocate_deriv=.TRUE.,&
                error=error)
-          call xc_derivative_get(deriv,deriv_data=e_ndrho_ndrho_ndrho,error=error)
+          CALL xc_derivative_get(deriv,deriv_data=e_ndrho_ndrho_ndrho,error=error)
        END IF
        IF (grad_deriv>3.OR.grad_deriv<-3) THEN
-          call cp_unimplemented_error(fromWhere=routineP, &
+          CALL cp_unimplemented_error(fromWhere=routineP, &
                message="derivatives bigger than 3 not implemented", &
                error=error, error_level=cp_failure_level)
        END IF
@@ -295,7 +296,7 @@ contains
           DEALLOCATE(dummy,stat=stat)
           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
        ELSE
-          nullify(dummy)
+          NULLIFY(dummy)
        END IF
     END IF
     CALL timestop(0.0_dp,handle)
@@ -334,30 +335,30 @@ contains
        e_0,e_rho,e_ndrho,e_rho_rho,e_ndrho_rho,&
        e_ndrho_ndrho, e_rho_rho_rho, e_ndrho_rho_rho, e_ndrho_ndrho_rho,&
        e_ndrho_ndrho_ndrho,grad_deriv,npoints,epsilon_rho, epsilon_norm_drho,error)
-    INTEGER, INTENT(in) :: grad_deriv, npoints
-    REAL(kind=dp),DIMENSION(1:npoints), intent(in) :: rho, rho_1_3, norm_drho
-    REAL(kind=dp), DIMENSION(1:npoints), intent(inout) :: e_0,e_rho,e_ndrho,&
-         e_rho_rho,e_ndrho_rho,&
-         e_ndrho_ndrho, e_rho_rho_rho, e_ndrho_rho_rho, e_ndrho_ndrho_rho,&
-         e_ndrho_ndrho_ndrho
-    REAL(kind=dp), intent(in) :: epsilon_rho, epsilon_norm_drho
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    INTEGER, INTENT(in)                      :: npoints, grad_deriv
+    REAL(kind=dp), DIMENSION(1:npoints), INTENT(inout) :: &
+      e_ndrho_ndrho_ndrho, e_ndrho_ndrho_rho, e_ndrho_rho_rho, e_rho_rho_rho, &
+      e_ndrho_ndrho, e_ndrho_rho, e_rho_rho, e_ndrho, e_rho, e_0
+    REAL(kind=dp), DIMENSION(1:npoints), &
+      INTENT(in)                             :: norm_drho, rho_1_3, rho
+    REAL(kind=dp), INTENT(in)                :: epsilon_rho, epsilon_norm_drho
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineN='xb88_lda_calc',&
-         routineP=moduleN//':'//routineN
-    INTEGER :: ii
-    REAL(kind=dp) :: x, my_rho,c,my_rho_1_3,epsilon_rho43,&
-         t1, t2, t3 ,t5, t6, t7, t10, t11, t12, t13, t17, t18, t21, t23, t29, &
-         t31, t33, t37, t39, t40, t43, t44, t49, t51, t54, t64, t67, t72, t74, &
-         t75, t79, t83, t86, t90, t91, t98, t99, t100, t104, t126, t159, t164, &
-         t170, t176, t189 
+    CHARACTER(len=*), PARAMETER :: routineN = 'xb88_lda_calc', &
+      routineP = moduleN//':'//routineN
+    REAL(kind=dp), PARAMETER :: t_1_9 = 1.0_dp/9.0_dp, t_2_3 = 2.0_dp/3.0_dp, &
+      t_2_9 = 2.0_dp/9.0_dp, t_4_27 = 4.0_dp/27.0_dp, t_4_3 = 4.0_dp/3.0_dp
 
-    REAL(kind=dp), PARAMETER :: t_2_3=2.0_dp/3.0_dp,&
-         t_4_3=4.0_dp/3.0_dp, t_1_9=1.0_dp/9.0_dp,&
-         t_2_9=2.0_dp/9.0_dp, t_4_27=4.0_dp/27.0_dp
+    INTEGER                                  :: ii
+    LOGICAL                                  :: failure
+    REAL(kind=dp) :: c, epsilon_rho43, my_rho, my_rho_1_3, t1, t10, t100, &
+      t104, t11, t12, t126, t13, t159, t164, t17, t170, t176, t18, t189, t2, &
+      t21, t23, t29, t3, t31, t33, t37, t39, t40, t43, t44, t49, t5, t51, &
+      t54, t6, t64, t67, t7, t72, t74, t75, t79, t83, t86, t90, t91, t98, &
+      t99, x
 
-    failure=.false.
+    failure=.FALSE.
     c= 1.5_dp*(0.75_dp/Pi)**(1.0_dp/3.0_dp)
     t1 = 2 ** (0.1e1_dp / 0.3e1_dp)
     t2 = t1 ** 2
@@ -383,9 +384,9 @@ contains
              x = norm_drho(ii)/MAX(t3,epsilon_rho43)
              t6 = x ** 2
              t10 = t2 * t6 + 0.1e1_dp
-             t11 = sqrt(t10)
+             t11 = SQRT(t10)
              t12 = t1 * x + t11
-             t13 = log(t12)
+             t13 = LOG(t12)
              t17 = 0.1e1_dp + 0.6e1_dp * t7 * x * t13
              t18 = 0.1e1_dp / t17
              t21 = -c - t5 * t6 * t18
@@ -411,9 +412,9 @@ contains
              x = norm_drho(ii)/t3
              t6 = x ** 2
              t10 = t2 * t6 + 0.1e1_dp
-             t11 = sqrt(t10)
+             t11 = SQRT(t10)
              t12 = t1 * x + t11
-             t13 = log(t12)
+             t13 = LOG(t12)
              t17 = 0.1e1_dp + 0.6e1_dp * t7 * x * t13
              t18 = 0.1e1_dp / t17
              t21 = -c - t5 * t6 * t18
@@ -457,9 +458,9 @@ contains
              x = norm_drho(ii)/t3
              t6 = x ** 2
              t10 = t2 * t6 + 0.1e1_dp
-             t11 = sqrt(t10)
+             t11 = SQRT(t10)
              t12 = t1 * x + t11
-             t13 = log(t12)
+             t13 = LOG(t12)
              t17 = 0.1e1_dp + 0.6e1_dp * t7 * x * t13
              t18 = 0.1e1_dp / t17
              t21 = -c - t5 * t6 * t18
@@ -501,9 +502,9 @@ contains
              x = norm_drho(ii)/t3
              t6 = x ** 2
              t10 = t2 * t6 + 0.1e1_dp
-             t11 = sqrt(t10)
+             t11 = SQRT(t10)
              t12 = t1 * x + t11
-             t13 = log(t12)
+             t13 = LOG(t12)
              t17 = 0.1e1_dp + 0.6e1_dp * t7 * x * t13
              t18 = 0.1e1_dp / t17
              t21 = -c - t5 * t6 * t18
@@ -574,9 +575,9 @@ contains
              x = norm_drho(ii)/t3
              t6 = x ** 2
              t10 = t2 * t6 + 0.1e1_dp
-             t11 = sqrt(t10)
+             t11 = SQRT(t10)
              t12 = t1 * x + t11
-             t13 = log(t12)
+             t13 = LOG(t12)
              t17 = 0.1e1_dp + 0.6e1_dp * t7 * x * t13
              t18 = 0.1e1_dp / t17
              t21 = -c - t5 * t6 * t18
@@ -640,9 +641,9 @@ contains
              x = norm_drho(ii)/t3
              t6 = x ** 2
              t10 = t2 * t6 + 0.1e1_dp
-             t11 = sqrt(t10)
+             t11 = SQRT(t10)
              t12 = t1 * x + t11
-             t13 = log(t12)
+             t13 = LOG(t12)
              t17 = 0.1e1_dp + 0.6e1_dp * t7 * x * t13
              t18 = 0.1e1_dp / t17
              t21 = -c - t5 * t6 * t18
@@ -759,28 +760,29 @@ contains
   !!
   !!*** **********************************************************************
   SUBROUTINE xb88_lsd_eval(rho_set,deriv_set,grad_deriv,error)
-    TYPE(xc_rho_set_type), pointer           :: rho_set
-    TYPE(xc_derivative_set_type), pointer    :: deriv_set
+    TYPE(xc_rho_set_type), POINTER           :: rho_set
+    TYPE(xc_derivative_set_type), POINTER    :: deriv_set
     INTEGER, INTENT(in)                      :: grad_deriv
     TYPE(cp_error_type), INTENT(inout), &
-         OPTIONAL                               :: error
+      OPTIONAL                               :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'xb88_lsd_eval', &
-         routineP = moduleN//':'//routineN
+      routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, ispin, npoints, stat, handle
-    INTEGER, DIMENSION(:, :), pointer        :: bo
+    INTEGER                                  :: handle, i, ispin, npoints, &
+                                                stat
+    INTEGER, DIMENSION(:, :), POINTER        :: bo
     LOGICAL                                  :: failure
     REAL(kind=dp)                            :: epsilon_drho, epsilon_rho
     REAL(kind=dp), DIMENSION(:, :, :), &
-         POINTER                                :: dummy, e_0
+      POINTER                                :: dummy, e_0
     TYPE(cp_3d_r_p_type), DIMENSION(2) :: e_ndrho, e_ndrho_ndrho, &
-         e_ndrho_ndrho_ndrho, e_ndrho_ndrho_rho, e_ndrho_rho, e_ndrho_rho_rho, &
-         e_rho, e_rho_rho, e_rho_rho_rho, norm_drho, rho, rho_1_3
+      e_ndrho_ndrho_ndrho, e_ndrho_ndrho_rho, e_ndrho_rho, e_ndrho_rho_rho, &
+      e_rho, e_rho_rho, e_rho_rho_rho, norm_drho, rho, rho_1_3
     TYPE(xc_derivative_type), POINTER        :: deriv
 
-    call timeset(routineN,"I","",handle)
-    failure=.false.
+    CALL timeset(routineN,"I","",handle)
+    failure=.FALSE.
     NULLIFY(deriv, bo)
     DO i=1,2
        NULLIFY(norm_drho(i)%array, rho(i)%array, rho_1_3(i)%array)
@@ -888,7 +890,7 @@ contains
           CALL xc_derivative_get(deriv,deriv_data=e_ndrho_ndrho_ndrho(2)%array,error=error)
        END IF
        IF (grad_deriv>3.OR.grad_deriv<-3) THEN
-          call cp_unimplemented_error(fromWhere=routineP, &
+          CALL cp_unimplemented_error(fromWhere=routineP, &
                message="derivatives bigger than 3 not implemented", &
                error=error, error_level=cp_failure_level)
        END IF
@@ -960,28 +962,28 @@ contains
        e_ndrho_ndrho_rho_spin,&
        e_ndrho_ndrho_ndrho_spin,grad_deriv,npoints,epsilon_rho, epsilon_drho,&
        error)
-    REAL(kind=dp), DIMENSION(*), intent(in)  :: rho_spin, rho_1_3_spin, &
-         norm_drho_spin
-    REAL(kind=dp), DIMENSION(*), intent(inout) :: e_0, e_rho_spin, &
-         e_ndrho_spin, e_rho_rho_spin, e_ndrho_rho_spin, e_ndrho_ndrho_spin, &
-         e_rho_rho_rho_spin, e_ndrho_rho_rho_spin, e_ndrho_ndrho_rho_spin, &
-         e_ndrho_ndrho_ndrho_spin
+    REAL(kind=dp), DIMENSION(*), INTENT(in)  :: rho_spin, rho_1_3_spin, &
+                                                norm_drho_spin
+    REAL(kind=dp), DIMENSION(*), INTENT(inout) :: e_0, e_rho_spin, &
+      e_ndrho_spin, e_rho_rho_spin, e_ndrho_rho_spin, e_ndrho_ndrho_spin, &
+      e_rho_rho_rho_spin, e_ndrho_rho_rho_spin, e_ndrho_ndrho_rho_spin, &
+      e_ndrho_ndrho_ndrho_spin
     INTEGER, INTENT(in)                      :: grad_deriv, npoints
-    REAL(kind=dp), intent(in) :: epsilon_drho, epsilon_rho
+    REAL(kind=dp), INTENT(in)                :: epsilon_rho, epsilon_drho
     TYPE(cp_error_type), INTENT(inout), &
-         OPTIONAL                               :: error
+      OPTIONAL                               :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'xb88_lsd_calc_123', &
-         routineP = moduleN//':'//routineN
+    CHARACTER(len=*), PARAMETER :: routineN = 'xb88_lsd_calc', &
+      routineP = moduleN//':'//routineN
+
     INTEGER                                  :: ii
     LOGICAL                                  :: failure
-    REAL(kind=dp) :: c, x,my_epsilon_rho,epsilon_rho43,my_rho,&
-         t1, t2, t3, t4, t5, t6, t7, t8, t11, t12, t14, t17, t18, t20, t22, &
-         t23, t27, t28, t30, t35, t36, t42, t43, t44, t51, t53, t57, t58, &
-         t59, t63, t64, t66, t67, t75, t76, t79, t87, t103, t127, t133, &
-         t138, t151
+    REAL(kind=dp) :: c, epsilon_rho43, my_epsilon_rho, my_rho, t1, t103, t11, &
+      t12, t127, t133, t138, t14, t151, t17, t18, t2, t20, t22, t23, t27, &
+      t28, t3, t30, t35, t36, t4, t42, t43, t44, t5, t51, t53, t57, t58, t59, &
+      t6, t63, t64, t66, t67, t7, t75, t76, t79, t8, t87, x
 
-    failure=.false.
+    failure=.FALSE.
     c= 1.5_dp*(0.75_dp/Pi)**(1.0_dp/3.0_dp)
     my_epsilon_rho=0.5_dp*epsilon_rho
     epsilon_rho43=my_epsilon_rho**(4._dp/3._dp)
@@ -1007,9 +1009,9 @@ contains
                 t3 = beta * t2
                 t4 = beta * x
                 t5 = t2 + 0.1e1_dp
-                t6 = sqrt(t5)
+                t6 = SQRT(t5)
                 t7 = x + t6
-                t8 = log(t7)
+                t8 = LOG(t7)
                 t11 = 0.1e1_dp + 0.6e1_dp * t4 * t8
                 t12 = 0.1e1_dp / t11
                 t14 = -c - t3 * t12
@@ -1037,9 +1039,9 @@ contains
                 t3 = beta * t2
                 t4 = beta * x
                 t5 = t2 + 0.1e1_dp
-                t6 = sqrt(t5)
+                t6 = SQRT(t5)
                 t7 = x + t6
-                t8 = log(t7)
+                t8 = LOG(t7)
                 t11 = 0.1e1_dp + 0.6e1_dp * t4 * t8
                 t12 = 0.1e1_dp / t11
                 t14 = -c - t3 * t12
@@ -1084,9 +1086,9 @@ contains
                 t3 = beta * t2
                 t4 = beta * x
                 t5 = t2 + 0.1e1_dp
-                t6 = sqrt(t5)
+                t6 = SQRT(t5)
                 t7 = x + t6
-                t8 = log(t7)
+                t8 = LOG(t7)
                 t11 = 0.1e1_dp + 0.6e1_dp * t4 * t8
                 t12 = 0.1e1_dp / t11
                 t14 = -c - t3 * t12

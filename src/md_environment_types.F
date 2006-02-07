@@ -19,19 +19,18 @@
 !******************************************************************************
 
 MODULE md_environment_types
+  USE cell_types,                      ONLY: cell_type
   USE cp_para_env,                     ONLY: cp_para_env_release,&
                                              cp_para_env_retain
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE extended_system_types,           ONLY: lnhc_parameters_type,&
                                              npt_info_type
-  USE force_env_types,                 ONLY: force_env_release,&
-                                             force_env_retain,&
-                                             force_env_p_type
+  USE force_env_types,                 ONLY: force_env_p_type,&
+                                             force_env_release,&
+                                             force_env_retain
   USE kinds,                           ONLY: dp
   USE md,                              ONLY: simulation_parameters_type
-  USE cell_types,                 ONLY: cell_type
 #include "cp_common_uses.h"
-
 
   IMPLICIT NONE
 
@@ -69,7 +68,7 @@ MODULE md_environment_types
 
 ! *** Global parameters ***
 
-  CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='md_environment_types'
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'md_environment_types'
   INTEGER, SAVE, PRIVATE :: last_md_env_id=0
 
 !!***
@@ -89,8 +88,8 @@ CONTAINS
 !   ***************************************************************************
 
     TYPE(md_environment_type), POINTER       :: md_env
-    INTEGER, OPTIONAL, POINTER               :: itimes, md_approach_nr, accepted_md
-    REAL(KIND=dp), OPTIONAL, POINTER             :: constant, used_time, t
+    INTEGER, OPTIONAL, POINTER               :: itimes
+    REAL(KIND=dp), OPTIONAL, POINTER         :: constant, used_time
     TYPE(cell_type), OPTIONAL, POINTER       :: cell
     TYPE(simulation_parameters_type), &
       OPTIONAL, POINTER                      :: simpar
@@ -98,13 +97,16 @@ CONTAINS
       POINTER                                :: nhc_part( : ), nhc_coef( : ), &
                                                 nhc_baro( : )
     TYPE(npt_info_type), OPTIONAL, POINTER   :: npt( :, : )
-    TYPE(force_env_p_type), OPTIONAL, POINTER  :: force_env_p ( : )
+    TYPE(force_env_p_type), OPTIONAL, &
+      POINTER                                :: force_env_p( : )
     TYPE(cp_para_env_type), OPTIONAL, &
       POINTER                                :: para_env
     TYPE(reftraj_type), OPTIONAL, POINTER    :: reftraj_info
+    REAL(KIND=dp), OPTIONAL, POINTER         :: t
+    INTEGER, OPTIONAL, POINTER               :: md_approach_nr, accepted_md
 
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "get_md_env", &
-      routineP = moduleN//':'//routine_name
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'get_md_env', &
+      routineP = moduleN//':'//routineN
 
 !   ---------------------------------------------------------------------------
 
@@ -141,8 +143,8 @@ CONTAINS
     TYPE(cp_error_type), INTENT(INOUT), &
       OPTIONAL                               :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "md_env_create", &
-      routineP = moduleN//':'//routine_name
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'md_env_create', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: istat
 
@@ -156,7 +158,7 @@ CONTAINS
 
     NULLIFY ( md_env % itimes )
     NULLIFY ( md_env % constant )
-    nullify ( md_env % t )
+    NULLIFY ( md_env % t )
     NULLIFY ( md_env % md_approach_nr )
     NULLIFY ( md_env % accepted_md )
     NULLIFY ( md_env % cell )
@@ -265,7 +267,7 @@ SUBROUTINE md_env_release(md_env, error)
     CHARACTER(len=*), PARAMETER :: routineN = 'md_env_release', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: istat, stat, i
+    INTEGER                                  :: i, istat, stat
     LOGICAL                                  :: failure
 
   failure=.FALSE.
@@ -321,8 +323,8 @@ END SUBROUTINE md_env_release
 !   ***************************************************************************
 
     TYPE(md_environment_type), POINTER       :: md_env
-    INTEGER, OPTIONAL, POINTER               :: itimes, accepted_md, md_approach_nr
-    REAL(KIND=dp), OPTIONAL, POINTER             :: constant
+    INTEGER, OPTIONAL, POINTER               :: itimes
+    REAL(KIND=dp), OPTIONAL, POINTER         :: constant
     TYPE(cell_type), OPTIONAL, POINTER       :: cell
     TYPE(simulation_parameters_type), &
       OPTIONAL, POINTER                      :: simpar
@@ -330,15 +332,16 @@ END SUBROUTINE md_env_release
       POINTER                                :: nhc_part( : ), nhc_coef( : ), &
                                                 nhc_baro( : )
     TYPE(npt_info_type), OPTIONAL, POINTER   :: npt( :, : )
-    TYPE(force_env_p_type), OPTIONAL,     &
-      POINTER                                :: force_env_p ( : )
+    TYPE(force_env_p_type), OPTIONAL, &
+      POINTER                                :: force_env_p( : )
     TYPE(cp_para_env_type), OPTIONAL, &
       POINTER                                :: para_env
+    INTEGER, OPTIONAL, POINTER               :: accepted_md, md_approach_nr
 
-    INTEGER :: i
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'set_md_env', &
+      routineP = moduleN//':'//routineN
 
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "set_md_env", &
-      routineP = moduleN//':'//routine_name
+    INTEGER                                  :: i
 
     IF ( PRESENT ( cell ) ) md_env % cell => cell
     IF ( PRESENT ( simpar ) ) md_env % simpar => simpar

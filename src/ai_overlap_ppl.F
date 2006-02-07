@@ -64,7 +64,7 @@ MODULE ai_overlap_ppl
 
   PRIVATE
 
-  CHARACTER(LEN=*), PARAMETER :: module_name = "ai_overlap_ppl"
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'ai_overlap_ppl'
 
 ! *** Public subroutines ***
 
@@ -118,7 +118,7 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(3), &
       INTENT(OUT), OPTIONAL                  :: force_a, force_b
 
-    CHARACTER(LEN=*), PARAMETER              :: routine_name = "overlap_ppl"
+    CHARACTER(LEN=*), PARAMETER              :: routineN = 'overlap_ppl'
 
     INTEGER :: ax, ay, az, bx, by, bz, c, cda, cdax, cday, cdaz, cdb, cdbx, &
       cdby, cdbz, coa, coamx, coamy, coamz, coapx, coapy, coapz, cob, cobmx, &

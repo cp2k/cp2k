@@ -26,90 +26,60 @@ MODULE topology_util
                                              atomic_kind_type,&
                                              get_atomic_kind,&
                                              set_atomic_kind
-  USE checkpoint_handler,              ONLY: write_checkpoint_information,&
-                                             Pwarning
+  USE checkpoint_handler,              ONLY: Pwarning,&
+                                             write_checkpoint_information
   USE convert_units,                   ONLY: convert_to_cp2k_units
-  USE external_potential_types,        ONLY: elp_potential_type,&
-                                             allocate_potential,&
+  USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
+                                             cp_print_key_unit_nr
+  USE external_potential_types,        ONLY: allocate_potential,&
+                                             elp_potential_type,&
                                              get_potential,&
                                              set_potential
   USE global_types,                    ONLY: global_environment_type
-  USE input_constants,                 ONLY: do_qmmm_none,&
-                                             do_fist,&
-                                             do_bondparm_covalent,&
-                                             do_bondparm_vdw,&
-                                             do_skip_vdw_12,&
-                                             do_skip_vdw_13,&
-                                             do_skip_vdw_14,&
-                                             do_skip_ei_12,&
-                                             do_skip_ei_13,&
-                                             do_skip_ei_14                                             
-  USE kinds,                           ONLY: dp,&
-                                             default_string_length
+  USE input_constants,                 ONLY: &
+       do_bondparm_covalent, do_bondparm_vdw, do_conn_off, do_fist, &
+       do_qmmm_none, do_skip_ei_12, do_skip_ei_13, do_skip_ei_14, &
+       do_skip_vdw_12, do_skip_vdw_13, do_skip_vdw_14
+  USE input_section_types,             ONLY: section_vals_get,&
+                                             section_vals_get_subs_vals,&
+                                             section_vals_type,&
+                                             section_vals_val_get
+  USE kinds,                           ONLY: default_string_length,&
+                                             dp
   USE memory_utilities,                ONLY: reallocate
-  USE message_passing,                 ONLY: mp_allgather,&
-                                             mp_bcast
-  USE molecule_kind_types,             ONLY: allocate_molecule_kind_set,&
-                                             atom_type,&
-                                             bend_type,&
-                                             bond_type,&
-                                             dist_constraint_type,&
-                                             g3x3_constraint_type,&
-                                             g4x6_constraint_type,&
-                                             fixd_constraint_type,&
-                                             get_molecule_kind,&
-                                             impr_type,&
-                                             molecule_kind_type,&
-                                             onfo_type,&
-                                             set_molecule_kind,&
-                                             torsion_type,&
-                                             ub_type
-  USE molecule_types_new,              ONLY: allocate_molecule_set,&
-                                             get_molecule,&
-                                             local_constraint_type,&
-                                             local_dist_constraint_type,&
-                                             local_g3x3_constraint_type,&
-                                             local_g4x6_constraint_type,&
-                                             local_molecule_type,&
-                                             molecule_type,&
-                                             set_molecule,&
-                                             set_molecule_set
-  USE pair_potential_types,            ONLY: pair_potential_type
+  USE molecule_kind_types,             ONLY: &
+       allocate_molecule_kind_set, atom_type, bend_type, bond_type, &
+       dist_constraint_type, fixd_constraint_type, g3x3_constraint_type, &
+       g4x6_constraint_type, get_molecule_kind, impr_type, &
+       molecule_kind_type, onfo_type, set_molecule_kind, torsion_type, ub_type
+  USE molecule_types_new,              ONLY: &
+       allocate_molecule_set, get_molecule, local_constraint_type, &
+       local_dist_constraint_type, local_g3x3_constraint_type, &
+       local_g4x6_constraint_type, local_molecule_type, molecule_type, &
+       set_molecule, set_molecule_set
   USE particle_types,                  ONLY: allocate_particle_set,&
                                              generate_particle_distances,&
                                              particle_type
   USE periodic_table,                  ONLY: ptable
   USE physcon,                         ONLY: massunit
-  USE qmmm_ff_fist,                    ONLY: qmmm_ff_precond_only_qm
   USE qmmm_types,                      ONLY: qmmm_env_mm_type
-  USE cell_types,                 ONLY: pbc
   USE string_utilities,                ONLY: integer_to_string,&
-                                             uppercase,&
                                              str_comp,&
-                                             str_search
-  USE termination,                     ONLY: stop_memory,&
-                                             stop_program
+                                             str_search,&
+                                             uppercase
+  USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE topology_types,                  ONLY: topology_parameters_type,&
-                                             atom_info_type,&
+  USE topology_types,                  ONLY: atom_info_type,&
                                              connectivity_info_type,&
-                                             constraint_info_type
+                                             constraint_info_type,&
+                                             topology_parameters_type
   USE util,                            ONLY: find_boundary
-  USE input_constants,                 ONLY: do_conn_psf,&
-                                             do_conn_generate,&
-                                             do_conn_off  
-  USE input_section_types,             ONLY: section_vals_type,&
-                                             section_vals_get_subs_vals,&
-                                             section_vals_get,&
-                                             section_vals_val_get,&
-                                             section_vals_release
-  USE cp_output_handling,              ONLY: cp_print_key_unit_nr, &
-                                             cp_print_key_finished_output  
 #include "cp_common_uses.h"
+
   IMPLICIT NONE
 
-  CHARACTER(LEN=*), PARAMETER, PRIVATE :: moduleN = "topology_util"
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'topology_util'
 
 
   PRIVATE
@@ -152,35 +122,34 @@ CONTAINS
 !!   SOURCE
 !******************************************************************************
   SUBROUTINE topology_reorder_atoms(topology,globenv,subsys_section,error)
-    IMPLICIT NONE
     TYPE(topology_parameters_type), &
-         INTENT(INOUT)                          :: topology
+      INTENT(INOUT)                          :: topology
     TYPE(global_environment_type), &
-         POINTER, OPTIONAL                   :: globenv
-    TYPE(section_vals_type), POINTER :: subsys_section
+      OPTIONAL, POINTER                      :: globenv
+    TYPE(section_vals_type), POINTER         :: subsys_section
     TYPE(cp_error_type), INTENT(inout), &
-         OPTIONAL                               :: error
-     
+      OPTIONAL                               :: error
+
     CHARACTER(len=*), PARAMETER :: routineN = 'topology_reorder_atoms', &
       routineP = moduleN//':'//routineN
-    TYPE(atom_info_type),POINTER     :: atom_info
-    TYPE(connectivity_info_type),POINTER     :: conn_info
-    CHARACTER (LEN=default_string_length), POINTER   :: tlabel_resname(:)
-    CHARACTER (LEN=default_string_length), POINTER   :: tlabel_atmname(:)
-    REAL(KIND=dp), DIMENSION(:,:), POINTER :: tr
-    INTEGER, POINTER :: tmap_mol_typ(:)
-    INTEGER, POINTER :: tmap_mol_num(:)
-    REAL(KIND=dp), POINTER :: tatm_charge(:)
-    REAL(KIND=dp), POINTER :: tatm_mass(:)
-    CHARACTER (LEN=default_string_length), POINTER   :: telement(:)
 
-    INTEGER      :: stat,iw,handle
-    INTEGER      :: location,iatm_count,imol_count
-    INTEGER      :: ityp,inum,iatm,ntyp,nnum,natom
-    INTEGER, POINTER :: new_position(:)
-    INTEGER, POINTER :: mnum(:)
-    INTEGER, POINTER :: mtyp(:)
-    LOGICAL :: failure
+    CHARACTER(LEN=default_string_length), &
+      POINTER                                :: telement(:), &
+                                                tlabel_atmname(:), &
+                                                tlabel_resname(:)
+    INTEGER                                  :: handle, iatm, iatm_count, &
+                                                imol_count, inum, ityp, iw, &
+                                                location, natom, nnum, ntyp, &
+                                                stat
+    INTEGER, POINTER                         :: mnum(:), mtyp(:), &
+                                                new_position(:), &
+                                                tmap_mol_num(:), &
+                                                tmap_mol_typ(:)
+    LOGICAL                                  :: failure
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: tr
+    REAL(KIND=dp), POINTER                   :: tatm_charge(:), tatm_mass(:)
+    TYPE(atom_info_type), POINTER            :: atom_info
+    TYPE(connectivity_info_type), POINTER    :: conn_info
     TYPE(cp_logger_type), POINTER            :: logger
 
     failure = .FALSE.
@@ -344,32 +313,27 @@ CONTAINS
 !!   SOURCE
 !******************************************************************************
   SUBROUTINE topology_generate_molecule(topology,qmmm,qmmm_env,globenv,subsys_section,error)
-    IMPLICIT NONE
     TYPE(topology_parameters_type), &
       INTENT(INOUT)                          :: topology
-    TYPE(global_environment_type), &
-      pointer, OPTIONAL                   :: globenv
-    TYPE(section_vals_type), POINTER :: subsys_section
-
-    TYPE(qmmm_env_mm_type), POINTER, OPTIONAL :: qmmm_env
     LOGICAL, INTENT(in), OPTIONAL            :: qmmm
+    TYPE(qmmm_env_mm_type), OPTIONAL, &
+      POINTER                                :: qmmm_env
+    TYPE(global_environment_type), &
+      OPTIONAL, POINTER                      :: globenv
+    TYPE(section_vals_type), POINTER         :: subsys_section
     TYPE(cp_error_type), INTENT(inout), &
-         OPTIONAL                               :: error    
+      OPTIONAL                               :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'topology_generate_molecule', &
       routineP = moduleN//':'//routineN
-    TYPE(atom_info_type),POINTER     :: atom_info
-    TYPE(connectivity_info_type),POINTER     :: conn_info    
-    INTEGER                                  :: first, iatom, iiatom, iii, &
-                                                inum, stat, itype, iw, last, &
-                                                natom, nbond, nnum, ntype, jump1, jump2
-    INTEGER                                  :: map_mol_typ_orig, jump
-    INTEGER                                  :: ifirst, ilast, myind, iatm, jatm
-    INTEGER, POINTER, DIMENSION(:)           :: checkme, qm_atom_index
-    LOGICAL                                  :: my_qmmm, do_again
-    LOGICAL                                  :: failure
-    INTEGER                                  :: jtype,nmol,handle,atom_in_kind,max_mol_num,&
-                                                atom_in_mol, i, j
+
+    INTEGER :: atom_in_kind, atom_in_mol, first, handle, i, iatm, iatom, &
+      ifirst, iiatom, iii, ilast, inum, itype, iw, j, jtype, jump1, jump2, &
+      last, max_mol_num, myind, natom, nbond, nmol, nnum, ntype, stat
+    INTEGER, DIMENSION(:), POINTER           :: checkme, qm_atom_index
+    LOGICAL                                  :: do_again, failure, my_qmmm
+    TYPE(atom_info_type), POINTER            :: atom_info
+    TYPE(connectivity_info_type), POINTER    :: conn_info
     TYPE(cp_logger_type), POINTER            :: logger
 
     failure = .FALSE.
@@ -516,7 +480,7 @@ CONTAINS
        qm_atom_index = qmmm_env%qm_atom_index
        CPPostcondition(ALL(qm_atom_index /= 0),cp_failure_level,routineP,error,failure)
        DO myind = 1, SIZE(qm_atom_index)
-          IF (qm_atom_index(myind) ==0) cycle
+          IF (qm_atom_index(myind) ==0) CYCLE
           CALL find_boundary(atom_info%map_mol_typ,natom,ifirst,ilast,atom_info%map_mol_typ(qm_atom_index(myind)))
           CALL find_boundary(atom_info%map_mol_typ,atom_info%map_mol_num,natom,ifirst,ilast,&
                atom_info%map_mol_typ(qm_atom_index(myind)),atom_info%map_mol_num(qm_atom_index(myind)))
@@ -648,34 +612,25 @@ CONTAINS
 !!   SOURCE
 !******************************************************************************
   SUBROUTINE topology_set_atm_mass(topology,globenv,subsys_section,error)
-    IMPLICIT NONE
     TYPE(topology_parameters_type), &
-         INTENT(INOUT)                          :: topology
+      INTENT(INOUT)                          :: topology
     TYPE(global_environment_type), &
-         POINTER, OPTIONAL                      :: globenv
-    TYPE(section_vals_type), POINTER :: subsys_section
+      OPTIONAL, POINTER                      :: globenv
+    TYPE(section_vals_type), POINTER         :: subsys_section
     TYPE(cp_error_type), INTENT(inout), &
-         OPTIONAL                               :: error   
-    
+      OPTIONAL                               :: error
+
     CHARACTER(len=*), PARAMETER :: routineN = 'topology_set_atm_mass', &
-         routineP = moduleN//':'//routineN
+      routineP = moduleN//':'//routineN
     INTEGER, PARAMETER                       :: nblock = 1000
-    TYPE(atom_info_type),POINTER     :: atom_info
-    CHARACTER(len=default_string_length)       :: label_atmname
+
+    CHARACTER(LEN=2)                         :: upper_sym_1, upper_sym_2
     CHARACTER(LEN=2), POINTER                :: atm_symbol(:)
-    CHARACTER(LEN=2)                         :: upper_sym_1,upper_sym_2
-    LOGICAL                                  :: element_found
-    INTEGER                                  :: ielem_found
-    INTEGER                                  :: first, i, iatom, ibond, &
-         ielem, stat, iw, j, jatom, &
-         k, last, natom, nbond, nelem, &
-         search,handle
-    LOGICAL                                  :: only_qm
-    REAL(KIND=dp)                                :: dr(3), r2, rbond, rbond2, &
-         rr(3)
-    REAL(KIND=dp), POINTER                       :: covalent_radius(:), &
-         vdw_radius(:)
-    LOGICAL :: failure
+    INTEGER                                  :: handle, i, iatom, ielem, &
+                                                ielem_found, iw, natom, &
+                                                nelem, stat
+    LOGICAL                                  :: element_found, failure
+    TYPE(atom_info_type), POINTER            :: atom_info
     TYPE(cp_logger_type), POINTER            :: logger
 
     failure = .FALSE.
@@ -755,38 +710,26 @@ CONTAINS
 !!   SOURCE
 !******************************************************************************
   SUBROUTINE topology_generate_bond(topology,globenv,subsys_section,error)
-    IMPLICIT NONE
     TYPE(topology_parameters_type), &
-         INTENT(INOUT)                          :: topology
+      INTENT(INOUT)                          :: topology
     TYPE(global_environment_type), &
-         POINTER, OPTIONAL                   :: globenv
-    TYPE(section_vals_type), POINTER :: subsys_section
-
+      OPTIONAL, POINTER                      :: globenv
+    TYPE(section_vals_type), POINTER         :: subsys_section
     TYPE(cp_error_type), INTENT(inout), &
-         OPTIONAL                               :: error
+      OPTIONAL                               :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'topology_generate_bond', &
-         routineP = moduleN//':'//routineN
-    TYPE(atom_info_type),POINTER     :: atom_info
-    TYPE(connectivity_info_type),POINTER     :: conn_info    
-    CHARACTER(len=default_string_length)       :: label_atmname
+      routineP = moduleN//':'//routineN
+
+    CHARACTER(LEN=2)                         :: upper_sym_1, upper_sym_2
     CHARACTER(LEN=2), POINTER                :: atm_symbol(:)
-    CHARACTER(LEN=2)                         :: upper_sym_1,upper_sym_2
-    LOGICAL                                  :: element_found
-    INTEGER                                  :: ielem_found
-    INTEGER                                  :: first, i, iatom, ibond, &
-                                                ielem, stat, iw, j, jatom, &
-                                                k, last, natom, nbond, nelem, &
-                                                search
-    LOGICAL                                  :: only_qm
-    REAL(KIND=dp)                            :: dr(3), r2, rbond, rbond2, &
-                                                rr(3)
+    INTEGER                                  :: cbond, handle, i, iatom, &
+                                                ibond, ielem, ielem_found, &
+                                                iw, jatom, natom, nelem, stat
+    LOGICAL                                  :: element_found, failure
     REAL(KIND=dp), POINTER                   :: radius(:)
-    INTEGER :: cbond
-    INTEGER :: iproc
-    INTEGER :: handle
-    INTEGER :: workload
-    LOGICAL :: failure
+    TYPE(atom_info_type), POINTER            :: atom_info
+    TYPE(connectivity_info_type), POINTER    :: conn_info
     TYPE(cp_logger_type), POINTER            :: logger
 
     failure = .FALSE.
@@ -917,24 +860,22 @@ CONTAINS
 !!   SOURCE
 !******************************************************************************
   SUBROUTINE topology_generate_bend(topology,globenv,subsys_section,error)
-    IMPLICIT NONE
     TYPE(topology_parameters_type), &
-         INTENT(INOUT)                          :: topology
+      INTENT(INOUT)                          :: topology
     TYPE(global_environment_type), &
-         POINTER, OPTIONAL                      :: globenv
-    TYPE(section_vals_type), POINTER :: subsys_section
-
+      OPTIONAL, POINTER                      :: globenv
+    TYPE(section_vals_type), POINTER         :: subsys_section
     TYPE(cp_error_type), INTENT(inout), &
-         OPTIONAL                               :: error   
-    
+      OPTIONAL                               :: error
+
     CHARACTER(len=*), PARAMETER :: routineN = 'topology_generate_bend', &
-         routineP = moduleN//':'//routineN
+      routineP = moduleN//':'//routineN
     INTEGER, PARAMETER                       :: nblock = 1000
-    TYPE(connectivity_info_type),POINTER     :: conn_info
-    INTEGER                                  :: nbond,ibond,jbond,&
-                                                ntheta,itheta,jtheta,&
-                                                iw,stat,handle
-    LOGICAL :: failure
+
+    INTEGER                                  :: handle, ibond, itheta, iw, &
+                                                jbond, jtheta, nbond, ntheta
+    LOGICAL                                  :: failure
+    TYPE(connectivity_info_type), POINTER    :: conn_info
     TYPE(cp_logger_type), POINTER            :: logger
 
     failure = .FALSE.
@@ -1060,22 +1001,20 @@ CONTAINS
 !!   SOURCE
 !******************************************************************************
   SUBROUTINE topology_generate_ub(topology,globenv,subsys_section,error)
-    IMPLICIT NONE
     TYPE(topology_parameters_type), &
-         INTENT(INOUT)                          :: topology
+      INTENT(INOUT)                          :: topology
     TYPE(global_environment_type), &
-         POINTER, OPTIONAL                      :: globenv
-    TYPE(section_vals_type), POINTER :: subsys_section
-
+      OPTIONAL, POINTER                      :: globenv
+    TYPE(section_vals_type), POINTER         :: subsys_section
     TYPE(cp_error_type), INTENT(inout), &
-         OPTIONAL                               :: error   
-    
+      OPTIONAL                               :: error
+
     CHARACTER(len=*), PARAMETER :: routineN = 'topology_generate_ub', &
-         routineP = moduleN//':'//routineN    
-    TYPE(connectivity_info_type),POINTER     :: conn_info
-    INTEGER                                  :: itheta, ntheta
-    INTEGER                                  :: iw, handle
-    LOGICAL :: failure
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, itheta, iw, ntheta
+    LOGICAL                                  :: failure
+    TYPE(connectivity_info_type), POINTER    :: conn_info
     TYPE(cp_logger_type), POINTER            :: logger
 
     failure = .FALSE.
@@ -1125,25 +1064,22 @@ CONTAINS
 !!   SOURCE
 !******************************************************************************
   SUBROUTINE topology_generate_dihe(topology,globenv,subsys_section,error)
-    IMPLICIT NONE
     TYPE(topology_parameters_type), &
       INTENT(INOUT)                          :: topology
     TYPE(global_environment_type), &
-         POINTER, OPTIONAL                   :: globenv
-    TYPE(section_vals_type), POINTER :: subsys_section
- 
+      OPTIONAL, POINTER                      :: globenv
+    TYPE(section_vals_type), POINTER         :: subsys_section
     TYPE(cp_error_type), INTENT(inout), &
-         OPTIONAL                               :: error 
-    
+      OPTIONAL                               :: error
+
     CHARACTER(len=*), PARAMETER :: routineN = 'topology_generate_dihe', &
       routineP = moduleN//':'//routineN
     INTEGER, PARAMETER                       :: nblock = 1000
-    TYPE(connectivity_info_type),POINTER     :: conn_info
-    INTEGER                                  :: iphi, jphi, iw, nphi, ntheta
-    INTEGER, POINTER                         :: tmp_a(:), tmp_b(:), tmp_c(:), &
-                                                tmp_d(:)
-    INTEGER                                  :: itheta,jtheta,handle
-    LOGICAL :: failure
+
+    INTEGER                                  :: handle, iphi, itheta, iw, &
+                                                jphi, jtheta, nphi, ntheta
+    LOGICAL                                  :: failure
+    TYPE(connectivity_info_type), POINTER    :: conn_info
     TYPE(cp_logger_type), POINTER            :: logger
 
     failure = .FALSE.
@@ -1283,30 +1219,24 @@ CONTAINS
 !!   SOURCE
 !******************************************************************************
   SUBROUTINE topology_generate_impr(topology,globenv,subsys_section,error)
-    IMPLICIT NONE
     TYPE(topology_parameters_type), &
       INTENT(INOUT)                          :: topology
     TYPE(global_environment_type), &
-      pointer, OPTIONAL                   :: globenv
-    TYPE(section_vals_type), POINTER :: subsys_section
-
+      OPTIONAL, POINTER                      :: globenv
+    TYPE(section_vals_type), POINTER         :: subsys_section
     TYPE(cp_error_type), INTENT(inout), &
-         OPTIONAL                               :: error 
+      OPTIONAL                               :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'topology_generate_impr', &
       routineP = moduleN//':'//routineN
 
-    TYPE(atom_info_type),POINTER             :: atom_info
-    TYPE(connectivity_info_type),POINTER     :: conn_info
-
-    INTEGER                                  :: iatom, natom
-    INTEGER                                  :: ibond, nbond
-    INTEGER                                  :: nimpr
-    INTEGER                                  :: iw,stat,handle
-
-    INTEGER                                  :: counter,atm_num(3)
+    INTEGER                                  :: counter, handle, iatom, &
+                                                ibond, iw, natom, nbond, &
+                                                nimpr, stat
     INTEGER, DIMENSION(:), POINTER           :: checkme
-    LOGICAL  :: failure
+    LOGICAL                                  :: failure
+    TYPE(atom_info_type), POINTER            :: atom_info
+    TYPE(connectivity_info_type), POINTER    :: conn_info
     TYPE(cp_logger_type), POINTER            :: logger
 
     failure = .FALSE.
@@ -1390,22 +1320,20 @@ CONTAINS
 !!   SOURCE
 !******************************************************************************
   SUBROUTINE topology_generate_onfo(topology,globenv,subsys_section,error)
-    IMPLICIT NONE
     TYPE(topology_parameters_type), &
       INTENT(INOUT)                          :: topology
     TYPE(global_environment_type), &
-         POINTER, OPTIONAL                   :: globenv
-    TYPE(section_vals_type), POINTER :: subsys_section
-
+      OPTIONAL, POINTER                      :: globenv
+    TYPE(section_vals_type), POINTER         :: subsys_section
     TYPE(cp_error_type), INTENT(inout), &
-         OPTIONAL                               :: error     
+      OPTIONAL                               :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'topology_generate_onfo', &
       routineP = moduleN//':'//routineN
-    TYPE(connectivity_info_type),POINTER     :: conn_info
-    INTEGER                                  :: iphi, nphi
-    LOGICAL :: failure
-    INTEGER                                  :: iw, handle
+
+    INTEGER                                  :: handle, iphi, iw, nphi
+    LOGICAL                                  :: failure
+    TYPE(connectivity_info_type), POINTER    :: conn_info
     TYPE(cp_logger_type), POINTER            :: logger
 
     failure = .FALSE.
@@ -1456,7 +1384,6 @@ CONTAINS
 
   SUBROUTINE topology_connectivity_pack(molecule_kind_set,molecule_set,&
        topology,globenv,subsys_section,error)
-    IMPLICIT NONE
     TYPE(molecule_kind_type), DIMENSION(:), &
       POINTER                                :: molecule_kind_set
     TYPE(molecule_type), DIMENSION(:), &
@@ -1464,40 +1391,35 @@ CONTAINS
     TYPE(topology_parameters_type), &
       INTENT(INOUT)                          :: topology
     TYPE(global_environment_type), &
-         POINTER, OPTIONAL                   :: globenv
-    TYPE(section_vals_type), POINTER :: subsys_section
-
+      OPTIONAL, POINTER                      :: globenv
+    TYPE(section_vals_type), POINTER         :: subsys_section
     TYPE(cp_error_type), INTENT(inout), &
-         OPTIONAL                               :: error
+      OPTIONAL                               :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'topology_connectivity_pack', &
       routineP = moduleN//':'//routineN
-    TYPE(atom_info_type),POINTER     :: atom_info
-    TYPE(connectivity_info_type),POINTER     :: conn_info
+
     CHARACTER(LEN=default_string_length)     :: name
-    INTEGER                                  :: atm_a, atm_b, atm_c, atm_d, &
-                                                counter, first, i, stat, iw, &
-                                                j, k,last, natom, nbond, nmol, &
-                                                nphi, ntheta, nub, nimpr, nonfo, nhcopt
-    INTEGER, DIMENSION(:), POINTER           :: molecule_list
-    INTEGER, DIMENSION(:), POINTER           :: checkme, first_list, last_list
+    INTEGER :: atm_a, atm_b, atm_c, atm_d, c_intra, counter, first, handle, &
+      i, ibond, ikind, imol, inum, ires, ityp, iw, j, k, last, natom, nbond, &
+      nelectron, nhcopt, nimpr, nmol, nonfo, nphi, nsgf, ntheta, nub, stat
+    INTEGER, DIMENSION(:), POINTER           :: checkme, first_list, &
+                                                last_list, molecule_list
+    LOGICAL                                  :: failure, found
+    TYPE(atom_info_type), POINTER            :: atom_info
     TYPE(atom_type), DIMENSION(:), POINTER   :: atom_list
-    TYPE(bond_type), DIMENSION(:), POINTER   :: bond_list
     TYPE(bend_type), DIMENSION(:), POINTER   :: bend_list
-    TYPE(ub_type), DIMENSION(:), POINTER     :: ub_list
+    TYPE(bond_type), DIMENSION(:), POINTER   :: bond_list
+    TYPE(connectivity_info_type), POINTER    :: conn_info
+    TYPE(cp_logger_type), POINTER            :: logger
     TYPE(impr_type), DIMENSION(:), POINTER   :: impr_list
-    TYPE(onfo_type), DIMENSION(:), POINTER   :: onfo_list
-    TYPE(torsion_type), DIMENSION(:), &
-      POINTER                                :: torsion_list
     TYPE(local_molecule_type), POINTER       :: lmi
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
     TYPE(molecule_type), POINTER             :: molecule
-
-    INTEGER                                  :: ikind,jkind,ityp,inum,ires,imol
-    INTEGER                                  :: ibond,c_intra
-    LOGICAL                                  :: found, failure
-    INTEGER                                  :: nsgf,nelectron,handle
-    TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(onfo_type), DIMENSION(:), POINTER   :: onfo_list
+    TYPE(torsion_type), DIMENSION(:), &
+      POINTER                                :: torsion_list
+    TYPE(ub_type), DIMENSION(:), POINTER     :: ub_list
 
     failure = .FALSE.
     NULLIFY(logger)
@@ -2315,7 +2237,6 @@ CONTAINS
   SUBROUTINE topology_coordinate_pack (particle_set,atomic_kind_set,&
        molecule_kind_set,molecule_set,topology,globenv,qmmm,qmmm_env,&
        subsys_section,error)
-    IMPLICIT NONE
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(atomic_kind_type), DIMENSION(:), &
@@ -2327,56 +2248,45 @@ CONTAINS
     TYPE(topology_parameters_type), &
       INTENT(INOUT)                          :: topology
     TYPE(global_environment_type), &
-      pointer, OPTIONAL                   :: globenv
-    TYPE(section_vals_type), POINTER :: subsys_section
- 
-    TYPE(qmmm_env_mm_type), POINTER, OPTIONAL        :: qmmm_env
+      OPTIONAL, POINTER                      :: globenv
+    LOGICAL, INTENT(IN), OPTIONAL            :: qmmm
+    TYPE(qmmm_env_mm_type), OPTIONAL, &
+      POINTER                                :: qmmm_env
+    TYPE(section_vals_type), POINTER         :: subsys_section
     TYPE(cp_error_type), INTENT(inout), &
-         OPTIONAL                               :: error
-    LOGICAL, OPTIONAL, INTENT(IN) :: qmmm
+      OPTIONAL                               :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'topology_coordinate_pack', &
       routineP = moduleN//':'//routineN
 
-    TYPE(atom_info_type),POINTER             :: atom_info
-
+    CHARACTER(LEN=default_string_length)     :: atmname, &
+                                                my_elp_description(2), &
+                                                my_elp_name
+    CHARACTER(LEN=default_string_length), &
+      DIMENSION(:), POINTER                  :: element
     CHARACTER(LEN=default_string_length), &
       POINTER                                :: work(:)
-    CHARACTER(LEN=default_string_length)     :: my_elp_name, my_elp_description(2)
-    INTEGER                                  :: counter, first, i, ikind, &
-                                                stat, iw, j, k, last, natom
-    INTEGER, DIMENSION(:), POINTER           :: atomkind,atomlist, kind_of, &
-                                                natom_of_kind
+    INTEGER :: counter, first, first_atom, handle, i, iatom, ibend, ibond, &
+      ikind, imol_minus, imol_now, imol_plus, imolecule, itorsion, iw, j, k, &
+      last, last_atom, natom, nbend, nbond, ntorsion, offset, position, stat
+    INTEGER, DIMENSION(:), POINTER :: atomkind, atomlist, first_mol, kind_of, &
+      last_mol, list, list2, molecule_list, natom_mol, natom_of_kind, &
+      nbend_mol, nbond_mol, ntorsion_mol
+    LOGICAL                                  :: failure, found, mol_change, &
+                                                mol_change2, my_qmmm
+    REAL(KIND=dp)                            :: alpha_core_charge, qeff
     REAL(KIND=dp), DIMENSION(:), POINTER     :: charge, mass
+    TYPE(atom_info_type), POINTER            :: atom_info
     TYPE(atom_type), DIMENSION(:), POINTER   :: atom_list
-    TYPE(bend_type), DIMENSION(:), POINTER   :: bend_list,ex_bend_list
-    TYPE(bond_type), DIMENSION(:), POINTER   :: bond_list,ex_bond_list
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
+    TYPE(bend_type), DIMENSION(:), POINTER   :: bend_list, ex_bend_list
+    TYPE(bond_type), DIMENSION(:), POINTER   :: bond_list, ex_bond_list
+    TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(elp_potential_type), POINTER        :: elp_potential
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
     TYPE(molecule_type), POINTER             :: molecule
     TYPE(torsion_type), DIMENSION(:), &
-      POINTER                                :: torsion_list,ex_torsion_list
-    INTEGER, DIMENSION(:), POINTER :: list,list2
-    INTEGER                                  :: imolecule,first_atom,last_atom,&
-                                                nbond,nbend,ntorsion
-
-    CHARACTER(LEN=default_string_length)     :: atmname
-    LOGICAL                                  :: found
-    REAL(KIND=dp)                            :: qeff, alpha_core_charge
-    TYPE(elp_potential_type), POINTER        :: elp_potential
-    LOGICAL :: my_qmmm
-    
-    INTEGER :: iatom,handle
-
-    INTEGER, DIMENSION(:), POINTER :: first_mol,last_mol,natom_mol,nbond_mol,nbend_mol,ntorsion_mol
-    INTEGER :: imol_now,imol_minus,imol_plus
-    INTEGER :: ibond,ibend,itorsion,offset
-    LOGICAL :: mol_change,mol_change2
-    INTEGER, DIMENSION(:), POINTER :: molecule_list
-    INTEGER :: position
-    CHARACTER (LEN=default_string_length), DIMENSION(:), POINTER :: element
-    LOGICAL :: failure
-    TYPE(cp_logger_type), POINTER            :: logger
+      POINTER                                :: ex_torsion_list, torsion_list
 
     failure = .FALSE.
     NULLIFY(logger)
@@ -2534,9 +2444,9 @@ CONTAINS
           WRITE(iw,'(A,I6,A)') "      Atomic kind ",i," contains particles"
           DO J=1,SIZE(atomlist)  
              IF (MOD(J,5).EQ.0) THEN ! split long lines
-                write(iw,'(I12)') atomlist(J)
+                WRITE(iw,'(I12)') atomlist(J)
              ELSE
-                write(iw,'(I12)',ADVANCE="NO") atomlist(J)
+                WRITE(iw,'(I12)',ADVANCE="NO") atomlist(J)
              ENDIF
           ENDDO
           WRITE(iw,*)
@@ -3091,49 +3001,55 @@ CONTAINS
 
   SUBROUTINE topology_constraint_pack ( molecule_kind_set,molecule_set,&
                                       topology,qmmm_env,particle_set,globenv,subsys_section,error)
-    IMPLICIT NONE
     TYPE(molecule_kind_type), DIMENSION(:), &
-         POINTER                                :: molecule_kind_set
+      POINTER                                :: molecule_kind_set
     TYPE(molecule_type), DIMENSION(:), &
-         POINTER                                :: molecule_set
+      POINTER                                :: molecule_set
     TYPE(topology_parameters_type), &
-         INTENT(INOUT)                          :: topology
-    TYPE(qmmm_env_mm_type), POINTER, OPTIONAL        :: qmmm_env
-    TYPE(particle_type), DIMENSION(:), OPTIONAL, &
-         POINTER                                :: particle_set
+      INTENT(INOUT)                          :: topology
+    TYPE(qmmm_env_mm_type), OPTIONAL, &
+      POINTER                                :: qmmm_env
+    TYPE(particle_type), DIMENSION(:), &
+      OPTIONAL, POINTER                      :: particle_set
     TYPE(global_environment_type), &
-         POINTER, OPTIONAL                   :: globenv
-    TYPE(section_vals_type), POINTER :: subsys_section
-
+      OPTIONAL, POINTER                      :: globenv
+    TYPE(section_vals_type), POINTER         :: subsys_section
     TYPE(cp_error_type), INTENT(inout), &
-         OPTIONAL                               :: error  
-    
+      OPTIONAL                               :: error
+
     CHARACTER(len=*), PARAMETER :: routineN = 'topology_constraint_pack', &
-         routineP = moduleN//':'//routineN    
-    TYPE(constraint_info_type),POINTER     :: cons_info
-    INTEGER                                  :: stat, iw, i, j, k, natom, dum, kk, handle
-    INTEGER                                  :: counter,nmolecule,ndist,nbond
-    INTEGER                                  :: ng3x3,ng4x6,nfixed_atoms
-    INTEGER                                  :: first, last,search1,search2
-    REAL(KIND=dp)                            :: xdum
+      routineP = moduleN//':'//routineN
+
+    CHARACTER(LEN=default_string_length)     :: element_symbol, molname, name
+    INTEGER :: dum, first, handle, i, iw, j, k, kk, last, nbond, ndist, &
+      nfixed_atoms, ng3x3, ng4x6, nmolecule, search1, search2, stat
     INTEGER, DIMENSION(:), POINTER           :: molecule_list
-    CHARACTER(LEN=default_string_length)  :: name,element_symbol,molname
-    TYPE(atomic_kind_type), POINTER        :: atomic_kind
-    TYPE(molecule_kind_type), POINTER        :: molecule_kind
-    TYPE(molecule_type), POINTER        :: molecule    
-    TYPE(dist_constraint_type), DIMENSION(:), POINTER :: dist_list
-    TYPE(g3x3_constraint_type), DIMENSION(:), POINTER :: g3x3_list
-    TYPE(g4x6_constraint_type), DIMENSION(:), POINTER :: g4x6_list
-    TYPE(fixd_constraint_type), DIMENSION(:), POINTER :: fixd_list
+    LOGICAL                                  :: failure, fix_atom_molname, &
+                                                fix_atom_qmmm
+    LOGICAL, ALLOCATABLE, DIMENSION(:)       :: missed_molname
+    REAL(KIND=dp)                            :: xdum
     TYPE(atom_type), DIMENSION(:), POINTER   :: atom_list
-    TYPE(bond_type), DIMENSION(:), POINTER            :: bond_list
-    TYPE(local_constraint_type), POINTER       :: lci
-    TYPE ( local_dist_constraint_type ), DIMENSION ( : ) , POINTER :: ldist
-    TYPE ( local_g3x3_constraint_type ), DIMENSION ( : ) , POINTER :: lg3x3
-    TYPE ( local_g4x6_constraint_type ), DIMENSION ( : ) , POINTER :: lg4x6
-    LOGICAL :: failure,fix_atom_qmmm,fix_atom_molname
+    TYPE(atomic_kind_type), POINTER          :: atomic_kind
+    TYPE(bond_type), DIMENSION(:), POINTER   :: bond_list
+    TYPE(constraint_info_type), POINTER      :: cons_info
     TYPE(cp_logger_type), POINTER            :: logger
-    LOGICAL, DIMENSION(:), ALLOCATABLE       :: missed_molname
+    TYPE(dist_constraint_type), &
+      DIMENSION(:), POINTER                  :: dist_list
+    TYPE(fixd_constraint_type), &
+      DIMENSION(:), POINTER                  :: fixd_list
+    TYPE(g3x3_constraint_type), &
+      DIMENSION(:), POINTER                  :: g3x3_list
+    TYPE(g4x6_constraint_type), &
+      DIMENSION(:), POINTER                  :: g4x6_list
+    TYPE(local_constraint_type), POINTER     :: lci
+    TYPE(local_dist_constraint_type), &
+      DIMENSION(:), POINTER                  :: ldist
+    TYPE(local_g3x3_constraint_type), &
+      DIMENSION(:), POINTER                  :: lg3x3
+    TYPE(local_g4x6_constraint_type), &
+      DIMENSION(:), POINTER                  :: lg4x6
+    TYPE(molecule_kind_type), POINTER        :: molecule_kind
+    TYPE(molecule_type), POINTER             :: molecule
 
     failure = .FALSE.
     NULLIFY(logger)
@@ -3544,25 +3460,23 @@ CONTAINS
 !!   SOURCE
 !******************************************************************************
   SUBROUTINE topology_molecules_check(topology,globenv,subsys_section,error)
-    IMPLICIT NONE
     TYPE(topology_parameters_type), &
       INTENT(INOUT)                          :: topology
     TYPE(global_environment_type), &
-         POINTER, OPTIONAL                   :: globenv
-    TYPE(section_vals_type), POINTER :: subsys_section
-
+      OPTIONAL, POINTER                      :: globenv
+    TYPE(section_vals_type), POINTER         :: subsys_section
     TYPE(cp_error_type), INTENT(inout), &
-         OPTIONAL                               :: error
+      OPTIONAL                               :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'topology_molecules_check', &
       routineP = moduleN//':'//routineN
-    TYPE(atom_info_type),POINTER             :: atom_info
 
-    INTEGER                                  :: iw, stat
-    INTEGER                                  :: counter,iatom,imol,nmol,nmol_typ
-    INTEGER                                  :: natom,imol_typ,handle
-    INTEGER                                  :: first,last,first2,last2
-    LOGICAL :: failure
+    INTEGER                                  :: counter, first, first2, &
+                                                handle, iatom, imol, &
+                                                imol_typ, iw, last, last2, &
+                                                natom, nmol, nmol_typ
+    LOGICAL                                  :: failure
+    TYPE(atom_info_type), POINTER            :: atom_info
     TYPE(cp_logger_type), POINTER            :: logger
 
     failure = .FALSE.
@@ -3681,24 +3595,24 @@ CONTAINS
 !!
 !!*** **********************************************************************
   SUBROUTINE check_subsys_element(element_in, element_out, globenv, force_env_section, error)
-    IMPLICIT NONE
-    ! Arguments
-    CHARACTER(len=*), INTENT(IN)                          :: element_in
-    CHARACTER(len=default_string_length), INTENT(OUT)     :: element_out
+    CHARACTER(len=*), INTENT(IN)             :: element_in
+    CHARACTER(len=default_string_length), &
+      INTENT(OUT)                            :: element_out
     TYPE(global_environment_type), POINTER   :: globenv
-    TYPE(section_vals_type), POINTER :: force_env_section
+    TYPE(section_vals_type), POINTER         :: force_env_section
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
-    ! Local Variables
+
     CHARACTER(len=*), PARAMETER :: routineN = 'check_subsys_element', &
-      routineP = moduleN//':'//routineN    
-    CHARACTER(len=default_string_length)     :: element_symbol, current_symbol
-    CHARACTER(len=default_string_length)     :: keyword
-    INTEGER :: i, n_rep, i_rep, iw, handle
-    LOGICAL :: found, failure
-    TYPE(section_vals_type), pointer :: kind_section
-    INTEGER, SAVE :: iwarn=20
-    
+      routineP = moduleN//':'//routineN
+
+    CHARACTER(len=default_string_length)     :: current_symbol, &
+                                                element_symbol, keyword
+    INTEGER                                  :: handle, i, i_rep, n_rep
+    INTEGER, SAVE                            :: iwarn = 20
+    LOGICAL                                  :: failure, found
+    TYPE(section_vals_type), POINTER         :: kind_section
+
     CALL timeset(routineN,'I','',handle)
 
     found = .FALSE.

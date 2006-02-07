@@ -116,7 +116,7 @@ MODULE xas_methods
   IMPLICIT NONE
   PRIVATE
 
-  CHARACTER(len=*), PRIVATE, PARAMETER :: module_name='xas_methods'  
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'xas_methods'  
 
 ! *** Public subroutines ***
 
@@ -169,8 +169,8 @@ CONTAINS
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = "xas", &
-      routineP = module_name//':'//routineN
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'xas', &
+      routineP = moduleN//':'//routineN
 
     INTEGER :: handle, homo, i, iat, iatom, ikind, isgf, ispin, istat, &
       istate, iter, j, my_homo(2), my_kind, nao, natom, nelectron, &
@@ -632,8 +632,8 @@ CONTAINS
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-    CHARACTER(len=*), PARAMETER :: routine_name = 'xas_env_init', &
-      routineP = module_name//':'//routine_name
+    CHARACTER(len=*), PARAMETER :: routineN = 'xas_env_init', &
+      routineP = moduleN//':'//routineN
 
     INTEGER :: homo, i, iat, iatom, ik, ikind, ispin, istat, j, l, n_mo(2), &
       nao, nexc_atoms, nexc_search, nj, nk, nkind, nmo, nmoloc(2), norb(0:3), &
@@ -1011,8 +1011,8 @@ CONTAINS
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-    CHARACTER(len=*), PARAMETER :: routine_name = 'xas_write', &
-      routineP = module_name//':'//routine_name
+    CHARACTER(len=*), PARAMETER :: routineN = 'xas_write', &
+      routineP = moduleN//':'//routineN
 
     CHARACTER(len=50)                        :: filename
     INTEGER                                  :: ia, ie, istate, istate0, &
@@ -1106,8 +1106,8 @@ CONTAINS
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-    CHARACTER(len=*), PARAMETER :: routine_name = 'xas_print_cubes', &
-      routineP = module_name//':'//routine_name
+    CHARACTER(len=*), PARAMETER :: routineN = 'xas_print_cubes', &
+      routineP = moduleN//':'//routineN
 
     CHARACTER(len=50)                        :: flag
     INTEGER                                  :: homo, istat, istate0, nspins, &
@@ -1200,8 +1200,8 @@ CONTAINS
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = "spectrum_dip_len", &
-      routineP = module_name//':'//routineN
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'spectrum_dip_len', &
+      routineP = moduleN//':'//routineN
 
     COMPLEX(KIND=dp)                         :: z
     INTEGER                                  :: homo, i, istate, j, nao, nmo, &
@@ -1309,8 +1309,8 @@ CONTAINS
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = "spectrum_dip_vel", &
-      routineP = module_name//':'//routineN
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'spectrum_dip_vel', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: homo, i, istate, nao, nmo, &
                                                 nvirtual
@@ -1384,8 +1384,8 @@ CONTAINS
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = "calc_stogto_overlap", &
-      routineP = module_name//':'//routineN
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'calc_stogto_overlap', &
+      routineP = moduleN//':'//routineN
 
     INTEGER :: iset, istat, jset, ldai, ldsab, maxcoa, maxcob, maxl, maxla, &
       maxlb, ncoa, ncob, nseta, nsetb, nsgfa, nsgfb, sgfa, sgfb

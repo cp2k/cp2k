@@ -25,39 +25,23 @@
 MODULE topology_input
   USE checkpoint_handler,              ONLY: write_checkpoint_information
   USE global_types,                    ONLY: global_environment_type
+  USE input_constants,                 ONLY: do_conn_psf,&
+                                             do_coord_off
+  USE input_section_types,             ONLY: section_vals_get,&
+                                             section_vals_get_subs_vals,&
+                                             section_vals_type,&
+                                             section_vals_val_get
+  USE kinds,                           ONLY: default_string_length,&
+                                             dp
   USE memory_utilities,                ONLY: reallocate
-  USE string_utilities,                ONLY: uppercase,&
-                                             xstring
-  USE termination,                     ONLY: stop_program
+  USE string_utilities,                ONLY: xstring
   USE topology_types,                  ONLY: constraint_info_type,&
                                              topology_parameters_type
-  USE input_section_types, ONLY: section_type, section_create, &
-       section_add_keyword, section_add_subsection, section_release,&
-       section_vals_type,&
-       section_vals_get_subs_vals, section_vals_get, section_vals_val_get
-  USE kinds, ONLY: dp, default_string_length
-  USE input_constants,                 ONLY: do_conn_psf,&
-                                             do_conn_generate,&
-                                             do_conn_off,&
-                                             do_coord_pdb,&
-                                             do_coord_xyz,&
-                                             do_coord_off,&
-                                             do_skip_vdw_12,&
-                                             do_skip_vdw_13,&
-                                             do_skip_vdw_14,&
-                                             do_skip_ei_12,&
-                                             do_skip_ei_13,&
-                                             do_skip_ei_14,&
-                                             do_bondparm_covalent,&
-                                             do_bondparm_vdw,&
-                                             do_nhcopt_global,&
-                                             do_nhcopt_molecule,&
-                                             do_nhcopt_massive,&
-                                             do_nhcopt_none
 #include "cp_common_uses.h"
+
   IMPLICIT NONE
 
-  CHARACTER(LEN=*), PARAMETER, PRIVATE :: moduleN = "topology_input"
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'topology_input'
 
   PRIVATE
   PUBLIC :: read_topology_section, read_constraints_section
@@ -104,18 +88,18 @@ CONTAINS
 !!I---------------------------------------------------------------------------I
 !******************************************************************************
 SUBROUTINE read_topology_section ( topology, topology_section, globenv, error )
-  IMPLICIT NONE
-  ! Arguments
-  TYPE(topology_parameters_type)                       :: topology
-  TYPE(global_environment_type), POINTER   ,OPTIONAL   :: globenv
-  TYPE(section_vals_type), POINTER                     :: topology_section
-  TYPE(cp_error_type), INTENT(inout), &
-       OPTIONAL                               :: error
-  ! Local Variables
-  CHARACTER(len=*), PARAMETER :: routineN = 'read_topology_section', &
+    TYPE(topology_parameters_type)           :: topology
+    TYPE(section_vals_type), POINTER         :: topology_section
+    TYPE(global_environment_type), &
+      OPTIONAL, POINTER                      :: globenv
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'read_topology_section', &
       routineP = moduleN//':'//routineN
-  INTEGER :: ia, ie, n_rep
-  LOGICAL :: failure 
+
+    INTEGER                                  :: ia, ie, n_rep
+    LOGICAL                                  :: failure
 
   CALL write_checkpoint_information("entering "//routineN,globenv,error)
   CALL xstring(globenv % project_name,ia,ie)
@@ -186,23 +170,26 @@ SUBROUTINE read_constraints_section(topology, globenv, constraint_section, error
     TYPE(topology_parameters_type), &
       INTENT(INOUT)                          :: topology
     TYPE(global_environment_type), &
-      pointer   ,OPTIONAL                    :: globenv
-    TYPE(section_vals_type), POINTER                 :: constraint_section  
-      TYPE(cp_error_type), INTENT(inout), &
-       OPTIONAL                               :: error
+      OPTIONAL, POINTER                      :: globenv
+    TYPE(section_vals_type), POINTER         :: constraint_section
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-  CHARACTER(len=*), PARAMETER :: routineN = 'read_constraints_section', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'read_constraints_section', &
       routineP = moduleN//':'//routineN
-  TYPE(constraint_info_type),POINTER       :: cons_info
-  TYPE(section_vals_type), POINTER         ::  g3x3_section, g4x6_section, fix_atom_section,&
-                                               internal_section, dist_section, angle_section,&
-                                               tors_section, comb_section
-                                               
-  LOGICAL :: explicit, failure, freeze_mm, freeze_qm
-  INTEGER :: ncons, stat, isize, j, k, jj, icons, ig, n_rep
-  INTEGER, DIMENSION(:), POINTER       :: ilist, tmplist
-  REAL(KIND=dp), DIMENSION(:), POINTER :: rlist 
-  CHARACTER(LEN=default_string_length), DIMENSION(:), POINTER :: tmpstringlist
+
+    CHARACTER(LEN=default_string_length), &
+      DIMENSION(:), POINTER                  :: tmpstringlist
+    INTEGER                                  :: icons, ig, isize, j, jj, &
+                                                n_rep, ncons, stat
+    INTEGER, DIMENSION(:), POINTER           :: ilist, tmplist
+    LOGICAL                                  :: explicit, failure, freeze_mm, &
+                                                freeze_qm
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: rlist
+    TYPE(constraint_info_type), POINTER      :: cons_info
+    TYPE(section_vals_type), POINTER :: angle_section, comb_section, &
+      dist_section, fix_atom_section, g3x3_section, g4x6_section, &
+      internal_section, tors_section
 
   cons_info    => topology%cons_info
   failure = .FALSE.

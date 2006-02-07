@@ -58,16 +58,18 @@ CONTAINS
   SUBROUTINE numerov ( f, g, w, corr )
 
 
-    REAL(KIND=dp), DIMENSION(0:), INTENT(IN)     :: f
-    REAL(KIND=dp), DIMENSION(0:), INTENT(INOUT)  :: g
-    REAL(KIND=dp), DIMENSION(0:), INTENT(IN)     :: w
-    REAL(KIND=dp), DIMENSION(:), INTENT(IN)      :: corr
+    REAL(KIND=dp), DIMENSION(0:), INTENT(IN) :: f
+    REAL(KIND=dp), DIMENSION(0:), &
+      INTENT(INOUT)                          :: g
+    REAL(KIND=dp), DIMENSION(0:), INTENT(IN) :: w
+    REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: corr
 
     INTEGER                                  :: i, ierr, info, n
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: ipiv
-    REAL(KIND=dp)                                :: e, h212, ww
-    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)     :: s
-    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)  :: ab
+    REAL(KIND=dp)                            :: e, h212, ww
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: s
+    REAL(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:, :)                        :: ab
 
 ! the potential (in s-form)
 ! first the inhomegenity (in s-form) 
@@ -168,15 +170,17 @@ CONTAINS
   SUBROUTINE diff6p ( f, g, w, corr )
 
 
-    REAL(KIND=dp), DIMENSION(0:), INTENT(in)     :: f
-    REAL(KIND=dp), DIMENSION(0:), INTENT(INOUT)  :: g
-    REAL(KIND=dp), DIMENSION(0:), INTENT(in)     :: w
-    REAL(KIND=dp), INTENT(IN), OPTIONAL          :: corr
+    REAL(KIND=dp), DIMENSION(0:), INTENT(in) :: f
+    REAL(KIND=dp), DIMENSION(0:), &
+      INTENT(INOUT)                          :: g
+    REAL(KIND=dp), DIMENSION(0:), INTENT(in) :: w
+    REAL(KIND=dp), INTENT(IN), OPTIONAL      :: corr
 
     INTEGER                                  :: i, ierr, info, j, n
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: ipiv
-    REAL(KIND=dp)                                :: h2_60, ww
-    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)  :: ab
+    REAL(KIND=dp)                            :: h2_60, ww
+    REAL(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:, :)                        :: ab
 
 ! as in the equation above (in s-form)
 ! on input an inhomogenity on output

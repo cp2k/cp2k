@@ -22,15 +22,10 @@
 MODULE orbital_symbols
   USE termination,                     ONLY: stop_program
 ! *****************************************************************************
-
 ! Index:
-
 ! FUNCTION cgf_symbol(n,lxyz) RESULT(symbol)
-
 ! FUNCTION sgf_symbol(n,l,m) RESULT(symbol)
-
 ! *****************************************************************************
-
 
   IMPLICIT NONE
 

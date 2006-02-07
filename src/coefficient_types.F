@@ -22,24 +22,11 @@ MODULE coefficient_types
   USE ao_types,                        ONLY: ao_type
   USE kinds,                           ONLY: dp
   USE pw_grid_types,                   ONLY: pw_grid_type
-  USE pw_types,                        ONLY: COMPLEXDATA1D,&
-                                             COMPLEXDATA3D,&
-                                             NOSPACE,&
-                                             REALDATA1D,&
-                                             REALDATA3D,&
-                                             REALSPACE,&
-                                             RECIPROCALSPACE,&
-                                             pw_add,&
-                                             pw_create,&
-                                             pw_copy,&
-                                             pw_fft_wrap,&
-                                             pw_reduce,&
-                                             pw_release,&
-                                             pw_subtract,&
-                                             pw_scale,&
-                                             pw_sumup,&
-                                             pw_type,&
-                                             pw_zero
+  USE pw_types,                        ONLY: &
+       COMPLEXDATA1D, COMPLEXDATA3D, NOSPACE, REALDATA1D, REALDATA3D, &
+       REALSPACE, RECIPROCALSPACE, pw_add, pw_copy, pw_create, pw_fft_wrap, &
+       pw_reduce, pw_release, pw_scale, pw_subtract, pw_sumup, pw_type, &
+       pw_zero
   USE termination,                     ONLY: stop_program
 #include "cp_common_uses.h"
 
@@ -55,7 +42,7 @@ MODULE coefficient_types
   ! Flags for the structure member 'in_use'
   INTEGER, PARAMETER, PUBLIC :: PLANEWAVES = 401, ATOMICORBITALS = 402, NOTHING=0
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN='coefficent_types'
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'coefficient_types'
   
   ! 'group_id' to grid?
   TYPE coeff_type
@@ -147,7 +134,7 @@ SUBROUTINE coeff_allocate_from_coeff ( c_out, c_model, use_basis )
     TYPE(coeff_type), POINTER                :: c_model
     INTEGER, INTENT(IN), OPTIONAL            :: use_basis
 
-    INTEGER                                  :: stat, use_data
+    INTEGER                                  :: use_data
 
 !------------------------------------------------------------------------------
 
@@ -195,14 +182,14 @@ END SUBROUTINE coeff_allocate_from_coeff
 SUBROUTINE coeff_allocate_from_grid ( c_out, pw_grid, use_data,error )
 
 
-    TYPE(coeff_type), INTENT(OUT)                    :: c_out
-    TYPE(pw_grid_type), pointer                      :: pw_grid
-    INTEGER, INTENT(IN)                              :: use_data
-    TYPE(cp_error_type), INTENT(inout), optional     :: error
+    TYPE(coeff_type), INTENT(OUT)            :: c_out
+    TYPE(pw_grid_type), POINTER              :: pw_grid
+    INTEGER, INTENT(IN)                      :: use_data
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    INTEGER                                  :: stat
-    CHARACTER(len=*), PARAMETER :: routineN="coeff_allocate_from_grid",&
-         routineP=moduleN//':'//routineN
+    CHARACTER(len=*), PARAMETER :: routineN = 'coeff_allocate_from_grid', &
+      routineP = moduleN//':'//routineN
 
 !------------------------------------------------------------------------------
 
@@ -317,8 +304,8 @@ END SUBROUTINE coeff_sumup
 !!*** **********************************************************************
 SUBROUTINE coeff_scale ( coeff1, a )
  
-    TYPE(coeff_type), INTENT(INOUT)             :: coeff1
-    REAL(KIND=dp), INTENT(IN)                   :: a
+    TYPE(coeff_type), INTENT(INOUT)          :: coeff1
+    REAL(KIND=dp), INTENT(IN)                :: a
 
 !------------------------------------------------------------------------------
 
@@ -387,7 +374,7 @@ END SUBROUTINE coeff_reduce
 SUBROUTINE coeff_transform_c1 ( c1, debug )
   
 
-  TYPE(coeff_type), POINTER                  :: c1
+    TYPE(coeff_type), POINTER                :: c1
     LOGICAL, INTENT(IN), OPTIONAL            :: debug
 
 !------------------------------------------------------------------------------

@@ -33,7 +33,7 @@ MODULE cp_cfm_diag
 
   IMPLICIT NONE
   PRIVATE
-  CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='cp_cfm_diag'
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_cfm_diag'
 
 !****************************************************************************
 
@@ -63,8 +63,8 @@ CONTAINS
 
     CALL timeset(routineN,"I","",handle)
     failure=.FALSE.
-    CPPrecondition(associated(matrix),cp_failure_level,routineP,error,failure)
-    CPPrecondition(associated(eigenvectors),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(matrix),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(eigenvectors),cp_failure_level,routineP,error,failure)
 
     n = matrix%matrix_struct%nrow_global
     m => matrix%local_data
@@ -91,7 +91,7 @@ CONTAINS
     CALL PZHEEVD('V','U',n,m(1,1),1,1,descm,eigenvalues(1),v(1,1),1,1,descv, &
                   work(1),lwork,rwork(1),lrwork,iwork(1),liwork,info)
 #else
-    CALL ZHEEVD('V','U',n,m(1,1),size(m,1),eigenvalues(1), &
+    CALL ZHEEVD('V','U',n,m(1,1),SIZE(m,1),eigenvalues(1), &
                   work(1),lwork,rwork(1),lrwork,iwork(1),liwork,info)
     lwork=work(1)
     lrwork=rwork(1)
@@ -99,7 +99,7 @@ CONTAINS
     DEALLOCATE(work,iwork,rwork)
     ALLOCATE(iwork(liwork),work(lwork),rwork(lrwork),STAT=istat)
     IF (istat.NE.0) CALL stop_memory(routineN,"work")
-    CALL ZHEEVD('V','U',n,m(1,1),size(m,1),eigenvalues(1), &
+    CALL ZHEEVD('V','U',n,m(1,1),SIZE(m,1),eigenvalues(1), &
                   work(1),lwork,rwork(1),lrwork,iwork(1),liwork,info)
     eigenvectors%local_data=matrix%local_data
 #endif

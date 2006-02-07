@@ -22,9 +22,9 @@ MODULE preconditioner
                                              cp_blacs_env_retain
   USE cp_fm_basic_linalg,              ONLY: cp_fm_column_scale,&
                                              cp_fm_gemm,&
+                                             cp_fm_scale_and_add,&
                                              cp_fm_symm,&
-                                             cp_fm_upper_to_full,&
-                                             cp_fm_scale_and_add
+                                             cp_fm_upper_to_full
   USE cp_fm_cholesky,                  ONLY: cp_fm_cholesky_decompose,&
                                              cp_fm_cholesky_invert,&
                                              cp_fm_cholesky_reduce,&
@@ -39,52 +39,38 @@ MODULE preconditioner
                                              cp_fm_p_type,&
                                              cp_fm_release,&
                                              cp_fm_to_fm,&
-                                             cp_fm_type,&
-                                             cp_fm_maxabsval
+                                             cp_fm_type
   USE cp_para_env,                     ONLY: cp_para_env_release,&
                                              cp_para_env_retain
   USE cp_para_types,                   ONLY: cp_blacs_env_type,&
                                              cp_para_env_type
   USE cp_sm_fm_interactions,           ONLY: copy_sm_to_fm,&
                                              cp_sm_fm_multiply
-  USE input_constants,                 ONLY: ot_precond_none,&
-                                             ot_precond_full_all,&
-                                             ot_precond_full_kinetic,&
-                                             ot_precond_full_single,&
-                                             ot_precond_s_inverse,&
-                                             ot_precond_sparse_diag,&
-                                             ot_precond_sparse_firstorder
-  USE input_constants,                 ONLY: lr_precond_full_all,&
-                                             lr_precond_s_inverse,&
-                                             lr_precond_h0_inverse,&
-                                             lr_precond_none
+  USE input_constants,                 ONLY: &
+       lr_precond_full_all, lr_precond_h0_inverse, lr_precond_s_inverse, &
+       ot_precond_full_all, ot_precond_full_kinetic, ot_precond_full_single, &
+       ot_precond_s_inverse, ot_precond_sparse_diag, &
+       ot_precond_sparse_firstorder
   USE kinds,                           ONLY: dp
   USE message_passing,                 ONLY: mp_sum
   USE qs_mo_methods,                   ONLY: calculate_subspace_eigenvalues,&
                                              make_basis
-  USE sparse_matrix_types,             ONLY: add_block_node,&
-                                             add_matrices,&
-                                             deallocate_matrix,&
-                                             first_block_node,&
-                                             get_block_node,&
-                                             get_matrix_info,&
-                                             next_block_node,&
-                                             real_block_node_type,&
-                                             real_matrix_type,&
-                                             real_matrix_p_type,&
-                                             replicate_matrix
+  USE sparse_matrix_types,             ONLY: &
+       add_block_node, add_matrices, deallocate_matrix, first_block_node, &
+       get_block_node, get_matrix_info, next_block_node, &
+       real_block_node_type, real_matrix_p_type, real_matrix_type, &
+       replicate_matrix
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
-
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
 
   PRIVATE
 
-  CHARACTER(LEN=*), PARAMETER :: module_name = "preconditioner"
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'preconditioner'
 
   PUBLIC  :: preconditioner_type, preconditioner_p_type
   PUBLIC  :: init_preconditioner
@@ -144,7 +130,6 @@ END SUBROUTINE init_preconditioner
 SUBROUTINE destroy_preconditioner(preconditioner_env)
 
     TYPE(preconditioner_type)                :: preconditioner_env
-    INTEGER :: ip
 
    IF (ASSOCIATED(preconditioner_env%sparse_matrix)) THEN
       CALL deallocate_matrix(preconditioner_env%sparse_matrix)
@@ -246,28 +231,28 @@ END SUBROUTINE make_preconditioner_single
 SUBROUTINE make_preconditioner_lr(preconditioner_env, precon_type, ev_h0,&
                                   matrix_h, matrix_s, energy_gap ,error)
 
-    TYPE(preconditioner_type),DIMENSION(:),&
-      POINTER                                  :: preconditioner_env
-    INTEGER                                    :: precon_type
-    TYPE(cp_fm_p_type), DIMENSION(:),&
-      POINTER                                  :: ev_h0
-    TYPE(real_matrix_type), POINTER            :: matrix_s
-    TYPE(real_matrix_p_type), DIMENSION(:),&
-      POINTER                                  :: matrix_h
-    REAL(KIND=dp)                              :: energy_gap
+    TYPE(preconditioner_type), &
+      DIMENSION(:), POINTER                  :: preconditioner_env
+    INTEGER                                  :: precon_type
+    TYPE(cp_fm_p_type), DIMENSION(:), &
+      POINTER                                :: ev_h0
+    TYPE(real_matrix_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_h
+    TYPE(real_matrix_type), POINTER          :: matrix_s
+    REAL(KIND=dp)                            :: energy_gap
     TYPE(cp_error_type), INTENT(INOUT), &
       OPTIONAL                               :: error
 
-    CHARACTER(len=*), PARAMETER :: RoutineP = module_name//"make_preconditioner"
+    CHARACTER(len=*), PARAMETER :: routineN = 'make_preconditioner_lr', &
+      routineP = moduleN//':'//routineN
 
-    INTEGER                                    :: handle, istat, k, x
-    INTEGER                                    :: ispin,n,nspins,i
-    LOGICAL                                    :: failure
-    REAL(dp), DIMENSION(:), POINTER            :: unocc_evals,evals
-    TYPE(cp_fm_struct_type), POINTER           :: fm_struct_tmp
-    TYPE(cp_fm_type), POINTER                  :: fm_work, fm_h
-    TYPE(cp_fm_type), POINTER                  :: matrix_x, matrix_sc0
-    TYPE(cp_fm_type), POINTER                  :: matrix_xsc0
+    INTEGER                                  :: handle, i, ispin, istat, k, &
+                                                n, nspins, x
+    LOGICAL                                  :: failure
+    REAL(dp), DIMENSION(:), POINTER          :: evals, unocc_evals
+    TYPE(cp_fm_struct_type), POINTER         :: fm_struct_tmp
+    TYPE(cp_fm_type), POINTER                :: fm_h, fm_work, matrix_sc0, &
+                                                matrix_x, matrix_xsc0
 
 !----
 
@@ -842,14 +827,14 @@ SUBROUTINE make_full_all(preconditioner_env, matrix_c0, matrix_h, matrix_s, c0_e
     TYPE(preconditioner_type)                :: preconditioner_env
     TYPE(cp_fm_type), POINTER                :: matrix_c0
     TYPE(real_matrix_type), POINTER          :: matrix_h, matrix_s
-    REAL(KIND=dp)                            :: energy_gap
     REAL(KIND=dp), DIMENSION(:), POINTER     :: c0_evals
+    REAL(KIND=dp)                            :: energy_gap
 
-    TYPE(cp_fm_struct_type), POINTER         :: fm_struct_tmp
-    INTEGER                                  :: k,x,n
-    TYPE(cp_fm_type), POINTER                :: matrix_x, matrix_sc0, matrix_xsc0, matrix_tmp
-    REAL(KIND=dp)                            :: a
+    INTEGER                                  :: k, n, x
     REAL(KIND=dp), DIMENSION(:), POINTER     :: unocc_evals
+    TYPE(cp_fm_struct_type), POINTER         :: fm_struct_tmp
+    TYPE(cp_fm_type), POINTER                :: matrix_sc0, matrix_tmp, &
+                                                matrix_x, matrix_xsc0
 
     IF (ASSOCIATED(preconditioner_env%fm)) CALL cp_fm_release(preconditioner_env%fm)
     CALL cp_fm_get_info(matrix_c0,nrow_global=n,ncol_global=k)
@@ -923,14 +908,12 @@ SUBROUTINE apply_full_all(preconditioner_env, matrix_in, matrix_out)
     TYPE(preconditioner_type)                :: preconditioner_env
     TYPE(cp_fm_type), POINTER                :: matrix_in, matrix_out
 
-    INTEGER                                  :: i, j, k, n
-    TYPE(cp_fm_type), POINTER                :: matrix_tmp
-
-    INTEGER, DIMENSION(:), POINTER :: row_indices
-    INTEGER, DIMENSION(:), POINTER :: col_indices
-    REAL(KIND=dp), DIMENSION(:,:), POINTER :: local_data
-    INTEGER :: nrow_local,ncol_local
+    INTEGER                                  :: i, j, k, n, ncol_local, &
+                                                nrow_local
+    INTEGER, DIMENSION(:), POINTER           :: col_indices, row_indices
     REAL(KIND=dp)                            :: dum
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: local_data
+    TYPE(cp_fm_type), POINTER                :: matrix_tmp
 
 !----
 

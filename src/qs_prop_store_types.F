@@ -24,17 +24,17 @@
 !!   SOURCE
 !****************************************************************************
 MODULE qs_prop_store_types
-  use kinds, only: dp
-  use cp_para_types, only: cp_para_env_type
-  use timings, only: timeset, timestop
-  USE cp_output_handling, only: cp_out_default
+  USE cp_output_handling,              ONLY: cp_out_default
+  USE kinds,                           ONLY: dp
+  USE timings,                         ONLY: timeset,&
+                                             timestop
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
-  private
+  PRIVATE
 
-  logical, private, parameter :: debug_this_module=.true.
-  character(len=*), private, parameter :: moduleN='qs_prop_store_types'
+  LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_prop_store_types'
   INTEGER, PRIVATE, SAVE :: last_pstore_id_nr=0
 !!***
 !****************************************************************************
@@ -70,7 +70,7 @@ MODULE qs_prop_store_types
   !!***
   !****************************************************************************
 
-contains
+CONTAINS
 
 
 !!****f* qs_prop_store_types/qs_pstore_create *
@@ -95,15 +95,17 @@ contains
 !!
 !!*** **********************************************************************
 SUBROUTINE qs_pstore_create(pstore,error)
-  TYPE(qs_prop_store_type), pointer :: pstore
-  type(cp_error_type), optional, intent(inout) :: error
-  
-  logical :: failure
-  character(len=*), parameter :: routineN='qs_pstore_create',&
-        routineP=moduleN//':'//routineN
-  integer :: stat
+    TYPE(qs_prop_store_type), POINTER        :: pstore
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-  failure=.false.
+    CHARACTER(len=*), PARAMETER :: routineN = 'qs_pstore_create', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: stat
+    LOGICAL                                  :: failure
+
+  failure=.FALSE.
   
   CPPrecondition(.NOT.ASSOCIATED(pstore),cp_failure_level,routineP,error,failure)
   IF (.NOT. failure) THEN
@@ -120,7 +122,7 @@ SUBROUTINE qs_pstore_create(pstore,error)
      pstore%last_atom_pos=cp_iter_undefined
      pstore%last_dipole=cp_iter_undefined
 
-     nullify(pstore%wannier_centers, pstore%wannier_spreads)
+     NULLIFY(pstore%wannier_centers, pstore%wannier_spreads)
      pstore%total_dipole=0._dp
      pstore%wrapped_total_dipole=0._dp
   END IF
@@ -148,20 +150,22 @@ END SUBROUTINE qs_pstore_create
 !!
 !!*** **********************************************************************
 SUBROUTINE qs_pstore_retain(pstore,error)
-  TYPE(qs_prop_store_type), pointer :: pstore
-  type(cp_error_type), optional, intent(inout) :: error
-  
-  logical :: failure
-  character(len=*), parameter :: routineN='qs_pstore_retain',&
-        routineP=moduleN//':'//routineN
+    TYPE(qs_prop_store_type), POINTER        :: pstore
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-  failure=.false.
+    CHARACTER(len=*), PARAMETER :: routineN = 'qs_pstore_retain', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+
+  failure=.FALSE.
   
   CPPrecondition(ASSOCIATED(pstore),cp_failure_level,routineP,error,failure)
-  if (.not. failure) then
+  IF (.NOT. failure) THEN
      CPPrecondition(pstore%ref_count>0,cp_failure_level,routineP,error,failure)
      pstore%ref_count=pstore%ref_count+1
-  end if
+  END IF
 END SUBROUTINE qs_pstore_retain
 !***************************************************************************
 
@@ -186,15 +190,17 @@ END SUBROUTINE qs_pstore_retain
 !!
 !!*** **********************************************************************
 SUBROUTINE qs_pstore_release(pstore,error)
-  TYPE(qs_prop_store_type), pointer :: pstore
-  type(cp_error_type), optional, intent(inout) :: error
-  
-  logical :: failure
-  character(len=*), parameter :: routineN='qs_pstore_release',&
-        routineP=moduleN//':'//routineN
-  INTEGER :: stat
+    TYPE(qs_prop_store_type), POINTER        :: pstore
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-  failure=.false.
+    CHARACTER(len=*), PARAMETER :: routineN = 'qs_pstore_release', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: stat
+    LOGICAL                                  :: failure
+
+  failure=.FALSE.
   
   IF (ASSOCIATED(pstore)) THEN
      CPPrecondition(pstore%ref_count>0,cp_failure_level,routineP,error,failure)

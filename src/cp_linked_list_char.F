@@ -61,7 +61,7 @@ MODULE cp_linked_list_char
   PRIVATE
 
   LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
-  CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='cp_linked_list_char'
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_linked_list_char'
 
 ! type
   PUBLIC :: cp_sll_char_type, cp_sll_char_p_type
@@ -287,8 +287,8 @@ END SUBROUTINE write_string
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-    CHARACTER(len=*), PARAMETER :: &
-      routineP = 'cp_linked_list_char:cp_sll_char_create'
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_sll_char_create', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: stat
     LOGICAL                                  :: failure
@@ -341,8 +341,8 @@ END SUBROUTINE write_string
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-    CHARACTER(len=*), PARAMETER :: &
-      routineP = 'cp_linked_list_char/cp_sll_char_dealloc'
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_sll_char_dealloc', &
+      routineP = moduleN//':'//routineN
 
     CALL cp_sll_char_rm_all_el(sll,error)
   END SUBROUTINE cp_sll_char_dealloc
@@ -378,8 +378,8 @@ END SUBROUTINE write_string
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-    CHARACTER(len=*), PARAMETER :: &
-      routineP = 'cp_linked_list_char/cp_sll_char_dealloc_node'
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_sll_char_dealloc_node', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: stat
     LOGICAL                                  :: failure
@@ -429,8 +429,8 @@ END SUBROUTINE write_string
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-    CHARACTER(len=*), PARAMETER :: &
-      routineP = 'cp_linked_list_char:cp_set_sll_char'
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_sll_char_set', &
+      routineP = moduleN//':'//routineN
 
     LOGICAL                                  :: failure
 
@@ -486,8 +486,8 @@ END SUBROUTINE write_string
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-    CHARACTER(len=*), PARAMETER :: &
-      routineP = 'cp_linked_list_char:cp_sll_char_get'
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_sll_char_get', &
+      routineP = moduleN//':'//routineN
 
     LOGICAL                                  :: failure
 
@@ -537,8 +537,8 @@ END SUBROUTINE write_string
       OPTIONAL                               :: error
     CHARACTER(len=default_string_length)     :: res
 
-    CHARACTER(len=*), PARAMETER :: &
-      routineP = 'cp_linked_list_char:cp_sll_char_get_first'
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_sll_char_get_first_el', &
+      routineP = moduleN//':'//routineN
 
     LOGICAL                                  :: failure
 
@@ -585,8 +585,8 @@ END SUBROUTINE write_string
       OPTIONAL                               :: error
     TYPE(cp_sll_char_type), POINTER          :: res
 
-    CHARACTER(len=*), PARAMETER :: &
-      routineP = 'cp_linked_list_char:cp_sll_char_get_first'
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_sll_char_get_rest', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i
     LOGICAL                                  :: failure
@@ -661,8 +661,8 @@ CPSourceFileRef,&
       OPTIONAL                               :: error
     LOGICAL                                  :: res
 
-    CHARACTER(len=*), PARAMETER :: &
-      routineP = 'cp_linked_list_char:cp_sll_char_get_empty'
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_sll_char_get_empty', &
+      routineP = moduleN//':'//routineN
 
     LOGICAL                                  :: failure
 
@@ -701,8 +701,8 @@ CPSourceFileRef,&
       OPTIONAL                               :: error
     INTEGER                                  :: res
 
-    CHARACTER(len=*), PARAMETER :: &
-      routineP = 'cp_linked_list_char/cp_sll_char_get_length'
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_sll_char_get_length', &
+      routineP = moduleN//':'//routineN
 
     LOGICAL                                  :: failure
     TYPE(cp_sll_char_type), POINTER          :: iterator
@@ -753,8 +753,8 @@ CPSourceFileRef,&
       OPTIONAL                               :: error
     CHARACTER(len=default_string_length)     :: res
 
-    CHARACTER(len=*), PARAMETER :: &
-      routineP = 'cp_linked_list_char/cp_sll_char_get_el_at'
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_sll_char_get_el_at', &
+      routineP = moduleN//':'//routineN
 
     LOGICAL                                  :: failure
     TYPE(cp_sll_char_type), POINTER          :: pos
@@ -810,8 +810,8 @@ CPSourceFileRef,&
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-    CHARACTER(len=*), PARAMETER :: &
-      routineP = 'cp_linked_list_char/cp_sll_char_set_el_at'
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_sll_char_set_el_at', &
+      routineP = moduleN//':'//routineN
 
     LOGICAL                                  :: failure
     TYPE(cp_sll_char_type), POINTER          :: pos
@@ -865,8 +865,8 @@ CPSourceFileRef,&
       OPTIONAL                               :: error
     LOGICAL                                  :: res
 
-    CHARACTER(len=*), PARAMETER :: &
-      routineP = 'cp_linked_list_char:cp_sll_char_next'
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_sll_char_next', &
+      routineP = moduleN//':'//routineN
 
     LOGICAL                                  :: failure
 
@@ -916,8 +916,8 @@ CPSourceFileRef,&
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-    CHARACTER(len=*), PARAMETER :: &
-      routineP = 'cp_linked_list_char:cp_sll_char_add_el'
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_sll_char_insert_el', &
+      routineP = moduleN//':'//routineN
 
     LOGICAL                                  :: failure
     TYPE(cp_sll_char_type), POINTER          :: newSlot
@@ -959,8 +959,8 @@ CPSourceFileRef,&
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-    CHARACTER(len=*), PARAMETER :: &
-      routineP = 'cp_linked_list_char/cp_sll_char_rm_first_el'
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_sll_char_rm_first_el', &
+      routineP = moduleN//':'//routineN
 
     LOGICAL                                  :: failure
     TYPE(cp_sll_char_type), POINTER          :: node_to_rm
@@ -1014,8 +1014,8 @@ CPSourceFileRef,&
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-    CHARACTER(len=*), PARAMETER :: &
-      routineP = 'cp_linked_list_char/cp_sll_char_insert_el_at'
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_sll_char_insert_el_at', &
+      routineP = moduleN//':'//routineN
 
     LOGICAL                                  :: failure
     TYPE(cp_sll_char_type), POINTER          :: pos
@@ -1069,8 +1069,8 @@ CPSourceFileRef,&
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-    CHARACTER(len=*), PARAMETER :: &
-      routineP = 'cp_linked_list_char/cp_sll_char_remove_el_at'
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_sll_char_rm_el_at', &
+      routineP = moduleN//':'//routineN
 
     LOGICAL                                  :: failure
     TYPE(cp_sll_char_type), POINTER          :: pos
@@ -1124,8 +1124,8 @@ CPSourceFileRef,&
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-    CHARACTER(len=*), PARAMETER :: &
-      routineP = 'cp_linked_list_char/cp_sll_char_rm_all_el'
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_sll_char_rm_all_el', &
+      routineP = moduleN//':'//routineN
 
     LOGICAL                                  :: failure
     TYPE(cp_sll_char_type), POINTER          :: actual_node, next_node

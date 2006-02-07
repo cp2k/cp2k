@@ -32,19 +32,21 @@ MODULE pw_types
   USE fft_tools,                       ONLY: BWFFT,&
                                              FWFFT,&
                                              fft3d
-  USE kinds,                           ONLY: dp,mp
+  USE kinds,                           ONLY: dp,&
+                                             mp
   USE machine,                         ONLY: m_loc_c,&
                                              m_loc_r
-  USE message_passing,                 ONLY: mp_sendrecv,mp_sum
+  USE message_passing,                 ONLY: mp_sendrecv,&
+                                             mp_sum
   USE pw_grid_types,                   ONLY: HALFSPACE,&
                                              PW_MODE_DISTRIBUTED,&
                                              PW_MODE_LOCAL,&
                                              pw_grid_type
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
-  USE timings,                         ONLY: timeset,&
-                                             timestop,&
-                                             print_stack
+  USE timings,                         ONLY: print_stack,&
+                                             timeset,&
+                                             timestop
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -92,8 +94,8 @@ MODULE pw_types
 
   INTEGER, PUBLIC, PARAMETER :: SQUARE = 391, SQUAREROOT = 392
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN='pw_types'
-  LOGICAL, PARAMETER, PRIVATE :: debug_this_module=.false.
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'pw_types'
+  LOGICAL, PARAMETER, PRIVATE :: debug_this_module=.FALSE.
 
   INTERFACE pw_gather
      MODULE PROCEDURE pw_gather_s, pw_gather_p
@@ -140,7 +142,7 @@ SUBROUTINE pw_zero ( pw )
     TYPE(pw_type), INTENT(INOUT)             :: pw
 
     INTEGER                                  :: handle, i, ns
-    REAL(KIND=dp)                                :: zr
+    REAL(KIND=dp)                            :: zr
 
 !------------------------------------------------------------------------------
 
@@ -211,7 +213,7 @@ SUBROUTINE pw_copy ( pw1, pw2 )
     TYPE(pw_type), INTENT(INOUT)             :: pw2
 
     INTEGER                                  :: handle, i, j, ng, ng1, ng2, ns
-    REAL(KIND=dp)                                :: zc
+    REAL(KIND=dp)                            :: zc
 
 !------------------------------------------------------------------------------
 
@@ -436,9 +438,9 @@ SUBROUTINE pw_derive ( pw, n )
     TYPE(pw_type), INTENT(INOUT)             :: pw
     INTEGER, DIMENSION(3), INTENT(IN)        :: n
 
-    COMPLEX(KIND=dp)                             :: im
+    COMPLEX(KIND=dp)                         :: im
     INTEGER                                  :: cnt, handle, i, m
-    REAL(KIND=dp)                                :: flop
+    REAL(KIND=dp)                            :: flop
 
 !------------------------------------------------------------------------------
 
@@ -540,12 +542,12 @@ END SUBROUTINE pw_derive
 SUBROUTINE pw_get_left_right ( pw, left, right )
 
     TYPE(pw_type), INTENT(IN)                :: pw
-    REAL(KIND=dp), DIMENSION(:, :), POINTER :: left, right
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: left, right
 
     INTEGER                                  :: left_cpu, left_x, right_cpu, &
                                                 right_x
     INTEGER, DIMENSION(2, 3)                 :: bl
-    REAL(KIND=dp), DIMENSION(:, :), POINTER :: send
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: send
 
 !!*****
 
@@ -608,8 +610,8 @@ SUBROUTINE pw_derive_fd ( pw, pw_der, n )
     INTEGER                                  :: handle, i, j, k
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: wrap
     INTEGER, DIMENSION(2, 3)                 :: bl
-    REAL(KIND=dp)                                :: itwodelta
-    REAL(KIND=dp), DIMENSION(:, :), POINTER :: left, right
+    REAL(KIND=dp)                            :: itwodelta
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: left, right
 
 !!*****
 
@@ -904,7 +906,7 @@ SUBROUTINE pw_restrict_l(pw_fine, pw_coarse )
     INTEGER                                  :: handle, i, j, k
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: wrapx, wrapy, wrapz
     INTEGER, DIMENSION(3)                    :: lb, n, ub
-    REAL(KIND=dp)                           :: dum
+    REAL(KIND=dp)                            :: dum
 
   CALL timeset ( 'pw_restrict', 'I', '', handle )
   CPPreconditionNoErr(pw_fine%ref_count>0,cp_failure_level,"pw_restrict")
@@ -1064,10 +1066,11 @@ END SUBROUTINE pw_restrict_l
 SUBROUTINE pw_transfer ( pw1, pw2 )
 
 
-    TYPE(pw_type), INTENT(IN), target        :: pw1
-    TYPE(pw_type), INTENT(INOUT), target     :: pw2
+    TYPE(pw_type), INTENT(IN), TARGET        :: pw1
+    TYPE(pw_type), INTENT(INOUT), TARGET     :: pw2
 
 !------------------------------------------------------------------------------
+
   CPPreconditionNoErr(pw1%ref_count>0,cp_failure_level,"pw_transfer")
   CPPreconditionNoErr(pw2%ref_count>0,cp_failure_level,"pw_transfer")
 
@@ -1145,7 +1148,7 @@ SUBROUTINE pw_add ( pw1, pw2, pw3 )
 
     INTEGER                                  :: handle, i, j, ng, ng1, ng2, &
                                                 ng3, ngm
-    REAL(KIND=dp)                                :: flop
+    REAL(KIND=dp)                            :: flop
 
 !------------------------------------------------------------------------------
 
@@ -1374,7 +1377,7 @@ SUBROUTINE pw_sumup_square ( pw1, pw2 )
     TYPE(pw_type), INTENT(IN)                :: pw2
 
     INTEGER                                  :: handle, i
-    REAL(KIND=dp)                                :: flop
+    REAL(KIND=dp)                            :: flop
 
 !------------------------------------------------------------------------------
 
@@ -1468,16 +1471,15 @@ END SUBROUTINE pw_sumup_square
 SUBROUTINE pw_sumup ( pw1, pw2, alpha, alpha_im )
 
 
-  TYPE(pw_type), INTENT(IN)                :: pw1
-  TYPE(pw_type), INTENT(INOUT)             :: pw2
-  REAL(KIND=dp), OPTIONAL, intent(in)     :: alpha
-  REAL(KIND=dp), OPTIONAL, intent(in)     :: alpha_im
+    TYPE(pw_type), INTENT(IN)                :: pw1
+    TYPE(pw_type), INTENT(INOUT)             :: pw2
+    REAL(KIND=dp), INTENT(in), OPTIONAL      :: alpha, alpha_im
 
-  INTEGER                                  :: handle, i, j, ng, ng1, ng2
-  REAL(KIND=dp)                                :: flop,my_alpha
-  COMPLEX(KIND=dp)                             :: my_alpha_c
+    COMPLEX(KIND=dp)                         :: my_alpha_c
+    INTEGER                                  :: handle, i, j, ng, ng1, ng2
+    REAL(KIND=dp)                            :: flop, my_alpha
 
-  !------------------------------------------------------------------------------
+!------------------------------------------------------------------------------
 
   CALL timeset ( 'pw_sumup', 'I', 'Mflops', handle )
   CPPreconditionNoErr(pw1%ref_count>0,cp_failure_level,"pw_sumup")
@@ -1704,7 +1706,7 @@ SUBROUTINE pw_subtract ( pw1, pw2, pw3 )
     TYPE(pw_type), INTENT(INOUT)             :: pw3
 
     INTEGER                                  :: handle
-    REAL(KIND=dp)                                :: flop
+    REAL(KIND=dp)                            :: flop
 
 !------------------------------------------------------------------------------
 
@@ -1777,7 +1779,7 @@ SUBROUTINE pw_reduce ( pw1, pw2 )
     TYPE(pw_type), INTENT(INOUT)             :: pw2
 
     INTEGER                                  :: handle
-    REAL(KIND=dp)                                :: flop
+    REAL(KIND=dp)                            :: flop
 
 !------------------------------------------------------------------------------
 
@@ -1836,12 +1838,12 @@ SUBROUTINE pw_gather_s ( pw, c, scale )
     TYPE(pw_type), INTENT(INOUT)             :: pw
     COMPLEX(KIND=dp), DIMENSION(:, :, :), &
       INTENT(IN)                             :: c
-    COMPLEX(KIND=dp), INTENT(IN), OPTIONAL       :: scale
+    COMPLEX(KIND=dp), INTENT(IN), OPTIONAL   :: scale
 
     INTEGER                                  :: gpt, handle, l, m, n, ngpts
     INTEGER, DIMENSION(:), POINTER           :: mapl, mapm, mapn
     INTEGER, DIMENSION(:, :), POINTER        :: ghat
-    REAL(KIND=dp)                                :: cpy
+    REAL(KIND=dp)                            :: cpy
 
 !------------------------------------------------------------------------------
 
@@ -1902,13 +1904,13 @@ SUBROUTINE pw_gather_p ( pw, c, scale )
     TYPE(pw_type), INTENT(INOUT), TARGET     :: pw
     COMPLEX(KIND=dp), DIMENSION(:, :), &
       INTENT(IN)                             :: c
-    COMPLEX(KIND=dp), INTENT(IN), OPTIONAL       :: scale
+    COMPLEX(KIND=dp), INTENT(IN), OPTIONAL   :: scale
 
     INTEGER                                  :: gpt, handle, l, m, mn, n, &
                                                 ngpts
     INTEGER, DIMENSION(:), POINTER           :: mapl, mapm, mapn
     INTEGER, DIMENSION(:, :), POINTER        :: ghat, yzq
-    REAL(KIND=dp)                                :: cpy
+    REAL(KIND=dp)                            :: cpy
 
 !------------------------------------------------------------------------------
 
@@ -1993,12 +1995,12 @@ SUBROUTINE pw_scatter_s ( pw, c, scale )
     TYPE(pw_type), INTENT(IN)                :: pw
     COMPLEX(KIND=dp), DIMENSION(:, :, :), &
       INTENT(INOUT)                          :: c
-    COMPLEX(KIND=dp), INTENT(IN), OPTIONAL       :: scale
+    COMPLEX(KIND=dp), INTENT(IN), OPTIONAL   :: scale
 
     INTEGER                                  :: gpt, handle, l, m, n, ngpts
     INTEGER, DIMENSION(:), POINTER           :: mapl, mapm, mapn
     INTEGER, DIMENSION(:, :), POINTER        :: ghat
-    REAL(KIND=dp)                                :: cpy
+    REAL(KIND=dp)                            :: cpy
 
 !------------------------------------------------------------------------------
 
@@ -2096,13 +2098,13 @@ SUBROUTINE pw_scatter_p ( pw, c, scale )
     TYPE(pw_type), INTENT(IN), TARGET        :: pw
     COMPLEX(KIND=dp), DIMENSION(:, :), &
       INTENT(INOUT)                          :: c
-    COMPLEX(KIND=dp), INTENT(IN), OPTIONAL       :: scale
+    COMPLEX(KIND=dp), INTENT(IN), OPTIONAL   :: scale
 
     INTEGER                                  :: gpt, handle, l, m, mn, n, &
                                                 ngpts
     INTEGER, DIMENSION(:), POINTER           :: mapl, mapm, mapn
     INTEGER, DIMENSION(:, :), POINTER        :: ghat, yzq
-    REAL(KIND=dp)                                :: cpy
+    REAL(KIND=dp)                            :: cpy
 
 !------------------------------------------------------------------------------
 
@@ -2234,7 +2236,7 @@ SUBROUTINE fft_wrap_pw1 ( pw1, debug )
 
     INTEGER                                  :: dir, handle, out_space
     LOGICAL                                  :: test
-    REAL(KIND=dp)                                :: norm
+    REAL(KIND=dp)                            :: norm
 
 !------------------------------------------------------------------------------
 
@@ -2297,7 +2299,7 @@ SUBROUTINE fft_wrap_pw1pw2 ( pw1, pw2, debug )
                                                 out_space
     INTEGER, DIMENSION(:), POINTER           :: n
     LOGICAL                                  :: test
-    REAL(KIND=dp)                                :: norm
+    REAL(KIND=dp)                            :: norm
 
 !------------------------------------------------------------------------------
 
@@ -2863,7 +2865,7 @@ SUBROUTINE pw_release(pw, error)
         CASE(COMPLEXDATA3D)
            DEALLOCATE ( pw % cc3d, STAT = stat )
            CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-        case(NODATA)
+        CASE(NODATA)
         CASE default
            CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
                 "unknown data type "//cp_to_string(pw%in_use),error,failure)
@@ -2931,11 +2933,10 @@ SUBROUTINE pw_create(pw, pw_grid, use_data, in_space, mass_flag, cr3d_ptr, error
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_create', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat, handle
-    LOGICAL                                  :: failure
+    INTEGER                                  :: handle, stat
     INTEGER, DIMENSION(:, :), POINTER        :: bounds
-    LOGICAL                                  :: mass_flag_local
-    TYPE(cp_logger_type), pointer :: logger
+    LOGICAL                                  :: failure, mass_flag_local
+    TYPE(cp_logger_type), POINTER            :: logger
 
   failure=.FALSE.
   
@@ -2987,7 +2988,7 @@ SUBROUTINE pw_create(pw, pw_grid, use_data, in_space, mass_flag, cr3d_ptr, error
        CPPostcondition(stat==0,cp_fatal_level,routineP,error,failure)
      ENDIF
 
-  case(COMPLEXDATA1D)
+  CASE(COMPLEXDATA1D)
      ALLOCATE ( pw % cc ( pw % pw_grid % ngpts_cut_local ), STAT = stat )
      CPPostcondition(stat==0,cp_fatal_level,routineP,error,failure)
      IF ( mass_flag_local ) THEN
@@ -2995,7 +2996,7 @@ SUBROUTINE pw_create(pw, pw_grid, use_data, in_space, mass_flag, cr3d_ptr, error
        CPPostcondition(stat==0,cp_fatal_level,routineP,error,failure)
      ENDIF
 
-  case (REALDATA3D)
+  CASE (REALDATA3D)
      IF (PRESENT(cr3d_ptr)) THEN
         IF (ASSOCIATED(cr3d_ptr)) THEN
            CPPreconditionNoFail(ALL(LBOUND(cr3d_ptr)==bounds(1,:)),cp_failure_level,routineP,error)
@@ -3011,13 +3012,13 @@ SUBROUTINE pw_create(pw, pw_grid, use_data, in_space, mass_flag, cr3d_ptr, error
         CPPostcondition(stat==0,cp_fatal_level,routineP,error,failure)
      END IF
 
-  case(COMPLEXDATA3D)
+  CASE(COMPLEXDATA3D)
      ALLOCATE ( pw % cc3d ( &
           bounds ( 1, 1 ) : bounds ( 2, 1 ), &
           bounds ( 1, 2 ) : bounds ( 2, 2 ), &
           bounds ( 1, 3 ) : bounds ( 2, 3 ) ), STAT = stat )
      CPPostcondition(stat==0,cp_fatal_level,routineP,error,failure)
-  case(NODATA)
+  CASE(NODATA)
   CASE default
      CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
           "unknown data type",error,failure)
@@ -3060,7 +3061,7 @@ END SUBROUTINE pw_create
 !!*** **********************************************************************
 SUBROUTINE pw_compare_debug(pw1,pw2,maxdiff,error)
     TYPE(pw_type), POINTER                   :: pw1, pw2
-    REAL(KIND=dp), INTENT(out), OPTIONAL    :: maxdiff
+    REAL(KIND=dp), INTENT(out), OPTIONAL     :: maxdiff
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -3069,7 +3070,7 @@ SUBROUTINE pw_compare_debug(pw1,pw2,maxdiff,error)
 
     INTEGER                                  :: i, j, k, unit_nr
     LOGICAL                                  :: failure
-    REAL(KIND=dp)                           :: diff, mdiff
+    REAL(KIND=dp)                            :: diff, mdiff
     TYPE(cp_logger_type), POINTER            :: logger
 
   failure=.FALSE.
@@ -3150,19 +3151,18 @@ END SUBROUTINE pw_compare_debug
 !!
 !!**************************************************************************
   SUBROUTINE pw_prolongate_l_NoPBC(pw_coarse, pw_fine, error)
-    ! Arguments
+    TYPE(pw_type), POINTER                   :: pw_coarse, pw_fine
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
-    TYPE(pw_type), POINTER       :: pw_coarse
-    TYPE(pw_type), POINTER       :: pw_fine
-    ! Local Variables
+
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_prolongate_l_NoPBC', &
-         routineP = moduleN//':'//routineN
-    LOGICAL                                  :: failure
+      routineP = moduleN//':'//routineN
+
     INTEGER                                  :: handle, i, j, k, stat
     INTEGER, DIMENSION(3)                    :: lb, n, ub
-    REAL(KIND=dp), DIMENSION(:,:,:), ALLOCATABLE :: tgr 
-
+    LOGICAL                                  :: failure
+    REAL(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:, :, :)                     :: tgr
 
     CALL timeset ( 'pw_prolongate_l_NoPBC', 'I', '', handle )
     CPPreconditionNoErr(pw_coarse%ref_count>0,cp_failure_level,"pw_prolongate_l_NoPBC")
@@ -3296,19 +3296,19 @@ END SUBROUTINE pw_compare_debug
 !!
 !!**************************************************************************
   SUBROUTINE pw_restrict_l_NoPBC(pw_fine, pw_coarse, error)
-    ! Arguments
+    TYPE(pw_type), POINTER                   :: pw_fine, pw_coarse
     TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                                :: error
-    TYPE(pw_type), POINTER        :: pw_fine
-    TYPE(pw_type), POINTER        :: pw_coarse
-    ! Local Variables
-    CHARACTER(len=*), PARAMETER :: routineN = 'pw_restrict_NoPBC', &
-         routineP = moduleN//':'//routineN
-    LOGICAL                                   :: failure
-    INTEGER                                   :: handle, i, j, k, stat
-    INTEGER, DIMENSION(3)                     :: lb, ub
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'pw_restrict_l_NoPBC', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, i, j, k, stat
+    INTEGER, DIMENSION(3)                    :: lb, ub
+    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: dum
-    REAL(KIND=dp), DIMENSION(:,:,:), ALLOCATABLE :: tgr 
+    REAL(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:, :, :)                     :: tgr
 
     CALL timeset ( 'pw_restrict_l_NoPBC', 'I', '', handle )
     CPPreconditionNoErr(pw_fine%ref_count>0,cp_failure_level,"pw_restrict_l_NoPBC")
@@ -3432,11 +3432,11 @@ END SUBROUTINE pw_compare_debug
 
 FUNCTION pw_integral_ab ( pw1, pw2, flag ) RESULT ( integral_value )
 
-  TYPE(pw_type), INTENT(IN)                :: pw1, pw2
-  INTEGER, INTENT(IN), OPTIONAL            :: flag
-  REAL(KIND=dp)                                :: integral_value
+    TYPE(pw_type), INTENT(IN)                :: pw1, pw2
+    INTEGER, INTENT(IN), OPTIONAL            :: flag
+    REAL(KIND=dp)                            :: integral_value
 
-  !------------------------------------------------------------------------------
+!------------------------------------------------------------------------------
 
   IF ( pw1 % pw_grid %id_nr /= pw2 % pw_grid %id_nr ) THEN
      CALL stop_program ( "integral_ab", "grids incompatible" )
@@ -3498,11 +3498,11 @@ END FUNCTION pw_integral_ab
 
 FUNCTION pw_integral_aa ( pw1, flag ) RESULT ( integral_value )
 
-  TYPE(pw_type), INTENT(IN)                :: pw1
-  INTEGER, INTENT(IN), OPTIONAL            :: flag
-  REAL(KIND=dp)                                :: integral_value
+    TYPE(pw_type), INTENT(IN)                :: pw1
+    INTEGER, INTENT(IN), OPTIONAL            :: flag
+    REAL(KIND=dp)                            :: integral_value
 
-  !------------------------------------------------------------------------------
+!------------------------------------------------------------------------------
 
   IF ( PRESENT ( flag ) ) THEN
      IF ( flag == SQUARE ) THEN
@@ -3558,10 +3558,10 @@ END FUNCTION pw_integral_aa
 
 FUNCTION pw_integral_a2b ( pw1, pw2 ) RESULT ( integral_value )
 
-  TYPE(pw_type), INTENT(IN)                :: pw1, pw2
-  REAL(KIND=dp)                                :: integral_value
+    TYPE(pw_type), INTENT(IN)                :: pw1, pw2
+    REAL(KIND=dp)                            :: integral_value
 
-  !------------------------------------------------------------------------------
+!------------------------------------------------------------------------------
 
   IF ( pw1 % pw_grid %id_nr /= pw2 % pw_grid %id_nr ) THEN
      CALL stop_program ( "integral_a2b", "grids incompatible" )

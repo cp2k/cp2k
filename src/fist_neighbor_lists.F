@@ -26,27 +26,27 @@ MODULE fist_neighbor_lists
                                              get_atomic_kind_set
   USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                              gto_basis_set_type
+  USE cell_types,                      ONLY: cell_type,&
+                                             get_cell,&
+                                             pbc,&
+                                             plane_distance,&
+                                             real_to_scaled,&
+                                             scaled_to_real
   USE checkpoint_handler,              ONLY: write_checkpoint_information
+  USE cp_output_handling,              ONLY: cp_p_file,&
+                                             cp_print_key_finished_output,&
+                                             cp_print_key_should_output,&
+                                             cp_print_key_unit_nr
   USE distribution_1d_types,           ONLY: distribution_1d_type
-  USE fist_neighbor_list_types,        ONLY: add_neighbor_list,&
-                                             add_neighbor_node,&
-                                             allocate_neighbor_list_set,&
-                                             deallocate_neighbor_list_set,&
-                                             first_list,&
-                                             first_node,&
-                                             get_neighbor_list,&
-                                             get_neighbor_list_set,&
-                                             get_neighbor_node,&
-                                             init_neighbor_list_set,&
-                                             neighbor_list_p_type,&
-                                             neighbor_list_set_p_type,&
-                                             neighbor_list_set_type,&
-                                             neighbor_list_type,&
-                                             neighbor_node_type,&
-                                             next
-  USE global_types,                    ONLY: LOW,&
-                                             MEDIUM,&
-                                             global_environment_type
+  USE fist_neighbor_list_types,        ONLY: &
+       add_neighbor_list, add_neighbor_node, allocate_neighbor_list_set, &
+       deallocate_neighbor_list_set, first_list, first_node, &
+       get_neighbor_list, get_neighbor_list_set, get_neighbor_node, &
+       init_neighbor_list_set, neighbor_list_p_type, &
+       neighbor_list_set_p_type, neighbor_list_set_type, neighbor_list_type, &
+       neighbor_node_type, next
+  USE global_types,                    ONLY: global_environment_type
+  USE input_section_types,             ONLY: section_vals_type
   USE kinds,                           ONLY: default_string_length,&
                                              dp,&
                                              dp_size,&
@@ -59,32 +59,20 @@ MODULE fist_neighbor_lists
                                              deallocate_subcell,&
                                              local_atoms_type,&
                                              subcell_type
-  USE cell_types,                      ONLY: cell_type,&
-                                             get_cell,&
-                                             pbc,&
-                                             plane_distance,&
-                                             real_to_scaled,&
-                                             scaled_to_real
   USE string_utilities,                ONLY: compress
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE cp_output_handling,              ONLY: cp_print_key_unit_nr, &
-                                             cp_print_key_finished_output,&
-                                             cp_print_key_should_output,&
-                                             cp_p_file
-  USE input_section_types, ONLY: section_vals_type, section_vals_get_subs_vals,&
-       section_vals_get, section_vals_val_get, section_vals_release
-
 #include "cp_common_uses.h"
+
   IMPLICIT NONE
 
   PRIVATE
 
 ! *** Global parameters (in this module) ***
 
-  CHARACTER(LEN=*), PARAMETER :: module_name = "fist_neighbor_lists"
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'fist_neighbor_lists'
 
 ! *** Public subroutines ***
 
@@ -119,30 +107,28 @@ CONTAINS
     REAL(dp), DIMENSION(:, :), INTENT(IN)    :: r_max
     TYPE(neighbor_list_set_p_type), &
       DIMENSION(:), POINTER                  :: nonbonded
-    TYPE(global_environment_type), &
-      POINTER                                :: globenv
+    TYPE(global_environment_type), POINTER   :: globenv
+    LOGICAL, INTENT(IN)                      :: build_from_scratch
+    TYPE(section_vals_type), POINTER         :: force_env_section
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
-    TYPE(section_vals_type), POINTER         :: force_env_section
 
-    LOGICAL, INTENT(IN)                      :: build_from_scratch
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'build_fist_neighbor_lists'
 
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "build_fist_neighbor_lists"
-
-    INTEGER :: atom_a, handle, iatom, iatom_local, ikind, istat, maxatom, &
-      maxatom_local, natom_a, natom_local_a, nkind, output_unit, iw
+    INTEGER :: atom_a, handle, iatom, iatom_local, ikind, istat, iw, maxatom, &
+      maxatom_local, natom_a, natom_local_a, nkind, output_unit
     LOGICAL                                  :: print_subcell_grid
     REAL(dp), DIMENSION(3)                   :: r_pbc
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
+    TYPE(cp_logger_type), POINTER            :: logger
     TYPE(local_atoms_type), ALLOCATABLE, &
       DIMENSION(:)                           :: atom
-    TYPE(cp_logger_type), POINTER            :: logger
 
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
 
-    CALL write_checkpoint_information("Entering "//routine_name,globenv,error)
-    CALL timeset(routine_name,"I","",handle)
+    CALL write_checkpoint_information("Entering "//routineN,globenv,error)
+    CALL timeset(routineN,"I","",handle)
 
     print_subcell_grid = .FALSE.
     output_unit = cp_print_key_unit_nr(logger,force_env_section,"SUBSYS%PRINT%SUBCELL",&
@@ -157,7 +143,7 @@ CONTAINS
     nkind = SIZE(atomic_kind_set)
 
     ALLOCATE (atom(nkind),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "atom",nkind*int_size)
 
 !   *** Initialize the local data structures ***
@@ -184,7 +170,7 @@ CONTAINS
       IF (natom_local_a > 0) THEN
 
         ALLOCATE (atom(ikind)%list_local_a_index(natom_local_a),STAT=istat)
-        IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+        IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                          "atom(ikind)%list_local_a_index",&
                                          natom_local_a*int_size)
 
@@ -203,11 +189,11 @@ CONTAINS
       END IF
 
       ALLOCATE (atom(ikind)%r_pbc(3,natom_a),STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                        "atom(ikind)%r_pbc",3*natom_a*dp_size)
 
       ALLOCATE (atom(ikind)%s_pbc(3,natom_a),STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                        "atom(ikind)%s_pbc",3*natom_a*dp_size)
 
 !     *** Calculate PBC coordinates ***
@@ -253,30 +239,30 @@ CONTAINS
       NULLIFY (atom(ikind)%list)
       IF (ASSOCIATED(atom(ikind)%list_local_a_index)) THEN
         DEALLOCATE (atom(ikind)%list_local_a_index,STAT=istat)
-        IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+        IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                          "atom(ikind)%list_local_a_index")
       END IF
       IF (ASSOCIATED(atom(ikind)%r_pbc)) THEN
         DEALLOCATE (atom(ikind)%r_pbc,STAT=istat)
-        IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+        IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                          "atom(ikind)%r_pbc")
       END IF
       IF (ASSOCIATED(atom(ikind)%s_pbc)) THEN
         DEALLOCATE (atom(ikind)%s_pbc,STAT=istat)
-        IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+        IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                          "atom(ikind)%s_pbc")
       END IF
     END DO
 
     DEALLOCATE (atom,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "atom")
 
     CALL cp_print_key_finished_output(output_unit,logger,force_env_section,&
          "SUBSYS%PRINT%SUBCELL",error=error)    
     CALL timestop(0.0_dp,handle)
 
-    CALL write_checkpoint_information("Leaving "//routine_name,globenv,error)
+    CALL write_checkpoint_information("Leaving "//routineN,globenv,error)
 
   END SUBROUTINE build_fist_neighbor_lists
 
@@ -305,7 +291,7 @@ CONTAINS
     REAL(dp), DIMENSION(:, :), INTENT(IN)    :: r_max
     LOGICAL, INTENT(IN)                      :: build_from_scratch
 
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "build_neighbor_lists"
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'build_neighbor_lists'
 
     CHARACTER(LEN=8)                         :: unit_of_length_name
     INTEGER :: atom_a, atom_b, handle, i, iab, iatom, iatom_local, &
@@ -327,7 +313,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL timeset(routine_name,"I","",handle)
+    CALL timeset(routineN,"I","",handle)
 
     nkind = SIZE(atom)
 
@@ -340,13 +326,13 @@ CONTAINS
           CALL deallocate_neighbor_list_set(ab(iab)%neighbor_list_set)
         END DO
         DEALLOCATE (ab,STAT=istat)
-        IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,"ab")
+        IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"ab")
       END IF
 
 !     *** Allocate and initialize the new neighbor list structure ***
 
       ALLOCATE (ab(nkind*nkind),STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                        "ab",nkind*nkind*int_size)
 
       DO iab=1,SIZE(ab)
@@ -356,7 +342,7 @@ CONTAINS
     ELSE
 
       IF (.NOT.ASSOCIATED(ab)) THEN
-        CALL stop_program(routine_name,module_name,__LINE__,&
+        CALL stop_program(routineN,moduleN,__LINE__,&
                           "ab is not associated and cannot be updated")
       END IF
 
@@ -666,18 +652,18 @@ CONTAINS
       DIMENSION(:), POINTER                  :: ab
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
-    TYPE(global_environment_type), &
-      pointer                             :: globenv
-    INTEGER, intent(in)                   :: output_unit
+    INTEGER, INTENT(in)                      :: output_unit
+    TYPE(global_environment_type), POINTER   :: globenv
     TYPE(cp_error_type), INTENT(inout), &
-         OPTIONAL                               :: error
+      OPTIONAL                               :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "write_distribution"
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'write_distribution'
 
-    INTEGER :: group, iab, ikind, ilist, ipe, istat, jkind, mype, n, nkind, &
-      nlist, nnode, npe, nsgf_a, nsgf_b
+    INTEGER                                  :: group, iab, ikind, ilist, &
+                                                ipe, istat, jkind, mype, n, &
+                                                nkind, nlist, nnode, npe, &
+                                                nsgf_a, nsgf_b
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: nblock, nelement
-    LOGICAL                                  :: ionode
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
     TYPE(neighbor_list_set_type), POINTER    :: neighbor_list_set
@@ -690,12 +676,12 @@ CONTAINS
 !   *** Allocate work storage ***
 
     ALLOCATE (nblock(npe),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "nblock",npe*int_size)
     nblock(:) = 0
 
     ALLOCATE (nelement(npe),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "nelement",npe*int_size)
     nelement(:) = 0
 
@@ -772,11 +758,11 @@ CONTAINS
 !   *** Release work storage ***
 
     DEALLOCATE (nblock,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "nblock")
 
     DEALLOCATE (nelement,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "nelement")
 
   END SUBROUTINE write_distribution
@@ -798,12 +784,11 @@ CONTAINS
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(cell_type), POINTER                 :: cell
-    TYPE(global_environment_type), &
-      pointer                                :: globenv
+    TYPE(global_environment_type), POINTER   :: globenv
+    INTEGER, INTENT(in)                      :: output_unit
     CHARACTER(LEN=*), INTENT(IN)             :: name
     TYPE(cp_error_type), INTENT(inout), &
-         OPTIONAL                               :: error
-    INTEGER, INTENT(in)                      :: output_unit
+      OPTIONAL                               :: error
 
     CHARACTER(LEN=8)                         :: unit_of_length_name
     CHARACTER(LEN=default_string_length)     :: string
@@ -811,7 +796,7 @@ CONTAINS
                                                 ilist, inode, ipe, mype, &
                                                 nlist, nneighbor, nnode, npe
     INTEGER, DIMENSION(3)                    :: cell_a, cell_b
-    LOGICAL                                  :: ionode, print_headline
+    LOGICAL                                  :: print_headline
     REAL(dp)                                 :: dab, unit_of_length
     REAL(dp), DIMENSION(3)                   :: ra, rab, rb
     TYPE(neighbor_list_set_type), POINTER    :: neighbor_list_set
@@ -855,7 +840,7 @@ CONTAINS
 
 !       *** Print first part of headline ***
 
-        if (output_unit>0) WRITE (UNIT=output_unit,FMT="(/,/,T2,A)") TRIM(string)
+        IF (output_unit>0) WRITE (UNIT=output_unit,FMT="(/,/,T2,A)") TRIM(string)
 
         DO iab=1,SIZE(ab)
 

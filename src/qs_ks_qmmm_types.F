@@ -25,23 +25,24 @@
 !****************************************************************************
 MODULE qs_ks_qmmm_types
   USE coefficient_types,               ONLY: coeff_type
+  USE cube_utils,                      ONLY: cube_info_type,&
+                                             destroy_cube_info
+  USE input_section_types,             ONLY: section_vals_type
   USE kinds,                           ONLY: dp
+  USE pw_env_types,                    ONLY: pw_env_get,&
+                                             pw_env_release,&
+                                             pw_env_type
   USE pw_pool_types,                   ONLY: pw_pool_give_back_coeff,&
-                                             pw_pool_release,&
                                              pw_pool_type
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE cube_utils,                      ONLY: cube_info_type
-  USE cube_utils,                      ONLY: destroy_cube_info
-  USE input_section_types,             ONLY: section_vals_type
-  USE pw_env_types, ONLY: pw_env_type, pw_env_get, pw_env_release
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
   PRIVATE
 
   LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
-  CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='qs_ks_qmmm_types'
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_ks_qmmm_types'
 
   PUBLIC :: qs_ks_qmmm_env_type, qs_ks_qmmm_env_p_type
   PUBLIC :: qs_ks_qmmm_release, qs_ks_qmmm_retain
@@ -75,7 +76,7 @@ MODULE qs_ks_qmmm_types
      INTEGER :: n_evals, &
                 id_nr, ref_count
 
-     TYPE(pw_env_type), pointer :: pw_env
+     TYPE(pw_env_type), POINTER :: pw_env
      TYPE(coeff_type)               :: v_qmmm_rspace
      TYPE(cube_info_type),DIMENSION(:), POINTER  :: cube_info
   END TYPE qs_ks_qmmm_env_type
@@ -141,16 +142,16 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE qs_ks_qmmm_release(ks_qmmm_env,force_env_section,error)
     TYPE(qs_ks_qmmm_env_type), POINTER       :: ks_qmmm_env
+    TYPE(section_vals_type), POINTER         :: force_env_section
     TYPE(cp_error_type), INTENT(inout), &
-         OPTIONAL                               :: error
-    TYPE(section_vals_type), POINTER :: force_env_section
+      OPTIONAL                               :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_ks_qmmm_release', &
-         routineP = moduleN//':'//routineN
+      routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat,i
+    INTEGER                                  :: i, stat
     LOGICAL                                  :: failure
-    TYPE(pw_pool_type), pointer :: pool
+    TYPE(pw_pool_type), POINTER              :: pool
 
     failure=.FALSE.
 

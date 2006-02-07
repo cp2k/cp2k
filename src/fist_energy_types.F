@@ -58,7 +58,7 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(fist_energy_type), POINTER            :: fist_energy
+    TYPE(fist_energy_type), POINTER          :: fist_energy
 
     CHARACTER(LEN=*), PARAMETER :: &
       routine = "SUBROUTINE allocate_fist_energy (MODULE fist_energy_types)"
@@ -86,7 +86,7 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(fist_energy_type), POINTER            :: fist_energy
+    TYPE(fist_energy_type), POINTER          :: fist_energy
 
     CHARACTER(LEN=*), PARAMETER :: &
       routine = "SUBROUTINE deallocate_fist_energy (MODULE fist_energy_types)"
@@ -115,7 +115,7 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(fist_energy_type), POINTER            :: fist_energy
+    TYPE(fist_energy_type), POINTER          :: fist_energy
 
     CHARACTER(LEN=*), PARAMETER :: &
       routine = "SUBROUTINE init_fist_energy (MODULE fist_energy_types)"

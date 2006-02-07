@@ -25,66 +25,39 @@
 !******************************************************************************
 
 MODULE particle_types
-  USE cp_output_handling,              ONLY: cp_print_key_should_output,&
-                                             cp_p_file,&
-                                             cp_print_key_unit_nr,&
-                                             cp_print_key_finished_output,&
-                                             cp_iter_string,&
-                                             cp_iterate,&
-                                             cp_add_iter_level,&
-                                             cp_rm_iter_level
-  USE atomic_kind_types,               ONLY: allocate_atomic_kind_set,&
-                                             atomic_kind_type,&
-                                             get_atomic_kind,&
-                                             read_atomic_kind_set,&
-                                             set_atomic_kind
+  USE atomic_kind_types,               ONLY: atomic_kind_type,&
+                                             get_atomic_kind
   USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                              gto_basis_set_type
-  USE input_constants,                 ONLY: dump_xmol,&
+  USE cell_types,                      ONLY: cell_type,&
+                                             get_cell,&
+                                             pbc
+  USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
+                                             cp_print_key_unit_nr
+  USE global_types,                    ONLY: global_environment_type
+  USE input_constants,                 ONLY: do_bondparm_covalent,&
+                                             do_bondparm_vdw,&
                                              dump_atomic,&
                                              dump_dcd,&
-                                             do_bondparm_covalent,&
-                                             do_bondparm_vdw
-  USE global_types,                    ONLY: global_environment_type
-  USE kinds,                           ONLY: dp,&
-                                             sp,&
-                                             default_string_length,&
+                                             dump_xmol
+  USE input_section_types,             ONLY: section_vals_type
+  USE kinds,                           ONLY: default_string_length,&
+                                             dp,&
                                              dp_size,&
-                                             int_size
-  USE mathconstants,                   ONLY: degree
-  USE mathlib,                         ONLY: angle,&
-                                             dihedral_angle
+                                             int_size,&
+                                             sp
   USE memory_utilities,                ONLY: reallocate
   USE message_passing,                 ONLY: mp_allgather,&
                                              mp_bcast
-  USE molecule_kind_types,             ONLY: allocate_molecule_kind_set,&
-                                             atom_type,&
-                                             get_molecule_kind,&
-                                             molecule_kind_type,&
-                                             set_molecule_kind
-  USE molecule_types_new,              ONLY: allocate_molecule_set,&
-                                             molecule_type,&
-                                             set_molecule_set
-  USE output_utilities,                ONLY: print_warning
   USE physcon,                         ONLY: angstrom,&
                                              femtoseconds,&
                                              massunit
   USE qmmm_ff_fist,                    ONLY: qmmm_ff_precond_only_qm
-  USE cell_types,                      ONLY: cell_type,&
-                                             get_cell,&
-                                             pbc,&
-                                             scaled_to_real
-  USE string_utilities,                ONLY: ascii_to_string,&
-                                             compress,&
-                                             string_to_ascii,&
-                                             uppercase
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE util,                            ONLY: find_boundary
-  USE input_section_types, ONLY: section_vals_type, section_vals_get_subs_vals,&
-       section_vals_get, section_vals_val_get, section_vals_release
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -93,7 +66,7 @@ MODULE particle_types
 
 ! *** Global parameters (in this module) ***
 
-  CHARACTER(LEN=*), PARAMETER :: module_name = "particle_types"
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'particle_types'
 
 ! *** Data types ***
 
@@ -175,7 +148,7 @@ SUBROUTINE clone_particle(p_in,p_out,nullify_non_owned_pointers,error)
       OPTIONAL                               :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'clone_particle', &
-      routineP = module_name//':'//routineN
+      routineP = moduleN//':'//routineN
 
   NULLIFY(p_out%atomic_kind)
   NULLIFY(p_out%lpi)
@@ -204,7 +177,7 @@ END SUBROUTINE clone_particle
       POINTER                                :: particle_set
     INTEGER, INTENT(IN)                      :: nparticle
 
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "allocate_particle_set"
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'allocate_particle_set'
 
     INTEGER                                  :: iparticle, istat
 
@@ -213,7 +186,7 @@ END SUBROUTINE clone_particle
     IF (ASSOCIATED(particle_set)) CALL deallocate_particle_set(particle_set)
 
     ALLOCATE (particle_set(nparticle),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "particle_set",nparticle*int_size)
 
     DO iparticle=1,nparticle
@@ -241,10 +214,9 @@ END SUBROUTINE clone_particle
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
 
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "deallocate_particle_set"
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'deallocate_particle_set'
 
-    INTEGER                                  :: iparticle, istat
-    INTEGER                                  :: i, ndim
+    INTEGER                                  :: i, iparticle, istat
 
 !   ---------------------------------------------------------------------------
 
@@ -257,34 +229,34 @@ END SUBROUTINE clone_particle
             DO i=1,SIZE(particle_set(iparticle)%lpi%exclusion)
               IF (ASSOCIATED(particle_set(iparticle)%lpi%exclusion(i)%list_vdw)) THEN
                 DEALLOCATE (particle_set(iparticle)%lpi%exclusion(i)%list_vdw,STAT=istat)
-                IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+                IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                                  "particle_set(iparticle)%exclusion(i)%list_vdw")
               END IF
               IF (ASSOCIATED(particle_set(iparticle)%lpi%exclusion(i)%list_ei)) THEN
                 DEALLOCATE (particle_set(iparticle)%lpi%exclusion(i)%list_ei,STAT=istat)
-                IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+                IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                                  "particle_set(iparticle)%exclusion(i)%list_ei")
               END IF
             END DO
             DEALLOCATE (particle_set(iparticle)%lpi%exclusion,STAT=istat)
             IF (istat /= 0) THEN
-              CALL stop_memory(routine_name,module_name,__LINE__,&
+              CALL stop_memory(routineN,moduleN,__LINE__,&
                                "particle_set(iparticle)%lpi%exclusion")
             END IF
           END IF
           DEALLOCATE (particle_set(iparticle)%lpi,STAT=istat)
           IF (istat /= 0) THEN
-            CALL stop_memory(routine_name,module_name,__LINE__,&
+            CALL stop_memory(routineN,moduleN,__LINE__,&
                              "particle_set(iparticle)%lpi")
           END IF
         END IF
       END DO
       DEALLOCATE (particle_set,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                        "particle_set")
     ELSE
 
-      CALL stop_program(routine_name,module_name,__LINE__,&
+      CALL stop_program(routineN,moduleN,__LINE__,&
                         "The pointer particle_set is not associated and "//&
                         "cannot be deallocated")
 
@@ -318,7 +290,7 @@ END SUBROUTINE clone_particle
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(OUT), OPTIONAL                  :: r
 
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "get_particle_set"
+    CHARACTER(LEN=*), PARAMETER              :: routineN = 'get_particle_set'
 
     INTEGER                                  :: icgf, ico, iparticle, isgf, &
                                                 iso, maxco, maxso, nc, &
@@ -333,7 +305,7 @@ END SUBROUTINE clone_particle
 
       IF (PRESENT(first_cgf)) THEN
         IF (SIZE(first_cgf) < nparticle) THEN
-          CALL stop_program(routine_name,module_name,__LINE__,&
+          CALL stop_program(routineN,moduleN,__LINE__,&
                             "An array of insufficient size was supplied "//&
                             "for argument <first_cgf>")
         END IF
@@ -341,7 +313,7 @@ END SUBROUTINE clone_particle
 
       IF (PRESENT(first_nco)) THEN
         IF (SIZE(first_nco) < nparticle) THEN
-          CALL stop_program(routine_name,module_name,__LINE__,&
+          CALL stop_program(routineN,moduleN,__LINE__,&
                             "An array of insufficient size was supplied "//&
                             "for argument <first_nco>")
         END IF
@@ -349,7 +321,7 @@ END SUBROUTINE clone_particle
 
       IF (PRESENT(first_nso)) THEN
         IF (SIZE(first_nso) < nparticle) THEN
-          CALL stop_program(routine_name,module_name,__LINE__,&
+          CALL stop_program(routineN,moduleN,__LINE__,&
                             "An array of insufficient size was supplied "//&
                             "for argument <first_nso>")
         END IF
@@ -358,7 +330,7 @@ END SUBROUTINE clone_particle
 
       IF (PRESENT(first_sgf)) THEN
         IF (SIZE(first_sgf) < nparticle) THEN
-          CALL stop_program(routine_name,module_name,__LINE__,&
+          CALL stop_program(routineN,moduleN,__LINE__,&
                             "An array of insufficient size was supplied "//&
                             "for argument <first_sgf>")
         END IF
@@ -366,7 +338,7 @@ END SUBROUTINE clone_particle
 
       IF (PRESENT(last_cgf)) THEN
         IF (SIZE(last_cgf) < nparticle) THEN
-          CALL stop_program(routine_name,module_name,__LINE__,&
+          CALL stop_program(routineN,moduleN,__LINE__,&
                             "An array of insufficient size was supplied "//&
                             "for argument <last_cgf>")
         END IF
@@ -374,7 +346,7 @@ END SUBROUTINE clone_particle
 
       IF (PRESENT(last_nco)) THEN
         IF (SIZE(last_nco) < nparticle) THEN
-          CALL stop_program(routine_name,module_name,__LINE__,&
+          CALL stop_program(routineN,moduleN,__LINE__,&
                             "An array of insufficient size was supplied "//&
                             "for argument <last_nco>")
         END IF
@@ -382,7 +354,7 @@ END SUBROUTINE clone_particle
 
       IF (PRESENT(last_sgf)) THEN
         IF (SIZE(last_sgf) < nparticle) THEN
-          CALL stop_program(routine_name,module_name,__LINE__,&
+          CALL stop_program(routineN,moduleN,__LINE__,&
                             "An array of insufficient size was supplied "//&
                             "for argument <last_sgf>")
         END IF
@@ -390,7 +362,7 @@ END SUBROUTINE clone_particle
 
       IF (PRESENT(ncgf)) THEN
         IF (SIZE(ncgf) < nparticle) THEN
-          CALL stop_program(routine_name,module_name,__LINE__,&
+          CALL stop_program(routineN,moduleN,__LINE__,&
                             "An array of insufficient size was supplied "//&
                             "for argument <ncgf>")
         END IF
@@ -398,7 +370,7 @@ END SUBROUTINE clone_particle
 
       IF (PRESENT(nsgf)) THEN
         IF (SIZE(nsgf) < nparticle) THEN
-          CALL stop_program(routine_name,module_name,__LINE__,&
+          CALL stop_program(routineN,moduleN,__LINE__,&
                             "An array of insufficient size was supplied "//&
                             "for argument <nsgf>")
         END IF
@@ -474,7 +446,7 @@ END SUBROUTINE clone_particle
 
     ELSE
 
-      CALL stop_program(routine_name,module_name,__LINE__,&
+      CALL stop_program(routineN,moduleN,__LINE__,&
                         "The pointer particle_set is not associated")
 
     END IF
@@ -501,12 +473,11 @@ END SUBROUTINE clone_particle
 
     CHARACTER(LEN=2)                         :: element_symbol
     CHARACTER(LEN=4)                         :: name
-    INTEGER                                  :: iatom, natom
-    REAL(KIND=dp), DIMENSION(3)              :: r
     CHARACTER(LEN=default_string_length)     :: atm_name, my_format
-    LOGICAL :: dummy
-    REAL(KIND=sp), DIMENSION(:), POINTER     :: x4,y4,z4
-    INTEGER                                  :: istat
+    INTEGER                                  :: iatom, istat, natom
+    LOGICAL                                  :: dummy
+    REAL(KIND=dp), DIMENSION(3)              :: r
+    REAL(KIND=sp), DIMENSION(:), POINTER     :: x4, y4, z4
 
     natom = SIZE(particle_set)
 
@@ -619,17 +590,16 @@ END SUBROUTINE clone_particle
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(cell_type), POINTER                 :: cell
-    TYPE(section_vals_type), POINTER :: force_env_section
+    TYPE(section_vals_type), POINTER         :: force_env_section
     TYPE(cp_error_type), INTENT(INOUT), &
       OPTIONAL                               :: error
 
     CHARACTER(LEN=2)                         :: element_symbol
     CHARACTER(LEN=8)                         :: unit_of_length_name
-    INTEGER                                  :: iatom, ikind, natom, &
-                                                iw, z
-    REAL(KIND=dp)                            :: zeff, mass, unit_of_length
+    INTEGER                                  :: iatom, ikind, iw, natom, z
+    REAL(KIND=dp)                            :: mass, unit_of_length, zeff
     TYPE(cp_logger_type), POINTER            :: logger
-    
+
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
     iw = cp_print_key_unit_nr(logger,force_env_section,&
@@ -687,26 +657,23 @@ END SUBROUTINE clone_particle
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(cell_type), POINTER                 :: cell
-    TYPE(section_vals_type), POINTER :: force_env_section
-    TYPE(global_environment_type), &
-         POINTER                             :: globenv
+    TYPE(section_vals_type), POINTER         :: force_env_section
     TYPE(cp_error_type), INTENT(INOUT), &
       OPTIONAL                               :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "write_particle_distances"
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'write_particle_distances'
 
     CHARACTER(LEN=2)                         :: element_symbol
     CHARACTER(LEN=8)                         :: unit_of_length_name
     INTEGER                                  :: from, iatom, icol, ikind, &
-                                                istat, jatom, natom, &
-                                                iw, to
+                                                istat, iw, jatom, natom, to
     INTEGER, DIMENSION(3)                    :: periodic
     REAL(KIND=dp)                            :: dab, unit_of_length
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: distance_matrix
     REAL(KIND=dp), DIMENSION(3)              :: rab
     TYPE(cp_logger_type), POINTER            :: logger
-    
+
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
     iw = cp_print_key_unit_nr(logger,force_env_section,&
@@ -723,7 +690,7 @@ END SUBROUTINE clone_particle
       natom = SIZE(particle_set)
 
       ALLOCATE (distance_matrix(natom,natom),STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                        "distance_matrix",dp_size*natom*natom)
 
       distance_matrix(:,:) = 0.0_dp
@@ -769,23 +736,27 @@ END SUBROUTINE clone_particle
 SUBROUTINE generate_particle_distances(r,cell,radius,bondparm_factor,&
                                        bond_a,bond_b,bondparm_type,globenv)
 
-    REAL(KIND=dp), POINTER                        :: r(:,:)
-    TYPE(cell_type), POINTER                      :: cell
-    REAL(KIND=dp), POINTER                        :: radius(:)
-    REAL(KIND=dp)                                 :: bondparm_factor
-    INTEGER, POINTER                              :: bond_a(:),bond_b(:)
-    INTEGER                                       :: bondparm_type
-    TYPE(global_environment_type), &
-      pointer                                  :: globenv
-    REAL(KIND=dp), POINTER                        :: tbond_a(:),tbond_b(:)
-    REAL(KIND=dp), POINTER                        :: ttbond_a(:),ttbond_b(:)
-    REAL(KIND=dp)                                 :: dr(3),r2,rbond,rbond2,rr(3)
-    INTEGER, PARAMETER                            :: nblock = 1000
-    INTEGER, POINTER                              :: nbond_loc(:)
-    INTEGER                                       :: workload,nbond,i,j,k,&
-                                                     first,last,iproc,iatom,&
-                                                     natom,istat,iw,jatom
+    REAL(KIND=dp), POINTER                   :: r(:,:)
+    TYPE(cell_type), POINTER                 :: cell
+    REAL(KIND=dp), POINTER                   :: radius(:)
+    REAL(KIND=dp)                            :: bondparm_factor
+    INTEGER, POINTER                         :: bond_a(:), bond_b(:)
+    INTEGER                                  :: bondparm_type
+    TYPE(global_environment_type), POINTER   :: globenv
+
+    INTEGER, PARAMETER                       :: nblock = 1000
+
+    INTEGER                                  :: first, i, iatom, iproc, &
+                                                istat, j, jatom, k, last, &
+                                                natom, nbond, workload
+    INTEGER, POINTER                         :: nbond_loc(:)
+    REAL(KIND=dp)                            :: dr(3), r2, rbond, rbond2, &
+                                                rr(3)
+    REAL(KIND=dp), POINTER                   :: tbond_a(:), tbond_b(:), &
+                                                ttbond_a(:), ttbond_b(:)
+
 !------------------------------------------------------------------------------
+
   NULLIFY(bond_a,bond_b,tbond_a,tbond_b,ttbond_a,ttbond_b)
   NULLIFY(nbond_loc)
 !------------------------------------------------------------------------------

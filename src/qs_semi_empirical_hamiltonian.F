@@ -22,6 +22,10 @@ MODULE qs_semi_empirical_hamiltonian
                                              get_atomic_kind,&
                                              get_atomic_kind_set
   USE cp_control_types,                ONLY: dft_control_type
+  USE cp_output_handling,              ONLY: cp_p_file,&
+                                             cp_print_key_finished_output,&
+                                             cp_print_key_should_output,&
+                                             cp_print_key_unit_nr
   USE global_types,                    ONLY: global_environment_type
   USE kinds,                           ONLY: dp
   USE nddo_methods,                    ONLY: build_nddo_fock_matrix
@@ -33,15 +37,10 @@ MODULE qs_semi_empirical_hamiltonian
                                              set_qs_env
   USE qs_force_types,                  ONLY: qs_force_type
   USE qs_ks_types,                     ONLY: qs_ks_env_type
-  USE qs_neighbor_list_types,          ONLY: first_list,&
-                                             first_node,&
-                                             get_neighbor_list,&
-                                             get_neighbor_list_set,&
-                                             get_neighbor_node,&
-                                             neighbor_list_set_p_type,&
-                                             neighbor_list_type,&
-                                             neighbor_node_type,&
-                                             next
+  USE qs_neighbor_list_types,          ONLY: &
+       first_list, first_node, get_neighbor_list, get_neighbor_list_set, &
+       get_neighbor_node, neighbor_list_set_p_type, neighbor_list_type, &
+       neighbor_node_type, next
   USE qs_overlap,                      ONLY: build_overlap_matrix,&
                                              write_sparse_matrix
   USE qs_rho_types,                    ONLY: qs_rho_type
@@ -60,18 +59,13 @@ MODULE qs_semi_empirical_hamiltonian
   USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE cp_output_handling,              ONLY: cp_print_key_unit_nr, &
-                                             cp_print_key_finished_output,&
-                                             cp_print_key_should_output,&
-                                             cp_p_file
-
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
 
   PRIVATE
 
-  CHARACTER(LEN=*), PARAMETER :: moduleN = "qs_semi_empirical_hamiltonian"
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_semi_empirical_hamiltonian'
 
   PUBLIC :: build_se_core_matrix, build_se_fock_matrix
 
@@ -84,18 +78,17 @@ CONTAINS
   SUBROUTINE build_se_core_matrix(qs_env,globenv,calculate_forces,error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(global_environment_type), &
-      pointer                             :: globenv
+    TYPE(global_environment_type), POINTER   :: globenv
     LOGICAL, INTENT(IN)                      :: calculate_forces
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = "build_se_core_matrix", &
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'build_se_core_matrix', &
       routineP = moduleN//':'//routineN
 
     INTEGER :: atom_a, atom_b, i, iab, iatom, icol, icor, ikind, ilist, &
-      inode, irow, istat, itype, j, jatom, jkind, natom, natorb_a, natorb_b, &
-      nkind, nlist, nnode
+      inode, irow, istat, itype, iw, j, jatom, jkind, natom, natorb_a, &
+      natorb_b, nkind, nlist, nnode
     INTEGER, DIMENSION(:), POINTER           :: atom_of_kind
     LOGICAL                                  :: defined, failure
     REAL(KIND=dp)                            :: delta, econst, eheat, eisol, &
@@ -112,6 +105,7 @@ CONTAINS
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
+    TYPE(cp_logger_type), POINTER            :: logger
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(neighbor_list_set_p_type), &
       DIMENSION(:), POINTER                  :: sab_orb
@@ -126,8 +120,6 @@ CONTAINS
     TYPE(real_matrix_p_type), DIMENSION(:), &
       POINTER                                :: matrix_h, matrix_p, matrix_s
     TYPE(semi_empirical_type), POINTER       :: se_kind_a, se_kind_b
-    INTEGER :: iw
-    TYPE(cp_logger_type), POINTER            :: logger
 
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
@@ -482,7 +474,7 @@ CONTAINS
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'build_se_fock', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'build_se_fock_matrix', &
       routineP = moduleN//':'//routineN
 
     LOGICAL                                  :: failure

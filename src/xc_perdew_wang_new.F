@@ -22,6 +22,9 @@
 !!****
 
 MODULE xc_perdew_wang_new
+  USE input_constants,                 ONLY: pw_dmc,&
+                                             pw_orig,&
+                                             pw_vmc
   USE kinds,                           ONLY: dp
   USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
@@ -34,13 +37,11 @@ MODULE xc_perdew_wang_new
                                              calc_rs,&
                                              calc_z,&
                                              set_util
-  USE xc_rho_cflags_types,                ONLY: xc_rho_cflags_type
+  USE xc_rho_cflags_types,             ONLY: xc_rho_cflags_type
   USE xc_rho_set_types,                ONLY: xc_rho_set_get,&
                                              xc_rho_set_type
-  USE input_constants,                 ONLY: pw_dmc,&
-                                             pw_orig,&
-                                             pw_vmc
 #include "cp_common_uses.h"
+
   IMPLICIT NONE
   PRIVATE
 
@@ -52,7 +53,7 @@ MODULE xc_perdew_wang_new
        epsilon = 5.E-13_dp, &
        fpp = 0.584822362263464620726223866376013788782_dp ! d^2f(0)/dz^2
   REAL(KIND=dp) :: eps_rho
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN="xc_perdew_wang_new"
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'xc_perdew_wang_new'
 
 
   PUBLIC :: perdew_wang_info, perdew_wang_lda_eval, perdew_wang_lsd_eval
@@ -85,8 +86,8 @@ CONTAINS
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = "perdew_wang_info", &
-      routineP = moduleN//":"//routineN
+    CHARACTER(len=*), PARAMETER :: routineN = 'perdew_wang_info', &
+      routineP = moduleN//':'//routineN
 
     CHARACTER(len=3)                         :: p_string
 
@@ -150,7 +151,7 @@ CONTAINS
     
 
     INTEGER, INTENT(IN)                      :: method
-    REAL(KIND=dp), INTENT(IN)                    :: cutoff
+    REAL(KIND=dp), INTENT(IN)                :: cutoff
 
     INTEGER                                  :: k
 
@@ -244,14 +245,15 @@ CONTAINS
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = "perdew_wang_lda_eval", &
-      routineP = moduleN//":"//routineN
+    CHARACTER(len=*), PARAMETER :: routineN = 'perdew_wang_lda_eval', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: npoints, stat, timer_handle
     INTEGER, DIMENSION(:, :), POINTER        :: bo
     LOGICAL                                  :: failure
-    REAL(KIND=dp)                                :: rho_cutoff
-    REAL(KIND=dp), DIMENSION(:, :, :), POINTER   :: dummy, e_0, e_rho, e_rho_rho, &
+    REAL(KIND=dp)                            :: rho_cutoff
+    REAL(KIND=dp), DIMENSION(:, :, :), &
+      POINTER                                :: dummy, e_0, e_rho, e_rho_rho, &
                                                 e_rho_rho_rho, rho
     TYPE(xc_derivative_type), POINTER        :: deriv
 
@@ -328,13 +330,14 @@ CONTAINS
 
 SUBROUTINE perdew_wang_lda_calc(rho,e_0,e_rho, e_rho_rho, e_rho_rho_rho, npoints, order)
   !FM low level calc routine
-    REAL(KIND=dp), DIMENSION(*), INTENT(in)      :: rho
-    REAL(KIND=dp), DIMENSION(*), INTENT(inout)   :: e_0, e_rho, e_rho_rho, &
+    REAL(KIND=dp), DIMENSION(*), INTENT(in)  :: rho
+    REAL(KIND=dp), DIMENSION(*), &
+      INTENT(inout)                          :: e_0, e_rho, e_rho_rho, &
                                                 e_rho_rho_rho
     INTEGER, INTENT(in)                      :: npoints, order
 
     INTEGER                                  :: abs_order, k
-    REAL(KIND=dp), DIMENSION(0:3)                :: ed
+    REAL(KIND=dp), DIMENSION(0:3)            :: ed
 
   abs_order=ABS(order)
 
@@ -396,14 +399,15 @@ SUBROUTINE perdew_wang_lda_calc(rho,e_0,e_rho, e_rho_rho, e_rho_rho_rho, npoints
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = "perdew_wang_lsd_eval", &
-      routineP = moduleN//":"//routineN
+    CHARACTER(len=*), PARAMETER :: routineN = 'perdew_wang_lsd_eval', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: npoints, stat, timer_handle
     INTEGER, DIMENSION(:, :), POINTER        :: bo
     LOGICAL                                  :: failure
-    REAL(KIND=dp)                                :: rho_cutoff
-    REAL(KIND=dp), DIMENSION(:, :, :), POINTER   :: a, b, dummy, e_0, ea, eaa, &
+    REAL(KIND=dp)                            :: rho_cutoff
+    REAL(KIND=dp), DIMENSION(:, :, :), &
+      POINTER                                :: a, b, dummy, e_0, ea, eaa, &
                                                 eaaa, eaab, eab, eabb, eb, &
                                                 ebb, ebbb
     TYPE(xc_derivative_type), POINTER        :: deriv
@@ -498,14 +502,15 @@ SUBROUTINE perdew_wang_lda_calc(rho,e_0,e_rho, e_rho_rho, e_rho_rho_rho, npoints
   SUBROUTINE perdew_wang_lsd_calc(rhoa,rhob,e_0,ea,eb,eaa,eab,ebb,eaaa,eaab,eabb,&
        ebbb, npoints, order)
       !FM low-level computation routine
-    REAL(KIND=dp), DIMENSION(*), INTENT(in)      :: rhoa, rhob
-    REAL(KIND=dp), DIMENSION(*), INTENT(inout)   :: e_0, ea, eb, eaa, eab, ebb, &
+    REAL(KIND=dp), DIMENSION(*), INTENT(in)  :: rhoa, rhob
+    REAL(KIND=dp), DIMENSION(*), &
+      INTENT(inout)                          :: e_0, ea, eb, eaa, eab, ebb, &
                                                 eaaa, eaab, eabb, ebbb
     INTEGER, INTENT(in)                      :: npoints, order
 
     INTEGER                                  :: abs_order, k
-    REAL(KIND=dp)                                :: rho
-    REAL(KIND=dp), DIMENSION(0:9)                :: ed
+    REAL(KIND=dp)                            :: rho
+    REAL(KIND=dp), DIMENSION(0:9)            :: ed
 
     abs_order=ABS(order)
 
@@ -555,12 +560,13 @@ SUBROUTINE perdew_wang_lda_calc(rho,e_0,e_rho, e_rho_rho, e_rho_rho_rho, npoints
 !   ---------------------------------------------------------------------------
 
 
-    REAL(KIND=dp), INTENT(IN)                    :: r
+    REAL(KIND=dp), INTENT(IN)                :: r
     INTEGER, INTENT(IN)                      :: z
-    REAL(KIND=dp), DIMENSION(0:), INTENT(OUT)    :: g
+    REAL(KIND=dp), DIMENSION(0:), &
+      INTENT(OUT)                            :: g
     INTEGER, INTENT(IN)                      :: order
 
-    REAL(KIND=dp)                                :: a1_, A_, b1_, b2_, b3_, b4_, &
+    REAL(KIND=dp)                            :: a1_, A_, b1_, b2_, b3_, b4_, &
                                                 rr, rsr, sr, t11, t12, t14, &
                                                 t15, t16, t20, t22, t3, t40, &
                                                 t44, t45, t47, t48, t55, t56
@@ -651,13 +657,14 @@ SUBROUTINE perdew_wang_lda_calc(rho,e_0,e_rho, e_rho_rho, e_rho_rho_rho, npoints
 SUBROUTINE pw_lda_ed_loc(rho, ed, order)
 
 
-    REAL(KIND=dp), INTENT(IN)                    :: rho
-    REAL(KIND=dp), DIMENSION(0:), INTENT(OUT)    :: ed
+    REAL(KIND=dp), INTENT(IN)                :: rho
+    REAL(KIND=dp), DIMENSION(0:), &
+      INTENT(OUT)                            :: ed
     INTEGER, INTENT(IN)                      :: order
 
     INTEGER                                  :: m, order_
     LOGICAL, DIMENSION(0:3)                  :: calc = .FALSE.
-    REAL(KIND=dp), DIMENSION(0:3)                :: e0, r
+    REAL(KIND=dp), DIMENSION(0:3)            :: e0, r
 
     order_ = order
     
@@ -699,16 +706,17 @@ SUBROUTINE pw_lda_ed_loc(rho, ed, order)
   SUBROUTINE pw_lsd_ed_loc(a, b, ed, order)
 
 
-    REAL(KIND=dp), INTENT(IN)                    :: a, b
-    REAL(KIND=dp), DIMENSION(0:), INTENT(OUT)    :: ed
+    REAL(KIND=dp), INTENT(IN)                :: a, b
+    REAL(KIND=dp), DIMENSION(0:), &
+      INTENT(OUT)                            :: ed
     INTEGER, INTENT(IN)                      :: order
 
     INTEGER                                  :: m, order_ = 0
     LOGICAL, DIMENSION(0:3)                  :: calc = .FALSE.
-    REAL(KIND=dp)                                :: rho, tr, trr, trrr, trrz, &
+    REAL(KIND=dp)                            :: rho, tr, trr, trrr, trrz, &
                                                 trz, trzz, tz, tzz, tzzz
-    REAL(KIND=dp), DIMENSION(0:3)                :: ac, e0, e1, f, r
-    REAL(KIND=dp), DIMENSION(0:3, 0:3)           :: z
+    REAL(KIND=dp), DIMENSION(0:3)            :: ac, e0, e1, f, r
+    REAL(KIND=dp), DIMENSION(0:3, 0:3)       :: z
 
     order_ = order
     

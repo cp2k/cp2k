@@ -29,7 +29,7 @@ MODULE machine_nag
   INTERFACE
      SUBROUTINE fd_loc(ar,val)
        USE kinds, ONLY: dp
-    REAL(KIND=dp), DIMENSION(*), INTENT(in) :: ar
+    REAL(KIND=dp), DIMENSION(*), INTENT(in)  :: ar
     INTEGER, INTENT(out)                     :: val
 
      END SUBROUTINE fd_loc
@@ -86,7 +86,7 @@ END FUNCTION m_iargc
 !******************************************************************************
 !!  cpu time in seconds
 FUNCTION m_cputime() RESULT (ct)
-    REAL(KIND=dp)                                :: ct
+    REAL(KIND=dp)                            :: ct
 
     REAL                                     :: ctr
 
@@ -96,7 +96,7 @@ END FUNCTION m_cputime
 !******************************************************************************
 !!  wall clock time in seconds
 FUNCTION m_walltime() RESULT (wt)
-    REAL(KIND=dp)                                :: wt
+    REAL(KIND=dp)                            :: wt
 
     INTEGER                                  :: count, count_rate
 
@@ -250,7 +250,7 @@ MODULE machine_nag
   INTERFACE
      SUBROUTINE fd_loc(ar,val)
        USE kinds, ONLY: dp
-    REAL(KIND=dp), DIMENSION(*), INTENT(in) :: ar
+    REAL(KIND=dp), DIMENSION(*), INTENT(in)  :: ar
     INTEGER, INTENT(out)                     :: val
 
      END SUBROUTINE fd_loc
@@ -307,7 +307,7 @@ END FUNCTION m_iargc
 !******************************************************************************
 !!  cpu time in seconds
 FUNCTION m_cputime() RESULT (ct)
-    REAL(KIND=dp)                                :: ct
+    REAL(KIND=dp)                            :: ct
 
     REAL                                     :: ctr
 
@@ -317,7 +317,7 @@ END FUNCTION m_cputime
 !******************************************************************************
 !!  wall clock time in seconds
 FUNCTION m_walltime() RESULT (wt)
-    REAL(KIND=dp)                                :: wt
+    REAL(KIND=dp)                            :: wt
 
     INTEGER                                  :: count, count_rate
 
@@ -364,11 +364,9 @@ END SUBROUTINE m_datum
 
     CHARACTER(LEN=*), INTENT(IN)             :: checkpoint
 
-    CHARACTER(LEN=200)                       :: cmdstr
-    INTEGER                                  :: pid
-
 !   ---------------------------------------------------------------------------
-    write(6,*) checkpoint
+
+    WRITE(6,*) checkpoint
 
 
   END SUBROUTINE print_memory
@@ -378,17 +376,11 @@ END SUBROUTINE m_datum
 SUBROUTINE m_hostnm(hname)
     CHARACTER(len=*), INTENT(OUT)            :: hname
 
-    INTEGER                                  :: len
-    CHARACTER(len=60)                        :: tmpname
-
     hname=""
 END SUBROUTINE m_hostnm
 !******************************************************************************
 SUBROUTINE m_getcwd(curdir)
     CHARACTER(len=*), INTENT(OUT)            :: curdir
-
-    INTEGER                                  :: len
-    CHARACTER(len=60)                        :: tmpdir
 
   curdir="./"
 END SUBROUTINE m_getcwd
@@ -403,9 +395,6 @@ END SUBROUTINE m_chdir
 !******************************************************************************
 SUBROUTINE m_getlog(user)
     CHARACTER(len=*), INTENT(OUT)            :: user
-
-    INTEGER                                  :: len
-    CHARACTER(len=60)                        :: tmp
 
     user=""
 END SUBROUTINE m_getlog

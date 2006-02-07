@@ -40,17 +40,10 @@
 !!   SOURCE
 !*****************************************************************************
 MODULE cp_error_handling
-  USE cp_log_handling,                 ONLY: CP_FAILURE_LEVEL,&
-                                             CP_FATAL_LEVEL,&
-                                             CP_NOTE_LEVEL,&
-                                             CP_WARNING_LEVEL,&
-                                             cp_get_default_logger,&
-                                             cp_log,&
-                                             cp_logger_get_default_unit_nr,&
-                                             cp_logger_release,&
-                                             cp_logger_retain,&
-                                             cp_logger_type,&
-                                             cp_to_string
+  USE cp_log_handling,                 ONLY: &
+       CP_FAILURE_LEVEL, CP_FATAL_LEVEL, CP_NOTE_LEVEL, CP_WARNING_LEVEL, &
+       cp_get_default_logger, cp_log, cp_logger_get_default_unit_nr, &
+       cp_logger_release, cp_logger_retain, cp_logger_type, cp_to_string
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE message_passing,                 ONLY: mp_abort,&
                                              mp_max
@@ -61,7 +54,7 @@ MODULE cp_error_handling
   PRIVATE
 
   LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.FALSE.
-  CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='cp_error_handling'
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_error_handling'
 
   ! types
   PUBLIC :: cp_error_type
@@ -357,8 +350,8 @@ CONTAINS
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-    CHARACTER(len=*), PARAMETER :: &
-      routineP = 'cp_error_handling:cp_error_dealloc_ref'
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_error_dealloc_ref', &
+      routineP = moduleN//':'//routineN
 
     LOGICAL                                  :: failure
 
@@ -405,7 +398,8 @@ CONTAINS
                                                 print_level
     TYPE(cp_logger_type), OPTIONAL, POINTER  :: logger
 
-    CHARACTER(len=*), PARAMETER :: routineP = 'cp_error_handling:cp_error_get'
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_error_get', &
+      routineP = moduleN//':'//routineN
 
     IF (PRESENT(level)) level=error%level
     IF (PRESENT(error_nr)) error_nr=error%error_nr
@@ -777,7 +771,8 @@ CONTAINS
       OPTIONAL                               :: error
     LOGICAL, INTENT(inout), OPTIONAL         :: failure
 
-    CHARACTER(len=*), PARAMETER :: routineP = 'cp_error_handling:cp_assert'
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_assert', &
+      routineP = moduleN//':'//routineN
 
     TYPE(cp_error_type)                      :: err
 
@@ -846,8 +841,8 @@ CONTAINS
     LOGICAL, INTENT(inout), OPTIONAL         :: failure
     INTEGER, INTENT(in), OPTIONAL            :: failure_level
 
-    CHARACTER(len=*), PARAMETER :: &
-      routineP = 'cp_error_handling:cp_error_propagate_error'
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_error_propagate_error', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: f_level
 
@@ -953,7 +948,6 @@ SUBROUTINE cp_error_synchronize_error(error,para_env)
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_error_synchronize_error', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, stat
     INTEGER, DIMENSION(2)                    :: my_codes
     LOGICAL                                  :: failure
     TYPE(cp_logger_type), POINTER            :: logger
@@ -971,8 +965,8 @@ SUBROUTINE cp_error_synchronize_error(error,para_env)
      CALL cp_assert(ASSOCIATED(my_para_env),cp_failure_level,cp_failure_level,&
           routineP,"cannot synchronize without a valid para_env",error,failure)
      IF (my_para_env%num_pe>1) THEN
-        my_codes(1)=abs(error%level)
-        my_codes(2)=abs(error%error_nr)
+        my_codes(1)=ABS(error%level)
+        my_codes(2)=ABS(error%error_nr)
         CALL mp_max( my_codes, my_para_env%group )
         error%level=my_codes(1)
         error%error_nr=my_codes(2)
@@ -1089,6 +1083,7 @@ END SUBROUTINE cp_error_check
     LOGICAL, INTENT(in)                      :: condition
     CHARACTER(len=*), INTENT(in)             :: routineP
     INTEGER, INTENT(in)                      :: line
+
     CHARACTER(LEN=100)                       :: str
 
 ! code

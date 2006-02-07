@@ -24,48 +24,33 @@ MODULE qmmm_per_elpot
 !!
 !!   SOURCE
 !****************************************************************************  
-  USE cp_output_handling,              ONLY: cp_print_key_should_output,&
-                                             cp_p_file,&
-                                             cp_print_key_unit_nr,&
-                                             cp_print_key_finished_output
-  USE cp_para_types,                   ONLY: cp_para_env_type
-  USE kinds,                           ONLY: default_string_length,&
-                                             dp
-  USE timings,                         ONLY: timeset,&
-                                             timestop
+  USE cell_types,                      ONLY: cell_type
+  USE cp_output_handling,              ONLY: cp_p_file,&
+                                             cp_print_key_should_output
+  USE ewald_spline_util,               ONLY: Setup_Ewald_Spline
+  USE global_types,                    ONLY: global_environment_type
+  USE input_constants,                 ONLY: do_qmmm_gauss,&
+                                             do_qmmm_grid
+  USE input_section_types,             ONLY: section_vals_get_subs_vals,&
+                                             section_vals_type,&
+                                             section_vals_val_get
+  USE kinds,                           ONLY: dp
+  USE mathconstants,                   ONLY: pi
   USE qmmm_gaussian_types,             ONLY: qmmm_gaussian_p_type,&
                                              qmmm_gaussian_type
-  USE qmmm_types,                      ONLY: qmmm_env_qm_type,&
+  USE qmmm_types,                      ONLY: qmmm_per_pot_p_type,&
                                              qmmm_per_pot_type,&
-                                             qmmm_per_pot_p_type,&
-                                             qmmm_pot_p_type,&
-                                             qmmm_pot_type
-  USE qs_util,                         ONLY: exp_radius  
-  USE cell_types,                 ONLY: cell_type
-  USE global_types,                    ONLY: global_environment_type
-  USE erf_fn,                          ONLY: erf
-  USE mathconstants,                   ONLY: rootpi, pi
-  USE input_constants,                 ONLY: do_qmmm_grid,&
-                                             do_qmmm_gauss,&
-                                             do_qmmm_none
-  USE particle_types,                  ONLY: particle_type
-  USE input_section_types,             ONLY: section_type,&
-                                             section_create,&
-                                             section_add_keyword,&
-                                             section_add_subsection,&
-                                             section_release,&
-                                             section_vals_type,&
-                                             section_vals_get_subs_vals,&
-                                             section_vals_get,&
-                                             section_vals_val_get  
-  USE ewald_spline_util,               ONLY: Setup_Ewald_Spline
+                                             qmmm_pot_p_type
+  USE qs_util,                         ONLY: exp_radius
+  USE timings,                         ONLY: timeset,&
+                                             timestop
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
   PRIVATE
 
   LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
-  CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='qmmm_per_elpot'
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qmmm_per_elpot'
   PUBLIC :: qmmm_per_potential_init
   
 CONTAINS
@@ -95,33 +80,38 @@ CONTAINS
   SUBROUTINE qmmm_per_potential_init(qmmm_coupl_type, per_potentials, potentials,&
     pgfs, qm_cell_small, mm_cell, globenv, compatibility, qmmm_periodic, print_section,&
     eps_mm_rspace, maxchrg, ncp, ncpl, error)
-    IMPLICIT NONE
-    ! Arguments
-    TYPE(qmmm_per_pot_p_type), DIMENSION(:), POINTER :: per_potentials
-    TYPE(qmmm_pot_p_type), DIMENSION(:), POINTER     :: potentials
+    INTEGER, INTENT(IN)                      :: qmmm_coupl_type
+    TYPE(qmmm_per_pot_p_type), &
+      DIMENSION(:), POINTER                  :: per_potentials
+    TYPE(qmmm_pot_p_type), DIMENSION(:), &
+      POINTER                                :: potentials
     TYPE(qmmm_gaussian_p_type), &
-         DIMENSION(:), POINTER                       :: pgfs    
-    INTEGER, INTENT(IN)                              :: qmmm_coupl_type, ncp(3), ncpl(3)
-    TYPE(cell_type), POINTER                         :: mm_cell, qm_cell_small  
-    TYPE(section_vals_type), POINTER                 :: print_section, qmmm_periodic
+      DIMENSION(:), POINTER                  :: pgfs
+    TYPE(cell_type), POINTER                 :: qm_cell_small, mm_cell
+    TYPE(global_environment_type), POINTER   :: globenv
+    LOGICAL, INTENT(IN)                      :: compatibility
+    TYPE(section_vals_type), POINTER         :: qmmm_periodic, print_section
+    REAL(KIND=dp), INTENT(IN)                :: eps_mm_rspace, maxchrg
+    INTEGER, INTENT(IN)                      :: ncp(3), ncpl(3)
     TYPE(cp_error_type), INTENT(inout), &
-         OPTIONAL                                    :: error
-    TYPE(global_environment_type), POINTER           :: globenv
-    LOGICAL, INTENT(IN)                              :: compatibility
-    REAL(KIND=dp), INTENT(IN)                        :: eps_mm_rspace, maxchrg
-    ! Local Variables
+      OPTIONAL                               :: error
+
     CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_per_potential_init', &
       routineP = moduleN//':'//routineN
-    TYPE(section_vals_type), POINTER                 :: print_pot
-    LOGICAL :: failure
-    TYPE(qmmm_gaussian_type), POINTER                :: pgf
-    REAL(KIND=dp) :: Rmax, Fac(3), Gmax, Prefactor, alpha,npt, npl
-    REAL(KIND=dp) :: g2, mymaxradius, vol, rc, vec(3), g, Gk, Ak, box(3), fs, rc2
-    INTEGER       :: n_rep_real(3), n_rep_real_val, Kmax(3), ig_start, iz, iy, ix, stat, K, ig, I, iw
-    INTEGER       :: Ndim, idim, ncoarsel, ncoarset
-    INTEGER,        DIMENSION(:), POINTER    :: mm_atom_index
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: Lg, gx, gy, gz
+
+    INTEGER :: I, idim, ig, ig_start, iw, ix, iy, iz, K, Kmax(3), &
+      n_rep_real(3), n_rep_real_val, ncoarsel, ncoarset, Ndim, stat
+    INTEGER, DIMENSION(:), POINTER           :: mm_atom_index
+    LOGICAL                                  :: failure
+    REAL(KIND=dp)                            :: Ak, alpha, box(3), Fac(3), &
+                                                fs, g, g2, Gk, Gmax, &
+                                                mymaxradius, npl, npt, &
+                                                Prefactor, rc, rc2, Rmax, &
+                                                vec(3), vol
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: gx, gy, gz, Lg
     TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(qmmm_gaussian_type), POINTER        :: pgf
+    TYPE(section_vals_type), POINTER         :: print_pot
 
     NULLIFY(Lg, gx, gy, gz)
     ncoarset = PRODUCT(ncp)
@@ -294,25 +284,25 @@ CONTAINS
 !!*** ********************************************************************** 
   SUBROUTINE qmmm_per_pot_type_create(Pot, LG, gx, gy, gz, GMax, Kmax, n_rep_real,&
        Fac, mm_atom_index, qm_cell, mm_cell, globenv, error)
-    IMPLICIT NONE
-    ! Arguments
-    TYPE(qmmm_per_pot_type), POINTER :: Pot
-    REAL(KIND=dp), DIMENSION(:), POINTER :: LG, gx, gy, gz
-    REAL(KIND=dp), INTENT(IN) :: Gmax, Fac(3)
-    INTEGER, INTENT(IN) :: Kmax(3), n_rep_real(3)
-    INTEGER, DIMENSION(:), POINTER :: mm_atom_index
-    TYPE(cell_type), POINTER                         :: mm_cell, qm_cell
+    TYPE(qmmm_per_pot_type), POINTER         :: Pot
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: LG, gx, gy, gz
+    REAL(KIND=dp), INTENT(IN)                :: Gmax
+    INTEGER, INTENT(IN)                      :: Kmax(3), n_rep_real(3)
+    REAL(KIND=dp), INTENT(IN)                :: Fac(3)
+    INTEGER, DIMENSION(:), POINTER           :: mm_atom_index
+    TYPE(cell_type), POINTER                 :: qm_cell, mm_cell
+    TYPE(global_environment_type), POINTER   :: globenv
     TYPE(cp_error_type), INTENT(inout), &
-         OPTIONAL                                    :: error
-    TYPE(global_environment_type), POINTER           :: globenv
-    ! Local Variables
+      OPTIONAL                               :: error
+
     CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_per_pot_type_create', &
       routineP = moduleN//':'//routineN
-    REAL(KIND=dp)                                    :: hmat(3,3)
-    INTEGER                                          :: npts(3)
-    LOGICAL                                          :: failure 
-    INTEGER, POINTER, DIMENSION(:)                   :: ngrids
-    TYPE(section_vals_type), POINTER                 :: param_section
+
+    INTEGER                                  :: npts(3)
+    INTEGER, DIMENSION(:), POINTER           :: ngrids
+    LOGICAL                                  :: failure
+    REAL(KIND=dp)                            :: hmat(3,3)
+    TYPE(section_vals_type), POINTER         :: param_section
 
     failure = .FALSE.
     IF (.NOT.failure) THEN

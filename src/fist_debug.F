@@ -19,54 +19,43 @@
 !******************************************************************************
 
 MODULE fist_debug
-  USE atomic_kind_types,                        ONLY : atomic_kind_type
-  USE distribution_1d_types,                    ONLY : distribution_1d_type
-  USE ewald_environment_types,                  ONLY : ewald_environment_type,&
-                                                       ewald_env_get
-  USE ewald_pw_types,                           ONLY : ewald_pw_type
-  USE fist_environment_types,                   ONLY : fist_environment_type,&
-                                                       get_fist_env
-  USE fist_force,                               ONLY : fist_force_control,&
-                                                       debug_variables_type
-  USE fist_force_numer,                         ONLY : force_bond_numer,&
-                                                       force_bend_numer,&
-                                                       force_torsion_numer,&
-                                                       force_imptors_numer,&
-                                                       force_nonbond_numer,&
-                                                       force_onefour_numer,&
-                                                       force_ub_numer,&
-                                                       ewald_energy_numer,&
-                                                       ewald_force_numer,&
-                                                       pv_bond_numer,&
-                                                       pv_bend_numer,&
-                                                       pv_torsion_numer,&
-                                                       pv_imptors_numer,&
-                                                       pv_nonbond_numer,&
-                                                       pv_onefour_numer,&
-                                                       pv_ub_numer,&
-                                                       pv_g_numer,&
-                                                       pme_force_numer
-  USE fist_nonbond_env_types,                   ONLY : fist_nonbond_env_type,&
-                                                       fist_nonbond_env_get
-  USE force_env_types,                          ONLY : force_env_type
-  USE global_types,                             ONLY : global_environment_type
-  USE kinds,                                    ONLY : dp,default_string_length
-  USE message_passing,                          ONLY :  mp_sum
-  USE molecule_kind_types,                      ONLY : molecule_kind_type
-  USE molecule_types_new,                       ONLY : molecule_type
-  USE pair_potential_types,                     ONLY : pair_potential_pp_type
-  USE particle_types,                           ONLY : particle_type
-  USE cell_types,                          ONLY : cell_type
-  USE termination,                              ONLY : stop_memory, stop_program
-  USE virial_types,                             ONLY : virial_type
-  USE input_constants,                 ONLY: do_ewald_none,&
-                                             do_ewald_ewald,&
+  USE atomic_kind_types,               ONLY: atomic_kind_type
+  USE cell_types,                      ONLY: cell_type
+  USE distribution_1d_types,           ONLY: distribution_1d_type
+  USE ewald_environment_types,         ONLY: ewald_env_get,&
+                                             ewald_environment_type
+  USE ewald_pw_types,                  ONLY: ewald_pw_type
+  USE fist_environment_types,          ONLY: fist_environment_type,&
+                                             get_fist_env
+  USE fist_force,                      ONLY: debug_variables_type,&
+                                             fist_force_control
+  USE fist_force_numer,                ONLY: &
+       ewald_energy_numer, ewald_force_numer, force_bend_numer, &
+       force_bond_numer, force_imptors_numer, force_nonbond_numer, &
+       force_onefour_numer, force_torsion_numer, force_ub_numer, &
+       pme_force_numer, pv_bend_numer, pv_bond_numer, pv_g_numer, &
+       pv_imptors_numer, pv_nonbond_numer, pv_onefour_numer, &
+       pv_torsion_numer, pv_ub_numer
+  USE fist_nonbond_env_types,          ONLY: fist_nonbond_env_get,&
+                                             fist_nonbond_env_type
+  USE force_env_types,                 ONLY: force_env_type
+  USE global_types,                    ONLY: global_environment_type
+  USE input_constants,                 ONLY: do_ewald_ewald,&
+                                             do_ewald_none,&
                                              do_ewald_pme,&
                                              do_ewald_spme
-  USE input_section_types,             ONLY: section_vals_type,&
-                                             section_vals_get_subs_vals
-  
+  USE input_section_types,             ONLY: section_vals_get_subs_vals,&
+                                             section_vals_type
+  USE kinds,                           ONLY: dp
+  USE message_passing,                 ONLY: mp_sum
+  USE molecule_kind_types,             ONLY: molecule_kind_type
+  USE molecule_types_new,              ONLY: molecule_type
+  USE pair_potential_types,            ONLY: pair_potential_pp_type
+  USE particle_types,                  ONLY: particle_type
+  USE termination,                     ONLY: stop_memory,&
+                                             stop_program
 #include "cp_common_uses.h"
+
   IMPLICIT NONE
 
   PRIVATE
@@ -100,42 +89,38 @@ CONTAINS
 
 SUBROUTINE  debug_control ( force_env, globenv, error)
 
-  IMPLICIT NONE
-! Arguments
-  TYPE ( force_env_type ), POINTER :: force_env
-  TYPE ( global_environment_type ), pointer :: globenv
-  TYPE(cp_error_type), INTENT(inout), &
-       OPTIONAL                               :: error
-! Locals
-  INTEGER ::  iatom, iw, iwf, ir, nbond, nbend, ntorsion, group
-  INTEGER, DIMENSION ( 2 ) :: dum
-  INTEGER :: i, natoms, nnodes, isos, n, nlocal_particles
-  INTEGER :: ewald_type
-  TYPE (pair_potential_pp_type), POINTER :: potparm
-  TYPE ( particle_type ), POINTER :: particle_set ( : )
-  TYPE(distribution_1d_type), POINTER      :: local_molecules, &
-                                              local_particles
-  TYPE(atomic_kind_type), DIMENSION(:), &
+    TYPE(force_env_type), POINTER            :: force_env
+    TYPE(global_environment_type), POINTER   :: globenv
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    LOGICAL, PARAMETER                       :: box_change = .FALSE.
+
+    INTEGER                                  :: ewald_type, group, i, iatom, &
+                                                ir, isos, iw, iwf, natoms
+    INTEGER, DIMENSION(2)                    :: dum
+    LOGICAL                                  :: ionode
+    REAL(KIND=dp)                            :: delta, energy_numer, &
+                                                pv_test( 3, 3 )
+    REAL(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:, :)                        :: diff, f_numer, rel
+    TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
-  TYPE(molecule_kind_type), DIMENSION(:), &
+    TYPE(cell_type), POINTER                 :: cell
+    TYPE(debug_variables_type)               :: dbg
+    TYPE(distribution_1d_type), POINTER      :: local_molecules, &
+                                                local_particles
+    TYPE(ewald_environment_type), POINTER    :: ewald_env
+    TYPE(ewald_pw_type), POINTER             :: ewald_pw
+    TYPE(fist_environment_type), POINTER     :: fist_env
+    TYPE(fist_nonbond_env_type), POINTER     :: fist_nonbond_env
+    TYPE(molecule_kind_type), DIMENSION(:), &
       POINTER                                :: molecule_kind_set
-  TYPE(molecule_type), DIMENSION(:), &
+    TYPE(molecule_type), DIMENSION(:), &
       POINTER                                :: molecule_set
-  TYPE ( fist_nonbond_env_type ), POINTER    :: fist_nonbond_env
-  TYPE ( cell_type ), POINTER                :: cell
-  TYPE ( ewald_pw_type ),   POINTER          :: ewald_pw
-  TYPE ( ewald_environment_type ),   POINTER :: ewald_env
-  TYPE ( debug_variables_type ) :: dbg
-  TYPE ( fist_environment_type ), POINTER :: fist_env
-  REAL (KIND=dp) :: delta, energy_numer, cutoff, ecut
-  REAL (KIND=dp) :: e_numer, pv_test ( 3, 3 )
-  REAL (KIND=dp) :: err1, numer, denom1, vec ( 3 ), e_bc, e_real, energy_tot
-  REAL (KIND=dp) :: denom2, err2
-  REAL (KIND=dp), DIMENSION ( :, : ), ALLOCATABLE :: f_numer
-  REAL (KIND=dp), DIMENSION ( :, : ), ALLOCATABLE :: rel, diff
-  LOGICAL, PARAMETER :: box_change = .FALSE.
-  LOGICAL :: ionode
-  TYPE(section_vals_type), POINTER :: force_env_section  
+    TYPE(pair_potential_pp_type), POINTER    :: potparm
+    TYPE(particle_type), POINTER             :: particle_set( : )
+    TYPE(section_vals_type), POINTER         :: force_env_section
 
   ionode = globenv % ionode
   group  = globenv % group

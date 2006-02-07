@@ -17,19 +17,10 @@
 
 MODULE qs_rho_atom_types
 
-  USE basis_set_types,                 ONLY: get_gto_basis_set,&
-                                             gto_basis_set_type
-  USE cp_control_types,                ONLY: dft_control_type
-  USE kinds,                           ONLY: default_string_length,&
-                                             dp,&
+  USE kinds,                           ONLY: dp,&
                                              int_size
-  USE memory_utilities,                ONLY: reallocate
-  USE orbital_pointers,                ONLY: indso,&
-                                             ncoset
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
-  USE util,                            ONLY: locate,&
-                                             sort
 
   IMPLICIT NONE
 
@@ -37,7 +28,7 @@ MODULE qs_rho_atom_types
 
 ! *** Global parameters (only in this module)
 
-  CHARACTER(LEN=*), PARAMETER :: module_name = "qs_rho_atom_types"
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_rho_atom_types'
 
 ! *** Define the rho_atom_type ***
 
@@ -94,13 +85,13 @@ MODULE qs_rho_atom_types
 
 !   ***************************************************************************
 
-    TYPE(rho_atom_type), DIMENSION(:), & 
-      POINTER                          :: rho_atom_set
-    INTEGER, INTENT(IN)                :: natom
+    TYPE(rho_atom_type), DIMENSION(:), &
+      POINTER                                :: rho_atom_set
+    INTEGER, INTENT(IN)                      :: natom
 
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "allocate_rho_atom_set"
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'allocate_rho_atom_set'
 
-    INTEGER                            :: iat, istat
+    INTEGER                                  :: iat, istat
 
 !   ---------------------------------------------------------------------------
 
@@ -109,7 +100,7 @@ MODULE qs_rho_atom_types
     END IF
 
     ALLOCATE (rho_atom_set(natom),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                             "allocate_rho_atom_set",natom*int_size)
 
     DO iat = 1,natom
@@ -135,12 +126,12 @@ MODULE qs_rho_atom_types
 
   SUBROUTINE deallocate_rho_atom_set(rho_atom_set) 
 
-    TYPE(rho_atom_type), DIMENSION(:), &   
-      POINTER                          :: rho_atom_set
+    TYPE(rho_atom_type), DIMENSION(:), &
+      POINTER                                :: rho_atom_set
 
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "deallocate_rho_atom_set"
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'deallocate_rho_atom_set'
 
-    INTEGER                            :: i, iat, istat,j, n, natom
+    INTEGER                                  :: i, iat, istat, j, n, natom
 
 ! *****************************************************************************
 
@@ -153,10 +144,10 @@ MODULE qs_rho_atom_types
           IF(ASSOCIATED(rho_atom_set(iat)%cpc_h(1)%r_coef)) THEN
             n = SIZE(rho_atom_set(iat)%cpc_h,1)
             DO i = 1,n 
-              deallocate(rho_atom_set(iat)%cpc_h(i)%r_coef)
-              deallocate(rho_atom_set(iat)%cpc_s(i)%r_coef)
-              deallocate(rho_atom_set(iat)%ga_Vlocal_gb_h(i)%r_coef)
-              deallocate(rho_atom_set(iat)%ga_Vlocal_gb_s(i)%r_coef)
+              DEALLOCATE(rho_atom_set(iat)%cpc_h(i)%r_coef)
+              DEALLOCATE(rho_atom_set(iat)%cpc_s(i)%r_coef)
+              DEALLOCATE(rho_atom_set(iat)%ga_Vlocal_gb_h(i)%r_coef)
+              DEALLOCATE(rho_atom_set(iat)%ga_Vlocal_gb_s(i)%r_coef)
               DEALLOCATE(rho_atom_set(iat)%drho_rad_h(i)%r_coef)
               DEALLOCATE(rho_atom_set(iat)%drho_rad_s(i)%r_coef)
               DO j = 1,3
@@ -179,7 +170,7 @@ MODULE qs_rho_atom_types
         IF(ASSOCIATED(rho_atom_set(iat)%rho_rad_h)) THEN
           n = SIZE(rho_atom_set(iat)%rho_rad_h)
           DO i = 1,n 
-            deallocate(rho_atom_set(iat)%rho_rad_h(i)%r_coef)
+            DEALLOCATE(rho_atom_set(iat)%rho_rad_h(i)%r_coef)
           ENDDO
           DEALLOCATE (rho_atom_set(iat)%rho_rad_h)
         ENDIF
@@ -187,7 +178,7 @@ MODULE qs_rho_atom_types
         IF(ASSOCIATED(rho_atom_set(iat)%rho_rad_s)) THEN
           n = SIZE(rho_atom_set(iat)%rho_rad_s)
           DO i = 1,n 
-            deallocate(rho_atom_set(iat)%rho_rad_s(i)%r_coef)
+            DEALLOCATE(rho_atom_set(iat)%rho_rad_s(i)%r_coef)
           ENDDO
           DEALLOCATE (rho_atom_set(iat)%rho_rad_s)
         ENDIF
@@ -195,7 +186,7 @@ MODULE qs_rho_atom_types
         IF(ASSOCIATED(rho_atom_set(iat)%vrho_rad_h)) THEN
           n = SIZE(rho_atom_set(iat)%vrho_rad_h)
           DO i = 1,n 
-            deallocate(rho_atom_set(iat)%vrho_rad_h(i)%r_coef)
+            DEALLOCATE(rho_atom_set(iat)%vrho_rad_h(i)%r_coef)
           ENDDO
           DEALLOCATE (rho_atom_set(iat)%vrho_rad_h)
         ENDIF
@@ -203,7 +194,7 @@ MODULE qs_rho_atom_types
         IF(ASSOCIATED(rho_atom_set(iat)%vrho_rad_s)) THEN
           n = SIZE(rho_atom_set(iat)%vrho_rad_s)
           DO i = 1,n 
-            deallocate(rho_atom_set(iat)%vrho_rad_s(i)%r_coef)
+            DEALLOCATE(rho_atom_set(iat)%vrho_rad_s(i)%r_coef)
           ENDDO
           DEALLOCATE (rho_atom_set(iat)%vrho_rad_s)
         ENDIF
@@ -211,12 +202,12 @@ MODULE qs_rho_atom_types
       ENDDO
 
       DEALLOCATE (rho_atom_set,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                        "rho_atom_set")
 
     ELSE
 
-      CALL stop_program(routine_name,module_name,__LINE__,&
+      CALL stop_program(routineN,moduleN,__LINE__,&
                         "The pointer rho_atom_set is not associated and "//&
                         "cannot be deallocated")
 
@@ -231,30 +222,21 @@ MODULE qs_rho_atom_types
                           rho_rad_h_d,rho_rad_s_d,&
                           ga_Vlocal_gb_h,ga_Vlocal_gb_s)
 
-    TYPE(rho_atom_type), POINTER        :: rho_atom
+    TYPE(rho_atom_type), POINTER             :: rho_atom
     TYPE(rho_atom_coeff), DIMENSION(:), &
-                     POINTER, OPTIONAL  :: cpc_h, cpc_s
+      OPTIONAL, POINTER                      :: cpc_h, cpc_s, rho_rad_h, &
+                                                rho_rad_s, drho_rad_h, &
+                                                drho_rad_s, vrho_rad_h, &
+                                                vrho_rad_s
+    TYPE(rho_atom_coeff), DIMENSION(:, :), &
+      OPTIONAL, POINTER                      :: rho_rad_h_d, rho_rad_s_d
     TYPE(rho_atom_coeff), DIMENSION(:), &
-                      POINTER, OPTIONAL :: rho_rad_h,&
-                                           rho_rad_s,&
-                                           vrho_rad_h,&
-                                           vrho_rad_s
-    TYPE(rho_atom_coeff), DIMENSION(:), &
-                      POINTER, OPTIONAL :: drho_rad_h,&
-                                           drho_rad_s
-    TYPE(rho_atom_coeff), DIMENSION(:,:), &
-                      POINTER, OPTIONAL :: rho_rad_h_d,&
-                                           rho_rad_s_d
+      OPTIONAL, POINTER                      :: ga_Vlocal_gb_h, ga_Vlocal_gb_s
 
-    TYPE(rho_atom_coeff),DIMENSION(:),POINTER, &
-                               OPTIONAL :: ga_Vlocal_gb_h,&
-                                           ga_Vlocal_gb_s
-
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "get_rho_atom"
-
-    INTEGER                                  :: iset
+    CHARACTER(LEN=*), PARAMETER              :: routineN = 'get_rho_atom'
 
 ! *****************************************************************************
+
     IF (ASSOCIATED(rho_atom)) THEN
       IF (PRESENT(cpc_h)) cpc_h => rho_atom%cpc_h
       IF (PRESENT(cpc_s)) cpc_s => rho_atom%cpc_s
@@ -269,7 +251,7 @@ MODULE qs_rho_atom_types
       IF (PRESENT(ga_Vlocal_gb_h)) ga_Vlocal_gb_h => rho_atom%ga_Vlocal_gb_h
       IF (PRESENT(ga_Vlocal_gb_s)) ga_Vlocal_gb_s => rho_atom%ga_Vlocal_gb_s
     ELSE
-      CALL stop_program(routine_name,module_name,__LINE__,&
+      CALL stop_program(routineN,moduleN,__LINE__,&
                         "The pointer rho_atom is not associated")
     END IF
 

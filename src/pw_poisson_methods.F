@@ -23,83 +23,56 @@
 !!   SOURCE
 !****************************************************************************
 MODULE pw_poisson_methods
-  USE kinds,                           ONLY: dp
-  USE pw_poisson_types,                ONLY: pw_poisson_type, greens_fn_type,&
-                                             pw_green_create,pw_green_release
-  USE timings,                         ONLY: timeset, timestop
-  USE input_constants,                 ONLY: ANALYTIC0D,&
-                                             ANALYTIC1D,&
-                                             ANALYTIC2D,&
-                                             MT0D,&
-                                             MT1D,&
-                                             MT2D,&
-                                             PERIODIC3D,&
-                                             MULTIPOLE0D,&
-                                             use_periodic,&
-                                             use_analytic,&
-                                             use_mt,&
-                                             use_none,&
-                                             use_multipole,&
-                                             use_perd_x,&
-                                             use_perd_y,&
-                                             use_perd_z,&
-                                             use_perd_xy,&
-                                             use_perd_xz,&
-                                             use_perd_yz,&
-                                             use_perd_xyz,&
-                                             use_perd_none,&
-                                             do_ewald_none,&
-                                             do_ewald_spme
-  USE fft_tools,                       ONLY: FFT_RADIX_NEXT,&
-                                             FFT_RADIX_NEXT_ODD,&
-                                             fft_radix_operations
-  USE mt_util,                         ONLY: MTin_create_screen_fn
-  USE pw_types,                        ONLY: REALDATA1D,&
-                                             RECIPROCALSPACE,&
-                                             COMPLEXDATA1D,&
-                                             pw_type,&
-                                             pw_derive,&
-                                             pw_transfer,&
-                                             pw_p_type,&
-                                             pw_release,&
-                                             pw_integral_ab,&
-                                             pw_copy
+  USE cell_types,                      ONLY: cell_release,&
+                                             cell_retain,&
+                                             cell_type
+  USE input_constants,                 ONLY: &
+       ANALYTIC0D, ANALYTIC1D, ANALYTIC2D, MT0D, MT1D, MT2D, MULTIPOLE0D, &
+       PERIODIC3D, do_ewald_spme, use_analytic, use_mt, use_multipole, &
+       use_none, use_periodic
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
-                                             section_vals_type,&
-                                             section_vals_val_get,&
                                              section_vals_release,&
-                                             section_vals_retain
-  USE cell_types,                 ONLY: cell_type, cell_release, cell_retain
-  USE cp_para_types,                   ONLY: cp_para_env_type
-  USE pw_grid_types,                   ONLY: pw_grid_type,&
-                                             HALFSPACE
-  USE pw_grids,                        ONLY: pw_grid_create,&
-                                             pw_grid_find_bounds,&
-                                             pw_grid_setup,&
-                                             pw_grid_release,&
-                                             pw_grid_retain 
-  USE mathconstants,                   ONLY: fourpi,twopi
-  USE pw_pool_types,                   ONLY: pw_pool_type,&
-                                             pw_pool_create,&
-                                             pw_pool_p_type,&
-                                             pw_pools_dealloc,&
-                                             pw_pool_create_pw,&
+                                             section_vals_retain,&
+                                             section_vals_type,&
+                                             section_vals_val_get
+  USE kinds,                           ONLY: dp
+  USE mathconstants,                   ONLY: fourpi
+  USE pw_grid_types,                   ONLY: pw_grid_type
+  USE pw_grids,                        ONLY: pw_grid_release,&
+                                             pw_grid_retain
+  USE pw_poisson_types,                ONLY: greens_fn_type,&
+                                             pw_green_create,&
+                                             pw_green_release,&
+                                             pw_poisson_type
+  USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
                                              pw_pool_give_back_pw,&
-                                             pw_pools_copy
-                                             
+                                             pw_pool_p_type,&
+                                             pw_pool_type,&
+                                             pw_pools_copy,&
+                                             pw_pools_dealloc
+  USE pw_types,                        ONLY: COMPLEXDATA1D,&
+                                             RECIPROCALSPACE,&
+                                             pw_copy,&
+                                             pw_derive,&
+                                             pw_integral_ab,&
+                                             pw_p_type,&
+                                             pw_transfer,&
+                                             pw_type
+  USE timings,                         ONLY: timeset,&
+                                             timestop
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
-  private
+  PRIVATE
 
-  logical, private, parameter :: debug_this_module=.true.
-  CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='pw_poisson_methods'
+  LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'pw_poisson_methods'
 
 PUBLIC :: pw_poisson_cleanup, pw_poisson_rebuild, pw_poisson_check, &
      pw_poisson_solve, pw_poisson_set
   !!***
   !****************************************************************************
-contains
+CONTAINS
 
   !!****** pw_poisson_methods/pw_poisson_cleanup [1.0] *
   !!
@@ -116,26 +89,27 @@ contains
   !!
   !!*** *************************************************************************
   SUBROUTINE pw_poisson_cleanup (poisson_env, error)
-    TYPE(pw_poisson_type), pointer :: poisson_env
-    TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
+    TYPE(pw_poisson_type), POINTER           :: poisson_env
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    LOGICAL :: can_give_back, failure
-    TYPE(pw_pool_type), POINTER :: pw_pool
-    TYPE(greens_fn_type), pointer :: gftype
-    CHARACTER(len=*), PARAMETER :: routineN="pw_poisson_cleanup",&
-         routineP=moduleN//':'//routineN
+    CHARACTER(len=*), PARAMETER :: routineN = 'pw_poisson_cleanup', &
+      routineP = moduleN//':'//routineN
 
-    failure=.false.
+    LOGICAL                                  :: failure
+    TYPE(pw_pool_type), POINTER              :: pw_pool
+
+    failure=.FALSE.
     CPPrecondition(ASSOCIATED(poisson_env),cp_failure_level,routineP,error,failure)
     CPPrecondition(poisson_env%ref_count>0,cp_failure_level,routineP,error,failure)
 
     IF (.NOT.failure) THEN
-       nullify(pw_pool)
+       NULLIFY(pw_pool)
        IF (ASSOCIATED(poisson_env%pw_pools)) THEN
           pw_pool => poisson_env%pw_pools(poisson_env%pw_level)%pool
        END IF
        CALL pw_green_release(poisson_env%green_fft,pw_pool=pw_pool,error=error)
-       poisson_env%rebuild=.true.
+       poisson_env%rebuild=.TRUE.
     END IF
   END SUBROUTINE pw_poisson_cleanup
   !******************************************************************************
@@ -161,20 +135,22 @@ contains
   !!
   !!*** **********************************************************************
   SUBROUTINE pw_poisson_check(poisson_env,error)
-    TYPE(pw_poisson_type), pointer :: poisson_env
-    type(cp_error_type), optional, intent(inout) :: error
+    TYPE(pw_poisson_type), POINTER           :: poisson_env
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    LOGICAL :: failure, rebuild
-    character(len=*), parameter :: routineN='pw_poisson_check',&
-         routineP=moduleN//':'//routineN
-    INTEGER :: i_val, ewald_kind,s_order
-    TYPE(section_vals_type), pointer :: ewald_section
-    REAL(kind=dp) :: alpha
-    TYPE(greens_fn_type), pointer :: green
+    CHARACTER(len=*), PARAMETER :: routineN = 'pw_poisson_check', &
+      routineP = moduleN//':'//routineN
 
-    failure=.false.
+    INTEGER                                  :: ewald_kind, i_val, s_order
+    LOGICAL                                  :: failure, rebuild
+    REAL(kind=dp)                            :: alpha
+    TYPE(greens_fn_type), POINTER            :: green
+    TYPE(section_vals_type), POINTER         :: ewald_section
 
-    nullify(ewald_section)
+    failure=.FALSE.
+
+    NULLIFY(ewald_section)
     CPPrecondition(ASSOCIATED(poisson_env),cp_failure_level,routineP,error,failure)
     CPPrecondition(poisson_env%ref_count>0,cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
@@ -187,10 +163,10 @@ contains
     IF (.NOT.failure) THEN
        green => poisson_env%green_fft
        rebuild=poisson_env%rebuild
-       call section_vals_val_get(poisson_env%parameters,"POISSON_SOLVER",&
+       CALL section_vals_val_get(poisson_env%parameters,"POISSON_SOLVER",&
             i_val=i_val,error=error)
        ewald_section => section_vals_get_subs_vals(poisson_env%parameters,&
-            "EWALD", can_return_null=.true., error=error)
+            "EWALD", can_return_null=.TRUE., error=error)
        rebuild=rebuild.OR.(poisson_env%method/=i_val)&
             .OR..NOT.ASSOCIATED(green)
        poisson_env%method=i_val
@@ -225,7 +201,7 @@ contains
           END SELECT
        END IF
        IF (rebuild) THEN
-          poisson_env%rebuild=.true.
+          poisson_env%rebuild=.TRUE.
           CALL pw_poisson_cleanup(poisson_env,error=error)
        END IF
     END IF
@@ -253,14 +229,16 @@ contains
   !!
   !!*** **********************************************************************
   SUBROUTINE pw_poisson_rebuild(poisson_env,error)
-    TYPE(pw_poisson_type), pointer :: poisson_env
-    type(cp_error_type), optional, intent(inout) :: error
+    TYPE(pw_poisson_type), POINTER           :: poisson_env
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    logical :: failure
-    character(len=*), parameter :: routineN='pw_poisson_rebuild',&
-         routineP=moduleN//':'//routineN
+    CHARACTER(len=*), PARAMETER :: routineN = 'pw_poisson_rebuild', &
+      routineP = moduleN//':'//routineN
 
-    failure=.false.
+    LOGICAL                                  :: failure
+
+    failure=.FALSE.
 
     CPPrecondition(ASSOCIATED(poisson_env),cp_failure_level,routineP,error,failure)
     CPPrecondition(poisson_env%ref_count>0,cp_failure_level,routineP,error,failure)
@@ -285,7 +263,7 @@ contains
           CASE default
              CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
           END SELECT
-          poisson_env%rebuild=.false.
+          poisson_env%rebuild=.FALSE.
        END IF
     END IF
   END SUBROUTINE pw_poisson_rebuild
@@ -312,29 +290,29 @@ contains
   SUBROUTINE pw_poisson_solve ( poisson_env, density, ehartree, vhartree,&
        dvhartree, h_stress, error )
 
-    TYPE(pw_poisson_type), POINTER :: poisson_env
-    TYPE(pw_type), pointer             :: density
-    REAL(kind=dp), INTENT(out), optional :: ehartree
-    TYPE(pw_type), pointer, &
-         OPTIONAL                       :: vhartree
-    TYPE(pw_p_type), DIMENSION(3), &
-         OPTIONAL                :: dvhartree
+    TYPE(pw_poisson_type), POINTER           :: poisson_env
+    TYPE(pw_type), POINTER                   :: density
+    REAL(kind=dp), INTENT(out), OPTIONAL     :: ehartree
+    TYPE(pw_type), OPTIONAL, POINTER         :: vhartree
+    TYPE(pw_p_type), DIMENSION(3), OPTIONAL  :: dvhartree
     REAL(KIND=dp), DIMENSION(3, 3), &
-         INTENT(OUT), OPTIONAL                  :: h_stress
+      INTENT(OUT), OPTIONAL                  :: h_stress
     TYPE(cp_error_type), INTENT(inout), &
-         OPTIONAL                               :: error
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'pw_poisson_solve', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: alpha, beta, i, ng
     INTEGER, DIMENSION(3)                    :: n
-    REAL(KIND=dp)                                :: ffa
+    LOGICAL                                  :: failure
+    REAL(KIND=dp)                            :: ffa
     TYPE(pw_grid_type), POINTER              :: pw_grid
-    TYPE(pw_p_type)                            :: dvg( 3 )
-    TYPE(pw_type), POINTER :: rhog,tmpg
-    TYPE(pw_pool_type), pointer :: pw_pool
-    logical :: failure
-    CHARACTER(len=*), PARAMETER :: routineN="pw_poisson_solve",&
-         routineP=moduleN//':'//routineN
-    !------------------------------------------------------------------------------
+    TYPE(pw_p_type)                          :: dvg( 3 )
+    TYPE(pw_pool_type), POINTER              :: pw_pool
+    TYPE(pw_type), POINTER                   :: rhog, tmpg
+
+!------------------------------------------------------------------------------
 
     failure=.FALSE.
     CPPrecondition(ASSOCIATED(poisson_env),cp_failure_level,routineP,error,failure)
@@ -377,7 +355,7 @@ contains
              IF ( PRESENT ( ehartree ) ) THEN
                 ehartree = 0.5_dp * pw_integral_ab ( density , vhartree )
              END IF
-          ELSE if (present(ehartree)) then
+          ELSE IF (PRESENT(ehartree)) THEN
              ehartree=0.5_dp*pw_integral_ab(rhog,tmpg)
              CALL pw_pool_give_back_pw(pw_pool,tmpg,error=error)
           END IF
@@ -393,7 +371,7 @@ contains
                   "Pressure calculation works ONLY for fully priodic systems",error)
           END IF
           DO i = 1, 3
-             nullify(dvg(i)%pw)
+             NULLIFY(dvg(i)%pw)
              CALL pw_pool_create_pw (pw_pool, dvg ( i )%pw, use_data=COMPLEXDATA1D,&
                   in_space= RECIPROCALSPACE,error=error)
              n = 0
@@ -460,21 +438,25 @@ contains
   SUBROUTINE pw_poisson_set ( poisson_env, cell, parameters, pw_pools,&
        use_level, mt_super_ref_pw_grid, force_rebuild, error )
 
-    TYPE(pw_poisson_type), pointer :: poisson_env
-    TYPE(cell_type), POINTER, optional :: cell
-    TYPE(section_vals_type), POINTER, optional :: parameters
-    TYPE(pw_pool_p_type), DIMENSION(:), POINTER, optional :: pw_pools
-    INTEGER, INTENT(in), optional :: use_level
-    TYPE(pw_grid_type), POINTER, OPTIONAL :: mt_super_ref_pw_grid
-    LOGICAL, INTENT(in), optional :: force_rebuild
+    TYPE(pw_poisson_type), POINTER           :: poisson_env
+    TYPE(cell_type), OPTIONAL, POINTER       :: cell
+    TYPE(section_vals_type), OPTIONAL, &
+      POINTER                                :: parameters
+    TYPE(pw_pool_p_type), DIMENSION(:), &
+      OPTIONAL, POINTER                      :: pw_pools
+    INTEGER, INTENT(in), OPTIONAL            :: use_level
+    TYPE(pw_grid_type), OPTIONAL, POINTER    :: mt_super_ref_pw_grid
+    LOGICAL, INTENT(in), OPTIONAL            :: force_rebuild
     TYPE(cp_error_type), INTENT(inout), &
-         OPTIONAL                               :: error
+      OPTIONAL                               :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'init_pw_poisson_solver', &
-         routineP = moduleN//':'//routineN
-    TYPE(pw_pool_p_type), DIMENSION(:), POINTER :: tmp_pools
+    CHARACTER(len=*), PARAMETER :: routineN = 'pw_poisson_set', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i
     LOGICAL                                  :: failure, same
-    integer :: i
+    TYPE(pw_pool_p_type), DIMENSION(:), &
+      POINTER                                :: tmp_pools
 
     IF (PRESENT(parameters)) THEN
        CPPrecondition(ASSOCIATED(parameters),cp_failure_level,routineP,error,failure)
@@ -492,17 +474,17 @@ contains
        CALL cell_retain(cell,error=error)
        CALL cell_release(poisson_env%cell,error=error)
        poisson_env%cell => cell
-       poisson_env%rebuild=.true.
+       poisson_env%rebuild=.TRUE.
     END IF
     IF (PRESENT(pw_pools)) THEN
        CPPrecondition(ASSOCIATED(pw_pools),cp_failure_level,routineP,error,failure)
-       same=.false.
+       same=.FALSE.
        IF (ASSOCIATED(poisson_env%pw_pools)) THEN
-          same=SIZE(poisson_env%pw_pools)==size(pw_pools)
+          same=SIZE(poisson_env%pw_pools)==SIZE(pw_pools)
           IF (same) THEN
              DO i =1,SIZE(pw_pools)
                 IF (poisson_env%pw_pools(i)%pool%id_nr/=&
-                     pw_pools(i)%pool%id_nr) same=.false.
+                     pw_pools(i)%pool%id_nr) same=.FALSE.
              END DO
           END IF
        END IF
@@ -522,7 +504,7 @@ contains
        poisson_env%mt_super_ref_pw_grid => mt_super_ref_pw_grid
     END IF
     IF (PRESENT(force_rebuild)) THEN
-       IF (force_rebuild) poisson_env%rebuild=.true.
+       IF (force_rebuild) poisson_env%rebuild=.TRUE.
     END IF
     CALL pw_poisson_check(poisson_env,error=error)
   END SUBROUTINE pw_poisson_set

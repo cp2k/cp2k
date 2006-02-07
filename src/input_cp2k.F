@@ -24,41 +24,47 @@
 !!   SOURCE
 !****************************************************************************
 MODULE input_cp2k
-  USE kinds, ONLY: dp
-  USE cp_para_types, ONLY: cp_para_env_type
-  USE timings, ONLY: timeset, timestop
-  USE input_section_types, ONLY: section_type, section_create, &
-       section_add_keyword, section_add_subsection, section_release,&
-       section_vals_type,&
-       section_vals_get_subs_vals, section_vals_get
+  USE cp_output_handling,              ONLY: cp_print_key_section_create
   USE input_constants
-  USE input_keyword_types, ONLY: keyword_type, keyword_create,&
-       keyword_release
-  USE input_val_types, ONLY: val_type, no_t, logical_t, integer_t, real_t, char_t,&
-       enum_t
-  USE cp_output_handling, only: cp_print_key_section_create
-
-  USE string_utilities, ONLY: s2a
-  USE input_cp2k_motion, only: create_motion_section
-  USE input_cp2k_subsys, only: create_subsys_section
-  USE input_cp2k_mm, only: create_mm_section
-  USE input_cp2k_qmmm, only: create_qmmm_section
-  USE input_cp2k_dft, ONLY: create_dft_section, create_bsse_section, &
-       create_properties_section
-  USE input_cp2k_tbmd, ONLY: create_tbmd_section
-
+  USE input_cp2k_dft,                  ONLY: create_bsse_section,&
+                                             create_dft_section,&
+                                             create_properties_section
+  USE input_cp2k_mm,                   ONLY: create_mm_section
+  USE input_cp2k_motion,               ONLY: create_motion_section
+  USE input_cp2k_qmmm,                 ONLY: create_qmmm_section
+  USE input_cp2k_subsys,               ONLY: create_subsys_section
+  USE input_cp2k_tbmd,                 ONLY: create_tbmd_section
+  USE input_keyword_types,             ONLY: keyword_create,&
+                                             keyword_release,&
+                                             keyword_type
+  USE input_section_types,             ONLY: section_add_keyword,&
+                                             section_add_subsection,&
+                                             section_create,&
+                                             section_release,&
+                                             section_type,&
+                                             section_vals_get,&
+                                             section_vals_get_subs_vals,&
+                                             section_vals_type
+  USE input_val_types,                 ONLY: char_t,&
+                                             integer_t,&
+                                             no_t
+  USE kinds,                           ONLY: dp
+  USE string_utilities,                ONLY: s2a
+  USE timings,                         ONLY: timeset,&
+                                             timestop
 #include "cp_common_uses.h"
+
   IMPLICIT NONE
   PRIVATE
   
   LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
-  CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='input_cp2k'
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'input_cp2k'
   
   PUBLIC :: create_cp2k_root_section, parsed_cp2k_input,&
        create_global_section
 !!***
 !****************************************************************************
-contains
+CONTAINS
 
 !!****f* input_cp2k/create_cp2k_root_section *
 !!
@@ -81,16 +87,18 @@ contains
 !!
 !!*** **********************************************************************
   SUBROUTINE create_cp2k_root_section(root_section,error)
-    TYPE(section_type), pointer :: root_section
-    type(cp_error_type), optional, intent(inout) :: error
+    TYPE(section_type), POINTER              :: root_section
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    logical :: failure
-    character(len=*), parameter :: routineN='create_cp2k_input_structure',&
-         routineP=moduleN//':'//routineN
-    TYPE(section_type), POINTER :: section
-    TYPE(keyword_type), pointer :: keyword
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_cp2k_root_section', &
+      routineP = moduleN//':'//routineN
 
-    failure=.false.
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
+    TYPE(section_type), POINTER              :: section
+
+    failure=.FALSE.
 
     CPPrecondition(.NOT.ASSOCIATED(root_section),cp_failure_level,routineP,error,failure)
     IF (.NOT.  failure) THEN
@@ -156,17 +164,19 @@ contains
 !!
 !!*** **********************************************************************
   FUNCTION parsed_cp2k_input(input_file,check_this_section,error) RESULT(res)
-    TYPE(section_vals_type), pointer :: input_file
-    LOGICAL, INTENT(IN), OPTIONAL :: check_this_section
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-    logical :: res
+    TYPE(section_vals_type), POINTER         :: input_file
+    LOGICAL, INTENT(IN), OPTIONAL            :: check_this_section
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+    LOGICAL                                  :: res
 
-    LOGICAL :: failure, my_check
-    character(len=*), parameter :: routineN='parsed_cp2k_input',&
-         routineP=moduleN//':'//routineN
-    TYPE(section_vals_type), POINTER ::glob_section
+    CHARACTER(len=*), PARAMETER :: routineN = 'parsed_cp2k_input', &
+      routineP = moduleN//':'//routineN
 
-    failure=.false.
+    LOGICAL                                  :: failure, my_check
+    TYPE(section_vals_type), POINTER         :: glob_section
+
+    failure=.FALSE.
     my_check = .FALSE.
     IF (PRESENT(check_this_section)) my_check = check_this_section
     res=ASSOCIATED(input_file)
@@ -206,25 +216,27 @@ contains
 !!
 !!*** **********************************************************************
   SUBROUTINE create_global_section(section,error)
-    TYPE(section_type), pointer :: section
-    type(cp_error_type), optional, intent(inout) :: error
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    logical :: failure
-    character(len=*), parameter :: routineN='create_global_section',&
-         routineP=moduleN//':'//routineN
-    TYPE(keyword_type), pointer :: keyword
-    TYPE(section_type), POINTER :: print_key, subsection
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_global_section', &
+      routineP = moduleN//':'//routineN
 
-    failure=.false.
-    NULLIFY(print_key,subsection)
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
+    TYPE(section_type), POINTER              :: print_key
+
+    failure=.FALSE.
+    NULLIFY(print_key)
     CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
     CALL section_create(section,name="global",&
          description="Section with general information regarding which kind "//&
          "of simulation to perform an parameters for the whole PROGRAM",&
-         n_keywords=7, n_subsections=0, repeats=.FALSE., required=.true.,&
+         n_keywords=7, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
          error=error) ! to do: required=.false.
 
-    nullify(keyword)
+    NULLIFY(keyword)
     CALL keyword_create(keyword, name="BLACS_GRID",&
          description="how to distribute the processors on the 2d grid needed "//&
          "by BLACS (and thus SCALAPACK)", usage="BLACS_GRID SQUARE",&
@@ -321,7 +333,7 @@ contains
     CALL keyword_create(keyword, name="TRACE",&
          description="If a debug trace of the execution of the program should be written ",&
          usage="TRACE",&
-         default_l_val=.FALSE.,lone_keyword_l_val=.true.,error=error)
+         default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,error=error)
     CALL section_add_keyword(section,keyword,error=error)
     CALL keyword_release(keyword,error=error)
 
@@ -438,17 +450,18 @@ contains
 !!
 !!*** **********************************************************************
   SUBROUTINE create_test_section(section,error)
-    TYPE(section_type), pointer :: section
-    type(cp_error_type), optional, intent(inout) :: error
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    logical :: failure
-    character(len=*), parameter :: routineN='create_test_section',&
-         routineP=moduleN//':'//routineN
-    TYPE(keyword_type), pointer :: keyword
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_test_section', &
+      routineP = moduleN//':'//routineN
 
-    call section_create(section,name="test",&
+    TYPE(keyword_type), POINTER              :: keyword
+
+    CALL section_create(section,name="test",&
          description="tests to perform",&
-         n_keywords=7, n_subsections=0, repeats=.FALSE., required=.true.,&
+         n_keywords=7, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
          error=error)
 
     NULLIFY(keyword)
@@ -516,7 +529,7 @@ contains
     CALL keyword_create(keyword, name="random_number_generator",variants=(/"rng"/),&
          description=" Tests the parallel random number generator",&
          usage="random_number_generator",default_l_val=.FALSE.,&
-         lone_keyword_l_val=.true.,error=error)
+         lone_keyword_l_val=.TRUE.,error=error)
     CALL section_add_keyword(section,keyword,error=error)
     CALL keyword_release(keyword,error=error)
 
@@ -553,13 +566,15 @@ contains
 !!
 !!*** **********************************************************************
   SUBROUTINE create_force_eval_section(section,error)
-    TYPE(section_type), pointer :: section
-    type(cp_error_type), optional, intent(inout) :: error
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    logical :: failure
-    character(len=*), parameter :: routineN='create_force_eval_section',&
-         routineP=moduleN//':'//routineN
-    TYPE(section_type), pointer :: subsection
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_force_eval_section', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(section_type), POINTER              :: subsection
 
     failure=.FALSE.
 
@@ -633,8 +648,8 @@ contains
       OPTIONAL                               :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'create_ext_restart_section', &
-         routineP = moduleN//':'//routineN
-    
+      routineP = moduleN//':'//routineN
+
     LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
 
@@ -667,50 +682,50 @@ contains
        CALL keyword_release(keyword,error=error)
        CALL keyword_create(keyword, name="RESTART_VEL",&
             description="Takes the velocities from the external file",&
-            default_l_val=.true., lone_keyword_l_val=.TRUE.,error=error)
+            default_l_val=.TRUE., lone_keyword_l_val=.TRUE.,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
       CALL keyword_create(keyword, name="RESTART_RANDOMG",&
             description="Restarts the random number generator from the external file",&
-            default_l_val=.true., lone_keyword_l_val=.TRUE.,error=error)
+            default_l_val=.TRUE., lone_keyword_l_val=.TRUE.,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
        CALL keyword_create(keyword, name="RESTART_KG_COEFF_POS",&
             description="Restarts the positions of coefficents of kg from the external file",&
-            default_l_val=.true., lone_keyword_l_val=.TRUE.,error=error)
+            default_l_val=.TRUE., lone_keyword_l_val=.TRUE.,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
        CALL keyword_create(keyword, name="RESTART_KG_COEFF_VEL",&
             description="Restarts the velocity of coefficents of kg from the external file",&
-            default_l_val=.true., lone_keyword_l_val=.TRUE.,error=error)
+            default_l_val=.TRUE., lone_keyword_l_val=.TRUE.,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
        CALL keyword_create(keyword, name="RESTART_KG_NOSE",&
             description="Restarts the nose thermostats of the kg coefficents "//&
             "from the EXTERNAL file",&
-            default_l_val=.true., lone_keyword_l_val=.TRUE.,error=error)
+            default_l_val=.TRUE., lone_keyword_l_val=.TRUE.,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
        CALL keyword_create(keyword, name="RESTART_BAROSTAT",&
             description="Restarts the barostat from the external file",&
-            default_l_val=.true., lone_keyword_l_val=.TRUE.,error=error)
+            default_l_val=.TRUE., lone_keyword_l_val=.TRUE.,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
        CALL keyword_create(keyword, name="RESTART_BAROSTAT_NOSE",&
             description="Restarts the barostat thermostat from the external file",&
-            default_l_val=.true., lone_keyword_l_val=.TRUE.,error=error)
+            default_l_val=.TRUE., lone_keyword_l_val=.TRUE.,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
        CALL keyword_create(keyword, name="RESTART_NOSE",&
             description="Restarts the nose thermostats of the particles "//&
             "from the EXTERNAL file",&
-            default_l_val=.true., lone_keyword_l_val=.TRUE.,error=error)
+            default_l_val=.TRUE., lone_keyword_l_val=.TRUE.,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
        CALL keyword_create(keyword, name="RESTART_CELL",&
             description="Restarts the cell (and cell_ref) "//&
             "from the EXTERNAL file",&
-            default_l_val=.true., lone_keyword_l_val=.TRUE.,error=error)
+            default_l_val=.TRUE., lone_keyword_l_val=.TRUE.,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
        CALL keyword_create(keyword, name="CUSTOM_PATH",&
@@ -745,22 +760,24 @@ contains
 !!
 !!*** **********************************************************************
 SUBROUTINE create_farming_section(section,error)
-  TYPE(section_type), pointer :: section
-  type(cp_error_type), optional, intent(inout) :: error
-  
-  logical :: failure
-  character(len=*), parameter :: routineN='create_farming_section',&
-        routineP=moduleN//':'//routineN
-  TYPE(section_type), pointer :: sub_section
-  TYPE(keyword_type), pointer :: keyword
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-  failure=.false.
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_farming_section', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
+    TYPE(section_type), POINTER              :: sub_section
+
+  failure=.FALSE.
   
   CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
   CALL section_create(section,name="farming",&
          description="describes a farming job, in which multiple inputs are executed",&
          repeats=.FALSE., required=.TRUE., error=error)
-  nullify(keyword)
+  NULLIFY(keyword)
 
   CALL keyword_create(keyword, name="group_size",&
          description="gives the wanted size of a working group.",&
@@ -800,10 +817,10 @@ SUBROUTINE create_farming_section(section,error)
   CALL section_add_keyword(section,keyword,error=error)
   CALL keyword_release(keyword,error=error)
 
-  nullify(sub_section)
+  NULLIFY(sub_section)
   CALL section_create(sub_section,name="job",&
          description="description of the jobs to be executed",&
-         repeats=.true., required=.TRUE., error=error)
+         repeats=.TRUE., required=.TRUE., error=error)
 
   CALL keyword_create(keyword,name="directory",&
        description="the directory in which the job should be executed",&
@@ -845,13 +862,15 @@ END SUBROUTINE create_farming_section
 !!
 !!*** **********************************************************************
 SUBROUTINE create_f_env_print_section(section,error)
-  TYPE(section_type), pointer :: section
-  type(cp_error_type), optional, intent(inout) :: error
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-  logical :: failure
-  character(len=*), parameter :: routineN='create_f_env_print_section',&
-       routineP=moduleN//':'//routineN
-  TYPE(section_type), pointer :: print_key
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_f_env_print_section', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(section_type), POINTER              :: print_key
 
   failure=.FALSE.
 
@@ -890,7 +909,7 @@ SUBROUTINE create_f_env_print_section(section,error)
      CALL section_release(print_key,error=error)
 
   END IF
-end subroutine create_f_env_print_section
+END SUBROUTINE create_f_env_print_section
 !***************************************************************************
 
 END MODULE input_cp2k

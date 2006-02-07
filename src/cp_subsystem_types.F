@@ -27,8 +27,8 @@ MODULE cp_subsystem_types
   USE atomic_kind_list_types,          ONLY: atomic_kind_list_release,&
                                              atomic_kind_list_retain,&
                                              atomic_kind_list_type
-  USE colvar_types,                    ONLY: colvar_type, &
-                                             colvar_dealloc_ref
+  USE colvar_types,                    ONLY: colvar_dealloc_ref,&
+                                             colvar_type
   USE cp_para_env,                     ONLY: cp_para_env_release,&
                                              cp_para_env_retain
   USE cp_para_types,                   ONLY: cp_para_env_type
@@ -53,7 +53,7 @@ MODULE cp_subsystem_types
   PRIVATE
 
   LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
-  CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='cp_subsystem_types'
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_subsystem_types'
   INTEGER, PRIVATE, SAVE :: last_fragment_id=0
 
   PUBLIC :: cp_subsystem_type, cp_subsystem_p_type,cp_subsystem_pp_type
@@ -307,7 +307,7 @@ SUBROUTINE cp_subsys_release(subsys, error)
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_subsys_release', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat,i
+    INTEGER                                  :: i, stat
     LOGICAL                                  :: failure
 
   failure=.FALSE.
@@ -399,7 +399,8 @@ SUBROUTINE cp_subsys_set(subsys, atomic_kinds, particles, local_particles,&
       POINTER                                :: local_molecules_new
     TYPE(cp_para_env_type), OPTIONAL, &
       POINTER                                :: para_env
-    TYPE(colvar_type), OPTIONAL, DIMENSION(:), POINTER     :: colvar
+    TYPE(colvar_type), DIMENSION(:), &
+      OPTIONAL, POINTER                      :: colvar
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -519,7 +520,8 @@ SUBROUTINE cp_subsys_get(subsys, id_nr, ref_count, atomic_kinds, particles,&
       POINTER                                :: local_molecules_new
     TYPE(cp_para_env_type), OPTIONAL, &
       POINTER                                :: para_env
-    TYPE(colvar_type), OPTIONAL, POINTER, DIMENSION(:) :: colvar
+    TYPE(colvar_type), DIMENSION(:), &
+      OPTIONAL, POINTER                      :: colvar
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 

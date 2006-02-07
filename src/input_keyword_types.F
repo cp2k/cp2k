@@ -31,19 +31,10 @@ MODULE input_keyword_types
                                              enum_release,&
                                              enum_retain,&
                                              enumeration_type
-  USE input_val_types,                 ONLY: char_t,&
-                                             enum_t,&
-                                             integer_t,&
-                                             lchar_t,&
-                                             logical_t,&
-                                             no_t,&
-                                             real_t,&
-                                             val_create,&
-                                             val_release,&
-                                             val_retain,&
-                                             val_type,&
-                                             val_write,&
-                                             val_write_internal
+  USE input_val_types,                 ONLY: &
+       char_t, enum_t, integer_t, lchar_t, logical_t, no_t, real_t, &
+       val_create, val_release, val_retain, val_type, val_write, &
+       val_write_internal
   USE kinds,                           ONLY: default_string_length,&
                                              dp
   USE output_utilities,                ONLY: print_message
@@ -51,11 +42,12 @@ MODULE input_keyword_types
                                              substitute_special_xml_tokens,&
                                              uppercase
 #include "cp_common_uses.h"
+
   IMPLICIT NONE
   PRIVATE
 
   LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
-  CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='input_keyword_types'
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'input_keyword_types'
 
   INTEGER, PARAMETER, PUBLIC :: description_string_length=10*default_string_length,&
        usage_string_length=default_string_length*2
@@ -182,7 +174,7 @@ SUBROUTINE keyword_create(keyword, name, description, usage, type_of_var,&
      enum,enum_strict,enum_desc,unit_str,error)
     TYPE(keyword_type), POINTER              :: keyword
     CHARACTER(len=*), INTENT(in)             :: name, description
-    CHARACTER(len=*), INTENT(in), optional   :: usage
+    CHARACTER(len=*), INTENT(in), OPTIONAL   :: usage
     INTEGER, INTENT(in), OPTIONAL            :: type_of_var, n_var
     LOGICAL, INTENT(in), OPTIONAL            :: repeats
     CHARACTER(len=*), DIMENSION(:), &
@@ -191,8 +183,7 @@ SUBROUTINE keyword_create(keyword, name, description, usage, type_of_var,&
     TYPE(val_type), OPTIONAL, POINTER        :: default_val
     LOGICAL, INTENT(in), OPTIONAL            :: default_l_val
     REAL(KIND=DP), INTENT(in), OPTIONAL      :: default_r_val
-    CHARACTER(LEN=*), INTENT(in), OPTIONAL   :: default_c_val
-    CHARACTER(LEN=*), INTENT(in), OPTIONAL   :: default_lc_val
+    CHARACTER(len=*), INTENT(in), OPTIONAL   :: default_lc_val, default_c_val
     INTEGER, INTENT(in), OPTIONAL            :: default_i_val
     LOGICAL, DIMENSION(:), INTENT(in), &
       OPTIONAL                               :: default_l_vals
@@ -205,7 +196,7 @@ SUBROUTINE keyword_create(keyword, name, description, usage, type_of_var,&
     TYPE(val_type), OPTIONAL, POINTER        :: lone_keyword_val
     LOGICAL, INTENT(in), OPTIONAL            :: lone_keyword_l_val
     REAL(KIND=DP), INTENT(in), OPTIONAL      :: lone_keyword_r_val
-    CHARACTER(LEN=*), INTENT(in), OPTIONAL   :: lone_keyword_c_val
+    CHARACTER(len=*), INTENT(in), OPTIONAL   :: lone_keyword_c_val
     INTEGER, INTENT(in), OPTIONAL            :: lone_keyword_i_val
     LOGICAL, DIMENSION(:), INTENT(in), &
       OPTIONAL                               :: lone_keyword_l_vals
@@ -216,13 +207,15 @@ SUBROUTINE keyword_create(keyword, name, description, usage, type_of_var,&
     INTEGER, DIMENSION(:), INTENT(in), &
       OPTIONAL                               :: lone_keyword_i_vals
     CHARACTER(len=*), DIMENSION(:), &
-      INTENT(in), OPTIONAL                   :: enum_c_vals,enum_desc
+      INTENT(in), OPTIONAL                   :: enum_c_vals
     INTEGER, DIMENSION(:), INTENT(in), &
       OPTIONAL                               :: enum_i_vals
     TYPE(enumeration_type), OPTIONAL, &
       POINTER                                :: enum
     LOGICAL, INTENT(in), OPTIONAL            :: enum_strict
-    CHARACTER(len=*), intent(in), OPTIONAL   :: unit_str
+    CHARACTER(len=*), DIMENSION(:), &
+      INTENT(in), OPTIONAL                   :: enum_desc
+    CHARACTER(len=*), INTENT(in), OPTIONAL   :: unit_str
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -241,7 +234,7 @@ SUBROUTINE keyword_create(keyword, name, description, usage, type_of_var,&
      keyword%ref_count=1
      last_keyword_id=last_keyword_id+1
      keyword%id_nr=last_keyword_id
-     nullify(keyword%unit)
+     NULLIFY(keyword%unit)
 
      IF (PRESENT(variants)) THEN
         ALLOCATE(keyword%names(SIZE(variants)+1),stat=stat)
@@ -565,7 +558,8 @@ SUBROUTINE keyword_get(keyword,names,usage,description,type_of_var,n_var,&
     TYPE(val_type), OPTIONAL, POINTER        :: default_value, &
                                                 lone_keyword_value
     LOGICAL, INTENT(out), OPTIONAL           :: required, repeats
-    TYPE(enumeration_type), POINTER, OPTIONAL:: enum
+    TYPE(enumeration_type), OPTIONAL, &
+      POINTER                                :: enum
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -784,7 +778,7 @@ SUBROUTINE keyword_describe_html(keyword, unit_nr, error)
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'keyword_describe_thml', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'keyword_describe_html', &
       routineP = moduleN//':'//routineN
 
     CHARACTER(len=default_string_length)     :: c_string, my_unit
@@ -909,23 +903,19 @@ END SUBROUTINE keyword_describe_html
 
     ! Dump a (special) keyword section in XML format (26.01.2006,MK)
 
-    TYPE(keyword_type), POINTER                  :: keyword
-    INTEGER, INTENT(IN)                          :: level,unit_number
-    TYPE(cp_error_type), OPTIONAL, INTENT(INOUT) :: error
+    TYPE(keyword_type), POINTER              :: keyword
+    INTEGER, INTENT(IN)                      :: level, unit_number
+    TYPE(cp_error_type), INTENT(INOUT), &
+      OPTIONAL                               :: error
 
-    ! Local parameters
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'write_keyword_xml', &
+      routineP = moduleN//':'//routineN
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = "write_keyword_xml",&
-                                   routineP = moduleN//':'//routineN
-
-    ! Local variables
-
-    CHARACTER(LEN=1000) :: string
-    CHARACTER(LEN=5)    :: keyword_n_var
-    CHARACTER(LEN=3)    :: repeats,required
-    REAL(KIND=dp)       :: value
-    INTEGER             :: i,l0,l1,l2,l3,l4
-    LOGICAL             :: failure
+    CHARACTER(LEN=1000)                      :: string
+    CHARACTER(LEN=3)                         :: repeats, required
+    CHARACTER(LEN=5)                         :: keyword_n_var
+    INTEGER                                  :: i, l0, l1, l2, l3, l4
+    LOGICAL                                  :: failure
 
 !   ---------------------------------------------------------------------------
 

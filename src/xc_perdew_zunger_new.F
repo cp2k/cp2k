@@ -30,6 +30,9 @@
 !!****
 
 MODULE xc_perdew_zunger_new
+  USE input_constants,                 ONLY: pz_dmc,&
+                                             pz_orig,&
+                                             pz_vmc
   USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: zero
   USE termination,                     ONLY: stop_program
@@ -46,10 +49,8 @@ MODULE xc_perdew_zunger_new
   USE xc_rho_cflags_types,             ONLY: xc_rho_cflags_type
   USE xc_rho_set_types,                ONLY: xc_rho_set_get,&
                                              xc_rho_set_type
-  USE input_constants,                 ONLY: pz_dmc,&
-                                             pz_orig,&
-                                             pz_vmc
 #include "cp_common_uses.h"
+
   IMPLICIT NONE
   PRIVATE
   
@@ -61,7 +62,7 @@ MODULE xc_perdew_zunger_new
   REAL(KIND=dp) :: eps_rho
 
   PUBLIC :: pz_info, pz_lda_eval, pz_lsd_eval
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN="xc_perdew_zunger_new"
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'xc_perdew_zunger_new'
 
 CONTAINS
 
@@ -175,14 +176,15 @@ CONTAINS
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = "pz_lda_eval", &
-      routineP = moduleN//":"//routineN
+    CHARACTER(len=*), PARAMETER :: routineN = 'pz_lda_eval', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: npoints, stat, timer_handle
     INTEGER, DIMENSION(:, :), POINTER        :: bo
     LOGICAL                                  :: failure
-    REAL(KIND=dp)                                :: rho_cutoff
-    REAL(KIND=dp), DIMENSION(:, :, :), POINTER   :: dummy, e_0, e_rho, e_rho_rho, &
+    REAL(KIND=dp)                            :: rho_cutoff
+    REAL(KIND=dp), DIMENSION(:, :, :), &
+      POINTER                                :: dummy, e_0, e_rho, e_rho_rho, &
                                                 e_rho_rho_rho, rho
     TYPE(xc_derivative_type), POINTER        :: deriv
 
@@ -258,13 +260,14 @@ CONTAINS
 
 SUBROUTINE pz_lda_calc(rho,e_0,e_rho, e_rho_rho, e_rho_rho_rho, npoints, order)
   !FM low level calc routine
-    REAL(KIND=dp), DIMENSION(*), INTENT(in)      :: rho
-    REAL(KIND=dp), DIMENSION(*), INTENT(inout)   :: e_0, e_rho, e_rho_rho, &
+    REAL(KIND=dp), DIMENSION(*), INTENT(in)  :: rho
+    REAL(KIND=dp), DIMENSION(*), &
+      INTENT(inout)                          :: e_0, e_rho, e_rho_rho, &
                                                 e_rho_rho_rho
     INTEGER, INTENT(in)                      :: npoints, order
 
     INTEGER                                  :: k
-    REAL(KIND=dp), DIMENSION(0:3)                :: ed
+    REAL(KIND=dp), DIMENSION(0:3)            :: ed
 
 !$omp parallel do private ( k, ed )
     DO k=1, npoints
@@ -323,14 +326,15 @@ SUBROUTINE pz_lda_calc(rho,e_0,e_rho, e_rho_rho, e_rho_rho_rho, npoints, order)
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = "pz_lsd_eval", &
-      routineP = moduleN//":"//routineN
+    CHARACTER(len=*), PARAMETER :: routineN = 'pz_lsd_eval', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: npoints, stat, timer_handle
     INTEGER, DIMENSION(:, :), POINTER        :: bo
     LOGICAL                                  :: failure
-    REAL(KIND=dp)                                :: rho_cutoff
-    REAL(KIND=dp), DIMENSION(:, :, :), POINTER   :: a, b, dummy, e_0, ea, eaa, &
+    REAL(KIND=dp)                            :: rho_cutoff
+    REAL(KIND=dp), DIMENSION(:, :, :), &
+      POINTER                                :: a, b, dummy, e_0, ea, eaa, &
                                                 eaaa, eaab, eab, eabb, eb, &
                                                 ebb, ebbb
     TYPE(xc_derivative_type), POINTER        :: deriv
@@ -426,14 +430,15 @@ SUBROUTINE pz_lda_calc(rho,e_0,e_rho, e_rho_rho, e_rho_rho_rho, npoints, order)
     SUBROUTINE pz_lsd_calc(a,b,e_0,ea,eb,eaa,eab,ebb,eaaa,eaab,eabb,&
          ebbb, npoints, order)
       !FM low-level computation routine
-    REAL(KIND=dp), DIMENSION(*), INTENT(in)      :: a, b
-    REAL(KIND=dp), DIMENSION(*), INTENT(inout)   :: e_0, ea, eb, eaa, eab, ebb, &
+    REAL(KIND=dp), DIMENSION(*), INTENT(in)  :: a, b
+    REAL(KIND=dp), DIMENSION(*), &
+      INTENT(inout)                          :: e_0, ea, eb, eaa, eab, ebb, &
                                                 eaaa, eaab, eabb, ebbb
     INTEGER, INTENT(in)                      :: npoints, order
 
     INTEGER                                  :: k, order_
-    REAL(KIND=dp)                                :: rho
-    REAL(KIND=dp), DIMENSION(0:9)                :: ed
+    REAL(KIND=dp)                            :: rho
+    REAL(KIND=dp), DIMENSION(0:9)            :: ed
 
     order_=ABS(order)
 
@@ -500,7 +505,7 @@ SUBROUTINE pz_lda_calc(rho,e_0,e_rho, e_rho_rho, e_rho_rho_rho, npoints, order)
     
 
     INTEGER, INTENT(IN)                      :: method
-    REAL(KIND=dp), INTENT(IN)                    :: cutoff
+    REAL(KIND=dp), INTENT(IN)                :: cutoff
 
     CALL set_util(cutoff)
 
@@ -551,12 +556,13 @@ SUBROUTINE pz_lda_calc(rho,e_0,e_rho, e_rho_rho, e_rho_rho_rho, npoints, order)
   SUBROUTINE calc_g(r, z, g, order)
 
 
-    REAL(KIND=dp), INTENT(IN)                    :: r
+    REAL(KIND=dp), INTENT(IN)                :: r
     INTEGER, INTENT(IN)                      :: z
-    REAL(KIND=dp), DIMENSION(0:), INTENT(OUT)    :: g
+    REAL(KIND=dp), DIMENSION(0:), &
+      INTENT(OUT)                            :: g
     INTEGER, INTENT(IN)                      :: order
 
-    REAL(KIND=dp)                                :: rr, rsr, sr
+    REAL(KIND=dp)                            :: rr, rsr, sr
 
     IF (r >= 1.0_dp) THEN
 
@@ -609,13 +615,14 @@ SUBROUTINE pz_lda_calc(rho,e_0,e_rho, e_rho_rho, e_rho_rho_rho, npoints, order)
   SUBROUTINE pz_lda_ed_loc ( rho, ed, order )
     
     
-    REAL(KIND=dp), INTENT(IN)                    :: rho
-    REAL(KIND=dp), DIMENSION(0:), INTENT(OUT)    :: ed
+    REAL(KIND=dp), INTENT(IN)                :: rho
+    REAL(KIND=dp), DIMENSION(0:), &
+      INTENT(OUT)                            :: ed
     INTEGER, INTENT(IN)                      :: order
 
     INTEGER                                  :: m, order_
     LOGICAL, DIMENSION(0:3)                  :: calc
-    REAL(KIND=dp), DIMENSION(0:3)                :: e0, r
+    REAL(KIND=dp), DIMENSION(0:3)            :: e0, r
 
     calc = .FALSE.
 
@@ -658,16 +665,17 @@ SUBROUTINE pz_lda_calc(rho,e_0,e_rho, e_rho_rho, e_rho_rho_rho, npoints, order)
   SUBROUTINE pz_lsd_ed_loc ( a, b, ed, order )
     
     
-    REAL(KIND=dp), INTENT(IN)                    :: a, b
-    REAL(KIND=dp), DIMENSION(0:), INTENT(OUT)    :: ed
+    REAL(KIND=dp), INTENT(IN)                :: a, b
+    REAL(KIND=dp), DIMENSION(0:), &
+      INTENT(OUT)                            :: ed
     INTEGER, INTENT(IN), OPTIONAL            :: order
 
     INTEGER                                  :: m, order_
     LOGICAL, DIMENSION(0:3)                  :: calc
-    REAL(KIND=dp)                                :: rho, tr, trr, trrr, trrz, &
+    REAL(KIND=dp)                            :: rho, tr, trr, trrr, trrz, &
                                                 trz, trzz, tz, tzz, tzzz
-    REAL(KIND=dp), DIMENSION(0:3)                :: e0, e1, f, r
-    REAL(KIND=dp), DIMENSION(0:3, 0:3)           :: z
+    REAL(KIND=dp), DIMENSION(0:3)            :: e0, e1, f, r
+    REAL(KIND=dp), DIMENSION(0:3, 0:3)       :: z
 
     calc = .FALSE.
 

@@ -44,7 +44,7 @@ MODULE mc_environment_types
 
 ! *** Global parameters ***
 
-  CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='mc_environment_types'
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'mc_environment_types'
   INTEGER, SAVE, PRIVATE :: last_mc_env_id=0
 
 !!***
@@ -78,8 +78,8 @@ CONTAINS
     TYPE(cp_error_type), INTENT(INOUT), &
       OPTIONAL                               :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "mc_env_create", &
-      routineP = moduleN//':'//routine_name
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'mc_env_create', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: istat
 

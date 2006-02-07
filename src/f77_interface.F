@@ -27,7 +27,9 @@
 !****************************************************************************
 MODULE f77_interface
   USE cp2k_runs,                       ONLY: cp2k_run
-  USE cp_files,                        ONLY: open_file, close_file 
+  USE cp2k_units,                      ONLY: init_cp2k_units,&
+                                             rm_cp2k_units
+  USE cp_files,                        ONLY: open_file
   USE cp_para_env,                     ONLY: cp_para_env_create,&
                                              cp_para_env_release,&
                                              cp_para_env_retain
@@ -36,30 +38,28 @@ MODULE f77_interface
                                              parser_create,&
                                              parser_release
   USE cp_subsystem_types,              ONLY: cp_subsystem_p_type
+  USE cp_units,                        ONLY: cp_unit_set_create,&
+                                             cp_unit_set_release,&
+                                             cp_unit_set_type
   USE environment,                     ONLY: cp2k_finalize,&
                                              cp2k_init,&
                                              cp2k_read,&
                                              cp2k_setup
-  USE mathconstants,                   ONLY: init_mathcon
   USE fist_main,                       ONLY: fist_create_force_env
   USE force_env_methods,               ONLY: force_env_calc_energy_force
   USE force_env_types,                 ONLY: force_env_get,&
-                                             force_env_p_type,&
                                              force_env_release,&
-                                             force_env_type,&
-                                             force_env_retain
+                                             force_env_retain,&
+                                             force_env_type
   USE global_types,                    ONLY: global_environment_type,&
                                              globenv_create
-  USE input_cp2k_check,                ONLY: check_cp2k_input
-  USE input_cp2k,                      ONLY: create_cp2k_root_section
-  USE input_constants,                 ONLY: do_qs,&
-                                             do_fist,&
+  USE input_constants,                 ONLY: do_fist,&
                                              do_kg,&
                                              do_qmmm,&
-                                             do_atom,&
-                                             do_farming,&
-                                             do_test,&
+                                             do_qs,&
                                              run_type_names
+  USE input_cp2k,                      ONLY: create_cp2k_root_section
+  USE input_cp2k_check,                ONLY: check_cp2k_input
   USE input_parsing,                   ONLY: section_vals_parse
   USE input_section_types,             ONLY: section_release,&
                                              section_type,&
@@ -69,53 +69,46 @@ MODULE f77_interface
                                              section_vals_write
   USE kg_main,                         ONLY: kg_create_force_env
   USE kinds,                           ONLY: dp
-  USE message_passing,                 ONLY: MPI_COMM_WORLD,&
-                                             mp_max,&
-                                             mp_world_finalize,&
-                                             mp_world_init,&
-                                             add_mp_perf_env,&
-                                             rm_mp_perf_env,&
-                                             get_mp_perf_env,&
-                                             mp_perf_env_type,&
-                                             mp_perf_env_release,&
-                                             mp_perf_env_retain
+  USE mathconstants,                   ONLY: init_mathcon
+  USE message_passing,                 ONLY: &
+       MPI_COMM_WORLD, add_mp_perf_env, get_mp_perf_env, mp_max, &
+       mp_perf_env_release, mp_perf_env_retain, mp_perf_env_type, &
+       mp_world_finalize, mp_world_init, rm_mp_perf_env
   USE particle_list_types,             ONLY: particle_list_type
+  USE physcon,                         ONLY: init_physcon
   USE qmmm_init,                       ONLY: qmmm_create_force_env
   USE qs_main,                         ONLY: quickstep_create_force_env
-  USE timings,                         ONLY: timeset,&
-                                             timestop,&
-                                             add_timer_env,&
-                                             rm_timer_env,&
-                                             timer_env_type,&
+  USE timings,                         ONLY: add_timer_env,&
                                              get_timer_env,&
+                                             rm_timer_env,&
+                                             timer_env_release,&
                                              timer_env_retain,&
-                                             timer_env_release
-  USE cp_units, ONLY: cp_unit_set_type, cp_unit_set_create, cp_unit_set_release
-  USE physcon,                         ONLY: init_physcon
-  USE cp2k_units,                      ONLY: init_cp2k_units,&
-                                             rm_cp2k_units
+                                             timer_env_type,&
+                                             timeset,&
+                                             timestop
 #include "cp_common_uses.h"
-  IMPLICIT NONE
-  private
 
-  logical, private, parameter :: debug_this_module=.true.
-  character(len=*), private, parameter :: moduleN='f77_interface'
-  INTEGER, parameter :: PATH_LENGTH=200
+  IMPLICIT NONE
+  PRIVATE
+
+  LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'f77_interface'
+  INTEGER, PARAMETER :: PATH_LENGTH=200
 
   TYPE f_env_p_type
-     TYPE(f_env_type), pointer :: f_env
+     TYPE(f_env_type), POINTER :: f_env
   END TYPE f_env_p_type
 
   TYPE f_env_type
-     integer :: id_nr
-     TYPE(force_env_type), pointer :: force_env
+     INTEGER :: id_nr
+     TYPE(force_env_type), POINTER :: force_env
      TYPE(cp_error_type) :: error
-     TYPE(timer_env_type), pointer :: timer_env
-     TYPE(mp_perf_env_type), pointer :: mp_perf_env
+     TYPE(timer_env_type), POINTER :: timer_env
+     TYPE(mp_perf_env_type), POINTER :: mp_perf_env
   END TYPE f_env_type
 
-  TYPE(f_env_p_type), DIMENSION(:), POINTER, save :: f_envs
-  TYPE(cp_para_env_type), POINTER, save :: default_para_env
+  TYPE(f_env_p_type), DIMENSION(:), POINTER, SAVE :: f_envs
+  TYPE(cp_para_env_type), POINTER, SAVE :: default_para_env
   LOGICAL, SAVE :: module_initialized=.FALSE.
   INTEGER, SAVE :: last_f_env_id=0, n_f_envs=0
 
@@ -127,7 +120,7 @@ MODULE f77_interface
   !,set_force, set_vel, get_vel 
   !!***
   !****************************************************************************
-contains
+CONTAINS
 
   !!****f* f77_interface/get_pos_of_env [1.0] *
   !!
@@ -148,7 +141,7 @@ contains
   !!
   !!*** *********************************************************************
   FUNCTION get_pos_of_env(env_id) RESULT(res)
-    INTEGER, intent(in)                      :: env_id
+    INTEGER, INTENT(in)                      :: env_id
     INTEGER                                  :: res
 
     INTEGER                                  :: env_pos, isub
@@ -184,16 +177,16 @@ contains
   !!
   !!*** *********************************************************************
   SUBROUTINE init_cp2k(init_mpi,ierr)
-    LOGICAL, intent(in)                      :: init_mpi
-    INTEGER, intent(out)                     :: ierr
+    LOGICAL, INTENT(in)                      :: init_mpi
+    INTEGER, INTENT(out)                     :: ierr
 
-    CHARACTER(len=*), PARAMETER :: routineN = "init_cp2k", &
+    CHARACTER(len=*), PARAMETER :: routineN = 'init_cp2k', &
       routineP = moduleN//':'//routineN
     INTEGER, PARAMETER                       :: default_output_unit = 6
 
     INTEGER                                  :: mpi_comm_default, stat, &
                                                 unit_nr
-    TYPE(cp_logger_type), pointer            :: logger
+    TYPE(cp_logger_type), POINTER            :: logger
 
     IF (.NOT. module_initialized) THEN
        IF (init_mpi) THEN
@@ -203,9 +196,9 @@ contains
           mpi_comm_default=MPI_COMM_WORLD
        END IF
 
-       call add_mp_perf_env()
-       call add_timer_env()
-       nullify(default_para_env)
+       CALL add_mp_perf_env()
+       CALL add_timer_env()
+       NULLIFY(default_para_env)
        CALL cp_para_env_create(default_para_env, group=mpi_comm_default, &
             owns_group=.FALSE.)
        IF (default_para_env%source==default_para_env%mepos) THEN
@@ -213,16 +206,16 @@ contains
        ELSE
           unit_nr=-1
        END IF
-       nullify(logger)
+       NULLIFY(logger)
        CALL cp_logger_create(logger,para_env=default_para_env,&
             default_global_unit_nr=unit_nr, &
             close_global_unit_on_dealloc=.FALSE.)
        CALL cp_add_default_logger(logger)
-       call cp_logger_release(logger)
+       CALL cp_logger_release(logger)
 
        ALLOCATE(f_envs(0),stat=stat)
        CPPostconditionNoErr(stat==0,cp_fatal_level,routineP)
-       module_initialized=.true.
+       module_initialized=.TRUE.
        ierr=0
 
        !   *** Initialize mathematical constants ***
@@ -260,11 +253,11 @@ contains
   !!
   !!*** *********************************************************************
   SUBROUTINE finalize_cp2k(finalize_mpi,ierr)
-    LOGICAL, intent(in)                      :: finalize_mpi
-    INTEGER, intent(out)                     :: ierr
+    LOGICAL, INTENT(in)                      :: finalize_mpi
+    INTEGER, INTENT(out)                     :: ierr
 
-    CHARACTER(len=*), PARAMETER :: routineN = "finalize_mpi", &
-      routineP = moduleN//":"//routineN
+    CHARACTER(len=*), PARAMETER :: routineN = 'finalize_cp2k', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ienv, stat
     TYPE(cp_error_type)                      :: error
@@ -313,21 +306,23 @@ contains
 !!
 !!*** **********************************************************************
 SUBROUTINE f_env_dealloc(f_env,error)
-  TYPE(f_env_type), pointer :: f_env
-  type(cp_error_type), optional, intent(inout) :: error
-  
-  logical :: failure
-  character(len=*), parameter :: routineN='f_env_dealloc',&
-        routineP=moduleN//':'//routineN
+    TYPE(f_env_type), POINTER                :: f_env
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-  failure=.false.
+    CHARACTER(len=*), PARAMETER :: routineN = 'f_env_dealloc', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+
+  failure=.FALSE.
   
   CPPrecondition(ASSOCIATED(f_env),cp_failure_level,routineP,error,failure)
   IF (.NOT. failure) THEN
      CALL force_env_release(f_env%force_env,error=error)
      CALL cp_error_dealloc_ref(f_env%error,error=error)
      CALL timer_env_release(f_env%timer_env)
-     call mp_perf_env_release(f_env%mp_perf_env)
+     CALL mp_perf_env_release(f_env%mp_perf_env)
   END IF
 END SUBROUTINE f_env_dealloc
 !***************************************************************************
@@ -356,19 +351,23 @@ END SUBROUTINE f_env_dealloc
 !!*** **********************************************************************
 SUBROUTINE f_env_create(f_env,template_error,force_env, timer_env,mp_perf_env,&
      id_nr,error)
-  TYPE(f_env_type), pointer :: f_env
-  TYPE(force_env_type), pointer :: force_env
-  TYPE(timer_env_type), pointer :: timer_env
-  TYPE(mp_perf_env_type), pointer :: mp_perf_env
-  INTEGER, intent(in) :: id_nr
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error, template_error
-  
-  logical :: failure
-  character(len=*), parameter :: routineN='f_env_create',&
-        routineP=moduleN//':'//routineN
-  integer :: stat
+    TYPE(f_env_type), POINTER                :: f_env
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: template_error
+    TYPE(force_env_type), POINTER            :: force_env
+    TYPE(timer_env_type), POINTER            :: timer_env
+    TYPE(mp_perf_env_type), POINTER          :: mp_perf_env
+    INTEGER, INTENT(in)                      :: id_nr
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-  failure=.false.
+    CHARACTER(len=*), PARAMETER :: routineN = 'f_env_create', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: stat
+    LOGICAL                                  :: failure
+
+  failure=.FALSE.
   
   ALLOCATE(f_env,stat=stat)
   CPPostcondition(stat==0,cp_fatal_level,routineP,error,failure)
@@ -379,7 +378,7 @@ SUBROUTINE f_env_create(f_env,template_error,force_env, timer_env,mp_perf_env,&
      f_env%timer_env => timer_env
      CALL timer_env_retain(f_env%timer_env)
      f_env%mp_perf_env => mp_perf_env
-     call mp_perf_env_retain(f_env%mp_perf_env)
+     CALL mp_perf_env_retain(f_env%mp_perf_env)
      f_env%id_nr=id_nr
   END IF
 END SUBROUTINE f_env_create
@@ -409,24 +408,25 @@ END SUBROUTINE f_env_create
 !!
 !!*** **********************************************************************
 SUBROUTINE f_env_add_defaults(f_env_id,f_env,new_error, failure)
-  INTEGER, intent(in) :: f_env_id
-  TYPE(f_env_type), pointer :: f_env
-  type(cp_error_type), intent(out) :: new_error
-  logical :: failure
-  
-  logical :: my_failure
-  character(len=*), parameter :: routineN='f_env_add_defaults',&
-        routineP=moduleN//':'//routineN
-  TYPE(cp_logger_type), pointer :: logger
-  integer :: f_env_pos
+    INTEGER, INTENT(in)                      :: f_env_id
+    TYPE(f_env_type), POINTER                :: f_env
+    TYPE(cp_error_type), INTENT(out)         :: new_error
+    LOGICAL                                  :: failure
 
-  my_failure=.false.
+    CHARACTER(len=*), PARAMETER :: routineN = 'f_env_add_defaults', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: f_env_pos
+    LOGICAL                                  :: my_failure
+    TYPE(cp_logger_type), POINTER            :: logger
+
+  my_failure=.FALSE.
 
   NULLIFY(f_env)
   f_env_pos = get_pos_of_env(f_env_id)
   IF (f_env_pos<1) THEN
-     call cp_error_init(new_error)
-     call cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
+     CALL cp_error_init(new_error)
+     CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
           "invalid env_id "//cp_to_string(f_env_id),error=new_error,&
           failure=failure)
   ELSE
@@ -468,18 +468,19 @@ END SUBROUTINE f_env_add_defaults
 !!
 !!*** **********************************************************************
 SUBROUTINE f_env_rm_defaults(f_env,error,ierr)
-  TYPE(f_env_type), pointer :: f_env
-  type(cp_error_type), intent(inout) :: error
-  INTEGER, INTENT(out), optional :: ierr
+    TYPE(f_env_type), POINTER                :: f_env
+    TYPE(cp_error_type), INTENT(inout)       :: error
+    INTEGER, INTENT(out), OPTIONAL           :: ierr
 
-  logical :: failure
-  character(len=*), parameter :: routineN='f_env_rm_defaults',&
-       routineP=moduleN//':'//routineN
-  TYPE(cp_logger_type), POINTER :: logger,d_logger
-  TYPE(timer_env_type), pointer :: d_timer_env
-  TYPE(mp_perf_env_type), pointer :: d_mp_perf_env
+    CHARACTER(len=*), PARAMETER :: routineN = 'f_env_rm_defaults', &
+      routineP = moduleN//':'//routineN
 
-  failure=.false.
+    LOGICAL                                  :: failure
+    TYPE(cp_logger_type), POINTER            :: d_logger, logger
+    TYPE(mp_perf_env_type), POINTER          :: d_mp_perf_env
+    TYPE(timer_env_type), POINTER            :: d_timer_env
+
+  failure=.FALSE.
 
   IF (ASSOCIATED(f_env)) THEN
      logger => cp_error_get_logger(f_env%error)
@@ -495,16 +496,16 @@ SUBROUTINE f_env_rm_defaults(f_env,error,ierr)
         CPPrecondition(d_timer_env%id_nr==f_env%timer_env%id_nr,cp_failure_level,routineP,error,failure)
         CPPrecondition(d_mp_perf_env%id_nr==f_env%mp_perf_env%id_nr,cp_failure_level,routineP,error,failure)
      END IF
-     if (present(ierr)) ierr=cp_error_get_level(error)
-     call cp_error_dealloc_ref(error)
+     IF (PRESENT(ierr)) ierr=cp_error_get_level(error)
+     CALL cp_error_dealloc_ref(error)
      IF (.NOT.failure) THEN
         CALL cp_rm_default_logger()
         CALL rm_timer_env()
         CALL rm_mp_perf_env()
      END IF
   ELSE
-     if (present(ierr)) ierr=cp_error_get_level(error)
-     call cp_error_dealloc_ref(error)
+     IF (PRESENT(ierr)) ierr=cp_error_get_level(error)
+     CALL cp_error_dealloc_ref(error)
   END IF
 END SUBROUTINE f_env_rm_defaults
 !***************************************************************************
@@ -535,30 +536,30 @@ END SUBROUTINE f_env_rm_defaults
   SUBROUTINE run_input(input_file_path,output_file_path,ierr,mpi_comm)
     CHARACTER(len=*), INTENT(in)             :: input_file_path, &
                                                 output_file_path
-    INTEGER, intent(out)                     :: ierr
+    INTEGER, INTENT(out)                     :: ierr
     INTEGER, INTENT(in), OPTIONAL            :: mpi_comm
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'create_qs_env', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'run_input', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: unit_nr
     LOGICAL                                  :: failure, success
-    TYPE(cp_para_env_type), pointer          :: para_env
+    TYPE(cp_para_env_type), POINTER          :: para_env
 
-    failure=.false.
+    failure=.FALSE.
 
     IF (PRESENT(mpi_comm)) THEN
        NULLIFY(para_env)
-       CALL cp_para_env_create(para_env, group=mpi_comm, owns_group=.false.)
+       CALL cp_para_env_create(para_env, group=mpi_comm, owns_group=.FALSE.)
     ELSE
        para_env => default_para_env
-       call cp_para_env_retain(para_env)
+       CALL cp_para_env_retain(para_env)
     END IF
     IF (para_env%mepos==para_env%source) THEN
        IF (output_file_path=="__STD_OUT__") THEN
           unit_nr=6
        ELSE
-          call open_file(file_name=output_file_path,file_status="UNKNOWN",&
+          CALL open_file(file_name=output_file_path,file_status="UNKNOWN",&
                file_action="WRITE", file_position="APPEND",&
                unit_number=unit_nr)
        END IF
@@ -571,7 +572,7 @@ END SUBROUTINE f_env_rm_defaults
     ELSE
        ierr=0
     END IF
-    call cp_para_env_release(para_env)
+    CALL cp_para_env_release(para_env)
   END SUBROUTINE run_input
   !****************************************************************************
 
@@ -604,43 +605,42 @@ END SUBROUTINE f_env_rm_defaults
     INTEGER, INTENT(out)                     :: new_env_id
     CHARACTER(len=*), INTENT(in)             :: input_file_path, &
                                                 output_file_path
-    INTEGER, INTENT(out), optional                     :: ierr
     INTEGER, INTENT(in), OPTIONAL            :: mpi_comm
+    INTEGER, INTENT(out), OPTIONAL           :: ierr
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'create_qs_env', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_force_env', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, stat, unit_nr
-    INTEGER, DIMENSION(:), pointer           :: f_env_ids_old
-    logical                                  :: failure
-    type(cp_error_type)                      :: error
-    TYPE(cp_logger_type), pointer            :: logger
-    TYPE(cp_para_env_type), pointer          :: para_env
-    TYPE(cp_parser_type), pointer            :: cpparser
+    LOGICAL                                  :: failure
+    TYPE(cp_error_type)                      :: error
+    TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(cp_parser_type), POINTER            :: cpparser
+    TYPE(cp_unit_set_type), POINTER          :: default_units
     TYPE(f_env_p_type), DIMENSION(:), &
-      pointer                                :: f_envs_old
-    TYPE(force_env_type), pointer :: force_env
-    TYPE(timer_env_type), pointer :: timer_env
-    TYPE(mp_perf_env_type), pointer :: mp_perf_env
-    TYPE(global_environment_type), pointer   :: globenv
-    TYPE(section_type), pointer              :: input_structure
-    TYPE(section_vals_type), pointer         :: input_file
-    TYPE(cp_unit_set_type), pointer :: default_units
+      POINTER                                :: f_envs_old
+    TYPE(force_env_type), POINTER            :: force_env
+    TYPE(global_environment_type), POINTER   :: globenv
+    TYPE(mp_perf_env_type), POINTER          :: mp_perf_env
+    TYPE(section_type), POINTER              :: input_structure
+    TYPE(section_vals_type), POINTER         :: input_file
+    TYPE(timer_env_type), POINTER            :: timer_env
 
-    failure=.false.
+    failure=.FALSE.
 
     NULLIFY(para_env, force_env,timer_env,mp_perf_env, globenv)
     IF (PRESENT(mpi_comm)) THEN
-       CALL cp_para_env_create(para_env, group=mpi_comm, owns_group=.false.)
+       CALL cp_para_env_create(para_env, group=mpi_comm, owns_group=.FALSE.)
     ELSE
        para_env => default_para_env
-       call cp_para_env_retain(para_env)
+       CALL cp_para_env_retain(para_env)
     END IF
     IF (para_env%mepos==para_env%source) THEN
        IF (output_file_path=="__STD_OUT__") THEN
           unit_nr=6
        ELSE
-          call open_file(file_name=output_file_path,file_status="UNKNOWN",&
+          CALL open_file(file_name=output_file_path,file_status="UNKNOWN",&
                file_action="WRITE", file_position="APPEND",&
                unit_number=unit_nr)
        END IF
@@ -649,8 +649,8 @@ END SUBROUTINE f_env_rm_defaults
     END IF
     CALL globenv_create(globenv, para_env=para_env,&
          output_unit=unit_nr, input_file_name=input_file_path,&
-         close_output_unit=(unit_nr>0 .and. unit_nr/=6))
-    call cp2k_init(globenv)
+         close_output_unit=(unit_nr>0 .AND. unit_nr/=6))
+    CALL cp2k_init(globenv)
     logger => cp_get_default_logger()
     ! warning this is dangerous, I did not check that all the subfunctions
     ! support it, the program might crash upon error
@@ -663,7 +663,7 @@ END SUBROUTINE f_env_rm_defaults
        DO i=1,n_f_envs
           f_envs(i)%f_env => f_envs_old(i)%f_env
        END DO
-       DO i=n_f_envs+1,size(f_envs)
+       DO i=n_f_envs+1,SIZE(f_envs)
           NULLIFY(f_envs(i)%f_env)
        END DO
        DEALLOCATE(f_envs_old,stat=stat)
@@ -676,11 +676,11 @@ END SUBROUTINE f_env_rm_defaults
     NULLIFY(input_file)
     CALL section_vals_create(input_file,input_structure, error=error)
     CALL section_release(input_structure,error=error)
-    nullify(cpparser)
+    NULLIFY(cpparser)
     CALL parser_create(cpparser,file_name=input_file_path,para_env=para_env,&
          error=error)
     CALL cp_unit_set_create(default_units, "OUTPUT",error=error)
-    CALL section_vals_parse(input_file,cpparser,root_section=.false.,&
+    CALL section_vals_parse(input_file,cpparser,root_section=.FALSE.,&
          default_units=default_units,error=error)
     CALL cp_unit_set_release(default_units,error=error)
     CALL parser_release(cpparser,error=error)
@@ -755,24 +755,20 @@ END SUBROUTINE f_env_rm_defaults
   !!
   !!*** **********************************************************************
   SUBROUTINE destroy_force_env(env_id,ierr)
-    INTEGER, intent(in)                      :: env_id
-    INTEGER, intent(out)                     :: ierr
+    INTEGER, INTENT(in)                      :: env_id
+    INTEGER, INTENT(out)                     :: ierr
 
-    character(len=*), parameter :: routineN = 'destroy_force_env', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'destroy_force_env', &
       routineP = moduleN//':'//routineN
 
-    integer                                  :: env_pos, i, stat
-    INTEGER, DIMENSION(:), pointer           :: f_env_ids_old
-    logical                                  :: failure
-    type(cp_error_type)                      :: error
-    TYPE(cp_error_type), DIMENSION(:), &
-      pointer                                :: errors_old
-    TYPE(cp_logger_type), pointer            :: logger
-    TYPE(global_environment_type), pointer   :: globenv
-    TYPE(f_env_type), pointer :: f_env
+    INTEGER                                  :: env_pos
+    LOGICAL                                  :: failure
+    TYPE(cp_error_type)                      :: error
+    TYPE(f_env_type), POINTER                :: f_env
+    TYPE(global_environment_type), POINTER   :: globenv
 
-    failure=.false.
-    nullify(f_env)
+    failure=.FALSE.
+    NULLIFY(f_env)
     CALL f_env_add_defaults(env_id,f_env,error,failure)
     IF (.not.failure) THEN
        env_pos=get_pos_of_env(env_id)
@@ -791,8 +787,8 @@ END SUBROUTINE f_env_rm_defaults
           n_f_envs=n_f_envs-1
        END IF
        ierr=cp_error_get_level(error)
-       call cp_error_dealloc_ref(error)
-       call cp_rm_default_logger()
+       CALL cp_error_dealloc_ref(error)
+       CALL cp_rm_default_logger()
     ELSE
        ! write out something?
        ierr=cp_failure_level
@@ -823,26 +819,26 @@ END SUBROUTINE f_env_rm_defaults
   !!*** *********************************************************************
   SUBROUTINE get_natom(env_id, n_atom, ierr)
     INTEGER, INTENT(in)                      :: env_id
-    INTEGER, INTENT(out)                     :: n_atom,ierr
+    INTEGER, INTENT(out)                     :: n_atom, ierr
 
-    CHARACTER(len=*), PARAMETER :: routineN = "get_natom", &
-      routineP = moduleN//":"//routineN
+    CHARACTER(len=*), PARAMETER :: routineN = 'get_natom', &
+      routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: env_pos, idir, ii, ip, isub
-    logical                                  :: failure
+    INTEGER                                  :: isub
+    LOGICAL                                  :: failure
     TYPE(cp_error_type)                      :: error
     TYPE(cp_subsystem_p_type), &
-      DIMENSION(:), pointer                  :: subsys
-    TYPE(particle_list_type), pointer        :: particles
-    TYPE(f_env_type), pointer                :: f_env
+      DIMENSION(:), POINTER                  :: subsys
+    TYPE(f_env_type), POINTER                :: f_env
+    TYPE(particle_list_type), POINTER        :: particles
 
-    failure=.false.
+    failure=.FALSE.
 
-    nullify(f_env)
+    NULLIFY(f_env)
     CALL f_env_add_defaults(env_id,f_env,error,failure)
     n_atom=0
     IF (.not.failure) THEN
-       nullify(subsys)
+       NULLIFY(subsys)
        CALL force_env_get(f_env%force_env,&
             subsys=subsys,error=error)
        CALL cp_error_check(error,failure)
@@ -884,26 +880,25 @@ END SUBROUTINE f_env_rm_defaults
   SUBROUTINE set_pos(env_id, new_pos, n_el, ierr)
     INTEGER, INTENT(in)                      :: env_id, n_el
     REAL(kind=dp), DIMENSION(1:n_el)         :: new_pos
-    INTEGER, intent(out)                     :: ierr
+    INTEGER, INTENT(out)                     :: ierr
 
-    CHARACTER(len=*), PARAMETER :: routineN = "set_pos", &
-      routineP = moduleN//":"//routineN
+    CHARACTER(len=*), PARAMETER :: routineN = 'set_pos', &
+      routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: env_pos, idir, ii, ip, isub, &
-                                                my_n_el
-    logical                                  :: failure
+    INTEGER                                  :: idir, ii, ip, isub, my_n_el
+    LOGICAL                                  :: failure
     TYPE(cp_error_type)                      :: error
     TYPE(cp_subsystem_p_type), &
-      DIMENSION(:), pointer                  :: subsys
-    TYPE(particle_list_type), pointer        :: particles
-    TYPE(f_env_type), pointer                :: f_env
+      DIMENSION(:), POINTER                  :: subsys
+    TYPE(f_env_type), POINTER                :: f_env
+    TYPE(particle_list_type), POINTER        :: particles
 
-    failure=.false.
+    failure=.FALSE.
 
-    nullify(f_env)
+    NULLIFY(f_env)
     CALL f_env_add_defaults(env_id,f_env,error,failure)
     IF (.not.failure) THEN
-       nullify(subsys)
+       NULLIFY(subsys)
        CALL force_env_get(f_env%force_env,&
             subsys=subsys,error=error)
        CALL cp_error_check(error,failure)
@@ -964,23 +959,22 @@ END SUBROUTINE f_env_rm_defaults
   SUBROUTINE get_pos(env_id, pos, n_el, ierr)
     INTEGER, INTENT(in)                      :: env_id, n_el
     REAL(kind=dp), DIMENSION(1:n_el)         :: pos
-    INTEGER, intent(out)                     :: ierr
+    INTEGER, INTENT(out)                     :: ierr
 
-    CHARACTER(len=*), PARAMETER :: routineN = "get_pos", &
-      routineP = moduleN//":"//routineN
+    CHARACTER(len=*), PARAMETER :: routineN = 'get_pos', &
+      routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: env_pos, idir, ii, ip, isub, &
-                                                my_n_el
-    logical                                  :: failure
+    INTEGER                                  :: idir, ii, ip, isub, my_n_el
+    LOGICAL                                  :: failure
     TYPE(cp_error_type)                      :: error
     TYPE(cp_subsystem_p_type), &
-      DIMENSION(:), pointer                  :: subsys
-    TYPE(particle_list_type), pointer        :: particles
-    TYPE(f_env_type), pointer :: f_env
+      DIMENSION(:), POINTER                  :: subsys
+    TYPE(f_env_type), POINTER                :: f_env
+    TYPE(particle_list_type), POINTER        :: particles
 
-    failure=.false.
+    failure=.FALSE.
 
-    nullify(f_env)
+    NULLIFY(f_env)
     CALL f_env_add_defaults(env_id,f_env,error,failure)
     IF (.not.failure) THEN
        IF (.NOT.failure) THEN
@@ -1045,27 +1039,26 @@ END SUBROUTINE f_env_rm_defaults
   SUBROUTINE get_force(env_id, force, n_el, ierr)
     INTEGER, INTENT(in)                      :: env_id, n_el
     REAL(kind=dp), DIMENSION(1:n_el)         :: force
-    INTEGER, intent(out)                     :: ierr
+    INTEGER, INTENT(out)                     :: ierr
 
-    CHARACTER(len=*), PARAMETER :: routineN = "get_force", &
-      routineP = moduleN//":"//routineN
+    CHARACTER(len=*), PARAMETER :: routineN = 'get_force', &
+      routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: env_pos, idir, ii, ip, isub, &
-                                                my_n_el
-    logical                                  :: failure
+    INTEGER                                  :: idir, ii, ip, isub, my_n_el
+    LOGICAL                                  :: failure
     TYPE(cp_error_type)                      :: error
     TYPE(cp_subsystem_p_type), &
-      DIMENSION(:), pointer                  :: subsys
-    TYPE(particle_list_type), pointer        :: particles
-    TYPE(f_env_type), pointer                :: f_env
+      DIMENSION(:), POINTER                  :: subsys
+    TYPE(f_env_type), POINTER                :: f_env
+    TYPE(particle_list_type), POINTER        :: particles
 
-    failure=.false.
+    failure=.FALSE.
 
-    nullify(f_env)
+    NULLIFY(f_env)
     CALL f_env_add_defaults(env_id,f_env,error,failure)
     IF (.not.failure) THEN
        IF (.NOT.failure) THEN
-          nullify(subsys)
+          NULLIFY(subsys)
           CALL force_env_get(f_env%force_env,&
                subsys=subsys,error=error)
           CALL cp_error_check(error,failure)
@@ -1126,20 +1119,19 @@ END SUBROUTINE f_env_rm_defaults
   !!*** *********************************************************************
   SUBROUTINE calc_energy_force(env_id,calc_force,ierr)
     INTEGER, INTENT(in)                      :: env_id
-    LOGICAL, intent(in)                      :: calc_force
-    INTEGER, intent(out)                     :: ierr
+    LOGICAL, INTENT(in)                      :: calc_force
+    INTEGER, INTENT(out)                     :: ierr
 
-    CHARACTER(len=*), PARAMETER :: routineN = "calc_energy_force", &
-      routineP = moduleN//":"//routineN
+    CHARACTER(len=*), PARAMETER :: routineN = 'calc_energy_force', &
+      routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: env_pos
-    logical                                  :: failure
+    LOGICAL                                  :: failure
     TYPE(cp_error_type)                      :: error
-    TYPE(f_env_type), pointer :: f_env
+    TYPE(f_env_type), POINTER                :: f_env
 
-    failure=.false.
+    failure=.FALSE.
    
-    nullify(f_env)
+    NULLIFY(f_env)
     CALL f_env_add_defaults(env_id,f_env,error,failure)
     IF (.NOT.failure) THEN
        CALL force_env_calc_energy_force(f_env%force_env,&
@@ -1171,20 +1163,19 @@ END SUBROUTINE f_env_rm_defaults
   !!*** *********************************************************************
   SUBROUTINE get_energy(env_id,e_pot,ierr)
     INTEGER, INTENT(in)                      :: env_id
-    REAL(kind=dp), intent(out)               :: e_pot
-    INTEGER, intent(out)                     :: ierr
+    REAL(kind=dp), INTENT(out)               :: e_pot
+    INTEGER, INTENT(out)                     :: ierr
 
-    CHARACTER(len=*), PARAMETER :: routineN = "get_energy", &
-      routineP = moduleN//":"//routineN
+    CHARACTER(len=*), PARAMETER :: routineN = 'get_energy', &
+      routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: env_pos
-    logical                                  :: failure
+    LOGICAL                                  :: failure
     TYPE(cp_error_type)                      :: error
-    TYPE(f_env_type), pointer :: f_env
+    TYPE(f_env_type), POINTER                :: f_env
 
-    failure=.false.
+    failure=.FALSE.
 
-    nullify(f_env)
+    NULLIFY(f_env)
     CALL f_env_add_defaults(env_id,f_env,error,failure)
     IF (.NOT.failure) THEN
        CALL force_env_get(f_env%force_env,&
@@ -1218,14 +1209,13 @@ END SUBROUTINE f_env_rm_defaults
   !!
   !!*** *********************************************************************
   SUBROUTINE calc_energy(env_id,pos,n_el,e_pot,ierr)
-    INTEGER, INTENT(in)                      :: env_id
-    INTEGER, INTENT(in)                      :: n_el
-    REAL(kind=dp), dimension(1:n_el),&
-         INTENT(in)                          :: pos
-    REAL(kind=dp), intent(out)               :: e_pot
-    INTEGER, intent(out)                     :: ierr
+    INTEGER, INTENT(in)                      :: env_id, n_el
+    REAL(kind=dp), DIMENSION(1:n_el), &
+      INTENT(in)                             :: pos
+    REAL(kind=dp), INTENT(out)               :: e_pot
+    INTEGER, INTENT(out)                     :: ierr
 
-    REAL(kind=dp), dimension(1)              :: dummy_f
+    REAL(kind=dp), DIMENSION(1)              :: dummy_f
 
     CALL calc_force(env_id,pos,n_el,e_pot,dummy_f,0,ierr)
   END SUBROUTINE calc_energy
@@ -1261,15 +1251,15 @@ END SUBROUTINE f_env_rm_defaults
   !!*** *********************************************************************
   SUBROUTINE calc_force(env_id,pos,n_el_pos,e_pot,force,n_el_force,ierr)
     INTEGER, INTENT(in)                      :: env_id, n_el_pos
-    REAL(kind=dp), dimension(1:n_el_pos), &
+    REAL(kind=dp), DIMENSION(1:n_el_pos), &
       INTENT(in)                             :: pos
-    REAL(kind=dp), intent(out)               :: e_pot
+    REAL(kind=dp), INTENT(out)               :: e_pot
     INTEGER, INTENT(in)                      :: n_el_force
-    REAL(kind=dp), dimension(1:n_el_force), &
+    REAL(kind=dp), DIMENSION(1:n_el_force), &
       INTENT(inout)                          :: force
-    INTEGER, intent(out)                     :: ierr
+    INTEGER, INTENT(out)                     :: ierr
 
-    logical                                  :: calc_f
+    LOGICAL                                  :: calc_f
 
     calc_f=(n_el_force/=0)
     CALL set_pos(env_id,pos,n_el_pos,ierr)
@@ -1308,40 +1298,39 @@ END SUBROUTINE f_env_rm_defaults
        echo_input,mpi_comm,ierr)
     CHARACTER(len=*), INTENT(in)             :: input_file_path, &
                                                 output_file_path
-    LOGICAL, OPTIONAL, intent(in)            :: echo_input
-    INTEGER, intent(out)                     :: ierr
+    LOGICAL, INTENT(in), OPTIONAL            :: echo_input
     INTEGER, INTENT(in), OPTIONAL            :: mpi_comm
+    INTEGER, INTENT(out)                     :: ierr
 
-    character(len=*), parameter :: routineN = 'check_input', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'check_input', &
       routineP = moduleN//':'//routineN
 
-    logical                                  :: failure
+    INTEGER                                  :: unit_nr
+    LOGICAL                                  :: failure, my_echo_input
     TYPE(cp_error_type)                      :: error
-    TYPE(cp_logger_type), pointer            :: logger
+    TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
-    integer :: unit_nr
-    TYPE(section_type), pointer :: input_structure
-    TYPE(section_vals_type), pointer :: input_file
-    TYPE(cp_parser_type), pointer :: cpparser
-    LOGICAL :: my_echo_input
-    TYPE(cp_unit_set_type), pointer :: default_units
+    TYPE(cp_parser_type), POINTER            :: cpparser
+    TYPE(cp_unit_set_type), POINTER          :: default_units
+    TYPE(section_type), POINTER              :: input_structure
+    TYPE(section_vals_type), POINTER         :: input_file
 
-    failure=.false.
-    my_echo_input=.false.
-    if (present(echo_input)) my_echo_input=echo_input
+    failure=.FALSE.
+    my_echo_input=.FALSE.
+    IF (PRESENT(echo_input)) my_echo_input=echo_input
 
     IF (PRESENT(mpi_comm)) THEN
        NULLIFY(para_env)
        CALL cp_para_env_create(para_env, group=mpi_comm)
     ELSE
        para_env => default_para_env
-       call cp_para_env_retain(para_env)
+       CALL cp_para_env_retain(para_env)
     END IF
     IF (para_env%mepos==para_env%source) THEN
        IF (output_file_path=="__STD_OUT__") THEN
           unit_nr=6
        ELSE
-          call open_file(file_name=output_file_path,file_status="UNKNOWN",&
+          CALL open_file(file_name=output_file_path,file_status="UNKNOWN",&
                file_action="WRITE", file_position="APPEND",&
                unit_number=unit_nr)
        END IF
@@ -1362,11 +1351,11 @@ END SUBROUTINE f_env_rm_defaults
     NULLIFY(input_file)
     CALL section_vals_create(input_file,input_structure, error=error)
     CALL section_release(input_structure,error=error)
-    nullify(cpparser)
+    NULLIFY(cpparser)
     CALL parser_create(cpparser,file_name=input_file_path,para_env=para_env,&
          error=error)
     CALL cp_unit_set_create(default_units, "OUTPUT",error=error)
-    CALL section_vals_parse(input_file,cpparser,root_section=.false.,&
+    CALL section_vals_parse(input_file,cpparser,root_section=.FALSE.,&
          default_units=default_units,error=error)
     CALL cp_unit_set_release(default_units,error=error)
     CALL parser_release(cpparser,error=error)
@@ -1375,7 +1364,7 @@ END SUBROUTINE f_env_rm_defaults
        CALL check_cp2k_input(input_file,para_env=para_env,error=error)
        IF (my_echo_input.AND.para_env%mepos==para_env%source) THEN
           CALL section_vals_write(input_file,&
-               unit_nr=cp_logger_get_default_unit_nr(logger,local=.false.),hide_root=.TRUE.,&
+               unit_nr=cp_logger_get_default_unit_nr(logger,local=.FALSE.),hide_root=.TRUE.,&
                error=error)
        END IF
     END IF

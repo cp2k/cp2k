@@ -23,35 +23,37 @@
 !!   SOURCE
 !****************************************************************************
 MODULE input_cp2k_mm
-  use kinds, only: dp
-  use cp_para_types, only: cp_para_env_type
-  use timings, only: timeset, timestop
-  USE input_section_types, ONLY: section_type, section_create, &
-       section_add_keyword, section_add_subsection, section_release,&
-       section_vals_type,&
-       section_vals_get_subs_vals, section_vals_get
+  USE cp_output_handling,              ONLY: cp_print_key_section_create
   USE input_constants
-  USE input_keyword_types, ONLY: keyword_type, keyword_create,&
-       keyword_release
-  USE input_val_types, ONLY: val_type, no_t, logical_t, integer_t, real_t, char_t,&
-       enum_t
-  USE cp_output_handling, only: cp_print_key_section_create
-
-  USE string_utilities, ONLY: s2a
-  USE input_cp2k_dft, only: create_mt_section
+  USE input_cp2k_dft,                  ONLY: create_mt_section
+  USE input_keyword_types,             ONLY: keyword_create,&
+                                             keyword_release,&
+                                             keyword_type
+  USE input_section_types,             ONLY: section_add_keyword,&
+                                             section_add_subsection,&
+                                             section_create,&
+                                             section_release,&
+                                             section_type
+  USE input_val_types,                 ONLY: char_t,&
+                                             integer_t,&
+                                             real_t
+  USE kinds,                           ONLY: dp
+  USE string_utilities,                ONLY: s2a
+  USE timings,                         ONLY: timeset,&
+                                             timestop
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
-  private
+  PRIVATE
 
-  logical, private, parameter :: debug_this_module=.true.
-  character(len=*), private, parameter :: moduleN='m'
+  LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'input_cp2k_mm'
 
-  public :: create_mm_section
+  PUBLIC :: create_mm_section
   PUBLIC :: create_NONBONDED14_section, create_LJ_section, create_Williams_section, create_Goodwin_section
 !***
 !****************************************************************************
-contains
+CONTAINS
 
 !!****f* input_cp2k_mm/create_poisson_mm_section [1.0] *
 !!
@@ -74,16 +76,18 @@ contains
 !!
 !!*** **********************************************************************
   SUBROUTINE create_poisson_mm_section(section,error)
-    TYPE(section_type), pointer :: section
-    type(cp_error_type), optional, intent(inout) :: error
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    logical :: failure
-    character(len=*), parameter :: routineN='create_poisson_mm_section',&
-         routineP=moduleN//':'//routineN
-    TYPE(keyword_type), pointer :: keyword
-    TYPE(section_type), pointer :: subsection
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_poisson_mm_section', &
+      routineP = moduleN//':'//routineN
 
-    failure=.false.
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
+    TYPE(section_type), POINTER              :: subsection
+
+    failure=.FALSE.
 
     CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
@@ -147,15 +151,17 @@ contains
 !!
 !!*** **********************************************************************
   SUBROUTINE create_mm_section(section,error)
-    TYPE(section_type), pointer :: section
-    type(cp_error_type), optional, intent(inout) :: error
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    logical :: failure
-    character(len=*), parameter :: routineN='create_mm_section',&
-         routineP=moduleN//':'//routineN
-    TYPE(section_type), pointer :: subsection
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_mm_section', &
+      routineP = moduleN//':'//routineN
 
-    failure=.false.
+    LOGICAL                                  :: failure
+    TYPE(section_type), POINTER              :: subsection
+
+    failure=.FALSE.
 
     CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
@@ -204,13 +210,15 @@ contains
 !!
 !!*** **********************************************************************
   SUBROUTINE create_print_mm_section(section,error)
-    TYPE(section_type), POINTER :: section
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-    
-    LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineN='create_print_mm_section',&
-         routineP=moduleN//':'//routineN
-    TYPE(section_type), POINTER :: print_key
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_print_mm_section', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(section_type), POINTER              :: print_key
 
     failure=.FALSE.
     CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
@@ -291,15 +299,17 @@ contains
 !!
 !!*** **********************************************************************
   SUBROUTINE create_forcefield_section(section,error)
-    TYPE(section_type), POINTER :: section
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-    
-    LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineN='create_forcefield_section',&
-         routineP=moduleN//':'//routineN
-    TYPE(keyword_type), POINTER :: keyword
-    TYPE(section_type), POINTER :: subsection
-    
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_forcefield_section', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
+    TYPE(section_type), POINTER              :: subsection
+
     failure=.FALSE.
     
     CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
@@ -396,14 +406,16 @@ contains
 !!
 !!*** **********************************************************************
   SUBROUTINE create_TORSION_section(section,error)
-    TYPE(section_type), POINTER :: section
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-    
-    LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineN='create_TORSION_section',&
-         routineP=moduleN//':'//routineN
-    TYPE(keyword_type), POINTER :: keyword
-    
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_TORSION_section', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
+
     failure=.FALSE.
     
     CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
@@ -469,14 +481,16 @@ contains
 !!
 !!*** **********************************************************************
   SUBROUTINE create_BEND_section(section,error)
-    TYPE(section_type), POINTER :: section
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-    
-    LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineN='create_BEND_section',&
-         routineP=moduleN//':'//routineN
-    TYPE(keyword_type), POINTER :: keyword
-    
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_BEND_section', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
+
     failure=.FALSE.
     
     CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
@@ -536,14 +550,16 @@ contains
 !!
 !!*** **********************************************************************
   SUBROUTINE create_BOND_section(section,error)
-    TYPE(section_type), POINTER :: section
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-    
-    LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineN='create_BOND_section',&
-         routineP=moduleN//':'//routineN
-    TYPE(keyword_type), POINTER :: keyword
-    
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_BOND_section', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
+
     failure=.FALSE.
     
     CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
@@ -602,14 +618,16 @@ contains
 !!
 !!*** **********************************************************************
   SUBROUTINE create_charge_section(section,error)
-    TYPE(section_type), POINTER :: section
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-    
-    LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineN='create_charge_section',&
-         routineP=moduleN//':'//routineN
-    TYPE(keyword_type), POINTER :: keyword
-    
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_charge_section', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
+
     failure=.FALSE.
     
     CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
@@ -661,14 +679,16 @@ contains
 !!
 !!*** **********************************************************************
   SUBROUTINE create_NONBONDED14_section(section,error)
-    TYPE(section_type), POINTER :: section
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-    
-    LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineN='create_NONBONDED14_section',&
-         routineP=moduleN//':'//routineN
-    TYPE(section_type), POINTER :: subsection
-    
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_NONBONDED14_section', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(section_type), POINTER              :: subsection
+
     failure=.FALSE.
     
     CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
@@ -719,14 +739,16 @@ contains
 !!
 !!*** **********************************************************************
   SUBROUTINE create_NONBONDED_section(section,error)
-    TYPE(section_type), POINTER :: section
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-    
-    LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineN='create_NONBONDED_section',&
-         routineP=moduleN//':'//routineN
-    TYPE(section_type), POINTER :: subsection
-    
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_NONBONDED_section', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(section_type), POINTER              :: subsection
+
     failure=.FALSE.
     
     CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
@@ -788,14 +810,16 @@ contains
 !!
 !!*** **********************************************************************
   SUBROUTINE create_EAM_section(section,error)
-    TYPE(section_type), POINTER :: section
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-    
-    LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineN='create_EAM_section',&
-         routineP=moduleN//':'//routineN
-    TYPE(keyword_type), POINTER :: keyword
-    
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_EAM_section', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
+
     failure=.FALSE.
     
     CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
@@ -845,14 +869,16 @@ contains
 !!
 !!*** **********************************************************************
   SUBROUTINE create_LJ_section(section,error)
-    TYPE(section_type), POINTER :: section
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-    
-    LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineN='create_LJ_section',&
-         routineP=moduleN//':'//routineN
-    TYPE(keyword_type), POINTER :: keyword
-    
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_LJ_section', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
+
     failure=.FALSE.
     
     CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
@@ -918,14 +944,16 @@ contains
 !!
 !!*** **********************************************************************
   SUBROUTINE create_Williams_section(section,error)
-    TYPE(section_type), POINTER :: section
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-    
-    LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineN='create_Williams_section',&
-         routineP=moduleN//':'//routineN
-    TYPE(keyword_type), POINTER :: keyword
-    
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_Williams_section', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
+
     failure=.FALSE.
     
     CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
@@ -997,14 +1025,16 @@ contains
 !!
 !!*** **********************************************************************
   SUBROUTINE create_Goodwin_section(section,error)
-    TYPE(section_type), POINTER :: section
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-    
-    LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineN='create_Goodwin_section',&
-         routineP=moduleN//':'//routineN
-    TYPE(keyword_type), POINTER :: keyword
-    
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_Goodwin_section', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
+
     failure=.FALSE.
     
     CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
@@ -1090,14 +1120,16 @@ contains
 !!
 !!*** **********************************************************************
   SUBROUTINE create_ipbv_section(section,error)
-    TYPE(section_type), POINTER :: section
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-    
-    LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineN='create_ipbv_section',&
-         routineP=moduleN//':'//routineN
-    TYPE(keyword_type), POINTER :: keyword
-    
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_ipbv_section', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
+
     failure=.FALSE.
     
     CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
@@ -1149,14 +1181,16 @@ contains
 !!
 !!*** **********************************************************************
   SUBROUTINE create_BMHFT_section(section,error)
-    TYPE(section_type), POINTER :: section
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-    
-    LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineN='create_BMHFT_section',&
-         routineP=moduleN//':'//routineN
-    TYPE(keyword_type), POINTER :: keyword
-    
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_BMHFT_section', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
+
     failure=.FALSE.
     
     CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
@@ -1210,24 +1244,26 @@ contains
 !!*** **********************************************************************
 
 SUBROUTINE create_ewald_section(section,error)
-  TYPE(section_type), pointer :: section
-  type(cp_error_type), optional, intent(inout) :: error
-  
-  logical :: failure
-  character(len=*), parameter :: routineN='create_ewald_section',&
-        routineP=moduleN//':'//routineN
-  TYPE(keyword_type), pointer :: keyword
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-  failure=.false.
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_ewald_section', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
+
+  failure=.FALSE.
   
   CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
-  if (.not. failure) then
+  IF (.NOT. failure) THEN
     CALL section_create(section,name="ewald",&
          description="ewald parameters",&
          n_keywords=7, n_subsections=0, repeats=.FALSE., required=.FALSE.,&
          error=error)
 
-    nullify(keyword)
+    NULLIFY(keyword)
     CALL keyword_create(keyword, name="EWALD_TYPE",&
          description="The type of ewald you want to perform."//&
          " EWALD is the standard non-fft based ewald."//&
@@ -1270,7 +1306,7 @@ SUBROUTINE create_ewald_section(section,error)
     CALL section_add_keyword(section,keyword,error=error)
     CALL keyword_release(keyword,error=error)
 
-  end if
+  END IF
 END SUBROUTINE create_ewald_section
 
 !***************************************************************************

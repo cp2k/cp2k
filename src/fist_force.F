@@ -22,52 +22,56 @@
 !******************************************************************************
 
 MODULE fist_force
-  USE cp_output_handling, ONLY: cp_print_key_should_output, cp_p_file
-  USE cp_para_types,                   ONLY: cp_para_env_type
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind
+  USE cell_types,                      ONLY: cell_type
+  USE checkpoint_handler,              ONLY: write_checkpoint_information
+  USE cp_output_handling,              ONLY: cp_p_file,&
+                                             cp_print_key_finished_output,&
+                                             cp_print_key_should_output,&
+                                             cp_print_key_unit_nr
   USE distribution_1d_types,           ONLY: distribution_1d_type
-  USE ewalds, ONLY : ewald_evaluate, ewald_print
-  USE ewald_environment_types, ONLY : ewald_environment_type, ewald_env_get
-  USE ewald_pw_methods, ONLY        : ewald_pw_grid_change
-  USE ewald_pw_types, ONLY : ewald_pw_type
-  USE fist_energy_types, ONLY : fist_energy_type
-  USE fist_environment_types, ONLY : fist_environment_type, get_fist_env
-  USE fist_intra_force, ONLY : force_intra_control
-  USE fist_neighbor_list_control, ONLY : list_control
-  USE fist_nonbond_env_types, ONLY : fist_nonbond_env_type
-  USE fist_nonbond_force, ONLY : force_nonbond, density_nonbond, &
-                                 bonded_correct_gaussian, energy_manybody
-  USE global_types, ONLY : global_environment_type
-  USE kinds, ONLY: dp, default_string_length
-  USE mathconstants, ONLY : pi, zero
-  USE message_passing, ONLY : mp_sum
-  USE molecule_kind_types,             ONLY: molecule_kind_type
-  USE molecule_types_new,              ONLY: molecule_type
-  USE particle_types, ONLY : particle_type
-  USE pme, ONLY: pme_evaluate
-  USE cell_types, ONLY : cell_type, get_hinv
-  USE spme, ONLY : spme_evaluate
-  USE timings, ONLY : timeset, timestop
-  USE virial_methods, ONLY : virial_evaluate
-  USE virial_types, ONLY : virial_type
-  USE physcon, ONLY: debye
-  USE input_section_types, ONLY: section_type, section_create, &
-       section_add_keyword, section_add_subsection, section_release,&
-       section_describe_html, section_describe_index_html, section_vals_type,&
-       section_vals_get_subs_vals, section_vals_get, section_vals_val_get
-  USE input_constants,                 ONLY: do_ewald_none,&
-                                             do_ewald_ewald,&
+  USE ewald_environment_types,         ONLY: ewald_env_get,&
+                                             ewald_environment_type
+  USE ewald_pw_methods,                ONLY: ewald_pw_grid_change
+  USE ewald_pw_types,                  ONLY: ewald_pw_type
+  USE ewalds,                          ONLY: ewald_evaluate,&
+                                             ewald_print
+  USE fist_energy_types,               ONLY: fist_energy_type
+  USE fist_environment_types,          ONLY: fist_environment_type,&
+                                             get_fist_env
+  USE fist_intra_force,                ONLY: force_intra_control
+  USE fist_neighbor_list_control,      ONLY: list_control
+  USE fist_nonbond_env_types,          ONLY: fist_nonbond_env_type
+  USE fist_nonbond_force,              ONLY: bonded_correct_gaussian,&
+                                             density_nonbond,&
+                                             energy_manybody,&
+                                             force_nonbond
+  USE global_types,                    ONLY: global_environment_type
+  USE input_constants,                 ONLY: do_ewald_ewald,&
+                                             do_ewald_none,&
                                              do_ewald_pme,&
                                              do_ewald_spme
-  USE cp_output_handling,              ONLY: cp_print_key_unit_nr, &
-                                             cp_print_key_finished_output
-  USE checkpoint_handler,              ONLY: write_checkpoint_information
+  USE input_section_types,             ONLY: section_vals_get_subs_vals,&
+                                             section_vals_type
+  USE kinds,                           ONLY: dp
+  USE mathconstants,                   ONLY: pi
+  USE message_passing,                 ONLY: mp_sum
+  USE molecule_kind_types,             ONLY: molecule_kind_type
+  USE molecule_types_new,              ONLY: molecule_type
+  USE particle_types,                  ONLY: particle_type
+  USE physcon,                         ONLY: debye
+  USE pme,                             ONLY: pme_evaluate
+  USE spme,                            ONLY: spme_evaluate
+  USE timings,                         ONLY: timeset,&
+                                             timestop
+  USE virial_types,                    ONLY: virial_type
 #include "cp_common_uses.h"
+
   IMPLICIT NONE
   PRIVATE
   PUBLIC :: fist_force_control, debug_variables_type
-  CHARACTER(len=*), PARAMETER :: moduleN="fist_force"
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'fist_force'
 
   TYPE debug_variables_type
      REAL (KIND=dp) :: pot_nonbond, pot_g, pot_bond, pot_bend, pot_torsion
@@ -108,51 +112,49 @@ MODULE fist_force
 
 SUBROUTINE fist_force_control ( fist_env, virial, globenv, box_change, debug ,error)
 
-  IMPLICIT NONE
 
-! Arguments
-  TYPE ( fist_environment_type ), POINTER :: fist_env
-  TYPE ( virial_type ), POINTER :: virial
-  TYPE ( global_environment_type ), pointer :: globenv
-  LOGICAL, INTENT ( IN ) :: box_change
-  TYPE ( debug_variables_type ), INTENT ( INOUT ), OPTIONAL :: debug
-  TYPE(cp_error_type), INTENT(inout), &
-       OPTIONAL                               :: error
-! Locals
-    CHARACTER(len=*), PARAMETER :: routineN="fist_force_control",&
-         routineP=moduleN//":"//routineN  
-  INTEGER :: id, i, ii, natoms, nnodes, handle, stat, n, nlocal_particles
-  INTEGER :: ikind, iparticle_kind, nparticle_kind, iparticle_local, nparticle_local
-  INTEGER :: node, iw, j
-  REAL (KIND=dp) :: pot_nonbond, pot_bond, pot_bend, pot_urey_bradley,  &
-                  pot_imptors, pot_torsion, pot_onef,pot_manybody,vg_coulomb
-  REAL (KIND=dp), DIMENSION ( 3,3 ) :: pv_nonbond, pv_bond, pv_bend,  &
-                 pv_torsion, pv_urey_bradley, pv_imptors, pv_onef
-  REAL (KIND=dp), DIMENSION ( :,: ), ALLOCATABLE :: fg_coulomb
-  REAL (KIND=dp), DIMENSION ( :,: ), ALLOCATABLE :: f_total
-  REAL (KIND=dp), DIMENSION ( 3,3 ) :: pv_g, ident
-  REAL (KIND=dp), DIMENSION ( 3,3 ) :: pv_bc
-  INTEGER                           :: ewald_type
-  TYPE ( fist_energy_type ), POINTER :: thermo
-  TYPE ( particle_type ), DIMENSION(:), POINTER :: particle_set 
-  TYPE(distribution_1d_type), POINTER      :: local_molecules, &
-                                              local_particles
-  TYPE(atomic_kind_type), DIMENSION(:), &
+    TYPE(fist_environment_type), POINTER     :: fist_env
+    TYPE(virial_type), POINTER               :: virial
+    TYPE(global_environment_type), POINTER   :: globenv
+    LOGICAL, INTENT(IN)                      :: box_change
+    TYPE(debug_variables_type), &
+      INTENT(INOUT), OPTIONAL                :: debug
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'fist_force_control', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER :: ewald_type, handle, i, ii, ikind, iparticle_kind, &
+      iparticle_local, iw, j, natoms, nlocal_particles, node, nparticle_kind, &
+      nparticle_local, stat
+    LOGICAL                                  :: failure
+    LOGICAL, SAVE                            :: first_time = .TRUE.
+    REAL(KIND=dp) :: pot_bend, pot_bond, pot_imptors, pot_manybody, &
+      pot_nonbond, pot_onef, pot_torsion, pot_urey_bradley, vg_coulomb
+    REAL(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:, :)                        :: f_nonbond, f_total, fg_coulomb
+    REAL(KIND=dp), DIMENSION(3, 3) :: ident, pv_bc, pv_bend, pv_bond, pv_g, &
+      pv_imptors, pv_nonbond, pv_onef, pv_torsion, pv_urey_bradley
+    TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
-  TYPE(molecule_kind_type), DIMENSION(:), &
+    TYPE(cell_type), POINTER                 :: cell
+    TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(distribution_1d_type), POINTER      :: local_molecules, &
+                                                local_particles
+    TYPE(ewald_environment_type), POINTER    :: ewald_env
+    TYPE(ewald_pw_type), POINTER             :: ewald_pw
+    TYPE(fist_energy_type), POINTER          :: thermo
+    TYPE(fist_nonbond_env_type), POINTER     :: fist_nonbond_env
+    TYPE(molecule_kind_type), DIMENSION(:), &
       POINTER                                :: molecule_kind_set
-  TYPE(molecule_type), DIMENSION(:), &
+    TYPE(molecule_type), DIMENSION(:), &
       POINTER                                :: molecule_set
-  TYPE ( fist_nonbond_env_type ), POINTER    :: fist_nonbond_env
-  TYPE ( cell_type ), POINTER                :: cell
-  TYPE ( ewald_pw_type ),   POINTER          :: ewald_pw
-  TYPE ( ewald_environment_type ),   POINTER :: ewald_env
-  REAL (KIND=dp), DIMENSION ( :,: ), ALLOCATABLE :: f_nonbond
-  LOGICAL,SAVE :: first_time=.true.
-  TYPE(section_vals_type), POINTER         :: fist_section, print_section,&
-                                              force_env_section
-  LOGICAL :: failure
-  TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particle_set
+    TYPE(section_vals_type), POINTER         :: fist_section, &
+                                                force_env_section, &
+                                                print_section
 
   failure = .FALSE.
   NULLIFY(logger)
@@ -500,7 +502,7 @@ SUBROUTINE fist_force_control ( fist_env, virial, globenv, box_change, debug ,er
   END IF
   DEALLOCATE ( f_nonbond, STAT = stat )
   CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-  first_time = .false.
+  first_time = .FALSE.
   CALL timestop(0.0_dp,handle)
   CALL write_checkpoint_information("Leaving "//routineN,globenv,error)
   CALL cp_print_key_finished_output(iw,logger,fist_section,&
@@ -526,19 +528,18 @@ END SUBROUTINE fist_force_control
 !!   SOURCE
 !!******************************************************************************
 SUBROUTINE print_fist(print_section, atomic_kind_set, particle_set, cell, error)
-  IMPLICIT NONE
-  ! Arguments
-  TYPE(section_vals_type), POINTER         :: print_section
-  TYPE ( particle_type ), DIMENSION(:), POINTER :: particle_set 
-  TYPE(atomic_kind_type), DIMENSION(:), &
-      POINTER                                :: atomic_kind_set  
-  TYPE ( cell_type ), POINTER                :: cell
-  TYPE(cp_error_type), INTENT(inout), &
-       OPTIONAL                               :: error
-  ! Local Variables
-  TYPE(cp_logger_type), POINTER :: logger
-  TYPE(section_vals_type), POINTER :: print_key
-  INTEGER :: unit_nr
+    TYPE(section_vals_type), POINTER         :: print_section
+    TYPE(atomic_kind_type), DIMENSION(:), &
+      POINTER                                :: atomic_kind_set
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particle_set
+    TYPE(cell_type), POINTER                 :: cell
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    INTEGER                                  :: unit_nr
+    TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(section_vals_type), POINTER         :: print_key
 
   NULLIFY(logger,print_key)
   logger => cp_error_get_logger(error)
@@ -572,21 +573,20 @@ END SUBROUTINE print_fist
 !!   SOURCE
 !!******************************************************************************
 SUBROUTINE fist_dipole(atomic_kind_set, particle_set, cell, unit_nr, error)
-  IMPLICIT NONE
-  ! Arguments
-  TYPE(atomic_kind_type), DIMENSION(:), &
+    TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
-  TYPE ( particle_type ), DIMENSION(:), POINTER :: particle_set 
-  TYPE (cell_type), POINTER :: cell
-  INTEGER, INTENT(IN) :: unit_nr
-  TYPE(cp_error_type), INTENT(INOUT), &
-       OPTIONAL                               :: error
-  ! Local Variables
-  INTEGER                          :: i, j, iparticle_kind
-  REAL(KIND=dp)                    :: dipole(3), theta, gvec(3), q
-  COMPLEX(KIND=dp), DIMENSION(3)   :: ggamma, zeta
-  INTEGER, DIMENSION(:), POINTER   :: atom_list
-  TYPE(atomic_kind_type), POINTER          :: atomic_kind
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particle_set
+    TYPE(cell_type), POINTER                 :: cell
+    INTEGER, INTENT(IN)                      :: unit_nr
+    TYPE(cp_error_type), INTENT(INOUT), &
+      OPTIONAL                               :: error
+
+    COMPLEX(KIND=dp), DIMENSION(3)           :: ggamma, zeta
+    INTEGER                                  :: i, iparticle_kind, j
+    INTEGER, DIMENSION(:), POINTER           :: atom_list
+    REAL(KIND=dp)                            :: dipole(3), gvec(3), q, theta
+    TYPE(atomic_kind_type), POINTER          :: atomic_kind
 
   NULLIFY(atomic_kind)
   DO i = 1,3

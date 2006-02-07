@@ -23,23 +23,22 @@
 !!   SOURCE
 !****************************************************************************
 MODULE tbmd_main
-  USE force_env_types,                 ONLY: force_env_type
   USE force_env_methods,               ONLY: force_env_create
+  USE force_env_types,                 ONLY: force_env_type
   USE global_types,                    ONLY: global_environment_type
   USE kinds,                           ONLY: dp
   USE tbmd_environment,                ONLY: tbmd_init
-  USE tbmd_environment_types,          ONLY: tbmd_environment_type, &
-                                             tbmd_env_create, &
-                                             tbmd_env_release
-  USE timings,                         ONLY: timeset, &
+  USE tbmd_environment_types,          ONLY: tbmd_env_create,&
+                                             tbmd_env_release,&
+                                             tbmd_environment_type
+  USE timings,                         ONLY: timeset,&
                                              timestop
-
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
   PRIVATE
 
-  CHARACTER(len=*), PARAMETER :: moduleN = 'tbmd_main'
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'tbmd_main'
 
   ! *** Public subroutines ***
   PUBLIC :: tbmd_create_force_env
@@ -76,11 +75,11 @@ CONTAINS
     TYPE(cp_error_type), INTENT(INOUT), &
       OPTIONAL                               :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = "tbmd_create_force_env", &
-      routineP = moduleN//":"//routineN
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'tbmd_create_force_env', &
+      routineP = moduleN//':'//routineN
 
-    INTEGER                                    :: handle
-    TYPE(tbmd_environment_type), POINTER       :: tbmd_env
+    INTEGER                                  :: handle
+    TYPE(tbmd_environment_type), POINTER     :: tbmd_env
 
 !   ---------------------------------------------------------------------------
 

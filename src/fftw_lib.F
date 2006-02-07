@@ -51,28 +51,28 @@ MODULE fftw_lib
 !     routines (either directly or with an #include statement
 !     if you use the C preprocessor).
 
-      integer FFTW_FORWARD,FFTW_BACKWARD
-      parameter (FFTW_FORWARD=-1,FFTW_BACKWARD=1)
+      INTEGER FFTW_FORWARD,FFTW_BACKWARD
+      PARAMETER (FFTW_FORWARD=-1,FFTW_BACKWARD=1)
 
-      integer FFTW_REAL_TO_COMPLEX,FFTW_COMPLEX_TO_REAL
-      parameter (FFTW_REAL_TO_COMPLEX=-1,FFTW_COMPLEX_TO_REAL=1)
+      INTEGER FFTW_REAL_TO_COMPLEX,FFTW_COMPLEX_TO_REAL
+      PARAMETER (FFTW_REAL_TO_COMPLEX=-1,FFTW_COMPLEX_TO_REAL=1)
 
-      integer FFTW_ESTIMATE,FFTW_MEASURE
-      parameter (FFTW_ESTIMATE=0,FFTW_MEASURE=1)
+      INTEGER FFTW_ESTIMATE,FFTW_MEASURE
+      PARAMETER (FFTW_ESTIMATE=0,FFTW_MEASURE=1)
 
-      integer FFTW_OUT_OF_PLACE,FFTW_IN_PLACE,FFTW_USE_WISDOM
-      parameter (FFTW_OUT_OF_PLACE=0)
-      parameter (FFTW_IN_PLACE=8,FFTW_USE_WISDOM=16)
+      INTEGER FFTW_OUT_OF_PLACE,FFTW_IN_PLACE,FFTW_USE_WISDOM
+      PARAMETER (FFTW_OUT_OF_PLACE=0)
+      PARAMETER (FFTW_IN_PLACE=8,FFTW_USE_WISDOM=16)
 
-      integer FFTW_THREADSAFE
-      parameter (FFTW_THREADSAFE=128)
+      INTEGER FFTW_THREADSAFE
+      PARAMETER (FFTW_THREADSAFE=128)
 
 !     Constants for the MPI wrappers:
-      integer FFTW_TRANSPOSED_ORDER, FFTW_NORMAL_ORDER
-      integer FFTW_SCRAMBLED_INPUT, FFTW_SCRAMBLED_OUTPUT
-      parameter(FFTW_TRANSPOSED_ORDER=1, FFTW_NORMAL_ORDER=0)
-      parameter(FFTW_SCRAMBLED_INPUT=8192)
-      parameter(FFTW_SCRAMBLED_OUTPUT=16384)
+      INTEGER FFTW_TRANSPOSED_ORDER, FFTW_NORMAL_ORDER
+      INTEGER FFTW_SCRAMBLED_INPUT, FFTW_SCRAMBLED_OUTPUT
+      PARAMETER(FFTW_TRANSPOSED_ORDER=1, FFTW_NORMAL_ORDER=0)
+      PARAMETER(FFTW_SCRAMBLED_INPUT=8192)
+      PARAMETER(FFTW_SCRAMBLED_OUTPUT=16384)
 
 !!*****
 !******************************************************************************
@@ -97,10 +97,10 @@ CONTAINS
 !!   SOURCE
 !******************************************************************************
 
-SUBROUTINE fft_get_lengths ( data, max_length )
+SUBROUTINE fft_get_lengths ( DATA, max_length )
 
 
-    INTEGER, DIMENSION(:), POINTER           :: data
+    INTEGER, DIMENSION(:), POINTER           :: DATA
     INTEGER, INTENT(IN)                      :: max_length
 
     INTEGER :: allocstat, h, i, j, k, m, maxn, maxn_elevens, maxn_fives, &
@@ -141,13 +141,13 @@ SUBROUTINE fft_get_lengths ( data, max_length )
      END DO
   END DO
 
-  ALLOCATE ( data ( ndata ), idx ( ndata ), STAT = allocstat )
+  ALLOCATE ( DATA ( ndata ), idx ( ndata ), STAT = allocstat )
   IF ( allocstat /= 0 ) THEN
      CALL stop_memory ( "fft_get_lengths", "data, idx", 2*ndata )
   END IF
 
   ndata = 0
-  data ( : ) = 0
+  DATA ( : ) = 0
   DO h = 0, maxn_twos
      nmax = HUGE(0) / 2**h
      DO i = 0, maxn_threes
@@ -162,14 +162,14 @@ SUBROUTINE fft_get_lengths ( data, max_length )
                  IF ( number >= maxn ) CYCLE
 
                  ndata = ndata + 1
-                 data ( ndata ) = number
+                 DATA ( ndata ) = number
               END DO
            END DO
         END DO
      END DO
   END DO
 
-  CALL sort ( data, ndata, idx )
+  CALL sort ( DATA, ndata, idx )
 
   DEALLOCATE ( idx, STAT = allocstat )
   IF ( allocstat /= 0 ) THEN
@@ -202,7 +202,7 @@ SUBROUTINE fft3d ( fsign, scale, n, zg, zg_out )
 
 
     INTEGER, INTENT(INOUT)                   :: fsign
-    REAL(KIND=dp), INTENT(IN)                    :: scale
+    REAL(KIND=dp), INTENT(IN)                :: scale
     INTEGER, DIMENSION(:), INTENT(IN)        :: n
     COMPLEX(KIND=dp), DIMENSION(:, :, :), &
       INTENT(INOUT)                          :: zg
@@ -220,7 +220,7 @@ SUBROUTINE fft3d ( fsign, scale, n, zg, zg_out )
     LOGICAL, SAVE                            :: ffta_in_place = .TRUE., &
                                                 fftb_in_place = .TRUE., &
                                                 fftc_in_place = .TRUE.
-    REAL(KIND=dp)                                :: norm
+    REAL(KIND=dp)                            :: norm
 
 !
 ! Just due to DEC... apsi
@@ -232,9 +232,9 @@ SUBROUTINE fft3d ( fsign, scale, n, zg, zg_out )
   n2 = n(2)
   n3 = n(3)
   IF ( PRESENT ( zg_out ) ) THEN
-     fft_in_place = .false.
+     fft_in_place = .FALSE.
   ELSE
-     fft_in_place = .true.
+     fft_in_place = .TRUE.
   END IF
 
   sign_fft = fsign
@@ -242,7 +242,7 @@ SUBROUTINE fft3d ( fsign, scale, n, zg, zg_out )
 #if defined ( __FFTW )
 
   IF ( n1a_save == n1 .AND. n2a_save == n2 .AND. n3a_save == n3 &
-       .AND. ( fft_in_place .eqv. ffta_in_place ) ) THEN
+       .AND. ( fft_in_place .EQV. ffta_in_place ) ) THEN
      IF ( sign_fft == +1 ) THEN
         IF (fft_in_place) THEN
            CALL fftwnd_f77_one ( plan_a_fw, zg, zgout_tmp )
@@ -257,7 +257,7 @@ SUBROUTINE fft3d ( fsign, scale, n, zg, zg_out )
         ENDIF
      END IF
   ELSE IF ( n1b_save == n1 .AND. n2b_save == n2 .AND. n3b_save == n3 &
-       .AND. ( fft_in_place .eqv. fftb_in_place ) ) THEN
+       .AND. ( fft_in_place .EQV. fftb_in_place ) ) THEN
      IF ( sign_fft == +1 ) THEN
         IF (fft_in_place) THEN
             CALL fftwnd_f77_one ( plan_b_fw, zg, zgout_tmp )
@@ -272,7 +272,7 @@ SUBROUTINE fft3d ( fsign, scale, n, zg, zg_out )
         ENDIF
      END IF
   ELSE IF ( n1c_save == n1 .AND. n2c_save == n2 .AND. n3c_save == n3 &
-       .AND. ( fft_in_place .eqv. fftc_in_place ) ) THEN
+       .AND. ( fft_in_place .EQV. fftc_in_place ) ) THEN
      IF ( sign_fft == +1 ) THEN
         IF (fft_in_place) THEN
             CALL fftwnd_f77_one ( plan_c_fw, zg, zgout_tmp )
@@ -288,7 +288,7 @@ SUBROUTINE fft3d ( fsign, scale, n, zg, zg_out )
      END IF
   ELSE IF ( n1a_save == -1 .OR. &
        ( n1a_save == n1 .AND. n2a_save == n2 .AND. n3a_save == n3 &
-       .AND. ( fft_in_place .neqv. ffta_in_place ) .AND. &
+       .AND. ( fft_in_place .NEQV. ffta_in_place ) .AND. &
        ( n1b_save /= -1 .AND. n1c_save /= -1 ) ) ) THEN ! Initialise 'a'
      IF ( fft_in_place ) THEN
         CALL fftw3d_f77_create_plan ( plan_a_fw, n1, n2, n3, FFTW_FORWARD, &
@@ -322,7 +322,7 @@ SUBROUTINE fft3d ( fsign, scale, n, zg, zg_out )
 
   ELSE IF ( n1b_save == -1 .OR. &
        ( n1b_save == n1 .AND. n2b_save == n2 .AND. n3b_save == n3 &
-       .AND. ( fft_in_place .neqv. fftb_in_place ) .AND. &
+       .AND. ( fft_in_place .NEQV. fftb_in_place ) .AND. &
        n1c_save /= -1 ) ) THEN ! Initialise 'a'
      IF ( fft_in_place ) THEN
         CALL fftw3d_f77_create_plan ( plan_b_fw, n1, n2, n3, FFTW_FORWARD, &
@@ -546,14 +546,14 @@ SUBROUTINE mltfft ( tin, tout, fsign, scale, n, m, zin, zout )
 
     CHARACTER(LEN=*), INTENT(IN)             :: tin, tout
     INTEGER, INTENT(INOUT)                   :: fsign
-    REAL(KIND=dp), INTENT(IN)                    :: scale
+    REAL(KIND=dp), INTENT(IN)                :: scale
     INTEGER, INTENT(IN)                      :: n, m
     COMPLEX(KIND=dp), DIMENSION(:, :), &
       INTENT(IN)                             :: zin
     COMPLEX(KIND=dp), DIMENSION(:, :), &
       INTENT(OUT)                            :: zout
 
-    INTEGER                                  :: di, do, ii, io, ldi, ldo
+    INTEGER                                  :: di, DO, ii, io, ldi, ldo
     INTEGER(KIND=integer_pointer_kind)       :: plan
 
 !------------------------------------------------------------------------------
@@ -577,12 +577,12 @@ SUBROUTINE mltfft ( tin, tout, fsign, scale, n, m, zin, zout )
   ENDIF
   IF ( tout(1:1) == 'N' .OR. tout(1:1) == 'N' ) THEN
     io = 1
-    do = ldo
+    DO = ldo
   ELSE
     io = ldo
-    do = 1
+    DO = 1
   ENDIF
-  CALL fftw_f77(plan,m,zin,ii,di,zout,io,do)
+  CALL fftw_f77(plan,m,zin,ii,di,zout,io,DO)
   CALL fftw_f77_destroy_plan(plan)
   IF ( scale /= 1.0_dp ) zout = scale * zout
 

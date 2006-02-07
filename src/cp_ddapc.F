@@ -24,82 +24,52 @@ MODULE cp_ddapc
 !!
 !!   SOURCE
 !****************************************************************************  
-  USE cp_output_handling,              ONLY: cp_print_key_should_output,&
-                                             cp_p_file,&
-                                             cp_print_key_unit_nr,&
-                                             cp_print_key_finished_output
-  USE cp2k_units,                      ONLY: get_cp2k_units,&
-                                             unit_convert_type
-  USE kinds,                           ONLY: default_string_length,&
-                                             dp
-  USE timings,                         ONLY: timeset,&
-                                             timestop
-  USE global_types,                    ONLY: global_environment_type
-  USE qs_environment_types,            ONLY: get_qs_env,&
-                                             qs_environment_type,&
-                                             set_qs_env
-  USE mathconstants,                   ONLY: rootpi, pi
+  USE cell_types,                      ONLY: cell_type
+  USE coefficient_types,               ONLY: coeff_type
+  USE cp_ddapc_forces,                 ONLY: ewald_ddapc_force,&
+                                             reset_ch_pulay
+  USE cp_ddapc_methods,                ONLY: build_A_matrix,&
+                                             build_b_vector,&
+                                             build_der_A_matrix,&
+                                             build_der_b_vector
+  USE cp_ddapc_types,                  ONLY: cp_ddapc_create,&
+                                             cp_ddapc_release,&
+                                             cp_ddapc_type
+  USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
+                                             cp_print_key_unit_nr
+  USE input_constants,                 ONLY: use_multipole
+  USE input_section_types,             ONLY: section_vals_get,&
+                                             section_vals_get_subs_vals,&
+                                             section_vals_type,&
+                                             section_vals_val_get
+  USE kinds,                           ONLY: dp
+  USE mathconstants,                   ONLY: pi
+  USE message_passing,                 ONLY: mp_sum
+  USE particle_types,                  ONLY: particle_type
   USE pw_env_types,                    ONLY: pw_env_get,&
                                              pw_env_type
   USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
                                              pw_pool_give_back_pw,&
-                                             pw_pool_give_back_coeff,&
-                                             pw_pool_init_coeff,&
-                                             pw_pool_p_type,&
-                                             pw_pool_type,&
-                                             pw_pools_create_pws,&
-                                             pw_pools_give_back_pws
-  USE pw_grid_types,                   ONLY: pw_grid_type
-  USE pw_types,                        ONLY: pw_integral_ab,&
-                                             COMPLEXDATA1D,&
-                                             REALSPACE,&
-                                             REALDATA3D,&
+                                             pw_pool_type
+  USE pw_types,                        ONLY: COMPLEXDATA1D,&
                                              RECIPROCALSPACE,&
-                                             pw_p_type,&
+                                             pw_integral_ab,&
                                              pw_sumup,&
                                              pw_transfer,&
-                                             pw_type,&
-                                             pw_zero
-  USE particle_types,                  ONLY: particle_type 
-  USE qs_rho_types,                    ONLY: qs_rho_type
-  USE coefficient_types,               ONLY: coeff_type
-  USE input_section_types,             ONLY: section_type,&
-                                             section_create, &
-                                             section_add_keyword,&
-                                             section_add_subsection,&
-                                             section_release,&
-                                             section_vals_type,&
-                                             section_vals_get_subs_vals,&
-                                             section_vals_get,&
-                                             section_vals_val_get
-  USE message_passing,                 ONLY: mp_sum
-  USE input_constants,                 ONLY: use_multipole
-  USE cell_types,                 ONLY: cell_type,&
-                                             get_cell,&
-                                             pbc
-  USE qs_force_types,                  ONLY: qs_force_type
-  USE atomic_kind_types,               ONLY: atomic_kind_type,&
-                                             get_atomic_kind_set
-  USE erf_fn,                          ONLY: erfc
+                                             pw_type
   USE qs_charges_types,                ONLY: qs_charges_type
-  USE cp_ddapc_types,                  ONLY: cp_ddapc_type,&
-                                             cp_ddapc_create,&
-                                             cp_ddapc_release,&
-                                             cp_ddapc_retain
-  USE cp_ddapc_forces,                 ONLY: ewald_ddapc_force,&
-                                             reset_ch_pulay 
-  USE cp_ddapc_methods,                ONLY: build_b_vector,&
-                                             build_der_b_vector,&
-                                             build_A_matrix,&
-                                             build_der_A_matrix
-
+  USE qs_environment_types,            ONLY: get_qs_env,&
+                                             qs_environment_type
+  USE qs_rho_types,                    ONLY: qs_rho_type
+  USE timings,                         ONLY: timeset,&
+                                             timestop
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
   PRIVATE
 
   LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.FALSE.
-  CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='cp_ddapc'
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_ddapc'
   PUBLIC :: get_ddapc, cp_decpl_ddapc
   
 CONTAINS
@@ -126,38 +96,46 @@ CONTAINS
 !!*** **********************************************************************
   RECURSIVE SUBROUTINE get_ddapc(qs_env,qmmm_periodic,calc_force,fitcharge_section,&
        qout1,qout2,out_radii,dq_out,just_charge,error)
-    IMPLICIT NONE
-    ! Arguments
     TYPE(qs_environment_type), POINTER       :: qs_env
-    LOGICAL, INTENT(in), OPTIONAL            :: calc_force, qmmm_periodic, just_charge
+    LOGICAL, INTENT(in), OPTIONAL            :: qmmm_periodic, calc_force
     TYPE(section_vals_type), POINTER         :: fitcharge_section
-    REAL(KIND=dp), DIMENSION(:), POINTER, OPTIONAL   :: qout1, qout2, out_radii
-    REAL(KIND=dp), DIMENSION(:,:,:), POINTER, OPTIONAL :: dq_out
+    REAL(KIND=dp), DIMENSION(:), OPTIONAL, &
+      POINTER                                :: qout1, qout2, out_radii
+    REAL(KIND=dp), DIMENSION(:, :, :), &
+      OPTIONAL, POINTER                      :: dq_out
+    LOGICAL, INTENT(in), OPTIONAL            :: just_charge
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
-    ! Local Variables
+
     CHARACTER(len=*), PARAMETER :: routineN = 'get_ddapc', &
-      routineP = moduleN//':'//routineN  
-    TYPE(pw_env_type), POINTER               :: pw_env
-    TYPE(qs_rho_type), POINTER               :: rho
-    TYPE(pw_type), POINTER                   :: rho_tot_g
-    TYPE(coeff_type), POINTER                :: rho_core
-    TYPE(cp_logger_type), POINTER :: logger
-    LOGICAL :: failure, need_f, ionode, only_charge
-    INTEGER :: iw, ispin, n_rep_val, num_gauss, stat, i, ndim, ii, j, iparticle
-    INTEGER :: handle, handle2, handle3
-    TYPE(pw_pool_type), POINTER              :: auxbas_pool
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, handle2, handle3, i, &
+                                                ii, iparticle, ispin, iw, j, &
+                                                n_rep_val, ndim, num_gauss, &
+                                                stat
+    LOGICAL                                  :: failure, ionode, need_f, &
+                                                only_charge
+    REAL(KIND=dp)                            :: c1, c3, c4, ch_dens, core_ch, &
+                                                elec_ch, gcut, pfact, rcmin, &
+                                                Vol
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: bv, cv, dqv0, qtot, qv
+    REAL(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:, :)                        :: Awrk, dbv
+    REAL(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:, :, :)                     :: dAm, dqv
     REAL(KIND=dp), DIMENSION(:), POINTER     :: inp_radii, radii
-    REAL(KIND=dp) :: rcmin, pfact, gcut, Vol, c1, c3, c4, ch_dens
-    TYPE(particle_type), DIMENSION(:), &
-         POINTER                                   :: particle_set
-    REAL(KIND=dp), DIMENSION(:), ALLOCATABLE       :: bv, cv, qv, qtot, dqv0
-    REAL(KIND=dp), DIMENSION(:,:), ALLOCATABLE     :: dbv, Awrk
-    REAL(KIND=dp), DIMENSION(:,:,:), ALLOCATABLE   :: dAm, dqv
-    TYPE(qs_charges_type), POINTER           :: qs_charges
-    REAL(KIND=dp) :: core_ch, elec_ch
-    TYPE(cp_ddapc_type), POINTER             :: cp_ddapc_env
     TYPE(cell_type), POINTER                 :: cell, super_cell
+    TYPE(coeff_type), POINTER                :: rho_core
+    TYPE(cp_ddapc_type), POINTER             :: cp_ddapc_env
+    TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particle_set
+    TYPE(pw_env_type), POINTER               :: pw_env
+    TYPE(pw_pool_type), POINTER              :: auxbas_pool
+    TYPE(pw_type), POINTER                   :: rho_tot_g
+    TYPE(qs_charges_type), POINTER           :: qs_charges
+    TYPE(qs_rho_type), POINTER               :: rho
 
     CALL timeset(routineN,"I","",handle)
     failure=.FALSE.
@@ -415,30 +393,31 @@ CONTAINS
 !!
 !!*** **********************************************************************
   SUBROUTINE cp_decpl_ddapc(qs_env,rho_tot_gspace,energy,v_hartree_gspace,calculate_forces,error)
-    IMPLICIT NONE
-    ! Arguments
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(coeff_type)                         :: v_hartree_gspace, rho_tot_gspace
-    LOGICAL, INTENT(IN), OPTIONAL            :: calculate_forces
+    TYPE(coeff_type)                         :: rho_tot_gspace
     REAL(KIND=dp), INTENT(INOUT)             :: energy
+    TYPE(coeff_type)                         :: v_hartree_gspace
+    LOGICAL, INTENT(IN), OPTIONAL            :: calculate_forces
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
-    ! Local Variables
+
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_decpl_ddapc', &
-      routineP = moduleN//':'//routineN      
-    TYPE(section_vals_type), POINTER         :: multipole_section,&
-                                                force_env_section,&
-                                                poisson_section,&
-                                                qmmm_periodic_section
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, iw, my_val, stat
+    LOGICAL                                  :: failure, ionode, need_f, &
+                                                qmmm_periodic
+    REAL(KINd=dp)                            :: e_decpl, e_recpl
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: charges, radii
+    REAL(KIND=dp), DIMENSION(:, :, :), &
+      POINTER                                :: dq
+    TYPE(cp_logger_type), POINTER            :: logger
     TYPE(particle_type), DIMENSION(:), &
-         POINTER                                 :: particle_set
-    LOGICAL :: failure, qmmm_periodic, need_f, ionode
-    INTEGER :: stat, my_val, iw, handle
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: charges
-    REAL(KIND=dp), POINTER, DIMENSION(:)     :: radii
-    REAL(KIND=dp), POINTER, DIMENSION(:,:,:) :: dq
-    TYPE(cp_logger_type), POINTER :: logger
-    REAL(KINd=dp) :: e_decpl, e_recpl
+      POINTER                                :: particle_set
+    TYPE(section_vals_type), POINTER         :: force_env_section, &
+                                                multipole_section, &
+                                                poisson_section, &
+                                                qmmm_periodic_section
 
     CALL timeset(routineN,"I","",handle)
     failure = .FALSE.
@@ -543,26 +522,28 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE modify_hartree_pot(v_hartree_gspace, rho_tot_gspace, multipole_section, particle_set,&
        M, AmI, radii, charges, error)
-    IMPLICIT NONE
-    ! Arguments
-    TYPE(coeff_type)                         :: v_hartree_gspace, rho_tot_gspace 
+    TYPE(coeff_type)                         :: v_hartree_gspace, &
+                                                rho_tot_gspace
     TYPE(section_vals_type), POINTER         :: multipole_section
     TYPE(particle_type), DIMENSION(:), &
-         POINTER                             :: particle_set
+      POINTER                                :: particle_set
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: M, AmI
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: radii, charges
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
-    REAL(KIND=dp), POINTER, DIMENSION(:,:)   :: M, AmI
-    REAL(KIND=dp), POINTER, DIMENSION(:)     :: radii, charges
-    ! Local Variables
+
     CHARACTER(len=*), PARAMETER :: routineN = 'modify_hartree_pot', &
-      routineP = moduleN//':'//routineN          
-    LOGICAL :: failure
-    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: uv, cv
+      routineP = moduleN//':'//routineN
+
+    COMPLEX(KIND=dp)                         :: g_corr, phase
+    INTEGER                                  :: handle, idim, ig, igauss, &
+                                                iparticle, stat
+    LOGICAL                                  :: failure
+    REAL(kind=dp)                            :: arg, fac, fac2, g2, gcut, &
+                                                gcut2, gfunc, gvec(3), rc, &
+                                                rc2, rvec(3), sfac, Vol, w
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: cv, uv
     TYPE(pw_type), POINTER                   :: g_hartree
-    REAL(kind=dp) :: gcut, Vol, fac, fac2, g2, gcut2, gfunc, w
-    INTEGER       :: ig, idim, iparticle, igauss, stat, handle
-    REAL(KINd=dp) :: rc, rc2, sfac, gvec(3), rvec(3), arg
-    COMPLEX(KIND=dp) :: phase, g_corr
 
     failure=.FALSE.
     CALL timeset(routineN,"I","",handle)
@@ -633,28 +614,29 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE debug_der_b_vector(dbv, qmmm_periodic, particle_set, radii,&
        rho_tot_g, gcut, iparticle, Vol, fitcharge_section, qs_env, error)
-    IMPLICIT NONE 
-    ! Arguments
-    REAL(KIND=dp), DIMENSION(:,:), INTENT(IN)    :: dbv
-    REAL(KIND=dp), DIMENSION(:), POINTER         :: radii
-    TYPE(qs_environment_type), POINTER          :: qs_env
-    LOGICAL, INTENT(in)                         :: qmmm_periodic
-    TYPE(section_vals_type), POINTER            :: fitcharge_section
+    REAL(KIND=dp), DIMENSION(:, :), &
+      INTENT(IN)                             :: dbv
+    LOGICAL, INTENT(in)                      :: qmmm_periodic
     TYPE(particle_type), DIMENSION(:), &
-         POINTER                             :: particle_set
+      POINTER                                :: particle_set
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: radii
     TYPE(pw_type), POINTER                   :: rho_tot_g
-    REAL(KIND=dp), INTENT(IN)                :: gcut, Vol
+    REAL(KIND=dp), INTENT(IN)                :: gcut
     INTEGER, INTENT(in)                      :: iparticle
+    REAL(KIND=dp), INTENT(IN)                :: Vol
+    TYPE(section_vals_type), POINTER         :: fitcharge_section
+    TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
-    ! Local Variables
+
     CHARACTER(len=*), PARAMETER :: routineN = 'debug_der_b_vector', &
-      routineP = moduleN//':'//routineN      
-    REAL(KIND=dp) :: dx, rvec(3), v0
-    REAL(KIND=dp), DIMENSION(:), ALLOCATABLE     :: bv1, bv2, ddbv
-    INTEGER :: i, ndim, kk, stat, handle
-    LOGICAL :: failure
-    TYPE(cp_ddapc_type), POINTER                 :: cp_ddapc_env
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, i, kk, ndim, stat
+    LOGICAL                                  :: failure
+    REAL(KIND=dp)                            :: dx, rvec(3), v0
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: bv1, bv2, ddbv
+    TYPE(cp_ddapc_type), POINTER             :: cp_ddapc_env
 
     NULLIFY(cp_ddapc_env)
     failure = .FALSE.
@@ -728,28 +710,30 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE debug_der_A_matrix(dAm, qmmm_periodic, particle_set, radii,&
        rho_tot_g, gcut, iparticle, Vol, fitcharge_section, qs_env, error)
-    IMPLICIT NONE 
-    ! Arguments
-    REAL(KIND=dp), DIMENSION(:,:,:), INTENT(IN)    :: dAm
-    REAL(KIND=dp), DIMENSION(:), POINTER           :: radii
-    LOGICAL, INTENT(in)                         :: qmmm_periodic
-    TYPE(section_vals_type), POINTER            :: fitcharge_section
+    REAL(KIND=dp), DIMENSION(:, :, :), &
+      INTENT(IN)                             :: dAm
+    LOGICAL, INTENT(in)                      :: qmmm_periodic
     TYPE(particle_type), DIMENSION(:), &
-         POINTER                             :: particle_set
-    TYPE(qs_environment_type), POINTER          :: qs_env
+      POINTER                                :: particle_set
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: radii
     TYPE(pw_type), POINTER                   :: rho_tot_g
-    REAL(KIND=dp), INTENT(IN)                :: gcut, Vol
+    REAL(KIND=dp), INTENT(IN)                :: gcut
     INTEGER, INTENT(in)                      :: iparticle
+    REAL(KIND=dp), INTENT(IN)                :: Vol
+    TYPE(section_vals_type), POINTER         :: fitcharge_section
+    TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
-    ! Local Variables
+
     CHARACTER(len=*), PARAMETER :: routineN = 'debug_der_A_matrix', &
-      routineP = moduleN//':'//routineN      
-    REAL(KIND=dp) :: dx, rvec(3), v0
-    INTEGER :: i, ndim, kk, ll, stat, handle
-    TYPE(cp_ddapc_type), POINTER                   :: cp_ddapc_env
-    LOGICAL :: failure
-    REAL(KIND=dp), DIMENSION(:,:), ALLOCATABLE   :: Am1, Am2, ddAm
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, i, kk, ll, ndim, stat
+    LOGICAL                                  :: failure
+    REAL(KIND=dp)                            :: dx, rvec(3), v0
+    REAL(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:, :)                        :: Am1, Am2, ddAm
+    TYPE(cp_ddapc_type), POINTER             :: cp_ddapc_env
 
     failure = .FALSE.
     NULLIFY(cp_ddapc_env)
@@ -823,25 +807,26 @@ CONTAINS
 !!
 !!*** **********************************************************************
   SUBROUTINE debug_charge(dqv, qs_env, qmmm_periodic, fitcharge_section, particle_set, radii, error)
-    IMPLICIT NONE
-    ! Arguments
-    REAL(KIND=dp), DIMENSION(:,:,:), INTENT(IN) :: dqv
-    TYPE(qs_environment_type), POINTER          :: qs_env
-    LOGICAL, INTENT(in)                         :: qmmm_periodic
-    TYPE(section_vals_type), POINTER            :: fitcharge_section
-    REAL(KIND=dp), DIMENSION(:), POINTER        :: radii
+    REAL(KIND=dp), DIMENSION(:, :, :), &
+      INTENT(IN)                             :: dqv
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    LOGICAL, INTENT(in)                      :: qmmm_periodic
+    TYPE(section_vals_type), POINTER         :: fitcharge_section
     TYPE(particle_type), DIMENSION(:), &
-         POINTER                             :: particle_set
+      POINTER                                :: particle_set
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: radii
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
-    ! Local Variables
+
     CHARACTER(len=*), PARAMETER :: routineN = 'debug_charge', &
-      routineP = moduleN//':'//routineN      
-    REAL(KIND=dp) :: dx, rvec(3)
-    INTEGER :: i, ndim, kk, stat, handle, iparticle
-    LOGICAL :: failure
-    REAL(KIND=dp), DIMENSION(:), POINTER           :: qtot1, qtot2
-    REAL(KIND=dp), DIMENSION(:), ALLOCATABLE       :: ddqv
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, i, iparticle, kk, &
+                                                ndim, stat
+    LOGICAL                                  :: failure
+    REAL(KIND=dp)                            :: dx, rvec(3)
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: ddqv
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: qtot1, qtot2
 
     failure = .FALSE.
     CALL timeset(routineN,"I","",handle)

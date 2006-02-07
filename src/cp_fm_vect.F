@@ -37,7 +37,7 @@ MODULE cp_fm_vect
   PRIVATE
 
   LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
-  CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='cp_fm_vect'
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_fm_vect'
 
   PUBLIC :: cp_fm_vect_dealloc, cp_fm_vect_copy,&
             cp_fm_vect_set_all

@@ -25,11 +25,12 @@ MODULE atom_util
 
   USE atom_types,                      ONLY: atom_calculation_type,&
                                              atom_type
-  USE xc_xalpha_new,                   ONLY: xalpha_lda_0
   USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: PI
   USE radial_poisson,                  ONLY: rg_poisson
   USE radial_util,                     ONLY: radial_integrate
+  USE xc_xalpha_new,                   ONLY: xalpha_lda_0
+
   IMPLICIT NONE
 
   PRIVATE
@@ -50,12 +51,12 @@ CONTAINS
 
     TYPE(atom_type), INTENT(IN)              :: atom
     TYPE(atom_calculation_type), INTENT(IN)  :: ac
-    REAL(KIND=dp), DIMENSION(:), INTENT(IN)      :: rho
-    REAL(KIND=dp)                                :: res
+    REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: rho
+    REAL(KIND=dp)                            :: res
 
     INTEGER                                  :: errno, i, l, n, np
-    REAL(KIND=dp)                                :: res_int
-    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)     :: t, y0
+    REAL(KIND=dp)                            :: res_int
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: t, y0
 
 ! FUNCTION
 ! VARIABLES
@@ -116,7 +117,7 @@ CONTAINS
 !!! ***********************************************************
     TYPE(ATOM_TYPE), INTENT(INOUT)           :: atom
     INTEGER, INTENT(IN)                      :: np
-    REAL(KIND=dp), DIMENSION(1:np)               :: calculate_rho
+    REAL(KIND=dp), DIMENSION(1:np)           :: calculate_rho
 
     INTEGER                                  :: k, l, n
 
@@ -139,8 +140,8 @@ CONTAINS
 ! ****************************************************************************
   
   FUNCTION find_matchp(pot, ev)
-    REAL(KIND=dp), DIMENSION(:), INTENT(IN)      :: pot
-    REAL(KIND=dp), INTENT(IN)                    :: ev
+    REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: pot
+    REAL(KIND=dp), INTENT(IN)                :: ev
     INTEGER                                  :: find_matchp
 
     INTEGER                                  :: k
@@ -161,16 +162,17 @@ CONTAINS
   
   SUBROUTINE calculate_potential(pot, n, l, rho, atom, ac)
 !!! arguments
-    REAL(KIND=dp), DIMENSION(:), INTENT(INOUT)   :: pot
+    REAL(KIND=dp), DIMENSION(:), &
+      INTENT(INOUT)                          :: pot
     INTEGER, INTENT(IN)                      :: n, l
-    REAL(KIND=dp), DIMENSION(:), INTENT(IN)      :: rho
+    REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: rho
     TYPE(ATOM_TYPE), INTENT(IN)              :: atom
     TYPE(ATOM_CALCULATION_TYPE), INTENT(IN)  :: ac
 
     INTEGER                                  :: i, np
-    REAL(KIND=dp)                                :: ex, vx, z_eff
-    REAL(KIND=dp), DIMENSION(0:ac%rg%n+1)        :: rc, y0
-    REAL(KIND=dp), DIMENSION(size(rho))          :: r13
+    REAL(KIND=dp)                            :: z_eff
+    REAL(KIND=dp), DIMENSION(SIZE(rho))      :: r13
+    REAL(KIND=dp), DIMENSION(0:ac%rg%n+1)    :: rc, y0
 
 !!! variables
 
@@ -191,7 +193,7 @@ CONTAINS
        DO i=1, np
           r13(i)=rho(i)**(1.0_dp/3.0_dp)
        END DO       
-       call xalpha_lda_0(np, rho, r13, pot)
+       CALL xalpha_lda_0(np, rho, r13, pot)
        DO i=1, np
           pot(i) = pot(i) + (y0(i)-z_eff)/ac%rg%r(i)
        END DO       
@@ -213,7 +215,7 @@ CONTAINS
   FUNCTION signum(a)
     
 
-    REAL(KIND=dp), INTENT(IN)                    :: a
+    REAL(KIND=dp), INTENT(IN)                :: a
     INTEGER                                  :: signum
 
     IF (a < 0.0_dp) THEN 
@@ -230,7 +232,7 @@ CONTAINS
 
 
     INTEGER, INTENT(OUT)                     :: nodes
-    REAL(KIND=dp), DIMENSION(:), INTENT(IN)      :: f
+    REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: f
 
     INTEGER                                  :: i, n, s
 
@@ -257,8 +259,8 @@ CONTAINS
 ! ****************************************************************************
       
   SUBROUTINE DGESS(ALPHA, X)
-    REAL(KIND=dp), INTENT(IN)                    :: ALPHA
-    REAL(KIND=dp), INTENT(INOUT)                 :: X
+    REAL(KIND=dp), INTENT(IN)                :: ALPHA
+    REAL(KIND=dp), INTENT(INOUT)             :: X
 
     X = ALPHA * X
   END SUBROUTINE DGESS

@@ -28,6 +28,7 @@ MODULE kg_intra
                                              get_atomic_kind_set
   USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                              gto_basis_set_type
+  USE cell_types,                      ONLY: cell_type
   USE distribution_1d_types,           ONLY: distribution_1d_type
   USE erf_fn,                          ONLY: erf
   USE global_types,                    ONLY: global_environment_type
@@ -35,15 +36,11 @@ MODULE kg_intra
                                              kg_environment_type
   USE kg_force_types,                  ONLY: kg_force_type
   USE kinds,                           ONLY: dp,&
-                                             dp_size,&
                                              int_size
   USE mathconstants,                   ONLY: oorootpi,&
-                                             pi,&
-                                             twopi
+                                             pi
   USE message_passing,                 ONLY: mp_sum
   USE particle_types,                  ONLY: particle_type
-  USE cell_types,                 ONLY: cell_type,&
-                                             pbc
   USE termination,                     ONLY: stop_memory
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -71,26 +68,24 @@ CONTAINS
 
 
     TYPE(kg_environment_type), POINTER       :: kg_env
-    TYPE(global_environment_type), &
-      pointer                             :: globenv
-    REAL(KIND=dp), intent(out)               :: e_bc
+    TYPE(global_environment_type), POINTER   :: globenv
+    REAL(KIND=dp), INTENT(out)               :: e_bc
     LOGICAL, INTENT(IN)                      :: calculate_forces
 
     CHARACTER(LEN=*), PARAMETER :: &
       routine = "SUBROUTINE calculate_ebond_corr (MODULE kg_intra)"
 
-    INTEGER :: atom_a, atom_b, handle, i, iat, iatom, iexl, ikind, ipgf, iset, &
-      ishell, istat, j, jatom, jkind, jpgf, jset, jshell, group, nkind, &
-      nexl, nparticle_local, npart, nseta, nsetb, output_unit
+    INTEGER :: atom_a, atom_b, group, handle, i, iatom, iexl, ikind, ipgf, &
+      iset, ishell, istat, j, jkind, jpgf, jset, jshell, nexl, nkind, npart, &
+      nparticle_local, nseta, nsetb, output_unit
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: atom_of_kind
-    INTEGER, DIMENSION(:), POINTER           :: npgfa, npgfb, nshella, nshellb
+    INTEGER, DIMENSION(:), POINTER           :: list, npgfa, npgfb, nshella, &
+                                                nshellb
     LOGICAL                                  :: ionode
-    REAL(KIND=dp) :: alpha_i, alpha_j, ann, &
-      dij, eee, ene, enn, fee, fne, fnn, fscalar, gnorm,&
-      idij, prefac, q_i, q_j, qnn, qnuc_i, qnuc_j,&
-      rijsq, rootann, rootzee, rootzne, z_i, &
-      z_j, zee, zne
-    REAL(KIND=dp), DIMENSION(3)              :: ri, rj, rij
+    REAL(KIND=dp) :: alpha_i, alpha_j, ann, dij, eee, ene, enn, fee, fne, &
+      fnn, fscalar, gnorm, idij, prefac, q_i, q_j, qnn, qnuc_i, qnuc_j, &
+      rijsq, rootann, rootzee, rootzne, z_i, z_j, zee, zne
+    REAL(KIND=dp), DIMENSION(3)              :: ri, rij, rj
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: zeta, zetb
     REAL(KIND=dp), DIMENSION(:, :, :), &
       POINTER                                :: gcca, gccb
@@ -104,9 +99,9 @@ CONTAINS
       POINTER                                :: force
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
-    INTEGER, DIMENSION ( : ), POINTER        :: list
 
 !   ---------------------------------------------------------------------------
+
     CALL timeset("calculate_ebond_corr","I","",handle)
 
     group = globenv%group
@@ -190,7 +185,7 @@ CONTAINS
             enn = qnn * idij * erf (rootann*dij)
             e_bc = e_bc - enn*0.5_dp
 ! subtracting the force from the total force
-            fscalar = (enn - fnn*exp(-ann*rijsq))/rijsq
+            fscalar = (enn - fnn*EXP(-ann*rijsq))/rijsq
             IF (calculate_forces) THEN
               force(ikind)%f_bc(:,atom_a) = force(ikind)%f_bc(:,atom_a) - fscalar*rij(:)
             END IF
@@ -211,7 +206,7 @@ CONTAINS
                   ene = q_i * qnuc_j * idij * erf (rootzne * dij)
                   e_bc = e_bc - ene
 ! subtracting the force from the total force
-                  fscalar = (ene - fne*exp(-zne*rijsq))/rijsq
+                  fscalar = (ene - fne*EXP(-zne*rijsq))/rijsq
 
                   IF (calculate_forces) THEN
                     force(ikind)%f_bc(:,atom_a) = force(ikind)%f_bc(:,atom_a) - fscalar*rij(:)
@@ -232,7 +227,7 @@ CONTAINS
                         eee = q_i * q_j * idij * erf (rootzee*dij)
                         e_bc = e_bc - eee*0.5_dp
 ! subtracting the force from the total force
-                        fscalar = (eee - fee*exp(-zee*rijsq))/rijsq
+                        fscalar = (eee - fee*EXP(-zee*rijsq))/rijsq
                         IF (calculate_forces) THEN
                           force(ikind)%f_bc(:,atom_a) = force(ikind)%f_bc(:,atom_a) &
                                                         - fscalar*rij(:)

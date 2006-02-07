@@ -16,15 +16,14 @@ MODULE kg_energy_utils
   USE linear_systems,                  ONLY: solve_system
   USE message_passing,                 ONLY: mp_max
 !  USE scf_control_types, ONLY : scf_control
-#include "cp_common_uses.h"
-
   USE termination,                     ONLY: stop_memory
+#include "cp_common_uses.h"
 
   IMPLICIT NONE
 
   PRIVATE
 
-  CHARACTER(LEN=*), PRIVATE, PARAMETER :: moduleN='kg_energy_utils'
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'kg_energy_utils'
   TYPE diis_info_type                 
     INTEGER :: nhist, ihist 
     REAL (KIND=dp), DIMENSION(:,:), POINTER :: e_hist
@@ -46,11 +45,10 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'diis_info_create', &
       routineP = moduleN//':'//routineN
 
-    TYPE(cp_error_type)                      :: error
-    LOGICAL                                  :: failure, my_box_change
-
     INTEGER                                  :: ikind, ncoef, ncoef_of_kind, &
                                                 stat
+    LOGICAL                                  :: failure
+    TYPE(cp_error_type)                      :: error
     TYPE(dyn_coeff_type), POINTER            :: local_coeffs
 
     CPPrecondition(ASSOCIATED(dyn_coeff_set),cp_failure_level,routineP,error,failure)
@@ -121,7 +119,7 @@ CONTAINS
 
     TYPE(kg_environment_type), POINTER       :: kg_env
     TYPE(diis_info_type), POINTER            :: diis_info
-    REAL(KIND=dp), INTENT(INOUT)                 :: maxerr
+    REAL(KIND=dp), INTENT(INOUT)             :: maxerr
 
     CHARACTER(len=*), PARAMETER :: routineN = 'do_diis_step', &
       routineP = moduleN//':'//routineN
@@ -130,8 +128,8 @@ CONTAINS
                                                 j, n_els, ncoef, ncoef_atom, &
                                                 ncoef_of_kind, nhist, nkind, &
                                                 stat
-    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)     :: c_forces, cg, dcg, eg
-    REAL(KIND=dp), DIMENSION(:, :), POINTER      :: forces, pos
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: c_forces, cg, dcg, eg
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: forces, pos
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(distribution_1d_type), POINTER      :: local_particles
@@ -215,7 +213,7 @@ CONTAINS
         END IF
      ENDDO
   ENDDO
-  maxerr=MAXVAL(abs(eg))
+  maxerr=MAXVAL(ABS(eg))
  ELSE
   maxerr=0
  END IF
@@ -246,28 +244,29 @@ CONTAINS
   DEALLOCATE(dcg,STAT=stat)
   IF ( stat /= 0 )  CALL stop_memory (routineP, 'deall dcg' )
   END IF
-  return
+  RETURN
   END SUBROUTINE do_diis_step
 !------------------------------------------------------------------------------!
   SUBROUTINE STORE_HIST(c_forces,cg,e_hist,c_hist,hess,nhist,ihist)
 !------------------------------------------------------------------------------!
 
-    REAL(KIND=dp), DIMENSION(:), INTENT(INOUT)   :: c_forces
-    REAL(KIND=dp), DIMENSION(:), INTENT(IN)      :: cg
+    REAL(KIND=dp), DIMENSION(:), &
+      INTENT(INOUT)                          :: c_forces
+    REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: cg
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(INOUT)                          :: e_hist, c_hist
-    REAL(KIND=dp), DIMENSION(:), INTENT(IN)      :: hess
+    REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: hess
     INTEGER, INTENT(IN)                      :: nhist
     INTEGER, INTENT(INOUT)                   :: ihist
 
     INTEGER                                  :: icoef, j, ncoef
 
-  ncoef = size(c_forces)
+  ncoef = SIZE(c_forces)
 
 ! constructing the error vector and the coefficient vector over histories
   IF (nhist==1) THEN
     ihist=nhist
-    goto 2000
+    GOTO 2000
   ELSE
     IF (ihist>nhist) THEN
       ihist=nhist
@@ -279,31 +278,33 @@ CONTAINS
       ENDDO
     ENDIF
   ENDIF
-2000  continue
+2000  CONTINUE
   DO icoef = 1, ncoef
     c_hist (ihist,icoef) = cg (icoef)
     e_hist (ihist,icoef) =  c_forces (icoef) / hess(icoef)
   ENDDO
-  return
+  RETURN
   END SUBROUTINE store_hist
 !------------------------------------------------------------------------------!
   SUBROUTINE SOLVE(dcg,e_hist,ihist,ncoef)
 !------------------------------------------------------------------------------!
-    REAL(KIND=dp), INTENT(INOUT)                   :: dcg(:)
-    REAL(KIND=dp), DIMENSION(:, :), intent(IN)   :: e_hist
+    REAL(KIND=dp), INTENT(INOUT)             :: dcg(:)
+    REAL(KIND=dp), DIMENSION(:, :), &
+      INTENT(IN)                             :: e_hist
     INTEGER, INTENT(IN)                      :: IHIST, ncoef
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'solve', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'SOLVE', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: icoef, j, k, mysize, stat
-    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)  :: bcg, eigenvec
+    REAL(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:, :)                        :: bcg, eigenvec
 
 ! constructing the solution vector
 
-  do j=1, ihist
+  DO j=1, ihist
    dcg(j)=0.0_dp
-  enddo
+  ENDDO
   dcg(ihist+1)=-1.0_dp
 
 ! constructing the overlap matrix
@@ -313,31 +314,31 @@ CONTAINS
   IF ( stat /= 0 )  CALL stop_memory ( 'diis', 'eigenvec', ihist +1 )
 
   bcg=0.0_dp
-  do j=1,ihist
-    do k=1,ihist
-      do icoef = 1, ncoef
+  DO j=1,ihist
+    DO k=1,ihist
+      DO icoef = 1, ncoef
         bcg(j,k) = bcg(j,k) + e_hist(j,icoef) * e_hist(k,icoef)
-      enddo
-    enddo
-  enddo
-  do j=1, ihist
+      ENDDO
+    ENDDO
+  ENDDO
+  DO j=1, ihist
     bcg(ihist+1,j) = -1.0_dp
     bcg(j,ihist+1) = -1.0_dp
-  enddo
-  do j=1, ihist + 1
+  ENDDO
+  DO j=1, ihist + 1
     eigenvec(j,1) = dcg(j)
-  end do
+  END DO
 
   bcg (ihist+1,ihist+1) = 0.0_dp
   mysize = ihist + 1
 
 ! get the solution vector
 
-  call solve_system ( bcg, mysize, eigenvec)
+  CALL solve_system ( bcg, mysize, eigenvec)
  
-  do j=1, ihist
+  DO j=1, ihist
      dcg(j) =  eigenvec(j,1) 
-  end do
+  END DO
 
   DEALLOCATE(bcg,STAT=stat)
   IF ( stat /= 0 )  CALL stop_memory (routineP, 'deall bcg' )

@@ -24,116 +24,75 @@
 !!   SOURCE
 !****************************************************************************
 MODULE qmmm_init
-  USE header,                          ONLY: qmmm_header
-  USE atomic_kind_list_types,          ONLY: atomic_kind_list_create,&
-                                             atomic_kind_list_release,&
-                                             atomic_kind_list_type
+  USE atomic_kind_list_types,          ONLY: atomic_kind_list_type
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind,&
-                                             read_atomic_kind_set, &
                                              set_atomic_kind
-  USE cp_output_handling,              ONLY: cp_print_key_should_output,&
-                                             cp_p_file,&
-                                             cp_print_key_unit_nr,&
+  USE cell_types,                      ONLY: cell_clone,&
+                                             cell_release,&
+                                             cell_type,&
+                                             get_cell,&
+                                             init_qmmm_cell,&
+                                             write_cell
+  USE cp_output_handling,              ONLY: cp_p_file,&
                                              cp_print_key_finished_output,&
-                                             cp_iter_string,&
-                                             cp_iterate,&
-                                             cp_add_iter_level,&
-                                             cp_rm_iter_level
+                                             cp_print_key_should_output,&
+                                             cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
+  USE cp_subsystem_methods,            ONLY: create_small_subsystem
   USE cp_subsystem_types,              ONLY: cp_subsys_get,&
                                              cp_subsys_release,&
-                                             cp_subsys_set,&
                                              cp_subsystem_p_type,&
                                              cp_subsystem_type
+  USE external_potential_types,        ONLY: elp_potential_type,&
+                                             get_potential,&
+                                             set_potential
+  USE fist_main,                       ONLY: fist_create_force_env
   USE force_env_methods,               ONLY: force_env_create
   USE force_env_types,                 ONLY: force_env_get,&
                                              force_env_p_type,&
                                              force_env_type
-  USE force_fields,                    ONLY: force_field_control,&
+  USE force_field_types,               ONLY: input_info_type
+  USE force_fields,                    ONLY: read_gd_section,&
                                              read_lj_section,&
-                                             read_wl_section,&
-                                             read_gd_section
+                                             read_wl_section
   USE global_types,                    ONLY: global_environment_type
+  USE header,                          ONLY: qmmm_header
+  USE input_constants,                 ONLY: &
+       RADIUS_QMMM_DEFAULT, do_center_grid, do_center_none, do_fist, do_qmmm, &
+       do_qmmm_gauss, do_qmmm_link_gho, do_qmmm_link_imomm, &
+       do_qmmm_link_pseudo, do_qs
+  USE input_section_types,             ONLY: section_vals_get,&
+                                             section_vals_get_subs_vals,&
+                                             section_vals_type,&
+                                             section_vals_val_get
   USE kinds,                           ONLY: default_string_length,&
                                              dp
-  USE mol_kind_new_list_types,         ONLY: mol_kind_new_list_create,&
-                                             mol_kind_new_list_release,&
-                                             mol_kind_new_list_type
-  USE mol_new_list_types,              ONLY: mol_new_list_create,&
-                                             mol_new_list_release,&
-                                             mol_new_list_type
-  USE molecule_kind_types,             ONLY: molecule_kind_type
-  USE molecule_types_new,              ONLY: molecule_type
-  USE particle_list_types,             ONLY: particle_list_create,&
-                                             particle_list_release,&
-                                             particle_list_type
+  USE pair_potential_types,            ONLY: pair_potential_reallocate
+  USE particle_list_types,             ONLY: particle_list_type
   USE particle_types,                  ONLY: particle_type
-  USE qmmm_types,                      ONLY: qmmm_env_qm_create,&
-                                             qmmm_env_qm_release,&
-                                             qmmm_env_qm_type,&
-                                             qmmm_env_mm_type,&
-                                             qmmm_env_mm_create,&
-                                             qmmm_env_mm_release,&
-                                             qmmm_links_type,&
-                                             add_set_type,&
-                                             create_add_set_type,&
-                                             add_set_release
-  USE qmmm_ff_fist,                    ONLY: qmmm_ff_precond_only_qm
-  USE qmmm_gaussian_types,             ONLY: qmmm_gaussian_p_type
-  USE qmmm_gaussian_init,              ONLY: qmmm_gaussian_initialize
-  USE qmmm_pw_grid,                    ONLY: qmmm_pw_grid_init
   USE qmmm_elpot,                      ONLY: qmmm_potential_init
+  USE qmmm_ff_fist,                    ONLY: qmmm_ff_precond_only_qm
+  USE qmmm_gaussian_init,              ONLY: qmmm_gaussian_initialize
   USE qmmm_per_elpot,                  ONLY: qmmm_per_potential_init
-  USE qs_environment,                  ONLY: qs_init_subsys
-  USE qs_environment_types,            ONLY: qs_env_create,&
-                                             qs_env_release,&
-                                             qs_environment_type,&
+  USE qmmm_pw_grid,                    ONLY: qmmm_pw_grid_init
+  USE qmmm_types,                      ONLY: &
+       add_set_release, add_set_type, create_add_set_type, &
+       qmmm_env_mm_create, qmmm_env_mm_release, qmmm_env_mm_type, &
+       qmmm_env_qm_create, qmmm_env_qm_release, qmmm_env_qm_type, &
+       qmmm_links_type
+  USE qs_environment_types,            ONLY: qs_environment_type,&
                                              set_qs_env
-  USE cell_types,                 ONLY: cell_retain,&
-                                             cell_type,&
-                                             init_qmmm_cell,&
-                                             cell_clone,&
-                                             cell_release,&
-                                             write_cell,&
-                                             get_cell
+  USE qs_main,                         ONLY: quickstep_create_force_env
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE topology,                        ONLY: connectivity_control,&
-                                             coordinate_control
-  USE topology_pdb,                    ONLY: write_coordinate_pdb
-  USE topology_psf,                    ONLY: write_topology_psf
-  USE topology_types,                  ONLY: deallocate_topology,&
-                                             init_topology,&
-                                             topology_parameters_type
-  USE topology_util,                   ONLY: topology_connectivity_pack,&
-                                             topology_constraint_pack,&
-                                             topology_coordinate_pack
-  USE external_potential_types,        ONLY: elp_potential_type,&
-                                             allocate_potential,&
-                                             set_potential,&
-                                             get_potential
-  USE fist_main,                       ONLY: fist_create_force_env
-
-  USE input_section_types, ONLY: section_type, section_create, &
-       section_add_keyword, section_add_subsection, section_release,&
-       section_vals_type,&
-       section_vals_get_subs_vals, section_vals_get, section_vals_val_get
-  USE input_constants, ONLY: RADIUS_QMMM_DEFAULT, do_qmmm_link_imomm, do_qmmm_link_gho,&
-                        do_qmmm_link_pseudo,&
-                        do_qmmm_gauss, do_center_none, do_center_grid,&
-                        do_fist, do_qs, do_qmmm
-  USE fist_environment_types,  ONLY: set_fist_env
-  USE force_field_types,               ONLY: input_info_type
-  USE pair_potential_types,            ONLY: pair_potential_reallocate
-  USE cp_subsystem_methods,            ONLY: create_small_subsystem
-  USE qs_main,                         ONLY: quickstep_create_force_env
 #include "cp_common_uses.h"
+
   IMPLICIT NONE
   PRIVATE
 
   LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
-  CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='qmmm_init'
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qmmm_init'
 
   PUBLIC :: qmmm_create_force_env
 !***
@@ -173,34 +132,36 @@ CONTAINS
 
     CHARACTER(len=default_string_length), &
       DIMENSION(:), POINTER                  :: qm_atom_type
-    INTEGER                                  :: handle, isubf, stat
-    INTEGER                                  :: iw, iw2
-    INTEGER, DIMENSION(:), POINTER           :: qm_atom_index, mm_atom_index, qm_subsys_index
-    INTEGER, DIMENSION(:), POINTER           :: mm_link_atoms
-    LOGICAL                                  :: failure, qmmm_link
-    TYPE(cell_type), POINTER                 :: mm_cell, qm_cell_small, super_cell
+    INTEGER                                  :: handle, isubf, iw, iw2, &
+                                                qmmm_coupl_type, stat
+    INTEGER, DIMENSION(:), POINTER           :: mm_atom_index, mm_link_atoms, &
+                                                qm_atom_index, qm_subsys_index
+    LOGICAL :: add_mm_charges, explicit, failure, move_mm_charges, nocenter, &
+      nocompatibility, qmmm_link
+    REAL(dp), DIMENSION(:), POINTER          :: mm_atom_chrg, &
+                                                mm_el_pot_radius, &
+                                                mm_el_pot_radius_corr
+    REAL(KIND=dp)                            :: eps_mm_rspace
+    REAL(KIND=dp), DIMENSION(3)              :: abc
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: fist_scale_charge_link, &
+                                                mm_link_scale_factor
+    TYPE(add_set_type), POINTER              :: added_charges
+    TYPE(cell_type), POINTER                 :: mm_cell, qm_cell_small, &
+                                                super_cell
+    TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_subsystem_p_type), &
       DIMENSION(:), POINTER                  :: subsys_mm
     TYPE(cp_subsystem_type), POINTER         :: subsys_qm
     TYPE(force_env_p_type), DIMENSION(:), &
       POINTER                                :: sub_force_env
-    TYPE(qmmm_env_qm_type), POINTER          :: qmmm_env_qm
     TYPE(qmmm_env_mm_type), POINTER          :: qmmm_env_mm
+    TYPE(qmmm_env_qm_type), POINTER          :: qmmm_env_qm
+    TYPE(qmmm_links_type), POINTER           :: qmmm_links
     TYPE(qs_environment_type), POINTER       :: qs_env
-    REAL(dp), DIMENSION(:), POINTER          :: mm_atom_chrg, mm_el_pot_radius, mm_el_pot_radius_corr 
-    REAL(KIND=dp)                            :: eps_mm_rspace
-    INTEGER                                  :: qmmm_coupl_type
-    TYPE(section_vals_type), POINTER         :: force_env_section, qmmm_section, print_section,&
-                                                qmmm_periodic
-    TYPE(qmmm_links_type), pointer           :: qmmm_links
-    REAL(KIND=dp),  DIMENSION(:), POINTER    :: mm_link_scale_factor, fist_scale_charge_link
-    LOGICAL                                  :: move_mm_charges, add_mm_charges, nocenter
-    LOGICAL                                  :: nocompatibility, explicit
-    TYPE(add_set_type), POINTER              :: added_charges
-    REAL(KIND=dp), DIMENSION(3)              :: abc
-    TYPE(section_vals_type), POINTER :: print_gen
-    TYPE(cp_logger_type), POINTER :: logger
+    TYPE(section_vals_type), POINTER         :: force_env_section, print_gen, &
+                                                print_section, qmmm_periodic, &
+                                                qmmm_section
 
     CALL timeset(routineN,"I","",handle)
     failure=.FALSE.
@@ -297,8 +258,8 @@ CONTAINS
        qmmm_env_qm%eps_mm_rspace   = eps_mm_rspace
        qmmm_env_qm%qmmm_coupl_type = qmmm_coupl_type
        qmmm_env_qm%qmmm_link       = qmmm_link
-       qmmm_env_qm%num_qm_atoms = size(qm_atom_index)
-       qmmm_env_qm%num_mm_atoms = size(mm_atom_index)
+       qmmm_env_qm%num_qm_atoms = SIZE(qm_atom_index)
+       qmmm_env_qm%num_mm_atoms = SIZE(mm_atom_index)
        IF (BTEST(cp_print_key_should_output(logger%iter_info,print_gen,error=error),cp_p_file).AND.&
             logger%para_env%mepos==logger%para_env%source) THEN
           WRITE(iw,'(A,I6)')" Number of QM atoms: ",qmmm_env_qm%num_qm_atoms 
@@ -471,23 +432,23 @@ CONTAINS
  SUBROUTINE assign_mm_charges_and_radius(subsys, mm_atom_chrg,mm_el_pot_radius,mm_el_pot_radius_corr,&
                                          mm_atom_index, mm_link_atoms, mm_link_scale_factor,&
                                          error)
-   IMPLICIT NONE
-   ! Arguments
-   TYPE(cp_subsystem_p_type), &
-        DIMENSION(:), POINTER                  :: subsys
-   REAL(dp), DIMENSION(:), POINTER             :: mm_atom_chrg, mm_el_pot_radius,mm_link_scale_factor
-   REAL(dp), DIMENSION(:), POINTER             :: mm_el_pot_radius_corr
-   INTEGER, DIMENSION(:), POINTER              :: mm_atom_index, mm_link_atoms
-   TYPE(cp_error_type), INTENT(inout), &
-        OPTIONAL                               :: error
-   ! Local Variables
-   TYPE(atomic_kind_type), POINTER             :: my_kind
-   TYPE(elp_potential_type), POINTER           :: my_potential
-   TYPE(particle_list_type), POINTER           :: particles
-   TYPE(particle_type), DIMENSION(:), &
-        POINTER                                :: particle_set
-   INTEGER  :: I, IndMM, ilink, iw
-   REAL(dp) :: qi, ri, rc
+    TYPE(cp_subsystem_p_type), &
+      DIMENSION(:), POINTER                  :: subsys
+    REAL(dp), DIMENSION(:), POINTER          :: mm_atom_chrg, &
+                                                mm_el_pot_radius, &
+                                                mm_el_pot_radius_corr
+    INTEGER, DIMENSION(:), POINTER           :: mm_atom_index, mm_link_atoms
+    REAL(dp), DIMENSION(:), POINTER          :: mm_link_scale_factor
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    INTEGER                                  :: I, ilink, IndMM
+    REAL(dp)                                 :: qi, rc, ri
+    TYPE(atomic_kind_type), POINTER          :: my_kind
+    TYPE(elp_potential_type), POINTER        :: my_potential
+    TYPE(particle_list_type), POINTER        :: particles
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particle_set
 
    NULLIFY(particle_set, my_kind)
    CALL cp_subsys_get(subsys=subsys(1)%subsys,&
@@ -544,22 +505,21 @@ CONTAINS
 !!*** **********************************************************************
  SUBROUTINE print_qmmm_charges(mm_atom_index, mm_atom_chrg, mm_el_pot_radius, mm_el_pot_radius_corr,&
                                added_charges, globenv, qmmm_section, nocompatibility, error)
-   IMPLICIT NONE
-   ! Arguments
-   REAL(dp), DIMENSION(:), POINTER             :: mm_atom_chrg, mm_el_pot_radius
-   REAL(dp), DIMENSION(:), POINTER             :: mm_el_pot_radius_corr
-   INTEGER, DIMENSION(:), POINTER              :: mm_atom_index
-   TYPE(section_vals_type), POINTER            :: qmmm_section
-   TYPE(cp_error_type), INTENT(inout), &
-        OPTIONAL                               :: error
-    TYPE(global_environment_type), POINTER     :: globenv
-    TYPE(add_set_type), POINTER                :: added_charges
-    LOGICAL, INTENT(IN)                        :: nocompatibility
-    ! Local Variables
-    INTEGER                                    :: IndMM, I, iw, ind1, ind2
-    REAL(KIND=dp)                              :: qi, ri, qtot, rc
-    TYPE(cp_logger_type), POINTER :: logger
-    TYPE(section_vals_type), POINTER :: print_key
+    INTEGER, DIMENSION(:), POINTER           :: mm_atom_index
+    REAL(dp), DIMENSION(:), POINTER          :: mm_atom_chrg, &
+                                                mm_el_pot_radius, &
+                                                mm_el_pot_radius_corr
+    TYPE(add_set_type), POINTER              :: added_charges
+    TYPE(global_environment_type), POINTER   :: globenv
+    TYPE(section_vals_type), POINTER         :: qmmm_section
+    LOGICAL, INTENT(IN)                      :: nocompatibility
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    INTEGER                                  :: I, ind1, ind2, IndMM, iw
+    REAL(KIND=dp)                            :: qi, qtot, rc, ri
+    TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(section_vals_type), POINTER         :: print_key
 
     qtot = 0.0_dp
     iw = globenv%scr
@@ -635,18 +595,16 @@ CONTAINS
 !!
 !!*** **********************************************************************
  SUBROUTINE print_qmmm_links(globenv, qmmm_section, qmmm_links, error)
-   IMPLICIT NONE
-   ! Arguments
-   TYPE(section_vals_type), POINTER            :: qmmm_section
-   TYPE(cp_error_type), INTENT(inout), &
-        OPTIONAL                               :: error
-    TYPE(global_environment_type), POINTER     :: globenv
-    TYPE(qmmm_links_type), POINTER             :: qmmm_links
-    ! Local Variables
-    INTEGER                                    :: mm_index, qm_index, iw, i
-    REAL(KIND=dp)                              :: alpha
-    TYPE(cp_logger_type), POINTER :: logger
-    TYPE(section_vals_type), POINTER :: print_key
+    TYPE(global_environment_type), POINTER   :: globenv
+    TYPE(section_vals_type), POINTER         :: qmmm_section
+    TYPE(qmmm_links_type), POINTER           :: qmmm_links
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    INTEGER                                  :: i, iw, mm_index, qm_index
+    REAL(KIND=dp)                            :: alpha
+    TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(section_vals_type), POINTER         :: print_key
 
     iw = globenv%scr
     logger => cp_error_get_logger(error)
@@ -710,24 +668,23 @@ CONTAINS
  SUBROUTINE qmmm_init_gaussian_type(qmmm_env_qm, qm_cell_small, mm_cell, globenv,&
                                     mm_atom_chrg, qs_env, added_charges, print_section, &
                                     qmmm_section, error )
-   IMPLICIT NONE
-   ! Arguments
-    TYPE(cell_type), POINTER                 :: mm_cell, qm_cell_small
     TYPE(qmmm_env_qm_type), POINTER          :: qmmm_env_qm
+    TYPE(cell_type), POINTER                 :: qm_cell_small, mm_cell
     TYPE(global_environment_type), POINTER   :: globenv
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: mm_atom_chrg
     TYPE(qs_environment_type), POINTER       :: qs_env
-    REAL(KIND=dp), POINTER, DIMENSION(:)     :: mm_atom_chrg
     TYPE(add_set_type), POINTER              :: added_charges
     TYPE(section_vals_type), POINTER         :: print_section, qmmm_section
     TYPE(cp_error_type), INTENT(inout), &
-         OPTIONAL                               :: error
-   ! Local Variables
-    CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_init_gaussian_type',&
-         routineP = moduleN//':'//routineN
-    REAL(KIND=dp), DIMENSION(:), POINTER :: maxradius, maxradius2
-    REAL(KIND=dp) :: maxchrg
-    INTEGER :: i, stat
-    LOGICAL :: failure
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_init_gaussian_type', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i, stat
+    LOGICAL                                  :: failure
+    REAL(KIND=dp)                            :: maxchrg
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: maxradius, maxradius2
 
     failure=.FALSE.
     stat=0
@@ -805,18 +762,15 @@ CONTAINS
   !!*************************************************************************
  SUBROUTINE qmmm_init_potential(qmmm_env_qm, qm_cell_small, mm_cell, globenv, qs_env,&
                                 added_charges, print_section, error)
-   IMPLICIT NONE
-   ! Arguments
-   TYPE(cell_type), POINTER                 :: mm_cell, qm_cell_small
-   TYPE(qmmm_env_qm_type), POINTER          :: qmmm_env_qm
-   TYPE(global_environment_type), POINTER   :: globenv
-   TYPE(qs_environment_type), POINTER       :: qs_env
-   TYPE(add_set_type), POINTER              :: added_charges
-   TYPE(section_vals_type), POINTER         :: print_section
-   TYPE(cp_error_type), INTENT(inout), &
-        OPTIONAL                               :: error   
-   ! Local Variables
-   
+    TYPE(qmmm_env_qm_type), POINTER          :: qmmm_env_qm
+    TYPE(cell_type), POINTER                 :: qm_cell_small, mm_cell
+    TYPE(global_environment_type), POINTER   :: globenv
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(add_set_type), POINTER              :: added_charges
+    TYPE(section_vals_type), POINTER         :: print_section
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
    CALL qmmm_potential_init(qmmm_coupl_type=qmmm_env_qm%qmmm_coupl_type,&
                             mm_el_pot_radius=qmmm_env_qm%mm_el_pot_radius,&
                             potentials=qmmm_env_qm%potentials,&
@@ -870,19 +824,17 @@ CONTAINS
   !!*************************************************************************
  SUBROUTINE qmmm_init_periodic_potential(qmmm_env_qm, qm_cell_small, mm_cell, globenv, qs_env,&
                                          added_charges, qmmm_periodic, print_section, mm_atom_chrg, error)
-   IMPLICIT NONE
-   ! Arguments
-   TYPE(cell_type), POINTER                 :: mm_cell, qm_cell_small
-   TYPE(qmmm_env_qm_type), POINTER          :: qmmm_env_qm
-   TYPE(global_environment_type), POINTER   :: globenv
-   TYPE(qs_environment_type), POINTER       :: qs_env
-   TYPE(add_set_type), POINTER              :: added_charges
-   REAL(KIND=dp), POINTER, DIMENSION(:)     :: mm_atom_chrg
-   TYPE(section_vals_type), POINTER         :: print_section, qmmm_periodic
-   TYPE(cp_error_type), INTENT(inout), &
-        OPTIONAL                               :: error   
-   ! Local Variables
-   REAL(KIND=dp) :: maxchrg
+    TYPE(qmmm_env_qm_type), POINTER          :: qmmm_env_qm
+    TYPE(cell_type), POINTER                 :: qm_cell_small, mm_cell
+    TYPE(global_environment_type), POINTER   :: globenv
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(add_set_type), POINTER              :: added_charges
+    TYPE(section_vals_type), POINTER         :: qmmm_periodic, print_section
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: mm_atom_chrg
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    REAL(KIND=dp)                            :: maxchrg
 
    IF (.NOT.qmmm_env_qm%periodic) RETURN
 
@@ -952,38 +904,37 @@ CONTAINS
                               qm_atom_index, mm_atom_index, qm_subsys_index,&
                               qm_cell_small, qmmm_coupl_type, eps_mm_rspace, qmmm_link,&
                               error)
-    IMPLICIT NONE
-    ! Arguments
     TYPE(section_vals_type), POINTER         :: qmmm_section
-    TYPE(qmmm_env_qm_type), POINTER             :: qmmm_env
+    TYPE(qmmm_env_qm_type), POINTER          :: qmmm_env
     TYPE(cp_subsystem_p_type), &
       DIMENSION(:), POINTER                  :: subsys_mm
     CHARACTER(len=default_string_length), &
       DIMENSION(:), POINTER                  :: qm_atom_type
-    INTEGER, DIMENSION(:), POINTER           :: qm_atom_index, mm_atom_index, qm_subsys_index
+    INTEGER, DIMENSION(:), POINTER           :: qm_atom_index, mm_atom_index, &
+                                                qm_subsys_index
     TYPE(cell_type), POINTER                 :: qm_cell_small
     INTEGER, INTENT(OUT)                     :: qmmm_coupl_type
     REAL(KIND=dp), INTENT(OUT)               :: eps_mm_rspace
+    LOGICAL, INTENT(OUT)                     :: qmmm_link
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
-    LOGICAL, INTENT(OUT)                     :: qmmm_link
-    ! Local Variables
-    CHARACTER(len=*), PARAMETER :: routineN = 'setup_qmmm_vars_qm',&
-         routineP = moduleN//':'//routineN
-    INTEGER :: i, j, icount, size_mm_system, stat, ikind, ikindr, nkind, n_rep, iatm
-    LOGICAL :: is_mm
-    INTEGER                                  :: qm_subsys_type, n_rep_val
-    LOGICAL                                  :: failure
-    CHARACTER(len=default_string_length)     :: qm_atom_kind, mm_atom_kind
-    TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
-    TYPE(atomic_kind_type),POINTER           :: atomic_kind
-    CHARACTER(LEN=default_string_length)     :: atmname
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'setup_qmmm_vars_qm', &
+      routineP = moduleN//':'//routineN
+
+    CHARACTER(len=default_string_length)     :: atmname, mm_atom_kind
+    INTEGER                                  :: i, icount, ikind, ikindr, &
+                                                n_rep, n_rep_val, nkind, &
+                                                size_mm_system, stat
+    INTEGER, DIMENSION(:), POINTER           :: mm_link_atoms
+    LOGICAL                                  :: explicit, failure, is_mm, &
+                                                is_qm
     REAL(KIND=dp)                            :: tmp_radius, tmp_radius_c
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: cell_par
+    TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
+    TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(elp_potential_type), POINTER        :: elp_potential
     TYPE(section_vals_type), POINTER         :: mm_kinds
-    LOGICAL :: explicit, is_qm
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: cell_par
-    INTEGER, DIMENSION(:), POINTER           :: mm_link_atoms
 
     NULLIFY(mm_link_atoms)
     qmmm_link = .FALSE.
@@ -1046,7 +997,7 @@ CONTAINS
              CALL section_vals_val_get(mm_kinds,"RADIUS",i_rep_section=ikind,r_val=tmp_radius,error=error)
              tmp_radius_c = tmp_radius
              CALL section_vals_val_get(mm_kinds,"CORR_RADIUS",i_rep_section=ikind,n_rep_val=n_rep_val,error=error)
-             if (n_rep_val == 1) &
+             IF (n_rep_val == 1) &
                   CALL section_vals_val_get(mm_kinds,"CORR_RADIUS",i_rep_section=ikind,r_val=tmp_radius_c,error=error)
              tmp_radius   = tmp_radius * qm_cell_small%unit_of_length
              tmp_radius_c = tmp_radius_c * qm_cell_small%unit_of_length
@@ -1154,23 +1105,22 @@ CONTAINS
                                  mm_link_atoms, mm_link_scale_factor, &
                                  fist_scale_charge_link, qmmm_coupl_type,&
                                  qmmm_link, error)
-    IMPLICIT NONE
-    ! Arguments
     TYPE(section_vals_type), POINTER         :: qmmm_section
     TYPE(qmmm_env_mm_type), POINTER          :: qmmm_env
     INTEGER, DIMENSION(:), POINTER           :: qm_atom_index, mm_link_atoms
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: mm_link_scale_factor, &
+                                                fist_scale_charge_link
     INTEGER, INTENT(OUT)                     :: qmmm_coupl_type
     LOGICAL, INTENT(OUT)                     :: qmmm_link
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: mm_link_scale_factor,fist_scale_charge_link
     TYPE(cp_error_type), INTENT(inout), &
-         OPTIONAL                               :: error
-    ! Local Variables
-    CHARACTER(len=*), PARAMETER :: routineN = 'setup_qmmm_vars_mm',&
-         routineP = moduleN//':'//routineN
-    LOGICAL                                  :: failure
-    LOGICAL :: explicit
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'setup_qmmm_vars_mm', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: explicit
     TYPE(section_vals_type), POINTER         :: qmmm_ff_section
-    
+
     NULLIFY(qmmm_ff_section)
     qmmm_link = .FALSE.
     CALL section_vals_get(qmmm_section,explicit=explicit,error=error)
@@ -1215,20 +1165,19 @@ CONTAINS
   !!
   !!*************************************************************************
   SUBROUTINE read_qmmm_ff_section(qmmm_ff_section, inp_info, error)
-    IMPLICIT NONE
-    ! Arguments
-    TYPE(section_vals_type), POINTER                        :: qmmm_ff_section
-    TYPE(input_info_type),POINTER                           :: inp_info
+    TYPE(section_vals_type), POINTER         :: qmmm_ff_section
+    TYPE(input_info_type), POINTER           :: inp_info
     TYPE(cp_error_type), INTENT(inout), &
-         OPTIONAL                               :: error    
-    ! Local Variables
-    INTEGER :: n_lj, n_wl, n_gd, np
-    TYPE(section_vals_type), POINTER                        :: lj_section,&
-                                                               wl_section,&
-                                                               gd_section
-    !
-    ! NONBONDED
-    !
+      OPTIONAL                               :: error
+
+    INTEGER                                  :: n_gd, n_lj, n_wl, np
+    TYPE(section_vals_type), POINTER         :: gd_section, lj_section, &
+                                                wl_section
+
+!
+! NONBONDED
+!
+
     lj_section => section_vals_get_subs_vals(qmmm_ff_section,"NONBONDED%LENNARD-JONES",error=error)
     wl_section => section_vals_get_subs_vals(qmmm_ff_section,"NONBONDED%WILLIAMS",error=error)
     gd_section => section_vals_get_subs_vals(qmmm_ff_section,"NONBONDED%GOODWIN",error=error)
@@ -1301,28 +1250,29 @@ CONTAINS
   SUBROUTINE setup_qm_atom_list(qmmm_section,qm_atom_index,qm_atom_type,&
        qm_subsys_index, mm_link_atoms, mm_link_scale_factor, qmmm_link, &
        fist_scale_charge_link, error)
-    IMPLICIT NONE
-    ! Arguments
     TYPE(section_vals_type), POINTER         :: qmmm_section
+    INTEGER, DIMENSION(:), OPTIONAL, POINTER :: qm_atom_index
     CHARACTER(len=default_string_length), &
-      DIMENSION(:), POINTER, OPTIONAL        :: qm_atom_type
-    INTEGER, DIMENSION(:), POINTER, OPTIONAL :: qm_atom_index, qm_subsys_index
-    INTEGER, DIMENSION(:), POINTER, OPTIONAL :: mm_link_atoms
-    REAL(KIND=dp), DIMENSION(:), POINTER, OPTIONAL     :: mm_link_scale_factor
-    REAL(KIND=dp), DIMENSION(:), POINTER, OPTIONAL     :: fist_scale_charge_link
-    LOGICAL, OPTIONAL, INTENT(OUT) :: qmmm_link
+      DIMENSION(:), OPTIONAL, POINTER        :: qm_atom_type
+    INTEGER, DIMENSION(:), OPTIONAL, POINTER :: qm_subsys_index, mm_link_atoms
+    REAL(KIND=dp), DIMENSION(:), OPTIONAL, &
+      POINTER                                :: mm_link_scale_factor
+    LOGICAL, INTENT(OUT), OPTIONAL           :: qmmm_link
+    REAL(KIND=dp), DIMENSION(:), OPTIONAL, &
+      POINTER                                :: fist_scale_charge_link
     TYPE(cp_error_type), INTENT(inout), &
-         OPTIONAL                               :: error
-    ! Local Variables
-    CHARACTER(len=*), PARAMETER :: routineN = 'setup_qm_atom_list',&
-         routineP = moduleN//':'//routineN
-    LOGICAL :: explicit, failure
-    INTEGER :: num_qm_atom_tot, nkind, ikind, nlinks, stat, mm_index, n_var, k
-    INTEGER :: qm_subsys_type, link_type, link_involv_mm
-    INTEGER, DIMENSION(:), POINTER           :: mm_indexes
-    TYPE(section_vals_type), POINTER         :: qm_kinds, qmmm_links
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'setup_qm_atom_list', &
+      routineP = moduleN//':'//routineN
+
     CHARACTER(len=default_string_length)     :: qm_atom_kind, qm_link_element
-    REAL(KIND=dp) :: scale_f
+    INTEGER :: ikind, k, link_involv_mm, link_type, mm_index, n_var, nkind, &
+      nlinks, num_qm_atom_tot, qm_subsys_type, stat
+    INTEGER, DIMENSION(:), POINTER           :: mm_indexes
+    LOGICAL                                  :: explicit, failure
+    REAL(KIND=dp)                            :: scale_f
+    TYPE(section_vals_type), POINTER         :: qm_kinds, qmmm_links
 
     failure         = .FALSE.
     num_qm_atom_tot = 0
@@ -1476,24 +1426,27 @@ CONTAINS
   !!*************************************************************************
   SUBROUTINE  setup_qmmm_links(qmmm_section, qmmm_links, mm_el_pot_radius, mm_el_pot_radius_corr,&
        mm_atom_index, qm_cell_small, iw, error)
-    IMPLICIT NONE
-    ! Arguments
-    TYPE(section_vals_type), POINTER         :: qmmm_section, qmmm_link_section
+    TYPE(section_vals_type), POINTER         :: qmmm_section
     TYPE(qmmm_links_type), POINTER           :: qmmm_links
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: mm_el_pot_radius, mm_el_pot_radius_corr
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: mm_el_pot_radius, &
+                                                mm_el_pot_radius_corr
     INTEGER, DIMENSION(:), POINTER           :: mm_atom_index
     TYPE(cell_type), POINTER                 :: qm_cell_small
-    INTEGER, INTENT(IN) :: iw
+    INTEGER, INTENT(IN)                      :: iw
     TYPE(cp_error_type), INTENT(inout), &
-         OPTIONAL                               :: error
-    ! Local variables
-    CHARACTER(len=*), PARAMETER :: routineN = 'setup_qmmm_links',&
-         routineP = moduleN//':'//routineN
-    INTEGER  :: ikind, nlinks, n_imomm, n_gho, link_type, qm_index, mm_index, stat
-    INTEGER  :: n_rep_val, n_pseudo, n_tot
-    LOGICAL  :: failure, charge_scale, explicit
-    REAL(KIND=dp) :: alpha, scale_factor, my_radius
-    INTEGER, POINTER, DIMENSION(:) :: wrk_tmp
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'setup_qmmm_links', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: ikind, link_type, mm_index, &
+                                                n_gho, n_imomm, n_pseudo, &
+                                                n_rep_val, n_tot, nlinks, &
+                                                qm_index, stat
+    INTEGER, DIMENSION(:), POINTER           :: wrk_tmp
+    LOGICAL                                  :: failure
+    REAL(KIND=dp)                            :: alpha, my_radius
+    TYPE(section_vals_type), POINTER         :: qmmm_link_section
 
     NULLIFY(wrk_tmp)
     failure = .FALSE.
@@ -1554,11 +1507,11 @@ CONTAINS
        !
        ! Checking the link structure
        !
-       DO ikind = 1, size(wrk_tmp)
+       DO ikind = 1, SIZE(wrk_tmp)
           IF (COUNT(wrk_tmp == wrk_tmp(ikind)) > 1) THEN
              WRITE(iw,'(/A)')"In the IMOMM scheme no more than one QM atom can be bounded to the same MM atom."
              WRITE(iw, '(A)')"Multiple link MM atom not allowed. Check your link sections."
-             CPPostcondition(.false.,cp_failure_level,routineP,error,failure)
+             CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
           END IF
        END DO
        DEALLOCATE(wrk_tmp, stat=stat)
@@ -1619,26 +1572,28 @@ CONTAINS
   SUBROUTINE move_or_add_atoms(qmmm_section, move_mm_charges, add_mm_charges, &
                                mm_atom_chrg, mm_el_pot_radius, mm_el_pot_radius_corr,&
                                added_charges, mm_atom_index, qm_cell_small, error)
-    IMPLICIT NONE
-    ! Arguments
     TYPE(section_vals_type), POINTER         :: qmmm_section
-    LOGICAL, INTENT(OUT)                     :: move_mm_charges, add_mm_charges
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: mm_atom_chrg, mm_el_pot_radius
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: mm_el_pot_radius_corr
+    LOGICAL, INTENT(OUT)                     :: move_mm_charges, &
+                                                add_mm_charges
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: mm_atom_chrg, &
+                                                mm_el_pot_radius, &
+                                                mm_el_pot_radius_corr
     TYPE(add_set_type), POINTER              :: added_charges
-    INTEGER, POINTER, DIMENSION(:)           :: mm_atom_index
+    INTEGER, DIMENSION(:), POINTER           :: mm_atom_index
     TYPE(cell_type), POINTER                 :: qm_cell_small
     TYPE(cp_error_type), INTENT(inout), &
-         OPTIONAL                            :: error
-    ! Local variables
-    CHARACTER(len=*), PARAMETER :: routineN = 'move_or_add_atoms',&
-         routineP = moduleN//':'//routineN
-    LOGICAL :: failure, explicit
-    INTEGER :: nlinks, n_moves, n_adds, icount, ikind, n_move_tot, n_add_tot
-    INTEGER :: Index1, Index2, i_add, ind1, n_rep_val
-    TYPE(section_vals_type), POINTER         :: qmmm_link_section, move_section,&
-                                                add_section
-    REAL(KIND=dp) :: radius, alpha, charge, c_radius
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'move_or_add_atoms', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER :: i_add, icount, ikind, ind1, Index1, Index2, n_add_tot, n_adds, &
+      n_move_tot, n_moves, n_rep_val, nlinks
+    LOGICAL                                  :: explicit, failure
+    REAL(KIND=dp)                            :: alpha, c_radius, charge, &
+                                                radius
+    TYPE(section_vals_type), POINTER         :: add_section, move_section, &
+                                                qmmm_link_section
 
     failure = .FALSE.
     explicit = .FALSE.
@@ -1759,26 +1714,27 @@ CONTAINS
   !!*************************************************************************
    SUBROUTINE set_add_set_type(added_charges, icount, Index1, Index2, alpha, radius, c_radius, charge,&
         mm_atom_chrg, mm_el_pot_radius, mm_el_pot_radius_corr, mm_atom_index, move, ind1, error)
-     IMPLICIT NONE
-     ! Arguments
-     REAL(KIND=dp), DIMENSION(:), POINTER     :: mm_atom_chrg, mm_el_pot_radius
-     REAL(KIND=dp), DIMENSION(:), POINTER     :: mm_el_pot_radius_corr
-     TYPE(add_set_type), POINTER              :: added_charges
-     INTEGER, POINTER, DIMENSION(:)           :: mm_atom_index
-     INTEGER, INTENT(IN)  :: Index1, Index2, icount
-     INTEGER, INTENT(OUT),OPTIONAL  :: ind1
-     REAL(KIND=dp), INTENT(IN) :: alpha, radius, c_radius
-     REAL(KIND=dp), INTENT(IN), OPTIONAL :: charge
-     INTEGER, OPTIONAL, INTENT(in) :: move
-     TYPE(cp_error_type), INTENT(inout), &
-          OPTIONAL                            :: error
-     ! Local Variables
-     CHARACTER(len=*), PARAMETER :: routineN = 'set_add_set_type',&
-          routineP = moduleN//':'//routineN
-     LOGICAL :: failure
-     INTEGER :: i, my_move
-     REAL(KIND=dp) :: my_charge, my_radius, my_c_radius
-     
+    TYPE(add_set_type), POINTER              :: added_charges
+    INTEGER, INTENT(IN)                      :: icount, Index1, Index2
+    REAL(KIND=dp), INTENT(IN)                :: alpha, radius, c_radius
+    REAL(KIND=dp), INTENT(IN), OPTIONAL      :: charge
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: mm_atom_chrg, &
+                                                mm_el_pot_radius, &
+                                                mm_el_pot_radius_corr
+    INTEGER, DIMENSION(:), POINTER           :: mm_atom_index
+    INTEGER, INTENT(in), OPTIONAL            :: move
+    INTEGER, INTENT(OUT), OPTIONAL           :: ind1
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'set_add_set_type', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i, my_move
+    LOGICAL                                  :: failure
+    REAL(KIND=dp)                            :: my_c_radius, my_charge, &
+                                                my_radius
+
      failure = .FALSE.
      my_move = 0
      my_radius   = radius
@@ -1833,21 +1789,22 @@ CONTAINS
    !!*************************************************************************
    SUBROUTINE setup_origin_mm_cell(qmmm_section, qmmm_env, mm_cell, qm_cell_small, &
         dr, error)
-     IMPLICIT NONE
-     ! Arguments
-     TYPE(section_vals_type), POINTER            :: qmmm_section
-     TYPE(cell_type), POINTER :: mm_cell, qm_cell_small
-     TYPE(qmmm_env_qm_type), POINTER             :: qmmm_env
-     REAL(KIND=dp), DIMENSION(3), INTENT(in) :: dr
-     TYPE(cp_error_type), INTENT(inout), &
-          OPTIONAL                               :: error     
-     ! Local Variabels
-     CHARACTER(len=*), PARAMETER :: routineN = 'setup_origin_mm_cell',&
-          routineP = moduleN//':'//routineN
-     LOGICAL :: failure
-     REAL(KIND=dp), DIMENSION(3) :: tmp
-     INTEGER :: my_type
-     
+    TYPE(section_vals_type), POINTER         :: qmmm_section
+    TYPE(qmmm_env_qm_type), POINTER          :: qmmm_env
+    TYPE(cell_type), POINTER                 :: mm_cell, qm_cell_small
+    REAL(KIND=dp), DIMENSION(3), INTENT(in)  :: dr
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'setup_origin_mm_cell', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: my_type
+    LOGICAL                                  :: failure
+    REAL(KIND=dp), DIMENSION(3)              :: tmp
+
+! Local Variabels
+
      failure = .FALSE.
      IF (.NOT.failure) THEN
         ! This is the vector that corrects position to apply properly the PBC

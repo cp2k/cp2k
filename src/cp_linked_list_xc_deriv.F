@@ -63,7 +63,7 @@ MODULE cp_linked_list_xc_deriv
   PRIVATE
 
   LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
-  CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='cp_linked_list_xc_deriv'
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_linked_list_xc_deriv'
 
 ! type
   PUBLIC :: cp_sll_xc_deriv_type, cp_sll_xc_deriv_p_type
@@ -298,8 +298,8 @@ END FUNCTION
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-    CHARACTER(len=*), PARAMETER :: &
-      routineP = 'cp_linked_list_xc_deriv:cp_sll_xc_deriv_create'
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_sll_xc_deriv_create', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: stat
     LOGICAL                                  :: failure
@@ -352,8 +352,8 @@ END FUNCTION
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-    CHARACTER(len=*), PARAMETER :: &
-      routineP = 'cp_linked_list_xc_deriv/cp_sll_xc_deriv_dealloc'
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_sll_xc_deriv_dealloc', &
+      routineP = moduleN//':'//routineN
 
     CALL cp_sll_xc_deriv_rm_all_el(sll,error)
   END SUBROUTINE cp_sll_xc_deriv_dealloc
@@ -389,8 +389,8 @@ END FUNCTION
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-    CHARACTER(len=*), PARAMETER :: &
-      routineP = 'cp_linked_list_xc_deriv/cp_sll_xc_deriv_dealloc_node'
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_sll_xc_deriv_dealloc_node', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: stat
     LOGICAL                                  :: failure
@@ -440,8 +440,8 @@ END FUNCTION
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-    CHARACTER(len=*), PARAMETER :: &
-      routineP = 'cp_linked_list_xc_deriv:cp_set_sll_xc_deriv'
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_sll_xc_deriv_set', &
+      routineP = moduleN//':'//routineN
 
     LOGICAL                                  :: failure
 
@@ -497,8 +497,8 @@ END FUNCTION
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-    CHARACTER(len=*), PARAMETER :: &
-      routineP = 'cp_linked_list_xc_deriv:cp_sll_xc_deriv_get'
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_sll_xc_deriv_get', &
+      routineP = moduleN//':'//routineN
 
     LOGICAL                                  :: failure
 
@@ -548,8 +548,8 @@ END FUNCTION
       OPTIONAL                               :: error
     TYPE(xc_derivative_type), POINTER        :: res
 
-    CHARACTER(len=*), PARAMETER :: &
-      routineP = 'cp_linked_list_xc_deriv:cp_sll_xc_deriv_get_first'
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_sll_xc_deriv_get_first_el', &
+      routineP = moduleN//':'//routineN
 
     LOGICAL                                  :: failure
 
@@ -596,8 +596,8 @@ END FUNCTION
       OPTIONAL                               :: error
     TYPE(cp_sll_xc_deriv_type), POINTER      :: res
 
-    CHARACTER(len=*), PARAMETER :: &
-      routineP = 'cp_linked_list_xc_deriv:cp_sll_xc_deriv_get_first'
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_sll_xc_deriv_get_rest', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i
     LOGICAL                                  :: failure
@@ -672,8 +672,8 @@ CPSourceFileRef,&
       OPTIONAL                               :: error
     LOGICAL                                  :: res
 
-    CHARACTER(len=*), PARAMETER :: &
-      routineP = 'cp_linked_list_xc_deriv:cp_sll_xc_deriv_get_empty'
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_sll_xc_deriv_get_empty', &
+      routineP = moduleN//':'//routineN
 
     LOGICAL                                  :: failure
 
@@ -712,8 +712,8 @@ CPSourceFileRef,&
       OPTIONAL                               :: error
     INTEGER                                  :: res
 
-    CHARACTER(len=*), PARAMETER :: &
-      routineP = 'cp_linked_list_xc_deriv/cp_sll_xc_deriv_get_length'
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_sll_xc_deriv_get_length', &
+      routineP = moduleN//':'//routineN
 
     LOGICAL                                  :: failure
     TYPE(cp_sll_xc_deriv_type), POINTER      :: iterator
@@ -764,8 +764,8 @@ CPSourceFileRef,&
       OPTIONAL                               :: error
     TYPE(xc_derivative_type), POINTER        :: res
 
-    CHARACTER(len=*), PARAMETER :: &
-      routineP = 'cp_linked_list_xc_deriv/cp_sll_xc_deriv_get_el_at'
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_sll_xc_deriv_get_el_at', &
+      routineP = moduleN//':'//routineN
 
     LOGICAL                                  :: failure
     TYPE(cp_sll_xc_deriv_type), POINTER      :: pos
@@ -820,8 +820,8 @@ CPSourceFileRef,&
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-    CHARACTER(len=*), PARAMETER :: &
-      routineP = 'cp_linked_list_xc_deriv/cp_sll_xc_deriv_set_el_at'
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_sll_xc_deriv_set_el_at', &
+      routineP = moduleN//':'//routineN
 
     LOGICAL                                  :: failure
     TYPE(cp_sll_xc_deriv_type), POINTER      :: pos
@@ -875,8 +875,8 @@ CPSourceFileRef,&
       OPTIONAL                               :: error
     LOGICAL                                  :: res
 
-    CHARACTER(len=*), PARAMETER :: &
-      routineP = 'cp_linked_list_xc_deriv:cp_sll_xc_deriv_next'
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_sll_xc_deriv_next', &
+      routineP = moduleN//':'//routineN
 
     LOGICAL                                  :: failure
 
@@ -925,8 +925,8 @@ CPSourceFileRef,&
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-    CHARACTER(len=*), PARAMETER :: &
-      routineP = 'cp_linked_list_xc_deriv:cp_sll_xc_deriv_add_el'
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_sll_xc_deriv_insert_el', &
+      routineP = moduleN//':'//routineN
 
     LOGICAL                                  :: failure
     TYPE(cp_sll_xc_deriv_type), POINTER      :: newSlot
@@ -968,8 +968,8 @@ CPSourceFileRef,&
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-    CHARACTER(len=*), PARAMETER :: &
-      routineP = 'cp_linked_list_xc_deriv/cp_sll_xc_deriv_rm_first_el'
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_sll_xc_deriv_rm_first_el', &
+      routineP = moduleN//':'//routineN
 
     LOGICAL                                  :: failure
     TYPE(cp_sll_xc_deriv_type), POINTER      :: node_to_rm
@@ -1022,8 +1022,8 @@ CPSourceFileRef,&
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-    CHARACTER(len=*), PARAMETER :: &
-      routineP = 'cp_linked_list_xc_deriv/cp_sll_xc_deriv_insert_el_at'
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_sll_xc_deriv_insert_el_at', &
+      routineP = moduleN//':'//routineN
 
     LOGICAL                                  :: failure
     TYPE(cp_sll_xc_deriv_type), POINTER      :: pos
@@ -1077,8 +1077,8 @@ CPSourceFileRef,&
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-    CHARACTER(len=*), PARAMETER :: &
-      routineP = 'cp_linked_list_xc_deriv/cp_sll_xc_deriv_remove_el_at'
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_sll_xc_deriv_rm_el_at', &
+      routineP = moduleN//':'//routineN
 
     LOGICAL                                  :: failure
     TYPE(cp_sll_xc_deriv_type), POINTER      :: pos
@@ -1132,8 +1132,8 @@ CPSourceFileRef,&
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-    CHARACTER(len=*), PARAMETER :: &
-      routineP = 'cp_linked_list_xc_deriv/cp_sll_xc_deriv_rm_all_el'
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_sll_xc_deriv_rm_all_el', &
+      routineP = moduleN//':'//routineN
 
     LOGICAL                                  :: failure
     TYPE(cp_sll_xc_deriv_type), POINTER      :: actual_node, next_node

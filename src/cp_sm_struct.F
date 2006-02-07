@@ -40,7 +40,7 @@ MODULE cp_sm_struct
   PRIVATE
 
   LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
-  CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='cp_sm_struct'
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_sm_struct'
   INTEGER, SAVE, PRIVATE :: last_sm_struct_id=10000
 
   PUBLIC :: cp_sm_node_type, cp_sm_struct_type, cp_sm_struct_p_type
@@ -194,9 +194,9 @@ SUBROUTINE sm_struct_create(sm_struct, block_begins_at_row,&
     CHARACTER(len=*)                         :: symmetry
     TYPE(distribution_2d_type), POINTER      :: distribution_2d
     TYPE(cp_sm_node_type), OPTIONAL, POINTER :: local_blocks_ptr
+    INTEGER                                  :: sparsity_id
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
-    INTEGER                                  ::  sparsity_id            
 
     CHARACTER(len=*), PARAMETER :: routineN = 'sm_struct_create', &
       routineP = moduleN//':'//routineN

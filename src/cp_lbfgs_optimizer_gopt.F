@@ -88,7 +88,7 @@ MODULE cp_lbfgs_optimizer_gopt
   PRIVATE
 
   LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
-  CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='cp_lbfgs_optimizer_gopt'
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_lbfgs_optimizer_gopt'
   INTEGER, PRIVATE, SAVE :: last_lbfgs_optimizer_id=0
 
   ! types
@@ -758,7 +758,7 @@ END SUBROUTINE cp_opt_gopt_release
                optimizer%para_env%group)
           ! Dump info
           IF (optimizer%status == 3) THEN
-	     IF (is_master) &
+             IF (is_master) &
              CALL cp_iterate(logger%iter_info,iter_nr=optimizer%isave(30),error=error)
              dataunit = cp_print_key_unit_nr(logger,input,&
                   "MOTION%PRINT%TRAJECTORY",extension=".xyz",error=error)
@@ -805,7 +805,7 @@ END SUBROUTINE cp_opt_gopt_release
                   optimizer%para_env%group)
           CASE (3)
              !op=3 ended iter             
-             wildcard = "LBFGS"	     
+             wildcard = "LBFGS"             
              dataunit = cp_print_key_unit_nr(logger,input,&
                   "MOTION%GEOOPT%PRINT%PROGRAM_RUN_INFO",extension=".geoLog",error=error)
              IF (dataunit>0) THEN

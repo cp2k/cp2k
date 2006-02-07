@@ -22,64 +22,52 @@
 !!   SOURCE
 !****************************************************************************
 MODULE qs_numerical_pressure
+  USE cell_types,                      ONLY: cell_clone,&
+                                             cell_create,&
+                                             cell_release,&
+                                             cell_type,&
+                                             get_hinv
+  USE cp_subsystem_types,              ONLY: cp_subsystem_p_type
+  USE force_env_types,                 ONLY: force_env_get,&
+                                             force_env_type
   USE global_types,                    ONLY: global_environment_type
-  USE cp_subsystem_types,              ONLY: cp_subsys_retain,&
-                                             cp_subsys_get,&
-                                             cp_subsystem_p_type
-#include "cp_common_uses.h"
-  
-  USE qs_energy,                       ONLY: qs_energies
-  USE force_env_types,                 ONLY: force_env_type, &
-                                             force_env_release,&
-                                             force_env_set, force_env_get
+  USE input_constants,                 ONLY: qs_debug_run
   USE kinds,                           ONLY: dp
   USE particle_types,                  ONLY: particle_type
-
-  USE cell_types,                 ONLY: get_hinv, cell_type, get_cell,&
-                                             cell_create, cell_clone,&
-                                             cell_release
-  USE qs_environment_methods,          ONLY: qs_env_rebuild_pw_env, &
-                                             qs_env_setup
-  USE qs_environment_types,            ONLY: get_qs_env,set_qs_env
-  USE pw_env_types,                    ONLY: pw_env_type,pw_env_get
-  USE qs_ks_types,                     ONLY: qs_ks_release, qs_ks_env_type
-  USE qs_ks_methods,                   ONLY: qs_ks_create
+  USE qs_energy,                       ONLY: qs_energies
   USE virial_types,                    ONLY: virial_type
-  USE input_constants,                 ONLY: qs_debug_run
-     
+#include "cp_common_uses.h"
 
   IMPLICIT NONE
   PRIVATE
-  CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='qs_numerical_pressure'
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_numerical_pressure'
 
   PUBLIC :: qs_calc_numerical_pressure
 
   CONTAINS
 
   SUBROUTINE qs_calc_numerical_pressure(force_env, error)
-    IMPLICIT NONE
-    ! Arguments
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error    
-    ! Local
-    CHARACTER(len=*), PARAMETER :: routineN = 'qs_calc_numerical_pressure', &
-      routineP = moduleN//':'//routineN    
-    INTEGER :: iw, stat, iseq, isubsys, ip, k, j, l, n
-    LOGICAL :: failure 
-    REAL(kind=dp) :: numer_pressure = 0.0_dp
-    REAL(kind=dp), PARAMETER :: Dx=0.001_dp
-    REAL(kind=dp), DIMENSION(2) :: numer_energy
-    REAL(kind=dp), DIMENSION(3) :: numer_stress  = 0.0_dp
-    REAL(kind=dp), DIMENSION(:,:), POINTER     :: pos_ref
-    TYPE(cp_subsystem_p_type), DIMENSION(:), POINTER :: subsys
-    TYPE(particle_type), POINTER, DIMENSION(:) :: particles
-    TYPE(cell_type), POINTER                   :: cell, cell_ref
-    TYPE(cell_type), POINTER                   :: cell_local
-    TYPE(qs_ks_env_type), POINTER              :: new_ks_env
-    TYPE(virial_type), POINTER                 :: virial
-    TYPE(global_environment_type), POINTER     :: globenv
+      OPTIONAL                               :: error
 
+    CHARACTER(len=*), PARAMETER :: routineN = 'qs_calc_numerical_pressure', &
+      routineP = moduleN//':'//routineN
+    REAL(kind=dp), PARAMETER                 :: Dx = 0.001_dp
+
+    INTEGER                                  :: ip, iseq, isubsys, iw, j, k, &
+                                                l, stat
+    LOGICAL                                  :: failure
+    REAL(kind=dp), DIMENSION(2)              :: numer_energy
+    REAL(kind=dp), DIMENSION(3)              :: numer_stress = 0.0_dp
+    REAL(kind=dp), DIMENSION(:, :), POINTER  :: pos_ref
+    TYPE(cell_type), POINTER                 :: cell, cell_local, cell_ref
+    TYPE(cp_subsystem_p_type), &
+      DIMENSION(:), POINTER                  :: subsys
+    TYPE(global_environment_type), POINTER   :: globenv
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particles
+    TYPE(virial_type), POINTER               :: virial
 
     NULLIFY(cell_local)
     failure = .FALSE.

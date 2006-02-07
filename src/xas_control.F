@@ -94,7 +94,7 @@ MODULE xas_control
   END TYPE xas_control_type
 
 
-  CHARACTER(LEN=*), PARAMETER :: moduleN = "xas_control"
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'xas_control'
 
 ! *** Public data types ***
 
@@ -135,8 +135,8 @@ CONTAINS
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = "read_xas_control_new", &
-      routineP = moduleN//"/"//routineN
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'read_xas_control', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, ir, istat, n_rep, ncubes, &
                                                 nex_at
@@ -336,8 +336,8 @@ CONTAINS
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = "write_xas_control_new", &
-      routineP = moduleN//"/"//routineN
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'write_xas_control', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: output_unit
     LOGICAL                                  :: failure

@@ -31,35 +31,31 @@ MODULE qs_linres_nmr_current
 
   USE cell_types,                      ONLY: cell_type,&
                                              pbc
-  USE coefficient_types,               ONLY: coeff_zero,&
-                                             coeff_type
+  USE coefficient_types,               ONLY: coeff_type
   USE cp_array_r_utils,                ONLY: cp_2d_r_p_type
   USE cp_control_types,                ONLY: dft_control_type
-  USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm,&
-                                             cp_fm_column_scale,&
-                                             cp_fm_scale_and_add,&
-                                             cp_fm_transpose
+  USE cp_fm_basic_linalg,              ONLY: cp_fm_column_scale,&
+                                             cp_fm_scale_and_add
   USE cp_fm_types,                     ONLY: cp_fm_get_submatrix,&
                                              cp_fm_p_type,&
-                                             cp_fm_type,&
                                              cp_fm_set_all,&
                                              cp_fm_set_submatrix,&
-                                             cp_fm_to_fm
+                                             cp_fm_to_fm,&
+                                             cp_fm_type
   USE cp_sm_fm_interactions,           ONLY: cp_sm_fm_multiply,&
                                              cp_sm_plus_fm_fm_t
   USE kinds,                           ONLY: dp
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
+  USE qs_linres_nmr_op,                ONLY: set_vecp
+  USE qs_linres_types,                 ONLY: nmr_env_type
   USE qs_mo_types,                     ONLY: get_mo_set,&
                                              mo_set_p_type
-  USE qs_linres_types,                 ONLY: nmr_env_type
-  USE qs_linres_nmr_op,                ONLY: set_vecp
   USE qs_rho_types,                    ONLY: qs_rho_type
   USE sparse_matrix_types,             ONLY: real_matrix_type,&
                                              set_matrix
   USE timings,                         ONLY: timeset,&
                                              timestop
-
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -70,7 +66,7 @@ MODULE qs_linres_nmr_current
   ! *** Public subroutines ***
   PUBLIC :: nmr_response_current
 
-  CHARACTER(LEN=*), PARAMETER :: moduleN='qs_linres_nmr_current'
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_linres_nmr_current'
 
 !!***
 ! *****************************************************************************
@@ -88,28 +84,27 @@ CONTAINS
       OPTIONAL                               :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'nmr_response_current', &
-      routineP = moduleN//'/'//routineN
+      routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: homo, i_B, ii_B, iii_B, iao,&
-                                                idir, ispin, istate, nmo, nspins
+    INTEGER                                  :: homo, i_B, iao, idir, ii_B, &
+                                                iii_B, ispin, istate, nmo, &
+                                                nspins
     LOGICAL                                  :: failure, gapw, uni_occ
-    REAL(dp)                                 :: alpha, maxocc
-    REAL(dp)                                 :: dk(3),rmu(3),rmu_dk(3)
+    REAL(dp)                                 :: alpha, dk(3), maxocc, rmu(3), &
+                                                rmu_dk(3)
     REAL(dp), DIMENSION(:), POINTER          :: occupation
     REAL(dp), DIMENSION(:, :), POINTER       :: vecbuf_psi1
-
     TYPE(cell_type), POINTER                 :: cell
-    TYPE(coeff_type), POINTER                :: rho_rspace, rho_gspace
+    TYPE(coeff_type), POINTER                :: rho_gspace, rho_rspace
     TYPE(cp_2d_r_p_type), DIMENSION(3)       :: vecbuf
     TYPE(cp_fm_type), POINTER                :: mo_coeff
+    TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos
-    TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(qs_rho_type), POINTER               :: rho_struct
-    TYPE(real_matrix_type), POINTER          :: density_matrix
-    TYPE(real_matrix_type), POINTER          :: density_matrix_2_ii
-    TYPE(real_matrix_type), POINTER          :: density_matrix_2_iii
-
+    TYPE(real_matrix_type), POINTER          :: density_matrix, &
+                                                density_matrix_2_ii, &
+                                                density_matrix_2_iii
 
     failure = .FALSE.
     gapw=.FALSE.

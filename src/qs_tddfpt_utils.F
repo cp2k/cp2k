@@ -22,57 +22,43 @@
 
 MODULE qs_tddfpt_utils
 
-  USE cp_control_types,                ONLY: gapw_control_type,&
-                                             tddfpt_control_type
-  USE cp_fm_basic_linalg,              ONLY: cp_fm_scale, &
+  USE cp_control_types,                ONLY: tddfpt_control_type
+  USE cp_fm_basic_linalg,              ONLY: cp_fm_scale,&
                                              cp_fm_scale_and_add,&
                                              cp_fm_trace
   USE cp_fm_cholesky,                  ONLY: cp_fm_cholesky_decompose,&
                                              cp_fm_cholesky_invert
-  USE cp_fm_pool_types,                ONLY: fm_pool_create_fm,&
-                                             fm_pool_give_back_fm
   USE cp_fm_types,                     ONLY: cp_fm_create,&
-                                             cp_fm_get_element,&
                                              cp_fm_get_submatrix,&
                                              cp_fm_init_random,&
                                              cp_fm_p_type,&
                                              cp_fm_release,&
                                              cp_fm_set_all,&
                                              cp_fm_set_submatrix,&
-                                             cp_fm_type, &
                                              cp_fm_to_fm
   USE cp_sm_fm_interactions,           ONLY: copy_sm_to_fm,&
                                              cp_sm_fm_multiply
   USE global_types,                    ONLY: global_environment_type
-  USE hartree_local_methods,           ONLY: init_coulomb_local
   USE kinds,                           ONLY: dp
   USE physcon,                         ONLY: evolt
-  USE qs_environment_types,            ONLY: qs_environment_type, &
-                                             get_qs_env
-  USE qs_kpp1_env_methods,             ONLY: kpp1_create
-  USE qs_kpp1_env_types,               ONLY: qs_kpp1_env_type
+  USE qs_environment_types,            ONLY: qs_environment_type
   USE qs_mo_types,                     ONLY: get_mo_set
   USE qs_p_env_methods,                ONLY: p_env_create,&
-                                             p_env_psi0_changed,&
-                                             p_preortho
+                                             p_env_psi0_changed
   USE qs_p_env_types,                  ONLY: p_env_release,&
                                              qs_p_env_type
-  USE qs_rho_atom_methods,             ONLY: init_rho_atom
-  USE qs_rho0_methods,                 ONLY: init_rho0
   USE qs_tddfpt_types,                 ONLY: tddfpt_env_allocate,&
                                              tddfpt_env_deallocate,&
                                              tddfpt_env_type
-  USE cell_types,                 ONLY: cell_type
   USE sparse_matrix_types,             ONLY: real_matrix_p_type
-  USE termination,                     ONLY: stop_memory,&
-                                             stop_program
+  USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
 
-  CHARACTER(LEN=*), PARAMETER :: moduleN="qs_tddfpt_utils"
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_tddfpt_utils'
   LOGICAL, PARAMETER          :: DEBUG_THIS_MODULE = .TRUE.
 
   TYPE simple_solution_sorter
@@ -134,14 +120,14 @@ CONTAINS
     TYPE(tddfpt_env_type), INTENT(out)       :: t_env
     TYPE(qs_environment_type), POINTER       :: qs_env
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = "tddfpt_init", &
-                                   routineP = moduleN//"/"//routineN
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'tddfpt_init', &
+      routineP = moduleN//':'//routineN
 
 ! --------------------------------------------------------------------
+!------------------!
+! create the p_env !
+!------------------!
 
-    !------------------!
-    ! create the p_env !
-    !------------------!
     CALL p_env_create(p_env, qs_env, orthogonal_orbitals=.TRUE.)
     CALL p_env_psi0_changed(p_env, qs_env) ! update the m_epsilon matrix
 
@@ -169,7 +155,7 @@ CONTAINS
     TYPE(qs_environment_type), POINTER       :: qs_env
 
     CHARACTER(len=*), PARAMETER :: routineN = 'tddfpt_env_init', &
-      routineP = moduleN//'/'//routineN
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: n_spins, spin
 
@@ -196,8 +182,8 @@ CONTAINS
     TYPE(tddfpt_env_type), INTENT(inout)     :: t_env
     TYPE(qs_p_env_type), POINTER             :: p_env
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = "cleanup", &
-                                   routineP = moduleN//'/'//routineN
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'tddfpt_cleanup', &
+      routineP = moduleN//':'//routineN
 
 ! -------------------------------------------------------------------
 
@@ -211,28 +197,29 @@ CONTAINS
   SUBROUTINE co_initial_guess(matrices, energies, n_v, qs_env, p_env)
 
 
-    TYPE(cp_fm_p_type), DIMENSION(:,:),pointer :: matrices
-    INTEGER, INTENT(IN)                      :: n_v ! number of vectors to initialize
+    TYPE(cp_fm_p_type), DIMENSION(:, :), &
+      POINTER                                :: matrices
+    REAL(kind=DP), DIMENSION(:), INTENT(OUT) :: energies
+    INTEGER, INTENT(IN)                      :: n_v
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(qs_p_env_type), POINTER             :: p_env
-    REAL(kind=DP), DIMENSION(:), &
-      INTENT(OUT)                            :: energies
 
-    INTEGER                                  :: i, j, n_cols, n_lumos, &
-                                                n_orbits, n_rows, n_spins, &
-                                                spin, stat, oo, vo
-    REAL(KIND=DP)                            :: scale_factor, evd
+    CHARACTER(len=*), PARAMETER :: routineN = 'co_initial_guess', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i, n_cols, n_lumos, n_orbits, &
+                                                n_rows, n_spins, oo, spin, &
+                                                stat, vo
+    REAL(KIND=DP)                            :: evd
     REAL(KIND=DP), ALLOCATABLE, &
-      DIMENSION(:, :)                        :: lumos, guess
+      DIMENSION(:, :)                        :: guess, lumos
     REAL(KIND=DP), DIMENSION(:), POINTER     :: orbital_eigenvalues
     TYPE(simple_solution_sorter), POINTER    :: sorter_iterator, &
                                                 sorter_pointer, sorter_start
     TYPE(tddfpt_control_type), POINTER       :: tddfpt_control
 
-    CHARACTER(len=*), PARAMETER :: routineN = "co_initial_guess", &
-                                   routineP = moduleN//"/"//routineN
-
-    ! *************************
+! number of vectors to initialize
+! *************************
 
     tddfpt_control => qs_env%dft_control%tddfpt_control
     n_spins = qs_env%dft_control%nspins
@@ -338,25 +325,26 @@ CONTAINS
   
   SUBROUTINE find_contributions(qs_env, t_env, error)
     
-    TYPE(tddfpt_env_type), INTENT(IN)  :: t_env
-    TYPE(qs_environment_type), POINTER :: qs_env
-    TYPE(cp_error_type), &
-         INTENT(INOUT), OPTIONAL       :: error
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(tddfpt_env_type), INTENT(IN)        :: t_env
+    TYPE(cp_error_type), INTENT(INOUT), &
+      OPTIONAL                               :: error
 
-    CHARACTER(LEN=*), PARAMETER        :: routineN = 'find_contributions', &
-                                          routineP = moduleN//'/'//routineN
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'find_contributions', &
+      routineP = moduleN//':'//routineN
 
-    INTEGER                            :: i, j, n_ev, spin, n_spins, stat
-    INTEGER                            :: occ, virt
-    INTEGER, DIMENSION(2)              :: nrows, nhomos, nlumos
-    LOGICAL                            :: failure, ionode 
-    REAL(KIND=dp)                      :: contribution, summed_contributions
+    INTEGER                                  :: i, j, n_ev, n_spins, occ, &
+                                                spin, stat, virt
+    INTEGER, DIMENSION(2)                    :: nhomos, nlumos, nrows
+    LOGICAL                                  :: failure, ionode
+    REAL(KIND=dp)                            :: contribution, &
+                                                summed_contributions
     REAL(KIND=dp), ALLOCATABLE, &
-      DIMENSION(:,:)                   :: homo_coeff_col, lumo_coeff_col
-    TYPE(tddfpt_control_type)          :: t_control
+      DIMENSION(:, :)                        :: homo_coeff_col, lumo_coeff_col
     TYPE(cp_fm_p_type), DIMENSION(:), &
-         POINTER                       :: S_lumos
-    TYPE(cp_logger_type), POINTER      :: logger
+      POINTER                                :: S_lumos
+    TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(tddfpt_control_type)                :: t_control
 
     NULLIFY(S_lumos, logger)
     failure = .FALSE.
@@ -436,15 +424,12 @@ CONTAINS
   
   SUBROUTINE normalize(X, tmp_vec, metric)
 
-    ! ARGUMENTS
     TYPE(cp_fm_p_type), DIMENSION(:)         :: x, tmp_vec
     TYPE(real_matrix_p_type), DIMENSION(:), &
       POINTER                                :: metric
 
-    ! LOCALS
     INTEGER                                  :: n_spins, spin
-    REAL(KIND=dp)                           :: norm, tmp
-
+    REAL(KIND=dp)                            :: norm, tmp
 
     n_spins = SIZE(x)
     norm = 0.0_dp
@@ -475,12 +460,11 @@ CONTAINS
   SUBROUTINE calc_norm(norm, X, metric, tmp_vec)
 
 
-    TYPE(cp_fm_p_type), DIMENSION(:)         :: x, tmp_vec
+    REAL(KIND=dp), INTENT(OUT)               :: norm
+    TYPE(cp_fm_p_type), DIMENSION(:)         :: x
     TYPE(real_matrix_p_type), DIMENSION(:), &
       POINTER                                :: metric
-    REAL(KIND=dp), INTENT(OUT)              :: norm
-
-    INTEGER :: spin
+    TYPE(cp_fm_p_type), DIMENSION(:)         :: tmp_vec
 
     CALL dot_prod(norm, X, X, metric, tmp_vec)
     norm = SQRT(norm)
@@ -492,13 +476,12 @@ CONTAINS
   SUBROUTINE reorthogonalize(X, V_set, SV_set, work, n)
 
     TYPE(cp_fm_p_type), DIMENSION(:)         :: X
-    TYPE(cp_fm_p_type), DIMENSION(:, :)      :: V_set
-    TYPE(cp_fm_p_type), DIMENSION(:, :)      :: SV_set
+    TYPE(cp_fm_p_type), DIMENSION(:, :)      :: V_set, SV_set
     TYPE(cp_fm_p_type), DIMENSION(:)         :: work
     INTEGER, INTENT(IN)                      :: n
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = "reorthogonalize", &
-                                   routineP = moduleN//"/"//routineN
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'reorthogonalize', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, n_spins, spin, time_handle
     REAL(DP)                                 :: dot_product, tmp
@@ -534,16 +517,17 @@ CONTAINS
 
   SUBROUTINE dot_prod(res, X, Y, metric, tmp_vec)
 
-    REAL(KIND=dp), INTENT(OUT)      :: res
-    TYPE(cp_fm_p_type), DIMENSION(:) :: X, Y, tmp_vec
+    REAL(KIND=dp), INTENT(OUT)               :: res
+    TYPE(cp_fm_p_type), DIMENSION(:)         :: X, Y
     TYPE(real_matrix_p_type), DIMENSION(:), &
-         POINTER                     :: metric
+      POINTER                                :: metric
+    TYPE(cp_fm_p_type), DIMENSION(:)         :: tmp_vec
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = "dot_prod", &
-                                   routineP = moduleN//"/"//routineN
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'dot_prod', &
+      routineP = moduleN//':'//routineN
 
-    INTEGER                          :: spin, n_spins
-    REAL(KIND=dp)                   :: tmp
+    INTEGER                                  :: n_spins, spin
+    REAL(KIND=dp)                            :: tmp
 
     n_spins = SIZE(X)
     res = 0.0_dp

@@ -22,31 +22,25 @@
 
 MODULE qmmm_topology_util
   USE checkpoint_handler,              ONLY: write_checkpoint_information
+  USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
+                                             cp_print_key_unit_nr
   USE global_types,                    ONLY: global_environment_type
-  USE kinds,                           ONLY: dp,&
-                                             default_string_length
-  USE termination,                     ONLY: stop_program
-  USE timings,                         ONLY: timeset,&
-                                             timestop
-  USE molecule_types_new,              ONLY: molecule_type,&
-                                             get_molecule
+  USE input_section_types,             ONLY: section_vals_type
+  USE kinds,                           ONLY: default_string_length,&
+                                             dp
   USE molecule_kind_types,             ONLY: molecule_kind_type
-  USE topology_types,                  ONLY: topology_parameters_type
-  USE input_section_types, ONLY: section_type, section_create, &
-       section_add_keyword, section_add_subsection, section_release,&
-       section_vals_type,&
-       section_vals_get_subs_vals, section_vals_get, section_vals_val_get
+  USE molecule_types_new,              ONLY: get_molecule,&
+                                             molecule_type
   USE qmmm_types,                      ONLY: qmmm_env_mm_type
   USE string_utilities,                ONLY: compress
-  USE cp_output_handling,              ONLY: cp_print_key_unit_nr, &
-                                             cp_print_key_finished_output,&
-                                             cp_print_key_should_output,&
-                                             cp_p_file
-
+  USE timings,                         ONLY: timeset,&
+                                             timestop
+  USE topology_types,                  ONLY: topology_parameters_type
 #include "cp_common_uses.h"
+
   IMPLICIT NONE
   PRIVATE
-  CHARACTER(LEN=*), PARAMETER, PRIVATE :: moduleN = "qmmm_topology_util"
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qmmm_topology_util'
 
   PUBLIC :: qmmm_coordinate_control,&
             qmmm_connectivity_control
@@ -69,24 +63,21 @@ CONTAINS
   !!
   !***************************************************************************
   SUBROUTINE qmmm_coordinate_control(topology, globenv, qmmm_env, subsys_section, error)
-    IMPLICIT NONE
     
     TYPE(topology_parameters_type), &
-         INTENT(INOUT)                          :: topology
-    TYPE(global_environment_type), &
-         pointer                             :: globenv
-    TYPE(section_vals_type), POINTER :: subsys_section
-
-    TYPE(qmmm_env_mm_type), pointer             :: qmmm_env
+      INTENT(INOUT)                          :: topology
+    TYPE(global_environment_type), POINTER   :: globenv
+    TYPE(qmmm_env_mm_type), POINTER          :: qmmm_env
+    TYPE(section_vals_type), POINTER         :: subsys_section
     TYPE(cp_error_type), INTENT(inout), &
-         OPTIONAL                               :: error
+      OPTIONAL                               :: error
 
-    LOGICAL :: failure
     CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_coordinate_control', &
-         routineP = moduleN//':'//routineN
-    CHARACTER (LEN=default_string_length)    :: prefix_lnk
-    INTEGER                                  :: handle, iw, iatm
-    INTEGER                                  :: ifirst, ilast, myind
+      routineP = moduleN//':'//routineN
+
+    CHARACTER(LEN=default_string_length)     :: prefix_lnk
+    INTEGER                                  :: handle, iatm, iw
+    LOGICAL                                  :: failure
     TYPE(cp_logger_type), POINTER            :: logger
 
     failure = .FALSE.
@@ -148,26 +139,27 @@ CONTAINS
   !***************************************************************************
   SUBROUTINE qmmm_connectivity_control(topology, globenv, molecule_set,&
        qmmm_env, error)
-    IMPLICIT NONE
     
     TYPE(topology_parameters_type), &
-         INTENT(INOUT)                          :: topology
-    TYPE(global_environment_type), &
-         POINTER                                :: globenv
+      INTENT(INOUT)                          :: topology
+    TYPE(global_environment_type), POINTER   :: globenv
     TYPE(molecule_type), DIMENSION(:), &
-         POINTER                                :: molecule_set
-    TYPE(qmmm_env_mm_type), POINTER             :: qmmm_env
+      POINTER                                :: molecule_set
+    TYPE(qmmm_env_mm_type), POINTER          :: qmmm_env
     TYPE(cp_error_type), INTENT(inout), &
-         OPTIONAL                               :: error
-    
-    LOGICAL :: failure, detected_link
+      OPTIONAL                               :: error
+
     CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_connectivity_control', &
-         routineP = moduleN//':'//routineN
-    INTEGER                                  :: stat, iw, imolecule, handle, i
-    INTEGER :: first_atom,last_atom, qm_mol_num, natom
-    TYPE(molecule_type), POINTER             :: molecule
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: first_atom, handle, i, &
+                                                imolecule, iw, last_atom, &
+                                                natom, qm_mol_num, stat
+    INTEGER, DIMENSION(:), POINTER           :: qm_atom_index, &
+                                                qm_molecule_index
+    LOGICAL                                  :: detected_link, failure
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
-    INTEGER, DIMENSION(:), POINTER           :: qm_atom_index, qm_molecule_index
+    TYPE(molecule_type), POINTER             :: molecule
 
     NULLIFY(qm_atom_index, qm_molecule_index, molecule, molecule_kind)
     failure = .FALSE.

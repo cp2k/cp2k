@@ -75,7 +75,7 @@ MODULE qs_linres_module
   PRIVATE
   PUBLIC :: linres_calculation
 
-  CHARACTER(LEN=*), PARAMETER :: moduleN='qs_linres_module'
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_linres_module'
 
 CONTAINS
 
@@ -110,7 +110,7 @@ CONTAINS
       OPTIONAL                               :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'linres_calculation', &
-      routineP = moduleN//'/'//routineN
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, output_unit
     LOGICAL                                  :: failure, ionode, &
@@ -232,12 +232,11 @@ CONTAINS
       OPTIONAL                               :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'linres_init', &
-      routineP = moduleN//'/'//routineN
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, ispin, istat, j, nspins, &
                                                 output_unit
     LOGICAL                                  :: do_it, failure
-    REAL(dp), DIMENSION(:), POINTER          :: evals
     TYPE(cp_fm_type), POINTER                :: mo_coeff
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(dft_control_type), POINTER          :: dft_control
@@ -255,7 +254,8 @@ CONTAINS
     logger => cp_error_get_logger(error)
     output_unit = cp_print_key_unit_nr(logger,lr_section,"PRINT%PROGRAM_RUN_INFO",&
          extension=".linresLog",error=error)    
-    NULLIFY(dft_control,linres_control,loc_section,rho,mos,matrix_ks,matrix_s,evals)
+    NULLIFY(dft_control, linres_control, loc_section, rho, mos, matrix_ks, &
+         matrix_s)
 
     CPPrecondition(.NOT.ASSOCIATED(p_env),cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN

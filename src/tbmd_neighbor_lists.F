@@ -34,73 +34,64 @@
 !!   SOURCE
 !****************************************************************************
 MODULE tbmd_neighbor_lists
-  USE atomic_kind_types,                      ONLY: atomic_kind_type, &
-                                                    get_atomic_kind_set, &
-                                                    get_atomic_kind
-  USE basis_set_types,                        ONLY: gto_basis_set_type, &
-                                                    get_gto_basis_set
-  USE cell_types,                             ONLY: cell_type, &
-                                                    real_to_scaled, &
-                                                    scaled_to_real, &
-                                                    plane_distance, &
-                                                    get_cell, &
-                                                    pbc
-  USE cp_output_handling,                     ONLY: cp_print_key_unit_nr, &
-                                                    cp_print_key_should_output, &
-                                                    cp_p_file, &
-                                                    cp_print_key_finished_output
-  USE distribution_1d_types,                  ONLY: distribution_1d_type
-  USE fist_neighbor_list_types,               ONLY: neighbor_list_set_p_type, &
-                                                    neighbor_list_p_type, &
-                                                    neighbor_list_set_type, &
-                                                    neighbor_list_type, &
-                                                    neighbor_node_type, &
-                                                    get_neighbor_list, &
-                                                    get_neighbor_list_set, &
-                                                    get_neighbor_node, &
-                                                    add_neighbor_list, &
-                                                    add_neighbor_node, &
-                                                    allocate_neighbor_list_set, &
-                                                    deallocate_neighbor_list_set, &
-                                                    init_neighbor_list_set, &
-                                                    first_list, &
-                                                    first_node, &
-                                                    next
-  !USE fist_neighbor_lists,                    ONLY: build_neighbor_lists, &
-  !                                                  write_neighbor_lists, &
-  !                                                  write_distribution
-  USE global_types,                           ONLY: global_environment_type
-  USE input_section_types,                    ONLY: section_vals_type
-  USE kinds,                                  ONLY: dp, &
-                                                    dp_size, &
-                                                    int_size, &
-                                                    default_string_length
-  USE machine,                                ONLY: m_flush
-  USE message_passing,                        ONLY: mp_sum, &
-                                                    mp_sync, &
-                                                    mp_max
-  USE particle_types,                         ONLY: particle_type
-  USE qs_neighbor_lists,                      ONLY: local_atoms_type, &
-                                                    subcell_type, &
-                                                    allocate_subcell, &
-                                                    deallocate_subcell
-  USE string_utilities,                       ONLY: compress
-  USE tbmd_neighbor_list_env_types,           ONLY: tbmd_neighbor_list_env_type, &
-                                                    tbmd_neighbor_list_env_get, &
-                                                    tbmd_neighbor_list_env_set
-  USE termination,                            ONLY: stop_memory, &
-                                                    stop_program
-  USE timings,                                ONLY: timeset, &
-                                                    timestop
-
+  USE atomic_kind_types,               ONLY: atomic_kind_type,&
+                                             get_atomic_kind,&
+                                             get_atomic_kind_set
+  USE basis_set_types,                 ONLY: get_gto_basis_set,&
+                                             gto_basis_set_type
+  USE cell_types,                      ONLY: cell_type,&
+                                             get_cell,&
+                                             pbc,&
+                                             plane_distance,&
+                                             real_to_scaled,&
+                                             scaled_to_real
+  USE cp_output_handling,              ONLY: cp_p_file,&
+                                             cp_print_key_finished_output,&
+                                             cp_print_key_should_output,&
+                                             cp_print_key_unit_nr
+  USE distribution_1d_types,           ONLY: distribution_1d_type
+  USE fist_neighbor_list_types,        ONLY: &
+       add_neighbor_list, add_neighbor_node, allocate_neighbor_list_set, &
+       deallocate_neighbor_list_set, first_list, first_node, &
+       get_neighbor_list, get_neighbor_list_set, get_neighbor_node, &
+       init_neighbor_list_set, neighbor_list_p_type, &
+       neighbor_list_set_p_type, neighbor_list_set_type, neighbor_list_type, &
+       neighbor_node_type, next
+!USE fist_neighbor_lists,                    ONLY: build_neighbor_lists, &
+!                                                  write_neighbor_lists, &
+!                                                  write_distribution
+  USE global_types,                    ONLY: global_environment_type
+  USE input_section_types,             ONLY: section_vals_type
+  USE kinds,                           ONLY: default_string_length,&
+                                             dp,&
+                                             dp_size,&
+                                             int_size
+  USE machine,                         ONLY: m_flush
+  USE message_passing,                 ONLY: mp_max,&
+                                             mp_sum,&
+                                             mp_sync
+  USE particle_types,                  ONLY: particle_type
+  USE qs_neighbor_lists,               ONLY: allocate_subcell,&
+                                             deallocate_subcell,&
+                                             local_atoms_type,&
+                                             subcell_type
+  USE string_utilities,                ONLY: compress
+  USE tbmd_neighbor_list_env_types,    ONLY: tbmd_neighbor_list_env_get,&
+                                             tbmd_neighbor_list_env_set,&
+                                             tbmd_neighbor_list_env_type
+  USE termination,                     ONLY: stop_memory,&
+                                             stop_program
+  USE timings,                         ONLY: timeset,&
+                                             timestop
 #include "cp_common_uses.h"
+
   IMPLICIT NONE
 
   PRIVATE
 
 ! *** Global parameters ***
 
-  CHARACTER(LEN=*), PARAMETER :: moduleN = "tbmd_neighbor_lists"
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'tbmd_neighbor_lists'
 
 ! *** Public subroutines ***
 
@@ -148,44 +139,32 @@ CONTAINS
                                         tbmd_neighbor_list_env, globenv, &
                                         force_env_section, error)
 
-    TYPE(atomic_kind_type), DIMENSION(:), POINTER     :: atomic_kind_set
-    TYPE(particle_type), DIMENSION(:), POINTER        :: particle_set
-    TYPE(distribution_1d_type), POINTER               :: local_particles
-    TYPE(cell_type), POINTER                          :: cell
-    TYPE(tbmd_neighbor_list_env_type), POINTER        :: tbmd_neighbor_list_env
-    TYPE(global_environment_type), &
-      pointer                                         :: globenv
+    TYPE(atomic_kind_type), DIMENSION(:), &
+      POINTER                                :: atomic_kind_set
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particle_set
+    TYPE(distribution_1d_type), POINTER      :: local_particles
+    TYPE(cell_type), POINTER                 :: cell
+    TYPE(tbmd_neighbor_list_env_type), &
+      POINTER                                :: tbmd_neighbor_list_env
+    TYPE(global_environment_type), POINTER   :: globenv
+    TYPE(section_vals_type), POINTER         :: force_env_section
     TYPE(cp_error_type), INTENT(inout), &
-         OPTIONAL                                     :: error
-    TYPE(section_vals_type), POINTER :: force_env_section
+      OPTIONAL                               :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = "tbmd_neighbor_list_control"
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'tbmd_neighbor_list_control'
 
-    REAL(KIND=dp)                                     :: dr2, &
-                                                         dr2_max, &
-                                                         verlet_skin, &
-                                                         aup, &
-                                                         lup
-    REAL(KIND=dp), DIMENSION(3)                       :: dr
-    REAL(KIND=dp), DIMENSION(:,:), POINTER            :: r_last_update, &
-                                                         r_cutoff, &
-                                                         r_max
-    INTEGER                                           :: istat, &
-                                                         iparticle, &
-                                                         iparticle_kind, &
-                                                         iparticle_local, &
-                                                         nparticle, &
-                                                         nparticle_kind, &
-                                                         nparticle_local, &
-                                                         handle, &
-                                                         counter, &
-                                                         num_update, &
-                                                         last_update
-    LOGICAL                                           :: build_from_scratch, &
-                                                         update_neighbor_lists, &
-                                                         failure
+    INTEGER :: counter, handle, iparticle, iparticle_kind, iparticle_local, &
+      istat, last_update, nparticle, nparticle_kind, nparticle_local, &
+      num_update
+    LOGICAL                                  :: build_from_scratch, failure, &
+                                                update_neighbor_lists
+    REAL(KIND=dp)                            :: aup, dr2, dr2_max, lup, &
+                                                verlet_skin
+    REAL(KIND=dp), DIMENSION(3)              :: dr
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: r_cutoff, r_last_update, r_max
     TYPE(neighbor_list_set_p_type), &
-      DIMENSION(:), POINTER                           :: tbmd_neighbor_list
+      DIMENSION(:), POINTER                  :: tbmd_neighbor_list
 
 !   ------------------------------------------------------------------------
 
@@ -338,43 +317,30 @@ CONTAINS
                                        error)
 
     TYPE(atomic_kind_type), DIMENSION(:), &
-      POINTER                                   :: atomic_kind_set
+      POINTER                                :: atomic_kind_set
     TYPE(particle_type), DIMENSION(:), &
-      POINTER                                   :: particle_set
-    TYPE(distribution_1d_type), POINTER         :: local_particles
-    TYPE(cell_type), POINTER                    :: cell
-    REAL(dp), DIMENSION(:, :), INTENT(IN)       :: r_max
+      POINTER                                :: particle_set
+    TYPE(distribution_1d_type), POINTER      :: local_particles
+    TYPE(cell_type), POINTER                 :: cell
+    REAL(dp), DIMENSION(:, :), INTENT(IN)    :: r_max
     TYPE(neighbor_list_set_p_type), &
-      DIMENSION(:), POINTER                     :: tbmd_neighbor_list
-    TYPE(global_environment_type), &
-      POINTER                                   :: globenv
+      DIMENSION(:), POINTER                  :: tbmd_neighbor_list
+    TYPE(global_environment_type), POINTER   :: globenv
+    LOGICAL, INTENT(IN)                      :: build_from_scratch
+    TYPE(section_vals_type), POINTER         :: force_env_section
     TYPE(cp_error_type), INTENT(INOUT), &
-      OPTIONAL                                  :: error
-    TYPE(section_vals_type), POINTER            :: force_env_section
+      OPTIONAL                               :: error
 
-    LOGICAL, INTENT(IN)                         :: build_from_scratch
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'build_tbmd_neighbor_lists'
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = "build_tbmd_neighbor_lists"
-
-    LOGICAL                                     :: print_subcell_grid
-    INTEGER                                     :: handle, &
-                                                   output_unit, &
-                                                   maxatom, &
-                                                   maxatom_local, &
-                                                   nkind, &
-                                                   istat, &
-                                                   ikind, &
-                                                   natom_a, &
-                                                   natom_local_a, &
-                                                   iatom, &
-                                                   atom_a, &
-                                                   iatom_local, &
-                                                   iw
-    TYPE(cp_logger_type), POINTER               :: logger
+    INTEGER :: atom_a, handle, iatom, iatom_local, ikind, istat, iw, maxatom, &
+      maxatom_local, natom_a, natom_local_a, nkind, output_unit
+    LOGICAL                                  :: print_subcell_grid
+    REAL(dp), DIMENSION(3)                   :: r_pbc
+    TYPE(atomic_kind_type), POINTER          :: atomic_kind
+    TYPE(cp_logger_type), POINTER            :: logger
     TYPE(local_atoms_type), ALLOCATABLE, &
-      DIMENSION(:)                              :: atom
-    TYPE(atomic_kind_type), POINTER             :: atomic_kind
-    REAL(dp), DIMENSION(3)                      :: r_pbc
+      DIMENSION(:)                           :: atom
 
 !   ------------------------------------------------------------------------
 
@@ -564,63 +530,32 @@ CONTAINS
     INTEGER, INTENT(IN)                      :: maxatom_local
     LOGICAL, INTENT(IN)                      :: print_subcell_grid
     INTEGER, INTENT(IN)                      :: output_unit
-    REAL(dp), DIMENSION(:,:), INTENT(IN)     :: r_max
+    REAL(dp), DIMENSION(:, :), INTENT(IN)    :: r_max
     LOGICAL, INTENT(IN)                      :: build_from_scratch
 
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "build_neighbor_lists"
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'build_neighbor_lists'
 
     CHARACTER(LEN=8)                         :: unit_of_length_name
-    INTEGER                                  :: atom_a, &
-                                                atom_b, &
-                                                handle, &
-                                                i, &
-                                                iab, &
-                                                iatom, &
-                                                iatom_local, &
-                                                iatom_subcell, &
-                                                icell, &
-                                                ikind, &
-                                                istat, &
-                                                j, &
-                                                jatom_local, &
-                                                jcell, &
-                                                jkind, &
-                                                k, &
-                                                kcell, &
-                                                natom_local_a, &
-                                                natom_local_b, &
-                                                nkind
-    INTEGER, DIMENSION(3)                    :: cell_a, &
-                                                cell_b, &
-                                                ncell, &
-                                                nsubcell, &
-                                                periodic
-    LOGICAL                                  :: cell000, &
-                                                include_ab
-    REAL(dp)                                 :: rab2, &
-                                                rab2_max, &
-                                                rab_max, &
-                                                subcells, &
-                                                unit_of_length
-    REAL(dp), DIMENSION(3)                   :: abc, &
-                                                r, rab, &
-                                                rb, &
-                                                s, &
-                                                sab, &
-                                                sab_max, &
-                                                sb, &
-                                                sb_max, &
-                                                sb_min, &
+    INTEGER :: atom_a, atom_b, handle, i, iab, iatom, iatom_local, &
+      iatom_subcell, icell, ikind, istat, j, jatom_local, jcell, jkind, k, &
+      kcell, natom_local_a, natom_local_b, nkind
+    INTEGER, DIMENSION(3)                    :: cell_a, cell_b, ncell, &
+                                                nsubcell, periodic
+    LOGICAL                                  :: cell000, include_ab
+    REAL(dp)                                 :: rab2, rab2_max, rab_max, &
+                                                subcells, unit_of_length
+    REAL(dp), DIMENSION(3)                   :: abc, r, rab, rb, s, sab, &
+                                                sab_max, sb, sb_max, sb_min, &
                                                 sb_pbc
     TYPE(neighbor_list_p_type), &
       DIMENSION(maxatom_local)               :: kind_a
     TYPE(neighbor_list_set_type), POINTER    :: neighbor_list_set
-    TYPE(subcell_type), DIMENSION(:,:,:), &
+    TYPE(subcell_type), DIMENSION(:, :, :), &
       POINTER                                :: subcell
 
 !   ---------------------------------------------------------------------------
 
-    CALL timeset(routine_name, "I", "", handle)
+    CALL timeset(routineN, "I", "", handle)
 
     nkind = SIZE(atom)
 
@@ -632,12 +567,12 @@ CONTAINS
           CALL deallocate_neighbor_list_set(ab(iab)%neighbor_list_set)
         END DO
         DEALLOCATE(ab, STAT=istat)
-        IF (istat /= 0) CALL stop_memory(routine_name, moduleN, __LINE__, "ab")
+        IF (istat /= 0) CALL stop_memory(routineN, moduleN, __LINE__, "ab")
       END IF
 
 !     *** Allocate and initialize the new neighbor list structure ***
       ALLOCATE(ab(nkind*nkind), STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine_name, moduleN, __LINE__, &
+      IF (istat /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
                                        "ab", nkind*nkind*int_size)
 
       DO iab=1,SIZE(ab)
@@ -647,7 +582,7 @@ CONTAINS
     ELSE
 
       IF (.NOT.ASSOCIATED(ab)) THEN
-        CALL stop_program(routine_name, moduleN, __LINE__, &
+        CALL stop_program(routineN, moduleN, __LINE__, &
                           "ab is not associated and cannot be updated")
       END IF
 
@@ -968,32 +903,18 @@ CONTAINS
       DIMENSION(:), POINTER                  :: ab
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
-    TYPE(global_environment_type), &
-      POINTER                                :: globenv
     INTEGER, INTENT(IN)                      :: output_unit
+    TYPE(global_environment_type), POINTER   :: globenv
     TYPE(cp_error_type), INTENT(INOUT), &
       OPTIONAL                               :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "write_distribution"
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'write_distribution'
 
-    INTEGER                                  :: group, &
-                                                iab, &
-                                                ikind, &
-                                                ilist, &
-                                                ipe, &
-                                                istat, &
-                                                jkind, &
-                                                mype, &
-                                                n, &
-                                                nkind, &
-                                                nlist, &
-                                                nnode, &
-                                                npe, &
-                                                nsgf_a, &
-                                                nsgf_b
-    INTEGER, ALLOCATABLE, DIMENSION(:)       :: nblock, &
-                                                nelement
-    LOGICAL                                  :: ionode
+    INTEGER                                  :: group, iab, ikind, ilist, &
+                                                ipe, istat, jkind, mype, n, &
+                                                nkind, nlist, nnode, npe, &
+                                                nsgf_a, nsgf_b
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: nblock, nelement
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
     TYPE(neighbor_list_set_type), POINTER    :: neighbor_list_set
@@ -1006,12 +927,12 @@ CONTAINS
 !   *** Allocate work storage ***
 
     ALLOCATE(nblock(npe), STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine_name, moduleN, __LINE__, &
+    IF (istat /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
                                      "nblock", npe*int_size)
     nblock(:) = 0
 
     ALLOCATE(nelement(npe), STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine_name, moduleN, __LINE__, &
+    IF (istat /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
                                      "nelement", npe*int_size)
     nelement(:) = 0
 
@@ -1088,11 +1009,11 @@ CONTAINS
 !   *** Release work storage ***
 
     DEALLOCATE(nblock,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine_name, moduleN, __LINE__, &
+    IF (istat /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
                                      "nblock")
 
     DEALLOCATE(nelement,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine_name, moduleN, __LINE__, &
+    IF (istat /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
                                      "nelement")
 
   END SUBROUTINE write_distribution
@@ -1135,36 +1056,21 @@ CONTAINS
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(cell_type), POINTER                 :: cell
-    TYPE(global_environment_type), &
-      POINTER                                :: globenv
     CHARACTER(LEN=*), INTENT(IN)             :: name
+    INTEGER, INTENT(IN)                      :: output_unit
+    TYPE(global_environment_type), POINTER   :: globenv
     TYPE(cp_error_type), INTENT(INOUT), &
       OPTIONAL                               :: error
-    INTEGER, INTENT(IN)                      :: output_unit
 
     CHARACTER(LEN=8)                         :: unit_of_length_name
     CHARACTER(LEN=default_string_length)     :: string
-    INTEGER                                  :: atom_a, &
-                                                atom_b, &
-                                                group, &
-                                                iab, &
-                                                ilist, &
-                                                inode, &
-                                                ipe, &
-                                                mype, &
-                                                nlist, &
-                                                nneighbor, &
-                                                nnode, &
-                                                npe
-    INTEGER, DIMENSION(3)                    :: cell_a, &
-                                                cell_b
-    LOGICAL                                  :: ionode, &
-                                                print_headline
-    REAL(dp)                                 :: dab, &
-                                                unit_of_length
-    REAL(dp), DIMENSION(3)                   :: ra, &
-                                                rab, &
-                                                rb
+    INTEGER                                  :: atom_a, atom_b, group, iab, &
+                                                ilist, inode, ipe, mype, &
+                                                nlist, nneighbor, nnode, npe
+    INTEGER, DIMENSION(3)                    :: cell_a, cell_b
+    LOGICAL                                  :: print_headline
+    REAL(dp)                                 :: dab, unit_of_length
+    REAL(dp), DIMENSION(3)                   :: ra, rab, rb
     TYPE(neighbor_list_set_type), POINTER    :: neighbor_list_set
     TYPE(neighbor_list_type), POINTER        :: neighbor_list
     TYPE(neighbor_node_type), POINTER        :: neighbor_node
@@ -1205,7 +1111,7 @@ CONTAINS
 
 !       *** Print first part of headline ***
 
-        if (output_unit>0) WRITE(UNIT=output_unit, FMT="(/,/,T2,A)") TRIM(string)
+        IF (output_unit>0) WRITE(UNIT=output_unit, FMT="(/,/,T2,A)") TRIM(string)
 
         DO iab=1,SIZE(ab)
 

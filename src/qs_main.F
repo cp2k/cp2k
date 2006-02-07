@@ -26,6 +26,8 @@
 !*******************************************************************************
 
 MODULE qs_main
+  USE cell_types,                      ONLY: cell_type
+  USE cp_subsystem_types,              ONLY: cp_subsystem_type
   USE force_env_methods,               ONLY: force_env_create
   USE force_env_types,                 ONLY: force_env_type
   USE global_types,                    ONLY: global_environment_type
@@ -36,18 +38,15 @@ MODULE qs_main
                                              qs_environment_type
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE cp_subsystem_types,              ONLY: cp_subsys_release,&
-                                             cp_subsys_set,&
-                                             cp_subsystem_type
-  USE cell_types,                 ONLY: cell_type
 #include "cp_common_uses.h"
+
     IMPLICIT NONE
 
   PRIVATE
 
 ! *** Global parameters ***
 
-  CHARACTER(LEN=*), PARAMETER :: moduleN = "qs_main"
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_main'
 
 ! *** Global variables ***
 
@@ -84,18 +83,19 @@ CONTAINS
   SUBROUTINE quickstep_create_force_env(force_env,globenv,subsystem,cell,cell_ref,&
        qmmm, error)
 
-    TYPE(force_env_type), POINTER              :: force_env
-    TYPE(global_environment_type), POINTER     :: globenv
-    TYPE(cp_subsystem_type), POINTER, OPTIONAL :: subsystem
-    TYPE(cell_type), POINTER, OPTIONAL         :: cell, cell_ref
-    LOGICAL, INTENT(IN), OPTIONAL              :: qmmm
+    TYPE(force_env_type), POINTER            :: force_env
+    TYPE(global_environment_type), POINTER   :: globenv
+    TYPE(cp_subsystem_type), OPTIONAL, &
+      POINTER                                :: subsystem
+    TYPE(cell_type), OPTIONAL, POINTER       :: cell, cell_ref
+    LOGICAL, INTENT(IN), OPTIONAL            :: qmmm
     TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                                 :: error
+      OPTIONAL                               :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = "quickstep_create_force_env", &
-      routineP = moduleN//":"//routineN
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'quickstep_create_force_env', &
+      routineP = moduleN//':'//routineN
 
-    INTEGER                                    :: handle
+    INTEGER                                  :: handle
 
 !   ---------------------------------------------------------------------------
 

@@ -28,12 +28,12 @@ MODULE harris_energy_types
 
   USE kinds,                           ONLY: dp
 #include "cp_common_uses.h"
- 
+
   IMPLICIT NONE
   PRIVATE
 
-  CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='harris_energy_types'
-  INTEGER, PRIVATE, save :: last_harris_id=0
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'harris_energy_types'
+  INTEGER, PRIVATE, SAVE :: last_harris_id=0
 
   ! *** Public data types ***
   PUBLIC :: harris_energy_type, &
@@ -177,7 +177,7 @@ CONTAINS
     LOGICAL                                  :: failure
 
 !   ------------------------------------------------------------------------
-   
+
     failure = .FALSE.
   
     CPPrecondition(ASSOCIATED(harris_energy), cp_failure_level, routineP, error, failure)
@@ -307,26 +307,18 @@ CONTAINS
                                Eharris_correction, sum_of_eigenvalues, &
                                Eharris, error)
 
-    TYPE(harris_energy_type), POINTER          :: harris_energy
-    INTEGER, INTENT(OUT), OPTIONAL             :: id_nr
-    REAL(KIND=dp), INTENT(OUT), OPTIONAL       :: Ehartree_elec, &
-                                                  Ehartree_core, &
-                                                  Exc, &
-                                                  integral_vxc, &
-                                                  Ecore, &
-                                                  Ecore_overlap, &
-                                                  Ecore_self, &
-                                                  EII, &
-                                                  Eharris_correction, &
-                                                  sum_of_eigenvalues, &
-                                                  Eharris
+    TYPE(harris_energy_type), POINTER        :: harris_energy
+    INTEGER, INTENT(OUT), OPTIONAL           :: id_nr
+    REAL(KIND=dp), INTENT(OUT), OPTIONAL :: Ehartree_elec, Ehartree_core, &
+      Exc, integral_vxc, Ecore, Ecore_overlap, Ecore_self, EII, &
+      Eharris_correction, sum_of_eigenvalues, Eharris
     TYPE(cp_error_type), INTENT(INOUT), &
-         OPTIONAL                              :: error
+      OPTIONAL                               :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'harris_energy_get', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                    :: failure
+    LOGICAL                                  :: failure
 
 !   ------------------------------------------------------------------------
 
@@ -418,26 +410,18 @@ CONTAINS
                                Eharris_correction, sum_of_eigenvalues, &
                                Eharris, error)
 
-    TYPE(harris_energy_type), POINTER          :: harris_energy
-    INTEGER, INTENT(IN), OPTIONAL              :: id_nr
-    REAL(KIND=dp), INTENT(IN), OPTIONAL        :: Ehartree_elec, &
-                                                  Ehartree_core, &
-                                                  Exc, &
-                                                  integral_vxc, &
-                                                  Ecore, &
-                                                  Ecore_overlap, &
-                                                  Ecore_self, &
-                                                  EII, &
-                                                  Eharris_correction, &
-                                                  sum_of_eigenvalues, &
-                                                  Eharris
+    TYPE(harris_energy_type), POINTER        :: harris_energy
+    INTEGER, INTENT(IN), OPTIONAL            :: id_nr
+    REAL(KIND=dp), INTENT(IN), OPTIONAL :: Ehartree_elec, Ehartree_core, Exc, &
+      integral_vxc, Ecore, Ecore_overlap, Ecore_self, EII, &
+      Eharris_correction, sum_of_eigenvalues, Eharris
     TYPE(cp_error_type), INTENT(INOUT), &
-         OPTIONAL                              :: error
+      OPTIONAL                               :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'harris_energy_set', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                    :: failure
+    LOGICAL                                  :: failure
 
 !   ------------------------------------------------------------------------
 

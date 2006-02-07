@@ -25,29 +25,33 @@
 !!   SOURCE
 !****************************************************************************
 MODULE scf_control_types
+  USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
+                                             cp_print_key_unit_nr
   USE global_types,                    ONLY: global_environment_type
+  USE input_constants,                 ONLY: atomic_guess,&
+                                             core_guess
+  USE input_cp2k_dft,                  ONLY: create_scf_section
+  USE input_enumeration_types,         ONLY: enum_i2c,&
+                                             enumeration_type
+  USE input_keyword_types,             ONLY: keyword_get,&
+                                             keyword_type
+  USE input_section_types,             ONLY: section_get_keyword,&
+                                             section_release,&
+                                             section_type,&
+                                             section_vals_get_subs_vals,&
+                                             section_vals_type,&
+                                             section_vals_val_get
   USE kinds,                           ONLY: dp
   USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE input_cp2k_dft, only: create_scf_section
-  USE input_constants, ONLY: atomic_guess, core_guess
-  USE input_section_types, ONLY: section_vals_type, section_vals_get_subs_vals,&
-       section_vals_val_get, section_vals_retain, section_vals_release,section_release,&
-       section_type, section_get_keyword
-  USE input_keyword_types, ONLY: keyword_type, keyword_get
-  USE input_enumeration_types, ONLY: enumeration_type, enum_i2c
-  USE cp_output_handling,              ONLY: cp_print_key_unit_nr, &
-                                             cp_print_key_finished_output,&
-                                             cp_print_key_should_output,&
-                                             cp_p_file
-
 #include "cp_common_uses.h"
+
   IMPLICIT NONE
   PRIVATE
 
   LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
-  CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='scf_control_types'
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'scf_control_types'
   INTEGER, SAVE, PRIVATE :: last_scf_c_id_nr=0
 
   PUBLIC :: scf_control_type
@@ -100,7 +104,7 @@ MODULE scf_control_types
 !!   SOURCE
 !***************************************************************************
   TYPE scf_control_type
-     integer               :: density_guess
+     INTEGER               :: density_guess
      REAL(KIND = dp)       :: eps_eigval,eps_scf,level_shift,p_mix,smear,&
                               work_syevx,eps_lumos, eps_diis,eps_jacobi,&
                               jacobi_threshold
@@ -329,18 +333,17 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE scf_c_read_parameters(scf_control, globenv, force_env_section, error)
     TYPE(scf_control_type), POINTER          :: scf_control
-    TYPE(global_environment_type), &
-      pointer                             :: globenv
+    TYPE(global_environment_type), POINTER   :: globenv
+    TYPE(section_vals_type), POINTER         :: force_env_section
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
-    TYPE(section_vals_type), POINTER :: force_env_section
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'scf_c_read_parameters', &
       routineP = moduleN//':'//routineN
 
+    INTEGER, DIMENSION(:), POINTER           :: added_mos
     LOGICAL                                  :: failure
-    TYPE(section_vals_type), POINTER :: scf_section
-    INTEGER, DIMENSION(:), pointer :: added_mos
+    TYPE(section_vals_type), POINTER         :: scf_section
 
     failure=.FALSE.
     CPPrecondition(ASSOCIATED(scf_control),cp_failure_level,routineP,error,failure)
@@ -447,22 +450,21 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE scf_c_write_parameters(scf_control,globenv, force_env_section, error)
     TYPE(scf_control_type), POINTER          :: scf_control
-    TYPE(global_environment_type), &
-      pointer                             :: globenv
+    TYPE(global_environment_type), POINTER   :: globenv
+    TYPE(section_vals_type), POINTER         :: force_env_section
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
-    TYPE(section_vals_type), POINTER :: force_env_section
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'scf_c_write_parameters', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: output_unit
     LOGICAL                                  :: failure
-    TYPE(enumeration_type), pointer :: enum
-    TYPE(section_type), POINTER :: scf_sect
-    TYPE(keyword_type), pointer :: keyword
-    TYPE(section_vals_type), POINTER :: scf_section
     TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(enumeration_type), POINTER          :: enum
+    TYPE(keyword_type), POINTER              :: keyword
+    TYPE(section_type), POINTER              :: scf_sect
+    TYPE(section_vals_type), POINTER         :: scf_section
 
     failure = .FALSE.
     NULLIFY(logger)
@@ -485,7 +487,7 @@ CONTAINS
                  "T25,56('-'),5(/,T25,A,T72,ES9.2),T25,56('-'),"//&
                  "4(/,T25,A,T76,F5.2),1(/,T25,A,T71,2I5))")&
                "SCF PARAMETERS",&
-               "Density guess:     ",ADJUSTR(trim(enum_i2c(enum,scf_control%density_guess))),&
+               "Density guess:     ",ADJUSTR(TRIM(enum_i2c(enum,scf_control%density_guess))),&
                "max_scf:           ",scf_control%max_scf,&
                "max_scf_aspc:      ",scf_control%max_scf_aspc,&
                "max_diis:          ",scf_control%max_diis,&

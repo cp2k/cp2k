@@ -24,24 +24,18 @@
 !******************************************************************************
 
 MODULE topology_types
-  USE kinds,                           ONLY: dp,&
-                                             default_string_length
-  USE pair_potential_types,            ONLY: pair_potential_type
-  USE cell_types,                 ONLY: cell_release,&
+  USE cell_types,                      ONLY: cell_release,&
                                              cell_type
-  USE termination,                     ONLY: stop_memory
-  USE input_constants,                 ONLY: do_conn_psf,&
+  USE input_constants,                 ONLY: do_bondparm_covalent,&
                                              do_conn_generate,&
-                                             do_conn_off,&
-                                             do_skip_vdw_12,&
-                                             do_skip_vdw_13,&
-                                             do_skip_vdw_14,&
-                                             do_skip_ei_12,&
-                                             do_skip_ei_13,&
+                                             do_nhcopt_global,&
                                              do_skip_ei_14,&
-                                             do_bondparm_covalent,&
-                                             do_nhcopt_global
+                                             do_skip_vdw_14
+  USE kinds,                           ONLY: default_string_length,&
+                                             dp
+  USE termination,                     ONLY: stop_memory
 #include "cp_common_uses.h"
+
   IMPLICIT NONE
 
   TYPE atom_info_type
@@ -166,7 +160,7 @@ MODULE topology_types
   PUBLIC :: init_topology,&
             deallocate_topology
 
-  CHARACTER(LEN=*), PARAMETER, PRIVATE :: moduleN = "topology_types"
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'topology_types'
   PRIVATE
 
 
@@ -302,10 +296,10 @@ END SUBROUTINE init_topology
 
 
 SUBROUTINE init_constraint(constraint_info)
-  IMPLICIT NONE
-  ! Arguments
-  TYPE(constraint_info_type),POINTER :: constraint_info
-  ! Fixed Atoms
+    TYPE(constraint_info_type), POINTER      :: constraint_info
+
+! Fixed Atoms
+
   constraint_info%nfixed_atoms = 0
   constraint_info%freeze_mm = .FALSE.
   constraint_info%freeze_qm = .FALSE.
@@ -373,14 +367,12 @@ END SUBROUTINE init_constraint
 !!   SOURCE
 !******************************************************************************
 SUBROUTINE deallocate_topology (topology, error)
-  IMPLICIT NONE
-  ! Arguments
-  TYPE(topology_parameters_type), &
-         INTENT(INOUT)                          :: topology
-  TYPE(cp_error_type), INTENT(inout), &
-       OPTIONAL                               :: error
-  ! Local Variables
-  INTEGER                                  :: istat
+    TYPE(topology_parameters_type), &
+      INTENT(INOUT)                          :: topology
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    INTEGER                                  :: istat
 
 !-------------------------------------------------------------------------------
 !-------------------------------------------------------------------------------
@@ -568,16 +560,15 @@ END SUBROUTINE deallocate_topology
 
 
 SUBROUTINE deallocate_constraint(constraint_info, error)
-  IMPLICIT NONE
-  ! Arguments
-  TYPE(constraint_info_type),POINTER :: constraint_info
-  TYPE(cp_error_type), INTENT(inout), &
-       OPTIONAL                               :: error
-  ! Local Variables
-  CHARACTER(len=*), PARAMETER :: routineN = 'deallocate_constraint', &
-       routineP = moduleN//':'//routineN
-  LOGICAL :: failure
-  integer :: stat,i
+    TYPE(constraint_info_type), POINTER      :: constraint_info
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'deallocate_constraint', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: stat
+    LOGICAL                                  :: failure
 
   failure = .FALSE.
   IF (.NOT.failure) THEN

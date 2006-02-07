@@ -29,14 +29,15 @@ MODULE xc_derivative_set_types
                                              cp_sll_xc_deriv_next,&
                                              cp_sll_xc_deriv_type
   USE kinds,                           ONLY: dp
-  USE pw_pool_types,                   ONLY: pw_pool_create_cr3d,&
+  USE message_passing,                 ONLY: MPI_COMM_SELF
+  USE pw_grid_types,                   ONLY: pw_grid_type
+  USE pw_grids,                        ONLY: pw_grid_create,&
+                                             pw_grid_release
+  USE pw_pool_types,                   ONLY: pw_pool_create,&
+                                             pw_pool_create_cr3d,&
                                              pw_pool_release,&
                                              pw_pool_retain,&
-                                             pw_pool_type,&
-                                             pw_pool_create
-  USE pw_grid_types,                   ONLY: pw_grid_type
-  USE pw_grids, only: pw_grid_create,&
-       pw_grid_release
+                                             pw_pool_type
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE xc_derivative_desc,              ONLY: MAX_DERIVATIVE_DESC_LENGTH,&
@@ -44,14 +45,13 @@ MODULE xc_derivative_set_types
   USE xc_derivative_types,             ONLY: xc_derivative_create,&
                                              xc_derivative_release,&
                                              xc_derivative_type
-  USE message_passing, only: MPI_COMM_SELF
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
   PRIVATE
 
   LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
-  CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='xc_derivative_set_types'
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'xc_derivative_set_types'
 
   INTEGER, SAVE :: derivative_set_last_id_nr  = 0
 
@@ -186,8 +186,8 @@ CONTAINS
   SUBROUTINE xc_dset_create(derivative_set, pw_pool, local_bounds, error)
 
     TYPE(xc_derivative_set_type), POINTER    :: derivative_set
-    TYPE(pw_pool_type), POINTER, optional    :: pw_pool
-    INTEGER, DIMENSION(2,3), OPTIONAL        :: local_bounds
+    TYPE(pw_pool_type), OPTIONAL, POINTER    :: pw_pool
+    INTEGER, DIMENSION(2, 3), OPTIONAL       :: local_bounds
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -196,10 +196,10 @@ CONTAINS
 
     INTEGER                                  :: stat
     LOGICAL                                  :: failure
-    TYPE(pw_grid_type), pointer              :: pw_grid
+    TYPE(pw_grid_type), POINTER              :: pw_grid
 
     failure=.FALSE.
-    nullify(pw_grid)
+    NULLIFY(pw_grid)
     CPPrecondition(.not.ASSOCIATED(derivative_set),cp_failure_level,routineP,error,failure)
 
     ALLOCATE(derivative_set, stat=stat)
@@ -343,17 +343,17 @@ END SUBROUTINE xc_dset_retain
 
 SUBROUTINE xc_dset_zero_all(deriv_set, error)
   
-  TYPE(xc_derivative_set_type), POINTER    :: deriv_set
-  TYPE(cp_error_type), INTENT(inout), &
-       OPTIONAL                            :: error
-  
-  LOGICAL                                  :: failure
-  TYPE(cp_sll_xc_deriv_type), POINTER      :: pos
-  TYPE(xc_derivative_type), POINTER        :: deriv_att
+    TYPE(xc_derivative_set_type), POINTER    :: deriv_set
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-  CHARACTER(len=*), PARAMETER :: routineN = 'xc_dset_zero_all', &
-                                 routineP = moduleN//':'//routineN
-  
+    CHARACTER(len=*), PARAMETER :: routineN = 'xc_dset_zero_all', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(cp_sll_xc_deriv_type), POINTER      :: pos
+    TYPE(xc_derivative_type), POINTER        :: deriv_att
+
   failure = .FALSE.
   NULLIFY(pos, deriv_att)
   

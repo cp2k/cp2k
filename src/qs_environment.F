@@ -25,14 +25,6 @@
 !******************************************************************************
 
 MODULE qs_environment
-  USE cp_output_handling,              ONLY: cp_print_key_should_output,&
-                                             cp_p_file,&
-                                             cp_print_key_unit_nr,&
-                                             cp_print_key_finished_output,&
-                                             cp_iter_string,&
-                                             cp_iterate,&
-                                             cp_add_iter_level,&
-                                             cp_rm_iter_level
   USE atomic_kind_list_types,          ONLY: atomic_kind_list_create,&
                                              atomic_kind_list_release,&
                                              atomic_kind_list_type
@@ -44,6 +36,13 @@ MODULE qs_environment
                                              read_atomic_kind_set,&
                                              write_atomic_kind_set,&
                                              write_gto_basis_sets
+  USE cell_types,                      ONLY: cell_clone,&
+                                             cell_create,&
+                                             cell_release,&
+                                             cell_type,&
+                                             get_cell,&
+                                             read_cell,&
+                                             write_cell
   USE checkpoint_handler,              ONLY: write_checkpoint_information
   USE cp_control_types,                ONLY: dft_control_release,&
                                              dft_control_type,&
@@ -56,37 +55,38 @@ MODULE qs_environment
                                              read_tddfpt_control,&
                                              write_dft_control,&
                                              write_qs_control
+  USE cp_ddapc_types,                  ONLY: cp_ddapc_ewald_create
   USE cp_fm_struct,                    ONLY: optimal_blacs_col_block_size,&
                                              optimal_blacs_row_block_size
+  USE cp_output_handling,              ONLY: cp_p_file,&
+                                             cp_print_key_finished_output,&
+                                             cp_print_key_should_output,&
+                                             cp_print_key_unit_nr
+  USE cp_subsystem_methods,            ONLY: cp_subsys_read_colvar
   USE cp_subsystem_types,              ONLY: cp_subsys_create,&
                                              cp_subsys_release,&
                                              cp_subsys_set,&
                                              cp_subsystem_type
-  USE cp_subsystem_methods,            ONLY: cp_subsys_read_colvar
   USE distribution_1d_types,           ONLY: distribution_1d_release,&
                                              distribution_1d_type
   USE distribution_methods,            ONLY: distribute_molecules_1d
   USE gamma,                           ONLY: init_md_ftable
   USE global_types,                    ONLY: global_environment_type
-  USE harris_energy_types,             ONLY: harris_energy_type, &
-                                             harris_energy_create
-  USE harris_env_types,                ONLY: harris_env_type, &
-                                             harris_env_create, &
-                                             harris_env_set
-  USE harris_force_types,              ONLY: harris_force_type, &
-                                             harris_force_create
+  USE harris_energy_types,             ONLY: harris_energy_create,&
+                                             harris_energy_type
+  USE harris_env_types,                ONLY: harris_env_create,&
+                                             harris_env_set,&
+                                             harris_env_type
+  USE harris_force_types,              ONLY: harris_force_type
   USE hartree_local_methods,           ONLY: init_coulomb_local
+  USE header,                          ONLY: qs_header
   USE input_constants,                 ONLY: do_method_gapw,&
                                              do_method_gapw_xc,&
                                              state_loc_all,&
-                                             state_loc_none,&
-                                             xas_tp_hh, xas_tp_fh
-  USE header,                          only: qs_header
+                                             state_loc_none
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
-                                             section_vals_val_get, &
-                                             section_vals_get,&
-                                             section_vals_type
-  USE input_types,                     ONLY: setup_parameters_type
+                                             section_vals_type,&
+                                             section_vals_val_get
   USE kinds,                           ONLY: dp,&
                                              int_size
   USE machine,                         ONLY: m_flush
@@ -115,8 +115,7 @@ MODULE qs_environment
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type,&
                                              set_qs_env
-  USE qs_force_types,                  ONLY: allocate_qs_force,&
-                                             qs_force_type
+  USE qs_force_types,                  ONLY: qs_force_type
   USE qs_interactions,                 ONLY: init_interaction_radii
   USE qs_loc_control,                  ONLY: localized_wfn_control_type,&
                                              set_loc_centers,&
@@ -135,28 +134,21 @@ MODULE qs_environment
                                              scf_c_release,&
                                              scf_c_write_parameters,&
                                              scf_control_type
-  USE cell_types,                      ONLY: cell_release,&
-                                             cell_type,&
-                                             read_cell,&
-                                             write_cell,&
-                                             get_cell,&
-                                             cell_create,&
-                                             cell_clone
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE topology,                        ONLY: topology_control
   USE xas_control,                     ONLY: write_xas_control
-  USE cp_ddapc_types,                  ONLY: cp_ddapc_ewald_create
 #include "cp_common_uses.h"
+
   IMPLICIT NONE
 
   PRIVATE
 
 ! *** Global parameters ***
 
-  CHARACTER(LEN=*), PARAMETER :: module_name = "qs_environment"
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_environment'
 
 ! *** Public subroutines ***
 
@@ -178,19 +170,21 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(qs_environment_type), POINTER         :: qs_env
-    TYPE(global_environment_type), POINTER     :: globenv
-    TYPE(cp_subsystem_type), POINTER, OPTIONAL :: subsystem
-    TYPE(cell_type), POINTER, OPTIONAL         :: cell, cell_ref
-    LOGICAL, INTENT(IN), OPTIONAL              :: qmmm
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(global_environment_type), POINTER   :: globenv
+    TYPE(cp_subsystem_type), OPTIONAL, &
+      POINTER                                :: subsystem
+    TYPE(cell_type), OPTIONAL, POINTER       :: cell, cell_ref
+    LOGICAL, INTENT(IN), OPTIONAL            :: qmmm
     TYPE(cp_error_type), INTENT(inout), &
-         OPTIONAL                              :: error
+      OPTIONAL                               :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = "qs_init", &
-      routineP = module_name//":"//routineN
+    CHARACTER(len=*), PARAMETER :: routineN = 'qs_init', &
+      routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: use_ref_cell, &
-                                                harris_flag
+    LOGICAL                                  :: harris_flag, my_qmmm, &
+                                                use_ref_cell
+    REAL(kind=dp), DIMENSION(3)              :: abc
     TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
@@ -205,12 +199,9 @@ CONTAINS
     TYPE(particle_list_type), POINTER        :: particles
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
-    TYPE(section_vals_type), POINTER         :: force_env_section,&
-                                                cell_section,&
-                                                harris_section,&
-                                                colvar_section
-    REAL(kind=dp), dimension(3)              :: abc
-    LOGICAL                                  :: my_qmmm
+    TYPE(section_vals_type), POINTER         :: cell_section, colvar_section, &
+                                                force_env_section, &
+                                                harris_section
 
     NULLIFY(my_subsystem, molecule_kind_set, molecule_set, atomic_kind_set,&
          particle_set,atomic_kinds,particles,mols,mol_kinds,my_cell,my_cell_ref,&
@@ -321,22 +312,25 @@ CONTAINS
     TYPE(cp_error_type), INTENT(INOUT), &
       OPTIONAL                               :: error
 
-    CHARACTER(LEN=*), PARAMETER              :: routine_name = "qs_init_subsys"
+    CHARACTER(LEN=*), PARAMETER              :: routineN = 'qs_init_subsys'
 
-    INTEGER :: handle, ispin, istat, lmax_sphere, maxl, maxlgto, maxlppl, &
-      maxlppnl, multiplicity, n_ao, nelectron, nkind, output_unit, natom, iw
-    INTEGER, ALLOCATABLE, DIMENSION(:)       :: natom_of_kind
+    INTEGER :: handle, ispin, istat, iw, lmax_sphere, maxl, maxlgto, maxlppl, &
+      maxlppnl, multiplicity, n_ao, natom, nelectron, output_unit
     INTEGER, DIMENSION(2)                    :: n_mo, nelectron_spin, nmoloc
-    LOGICAL                                  :: all_potential_present, ionode,&
-                                                xas_calculation, was_present
+    LOGICAL                                  :: all_potential_present, &
+                                                harris_flag, ionode, &
+                                                was_present, xas_calculation
     REAL(dp)                                 :: maxocc
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
+    TYPE(cp_logger_type), POINTER            :: logger
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(distribution_1d_type), POINTER      :: local_molecules, &
                                                 local_particles
     TYPE(gapw_control_type), POINTER         :: gapw_control
-    TYPE(qs_control_type), POINTER           :: qs_control
+    TYPE(harris_energy_type), POINTER        :: harris_energy
+    TYPE(harris_env_type), POINTER           :: harris_env
+    TYPE(harris_force_type), POINTER         :: harris_force
     TYPE(localized_wfn_control_type), &
       POINTER                                :: localized_wfn_control
     TYPE(mo_set_p_type), DIMENSION(:), &
@@ -347,27 +341,22 @@ CONTAINS
       POINTER                                :: molecule_set
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
+    TYPE(qs_control_type), POINTER           :: qs_control
     TYPE(qs_energy_type), POINTER            :: energy
     TYPE(qs_force_type), DIMENSION(:), &
       POINTER                                :: force
-    TYPE(harris_energy_type), POINTER        :: harris_energy
-    TYPE(harris_env_type), POINTER           :: harris_env
-    TYPE(harris_force_type), POINTER         :: harris_force
     TYPE(qs_wf_history_type), POINTER        :: wf_history
     TYPE(rho0_mpole_type), POINTER           :: nddo_mpole, rho0_mpole
     TYPE(scf_control_type), POINTER          :: scf_control
-    TYPE(section_vals_type), POINTER         :: xas_section, dft_section
+    TYPE(section_vals_type), POINTER         :: dft_section, xas_section
     TYPE(semi_empirical_control_type), &
       POINTER                                :: se_control
 
-    LOGICAL :: harris_flag
-    TYPE(cp_logger_type), POINTER            :: logger
-    
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
-    CALL write_checkpoint_information("entering "//routine_name,globenv,error)
+    CALL write_checkpoint_information("entering "//routineN,globenv,error)
 
-    CALL timeset(routine_name,"I",'',handle)
+    CALL timeset(routineN,"I",'',handle)
 
     ionode = globenv%ionode
     IF(ionode) output_unit = globenv%scr
@@ -426,9 +415,9 @@ CONTAINS
     CALL write_qs_control(dft_control%qs_control,dft_section,error)
 
 !   *** Print XES/XAS   control parameters *** ***
-    if (dft_control % do_xas_calculation) then
+    IF (dft_control % do_xas_calculation) THEN
       CALL write_xas_control(dft_control%xas_control,dft_section,error=error)
-    end if
+    END IF
 
 !   *** Check basis and fill in missing parts ***
 
@@ -441,7 +430,7 @@ CONTAINS
                             all_potential_present=all_potential_present)
     IF(all_potential_present .AND. .NOT.(dft_control%qs_control%method == "GAPW"&
           .OR. dft_control%qs_control%semi_empirical))&
-      CALL stop_program(routine_name,module_name,__LINE__,&
+      CALL stop_program(routineN,moduleN,__LINE__,&
                         "all-el calculations with GPW and GAPW_XC are not implemented ")      
 
 !   *** Initialize the spherical harmonics and ***
@@ -641,12 +630,12 @@ CONTAINS
     multiplicity = dft_control%multiplicity
 
     IF ((dft_control%nspins < 1).OR.(dft_control%nspins > 2)) THEN
-      CALL stop_program(routine_name,module_name,__LINE__,&
+      CALL stop_program(routineN,moduleN,__LINE__,&
                         "nspins should be 1 or 2 for the time being...")
     END IF
 
     IF ((MODULO(nelectron,2) /= 0).AND.(dft_control%nspins == 1)) THEN
-      CALL stop_program(routine_name,module_name,__LINE__,&
+      CALL stop_program(routineN,moduleN,__LINE__,&
                         "Use the LSD option for an odd number of electrons.")
     END IF
 
@@ -657,7 +646,7 @@ CONTAINS
          l_val=xas_calculation,error=error)
 
     IF(xas_calculation .AND. (dft_control%nspins == 1) ) THEN
-      CALL stop_program(routine_name,module_name,__LINE__,&
+      CALL stop_program(routineN,moduleN,__LINE__,&
                    "Use the LSD option for XAS with transition potential.")
     END IF
 
@@ -685,7 +674,7 @@ CONTAINS
 !    *** need additional user input
 
      IF (MODULO(nelectron + multiplicity - 1,2) /= 0) THEN
-       CALL stop_program(routine_name,module_name,__LINE__,&
+       CALL stop_program(routineN,moduleN,__LINE__,&
                          "LSD: try to use a different multiplicity.")
      END IF
 
@@ -693,7 +682,7 @@ CONTAINS
      nelectron_spin(2) = (nelectron - multiplicity + 1)/2
 
      IF (nelectron_spin(2) < 0) THEN
-       CALL stop_program(routine_name,module_name,__LINE__,&
+       CALL stop_program(routineN,moduleN,__LINE__,&
                          "LSD: too few electrons for this multiplicity.")
      END IF
 
@@ -708,7 +697,7 @@ CONTAINS
     IF (n_mo(2) /= 0) n_mo(2) = n_mo(2) + scf_control%added_mos(2)
 
     IF(scf_control%smear /= 0.0_dp .AND. scf_control%added_mos(1) == 0) THEN
-      CALL stop_program(routine_name,module_name,__LINE__,&
+      CALL stop_program(routineN,moduleN,__LINE__,&
                          "More states are needed to apply smeraing.")
     END IF
 
@@ -723,7 +712,7 @@ CONTAINS
 
     ALLOCATE (mos(dft_control%nspins),STAT=istat)
     IF (istat /= 0) THEN
-      CALL stop_memory(routine_name,module_name,__LINE__,&
+      CALL stop_memory(routineN,moduleN,__LINE__,&
                        "mos",dft_control%nspins*int_size)
     END IF
 
@@ -794,7 +783,7 @@ CONTAINS
 
     CALL timestop(0.0_dp,handle)
 
-    CALL write_checkpoint_information("leaving "//routine_name,globenv,error)
+    CALL write_checkpoint_information("leaving "//routineN,globenv,error)
 
   END SUBROUTINE qs_init_subsys
 
@@ -813,16 +802,15 @@ CONTAINS
       POINTER                                :: atomic_kind_set
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
-    TYPE(section_vals_type), POINTER :: force_env_section
+    TYPE(section_vals_type), POINTER         :: force_env_section
     TYPE(cp_error_type), INTENT(inout), &
-         OPTIONAL                               :: error
-    
+      OPTIONAL                               :: error
+
     INTEGER                                  :: maxlgto, maxlppl, maxlppnl, &
                                                 natom, ncgf, nkind, npgf, &
                                                 nset, nsgf, nshell, &
                                                 output_unit
     TYPE(cp_logger_type), POINTER            :: logger
-
 
     NULLIFY(logger)
     logger => cp_error_get_logger(error)

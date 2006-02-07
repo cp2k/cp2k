@@ -23,34 +23,25 @@
 !******************************************************************************
 
 MODULE force_env_methods
-  USE atomic_kind_list_types,          ONLY: atomic_kind_list_type
-  USE cp_output_handling,              ONLY: cp_print_key_should_output, cp_p_file
+  USE cell_types,                      ONLY: cell_type
+  USE constraint,                      ONLY: fix_atom_control
+  USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
+                                             cp_print_key_unit_nr
   USE cp_para_env,                     ONLY: cp_para_env_retain
-  USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_subsystem_types,              ONLY: cp_subsys_retain,&
-                                             cp_subsys_get,&
                                              cp_subsystem_p_type
-  USE dynamical_coeff_types,           ONLY: dyn_coeff_set_retain,&
-                                             dyn_coeff_set_p_type
-  USE fist_environment_types,          ONLY: fist_environment_type,&
-                                             fist_env_release,&
-                                             fist_env_retain,&
+  USE dynamical_coeff_types,           ONLY: dyn_coeff_set_retain
+  USE fist_environment_types,          ONLY: fist_env_retain,&
+                                             fist_environment_type,&
                                              get_fist_env
   USE fist_force,                      ONLY: fist_force_control
-  USE force_env_types,                 ONLY: force_env_get,&
-                                             force_env_p_type,&
-                                             force_env_release,&
-                                             force_env_retain,&
-                                             force_env_set,&
-                                             force_env_type,&
-                                             use_fist_force,&
-                                             use_kg_force,&
-                                             use_pol_force,&
-                                             use_qs_force,&
-                                             use_qmmm,&
-                                             use_tbmd_force
+  USE force_env_types,                 ONLY: &
+       force_env_get, force_env_p_type, force_env_type, use_fist_force, &
+       use_kg_force, use_pol_force, use_qmmm, use_qs_force, use_tbmd_force
   USE global_types,                    ONLY: global_environment_type,&
-       globenv_retain, globenv_release
+                                             globenv_retain
+  USE input_section_types,             ONLY: section_vals_get_subs_vals,&
+                                             section_vals_type
   USE kg_energy,                       ONLY: kg_energies
   USE kg_environment_types,            ONLY: get_kg_env,&
                                              kg_env_retain,&
@@ -60,13 +51,17 @@ MODULE force_env_methods
   USE metadynamics,                    ONLY: metadyn_add_forces
   USE metadynamics_types,              ONLY: meta_env_retain,&
                                              meta_env_type
-  USE particle_list_types,             ONLY: particle_list_type
   USE particle_types,                  ONLY: particle_type,&
                                              write_qs_particle_coordinates
   USE qmmm_electrostatic_methods,      ONLY: qmmm_el_coupling
+  USE qmmm_elpot,                      ONLY: qmmm_validate_this_run
+  USE qmmm_links_methods,              ONLY: qmmm_added_chrg_coord,&
+                                             qmmm_added_chrg_forces,&
+                                             qmmm_link_Imomm_coord,&
+                                             qmmm_link_Imomm_forces
   USE qmmm_methods,                    ONLY: qmmm_forces
-  USE qmmm_types,                      ONLY: qmmm_env_qm_type,&
-                                             qmmm_env_qm_retain,&
+  USE qmmm_types,                      ONLY: qmmm_env_qm_retain,&
+                                             qmmm_env_qm_type,&
                                              qmmm_links_type
   USE qs_energy,                       ONLY: qs_energies
   USE qs_environment_methods,          ONLY: qs_env_rebuild_pw_env
@@ -75,37 +70,24 @@ MODULE force_env_methods
                                              qs_environment_type,&
                                              set_qs_env
   USE qs_force,                        ONLY: qs_forces
-  USE qs_numerical_pressure,           ONLY: qs_calc_numerical_pressure
-  USE cell_types,                      ONLY: cell_type
-  USE tbmd_energy,                     ONLY: tbmd_energies
-  USE tbmd_environment_types,          ONLY: tbmd_environment_type, &
-                                             tbmd_env_get, &
-                                             tbmd_env_retain
-  USE tbmd_force,                      ONLY: tbmd_forces
-  USE virial_types,                    ONLY: virial_create, &
-                                             virial_type,&
-                                             virial_retain,&
-                                             zero_virial
   USE qs_ks_qmmm_methods,              ONLY: ks_qmmm_env_rebuild
-  USE qmmm_links_methods,              ONLY: qmmm_link_Imomm_coord,&
-                                             qmmm_link_Imomm_forces,&
-                                             qmmm_added_chrg_coord,&
-                                             qmmm_added_chrg_forces
-  USE qmmm_elpot,                      ONLY: qmmm_validate_this_run
-  USE input_section_types, ONLY: section_type, section_create, &
-       section_add_keyword, section_add_subsection, section_release,&
-       section_describe_html, section_describe_index_html, section_vals_type,&
-       section_vals_get_subs_vals, section_vals_get, section_vals_val_get
-  USE constraint, only: fix_atom_control
-  USE cp_output_handling,              ONLY: cp_print_key_unit_nr, &
-                                             cp_print_key_finished_output  
+  USE qs_numerical_pressure,           ONLY: qs_calc_numerical_pressure
+  USE tbmd_energy,                     ONLY: tbmd_energies
+  USE tbmd_environment_types,          ONLY: tbmd_env_get,&
+                                             tbmd_env_retain,&
+                                             tbmd_environment_type
+  USE tbmd_force,                      ONLY: tbmd_forces
+  USE virial_types,                    ONLY: virial_create,&
+                                             virial_retain,&
+                                             virial_type,&
+                                             zero_virial
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
 
   PRIVATE
 
-  CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='force_env_methods'
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'force_env_methods'
 
   PUBLIC :: force_env_create, &
        force_env_calc_energy_force, &
@@ -152,9 +134,8 @@ RECURSIVE SUBROUTINE force_env_calc_energy_force ( force_env, &
     CHARACTER(len=*), PARAMETER :: routineN = 'force_env_calc_energy_force', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure, my_box_change, &
-                                                need_f, energy_consistency
-    INTEGER                                  :: i
+    LOGICAL                                  :: energy_consistency, failure, &
+                                                my_box_change, need_f
     TYPE(virial_type), POINTER               :: virial
 
 !------------------------------------------------------------------------------
@@ -262,6 +243,7 @@ END SUBROUTINE force_env_calc_energy_force
 SUBROUTINE force_env_create(force_env,globenv,fist_env,&
      qs_env,kg_env,tbmd_env,meta_env,sub_force_env,qmmm_env,error)
     TYPE(force_env_type), POINTER            :: force_env
+    TYPE(global_environment_type), POINTER   :: globenv
     TYPE(fist_environment_type), OPTIONAL, &
       POINTER                                :: fist_env
     TYPE(qs_environment_type), OPTIONAL, &
@@ -270,24 +252,21 @@ SUBROUTINE force_env_create(force_env,globenv,fist_env,&
       POINTER                                :: kg_env
     TYPE(tbmd_environment_type), OPTIONAL, &
       POINTER                                :: tbmd_env
-    TYPE(global_environment_type), &
-      POINTER                                :: globenv
     TYPE(meta_env_type), OPTIONAL, POINTER   :: meta_env
-    TYPE(force_env_p_type), DIMENSION(:), POINTER, OPTIONAL :: sub_force_env
-    TYPE(qmmm_env_qm_type), POINTER, OPTIONAL   :: qmmm_env
+    TYPE(force_env_p_type), DIMENSION(:), &
+      OPTIONAL, POINTER                      :: sub_force_env
+    TYPE(qmmm_env_qm_type), OPTIONAL, &
+      POINTER                                :: qmmm_env
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'force_env_create', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat,isubsys
-    INTEGER                                  :: i,j,k
+    INTEGER                                  :: isubsys, stat
     LOGICAL                                  :: failure
-
-    TYPE(cp_subsystem_p_type), DIMENSION(:), POINTER :: subsys
-    TYPE(dyn_coeff_set_p_type), DIMENSION(:),POINTER :: sub_dyn_coeff
-
+    TYPE(cp_subsystem_p_type), &
+      DIMENSION(:), POINTER                  :: subsys
 
   failure=.FALSE.
 
@@ -304,7 +283,7 @@ SUBROUTINE force_env_create(force_env,globenv,fist_env,&
      force_env%id_nr=last_force_env_id
      force_env%ref_count=1
      force_env%in_use=0
-     force_env%box_changed=.false.
+     force_env%box_changed=.FALSE.
 
      force_env%globenv => globenv
      CALL globenv_retain(force_env%globenv,error=error)
@@ -353,7 +332,7 @@ SUBROUTINE force_env_create(force_env,globenv,fist_env,&
         END IF
      END IF
      IF (PRESENT(qmmm_env)) THEN
-        CPPrecondition(present(sub_force_env),cp_failure_level,routineP,error,failure)
+        CPPrecondition(PRESENT(sub_force_env),cp_failure_level,routineP,error,failure)
         force_env%in_use=use_qmmm
         force_env%qmmm_env => qmmm_env
         CALL qmmm_env_qm_retain(qmmm_env,error=error)
@@ -421,7 +400,7 @@ SUBROUTINE force_env_create(force_env,globenv,fist_env,&
         CALL cp_subsys_retain(force_env%subsys(1)%subsys, error=error)
      CASE(use_qmmm)
         subsys => force_env%sub_force_env(1)%force_env%subsys
-        ALLOCATE(force_env%subsys(size(subsys)), stat=stat)
+        ALLOCATE(force_env%subsys(SIZE(subsys)), stat=stat)
         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
         
         DO isubsys=1,SIZE(subsys)
@@ -474,7 +453,6 @@ RECURSIVE SUBROUTINE force_env_set_cell(force_env, cell, error)
       routineP = moduleN//':'//routineN
 
     LOGICAL                                  :: failure
-    INTEGER                                  :: i
 
   failure=.FALSE.
   CPPrecondition(ASSOCIATED(force_env),cp_failure_level,routineP,error,failure)
@@ -501,7 +479,7 @@ RECURSIVE SUBROUTINE force_env_set_cell(force_env, cell, error)
              CPSourceFileRef,&
              error,failure)
      END SELECT
-     force_env%box_changed=.true.
+     force_env%box_changed=.TRUE.
   END IF
 END SUBROUTINE force_env_set_cell
 !***************************************************************************
@@ -530,26 +508,32 @@ END SUBROUTINE force_env_set_cell
 !!
 !!*** **********************************************************************
 RECURSIVE SUBROUTINE qmmm_energy_and_forces(force_env,calc_force,error)
-  TYPE(force_env_type), POINTER            :: force_env
-  LOGICAL, INTENT(IN), OPTIONAL            :: calc_force
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(force_env_type), POINTER            :: force_env
+    LOGICAL, INTENT(IN), OPTIONAL            :: calc_force
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-  LOGICAL :: failure,need_f,qmmm_link, qmmm_link_imomm, qmmm_added_chrg
-  character(len=*), parameter :: routineN='qmmm_energy_and_forces',&
-       routineP=moduleN//':'//routineN
-  TYPE(cp_subsystem_p_type), DIMENSION(:), POINTER :: subsys_qm,subsys_mm
-  INTEGER, DIMENSION(:), POINTER :: qm_atom_index, qm_subsys_index
-  INTEGER :: ip, isubsys, output_unit
-  INTEGER, PARAMETER :: fist_subsys = 1, qs_subsys = 2
-  TYPE(particle_type), DIMENSION(:), POINTER :: particles_qm, particles_mm
-  REAL(KIND=dp), DIMENSION(3) :: min_coord,max_coord,transl_v
-  TYPE(cell_type), POINTER :: qm_cell, mm_cell
-  REAL(KIND=dp) :: energy_mm, energy_qm
-  TYPE(cp_logger_type), pointer :: logger
-  TYPE(section_vals_type), POINTER :: force_env_section
-  TYPE(qmmm_links_type), POINTER :: qmmm_links
-  LOGICAL, SAVE :: do_translate=.TRUE.
-  
+    CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_energy_and_forces', &
+      routineP = moduleN//':'//routineN
+    INTEGER, PARAMETER                       :: fist_subsys = 1, qs_subsys = 2
+
+    INTEGER                                  :: ip, isubsys, output_unit
+    INTEGER, DIMENSION(:), POINTER           :: qm_atom_index, qm_subsys_index
+    LOGICAL                                  :: failure, need_f, &
+                                                qmmm_added_chrg, qmmm_link, &
+                                                qmmm_link_imomm
+    LOGICAL, SAVE                            :: do_translate = .TRUE.
+    REAL(KIND=dp)                            :: energy_mm, energy_qm
+    REAL(KIND=dp), DIMENSION(3)              :: max_coord, min_coord, transl_v
+    TYPE(cell_type), POINTER                 :: mm_cell, qm_cell
+    TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(cp_subsystem_p_type), &
+      DIMENSION(:), POINTER                  :: subsys_mm, subsys_qm
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particles_mm, particles_qm
+    TYPE(qmmm_links_type), POINTER           :: qmmm_links
+    TYPE(section_vals_type), POINTER         :: force_env_section
+
   min_coord       =  HUGE(0.0_dp)
   max_coord       = -HUGE(0.0_dp)
   failure         = .FALSE.

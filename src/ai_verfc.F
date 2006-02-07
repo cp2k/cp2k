@@ -132,7 +132,7 @@ CONTAINS
     INTEGER, INTENT(IN), OPTIONAL            :: maxder
     REAL(KIND=dp), DIMENSION(:, :), OPTIONAL :: vabc_plus
 
-    CHARACTER(LEN=*), PARAMETER              :: routine_name = "verfc"
+    CHARACTER(LEN=*), PARAMETER              :: routineN = 'verfc'
 
     INTEGER                                  :: ax, ay, az, bx, by, bz, i, &
                                                 ipgf, j, jpgf, la, la_start, &

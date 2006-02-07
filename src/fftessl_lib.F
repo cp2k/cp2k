@@ -54,10 +54,10 @@ CONTAINS
 !!   SOURCE
 !******************************************************************************
 
-SUBROUTINE fft_get_lengths ( data, max_length )
+SUBROUTINE fft_get_lengths ( DATA, max_length )
 
 
-    INTEGER, DIMENSION(:), POINTER           :: data
+    INTEGER, DIMENSION(:), POINTER           :: DATA
     INTEGER, INTENT(IN)                      :: max_length
 
     INTEGER :: allocstat, h, i, j, k, m, maxn, maxn_elevens, maxn_fives, &
@@ -96,13 +96,13 @@ SUBROUTINE fft_get_lengths ( data, max_length )
      END DO
   END DO
 
-  ALLOCATE ( data ( ndata ), idx ( ndata ), STAT = allocstat )
+  ALLOCATE ( DATA ( ndata ), idx ( ndata ), STAT = allocstat )
   IF ( allocstat /= 0 ) THEN
      CALL stop_memory ( "fft_get_lengths", "data, idx", 2*ndata )
   END IF
 
   ndata = 0
-  data ( : ) = 0
+  DATA ( : ) = 0
   DO h = 1, maxn_twos
      nmax = HUGE(0) / 2**h
      DO i = 0, maxn_threes
@@ -117,14 +117,14 @@ SUBROUTINE fft_get_lengths ( data, max_length )
                  IF ( number >= maxn ) CYCLE
 
                  ndata = ndata + 1
-                 data ( ndata ) = number
+                 DATA ( ndata ) = number
               END DO
            END DO
         END DO
      END DO
   END DO
 
-  CALL sort ( data, ndata, idx )
+  CALL sort ( DATA, ndata, idx )
 
   DEALLOCATE ( idx, STAT = allocstat )
   IF ( allocstat /= 0 ) THEN
@@ -157,14 +157,15 @@ SUBROUTINE fft3d ( fsign, scale, n, zg, zg_out )
 
 
     INTEGER, INTENT(INOUT)                   :: fsign
-    REAL(KIND=dp), INTENT(IN), OPTIONAL          :: scale
+    REAL(KIND=dp), INTENT(IN), OPTIONAL      :: scale
     INTEGER, DIMENSION(:), INTENT(IN)        :: n
     COMPLEX(KIND=dp), DIMENSION(:, :, :), &
       INTENT(INOUT)                          :: zg
     COMPLEX(KIND=dp), DIMENSION(:, :, :), &
       INTENT(INOUT), OPTIONAL                :: zg_out
 
-    COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:)  :: aux
+    COMPLEX(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:)                           :: aux
     INTEGER                                  :: isos, ldox, ldoy, ldoz, ldx, &
                                                 ldy, ldz, na1, na2, naux, nx, &
                                                 ny, nz, sign_fft
@@ -173,9 +174,9 @@ SUBROUTINE fft3d ( fsign, scale, n, zg, zg_out )
 !------------------------------------------------------------------------------
 
   IF ( PRESENT ( zg_out ) ) THEN
-     fft_in_place = .false.
+     fft_in_place = .FALSE.
   ELSE
-     fft_in_place = .true.
+     fft_in_place = .TRUE.
   END IF
 
   sign_fft = fsign
@@ -264,17 +265,18 @@ SUBROUTINE mfft2d ( rin, rout, fsign, scale, n1, n2, nm, zin, zout )
 
     CHARACTER(LEN=*), INTENT(IN)             :: rin, rout
     INTEGER, INTENT(INOUT)                   :: fsign
-    REAL(KIND=dp), INTENT(IN)                    :: scale
+    REAL(KIND=dp), INTENT(IN)                :: scale
     INTEGER, INTENT(IN)                      :: n1, n2, nm
     COMPLEX(KIND=dp), DIMENSION(:, :, :), &
       INTENT(IN)                             :: zin
     COMPLEX(KIND=dp), DIMENSION(:, :, :), &
       INTENT(OUT)                            :: zout
 
-    COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:)  :: aux1, aux2
+    COMPLEX(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:)                           :: aux1, aux2
     INTEGER :: i, i1, i2, i3, ierr, inc1x, inc1y, inc2x, inc2y, init, li1, &
       li2, li3, lo1, lo2, lo3, naux1, naux2, o1, o2, o3, sign_fft
-    REAL(KIND=dp)                                :: r, s
+    REAL(KIND=dp)                            :: r, s
 
 !------------------------------------------------------------------------------
 
@@ -387,14 +389,15 @@ SUBROUTINE mltfft ( tin, tout, fsign, scale, n, m, zin, zout )
   
     CHARACTER(LEN=*), INTENT(IN)             :: tin, tout
     INTEGER, INTENT(INOUT)                   :: fsign
-    REAL(KIND=dp), INTENT(IN)                    :: scale
+    REAL(KIND=dp), INTENT(IN)                :: scale
     INTEGER, INTENT(IN)                      :: n, m
     COMPLEX(KIND=dp), DIMENSION(:, :), &
       INTENT(IN)                             :: zin
     COMPLEX(KIND=dp), DIMENSION(:, :), &
       INTENT(OUT)                            :: zout
 
-    COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:)  :: aux1, aux2
+    COMPLEX(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:)                           :: aux1, aux2
     INTEGER                                  :: ierr, inc1x, inc1y, inc2x, &
                                                 inc2y, init, isign, ldi, ldo, &
                                                 lmi, lmo, naux1, naux2

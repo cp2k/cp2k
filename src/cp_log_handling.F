@@ -49,19 +49,19 @@
 !******************************************************************************
 
 MODULE cp_log_handling
+  USE cp_files,                        ONLY: close_file,&
+                                             open_file
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE cp_files,                        ONLY: open_file,close_file
-  USE kinds,                           ONLY: dp, default_string_length
-  USE machine,                         ONLY: m_abort,&
-                                             m_datum,&
+  USE kinds,                           ONLY: default_string_length,&
+                                             dp
+  USE machine,                         ONLY: m_datum,&
                                              m_flush,&
                                              m_getpid,&
                                              m_hostnm
-  USE message_passing,                 ONLY: mp_bcast,&
-                                             mp_comm_free,&
+  USE message_passing,                 ONLY: mp_comm_free,&
                                              mp_stop
   USE output_utilities,                ONLY: print_message
-  USE string_utilities,                ONLY: compress, uppercase
+  USE string_utilities,                ONLY: compress
   USE timings,                         ONLY: print_stack
 
   IMPLICIT NONE
@@ -86,7 +86,7 @@ MODULE cp_log_handling
 ! underlying routines
 !!FM  public :: cp_int_to_string, cp_real_dp_to_string
 
-  CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='cp_log_handling'
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_log_handling'
   LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
 
 !! level of an error
@@ -98,9 +98,9 @@ MODULE cp_log_handling
 !! level of a note
   INTEGER, PARAMETER  :: cp_note_level=0
 !! maximum recursive level for the iterations
-  INTEGER, PARAMETER, public  :: max_iter_r_level=5
+  INTEGER, PARAMETER, PUBLIC  :: max_iter_r_level=5
 !! number used for udefined iteration levels
-  INTEGER, PARAMETER, public  :: cp_iter_undefined=-1
+  INTEGER, PARAMETER, PUBLIC  :: cp_iter_undefined=-1
 
 !! a generic function to trasform different types to strings
   INTERFACE cp_to_string
@@ -135,7 +135,7 @@ MODULE cp_log_handling
      CHARACTER(len=default_string_length) :: project_name
      INTEGER :: print_level, n_rlevel
      INTEGER, DIMENSION(max_iter_r_level) :: iteration
-     LOGICAL, dimension(max_iter_r_level) :: last_iter
+     LOGICAL, DIMENSION(max_iter_r_level) :: last_iter
      CHARACTER(LEN=default_string_length), &
               DIMENSION(max_iter_r_level) :: level_name
   END TYPE cp_iteration_info_type
@@ -211,7 +211,7 @@ MODULE cp_log_handling
      CHARACTER(len=10) :: suffix
      CHARACTER(len=50) :: local_filename, global_filename
      TYPE(cp_para_env_type), POINTER :: para_env
-     TYPE(cp_iteration_info_type), pointer :: iter_info
+     TYPE(cp_iteration_info_type), POINTER :: iter_info
   END TYPE cp_logger_type
 !!***
 !****************************************************************************
@@ -249,11 +249,10 @@ CONTAINS
 !!
 !!*** *********************************************************************
   SUBROUTINE cp_add_default_logger(logger)
-    TYPE(cp_logger_type), pointer  :: logger
+    TYPE(cp_logger_type), POINTER            :: logger
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_add_default_logger', &
       routineP = moduleN//':'//routineN
-
 
     IF (stack_pointer+1>max_stack_pointer) THEN
        CALL mp_stop(100,routineP//&
@@ -264,7 +263,7 @@ CONTAINS
     NULLIFY(default_logger_stack(stack_pointer)%cp_default_logger)
 
     default_logger_stack(stack_pointer)%cp_default_logger => logger
-    call cp_logger_retain(logger)
+    CALL cp_logger_retain(logger)
 
   END SUBROUTINE cp_add_default_logger
 !**************************************************************************
@@ -416,10 +415,11 @@ CONTAINS
                                                 default_local_unit_nr
     CHARACTER(len=*), INTENT(in), OPTIONAL   :: global_filename, &
                                                 local_filename
-    LOGICAL, INTENT(in), OPTIONAL            :: close_global_unit_on_dealloc, &
-                                                close_local_unit_on_dealloc
+    LOGICAL, INTENT(in), OPTIONAL            :: close_global_unit_on_dealloc
+    TYPE(cp_iteration_info_type), OPTIONAL, &
+      POINTER                                :: iter_info
+    LOGICAL, INTENT(in), OPTIONAL            :: close_local_unit_on_dealloc
     CHARACTER(len=*), INTENT(in), OPTIONAL   :: suffix
-    TYPE(cp_iteration_info_type), POINTER, optional :: iter_info
     TYPE(cp_logger_type), OPTIONAL, POINTER  :: template_logger
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_logger_create', &
@@ -624,7 +624,7 @@ CONTAINS
              logger%default_local_unit_nr=-1
           END IF
           CALL my_cp_para_env_release(logger%para_env)
-          call cp_iteration_info_release(logger%iter_info)
+          CALL cp_iteration_info_release(logger%iter_info)
           DEALLOCATE(logger,stat=stat)
           IF (stat/=0) PRINT *, routineP," WARNING logger dealloc stat=",stat
        END IF
@@ -960,8 +960,10 @@ CONTAINS
 
     CHARACTER(len=80)                        :: filename, host_name
     INTEGER                                  :: iostat, pid
-    LOGICAL                                  :: loc !,exists
+    LOGICAL                                  :: loc
     TYPE(cp_logger_type), POINTER            :: lggr
+
+!,exists
 
     loc=.TRUE.
     IF (PRESENT(logger)) THEN
@@ -987,8 +989,8 @@ CONTAINS
                   file_action="WRITE",file_position="APPEND",&
                   unit_number=lggr%default_global_unit_nr)
           ELSE
-             lggr%default_global_unit_nr=cp_logger_get_default_unit_nr(lggr,.true.)
-             lggr%close_global_unit_on_dealloc=.false.
+             lggr%default_global_unit_nr=cp_logger_get_default_unit_nr(lggr,.TRUE.)
+             lggr%close_global_unit_on_dealloc=.FALSE.
           END IF
        END IF
        IF (lggr%para_env%mepos/=lggr%para_env%source) THEN
@@ -1186,16 +1188,17 @@ CONTAINS
 !!
 !!*** **********************************************************************
 SUBROUTINE cp_logger_set(logger,local_filename,global_filename)
-  TYPE(cp_logger_type), pointer :: logger
-  CHARACTER(len=*), INTENT(in), OPTIONAL :: local_filename, global_filename
+    TYPE(cp_logger_type), POINTER            :: logger
+    CHARACTER(len=*), INTENT(in), OPTIONAL   :: local_filename, &
+                                                global_filename
 
-  CHARACTER(len=*), PARAMETER :: routineN="cp_logger_set",&
-       routineP=moduleN//":"//routineN
-  
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_logger_set', &
+      routineP = moduleN//':'//routineN
+
   IF (.NOT.ASSOCIATED(logger)) CALL mp_stop(121,routineP//&
        " unassociated logger")
-  if (present(local_filename)) logger%local_filename=local_filename
-  if (present(global_filename)) logger%global_filename=global_filename
+  IF (PRESENT(local_filename)) logger%local_filename=local_filename
+  IF (PRESENT(global_filename)) logger%global_filename=global_filename
 END SUBROUTINE cp_logger_set
 !***************************************************************************
 
@@ -1221,13 +1224,14 @@ END SUBROUTINE cp_logger_set
 !!
 !!*** **********************************************************************
 SUBROUTINE cp_iteration_info_create(iteration_info,project_name)
-  TYPE(cp_iteration_info_type), pointer :: iteration_info
-  CHARACTER(len=*), intent(in) :: project_name
-  
-  character(len=*), parameter :: routineN='cp_iteration_info_create',&
-        routineP=moduleN//':'//routineN
-  integer :: stat
-  
+    TYPE(cp_iteration_info_type), POINTER    :: iteration_info
+    CHARACTER(len=*), INTENT(in)             :: project_name
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_iteration_info_create', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: stat
+
   ALLOCATE(iteration_info,stat=stat)
   IF (stat/=0) THEN
      CALL mp_stop(122,routineP//" could not allocate iteration_info")
@@ -1264,16 +1268,15 @@ END SUBROUTINE cp_iteration_info_create
 !!
 !!*** **********************************************************************
 SUBROUTINE cp_iteration_info_retain(iteration_info)
-  TYPE(cp_iteration_info_type), pointer :: iteration_info
-  
-  character(len=*), parameter :: routineN='cp_iteration_info_retain',&
-        routineP=moduleN//':'//routineN
-  
-  
+    TYPE(cp_iteration_info_type), POINTER    :: iteration_info
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_iteration_info_retain', &
+      routineP = moduleN//':'//routineN
+
   IF (.NOT.ASSOCIATED(iteration_info)) THEN
      CALL mp_stop(123,routineP//" iteration_info not associated")
   END IF
-  if (iteration_info%ref_count<=0) then
+  IF (iteration_info%ref_count<=0) THEN
      CALL mp_stop(124,routineP//" iteration_info%ref_counf<=0")
   END IF
   iteration_info%ref_count=iteration_info%ref_count+1
@@ -1299,13 +1302,13 @@ END SUBROUTINE cp_iteration_info_retain
 !!
 !!*** **********************************************************************
 SUBROUTINE cp_iteration_info_release(iteration_info)
-  TYPE(cp_iteration_info_type), pointer :: iteration_info
-  
-  character(len=*), parameter :: routineN='cp_iteration_info_release',&
-        routineP=moduleN//':'//routineN
-  integer :: stat
-  
-  
+    TYPE(cp_iteration_info_type), POINTER    :: iteration_info
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_iteration_info_release', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: stat
+
   IF (ASSOCIATED(iteration_info)) THEN
      IF (iteration_info%ref_count<=0) THEN
         CALL mp_stop(125,routineP//" iteration_info%ref_counf<=0")
@@ -1319,7 +1322,7 @@ SUBROUTINE cp_iteration_info_release(iteration_info)
         END IF
      END IF
   END IF
-  nullify(iteration_info)
+  NULLIFY(iteration_info)
 END SUBROUTINE cp_iteration_info_release
 !***************************************************************************
 
@@ -1431,7 +1434,7 @@ END SUBROUTINE cp_iteration_info_release
 !!*** *********************************************************************
 ! pure 
   FUNCTION cp_logical_to_string(val) RESULT(res)
-    LOGICAL, INTENT(in)                :: val
+    LOGICAL, INTENT(in)                      :: val
     CHARACTER(len=1)                         :: res
 
     IF (val) THEN

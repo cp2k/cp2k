@@ -21,17 +21,16 @@
 
 MODULE pair_potential_types
 
-  USE kinds,                           ONLY: dp,&
-                                             default_string_length
-  USE splines,                         ONLY: spline_data_type, &
+  USE kinds,                           ONLY: default_string_length,&
+                                             dp
+  USE splines,                         ONLY: spline_data_copy,&
                                              spline_data_release,&
-                                             spline_data_copy
-  USE termination,                     ONLY: stop_memory
+                                             spline_data_type
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
 
-  CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='pair_potential_types'
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'pair_potential_types'
 
   PRIVATE
   PUBLIC :: pair_potential_type,&           
@@ -147,15 +146,16 @@ CONTAINS
   !!   SOURCE
   !******************************************************************************
   SUBROUTINE pair_potential_single_create(potparm, error)
-    IMPLICIT NONE
-    ! Arguments
-    TYPE(pair_potential_single_type), POINTER    :: potparm
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-    ! Local Variables
-    CHARACTER(len=*), PARAMETER :: routineN='pair_potential_single_create',&
-         routineP=moduleN//':'//routineN
-    INTEGER :: i, stat
-    LOGICAL :: failure 
+    TYPE(pair_potential_single_type), &
+      POINTER                                :: potparm
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'pair_potential_single_create', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: stat
+    LOGICAL                                  :: failure
 
     failure = .FALSE.
     CPPostcondition(.NOT.ASSOCIATED(potparm),cp_failure_level,routineP,error,failure)
@@ -192,14 +192,13 @@ CONTAINS
   !!   SOURCE
   !******************************************************************************
   SUBROUTINE pair_potential_single_clean(potparm, error)
-    IMPLICIT NONE
-    ! Arguments
-    TYPE(pair_potential_single_type), POINTER    :: potparm
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-    ! Local Variables
-    CHARACTER(len=*), PARAMETER :: routineN='pair_potential_single_clean',&
-         routineP=moduleN//':'//routineN
-    INTEGER :: i
+    TYPE(pair_potential_single_type), &
+      POINTER                                :: potparm
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'pair_potential_single_clean', &
+      routineP = moduleN//':'//routineN
 
     potparm % TYPE          = 'NULL'
     potparm % at1           = 'NULL'
@@ -239,14 +238,15 @@ CONTAINS
   !!   SOURCE
   !******************************************************************************
   SUBROUTINE pair_potential_single_copy(potparm_source, potparm_dest, error)
-    IMPLICIT NONE
-    ! Arguments
-    TYPE(pair_potential_single_type), POINTER    :: potparm_source, potparm_dest
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-    ! Local Variables
-    CHARACTER(len=*), PARAMETER :: routineN='pair_potential_single_copy',&
-         routineP=moduleN//':'//routineN
-    LOGICAL :: failure
+    TYPE(pair_potential_single_type), &
+      POINTER                                :: potparm_source, potparm_dest
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'pair_potential_single_copy', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
 
     failure = .FALSE.
     CPPostcondition(ASSOCIATED(potparm_source),cp_failure_level,routineP,error,failure)
@@ -295,14 +295,14 @@ CONTAINS
   !!   SOURCE
   !******************************************************************************
   SUBROUTINE pair_potential_copy(potparm_source, potparm_dest, error)
-    IMPLICIT NONE
-    ! Arguments
-    TYPE(pair_potential_type), POINTER           :: potparm_source, potparm_dest
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-    ! Local Variables
-    CHARACTER(len=*), PARAMETER :: routineN='pair_potential_copy',&
-         routineP=moduleN//':'//routineN
-    LOGICAL :: failure
+    TYPE(pair_potential_type), POINTER       :: potparm_source, potparm_dest
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'pair_potential_copy', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
 
     failure = .FALSE.
     
@@ -333,15 +333,17 @@ CONTAINS
   !!   SOURCE
   !******************************************************************************
   SUBROUTINE pair_potential_single_release ( potparm, error )
-    IMPLICIT NONE
-    ! Arguments
-    TYPE(pair_potential_single_type), POINTER :: potparm 
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-    ! Local Variables
-    CHARACTER(len=*), PARAMETER :: routineN='pair_potential_single_release',&
-         routineP=moduleN//':'//routineN
-    INTEGER :: stat, i, j
-    LOGICAL :: failure 
+    TYPE(pair_potential_single_type), &
+      POINTER                                :: potparm
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: &
+      routineN = 'pair_potential_single_release', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: stat
+    LOGICAL                                  :: failure
 
     failure = .FALSE.
     IF (.NOT.failure) THEN
@@ -378,16 +380,16 @@ CONTAINS
   !!   SOURCE
   !******************************************************************************
   SUBROUTINE pair_potential_pp_create ( potparm, nkinds, error )
-    IMPLICIT NONE
-    ! Arguments
-    TYPE(pair_potential_pp_type), POINTER :: potparm 
-    INTEGER, INTENT ( IN ) :: nkinds
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-    ! Local Variables
-    LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineN='pair_potential_pp_create',&
-         routineP=moduleN//':'//routineN
-    INTEGER :: stat, i, j
+    TYPE(pair_potential_pp_type), POINTER    :: potparm
+    INTEGER, INTENT(IN)                      :: nkinds
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'pair_potential_pp_create', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i, j, stat
+    LOGICAL                                  :: failure
 
     failure=.FALSE.
     IF (.NOT.failure) THEN
@@ -431,15 +433,15 @@ CONTAINS
   !!   SOURCE
   !******************************************************************************
   SUBROUTINE pair_potential_pp_release ( potparm, error )
-    IMPLICIT NONE
-    ! Arguments
-    TYPE(pair_potential_pp_type), POINTER :: potparm 
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-    ! Local Variables
-    CHARACTER(len=*), PARAMETER :: routineN='pair_potential_pp_release',&
-         routineP=moduleN//':'//routineN
-    INTEGER :: stat, i, j
-    LOGICAL :: failure
+    TYPE(pair_potential_pp_type), POINTER    :: potparm
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'pair_potential_pp_release', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i, j, stat
+    LOGICAL                                  :: failure
 
     failure = .FALSE.
 
@@ -478,16 +480,16 @@ CONTAINS
   !!   SOURCE
   !******************************************************************************
   SUBROUTINE pair_potential_p_create ( potparm, ndim, ub, lb, error )
-    IMPLICIT NONE
-    ! Arguments
-    TYPE(pair_potential_p_type), POINTER :: potparm 
-    INTEGER, INTENT ( IN ), OPTIONAL     :: ndim, lb, ub
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-    ! Local Variables
-    LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineN='pair_potential_p_create',&
-         routineP=moduleN//':'//routineN
-    INTEGER :: stat, i, loc_lb, loc_ub
+    TYPE(pair_potential_p_type), POINTER     :: potparm
+    INTEGER, INTENT(IN), OPTIONAL            :: ndim, ub, lb
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'pair_potential_p_create', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i, loc_lb, loc_ub, stat
+    LOGICAL                                  :: failure
 
     failure=.FALSE.
     IF (.NOT.failure) THEN
@@ -539,15 +541,15 @@ CONTAINS
   !!   SOURCE
   !******************************************************************************
   SUBROUTINE pair_potential_p_release ( potparm, error )
-    IMPLICIT NONE
-    ! Arguments
-    TYPE(pair_potential_p_type), POINTER :: potparm 
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-    ! Local Variables
-    CHARACTER(len=*), PARAMETER :: routineN='pair_potential_p_release',&
-         routineP=moduleN//':'//routineN
-    INTEGER :: stat, i
-    logical :: failure 
+    TYPE(pair_potential_p_type), POINTER     :: potparm
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'pair_potential_p_release', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i, stat
+    LOGICAL                                  :: failure
 
     failure = .FALSE.
 
@@ -581,16 +583,16 @@ CONTAINS
   !!   SOURCE
   !******************************************************************************
   SUBROUTINE pair_potential_p_copy(source, dest, istart, iend, error)
-    IMPLICIT NONE
-    ! Arguments
-    TYPE (pair_potential_p_type), POINTER             :: source, dest
-    INTEGER, INTENT(IN), OPTIONAL   :: istart, iend
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-    ! Local Variables
-    CHARACTER(LEN=*), PARAMETER        :: routineN = "pair_potential_p_copy",&
-         routineP=moduleN//':'//routineN
-    LOGICAL :: failure
-    INTEGER :: i, l_start, l_end
+    TYPE(pair_potential_p_type), POINTER     :: source, dest
+    INTEGER, INTENT(IN), OPTIONAL            :: istart, iend
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'pair_potential_p_copy', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i, l_end, l_start
+    LOGICAL                                  :: failure
 
     failure = .FALSE.
     CPPostcondition(ASSOCIATED(source),cp_failure_level,routineP,error,failure)
@@ -626,21 +628,21 @@ CONTAINS
   !!   SOURCE
   !******************************************************************************
   SUBROUTINE pair_potential_reallocate(p,lb1_new,ub1_new,lj,williams,goodwin,eam,bmhft,ipbv,error)
-    IMPLICIT NONE
-    ! Arguments
-    TYPE (pair_potential_p_type), POINTER             :: p
-    INTEGER, INTENT(IN)                               :: lb1_new, ub1_new
-    LOGICAL, OPTIONAL, INTENT(IN)                     :: lj,williams,goodwin,eam,bmhft,ipbv
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-    ! Local Variables
-    CHARACTER(LEN=*), PARAMETER        :: routineN = "pair_potential_reallocate",&
-         routineP=moduleN//':'//routineN
+    TYPE(pair_potential_p_type), POINTER     :: p
+    INTEGER, INTENT(IN)                      :: lb1_new, ub1_new
+    LOGICAL, INTENT(IN), OPTIONAL            :: lj, williams, goodwin, eam, &
+                                                bmhft, ipbv
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    INTEGER                            :: stat, lb1, lb1_old, &
-         new_size, old_size, ub1, &
-         ub1_old, i, ipot
-    TYPE (pair_potential_p_type), POINTER             :: work
-    LOGICAL :: failure, llj, lwilliams, lgoodwin, leam, lbmhft, lipbv, check
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'pair_potential_reallocate', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i, ipot, lb1_old, ub1_old
+    LOGICAL                                  :: check, failure, lbmhft, leam, &
+                                                lgoodwin, lipbv, llj, &
+                                                lwilliams
+    TYPE(pair_potential_p_type), POINTER     :: work
 
     NULLIFY(work)
     failure = .FALSE.
@@ -741,15 +743,16 @@ CONTAINS
   !!   SOURCE
   !******************************************************************************
   SUBROUTINE pair_potential_lj_create(potparm, error)
-    IMPLICIT NONE
-    ! Arguments
-    TYPE (pair_potential_single_type), POINTER :: potparm
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-    ! Local Variables
-    CHARACTER(LEN=*), PARAMETER        :: routineN = "pair_potential_lj_create",&
-         routineP=moduleN//':'//routineN
-    LOGICAL :: failure
-    INTEGER :: stat
+    TYPE(pair_potential_single_type), &
+      POINTER                                :: potparm
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'pair_potential_lj_create', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: stat
+    LOGICAL                                  :: failure
 
     failure = .FALSE.
     IF (.NOT.failure) THEN
@@ -778,15 +781,15 @@ CONTAINS
   !!   SOURCE
   !******************************************************************************
   SUBROUTINE pair_potential_lj_copy(potparm_source, potparm_dest, error)
-    IMPLICIT NONE
-    ! Arguments
-    TYPE (pair_potential_single_type), POINTER :: potparm_source, potparm_dest
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-    ! Local Variables
-    CHARACTER(LEN=*), PARAMETER        :: routineN = "pair_potential_lj_copy",&
-         routineP=moduleN//':'//routineN
-    LOGICAL :: failure
-    INTEGER :: stat
+    TYPE(pair_potential_single_type), &
+      POINTER                                :: potparm_source, potparm_dest
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'pair_potential_lj_copy', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
 
     failure = .FALSE.
     CPPostcondition(ASSOCIATED(potparm_source),cp_failure_level,routineP,error,failure)
@@ -819,15 +822,15 @@ CONTAINS
   !!   SOURCE
   !******************************************************************************
   SUBROUTINE pair_potential_lj_clean(potparm, error)
-    IMPLICIT NONE
-    ! Arguments
-    TYPE (pair_potential_single_type), POINTER :: potparm
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-    ! Local Variables
-    CHARACTER(LEN=*), PARAMETER        :: routineN = "pair_potential_lj_clean",&
-         routineP=moduleN//':'//routineN
-    LOGICAL :: failure
-    INTEGER :: stat
+    TYPE(pair_potential_single_type), &
+      POINTER                                :: potparm
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'pair_potential_lj_clean', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
 
     failure = .FALSE.
     IF (.NOT.failure) THEN
@@ -856,15 +859,16 @@ CONTAINS
   !!   SOURCE
   !******************************************************************************
   SUBROUTINE pair_potential_lj_release(potparm, error)
-    IMPLICIT NONE
-    ! Arguments
-    TYPE (pair_potential_single_type), POINTER :: potparm
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-    ! Local Variables
-    CHARACTER(LEN=*), PARAMETER        :: routineN = "pair_potential_lj_release",&
-         routineP=moduleN//':'//routineN
-    LOGICAL :: failure
-    INTEGER :: stat
+    TYPE(pair_potential_single_type), &
+      POINTER                                :: potparm
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'pair_potential_lj_release', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: stat
+    LOGICAL                                  :: failure
 
     failure = .FALSE.
     IF (.NOT.failure) THEN
@@ -894,15 +898,17 @@ CONTAINS
   !!   SOURCE
   !******************************************************************************
   SUBROUTINE pair_potential_williams_create(potparm, error)
-    IMPLICIT NONE
-    ! Arguments
-    TYPE (pair_potential_single_type), POINTER :: potparm
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-    ! Local Variables
-    CHARACTER(LEN=*), PARAMETER        :: routineN = "pair_potential_williams_create",&
-         routineP=moduleN//':'//routineN
-    LOGICAL :: failure
-    INTEGER :: stat
+    TYPE(pair_potential_single_type), &
+      POINTER                                :: potparm
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(LEN=*), PARAMETER :: &
+      routineN = 'pair_potential_williams_create', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: stat
+    LOGICAL                                  :: failure
 
     failure = .FALSE.
     IF (.NOT.failure) THEN
@@ -931,15 +937,15 @@ CONTAINS
   !!   SOURCE
   !******************************************************************************
   SUBROUTINE pair_potential_williams_copy(potparm_source, potparm_dest, error)
-    IMPLICIT NONE
-    ! Arguments
-    TYPE (pair_potential_single_type), POINTER :: potparm_source, potparm_dest
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-    ! Local Variables
-    CHARACTER(LEN=*), PARAMETER        :: routineN = "pair_potential_williams_copy",&
-         routineP=moduleN//':'//routineN
-    LOGICAL :: failure
-    INTEGER :: stat
+    TYPE(pair_potential_single_type), &
+      POINTER                                :: potparm_source, potparm_dest
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'pair_potential_williams_copy', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
 
     failure = .FALSE.
     CPPostcondition(ASSOCIATED(potparm_source),cp_failure_level,routineP,error,failure)
@@ -972,15 +978,16 @@ CONTAINS
   !!   SOURCE
   !******************************************************************************
   SUBROUTINE pair_potential_williams_clean(potparm, error)
-    IMPLICIT NONE
-    ! Arguments
-    TYPE (pair_potential_single_type), POINTER :: potparm
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-    ! Local Variables
-    CHARACTER(LEN=*), PARAMETER        :: routineN = "pair_potential_williams_clean",&
-         routineP=moduleN//':'//routineN
-    LOGICAL :: failure
-    INTEGER :: stat
+    TYPE(pair_potential_single_type), &
+      POINTER                                :: potparm
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(LEN=*), PARAMETER :: &
+      routineN = 'pair_potential_williams_clean', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
 
     failure = .FALSE.
     IF (.NOT.failure) THEN
@@ -1009,15 +1016,17 @@ CONTAINS
   !!   SOURCE
   !******************************************************************************
   SUBROUTINE pair_potential_williams_release(potparm, error)
-    IMPLICIT NONE
-    ! Arguments
-    TYPE (pair_potential_single_type), POINTER :: potparm
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-    ! Local Variables
-    CHARACTER(LEN=*), PARAMETER        :: routineN = "pair_potential_williams_release",&
-         routineP=moduleN//':'//routineN
-    LOGICAL :: failure
-    INTEGER :: stat
+    TYPE(pair_potential_single_type), &
+      POINTER                                :: potparm
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(LEN=*), PARAMETER :: &
+      routineN = 'pair_potential_williams_release', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: stat
+    LOGICAL                                  :: failure
 
     failure = .FALSE.
     IF (.NOT.failure) THEN
@@ -1047,15 +1056,17 @@ CONTAINS
   !!   SOURCE
   !******************************************************************************
   SUBROUTINE pair_potential_goodwin_create(potparm, error)
-    IMPLICIT NONE
-    ! Arguments
-    TYPE (pair_potential_single_type), POINTER :: potparm
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-    ! Local Variables
-    CHARACTER(LEN=*), PARAMETER        :: routineN = "pair_potential_goodwin_create",&
-         routineP=moduleN//':'//routineN
-    LOGICAL :: failure
-    INTEGER :: stat
+    TYPE(pair_potential_single_type), &
+      POINTER                                :: potparm
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(LEN=*), PARAMETER :: &
+      routineN = 'pair_potential_goodwin_create', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: stat
+    LOGICAL                                  :: failure
 
     failure = .FALSE.
     IF (.NOT.failure) THEN
@@ -1084,15 +1095,15 @@ CONTAINS
   !!   SOURCE
   !******************************************************************************
   SUBROUTINE pair_potential_goodwin_copy(potparm_source, potparm_dest, error)
-    IMPLICIT NONE
-    ! Arguments
-    TYPE (pair_potential_single_type), POINTER :: potparm_source, potparm_dest
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-    ! Local Variables
-    CHARACTER(LEN=*), PARAMETER        :: routineN = "pair_potential_goodwin_copy",&
-         routineP=moduleN//':'//routineN
-    LOGICAL :: failure
-    INTEGER :: stat
+    TYPE(pair_potential_single_type), &
+      POINTER                                :: potparm_source, potparm_dest
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'pair_potential_goodwin_copy', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
 
     failure = .FALSE.
     CPPostcondition(ASSOCIATED(potparm_source),cp_failure_level,routineP,error,failure)
@@ -1127,15 +1138,15 @@ CONTAINS
   !!   SOURCE
   !******************************************************************************
   SUBROUTINE pair_potential_goodwin_clean(potparm, error)
-    IMPLICIT NONE
-    ! Arguments
-    TYPE (pair_potential_single_type), POINTER :: potparm
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-    ! Local Variables
-    CHARACTER(LEN=*), PARAMETER        :: routineN = "pair_potential_goodwin_clean",&
-         routineP=moduleN//':'//routineN
-    LOGICAL :: failure
-    INTEGER :: stat
+    TYPE(pair_potential_single_type), &
+      POINTER                                :: potparm
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'pair_potential_goodwin_clean', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
 
     failure = .FALSE.
     IF (.NOT.failure) THEN
@@ -1166,15 +1177,17 @@ CONTAINS
   !!   SOURCE
   !******************************************************************************
   SUBROUTINE pair_potential_goodwin_release(potparm, error)
-    IMPLICIT NONE
-    ! Arguments
-    TYPE (pair_potential_single_type), POINTER :: potparm
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-    ! Local Variables
-    CHARACTER(LEN=*), PARAMETER        :: routineN = "pair_potential_goodwin_release",&
-         routineP=moduleN//':'//routineN
-    LOGICAL :: failure
-    INTEGER :: stat
+    TYPE(pair_potential_single_type), &
+      POINTER                                :: potparm
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(LEN=*), PARAMETER :: &
+      routineN = 'pair_potential_goodwin_release', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: stat
+    LOGICAL                                  :: failure
 
     failure = .FALSE.
     IF (.NOT.failure) THEN
@@ -1204,15 +1217,16 @@ CONTAINS
   !!   SOURCE
   !******************************************************************************
   SUBROUTINE pair_potential_eam_create(potparm, error)
-    IMPLICIT NONE
-    ! Arguments
-    TYPE (pair_potential_single_type), POINTER :: potparm
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-    ! Local Variables
-    CHARACTER(LEN=*), PARAMETER        :: routineN = "pair_potential_eam_create",&
-         routineP=moduleN//':'//routineN
-    LOGICAL :: failure
-    INTEGER :: stat
+    TYPE(pair_potential_single_type), &
+      POINTER                                :: potparm
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'pair_potential_eam_create', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: stat
+    LOGICAL                                  :: failure
 
     failure = .FALSE.
     IF (.NOT.failure) THEN
@@ -1241,15 +1255,15 @@ CONTAINS
   !!   SOURCE
   !******************************************************************************
   SUBROUTINE pair_potential_eam_copy(potparm_source, potparm_dest, error)
-    IMPLICIT NONE
-    ! Arguments
-    TYPE (pair_potential_single_type), POINTER :: potparm_source, potparm_dest
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-    ! Local Variables
-    CHARACTER(LEN=*), PARAMETER        :: routineN = "pair_potential_eam_copy",&
-         routineP=moduleN//':'//routineN
-    LOGICAL :: failure
-    INTEGER :: stat
+    TYPE(pair_potential_single_type), &
+      POINTER                                :: potparm_source, potparm_dest
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'pair_potential_eam_copy', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
 
     failure = .FALSE.
     CPPostcondition(ASSOCIATED(potparm_source),cp_failure_level,routineP,error,failure)
@@ -1291,15 +1305,15 @@ CONTAINS
   !!   SOURCE
   !******************************************************************************
   SUBROUTINE pair_potential_eam_clean(potparm, error)
-    IMPLICIT NONE
-    ! Arguments
-    TYPE (pair_potential_single_type), POINTER :: potparm
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-    ! Local Variables
-    CHARACTER(LEN=*), PARAMETER        :: routineN = "pair_potential_eam_clean",&
-         routineP=moduleN//':'//routineN
-    LOGICAL :: failure
-    INTEGER :: stat
+    TYPE(pair_potential_single_type), &
+      POINTER                                :: potparm
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'pair_potential_eam_clean', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
 
     failure = .FALSE.
     IF (.NOT.failure) THEN
@@ -1338,15 +1352,16 @@ CONTAINS
   !!   SOURCE
   !******************************************************************************
   SUBROUTINE pair_potential_eam_release(potparm, error)
-    IMPLICIT NONE
-    ! Arguments
-    TYPE (pair_potential_single_type), POINTER :: potparm
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-    ! Local Variables
-    CHARACTER(LEN=*), PARAMETER        :: routineN = "pair_potential_eam_release",&
-         routineP=moduleN//':'//routineN
-    LOGICAL :: failure
-    INTEGER :: stat
+    TYPE(pair_potential_single_type), &
+      POINTER                                :: potparm
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'pair_potential_eam_release', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: stat
+    LOGICAL                                  :: failure
 
     failure = .FALSE.
     IF (.NOT.failure) THEN
@@ -1376,15 +1391,16 @@ CONTAINS
   !!   SOURCE
   !******************************************************************************
   SUBROUTINE pair_potential_bmhft_create(potparm, error)
-    IMPLICIT NONE
-    ! Arguments
-    TYPE (pair_potential_single_type), POINTER :: potparm
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-    ! Local Variables
-    CHARACTER(LEN=*), PARAMETER        :: routineN = "pair_potential_bmhft_create",&
-         routineP=moduleN//':'//routineN
-    LOGICAL :: failure
-    INTEGER :: stat
+    TYPE(pair_potential_single_type), &
+      POINTER                                :: potparm
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'pair_potential_bmhft_create', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: stat
+    LOGICAL                                  :: failure
 
     failure = .FALSE.
     IF (.NOT.failure) THEN
@@ -1413,15 +1429,15 @@ CONTAINS
   !!   SOURCE
   !******************************************************************************
   SUBROUTINE pair_potential_bmhft_copy(potparm_source, potparm_dest, error)
-    IMPLICIT NONE
-    ! Arguments
-    TYPE (pair_potential_single_type), POINTER :: potparm_source, potparm_dest
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-    ! Local Variables
-    CHARACTER(LEN=*), PARAMETER        :: routineN = "pair_potential_bmhft_copy",&
-         routineP=moduleN//':'//routineN
-    LOGICAL :: failure
-    INTEGER :: stat
+    TYPE(pair_potential_single_type), &
+      POINTER                                :: potparm_source, potparm_dest
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'pair_potential_bmhft_copy', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
 
     failure = .FALSE.
     CPPostcondition(ASSOCIATED(potparm_source),cp_failure_level,routineP,error,failure)
@@ -1455,15 +1471,15 @@ CONTAINS
   !!   SOURCE
   !******************************************************************************
   SUBROUTINE pair_potential_bmhft_clean(potparm, error)
-    IMPLICIT NONE
-    ! Arguments
-    TYPE (pair_potential_single_type), POINTER :: potparm
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-    ! Local Variables
-    CHARACTER(LEN=*), PARAMETER        :: routineN = "pair_potential_bmhft_clean",&
-         routineP=moduleN//':'//routineN
-    LOGICAL :: failure
-    INTEGER :: stat
+    TYPE(pair_potential_single_type), &
+      POINTER                                :: potparm
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'pair_potential_bmhft_clean', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
 
     failure = .FALSE.
     IF (.NOT.failure) THEN
@@ -1493,15 +1509,16 @@ CONTAINS
   !!   SOURCE
   !******************************************************************************
   SUBROUTINE pair_potential_bmhft_release(potparm, error)
-    IMPLICIT NONE
-    ! Arguments
-    TYPE (pair_potential_single_type), POINTER :: potparm
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-    ! Local Variables
-    CHARACTER(LEN=*), PARAMETER        :: routineN = "pair_potential_bmhft_release",&
-         routineP=moduleN//':'//routineN
-    LOGICAL :: failure
-    INTEGER :: stat
+    TYPE(pair_potential_single_type), &
+      POINTER                                :: potparm
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'pair_potential_bmhft_release', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: stat
+    LOGICAL                                  :: failure
 
     failure = .FALSE.
     IF (.NOT.failure) THEN
@@ -1531,15 +1548,16 @@ CONTAINS
   !!   SOURCE
   !******************************************************************************
   SUBROUTINE pair_potential_ipbv_create(potparm, error)
-    IMPLICIT NONE
-    ! Arguments
-    TYPE (pair_potential_single_type), POINTER :: potparm
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-    ! Local Variables
-    CHARACTER(LEN=*), PARAMETER        :: routineN = "pair_potential_ipbv_create",&
-         routineP=moduleN//':'//routineN
-    LOGICAL :: failure
-    INTEGER :: stat
+    TYPE(pair_potential_single_type), &
+      POINTER                                :: potparm
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'pair_potential_ipbv_create', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: stat
+    LOGICAL                                  :: failure
 
     failure = .FALSE.
     IF (.NOT.failure) THEN
@@ -1568,15 +1586,15 @@ CONTAINS
   !!   SOURCE
   !******************************************************************************
   SUBROUTINE pair_potential_ipbv_copy(potparm_source, potparm_dest, error)
-    IMPLICIT NONE
-    ! Arguments
-    TYPE (pair_potential_single_type), POINTER :: potparm_source, potparm_dest
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-    ! Local Variables
-    CHARACTER(LEN=*), PARAMETER        :: routineN = "pair_potential_ipbv_copy",&
-         routineP=moduleN//':'//routineN
-    LOGICAL :: failure
-    INTEGER :: stat
+    TYPE(pair_potential_single_type), &
+      POINTER                                :: potparm_source, potparm_dest
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'pair_potential_ipbv_copy', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
 
     failure = .FALSE.
     CPPostcondition(ASSOCIATED(potparm_source),cp_failure_level,routineP,error,failure)
@@ -1610,15 +1628,15 @@ CONTAINS
   !!   SOURCE
   !******************************************************************************
   SUBROUTINE pair_potential_ipbv_clean(potparm, error)
-    IMPLICIT NONE
-    ! Arguments
-    TYPE (pair_potential_single_type), POINTER :: potparm
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-    ! Local Variables
-    CHARACTER(LEN=*), PARAMETER        :: routineN = "pair_potential_ipbv_clean",&
-         routineP=moduleN//':'//routineN
-    LOGICAL :: failure
-    INTEGER :: stat
+    TYPE(pair_potential_single_type), &
+      POINTER                                :: potparm
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'pair_potential_ipbv_clean', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
 
     failure = .FALSE.
     IF (.NOT.failure) THEN
@@ -1648,15 +1666,16 @@ CONTAINS
   !!   SOURCE
   !******************************************************************************
   SUBROUTINE pair_potential_ipbv_release(potparm, error)
-    IMPLICIT NONE
-    ! Arguments
-    TYPE (pair_potential_single_type), POINTER :: potparm
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-    ! Local Variables
-    CHARACTER(LEN=*), PARAMETER        :: routineN = "pair_potential_ipbv_release",&
-         routineP=moduleN//':'//routineN
-    LOGICAL :: failure
-    INTEGER :: stat
+    TYPE(pair_potential_single_type), &
+      POINTER                                :: potparm
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'pair_potential_ipbv_release', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: stat
+    LOGICAL                                  :: failure
 
     failure = .FALSE.
     IF (.NOT.failure) THEN

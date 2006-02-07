@@ -23,8 +23,7 @@
 !******************************************************************************
 
 MODULE qs_diis
-  USE cp_fm_basic_linalg,              ONLY: cp_fm_column_scale,&
-                                             cp_fm_gemm,&
+  USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm,&
                                              cp_fm_scale_and_add,&
                                              cp_fm_symm,&
                                              cp_fm_trace
@@ -36,7 +35,10 @@ MODULE qs_diis
                                              cp_fm_set_all,&
                                              cp_fm_to_fm,&
                                              cp_fm_type
+  USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
+                                             cp_print_key_unit_nr
   USE cp_sm_fm_interactions,           ONLY: copy_sm_to_fm
+  USE input_section_types,             ONLY: section_vals_type
   USE kinds,                           ONLY: dp,&
                                              dp_size
   USE mathlib,                         ONLY: diamat_all
@@ -47,22 +49,13 @@ MODULE qs_diis
   USE termination,                     ONLY: stop_memory
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE input_section_types,             ONLY: section_vals_type,&
-                                             section_vals_get_subs_vals
- USE cp_output_handling,              ONLY: cp_print_key_unit_nr, &
-                                             cp_print_key_finished_output,&
-                                             cp_print_key_should_output,&
-                                             cp_p_file
-
-
-  
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
 
   PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN="qs_diis"
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_diis'
   INTEGER, SAVE, PRIVATE :: last_diis_b_id=0
 
   ! *** Public subroutines ***
@@ -162,15 +155,15 @@ CONTAINS
     TYPE(qs_diis_buffer_type), POINTER       :: diis_buffer
     TYPE(cp_fm_struct_type), POINTER         :: matrix_struct
     INTEGER, INTENT(IN)                      :: nspin
+    TYPE(section_vals_type), POINTER         :: scf_section
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
-    TYPE(section_vals_type), POINTER :: scf_section
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_diis_b_check_i_alloc', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: ibuffer, ispin, istat, nbuffer,&
-         output_unit
+    INTEGER                                  :: ibuffer, ispin, istat, &
+                                                nbuffer, output_unit
     LOGICAL                                  :: failure
     TYPE(cp_logger_type), POINTER            :: logger
 
@@ -291,10 +284,10 @@ CONTAINS
     LOGICAL, INTENT(OUT)                     :: diis_step
     REAL(KIND=dp), INTENT(IN)                :: eps_diis
     TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER, OPTIONAL                      :: s_matrix
+      OPTIONAL, POINTER                      :: s_matrix
+    TYPE(section_vals_type), POINTER         :: scf_section
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
-    TYPE(section_vals_type), POINTER :: scf_section
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_diis_b_step', &
       routineP = moduleN//':'//routineN
@@ -303,7 +296,7 @@ CONTAINS
                                                 nao, nb, nb1, nmo, nspin, &
                                                 output_unit
     LOGICAL                                  :: failure, ionode, mo_uocc
-    REAL(KIND=dp)                            :: tmp, maxocc
+    REAL(KIND=dp)                            :: maxocc, tmp
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: ev
     REAL(KIND=dp), DIMENSION(:), POINTER     :: occupation
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: a, b

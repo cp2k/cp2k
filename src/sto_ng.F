@@ -18,15 +18,14 @@
 !***
 !****************************************************************************
 MODULE sto_ng
-  USE kinds,                           ONLY: default_string_length,&
-                                             dp
+  USE kinds,                           ONLY: dp
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
   PRIVATE
 
   LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
-  CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='sto_ng'
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'sto_ng'
 
   PUBLIC :: get_sto_ng
 
@@ -60,17 +59,16 @@ CONTAINS
 !***************************************************************************
 SUBROUTINE get_sto_ng ( zeta, n, nq, lq, alpha, coef ) 
 
-  REAL (KIND=dp), INTENT ( IN )                 :: zeta
-  INTEGER, INTENT ( IN )                      :: n, nq, lq
-  REAL (KIND=dp), DIMENSION (:), INTENT ( OUT ) :: alpha, coef
+    REAL(KIND=dp), INTENT(IN)                :: zeta
+    INTEGER, INTENT(IN)                      :: n, nq, lq
+    REAL(KIND=dp), DIMENSION(:), INTENT(OUT) :: alpha, coef
 
-  CHARACTER(len=*), PARAMETER :: routineN = 'get_sto_ng', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'get_sto_ng', &
       routineP = moduleN//':'//routineN
 
-  INTEGER                                     :: na, nc, m
-  LOGICAL                                     :: failure
-
-  TYPE(cp_error_type)                         :: error
+    INTEGER                                  :: m, na, nc
+    LOGICAL                                  :: failure
+    TYPE(cp_error_type)                      :: error
 
 !---------------------------------------------------------------------------
 

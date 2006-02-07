@@ -158,7 +158,7 @@ MODULE qs_linres_types
      TYPE(rho_atom_p_type), DIMENSION(:), POINTER:: jrho1_atom_set
   END TYPE nmr_env_type
 
-  CHARACTER(LEN=*), PARAMETER :: module_name ="qs_linres_types"
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_linres_types'
 
 ! *** Public data types ***
 
@@ -182,7 +182,7 @@ CONTAINS
       OPTIONAL                               :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'linres_control_create', &
-      routineP = module_name//':'//routineN
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: istat
     LOGICAL                                  :: failure
@@ -208,7 +208,7 @@ CONTAINS
       OPTIONAL                               :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'linres_control_release', &
-      routineP = module_name//':'//routineN
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: istat
     LOGICAL                                  :: failure
@@ -234,7 +234,7 @@ CONTAINS
       OPTIONAL                               :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'linres_control_retain', &
-      routineP = module_name//':'//routineN
+      routineP = moduleN//':'//routineN
 
     LOGICAL                                  :: failure
 
@@ -255,7 +255,7 @@ CONTAINS
       OPTIONAL                               :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'nmr_env_create', &
-      routineP = module_name//':'//routineN
+      routineP = moduleN//':'//routineN
 
     LOGICAL                                  :: failure
 

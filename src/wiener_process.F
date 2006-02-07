@@ -24,43 +24,32 @@
 MODULE wiener_process
 
   USE atomic_kind_list_types,          ONLY: atomic_kind_list_type
-  USE cp_files,                        ONLY: close_file,&
-                                             open_file
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_subsystem_types,              ONLY: cp_subsys_get,&
                                              cp_subsystem_p_type
   USE distribution_1d_types,           ONLY: distribution_1d_type,&
-       init_local_particle_set
+                                             init_local_particle_set
   USE force_env_types,                 ONLY: force_env_get,&
                                              force_env_p_type
   USE input_constants,                 ONLY: langevin_ensemble
+  USE input_section_types,             ONLY: section_vals_get_subs_vals,&
+                                             section_vals_type
   USE kinds,                           ONLY: dp
   USE md,                              ONLY: simulation_parameters_type
   USE md_environment_types,            ONLY: get_md_env,&
                                              md_environment_type
-  USE message_passing,                 ONLY: mp_bcast,&
-                                             mp_sum
   USE parallel_rng_types,              ONLY: create_rng_stream,&
-                                             dump_rng_stream,&
-                                             next_rng_seed,&
-                                             read_rng_stream
+                                             next_rng_seed
   USE particle_list_types,             ONLY: particle_list_type
-  USE string_utilities,                ONLY: ascii_to_string,&
-                                             string_to_ascii,&
-                                             xstring
-  USE global_types,                    ONLY: global_environment_type
-  USE input_section_types,             ONLY: section_vals_type,&
-                                             section_vals_get_subs_vals,&
-                                             section_vals_write  
-
 #include "cp_common_uses.h"
+
   IMPLICIT NONE
 
   PRIVATE
 
   ! Global parameters in this module
 
-  CHARACTER(LEN=*), PARAMETER :: moduleN = "wiener_process"
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'wiener_process'
 
   ! Public subroutines
 
@@ -82,39 +71,34 @@ CONTAINS
 
     ! *************************************************************************
 
-    TYPE(md_environment_type), POINTER           :: md_env
-    TYPE(cp_error_type), OPTIONAL, INTENT(INOUT) :: error
-    TYPE(section_vals_type), POINTER :: subsys_section
-    ! Local parameters
+    TYPE(md_environment_type), POINTER       :: md_env
+    TYPE(section_vals_type), POINTER         :: subsys_section
+    TYPE(cp_error_type), INTENT(INOUT), &
+      OPTIONAL                               :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = "create_wiener_process",&
-                                   routineP = moduleN//":"//routineN
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'create_wiener_process', &
+      routineP = moduleN//':'//routineN
 
-    ! Local variables
+    CHARACTER(LEN=40)                        :: name
+    INTEGER :: i, iparticle, iparticle_kind, iparticle_local, istat, isubsys, &
+      nparticle, nparticle_kind, nparticle_local
+    LOGICAL                                  :: failure
+    REAL(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:, :, :)                     :: seed
+    REAL(KIND=dp), DIMENSION(3, 2)           :: initial_seed
+    TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(cp_subsystem_p_type), &
+      DIMENSION(:), POINTER                  :: subsys
+    TYPE(distribution_1d_type), POINTER      :: local_particles
+    TYPE(force_env_p_type), DIMENSION(:), &
+      POINTER                                :: force_env_p
+    TYPE(particle_list_type), POINTER        :: particles
+    TYPE(section_vals_type), POINTER         :: work_section
+    TYPE(simulation_parameters_type), &
+      POINTER                                :: simpar
 
-    TYPE(atomic_kind_list_type), POINTER      :: atomic_kinds
-    TYPE(cp_para_env_type), POINTER           :: para_env
-    TYPE(distribution_1d_type), POINTER       :: local_particles
-    TYPE(particle_list_type), POINTER         :: particles
-    TYPE(simulation_parameters_type), POINTER :: simpar
-
-    TYPE(cp_subsystem_p_type), DIMENSION(:), POINTER :: subsys
-    TYPE(force_env_p_type), DIMENSION(:), POINTER    :: force_env_p
-
-    REAL(KIND=dp), DIMENSION(:,:,:), ALLOCATABLE :: seed
-    TYPE(section_vals_type), POINTER :: work_section
-    REAL(KIND=dp), DIMENSION(3,2) :: initial_seed
-
-    CHARACTER(LEN=404) :: string
-    CHARACTER(LEN=40)  :: name
-
-    INTEGER :: i,iparticle,iparticle_kind,iparticle_local,istat,isubsys,&
-               nparticle,nparticle_kind,nparticle_local,unit_number
-    LOGICAL :: failure
-
-    INTEGER, DIMENSION(:,:), ALLOCATABLE :: ascii
-
-    ! -------------------------------------------------------------------------
+! -------------------------------------------------------------------------
 
     failure = .FALSE.
     NULLIFY(work_section)

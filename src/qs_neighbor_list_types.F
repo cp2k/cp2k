@@ -31,7 +31,7 @@ MODULE qs_neighbor_list_types
 
 ! *** Global parameters (in this module) ***
 
-  CHARACTER(LEN=*), PARAMETER :: module_name = "qs_neighbor_list_types"
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_neighbor_list_types'
 
 ! *** Definition of the data types for a linked list of neighbors ***
 
@@ -159,7 +159,7 @@ CONTAINS
     INTEGER, DIMENSION(3), INTENT(IN)        :: cell
     TYPE(neighbor_list_type), POINTER        :: neighbor_list
 
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "add_neighbor_list"
+    CHARACTER(LEN=*), PARAMETER              :: routineN = 'add_neighbor_list'
 
     INTEGER                                  :: istat
     TYPE(neighbor_list_type), POINTER        :: new_neighbor_list
@@ -179,7 +179,7 @@ CONTAINS
 
           ALLOCATE (new_neighbor_list,STAT=istat)
           IF (istat /= 0) THEN
-            CALL stop_memory(routine_name,module_name,__LINE__,&
+            CALL stop_memory(routineN,moduleN,__LINE__,&
                              "new_neighbor_list",0)
           END IF
 
@@ -202,7 +202,7 @@ CONTAINS
 
           ALLOCATE (new_neighbor_list,STAT=istat)
           IF (istat /= 0) THEN
-            CALL stop_memory(routine_name,module_name,__LINE__,&
+            CALL stop_memory(routineN,moduleN,__LINE__,&
                              "new_neighbor_list",0)
           END IF
 
@@ -239,7 +239,7 @@ CONTAINS
 
     ELSE
 
-      CALL stop_program(routine_name,module_name,__LINE__,&
+      CALL stop_program(routineN,moduleN,__LINE__,&
                         "The requested neighbor list set is not associated")
 
     END IF
@@ -264,15 +264,14 @@ CONTAINS
     REAL(dp), DIMENSION(3), INTENT(IN)       :: r
     REAL(dp), DIMENSION(3), INTENT(IN), &
       OPTIONAL                               :: s
-    INTEGER, DIMENSION(:), POINTER, &
-      OPTIONAL                               :: exclusion_list
+    INTEGER, DIMENSION(:), OPTIONAL, POINTER :: exclusion_list
     LOGICAL, INTENT(IN), OPTIONAL            :: l3c_oce, l3c_rho0
     INTEGER, INTENT(IN), OPTIONAL            :: nkind
 
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "add_neighbor_node"
+    CHARACTER(LEN=*), PARAMETER              :: routineN = 'add_neighbor_node'
 
-    INTEGER                                  :: iatom, istat,my_nkind
-    LOGICAL                                  :: my_l3c_oce,my_l3c_rho0
+    INTEGER                                  :: iatom, istat, my_nkind
+    LOGICAL                                  :: my_l3c_oce, my_l3c_rho0
     TYPE(neighbor_node_type), POINTER        :: new_neighbor_node
 
 !   ---------------------------------------------------------------------------
@@ -307,7 +306,7 @@ CONTAINS
 
           ALLOCATE (new_neighbor_node,STAT=istat)
           IF (istat /= 0) THEN
-            CALL stop_memory(routine_name,module_name,__LINE__,&
+            CALL stop_memory(routineN,moduleN,__LINE__,&
                              "new_neighbor_node",0)
           END IF
 
@@ -329,7 +328,7 @@ CONTAINS
 
           ALLOCATE (new_neighbor_node,STAT=istat)
           IF (istat /= 0) THEN
-            CALL stop_memory(routine_name,module_name,__LINE__,&
+            CALL stop_memory(routineN,moduleN,__LINE__,&
                              "new_neighbor_node",0)
           END IF
 
@@ -370,7 +369,7 @@ CONTAINS
 
     ELSE
 
-      CALL stop_program(routine_name,module_name,__LINE__,&
+      CALL stop_program(routineN,moduleN,__LINE__,&
                         "The requested neighbor list is not associated")
 
     END IF
@@ -390,7 +389,7 @@ CONTAINS
     TYPE(neighbor_list_set_type), POINTER    :: neighbor_list_set
     REAL(dp)                                 :: r_max
 
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "allocate_neighbor_list_set"
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'allocate_neighbor_list_set'
 
     INTEGER                                  :: istat
 
@@ -405,7 +404,7 @@ CONTAINS
 
     ALLOCATE (neighbor_list_set,STAT=istat)
     IF (istat /= 0) THEN
-      CALL stop_memory(routine_name,module_name,__LINE__,&
+      CALL stop_memory(routineN,moduleN,__LINE__,&
                        "neighbor_list_set",0)
     END IF
 
@@ -430,7 +429,7 @@ CONTAINS
 
     TYPE(neighbor_list_set_type), POINTER    :: neighbor_list_set
 
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "clean_neighbor_list_set"
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'clean_neighbor_list_set'
 
     INTEGER                                  :: istat
     TYPE(neighbor_list_type), POINTER        :: neighbor_list, &
@@ -478,7 +477,7 @@ CONTAINS
           next_neighbor_node => neighbor_node%next_neighbor_node
           DEALLOCATE (neighbor_node,STAT=istat)
           IF (istat /= 0) THEN
-            CALL stop_memory(routine_name,module_name,__LINE__,"neighbor_node")
+            CALL stop_memory(routineN,moduleN,__LINE__,"neighbor_node")
           END IF
           neighbor_node => next_neighbor_node
         END DO
@@ -489,7 +488,7 @@ CONTAINS
 
     ELSE
 
-      CALL stop_program(routine_name,module_name,__LINE__,&
+      CALL stop_program(routineN,moduleN,__LINE__,&
                         "The requested neighbor list set is not associated")
 
     END IF
@@ -500,19 +499,19 @@ CONTAINS
 
   SUBROUTINE create_reduced_3c_list(reduced_3c_list,nkind)
 
-    TYPE(reduced_3c_list_type), DIMENSION(:),&
-                               POINTER       :: reduced_3c_list
+    TYPE(reduced_3c_list_type), &
+      DIMENSION(:), POINTER                  :: reduced_3c_list
     INTEGER, INTENT(IN)                      :: nkind
 
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "create_reduced_3c_list"
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'create_reduced_3c_list'
 
-    INTEGER                                  :: istat, ikind
- 
+    INTEGER                                  :: ikind, istat
+
 !   ---------------------------------------------------------------------------
 
     ALLOCATE(reduced_3c_list(nkind),STAT=istat)
     IF (istat /= 0) THEN
-       CALL stop_memory(routine_name,module_name,__LINE__,"reduced_3c_list")
+       CALL stop_memory(routineN,moduleN,__LINE__,"reduced_3c_list")
     END IF
     DO ikind= 1,nkind
       reduced_3c_list(ikind)%nnode = 0
@@ -529,12 +528,12 @@ CONTAINS
 
   SUBROUTINE deallocate_reduced_3c_list(reduced_3c_list)
 
-    TYPE(reduced_3c_list_type), DIMENSION(:),&
-                               POINTER       :: reduced_3c_list
+    TYPE(reduced_3c_list_type), &
+      DIMENSION(:), POINTER                  :: reduced_3c_list
 
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "deallocate_reduced_3c_list"
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'deallocate_reduced_3c_list'
 
-    INTEGER                                  :: istat, ikind, nkind
+    INTEGER                                  :: ikind, istat, nkind
 
 !   ---------------------------------------------------------------------------
 
@@ -550,7 +549,7 @@ CONTAINS
           DEALLOCATE(reduced_3c_list(ikind)%rbc,STAT=istat)
           DEALLOCATE(reduced_3c_list(ikind)%rbc2,STAT=istat)
           IF (istat /= 0) THEN
-            CALL stop_memory(routine_name,module_name,__LINE__,&
+            CALL stop_memory(routineN,moduleN,__LINE__,&
                "index_atom,rac,rac2,rbc,rbc2")
           END IF
         END IF
@@ -558,7 +557,7 @@ CONTAINS
 
       DEALLOCATE (reduced_3c_list,STAT=istat)
       IF (istat /= 0) THEN
-        CALL stop_memory(routine_name,module_name,__LINE__,"reduced_3c_list")
+        CALL stop_memory(routineN,moduleN,__LINE__,"reduced_3c_list")
       END IF
 
     END IF 
@@ -577,7 +576,7 @@ CONTAINS
 
     TYPE(neighbor_list_type), POINTER        :: neighbor_list
 
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "deallocate_neighbor_list"
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'deallocate_neighbor_list'
 
     INTEGER                                  :: istat
     TYPE(neighbor_node_type), POINTER        :: neighbor_node, &
@@ -597,14 +596,14 @@ CONTAINS
                CALL deallocate_reduced_3c_list(neighbor_node%reduced_3c_rho0)
         DEALLOCATE (neighbor_node,STAT=istat)
         IF (istat /= 0) THEN
-          CALL stop_memory(routine_name,module_name,__LINE__,"neighbor_node")
+          CALL stop_memory(routineN,moduleN,__LINE__,"neighbor_node")
         END IF
         neighbor_node => next_neighbor_node
       END DO
 
       DEALLOCATE (neighbor_list,STAT=istat)
       IF (istat /= 0) THEN
-        CALL stop_memory(routine_name,module_name,__LINE__,"neighbor_list")
+        CALL stop_memory(routineN,moduleN,__LINE__,"neighbor_list")
       END IF
 
     END IF
@@ -623,8 +622,7 @@ CONTAINS
 
     TYPE(neighbor_list_set_type), POINTER    :: neighbor_list_set
 
-    CHARACTER(LEN=*), PARAMETER :: &
-      routine_name = "deallocate_neighbor_list_set"
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'deallocate_neighbor_list_set'
 
     INTEGER                                  :: istat
     TYPE(neighbor_list_type), POINTER        :: neighbor_list, &
@@ -644,7 +642,7 @@ CONTAINS
 
       DEALLOCATE (neighbor_list_set,STAT=istat)
       IF (istat /= 0) THEN
-        CALL stop_memory(routine_name,module_name,__LINE__,"neighbor_list_set")
+        CALL stop_memory(routineN,moduleN,__LINE__,"neighbor_list_set")
       END IF
 
     END IF
@@ -665,7 +663,7 @@ CONTAINS
     INTEGER, DIMENSION(:), INTENT(OUT)       :: neighbors
     REAL(dp), DIMENSION(:, :), INTENT(OUT)   :: r
 
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "extract_neighbor_list"
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'extract_neighbor_list'
 
     INTEGER                                  :: inode, nnode
     TYPE(neighbor_node_type), POINTER        :: neighbor_node
@@ -679,12 +677,12 @@ CONTAINS
       IF (nnode > 0) THEN
 
         IF (nnode > SIZE(neighbors)) THEN
-          CALL stop_program(routine_name,module_name,__LINE__,&
+          CALL stop_program(routineN,moduleN,__LINE__,&
                             "The size of the data object <neighbors> is too small")
         END IF
 
         IF (3*nnode > SIZE(r)) THEN
-          CALL stop_program(routine_name,module_name,__LINE__,&
+          CALL stop_program(routineN,moduleN,__LINE__,&
                             "The size of the data object <r> is too small")
         END IF
 
@@ -700,7 +698,7 @@ CONTAINS
 
     ELSE
 
-      CALL stop_program(routine_name,module_name,__LINE__,&
+      CALL stop_program(routineN,moduleN,__LINE__,&
                         "The requested neighbor list is not associated")
 
     END IF
@@ -723,7 +721,7 @@ CONTAINS
     INTEGER, INTENT(IN)                      :: atom
     TYPE(neighbor_list_type), POINTER        :: neighbor_list
 
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "find_neighbor_list_1"
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'find_neighbor_list_1'
 
     INTEGER                                  :: ilist
     TYPE(neighbor_list_type), POINTER        :: current_neighbor_list
@@ -746,7 +744,7 @@ CONTAINS
 
     ELSE
 
-      CALL stop_program(routine_name,module_name,__LINE__,&
+      CALL stop_program(routineN,moduleN,__LINE__,&
                         "The requested neighbor list set is not associated")
 
     END IF
@@ -770,7 +768,7 @@ CONTAINS
     INTEGER, DIMENSION(3), INTENT(IN)        :: cell
     TYPE(neighbor_list_type), POINTER        :: neighbor_list
 
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "find_neighbor_list_2"
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'find_neighbor_list_2'
 
     INTEGER                                  :: ilist
     TYPE(neighbor_list_type), POINTER        :: current_neighbor_list
@@ -797,7 +795,7 @@ CONTAINS
 
     ELSE
 
-      CALL stop_program(routine_name,module_name,__LINE__,&
+      CALL stop_program(routineN,moduleN,__LINE__,&
                         "The requested neighbor list set is not associated")
 
     END IF
@@ -861,7 +859,7 @@ CONTAINS
       OPTIONAL                               :: cell
     INTEGER, INTENT(OUT), OPTIONAL           :: nnode
 
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "get_neighbor_list"
+    CHARACTER(LEN=*), PARAMETER              :: routineN = 'get_neighbor_list'
 
 !   ---------------------------------------------------------------------------
 
@@ -873,7 +871,7 @@ CONTAINS
 
     ELSE
 
-      CALL stop_program(routine_name,module_name,__LINE__,&
+      CALL stop_program(routineN,moduleN,__LINE__,&
                         "The requested neighbor list is not associated")
 
     END IF
@@ -894,7 +892,7 @@ CONTAINS
     REAL(dp), INTENT(OUT), OPTIONAL          :: r_max
     INTEGER, INTENT(OUT), OPTIONAL           :: nlist
 
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "get_neighbor_list_set"
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'get_neighbor_list_set'
 
 !   ---------------------------------------------------------------------------
 
@@ -905,7 +903,7 @@ CONTAINS
 
     ELSE
 
-      CALL stop_program(routine_name,module_name,__LINE__,&
+      CALL stop_program(routineN,moduleN,__LINE__,&
                         "The requested neighbor list set is not associated")
 
     END IF
@@ -930,10 +928,10 @@ CONTAINS
     REAL(dp), DIMENSION(3), INTENT(OUT), &
       OPTIONAL                               :: r, s
     TYPE(reduced_3c_list_type), &
-        DIMENSION(:), POINTER, OPTIONAL      :: reduced_3c_oce, &
+      DIMENSION(:), OPTIONAL, POINTER        :: reduced_3c_oce, &
                                                 reduced_3c_rho0
 
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "get_neighbor_node"
+    CHARACTER(LEN=*), PARAMETER              :: routineN = 'get_neighbor_node'
 
 !   ---------------------------------------------------------------------------
 
@@ -950,7 +948,7 @@ CONTAINS
 
     ELSE
 
-      CALL stop_program(routine_name,module_name,__LINE__,&
+      CALL stop_program(routineN,moduleN,__LINE__,&
                         "The requested neighbor node is not associated")
 
     END IF
@@ -971,7 +969,7 @@ CONTAINS
 
     TYPE(neighbor_list_type), POINTER        :: neighbor_list
 
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "init_neighbor_list"
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'init_neighbor_list'
 
 !   ---------------------------------------------------------------------------
 
@@ -987,7 +985,7 @@ CONTAINS
 
     ELSE
 
-      CALL stop_program(routine_name,module_name,__LINE__,&
+      CALL stop_program(routineN,moduleN,__LINE__,&
                         "The requested neighbor list is not associated")
 
     END IF
@@ -1009,7 +1007,7 @@ CONTAINS
     TYPE(neighbor_list_set_type), POINTER    :: neighbor_list_set
     REAL(dp), INTENT(IN), OPTIONAL           :: r_max
 
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "init_neighbor_list_set"
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'init_neighbor_list_set'
 
 !   ---------------------------------------------------------------------------
 
@@ -1029,7 +1027,7 @@ CONTAINS
 
     ELSE
 
-      CALL stop_program(routine_name,module_name,__LINE__,&
+      CALL stop_program(routineN,moduleN,__LINE__,&
                         "The requested neighbor list set is not associated")
 
     END IF
@@ -1088,7 +1086,7 @@ CONTAINS
     INTEGER, DIMENSION(3), INTENT(IN), &
       OPTIONAL                               :: cell
 
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "set_neighbor_list"
+    CHARACTER(LEN=*), PARAMETER              :: routineN = 'set_neighbor_list'
 
 !   ---------------------------------------------------------------------------
 
@@ -1099,7 +1097,7 @@ CONTAINS
 
     ELSE
 
-      CALL stop_program(routine_name,module_name,__LINE__,&
+      CALL stop_program(routineN,moduleN,__LINE__,&
                         "The requested neighbor list is not associated")
 
     END IF
@@ -1119,7 +1117,7 @@ CONTAINS
     TYPE(neighbor_list_set_type), POINTER    :: neighbor_list_set
     REAL(dp), INTENT(IN), OPTIONAL           :: r_max
 
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "set_neighbor_list_set"
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'set_neighbor_list_set'
 
 !   ---------------------------------------------------------------------------
 
@@ -1129,7 +1127,7 @@ CONTAINS
 
     ELSE
 
-      CALL stop_program(routine_name,module_name,__LINE__,&
+      CALL stop_program(routineN,moduleN,__LINE__,&
                         "The requested neighbor list set is not associated")
 
     END IF
@@ -1153,7 +1151,7 @@ CONTAINS
     REAL(dp), DIMENSION(3), INTENT(IN), &
       OPTIONAL                               :: r, s
 
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "set_neighbor_node"
+    CHARACTER(LEN=*), PARAMETER              :: routineN = 'set_neighbor_node'
 
 !   ---------------------------------------------------------------------------
 
@@ -1166,7 +1164,7 @@ CONTAINS
 
     ELSE
 
-      CALL stop_program(routine_name,module_name,__LINE__,&
+      CALL stop_program(routineN,moduleN,__LINE__,&
                         "The requested neighbor node is not associated")
 
     END IF

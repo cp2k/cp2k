@@ -24,18 +24,14 @@ MODULE velocity_verlet_control
 
   USE force_env_types,                 ONLY: force_env_get,&
                                              force_env_p_type,&
-                                             use_fist_force,&
-                                             use_kg_force,&
-                                             use_qs_force
-  USE integrator,                      ONLY: nve,&
-                                             nvt,&
-                                             npt_i, &
-                                             npt_f, &
-                                             nph_uniaxial, &
-                                             nph_uniaxial_damped, &
-                                             isokin,&
-                                             reftraj,&
-                                             langevin
+                                             use_fist_force
+  USE input_constants,                 ONLY: &
+       isokin_ensemble, langevin_ensemble, nph_uniaxial_damped_ensemble, &
+       nph_uniaxial_ensemble, npt_f_ensemble, npt_i_ensemble, nve_ensemble, &
+       nvt_ensemble, reftraj_ensemble
+  USE integrator,                      ONLY: &
+       isokin, langevin, nph_uniaxial, nph_uniaxial_damped, npt_f, npt_i, &
+       nve, nvt, reftraj
   USE mathconstants,                   ONLY: zero
   USE md,                              ONLY: simulation_parameters_type
   USE md_environment_types,            ONLY: get_md_env,&
@@ -43,16 +39,6 @@ MODULE velocity_verlet_control
   USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE input_constants,                 ONLY: nve_ensemble,&
-                                             nvt_ensemble,&
-                                             npt_i_ensemble,&
-                                             npt_f_ensemble,&
-                                             nph_ensemble,&
-                                             nph_uniaxial_ensemble,&
-                                             nph_uniaxial_damped_ensemble,&
-                                             isokin_ensemble, &
-                                             reftraj_ensemble,&
-                                             langevin_ensemble
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -86,10 +72,10 @@ SUBROUTINE velocity_verlet ( md_env, error )
 
     TYPE(md_environment_type), POINTER       :: md_env
     TYPE(cp_error_type), INTENT(inout), &
-         OPTIONAL                               :: error
+      OPTIONAL                               :: error
 
     INTEGER                                  :: handle, in_use
-    TYPE(force_env_p_type), POINTER          :: force_env_p ( : )
+    TYPE(force_env_p_type), POINTER          :: force_env_p( : )
     TYPE(simulation_parameters_type), &
       POINTER                                :: simpar
 

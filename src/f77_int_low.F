@@ -30,7 +30,7 @@ SUBROUTINE cp_init_cp2k(init_mpi,ierr)
   USE f77_interface, ONLY: icp => init_cp2k
   IMPLICIT NONE
   INTEGER :: init_mpi,ierr
-  logical ::i_mpi
+  LOGICAL ::i_mpi
   i_mpi=init_mpi/=0
   CALL icp(i_mpi,ierr)
 END SUBROUTINE cp_init_cp2k
@@ -39,7 +39,7 @@ SUBROUTINE cp_finalize_cp2k(finalize_mpi,ierr)
   USE f77_interface, ONLY: kcp => finalize_cp2k
   IMPLICIT NONE
   INTEGER :: finalize_mpi, ierr
-  logical ::f_mpi
+  LOGICAL ::f_mpi
   f_mpi=finalize_mpi/=0
   CALL kcp(f_mpi,ierr)
 END SUBROUTINE cp_finalize_cp2k
@@ -65,7 +65,7 @@ SUBROUTINE cp_create_fenv_comm(new_env_id,input_file_path,output_file_path,&
 END SUBROUTINE cp_create_fenv_comm
 
 SUBROUTINE cp_destroy_fenv(env_id, ierr)
-  USE f77_interface, only: dfe => destroy_force_env
+  USE f77_interface, ONLY: dfe => destroy_force_env
   IMPLICIT NONE
   INTEGER :: env_id, ierr
 
@@ -73,7 +73,7 @@ SUBROUTINE cp_destroy_fenv(env_id, ierr)
 END SUBROUTINE cp_destroy_fenv
 
 SUBROUTINE cp_set_pos(env_id, new_pos, n_el, ierr)
-  USE kinds, only: dp
+  USE kinds, ONLY: dp
   USE f77_interface, ONLY: sp => set_pos
   IMPLICIT NONE
   INTEGER :: n_el, env_id, ierr
@@ -83,8 +83,8 @@ SUBROUTINE cp_set_pos(env_id, new_pos, n_el, ierr)
 END SUBROUTINE cp_set_pos
 
 SUBROUTINE cp_get_natom(env_id, natom, ierr)
-  USE kinds, only: dp
-  USE f77_interface, only: gna => get_natom
+  USE kinds, ONLY: dp
+  USE f77_interface, ONLY: gna => get_natom
   IMPLICIT NONE
   INTEGER :: natom, env_id, ierr
 
@@ -92,8 +92,8 @@ SUBROUTINE cp_get_natom(env_id, natom, ierr)
 END SUBROUTINE cp_get_natom
 
 SUBROUTINE cp_get_pos(env_id, pos, n_el, ierr)
-  USE kinds, only: dp
-  USE f77_interface, only: gp => get_pos
+  USE kinds, ONLY: dp
+  USE f77_interface, ONLY: gp => get_pos
   IMPLICIT NONE
   INTEGER :: n_el, env_id, ierr
   REAL(kind=dp), DIMENSION(1:n_el) :: pos
@@ -102,8 +102,8 @@ SUBROUTINE cp_get_pos(env_id, pos, n_el, ierr)
 END SUBROUTINE cp_get_pos
 
 SUBROUTINE cp_get_force(env_id,force, n_el, ierr)
-  USE kinds, only: dp
-  USE f77_interface, only: gf => get_force
+  USE kinds, ONLY: dp
+  USE f77_interface, ONLY: gf => get_force
   IMPLICIT NONE
   INTEGER :: n_el, env_id, ierr
   REAL(kind=dp), DIMENSION(1:n_el) :: force
@@ -112,8 +112,8 @@ SUBROUTINE cp_get_force(env_id,force, n_el, ierr)
 END SUBROUTINE cp_get_force
 
 SUBROUTINE cp_get_energy(env_id, e_pot, ierr)
-  USE kinds, only: dp
-  USE f77_interface, only: ge => get_energy
+  USE kinds, ONLY: dp
+  USE f77_interface, ONLY: ge => get_energy
   IMPLICIT NONE
   INTEGER :: env_id, ierr
   REAL(kind=dp) :: e_pot
@@ -122,32 +122,32 @@ SUBROUTINE cp_get_energy(env_id, e_pot, ierr)
 END SUBROUTINE cp_get_energy
 
 SUBROUTINE cp_calc_energy_force(env_id,calc_force,ierr)
-  USE f77_interface, only: cef => calc_energy_force
+  USE f77_interface, ONLY: cef => calc_energy_force
   IMPLICIT NONE
   INTEGER :: calc_force, env_id, ierr
-  logical :: cf
+  LOGICAL :: cf
 
   cf=(calc_force/=0)
   CALL cef(env_id,cf,ierr)
 END SUBROUTINE cp_calc_energy_force
 
 SUBROUTINE cp_calc_energy(env_id,pos,n_el,e_pot,ierr)
-  USE kinds, only: dp
+  USE kinds, ONLY: dp
   USE f77_interface, ONLY: ce => calc_energy
   IMPLICIT NONE
   INTEGER :: calc_force, env_id, ierr, n_el
-  real(dp) :: e_pot
+  REAL(dp) :: e_pot
   REAL(dp), DIMENSION(1:n_el) :: pos
 
   CALL ce(env_id,pos,n_el,e_pot,ierr)
 END SUBROUTINE cp_calc_energy
 
 SUBROUTINE cp_calc_force(env_id,pos,n_el_pos,e_pot,force,n_el_force,ierr)
-  USE kinds, only: dp
+  USE kinds, ONLY: dp
   USE f77_interface, ONLY: cf => calc_force
   IMPLICIT NONE
   INTEGER :: env_id, ierr, n_el_pos, n_el_force
-  real(dp) :: e_pot
+  REAL(dp) :: e_pot
   REAL(dp), DIMENSION(1:n_el_pos) :: pos
   REAL(dp), DIMENSION(1:n_el_force) :: force
 

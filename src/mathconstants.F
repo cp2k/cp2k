@@ -93,7 +93,7 @@ SUBROUTINE init_mathcon
 !
   fac(0) = one
   DO i = 1, maxfac
-     fac(i) = real(i,dp)*fac(i-1)
+     fac(i) = REAL(i,dp)*fac(i-1)
   END DO
 !
 !    *** Double factorial function ***

@@ -24,14 +24,13 @@
 !****************************************************************************
 MODULE tbmd_model_types
   USE kinds,                           ONLY: dp
-
 #include "cp_common_uses.h"
- 
+
   IMPLICIT NONE
   PRIVATE
 
-  CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='tbmd_model_types'
-  INTEGER, PRIVATE, save :: last_tbmd_id=0
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'tbmd_model_types'
+  INTEGER, PRIVATE, SAVE :: last_tbmd_id=0
 
   ! *** Public data types ***
   PUBLIC :: tbmd_model_type, &
@@ -186,7 +185,7 @@ CONTAINS
     LOGICAL                                  :: failure
 
 !   ------------------------------------------------------------------------
-   
+
     failure = .FALSE.
   
     CPPrecondition(ASSOCIATED(tbmd_model), cp_failure_level, routineP, error, failure)
@@ -222,15 +221,15 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE tbmd_model_release(tbmd_model, error)
 
-    TYPE(tbmd_model_type), POINTER                  :: tbmd_model
+    TYPE(tbmd_model_type), POINTER           :: tbmd_model
     TYPE(cp_error_type), INTENT(INOUT), &
-      OPTIONAL                                      :: error
+      OPTIONAL                               :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'tbmd_model_release', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                         :: stat
-    LOGICAL                                         :: failure
+    INTEGER                                  :: stat
+    LOGICAL                                  :: failure
 
 !   ------------------------------------------------------------------------
 
@@ -301,32 +300,22 @@ CONTAINS
                             r_calpha, n_calpha, C14, tb_model_name, &
                             noisy_tb, error)
 
-    TYPE(tbmd_model_type), POINTER                     :: tbmd_model
-    INTEGER, INTENT(OUT), OPTIONAL                     :: id_nr, &
-                                                          tb_model_name
-    LOGICAL, INTENT(OUT), OPTIONAL                     :: noisy_tb
-    REAL(KIND=dp), INTENT(OUT), OPTIONAL               :: h_ssS, &
-                                                          h_spS, &
-                                                          h_ppS, &
-                                                          h_ppP, &
-                                                          n, &
-                                                          r_0, &
-                                                          Phi, &
-                                                          m, &
-                                                          d_c, &
-                                                          m_c, &
-                                                          dEpsilon, &
-                                                          E_s, &
-                                                          E_0
-    REAL(KIND=dp), DIMENSION(4), INTENT(OUT), OPTIONAL :: r_calpha, &
-                                                          n_calpha, &
-                                                          C14
-    TYPE(cp_error_type), INTENT(INOUT), OPTIONAL       :: error
+    TYPE(tbmd_model_type), POINTER           :: tbmd_model
+    INTEGER, INTENT(OUT), OPTIONAL           :: id_nr
+    REAL(KIND=dp), INTENT(OUT), OPTIONAL     :: h_ssS, h_spS, h_ppS, h_ppP, &
+                                                n, r_0, Phi, m, d_c, m_c, &
+                                                dEpsilon, E_s, E_0
+    REAL(KIND=dp), DIMENSION(4), &
+      INTENT(OUT), OPTIONAL                  :: r_calpha, n_calpha, C14
+    INTEGER, INTENT(OUT), OPTIONAL           :: tb_model_name
+    LOGICAL, INTENT(OUT), OPTIONAL           :: noisy_tb
+    TYPE(cp_error_type), INTENT(INOUT), &
+      OPTIONAL                               :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'tbmd_model_get', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                            :: failure
+    LOGICAL                                  :: failure
 
 !   ------------------------------------------------------------------------
 
@@ -414,32 +403,22 @@ CONTAINS
                             r_calpha, n_calpha, C14, tb_model_name, &
                             noisy_tb, error)
 
-    TYPE(tbmd_model_type), POINTER                    :: tbmd_model
-    INTEGER, INTENT(IN), OPTIONAL                     :: id_nr, &
-                                                         tb_model_name
-    LOGICAL, INTENT(IN), OPTIONAL                     :: noisy_tb
-    REAL(KIND=dp), INTENT(IN), OPTIONAL               :: h_ssS, &
-                                                         h_spS, &
-                                                         h_ppS, &
-                                                         h_ppP, &
-                                                         n, &
-                                                         r_0, &
-                                                         Phi, &
-                                                         m, &
-                                                         d_c, &
-                                                         m_c, &
-                                                         dEpsilon, &
-                                                         E_s, &
-                                                         E_0
-    REAL(KIND=dp), DIMENSION(4), INTENT(IN), OPTIONAL :: r_calpha, &
-                                                         n_calpha, &
-                                                         C14
-    TYPE(cp_error_type), INTENT(INOUT), OPTIONAL      :: error
+    TYPE(tbmd_model_type), POINTER           :: tbmd_model
+    INTEGER, INTENT(IN), OPTIONAL            :: id_nr
+    REAL(KIND=dp), INTENT(IN), OPTIONAL      :: h_ssS, h_spS, h_ppS, h_ppP, &
+                                                n, r_0, Phi, m, d_c, m_c, &
+                                                dEpsilon, E_s, E_0
+    REAL(KIND=dp), DIMENSION(4), &
+      INTENT(IN), OPTIONAL                   :: r_calpha, n_calpha, C14
+    INTEGER, INTENT(IN), OPTIONAL            :: tb_model_name
+    LOGICAL, INTENT(IN), OPTIONAL            :: noisy_tb
+    TYPE(cp_error_type), INTENT(INOUT), &
+      OPTIONAL                               :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'tbmd_model_set', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                           :: failure
+    LOGICAL                                  :: failure
 
 !   ------------------------------------------------------------------------
 
@@ -501,14 +480,14 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE tbmd_model_clear(tbmd_model, error)
 
-    TYPE(tbmd_model_type), POINTER                  :: tbmd_model
+    TYPE(tbmd_model_type), POINTER           :: tbmd_model
     TYPE(cp_error_type), INTENT(INOUT), &
-      OPTIONAL                                      :: error
+      OPTIONAL                               :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'tbmd_model_clear', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                         :: failure
+    LOGICAL                                  :: failure
 
 !   ------------------------------------------------------------------------
 
@@ -566,15 +545,15 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE tbmd_model_create(tbmd_model, error)
 
-    TYPE(tbmd_model_type), POINTER                  :: tbmd_model
+    TYPE(tbmd_model_type), POINTER           :: tbmd_model
     TYPE(cp_error_type), INTENT(INOUT), &
-      OPTIONAL                                      :: error
+      OPTIONAL                               :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'tbmd_model_create', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                         :: stat
-    LOGICAL                                         :: failure
+    INTEGER                                  :: stat
+    LOGICAL                                  :: failure
 
 !   ------------------------------------------------------------------------
 

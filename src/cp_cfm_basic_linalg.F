@@ -36,7 +36,7 @@ MODULE cp_cfm_basic_linalg
   PRIVATE
 
   LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
-  CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='cp_cfm_basic_linalg'
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_cfm_basic_linalg'
 
   PUBLIC :: cp_cfm_add, cp_cfm_gemm, cp_cfm_lu_decompose, cp_cfm_column_scale, cp_cfm_schur_product
 !!***
@@ -215,17 +215,17 @@ CONTAINS
        CALL cp_cfm_get_element(matrix_a,i,i,diag(i)) !  not completely optimal in speed i would say
     ENDDO
     determinant=CMPLX(1.0_dp,0.0_dp,dp)
-    do i=1,n
+    DO i=1,n
        determinant=determinant*diag(i)
-    enddo
+    ENDDO
     DEALLOCATE(diag)
 #else
-    lda=size(a,1)
+    lda=SIZE(a,1)
     CALL zgetrf(n,n,a(1,1),lda,ipivot,info)
     determinant=CMPLX(1.0_dp,0.0_dp,dp)
-    do i=1,n
+    DO i=1,n
        determinant=determinant*a(i,i)
-    enddo
+    ENDDO
 #endif
     ! info is allowed to be zero
     ! this does just signal a zero diagonal element

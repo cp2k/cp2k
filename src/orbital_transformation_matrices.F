@@ -25,6 +25,8 @@
 
 MODULE orbital_transformation_matrices
 
+  USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
+                                             cp_print_key_unit_nr
   USE global_types,                    ONLY: global_environment_type
   USE kinds,                           ONLY: dp,&
                                              dp_size,&
@@ -40,16 +42,13 @@ MODULE orbital_transformation_matrices
                                              sgf_symbol
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
-  USE cp_output_handling,              ONLY: cp_print_key_unit_nr, &
-                                             cp_print_key_finished_output
-
-
 #include "cp_common_uses.h"
+
   IMPLICIT NONE
 
   PRIVATE
 
-  CHARACTER(LEN=*), PARAMETER :: module_name = "orbital_transformation_matrices"
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'orbital_transformation_matrices'
 
   TYPE orbtramat_type
     REAL(KIND = dp), DIMENSION(:,:), POINTER :: c2s,slm,s2c
@@ -90,7 +89,7 @@ CONTAINS
 
     INTEGER, INTENT(IN)                      :: maxl
 
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "create_spherical_harmonics"
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'create_spherical_harmonics'
 
     INTEGER                                  :: expo, i, ic, ic1, ic2, is, &
                                                 istat, j, k, l, lx, lx1, lx2, &
@@ -101,20 +100,20 @@ CONTAINS
 !   ---------------------------------------------------------------------------
 
     IF (current_maxl > -1) THEN
-      CALL stop_program(routine_name,module_name,__LINE__,&
+      CALL stop_program(routineN,moduleN,__LINE__,&
                         "Spherical harmonics are already allocated. "//&
                         "Use the init routine for an update")
     END IF
 
     IF (maxl < 0) THEN
-      CALL stop_program(routine_name,module_name,__LINE__,&
+      CALL stop_program(routineN,moduleN,__LINE__,&
                         "A negative maximum angular momentum quantum "//&
                         "number is invalid")
     END IF
 
     ALLOCATE (orbtramat(0:maxl),STAT=istat)
     IF (istat /= 0) THEN
-      CALL stop_memory(routine_name,module_name,__LINE__,&
+      CALL stop_memory(routineN,moduleN,__LINE__,&
                        "orbtramat",(maxl+1)*int_size)
     END IF
 
@@ -125,21 +124,21 @@ CONTAINS
 
       ALLOCATE (orbtramat(l)%c2s(ns,nc),STAT=istat)
       IF (istat /= 0) THEN
-        CALL stop_memory(routine_name,module_name,__LINE__,&
+        CALL stop_memory(routineN,moduleN,__LINE__,&
                          "orbtramat(l)%c2s",ns*nc*dp_size)
       END IF
       orbtramat(l)%c2s = 0.0_dp
 
       ALLOCATE (orbtramat(l)%slm(ns,nc),STAT=istat)
       IF (istat /= 0) THEN
-        CALL stop_memory(routine_name,module_name,__LINE__,&
+        CALL stop_memory(routineN,moduleN,__LINE__,&
                          "orbtramat(l)%slm",ns*nc*dp_size)
       END IF
       orbtramat(l)%slm = 0.0_dp
 
       ALLOCATE (orbtramat(l)%s2c(ns,nc),STAT=istat)
       IF (istat /= 0) THEN
-        CALL stop_memory(routine_name,module_name,__LINE__,&
+        CALL stop_memory(routineN,moduleN,__LINE__,&
                      "orbtramat(l)%s2c",ns*nc*dp_size)
       END IF
       orbtramat(l)%s2c = 0.0_dp
@@ -265,8 +264,7 @@ CONTAINS
 
 !   ***************************************************************************
 
-    CHARACTER(LEN=*), PARAMETER :: routine_name =&
-      "deallocate_spherical_harmonics"
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'deallocate_spherical_harmonics'
 
     INTEGER                                  :: istat, l
 
@@ -278,19 +276,19 @@ CONTAINS
 
         DEALLOCATE (orbtramat(l)%c2s,STAT=istat)
         IF (istat /= 0) THEN
-          CALL stop_memory(routine_name,module_name,__LINE__,&
+          CALL stop_memory(routineN,moduleN,__LINE__,&
                            "orbtramat(l)%c2s")
         END IF
 
         DEALLOCATE (orbtramat(l)%slm,STAT=istat)
         IF (istat /= 0) THEN
-          CALL stop_memory(routine_name,module_name,__LINE__,&
+          CALL stop_memory(routineN,moduleN,__LINE__,&
                            "orbtramat(l)%slm")
         END IF
 
         DEALLOCATE (orbtramat(l)%s2c,STAT=istat)
         IF (istat /= 0) THEN
-          CALL stop_memory(routine_name,module_name,__LINE__,&
+          CALL stop_memory(routineN,moduleN,__LINE__,&
                            "orbtramat(l)%s2c")
         END IF
 
@@ -298,7 +296,7 @@ CONTAINS
 
       DEALLOCATE (orbtramat,STAT=istat)
       IF (istat /= 0) THEN
-        CALL stop_memory(routine_name,module_name,__LINE__,&
+        CALL stop_memory(routineN,moduleN,__LINE__,&
                          "orbtramat")
       END IF
 
@@ -326,11 +324,11 @@ CONTAINS
 !   ---------------------------------------------------------------------------
 
     INTEGER, INTENT(IN)                      :: maxl
-    TYPE(global_environment_type), &
-      pointer                             :: globenv
-    TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
+    TYPE(global_environment_type), POINTER   :: globenv
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "init_spherical_harmonics"
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'init_spherical_harmonics'
 
     CHARACTER(LEN=78)                        :: headline
     INTEGER                                  :: l, nc, ns, output_unit
@@ -340,7 +338,7 @@ CONTAINS
     logger => cp_error_get_logger(error)
 
     IF (maxl < 0) THEN
-      CALL stop_program(routine_name,module_name,__LINE__,&
+      CALL stop_program(routineN,moduleN,__LINE__,&
                         "A negative maximum angular momentum quantum "//&
                         "number is invalid")
     END IF
@@ -413,7 +411,6 @@ CONTAINS
                                                 lz, m, nc, to
 
 !   ---------------------------------------------------------------------------
-
 !   *** Write headline ***
 
     WRITE (UNIT=lunit,FMT="(/,/,T2,A)") TRIM(headline)

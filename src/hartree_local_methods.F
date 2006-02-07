@@ -67,7 +67,7 @@ MODULE  hartree_local_methods
 
 ! *** Global parameters (only in this module)
 
-  CHARACTER(LEN=*), PARAMETER :: module_name = "hartree_local_methods"
+  CHARACTER(LEN=*), PARAMETER :: moduleN = "hartree_local_methods"
 
 ! *** Define multipole type ***
 
@@ -88,7 +88,7 @@ MODULE  hartree_local_methods
     LOGICAL, INTENT(IN), OPTIONAL            :: tddft
     TYPE(qs_p_env_type), POINTER, OPTIONAL   :: p_env
 
-    CHARACTER(LEN=*), PARAMETER              :: routine_name = "init_rho0"
+    CHARACTER(LEN=*), PARAMETER              :: routineN = "init_rho0"
 
     TYPE(atomic_kind_type), DIMENSION(:), &
                                    POINTER   :: atomic_kind_set
@@ -254,8 +254,8 @@ MODULE  hartree_local_methods
     LOGICAL, INTENT(IN), OPTIONAL              :: tddft
     TYPE(qs_p_env_type), POINTER, OPTIONAL     :: p_env
 
-    CHARACTER(LEN=*), PARAMETER         :: routine_name = "Vh_1c_gg_integrals",&
-                routineP = module_name//':'//routine_name
+    CHARACTER(LEN=*), PARAMETER         :: routineN = "Vh_1c_gg_integrals",&
+                routineP = moduleN//':'//routineN
 
     TYPE(atomic_kind_type), DIMENSION(:), &
                             POINTER            :: atomic_kind_set
@@ -362,7 +362,7 @@ MODULE  hartree_local_methods
 
     ALLOCATE(gexp(max_nr),STAT=istat)
     ALLOCATE(sqrtwr(max_nr),g0_h_w(max_nr,0:lmax_0),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
          "gexp,sqrtwr,g0_h_w",(2*max_nr+max_nr*(1+lmax_0))*dp_size)    
 
 !   Put to 0 the local hartree energy contribution from 1 center integrals
@@ -377,7 +377,7 @@ MODULE  hartree_local_methods
                            natom=nat,grid_atom=grid_atom,&
                            harmonics=harmonics,ngrid_rad=nr,&
                            max_iso_not0=max_iso_not0,paw_atom=paw_atom)
-      IF (.NOT. paw_atom) cycle
+      IF (.NOT. paw_atom) CYCLE
       CALL get_gto_basis_set(gto_basis_set=orb_basis,lmax=lmax,lmin=lmin,&
                              maxso=maxso,npgf=npgf,&
                              nset=nset,zet=zet)
@@ -388,7 +388,7 @@ MODULE  hartree_local_methods
       ALLOCATE(aVh1b_hh(nsotot,nsotot),STAT=istat)
       ALLOCATE(aVh1b_ss(nsotot,nsotot),STAT=istat)
       ALLOCATE(aVh1b_00(nsotot,nsotot),STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
          "aVh1b_hh,aVh1b_ss,aVh1b_00",3*nsotot*nsotot)
 
       NULLIFY(Qlm_gg,g0_h)
@@ -399,7 +399,7 @@ MODULE  hartree_local_methods
 
       nchan_0 = nsoset(lmax0)
 
-      IF(nchan_0 > max_iso_not0) CALL stop_program(routine_name,module_name,__LINE__,&
+      IF(nchan_0 > max_iso_not0) CALL stop_program(routineN,moduleN,__LINE__,&
                         "channels for rho0 > # max of spherical harmonics")
 
       NULLIFY(rrad_z,my_CG)
@@ -411,7 +411,7 @@ MODULE  hartree_local_methods
       gexp=0.0_dp
       gsph=0.0_dp
 
-      sqrtwr(1:nr) = sqrt(grid_atom%wr(1:nr))
+      sqrtwr(1:nr) = SQRT(grid_atom%wr(1:nr))
       DO l_ang = 0,lmax0
         g0_h_w(1:nr,l_ang) = g0_h(1:nr,l_ang)*grid_atom%wr(1:nr)
       END DO 
@@ -628,7 +628,7 @@ MODULE  hartree_local_methods
       DEALLOCATE(aVh1b_hh,STAT=istat)
       DEALLOCATE(aVh1b_ss,STAT=istat)
       DEALLOCATE(aVh1b_00,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
             "aVh1b_hh,aVh1b_ss,aVh1b_00")
     END DO  ! ikind 
 
@@ -636,7 +636,7 @@ MODULE  hartree_local_methods
 
     DEALLOCATE(gexp,gsph,g0_h_w,sqrtwr,STAT=istat)
     IF (istat /= 0) THEN
-       CALL stop_memory(routine_name,module_name,__LINE__,&
+       CALL stop_memory(routineN,moduleN,__LINE__,&
             "gexp,gsph,g0_h_w,sqrtwr")
     ENDIF
 

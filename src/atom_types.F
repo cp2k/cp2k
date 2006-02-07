@@ -5,9 +5,6 @@
 
 MODULE atom_types
 
-  USE global_types,                    ONLY: GLOBAL_ENVIRONMENT_TYPE
-  USE kinds,                           ONLY: dp
-  USE mathconstants,                   ONLY: pi
 !TODEL_TL  USE parser,                          ONLY: get_next,&
 !TODEL_TL                                             parser_end,&
 !TODEL_TL                                             parser_init,&
@@ -15,11 +12,11 @@ MODULE atom_types
 !TODEL_TL                                             search_label,&
 !TODEL_TL                                             stop_parser,&
 !TODEL_TL                                             test_next
+  USE global_types,                    ONLY: GLOBAL_ENVIRONMENT_TYPE
+  USE kinds,                           ONLY: dp
   USE radial_grids,                    ONLY: RADIAL_GRID_TYPE,&
                                              init_radial_grid
-  USE radial_util,                     ONLY: radial_normalize
-  USE string_utilities,                ONLY: uppercase
-  USE xc_xalpha_new,                   only: xalpha_init
+
   IMPLICIT NONE
 
   PRIVATE
@@ -64,7 +61,7 @@ MODULE atom_types
   TYPE ATOM_CALCULATION_TYPE
      CHARACTER(8)            :: method
      TYPE(XA_PARA_TYPE)      :: xapara
-     REAL(KIND=dp)               :: precision
+     REAL(KIND=dp)               :: PRECISION
      TYPE(RADIAL_GRID_TYPE)  :: rg
      INTEGER                 :: maxiter
      INTEGER                 :: maxshoot
@@ -112,13 +109,11 @@ CONTAINS
     !
     TYPE(ATOM_TYPE), INTENT(OUT)             :: atom
     TYPE(ATOM_CALCULATION_TYPE), INTENT(OUT) :: ac
-    TYPE(GLOBAL_ENVIRONMENT_TYPE), &
-      pointer                             :: globenv
+    TYPE(GLOBAL_ENVIRONMENT_TYPE), POINTER   :: globenv
 
 ! variables
-
 !TODEL_TL    CALL parser_init(globenv%input_file_name, globenv)
-    
+
     CALL handle_ac(ac, globenv)
     CALL handle_grid(ac, globenv)
     CALL handle_atom(atom, ac, globenv)
@@ -136,13 +131,10 @@ CONTAINS
   SUBROUTINE handle_atom ( atom, ac, globenv )
     TYPE(ATOM_TYPE), INTENT(OUT)             :: atom
     TYPE(ATOM_CALCULATION_TYPE), INTENT(IN)  :: ac
-    TYPE(GLOBAL_ENVIRONMENT_TYPE), &
-      pointer                             :: globenv
+    TYPE(GLOBAL_ENVIRONMENT_TYPE), POINTER   :: globenv
 
-    CHARACTER(8)                             :: label, string
-    INTEGER                                  :: avail, err, i, l, len, n, np, &
-                                                out, set
-    REAL(KIND=dp)                                :: x
+    CHARACTER(8)                             :: label
+    INTEGER                                  :: len, n, np, out
 
 ! variables
 
@@ -258,11 +250,10 @@ CONTAINS
   
   SUBROUTINE handle_ac ( ac, globenv )
     TYPE(ATOM_CALCULATION_TYPE), INTENT(OUT) :: ac
-    TYPE(GLOBAL_ENVIRONMENT_TYPE), &
-      pointer                             :: globenv
+    TYPE(GLOBAL_ENVIRONMENT_TYPE), POINTER   :: globenv
 
-    CHARACTER(8)                             :: label, string
-    INTEGER                                  :: err, len, out
+    CHARACTER(8)                             :: label
+    INTEGER                                  :: len, out
 
 ! variables
 
@@ -323,13 +314,12 @@ CONTAINS
   
   SUBROUTINE handle_grid ( ac, globenv )
     TYPE(ATOM_CALCULATION_TYPE), INTENT(OUT) :: ac
-    TYPE(GLOBAL_ENVIRONMENT_TYPE), &
-      pointer                             :: globenv
+    TYPE(GLOBAL_ENVIRONMENT_TYPE), POINTER   :: globenv
 
-    CHARACTER(8)                             :: gridtype, label, string
-    INTEGER                                  :: err, len, np, out
-    REAL(KIND=dp)                                :: rmax
-    REAL(KIND=dp), DIMENSION(0:5)                :: b
+    CHARACTER(8)                             :: gridtype, label
+    INTEGER                                  :: len, np, out
+    REAL(KIND=dp)                            :: rmax
+    REAL(KIND=dp), DIMENSION(0:5)            :: b
 
 ! variables
 
@@ -440,12 +430,12 @@ CONTAINS
 !!! ****************************************************************************
   
   SUBROUTINE handle_method_specific ( ac, globenv )
-    TYPE(ATOM_CALCULATION_TYPE), INTENT(INOUT) :: ac
-    TYPE(GLOBAL_ENVIRONMENT_TYPE), &
-      pointer                             :: globenv
+    TYPE(ATOM_CALCULATION_TYPE), &
+      INTENT(INOUT)                          :: ac
+    TYPE(GLOBAL_ENVIRONMENT_TYPE), POINTER   :: globenv
 
-    CHARACTER(8)                             :: label, string
-    INTEGER                                  :: err, len, out
+    CHARACTER(8)                             :: label
+    INTEGER                                  :: len, out
 
 ! variables
 

@@ -21,21 +21,21 @@
 
 MODULE checkpoint_handler
 
-  USE kinds,                           ONLY: dp
+  USE cp_output_handling,              ONLY: cp_p_file,&
+                                             cp_print_key_finished_output,&
+                                             cp_print_key_should_output,&
+                                             cp_print_key_unit_nr
   USE global_types,                    ONLY: global_environment_type
+  USE kinds,                           ONLY: dp
   USE machine,                         ONLY: m_cputime,&
                                              m_flush,&
                                              m_getpid
   USE memory_utilities,                ONLY: write_memory
-  USE message_passing,                 ONLY: mp_sync,&
-                                             mp_sum
-  USE string_utilities,                ONLY: compress,&
-                                             string_to_ascii,&
-                                             ascii_to_string
-  USE cp_output_handling,              ONLY: cp_print_key_unit_nr, &
-                                             cp_print_key_finished_output,&
-                                             cp_print_key_should_output, cp_p_file
-
+  USE message_passing,                 ONLY: mp_sum,&
+                                             mp_sync
+  USE string_utilities,                ONLY: ascii_to_string,&
+                                             compress,&
+                                             string_to_ascii
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -60,14 +60,13 @@ CONTAINS
 
 !   ***************************************************************************
 
-    CHARACTER(LEN=*), INTENT(IN)                 :: checkpoint
-    TYPE(global_environment_type), &
-         POINTER                                 :: globenv
-    TYPE(cp_error_type), INTENT(inout) :: error
+    CHARACTER(LEN=*), INTENT(IN)             :: checkpoint
+    TYPE(global_environment_type), POINTER   :: globenv
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
+    INTEGER                                  :: iw
     TYPE(cp_logger_type), POINTER            :: logger
-    INTEGER :: iw
-    
+
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
     iw = cp_print_key_unit_nr(logger,globenv%input_file,"GLOBAL%PERFORMANCE/ROUTINES",&
@@ -101,20 +100,17 @@ CONTAINS
 !   ***************************************************************************
 
     CHARACTER(LEN=*), INTENT(IN)             :: checkpoint
-    TYPE(global_environment_type), &
-      pointer                             :: globenv
+    TYPE(global_environment_type), POINTER   :: globenv
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=LEN_TRIM(checkpoint)+55)   :: string2
     CHARACTER(LEN=LEN_TRIM(checkpoint)+7)    :: string1
-    INTEGER                                  :: group, ipe, mype, npe, &
+    INTEGER                                  :: group, ipe, iw, mype, npe, &
                                                 output_unit, pid
-    INTEGER, DIMENSION(:,:), ALLOCATABLE     :: myconvertedstring
+    INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: myconvertedstring
     LOGICAL                                  :: ionode
-    TYPE(cp_error_type), INTENT(inout)       :: error
-
     TYPE(cp_logger_type), POINTER            :: logger
-    INTEGER :: iw
-    
+
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
     IF (BTEST(cp_print_key_should_output(logger%iter_info,globenv%input_file,&
@@ -162,14 +158,13 @@ CONTAINS
 
 !   ***************************************************************************
 
-    CHARACTER(LEN=*), INTENT(IN)                :: message
-    TYPE(global_environment_type), &
-         POINTER                                :: globenv
-    TYPE(cp_error_type), INTENT(inout)          :: error
+    CHARACTER(LEN=*), INTENT(IN)             :: message
+    TYPE(global_environment_type), POINTER   :: globenv
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
-    TYPE(cp_logger_type), POINTER               :: logger
-    INTEGER :: iw, cyc, i, j
-    CHARACTER(LEN=1024)                         :: my_message
+    CHARACTER(LEN=1024)                      :: my_message
+    INTEGER                                  :: cyc, i, iw, j
+    TYPE(cp_logger_type), POINTER            :: logger
 
     NULLIFY(logger)
     logger => cp_error_get_logger(error)

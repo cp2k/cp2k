@@ -19,18 +19,27 @@
 
 MODULE kg_energy 
   USE atomic_kind_types,               ONLY: atomic_kind_type
+  USE cell_types,                      ONLY: cell_type
   USE checkpoint_handler,              ONLY: write_checkpoint_information
   USE coefficient_types,               ONLY: coeff_copy,&
+                                             coeff_init,&
                                              coeff_sumup,&
                                              coeff_transform_space,&
                                              coeff_type,&
-                                             coeff_init,&
                                              coeff_zero
   USE cp_control_types,                ONLY: dft_control_type
+  USE cp_output_handling,              ONLY: cp_p_file,&
+                                             cp_print_key_finished_output,&
+                                             cp_print_key_should_output,&
+                                             cp_print_key_unit_nr
   USE dynamical_coeff_types,           ONLY: dyn_coeff_set_type,&
                                              dyn_coeff_type,&
                                              get_dyn_coeff
   USE global_types,                    ONLY: global_environment_type
+  USE input_cp2k_restarts,             ONLY: update_input
+  USE input_section_types,             ONLY: section_vals_get_subs_vals,&
+                                             section_vals_type,&
+                                             section_vals_write
   USE kg_core,                         ONLY: calculate_ecore_rspace,&
                                              calculate_eself
   USE kg_density,                      ONLY: calculate_density,&
@@ -44,20 +53,18 @@ MODULE kg_energy
                                              diis_info_destroy,&
                                              diis_info_type,&
                                              do_diis_step
-  USE kg_intra,                        ONLY: calculate_ebond_corr
-#include "cp_common_uses.h"
-
+  USE kg_environment_methods,          ONLY: kg_qs_env_update
   USE kg_environment_types,            ONLY: get_kg_env,&
                                              kg_environment_type
-  USE kg_environment_methods,          ONLY: kg_qs_env_update
+  USE kg_intra,                        ONLY: calculate_ebond_corr
   USE kg_kxc,                          ONLY: calculate_kxc_derivatives
   USE kg_neighbor_lists,               ONLY: build_kg_neighbor_lists
   USE kg_ppl,                          ONLY: calculate_drho_ppl,&
                                              calculate_rho0_ppl
-  USE kg_rho_types,                    ONLY: kg_rho_type, &
-                                             kg_rho_get
-  USE kg_rspw_types,                   ONLY: kg_rspw_type,&
-                                             kg_rspw_get
+  USE kg_rho_types,                    ONLY: kg_rho_get,&
+                                             kg_rho_type
+  USE kg_rspw_types,                   ONLY: kg_rspw_get,&
+                                             kg_rspw_type
   USE kg_scf,                          ONLY: kg_qs_scf
   USE kinds,                           ONLY: dp
   USE machine,                         ONLY: m_flush,&
@@ -65,35 +72,26 @@ MODULE kg_energy
   USE mathconstants,                   ONLY: zero
   USE message_passing,                 ONLY: mp_bcast,&
                                              mp_max
+  USE pw_poisson_methods,              ONLY: pw_poisson_solve
+  USE pw_poisson_types,                ONLY: pw_poisson_type
   USE pw_pool_types,                   ONLY: pw_pool_give_back_coeff,&
                                              pw_pool_init_coeff,&
-                                             pw_pool_type,&
-                                             pw_pool_p_type
+                                             pw_pool_type
   USE pw_types,                        ONLY: COMPLEXDATA1D,&
                                              REALDATA3D,&
                                              REALSPACE,&
                                              RECIPROCALSPACE,&
                                              pw_p_type,&
                                              pw_release
-  USE pw_poisson_types,                             ONLY: pw_poisson_type,&
-       pw_poisson_create, pw_poisson_release
-  USE pw_poisson_methods, only: pw_poisson_solve
   USE qs_core_hamiltonian,             ONLY: build_core_hamiltonian_matrix
   USE qs_environment_types,            ONLY: qs_environment_type
   USE qs_neighbor_lists,               ONLY: build_qs_neighbor_lists
   USE scf_control_types,               ONLY: scf_control_type
-  USE cell_types,                 ONLY: cell_type
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE xc,                              ONLY: xc_vxc_pw_create1
-  USE input_constants, only: restart_guess
-  USE input_section_types, ONLY: section_vals_type, section_vals_get_subs_vals,&
-       section_vals_write
- USE cp_output_handling,              ONLY: cp_print_key_unit_nr, &
-                                             cp_print_key_finished_output,&
-                                             cp_print_key_should_output,&
-                                             cp_p_file
- USE input_cp2k_restarts, only: update_input
+#include "cp_common_uses.h"
+
   IMPLICIT NONE
 
   PRIVATE
@@ -107,10 +105,10 @@ CONTAINS
 SUBROUTINE kg_energies ( kg_env, globenv, error )
 
     TYPE(kg_environment_type), POINTER       :: kg_env
-    TYPE(global_environment_type), &
-      POINTER                                :: globenv
+    TYPE(global_environment_type), POINTER   :: globenv
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
+
     TYPE(dft_control_type), POINTER          :: dft_control
 
 !------------------------------------------------------------------------------
@@ -156,32 +154,29 @@ END SUBROUTINE kg_energies
 SUBROUTINE kg_only_energies ( kg_env, globenv, error )
 
     TYPE(kg_environment_type), POINTER       :: kg_env
-    TYPE(global_environment_type), &
-      pointer                             :: globenv
+    TYPE(global_environment_type), POINTER   :: globenv
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
     CHARACTER(LEN=*), PARAMETER :: &
       routine = "SUBROUTINE kg_only_energies (MODULE kg_energy)"
 
-    INTEGER                                  :: handle, handle2, i, stat, &
-                                                iter, output_unit
-    LOGICAL                                  :: ionode, should_stop, failure
-    LOGICAL                                  :: calculate_forces
+    INTEGER                                  :: handle, i, output_unit, stat
+    LOGICAL                                  :: calculate_forces, failure, &
+                                                ionode
     REAL(KIND=dp)                            :: dvol, total_rho0_rspace
-    TYPE(coeff_type), POINTER                :: rho_core, rho_r, rho_g,&
-                                                v_gspace
-    TYPE(pw_p_type), DIMENSION(:), POINTER   :: my_vxc_r, my_vxc_tau, &
-                                                my_rho_r, my_rho_g,&
-                                                my_tau
     TYPE(cell_type), POINTER                 :: cell
+    TYPE(coeff_type), POINTER                :: rho_core, rho_g, rho_r, &
+                                                v_gspace
     TYPE(dft_control_type), POINTER          :: dft_control
-    TYPE(pw_poisson_type), pointer           :: poisson_env
     TYPE(kg_energy_type), POINTER            :: energy
     TYPE(kg_rho_type), POINTER               :: rho
     TYPE(kg_rspw_type), POINTER              :: rspw
-    TYPE(section_vals_type), pointer :: xc_section
+    TYPE(pw_p_type), DIMENSION(:), POINTER   :: my_rho_g, my_rho_r, my_tau, &
+                                                my_vxc_r, my_vxc_tau
+    TYPE(pw_poisson_type), POINTER           :: poisson_env
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
+    TYPE(section_vals_type), POINTER         :: xc_section
 
 !------------------------------------------------------------------------------
 
@@ -330,29 +325,27 @@ END SUBROUTINE kg_only_energies
 SUBROUTINE kg_std_energies ( kg_env, globenv, error )
 
     TYPE(kg_environment_type), POINTER       :: kg_env
-    TYPE(global_environment_type), &
-      pointer                             :: globenv
+    TYPE(global_environment_type), POINTER   :: globenv
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
     CHARACTER(LEN=*), PARAMETER :: &
       routine = "SUBROUTINE kg_std_energies (MODULE kg_energy)"
 
-    INTEGER                                  :: handle, handle2, i, stat, &
-                                                iter, output_unit, ires
-    LOGICAL                                  :: ionode, should_stop, failure
-    REAL(KIND=dp)                                :: maxerr, maxgrad, t1, t2
+    INTEGER                                  :: handle, handle2, i, ires, &
+                                                iter, output_unit, stat
+    LOGICAL                                  :: ionode, should_stop
+    REAL(KIND=dp)                            :: maxerr, maxgrad, t1, t2
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
-    TYPE (coeff_type), POINTER               :: vxc_r
+    TYPE(coeff_type), POINTER                :: vxc_r
+    TYPE(cp_logger_type), POINTER            :: logger
     TYPE(diis_info_type), POINTER            :: diis_info
     TYPE(dyn_coeff_set_type), POINTER        :: dyn_coeff_set
     TYPE(kg_rspw_type), POINTER              :: rspw
-    TYPE(scf_control_type), POINTER          :: scf_control
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
-    TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(scf_control_type), POINTER          :: scf_control
 
- 
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
  
@@ -495,16 +488,15 @@ END SUBROUTINE kg_std_energies
 SUBROUTINE kg_qs_energies ( kg_env, globenv, error )
 
     TYPE(kg_environment_type), POINTER       :: kg_env
-    TYPE(global_environment_type), &
-      POINTER                                :: globenv
+    TYPE(global_environment_type), POINTER   :: globenv
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
-    TYPE(section_vals_type), POINTER :: scf_section
 
-    CHARACTER(LEN=*), PARAMETER :: routine = "kg_qs_energies"
+    CHARACTER(LEN=*), PARAMETER              :: routine = "kg_qs_energies"
 
     INTEGER                                  :: handle
     TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(section_vals_type), POINTER         :: scf_section
 
     CALL timeset(routine,"I","",handle)
 
@@ -534,41 +526,38 @@ SUBROUTINE init_energy_calculation ( kg_env, vxc_r, globenv, error)
   ! vxc_r is allocated here
 
     TYPE(kg_environment_type), POINTER       :: kg_env
-    TYPE(coeff_type),POINTER                 :: vxc_r
-    TYPE(global_environment_type), &
-      pointer                             :: globenv
+    TYPE(coeff_type), POINTER                :: vxc_r
+    TYPE(global_environment_type), POINTER   :: globenv
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
     CHARACTER(LEN=*), PARAMETER :: &
       routine = "SUBROUTINE init_energy_calculation (MODULE kg_energy)"
 
-    INTEGER                                  :: handle, i, stat, &
-                                                output_unit
-    LOGICAL                                  :: calculate_forces, ionode, failure
-    REAL(KIND=dp)                                :: dvol, total_rho0_rspace
+    INTEGER                                  :: handle, i, output_unit, stat
+    LOGICAL                                  :: calculate_forces, failure, &
+                                                ionode
+    REAL(KIND=dp)                            :: dvol, total_rho0_rspace
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
-    TYPE(coeff_type), POINTER                :: rho_core, rho_r, rho_g,&
-                                                rhop_r, rhop_g
-    TYPE(pw_p_type), DIMENSION(:), POINTER   :: my_vxc_r, my_vxc_tau, &
-                                                my_rho_r, my_rho_g,&
-                                                my_tau
     TYPE(cell_type), POINTER                 :: cell
+    TYPE(coeff_type), POINTER                :: rho_core, rho_g, rho_r
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(dyn_coeff_set_type), POINTER        :: dyn_coeff_set
     TYPE(kg_energy_type), POINTER            :: energy
     TYPE(kg_rho_type), POINTER               :: rho
     TYPE(kg_rspw_type), POINTER              :: rspw
+    TYPE(pw_p_type), DIMENSION(:), POINTER   :: my_rho_g, my_rho_r, my_tau, &
+                                                my_vxc_r, my_vxc_tau
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
     TYPE(scf_control_type), POINTER          :: scf_control
-    TYPE(section_vals_type), pointer :: xc_section
+    TYPE(section_vals_type), POINTER         :: xc_section
 
 !------------------------------------------------------------------------------
 
   CALL write_checkpoint_information("Entering "//routine,globenv,error)
   CALL timeset ( 'init_energy_calculation','I',' ',handle )
-  failure=.false.
+  failure=.FALSE.
   ionode=globenv%ionode
   output_unit=globenv%scr
   NULLIFY(auxbas_pw_pool,energy,atomic_kind_set,dft_control,&
@@ -635,7 +624,7 @@ SUBROUTINE init_energy_calculation ( kg_env, vxc_r, globenv, error)
   my_rho_r(1)%pw => rho_r%pw
   CALL xc_vxc_pw_create1(my_vxc_r,my_vxc_tau,my_rho_r,my_rho_g,my_tau,&
        energy%exc,xc_section,cell,auxbas_pw_pool)
-  allocate(vxc_r)
+  ALLOCATE(vxc_r)
   CALL coeff_init(vxc_r,pw=my_vxc_r(1)%pw)
   NULLIFY(my_rho_r(1)%pw, my_vxc_r(1)%pw)
   DEALLOCATE(my_rho_r, my_vxc_r)
@@ -655,39 +644,36 @@ SUBROUTINE calc_c_gradients ( kg_env, vxc_r, maxgrad, globenv,error )
 
     TYPE(kg_environment_type), POINTER       :: kg_env
     TYPE(coeff_type), POINTER                :: vxc_r
-    REAL(KIND=dp), intent(inout)                 :: maxgrad
-    TYPE(global_environment_type), &
-      pointer                             :: globenv
+    REAL(KIND=dp), INTENT(inout)             :: maxgrad
+    TYPE(global_environment_type), POINTER   :: globenv
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
     CHARACTER(LEN=*), PARAMETER :: &
       routine = "SUBROUTINE calc_c_gradients (MODULE kg_energy)"
 
-    INTEGER                                  :: handle, i, &
-                                                ikind, nkind, output_unit, stat
-    LOGICAL                                  :: calculate_forces, ionode,&
-                                                failure
-    REAL(KIND=dp)                                :: dvol, e1_xc, e2_xc, &
+    INTEGER                                  :: handle, i, ikind, nkind, &
+                                                output_unit, stat
+    LOGICAL                                  :: calculate_forces, failure, &
+                                                ionode
+    REAL(KIND=dp)                            :: dvol, e1_xc, e2_xc, &
                                                 total_rhop_rspace
-    REAL(KIND=dp), DIMENSION(:, :), POINTER      :: forces
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: forces
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(cell_type), POINTER                 :: cell
-    TYPE(coeff_type), POINTER                :: rho_core, rho_r, rho_g,&
-                                                rhop_r, rhop_g, &
-                                                v_gspace, &
-                                                v_rspace, &
-                                                v1xc_r, v2xc_r
+    TYPE(coeff_type), POINTER                :: rho_core, rho_g, rho_r, &
+                                                rhop_g, rhop_r, v1xc_r, &
+                                                v2xc_r, v_gspace, v_rspace
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(dyn_coeff_set_type), POINTER        :: dyn_coeff_set
     TYPE(dyn_coeff_type), POINTER            :: local_coeffs
     TYPE(kg_energy_type), POINTER            :: energy
     TYPE(kg_rho_type), POINTER               :: rho
     TYPE(kg_rspw_type), POINTER              :: rspw
-    TYPE(pw_poisson_type), pointer           :: poisson_env
+    TYPE(pw_poisson_type), POINTER           :: poisson_env
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
-    TYPE(section_vals_type), pointer :: xc_section
+    TYPE(section_vals_type), POINTER         :: xc_section
 
 !------------------------------------------------------------------------------
 

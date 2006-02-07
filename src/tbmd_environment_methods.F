@@ -23,31 +23,31 @@
 !!   SOURCE
 !****************************************************************************
 MODULE tbmd_environment_methods
-  USE atomic_kind_types,                      ONLY: atomic_kind_type
-  USE cp_para_types,                          ONLY: cp_para_env_type
-  USE distribution_2d_types,                  ONLY: distribution_2d_type
-  USE distribution_methods,                   ONLY: distribute_molecules_2d
-  USE kinds,                                  ONLY: dp
-  USE molecule_kind_types,                    ONLY: molecule_kind_type
-  USE molecule_types_new,                     ONLY: molecule_type
-  USE particle_types,                         ONLY: particle_type
-  USE qs_matrix_pools,                        ONLY: mpools_rebuild_fm_pools
-  USE qs_mo_types,                            ONLY: mo_set_type, &
-                                                    mo_set_p_type
-  USE tbmd_environment_types,                 ONLY: tbmd_environment_type, &
-                                                    tbmd_env_set, &
-                                                    tbmd_env_get
-  USE timings,                                ONLY: timeset, &
-                                                    timestop
-
+  USE atomic_kind_types,               ONLY: atomic_kind_type
+  USE cp_para_types,                   ONLY: cp_para_env_type
+  USE distribution_2d_types,           ONLY: distribution_2d_type
+  USE distribution_methods,            ONLY: distribute_molecules_2d
+  USE kinds,                           ONLY: dp
+  USE molecule_kind_types,             ONLY: molecule_kind_type
+  USE molecule_types_new,              ONLY: molecule_type
+  USE particle_types,                  ONLY: particle_type
+  USE qs_matrix_pools,                 ONLY: mpools_rebuild_fm_pools
+  USE qs_mo_types,                     ONLY: mo_set_p_type,&
+                                             mo_set_type
+  USE tbmd_environment_types,          ONLY: tbmd_env_get,&
+                                             tbmd_env_set,&
+                                             tbmd_environment_type
+  USE timings,                         ONLY: timeset,&
+                                             timestop
 #include "cp_common_uses.h"
+
   IMPLICIT NONE
 
   PRIVATE
 
 ! *** Global parameters ***
 
-  CHARACTER(LEN=*), PARAMETER :: moduleN = "tbmd_environment_methods"
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'tbmd_environment_methods'
 
 ! *** Public subroutines ***
 
@@ -89,23 +89,22 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'tbmd_env_setup', &
       routineP = moduleN//':'//routineN
 
+    INTEGER                                  :: handle, stat
     LOGICAL                                  :: failure
-    INTEGER                                  :: handle, &
-                                                stat
-    TYPE(distribution_2d_type), POINTER      :: distribution_2d
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(distribution_2d_type), POINTER      :: distribution_2d
+    TYPE(mo_set_p_type), DIMENSION(:), &
+      POINTER                                :: mos_ptr
+    TYPE(mo_set_type), POINTER               :: mos
     TYPE(molecule_kind_type), DIMENSION(:), &
       POINTER                                :: molecule_kind_set
     TYPE(molecule_type), DIMENSION(:), &
       POINTER                                :: molecule_set
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
-    TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(mo_set_type), POINTER               :: mos
-    TYPE(mo_set_p_type), DIMENSION(:), &
-      POINTER                                :: mos_ptr
- 
+
 !   ------------------------------------------------------------------------
 
     CALL timeset(routineN, "I", "", handle)

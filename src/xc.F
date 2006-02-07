@@ -25,31 +25,23 @@
 !******************************************************************************
 
 MODULE xc
-  USE atomic_kind_types,               ONLY: get_atomic_kind_set
-  USE coefficient_types,               ONLY: PLANEWAVES,&
-                                             coeff_type
+  USE cell_types,                      ONLY: cell_type
   USE cp_array_r_utils,                ONLY: cp_3d_r_p_type
-  USE input_constants,                 ONLY: tddfpt_triplet,&
-                                             xc_debug_new_routine,&
-                                             xc_deriv_fd,&
-                                             xc_deriv_nn10_smooth,&
-                                             xc_deriv_nn50_smooth,&
-                                             xc_deriv_pw,&
-                                             xc_deriv_spline2,&
-                                             xc_deriv_spline2_smooth,&
-                                             xc_deriv_spline3,&
-                                             xc_deriv_spline3_smooth,&
-                                             xc_new_f_routine,&
-                                             xc_rho_nn10,&
-                                             xc_rho_nn50,&
-                                             xc_rho_no_smooth,&
-                                             xc_rho_spline2_smooth,&
-                                             xc_rho_spline3_smooth,&
-                                             xc_test_lsd_f_routine
   USE cp_linked_list_xc_deriv,         ONLY: cp_sll_xc_deriv_next,&
                                              cp_sll_xc_deriv_type
-  USE cp_subsystem_types,              ONLY: cp_subsystem_p_type
-  USE kinds,                           ONLY: dp, mp
+  USE input_constants,                 ONLY: &
+       xc_debug_new_routine, xc_deriv_fd, xc_deriv_nn10_smooth, &
+       xc_deriv_nn50_smooth, xc_deriv_pw, xc_deriv_spline2, &
+       xc_deriv_spline2_smooth, xc_deriv_spline3, xc_deriv_spline3_smooth, &
+       xc_new_f_routine, xc_rho_nn10, xc_rho_nn50, xc_rho_no_smooth, &
+       xc_rho_spline2_smooth, xc_rho_spline3_smooth, xc_test_lsd_f_routine
+  USE input_section_types,             ONLY: section_get_ival,&
+                                             section_get_rval,&
+                                             section_vals_get_subs_vals,&
+                                             section_vals_type,&
+                                             section_vals_val_get
+  USE kinds,                           ONLY: dp,&
+                                             mp
   USE message_passing,                 ONLY: mp_sum
   USE pw_grid_types,                   ONLY: PW_MODE_DISTRIBUTED,&
                                              pw_grid_type
@@ -57,39 +49,17 @@ MODULE xc
                                              pw_pool_give_back_cr3d,&
                                              pw_pool_give_back_pw,&
                                              pw_pool_type
-  USE pw_spline_utils,                 ONLY: nn10_coeffs,&
-                                             nn10_deriv_coeffs,&
-                                             nn50_coeffs,&
-                                             nn50_deriv_coeffs,&
-                                             pw_nn_deriv_r,&
-                                             pw_nn_smear_g,&
-                                             pw_nn_smear_r,&
-                                             pw_spline2_deriv_g,&
-                                             pw_spline2_evaluate_values_g,&
-                                             pw_spline2_interpolate_values_g,&
-                                             pw_spline3_deriv_g,&
-                                             pw_spline3_evaluate_values_g,&
-                                             pw_spline3_interpolate_values_g,&
-                                             pw_spline_scale_deriv,&
-                                             spline2_coeffs,&
-                                             spline2_deriv_coeffs,&
-                                             spline3_coeffs,&
-                                             spline3_deriv_coeffs
-  USE pw_types,                        ONLY: COMPLEXDATA1D,&
-                                             REALDATA3D,&
-                                             REALSPACE,&
-                                             RECIPROCALSPACE,&
-                                             pw_copy,&
-                                             pw_create,&
-                                             pw_derive,&
-                                             pw_derive_fd,&
-                                             pw_p_type,&
-                                             pw_release,&
-                                             pw_sumup,&
-                                             pw_transfer,&
-                                             pw_type,&
-                                             pw_zero
-  USE cell_types,                 ONLY: cell_type
+  USE pw_spline_utils,                 ONLY: &
+       nn10_coeffs, nn10_deriv_coeffs, nn50_coeffs, nn50_deriv_coeffs, &
+       pw_nn_deriv_r, pw_nn_smear_r, pw_spline2_deriv_g, &
+       pw_spline2_interpolate_values_g, pw_spline3_deriv_g, &
+       pw_spline3_interpolate_values_g, pw_spline_scale_deriv, &
+       spline2_coeffs, spline2_deriv_coeffs, spline3_coeffs, &
+       spline3_deriv_coeffs
+  USE pw_types,                        ONLY: &
+       COMPLEXDATA1D, REALDATA3D, REALSPACE, RECIPROCALSPACE, pw_copy, &
+       pw_create, pw_derive, pw_derive_fd, pw_p_type, pw_release, pw_sumup, &
+       pw_transfer, pw_type, pw_zero
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE xc_derivative_desc,              ONLY: MAX_DERIVATIVE_DESC_LENGTH,&
@@ -101,16 +71,14 @@ MODULE xc
   USE xc_derivative_types,             ONLY: xc_derivative_get,&
                                              xc_derivative_type
   USE xc_derivatives,                  ONLY: xc_functionals_eval,&
-                                             xc_functional_get_info,&
                                              xc_functionals_get_needs
   USE xc_rho_set_types,                ONLY: xc_rho_set_create,&
                                              xc_rho_set_get,&
                                              xc_rho_set_release,&
                                              xc_rho_set_type,&
                                              xc_rho_set_update
-  USE input_section_types, ONLY: section_vals_type, section_vals_val_get,&
-       section_vals_get_subs_vals, section_vals_get_subs_vals2, section_get_rval, section_get_ival
 #include "cp_common_uses.h"
+
   IMPLICIT NONE
   PRIVATE
   PUBLIC :: xc_vxc_pw_create1, xc_vxc_pw_create, &
@@ -118,7 +86,7 @@ MODULE xc
        xc_calc_2nd_deriv, xc_prep_2nd_deriv, divide_by_norm_drho
 
   LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
-  CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='xc'
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'xc'
 
 !!***
 !******************************************************************************
@@ -165,21 +133,19 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE xc_vxc_pw_create1(vxc_rho,vxc_tau,rho_r,rho_g,tau,exc,xc_section,&
        cell,pw_pool,error)
-    TYPE(pw_p_type), DIMENSION(:), POINTER   :: vxc_rho, vxc_tau
-    TYPE(pw_p_type), DIMENSION(:), &
-      pointer                   :: rho_r
-    TYPE(pw_p_type), DIMENSION(:), POINTER   :: rho_g, tau
+    TYPE(pw_p_type), DIMENSION(:), POINTER   :: vxc_rho, vxc_tau, rho_r, &
+                                                rho_g, tau
     REAL(KIND=dp), INTENT(out)               :: exc
-    TYPE(section_vals_type), pointer         :: xc_section
+    TYPE(section_vals_type), POINTER         :: xc_section
     TYPE(cell_type), POINTER                 :: cell
     TYPE(pw_pool_type), POINTER              :: pw_pool
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'xc_vxc_create1', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'xc_vxc_pw_create1', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: ispin, stat,f_routine
+    INTEGER                                  :: f_routine
     LOGICAL                                  :: failure
 
     failure=.FALSE.
@@ -249,9 +215,8 @@ CONTAINS
 !!*** **********************************************************************
 SUBROUTINE xc_vxc_pw_create_test_lsd(vxc_rho,vxc_tau,rho_r,rho_g,tau,&
      exc,xc_section, cell,pw_pool,  error)
-    TYPE(pw_p_type), DIMENSION(:), POINTER   :: vxc_rho, vxc_tau
-    TYPE(pw_p_type), DIMENSION(:), POINTER   :: rho_r
-    TYPE(pw_p_type), DIMENSION(:), POINTER   :: rho_g, tau
+    TYPE(pw_p_type), DIMENSION(:), POINTER   :: vxc_rho, vxc_tau, rho_r, &
+                                                rho_g, tau
     REAL(KIND=dp), INTENT(out)               :: exc
     TYPE(section_vals_type), POINTER         :: xc_section
     TYPE(cell_type), POINTER                 :: cell
@@ -625,9 +590,8 @@ END SUBROUTINE xc_vxc_pw_create_test_lsd
 !!*** **********************************************************************
 SUBROUTINE xc_vxc_pw_create_debug(vxc_rho,vxc_tau,rho_r,rho_g,tau,exc,&
      xc_section, cell,pw_pool,error)
-    TYPE(pw_p_type), DIMENSION(:), POINTER   :: vxc_rho, vxc_tau
-    TYPE(pw_p_type), DIMENSION(:), POINTER   :: rho_r
-    TYPE(pw_p_type), DIMENSION(:), POINTER   :: rho_g, tau
+    TYPE(pw_p_type), DIMENSION(:), POINTER   :: vxc_rho, vxc_tau, rho_r, &
+                                                rho_g, tau
     REAL(KIND=dp), INTENT(out)               :: exc
     TYPE(section_vals_type), POINTER         :: xc_section
     TYPE(cell_type), POINTER                 :: cell
@@ -946,24 +910,23 @@ SUBROUTINE xc_rho_set_and_dset_create(rho_set,deriv_set,deriv_order,&
      rho_r,rho_g,tau,xc_section,cell,pw_pool,&
      needs_basic_components,error)
 
-  TYPE(xc_rho_set_type), POINTER           :: rho_set
-  TYPE(xc_derivative_set_type), POINTER    :: deriv_set
-  INTEGER, INTENT(in)                      :: deriv_order
-  TYPE(pw_p_type), DIMENSION(:), POINTER   :: rho_r
-  TYPE(pw_p_type), DIMENSION(:), POINTER   :: rho_g, tau
-  TYPE(section_vals_type), pointer         :: xc_section
-  TYPE(cell_type), POINTER                 :: cell
-  TYPE(pw_pool_type), POINTER              :: pw_pool
-  LOGICAL, INTENT(in)                      :: needs_basic_components
-  TYPE(cp_error_type), INTENT(inout), &
-       OPTIONAL                            :: error
+    TYPE(xc_rho_set_type), POINTER           :: rho_set
+    TYPE(xc_derivative_set_type), POINTER    :: deriv_set
+    INTEGER, INTENT(in)                      :: deriv_order
+    TYPE(pw_p_type), DIMENSION(:), POINTER   :: rho_r, rho_g, tau
+    TYPE(section_vals_type), POINTER         :: xc_section
+    TYPE(cell_type), POINTER                 :: cell
+    TYPE(pw_pool_type), POINTER              :: pw_pool
+    LOGICAL, INTENT(in)                      :: needs_basic_components
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-  CHARACTER(len=*), PARAMETER              :: routineN = 'xc_rho_set_and_dset_create', &
-                                              routineP = moduleN//':'//routineN
+    CHARACTER(len=*), PARAMETER :: routineN = 'xc_rho_set_and_dset_create', &
+      routineP = moduleN//':'//routineN
 
-  INTEGER                                  :: handle, nspins
-  LOGICAL                                  :: failure, lsd
-  TYPE(section_vals_type), POINTER         :: xc_fun_sections
+    INTEGER                                  :: handle, nspins
+    LOGICAL                                  :: failure, lsd
+    TYPE(section_vals_type), POINTER         :: xc_fun_sections
 
   CALL timeset(routineN,"I","",handle)
   failure=.FALSE.
@@ -1251,8 +1214,7 @@ SUBROUTINE xc_vxc_pw_create(vxc_rho,vxc_tau,exc,rho_r,rho_g,tau,xc_section,&
      cell,pw_pool,error)
     TYPE(pw_p_type), DIMENSION(:), POINTER   :: vxc_rho, vxc_tau
     REAL(KIND=dp), INTENT(out)               :: exc
-    TYPE(pw_p_type), DIMENSION(:), POINTER   :: rho_r
-    TYPE(pw_p_type), DIMENSION(:), POINTER   :: rho_g, tau
+    TYPE(pw_p_type), DIMENSION(:), POINTER   :: rho_r, rho_g, tau
     TYPE(section_vals_type), POINTER         :: xc_section
     TYPE(cell_type), POINTER                 :: cell
     TYPE(pw_pool_type), POINTER              :: pw_pool
@@ -1266,16 +1228,15 @@ SUBROUTINE xc_vxc_pw_create(vxc_rho,vxc_tau,exc,rho_r,rho_g,tau,xc_section,&
 
     CHARACTER&
       (len=MAX_DERIVATIVE_DESC_LENGTH)       :: desc
-    INTEGER                                  :: handle, i, idir, ispin, j, k, &
-                                                n_deriv, npoints, nspins, &
-                                                order, stat, xc_deriv_method_id,&
-                                                xc_rho_smooth_id
+    INTEGER :: handle, i, idir, ispin, j, k, n_deriv, npoints, nspins, order, &
+      stat, xc_deriv_method_id, xc_rho_smooth_id
     INTEGER, DIMENSION(2, 3)                 :: bo
     INTEGER, DIMENSION(3, 3)                 :: nd
-    LOGICAL :: dealloc_pw_to_deriv, failure, gradient_f, has_tau,  &
-      lsd, zero_result
-    REAL(KIND=dp)                            :: drho_cutoff, my_rho, ndr, &
-                                                rho_cutoff,density_smooth_cut_range
+    LOGICAL                                  :: dealloc_pw_to_deriv, failure, &
+                                                has_tau, lsd, zero_result
+    REAL(KIND=dp)                            :: density_smooth_cut_range, &
+                                                drho_cutoff, my_rho, ndr, &
+                                                rho_cutoff
     REAL(kind=dp), DIMENSION(:, :, :), &
       POINTER                                :: deriv_data, norm_drho, &
                                                 norm_drho_spin, rho, rhoa, &
@@ -1310,7 +1271,7 @@ SUBROUTINE xc_vxc_pw_create(vxc_rho,vxc_tau,exc,rho_r,rho_g,tau,xc_section,&
   CPPrecondition(.NOT.ASSOCIATED(vxc_rho),cp_failure_level,routineP,error,failure)
   CPPrecondition(.NOT.ASSOCIATED(vxc_tau),cp_failure_level,routineP,error,failure)
   IF (.NOT. failure) THEN
-     nspins=size(rho_r)
+     nspins=SIZE(rho_r)
      CPPrecondition(ASSOCIATED(rho_r(SIZE(rho_r))%pw),cp_failure_level,routineP,error,failure)
      lsd=(nspins/=1)
      IF (lsd) THEN
@@ -1943,9 +1904,8 @@ END SUBROUTINE xc_vxc_pw_create
 !!*** **********************************************************************
 FUNCTION xc_exc_calc(rho_r,rho_g,tau,xc_section, cell,pw_pool,&
      error) RESULT(exc)
-    TYPE(pw_p_type), DIMENSION(:), POINTER   :: rho_r
-    TYPE(pw_p_type), DIMENSION(:), POINTER   :: rho_g, tau
-    TYPE(section_vals_type), pointer         :: xc_section
+    TYPE(pw_p_type), DIMENSION(:), POINTER   :: rho_r, rho_g, tau
+    TYPE(section_vals_type), POINTER         :: xc_section
     TYPE(cell_type), POINTER                 :: cell
     TYPE(pw_pool_type), POINTER              :: pw_pool
     TYPE(cp_error_type), INTENT(inout), &
@@ -1957,11 +1917,12 @@ FUNCTION xc_exc_calc(rho_r,rho_g,tau,xc_section, cell,pw_pool,&
 
     INTEGER                                  :: handle
     LOGICAL                                  :: failure
+    REAL(dp)                                 :: density_smooth_cut_range, &
+                                                rho_cutoff
     REAL(dp), DIMENSION(:, :, :), POINTER    :: e_0
     TYPE(xc_derivative_set_type), POINTER    :: deriv_set
     TYPE(xc_derivative_type), POINTER        :: deriv
     TYPE(xc_rho_set_type), POINTER           :: rho_set
-    REAL(dp) :: density_smooth_cut_range, rho_cutoff
 
   CALL timeset(routineN,"I","",handle)
   NULLIFY(rho_set, deriv_set, deriv,e_0)
@@ -2047,46 +2008,47 @@ END FUNCTION xc_exc_calc
 SUBROUTINE xc_calc_2nd_deriv(v_xc, deriv_set, rho_set, rho1_set, &
      pw_pool, xc_section, gapw, vxg, tddfpt_fac, error)
 
-  ! ARGUMENTS
-  TYPE(pw_p_type), DIMENSION(:), POINTER   :: v_xc
-  TYPE(xc_derivative_set_type), POINTER    :: deriv_set
-  TYPE(xc_rho_set_type), POINTER           :: rho_set, rho1_set
-  TYPE(pw_pool_type), POINTER              :: pw_pool
-  TYPE(section_vals_type), pointer         :: xc_section
-  LOGICAL, INTENT(IN), OPTIONAL            :: gapw
-  REAL(kind=dp), DIMENSION(:,:,:,:), &
-       POINTER, OPTIONAL                   :: vxg
-  REAL(kind=dp), INTENT(in), optional      :: tddfpt_fac
-  TYPE(cp_error_type), INTENT(inout), &
-       OPTIONAL                               :: error
+    TYPE(pw_p_type), DIMENSION(:), POINTER   :: v_xc
+    TYPE(xc_derivative_set_type), POINTER    :: deriv_set
+    TYPE(xc_rho_set_type), POINTER           :: rho_set, rho1_set
+    TYPE(pw_pool_type), POINTER              :: pw_pool
+    TYPE(section_vals_type), POINTER         :: xc_section
+    LOGICAL, INTENT(IN), OPTIONAL            :: gapw
+    REAL(kind=dp), DIMENSION(:, :, :, :), &
+      OPTIONAL, POINTER                      :: vxg
+    REAL(kind=dp), INTENT(in), OPTIONAL      :: tddfpt_fac
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-  ! PARAMETER
-  CHARACTER(len=*), PARAMETER :: routineN = 'xc_calc_2nd_deriv', &
-       routineP = moduleN//':'//routineN
+    CHARACTER(len=*), PARAMETER :: routineN = 'xc_calc_2nd_deriv', &
+      routineP = moduleN//':'//routineN
 
-  ! LOCALS
-  INTEGER                                  :: handle, i, idir, ispin, j, k, &
-       nspins, stat, ia, ir,ifun, order,xc_deriv_method_id
-  INTEGER, DIMENSION(2, 3)                 :: bo
-  INTEGER, DIMENSION(3, 3)                 :: nd
-  LOGICAL                                  :: failure, gradient_f, lsd, my_gapw,&
-       unknown_deriv
-  REAL(KIND=dp)                            :: dr1dr, fac, gradient_cut
-  REAL(kind=dp), DIMENSION(:, :, :), &
-       POINTER                                :: deriv_data, e_drhoa, e_drhob, &
-       e_norm_drho, rho1, rho1a, &
-       rho1b
-  TYPE(cp_3d_r_p_type), DIMENSION(:), &
-       POINTER                                :: drho, drho1, drho1a, drho1b, &
-       drhoa, drhob
-  TYPE(pw_p_type)                          :: tmp_t, v_drho
-  TYPE(pw_p_type), DIMENSION(:), POINTER   :: tmp_a, tmp_b, tmp_r, tmp_r2
-  TYPE(xc_derivative_type), POINTER        :: deriv_att
-  TYPE(cp_sll_xc_deriv_type), POINTER      :: pos
-  CHARACTER&
-       (len=MAX_DERIVATIVE_DESC_LENGTH)       :: desc
-  CHARACTER(len=MAX_LABEL_LENGTH), &
-       DIMENSION(:), POINTER        :: split_desc
+    CHARACTER&
+      (len=MAX_DERIVATIVE_DESC_LENGTH)       :: desc
+    CHARACTER(len=MAX_LABEL_LENGTH), &
+      DIMENSION(:), POINTER                  :: split_desc
+    INTEGER                                  :: handle, i, ia, idir, ir, &
+                                                ispin, j, k, nspins, order, &
+                                                stat, xc_deriv_method_id
+    INTEGER, DIMENSION(2, 3)                 :: bo
+    INTEGER, DIMENSION(3, 3)                 :: nd
+    LOGICAL                                  :: failure, gradient_f, lsd, &
+                                                my_gapw, unknown_deriv
+    REAL(KIND=dp)                            :: dr1dr, fac, gradient_cut
+    REAL(kind=dp), DIMENSION(:, :, :), &
+      POINTER                                :: deriv_data, e_drhoa, e_drhob, &
+                                                e_norm_drho, rho1, rho1a, &
+                                                rho1b
+    TYPE(cp_3d_r_p_type), DIMENSION(:), &
+      POINTER                                :: drho, drho1, drho1a, drho1b, &
+                                                drhoa, drhob
+    TYPE(cp_sll_xc_deriv_type), POINTER      :: pos
+    TYPE(pw_p_type)                          :: tmp_t, v_drho
+    TYPE(pw_p_type), DIMENSION(:), POINTER   :: tmp_a, tmp_b, tmp_r, tmp_r2
+    TYPE(xc_derivative_type), POINTER        :: deriv_att
+
+! PARAMETER
+
   CALL timeset(routineN,"I","",handle)
 
   failure=.FALSE.
@@ -2108,8 +2070,8 @@ SUBROUTINE xc_calc_2nd_deriv(v_xc, deriv_set, rho_set, rho1_set, &
      CALL section_vals_val_get(xc_section,"XC_GRID%XC_DERIV",&
           i_val=xc_deriv_method_id,error=error)
      CALL xc_rho_set_get(rho_set,drho_cutoff=gradient_cut,error=error)
-     nspins     = size(v_xc)
-     lsd = associated(rho_set%rhoa)
+     nspins     = SIZE(v_xc)
+     lsd = ASSOCIATED(rho_set%rhoa)
      fac = 0.0_dp
      IF (PRESENT(tddfpt_fac)) fac=tddfpt_fac
 
@@ -2127,10 +2089,10 @@ SUBROUTINE xc_calc_2nd_deriv(v_xc, deriv_set, rho_set, rho1_set, &
   ! check for unknown derivatives
   pos => deriv_set%derivs
   DO WHILE (cp_sll_xc_deriv_next(pos,el_att=deriv_att,error=error))
-     unknown_deriv=.false.
+     unknown_deriv=.FALSE.
      CALL xc_derivative_get(deriv_att,order=order,&
           desc=desc, split_desc=split_desc, error=error)
-     select case(order)
+     SELECT CASE(order)
      CASE(1)
         IF (lsd) THEN
            SELECT CASE(split_desc(1))
@@ -2168,7 +2130,7 @@ SUBROUTINE xc_calc_2nd_deriv(v_xc, deriv_set, rho_set, rho1_set, &
                  unknown_deriv=.TRUE.
               END SELECT
            CASE default
-              unknown_deriv=.true.
+              unknown_deriv=.TRUE.
            END SELECT
         ELSE
            SELECT CASE(split_desc(1))
@@ -2188,7 +2150,7 @@ SUBROUTINE xc_calc_2nd_deriv(v_xc, deriv_set, rho_set, rho1_set, &
                  unknown_deriv=.TRUE.
               END SELECT
            CASE default
-              unknown_deriv=.true.
+              unknown_deriv=.TRUE.
            END SELECT
         END IF
      END SELECT
@@ -3144,16 +3106,15 @@ END SUBROUTINE xc_calc_2nd_deriv
     TYPE(xc_rho_set_type), POINTER           :: rho_set
     TYPE(pw_p_type), DIMENSION(:), POINTER   :: rho_r
     TYPE(pw_pool_type), POINTER              :: pw_pool
-    TYPE(section_vals_type), pointer         :: xc_section
+    TYPE(section_vals_type), POINTER         :: xc_section
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'xc_prep_2nd_deriv', &
-                                   routineP = moduleN//':'//routineN
+      routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, i, idesc, ispin, j, &
-                                                k, nspins, order, stat
+    INTEGER                                  :: handle, i, ispin, nspins, stat
     INTEGER, DIMENSION(2, 3)                 :: bo
     LOGICAL                                  :: failure, lsd
     TYPE(pw_p_type), DIMENSION(:), POINTER   :: rho_g, rho_r_pw, tau
@@ -3167,7 +3128,7 @@ END SUBROUTINE xc_calc_2nd_deriv
     CPPrecondition(ASSOCIATED(pw_pool),cp_failure_level,routineP,error,failure)
 
     IF (.NOT. failure) THEN
-       nspins     = size(rho_r)
+       nspins     = SIZE(rho_r)
        lsd = (nspins /= 1)
     END IF
 
@@ -3195,30 +3156,27 @@ END SUBROUTINE xc_calc_2nd_deriv
 
   SUBROUTINE divide_by_norm_drho(deriv_set, rho_set, lsd, error)
 
-    ! ARGUMENTS
     TYPE(xc_derivative_set_type), POINTER    :: deriv_set
     TYPE(xc_rho_set_type), POINTER           :: rho_set
     LOGICAL, INTENT(IN)                      :: lsd
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-    ! LOCALS
+    CHARACTER(len=*), PARAMETER :: routineN = 'divide_by_norm_drho', &
+      routineP = moduleN//':'//routineN
+
     CHARACTER&
       (len=MAX_DERIVATIVE_DESC_LENGTH)       :: desc
     CHARACTER(len=MAX_LABEL_LENGTH), &
       DIMENSION(:), POINTER                  :: split_desc
-    INTEGER                                  :: order, idesc, i, j, k
+    INTEGER                                  :: i, idesc, j, k, order
     INTEGER, DIMENSION(2, 3)                 :: bo
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: drho_cutoff
     TYPE(cp_sll_xc_deriv_type), POINTER      :: pos
     TYPE(xc_derivative_type), POINTER        :: deriv_att
 
-    ! PARAMETERS
-    CHARACTER(len=*), PARAMETER :: routineN = 'divide_by_norm_drho', &
-                                   routineP = moduleN//':'//routineN
-
-    ! check for unknown derivatives and divide by norm_drho where necessary
+! check for unknown derivatives and divide by norm_drho where necessary
 
     failure = .FALSE.
 

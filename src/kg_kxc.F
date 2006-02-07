@@ -21,40 +21,37 @@
 !******************************************************************************
 
 MODULE kg_kxc
+  USE cell_types,                      ONLY: cell_type
   USE coefficient_types,               ONLY: coeff_type
+  USE cp_linked_list_xc_deriv,         ONLY: cp_sll_xc_deriv_next,&
+                                             cp_sll_xc_deriv_type
+  USE input_section_types,             ONLY: section_vals_type
   USE kinds,                           ONLY: dp
   USE message_passing,                 ONLY: mp_sum
   USE pw_grid_types,                   ONLY: PW_MODE_DISTRIBUTED
   USE pw_pool_types,                   ONLY: pw_pool_type
-  USE pw_types,                        ONLY: pw_type, pw_p_type,&
-       pw_zero
-  USE termination,                     ONLY: stop_memory,&
-                                             stop_program
+  USE pw_types,                        ONLY: pw_p_type,&
+                                             pw_type,&
+                                             pw_zero
+  USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE xc, only: xc_rho_set_and_dset_create
+  USE xc,                              ONLY: xc_rho_set_and_dset_create
+  USE xc_derivative_desc,              ONLY: MAX_DERIVATIVE_DESC_LENGTH
   USE xc_derivative_set_types,         ONLY: xc_derivative_set_type,&
                                              xc_dset_get_derivative,&
                                              xc_dset_release
   USE xc_derivative_types,             ONLY: xc_derivative_get,&
                                              xc_derivative_type
-  USE xc_rho_set_types, ONLY: xc_rho_set_type, xc_rho_set_release
-  USE cp_subsystem_types, only: cp_subsystem_p_type
-  USE cell_types, only:cell_type
-  USE cp_linked_list_xc_deriv,         ONLY: cp_sll_xc_deriv_next,&
-                                             cp_sll_xc_deriv_type
-  USE xc_derivative_desc,              ONLY: MAX_DERIVATIVE_DESC_LENGTH,&
-                                             MAX_LABEL_LENGTH
-  USE input_section_types, ONLY: section_vals_type
-
+  USE xc_rho_set_types,                ONLY: xc_rho_set_release,&
+                                             xc_rho_set_type
 #include "cp_common_uses.h"
-
 
   IMPLICIT NONE
 
   PRIVATE
   PUBLIC :: calculate_kxc_derivatives
-  CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='kg_kxc'
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'kg_kxc'
 
 !******************************************************************************
 
@@ -89,8 +86,8 @@ CONTAINS
     TYPE(pw_pool_type), POINTER              :: pw_pool
     TYPE(coeff_type), INTENT(in)             :: rho_r, rho_g, rhop_r, v_r
     TYPE(coeff_type), INTENT(inout)          :: v1_r, v2_r
-    REAL(KIND=dp), INTENT(out)                   :: e1_xc, e2_xc
-    TYPE(section_vals_type), POINTER          :: xc_section
+    REAL(KIND=dp), INTENT(out)               :: e1_xc, e2_xc
+    TYPE(section_vals_type), POINTER         :: xc_section
     LOGICAL, INTENT(in)                      :: calculate_forces
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
@@ -99,7 +96,8 @@ CONTAINS
       routine = "calc_kxc_derivatives (MODULE kg_kxc)"
 
     INTEGER                                  :: handle, order
-    REAL(KIND=dp), DIMENSION(:, :, :), POINTER   :: v1xc, v2xc
+    REAL(KIND=dp), DIMENSION(:, :, :), &
+      POINTER                                :: v1xc, v2xc
 
 !--------------------------------------------------------
 
@@ -145,35 +143,34 @@ CONTAINS
       xc_section, pw_pool, error)
 
 
-   TYPE(pw_type), POINTER                   :: rho_r, rhop_r, v
-   TYPE(pw_type), INTENT(INOUT)             :: v1, v2
-   REAL(KIND=dp), INTENT(out)                   :: e1, e2
-   INTEGER, intent(IN)                      :: order
-   TYPE(section_vals_type), POINTER          :: xc_section
-   TYPE(pw_pool_type), POINTER              :: pw_pool
-   TYPE(cell_type), pointer                 :: cell
+    TYPE(pw_type), POINTER                   :: rho_r, rhop_r, v
+    TYPE(pw_type), INTENT(INOUT)             :: v1, v2
+    REAL(KIND=dp), INTENT(out)               :: e1, e2
+    INTEGER, INTENT(IN)                      :: order
+    TYPE(section_vals_type), POINTER         :: xc_section
+    TYPE(pw_pool_type), POINTER              :: pw_pool
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-   CHARACTER(len=*), PARAMETER :: routineN = 'xc_calculate_derivatives', &
-        routineP = moduleN//':'//routineN
+    CHARACTER(len=*), PARAMETER :: routineN = 'xc_calculate_derivatives', &
+      routineP = moduleN//':'//routineN
 
-   INTEGER                                  :: i, ii, j, k, n(3), ntot, stat,&
-        deriv_order
-   INTEGER, DIMENSION(2, 3)                 :: bo
-   INTEGER, DIMENSION(3, 3)                 :: nd
-   LOGICAL                                  :: failure
-   REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)     :: rgrid
-   TYPE(xc_derivative_set_type), POINTER    :: derivative_set
-   TYPE(xc_rho_set_type), pointer           :: rho_set
-   TYPE(pw_p_type), DIMENSION(:), POINTER   :: my_rho_g,my_tau
-   TYPE(pw_p_type), DIMENSION(:), POINTER   :: my_rho_r
-   TYPE(cp_sll_xc_deriv_type), POINTER      :: pos
     CHARACTER&
       (len=MAX_DERIVATIVE_DESC_LENGTH)       :: desc
+    INTEGER                                  :: deriv_order, i, j, k, stat
+    INTEGER, DIMENSION(2, 3)                 :: bo
+    INTEGER, DIMENSION(3, 3)                 :: nd
+    LOGICAL                                  :: failure
+    REAL(KIND=dp), DIMENSION(:, :, :), &
+      POINTER                                :: pot
+    TYPE(cell_type), POINTER                 :: cell
+    TYPE(cp_sll_xc_deriv_type), POINTER      :: pos
+    TYPE(pw_p_type), DIMENSION(:), POINTER   :: my_rho_g, my_rho_r, my_tau
+    TYPE(xc_derivative_set_type), POINTER    :: derivative_set
     TYPE(xc_derivative_type), POINTER        :: deriv
-    REAL(KIND=dp), DIMENSION(:,:,:), pointer :: pot
-   !------------------------------------------------------------------------------
+    TYPE(xc_rho_set_type), POINTER           :: rho_set
+
+!------------------------------------------------------------------------------
 
    failure=.FALSE.
 
@@ -204,13 +201,13 @@ CONTAINS
            desc=desc)
       IF (deriv_order==2.AND.desc/="(rho)(rho)".OR.&
            order==3.and.deriv_order==3.AND.desc/="(rho)(rho)(rho)") THEN
-         call stop_program(routine=routineP,&
+         CALL stop_program(routine=routineP,&
               error_message="unsupported xc derivative: "//&
-              trim(desc))
+              TRIM(desc))
       END IF
    END DO
 
-   call xc_rho_set_release(rho_set)
+   CALL xc_rho_set_release(rho_set)
    deriv => xc_dset_get_derivative(derivative_set,"(rho)(rho)")
    IF (ASSOCIATED(deriv)) THEN
       CALL xc_derivative_get(deriv,deriv_data=pot)
@@ -236,7 +233,7 @@ CONTAINS
             END DO
          END DO
       ELSE
-         call pw_zero(v2)
+         CALL pw_zero(v2)
       END IF
    END IF
    DO k = bo(1,3), bo(2,3)

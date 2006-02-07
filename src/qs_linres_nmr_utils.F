@@ -67,7 +67,6 @@ MODULE qs_linres_nmr_utils
                                              qs_matrix_pools_type
   USE qs_mo_types,                     ONLY: get_mo_set,&
                                              mo_set_p_type
-  USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
   USE qs_operators_ao,                 ONLY: set_up_op_rmd
   USE qs_p_env_types,                  ONLY: p_env_release,&
                                              qs_p_env_type
@@ -88,7 +87,7 @@ MODULE qs_linres_nmr_utils
   PRIVATE
   PUBLIC :: nmr_do_nmr, nmr_env_cleanup, nmr_env_init
 
-  CHARACTER(LEN=*), PARAMETER :: moduleN='qs_linres_nmr_utils'
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_linres_nmr_utils'
 
 CONTAINS
 
@@ -102,7 +101,7 @@ CONTAINS
       OPTIONAL                               :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'nmr_do_nmr', &
-      routineP = moduleN//'/'//routineN
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, iao, idir, idir2, ii, &
                                                 iii, ispin, ist_true, istat, &
@@ -400,7 +399,7 @@ CONTAINS
       OPTIONAL                               :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'nmr_env_init', &
-      routineP = moduleN//'/'//routineN
+      routineP = moduleN//':'//routineN
 
     INTEGER :: homo, i_B, icount, idir, ini, ispin, istat, istate, istate2, &
       istate_next, j, k, n_mo(2), nao, natom, nmoloc, nstates, output_unit
@@ -408,7 +407,6 @@ CONTAINS
     LOGICAL, ALLOCATABLE, DIMENSION(:, :)    :: state_done
     REAL(dp)                                 :: center(3), center2(3), dist, &
                                                 mdist, rab(3)
-    REAL(dp), DIMENSION(:, :), POINTER       :: centers
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(cell_type), POINTER                 :: cell
@@ -417,8 +415,6 @@ CONTAINS
     TYPE(linres_control_type), POINTER       :: linres_control
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos
-    TYPE(neighbor_list_set_p_type), &
-      DIMENSION(:), POINTER                  :: sab_orb
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(qs_matrix_pools_type), POINTER      :: mpools
@@ -429,8 +425,8 @@ CONTAINS
 
     failure = .FALSE.
 
-    NULLIFY(atomic_kind_set,cell,centers,dft_control,linres_control,scf_control)
-    NULLIFY(logger,matrix_s,mos,mpools,nmr_section,particle_set,sab_orb)
+    NULLIFY(atomic_kind_set, cell, dft_control, linres_control, scf_control)
+    NULLIFY(logger, matrix_s, mos, mpools, nmr_section, particle_set)
     n_mo(1:2) = 0
     nao = 0
     nmoloc = 0
@@ -710,7 +706,7 @@ CONTAINS
       OPTIONAL                               :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'nmr_env_cleanup', &
-      routineP = moduleN//'/'//routineN
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i_B, idir, ispin, istat
     LOGICAL                                  :: failure

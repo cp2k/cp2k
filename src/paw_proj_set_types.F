@@ -25,30 +25,30 @@ MODULE paw_proj_set_types
 
   USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                              gto_basis_set_type
-  USE cp_control_types,                ONLY: gapw_control_type, qs_control_type
-  USE global_types,                    ONLY: global_environment_type
+  USE cp_control_types,                ONLY: qs_control_type
+  USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
+                                             cp_print_key_unit_nr
+  USE input_section_types,             ONLY: section_vals_type
+! *****************************************************************************
   USE kinds,                           ONLY: default_string_length,&
                                              dp
-  USE mathconstants,                   ONLY: dfac,pi,rootpi
+  USE mathconstants,                   ONLY: dfac,&
+                                             pi,&
+                                             rootpi
   USE mathlib,                         ONLY: invert_matrix
   USE memory_utilities,                ONLY: reallocate
+  USE orbital_pointers,                ONLY: indco,&
+                                             indso,&
+                                             nco,&
+                                             ncoset,&
+                                             nso,&
+                                             nsoset
   USE orbital_transformation_matrices, ONLY: orbtramat
-  USE orbital_pointers,                ONLY: &
-                                             indco,nco,ncoset,nso,&
-                                             nsoset, indso
-  USE qs_util,                         ONLY: gauss_exponent,&
-                                             exp_radius
+  USE qs_util,                         ONLY: exp_radius,&
+                                             gauss_exponent
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
-  USE cp_output_handling,              ONLY: cp_print_key_unit_nr, &
-                                             cp_print_key_finished_output,&
-                                             cp_print_key_should_output,&
-                                             cp_p_file
-  USE input_section_types, ONLY: section_vals_type, section_vals_get_subs_vals,&
-       section_vals_get, section_vals_val_get, section_vals_release  
 #include "cp_common_uses.h"
- 
-! *****************************************************************************
 
   IMPLICIT NONE
 
@@ -56,7 +56,7 @@ MODULE paw_proj_set_types
 
 ! *** Global parameters (only in this module)
 
-  CHARACTER(LEN=*), PARAMETER :: module_name = "paw_proj_set_types"
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'paw_proj_set_types'
 
   INTEGER, PARAMETER :: max_name_length = 60
 
@@ -109,18 +109,18 @@ CONTAINS
 
 ! *****************************************************************************
 
-   TYPE(paw_proj_set_type), POINTER :: paw_proj_set
+    TYPE(paw_proj_set_type), POINTER         :: paw_proj_set
 
-    CHARACTER(LEN=*), PARAMETER :: routine =" allocate_paw_proj_set"
+    CHARACTER(LEN=*), PARAMETER :: routine = " allocate_paw_proj_set"
 
-    INTEGER :: istat
+    INTEGER                                  :: istat
 
 !   ---------------------------------------------------------------------------
 
     IF (ASSOCIATED(paw_proj_set)) CALL deallocate_paw_proj_set(paw_proj_set)
 
     ALLOCATE (paw_proj_set,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,module_name,__LINE__,"paw_proj_set",0)
+    IF (istat /= 0) CALL stop_memory(routine,moduleN,__LINE__,"paw_proj_set",0)
 
     NULLIFY (paw_proj_set%nprj)
     NULLIFY (paw_proj_set%lx)
@@ -158,112 +158,108 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(paw_proj_set_type), POINTER :: paw_proj_set
-
-!   *** Local parameters ***
+    TYPE(paw_proj_set_type), POINTER         :: paw_proj_set
 
     CHARACTER(LEN=*), PARAMETER :: routine = " deallocate_paw_proj_set "
 
-!   *** Local variables ***
-
-    INTEGER :: istat
+    INTEGER                                  :: istat
 
 !   ---------------------------------------------------------------------------
 
     DEALLOCATE (paw_proj_set%zisomin,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,module_name,__LINE__,&
+    IF (istat /= 0) CALL stop_memory(routine,moduleN,__LINE__,&
                                      "paw_proj_set%zisomin")
 
     DEALLOCATE (paw_proj_set%zprjisomin,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,module_name,__LINE__,&
+    IF (istat /= 0) CALL stop_memory(routine,moduleN,__LINE__,&
                                      "paw_proj_set%zprjisomin")
 
     DEALLOCATE (paw_proj_set%nprj,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,module_name,__LINE__,&
+    IF (istat /= 0) CALL stop_memory(routine,moduleN,__LINE__,&
                                      "paw_proj_set%nprj")
 
     DEALLOCATE (paw_proj_set%lx,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,module_name,__LINE__,&
+    IF (istat /= 0) CALL stop_memory(routine,moduleN,__LINE__,&
                                      "paw_proj_set%lx")
 
     DEALLOCATE (paw_proj_set%ly,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,module_name,__LINE__,&
+    IF (istat /= 0) CALL stop_memory(routine,moduleN,__LINE__,&
                                      "paw_proj_set%ly")
 
     DEALLOCATE (paw_proj_set%lz,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,module_name,__LINE__,&
+    IF (istat /= 0) CALL stop_memory(routine,moduleN,__LINE__,&
                                      "paw_proj_set%lz")
 
     DEALLOCATE (paw_proj_set%ll,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,module_name,__LINE__,&
+    IF (istat /= 0) CALL stop_memory(routine,moduleN,__LINE__,&
                                      "paw_proj_set%ll")
 
     DEALLOCATE (paw_proj_set%m,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,module_name,__LINE__,&
+    IF (istat /= 0) CALL stop_memory(routine,moduleN,__LINE__,&
                                      "paw_proj_set%m")
 
     DEALLOCATE (paw_proj_set%first_prj,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,module_name,__LINE__,&
+    IF (istat /= 0) CALL stop_memory(routine,moduleN,__LINE__,&
                                      "paw_proj_set%first_prj")
 
     DEALLOCATE (paw_proj_set%last_prj,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,module_name,__LINE__,&
+    IF (istat /= 0) CALL stop_memory(routine,moduleN,__LINE__,&
                                      "paw_proj_set%last_prj")
 
     DEALLOCATE (paw_proj_set%first_prjs,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,module_name,__LINE__,&
+    IF (istat /= 0) CALL stop_memory(routine,moduleN,__LINE__,&
                                      "paw_proj_set%first_prjs")
 
     DEALLOCATE (paw_proj_set%zetprj,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,module_name,__LINE__,&
+    IF (istat /= 0) CALL stop_memory(routine,moduleN,__LINE__,&
                                      "paw_proj_set%zetprj")
 
     DEALLOCATE (paw_proj_set%cprj,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,module_name,__LINE__,&
+    IF (istat /= 0) CALL stop_memory(routine,moduleN,__LINE__,&
                                      "paw_proj_set%cprj")
 
     DEALLOCATE (paw_proj_set%cprj_s,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,module_name,__LINE__,&
+    IF (istat /= 0) CALL stop_memory(routine,moduleN,__LINE__,&
                                      "paw_proj_set%cprj_s")
 
     DEALLOCATE (paw_proj_set%local_oce_cphi_h,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,module_name,__LINE__,&
+    IF (istat /= 0) CALL stop_memory(routine,moduleN,__LINE__,&
                                      "paw_proj_set%local_oce_cphi_h")
 
     DEALLOCATE (paw_proj_set%local_oce_cphi_s,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,module_name,__LINE__,&
+    IF (istat /= 0) CALL stop_memory(routine,moduleN,__LINE__,&
                                      "paw_proj_set%local_oce_cphi_s")
 
     DEALLOCATE (paw_proj_set%local_oce_sphi_h,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,module_name,__LINE__,&
+    IF (istat /= 0) CALL stop_memory(routine,moduleN,__LINE__,&
                                      "paw_proj_set%local_oce_sphi_h")
 
     DEALLOCATE (paw_proj_set%local_oce_sphi_s,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,module_name,__LINE__,&
+    IF (istat /= 0) CALL stop_memory(routine,moduleN,__LINE__,&
                                      "paw_proj_set%local_oce_sphi_s")
 
     DEALLOCATE (paw_proj_set%sphi_h,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,module_name,__LINE__,&
+    IF (istat /= 0) CALL stop_memory(routine,moduleN,__LINE__,&
                                      "paw_proj_set%sphi_h")
 
     DEALLOCATE (paw_proj_set%sphi_s,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,module_name,__LINE__,&
+    IF (istat /= 0) CALL stop_memory(routine,moduleN,__LINE__,&
                                      "paw_proj_set%sphi_s")
 
     DEALLOCATE (paw_proj_set%gccprj,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,module_name,__LINE__,&
+    IF (istat /= 0) CALL stop_memory(routine,moduleN,__LINE__,&
                                      "paw_proj_set%gccprj")
  
     DEALLOCATE (paw_proj_set%isoprj,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,module_name,__LINE__,&
+    IF (istat /= 0) CALL stop_memory(routine,moduleN,__LINE__,&
                                      "paw_proj_set%isoprj")
  
     DEALLOCATE (paw_proj_set%rzetprj,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,module_name,__LINE__,&
+    IF (istat /= 0) CALL stop_memory(routine,moduleN,__LINE__,&
                                      "paw_proj_set%rzetprj")
 
     DEALLOCATE (paw_proj_set,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,module_name,__LINE__,&
+    IF (istat /= 0) CALL stop_memory(routine,moduleN,__LINE__,&
                                      "paw_proj_set")
 
   END SUBROUTINE deallocate_paw_proj_set
@@ -277,21 +273,19 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(paw_proj_set_type),  POINTER         :: paw_proj
-    TYPE(gto_basis_set_type), POINTER         :: orb_basis
-    TYPE(qs_control_type), INTENT(IN)         :: qs_control
-    TYPE(section_vals_type), POINTER :: force_env_section
-    REAL(dp)                                  :: rc
-    REAL(dp), INTENT(IN)                      :: max_rad_local_type
-    TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
-!   *** Local parameters ***
+    TYPE(paw_proj_set_type), POINTER         :: paw_proj
+    TYPE(gto_basis_set_type), POINTER        :: orb_basis
+    REAL(dp)                                 :: rc
+    TYPE(qs_control_type), INTENT(IN)        :: qs_control
+    REAL(dp), INTENT(IN)                     :: max_rad_local_type
+    TYPE(section_vals_type), POINTER         :: force_env_section
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routine = " projectors "
+    CHARACTER(LEN=*), PARAMETER              :: routine = " projectors "
 
-!   *** Local variables ***
-
-    REAL(dp)                                  :: eps_fit,eps_iso,eps_svd
-    REAL(dp)                                  :: eps_orb, max_rad_local
+    REAL(dp)                                 :: eps_fit, eps_iso, eps_orb, &
+                                                eps_svd, max_rad_local
 
 !   ***************************************************************************
 
@@ -318,46 +312,38 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(gto_basis_set_type), POINTER :: orb_basis
-    TYPE(paw_proj_set_type),  POINTER :: paw_proj
-    REAL(dp), INTENT(IN)              :: eps_fit,eps_iso,rc,eps_svd
-    REAL(dp), INTENT(IN)              :: eps_orb, max_rad_local
-    TYPE(section_vals_type), POINTER :: force_env_section
+    TYPE(paw_proj_set_type), POINTER         :: paw_proj
+    TYPE(gto_basis_set_type), POINTER        :: orb_basis
+    REAL(dp), INTENT(IN)                     :: eps_fit, eps_iso, eps_svd, &
+                                                rc, eps_orb, max_rad_local
+    TYPE(section_vals_type), POINTER         :: force_env_section
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
+    CHARACTER(LEN=*), PARAMETER              :: routine = "  build_projector"
 
-
-    CHARACTER(LEN=*), PARAMETER :: routine = "  build_projector"
-
-    CHARACTER(LEN=default_string_length)   :: bsname
-    INTEGER  :: icgf, icgfmin, icgfmax, ico, icomin, icomax, il, ip, ipgf, iprj, &
-      iprjfirst, ipp, isgf, isgfmax, isgfmin, iset, ishell, istat, jp, kp, &
-      iso, lshell, lx, ly, lz, m, maxco, maxl,&
-      maxnprj, maxpgf, maxso,  &
-      n, ncgauprj, ncgf, nisop, np, npgfg, ns, nset, nsgf, output_unit
-    INTEGER, DIMENSION(:),    POINTER :: lmin,lmax,npgf,nshell
-    INTEGER, DIMENSION(:,:),  POINTER :: first_cgf,first_sgf,last_cgf,last_sgf,l
-    LOGICAL :: failure
-    LOGICAL,  DIMENSION(:),&
-                          ALLOCATABLE :: isoprj
-    REAL(dp)                          :: expzet, my_error, prefac, radius,&
-                                         x, zetmin, zetval
-    REAL(dp), DIMENSION(:),   POINTER :: zet,zetp
-    REAL(dp), DIMENSION(:,:), POINTER :: gcc,smat,work
-    REAL(dp), DIMENSION(:,:), POINTER :: cphi,sphi
-    REAL(KIND=dp), DIMENSION(:), POINTER :: set_radius
+    CHARACTER(LEN=default_string_length)     :: bsname
+    INTEGER :: ic, icgf, icgfmax, icgfmin, ico, icomax, icomin, il, info, ip, &
+      ipgf, ipp, iprj, iprjfirst, iprjs, is, iset, isgf, isgfmax, isgfmin, &
+      ishell, iso, isomin, istat, jp, k, kp, lshell, lwork, lx, ly, lz, m, &
+      maxco, maxl, maxnprj, maxpgf, maxso, ms, n, ncgauprj, ncgf, nisop, &
+      notprj, np, npgfg, ns, nset, nsgauprj, nsgf, output_unit
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: IWORK
+    INTEGER, DIMENSION(:), POINTER           :: lmax, lmin, npgf, nshell
+    INTEGER, DIMENSION(:, :), POINTER        :: first_cgf, first_sgf, l, &
+                                                last_cgf, last_sgf
+    LOGICAL                                  :: failure
+    LOGICAL, ALLOCATABLE, DIMENSION(:)       :: isoprj
+    REAL(dp)                                 :: expzet, my_error, prefac, &
+                                                radius, x, zetmin, zetval
+    REAL(dp), DIMENSION(:), POINTER          :: zet, zetp
+    REAL(dp), DIMENSION(:, :), POINTER       :: cphi, gcc, smat, sphi, work
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: S, Work_dgesdd
+    REAL(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:, :)                        :: U, VT
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: set_radius
     REAL(KIND=dp), DIMENSION(:, :, :), &
-      POINTER                                :: gcca
-    REAL(KIND=dp), DIMENSION(:,:,:), POINTER :: set_radius2
-
-    REAL(dp), DIMENSION(:), POINTER :: ei, er,worka
-    REAL(dp), DIMENSION(:,:), POINTER :: aa, vl, vr
-    INTEGER :: lwork, info, k
-    INTEGER :: ic, iprjs, is, isomin, ms, nsgauprj, notprj
-    REAL(KIND=dp), DIMENSION(:,:), ALLOCATABLE :: U,VT
-    REAL(KIND=dp), DIMENSION(:), ALLOCATABLE :: S,Work_dgesdd
-    INTEGER, DIMENSION(:), ALLOCATABLE  :: IWORK
+      POINTER                                :: gcca, set_radius2
     TYPE(cp_logger_type), POINTER            :: logger
 
     NULLIFY(logger)
@@ -502,7 +488,7 @@ CONTAINS
 ! Check for equal exponents
         DO ipp =1,ip-1
           IF(zet(ip)==zet(ipp)) THEN
-            CALL stop_program(routine,module_name,__LINE__,&
+            CALL stop_program(routine,moduleN,__LINE__,&
               "Linear dependency in the construction of the GAPW projectors:"//&
               " different sets of the BASIS SET contain identical exponents")
           END IF
@@ -556,7 +542,7 @@ CONTAINS
           smat(ip,ip) = prefac/(zetp(ip) + zet(ip))**expzet
         ELSE
           DO jp = 1,np
-            IF (.not. isoprj(jp)) THEN
+            IF (.NOT. isoprj(jp)) THEN
               smat(ip,jp) = prefac/(zetp(ip) + zet(jp))**expzet
             ENDIF
            ENDDO
@@ -570,7 +556,7 @@ CONTAINS
       IF (eps_svd.EQ.0.0_dp) THEN
           CALL invert_matrix(smat,gcc,my_error,"T")
       ELSE
-         work=transpose(smat)
+         work=TRANSPOSE(smat)
          ! workspace query
          ALLOCATE(iwork(8*np),S(np),U(np,np),VT(np,np),work_dgesdd(1))
          lwork=-1
@@ -742,7 +728,7 @@ CONTAINS
                   iprjs = kp + ic
                   paw_proj%cprj(iprj,iso) = paw_proj%cprj(iprj,iso) +&
                   orbtramat(lshell)%s2c(ic,il)*paw_proj%cprj_s(iprjs,iso)*&
-                  sqrt(dfac(2*lshell+1)/(4.0_dp*pi)/&
+                  SQRT(dfac(2*lshell+1)/(4.0_dp*pi)/&
                   dfac(2*lx-1)*dfac(2*ly-1)*dfac(2*lz-1)) 
                 ENDDO ! ic
               ENDDO ! il
@@ -877,22 +863,25 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(paw_proj_set_type),                POINTER :: paw_proj_set
-    INTEGER, OPTIONAL, INTENT(OUT)                  :: maxl, ncgauprj,nsgauprj 
-    INTEGER, DIMENSION(:), OPTIONAL, POINTER        :: nprj
-    INTEGER, DIMENSION(:), OPTIONAL, POINTER        :: first_prj,first_prjs,last_prj
-    REAL(dp), OPTIONAL, INTENT(OUT)                 :: rcprj
-    REAL(dp), DIMENSION(:), OPTIONAL, POINTER       :: zisomin
-    REAL(dp), DIMENSION(:,:), OPTIONAL, POINTER     :: zetprj 
-    REAL(dp), DIMENSION(:,:), OPTIONAL, POINTER     :: rzetprj 
-    REAL(dp), DIMENSION(:,:), OPTIONAL, POINTER     :: cprj     
-    REAL(dp), DIMENSION(:,:), OPTIONAL, POINTER     :: cprj_s
+    TYPE(paw_proj_set_type), POINTER         :: paw_proj_set
+    REAL(dp), DIMENSION(:, :), OPTIONAL, &
+      POINTER                                :: cprj, cprj_s
+    INTEGER, DIMENSION(:), OPTIONAL, POINTER :: first_prj, first_prjs, &
+                                                last_prj
+    REAL(dp), DIMENSION(:, :), OPTIONAL, &
+      POINTER                                :: local_oce_sphi_h, &
+                                                local_oce_sphi_s
+    INTEGER, INTENT(OUT), OPTIONAL           :: maxl, ncgauprj, nsgauprj
+    INTEGER, DIMENSION(:), OPTIONAL, POINTER :: nprj
+    REAL(dp), INTENT(OUT), OPTIONAL          :: rcprj
+    REAL(dp), DIMENSION(:, :), OPTIONAL, &
+      POINTER                                :: rzetprj
+    REAL(dp), DIMENSION(:), OPTIONAL, &
+      POINTER                                :: zisomin
+    REAL(dp), DIMENSION(:, :), OPTIONAL, &
+      POINTER                                :: zetprj
 
-    REAL(dp), DIMENSION(:,:),OPTIONAL, POINTER     :: local_oce_sphi_h,local_oce_sphi_s 
-
-
-    CHARACTER(LEN=*), PARAMETER :: routine = " get_paw_proj_set"
-
+    CHARACTER(LEN=*), PARAMETER              :: routine = " get_paw_proj_set"
 
 !   ---------------------------------------------------------------------------
 
@@ -914,7 +903,7 @@ CONTAINS
       IF (PRESENT(zetprj)) zetprj => paw_proj_set%zetprj
 
     ELSE
-      CALL stop_program(routine,module_name,__LINE__,&
+      CALL stop_program(routine,moduleN,__LINE__,&
                        "The pointer  paw_proj_set is not associated")
     ENDIF
 
@@ -928,11 +917,12 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(paw_proj_set_type),            POINTER :: paw_proj_set
-    REAL(dp), DIMENSION(:,:), OPTIONAL, POINTER :: rzetprj 
-    REAL(dp), INTENT(IN), OPTIONAL              :: rcprj
+    TYPE(paw_proj_set_type), POINTER         :: paw_proj_set
+    REAL(dp), DIMENSION(:, :), OPTIONAL, &
+      POINTER                                :: rzetprj
+    REAL(dp), INTENT(IN), OPTIONAL           :: rcprj
 
-    CHARACTER(LEN=*), PARAMETER :: routine = " set_paw_proj_set"
+    CHARACTER(LEN=*), PARAMETER              :: routine = " set_paw_proj_set"
 
 !   ***************************************************************************
 
@@ -940,7 +930,7 @@ CONTAINS
       IF (PRESENT(rzetprj)) paw_proj_set%rzetprj(:,0:) = rzetprj(:,0:)
       IF (PRESENT(rcprj))  paw_proj_set%rcprj = rcprj
     ELSE
-      CALL stop_program(routine,module_name,__LINE__,&
+      CALL stop_program(routine,moduleN,__LINE__,&
                         "The pointer paw_proj_set is not associated")
     END IF
 

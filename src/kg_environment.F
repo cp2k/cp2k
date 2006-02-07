@@ -19,15 +19,6 @@
 !******************************************************************************
 
 MODULE kg_environment
-  USE header,                          ONLY: kg_header
-  USE cp_output_handling,              ONLY: cp_print_key_should_output,&
-                                             cp_p_file,&
-                                             cp_print_key_unit_nr,&
-                                             cp_print_key_finished_output,&
-                                             cp_iter_string,&
-                                             cp_iterate,&
-                                             cp_add_iter_level,&
-                                             cp_rm_iter_level
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              check_atomic_kind_set,&
                                              get_atomic_kind_set,&
@@ -35,6 +26,11 @@ MODULE kg_environment
                                              read_atomic_kind_set,&
                                              write_atomic_kind_set,&
                                              write_gto_basis_sets
+  USE cell_types,                      ONLY: cell_release,&
+                                             cell_type,&
+                                             get_cell,&
+                                             read_cell,&
+                                             write_cell
   USE checkpoint_handler,              ONLY: write_checkpoint_information
   USE cp_control_types,                ONLY: dft_control_release,&
                                              dft_control_type
@@ -43,20 +39,26 @@ MODULE kg_environment
                                              read_qs_section,&
                                              write_dft_control,&
                                              write_qs_control
+  USE cp_output_handling,              ONLY: cp_p_file,&
+                                             cp_print_key_finished_output,&
+                                             cp_print_key_should_output,&
+                                             cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE cp_subsystem_types,              ONLY: cp_subsystem_type
   USE cp_subsystem_methods,            ONLY: cp_subsys_read_colvar
+  USE cp_subsystem_types,              ONLY: cp_subsystem_type
   USE distribution_1d_types,           ONLY: distribution_1d_release,&
                                              distribution_1d_type
   USE distribution_2d_types,           ONLY: distribution_2d_type
   USE distribution_methods,            ONLY: distribute_molecules_1d
   USE dynamical_coeff_types,           ONLY: dyn_coeff_set_create,&
+                                             dyn_coeff_set_initialize,&
                                              dyn_coeff_set_release,&
-                                             dyn_coeff_set_type,&
-                                             dyn_coeff_set_initialize
+                                             dyn_coeff_set_type
   USE gamma,                           ONLY: init_md_ftable
   USE global_types,                    ONLY: global_environment_type
-  USE input_section_types,             ONLY: section_vals_get
+  USE header,                          ONLY: kg_header
+  USE input_section_types,             ONLY: section_vals_get_subs_vals,&
+                                             section_vals_type
   USE kg_energy_types,                 ONLY: allocate_kg_energy,&
                                              kg_energy_type
   USE kg_environment_methods,          ONLY: kg_env_setup
@@ -71,14 +73,14 @@ MODULE kg_environment
                                              kg_fm_mol_set_type,&
                                              kg_fm_p_type
   USE kg_gpw_pw_env_methods,           ONLY: build_molbox_env
-  USE kg_gpw_pw_env_types,             ONLY: kg_molbox_env_type,&
-                                             kg_sub_pw_env_create,&
+  USE kg_gpw_pw_env_types,             ONLY: kg_sub_pw_env_create,&
                                              kg_sub_pw_env_release,&
                                              kg_sub_pw_env_type
   USE kinds,                           ONLY: dp,&
                                              int_size
   USE machine,                         ONLY: m_flush
-  USE message_passing,                 ONLY: mp_max,mp_sum
+  USE message_passing,                 ONLY: mp_max,&
+                                             mp_sum
   USE molecule_kind_types,             ONLY: molecule_kind_type,&
                                              num_ao_el_per_molecule,&
                                              write_molecule_kind_set
@@ -102,25 +104,19 @@ MODULE kg_environment
                                              qs_force_type
   USE qs_interactions,                 ONLY: init_interaction_radii
   USE qs_wf_history_methods,           ONLY: wfi_create
-  USE qs_wf_history_types,             ONLY: qs_wf_history_type,wfi_release
+  USE qs_wf_history_types,             ONLY: qs_wf_history_type,&
+                                             wfi_release
   USE scf_control_types,               ONLY: scf_c_create,&
                                              scf_c_read_parameters,&
                                              scf_c_release,&
                                              scf_c_write_parameters,&
                                              scf_control_type
-  USE cell_types,                 ONLY: cell_release,&
-                                             cell_type,&
-                                             read_cell,&
-                                             write_cell,&
-                                             get_cell
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE topology,                        ONLY: topology_control
   USE virial_types,                    ONLY: virial_create
-  USE input_section_types,             ONLY: section_vals_get_subs_vals,&
-                                             section_vals_type
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -129,7 +125,7 @@ MODULE kg_environment
 
   PUBLIC :: kg_init
 
-  CHARACTER(LEN=*), PARAMETER :: moduleN = "kg_environment"
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'kg_environment'
   
 !-----------------------------------------------------------------------------!
 
@@ -158,16 +154,19 @@ CONTAINS
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-    CHARACTER(LEN=*), PARAMETER              :: routine_name = "kg_init"
+    CHARACTER(LEN=*), PARAMETER              :: routineN = 'kg_init'
 
-    INTEGER                                  :: handle, istat, maxl, maxlgto, &
-                                                maxlppl, maxlppnl, nkind, &
-                                                output_unit
+    INTEGER                                  :: handle, istat, iw, maxl, &
+                                                maxlgto, maxlppl, maxlppnl, &
+                                                nkind, output_unit
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: natom_of_kind
-    LOGICAL                                  :: ionode, kg_gpw, use_ref_cell, was_present
+    LOGICAL                                  :: ionode, kg_gpw, use_ref_cell, &
+                                                was_present
+    REAL(kind=dp), DIMENSION(3)              :: abc
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(cell_type), POINTER                 :: cell, cell_ref
+    TYPE(cp_logger_type), POINTER            :: logger
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(distribution_1d_type), POINTER      :: local_molecules, &
                                                 local_particles
@@ -182,16 +181,13 @@ CONTAINS
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(scf_control_type), POINTER          :: scf_control
-    TYPE(section_vals_type), POINTER         :: cell_section,&
-                                                force_env_section,&
-                                                dft_section, work_section
-    REAL(kind=dp), DIMENSION(3)              :: abc
-    TYPE(cp_logger_type), pointer            :: logger
-    INTEGER :: iw
+    TYPE(section_vals_type), POINTER         :: cell_section, dft_section, &
+                                                force_env_section, &
+                                                work_section
 
-    CALL write_checkpoint_information("entering "//routine_name,globenv,error)
+    CALL write_checkpoint_information("entering "//routineN,globenv,error)
 
-    CALL timeset(routine_name,"I",'',handle)
+    CALL timeset(routineN,"I",'',handle)
 
     ionode = globenv%ionode
     output_unit = globenv%scr
@@ -339,13 +335,13 @@ CONTAINS
     IF (dft_control%forces) THEN
       nkind = SIZE(atomic_kind_set)
       ALLOCATE (natom_of_kind(nkind),STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine_name,moduleN,__LINE__,&
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                        "natom_of_kind",nkind*int_size)
       CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
                              natom_of_kind=natom_of_kind)
       CALL allocate_kg_force(force,natom_of_kind)
       DEALLOCATE (natom_of_kind,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine_name,moduleN,__LINE__,&
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                        "natom_of_kind")
     END IF
 
@@ -382,7 +378,7 @@ CONTAINS
 
     CALL timestop(0.0_dp,handle)
 
-    CALL write_checkpoint_information("leaving "//routine_name,globenv,error)
+    CALL write_checkpoint_information("leaving "//routineN,globenv,error)
 
   END SUBROUTINE kg_init
 
@@ -400,18 +396,16 @@ CONTAINS
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(particle_type), DIMENSION(:), &
-         POINTER                                :: particle_set
-    TYPE(section_vals_type), POINTER :: force_env_section
+      POINTER                                :: particle_set
+    TYPE(section_vals_type), POINTER         :: force_env_section
     TYPE(cp_error_type), INTENT(inout), &
-         OPTIONAL                               :: error
-
+      OPTIONAL                               :: error
 
     INTEGER                                  :: maxlgto, maxlppl, maxlppnl, &
                                                 natom, ncgf, nkind, npgf, &
                                                 nset, nsgf, nshell, &
                                                 output_unit
-   TYPE(cp_logger_type), POINTER            :: logger
-
+    TYPE(cp_logger_type), POINTER            :: logger
 
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
@@ -475,30 +469,31 @@ CONTAINS
 !   We generate a qs_environment for the system
 
     TYPE(kg_environment_type), POINTER       :: kg_env
-    TYPE(global_environment_type), &
-      pointer                             :: globenv
+    TYPE(global_environment_type), POINTER   :: globenv
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'kg_subsys_setup', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: imolecule_kind, istat, &
-                                                nao_global, nao_max, nelectron_global,&
-                                                nkind, nmolecule_kind, nmo_max, nspins
+    INTEGER :: imolecule_kind, istat, nao_global, nao_max, nelectron_global, &
+      nkind, nmo_max, nmolecule_kind, nspins
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: natom_of_kind
+    INTEGER, DIMENSION(2)                    :: added_mos
+    LOGICAL                                  :: failure, nmo_eq_nao, &
+                                                use_ref_cell
     REAL(dp)                                 :: maxocc_global(2)
-    LOGICAL                                  :: failure, nmo_eq_nao, use_ref_cell
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(cell_type), POINTER                 :: cell, cell_ref
+    TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_subsystem_type), POINTER         :: subsys
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(distribution_1d_type), POINTER      :: distribution_1d
     TYPE(distribution_2d_type), POINTER      :: distribution_2d
-    TYPE(kg_fm_p_type), POINTER              :: kg_fm
     TYPE(kg_fm_mol_set_type), POINTER        :: fm_mol_set
+    TYPE(kg_fm_p_type), POINTER              :: kg_fm
     TYPE(kg_sub_pw_env_type), POINTER        :: kg_sub_pw_env
     TYPE(molecule_kind_type), DIMENSION(:), &
       POINTER                                :: molecule_kind_set
@@ -514,12 +509,10 @@ CONTAINS
       POINTER                                :: qs_force
     TYPE(qs_wf_history_type), POINTER        :: wf_history
     TYPE(scf_control_type), POINTER          :: scf_control
-    INTEGER, DIMENSION(2)                    :: added_mos
-    TYPE(section_vals_type), POINTER         :: poisson_section,&
-                                                force_env_section,&
-                                                colvar_section
-    TYPE(cp_logger_type), pointer            :: logger
-    
+    TYPE(section_vals_type), POINTER         :: colvar_section, &
+                                                force_env_section, &
+                                                poisson_section
+
     failure=.FALSE.
 
     logger => cp_error_get_logger(error)

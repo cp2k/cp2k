@@ -127,16 +127,16 @@ CONTAINS
     INTEGER, INTENT(IN), OPTIONAL            :: l, n
     INTEGER                                  :: number_of_lebedev_grid
 
+    INTEGER                                  :: i
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: ll, nn
     INTEGER, DIMENSION(1)                    :: lgnum
-    INTEGER,DIMENSION(:), ALLOCATABLE        :: ll,nn
-    INTEGER :: i
 
 !   ---------------------------------------------------------------------------
 
     IF (.NOT.init_lebedev_grids_done) CALL init_lebedev_grids
 
     lgnum(1) = 0
-    allocate(nn(SIZE(lebedev_grid,1)),ll(SIZE(lebedev_grid,1)))
+    ALLOCATE(nn(SIZE(lebedev_grid,1)),ll(SIZE(lebedev_grid,1)))
     DO i =1,SIZE(nn,1)
       nn(i) = lebedev_grid(i)%n
       ll(i) = lebedev_grid(i)%l
@@ -363,6 +363,7 @@ CONTAINS
     INTEGER                                  :: ilg
 
 !   ---------------------------------------------------------------------------
+
     DO ilg=1,nlg
       IF(ASSOCIATED(lebedev_grid(ilg)%r)) DEALLOCATE(lebedev_grid(ilg)%r)
       IF(ASSOCIATED(lebedev_grid(ilg)%w)) DEALLOCATE(lebedev_grid(ilg)%w)

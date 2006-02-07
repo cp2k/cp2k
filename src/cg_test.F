@@ -48,17 +48,17 @@ CONTAINS
 !******************************************************************************
 SUBROUTINE clebsch_gordon_test ( globenv )
 
-    TYPE(global_environment_type), &
-      pointer                             :: globenv
+    TYPE(global_environment_type), POINTER   :: globenv
 
     INTEGER, PARAMETER                       :: l = 7
 
-    COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:)  :: a1, a2, a3
+    COMPLEX(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:)                           :: a1, a2, a3
     INTEGER                                  :: ierr, il, iw, l1, l2, ll, lp, &
                                                 m1, m2, mm, mp, na
-    REAL(KIND=dp)                                :: ca, cga(10), cn, rga(10,21), &
+    REAL(KIND=dp)                            :: ca, cga(10), cn, rga(10,21), &
                                                 tend, tstart
-    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)     :: b1, b2, b3, wa
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: b1, b2, b3, wa
 
   iw =globenv % scr
 

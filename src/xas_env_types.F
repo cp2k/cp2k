@@ -41,7 +41,7 @@ MODULE xas_env_types
   IMPLICIT NONE
   PRIVATE
 
-  CHARACTER(len=*), PRIVATE, PARAMETER :: module_name='xas_env_types'
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'xas_env_types'
 
 ! *** Public data types ***
 
@@ -183,8 +183,8 @@ CONTAINS
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-    CHARACTER(len=*), PARAMETER :: routine_name = 'get_xas_env', &
-      routineP = module_name//':'//routine_name
+    CHARACTER(len=*), PARAMETER :: routineN = 'get_xas_env', &
+      routineP = moduleN//':'//routineN
 
     LOGICAL                                  :: failure
 
@@ -236,8 +236,8 @@ CONTAINS
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-    CHARACTER(len=*), PARAMETER :: routine_name = 'set_qs_loc_env', &
-      routineP = module_name//':'//routine_name
+    CHARACTER(len=*), PARAMETER :: routineN = 'set_xas_env', &
+      routineP = moduleN//':'//routineN
 
     LOGICAL                                  :: failure
 
@@ -282,8 +282,8 @@ CONTAINS
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-    CHARACTER(len=*), PARAMETER :: routine_name = 'xas_env_create', &
-      routineP = module_name//':'//routine_name
+    CHARACTER(len=*), PARAMETER :: routineN = 'xas_env_create', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: istat
     LOGICAL                                  :: failure
@@ -323,8 +323,8 @@ CONTAINS
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-    CHARACTER(len=*), PARAMETER :: routine_name = 'xas_env_release', &
-      routineP = module_name//':'//routine_name
+    CHARACTER(len=*), PARAMETER :: routineN = 'xas_env_release', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, ik, istat, j
     LOGICAL                                  :: failure
@@ -434,8 +434,8 @@ CONTAINS
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-    CHARACTER(len=*), PARAMETER :: routine_name = 'xas_env_retain', &
-      routineP = module_name//':'//routine_name
+    CHARACTER(len=*), PARAMETER :: routineN = 'xas_env_retain', &
+      routineP = moduleN//':'//routineN
 
     LOGICAL                                  :: failure
 

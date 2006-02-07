@@ -28,7 +28,7 @@ MODULE semi_empirical_integrals
 
   PRIVATE
 
-  CHARACTER(LEN=*), PARAMETER :: module_name = "semi_empirical_integrals"
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'semi_empirical_integrals'
 
   PUBLIC :: rotint, rotnuc, drotint, drotnuc
 
@@ -594,8 +594,9 @@ CONTAINS
       yy21, yy22, yyzz11, yyzz21, yyzz22, zz, zz11, zz21, zz22, zz31, zz32, &
       zz33
     REAL(dp), DIMENSION(3)                   :: x, y, z
+    REAL(dp), DIMENSION(4)                   :: fni1, fni2, fni3, fnj1, fnj2, &
+                                                fnj3
     REAL(dp), DIMENSION(4, 2)                :: ccore
-    REAL(dp), DIMENSION(4)                   :: fni1,fni2,fni3,fnj1,fnj2,fnj3
 
       x(:)=-rijv(:)
       rij=x(1)*x(1)+x(2)*x(2)+x(3)*x(3)

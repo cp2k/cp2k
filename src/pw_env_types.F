@@ -32,24 +32,26 @@ MODULE pw_env_types
                                              destroy_cube_info
   USE gaussian_gridlevels,             ONLY: destroy_gaussian_gridlevel,&
                                              gridlevel_info_type
+  USE input_section_types,             ONLY: section_vals_type
   USE kinds,                           ONLY: dp
   USE l_utils,                         ONLY: l_info_release,&
                                              l_info_type
+  USE pw_poisson_types,                ONLY: pw_poisson_release,&
+                                             pw_poisson_type
   USE pw_pool_types,                   ONLY: pw_pool_p_type,&
+                                             pw_pool_release,&
                                              pw_pool_type,&
                                              pw_pools_dealloc,&
-                                             pw_pools_flush_cache,&
-                                             pw_pool_release
+                                             pw_pools_flush_cache
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE input_section_types,             ONLY: section_vals_type
-  USE pw_poisson_types, ONLY: pw_poisson_type, pw_poisson_retain, pw_poisson_release
 #include "cp_common_uses.h"
+
   IMPLICIT NONE
   PRIVATE
 
   LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
-  CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='pw_env_types'
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'pw_env_types'
 
   PUBLIC :: pw_env_type
   PUBLIC :: pw_env_retain, pw_env_release, pw_env_get, pw_env_flush_cache
@@ -102,7 +104,7 @@ MODULE pw_env_types
      TYPE(l_info_type), POINTER :: l_info_rho0 ! right place for it?
      TYPE(cube_info_type), DIMENSION(:), POINTER :: cube_info
      INTEGER :: auxbas_grid
-     TYPE(pw_poisson_type), pointer :: poisson_env
+     TYPE(pw_poisson_type), POINTER :: poisson_env
   END TYPE pw_env_type
 !!***
   !****************************************************************************
@@ -157,8 +159,7 @@ SUBROUTINE pw_env_get(pw_env, pw_pools,l_info,l_info_rho0, cube_info, gridlevel_
     TYPE(pw_env_type), POINTER               :: pw_env
     TYPE(pw_pool_p_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: pw_pools
-    TYPE(l_info_type), OPTIONAL, POINTER     :: l_info
-    TYPE(l_info_type), OPTIONAL, POINTER     :: l_info_rho0
+    TYPE(l_info_type), OPTIONAL, POINTER     :: l_info, l_info_rho0
     TYPE(cube_info_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: cube_info
     TYPE(gridlevel_info_type), OPTIONAL, &
@@ -283,9 +284,9 @@ END SUBROUTINE pw_env_retain
 !!*** **********************************************************************
 SUBROUTINE pw_env_release(pw_env, force_env_section, error)
     TYPE(pw_env_type), POINTER               :: pw_env
+    TYPE(section_vals_type), POINTER         :: force_env_section
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
-    TYPE(section_vals_type), POINTER :: force_env_section
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_env_release', &
       routineP = moduleN//':'//routineN

@@ -46,15 +46,14 @@ MODULE qs_mo_methods
                                              mo_set_type
   USE sparse_matrix_types,             ONLY: real_matrix_type,&
                                              set_matrix
-  USE termination,                     ONLY: stop_memory,&
-                                             stop_program
+  USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
   PRIVATE
-  CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='qs_mo_types'
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_mo_methods'
 
   INTERFACE calculate_density_matrix
     MODULE PROCEDURE calculate_density_matrix_sparse,&
@@ -102,20 +101,21 @@ CONTAINS
     CHARACTER(LEN=*), INTENT(IN), OPTIONAL   :: otype
     TYPE(cp_fm_type), OPTIONAL, POINTER      :: pmatrix, work
 
+    REAL(KIND=dp), PARAMETER                 :: rone = 1.0_dp, rzero = 0.0_dp
+
     INTEGER                                  :: handle, i, info, n
     INTEGER, DIMENSION(9)                    :: desca, desco, descp, descvv, &
                                                 descw
-    LOGICAL                                  :: use_cholesky, &
-                                                use_pmatrix, use_simple, &
-                                                use_sv
-    REAL(KIND=dp), PARAMETER                 :: rone=1.0_dp, rzero=0.0_dp
+    LOGICAL                                  :: use_cholesky, use_pmatrix, &
+                                                use_simple, use_sv
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: a, o, p, vv, w
     TYPE(cp_blacs_env_type), POINTER         :: context
     TYPE(cp_fm_struct_type), POINTER         :: fm_struct_tmp
     TYPE(cp_fm_type), POINTER                :: overlap_vv
 
 !   ---------------------------------------------------------------------------
-    IF (ncol.EQ.0) return
+
+    IF (ncol.EQ.0) RETURN
 
     CALL timeset("make_basis","I","",handle)
     NULLIFY(fm_struct_tmp)
@@ -390,19 +390,18 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:), OPTIONAL, &
       POINTER                                :: evals_arg
     TYPE(cp_para_env_type), POINTER          :: para_env
-    LOGICAL, OPTIONAL, INTENT(IN)            :: ionode
-    INTEGER, OPTIONAL, INTENT(IN)            :: scr
-    LOGICAL, OPTIONAL, INTENT(IN)            :: do_rotation
-    TYPE(cp_fm_type), POINTER, OPTIONAL      :: co_rotate
+    LOGICAL, INTENT(IN), OPTIONAL            :: ionode
+    INTEGER, INTENT(IN), OPTIONAL            :: scr
+    LOGICAL, INTENT(IN), OPTIONAL            :: do_rotation
+    TYPE(cp_fm_type), OPTIONAL, POINTER      :: co_rotate
 
-    INTEGER                                  :: handle, i, j, &
-                                                ncol_global,  &
+    INTEGER                                  :: handle, i, j, ncol_global, &
                                                 nrow_global
+    LOGICAL                                  :: do_rotation_local
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: evals
     TYPE(cp_fm_struct_type), POINTER         :: fm_struct_tmp
     TYPE(cp_fm_type), POINTER                :: e_vectors, h_block, &
                                                 weighted_vectors
-    LOGICAL :: do_rotation_local
 
 !   ---------------------------------------------------------------------------
 
@@ -494,7 +493,8 @@ CONTAINS
     REAL(KIND=dp)                            :: orthonormality
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mo_array
-    TYPE(real_matrix_type),POINTER, OPTIONAL :: matrix_s
+    TYPE(real_matrix_type), OPTIONAL, &
+      POINTER                                :: matrix_s
 
     INTEGER                                  :: handle, i, ispin, j, k, n, &
                                                 ncol_local, nrow_local, nspin

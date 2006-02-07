@@ -24,11 +24,9 @@
 !!   SOURCE
 ! ****************************************************************************
 MODULE qs_p_env_types
-  USE cp_fm_types,                     ONLY: cp_fm_release,&
-                                             cp_fm_p_type,&
+  USE cp_fm_types,                     ONLY: cp_fm_p_type,&
                                              cp_fm_type
   USE cp_fm_vect,                      ONLY: cp_fm_vect_dealloc
-  USE cp_para_types,                   ONLY: cp_para_env_type
   USE hartree_local_types,             ONLY: hartree_local_release,&
                                              hartree_local_type
   USE kinds,                           ONLY: dp
@@ -38,8 +36,8 @@ MODULE qs_p_env_types
                                              qs_kpp1_env_type
   USE qs_local_rho_types,              ONLY: local_rho_set_release,&
                                              local_rho_type
-  USE qs_rho_types,                    ONLY: qs_rho_type,&
-                                             qs_rho_release
+  USE qs_rho_types,                    ONLY: qs_rho_release,&
+                                             qs_rho_type
   USE sparse_matrix_types,             ONLY: deallocate_matrix_set,&
                                              real_matrix_p_type
   USE timings,                         ONLY: timeset,&
@@ -52,7 +50,7 @@ MODULE qs_p_env_types
   PUBLIC :: p_env_retain, p_env_release
 
   LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
-  CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='qs_p_env_types'
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_p_env_types'
 
 !!***
 !****************************************************************************

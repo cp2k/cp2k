@@ -5,22 +5,15 @@
 
 
 MODULE qs_tddfpt_types
-  USE cp_control_types,                ONLY: tddfpt_control_type
   USE cp_fm_pool_types,                ONLY: cp_fm_pool_p_type,&
                                              fm_pool_create_fm,&
-                                             fm_pool_give_back_fm,&
-                                             fm_pools_create_fm_vect,&
-                                             fm_pools_give_back_fm_vect
+                                             fm_pool_give_back_fm
   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                              cp_fm_struct_release,&
                                              cp_fm_struct_type
   USE cp_fm_types,                     ONLY: cp_fm_create,&
                                              cp_fm_p_type,&
-                                             cp_fm_release,&
-                                             cp_fm_set_all
-  USE hartree_local_types,             ONLY: hartree_local_create,&
-                                             hartree_local_release,&
-                                             hartree_local_type
+                                             cp_fm_release
   USE kinds,                           ONLY: dp
   USE qs_environment_types,            ONLY: qs_environment_type
   USE qs_matrix_pools,                 ONLY: mpools_get
@@ -43,7 +36,7 @@ MODULE qs_tddfpt_types
     
 ! *****************************************************************************
 
-  CHARACTER(len=*), PARAMETER :: moduleN = "qs_tddfpt_types"
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_tddfpt_types'
   
   PRIVATE
 
@@ -64,7 +57,7 @@ CONTAINS
     TYPE(qs_environment_type), POINTER       :: qs_env
 
     CHARACTER(len=*), PARAMETER :: routineN = 'tddfpt_env_allocate', &
-                                   routineP = moduleN//'/'//routineN
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, n_ev, n_spins, spin, stat
     TYPE(cp_fm_struct_type), POINTER         :: fm_struct
@@ -108,7 +101,7 @@ CONTAINS
     TYPE(tddfpt_env_type), INTENT(inout)     :: t_env
 
     CHARACTER(len=*), PARAMETER :: routineN = 'tddfpt_env_deallocate', &
-                                   routineP = moduleN//'/'//routineN
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, spin, stat
 
@@ -119,7 +112,7 @@ CONTAINS
        END DO
     END DO
 
-    DO spin=1, size(t_env%invS)
+    DO spin=1, SIZE(t_env%invS)
        IF (ASSOCIATED(t_env%invS(spin)%matrix)) &
             CALL cp_fm_release(t_env%invS(spin)%matrix)
     END DO

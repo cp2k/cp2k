@@ -24,7 +24,6 @@
 !!   SOURCE
 !****************************************************************************
 MODULE qmmm_gaussian_types
-  USE cp_para_types,                   ONLY: cp_para_env_type
   USE kinds,                           ONLY: dp
 #include "cp_common_uses.h"
 
@@ -56,7 +55,7 @@ MODULE qmmm_gaussian_types
   TYPE qmmm_gaussian_type
      INTEGER                               :: number_of_gaussians
      REAL(KIND=dp)                         :: Elp_Radius, Elp_Radius_Corr
-     INTEGER, DIMENSION(:), pointer        :: grid_level
+     INTEGER, DIMENSION(:), POINTER        :: grid_level
      REAL(KIND=dp), DIMENSION(:), POINTER  :: Ak, Gk
   END TYPE qmmm_gaussian_type
 

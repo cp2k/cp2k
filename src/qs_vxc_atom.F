@@ -24,17 +24,21 @@
 !****************************************************************************
 MODULE qs_vxc_atom
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
-                                             get_atomic_kind,&
-                                             get_atomic_kind_set
+                                             get_atomic_kind
   USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                              gto_basis_set_type
-  USE input_constants,                 ONLY: tddfpt_triplet, tddfpt_excitations
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE kinds,                           ONLY: dp,dp_size
+  USE input_constants,                 ONLY: tddfpt_excitations,&
+                                             tddfpt_triplet
+  USE input_section_types,             ONLY: section_vals_get_subs_vals,&
+                                             section_vals_type,&
+                                             section_vals_val_get
+  USE kinds,                           ONLY: dp,&
+                                             dp_size
   USE memory_utilities,                ONLY: reallocate
   USE message_passing,                 ONLY: mp_sum
-  USE orbital_pointers,                ONLY: indso,nco,nso,&
-                                             ncoset,nsoset
+  USE orbital_pointers,                ONLY: indso,&
+                                             nsoset
   USE qs_energy_types,                 ONLY: qs_energy_type
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
@@ -44,35 +48,30 @@ MODULE qs_vxc_atom
   USE qs_rho_atom_types,               ONLY: get_rho_atom,&
                                              rho_atom_coeff,&
                                              rho_atom_type
-  USE qs_util,                         ONLY: transform_s2c
-  USE termination,                     ONLY: stop_memory,&
-                                             stop_program
+  USE termination,                     ONLY: stop_memory
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE util,                            ONLY: get_limit
-  USE xc_atom,                         ONLY: vxc_of_r_new,&
+  USE xc_atom,                         ONLY: fill_rho_set,&
+                                             vxc_of_r_new,&
                                              xc_2nd_deriv_of_r,&
-                                             xc_rho_set_atom_update,&
-                                             fill_rho_set
-  USE xc_derivatives,                  ONLY: xc_functional_get_info,&
-       xc_functionals_get_needs
+                                             xc_rho_set_atom_update
   USE xc_derivative_set_types,         ONLY: xc_derivative_set_type,&
                                              xc_dset_create,&
                                              xc_dset_release,&
                                              xc_dset_zero_all
-  USE xc_rho_cflags_types,                ONLY: xc_rho_cflags_setall,&
-                                             xc_rho_cflags_type
+  USE xc_derivatives,                  ONLY: xc_functionals_get_needs
+  USE xc_rho_cflags_types,             ONLY: xc_rho_cflags_type
   USE xc_rho_set_types,                ONLY: xc_rho_set_create,&
                                              xc_rho_set_release,&
                                              xc_rho_set_type
-  USE input_section_types, ONLY: section_vals_type, section_vals_val_get,&
-       section_vals_get_subs_vals
 #include "cp_common_uses.h"
+
   IMPLICIT NONE
 
   PRIVATE
 
-  CHARACTER(LEN=*), PRIVATE, PARAMETER :: module_name='qs_vxc_atom'
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_vxc_atom'
 
   PUBLIC :: calculate_vxc_atom, calculate_xc_2nd_deriv_atom, calc_rho_angular, &
             gaVxcgb_noGC
@@ -87,55 +86,45 @@ CONTAINS
 
 !   ***************************************************************************
 
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    LOGICAL, INTENT(IN)                      :: energy_only
     TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                          :: error
-    TYPE(qs_environment_type), POINTER  :: qs_env
-    LOGICAL, INTENT(IN)                 :: energy_only
+      OPTIONAL                               :: error
 
-    CHARACTER(LEN=*), PARAMETER         :: routine_name = "calculate_vxc_atom",&
-                routineP = module_name//':'//routine_name
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_vxc_atom', &
+      routineP = moduleN//':'//routineN
 
-    TYPE(atomic_kind_type), DIMENSION(:),&
-                            POINTER     :: atomic_kind_set
-    TYPE(atomic_kind_type), POINTER     :: atom_kind
-    TYPE(cp_para_env_type), POINTER     :: para_env
-    TYPE(grid_atom_type), POINTER       :: grid_atom
-    TYPE(harmonics_atom_type), POINTER  :: harmonics
-    TYPE(qs_energy_type), POINTER       :: energy
+    INTEGER                                  :: bo(2), handle, i, ia, iat, &
+                                                iatom, ikind, ir, istat, &
+                                                mepos, na, natom, nkind, nr, &
+                                                nspins, num_pe
+    INTEGER, DIMENSION(2, 3)                 :: bounds
+    INTEGER, DIMENSION(:), POINTER           :: atom_list
+    LOGICAL                                  :: gradient_f, lsd, paw_atom
+    REAL(dp)                                 :: density_cut, exc_h, exc_s, &
+                                                gradient_cut, tau_cut
+    REAL(dp), DIMENSION(:, :), POINTER       :: rho_h, rho_s, weight
+    REAL(dp), DIMENSION(:, :, :), POINTER    :: vxc_h, vxc_s
+    REAL(dp), DIMENSION(:, :, :, :), POINTER :: drho_h, drho_s, vxg_h, vxg_s
+    TYPE(atomic_kind_type), DIMENSION(:), &
+      POINTER                                :: atomic_kind_set
+    TYPE(atomic_kind_type), POINTER          :: atom_kind
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(grid_atom_type), POINTER            :: grid_atom
+    TYPE(harmonics_atom_type), POINTER       :: harmonics
+    TYPE(qs_energy_type), POINTER            :: energy
+    TYPE(rho_atom_coeff), DIMENSION(:), &
+      POINTER                                :: dr_h, dr_s, r_h, r_s
+    TYPE(rho_atom_coeff), DIMENSION(:, :), &
+      POINTER                                :: r_h_d, r_s_d
     TYPE(rho_atom_type), DIMENSION(:), &
-                              POINTER   :: rho_atom_set
-    TYPE(rho_atom_type),  POINTER       :: rho_atom
-    TYPE(rho_atom_coeff),DIMENSION(:),& 
-                  POINTER               :: r_h,r_s
-    TYPE(rho_atom_coeff),DIMENSION(:),&
-                  POINTER               :: dr_h,dr_s
-    TYPE(rho_atom_coeff),DIMENSION(:,:),&
-                  POINTER               :: r_h_d,r_s_d
-    TYPE(xc_derivative_set_type), &
-                             POINTER    :: deriv_set
-    TYPE(xc_rho_set_type), POINTER      :: rho_set_h, rho_set_s
-
-    REAL(dp), DIMENSION(:,:), POINTER   :: weight 
-    REAL(dp), DIMENSION(:,:), &
-                              POINTER   :: rho_h,rho_s
-    REAL(dp), DIMENSION(:,:,:), &
-                              POINTER   :: vxc_h,vxc_s
-    REAL(dp), DIMENSION(:,:,:,:), &
-                              POINTER   :: vxg_h,vxg_s
-    REAL(dp), DIMENSION(:,:,:,:), &
-                              POINTER   :: drho_h,drho_s
-    LOGICAL                             :: gradient_f,lsd,paw_atom
-    REAL(dp)                            :: exc_h,exc_s, density_cut,tau_cut,&
-         gradient_cut
-    INTEGER                             :: bo(2),handle,i,ia,iat,iatom, ierr,&
-                                           ifunc,ikind,ipot,ir,iso,ispin,&
-                                           istat,lp,mepos,na,natom,nkind,&
-                                           nr,nspins,num_pe 
-    INTEGER, DIMENSION(:), POINTER      :: atom_list
-    INTEGER, DIMENSION(2, 3)            :: bounds
-    TYPE(section_vals_type), POINTER :: input,xc_section,xc_fun_section
-    TYPE(xc_rho_cflags_type) :: needs
-
+      POINTER                                :: rho_atom_set
+    TYPE(rho_atom_type), POINTER             :: rho_atom
+    TYPE(section_vals_type), POINTER         :: input, xc_fun_section, &
+                                                xc_section
+    TYPE(xc_derivative_set_type), POINTER    :: deriv_set
+    TYPE(xc_rho_cflags_type)                 :: needs
+    TYPE(xc_rho_set_type), POINTER           :: rho_set_h, rho_set_s
 
 !   ***************************************************************************
 
@@ -175,7 +164,7 @@ CONTAINS
     END IF
     needs=xc_functionals_get_needs(xc_fun_section,lsd=lsd,&
          add_basic_components=.TRUE., error=error)
-    gradient_f = needs%drho .or. needs%drho_spin
+    gradient_f = needs%drho .OR. needs%drho_spin
 
    nkind = SIZE(atomic_kind_set)
 
@@ -317,11 +306,11 @@ CONTAINS
    CALL mp_sum(energy%exc1,para_env%group)
 
    DEALLOCATE(rho_h,rho_s,weight,vxc_h,vxc_s,STAT=istat)
-   IF (istat /= 0)  CALL stop_memory(routine_name,module_name,__LINE__,&
+   IF (istat /= 0)  CALL stop_memory(routineN,moduleN,__LINE__,&
         "rho_h,rho_s,weight,vxc_h,vxc_s")
    IF (gradient_f) THEN
       DEALLOCATE(drho_h,drho_s,vxg_h,vxg_s,STAT=istat)
-      IF (istat /= 0)   CALL stop_memory(routine_name,module_name,__LINE__,&
+      IF (istat /= 0)   CALL stop_memory(routineN,moduleN,__LINE__,&
            "drho_h,drho_s,oodrho_h,oodrho_s,vxg_h,vxg_s")
    END IF
 
@@ -334,60 +323,52 @@ CONTAINS
 
  SUBROUTINE calculate_xc_2nd_deriv_atom(p_env, qs_env, xc_section, error)
 
-   ! ARGUMENTS
-   TYPE(qs_p_env_type), POINTER        :: p_env
-   TYPE(qs_environment_type), POINTER  :: qs_env
-   TYPE(section_vals_type), pointer :: xc_section
-   TYPE(cp_error_type), INTENT(inout), &
-        OPTIONAL                       :: error
+    TYPE(qs_p_env_type), POINTER             :: p_env
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(section_vals_type), POINTER         :: xc_section
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-   ! LOCALS
-   TYPE(atomic_kind_type), POINTER     :: atom_kind
-   TYPE(atomic_kind_type), DIMENSION(:),&
-        POINTER                        :: atomic_kind_set
-   TYPE(xc_derivative_set_type), &
-        POINTER                        :: deriv_set
-   TYPE(qs_energy_type), POINTER       :: energy
-   TYPE(grid_atom_type), POINTER       :: grid_atom
-   TYPE(harmonics_atom_type), POINTER  :: harmonics
-   TYPE(cp_para_env_type), POINTER     :: para_env
-   TYPE(rho_atom_type), DIMENSION(:), &
-        POINTER                        :: rho_atom_set, rho1_atom_set
-   TYPE(rho_atom_coeff),DIMENSION(:),& 
-        POINTER                        :: r_h, r1_h, r_s, r1_s, dr_h, dr1_h, dr_s, dr1_s
-   TYPE(rho_atom_coeff),DIMENSION(:,:),&
-        POINTER                        :: r_h_d, r1_h_d, r_s_d, r1_s_d
-   TYPE(rho_atom_type),  POINTER       :: rho_atom, rho1_atom
-   TYPE(xc_rho_set_type), POINTER      :: rho_set_h, rho1_set_h
-   TYPE(xc_rho_set_type), POINTER      :: rho_set_s, rho1_set_s
-   INTEGER                             :: i, iso, stat, asize
-   INTEGER                             :: atom, iatom, natom
-   INTEGER                             :: ikind, nkind
-   INTEGER                             :: ispin, nspins
-   INTEGER                             :: ia, na, ir, nr, excitations, res_etype
-   INTEGER, DIMENSION(:), POINTER      :: atom_list
-   INTEGER, DIMENSION(2)               :: local_loop_limit
-   INTEGER, DIMENSION(2,3)             :: bounds
-   LOGICAL                             :: gradient_functional, failure
-   LOGICAL                             :: lsd, paw_atom, lsd_singlets
-   REAL(KIND=dp)                       :: rtot, rad, urad, usin_ia, exc,&
-        density_cut,gradient_cut,tau_cut
-   REAL(KIND=dp), DIMENSION(:,:), &
-        POINTER                        :: weight 
-   REAL(KIND=dp), DIMENSION(:,:), &
-        POINTER                        :: rho_h, rho_s, rho1_h, rho1_s
-   REAL(KIND=dp), DIMENSION(:,:,:,:), &
-        POINTER                        :: drho_h, drho1_h, drho_s, drho1_s
-   REAL(KIND=dp), DIMENSION(:,:,:), &
-        POINTER                        :: vxc_h, vxc_s
-   REAL(KIND=dp), DIMENSION(:,:,:,:), &
-        POINTER                        :: vxg_h, vxg_s
-   TYPE(section_vals_type), pointer :: input, xc_fun_section
-   TYPE(xc_rho_cflags_type) :: needs
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_xc_2nd_deriv_atom', &
+      routineP = moduleN//':'//routineN
 
-   ! PARAMETERS
-   CHARACTER(LEN=*), PARAMETER         :: routineN = "calculate_xc_2nd_deriv_atom", &
-                                          routineP = module_name//"/"//routineN
+    INTEGER                                  :: atom, excitations, ia, iatom, &
+                                                ikind, ir, na, natom, nkind, &
+                                                nr, nspins, res_etype, stat
+    INTEGER, DIMENSION(2)                    :: local_loop_limit
+    INTEGER, DIMENSION(2, 3)                 :: bounds
+    INTEGER, DIMENSION(:), POINTER           :: atom_list
+    LOGICAL                                  :: failure, gradient_functional, &
+                                                lsd, lsd_singlets, paw_atom
+    REAL(KIND=dp)                            :: density_cut, exc, &
+                                                gradient_cut, rtot, tau_cut
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: rho1_h, rho1_s, rho_h, rho_s, &
+                                                weight
+    REAL(KIND=dp), DIMENSION(:, :, :), &
+      POINTER                                :: vxc_h, vxc_s
+    REAL(KIND=dp), DIMENSION(:, :, :, :), &
+      POINTER                                :: drho1_h, drho1_s, drho_h, &
+                                                drho_s, vxg_h, vxg_s
+    TYPE(atomic_kind_type), DIMENSION(:), &
+      POINTER                                :: atomic_kind_set
+    TYPE(atomic_kind_type), POINTER          :: atom_kind
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(grid_atom_type), POINTER            :: grid_atom
+    TYPE(harmonics_atom_type), POINTER       :: harmonics
+    TYPE(qs_energy_type), POINTER            :: energy
+    TYPE(rho_atom_coeff), DIMENSION(:), &
+      POINTER                                :: dr1_h, dr1_s, dr_h, dr_s, &
+                                                r1_h, r1_s, r_h, r_s
+    TYPE(rho_atom_coeff), DIMENSION(:, :), &
+      POINTER                                :: r1_h_d, r1_s_d, r_h_d, r_s_d
+    TYPE(rho_atom_type), DIMENSION(:), &
+      POINTER                                :: rho1_atom_set, rho_atom_set
+    TYPE(rho_atom_type), POINTER             :: rho1_atom, rho_atom
+    TYPE(section_vals_type), POINTER         :: input, xc_fun_section
+    TYPE(xc_derivative_set_type), POINTER    :: deriv_set
+    TYPE(xc_rho_cflags_type)                 :: needs
+    TYPE(xc_rho_set_type), POINTER           :: rho1_set_h, rho1_set_s, &
+                                                rho_set_h, rho_set_s
 
    failure = .FALSE.
    NULLIFY(atomic_kind_set, energy, para_env)
@@ -424,7 +405,7 @@ CONTAINS
     END IF
     needs=xc_functionals_get_needs(xc_fun_section,lsd=lsd,&
          add_basic_components=.TRUE., error=error)
-    gradient_functional = needs%drho .or. needs%drho_spin
+    gradient_functional = needs%drho .OR. needs%drho_spin
 
   IF (excitations==tddfpt_excitations) THEN
       IF (nspins == 1 .AND. (lsd_singlets .OR. &
@@ -607,34 +588,29 @@ CONTAINS
                               ir, r_h, r_s, rho_h, rho_s, &
                               dr_h, dr_s, r_h_d, r_s_d, drho_h, drho_s, error)
 
-   ! ARGUMENTS
-   TYPE(grid_atom_type), POINTER       :: grid_atom
-   TYPE(harmonics_atom_type), POINTER  :: harmonics
-   INTEGER, INTENT(IN)                 :: nspins
-   LOGICAL, INTENT(IN)                 :: grad_func
-   INTEGER, INTENT(IN)                 :: ir
-   TYPE(rho_atom_coeff),DIMENSION(:),& 
-        POINTER                        :: r_h,r_s
-   REAL(KIND=dp), DIMENSION(:,:), &
-        POINTER                        :: rho_h, rho_s
-   TYPE(rho_atom_coeff),DIMENSION(:),&
-        POINTER                        :: dr_h,dr_s
-   TYPE(rho_atom_coeff),DIMENSION(:,:),&
-        POINTER                        :: r_h_d,r_s_d
-   REAL(KIND=dp), DIMENSION(:,:,:,:), &
-        POINTER                        :: drho_h,drho_s
-   TYPE(cp_error_type), INTENT(inout), &
-        OPTIONAL                       :: error
+    TYPE(grid_atom_type), POINTER            :: grid_atom
+    TYPE(harmonics_atom_type), POINTER       :: harmonics
+    INTEGER, INTENT(IN)                      :: nspins
+    LOGICAL, INTENT(IN)                      :: grad_func
+    INTEGER, INTENT(IN)                      :: ir
+    TYPE(rho_atom_coeff), DIMENSION(:), &
+      POINTER                                :: r_h, r_s
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: rho_h, rho_s
+    TYPE(rho_atom_coeff), DIMENSION(:), &
+      POINTER                                :: dr_h, dr_s
+    TYPE(rho_atom_coeff), DIMENSION(:, :), &
+      POINTER                                :: r_h_d, r_s_d
+    REAL(KIND=dp), DIMENSION(:, :, :, :), &
+      POINTER                                :: drho_h, drho_s
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-   ! LOCALS
-   INTEGER                             :: asize, ispin, iso
-   INTEGER                             :: ia, na
-   LOGICAL                             :: failure
-   REAL(KIND=dp)                       :: rad, urad, usin_ia
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'calc_rho_angular', &
+      routineP = moduleN//':'//routineN
 
-   ! PARAMETERS
-   CHARACTER(LEN=*), PARAMETER         :: routineN = "calculate_rho_angular", &
-                                          routineP = module_name//"/"//routineN
+    INTEGER                                  :: ia, iso, ispin, na
+    LOGICAL                                  :: failure
+    REAL(KIND=dp)                            :: rad, urad, usin_ia
 
    failure = .FALSE.
    CPPostcondition(ASSOCIATED(r_h),cp_failure_level,routineP,error,failure)
@@ -737,41 +713,31 @@ CONTAINS
  SUBROUTINE  gaVxcgb_noGC(vxc_h,vxc_s,atom_kind,rho_atom,nspins,error)
 
 
-    TYPE(atomic_kind_type), POINTER       :: atom_kind
-    TYPE(rho_atom_type),  POINTER         :: rho_atom
-
-    REAL(dp), DIMENSION(:,:,:),POINTER    :: vxc_h,vxc_s
-    INTEGER, INTENT(IN)                   :: nspins
+    REAL(dp), DIMENSION(:, :, :), POINTER    :: vxc_h, vxc_s
+    TYPE(atomic_kind_type), POINTER          :: atom_kind
+    TYPE(rho_atom_type), POINTER             :: rho_atom
+    INTEGER, INTENT(IN)                      :: nspins
     TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                                  :: error
+      OPTIONAL                               :: error
 
-    CHARACTER(LEN=*), PARAMETER           :: routine_name = "gaVxcgb_noGC"
+    CHARACTER(LEN=*), PARAMETER              :: routineN = 'gaVxcgb_noGC'
 
-    TYPE(gto_basis_set_type), POINTER     :: orb_basis
-
-    TYPE(grid_atom_type), POINTER         :: grid_atom
-    TYPE(harmonics_atom_type), &
-                           POINTER        :: harmonics
-    TYPE(rho_atom_coeff),  DIMENSION(:), &
-                           POINTER        :: int_hh, int_ss
-
-    REAL(dp), DIMENSION(:), ALLOCATABLE   :: g1,g2
-    REAL(dp), DIMENSION(:,:), ALLOCATABLE :: gg,&
-                                             gVg_h, gVg_s,&
-                                             matso_h, matso_s
-    REAL(dp), DIMENSION(:,:), ALLOCATABLE :: vx
-    REAL(dp), DIMENSION(:,:), POINTER     :: zet
-    REAL(dp), DIMENSION(:,:,:), POINTER   :: my_CG
-    INTEGER, DIMENSION(:), POINTER        :: lmin,lmax,npgf
-
-    INTEGER                               :: ia,ic,icg,&
-                                             ipgf1,ipgf2,ir,iset1,&
-                                             iset2,iso,iso1,iso2,&
-                                             ispin,istat,l,ld,&
-                                             lmin12,lmax12,maxso, maxl, m1,&
-                                             m2,n1,n2,na, ngau1,ngau2,nngau1,nr, nset,&
-                                             size1, max_iso_not0, lmax_expansion
-    LOGICAL :: failure
+    INTEGER :: ia, ic, icg, ipgf1, ipgf2, ir, iset1, iset2, iso, iso1, iso2, &
+      ispin, istat, l, ld, lmax12, lmax_expansion, lmin12, m1, m2, &
+      max_iso_not0, maxl, maxso, n1, n2, na, ngau1, ngau2, nngau1, nr, nset, &
+      size1
+    INTEGER, DIMENSION(:), POINTER           :: lmax, lmin, npgf
+    LOGICAL                                  :: failure
+    REAL(dp), ALLOCATABLE, DIMENSION(:)      :: g1, g2
+    REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: gg, gVg_h, gVg_s, matso_h, &
+                                                matso_s, vx
+    REAL(dp), DIMENSION(:, :), POINTER       :: zet
+    REAL(dp), DIMENSION(:, :, :), POINTER    :: my_CG
+    TYPE(grid_atom_type), POINTER            :: grid_atom
+    TYPE(gto_basis_set_type), POINTER        :: orb_basis
+    TYPE(harmonics_atom_type), POINTER       :: harmonics
+    TYPE(rho_atom_coeff), DIMENSION(:), &
+      POINTER                                :: int_hh, int_ss
 
 ! -----------------------------------------------------------------------------
 
@@ -794,20 +760,20 @@ CONTAINS
 
 
     ALLOCATE(g1(nr),g2(nr),gg(nr,0:2*maxl),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                     "g1,g2,gg",(2*nr+2*maxl*nr)*dp_size)
 
     ALLOCATE(gVg_h(na,0:2*maxl),gVg_s(na,0:2*maxl),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                         "gVg_h,gVg_s",4*na*maxl*dp_size)
 
     ALLOCATE(matso_h(nsoset(maxl),nsoset(maxl)),&
              matso_s(nsoset(maxl),nsoset(maxl)),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                   "matso_h,matso_s",2*nsoset(maxl)*nsoset(maxl)*dp_size)
 
     ALLOCATE(vx(na,nr), STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                                      "vx",na*nr*dp_size)
 
     NULLIFY(int_hh,int_ss)
@@ -837,7 +803,7 @@ CONTAINS
             lmax12 = lmax(iset1)+lmax(iset2)
 
 !test reduce expansion local densities
-       IF(lmin12 .le. lmax_expansion) THEN
+       IF(lmin12 .LE. lmax_expansion) THEN
 
             gg = 0.0_dp
             IF (lmin12 == 0) THEN
@@ -847,7 +813,7 @@ CONTAINS
             END IF
 
 !test reduce expansion local densities
-            IF(lmax12 .gt. lmax_expansion) lmax12 = lmax_expansion
+            IF(lmax12 .GT. lmax_expansion) lmax12 = lmax_expansion
 
 
             DO l=lmin12+1,lmax12
@@ -876,7 +842,7 @@ CONTAINS
                   l = indso(1,iso1) + indso(1,iso2)
 
 !test reduce expansion local densities
-                    CPPrecondition(l<=lmax_expansion,cp_failure_level,routine_name,error,failure)
+                    CPPrecondition(l<=lmax_expansion,cp_failure_level,routineN,error,failure)
                IF(.NOT. failure) THEN
 
                   DO ia = 1,na
@@ -917,7 +883,7 @@ CONTAINS
     END DO  ! iset1
 
    DEALLOCATE(g1,g2,gg,matso_h,matso_s,gVg_s,gVg_h,vx,STAT=istat)
-   IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+   IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                        "g1,g2,gg,matso_h,matso_s,gVg_s,gVg_h")
  END SUBROUTINE gaVxcgb_noGC
 
@@ -927,47 +893,36 @@ CONTAINS
                         drho_s,nspins,error)
 
 
-    TYPE(atomic_kind_type), POINTER       :: atom_kind
-    TYPE(rho_atom_type),  POINTER         :: rho_atom
-
-    REAL(dp), DIMENSION(:,:,:),POINTER    :: vxc_h,vxc_s
-    REAL(dp), DIMENSION(:,:,:,:),POINTER  :: vxg_h,vxg_s
-    REAL(dp), DIMENSION(:,:,:,:), &
-                                POINTER   :: drho_h,drho_s
-    INTEGER, INTENT(IN)                   :: nspins
+    REAL(dp), DIMENSION(:, :, :), POINTER    :: vxc_h, vxc_s
+    REAL(dp), DIMENSION(:, :, :, :), POINTER :: vxg_h, vxg_s
+    TYPE(atomic_kind_type), POINTER          :: atom_kind
+    TYPE(rho_atom_type), POINTER             :: rho_atom
+    REAL(dp), DIMENSION(:, :, :, :), POINTER :: drho_h, drho_s
+    INTEGER, INTENT(IN)                      :: nspins
     TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                                  :: error
+      OPTIONAL                               :: error
 
-    CHARACTER(LEN=*), PARAMETER           :: routine_name = "gaVxcgb_GC"
+    CHARACTER(LEN=*), PARAMETER              :: routineN = 'gaVxcgb_GC'
 
-    TYPE(gto_basis_set_type), POINTER     :: orb_basis
-
-    TYPE(grid_atom_type), POINTER         :: grid_atom
-    TYPE(harmonics_atom_type),&
-                           POINTER        :: harmonics
-    TYPE(rho_atom_coeff),  DIMENSION(:), &
-                           POINTER        :: int_hh, int_ss
-    REAL(dp)                              :: rad,urad,usin_ia
-    REAL(dp), DIMENSION(:), ALLOCATABLE   :: g1,g2
-    REAL(dp), DIMENSION(:,:), ALLOCATABLE :: gg,dgg,&
-                                             gVXCg_h, gVXCg_s,&
-                                             matso_h, matso_s
-
-    REAL(dp), DIMENSION(:,:), POINTER     :: zet
-    REAL(dp), DIMENSION(:,:,:), POINTER   :: my_CG
-    REAL(dp), DIMENSION(:,:,:,:), POINTER   :: my_CG_dxyz
-
-    REAL(dp), DIMENSION(:,:,:), ALLOCATABLE :: gVXGg_h, gVXGg_s
-    INTEGER, DIMENSION(:), POINTER        :: lmin,lmax,npgf
-
-    INTEGER                               :: ia,ic,icg,&
-                                             ipgf1,ipgf2,ir,iset1,&
-                                             iset2,iso,iso1,iso2,&
-                                             ispin,istat,l,&
-                                             lmin12,lmax12,maxso, maxl, m1,&
-                                             m2,n1,n2,na, ngau1, ngau2, nngau1, nr, nset,&
-                                             size1,max_iso_not0,lmax_expansion
-    LOGICAL :: failure
+    INTEGER :: ia, ic, icg, ipgf1, ipgf2, ir, iset1, iset2, iso, iso1, iso2, &
+      ispin, istat, l, lmax12, lmax_expansion, lmin12, m1, m2, max_iso_not0, &
+      maxl, maxso, n1, n2, na, ngau1, ngau2, nngau1, nr, nset, size1
+    INTEGER, DIMENSION(:), POINTER           :: lmax, lmin, npgf
+    LOGICAL                                  :: failure
+    REAL(dp)                                 :: rad, urad
+    REAL(dp), ALLOCATABLE, DIMENSION(:)      :: g1, g2
+    REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: dgg, gg, gVXCg_h, gVXCg_s, &
+                                                matso_h, matso_s
+    REAL(dp), ALLOCATABLE, &
+      DIMENSION(:, :, :)                     :: gVXGg_h, gVXGg_s
+    REAL(dp), DIMENSION(:, :), POINTER       :: zet
+    REAL(dp), DIMENSION(:, :, :), POINTER    :: my_CG
+    REAL(dp), DIMENSION(:, :, :, :), POINTER :: my_CG_dxyz
+    TYPE(grid_atom_type), POINTER            :: grid_atom
+    TYPE(gto_basis_set_type), POINTER        :: orb_basis
+    TYPE(harmonics_atom_type), POINTER       :: harmonics
+    TYPE(rho_atom_coeff), DIMENSION(:), &
+      POINTER                                :: int_hh, int_ss
 
 ! -----------------------------------------------------------------------------
 
@@ -990,21 +945,21 @@ CONTAINS
     lmax_expansion = indso(1,max_iso_not0)
 
     ALLOCATE(g1(nr),g2(nr),gg(nr,0:2*maxl),dgg(nr,0:2*maxl),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "g1,g2,gg,dgg",(2*nr+4*nr*maxl)*dp_size)
 
     ALLOCATE(gVXCg_h(na,0:2*maxl),gVXCg_s(na,0:2*maxl),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "gVXCg_h,gVXCg_s",4*na*maxl*dp_size)
     ALLOCATE(gVXGg_h(3,na,0:2*maxl),gVXGg_s(3,na,0:2*maxl),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "gVXCg_h,gVXCg_s",12*na*maxl*dp_size)
 
     NULLIFY(int_hh,int_ss)
 
     ALLOCATE(matso_h(nsoset(maxl),nsoset(maxl)),&
              matso_s(nsoset(maxl),nsoset(maxl)),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                        "matso_h,matso_s",2*nsoset(maxl)*nsoset(maxl)*dp_size)
 
     CALL get_rho_atom(rho_atom=rho_atom, ga_Vlocal_gb_h=int_hh,ga_Vlocal_gb_s=int_ss)
@@ -1035,7 +990,7 @@ CONTAINS
             lmax12 = lmax(iset1)+lmax(iset2)
 
 !test reduce expansion local densities
-       IF(lmin12 .le. lmax_expansion) THEN
+       IF(lmin12 .LE. lmax_expansion) THEN
 
             gg = 0.0_dp
             dgg = 0.0_dp
@@ -1048,7 +1003,7 @@ CONTAINS
             END IF
 
 !test reduce expansion local densities
-            IF(lmax12 .gt. lmax_expansion) lmax12 = lmax_expansion
+            IF(lmax12 .GT. lmax_expansion) lmax12 = lmax_expansion
 
             DO l=lmin12+1,lmax12
               gg(1:nr,l) = grid_atom%rad(1:nr)*gg(:,l-1)
@@ -1123,7 +1078,7 @@ CONTAINS
                   l = indso(1,iso1) + indso(1,iso2)
 
 !test reduce expansion local densities
-                    CPPrecondition(l<=lmax_expansion,cp_failure_level,routine_name,error,failure)
+                    CPPrecondition(l<=lmax_expansion,cp_failure_level,routineN,error,failure)
                IF(.NOT. failure) THEN
 
                   DO ia = 1,na
@@ -1146,7 +1101,7 @@ CONTAINS
                   iso2 = harmonics%ind_cg_b_dxyz(icg,iso,iset1,iset2)
                   l = indso(1,iso1) + indso(1,iso2)
 !test reduce expansion local densities
-                    CPPrecondition(l<=lmax_expansion,cp_failure_level,routine_name,error,failure)
+                    CPPrecondition(l<=lmax_expansion,cp_failure_level,routineN,error,failure)
                IF(.NOT. failure) THEN
 
                   DO ia = 1,na
@@ -1192,7 +1147,7 @@ CONTAINS
     END DO ! ispin
 
     DEALLOCATE(g1,g2,gg,dgg,matso_h,matso_s,gVXCg_h,gVXCg_s,gVXGg_h,gVXGg_s,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                      "g1,g2,gg,matso_h,matso_s,gVXCg_s,gVXCg_h,gVXGg_h,gVXGg_s")
 
   END SUBROUTINE gaVxcgb_GC

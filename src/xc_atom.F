@@ -16,49 +16,33 @@
 !****************************************************************************
 MODULE xc_atom 
 
-  USE input_constants,                 ONLY: tddfpt_triplet
   USE cp_linked_list_xc_deriv,         ONLY: cp_sll_xc_deriv_next,&
                                              cp_sll_xc_deriv_type
-  USE cp_para_types,                   ONLY: cp_para_env_type
+  USE input_section_types,             ONLY: section_vals_get_subs_vals,&
+                                             section_vals_type
   USE kinds,                           ONLY: dp
-  USE machine,                         ONLY: m_flush
-  USE memory_utilities,                ONLY: reallocate
-  USE pw_types,                        ONLY: COMPLEXDATA1D,&
-                                             REALDATA3D,&
-                                             REALSPACE,&
-                                             RECIPROCALSPACE,&
-                                             pw_copy,&
-                                             pw_create,&
-                                             pw_derive,&
-                                             pw_derive_fd,&
-                                             pw_p_type,&
-                                             pw_release,&
-                                             pw_sumup,&
-                                             pw_transfer,&
-                                             pw_type,&
-                                             pw_zero
   USE pw_pool_types,                   ONLY: pw_pool_type
+  USE pw_types,                        ONLY: pw_p_type
   USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE xc,                              ONLY: divide_by_norm_drho,&
                                              xc_calc_2nd_deriv
-  USE xc_derivative_desc,              ONLY: MAX_DERIVATIVE_DESC_LENGTH
-  USE xc_derivative_set_types,         ONLY: xc_dset_get_derivative,&
-                                             xc_derivative_set_type
+  USE xc_derivative_set_types,         ONLY: xc_derivative_set_type,&
+                                             xc_dset_get_derivative
   USE xc_derivative_types,             ONLY: xc_derivative_get,&
                                              xc_derivative_type
   USE xc_derivatives,                  ONLY: xc_functionals_eval
   USE xc_rho_cflags_types,             ONLY: xc_rho_cflags_type
   USE xc_rho_set_types,                ONLY: xc_rho_set_get,&
                                              xc_rho_set_type
-  USE input_section_types, ONLY: section_vals_type, section_vals_get_subs_vals
 #include "cp_common_uses.h"
+
  IMPLICIT NONE
 
   PRIVATE
 
-  CHARACTER(LEN=*), PRIVATE, PARAMETER :: module_name='xc_atom'
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'xc_atom'
 
   PUBLIC :: vxc_of_r_new, xc_rho_set_atom_update, xc_2nd_deriv_of_r, fill_rho_set
 
@@ -81,33 +65,34 @@ CONTAINS
 ! Afterwords the arrays containing the derivatives are put to zero so that the routine
 ! can safely be called for the next radial point ir_pnt
 
-    TYPE(section_vals_type), POINTER              :: xc_fun_section
-    TYPE(xc_rho_set_type), POINTER                :: rho_set
-    TYPE(xc_derivative_set_type), POINTER         :: deriv_set
-    INTEGER, INTENT(in)                           :: deriv_order
-    TYPE(xc_rho_cflags_type), INTENT(in)          :: needs
-    REAL(dp), DIMENSION(:,:),  POINTER            :: w 
-    LOGICAL, INTENT(IN)                           :: lsd
-    INTEGER, INTENT(IN)                           :: na, nr
-    REAL(dp)                                      :: exc
-    REAL(dp), DIMENSION(:,:,:), POINTER           :: vxc
-    REAL(dp), DIMENSION(:,:,:,:), POINTER         :: vxg
-    LOGICAL, INTENT(IN), OPTIONAL                 :: energy_only
+    TYPE(section_vals_type), POINTER         :: xc_fun_section
+    TYPE(xc_rho_set_type), POINTER           :: rho_set
+    TYPE(xc_derivative_set_type), POINTER    :: deriv_set
+    INTEGER, INTENT(in)                      :: deriv_order
+    TYPE(xc_rho_cflags_type), INTENT(in)     :: needs
+    REAL(dp), DIMENSION(:, :), POINTER       :: w
+    LOGICAL, INTENT(IN)                      :: lsd
+    INTEGER, INTENT(in)                      :: na, nr
+    REAL(dp)                                 :: exc
+    REAL(dp), DIMENSION(:, :, :), POINTER    :: vxc
+    REAL(dp), DIMENSION(:, :, :, :), POINTER :: vxg
+    LOGICAL, INTENT(IN), OPTIONAL            :: energy_only
     TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                                    :: error
+      OPTIONAL                               :: error
 
-    CHARACTER(LEN=*), PARAMETER                   :: routine_name = "vxc_of_r_new",&
-                                                     routineP = module_name//':'//routine_name
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'vxc_of_r_new', &
+      routineP = moduleN//':'//routineN
 
-    TYPE(xc_derivative_type), POINTER             :: deriv_att
-    REAL(KIND=dp)                                 :: drho_cutoff
-    REAL(dp), DIMENSION(:,:,:), POINTER           :: deriv_data
-    INTEGER                                       :: handle, i, ia, ir, idir
-    LOGICAL                                       :: failure, gradient_f, my_only_energy
+    INTEGER                                  :: handle, i, ia, idir, ir
+    LOGICAL                                  :: failure, gradient_f, &
+                                                my_only_energy
+    REAL(dp), DIMENSION(:, :, :), POINTER    :: deriv_data
+    REAL(KIND=dp)                            :: drho_cutoff
+    TYPE(xc_derivative_type), POINTER        :: deriv_att
 
 !   ***************************************************************************
 
-    CALL timeset(routine_name,"I"," ",handle)
+    CALL timeset(routineN,"I"," ",handle)
     failure = .FALSE.
     my_only_energy = .FALSE.
     IF(PRESENT(energy_only)) my_only_energy=energy_only
@@ -264,42 +249,38 @@ CONTAINS
 ! Afterwords the arrays containing the derivatives are put to zero so that the routine
 ! can safely be called for the next radial point ir
 
-    ! ARGUMENTS
-    TYPE(xc_rho_set_type), POINTER                :: rho_set
-    TYPE(xc_rho_set_type), POINTER                :: rho1_set
-    TYPE(section_vals_type), pointer              :: xc_section
-    TYPE(xc_derivative_set_type), POINTER         :: deriv_set
-    TYPE(xc_rho_cflags_type), INTENT(in)          :: needs
-    REAL(dp), DIMENSION(:,:),  POINTER            :: w 
-    REAL(dp)                                      :: exc
-    REAL(dp), DIMENSION(:,:,:), POINTER           :: vxc
-    REAL(dp), DIMENSION(:,:,:,:), POINTER         :: vxg
-
+    TYPE(xc_rho_set_type), POINTER           :: rho_set, rho1_set
+    TYPE(section_vals_type), POINTER         :: xc_section
+    TYPE(xc_derivative_set_type), POINTER    :: deriv_set
+    TYPE(xc_rho_cflags_type), INTENT(in)     :: needs
+    REAL(dp), DIMENSION(:, :), POINTER       :: w
+    REAL(dp)                                 :: exc
+    REAL(dp), DIMENSION(:, :, :), POINTER    :: vxc
+    REAL(dp), DIMENSION(:, :, :, :), POINTER :: vxg
     TYPE(cp_error_type), INTENT(inout), &
-         OPTIONAL                                 :: error
+      OPTIONAL                               :: error
 
-    CHARACTER(LEN=*), PARAMETER                   :: routine_name = "xc_2nd_deriv_of_r",&
-                                                     routineP = module_name//':'//routine_name
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'xc_2nd_deriv_of_r', &
+      routineP = moduleN//':'//routineN
 
-    TYPE(cp_sll_xc_deriv_type), POINTER           :: pos
-    TYPE(pw_p_type), DIMENSION(:), POINTER        :: vxc_pw
-    TYPE(pw_pool_type), POINTER                   :: pw_pool
-    TYPE(xc_derivative_type), POINTER             :: deriv_att
-    REAL(dp)                                      :: drho_cutoff
-    REAL(dp), DIMENSION(:,:,:), POINTER           :: deriv_data
-    INTEGER                                       :: handle, i, ispin, nspins,&
-         stat, ifun
-    LOGICAL                                       :: failure, lsd
-    TYPE(section_vals_type), pointer :: xc_fun_section
+    INTEGER                                  :: handle, i, ispin, nspins, stat
+    LOGICAL                                  :: failure, lsd
+    REAL(dp)                                 :: drho_cutoff
+    REAL(dp), DIMENSION(:, :, :), POINTER    :: deriv_data
+    TYPE(cp_sll_xc_deriv_type), POINTER      :: pos
+    TYPE(pw_p_type), DIMENSION(:), POINTER   :: vxc_pw
+    TYPE(pw_pool_type), POINTER              :: pw_pool
+    TYPE(section_vals_type), POINTER         :: xc_fun_section
+    TYPE(xc_derivative_type), POINTER        :: deriv_att
 
-    !   ***************************************************************************
+!   ***************************************************************************
 
-    CALL timeset(routine_name,"I"," ",handle)
+    CALL timeset(routineN,"I"," ",handle)
     failure = .FALSE.
     
     nspins = SIZE(vxc,3)
     lsd = (nspins==2)
-    IF (associated(rho_set%rhoa)) THEN
+    IF (ASSOCIATED(rho_set%rhoa)) THEN
        lsd = .TRUE.
     END IF
     CALL xc_rho_set_get(rho_set, drho_cutoff=drho_cutoff, error=error)
@@ -362,15 +343,16 @@ CONTAINS
 !   Within the same kind, at each new point on the radial grid, the rho_set
 !   arrays rho and drho are overwritten.
 
-    TYPE(xc_rho_set_type), POINTER      :: rho_set
-    TYPE(xc_rho_cflags_type)            :: needs
-    INTEGER, INTENT(IN)                 :: nspins
-    INTEGER, DIMENSION(2,3), INTENT(IN) :: bo
+    TYPE(xc_rho_set_type), POINTER           :: rho_set
+    TYPE(xc_rho_cflags_type)                 :: needs
+    INTEGER, INTENT(IN)                      :: nspins
+    INTEGER, DIMENSION(2, 3), INTENT(IN)     :: bo
 
-    CHARACTER(LEN=*), PARAMETER                   :: routine_name = "xc_rho_set_atom_update",&
-                                         routineP = module_name//':'//routine_name
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'xc_rho_set_atom_update', &
+      routineP = moduleN//':'//routineN
 
-    INTEGER :: idir
+    INTEGER                                  :: idir
+
 !   ---------------------------------------------------------------------------
 
     SELECT CASE(nspins)
@@ -483,7 +465,7 @@ CONTAINS
 
     ! tau part
     IF (needs%tau.OR.needs%tau_spin) THEN
-       CALL stop_program(routine_name,module_name,__LINE__,&
+       CALL stop_program(routineN,moduleN,__LINE__,&
                         "GAPW + metafunctionals not implemented yet")
     END IF
     IF (needs%tau) THEN
@@ -506,28 +488,24 @@ CONTAINS
 
   SUBROUTINE fill_rho_set(rho_set,lsd,nspins,needs,rho,drho,na,ir,error)
 
-    ! ARGUMENTS
-    TYPE(xc_rho_set_type), POINTER                :: rho_set
-    LOGICAL, INTENT(IN)                           :: lsd
-    INTEGER, INTENT(IN)                           :: nspins
-    TYPE(xc_rho_cflags_type), INTENT(in)          :: needs
-    REAL(dp), DIMENSION(:,:),  POINTER            :: rho 
-    REAL(dp), DIMENSION(:,:,:,:),  POINTER        :: drho 
-    INTEGER, INTENT(IN)                           :: na, ir
+    TYPE(xc_rho_set_type), POINTER           :: rho_set
+    LOGICAL, INTENT(IN)                      :: lsd
+    INTEGER, INTENT(IN)                      :: nspins
+    TYPE(xc_rho_cflags_type), INTENT(in)     :: needs
+    REAL(dp), DIMENSION(:, :), POINTER       :: rho
+    REAL(dp), DIMENSION(:, :, :, :), POINTER :: drho
+    INTEGER, INTENT(IN)                      :: na, ir
     TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                                    :: error
+      OPTIONAL                               :: error
 
-    ! LOCALS
-    INTEGER                                       :: ia, idir, my_nspins
-    LOGICAL                                       :: failure
-    LOGICAL                                       :: gradient_f, tddft_split
-    REAL(dp), DIMENSION(:,:,:), POINTER           :: tau
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'fill_rho_set', &
+      routineP = moduleN//':'//routineN
+    REAL(KIND=dp), PARAMETER                 :: f13 = (1.0_dp/3.0_dp)
 
-    ! PARAMETERS
-    REAL(KIND=dp), PARAMETER                      :: f13 = (1.0_dp/3.0_dp)
-    CHARACTER(LEN=*), PARAMETER                   :: routine_name = "fill_rho_set",&
-                                                     routineP = module_name//':'//routine_name
-        
+    INTEGER                                  :: ia, idir, my_nspins
+    LOGICAL                                  :: failure, gradient_f, &
+                                                tddft_split
+    REAL(dp), DIMENSION(:, :, :), POINTER    :: tau
 
     NULLIFY(tau)
     failure = .FALSE.
@@ -757,7 +735,7 @@ CONTAINS
 
     ! tau part
     IF (needs%tau.OR.needs%tau_spin) THEN
-       CALL stop_program(routine_name,module_name,__LINE__,&
+       CALL stop_program(routineN,moduleN,__LINE__,&
             "GAPW + metafunctionals not implemented yet")
        CPPrecondition(ASSOCIATED(tau),cp_failure_level,routineP,error,failure)
        CPPrecondition(SIZE(tau,2)==my_nspins,cp_failure_level,routineP,error,failure)

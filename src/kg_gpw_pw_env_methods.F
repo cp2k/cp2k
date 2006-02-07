@@ -31,27 +31,30 @@ MODULE kg_gpw_pw_env_methods
                                              get_atomic_kind
   USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                              gto_basis_set_type
+  USE cell_types,                      ONLY: cell_create,&
+                                             cell_release,&
+                                             cell_type,&
+                                             init_cell,&
+                                             pbc
   USE coefficient_types,               ONLY: coeff_deallocate
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_rs_pool_types,                ONLY: cp_rs_pool_p_type,&
                                              rs_pool_create,&
                                              rs_pools_dealloc
-  USE cube_utils,                      ONLY: destroy_cube_info,&
-                                             init_cube_info,&
-                                             cube_info_type
+  USE cube_utils,                      ONLY: cube_info_type,&
+                                             destroy_cube_info,&
+                                             init_cube_info
   USE fft_tools,                       ONLY: FFT_RADIX_NEXT,&
                                              FFT_RADIX_NEXT_ODD,&
                                              fft_radix_operations
   USE gaussian_gridlevels,             ONLY: destroy_gaussian_gridlevel,&
-                                             gaussian_gridlevel,&
                                              init_gaussian_gridlevel
-  USE kg_environment_types,            ONLY: get_kg_env,&
-                                             kg_environment_type
+  USE input_section_types,             ONLY: section_vals_type
   USE kg_gpw_collocate_den,            ONLY: calculate_rho_mol
-  USE kg_gpw_fm_mol_types,             ONLY: get_fm_mol_block,&
+  USE kg_gpw_fm_mol_types,             ONLY: fm_mol_blocks_type,&
+                                             get_fm_mol_block,&
                                              get_kg_fm_mol_set,&
-                                             fm_mol_blocks_type,&
                                              kg_fm_mol_set_type
   USE kg_gpw_pw_env_types,             ONLY: get_molbox_env,&
                                              get_rho_mol_block,&
@@ -61,28 +64,29 @@ MODULE kg_gpw_pw_env_methods
                                              rho_mol_blocks_type,&
                                              set_molbox_env,&
                                              set_rho_mol_block
-  USE kinds,                           ONLY: dp, dp_size, int_size
+  USE kinds,                           ONLY: dp
   USE l_utils,                         ONLY: init_l_info,&
-                                             l_info_retain,&
                                              l_info_release,&
                                              l_info_type
-  USE message_passing,                 ONLY: mp_max,&
-                                             mp_sum,&
-                                             MPI_COMM_SELF
+  USE message_passing,                 ONLY: MPI_COMM_SELF,&
+                                             mp_max
   USE particle_types,                  ONLY: particle_type
   USE pw_env_methods,                  ONLY: pw_env_create
-  USE pw_env_types,                    ONLY: pw_env_get, &
+  USE pw_env_types,                    ONLY: pw_env_get,&
                                              pw_env_release,&
-                                             pw_env_retain,&
                                              pw_env_type
   USE pw_grid_types,                   ONLY: FULLSPACE,&
                                              HALFSPACE,&
                                              PW_MODE_DISTRIBUTED,&
                                              PW_MODE_LOCAL,&
                                              pw_grid_type
-  USE pw_grids,                        ONLY: create_gvectors,& 
+  USE pw_grids,                        ONLY: create_gvectors,&
                                              pw_grid_create,&
                                              pw_grid_release
+  USE pw_poisson_methods,              ONLY: pw_poisson_set
+  USE pw_poisson_types,                ONLY: pw_poisson_create,&
+                                             pw_poisson_release,&
+                                             pw_poisson_type
   USE pw_pool_types,                   ONLY: pw_pool_create,&
                                              pw_pool_init_coeff,&
                                              pw_pool_p_type,&
@@ -95,30 +99,19 @@ MODULE kg_gpw_pw_env_methods
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
   USE qs_rho_types,                    ONLY: qs_rho_release,&
-                                             qs_rho_retain,&
                                              qs_rho_type
-  USE cell_types,                 ONLY: cell_release,&
-                                             cell_retain,&
-                                             cell_type,&
-                                             cell_create,&
-                                             init_cell,&
-                                             pbc,&
-                                             get_cell
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE input_section_types,             ONLY: section_vals_type,&
-                                             section_vals_get_subs_vals
-  USE pw_poisson_types, ONLY: pw_poisson_type, pw_poisson_create, pw_poisson_release
-  USE pw_poisson_methods, only: pw_poisson_set
 #include "cp_common_uses.h"
+
   IMPLICIT NONE
 
   PRIVATE
 
   INTEGER :: grid_tag = 0
-  CHARACTER(LEN=*), PARAMETER :: module_name = "kg_gpw_pw_env_methods"
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'kg_gpw_pw_env_methods'
   INTEGER, PRIVATE, SAVE :: last_rho_id_nr=0
 
 ! *** Public subroutines ***
@@ -156,42 +149,43 @@ CONTAINS
  
   SUBROUTINE build_molbox_env(molbox_env,fm_mol,qs_env,poisson_section,error)
 
-    TYPE(kg_molbox_env_type) , TARGET          :: molbox_env
-    TYPE(kg_fm_mol_set_type), POINTER          :: fm_mol
-    TYPE(qs_environment_type), POINTER         :: qs_env
+    TYPE(kg_molbox_env_type), TARGET         :: molbox_env
+    TYPE(kg_fm_mol_set_type), POINTER        :: fm_mol
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(section_vals_type), OPTIONAL, &
+      POINTER                                :: poisson_section
     TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                                 :: error
-    TYPE(section_vals_type), POINTER, OPTIONAL :: poisson_section
+      OPTIONAL                               :: error
 
+    CHARACTER(len=*), PARAMETER :: routineN = 'build_molbox_env', &
+      routineP = moduleN//':'//routineN
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'build_molbox_env',&
-      routineP = module_name//':'//routineN
-
-    INTEGER :: handle, i, iat, iatom, imol, istat, jat, jatom, nat_mol, &
-               ngrid_level, nmol_local, num_pe, output_unit
+    INTEGER                                  :: handle, i, iat, iatom, imol, &
+                                                jat, jatom, nat_mol, &
+                                                ngrid_level, nmol_local, &
+                                                num_pe, output_unit
     INTEGER, DIMENSION(:), POINTER           :: index_atom
-    LOGICAL :: ionode, failure
-    REAL(dp) :: length, Li, ra(3), rab, rab_pbc(3), rab_max, rad_at, rad_max, rb(3), side(3)
+    LOGICAL                                  :: failure, ionode
+    REAL(dp)                                 :: length, Li, ra(3), rab, &
+                                                rab_max, rab_pbc(3), rad_at, &
+                                                rad_max, rb(3), side(3)
     REAL(KIND=dp), DIMENSION(:), POINTER     :: cutoff
-
     TYPE(atomic_kind_type), POINTER          :: atom_kind
-    TYPE(cell_type), POINTER                 :: cell, cell_ref, cell_mol
+    TYPE(cell_type), POINTER                 :: cell, cell_mol, cell_ref
     TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
-    TYPE(gto_basis_set_type), POINTER        :: basis_set
- 
-    TYPE(fm_mol_blocks_type), DIMENSION(:),&
+    TYPE(fm_mol_blocks_type), DIMENSION(:), &
       POINTER                                :: fm_mol_blocks
     TYPE(fm_mol_blocks_type), POINTER        :: fm_mol_iblock
-   TYPE(kg_molbox_env_type), POINTER          :: molbox_env_p
-    TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(gto_basis_set_type), POINTER        :: basis_set
+    TYPE(kg_molbox_env_type), POINTER        :: molbox_env_p
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
-    TYPE(pw_env_type), POINTER               :: pw_env,new_pw_mol
-    TYPE(rho_mol_blocks_type), DIMENSION(:),&
-      POINTER                                :: rho_mol_blocks
-    REAL(KIND=dp), DIMENSION(3)              :: abc
-    TYPE(pw_poisson_type), pointer :: poisson_env
+    TYPE(pw_env_type), POINTER               :: new_pw_mol, pw_env
+    TYPE(pw_poisson_type), POINTER           :: poisson_env
+    TYPE(rho_mol_blocks_type), &
+      DIMENSION(:), POINTER                  :: rho_mol_blocks
 
     CALL timeset(routineN,"I","",handle)
 
@@ -371,37 +365,38 @@ CONTAINS
   SUBROUTINE pw_env_mol_rebuild(pw_mol,cell_mol,pw_global,dft_control,side,num_pe,&
        force_env_section, error)
 
-    TYPE(pw_env_type), POINTER                 :: pw_global,pw_mol
-    TYPE(cell_type), POINTER                   :: cell_mol
-    TYPE(dft_control_type), POINTER            :: dft_control
-    REAL(dp), INTENT(INOUT)                    :: side(3)
-    INTEGER, INTENT(IN)                        :: num_pe
+    TYPE(pw_env_type), POINTER               :: pw_mol
+    TYPE(cell_type), POINTER                 :: cell_mol
+    TYPE(pw_env_type), POINTER               :: pw_global
+    TYPE(dft_control_type), POINTER          :: dft_control
+    REAL(dp), INTENT(INOUT)                  :: side(3)
+    INTEGER, INTENT(IN)                      :: num_pe
+    TYPE(section_vals_type), POINTER         :: force_env_section
     TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                                 :: error
-    TYPE(section_vals_type), POINTER :: force_env_section
+      OPTIONAL                               :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'pw_env_mol_rebuild',&
-      routineP = module_name//':'//routineN
+    CHARACTER(len=*), PARAMETER :: routineN = 'pw_env_mol_rebuild', &
+      routineP = moduleN//':'//routineN
 
     INTEGER :: auxbas_grid, cmax, cmaxl, i, igrid_level, istat, maxlgto, &
-               my_icommensurate, my_ncommensurate, ncommensurate, &
-               ngrid_level,  nlowest, nlowest_new, npts_out(3), npts_tmp(3), nsmax
-    LOGICAL :: blocking, failure, fft, symmetry
-    REAL(dp) :: cutilev, dr_g(3), drmin, ecut, hmat(3,3), maxradius, rel_cutoff
-    REAL(dp), DIMENSION(:), POINTER            :: cutoff
-
+      my_icommensurate, my_ncommensurate, ncommensurate, ngrid_level, &
+      nlowest, nlowest_new, npts_out(3), npts_tmp(3), nsmax
+    LOGICAL                                  :: blocking, failure, fft, &
+                                                symmetry
+    REAL(dp)                                 :: cutilev, dr_g(3), drmin, &
+                                                ecut, hmat(3,3), maxradius, &
+                                                rel_cutoff
+    REAL(dp), DIMENSION(:), POINTER          :: cutoff
     TYPE(cp_rs_pool_p_type), DIMENSION(:), &
-      POINTER                                  :: rs_pools_mol
+      POINTER                                :: rs_pools_mol
     TYPE(cube_info_type), DIMENSION(:), &
-       POINTER                                 :: cube_info_g
-    TYPE(l_info_type), POINTER                 :: l_info_g
-    TYPE(pw_grid_type), POINTER                :: pw_grid_g
-    TYPE(pw_grid_type), POINTER                :: pw_grid_mol
-    TYPE(pw_grid_type), POINTER                :: ref_pw_grid_mol
+      POINTER                                :: cube_info_g
+    TYPE(l_info_type), POINTER               :: l_info_g
+    TYPE(pw_grid_type), POINTER              :: pw_grid_g, pw_grid_mol, &
+                                                ref_pw_grid_mol
     TYPE(pw_pool_p_type), DIMENSION(:), &
-      POINTER                                  :: pw_pools_mol
-    TYPE(pw_pool_type), POINTER                :: pw_pool_g
-
+      POINTER                                :: pw_pools_mol
+    TYPE(pw_pool_type), POINTER              :: pw_pool_g
 
     failure = .FALSE.
 
@@ -885,35 +880,37 @@ CONTAINS
 
   SUBROUTINE update_rho_mol_blocks(kg_sub_pw_env,particle_set,cell,nspins,use_tau,error)
 
-    TYPE(kg_sub_pw_env_type), POINTER            :: kg_sub_pw_env
-    INTEGER, INTENT(IN)                          :: nspins
+    TYPE(kg_sub_pw_env_type), POINTER        :: kg_sub_pw_env
     TYPE(particle_type), DIMENSION(:), &
-      POINTER                                    :: particle_set
-        TYPE(cell_type), POINTER                 :: cell
-    LOGICAL, INTENT(IN)                          :: use_tau
+      POINTER                                :: particle_set
+    TYPE(cell_type), POINTER                 :: cell
+    INTEGER, INTENT(IN)                      :: nspins
+    LOGICAL, INTENT(IN)                      :: use_tau
     TYPE(cp_error_type), INTENT(inout), &
-       OPTIONAL                                  :: error
+      OPTIONAL                               :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'update_rho_mol_blocks',&
-      routineP = module_name//':'//routineN
+    CHARACTER(len=*), PARAMETER :: routineN = 'update_rho_mol_blocks', &
+      routineP = moduleN//':'//routineN
 
-    INTEGER :: handle, i, iat, iatom, imol, imolecule_kind, istat, &
-               nat_mol, nmol, nmolecule_kind
-    INTEGER, DIMENSION(:), POINTER              :: index_atom
-    LOGICAL :: failure, my_rebuild_grids, my_rebuild_ao
-    REAL(dp) :: dref(3), Lo2(3), oonat_mol, r_ref(3), r0(3), r0_pbc(3), rab_pbc(3), rb(3)
-    REAL(dp), DIMENSION(:,:), POINTER           :: r_mbox
-    REAL(dp), DIMENSION(:,:), POINTER           :: r_tbox
-    TYPE(kg_molbox_env_type), POINTER           :: molbox_env
-    TYPE(cell_type) , POINTER                   :: cell_mol
-    TYPE(pw_env_type) , POINTER                 :: pw_env_mol
-    TYPE(pw_grid_type), POINTER                 :: pw_grid_mol
-    TYPE(pw_pool_type), POINTER                 :: auxbas_pw_pool
-
-    TYPE(qs_rho_type), POINTER                  :: rho_mol
-    TYPE(rho_mol_blocks_type), DIMENSION(:),&
-      POINTER                                   :: rho_mol_blocks
-    TYPE(rho_mol_blocks_type), POINTER          :: rho_block
+    INTEGER                                  :: handle, i, iat, iatom, imol, &
+                                                imolecule_kind, istat, &
+                                                nat_mol, nmol, nmolecule_kind
+    INTEGER, DIMENSION(:), POINTER           :: index_atom
+    LOGICAL                                  :: failure, my_rebuild_ao, &
+                                                my_rebuild_grids
+    REAL(dp)                                 :: dref(3), Lo2(3), oonat_mol, &
+                                                r0(3), r_ref(3), rab_pbc(3), &
+                                                rb(3)
+    REAL(dp), DIMENSION(:, :), POINTER       :: r_mbox, r_tbox
+    TYPE(cell_type), POINTER                 :: cell_mol
+    TYPE(kg_molbox_env_type), POINTER        :: molbox_env
+    TYPE(pw_env_type), POINTER               :: pw_env_mol
+    TYPE(pw_grid_type), POINTER              :: pw_grid_mol
+    TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
+    TYPE(qs_rho_type), POINTER               :: rho_mol
+    TYPE(rho_mol_blocks_type), &
+      DIMENSION(:), POINTER                  :: rho_mol_blocks
+    TYPE(rho_mol_blocks_type), POINTER       :: rho_block
 
 !   ---------------------------------------------------------------------------
 
@@ -1132,38 +1129,33 @@ CONTAINS
 !!*** *************************************************************************
   SUBROUTINE kg_rho_update_rho_mol(kg_sub_pw_env,qs_env,kg_fm_mol_set,error)
 
-    TYPE(kg_sub_pw_env_type), POINTER            :: kg_sub_pw_env
-    TYPE(qs_environment_type), POINTER           :: qs_env
-    TYPE(kg_fm_mol_set_type), DIMENSION(:),&
-      POINTER                                    :: kg_fm_mol_set
-
-
+    TYPE(kg_sub_pw_env_type), POINTER        :: kg_sub_pw_env
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(kg_fm_mol_set_type), DIMENSION(:), &
+      POINTER                                :: kg_fm_mol_set
     TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                                   :: error
+      OPTIONAL                               :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'kg_rho_update_rho_mol',&
-      routineP = module_name//':'//routineN
-  
-    INTEGER                                      :: imol, imolecule_kind, ispin, &
-                                                    nmol, nmolecule_kind, nspins
-    INTEGER, DIMENSION(:), POINTER               :: i_atom, i_kind
-    LOGICAL                                      :: failure
-    REAL(dp)                                     :: dum
-    REAL(dp), DIMENSION(:,:), POINTER            :: r_mbox
-    TYPE(dft_control_type), POINTER              :: dft_control
+    CHARACTER(len=*), PARAMETER :: routineN = 'kg_rho_update_rho_mol', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: imol, imolecule_kind, ispin, &
+                                                nmol, nmolecule_kind, nspins
+    INTEGER, DIMENSION(:), POINTER           :: i_atom, i_kind
+    LOGICAL                                  :: failure
+    REAL(dp)                                 :: dum
+    REAL(dp), DIMENSION(:, :), POINTER       :: r_mbox
+    TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(fm_mol_blocks_type), DIMENSION(:), &
-      POINTER                                    :: fm_mol_blocks
-    TYPE(fm_mol_blocks_type), POINTER            :: mol_block
-    TYPE(kg_fm_mol_set_type), POINTER            :: fm_mol_set
-    TYPE(kg_molbox_env_type), POINTER            :: molbox_env
-    TYPE(pw_env_type) , POINTER                  :: pw_env_mol
-    TYPE(pw_pool_type), POINTER                  :: auxbas_pw_pool
-    TYPE(rho_mol_blocks_type), DIMENSION(:),&
-      POINTER                                    :: rho_mol_blocks
-    TYPE(rho_mol_blocks_type), POINTER           :: rho_block
-    TYPE(qs_rho_type), POINTER                   :: rho_struct
-    TYPE(qs_rho_type), POINTER                   :: rho_mol
-
+      POINTER                                :: fm_mol_blocks
+    TYPE(fm_mol_blocks_type), POINTER        :: mol_block
+    TYPE(kg_fm_mol_set_type), POINTER        :: fm_mol_set
+    TYPE(kg_molbox_env_type), POINTER        :: molbox_env
+    TYPE(pw_env_type), POINTER               :: pw_env_mol
+    TYPE(qs_rho_type), POINTER               :: rho_mol, rho_struct
+    TYPE(rho_mol_blocks_type), &
+      DIMENSION(:), POINTER                  :: rho_mol_blocks
+    TYPE(rho_mol_blocks_type), POINTER       :: rho_block
 
     failure=.FALSE.
 

@@ -23,18 +23,19 @@ MODULE md_run
   USE atomic_kind_list_types,          ONLY: atomic_kind_list_type
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind
+  USE cell_types,                      ONLY: cell_type
   USE checkpoint_handler,              ONLY: write_checkpoint_information
-  USE cp_files,                        ONLY: close_file,&
-                                             open_file
   USE cp_output_handling,              ONLY: cp_add_iter_level,&
                                              cp_iterate,&
+                                             cp_p_file,&
+                                             cp_print_key_finished_output,&
+                                             cp_print_key_should_output,&
+                                             cp_print_key_unit_nr,&
                                              cp_rm_iter_level
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_subsystem_types,              ONLY: cp_subsys_get,&
                                              cp_subsystem_p_type
-  USE distribution_1d_types,           ONLY: distribution_1d_type,&
-       init_local_particle_set
-  USE particle_types, only: write_qs_particle_coordinates
+  USE distribution_1d_types,           ONLY: distribution_1d_type
   USE dynamical_coeff_types,           ONLY: dyn_coeff_set_initialize,&
                                              dyn_coeff_set_p_type
   USE extended_system_types,           ONLY: extended_system_type,&
@@ -53,6 +54,12 @@ MODULE md_run
                                              initialize_nhc_part,&
                                              initialize_npt
   USE init_extended_system_variables,  ONLY: init_nhc_forces
+  USE input_constants,                 ONLY: langevin_ensemble
+  USE input_cp2k_restarts,             ONLY: update_input
+  USE input_section_types,             ONLY: section_vals_get_subs_vals,&
+                                             section_vals_type,&
+                                             section_vals_val_get,&
+                                             section_vals_write
   USE kinds,                           ONLY: dp
   USE machine,                         ONLY: m_walltime
   USE md,                              ONLY: initialize_velocities,&
@@ -64,38 +71,23 @@ MODULE md_run
                                              md_env_release,&
                                              md_environment_type,&
                                              set_md_env
-  USE message_passing,                 ONLY: mp_bcast,&
-                                             mp_sum
+  USE message_passing,                 ONLY: mp_sum
   USE mol_kind_new_list_types,         ONLY: mol_kind_new_list_type
   USE mol_new_list_types,              ONLY: mol_new_list_type
   USE particle_list_types,             ONLY: particle_list_type
   USE physcon,                         ONLY: kelvin
-  USE cell_types,                 ONLY: cell_type
-  USE termination,                     ONLY: stop_memory,&
-       external_control
+  USE termination,                     ONLY: external_control,&
+                                             stop_memory
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE velocity_verlet_control,         ONLY: velocity_verlet
-  USE input_constants,                 ONLY: langevin_ensemble
-  USE wiener_process,                  ONLY: create_wiener_process
-!JCS 
-  USE virial_types,                    ONLY: virial_type,&
-                                             virial_set
   USE virial_methods,                  ONLY: virial_evaluate
 !JCS
-  USE input_section_types,             ONLY: section_vals_type,&
-                                             section_vals_get_subs_vals,&
-                                             section_vals_write,&
-                                             section_get_lval,&
-                                             section_vals_val_get
-  USE cp_output_handling,              ONLY: cp_print_key_unit_nr, &
-                                             cp_print_key_finished_output,&
-                                             cp_print_key_should_output,&
-                                             cp_p_file
-  USE input_cp2k_restarts,             ONLY: update_input
-
+  USE virial_types,                    ONLY: virial_set,&
+                                             virial_type
+  USE wiener_process,                  ONLY: create_wiener_process
+!JCS 
 #include "cp_common_uses.h"
-
 
   IMPLICIT NONE
 
@@ -103,7 +95,7 @@ MODULE md_run
 
 ! *** Global parameters ***
 
-  CHARACTER(LEN=*), PARAMETER :: module_name = "md_run"
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'md_run'
 
   PUBLIC :: qs_mol_dyn, &
             temperature_control
@@ -126,8 +118,8 @@ CONTAINS
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "qs_mol_dyn1", &
-      routineP = module_name//':'//routine_name
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_mol_dyn1', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: stat
     TYPE(force_env_p_type), DIMENSION(:), &
@@ -156,23 +148,24 @@ CONTAINS
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "qs_mol_dyn2", &
-      routineP = module_name//':'//routine_name
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_mol_dyn2', &
+      routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, i, ibead, istat, &
-                                                istep, isubsys, iter_level, &
-                                                nbeads, nfixed
+    INTEGER                                  :: handle, i, ibead, in_use, &
+                                                ires, istat, istep, isubsys, &
+                                                iter_level, nbeads
     INTEGER, POINTER                         :: itimes
     LOGICAL                                  :: failure, should_stop
     REAL(KIND=dp)                            :: time_iter_start, &
                                                 time_iter_stop
-    REAL(KIND=dp),POINTER                    :: t 
-    REAL(KIND=dp), POINTER                   :: used_time
+    REAL(KIND=dp), POINTER                   :: t, used_time
+    TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
     TYPE(cell_type), POINTER                 :: cell, cell_ref
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_subsystem_p_type), &
       DIMENSION(:), POINTER                  :: subsys
-    TYPE(distribution_1d_type), POINTER      :: local_molecules
+    TYPE(distribution_1d_type), POINTER      :: local_molecules, &
+                                                local_particles
     TYPE(dyn_coeff_set_p_type), &
       DIMENSION(:), POINTER                  :: dyn_coeff_set
     TYPE(extended_system_type)               :: extended_type
@@ -181,19 +174,19 @@ CONTAINS
     TYPE(mol_kind_new_list_type), POINTER    :: molecule_kinds_new
     TYPE(mol_new_list_type), POINTER         :: molecules_new
     TYPE(particle_list_type), POINTER        :: particles
+    TYPE(section_vals_type), POINTER         :: force_env_section, &
+                                                motion_section, &
+                                                restart_section, &
+                                                subsys_section, work_section
     TYPE(simulation_parameters_type), &
       POINTER                                :: simpar
     TYPE(virial_type), POINTER               :: virial
-    INTEGER                                  :: in_use, ires
-    TYPE(section_vals_type), POINTER         :: motion_section, force_env_section,&
-                                                work_section, restart_section, subsys_section
-    TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
-    TYPE(distribution_1d_type), POINTER      :: local_particles
+
 !   ---------------------------------------------------------------------------
 
-    CALL write_checkpoint_information("Entering "//routine_name,globenv,error)
+    CALL write_checkpoint_information("Entering "//routineN,globenv,error)
 
-    CALL timeset(routine_name,"I","",handle)
+    CALL timeset(routineN,"I","",handle)
 
     failure=.FALSE.
     NULLIFY ( particles, local_molecules, cell, cell_ref, dyn_coeff_set,&
@@ -214,7 +207,7 @@ CONTAINS
     END DO
 
     ALLOCATE (simpar,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "simpar",0)
 
     CALL cp_add_iter_level(logger%iter_info,"MD",n_rlevel_new=iter_level,&
@@ -412,7 +405,7 @@ CONTAINS
 
     CALL timestop(0.0_dp,handle)
 
-    CALL write_checkpoint_information("Leaving "//routine_name,globenv,error)
+    CALL write_checkpoint_information("Leaving "//routineN,globenv,error)
 
   END SUBROUTINE qs_mol_dyn2
 
@@ -433,8 +426,8 @@ CONTAINS
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "temperature_control", &
-      routineP = module_name//':'//routine_name
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'temperature_control', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: atom, handle, iatom, ikind, &
                                                 isubsys, natom
@@ -453,7 +446,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL timeset(routine_name,"I","",handle)
+    CALL timeset(routineN,"I","",handle)
     NULLIFY(atomic_kind, atomic_kinds, particles, local_particles, atom_list,&
             subsys, para_env)
     logger => cp_error_get_logger(error)

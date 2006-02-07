@@ -19,6 +19,7 @@
 !******************************************************************************
 
 MODULE ewald_pw_methods
+  USE cell_types,                      ONLY: cell_type
   USE dg_rho0_types,                   ONLY: dg_rho0_get,&
                                              dg_rho0_init,&
                                              dg_rho0_set,&
@@ -27,32 +28,35 @@ MODULE ewald_pw_methods
                                              dg_set,&
                                              dg_type
   USE dgs,                             ONLY: dg_grid_change
-  USE ewald_environment_types,         ONLY: ewald_env_get,&  
+  USE ewald_environment_types,         ONLY: ewald_env_get,&
                                              ewald_environment_type
   USE ewald_pw_types,                  ONLY: ewald_pw_get,&
                                              ewald_pw_set,&
                                              ewald_pw_type
-  USE kinds,                           ONLY: default_string_length,&
-                                             dp
+  USE input_constants,                 ONLY: do_ewald_ewald,&
+                                             do_ewald_none,&
+                                             do_ewald_pme,&
+                                             do_ewald_spme
+  USE input_section_types,             ONLY: section_vals_type
+  USE kinds,                           ONLY: dp
   USE pw_grid_types,                   ONLY: pw_grid_type
   USE pw_grids,                        ONLY: pw_grid_change
-  USE pw_pool_types,                   ONLY: pw_pool_type, pw_pool_p_type
-  USE cell_types,                 ONLY: cell_type
+  USE pw_poisson_methods,              ONLY: pw_poisson_set
+! CJM, pw_poisson_rebuild
+  USE pw_poisson_types,                ONLY: pw_poisson_create,&
+                                             pw_poisson_release,&
+                                             pw_poisson_type
+  USE pw_pool_types,                   ONLY: pw_pool_p_type,&
+                                             pw_pool_type
   USE termination,                     ONLY: stop_memory
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE input_constants,                 ONLY: do_ewald_none,&
-                                             do_ewald_ewald,&
-                                             do_ewald_pme,&
-                                             do_ewald_spme  
-  USE pw_poisson_types, ONLY: pw_poisson_type, pw_poisson_release, pw_poisson_retain, pw_poisson_create
-  USE pw_poisson_methods, ONLY: pw_poisson_set ! CJM, pw_poisson_rebuild
-  USE input_section_types, ONLY: section_vals_type
 #include "cp_common_uses.h"
+
   IMPLICIT NONE
 
   PRIVATE
-  CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='ewald_pw_methods'
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'ewald_pw_methods'
   PUBLIC :: ewald_pw_grid_change
 
 !-----------------------------------------------------------------------------!
@@ -80,24 +84,24 @@ CONTAINS
 !******************************************************************************
 
 SUBROUTINE ewald_pw_grid_change ( ewald_pw, ewald_env, error )
-  IMPLICIT NONE
-  ! Arguments
-  TYPE(ewald_pw_type), POINTER             :: ewald_pw
-  TYPE(ewald_environment_type), POINTER    :: ewald_env
-  ! Local Variables
-  INTEGER                                  :: ewald_type
-  INTEGER                                  :: o_spline, stat
-  REAL(dp)                                 :: alpha
-  TYPE(cell_type), POINTER                 :: cell
-  TYPE(dg_type), POINTER                   :: dg
-  TYPE(pw_pool_type), POINTER              :: pw_big_pool, pw_small_pool
-  TYPE(pw_poisson_type), pointer           :: poisson_env
-  TYPE(pw_pool_p_type), POINTER, dimension(:) :: pw_pools
-  TYPE(section_vals_type), pointer :: poisson_section
-  TYPE(cp_error_type), INTENT(inout), optional :: error
-  CHARACTER(len=*), PARAMETER :: routineN="ewald_pw_grid_change",&
-       routineP=moduleN//':'//routineN
-  LOGICAL :: failure
+    TYPE(ewald_pw_type), POINTER             :: ewald_pw
+    TYPE(ewald_environment_type), POINTER    :: ewald_env
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'ewald_pw_grid_change', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: ewald_type, o_spline, stat
+    LOGICAL                                  :: failure
+    REAL(dp)                                 :: alpha
+    TYPE(cell_type), POINTER                 :: cell
+    TYPE(dg_type), POINTER                   :: dg
+    TYPE(pw_poisson_type), POINTER           :: poisson_env
+    TYPE(pw_pool_p_type), DIMENSION(:), &
+      POINTER                                :: pw_pools
+    TYPE(pw_pool_type), POINTER              :: pw_big_pool, pw_small_pool
+    TYPE(section_vals_type), POINTER         :: poisson_section
 
   failure=.FALSE.
  
@@ -176,18 +180,14 @@ END SUBROUTINE ewald_pw_grid_change
 !******************************************************************************
 
 SUBROUTINE ewald_pw_rho0_setup ( ewald_env, pw_grid, dg )
-  IMPLICIT NONE
-  ! Arguments
-  TYPE(ewald_environment_type), POINTER    :: ewald_env
-  TYPE(pw_grid_type), POINTER              :: pw_grid
-  TYPE(dg_type), POINTER                   :: dg
-  ! Local Variables
-  INTEGER                                  :: ewald_type
-  INTEGER                                  :: grid_index, isos
-  REAL(dp)                                 :: alpha
-  REAL(dp), POINTER                        :: gcc( : ), zet( : )
-  TYPE(dg_rho0_type), POINTER              :: dg_rho0
+    TYPE(ewald_environment_type), POINTER    :: ewald_env
+    TYPE(pw_grid_type), POINTER              :: pw_grid
+    TYPE(dg_type), POINTER                   :: dg
 
+    INTEGER                                  :: ewald_type, grid_index, isos
+    REAL(dp)                                 :: alpha
+    REAL(dp), POINTER                        :: gcc( : ), zet( : )
+    TYPE(dg_rho0_type), POINTER              :: dg_rho0
 
   CALL ewald_env_get ( ewald_env, alpha = alpha, ewald_type = ewald_type )
   CALL dg_get ( dg, dg_rho0 = dg_rho0 )
@@ -205,7 +205,7 @@ SUBROUTINE ewald_pw_rho0_setup ( ewald_env, pw_grid, dg )
   NULLIFY ( gcc )
 
   zet ( 1 ) =  alpha
-  CALL dg_rho0_set (  dg_rho0, type = ewald_type, zet = zet ) 
+  CALL dg_rho0_set (  dg_rho0, TYPE = ewald_type, zet = zet ) 
 
   CALL dg_rho0_init ( dg_rho0, pw_grid )
   

@@ -23,36 +23,42 @@
 !!   SOURCE
 !****************************************************************************
 MODULE input_cp2k_qmmm
-  use kinds, only: dp
-  use cp_para_types, only: cp_para_env_type
-  use timings, only: timeset, timestop
-  USE input_section_types, ONLY: section_type, section_create, &
-       section_add_keyword, section_add_subsection, section_release,&
-       section_vals_type,&
-       section_vals_get_subs_vals, section_vals_get
+  USE cp_output_handling,              ONLY: cp_print_key_section_create
   USE input_constants
-  USE input_keyword_types, ONLY: keyword_type, keyword_create,&
-       keyword_release
-  USE input_val_types, ONLY: val_type, no_t, logical_t, integer_t, real_t, char_t,&
-       enum_t
-  USE cp_output_handling, only: cp_print_key_section_create
-
-  USE string_utilities, ONLY: s2a
-  USE input_cp2k_mm, ONLY: create_NONBONDED14_section, create_LJ_section, create_Williams_section, create_Goodwin_section
-  USE input_cp2k_dft, ONLY: create_multipole_section, create_gspace_interp_section
+  USE input_cp2k_dft,                  ONLY: create_gspace_interp_section,&
+                                             create_multipole_section
+  USE input_cp2k_mm,                   ONLY: create_Goodwin_section,&
+                                             create_LJ_section,&
+                                             create_NONBONDED14_section,&
+                                             create_Williams_section
+  USE input_keyword_types,             ONLY: keyword_create,&
+                                             keyword_release,&
+                                             keyword_type
+  USE input_section_types,             ONLY: section_add_keyword,&
+                                             section_add_subsection,&
+                                             section_create,&
+                                             section_release,&
+                                             section_type
+  USE input_val_types,                 ONLY: char_t,&
+                                             integer_t,&
+                                             real_t
+  USE kinds,                           ONLY: dp
+  USE string_utilities,                ONLY: s2a
+  USE timings,                         ONLY: timeset,&
+                                             timestop
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
-  private
+  PRIVATE
 
-  logical, private, parameter :: debug_this_module=.true.
-  character(len=*), private, parameter :: moduleN='input_cp2k_mm'
+  LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'input_cp2k_qmmm'
   
   PUBLIC :: create_qmmm_section
 
 !***
 !****************************************************************************
-contains
+CONTAINS
 !!****f* input_cp2k_qmmm/create_qmmm_section [1.0] *
 !!
 !!   NAME
@@ -74,16 +80,18 @@ contains
 !!
 !!*** **********************************************************************
   SUBROUTINE create_qmmm_section(section,error)
-    TYPE(section_type), POINTER :: section, print_key
-    type(cp_error_type), optional, intent(inout) :: error
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    logical :: failure
-    character(len=*), parameter :: routineN='create_qmmm_section',&
-         routineP=moduleN//':'//routineN
-    TYPE(section_type), POINTER :: subsection
-    TYPE(keyword_type), pointer :: keyword
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_qmmm_section', &
+      routineP = moduleN//':'//routineN
 
-    failure=.false.
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
+    TYPE(section_type), POINTER              :: subsection
+
+    failure=.FALSE.
 
     CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
@@ -202,7 +210,7 @@ contains
 
        CALL section_create(subsection,name="QM_KIND",&
             description="Information about the qm kind in the qm/mm scheme",&
-            n_keywords=3, n_subsections=0, repeats=.true., required=.true.,&
+            n_keywords=3, n_subsections=0, repeats=.TRUE., required=.TRUE.,&
             error=error)
 
        CALL keyword_create(keyword, name="_SECTION_PARAMETERS_",&
@@ -232,7 +240,7 @@ contains
 
        CALL section_create(subsection,name="MM_KIND",&
             description="Information about the mm kind in the qm/mm scheme",&
-            n_keywords=2, n_subsections=0, repeats=.true., required=.false.,&
+            n_keywords=2, n_subsections=0, repeats=.TRUE., required=.FALSE.,&
             error=error)
 
        CALL keyword_create(keyword, name="_SECTION_PARAMETERS_",&
@@ -302,14 +310,17 @@ contains
 !!
 !!*** **********************************************************************
   SUBROUTINE create_qmmm_periodic_section(section,error)
-    TYPE(section_type), POINTER :: section
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-    
-    LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineN='create_qmmm_periodic_section',&
-         routineP=moduleN//':'//routineN
-    TYPE(keyword_type), POINTER :: keyword
-    TYPE(section_type), POINTER :: subsection
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_qmmm_periodic_section', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
+    TYPE(section_type), POINTER              :: subsection
+
     failure=.FALSE.
     
     NULLIFY(keyword, subsection)
@@ -381,13 +392,17 @@ contains
 !!
 !!*** **********************************************************************
   SUBROUTINE create_qmmm_forcefield_section(section,error)
-    TYPE(section_type), POINTER :: section
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-    
-    LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineN='create_qmmm_forcefield_section',&
-         routineP=moduleN//':'//routineN
-    TYPE(section_type), POINTER :: subsection
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: &
+      routineN = 'create_qmmm_forcefield_section', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(section_type), POINTER              :: subsection
+
     failure=.FALSE.
     
     NULLIFY(subsection )
@@ -395,7 +410,7 @@ contains
     IF (.NOT. failure) THEN
        CALL section_create(section,name="FORCEFIELD",&
             description="Specify information on the QM/MM forcefield",&
-            n_keywords=0, n_subsections=2, repeats=.true., required=.true.,&
+            n_keywords=0, n_subsections=2, repeats=.TRUE., required=.TRUE.,&
             error=error)    
 
        CALL create_qmmm_ff_nb_section(subsection, error=error)
@@ -430,13 +445,16 @@ contains
 !!
 !!*** **********************************************************************
   SUBROUTINE create_qmmm_ff_nb_section(section,error)
-    TYPE(section_type), POINTER :: section
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-    
-    LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineN='create_qmmm_ff_nb_section',&
-         routineP=moduleN//':'//routineN
-    TYPE(section_type), POINTER ::  subsection
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_qmmm_ff_nb_section', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(section_type), POINTER              :: subsection
+
     failure=.FALSE.
     
     NULLIFY(subsection )
@@ -444,7 +462,7 @@ contains
     IF (.NOT. failure) THEN
        CALL section_create(section,name="NONBONDED",&
             description="Specify information on the QM/MM non-bonded forcefield",&
-            n_keywords=0, n_subsections=2, repeats=.true., required=.true.,&
+            n_keywords=0, n_subsections=2, repeats=.TRUE., required=.TRUE.,&
             error=error)    
 
        CALL create_LJ_section(subsection, error=error)
@@ -482,14 +500,17 @@ contains
 !!
 !!*** **********************************************************************
   SUBROUTINE create_qmmm_link_section(section,error)
-    TYPE(section_type), POINTER :: section
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-    
-    LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineN='create_qmmm_link_section',&
-         routineP=moduleN//':'//routineN
-    TYPE(keyword_type), POINTER :: keyword
-    TYPE(section_type), POINTER :: subsection
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_qmmm_link_section', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
+    TYPE(section_type), POINTER              :: subsection
+
     failure=.FALSE.
     
     NULLIFY(keyword, subsection )
@@ -497,7 +518,7 @@ contains
     IF (.NOT. failure) THEN
        CALL section_create(section,name="LINK",&
             description="Specify information on the QM/MM link treatment",&
-            n_keywords=7, n_subsections=2, repeats=.true., required=.true.,&
+            n_keywords=7, n_subsections=2, repeats=.TRUE., required=.TRUE.,&
             error=error)    
        
        CALL keyword_create(keyword, name="QM_INDEX",&
@@ -637,7 +658,7 @@ contains
        CALL section_create(subsection,name="ADD_MM_CHARGE",&
             description="Specify information to add a classical charge before the"//&
             " QM/MM energies and forces evaluation",&
-            n_keywords=5, n_subsections=0, repeats=.true., required=.true.,&
+            n_keywords=5, n_subsections=0, repeats=.TRUE., required=.TRUE.,&
             error=error)      
 
        CALL keyword_create(keyword, name="ATOM_INDEX_1",&
@@ -707,21 +728,24 @@ contains
 !!
 !!*** **********************************************************************
   SUBROUTINE create_qmmm_interp_section(section,error)
-    TYPE(section_type), POINTER :: section
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-    
-    LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineN='create_qmmm_interp_section',&
-         routineP=moduleN//':'//routineN
-    TYPE(keyword_type), POINTER :: keyword
-    TYPE(section_type), POINTER :: print_key
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_qmmm_interp_section', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
+    TYPE(section_type), POINTER              :: print_key
+
     failure=.FALSE.
     
     CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
        CALL section_create(section,name="interpolator",&
             description="kind of interpolation used between the multigrids",&
-            n_keywords=5, n_subsections=0, repeats=.FALSE., required=.false.,&
+            n_keywords=5, n_subsections=0, repeats=.FALSE., required=.FALSE.,&
             error=error)
 
        NULLIFY(keyword, print_key)
@@ -790,7 +814,7 @@ contains
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
-       nullify(print_key)
+       NULLIFY(print_key)
        CALL cp_print_key_section_create(print_key,"conv_info",&
             description="if convergence information about the linear solver"//&
             " of the spline methods should be printed", &
@@ -831,14 +855,16 @@ contains
 !!
 !!*** **********************************************************************
   SUBROUTINE create_print_qmmm_section(section,error)
-    TYPE(section_type), POINTER :: section
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-    
-    LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineN='create_print_qmmm_section',&
-         routineP=moduleN//':'//routineN
-    TYPE(section_type), POINTER :: print_key
-    
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_print_qmmm_section', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(section_type), POINTER              :: print_key
+
     failure=.FALSE.
     
     CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)

@@ -25,26 +25,19 @@
 MODULE kg_gpw_wf_history
 
   USE kg_gpw_fm_mol_methods,           ONLY: calculate_mol_density_matrix,&
-                                             fm_mol_eigensolver,&
-                                             fm_mol_orthonormality,&
                                              mol_make_basis,&
                                              multiply_sparse_mol_mo
-  USE kg_gpw_fm_mol_types,             ONLY: get_fm_mol_block,&
+  USE kg_gpw_fm_mol_types,             ONLY: fm_mol_blocks_type,&
+                                             get_fm_mol_block,&
                                              get_kg_fm_mol_set,&
                                              get_mol_mo_set,&
-                                             fm_mol_blocks_type,&
                                              kg_fm_mol_set_type,&
-                                             kg_fm_p_type,&
                                              mol_mo_set_p_type,&
                                              mol_mo_set_type
   USE kg_gpw_fm_mol_utils,             ONLY: copy_sparse2mol_block
-  USE kinds,                           ONLY: dp,dp_size,int_size
-  USE sparse_matrix_types,             ONLY: get_block_node,&
-                                             real_matrix_p_type,&
-                                             real_matrix_type,&
-                                             set_matrix
-  USE termination,                     ONLY: stop_memory,&
-                                             stop_program
+  USE kinds,                           ONLY: dp
+  USE sparse_matrix_types,             ONLY: real_matrix_p_type,&
+                                             real_matrix_type
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "cp_common_uses.h"
@@ -53,7 +46,7 @@ MODULE kg_gpw_wf_history
 
   PRIVATE
 
-  CHARACTER(LEN=*), PARAMETER :: module_name = "kg_gpw_wf_history"
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'kg_gpw_wf_history'
 
 ! *** Public subroutines ***
 
@@ -97,33 +90,32 @@ CONTAINS
 
   SUBROUTINE kg_gpw_fm_mol_linear(alpha,set_a,beta,set_b,matrix_p,matrix_s,error)
 
-    REAL(dp), INTENT(IN), OPTIONAL            :: alpha, beta
+    REAL(dp), INTENT(IN), OPTIONAL           :: alpha
     TYPE(kg_fm_mol_set_type), DIMENSION(:), &
-      POINTER                                 :: set_a
+      POINTER                                :: set_a
+    REAL(dp), INTENT(IN), OPTIONAL           :: beta
     TYPE(kg_fm_mol_set_type), DIMENSION(:), &
-      POINTER                                 :: set_b
+      POINTER                                :: set_b
     TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER, OPTIONAL                       :: matrix_p,&
-                                                 matrix_s
+      OPTIONAL, POINTER                      :: matrix_p, matrix_s
     TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                                :: error
+      OPTIONAL                               :: error
 
-    CHARACTER(len=*), PARAMETER :: routine_name ='kg_gpw_fm_mol_linear', &
-      routineP = module_name//':'//routine_name
+    CHARACTER(len=*), PARAMETER :: routineN = 'kg_gpw_fm_mol_linear', &
+      routineP = moduleN//':'//routineN
 
-    INTEGER  :: imol, imolecule_kind, ispin, istat, n_ao, n_mo(2), natom, &
-                nmo_a, nmo_b, nmo_max, nmol, nmolecule_kind, nspins
-    LOGICAL  :: calculate_density, failure
-    REAL(dp)                                  :: my_alpha, my_beta
-    REAL(dp), DIMENSION(:,:), POINTER         :: mo_coeff_a, mo_coeff_b
-    REAL(dp), DIMENSION(:,:), POINTER         :: s_mo
+    INTEGER :: imol, imolecule_kind, ispin, istat, n_ao, n_mo(2), natom, &
+      nmo_a, nmo_b, nmo_max, nmol, nmolecule_kind, nspins
+    LOGICAL                                  :: calculate_density, failure
+    REAL(dp)                                 :: my_alpha, my_beta
+    REAL(dp), DIMENSION(:, :), POINTER       :: mo_coeff_a, mo_coeff_b, s_mo
     TYPE(fm_mol_blocks_type), DIMENSION(:), &
-      POINTER                                 :: blocks_a, blocks_b
-    TYPE(fm_mol_blocks_type), POINTER         :: mol_block_a, mol_block_b
-    TYPE(kg_fm_mol_set_type), POINTER         :: fm_mol_a, fm_mol_b
-    TYPE(mol_mo_set_p_type), DIMENSION(:),&
-      POINTER                                 :: mos_a, mos_b
-    TYPE(mol_mo_set_type), POINTER            :: mo_set_a, mo_set_b
+      POINTER                                :: blocks_a, blocks_b
+    TYPE(fm_mol_blocks_type), POINTER        :: mol_block_a, mol_block_b
+    TYPE(kg_fm_mol_set_type), POINTER        :: fm_mol_a, fm_mol_b
+    TYPE(mol_mo_set_p_type), DIMENSION(:), &
+      POINTER                                :: mos_a, mos_b
+    TYPE(mol_mo_set_type), POINTER           :: mo_set_a, mo_set_b
 
 !
 !   ---------------------------------------------------------------------------
@@ -255,45 +247,42 @@ CONTAINS
   SUBROUTINE kg_gpw_fm_mol_ps(set_a, beta, set_b, ov_b, set_last, &
                               matrix_p, matrix_s, error )
 
-    REAL(dp), INTENT(IN), OPTIONAL            :: beta
     TYPE(kg_fm_mol_set_type), DIMENSION(:), &
-      POINTER                                 :: set_a
+      POINTER                                :: set_a
+    REAL(dp), INTENT(IN), OPTIONAL           :: beta
     TYPE(kg_fm_mol_set_type), DIMENSION(:), &
-      POINTER                                 :: set_b
-    TYPE(real_matrix_type), POINTER           :: ov_b
+      POINTER                                :: set_b
+    TYPE(real_matrix_type), POINTER          :: ov_b
     TYPE(kg_fm_mol_set_type), DIMENSION(:), &
-      POINTER                                 :: set_last
+      POINTER                                :: set_last
     TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER, OPTIONAL                       :: matrix_p,&
-                                                 matrix_s
+      OPTIONAL, POINTER                      :: matrix_p, matrix_s
     TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                                :: error
+      OPTIONAL                               :: error
 
-    CHARACTER(len=*), PARAMETER :: routine_name ='kg_gpw_fm_mol_linear', &
-      routineP = module_name//':'//routine_name
+    CHARACTER(len=*), PARAMETER :: routineN = 'kg_gpw_fm_mol_ps', &
+      routineP = moduleN//':'//routineN
 
-    INTEGER :: icol, imol, imolecule_kind,&
-               ispin, istat, irow, ldsc, ldcsc, &
-               n_ao, n_mo(2), natom, nmo_a, nmo_b, nmo_l, nmo_max, nmol, &
-               nmolecule_kind, nspins
-    LOGICAL                                   :: calculate_density, failure
-    REAL(dp)                                  :: my_beta
-    REAL(dp), DIMENSION(:,:), POINTER         :: mo_coeff_a, mo_coeff_b, mo_coeff_l
-    REAL(dp), DIMENSION(:,:),  POINTER        :: ov_b_mol
-    REAL(dp), DIMENSION(:,:), POINTER         :: mol_csc
-    REAL(dp), DIMENSION(:,:), POINTER         :: sc_tmp
-    REAL(dp), DIMENSION(:,:), POINTER         :: s_mo
+    INTEGER :: icol, imol, imolecule_kind, irow, ispin, istat, ldcsc, ldsc, &
+      n_ao, n_mo(2), natom, nmo_a, nmo_b, nmo_l, nmo_max, nmol, &
+      nmolecule_kind, nspins
+    LOGICAL                                  :: calculate_density, failure
+    REAL(dp)                                 :: my_beta
+    REAL(dp), DIMENSION(:, :), POINTER       :: mo_coeff_a, mo_coeff_b, &
+                                                mo_coeff_l, mol_csc, &
+                                                ov_b_mol, s_mo, sc_tmp
     TYPE(fm_mol_blocks_type), DIMENSION(:), &
-      POINTER                                 :: blocks_a, blocks_b, blocks_l
-    TYPE(fm_mol_blocks_type), POINTER         :: mol_block_a, mol_block_b, mol_block_l 
-    TYPE(kg_fm_mol_set_type), POINTER         :: fm_mol_a, fm_mol_b, fm_mol_l 
-    TYPE(mol_mo_set_p_type), DIMENSION(:),&
-      POINTER                                 :: mos_a, mos_b, mos_l
-    TYPE(mol_mo_set_type), POINTER            :: mo_set_a, mo_set_b, mo_set_l
+      POINTER                                :: blocks_a, blocks_b, blocks_l
+    TYPE(fm_mol_blocks_type), POINTER        :: mol_block_a, mol_block_b, &
+                                                mol_block_l
+    TYPE(kg_fm_mol_set_type), POINTER        :: fm_mol_a, fm_mol_b, fm_mol_l
+    TYPE(mol_mo_set_p_type), DIMENSION(:), &
+      POINTER                                :: mos_a, mos_b, mos_l
+    TYPE(mol_mo_set_type), POINTER           :: mo_set_a, mo_set_b, mo_set_l
+
 !
 !   ---------------------------------------------------------------------------
 !
-
 
     failure = .FALSE.
     calculate_density = .FALSE.
@@ -441,32 +430,31 @@ CONTAINS
   SUBROUTINE kg_gpw_prev_wf(kg_fm_mol_set,matrix_p,matrix_s,error)
 
     TYPE(kg_fm_mol_set_type), DIMENSION(:), &
-      POINTER                                    :: kg_fm_mol_set
+      POINTER                                :: kg_fm_mol_set
     TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                    :: matrix_p,&
-                                                    matrix_s
+      POINTER                                :: matrix_p, matrix_s
     TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                                   :: error
+      OPTIONAL                               :: error
 
-   CHARACTER(LEN=*), PARAMETER :: routine_name = "kg_gpw_prev_wf", &
-      routineP = module_name//":"//routine_name
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'kg_gpw_prev_wf', &
+      routineP = moduleN//':'//routineN
 
-    INTEGER :: imol, imolecule_kind, ispin, istat, n_ao, nat_mol, natom, nmo, nmo_kind(2),&
-               nmo_max, nmol_local, nmolecule_kind, nspins 
-    LOGICAL :: failure
-    REAL(dp), DIMENSION(:,:), POINTER            :: s_mo
-    REAL(dp), DIMENSION(:,:), POINTER            :: mo_coeff
-    TYPE(fm_mol_blocks_type), POINTER            :: mol_block
-    TYPE(fm_mol_blocks_type), DIMENSION(:),&
-      POINTER                                    :: fm_mol_blocks
-    TYPE(kg_fm_mol_set_type), POINTER            :: fm_mol_set
-    TYPE(mol_mo_set_p_type), DIMENSION(:),&
-      POINTER                                    :: mos
-    TYPE(mol_mo_set_type), POINTER               :: mo_set
+    INTEGER :: imol, imolecule_kind, ispin, istat, n_ao, nat_mol, natom, nmo, &
+      nmo_kind(2), nmo_max, nmol_local, nmolecule_kind, nspins
+    LOGICAL                                  :: failure
+    REAL(dp), DIMENSION(:, :), POINTER       :: mo_coeff, s_mo
+    TYPE(fm_mol_blocks_type), DIMENSION(:), &
+      POINTER                                :: fm_mol_blocks
+    TYPE(fm_mol_blocks_type), POINTER        :: mol_block
+    TYPE(kg_fm_mol_set_type), POINTER        :: fm_mol_set
+    TYPE(mol_mo_set_p_type), DIMENSION(:), &
+      POINTER                                :: mos
+    TYPE(mol_mo_set_type), POINTER           :: mo_set
 
 !
 !   ---------------------------------------------------------------------------
 !
+
     failure = .FALSE.
     nmolecule_kind = SIZE(kg_fm_mol_set)
 

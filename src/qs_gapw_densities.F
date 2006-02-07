@@ -25,7 +25,6 @@ MODULE qs_gapw_densities
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE kinds,                           ONLY: dp
-  USE memory_utilities,                ONLY: reallocate
   USE message_passing,                 ONLY: mp_sum
   USE qs_charges_types,                ONLY: qs_charges_type
   USE qs_environment_types,            ONLY: get_qs_env,&
@@ -33,14 +32,12 @@ MODULE qs_gapw_densities
   USE qs_grid_atom,                    ONLY: grid_atom_type
   USE qs_harmonics_atom,               ONLY: harmonics_atom_type
   USE qs_local_rho_types,              ONLY: local_rho_type
-  USE qs_p_env_types,                  ONLY: qs_p_env_type
   USE qs_rho0_ggrid,                   ONLY: put_rho0_s_on_grid
   USE qs_rho0_methods,                 ONLY: calculate_rho0_atom
-  USE qs_rho0_types,                   ONLY: rho0_mpole_type, &
-                                             rho0_atom_type
+  USE qs_rho0_types,                   ONLY: rho0_atom_type,&
+                                             rho0_mpole_type
   USE qs_rho_atom_methods,             ONLY: calculate_rho_atom
   USE qs_rho_atom_types,               ONLY: rho_atom_type
-  USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "cp_common_uses.h"
@@ -49,7 +46,7 @@ MODULE qs_gapw_densities
 
   PRIVATE
 
-  CHARACTER(LEN=*), PRIVATE, PARAMETER :: module_name='qs_gapw_densities'
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_gapw_densities'
 
   PUBLIC :: prepare_gapw_den 
 
@@ -64,34 +61,35 @@ CONTAINS
  SUBROUTINE prepare_gapw_den(qs_env,local_rho_set,do_rho0,error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(local_rho_type), POINTER, OPTIONAL  :: local_rho_set
+    TYPE(local_rho_type), OPTIONAL, POINTER  :: local_rho_set
     LOGICAL, INTENT(IN), OPTIONAL            :: do_rho0
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-    CHARACTER(LEN=*), PARAMETER         :: routine_name = "prepare_gapw_den"
+    CHARACTER(LEN=*), PARAMETER              :: routineN = 'prepare_gapw_den'
 
-    TYPE(atomic_kind_type), DIMENSION(:), &
-                               POINTER       :: atomic_kind_set
-    TYPE(atomic_kind_type),    POINTER       :: atom_kind
-    TYPE(dft_control_type),    POINTER       :: dft_control
-    TYPE(qs_charges_type),     POINTER       :: qs_charges
-    TYPE(grid_atom_type),      POINTER       :: grid_atom
-    TYPE(cp_para_env_type),    POINTER       :: para_env
-    TYPE(rho0_mpole_type),     POINTER       :: rho0_mpole
-    INTEGER                                  :: handle,ispin, ikind, &
-                                                natom, nkind, nspins, output_unit
+    INTEGER                                  :: handle, ikind, ispin, natom, &
+                                                nkind, nspins, output_unit
     INTEGER, DIMENSION(:), POINTER           :: atom_list
-    LOGICAL                                  :: paw_atom, my_do_rho0, ionode
+    LOGICAL                                  :: ionode, my_do_rho0, paw_atom
+    REAL(dp)                                 :: rho0_h_tot, rho0_s_tot, &
+                                                tot_rs_int
+    REAL(dp), DIMENSION(:), POINTER          :: rho1_h_tot, rho1_s_tot
+    TYPE(atomic_kind_type), DIMENSION(:), &
+      POINTER                                :: atomic_kind_set
+    TYPE(atomic_kind_type), POINTER          :: atom_kind
+    TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(grid_atom_type), POINTER            :: grid_atom
     TYPE(harmonics_atom_type), POINTER       :: harmonics
+    TYPE(qs_charges_type), POINTER           :: qs_charges
+    TYPE(rho0_atom_type), DIMENSION(:), &
+      POINTER                                :: rho0_atom_set
+    TYPE(rho0_mpole_type), POINTER           :: rho0_mpole
     TYPE(rho_atom_type), DIMENSION(:), &
       POINTER                                :: rho_atom_set
-    TYPE(rho0_atom_type), DIMENSION(:),&
-                           POINTER           :: rho0_atom_set
-    REAL(dp)                                 :: rho0_h_tot, rho0_s_tot,&
-                                                tot_rs_int
-    REAL(dp), DIMENSION(:), POINTER          :: rho1_h_tot,rho1_s_tot
-    TYPE(cp_logger_type), POINTER            :: logger
+
 !******************************************************************************
 
     CALL timeset("prepare_gapw_den","I"," ",handle)
@@ -193,7 +191,7 @@ CONTAINS
     END IF
 
 
-   deallocate(rho1_h_tot,rho1_s_tot)
+   DEALLOCATE(rho1_h_tot,rho1_s_tot)
 
    CALL timestop(0.0_dp,handle)
 

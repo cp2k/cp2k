@@ -7,109 +7,87 @@
 MODULE cp2k_runs
 
   USE atom_module,                     ONLY: atomic_code
-  USE cp_files,                        ONLY: open_file, &
-                                             close_file, &
-                                             get_unit_number
-  USE cp_para_types,                   ONLY: cp_para_env_type
+  USE bsse,                            ONLY: do_bsse_calculation
+  USE cp_files,                        ONLY: close_file,&
+                                             get_unit_number,&
+                                             open_file
   USE cp_para_env,                     ONLY: cp_para_env_create,&
                                              cp_para_env_release
-  USE cp_parser,                       ONLY: cp_parser_type, &
-                                             parser_create, &
+  USE cp_para_types,                   ONLY: cp_para_env_type
+  USE cp_parser,                       ONLY: cp_parser_type,&
+                                             parser_create,&
                                              parser_release,&
                                              parser_search_string
-  USE cp_units,                        ONLY: cp_unit_set_type, &
-                                             cp_unit_set_create, &
-                                             cp_unit_set_release
-  USE environment,                     ONLY: cp2k_finalize,&
+  USE cp_units,                        ONLY: cp_unit_set_create,&
+                                             cp_unit_set_release,&
+                                             cp_unit_set_type
+  USE environment,                     ONLY: compile_date,&
+                                             compile_lastcvs,&
+                                             cp2k_finalize,&
                                              cp2k_init,&
                                              cp2k_read,&
-                                             cp2k_setup,&
-                                             compile_date,compile_lastcvs
+                                             cp2k_setup
   USE farming_methods,                 ONLY: farming_parse_input
-  USE farming_types,                   ONLY: farming_env_type, &
-                                             init_farming_env, &
-                                             deallocate_farming_env
+  USE farming_types,                   ONLY: deallocate_farming_env,&
+                                             farming_env_type,&
+                                             init_farming_env
   USE fist_debug,                      ONLY: fist_debug_control => debug_control
   USE fist_main,                       ONLY: fist_create_force_env
   USE force_env_methods,               ONLY: force_env_calc_energy_force
-  USE force_env_types,                 ONLY: force_env_type, &
-                                             force_env_release,&
-                                             force_env_set, force_env_get
+  USE force_env_types,                 ONLY: force_env_release,&
+                                             force_env_set,&
+                                             force_env_type
   USE geo_opt,                         ONLY: qs_geo_opt
   USE global_types,                    ONLY: global_environment_type,&
                                              globenv_create,&
-                                             globenv_retain,&
                                              globenv_release
   USE harris_metropolis_mc,            ONLY: harris_mc_ld
-  USE input_constants,                 ONLY: do_qs,&
-                                             do_fist,&
-                                             do_kg,&
-                                             do_qmmm,&
-                                             do_atom,&
-                                             do_farming,&
-                                             do_tbmd,&
-                                             do_test,&
-                                             none_run,&
-                                             energy_run,&
-                                             energy_force_run,&
-                                             mol_dyn_run,&
-                                             geo_opt_run,&
-                                             mon_car_run,&
-                                             hmc_run,&
-                                             ldmc_run,&
-                                             electronic_spectra_run,&
-                                             bsse_run,&
-                                             linear_response_run,&
-                                             qs_debug_run
-  USE input_cp2k_check,                ONLY: check_cp2k_input
+  USE input_constants,                 ONLY: &
+       bsse_run, do_atom, do_farming, do_fist, do_kg, do_qmmm, do_qs, &
+       do_tbmd, do_test, electronic_spectra_run, energy_force_run, &
+       energy_run, geo_opt_run, hmc_run, ldmc_run, linear_response_run, &
+       mol_dyn_run, mon_car_run, none_run, qs_debug_run
   USE input_cp2k,                      ONLY: create_cp2k_root_section,&
                                              create_global_section
+  USE input_cp2k_check,                ONLY: check_cp2k_input
   USE input_keyword_types,             ONLY: keyword_release
   USE input_parsing,                   ONLY: section_vals_parse
-  USE input_section_types,             ONLY: section_type, &
-                                             section_release,&
-                                             section_vals_type, &
-                                             section_vals_release, &
-                                             section_vals_create,&
-                                             section_vals_write, &
-                                             section_vals_get, &
-                                             section_vals_get_subs_vals, &
-                                             section_describe_html,&
-                                             section_vals_val_get, &
-                                             section_describe_index_html, &
-                                             write_section_xml
+  USE input_section_types,             ONLY: &
+       section_describe_html, section_describe_index_html, section_release, &
+       section_type, section_vals_create, section_vals_get_subs_vals, &
+       section_vals_release, section_vals_type, section_vals_val_get, &
+       section_vals_write, write_section_xml
   USE kg_main,                         ONLY: kg_create_force_env
-  USE kinds,                           ONLY: default_string_length, &
-                                             default_path_length,&
+  USE kinds,                           ONLY: default_path_length,&
+                                             default_string_length,&
                                              dp
   USE library_tests,                   ONLY: lib_test
-  USE machine,                         ONLY: print_memory,m_chdir,m_getcwd
+  USE machine,                         ONLY: m_chdir,&
+                                             m_getcwd
   USE mc_run,                          ONLY: do_mon_car
-  USE md_run,                          ONLY: qs_mol_dyn 
-  USE message_passing,                 ONLY: mp_sync, &
-                                             mp_environ, &
-                                             mp_comm_split, &
-                                             mp_comm_free
-  USE metadynamics_types,              ONLY: meta_env_type, &
-                                             meta_env_release
+  USE md_run,                          ONLY: qs_mol_dyn
+  USE message_passing,                 ONLY: mp_comm_free,&
+                                             mp_comm_split,&
+                                             mp_environ,&
+                                             mp_sync
   USE metadynamics,                    ONLY: metadyn_read
+  USE metadynamics_types,              ONLY: meta_env_release,&
+                                             meta_env_type
   USE qmmm_init,                       ONLY: qmmm_create_force_env
   USE qs_debug,                        ONLY: qs_debug_energy_and_forces
   USE qs_linres_module,                ONLY: linres_calculation
   USE qs_main,                         ONLY: quickstep_create_force_env
   USE qs_tddfpt_module,                ONLY: tddfpt_calculation
-  USE string_utilities,                ONLY: uppercase
   USE tbmd_main,                       ONLY: tbmd_create_force_env
-  USE timings,                         ONLY: timeset, &
+  USE timings,                         ONLY: timeset,&
                                              timestop
-  USE bsse,                            ONLY: do_bsse_calculation
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
 
   PRIVATE
   PUBLIC  :: cp2k_run, write_cp2k_html_manual, write_xml_file
-  CHARACTER(LEN=*), PARAMETER :: moduleN = "cp2k_run"
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp2k_runs'
 CONTAINS
 
 !!****f* cp2k_runs/cp2k_run [1.0] *
@@ -152,31 +130,32 @@ CONTAINS
 !!*** **********************************************************************
   RECURSIVE FUNCTION cp2k_run(input_file_name,output_unit,mpi_comm) RESULT(cp2k_run_OK)
 
-    LOGICAL                              :: cp2k_run_OK
+    CHARACTER(LEN=*), INTENT(IN)             :: input_file_name
+    INTEGER, INTENT(IN)                      :: output_unit, mpi_comm
+    LOGICAL                                  :: cp2k_run_OK
 
-    CHARACTER(LEN=*), INTENT(IN) :: input_file_name
-    INTEGER         , INTENT(IN) :: output_unit, mpi_comm
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'cp2k_run', &
+      routineP = moduleN//':'//routineN
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = "cp2k_run",&
-         routineP=moduleN//':'//routineN  
-
-    TYPE(global_environment_type), pointer :: globenv
-    TYPE(cp_error_type) :: error
-    TYPE(force_env_type), pointer :: force_env
-    TYPE(meta_env_type), pointer :: meta_env
-    TYPE(section_type), POINTER :: input_structure
-    TYPE(section_vals_type), POINTER :: input_file, glob_section, metadyn_section
-    TYPE(cp_parser_type), pointer :: my_parser
-    TYPE(cp_para_env_type), pointer :: para_env
-    TYPE(cp_unit_set_type), pointer :: default_units
-    LOGICAL :: failure, echo_input, I_was_ionode, was_present
+    LOGICAL                                  :: echo_input, failure, &
+                                                I_was_ionode, was_present
+    TYPE(cp_error_type)                      :: error
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(cp_parser_type), POINTER            :: my_parser
+    TYPE(cp_unit_set_type), POINTER          :: default_units
+    TYPE(force_env_type), POINTER            :: force_env
+    TYPE(global_environment_type), POINTER   :: globenv
+    TYPE(meta_env_type), POINTER             :: meta_env
+    TYPE(section_type), POINTER              :: input_structure
+    TYPE(section_vals_type), POINTER         :: glob_section, input_file, &
+                                                metadyn_section
 
     cp2k_run_OK = .FALSE.
-    failure=.false.
+    failure=.FALSE.
     was_present = .FALSE.
     NULLIFY(para_env, metadyn_section, default_units)
     CALL cp_para_env_create(para_env, group=mpi_comm,&
-         owns_group=.false.)
+         owns_group=.FALSE.)
 
     NULLIFY(globenv, force_env )
 
@@ -189,16 +168,16 @@ CONTAINS
     CALL cp_error_init(error)
 
     ! parse the input
-    nullify(input_structure)
+    NULLIFY(input_structure)
     CALL create_cp2k_root_section(input_structure,error=error)
     NULLIFY(input_file)
     CALL section_vals_create(input_file,input_structure, error=error)
     CALL section_release(input_structure,error=error)
-    nullify(my_parser)
+    NULLIFY(my_parser)
     CALL parser_create(my_parser,file_name=input_file_name,para_env=para_env,&
          error=error)
     CALL cp_unit_set_create(default_units, "OUTPUT",error=error)
-    CALL section_vals_parse(input_file,my_parser,root_section=.false.,&
+    CALL section_vals_parse(input_file,my_parser,root_section=.FALSE.,&
          default_units=default_units,error=error)
     CALL cp_unit_set_release(default_units,error=error)
     CALL parser_release(my_parser,error=error)
@@ -339,37 +318,32 @@ CONTAINS
 !!
 !!*** **********************************************************************
   RECURSIVE SUBROUTINE farming_run(globenv,error)
-    TYPE(global_environment_type), &
-      pointer                             :: globenv
+    TYPE(global_environment_type), POINTER   :: globenv
     TYPE(cp_error_type), INTENT(INOUT), &
       OPTIONAL                               :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'farming_run', &
       routineP = moduleN//':'//routineN
 
-
-    LOGICAL                                  :: failure,run_OK,found
-    TYPE(farming_env_type), POINTER          :: farming_env
-    INTEGER                                  :: stat,ierr,handle,output_unit,&
-         length,i,n_rep_val
+    CHARACTER(len=5)                         :: label
     CHARACTER(LEN=default_path_length)       :: output_file
-    INTEGER, DIMENSION(:), POINTER           :: group_distribution
-    INTEGER                                  :: ngroups
-    CHARACTER(LEN=3)                         :: test_result
     CHARACTER(LEN=default_string_length)     :: keyword, str
-    character(len=5)                         :: label
-    INTEGER                                  :: new_group,new_rank,new_size
-    INTEGER :: n_jobs_to_run, i_job_to_restart, ijob_start, ijob_end,ijob, iunit
-    TYPE(cp_parser_type), pointer :: my_parser
-    TYPE(section_type), pointer :: g_section
-    TYPE(section_vals_type), pointer :: g_data
-    TYPE(cp_unit_set_type), pointer :: default_units
+    INTEGER :: handle, i, i_job_to_restart, ierr, ijob, ijob_end, ijob_start, &
+      iunit, n_jobs_to_run, new_group, new_rank, new_size, ngroups, &
+      output_unit, stat
+    INTEGER, DIMENSION(:), POINTER           :: group_distribution
+    LOGICAL                                  :: failure, found, run_OK
+    TYPE(cp_parser_type), POINTER            :: my_parser
+    TYPE(cp_unit_set_type), POINTER          :: default_units
+    TYPE(farming_env_type), POINTER          :: farming_env
+    TYPE(section_type), POINTER              :: g_section
+    TYPE(section_vals_type), POINTER         :: g_data
 
     failure=.FALSE.
     CALL timeset(routineN,'I','',handle)
     NULLIFY(my_parser,g_section,g_data,default_units)
 
-    IF (globenv%ionode) write(globenv%scr,FMT="(T2,A)") "FARMING| Hi, welcome on this farm!"
+    IF (globenv%ionode) WRITE(globenv%scr,FMT="(T2,A)") "FARMING| Hi, welcome on this farm!"
 
     ALLOCATE(farming_env,STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -392,13 +366,13 @@ CONTAINS
        CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
     ENDIF
     IF (globenv%ionode) THEN
-        write(globenv%scr,FMT="(T2,A,T71,I10)") "FARMING| Number of created MPI groups:",ngroups
-        write(globenv%scr,FMT="(T2,A)",ADVANCE="NO") "FARMING| Task to group correspondence:"
+        WRITE(globenv%scr,FMT="(T2,A,T71,I10)") "FARMING| Number of created MPI groups:",ngroups
+        WRITE(globenv%scr,FMT="(T2,A)",ADVANCE="NO") "FARMING| Task to group correspondence:"
         DO i=0,globenv%num_pe-1
-           IF (MODULO(i,4)==0) write(globenv%scr,*)
-           write(globenv%scr,FMT='(A3,I4,A3,I4,A1)',ADVANCE="NO") "  (",i," : ",group_distribution(i),")"
+           IF (MODULO(i,4)==0) WRITE(globenv%scr,*)
+           WRITE(globenv%scr,FMT='(A3,I4,A3,I4,A1)',ADVANCE="NO") "  (",i," : ",group_distribution(i),")"
         END DO
-        write(globenv%scr,*)
+        WRITE(globenv%scr,*)
     ENDIF
 
     ! protect about too many jobs being run in single go. Not more jobs are allowed than the number in the input file
@@ -417,7 +391,7 @@ CONTAINS
     IF (globenv%ionode) THEN
        iunit=get_unit_number()
        OPEN(UNIT=iunit,FILE="RESTARTFARM") 
-       write(iunit,*) i_job_to_restart
+       WRITE(iunit,*) i_job_to_restart
        CLOSE(UNIT=iunit)
     ENDIF
 
@@ -427,14 +401,14 @@ CONTAINS
 
     IF (globenv%ionode) THEN
       IF (ijob_end-ijob_start<0) THEN
-        write(globenv%scr,FMT="(T2,A)") "FARMING| --- WARNING --- NO JOBS NEED EXECUTION ? "
-        write(globenv%scr,FMT="(T2,A)") "FARMING| is the cycle keyword required ?"
-        write(globenv%scr,FMT="(T2,A)") "FARMING| or is a stray RESTARTFARM present ?"
+        WRITE(globenv%scr,FMT="(T2,A)") "FARMING| --- WARNING --- NO JOBS NEED EXECUTION ? "
+        WRITE(globenv%scr,FMT="(T2,A)") "FARMING| is the cycle keyword required ?"
+        WRITE(globenv%scr,FMT="(T2,A)") "FARMING| or is a stray RESTARTFARM present ?"
       ELSE
-        write(globenv%scr,FMT="(T2,A)") "FARMING| List of jobs : "
+        WRITE(globenv%scr,FMT="(T2,A)") "FARMING| List of jobs : "
         DO ijob=ijob_start,ijob_end
          i=MODULO(ijob-1,farming_env%njobs)+1
-         write(globenv%scr,FMT=*) "Job: ",i," Dir: ",TRIM(farming_env%Job_cwd(i))," Input: ", &
+         WRITE(globenv%scr,FMT=*) "Job: ",i," Dir: ",TRIM(farming_env%Job_cwd(i))," Input: ", &
            TRIM(farming_env%Job_input(i))," MPI group:", MODULO(i-1,ngroups)
         ENDDO
       ENDIF
@@ -453,7 +427,7 @@ CONTAINS
               IF (new_rank == 0) THEN 
 
                  ! generate the output file
-                  write(output_file,'(A12,I5.5)') "FARMING_OUT_",i
+                  WRITE(output_file,'(A12,I5.5)') "FARMING_OUT_",i
                   CALL parser_create(my_parser,file_name=TRIM(farming_env%Job_input(i)))
                   label="&GLOBAL"
                   CALL parser_search_string(my_parser,label,ignore_case=.TRUE.,found=found,error=error)
@@ -485,7 +459,7 @@ CONTAINS
                 output_unit=999 
              ENDIF
           
-              IF (globenv%ionode) write(globenv%scr,FMT="(T2,A,I5.5,A)") " Running Job ",i, &
+              IF (globenv%ionode) WRITE(globenv%scr,FMT="(T2,A,I5.5,A)") " Running Job ",i, &
                         " output to "//TRIM(farming_env%Job_cwd(i))//"/"//TRIM(output_file)
               run_OK=cp2k_run(TRIM(farming_env%Job_input(i)),output_unit,new_group)
               
@@ -495,14 +469,14 @@ CONTAINS
               ENDIF
 
           ELSE ! problem if just one node does not change...
-              IF (globenv%ionode) write(globenv%scr,FMT="(T2,A,A)") &
+              IF (globenv%ionode) WRITE(globenv%scr,FMT="(T2,A,A)") &
                      " ... Failed to change dir to "//TRIM(farming_env%Job_cwd(i))
           ENDIF
 
           ! change to the original working directory
           CALL m_chdir(TRIM(farming_env%cwd),ierr)
           IF (ierr/=0) THEN
-              IF (globenv%ionode) write(globenv%scr,FMT="(T2,A,A)") &
+              IF (globenv%ionode) WRITE(globenv%scr,FMT="(T2,A,A)") &
                          " ... Failed to change back home to "//TRIM(farming_env%cwd)
           ENDIF
 
@@ -543,18 +517,20 @@ CONTAINS
 !!
 !!*** **********************************************************************
   SUBROUTINE write_cp2k_html_manual(error)
-    type(cp_error_type), optional, intent(inout) :: error
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    logical :: failure
-    character(len=*), parameter :: routineN='write_cp2k_html_manual',&
-         routineP=moduleN//':'//routineN
-    integer :: unit_nr
-    TYPE(section_type), POINTER :: root_section
+    CHARACTER(len=*), PARAMETER :: routineN = 'write_cp2k_html_manual', &
+      routineP = moduleN//':'//routineN
 
-    failure=.false.
+    INTEGER                                  :: unit_nr
+    LOGICAL                                  :: failure
+    TYPE(section_type), POINTER              :: root_section
+
+    failure=.FALSE.
 
     IF (.NOT. failure) THEN
-       nullify(root_section)
+       NULLIFY(root_section)
        CALL create_cp2k_root_section(root_section,error=error)
        ! remove the default keyword that ignores things outside the section
        CALL keyword_release(root_section%keywords(0)%keyword,error=error)
@@ -563,24 +539,24 @@ CONTAINS
 
        CALL open_file(unit_number=unit_nr,file_name="index.html",&
             file_action="WRITE", file_status="REPLACE")
-       write(unit_nr,*) "<HTML><BODY><HEAD><TITLE>The cp2k input structure</TITLE>"
-       write(unit_nr,*) "<H1>CP2K input reference</H1>"
-       write(unit_nr,*) "<H2>Version information</H2>"
-       write(unit_nr,*) "This html manual can be generated automatically from a given cp2k executable "// &
+       WRITE(unit_nr,*) "<HTML><BODY><HEAD><TITLE>The cp2k input structure</TITLE>"
+       WRITE(unit_nr,*) "<H1>CP2K input reference</H1>"
+       WRITE(unit_nr,*) "<H2>Version information</H2>"
+       WRITE(unit_nr,*) "This html manual can be generated automatically from a given cp2k executable "// &
                         "using the --html-manual command line option. The manual describes exactly that version of the code. "//&
                         "This version has been generated using a cp2k version compiled on "//TRIM(compile_date)//". "//&
                         "The latest CVS entry found is "//TRIM(compile_lastcvs)//"."
-       write(unit_nr,*) "<H2>Input structure</H2>"
-       write(unit_nr,*) "All sections that can be part of a cp2k input file are shown with their allowed nestings. "
-       write(unit_nr,*) "A description of each section, and a list of keywords can be obtained clicking on the links. "
-       write(unit_nr,*) "<BR><UL>"
+       WRITE(unit_nr,*) "<H2>Input structure</H2>"
+       WRITE(unit_nr,*) "All sections that can be part of a cp2k input file are shown with their allowed nestings. "
+       WRITE(unit_nr,*) "A description of each section, and a list of keywords can be obtained clicking on the links. "
+       WRITE(unit_nr,*) "<BR><UL>"
 
        CALL section_describe_index_html(root_section,"InputReference",unit_nr,error=error)
 
-       write(unit_nr,*) '</UL><BR><hr>Back to the <A HREF="../index.html">CP2K homepage</A>'
-       write(unit_nr,*) "</BODY></HTML>"
+       WRITE(unit_nr,*) '</UL><BR><hr>Back to the <A HREF="../index.html">CP2K homepage</A>'
+       WRITE(unit_nr,*) "</BODY></HTML>"
 
-       call close_file(unit_nr)
+       CALL close_file(unit_nr)
        CALL section_release(root_section,error=error)
     END IF
   END SUBROUTINE write_cp2k_html_manual
@@ -589,14 +565,15 @@ CONTAINS
 
   SUBROUTINE write_xml_file(error)
 
-    TYPE(cp_error_type), OPTIONAL, INTENT(INOUT) :: error
+    TYPE(cp_error_type), INTENT(INOUT), &
+      OPTIONAL                               :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = "write_xml_file",&
-                                   routineP=moduleN//":"//routineN
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'write_xml_file', &
+      routineP = moduleN//':'//routineN
 
-    TYPE(section_type), POINTER :: root_section
-    INTEGER                     :: i,unit_number
-    LOGICAL                     :: failure
+    INTEGER                                  :: i, unit_number
+    LOGICAL                                  :: failure
+    TYPE(section_type), POINTER              :: root_section
 
 !   ---------------------------------------------------------------------------
 

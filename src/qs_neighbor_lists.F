@@ -29,15 +29,23 @@ MODULE qs_neighbor_lists
                                              get_atomic_kind_set
   USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                              gto_basis_set_type
+  USE cell_types,                      ONLY: cell_type,&
+                                             get_cell,&
+                                             pbc,&
+                                             real_to_scaled,&
+                                             scaled_to_real
   USE checkpoint_handler,              ONLY: write_checkpoint_information
-  USE distribution_2d_types,           ONLY: distribution_2d_type
+  USE cp_output_handling,              ONLY: cp_p_file,&
+                                             cp_print_key_finished_output,&
+                                             cp_print_key_should_output,&
+                                             cp_print_key_unit_nr
   USE distribution_1d_types,           ONLY: distribution_1d_type
+  USE distribution_2d_types,           ONLY: distribution_2d_type
   USE external_potential_types,        ONLY: all_potential_type,&
                                              get_potential,&
                                              gth_potential_type
-  USE global_types,                    ONLY: LOW,&
-                                             MEDIUM,&
-                                             global_environment_type
+  USE global_types,                    ONLY: global_environment_type
+  USE input_section_types,             ONLY: section_vals_type
   USE kinds,                           ONLY: default_string_length,&
                                              dp,&
                                              dp_size,&
@@ -46,50 +54,28 @@ MODULE qs_neighbor_lists
   USE message_passing,                 ONLY: mp_sum,&
                                              mp_sync
   USE molecule_types_new,              ONLY: molecule_type
-  USE particle_types,                  ONLY: exclusion_list_type,&
-                                             particle_type
+  USE particle_types,                  ONLY: particle_type
   USE paw_proj_set_types,              ONLY: get_paw_proj_set,&
                                              paw_proj_set_type
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type,&
                                              set_qs_env
   USE qs_local_rho_types,              ONLY: rhoz_type
-  USE qs_neighbor_list_types,          ONLY: add_neighbor_list,&
-                                             add_neighbor_node,&
-                                             allocate_neighbor_list_set,&
-                                             deallocate_neighbor_list_set,&
-                                             deallocate_reduced_3c_list,&
-                                             first_list,&
-                                             first_node,&
-                                             get_neighbor_list,&
-                                             get_neighbor_list_set,&
-                                             get_neighbor_node,&
-                                             neighbor_list_p_type,&
-                                             neighbor_list_set_p_type,&
-                                             neighbor_list_set_type,&
-                                             neighbor_list_type,&
-                                             neighbor_node_type,&
-                                             next,&
-                                             reduced_3c_list_type
+  USE qs_neighbor_list_types,          ONLY: &
+       add_neighbor_list, add_neighbor_node, allocate_neighbor_list_set, &
+       deallocate_neighbor_list_set, first_list, first_node, &
+       get_neighbor_list, get_neighbor_list_set, get_neighbor_node, &
+       neighbor_list_p_type, neighbor_list_set_p_type, &
+       neighbor_list_set_type, neighbor_list_type, neighbor_node_type, next
   USE qs_rho0_types,                   ONLY: get_rho0_mpole,&
                                              rho0_mpole_type
-  USE cell_types,                 ONLY: cell_type,&
-                                             get_cell,&
-                                             pbc,&
-                                             real_to_scaled,&
-                                             scaled_to_real
   USE string_utilities,                ONLY: compress
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE cp_output_handling,              ONLY: cp_print_key_unit_nr, &
-                                             cp_print_key_finished_output,&
-                                             cp_print_key_should_output,&
-                                             cp_p_file
-  USE input_section_types, ONLY: section_vals_type, section_vals_get_subs_vals,&
-       section_vals_get, section_vals_val_get, section_vals_release
 #include "cp_common_uses.h"  
+
   IMPLICIT NONE
 
   PRIVATE
@@ -115,7 +101,7 @@ MODULE qs_neighbor_lists
 
 ! *** Global parameters ***
 
-  CHARACTER(LEN=*), PARAMETER :: module_name = "qs_neighbor_lists"
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_neighbor_lists'
 
 ! *** private counter, used to version qs neighbor lists *** 
   INTEGER, SAVE, PRIVATE :: last_qs_neighbor_list_id_nr=0
@@ -150,63 +136,58 @@ CONTAINS
 !   ***************************************************************************
 
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(global_environment_type), &
-      pointer                             :: globenv
+    TYPE(global_environment_type), POINTER   :: globenv
     LOGICAL, OPTIONAL                        :: molecular
+    TYPE(section_vals_type), POINTER         :: force_env_section
     TYPE(cp_error_type), INTENT(inout), &
-         OPTIONAL                               :: error
-    TYPE(section_vals_type), POINTER :: force_env_section
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "build_qs_neighbor_lists"
+      OPTIONAL                               :: error
 
-    INTEGER :: atom_a, handle, iatom, iatom_local, ikind, istat, maxatom, &
-      maxatom_local, natom_a, natom_local_a, natom_local_b, nkind, &
-      output_unit, imol, iw
-    LOGICAL                                  :: all_potential_present,&
-                                                gth_potential_present, &
-                                                print_subcell_grid,&
-                                                paw_atom_present,paw_atom,&
-                                                rho0_present
-    LOGICAL, ALLOCATABLE, DIMENSION(:)       :: all_present, orb_present,&
-                                                oce_present, ppl_present, &
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'build_qs_neighbor_lists'
+
+    CHARACTER(20)                            :: name
+    INTEGER :: atom_a, handle, iatom, iatom_local, ikind, imol, istat, iw, &
+      maxatom, maxatom_local, natom_a, natom_local_a, natom_local_b, nkind, &
+      output_unit
+    INTEGER, DIMENSION(:), POINTER           :: local_cols_array, &
+                                                local_rows_array
+    LOGICAL :: all_potential_present, gth_potential_present, molecule_only, &
+      paw_atom, paw_atom_present, print_subcell_grid, rho0_present
+    LOGICAL, ALLOCATABLE, DIMENSION(:)       :: all_present, oce_present, &
+                                                orb_present, ppl_present, &
                                                 ppnl_present, Qlm_present
-    REAL(dp)                                 :: r_skin,rcprj
-    REAL(dp), ALLOCATABLE, DIMENSION(:)      :: all_pot_rad, orb_rad_3c, orb_radius, &
-                                                oce_radius, ppl_radius, &
-                                                ppnl_radius, V0hmv0s_radius
+    REAL(dp)                                 :: r_skin, rcprj
+    REAL(dp), ALLOCATABLE, DIMENSION(:) :: all_pot_rad, oce_radius, &
+      orb_rad_3c, orb_radius, ppl_radius, ppnl_radius, V0hmv0s_radius
     REAL(dp), DIMENSION(3)                   :: r_pbc
+    TYPE(all_potential_type), POINTER        :: all_potential
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cell_type), POINTER                 :: cell
-    TYPE(distribution_2d_type), POINTER      :: distribution_2d
+    TYPE(cp_logger_type), POINTER            :: logger
     TYPE(distribution_1d_type), POINTER      :: distribution_1d
-    TYPE(all_potential_type), POINTER        :: all_potential
+    TYPE(distribution_2d_type), POINTER      :: distribution_2d
     TYPE(gth_potential_type), POINTER        :: gth_potential
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
-    TYPE(paw_proj_set_type), POINTER         :: paw_proj
     TYPE(local_atoms_type), ALLOCATABLE, &
       DIMENSION(:)                           :: atom
-    TYPE(neighbor_list_set_p_type), &
-      DIMENSION(:), POINTER                  :: sab_orb, sac_ppl, sac_ppnl, &
-                                                sbc_ppnl,sac_oce,sbc_oce,&
-                                                sab_2c,sac_3c,sbc_3c
-    TYPE(particle_type), DIMENSION(:), &
-      POINTER                                :: particle_set
     TYPE(molecule_type), DIMENSION(:), &
       POINTER                                :: molecule_set
-    INTEGER, DIMENSION(:), POINTER           :: local_rows_array, &
-                                                local_cols_array
-    LOGICAL                                  :: molecule_only
+    TYPE(neighbor_list_set_p_type), &
+      DIMENSION(:), POINTER                  :: sab_2c, sab_orb, sac_3c, &
+                                                sac_oce, sac_ppl, sac_ppnl, &
+                                                sbc_3c, sbc_oce, sbc_ppnl
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particle_set
+    TYPE(paw_proj_set_type), POINTER         :: paw_proj
     TYPE(rho0_mpole_type), POINTER           :: rho0_mpole
     TYPE(rhoz_type), DIMENSION(:), POINTER   :: rhoz_set
-    CHARACTER(20)                            :: name
-    TYPE(cp_logger_type), POINTER            :: logger
 
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
 
-    CALL write_checkpoint_information("entering "//routine_name,globenv,error)
-    CALL timeset(routine_name,"I"," ",handle)
+    CALL write_checkpoint_information("entering "//routineN,globenv,error)
+    CALL timeset(routineN,"I"," ",handle)
 
 
     NULLIFY (atomic_kind)
@@ -280,35 +261,35 @@ CONTAINS
     nkind = SIZE(atomic_kind_set)
 
     ALLOCATE (atom(nkind),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "atom",nkind*int_size)
 
     ALLOCATE (orb_present(nkind),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "orb_present",nkind*int_size)
 
     ALLOCATE (orb_radius(nkind),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "orb_radius",nkind*dp_size)
     orb_radius(:) = 0.0_dp
 
     IF (gth_potential_present) THEN
 
       ALLOCATE (ppl_present(nkind),STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                        "ppl_present",nkind*int_size)
 
       ALLOCATE (ppl_radius(nkind),STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                        "ppl_radius",nkind*dp_size)
       ppl_radius = 0.0_dp
 
       ALLOCATE (ppnl_present(nkind),STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                        "ppnl_present",nkind*int_size)
 
       ALLOCATE (ppnl_radius(nkind),STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                        "ppnl_radius",nkind*dp_size)
       ppnl_radius = 0.0_dp
 
@@ -316,11 +297,11 @@ CONTAINS
  
     IF (paw_atom_present) THEN
       ALLOCATE (oce_present(nkind),STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                        "oce_present",nkind*int_size)
 
       ALLOCATE (oce_radius(nkind),STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                        "oce_radius",nkind*dp_size)
       oce_radius = 0.0_dp
     END IF
@@ -328,20 +309,20 @@ CONTAINS
     IF (rho0_present) THEN
 
       IF(.NOT. ASSOCIATED(rhoz_set)) &
-            CALL stop_program(routine_name,module_name,__LINE__,&
+            CALL stop_program(routineN,moduleN,__LINE__,&
                         "The pointer rhoz is not associated") 
 
       ALLOCATE (Qlm_present(nkind),STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                        "Qlm_present",nkind*int_size)
 
       ALLOCATE (V0hmV0s_radius(nkind),STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                        "V0hmV0s_radius",nkind*dp_size)
       V0hmV0s_radius = 0.0_dp
 
       ALLOCATE (orb_rad_3c(nkind),STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                        "orb_rad_3c",nkind*dp_size)
       orb_rad_3c = 0.0_dp
 
@@ -350,11 +331,11 @@ CONTAINS
     IF(all_potential_present) THEN
 
       ALLOCATE (all_present(nkind),STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                        " all_present",nkind*int_size)
 
       ALLOCATE (all_pot_rad(nkind),STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                        "all_pot_rad",nkind*dp_size)
       all_pot_rad = 0.0_dp
 
@@ -411,11 +392,11 @@ CONTAINS
         IF (natom_local_a > 0) THEN
 
           ALLOCATE (atom(ikind)%list_local_a_index(natom_local_a),STAT=istat)
-          IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+          IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                            "atom(ikind)%list_local_a_index",&
                                            natom_local_a*int_size)
           ALLOCATE (atom(ikind)%list_a_mol(natom_local_a),STAT=istat)
-          IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+          IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                            "atom(ikind)%list_a_mol",&
                                            natom_local_a*int_size)
           atom(ikind)%list_a_mol(:) = 0
@@ -448,11 +429,11 @@ CONTAINS
         IF (natom_local_b > 0) THEN
 
           ALLOCATE (atom(ikind)%list_local_b_index(natom_local_b),STAT=istat)
-          IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+          IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                            "atom(ikind)%list_local_b_index",&
                                            natom_local_b*int_size)
           ALLOCATE (atom(ikind)%list_b_mol(natom_local_b),STAT=istat)
-          IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+          IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                            "atom(ikind)%list_b_mol",&
                                            natom_local_b*int_size)
           atom(ikind)%list_b_mol(:) = 0
@@ -481,11 +462,11 @@ CONTAINS
         END IF
 
         ALLOCATE (atom(ikind)%r_pbc(3,natom_a),STAT=istat)
-        IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+        IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                          "atom(ikind)%r_pbc",3*natom_a*dp_size)
 
         ALLOCATE (atom(ikind)%s_pbc(3,natom_a),STAT=istat)
-        IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+        IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                          "atom(ikind)%s_pbc",3*natom_a*dp_size)
 
 !       *** Calculate PBC coordinates ***
@@ -773,64 +754,64 @@ CONTAINS
       NULLIFY (atom(ikind)%list)
       IF (ASSOCIATED(atom(ikind)%list_local_a_index)) THEN
         DEALLOCATE (atom(ikind)%list_local_a_index,STAT=istat)
-        IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+        IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                          "atom(ikind)%list_local_a_index")
       END IF
       IF (ASSOCIATED(atom(ikind)%list_local_b_index)) THEN
         DEALLOCATE (atom(ikind)%list_local_b_index,STAT=istat)
-        IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+        IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                          "atom(ikind)%list_local_b_index")
       END IF
       IF (ASSOCIATED(atom(ikind)%list_a_mol)) THEN
         DEALLOCATE (atom(ikind)%list_a_mol,STAT=istat)
-        IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+        IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                          "atom(ikind)%list_a_mol")
       END IF
       IF (ASSOCIATED(atom(ikind)%list_b_mol)) THEN
         DEALLOCATE (atom(ikind)%list_b_mol,STAT=istat)
-        IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+        IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                          "atom(ikind)%list_b_mol")
       END IF
       IF (ASSOCIATED(atom(ikind)%r_pbc)) THEN
         DEALLOCATE (atom(ikind)%r_pbc,STAT=istat)
-        IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+        IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                          "atom(ikind)%r_pbc")
       END IF
       IF (ASSOCIATED(atom(ikind)%s_pbc)) THEN
         DEALLOCATE (atom(ikind)%s_pbc,STAT=istat)
-        IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+        IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                          "atom(ikind)%s_pbc")
       END IF
     END DO
 
     DEALLOCATE (atom,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "atom")
 
     DEALLOCATE (orb_present,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "orb_present")
 
     DEALLOCATE (orb_radius,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "orb_radius")
 
     IF (gth_potential_present) THEN
 
       DEALLOCATE (ppl_present,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                        "ppl_present")
 
       DEALLOCATE (ppl_radius,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                        "ppl_radius")
 
       DEALLOCATE (ppnl_present,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                        "ppnl_present")
 
       DEALLOCATE (ppnl_radius,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                        "ppnl_radius")
 
     END IF
@@ -838,11 +819,11 @@ CONTAINS
     IF (paw_atom_present) THEN
 
       DEALLOCATE (oce_present,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                        "oce_present")
 
       DEALLOCATE (oce_radius,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                        "oce_radius")
 
     ENDIF
@@ -850,11 +831,11 @@ CONTAINS
     IF(rho0_present) THEN
 
       DEALLOCATE (V0hmV0s_radius,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                        "V0hmV0s_radius")
 
       DEALLOCATE(orb_rad_3c,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                        "hard_radius")
 
     END IF
@@ -862,11 +843,11 @@ CONTAINS
     IF(all_potential_present) THEN
 
       DEALLOCATE(all_present,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                       "all_present")
 
       DEALLOCATE(all_pot_rad,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                       "all_pot_rad")
 
     END IF
@@ -874,7 +855,7 @@ CONTAINS
     CALL cp_print_key_finished_output(output_unit,logger,force_env_section,&
          "SUBSYS%PRINT%SUBCELL",error=error)    
     CALL timestop(0.0_dp,handle)
-    CALL write_checkpoint_information("leaving "//routine_name,globenv,error)
+    CALL write_checkpoint_information("leaving "//routineN,globenv,error)
 
   END SUBROUTINE build_qs_neighbor_lists
 
@@ -904,7 +885,7 @@ CONTAINS
     REAL(dp), DIMENSION(:), INTENT(IN)       :: radius_a, radius_b
     LOGICAL, INTENT(IN), OPTIONAL            :: l3c_oce, l3c_rho0
 
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "build_neighbor_lists"
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'build_neighbor_lists'
 
     CHARACTER(LEN=8)                         :: unit_of_length_name
     INTEGER :: atom_a, atom_b, handle, i, iab, iatom, iatom_local, &
@@ -912,8 +893,8 @@ CONTAINS
       jkind, k, kcell, natom_local_a, natom_local_b, nkind
     INTEGER, DIMENSION(3)                    :: cell_a, cell_b, ncell, &
                                                 nsubcell, periodic
-    LOGICAL                                  :: include_ab
-    LOGICAL                                  :: my_l3c_oce, my_l3c_rho0
+    LOGICAL                                  :: include_ab, my_l3c_oce, &
+                                                my_l3c_rho0
     REAL(dp)                                 :: rab2, rab2_max, rab_max, &
                                                 subcells, unit_of_length
     REAL(dp), DIMENSION(3)                   :: r, rab, rb, s, sab_max, sb, &
@@ -926,7 +907,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL timeset(routine_name,"I"," ",handle)
+    CALL timeset(routineN,"I"," ",handle)
 
 !   *** Deallocate the old neighbor list structure ***
 
@@ -935,7 +916,7 @@ CONTAINS
         CALL deallocate_neighbor_list_set(ab(iab)%neighbor_list_set)
       END DO
       DEALLOCATE (ab,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,"ab")
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"ab")
     END IF
 
 !   *** Allocate and initialize the new neighbor list structure ***
@@ -948,7 +929,7 @@ CONTAINS
 
 
     ALLOCATE (ab(nkind*nkind),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "ab",nkind*nkind*int_size)
 
     DO iab=1,SIZE(ab)
@@ -1235,20 +1216,20 @@ CONTAINS
     LOGICAL, DIMENSION(:), INTENT(IN)        :: present_a, present_b
     REAL(dp), DIMENSION(:), INTENT(IN)       :: radius_a, radius_b
 
-    CHARACTER(LEN=*), PARAMETER :: routine_name = &
-                                   "build_restricted_neighbor_lists"
+    CHARACTER(LEN=*), PARAMETER :: &
+      routineN = 'build_restricted_neighbor_lists'
 
     CHARACTER(LEN=8)                         :: unit_of_length_name
     INTEGER :: atom_a, atom_b, handle, i, iab, iatom, iatom_local, &
-      iatom_subcell, icell, ikind, istat, j, jatom, jatom_local, jcell, &
-      jkind, k, kcell, natom_local_a, natom_local_b, nkind, mol_a, mol_b
+      iatom_subcell, ikind, istat, j, jatom, jatom_local, jkind, k, mol_a, &
+      mol_b, natom_local_a, natom_local_b, nkind
     INTEGER, DIMENSION(3)                    :: cell_a, cell_b, ncell, &
                                                 nsubcell, periodic
     LOGICAL                                  :: include_ab
     REAL(dp)                                 :: rab2, rab2_max, rab_max, &
                                                 subcells, unit_of_length
     REAL(dp), DIMENSION(3)                   :: r, rab, rb, s, sab_max, sb, &
-                                                sb_max, sb_min, sb_pbc
+                                                sb_max, sb_min
     TYPE(neighbor_list_p_type), &
       DIMENSION(maxatom_local)               :: kind_a
     TYPE(neighbor_list_set_type), POINTER    :: neighbor_list_set
@@ -1257,7 +1238,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL timeset(routine_name,"I"," ",handle)
+    CALL timeset(routineN,"I"," ",handle)
 
 !   *** Deallocate the old neighbor list structure ***
 
@@ -1266,7 +1247,7 @@ CONTAINS
         CALL deallocate_neighbor_list_set(ab(iab)%neighbor_list_set)
       END DO
       DEALLOCATE (ab,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,"ab")
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"ab")
     END IF
 
 !   *** Allocate and initialize the new neighbor list structure ***
@@ -1274,7 +1255,7 @@ CONTAINS
     nkind = SIZE(atom)
 
     ALLOCATE (ab(nkind*nkind),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "ab",nkind*nkind*int_size)
 
     DO iab=1,SIZE(ab)
@@ -1512,20 +1493,17 @@ CONTAINS
     LOGICAL, DIMENSION(:), INTENT(IN)        :: present_a, present_c
     REAL(dp), DIMENSION(:), INTENT(IN)       :: radius_a, radius_c
     TYPE(particle_type), DIMENSION(:), &
-      POINTER, OPTIONAL                      :: particle_set
+      OPTIONAL, POINTER                      :: particle_set
 
-
-    CHARACTER(LEN=*), PARAMETER :: &
-      routine_name = "build_gth_ppl_neighbor_lists"
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'build_gth_ppl_neighbor_lists'
 
     CHARACTER(LEN=8)                         :: unit_of_length_name
     INTEGER :: atom_a, atom_c, handle, i, iac, iatom, iatom_local, &
-      iatom_subcell, icell, iexl, ikind, istat, j, jcell, jkind, k,&
-      katom, kcell, kkind, nexl, &
-      natom_c, natom_local_a, nkind
+      iatom_subcell, icell, iexl, ikind, istat, j, jcell, jkind, k, katom, &
+      kcell, kkind, natom_c, natom_local_a, nexl, nkind
     INTEGER, DIMENSION(3)                    :: cell_a, cell_c, ncell, &
                                                 nsubcell, periodic
-    INTEGER, DIMENSION ( : ), POINTER        :: list
+    INTEGER, DIMENSION(:), POINTER           :: list
     LOGICAL                                  :: cell000, exclude
     REAL(dp)                                 :: rac2, rac2_max, rac_max, &
                                                 subcells, unit_of_length
@@ -1539,7 +1517,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL timeset(routine_name,"I"," ",handle)
+    CALL timeset(routineN,"I"," ",handle)
 
 !   *** Deallocate the old neighbor list structure ***
 
@@ -1548,7 +1526,7 @@ CONTAINS
         CALL deallocate_neighbor_list_set(ac(iac)%neighbor_list_set)
       END DO
       DEALLOCATE (ac,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,"ac")
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"ac")
     END IF
 
 !   *** Allocate and initialize the new neighbor list structure ***
@@ -1556,7 +1534,7 @@ CONTAINS
     nkind = SIZE(atom)
 
     ALLOCATE (ac(nkind*nkind),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "ac",nkind*nkind*int_size)
 
     DO iac=1,SIZE(ac)
@@ -1885,8 +1863,7 @@ CONTAINS
     REAL(dp), DIMENSION(:), INTENT(IN)       :: radius_a, radius_c
     CHARACTER(20)                            :: name
 
-    CHARACTER(LEN=*), PARAMETER :: &
-      routine_name = "build_gth_ppnl_neighbor_lists"
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'build_gth_ppnl_neighbor_lists'
 
     CHARACTER(LEN=8)                         :: unit_of_length_name
     INTEGER :: atom_a, atom_c, handle, i, iac, iatom, iatom_local, &
@@ -1909,7 +1886,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL timeset(routine_name,"I"," ",handle)
+    CALL timeset(routineN,"I"," ",handle)
 
 !   *** Deallocate the old neighbor list structures ***
 
@@ -1918,7 +1895,7 @@ CONTAINS
         CALL deallocate_neighbor_list_set(ac(iac)%neighbor_list_set)
       END DO
       DEALLOCATE (ac,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,"ac")
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"ac")
     END IF
 
     IF (ASSOCIATED(bc)) THEN
@@ -1926,7 +1903,7 @@ CONTAINS
         CALL deallocate_neighbor_list_set(bc(iac)%neighbor_list_set)
       END DO
       DEALLOCATE (bc,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,"bc")
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"bc")
     END IF
 
 !   *** Allocate and initialize the new neighbor list structures ***
@@ -1934,11 +1911,11 @@ CONTAINS
     nkind = SIZE(atom)
 
     ALLOCATE (ac(nkind*nkind),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "ac",nkind*nkind*int_size)
 
     ALLOCATE (bc(nkind*nkind),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "bc",nkind*nkind*int_size)
 
     DO iac=1,SIZE(ac)
@@ -2334,7 +2311,7 @@ CONTAINS
     INTEGER, DIMENSION(3), INTENT(IN)        :: nsubcell
     INTEGER, INTENT(IN)                      :: maxatom
 
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "allocate_subcell"
+    CHARACTER(LEN=*), PARAMETER              :: routineN = 'allocate_subcell'
 
     INTEGER                                  :: i, istat, j, k, na, nb, nc
     REAL(dp)                                 :: a_max, a_min, b_max, b_min, &
@@ -2348,7 +2325,7 @@ CONTAINS
     nc = nsubcell(3)
 
     ALLOCATE (subcell(na,nb,nc),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "subcell",na*nb*nc*int_size)
 
     delta_a = 1.0_dp/REAL(na,dp)
@@ -2373,7 +2350,7 @@ CONTAINS
           subcell(i,j,k)%s_max(3) = c_max
           subcell(i,j,k)%natom = 0
           ALLOCATE (subcell(i,j,k)%atom_list(maxatom),STAT=istat)
-          IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+          IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                            "subcell(i,j,k)%atom_list",&
                                            maxatom*int_size)
           subcell(i,j,k)%atom_list(:) = 0
@@ -2399,7 +2376,7 @@ CONTAINS
     TYPE(subcell_type), DIMENSION(:, :, :), &
       POINTER                                :: subcell
 
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "deallocate_subcell"
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'deallocate_subcell'
 
     INTEGER                                  :: i, istat, j, k
 
@@ -2412,7 +2389,7 @@ CONTAINS
           DO i=1,SIZE(subcell,1)
             DEALLOCATE (subcell(i,j,k)%atom_list,STAT=istat)
             IF (istat /= 0) THEN
-              CALL stop_memory(routine_name,module_name,__LINE__,&
+              CALL stop_memory(routineN,moduleN,__LINE__,&
                                "subcell(i,j,k)%atom_list")
             END IF
           END DO
@@ -2420,12 +2397,12 @@ CONTAINS
       END DO
 
       DEALLOCATE (subcell,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                        "subcell")
 
     ELSE
 
-      CALL stop_program(routine_name,module_name,__LINE__,&
+      CALL stop_program(routineN,moduleN,__LINE__,&
                         "The pointer subcell is not associated")
 
     END IF
@@ -2446,23 +2423,22 @@ CONTAINS
       DIMENSION(:), POINTER                  :: ab
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
-    TYPE(global_environment_type), &
-      pointer                             :: globenv
+    INTEGER, INTENT(in)                      :: output_unit
+    TYPE(global_environment_type), POINTER   :: globenv
     TYPE(cp_error_type), INTENT(inout), &
-         OPTIONAL                               :: error
-    INTEGER, INTENT(in) :: output_unit
+      OPTIONAL                               :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "write_distribution"
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'write_distribution'
 
-    INTEGER :: group, iab, ikind, ilist, ipe, istat, jkind, mype, n, nkind, &
-      nlist, nnode, npe, nsgf_a, nsgf_b
+    INTEGER                                  :: group, iab, ikind, ilist, &
+                                                ipe, istat, jkind, mype, n, &
+                                                nkind, nlist, nnode, npe, &
+                                                nsgf_a, nsgf_b
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: nblock, nelement
-    LOGICAL                                  :: ionode
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
     TYPE(neighbor_list_set_type), POINTER    :: neighbor_list_set
     TYPE(neighbor_list_type), POINTER        :: neighbor_list
-
 
     group = globenv%group
     mype = globenv%mepos + 1
@@ -2471,12 +2447,12 @@ CONTAINS
 !   *** Allocate work storage ***
 
     ALLOCATE (nblock(npe),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "nblock",npe*int_size)
     nblock(:) = 0
 
     ALLOCATE (nelement(npe),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "nelement",npe*int_size)
     nelement(:) = 0
 
@@ -2553,11 +2529,11 @@ CONTAINS
 !   *** Release work storage ***
 
     DEALLOCATE (nblock,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "nblock")
 
     DEALLOCATE (nelement,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "nelement")
   END SUBROUTINE write_distribution
 
@@ -2578,12 +2554,11 @@ CONTAINS
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(cell_type), POINTER                 :: cell
-    TYPE(global_environment_type), &
-      pointer                             :: globenv
-    CHARACTER(LEN=*), INTENT(IN)             :: name
+    TYPE(global_environment_type), POINTER   :: globenv
     INTEGER, INTENT(in)                      :: output_unit
+    CHARACTER(LEN=*), INTENT(IN)             :: name
     TYPE(cp_error_type), INTENT(inout), &
-         OPTIONAL                               :: error
+      OPTIONAL                               :: error
 
     CHARACTER(LEN=8)                         :: unit_of_length_name
     CHARACTER(LEN=default_string_length)     :: string
@@ -2591,7 +2566,7 @@ CONTAINS
                                                 ilist, inode, ipe, mype, &
                                                 nlist, nneighbor, nnode, npe
     INTEGER, DIMENSION(3)                    :: cell_a, cell_b
-    LOGICAL                                  :: ionode, print_headline
+    LOGICAL                                  :: print_headline
     REAL(dp)                                 :: dab, unit_of_length
     REAL(dp), DIMENSION(3)                   :: ra, rab, rb
     TYPE(neighbor_list_set_type), POINTER    :: neighbor_list_set

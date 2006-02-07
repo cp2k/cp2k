@@ -21,11 +21,14 @@
 
 MODULE kg_rspw_methods
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
-                                             get_atomic_kind,&   
+                                             get_atomic_kind,&
                                              get_atomic_kind_set
   USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                              gto_basis_set_type
+  USE cell_types,                      ONLY: cell_type
   USE cp_control_types,                ONLY: dft_control_type
+  USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
+                                             cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_rs_pool_types,                ONLY: cp_rs_pool_p_type,&
                                              rs_pool_create,&
@@ -35,13 +38,13 @@ MODULE kg_rspw_methods
   USE gaussian_gridlevels,             ONLY: destroy_gaussian_gridlevel,&
                                              gaussian_gridlevel,&
                                              init_gaussian_gridlevel
+  USE input_section_types,             ONLY: section_vals_get_subs_vals,&
+                                             section_vals_type
   USE kg_environment_types,            ONLY: get_kg_env,&
                                              kg_environment_type
-  USE kg_rspw_types,                   ONLY: kg_rspw_type,&
-                                             kg_rspw_get
+  USE kg_rspw_types,                   ONLY: kg_rspw_type
   USE kinds,                           ONLY: dp
   USE l_utils,                         ONLY: init_l_info,&
-                                             l_info_retain,&
                                              l_info_release
   USE pw_grid_types,                   ONLY: FULLSPACE,&
                                              HALFSPACE,&
@@ -49,26 +52,23 @@ MODULE kg_rspw_methods
   USE pw_grids,                        ONLY: pw_grid_create,&
                                              pw_grid_release,&
                                              pw_grid_setup
+  USE pw_poisson_methods,              ONLY: pw_poisson_set
+  USE pw_poisson_types,                ONLY: pw_poisson_create
   USE pw_pool_types,                   ONLY: pw_pool_create,&
                                              pw_pool_p_type,&
                                              pw_pools_dealloc
   USE qs_util,                         ONLY: exp_radius
-  USE cell_types,                 ONLY: cell_type
   USE termination,                     ONLY: stop_memory
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE cp_output_handling,              ONLY: cp_print_key_unit_nr, &
-                                             cp_print_key_finished_output  
-  USE pw_poisson_types, only: pw_poisson_create
-  USE pw_poisson_methods, only: pw_poisson_set
-  USE input_section_types, ONLY: section_vals_type, section_vals_get_subs_vals
 #include "cp_common_uses.h"
+
   IMPLICIT NONE
 
   PRIVATE
 
   LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
-  CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='kg_rspw_methods'
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'kg_rspw_methods'
   PUBLIC :: kg_rspw_create, kg_rspw_rebuild
 
 !-----------------------------------------------------------------------------!
@@ -77,9 +77,9 @@ CONTAINS
 
 !!*** **********************************************************************
 SUBROUTINE kg_rspw_create(kg_rspw,kg_env,error)
-    TYPE(kg_rspw_type), POINTER               :: kg_rspw
-    TYPE(kg_environment_type), &
-      OPTIONAL, POINTER                      :: kg_env
+    TYPE(kg_rspw_type), POINTER              :: kg_rspw
+    TYPE(kg_environment_type), OPTIONAL, &
+      POINTER                                :: kg_env
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -130,22 +130,18 @@ END SUBROUTINE kg_rspw_create
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'kg_rspw_rebuild ', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'kg_rspw_rebuild', &
       routineP = moduleN//':'//routineN
     REAL(KIND=dp), PARAMETER                 :: safety_factor = 1.2
 
-!   INTEGER, PARAMETER                       :: maxgridpoints = 100
-
-    INTEGER                                  :: cmax, cmaxl, handle, &
-                                                i, ikind, ipgf, iset, ishell, &
-                                                igrid_level, la, lgrid_level, maxlgto, &
-                                                ncommensurate, ngrid_level,&
-                                                nkind, nseta, nsmax, stat
+    INTEGER :: cmax, cmaxl, handle, i, igrid_level, ikind, ipgf, iset, &
+      ishell, la, lgrid_level, maxlgto, ncommensurate, ngrid_level, nkind, &
+      nseta, nsmax, output_unit, stat
     INTEGER, DIMENSION(:), POINTER           :: npgfa, nshella
-    INTEGER, DIMENSION(:, :), POINTER        :: lshella 
+    INTEGER, DIMENSION(:, :), POINTER        :: lshella
     LOGICAL                                  :: failure
-    REAL(dp)                                 :: alpha, cutilev, drmin, maxradius,&
-                                                rel_cutoff, zetp
+    REAL(dp)                                 :: alpha, cutilev, drmin, &
+                                                maxradius, rel_cutoff, zetp
     REAL(dp), DIMENSION(:), POINTER          :: cutoff
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: zeta
     TYPE(atomic_kind_type), DIMENSION(:), &
@@ -161,8 +157,9 @@ END SUBROUTINE kg_rspw_create
     TYPE(pw_grid_type), POINTER              :: old_pw_grid, pw_grid
     TYPE(pw_pool_p_type), DIMENSION(:), &
       POINTER                                :: pw_pools
-    TYPE(section_vals_type), POINTER :: poisson_section
-    INTEGER :: output_unit
+    TYPE(section_vals_type), POINTER         :: poisson_section
+
+!   INTEGER, PARAMETER                       :: maxgridpoints = 100
 !   ---------------------------------------------------------------------------
 
     CALL timeset(routineN,"I","",handle)

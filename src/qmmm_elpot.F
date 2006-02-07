@@ -24,35 +24,34 @@ MODULE qmmm_elpot
 !!
 !!   SOURCE
 !****************************************************************************  
-  USE cp_output_handling, ONLY: cp_print_key_should_output, cp_p_file
-  USE kinds,                           ONLY: default_string_length,&
-                                             dp
-  USE timings,                         ONLY: timeset,&
-                                             timestop
+  USE cell_types,                      ONLY: cell_type
+  USE cp_output_handling,              ONLY: cp_p_file,&
+                                             cp_print_key_should_output
+  USE erf_fn,                          ONLY: erf
+  USE global_types,                    ONLY: global_environment_type
+  USE input_constants,                 ONLY: do_qmmm_gauss,&
+                                             do_qmmm_grid
+  USE input_section_types,             ONLY: section_vals_get_subs_vals,&
+                                             section_vals_type,&
+                                             section_vals_val_get
+  USE kinds,                           ONLY: dp
+  USE mathconstants,                   ONLY: rootpi
+  USE memory_utilities,                ONLY: reallocate
+  USE particle_types,                  ONLY: particle_type
+  USE pw_env_types,                    ONLY: pw_env_type
   USE qmmm_gaussian_types,             ONLY: qmmm_gaussian_p_type,&
                                              qmmm_gaussian_type
-  USE qmmm_types,                      ONLY: qmmm_env_qm_type,&
-                                             qmmm_Pot_Type,&
+  USE qmmm_types,                      ONLY: qmmm_Pot_Type,&
                                              qmmm_pot_p_type
-  USE cell_types,                 ONLY: cell_type  
-  USE memory_utilities,                ONLY: reallocate
-  USE global_types,                    ONLY: global_environment_type
-  USE erf_fn,                          ONLY: erf
-  USE mathconstants,                   ONLY: rootpi
-  USE pw_env_types,                    ONLY: pw_env_type, pw_env_release, pw_env_get
-  USE input_constants,                 ONLY: do_qmmm_grid, do_qmmm_gauss, do_qmmm_none
-  USE particle_types,                  ONLY: particle_type
-  USE input_section_types, ONLY: section_type, section_create, &
-       section_add_keyword, section_add_subsection, section_release,&
-       section_vals_type,&
-       section_vals_get_subs_vals, section_vals_get, section_vals_val_get  
+  USE timings,                         ONLY: timeset,&
+                                             timestop
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
   PRIVATE
 
   LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
-  CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='qmmm_elpot'
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qmmm_elpot'
   PUBLIC :: qmmm_potential_init,&
             qmmm_validate_this_run
   
@@ -83,37 +82,38 @@ CONTAINS
   SUBROUTINE qmmm_potential_init(qmmm_coupl_type, mm_el_pot_radius, potentials,&
     pgfs, qm_cell_small, mm_cell, globenv, pw_env, compatibility, print_section,&
     error)
-    IMPLICIT NONE
-    ! Arguments
-    TYPE(qmmm_pot_p_type), DIMENSION(:), POINTER            :: potentials
+    INTEGER, INTENT(IN)                      :: qmmm_coupl_type
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: mm_el_pot_radius
+    TYPE(qmmm_pot_p_type), DIMENSION(:), &
+      POINTER                                :: potentials
     TYPE(qmmm_gaussian_p_type), &
-         DIMENSION(:), POINTER                       :: pgfs    
-    REAL(KIND=dp), DIMENSION(:), POINTER             :: mm_el_pot_radius 
-    INTEGER, INTENT(IN)                              :: qmmm_coupl_type      
-    TYPE(cell_type), POINTER                         :: mm_cell, qm_cell_small  
-    TYPE(section_vals_type), POINTER         :: print_section
-     TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+      DIMENSION(:), POINTER                  :: pgfs
+    TYPE(cell_type), POINTER                 :: qm_cell_small, mm_cell
     TYPE(global_environment_type), POINTER   :: globenv
-    TYPE(pw_env_type), POINTER :: pw_env    
-    LOGICAL, INTENT(IN) :: compatibility
-    ! Local Variables
+    TYPE(pw_env_type), POINTER               :: pw_env
+    LOGICAL, INTENT(IN)                      :: compatibility
+    TYPE(section_vals_type), POINTER         :: print_section
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
     CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_potential_init', &
       routineP = moduleN//':'//routineN
-    LOGICAL :: failure, found
-    TYPE(qmmm_gaussian_type), POINTER                :: pgf
-    REAL(KIND=dp) :: Rmax, Rmin, Fac
-    REAL(KIND=dp) :: rc, x, t, A,G, t1, t2
-    REAL(KIND=dp) :: rc2,rc3,rc4,rc5,rc6,rc7, x2,x3,x4,x5,x6,x7
-    INTEGER        :: I, J, K, Np, stat, ndim, ig, ig_start, myind
-    INTEGER,        DIMENSION(:), POINTER :: mm_atom_index
-    REAL(KIND=dp), PARAMETER :: dx = 0.05_dp, d2x=dx*dx
-    REAL(KIND=dp), DIMENSION(:,:),POINTER :: pot0_2
-    REAL(KIND=dp), DIMENSION(:), POINTER :: radius
-    TYPE(section_vals_type), POINTER         :: print_pot
-    TYPE(cp_logger_type), POINTER :: logger
-    CHARACTER(LEN=80)                        :: FileName
+    REAL(KIND=dp), PARAMETER                 :: dx = 0.05_dp, d2x = dx*dx
+
     CHARACTER(LEN=200)                       :: myFormat
+    CHARACTER(LEN=80)                        :: FileName
+    INTEGER                                  :: I, ig, ig_start, J, K, myind, &
+                                                ndim, Np, stat
+    INTEGER, DIMENSION(:), POINTER           :: mm_atom_index
+    LOGICAL                                  :: failure, found
+    REAL(KIND=dp)                            :: A, G, rc, rc2, rc3, rc4, rc5, &
+                                                rc6, rc7, Rmax, Rmin, t, t1, &
+                                                t2, x, x2, x3, x4, x5, x6, x7
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: radius
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: pot0_2
+    TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(qmmm_gaussian_type), POINTER        :: pgf
+    TYPE(section_vals_type), POINTER         :: print_pot
 
     logger => cp_error_get_logger(error)
     Rmin = 0.0_dp
@@ -327,13 +327,13 @@ CONTAINS
 !!*** ********************************************************************** 
   SUBROUTINE qmmm_pot_type_create(Pot, pot0_2, Rmax, Rmin, dx, npts, rc,&
        mm_atom_index)
-    IMPLICIT NONE
-    TYPE(qmmm_Pot_Type), POINTER :: Pot
-    REAL(KIND=dp), DIMENSION(:,:), POINTER :: pot0_2
-    REAL(KIND=dp), INTENT(IN) :: Rc, Rmax, Rmin, dx
-    INTEGER, INTENT(IN) :: npts
-    INTEGER, DIMENSION(:), POINTER :: mm_atom_index
-    
+    TYPE(qmmm_Pot_Type), POINTER             :: Pot
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: pot0_2
+    REAL(KIND=dp), INTENT(IN)                :: Rmax, Rmin, dx
+    INTEGER, INTENT(IN)                      :: npts
+    REAL(KIND=dp), INTENT(IN)                :: Rc
+    INTEGER, DIMENSION(:), POINTER           :: mm_atom_index
+
     Pot%pot0_2        => pot0_2
     Pot%mm_atom_index => mm_atom_index
     Pot%Rmax          =  Rmax
@@ -368,15 +368,13 @@ CONTAINS
 !!
 !!*** ********************************************************************** 
   SUBROUTINE qmmm_validate_this_run(particles_qm, particles_mm, mm_cell, qm_cell, error)
-    IMPLICIT NONE
-    ! Arguments
-    TYPE(particle_type), DIMENSION(:), POINTER :: particles_qm, particles_mm
-    TYPE(cell_type), POINTER                   :: mm_cell, qm_cell
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particles_qm, particles_mm
+    TYPE(cell_type), POINTER                 :: mm_cell, qm_cell
     TYPE(cp_error_type), INTENT(inout), &
-         OPTIONAL                               :: error
-    ! Local Variables
-    REAL(KIND=dp)                 :: Rmax
-    REAL(KIND=dp), DIMENSION(3,8) :: xb
+      OPTIONAL                               :: error
+
+    REAL(KIND=dp)                            :: Rmax
 
     Rmax = SQRT(mm_cell%hmat(1,1)**2+&
                 mm_cell%hmat(2,2)**2+&

@@ -27,33 +27,24 @@ MODULE nhc_mapping
                                              get_dyn_coeff
   USE extended_system_types,           ONLY: lnhc_parameters_type
   USE global_types,                    ONLY: global_environment_type
-  USE input_constants,                 ONLY: isokin_ensemble, &
-                                             nhc_global,nhc_massive,&
-                                             nve_ensemble,&
-                                             nvt_ensemble,&
-                                             npt_i_ensemble,&
-                                             npt_f_ensemble,&
-                                             nph_ensemble,&
-                                             nph_uniaxial_ensemble,&
-                                             nph_uniaxial_damped_ensemble,&
-                                             reftraj_ensemble,&
-                                             langevin_ensemble,&
-                                             do_nhcopt_global,&
-                                             do_nhcopt_molecule,&
-                                             do_nhcopt_massive,&
-                                             do_nhcopt_none
+  USE input_constants,                 ONLY: &
+       do_nhcopt_global, do_nhcopt_massive, do_nhcopt_molecule, &
+       isokin_ensemble, langevin_ensemble, nhc_global, nhc_massive, &
+       nph_uniaxial_damped_ensemble, nph_uniaxial_ensemble, npt_f_ensemble, &
+       npt_i_ensemble, nve_ensemble, nvt_ensemble, reftraj_ensemble
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type,&
                                              section_vals_val_get
-  USE kinds,                           ONLY: dp,&
-                                             default_string_length
+  USE kinds,                           ONLY: dp
   USE md,                              ONLY: simulation_parameters_type
   USE memory_utilities,                ONLY: reallocate
-  USE message_passing,                 ONLY: mp_sum, mp_allgather, mp_bcast
+  USE message_passing,                 ONLY: mp_allgather,&
+                                             mp_bcast,&
+                                             mp_sum
   USE molecule_kind_types,             ONLY: get_molecule_kind,&
                                              molecule_kind_type
-  USE molecule_types_new,              ONLY: molecule_type, &
-                                             get_molecule
+  USE molecule_types_new,              ONLY: get_molecule,&
+                                             molecule_type
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
 
@@ -88,9 +79,9 @@ SUBROUTINE nhc_to_barostat_mapping ( simpar, nhc, globenv )
 ! begin global declaratation
     TYPE(simulation_parameters_type), &
       INTENT(INOUT)                          :: simpar
-    TYPE(lnhc_parameters_type), INTENT(INOUT)  :: nhc
-    TYPE(global_environment_type), &
-      pointer                             :: globenv
+    TYPE(lnhc_parameters_type), &
+      INTENT(INOUT)                          :: nhc
+    TYPE(global_environment_type), POINTER   :: globenv
 
     INTEGER                                  :: i, isos, iw, number
 
@@ -207,23 +198,22 @@ SUBROUTINE nhc_to_particle_mapping ( simpar, local_molecules, molecule_set, &
     TYPE(distribution_1d_type), POINTER      :: local_molecules
     TYPE(molecule_type), POINTER             :: molecule_set( : )
     TYPE(molecule_kind_type), POINTER        :: molecule_kind_set( : )
-    TYPE(lnhc_parameters_type), INTENT(INOUT)  :: nhc
-    TYPE(global_environment_type), &
-      pointer                             :: globenv
+    TYPE(lnhc_parameters_type), &
+      INTENT(INOUT)                          :: nhc
+    TYPE(global_environment_type), POINTER   :: globenv
 
-    INTEGER                                  :: nhcopt
-    INTEGER :: atm_offset, i, icount, ii, ikind, imol, isos, iw, j, &
-      jj, kk, n3x3con, n4x6con, natom, natoms_local, ndcon, nkind, nmol_local, &
-      nmol_per_kind, nmolecule, number, number_total, ll, imol_local, first_atom, &
-      last_atom, ipart, atom_increment, start, finish, sum_of_thermostats
+    INTEGER :: atm_offset, atom_increment, finish, first_atom, i, icount, &
+      ielement, ii, iii, ikind, imol, imol_local, ipart, isos, iw, j, jj, kk, &
+      last_atom, ll, n3x3con, n4x6con, natom, natoms_local, ndcon, nhcopt, &
+      nkind, nmol_local, nmol_per_kind, nmolecule, number, number_total, &
+      start, sum_of_thermostats
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: const_mol, deg_of_freedom, &
                                                 tot_const
-    INTEGER                                  :: ielement, iii
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: point
+    INTEGER, DIMENSION(:), POINTER           :: massive_atom_list
     LOGICAL                                  :: have_global, nointer, noneflag
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
     TYPE(molecule_type), POINTER             :: molecule
-    INTEGER, DIMENSION ( : ), POINTER        :: massive_atom_list
 
 !------------------------------------------------------------------------------
 
@@ -663,18 +653,17 @@ END SUBROUTINE nhc_to_particle_mapping
  SUBROUTINE nhc_to_coef_mapping ( dyn_coeff_set, nhc, globenv )
 
     TYPE(dyn_coeff_set_type), POINTER        :: dyn_coeff_set
-    TYPE(lnhc_parameters_type), INTENT(INOUT)  :: nhc
-    TYPE(global_environment_type), &
-      pointer                             :: globenv
+    TYPE(lnhc_parameters_type), &
+      INTENT(INOUT)                          :: nhc
+    TYPE(global_environment_type), POINTER   :: globenv
 
     INTEGER                                  :: i, ikind, isos, iw, j, &
+                                                kg_coeff_ens, kg_coeff_nhc, &
                                                 ncoef_local, ncoef_of_kind, &
-                                                nkind, number, kg_coeff_ens,&
-                                                kg_coeff_nhc
+                                                nkind, number
     LOGICAL                                  :: nointer
-    REAL(KIND=dp)                            :: kg_coeff_temp 
-    type(section_vals_type), pointer         :: kg_coeff_section, nose_section
-
+    REAL(KIND=dp)                            :: kg_coeff_temp
+    TYPE(section_vals_type), POINTER         :: kg_coeff_section, nose_section
 
 !------------------------------------------------------------------------------
 
@@ -687,9 +676,9 @@ END SUBROUTINE nhc_to_particle_mapping
   nose_section => section_vals_get_subs_vals(kg_coeff_section,&
        "nose")
 
-  call section_vals_val_get(kg_coeff_section,"ensemble",i_val=kg_coeff_ens)
-  call section_vals_val_get(kg_coeff_section,"nhcopt",i_val=kg_coeff_nhc)
-  call section_vals_val_get(kg_coeff_section,"temperature",r_val=kg_coeff_temp)
+  CALL section_vals_val_get(kg_coeff_section,"ensemble",i_val=kg_coeff_ens)
+  CALL section_vals_val_get(kg_coeff_section,"nhcopt",i_val=kg_coeff_nhc)
+  CALL section_vals_val_get(kg_coeff_section,"temperature",r_val=kg_coeff_temp)
   
   SELECT CASE ( kg_coeff_ens )
   CASE  DEFAULT
@@ -702,9 +691,9 @@ END SUBROUTINE nhc_to_particle_mapping
     nhc % num_nhc = 0
     nhc % dis_type = ''
   CASE ( nvt_ensemble )
-    call section_vals_val_get(nose_section,"yoshida",i_val=nhc % nyosh )
-    call section_vals_val_get(nose_section,"mts",i_val=nhc % nc )
-    call section_vals_val_get(nose_section,"length",i_val=nhc % nhc_len )
+    CALL section_vals_val_get(nose_section,"yoshida",i_val=nhc % nyosh )
+    CALL section_vals_val_get(nose_section,"mts",i_val=nhc % nc )
+    CALL section_vals_val_get(nose_section,"length",i_val=nhc % nhc_len )
     number = 0
     ncoef_local = 0
     nointer = .TRUE.
@@ -814,20 +803,19 @@ END SUBROUTINE nhc_to_particle_mapping
 !******************************************************************************
  SUBROUTINE massive_list_generate ( molecule_set, molecule_kind_set, &
                                     local_molecules, globenv, massive_atom_list ) 
-  IMPLICIT NONE
-  TYPE ( molecule_type ), POINTER :: molecule_set( : )
-  TYPE ( molecule_kind_type ), POINTER :: molecule_kind_set( : )
-  TYPE ( distribution_1d_type ), POINTER :: local_molecules
-  TYPE(global_environment_type), &
-      pointer                             :: globenv
-  INTEGER, POINTER ::  massive_atom_list ( : )
-! local variables
-  INTEGER :: num_massive_atm_local, ikind, nkind, nmol_per_kind, offset
-  INTEGER :: i, j, k, imol, natom, num_massive_atm, first_atom, ncount, isos
-  INTEGER :: iproc, nhcopt
-  INTEGER, DIMENSION ( : ), POINTER :: local_atm_list, array_num_massive_atm, work
-  TYPE ( molecule_type ), POINTER :: molecule
-  TYPE ( molecule_kind_type ), POINTER :: molecule_kind
+    TYPE(molecule_type), POINTER             :: molecule_set( : )
+    TYPE(molecule_kind_type), POINTER        :: molecule_kind_set( : )
+    TYPE(distribution_1d_type), POINTER      :: local_molecules
+    TYPE(global_environment_type), POINTER   :: globenv
+    INTEGER, POINTER                         :: massive_atom_list( : )
+
+    INTEGER :: first_atom, i, ikind, imol, iproc, isos, j, k, natom, ncount, &
+      nhcopt, nkind, nmol_per_kind, num_massive_atm, num_massive_atm_local, &
+      offset
+    INTEGER, DIMENSION(:), POINTER           :: array_num_massive_atm, &
+                                                local_atm_list, work
+    TYPE(molecule_kind_type), POINTER        :: molecule_kind
+    TYPE(molecule_type), POINTER             :: molecule
 
   num_massive_atm_local = 0
   NULLIFY(local_atm_list)

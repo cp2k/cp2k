@@ -28,7 +28,10 @@ MODULE kg_scf
                                              gto_basis_set_type
   USE checkpoint_handler,              ONLY: write_checkpoint_information
   USE cp_control_types,                ONLY: dft_control_type
-  USE cp_files,                        ONLY: close_file,open_file
+  USE cp_output_handling,              ONLY: cp_p_file,&
+                                             cp_print_key_finished_output,&
+                                             cp_print_key_should_output,&
+                                             cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_sm_pool_types,                ONLY: cp_sm_pool_p_type,&
                                              sm_pools_create_matrix_vect,&
@@ -38,20 +41,28 @@ MODULE kg_scf
                                              get_potential,&
                                              gth_potential_type
   USE global_types,                    ONLY: global_environment_type
+  USE input_constants,                 ONLY: atomic_guess,&
+                                             core_guess,&
+                                             random_guess,&
+                                             restart_guess
+  USE input_section_types,             ONLY: section_vals_type
   USE kg_diis_methods,                 ONLY: kg_diis_b_clear,&
-                                             kg_diis_b_create, &
+                                             kg_diis_b_create,&
                                              kg_diis_step_A,&
                                              kg_diis_step_B
+  USE kg_environment_types,            ONLY: get_kg_env,&
+                                             kg_environment_type,&
+                                             set_kg_env
   USE kg_gpw_fm_mol_methods,           ONLY: calculate_mol_density_matrix,&
                                              fm_mol_eigensolver,&
                                              fm_mol_orthonormality,&
                                              mol_make_basis,&
                                              multiply_sparse_mol_mo
   USE kg_gpw_fm_mol_types,             ONLY: fm_mol_blocks_type,&
-                                             get_kg_fm_mol_set,&
                                              get_fm_mol_block,&
+                                             get_kg_fm_mol_set,&
                                              get_mol_mo_set,&
-                                             kg_fm_mol_set_type,& 
+                                             kg_fm_mol_set_type,&
                                              kg_fm_p_type,&
                                              mol_mo_set_p_type,&
                                              mol_mo_set_type
@@ -62,25 +73,18 @@ MODULE kg_scf
                                              write_mo_mol_restart
   USE kg_gpw_pw_env_methods,           ONLY: kg_rho_update_rho_mol
   USE kg_gpw_pw_env_types,             ONLY: kg_sub_pw_env_type
-  USE kg_environment_types,            ONLY: kg_environment_type,&
-                                             get_kg_env,&
-                                             set_kg_env
-  USE kg_scf_types,                    ONLY: kg_scf_env_type,&
-                                             kg_scf_env_release
+  USE kg_scf_types,                    ONLY: kg_scf_env_release,&
+                                             kg_scf_env_type
   USE kinds,                           ONLY: dp,&
-                                             dp_size,&
-                                             int_size
+                                             dp_size
   USE machine,                         ONLY: m_flush,&
                                              m_walltime
   USE mathlib,                         ONLY: diamat_all
-  USE message_passing,                 ONLY: mp_bcast,&
-                                             mp_max,&
+  USE message_passing,                 ONLY: mp_max,&
                                              mp_sum
   USE particle_types,                  ONLY: get_particle_set,&
                                              particle_type
-  USE preconditioner,                  ONLY: destroy_preconditioner,&
-                                             init_preconditioner,&
-                                             make_preconditioner
+  USE preconditioner,                  ONLY: destroy_preconditioner
   USE qs_charges_types,                ONLY: qs_charges_type
   USE qs_core_energies,                ONLY: calculate_ecore_overlap,&
                                              calculate_ecore_self
@@ -94,22 +98,18 @@ MODULE kg_scf
   USE qs_ks_types,                     ONLY: qs_ks_env_type,&
                                              qs_ks_release
   USE qs_matrix_pools,                 ONLY: mpools_get
-  USE qs_overlap,                      ONLY: write_fm_with_basis_info,&
-                                             write_sparse_matrix
-  USE qs_ot,                           ONLY: qs_ot_new_preconditioner, &
-                                             qs_ot_type
   USE qs_ot_scf,                       ONLY: ot_scf_destroy
+  USE qs_overlap,                      ONLY: write_sparse_matrix
   USE qs_rho_methods,                  ONLY: qs_rho_update_rho
   USE qs_rho_types,                    ONLY: qs_rho_type
   USE qs_scf,                          ONLY: scf_env_density_mixing
-  USE qs_scf_post,                     ONLY: scf_post_calculation
   USE qs_scf_types,                    ONLY: ao_mixing_nr,&
                                              general_diag_method_nr,&
-                                             special_diag_method_nr,&
                                              no_mixing_nr,&
-                                             ot_method_nr
-  USE qs_wf_history_methods,           ONLY: wfi_get_method_label,&
-                                             wfi_extrapolate,&
+                                             ot_method_nr,&
+                                             special_diag_method_nr
+  USE qs_wf_history_methods,           ONLY: wfi_extrapolate,&
+                                             wfi_get_method_label,&
                                              wfi_update
   USE qs_wf_history_types,             ONLY: wfi_use_guess_method_nr
   USE scf_control_types,               ONLY: scf_control_type
@@ -125,22 +125,15 @@ MODULE kg_scf
                                              stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE input_section_types,             ONLY: section_vals_type
-  USE cp_output_handling,              ONLY: cp_print_key_unit_nr, &
-                                             cp_print_key_finished_output,&
-                                             cp_print_key_should_output,&
-                                             cp_p_file
-
-  
-  USE input_constants, ONLY: atomic_guess, core_guess, random_guess, restart_guess
 #include "cp_common_uses.h"
+
   IMPLICIT NONE
 
   PRIVATE
 
 ! *** Global parameters ***
 
-  CHARACTER(LEN=*), PARAMETER, PRIVATE :: moduleN = "kg_scf"
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'kg_scf'
 
   LOGICAL, PARAMETER, PRIVATE :: debug_this_module=.FALSE.
 
@@ -181,10 +174,10 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'kg_scf_env_create', &
       routineP = moduleN//':'//routineN
 
-    TYPE(dft_control_type), POINTER          :: dft_control
-    TYPE(scf_control_type), POINTER          :: scf_control
     INTEGER                                  :: stat
     LOGICAL                                  :: failure
+    TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(scf_control_type), POINTER          :: scf_control
 
     failure=.FALSE.
 
@@ -245,23 +238,22 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE kg_qs_scf(kg_env,globenv,scf_section,error)
     TYPE(kg_environment_type), POINTER       :: kg_env
-    TYPE(global_environment_type), &
-      POINTER                                :: globenv
+    TYPE(global_environment_type), POINTER   :: globenv
+    TYPE(section_vals_type), POINTER         :: scf_section
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
-     TYPE(section_vals_type), POINTER :: scf_section
 
     CHARACTER(len=*), PARAMETER :: routineN = 'kg_qs_scf', &
       routineP = moduleN//':'//routineN
 
     LOGICAL                                  :: failure
-     TYPE(kg_environment_type), POINTER       :: my_kg_env
-     TYPE(kg_scf_env_type), POINTER           :: scf_env
+    TYPE(kg_environment_type), POINTER       :: my_kg_env
+    TYPE(kg_scf_env_type), POINTER           :: scf_env
 
      NULLIFY(scf_env,my_kg_env)
      my_kg_env => kg_env
      failure=.FALSE.
-     CPPrecondition(associated(kg_env),cp_failure_level,routineP,error,failure)
+     CPPrecondition(ASSOCIATED(kg_env),cp_failure_level,routineP,error,failure)
      NULLIFY(scf_env)
      IF (.NOT. failure) THEN
         CALL get_kg_env(kg_env,scf_env=scf_env,error=error)
@@ -307,51 +299,38 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE scf_env_do_scf(scf_env,kg_env,globenv,scf_section,error)
 
-    TYPE(kg_scf_env_type), POINTER             :: scf_env
-    TYPE(kg_environment_type), POINTER         :: kg_env
-    TYPE(global_environment_type), &
-      POINTER                                  :: globenv
+    TYPE(kg_scf_env_type), POINTER           :: scf_env
+    TYPE(kg_environment_type), POINTER       :: kg_env
+    TYPE(global_environment_type), POINTER   :: globenv
+    TYPE(section_vals_type), POINTER         :: scf_section
     TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                                 :: error
-    TYPE(section_vals_type), POINTER :: scf_section
-    
+      OPTIONAL                               :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = "scf_env_do_scf", &
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'scf_env_do_scf', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                    :: handle, handle2
-    INTEGER                                    :: output_unit, ispin, istat, iw
-    INTEGER                                    :: i, ib, imol, &
-                                                  jb, nat_mol, &
-                                                  nb, nb1, nelectron_global,&
-                                                  nmolecule_global, nmol_local,&
-                                                  nmolecule_kind
-    LOGICAL                                    :: energy_only
-    LOGICAL                                    :: failure
-    LOGICAL                                    :: ionode, id_equal
-    LOGICAL                                    :: diis_step, do_level_shift,&
-                                                  should_stop, use_cholesky, use_jacobi
-    TYPE(qs_environment_type), POINTER         :: qs_env
-    TYPE(cp_logger_type), POINTER              :: logger
-    TYPE(dft_control_type), POINTER            :: dft_control
-    TYPE(kg_fm_p_type), POINTER                :: kg_fm
-    TYPE(kg_sub_pw_env_type), POINTER          :: kg_sub_pw_env
-    TYPE(qs_charges_type), POINTER             :: qs_charges
-    TYPE(qs_energy_type), POINTER              :: energy
-    TYPE(qs_ks_env_type), POINTER              :: ks_env
-    TYPE(qs_rho_type), POINTER                 :: rho
+    INTEGER :: handle, handle2, i, ib, imol, ispin, istat, iw, jb, nb, nb1, &
+      nelectron_global, nmolecule_global, nmolecule_kind, output_unit
+    LOGICAL :: diis_step, do_level_shift, energy_only, failure, id_equal, &
+      ionode, should_stop, use_cholesky, use_jacobi
+    REAL(dp)                                 :: diis_error, t1, t2
+    REAL(dp), ALLOCATABLE, DIMENSION(:)      :: orthonormality
+    REAL(dp), DIMENSION(:), POINTER          :: diis_ev_global
+    REAL(dp), DIMENSION(:, :), POINTER       :: diis_m1_global, diis_m2_global
+    TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(kg_fm_p_type), POINTER              :: kg_fm
+    TYPE(kg_sub_pw_env_type), POINTER        :: kg_sub_pw_env
+    TYPE(qs_charges_type), POINTER           :: qs_charges
+    TYPE(qs_energy_type), POINTER            :: energy
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(qs_ks_env_type), POINTER            :: ks_env
+    TYPE(qs_rho_type), POINTER               :: rho
     TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                  :: matrix_h,&
-                                                  matrix_ks,&
-                                                  matrix_p,&
-                                                  matrix_s
-    TYPE(scf_control_type), POINTER            :: scf_control
-    REAL(dp)                                   :: t1, t2
-    REAL(dp)                                   :: diis_error
-    REAL(dp), DIMENSION(:), POINTER            :: diis_ev_global
-    REAL(dp), DIMENSION(:,:), POINTER          :: diis_m1_global,diis_m2_global
-    REAL(dp), DIMENSION(:), ALLOCATABLE        :: orthonormality
-    
+      POINTER                                :: matrix_h, matrix_ks, &
+                                                matrix_p, matrix_s
+    TYPE(scf_control_type), POINTER          :: scf_control
+
 !   ---------------------------------------------------------------------------
 
     NULLIFY(dft_control,scf_control,ks_env,qs_env)
@@ -814,21 +793,16 @@ CONTAINS
 
     TYPE(kg_scf_env_type), POINTER           :: scf_env
     TYPE(kg_environment_type), POINTER       :: kg_env
-    TYPE(global_environment_type), &
-      POINTER                                :: globenv
+    TYPE(global_environment_type), POINTER   :: globenv
+    TYPE(section_vals_type), POINTER         :: scf_section
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
-     TYPE(section_vals_type), POINTER :: scf_section
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = "init_kgscf_run", &
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'init_kgscf_run', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, ndep, output_unit
-!    INTEGER                                  :: homo, ispin, nao, &
-!                                                ndep, nelectron_spin, &
-    LOGICAL                                  :: failure
-    LOGICAL                                  :: do_ortho,ionode
-
+    LOGICAL                                  :: do_ortho, failure
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_sm_pool_p_type), DIMENSION(:), &
       POINTER                                :: S_sm_pools
@@ -839,7 +813,9 @@ CONTAINS
     TYPE(real_matrix_p_type), DIMENSION(:), &
       POINTER                                :: matrix_ks, matrix_s
     TYPE(scf_control_type), POINTER          :: scf_control
-    
+
+!    INTEGER                                  :: homo, ispin, nao, &
+!                                                ndep, nelectron_spin, &
 !   ---------------------------------------------------------------------------
 
     CALL timeset("init_kgscf_run","I"," ",handle)
@@ -1004,40 +980,31 @@ CONTAINS
     TYPE(kg_fm_mol_set_type), DIMENSION(:), &
       POINTER                                :: kg_fm_mol_set
     TYPE(real_matrix_type), POINTER          :: s
-    TYPE(scf_control_type), POINTER          :: scf_control
     INTEGER, INTENT(OUT)                     :: ndep
-    LOGICAL,INTENT(IN)                       :: do_orthogonalization
+    TYPE(scf_control_type), POINTER          :: scf_control
+    LOGICAL, INTENT(IN)                      :: do_orthogonalization
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = "calculate_ortho_per_molecule", &
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_ortho_per_molecule', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: col_first, col_last, &
-                                                handle, iat, iatom, icol,&
-                                                icol_ortho, imol, imol_kind, &
-                                                info, irow, irow_ortho, jat, &
-                                                jatom, ld_ortho, ld_work, natom, &
-                                                nmol, nmol_kind, nc_ortho, nc_work,&
-                                                row_first, row_last
+    INTEGER :: col_first, col_last, handle, i, iat, iatom, icol, icol_ortho, &
+      imol, imol_kind, info, irow, irow_ortho, jat, jatom, ld_ortho, ld_work, &
+      natom, nc_ortho, nc_work, nmol, nmol_kind, row_first, row_last
+    INTEGER, DIMENSION(:), POINTER           :: i_atom, ifirst_ao, ilast_ao
+    LOGICAL                                  :: failure
+    REAL(dp), DIMENSION(:, :), POINTER       :: ortho, s_block, work
     REAL(KIND=dp)                            :: eps_eigval
-    TYPE(fm_mol_blocks_type), DIMENSION(:),&
+    TYPE(fm_mol_blocks_type), DIMENSION(:), &
       POINTER                                :: fm_mol_blocks
     TYPE(fm_mol_blocks_type), POINTER        :: mol_block
-    TYPE(kg_fm_mol_set_type), POINTER        :: fm_mol_set 
+    TYPE(kg_fm_mol_set_type), POINTER        :: fm_mol_set
 
-    REAL(dp), DIMENSION(:,:),  POINTER        :: ortho
-    REAL(dp), DIMENSION(:,:),  POINTER        :: work
-    REAL(dp), DIMENSION(:,:),  POINTER        :: s_block
-    INTEGER, DIMENSION(:), POINTER            :: i_atom
-    INTEGER, DIMENSION(:), POINTER            :: ifirst_ao
-    INTEGER, DIMENSION(:), POINTER            :: ilast_ao
-
-    LOGICAL :: failure
-    INTEGER :: i,j
 !
 !   ---------------------------------------------------------------------------
 !
+
     CALL timeset("calculate_ortho_per_molecule","I"," ",handle)
 
     failure = .FALSE.
@@ -1165,64 +1132,56 @@ CONTAINS
 
   SUBROUTINE kgscf_first_density_matrix(kg_fm,qs_env,kg_env,globenv,error)
 
-    TYPE(kg_fm_p_type)                        :: kg_fm
-    TYPE(qs_environment_type), POINTER        :: qs_env
-    TYPE(kg_environment_type), POINTER        :: kg_env
-    TYPE(global_environment_type), &
-      pointer                              :: globenv
+    TYPE(kg_fm_p_type)                       :: kg_fm
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(kg_environment_type), POINTER       :: kg_env
+    TYPE(global_environment_type), POINTER   :: globenv
     TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                                :: error
+      OPTIONAL                               :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = "kgscf_first_density_matrix", &
-      routineP = moduleN//":"//routineN
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'kgscf_first_density_matrix', &
+      routineP = moduleN//':'//routineN
 
-    INTEGER :: atom_a, group, handle, iatom, ikind, imol, imolecule_kind, &
-               iset, isgf, isgfa, ishell, ispin, istat, la, maxl, maxll,&
-               n_ao_kind, nao_global, nat_mol, natom, ncaount, ncount, nel_global, &
-               nelectron(2), nmo, nmo_kind(2), nmo_max, nmol_local, nmolecule_kind, &
-               nset, nspin , qs_env_id , i
-
-    INTEGER, ALLOCATABLE, DIMENSION(:)        :: first_sgf
-    INTEGER, DIMENSION(:), POINTER            :: atom_list, elec_conf, nshell
-    INTEGER, DIMENSION(:, :), POINTER         :: first_sgfa, l, last_sgfa
-    LOGICAL                                   :: failure
-    REAL(KIND=dp)                             :: maxocc_global(2),&
-                                                 nelec, paa, scale, &
-                                                 trps1, trps2
-    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)  :: econf, pdiag, sdiag
-    REAL(dp), DIMENSION(:,:), POINTER         :: mo_coeff
-    REAL(dp), DIMENSION(:,:), POINTER         :: aux_matrix
-    REAL(dp), DIMENSION(:,:), POINTER         :: ortho
-    REAL(dp), DIMENSION(:,:), POINTER         :: work
-    REAL(dp), DIMENSION(:,:), POINTER         :: s_mo
-    TYPE(all_potential_type), POINTER         :: all_potential
+    INTEGER :: atom_a, group, handle, i, iatom, ikind, imol, imolecule_kind, &
+      iset, isgf, isgfa, ishell, ispin, istat, la, maxl, maxll, n_ao_kind, &
+      nao_global, nat_mol, natom, ncount, nel_global, nelectron(2), nmo, &
+      nmo_kind(2), nmo_max, nmol_local, nmolecule_kind, nset, nspin, qs_env_id
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: first_sgf
+    INTEGER, DIMENSION(:), POINTER           :: atom_list, elec_conf, nshell
+    INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa, l, last_sgfa
+    LOGICAL                                  :: failure
+    REAL(dp), DIMENSION(:, :), POINTER       :: aux_matrix, mo_coeff, ortho, &
+                                                s_mo, work
+    REAL(KIND=dp)                            :: maxocc_global(2), nelec, paa, &
+                                                scale, trps1, trps2
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: econf, pdiag, sdiag
+    TYPE(all_potential_type), POINTER        :: all_potential
     TYPE(atomic_kind_type), DIMENSION(:), &
-      POINTER                                 :: atomic_kind_set
-    TYPE(atomic_kind_type), POINTER           :: atomic_kind
-    TYPE(cp_para_env_type), POINTER           :: para_env
-    TYPE(dft_control_type), POINTER           :: dft_control
+      POINTER                                :: atomic_kind_set
+    TYPE(atomic_kind_type), POINTER          :: atomic_kind
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(fm_mol_blocks_type), DIMENSION(:), &
-      POINTER                                 :: fm_mol_blocks
-    TYPE(fm_mol_blocks_type), POINTER         :: mol_block
-    TYPE(gth_potential_type), POINTER         :: gth_potential
-    TYPE(gto_basis_set_type), POINTER         :: orb_basis_set
+      POINTER                                :: fm_mol_blocks
+    TYPE(fm_mol_blocks_type), POINTER        :: mol_block
+    TYPE(gth_potential_type), POINTER        :: gth_potential
+    TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
     TYPE(kg_fm_mol_set_type), DIMENSION(:), &
-      POINTER                                 :: kg_fm_mol_set
-    TYPE(kg_fm_mol_set_type), POINTER         :: fm_mol_set
-    TYPE(mol_mo_set_p_type), DIMENSION(:),&
-      POINTER                                 :: mos
-    TYPE(mol_mo_set_type), POINTER            :: mo_set
+      POINTER                                :: kg_fm_mol_set
+    TYPE(kg_fm_mol_set_type), POINTER        :: fm_mol_set
+    TYPE(mol_mo_set_p_type), DIMENSION(:), &
+      POINTER                                :: mos
+    TYPE(mol_mo_set_type), POINTER           :: mo_set
     TYPE(particle_type), DIMENSION(:), &
-      POINTER                                 :: particle_set
+      POINTER                                :: particle_set
     TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                 :: matrix_h,&
-                                                 matrix_p,&
-                                                 matrix_s
-    TYPE(scf_control_type), POINTER           :: scf_control
-  INTEGER :: imo
+      POINTER                                :: matrix_h, matrix_p, matrix_s
+    TYPE(scf_control_type), POINTER          :: scf_control
+
 !
 !   ---------------------------------------------------------------------------
 !
+
     failure = .FALSE.
     NULLIFY( aux_matrix, atomic_kind_set, dft_control, &
             para_env, particle_set, kg_fm_mol_set, &
@@ -1555,24 +1514,24 @@ CONTAINS
 
   SUBROUTINE kgscf_initial_rho(kg_env, kg_fm, qs_env, globenv, scf_section, error)
 
-    TYPE(kg_environment_type), POINTER           :: kg_env
-    TYPE(kg_fm_p_type), POINTER                  :: kg_fm
-    TYPE(qs_environment_type), POINTER           :: qs_env
-    TYPE(global_environment_type), POINTER       :: globenv
+    TYPE(kg_environment_type), POINTER       :: kg_env
+    TYPE(kg_fm_p_type), POINTER              :: kg_fm
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(global_environment_type), POINTER   :: globenv
+    TYPE(section_vals_type), POINTER         :: scf_section
     TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                                   :: error
-    TYPE(section_vals_type), POINTER :: scf_section
+      OPTIONAL                               :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'kgscf_initial_rho_setup', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'kgscf_initial_rho', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                      :: extrapolation_method_nr, &
-                                                    handle, ispin, nmo, output_unit
-    LOGICAL                                      :: failure, ionode, orthogonal_wf
-    TYPE(cp_logger_type), POINTER                :: logger
-    TYPE(kg_sub_pw_env_type), POINTER            :: kg_sub_pw_env
-    TYPE(kg_fm_mol_set_type), DIMENSION(:),&
-                                POINTER          ::    kg_fm_mol_set
+    INTEGER                                  :: extrapolation_method_nr, &
+                                                handle, output_unit
+    LOGICAL                                  :: failure, orthogonal_wf
+    TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(kg_fm_mol_set_type), DIMENSION(:), &
+      POINTER                                :: kg_fm_mol_set
+    TYPE(kg_sub_pw_env_type), POINTER        :: kg_sub_pw_env
 
 !    -------------------------------------------------------------------------
 
@@ -1647,7 +1606,7 @@ CONTAINS
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
-!
+
     CHARACTER(len=*), PARAMETER :: routineN = 'kg_scf_env_cleanup', &
       routineP = moduleN//':'//routineN
 
@@ -1656,6 +1615,7 @@ CONTAINS
     TYPE(cp_sm_pool_p_type), DIMENSION(:), &
       POINTER                                :: S_sm_pools
 
+!
 !    -------------------------------------------------------------------------
 
     CALL timeset(routineN,"I"," ",handle)

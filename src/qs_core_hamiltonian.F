@@ -88,16 +88,21 @@ MODULE qs_core_hamiltonian
   USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                              gto_basis_set_type
   USE checkpoint_handler,              ONLY: write_checkpoint_information
+  USE cp_output_handling,              ONLY: cp_p_file,&
+                                             cp_print_key_finished_output,&
+                                             cp_print_key_should_output,&
+                                             cp_print_key_unit_nr
+!!JCS
   USE distribution_2d_types,           ONLY: distribution_2d_type
   USE external_potential_types,        ONLY: all_potential_type,&
                                              get_potential,&
                                              gth_potential_type
   USE global_types,                    ONLY: global_environment_type
   USE harris_env_types,                ONLY: harris_env_type
-  USE input_constants,                 ONLY: ep_run,linear_response_run,&
-                                             lr_precond_kinetic 
-  USE input_section_types,             ONLY: section_vals_get,&
-                                             section_vals_get_subs_vals,&
+  USE input_constants,                 ONLY: ep_run,&
+                                             linear_response_run,&
+                                             lr_precond_kinetic
+  USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type,&
                                              section_vals_val_get
   USE kinds,                           ONLY: dp,&
@@ -112,49 +117,29 @@ MODULE qs_core_hamiltonian
   USE particle_types,                  ONLY: get_particle_set,&
                                              particle_type
   USE qs_all_potential,                ONLY: all_integrals,&
-                                             vall_type 
+                                             vall_type
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type,&
                                              set_qs_env
   USE qs_force_types,                  ONLY: qs_force_type
-  USE qs_neighbor_list_types,          ONLY: find_neighbor_list,&
-                                             first_list,&
-                                             first_node,&
-                                             get_neighbor_list,&
-                                             get_neighbor_list_set,&
-                                             get_neighbor_node,&
-                                             qlist_type,&
-                                             block_p_type,& 
-                                             neighbor_list_set_p_type,&
-                                             neighbor_list_type,&
-                                             neighbor_node_type,&
-                                             next, &
-                                             reduced_3c_list_type
+  USE qs_neighbor_list_types,          ONLY: &
+       block_p_type, find_neighbor_list, first_list, first_node, &
+       get_neighbor_list, get_neighbor_list_set, get_neighbor_node, &
+       neighbor_list_set_p_type, neighbor_list_type, neighbor_node_type, &
+       next, qlist_type, reduced_3c_list_type
   USE qs_oce_methods,                  ONLY: set_up_oce
-  USE qs_oce_types,                    ONLY: allocate_oce_set,&
-                                             allocate_vtriple,&
-                                             create_oce_set,&
-                                             dist_list_4oce_type,&
-                                             oce_matrix_type, &
-                                             prepare_oce_coeff,&
-                                             build_reduced_3c_lists,&
-                                             retrieve_sac_list,&
-                                             vtriple_type
+  USE qs_oce_types,                    ONLY: &
+       allocate_oce_set, allocate_vtriple, build_reduced_3c_lists, &
+       create_oce_set, dist_list_4oce_type, oce_matrix_type, &
+       prepare_oce_coeff, retrieve_sac_list, vtriple_type
   USE qs_overlap,                      ONLY: write_matrix_distribution,&
                                              write_sparse_matrix
-  USE cp_files,                        ONLY: close_file,&
-                                             open_file
   USE qs_rho_types,                    ONLY: qs_rho_type
   USE scf_control_types,               ONLY: scf_control_type
-  USE sparse_matrix_types,             ONLY: add_block_node,&
-                                             add_matrices,&
-                                             allocate_matrix,&
-                                             allocate_matrix_set,&
-                                             cp_sm_scale_and_add,&
-                                             deallocate_matrix_set,&
-                                             get_block_node,&
-                                             real_matrix_p_type,&
-                                             replicate_matrix_structure
+  USE sparse_matrix_types,             ONLY: &
+       add_block_node, add_matrices, allocate_matrix, allocate_matrix_set, &
+       cp_sm_scale_and_add, deallocate_matrix_set, get_block_node, &
+       real_matrix_p_type, replicate_matrix_structure
   USE string_utilities,                ONLY: compress,&
                                              uppercase
   USE termination,                     ONLY: stop_memory,&
@@ -163,21 +148,16 @@ MODULE qs_core_hamiltonian
                                              timestop
   USE util,                            ONLY: locate,&
                                              sort
-  USE cp_output_handling,              ONLY: cp_print_key_unit_nr, &
-                                             cp_print_key_finished_output,&
-                                             cp_print_key_should_output,&
-                                             cp_p_file
-
-!!JCS
   USE virial_types,                    ONLY: virial_type
 #include "cp_common_uses.h"
+
   IMPLICIT NONE
 
   PRIVATE
 
 ! *** Global parameters ***
 
-  CHARACTER(LEN=*), PARAMETER :: module_name = "qs_core_hamiltonian"
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_core_hamiltonian'
 
 !   *** Local types ***
 
@@ -224,14 +204,14 @@ CONTAINS
 
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(global_environment_type), &
-      pointer                             :: globenv
+      POINTER                             :: globenv
     LOGICAL, INTENT(IN)                      :: calculate_forces
     LOGICAL, INTENT(IN), OPTIONAL            :: harris
     TYPE(cp_error_type), INTENT(inout), &
          OPTIONAL                               :: error
 !   *** Local parameters ***
 
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "core_hamiltonian"
+    CHARACTER(LEN=*), PARAMETER :: routineN = "core_hamiltonian"
 
 !   *** Local variables ***
 
@@ -348,7 +328,7 @@ CONTAINS
 
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
-    CALL write_checkpoint_information("entering "//routine_name,globenv,error)
+    CALL write_checkpoint_information("entering "//routineN,globenv,error)
 
     NULLIFY (atomic_kind_set)
     NULLIFY (distribution_2d)
@@ -421,12 +401,12 @@ CONTAINS
 
     IF (calculate_forces) THEN
 
-      CALL timeset(routine_name//" (forces)","I"," ",handle)
+      CALL timeset(routineN//" (forces)","I"," ",handle)
 
       nder = 1
 
       ALLOCATE (atom_of_kind(natom),STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                        "atom_of_kind",natom*int_size)
 
       CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
@@ -460,7 +440,7 @@ CONTAINS
 
     ELSE
 
-      CALL timeset(routine_name,"I"," ",handle)
+      CALL timeset(routineN,"I"," ",handle)
 
       IF (BTEST(cp_print_key_should_output(logger%iter_info,qs_env%input,&
             "DFT%PRINT%AO_MATRICES/DERIVATIVES",error=error),cp_p_file).OR.&
@@ -491,10 +471,10 @@ CONTAINS
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,nsgf=nsgf)
 
     ALLOCATE (first_sgf(natom),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "first_sgf",natom*int_size)
     ALLOCATE (last_sgf(natom),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "last_sgf",natom*int_size)
 
     CALL get_particle_set(particle_set=particle_set,&
@@ -520,7 +500,7 @@ CONTAINS
                          distribution_2d=distribution_2d)
 
 !   *** Allocate the matrix of coefficients for one center expansions
-    IF(qs_env%dft_control%qs_control%gapw .or. qs_env%dft_control%qs_control%gapw_xc) THEN
+    IF(qs_env%dft_control%qs_control%gapw .OR. qs_env%dft_control%qs_control%gapw_xc) THEN
       CALL create_oce_set(oce)
       CALL allocate_oce_set(oce,natom,nkind,maxder)
       CALL prepare_oce_coeff(particle_set,oce,natom,nsgf,&
@@ -533,10 +513,10 @@ CONTAINS
     ENDIF
 
     DEALLOCATE (first_sgf,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "first_sgf")
     DEALLOCATE (last_sgf,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "last_sgf")
 
     DO i=2,maxder
@@ -546,7 +526,7 @@ CONTAINS
       CALL compress(name)
       CALL uppercase(name)
       CALL replicate_matrix_structure(source=matrix_s(1)%matrix,&
-                                      target=matrix_s(i)%matrix,&
+                                      TARGET=matrix_s(i)%matrix,&
                                       target_name=TRIM(name),&
                                       target_symmetry="antisymmetric")
     END DO
@@ -565,7 +545,7 @@ CONTAINS
     xas_section =>  section_vals_get_subs_vals(input, &
                                                  "DFT%XAS")
 !    call section_vals_val_get(xas_section,"_SECTION_PARAMETERS_",l_val=xas_calculation)
-    call section_vals_val_get(xas_section,"ADDED_MOS",i_val=added_mos)
+    CALL section_vals_val_get(xas_section,"ADDED_MOS",i_val=added_mos)
     xas_calculation = (added_mos>0)
     
     build_kinetic_energy_matrix = (scf_control%use_ot.OR.&
@@ -588,7 +568,7 @@ CONTAINS
         return_t_derivatives = .FALSE.
       END IF
       CALL replicate_matrix_structure(source=matrix_s(1)%matrix,&
-                                      target=matrix_t(1)%matrix,&
+                                      TARGET=matrix_t(1)%matrix,&
                                       target_name="KINETIC ENERGY MATRIX")
       DO i=2,SIZE(matrix_t)
         cgfsym = cgf_symbol(1,indco(1:3,i))
@@ -597,7 +577,7 @@ CONTAINS
         CALL compress(name)
         CALL uppercase(name)
         CALL replicate_matrix_structure(source=matrix_s(1)%matrix,&
-                                        target=matrix_t(i)%matrix,&
+                                        TARGET=matrix_t(i)%matrix,&
                                         target_name=name,&
                                         target_symmetry="antisymmetric")
       END DO
@@ -608,7 +588,7 @@ CONTAINS
     CALL allocate_matrix_set(matrix_h,1)
 
     CALL replicate_matrix_structure(source=matrix_s(1)%matrix,&
-                                    target=matrix_h(1)%matrix,&
+                                    TARGET=matrix_h(1)%matrix,&
                                     target_name="CORE HAMILTONIAN MATRIX")
 
 !   *** Allocate work storage ***
@@ -648,7 +628,7 @@ CONTAINS
 
     ALLOCATE (sintt(SIZE(matrix_s),0:nthread-1),STAT=istat)
     IF (istat /= 0) THEN
-      CALL stop_memory(routine_name,module_name,__LINE__,&
+      CALL stop_memory(routineN,moduleN,__LINE__,&
                        "sintt",SIZE(matrix_s)*int_size*nthread)
     END IF
     DO i=1,SIZE(sintt,1)
@@ -659,7 +639,7 @@ CONTAINS
 
     IF (build_kinetic_energy_matrix) THEN
       ALLOCATE (tintt(SIZE(matrix_t),0:nthread-1),STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                        "tintt",SIZE(matrix_t)*int_size*nthread)
       DO i=1,SIZE(tintt,1)
         DO j=0,nthread-1
@@ -669,7 +649,7 @@ CONTAINS
     END IF
 
 !   ***  Initialize blocks for the one center expansione ***
-    IF(qs_env%dft_control%qs_control%gapw .or. qs_env%dft_control%qs_control%gapw_xc) THEN
+    IF(qs_env%dft_control%qs_control%gapw .OR. qs_env%dft_control%qs_control%gapw_xc) THEN
        oce_present = ASSOCIATED(sac_oce)
        rho0_present = ASSOCIATED(sac_3c)
        IF(rho0_present) THEN
@@ -678,12 +658,12 @@ CONTAINS
 
        ALLOCATE (oceht(SIZE(matrix_s),0:nthread-1),STAT=istat)
        IF (istat /= 0) THEN
-         CALL stop_memory(routine_name,module_name,__LINE__,&
+         CALL stop_memory(routineN,moduleN,__LINE__,&
                        "oceht",SIZE(matrix_s)*int_size*nthread)
        END IF
        ALLOCATE (ocest(SIZE(matrix_s),0:nthread-1),STAT=istat)
        IF (istat /= 0) THEN
-         CALL stop_memory(routine_name,module_name,__LINE__,&
+         CALL stop_memory(routineN,moduleN,__LINE__,&
                        "ocest",SIZE(matrix_s)*int_size*nthread)
        END IF
 
@@ -702,7 +682,7 @@ CONTAINS
     IF (ppl_present) THEN
 
       ALLOCATE (vpplt(nkind,0:nthread-1),STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                        "vpplt",nkind*int_size)
 
       DO kkind=1,nkind
@@ -736,7 +716,7 @@ CONTAINS
     IF (ppnl_present) THEN
 
       ALLOCATE (vppnlt(nkind,0:nthread-1),STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                        "vppnlt",nkind*int_size)
 
       DO kkind=1,nkind
@@ -771,7 +751,7 @@ CONTAINS
     IF (all_potential_present) THEN
 
       ALLOCATE(vallt(nkind,0:nthread-1),STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                        "vallt",nkind*int_size)
 
       DO kkind=1,nkind
@@ -911,7 +891,7 @@ CONTAINS
         IF (ppnl_present) THEN
           vppnl => vppnlt(:,ithread)
         END IF
-        IF(qs_env%dft_control%qs_control%gapw .or. qs_env%dft_control%qs_control%gapw_xc) THEN
+        IF(qs_env%dft_control%qs_control%gapw .OR. qs_env%dft_control%qs_control%gapw_xc) THEN
           oceh => oceht(:,ithread)
           oces => ocest(:,ithread)
         END IF
@@ -920,7 +900,7 @@ CONTAINS
         END IF
         ALLOCATE (ai_work(ldai,ldai,MAX(1,ncoset(maxlppl)),ncoset(nder+1)),STAT=istat)
         IF (istat /= 0) THEN
-          CALL stop_memory(routine_name,module_name,__LINE__,&
+          CALL stop_memory(routineN,moduleN,__LINE__,&
                            "ai_work",ldai*ldai*ncoset(maxlppl)*ncoset(nder+1)*dp_size)
         END IF
 #if defined(__AIX) && defined(__INIT_WITH_NANS)
@@ -964,19 +944,19 @@ CONTAINS
 
               ALLOCATE (vppl(kkind)%r2(nneighbor),STAT=istat)
               IF (istat /= 0) THEN
-                CALL stop_memory(routine_name,module_name,__LINE__,&
+                CALL stop_memory(routineN,moduleN,__LINE__,&
                                  "vppl(kkind)%r2",nneighbor*dp_size)
               END IF
 
               ALLOCATE (vppl(kkind)%neighbor(nneighbor),STAT=istat)
               IF (istat /= 0) THEN
-                CALL stop_memory(routine_name,module_name,__LINE__,&
+                CALL stop_memory(routineN,moduleN,__LINE__,&
                                  "vppl(kkind)%neighbor",nneighbor*int_size)
               END IF
 
               ALLOCATE (vppl(kkind)%r(3,nneighbor),STAT=istat)
               IF (istat /= 0) THEN
-                CALL stop_memory(routine_name,module_name,__LINE__,&
+                CALL stop_memory(routineN,moduleN,__LINE__,&
                                  "vppl(kkind)%r",3*nneighbor*dp_size)
               END IF
 
@@ -1043,7 +1023,7 @@ CONTAINS
                                               cell_c_min(3):cell_c_max(3)),&
                         STAT=istat)
               IF (istat /= 0 ) THEN
-                CALL stop_memory(routine_name,module_name,__LINE__,&
+                CALL stop_memory(routineN,moduleN,__LINE__,&
                                  "vppnl(kkind)%neighbor",&
                                  (cell_c_max(1) - cell_c_min(1) + 1)*&
                                  (cell_c_max(2) - cell_c_min(2) + 1)*&
@@ -1083,7 +1063,7 @@ CONTAINS
                       CALL reallocate(sac_ppnl_neighbor%list,1,n)
                       ALLOCATE (sac_ppnl_neighbor%sac(maxder))
                       IF (istat /= 0) THEN
-                        CALL stop_memory(routine_name,module_name,__LINE__,&
+                        CALL stop_memory(routineN,moduleN,__LINE__,&
                                          "sac_ppnl_neighbor%sac",maxder*int_size)
                       END IF
                       DO i=1,maxder
@@ -1091,7 +1071,7 @@ CONTAINS
                         ALLOCATE (sac_ppnl_neighbor%sac(i)%block(ncoa_sum,ncol),&
                                   STAT=istat)
                         IF (istat /= 0) THEN
-                          CALL stop_memory(routine_name,module_name,__LINE__,&
+                          CALL stop_memory(routineN,moduleN,__LINE__,&
                                            "sac_ppnl_neighbor%sac(i)%block",&
                                            ncoa_sum*ncol*dp_size)
                         END IF
@@ -1321,7 +1301,7 @@ CONTAINS
                                     block_col=icol,&
                                     block=p_block)
                 IF (.NOT.ASSOCIATED(p_block)) THEN
-                  CALL stop_program(routine_name,module_name,__LINE__,&
+                  CALL stop_program(routineN,moduleN,__LINE__,&
                                     "A density matrix block is missing",&
                                     globenv)
                 END IF
@@ -1330,7 +1310,7 @@ CONTAINS
                                     block_col=icol,&
                                     block=w_block)
                 IF (.NOT.ASSOCIATED(w_block)) THEN
-                  CALL stop_program(routine_name,module_name,__LINE__,&
+                  CALL stop_program(routineN,moduleN,__LINE__,&
                                     "A weighted density matrix block is missing",&
                                     globenv)
                 END IF
@@ -1975,17 +1955,17 @@ CONTAINS
               IF (ASSOCIATED(vppl(kkind)%r2)) THEN
                 DEALLOCATE (vppl(kkind)%r2,STAT=istat)
                 IF (istat /= 0) THEN
-                  CALL stop_memory(routine_name,module_name,__LINE__,&
+                  CALL stop_memory(routineN,moduleN,__LINE__,&
                                    "vppl(kkind)%r2")
                 END IF
                 DEALLOCATE (vppl(kkind)%neighbor,STAT=istat)
                 IF (istat /= 0) THEN
-                  CALL stop_memory(routine_name,module_name,__LINE__,&
+                  CALL stop_memory(routineN,moduleN,__LINE__,&
                                    "vppl(kkind)%neighbor")
                 END IF
                 DEALLOCATE (vppl(kkind)%r,STAT=istat)
                 IF (istat /= 0) THEN
-                  CALL stop_memory(routine_name,module_name,__LINE__,&
+                  CALL stop_memory(routineN,moduleN,__LINE__,&
                                    "vppl(kkind)%r")
                 END IF
               END IF
@@ -2007,34 +1987,34 @@ CONTAINS
                       IF (sac_ppnl_neighbor%n > 0) THEN
                         DEALLOCATE (sac_ppnl_neighbor%r2,STAT=istat)
                         IF (istat /= 0) THEN
-                          CALL stop_memory(routine_name,module_name,__LINE__,&
+                          CALL stop_memory(routineN,moduleN,__LINE__,&
                                            "sac_ppnl_neighbor%r2")
                         END IF
                         DEALLOCATE (sac_ppnl_neighbor%r,STAT=istat)
                         IF (istat /= 0) THEN
-                          CALL stop_memory(routine_name,module_name,__LINE__,&
+                          CALL stop_memory(routineN,moduleN,__LINE__,&
                                            "sac_ppnl_neighbor%r")
                         END IF
                         DEALLOCATE (sac_ppnl_neighbor%list,STAT=istat)
                         IF (istat /= 0) THEN
-                          CALL stop_memory(routine_name,module_name,__LINE__,&
+                          CALL stop_memory(routineN,moduleN,__LINE__,&
                                            "sac_ppnl_neighbor%list")
                         END IF
                         DEALLOCATE (sac_ppnl_neighbor%index_list,STAT=istat)
                         IF (istat /= 0) THEN
-                          CALL stop_memory(routine_name,module_name,__LINE__,&
+                          CALL stop_memory(routineN,moduleN,__LINE__,&
                                            "sac_ppnl_neighbor%index_list")
                         END IF
                         DO i=1,maxder
                           DEALLOCATE (sac_ppnl_neighbor%sac(i)%block,STAT=istat)
                           IF (istat /= 0) THEN
-                            CALL stop_memory(routine_name,module_name,__LINE__,&
+                            CALL stop_memory(routineN,moduleN,__LINE__,&
                                              "sac_ppnl_neighbor%sac(i)%block")
                           END IF
                         END DO
                         DEALLOCATE (sac_ppnl_neighbor%sac,STAT=istat)
                         IF (istat /= 0) THEN
-                          CALL stop_memory(routine_name,module_name,__LINE__,&
+                          CALL stop_memory(routineN,moduleN,__LINE__,&
                                            "sac_ppnl_neighbor%sac")
                         END IF
                       END IF
@@ -2043,7 +2023,7 @@ CONTAINS
                 END DO
                 DEALLOCATE (vppnl(kkind)%neighbor,STAT=istat)
                 IF (istat /= 0) THEN
-                  CALL stop_memory(routine_name,module_name,__LINE__,&
+                  CALL stop_memory(routineN,moduleN,__LINE__,&
                                    "vppnl(kkind)%neighbor")
                 END IF
               END IF
@@ -2063,7 +2043,7 @@ CONTAINS
 
         IF (ALLOCATED(ai_work)) THEN
            DEALLOCATE (ai_work,STAT=istat)
-           IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+           IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                             "ai_work")
         END IF
 
@@ -2089,7 +2069,7 @@ CONTAINS
         END DO
       END DO
       DEALLOCATE (vpplt,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                        "vpplt")
     END IF
 
@@ -2103,7 +2083,7 @@ CONTAINS
         END DO
       END DO
       DEALLOCATE (vppnlt,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                        "vppnlt")
     END IF
 
@@ -2115,29 +2095,29 @@ CONTAINS
         END DO
       END DO
       DEALLOCATE (vallt,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                        "vallt")
     END IF
 
     DEALLOCATE (habt,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "hab")
     DEALLOCATE (sabt,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "sab")
     DEALLOCATE (sdabt,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "sdab")
     DEALLOCATE (workt,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "work")
     IF (calculate_forces) THEN
 
       DEALLOCATE (atom_of_kind,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                        "atom_of_kind")
       DEALLOCATE (pabt,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                        "pab")
 !     *** If LSD, then recover alpha density and beta density     ***
 !     *** from the total density (1) and the spin density (2)     ***
@@ -2157,7 +2137,7 @@ CONTAINS
       END DO
     END DO
     DEALLOCATE (sintt,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "sintt")
 
     IF (build_kinetic_energy_matrix) THEN
@@ -2167,11 +2147,11 @@ CONTAINS
         END DO
       END DO
       DEALLOCATE (tintt,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                        "tintt")
     END IF
 
-    IF(qs_env%dft_control%qs_control%gapw .or. qs_env%dft_control%qs_control%gapw_xc) THEN
+    IF(qs_env%dft_control%qs_control%gapw .OR. qs_env%dft_control%qs_control%gapw_xc) THEN
        DO i=1,SIZE(oceht,1)
          DO j=0,nthread-1
            NULLIFY (oceht(i,j)%block)
@@ -2180,18 +2160,18 @@ CONTAINS
        END DO
        DEALLOCATE (oceht,STAT=istat)
        IF (istat /= 0) THEN
-         CALL stop_memory(routine_name,module_name,__LINE__,"oceht")
+         CALL stop_memory(routineN,moduleN,__LINE__,"oceht")
        END IF
        DEALLOCATE (ocest,STAT=istat)
        IF (istat /= 0) THEN
-         CALL stop_memory(routine_name,module_name,__LINE__,"ocest")
+         CALL stop_memory(routineN,moduleN,__LINE__,"ocest")
        END IF
        DO i=1,SIZE(dist_list,1)
         IF(ASSOCIATED(dist_list(i)%rdist)) DEALLOCATE(dist_list(i)%rdist,STAT=istat)
        END DO
        DEALLOCATE(dist_list,STAT=istat)
        IF (istat /= 0) THEN
-         CALL stop_memory(routine_name,module_name,__LINE__,"ocest")
+         CALL stop_memory(routineN,moduleN,__LINE__,"ocest")
        END IF 
     ENDIF
 
@@ -2243,7 +2223,7 @@ CONTAINS
             extension=".Log",error=error)
       CALL allocate_matrix_set(matrix_v,1)
       CALL replicate_matrix_structure(source=matrix_h(1)%matrix,&
-                                      target=matrix_v(1)%matrix,&
+                                      TARGET=matrix_v(1)%matrix,&
                                       target_name="POTENTIAL ENERGY MATRIX")
       CALL add_matrices(matrix_v(1)%matrix,1.0_dp,matrix_h(1)%matrix,-1.0_dp,matrix_t(1)%matrix)
       CALL write_sparse_matrix(matrix_v(1)%matrix,4,6,qs_env,globenv,output_unit=iw)
@@ -2263,7 +2243,7 @@ CONTAINS
             "DFT%PRINT%AO_MATRICES/CORE_HAMILTONIAN", error=error)       
     END IF
 
-    CALL write_checkpoint_information("leaving "//routine_name,globenv,error)
+    CALL write_checkpoint_information("leaving "//routineN,globenv,error)
 
   END SUBROUTINE build_core_hamiltonian_matrix
 

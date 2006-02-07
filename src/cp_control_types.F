@@ -17,45 +17,18 @@
 !******************************************************************************
 
 MODULE cp_control_types
-  USE cp_array_r_utils,                ONLY: cp_2d_r_p_type
   USE cp_fm_types,                     ONLY: cp_fm_p_type,&
                                              cp_fm_release
-  USE global_types,                    ONLY: global_environment_type
   USE kinds,                           ONLY: dp
   USE pw_grid_types,                   ONLY: pw_grid_type
-  USE input_constants, only: xc_rho_no_smooth, xc_rho_nn50, xc_rho_nn10, &
-       xc_rho_spline2_smooth,xc_rho_spline3_smooth,xc_deriv_pw,&
-       xc_deriv_spline3, xc_deriv_spline2,&
-       xc_deriv_nn50_smooth, xc_deriv_nn10_smooth, xc_deriv_spline2_smooth,&
-       xc_deriv_spline3_smooth,sic_none, sic_mauri_us, sic_ad, sic_mauri_spz,&
-       no_excitations,&
-       do_loc_min,&
-       do_loc_jacobi,&
-       op_loc_berry,&
-       state_loc_all,&
-       state_loc_fromitoj,&
-       state_loc_list,&
-       oe_none,&
-       oe_saop,&
-       oe_sic,&
-       tddfpt_davidson,&
-       tddfpt_excitations,&
-       tddfpt_lanczos,&
-       tddfpt_singlet,&
-       tddfpt_triplet
-  USE qs_loc_control,                  ONLY: localized_wfn_control_create, &
+  USE qs_loc_control,                  ONLY: localized_wfn_control_create,&
                                              localized_wfn_control_release,&
-                                             localized_wfn_control_retain,&
                                              localized_wfn_control_type,&
-                                             set_loc_wfn_lists,&
-                                             set_loc_centers
-  USE string_utilities,                ONLY: uppercase,&
-                                             xstring
-  USE memory_utilities,                ONLY: reallocate
+                                             set_loc_centers,&
+                                             set_loc_wfn_lists
   USE xas_control,                     ONLY: xas_control_create,&
                                              xas_control_release,&
                                              xas_control_type
-  USE xc_rho_cflags_types,             ONLY: xc_rho_cflags_type
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -230,7 +203,7 @@ MODULE cp_control_types
      !FM add xc_section ?
   END TYPE dft_control_type
 
-  CHARACTER(LEN=*), PARAMETER :: moduleN = "cp_control_types"
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_control_types'
 
   INTEGER, SAVE :: last_dft_control_id=0
 
@@ -277,14 +250,16 @@ CONTAINS
 !!   SOURCE
 !!*** **********************************************************************
 SUBROUTINE mulliken_control_create(mulliken_restraint_control,error)
-   TYPE(cp_error_type), INTENT(inout), &
+    TYPE(mulliken_restraint_type), POINTER   :: mulliken_restraint_control
+    TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
-   TYPE(mulliken_restraint_type), POINTER :: mulliken_restraint_control
-   CHARACTER(len=*), PARAMETER :: routineN = 'mulliken_control_create', &
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'mulliken_control_create', &
       routineP = moduleN//':'//routineN
 
-   INTEGER :: stat
-   LOGICAL :: failure 
+    INTEGER                                  :: stat
+    LOGICAL                                  :: failure
+
    failure=.FALSE.
 
    CPPrecondition(.NOT.ASSOCIATED(mulliken_restraint_control),cp_failure_level,routineP,error,failure)  
@@ -300,12 +275,15 @@ SUBROUTINE mulliken_control_create(mulliken_restraint_control,error)
 END SUBROUTINE mulliken_control_create
 
 SUBROUTINE mulliken_control_release(mulliken_restraint_control,error)
-   TYPE(cp_error_type), INTENT(inout), &
+    TYPE(mulliken_restraint_type), POINTER   :: mulliken_restraint_control
+    TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
-   TYPE(mulliken_restraint_type), POINTER :: mulliken_restraint_control
-   CHARACTER(len=*), PARAMETER :: routineN = 'mulliken_control_release', &
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'mulliken_control_release', &
       routineP = moduleN//':'//routineN
-   LOGICAL :: failure 
+
+    LOGICAL                                  :: failure
+
    failure=.FALSE.
    CPPrecondition(ASSOCIATED(mulliken_restraint_control),cp_failure_level,routineP,error,failure)  
    CPPrecondition(mulliken_restraint_control%ref_count>0,cp_failure_level,routineP,error,failure)  
@@ -322,12 +300,15 @@ SUBROUTINE mulliken_control_release(mulliken_restraint_control,error)
 END SUBROUTINE mulliken_control_release
 
 SUBROUTINE mulliken_control_retain(mulliken_restraint_control,error)
-   TYPE(cp_error_type), INTENT(inout), &
+    TYPE(mulliken_restraint_type), POINTER   :: mulliken_restraint_control
+    TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
-   TYPE(mulliken_restraint_type), POINTER :: mulliken_restraint_control
-   CHARACTER(len=*), PARAMETER :: routineN = 'mulliken_control_retain', &
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'mulliken_control_retain', &
       routineP = moduleN//':'//routineN
-   LOGICAL :: failure 
+
+    LOGICAL                                  :: failure
+
    failure=.FALSE.
    CPPrecondition(ASSOCIATED(mulliken_restraint_control),cp_failure_level,routineP,error,failure)  
 
@@ -528,8 +509,8 @@ SUBROUTINE qs_control_dealloc_ref(qs_control, error)
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = "qs_control_dealloc_ref", &
-      routineP = moduleN//"/"//routineN
+    CHARACTER(len=*), PARAMETER :: routineN = 'qs_control_dealloc_ref', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: stat
 
@@ -560,8 +541,8 @@ SUBROUTINE tddfpt_control_dealloc_ref(tddfpt_control, error)
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = "tddfpt_control_dealloc_ref", &
-      routineP = moduleN//"/"//routineN
+    CHARACTER(len=*), PARAMETER :: routineN = 'tddfpt_control_dealloc_ref', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ispin, stat
 

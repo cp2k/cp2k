@@ -25,13 +25,17 @@
 
 MODULE qs_localization
 ! *****************************************************************************
-  USE atomic_kind_types,               ONLY: atomic_kind_type, &
+  USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind
+  USE cell_types,                      ONLY: cell_type,&
+                                             pbc
   USE coefficient_types,               ONLY: coeff_type
   USE cp_cfm_basic_linalg,             ONLY: cp_cfm_lu_decompose
   USE cp_cfm_types,                    ONLY: cp_cfm_create,&
                                              cp_cfm_release,&
                                              cp_cfm_type
+  USE cp_files,                        ONLY: close_file,&
+                                             open_file
   USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm
   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                              cp_fm_struct_release,&
@@ -42,23 +46,23 @@ MODULE qs_localization
                                              cp_fm_p_type,&
                                              cp_fm_release,&
                                              cp_fm_type
+  USE cp_output_handling,              ONLY: cp_iter_string
   USE cp_para_env,                     ONLY: cp_para_env_release,&
                                              cp_para_env_retain
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_sm_fm_interactions,           ONLY: cp_sm_fm_multiply
   USE distribution_1d_types,           ONLY: distribution_1d_type
-  USE external_potential_types,        ONLY: gth_potential_type, &
-                                             get_potential
-  USE input_constants,                 ONLY: do_loc_jacobi,&
-                                             do_loc_crazy,&
+  USE external_potential_types,        ONLY: get_potential,&
+                                             gth_potential_type
+  USE input_constants,                 ONLY: do_loc_crazy,&
                                              do_loc_direct,&
-                                             do_loc_none
+                                             do_loc_jacobi
   USE kinds,                           ONLY: default_string_length,&
                                              dp
   USE mathconstants,                   ONLY: twopi
   USE memory_utilities,                ONLY: reallocate
   USE message_passing,                 ONLY: mp_max,&
-                                             mp_minloc, & 
+                                             mp_minloc,&
                                              mp_sum
   USE molecule_kind_types,             ONLY: atom_type,&
                                              get_molecule_kind,&
@@ -81,9 +85,6 @@ MODULE qs_localization
                                              direct_mini,&
                                              initialize_weights,&
                                              jacobi_rotations
-  USE cp_files,                        ONLY: open_file, close_file
-  USE cell_types,                 ONLY: cell_type,&
-                                             pbc
   USE sparse_matrix_types,             ONLY: deallocate_matrix,&
                                              real_matrix_p_type,&
                                              replicate_matrix_structure,&
@@ -92,8 +93,8 @@ MODULE qs_localization
                                              stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE cp_output_handling, only: cp_iter_string
 #include "cp_common_uses.h"
+
   IMPLICIT NONE
 
 ! *** Public ***
@@ -287,15 +288,16 @@ SUBROUTINE qs_loc_compute_properties(qs_loc_env, molecule_set, vectors, center, 
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: center
     LOGICAL                                  :: ionode
     INTEGER                                  :: iunit
-    TYPE(cp_error_type), INTENT(inout), optional :: error
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
     INTEGER                                  :: handle, i, isos, j, k, n, &
-                                                natoms, sweeps, scr
+                                                natoms, scr, sweeps
+    LOGICAL                                  :: converged
     TYPE(cp_fm_p_type), ALLOCATABLE          :: ZIJ( :, : )
     TYPE(cp_fm_struct_type), POINTER         :: tmp_fm_struct
     TYPE(cp_fm_type), POINTER                :: opvec
-    logical :: converged
-    TYPE(cp_logger_type), pointer :: logger
+    TYPE(cp_logger_type), POINTER            :: logger
 
   CALL timeset("qs_loc_compute_properties","I",'',handle)
   NULLIFY(tmp_fm_struct,opvec)
@@ -360,12 +362,12 @@ SUBROUTINE qs_loc_compute_properties(qs_loc_env, molecule_set, vectors, center, 
           CALL stop_program("qs_localization","unknown localization method")
        END SELECT
        IF (ionode) THEN
-           scr=cp_logger_get_default_unit_nr(logger,.false.)
+           scr=cp_logger_get_default_unit_nr(logger,.FALSE.)
            WRITE(scr,'(A,I6,A)') " Wannier localization converged in ",sweeps," iterations"
        ENDIF
   ELSE
        IF (ionode) THEN
-           scr=cp_logger_get_default_unit_nr(logger,.false.)
+           scr=cp_logger_get_default_unit_nr(logger,.FALSE.)
            WRITE(scr,'(A,I6,A)') " No Wannier localization applied "
        ENDIF
   ENDIF
@@ -405,15 +407,16 @@ SUBROUTINE centers_and_spreads ( ionode, iunit, qs_loc_env, zij, center, error )
     TYPE(qs_loc_env_type), POINTER           :: qs_loc_env
     TYPE(cp_fm_p_type), INTENT(INOUT)        :: zij( :, : )
     REAL(KIND=dp), INTENT(OUT)               :: center( :, : )
-    TYPE(cp_error_type), INTENT(inout), optional :: error
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
+    CHARACTER(default_string_length)         :: iter
     COMPLEX(KIND=dp)                         :: almost_determinant, z
     INTEGER                                  :: i, l, nstates, scr
     REAL(KIND=dp)                            :: imagpart, realpart
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_cfm_type), POINTER               :: complexresult
-    TYPE(cp_logger_type), pointer :: logger
-    CHARACTER(default_string_length) :: iter
+    TYPE(cp_logger_type), POINTER            :: logger
 
 ! get nstates
 
@@ -493,21 +496,23 @@ SUBROUTINE wfc_to_molecule ( qs_loc_env, center, molecule_set )
 
     CHARACTER(LEN=default_string_length)     :: mol_name
     INTEGER :: counter, first_atom, i, iatom, ikind, imol, imol_now, isos, &
-      istate, local_location, natom, natom_loc, natom_max, nkind, nmol, nstate
+      istate, local_location, natom, natom_loc, natom_max, nkind, nmol, &
+      nstate, output_unit
     INTEGER, POINTER                         :: wfc_to_atom_map( : )
-    REAL(KIND=dp)                            :: dr(3), mydist(2), r_pbc( 3 ), dipole(3)
-    REAL(KIND=dp), DIMENSION(:,:), ALLOCATABLE :: dipole_set
-    REAL(KIND=dp), DIMENSION(:),   ALLOCATABLE :: charge_set
+    REAL(KIND=dp)                            :: dipole(3), dr(3), mydist(2), &
+                                                r_pbc( 3 ), zeff
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: charge_set
+    REAL(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:, :)                        :: dipole_set
     REAL(KIND=dp), POINTER                   :: distance( : ), r( :, : )
     TYPE(atom_type), DIMENSION(:), POINTER   :: atom_list
+    TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(distribution_1d_type), POINTER      :: local_molecules
+    TYPE(gth_potential_type), POINTER        :: gth_potential
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
     TYPE(particle_type), POINTER             :: particle_set( : )
-    TYPE(atomic_kind_type), POINTER          :: atomic_kind
-    TYPE(gth_potential_type), POINTER        :: gth_potential
-    INTEGER                                  :: output_unit
-    REAL(KIND=dp)                            :: zeff
+
 !---------------------------------------------------------------------------
 !---------------------------------------------------------------------------
 

@@ -64,7 +64,7 @@ MODULE cp_linked_list_fm
   PRIVATE
 
   LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
-  CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='cp_linked_list_fm'
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_linked_list_fm'
 
 ! type
   PUBLIC :: cp_sll_fm_type, cp_sll_fm_p_type
@@ -280,8 +280,8 @@ CONTAINS
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-    CHARACTER(len=*), PARAMETER :: &
-      routineP = 'cp_linked_list_fm:cp_sll_fm_create'
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_sll_fm_create', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: stat
     LOGICAL                                  :: failure
@@ -334,8 +334,8 @@ CONTAINS
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-    CHARACTER(len=*), PARAMETER :: &
-      routineP = 'cp_linked_list_fm/cp_sll_fm_dealloc'
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_sll_fm_dealloc', &
+      routineP = moduleN//':'//routineN
 
     CALL cp_sll_fm_rm_all_el(sll,error)
   END SUBROUTINE cp_sll_fm_dealloc
@@ -371,8 +371,8 @@ CONTAINS
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-    CHARACTER(len=*), PARAMETER :: &
-      routineP = 'cp_linked_list_fm/cp_sll_fm_dealloc_node'
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_sll_fm_dealloc_node', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: stat
     LOGICAL                                  :: failure
@@ -420,8 +420,8 @@ CONTAINS
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-    CHARACTER(len=*), PARAMETER :: &
-      routineP = 'cp_linked_list_fm:cp_set_sll_fm'
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_sll_fm_set', &
+      routineP = moduleN//':'//routineN
 
     LOGICAL                                  :: failure
 
@@ -475,8 +475,8 @@ CONTAINS
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-    CHARACTER(len=*), PARAMETER :: &
-      routineP = 'cp_linked_list_fm:cp_sll_fm_get'
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_sll_fm_get', &
+      routineP = moduleN//':'//routineN
 
     LOGICAL                                  :: failure
 
@@ -526,8 +526,8 @@ CONTAINS
       OPTIONAL                               :: error
     TYPE(cp_fm_type), POINTER                :: res
 
-    CHARACTER(len=*), PARAMETER :: &
-      routineP = 'cp_linked_list_fm:cp_sll_fm_get_first'
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_sll_fm_get_first_el', &
+      routineP = moduleN//':'//routineN
 
     LOGICAL                                  :: failure
 
@@ -574,8 +574,8 @@ CONTAINS
       OPTIONAL                               :: error
     TYPE(cp_sll_fm_type), POINTER            :: res
 
-    CHARACTER(len=*), PARAMETER :: &
-      routineP = 'cp_linked_list_fm:cp_sll_fm_get_first'
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_sll_fm_get_rest', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i
     LOGICAL                                  :: failure
@@ -650,8 +650,8 @@ CPSourceFileRef,&
       OPTIONAL                               :: error
     LOGICAL                                  :: res
 
-    CHARACTER(len=*), PARAMETER :: &
-      routineP = 'cp_linked_list_fm:cp_sll_fm_get_empty'
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_sll_fm_get_empty', &
+      routineP = moduleN//':'//routineN
 
     LOGICAL                                  :: failure
 
@@ -690,8 +690,8 @@ CPSourceFileRef,&
       OPTIONAL                               :: error
     INTEGER                                  :: res
 
-    CHARACTER(len=*), PARAMETER :: &
-      routineP = 'cp_linked_list_fm/cp_sll_fm_get_length'
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_sll_fm_get_length', &
+      routineP = moduleN//':'//routineN
 
     LOGICAL                                  :: failure
     TYPE(cp_sll_fm_type), POINTER            :: iterator
@@ -742,8 +742,8 @@ CPSourceFileRef,&
       OPTIONAL                               :: error
     TYPE(cp_fm_type), POINTER                :: res
 
-    CHARACTER(len=*), PARAMETER :: &
-      routineP = 'cp_linked_list_fm/cp_sll_fm_get_el_at'
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_sll_fm_get_el_at', &
+      routineP = moduleN//':'//routineN
 
     LOGICAL                                  :: failure
     TYPE(cp_sll_fm_type), POINTER            :: pos
@@ -798,8 +798,8 @@ CPSourceFileRef,&
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-    CHARACTER(len=*), PARAMETER :: &
-      routineP = 'cp_linked_list_fm/cp_sll_fm_set_el_at'
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_sll_fm_set_el_at', &
+      routineP = moduleN//':'//routineN
 
     LOGICAL                                  :: failure
     TYPE(cp_sll_fm_type), POINTER            :: pos
@@ -852,8 +852,8 @@ CPSourceFileRef,&
       OPTIONAL                               :: error
     LOGICAL                                  :: res
 
-    CHARACTER(len=*), PARAMETER :: &
-      routineP = 'cp_linked_list_fm:cp_sll_fm_next'
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_sll_fm_next', &
+      routineP = moduleN//':'//routineN
 
     LOGICAL                                  :: failure
 
@@ -902,8 +902,8 @@ CPSourceFileRef,&
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-    CHARACTER(len=*), PARAMETER :: &
-      routineP = 'cp_linked_list_fm:cp_sll_fm_add_el'
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_sll_fm_insert_el', &
+      routineP = moduleN//':'//routineN
 
     LOGICAL                                  :: failure
     TYPE(cp_sll_fm_type), POINTER            :: newSlot
@@ -945,8 +945,8 @@ CPSourceFileRef,&
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-    CHARACTER(len=*), PARAMETER :: &
-      routineP = 'cp_linked_list_fm/cp_sll_fm_rm_first_el'
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_sll_fm_rm_first_el', &
+      routineP = moduleN//':'//routineN
 
     LOGICAL                                  :: failure
     TYPE(cp_sll_fm_type), POINTER            :: node_to_rm
@@ -999,8 +999,8 @@ CPSourceFileRef,&
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-    CHARACTER(len=*), PARAMETER :: &
-      routineP = 'cp_linked_list_fm/cp_sll_fm_insert_el_at'
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_sll_fm_insert_el_at', &
+      routineP = moduleN//':'//routineN
 
     LOGICAL                                  :: failure
     TYPE(cp_sll_fm_type), POINTER            :: pos
@@ -1054,8 +1054,8 @@ CPSourceFileRef,&
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-    CHARACTER(len=*), PARAMETER :: &
-      routineP = 'cp_linked_list_fm/cp_sll_fm_remove_el_at'
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_sll_fm_rm_el_at', &
+      routineP = moduleN//':'//routineN
 
     LOGICAL                                  :: failure
     TYPE(cp_sll_fm_type), POINTER            :: pos
@@ -1109,8 +1109,8 @@ CPSourceFileRef,&
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-    CHARACTER(len=*), PARAMETER :: &
-      routineP = 'cp_linked_list_fm/cp_sll_fm_rm_all_el'
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_sll_fm_rm_all_el', &
+      routineP = moduleN//':'//routineN
 
     LOGICAL                                  :: failure
     TYPE(cp_sll_fm_type), POINTER            :: actual_node, next_node

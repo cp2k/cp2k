@@ -23,34 +23,27 @@
 !!   SOURCE
 !*****************************************************************************
 MODULE cp_ddapc_methods
-  USE cell_types,                 ONLY: cell_type
-  USE erf_fn,                          ONLY: erfc
+  USE cell_types,                      ONLY: cell_type
   USE cp2k_units,                      ONLY: get_cp2k_units,&
                                              unit_convert_type
+  USE erf_fn,                          ONLY: erfc
+  USE input_section_types,             ONLY: section_vals_type,&
+                                             section_vals_val_get
   USE kinds,                           ONLY: dp
-  USE particle_types,                  ONLY: particle_type 
+  USE mathconstants,                   ONLY: pi
+  USE mathlib,                         ONLY: invert_matrix
+  USE message_passing,                 ONLY: mp_sum
+  USE particle_types,                  ONLY: particle_type
+  USE pw_spline_utils,                 ONLY: Eval_Interp_Spl3_pbc
   USE pw_types,                        ONLY: pw_type
-  USE mathconstants,                   ONLY: rootpi, pi
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE message_passing,                 ONLY: mp_sum
-  USE mathlib,                         ONLY: invert_matrix
-  USE input_section_types,             ONLY: section_type,&
-                                             section_create, &
-                                             section_add_keyword,&
-                                             section_add_subsection,&
-                                             section_release,&
-                                             section_vals_type,&
-                                             section_vals_get_subs_vals,&
-                                             section_vals_get,&
-                                             section_vals_val_get
-  USE pw_spline_utils,                 ONLY: Eval_Interp_Spl3_pbc
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
   PRIVATE
   LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
-  CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='cp_ddapc_methods'  
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_ddapc_methods'  
   PUBLIC :: ddapc_eval_gfunc,&
             build_b_vector,&
             build_der_b_vector,&
@@ -82,23 +75,21 @@ CONTAINS
 !!
 !!*** **********************************************************************
   SUBROUTINE ddapc_eval_gfunc(gfunc, w, gcut, rho_tot_g, radii, error)
-    IMPLICIT NONE
-    ! Arguments
-    REAL(kind=dp), DIMENSION(:), POINTER       :: radii
-    TYPE(pw_type), POINTER                     :: rho_tot_g
-    REAL(KIND=dp), INTENT(IN)                  :: gcut
-    REAL(KIND=dp), POINTER, DIMENSION(:,:)  :: gfunc
-    REAL(KIND=dp), POINTER, DIMENSION(:)    :: w
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: gfunc
+    REAL(kind=dp), DIMENSION(:), POINTER     :: w
+    REAL(KIND=dp), INTENT(IN)                :: gcut
+    TYPE(pw_type), POINTER                   :: rho_tot_g
+    REAL(kind=dp), DIMENSION(:), POINTER     :: radii
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
-    ! Local Variables
+
     CHARACTER(len=*), PARAMETER :: routineN = 'ddapc_eval_gfunc', &
-         routineP = moduleN//':'//routineN  
-    INTEGER                                  :: stat, handle
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, ig, igauss, stat
     LOGICAL                                  :: failure
-    REAL(KIND=dp) :: gcut2, g2, rc, rc2
-    INTEGER       :: igauss, ig
-   
+    REAL(KIND=dp)                            :: g2, gcut2, rc, rc2
+
     CALL timeset(routineN,"I","",handle)
     gcut2 = gcut * gcut
     failure = .FALSE.
@@ -150,26 +141,28 @@ CONTAINS
 !!
 !!*** **********************************************************************
   SUBROUTINE build_b_vector(bv, gfunc, w, particle_set, radii, rho_tot_g, gcut, error)
-    IMPLICIT NONE
-    ! Arguments
-    REAL(KIND=dp), DIMENSION(:), INTENT(INOUT) :: bv
-    REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: radii
+    REAL(KIND=dp), DIMENSION(:), &
+      INTENT(INOUT)                          :: bv
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: gfunc
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: w
     TYPE(particle_type), DIMENSION(:), &
-         POINTER                             :: particle_set
+      POINTER                                :: particle_set
+    REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: radii
     TYPE(pw_type), POINTER                   :: rho_tot_g
     REAL(KIND=dp), INTENT(IN)                :: gcut
-    REAL(KIND=dp)   , POINTER, DIMENSION(:,:)  :: gfunc
-    REAL(KIND=dp)   , POINTER, DIMENSION(:)    :: w
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
-    ! Local Variables
+
     CHARACTER(len=*), PARAMETER :: routineN = 'build_b_vector', &
-      routineP = moduleN//':'//routineN      
-    REAL(KIND=dp)    :: gcut2, g2, rvec(3), gvec(3), arg, tmp
-    COMPLEX(KIND=dp) :: phase
-    INTEGER          :: idim, iparticle, igauss, ig, handle, stat, igmax
-    LOGICAL          :: failure
-    REAL(KIND=dp), POINTER, DIMENSION(:) :: my_bv
+      routineP = moduleN//':'//routineN
+
+    COMPLEX(KIND=dp)                         :: phase
+    INTEGER                                  :: handle, idim, ig, igauss, &
+                                                igmax, iparticle, stat
+    LOGICAL                                  :: failure
+    REAL(KIND=dp)                            :: arg, g2, gcut2, gvec(3), &
+                                                rvec(3), tmp
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: my_bv
 
     failure = .FALSE.
     NULLIFY(my_bv)
@@ -230,28 +223,30 @@ CONTAINS
 !!
 !!*** **********************************************************************
   SUBROUTINE build_A_matrix(Am, gfunc, w, particle_set, radii, rho_tot_g, gcut, error)
-    IMPLICIT NONE
-    ! Arguments
-    REAL(KIND=dp), DIMENSION(:,:), INTENT(INOUT) :: Am
-    REAL(KIND=dp), DIMENSION(:), POINTER       :: radii
+    REAL(KIND=dp), DIMENSION(:, :), &
+      INTENT(INOUT)                          :: Am
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: gfunc
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: w
     TYPE(particle_type), DIMENSION(:), &
-         POINTER                             :: particle_set
+      POINTER                                :: particle_set
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: radii
     TYPE(pw_type), POINTER                   :: rho_tot_g
     REAL(KIND=dp), INTENT(IN)                :: gcut
-    REAL(KIND=dp), POINTER, DIMENSION(:,:)    :: gfunc
-    REAL(KIND=dp)   , POINTER, DIMENSION(:)   :: w
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
-    ! Local Variables
+
     CHARACTER(len=*), PARAMETER :: routineN = 'build_A_matrix', &
-      routineP = moduleN//':'//routineN      
-    COMPLEX(KIND=dp)                          :: phase1, phase2
-    REAL(KIND=dp)                             :: gfunc1, gfunc2
-    REAL(KIND=dp)    :: gcut2, g2, rvec1(3), rvec2(3), gvec(3), arg, tmp
-    INTEGER          :: idim1, idim2, iparticle1, iparticle2, igauss1, igauss2, ig, istart_g
-    INTEGER          :: handle, stat, igmax
-    LOGICAL          :: failure 
-    REAL(KIND=dp), POINTER, DIMENSION(:) :: my_Am
+      routineP = moduleN//':'//routineN
+
+    COMPLEX(KIND=dp)                         :: phase1, phase2
+    INTEGER                                  :: handle, idim1, idim2, ig, &
+                                                igauss1, igauss2, igmax, &
+                                                iparticle1, iparticle2, &
+                                                istart_g, stat
+    LOGICAL                                  :: failure
+    REAL(KIND=dp)                            :: arg, g2, gcut2, gvec(3), &
+                                                rvec1(3), rvec2(3), tmp
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: my_Am
 
     failure = .FALSE.
     NULLIFY(my_Am)
@@ -321,28 +316,29 @@ CONTAINS
 !!
 !!*** **********************************************************************
   SUBROUTINE build_der_b_vector(dbv, gfunc, w, particle_set, radii, rho_tot_g, gcut, iparticle0, error)
-    IMPLICIT NONE
-    ! Arguments
-    REAL(KIND=dp), DIMENSION(:,:), INTENT(INOUT) :: dbv
-    REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: radii
+    REAL(KIND=dp), DIMENSION(:, :), &
+      INTENT(INOUT)                          :: dbv
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: gfunc
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: w
     TYPE(particle_type), DIMENSION(:), &
-         POINTER                             :: particle_set
+      POINTER                                :: particle_set
+    REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: radii
     TYPE(pw_type), POINTER                   :: rho_tot_g
     REAL(KIND=dp), INTENT(IN)                :: gcut
     INTEGER, INTENT(IN)                      :: iparticle0
-    REAL(KIND=dp)   , POINTER, DIMENSION(:,:)  :: gfunc
-    REAL(KIND=dp)   , POINTER, DIMENSION(:)    :: w
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
-    ! Local Variables
+
     CHARACTER(len=*), PARAMETER :: routineN = 'build_der_b_vector', &
-      routineP = moduleN//':'//routineN      
-    REAL(KIND=dp)    :: gcut2, g2, arg
-    INTEGER          :: idim, iparticle, igauss, ig, handle, stat, igmax
-    REAL(KIND=dp), DIMENSION(3) :: gvec, rvec, tmp
-    LOGICAL          :: failure
+      routineP = moduleN//':'//routineN
+
     COMPLEX(KIND=dp)                         :: dphase
-    REAL(KIND=dp), POINTER, DIMENSION(:,:)     :: my_dbv
+    INTEGER                                  :: handle, idim, ig, igauss, &
+                                                igmax, iparticle, stat
+    LOGICAL                                  :: failure
+    REAL(KIND=dp)                            :: arg, g2, gcut2
+    REAL(KIND=dp), DIMENSION(3)              :: gvec, rvec, tmp
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: my_dbv
 
     failure = .FALSE.
     NULLIFY(my_dbv)
@@ -405,29 +401,32 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE build_der_A_matrix(dAm, gfunc, w, particle_set, radii,&
        rho_tot_g, gcut, iparticle0, error)
-    IMPLICIT NONE
-    ! Arguments
-    REAL(KIND=dp), DIMENSION(:,:,:), INTENT(INOUT) :: dAm
-    REAL(KIND=dp), DIMENSION(:), POINTER       :: radii
+    REAL(KIND=dp), DIMENSION(:, :, :), &
+      INTENT(INOUT)                          :: dAm
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: gfunc
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: w
     TYPE(particle_type), DIMENSION(:), &
-         POINTER                             :: particle_set
+      POINTER                                :: particle_set
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: radii
     TYPE(pw_type), POINTER                   :: rho_tot_g
     REAL(KIND=dp), INTENT(IN)                :: gcut
     INTEGER, INTENT(IN)                      :: iparticle0
-    REAL(KIND=dp), POINTER, DIMENSION(:,:)    :: gfunc
-    REAL(KIND=dp), POINTER, DIMENSION(:)      :: w
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
-    ! Local Variables
+
     CHARACTER(len=*), PARAMETER :: routineN = 'build_der_A_matrix', &
       routineP = moduleN//':'//routineN
-    COMPLEX(KIND=dp) :: phase1, phase2, dphase1, dphase2
-    REAL(KIND=dp)    :: gfunc1, gfunc2, gcut2, g2, arg1, arg2
-    INTEGER          :: idim1, idim2, iparticle1, iparticle2, igauss1, igauss2,  ig, istart_g
-    REAL(KIND=dp), DIMENSION(3) :: gvec, rvec1, rvec2, tmp
-    INTEGER          :: handle, stat, igmax
-    LOGICAL          :: failure 
-    REAL(KIND=dp), POINTER, DIMENSION(:,:) :: my_Am
+
+    COMPLEX(KIND=dp)                         :: dphase1, dphase2, phase1, &
+                                                phase2
+    INTEGER                                  :: handle, idim1, idim2, ig, &
+                                                igauss1, igauss2, igmax, &
+                                                iparticle1, iparticle2, &
+                                                istart_g, stat
+    LOGICAL                                  :: failure
+    REAL(KIND=dp)                            :: arg1, arg2, g2, gcut2
+    REAL(KIND=dp), DIMENSION(3)              :: gvec, rvec1, rvec2, tmp
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: my_Am
 
     NULLIFY(my_Am)
     failure = .FALSE.
@@ -509,29 +508,30 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE  ddapc_eval_AmI(GAmI, c0,  gfunc, w, particle_set, gcut,&
        rho_tot_g, radii, iw, Vol, error)
-    IMPLICIT NONE
-    ! Arguments
-    REAL(KIND=dp), DIMENSION(:,:), POINTER     :: GAmI
-    REAL(KIND=dp), DIMENSION(:), POINTER       :: radii
-    TYPE(particle_type), DIMENSION(:), &
-         POINTER                             :: particle_set
-    TYPE(pw_type), POINTER                   :: rho_tot_g
-    REAL(KIND=dp), INTENT(IN)                :: gcut, Vol
-    INTEGER,       INTENT(IN)                :: iw
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: GAmI
     REAL(KIND=dp), INTENT(OUT)               :: c0
-    REAL(KIND=dp), POINTER, DIMENSION(:,:)    :: gfunc
-    REAL(KIND=dp), POINTER, DIMENSION(:)      :: w
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: gfunc
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: w
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particle_set
+    REAL(KIND=dp), INTENT(IN)                :: gcut
+    TYPE(pw_type), POINTER                   :: rho_tot_g
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: radii
+    INTEGER, INTENT(IN)                      :: iw
+    REAL(KIND=dp), INTENT(IN)                :: Vol
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
-    ! Local Variables
+
     CHARACTER(len=*), PARAMETER :: routineN = 'ddapc_eval_AmI', &
-      routineP = moduleN//':'//routineN  
-    INTEGER :: stat, handle, ndim
-    LOGICAL :: failure 
-    REAL(KIND=dp)   , ALLOCATABLE, DIMENSION(:)    :: cv
-    REAL(KIND=dp)   , ALLOCATABLE, DIMENSION(:,:)  :: Am, AmI
-    REAL(KIND=dp) :: inv_error
-    
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, ndim, stat
+    LOGICAL                                  :: failure
+    REAL(KIND=dp)                            :: inv_error
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: cv
+    REAL(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:, :)                        :: Am, AmI
+
     failure = .FALSE.
     CALL timeset(routineN,"I","",handle)
     IF (.NOT. failure) THEN
@@ -588,30 +588,29 @@ CONTAINS
 !!*** **********************************************************************
   RECURSIVE SUBROUTINE ewald_ddapc_pot(coeff, qmmm_periodic, cell, multipole_section,&
        particle_set, M, radii, error)
-    IMPLICIT NONE
-    ! Arguments
     TYPE(pw_type), POINTER                   :: coeff
-    TYPE(section_vals_type), POINTER         :: multipole_section    
-    TYPE(particle_type), DIMENSION(:), &
-         POINTER                             :: particle_set
     LOGICAL, INTENT(IN)                      :: qmmm_periodic
-    REAL(KIND=dp), POINTER, DIMENSION(:,:)   :: M
-    REAL(KIND=dp), POINTER, DIMENSION(:)     :: radii
-    TYPE(cp_error_type), INTENT(inout), &
-         OPTIONAL                            :: error
-    ! Local Variables
-    CHARACTER(len=*), PARAMETER :: routineN = 'ewald_ddapc_pot', &
-         routineP = moduleN//':'//routineN      
-    LOGICAL :: failure, analyt
-    INTEGER :: ip1, ip2, handle, ewmdim, idim, idimo, ndim
-    INTEGER :: nmax1, nmax2, nmax3, k1, k2, k3, n_rep, rmax1, rmax2, rmax3, stat
-    INTEGER :: iparticle1, iparticle2, idim1, idim2, igauss1, igauss2, istart_g,r1,r2,r3, sfact
-    REAL(KIND=dp) :: eps, rcut, tol, alpha, tol1, fac, rc1, rc2, rc12, rc22, galpha, gsq, dfact
-    REAL(KIND=dp) :: g_ewald, gsqi, fac3, r_ewald, r, fs, eps0, ew_neut, fac2, t1
-    REAL(KIND=dp) :: my_val
-    REAL(KIND=dp), DIMENSION(3) :: rvec, gvec, fvec, ra, rb
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: EwM
     TYPE(cell_type), POINTER                 :: cell
+    TYPE(section_vals_type), POINTER         :: multipole_section
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particle_set
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: M
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: radii
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'ewald_ddapc_pot', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER :: ewmdim, handle, idim, idim1, idim2, idimo, igauss1, igauss2, &
+      ip1, ip2, iparticle1, iparticle2, istart_g, k1, k2, k3, n_rep, ndim, &
+      nmax1, nmax2, nmax3, r1, r2, r3, rmax1, rmax2, rmax3, sfact, stat
+    LOGICAL                                  :: analyt, failure
+    REAL(KIND=dp) :: alpha, dfact, eps, eps0, ew_neut, fac, fac2, fac3, fs, &
+      g_ewald, galpha, gsq, gsqi, my_val, r, r_ewald, rc1, rc12, rc2, rc22, &
+      rcut, t1, tol, tol1
+    REAL(KIND=dp), DIMENSION(3)              :: fvec, gvec, ra, rb, rvec
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: EwM
     TYPE(unit_convert_type), POINTER         :: units
 
     failure = .FALSE.

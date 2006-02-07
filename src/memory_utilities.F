@@ -21,6 +21,8 @@
 
 MODULE memory_utilities
 
+  USE cp_output_handling,              ONLY: cp_p_file,&
+                                             cp_print_key_should_output
   USE global_types,                    ONLY: global_environment_type
   USE kinds,                           ONLY: default_string_length,&
                                              dp,&
@@ -29,10 +31,6 @@ MODULE memory_utilities
   USE machine,                         ONLY: print_memory
   USE message_passing,                 ONLY: mp_sync
   USE termination,                     ONLY: stop_memory
-  USE cp_output_handling,              ONLY: cp_print_key_unit_nr, &
-                                             cp_print_key_finished_output,&
-                                             cp_print_key_should_output, cp_p_file  
-
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -41,7 +39,7 @@ MODULE memory_utilities
 
 ! *** Global parameters ***
 
-  CHARACTER(LEN=*), PARAMETER :: module_name = "memory_utilities"
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'memory_utilities'
 
   PUBLIC :: reallocate,&
             write_memory
@@ -69,16 +67,15 @@ CONTAINS
     COMPLEX(KIND=dp), DIMENSION(:), POINTER  :: p
     INTEGER, INTENT(IN)                      :: lb1_new, ub1_new
 
-    CHARACTER(LEN=*), PARAMETER              :: routine_name = "reallocate_c1"
+    CHARACTER(LEN=*), PARAMETER              :: routineN = 'reallocate_c1'
 
+    COMPLEX(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:)                           :: work
     INTEGER                                  :: istat, lb1, lb1_old, &
                                                 new_size, old_size, ub1, &
                                                 ub1_old
 
-    COMPLEX(KIND=dp), ALLOCATABLE,&
-      DIMENSION(:)                           :: work
-
-    ! -------------------------------------------------------------------------
+! -------------------------------------------------------------------------
 
     IF (ASSOCIATED(p)) THEN
       lb1_old = LBOUND(p,1)
@@ -88,17 +85,17 @@ CONTAINS
       ALLOCATE (work(lb1:ub1),STAT=istat)
       IF (istat /= 0) THEN
         old_size = (ub1_old - lb1_old + 1)*dp_size
-        CALL stop_memory(routine_name,module_name,__LINE__,"work",old_size)
+        CALL stop_memory(routineN,moduleN,__LINE__,"work",old_size)
       END IF
       work(lb1:ub1) = p(lb1:ub1)
       DEALLOCATE (p,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,"p")
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"p")
     END IF
 
     ALLOCATE (p(lb1_new:ub1_new),STAT=istat)
     IF (istat /= 0) THEN
       new_size = (ub1_new - lb1_new + 1)*dp_size
-      CALL stop_memory(routine_name,module_name,__LINE__,"p",new_size)
+      CALL stop_memory(routineN,moduleN,__LINE__,"p",new_size)
     END IF
     p(:) = (0.0_dp,0.0_dp)
 
@@ -108,7 +105,7 @@ CONTAINS
       p(lb1:ub1) = work(lb1:ub1)
       DEALLOCATE (work,STAT=istat)
       IF (istat /= 0) THEN
-        CALL stop_memory(routine_name,module_name,__LINE__,"work")
+        CALL stop_memory(routineN,moduleN,__LINE__,"work")
       END IF
     END IF
 
@@ -120,20 +117,20 @@ CONTAINS
 
     ! (Re)Allocate a complex array with new dimensions (28.11.2005,MK)
 
-    COMPLEX(KIND=dp), DIMENSION(:, :),&
+    COMPLEX(KIND=dp), DIMENSION(:, :), &
       POINTER                                :: p
     INTEGER, INTENT(IN)                      :: lb1_new, ub1_new, lb2_new, &
                                                 ub2_new
 
-    CHARACTER(LEN=*), PARAMETER              :: routine_name = "reallocate_c2"
+    CHARACTER(LEN=*), PARAMETER              :: routineN = 'reallocate_c2'
 
+    COMPLEX(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:, :)                        :: work
     INTEGER                                  :: istat, lb1, lb1_old, lb2, &
                                                 lb2_old, new_size, old_size, &
                                                 ub1, ub1_old, ub2, ub2_old
-    COMPLEX(KIND=dp), ALLOCATABLE, &
-      DIMENSION(:, :)                        :: work
 
-    ! -------------------------------------------------------------------------
+! -------------------------------------------------------------------------
 
     IF (ASSOCIATED(p)) THEN
       lb1_old = LBOUND(p,1)
@@ -143,17 +140,17 @@ CONTAINS
       ALLOCATE (work(lb1_old:ub1_old,lb2_old:ub2_old),STAT=istat)
       IF (istat /= 0) THEN
         old_size = (ub1_old - lb1_old + 1)*(ub2_old - lb2_old + 1)*dp_size
-        CALL stop_memory(routine_name,module_name,__LINE__,"work",old_size)
+        CALL stop_memory(routineN,moduleN,__LINE__,"work",old_size)
       END IF
       work(:,:) = p(:,:)
       DEALLOCATE (p,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,"p")
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"p")
     END IF
 
     ALLOCATE (p(lb1_new:ub1_new,lb2_new:ub2_new),STAT=istat)
     IF (istat /= 0) THEN
       new_size = (ub1_new - lb1_new + 1)*(ub2_new - lb2_new + 1)*dp_size
-      CALL stop_memory(routine_name,module_name,__LINE__,"p",new_size)
+      CALL stop_memory(routineN,moduleN,__LINE__,"p",new_size)
     END IF
     p(:,:) = (0.0_dp,0.0_dp)
 
@@ -165,7 +162,7 @@ CONTAINS
       p(lb1:ub1,lb2:ub2) = work(lb1:ub1,lb2:ub2)
       DEALLOCATE (work,STAT=istat)
       IF (istat /= 0) THEN
-        CALL stop_memory(routine_name,module_name,__LINE__,"work")
+        CALL stop_memory(routineN,moduleN,__LINE__,"work")
       END IF
     END IF
 
@@ -182,14 +179,14 @@ CONTAINS
     INTEGER, INTENT(IN)                      :: lb1_new, ub1_new, lb2_new, &
                                                 ub2_new, lb3_new, ub3_new
 
-    CHARACTER(LEN=*), PARAMETER              :: routine_name = "reallocate_c3"
+    CHARACTER(LEN=*), PARAMETER              :: routineN = 'reallocate_c3'
 
-    INTEGER :: istat, lb1, lb1_old, lb2, lb2_old, lb3, lb3_old, new_size, &
-      old_size, ub1, ub1_old, ub2, ub2_old, ub3, ub3_old
     COMPLEX(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :, :)                     :: work
+    INTEGER :: istat, lb1, lb1_old, lb2, lb2_old, lb3, lb3_old, new_size, &
+      old_size, ub1, ub1_old, ub2, ub2_old, ub3, ub3_old
 
-    ! -------------------------------------------------------------------------
+! -------------------------------------------------------------------------
 
     IF (ASSOCIATED(p)) THEN
       lb1_old = LBOUND(p,1)
@@ -205,11 +202,11 @@ CONTAINS
         old_size = (ub1_old - lb1_old + 1)*&
                    (ub2_old - lb2_old + 1)*&
                    (ub3_old - lb3_old + 1)*dp_size
-        CALL stop_memory(routine_name,module_name,__LINE__,"work",old_size)
+        CALL stop_memory(routineN,moduleN,__LINE__,"work",old_size)
       END IF
       work(:,:,:) = p(:,:,:)
       DEALLOCATE (p,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,"p")
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"p")
     END IF
 
     ALLOCATE (p(lb1_new:ub1_new,lb2_new:ub2_new,lb3_new:ub3_new),STAT=istat)
@@ -217,7 +214,7 @@ CONTAINS
       new_size = (ub1_new - lb1_new + 1)*&
                  (ub2_new - lb2_new + 1)*&
                  (ub3_new - lb3_new + 1)*dp_size
-      CALL stop_memory(routine_name,module_name,__LINE__,"p",new_size)
+      CALL stop_memory(routineN,moduleN,__LINE__,"p",new_size)
     END IF
     p(:,:,:) = (0.0_dp,0.0_dp)
 
@@ -231,7 +228,7 @@ CONTAINS
       p(lb1:ub1,lb2:ub2,lb3:ub3) = work(lb1:ub1,lb2:ub2,lb3:ub3)
       DEALLOCATE (work,STAT=istat)
       IF (istat /= 0) THEN
-        CALL stop_memory(routine_name,module_name,__LINE__,"work")
+        CALL stop_memory(routineN,moduleN,__LINE__,"work")
       END IF
     END IF
 
@@ -244,21 +241,21 @@ CONTAINS
 
     ! (Re)Allocate an complex array with new dimensions (28.11.2005,MK)
 
-    COMPLEX(KIND=dp), DIMENSION(:, :, :, :), &
-      POINTER                                :: p
+    COMPLEX(KIND=dp), &
+      DIMENSION(:, :, :, :), POINTER         :: p
     INTEGER, INTENT(IN)                      :: lb1_new, ub1_new, lb2_new, &
                                                 ub2_new, lb3_new, ub3_new, &
                                                 lb4_new, ub4_new
 
-    CHARACTER(LEN=*), PARAMETER              :: routine_name = "reallocate_c4"
+    CHARACTER(LEN=*), PARAMETER              :: routineN = 'reallocate_c4'
 
+    COMPLEX(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:, :, :, :)                  :: work
     INTEGER :: istat, lb1, lb1_old, lb2, lb2_old, lb3, lb3_old, lb4, lb4_old, &
       new_size, old_size, ub1, ub1_old, ub2, ub2_old, ub3, ub3_old, ub4, &
       ub4_old
-    COMPLEX(KIND=dp), ALLOCATABLE, &
-      DIMENSION(:, :, :, :)                  :: work
 
-    ! -------------------------------------------------------------------------
+! -------------------------------------------------------------------------
 
     IF (ASSOCIATED(p)) THEN
       lb1_old = LBOUND(p,1)
@@ -278,11 +275,11 @@ CONTAINS
                    (ub2_old - lb2_old + 1)*&
                    (ub3_old - lb3_old + 1)*&
                    (ub4_old - lb4_old + 1)*dp_size
-        CALL stop_memory(routine_name,module_name,__LINE__,"work",old_size)
+        CALL stop_memory(routineN,moduleN,__LINE__,"work",old_size)
       END IF
       work(:,:,:,:) = p(:,:,:,:)
       DEALLOCATE (p,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,"p")
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"p")
     END IF
 
     ALLOCATE (p(lb1_new:ub1_new,lb2_new:ub2_new,lb3_new:ub3_new,&
@@ -292,7 +289,7 @@ CONTAINS
                  (ub2_new - lb2_new + 1)*&
                  (ub3_new - lb3_new + 1)*&
                  (ub4_new - lb4_new + 1)*dp_size
-      CALL stop_memory(routine_name,module_name,__LINE__,"p",new_size)
+      CALL stop_memory(routineN,moduleN,__LINE__,"p",new_size)
     END IF
     p(:,:,:,:) = (0.0_dp,0.0_dp)
 
@@ -308,7 +305,7 @@ CONTAINS
       p(lb1:ub1,lb2:ub2,lb3:ub3,lb4:ub4) = work(lb1:ub1,lb2:ub2,lb3:ub3,lb4:ub4)
       DEALLOCATE (work,STAT=istat)
       IF (istat /= 0) THEN
-        CALL stop_memory(routine_name,module_name,__LINE__,"work")
+        CALL stop_memory(routineN,moduleN,__LINE__,"work")
       END IF
     END IF
 
@@ -327,7 +324,7 @@ CONTAINS
     INTEGER, DIMENSION(:), POINTER           :: p
     INTEGER, INTENT(IN)                      :: lb1_new, ub1_new
 
-    CHARACTER(LEN=*), PARAMETER              :: routine_name = "reallocate_i1"
+    CHARACTER(LEN=*), PARAMETER              :: routineN = 'reallocate_i1'
 
     INTEGER                                  :: istat, lb1, lb1_old, &
                                                 new_size, old_size, ub1, &
@@ -344,17 +341,17 @@ CONTAINS
       ALLOCATE (work(lb1:ub1),STAT=istat)
       IF (istat /= 0) THEN
         old_size = (ub1 - lb1 + 1)*int_size
-        CALL stop_memory(routine_name,module_name,__LINE__,"work",old_size)
+        CALL stop_memory(routineN,moduleN,__LINE__,"work",old_size)
       END IF
       work(lb1:ub1) = p(lb1:ub1)
       DEALLOCATE (p,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,"p")
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"p")
     END IF
 
     ALLOCATE (p(lb1_new:ub1_new),STAT=istat)
     IF (istat /= 0) THEN
       new_size = (ub1_new - lb1_new + 1)*int_size
-      CALL stop_memory(routine_name,module_name,__LINE__,"p",new_size)
+      CALL stop_memory(routineN,moduleN,__LINE__,"p",new_size)
     END IF
     p(:) = 0
 
@@ -364,7 +361,7 @@ CONTAINS
       p(lb1:ub1) = work(lb1:ub1)
       DEALLOCATE (work,STAT=istat)
       IF (istat /= 0) THEN
-        CALL stop_memory(routine_name,module_name,__LINE__,"work")
+        CALL stop_memory(routineN,moduleN,__LINE__,"work")
       END IF
     END IF
 
@@ -384,7 +381,7 @@ CONTAINS
     INTEGER, INTENT(IN)                      :: lb1_new, ub1_new, lb2_new, &
                                                 ub2_new
 
-    CHARACTER(LEN=*), PARAMETER              :: routine_name = "reallocate_i2"
+    CHARACTER(LEN=*), PARAMETER              :: routineN = 'reallocate_i2'
 
     INTEGER                                  :: istat, lb1, lb1_old, lb2, &
                                                 lb2_old, new_size, old_size, &
@@ -405,17 +402,17 @@ CONTAINS
       ALLOCATE (work(lb1:ub1,lb2:ub2),STAT=istat)
       IF (istat /= 0) THEN
         old_size = (ub1 - lb1 + 1)*(ub2 - lb2 + 1)*int_size
-        CALL stop_memory(routine_name,module_name,__LINE__,"work",old_size)
+        CALL stop_memory(routineN,moduleN,__LINE__,"work",old_size)
       END IF
       work(lb1:ub1,lb2:ub2) = p(lb1:ub1,lb2:ub2)
       DEALLOCATE (p,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,"p")
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"p")
     END IF
 
     ALLOCATE (p(lb1_new:ub1_new,lb2_new:ub2_new),STAT=istat)
     IF (istat /= 0) THEN
       new_size = (ub1_new - lb1_new + 1)*(ub2_new - lb2_new + 1)*int_size
-      CALL stop_memory(routine_name,module_name,__LINE__,"p",new_size)
+      CALL stop_memory(routineN,moduleN,__LINE__,"p",new_size)
     END IF
     p(:,:) = 0
 
@@ -423,7 +420,7 @@ CONTAINS
       p(lb1:ub1,lb2:ub2) = work(lb1:ub1,lb2:ub2)
       DEALLOCATE (work,STAT=istat)
       IF (istat /= 0) THEN
-        CALL stop_memory(routine_name,module_name,__LINE__,"work")
+        CALL stop_memory(routineN,moduleN,__LINE__,"work")
       END IF
     END IF
 
@@ -443,7 +440,7 @@ CONTAINS
     INTEGER, INTENT(IN)                      :: lb1_new, ub1_new, lb2_new, &
                                                 ub2_new, lb3_new, ub3_new
 
-    CHARACTER(LEN=*), PARAMETER              :: routine_name = "reallocate_i3"
+    CHARACTER(LEN=*), PARAMETER              :: routineN = 'reallocate_i3'
 
     INTEGER :: istat, lb1, lb1_old, lb2, lb2_old, lb3, lb3_old, new_size, &
       old_size, ub1, ub1_old, ub2, ub2_old, ub3, ub3_old
@@ -465,11 +462,11 @@ CONTAINS
         old_size = (ub1_old - lb1_old + 1)*&
                    (ub2_old - lb2_old + 1)*&
                    (ub3_old - lb3_old + 1)*int_size
-        CALL stop_memory(routine_name,module_name,__LINE__,"work",old_size)
+        CALL stop_memory(routineN,moduleN,__LINE__,"work",old_size)
       END IF
       work(:,:,:) = p(:,:,:)
       DEALLOCATE (p,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,"p")
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"p")
     END IF
 
     ALLOCATE (p(lb1_new:ub1_new,lb2_new:ub2_new,lb3_new:ub3_new),STAT=istat)
@@ -477,7 +474,7 @@ CONTAINS
       new_size = (ub1_new - lb1_new + 1)*&
                  (ub2_new - lb2_new + 1)*&
                  (ub3_new - lb3_new + 1)*int_size
-      CALL stop_memory(routine_name,module_name,__LINE__,"p",new_size)
+      CALL stop_memory(routineN,moduleN,__LINE__,"p",new_size)
     END IF
     p(:,:,:) = 0
 
@@ -491,7 +488,7 @@ CONTAINS
       p(lb1:ub1,lb2:ub2,lb3:ub3) = work(lb1:ub1,lb2:ub2,lb3:ub3)
       DEALLOCATE (work,STAT=istat)
       IF (istat /= 0) THEN
-        CALL stop_memory(routine_name,module_name,__LINE__,"work")
+        CALL stop_memory(routineN,moduleN,__LINE__,"work")
       END IF
     END IF
 
@@ -513,7 +510,7 @@ CONTAINS
                                                 ub2_new, lb3_new, ub3_new, &
                                                 lb4_new, ub4_new
 
-    CHARACTER(LEN=*), PARAMETER              :: routine_name = "reallocate_i4"
+    CHARACTER(LEN=*), PARAMETER              :: routineN = 'reallocate_i4'
 
     INTEGER :: istat, lb1, lb1_old, lb2, lb2_old, lb3, lb3_old, lb4, lb4_old, &
       new_size, old_size, ub1, ub1_old, ub2, ub2_old, ub3, ub3_old, ub4, &
@@ -541,11 +538,11 @@ CONTAINS
                    (ub2_old - lb2_old + 1)*&
                    (ub3_old - lb3_old + 1)*&
                    (ub4_old - lb4_old + 1)*int_size
-        CALL stop_memory(routine_name,module_name,__LINE__,"work",old_size)
+        CALL stop_memory(routineN,moduleN,__LINE__,"work",old_size)
       END IF
       work(:,:,:,:) = p(:,:,:,:)
       DEALLOCATE (p,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,"p")
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"p")
     END IF
 
     ALLOCATE (p(lb1_new:ub1_new,lb2_new:ub2_new,lb3_new:ub3_new,&
@@ -555,7 +552,7 @@ CONTAINS
                  (ub2_new - lb2_new + 1)*&
                  (ub3_new - lb3_new + 1)*&
                  (ub4_new - lb4_new + 1)*int_size
-      CALL stop_memory(routine_name,module_name,__LINE__,"p",new_size)
+      CALL stop_memory(routineN,moduleN,__LINE__,"p",new_size)
     END IF
     p(:,:,:,:) = 0
 
@@ -571,7 +568,7 @@ CONTAINS
       p(lb1:ub1,lb2:ub2,lb3:ub3,lb4:ub4) = work(lb1:ub1,lb2:ub2,lb3:ub3,lb4:ub4)
       DEALLOCATE (work,STAT=istat)
       IF (istat /= 0) THEN
-        CALL stop_memory(routine_name,module_name,__LINE__,"work")
+        CALL stop_memory(routineN,moduleN,__LINE__,"work")
       END IF
     END IF
 
@@ -590,7 +587,7 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:), POINTER     :: p
     INTEGER, INTENT(IN)                      :: lb1_new, ub1_new
 
-    CHARACTER(LEN=*), PARAMETER              :: routine_name = "reallocate_r1"
+    CHARACTER(LEN=*), PARAMETER              :: routineN = 'reallocate_r1'
 
     INTEGER                                  :: istat, lb1, lb1_old, &
                                                 new_size, old_size, ub1, &
@@ -607,17 +604,17 @@ CONTAINS
       ALLOCATE (work(lb1:ub1),STAT=istat)
       IF (istat /= 0) THEN
         old_size = (ub1_old - lb1_old + 1)*dp_size
-        CALL stop_memory(routine_name,module_name,__LINE__,"work",old_size)
+        CALL stop_memory(routineN,moduleN,__LINE__,"work",old_size)
       END IF
       work(lb1:ub1) = p(lb1:ub1)
       DEALLOCATE (p,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,"p")
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"p")
     END IF
 
     ALLOCATE (p(lb1_new:ub1_new),STAT=istat)
     IF (istat /= 0) THEN
       new_size = (ub1_new - lb1_new + 1)*dp_size
-      CALL stop_memory(routine_name,module_name,__LINE__,"p",new_size)
+      CALL stop_memory(routineN,moduleN,__LINE__,"p",new_size)
     END IF
     p(:) = 0.0_dp
 
@@ -627,7 +624,7 @@ CONTAINS
       p(lb1:ub1) = work(lb1:ub1)
       DEALLOCATE (work,STAT=istat)
       IF (istat /= 0) THEN
-        CALL stop_memory(routine_name,module_name,__LINE__,"work")
+        CALL stop_memory(routineN,moduleN,__LINE__,"work")
       END IF
     END IF
 
@@ -647,7 +644,7 @@ CONTAINS
     INTEGER, INTENT(IN)                      :: lb1_new, ub1_new, lb2_new, &
                                                 ub2_new
 
-    CHARACTER(LEN=*), PARAMETER              :: routine_name = "reallocate_r2"
+    CHARACTER(LEN=*), PARAMETER              :: routineN = 'reallocate_r2'
 
     INTEGER                                  :: istat, lb1, lb1_old, lb2, &
                                                 lb2_old, new_size, old_size, &
@@ -665,17 +662,17 @@ CONTAINS
       ALLOCATE (work(lb1_old:ub1_old,lb2_old:ub2_old),STAT=istat)
       IF (istat /= 0) THEN
         old_size = (ub1_old - lb1_old + 1)*(ub2_old - lb2_old + 1)*dp_size
-        CALL stop_memory(routine_name,module_name,__LINE__,"work",old_size)
+        CALL stop_memory(routineN,moduleN,__LINE__,"work",old_size)
       END IF
       work(:,:) = p(:,:)
       DEALLOCATE (p,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,"p")
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"p")
     END IF
 
     ALLOCATE (p(lb1_new:ub1_new,lb2_new:ub2_new),STAT=istat)
     IF (istat /= 0) THEN
       new_size = (ub1_new - lb1_new + 1)*(ub2_new - lb2_new + 1)*dp_size
-      CALL stop_memory(routine_name,module_name,__LINE__,"p",new_size)
+      CALL stop_memory(routineN,moduleN,__LINE__,"p",new_size)
     END IF
     p(:,:) = 0.0_dp
 
@@ -687,7 +684,7 @@ CONTAINS
       p(lb1:ub1,lb2:ub2) = work(lb1:ub1,lb2:ub2)
       DEALLOCATE (work,STAT=istat)
       IF (istat /= 0) THEN
-        CALL stop_memory(routine_name,module_name,__LINE__,"work")
+        CALL stop_memory(routineN,moduleN,__LINE__,"work")
       END IF
     END IF
 
@@ -708,7 +705,7 @@ CONTAINS
     INTEGER, INTENT(IN)                      :: lb1_new, ub1_new, lb2_new, &
                                                 ub2_new, lb3_new, ub3_new
 
-    CHARACTER(LEN=*), PARAMETER              :: routine_name = "reallocate_r3"
+    CHARACTER(LEN=*), PARAMETER              :: routineN = 'reallocate_r3'
 
     INTEGER :: istat, lb1, lb1_old, lb2, lb2_old, lb3, lb3_old, new_size, &
       old_size, ub1, ub1_old, ub2, ub2_old, ub3, ub3_old
@@ -731,11 +728,11 @@ CONTAINS
         old_size = (ub1_old - lb1_old + 1)*&
                    (ub2_old - lb2_old + 1)*&
                    (ub3_old - lb3_old + 1)*dp_size
-        CALL stop_memory(routine_name,module_name,__LINE__,"work",old_size)
+        CALL stop_memory(routineN,moduleN,__LINE__,"work",old_size)
       END IF
       work(:,:,:) = p(:,:,:)
       DEALLOCATE (p,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,"p")
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"p")
     END IF
 
     ALLOCATE (p(lb1_new:ub1_new,lb2_new:ub2_new,lb3_new:ub3_new),STAT=istat)
@@ -743,7 +740,7 @@ CONTAINS
       new_size = (ub1_new - lb1_new + 1)*&
                  (ub2_new - lb2_new + 1)*&
                  (ub3_new - lb3_new + 1)*dp_size
-      CALL stop_memory(routine_name,module_name,__LINE__,"p",new_size)
+      CALL stop_memory(routineN,moduleN,__LINE__,"p",new_size)
     END IF
     p(:,:,:) = 0.0_dp
 
@@ -757,7 +754,7 @@ CONTAINS
       p(lb1:ub1,lb2:ub2,lb3:ub3) = work(lb1:ub1,lb2:ub2,lb3:ub3)
       DEALLOCATE (work,STAT=istat)
       IF (istat /= 0) THEN
-        CALL stop_memory(routine_name,module_name,__LINE__,"work")
+        CALL stop_memory(routineN,moduleN,__LINE__,"work")
       END IF
     END IF
 
@@ -780,7 +777,7 @@ CONTAINS
                                                 ub2_new, lb3_new, ub3_new, &
                                                 lb4_new, ub4_new
 
-    CHARACTER(LEN=*), PARAMETER              :: routine_name = "reallocate_r4"
+    CHARACTER(LEN=*), PARAMETER              :: routineN = 'reallocate_r4'
 
     INTEGER :: istat, lb1, lb1_old, lb2, lb2_old, lb3, lb3_old, lb4, lb4_old, &
       new_size, old_size, ub1, ub1_old, ub2, ub2_old, ub3, ub3_old, ub4, &
@@ -808,11 +805,11 @@ CONTAINS
                    (ub2_old - lb2_old + 1)*&
                    (ub3_old - lb3_old + 1)*&
                    (ub4_old - lb4_old + 1)*dp_size
-        CALL stop_memory(routine_name,module_name,__LINE__,"work",old_size)
+        CALL stop_memory(routineN,moduleN,__LINE__,"work",old_size)
       END IF
       work(:,:,:,:) = p(:,:,:,:)
       DEALLOCATE (p,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,"p")
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"p")
     END IF
 
     ALLOCATE (p(lb1_new:ub1_new,lb2_new:ub2_new,lb3_new:ub3_new,&
@@ -822,7 +819,7 @@ CONTAINS
                  (ub2_new - lb2_new + 1)*&
                  (ub3_new - lb3_new + 1)*&
                  (ub4_new - lb4_new + 1)*dp_size
-      CALL stop_memory(routine_name,module_name,__LINE__,"p",new_size)
+      CALL stop_memory(routineN,moduleN,__LINE__,"p",new_size)
     END IF
     p(:,:,:,:) = 0.0_dp
 
@@ -838,7 +835,7 @@ CONTAINS
       p(lb1:ub1,lb2:ub2,lb3:ub3,lb4:ub4) = work(lb1:ub1,lb2:ub2,lb3:ub3,lb4:ub4)
       DEALLOCATE (work,STAT=istat)
       IF (istat /= 0) THEN
-        CALL stop_memory(routine_name,module_name,__LINE__,"work")
+        CALL stop_memory(routineN,moduleN,__LINE__,"work")
       END IF
     END IF
 
@@ -862,7 +859,7 @@ CONTAINS
                                                 lb4_new, ub4_new, lb5_new, &
                                                 ub5_new
 
-    CHARACTER(LEN=*), PARAMETER              :: routine_name = "reallocate_r5"
+    CHARACTER(LEN=*), PARAMETER              :: routineN = 'reallocate_r5'
 
     INTEGER :: istat, lb1, lb1_old, lb2, lb2_old, lb3, lb3_old, lb4, lb4_old, &
       lb5, lb5_old, new_size, old_size, ub1, ub1_old, ub2, ub2_old, ub3, &
@@ -894,11 +891,11 @@ CONTAINS
                    (ub3_old - lb3_old + 1)*&
                    (ub4_old - lb4_old + 1)*&
                    (ub5_old - lb5_old + 1)*dp_size
-        CALL stop_memory(routine_name,module_name,__LINE__,"work",old_size)
+        CALL stop_memory(routineN,moduleN,__LINE__,"work",old_size)
       END IF
       work(:,:,:,:,:) = p(:,:,:,:,:)
       DEALLOCATE (p,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,"p")
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"p")
     END IF
 
     ALLOCATE (p(lb1_new:ub1_new,lb2_new:ub2_new,lb3_new:ub3_new,&
@@ -909,7 +906,7 @@ CONTAINS
                  (ub3_new - lb3_new + 1)*&
                  (ub4_new - lb4_new + 1)*&
                  (ub5_new - lb5_new + 1)*dp_size
-      CALL stop_memory(routine_name,module_name,__LINE__,"p",new_size)
+      CALL stop_memory(routineN,moduleN,__LINE__,"p",new_size)
     END IF
     p(:,:,:,:,:) = 0.0_dp
 
@@ -928,7 +925,7 @@ CONTAINS
         work(lb1:ub1,lb2:ub2,lb3:ub3,lb4:ub4,lb5:ub5)
       DEALLOCATE (work,STAT=istat)
       IF (istat /= 0) THEN
-        CALL stop_memory(routine_name,module_name,__LINE__,"work")
+        CALL stop_memory(routineN,moduleN,__LINE__,"work")
       END IF
     END IF
 
@@ -949,7 +946,7 @@ CONTAINS
       DIMENSION(:), POINTER                  :: p
     INTEGER, INTENT(IN)                      :: lb1_new, ub1_new
 
-    CHARACTER(LEN=*), PARAMETER              :: routine_name = "reallocate_s1"
+    CHARACTER(LEN=*), PARAMETER              :: routineN = 'reallocate_s1'
 
     CHARACTER(LEN=default_string_length), &
       ALLOCATABLE, DIMENSION(:)              :: work
@@ -965,17 +962,17 @@ CONTAINS
       ALLOCATE (work(lb1_old:ub1_old),STAT=istat)
       IF (istat /= 0) THEN
         old_size = (ub1_old - lb1_old + 1)*1
-        CALL stop_memory(routine_name,module_name,__LINE__,"work",old_size)
+        CALL stop_memory(routineN,moduleN,__LINE__,"work",old_size)
       END IF
       work(:) = p(:)
       DEALLOCATE (p,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,"p")
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"p")
     END IF
 
     ALLOCATE (p(lb1_new:ub1_new),STAT=istat)
     IF (istat /= 0) THEN
       new_size = (ub1_new - lb1_new + 1)*1
-      CALL stop_memory(routine_name,module_name,__LINE__,"p",new_size)
+      CALL stop_memory(routineN,moduleN,__LINE__,"p",new_size)
     END IF
     p(:) = ""
 
@@ -985,7 +982,7 @@ CONTAINS
       p(lb1:ub1) = work(lb1:ub1)
       DEALLOCATE (work,STAT=istat)
       IF (istat /= 0) THEN
-        CALL stop_memory(routine_name,module_name,__LINE__,"work")
+        CALL stop_memory(routineN,moduleN,__LINE__,"work")
       END IF
     END IF
 
@@ -1002,14 +999,13 @@ CONTAINS
 !   ***************************************************************************
 
     CHARACTER(LEN=*), INTENT(IN)             :: checkpoint
-    TYPE(global_environment_type), &
-      pointer                             :: globenv
-    TYPE(cp_error_type), INTENT(inout)    :: error 
+    TYPE(global_environment_type), POINTER   :: globenv
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=LEN_TRIM(checkpoint)+7)    :: string
     INTEGER                                  :: group, ipe, mype, npe
     TYPE(cp_logger_type), POINTER            :: logger
-    
+
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
     IF (BTEST(cp_print_key_should_output(logger%iter_info,globenv%input_file,&

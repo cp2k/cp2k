@@ -396,14 +396,16 @@ CONTAINS
   SUBROUTINE duplicate_qs_force(qs_force_input, qs_force_output, &
                                 natom_of_kind)
 
-    TYPE(qs_force_type), DIMENSION(:), POINTER      :: qs_force_input, &
-                                                       qs_force_output
-    INTEGER, DIMENSION(:), INTENT(IN)               :: natom_of_kind
-    INTEGER                                         :: ikind
-    
+    TYPE(qs_force_type), DIMENSION(:), &
+      POINTER                                :: qs_force_input, &
+                                                qs_force_output
+    INTEGER, DIMENSION(:), INTENT(IN)        :: natom_of_kind
+
     CHARACTER(len=*), PARAMETER :: &
       routine = "SUBROUTINE duplicate_qs_force (MODULE qs_force_types)"
-    LOGICAL                                         :: failure
+
+    INTEGER                                  :: ikind
+    LOGICAL                                  :: failure
 
 !   ------------------------------------------------------------------------
 

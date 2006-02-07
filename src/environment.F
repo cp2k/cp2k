@@ -25,40 +25,23 @@
 MODULE environment
   USE cp_files,                        ONLY: close_file,&
                                              open_file
+  USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
+                                             cp_print_key_unit_nr
   USE fft_tools,                       ONLY: fft3d,&
                                              init_fft
   USE gamma,                           ONLY: deallocate_md_ftable
-  USE global_types,                    ONLY: BLACS_GRID_COL,&
-                                             BLACS_GRID_ROW,&
-                                             BLACS_GRID_SQUARE,&
-                                             DEBUG,&
-                                             HIGH,&
-                                             LOW,&
-                                             MEDIUM,&
-                                             SILENT,&
-                                             global_environment_type
-  USE input_constants,                 ONLY: program_names,&
-                                             none_run,&
-                                             mol_dyn_run,&
-                                             energy_run,&
-                                             do_atom,&
-                                             do_fist,&
-                                             do_qs,&
-                                             do_kg,&
-                                             do_farming,&
-                                             do_test,&
-                                             run_type_names,&
-                                             run_type_index,&
-                                             program_name_index
-  USE input_cp2k,                      ONLY: parsed_cp2k_input
-  USE input_section_types,             ONLY: section_vals_get,&
+  USE global_types,                    ONLY: global_environment_type
+  USE input_constants,                 ONLY: &
+       do_atom, do_farming, do_fist, do_kg, do_qs, do_test, energy_run, &
+       mol_dyn_run, none_run, program_names, run_type_names
+  USE input_section_types,             ONLY: section_get_rval,&
+                                             section_vals_get,&
                                              section_vals_get_subs_vals,&
                                              section_vals_type,&
-                                             section_vals_val_get,&
-                                             section_get_rval
-  USE kinds,                           ONLY: dp,&
+                                             section_vals_val_get
+  USE kinds,                           ONLY: default_string_length,&
+                                             dp,&
                                              int_size,&
-                                             default_string_length,&
                                              print_kind_info
   USE machine,                         ONLY: m_datum,&
                                              m_getcwd,&
@@ -74,8 +57,7 @@ MODULE environment
   USE orbital_transformation_matrices, ONLY: deallocate_spherical_harmonics
   USE parallel_rng_types,              ONLY: init_rng,&
                                              write_rng_matrices
-  USE physcon,                         ONLY: init_physcon,&
-                                             write_physcon
+  USE physcon,                         ONLY: write_physcon
   USE string_utilities,                ONLY: ascii_to_string,&
                                              string_to_ascii
   USE termination,                     ONLY: set_error_unit,&
@@ -89,8 +71,6 @@ MODULE environment
                                              trace_debug,&
                                              use_HPM
   USE util,                            ONLY: ran2
-  USE cp_output_handling,              ONLY: cp_print_key_unit_nr, &
-                                             cp_print_key_finished_output
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -121,7 +101,7 @@ MODULE environment
   CHARACTER(LEN=*), PARAMETER :: compile_lastcvs = "/No CVS/Entry in src dir//"
 #endif
 
-  CHARACTER(LEN=*), PARAMETER :: module_name = "environment"
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'environment'
   INTEGER :: handle = 0
 
 ! *** Public subroutines ***
@@ -159,7 +139,7 @@ CONTAINS
 
     TYPE(global_environment_type), POINTER :: globenv
 
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "cp2k_init"
+    CHARACTER(LEN=*), PARAMETER :: routineN = "cp2k_init"
 
 !   *** Local variables ***
 
@@ -228,7 +208,7 @@ CONTAINS
 
     ALLOCATE (all_pid(globenv%num_pe),STAT=istat)
     IF (istat /= 0) THEN
-      CALL stop_memory(routine_name,module_name,__LINE__,"all_pid",&
+      CALL stop_memory(routineN,moduleN,__LINE__,"all_pid",&
                        globenv%num_pe*int_size)
     END IF
     all_pid(:) = 0
@@ -236,7 +216,7 @@ CONTAINS
     CALL mp_sum(all_pid,globenv%group)
     ALLOCATE (all_host(30,globenv%num_pe),STAT=istat)
     IF (istat /= 0) THEN
-      CALL stop_memory(routine_name,module_name,__LINE__,"all_host",&
+      CALL stop_memory(routineN,moduleN,__LINE__,"all_host",&
                        30*globenv%num_pe*int_size)
     END IF
     all_host(:,:) = 0
@@ -252,11 +232,11 @@ CONTAINS
     END IF
     DEALLOCATE (all_pid,STAT=istat)
     IF (istat /= 0) THEN
-      CALL stop_memory(routine_name,module_name,__LINE__,"all_pid")
+      CALL stop_memory(routineN,moduleN,__LINE__,"all_pid")
     END IF
     DEALLOCATE (all_host,STAT=istat)
     IF (istat /= 0) THEN
-      CALL stop_memory(routine_name,module_name,__LINE__,"all_host")
+      CALL stop_memory(routineN,moduleN,__LINE__,"all_host")
     END IF
 
 
@@ -322,17 +302,18 @@ CONTAINS
 !!*** **********************************************************************
 SUBROUTINE cp2k_read(globenv,error)
     TYPE(global_environment_type), POINTER   :: globenv
-    TYPE(cp_error_type), INTENT(inout), optional :: error
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp2k_read', &
-      routineP = module_name//':'//routineN
+      routineP = moduleN//':'//routineN
 
+    CHARACTER(len=default_string_length)     :: c_val
     INTEGER                                  :: iw
     TYPE(cp_logger_type), POINTER            :: logger
-    CHARACTER(len=default_string_length) :: c_val
-
 
 !   *** Read the input/output section ***
+
     logger => cp_get_default_logger()
 #if defined(__HPM)
     IF (BTEST(cp_print_key_should_output(logger%iter_info,&
@@ -399,19 +380,17 @@ SUBROUTINE cp2k_read(globenv,error)
 !!
 !!*** **********************************************************************
   SUBROUTINE cp2k_setup(globenv,error)
-    TYPE(global_environment_type), pointer :: globenv
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(global_environment_type), POINTER   :: globenv
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    logical :: failure
-    character(len=*), parameter :: routineN='cp2k_setup',&
-         routineP=module_name//':'//routineN
-    INTEGER           :: initial_random,ipe,istat,l,output_unit,pid,&
-         strstart,strend
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp2k_setup', &
+      routineP = moduleN//':'//routineN
 
-    INTEGER, DIMENSION(:), ALLOCATABLE   :: all_pid
-    INTEGER, DIMENSION(:,:), ALLOCATABLE :: all_host
-    TYPE(cp_logger_type), POINTER :: logger
-    INTEGER :: iw
+    INTEGER                                  :: initial_random, iw
+    LOGICAL                                  :: failure
+    TYPE(cp_logger_type), POINTER            :: logger
+
     failure=.FALSE.
 
     NULLIFY(logger)
@@ -459,18 +438,18 @@ SUBROUTINE cp2k_read(globenv,error)
 !******************************************************************************
   SUBROUTINE read_global_section(globenv,error)
 
-    TYPE(global_environment_type), &
-      pointer                          :: globenv
-    type(cp_error_type), optional, intent(inout) :: error
+    TYPE(global_environment_type), POINTER   :: globenv
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "read_global_section", &
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'read_global_section', &
       start_section_label = "GLOBAL"
 
-    INTEGER                                  :: num_threads,output_unit
+    CHARACTER(len=default_string_length) :: basis_set_file_name, &
+      mm_potential_file_name, potential_file_name, restart_file_name
+    INTEGER                                  :: num_threads, output_unit
     LOGICAL                                  :: failure, trace
-    TYPE(section_vals_type), POINTER         :: dft_section,global_section
-    CHARACTER(len=default_string_length) :: basis_set_file_name, potential_file_name,&
-         mm_potential_file_name,restart_file_name
+    TYPE(section_vals_type), POINTER         :: dft_section, global_section
 
 !$  INTEGER :: omp_get_num_threads
 
@@ -521,15 +500,15 @@ SUBROUTINE cp2k_read(globenv,error)
     END IF
 
     IF(globenv%prog_name_id == do_atom .AND. globenv%run_type_id /= none_run) &
-       CALL stop_program(routine_name,module_name,__LINE__,&
+       CALL stop_program(routineN,moduleN,__LINE__,&
                "ATOM program supports only NONE as run type",globenv)
 
     IF(globenv%prog_name_id == do_farming .AND. globenv%run_type_id /= none_run) &
-       CALL stop_program(routine_name,module_name,__LINE__,&
+       CALL stop_program(routineN,moduleN,__LINE__,&
                " FARMING program supports only NONE as run type",globenv)
 
     IF(globenv%prog_name_id == do_test .AND. globenv%run_type_id /= none_run) &
-       CALL stop_program(routine_name,module_name,__LINE__,&
+       CALL stop_program(routineN,moduleN,__LINE__,&
                "TEST program supports only NONE as run type",globenv)
 
     num_threads=1
@@ -592,30 +571,25 @@ SUBROUTINE cp2k_read(globenv,error)
 
   SUBROUTINE read_cp2k_section(globenv,error)
 
-    TYPE(global_environment_type), &
-      pointer                          :: globenv
-    type(cp_error_type), optional, intent(inout) :: error
+    TYPE(global_environment_type), POINTER   :: globenv
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "read_cp2k_section", &
-      start_section_label = "CP2K"
+    CHARACTER(LEN=*), PARAMETER              :: routineN = 'read_cp2k_section'&
+                                                , start_section_label = "CP2K"
 
-    CHARACTER(LEN=3)                         :: test_result
-    CHARACTER(LEN=60)                        :: keyvalue, keyword
-    CHARACTER(LEN=default_string_length)     :: program_name, run_type
     COMPLEX(KIND=dp), DIMENSION(4, 4, 4)     :: zz
-    INTEGER                                  :: num_threads, &
-                                                omp_get_num_threads, &
-                                                output_unit, stat
+    INTEGER                                  :: stat
     INTEGER, DIMENSION(3)                    :: n
-    LOGICAL                                  :: section_found, was_present
+    LOGICAL                                  :: was_present
     TYPE(section_vals_type), POINTER         :: global_section
-    INTEGER :: i
+
 !   ---------------------------------------------------------------------------
 
     was_present = .FALSE.
 
     global_section => section_vals_get_subs_vals(globenv%input_file,"GLOBAL",error=error)
-    call section_vals_get(global_section,explicit=was_present,error=error)
+    CALL section_vals_get(global_section,explicit=was_present,error=error)
     CALL read_global_section(globenv)
 
 !   *** Initialize FFT library ***
@@ -636,7 +610,7 @@ SUBROUTINE cp2k_read(globenv,error)
       CALL init_fft(fftlib=TRIM(globenv%default_fft_library))
       CALL fft3d(1,n,zz,status=stat) 
       IF (stat /= 0) THEN
-           CALL stop_program(routine_name,module_name,__LINE__,&
+           CALL stop_program(routineN,moduleN,__LINE__,&
                              "The default FFT library <"//&
                              TRIM(globenv%default_fft_library)//&
                              "> is not available",globenv)

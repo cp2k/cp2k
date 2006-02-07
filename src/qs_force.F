@@ -25,13 +25,18 @@ MODULE qs_force
   USE checkpoint_handler,              ONLY: write_checkpoint_information
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_fm_types,                     ONLY: cp_fm_p_type
-  USE global_types,                    ONLY: global_environment_type,&
-                                             MEDIUM
-  USE harris_env_types,                ONLY: harris_env_type, &
-                                             harris_env_set
+  USE cp_output_handling,              ONLY: cp_p_file,&
+                                             cp_print_key_finished_output,&
+                                             cp_print_key_should_output,&
+                                             cp_print_key_unit_nr
+!JCS
+  USE global_types,                    ONLY: MEDIUM,&
+                                             global_environment_type
+  USE harris_env_types,                ONLY: harris_env_set,&
+                                             harris_env_type
   USE harris_force,                    ONLY: harris_force_correction
-  USE harris_force_types,              ONLY: harris_force_type, &
-                                             harris_force_create
+  USE harris_force_types,              ONLY: harris_force_create,&
+                                             harris_force_type
   USE kinds,                           ONLY: dp,&
                                              int_size
   USE message_passing,                 ONLY: mp_sum
@@ -39,14 +44,19 @@ MODULE qs_force
   USE particle_types,                  ONLY: particle_type
   USE qs_core_hamiltonian,             ONLY: build_core_hamiltonian_matrix
   USE qs_energy,                       ONLY: qs_energies
+  USE qs_environment_methods,          ONLY: qs_env_rebuild_pw_env
+!JCS
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type,&
                                              set_qs_env
-  USE qs_force_types,                  ONLY: zero_qs_force,&
+  USE qs_force_types,                  ONLY: allocate_qs_force,&
                                              qs_force_type,&
-                                             allocate_qs_force
-  USE qs_ks_methods,                   ONLY: qs_ks_update_qs_env,&
-                                             calculate_w_matrix
+                                             zero_qs_force
+  USE qs_ks_methods,                   ONLY: calculate_w_matrix,&
+                                             qs_ks_create,&
+                                             qs_ks_update_qs_env
+  USE qs_ks_types,                     ONLY: qs_ks_env_type,&
+                                             qs_ks_release
   USE qs_mo_types,                     ONLY: mo_set_p_type,&
                                              mo_set_type
   USE qs_overlap,                      ONLY: write_sparse_matrix
@@ -56,26 +66,15 @@ MODULE qs_force
   USE sparse_matrix_types,             ONLY: allocate_matrix_set,&
                                              deallocate_matrix_set,&
                                              real_matrix_p_type,&
-                                             replicate_matrix_structure, &
+                                             replicate_matrix_structure,&
                                              set_matrix
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE cp_output_handling,              ONLY: cp_print_key_unit_nr, &
-                                             cp_print_key_finished_output,&
-                                             cp_print_key_should_output,&
-                                             cp_p_file
-  
+  USE virial_types,                    ONLY: virial_get,&
+                                             virial_type
 #include "cp_common_uses.h"
-
-!JCS
-  USE virial_types,                    ONLY: virial_type,&
-                                             virial_get
-  USE qs_ks_types,                     ONLY: qs_ks_release, qs_ks_env_type
-  USE qs_ks_methods,                   ONLY: qs_ks_create
-  USE qs_environment_methods,          ONLY: qs_env_rebuild_pw_env
-!JCS
 
   IMPLICIT NONE
 
@@ -83,7 +82,7 @@ MODULE qs_force
 
 ! *** Global parameters ***
 
-  CHARACTER(LEN=*), PARAMETER :: module_name = "qs_force"
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_force'
 
 ! *** Public subroutines ***
 
@@ -104,52 +103,50 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(qs_environment_type), POINTER               :: qs_env
-    TYPE(global_environment_type), POINTER           :: globenv
-    LOGICAL, OPTIONAL                                :: box_changed
-    TYPE(cp_error_type), INTENT(inout), optional     :: error
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(global_environment_type), POINTER   :: globenv
+    LOGICAL, OPTIONAL                        :: box_changed
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "qs_forces", &
-      routine = "SUBROUTINE "//routine_name//" (MODULE "//module_name//")"
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_forces', &
+      routine = "SUBROUTINE "//routineN//" (MODULE "//moduleN//")"
 
-    INTEGER                                          :: handle, i, iatom, &
-                                                        ikind, ispin, &
-                                                        istat, natom, nspin,&
-                                                        nkind
-    INTEGER, ALLOCATABLE, DIMENSION(:)               :: atom_of_kind, kind_of,&
-         natom_of_kind
+    INTEGER                                  :: handle, i, iatom, ikind, &
+                                                ispin, istat, iw, natom, &
+                                                nkind, nspin, output_unit
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: atom_of_kind, kind_of, &
+                                                natom_of_kind
+    LOGICAL                                  :: failure, gapw, harris_flag, &
+                                                obasis
     TYPE(atomic_kind_type), DIMENSION(:), &
-      POINTER                                        :: atomic_kind_set
-    TYPE(dft_control_type), POINTER                  :: dft_control
-    TYPE(mo_set_p_type), DIMENSION(:), &
-      POINTER                                        :: mos
-    TYPE(mo_set_type), POINTER                       :: mo_set
-    TYPE(particle_type), DIMENSION(:), &
-      POINTER                                        :: particle_set
-    TYPE(qs_force_type), DIMENSION(:), &
-      POINTER                                        :: force
-    TYPE(qs_ks_env_type), POINTER                    :: ks_env
-    TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                        :: matrix_ks, matrix_s, &
-                                                        matrix_w
-    TYPE(scf_control_type), POINTER                  :: scf_control
-    LOGICAL                                          :: gapw, obasis, &
-                                                        harris_flag, failure
-    TYPE(qs_rho_type), POINTER                       :: rho
-    TYPE(cp_fm_p_type), DIMENSION(:), POINTER        :: mo_derivs
-    TYPE(harris_env_type), POINTER                   :: harris_env
-    TYPE(virial_type), POINTER                       :: virial
-    TYPE(qs_ks_env_type), POINTER                    :: new_ks_env
-    TYPE(harris_force_type), POINTER                 :: harris_force
-    INTEGER :: output_unit, iw
+      POINTER                                :: atomic_kind_set
+    TYPE(cp_fm_p_type), DIMENSION(:), &
+      POINTER                                :: mo_derivs
     TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(harris_env_type), POINTER           :: harris_env
+    TYPE(harris_force_type), POINTER         :: harris_force
+    TYPE(mo_set_p_type), DIMENSION(:), &
+      POINTER                                :: mos
+    TYPE(mo_set_type), POINTER               :: mo_set
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particle_set
+    TYPE(qs_force_type), DIMENSION(:), &
+      POINTER                                :: force
+    TYPE(qs_ks_env_type), POINTER            :: ks_env, new_ks_env
+    TYPE(qs_rho_type), POINTER               :: rho
+    TYPE(real_matrix_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_ks, matrix_s, matrix_w
+    TYPE(scf_control_type), POINTER          :: scf_control
+    TYPE(virial_type), POINTER               :: virial
 
     failure = .FALSE.
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
-    CALL write_checkpoint_information("entering "//routine_name,globenv,error)
+    CALL write_checkpoint_information("entering "//routineN,globenv,error)
 
-    CALL timeset(routine_name,"I","",handle)
+    CALL timeset(routineN,"I","",handle)
 
     NULLIFY (atomic_kind_set)
     NULLIFY (mos)
@@ -209,7 +206,7 @@ CONTAINS
 
     IF (.NOT.ASSOCIATED(force)) THEN
 !   *** Allocate the force data structure ***
-       dft_control%forces=.true.
+       dft_control%forces=.TRUE.
        nkind = SIZE(atomic_kind_set)
        ALLOCATE (natom_of_kind(nkind),STAT=istat)
        CPPostcondition(istat==0,cp_failure_level,routine,error,failure)
@@ -376,7 +373,7 @@ CONTAINS
 
     CALL timestop(0.0_dp,handle)
 
-    CALL write_checkpoint_information("leaving "//routine_name,globenv,error)
+    CALL write_checkpoint_information("leaving "//routineN,globenv,error)
 
   END SUBROUTINE qs_forces
 
@@ -394,12 +391,10 @@ CONTAINS
       POINTER                                :: qs_force
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
-    TYPE(global_environment_type), &
-      pointer                             :: globenv
-    INTEGER, INTENT(IN)                      :: ftype,output_unit
-!JCS
+    INTEGER, INTENT(IN)                      :: ftype
+    TYPE(global_environment_type), POINTER   :: globenv
     TYPE(virial_type), OPTIONAL, POINTER     :: virial
-!JCS
+    INTEGER, INTENT(IN)                      :: output_unit
 
     CHARACTER(LEN=*), PARAMETER :: &
       routine = "SUBROUTINE write_forces (MODULE qs_force_types)"
@@ -410,13 +405,15 @@ CONTAINS
     CHARACTER(LEN=35)                        :: fmtstr2
     CHARACTER(LEN=48)                        :: fmtstr1
     INTEGER                                  :: i, iatom, ikind, istat, &
-                                                natom, ndigits, &
-                                                my_ftype
+                                                my_ftype, natom, ndigits
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: atom_of_kind, kind_of
-    REAL(KIND=dp), DIMENSION(3)              :: grand_total
-!JCS
     LOGICAL                                  :: virial_present
+    REAL(KIND=dp), DIMENSION(3)              :: grand_total
     REAL(kind=dp), DIMENSION(3, 3)           :: pv_virial
+
+!JCS
+!JCS
+!JCS
 !JCS
 !   ---------------------------------------------------------------------------
 

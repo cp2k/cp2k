@@ -33,7 +33,7 @@
 !
       PRIVATE
 
-      CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN="fermi"
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'fermi'
 
       PUBLIC :: fermi_distribution_type, init_fermi_dist, fermi_info, &
            dealloc_fermi_dist
@@ -100,20 +100,20 @@
 
     TYPE(fermi_distribution_type), &
       INTENT(INOUT)                          :: fdist
-    REAL(KIND=dp), INTENT(IN), OPTIONAL          :: total_electrons
-    REAL(KIND=dp), DIMENSION(:), INTENT(IN), &
-      OPTIONAL                               :: electrons
+    REAL(KIND=dp), INTENT(IN), OPTIONAL      :: total_electrons
+    REAL(KIND=dp), DIMENSION(:), &
+      INTENT(IN), OPTIONAL                   :: electrons
     INTEGER, INTENT(IN), OPTIONAL            :: total_states
     INTEGER, DIMENSION(:), INTENT(IN), &
       OPTIONAL                               :: states
-    REAL(KIND=dp), INTENT(IN), OPTIONAL          :: electronic_temp
+    REAL(KIND=dp), INTENT(IN), OPTIONAL      :: electronic_temp
     CHARACTER(LEN=*), INTENT(IN), OPTIONAL   :: broadening_method
     INTEGER, INTENT(IN), OPTIONAL            :: spins
-    REAL(KIND=dp), INTENT(IN), OPTIONAL          :: spin_moment
+    REAL(KIND=dp), INTENT(IN), OPTIONAL      :: spin_moment
     LOGICAL, INTENT(IN), OPTIONAL            :: fixed_occupation
 
     INTEGER                                  :: isos, m
-    REAL(KIND=dp)                                :: e
+    REAL(KIND=dp)                            :: e
 
 !------------------------------------------------------------------------------!
 !       set defaults

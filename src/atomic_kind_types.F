@@ -24,37 +24,30 @@
 
 MODULE atomic_kind_types
 
-  USE basis_set_types,                 ONLY: allocate_gto_basis_set,&
-                                             deallocate_gto_basis_set,&
-                                             get_gto_basis_set,&
-                                             gto_basis_set_type,&
-                                             init_aux_basis_set,&
-                                             init_orb_basis_set,&
-                                             read_gto_basis_set,&
-                                             set_gto_basis_set,&
-                                             write_aux_basis_set,&
-                                             write_gto_basis_set,&
-                                             write_orb_basis_set
-  USE cp_control_types,                ONLY: dft_control_type, &
-                                             gapw_control_type,&
+  USE basis_set_types,                 ONLY: &
+       allocate_gto_basis_set, deallocate_gto_basis_set, get_gto_basis_set, &
+       gto_basis_set_type, init_aux_basis_set, init_orb_basis_set, &
+       read_gto_basis_set, set_gto_basis_set, write_aux_basis_set, &
+       write_gto_basis_set, write_orb_basis_set
+  USE cp_control_types,                ONLY: dft_control_type,&
                                              qs_control_type
-  USE cp_linked_list_int,              ONLY: cp_sll_int_create,&
-                                             cp_sll_int_dealloc,&
-                                             cp_sll_int_get_empty,&
-                                             cp_sll_int_insert_ordered,&
-                                             cp_sll_int_type
-  USE external_potential_types,        ONLY: all_potential_type,&
-                                             allocate_potential,&
-                                             deallocate_potential,&
-                                             elp_potential_type,&
-                                             get_potential,&
-                                             gth_potential_type,&
-                                             init_potential,&
-                                             read_potential,&
-                                             set_default_all_potential,&
-                                             set_potential,&
-                                             write_potential
+  USE cp_output_handling,              ONLY: cp_p_file,&
+                                             cp_print_key_finished_output,&
+                                             cp_print_key_should_output,&
+                                             cp_print_key_unit_nr
+  USE external_potential_types,        ONLY: &
+       all_potential_type, allocate_potential, deallocate_potential, &
+       elp_potential_type, get_potential, gth_potential_type, init_potential, &
+       read_potential, set_default_all_potential, set_potential, &
+       write_potential
   USE global_types,                    ONLY: global_environment_type
+  USE input_constants,                 ONLY: do_fist,&
+                                             do_kg,&
+                                             do_qs
+  USE input_section_types,             ONLY: section_vals_get,&
+                                             section_vals_get_subs_vals,&
+                                             section_vals_type,&
+                                             section_vals_val_get
   USE kinds,                           ONLY: default_string_length,&
                                              dp,&
                                              int_size
@@ -66,7 +59,8 @@ MODULE atomic_kind_types
                                              paw_proj_set_type,&
                                              projectors
   USE periodic_table,                  ONLY: ptable
-  USE physcon,                         ONLY: bohr,massunit
+  USE physcon,                         ONLY: bohr,&
+                                             massunit
   USE qs_grid_atom,                    ONLY: allocate_grid_atom,&
                                              deallocate_grid_atom,&
                                              grid_atom_type
@@ -76,35 +70,23 @@ MODULE atomic_kind_types
   USE semi_empirical_types,            ONLY: semi_empirical_type
   USE semi_empirical_utils,            ONLY: allocate_se_param,&
                                              deallocate_se_param,&
-                                             init_se_param,&
-                                             write_se_param,&
                                              get_se_param,&
-                                             se_param_set_default
+                                             init_se_param,&
+                                             se_param_set_default,&
+                                             write_se_param
   USE soft_basis_set,                  ONLY: create_soft_basis
   USE string_utilities,                ONLY: uppercase
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
-  USE input_constants,                 ONLY: do_qs,&
-                                             do_fist,&
-                                             do_kg,&
-                                             do_qmmm,&
-                                             do_atom,&
-                                             do_farming,&
-                                             do_test
-  USE input_section_types, ONLY: section_vals_type, section_vals_get_subs_vals,&
-       section_vals_get, section_vals_val_get, section_vals_release
-  USE cp_output_handling,              ONLY: cp_print_key_unit_nr, &
-                                             cp_print_key_finished_output,&
-                                             cp_print_key_should_output,&
-                                             cp_p_file
 #include "cp_common_uses.h"
+
   IMPLICIT NONE
 
   PRIVATE
 
 ! *** Global parameters (only in this module)
 
-  CHARACTER(LEN=*), PARAMETER :: module_name = "atomic_kind_types"
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'atomic_kind_types'
 
 ! *** Define the atomic kind types ***
 
@@ -183,7 +165,7 @@ CONTAINS
       POINTER                                :: atomic_kind_set
     INTEGER, INTENT(IN)                      :: nkind
 
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "allocate_atomic_kind_set"
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'allocate_atomic_kind_set'
 
     INTEGER                                  :: ikind, istat
 
@@ -194,7 +176,7 @@ CONTAINS
     END IF
 
     ALLOCATE (atomic_kind_set(nkind),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "atomic_kind_set",nkind*int_size)
 
     DO ikind=1,nkind
@@ -242,7 +224,7 @@ CONTAINS
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
 
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "deallocate_atomic_kind_set"
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'deallocate_atomic_kind_set'
 
     INTEGER                                  :: ikind, istat, nkind
 
@@ -289,17 +271,17 @@ CONTAINS
         END IF
 
         DEALLOCATE (atomic_kind_set(ikind)%atom_list,STAT=istat)
-        IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+        IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                          "atomic_kind_set(ikind)%atom_list")
       END DO
 
       DEALLOCATE (atomic_kind_set,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                        "atomic_kind_set")
 
     ELSE
 
-      CALL stop_program(routine_name,module_name,__LINE__,&
+      CALL stop_program(routineN,moduleN,__LINE__,&
                         "The pointer atomic_kind_set is not associated and "//&
                         "cannot be deallocated")
 
@@ -338,13 +320,7 @@ CONTAINS
     TYPE(semi_empirical_type), OPTIONAL, &
       POINTER                                :: se_parameter
     TYPE(gto_basis_set_type), OPTIONAL, &
-      POINTER                                :: aux_basis_set,&
-                                                orb_basis_set,&
-                                                soft_basis_set,&
-                                                hard_basis_set
-    LOGICAL, INTENT(IN), OPTIONAL            :: softb
-    TYPE(paw_proj_set_type),  OPTIONAL, &
-      POINTER                                :: paw_proj_set
+      POINTER                                :: aux_basis_set, orb_basis_set
     CHARACTER(LEN=2), INTENT(OUT), OPTIONAL  :: element_symbol
     CHARACTER(LEN=default_string_length), &
       INTENT(OUT), OPTIONAL                  :: name
@@ -354,26 +330,25 @@ CONTAINS
     REAL(KIND=dp), INTENT(OUT), OPTIONAL     :: alpha_core_charge, &
                                                 ccore_charge, &
                                                 core_charge_radius
-    INTEGER, INTENT(OUT), OPTIONAL           :: lmax_rho0, ncgf,&
-                                                ngrid_ang,&
-                                                ngrid_rad, nsgf,&
-                                                z
-    REAL(KIND=dp), INTENT(OUT), OPTIONAL     :: qeff, zeff
-    LOGICAL, OPTIONAL,  INTENT(OUT)          :: paw_atom
-    LOGICAL, OPTIONAL,  INTENT(OUT)          :: qm_atom
-    LOGICAL, OPTIONAL,  INTENT(OUT)          :: gpw_type_forced
-    REAL(dp), OPTIONAL, INTENT(OUT)          :: hard_radius
-    REAL(dp), OPTIONAL, INTENT(OUT)          :: hard0_radius
-    REAL(dp), OPTIONAL, INTENT(OUT)          :: max_rad_local
+    INTEGER, INTENT(OUT), OPTIONAL           :: ncgf, nsgf, z
+    REAL(KIND=dp), INTENT(OUT), OPTIONAL     :: zeff, qeff
+    TYPE(gto_basis_set_type), OPTIONAL, &
+      POINTER                                :: soft_basis_set, hard_basis_set
+    TYPE(paw_proj_set_type), OPTIONAL, &
+      POINTER                                :: paw_proj_set
+    LOGICAL, INTENT(IN), OPTIONAL            :: softb
+    LOGICAL, INTENT(OUT), OPTIONAL           :: paw_atom, qm_atom
+    REAL(dp), INTENT(OUT), OPTIONAL          :: hard_radius, hard0_radius, &
+                                                max_rad_local
+    LOGICAL, INTENT(OUT), OPTIONAL           :: gpw_type_forced
     TYPE(harmonics_atom_type), OPTIONAL, &
-                                 POINTER     :: harmonics
-    INTEGER, INTENT(OUT), OPTIONAL           :: max_iso_not0, &
-                                                max_s_harm
-    TYPE(grid_atom_type), OPTIONAL, &
-                            POINTER          :: grid_atom
+      POINTER                                :: harmonics
+    INTEGER, INTENT(OUT), OPTIONAL           :: max_iso_not0, max_s_harm
+    TYPE(grid_atom_type), OPTIONAL, POINTER  :: grid_atom
+    INTEGER, INTENT(OUT), OPTIONAL           :: ngrid_ang, ngrid_rad, &
+                                                lmax_rho0
 
-
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "get_atomic_kind"
+    CHARACTER(LEN=*), PARAMETER              :: routineN = 'get_atomic_kind'
 
     LOGICAL                                  :: softb_local
 
@@ -515,7 +490,7 @@ CONTAINS
       IF (PRESENT(lmax_rho0))  lmax_rho0 = atomic_kind%lmax_rho0
     ELSE
 
-      CALL stop_program(routine_name,module_name,__LINE__,&
+      CALL stop_program(routineN,moduleN,__LINE__,&
                         "The pointer atomic_kind is not associated")
 
     END IF
@@ -547,43 +522,35 @@ CONTAINS
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     INTEGER, INTENT(OUT), OPTIONAL :: maxatom, maxcgf, maxco, maxco_proj, &
-      maxgtop,maxgtops, maxlgto, maxlppl, maxlppnl, maxnset,maxpgf,  &
-      maxppnl, maxsgf, maxsgf_set, maxshell, natom, nelectron, &
-      ncgf, ncgf_aux, npgf, nset, nsgf, nshell, &
-      max_ngrid_rad, max_sph_harm, maxg_iso_not0
-    LOGICAL, INTENT(OUT), OPTIONAL           :: all_potential_present, &
-                                                gth_potential_present, &
-                                                elp_potential_present, &
-                                                paw_atom_present, &
-                                                qm_atom_present
+      maxgtop, maxgtops, maxlgto, maxlppl, maxlppnl, maxnset, maxpgf, &
+      maxppnl, maxsgf, maxsgf_set, maxshell, natom, nelectron, ncgf, &
+      ncgf_aux, npgf, nset, nsgf, nshell
+    LOGICAL, INTENT(OUT), OPTIONAL :: all_potential_present, &
+      gth_potential_present, elp_potential_present, paw_atom_present, &
+      qm_atom_present
     INTEGER, DIMENSION(:), INTENT(OUT), &
       OPTIONAL                               :: atom_of_kind, kind_of, &
                                                 natom_of_kind
     INTEGER, INTENT(IN), OPTIONAL            :: maxder
-    REAL(kind=dp),  &
-      INTENT(out), OPTIONAL                  :: zetsoft_max
-    INTEGER, INTENT(out), OPTIONAL           :: lmax_rho0
+    INTEGER, INTENT(OUT), OPTIONAL           :: max_ngrid_rad, max_sph_harm, &
+                                                maxg_iso_not0, lmax_rho0
+    REAL(kind=dp), INTENT(out), OPTIONAL     :: zetsoft_max
 
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "get_atomic_kind_set"
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'get_atomic_kind_set'
 
-    INTEGER :: atom_a, iatom, ikind, imax, ipgf, iset, &
-      lmax_rho0_kind, max_iso_not0, &
-      max_s_harm, n, ngrid_rad, nkind, p_excl_bas, &
-      p_excl_bas_max, p_full_bas, p_full_bas_max, p_full_bas_tot, &
-      p_l_angles_max, p_min_bas, p_min_bas_max, p_min_bas_tot
-    REAL(KIND=dp) :: zeff, zeff_correction
-    INTEGER, DIMENSION(:), POINTER           :: n_ppl
-    INTEGER, DIMENSION(:), POINTER           :: npgf_kind
-    LOGICAL                                  :: paw_atom
-    LOGICAL                                  :: qm_atom
-    REAL(kind=dp), DIMENSION(:,:), POINTER   :: zet_kind
+    INTEGER :: atom_a, iatom, ikind, imax, ipgf, iset, lmax_rho0_kind, &
+      max_iso_not0, max_s_harm, n, ngrid_rad, nkind
+    INTEGER, DIMENSION(:), POINTER           :: n_ppl, npgf_kind
+    LOGICAL                                  :: paw_atom, qm_atom
+    REAL(KIND=dp)                            :: zeff, zeff_correction
+    REAL(kind=dp), DIMENSION(:, :), POINTER  :: zet_kind
     TYPE(all_potential_type), POINTER        :: all_potential
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(elp_potential_type), POINTER        :: elp_potential
     TYPE(gth_potential_type), POINTER        :: gth_potential
-    TYPE(gto_basis_set_type), POINTER        :: aux_basis_set, orb_basis_set
-    TYPE(gto_basis_set_type), POINTER        :: soft_basis_set
-    TYPE(paw_proj_set_type),  POINTER        :: paw_proj_set
+    TYPE(gto_basis_set_type), POINTER        :: aux_basis_set, orb_basis_set, &
+                                                soft_basis_set
+    TYPE(paw_proj_set_type), POINTER         :: paw_proj_set
 
 !   ---------------------------------------------------------------------------
 
@@ -892,7 +859,7 @@ CONTAINS
       END DO
     ELSE
 
-      CALL stop_program(routine_name,module_name,__LINE__,&
+      CALL stop_program(routineN,moduleN,__LINE__,&
                         "The pointer atomic_kind_set is not associated")
 
    END IF
@@ -911,12 +878,10 @@ CONTAINS
 !   ***************************************************************************
 
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
-    TYPE(global_environment_type), &
-      pointer                             :: globenv
-    CHARACTER(LEN=10),INTENT(IN), OPTIONAL   :: method
+    TYPE(global_environment_type), POINTER   :: globenv
+    CHARACTER(LEN=10), INTENT(IN), OPTIONAL  :: method
 
-
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "init_atomic_kind"
+    CHARACTER(LEN=*), PARAMETER              :: routineN = 'init_atomic_kind'
 
 !   ---------------------------------------------------------------------------
 
@@ -969,7 +934,7 @@ CONTAINS
 
     ELSE
 
-      CALL stop_program(routine_name,module_name,__LINE__,&
+      CALL stop_program(routineN,moduleN,__LINE__,&
                         "The pointer atomic_kind is not associated",globenv)
 
     END IF
@@ -989,11 +954,10 @@ CONTAINS
 
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
-    TYPE(global_environment_type), &
-      pointer                             :: globenv
-    CHARACTER(LEN=10),INTENT(IN), OPTIONAL   :: method
+    TYPE(global_environment_type), POINTER   :: globenv
+    CHARACTER(LEN=10), INTENT(IN), OPTIONAL  :: method
 
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "init_atomic_kind_set"
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'init_atomic_kind_set'
 
     INTEGER                                  :: ikind, nkind
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
@@ -1011,7 +975,7 @@ CONTAINS
 
     ELSE
 
-      CALL stop_program(routine_name,module_name,__LINE__,&
+      CALL stop_program(routineN,moduleN,__LINE__,&
                         "The pointer atomic_kind_set is not associated",&
                         globenv)
 
@@ -1025,24 +989,21 @@ CONTAINS
 
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
-    TYPE(qs_control_type),  POINTER        :: qs_control 
-
-    TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
-    TYPE(section_vals_type), POINTER :: force_env_section
+    TYPE(qs_control_type), POINTER           :: qs_control
+    TYPE(section_vals_type), POINTER         :: force_env_section
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'init_gapw_basis_set', &
-      routineP = module_name//':'//routineN
+      routineP = moduleN//':'//routineN
+
     INTEGER                                  :: ikind, nkind, output_unit
-    LOGICAL                                  :: paw_atom,gpw
-    REAL(dp)                                 :: covalent_radius,rc
-    REAL(dp)                                 :: max_rad_local_type
+    LOGICAL                                  :: failure, gpw, paw_atom
+    REAL(dp)                                 :: max_rad_local_type, rc
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
-    TYPE(gto_basis_set_type), POINTER        :: orb_basis, soft_basis
-    TYPE(gto_basis_set_type), POINTER        :: hard_basis
-    TYPE(paw_proj_set_type), POINTER         :: paw_proj
-    CHARACTER(LEN=2)                         :: current_symbol,kind_symbol
     TYPE(cp_logger_type), POINTER            :: logger
-    logical :: failure
+    TYPE(gto_basis_set_type), POINTER        :: orb_basis
+    TYPE(paw_proj_set_type), POINTER         :: paw_proj
 
     failure = .FALSE.
     NULLIFY(logger)
@@ -1127,24 +1088,22 @@ CONTAINS
 !   ***************************************************************************
 
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
-    TYPE(global_environment_type), &
-      pointer                             :: globenv
-    TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
+    TYPE(global_environment_type), POINTER   :: globenv
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "read_atomic_kind", &
-      routineP = module_name//':'//routine_name
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'read_atomic_kind', &
+      routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=2)                         :: current_symbol, element_symbol
-    CHARACTER(LEN=3)                         :: test_result
-    CHARACTER(LEN=default_string_length) :: aux_basis_set_name, keyword, akind_name,&
-                                                norm_sym, orb_basis_set_name, &
-                                                potential_name, potential_type
-    INTEGER                                  :: i, ipos, i_rep, n_rep, k_rep,&
-                                                min_b_index, naux, &
-                                                ngrid_ang, ngrid_rad, norb, z
-    LOGICAL                                  :: failure, section_found
+    CHARACTER(LEN=default_string_length) :: akind_name, aux_basis_set_name, &
+      keyword, orb_basis_set_name, potential_name, potential_type
+    INTEGER                                  :: i, i_rep, ipos, k_rep, n_rep, &
+                                                naux, ngrid_ang, ngrid_rad, &
+                                                norb, z
+    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: zeff_correction
-    TYPE(section_vals_type), pointer :: kind_section
+    TYPE(section_vals_type), POINTER         :: kind_section
 
 !   ---------------------------------------------------------------------------
 
@@ -1166,10 +1125,10 @@ CONTAINS
     DO i_rep=1,n_rep
        CALL section_vals_val_get(kind_section,"_SECTION_PARAMETERS_",&
             c_val=keyword,i_rep_section=i_rep,error=error)
-       call uppercase(keyword)
+       CALL uppercase(keyword)
        IF (keyword==akind_name) THEN
           k_rep=i_rep
-          exit
+          EXIT
        END IF
     END DO
     IF (k_rep<1) THEN
@@ -1318,9 +1277,9 @@ CONTAINS
         CALL uppercase(current_symbol)
         IF (current_symbol == element_symbol) THEN
           atomic_kind%element_symbol = ptable(i)%symbol
-          if (atomic_kind%mass==-1.0_dp) then
+          IF (atomic_kind%mass==-1.0_dp) THEN
              atomic_kind%mass = ptable(i)%amass
-          end if
+          END IF
           z = i
           EXIT
         END IF
@@ -1330,7 +1289,7 @@ CONTAINS
     atomic_kind%mass = atomic_kind%mass*massunit
 
     IF (z == -1) THEN
-      CALL stop_program(routine_name,module_name,__LINE__,&
+      CALL stop_program(routineN,moduleN,__LINE__,&
                         "No element could be assign to the atomic kind <"//&
                         TRIM(atomic_kind%name)//">. Specify a valid "//&
                         "element symbol in the input section <KIND "//&
@@ -1392,7 +1351,7 @@ CONTAINS
         CALL read_potential(atomic_kind%element_symbol,potential_name,&
                             atomic_kind%elp_potential,globenv)
       CASE DEFAULT
-        CALL stop_program(routine_name,module_name,__LINE__,&
+        CALL stop_program(routineN,moduleN,__LINE__,&
                           "An invalid potential type <"//&
                           TRIM(potential_name)//"> was specified "//&
                           "for the atomic kind <"//&
@@ -1422,11 +1381,11 @@ CONTAINS
 
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
-    TYPE(global_environment_type), &
-      pointer                             :: globenv
-    TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
+    TYPE(global_environment_type), POINTER   :: globenv
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "read_atomic_kind_set"
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'read_atomic_kind_set'
 
     INTEGER                                  :: ikind, nkind
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
@@ -1443,7 +1402,7 @@ CONTAINS
       END DO
     ELSE
 
-      CALL stop_program(routine_name,module_name,__LINE__,&
+      CALL stop_program(routineN,moduleN,__LINE__,&
                         "The pointer atomic_kind_set is not associated",&
                         globenv)
 
@@ -1455,24 +1414,25 @@ CONTAINS
   SUBROUTINE check_atomic_kind(atomic_kind,dft_control,globenv,force_env_section,error)
 
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
-    TYPE(section_vals_type), POINTER :: force_env_section
-    TYPE(dft_control_type),INTENT(IN)        :: dft_control
-    TYPE(global_environment_type), &
-      pointer                             :: globenv
-    TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
+    TYPE(dft_control_type), INTENT(IN)       :: dft_control
+    TYPE(global_environment_type), POINTER   :: globenv
+    TYPE(section_vals_type), POINTER         :: force_env_section
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "check_atomic_kind", &
-      routineP = module_name//':'//routine_name
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'check_atomic_kind', &
+      routineP = moduleN//':'//routineN
 
-    REAL(dp)                             :: mass
-    INTEGER                              :: z
-    CHARACTER(LEN=default_string_length) :: name
-    TYPE(gto_basis_set_type), POINTER    :: orb_basis_set
-    TYPE(all_potential_type), POINTER    :: all_potential
-    TYPE(elp_potential_type), POINTER    :: elp_potential
-    TYPE(gth_potential_type), POINTER    :: gth_potential
-    TYPE(semi_empirical_type), POINTER   :: se_parameter
-    LOGICAL                              :: defined
+    CHARACTER(LEN=default_string_length)     :: name
+    INTEGER                                  :: z
+    LOGICAL                                  :: defined
+    REAL(dp)                                 :: mass
+    TYPE(all_potential_type), POINTER        :: all_potential
+    TYPE(elp_potential_type), POINTER        :: elp_potential
+    TYPE(gth_potential_type), POINTER        :: gth_potential
+    TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
+    TYPE(semi_empirical_type), POINTER       :: se_parameter
+
 !   ---------------------------------------------------------------------------
 
     NULLIFY ( orb_basis_set, all_potential, elp_potential, gth_potential )
@@ -1484,7 +1444,7 @@ CONTAINS
 
     IF (globenv%prog_name_id == do_qs) THEN
       IF (z < 0) THEN
-        CALL stop_program(routine_name,module_name,__LINE__,&
+        CALL stop_program(routineN,moduleN,__LINE__,&
                      "No valid element is assign to the atomic kind ",globenv)
       END IF
       IF (.NOT.dft_control%qs_control%semi_empirical) THEN
@@ -1492,12 +1452,12 @@ CONTAINS
             (.NOT.ASSOCIATED(all_potential)).AND.&
             (.NOT.ASSOCIATED(elp_potential)).AND.&
             (mass > 0.0_dp)) THEN
-          CALL stop_program(routine_name,module_name,__LINE__,&
+          CALL stop_program(routineN,moduleN,__LINE__,&
                       "No potential type was defined for the "//&
                       "atomic kind <"//TRIM(atomic_kind%name)//">",globenv)
         END IF
         IF (.NOT.ASSOCIATED(orb_basis_set)) THEN
-          CALL stop_program(routine_name,module_name,__LINE__,&
+          CALL stop_program(routineN,moduleN,__LINE__,&
                       "No basis set type was defined for the "//&
                       "atomic kind <"//TRIM(atomic_kind%name)//">",globenv)
         END IF
@@ -1533,13 +1493,13 @@ CONTAINS
 
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
-    TYPE(dft_control_type),INTENT(IN)        :: dft_control
-    TYPE(section_vals_type), POINTER :: force_env_section
-    TYPE(global_environment_type), &
-      pointer                             :: globenv
-    TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
+    TYPE(dft_control_type), INTENT(IN)       :: dft_control
+    TYPE(global_environment_type), POINTER   :: globenv
+    TYPE(section_vals_type), POINTER         :: force_env_section
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "check_atomic_kind_set"
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'check_atomic_kind_set'
 
     INTEGER                                  :: ikind, nkind
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
@@ -1553,7 +1513,7 @@ CONTAINS
         CALL check_atomic_kind(atomic_kind,dft_control,globenv,force_env_section,error)
       END DO
     ELSE
-      CALL stop_program(routine_name,module_name,__LINE__,&
+      CALL stop_program(routineN,moduleN,__LINE__,&
                         "The pointer atomic_kind_set is not associated",&
                         globenv)
     END IF
@@ -1577,21 +1537,18 @@ CONTAINS
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     CHARACTER(LEN=*), INTENT(IN), OPTIONAL   :: element_symbol, name
     REAL(KIND=dp), INTENT(IN), OPTIONAL      :: mass
-    INTEGER, INTENT(IN), OPTIONAL            :: kind_number, &
-                                                lmax_rho0, natom
+    INTEGER, INTENT(IN), OPTIONAL            :: kind_number, natom
     INTEGER, DIMENSION(:), INTENT(IN), &
       OPTIONAL                               :: atom_list
-    LOGICAL, INTENT(IN), OPTIONAL            :: paw_atom
-    LOGICAL, INTENT(IN), OPTIONAL            :: qm_atom
-    REAL(dp), INTENT(IN), OPTIONAL           :: hard_radius
-    REAL(dp), INTENT(IN), OPTIONAL           :: hard0_radius
+    LOGICAL, INTENT(IN), OPTIONAL            :: paw_atom, qm_atom
+    REAL(dp), INTENT(IN), OPTIONAL           :: hard_radius, hard0_radius
     TYPE(elp_potential_type), OPTIONAL, &
       POINTER                                :: elp_potential
     TYPE(gto_basis_set_type), OPTIONAL, &
-      POINTER                                :: soft_basis_set
-    TYPE(gto_basis_set_type), OPTIONAL, &
-      POINTER                                :: hard_basis_set
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "set_atomic_kind"
+      POINTER                                :: soft_basis_set, hard_basis_set
+    INTEGER, INTENT(IN), OPTIONAL            :: lmax_rho0
+
+    CHARACTER(LEN=*), PARAMETER              :: routineN = 'set_atomic_kind'
 
     INTEGER                                  :: istat, n
 
@@ -1610,19 +1567,19 @@ CONTAINS
           IF (ASSOCIATED(atomic_kind%atom_list)) THEN
             DEALLOCATE (atomic_kind%atom_list,STAT=istat)
             IF (istat /= 0) THEN
-              CALL stop_memory(routine_name,module_name,__LINE__,&
+              CALL stop_memory(routineN,moduleN,__LINE__,&
                                "atomic_kind%atom_list")
             END IF
           END IF
           ALLOCATE (atomic_kind%atom_list(n),STAT=istat)
           IF (istat /= 0) THEN
-            CALL stop_memory(routine_name,module_name,__LINE__,&
+            CALL stop_memory(routineN,moduleN,__LINE__,&
                              "atomic_kind%atom_list",n*int_size)
           END IF
           atomic_kind%atom_list(:) = atom_list(:)
           atomic_kind%natom = n
         ELSE
-          CALL stop_program(routine_name,module_name,__LINE__,&
+          CALL stop_program(routineN,moduleN,__LINE__,&
                             "An invalid atom_list was supplied")
         END IF
       END IF
@@ -1637,7 +1594,7 @@ CONTAINS
 
     ELSE
 
-      CALL stop_program(routine_name,module_name,__LINE__,&
+      CALL stop_program(routineN,moduleN,__LINE__,&
                         "The pointer atomic_kind is not associated")
 
     END IF
@@ -1655,14 +1612,15 @@ CONTAINS
 !   ***************************************************************************
 
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
-
-    TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
-    INTEGER, INTENT(in) :: output_unit
-    TYPE(section_vals_type), POINTER :: force_env_section
+    TYPE(section_vals_type), POINTER         :: force_env_section
+    INTEGER, INTENT(in)                      :: output_unit
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'write_atomic_kind', &
-      routineP = module_name//':'//routineN
-    LOGICAL :: failure
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
 
     failure = .FALSE.
 
@@ -1710,17 +1668,17 @@ CONTAINS
 
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
-    
-    TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
-    TYPE(section_vals_type), POINTER :: force_env_section
+    TYPE(section_vals_type), POINTER         :: force_env_section
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'write_atomic_kind_set', &
-      routineP = module_name//':'//routineN
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ikind, nkind, output_unit
+    LOGICAL                                  :: failure
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cp_logger_type), POINTER            :: logger
-    logical :: failure 
 
     failure = .FALSE.
     NULLIFY(logger)
@@ -1757,15 +1715,17 @@ CONTAINS
 
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
-    TYPE(section_vals_type), POINTER :: force_env_section
-    TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
+    TYPE(section_vals_type), POINTER         :: force_env_section
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'write_gto_basis_sets', &
-      routineP = module_name//':'//routineN
+      routineP = moduleN//':'//routineN
+
     INTEGER                                  :: ikind, nkind, output_unit
+    LOGICAL                                  :: failure
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cp_logger_type), POINTER            :: logger
-    LOGICAL :: failure
 
     failure = .FALSE.
     NULLIFY(logger)

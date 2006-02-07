@@ -24,33 +24,30 @@
 !!   SOURCE
 !****************************************************************************
 MODULE colvar_methods
-  USE cp_subsystem_types,              ONLY: cp_subsys_get,&
-                                             cp_subsystem_type,&
-                                             cp_subsystem_p_type
-  USE force_env_types,                 ONLY: force_env_get,&
-                                             force_env_type
-  USE kinds,                           ONLY: default_string_length,&
-                                             dp
+  USE cell_types,                      ONLY: cell_type
   USE colvar_types,                    ONLY: colvar_type,&
                                              coord_colvar_id,&
                                              dist_colvar_id,&
-                                             no_colvar_id,&
                                              torsion_colvar_id
+  USE cp_subsystem_types,              ONLY: cp_subsys_get,&
+                                             cp_subsystem_p_type,&
+                                             cp_subsystem_type
+  USE force_env_types,                 ONLY: force_env_get,&
+                                             force_env_type
+  USE input_section_types,             ONLY: section_vals_get,&
+                                             section_vals_get_subs_vals,&
+                                             section_vals_type,&
+                                             section_vals_val_get
+  USE kinds,                           ONLY: dp
   USE particle_list_types,             ONLY: particle_list_type
-  USE physcon,                         ONLY: massunit
-  USE cell_types,                 ONLY: cell_type
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE input_section_types,             ONLY: section_vals_get_subs_vals,&
-                                             section_vals_type,&
-                                             section_vals_val_get,&
-                                             section_vals_get,&
-                                             section_type
 #include "cp_common_uses.h"
+
   IMPLICIT NONE
   PRIVATE
 
-  CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='colvar_methods'
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'colvar_methods'
 
   PUBLIC :: colvar_read, colvar_eval_f
 
@@ -94,7 +91,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'colvar_read', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: ii, stat
+    INTEGER                                  :: handle, ii, stat
     INTEGER, DIMENSION(:), POINTER           :: iatms
     LOGICAL                                  :: failure
     LOGICAL, DIMENSION(4)                    :: my_subsection
@@ -102,7 +99,6 @@ CONTAINS
                                                 coordination_section, &
                                                 distance_section, &
                                                 torsion_section
-    INTEGER                                  :: handle
 
     CALL timeset(routineN,"I","",handle)
 
@@ -212,7 +208,7 @@ CONTAINS
 !!
 !!*** **********************************************************************
 SUBROUTINE colvar_eval_f(isubsys,icolvar,force_env,error)
-    INTEGER                                  :: isubsys,icolvar
+    INTEGER                                  :: isubsys, icolvar
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
@@ -220,7 +216,7 @@ SUBROUTINE colvar_eval_f(isubsys,icolvar,force_env,error)
     CHARACTER(len=*), PARAMETER :: routineN = 'colvar_eval_f', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure,colvar_ok
+    LOGICAL                                  :: colvar_ok, failure
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_subsystem_p_type), &
       DIMENSION(:), POINTER                  :: subsys
@@ -261,7 +257,7 @@ END SUBROUTINE colvar_eval_f
 !!
 !!*** **********************************************************************
   SUBROUTINE dist_colvar(icolvar,subsys,cell,error)
-    INTEGER                        :: icolvar
+    INTEGER                                  :: icolvar
     TYPE(cp_subsystem_type), POINTER         :: subsys
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_error_type), INTENT(inout), &
@@ -274,8 +270,8 @@ END SUBROUTINE colvar_eval_f
     LOGICAL                                  :: failure
     REAL(dp)                                 :: r12, ss(3), xij(3), xpi(3), &
                                                 xpj(3)
-    TYPE(particle_list_type), POINTER        :: particles_i
     TYPE(colvar_type), POINTER               :: colvar
+    TYPE(particle_list_type), POINTER        :: particles_i
 
     failure=.FALSE.
     NULLIFY(particles_i)
@@ -324,7 +320,6 @@ END SUBROUTINE colvar_eval_f
     CHARACTER(len=*), PARAMETER :: routineN = 'coord_colvar', &
       routineP = moduleN//':'//routineN
 
-    TYPE(colvar_type), POINTER               :: colvar
     INTEGER                                  :: i, ii, jj, n_atoms_from, &
                                                 n_atoms_to, ndcrd, nncrd
     LOGICAL                                  :: failure
@@ -332,6 +327,7 @@ END SUBROUTINE colvar_eval_f
                                                 num, r12, r_0, rdist, ss(3), &
                                                 xij(3)
     REAL(dp), DIMENSION(3)                   :: xpi, xpj
+    TYPE(colvar_type), POINTER               :: colvar
     TYPE(particle_list_type), POINTER        :: particles_i
 
 !
@@ -401,7 +397,6 @@ END SUBROUTINE colvar_eval_f
     CHARACTER(len=*), PARAMETER :: routineN = 'torsion_colvar', &
       routineP = moduleN//':'//routineN
 
-    TYPE(colvar_type), POINTER               :: colvar
     INTEGER                                  :: i, ii
     LOGICAL                                  :: failure
     REAL(dp) :: angle, cosine, dedphi, dedxia, dedxib, dedxic, dedxid, dedxt, &
@@ -411,6 +406,7 @@ END SUBROUTINE colvar_eval_f
       ycb, ydb, ydc, yia, yib, yic, yid, yt, ytu, yu, zba, zca, zcb, zdb, &
       zdc, zia, zib, zic, zid, zt, ztu, zu
     REAL(dp), DIMENSION(3, 4)                :: rr
+    TYPE(colvar_type), POINTER               :: colvar
     TYPE(particle_list_type), POINTER        :: particles_i
 
 ! locals (tinker)

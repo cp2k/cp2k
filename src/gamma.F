@@ -35,7 +35,7 @@ MODULE gamma
 
 ! *** Global parameters ***
 
-  CHARACTER(LEN=*), PARAMETER :: module_name = "gamma"
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'gamma'
   REAL(KIND = dp), PARAMETER  :: teps = 1.0E-13_dp
 
 ! *** Maximum n value of the tabulated F_n(t) function values ***
@@ -84,22 +84,22 @@ CONTAINS
     INTEGER, INTENT(IN)                      :: nmax
     REAL(KIND=dp), INTENT(IN)                :: tmin, tmax, tdelta
 
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "create_md_ftable"
+    CHARACTER(LEN=*), PARAMETER              :: routineN = 'create_md_ftable'
 
-    INTEGER                                  :: istat, itab, itabmax, itabmin,&
-                                                n
+    INTEGER                                  :: istat, itab, itabmax, &
+                                                itabmin, n
     REAL(KIND=dp)                            :: t
 
 !   ---------------------------------------------------------------------------
 
     IF (current_nmax > -1) THEN
-      CALL stop_program(routine_name,module_name,__LINE__,&
+      CALL stop_program(routineN,moduleN,__LINE__,&
                         "An incomplete Gamma function table is already "//&
                         " allocated. Use the init routine for an update")
     END IF
 
     IF (nmax < 0) THEN
-      CALL stop_program(routine_name,module_name,__LINE__,&
+      CALL stop_program(routineN,moduleN,__LINE__,&
                         "A negative n value for the initialization of the "//&
                         "incomplete Gamma function is invalid")
     END IF
@@ -110,7 +110,7 @@ CONTAINS
         (tmin < 0.0_dp).OR.&
         (tdelta <= 0.0_dp).OR.&
         (tmin > tmax)) THEN
-      CALL stop_program(routine_name,module_name,__LINE__,"Invalid arguments")
+      CALL stop_program(routineN,moduleN,__LINE__,"Invalid arguments")
     END IF
 
     n = nmax + 6
@@ -120,7 +120,7 @@ CONTAINS
 
     ALLOCATE (ftable(0:n,itabmin:itabmax),STAT=istat)
     IF (istat /= 0) THEN
-      CALL stop_memory(routine_name,module_name,__LINE__,"ftable",&
+      CALL stop_memory(routineN,moduleN,__LINE__,"ftable",&
                        (n + 1)*(itabmax - itabmin + 1)*dp_size)
     END IF
     ftable = 0.0_dp
@@ -148,9 +148,9 @@ CONTAINS
 
 !   ***************************************************************************
 
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "deallocate_md_ftable"
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'deallocate_md_ftable'
 
-    INTEGER :: istat
+    INTEGER                                  :: istat
 
 !   ---------------------------------------------------------------------------
 
@@ -158,7 +158,7 @@ CONTAINS
 
       DEALLOCATE (ftable,STAT=istat)
       IF (istat /= 0) THEN
-        CALL stop_memory(routine_name,module_name,__LINE__,"ftable")
+        CALL stop_memory(routineN,moduleN,__LINE__,"ftable")
       END IF
 
       current_nmax = -1
@@ -206,7 +206,6 @@ CONTAINS
     REAL(KIND=dp)                            :: expt, g, tdelta, ttab
 
 !   ---------------------------------------------------------------------------
-
 !   *** Calculate F(t) ***
 
     IF (t < teps) THEN
@@ -474,7 +473,7 @@ CONTAINS
     REAL(KIND=dp), INTENT(IN)                :: t
     REAL(KIND=dp), DIMENSION(0:nmax)         :: f
 
-    CHARACTER(LEN=*), PARAMETER              :: routine_name = "fgamma_ref"
+    CHARACTER(LEN=*), PARAMETER              :: routineN = 'fgamma_ref'
     INTEGER, PARAMETER                       :: kmax = 50
     REAL(KIND=dp), PARAMETER                 :: eps = EPSILON(0.0_dp)
 
@@ -484,7 +483,6 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(kmax+10)        :: r
 
 !   ------------------------------------------------------------------
-
 !   *** Initialization ***
 
     f(:) = 0.0_dp
@@ -542,7 +540,7 @@ CONTAINS
 
 !           *** No convergence with kmax iterations ***
 
-            CALL stop_program(routine_name,module_name,__LINE__,&
+            CALL stop_program(routineN,moduleN,__LINE__,&
                               "Maximum number of iterations reached")
 
           ELSE
@@ -596,12 +594,12 @@ CONTAINS
 
     INTEGER, INTENT(IN)                      :: nmax
 
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "init_md_ftable"
+    CHARACTER(LEN=*), PARAMETER              :: routineN = 'init_md_ftable'
 
 !   ---------------------------------------------------------------------------
 
     IF (nmax < 0) THEN
-      CALL stop_program(routine_name,module_name,__LINE__,&
+      CALL stop_program(routineN,moduleN,__LINE__,&
                         "A negative n value for the initialization of the "//&
                         "incomplete Gamma function is invalid")
     END IF

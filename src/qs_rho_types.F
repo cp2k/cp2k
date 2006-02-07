@@ -38,7 +38,7 @@ MODULE qs_rho_types
   PRIVATE
 
   LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
-  CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='qs_rho_types'
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_rho_types'
 
   PUBLIC :: qs_rho_p_type, qs_rho_type
   PUBLIC :: qs_rho_retain, qs_rho_release, qs_rho_did_change,&
@@ -362,11 +362,11 @@ CONTAINS
     TYPE(coeff_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: rho_r, rho_g, tau_r, tau_g
     LOGICAL, INTENT(out), OPTIONAL           :: rho_r_valid, rho_g_valid, &
-                                                tau_r_valid, tau_g_valid, &
-                                                soft_valid
+                                                tau_r_valid, tau_g_valid
     INTEGER, INTENT(out), OPTIONAL           :: rebuild_each
     REAL(KIND=dp), DIMENSION(:), OPTIONAL, &
       POINTER                                :: tot_rho_r
+    LOGICAL, INTENT(out), OPTIONAL           :: soft_valid
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 

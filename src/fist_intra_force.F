@@ -25,21 +25,21 @@ MODULE fist_intra_force
   USE kinds,                           ONLY: dp
   USE mol_force,                       ONLY: force_bends,&
                                              force_bonds,&
-                                             force_torsions,&
                                              force_imp_torsions,&
+                                             force_torsions,&
                                              get_pv_bend,&
                                              get_pv_bond,&
                                              get_pv_torsion
-  USE molecule_kind_types,             ONLY: get_molecule_kind,&
+  USE molecule_kind_types,             ONLY: bend_type,&
+                                             bond_type,&
+                                             get_molecule_kind,&
+                                             impr_type,&
                                              molecule_kind_type,&
-                                             bond_type, &
-                                             bend_type, &
-                                             ub_type, &
-                                             impr_type, &
-                                             onfo_type, &
-                                             torsion_type
-  USE molecule_types_new,              ONLY: molecule_type, & 
-                                             get_molecule
+                                             onfo_type,&
+                                             torsion_type,&
+                                             ub_type
+  USE molecule_types_new,              ONLY: get_molecule,&
+                                             molecule_type
   USE pair_potential,                  ONLY: potential_s
   USE particle_types,                  ONLY: particle_type
   USE splines,                         ONLY: spline_data_type
@@ -83,45 +83,39 @@ SUBROUTINE force_intra_control ( molecule_set, molecule_kind_set, local_molecule
 ! parses up intramolecular properties
 
 
-  TYPE(distribution_1d_type), POINTER      :: local_molecules
-  TYPE(molecule_type), POINTER             :: molecule_set( : )
-  TYPE(molecule_kind_type), POINTER        :: molecule_kind_set( : )
-  TYPE(particle_type), POINTER             :: particle_set ( : )
-  REAL(KIND=dp), INTENT(INOUT)                 :: pot_bond, pot_bend, &
-                                              pot_torsion, pot_urey_bradley, &
-                                              pot_imp_torsion, pot_onef
+    TYPE(molecule_type), POINTER             :: molecule_set( : )
+    TYPE(molecule_kind_type), POINTER        :: molecule_kind_set( : )
+    TYPE(distribution_1d_type), POINTER      :: local_molecules
+    TYPE(particle_type), POINTER             :: particle_set( : )
+    REAL(KIND=dp), INTENT(INOUT)             :: pot_bond, pot_bend, &
+                                                pot_urey_bradley, &
+                                                pot_torsion, pot_imp_torsion, &
+                                                pot_onef
+    REAL(KIND=dp), DIMENSION(:, :), &
+      INTENT(INOUT)                          :: pv_bond, pv_bend, &
+                                                pv_urey_bradley, pv_torsion, &
+                                                pv_imp_torsion, pv_onef
+    REAL(KIND=dp), DIMENSION(:, :), &
+      INTENT(INOUT), OPTIONAL                :: f_bond, f_bend, f_torsion, &
+                                                f_ub, f_imptor, f_onef
 
-  REAL(KIND=dp), DIMENSION(:, :), &
-    INTENT(INOUT)                          :: pv_bond, pv_bend, pv_torsion, &
-                                              pv_urey_bradley, pv_imp_torsion, &
-                                              pv_onef
-  REAL(KIND=dp), DIMENSION(:, :), &
-    INTENT(INOUT), OPTIONAL                  :: f_bond, f_bend, f_torsion, f_ub, f_imptor, f_onef
- 
-  INTEGER                                  :: handle, ibend, ibond, ionef, imol, &
-                                             itorsion, imul, nkind, index_a,&
-                                             index_b, index_c, index_d, i, &
-                                             nbonds, nbends, ntorsions, first_atom, &
-                                             nmol_per_kind, nub, nimptors, nonefs, & 
-                                             ikind, akind, bkind 
-  REAL(KIND=dp)                                :: d12, d32, dist, dist1, dist2, &
-                                             energy, fscalar, id12, id32, &
-                                             is32, iw1, iw2, s32, theta, &
-                                             w1, w2, sn, sm, ism, isn, rab2
-  REAL(KIND=dp), DIMENSION(3)                  :: b12, b32, g1, g2, g3, gt1, &
+    INTEGER :: first_atom, handle, i, ibend, ibond, ikind, imol, imul, &
+      index_a, index_b, index_c, index_d, ionef, itorsion, nbends, nbonds, &
+      nimptors, nkind, nmol_per_kind, nonefs, ntorsions, nub
+    REAL(KIND=dp) :: d12, d32, dist, dist1, dist2, energy, fscalar, id12, &
+      id32, is32, ism, isn, iw1, iw2, rab2, s32, sm, sn, theta, w1, w2
+    REAL(KIND=dp), DIMENSION(3)              :: b12, b32, g1, g2, g3, gt1, &
                                                 gt2, gt3, gt4, rij, t12, t32, &
-                                                t43, u1, u2, t34, tn, tm
-                                          
-  TYPE ( bond_type ), POINTER              :: bond_list ( : )
-  TYPE ( bend_type ), POINTER              :: bend_list ( : )
-  TYPE ( ub_type ), POINTER                :: ub_list ( : )
-  TYPE ( impr_type ), POINTER              :: impr_list ( : )
-  TYPE ( onfo_type ), POINTER              :: onef_list ( : )
-  TYPE ( torsion_type ), POINTER           :: torsion_list ( : )
-  TYPE ( molecule_type ), POINTER          :: molecule
-  TYPE ( molecule_kind_type ), POINTER     :: molecule_kind
-  TYPE ( spline_data_type ), POINTER       :: spline_data
-  INTEGER, POINTER, DIMENSION ( :, : ) :: spltab
+                                                t34, t43, tm, tn, u1, u2
+    TYPE(bend_type), POINTER                 :: bend_list( : )
+    TYPE(bond_type), POINTER                 :: bond_list( : )
+    TYPE(impr_type), POINTER                 :: impr_list( : )
+    TYPE(molecule_kind_type), POINTER        :: molecule_kind
+    TYPE(molecule_type), POINTER             :: molecule
+    TYPE(onfo_type), POINTER                 :: onef_list( : )
+    TYPE(spline_data_type), POINTER          :: spline_data
+    TYPE(torsion_type), POINTER              :: torsion_list( : )
+    TYPE(ub_type), POINTER                   :: ub_list( : )
 
 !------------------------------------------------------------------------------
 
@@ -219,12 +213,12 @@ SUBROUTINE force_intra_control ( molecule_set, molecule_kind_set, local_molecule
         index_c = bend_list ( ibend ) % c + first_atom - 1
         b12 = particle_set ( index_a ) % r - particle_set ( index_b ) % r
         b32 = particle_set ( index_c ) % r - particle_set ( index_b ) % r
-        d12 = sqrt(dot_product(b12,b12))
+        d12 = SQRT(DOT_PRODUCT(b12,b12))
         id12 = 1.0_dp/d12
-        d32 = sqrt(dot_product(b32,b32))
+        d32 = SQRT(DOT_PRODUCT(b32,b32))
         id32 = 1.0_dp/d32
-        dist = dot_product(b12,b32)
-        theta = acos(dist*id12*id32)
+        dist = DOT_PRODUCT(b12,b32)
+        theta = ACOS(dist*id12*id32)
         CALL force_bends(b12,b32,d12,d32,id12,id32,dist,theta, &
                          bend_list ( ibend ) % bend_kind % theta0, &
                          bend_list ( ibend ) % bend_kind % k, &
@@ -265,14 +259,14 @@ SUBROUTINE force_intra_control ( molecule_set, molecule_kind_set, local_molecule
         t12 = particle_set ( index_a ) % r - particle_set ( index_b ) % r
         t32 = particle_set ( index_c ) % r - particle_set ( index_b ) % r
         t43 = particle_set ( index_d ) % r - particle_set ( index_c ) % r
-        s32 = sqrt(dot_product(t32,t32))
+        s32 = SQRT(DOT_PRODUCT(t32,t32))
         is32 = 1.0_dp/s32
-        dist1 = dot_product(t12,t32)
-        dist2 = dot_product(t43,t32)
+        dist1 = DOT_PRODUCT(t12,t32)
+        dist2 = DOT_PRODUCT(t43,t32)
         u1 = t12 - dist1*t32*is32**2
         u2 = t43 - dist2*t32*is32**2
-        w1 = sqrt(dot_product(u1,u1))
-        w2 = sqrt(dot_product(u2,u2))
+        w1 = SQRT(DOT_PRODUCT(u1,u1))
+        w2 = SQRT(DOT_PRODUCT(u2,u2))
         iw1 = 1.0_dp/w1
         iw2 = 1.0_dp/w2
         DO imul = 1, torsion_list(itorsion) % torsion_kind % nmul
@@ -333,14 +327,14 @@ SUBROUTINE force_intra_control ( molecule_set, molecule_kind_set, local_molecule
         tn(1) = t32(2)*t34(3)-t34(2)*t32(3)
         tn(2) = -t32(1)*t34(3)+t34(1)*t32(3)
         tn(3) = t32(1)*t34(2)-t34(1)*t32(2)
-        sm = SQRT ( dot_product(tm,tm) )
+        sm = SQRT ( DOT_PRODUCT(tm,tm) )
         ism = 1.0_dp/sm
-        sn = SQRT ( dot_product(tn,tn) )
+        sn = SQRT ( DOT_PRODUCT(tn,tn) )
         isn = 1.0_dp/sn
-        s32 = sqrt ( dot_product(t32,t32) )
+        s32 = SQRT ( DOT_PRODUCT(t32,t32) )
         is32 = 1.0_dp/s32
-        dist1 = dot_product(t12,t32)
-        dist2 = dot_product(t34,t32)
+        dist1 = DOT_PRODUCT(t12,t32)
+        dist2 = DOT_PRODUCT(t34,t32)
         CALL force_imp_torsions(s32, is32,ism,isn,dist1,dist2,tm,tn, t12, t32, &
                             impr_list ( itorsion ) % impr_kind % k, &
                             impr_list ( itorsion ) % impr_kind % phi0, &

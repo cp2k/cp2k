@@ -24,59 +24,55 @@ MODULE pme
 
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind
-  USE coefficient_types,               ONLY: coeff_transform_space,&
-                                             coeff_type
-  USE dg_types,                        ONLY: dg_type, dg_get
+  USE cell_types,                      ONLY: cell_type
+  USE coefficient_types,               ONLY: coeff_type
+  USE dg_rho0_types,                   ONLY: dg_rho0_type
+  USE dg_types,                        ONLY: dg_get,&
+                                             dg_type
   USE dgs,                             ONLY: dg_get_patch,&
                                              dg_get_strucfac,&
                                              dg_sum_patch,&
                                              dg_sum_patch_force_3d
-  USE dg_rho0_types,                   ONLY: dg_rho0_type
-  USE ewald_environment_types,         ONLY: ewald_environment_type, &
-                                             ewald_env_get
-  USE ewald_pw_types,                  ONLY: ewald_pw_type, &
-                                             ewald_pw_get
+  USE ewald_environment_types,         ONLY: ewald_env_get,&
+                                             ewald_environment_type
+  USE ewald_pw_types,                  ONLY: ewald_pw_get,&
+                                             ewald_pw_type
+  USE input_section_types,             ONLY: section_vals_type
   USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: fourpi
   USE particle_types,                  ONLY: particle_type
   USE pw_grid_types,                   ONLY: pw_grid_type
-  USE pw_pool_types,                   ONLY: pw_pool_type, &
-                                             pw_pool_init_coeff, &
-                                             pw_pool_give_back_coeff,&
-                                             pw_pool_create_pw,&
-                                             pw_pool_give_back_pw
-  USE pw_poisson_types,                ONLY: pw_poisson_type
   USE pw_poisson_methods,              ONLY: pw_poisson_solve
+  USE pw_poisson_types,                ONLY: pw_poisson_type
+  USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
+                                             pw_pool_give_back_coeff,&
+                                             pw_pool_give_back_pw,&
+                                             pw_pool_init_coeff,&
+                                             pw_pool_type
   USE pw_types,                        ONLY: COMPLEXDATA1D,&
-                                             COMPLEXDATA3D,&
-                                             REALDATA1D,&
                                              REALDATA3D,&
                                              REALSPACE,&
                                              RECIPROCALSPACE,&
                                              pw_integral_a2b,&
-                                             pw_type,pw_p_type, pw_transfer
-  USE realspace_grid_types,            ONLY: realspace_grid_type,&
-                                             rs_grid_release,&
-                                             rs_grid_create,&
-                                             realspace_grid_p_type,&
-                                             rs_grid_p_release,&
-                                             rs_grid_p_create,&
-                                             rs_pw_transfer,&
-                                             rs2pw,&
-                                             pw2rs
-  USE cell_types,                 ONLY: cell_type
+                                             pw_p_type,&
+                                             pw_transfer,&
+                                             pw_type
+  USE realspace_grid_types,            ONLY: &
+       pw2rs, realspace_grid_p_type, realspace_grid_type, rs2pw, &
+       rs_grid_create, rs_grid_p_create, rs_grid_p_release, rs_grid_release, &
+       rs_pw_transfer
   USE structure_factor_types,          ONLY: structure_factor_type
   USE structure_factors,               ONLY: structure_factor_allocate,&
                                              structure_factor_deallocate
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE input_section_types,             ONLY: section_vals_type
 #include "cp_common_uses.h"
+
   IMPLICIT NONE
 
   PRIVATE
   PUBLIC :: pme_evaluate
-  CHARACTER(LEN=*), PARAMETER :: moduleN = "pme"
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'pme'
 
 !!*****
 !******************************************************************************
@@ -105,41 +101,40 @@ CONTAINS
 
   SUBROUTINE pme_evaluate ( ewald_env, ewald_pw, particle_set, vg_coulomb, fg_coulomb,&
        pv_g, force_env_section, error )
-    IMPLICIT NONE
-    ! Arguments
+    TYPE(ewald_environment_type), POINTER    :: ewald_env
+    TYPE(ewald_pw_type), POINTER             :: ewald_pw
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
-    TYPE(ewald_environment_type), POINTER    :: ewald_env
-    TYPE ( ewald_pw_type ), POINTER          :: ewald_pw
     REAL(KIND=dp), INTENT(OUT)               :: vg_coulomb
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(OUT), OPTIONAL                  :: fg_coulomb, pv_g
+    TYPE(section_vals_type), POINTER         :: force_env_section
     TYPE(cp_error_type), INTENT(inout), &
-         OPTIONAL                               :: error
-    TYPE(section_vals_type), POINTER :: force_env_section
-    ! Local Variables
-    CHARACTER(LEN=*), PARAMETER :: routineN = "pme_evaluate", &
+      OPTIONAL                               :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'pme_evaluate', &
       routineP = moduleN//':'//routineN
-    INTEGER                                  :: handle, i, ipart, j, jpart, &
-                                                npart, p1, p2, stat
-    REAL(KIND=dp)                                :: dvols, ffa, inv_fourpi_eps0
-    REAL(KIND=dp), DIMENSION(3)                  :: fat
-    REAL(KIND=dp), DIMENSION(3, 3)               :: f_stress, h_stress
-    TYPE(pw_p_type), dimension(3)            :: dphi_g
-    TYPE(pw_type), POINTER :: phi_r,rhob_r
+
+    INTEGER                                  :: group, handle, i, ipart, j, &
+                                                jpart, npart, p1, p2
+    LOGICAL                                  :: failure
+    REAL(KIND=dp)                            :: alpha, dvols, eps0, ffa, &
+                                                inv_fourpi_eps0
+    REAL(KIND=dp), DIMENSION(3)              :: fat
+    REAL(KIND=dp), DIMENSION(3, 3)           :: f_stress, h_stress
+    TYPE(cell_type), POINTER                 :: box
     TYPE(coeff_type)                         :: rhos1, rhos2
+    TYPE(dg_rho0_type), POINTER              :: dg_rho0
+    TYPE(dg_type), POINTER                   :: dg
+    TYPE(pw_grid_type), POINTER              :: grid_b, grid_s
+    TYPE(pw_p_type), DIMENSION(3)            :: dphi_g
+    TYPE(pw_poisson_type), POINTER           :: poisson_env
+    TYPE(pw_pool_type), POINTER              :: pw_big_pool, pw_small_pool
+    TYPE(pw_type), POINTER                   :: phi_r, rhob_r
+    TYPE(realspace_grid_p_type), &
+      DIMENSION(:), POINTER                  :: drpot
     TYPE(realspace_grid_type), POINTER       :: rden
-    TYPE(realspace_grid_p_type), DIMENSION(:), POINTER     :: drpot
     TYPE(structure_factor_type)              :: exp_igr
-    TYPE(pw_grid_type), POINTER              :: grid_s, grid_b
-    TYPE ( pw_pool_type ), POINTER          :: pw_big_pool, pw_small_pool
-    TYPE ( dg_type ), POINTER               :: dg
-    TYPE ( dg_rho0_type ), POINTER          :: dg_rho0
-    REAL (KIND=dp)                            :: alpha, eps0
-    INTEGER                                 :: group
-    TYPE ( cell_type ), POINTER             :: box
-    TYPE(pw_poisson_type), POINTER :: poisson_env
-    logical                        :: failure
 
     NULLIFY( box, poisson_env, rden, drpot)
     failure = .FALSE.
@@ -321,13 +316,13 @@ SUBROUTINE get_patch ( dg, particle_set, exp_igr, box, p1, p2, &
     TYPE(pw_grid_type), INTENT(IN)           :: grid_b, grid_s
     TYPE(coeff_type)                         :: rhos1, rhos2
 
-    COMPLEX(KIND=dp), DIMENSION(:), POINTER      :: ex1, ex2, ey1, ey2, ez1, ez2
+    COMPLEX(KIND=dp), DIMENSION(:), POINTER  :: ex1, ex2, ey1, ey2, ez1, ez2
     INTEGER, DIMENSION(:), POINTER           :: center1, center2
-    REAL(KIND=dp)                                :: q1, q2
-    REAL(KIND=dp), DIMENSION(3)                  :: r1, r2
+    REAL(KIND=dp)                            :: q1, q2
+    REAL(KIND=dp), DIMENSION(3)              :: r1, r2
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(coeff_type), POINTER                :: rho0
-    TYPE ( dg_rho0_type ), POINTER           :: dg_rho0 
+    TYPE(dg_rho0_type), POINTER              :: dg_rho0
 
 !------------------------------------------------------------------------------
 
@@ -372,18 +367,18 @@ END SUBROUTINE get_patch
 SUBROUTINE get_patch_again ( dg, particle_set, exp_igr, p1, p2, rhos1, rhos2 )
 
 
-    TYPE(dg_type), POINTER       :: dg
+    TYPE(dg_type), POINTER                   :: dg
     TYPE(particle_type), DIMENSION(:), &
-      POINTER                              :: particle_set
+      POINTER                                :: particle_set
     TYPE(structure_factor_type)              :: exp_igr
     INTEGER, INTENT(IN)                      :: p1, p2
     TYPE(coeff_type)                         :: rhos1, rhos2
 
-    COMPLEX(KIND=dp), DIMENSION(:), POINTER      :: ex1, ex2, ey1, ey2, ez1, ez2
-    REAL(KIND=dp)                                :: q1, q2
+    COMPLEX(KIND=dp), DIMENSION(:), POINTER  :: ex1, ex2, ey1, ey2, ez1, ez2
+    REAL(KIND=dp)                            :: q1, q2
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(coeff_type), POINTER                :: rho0
-    TYPE ( dg_rho0_type ), POINTER           :: dg_rho0 
+    TYPE(dg_rho0_type), POINTER              :: dg_rho0
 
 !------------------------------------------------------------------------------
 
@@ -444,7 +439,7 @@ SUBROUTINE set_list ( particle_set, npart, center, p1, p2, rs, ipart, jpart )
     INTEGER, INTENT(INOUT)                   :: ipart, jpart
 
     INTEGER                                  :: dir, lb, ndim, npos, ub
-    REAL(KIND=dp)                                :: charge
+    REAL(KIND=dp)                            :: charge
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
 
 !------------------------------------------------------------------------------
@@ -543,13 +538,13 @@ SUBROUTINE get_center ( particle_set, box, centre, npts )
 
 
     TYPE(particle_type), DIMENSION(:), &
-      POINTER                             :: particle_set
+      POINTER                                :: particle_set
     TYPE(cell_type), INTENT(IN)              :: box
     INTEGER, DIMENSION(:, :), INTENT(OUT)    :: centre
     INTEGER, DIMENSION(:), INTENT(IN)        :: npts
 
     INTEGER                                  :: ipart
-    REAL(KIND=dp), DIMENSION(3)                  :: s
+    REAL(KIND=dp), DIMENSION(3)              :: s
 
 !------------------------------------------------------------------------------
 

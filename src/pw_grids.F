@@ -43,31 +43,23 @@
 !******************************************************************************
 
 MODULE pw_grids
+  USE cell_types,                      ONLY: cell_type
   USE fft_tools,                       ONLY: FFT_RADIX_NEXT,&
                                              FFT_RADIX_NEXT_ODD,&
                                              fft_radix_operations
   USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: twopi
   USE mathlib,                         ONLY: inv_3x3
-  USE message_passing,                 ONLY: mp_cart_coords,&
-                                             mp_cart_create,&
-                                             mp_cart_rank,&
-                                             mp_comm_compare,&
-                                             mp_comm_dup,&
-                                             mp_comm_free,&
-                                             mp_dims_create,&
-                                             mp_environ,&
-                                             mp_max,&
-                                             mp_min,&
-                                             mp_sum,&
-                                             MPI_COMM_SELF
+  USE message_passing,                 ONLY: &
+       MPI_COMM_SELF, mp_cart_coords, mp_cart_create, mp_cart_rank, &
+       mp_comm_compare, mp_comm_dup, mp_comm_free, mp_dims_create, &
+       mp_environ, mp_max, mp_min, mp_sum
   USE pw_grid_types,                   ONLY: FULLSPACE,&
                                              HALFSPACE,&
                                              PW_MODE_DISTRIBUTED,&
                                              PW_MODE_LOCAL,&
                                              map_pn,&
                                              pw_grid_type
-  USE cell_types,                 ONLY: cell_type
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
   USE timings,                         ONLY: timeset,&
@@ -77,6 +69,7 @@ MODULE pw_grids
                                              matvec_3x3,&
                                              sort
 #include "cp_common_uses.h"
+
   IMPLICIT NONE
 
   PRIVATE
@@ -87,7 +80,7 @@ MODULE pw_grids
        pw_grid_n_for_fft, pw_grid_bounds_from_n, pw_grid_setup1,pw_cutoff_from_n
 
   INTEGER :: grid_tag = 0
-  CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='pw_grids'
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'pw_grids'
 
   INTERFACE pw_find_cutoff
      MODULE PROCEDURE pw_find_cutoff_qs, pw_find_cutoff_fist
@@ -116,15 +109,17 @@ CONTAINS
 
   SUBROUTINE pw_grid_create ( pw_grid, pe_group, local, error )
 
-    TYPE(pw_grid_type), pointer        :: pw_grid
-    INTEGER, intent(in) :: pe_group
-    TYPE(cp_error_type), INTENT(inout), optional :: error
-    LOGICAL, INTENT(IN), OPTIONAL :: local
+    TYPE(pw_grid_type), POINTER              :: pw_grid
+    INTEGER, INTENT(in)                      :: pe_group
+    LOGICAL, INTENT(IN), OPTIONAL            :: local
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    LOGICAL :: failure, my_local
-    INTEGER :: stat
-    CHARACTER(len=*), PARAMETER :: routineN="pw_grid_create",&
-         routineP=moduleN//':'//routineN
+    CHARACTER(len=*), PARAMETER :: routineN = 'pw_grid_create', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: stat
+    LOGICAL                                  :: failure, my_local
 
     failure =.FALSE.
     my_local=.FALSE.
@@ -240,19 +235,21 @@ FUNCTION pw_grid_find_n ( cell, cutoff, fft_usage, grid_span,&
 
     TYPE(cell_type), INTENT(IN)              :: cell
     REAL(KIND=dp), INTENT(IN)                :: cutoff
-    LOGICAL, INTENT(IN), OPTIONAL            :: fft_usage, symm_usage,spherical
-    INTEGER, INTENT(IN), OPTIONAL            :: ncommensurate, grid_span
-    INTEGER, dimension(3) :: n
-    TYPE(cp_error_type), INTENT(inout), optional :: error
+    LOGICAL, INTENT(IN), OPTIONAL            :: fft_usage
+    INTEGER, INTENT(IN), OPTIONAL            :: grid_span
+    LOGICAL, INTENT(IN), OPTIONAL            :: symm_usage, spherical
+    INTEGER, INTENT(IN), OPTIONAL            :: ncommensurate
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+    INTEGER, DIMENSION(3)                    :: n
 
-    INTEGER :: allocstat, handle, i, ires, my_icommensurate, idir, &
-      my_ncommensurate, nlowest, nlowest_new, ntest(3), n_ref(3),my_grid_span
-    INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: yz_mask
-    LOGICAL                                  :: fft, symmetry,&
-         my_spherical, failure
-    REAL(KIND=dp)                            :: ecut, rv(3,3)
-    CHARACTER(len=*), PARAMETER :: routineN='pw_grid_find_n',&
-         routineP=moduleN//':'//routineN
+    CHARACTER(len=*), PARAMETER :: routineN = 'pw_grid_find_n', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER :: handle, i, idir, my_grid_span, my_icommensurate, &
+      my_ncommensurate, nlowest, nlowest_new, ntest(3)
+    LOGICAL                                  :: failure, fft, my_spherical, &
+                                                symmetry
 
 ! cutoff could be inout, and set to the effective cutoff of the given grid
 ! in atomic units
@@ -266,10 +263,10 @@ FUNCTION pw_grid_find_n ( cell, cutoff, fft_usage, grid_span,&
 !------------------------------------------------------------------------------
 
   CALL timeset("pw_grid_find_n","I","",handle)
-  failure=.false.
+  failure=.FALSE.
   
   my_grid_span=FULLSPACE
-  if (present(grid_span)) my_grid_span=grid_span
+  IF (PRESENT(grid_span)) my_grid_span=grid_span
   ! default is to use only fft compatible grids
   IF ( PRESENT ( fft_usage ) ) THEN
     fft = fft_usage
@@ -386,18 +383,20 @@ END FUNCTION pw_grid_find_n
 !!
 !!*** **********************************************************************
 FUNCTION pw_grid_n_for_fft(n,odd,error) RESULT(nout)
-  INTEGER, DIMENSION(3), intent(in) :: n
-  LOGICAL, OPTIONAL, intent(in) :: odd
-  type(cp_error_type), optional, intent(inout) :: error
-  INTEGER, dimension(3) :: nout
-  
-  LOGICAL :: failure,my_odd
-  character(len=*), parameter :: routineN='pw_grid_n_for_fft',&
-        routineP=moduleN//':'//routineN
+    INTEGER, DIMENSION(3), INTENT(in)        :: n
+    LOGICAL, INTENT(in), OPTIONAL            :: odd
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+    INTEGER, DIMENSION(3)                    :: nout
 
-  failure=.false.
-  my_odd=.false.
-  if (present(odd)) my_odd=odd
+    CHARACTER(len=*), PARAMETER :: routineN = 'pw_grid_n_for_fft', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure, my_odd
+
+  failure=.FALSE.
+  my_odd=.FALSE.
+  IF (PRESENT(odd)) my_odd=odd
   CPPrecondition(ALL(n>=0),cp_failure_level,routineP,error,failure)
   IF (.NOT.failure) THEN
      IF (my_odd) THEN
@@ -439,24 +438,25 @@ END FUNCTION pw_grid_n_for_fft
 FUNCTION pw_grid_n_from_cutoff ( h_inv, cutoff, error ) RESULT(n)
 
 
-    INTEGER, DIMENSION(3)    :: n
     REAL(KIND=dp), DIMENSION(3, 3), &
       INTENT(IN)                             :: h_inv
     REAL(KIND=dp), INTENT(IN)                :: cutoff
-    TYPE(cp_error_type), INTENT(inout), optional :: error
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+    INTEGER, DIMENSION(3)                    :: n
 
+    CHARACTER(len=*), PARAMETER :: routineN = 'pw_grid_n_from_cutoff', &
+      routineP = moduleN//':'//routineN
     INTEGER, PARAMETER                       :: lwork = 20
 
-    INTEGER                                  :: handle, info
+    INTEGER                                  :: info
+    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: eig( 3 ), gmat( 3, 3 ), &
                                                 work( lwork )
-    LOGICAL:: failure
-    CHARACTER(len=*), PARAMETER :: routineN='pw_grid_n_from_cutoff',&
-         routineP=moduleN//':'//routineN
 
 !------------------------------------------------------------------------------
 
-    failure=.false.
+    failure=.FALSE.
 
   gmat = MATMUL ( h_inv, TRANSPOSE ( h_inv ) )
   CALL dsyev("V","U",3,gmat,3,eig,work,lwork,info)
@@ -465,7 +465,7 @@ FUNCTION pw_grid_n_from_cutoff ( h_inv, cutoff, error ) RESULT(n)
      eig = SQRT ( 2.0_dp * cutoff / eig ) / twopi
      n = 2*FLOOR ( matvec_3x3 ( gmat, eig ) )+1
   ELSE
-     n=-huge(0)
+     n=-HUGE(0)
   END IF
 
 END FUNCTION pw_grid_n_from_cutoff
@@ -490,20 +490,21 @@ END FUNCTION pw_grid_n_from_cutoff
 !!*** *************************************************************************
 
 FUNCTION pw_cutoff_from_n ( npts, box, error ) RESULT(cutoff)
-  INTEGER, DIMENSION(:), INTENT(IN)        :: npts
-  TYPE(cell_type), INTENT(IN)              :: box
-  REAL(KIND=dp)               :: cutoff
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-  
-  REAL(KIND=dp)                            :: gdum( 3 ), cut_att
-  integer :: idir
-  
+    INTEGER, DIMENSION(:), INTENT(IN)        :: npts
+    TYPE(cell_type), INTENT(IN)              :: box
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+    REAL(KIND=dp)                            :: cutoff
+
+    INTEGER                                  :: idir
+    REAL(KIND=dp)                            :: cut_att, gdum( 3 )
+
   cutoff=0._dp
   DO idir=1,3
      gdum ( : ) = twopi * box % h_inv ( idir, : ) &
           * REAL ( ( npts ( idir ) + 1 )/2,KIND=dp)
      cut_att = dotprod_3d ( gdum, gdum )/2._dp
-     if (idir==1) cutoff=cut_att
+     IF (idir==1) cutoff=cut_att
      cutoff = MIN ( cutoff, cut_att )
   END DO
   
@@ -532,15 +533,17 @@ END FUNCTION pw_cutoff_from_n
 !!
 !!*** **********************************************************************
 FUNCTION pw_grid_bounds_from_n(npts,error) RESULT(bounds)
-  INTEGER, DIMENSION(3), intent(in) :: npts
-  type(cp_error_type), optional, intent(inout) :: error
-  INTEGER, DIMENSION(2,3) :: bounds
+    INTEGER, DIMENSION(3), INTENT(in)        :: npts
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+    INTEGER, DIMENSION(2, 3)                 :: bounds
 
-  logical :: failure
-  character(len=*), parameter :: routineN='pw_grid_bounds_from_n',&
-        routineP=moduleN//':'//routineN
+    CHARACTER(len=*), PARAMETER :: routineN = 'pw_grid_bounds_from_n', &
+      routineP = moduleN//':'//routineN
 
-  failure=.false.
+    LOGICAL                                  :: failure
+
+  failure=.FALSE.
   
   bounds(1,:)=-npts/2
   bounds(2,:)=bounds(1,:)+npts-1
@@ -588,7 +591,7 @@ SUBROUTINE pw_grid_find_bounds ( bounds, h_inv, cutoff, fft )
   CALL timeset("pw_grid_find_bounds","I","",handle)
 
   n=pw_grid_n_from_cutoff(h_inv,cutoff)
-  if (fft) n=pw_grid_n_for_fft(n)
+  IF (fft) n=pw_grid_n_for_fft(n)
   bounds = pw_grid_bounds_from_n(n)
 
   CALL timestop(0.0_dp,handle)
@@ -633,17 +636,20 @@ SUBROUTINE pw_grid_setup ( cell, pw_grid, cutoff, info, fft_usage, &
     LOGICAL, INTENT(IN), OPTIONAL            :: fft_usage, symm_usage, blocked
     TYPE(pw_grid_type), INTENT(IN), OPTIONAL :: ref_grid
     INTEGER, INTENT(IN), OPTIONAL            :: ncommensurate, icommensurate
-    INTEGER, DIMENSION(2), INTENT(in), optional :: rs_dims
-    TYPE(cp_error_type), INTENT(inout), optional :: error
+    INTEGER, DIMENSION(2), INTENT(in), &
+      OPTIONAL                               :: rs_dims
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    INTEGER :: allocstat, handle, i, ires, my_icommensurate, &
-      my_ncommensurate, n(3), nlowest, nlowest_new, ntest(3), my_bounds(2,3), my_span
-    INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: yz_mask
-    LOGICAL                                  :: blocking, fft, symmetry,&
-         failure
-    REAL(KIND=dp)                            :: ecut, rv(3,3), spherical_cutoff
-    CHARACTER(len=*), PARAMETER :: routineN="pw_grid_setup",&
-         routineP=moduleN//":"//routineN
+    CHARACTER(len=*), PARAMETER :: routineN = 'pw_grid_setup', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, i, my_bounds(2,3), &
+                                                my_icommensurate, &
+                                                my_ncommensurate, my_span, &
+                                                n(3)
+    LOGICAL                                  :: failure, fft, symmetry
+    REAL(KIND=dp)                            :: spherical_cutoff
 
 ! cutoff could be inout, and set to the effective cutoff of the given grid
 ! in atomic units
@@ -672,7 +678,7 @@ SUBROUTINE pw_grid_setup ( cell, pw_grid, cutoff, info, fft_usage, &
     symmetry = .TRUE.
   END IF
   my_ncommensurate=0
-  if (present(ncommensurate)) my_ncommensurate=ncommensurate
+  IF (PRESENT(ncommensurate)) my_ncommensurate=ncommensurate
   IF (my_ncommensurate>0) THEN
      CPPrecondition(PRESENT(icommensurate),cp_failure_level,routineP,error,failure)
      my_icommensurate=icommensurate
@@ -711,7 +717,7 @@ SUBROUTINE pw_grid_setup ( cell, pw_grid, cutoff, info, fft_usage, &
      n=my_bounds(2,:)-my_bounds(1,:)+1
 
      IF (fft) THEN
-        n=pw_grid_n_for_fft(n,odd=(my_span == HALFSPACE .and. symmetry),&
+        n=pw_grid_n_for_fft(n,odd=(my_span == HALFSPACE .AND. symmetry),&
              error=error)
      ELSE
         ! without a cutoff and HALFSPACE we have to be sure that there is
@@ -724,7 +730,7 @@ SUBROUTINE pw_grid_setup ( cell, pw_grid, cutoff, info, fft_usage, &
   IF (ALL(pw_grid%bounds(2,:)-pw_grid%bounds(1,:)+1==n)) THEN
      my_bounds=pw_grid%bounds
   END IF
-  call pw_grid_setup1( cell=cell, pw_grid=pw_grid, bounds=my_bounds, &
+  CALL pw_grid_setup1( cell=cell, pw_grid=pw_grid, bounds=my_bounds, &
        grid_span=my_span, info=info, spherical_cutoff=spherical_cutoff, &
        blocked=blocked, ref_grid=ref_grid, rs_dims=rs_dims, error=error)
 
@@ -759,22 +765,25 @@ SUBROUTINE pw_grid_setup1 ( cell, pw_grid, bounds, grid_span,info, &
 
 
     TYPE(cell_type), INTENT(IN)              :: cell
-    TYPE(pw_grid_type), pointer :: pw_grid
-    INTEGER, OPTIONAL, intent(in) :: grid_span
-    INTEGER, DIMENSION(2,3), intent(in) :: bounds
-    INTEGER, INTENT(IN), OPTIONAL            :: info
+    TYPE(pw_grid_type), POINTER              :: pw_grid
+    INTEGER, DIMENSION(2, 3), INTENT(in)     :: bounds
+    INTEGER, INTENT(in), OPTIONAL            :: grid_span, info
+    REAL(kind=dp), INTENT(in), OPTIONAL      :: spherical_cutoff
+    LOGICAL, INTENT(in), OPTIONAL            :: blocked
     TYPE(pw_grid_type), INTENT(IN), OPTIONAL :: ref_grid
-    REAL(kind=dp), INTENT(in), optional :: spherical_cutoff
-    LOGICAL, INTENT(in), OPTIONAL :: blocked
-    INTEGER, DIMENSION(2), INTENT(in), optional :: rs_dims
-    TYPE(cp_error_type), INTENT(inout), optional :: error
+    INTEGER, DIMENSION(2), INTENT(in), &
+      OPTIONAL                               :: rs_dims
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    INTEGER :: allocstat, handle, i, ires, n(3)
+    CHARACTER(len=*), PARAMETER :: routineN = 'pw_grid_setup1', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: allocstat, handle, i, ires, &
+                                                n(3)
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: yz_mask
-    LOGICAL                                  :: blocking, fft, failure
+    LOGICAL                                  :: blocking, failure
     REAL(KIND=dp)                            :: ecut, rv(3,3)
-    CHARACTER(len=*), PARAMETER :: routineN="pw_grid_setup1",&
-         routineP=moduleN//':'//routineN
 
 ! cutoff could be inout, and set to the effective cutoff of the given grid
 ! in atomic units
@@ -814,10 +823,10 @@ SUBROUTINE pw_grid_setup1 ( cell, pw_grid, bounds, grid_span,info, &
   pw_grid % npts = bounds(2,:)-bounds(1,:)+1
   pw_grid % cutoff = pw_cutoff_from_n(pw_grid % npts,cell,error)
   
-  pw_grid%spherical=.false.
+  pw_grid%spherical=.FALSE.
   IF (PRESENT(spherical_cutoff)) THEN
      IF (spherical_cutoff>0._dp) THEN
-        pw_grid%spherical=.true.
+        pw_grid%spherical=.TRUE.
         pw_grid % cutoff = spherical_cutoff
      END IF
   END IF
@@ -991,10 +1000,10 @@ END SUBROUTINE pw_grid_setup1
     TYPE(pw_grid_type), POINTER              :: pw_grid
     TYPE(cell_type), INTENT(IN)              :: cell
     REAL(KIND=dp)                            :: ecut
-    LOGICAL :: blocking
+    LOGICAL                                  :: blocking
     TYPE(pw_grid_type), INTENT(IN), OPTIONAL :: ref_grid
 
-    INTEGER :: istat, n(3)
+    INTEGER                                  :: istat, n(3)
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: yz_mask
 
     n ( : )  = pw_grid % npts ( : )
@@ -1051,18 +1060,21 @@ SUBROUTINE pw_grid_distribute ( pw_grid, yz_mask, ref_grid, blocking, rs_dims,&
     INTEGER, DIMENSION(:, :), INTENT(INOUT)  :: yz_mask
     TYPE(pw_grid_type), INTENT(IN), OPTIONAL :: ref_grid
     LOGICAL, INTENT(IN)                      :: blocking
-    INTEGER, DIMENSION(2), INTENT(in), optional :: rs_dims
-    TYPE(cp_error_type), INTENT(inout), optional :: error
+    INTEGER, DIMENSION(2), INTENT(in), &
+      OPTIONAL                               :: rs_dims
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'pw_grid_distribute', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: coor( 2 ), gmax, handle, i, &
                                                 i1, i2, ierr, ip, ipl, j, k, &
                                                 l, lby, lbz, lo( 2 ), m, n, &
                                                 np, ns, nx, ny, nz, rsd( 2 )
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: yz_index
+    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: tfun, tt
-    CHARACTER(len=*), PARAMETER :: routineN="pw_grid_distribute",&
-         routineP=moduleN//':'//routineN
-    logical :: failure
 
 !------------------------------------------------------------------------------
 
@@ -1475,7 +1487,7 @@ SUBROUTINE pw_grid_count ( h_inv, pw_grid, cutoff, yz_mask )
 
 
     REAL(KIND=dp), DIMENSION(3, 3)           :: h_inv
-    TYPE(pw_grid_type),   POINTER            :: pw_grid
+    TYPE(pw_grid_type), POINTER              :: pw_grid
     REAL(KIND=dp), INTENT(IN)                :: cutoff
     INTEGER, DIMENSION(:, :), INTENT(OUT)    :: yz_mask
 
@@ -2289,15 +2301,14 @@ END SUBROUTINE pw_grid_remap
 !!*** *************************************************************************
 
 SUBROUTINE pw_grid_change ( cell, pw_grid )
-  IMPLICIT NONE
   ! Argument
-  TYPE(cell_type), POINTER                 :: cell
-  TYPE(pw_grid_type), POINTER              :: pw_grid
-  ! Local 
-  INTEGER                                  :: gpt
-  REAL(KIND=dp)                            :: l, m, n
-  REAL(KIND=dp), DIMENSION(:, :), POINTER  :: g, h_inv
-  
+    TYPE(cell_type), POINTER                 :: cell
+    TYPE(pw_grid_type), POINTER              :: pw_grid
+
+    INTEGER                                  :: gpt
+    REAL(KIND=dp)                            :: l, m, n
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: g, h_inv
+
   h_inv => cell % h_inv
   g => pw_grid % g
 
@@ -2355,18 +2366,18 @@ END SUBROUTINE pw_grid_change
 SUBROUTINE pw_find_cutoff_qs ( bounds, h_inv, cutoff, error )
 
 
-    INTEGER, DIMENSION(:,:), INTENT(IN)  :: bounds
-    REAL (KIND=dp), DIMENSION (:, :)   :: h_inv
-    REAL(KIND=dp), INTENT(OUT)         :: cutoff
-    TYPE (cp_error_type), OPTIONAL, INTENT ( INOUT ) :: error
+    INTEGER, DIMENSION(:, :), INTENT(IN)     :: bounds
+    REAL(KIND=dp), DIMENSION(:, :)           :: h_inv
+    REAL(KIND=dp), INTENT(OUT)               :: cutoff
+    TYPE(cp_error_type), INTENT(INOUT), &
+      OPTIONAL                               :: error
 
-    REAL(KIND=dp)                      :: gcut, length
-    REAL(KIND=dp), DIMENSION (3, 3)    :: gmat, gmat_inv
     INTEGER, PARAMETER                       :: lwork = 20
 
-    INTEGER                                  :: handle, info
-    REAL(KIND=dp)                            :: vec (3), eig( 3 ), work( lwork )
-    REAL(KIND=dp)                            :: vec1 (3)
+    INTEGER                                  :: info
+    REAL(KIND=dp)                            :: eig( 3 ), gcut, length, &
+                                                vec(3), vec1(3), work( lwork )
+    REAL(KIND=dp), DIMENSION(3, 3)           :: gmat, gmat_inv
 
 !------------------------------------------------------------------------------
 
@@ -2417,16 +2428,15 @@ END SUBROUTINE pw_find_cutoff_qs
 SUBROUTINE pw_find_cutoff_fist ( npts, box, cutoff, error )
 
 
-    INTEGER, DIMENSION(:), INTENT(IN)  :: npts
-    TYPE ( cell_type ), INTENT ( IN )  :: box
-    REAL(KIND=dp), INTENT(OUT)         :: cutoff
-    TYPE (cp_error_type), OPTIONAL, INTENT ( INOUT ) :: error
+    INTEGER, DIMENSION(:), INTENT(IN)        :: npts
+    TYPE(cell_type), INTENT(IN)              :: box
+    REAL(KIND=dp), INTENT(OUT)               :: cutoff
+    TYPE(cp_error_type), INTENT(INOUT), &
+      OPTIONAL                               :: error
 
-    REAL(KIND=dp)                      :: gcut, length
-    REAL(KIND=dp)                      :: gdum( 3 )
+    REAL(KIND=dp)                            :: gcut, gdum( 3 ), length
 
 !------------------------------------------------------------------------------
-
 ! compute 2*pi*h_inv^t*g  where g = (bounds[1],0,0)
 
   gdum ( : ) = twopi *  box % h_inv ( 1, : ) &
@@ -2518,15 +2528,15 @@ END SUBROUTINE pw_grid_retain
 !!
 !!*** **********************************************************************
 SUBROUTINE pw_grid_release(pw_grid, error)
-  TYPE(pw_grid_type), POINTER              :: pw_grid
-  TYPE(cp_error_type), INTENT(inout), &
-       OPTIONAL                               :: error
+    TYPE(pw_grid_type), POINTER              :: pw_grid
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-  CHARACTER(len=*), PARAMETER :: routineN = 'pw_grid_release', &
-       routineP = moduleN//':'//routineN
+    CHARACTER(len=*), PARAMETER :: routineN = 'pw_grid_release', &
+      routineP = moduleN//':'//routineN
 
-  INTEGER                                  :: stat
-  LOGICAL                                  :: failure
+    INTEGER                                  :: stat
+    LOGICAL                                  :: failure
 
   failure=.FALSE.
 
@@ -2635,19 +2645,17 @@ END SUBROUTINE pw_grid_release
 !!
 !!*** **********************************************************************
   SUBROUTINE pw_grid_create_copy_no_pbc(pw_grid_in, pw_grid_out, cell, error)
-    IMPLICIT NONE
-    ! Arguments
     TYPE(pw_grid_type), POINTER              :: pw_grid_in, pw_grid_out
+    TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
-    TYPE(cell_type), POINTER                 :: cell
-    ! Local Variables
+
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_grid_create_copy_no_pbc', &
       routineP = moduleN//':'//routineN
+
     INTEGER                                  :: stat
+    INTEGER, DIMENSION(:), POINTER           :: pos_of_x
     LOGICAL                                  :: failure
-    INTEGER, DIMENSION(3)                    :: n
-    INTEGER, DIMENSION(:),pointer            :: pos_of_x
 
     failure = .FALSE.
     
@@ -2675,7 +2683,7 @@ END SUBROUTINE pw_grid_release
        pw_grid_out%ngpts           =  PRODUCT ( pw_grid_out% npts )
        pw_grid_out%ngpts_cut=0
        pw_grid_out%npts_local=pw_grid_out%bounds_local(2,:)-pw_grid_out%bounds_local(1,:)+1
-       pw_grid_out%ngpts_local=product(pw_grid_out%npts_local)
+       pw_grid_out%ngpts_local=PRODUCT(pw_grid_out%npts_local)
        pw_grid_out%ngpts_cut_local=0
        pw_grid_out%dr              =  pw_grid_in%dr               
        pw_grid_out%dvol            =  pw_grid_in%dvol             
@@ -2717,11 +2725,11 @@ END SUBROUTINE pw_grid_release
        NULLIFY(pw_grid_out%g,pw_grid_out%gsq,pw_grid_out%g_hat)
        CPPrecondition(pw_grid_in%grid_span==FULLSPACE,cp_failure_level,routineP,error,failure)
        pw_grid_out%grid_span=pw_grid_in%grid_span
-       pw_grid_out%have_g0=.false.
-       pw_grid_out%first_gne0=huge(0)
-       pw_grid_out%nglengths=huge(0)
-       nullify(pw_grid_out%gidx)
-       pw_grid_out%spherical    =  .false.
+       pw_grid_out%have_g0=.FALSE.
+       pw_grid_out%first_gne0=HUGE(0)
+       pw_grid_out%nglengths=HUGE(0)
+       NULLIFY(pw_grid_out%gidx)
+       pw_grid_out%spherical    =  .FALSE.
 
     END IF
   END SUBROUTINE pw_grid_create_copy_no_pbc

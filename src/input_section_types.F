@@ -25,28 +25,42 @@
 !!   SOURCE
 !****************************************************************************
 MODULE input_section_types
-  USE kinds, ONLY: dp, default_string_length
-  use cp_para_types, only: cp_para_env_type
-  use timings, only: timeset, timestop
-  USE input_val_types, ONLY: val_type, val_create, val_retain, val_release,&
-       val_write,val_get,no_t, val_duplicate, lchar_t
-  USE input_keyword_types, ONLY: keyword_type, keyword_create, keyword_retain,&
-       keyword_release, description_string_length, keyword_p_type,&
-       keyword_describe, keyword_describe_html, write_keyword_xml
-  USE cp_linked_list_val, ONLY: cp_sll_val_type, cp_sll_val_create,&
-       cp_sll_val_next, cp_sll_val_dealloc, cp_sll_val_get_length,&
-       cp_sll_val_get_el_at, cp_sll_val_p_type, cp_sll_val_insert_el_at,&
-       cp_sll_val_set_el_at, cp_sll_val_rm_el_at,cp_sll_val_get_rest
-  USE string_utilities, ONLY: uppercase,compress
-  USE output_utilities, only: print_message
+  USE cp_linked_list_val,              ONLY: &
+       cp_sll_val_create, cp_sll_val_dealloc, cp_sll_val_get_el_at, &
+       cp_sll_val_get_length, cp_sll_val_get_rest, cp_sll_val_insert_el_at, &
+       cp_sll_val_next, cp_sll_val_p_type, cp_sll_val_rm_el_at, &
+       cp_sll_val_set_el_at, cp_sll_val_type
+  USE input_keyword_types,             ONLY: description_string_length,&
+                                             keyword_describe,&
+                                             keyword_describe_html,&
+                                             keyword_p_type,&
+                                             keyword_release,&
+                                             keyword_retain,&
+                                             keyword_type,&
+                                             write_keyword_xml
+  USE input_val_types,                 ONLY: lchar_t,&
+                                             no_t,&
+                                             val_create,&
+                                             val_duplicate,&
+                                             val_get,&
+                                             val_release,&
+                                             val_type,&
+                                             val_write
+  USE kinds,                           ONLY: default_string_length,&
+                                             dp
+  USE output_utilities,                ONLY: print_message
+  USE string_utilities,                ONLY: compress,&
+                                             uppercase
+  USE timings,                         ONLY: timeset,&
+                                             timestop
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
-  private
+  PRIVATE
 
   INTEGER, SAVE, PRIVATE :: last_section_id=0, last_section_vals_id=0
   LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
-  CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='input_section_types'
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'input_section_types'
 
   PUBLIC :: section_p_type, section_type
   PUBLIC :: section_create,section_retain, section_release, section_describe,&
@@ -91,7 +105,7 @@ MODULE input_section_types
 !!   SOURCE
 !***************************************************************************
   TYPE section_p_type
-     TYPE(section_type), pointer :: section
+     TYPE(section_type), POINTER :: section
   END TYPE section_p_type
 !!***
 !****************************************************************************
@@ -130,7 +144,7 @@ MODULE input_section_types
   TYPE section_type
      LOGICAL :: frozen, required, repeats
      INTEGER :: id_nr,ref_count, n_keywords, n_subsections
-     character(len=default_string_length) :: name
+     CHARACTER(len=default_string_length) :: name
      CHARACTER(len=description_string_length) :: description
      TYPE(keyword_p_type), DIMENSION(:), POINTER :: keywords
      TYPE(section_p_type), POINTER, DIMENSION(:) :: subsections
@@ -158,7 +172,7 @@ MODULE input_section_types
 !!   SOURCE
 !***************************************************************************
   TYPE section_vals_p_type
-     TYPE(section_vals_type), pointer :: section_vals
+     TYPE(section_vals_type), POINTER :: section_vals
   END TYPE section_vals_p_type
 !!***
 !****************************************************************************
@@ -184,14 +198,14 @@ MODULE input_section_types
 !***************************************************************************
   TYPE section_vals_type
      INTEGER :: ref_count, id_nr
-     TYPE(section_type),pointer :: section
+     TYPE(section_type),POINTER :: section
      TYPE(cp_sll_val_p_type), DIMENSION(:,:), POINTER :: values
      TYPE(section_vals_p_type), DIMENSION(:,:), POINTER :: subs_vals
   END TYPE section_vals_type
 !!***
 !****************************************************************************
   
-contains
+CONTAINS
 
   
 !!****f* cp_keywords/section_create *
@@ -222,25 +236,28 @@ contains
 !!*** **********************************************************************
 SUBROUTINE section_create(section,name,description,n_keywords,&
      n_subsections, repeats, required,error)
-  TYPE(section_type), pointer :: section
-  CHARACTER(len=*), INTENT(in) :: name,description
-  INTEGER, INTENT(in), OPTIONAL :: n_keywords, n_subsections
-  LOGICAL, INTENT(in), OPTIONAL :: repeats,required
-  type(cp_error_type), optional, intent(inout) :: error
-  
-  logical :: failure
-  character(len=*), parameter :: routineN='section_create',&
-        routineP=moduleN//':'//routineN
-  INTEGER :: my_n_keywords, my_n_subsections,stat,i
+    TYPE(section_type), POINTER              :: section
+    CHARACTER(len=*), INTENT(in)             :: name, description
+    INTEGER, INTENT(in), OPTIONAL            :: n_keywords, n_subsections
+    LOGICAL, INTENT(in), OPTIONAL            :: repeats, required
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-  failure=.false.
+    CHARACTER(len=*), PARAMETER :: routineN = 'section_create', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i, my_n_keywords, &
+                                                my_n_subsections, stat
+    LOGICAL                                  :: failure
+
+  failure=.FALSE.
 
   CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
   IF (.NOT. failure) THEN
      my_n_keywords=10
      IF (PRESENT(n_keywords)) my_n_keywords=n_keywords
      my_n_subsections=0
-     if (present(n_subsections)) my_n_subsections=n_subsections
+     IF (PRESENT(n_subsections)) my_n_subsections=n_subsections
 
      ALLOCATE(section,stat=stat)
      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -251,7 +268,7 @@ SUBROUTINE section_create(section,name,description,n_keywords,&
      section%n_keywords=0
      section%n_subsections=0
      section%name=name
-     call uppercase(section%name)
+     CALL uppercase(section%name)
      CPPrecondition(LEN_TRIM(description)<=LEN(section%description),cp_warning_level,routineP,error,failure)
      section%description=description
      section%frozen=.FALSE.
@@ -300,14 +317,16 @@ END SUBROUTINE section_create
 !!
 !!*** **********************************************************************
 SUBROUTINE section_retain(section,error)
-  TYPE(section_type), pointer :: section
-  type(cp_error_type), optional, intent(inout) :: error
-  
-  logical :: failure
-  character(len=*), parameter :: routineN='section_retain',&
-        routineP=moduleN//':'//routineN
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-  failure=.false.
+    CHARACTER(len=*), PARAMETER :: routineN = 'section_retain', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+
+  failure=.FALSE.
   
   CPPrecondition(ASSOCIATED(section),cp_failure_level,routineP,error,failure)
   IF (.NOT. failure) THEN
@@ -338,15 +357,17 @@ END SUBROUTINE section_retain
 !!
 !!*** **********************************************************************
 RECURSIVE SUBROUTINE section_release(section,error)
-  TYPE(section_type), pointer :: section
-  type(cp_error_type), optional, intent(inout) :: error
-  
-  logical :: failure
-  character(len=*), parameter :: routineN='section_release',&
-        routineP=moduleN//':'//routineN
-  INTEGER :: i,stat
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-  failure=.false.
+    CHARACTER(len=*), PARAMETER :: routineN = 'section_release', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i, stat
+    LOGICAL                                  :: failure
+
+  failure=.FALSE.
   
   IF (ASSOCIATED(section)) THEN
      CPPreconditionNoFail(section%ref_count>0,cp_failure_level,routineP,error)
@@ -370,7 +391,7 @@ RECURSIVE SUBROUTINE section_release(section,error)
         DEALLOCATE(section,stat=stat)
         CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
      END IF
-     nullify(section)
+     NULLIFY(section)
   END IF
 END SUBROUTINE section_release
 !***************************************************************************
@@ -401,26 +422,28 @@ END SUBROUTINE section_release
 !!
 !!*** **********************************************************************
 RECURSIVE SUBROUTINE section_describe(section, unit_nr, level, hide_root, recurse,error)
-  TYPE(section_type), pointer :: section
-  INTEGER, INTENT(in) :: unit_nr, level
-  LOGICAL, INTENT(in),optional :: hide_root
-  INTEGER, INTENT(in), optional :: recurse
-  type(cp_error_type), optional, intent(inout) :: error
+    TYPE(section_type), POINTER              :: section
+    INTEGER, INTENT(in)                      :: unit_nr, level
+    LOGICAL, INTENT(in), OPTIONAL            :: hide_root
+    INTEGER, INTENT(in), OPTIONAL            :: recurse
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-  LOGICAL :: failure, my_hide_root
-  character(len=*), parameter :: routineN='section_desc',&
-       routineP=moduleN//':'//routineN
-  INTEGER :: isub,ikeyword, my_recurse
+    CHARACTER(len=*), PARAMETER :: routineN = 'section_describe', &
+      routineP = moduleN//':'//routineN
 
-  failure=.false.
-  my_hide_root=.false.
-  if (present(hide_root)) my_hide_root=hide_root
+    INTEGER                                  :: ikeyword, isub, my_recurse
+    LOGICAL                                  :: failure, my_hide_root
+
+  failure=.FALSE.
+  my_hide_root=.FALSE.
+  IF (PRESENT(hide_root)) my_hide_root=hide_root
   my_recurse=0
-  if (present(recurse)) my_recurse=recurse
+  IF (PRESENT(recurse)) my_recurse=recurse
   IF (ASSOCIATED(section)) THEN
      CPPrecondition(section%ref_count>0,cp_failure_level,routineP,error,failure)
 
-     if (.not.my_hide_root)&
+     IF (.not.my_hide_root)&
           WRITE(unit_nr,"('*** section &',a,' ***')")TRIM(section%name)
      IF (level>1) THEN
         CALL print_message(TRIM(section%description),unit_nr,0,0,0)
@@ -460,59 +483,61 @@ END SUBROUTINE section_describe
 !***************************************************************************
 
 RECURSIVE SUBROUTINE section_describe_html(section, prefix, unit_nr,  error)
-  TYPE(section_type), pointer :: section
-  CHARACTER(LEN=*), INTENT(IN) :: prefix
-  INTEGER, INTENT(in) :: unit_nr 
-  type(cp_error_type), optional, intent(inout) :: error
+    TYPE(section_type), POINTER              :: section
+    CHARACTER(LEN=*), INTENT(IN)             :: prefix
+    INTEGER, INTENT(in)                      :: unit_nr
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-  LOGICAL :: failure, has_keywords
-  CHARACTER(LEN=1000) :: local_prefix
-  character(len=*), parameter :: routineN='section_desc',&
-       routineP=moduleN//':'//routineN
-  INTEGER :: isub,ikeyword
+    CHARACTER(len=*), PARAMETER :: routineN = 'section_describe_html', &
+      routineP = moduleN//':'//routineN
 
-  failure=.false.
+    CHARACTER(LEN=1000)                      :: local_prefix
+    INTEGER                                  :: ikeyword, isub
+    LOGICAL                                  :: failure, has_keywords
+
+  failure=.FALSE.
   IF (ASSOCIATED(section)) THEN
      local_prefix=TRIM(prefix//"~"//TRIM(section%name))
      CPPrecondition(section%ref_count>0,cp_failure_level,routineP,error,failure)
      OPEN(unit=179,FILE=TRIM(local_prefix)//".html")
-     write(179,*) "<HTML><BODY>"
-     write(179,*) "<HEAD><TITLE> The CP2K project : input section "//section%name//"</TITLE></HEAD>"
-     write(179,*) "<H1> Section "//section%name//"</H1>"
-     write(179,*) TRIM(section%description)
-     write(179,*) '<BR>An <A HREF="index.html"> index of all sections </A> is available'
-     write(179,*) "<H2> Subsections</H2>"
+     WRITE(179,*) "<HTML><BODY>"
+     WRITE(179,*) "<HEAD><TITLE> The CP2K project : input section "//section%name//"</TITLE></HEAD>"
+     WRITE(179,*) "<H1> Section "//section%name//"</H1>"
+     WRITE(179,*) TRIM(section%description)
+     WRITE(179,*) '<BR>An <A HREF="index.html"> index of all sections </A> is available'
+     WRITE(179,*) "<H2> Subsections</H2>"
      IF (section%n_subsections>0) THEN
-        write(179,*) "<UL>"
+        WRITE(179,*) "<UL>"
           DO isub=1,section%n_subsections
-             write(179,*) '<LI><A HREF="'//TRIM(local_prefix)//"~"//TRIM(section%subsections(isub)%section%name)//".html"//'">'// &
+             WRITE(179,*) '<LI><A HREF="'//TRIM(local_prefix)//"~"//TRIM(section%subsections(isub)%section%name)//".html"//'">'// &
                                            TRIM(section%subsections(isub)%section%name)//'</A>'
           END DO
-       write(179,*) "</UL>"
+       WRITE(179,*) "</UL>"
      ELSE
-       write(179,*) "None"
+       WRITE(179,*) "None"
      ENDIF
-     write(179,*) "<H2> Section keywords </H2>"
+     WRITE(179,*) "<H2> Section keywords </H2>"
      has_keywords=ASSOCIATED(section%keywords(-1)%keyword) .OR. &
                   ASSOCIATED(section%keywords(0)%keyword) .OR. &
                   section%n_keywords>=1
      IF (has_keywords) THEN
-        write(179,*) "<UL>"
+        WRITE(179,*) "<UL>"
            IF (ASSOCIATED(section%keywords(-1)%keyword)) THEN
-              write(179,*) '<LI><A HREF="#'//TRIM(section%keywords(-1)%keyword%names(1))//'">'//&
+              WRITE(179,*) '<LI><A HREF="#'//TRIM(section%keywords(-1)%keyword%names(1))//'">'//&
                             TRIM(section%keywords(-1)%keyword%names(1))//"</A>"
            END IF
            IF (ASSOCIATED(section%keywords(0)%keyword)) THEN
-              write(179,*) '<LI><A HREF="#'//TRIM(section%keywords(0)%keyword%names(1))//'">'//&
+              WRITE(179,*) '<LI><A HREF="#'//TRIM(section%keywords(0)%keyword%names(1))//'">'//&
                             TRIM(section%keywords(0)%keyword%names(1))//"</A>"
            END IF
            DO ikeyword=1,section%n_keywords
-              write(179,*) '<LI><A HREF="#'//TRIM(section%keywords(ikeyword)%keyword%names(1))//'">'//&
+              WRITE(179,*) '<LI><A HREF="#'//TRIM(section%keywords(ikeyword)%keyword%names(1))//'">'//&
                             TRIM(section%keywords(ikeyword)%keyword%names(1))//"</A>"
            END DO
-        write(179,*) "</UL>"
-        write(179,*) "<H2> Keyword descriptions </H2>"
-        write(179,*) "<TABLE>"
+        WRITE(179,*) "</UL>"
+        WRITE(179,*) "<H2> Keyword descriptions </H2>"
+        WRITE(179,*) "<TABLE>"
            IF (ASSOCIATED(section%keywords(-1)%keyword)) THEN
               CALL keyword_describe_html(section%keywords(-1)%keyword,179,error=error)
            END IF
@@ -522,12 +547,12 @@ RECURSIVE SUBROUTINE section_describe_html(section, prefix, unit_nr,  error)
            DO ikeyword=1,section%n_keywords
               CALL keyword_describe_html(section%keywords(ikeyword)%keyword,179,error=error)
            END DO
-        write(179,*) "</TABLE>"
+        WRITE(179,*) "</TABLE>"
      ELSE
-       write(179,*) "None"
+       WRITE(179,*) "None"
      ENDIF
-     write(179,*) '<BR><hr>Back to the <A HREF="../index.html">CP2K homepage</A>'
-     write(179,*) "</BODY></HTML>"
+     WRITE(179,*) '<BR><hr>Back to the <A HREF="../index.html">CP2K homepage</A>'
+     WRITE(179,*) "</BODY></HTML>"
      CLOSE(unit=179)
      DO isub=1,section%n_subsections
         CALL section_describe_html(section%subsections(isub)%section,TRIM(local_prefix),unit_nr,&
@@ -537,29 +562,31 @@ RECURSIVE SUBROUTINE section_describe_html(section, prefix, unit_nr,  error)
 END SUBROUTINE section_describe_html
 
 RECURSIVE SUBROUTINE section_describe_index_html(section,prefix, unit_nr, error)
-  TYPE(section_type), pointer :: section
-  CHARACTER(LEN=*), INTENT(IN) :: prefix
-  INTEGER, INTENT(in) :: unit_nr
-  type(cp_error_type), optional, intent(inout) :: error
+    TYPE(section_type), POINTER              :: section
+    CHARACTER(LEN=*), INTENT(IN)             :: prefix
+    INTEGER, INTENT(in)                      :: unit_nr
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-  LOGICAL :: failure 
-  CHARACTER(LEN=1000) :: local_prefix
-  INTEGER :: isub
-  character(len=*), parameter :: routineN='section_describe_index_html',&
-       routineP=moduleN//':'//routineN
+    CHARACTER(len=*), PARAMETER :: routineN = 'section_describe_index_html', &
+      routineP = moduleN//':'//routineN
 
-  failure=.false.
+    CHARACTER(LEN=1000)                      :: local_prefix
+    INTEGER                                  :: isub
+    LOGICAL                                  :: failure
+
+  failure=.FALSE.
   IF (ASSOCIATED(section)) THEN
      CPPrecondition(section%ref_count>0,cp_failure_level,routineP,error,failure)
      local_prefix=TRIM(prefix//"~"//TRIM(section%name))
-     write(unit_nr,*) '<LI><A HREF="'//TRIM(local_prefix)//'.html">'//section%name//"</A>"
+     WRITE(unit_nr,*) '<LI><A HREF="'//TRIM(local_prefix)//'.html">'//section%name//"</A>"
      IF (section%n_subsections>0) THEN
-        write(unit_nr,*) "<UL>"
+        WRITE(unit_nr,*) "<UL>"
         DO isub=1,section%n_subsections
               CALL section_describe_index_html(section%subsections(isub)%section,TRIM(local_prefix),unit_nr,&
                    error=error)
         END DO
-        write(unit_nr,*) "</UL>"
+        WRITE(unit_nr,*) "</UL>"
      ENDIF
   ENDIF
 END SUBROUTINE section_describe_index_html
@@ -587,25 +614,27 @@ END SUBROUTINE section_describe_index_html
 !!
 !!*** **********************************************************************
 FUNCTION section_get_subsection_index(section,subsection_name,error) RESULT(res)
-  TYPE(section_type),pointer :: section
-  CHARACTER(len=*), intent(in) :: subsection_name
-  type(cp_error_type), optional, intent(inout) :: error
-  INTEGER :: res
+    TYPE(section_type), POINTER              :: section
+    CHARACTER(len=*), INTENT(in)             :: subsection_name
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+    INTEGER                                  :: res
 
-  logical :: failure
-  character(len=*), parameter :: routineN='section_get_subsection_index',&
-       routineP=moduleN//':'//routineN
-  CHARACTER(len=default_string_length) :: upc_name
-  integer :: isub
+    CHARACTER(len=*), PARAMETER :: routineN = 'section_get_subsection_index', &
+      routineP = moduleN//':'//routineN
 
-  failure=.false.
+    CHARACTER(len=default_string_length)     :: upc_name
+    INTEGER                                  :: isub
+    LOGICAL                                  :: failure
+
+  failure=.FALSE.
 
   CPPrecondition(ASSOCIATED(section),cp_failure_level,routineP,error,failure)
   CPPrecondition(section%ref_count>0,cp_failure_level,routineP,error,failure)
   res=-1
   IF (.NOT. failure) THEN
      upc_name=subsection_name
-     call uppercase(upc_name)
+     CALL uppercase(upc_name)
      DO isub=1,section%n_subsections
         CPInvariant(ASSOCIATED(section%subsections(isub)%section),cp_failure_level,routineP,error,failure)
         IF (section%subsections(isub)%section%name==upc_name) THEN
@@ -639,20 +668,22 @@ END FUNCTION section_get_subsection_index
 !!
 !!*** **********************************************************************
 FUNCTION section_get_subsection(section,subsection_name,error) RESULT(res)
-  TYPE(section_type),pointer :: section
-  CHARACTER(len=*), intent(in) :: subsection_name
-  type(cp_error_type), optional, intent(inout) :: error
-  TYPE(section_type),pointer :: res
-  
-  character(len=*), parameter :: routineN='section_get_subsection',&
-        routineP=moduleN//':'//routineN
-  integer :: isub
+    TYPE(section_type), POINTER              :: section
+    CHARACTER(len=*), INTENT(in)             :: subsection_name
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+    TYPE(section_type), POINTER              :: res
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'section_get_subsection', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: isub
 
   isub=section_get_subsection_index(section,subsection_name,error=error)
   IF (isub>0) THEN
      res => section%subsections(isub)%section
   ELSE
-     nullify(res)
+     NULLIFY(res)
   END IF
 END FUNCTION section_get_subsection
 !***************************************************************************
@@ -679,18 +710,20 @@ END FUNCTION section_get_subsection
 !!
 !!*** **********************************************************************
 FUNCTION section_get_keyword_index(section,keyword_name,error) RESULT(res)
-  TYPE(section_type),pointer :: section
-  CHARACTER(len=*), intent(in) :: keyword_name
-  type(cp_error_type), optional, intent(inout) :: error
-  INTEGER :: res
-  
-  logical :: failure
-  character(len=*), parameter :: routineN='section_get_keyword_index',&
-        routineP=moduleN//':'//routineN
-  INTEGER :: ik,in
-  CHARACTER(len=default_string_length) :: upc_name
+    TYPE(section_type), POINTER              :: section
+    CHARACTER(len=*), INTENT(in)             :: keyword_name
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+    INTEGER                                  :: res
 
-  failure=.false.
+    CHARACTER(len=*), PARAMETER :: routineN = 'section_get_keyword_index', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: ik, in
+    CHARACTER(len=default_string_length)     :: upc_name
+    LOGICAL                                  :: failure
+
+  failure=.FALSE.
   
   CPPrecondition(ASSOCIATED(section),cp_failure_level,routineP,error,failure)
   CPPrecondition(section%ref_count>0,cp_failure_level,routineP,error,failure)
@@ -698,7 +731,7 @@ FUNCTION section_get_keyword_index(section,keyword_name,error) RESULT(res)
   res=-2
   IF (.NOT. failure) THEN
      upc_name=keyword_name
-     call uppercase(upc_name)
+     CALL uppercase(upc_name)
      DO ik=-1,0
         IF (ASSOCIATED(section%keywords(ik)%keyword)) THEN
            IF (section%keywords(ik)%keyword%names(1)==upc_name) THEN
@@ -712,7 +745,7 @@ FUNCTION section_get_keyword_index(section,keyword_name,error) RESULT(res)
            DO in=1,SIZE(section%keywords(ik)%keyword%names)
               IF (section%keywords(ik)%keyword%names(in)==upc_name) THEN
                  res = ik
-                 exit k_search_loop
+                 EXIT k_search_loop
               END IF
            END DO
         END DO k_search_loop
@@ -742,18 +775,20 @@ END FUNCTION section_get_keyword_index
 !!
 !!*** **********************************************************************
 FUNCTION section_get_keyword(section,keyword_name,error) RESULT(res)
-  TYPE(section_type),pointer :: section
-  CHARACTER(len=*), intent(in) :: keyword_name
-  type(cp_error_type), optional, intent(inout) :: error
-  TYPE(keyword_type),pointer :: res
-  
-  character(len=*), parameter :: routineN='section_get_keyword',&
-        routineP=moduleN//':'//routineN
-  integer :: ik
+    TYPE(section_type), POINTER              :: section
+    CHARACTER(len=*), INTENT(in)             :: keyword_name
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+    TYPE(keyword_type), POINTER              :: res
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'section_get_keyword', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: ik
 
   ik=section_get_keyword_index(section,keyword_name,error)
   IF (ik==-2) THEN
-     nullify(res)
+     NULLIFY(res)
   ELSE
      res => section%keywords(ik)%keyword
   END IF
@@ -784,30 +819,31 @@ END FUNCTION section_get_keyword
 !!*** **********************************************************************
 SUBROUTINE section_get(section,frozen, required, repeats,id_nr,ref_count, &
      name,description,error)
-  TYPE(section_type), pointer :: section
-  LOGICAL, INTENT(out),OPTIONAL :: frozen, required, repeats
-  INTEGER, INTENT(out),OPTIONAL :: id_nr,ref_count
-  CHARACTER(len=*), INTENT(out), OPTIONAL :: name
-  CHARACTER(len=*), INTENT(out), OPTIONAL :: description
+    TYPE(section_type), POINTER              :: section
+    LOGICAL, INTENT(out), OPTIONAL           :: frozen, required, repeats
+    INTEGER, INTENT(out), OPTIONAL           :: id_nr, ref_count
+    CHARACTER(len=*), INTENT(out), OPTIONAL  :: name, description
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-  type(cp_error_type), optional, intent(inout) :: error
-  
-  logical :: failure
-  character(len=*), parameter :: routineN='section_get',&
-        routineP=moduleN//':'//routineN
-  failure=.false.
+    CHARACTER(len=*), PARAMETER :: routineN = 'section_get', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+
+  failure=.FALSE.
   
   CPPrecondition(ASSOCIATED(section),cp_failure_level,routineP,error,failure)
   CPPrecondition(section%ref_count>0,cp_failure_level,routineP,error,failure)
-  if (.not. failure) then
-     if (present(frozen)) frozen=section%frozen
-     if (present(required)) required=section%required
-     if (present(repeats)) repeats=section%repeats
-     if (present(id_nr)) id_nr=section%id_nr
-     if (present(ref_count)) ref_count=section%ref_count
-     if (present(name)) name=section%name
-     if (present(description)) description=section%description
-  end if
+  IF (.NOT. failure) THEN
+     IF (PRESENT(frozen)) frozen=section%frozen
+     IF (PRESENT(required)) required=section%required
+     IF (PRESENT(repeats)) repeats=section%repeats
+     IF (PRESENT(id_nr)) id_nr=section%id_nr
+     IF (PRESENT(ref_count)) ref_count=section%ref_count
+     IF (PRESENT(name)) name=section%name
+     IF (PRESENT(description)) description=section%description
+  END IF
 END SUBROUTINE section_get
 !***************************************************************************
 
@@ -834,17 +870,20 @@ END SUBROUTINE section_get
 !!
 !!*** **********************************************************************
 SUBROUTINE section_add_keyword(section,keyword,error)
-  TYPE(section_type), pointer :: section
-  TYPE(keyword_type), pointer :: keyword
-  type(cp_error_type), optional, intent(inout) :: error
-  
-  logical :: failure
-  character(len=*), parameter :: routineN='section_add_keyword',&
-        routineP=moduleN//':'//routineN
-  TYPE(keyword_p_type), DIMENSION(:), pointer :: new_keywords
-  INTEGER :: stat,i,j,k
+    TYPE(section_type), POINTER              :: section
+    TYPE(keyword_type), POINTER              :: keyword
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-  failure=.false.
+    CHARACTER(len=*), PARAMETER :: routineN = 'section_add_keyword', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i, j, k, stat
+    LOGICAL                                  :: failure
+    TYPE(keyword_p_type), DIMENSION(:), &
+      POINTER                                :: new_keywords
+
+  failure=.FALSE.
   
   CPPrecondition(ASSOCIATED(section),cp_failure_level,routineP,error,failure)
   CPPrecondition(section%ref_count>0,cp_failure_level,routineP,error,failure)
@@ -856,7 +895,7 @@ SUBROUTINE section_add_keyword(section,keyword,error)
      IF (keyword%names(1)=="_SECTION_PARAMETERS_") THEN
         CALL keyword_release(section%keywords(-1)%keyword,error=error)
         section%keywords(-1)%keyword => keyword
-     ELSE IF (keyword%names(1)=="_DEFAULT_KEYWORD_") then
+     ELSE IF (keyword%names(1)=="_DEFAULT_KEYWORD_") THEN
         CALL keyword_release(section%keywords(0)%keyword,error=error)
         section%keywords(0)%keyword => keyword
      ELSE
@@ -879,7 +918,7 @@ SUBROUTINE section_add_keyword(section,keyword,error)
               new_keywords(i)%keyword => section%keywords(i)%keyword
            END DO
            DO i=section%n_keywords+1,UBOUND(new_keywords,1)
-              nullify(new_keywords(i)%keyword)
+              NULLIFY(new_keywords(i)%keyword)
            END DO
            DEALLOCATE(section%keywords,stat=stat)
            CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
@@ -914,16 +953,19 @@ END SUBROUTINE section_add_keyword
 !!
 !!*** **********************************************************************
 SUBROUTINE section_add_subsection(section,subsection,error)
-  TYPE(section_type), POINTER :: section,subsection
-  type(cp_error_type), optional, intent(inout) :: error
+    TYPE(section_type), POINTER              :: section, subsection
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-  logical :: failure
-  character(len=*), parameter :: routineN='section_add_subsection',&
-       routineP=moduleN//':'//routineN
-  TYPE(section_p_type), DIMENSION(:), pointer :: new_subsections
-  INTEGER :: stat,i
+    CHARACTER(len=*), PARAMETER :: routineN = 'section_add_subsection', &
+      routineP = moduleN//':'//routineN
 
-  failure=.false.
+    INTEGER                                  :: i, stat
+    LOGICAL                                  :: failure
+    TYPE(section_p_type), DIMENSION(:), &
+      POINTER                                :: new_subsections
+
+  failure=.FALSE.
 
   CPPrecondition(ASSOCIATED(section),cp_failure_level,routineP,error,failure)
   CPPrecondition(section%ref_count>0,cp_failure_level,routineP,error,failure)
@@ -937,7 +979,7 @@ SUBROUTINE section_add_subsection(section,subsection,error)
            new_subsections(i)%section => section%subsections(i)%section
         END DO
         DO i=section%n_subsections+1,SIZE(new_subsections)
-           nullify(new_subsections(i)%section)
+           NULLIFY(new_subsections(i)%section)
         END DO
         DEALLOCATE(section%subsections,stat=stat)
         CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
@@ -979,16 +1021,18 @@ END SUBROUTINE section_add_subsection
 !!
 !!*** **********************************************************************
 RECURSIVE SUBROUTINE section_vals_create(section_vals,section,error)
-  TYPE(section_vals_type), pointer :: section_vals
-  TYPE(section_type), pointer :: section
-  type(cp_error_type), optional, intent(inout) :: error
-  
-  logical :: failure
-  character(len=*), parameter :: routineN='section_vals_create',&
-        routineP=moduleN//':'//routineN
-  INTEGER :: stat,i
+    TYPE(section_vals_type), POINTER         :: section_vals
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-  failure=.false.
+    CHARACTER(len=*), PARAMETER :: routineN = 'section_vals_create', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i, stat
+    LOGICAL                                  :: failure
+
+  failure=.FALSE.
   
   CPPrecondition(.NOT.ASSOCIATED(section_vals),cp_failure_level,routineP,error,failure)
   ALLOCATE(section_vals,stat=stat)
@@ -999,13 +1043,13 @@ RECURSIVE SUBROUTINE section_vals_create(section_vals,section,error)
      section_vals%ref_count=1
      CALL section_retain(section,error=error)
      section_vals%section => section
-     section%frozen=.true.
+     section%frozen=.TRUE.
      ALLOCATE(section_vals%values(-1:section%n_keywords,0),stat=stat)
      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
      ALLOCATE(section_vals%subs_vals(section%n_subsections,1),stat=stat)
      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
      DO i=1,section%n_subsections
-        nullify(section_vals%subs_vals(i,1)%section_vals)
+        NULLIFY(section_vals%subs_vals(i,1)%section_vals)
         CALL section_vals_create(section_vals%subs_vals(i,1)%section_vals,&
              section=section%subsections(i)%section,error=error)
      END DO
@@ -1034,14 +1078,16 @@ END SUBROUTINE section_vals_create
 !!
 !!*** **********************************************************************
 SUBROUTINE section_vals_retain(section_vals,error)
-  TYPE(section_vals_type), pointer :: section_vals
-  type(cp_error_type), optional, intent(inout) :: error
-  
-  logical :: failure
-  character(len=*), parameter :: routineN='section_vals_retain',&
-        routineP=moduleN//':'//routineN
+    TYPE(section_vals_type), POINTER         :: section_vals
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-  failure=.false.
+    CHARACTER(len=*), PARAMETER :: routineN = 'section_vals_retain', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+
+  failure=.FALSE.
   CPPrecondition(ASSOCIATED(section_vals),cp_failure_level,routineP,error,failure)
   IF (.NOT. failure) THEN
      CPPreconditionNoFail(section_vals%ref_count>0,cp_failure_level,routineP,error)
@@ -1071,17 +1117,19 @@ END SUBROUTINE section_vals_retain
 !!
 !!*** **********************************************************************
 RECURSIVE SUBROUTINE section_vals_release(section_vals, error)
-  TYPE(section_vals_type), pointer :: section_vals
-  type(cp_error_type), optional, intent(inout) :: error
-  
-  logical :: failure
-  character(len=*), parameter :: routineN='section_vals_release',&
-        routineP=moduleN//':'//routineN
-  TYPE(cp_sll_val_type), pointer :: vals
-  TYPE(val_type), pointer :: el
-  INTEGER :: i,j, stat
+    TYPE(section_vals_type), POINTER         :: section_vals
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-  failure=.false.
+    CHARACTER(len=*), PARAMETER :: routineN = 'section_vals_release', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i, j, stat
+    LOGICAL                                  :: failure
+    TYPE(cp_sll_val_type), POINTER           :: vals
+    TYPE(val_type), POINTER                  :: el
+
+  failure=.FALSE.
   
   IF (ASSOCIATED(section_vals)) THEN
      CPPreconditionNoFail(section_vals%ref_count>0,cp_failure_level,routineP,error)
@@ -1142,24 +1190,27 @@ END SUBROUTINE section_vals_release
 !!*** **********************************************************************
 SUBROUTINE section_vals_get(section_vals, ref_count, id_nr, n_repetition,&
      n_subs_vals_rep,section,explicit, error)
-  TYPE(section_vals_type), pointer :: section_vals
-  INTEGER, INTENT(out), OPTIONAL :: ref_count, id_nr, n_repetition, n_subs_vals_rep
-  TYPE(section_type), POINTER, optional :: section
-  LOGICAL, INTENT(out), optional :: explicit
-  type(cp_error_type), optional, intent(inout) :: error
-  
-  logical :: failure
-  character(len=*), parameter :: routineN='section_vals_get',&
-        routineP=moduleN//':'//routineN
+    TYPE(section_vals_type), POINTER         :: section_vals
+    INTEGER, INTENT(out), OPTIONAL           :: ref_count, id_nr, &
+                                                n_repetition, n_subs_vals_rep
+    TYPE(section_type), OPTIONAL, POINTER    :: section
+    LOGICAL, INTENT(out), OPTIONAL           :: explicit
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-  failure=.false.
+    CHARACTER(len=*), PARAMETER :: routineN = 'section_vals_get', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+
+  failure=.FALSE.
   
   CPPrecondition(ASSOCIATED(section_vals),cp_failure_level,routineP,error,failure)
   CPPrecondition(section_vals%ref_count>0,cp_failure_level,routineP,error,failure)
   IF (.NOT. failure) THEN
-     if (present(ref_count)) ref_count=section_vals%ref_count
-     if (present(id_nr)) id_nr=section_vals%id_nr
-     if (present(section)) section => section_vals%section
+     IF (PRESENT(ref_count)) ref_count=section_vals%ref_count
+     IF (PRESENT(id_nr)) id_nr=section_vals%id_nr
+     IF (PRESENT(section)) section => section_vals%section
      IF (PRESENT(n_repetition)) THEN
         n_repetition=SIZE(section_vals%values,2)
         IF (.NOT.section_vals%section%required) n_repetition=MAX(1,n_repetition)
@@ -1196,29 +1247,32 @@ END SUBROUTINE section_vals_get
 !!*** **********************************************************************
 RECURSIVE FUNCTION section_vals_get_subs_vals(section_vals,subsection_name,&
      i_rep_section,can_return_null,error) RESULT(res)
-  TYPE(section_vals_type), pointer :: section_vals
-  CHARACTER(len=*), intent(in) :: subsection_name
-  INTEGER, INTENT(in), optional :: i_rep_section
-  LOGICAL, INTENT(in), optional :: can_return_null
-  type(cp_error_type), optional, intent(inout) :: error
-  TYPE(section_vals_type), pointer :: res
-  
-  LOGICAL :: failure, my_can_return_null,is_path
-  character(len=*), parameter :: routineN='section_vals_get_subs_vals',&
-        routineP=moduleN//':'//routineN
-  INTEGER :: isection,irep,my_index
+    TYPE(section_vals_type), POINTER         :: section_vals
+    CHARACTER(len=*), INTENT(in)             :: subsection_name
+    INTEGER, INTENT(in), OPTIONAL            :: i_rep_section
+    LOGICAL, INTENT(in), OPTIONAL            :: can_return_null
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+    TYPE(section_vals_type), POINTER         :: res
 
-  failure=.false.
+    CHARACTER(len=*), PARAMETER :: routineN = 'section_vals_get_subs_vals', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: irep, isection, my_index
+    LOGICAL                                  :: failure, is_path, &
+                                                my_can_return_null
+
+  failure=.FALSE.
   CPPrecondition(ASSOCIATED(section_vals),cp_failure_level,routineP,error,failure)
   CPPrecondition(section_vals%ref_count>0,cp_failure_level,routineP,error,failure)
 
 
-  my_can_return_null=.false.
-  if (present(can_return_null)) my_can_return_null=can_return_null
-  nullify(res)
+  my_can_return_null=.FALSE.
+  IF (PRESENT(can_return_null)) my_can_return_null=can_return_null
+  NULLIFY(res)
   IF (.NOT. failure) THEN
      irep=1
-     if (present(i_rep_section)) irep=i_rep_section
+     IF (PRESENT(i_rep_section)) irep=i_rep_section
 
      ! prepare for recursive parsing of subsections. i_rep_section will be used for last section
      my_index=INDEX(subsection_name,"%")
@@ -1240,7 +1294,7 @@ RECURSIVE FUNCTION section_vals_get_subs_vals(section_vals,subsection_name,&
           error=error)
      IF (isection>0) res => section_vals%subs_vals(isection,irep)%section_vals
   END IF
-  call cp_assert(ASSOCIATED(res).OR.my_can_return_null,cp_failure_level,&
+  CALL cp_assert(ASSOCIATED(res).OR.my_can_return_null,cp_failure_level,&
        cp_assertion_failed,routineP,&
        "could not find subsection "//TRIM(subsection_name(1:my_index))//" in section "//&
        TRIM(section_vals%section%name)//" at "//&
@@ -1280,23 +1334,25 @@ END FUNCTION section_vals_get_subs_vals
 !!*** **********************************************************************
 FUNCTION section_vals_get_subs_vals2(section_vals,i_section,&
      i_rep_section,error) RESULT(res)
-  TYPE(section_vals_type), pointer :: section_vals
-  INTEGER, INTENT(in), OPTIONAL :: i_section,i_rep_section
-  type(cp_error_type), optional, intent(inout) :: error
-  TYPE(section_vals_type), pointer :: res
-  
-  LOGICAL :: failure
-  character(len=*), parameter :: routineN='section_vals_get_subs_vals',&
-        routineP=moduleN//':'//routineN
-  INTEGER :: irep,isect_att, i
+    TYPE(section_vals_type), POINTER         :: section_vals
+    INTEGER, INTENT(in), OPTIONAL            :: i_section, i_rep_section
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+    TYPE(section_vals_type), POINTER         :: res
 
-  failure=.false.
+    CHARACTER(len=*), PARAMETER :: routineN = 'section_vals_get_subs_vals2', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i, irep, isect_att
+    LOGICAL                                  :: failure
+
+  failure=.FALSE.
   CPPrecondition(ASSOCIATED(section_vals),cp_failure_level,routineP,error,failure)
   CPPrecondition(section_vals%ref_count>0,cp_failure_level,routineP,error,failure)
-  nullify(res)
+  NULLIFY(res)
   IF (.NOT. failure) THEN
      irep=1
-     if (present(i_rep_section)) irep=i_rep_section
+     IF (PRESENT(i_rep_section)) irep=i_rep_section
      CPPrecondition(irep<=SIZE(section_vals%subs_vals,2),cp_failure_level,routineP,error,failure)
   END IF
   IF (.NOT.failure) THEN
@@ -1306,7 +1362,7 @@ FUNCTION section_vals_get_subs_vals2(section_vals,i_section,&
            isect_att=isect_att+1
            IF (isect_att==i_section) THEN
               res => section_vals%subs_vals(i,irep)%section_vals
-              exit
+              EXIT
            END IF
         END IF
      END DO
@@ -1335,17 +1391,21 @@ END FUNCTION section_vals_get_subs_vals2
 !!
 !!*** **********************************************************************
 SUBROUTINE section_vals_add_values(section_vals,error)
-  TYPE(section_vals_type), pointer :: section_vals
-  type(cp_error_type), optional, intent(inout) :: error
+    TYPE(section_vals_type), POINTER         :: section_vals
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-  logical :: failure
-  character(len=*), parameter :: routineN='section_vals_add_values',&
-       routineP=moduleN//':'//routineN
-  INTEGER :: i,j,stat
-  TYPE(section_vals_p_type), DIMENSION(:,:), pointer :: new_sps
-  TYPE(cp_sll_val_p_type), DIMENSION(:,:), pointer :: new_values
+    CHARACTER(len=*), PARAMETER :: routineN = 'section_vals_add_values', &
+      routineP = moduleN//':'//routineN
 
-  failure=.false.
+    INTEGER                                  :: i, j, stat
+    LOGICAL                                  :: failure
+    TYPE(cp_sll_val_p_type), &
+      DIMENSION(:, :), POINTER               :: new_values
+    TYPE(section_vals_p_type), &
+      DIMENSION(:, :), POINTER               :: new_sps
+
+  failure=.FALSE.
 
   CPPrecondition(ASSOCIATED(section_vals),cp_failure_level,routineP,error,failure)
   CPPrecondition(section_vals%ref_count>0,cp_failure_level,routineP,error,failure)
@@ -1395,11 +1455,11 @@ END SUBROUTINE section_vals_add_values
 
 FUNCTION section_get_cval(section_vals,keyword_name,error) RESULT(res)
 
-  TYPE(section_vals_type),pointer :: section_vals
-  CHARACTER(len=*), intent(in) :: keyword_name
-  type(cp_error_type), optional, intent(inout) :: error
-
-  CHARACTER(LEN=DEFAULT_STRING_LENGTH) :: res
+    TYPE(section_vals_type), POINTER         :: section_vals
+    CHARACTER(len=*), INTENT(in)             :: keyword_name
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+    CHARACTER(LEN=DEFAULT_STRING_LENGTH)     :: res
 
   CALL section_vals_val_get(section_vals, keyword_name, c_val=res, error=error)
 
@@ -1407,11 +1467,11 @@ END FUNCTION section_get_cval
 
 FUNCTION section_get_rval(section_vals,keyword_name,error) RESULT(res)
 
-  TYPE(section_vals_type),pointer :: section_vals
-  CHARACTER(len=*), intent(in) :: keyword_name
-  type(cp_error_type), optional, intent(inout) :: error
-
-  REAL(kind=dp) :: res
+    TYPE(section_vals_type), POINTER         :: section_vals
+    CHARACTER(len=*), INTENT(in)             :: keyword_name
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+    REAL(kind=dp)                            :: res
 
   CALL section_vals_val_get(section_vals, keyword_name, r_val=res, error=error)
 
@@ -1419,11 +1479,11 @@ END FUNCTION section_get_rval
 
 FUNCTION section_get_ival(section_vals,keyword_name,error) RESULT(res)
 
-  TYPE(section_vals_type),pointer :: section_vals
-  CHARACTER(len=*), intent(in) :: keyword_name
-  type(cp_error_type), optional, intent(inout) :: error
-
-  INTEGER :: res
+    TYPE(section_vals_type), POINTER         :: section_vals
+    CHARACTER(len=*), INTENT(in)             :: keyword_name
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+    INTEGER                                  :: res
 
   CALL section_vals_val_get(section_vals, keyword_name, i_val=res, error=error)
 
@@ -1431,11 +1491,11 @@ END FUNCTION section_get_ival
 
 FUNCTION section_get_lval(section_vals,keyword_name,error) RESULT(res)
 
-  TYPE(section_vals_type),pointer :: section_vals
-  CHARACTER(len=*), intent(in) :: keyword_name
-  type(cp_error_type), optional, intent(inout) :: error
-
-  LOGICAL :: res
+    TYPE(section_vals_type), POINTER         :: section_vals
+    CHARACTER(len=*), INTENT(in)             :: keyword_name
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+    LOGICAL                                  :: res
 
   CALL section_vals_val_get(section_vals, keyword_name, l_val=res, error=error)
 
@@ -1479,42 +1539,48 @@ END FUNCTION section_get_lval
 SUBROUTINE section_vals_val_get(section_vals,keyword_name,i_rep_section,&
      i_rep_val,n_rep_val,val,&
      l_val,i_val,r_val,c_val,l_vals,i_vals,r_vals,c_vals,ignore_required,error)
-  TYPE(section_vals_type),pointer :: section_vals
-  CHARACTER(len=*), intent(in) :: keyword_name
-  INTEGER, INTENT(in), OPTIONAL :: i_rep_section, i_rep_val
-  INTEGER,INTENT(out), optional :: n_rep_val
-  TYPE(val_type), POINTER, OPTIONAL :: val
-  LOGICAL, OPTIONAL, INTENT(out) :: l_val
-  LOGICAL, DIMENSION(:), OPTIONAL, POINTER :: l_vals
-  INTEGER, OPTIONAL, INTENT(out) :: i_val
-  INTEGER, DIMENSION(:), OPTIONAL, POINTER :: i_vals
-  REAL(KIND=DP), OPTIONAL, INTENT(out) :: r_val
-  REAL(KIND=DP), DIMENSION(:), OPTIONAL, POINTER :: r_vals
-  CHARACTER(LEN=*), OPTIONAL, INTENT(out) :: c_val
-  CHARACTER(LEN=DEFAULT_STRING_LENGTH), DIMENSION(:), OPTIONAL, POINTER :: c_vals
-  LOGICAL, OPTIONAL, INTENT(in) :: ignore_required
-  type(cp_error_type), optional, intent(inout) :: error
-  
-  LOGICAL :: failure,valRequested, my_ignore_required
-  character(len=*), parameter :: routineN='section_val_get',&
-        routineP=moduleN//':'//routineN
-  INTEGER :: ik,irs,irk,my_index,tmp_index,len_key
-  TYPE(section_vals_type),pointer :: s_vals
-  TYPE(section_type),pointer ::section
-  TYPE(keyword_type), POINTER :: keyword
-  TYPE(cp_sll_val_type), pointer :: vals
-  TYPE(val_type), POINTER :: my_val
-  type(cp_error_type) :: sub_error
-  
-  failure=.false.
+    TYPE(section_vals_type), POINTER         :: section_vals
+    CHARACTER(len=*), INTENT(in)             :: keyword_name
+    INTEGER, INTENT(in), OPTIONAL            :: i_rep_section, i_rep_val
+    INTEGER, INTENT(out), OPTIONAL           :: n_rep_val
+    TYPE(val_type), OPTIONAL, POINTER        :: val
+    LOGICAL, INTENT(out), OPTIONAL           :: l_val
+    INTEGER, INTENT(out), OPTIONAL           :: i_val
+    REAL(KIND=DP), INTENT(out), OPTIONAL     :: r_val
+    CHARACTER(LEN=*), INTENT(out), OPTIONAL  :: c_val
+    LOGICAL, DIMENSION(:), OPTIONAL, POINTER :: l_vals
+    INTEGER, DIMENSION(:), OPTIONAL, POINTER :: i_vals
+    REAL(KIND=DP), DIMENSION(:), OPTIONAL, &
+      POINTER                                :: r_vals
+    CHARACTER(LEN=DEFAULT_STRING_LENGTH), &
+      DIMENSION(:), OPTIONAL, POINTER        :: c_vals
+    LOGICAL, INTENT(in), OPTIONAL            :: ignore_required
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'section_vals_val_get', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: ik, irk, irs, len_key, &
+                                                my_index, tmp_index
+    LOGICAL                                  :: failure, my_ignore_required, &
+                                                valRequested
+    TYPE(cp_error_type)                      :: sub_error
+    TYPE(cp_sll_val_type), POINTER           :: vals
+    TYPE(keyword_type), POINTER              :: keyword
+    TYPE(section_type), POINTER              :: section
+    TYPE(section_vals_type), POINTER         :: s_vals
+    TYPE(val_type), POINTER                  :: my_val
+
+  failure=.FALSE.
   
   CPPrecondition(ASSOCIATED(section_vals),cp_failure_level,routineP,error,failure)
   CPPrecondition(section_vals%ref_count>0,cp_failure_level,routineP,error,failure)
 
-  my_ignore_required=.false.
-  if (present(ignore_required)) my_ignore_required=ignore_required
+  my_ignore_required=.FALSE.
+  IF (PRESENT(ignore_required)) my_ignore_required=ignore_required
   my_index=INDEX(keyword_name,'%')+1
-  len_key=len_trim(keyword_name)
+  len_key=LEN_TRIM(keyword_name)
   IF (my_index>1) THEN
      DO
         tmp_index=INDEX(keyword_name(my_index:len_key),"%")
@@ -1529,12 +1595,12 @@ SUBROUTINE section_vals_val_get(section_vals,keyword_name,i_rep_section,&
 
   irk=1
   irs=1
-  if (present(i_rep_section)) irs=i_rep_section
-  if (present(i_rep_val)) irk=i_rep_val
-  if (present(val)) nullify(val)
+  IF (PRESENT(i_rep_section)) irs=i_rep_section
+  IF (PRESENT(i_rep_val)) irk=i_rep_val
+  IF (PRESENT(val)) NULLIFY(val)
   section => s_vals%section
-  valRequested=PRESENT(l_val).or.present(i_val).or.present(r_val).or.&
-       PRESENT(c_val).OR.PRESENT(l_vals).or.present(i_vals).or.&
+  valRequested=PRESENT(l_val).or.PRESENT(i_val).or.PRESENT(r_val).OR.&
+       PRESENT(c_val).OR.PRESENT(l_vals).or.PRESENT(i_vals).OR.&
        PRESENT(r_vals).OR.PRESENT(c_vals)
   IF (.NOT. failure) THEN
      ik=section_get_keyword_index(s_vals%section,keyword_name(my_index:len_key),error=error)
@@ -1549,7 +1615,7 @@ SUBROUTINE section_vals_val_get(section_vals,keyword_name,i_rep_section,&
           "section repetition requested ("//cp_to_string(irs)//&
           ") out of bounds (1:"//cp_to_string(SIZE(s_vals%subs_vals,2))&
           //")",error,failure)
-     nullify(my_val)
+     NULLIFY(my_val)
   END IF
   IF (.NOT.failure) THEN
      IF (PRESENT(n_rep_val)) n_rep_val=0
@@ -1593,7 +1659,7 @@ SUBROUTINE section_vals_val_get(section_vals,keyword_name,i_rep_section,&
         CALL cp_error_propagate_error(sub_error,routineP,&
              "getting value from  keyword "//TRIM(keyword_name(my_index:len_key))//" of section "//&
              TRIM(section%name),error=error,failure=failure)
-        call cp_error_dealloc_ref(sub_error)
+        CALL cp_error_dealloc_ref(sub_error)
      END IF
 
   END IF
@@ -1636,41 +1702,47 @@ SUBROUTINE section_vals_val_set(section_vals,keyword_name,i_rep_section,&
      i_rep_val,val,&
      l_val,i_val,r_val,c_val,l_vals_ptr,i_vals_ptr,r_vals_ptr,c_vals_ptr,&
      ignore_required,error)
-  TYPE(section_vals_type),pointer :: section_vals
-  CHARACTER(len=*), intent(in) :: keyword_name
-  INTEGER, INTENT(in), OPTIONAL :: i_rep_section, i_rep_val
-  TYPE(val_type), POINTER, OPTIONAL :: val
-  LOGICAL, OPTIONAL, INTENT(in) :: l_val
-  LOGICAL, DIMENSION(:), OPTIONAL, POINTER :: l_vals_ptr
-  INTEGER, OPTIONAL, INTENT(in) :: i_val
-  INTEGER, DIMENSION(:), OPTIONAL, POINTER :: i_vals_ptr
-  REAL(KIND=DP), OPTIONAL, INTENT(in) :: r_val
-  REAL(KIND=DP), DIMENSION(:), OPTIONAL, POINTER :: r_vals_ptr
-  CHARACTER(LEN=*), OPTIONAL, INTENT(in) :: c_val
-  CHARACTER(LEN=DEFAULT_STRING_LENGTH), DIMENSION(:), OPTIONAL, POINTER :: c_vals_ptr
-  LOGICAL, OPTIONAL, INTENT(in) :: ignore_required
-  type(cp_error_type), optional, intent(inout) :: error
+    TYPE(section_vals_type), POINTER         :: section_vals
+    CHARACTER(len=*), INTENT(in)             :: keyword_name
+    INTEGER, INTENT(in), OPTIONAL            :: i_rep_section, i_rep_val
+    TYPE(val_type), OPTIONAL, POINTER        :: val
+    LOGICAL, INTENT(in), OPTIONAL            :: l_val
+    INTEGER, INTENT(in), OPTIONAL            :: i_val
+    REAL(KIND=DP), INTENT(in), OPTIONAL      :: r_val
+    CHARACTER(LEN=*), INTENT(in), OPTIONAL   :: c_val
+    LOGICAL, DIMENSION(:), OPTIONAL, POINTER :: l_vals_ptr
+    INTEGER, DIMENSION(:), OPTIONAL, POINTER :: i_vals_ptr
+    REAL(KIND=DP), DIMENSION(:), OPTIONAL, &
+      POINTER                                :: r_vals_ptr
+    CHARACTER(LEN=DEFAULT_STRING_LENGTH), &
+      DIMENSION(:), OPTIONAL, POINTER        :: c_vals_ptr
+    LOGICAL, INTENT(in), OPTIONAL            :: ignore_required
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-  LOGICAL :: failure,valSet, my_ignore_required
-  character(len=*), parameter :: routineN='section_val_set',&
-       routineP=moduleN//':'//routineN
-  INTEGER :: ik,irs,irk,my_index,tmp_index,len_key
-  TYPE(section_vals_type),pointer :: s_vals
-  TYPE(section_type),pointer ::section
-  TYPE(cp_sll_val_type), pointer :: vals
-  TYPE(val_type), POINTER :: my_val, old_val
-  type(cp_error_type) :: sub_error
-  TYPE(keyword_type), pointer :: keyword
+    CHARACTER(len=*), PARAMETER :: routineN = 'section_vals_val_set', &
+      routineP = moduleN//':'//routineN
 
-  failure=.false.
+    INTEGER                                  :: ik, irk, irs, len_key, &
+                                                my_index, tmp_index
+    LOGICAL                                  :: failure, my_ignore_required, &
+                                                valSet
+    TYPE(cp_error_type)                      :: sub_error
+    TYPE(cp_sll_val_type), POINTER           :: vals
+    TYPE(keyword_type), POINTER              :: keyword
+    TYPE(section_type), POINTER              :: section
+    TYPE(section_vals_type), POINTER         :: s_vals
+    TYPE(val_type), POINTER                  :: my_val, old_val
+
+  failure=.FALSE.
 
   CPPrecondition(ASSOCIATED(section_vals),cp_failure_level,routineP,error,failure)
   CPPrecondition(section_vals%ref_count>0,cp_failure_level,routineP,error,failure)
 
-  my_ignore_required=.false.
-  if (present(ignore_required)) my_ignore_required=ignore_required
+  my_ignore_required=.FALSE.
+  IF (PRESENT(ignore_required)) my_ignore_required=ignore_required
   my_index=INDEX(keyword_name,'%')+1
-  len_key=len_trim(keyword_name)
+  len_key=LEN_TRIM(keyword_name)
   IF (my_index>1) THEN
      DO
         tmp_index=INDEX(keyword_name(my_index:len_key),"%")
@@ -1685,8 +1757,8 @@ SUBROUTINE section_vals_val_set(section_vals,keyword_name,i_rep_section,&
 
   irk=1
   irs=1
-  if (present(i_rep_section)) irs=i_rep_section
-  if (present(i_rep_val)) irk=i_rep_val
+  IF (PRESENT(i_rep_section)) irs=i_rep_section
+  IF (PRESENT(i_rep_val)) irk=i_rep_val
   section => s_vals%section
   IF (.NOT. failure) THEN
      ik=section_get_keyword_index(s_vals%section,keyword_name(my_index:len_key),error=error)
@@ -1761,7 +1833,7 @@ SUBROUTINE section_vals_val_set(section_vals,keyword_name,i_rep_section,&
         CALL cp_sll_val_insert_el_at(vals,my_val,index=irk,error=error)
      END IF
      s_vals%values(ik,irs)%list => vals
-     nullify(my_val)
+     NULLIFY(my_val)
   END IF
 
 END SUBROUTINE section_vals_val_set
@@ -1797,31 +1869,32 @@ END SUBROUTINE section_vals_val_set
 !!*** **********************************************************************
 SUBROUTINE section_vals_val_unset(section_vals,keyword_name,i_rep_section,&
      i_rep_val,n_rep_val,error)
-  TYPE(section_vals_type),pointer :: section_vals
-  CHARACTER(len=*), intent(in) :: keyword_name
-  INTEGER, INTENT(in), OPTIONAL :: i_rep_section, i_rep_val
-  INTEGER,INTENT(out), optional :: n_rep_val
-  type(cp_error_type), optional, intent(inout) :: error
+    TYPE(section_vals_type), POINTER         :: section_vals
+    CHARACTER(len=*), INTENT(in)             :: keyword_name
+    INTEGER, INTENT(in), OPTIONAL            :: i_rep_section, i_rep_val
+    INTEGER, INTENT(out), OPTIONAL           :: n_rep_val
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-  LOGICAL :: failure
-  character(len=*), parameter :: routineN='section_val_unset',&
-       routineP=moduleN//':'//routineN
-  INTEGER :: ik,irs,irk,my_index,tmp_index,len_key
-  TYPE(section_vals_type),pointer :: s_vals
-  TYPE(section_type),pointer ::section
-  TYPE(keyword_type), POINTER :: keyword
-  TYPE(cp_sll_val_type), pointer :: vals
-  TYPE(val_type), POINTER :: my_val, old_val
-  type(cp_error_type) :: sub_error
-  TYPE(cp_sll_val_type), POINTER           :: pos
+    CHARACTER(len=*), PARAMETER :: routineN = 'section_vals_val_unset', &
+      routineP = moduleN//':'//routineN
 
-  failure=.false.
+    INTEGER                                  :: ik, irk, irs, len_key, &
+                                                my_index, tmp_index
+    LOGICAL                                  :: failure
+    TYPE(cp_sll_val_type), POINTER           :: pos
+    TYPE(keyword_type), POINTER              :: keyword
+    TYPE(section_type), POINTER              :: section
+    TYPE(section_vals_type), POINTER         :: s_vals
+    TYPE(val_type), POINTER                  :: old_val
+
+  failure=.FALSE.
   NULLIFY(pos)
   CPPrecondition(ASSOCIATED(section_vals),cp_failure_level,routineP,error,failure)
   CPPrecondition(section_vals%ref_count>0,cp_failure_level,routineP,error,failure)
 
   my_index=INDEX(keyword_name,'%')+1
-  len_key=len_trim(keyword_name)
+  len_key=LEN_TRIM(keyword_name)
   IF (my_index>1) THEN
      DO
         tmp_index=INDEX(keyword_name(my_index:len_key),"%")
@@ -1836,8 +1909,8 @@ SUBROUTINE section_vals_val_unset(section_vals,keyword_name,i_rep_section,&
 
   irk=1
   irs=1
-  if (present(i_rep_section)) irs=i_rep_section
-  if (present(i_rep_val)) irk=i_rep_val
+  IF (PRESENT(i_rep_section)) irs=i_rep_section
+  IF (PRESENT(i_rep_val)) irk=i_rep_val
   section => s_vals%section
   IF (.NOT. failure) THEN
      ik=section_get_keyword_index(s_vals%section,keyword_name(my_index:len_key),error=error)
@@ -1897,28 +1970,32 @@ END SUBROUTINE section_vals_val_unset
 !!
 !!*** **********************************************************************
 RECURSIVE SUBROUTINE section_vals_write(section_vals,unit_nr,hide_root,error)
-  TYPE(section_vals_type), pointer :: section_vals
-  INTEGER, INTENT(in) :: unit_nr
-  LOGICAL, INTENT(in), optional :: hide_root
-  type(cp_error_type), optional, intent(inout) :: error
+    TYPE(section_vals_type), POINTER         :: section_vals
+    INTEGER, INTENT(in)                      :: unit_nr
+    LOGICAL, INTENT(in), OPTIONAL            :: hide_root
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-  logical :: failure
-  character(len=*), parameter :: routineN='section_vals_write',&
-       routineP=moduleN//':'//routineN
-  INTEGER :: i_rep_s,nr,isec,ik,ival,nval
-  TYPE(section_type), pointer :: section
-  TYPE(keyword_type), pointer :: keyword
-  TYPE(section_vals_type), pointer :: sval
-  type(cp_error_type) :: suberror
-  TYPE(val_type), pointer :: val
-  LOGICAL :: my_hide_root,defaultSection
-  INTEGER, SAVE :: indent
+    CHARACTER(len=*), PARAMETER :: routineN = 'section_vals_write', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i_rep_s, ik, isec, ival, nr, &
+                                                nval
+    INTEGER, SAVE                            :: indent
+    LOGICAL                                  :: defaultSection, failure, &
+                                                my_hide_root
+    TYPE(cp_error_type)                      :: suberror
+    TYPE(keyword_type), POINTER              :: keyword
+    TYPE(section_type), POINTER              :: section
+    TYPE(section_vals_type), POINTER         :: sval
+    TYPE(val_type), POINTER                  :: val
+
   DATA indent/1/
   CHARACTER(len=default_string_length) :: myfmt
 
-  failure=.false.
-  my_hide_root=.false.
-  if (present(hide_root)) my_hide_root=hide_root
+  failure=.FALSE.
+  my_hide_root=.FALSE.
+  IF (PRESENT(hide_root)) my_hide_root=hide_root
 
   CPPrecondition(ASSOCIATED(section_vals),cp_failure_level,routineP,error,failure)
   CPPrecondition(section_vals%ref_count>0,cp_failure_level,routineP,error,failure)
@@ -1954,10 +2031,10 @@ RECURSIVE SUBROUTINE section_vals_write(section_vals,unit_nr,hide_root,error)
                             message="for val "// TRIM(keyword%names(1))//" in section "//&
                             TRIM(section%name),error=error, failure=failure)
                        IF (keyword%names(1)/='_DEFAULT_KEYWORD_'.AND.&
-                            keyword%names(1)/='_SECTION_PARAMETERS_') then
+                            keyword%names(1)/='_SECTION_PARAMETERS_') THEN
                           WRITE(unit=unit_nr,fmt="("//TRIM(myfmt)//"a,' ')",advance="NO")&
                                TRIM(keyword%names(1))
-                       ELSEIF (keyword%names(1) =='_DEFAULT_KEYWORD_' .and.&
+                       ELSEIF (keyword%names(1) =='_DEFAULT_KEYWORD_' .AND.&
                             keyword%type_of_var/=lchar_t) THEN
                           WRITE(unit=unit_nr,fmt="("//TRIM(myfmt)//")",advance="NO")
                        END IF
@@ -1997,20 +2074,17 @@ END SUBROUTINE section_vals_write
 
   RECURSIVE SUBROUTINE write_section_xml(section,level,unit_number,error)
 
-    TYPE(section_type), POINTER                  :: section
-    INTEGER, INTENT(IN)                          :: level,unit_number
-    TYPE(cp_error_type), INTENT(INOUT), OPTIONAL :: error
+    TYPE(section_type), POINTER              :: section
+    INTEGER, INTENT(IN)                      :: level, unit_number
+    TYPE(cp_error_type), INTENT(INOUT), &
+      OPTIONAL                               :: error
 
-    ! Local parameters
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'write_section_xml', &
+      routineP = moduleN//':'//routineN
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = "write_section_xml",&
-                                   routineP=moduleN//':'//routineN
-
-    ! Local variables
-
-    CHARACTER(LEN=3) :: repeats,required
-    INTEGER          :: i,l0,l1
-    LOGICAL          :: failure
+    CHARACTER(LEN=3)                         :: repeats, required
+    INTEGER                                  :: i, l0, l1
+    LOGICAL                                  :: failure
 
 !   ---------------------------------------------------------------------------
 
@@ -2090,19 +2164,22 @@ END SUBROUTINE section_vals_write
 !!*** **********************************************************************
   SUBROUTINE section_vals_set_subs_vals(section_vals,subsection_name,&
      new_section_vals,i_rep_section,error)
-  TYPE(section_vals_type), pointer :: section_vals
-  CHARACTER(len=*), intent(in) :: subsection_name
-  TYPE(section_vals_type), pointer :: new_section_vals
-  INTEGER, INTENT(in), optional :: i_rep_section
-  type(cp_error_type), optional, intent(inout) :: error
-  
-  LOGICAL :: failure,is_path
-  character(len=*), parameter :: routineN='section_vals_set_subs_vals',&
-        routineP=moduleN//':'//routineN
-  INTEGER :: isection,irep,my_index, len_key,tmp_index
-  TYPE(section_vals_type), pointer :: s_vals
+    TYPE(section_vals_type), POINTER         :: section_vals
+    CHARACTER(len=*), INTENT(in)             :: subsection_name
+    TYPE(section_vals_type), POINTER         :: new_section_vals
+    INTEGER, INTENT(in), OPTIONAL            :: i_rep_section
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-  failure=.false.
+    CHARACTER(len=*), PARAMETER :: routineN = 'section_vals_set_subs_vals', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: irep, isection, len_key, &
+                                                my_index, tmp_index
+    LOGICAL                                  :: failure
+    TYPE(section_vals_type), POINTER         :: s_vals
+
+  failure=.FALSE.
   CPPrecondition(ASSOCIATED(section_vals),cp_failure_level,routineP,error,failure)
   CPPrecondition(section_vals%ref_count>0,cp_failure_level,routineP,error,failure)
   CPPrecondition(ASSOCIATED(new_section_vals),cp_failure_level,routineP,error,failure)
@@ -2110,7 +2187,7 @@ END SUBROUTINE section_vals_write
 
   IF (.NOT. failure) THEN
      irep=1
-     if (present(i_rep_section)) irep=i_rep_section
+     IF (PRESENT(i_rep_section)) irep=i_rep_section
 
      my_index=INDEX(subsection_name,'%')+1
      len_key=LEN_TRIM(subsection_name)
@@ -2130,11 +2207,11 @@ END SUBROUTINE section_vals_write
   END IF
 
   IF (.NOT.failure) THEN
-     isection=section_get_subsection_index(s_vals%section,subsection_name(my_index:len_trim(subsection_name)),&
+     isection=section_get_subsection_index(s_vals%section,subsection_name(my_index:LEN_TRIM(subsection_name)),&
           error=error)
-  call cp_assert(isection>0,cp_failure_level,&
+  CALL cp_assert(isection>0,cp_failure_level,&
        cp_assertion_failed,routineP,&
-       "could not find subsection "//subsection_name(my_index:len_trim(subsection_name))//" in section "//&
+       "could not find subsection "//subsection_name(my_index:LEN_TRIM(subsection_name))//" in section "//&
        TRIM(section_vals%section%name)//" at "//&
        CPSourceFileRef,&
        error,failure)
@@ -2172,14 +2249,17 @@ END SUBROUTINE section_vals_set_subs_vals
 !!*** **********************************************************************
 SUBROUTINE section_vals_duplicate(section_vals_in,section_vals_out,&
      error)
-  TYPE(section_vals_type), POINTER :: section_vals_in, section_vals_out
-  type(cp_error_type), optional, intent(inout) :: error
-  
-  logical :: failure
-  character(len=*), parameter :: routineN='section_vals_create_copy',&
-        routineP=moduleN//':'//routineN
+    TYPE(section_vals_type), POINTER         :: section_vals_in, &
+                                                section_vals_out
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-  failure=.false.
+    CHARACTER(len=*), PARAMETER :: routineN = 'section_vals_duplicate', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+
+  failure=.FALSE.
   
   CPPrecondition(ASSOCIATED(section_vals_in),cp_failure_level,routineP,error,failure)
   CPPrecondition(.NOT.ASSOCIATED(section_vals_out),cp_failure_level,routineP,error,failure)
@@ -2214,22 +2294,25 @@ END SUBROUTINE section_vals_duplicate
 !!*** **********************************************************************
 RECURSIVE SUBROUTINE section_vals_copy(section_vals_in,section_vals_out,&
      error)
-  TYPE(section_vals_type), POINTER :: section_vals_in, section_vals_out
-  type(cp_error_type), optional, intent(inout) :: error
-  
-  logical :: failure
-  character(len=*), parameter :: routineN='section_vals_create_copy',&
-        routineP=moduleN//':'//routineN
-  INTEGER :: irep, ival,isec
-  TYPE(cp_sll_val_type), POINTER :: v1,v2
-  TYPE(val_type), pointer :: el
+    TYPE(section_vals_type), POINTER         :: section_vals_in, &
+                                                section_vals_out
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-  failure=.false.
+    CHARACTER(len=*), PARAMETER :: routineN = 'section_vals_copy', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: irep, isec, ival
+    LOGICAL                                  :: failure
+    TYPE(cp_sll_val_type), POINTER           :: v1, v2
+    TYPE(val_type), POINTER                  :: el
+
+  failure=.FALSE.
   NULLIFY(v2,el)
   
   CPPrecondition(ASSOCIATED(section_vals_in),cp_failure_level,routineP,error,failure)
   CPPrecondition(ASSOCIATED(section_vals_out),cp_failure_level,routineP,error,failure)
-  call cp_assert(section_vals_in%section%id_nr==section_vals_out%section%id_nr,&
+  CALL cp_assert(section_vals_in%section%id_nr==section_vals_out%section%id_nr,&
        cp_failure_level,cp_assertion_failed,routineP,&
        CPSourceFileRef,&
        error,failure)
@@ -2241,14 +2324,14 @@ RECURSIVE SUBROUTINE section_vals_copy(section_vals_in,section_vals_out,&
            IF (ASSOCIATED(v1)) THEN
               CALL val_duplicate(v1%first_el,el,error=error)
               CALL cp_sll_val_create(v2,el,error=error)
-              nullify(el)
+              NULLIFY(el)
               section_vals_out%values(ival,irep)%list => v2
               DO
-                 if (.not.associated(v1%rest)) exit
+                 IF (.not.ASSOCIATED(v1%rest)) EXIT
                  v1 => v1%rest
                  CALL val_duplicate(v1%first_el,el,error=error)
                  CALL cp_sll_val_create(v2%rest,first_el=el,error=error)
-                 nullify(el)
+                 NULLIFY(el)
                  v2 => v2%rest
               END DO
            END IF

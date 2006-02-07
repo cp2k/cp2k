@@ -27,7 +27,8 @@ MODULE qs_oce_methods
                                              get_atomic_kind
   USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                              gto_basis_set_type
-  USE kinds,                           ONLY: dp,dp_size
+  USE kinds,                           ONLY: dp,&
+                                             dp_size
   USE mathconstants,                   ONLY: dfac,&
                                              pi
   USE memory_utilities,                ONLY: reallocate
@@ -38,16 +39,13 @@ MODULE qs_oce_methods
   USE orbital_transformation_matrices, ONLY: orbtramat
   USE paw_proj_set_types,              ONLY: get_paw_proj_set,&
                                              paw_proj_set_type
-  USE qs_environment_types,            ONLY: get_qs_env,&
-                                             qs_environment_type
   USE qs_neighbor_list_types,          ONLY: block_p_type,&
                                              reduced_3c_list_type
-  USE qs_oce_types,                    ONLY: oce_matrix_type,&
-                                             dist_list_4oce_type
+  USE qs_oce_types,                    ONLY: dist_list_4oce_type,&
+                                             oce_matrix_type
   USE sparse_matrix_types,             ONLY: add_1d_block_node,&
                                              get_block_node
-  USE termination,                     ONLY: stop_memory,&
-                                             stop_program
+  USE termination,                     ONLY: stop_memory
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "cp_common_uses.h"
@@ -58,7 +56,7 @@ MODULE qs_oce_methods
 
 ! *** Global parameters (only in this module)
 
-  CHARACTER(LEN=*), PARAMETER :: module_name = "qs_oce_methods"
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_oce_methods'
 
 ! *** Public subroutines ***
 
@@ -82,7 +80,7 @@ CONTAINS
 
 !   *** Local parameters ***
 
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "build_oce_block"
+    CHARACTER(LEN=*), PARAMETER :: routineN = "build_oce_block"
 
 !   *** Local variables ***
 
@@ -164,7 +162,7 @@ CONTAINS
     lm = MAX(maxlb, maxlprj)
     lds = ncoset(lm+nder+1)
     ALLOCATE(s(lds,lds,ncoset(nder+1)),STAT= istat)
-    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
          "s",lds*ncoset(nder+1)*dp_size)
 
     CALL reallocate(spa_sbt,1,np_car,1,ntotsgfb,0,nthread-1)
@@ -201,7 +199,7 @@ CONTAINS
                        lb_max(jset),lb_min(jset),npgfb(jset),&
                        rpgfb(:,jset),zetb(:,jset),&
                        -rab,dab,spa_tmp,&
-                       0,.false.,s,lds,sdpa_tmp)
+                       0,.FALSE.,s,lds,sdpa_tmp)
 
             DO ipgf = 1,nprjla(lprj)
               n = (ipgf -1)*ncoset(lprj)
@@ -239,7 +237,7 @@ CONTAINS
                        lb_max(jset),lb_min(jset),npgfb(jset),&
                        rpgfb(:,jset),zetb(:,jset),&
                        -rab,dab,spa_tmp,&
-                       nder,.false.,s,lds)
+                       nder,.FALSE.,s,lds)
 
             DO ipgf = 1,nprjla(lprj)
               n = (ipgf -1)*ncoset(lprj)
@@ -368,7 +366,7 @@ CONTAINS
     ENDDO  !jset
     
     DEALLOCATE(s,spa_sbt,spa_tmpt,sdpa_tmpt,ovc,ovs ,STAT = istat)
-    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
          "s,spa_sbt,spa_tmpt,sdpa_tmpt,ovc,ovs")
 
   END SUBROUTINE build_oce_block
@@ -423,22 +421,22 @@ CONTAINS
     TYPE(block_p_type), DIMENSION(:), &
       POINTER                                :: oceh, oces
     INTEGER, INTENT(IN)                      :: nder
-    TYPE(dist_list_4oce_type), DIMENSION(:),&
-      POINTER                                :: dist_list
+    TYPE(dist_list_4oce_type), &
+      DIMENSION(:), POINTER                  :: dist_list
 
-    CHARACTER(LEN=*), PARAMETER              :: routine_name = "set_up_oce"
+    CHARACTER(LEN=*), PARAMETER              :: routineN = 'set_up_oce'
 
-    INTEGER                                  :: handle, i, j, katom, kkind, &
+    INTEGER                                  :: handle, i, katom, kkind, &
                                                 kneighbor, ndist, nkind, &
                                                 nneighbor
-    LOGICAL                                  :: add_oce,dist_done,paw_atom
+    LOGICAL                                  :: add_oce, dist_done, paw_atom
     REAL(KIND=dp)                            :: dac, dbc
     REAL(KIND=dp), DIMENSION(3)              :: rac, rbc, rdist
     TYPE(atomic_kind_type), POINTER          :: at_a, at_b, atomic_kind
 
 !   ---------------------------------------------------------------------------
 
-    CALL timeset(routine_name,"I"," ",handle)
+    CALL timeset(routineN,"I"," ",handle)
 
     nkind = SIZE(atomic_kind_set)
 

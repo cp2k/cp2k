@@ -26,12 +26,11 @@ MODULE sparse_matrix_types
   USE distribution_2d_types,           ONLY: distribution_2d_release,&
                                              distribution_2d_retain,&
                                              distribution_2d_type
-  USE global_types,                    ONLY: global_environment_type
   USE kinds,                           ONLY: dp,&
                                              dp_size,&
-                                             int_size,&
-                                             default_string_length
-  USE message_passing,                 ONLY: mp_max,mp_sum
+                                             int_size
+  USE message_passing,                 ONLY: mp_max,&
+                                             mp_sum
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
   USE timings,                         ONLY: timeset,&
@@ -42,7 +41,7 @@ MODULE sparse_matrix_types
 
   PRIVATE
 
-  CHARACTER(LEN=*), PRIVATE, PARAMETER :: moduleN='sparse_matrix_types'
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'sparse_matrix_types'
   INTEGER, SAVE, PRIVATE :: last_matrix_id=0
 
 ! *** Define a real matrix data type ***
@@ -612,10 +611,11 @@ END SUBROUTINE cp_sm_scale_and_add
     CHARACTER(len=*), PARAMETER :: routineN = 'add_1d_block_node', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: cbc, cbr, istat, mypcol, &
-                                                myprow, ncol, nrow, rbc, rbr
+    INTEGER                                  :: cbc, istat, mypcol, myprow, &
+                                                ncol, nrow, rbr
     LOGICAL                                  :: failure
     TYPE(real_block_node_type), POINTER      :: block_node, new_block_node
+
 !   ---------------------------------------------------------------------------
 !   perform checks that we are only adding allowed blocks
 
@@ -950,8 +950,7 @@ END SUBROUTINE cp_sm_scale_and_add
       routine = "SUBROUTINE sparse_times_local (MODULE sparse_matrix_types)"
 
     INTEGER :: handle, iblock_col, iblock_row, ithread, nthread, &
-      omp_get_num_threads, omp_get_thread_num, &
-      sbncol, sbnrow
+      omp_get_num_threads, omp_get_thread_num, sbncol, sbnrow
     LOGICAL                                  :: antisymmetric, owner, &
                                                 symmetric
     REAL(KIND=dp)                            :: alpha_l, alpha_l_ji, flops
@@ -1082,7 +1081,7 @@ END SUBROUTINE cp_sm_scale_and_add
       routine = "SUBROUTINE sparse_plus_loc_loct(MODULE sparse_matrix_types)"
 
     INTEGER :: handle, iblock_col, iblock_row, icol, irow, ithread, nthread, &
-       omp_get_num_threads, omp_get_thread_num, sbncol, sbnrow
+      omp_get_num_threads, omp_get_thread_num, sbncol, sbnrow
     REAL(KIND=dp)                            :: flops, prefactor
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: sparse_block
     TYPE(real_block_node_type), POINTER      :: block_node
@@ -1405,8 +1404,6 @@ END SUBROUTINE cp_sm_scale_and_add
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: lb, ub
-    LOGICAL                                  :: failure
-    TYPE(cp_error_type)                      :: error
 
 !   ---------------------------------------------------------------------------
 
@@ -1473,7 +1470,8 @@ END SUBROUTINE cp_sm_scale_and_add
     INTEGER, DIMENSION(:), OPTIONAL, POINTER :: first_row, last_row, &
                                                 first_col, last_col
     INTEGER, INTENT(OUT), OPTIONAL           :: nblock_allocated, &
-                                                nelement_allocated,sparsity_id
+                                                nelement_allocated, &
+                                                sparsity_id
 
     INTEGER                                  :: iblock_row
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: BLOCK
@@ -2137,13 +2135,12 @@ END SUBROUTINE cp_sm_scale_and_add
     CHARACTER(LEN=*), PARAMETER :: routineN = 'transfer_real_matrix', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle 
-    INTEGER                                  :: iblock_row
-    INTEGER                                  :: iblock_col_source
-    INTEGER                                  :: iblock_col_target
+    INTEGER                                  :: handle, iblock_col_source, &
+                                                iblock_col_target, iblock_row
     LOGICAL                                  :: failure
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: source_block, target_block
-    TYPE(real_block_node_type), POINTER      :: block_node_target, block_node_source
+    TYPE(real_block_node_type), POINTER      :: block_node_source, &
+                                                block_node_target
 
 !   ---------------------------------------------------------------------------
 !   *** Check the association status of the source matrix ***
@@ -2609,23 +2606,21 @@ SUBROUTINE cp_sm_maxabsval(matrix,maxabsval,para_env,error)
 !!
 !!*** **********************************************************************
 SUBROUTINE cp_sm_sm_trace_scalar(matrix1,matrix2,trace,para_env,error)
-    TYPE(real_matrix_type), POINTER          :: matrix1,matrix2
+    TYPE(real_matrix_type), POINTER          :: matrix1, matrix2
     REAL(KIND=dp), INTENT(out)               :: trace
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'cp_sm_sm_trace',&
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_sm_sm_trace_scalar', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: iblock_row,nblock_row,&
-                                                block_col1,block_col2
+    INTEGER                                  :: block_col1, block_col2, &
+                                                iblock_row, nblock_row
     LOGICAL                                  :: failure
-    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: matrix_block1
-    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: matrix_block2
-    TYPE(real_block_node_type), POINTER      :: block_node1,block_node2
-    REAL(KIND=dp)                            :: trace_block, sfactor
-    CHARACTER(len=default_string_length)     :: matrix_symmetry
+    REAL(KIND=dp)                            :: sfactor, trace_block
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: matrix_block1, matrix_block2
+    TYPE(real_block_node_type), POINTER      :: block_node1, block_node2
 
   failure=.FALSE.
   
@@ -2704,26 +2699,21 @@ END SUBROUTINE cp_sm_sm_trace_scalar
 !!
 !!*** **********************************************************************
 SUBROUTINE cp_sm_sm_trace_vector(matrix1, matrix2, trace_vec, para_env, error)
-    TYPE(real_matrix_type), POINTER          :: matrix1, &
-                                                matrix2
+    TYPE(real_matrix_type), POINTER          :: matrix1, matrix2
     REAL(KIND=dp), DIMENSION(:), POINTER     :: trace_vec
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'cp_sm_sm_trace', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_sm_sm_trace_vector', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: iblock_row,nblock_row, &
-                                                block_col1,block_col2
+    INTEGER                                  :: block_col1, block_col2, &
+                                                iblock_row, nblock_row
     LOGICAL                                  :: failure
-    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: matrix_block1
-    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: matrix_block2
-    TYPE(real_block_node_type), POINTER      :: block_node1, &
-                                                block_node2
-    REAL(KIND=dp)                            :: trace_block, &
-                                                sfactor
-    CHARACTER(len=default_string_length)     :: matrix_symmetry
+    REAL(KIND=dp)                            :: sfactor, trace_block
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: matrix_block1, matrix_block2
+    TYPE(real_block_node_type), POINTER      :: block_node1, block_node2
 
   failure=.FALSE.
   

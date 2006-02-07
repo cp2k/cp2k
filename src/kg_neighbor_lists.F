@@ -22,15 +22,22 @@ MODULE kg_neighbor_lists
                                              get_atomic_kind_set
   USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                              gto_basis_set_type
+  USE cell_types,                      ONLY: cell_type,&
+                                             pbc,&
+                                             real_to_scaled
   USE checkpoint_handler,              ONLY: write_checkpoint_information
   USE cp_control_types,                ONLY: dft_control_type,&
                                              qs_control_type
+  USE cp_output_handling,              ONLY: cp_p_file,&
+                                             cp_print_key_finished_output,&
+                                             cp_print_key_should_output,&
+                                             cp_print_key_unit_nr
   USE distribution_1d_types,           ONLY: distribution_1d_type
   USE external_potential_types,        ONLY: elp_potential_type,&
                                              get_potential,&
                                              gth_potential_type
-  USE global_types,                    ONLY: LOW,&
-                                             global_environment_type
+  USE global_types,                    ONLY: global_environment_type
+  USE input_section_types,             ONLY: section_vals_type
   USE kg_environment_types,            ONLY: get_kg_env,&
                                              kg_environment_type,&
                                              set_kg_env
@@ -44,20 +51,10 @@ MODULE kg_neighbor_lists
                                              build_qs_neighbor_lists,&
                                              local_atoms_type,&
                                              write_neighbor_lists
-  USE cell_types,                 ONLY: cell_type,&
-                                             pbc,&
-                                             real_to_scaled
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE cp_output_handling,              ONLY: cp_print_key_unit_nr, &
-                                             cp_print_key_finished_output,&
-                                             cp_print_key_should_output,&
-                                             cp_p_file
-  USE input_section_types, ONLY: section_vals_type, section_vals_get_subs_vals,&
-       section_vals_get, section_vals_val_get, section_vals_release
-
 #include "cp_common_uses.h"  
 
   IMPLICIT NONE
@@ -66,7 +63,7 @@ MODULE kg_neighbor_lists
 
 ! *** Global parameters ***
 
-  CHARACTER(LEN=*), PARAMETER :: module_name = "kg_neighbor_lists"
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'kg_neighbor_lists'
 
 ! *** Public subroutines ***
 
@@ -80,16 +77,16 @@ CONTAINS
 
   SUBROUTINE build_kg_neighbor_lists(kg_env,globenv,error)
     TYPE(kg_environment_type), POINTER       :: kg_env
-    TYPE(global_environment_type), &
-      pointer                             :: globenv
+    TYPE(global_environment_type), POINTER   :: globenv
     TYPE(cp_error_type), INTENT(inout), &
-         OPTIONAL                               :: error
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "build_kg_neighbor_lists"
+      OPTIONAL                               :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'build_kg_neighbor_lists'
 
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(qs_control_type), POINTER           :: qs_control
 
-    CALL write_checkpoint_information("entering "//routine_name,globenv,error)
+    CALL write_checkpoint_information("entering "//routineN,globenv,error)
 
     CALL get_kg_env(kg_env=kg_env,&
                     dft_control=dft_control)
@@ -103,10 +100,10 @@ CONTAINS
     CASE ("KG_GPW")
       CALL build_kg_neighbor_lists2(kg_env,globenv,kg_env%input,error)
     CASE DEFAULT
-      CALL stop_program(routine_name,module_name,__LINE__,"method unknown")
+      CALL stop_program(routineN,moduleN,__LINE__,"method unknown")
     END SELECT
 
-    CALL write_checkpoint_information("leaving "//routine_name,globenv,error)
+    CALL write_checkpoint_information("leaving "//routineN,globenv,error)
 
   END SUBROUTINE build_kg_neighbor_lists
 
@@ -115,15 +112,15 @@ CONTAINS
   SUBROUTINE build_kg_neighbor_lists1(kg_env,globenv,force_env_section,error)
 
     TYPE(kg_environment_type), POINTER       :: kg_env
-    TYPE(global_environment_type), &
-      pointer                             :: globenv
+    TYPE(global_environment_type), POINTER   :: globenv
+    TYPE(section_vals_type), POINTER         :: force_env_section
     TYPE(cp_error_type), INTENT(inout), &
-         OPTIONAL                               :: error
-    TYPE(section_vals_type), POINTER :: force_env_section
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "build_kg_neighbor_lists1"
+      OPTIONAL                               :: error
 
-    INTEGER :: atom_a, handle, iatom, iatom_local, ikind, istat, maxatom, &
-      maxatom_local, natom_a, natom_local_a, nkind, output_unit, iw
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'build_kg_neighbor_lists1'
+
+    INTEGER :: atom_a, handle, iatom, iatom_local, ikind, istat, iw, maxatom, &
+      maxatom_local, natom_a, natom_local_a, nkind, output_unit
     LOGICAL                                  :: elp_potential_present, &
                                                 gth_potential_present, &
                                                 print_subcell_grid
@@ -137,6 +134,7 @@ CONTAINS
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cell_type), POINTER                 :: cell
+    TYPE(cp_logger_type), POINTER            :: logger
     TYPE(distribution_1d_type), POINTER      :: distribution_1d
     TYPE(elp_potential_type), POINTER        :: elp_potential
     TYPE(gth_potential_type), POINTER        :: gth_potential
@@ -147,14 +145,12 @@ CONTAINS
       DIMENSION(:), POINTER                  :: sac_ppl, sac_ppl_aux
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
-    TYPE(cp_logger_type), POINTER            :: logger
-
 
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
 
-    CALL write_checkpoint_information("entering "//routine_name,globenv,error)
-    CALL timeset(routine_name,"I","",handle)
+    CALL write_checkpoint_information("entering "//routineN,globenv,error)
+    CALL timeset(routineN,"I","",handle)
 
     NULLIFY (atomic_kind)
     NULLIFY (atomic_kind_set)
@@ -194,35 +190,35 @@ CONTAINS
     nkind = SIZE(atomic_kind_set)
 
     ALLOCATE (atom(nkind),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "atom",nkind*int_size)
 
     ALLOCATE (orb_present(nkind),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "orb_present",nkind*int_size)
 
     ALLOCATE (orb_radius(nkind),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "orb_radius",nkind*dp_size)
     orb_radius(:) = 0.0_dp
 
     ALLOCATE (aux_present(nkind),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "aux_present",nkind*int_size)
 
     ALLOCATE (aux_radius(nkind),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "aux_radius",nkind*dp_size)
     aux_radius(:) = 0.0_dp
 
     IF (gth_potential_present.OR.elp_potential_present) THEN
 
       ALLOCATE (ppl_present(nkind),STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                        "ppl_present",nkind*int_size)
 
       ALLOCATE (ppl_radius(nkind),STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                        "ppl_radius",nkind*dp_size)
       ppl_radius = 0.0_dp
 
@@ -285,7 +281,7 @@ CONTAINS
         IF (natom_local_a > 0) THEN
 
           ALLOCATE (atom(ikind)%list_local_a_index(natom_local_a),STAT=istat)
-          IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+          IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                            "atom(ikind)%list_local_a_index",&
                                            natom_local_a*int_size)
 
@@ -304,11 +300,11 @@ CONTAINS
         END IF
 
         ALLOCATE (atom(ikind)%r_pbc(3,natom_a),STAT=istat)
-        IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+        IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                          "atom(ikind)%r_pbc",3*natom_a*dp_size)
 
         ALLOCATE (atom(ikind)%s_pbc(3,natom_a),STAT=istat)
-        IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+        IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                          "atom(ikind)%s_pbc",3*natom_a*dp_size)
 
 !       *** Calculate PBC coordinates ***
@@ -389,54 +385,54 @@ CONTAINS
       NULLIFY (atom(ikind)%list)
       IF (ASSOCIATED(atom(ikind)%list_local_a_index)) THEN
         DEALLOCATE (atom(ikind)%list_local_a_index,STAT=istat)
-        IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+        IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                          "atom(ikind)%list_local_a_index")
       END IF
       IF (ASSOCIATED(atom(ikind)%list_local_b_index)) THEN
         DEALLOCATE (atom(ikind)%list_local_b_index,STAT=istat)
-        IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+        IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                          "atom(ikind)%list_local_b_index")
       END IF
       IF (ASSOCIATED(atom(ikind)%r_pbc)) THEN
         DEALLOCATE (atom(ikind)%r_pbc,STAT=istat)
-        IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+        IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                          "atom(ikind)%r_pbc")
       END IF
       IF (ASSOCIATED(atom(ikind)%s_pbc)) THEN
         DEALLOCATE (atom(ikind)%s_pbc,STAT=istat)
-        IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+        IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                          "atom(ikind)%s_pbc")
       END IF
     END DO
 
     DEALLOCATE (atom,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "atom")
 
     DEALLOCATE (orb_present,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "orb_present")
 
     DEALLOCATE (orb_radius,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "orb_radius")
 
     DEALLOCATE (aux_present,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "aux_present")
 
     DEALLOCATE (aux_radius,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "aux_radius")
 
     IF (gth_potential_present.OR.elp_potential_present) THEN
 
       DEALLOCATE (ppl_present,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                        "ppl_present")
 
       DEALLOCATE (ppl_radius,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                        "ppl_radius")
 
     END IF
@@ -444,7 +440,7 @@ CONTAINS
          "SUBSYS%PRINT%SUBCELL",error=error)    
     CALL timestop(0.0_dp,handle)
 
-    CALL write_checkpoint_information("leaving "//routine_name,globenv,error)
+    CALL write_checkpoint_information("leaving "//routineN,globenv,error)
 
   END SUBROUTINE build_kg_neighbor_lists1
 
@@ -453,21 +449,21 @@ CONTAINS
   SUBROUTINE build_kg_neighbor_lists2(kg_env,globenv,force_env_section,error)
 
     TYPE(kg_environment_type), POINTER       :: kg_env
-    TYPE(global_environment_type), &
-      pointer                             :: globenv
+    TYPE(global_environment_type), POINTER   :: globenv
+    TYPE(section_vals_type), POINTER         :: force_env_section
     TYPE(cp_error_type), INTENT(inout), &
-         OPTIONAL                               :: error
-    TYPE(section_vals_type), POINTER :: force_env_section
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "build_kg_neighbor_lists2"
+      OPTIONAL                               :: error
 
-    INTEGER                                  :: handle,isub
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'build_kg_neighbor_lists2'
+
+    INTEGER                                  :: handle
     TYPE(qs_environment_type), POINTER       :: qs_env
 
 !   ---------------------------------------------------------------------------
 
-    CALL write_checkpoint_information("entering "//routine_name,globenv,error)
+    CALL write_checkpoint_information("entering "//routineN,globenv,error)
 
-    CALL timeset(routine_name,"I","",handle)
+    CALL timeset(routineN,"I","",handle)
 
     NULLIFY (qs_env)
 
@@ -477,13 +473,13 @@ CONTAINS
     IF(ASSOCIATED(qs_env)) THEN
       CALL build_qs_neighbor_lists(qs_env,globenv,.TRUE.,force_env_section,error=error)
     ELSE
-      CALL stop_program(routine_name,module_name,__LINE__,&
+      CALL stop_program(routineN,moduleN,__LINE__,&
             "sub_qs_env not defined")
     END IF
 
     CALL timestop(0.0_dp,handle)
 
-    CALL write_checkpoint_information("leaving "//routine_name,globenv,error)
+    CALL write_checkpoint_information("leaving "//routineN,globenv,error)
 
   END SUBROUTINE build_kg_neighbor_lists2
 

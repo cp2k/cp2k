@@ -24,20 +24,6 @@
 !!   SOURCE
 !****************************************************************************
 MODULE xc_rho_cflags_types
-  USE cp_array_r_utils,                ONLY: cp_3d_r_p_type
-  USE input_constants,                 ONLY: xc_deriv_fd,&
-                                             xc_deriv_nn10_smooth,&
-                                             xc_deriv_nn50_smooth,&
-                                             xc_deriv_pw,&
-                                             xc_deriv_spline2,&
-                                             xc_deriv_spline2_smooth,&
-                                             xc_deriv_spline3,&
-                                             xc_deriv_spline3_smooth,&
-                                             xc_rho_nn10,&
-                                             xc_rho_nn50,&
-                                             xc_rho_no_smooth,&
-                                             xc_rho_spline2_smooth,&
-                                             xc_rho_spline3_smooth
   USE kinds,                           ONLY: dp
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -46,7 +32,7 @@ MODULE xc_rho_cflags_types
   IMPLICIT NONE
   PRIVATE
   LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.FALSE.
-  CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='xc_rho_cflags_types'
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'xc_rho_cflags_types'
 
   PUBLIC :: xc_rho_cflags_type
   PUBLIC :: xc_rho_cflags_setall, xc_rho_cflags_or, xc_rho_cflags_and,&

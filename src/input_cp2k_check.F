@@ -23,35 +23,44 @@
 !!   SOURCE
 !****************************************************************************
 MODULE input_cp2k_check
-  USE kinds, ONLY: dp, default_string_length
-  use cp_para_types, only: cp_para_env_type
-  use timings, only: timeset, timestop
-  USE input_section_types, ONLY: section_release,&
-       section_type,section_vals_create,&
-       section_vals_type, section_vals_get_subs_vals,&
-       section_vals_val_get, section_vals_get, section_vals_set_subs_vals,&
-       section_vals_val_set, section_vals_release
-  USE input_cp2k,                      ONLY: create_cp2k_root_section
-  USE input_constants, ONLY: xc_funct_no_shortcut, xc_funct_blyp,&
-       xc_funct_pade, xc_funct_pbe, xc_funct_tpss, xc_funct_olyp, xc_funct_hcth120
+  USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_parser,                       ONLY: cp_parser_type,&
                                              parser_create,&
                                              parser_release
+  USE cp_units,                        ONLY: cp_unit_set_create,&
+                                             cp_unit_set_release,&
+                                             cp_unit_set_type
+  USE input_constants,                 ONLY: xc_funct_blyp,&
+                                             xc_funct_hcth120,&
+                                             xc_funct_no_shortcut,&
+                                             xc_funct_olyp,&
+                                             xc_funct_pade,&
+                                             xc_funct_pbe,&
+                                             xc_funct_tpss
+  USE input_cp2k,                      ONLY: create_cp2k_root_section
   USE input_parsing,                   ONLY: section_vals_parse
-  USE cp_units, ONLY: cp_unit_set_type, cp_unit_set_create, cp_unit_set_release
+  USE input_section_types,             ONLY: &
+       section_release, section_type, section_vals_create, section_vals_get, &
+       section_vals_get_subs_vals, section_vals_release, &
+       section_vals_set_subs_vals, section_vals_type, section_vals_val_get, &
+       section_vals_val_set
+  USE kinds,                           ONLY: default_string_length,&
+                                             dp
+  USE timings,                         ONLY: timeset,&
+                                             timestop
 #include "cp_common_uses.h"
 
-  implicit none
-  private
+  IMPLICIT NONE
+  PRIVATE
 
-  logical, private, parameter :: debug_this_module=.true.
-  character(len=*), private, parameter :: moduleN='input_cp2k_check'
+  LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'input_cp2k_check'
 
-  public :: check_cp2k_input, xc_functionals_expand
+  PUBLIC :: check_cp2k_input, xc_functionals_expand
 
 !!***
 !****************************************************************************
-contains
+CONTAINS
 
 
 !!****f* input_cp2k/check_cp2k_input *
@@ -75,16 +84,18 @@ contains
 !!
 !!*** **********************************************************************
   SUBROUTINE check_cp2k_input(input_file,para_env,error)
-    TYPE(section_vals_type), pointer :: input_file
-    TYPE(cp_para_env_type), pointer :: para_env
-    type(cp_error_type), optional, intent(inout) :: error
+    TYPE(section_vals_type), POINTER         :: input_file
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    LOGICAL :: failure, explicit
-    character(len=*), parameter :: routineN='check_cp2k_input',&
-         routineP=moduleN//':'//routineN
-    TYPE(section_vals_type), pointer :: section
+    CHARACTER(len=*), PARAMETER :: routineN = 'check_cp2k_input', &
+      routineP = moduleN//':'//routineN
 
-    failure=.false.
+    LOGICAL                                  :: explicit, failure
+    TYPE(section_vals_type), POINTER         :: section
+
+    failure=.FALSE.
 
     CPPrecondition(ASSOCIATED(input_file),cp_failure_level,routineP,error,failure)
     IF (.NOT.failure) THEN
@@ -139,14 +150,17 @@ contains
 !!
 !!*** **********************************************************************
 SUBROUTINE xc_functionals_expand(functionals,error)
-  TYPE(section_vals_type), pointer :: functionals
-  type(cp_error_type), optional, intent(inout) :: error
-  
-  logical :: failure
-  character(len=*), parameter :: routineN='xc_functionals_expand',&
-        routineP=moduleN//':'//routineN
-  integer :: shortcut
-  failure=.false.
+    TYPE(section_vals_type), POINTER         :: functionals
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'xc_functionals_expand', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: shortcut
+    LOGICAL                                  :: failure
+
+  failure=.FALSE.
   
   IF (.NOT. failure) THEN
      CALL section_vals_val_get(functionals,"_SECTION_PARAMETERS_",&
@@ -222,23 +236,26 @@ END SUBROUTINE xc_functionals_expand
 !!
 !!*** **********************************************************************
 SUBROUTINE handle_ext_restart(input_file,para_env,error)
-  TYPE(section_vals_type), pointer :: input_file
-  TYPE(cp_para_env_type), pointer :: para_env
-  type(cp_error_type), optional, intent(inout) :: error
+    TYPE(section_vals_type), POINTER         :: input_file
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-  LOGICAL :: failure, flag, explicit1, explicit2
-  character(len=*), parameter :: routineN='handle_ext_restart',&
-       routineP=moduleN//':'//routineN
-  TYPE(section_vals_type), POINTER :: restart_input, r_section, section, work_section
-  CHARACTER(default_string_length) :: r_file_path, path
-  TYPE(section_type), POINTER              :: input_structure
-  TYPE(cp_unit_set_type), POINTER :: default_units
-  TYPE(cp_parser_type), POINTER            :: cpparser
-  INTEGER :: n_rep_val, i_rep_val
-  REAL(KIND=dp) :: myt
-  INTEGER       :: myi
+    CHARACTER(len=*), PARAMETER :: routineN = 'handle_ext_restart', &
+      routineP = moduleN//':'//routineN
 
-  failure=.false.
+    CHARACTER(default_string_length)         :: path, r_file_path
+    INTEGER                                  :: i_rep_val, myi, n_rep_val
+    LOGICAL                                  :: explicit1, explicit2, &
+                                                failure, flag
+    REAL(KIND=dp)                            :: myt
+    TYPE(cp_parser_type), POINTER            :: cpparser
+    TYPE(cp_unit_set_type), POINTER          :: default_units
+    TYPE(section_type), POINTER              :: input_structure
+    TYPE(section_vals_type), POINTER         :: r_section, restart_input, &
+                                                section, work_section
+
+  failure=.FALSE.
   NULLIFY(work_section)
   IF (.NOT. failure) THEN
      r_section => section_vals_get_subs_vals(input_file,&

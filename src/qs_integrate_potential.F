@@ -42,6 +42,8 @@ MODULE qs_integrate_potential
                                              get_atomic_kind_set
   USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                              gto_basis_set_type
+  USE cell_types,                      ONLY: cell_type,&
+                                             pbc
   USE coefficient_types,               ONLY: coeff_copy,&
                                              coeff_transform_space,&
                                              coeff_type
@@ -57,6 +59,12 @@ MODULE qs_integrate_potential
                                              return_cube
   USE gaussian_gridlevels,             ONLY: gaussian_gridlevel,&
                                              gridlevel_info_type
+  USE input_constants,                 ONLY: linear_interp,&
+                                             pw_interp,&
+                                             spline3_pbc_interp
+  USE input_section_types,             ONLY: section_vals_get_subs_vals,&
+                                             section_vals_type,&
+                                             section_vals_val_get
   USE kinds,                           ONLY: dp,&
                                              int_size
   USE l_utils,                         ONLY: l_info_type,&
@@ -72,34 +80,28 @@ MODULE qs_integrate_potential
   USE pw_pool_types,                   ONLY: pw_pool_p_type,&
                                              pw_pools_give_back_coeffs,&
                                              pw_pools_init_coeffs
+  USE pw_spline_utils,                 ONLY: pw_restrict_s3
   USE pw_types,                        ONLY: COMPLEXDATA1D,&
                                              REALDATA3D,&
                                              REALSPACE,&
-                                             RECIPROCALSPACE, &
+                                             RECIPROCALSPACE,&
+                                             pw_copy,&
                                              pw_restrict_l,&
-                                             pw_copy, pw_zero
+                                             pw_zero
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
   USE qs_force_types,                  ONLY: qs_force_type
   USE qs_interactions,                 ONLY: exp_radius_very_extended
-  USE qs_neighbor_list_types,          ONLY: first_list,&
-                                             first_node,&
-                                             get_neighbor_list,&
-                                             get_neighbor_list_set,&
-                                             get_neighbor_node,&
-                                             neighbor_list_set_p_type,&
-                                             neighbor_list_type,&
-                                             neighbor_node_type,&
-                                             next
-  USE realspace_grid_types,            ONLY: realspace_grid_p_type,&
+  USE qs_neighbor_list_types,          ONLY: &
+       first_list, first_node, get_neighbor_list, get_neighbor_list_set, &
+       get_neighbor_node, neighbor_list_set_p_type, neighbor_list_type, &
+       neighbor_node_type, next
+  USE realspace_grid_types,            ONLY: pw2rs,&
+                                             realspace_grid_p_type,&
                                              realspace_grid_type,&
                                              rs_get_loop_vars,&
                                              rs_get_my_tasks,&
-                                             rs_pw_transfer,&
-                                             rs2pw,&
-                                             pw2rs
-  USE cell_types,                 ONLY: cell_type,&
-                                             pbc
+                                             rs_pw_transfer
   USE sparse_matrix_types,             ONLY: add_block_node,&
                                              allocate_matrix,&
                                              cp_sm_get_block_list,&
@@ -113,10 +115,6 @@ MODULE qs_integrate_potential
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE util,                            ONLY: get_limit
-  USE input_constants, ONLY: pw_interp, linear_interp, spline3_pbc_interp
-  USE pw_spline_utils, only: pw_restrict_s3
-  USE input_section_types, ONLY: section_vals_type, section_vals_get_subs_vals,&
-       section_vals_val_get
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -139,10 +137,10 @@ CONTAINS
 ! **********************************************************************
 
   SUBROUTINE integrate_v_core_rspace(v_rspace,qs_env,error)
-   TYPE(cp_error_type), INTENT(inout), &
-         OPTIONAL                               :: error
     TYPE(coeff_type), INTENT(INOUT)          :: v_rspace
     TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
     CHARACTER(LEN=*), PARAMETER :: routine = &
       "SUBROUTINE integrate_v_core_rspace (MODULE qs_integrate_potential)"
@@ -285,8 +283,7 @@ CONTAINS
     TYPE(real_matrix_p_type), INTENT(INOUT)  :: h
     TYPE(qs_environment_type), POINTER       :: qs_env
     LOGICAL, INTENT(IN)                      :: calculate_forces
-    LOGICAL, INTENT(IN), OPTIONAL            :: compute_tau
-    LOGICAL, INTENT(IN), OPTIONAL            :: gapw
+    LOGICAL, INTENT(IN), OPTIONAL            :: compute_tau, gapw
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -294,15 +291,14 @@ CONTAINS
       "SUBROUTINE integrate_v_rspace (MODULE qs_integrate_potential)"
     INTEGER, PARAMETER                       :: add_tasks = 1000, &
                                                 max_tasks = 3000
-    REAL(kind=dp), PARAMETER                 :: mult_tasks= 2.0_dp
+    REAL(kind=dp), PARAMETER                 :: mult_tasks = 2.0_dp
 
-    INTEGER :: ab, atom_a, atom_b, bcol, brow, curr_tasks, dir, handle, i, &
-      iatom, igrid_level, ijatoms, ijsets, ikind, ilist, inode, ipgf, iset, &
-      istat, itask, ithread, jatom, jkind, jpgf, jset, maxco, maxsgf_set, n, &
-      na1, na2, nalimit(2), natom, natom_pairs, nb1, nb2, ncoa, ncob, nkind, &
-      nlist, nnode, npme, nseta, nsetb, nthread, omp_get_max_threads, &
-      omp_get_thread_num, sgfa, &
-      sgfb, tp, stat
+    INTEGER :: ab, atom_a, atom_b, auxbas_grid, bcol, brow, curr_tasks, dir, &
+      handle, i, iatom, igrid_level, ijatoms, ijsets, ikind, ilist, inode, &
+      interp_kind, ipgf, iset, istat, itask, ithread, jatom, jkind, jpgf, &
+      jset, maxco, maxsgf_set, n, na1, na2, nalimit(2), natom, natom_pairs, &
+      nb1, nb2, ncoa, ncob, nkind, nlist, nnode, npme, nseta, nsetb, nthread, &
+      omp_get_max_threads, omp_get_thread_num, sgfa, sgfb, stat, tp
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: atom_of_kind
     INTEGER, DIMENSION(:), POINTER           :: la_max, la_min, lb_max, &
                                                 lb_min, npgfa, npgfb, nsgfa, &
@@ -311,8 +307,10 @@ CONTAINS
                                                 first_sgfb, ival, latom, &
                                                 tasks_local
     INTEGER, DIMENSION(:, :, :), POINTER     :: tasks
-    LOGICAL                                  :: h_duplicated, my_compute_tau, &
-                                                my_gapw, p_duplicated
+    LOGICAL                                  :: failure, h_duplicated, &
+                                                map_consistent, &
+                                                my_compute_tau, my_gapw, &
+                                                p_duplicated
     REAL(KIND=dp)                            :: dab, eps_gvg_rspace, &
                                                 kind_radius_b, rab2, scale, &
                                                 zetp
@@ -329,11 +327,17 @@ CONTAINS
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cell_type), POINTER                 :: cell
+    TYPE(coeff_type), DIMENSION(:), POINTER  :: mgrid_gspace, mgrid_rspace, &
+                                                mgrid_temp_rspace
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_rs_pool_p_type), DIMENSION(:), &
       POINTER                                :: rs_pools
+    TYPE(cube_info_type), DIMENSION(:), &
+      POINTER                                :: cube_info
     TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(gridlevel_info_type), POINTER       :: gridlevel_info
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
+    TYPE(l_info_type)                        :: l_info
     TYPE(neighbor_list_set_p_type), &
       DIMENSION(:), POINTER                  :: sab_orb
     TYPE(neighbor_list_type), POINTER        :: sab_orb_neighbor_list
@@ -341,24 +345,17 @@ CONTAINS
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(pw_env_type), POINTER               :: pw_env
+    TYPE(pw_pool_p_type), DIMENSION(:), &
+      POINTER                                :: pw_pools
     TYPE(qs_force_type), DIMENSION(:), &
       POINTER                                :: force
     TYPE(real_matrix_type), POINTER          :: deltap, dh
     TYPE(realspace_grid_p_type), &
       DIMENSION(:), POINTER                  :: rs_v
-    TYPE(coeff_type), DIMENSION(:), POINTER  :: mgrid_rspace, mgrid_gspace, mgrid_temp_rspace
-    TYPE(pw_pool_p_type), DIMENSION(:), &
-      POINTER                                :: pw_pools
-    LOGICAL                                  :: failure,map_consistent
-    INTEGER                                  :: auxbas_grid,j,k
-    TYPE(gridlevel_info_type), POINTER       :: gridlevel_info
-    TYPE(l_info_type)                        :: l_info
-    TYPE(cube_info_type), DIMENSION(:), &
-      POINTER                                :: cube_info
     TYPE(section_vals_type), POINTER         :: input, interp_section
-    integer :: interp_kind
 
 !   ---------------------------------------------------------------------------
+
     failure=.FALSE.
 
     debug_count=debug_count+1
@@ -1084,18 +1081,17 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: hab
     REAL(KIND=dp), DIMENSION(:, :), &
       OPTIONAL, POINTER                      :: pab
-    REAL(KIND=dp), DIMENSION(:, :,:), &
-      OPTIONAL, POINTER                      :: hdab,hadb
     INTEGER, INTENT(IN)                      :: o1, o2
     REAL(KIND=dp), INTENT(IN)                :: eps_gvg_rspace
     LOGICAL, INTENT(IN)                      :: calculate_forces
+    REAL(KIND=dp), DIMENSION(:, :, :), &
+      OPTIONAL, POINTER                      :: hdab, hadb
     REAL(KIND=dp), DIMENSION(3), &
       INTENT(INOUT), OPTIONAL                :: force_a, force_b
     INTEGER, OPTIONAL                        :: ithread
     REAL(KIND=dp), DIMENSION(10), OPTIONAL   :: mytimings
-    LOGICAL, INTENT(IN), OPTIONAL            :: compute_tau
-    LOGICAL, INTENT(IN), OPTIONAL            :: map_consistent
-    LOGICAL, INTENT(IN), OPTIONAL            :: collocate_rho0
+    LOGICAL, INTENT(IN), OPTIONAL            :: compute_tau, map_consistent, &
+                                                collocate_rho0
     REAL(dp), INTENT(IN), OPTIONAL           :: rpgf0_s
 
     INTEGER :: ax, ay, az, bx, by, bz, cmax, coef_max, gridbounds(2,3), i, &
@@ -1108,10 +1104,11 @@ CONTAINS
     INTEGER, DIMENSION(:, :), POINTER        :: map
     INTEGER, POINTER                         :: ipzyx(:,:,:,:,:,:)
     LOGICAL                                  :: my_collocate_rho0, &
-                                                my_compute_tau,my_map_consistent
+                                                my_compute_tau, &
+                                                my_map_consistent
     REAL(KIND=dp) :: a, axpm0, b, binomial_k_lxa, binomial_l_lxb, cutoff, &
-      der_a(3), der_b(3), exp_x0, exp_x1, exp_x2, f, ftza, ftzb, pabval, &
-      pg, prefactor, radius, rpg, ya, yap, yb, ybp, za, zap, zb, zbp, zetp
+      der_a(3), der_b(3), exp_x0, exp_x1, exp_x2, f, ftza, ftzb, pabval, pg, &
+      prefactor, radius, rpg, ya, yap, yb, ybp, za, zap, zb, zbp, zetp
     REAL(KIND=dp), DIMENSION(3)              :: dr, rap, rb, rbp, roffset, rp
     REAL(KIND=dp), DIMENSION(:, :, :), &
       POINTER                                :: grid
@@ -1120,6 +1117,7 @@ CONTAINS
                                                 poly(:,:), polz(:,:), pzyx(:)
 
 !   ---------------------------------------------------------------------------
+
     IF (PRESENT(ithread)) THEN
        ithread_l=ithread
     ELSE
@@ -1263,9 +1261,9 @@ CONTAINS
 !  exp(-2*a*(x+d)*d)=exp(-2*a*x*d)*exp(-2*a*d**2)
 
     rpg=REAL(lb_cube(3)-1,dp)*dr(3)-roffset(3)
-    exp_x2=exp(-zetp*rpg**2)
-    exp_x1=exp(-2*zetp*rpg*dr(3))
-    exp_x0=exp(-zetp*dr(3)**2)
+    exp_x2=EXP(-zetp*rpg**2)
+    exp_x1=EXP(-2*zetp*rpg*dr(3))
+    exp_x0=EXP(-zetp*dr(3)**2)
 
     DO ig=lb_cube(3),ub_cube(3)
       lxyz=0
@@ -1302,9 +1300,9 @@ CONTAINS
     ENDDO
 
     rpg=REAL(lb_cube(2)-1,dp)*dr(2)-roffset(2)
-    exp_x2=exp(-zetp*rpg**2)
-    exp_x1=exp(-2*zetp*rpg*dr(2))
-    exp_x0=exp(-zetp*dr(2)**2)
+    exp_x2=EXP(-zetp*rpg**2)
+    exp_x1=EXP(-2*zetp*rpg*dr(2))
+    exp_x0=EXP(-zetp*dr(2)**2)
     DO ig=lb_cube(2),ub_cube(2)
       rpg = rpg + dr(2)
       ! yap = EXP(-zetp*rpg**2)
@@ -1362,9 +1360,9 @@ CONTAINS
     ENDDO
 
     rpg=REAL(lb_cube(1)-1,dp)*dr(1)-roffset(1)
-    exp_x2=exp(-zetp*rpg**2)
-    exp_x1=exp(-2*zetp*rpg*dr(1))
-    exp_x0=exp(-zetp*dr(1)**2)
+    exp_x2=EXP(-zetp*rpg**2)
+    exp_x1=EXP(-2*zetp*rpg*dr(1))
+    exp_x0=EXP(-zetp*dr(1)**2)
     DO ig=lb_cube(1),ub_cube(1)
       rpg = rpg + dr(1)
       ! pg  = EXP(-zetp*rpg**2)

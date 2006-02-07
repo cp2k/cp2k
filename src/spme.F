@@ -23,51 +23,43 @@ MODULE spme
 
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind
-  USE coefficient_types,               ONLY: coeff_transform_space,&
-                                             coeff_type
+  USE cell_types,                      ONLY: cell_type
   USE dgs,                             ONLY: dg_sum_patch,&
                                              dg_sum_patch_force_3d
-  USE ewald_environment_types,         ONLY: ewald_environment_type, &
-                                             ewald_env_get
-  USE ewald_pw_types,                  ONLY: ewald_pw_type, &
-                                             ewald_pw_get
+  USE ewald_environment_types,         ONLY: ewald_env_get,&
+                                             ewald_environment_type
+  USE ewald_pw_types,                  ONLY: ewald_pw_get,&
+                                             ewald_pw_type
+  USE input_section_types,             ONLY: section_vals_type
   USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: fourpi
   USE particle_types,                  ONLY: particle_type
   USE pw_grid_types,                   ONLY: pw_grid_type
-  USE pw_pool_types,                   ONLY: pw_pool_type, &
-                                             pw_pool_init_coeff, &
-                                             pw_pool_give_back_coeff,&
-                                             pw_pool_create_pw,&
-                                             pw_pool_give_back_pw
+  USE pw_poisson_methods,              ONLY: pw_poisson_rebuild,&
+                                             pw_poisson_solve
+  USE pw_poisson_types,                ONLY: greens_fn_type,&
+                                             pw_poisson_type
+  USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
+                                             pw_pool_give_back_pw,&
+                                             pw_pool_type
   USE pw_types,                        ONLY: COMPLEXDATA1D,&
-                                             COMPLEXDATA3D,&
-                                             REALDATA1D,&
                                              REALDATA3D,&
                                              REALSPACE,&
-                                             RECIPROCALSPACE, &
-                                             pw_type,&
+                                             RECIPROCALSPACE,&
+                                             pw_integral_a2b,&
                                              pw_p_type,&
-                                             pw_integral_a2b, pw_transfer
-  USE realspace_grid_types,            ONLY: realspace_grid_type,&
-                                             rs_grid_release,&
-                                             rs_grid_create,&
-                                             realspace_grid_p_type,&
-                                             rs_grid_p_release,&
-                                             rs_grid_p_create,&
-                                             rs_pw_transfer,&
-                                             rs2pw,&
-                                             pw2rs
-  USE cell_types,                 ONLY: cell_type
+                                             pw_transfer,&
+                                             pw_type
+  USE realspace_grid_types,            ONLY: &
+       pw2rs, realspace_grid_p_type, realspace_grid_type, rs2pw, &
+       rs_grid_create, rs_grid_p_create, rs_grid_p_release, rs_grid_release, &
+       rs_pw_transfer
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE pw_poisson_types, ONLY: pw_poisson_type, greens_fn_type
-  USE pw_poisson_methods, ONLY: pw_poisson_solve, pw_poisson_rebuild
-  USE input_section_types,             ONLY: section_vals_type
-
 #include "cp_common_uses.h"
+
   IMPLICIT NONE
 
   PRIVATE
@@ -98,35 +90,39 @@ SUBROUTINE spme_evaluate ( ewald_env, ewald_pw, particle_set, &
                            fg_coulomb, vg_coulomb, pv_g, force_env_section,error )
 
 
+    TYPE(ewald_environment_type), POINTER    :: ewald_env
+    TYPE(ewald_pw_type), POINTER             :: ewald_pw
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
-    REAL(KIND=dp), DIMENSION(:, :), INTENT(OUT)  :: fg_coulomb
-    REAL(KIND=dp), INTENT(OUT)                   :: vg_coulomb
-    REAL(KIND=dp), DIMENSION(:, :), INTENT(OUT)  :: pv_g
-    TYPE(ewald_environment_type), POINTER    :: ewald_env
-    TYPE ( ewald_pw_type ), POINTER          :: ewald_pw
-    TYPE(cp_error_type), INTENT(inout), optional :: error
-    TYPE(section_vals_type), POINTER :: force_env_section
+    REAL(KIND=dp), DIMENSION(:, :), &
+      INTENT(OUT)                            :: fg_coulomb
+    REAL(KIND=dp), INTENT(OUT)               :: vg_coulomb
+    REAL(KIND=dp), DIMENSION(:, :), &
+      INTENT(OUT)                            :: pv_g
+    TYPE(section_vals_type), POINTER         :: force_env_section
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    INTEGER                                  :: handle, i, ierr, ipart, j, &
-                                                jpart, n, ndim( 3 ), npart, p1
-    INTEGER                                  :: o_spline, group
+    INTEGER                                  :: group, handle, i, ierr, &
+                                                ipart, j, jpart, n, &
+                                                ndim( 3 ), npart, o_spline, p1
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: centre
-    REAL(KIND=dp)                                :: dvols, ffa, inv_fourpi_eps0
+    REAL(KIND=dp)                            :: alpha, dvols, eps0, ffa, &
+                                                inv_fourpi_eps0
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :, :)                     :: rhos
-    REAL(KIND=dp), DIMENSION(3)                  :: fat
-    REAL(KIND=dp), DIMENSION(3, 3)               :: f_stress, h_stress
-    REAL (KIND=dp)                             :: alpha, eps0
-    TYPE(pw_type), pointer :: phi_g, rhob_g, rhob_r
-    TYPE(pw_p_type), dimension(3) :: dphi_g
-    TYPE(realspace_grid_type), POINTER        :: rden
-    TYPE(realspace_grid_p_type), POINTER, DIMENSION(:) :: drpot
+    REAL(KIND=dp), DIMENSION(3)              :: fat
+    REAL(KIND=dp), DIMENSION(3, 3)           :: f_stress, h_stress
+    TYPE(cell_type), POINTER                 :: box
+    TYPE(greens_fn_type), POINTER            :: green
     TYPE(pw_grid_type), POINTER              :: grid_spme
+    TYPE(pw_p_type), DIMENSION(3)            :: dphi_g
+    TYPE(pw_poisson_type), POINTER           :: poisson_env
     TYPE(pw_pool_type), POINTER              :: pw_pool
-    TYPE(cell_type), POINTER           :: box
-    TYPE(greens_fn_type), POINTER      :: green
-    TYPE(pw_poisson_type), pointer :: poisson_env
+    TYPE(pw_type), POINTER                   :: phi_g, rhob_g, rhob_r
+    TYPE(realspace_grid_p_type), &
+      DIMENSION(:), POINTER                  :: drpot
+    TYPE(realspace_grid_type), POINTER       :: rden
 
 !------------------------------------------------------------------------------
 !-------------- INITIALISATION ---------------------
@@ -192,7 +188,7 @@ SUBROUTINE spme_evaluate ( ewald_env, ewald_pw, particle_set, &
 
   ! allocate intermediate arrays
   DO i = 1, 3
-     nullify(dphi_g(i)%pw)
+     NULLIFY(dphi_g(i)%pw)
      CALL pw_pool_create_pw ( pw_pool, dphi_g ( i )%pw,  &
                               use_data = COMPLEXDATA1D,   &
                               in_space = RECIPROCALSPACE )
@@ -300,15 +296,15 @@ SUBROUTINE get_patch ( part, box, green, npts, p, rhos )
     TYPE(particle_type), DIMENSION(:), &
       INTENT(IN)                             :: part
     TYPE(cell_type), INTENT(IN)              :: box
-    TYPE(greens_fn_type), POINTER      :: green
+    TYPE(greens_fn_type), POINTER            :: green
     INTEGER, DIMENSION(3), INTENT(IN)        :: npts
     INTEGER, INTENT(IN)                      :: p
     REAL(KIND=dp), DIMENSION(:, :, :), &
       INTENT(OUT)                            :: rhos
 
     INTEGER                                  :: nbox
-    REAL(KIND=dp)                                :: q
-    REAL(KIND=dp), DIMENSION(3)                  :: delta, r
+    REAL(KIND=dp)                            :: q
+    REAL(KIND=dp), DIMENSION(3)              :: delta, r
 
 !------------------------------------------------------------------------------
 
@@ -345,8 +341,8 @@ SUBROUTINE spme_get_patch ( rhos, n, delta, q, coeff )
     REAL(KIND=dp), DIMENSION(:, :, :), &
       INTENT(OUT)                            :: rhos
     INTEGER, INTENT(IN)                      :: n
-    REAL(KIND=dp), DIMENSION(3), INTENT(IN)      :: delta
-    REAL(KIND=dp), INTENT(IN)                    :: q
+    REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: delta
+    REAL(KIND=dp), INTENT(IN)                :: q
     REAL(KIND=dp), &
       DIMENSION(-(n-1):n-1, 0:n-1), &
       INTENT(IN)                             :: coeff
@@ -354,10 +350,10 @@ SUBROUTINE spme_get_patch ( rhos, n, delta, q, coeff )
     INTEGER, PARAMETER                       :: nmax = 12
 
     INTEGER                                  :: i, i1, i2, i3, j, l
-    REAL(KIND=dp)                                :: r2, r3
-    REAL(KIND=dp), DIMENSION(3, -nmax:nmax)      :: w_assign
-    REAL(KIND=dp), DIMENSION(3, 0:nmax-1)        :: deltal
-    REAL(KIND=dp), DIMENSION(3, 1:nmax)          :: f_assign
+    REAL(KIND=dp)                            :: r2, r3
+    REAL(KIND=dp), DIMENSION(3, -nmax:nmax)  :: w_assign
+    REAL(KIND=dp), DIMENSION(3, 0:nmax-1)    :: deltal
+    REAL(KIND=dp), DIMENSION(3, 1:nmax)      :: f_assign
 
 !------------------------------------------------------------------------------
 
@@ -428,11 +424,11 @@ SUBROUTINE set_list ( part, npart, center, p1, rs, ipart, jpart )
     INTEGER, INTENT(IN)                      :: npart
     INTEGER, DIMENSION(:, :), INTENT(IN)     :: center
     INTEGER, INTENT(OUT)                     :: p1
-    TYPE(realspace_grid_type), POINTER                :: rs
+    TYPE(realspace_grid_type), POINTER       :: rs
     INTEGER, INTENT(INOUT)                   :: ipart, jpart
 
     INTEGER                                  :: dir, lb, ndim, npos, ub
-    REAL(KIND=dp)                                :: charge
+    REAL(KIND=dp)                            :: charge
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
 
 !------------------------------------------------------------------------------
@@ -508,8 +504,8 @@ SUBROUTINE get_center ( part, box, centre, npts, n )
     INTEGER, INTENT(IN)                      :: n
 
     INTEGER                                  :: ipart, mp
-    REAL(KIND=dp)                                :: rmp
-    REAL(KIND=dp), DIMENSION(3)                  :: gp, s
+    REAL(KIND=dp)                            :: rmp
+    REAL(KIND=dp), DIMENSION(3)              :: gp, s
 
 !------------------------------------------------------------------------------
 
@@ -535,15 +531,15 @@ END SUBROUTINE get_center
 SUBROUTINE get_delta ( box, r, npts, delta, n )
 
     TYPE(cell_type), INTENT(IN)              :: box
-    REAL(KIND=dp), DIMENSION(:), INTENT(IN)      :: r
+    REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: r
     INTEGER, DIMENSION(:), INTENT(IN)        :: npts
-    REAL(KIND=dp), DIMENSION(:), INTENT(OUT)     :: delta
+    REAL(KIND=dp), DIMENSION(:), INTENT(OUT) :: delta
     INTEGER, INTENT(IN)                      :: n
 
     INTEGER                                  :: mp
     INTEGER, DIMENSION(3)                    :: centre
-    REAL(KIND=dp)                                :: rmp
-    REAL(KIND=dp), DIMENSION(3)                  :: ca, grid_i, s
+    REAL(KIND=dp)                            :: rmp
+    REAL(KIND=dp), DIMENSION(3)              :: ca, grid_i, s
 
 !------------------------------------------------------------------------------
 

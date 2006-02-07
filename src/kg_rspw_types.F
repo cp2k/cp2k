@@ -27,25 +27,24 @@ MODULE kg_rspw_types
                                              destroy_cube_info
   USE gaussian_gridlevels,             ONLY: destroy_gaussian_gridlevel,&
                                              gridlevel_info_type
+  USE input_section_types,             ONLY: section_vals_type
   USE kinds,                           ONLY: dp
   USE l_utils,                         ONLY: destroy_l_info,&
                                              l_info_type
-  USE pw_pool_types,                   ONLY: pw_pool_release,&
-                                             pw_pool_p_type,&
+  USE pw_poisson_types,                ONLY: pw_poisson_release,&
+                                             pw_poisson_type
+  USE pw_pool_types,                   ONLY: pw_pool_p_type,&
                                              pw_pool_type,&
                                              pw_pools_dealloc
-  USE termination,                     ONLY: stop_memory
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE input_section_types,             ONLY: section_vals_type
-  USE pw_poisson_types, ONLY: pw_poisson_type, pw_poisson_release, pw_poisson_create, pw_poisson_retain
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
 
   PRIVATE
   LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
-  CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='kg_rspw_types'
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'kg_rspw_types'
   PUBLIC :: kg_rspw_type, kg_rspw_release, kg_rspw_get, &
             kg_rspw_retain
 
@@ -57,7 +56,7 @@ MODULE kg_rspw_types
      TYPE(cube_info_type), DIMENSION(:), POINTER    :: cube_info
      TYPE(pw_pool_p_type), DIMENSION(:), POINTER    :: pw_pools
      TYPE(cp_rs_pool_p_type), DIMENSION(:), POINTER :: rs_pools
-     TYPE(pw_poisson_type), pointer :: poisson_env
+     TYPE(pw_poisson_type), POINTER :: poisson_env
   END TYPE kg_rspw_type
 !-----------------------------------------------------------------------------!
 
@@ -69,9 +68,7 @@ CONTAINS
 SUBROUTINE kg_rspw_get(kg_rspw, l_info, cube_info, gridlevel_info,&
      auxbas_pw_pool,auxbas_grid,rs_pools,pw_pools,auxbas_rs_pool,&
      poisson_env,error)
-    TYPE(kg_rspw_type), POINTER               :: kg_rspw
-    TYPE(pw_pool_p_type), DIMENSION(:), &
-     OPTIONAL, POINTER                      :: pw_pools
+    TYPE(kg_rspw_type), POINTER              :: kg_rspw
     TYPE(l_info_type), OPTIONAL, POINTER     :: l_info
     TYPE(cube_info_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: cube_info
@@ -81,8 +78,10 @@ SUBROUTINE kg_rspw_get(kg_rspw, l_info, cube_info, gridlevel_info,&
     INTEGER, INTENT(out), OPTIONAL           :: auxbas_grid
     TYPE(cp_rs_pool_p_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: rs_pools
+    TYPE(pw_pool_p_type), DIMENSION(:), &
+      OPTIONAL, POINTER                      :: pw_pools
     TYPE(cp_rs_pool_type), OPTIONAL, POINTER :: auxbas_rs_pool
-    TYPE(pw_poisson_type), POINTER, optional :: poisson_env
+    TYPE(pw_poisson_type), OPTIONAL, POINTER :: poisson_env
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -109,12 +108,12 @@ SUBROUTINE kg_rspw_get(kg_rspw, l_info, cube_info, gridlevel_info,&
         auxbas_rs_pool => kg_rspw%rs_pools(kg_rspw%auxbas_grid)%pool
      END IF
      IF (PRESENT(auxbas_grid)) auxbas_grid = kg_rspw%auxbas_grid
-     if (present(poisson_env)) poisson_env => kg_rspw%poisson_env
+     IF (PRESENT(poisson_env)) poisson_env => kg_rspw%poisson_env
   END IF
 END SUBROUTINE kg_rspw_get
 !***************************************************************************
 SUBROUTINE kg_rspw_retain(kg_rspw,error)
-    TYPE(kg_rspw_type), POINTER               :: kg_rspw
+    TYPE(kg_rspw_type), POINTER              :: kg_rspw
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -147,11 +146,11 @@ END SUBROUTINE kg_rspw_retain
   SUBROUTINE kg_rspw_release(kg_rspw,force_env_section,error)               
 
 
-    TYPE(kg_rspw_type), POINTER               :: kg_rspw
+    TYPE(kg_rspw_type), POINTER              :: kg_rspw
+    TYPE(section_vals_type), POINTER         :: force_env_section
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
-    TYPE(section_vals_type), POINTER :: force_env_section
- 
+
     CHARACTER(len=*), PARAMETER :: routineN = 'kg_rspw_release', &
       routineP = moduleN//':'//routineN
 

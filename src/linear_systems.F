@@ -55,7 +55,7 @@ CONTAINS
 SUBROUTINE ch_inv_pdsym ( matrix, mysize, storageform )
 
 
-    REAL(KIND=dp), INTENT(INOUT)            :: matrix( :, : )
+    REAL(KIND=dp), INTENT(INOUT)             :: matrix( :, : )
     INTEGER, INTENT(IN)                      :: mysize
     CHARACTER(LEN=*), INTENT(IN)             :: storageform
 
@@ -70,7 +70,7 @@ SUBROUTINE ch_inv_pdsym ( matrix, mysize, storageform )
      uplo = "L"
   ELSE IF ( storageform ( 1:5 ) == "Upper" .OR. &
        storageform ( 1:5 ) == "upper" .OR. &
-       storageform ( 1:5 ) == "UPPER" ) then
+       storageform ( 1:5 ) == "UPPER" ) THEN
      uplo = "U"
   ELSE
      CALL stop_program ( "ch_inv_pdsym", "unknown form of storage" )
@@ -94,7 +94,7 @@ END SUBROUTINE ch_inv_pdsym
 SUBROUTINE ch_inv_pdher ( matrix, mysize, storageform )
 
 
-    COMPLEX(KIND=dp), INTENT(INOUT)         :: matrix( :, : )
+    COMPLEX(KIND=dp), INTENT(INOUT)          :: matrix( :, : )
     INTEGER, INTENT(IN)                      :: mysize
     CHARACTER(LEN=*), INTENT(IN)             :: storageform
 
@@ -109,7 +109,7 @@ SUBROUTINE ch_inv_pdher ( matrix, mysize, storageform )
      uplo = "L"
   ELSE IF ( storageform ( 1:5 ) == "Upper" .OR. &
        storageform ( 1:5 ) == "upper" .OR. &
-       storageform ( 1:5 ) == "UPPER" ) then
+       storageform ( 1:5 ) == "UPPER" ) THEN
      uplo = "U"
   ELSE
      CALL stop_program ( "ch_inv_pdher", "unknown form of storage" )
@@ -132,9 +132,9 @@ END SUBROUTINE ch_inv_pdher
 SUBROUTINE solve_system ( matrix, mysize, eigenvectors )
 
 
-    REAL(KIND=dp), INTENT(INOUT)            :: matrix( :, : )
+    REAL(KIND=dp), INTENT(INOUT)             :: matrix( :, : )
     INTEGER, INTENT(IN)                      :: mysize
-    REAL(KIND=dp), INTENT(INOUT)            :: eigenvectors( :, : )
+    REAL(KIND=dp), INTENT(INOUT)             :: eigenvectors( :, : )
 
     INTEGER                                  :: info, lda, ldb, nrhs
     INTEGER                                  :: ipiv( mysize )

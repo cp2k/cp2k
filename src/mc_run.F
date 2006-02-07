@@ -50,33 +50,32 @@
 MODULE mc_run
   USE cp_subsystem_types,              ONLY: cp_subsys_get,&
                                              cp_subsystem_p_type
-  USE force_env_methods,               ONLY: force_env_calc_energy_force
   USE force_env_types,                 ONLY: force_env_get,&
-                                             force_env_type,&
                                              force_env_release,&
+                                             force_env_type,&
                                              use_fist_force
   USE global_types,                    ONLY: global_environment_type
   USE kinds,                           ONLY: dp
-  USE mc_control,                      ONLY: read_mc_restart,&
-                                             mc_create_force_env
+  USE mc_control,                      ONLY: mc_create_force_env,&
+                                             read_mc_restart
   USE mc_ensembles,                    ONLY: mc_run_ensemble
-  USE mc_environment_types,            ONLY: mc_env_release,&
+  USE mc_environment_types,            ONLY: get_mc_env,&
                                              mc_env_create,&
+                                             mc_env_release,&
                                              mc_environment_p_type,&
-                                             set_mc_env,&
-                                             get_mc_env
-  USE mc_types,                        ONLY: mc_simulation_parameters_type,&
-                                             read_mc_section,&
-                                             determine_conf_prob,&
+                                             set_mc_env
+  USE mc_types,                        ONLY: determine_conf_prob,&
+                                             find_mc_rcut,&
                                              get_mc_par,&
-                                             set_mc_par,&
-                                             find_mc_rcut
+                                             mc_simulation_parameters_type,&
+                                             read_mc_section,&
+                                             set_mc_par
   USE mol_kind_new_list_types,         ONLY: mol_kind_new_list_type
   USE molecule_kind_types,             ONLY: get_molecule_kind,&
                                              molecule_kind_type
-  USE parallel_rng_types,              ONLY: rng_stream_type,&
-                                             create_rng_stream,&
-                                             delete_rng_stream
+  USE parallel_rng_types,              ONLY: create_rng_stream,&
+                                             delete_rng_stream,&
+                                             rng_stream_type
   USE physcon,                         ONLY: angstrom
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
@@ -87,7 +86,7 @@ MODULE mc_run
   PRIVATE
 ! *** Global parameters ***
 
-  CHARACTER(LEN=*), PARAMETER :: module_name = "mc_run"
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'mc_run'
 
   PUBLIC :: do_mon_car
   
@@ -130,39 +129,36 @@ CONTAINS
   SUBROUTINE do_mon_car ( force_env, globenv, error )
 
 
-! Arguments
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(global_environment_type), POINTER   :: globenv
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-! Local Parameters
-   CHARACTER(LEN=*), PARAMETER :: routine_name = "do_mon_car", &
-      routineP = module_name//':'//routine_name
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'do_mon_car', &
+      routineP = moduleN//':'//routineN
 
-! Local Variables
-    TYPE(force_env_type), POINTER            :: force_env_2
-    INTEGER                                  :: isos, iw,&
-      nchain,nunits_tot,nunits,ibox,nboxes,in_use,&
-      nstep,iupvolume,iuptrans,nmoves,nswapmoves,iprint
-    LOGICAL                                  :: lrestart,ionode,lterminate,&
-      lbias,lstop
-    TYPE(cp_subsystem_p_type), &
-      DIMENSION(:), POINTER                  :: subsys,subsys_2
-    TYPE(mc_environment_p_type), POINTER,DIMENSION(:) &
-                                             :: mc_env
-    TYPE(mc_simulation_parameters_type), &
-      POINTER                                :: mc_par,mc_par_2
-    TYPE(mol_kind_new_list_type), POINTER    :: molecule_kinds_new
-    TYPE(mol_kind_new_list_type), POINTER    :: molecule_kinds_new_2
-    TYPE(molecule_kind_type), POINTER        :: molecule_kind
-    TYPE(molecule_kind_type), POINTER        :: molecule_kind_2
-    TYPE(rng_stream_type), POINTER           :: rng_stream
     CHARACTER(LEN=20)                        :: ensemble
-    CHARACTER(LEN=40)                        :: dat_file,box2_file
-    REAL(KIND=dp)                            :: rcut,pmswap,temp,pressure,&
-      pmvolume,pmtraion,pmtrans,BETA
-    REAL(KIND=dp),DIMENSION(1:3)             :: conf_prob
+    CHARACTER(LEN=40)                        :: box2_file, dat_file
+    INTEGER :: ibox, in_use, iprint, isos, iuptrans, iupvolume, iw, nboxes, &
+      nchain, nmoves, nstep, nswapmoves, nunits, nunits_tot
+    LOGICAL                                  :: ionode, lbias, lrestart, &
+                                                lstop, lterminate
+    REAL(KIND=dp)                            :: BETA, pmswap, pmtraion, &
+                                                pmtrans, pmvolume, pressure, &
+                                                rcut, temp
+    REAL(KIND=dp), DIMENSION(1:3)            :: conf_prob
+    TYPE(cp_subsystem_p_type), &
+      DIMENSION(:), POINTER                  :: subsys, subsys_2
+    TYPE(force_env_type), POINTER            :: force_env_2
+    TYPE(mc_environment_p_type), &
+      DIMENSION(:), POINTER                  :: mc_env
+    TYPE(mc_simulation_parameters_type), &
+      POINTER                                :: mc_par, mc_par_2
+    TYPE(mol_kind_new_list_type), POINTER    :: molecule_kinds_new, &
+                                                molecule_kinds_new_2
+    TYPE(molecule_kind_type), POINTER        :: molecule_kind, molecule_kind_2
+    TYPE(rng_stream_type), POINTER           :: rng_stream
+
 !------------------------------------------------------------------------------
 
       NULLIFY(mc_env,mc_par,mc_par_2,force_env_2,rng_stream)

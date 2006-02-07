@@ -18,7 +18,8 @@
 !!   SOURCE
 !******************************************************************************
 MODULE cp_files
-  USE string_utilities, ONLY : uppercase
+  USE string_utilities,                ONLY: uppercase
+
   IMPLICIT NONE
   PRIVATE
 
@@ -32,7 +33,7 @@ MODULE cp_files
   INTEGER, PARAMETER, PRIVATE :: max_message_length=400
   INTEGER, PARAMETER, PRIVATE :: max_unit_number=999
 ! *****************************************************************************
-  CHARACTER(LEN=*), PARAMETER :: module_name = "cp_files"
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_files'
   INTEGER, DIMENSION(2), PARAMETER :: reserved_unit_numbers = (/5,6/)
 CONTAINS
   !!****f* cp_log_handling/close_file *
@@ -58,7 +59,7 @@ CONTAINS
     INTEGER, INTENT(IN)                      :: unit_number
     CHARACTER(LEN=*), INTENT(IN), OPTIONAL   :: file_status
 
-    CHARACTER(LEN=*), PARAMETER              :: routine_name = "close_file"
+    CHARACTER(LEN=*), PARAMETER              :: routineN = 'close_file'
 
     CHARACTER(LEN=6)                         :: status_string
     CHARACTER(LEN=max_message_length)        :: message
@@ -156,21 +157,21 @@ CONTAINS
                        file_position,file_pad,unit_number)
 
     CHARACTER(LEN=*), INTENT(IN)             :: file_name
-    CHARACTER(LEN=*), INTENT(IN), OPTIONAL   :: file_status, file_form, file_pad,&
-                                                file_action, file_position
+    CHARACTER(LEN=*), INTENT(IN), OPTIONAL   :: file_status, file_form, &
+                                                file_action, file_position, &
+                                                file_pad
     INTEGER, INTENT(OUT)                     :: unit_number
 
-    CHARACTER(LEN=*), PARAMETER              :: routine_name = "open_file"
+    CHARACTER(LEN=*), PARAMETER              :: routineN = 'open_file'
 
     CHARACTER(LEN=11)                        :: action_string, form_string, &
-                                                position_string, status_string,&
-                                                pad_string
+                                                pad_string, position_string, &
+                                                status_string
     CHARACTER(LEN=max_message_length)        :: message
     INTEGER                                  :: istat
     LOGICAL                                  :: exists, opened
 
 !   ---------------------------------------------------------------------------
-
 
     IF (PRESENT(file_status)) THEN
       status_string = file_status
@@ -225,7 +226,7 @@ CONTAINS
       STOP  ! should actually do error recovery....
     ELSE IF (status_string == "OLD") THEN
       IF (.NOT.exists) THEN
-         write(6,*) "The specified file "//TRIM(file_name)//" can not be opened, it does not exist"
+         WRITE(6,*) "The specified file "//TRIM(file_name)//" can not be opened, it does not exist"
          STOP  ! should actually do error recovery....
       END IF
     END IF
@@ -244,7 +245,7 @@ CONTAINS
       unit_number = get_unit_number()
 
       IF (unit_number < 0) THEN
-         write(6,*) "Problems opening file, there are no free units left"
+         WRITE(6,*) "Problems opening file, there are no free units left"
          STOP  ! should actually do error recovery....
       END IF
 
@@ -300,15 +301,12 @@ CONTAINS
   !!
   !!*** *********************************************************************
   SUBROUTINE move_file(Ifilename, Ofilename)
-    IMPLICIT NONE
-    ! Arguments
-    CHARACTER (LEN=*), INTENT(IN)  :: Ifilename, Ofilename
-    ! Local Variables
-    INTEGER, PARAMETER             :: max_line_length=1024
-    INTEGER                        :: iunit_in, iunit_out
-    CHARACTER(len=max_line_length) :: line, myfmt
-    INTEGER                        :: i
+    CHARACTER(LEN=*), INTENT(IN)             :: Ifilename, Ofilename
 
+    INTEGER, PARAMETER                       :: max_line_length = 1024
+
+    CHARACTER(len=max_line_length)           :: line, myfmt
+    INTEGER                                  :: i, iunit_in, iunit_out
 
     WRITE(myfmt,'(A,I0,A)') '(A',max_line_length,')'
 

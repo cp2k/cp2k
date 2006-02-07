@@ -19,8 +19,7 @@
 
 MODULE virial_types
 
-  USE kinds,       ONLY: dp
-  USE termination, ONLY : stop_program
+  USE kinds,                           ONLY: dp
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -29,7 +28,7 @@ MODULE virial_types
   PUBLIC:: virial_type, virial_set, virial_get, cp_virial,&
            virial_create, virial_retain, virial_release, zero_virial
 
-  CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='virial_types'
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'virial_types'
   INTEGER, PRIVATE, SAVE :: last_virial_id_nr=0
 
   TYPE virial_type
@@ -54,8 +53,8 @@ CONTAINS
 
     TYPE(virial_type), POINTER               :: virial_in, virial_out
 
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "cp_virial",&
-                                   routineP = moduleN//':'//routine_name
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'cp_virial', &
+      routineP = moduleN//':'//routineN
 
     virial_out % pv_total = virial_in % pv_total 
     virial_out % pv_kinetic = virial_in % pv_kinetic  
@@ -75,10 +74,10 @@ CONTAINS
 !   ***************************************************************************
 
     TYPE(virial_type), INTENT(OUT)           :: virial
-    LOGICAL, INTENT ( IN ), OPTIONAL         :: virial_in_use, numer_virial
+    LOGICAL, INTENT(IN), OPTIONAL            :: virial_in_use, numer_virial
 
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "zero_virial",&
-                                   routineP = moduleN//':'//routine_name
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'zero_virial', &
+      routineP = moduleN//':'//routineN
 
     virial % pv_total = 0.0_dp 
     virial % pv_kinetic = 0.0_dp 
@@ -102,20 +101,19 @@ CONTAINS
  SUBROUTINE virial_set ( virial, pv_total, pv_virial, pv_constraint, &
                          pv_kinetic, pv_availability, pv_numer )
 
-    IMPLICIT NONE
 !   Purpose: Set the virial_type
 
 !   ***************************************************************************
 
-    TYPE ( virial_type ), POINTER :: virial
-    REAL (KIND=dp),  DIMENSION ( 3, 3 ), OPTIONAL :: pv_total, pv_virial, pv_constraint, pv_kinetic
-    LOGICAL, OPTIONAL :: pv_availability, pv_numer
-    
-!   ---------------------------------------------------------------------------
-!   *** Local parameters ***
+    TYPE(virial_type), POINTER               :: virial
+    REAL(KIND=dp), DIMENSION(3, 3), OPTIONAL :: pv_total, pv_virial, &
+                                                pv_constraint, pv_kinetic
+    LOGICAL, OPTIONAL                        :: pv_availability, pv_numer
 
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "virial_set",&
-         routineP=moduleN//':'//routine_name
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'virial_set', &
+      routineP = moduleN//':'//routineN
+
+!   ---------------------------------------------------------------------------
 
     IF ( PRESENT ( pv_total ) ) virial % pv_total = pv_total
     IF ( PRESENT ( pv_virial ) ) virial % pv_virial = pv_virial
@@ -129,21 +127,19 @@ CONTAINS
  SUBROUTINE virial_get ( virial, pv_total, pv_virial, pv_constraint, &
                          pv_kinetic, pv_availability, pv_numer )
 
-    IMPLICIT NONE
 !   Purpose: Get the virial_type
 
 !   ***************************************************************************
 
-    TYPE ( virial_type ), POINTER :: virial
-    REAL (KIND=dp),  OPTIONAL, DIMENSION ( 3, 3 ) :: pv_total, pv_virial,&
-                                                     pv_constraint, pv_kinetic
-    LOGICAL, OPTIONAL :: pv_availability, pv_numer
-    
-!   ---------------------------------------------------------------------------
-!   *** Local parameters ***
+    TYPE(virial_type), POINTER               :: virial
+    REAL(KIND=dp), DIMENSION(3, 3), OPTIONAL :: pv_total, pv_virial, &
+                                                pv_constraint, pv_kinetic
+    LOGICAL, OPTIONAL                        :: pv_availability, pv_numer
 
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "virial_get",&
-         routineP=moduleN//':'//routine_name
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'virial_get', &
+      routineP = moduleN//':'//routineN
+
+!   ---------------------------------------------------------------------------
 
     IF ( PRESENT ( pv_total ) ) pv_total = virial % pv_total
     IF ( PRESENT ( pv_virial ) ) pv_virial = virial % pv_virial
@@ -162,16 +158,18 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE( virial_type ), POINTER :: virial
-    LOGICAL, OPTIONAL :: virial_in_use, numer_virial
-    TYPE ( cp_error_type ), INTENT ( INOUT ), OPTIONAL :: error
-!   *** Local parameters ***
+    TYPE(virial_type), POINTER               :: virial
+    LOGICAL, OPTIONAL                        :: virial_in_use, numer_virial
+    TYPE(cp_error_type), INTENT(INOUT), &
+      OPTIONAL                               :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "virial_create",&
-         routineP=moduleN//':'//routine_name
-    INTEGER :: istat
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'virial_create', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: istat
 
 !   ---------------------------------------------------------------------------
+
     ALLOCATE ( virial, stat=istat )
     CPPostconditionNoFail(istat==0,cp_warning_level,routineP,error)
     IF (PRESENT(virial_in_use).AND.PRESENT(numer_virial)) THEN
@@ -221,12 +219,14 @@ CONTAINS
 !!
 !!*** **********************************************************************
 SUBROUTINE virial_retain ( virial, error)
-  TYPE(virial_type), POINTER :: virial
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-  
-  LOGICAL :: failure
-  CHARACTER(len=*), PARAMETER :: routineN='virial_retain',&
-        routineP=moduleN//':'//routineN
+    TYPE(virial_type), POINTER               :: virial
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'virial_retain', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
 
   failure=.FALSE.
   
@@ -267,13 +267,14 @@ END SUBROUTINE virial_retain
 !!
 !!*** **********************************************************************
 SUBROUTINE virial_release(virial, error)
-  TYPE(virial_type), POINTER :: virial
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-  
-  LOGICAL :: failure
-  CHARACTER(len=*), PARAMETER :: routineN='virial_release',&
-        routineP=moduleN//':'//routineN
-  INTEGER :: stat,i,istat
+    TYPE(virial_type), POINTER               :: virial
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'virial_release', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
 
   failure=.FALSE.
   IF (ASSOCIATED(virial)) THEN

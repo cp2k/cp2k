@@ -82,8 +82,7 @@ CONTAINS
       POINTER                                :: preconditioner
     REAL(KIND=dp)                            :: eps_gradient
     INTEGER                                  :: iter_max
-    TYPE(global_environment_type), &
-      pointer                             :: globenv
+    TYPE(global_environment_type), POINTER   :: globenv
     INTEGER, OPTIONAL                        :: size_ortho_space
 
     REAL(KIND=dp), PARAMETER                 :: rone = 1.0_dp, rzero = 0.0_dp

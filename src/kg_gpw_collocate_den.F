@@ -42,28 +42,18 @@ MODULE kg_gpw_collocate_den
                                              coeff_zero
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_rs_pool_types,                ONLY: cp_rs_pool_p_type,&
-                                             cp_rs_pool_type,&
-                                             rs_pool_create_rs,&
-                                             rs_pool_give_back_rs,&
                                              rs_pools_create_rs_vect,&
                                              rs_pools_give_back_rs_vect
-  USE cube_utils,                      ONLY: cube_info_type,&
-                                             return_cube
+  USE cube_utils,                      ONLY: cube_info_type
   USE gaussian_gridlevels,             ONLY: gaussian_gridlevel,&
                                              gridlevel_info_type
-  USE kinds,                           ONLY: dp,&
-                                             dp_size
-  USE l_utils,                         ONLY: l_info_type,&
-                                             return_l_info
+  USE kinds,                           ONLY: dp
+  USE l_utils,                         ONLY: l_info_type
   USE memory_utilities,                ONLY: reallocate
-  USE orbital_pointers,                ONLY: coset,&
-                                             ncoset
+  USE orbital_pointers,                ONLY: ncoset
   USE pw_env_types,                    ONLY: pw_env_get,&
                                              pw_env_type
-  USE pw_pool_types,                   ONLY: pw_pool_give_back_coeff,&
-                                             pw_pool_init_coeff,&
-                                             pw_pool_p_type,&
-                                             pw_pool_type,&
+  USE pw_pool_types,                   ONLY: pw_pool_p_type,&
                                              pw_pools_give_back_coeffs,&
                                              pw_pools_init_coeffs
   USE pw_types,                        ONLY: COMPLEXDATA1D,&
@@ -71,8 +61,8 @@ MODULE kg_gpw_collocate_den
                                              REALSPACE,&
                                              RECIPROCALSPACE,&
                                              pw_copy,&
-                                             pw_restrict_l,&
                                              pw_prolongate_l,&
+                                             pw_restrict_l,&
                                              pw_sumup
   USE qs_collocate_density,            ONLY: calculate_total_rho,&
                                              collocate_pgf_product_rspace,&
@@ -80,13 +70,11 @@ MODULE kg_gpw_collocate_den
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
   USE qs_integrate_potential,          ONLY: integrate_pgf_product_rspace
-  USE qs_interactions,                 ONLY: exp_radius_very_extended
-  USE realspace_grid_types,            ONLY: realspace_grid_p_type,&
-                                             realspace_grid_type,&
-                                             rs_grid_zero,&
-                                             rs_pw_transfer,&
+  USE realspace_grid_types,            ONLY: pw2rs,&
+                                             realspace_grid_p_type,&
                                              rs2pw,&
-                                             pw2rs
+                                             rs_grid_zero,&
+                                             rs_pw_transfer
   USE sparse_matrix_types,             ONLY: get_block_node,&
                                              real_matrix_p_type,&
                                              real_matrix_type
@@ -94,8 +82,9 @@ MODULE kg_gpw_collocate_den
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "cp_common_uses.h"
+
   IMPLICIT NONE
-  CHARACTER(len=*), PARAMETER, PRIVATE :: module_name='kg_gpw_collocate_den'
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'kg_gpw_collocate_den'
 
   INTEGER, PARAMETER                       :: add_tasks = 1000, &
                                               max_tasks = 2000
@@ -157,40 +146,40 @@ CONTAINS
     TYPE(coeff_type), INTENT(INOUT)          :: rho_r, rho_g
     REAL(dp), INTENT(OUT)                    :: total_rho
     TYPE(pw_env_type), POINTER               :: pw_env
-    INTEGER, DIMENSION(:), INTENT(IN)        :: atom,kind
-    REAL(dp), DIMENSION(:,:), INTENT(IN)     :: ratom
+    INTEGER, DIMENSION(:), INTENT(IN)        :: atom, kind
+    REAL(dp), DIMENSION(:, :), INTENT(IN)    :: ratom
     LOGICAL, INTENT(IN), OPTIONAL            :: compute_tau
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_rho_mol',&
-      routineP = module_name//':'//routineN
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_rho_mol', &
+      routineP = moduleN//':'//routineN
 
-    INTEGER :: brow, bcol, curr_tasks, first_pgfb, first_setb, handle, i, iat, &
-               iatom, igrid_level, ikind, ikind_old, ipgf, itask, ithread, iset, istat,&
-               j, jat, jatom, jkind, jkind_old, jpgf, jset, k, maxco, maxsgf, &
-               maxsgf_set, n, na1, na2, nat_mol, nb1, nb2, ncoa, ncob, nthread,&
-               nseta, nsetb, num_tasks, sgfa, sgfb, igridlevel
+    INTEGER :: bcol, brow, curr_tasks, first_pgfb, first_setb, handle, i, &
+      iat, iatom, igrid_level, igridlevel, ikind, ikind_old, ipgf, iset, &
+      istat, itask, ithread, j, jat, jatom, jkind, jkind_old, jpgf, jset, k, &
+      maxco, maxsgf, maxsgf_set, n, na1, na2, nat_mol, nb1, nb2, ncoa, ncob, &
+      nseta, nsetb, nthread, num_tasks, omp_get_max_threads, &
+      omp_get_thread_num, sgfa, sgfb
     INTEGER, DIMENSION(:), POINTER           :: la_max, la_min, lb, lb_max, &
                                                 lb_min, npgfa, npgfb, nsgfa, &
                                                 nsgfb, ntasks, ub
-    INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa, &
-                                                first_sgfb, ival, latom, &
-                                                tasks_local
+    INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa, first_sgfb, ival, &
+                                                latom, tasks_local
     INTEGER, DIMENSION(:, :, :), POINTER     :: tasks
-    LOGICAL                                  :: failure, map_consistent, &
-                                                my_compute_tau, distributed_rs_grids
+    LOGICAL                                  :: distributed_rs_grids, &
+                                                failure, map_consistent, &
+                                                my_compute_tau
     REAL(KIND=dp)                            :: dab, eps_rho_rspace, &
                                                 kind_radius_b, rab2, scale, &
                                                 zetp
     REAL(KIND=dp), DIMENSION(3)              :: ra, rab, rb
     REAL(KIND=dp), DIMENSION(:), POINTER     :: set_radius_a, set_radius_b
-    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: p_block, pab, &
-                                                rpgfa, rpgfb, sphi_a, &
-                                                sphi_b, work, zeta, zetb
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: p_block, pab, rpgfa, rpgfb, &
+                                                sphi_a, sphi_b, work, zeta, &
+                                                zetb
     REAL(KIND=dp), DIMENSION(:, :, :), &
       POINTER                                :: pabt, workt
-
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
@@ -210,8 +199,6 @@ CONTAINS
     TYPE(realspace_grid_p_type), &
       DIMENSION(:), POINTER                  :: rs_rho
 
-    INTEGER                                  :: omp_get_max_threads,&
-                                                omp_get_thread_num
 !   ---------------------------------------------------------------------------
 
     failure=.FALSE.
@@ -312,7 +299,7 @@ CONTAINS
     ikind_old = 0
     jkind_old = 0
     DO iat = 1,nat_mol
-       ikind = kind(iat)
+       ikind = KIND(iat)
        iatom = atom(iat)
        ra(1:3) = ratom(1:3,iat)
 
@@ -341,7 +328,7 @@ CONTAINS
        IF (.NOT.ASSOCIATED(orb_basis_a)) CYCLE
 
        DO jat = iat, nat_mol
-          jkind = kind(jat)
+          jkind = KIND(jat)
           jatom = atom(jat)
           rb(1:3) = ratom(1:3,jat)
 
@@ -731,48 +718,45 @@ CONTAINS
                                     forces_mol,compute_tau,error)
  
     TYPE(qs_environment_type), POINTER       :: qs_env
-     TYPE(coeff_type), INTENT(IN)            :: vxc_mol
+    TYPE(coeff_type), INTENT(IN)             :: vxc_mol
     TYPE(real_matrix_p_type), INTENT(IN)     :: matrix_p
     TYPE(real_matrix_p_type), INTENT(INOUT)  :: matrix_h
     TYPE(pw_env_type), POINTER               :: pw_env
-    INTEGER, DIMENSION(:), INTENT(IN)        :: atom,kind
-    REAL(dp), DIMENSION(:,:), INTENT(IN)     :: ratom
-    REAL(dp), DIMENSION(:,:), INTENT(INOUT),&
-      OPTIONAL                               :: forces_mol
+    INTEGER, DIMENSION(:), INTENT(IN)        :: atom, kind
+    REAL(dp), DIMENSION(:, :), INTENT(IN)    :: ratom
+    REAL(dp), DIMENSION(:, :), &
+      INTENT(INOUT), OPTIONAL                :: forces_mol
     LOGICAL, INTENT(IN), OPTIONAL            :: compute_tau
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'integrate_mol_potential',&
-      routineP = module_name//':'//routineN
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'integrate_mol_potential', &
+      routineP = moduleN//':'//routineN
 
-
-    INTEGER :: auxbas_grid, bcol, brow, curr_tasks,  &
-               handle, i, iat, iatom, igrid_level,&
-               ijsets, ikind, ikind_old, ipgf, iset, istat, itask, ithread, jat, jatom, &
-               jkind, jkind_old, jpgf, jset, maxco, maxsgf, maxsgf_set,&
-               n, na1, na2, nat_mol, nb1, nb2, ncoa, ncob, &
-               npme, nset_pairs, nseta, nsetb, nthread,&
-               num_tasks, omp_get_max_threads, omp_get_thread_num, sgfa, sgfb
+    INTEGER :: auxbas_grid, bcol, brow, curr_tasks, handle, i, iat, iatom, &
+      igrid_level, ijsets, ikind, ikind_old, ipgf, iset, istat, itask, &
+      ithread, jat, jatom, jkind, jkind_old, jpgf, jset, maxco, maxsgf, &
+      maxsgf_set, n, na1, na2, nat_mol, nb1, nb2, ncoa, ncob, npme, &
+      nset_pairs, nseta, nsetb, nthread, num_tasks, omp_get_max_threads, &
+      omp_get_thread_num, sgfa, sgfb
     INTEGER, DIMENSION(:), POINTER           :: la_max, la_min, lb_max, &
                                                 lb_min, npgfa, npgfb, nsgfa, &
                                                 nsgfb, ntasks
     INTEGER, DIMENSION(:, :), POINTER        :: atasks, first_sgfa, &
-                                                first_sgfb, ival, &
-                                                tasks_local
+                                                first_sgfb, ival, tasks_local
     INTEGER, DIMENSION(:, :, :), POINTER     :: tasks
     LOGICAL                                  :: calculate_forces, failure, &
                                                 map_consistent, my_compute_tau
-    REAL(dp)                                 :: dab, eps_gvg_rspace,&
-                                                kind_radius_b, rab2, scale, zetp
+    REAL(dp)                                 :: dab, eps_gvg_rspace, &
+                                                kind_radius_b, rab2, scale, &
+                                                zetp
     REAL(KIND=dp), DIMENSION(3)              :: force_a, force_b, ra, rab, rb
     REAL(KIND=dp), DIMENSION(:), POINTER     :: set_radius_a, set_radius_b
-    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: h_block, hab , p_block, pab, &
-                                                rpgfa, rpgfb, sphi_a, &
-                                                sphi_b, work, zeta, zetb
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: h_block, hab, p_block, pab, &
+                                                rpgfa, rpgfb, sphi_a, sphi_b, &
+                                                work, zeta, zetb
     REAL(KIND=dp), DIMENSION(:, :, :), &
       POINTER                                :: habt, pabt, workt
-
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
@@ -935,7 +919,7 @@ CONTAINS
     ikind_old = 0
     jkind_old = 0
     DO iat = 1,nat_mol
-       ikind = kind(iat)
+       ikind = KIND(iat)
        iatom = atom(iat)
        ra(1:3) = ratom(1:3,iat)
 
@@ -964,7 +948,7 @@ CONTAINS
        IF (.NOT.ASSOCIATED(orb_basis_a)) CYCLE
 
        DO jat = iat, nat_mol
-          jkind = kind(jat)
+          jkind = KIND(jat)
           jatom = atom(jat)
           rb(1:3) = ratom(1:3,jat)
 
@@ -1278,13 +1262,12 @@ CONTAINS
   SUBROUTINE pair_get_loop_vars ( npme, ival, nset_pairs, atasks )
 
     INTEGER, INTENT(IN)                      :: npme
-    INTEGER, INTENT(OUT)                     :: nset_pairs
     INTEGER, DIMENSION(6, npme), INTENT(IN)  :: ival
+    INTEGER, INTENT(OUT)                     :: nset_pairs
     INTEGER, DIMENSION(:, :), POINTER        :: atasks
 
-    INTEGER                                  :: iset, &
-                                                iset_old, itask,  &
-                                                jset, jset_old
+    INTEGER                                  :: iset, iset_old, itask, jset, &
+                                                jset_old
 
      IF(SIZE(atasks,2) < npme) CALL reallocate(atasks,1,2,1,npme)
 

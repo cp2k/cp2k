@@ -38,15 +38,16 @@ CONTAINS
 
 
 FUNCTION m_loc_r(a) RESULT(res)
-  REAL(KIND=dp), INTENT(in), DIMENSION(*) :: a
-  integer :: res
+    REAL(KIND=dp), DIMENSION(*), INTENT(in)  :: a
+    INTEGER                                  :: res
 
   res=-1
 END FUNCTION m_loc_r
   
-FUNCTION m_loc_c(a) result(res)
-  COMPLEX(KIND=dp), INTENT(in), DIMENSION(*) :: a
-  integer :: res
+FUNCTION m_loc_c(a) RESULT(res)
+    COMPLEX(KIND=dp), DIMENSION(*), &
+      INTENT(in)                             :: a
+    INTEGER                                  :: res
 
   res=-1
 END FUNCTION m_loc_c
@@ -68,18 +69,18 @@ END FUNCTION m_iargc
 !******************************************************************************
 !!  cpu time in seconds
 FUNCTION m_cputime() RESULT (ct)
-    REAL(KIND=dp)                                :: ct
+    REAL(KIND=dp)                            :: ct
 
-    REAL(KIND=dp)                                :: tsecnd
+    REAL(KIND=dp)                            :: tsecnd
 
   ct = tsecnd()
 END FUNCTION m_cputime
 !******************************************************************************
 !!  wall clock time in seconds
 FUNCTION m_walltime() RESULT (wt)
-    REAL(KIND=dp)                                :: wt
+    REAL(KIND=dp)                            :: wt
 
-    REAL(KIND=dp)                                :: time
+    REAL(KIND=dp)                            :: time
 
   EXTERNAL time
   wt = time()
@@ -92,8 +93,8 @@ SUBROUTINE m_datum(cal_date)
     INTEGER                                  :: l, le
 
   WRITE (cal_date,'(a8,'' on '',a8)') clock(), date()
-  l = len(cal_date)
-  le = len_trim(cal_date)
+  l = LEN(cal_date)
+  le = LEN_TRIM(cal_date)
   cal_date(le:l) = ' '
 END SUBROUTINE m_datum
 
@@ -148,10 +149,11 @@ SUBROUTINE m_getcwd(curdir)
 END SUBROUTINE m_getcwd
 !******************************************************************************
 SUBROUTINE m_chdir(dir,ierror)
-    CHARACTER(len=*), INTENT(IN)          :: dir
-    INTEGER,          INTENT(OUT)            :: ierror
-    INTEGER                                  :: chdir
-    ! ierror = chdir(dir)  ! adapt as needed
+    CHARACTER(len=*), INTENT(IN)             :: dir
+    INTEGER, INTENT(OUT)                     :: ierror
+
+! ierror = chdir(dir)  ! adapt as needed
+
     STOP
 END SUBROUTINE m_chdir
 !******************************************************************************

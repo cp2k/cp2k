@@ -25,49 +25,48 @@
 !****************************************************************************
 MODULE harris_functional
   USE coefficient_types,               ONLY: coeff_type
-                                             !coeff_add, &
-                                             !coeff_sumup, &
+!coeff_add, &
+!coeff_sumup, &
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE global_types,                    ONLY: global_environment_type
   USE harris_energy_types,             ONLY: harris_energy_type
-  USE harris_env_types,                ONLY: harris_env_type, &
-                                             harris_env_get
+  USE harris_env_types,                ONLY: harris_env_get,&
+                                             harris_env_type
   USE kinds,                           ONLY: dp
-  USE pw_env_types,                    ONLY: pw_env_type, &
-                                             pw_env_get
-  USE pw_pool_types,                   ONLY: pw_pool_type, &
-                                             pw_pool_init_coeff, &
-                                             pw_pool_give_back_coeff
-  USE pw_types,                        ONLY: COMPLEXDATA1D, &
+  USE pw_env_types,                    ONLY: pw_env_get,&
+                                             pw_env_type
+  USE pw_poisson_methods,              ONLY: pw_poisson_solve
+  USE pw_poisson_types,                ONLY: pw_poisson_type
+  USE pw_pool_types,                   ONLY: pw_pool_give_back_coeff,&
+                                             pw_pool_init_coeff,&
+                                             pw_pool_type
+  USE pw_types,                        ONLY: COMPLEXDATA1D,&
                                              RECIPROCALSPACE,&
                                              pw_integral_ab
-  USE qs_core_energies,                ONLY: calculate_ecore_overlap, &
+  USE qs_core_energies,                ONLY: calculate_ecore_overlap,&
                                              calculate_ecore_self
-                                             !calculate_ecore
-  USE qs_environment_types,            ONLY: qs_environment_type, &
-                                             get_qs_env
+!calculate_ecore
+  USE qs_environment_types,            ONLY: get_qs_env,&
+                                             qs_environment_type
   USE qs_ks_methods,                   ONLY: qs_vxc_create
-                                             !calc_rho_tot_gspace
-  USE qs_mo_types,                     ONLY: get_mo_set, &
+!calc_rho_tot_gspace
+  USE qs_mo_types,                     ONLY: get_mo_set,&
                                              mo_set_p_type
   USE qs_rho_methods,                  ONLY: duplicate_rho_type
-  USE qs_rho_types,                    ONLY: qs_rho_type, &
-                                             qs_rho_get
+  USE qs_rho_types,                    ONLY: qs_rho_get,&
+                                             qs_rho_type
   USE qs_scf_types,                    ONLY: qs_scf_env_type
-  USE sparse_matrix_types,             ONLY: real_matrix_p_type, &
-                                             replicate_matrix, &
-                                             cp_sm_sm_trace
-  USE timings,                         ONLY: timeset, &
+  USE sparse_matrix_types,             ONLY: cp_sm_sm_trace,&
+                                             real_matrix_p_type
+  USE timings,                         ONLY: timeset,&
                                              timestop
-  USE pw_poisson_methods, only: pw_poisson_solve
-  USE pw_poisson_types, only: pw_poisson_type
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
   PRIVATE
 
-  CHARACTER(len=*), PARAMETER :: moduleN = 'harris_functional'
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'harris_functional'
 
   ! *** Public subroutines ***
   PUBLIC :: harris_energy_correction, &
@@ -117,37 +116,33 @@ CONTAINS
   SUBROUTINE harris_energy_correction(qs_env, harris_env, EII_necessary, &
                                       globenv, fast, error)
 
-    TYPE(qs_environment_type), POINTER              :: qs_env
-    TYPE(harris_energy_type), POINTER               :: harris_energy
-    TYPE(harris_env_type), POINTER                  :: harris_env
-    LOGICAL, INTENT(INOUT), OPTIONAL                :: EII_necessary
-    TYPE(global_environment_type), POINTER          :: globenv
-    LOGICAL, INTENT(IN), OPTIONAL                   :: fast
-    TYPE(cp_error_type), INTENT(INOUT), OPTIONAL    :: error
-    TYPE(qs_rho_type), POINTER                      :: rho
-    INTEGER                                         :: handle, &
-                                                       stat, &
-                                                       ispin, &
-                                                       nspins
-    TYPE(pw_env_type), POINTER                      :: pw_env
-    TYPE(pw_pool_type), POINTER                     :: auxbas_pw_pool
-    TYPE(coeff_type)                                :: v_hartree_gspace
-                                                       !rho_tot_gspace, &
-    TYPE(coeff_type), POINTER                       :: rho_core
-    TYPE(coeff_type), DIMENSION(:), POINTER         :: v_rspace_new, &
-                                                       v_tau_rspace
-    !TYPE(cp_para_env_type), POINTER                 :: para_env
-    !TYPE(real_matrix_p_type), DIMENSION(:), POINTER :: matrix_ks
-    TYPE(dft_control_type), POINTER                 :: dft_control
-    LOGICAL                                         :: failure, &
-                                                       my_EII_necessary, &
-                                                       fast_flag
-
-    TYPE(pw_poisson_type), pointer  :: poisson_env
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(harris_env_type), POINTER           :: harris_env
+    LOGICAL, INTENT(INOUT), OPTIONAL         :: EII_necessary
+    TYPE(global_environment_type), POINTER   :: globenv
+    LOGICAL, INTENT(IN), OPTIONAL            :: fast
+    TYPE(cp_error_type), INTENT(INOUT), &
+      OPTIONAL                               :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'harris_energy_correction', &
       routineP = moduleN//':'//routineN
 
+    INTEGER                                  :: handle, ispin, nspins, stat
+    LOGICAL                                  :: failure, fast_flag, &
+                                                my_EII_necessary
+    TYPE(coeff_type)                         :: v_hartree_gspace
+    TYPE(coeff_type), DIMENSION(:), POINTER  :: v_rspace_new, v_tau_rspace
+    TYPE(coeff_type), POINTER                :: rho_core
+    TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(harris_energy_type), POINTER        :: harris_energy
+    TYPE(pw_env_type), POINTER               :: pw_env
+    TYPE(pw_poisson_type), POINTER           :: poisson_env
+    TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
+    TYPE(qs_rho_type), POINTER               :: rho
+
+!rho_tot_gspace, &
+!TYPE(cp_para_env_type), POINTER                 :: para_env
+!TYPE(real_matrix_p_type), DIMENSION(:), POINTER :: matrix_ks
 !   ------------------------------------------------------------------------
 
     CALL timeset(routineN, "I", "", handle)
@@ -310,24 +305,24 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE harris_eigenvalue_summation(qs_env, harris_env, error)
 
-    TYPE(qs_environment_type), POINTER              :: qs_env
-    TYPE(harris_energy_type), POINTER               :: harris_energy
-    TYPE(harris_env_type), POINTER                  :: harris_env
-    TYPE(cp_error_type), INTENT(INOUT), OPTIONAL    :: error
-    TYPE(mo_set_p_type), DIMENSION(:), POINTER      :: mo_array
-    INTEGER                                         :: homo, &
-                                                       iterator, &
-                                                       handle, &
-                                                       ispin, &
-                                                       nspins
-    REAL(KIND=dp), DIMENSION(:), POINTER            :: eigenvalues, &
-                                                       occupation_numbers
-    REAL(KIND=dp)                                   :: sum_of_eigenvalues
-    LOGICAL                                         :: failure
-    TYPE(dft_control_type), POINTER                 :: dft_control
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(harris_env_type), POINTER           :: harris_env
+    TYPE(cp_error_type), INTENT(INOUT), &
+      OPTIONAL                               :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'harris_eigenvalue_summation', &
       routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, homo, ispin, &
+                                                iterator, nspins
+    LOGICAL                                  :: failure
+    REAL(KIND=dp)                            :: sum_of_eigenvalues
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: eigenvalues, &
+                                                occupation_numbers
+    TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(harris_energy_type), POINTER        :: harris_energy
+    TYPE(mo_set_p_type), DIMENSION(:), &
+      POINTER                                :: mo_array
 
 !   ------------------------------------------------------------------------
 
@@ -401,22 +396,23 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE harris_eigenvalue_calculation(qs_env, harris_env, error)
 
-    TYPE(qs_environment_type), POINTER              :: qs_env
-    TYPE(harris_energy_type), POINTER               :: harris_energy
-    TYPE(harris_env_type), POINTER                  :: harris_env
-    TYPE(cp_error_type), INTENT(INOUT), OPTIONAL    :: error
-    INTEGER                                         :: handle, &
-                                                       ispin, &
-                                                       nspins
-    LOGICAL                                         :: failure
-    TYPE(real_matrix_p_type), DIMENSION(:), POINTER :: matrix_ks, &
-                                                       rho_ao
-    TYPE(qs_rho_type), POINTER                      :: rho
-    TYPE(cp_para_env_type), POINTER                 :: para_env
-    TYPE(dft_control_type), POINTER                 :: dft_control
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(harris_env_type), POINTER           :: harris_env
+    TYPE(cp_error_type), INTENT(INOUT), &
+      OPTIONAL                               :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'harris_eigenvalue_calculation', &
+    CHARACTER(len=*), PARAMETER :: &
+      routineN = 'harris_eigenvalue_calculation', &
       routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, ispin, nspins
+    LOGICAL                                  :: failure
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(harris_energy_type), POINTER        :: harris_energy
+    TYPE(qs_rho_type), POINTER               :: rho
+    TYPE(real_matrix_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_ks, rho_ao
 
 !   ------------------------------------------------------------------------
 
@@ -484,21 +480,23 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE harris_eigenvalue_trace_KS_Pmix(scf_env, qs_env, harris_env, error)
 
-    TYPE(qs_scf_env_type), POINTER                  :: scf_env
-    TYPE(qs_environment_type), POINTER              :: qs_env
-    TYPE(harris_env_type), POINTER                  :: harris_env
-    TYPE(cp_error_type), INTENT(INOUT), OPTIONAL    :: error
-    TYPE(harris_energy_type), POINTER               :: harris_energy
-    INTEGER                                         :: handle, &
-                                                       ispin, &
-                                                       nspins
-    LOGICAL                                         :: failure
-    TYPE(real_matrix_p_type), DIMENSION(:), POINTER :: matrix_ks
-    TYPE(cp_para_env_type), POINTER                 :: para_env
-    TYPE(dft_control_type), POINTER                 :: dft_control
+    TYPE(qs_scf_env_type), POINTER           :: scf_env
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(harris_env_type), POINTER           :: harris_env
+    TYPE(cp_error_type), INTENT(INOUT), &
+      OPTIONAL                               :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'harris_eigenvalue_trace_KS_Pmix', &
+    CHARACTER(len=*), PARAMETER :: &
+      routineN = 'harris_eigenvalue_trace_KS_Pmix', &
       routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, ispin, nspins
+    LOGICAL                                  :: failure
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(harris_energy_type), POINTER        :: harris_energy
+    TYPE(real_matrix_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_ks
 
 !   ------------------------------------------------------------------------
 
@@ -562,17 +560,19 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE harris_postprocessing(harris_env, error)
 
-    TYPE(harris_energy_type), POINTER               :: harris_energy
-    TYPE(harris_env_type), POINTER                  :: harris_env
-    TYPE(cp_error_type), INTENT(INOUT), OPTIONAL    :: error
-    LOGICAL                                         :: failure
+    TYPE(harris_env_type), POINTER           :: harris_env
+    TYPE(cp_error_type), INTENT(INOUT), &
+      OPTIONAL                               :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'harris_postprocessing', &
-         routineP = moduleN//':'//routineN
-    TYPE(cp_logger_type), POINTER :: logger
-    INTEGER :: unit_nr
+      routineP = moduleN//':'//routineN
 
-    !   ------------------------------------------------------------------------
+    INTEGER                                  :: unit_nr
+    LOGICAL                                  :: failure
+    TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(harris_energy_type), POINTER        :: harris_energy
+
+!   ------------------------------------------------------------------------
 
     failure = .FALSE.
     NULLIFY(harris_energy)
@@ -586,7 +586,7 @@ CONTAINS
 
        ! Output
        IF (logger%para_env%source==logger%para_env%mepos) THEN
-          unit_nr=cp_logger_get_default_unit_nr(logger,local=.false.)
+          unit_nr=cp_logger_get_default_unit_nr(logger,local=.FALSE.)
           WRITE (unit_nr,*) ""
           WRITE (unit_nr,*) "The Harris functional energy correction is performed!"
           WRITE (unit_nr,*) ""

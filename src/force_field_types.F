@@ -23,22 +23,19 @@
 
 MODULE force_field_types
 
-  USE kinds,                           ONLY: dp,&
-                                             default_string_length,&
-                                             int_size
-  USE pair_potential_types,            ONLY: pair_potential_p_type,&
-                                             pair_potential_p_release
-  USE splines,                         ONLY: spline_environment_type,&
-                                             spline_data_release, &
+  USE kinds,                           ONLY: default_string_length,&
+                                             dp
+  USE pair_potential_types,            ONLY: pair_potential_p_release,&
+                                             pair_potential_p_type
+  USE splines,                         ONLY: spline_data_release,&
                                              spline_data_type
-  USE termination,                     ONLY: stop_memory
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
 
   PRIVATE
 
-  CHARACTER(LEN=*), PARAMETER :: moduleN = "force_field_types"
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'force_field_types'
   
 
 ! *** Define the derived structure types ***
@@ -222,10 +219,11 @@ CONTAINS
     TYPE(bend_kind_type), DIMENSION(:), &
       POINTER                                :: bend_kind_set
     INTEGER, INTENT(IN)                      :: nkind
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = "allocate_bend_kind_set",&
-         routineP=moduleN//':'//routineN
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'allocate_bend_kind_set', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ikind, stat
     LOGICAL                                  :: failure
@@ -266,10 +264,11 @@ CONTAINS
     TYPE(bond_kind_type), DIMENSION(:), &
       POINTER                                :: bond_kind_set
     INTEGER, INTENT(IN)                      :: nkind
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-    
-    CHARACTER(LEN=*), PARAMETER :: routineN = "allocate_bond_kind_set",&
-         routineP=moduleN//':'//routineN
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'allocate_bond_kind_set', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ikind, stat
     LOGICAL                                  :: failure
@@ -310,10 +309,11 @@ CONTAINS
     TYPE(torsion_kind_type), DIMENSION(:), &
       POINTER                                :: torsion_kind_set
     INTEGER, INTENT(IN)                      :: nkind
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = "allocate_torsion_kind_set",&
-         routineP=moduleN//':'//routineN
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'allocate_torsion_kind_set', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ikind, stat
     LOGICAL                                  :: failure
@@ -358,11 +358,11 @@ CONTAINS
     TYPE(ub_kind_type), DIMENSION(:), &
       POINTER                                :: ub_kind_set
     INTEGER, INTENT(IN)                      :: nkind
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = "allocate_ub_kind_set",&
-         routineP=moduleN//':'//routineN
-
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'allocate_ub_kind_set', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ikind, stat
     LOGICAL                                  :: failure
@@ -399,10 +399,11 @@ CONTAINS
     TYPE(impr_kind_type), DIMENSION(:), &
       POINTER                                :: impr_kind_set
     INTEGER, INTENT(IN)                      :: nkind
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = "allocate_impr_kind_set",&
-         routineP=moduleN//':'//routineN
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'allocate_impr_kind_set', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ikind, stat
     LOGICAL                                  :: failure
@@ -438,10 +439,11 @@ CONTAINS
     TYPE(onfo_kind_type), DIMENSION(:), &
       POINTER                                :: onfo_kind_set
     INTEGER, INTENT(IN)                      :: nkind
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = "allocate_onfo_kind_set",&
-         routineP=moduleN//':'//routineN
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'allocate_onfo_kind_set', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ikind, stat
     LOGICAL                                  :: failure
@@ -474,12 +476,13 @@ CONTAINS
 !!   SOURCE
 !******************************************************************************
   SUBROUTINE init_ff_type (ff_type,error)
-    TYPE(force_field_type), &
-         INTENT(INOUT)                          :: ff_type
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-    
-    CHARACTER(LEN=*), PARAMETER :: routineN = "init_ff_type",&
-         routineP=moduleN//':'//routineN    
+    TYPE(force_field_type), INTENT(INOUT)    :: ff_type
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'init_ff_type', &
+      routineP = moduleN//':'//routineN
+
     INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
@@ -535,8 +538,7 @@ CONTAINS
 !!   SOURCE
 !******************************************************************************
 SUBROUTINE init_chm_info(chm_info)
-  IMPLICIT NONE
-  TYPE (charmm_info_type),POINTER  :: chm_info
+    TYPE(charmm_info_type), POINTER          :: chm_info
 
   NULLIFY(chm_info%charge_atm)
   NULLIFY(chm_info%charge)
@@ -594,8 +596,7 @@ END SUBROUTINE init_chm_info
 !!   SOURCE
 !******************************************************************************
 SUBROUTINE init_inp_info(inp_info)
-  IMPLICIT NONE
-  TYPE (input_info_type),POINTER   :: inp_info
+    TYPE(input_info_type), POINTER           :: inp_info
 
   NULLIFY(inp_info%charge_atm)
   NULLIFY(inp_info%charge)
@@ -649,12 +650,13 @@ END SUBROUTINE init_inp_info
 !!   SOURCE
 !******************************************************************************
 SUBROUTINE deallocate_ff_type (ff_type,error)
-  TYPE(force_field_type), &
-         INTENT(INOUT)                          :: ff_type
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(force_field_type), INTENT(INOUT)    :: ff_type
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = "init_ff_type",&
-         routineP=moduleN//':'//routineN    
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'deallocate_ff_type', &
+      routineP = moduleN//':'//routineN
+
     INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
@@ -704,14 +706,15 @@ END SUBROUTINE deallocate_ff_type
 !!   SOURCE
 !******************************************************************************
 SUBROUTINE deallocate_chm_info(chm_info,error)
-  IMPLICIT NONE
-  TYPE (charmm_info_type),POINTER  :: chm_info
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(charmm_info_type), POINTER          :: chm_info
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-  CHARACTER(LEN=*), PARAMETER :: routineN = "deallocate_chm_info",&
-       routineP=moduleN//':'//routineN    
-  INTEGER :: stat
-  LOGICAL :: failure
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'deallocate_chm_info', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: stat
+    LOGICAL                                  :: failure
 
   failure = .FALSE.
   IF(ASSOCIATED(chm_info%charge_atm)) THEN
@@ -875,15 +878,15 @@ END SUBROUTINE deallocate_chm_info
 !!   SOURCE
 !******************************************************************************
 SUBROUTINE deallocate_inp_info(inp_info, error)
-  IMPLICIT NONE
-  ! Arguments
-  TYPE (input_info_type),POINTER   :: inp_info
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-  ! Local Variables
-  CHARACTER(LEN=*), PARAMETER :: routineN = "deallocate_inp_info",&
-       routineP=moduleN//':'//routineN    
-  INTEGER :: stat, i
-  LOGICAL :: failure
+    TYPE(input_info_type), POINTER           :: inp_info
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'deallocate_inp_info', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: stat
+    LOGICAL                                  :: failure
 
   failure = .FALSE.
   IF(ASSOCIATED(inp_info%charge_atm)) THEN
@@ -1030,14 +1033,15 @@ END SUBROUTINE deallocate_inp_info
 
     TYPE(bend_kind_type), DIMENSION(:), &
       POINTER                                :: bend_kind_set
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = "deallocate_bend_kind_set",&
-         routineP=moduleN//':'//routineN
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'deallocate_bend_kind_set', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: stat
-    logical                                  :: failure
-    
+    LOGICAL                                  :: failure
+
     failure = .FALSE.
     DEALLOCATE (bend_kind_set,STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -1064,14 +1068,15 @@ END SUBROUTINE deallocate_inp_info
 
     TYPE(bond_kind_type), DIMENSION(:), &
       POINTER                                :: bond_kind_set
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = "deallocate_bond_kind_set",&
-         routineP=moduleN//':'//routineN
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'deallocate_bond_kind_set', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: stat
-    LOGICAL                                  :: failure 
-    
+    LOGICAL                                  :: failure
+
     failure = .FALSE.
     DEALLOCATE (bond_kind_set,STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -1097,14 +1102,17 @@ END SUBROUTINE deallocate_inp_info
 !******************************************************************************
   SUBROUTINE torsion_kind_dealloc_ref(torsion_kind,error)
 
-    TYPE(torsion_kind_type), INTENT(INOUT)       :: torsion_kind
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-    integer :: stat
-    CHARACTER(len=*), PARAMETER :: routineN='torsion_kind_dealloc_ref',&
-         routineP=moduleN//':'//routineN
-    logical :: failure
-    
-    failure = .false.
+    TYPE(torsion_kind_type), INTENT(INOUT)   :: torsion_kind
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'torsion_kind_dealloc_ref', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: stat
+    LOGICAL                                  :: failure
+
+    failure = .FALSE.
 
     IF(ASSOCIATED(torsion_kind%k)) THEN
        DEALLOCATE(torsion_kind%k,STAT=stat)
@@ -1138,21 +1146,23 @@ END SUBROUTINE deallocate_inp_info
 !!
 !!   SOURCE
 !******************************************************************************
-  subroutine ub_kind_dealloc_ref(ub_kind_set, error)
+  SUBROUTINE ub_kind_dealloc_ref(ub_kind_set, error)
     TYPE(ub_kind_type), DIMENSION(:), &
-         POINTER                                :: ub_kind_set
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+      POINTER                                :: ub_kind_set
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN='ub_kind_dealloc_ref',&
-         routineP=moduleN//':'//routineN
-    INTEGER                                  ::  stat
-    LOGICAL :: failure
+    CHARACTER(len=*), PARAMETER :: routineN = 'ub_kind_dealloc_ref', &
+      routineP = moduleN//':'//routineN
 
-    failure = .false.
-    deallocate(ub_kind_set, STAT=stat)
+    INTEGER                                  :: stat
+    LOGICAL                                  :: failure
+
+    failure = .FALSE.
+    DEALLOCATE(ub_kind_set, STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
-  end subroutine ub_kind_dealloc_ref
+  END SUBROUTINE ub_kind_dealloc_ref
 ! *****************************************************************************
 
 !******************************************************************************
@@ -1172,14 +1182,16 @@ END SUBROUTINE deallocate_inp_info
 !******************************************************************************
   SUBROUTINE impr_kind_dealloc_ref(impr_kind, error)
 
-    TYPE(impr_kind_type), INTENT(INOUT) :: impr_kind
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-    integer :: stat
-    CHARACTER(len=*), PARAMETER :: routineN='impr_kind_dealloc_ref',&
-         routineP=moduleN//':'//routineN
-    logical :: failure
-    
-    failure = .false.
+    TYPE(impr_kind_type), INTENT(INOUT)      :: impr_kind
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'impr_kind_dealloc_ref', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+
+    failure = .FALSE.
 
     !
     ! Questa e' la migliore routine che mente umana abbia concepito! ;-)
@@ -1204,15 +1216,18 @@ END SUBROUTINE deallocate_inp_info
 !!   SOURCE
 !******************************************************************************
   SUBROUTINE  onfo_kind_dealloc_ref(onfo_kind_set, error)
-    implicit none
-    TYPE(onfo_kind_type), DIMENSION(:), POINTER       :: onfo_kind_set
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout)      :: error
-    CHARACTER(len=*), PARAMETER :: routineN='onfo_kind_dealloc_ref',&
-         routineP=moduleN//':'//routineN
-    integer :: stat,ionfo
-    logical :: failure
-    
-    failure = .false.
+    TYPE(onfo_kind_type), DIMENSION(:), &
+      POINTER                                :: onfo_kind_set
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'onfo_kind_dealloc_ref', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: ionfo, stat
+    LOGICAL                                  :: failure
+
+    failure = .FALSE.
     DO ionfo=1,SIZE(onfo_kind_set)
       CALL spline_data_release(onfo_kind_set(ionfo)%spline_data, error)
     END DO

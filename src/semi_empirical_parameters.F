@@ -57,7 +57,7 @@ MODULE semi_empirical_parameters
 
 ! *** Global parameters ***
 
-  CHARACTER(LEN=*), PARAMETER :: module_name = "semi_empirical_parameters"
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'semi_empirical_parameters'
 
 ! *** Public subroutines ***
 
@@ -79,7 +79,7 @@ CONTAINS
     TYPE(semi_empirical_type), POINTER       :: sep
     INTEGER                                  :: z
 
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "eht_default_parameter"
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'eht_default_parameter'
 
     INTEGER, DIMENSION(0:3)                  :: norb
     REAL(dp), DIMENSION(1, 0:3)              :: alpha
@@ -111,7 +111,7 @@ CONTAINS
     TYPE(semi_empirical_type), POINTER       :: sep
     INTEGER                                  :: z
 
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "mndo_default_parameter"
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'mndo_default_parameter'
 
 ! -----------------------------------------------------------------------------
 
@@ -136,7 +136,7 @@ CONTAINS
 
     SELECT CASE (z)
       CASE DEFAULT
-        CALL stop_program(routine_name,module_name,__LINE__,&
+        CALL stop_program(routineN,moduleN,__LINE__,&
                           "invalid atomic number")
       CASE (0)
         sep%defined = .TRUE.
@@ -630,7 +630,7 @@ CONTAINS
     TYPE(semi_empirical_type), POINTER       :: sep
     INTEGER                                  :: z
 
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "am1_default_parameter"
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'am1_default_parameter'
 
 ! -----------------------------------------------------------------------------
 
@@ -655,7 +655,7 @@ CONTAINS
 
     SELECT CASE (z)
       CASE DEFAULT
-        CALL stop_program(routine_name,module_name,__LINE__,&
+        CALL stop_program(routineN,moduleN,__LINE__,&
                           "invalid atomic number")
       CASE (0)
         sep%defined = .TRUE.
@@ -1090,7 +1090,7 @@ CONTAINS
     TYPE(semi_empirical_type), POINTER       :: sep
     INTEGER                                  :: z
 
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "pm3_default_parameter"
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'pm3_default_parameter'
 
 ! -----------------------------------------------------------------------------
 
@@ -1115,7 +1115,7 @@ CONTAINS
 
     SELECT CASE (z)
       CASE DEFAULT
-        CALL stop_program(routine_name,module_name,__LINE__,&
+        CALL stop_program(routineN,moduleN,__LINE__,&
                           "invalid atomic number")
       CASE (0)
         sep%defined = .TRUE.
@@ -1798,8 +1798,8 @@ CONTAINS
   
   SUBROUTINE valence_electrons ( z, zeff, natorb )
     INTEGER, INTENT(IN)                      :: z
+    REAL(KIND=dp)                            :: zeff
     INTEGER, INTENT(OUT)                     :: natorb
-    REAL(KIND=dp) :: zeff
 
     INTEGER, DIMENSION(0:nelem), PARAMETER :: norb = (/ -1, 1,  1,  4,  4,  4,&
       4,  4,  4,  4,  4,  0,  4,  4,  4,  4,  4,  4,  4,0,  4,  9,  9,  9,  9,&
@@ -1828,22 +1828,18 @@ CONTAINS
     REAL(dp), DIMENSION(:, 0:)               :: sto
     INTEGER, INTENT(IN)                      :: itype
 
-    REAL(dp), DIMENSION(18), PARAMETER :: &
-      crtab1s = (/ 1.0000, 1.6875, 2.6906, 3.6848, 4.6795, 5.6727, 6.6651,&
-                   7.6579, 8.6501, 9.6421,10.6259,11.6089, 12.5910,13.5745,&
-                   14.5578,15.5409,16.5239,17.5075 /), &
+    REAL(dp), DIMENSION(18), PARAMETER :: crtab1s = (/ 1.0000, 1.6875, 2.6906,&
+      3.6848, 4.6795, 5.6727, 6.6651,7.6579, 8.6501, 9.6421,10.6259,11.6089, &
+      12.5910,13.5745,14.5578,15.5409,16.5239,17.5075 /), crtab2p = (/ 0.0000,&
+      0.0000, 0.0000, 0.0000, 1.2107, 1.5679, 1.9170,2.2266, 2.5500, 2.8792, &
+      3.4009, 3.9129, 4.4817, 4.9725,5.4806, 5.9885, 6.4966, 7.0041 /), &
       crtab2s = (/ 0.0000, 0.0000, 0.6396, 0.9560, 1.2881, 1.6083, 1.9237,&
-                   2.2458, 2.5638, 2.8792,3.2857, 3.6960, 4.1068, 5.5100,&
-                   4.9125, 5.3144, 5.7152, 6.1152 /), &
-      crtab2p = (/ 0.0000, 0.0000, 0.0000, 0.0000, 1.2107, 1.5679, 1.9170,&
-                   2.2266, 2.5500, 2.8792, 3.4009, 3.9129, 4.4817, 4.9725,&
-                   5.4806, 5.9885, 6.4966, 7.0041 /), & 
-      crtab3s = (/ 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000,&
-                   0.0000, 0.0000, 0.0000,0.8358, 1.1025, 1.3724, 1.6344,&
-                   1.8806, 2.1223, 2.3561, 2.5856 /), &
-      crtab3p = (/ 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000,&
-                   0.0000, 0.0000, 0.0000,0.0000, 0.0000, 1.3552, 1.4284,&
-                   1.6288, 1.8273, 2.0387, 2.2547 /) 
+      2.2458, 2.5638, 2.8792,3.2857, 3.6960, 4.1068, 5.5100,4.9125, 5.3144, &
+      5.7152, 6.1152 /), crtab3p = (/ 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, &
+      0.0000, 0.0000,0.0000, 0.0000, 0.0000,0.0000, 0.0000, 1.3552, 1.4284,&
+      1.6288, 1.8273, 2.0387, 2.2547 /) , crtab3s = (/ 0.0000, 0.0000, 0.0000,&
+      0.0000, 0.0000, 0.0000, 0.0000,0.0000, 0.0000, 0.0000,0.8358, 1.1025, &
+      1.3724, 1.6344,1.8806, 2.1223, 2.3561, 2.5856 /)
 
     INTEGER                                  :: i, j, l, nj
     INTEGER, DIMENSION(1:4)                  :: no
@@ -1868,14 +1864,14 @@ CONTAINS
         ne(l,i) = MIN(ne(l,i),2*nj)
         IF(ne(l,i) > 0) no(l)=no(l)+1
       END DO
- write(*,*) 'no ', l-1, no(l)
+ WRITE(*,*) 'no ', l-1, no(l)
     END DO
     DO l=0,3
       DO i=1,norb(l)
         j=no(l+1)-norb(l)+1
         IF ( itype == 0 .OR. itype == 1 ) THEN
           sto(i,l)=srules(z,ne,j,l)
- write(*,*) 'sto ', l, i, j , sto(i,l)
+ WRITE(*,*) 'sto ', l, i, j , sto(i,l)
         END IF
         IF ( itype == 0 .OR. itype == 2 ) THEN
           IF ( z <= 18 .AND. z > 0 ) THEN

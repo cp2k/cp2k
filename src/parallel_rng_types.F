@@ -71,7 +71,7 @@ MODULE parallel_rng_types
 
   ! Global parameters in this module
 
-  CHARACTER(LEN=*), PARAMETER :: moduleN = "parallel_rng_types",&
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'parallel_rng_types',&
                                  rng_record_format = "(A40,2L2,18F20.1)"
   INTEGER, PARAMETER          :: rng_record_length = 404
 
@@ -159,23 +159,20 @@ CONTAINS
 
     ! NOTE: The use of this method is discouraged.
 
-    TYPE(rng_stream_type), POINTER               :: rng_stream
-    INTEGER, INTENT(IN)                          :: e,c
-    TYPE(cp_error_type), OPTIONAL, INTENT(INOUT) :: error
+    TYPE(rng_stream_type), POINTER           :: rng_stream
+    INTEGER, INTENT(IN)                      :: e, c
+    TYPE(cp_error_type), INTENT(INOUT), &
+      OPTIONAL                               :: error
 
-    ! Local parameter
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'advance_rng_state', &
+      routineP = moduleN//':'//routineN
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = "advance_rng_state",&
-                                   routineP = moduleN//":"//routineN
+    LOGICAL                                  :: failure
+    REAL(KIND=dp), DIMENSION(3, 2)           :: x
+    REAL(KIND=dp), DIMENSION(3, 3)           :: u1, u2, v1, v2, w1, w2
 
-    ! Local variables
-
-    REAL(KIND=dp), DIMENSION(3,3) :: u1,u2,v1,v2,w1,w2
-    REAL(KIND=dp), DIMENSION(3,2) :: x
-
-    LOGICAL :: failure
-
-    ! -------------------------------------------------------------------------
+! Local parameter
+! -------------------------------------------------------------------------
 
     failure = .FALSE.
 
@@ -231,21 +228,20 @@ CONTAINS
 
     ! Check that the seeds are legitimate values.
 
-    REAL(KIND=dp), DIMENSION(3,2), INTENT(IN)    :: seed
-    TYPE(cp_error_type), OPTIONAL, INTENT(INOUT) :: error
+    REAL(KIND=dp), DIMENSION(3, 2), &
+      INTENT(IN)                             :: seed
+    TYPE(cp_error_type), INTENT(INOUT), &
+      OPTIONAL                               :: error
 
-    ! Local parameter
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'check_seed', &
+      routineP = moduleN//':'//routineN
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = "check_seed",&
-                                   routineP = moduleN//":"//routineN
+    CHARACTER(LEN=80)                        :: message
+    INTEGER                                  :: i
+    LOGICAL                                  :: failure
 
-    ! Local variables
-
-    CHARACTER(LEN=80) :: message
-    INTEGER           :: i
-    LOGICAL           :: failure
-
-    ! -------------------------------------------------------------------------
+! Local parameter
+! -------------------------------------------------------------------------
 
     failure = .FALSE.
 
@@ -293,25 +289,23 @@ CONTAINS
     ! Then CALL create_rng_stream(next_rng_stream,name,rng_stream) to create
     ! all the following RNG streams.
 
-    TYPE(rng_stream_type), POINTER                      :: rng_stream
-    CHARACTER(LEN=*), INTENT(IN)                        :: name
-    TYPE(rng_stream_type), OPTIONAL, POINTER            :: last_rng_stream
-    REAL(KIND=dp), DIMENSION(3,2), OPTIONAL, INTENT(IN) :: seed
-    LOGICAL, OPTIONAL, INTENT(IN)                       :: antithetic,&
-                                                           extended_precision
-    TYPE(cp_error_type), OPTIONAL, INTENT(INOUT)        :: error
+    TYPE(rng_stream_type), POINTER           :: rng_stream
+    CHARACTER(LEN=*), INTENT(IN)             :: name
+    TYPE(rng_stream_type), OPTIONAL, POINTER :: last_rng_stream
+    REAL(KIND=dp), DIMENSION(3, 2), &
+      INTENT(IN), OPTIONAL                   :: seed
+    LOGICAL, INTENT(IN), OPTIONAL            :: antithetic, extended_precision
+    TYPE(cp_error_type), INTENT(INOUT), &
+      OPTIONAL                               :: error
 
-    ! Local parameter
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'create_rng_stream', &
+      routineP = moduleN//':'//routineN
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = "create_rng_stream",&
-                                   routineP = moduleN//":"//routineN
+    INTEGER                                  :: istat
+    LOGICAL                                  :: failure
 
-    ! Local variables
-
-    INTEGER :: istat
-    LOGICAL :: failure
-
-    ! -------------------------------------------------------------------------
+! Local parameter
+! -------------------------------------------------------------------------
 
     failure = .FALSE.
 
@@ -366,20 +360,18 @@ CONTAINS
 
     ! Delete a random number stream.
 
-    TYPE(rng_stream_type), POINTER               :: rng_stream
-    TYPE(cp_error_type), OPTIONAL, INTENT(INOUT) :: error
+    TYPE(rng_stream_type), POINTER           :: rng_stream
+    TYPE(cp_error_type), INTENT(INOUT), &
+      OPTIONAL                               :: error
 
-    ! Local parameter
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'delete_rng_stream', &
+      routineP = moduleN//':'//routineN
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = "delete_rng_stream",&
-                                   routineP = moduleN//":"//routineN
+    INTEGER                                  :: istat
+    LOGICAL                                  :: failure
 
-    ! Local variables
-
-    INTEGER :: istat
-    LOGICAL :: failure
-
-    ! -------------------------------------------------------------------------
+! Local parameter
+! -------------------------------------------------------------------------
 
     failure = .FALSE.
 
@@ -398,20 +390,19 @@ CONTAINS
 
     ! Dump a RNG stream as a record given as an internal file (string).
 
-    TYPE(rng_stream_type), POINTER                :: rng_stream
-    CHARACTER(LEN=rng_record_length), INTENT(OUT) :: rng_record
-    TYPE(cp_error_type), OPTIONAL, INTENT(INOUT)  :: error
+    TYPE(rng_stream_type), POINTER           :: rng_stream
+    CHARACTER(LEN=rng_record_length), &
+      INTENT(OUT)                            :: rng_record
+    TYPE(cp_error_type), INTENT(INOUT), &
+      OPTIONAL                               :: error
 
-    ! Local parameter
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'dump_rng_stream', &
+      routineP = moduleN//':'//routineN
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = "dump_rng_stream",&
-                                   routineP = moduleN//":"//routineN
+    LOGICAL                                  :: failure
 
-    ! Local variables
-
-    LOGICAL :: failure
-
-    ! -------------------------------------------------------------------------
+! Local parameter
+! -------------------------------------------------------------------------
 
     failure = .FALSE.
 
@@ -437,23 +428,21 @@ CONTAINS
 
     ! Get the components of a RNG stream.
 
-    TYPE(rng_stream_type), POINTER                 :: rng_stream
-    CHARACTER(LEN=*), OPTIONAL, INTENT(OUT)        :: name
-    INTEGER, DIMENSION(3,2), OPTIONAL, INTENT(OUT) :: bg,cg,ig
-    LOGICAL, OPTIONAL, INTENT(OUT)                 :: antithetic,&
-                                                      extended_precision
-    TYPE(cp_error_type), OPTIONAL, INTENT(INOUT)   :: error
+    TYPE(rng_stream_type), POINTER           :: rng_stream
+    CHARACTER(LEN=*), INTENT(OUT), OPTIONAL  :: name
+    INTEGER, DIMENSION(3, 2), INTENT(OUT), &
+      OPTIONAL                               :: bg, cg, ig
+    LOGICAL, INTENT(OUT), OPTIONAL           :: antithetic, extended_precision
+    TYPE(cp_error_type), INTENT(INOUT), &
+      OPTIONAL                               :: error
 
-    ! Local parameter
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'get_rng_stream', &
+      routineP = moduleN//':'//routineN
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = "get_rng_stream",&
-                                   routineP = moduleN//":"//routineN
+    LOGICAL                                  :: failure
 
-    ! Local variables
-
-    LOGICAL :: failure
-
-    ! -------------------------------------------------------------------------
+! Local parameter
+! -------------------------------------------------------------------------
 
     failure = .FALSE.
 
@@ -590,15 +579,15 @@ CONTAINS
 
     ! Returns c = MODULO(a*b,m).
 
-    REAL(KIND=dp), DIMENSION(3,3), INTENT(IN)  :: a,b
-    REAL(KIND=dp), DIMENSION(3,3), INTENT(OUT) :: c
-    REAL(KIND=dp), INTENT(IN)                  :: m
+    REAL(KIND=dp), DIMENSION(3, 3), &
+      INTENT(IN)                             :: a, b
+    REAL(KIND=dp), DIMENSION(3, 3), &
+      INTENT(OUT)                            :: c
+    REAL(KIND=dp), INTENT(IN)                :: m
 
-    ! Local variables
+    INTEGER                                  :: i
 
-    INTEGER :: i
-
-    ! -------------------------------------------------------------------------
+! -------------------------------------------------------------------------
 
     DO i=1,3
       CALL mat_vec_mod_m(a,b(:,i),c(:,i),m)
@@ -612,19 +601,18 @@ CONTAINS
 
     ! Compute matrix b = MODULO(a**n,m)
 
-    REAL(KIND=dp), DIMENSION(3,3), INTENT(IN)  :: a
-    REAL(KIND=dp), DIMENSION(3,3), INTENT(OUT) :: b
-    REAL(KIND=dp), INTENT(IN)                  :: m
-    INTEGER, INTENT(IN)                        :: n
+    REAL(KIND=dp), DIMENSION(3, 3), &
+      INTENT(IN)                             :: a
+    REAL(KIND=dp), DIMENSION(3, 3), &
+      INTENT(OUT)                            :: b
+    REAL(KIND=dp), INTENT(IN)                :: m
+    INTEGER, INTENT(IN)                      :: n
 
-    ! Local variables
+    INTEGER                                  :: i
+    REAL(KIND=dp), DIMENSION(3, 3)           :: u, v, w
 
-    REAL(KIND=dp), DIMENSION(3,3) :: u,v,w
-    INTEGER                       :: i
-
-    ! -------------------------------------------------------------------------
-
-    ! Initialize: u = v = a; b = I
+! -------------------------------------------------------------------------
+! Initialize: u = v = a; b = I
 
     w = a
 
@@ -663,17 +651,17 @@ CONTAINS
 
     ! Compute matrix b = MODULO(a**(2**e),m)
 
-    REAL(KIND=dp), DIMENSION(3,3), INTENT(IN)  :: a
-    REAL(KIND=dp), DIMENSION(3,3), INTENT(OUT) :: b
-    REAL(KIND=dp), INTENT(IN)                  :: m
-    INTEGER, INTENT(IN)                        :: e
+    REAL(KIND=dp), DIMENSION(3, 3), &
+      INTENT(IN)                             :: a
+    REAL(KIND=dp), DIMENSION(3, 3), &
+      INTENT(OUT)                            :: b
+    REAL(KIND=dp), INTENT(IN)                :: m
+    INTEGER, INTENT(IN)                      :: e
 
-    ! Local variables
+    INTEGER                                  :: i
+    REAL(KIND=dp), DIMENSION(3, 3)           :: u, v
 
-    REAL(KIND=dp), DIMENSION(3,3) :: u,v
-    INTEGER                       :: i
-
-    ! -------------------------------------------------------------------------
+! -------------------------------------------------------------------------
 
     b = a
 
@@ -693,17 +681,16 @@ CONTAINS
 
     ! Returns v = MODULO(a*s,m). Assumes that -m < s(i) < m.
 
-    REAL(KIND=dp), DIMENSION(3,3), INTENT(IN) :: a
-    REAL(KIND=dp), DIMENSION(3), INTENT(IN)   :: s
-    REAL(KIND=dp), DIMENSION(3), INTENT(OUT)  :: v
-    REAL(KIND=dp), INTENT(IN)                 :: m
+    REAL(KIND=dp), DIMENSION(3, 3), &
+      INTENT(IN)                             :: a
+    REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: s
+    REAL(KIND=dp), DIMENSION(3), INTENT(OUT) :: v
+    REAL(KIND=dp), INTENT(IN)                :: m
 
-    ! Local variables
+    INTEGER                                  :: i, j
+    REAL(KIND=dp)                            :: a1, a2, c
 
-    REAL(KIND=dp) :: a1,a2,c
-    INTEGER       :: i,j
-
-    ! -------------------------------------------------------------------------
+! -------------------------------------------------------------------------
 
     v = 0.0_dp
 
@@ -735,23 +722,20 @@ CONTAINS
     ! Get the next integer random number between low and high from the stream
     ! rng_stream.
 
-    TYPE(rng_stream_type), POINTER               :: rng_stream
-    INTEGER, INTENT(IN)                          :: low,high
-    TYPE(cp_error_type), OPTIONAL, INTENT(INOUT) :: error
+    TYPE(rng_stream_type), POINTER           :: rng_stream
+    INTEGER, INTENT(IN)                      :: low, high
+    TYPE(cp_error_type), INTENT(INOUT), &
+      OPTIONAL                               :: error
+    INTEGER                                  :: u
 
-    INTEGER :: u
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'next_integer_random_number', &
+      routineP = moduleN//':'//routineN
 
-    ! Local parameter
+    LOGICAL                                  :: failure
+    REAL(KIND=dp)                            :: r
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = "next_integer_random_number",&
-                                   routineP = moduleN//":"//routineN
-
-    ! Local variables
-
-    REAL(KIND=dp) :: r
-    LOGICAL       :: failure
-
-    ! -------------------------------------------------------------------------
+! Local parameter
+! -------------------------------------------------------------------------
 
     failure = .FALSE.
 
@@ -775,21 +759,18 @@ CONTAINS
     ! Get the next real random number between 0 and 1 from the stream
     ! rng_stream.
 
-    TYPE(rng_stream_type), POINTER               :: rng_stream
-    TYPE(cp_error_type), OPTIONAL, INTENT(INOUT) :: error
+    TYPE(rng_stream_type), POINTER           :: rng_stream
+    TYPE(cp_error_type), INTENT(INOUT), &
+      OPTIONAL                               :: error
+    REAL(KIND=dp)                            :: u
 
-    REAL(KIND=dp) :: u
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'next_real_random_number', &
+      routineP = moduleN//':'//routineN
 
-    ! Local parameter
+    LOGICAL                                  :: failure
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = "next_real_random_number",&
-                                   routineP = moduleN//":"//routineN
-
-    ! Local variables
-
-    LOGICAL :: failure
-
-    ! -------------------------------------------------------------------------
+! Local parameter
+! -------------------------------------------------------------------------
 
     failure = .FALSE.
 
@@ -813,12 +794,13 @@ CONTAINS
     ! If the optional argument seed is missing, then the default seed is
     ! returned.
 
-    REAL(KIND=dp), DIMENSION(3,2), OPTIONAL, INTENT(IN) :: seed
-    TYPE(cp_error_type), OPTIONAL, INTENT(INOUT)        :: error
+    REAL(KIND=dp), DIMENSION(3, 2), &
+      INTENT(IN), OPTIONAL                   :: seed
+    TYPE(cp_error_type), INTENT(INOUT), &
+      OPTIONAL                               :: error
+    REAL(KIND=dp), DIMENSION(3, 2)           :: next_seed
 
-    REAL(KIND=dp), DIMENSION(3,2) :: next_seed
-
-    ! -------------------------------------------------------------------------
+! -------------------------------------------------------------------------
 
     IF (PRESENT(seed)) THEN
       IF (PRESENT(error)) THEN
@@ -840,21 +822,20 @@ CONTAINS
 
     ! Read a RNG stream from a record given as an internal file (string).
 
-    TYPE(rng_stream_type), POINTER               :: rng_stream
-    CHARACTER(LEN=rng_record_length), INTENT(IN) :: rng_record
-    TYPE(cp_error_type), OPTIONAL, INTENT(INOUT) :: error
+    TYPE(rng_stream_type), POINTER           :: rng_stream
+    CHARACTER(LEN=rng_record_length), &
+      INTENT(IN)                             :: rng_record
+    TYPE(cp_error_type), INTENT(INOUT), &
+      OPTIONAL                               :: error
 
-    ! Local parameter
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'read_rng_stream', &
+      routineP = moduleN//':'//routineN
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = "read_rng_stream",&
-                                   routineP = moduleN//":"//routineN
+    INTEGER                                  :: istat
+    LOGICAL                                  :: failure
 
-    ! Local variables
-
-    INTEGER :: istat
-    LOGICAL :: failure
-
-    ! -------------------------------------------------------------------------
+! Local parameter
+! -------------------------------------------------------------------------
 
     failure = .FALSE.
 
@@ -881,19 +862,17 @@ CONTAINS
 
     ! Reset a random number stream to its initial state.
 
-    TYPE(rng_stream_type), POINTER               :: rng_stream
-    TYPE(cp_error_type), OPTIONAL, INTENT(INOUT) :: error
+    TYPE(rng_stream_type), POINTER           :: rng_stream
+    TYPE(cp_error_type), INTENT(INOUT), &
+      OPTIONAL                               :: error
 
-    ! Local parameter
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'reset_rng_stream', &
+      routineP = moduleN//':'//routineN
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = "reset_rng_stream",&
-                                   routineP = moduleN//":"//routineN
+    LOGICAL                                  :: failure
 
-    ! Local variables
-
-    LOGICAL :: failure
-
-    ! -------------------------------------------------------------------------
+! Local parameter
+! -------------------------------------------------------------------------
 
     failure = .FALSE.
 
@@ -912,9 +891,9 @@ CONTAINS
 
     ! Reset a random number stream to the beginning of its current substream.
 
-    TYPE(rng_stream_type), POINTER :: rng_stream
+    TYPE(rng_stream_type), POINTER           :: rng_stream
 
-    ! -------------------------------------------------------------------------
+! -------------------------------------------------------------------------
 
     rng_stream%cg = rng_stream%bg
 
@@ -926,21 +905,18 @@ CONTAINS
 
     ! Reset a random number stream to the beginning of its next substream.
 
-    TYPE(rng_stream_type), POINTER               :: rng_stream
-    TYPE(cp_error_type), OPTIONAL, INTENT(INOUT) :: error
+    TYPE(rng_stream_type), POINTER           :: rng_stream
+    TYPE(cp_error_type), INTENT(INOUT), &
+      OPTIONAL                               :: error
 
-    ! Local parameter
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'reset_to_next_rng_substream', &
+      routineP = moduleN//':'//routineN
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = "reset_to_next_rng_substream",&
-                                   routineP = moduleN//":"//routineN
+    LOGICAL                                  :: failure
+    REAL(KIND=dp), DIMENSION(3, 2)           :: u
 
-    ! Local variables
-
-    REAL(KIND=dp), DIMENSION(3,2) :: u
-
-    LOGICAL :: failure
-
-    ! -------------------------------------------------------------------------
+! Local parameter
+! -------------------------------------------------------------------------
 
     failure = .FALSE.
 
@@ -966,18 +942,14 @@ CONTAINS
 
     ! Generate the next random number with standard precision (32 bits).
 
-    TYPE(rng_stream_type), POINTER :: rng_stream
+    TYPE(rng_stream_type), POINTER           :: rng_stream
+    REAL(KIND=dp)                            :: u
 
-    REAL(KIND=dp) :: u
+    INTEGER                                  :: k
+    REAL(KIND=dp)                            :: p1, p2
 
-    ! Local variables
-
-    REAL(KIND=dp) :: p1,p2
-    INTEGER       :: k
-
-    ! -------------------------------------------------------------------------
-
-    ! Component 1
+! -------------------------------------------------------------------------
+! Component 1
 
     p1 = a12*rng_stream%cg(2,1) - a13n*rng_stream%cg(1,1)
     k = INT(p1/m1)
@@ -1015,11 +987,10 @@ CONTAINS
 
     ! Generate the next random number with extended precision (53 bits).
 
-    TYPE(rng_stream_type), POINTER :: rng_stream
+    TYPE(rng_stream_type), POINTER           :: rng_stream
+    REAL(KIND=dp)                            :: u
 
-    REAL(KIND=dp) :: u
-
-    ! -------------------------------------------------------------------------
+! -------------------------------------------------------------------------
 
     u = rn32(rng_stream)
 
@@ -1043,23 +1014,21 @@ CONTAINS
     ! Set the components of a RNG stream.
     ! NOTE: The manipulation of an active RNG stream is discouraged.
 
-    TYPE(rng_stream_type), POINTER                      :: rng_stream
-    CHARACTER(LEN=*), OPTIONAL, INTENT(IN)              :: name
-    REAL(KIND=dp), DIMENSION(3,2), OPTIONAL, INTENT(IN) :: bg,cg,ig,seed
-    LOGICAL, OPTIONAL, INTENT(IN)                       :: antithetic,&
-                                                           extended_precision
-    TYPE(cp_error_type), OPTIONAL, INTENT(INOUT)        :: error
+    TYPE(rng_stream_type), POINTER           :: rng_stream
+    CHARACTER(LEN=*), INTENT(IN), OPTIONAL   :: name
+    REAL(KIND=dp), DIMENSION(3, 2), &
+      INTENT(IN), OPTIONAL                   :: bg, cg, ig, seed
+    LOGICAL, INTENT(IN), OPTIONAL            :: antithetic, extended_precision
+    TYPE(cp_error_type), INTENT(INOUT), &
+      OPTIONAL                               :: error
 
-    ! Local parameter
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'set_rng_stream', &
+      routineP = moduleN//':'//routineN
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = "set_rng_stream",&
-                                   routineP = moduleN//":"//routineN
+    LOGICAL                                  :: failure
 
-    ! Local variables
-
-    LOGICAL :: failure
-
-    ! -------------------------------------------------------------------------
+! Local parameter
+! -------------------------------------------------------------------------
 
     failure = .FALSE.
 
@@ -1097,16 +1066,13 @@ CONTAINS
     ! Write the transformation matrices of the two MRG components (raised to
     ! the powers -1, 1, 2**76, and 2**127) the a logical output unit.
 
-    INTEGER, INTENT(IN) :: output_unit
+    INTEGER, INTENT(IN)                      :: output_unit
 
-    ! Local variables
+    CHARACTER(LEN=40)                        :: fmtstr
+    INTEGER                                  :: i, j
 
-    CHARACTER(LEN=40) :: fmtstr
-    INTEGER           :: i,j
-
-    ! -------------------------------------------------------------------------
-
-    ! Print the transformation matrices for both components
+! -------------------------------------------------------------------------
+! Print the transformation matrices for both components
 
     WRITE (UNIT=output_unit,FMT="(/,/,T2,A)")&
       "TRANSFORMATION MATRICES FOR THE PARALLEL (PSEUDO)RANDOM NUMBER "//&
@@ -1138,20 +1104,18 @@ CONTAINS
 
   SUBROUTINE write_rng_stream(rng_stream,output_unit,error)
 
-    TYPE(rng_stream_type), POINTER               :: rng_stream
-    INTEGER, INTENT(IN)                          :: output_unit
-    TYPE(cp_error_type), OPTIONAL, INTENT(INOUT) :: error
+    TYPE(rng_stream_type), POINTER           :: rng_stream
+    INTEGER, INTENT(IN)                      :: output_unit
+    TYPE(cp_error_type), INTENT(INOUT), &
+      OPTIONAL                               :: error
 
-    ! Local parameter
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'write_rng_stream', &
+      routineP = moduleN//':'//routineN
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = "write_rng_stream",&
-                                   routineP = moduleN//":"//routineN
+    LOGICAL                                  :: failure
 
-    ! Local variables
-
-    LOGICAL :: failure
-
-    ! -------------------------------------------------------------------------
+! Local parameter
+! -------------------------------------------------------------------------
 
     failure = .FALSE.
 

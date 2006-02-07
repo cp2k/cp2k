@@ -25,47 +25,29 @@ MODULE qs_loc_utils
 
   USE ai_moments,                      ONLY: contract_cossin,&
                                              cossin
-  USE atomic_kind_types,               ONLY: atomic_kind_type, &
+  USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind,&
                                              get_atomic_kind_set
   USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                              gto_basis_set_type
-  USE coefficient_types,               ONLY: coeff_type
-  USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm
+  USE cell_types,                      ONLY: cell_type,&
+                                             pbc
   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                              cp_fm_struct_release,&
                                              cp_fm_struct_type
-  USE cp_fm_types,                     ONLY: cp_fm_create,&
-                                             cp_fm_get_element,&
-                                             cp_fm_get_info,&
-                                             cp_fm_maxabsval,&
-                                             cp_fm_get_submatrix,&
-                                             cp_fm_p_type,&
-                                             cp_fm_release,&
-                                             cp_fm_set_all,&
-                                             cp_fm_set_submatrix,&
-                                             cp_fm_to_fm,&
-                                             cp_fm_type
-  USE cp_para_env,                     ONLY: cp_para_env_release,&
-                                             cp_para_env_retain
+  USE cp_fm_types,                     ONLY: &
+       cp_fm_create, cp_fm_get_element, cp_fm_get_info, cp_fm_get_submatrix, &
+       cp_fm_maxabsval, cp_fm_p_type, cp_fm_release, cp_fm_set_all, &
+       cp_fm_set_submatrix, cp_fm_to_fm, cp_fm_type
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE cp_sm_fm_interactions,           ONLY: cp_sm_fm_multiply
   USE distribution_1d_types,           ONLY: distribution_1d_type
-  USE kinds,                           ONLY: dp
-  USE input_constants,                 ONLY: do_loc_min,&
-                                             do_loc_max,&
-                                             do_loc_jacobi,&
-                                             do_loc_crazy,&
-                                             do_loc_direct,&
-                                             do_loc_none,&
+  USE input_constants,                 ONLY: do_loc_none,&
                                              op_loc_berry,&
-                                             op_loc_boys,&
                                              op_loc_pipek,&
-                                             state_loc_all,&
-                                             state_loc_upton,&
-                                             state_loc_fromitoj,&
                                              state_loc_list
-  USE mathconstants,                   ONLY: pi, twopi
+  USE kinds,                           ONLY: dp
+  USE mathconstants,                   ONLY: pi,&
+                                             twopi
   USE orbital_pointers,                ONLY: nco,&
                                              ncoset
   USE particle_types,                  ONLY: particle_type
@@ -77,28 +59,17 @@ MODULE qs_loc_utils
                                              set_qs_loc_env
   USE qs_localization_methods,         ONLY: initialize_weights,&
                                              rotate_orbitals
-  USE qs_neighbor_list_types,          ONLY: find_neighbor_list,&
-                                             first_list,&
-                                             first_node,&
-                                             get_neighbor_list,&
-                                             get_neighbor_list_set,&
-                                             get_neighbor_node,&
-                                             block_p_type,&
-                                             neighbor_list_set_p_type,&
-                                             neighbor_list_type,&
-                                             neighbor_node_type,&
-                                             next
   USE qs_mo_types,                     ONLY: get_mo_set,&
                                              mo_set_p_type
-  USE cell_types,                 ONLY: cell_type,&
-                                             pbc
+  USE qs_neighbor_list_types,          ONLY: &
+       block_p_type, first_list, first_node, get_neighbor_list, &
+       get_neighbor_list_set, get_neighbor_node, neighbor_list_set_p_type, &
+       neighbor_list_type, neighbor_node_type, next
   USE sparse_matrix_types,             ONLY: get_block_node,&
                                              real_matrix_p_type,&
                                              replicate_matrix_structure,&
-                                             set_matrix,&
-                                             get_matrix_info
-  USE termination,                     ONLY: stop_memory,&
-                                             stop_program
+                                             set_matrix
+  USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "cp_common_uses.h"
@@ -109,7 +80,7 @@ MODULE qs_loc_utils
 
 ! *** Global parameters ***
 
-  CHARACTER(LEN=*), PARAMETER, PRIVATE :: module_name = "qs_loc_utils"
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_loc_utils'
 
 
 ! *** Public ***
@@ -142,22 +113,22 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE jacobi_rotation_pipek(zij_fm_set, vectors, sweeps, error)
 
-    TYPE(cp_fm_p_type), DIMENSION(:,:),POINTER   :: zij_fm_set
-    TYPE(cp_fm_type), POINTER                    :: vectors
-    INTEGER                                      :: sweeps
+    TYPE(cp_fm_p_type), DIMENSION(:, :), &
+      POINTER                                :: zij_fm_set
+    TYPE(cp_fm_type), POINTER                :: vectors
+    INTEGER                                  :: sweeps
     TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                                   :: error
+      OPTIONAL                               :: error
 
-    CHARACTER(len=*), PARAMETER :: routine_name = 'jacobi_rotation_pipek', &
-      routineP = module_name//':'//routine_name
+    CHARACTER(len=*), PARAMETER :: routineN = 'jacobi_rotation_pipek', &
+      routineP = moduleN//':'//routineN
 
-    INTEGER :: iatom, istate, jstate, natom, nstate
-     
-    LOGICAL                                      :: failure
-    REAL(KIND=dp)                                :: ct, st, theta, tolerance
-    REAL(KIND=dp)                                :: mii, mij, mjj
-    REAL(KIND=dp)                                :: aij, bij,ratio
-    TYPE(cp_fm_type), POINTER                    :: rmat
+    INTEGER                                  :: iatom, istate, jstate, natom, &
+                                                nstate
+    LOGICAL                                  :: failure
+    REAL(KIND=dp)                            :: aij, bij, ct, mii, mij, mjj, &
+                                                ratio, st, theta, tolerance
+    TYPE(cp_fm_type), POINTER                :: rmat
 
     failure = .FALSE.
 
@@ -269,7 +240,7 @@ CONTAINS
 #else
        CALL drot(nstate,zij(iatom,1)%matrix%local_data(1,istate),&
             1,zij(iatom,1)%matrix%local_data(1,jstate),1,ct,st)
-       stride = size(zij(iatom,1)%matrix%local_data,1)
+       stride = SIZE(zij(iatom,1)%matrix%local_data,1)
        CALL drot(nstate,zij(iatom,1)%matrix%local_data(istate,1),&
             stride,zij(iatom,1)%matrix%local_data(jstate,1),stride,ct,st)
 #endif
@@ -279,18 +250,19 @@ CONTAINS
 
   SUBROUTINE check_tolerance_real(zij_fm_set,tolerance,error)
 
-    TYPE(cp_fm_p_type), DIMENSION(:,:)    :: zij_fm_set
-    REAL(dp), INTENT(OUT)                  :: tolerance
+    TYPE(cp_fm_p_type), DIMENSION(:, :)      :: zij_fm_set
+    REAL(dp), INTENT(OUT)                    :: tolerance
     TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                            :: error
-    
-    INTEGER :: iatom, istat, istate, jstate, natom, ncol_local,&
-               nrow_global, nrow_local 
-    INTEGER, DIMENSION(:), POINTER        :: col_indices, row_indices
-    LOGICAL                               :: failure
-    REAL(dp)                              :: grad_ij, zii, zij, zjj
-    REAL(dp), DIMENSION(:,:), POINTER     :: diag
-    TYPE(cp_fm_type), POINTER             :: force
+      OPTIONAL                               :: error
+
+    INTEGER                                  :: iatom, istat, istate, jstate, &
+                                                natom, ncol_local, &
+                                                nrow_global, nrow_local
+    INTEGER, DIMENSION(:), POINTER           :: col_indices, row_indices
+    LOGICAL                                  :: failure
+    REAL(dp)                                 :: grad_ij, zii, zij, zjj
+    REAL(dp), DIMENSION(:, :), POINTER       :: diag
+    TYPE(cp_fm_type), POINTER                :: force
 
     failure = .FALSE.
 
@@ -305,7 +277,7 @@ CONTAINS
     CALL cp_fm_create(force , zij_fm_set(1,1)%matrix%matrix_struct,error=error)
     CALL cp_fm_set_all (force, 0._dp, error= error) 
 
-    Do iatom = 1,natom
+    DO iatom = 1,natom
       DO istate = 1,nrow_global
         CALL cp_fm_get_element(zij_fm_set(iatom,1)%matrix,istate,istate,diag(istate,iatom))
       END DO
@@ -360,34 +332,39 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE qs_loc_env_init(qs_loc_env,localized_wfn_control,qs_env,onlyspin1,error)
 
-    TYPE(qs_loc_env_new_type), POINTER         :: qs_loc_env
-    TYPE ( localized_wfn_control_type ), &
-      POINTER                                  :: localized_wfn_control
-    TYPE(qs_environment_type), POINTER         :: qs_env
-    LOGICAL, OPTIONAL                          :: onlyspin1
+    TYPE(qs_loc_env_new_type), POINTER       :: qs_loc_env
+    TYPE(localized_wfn_control_type), &
+      POINTER                                :: localized_wfn_control
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    LOGICAL, OPTIONAL                        :: onlyspin1
     TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                                 :: error
+      OPTIONAL                               :: error
 
-    CHARACTER(len=*), PARAMETER :: routine_name = 'qs_loc_env_init', &
-      routineP = module_name//':'//routine_name
+    CHARACTER(len=*), PARAMETER :: routineN = 'qs_loc_env_init', &
+      routineP = moduleN//':'//routineN
 
-    INTEGER  :: handle, i, iatom, imo, imoloc, isos, ispin, istat, j, &
-                lb, my_nspins, nao, naosub, natoms,  nmo, nmosub, nspins, ub
-    LOGICAL  :: failure, my_one_spin
-    REAL(KIND=dp)                               :: my_occ, occ_imo
-    REAL(KIND=dp), DIMENSION(:, :), POINTER     :: vecbuffer
-    REAL(KIND=dp), DIMENSION(:), POINTER        :: occupations
-    TYPE(cell_type), POINTER                    :: cell
-    TYPE(cp_fm_p_type), DIMENSION(:), POINTER   :: moloc_coeff
-    TYPE(cp_fm_struct_type), POINTER            :: tmp_fm_struct
-    TYPE(cp_fm_type), POINTER                   :: mo_coeff
-    TYPE(cp_para_env_type), POINTER             :: para_env
-    TYPE(distribution_1d_type), POINTER         :: local_molecules
-    TYPE(mo_set_p_type), DIMENSION(:), POINTER  :: mos
+    INTEGER                                  :: handle, i, iatom, imo, &
+                                                imoloc, ispin, istat, j, lb, &
+                                                my_nspins, nao, naosub, &
+                                                natoms, nmo, nmosub, nspins, &
+                                                ub
+    LOGICAL                                  :: failure, my_one_spin
+    REAL(KIND=dp)                            :: my_occ, occ_imo
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: occupations
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: vecbuffer
+    TYPE(cell_type), POINTER                 :: cell
+    TYPE(cp_fm_p_type), DIMENSION(:), &
+      POINTER                                :: moloc_coeff
+    TYPE(cp_fm_struct_type), POINTER         :: tmp_fm_struct
+    TYPE(cp_fm_type), POINTER                :: mo_coeff
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(distribution_1d_type), POINTER      :: local_molecules
+    TYPE(mo_set_p_type), DIMENSION(:), &
+      POINTER                                :: mos
     TYPE(particle_type), DIMENSION(:), &
-      POINTER                                   :: particle_set
+      POINTER                                :: particle_set
     TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                   :: matrix_s
+      POINTER                                :: matrix_s
 
 !   ---------------------------------------------------------------------------
 
@@ -593,54 +570,54 @@ END SUBROUTINE qs_loc_env_init
   SUBROUTINE get_berry_operator ( qs_loc_env, qs_env, error ) 
 
 ! globals
-    TYPE(qs_loc_env_new_type), POINTER         :: qs_loc_env
-    TYPE(qs_environment_type), POINTER         :: qs_env
+    TYPE(qs_loc_env_new_type), POINTER       :: qs_loc_env
+    TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                                 :: error
+      OPTIONAL                               :: error
 
-    CHARACTER(len=*), PARAMETER :: routine_name = 'get_berry_operator', &
-      routineP = module_name//':'//routine_name
+    CHARACTER(len=*), PARAMETER :: routineN = 'get_berry_operator', &
+      routineP = moduleN//':'//routineN
 
-
-    INTEGER  :: handle, i, iab, iat, iatom, icol, ikind, ilist, inode, irow, &
-                iset, istat, ithread, j, jat, jatom, jkind, jset, last_jatom, &
-                ldab, ldsa, ldsb, ldwork, maxl, ncoa, ncob, nkind, nlist,& 
-                nnode, nrow, nthread, nseta, nsetb, sgfa, sgfb
-    INTEGER, DIMENSION(:), POINTER             :: la_max, la_min, lb_max, lb_min
-    INTEGER, DIMENSION(:), POINTER             :: npgfa, npgfb
-    INTEGER, DIMENSION(:), POINTER             :: nsgfa, nsgfb
-    INTEGER, DIMENSION(:,:), POINTER           :: first_sgfa,first_sgfb
-    LOGICAL :: failure, new_atom_b, ortho
-    REAL(KIND=dp)                              :: ooLx, ooLy, ooLz, rab2, dab
-    REAL(KIND=dp)                              :: twopoLx, twopoLy, twopoLz
-    REAL(KIND=dp), DIMENSION(3)                :: kvec, ra, rb, rab
-    REAL(KIND=dp), DIMENSION(6)                :: weights
-    REAL(KIND = dp), DIMENSION(:), POINTER     :: set_radius_a,set_radius_b
-    REAL(KIND=dp), DIMENSION(:,:), POINTER     :: rpgfa, rpgfb, sphi_a,sphi_b, zeta, zetb 
-    REAL(KIND=dp), DIMENSION(:,:), POINTER     :: cosab,sinab, work 
-    REAL(KIND=dp), DIMENSION(:,:,:), POINTER   :: cosabt,sinabt, workt
-    TYPE(atomic_kind_type), DIMENSION(:),&
-      POINTER                                  :: atomic_kind_set
-    TYPE(atomic_kind_type), POINTER            :: atomic_kind
+    INTEGER :: handle, i, iab, iatom, icol, ikind, ilist, inode, irow, iset, &
+      istat, ithread, j, jatom, jkind, jset, last_jatom, ldab, ldsa, ldsb, &
+      ldwork, maxl, ncoa, ncob, nkind, nlist, nnode, nrow, nseta, nsetb, &
+      nthread, sgfa, sgfb
+    INTEGER, DIMENSION(:), POINTER           :: la_max, la_min, lb_max, &
+                                                lb_min, npgfa, npgfb, nsgfa, &
+                                                nsgfb
+    INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa, first_sgfb
+    LOGICAL                                  :: failure, new_atom_b, ortho
+    REAL(KIND=dp)                            :: dab, ooLx, ooLy, ooLz, rab2, &
+                                                twopoLx, twopoLy, twopoLz
+    REAL(KIND=dp), DIMENSION(3)              :: kvec, ra, rab, rb
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: set_radius_a, set_radius_b
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: cosab, rpgfa, rpgfb, sinab, &
+                                                sphi_a, sphi_b, work, zeta, &
+                                                zetb
+    REAL(KIND=dp), DIMENSION(:, :, :), &
+      POINTER                                :: cosabt, sinabt, workt
+    TYPE(atomic_kind_type), DIMENSION(:), &
+      POINTER                                :: atomic_kind_set
+    TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(block_p_type), DIMENSION(:), &
-          POINTER                              :: op_cos, op_sin
-    TYPE(block_p_type), DIMENSION(:,:), &
-      POINTER                                  :: op_cost, op_sint
-    TYPE(cell_type), POINTER                   :: cell
-    TYPE(gto_basis_set_type), POINTER          :: orb_basis_set
+      POINTER                                :: op_cos, op_sin
+    TYPE(block_p_type), DIMENSION(:, :), &
+      POINTER                                :: op_cost, op_sint
+    TYPE(cell_type), POINTER                 :: cell
+    TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
     TYPE(neighbor_list_set_p_type), &
-      DIMENSION(:),           POINTER          :: sab_orb
-    TYPE(neighbor_list_type), POINTER          :: sab_orb_neighbor_list,&
-                                                  sab_orb_neighbor_list_local
-    TYPE(neighbor_node_type), POINTER          :: sab_orb_neighbor_node
+      DIMENSION(:), POINTER                  :: sab_orb
+    TYPE(neighbor_list_type), POINTER        :: sab_orb_neighbor_list, &
+                                                sab_orb_neighbor_list_local
+    TYPE(neighbor_node_type), POINTER        :: sab_orb_neighbor_node
     TYPE(particle_type), DIMENSION(:), &
-      POINTER                                  :: particle_set
-    TYPE (real_matrix_p_type), DIMENSION(:,:),&
-      POINTER                                  :: op_sm_set
+      POINTER                                :: particle_set
+    TYPE(real_matrix_p_type), &
+      DIMENSION(:, :), POINTER               :: op_sm_set
 
 !$  INTEGER :: omp_get_max_threads,omp_get_thread_num
 
-    CALL timeset(routine_name,"I"," ",handle)
+    CALL timeset(routineN,"I"," ",handle)
 
     failure = .FALSE.
     NULLIFY (atomic_kind, atomic_kind_set)

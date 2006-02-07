@@ -22,21 +22,12 @@
 
 MODULE cp2k_units
   USE kinds,                           ONLY: dp
-  USE physcon,                         ONLY: a_bohr,&
-                                             bohr,&
-                                             boltzmann,&
-                                             e_charge,&
-                                             evolt,&
-                                             femtoseconds,&
-                                             h_bar,&
-                                             hz,&
-                                             joule,&
-                                             kcalmol,&
-                                             massunit,&
-                                             permittivity,&
-                                             wavenum
   USE mathconstants,                   ONLY: twopi
+  USE physcon,                         ONLY: &
+       a_bohr, bohr, boltzmann, e_charge, evolt, femtoseconds, h_bar, hz, &
+       joule, kcalmol, massunit, permittivity, wavenum
 #include "cp_common_uses.h"
+
   IMPLICIT NONE
   PRIVATE
 
@@ -50,7 +41,7 @@ MODULE cp2k_units
   
   TYPE ( unit_convert_type ), POINTER :: units
   PUBLIC :: unit_convert_type, get_cp2k_units, init_cp2k_units, rm_cp2k_units
-  CHARACTER(LEN=*), PARAMETER :: module_name = "cp2k_units"
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp2k_units'
 !!*****
 !******************************************************************************
 
@@ -76,13 +67,15 @@ CONTAINS
 !******************************************************************************
 
 SUBROUTINE init_cp2k_units (error)
-  IMPLICIT NONE
 
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-  CHARACTER(len=*), PARAMETER :: routineN='init_cp2k_units',&
-       routineP=module_name//':'//routineN
-  INTEGER :: stat
-  LOGICAL                                  :: failure
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'init_cp2k_units', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: stat
+    LOGICAL                                  :: failure
 
   failure=.FALSE.
 
@@ -121,13 +114,15 @@ SUBROUTINE init_cp2k_units (error)
 END SUBROUTINE init_cp2k_units
 
 SUBROUTINE rm_cp2k_units (error)
-  IMPLICIT NONE
 
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-  CHARACTER(len=*), PARAMETER :: routineN='init_cp2k_units',&
-       routineP=module_name//':'//routineN
-  INTEGER :: stat
-  LOGICAL                                  :: failure
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'rm_cp2k_units', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: stat
+    LOGICAL                                  :: failure
 
   failure=.FALSE.
 

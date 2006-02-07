@@ -30,7 +30,7 @@ MODULE xc_hcth
                                              xc_dset_get_derivative
   USE xc_derivative_types,             ONLY: xc_derivative_get,&
                                              xc_derivative_type
-  USE xc_rho_cflags_types,                ONLY: xc_rho_cflags_type
+  USE xc_rho_cflags_types,             ONLY: xc_rho_cflags_type
   USE xc_rho_set_types,                ONLY: xc_rho_set_get,&
                                              xc_rho_set_type
 #include "cp_common_uses.h"
@@ -39,7 +39,7 @@ MODULE xc_hcth
   PRIVATE
 
   LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
-  CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='xc_hcth'
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'xc_hcth'
 
   PUBLIC :: hcth_lda_info, hcth_lda_eval
 !!***
@@ -73,13 +73,13 @@ CONTAINS
     INTEGER, INTENT(in)                      :: iparset
     CHARACTER(LEN=*), INTENT(OUT), OPTIONAL  :: reference, shortform
     TYPE(xc_rho_cflags_type), &
-         INTENT(inout), OPTIONAL                :: needs
+      INTENT(inout), OPTIONAL                :: needs
     INTEGER, INTENT(out), OPTIONAL           :: max_deriv
     TYPE(cp_error_type), INTENT(inout), &
-         OPTIONAL                               :: error
+      OPTIONAL                               :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'hcth93_lda_info', &
-         routineP = moduleN//':'//routineN
+    CHARACTER(len=*), PARAMETER :: routineN = 'hcth_lda_info', &
+      routineP = moduleN//':'//routineN
 
     SELECT CASE(iparset)
     CASE(93)
@@ -269,8 +269,8 @@ CONTAINS
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = "hcth_lda_calc", &
-      routineP = moduleN//":"//routineN
+    CHARACTER(len=*), PARAMETER :: routineN = 'hcth_lda_calc', &
+      routineP = moduleN//':'//routineN
     REAL(KIND=dp), DIMENSION(4), PARAMETER :: &
       beta0 = (/ 7.59570_dp,3.58760_dp,1.63820_dp,0.49294_dp/), &
       beta1 = (/14.11890_dp,6.19770_dp,3.36620_dp,0.62517_dp/)

@@ -39,29 +39,33 @@ CONTAINS
 
 ! print a list of of keywords 
   SUBROUTINE list_keywords(keywords,unit)  
-     TYPE(keyword_type), DIMENSION(:) :: keywords 
-     INTEGER :: unit
-     
-     INTEGER :: i
-     write(unit,*)
-     write(unit,*) " +++ KNOWN KEYWORDS FOR THIS SECTION +++ "
+    TYPE(keyword_type), DIMENSION(:)         :: keywords
+    INTEGER                                  :: unit
+
+    INTEGER                                  :: i
+
+     WRITE(unit,*)
+     WRITE(unit,*) " +++ KNOWN KEYWORDS FOR THIS SECTION +++ "
      DO I=1,SIZE(keywords)
-        write(unit,*) "                                        ---"//TRIM(keywords(I)%keyword)//"---"
-        write(unit,*) "usage       : "//TRIM(keywords(I)%usage)
-        write(unit,*) "description : "//TRIM(keywords(I)%description)
+        WRITE(unit,*) "                                        ---"//TRIM(keywords(I)%keyword)//"---"
+        WRITE(unit,*) "usage       : "//TRIM(keywords(I)%usage)
+        WRITE(unit,*) "description : "//TRIM(keywords(I)%description)
         IF (TRIM(keywords(I)%variant1).NE."" .OR. TRIM(keywords(I)%variant2).NE."" .OR. TRIM(keywords(I)%variant3).NE."") THEN
-            write(unit,*) "variants    : ",TRIM(keywords(I)%variant1)," ",TRIM(keywords(I)%variant2)," ",TRIM(keywords(I)%variant3)
+            WRITE(unit,*) "variants    : ",TRIM(keywords(I)%variant1)," ",TRIM(keywords(I)%variant2)," ",TRIM(keywords(I)%variant3)
         ENDIF
      ENDDO
-     write(unit,*) " +++ END KNOWN KEYWORDS FOR THIS SECTION +++"
-     write(unit,*)
+     WRITE(unit,*) " +++ END KNOWN KEYWORDS FOR THIS SECTION +++"
+     WRITE(unit,*)
   END SUBROUTINE list_keywords
 
 ! return the location of the matching entry
   FUNCTION find_keyword(keywords,key)
-     TYPE(keyword_type), DIMENSION(:) :: keywords
-     CHARACTER(LEN=*)                 :: key
-     INTEGER                          :: find_keyword,I
+    TYPE(keyword_type), DIMENSION(:)         :: keywords
+    CHARACTER(LEN=*)                         :: key
+    INTEGER                                  :: find_keyword
+
+    INTEGER                                  :: I
+
      find_keyword=-1
      DO I=1,SIZE(keywords)
         IF (TRIM(keywords(I)%keyword).EQ.TRIM(key))  find_keyword=I

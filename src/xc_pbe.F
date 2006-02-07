@@ -28,6 +28,10 @@
 !!   SOURCE
 !****************************************************************************
 MODULE xc_pbe
+  USE input_constants,                 ONLY: xc_pbe_orig,&
+                                             xc_rev_pbe
+  USE input_section_types,             ONLY: section_vals_type,&
+                                             section_vals_val_get
   USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: pi
   USE timings,                         ONLY: timeset,&
@@ -39,15 +43,13 @@ MODULE xc_pbe
   USE xc_rho_cflags_types,             ONLY: xc_rho_cflags_type
   USE xc_rho_set_types,                ONLY: xc_rho_set_get,&
                                              xc_rho_set_type
-  USE input_section_types, ONLY: section_vals_type, section_vals_val_get
-  USE input_constants, ONLY: xc_pbe_orig, xc_rev_pbe
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
   PRIVATE
 
   LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
-  CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='xc_pbe'
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'xc_pbe'
   REAL(kind=dp), PARAMETER, PRIVATE :: a=0.04918_dp, b=0.132_dp,&
        c=0.2533_dp,d=0.349_dp
 
@@ -91,21 +93,22 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE pbe_lda_info(pbe_params,reference,shortform, needs, max_deriv,&
        error)
-    TYPE(section_vals_type), POINTER :: pbe_params
+    TYPE(section_vals_type), POINTER         :: pbe_params
     CHARACTER(LEN=*), INTENT(OUT), OPTIONAL  :: reference, shortform
     TYPE(xc_rho_cflags_type), &
-         INTENT(inout), OPTIONAL                :: needs
+      INTENT(inout), OPTIONAL                :: needs
     INTEGER, INTENT(out), OPTIONAL           :: max_deriv
     TYPE(cp_error_type), INTENT(inout), &
-         OPTIONAL                               :: error
-    integer :: param
-    REAL(kind=dp) :: sx,sc
+      OPTIONAL                               :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pbe_lda_info', &
-         routineP = moduleN//':'//routineN
-    LOGICAL :: failure
+      routineP = moduleN//':'//routineN
 
-    failure=.false.
+    INTEGER                                  :: param
+    LOGICAL                                  :: failure
+    REAL(kind=dp)                            :: sc, sx
+
+    failure=.FALSE.
     CALL section_vals_val_get(pbe_params,"parametrization",i_val=param,error=error)
     CALL section_vals_val_get(pbe_params,"scale_x",r_val=sx,error=error)
     CALL section_vals_val_get(pbe_params,"scale_c",r_val=sc,error=error)
@@ -203,7 +206,7 @@ CONTAINS
 !!*** **********************************************************************
 SUBROUTINE pbe_lsd_info(pbe_params,reference,shortform, needs, max_deriv,&
      error)
-    TYPE(section_vals_type), POINTER :: pbe_params
+    TYPE(section_vals_type), POINTER         :: pbe_params
     CHARACTER(LEN=*), INTENT(OUT), OPTIONAL  :: reference, shortform
     TYPE(xc_rho_cflags_type), &
       INTENT(inout), OPTIONAL                :: needs
@@ -211,13 +214,14 @@ SUBROUTINE pbe_lsd_info(pbe_params,reference,shortform, needs, max_deriv,&
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-    logical :: failure
-    INTEGER :: param
-    REAL(kind=dp) :: sx,sc
     CHARACTER(len=*), PARAMETER :: routineN = 'pbe_lsd_info', &
       routineP = moduleN//':'//routineN
 
-    failure=.false.
+    INTEGER                                  :: param
+    LOGICAL                                  :: failure
+    REAL(kind=dp)                            :: sc, sx
+
+    failure=.FALSE.
     CALL section_vals_val_get(pbe_params,"parametrization",i_val=param,error=error)
     CALL section_vals_val_get(pbe_params,"scale_x",r_val=sx,error=error)
     CALL section_vals_val_get(pbe_params,"scale_c",r_val=sc,error=error)
@@ -314,10 +318,10 @@ END SUBROUTINE pbe_lsd_info
 !!
 !!*** **********************************************************************
 SUBROUTINE pbe_lda_eval(rho_set,deriv_set,grad_deriv,pbe_params,error)
-    TYPE(section_vals_type), POINTER :: pbe_params
     TYPE(xc_rho_set_type), POINTER           :: rho_set
     TYPE(xc_derivative_set_type), POINTER    :: deriv_set
     INTEGER, INTENT(in)                      :: grad_deriv
+    TYPE(section_vals_type), POINTER         :: pbe_params
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -329,8 +333,9 @@ SUBROUTINE pbe_lda_eval(rho_set,deriv_set,grad_deriv,pbe_params,error)
     LOGICAL                                  :: failure
     REAL(kind=dp)                            :: epsilon_norm_drho, epsilon_rho
     REAL(kind=dp), DIMENSION(:, :, :), POINTER :: dummy, e_0, e_ndrho, &
-      e_ndrho_ndrho, e_ndrho_ndrho_rho, e_ndrho_rho, e_ndrho_rho_rho, e_rho, &
-      e_rho_rho, e_rho_rho_rho, norm_drho, rho, rho_1_3, e_ndrho_ndrho_ndrho
+      e_ndrho_ndrho, e_ndrho_ndrho_ndrho, e_ndrho_ndrho_rho, e_ndrho_rho, &
+      e_ndrho_rho_rho, e_rho, e_rho_rho, e_rho_rho_rho, norm_drho, rho, &
+      rho_1_3
     TYPE(xc_derivative_type), POINTER        :: deriv
 
     CALL timeset(routineN,"I","",handle)
@@ -405,7 +410,7 @@ SUBROUTINE pbe_lda_eval(rho_set,deriv_set,grad_deriv,pbe_params,error)
         deriv => xc_dset_get_derivative(deriv_set,&
              "(norm_drho)(norm_drho)(norm_drho)", allocate_deriv=.TRUE.,&
              error=error)
-        call xc_derivative_get(deriv,deriv_data=e_ndrho_ndrho_ndrho,error=error)
+        CALL xc_derivative_get(deriv,deriv_data=e_ndrho_ndrho_ndrho,error=error)
      END IF
      IF (grad_deriv>3.OR.grad_deriv<-3) THEN
         CALL cp_unimplemented_error(fromWhere=routineP, &
@@ -472,84 +477,79 @@ SUBROUTINE pbe_lda_calc(rho, rho_1_3, norm_drho,&
      e_ndrho_ndrho, e_rho_rho_rho, e_ndrho_rho_rho, e_ndrho_ndrho_rho,&
      e_ndrho_ndrho_ndrho,grad_deriv,npoints,epsilon_rho, epsilon_norm_drho,&
      pbe_params,error)
-  INTEGER, INTENT(in)                      :: npoints, grad_deriv
-  REAL(kind=dp), DIMENSION(1:npoints), INTENT(inout) :: e_ndrho_ndrho_rho, &
-       e_ndrho_rho_rho, e_rho_rho_rho, e_ndrho_ndrho, e_ndrho_rho, e_rho_rho, &
-       e_ndrho, e_rho, e_0, e_ndrho_ndrho_ndrho
-  REAL(kind=dp), DIMENSION(1:npoints), &
-       INTENT(in)                             :: norm_drho, rho_1_3, rho
-  REAL(kind=dp), INTENT(in)                :: epsilon_rho, epsilon_norm_drho
-  TYPE(section_vals_type), POINTER :: pbe_params
-  TYPE(cp_error_type), INTENT(inout), &
-       OPTIONAL                               :: error
+    INTEGER, INTENT(in)                      :: npoints, grad_deriv
+    REAL(kind=dp), DIMENSION(1:npoints), INTENT(inout) :: &
+      e_ndrho_ndrho_ndrho, e_ndrho_ndrho_rho, e_ndrho_rho_rho, e_rho_rho_rho, &
+      e_ndrho_ndrho, e_ndrho_rho, e_rho_rho, e_ndrho, e_rho, e_0
+    REAL(kind=dp), DIMENSION(1:npoints), &
+      INTENT(in)                             :: norm_drho, rho_1_3, rho
+    REAL(kind=dp), INTENT(in)                :: epsilon_rho, epsilon_norm_drho
+    TYPE(section_vals_type), POINTER         :: pbe_params
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-  CHARACTER(len=*), PARAMETER :: routineN = 'pbe_lda_calc', &
-       routineP = moduleN//':'//routineN
+    CHARACTER(len=*), PARAMETER :: routineN = 'pbe_lda_calc', &
+      routineP = moduleN//':'//routineN
 
-  INTEGER                                  :: ii,param
-  logical :: failure
-  real(kind=dp) :: kappa, beta, mu, gamma_var, p_1, A_1, alpha_1_1, &
-       beta_1_1, beta_2_1, beta_3_1, beta_4_1, p_2, scale_ec, scale_ex, &
-       my_rho, my_norm_drho, t1, t2, t3, t4, t5, t6, t7, t8, rs, t11, t13, &
-       t14, t17, t19, t20, t21, t22, t26, t27, e_c_u_0, t45,&
-       t65, t69, t70, t71, k_f, t72, t73, k_s, t74, t75, t, t77, t78, t80,&
-       t81, A, t83, t84, t85, t86, t87, t88, t90, t91, t94, t95, &
-       epsilon_cGGA, kf, ex_unif, t98, t99, s, t101, t103, t105, Fx, t108, &
-       exc, t111, t113, t114, t115, rsrho, t119, t123, t124, t125, t126, &
-       t127, t131, t135, t138, t139, t140, e_c_u_0rho, t142, k_frho, t146, &
-       k_srho, t148, t149, t150, t151, t153, trho, t155, t157, t158, t159, &
-       Arho, t162, t163, t164, t167, t168, t170, t171, t175, t176, t177, &
-       t178, t179, t182, t183, t186, t187, t189, t190, t191
-  real(kind=dp) :: epsilon_cGGArho, kfrho, ex_unifrho, t195, t196, t197, t198, t200, &
-       srho, t202, t204, Fxrho, t208, exc_rho, tnorm_drho, t214, t217, &
-       t218, t226, t229, t230, Hnorm_drho, snorm_drho, Fxnorm_drho, &
-       exc_norm_drho, t238, t239, t240, t241, t246, rsrhorho, t252, t253, &
-       t255, t259, t260, t261, t262, t265, t266, t267, t271, t272, t273, &
-       t277, t278, t280, t281, t286, t290, t291, t293, t294, t295, t296, &
-       t297, t299, e_c_u_0rhorho, e_c_u_01rho, t305, k_frhorho, t309, t310,&
-       t315, k_srhorho, k_s1rho, t317, t318, t321, t323, t324, t327, t329,&
-       t330, trhorho, t331, t1rho, t336, t338, t339, t340, t341, t348, &
-       t349, Arhorho, A1rho, t354, t357, t359, t360, t361, t362, t369, &
-       t370, t371, t374, t377, t378, t381, t382, t384, t385, t387, t388
-  real(kind=dp) :: t390, t392, t393, t397, t400, t401, t404, t408, t409, t410, t414, &
-       t417, t418, t423, t426, t427, t432, t435, t436, t438, t439, t440, &
-       t448, t449, t451, epsilon_cGGArhorho, kfrhorho, ex_unifrhorho, &
-       ex_unif1rho, t456, t457, t458, t459, t461, t462, t463, t465, t466, &
-       srhorho, s1rho, t469, t470, t471, t472, t476, Fxrhorho, Fx1rho, &
-       t487, t491, exc_rho_rho, t496, t498, tnorm_drhorho, t500, t503, &
-       t506, t507, t510, t513, t517, t521, t525, t529, t530, t535, t541, &
-       t548, t553, t556, t557, t559, Hnorm_drhorho, t562, snorm_drhorho, &
-       t566, Fxnorm_drhorho, exc_norm_drho_rho, t581, t586, t590, t591, &
-       t594, t598, t605, t609, t611, t612, Hnorm_drhonorm_drho, t614
-  real(kind=dp) :: Fxnorm_drhonorm_drho, exc_norm_drho_norm_drho, t627, rsrhorhorho, &
-       rs2rho, t645, t654, t656, t661, t664, t669, t670, t671, t673, t675, &
-       t685, t693, t701, t702, t714, t717, t720, t740, t743, t748, t758, &
-       t776, e_c_u_0rhorhorho, e_c_u_0rho1rho, e_c_u_01rhorho, e_c_u_02rho,&
-       k_frhorhorho, k_f2rho, t801, t809, t812, k_srho1rho, k_s1rhorho, &
-       k_s2rho, t821, t825, t831, trhorhorho, t868, trho1rho, t1rhorho, &
-       t2rho, t877, t879, t880, t885, Arhorhorho, Arho1rho, A1rhorho, &
-       A2rho, t940, t942, t943, t945, t946, t948, t950, t951, t954, t967, &
-       t976, t980, t982, t984, t989, t990, t994, t995, t998, t999, t1001
-  real(kind=dp) :: t1004, t1005, t1006, t1008, t1011, t1012, t1013, t1014, t1016, &
-       t1017, t1018, t1019, t1022, t1024, t1026, t1028, t1030, t1031, &
-       t1035, t1042, t1046, t1048, t1050, t1052, t1054, t1055, t1060, &
-       t1061, t1062, t1067, t1093, t1097, t1103, t1104, t1106, t1109, &
-       t1115, t1118, t1121, t1122, t1126, t1129, t1148, t1152, t1157, &
-       t1167, t1187, t1196, t1203, t1218, t1226, t1249, t1262, t1263, &
-       t1291, t1292, t1295, t1329, kfrhorhorho, kf2rho, ex_unifrho1rho, &
-       ex_unif1rhorho, ex_unif2rho, t1342, srho1rho, s1rhorho, s2rho
-  real(kind=dp) :: t1380, t1385, t1386, t1387, t1389, t1393, Fxrho1rho, Fx1rhorho, &
-       Fx2rho, ex_ldarhorhorho, t1468, tnorm_drhorhorho, &
-       tnorm_drho1rho, t1482, t1492, t1493, t1504, t1505, t1511, t1515, &
-       t1521, t1525, t1528, t1532, t1545, t1565, t1573, t1584, t1608, &
-       t1612, t1628, t1629, t1633, t1646, t1652, t1660, t1672, t1676, &
-       t1715, t1722, t1758, t1759, t1761, snorm_drho1rho, t1797, &
-       Fxnorm_drho1rho, t1838, t1851, t1878, t1889
-  real(kind=dp) :: t1907, t1922, t1927, t1933, t1937, &
-       t2norm_drho, t1952, t1964, t1965, t1968, t1969, t1972, t1990, t2020,&
-       t2024, t2028, t2031, t2041, s2norm_drho, r_eqs_lda4
-
-
+    INTEGER                                  :: ii, param
+    LOGICAL                                  :: failure
+    REAL(kind=dp) :: A, A1rho, A1rhorho, A2rho, A_1, alpha_1_1, Arho, &
+      Arho1rho, Arhorho, Arhorhorho, beta, beta_1_1, beta_2_1, beta_3_1, &
+      beta_4_1, e_c_u_0, e_c_u_01rho, e_c_u_01rhorho, e_c_u_02rho, &
+      e_c_u_0rho, e_c_u_0rho1rho, e_c_u_0rhorho, e_c_u_0rhorhorho, &
+      epsilon_cGGA, epsilon_cGGArho, epsilon_cGGArhorho, ex_ldarhorhorho, &
+      ex_unif, ex_unif1rho, ex_unif1rhorho, ex_unif2rho, ex_unifrho, &
+      ex_unifrho1rho, ex_unifrhorho, Fx, Fx1rho, Fx1rhorho, Fx2rho, &
+      Fxnorm_drho, Fxnorm_drho1rho, Fxnorm_drhonorm_drho, Fxnorm_drhorho, &
+      Fxrho, Fxrho1rho, Fxrhorho, gamma_var, Hnorm_drho, Hnorm_drhonorm_drho, &
+      Hnorm_drhorho, k_f, k_f2rho, k_frho
+    REAL(kind=dp) :: k_frhorho, k_frhorhorho, k_s, k_s1rho, k_s1rhorho, &
+      k_s2rho, k_srho, k_srho1rho, k_srhorho, kappa, kf, kf2rho, kfrho, &
+      kfrhorho, kfrhorhorho, mu, my_norm_drho, my_rho, p_1, p_2, rs, rs2rho, &
+      rsrho, rsrhorho, rsrhorhorho, s, s1rho, s1rhorho, s2norm_drho, s2rho, &
+      scale_ec, scale_ex, snorm_drho, snorm_drho1rho, snorm_drhorho, srho, &
+      srho1rho, srhorho, t, t1, t1001, t1004, t1005, t1006, t1008, t101, &
+      t1011, t1012, t1013, t1014, t1016, t1017, t1018, t1019, t1022, t1024, &
+      t1026, t1028, t103, t1030, t1031, t1035, t1042, t1046, t1048, t105, &
+      t1050, t1052, t1054, t1055, t1060, t1061, t1062, t1067, t108, t1093
+    REAL(kind=dp) :: t1097, t11, t1103, t1104, t1106, t1109, t111, t1115, &
+      t1118, t1121, t1122, t1126, t1129, t113, t114, t1148, t115, t1152, &
+      t1157, t1167, t1187, t119, t1196, t1203, t1218, t1226, t123, t124, &
+      t1249, t125, t126, t1262, t1263, t127, t1291, t1292, t1295, t13, t131, &
+      t1329, t1342, t135, t138, t1380, t1385, t1386, t1387, t1389, t139, &
+      t1393, t14, t140, t142, t146, t1468, t148, t1482, t149, t1492, t1493, &
+      t150, t1504, t1505, t151, t1511, t1515, t1521, t1525, t1528, t153, &
+      t1532, t1545, t155, t1565, t157, t1573, t158, t1584, t159, t1608, &
+      t1612, t162, t1628, t1629, t163, t1633, t164, t1646, t1652, t1660, t167
+    REAL(kind=dp) :: t1672, t1676, t168, t17, t170, t171, t1715, t1722, t175, &
+      t1758, t1759, t176, t1761, t177, t178, t179, t1797, t182, t183, t1838, &
+      t1851, t186, t187, t1878, t1889, t189, t19, t190, t1907, t191, t1922, &
+      t1927, t1933, t1937, t195, t1952, t196, t1964, t1965, t1968, t1969, &
+      t197, t1972, t198, t1990, t1rho, t1rhorho, t2, t20, t200, t202, t2020, &
+      t2024, t2028, t2031, t204, t2041, t208, t21, t214, t217, t218, t22, &
+      t226, t229, t230, t238, t239, t240, t241, t246, t252, t253, t255, t259, &
+      t26, t260, t261, t262, t265, t266, t267, t27, t271, t272, t273, t277, &
+      t278, t280, t281, t286, t290, t291, t293, t294, t295
+    REAL(kind=dp) :: t296, t297, t299, t2norm_drho, t2rho, t3, t305, t309, &
+      t310, t315, t317, t318, t321, t323, t324, t327, t329, t330, t331, t336, &
+      t338, t339, t340, t341, t348, t349, t354, t357, t359, t360, t361, t362, &
+      t369, t370, t371, t374, t377, t378, t381, t382, t384, t385, t387, t388, &
+      t390, t392, t393, t397, t4, t400, t401, t404, t408, t409, t410, t414, &
+      t417, t418, t423, t426, t427, t432, t435, t436, t438, t439, t440, t448, &
+      t449, t451, t456, t457, t458, t459, t461, t462, t463, t465, t466, t469, &
+      t470, t471, t472, t476, t487, t491, t496, t498, t5, t500, t503, t506, &
+      t507, t510, t513, t517, t521, t525, t529, t530
+    REAL(kind=dp) :: t535, t541, t548, t553, t556, t557, t559, t562, t566, &
+      t581, t586, t590, t591, t594, t598, t6, t605, t609, t611, t612, t614, &
+      t627, t645, t65, t654, t656, t661, t664, t669, t670, t671, t673, t675, &
+      t685, t69, t693, t7, t70, t701, t702, t71, t714, t717, t72, t720, t73, &
+      t74, t740, t743, t748, t75, t758, t77, t776, t78, t8, t80, t801, t809, &
+      t81, t812, t821, t825, t83, t831, t84, t85, t86, t868, t87, t877, t879, &
+      t88, t880, t885, t90, t91, t94, t940, t942, t943, t945, t946, t948, &
+      t95, t950, t951, t954, t967, t976, t98, t980, t982, t984, t989, t99, &
+      t990, t994, t995, t998, t999, tnorm_drho, tnorm_drho1rho
+    REAL(kind=dp) :: tnorm_drhorho, tnorm_drhorhorho, trho, trho1rho, &
+      trhorho, trhorhorho
 
   failure=.FALSE.
   CALL section_vals_val_get(pbe_params,"parametrization",i_val=param,error=error)
@@ -563,7 +563,7 @@ SUBROUTINE pbe_lda_calc(rho, rho_1_3, norm_drho,&
   END SELECT
   beta = 0.66725e-1_dp
   mu = beta * pi ** 2 / 0.3e1_dp
-  gamma_var = (0.1e1_dp - log(0.2e1_dp)) / pi ** 2
+  gamma_var = (0.1e1_dp - LOG(0.2e1_dp)) / pi ** 2
   p_1 = 0.10e1_dp
   A_1 = 0.31091e-1_dp
   alpha_1_1 = 0.21370e0_dp
@@ -596,28 +596,28 @@ SUBROUTINE pbe_lda_calc(rho, rho_1_3, norm_drho,&
            rs = t4 * t8 / 0.4e1_dp
            t11 = 0.1e1_dp + alpha_1_1 * rs
            t13 = 0.1e1_dp / A_1
-           t14 = sqrt(rs)
+           t14 = SQRT(rs)
            t17 = t14 * rs
            t19 = p_1 + 0.1e1_dp
            t20 = rs ** t19
            t21 = beta_4_1 * t20
            t22 = beta_1_1 * t14 + beta_2_1 * rs + beta_3_1 * t17 + t21
            t26 = 0.1e1_dp + t13 / t22 / 0.2e1_dp
-           t27 = log(t26)
+           t27 = LOG(t26)
            e_c_u_0 = -0.2e1_dp * A_1 * t11 * t27 
            t65 = 2 ** (0.1e1_dp / 0.3e1_dp)
            t70 = t69 * my_rho
            t71 = t70 ** (0.1e1_dp / 0.3e1_dp)
            k_f = t1 * t71
            t72 = k_f * t5
-           t73 = sqrt(t72)
+           t73 = SQRT(t72)
            k_s = 0.2e1_dp * t73
            t74 = 0.1e1_dp / k_s
            t75 = my_norm_drho * t74
            t = t75 * t6 / 0.2e1_dp
            t77 = 0.1e1_dp / gamma_var
            t78 = beta * t77
-           t80 = exp(-e_c_u_0 * t77)
+           t80 = EXP(-e_c_u_0 * t77)
            t81 = -0.1e1_dp + t80
            A = t78 / t81
            t83 = t ** 2
@@ -629,7 +629,7 @@ SUBROUTINE pbe_lda_calc(rho, rho_1_3, norm_drho,&
            t90 = 0.1e1_dp + t84 + t87 * t88
            t91 = 0.1e1_dp / t90
            t94 = 0.1e1_dp + t78 * t86 * t91
-           t95 = log(t94)
+           t95 = LOG(t94)
            epsilon_cGGA = e_c_u_0 + gamma_var * t95
            kf = k_f
            ex_unif = -0.3e1_dp / 0.4e1_dp * t5 * kf
@@ -1423,7 +1423,7 @@ SUBROUTINE pbe_lsd_eval(rho_set,deriv_set,grad_deriv,pbe_params,error)
     TYPE(xc_rho_set_type), POINTER           :: rho_set
     TYPE(xc_derivative_set_type), POINTER    :: deriv_set
     INTEGER, INTENT(in)                      :: grad_deriv
-    TYPE(section_vals_type), pointer         :: pbe_params
+    TYPE(section_vals_type), POINTER         :: pbe_params
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -1435,9 +1435,9 @@ SUBROUTINE pbe_lsd_eval(rho_set,deriv_set,grad_deriv,pbe_params,error)
     LOGICAL                                  :: failure
     REAL(kind=dp)                            :: epsilon_drho, epsilon_rho
     REAL(kind=dp), DIMENSION(:, :, :), POINTER :: dummy, e_0, e_ndr, &
-      e_ndr_ndr, e_ndr_ra, e_ndr_rb, e_ndra, e_ndra_ndra, e_ndra_ra, &
-      e_ndrb, e_ndrb_ndrb, e_ndrb_rb, e_ra, e_ra_ra, &
-      e_ra_rb, e_rb, e_rb_rb, norm_drho, norm_drhoa, norm_drhob, rhoa, rhob
+      e_ndr_ndr, e_ndr_ra, e_ndr_rb, e_ndra, e_ndra_ndra, e_ndra_ra, e_ndrb, &
+      e_ndrb_ndrb, e_ndrb_rb, e_ra, e_ra_ra, e_ra_rb, e_rb, e_rb_rb, &
+      norm_drho, norm_drhoa, norm_drhob, rhoa, rhob
     TYPE(xc_derivative_type), POINTER        :: deriv
 
     CALL timeset(routineN,"I","",handle)
@@ -1592,94 +1592,87 @@ SUBROUTINE pbe_lsd_calc(rhoa, rhob, norm_drho, norm_drhoa, norm_drhob,&
      e_ndra_ndra, e_ndrb_ndrb, e_ndr,&
      e_ndra, e_ndrb, e_ra_ra, e_ra_rb, e_rb_rb, e_ra_ndr, e_rb_ndr,&
      grad_deriv,npoints,epsilon_rho,epsilon_drho,pbe_params,error)
-  REAL(kind=dp), DIMENSION(*), INTENT(in)  :: rhoa, rhob, norm_drho, &
-       norm_drhoa, norm_drhob
-  REAL(kind=dp), DIMENSION(*), INTENT(inout) :: e_0, e_ra, e_rb, e_ra_ndra, &
-       e_rb_ndrb, e_ndr_ndr, e_ndra_ndra, e_ndrb_ndrb,&
-       e_ndr, e_ndra, e_ndrb, e_ra_ra, e_ra_rb, e_rb_rb, e_ra_ndr, e_rb_ndr
-  INTEGER, INTENT(in)                      :: grad_deriv, npoints
-  REAL(kind=dp), INTENT(in)                :: epsilon_rho, epsilon_drho
-  TYPE(section_vals_type), pointer :: pbe_params
-  TYPE(cp_error_type), INTENT(inout), &
-       OPTIONAL                               :: error
+    REAL(kind=dp), DIMENSION(*), INTENT(in)  :: rhoa, rhob, norm_drho, &
+                                                norm_drhoa, norm_drhob
+    REAL(kind=dp), DIMENSION(*), INTENT(inout) :: e_0, e_ra, e_rb, e_ra_ndra, &
+      e_rb_ndrb, e_ndr_ndr, e_ndra_ndra, e_ndrb_ndrb, e_ndr, e_ndra, e_ndrb, &
+      e_ra_ra, e_ra_rb, e_rb_rb, e_ra_ndr, e_rb_ndr
+    INTEGER, INTENT(in)                      :: grad_deriv, npoints
+    REAL(kind=dp), INTENT(in)                :: epsilon_rho, epsilon_drho
+    TYPE(section_vals_type), POINTER         :: pbe_params
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-  CHARACTER(len=*), PARAMETER :: routineN = 'pbe_lsd_calc', &
-       routineP = moduleN//':'//routineN
-  REAL(kind=dp), PARAMETER :: small = 1.0e-20, t_1_9 = 1.0_dp/9.0_dp, &
-       t_2_3 = 2.0_dp/3.0_dp, t_4_27 = 4.0_dp/27.0_dp, t_4_3 = 4.0_dp/3.0_dp, &
-       t_4_9 = 4.0_dp/9.0_dp, t_8_27 = 8.0_dp/27.0_dp
+    CHARACTER(len=*), PARAMETER :: routineN = 'pbe_lsd_calc', &
+      routineP = moduleN//':'//routineN
+    REAL(kind=dp), PARAMETER :: small = 1.0e-20, t_1_9 = 1.0_dp/9.0_dp, &
+      t_2_3 = 2.0_dp/3.0_dp, t_4_27 = 4.0_dp/27.0_dp, t_4_3 = 4.0_dp/3.0_dp, &
+      t_4_9 = 4.0_dp/9.0_dp, t_8_27 = 8.0_dp/27.0_dp
 
-  INTEGER                                  :: ii, param
-  LOGICAL                                  :: failure
-
-  real(kind=dp) :: my_rhoa, my_rhob, my_norm_drho, my_norm_drhoa, &
-       my_norm_drhob, kappa, beta, mu, gamma_var, p_1, A_1, alpha_1_1, &
-       beta_1_1, beta_2_1, beta_3_1, beta_4_1, p_2, A_2, alpha_1_2, &
-       beta_1_2, beta_2_2, beta_3_2, beta_4_2, p_3, A_3, alpha_1_3, &
-       beta_1_3, beta_2_3, beta_3_3, beta_4_3, scale_ec, scale_ex, my_rho, t1,&
-       t2, chi, t3, t4, t5, t6, t7, t8, t9, rs, t12, t14, t15, t18, t20, &
-       t21, t22, t23, t27, t28, e_c_u_0, t32, t34, t38, t39, t40, t41, t45,&
-       t46, t50, t52, t56, t57, t58, t59, t63, t64, alpha_c, t66, t69, &
-       t70, t71, t72, t73, t74, t75, f, t77, t78, t79, t80, t82, t84, t85, &
-       epsilon_c_unif, t87, t88, phi, t90, t91, t92, t93, t94, k_s, t95, &
-       t96, t97, t98, t, t100, t101, t102, t103, t104, t105, t107, t108, A,&
-       t110, t111, t112, t113, t115, t116, t118, t119, t122, t123
-  real(kind=dp) :: epsilon_cGGA, t124, t125, t126, kf_a, ex_unif_a, t129, t130, t131, &
-       s_a, t133, t135, t137, Fx_a, t140, t142, t143, kf_b, ex_unif_b, &
-       t146, t147, t148, s_b, t150, t153, Fx_b, t156, exc, t162, t163, &
-       t164, chirhoa, t165, t167, rsrhoa, t171, t175, t176, t177, t178, &
-       t179, t183, t187, t190, t191, t192, e_c_u_0rhoa, t194, t198, t199, &
-       t200, t201, t205, t211, t212, t213, e_c_u_1rhoa, t215, t219, t220, &
-       t221, t222, t226, t232, t233, t234, alpha_crhoa, frhoa, t240, t242, &
-       t244, t245, t246, t248, t249, t250, t252, t254, t256
-  real(kind=dp) :: epsilon_c_unifrhoa, t257, t259, phirhoa, t262, k_frhoa, t266, &
-       k_srhoa, t268, t269, t272, t273, t274, t277, t278, trhoa, t280, &
-       t281, t282, t284, t285, t286, t289, Arhoa, t293, t294, t297, t298, &
-       t299, t302, t303, t305, t306, t310, t311, t312, t313, t314, t317, &
-       t318, t321, t324, t325, t326, epsilon_cGGArhoa, t329, kf_arhoa, &
-       ex_unif_arhoa, t335, t336, t337, t340, t341, s_arhoa, t344, t346, &
-       Fx_arhoa, t350, exc_rhoa, chirhob, rsrhob, t368, e_c_u_0rhob, t382, &
-       e_c_u_1rhob, t396, alpha_crhob, frhob, t403, t405, t407, t409, t410,&
-       t411, t413, t415, t417, epsilon_c_unifrhob, phirhob, k_frhob, &
-       k_srhob, trhob, t427, t429, t432, Arhob, t436, t439, t442, t444
-  real(kind=dp) :: t445, t453, t456, t457, epsilon_cGGArhob, t460, kf_brhob, &
-       ex_unif_brhob, t466, t467, t468, t471, t472, s_brhob, t475, t477, &
-       Fx_brhob, t481, exc_rhob, t488, tnorm_drho, t493, t494, t502, t505, &
-       t506, Hnorm_drho, exc_norm_drho, s_anorm_drhoa, Fx_anorm_drhoa, &
-       exc_norm_drhoa, s_bnorm_drhob, Fx_bnorm_drhob, exc_norm_drhob, t518,&
-       t519, chirhoarhoa, t523, t525, rsrhoarhoa, t536, t538, t543, t544, &
-       t548, t549, t550, t556, t561, t563, t564, t576, t578, t579, t580, &
-       e_c_u_0rhoarhoa, e_c_u_01rhoa, t588, t590, t595, t596, t600, t606
-  real(kind=dp) :: t611, t624, t626, t627, t628, t636, t638, t643, t644, t648, t654, &
-       t659, t672, t674, t675, t676, alpha_c1rhoa, t681, t682, t687, &
-       frhoarhoa, f1rhoa, t705, t708, t711, t726, t733, t736, t745, &
-       epsilon_c_unifrhoarhoa, epsilon_c_unif1rhoa, t750, t755, &
-       phirhoarhoa, phi1rhoa, t763, k_frhoarhoa, t767, t768, k_s1rhoa, &
-       t775, t776, t779, t785, t789, t795, t798, t801, t812, trhoarhoa, &
-       t1rhoa, t820, t821, t822, t823, t825, t828, t839, t840, t851, &
-       Arhoarhoa, A1rhoa, t858, t865, t867, t868, t876, t879, t880, t904, &
-       t908, t909, t911, t914, t917, t919, t924, t936, t944, t953, t959, &
-       t962, t965, t966, t967, kf_arhoarhoa, ex_unif_a1rhoa, t985, &
-       s_a1rhoa, t998, t999, t1000, t1001, Fx_a1rhoa, exc_rhoa_rhoa
-  real(kind=dp) :: chirhoarhob, rsrhoarhob, t1031, t1033, t1038, t1050, &
-       e_c_u_0rhoarhob, t1069, t1071, t1104, t1106, frhoarhob, t1164, &
-       t1193, epsilon_c_unifrhoarhob, phirhoarhob, k_frhoarhob, t1228, &
-       t1231, trhoarhob, Arhoarhob, t1269, t1283, t1285, t1286, t1288, &
-       t1291, t1293, t1304, t1327, t1330, exc_rhoa_rhob, chirhobrhob, &
-       rsrhobrhob, t1342, t1346, e_c_u_0rhobrhob, e_c_u_01rhob, t1377, &
-       t1411, alpha_c1rhob, t1440, frhobrhob, f1rhob, t1462, t1465, t1482, &
-       t1489, t1492, t1501, epsilon_c_unifrhobrhob, epsilon_c_unif1rhob
-  real(kind=dp) :: phirhobrhob, phi1rhob, t1514, k_s1rhob, t1520, t1529, trhobrhob, &
-       t1rhob, t1550, t1552, t1555, Arhobrhob, A1rhob, t1588, t1590, t1591,&
-       t1599, t1602, t1603, t1630, t1632, t1635, t1638, t1640, t1674, &
-       t1677, t1680, kf_brhobrhob, ex_unif_b1rhob, t1698, s_b1rhob, t1711, &
-       t1712, t1713, Fx_b1rhob, exc_rhob_rhob, t1739, t1741, t1743, &
-       trhoanorm_drho, t1748, t1765, t1766, t1767, t1801
-  real(kind=dp) :: exc_rhoa_norm_drho, trhobnorm_drho, t1829, t1830, t1831, t1865, &
-       exc_rhob_norm_drho, t1871, t1876, t1888, t1901, &
-       exc_norm_drho_norm_drho, exc_rhoa_norm_drhoa, t1922, &
-       exc_norm_drhoa_norm_drhoa, exc_rhob_norm_drhob, t1949, &
-       exc_norm_drhob_norm_drhob, r_eqs_lsd4
+    INTEGER                                  :: ii, param
+    LOGICAL                                  :: failure
+    REAL(kind=dp) :: A, A1rhoa, A1rhob, A_1, A_2, A_3, alpha_1_1, alpha_1_2, &
+      alpha_1_3, alpha_c, alpha_c1rhoa, alpha_c1rhob, alpha_crhoa, &
+      alpha_crhob, Arhoa, Arhoarhoa, Arhoarhob, Arhob, Arhobrhob, beta, &
+      beta_1_1, beta_1_2, beta_1_3, beta_2_1, beta_2_2, beta_2_3, beta_3_1, &
+      beta_3_2, beta_3_3, beta_4_1, beta_4_2, beta_4_3, chi, chirhoa, &
+      chirhoarhoa, chirhoarhob, chirhob, chirhobrhob, e_c_u_0, e_c_u_01rhoa, &
+      e_c_u_01rhob, e_c_u_0rhoa, e_c_u_0rhoarhoa, e_c_u_0rhoarhob, &
+      e_c_u_0rhob, e_c_u_0rhobrhob, e_c_u_1rhoa, e_c_u_1rhob, epsilon_c_unif, &
+      epsilon_c_unif1rhoa, epsilon_c_unif1rhob, epsilon_c_unifrhoa, &
+      epsilon_c_unifrhoarhoa
+    REAL(kind=dp) :: epsilon_c_unifrhoarhob, epsilon_c_unifrhob, &
+      epsilon_c_unifrhobrhob, epsilon_cGGA, epsilon_cGGArhoa, &
+      epsilon_cGGArhob, ex_unif_a, ex_unif_a1rhoa, ex_unif_arhoa, ex_unif_b, &
+      ex_unif_b1rhob, ex_unif_brhob, f, f1rhoa, f1rhob, frhoa, frhoarhoa, &
+      frhoarhob, frhob, frhobrhob, Fx_a, Fx_a1rhoa, Fx_anorm_drhoa, Fx_arhoa, &
+      Fx_b, Fx_b1rhob, Fx_bnorm_drhob, Fx_brhob, gamma_var, Hnorm_drho, &
+      k_frhoa, k_frhoarhoa, k_frhoarhob, k_frhob, k_s, k_s1rhoa, k_s1rhob, &
+      k_srhoa, k_srhob, kappa, kf_a, kf_arhoa, kf_arhoarhoa, kf_b, kf_brhob, &
+      kf_brhobrhob, mu, my_norm_drho, my_norm_drhoa, my_norm_drhob, my_rho, &
+      my_rhoa, my_rhob
+    REAL(kind=dp) :: p_1, p_2, p_3, phi, phi1rhoa, phi1rhob, phirhoa, &
+      phirhoarhoa, phirhoarhob, phirhob, phirhobrhob, rs, rsrhoa, rsrhoarhoa, &
+      rsrhoarhob, rsrhob, rsrhobrhob, s_a, s_a1rhoa, s_anorm_drhoa, s_arhoa, &
+      s_b, s_b1rhob, s_bnorm_drhob, s_brhob, scale_ec, scale_ex, t, t1, t100, &
+      t1000, t1001, t101, t102, t103, t1031, t1033, t1038, t104, t105, t1050, &
+      t1069, t107, t1071, t108, t110, t1104, t1106, t111, t112, t113, t115, &
+      t116, t1164, t118, t119, t1193, t12, t122, t1228, t123, t1231, t124, &
+      t125, t126, t1269, t1283, t1285, t1286, t1288, t129, t1291, t1293, &
+      t130, t1304, t131, t1327, t133, t1330, t1342, t1346, t135
+    REAL(kind=dp) :: t137, t1377, t14, t140, t1411, t142, t143, t1440, t146, &
+      t1462, t1465, t147, t148, t1482, t1489, t1492, t15, t150, t1501, t1514, &
+      t1520, t1529, t153, t1550, t1552, t1555, t156, t1588, t1590, t1591, &
+      t1599, t1602, t1603, t162, t163, t1630, t1632, t1635, t1638, t164, &
+      t1640, t165, t167, t1674, t1677, t1680, t1698, t171, t1711, t1712, &
+      t1713, t1739, t1741, t1743, t1748, t175, t176, t1765, t1766, t1767, &
+      t177, t178, t179, t18, t1801, t1829, t183, t1830, t1831, t1865, t187, &
+      t1871, t1876, t1888, t190, t1901, t191, t192, t1922, t194, t1949, t198, &
+      t199, t1rhoa, t1rhob, t2, t20, t200, t201, t205, t21, t211, t212
+    REAL(kind=dp) :: t213, t215, t219, t22, t220, t221, t222, t226, t23, &
+      t232, t233, t234, t240, t242, t244, t245, t246, t248, t249, t250, t252, &
+      t254, t256, t257, t259, t262, t266, t268, t269, t27, t272, t273, t274, &
+      t277, t278, t28, t280, t281, t282, t284, t285, t286, t289, t293, t294, &
+      t297, t298, t299, t3, t302, t303, t305, t306, t310, t311, t312, t313, &
+      t314, t317, t318, t32, t321, t324, t325, t326, t329, t335, t336, t337, &
+      t34, t340, t341, t344, t346, t350, t368, t38, t382, t39, t396, t4, t40, &
+      t403, t405, t407, t409, t41, t410, t411, t413, t415, t417, t427, t429, &
+      t432, t436, t439, t442, t444, t445, t45, t453, t456
+    REAL(kind=dp) :: t457, t46, t460, t466, t467, t468, t471, t472, t475, &
+      t477, t481, t488, t493, t494, t5, t50, t502, t505, t506, t518, t519, &
+      t52, t523, t525, t536, t538, t543, t544, t548, t549, t550, t556, t56, &
+      t561, t563, t564, t57, t576, t578, t579, t58, t580, t588, t59, t590, &
+      t595, t596, t6, t600, t606, t611, t624, t626, t627, t628, t63, t636, &
+      t638, t64, t643, t644, t648, t654, t659, t66, t672, t674, t675, t676, &
+      t681, t682, t687, t69, t7, t70, t705, t708, t71, t711, t72, t726, t73, &
+      t733, t736, t74, t745, t75, t750, t755, t763, t767, t768, t77, t775, &
+      t776, t779, t78, t785, t789, t79, t795, t798, t8, t80, t801
+    REAL(kind=dp) :: t812, t82, t820, t821, t822, t823, t825, t828, t839, &
+      t84, t840, t85, t851, t858, t865, t867, t868, t87, t876, t879, t88, &
+      t880, t9, t90, t904, t908, t909, t91, t911, t914, t917, t919, t92, &
+      t924, t93, t936, t94, t944, t95, t953, t959, t96, t962, t965, t966, &
+      t967, t97, t98, t985, t998, t999, tnorm_drho, trhoa, trhoanorm_drho, &
+      trhoarhoa, trhoarhob, trhob, trhobnorm_drho, trhobrhob
 
   failure=.FALSE.
 
@@ -1694,7 +1687,7 @@ SUBROUTINE pbe_lsd_calc(rhoa, rhob, norm_drho, norm_drhoa, norm_drhob,&
   END SELECT
   beta = 0.66725e-1_dp
   mu = beta * pi ** 2 / 0.3e1_dp
-  gamma_var = (0.1e1_dp - log(0.2e1_dp)) / pi ** 2
+  gamma_var = (0.1e1_dp - LOG(0.2e1_dp)) / pi ** 2
   p_1 = 0.10e1_dp
   A_1 = 0.31091e-1_dp
   alpha_1_1 = 0.21370e0_dp
@@ -1749,14 +1742,14 @@ SUBROUTINE pbe_lsd_calc(rhoa, rhob, norm_drho, norm_drhoa, norm_drhob,&
            rs = t6 * t9 / 0.4e1_dp
            t12 = 0.1e1_dp + alpha_1_1 * rs
            t14 = 0.1e1_dp / A_1
-           t15 = sqrt(rs)
+           t15 = SQRT(rs)
            t18 = t15 * rs
            t20 = p_1 + 0.1e1_dp
            t21 = rs ** t20
            t22 = beta_4_1 * t21
            t23 = beta_1_1 * t15 + beta_2_1 * rs + beta_3_1 * t18 + t22
            t27 = 0.1e1_dp + t14 / t23 / 0.2e1_dp
-           t28 = log(t27)
+           t28 = LOG(t27)
            e_c_u_0 = -0.2e1_dp * A_1 * t12 * t28
            t32 = 0.1e1_dp + alpha_1_2 * rs
            t34 = 0.1e1_dp / A_2
@@ -1765,7 +1758,7 @@ SUBROUTINE pbe_lsd_calc(rhoa, rhob, norm_drho, norm_drhoa, norm_drhob,&
            t40 = beta_4_2 * t39
            t41 = beta_1_2 * t15 + beta_2_2 * rs + beta_3_2 * t18 + t40
            t45 = 0.1e1_dp + t34 / t41 / 0.2e1_dp
-           t46 = log(t45)
+           t46 = LOG(t45)
            t50 = 0.1e1_dp + alpha_1_3 * rs
            t52 = 0.1e1_dp / A_3
            t56 = p_3 + 0.1e1_dp
@@ -1773,7 +1766,7 @@ SUBROUTINE pbe_lsd_calc(rhoa, rhob, norm_drho, norm_drhoa, norm_drhob,&
            t58 = beta_4_3 * t57
            t59 = beta_1_3 * t15 + beta_2_3 * rs + beta_3_3 * t18 + t58
            t63 = 0.1e1_dp + t52 / t59 / 0.2e1_dp
-           t64 = log(t63)
+           t64 = LOG(t63)
            alpha_c = 0.2e1_dp * A_3 * t50 * t64
            t66 = 2 ** (0.1e1_dp / 0.3e1_dp)
            t69 = 1 / (2 * t66 - 2)
@@ -1798,7 +1791,7 @@ SUBROUTINE pbe_lsd_calc(rhoa, rhob, norm_drho, norm_drhoa, norm_drhob,&
            t91 = t90 * my_rho
            t92 = t91 ** (0.1e1_dp / 0.3e1_dp)
            t93 = t3 * t92 * t7
-           t94 = sqrt(t93)
+           t94 = SQRT(t93)
            k_s = 0.2e1_dp * t94
            t95 = 0.1e1_dp / phi
            t96 = my_norm_drho * t95
@@ -1811,7 +1804,7 @@ SUBROUTINE pbe_lsd_calc(rhoa, rhob, norm_drho, norm_drhoa, norm_drhob,&
            t103 = phi ** 2
            t104 = t103 * phi
            t105 = 0.1e1_dp / t104
-           t107 = exp(-t102 * t105)
+           t107 = EXP(-t102 * t105)
            t108 = t107 - 0.1e1_dp
            A = t101 / t108
            t110 = gamma_var * t104
@@ -1823,7 +1816,7 @@ SUBROUTINE pbe_lsd_calc(rhoa, rhob, norm_drho, norm_drhoa, norm_drhob,&
            t118 = 0.1e1_dp + t112 + t115 * t116
            t119 = 0.1e1_dp / t118
            t122 = 0.1e1_dp + t101 * t111 * t113 * t119
-           t123 = log(t122)
+           t123 = LOG(t122)
            epsilon_cGGA = epsilon_c_unif + t110 * t123
            t124 = t3 * t66
            t125 = t90 * my_rhoa

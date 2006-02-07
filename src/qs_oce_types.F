@@ -18,33 +18,23 @@ MODULE qs_oce_types
 
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind
-  USE basis_set_types,                 ONLY: get_gto_basis_set,&
-                                             gto_basis_set_type
   USE distribution_2d_types,           ONLY: distribution_2d_type
   USE global_types,                    ONLY: global_environment_type
-  USE kinds,                           ONLY: dp,dp_size,&
+  USE kinds,                           ONLY: dp,&
+                                             dp_size,&
                                              int_size
   USE memory_utilities,                ONLY: reallocate
   USE orbital_pointers,                ONLY: indco
   USE orbital_symbols,                 ONLY: cgf_symbol
   USE particle_types,                  ONLY: get_particle_set,&
                                              particle_type
-  USE paw_proj_set_types,              ONLY: get_paw_proj_set,&
-                                             paw_proj_set_type
-  USE qs_neighbor_list_types,          ONLY: find_neighbor_list,&
-                                             first_node,&
-                                             get_neighbor_list,&
-                                             get_neighbor_node,&
-                                             qlist_type,&
-                                             neighbor_list_set_p_type,&
-                                             neighbor_list_type,&
-                                             neighbor_node_type,&
-                                             next,&
-                                             reduced_3c_list_type
+  USE qs_neighbor_list_types,          ONLY: &
+       find_neighbor_list, first_node, get_neighbor_list, get_neighbor_node, &
+       neighbor_list_set_p_type, neighbor_list_type, neighbor_node_type, &
+       next, qlist_type, reduced_3c_list_type
   USE sparse_matrix_types,             ONLY: allocate_matrix,&
                                              allocate_matrix_set,&
                                              deallocate_matrix_set,&
-                                             real_matrix_type, &
                                              real_matrix_p_type,&
                                              replicate_matrix_structure
   USE string_utilities,                ONLY: compress,&
@@ -63,7 +53,7 @@ MODULE qs_oce_types
 
 ! *** Global parameters (only in this module)
 
-  CHARACTER(LEN=*), PARAMETER :: module_name = "qs_oce_types"
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_oce_types'
 
 ! *** Define a oce matrix type ***
 
@@ -117,14 +107,12 @@ CONTAINS
 !   ***************************************************************************
 
     TYPE(oce_matrix_type), POINTER           :: oce_set
-    INTEGER, INTENT(IN)                      :: natom, ndim, nkind
+    INTEGER, INTENT(IN)                      :: natom, nkind, ndim
 
-    CHARACTER(LEN=*), PARAMETER :: routine = &
-      "SUBROUTINE allocate_oce_set (MODULE oce_types)"
+    CHARACTER(LEN=*), PARAMETER :: &
+      routine = "SUBROUTINE allocate_oce_set (MODULE oce_types)"
 
-    TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                :: ho,so
-    INTEGER                                  :: ia, ik, iset, istat, ja
+    INTEGER                                  :: istat
 
 !   ---------------------------------------------------------------------------
 
@@ -143,17 +131,18 @@ CONTAINS
 
   SUBROUTINE allocate_vtriple(vtriple,nkind,natom)
 
-    TYPE(vtriple_type), DIMENSION(:,:),&
-                                POINTER      :: vtriple
-    INTEGER, INTENT(IN)                      :: nkind,natom
-    CHARACTER(LEN=*), PARAMETER              :: routine_name = "init_rho0"
+    TYPE(vtriple_type), DIMENSION(:, :), &
+      POINTER                                :: vtriple
+    INTEGER, INTENT(IN)                      :: nkind, natom
 
-    INTEGER :: iat, ikind, istat
+    CHARACTER(LEN=*), PARAMETER              :: routineN = 'allocate_vtriple'
+
+    INTEGER                                  :: iat, ikind, istat
 
     IF(ASSOCIATED(vtriple)) CALL deallocate_vtriple(vtriple)
 
     ALLOCATE (vtriple(nkind,natom),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine_name,"vtriple",nkind*natom)
+    IF (istat /= 0) CALL stop_memory(routineN,"vtriple",nkind*natom)
     DO iat = 1,natom
       DO ikind = 1,nkind
         NULLIFY(vtriple(ikind,iat)%neighbor)
@@ -166,10 +155,12 @@ CONTAINS
 
   SUBROUTINE create_oce_set(oce_set)
 
-    TYPE(oce_matrix_type), POINTER         :: oce_set
-    CHARACTER(LEN=*), PARAMETER :: routine = &
-      "SUBROUTINE create_oce_set (MODULE oce_types)"
-    INTEGER :: istat
+    TYPE(oce_matrix_type), POINTER           :: oce_set
+
+    CHARACTER(LEN=*), PARAMETER :: &
+      routine = "SUBROUTINE create_oce_set (MODULE oce_types)"
+
+    INTEGER                                  :: istat
 
     IF(ASSOCIATED(oce_set)) CALL deallocate_oce_set(oce_set)
 
@@ -191,12 +182,13 @@ CONTAINS
 
 ! *****************************************************************************
 
-    TYPE(oce_matrix_type), POINTER         :: oce_set
+    TYPE(oce_matrix_type), POINTER           :: oce_set
 
-    CHARACTER(LEN=*), PARAMETER :: routine = &
-      "SUBROUTINE deallocate_oce_set (MODULE oce_types)"
+    CHARACTER(LEN=*), PARAMETER :: &
+      routine = "SUBROUTINE deallocate_oce_set (MODULE oce_types)"
 
-    INTEGER                                :: istat,i,j
+    INTEGER                                  :: istat
+
 !   ---------------------------------------------------------------------------
 
     IF (.NOT.ASSOCIATED(oce_set)) RETURN
@@ -217,12 +209,14 @@ CONTAINS
 
   SUBROUTINE deallocate_vtriple(vtriple)
 
-    TYPE(vtriple_type), DIMENSION(:,:), POINTER :: vtriple
+    TYPE(vtriple_type), DIMENSION(:, :), &
+      POINTER                                :: vtriple
 
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "deallocate_vtriple"
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'deallocate_vtriple'
 
-    TYPE(qlist_type), POINTER                   :: sac_oce_neighbor
-    INTEGER  iat, icell, istat, jcell, kcell, kkind, natom, nkind
+    INTEGER                                  :: iat, icell, istat, jcell, &
+                                                kcell, kkind, natom, nkind
+    TYPE(qlist_type), POINTER                :: sac_oce_neighbor
 
 ! *****************************************************************************
 
@@ -244,22 +238,22 @@ CONTAINS
                    IF (sac_oce_neighbor%n > 0) THEN
                      DEALLOCATE (sac_oce_neighbor%r2,STAT=istat)
                      IF (istat /= 0) THEN
-                       CALL stop_memory(routine_name,module_name,__LINE__,&
+                       CALL stop_memory(routineN,moduleN,__LINE__,&
                                        "sac_oce_neighbor%r2")
                      END IF
                      DEALLOCATE (sac_oce_neighbor%r,STAT=istat)
                      IF (istat /= 0) THEN
-                       CALL stop_memory(routine_name,module_name,__LINE__,&
+                       CALL stop_memory(routineN,moduleN,__LINE__,&
                                        "sac_oce_neighbor%r")
                      END IF
                      DEALLOCATE (sac_oce_neighbor%list,STAT=istat)
                      IF (istat /= 0) THEN
-                       CALL stop_memory(routine_name,module_name,__LINE__,&
+                       CALL stop_memory(routineN,moduleN,__LINE__,&
                                        "sac_oce_neighbor%list")
                      END IF
                      DEALLOCATE (sac_oce_neighbor%index_list,STAT=istat)
                      IF (istat /= 0) THEN
-                       CALL stop_memory(routine_name,module_name,__LINE__,&
+                       CALL stop_memory(routineN,moduleN,__LINE__,&
                                        "sac_oce_neighbor%index_list")
                      END IF
                    END IF
@@ -268,7 +262,7 @@ CONTAINS
              END DO
              DEALLOCATE (vtriple(kkind,iat)%neighbor,STAT=istat)
              IF (istat /= 0) THEN
-               CALL stop_memory(routine_name,module_name,__LINE__,&
+               CALL stop_memory(routineN,moduleN,__LINE__,&
                                "vtriple(kkind,iat)%neighbor")
              END IF
            END IF
@@ -276,11 +270,11 @@ CONTAINS
       END DO
       DEALLOCATE(vtriple,STAT=istat)
       IF (istat /= 0) THEN
-                       CALL stop_memory(routine_name,module_name,__LINE__,&
+                       CALL stop_memory(routineN,moduleN,__LINE__,&
                        "vtriple")
       END IF
     ELSE
-      CALL stop_program(routine_name,module_name,__LINE__,&
+      CALL stop_program(routineN,moduleN,__LINE__,&
                         "The pointer vtriple is not associated")
     ENDIF
 
@@ -296,31 +290,27 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(atomic_kind_type), DIMENSION(:), &
-      POINTER                                :: atomic_kind_set
-    TYPE(oce_matrix_type), POINTER           :: oce
     TYPE(particle_type), DIMENSION(:), &
-                         POINTER             :: particle_set
+      POINTER                                :: particle_set
+    TYPE(oce_matrix_type), POINTER           :: oce
+    INTEGER, INTENT(IN)                      :: natom, nsgf
+    INTEGER, DIMENSION(natom)                :: first_sgf, last_sgf
     TYPE(distribution_2d_type), POINTER      :: distribution_2d
-    INTEGER, INTENT(IN)                      :: natom,nsgf
-    INTEGER, DIMENSION(natom)                :: last_sgf , &
-                                                first_sgf
-                                     
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "prepare_oce_coeff"
 
-    INTEGER, DIMENSION(:), ALLOCATABLE      :: last_nso,&
-                                               first_nso
-    CHARACTER(LEN=12)           :: cgfsym
-    CHARACTER(LEN=80)           :: name
-    INTEGER                     :: i,ikind, istat, maxder, nsotot
+    CHARACTER(LEN=*), PARAMETER              :: routineN = 'prepare_oce_coeff'
+
+    CHARACTER(LEN=12)                        :: cgfsym
+    CHARACTER(LEN=80)                        :: name
+    INTEGER                                  :: i, istat, maxder, nsotot
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: first_nso, last_nso
 
 !   ---------------------------------------------------------------------------
 
     ALLOCATE (first_nso(natom),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "first_nso",natom*int_size)
     ALLOCATE (last_nso(natom),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "last_nso",natom*int_size)
 
 
@@ -343,10 +333,10 @@ CONTAINS
                          distribution_2d=distribution_2d)
 
     DEALLOCATE (first_nso,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "first_nso")
     DEALLOCATE (last_nso,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "last_nso")
 
     name = "SOFT OCE COEFF"
@@ -354,7 +344,7 @@ CONTAINS
     CALL uppercase(name)
 
     CALL replicate_matrix_structure(source=oce%hardo(1)%matrix,&
-                                    target=oce%softo(1)%matrix,&
+                                    TARGET=oce%softo(1)%matrix,&
                                     target_name=TRIM(name),&
                                     target_symmetry="non symmetric")
 
@@ -368,7 +358,7 @@ CONTAINS
       CALL uppercase(name)
 
       CALL replicate_matrix_structure(source=oce%hardo(1)%matrix,&
-                                      target=oce%hardo(i)%matrix,&
+                                      TARGET=oce%hardo(i)%matrix,&
                                       target_name=TRIM(name),&
                                       target_symmetry="non symmetric")
       
@@ -377,7 +367,7 @@ CONTAINS
       CALL compress(name)
       CALL uppercase(name)
       CALL replicate_matrix_structure(source=oce%softo(1)%matrix,&
-                                      target=oce%softo(i)%matrix,&
+                                      TARGET=oce%softo(i)%matrix,&
                                       target_name=TRIM(name),&
                                       target_symmetry="non symmetric")
     END DO
@@ -394,21 +384,26 @@ CONTAINS
 
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
-    TYPE(neighbor_list_set_p_type),  &
-                  DIMENSION(:), POINTER      :: sbc_list
-    TYPE(reduced_3c_list_type), &
-                  DIMENSION(:), POINTER      :: reduced_3c_list
-    TYPE(vtriple_type), DIMENSION(:,:), &
-                     POINTER                 :: vlist
     INTEGER, INTENT(IN)                      :: iatom, jatom, jkind
-    LOGICAL :: pippo
+    TYPE(neighbor_list_set_p_type), &
+      DIMENSION(:), POINTER                  :: sbc_list
+    TYPE(vtriple_type), DIMENSION(:, :), &
+      POINTER                                :: vlist
+    TYPE(reduced_3c_list_type), &
+      DIMENSION(:), POINTER                  :: reduced_3c_list
+    LOGICAL                                  :: pippo
 
-!   *** Local parameters ***
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'build_reduced_3c_lists'
 
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "build_reduced_3c_lists"
-
-!   *** Local variables ***
-
+    INTEGER :: handle, i, ibc, iblock, istat, katom, kkind, kkneighbor, &
+      kneighbor, nblock_kkind, nkind, nneighbor, nneighbor_old
+    INTEGER, DIMENSION(3)                    :: cell_c
+    INTEGER, DIMENSION(:), POINTER           :: index_atom
+    LOGICAL                                  :: paw_atom
+    REAL(KIND=dp)                            :: dac2, dbc2
+    REAL(KIND=dp), DIMENSION(3)              :: rac, rbc
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: rac2_tmp, rbc2_tmp
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: rac_tmp, rbc_tmp
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(neighbor_list_type), POINTER        :: sbc_list_neighbor_list
     TYPE(neighbor_node_type), POINTER        :: sbc_list_neighbor_node
@@ -416,22 +411,9 @@ CONTAINS
       POINTER                                :: tmp_neigh
     TYPE(qlist_type), POINTER                :: sac_list_neighbor
 
-
-    LOGICAL                                  :: paw_atom
-
-    INTEGER :: handle, i, ibc, iblock, istat, katom, kkind, kkneighbor, kneighbor, &
-               nblock_kkind, nkind, nneighbor, nneighbor_old
-    INTEGER, DIMENSION(3)                    :: cell_c
-    INTEGER, DIMENSION(:), POINTER           :: index_atom
-
-    REAL(KIND=dp)                            :: dac2, dbc2
-    REAL(KIND=dp), DIMENSION(3)              :: rac, rbc
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: rac2_tmp, rbc2_tmp
-    REAL(KIND=dp), DIMENSION(:,:), POINTER   :: rac_tmp, rbc_tmp
-
 !   ---------------------------------------------------------------------------
 
-    CALL timeset(routine_name,"I"," ",handle)
+    CALL timeset(routineN,"I"," ",handle)
 
     NULLIFY(index_atom, rac_tmp, rac2_tmp, rbc_tmp, rbc2_tmp)
     nneighbor_old = 0
@@ -471,7 +453,7 @@ CONTAINS
        sbc_list_neighbor_node => first_node(sbc_list_neighbor_list)
 
        ! Allocate temporary arrays
-       IF(nneighbor .gt. nneighbor_old) THEN
+       IF(nneighbor .GT. nneighbor_old) THEN
          CALL reallocate(rac_tmp,1,3,1,nneighbor)
          CALL reallocate(rac2_tmp,1,nneighbor)
          CALL reallocate(rbc_tmp,1,3,1,nneighbor)
@@ -532,19 +514,19 @@ CONTAINS
 
        ! Copy the reduced list data in the reduced list array
        reduced_3c_list(kkind)%nnode = nblock_kkind 
-       IF(nblock_kkind .gt. 0) THEN
+       IF(nblock_kkind .GT. 0) THEN
          ALLOCATE(reduced_3c_list(kkind)%rac(3,nblock_kkind),STAT=istat)
          ALLOCATE(reduced_3c_list(kkind)%rac2(nblock_kkind),STAT=istat)
          ALLOCATE(reduced_3c_list(kkind)%rbc(3,nblock_kkind),STAT=istat)
          ALLOCATE(reduced_3c_list(kkind)%rbc2(nblock_kkind),STAT=istat)
          IF (istat /= 0 ) THEN
-             CALL stop_memory(routine_name,module_name,__LINE__,&
+             CALL stop_memory(routineN,moduleN,__LINE__,&
                              "reduced_3c_list: rac,rac2,rbc,rbc2",&
                               8*nblock_kkind*dp_size)
          END IF
          ALLOCATE(reduced_3c_list(kkind)%index_atom(nblock_kkind),STAT=istat)
          IF (istat /= 0 ) THEN
-             CALL stop_memory(routine_name,module_name,__LINE__,&
+             CALL stop_memory(routineN,moduleN,__LINE__,&
                              "reduced_3c_list: index_atom",&
                               nblock_kkind*int_size)
          END IF
@@ -561,7 +543,7 @@ CONTAINS
 
     DEALLOCATE(index_atom, rac_tmp, rac2_tmp, rbc_tmp, rbc2_tmp,STAT=istat)
     IF (istat /= 0 ) THEN
-             CALL stop_memory(routine_name,module_name,__LINE__,&
+             CALL stop_memory(routineN,moduleN,__LINE__,&
                              "reduced_3c_list: rac,rac2,rbc,rbc2,index_atom")
     END IF
 
@@ -573,28 +555,24 @@ CONTAINS
  
   SUBROUTINE retrieve_sac_list(vlist,sac_list,iatom,ikind,nkind,globenv)
 
-    TYPE(vtriple_type), DIMENSION(:,:), &
-                     POINTER                 :: vlist
-    TYPE(neighbor_list_set_p_type),  &
-                  DIMENSION(:), POINTER      :: sac_list
-    INTEGER, INTENT(IN)                      :: iatom,ikind,nkind
-    TYPE(global_environment_type), &
-      pointer                             :: globenv
+    TYPE(vtriple_type), DIMENSION(:, :), &
+      POINTER                                :: vlist
+    TYPE(neighbor_list_set_p_type), &
+      DIMENSION(:), POINTER                  :: sac_list
+    INTEGER, INTENT(IN)                      :: iatom, ikind, nkind
+    TYPE(global_environment_type), POINTER   :: globenv
 
-!   *** Local parameters ***
+    CHARACTER(LEN=*), PARAMETER              :: routineN = 'retrieve_sac_list'
 
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "retrieve_sac_list"
-
-!   *** Local variables ***
-
-    TYPE(qlist_type), POINTER            :: sac_list_neighbor
-    TYPE(neighbor_list_type), POINTER    :: sac_list_neighbor_list
-    TYPE(neighbor_node_type), POINTER    :: sac_list_neighbor_node
-
-    REAL(dp)                             :: rac2
-    REAL(dp), DIMENSION(3)               :: rac
-    INTEGER, DIMENSION(3)                :: cell_c,cell_c_max,cell_c_min
-    INTEGER :: i, iac, icell, istat, jcell, katom, kcell, kkind, kneighbor, n, nneighbor
+    INTEGER                                  :: i, iac, icell, istat, jcell, &
+                                                katom, kcell, kkind, &
+                                                kneighbor, n, nneighbor
+    INTEGER, DIMENSION(3)                    :: cell_c, cell_c_max, cell_c_min
+    REAL(dp)                                 :: rac2
+    REAL(dp), DIMENSION(3)                   :: rac
+    TYPE(neighbor_list_type), POINTER        :: sac_list_neighbor_list
+    TYPE(neighbor_node_type), POINTER        :: sac_list_neighbor_node
+    TYPE(qlist_type), POINTER                :: sac_list_neighbor
 
 !   ---------------------------------------------------------------------------
 
@@ -631,7 +609,7 @@ CONTAINS
                                       cell_c_min(3):cell_c_max(3)),&
                                       STAT=istat)
          IF (istat /= 0 ) THEN
-           CALL stop_memory(routine_name,module_name,__LINE__,&
+           CALL stop_memory(routineN,moduleN,__LINE__,&
                            "vlist(kkind,iatom)%neighbor",&
                            (cell_c_max(1) - cell_c_min(1) + 1)*&
                            (cell_c_max(2) - cell_c_min(2) + 1)*&
@@ -717,7 +695,7 @@ CONTAINS
 
       ENDDO !kkind
     ELSE
-      CALL stop_program(routine_name,module_name,__LINE__,&
+      CALL stop_program(routineN,moduleN,__LINE__,&
                "The pointer sac_list is not associated",&
                 globenv)
     END IF

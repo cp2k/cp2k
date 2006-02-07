@@ -32,9 +32,9 @@
 !!   SOURCE
 !****************************************************************************
 MODULE pw_pool_types
-  USE coefficient_types,               ONLY: PLANEWAVES,&
-                                             coeff_type,&
-                                             NOTHING
+  USE coefficient_types,               ONLY: NOTHING,&
+                                             PLANEWAVES,&
+                                             coeff_type
   USE cp_linked_list_3d_r,             ONLY: cp_sll_3d_r_dealloc,&
                                              cp_sll_3d_r_get_first_el,&
                                              cp_sll_3d_r_get_length,&
@@ -55,14 +55,9 @@ MODULE pw_pool_types
   USE pw_grid_types,                   ONLY: pw_grid_type
   USE pw_grids,                        ONLY: pw_grid_release,&
                                              pw_grid_retain
-  USE pw_types,                        ONLY: COMPLEXDATA1D,&
-                                             COMPLEXDATA3D,&
-                                             REALDATA1D,&
-                                             REALDATA3D,&
-                                             pw_create,&
-                                             pw_release,&
-                                             pw_type,&
-                                             pw_write, pw_p_type
+  USE pw_types,                        ONLY: &
+       COMPLEXDATA1D, COMPLEXDATA3D, REALDATA1D, REALDATA3D, pw_create, &
+       pw_p_type, pw_release, pw_type, pw_write
   USE timings,                         ONLY: print_stack,&
                                              timeset,&
                                              timestop
@@ -72,7 +67,7 @@ MODULE pw_pool_types
   PRIVATE
 
   LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.FALSE.
-  CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='pw_pool_types'
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'pw_pool_types'
   INTEGER, SAVE, PRIVATE :: last_pw_pool_id_nr=0
   INTEGER, PARAMETER :: default_max_cache=20, max_max_cache=50
 
@@ -1112,8 +1107,7 @@ SUBROUTINE pw_pools_create_pws(pools, pws, use_data,&
      mass_flag, in_space, error)
     TYPE(pw_pool_p_type), DIMENSION(:), &
       POINTER                                :: pools
-    TYPE(pw_p_type), DIMENSION(:), &
-      pointer                                :: pws
+    TYPE(pw_p_type), DIMENSION(:), POINTER   :: pws
     INTEGER, INTENT(in)                      :: use_data
     LOGICAL, INTENT(in), OPTIONAL            :: mass_flag
     INTEGER, INTENT(in), OPTIONAL            :: in_space
@@ -1123,7 +1117,7 @@ SUBROUTINE pw_pools_create_pws(pools, pws, use_data,&
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_pools_create_pws', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i,stat
+    INTEGER                                  :: i, stat
     LOGICAL                                  :: failure
 
   failure=.FALSE.
@@ -1133,7 +1127,7 @@ SUBROUTINE pw_pools_create_pws(pools, pws, use_data,&
   CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
   IF (.NOT. failure) THEN
      DO i=1,SIZE(pools)
-        nullify(pws(i)%pw)
+        NULLIFY(pws(i)%pw)
         CALL pw_pool_create_pw(pools(i)%pool,pws(i)%pw,use_data,&
              mass_flag=mass_flag,in_space=in_space,error=error)
      END DO
@@ -1168,21 +1162,20 @@ END SUBROUTINE pw_pools_create_pws
 SUBROUTINE pw_pools_give_back_pws(pools, pws, error)
     TYPE(pw_pool_p_type), DIMENSION(:), &
       POINTER                                :: pools
-    TYPE(pw_p_type), DIMENSION(:), &
-      pointer                          :: pws
+    TYPE(pw_p_type), DIMENSION(:), POINTER   :: pws
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_pools_give_back_pws', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i,stat
+    INTEGER                                  :: i, stat
     LOGICAL                                  :: failure
 
   failure=.FALSE.
 
   CPPrecondition(ASSOCIATED(pools),cp_failure_level,routineP,error,failure)
-  CPPrecondition(associated(pws),cp_failure_level,routineP,error,failure)
+  CPPrecondition(ASSOCIATED(pws),cp_failure_level,routineP,error,failure)
   CPPrecondition(SIZE(pws)==SIZE(pools),cp_failure_level,routineP,error,failure)
   IF (.NOT. failure) THEN
      DO i=1,SIZE(pools)
@@ -1280,8 +1273,7 @@ END SUBROUTINE pw_pools_init_coeffs
 SUBROUTINE pw_pools_give_back_coeffs(pools, coeffs, error)
     TYPE(pw_pool_p_type), DIMENSION(:), &
       POINTER                                :: pools
-    TYPE(coeff_type), DIMENSION(:), &
-      POINTER                                :: coeffs
+    TYPE(coeff_type), DIMENSION(:), POINTER  :: coeffs
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 

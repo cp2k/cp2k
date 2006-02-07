@@ -27,15 +27,14 @@ MODULE kg_density
                                              get_atomic_kind_set
   USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                              gto_basis_set_type
+  USE cell_types,                      ONLY: cell_type,&
+                                             pbc
   USE coefficient_types,               ONLY: coeff_copy,&
                                              coeff_sumup,&
                                              coeff_transform_space,&
                                              coeff_type,&
                                              coeff_zero
   USE cp_control_types,                ONLY: dft_control_type
-  USE cp_fm_types,                     ONLY: cp_fm_get_element,&
-                                             cp_fm_get_info,&
-                                             cp_fm_type
   USE cp_rs_pool_types,                ONLY: cp_rs_pool_p_type,&
                                              cp_rs_pool_type,&
                                              rs_pool_create_rs,&
@@ -51,9 +50,9 @@ MODULE kg_density
                                              gridlevel_info_type
   USE kg_environment_types,            ONLY: get_kg_env,&
                                              kg_environment_type
+  USE kg_force_types,                  ONLY: kg_force_type
   USE kg_rspw_types,                   ONLY: kg_rspw_get,&
                                              kg_rspw_type
-  USE kg_force_types,                  ONLY: kg_force_type
   USE kinds,                           ONLY: dp,&
                                              dp_size,&
                                              int_size
@@ -69,19 +68,17 @@ MODULE kg_density
                                              pw_pools_give_back_coeffs,&
                                              pw_pools_init_coeffs
   USE pw_types,                        ONLY: COMPLEXDATA1D,&
-                                             RECIPROCALSPACE,&
                                              REALDATA3D,&
-                                             REALSPACE  
+                                             REALSPACE,&
+                                             RECIPROCALSPACE
   USE qs_collocate_density,            ONLY: collocate_pgf_product_rspace
   USE qs_integrate_potential,          ONLY: integrate_pgf_product_rspace
-  USE realspace_grid_types,            ONLY: realspace_grid_type,&
+  USE realspace_grid_types,            ONLY: pw2rs,&
                                              realspace_grid_p_type,&
-                                             rs_grid_zero,&
-                                             rs_pw_transfer,&
+                                             realspace_grid_type,&
                                              rs2pw,&
-                                             pw2rs
-  USE cell_types,                 ONLY: cell_type,&
-                                             pbc
+                                             rs_grid_zero,&
+                                             rs_pw_transfer
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
   USE timings,                         ONLY: timeset,&
@@ -121,16 +118,16 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: &
       routine = "SUBROUTINE calculate_density (MODULE kg_density)"
 
-    LOGICAL                                  :: failure
     INTEGER :: handle, i, iatom, igrid_level, ikind, iparticle_local, ipgf, &
       iset, istat, maxco, maxsgf_set, na1, na2, ncoa, nkind, nparticle_local, &
       nseta, sgfa, stat
     INTEGER, DIMENSION(:), POINTER           :: la_max, la_min, npgfa, nsgfa
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa
-    REAL(KIND=dp)                                :: dab, eps_rho_rspace, rab2, &
+    LOGICAL                                  :: failure
+    REAL(KIND=dp)                            :: dab, eps_rho_rspace, rab2, &
                                                 scale, zetp
-    REAL(KIND=dp), DIMENSION(3)                  :: ra, rab, rb
-    REAL(KIND=dp), DIMENSION(:, :), POINTER      :: pab, sphi_a, work, zeta
+    REAL(KIND=dp), DIMENSION(3)              :: ra, rab, rb
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: pab, sphi_a, work, zeta
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
@@ -152,7 +149,6 @@ CONTAINS
       POINTER                                :: pw_pools
     TYPE(realspace_grid_p_type), &
       DIMENSION(:), POINTER                  :: rs_rho
-
 
 !   ---------------------------------------------------------------------------
 
@@ -197,7 +193,7 @@ CONTAINS
        CALL rs_grid_zero(rs_rho(igrid_level)%rs_grid)
     END DO
 
-    nkind=size(atomic_kind_set)
+    nkind=SIZE(atomic_kind_set)
     eps_rho_rspace = dft_control%qs_control%eps_rho_rspace
 
 !   *** Allocate work storage ***
@@ -246,9 +242,9 @@ CONTAINS
 ! already included in sphi and are the ones read from the POTENTIAL file in
 ! the initialization. Thus all prefactors (defined in work(:,:)) are set to 1.0  
 
-            do i=1,nsgfa(iset)
+            DO i=1,nsgfa(iset)
                work(i,1)=1.0_dp 
-            enddo
+            ENDDO
 
             CALL dgemm("N","N",ncoa,1,nsgfa(iset),&
                        1.0_dp,sphi_a(1,sgfa),SIZE(sphi_a,1),&
@@ -329,13 +325,13 @@ CONTAINS
 
   FUNCTION calculate_total_density(rho) RESULT(total_rho)
 
-    TYPE(coeff_type), INTENT(IN)                 :: rho
-    REAL(KIND=dp)                                :: total_rho
+    TYPE(coeff_type), INTENT(IN)             :: rho
+    REAL(KIND=dp)                            :: total_rho
 
     CHARACTER(LEN=*), PARAMETER :: &
       routine = "FUNCTION calculate_total_density (MODULE kg_density)"
 
-    INTEGER, DIMENSION(3) :: lb_grid
+    INTEGER, DIMENSION(3)                    :: lb_grid
 
 !   ---------------------------------------------------------------------------
 
@@ -370,7 +366,7 @@ CONTAINS
 !   *** Arguments ***
 
     TYPE(coeff_type), INTENT(INOUT)          :: rho_core
-    REAL(KIND=dp), INTENT(OUT)                   :: total_rho
+    REAL(KIND=dp), INTENT(OUT)               :: total_rho
     TYPE(kg_environment_type), POINTER       :: kg_env
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
@@ -378,12 +374,12 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: &
       routine = "calculate_epc_density (MODULE kg_density)"
 
-    INTEGER                                  :: handle, iatom, ikind, istat, &
-                                                iparticle_local, &
+    INTEGER                                  :: handle, iatom, ikind, &
+                                                iparticle_local, istat, &
                                                 nparticle_local
-    REAL(KIND=dp)                                :: alpha, eps_rho_rspace, scale
-    REAL(KIND=dp), DIMENSION(3)                  :: ra
-    REAL(KIND=dp), DIMENSION(:, :), POINTER      :: pab
+    REAL(KIND=dp)                            :: alpha, eps_rho_rspace, scale
+    REAL(KIND=dp), DIMENSION(3)              :: ra
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: pab
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
@@ -393,13 +389,12 @@ CONTAINS
     TYPE(cube_info_type), POINTER            :: cube_info
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(distribution_1d_type), POINTER      :: local_particles
-    TYPE(l_info_type), POINTER               :: l_info
     TYPE(kg_rspw_type), POINTER              :: rspw
+    TYPE(l_info_type), POINTER               :: l_info
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
-    TYPE(realspace_grid_type),POINTER        :: rs_rho
-    LOGICAL                                  :: failure
+    TYPE(realspace_grid_type), POINTER       :: rs_rho
 
 !   ---------------------------------------------------------------------------
 
@@ -460,7 +455,7 @@ CONTAINS
     CALL pw_pool_init_coeff(pool=auxbas_pw_pool, coeff=rhoc_r, &
          use_data=REALDATA3D,in_space=REALSPACE,error=error)
 
-    call rs_pw_transfer(rs_rho,rhoc_r%pw,rs2pw)
+    CALL rs_pw_transfer(rs_rho,rhoc_r%pw,rs2pw)
     CALL rs_pool_give_back_rs(auxbas_rs_pool,rs_rho,error=error)
 
     total_rho = calculate_total_density(rhoc_r)
@@ -479,25 +474,24 @@ CONTAINS
                                     total_rho, kg_env,error)
 
     TYPE(coeff_type), INTENT(INOUT)          :: rho, rho_gspace
-    REAL(KIND=dp), INTENT(OUT)                   :: total_rho
+    REAL(KIND=dp), INTENT(OUT)               :: total_rho
     TYPE(kg_environment_type), POINTER       :: kg_env
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-
     CHARACTER(LEN=*), PARAMETER :: &
       routine = "SUBROUTINE calculate_p_density (MODULE kg_density)"
 
-    LOGICAL                                  :: failure
     INTEGER :: handle, i, iatom, igrid_level, ikind, iparticle_local, ipgf, &
       iset, istat, maxco, maxsgf_set, na1, na2, natom, ncoa, nkind, &
-      nparticle_local, nseta,  offset, sgfa,stat
+      nparticle_local, nseta, offset, sgfa, stat
     INTEGER, DIMENSION(:), POINTER           :: la_max, la_min, npgfa, nsgfa
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa
-    REAL(KIND=dp)                                :: dab, eps_rho_rspace, rab2, &
+    LOGICAL                                  :: failure
+    REAL(KIND=dp)                            :: dab, eps_rho_rspace, rab2, &
                                                 scale, zetp
-    REAL(KIND=dp), DIMENSION(3)                  :: ra, rab, rb
-    REAL(KIND=dp), DIMENSION(:, :), POINTER      :: pab, sphi_a, work, zeta
+    REAL(KIND=dp), DIMENSION(3)              :: ra, rab, rb
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: pab, sphi_a, work, zeta
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
@@ -513,8 +507,8 @@ CONTAINS
     TYPE(dyn_coeff_type), POINTER            :: local_coeffs
     TYPE(gridlevel_info_type), POINTER       :: gridlevel_info
     TYPE(gto_basis_set_type), POINTER        :: aux_basis_set
+    TYPE(kg_rspw_type), POINTER              :: rspw
     TYPE(l_info_type)                        :: l_info
-    TYPE(kg_rspw_type),POINTER               :: rspw
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(pw_pool_p_type), DIMENSION(:), &
@@ -625,9 +619,9 @@ CONTAINS
 ! coefficients in sphi and stored in  work(:,:). Then a decontraction is performed
 ! in order to operate on each pgf.
 
-            do i=1,nsgfa(iset)
+            DO i=1,nsgfa(iset)
               work(i,1)=local_coeffs%pos(iparticle_local,offset+i)
-            enddo
+            ENDDO
 
             CALL dgemm("N","N",ncoa,1,nsgfa(iset),&
                     1.0_dp,sphi_a(1,sgfa),SIZE(sphi_a,1),&
@@ -715,20 +709,19 @@ CONTAINS
     TYPE(coeff_type), INTENT(INOUT)          :: v_rspace
     TYPE(kg_environment_type), POINTER       :: kg_env
     TYPE(cp_error_type), INTENT(inout), &
-         OPTIONAL                               :: error
+      OPTIONAL                               :: error
 
     CHARACTER(LEN=*), PARAMETER :: &
       routine = "SUBROUTINE calculate_epc_rspace_forces (MODULE kg_density)"
 
     INTEGER                                  :: atom_a, handle, iatom, ikind, &
                                                 iparticle_local, istat, &
-                                                natom, nkind, &
-                                                nparticle_local
+                                                natom, nkind, nparticle_local
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: atom_of_kind
-    REAL(KIND=dp)                                :: alpha_core_charge, &
+    REAL(KIND=dp)                            :: alpha_core_charge, &
                                                 ccore_charge, eps_rho_rspace
-    REAL(KIND=dp), DIMENSION(3)                  :: force_a, force_b, ra
-    REAL(KIND=dp), DIMENSION(:, :), POINTER      :: hab, pab
+    REAL(KIND=dp), DIMENSION(3)              :: force_a, force_b, ra
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: hab, pab
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
@@ -836,41 +829,38 @@ CONTAINS
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-
-
     CHARACTER(LEN=*), PARAMETER :: &
       routine = "SUBROUTINE calculate_v_rspace_forces (MODULE kg_density)"
 
-    INTEGER :: atom_a, handle, i, iatom, igrid_level, ikind, iparticle_local, &
-      ipgf, iset, istat, maxco, maxsgf_set, na1, na2, natom, ncoa, nkind, &
-      nparticle_local, nseta,  sgfa, stat, auxbas_grid
+    INTEGER :: atom_a, auxbas_grid, handle, i, iatom, igrid_level, ikind, &
+      iparticle_local, ipgf, iset, istat, maxco, maxsgf_set, na1, na2, natom, &
+      ncoa, nkind, nparticle_local, nseta, sgfa, stat
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: atom_of_kind
     INTEGER, DIMENSION(:), POINTER           :: la_max, la_min, npgfa, nsgfa
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa
-    LOGICAL                                  :: calculate_forces
-    LOGICAL                                  :: failure
-    REAL(KIND=dp)                                :: dab, eps_gvg_rspace, rab2, &
+    LOGICAL                                  :: calculate_forces, failure
+    REAL(KIND=dp)                            :: dab, eps_gvg_rspace, rab2, &
                                                 scale, zetp
-    REAL(KIND=dp), DIMENSION(3)                  :: force_a, force_b, ra, rab, rb
-    REAL(KIND=dp), DIMENSION(:, :), POINTER      :: hab, pab, rpgfa, sphi_a, &
+    REAL(KIND=dp), DIMENSION(3)              :: force_a, force_b, ra, rab, rb
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: hab, pab, rpgfa, sphi_a, &
                                                 work, zeta
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cell_type), POINTER                 :: cell
-    TYPE(coeff_type), DIMENSION(:), POINTER  :: mgrid_rspace, mgrid_gspace
+    TYPE(coeff_type), DIMENSION(:), POINTER  :: mgrid_gspace, mgrid_rspace
     TYPE(cp_rs_pool_p_type), DIMENSION(:), &
       POINTER                                :: rs_pools
     TYPE(cube_info_type), DIMENSION(:), &
       POINTER                                :: cube_info
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(distribution_1d_type), POINTER      :: local_particles
-    TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
     TYPE(gridlevel_info_type), POINTER       :: gridlevel_info
-    TYPE(l_info_type)                        :: l_info
+    TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
     TYPE(kg_force_type), DIMENSION(:), &
       POINTER                                :: force
     TYPE(kg_rspw_type), POINTER              :: rspw
+    TYPE(l_info_type)                        :: l_info
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(pw_pool_p_type), DIMENSION(:), &
@@ -1029,9 +1019,9 @@ CONTAINS
           ncoa = npgfa(iset)*ncoset(la_max(iset))
           sgfa = first_sgfa(1,iset)
 
-          do i=1,nsgfa(iset)
+          DO i=1,nsgfa(iset)
             work(i,1)=1.0_dp
-          enddo
+          ENDDO
 
           CALL dgemm("N","N",ncoa,1,nsgfa(iset),&
                     1.0_dp,sphi_a(1,sgfa),SIZE(sphi_a,1),&
@@ -1114,27 +1104,27 @@ CONTAINS
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-
     CHARACTER(LEN=*), PARAMETER :: &
       routine = "SUBROUTINE calculate_vp_rspace_forces (MODULE kg_density)"
 
-    INTEGER :: atom_a, handle, i, iatom, igrid_level, ikind, iparticle_local, &
-      ipgf, iset, istat, maxco, maxsgf_set, na1, na2, natom, natom_of_kind, &
-      ncoa, nkind, nparticle_local, nseta,  offset, sgfa,stat, auxbas_grid
+    INTEGER :: atom_a, auxbas_grid, handle, i, iatom, igrid_level, ikind, &
+      iparticle_local, ipgf, iset, istat, maxco, maxsgf_set, na1, na2, natom, &
+      natom_of_kind, ncoa, nkind, nparticle_local, nseta, offset, sgfa, stat
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: atom_of_kind
     INTEGER, DIMENSION(:), POINTER           :: atom_list, la_max, la_min, &
                                                 npgfa, nsgfa
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa
-    REAL(KIND=dp)                                :: dab, eps_gvg_rspace, rab2, &
+    LOGICAL                                  :: failure
+    REAL(KIND=dp)                            :: dab, eps_gvg_rspace, rab2, &
                                                 scale, zetp
-    REAL(KIND=dp), DIMENSION(3)                  :: force_a, force_b, ra, rab, rb
-    REAL(KIND=dp), DIMENSION(:, :), POINTER      :: hab, pab, rpgfa, sphi_a, &
+    REAL(KIND=dp), DIMENSION(3)              :: force_a, force_b, ra, rab, rb
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: hab, pab, rpgfa, sphi_a, &
                                                 work, zeta
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cell_type), POINTER                 :: cell
-    TYPE(coeff_type), DIMENSION(:), POINTER  :: mgrid_rspace, mgrid_gspace
+    TYPE(coeff_type), DIMENSION(:), POINTER  :: mgrid_gspace, mgrid_rspace
     TYPE(cp_rs_pool_p_type), DIMENSION(:), &
       POINTER                                :: rs_pools
     TYPE(cube_info_type), DIMENSION(:), &
@@ -1145,17 +1135,16 @@ CONTAINS
     TYPE(dyn_coeff_type), POINTER            :: local_coeffs
     TYPE(gridlevel_info_type), POINTER       :: gridlevel_info
     TYPE(gto_basis_set_type), POINTER        :: aux_basis_set
-    TYPE(l_info_type)                        :: l_info
-    TYPE(kg_rspw_type),POINTER               :: rspw
     TYPE(kg_force_type), DIMENSION(:), &
       POINTER                                :: force
+    TYPE(kg_rspw_type), POINTER              :: rspw
+    TYPE(l_info_type)                        :: l_info
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(pw_pool_p_type), DIMENSION(:), &
       POINTER                                :: pw_pools
     TYPE(realspace_grid_p_type), &
       DIMENSION(:), POINTER                  :: rs_v
-    LOGICAL                                  :: failure
 
 !--------------------------------------------------------------------------
 
@@ -1319,9 +1308,9 @@ CONTAINS
           ncoa = npgfa(iset)*ncoset(la_max(iset))
           sgfa = first_sgfa(1,iset)
 
-          do i=1,nsgfa(iset)
+          DO i=1,nsgfa(iset)
              work(i,1)=local_coeffs%pos(iparticle_local,offset+i)
-          enddo
+          ENDDO
 
           CALL dgemm("N","N",ncoa,1,nsgfa(iset),&
                     1.0_dp,sphi_a(1,sgfa),SIZE(sphi_a,1),&

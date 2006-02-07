@@ -37,7 +37,6 @@ MODULE global_types
                                              default_string_length,&
                                              dp
   USE machine,                         ONLY: m_walltime
-
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -68,7 +67,7 @@ MODULE global_types
                         BLACS_GRID_ROW=2, &
                         BLACS_GRID_COL=3
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN="global_types"
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'global_types'
   INTEGER, SAVE, PRIVATE :: last_globenv_id=0
 
 !!*** ************************************************************************
@@ -311,7 +310,7 @@ END SUBROUTINE globenv_release
 !!
 !!*** **********************************************************************
 FUNCTION cp_para_env_from_globenv(globenv, error) RESULT(res)
-  TYPE(global_environment_type),POINTER      :: globenv
+    TYPE(global_environment_type), POINTER   :: globenv
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
     TYPE(cp_para_env_type), POINTER          :: res

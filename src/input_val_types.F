@@ -25,27 +25,26 @@
 
 MODULE input_val_types
 
-  USE cp_units,                        ONLY: cp_unit_desc,&
+  USE cp_units,                        ONLY: cp_unit_create,&
+                                             cp_unit_desc,&
                                              cp_unit_from_cp2k,&
-                                             cp_unit_type,&
                                              cp_unit_from_cp2k1,&
-                                             cp_unit_retain,&
                                              cp_unit_release,&
-                                             cp_unit_create
+                                             cp_unit_retain,&
+                                             cp_unit_type
   USE input_enumeration_types,         ONLY: enum_i2c,&
                                              enum_release,&
                                              enum_retain,&
                                              enumeration_type
   USE kinds,                           ONLY: default_string_length,&
-                                             dp,&
-                                             default_path_length
+                                             dp
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
   PRIVATE
 
   LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
-  CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='input_val_types'
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'input_val_types'
 
   INTEGER, SAVE, PRIVATE :: last_val_id=0
 
@@ -182,7 +181,7 @@ SUBROUTINE val_create(val,l_val,l_vals,l_vals_ptr,i_val,i_vals,i_vals_ptr,&
     CHARACTER(len=*), PARAMETER :: routineN = 'val_create', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: narg, stat, i,nVal,len_c
+    INTEGER                                  :: i, len_c, narg, nVal, stat
     LOGICAL                                  :: failure
 
   failure=.FALSE.
@@ -280,7 +279,7 @@ SUBROUTINE val_create(val,l_val,l_vals,l_vals_ptr,i_val,i_vals,i_vals_ptr,&
      END IF
      IF (PRESENT(c_vals)) THEN
 !FM        CPPrecondition(.NOT.PRESENT(c_vals_ptr),cp_failure_level,routineP,error,failure)
-        CPPrecondition(all(LEN_TRIM(c_vals)<=default_string_length),cp_failure_level,routineP,error,failure)
+        CPPrecondition(ALL(LEN_TRIM(c_vals)<=default_string_length),cp_failure_level,routineP,error,failure)
         narg=narg+1
         ALLOCATE(val%c_val(SIZE(c_vals)),stat=stat)
         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -474,10 +473,10 @@ END SUBROUTINE val_retain
 SUBROUTINE val_get(val,has_l,has_i,has_r,has_lc,has_c,l_val,l_vals,i_val,&
      i_vals,r_val,r_vals,c_val,c_vals,len_c,type_of_var,enum,error)
     TYPE(val_type), POINTER                  :: val
-    LOGICAL, INTENT(out), OPTIONAL           :: has_l, has_i, has_r, has_c, &
-                                                l_val, has_lc
+    LOGICAL, INTENT(out), OPTIONAL           :: has_l, has_i, has_r, has_lc, &
+                                                has_c, l_val
     LOGICAL, DIMENSION(:), OPTIONAL, POINTER :: l_vals
-    INTEGER, INTENT(out), OPTIONAL           :: i_val, len_c
+    INTEGER, INTENT(out), OPTIONAL           :: i_val
     INTEGER, DIMENSION(:), OPTIONAL, POINTER :: i_vals
     REAL(KIND=DP), INTENT(out), OPTIONAL     :: r_val
     REAL(KIND=DP), DIMENSION(:), OPTIONAL, &
@@ -485,16 +484,16 @@ SUBROUTINE val_get(val,has_l,has_i,has_r,has_lc,has_c,l_val,l_vals,i_val,&
     CHARACTER(LEN=*), INTENT(out), OPTIONAL  :: c_val
     CHARACTER(LEN=DEFAULT_STRING_LENGTH), &
       DIMENSION(:), OPTIONAL, POINTER        :: c_vals
-    INTEGER, INTENT(out), OPTIONAL           :: type_of_var
+    INTEGER, INTENT(out), OPTIONAL           :: len_c, type_of_var
     TYPE(enumeration_type), OPTIONAL, &
       POINTER                                :: enum
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = "val_get", &
-      routineP = moduleN//":"//routineN
+    CHARACTER(len=*), PARAMETER :: routineN = 'val_get', &
+      routineP = moduleN//':'//routineN
 
-    INTEGER :: l_out,l_in,i
+    INTEGER                                  :: i, l_in, l_out
     LOGICAL                                  :: failure
 
   failure=.FALSE.
@@ -550,7 +549,7 @@ SUBROUTINE val_get(val,has_l,has_i,has_r,has_lc,has_c,l_val,l_vals,i_val,&
         IF (SIZE(val%c_val)>0) THEN
            IF (val%type_of_var==lchar_t) THEN
               l_in=default_string_length*(SIZE(val%c_val)-1)+&
-                   LEN_TRIM(val%c_val(size(val%c_val)))
+                   LEN_TRIM(val%c_val(SIZE(val%c_val)))
               CALL cp_assert(l_out>=l_in,cp_warning_level,cp_assertion_failed,&
                    routineP,"val_get will truncate value, value beginning with '"//&
                    TRIM(val%c_val(1))//"' is too long for variable",error,failure)
@@ -587,18 +586,18 @@ SUBROUTINE val_get(val,has_l,has_i,has_r,has_lc,has_c,l_val,l_vals,i_val,&
         IF (SIZE(val%c_val)>0) THEN
            IF (val%type_of_var==lchar_t) THEN
               len_c=default_string_length*(SIZE(val%c_val)-1)+&
-                   LEN_TRIM(val%c_val(size(val%c_val)))
+                   LEN_TRIM(val%c_val(SIZE(val%c_val)))
            ELSE
-              len_c=len_trim(val%c_val(1))
+              len_c=LEN_TRIM(val%c_val(1))
            END IF
         ELSE
            len_c=-HUGE(0)
         END IF
      ELSE IF (ASSOCIATED(val%i_val).AND.ASSOCIATED(val%enum)) THEN
         IF (SIZE(val%i_val)>0) THEN
-           len_c=len_trim(enum_i2c(val%enum,val%i_val(1),error=error))
+           len_c=LEN_TRIM(enum_i2c(val%enum,val%i_val(1),error=error))
         ELSE
-           len_c=-huge(0)
+           len_c=-HUGE(0)
         END IF
      ELSE
         len_c=-HUGE(0)
@@ -639,8 +638,8 @@ END SUBROUTINE val_get
 SUBROUTINE val_write(val,unit_nr,unit,unit_str,fmt,error)
     TYPE(val_type), POINTER                  :: val
     INTEGER, INTENT(in)                      :: unit_nr
-    TYPE(cp_unit_type), POINTER, optional    :: unit
-    CHARACTER(len=*), INTENT(in), OPTIONAL :: unit_str, fmt
+    TYPE(cp_unit_type), OPTIONAL, POINTER    :: unit
+    CHARACTER(len=*), INTENT(in), OPTIONAL   :: unit_str, fmt
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -650,14 +649,14 @@ SUBROUTINE val_write(val,unit_nr,unit,unit_str,fmt,error)
     CHARACTER(len=default_string_length)     :: c_string, myfmt
     INTEGER                                  :: i, l
     LOGICAL                                  :: failure
-    TYPE(cp_unit_type), pointer :: my_unit
+    TYPE(cp_unit_type), POINTER              :: my_unit
 
   failure=.FALSE.
 
   NULLIFY(my_unit)
   myfmt = ""
   IF (PRESENT(fmt)) myfmt = fmt
-  IF (present(unit)) my_unit => unit
+  IF (PRESENT(unit)) my_unit => unit
   IF (ASSOCIATED(my_unit)) THEN
      CALL cp_unit_retain(my_unit,error=error)
   ELSE IF (PRESENT(unit_str)) THEN
@@ -721,12 +720,12 @@ SUBROUTINE val_write(val,unit_nr,unit,unit_str,fmt,error)
                  l=0
                  WRITE(unit=unit_nr,fmt='(a)',advance="NO") TRIM(val%c_val(i))
                  l=l+LEN_TRIM(val%c_val(i))+3
-              ELSE IF (len_trim(val%c_val(i))>0) then
+              ELSE IF (LEN_TRIM(val%c_val(i))>0) THEN
                  l=l+LEN_TRIM(val%c_val(i))
                  WRITE(unit=unit_nr,fmt='(a)',advance="NO") TRIM(val%c_val(i))
               ELSE
                  l=l+3
-                 write (unit=unit_nr,fmt="(a)",advance="NO") '" "'
+                 WRITE (unit=unit_nr,fmt="(a)",advance="NO") '" "'
               END IF
            END DO
         ELSE
@@ -789,19 +788,19 @@ END SUBROUTINE val_write
 
     TYPE(val_type), POINTER                  :: val
     CHARACTER(LEN=*), INTENT(OUT)            :: string
-    TYPE(cp_unit_type), POINTER, OPTIONAL    :: unit
-    TYPE(cp_error_type), INTENT(INOUT),&
+    TYPE(cp_unit_type), OPTIONAL, POINTER    :: unit
+    TYPE(cp_error_type), INTENT(INOUT), &
       OPTIONAL                               :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = "val_write_internal", &
-                                   routineP = moduleN//":"//routineN
+    CHARACTER(len=*), PARAMETER :: routineN = 'val_write_internal', &
+      routineP = moduleN//':'//routineN
 
-    CHARACTER(LEN=default_string_length) :: enum_string
-    REAL(KIND=dp)                        :: value
-    INTEGER                              :: i,ipos
-    LOGICAL                              :: failure
+    CHARACTER(LEN=default_string_length)     :: enum_string
+    INTEGER                                  :: i, ipos
+    LOGICAL                                  :: failure
+    REAL(KIND=dp)                            :: value
 
-    ! -------------------------------------------------------------------------
+! -------------------------------------------------------------------------
 
     failure = .FALSE.
 
@@ -903,15 +902,17 @@ END SUBROUTINE val_write
 !!
 !!*** **********************************************************************
 SUBROUTINE val_duplicate(val_in,val_out,error)
-  TYPE(val_type), POINTER :: val_in,val_out
-  type(cp_error_type), optional, intent(inout) :: error
-  
-  logical :: failure
-  character(len=*), parameter :: routineN='val_duplicate',&
-        routineP=moduleN//':'//routineN
-  integer :: stat
+    TYPE(val_type), POINTER                  :: val_in, val_out
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-  failure=.false.
+    CHARACTER(len=*), PARAMETER :: routineN = 'val_duplicate', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: stat
+    LOGICAL                                  :: failure
+
+  failure=.FALSE.
   CPPrecondition(ASSOCIATED(val_in),cp_failure_level,routineP,error,failure)
   CPPrecondition(.NOT.ASSOCIATED(val_out),cp_failure_level,routineP,error,failure)
   IF (.NOT. failure) THEN

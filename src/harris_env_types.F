@@ -27,23 +27,23 @@
 !******************************************************************************
 MODULE harris_env_types
 
-  USE harris_energy_types,             ONLY: harris_energy_type, &
-                                             harris_energy_release, &
-                                             harris_energy_clear
-                                             !harris_energy_create
-  USE harris_force_types,              ONLY: harris_force_type, &
-                                             harris_force_release, &
-                                             harris_force_clear
-                                             !harris_force_create
-  USE qs_rho_types,                    ONLY: qs_rho_type, &
-                                             qs_rho_release
+  USE harris_energy_types,             ONLY: harris_energy_clear,&
+                                             harris_energy_release,&
+                                             harris_energy_type
+!harris_energy_create
+  USE harris_force_types,              ONLY: harris_force_clear,&
+                                             harris_force_release,&
+                                             harris_force_type
+!harris_force_create
+  USE qs_rho_types,                    ONLY: qs_rho_release,&
+                                             qs_rho_type
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
   PRIVATE
 
-  CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='harris_env_types'
-  INTEGER, PRIVATE, save :: last_harris_id=0
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'harris_env_types'
+  INTEGER, PRIVATE, SAVE :: last_harris_id=0
 
   ! *** Public data types ***
   PUBLIC :: harris_env_type, &
@@ -176,7 +176,7 @@ CONTAINS
     LOGICAL                                  :: failure
 
 !   ------------------------------------------------------------------------
-   
+
     failure = .FALSE.
   
     CPPrecondition(ASSOCIATED(harris_env), cp_failure_level, routineP, error, failure)
@@ -286,19 +286,20 @@ CONTAINS
   SUBROUTINE harris_env_get(harris_env, id_nr, harris_energy, harris_force, &
                             rho, rho_diff, error)
 
-    TYPE(harris_env_type), POINTER               :: harris_env
-    TYPE(harris_energy_type), POINTER, OPTIONAL  :: harris_energy
-    TYPE(harris_force_type), POINTER, OPTIONAL   :: harris_force
-    INTEGER, INTENT(OUT), OPTIONAL               :: id_nr
-    TYPE(qs_rho_type), POINTER, OPTIONAL         :: rho, &
-                                                    rho_diff
+    TYPE(harris_env_type), POINTER           :: harris_env
+    INTEGER, INTENT(OUT), OPTIONAL           :: id_nr
+    TYPE(harris_energy_type), OPTIONAL, &
+      POINTER                                :: harris_energy
+    TYPE(harris_force_type), OPTIONAL, &
+      POINTER                                :: harris_force
+    TYPE(qs_rho_type), OPTIONAL, POINTER     :: rho, rho_diff
     TYPE(cp_error_type), INTENT(INOUT), &
-         OPTIONAL                                :: error
+      OPTIONAL                               :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'harris_env_get', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                      :: failure
+    LOGICAL                                  :: failure
 
 !   ------------------------------------------------------------------------
 
@@ -352,19 +353,20 @@ CONTAINS
   SUBROUTINE harris_env_set(harris_env, id_nr, harris_energy, harris_force, &
                             rho, rho_diff, error)
 
-    TYPE(harris_env_type), POINTER              :: harris_env
-    TYPE(harris_energy_type), POINTER, OPTIONAl :: harris_energy
-    TYPE(harris_force_type), POINTER, OPTIONAL  :: harris_force
-    INTEGER, INTENT(IN), OPTIONAL               :: id_nr
-    TYPE(qs_rho_type), POINTER, OPTIONAL        :: rho, &
-                                                   rho_diff
+    TYPE(harris_env_type), POINTER           :: harris_env
+    INTEGER, INTENT(IN), OPTIONAL            :: id_nr
+    TYPE(harris_energy_type), OPTIONAL, &
+      POINTER                                :: harris_energy
+    TYPE(harris_force_type), OPTIONAL, &
+      POINTER                                :: harris_force
+    TYPE(qs_rho_type), OPTIONAL, POINTER     :: rho, rho_diff
     TYPE(cp_error_type), INTENT(INOUT), &
-         OPTIONAL                               :: error
+      OPTIONAL                               :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'harris_env_set', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                     :: failure
+    LOGICAL                                  :: failure
 
 !   ------------------------------------------------------------------------
 
@@ -413,8 +415,7 @@ CONTAINS
   SUBROUTINE harris_env_clear(harris_env, natom, nspins, error)
 
     TYPE(harris_env_type), POINTER           :: harris_env
-    INTEGER, INTENT(IN)                      :: natom, &
-                                                nspins
+    INTEGER, INTENT(IN)                      :: natom, nspins
     TYPE(cp_error_type), INTENT(INOUT), &
       OPTIONAL                               :: error
 
@@ -480,9 +481,7 @@ CONTAINS
   SUBROUTINE harris_env_create(harris_env, natom, nspins, error)
 
     TYPE(harris_env_type), POINTER           :: harris_env
-    INTEGER, INTENT(IN)                      :: natom, &
-                                                nspins
-    INTEGER                                  :: ispin
+    INTEGER, INTENT(IN)                      :: natom, nspins
     TYPE(cp_error_type), INTENT(INOUT), &
       OPTIONAL                               :: error
 

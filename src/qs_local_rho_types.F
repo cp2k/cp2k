@@ -17,21 +17,20 @@
 MODULE qs_local_rho_types
 
   USE erf_fn,                          ONLY: erf
-  USE kinds,                           ONLY: default_string_length,&
-                                             dp,&
+  USE kinds,                           ONLY: dp,&
                                              int_size
-  USE mathconstants,                   ONLY: fourpi,pi
+  USE mathconstants,                   ONLY: fourpi,&
+                                             pi
   USE memory_utilities,                ONLY: reallocate
   USE qs_grid_atom,                    ONLY: grid_atom_type
   USE qs_harmonics_atom,               ONLY: harmonics_atom_type
-  USE qs_rho_atom_types,               ONLY: deallocate_rho_atom_set, &
-                                             rho_atom_type
   USE qs_rho0_types,                   ONLY: deallocate_rho0_atom,&
                                              deallocate_rho0_mpole,&
                                              rho0_atom_type,&
                                              rho0_mpole_type
-  USE termination,                     ONLY: stop_memory,&
-                                             stop_program
+  USE qs_rho_atom_types,               ONLY: deallocate_rho_atom_set,&
+                                             rho_atom_type
+  USE termination,                     ONLY: stop_memory
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -40,7 +39,7 @@ MODULE qs_local_rho_types
 
 ! *** Global parameters (only in this module)
 
-  CHARACTER(LEN=*), PARAMETER :: module_name = "qs_local_rho_types"
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_local_rho_types'
 
 ! *** Define rhoz and local_rho types ***
 
@@ -78,13 +77,12 @@ MODULE qs_local_rho_types
  
   SUBROUTINE allocate_rhoz(rhoz_set,nkind)
 
-    TYPE(rhoz_type), DIMENSION(:), &
-                                   POINTER :: rhoz_set
-    INTEGER                                :: nkind
-    
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "allocate_rhoz"
+    TYPE(rhoz_type), DIMENSION(:), POINTER   :: rhoz_set
+    INTEGER                                  :: nkind
 
-    INTEGER                                :: ikind, istat
+    CHARACTER(LEN=*), PARAMETER              :: routineN = 'allocate_rhoz'
+
+    INTEGER                                  :: ikind, istat
 
 !   ---------------------------------------------------------------------------
 
@@ -93,7 +91,7 @@ MODULE qs_local_rho_types
     END IF 
 
     ALLOCATE (rhoz_set(nkind),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                             "rhoz_set",nkind*int_size)
 
     DO ikind = 1,nkind 
@@ -108,19 +106,20 @@ MODULE qs_local_rho_types
 
   SUBROUTINE calculate_rhoz(rhoz,grid_atom,alpha,zeff,natom,rhoz_tot,harmonics)
  
-    TYPE(rhoz_type)             :: rhoz
-    TYPE(grid_atom_type)        :: grid_atom
-    TYPE(harmonics_atom_type)   :: harmonics
-    REAL(dp), INTENT(IN)        :: alpha
-    REAL(dp), INTENT(INOUT)     :: rhoz_tot
-    INTEGER                     :: natom
-    REAL(dp)                    :: zeff
- 
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "calculate_rhoz"
+    TYPE(rhoz_type)                          :: rhoz
+    TYPE(grid_atom_type)                     :: grid_atom
+    REAL(dp), INTENT(IN)                     :: alpha
+    REAL(dp)                                 :: zeff
+    INTEGER                                  :: natom
+    REAL(dp), INTENT(INOUT)                  :: rhoz_tot
+    TYPE(harmonics_atom_type)                :: harmonics
 
-    INTEGER                     :: ir,nr,na,ia
-    REAL(dp)                    :: c1, c2,c3, prefactor1, prefactor2, prefactor3
-    REAL(dp)                    :: sum,t
+    CHARACTER(LEN=*), PARAMETER              :: routineN = 'calculate_rhoz'
+
+    INTEGER                                  :: ir, na, nr
+    REAL(dp)                                 :: c1, c2, c3, prefactor1, &
+                                                prefactor2, prefactor3, sum
+
 !   ---------------------------------------------------------------------------
 
     nr = grid_atom%nr
@@ -139,7 +138,7 @@ MODULE qs_local_rho_types
     sum = 0.0_dp
     DO ir = 1,nr
       c1 = -alpha*grid_atom%rad2(ir)
-      rhoz%r_coef(ir) = -exp(c1)*prefactor1
+      rhoz%r_coef(ir) = -EXP(c1)*prefactor1
       IF(ABS(rhoz%r_coef(ir)) < 1.0E-30_dp) THEN
         rhoz%r_coef(ir) = 0.0_dp
         rhoz%dr_coef(ir) = 0.0_dp
@@ -164,11 +163,11 @@ MODULE qs_local_rho_types
 
   SUBROUTINE deallocate_rhoz(rhoz_set)
 
-    TYPE(rhoz_type), DIMENSION(:), POINTER :: rhoz_set
+    TYPE(rhoz_type), DIMENSION(:), POINTER   :: rhoz_set
 
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "deallocate_rhoz"
+    CHARACTER(LEN=*), PARAMETER              :: routineN = 'deallocate_rhoz'
 
-    INTEGER                     :: ikind, istat, nkind
+    INTEGER                                  :: ikind, istat, nkind
 
 !   ---------------------------------------------------------------------------
 
@@ -176,18 +175,18 @@ MODULE qs_local_rho_types
 
     DO ikind = 1,nkind
       DEALLOCATE(rhoz_set(ikind)%r_coef,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                        "rhoz_set%r_coef")
       DEALLOCATE(rhoz_set(ikind)%dr_coef,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                        "rhoz_set%dr_coef")
       DEALLOCATE(rhoz_set(ikind)%vr_coef,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                        "rhoz_set%vr_coef")
     END DO
 
     DEALLOCATE(rhoz_set,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                      "rhoz_set")
           
   END SUBROUTINE  deallocate_rhoz
@@ -196,17 +195,16 @@ MODULE qs_local_rho_types
   SUBROUTINE  get_local_rho(local_rho_set,rho_atom_set,rho0_atom_set,&
                             rho0_mpole,nddo_mpole,rhoz_set)
 
-    TYPE(local_rho_type), POINTER                :: local_rho_set
-    TYPE(rho_atom_type), DIMENSION(:),  &
-                             OPTIONAL, POINTER   :: rho_atom_set
+    TYPE(local_rho_type), POINTER            :: local_rho_set
+    TYPE(rho_atom_type), DIMENSION(:), &
+      OPTIONAL, POINTER                      :: rho_atom_set
     TYPE(rho0_atom_type), DIMENSION(:), &
-                              OPTIONAL, POINTER  :: rho0_atom_set
-    TYPE(rho0_mpole_type),     OPTIONAL, POINTER :: rho0_mpole
-    TYPE(rho0_mpole_type),     OPTIONAL, POINTER :: nddo_mpole
+      OPTIONAL, POINTER                      :: rho0_atom_set
+    TYPE(rho0_mpole_type), OPTIONAL, POINTER :: rho0_mpole, nddo_mpole
     TYPE(rhoz_type), DIMENSION(:), &
-                         OPTIONAL, POINTER       :: rhoz_set
+      OPTIONAL, POINTER                      :: rhoz_set
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'get_local_rho'
+    CHARACTER(len=*), PARAMETER              :: routineN = 'get_local_rho'
 
 !   ---------------------------------------------------------------------------
 
@@ -222,16 +220,17 @@ MODULE qs_local_rho_types
 
   SUBROUTINE local_rho_set_create(local_rho_set, error)
 
-   TYPE(local_rho_type), POINTER     :: local_rho_set
-       TYPE(cp_error_type), INTENT(inout), &
+    TYPE(local_rho_type), POINTER            :: local_rho_set
+    TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = "local_rho_set_create" 
+    CHARACTER(len=*), PARAMETER :: routineN = 'local_rho_set_create'
 
     INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
 !   ---------------------------------------------------------------------------
+
     failure=.FALSE.
 
     ALLOCATE(local_rho_set, stat=stat)
@@ -248,12 +247,12 @@ MODULE qs_local_rho_types
 ! ******************************************************************************
   SUBROUTINE local_rho_set_release(local_rho_set,error)
 
-   TYPE(local_rho_type), POINTER         :: local_rho_set
-   TYPE(cp_error_type), INTENT(inout), &
-                      OPTIONAL           :: error
+    TYPE(local_rho_type), POINTER            :: local_rho_set
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'local_rho_set_release', &
-      routineP = module_name//':'//routineN
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: stat
 
@@ -291,17 +290,16 @@ MODULE qs_local_rho_types
   SUBROUTINE set_local_rho(local_rho_set,rho_atom_set,rho0_atom_set,&
                             rho0_mpole,nddo_mpole,rhoz_set)
 
-    TYPE(local_rho_type), POINTER                   :: local_rho_set
-    TYPE(rho_atom_type), DIMENSION(:),  &
-                                OPTIONAL, POINTER   :: rho_atom_set
+    TYPE(local_rho_type), POINTER            :: local_rho_set
+    TYPE(rho_atom_type), DIMENSION(:), &
+      OPTIONAL, POINTER                      :: rho_atom_set
     TYPE(rho0_atom_type), DIMENSION(:), &
-                                 OPTIONAL, POINTER  :: rho0_atom_set
-    TYPE(rho0_mpole_type),        OPTIONAL, POINTER :: rho0_mpole
-    TYPE(rho0_mpole_type),        OPTIONAL, POINTER :: nddo_mpole
-    TYPE(rhoz_type),  DIMENSION(:), &
-                            OPTIONAL, POINTER       :: rhoz_set
+      OPTIONAL, POINTER                      :: rho0_atom_set
+    TYPE(rho0_mpole_type), OPTIONAL, POINTER :: rho0_mpole, nddo_mpole
+    TYPE(rhoz_type), DIMENSION(:), &
+      OPTIONAL, POINTER                      :: rhoz_set
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'set_local_rho'
+    CHARACTER(len=*), PARAMETER              :: routineN = 'set_local_rho'
 
 !   ---------------------------------------------------------------------------
 

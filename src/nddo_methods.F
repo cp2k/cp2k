@@ -19,112 +19,106 @@ MODULE nddo_methods
 
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind,&
-                                             set_atomic_kind,&
-                                             get_atomic_kind_set
-  USE basis_set_types,                 ONLY: sto_basis_set_type,&
-                                             get_sto_basis_set
-  USE coefficient_types,               ONLY: coeff_type, &
+                                             get_atomic_kind_set,&
+                                             set_atomic_kind
+  USE basis_set_types,                 ONLY: get_sto_basis_set,&
+                                             sto_basis_set_type
+  USE cell_types,                      ONLY: cell_type,&
+                                             pbc
+  USE coefficient_types,               ONLY: coeff_scale,&
                                              coeff_transform_space,&
-                                             coeff_scale
+                                             coeff_type
   USE cp_control_types,                ONLY: dft_control_type,&
                                              semi_empirical_control_type
-  USE cp_fm_types,                     ONLY: cp_fm_get_info,&
-                                             cp_fm_type,&
-                                             cp_fm_p_type
-  USE cp_sm_fm_interactions,           ONLY: cp_sm_fm_multiply
   USE cp_fm_basic_linalg,              ONLY: cp_fm_column_scale
+  USE cp_fm_types,                     ONLY: cp_fm_get_info,&
+                                             cp_fm_p_type,&
+                                             cp_fm_type
+  USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
+                                             cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE cp_rs_pool_types,                ONLY: cp_rs_pool_type,&
-                                             cp_rs_pool_p_type,&
-                                             rs_pool_give_back_rs,&
-                                             rs_pool_create_rs
+  USE cp_rs_pool_types,                ONLY: cp_rs_pool_p_type,&
+                                             cp_rs_pool_type,&
+                                             rs_pool_create_rs,&
+                                             rs_pool_give_back_rs
+  USE cp_sm_fm_interactions,           ONLY: cp_sm_fm_multiply
   USE cube_utils,                      ONLY: cube_info_type
+  USE input_section_types,             ONLY: section_vals_get_subs_vals,&
+                                             section_vals_type
   USE kinds,                           ONLY: dp
   USE l_utils,                         ONLY: l_info_type
-  USE mathconstants,                   ONLY: pi,fourpi,fac,dfac
+  USE mathconstants,                   ONLY: dfac,&
+                                             fac,&
+                                             fourpi,&
+                                             pi
   USE memory_utilities,                ONLY: reallocate
-  USE orbital_pointers,                ONLY: ncoset,nsoset,nco,nso,indco
+  USE orbital_pointers,                ONLY: indco,&
+                                             nco,&
+                                             ncoset,&
+                                             nso,&
+                                             nsoset
   USE orbital_transformation_matrices, ONLY: orbtramat
   USE particle_types,                  ONLY: particle_type
   USE pw_env_types,                    ONLY: pw_env_get,&
                                              pw_env_type
+  USE pw_poisson_methods,              ONLY: pw_poisson_solve
+  USE pw_poisson_types,                ONLY: pw_poisson_type
   USE pw_pool_types,                   ONLY: pw_pool_give_back_coeff,&
                                              pw_pool_init_coeff,&
-                                             pw_pool_type,&
-                                             pw_pool_p_type
-  USE input_section_types, ONLY: section_vals_type, section_vals_get_subs_vals
+                                             pw_pool_p_type,&
+                                             pw_pool_type
   USE pw_types,                        ONLY: COMPLEXDATA1D,&
-                                             REALDATA3D,&
-                                             REALSPACE,&
                                              RECIPROCALSPACE
-  USE pw_poisson_types,                ONLY: pw_poisson_type,&
-       pw_poisson_create, pw_poisson_release
-  USE pw_poisson_methods, only: pw_poisson_solve
   USE qs_energy_types,                 ONLY: qs_energy_type
   USE qs_environment_types,            ONLY: get_qs_env,&
-                                             set_qs_env,&
-                                             qs_environment_type
+                                             qs_environment_type,&
+                                             set_qs_env
   USE qs_force_types,                  ONLY: qs_force_type
   USE qs_integrate_potential,          ONLY: integrate_pgf_product_rspace
   USE qs_ks_types,                     ONLY: qs_ks_env_type
-  USE qs_mo_types,                     ONLY: mo_set_type, &
-                                             mo_set_p_type, &
-                                             get_mo_set
-  USE qs_neighbor_list_types,          ONLY: first_list,&
-                                             first_node,&
-                                             get_neighbor_list,&
-                                             get_neighbor_list_set,&
-                                             get_neighbor_node,&
-                                             neighbor_list_set_p_type,&
-                                             neighbor_list_type,&
-                                             neighbor_node_type,&
-                                             next
-  USE qs_rho_types,                    ONLY: qs_rho_type
+  USE qs_mo_types,                     ONLY: get_mo_set,&
+                                             mo_set_p_type
+  USE qs_neighbor_list_types,          ONLY: &
+       first_list, first_node, get_neighbor_list, get_neighbor_list_set, &
+       get_neighbor_node, neighbor_list_set_p_type, neighbor_list_type, &
+       neighbor_node_type, next
   USE qs_rho0_ggrid,                   ONLY: put_rho0_s_on_grid
   USE qs_rho0_types,                   ONLY: allocate_multipoles,&
                                              allocate_rho0_atom,&
                                              allocate_rho0_mpole,&
                                              get_rho0_mpole,&
                                              initialize_mpole_rho,&
-                                             rho0_mpole_type, &
-                                             rho0_atom_type
-  USE qs_util,                         ONLY: gaussint_sph,exp_radius
-  USE realspace_grid_types,            ONLY: realspace_grid_type,&
+                                             rho0_atom_type,&
+                                             rho0_mpole_type
+  USE qs_rho_types,                    ONLY: qs_rho_type
+  USE qs_util,                         ONLY: exp_radius,&
+                                             gaussint_sph
+  USE realspace_grid_types,            ONLY: pw2rs,&
+                                             realspace_grid_type,&
                                              rs_get_my_tasks,&
                                              rs_grid_zero,&
-                                             rs_pw_transfer,&
-                                             pw2rs
+                                             rs_pw_transfer
   USE semi_empirical_integrals,        ONLY: drotint,&
                                              rotint
   USE semi_empirical_types,            ONLY: semi_empirical_type
   USE semi_empirical_utils,            ONLY: contract,&
                                              expand,&
                                              get_se_param
-  USE cell_types,                 ONLY: cell_type,pbc
   USE sparse_matrix_types,             ONLY: cp_sm_scale_and_add,&
                                              cp_sm_sm_trace,&
-                                             first_block_node,&
                                              get_block_node,&
-                                             next_block_node,&
-                                             real_block_node_type,&
                                              real_matrix_p_type,&
                                              transfer_matrix
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE util,                            ONLY: get_limit
-  USE cp_output_handling,              ONLY: cp_print_key_unit_nr, &
-                                             cp_print_key_finished_output,&
-                                             cp_print_key_should_output,&
-                                             cp_p_file
-
-
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
 
   PRIVATE
 
-  CHARACTER(LEN=*), PARAMETER :: moduleN = "nddo_methods"
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'nddo_methods'
 
   PUBLIC :: build_nddo_fock_matrix, init_rho0_nddo
 
@@ -159,19 +153,20 @@ CONTAINS
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'build_nddo_fock', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'build_nddo_fock_matrix', &
       routineP = moduleN//':'//routineN
 
     INTEGER :: atom_a, atom_b, handle, iab, iatom, icol, ikind, ilist, inode, &
-      irow, ispin, istat, jatom, jkind, natom, natorb_a, natorb_b, nkind, &
-      nlist, nnode, nspins, output_unit
+      irow, ispin, istat, jatom, jkind, natom, natorb_a, natorb_b, &
+      ncol_global, nkind, nlist, nnode, nspins, output_unit
     INTEGER, DIMENSION(:), POINTER           :: atom_of_kind
-    LOGICAL                                  :: defined, ewald, failure, &
-                                                ionode
+    LOGICAL                                  :: defined, ewald, failure
     REAL(dp)                                 :: ecoul, gp2, gpp, gsp, gss, hsp
     REAL(dp), DIMENSION(3)                   :: rij
     REAL(KIND=dp)                            :: delta
     REAL(KIND=dp), DIMENSION(3)              :: force_ab
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: occupation_numbers, &
+                                                scaling_factor
     REAL(KIND=dp), DIMENSION(:, :), POINTER :: ks_block_a, ks_block_b, &
       ksa_block_a, ksa_block_b, ksb_block_a, ksb_block_b, p_block_a, &
       p_block_b, pa_block_a, pa_block_b, pb_block_a, pb_block_b
@@ -179,9 +174,14 @@ CONTAINS
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cell_type), POINTER                 :: cell
+    TYPE(cp_fm_p_type), DIMENSION(:), &
+      POINTER                                :: mo_derivs
+    TYPE(cp_fm_type), POINTER                :: mo_coeff
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(mo_set_p_type), DIMENSION(:), &
+      POINTER                                :: mo_array
     TYPE(neighbor_list_set_p_type), &
       DIMENSION(:), POINTER                  :: sab_orb
     TYPE(neighbor_list_type), POINTER        :: sab_orb_neighbor_list, &
@@ -193,15 +193,9 @@ CONTAINS
       POINTER                                :: force
     TYPE(real_matrix_p_type), DIMENSION(:), &
       POINTER                                :: matrix_h, matrix_p
+    TYPE(section_vals_type), POINTER         :: scf_section
     TYPE(semi_empirical_type), POINTER       :: se_kind_a, se_kind_b
-    TYPE(mo_set_p_type), DIMENSION(:), &
-         POINTER                                :: mo_array
-    TYPE(cp_fm_p_type), POINTER, DIMENSION(:)   :: mo_derivs
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: scaling_factor, &
-                                                occupation_numbers
-    TYPE(cp_fm_type), POINTER                :: mo_coeff
-    INTEGER                                  :: ncol_global
-    TYPE(section_vals_type), POINTER :: scf_section
+
 !   ----------------------------------------------------------------------------
 
     failure=.FALSE.
@@ -1140,20 +1134,21 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'nddo_ewald', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle,output_unit
+    INTEGER                                  :: auxbas_grid, handle, &
+                                                output_unit
     LOGICAL                                  :: failure, ionode
+    REAL(KIND=dp)                            :: tot_rs_int
+    TYPE(atomic_kind_type), DIMENSION(:), &
+      POINTER                                :: atomic_kind_set
+    TYPE(cell_type), POINTER                 :: cell
+    TYPE(coeff_type)                         :: v_gspace
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(pw_env_type), POINTER               :: pw_env
-    TYPE(atomic_kind_type), DIMENSION(:), &
-                               POINTER       :: atomic_kind_set
-    TYPE(rho0_mpole_type),     POINTER       :: nddo_mpole
-    TYPE(cell_type), POINTER                 :: cell
+    TYPE(pw_poisson_type), POINTER           :: poisson_env
+    TYPE(pw_pool_p_type), DIMENSION(:), &
+      POINTER                                :: pw_pools
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
-    TYPE(coeff_type)                         :: v_gspace
-    REAL(KIND=dp)                            :: tot_rs_int
-    TYPE(pw_poisson_type), pointer           :: poisson_env
-    integer :: auxbas_grid
-    TYPE(pw_pool_p_type), POINTER, dimension(:) :: pw_pools
+    TYPE(rho0_mpole_type), POINTER           :: nddo_mpole
 
 ! -----------------------------------------------------------------------------
 
@@ -1215,7 +1210,7 @@ CONTAINS
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(qs_rho_type), POINTER               :: rho
     TYPE(atomic_kind_type), DIMENSION(:), &
-                               POINTER       :: atomic_kind_set
+      POINTER                                :: atomic_kind_set
     TYPE(rho0_mpole_type), POINTER           :: nddo_mpole
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
@@ -1223,18 +1218,19 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'calc_nddo_mpoles', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle,output_unit,lmax0
+    INTEGER                                  :: iat, iatom, ic, ico, ikind, &
+                                                is, iso, lmax0, lshell, lx, &
+                                                ly, lz, natom, nkind
+    INTEGER, DIMENSION(:), POINTER           :: atom_list
     LOGICAL                                  :: failure
+    REAL(KIND=dp)                            :: op
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: Qlm, Qlm_cart
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: pblock
+    REAL(KIND=dp), DIMENSION(:, :, :), &
+      POINTER                                :: Qlm_gg
+    TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(real_matrix_p_type), DIMENSION(:), &
       POINTER                                :: matrix_p
-    TYPE(atomic_kind_type), POINTER          :: atomic_kind
-    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: pblock
-    INTEGER, DIMENSION(:), POINTER           :: atom_list
-    INTEGER                                  :: ikind,nkind,iatom,natom,iat,&
-                                                lx,ly,lz,is,ic,ico,lshell,iso
-    REAL(KIND=dp), DIMENSION(:,:,:), POINTER :: Qlm_gg
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: Qlm,Qlm_cart
-    REAL(KIND=dp)                            :: op
 
 ! -----------------------------------------------------------------------------
 
@@ -1295,32 +1291,32 @@ CONTAINS
 
   SUBROUTINE init_rho0_nddo(qs_env, se_control, error)
 
-    ! ARGUMENTS
-    TYPE(qs_environment_type), POINTER         :: qs_env
-    TYPE(semi_empirical_control_type), POINTER :: se_control
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(semi_empirical_control_type), &
+      POINTER                                :: se_control
     TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                                 :: error   
+      OPTIONAL                               :: error
 
-    ! PARAMETERS
     CHARACTER(len=*), PARAMETER :: routineN = 'init_rho0_nddo', &
       routineP = moduleN//':'//routineN
 
-    ! LOCALS
+    INTEGER                                  :: iat, iatom, ikind, istat, l, &
+                                                nat_kind, natom, natorb, &
+                                                nchan_c, nchan_s, nkind
+    INTEGER, DIMENSION(:), POINTER           :: atom_list
+    LOGICAL                                  :: failure
+    REAL(dp)                                 :: ecut, eps_gauss, max_rpgf0_s, &
+                                                r_s, z0, zeff
+    REAL(dp), DIMENSION(:, :, :), POINTER    :: Qlm_gg
     TYPE(atomic_kind_type), DIMENSION(:), &
-                            POINTER          :: atomic_kind_set
+      POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atom_kind
     TYPE(dft_control_type), POINTER          :: dft_control
-    TYPE(rho0_mpole_type), POINTER           :: nddo_mpole
     TYPE(rho0_atom_type), DIMENSION(:), &
-                           POINTER           :: rho0_atom_set
+      POINTER                                :: rho0_atom_set
+    TYPE(rho0_mpole_type), POINTER           :: nddo_mpole
     TYPE(semi_empirical_type), POINTER       :: se_kind
-    REAL(dp)                                 :: ecut,max_rpgf0_s,r_s,&
-                                                eps_gauss,z0,zeff
-    INTEGER  ::  nkind,natom,ikind,natorb,nat_kind,nchan_s,nchan_c,iatom,&
-                 iat,istat,l
-    INTEGER, DIMENSION(:), POINTER           :: atom_list
-    REAL(dp), DIMENSION(:,:,:), POINTER      :: Qlm_gg
-    LOGICAL                                  :: failure
+
 !   ---------------------------------------------------------------------------
 
     NULLIFY(atomic_kind_set)
@@ -1358,7 +1354,7 @@ CONTAINS
       nddo_mpole%lmax0_kind(ikind) = 2*(NINT(SQRT(REAL(natorb,dp)))-1)
       CALL set_atomic_kind(atomic_kind=atom_kind,&
                            lmax_rho0 = nddo_mpole%lmax0_kind(ikind))
-      nddo_mpole%lmax_0 = max(nddo_mpole%lmax_0,nddo_mpole%lmax0_kind(ikind))
+      nddo_mpole%lmax_0 = MAX(nddo_mpole%lmax_0,nddo_mpole%lmax0_kind(ikind))
 
       nchan_s = nsoset(nddo_mpole%lmax0_kind(ikind))
       nchan_c = ncoset(nddo_mpole%lmax0_kind(ikind))
@@ -1395,7 +1391,7 @@ CONTAINS
     DO ikind = 1,nkind
       r_s = 0.0_dp
       DO l = 0,nddo_mpole%lmax0_kind(ikind)
-        r_s = max(r_s, exp_radius(l,z0,eps_gauss,1._dp))
+        r_s = MAX(r_s, exp_radius(l,z0,eps_gauss,1._dp))
       END DO
 
       nddo_mpole%mp_gau(ikind)%rpgf0_s = r_s
@@ -1412,21 +1408,23 @@ CONTAINS
 
   SUBROUTINE calculate_sto_mpoles(Qlm,sto_basis,error)
 
-    REAL(dp), DIMENSION(:,:,:), INTENT(OUT) :: Qlm
-    TYPE(sto_basis_set_type), POINTER       :: sto_basis
+    REAL(dp), DIMENSION(:, :, :), &
+      INTENT(OUT)                            :: Qlm
+    TYPE(sto_basis_set_type), POINTER        :: sto_basis
     TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                                 :: error   
+      OPTIONAL                               :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'calculate_sto_mpoles', &
       routineP = moduleN//':'//routineN
-    INTEGER                                    :: nshell,maxlq
-    INTEGER, DIMENSION(:), POINTER             :: nq,lq
-    REAL(KIND=dp), DIMENSION(:), POINTER       :: zeta
-    REAL(KIND=dp)                              :: ofp,zet1,zet2,zk1,zk2,&
-                                                  qq0,qq1,qq2,o5p,otp,ot3p
-    INTEGER                                    :: l1,l2,n1,n2,m,k1,k2,&
-                                                  i1,i2,i1start,i2start
-    LOGICAL                                    :: failure
+
+    INTEGER                                  :: i1, i1start, i2, i2start, k1, &
+                                                k2, l1, l2, m, maxlq, n1, n2, &
+                                                nshell
+    INTEGER, DIMENSION(:), POINTER           :: lq, nq
+    LOGICAL                                  :: failure
+    REAL(KIND=dp)                            :: o5p, ofp, ot3p, otp, qq0, &
+                                                qq1, qq2, zet1, zet2, zk1, zk2
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: zeta
 
     CALL get_sto_basis_set(sto_basis_set=sto_basis,nshell=nshell,&
          nq=nq,lq=lq,zet=zeta,maxlq=maxlq)
@@ -1515,52 +1513,47 @@ CONTAINS
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = "integrate_vhg0_rspace",&
-                     routineP = moduleN//':'//routineN
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'integrate_vhg0_rspace', &
+      routineP = moduleN//':'//routineN
 
-    TYPE(atomic_kind_type), DIMENSION(:),&
-                            POINTER          :: atomic_kind_set
+    INTEGER :: auxbas_grid, bo(2), dir, handle, iat, iatom, ic, ico, igrid, &
+      ikind, is, iso, istat, ithread, j, l0_ikind, lm, lmax0, lshell, lx, ly, &
+      lz, nat, nch_max, ncurr, npme, nspins, nthread, omp_get_max_threads, &
+      omp_get_thread_num
+    INTEGER, DIMENSION(:), POINTER           :: atom_list
+    INTEGER, DIMENSION(:, :), POINTER        :: tasks
+    LOGICAL                                  :: failure
+    REAL(dp)                                 :: c4pi, eps_rho_rspace, &
+                                                force_tmp(3), opt, ra(3), &
+                                                rpgf0, zet0
+    REAL(dp), DIMENSION(:), POINTER          :: hab_sph, norm_l, Qlm
+    REAL(dp), DIMENSION(:, :), POINTER       :: h_block, hab, hab_spht, &
+                                                hdab_sph, pab
+    REAL(dp), DIMENSION(:, :, :), POINTER    :: habt, hadb, hdab, hdab_spht, &
+                                                Qlm_gg
+    REAL(dp), DIMENSION(:, :, :, :), POINTER :: hadbt, hdabt
+    TYPE(atomic_kind_type), DIMENSION(:), &
+      POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atom_kind
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(qs_force_type), DIMENSION(:), &
-      POINTER                                :: force
-    TYPE(pw_env_type), POINTER               :: pw_env
-    TYPE(particle_type), DIMENSION(:), &
-      POINTER                                :: particle_set
-    TYPE(rho0_mpole_type),      POINTER      :: nddo_mpole
-    TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(cp_rs_pool_p_type), DIMENSION(:), &
       POINTER                                :: rs_pools
     TYPE(cp_rs_pool_type), POINTER           :: rs_pool
-    TYPE(pw_pool_type), POINTER              :: pw_pool, pw_aux
-    TYPE(cube_info_type),  DIMENSION(:), &
-                         POINTER             :: cube_info
+    TYPE(cube_info_type), DIMENSION(:), &
+      POINTER                                :: cube_info
+    TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(l_info_type)                        :: l_info
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particle_set
+    TYPE(pw_env_type), POINTER               :: pw_env
+    TYPE(qs_force_type), DIMENSION(:), &
+      POINTER                                :: force
     TYPE(realspace_grid_type), POINTER       :: rs_v
-    INTEGER, DIMENSION(:,:), POINTER         :: tasks
-    REAL(dp), DIMENSION(:), POINTER          :: norm_l
-    REAL(dp), DIMENSION(:,:,:),  POINTER     :: Qlm_gg
-    REAL(dp), DIMENSION(:),     POINTER      :: Qlm
-    INTEGER, DIMENSION(:), POINTER           :: atom_list
-    LOGICAL   :: failure
-    REAL(dp)  :: c4pi,zet0,eps_rho_rspace,rpgf0,ra(3),opt,force_tmp(3)
-    INTEGER   :: handle,nspins,igrid,lmax0,auxbas_grid,nthread,ikind
-    INTEGER   :: nat,ncurr,l0_ikind,dir,bo(2),npme,istat,j,iat,iatom
-    INTEGER   :: nch_max,is,iso,lshell,ic,ico,lx,ly,lz,lm
-    INTEGER   :: omp_get_max_threads,ithread
-    REAL(dp), DIMENSION(:,:), POINTER        :: pab
-    REAL(dp), DIMENSION(:,:), POINTER        :: hab
-    REAL(dp), DIMENSION(:,:,:), POINTER      :: habt
-    REAL(dp), DIMENSION(:,:,:), POINTER      :: hdab,hadb
-    REAL(dp), DIMENSION(:,:,:,:), POINTER    :: hdabt,hadbt
-    REAL(dp), DIMENSION(:), POINTER          :: hab_sph
-    REAL(dp), DIMENSION(:,:), POINTER        :: hab_spht
-    REAL(dp), DIMENSION(:,:), POINTER        :: hdab_sph
-    REAL(dp), DIMENSION(:,:,:), POINTER      :: hdab_spht
-    REAL(dp), DIMENSION(:,:), POINTER        :: h_block
-    INTEGER                                  :: omp_get_thread_num
+    TYPE(rho0_mpole_type), POINTER           :: nddo_mpole
+
 !   ---------------------------------------------------------------------------
+
     failure=.FALSE.
     c4pi = fourpi
 

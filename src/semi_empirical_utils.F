@@ -25,7 +25,11 @@ MODULE semi_empirical_utils
                                              deallocate_sto_basis_set,&
                                              gto_basis_set_type,&
                                              set_sto_basis_set
-  USE global_types,                    ONLY: global_environment_type
+  USE cp_output_handling,              ONLY: cp_p_file,&
+                                             cp_print_key_finished_output,&
+                                             cp_print_key_should_output,&
+                                             cp_print_key_unit_nr
+  USE input_section_types,             ONLY: section_vals_type
   USE kinds,                           ONLY: default_string_length,&
                                              dp
   USE periodic_table,                  ONLY: ptable
@@ -39,21 +43,13 @@ MODULE semi_empirical_utils
   USE semi_empirical_types,            ONLY: semi_empirical_type
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
-  USE cp_output_handling,              ONLY: cp_print_key_unit_nr, &
-                                             cp_print_key_finished_output,&
-                                             cp_print_key_should_output,&
-                                             cp_p_file
-  USE input_section_types,             ONLY: section_vals_type
-
 #include "cp_common_uses.h"
-
-  
 
   IMPLICIT NONE
 
   PRIVATE
 
-  CHARACTER(LEN=*), PARAMETER :: module_name = "semi_empirical_utils"
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'semi_empirical_utils'
 
   PUBLIC :: allocate_se_param,&
             deallocate_se_param,&
@@ -78,7 +74,7 @@ CONTAINS
 
     TYPE(semi_empirical_type), POINTER       :: se_parameter
 
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "allocate_se_param"
+    CHARACTER(LEN=*), PARAMETER              :: routineN = 'allocate_se_param'
 
     INTEGER                                  :: istat
 
@@ -87,7 +83,7 @@ CONTAINS
     IF (ASSOCIATED(se_parameter)) CALL deallocate_se_param(se_parameter)
 
     ALLOCATE (se_parameter,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "se_parameter",0)
 
     NULLIFY ( se_parameter % sto_exponents )
@@ -102,12 +98,12 @@ CONTAINS
     se_parameter % ngauss = 0
 
     ALLOCATE (se_parameter%beta(0:3),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "se_parameter%beta",0)
     se_parameter % beta(:) = 0._dp
 
     ALLOCATE (se_parameter%sto_exponents(0:3),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "se_parameter%states",0)
     se_parameter % sto_exponents(:) = -1
 
@@ -136,7 +132,7 @@ CONTAINS
 
     TYPE(semi_empirical_type), POINTER       :: se_parameter
 
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "deallocate_se_param"
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'deallocate_se_param'
 
     INTEGER                                  :: istat
 
@@ -147,16 +143,16 @@ CONTAINS
         CALL deallocate_sto_basis_set(se_parameter%basis)
       END IF
       DEALLOCATE (se_parameter%beta,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                        "se_parameter%beta")
       DEALLOCATE (se_parameter%sto_exponents,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                        "se_parameter%sto_exponents")
       DEALLOCATE (se_parameter,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                        "se_parameter")
     ELSE
-      CALL stop_program(routine_name,module_name,__LINE__,&
+      CALL stop_program(routineN,moduleN,__LINE__,&
                         "The pointer se_parameter is not associated")
     END IF
 
@@ -172,8 +168,9 @@ CONTAINS
     CHARACTER(LEN=default_string_length), &
       INTENT(OUT), OPTIONAL                  :: name, typ
     LOGICAL, INTENT(OUT), OPTIONAL           :: defined
-    INTEGER, INTENT(OUT), OPTIONAL           :: z, natorb
-    REAL(KIND=dp), OPTIONAL, INTENT(OUT)     :: zeff
+    INTEGER, INTENT(OUT), OPTIONAL           :: z
+    REAL(KIND=dp), INTENT(OUT), OPTIONAL     :: zeff
+    INTEGER, INTENT(OUT), OPTIONAL           :: natorb
     REAL(KIND=dp), OPTIONAL                  :: eheat
     REAL(KIND=dp), DIMENSION(:), OPTIONAL, &
       POINTER                                :: beta, sto_exponents
@@ -182,7 +179,7 @@ CONTAINS
                                                 hsp, gsd, gpd, gdd
     INTEGER, INTENT(OUT), OPTIONAL           :: ngauss
 
-    CHARACTER(LEN=*), PARAMETER              :: routine_name = "get_se_param"
+    CHARACTER(LEN=*), PARAMETER              :: routineN = 'get_se_param'
 
 !   ---------------------------------------------------------------------------
 
@@ -215,7 +212,7 @@ CONTAINS
 
     ELSE
 
-      CALL stop_program(routine_name,module_name,__LINE__,&
+      CALL stop_program(routineN,moduleN,__LINE__,&
                         "The pointer se_parameter is not associated")
 
     END IF
@@ -229,7 +226,7 @@ CONTAINS
     TYPE(semi_empirical_type), POINTER       :: se_parameter
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
 
-    CHARACTER(LEN=*), PARAMETER              :: routine_name = "init_se_param"
+    CHARACTER(LEN=*), PARAMETER              :: routineN = 'init_se_param'
 
     CHARACTER(LEN=6), DIMENSION(:), POINTER  :: symbol
     INTEGER                                  :: dl, istat, l, nl, nshell
@@ -247,10 +244,10 @@ CONTAINS
       IF (se_parameter%natorb ==  9) nshell=3
       IF (se_parameter%natorb == 16) nshell=4
       ALLOCATE (nq(0:3),lq(0:3),zet(0:3),STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                        "nq, lq, zet ",0)
       ALLOCATE (symbol(0:3),STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                        "symbol",0)
       symbol=""
       nq=0
@@ -281,15 +278,15 @@ CONTAINS
       END IF
 
       DEALLOCATE (nq,lq,zet,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                        "nq, lq, zet ",0)
       DEALLOCATE (symbol,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                        "symbol",0)
 
     ELSE
 
-      CALL stop_program(routine_name,module_name,__LINE__,&
+      CALL stop_program(routineN,moduleN,__LINE__,&
                         "The pointer se_parameter is not associated")
 
     END IF
@@ -300,7 +297,7 @@ CONTAINS
 
   SUBROUTINE read_se_param()
 
-    CHARACTER(LEN=*), PARAMETER              :: routine_name = "read_se_param"
+    CHARACTER(LEN=*), PARAMETER              :: routineN = 'read_se_param'
 
 !   ---------------------------------------------------------------------------
 
@@ -316,8 +313,9 @@ CONTAINS
     CHARACTER(LEN=default_string_length), &
       INTENT(IN), OPTIONAL                   :: name, typ
     LOGICAL, INTENT(IN), OPTIONAL            :: defined
-    INTEGER, INTENT(IN), OPTIONAL            :: z, natorb
-    REAL(KIND=dp), OPTIONAL, INTENT(IN)      :: zeff
+    INTEGER, INTENT(IN), OPTIONAL            :: z
+    REAL(KIND=dp), INTENT(IN), OPTIONAL      :: zeff
+    INTEGER, INTENT(IN), OPTIONAL            :: natorb
     REAL(KIND=dp), OPTIONAL                  :: eheat
     REAL(dp), DIMENSION(0:), OPTIONAL        :: beta
     REAL(KIND=dp), DIMENSION(:), OPTIONAL    :: sto_exponents
@@ -326,7 +324,7 @@ CONTAINS
                                                 hsp, gsd, gpd, gdd
     INTEGER, INTENT(IN), OPTIONAL            :: ngauss
 
-    CHARACTER(LEN=*), PARAMETER              :: routine_name = "set_se_param"
+    CHARACTER(LEN=*), PARAMETER              :: routineN = 'set_se_param'
 
 !   ---------------------------------------------------------------------------
 
@@ -359,7 +357,7 @@ CONTAINS
 
     ELSE
 
-      CALL stop_program(routine_name,module_name,__LINE__,&
+      CALL stop_program(routineN,moduleN,__LINE__,&
                         "The pointer se_parameter is not associated")
 
     END IF
@@ -371,10 +369,11 @@ CONTAINS
   SUBROUTINE write_se_param(se_parameter,force_env_section,error)
 
     TYPE(semi_empirical_type), POINTER       :: se_parameter
- TYPE(section_vals_type), POINTER :: force_env_section
-    TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
+    TYPE(section_vals_type), POINTER         :: force_env_section
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "write_se_param"
+    CHARACTER(LEN=*), PARAMETER              :: routineN = 'write_se_param'
 
     CHARACTER(LEN=default_string_length)     :: name, typ
     INTEGER                                  :: l, lm, natorb, ngauss, &
@@ -382,7 +381,7 @@ CONTAINS
     LOGICAL                                  :: defined
     REAL(KIND=dp)                            :: alp, eheat, eisol, gp2, gpp, &
                                                 gsp, gss, hsp, udd, uff, upp, &
-                                                uss,zeff
+                                                uss, zeff
     REAL(KIND=dp), DIMENSION(0:3)            :: u
     REAL(KIND=dp), DIMENSION(:), POINTER     :: beta, sexp
     TYPE(cp_logger_type), POINTER            :: logger
@@ -413,7 +412,7 @@ CONTAINS
 
           SELECT CASE (typ)
           CASE DEFAULT
-             CALL stop_program(routine_name,module_name,__LINE__,&
+             CALL stop_program(routineN,moduleN,__LINE__,&
                   "Typ unknown: "//typ)
           CASE ('EHT')
              WRITE (UNIT=output_unit,FMT="(/,A,T35,A,T67,A14)")&
@@ -548,13 +547,13 @@ CONTAINS
     INTEGER, INTENT(IN)                      :: z
     CHARACTER(LEN=*)                         :: method
 
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "se_param_set_default"
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'se_param_set_default'
 
 !   ---------------------------------------------------------------------------
 
     IF (ASSOCIATED(se_parameter)) THEN
       IF ( z < 0 ) THEN
-        CALL stop_program(routine_name,module_name,__LINE__,&
+        CALL stop_program(routineN,moduleN,__LINE__,&
                         "Atomic number < 0")
       END IF
       SELECT CASE (method)
@@ -567,12 +566,12 @@ CONTAINS
         CASE ("MNDO")
           CALL mndo_default_parameter(se_parameter,z)
         CASE DEFAULT
-          CALL stop_program(routine_name,module_name,__LINE__,&
+          CALL stop_program(routineN,moduleN,__LINE__,&
                             "Invalid method:"//method)
       END SELECT
     ELSE
 
-      CALL stop_program(routine_name,module_name,__LINE__,&
+      CALL stop_program(routineN,moduleN,__LINE__,&
                         "The pointer se_parameter is not associated")
 
     END IF
@@ -621,7 +620,7 @@ CONTAINS
   END SUBROUTINE contract
 
   SUBROUTINE expand ( amat, avec )
-    REAL(dp), DIMENSION(:, :), INTENT(INOUT)   :: amat
+    REAL(dp), DIMENSION(:, :), INTENT(INOUT) :: amat
     REAL(dp), DIMENSION(:), INTENT(IN)       :: avec
 
     amat(1,1) = amat(1,1) + avec( 1)

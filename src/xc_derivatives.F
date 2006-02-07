@@ -17,19 +17,10 @@
 !!
 !!****
 MODULE xc_derivatives
-  USE input_keyword_types,             ONLY: keyword_create,&
-                                             keyword_release,&
-                                             keyword_type
-  USE input_cp2k_check, only: xc_functionals_expand
-  USE input_section_types,             ONLY: section_add_keyword,&
-                                             section_add_subsection,&
-                                             section_create,&
-                                             section_release,&
-                                             section_type,&
+  USE input_cp2k_check,                ONLY: xc_functionals_expand
+  USE input_section_types,             ONLY: section_vals_get_subs_vals2,&
                                              section_vals_type,&
-                                             section_vals_val_get,&
-                                             section_vals_get_subs_vals2,&
-                                             section_vals_val_set
+                                             section_vals_val_get
   USE kinds,                           ONLY: dp
   USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
@@ -46,28 +37,6 @@ MODULE xc_derivatives
   USE xc_ke_gga_new,                   ONLY: ke_gga_info,&
                                              ke_gga_lda_eval,&
                                              ke_gga_lsd_eval
-  USE input_constants,                 ONLY: xgga_b88,&
-                                             xgga_b88x,&  
-                                             xgga_opt,&
-                                             xgga_pbex,&
-                                             xgga_pw86,&
-                                             xgga_pw91,&
-                                             xgga_revpbe,&
-                                             ke_lc,&
-                                             ke_llp,&
-                                             ke_ol1,&
-                                             ke_ol2,&
-                                             ke_pw86,&
-                                             ke_pw91,&
-                                             ke_pbe,&
-                                             ke_revpbe,&
-                                             ke_t92,&
-                                             xc_funct_no_shortcut,&
-                                             xc_funct_blyp,&
-                                             xc_funct_pade,&
-                                             xc_funct_pbe,&
-                                             xc_funct_tpss,&
-                                             xc_funct_hcth120
   USE xc_lyp_new,                      ONLY: lyp_lda_eval,&
                                              lyp_lda_info,&
                                              lyp_lsd_eval,&
@@ -88,17 +57,11 @@ MODULE xc_derivatives
   USE xc_perdew_wang_new,              ONLY: perdew_wang_info,&
                                              perdew_wang_lda_eval,&
                                              perdew_wang_lsd_eval
-  USE input_constants,                 ONLY: pw_dmc,&
-                                             pw_orig,&
-                                             pw_vmc
-  USE input_constants,                 ONLY: pz_dmc,&
-                                             pz_orig,&
-                                             pz_vmc
   USE xc_perdew_zunger_new,            ONLY: pz_info,&
                                              pz_lda_eval,&
                                              pz_lsd_eval
-  USE xc_rho_cflags_types,             ONLY: xc_rho_cflags_type,&
-       xc_rho_cflags_setall
+  USE xc_rho_cflags_types,             ONLY: xc_rho_cflags_setall,&
+                                             xc_rho_cflags_type
   USE xc_rho_set_types,                ONLY: xc_rho_set_get,&
                                              xc_rho_set_type
   USE xc_tfw_new,                      ONLY: tfw_lda_eval,&
@@ -108,9 +71,9 @@ MODULE xc_derivatives
   USE xc_thomas_fermi_new,             ONLY: thomas_fermi_info,&
                                              thomas_fermi_lda_eval,&
                                              thomas_fermi_lsd_eval
-  USE xc_tpss,                         ONLY: tpss_lda_eval, &
-                                             tpss_lda_info, &
-                                             tpss_lsd_eval, &
+  USE xc_tpss,                         ONLY: tpss_lda_eval,&
+                                             tpss_lda_info,&
+                                             tpss_lsd_eval,&
                                              tpss_lsd_info
   USE xc_vwn_new,                      ONLY: vwn_lda_eval,&
                                              vwn_lda_info
@@ -128,7 +91,7 @@ MODULE xc_derivatives
   PRIVATE
 
   LOGICAL, PARAMETER          :: debug_this_module=.FALSE.
-  CHARACTER(len=*), PARAMETER :: moduleN = 'xc_derivatives'
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'xc_derivatives'
 
   PUBLIC :: xc_functional_get_info, xc_functionals_eval, xc_functionals_get_needs
 
@@ -174,7 +137,7 @@ SUBROUTINE xc_functional_get_info(functional,lsd,reference,shortform,&
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'xc_functional_get_info_new', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'xc_functional_get_info', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i_param
@@ -334,7 +297,7 @@ SUBROUTINE xc_functional_eval(functional, lsd, rho_set, deriv_set, &
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'xc_functional_eval_new', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'xc_functional_eval', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, i_param
@@ -467,7 +430,7 @@ SUBROUTINE xc_functional_eval(functional, lsd, rho_set, deriv_set, &
              error=error)
      END SELECT
   END IF
-123 continue
+123 CONTINUE
   CALL timestop(0.0_dp,handle)
 END SUBROUTINE xc_functional_eval
 !***************************************************************************
@@ -507,20 +470,22 @@ END SUBROUTINE xc_functional_eval
 !!*** **********************************************************************
 SUBROUTINE xc_functionals_eval(functionals, lsd, rho_set, deriv_set, &
      deriv_order, error)
-  TYPE(section_vals_type), pointer :: functionals
-  LOGICAL, INTENT(in) :: lsd
-  TYPE(xc_rho_set_type), POINTER :: rho_set
-  TYPE(xc_derivative_set_type), pointer :: deriv_set
-  INTEGER, intent(in) :: deriv_order
-  type(cp_error_type), optional, intent(inout) :: error
-  
-  logical :: failure
-  character(len=*), parameter :: routineN='xc_functionals_eval',&
-        routineP=moduleN//':'//routineN
-  integer :: ifun
-  TYPE(section_vals_type), pointer :: xc_fun
+    TYPE(section_vals_type), POINTER         :: functionals
+    LOGICAL, INTENT(in)                      :: lsd
+    TYPE(xc_rho_set_type), POINTER           :: rho_set
+    TYPE(xc_derivative_set_type), POINTER    :: deriv_set
+    INTEGER, INTENT(in)                      :: deriv_order
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-  failure=.false.
+    CHARACTER(len=*), PARAMETER :: routineN = 'xc_functionals_eval', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: ifun
+    LOGICAL                                  :: failure
+    TYPE(section_vals_type), POINTER         :: xc_fun
+
+  failure=.FALSE.
   
   CPPrecondition(ASSOCIATED(functionals),cp_failure_level,routineP,error,failure)
   CALL xc_functionals_expand(functionals,error=error)
@@ -569,21 +534,24 @@ END SUBROUTINE xc_functionals_eval
 !!*** **********************************************************************
 FUNCTION xc_functionals_get_needs(functionals, lsd, add_basic_components,&
      error) RESULT(needs)
-  TYPE(section_vals_type), pointer :: functionals
-  LOGICAL, INTENT(in) :: lsd
-  LOGICAL, INTENT(in), OPTIONAL :: add_basic_components
-  type(cp_error_type), optional, intent(inout) :: error
-  TYPE(xc_rho_cflags_type) :: needs
-  
-  LOGICAL :: failure, my_add_basic_components
-  character(len=*), parameter :: routineN='xc_functionals_get_needs',&
-        routineP=moduleN//':'//routineN
-  integer :: ifun
-  TYPE(section_vals_type), POINTER :: xc_fun
+    TYPE(section_vals_type), POINTER         :: functionals
+    LOGICAL, INTENT(in)                      :: lsd
+    LOGICAL, INTENT(in), OPTIONAL            :: add_basic_components
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+    TYPE(xc_rho_cflags_type)                 :: needs
 
-  failure=.false.
-  my_add_basic_components=.false.
-  if (present(add_basic_components)) my_add_basic_components=add_basic_components
+    CHARACTER(len=*), PARAMETER :: routineN = 'xc_functionals_get_needs', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: ifun
+    LOGICAL                                  :: failure, &
+                                                my_add_basic_components
+    TYPE(section_vals_type), POINTER         :: xc_fun
+
+  failure=.FALSE.
+  my_add_basic_components=.FALSE.
+  IF (PRESENT(add_basic_components)) my_add_basic_components=add_basic_components
   
   CPPrecondition(ASSOCIATED(functionals),cp_failure_level,routineP,error,failure)
   CALL xc_functionals_expand(functionals,error=error)
@@ -600,10 +568,10 @@ FUNCTION xc_functionals_get_needs(functionals, lsd, add_basic_components,&
      END DO
      IF (my_add_basic_components) THEN
         IF (lsd) THEN
-           needs%rho_spin=.true.
+           needs%rho_spin=.TRUE.
            needs%tau_spin=needs%tau_spin.OR.needs%tau
         ELSE
-           needs%rho=.true.
+           needs%rho=.TRUE.
         END IF
         IF (needs%drho .OR. needs%drho_spin .OR. needs%norm_drho .OR.&
              needs%norm_drho_spin .OR. needs%drhoa_drhob) THEN

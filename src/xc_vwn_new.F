@@ -35,7 +35,7 @@ MODULE xc_vwn_new
                                              xc_derivative_type
   USE xc_functionals_utilities,        ONLY: calc_srs_pw,&
                                              set_util
-  USE xc_rho_cflags_types,                ONLY: xc_rho_cflags_type
+  USE xc_rho_cflags_types,             ONLY: xc_rho_cflags_type
   USE xc_rho_set_types,                ONLY: xc_rho_set_get,&
                                              xc_rho_set_type
 #include "cp_common_uses.h"
@@ -57,7 +57,7 @@ MODULE xc_vwn_new
 
   PUBLIC :: vwn_lda_info, vwn_lda_eval
 
-  CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='xc_vwn_new'
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'xc_vwn_new'
 
   REAL(KIND=dp) :: eps_rho
 
@@ -69,7 +69,7 @@ CONTAINS
 
   SUBROUTINE vwn_init ( cutoff )
 
-    REAL(KIND=dp), INTENT(IN)                    :: cutoff
+    REAL(KIND=dp), INTENT(IN)                :: cutoff
 
     eps_rho = cutoff
     CALL set_util ( cutoff )
@@ -115,8 +115,8 @@ CONTAINS
     INTEGER                                  :: handle, npoints, stat
     INTEGER, DIMENSION(:, :), POINTER        :: bo
     LOGICAL                                  :: failure
-    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)     :: x
-    REAL(KIND=dp)                           :: epsilon_rho
+    REAL(KIND=dp)                            :: epsilon_rho
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: x
     REAL(KIND=dp), DIMENSION(:, :, :), &
       POINTER                                :: e_0, e_rho, e_rho_rho, &
                                                 e_rho_rho_rho, rho
@@ -195,14 +195,15 @@ CONTAINS
 
   SUBROUTINE vwn_lda_0 ( rho, x, e_0, npoints, error )
 
-    REAL(KIND=dp), DIMENSION(*), INTENT(IN)      :: rho, x
-    REAL(KIND=dp), DIMENSION(*), INTENT(INOUT)   :: e_0
+    REAL(KIND=dp), DIMENSION(*), INTENT(IN)  :: rho, x
+    REAL(KIND=dp), DIMENSION(*), &
+      INTENT(INOUT)                          :: e_0
     INTEGER, INTENT(in)                      :: npoints
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
     INTEGER                                  :: ip
-    REAL(KIND=dp)                                :: at, dpx, ln1, ln2, px, q, xb
+    REAL(KIND=dp)                            :: at, dpx, ln1, ln2, px, q, xb
 
 !   ---------------------------------------------------------------------------
 
@@ -229,14 +230,15 @@ CONTAINS
 
   SUBROUTINE vwn_lda_1 ( rho, x, e_rho, npoints, error )
 
-    REAL(KIND=dp), DIMENSION(*), INTENT(IN)      :: rho, x
-    REAL(KIND=dp), DIMENSION(*), INTENT(INOUT)   :: e_rho
+    REAL(KIND=dp), DIMENSION(*), INTENT(IN)  :: rho, x
+    REAL(KIND=dp), DIMENSION(*), &
+      INTENT(INOUT)                          :: e_rho
     INTEGER, INTENT(in)                      :: npoints
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
     INTEGER                                  :: ip
-    REAL(KIND=dp)                                :: at, dat, dex, dln1, dln2, &
+    REAL(KIND=dp)                            :: at, dat, dex, dln1, dln2, &
                                                 dpx, ex, ln1, ln2, pa, px, q, &
                                                 xb
 
@@ -271,14 +273,15 @@ CONTAINS
 
   SUBROUTINE vwn_lda_01 ( rho, x, e_0, e_rho, npoints, error )
 
-    REAL(KIND=dp), DIMENSION(*), INTENT(IN)      :: rho, x
-    REAL(KIND=dp), DIMENSION(*), INTENT(INOUT)   :: e_0, e_rho
+    REAL(KIND=dp), DIMENSION(*), INTENT(IN)  :: rho, x
+    REAL(KIND=dp), DIMENSION(*), &
+      INTENT(INOUT)                          :: e_0, e_rho
     INTEGER, INTENT(in)                      :: npoints
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
     INTEGER                                  :: ip
-    REAL(KIND=dp)                                :: at, dat, dex, dln1, dln2, &
+    REAL(KIND=dp)                            :: at, dat, dex, dln1, dln2, &
                                                 dpx, ex, ln1, ln2, pa, px, q, &
                                                 xb
 
@@ -315,14 +318,15 @@ CONTAINS
 
   SUBROUTINE vwn_lda_2 ( rho, x, e_rho_rho, npoints, error )
 
-    REAL(KIND=dp), DIMENSION(*), INTENT(IN)      :: rho, x
-    REAL(KIND=dp), DIMENSION(*), INTENT(INOUT)   :: e_rho_rho
+    REAL(KIND=dp), DIMENSION(*), INTENT(IN)  :: rho, x
+    REAL(KIND=dp), DIMENSION(*), &
+      INTENT(INOUT)                          :: e_rho_rho
     INTEGER, INTENT(in)                      :: npoints
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
     INTEGER                                  :: ip
-    REAL(KIND=dp)                                :: at, d2at, d2ex, d2fp, d2ln1, &
+    REAL(KIND=dp)                            :: at, d2at, d2ex, d2fp, d2ln1, &
                                                 d2ln2, dat, dex, dfp, dln1, &
                                                 dln2, dpx, fp, ln1, ln2, pa, &
                                                 px, q, xb
@@ -368,16 +372,17 @@ CONTAINS
 
   SUBROUTINE vwn_lda_3 ( rho, x, e_rho_rho_rho, npoints, error )
 
-    REAL(KIND=dp), DIMENSION(*), INTENT(IN)      :: rho, x
-    REAL(KIND=dp), DIMENSION(*), INTENT(INOUT)   :: e_rho_rho_rho
+    REAL(KIND=dp), DIMENSION(*), INTENT(IN)  :: rho, x
+    REAL(KIND=dp), DIMENSION(*), &
+      INTENT(INOUT)                          :: e_rho_rho_rho
     INTEGER, INTENT(in)                      :: npoints
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
     INTEGER                                  :: ip
-    REAL(KIND=dp) :: at, ax, bx, cx, d2at, d2bx, d2dx, d2ex, d2fp, d2ln1, d2ln2, &
-      d3at, d3ex, d3fp, d3ln1, d3ln2, dat, dbx, ddx, dex, dfp, dln1, dln2, &
-      dpx, dx, fp, ln1, ln2, pa, px, q, xb
+    REAL(KIND=dp) :: at, ax, bx, cx, d2at, d2bx, d2dx, d2ex, d2fp, d2ln1, &
+      d2ln2, d3at, d3ex, d3fp, d3ln1, d3ln2, dat, dbx, ddx, dex, dfp, dln1, &
+      dln2, dpx, dx, fp, ln1, ln2, pa, px, q, xb
 
 !   ---------------------------------------------------------------------------
 

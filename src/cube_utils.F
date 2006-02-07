@@ -16,40 +16,40 @@ MODULE cube_utils
 
   IMPLICIT NONE
 
-  public :: cube_info_type
-  public :: cube_ptr
-  public :: init_cube_info
-  public :: destroy_cube_info
-  public :: return_cube
+  PUBLIC :: cube_info_type
+  PUBLIC :: cube_ptr
+  PUBLIC :: init_cube_info
+  PUBLIC :: destroy_cube_info
+  PUBLIC :: return_cube
 
   TYPE :: cube_ptr
-       integer, pointer, dimension(:) :: p
+       INTEGER, POINTER, DIMENSION(:) :: p
   END TYPE cube_ptr
 
   TYPE :: cube_info_type
-     integer                      :: max_radius
-     real(KIND = dp)              :: dr(3),drmin,drsafe
-     integer, pointer             :: lb_cube(:,:)
-     integer, pointer             :: ub_cube(:,:)
-     TYPE(cube_ptr), pointer, dimension(:)  :: sphere_bounds
-     integer, pointer             :: sphere_bounds_count(:)
-     real(KIND = dp)              :: max_rad_ga
+     INTEGER                      :: max_radius
+     REAL(KIND = dp)              :: dr(3),drmin,drsafe
+     INTEGER, POINTER             :: lb_cube(:,:)
+     INTEGER, POINTER             :: ub_cube(:,:)
+     TYPE(cube_ptr), POINTER, DIMENSION(:)  :: sphere_bounds
+     INTEGER, POINTER             :: sphere_bounds_count(:)
+     REAL(KIND = dp)              :: max_rad_ga
   END TYPE cube_info_type
 
 CONTAINS
   SUBROUTINE return_cube(info,radius,lb_cube,ub_cube,sphere_bounds)
     TYPE(cube_info_type)                     :: info
-    real(KIND=dp)                            :: radius
-    integer                                  :: lb_cube(3), ub_cube(3)
-    integer, dimension(:), pointer           :: sphere_bounds
+    REAL(KIND=dp)                            :: radius
+    INTEGER                                  :: lb_cube(3), ub_cube(3)
+    INTEGER, DIMENSION(:), POINTER           :: sphere_bounds
 
-    integer                                  :: imr
+    INTEGER                                  :: imr
 
     imr=MAX(1,CEILING((radius+info%drsafe)/info%drmin))
-    if (imr.gt.info%max_radius) then
+    IF (imr.gt.info%max_radius) THEN
         imr = info%max_radius
 !        CALL stop_program("return_cube","called with radius too large")
-    endif
+    ENDIF
     lb_cube(:)       = info%lb_cube(:,imr)
     ub_cube(:)       = info%ub_cube(:,imr)
     sphere_bounds => info%sphere_bounds(imr)%p
@@ -81,16 +81,16 @@ CONTAINS
 
   SUBROUTINE init_cube_info(info,dr,max_radius,cmax)
     TYPE(cube_info_type)                     :: info
-    real(KIND=dp)                            :: dr(3), max_radius
-    integer                                  :: cmax
+    REAL(KIND=dp)                            :: dr(3), max_radius
+    INTEGER                                  :: cmax
 
     CHARACTER(LEN=*), PARAMETER :: &
       routine = "SUBROUTINE init_cube_info (MODULE cube_utils)"
 
-    integer                                  :: check_1, check_2, handle, i, &
+    INTEGER                                  :: check_1, check_2, handle, i, &
                                                 igmin, imr, istat, jg, jg2, &
                                                 jgmin, k, kg, kg2, kgmin
-    real(KIND=dp)                            :: drmin, drsafe, dxi, dy2, dyi, &
+    REAL(KIND=dp)                            :: drmin, drsafe, dxi, dy2, dyi, &
                                                 dz2, dzi, radius, radius2
 
     CALL timeset("init_cube_info","I","",handle) 
@@ -109,7 +109,7 @@ CONTAINS
 
     NULLIFY(info%lb_cube,info%ub_cube,&
             info%sphere_bounds_count,info%sphere_bounds)
-    allocate(info%lb_cube(3,imr),info%ub_cube(3,imr), &
+    ALLOCATE(info%lb_cube(3,imr),info%ub_cube(3,imr), &
              info%sphere_bounds_count(imr),info%sphere_bounds(imr))
     cmax=0
     check_1=0
@@ -140,7 +140,7 @@ CONTAINS
 
 !   init sphere_bounds array
     ! notice : as many points in lb_cube..0 as 1..ub_cube
-    do i=1,imr 
+    DO i=1,imr 
       k=1
       radius=i*drmin
       info%lb_cube(:,i)=-1
@@ -165,7 +165,7 @@ CONTAINS
          ENDDO
       ENDDO
       info%ub_cube(:,i)=1-info%lb_cube(:,i)
-    enddo
+    ENDDO
     cmax=MAXVAL(info%ub_cube)
     IF (check_1.NE.check_2) THEN 
         CALL stop_program("init_cube_info"," :-/ irreproducable fp math caused memory corruption")
@@ -197,7 +197,7 @@ CONTAINS
     INTEGER                                  :: i, jg2, kg2, res
 
     buf(2)=(i*buf(2))**2
-    res = CEILING(-0.1E-7_dp-buf(1)*sqrt(max(buf(2)-kg2*buf(3)-jg2*buf(4),0.0_dp)))
+    res = CEILING(-0.1E-7_dp-buf(1)*SQRT(MAX(buf(2)-kg2*buf(3)-jg2*buf(4),0.0_dp)))
   END FUNCTION do_and_hide_it_2
 END MODULE
 ! ***************************************************************

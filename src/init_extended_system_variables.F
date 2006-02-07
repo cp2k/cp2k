@@ -21,25 +21,18 @@ MODULE init_extended_system_variables
   USE extended_system_types,           ONLY: lnhc_parameters_type,&
                                              npt_info_type
   USE global_types,                    ONLY: global_environment_type
+  USE input_constants,                 ONLY: nph_uniaxial_damped_ensemble,&
+                                             nph_uniaxial_ensemble,&
+                                             npt_f_ensemble,&
+                                             npt_i_ensemble
   USE kinds,                           ONLY: dp
-  USE message_passing,                 ONLY: mp_bcast,&
-                                             mp_sum, mp_allgather
+  USE message_passing,                 ONLY: mp_allgather,&
+                                             mp_bcast,&
+                                             mp_sum
   USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE util,                            ONLY: gasdev
-  USE input_constants,                 ONLY: nve_ensemble,&
-                                             nvt_ensemble,&
-                                             npt_i_ensemble,&
-                                             npt_f_ensemble,&
-                                             nph_ensemble,&
-                                             nph_uniaxial_ensemble,&
-                                             nph_uniaxial_damped_ensemble,&
-                                             isokin_ensemble
-  USE input_section_types,             ONLY: section_vals_type,&
-                                             section_vals_get_subs_vals,&
-                                             section_vals_write
-
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -72,16 +65,13 @@ SUBROUTINE init_nhc_variables ( nhc,tau_nhc,temp_ext, globenv )
     TYPE(lnhc_parameters_type), &
       INTENT(INOUT)                          :: nhc
     REAL(KIND=dp), INTENT(IN)                :: tau_nhc, temp_ext
-    TYPE(global_environment_type), &
-      pointer                          :: globenv
+    TYPE(global_environment_type), POINTER   :: globenv
 
-! locals
-    INTEGER                                  :: i, j, number, isos, iproc, &
-                                                rannumneed, tot_rn, &
-                                                icount
+    INTEGER                                  :: i, icount, isos, j, number, &
+                                                rannumneed, tot_rn
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: rn_need_per_proc
     REAL(KIND=dp)                            :: akin, temp, v
-    INTEGER, DIMENSION ( : ), ALLOCATABLE    :: rn_need_per_proc
-    REAL (KIND=dp), DIMENSION ( : ), ALLOCATABLE    :: array_of_rn
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: array_of_rn
 
 ! first initializing the mass of the nhc variables
 
@@ -140,7 +130,7 @@ SUBROUTINE init_nhc_variables ( nhc,tau_nhc,temp_ext, globenv )
 
 ! scale velocities to get the correct initial temperature
         temp = 2.0_dp*akin/REAL(number)
-        temp = sqrt(temp_ext/temp)
+        temp = SQRT(temp_ext/temp)
         DO i = 1, nhc % num_nhc
            DO j = 1, nhc % nhc_len
               nhc % nvt(j,i) % v = temp * nhc % nvt(j,i) % v
@@ -199,7 +189,7 @@ SUBROUTINE init_nhc_variables ( nhc,tau_nhc,temp_ext, globenv )
 
 ! scale velocities to get the correct initial temperature
       temp = 2.0_dp*akin/REAL(number)
-      temp = sqrt(temp_ext/temp)
+      temp = SQRT(temp_ext/temp)
       DO i = 1, nhc % num_nhc
          DO j = 1, nhc % nhc_len
             nhc % nvt(j,i) % v = temp * nhc % nvt(j,i) % v
@@ -247,11 +237,10 @@ SUBROUTINE init_barostat_variables ( npt, tau_cell, temp_ext, deth, nfree, ensem
 
     TYPE(npt_info_type), DIMENSION(:, :), &
       INTENT(INOUT)                          :: npt
-    REAL(KIND=dp), INTENT(IN)                :: tau_cell, temp_ext, deth, cmass
-    INTEGER, INTENT(IN)                      :: nfree
-    INTEGER, INTENT(IN)                      :: ensemble
-    TYPE(global_environment_type), &
-      pointer                          :: globenv
+    REAL(KIND=dp), INTENT(IN)                :: tau_cell, temp_ext, deth
+    INTEGER, INTENT(IN)                      :: nfree, ensemble
+    REAL(KIND=dp), INTENT(IN)                :: cmass
+    TYPE(global_environment_type), POINTER   :: globenv
 
     INTEGER                                  :: i, j, number
     REAL(KIND=dp)                            :: akin, temp, v
@@ -275,8 +264,8 @@ SUBROUTINE init_barostat_variables ( npt, tau_cell, temp_ext, deth, nfree, ensem
 
   IF ( globenv % ionode ) THEN
 ! initializing velocities
-    DO i = 1, size ( npt,1)
-       DO j = i, size ( npt,2)
+    DO i = 1, SIZE ( npt,1)
+       DO j = i, SIZE ( npt,2)
           v = gasdev ( globenv % idum)
 ! symmetrizing the initial barostat velocities to ensure
 ! no rotation of the cell under NPT_F
@@ -298,10 +287,10 @@ SUBROUTINE init_barostat_variables ( npt, tau_cell, temp_ext, deth, nfree, ensem
 ! scale velocities to get the correct initial temperature
     IF ( number /= 0 ) THEN
       temp = 2.0_dp * akin / REAL ( number,KIND=dp)
-      temp = sqrt(temp_ext/temp)
+      temp = SQRT(temp_ext/temp)
     ENDIF
-    DO i = 1, size(npt,1)
-       DO j = i, size(npt,2)
+    DO i = 1, SIZE(npt,1)
+       DO j = i, SIZE(npt,2)
           npt(j,i) % v = temp * npt(j,i) % v
           npt(i,j) % v = npt(j,i) % v
 ! dbg ISOTROPIC LIMIT
@@ -347,10 +336,10 @@ END SUBROUTINE init_barostat_variables
 SUBROUTINE init_nhc_forces ( nhc_part, nhc_baro, nhc_coef , error)
     TYPE(lnhc_parameters_type), &
       INTENT(INOUT), OPTIONAL                :: nhc_part, nhc_baro, nhc_coef
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
     INTEGER                                  :: i, j
-    TYPE(cp_error_type), INTENT(inout), &
-         OPTIONAL                               :: error
 
 ! assign the forces
 

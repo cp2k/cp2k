@@ -24,24 +24,19 @@
 !!   SOURCE
 !****************************************************************************
 MODULE qmmm_links_methods
-  USE cp_para_types,                   ONLY: cp_para_env_type
-  USE global_types,                    ONLY: global_environment_type
-  USE input_section_types,             ONLY: section_vals_get_subs_vals,&
-                                             section_vals_type
   USE kinds,                           ONLY: dp
   USE particle_types,                  ONLY: particle_type
-  USE qmmm_types,                      ONLY: qmmm_links_type,&
-                                             qmmm_imomm_link_type,&
-                                             qmmm_pseudo_link_type,&
+  USE qmmm_types,                      ONLY: add_set_type,&
                                              qmmm_env_qm_type,&
-                                             add_set_type
+                                             qmmm_imomm_link_type,&
+                                             qmmm_links_type
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
   PRIVATE
 
   LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
-  CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='qmmm_link_methods'
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qmmm_links_methods'
   PUBLIC ::  qmmm_link_Imomm_coord,  & 
              qmmm_link_Imomm_forces, &
              qmmm_added_chrg_coord,  &
@@ -72,21 +67,23 @@ CONTAINS
 !!
 !!*** **********************************************************************
   SUBROUTINE  qmmm_link_Imomm_coord( qmmm_links, particles, qm_atom_index, error)
-    IMPLICIT NONE
-    ! Arguments
-    TYPE(particle_type), DIMENSION(:), POINTER   :: particles
-    TYPE(qmmm_links_type), POINTER               :: qmmm_links
-    INTEGER, DIMENSION(:), POINTER               :: qm_atom_index
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-    ! Local Variables
-    CHARACTER(len=*), PARAMETER :: routineN='qmmm_link_Imomm_coord',&
-       routineP=moduleN//':'//routineN
-    TYPE(qmmm_imomm_link_type), POINTER :: my_link
-    LOGICAL :: failure
-    INTEGER :: n_imomm, qm_index, mm_index, ilink, ip, ip_qm, ip_mm
-    REAL(KIND=dp) :: alpha
+    TYPE(qmmm_links_type), POINTER           :: qmmm_links
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particles
+    INTEGER, DIMENSION(:), POINTER           :: qm_atom_index
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    failure = .false.
+    CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_link_Imomm_coord', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: ilink, ip, ip_mm, ip_qm, &
+                                                mm_index, n_imomm, qm_index
+    LOGICAL                                  :: failure
+    REAL(KIND=dp)                            :: alpha
+    TYPE(qmmm_imomm_link_type), POINTER      :: my_link
+
+    failure = .FALSE.
     IF (.NOT.failure) THEN
        n_imomm = SIZE(qmmm_links%imomm)
        CPPrecondition(n_imomm /= 0,cp_failure_level,routineP,error,failure)
@@ -96,12 +93,12 @@ CONTAINS
           mm_index = my_link%mm_index
           alpha    = 1.0_dp/my_link%alpha
           DO ip = 1, SIZE(qm_atom_index)
-             IF (qm_atom_index(ip) == qm_index) exit
+             IF (qm_atom_index(ip) == qm_index) EXIT
           END DO
           CPPrecondition(ip /= SIZE(qm_atom_index)+1,cp_failure_level,routineP,error,failure)
           ip_qm = ip
           DO ip = 1, SIZE(qm_atom_index)
-             IF (qm_atom_index(ip) == mm_index) exit
+             IF (qm_atom_index(ip) == mm_index) EXIT
           END DO
           CPPrecondition(ip /= SIZE(qm_atom_index)+1,cp_failure_level,routineP,error,failure)
           ip_mm = ip
@@ -134,21 +131,23 @@ CONTAINS
 !!
 !!*** **********************************************************************
   SUBROUTINE  qmmm_link_Imomm_forces(qmmm_links, particles_qm, qm_atom_index, error)
-    IMPLICIT NONE
-    ! Arguments
-    TYPE(particle_type), DIMENSION(:), POINTER   :: particles_qm
-    TYPE(qmmm_links_type), POINTER               :: qmmm_links
-    INTEGER,  DIMENSION(:), POINTER              :: qm_atom_index
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-    ! Local Variables
-    CHARACTER(len=*), PARAMETER :: routineN='qmmm_link_Imomm_forces',&
-       routineP=moduleN//':'//routineN
-    TYPE(qmmm_imomm_link_type), POINTER :: my_link
-    LOGICAL :: failure
-    INTEGER :: n_imomm, qm_index, mm_index, ilink, ip, ip_qm, ip_mm
-    REAL(KIND=dp) :: alpha
+    TYPE(qmmm_links_type), POINTER           :: qmmm_links
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particles_qm
+    INTEGER, DIMENSION(:), POINTER           :: qm_atom_index
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    failure = .false.
+    CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_link_Imomm_forces', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: ilink, ip, ip_mm, ip_qm, &
+                                                mm_index, n_imomm, qm_index
+    LOGICAL                                  :: failure
+    REAL(KIND=dp)                            :: alpha
+    TYPE(qmmm_imomm_link_type), POINTER      :: my_link
+
+    failure = .FALSE.
     IF (.NOT.failure) THEN
        n_imomm = SIZE(qmmm_links%imomm)
        CPPrecondition(n_imomm /= 0,cp_failure_level,routineP,error,failure)
@@ -158,12 +157,12 @@ CONTAINS
           mm_index = my_link%mm_index
           alpha    = 1.0_dp/my_link%alpha
           DO ip = 1, SIZE(qm_atom_index)
-             IF (qm_atom_index(ip) == qm_index) exit
+             IF (qm_atom_index(ip) == qm_index) EXIT
           END DO
           CPPrecondition(ip /= SIZE(qm_atom_index)+1,cp_failure_level,routineP,error,failure)
           ip_qm = ip
           DO ip = 1, SIZE(qm_atom_index)
-             IF (qm_atom_index(ip) == mm_index) exit
+             IF (qm_atom_index(ip) == mm_index) EXIT
           END DO
           CPPrecondition(ip /= SIZE(qm_atom_index)+1,cp_failure_level,routineP,error,failure)
           ip_mm = ip
@@ -197,18 +196,19 @@ CONTAINS
 !!
 !!*** **********************************************************************    
   SUBROUTINE qmmm_added_chrg_coord(qmmm_env, particles, error)
-    IMPLICIT NONE
-    ! Arguments
     TYPE(qmmm_env_qm_type), POINTER          :: qmmm_env
-    TYPE(particle_type), DIMENSION(:), POINTER   :: particles
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-    ! Local Variables
-    CHARACTER(len=*), PARAMETER :: routineN='qmmm_added_chrg_coord',&
-       routineP=moduleN//':'//routineN
-    LOGICAL :: failure
-    TYPE(add_set_type), POINTER                             :: added_charges
-    INTEGER :: Index1, Index2,I
-    REAL(KIND=dp) :: alpha
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particles
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_added_chrg_coord', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: I, Index1, Index2
+    LOGICAL                                  :: failure
+    REAL(KIND=dp)                            :: alpha
+    TYPE(add_set_type), POINTER              :: added_charges
 
     failure = .FALSE.
     added_charges => qmmm_env%added_charges
@@ -245,18 +245,19 @@ CONTAINS
 !!
 !!*** **********************************************************************    
   SUBROUTINE qmmm_added_chrg_forces(qmmm_env, particles, error)
-    IMPLICIT NONE
-    ! Arguments
     TYPE(qmmm_env_qm_type), POINTER          :: qmmm_env
-    TYPE(particle_type), DIMENSION(:), POINTER   :: particles
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-    ! Local Variables
-    CHARACTER(len=*), PARAMETER :: routineN='qmmm_added_chrg_coord',&
-       routineP=moduleN//':'//routineN
-    LOGICAL :: failure
-    TYPE(add_set_type), POINTER                             :: added_charges
-    INTEGER :: Index1, Index2,I
-    REAL(KIND=dp) :: alpha
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particles
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_added_chrg_forces', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: I, Index1, Index2
+    LOGICAL                                  :: failure
+    REAL(KIND=dp)                            :: alpha
+    TYPE(add_set_type), POINTER              :: added_charges
 
     failure = .FALSE.
     added_charges => qmmm_env%added_charges

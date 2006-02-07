@@ -39,14 +39,17 @@ MODULE machine_g95
 CONTAINS
 
 FUNCTION m_loc_r(a) RESULT(res)
-  REAL(KIND=dp), INTENT(in), DIMENSION(*) :: a
-  integer :: res
+    REAL(KIND=dp), DIMENSION(*), INTENT(in)  :: a
+    INTEGER                                  :: res
+
   res=-1
 END FUNCTION m_loc_r
   
-FUNCTION m_loc_c(a) result(res)
-  COMPLEX(KIND=dp), INTENT(in), DIMENSION(*) :: a
-  integer :: res
+FUNCTION m_loc_c(a) RESULT(res)
+    COMPLEX(KIND=dp), DIMENSION(*), &
+      INTENT(in)                             :: a
+    INTEGER                                  :: res
+
   res=-1
 END FUNCTION m_loc_c
 
@@ -58,15 +61,19 @@ END SUBROUTINE m_abort
 ! the number of arguments of the fortran program
 FUNCTION m_iargc() RESULT (ic)
     INTEGER                                  :: ic
+
     INTEGER                                  :: iargc
+
     ic = iargc()
 END FUNCTION m_iargc
 
 !******************************************************************************
 !!  cpu time in seconds
 FUNCTION m_cputime() RESULT (ct)
-    REAL(KIND=dp)                                :: ct
+    REAL(KIND=dp)                            :: ct
+
     REAL                                     :: wtl
+
     CALL CPU_TIME(wtl)
     ct=wtl
 END FUNCTION m_cputime
@@ -74,10 +81,11 @@ END FUNCTION m_cputime
 !******************************************************************************
 !!  wall clock time in seconds
 FUNCTION m_walltime() RESULT (wt)
-    REAL(KIND=dp)                                :: wt
+    REAL(KIND=dp)                            :: wt
 
     INTEGER                                  :: count, count_rate
-    CALL system_clock(count=count,count_rate=count_rate)
+
+    CALL SYSTEM_CLOCK(count=count,count_rate=count_rate)
     wt = REAL(count,KIND=dp)/REAL(count_rate,KIND=dp)
 END FUNCTION m_walltime
 
@@ -86,11 +94,12 @@ END FUNCTION m_walltime
 SUBROUTINE m_datum(cal_date)
     CHARACTER(len=*), INTENT(OUT)            :: cal_date
 
-    character(len=10)                        :: time
-    character(len=5)                         :: zone
-    character(len=8)                         :: date
-    integer, dimension(8)                    :: values
-    call date_and_time(date=date, time=time, zone=zone, values=values)
+    CHARACTER(len=10)                        :: time
+    CHARACTER(len=5)                         :: zone
+    CHARACTER(len=8)                         :: date
+    INTEGER, DIMENSION(8)                    :: values
+
+    CALL DATE_AND_TIME(date=date, time=time, zone=zone, values=values)
     cal_date=date//" "//time
 END SUBROUTINE m_datum
 
@@ -98,6 +107,7 @@ END SUBROUTINE m_datum
 ! flush a given unit
   SUBROUTINE m_flush(lunit)
     INTEGER, INTENT(IN)                      :: lunit
+
     CALL flush(lunit)
   END SUBROUTINE m_flush
 
@@ -110,6 +120,7 @@ END SUBROUTINE m_datum
 !   ***************************************************************************
 
     CHARACTER(LEN=*), INTENT(IN)             :: checkpoint
+
     CHARACTER(LEN=200)                       :: cmdstr
     INTEGER                                  :: pid
 
@@ -128,42 +139,53 @@ END SUBROUTINE m_datum
 ! *****************************************************************************
 SUBROUTINE m_hostnm(hname)
     CHARACTER(len=*), INTENT(OUT)            :: hname
-    INTEGER :: hostnm,ierror
+
+    INTEGER                                  :: hostnm, ierror
+
     ierror=hostnm(hname)
 END SUBROUTINE m_hostnm
 
 !******************************************************************************
 SUBROUTINE m_getcwd(curdir)
     CHARACTER(len=*), INTENT(OUT)            :: curdir
-    INTEGER                                  :: getcwd,ierror
+
+    INTEGER                                  :: getcwd, ierror
+
     ierror = getcwd(curdir)
 END SUBROUTINE m_getcwd
 
 !******************************************************************************
 SUBROUTINE m_chdir(dir,ierror)
-    CHARACTER(len=*), INTENT(IN)          :: dir
-    INTEGER,          INTENT(OUT)            :: ierror
+    CHARACTER(len=*), INTENT(IN)             :: dir
+    INTEGER, INTENT(OUT)                     :: ierror
+
     INTEGER                                  :: chdir
+
     ierror = chdir(dir)
 END SUBROUTINE m_chdir
 
 !******************************************************************************
 SUBROUTINE m_getlog(user)
     CHARACTER(len=*), INTENT(OUT)            :: user
+
     CALL getlog(user)
 END SUBROUTINE m_getlog
 
 !******************************************************************************
 SUBROUTINE m_getuid(uid)
     INTEGER, INTENT(OUT)                     :: uid
-    INTEGER :: getuid
+
+    INTEGER                                  :: getuid
+
     uid = getuid()
 END SUBROUTINE m_getuid
 
 !******************************************************************************
 SUBROUTINE m_getpid(pid)
     INTEGER, INTENT(OUT)                     :: pid
-    INTEGER :: getpid
+
+    INTEGER                                  :: getpid
+
     pid = getpid()
 END SUBROUTINE m_getpid
 
@@ -171,6 +193,7 @@ END SUBROUTINE m_getpid
 SUBROUTINE m_getarg(i,arg)
     INTEGER, INTENT(IN)                      :: i
     CHARACTER(len=*), INTENT(OUT)            :: arg
+
     CALL getarg(i,arg)
 END SUBROUTINE m_getarg
 

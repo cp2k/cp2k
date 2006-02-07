@@ -68,7 +68,7 @@ SUBROUTINE optical_conductivity(matrix_s,occupied_orbs,occupied_evals, &
     REAL(KIND=dp)                            :: dE_bin, emax, emin, energy, &
                                                 occ_max, occ_min, strength, &
                                                 unocc_max, unocc_min
-    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: result
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: RESULT
     TYPE(cp_fm_struct_type), POINTER         :: me_struct, template
     TYPE(cp_fm_type), POINTER                :: buf, matrix_elements
 
@@ -81,8 +81,8 @@ SUBROUTINE optical_conductivity(matrix_s,occupied_orbs,occupied_evals, &
 
    IF (SIZE(matrix_s).lt.4) CALL stop_program("optical_conductivity","where is the derivative ?")
 
-   NULLIFY(buf,me_struct,template,result,row_indices,col_indices)
-   ALLOCATE(result(0:npoints-1,nbands))
+   NULLIFY(buf,me_struct,template,RESULT,row_indices,col_indices)
+   ALLOCATE(RESULT(0:npoints-1,nbands))
    ! 
    ! we need the matrix elements of the momentum operator.
    ! apart from minus signs and factors of i and a couple of units,
@@ -116,9 +116,9 @@ SUBROUTINE optical_conductivity(matrix_s,occupied_orbs,occupied_evals, &
    emax=MAX((unocc_max-occ_min),emin)+1.0E-3_dp
    dE_bin=(emax-emin)/npoints
    DO component=1,3
-      result=0.0_dp
-      call cp_sm_fm_multiply(matrix_s(component+1)%matrix,unoccupied_orbs,buf,nunocc)
-      call cp_fm_gemm("T","N",nocc,nunocc,nao,1.0_dp,occupied_orbs,buf,0.0_dp,matrix_elements)
+      RESULT=0.0_dp
+      CALL cp_sm_fm_multiply(matrix_s(component+1)%matrix,unoccupied_orbs,buf,nunocc)
+      CALL cp_fm_gemm("T","N",nocc,nunocc,nao,1.0_dp,occupied_orbs,buf,0.0_dp,matrix_elements)
       DO j=1,ncol_local
         DO i=1,nrow_local
 
@@ -133,16 +133,16 @@ SUBROUTINE optical_conductivity(matrix_s,occupied_orbs,occupied_evals, &
            index=FLOOR(((energy-emin)/(emax-emin))*npoints)
            IF (index.GE.0 .AND. index.LT.npoints) THEN
               iband=1+(row_indices(i)*nbands-1)/SIZE(occupied_evals)
-              result(index,iband)=result(index,iband)+strength/dE_bin
+              RESULT(index,iband)=RESULT(index,iband)+strength/dE_bin
            ENDIF
 
         ENDDO
       ENDDO
-      CALL mp_sum(result,template%para_env%group)
+      CALL mp_sum(RESULT,template%para_env%group)
       IF (ionode) THEN
       DO iband=1,nbands
       DO i=0,npoints-1
-         write(scr,'(2E20.10)') emin+(REAL(i,dp)/npoints)*(emax-emin),result(i,iband)
+         WRITE(scr,'(2E20.10)') emin+(REAL(i,dp)/npoints)*(emax-emin),RESULT(i,iband)
       ENDDO
       ENDDO
       ENDIF
@@ -150,7 +150,7 @@ SUBROUTINE optical_conductivity(matrix_s,occupied_orbs,occupied_evals, &
 
    CALL cp_fm_release(buf)
    CALL cp_fm_release(matrix_elements)
-   DEALLOCATE(result)
+   DEALLOCATE(RESULT)
 
    CALL timestop(0.0_dp,handle)
 

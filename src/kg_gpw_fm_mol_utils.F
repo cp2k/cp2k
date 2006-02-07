@@ -27,33 +27,35 @@ MODULE kg_gpw_fm_mol_utils
   USE cp_files,                        ONLY: close_file,&
                                              open_file
   USE global_types,                    ONLY: global_environment_type
-  USE kg_gpw_fm_mol_types,             ONLY: get_fm_mol_block,&
+  USE input_section_types,             ONLY: section_vals_val_get
+  USE kg_gpw_fm_mol_types,             ONLY: fm_mol_blocks_type,&
+                                             get_fm_mol_block,&
                                              get_kg_fm_mol_set,&
                                              get_mol_mo_set,&
-                                             fm_mol_blocks_type,&
                                              kg_fm_mol_set_type,&
                                              kg_fm_p_type,&
                                              mol_mo_set_p_type,&
                                              mol_mo_set_type
-  USE kinds,                           ONLY: dp,dp_size,int_size
+  USE kinds,                           ONLY: dp,&
+                                             dp_size,&
+                                             int_size
   USE memory_utilities,                ONLY: reallocate
-  USE message_passing,                 ONLY: mp_bcast, mp_sendrecv, mp_sum
+  USE message_passing,                 ONLY: mp_bcast,&
+                                             mp_sum
   USE sparse_matrix_types,             ONLY: get_block_node,&
-                                             real_matrix_p_type,&
                                              real_matrix_type,&
                                              set_matrix
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE input_section_types, ONLY: section_vals_type, section_vals_val_get,&
-       section_vals_get, section_vals_get_subs_vals
 #include "cp_common_uses.h"
+
   IMPLICIT NONE
 
   PRIVATE
 
-  CHARACTER(LEN=*), PARAMETER :: module_name = "kg_gpw_fm_mol_utils"
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'kg_gpw_fm_mol_utils'
 
 ! *** Public subroutines ***
 
@@ -99,25 +101,19 @@ CONTAINS
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "calculate_w_matrix_per_molecule", &
-      routineP = module_name//':'//routine_name
+    CHARACTER(LEN=*), PARAMETER :: &
+      routineN = 'calculate_w_matrix_per_molecule', &
+      routineP = moduleN//':'//routineN
 
     INTEGER :: homo, iao, iat_mol, iatom, ifs, ils, imo, imol, &
-              imolecule_kind, inao, istat, jao, jatom, jat_mol,&
-              jfs, jls, jnao, ldao, ldmo, nao_mol, nat_mol, &
-               nmo_mol(2), nmol_local, nmolecule_kind, nocc
-    INTEGER, DIMENSION(:), POINTER            :: i_atom
-    INTEGER, DIMENSION(:), POINTER            :: ifirst_ao
-    INTEGER, DIMENSION(:), POINTER            :: ilast_ao
-    LOGICAL                                   :: failure
-    REAL(dp)                                  :: eigocc
-    REAL(dp), DIMENSION(:), POINTER           :: eigenvalues,&
-                                                 occupation
-    REAL(dp), DIMENSION(:,:), POINTER         :: wmo_x_mot
-    REAL(dp), DIMENSION(:,:), POINTER         :: mo, wmo
-    REAL(dp), DIMENSION(:,:), POINTER         :: w_block
-
-    TYPE(fm_mol_blocks_type), DIMENSION(:),&
+      imolecule_kind, inao, istat, jao, jat_mol, jatom, jfs, jls, jnao, ldao, &
+      ldmo, nao_mol, nat_mol, nmo_mol(2), nmol_local, nmolecule_kind
+    INTEGER, DIMENSION(:), POINTER           :: i_atom, ifirst_ao, ilast_ao
+    LOGICAL                                  :: failure
+    REAL(dp)                                 :: eigocc
+    REAL(dp), DIMENSION(:), POINTER          :: eigenvalues, occupation
+    REAL(dp), DIMENSION(:, :), POINTER       :: mo, w_block, wmo, wmo_x_mot
+    TYPE(fm_mol_blocks_type), DIMENSION(:), &
       POINTER                                :: fm_mol_blocks
     TYPE(fm_mol_blocks_type), POINTER        :: mol_block
     TYPE(kg_fm_mol_set_type), POINTER        :: fm_mol
@@ -125,7 +121,6 @@ CONTAINS
       POINTER                                :: mos_mol
     TYPE(mol_mo_set_type), POINTER           :: mo_set
 
- 
 !   ---------------------------------------------------------------------------
 
     failure = .FALSE.
@@ -264,21 +259,22 @@ CONTAINS
   SUBROUTINE fm_mol_cholesky_restore(vectors_in,nmo,upper_dec,vectors_out,&
                                      op,pos,error)
 
-    REAL(dp), DIMENSION(:,:)                       :: vectors_in
-    INTEGER, INTENT(IN)                            :: nmo
-    REAL(dp), DIMENSION(:,:), POINTER              :: upper_dec
-    REAL(dp), DIMENSION(:,:), POINTER              :: vectors_out
-    CHARACTER ( LEN = * ), INTENT ( IN )           :: op
-    CHARACTER ( LEN = * ), INTENT ( IN ), OPTIONAL :: pos
-    TYPE(cp_error_type), INTENT(inout), OPTIONAL   :: error
+    REAL(dp), DIMENSION(:, :)                :: vectors_in
+    INTEGER, INTENT(IN)                      :: nmo
+    REAL(dp), DIMENSION(:, :), POINTER       :: upper_dec, vectors_out
+    CHARACTER(LEN=*), INTENT(IN)             :: op
+    CHARACTER(LEN=*), INTENT(IN), OPTIONAL   :: pos
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = "fm_mol_cholesky_restore",&
-      routineP = module_name//":"//routineN
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'fm_mol_cholesky_restore', &
+      routineP = moduleN//':'//routineN
 
-    CHARACTER                                      :: my_pos
-    INTEGER                                        :: nao
-    LOGICAL                                        :: failure
-    REAL(dp)                                       :: alpha
+    CHARACTER                                :: my_pos
+    INTEGER                                  :: nao
+    LOGICAL                                  :: failure
+    REAL(dp)                                 :: alpha
+
 !  --------------------------------------------------------------------------------
 
     failure = .FALSE.
@@ -347,19 +343,19 @@ CONTAINS
 
   SUBROUTINE fm_mol_power(matrix,eigenvectors,ldv,ncv,exponent,threshold,n_dependent)
 
-    REAL(dp), DIMENSION(:,:), POINTER            :: matrix
-    REAL(dp), DIMENSION(:,:)                     :: eigenvectors
-    INTEGER, INTENT(IN)                          :: ldv, ncv
-    REAL(dp), INTENT(IN)                         :: exponent, threshold
-    INTEGER , INTENT(OUT)                        :: n_dependent
+    REAL(dp), DIMENSION(:, :), POINTER       :: matrix
+    REAL(dp), DIMENSION(:, :)                :: eigenvectors
+    INTEGER, INTENT(IN)                      :: ldv, ncv
+    REAL(dp), INTENT(IN)                     :: exponent, threshold
+    INTEGER, INTENT(OUT)                     :: n_dependent
 
-    CHARACTER(LEN=*), PARAMETER :: routineN ="fm_mol_power",&
-         routineP = module_name//':'//routineN
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'fm_mol_power', &
+      routineP = moduleN//':'//routineN
 
-    INTEGER                                      :: handle, icol, istat,&
-                                                    ncol,nrow
-    REAL(dp)                                     :: f,p
-    REAL(dp), DIMENSION(:), ALLOCATABLE          :: eigenvalues
+    INTEGER                                  :: handle, icol, istat, ncol, &
+                                                nrow
+    REAL(dp)                                 :: f, p
+    REAL(dp), ALLOCATABLE, DIMENSION(:)      :: eigenvalues
 
 !   --------------------------------------------------------------------------
 
@@ -426,19 +422,18 @@ CONTAINS
 
   SUBROUTINE fm_mol_syevd(matrix,nrow,eigenvalues,matrix_out,error)
 
-    REAL(dp), DIMENSION(:,:), POINTER        :: matrix
+    REAL(dp), DIMENSION(:, :), POINTER       :: matrix
     INTEGER, INTENT(IN)                      :: nrow
     REAL(dp), DIMENSION(:)                   :: eigenvalues
-    REAL(dp), DIMENSION(:,:)                 :: matrix_out
+    REAL(dp), DIMENSION(:, :)                :: matrix_out
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-!   *** Local parameters ***
-    CHARACTER(LEN=*), PARAMETER :: routineN = "fm_mol_syevd", &
-      routineP = module_name//":"//routineN
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'fm_mol_syevd', &
+      routineP = moduleN//':'//routineN
 
-!   *** Local variables ***
-    INTEGER                                  :: istat, info, lda, liwork, lwork
+    INTEGER                                  :: info, istat, lda, liwork, &
+                                                lwork
     INTEGER, DIMENSION(:), POINTER           :: iwork
     LOGICAL                                  :: failure
     REAL(KIND=dp), DIMENSION(:), POINTER     :: work
@@ -500,34 +495,29 @@ CONTAINS
 
   SUBROUTINE fm_mol_syevx(matrix,eigenvetors,ldv,ncv,eigenvalues,ncol,error)
 
-    REAL(dp), DIMENSION(:,:), POINTER            :: matrix
-    REAL(dp), DIMENSION(:,:)                     :: eigenvetors
-    INTEGER,INTENT(IN)                           :: ldv,ncv
-    REAL(dp), DIMENSION(:), INTENT(OUT)          :: eigenvalues
-    INTEGER, INTENT(IN)                          :: ncol
-    TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
+    REAL(dp), DIMENSION(:, :), POINTER       :: matrix
+    REAL(dp), DIMENSION(:, :)                :: eigenvetors
+    INTEGER, INTENT(IN)                      :: ldv, ncv
+    REAL(dp), DIMENSION(:), INTENT(OUT)      :: eigenvalues
+    INTEGER, INTENT(IN)                      :: ncol
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-!   *** Local parameters ***
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'fm_mol_syevx', &
+      routineP = moduleN//':'//routineN
+    REAL(KIND=dp), PARAMETER                 :: vl = 0.0_dp, vu = 0.0_dp 
 
-    CHARACTER(LEN=*), PARAMETER :: routineN ="fm_mol_syevx",&
-         routineP = module_name//':'//routineN
-
-    REAL(KIND = dp), PARAMETER                   :: vl = 0.0_dp,&
-                                                    vu = 0.0_dp 
-
-!   *** Local variables ***
-    INTEGER  :: info, istat, ldb, liwork, lwork, m, nb, nrow
-    INTEGER,  DIMENSION(:), ALLOCATABLE          :: ifail,iwork
-    REAL(dp)                                     :: abstol
-    REAL(dp), DIMENSION(:), ALLOCATABLE          :: w, work
-    REAL(dp), DIMENSION(:,:), POINTER            :: a,z
-
-    REAL(KIND = dp), EXTERNAL                    :: dlamch
-    INTEGER, EXTERNAL                            :: ilaenv
-    LOGICAL :: failure
+    INTEGER                                  :: info, istat, ldb, liwork, &
+                                                lwork, m, nb, nrow
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: ifail, iwork
+    INTEGER, EXTERNAL                        :: ilaenv
+    LOGICAL                                  :: failure
+    REAL(dp)                                 :: abstol
+    REAL(dp), ALLOCATABLE, DIMENSION(:)      :: w, work
+    REAL(KIND=dp), EXTERNAL                  :: dlamch
 
 !   --------------------------------------------------------------------------
- 
+
     failure =  .FALSE.
     abstol = 2.0_dp*dlamch("S")
     nrow = SIZE(matrix,1)
@@ -596,18 +586,18 @@ CONTAINS
 
   SUBROUTINE mol_mo_random(mo,mepos,num_pe,ncol,start_col,error)
 
-    REAL(dp), DIMENSION(:,:), POINTER        :: mo
+    REAL(dp), DIMENSION(:, :), POINTER       :: mo
     INTEGER, INTENT(IN)                      :: mepos, num_pe
-    INTEGER, INTENT(IN), OPTIONAL            :: start_col, ncol
+    INTEGER, INTENT(IN), OPTIONAL            :: ncol, start_col
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN ="mol_mo_random"
+    CHARACTER(len=*), PARAMETER              :: routineN = 'mol_mo_random'
 
-    INTEGER                                  :: icol, my_start, my_ncol, nrow
+    INTEGER                                  :: icol, my_ncol, my_start, nrow
     INTEGER, DIMENSION(4), SAVE              :: ISEED
-    LOGICAL, SAVE                            :: FIRST = .TRUE.
     LOGICAL                                  :: failure
+    LOGICAL, SAVE                            :: FIRST = .TRUE.
 
 !   ---------------------------------------------------------------------------
 
@@ -669,23 +659,19 @@ CONTAINS
 
     TYPE(real_matrix_type), POINTER          :: matrix
     TYPE(fm_mol_blocks_type), POINTER        :: mol_block
-    REAL(dp), DIMENSION(:,:), POINTER        :: matrix_mol_block
+    REAL(dp), DIMENSION(:, :), POINTER       :: matrix_mol_block
     INTEGER, INTENT(IN)                      :: natom, nrow, ncol
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = "copy_sparse2mol_block",&
-      routineP = module_name//":"//routineN
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'copy_sparse2mol_block', &
+      routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: col_first, col_last, &
-                                                iat, iatom,&
-                                                icol, icol_mol_s, irow, &
-                                                irow_mol_s, & 
-                                                jat, jatom, &
-                                                row_first, row_last , i
-    INTEGER, DIMENSION(:), POINTER           :: i_atom,ifirst_ao,ilast_ao
-    REAL(dp), DIMENSION(:,:),  POINTER       :: s_block
+    INTEGER :: col_first, col_last, iat, iatom, icol, icol_mol_s, irow, &
+      irow_mol_s, jat, jatom, row_first, row_last
+    INTEGER, DIMENSION(:), POINTER           :: i_atom, ifirst_ao, ilast_ao
     LOGICAL                                  :: failure
+    REAL(dp), DIMENSION(:, :), POINTER       :: s_block
 
 !   ---------------------------------------------------------------------------
 
@@ -780,41 +766,42 @@ CONTAINS
 
   SUBROUTINE write_mo_mol_restart(kg_fm,globenv,nspins,id_nr, error)
 
-    TYPE(kg_fm_p_type)                         :: kg_fm
-    TYPE(global_environment_type), &
-      pointer                               :: globenv
-    INTEGER, INTENT(IN)                        :: id_nr, nspins
+    TYPE(kg_fm_p_type)                       :: kg_fm
+    TYPE(global_environment_type), POINTER   :: globenv
+    INTEGER, INTENT(IN)                      :: nspins, id_nr
     TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                                 :: error
+      OPTIONAL                               :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routine_name ="write_mo_mol_restart",&
-       routineP = module_name//':'//routine_name
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'write_mo_mol_restart', &
+      routineP = moduleN//':'//routineN
 
-    CHARACTER(LEN=200)                         :: file_name
-    CHARACTER(LEN=6)                           :: method 
-    INTEGER :: group, handle, imo, imol_found, imol_global, imol_local, imol_proc,&
-               imolecule_kind, ispin, istat, n_ao,  n_mo(2), nao_max,&
-               nelectron_global, nelectron_spin(2), nmo_max, nmolecule_global,&
-               nmolecule_kind, nmolecule_local, source, restart_unit
-    INTEGER, DIMENSION(:), ALLOCATABLE         :: nmol_molkind, nao_molkind, natom_molkind
-    INTEGER, DIMENSION(:,:), ALLOCATABLE       :: nel_molkind
-    LOGICAL :: failure
-    REAL(dp), DIMENSION(:,:), ALLOCATABLE      :: eig_buffer, occ_buffer
-    REAL(dp), DIMENSION(:,:,:), ALLOCATABLE    :: mo_buffer
-    REAL(dp), DIMENSION(:,:), POINTER          :: mo
-    REAL(dp), DIMENSION(:), POINTER            :: eigenvalues, occupation_numbers
-    TYPE(kg_fm_mol_set_type), POINTER          :: fm_mol_set
+    CHARACTER(LEN=200)                       :: file_name
+    CHARACTER(LEN=6)                         :: method
+    INTEGER :: group, handle, imo, imol_found, imol_global, imol_local, &
+      imol_proc, imolecule_kind, ispin, istat, n_ao, n_mo(2), nao_max, &
+      nelectron_global, nelectron_spin(2), nmo_max, nmolecule_global, &
+      nmolecule_kind, nmolecule_local, restart_unit, source
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: nao_molkind, natom_molkind, &
+                                                nmol_molkind
+    INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: nel_molkind
+    LOGICAL                                  :: failure
+    REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: eig_buffer, occ_buffer
+    REAL(dp), ALLOCATABLE, &
+      DIMENSION(:, :, :)                     :: mo_buffer
+    REAL(dp), DIMENSION(:), POINTER          :: eigenvalues, &
+                                                occupation_numbers
+    REAL(dp), DIMENSION(:, :), POINTER       :: mo
     TYPE(fm_mol_blocks_type), DIMENSION(:), &
-      POINTER                                  :: mol_blocks
-    TYPE(fm_mol_blocks_type), POINTER          :: mol_block
+      POINTER                                :: mol_blocks
+    TYPE(fm_mol_blocks_type), POINTER        :: mol_block
+    TYPE(kg_fm_mol_set_type), POINTER        :: fm_mol_set
     TYPE(mol_mo_set_p_type), DIMENSION(:), &
-      POINTER                                  :: mos
-    TYPE(mol_mo_set_type), POINTER             :: mo_set
-
+      POINTER                                :: mos
+    TYPE(mol_mo_set_type), POINTER           :: mo_set
 
 !   ---------------------------------------------------------------------------
 
-    CALL timeset(routine_name,"I","",handle)
+    CALL timeset(routineN,"I","",handle)
 
     failure = .FALSE.
 
@@ -833,7 +820,7 @@ CONTAINS
        CALL section_vals_val_get(globenv%input_file,"FORCE_EVAL%DFT%RESTART_FILE_NAME",&
             c_val=file_name,error=error)
       IF (id_nr/=1) THEN
-        file_name(LEN_TRIM(file_name):len(file_name)) = "-"//&
+        file_name(LEN_TRIM(file_name):LEN(file_name)) = "-"//&
                     ADJUSTL(cp_to_string(id_nr))
       END IF
 
@@ -1018,47 +1005,46 @@ CONTAINS
 
   SUBROUTINE read_mo_mol_restart(kg_fm,globenv,nspins,id_nr, error)
 
-    TYPE(kg_fm_p_type)                         :: kg_fm
-    TYPE(global_environment_type), &
-      pointer                               :: globenv
-    INTEGER, INTENT(IN)                        :: id_nr, nspins
+    TYPE(kg_fm_p_type)                       :: kg_fm
+    TYPE(global_environment_type), POINTER   :: globenv
+    INTEGER, INTENT(IN)                      :: nspins, id_nr
     TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                                 :: error
+      OPTIONAL                               :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routine_name ="read_mo_mol_restart",&
-       routineP = module_name//':'//routine_name
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'read_mo_mol_restart', &
+      routineP = moduleN//':'//routineN
 
-    CHARACTER(LEN=200)                         :: file_name
-    CHARACTER(LEN=6)                           :: method 
-    INTEGER :: group, handle, imo, imol_found, imol_global, &
-               imol_global_read , imol_local, imol_proc,&
-               imolecule_kind, ispin,  ispin_read, istat, n_ao, n_ao_read,&
-               n_mo(2), n_mo_read(2), nao_max, nao_max_read, natom, &
-               nelectron_global, nelectron_global_read, nelectron_spin(2), &
-               nmo_max, nmo_max_read, nmo_min, nmol_kind_global, &
-               nmolecule_global, nmolecule_global_read, &
-               nmolecule_kind, nmolecule_kind_read, nmolecule_local,&
-               nspins_read, source, restart_unit
-
-    INTEGER, DIMENSION(:), ALLOCATABLE         :: nmol_molkind_read, nao_molkind_read, natom_molkind_read
-    INTEGER, DIMENSION(:,:), ALLOCATABLE       :: nel_molkind_read
-    LOGICAL :: failure
-    REAL(dp), DIMENSION(:,:), ALLOCATABLE      :: eig_buffer, occ_buffer
-    REAL(dp), DIMENSION(:,:,:), ALLOCATABLE    :: mo_buffer
-    REAL(dp), DIMENSION(:,:), POINTER          :: mo
-    REAL(dp), DIMENSION(:), POINTER            :: eigenvalues, occupation_numbers
-    TYPE(kg_fm_mol_set_type), POINTER          :: fm_mol_set
+    CHARACTER(LEN=200)                       :: file_name
+    CHARACTER(LEN=6)                         :: method
+    INTEGER :: group, handle, imo, imol_found, imol_global, imol_global_read, &
+      imol_local, imol_proc, imolecule_kind, ispin, ispin_read, istat, n_ao, &
+      n_ao_read, n_mo(2), n_mo_read(2), nao_max, natom, nelectron_global, &
+      nelectron_global_read, nelectron_spin(2), nmo_max, nmo_min, &
+      nmol_kind_global, nmolecule_global, nmolecule_global_read, &
+      nmolecule_kind, nmolecule_kind_read, nmolecule_local, nspins_read, &
+      restart_unit, source
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: nao_molkind_read, &
+                                                natom_molkind_read, &
+                                                nmol_molkind_read
+    INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: nel_molkind_read
+    LOGICAL                                  :: failure
+    REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: eig_buffer, occ_buffer
+    REAL(dp), ALLOCATABLE, &
+      DIMENSION(:, :, :)                     :: mo_buffer
+    REAL(dp), DIMENSION(:), POINTER          :: eigenvalues, &
+                                                occupation_numbers
+    REAL(dp), DIMENSION(:, :), POINTER       :: mo
     TYPE(fm_mol_blocks_type), DIMENSION(:), &
-      POINTER                                  :: mol_blocks
-    TYPE(fm_mol_blocks_type), POINTER          :: mol_block
+      POINTER                                :: mol_blocks
+    TYPE(fm_mol_blocks_type), POINTER        :: mol_block
+    TYPE(kg_fm_mol_set_type), POINTER        :: fm_mol_set
     TYPE(mol_mo_set_p_type), DIMENSION(:), &
-      POINTER                                  :: mos
-    TYPE(mol_mo_set_type), POINTER             :: mo_set
-
+      POINTER                                :: mos
+    TYPE(mol_mo_set_type), POINTER           :: mo_set
 
 !   ---------------------------------------------------------------------------
 
-    CALL timeset(routine_name,"I","",handle)
+    CALL timeset(routineN,"I","",handle)
 
     failure = .FALSE.
 
@@ -1077,7 +1063,7 @@ CONTAINS
       CALL section_vals_val_get(globenv%input_file,"FORCE_EVAL%DFT%RESTART_FILE_NAME",&
             c_val=file_name,error=error)
       IF (id_nr/=1) THEN
-        file_name(LEN_TRIM(file_name):len(file_name)) = "-"//&
+        file_name(LEN_TRIM(file_name):LEN(file_name)) = "-"//&
                     ADJUSTL(cp_to_string(id_nr))
       END IF
 

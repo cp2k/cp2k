@@ -33,7 +33,7 @@ MODULE molecule_types_new
 
 ! *** Global parameters (in this module) ***
 
-  CHARACTER(LEN=*), PARAMETER :: module_name = "molecule_types_new"
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'molecule_types_new'
 
 ! *** Data types ***
   TYPE local_dist_constraint_type
@@ -110,7 +110,7 @@ CONTAINS
       POINTER                                :: molecule_set
     INTEGER, INTENT(IN)                      :: nmolecule
 
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "allocate_molecule_set"
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'allocate_molecule_set'
 
     INTEGER                                  :: imolecule, istat
 
@@ -119,7 +119,7 @@ CONTAINS
     IF (ASSOCIATED(molecule_set)) CALL deallocate_molecule_set(molecule_set)
 
     ALLOCATE (molecule_set(nmolecule),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "molecule_set",nmolecule*int_size)
 
     DO imolecule=1,nmolecule
@@ -145,7 +145,7 @@ CONTAINS
     TYPE(molecule_type), DIMENSION(:), &
       POINTER                                :: molecule_set
 
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "deallocate_molecule_set"
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'deallocate_molecule_set'
 
     INTEGER                                  :: imolecule, istat
 
@@ -157,41 +157,41 @@ CONTAINS
          IF (ASSOCIATED(molecule_set(imolecule)%lmi)) THEN
              IF (ASSOCIATED(molecule_set(imolecule)%lmi%states)) THEN
                  DEALLOCATE (molecule_set(imolecule)%lmi%states,STAT=istat)
-                 IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+                 IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                                   "molecule_set(i)%lmi%states")
              ENDIF
              DEALLOCATE (molecule_set(imolecule)%lmi,STAT=istat)
-             IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+             IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                               "molecule_set(i)%lmi")
          ENDIF
          IF (ASSOCIATED(molecule_set(imolecule)%lci)) THEN
              IF (ASSOCIATED(molecule_set(imolecule)%lci%ldist)) THEN
                  DEALLOCATE (molecule_set(imolecule)%lci%ldist,STAT=istat)
-                 IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+                 IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                                   "molecule_set(i)%lci%ldist")
              ENDIF
              IF (ASSOCIATED(molecule_set(imolecule)%lci%lg3x3)) THEN
                  DEALLOCATE (molecule_set(imolecule)%lci%lg3x3,STAT=istat)
-                 IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+                 IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                                   "molecule_set(i)%lci%lg3x3")
              ENDIF
              IF (ASSOCIATED(molecule_set(imolecule)%lci%lg4x6)) THEN
                  DEALLOCATE (molecule_set(imolecule)%lci%lg4x6,STAT=istat)
-                 IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+                 IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                                   "molecule_set(i)%lci%lg4x6")
              ENDIF
              DEALLOCATE (molecule_set(imolecule)%lci,STAT=istat)
-             IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+             IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                               "molecule_set(i)%lci")
          ENDIF
       ENDDO
       DEALLOCATE (molecule_set,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                        "molecule_set")
 
     ELSE
 
-      CALL stop_program(routine_name,module_name,__LINE__,&
+      CALL stop_program(routineN,moduleN,__LINE__,&
                         "The pointer molecule_set is not associated and "//&
                         "cannot be deallocated")
 
@@ -223,7 +223,7 @@ CONTAINS
       OPTIONAL, POINTER                      :: ldist( : )
     INTEGER, OPTIONAL                        :: first_atom, last_atom
 
-    CHARACTER(LEN=*), PARAMETER              :: routine_name = "get_molecule"
+    CHARACTER(LEN=*), PARAMETER              :: routineN = 'get_molecule'
 
 !   ---------------------------------------------------------------------------
 
@@ -237,7 +237,7 @@ CONTAINS
          IF ( ASSOCIATED ( molecule%lci ) ) THEN 
            ldist => molecule%lci%ldist
          ELSE
-           CALL stop_program(routine_name,module_name,__LINE__,&
+           CALL stop_program(routineN,moduleN,__LINE__,&
                            "The pointer lci is not associated")
          ENDIF
       ENDIF
@@ -245,7 +245,7 @@ CONTAINS
          IF ( ASSOCIATED ( molecule%lci ) ) THEN 
            lg3x3 => molecule%lci%lg3x3
          ELSE 
-           CALL stop_program(routine_name,module_name,__LINE__,&
+           CALL stop_program(routineN,moduleN,__LINE__,&
                            "The pointer lci is not associated")
          ENDIF
       ENDIF
@@ -253,14 +253,14 @@ CONTAINS
          IF ( ASSOCIATED ( molecule%lci ) ) THEN 
            lg4x6 => molecule%lci%lg4x6
          ELSE 
-           CALL stop_program(routine_name,module_name,__LINE__,&
+           CALL stop_program(routineN,moduleN,__LINE__,&
                            "The pointer lci is not associated")
          ENDIF
       ENDIF
 
     ELSE
 
-      CALL stop_program(routine_name,module_name,__LINE__,&
+      CALL stop_program(routineN,moduleN,__LINE__,&
                         "The pointer lci is not associated")
 
     END IF
@@ -291,7 +291,7 @@ CONTAINS
     TYPE(local_g4x6_constraint_type), &
       OPTIONAL, POINTER                      :: lg4x6( : )
 
-    CHARACTER(LEN=*), PARAMETER              :: routine_name = "set_molecule"
+    CHARACTER(LEN=*), PARAMETER              :: routineN = 'set_molecule'
 
 !   ---------------------------------------------------------------------------
 
@@ -304,7 +304,7 @@ CONTAINS
          IF ( ASSOCIATED ( molecule%lci ) ) THEN
            molecule%lci%ldist => ldist
          ELSE
-           CALL stop_program(routine_name,module_name,__LINE__,&
+           CALL stop_program(routineN,moduleN,__LINE__,&
                            "The pointer lci is not associated")
          ENDIF
       ENDIF
@@ -312,7 +312,7 @@ CONTAINS
          IF ( ASSOCIATED ( molecule%lci ) ) THEN
            molecule%lci%lg3x3 => lg3x3
          ELSE
-           CALL stop_program(routine_name,module_name,__LINE__,&
+           CALL stop_program(routineN,moduleN,__LINE__,&
                            "The pointer lci is not associated")
          ENDIF
       ENDIF
@@ -320,13 +320,13 @@ CONTAINS
          IF ( ASSOCIATED ( molecule%lci ) ) THEN
            molecule%lci%lg4x6 => lg4x6
          ELSE
-           CALL stop_program(routine_name,module_name,__LINE__,&
+           CALL stop_program(routineN,moduleN,__LINE__,&
                            "The pointer lci is not associated")
          ENDIF
       ENDIF
     ELSE
 
-      CALL stop_program(routine_name,module_name,__LINE__,&
+      CALL stop_program(routineN,moduleN,__LINE__,&
                         "The pointer molecule is not associated")
 
     END IF
@@ -348,7 +348,7 @@ CONTAINS
     INTEGER, DIMENSION(:), INTENT(IN), &
       OPTIONAL                               :: first_atom, last_atom
 
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "set_molecule_set"
+    CHARACTER(LEN=*), PARAMETER              :: routineN = 'set_molecule_set'
 
     INTEGER                                  :: imolecule
 
@@ -359,7 +359,7 @@ CONTAINS
       IF (PRESENT(first_atom)) THEN
 
         IF (SIZE(first_atom) /= SIZE(molecule_set)) THEN
-          CALL stop_program(routine_name,module_name,__LINE__,&
+          CALL stop_program(routineN,moduleN,__LINE__,&
                             "The sizes of first_atom and molecule_set "//&
                             "are different")
         END IF
@@ -373,7 +373,7 @@ CONTAINS
       IF (PRESENT(last_atom)) THEN
 
         IF (SIZE(last_atom) /= SIZE(molecule_set)) THEN
-          CALL stop_program(routine_name,module_name,__LINE__,&
+          CALL stop_program(routineN,moduleN,__LINE__,&
                             "The sizes of last_atom and molecule_set "//&
                             "are different")
         END IF
@@ -386,7 +386,7 @@ CONTAINS
 
     ELSE
 
-      CALL stop_program(routine_name,module_name,__LINE__,&
+      CALL stop_program(routineN,moduleN,__LINE__,&
                         "The pointer molecule_set is not associated")
 
     END IF

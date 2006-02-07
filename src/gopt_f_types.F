@@ -25,6 +25,7 @@
 !!   SOURCE
 !*****************************************************************************
 MODULE gopt_f_types
+  USE cell_types,                      ONLY: cell_type
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_subsystem_types,              ONLY: cp_subsys_get,&
                                              cp_subsystem_p_type
@@ -34,20 +35,16 @@ MODULE gopt_f_types
                                              force_env_retain,&
                                              force_env_type
   USE global_types,                    ONLY: global_environment_type
+  USE input_constants,                 ONLY: default_bfgs_method_id
+  USE input_section_types,             ONLY: section_vals_get_subs_vals,&
+                                             section_vals_type,&
+                                             section_vals_val_get
   USE kinds,                           ONLY: dp
   USE particle_list_types,             ONLY: particle_list_type
   USE particle_types,                  ONLY: write_particle_distances,&
                                              write_qs_particle_coordinates
-  USE cell_types,                 ONLY: cell_type
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE input_constants,                 ONLY: default_lbfgs_method_id,&
-                                             default_bfgs_method_id,&
-                                             default_cg_method_id
-  USE input_section_types,             ONLY: section_vals_get_subs_vals,&
-                                             section_vals_type,&
-                                             section_vals_get,&
-                                             section_vals_val_get
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -55,7 +52,7 @@ MODULE gopt_f_types
 
   REAL(KIND = dp), PARAMETER :: scale = 0.2_dp, scaleI = 1.0_dp/scale
   LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
-  CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='gopt_f_types'
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'gopt_f_types'
   INTEGER, PRIVATE, SAVE :: last_gopt_f_id=0, last_gopt_param_id=0
 
   PUBLIC :: gopt_f_type
@@ -171,8 +168,7 @@ CONTAINS
 SUBROUTINE gopt_f_create(gopt_env, force_env, globenv, error)
     TYPE(gopt_f_type), POINTER               :: gopt_env
     TYPE(force_env_type), POINTER            :: force_env
-    TYPE(global_environment_type), &
-      pointer                  :: globenv
+    TYPE(global_environment_type), POINTER   :: globenv
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -317,13 +313,13 @@ END SUBROUTINE gopt_f_release
 !!*** **********************************************************************
 SUBROUTINE gopt_f_eval_at(gopt_env, x, f, gradient, master, para_env, force_env_section, error)
     TYPE(gopt_f_type), POINTER               :: gopt_env
-    TYPE(section_vals_type), POINTER :: force_env_section    
     REAL(KIND=dp), DIMENSION(:), INTENT(in)  :: x
     REAL(KIND=dp), INTENT(out), OPTIONAL     :: f
     REAL(KIND=dp), DIMENSION(:), OPTIONAL, &
       POINTER                                :: gradient
     INTEGER, INTENT(in)                      :: master
     TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(section_vals_type), POINTER         :: force_env_section
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -547,17 +543,14 @@ END SUBROUTINE gopt_param_create
 !!*** **********************************************************************
 SUBROUTINE gopt_param_read(gopt_param, globenv, error)
     TYPE(gopt_param_type), POINTER           :: gopt_param
-    TYPE(global_environment_type), &
-      pointer                  :: globenv
+    TYPE(global_environment_type), POINTER   :: globenv
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'gopt_param_read', &
       routineP = moduleN//':'//routineN
 
-    CHARACTER(LEN=3)                         :: test_result
-    CHARACTER(LEN=60)                        :: keyword, keyword2
-    LOGICAL                                  :: failure, section_found
+    LOGICAL                                  :: failure
     TYPE(section_vals_type), POINTER         :: gopt_section
 
     failure=.FALSE.

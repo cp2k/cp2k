@@ -97,19 +97,19 @@ SUBROUTINE sort2 ( arr, n, index )
 
 
     INTEGER, INTENT(IN)                      :: n
-    REAL(KIND=dp), INTENT(INOUT)                 :: arr(1:n)
-    INTEGER, INTENT(OUT)                     :: index(1:n)
+    REAL(KIND=dp), INTENT(INOUT)             :: arr(1:n)
+    INTEGER, INTENT(OUT)                     :: INDEX(1:n)
 
     INTEGER, PARAMETER                       :: m = 7, nstack = 50
 
     INTEGER                                  :: i, ib, ir, istack(1:nstack), &
                                                 itemp, j, jstack, k, l
-    REAL(KIND=dp)                                :: a, temp
+    REAL(KIND=dp)                            :: a, temp
 
 !------------------------------------------------------------------------------
 
   DO i = 1, n
-     index(i) = i
+     INDEX(i) = i
   END DO
   jstack = 0
   l = 1
@@ -117,15 +117,15 @@ SUBROUTINE sort2 ( arr, n, index )
 1 IF (ir-l<m) THEN
      DO j = l + 1, ir
         a = arr(j)
-        ib = index(j)
+        ib = INDEX(j)
         DO i = j - 1, 1, -1
            IF (arr(i)<=a) GO TO 2
            arr(i+1) = arr(i)
-           index(i+1) = index(i)
+           INDEX(i+1) = INDEX(i)
         END DO
         i = 0
 2       arr(i+1) = a
-        index(i+1) = ib
+        INDEX(i+1) = ib
      END DO
      IF (jstack==0) RETURN
      ir = istack(jstack)
@@ -136,37 +136,37 @@ SUBROUTINE sort2 ( arr, n, index )
      temp = arr(k)
      arr(k) = arr(l+1)
      arr(l+1) = temp
-     itemp = index(k)
-     index(k) = index(l+1)
-     index(l+1) = itemp
+     itemp = INDEX(k)
+     INDEX(k) = INDEX(l+1)
+     INDEX(l+1) = itemp
      IF (arr(l+1)>arr(ir)) THEN
         temp = arr(l+1)
         arr(l+1) = arr(ir)
         arr(ir) = temp
-        itemp = index(l+1)
-        index(l+1) = index(ir)
-        index(ir) = itemp
+        itemp = INDEX(l+1)
+        INDEX(l+1) = INDEX(ir)
+        INDEX(ir) = itemp
      END IF
      IF (arr(l)>arr(ir)) THEN
         temp = arr(l)
         arr(l) = arr(ir)
         arr(ir) = temp
-        itemp = index(l)
-        index(l) = index(ir)
-        index(ir) = itemp
+        itemp = INDEX(l)
+        INDEX(l) = INDEX(ir)
+        INDEX(ir) = itemp
      END IF
      IF (arr(l+1)>arr(l)) THEN
         temp = arr(l+1)
         arr(l+1) = arr(l)
         arr(l) = temp
-        itemp = index(l+1)
-        index(l+1) = index(l)
-        index(l) = itemp
+        itemp = INDEX(l+1)
+        INDEX(l+1) = INDEX(l)
+        INDEX(l) = itemp
      END IF
      i = l + 1
      j = ir
      a = arr(l)
-     ib = index(l)
+     ib = INDEX(l)
 3    CONTINUE
      i = i + 1
      IF (arr(i)<a) GO TO 3
@@ -177,14 +177,14 @@ SUBROUTINE sort2 ( arr, n, index )
      temp = arr(i)
      arr(i) = arr(j)
      arr(j) = temp
-     itemp = index(i)
-     index(i) = index(j)
-     index(j) = itemp
+     itemp = INDEX(i)
+     INDEX(i) = INDEX(j)
+     INDEX(j) = itemp
      GO TO 3
 5    arr(l) = arr(j)
      arr(j) = a
-     index(l) = index(j)
-     index(j) = ib
+     INDEX(l) = INDEX(j)
+     INDEX(j) = ib
      jstack = jstack + 2
      IF (jstack>nstack) STOP ' Nstack too small in sortr'
      IF (ir-i+1>=j-l) THEN
@@ -209,7 +209,7 @@ SUBROUTINE sort2i ( iarr, n, index )
 
     INTEGER, INTENT(IN)                      :: n
     INTEGER, INTENT(INOUT)                   :: iarr(1:n)
-    INTEGER, INTENT(OUT)                     :: index(1:n)
+    INTEGER, INTENT(OUT)                     :: INDEX(1:n)
 
     INTEGER, PARAMETER                       :: m = 7, nstack = 50
 
@@ -220,7 +220,7 @@ SUBROUTINE sort2i ( iarr, n, index )
 !------------------------------------------------------------------------------
 
   DO i = 1, n
-     index(i) = i
+     INDEX(i) = i
   END DO
   jstack = 0
   l = 1
@@ -228,15 +228,15 @@ SUBROUTINE sort2i ( iarr, n, index )
 1 IF (ir-l<m) THEN
      DO j = l + 1, ir
         a = iarr(j)
-        ib = index(j)
+        ib = INDEX(j)
         DO i = j - 1, 1, -1
            IF (iarr(i)<=a) GO TO 2
            iarr(i+1) = iarr(i)
-           index(i+1) = index(i)
+           INDEX(i+1) = INDEX(i)
         END DO
         i = 0
 2       iarr(i+1) = a
-        index(i+1) = ib
+        INDEX(i+1) = ib
      END DO
      IF (jstack==0) RETURN
      ir = istack(jstack)
@@ -247,37 +247,37 @@ SUBROUTINE sort2i ( iarr, n, index )
      temp = iarr(k)
      iarr(k) = iarr(l+1)
      iarr(l+1) = temp
-     itemp = index(k)
-     index(k) = index(l+1)
-     index(l+1) = itemp
+     itemp = INDEX(k)
+     INDEX(k) = INDEX(l+1)
+     INDEX(l+1) = itemp
      IF (iarr(l+1)>iarr(ir)) THEN
         temp = iarr(l+1)
         iarr(l+1) = iarr(ir)
         iarr(ir) = temp
-        itemp = index(l+1)
-        index(l+1) = index(ir)
-        index(ir) = itemp
+        itemp = INDEX(l+1)
+        INDEX(l+1) = INDEX(ir)
+        INDEX(ir) = itemp
      END IF
      IF (iarr(l)>iarr(ir)) THEN
         temp = iarr(l)
         iarr(l) = iarr(ir)
         iarr(ir) = temp
-        itemp = index(l)
-        index(l) = index(ir)
-        index(ir) = itemp
+        itemp = INDEX(l)
+        INDEX(l) = INDEX(ir)
+        INDEX(ir) = itemp
      END IF
      IF (iarr(l+1)>iarr(l)) THEN
         temp = iarr(l+1)
         iarr(l+1) = iarr(l)
         iarr(l) = temp
-        itemp = index(l+1)
-        index(l+1) = index(l)
-        index(l) = itemp
+        itemp = INDEX(l+1)
+        INDEX(l+1) = INDEX(l)
+        INDEX(l) = itemp
      END IF
      i = l + 1
      j = ir
      a = iarr(l)
-     ib = index(l)
+     ib = INDEX(l)
 3    CONTINUE
      i = i + 1
      IF (iarr(i)<a) GO TO 3
@@ -288,14 +288,14 @@ SUBROUTINE sort2i ( iarr, n, index )
      temp = iarr(i)
      iarr(i) = iarr(j)
      iarr(j) = temp
-     itemp = index(i)
-     index(i) = index(j)
-     index(j) = itemp
+     itemp = INDEX(i)
+     INDEX(i) = INDEX(j)
+     INDEX(j) = itemp
      GO TO 3
 5    iarr(l) = iarr(j)
      iarr(j) = a
-     index(l) = index(j)
-     index(j) = ib
+     INDEX(l) = INDEX(j)
+     INDEX(j) = ib
      jstack = jstack + 2
      IF (jstack>nstack) STOP ' Nstack too small in sortr'
      IF (ir-i+1>=j-l) THEN
@@ -324,11 +324,11 @@ FUNCTION ran2 ( idum, icontrol )
 
     INTEGER, INTENT(INOUT)                   :: idum
     INTEGER, INTENT(IN), OPTIONAL            :: icontrol
-    REAL(KIND=dp)                                :: ran2
+    REAL(KIND=dp)                            :: ran2
 
     INTEGER                                  :: ia1, ia2, im1, im2, imm1, &
                                                 iq1, iq2, ir1, ir2, ndiv, ntab
-    REAL(KIND=dp)                                :: am, eps, rnmx
+    REAL(KIND=dp)                            :: am, eps, rnmx
 
   PARAMETER (im1=2147483563,im2=2147483399,am=1.0_dp/im1,imm1=im1-1, &
        ia1=40014,ia2=40692,iq1=53668,iq2=52774,ir1=12211,ir2=3791,ntab=32, &
@@ -348,7 +348,7 @@ FUNCTION ran2 ( idum, icontrol )
 
   IF ( .NOT. PRESENT ( icontrol)) THEN
      IF (idum<=0) THEN
-        idum = max(-idum,1)
+        idum = MAX(-idum,1)
         idum2 = idum
         DO j = ntab + 8, 1, -1
            k = idum/iq1
@@ -368,7 +368,7 @@ FUNCTION ran2 ( idum, icontrol )
      iy = iv(j) - idum2
      iv(j) = idum
      IF (iy<1) iy = iy + imm1
-     ran2 = min(am*iy,rnmx)
+     ran2 = MIN(am*iy,rnmx)
   ELSE IF (icontrol==1) THEN
      OPEN (unit=iounit,file='random.table')
      DO j = 1, ntab
@@ -414,7 +414,7 @@ FUNCTION gasdev(idum)
      v2 = 2.0_dp*ran2(idum) - 1.0_dp
      r = v1*v1 + v2*v2
      IF (r>=1.0_dp) GO TO 1
-     fac = sqrt(-2.0_dp*log(r)/r)
+     fac = SQRT(-2.0_dp*LOG(r)/r)
      gset = v1*fac
      gasdev = v2*fac
      iset = 1
@@ -481,17 +481,17 @@ FUNCTION get_share ( m, n, me ) RESULT ( nme )
     INTEGER                                  :: nme
 
     INTEGER                                  :: nl, nu
-    REAL(KIND=dp)                                :: part
+    REAL(KIND=dp)                            :: part
 
 !------------------------------------------------------------------------------
 
   part = float(m)/float(n)
-  nl = nint(float(me)*part) + 1
-  nu = nint(float(me+1)*part)
-  nl = max(1,nl)
-  nu = min(m,nu)
+  nl = NINT(float(me)*part) + 1
+  nu = NINT(float(me+1)*part)
+  nl = MAX(1,nl)
+  nu = MIN(m,nu)
   nme = nu - nl + 1
-  nme = max(nme,0)
+  nme = MAX(nme,0)
 
 END FUNCTION get_share
 
@@ -507,15 +507,15 @@ FUNCTION get_limit(m,n,me) RESULT (nlim)
     INTEGER                                  :: nlim( 2 )
 
     INTEGER                                  :: nl, nu
-    REAL(KIND=dp)                                :: part
+    REAL(KIND=dp)                            :: part
 
 !------------------------------------------------------------------------------
 
   part = float(m)/float(n)
-  nl = nint(float(me)*part) + 1
-  nu = nint(float(me+1)*part)
-  nlim(1) = max(1,nl)
-  nlim(2) = min(m,nu)
+  nl = NINT(float(me)*part) + 1
+  nu = NINT(float(me+1)*part)
+  nlim(1) = MAX(1,nl)
+  nlim(2) = MIN(m,nu)
 
 END FUNCTION get_limit
 
@@ -531,9 +531,9 @@ FUNCTION include_list(i,j) RESULT (doit)
 !------------------------------------------------------------------------------
 
   IF ( i >= j ) THEN
-     doit = mod(i+j,2) == 0
+     doit = MOD(i+j,2) == 0
   ELSE IF (i < j) THEN
-     doit = mod ( i + j, 2 ) /= 0
+     doit = MOD ( i + j, 2 ) /= 0
   ELSE
      doit = .FALSE.
   END IF
@@ -545,10 +545,12 @@ END FUNCTION include_list
 SUBROUTINE getinv3x3 ( hmat, hmati )
 
 
-    REAL(KIND=dp), DIMENSION(3, 3), INTENT(IN)   :: hmat
-    REAL(KIND=dp), DIMENSION(3, 3), INTENT(OUT)  :: hmati
+    REAL(KIND=dp), DIMENSION(3, 3), &
+      INTENT(IN)                             :: hmat
+    REAL(KIND=dp), DIMENSION(3, 3), &
+      INTENT(OUT)                            :: hmati
 
-    REAL(KIND=dp)                                :: det, odet
+    REAL(KIND=dp)                            :: det, odet
 
 !------------------------------------------------------------------------------
 
@@ -574,9 +576,10 @@ FUNCTION matvec_3x3 ( mat, vec )
 
 
 ! Return value
-    REAL(KIND=dp), DIMENSION(3, 3), INTENT(IN)   :: mat
-    REAL(KIND=dp), DIMENSION(3), INTENT(IN)      :: vec
-    REAL(KIND=dp), DIMENSION(3)                  :: matvec_3x3
+    REAL(KIND=dp), DIMENSION(3, 3), &
+      INTENT(IN)                             :: mat
+    REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: vec
+    REAL(KIND=dp), DIMENSION(3)              :: matvec_3x3
 
 !------------------------------------------------------------------------------
 
@@ -592,8 +595,8 @@ FUNCTION dotprod_3d ( vec1, vec2 )
 
 
 ! Return value
-    REAL(KIND=dp), DIMENSION(3), INTENT(IN)      :: vec1, vec2
-    REAL(KIND=dp)                                :: dotprod_3d
+    REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: vec1, vec2
+    REAL(KIND=dp)                            :: dotprod_3d
 
 !------------------------------------------------------------------------------
 
@@ -610,8 +613,8 @@ FUNCTION crossprod_3d ( vec1, vec2 )
 
 
 ! Return value
-    REAL(KIND=dp), DIMENSION(3), INTENT(IN)      :: vec1, vec2
-    REAL(KIND=dp), DIMENSION(3)                  :: crossprod_3d
+    REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: vec1, vec2
+    REAL(KIND=dp), DIMENSION(3)              :: crossprod_3d
 
 !------------------------------------------------------------------------------
 
@@ -627,8 +630,9 @@ FUNCTION transpose_3d ( mat )
 
 
 ! Return value
-    REAL(KIND=dp), DIMENSION(3, 3), INTENT(IN)   :: mat
-    REAL(KIND=dp), DIMENSION(3, 3)               :: transpose_3d
+    REAL(KIND=dp), DIMENSION(3, 3), &
+      INTENT(IN)                             :: mat
+    REAL(KIND=dp), DIMENSION(3, 3)           :: transpose_3d
 
     INTEGER                                  :: i, j
 
@@ -648,8 +652,9 @@ FUNCTION matmul_3x3 ( mat1, mat2 )
 
 
 ! Return value
-    REAL(KIND=dp), DIMENSION(3, 3), INTENT(IN)   :: mat1, mat2
-    REAL(KIND=dp), DIMENSION(3, 3)               :: matmul_3x3
+    REAL(KIND=dp), DIMENSION(3, 3), &
+      INTENT(IN)                             :: mat1, mat2
+    REAL(KIND=dp), DIMENSION(3, 3)           :: matmul_3x3
 
 !------------------------------------------------------------------------------
 

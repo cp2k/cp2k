@@ -20,7 +20,6 @@
   USE kinds,                           ONLY: dp
 !
 
-
       IMPLICIT NONE
 !
       PRIVATE
@@ -153,7 +152,7 @@ SUBROUTINE CALERF(ARG,RESULT,JINT)
 !
 !------------------------------------------------------------------
 
-    REAL(KIND=dp)                                :: ARG, RESULT
+    REAL(KIND=dp)                            :: ARG, RESULT
     INTEGER                                  :: JINT
 
     INTEGER                                  :: I
@@ -339,10 +338,10 @@ FUNCTION ERF(X)
 !   Author/date: W. J. Cody, January 8, 1985
 !
 !--------------------------------------------------------------------
-    REAL(KIND=dp)                                :: X, ERF
+    REAL(KIND=dp)                            :: X, ERF
 
     INTEGER                                  :: JINT
-    REAL(KIND=dp)                                :: RESULT
+    REAL(KIND=dp)                            :: RESULT
 
 !------------------------------------------------------------------
 
@@ -362,10 +361,10 @@ FUNCTION ERFC(X)
 !   Author/date: W. J. Cody, January 8, 1985
 !
 !--------------------------------------------------------------------
-    REAL(KIND=dp)                                :: X, ERFC
+    REAL(KIND=dp)                            :: X, ERFC
 
     INTEGER                                  :: JINT
-    REAL(KIND=dp)                                :: RESULT
+    REAL(KIND=dp)                            :: RESULT
 
 !------------------------------------------------------------------
 
@@ -385,10 +384,10 @@ FUNCTION ERFCX(X)
 !   Author/date: W. J. Cody, March 30, 1987
 !
 !------------------------------------------------------------------
-    REAL(KIND=dp)                                :: X, ERFCX
+    REAL(KIND=dp)                            :: X, ERFCX
 
     INTEGER                                  :: JINT
-    REAL(KIND=dp)                                :: RESULT
+    REAL(KIND=dp)                            :: RESULT
 
 !------------------------------------------------------------------
 

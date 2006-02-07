@@ -22,8 +22,9 @@
 !!   SOURCE
 !****************************************************************************
 MODULE input_constants
-  USE kinds, ONLY: dp,&
-                   default_string_length
+  USE kinds,                           ONLY: default_string_length,&
+                                             dp
+
   IMPLICIT NONE
   PRIVATE
 
@@ -56,7 +57,7 @@ MODULE input_constants
          "Kim Gordon models (DFT)                ",&    !
          "Tight-Binding Molecular Dynamics       " /)   !
 
-  INTEGER, PARAMETER, public :: do_qs=1,&
+  INTEGER, PARAMETER, PUBLIC :: do_qs=1,&
                                 do_fist=2,&
                                 do_kg=3,&
                                 do_qmmm=4,&
@@ -122,7 +123,7 @@ MODULE input_constants
   INTEGER, PARAMETER, PUBLIC :: nhc_global=101,nhc_massive=102
   !
   ! Run Types
-  INTEGER, PARAMETER, public :: none_run=1,&
+  INTEGER, PARAMETER, PUBLIC :: none_run=1,&
                                 energy_run=2,&
                                 energy_force_run=3,&
                                 mol_dyn_run=4,&
@@ -184,11 +185,11 @@ MODULE input_constants
           electronic_spectra_run,&
           linear_response_run /)
 
-  INTEGER, PARAMETER, public :: atomic_guess=1,restart_guess=2,random_guess=3,&
+  INTEGER, PARAMETER, PUBLIC :: atomic_guess=1,restart_guess=2,random_guess=3,&
        core_guess=4, densities_guess=5
-  INTEGER, PARAMETER, public :: pw_interp=1,linear_interp=2,&
+  INTEGER, PARAMETER, PUBLIC :: pw_interp=1,linear_interp=2,&
        spline3_nopbc_interp=3,spline3_pbc_interp=4 ! to move somewhere else
-  integer, parameter, public :: do_gapw_gcs=1,&
+  INTEGER, PARAMETER, PUBLIC :: do_gapw_gcs=1,&
        do_gapw_gct=2,&
        do_gapw_log=3
   CHARACTER (LEN=default_string_length), PARAMETER, DIMENSION(3), PUBLIC :: quadrature_name=&
@@ -196,7 +197,7 @@ MODULE input_constants
          "Trans_Gauss-Chebyshev   ",&
          "LogTrans-Gauss-Chebyshev"/)
 
-  integer, parameter, public :: do_pwgrid_spherical=1,&
+  INTEGER, PARAMETER, PUBLIC :: do_pwgrid_spherical=1,&
        do_pwgrid_ns_fullspace=2,&
        do_pwgrid_ns_halfspace=3
 
@@ -224,11 +225,11 @@ MODULE input_constants
        do_method_mndo=8,&
        do_method_am1=9,&
        do_method_pm3=10
-   integer, parameter, public :: use_unit_angstrom=0,&
+   INTEGER, PARAMETER, PUBLIC :: use_unit_angstrom=0,&
        use_unit_bohr=1,&
        use_unit_scaled_angstrom=2,&
        use_unit_scaled_bohr=3
-  integer, parameter, public :: do_rsgrid_distributed=0,&
+  INTEGER, PARAMETER, PUBLIC :: do_rsgrid_distributed=0,&
        do_rsgrid_replicated=1
 
   !
@@ -244,7 +245,7 @@ MODULE input_constants
   INTEGER, PARAMETER, PUBLIC, DIMENSION(3) :: output_name_index=&
        (/dump_atomic,dump_xmol,dump_dcd/)
 
-  integer, parameter, public :: do_qmmm_none=0,&
+  INTEGER, PARAMETER, PUBLIC :: do_qmmm_none=0,&
                                 do_qmmm_grid=1,&
                                 do_qmmm_gauss=2,&
                                 do_qmmm_link_imomm=1,&
@@ -275,11 +276,11 @@ MODULE input_constants
   INTEGER, PARAMETER, PUBLIC :: do_mc_traditional=0,&
                                 do_mc_gemc=1
 
-  INTEGER, PARAMETER, public :: do_loc_jacobi=0,&
+  INTEGER, PARAMETER, PUBLIC :: do_loc_jacobi=0,&
                                 do_loc_crazy=1,&
                                 do_loc_direct=2,&
                                 do_loc_none=3
-  INTEGER, PARAMETER, public :: do_loc_min=0,&
+  INTEGER, PARAMETER, PUBLIC :: do_loc_min=0,&
                                 do_loc_max=1,&
                                 op_loc_berry=0,&
                                 op_loc_boys=1,&
@@ -290,9 +291,9 @@ MODULE input_constants
                                 state_loc_list=3,&
                                 state_loc_none=4
 
-  INTEGER, PARAMETER, public :: ot_mini_sd=1,ot_mini_cg=2,ot_mini_diis=3
-  INTEGER, PARAMETER, public :: ot_ls_none=1,ot_ls_2pnt=2,ot_ls_3pnt=3,ot_ls_gold=4
-  INTEGER, PARAMETER, public :: ot_precond_none=0, &
+  INTEGER, PARAMETER, PUBLIC :: ot_mini_sd=1,ot_mini_cg=2,ot_mini_diis=3
+  INTEGER, PARAMETER, PUBLIC :: ot_ls_none=1,ot_ls_2pnt=2,ot_ls_3pnt=3,ot_ls_gold=4
+  INTEGER, PARAMETER, PUBLIC :: ot_precond_none=0, &
                         ot_precond_full_single=1, &
                         ot_precond_full_kinetic=2, &
                         ot_precond_s_inverse=3, &

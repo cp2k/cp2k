@@ -23,57 +23,49 @@ MODULE qs_rho0_methods
                                              set_atomic_kind
   USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                              gto_basis_set_type
+  USE cell_types,                      ONLY: cell_type
   USE cp_control_types,                ONLY: dft_control_type,&
                                              gapw_control_type
+  USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
+                                             cp_print_key_unit_nr
   USE external_potential_types,        ONLY: all_potential_type
-  USE gaussian_gridlevels,             ONLY: gaussian_gridlevel
-  USE global_types,                    ONLY: global_environment_type
+  USE input_section_types,             ONLY: section_vals_get_subs_vals,&
+                                             section_vals_type
   USE kinds,                           ONLY: dp
-  USE mathconstants,                   ONLY: dfac,fourpi,pi,rootpi
+  USE mathconstants,                   ONLY: dfac,&
+                                             fourpi
   USE memory_utilities,                ONLY: reallocate
-  USE orbital_pointers,                ONLY: indco, indso,&
-                                             nco, ncoset,&
-                                             nso, nsoset
+  USE orbital_pointers,                ONLY: indco,&
+                                             indso,&
+                                             nco,&
+                                             ncoset,&
+                                             nso,&
+                                             nsoset
   USE orbital_transformation_matrices, ONLY: orbtramat
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type,&
                                              set_qs_env
   USE qs_grid_atom,                    ONLY: grid_atom_type
   USE qs_harmonics_atom,               ONLY: harmonics_atom_type
-  USE qs_local_rho_types,              ONLY: local_rho_type
+  USE qs_local_rho_types,              ONLY: allocate_rhoz,&
+                                             calculate_rhoz,&
+                                             local_rho_type,&
+                                             rhoz_type
   USE qs_rho0_ggrid,                   ONLY: rho0_s_grid_create
-  USE qs_rho0_types,                   ONLY: allocate_multipoles,&
-                                             allocate_rho0_atom,&
-                                             allocate_rho0_atom_rad,&
-                                             allocate_rho0_mpole,&
-                                             calculate_g0,&
-                                             get_rho0_mpole, &
-                                             initialize_mpole_rho,&
-                                             mpole_gau_overlap,&
-                                             mpole_rho_atom,&
-                                             rho0_mpole_type, &
-                                             rho0_atom_type,&
-                                             write_rho0_info
+  USE qs_rho0_types,                   ONLY: &
+       allocate_multipoles, allocate_rho0_atom, allocate_rho0_atom_rad, &
+       allocate_rho0_mpole, calculate_g0, get_rho0_mpole, &
+       initialize_mpole_rho, mpole_gau_overlap, mpole_rho_atom, &
+       rho0_atom_type, rho0_mpole_type, write_rho0_info
   USE qs_rho_atom_types,               ONLY: get_rho_atom,&
                                              rho_atom_coeff,&
                                              rho_atom_type
-  USE qs_local_rho_types,              ONLY: allocate_rhoz,&
-                                             calculate_rhoz,&
-                                             rhoz_type
   USE qs_util,                         ONLY: exp_radius,&
                                              gaussint_sph,&
                                              trace_r_AxB
-  USE cell_types,                 ONLY: cell_type
   USE termination,                     ONLY: stop_memory
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE cp_output_handling,              ONLY: cp_print_key_unit_nr, &
-                                             cp_print_key_finished_output,&
-                                             cp_print_key_should_output,&
-                                             cp_p_file
-  USE input_section_types,             ONLY: section_vals_type,&
-                                             section_vals_get_subs_vals
-
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -82,7 +74,7 @@ MODULE qs_rho0_methods
 
 ! *** Global parameters (only in this module)
 
-  CHARACTER(LEN=*), PARAMETER :: module_name = "qs_rho0_methods"
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_rho0_methods'
 
 ! *** Public subroutines ***
 
@@ -96,20 +88,21 @@ MODULE qs_rho0_methods
 
   SUBROUTINE  calculate_mpole_gau(mp_gau,orb_basis,harmonics,nchannels,nsotot)
 
-    TYPE(mpole_gau_overlap)           :: mp_gau
-    TYPE(gto_basis_set_type), POINTER :: orb_basis
-    TYPE(harmonics_atom_type),POINTER :: harmonics
-    INTEGER, INTENT(IN)               :: nchannels, nsotot
+    TYPE(mpole_gau_overlap)                  :: mp_gau
+    TYPE(gto_basis_set_type), POINTER        :: orb_basis
+    TYPE(harmonics_atom_type), POINTER       :: harmonics
+    INTEGER, INTENT(IN)                      :: nchannels, nsotot
 
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "initialize_mpole_rho"
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_mpole_gau'
 
-    INTEGER   :: icg, ig1, ig2, ipgf1, ipgf2, iset1, iset2, iso, iso1, &
-                 iso2, l, l1, l2, m1, m2, maxso, n1, n2, nset
-    INTEGER, DIMENSION(:), POINTER    :: lmax,lmin,npgf
-    REAL(dp)                          :: zet1, zet2
-    REAL(dp), DIMENSION(:,:), POINTER :: zet
-    REAL(dp), DIMENSION(:,:,:), &
-                           POINTER    :: my_CG
+    INTEGER                                  :: icg, ig1, ig2, ipgf1, ipgf2, &
+                                                iset1, iset2, iso, iso1, &
+                                                iso2, l, l1, l2, m1, m2, &
+                                                maxso, n1, n2, nset
+    INTEGER, DIMENSION(:), POINTER           :: lmax, lmin, npgf
+    REAL(dp)                                 :: zet1, zet2
+    REAL(dp), DIMENSION(:, :), POINTER       :: zet
+    REAL(dp), DIMENSION(:, :, :), POINTER    :: my_CG
 
 !   ---------------------------------------------------------------------------
 
@@ -165,30 +158,30 @@ MODULE qs_rho0_methods
                                  rho0_h_tot,rho0_s_tot)
 
     TYPE(rho_atom_type), DIMENSION(:), &
-                           POINTER           :: rho_atom_set
-    TYPE(rho0_atom_type), DIMENSION(:),&
-                           POINTER           :: rho0_atom_set
+      POINTER                                :: rho_atom_set
+    TYPE(rho0_atom_type), DIMENSION(:), &
+      POINTER                                :: rho0_atom_set
+    TYPE(rho0_mpole_type), POINTER           :: rho0_mp
     INTEGER, DIMENSION(:), INTENT(IN)        :: a_list
     TYPE(grid_atom_type), INTENT(IN)         :: g_atom
-    TYPE(rho0_mpole_type), POINTER           :: rho0_mp
-    TYPE(harmonics_atom_type), POINTER       :: harmonics
-    INTEGER, INTENT(IN)                      :: ikind, natom
     LOGICAL, INTENT(IN)                      :: paw_atom
-    REAL(dp), INTENT(INOUT)                  :: rho0_h_tot,rho0_s_tot
+    INTEGER, INTENT(IN)                      :: natom, ikind
+    TYPE(harmonics_atom_type), POINTER       :: harmonics
+    REAL(dp), INTENT(INOUT)                  :: rho0_h_tot, rho0_s_tot
 
-    CHARACTER(len=*), PARAMETER :: routine_name = 'calculate_rho0_atom', &
-      routineP = module_name//':'//routine_name
+    CHARACTER(len=*), PARAMETER :: routineN = 'calculate_rho0_atom', &
+      routineP = moduleN//':'//routineN
 
-    REAL(dp), DIMENSION(:,:), POINTER        :: g0_h, g0_s,vg0_h
-    TYPE(mpole_rho_atom),  POINTER           :: mpole_rho
-    TYPE(mpole_gau_overlap), POINTER         :: mpole_gau
-    TYPE(rho_atom_type), POINTER             :: rho_atom
+    INTEGER                                  :: handle, i, iat, iatom, ic, &
+                                                ico, ir, is, iso, l, lmax0, &
+                                                lshell, lx, ly, lz, nr
+    REAL(dp)                                 :: sum1, sum2
     REAL(dp), DIMENSION(:), POINTER          :: norm_g0l_h, norm_g0l_s
+    REAL(dp), DIMENSION(:, :), POINTER       :: g0_h, g0_s, vg0_h
+    TYPE(mpole_gau_overlap), POINTER         :: mpole_gau
+    TYPE(mpole_rho_atom), POINTER            :: mpole_rho
+    TYPE(rho_atom_type), POINTER             :: rho_atom
 
-    INTEGER                                  :: handle, iat, iatom, ic, ico, ir, is, iso,&
-                                                istat, l, lshell, lx, ly, lz,&
-                                                lmax0, nr,i,j
-    REAL(dp) :: sum1, sum2
 !   ---------------------------------------------------------------------------
 
     CALL timeset("calculate_rho0_atom","I"," ",handle)
@@ -284,14 +277,14 @@ MODULE qs_rho0_methods
 
   SUBROUTINE calculate_Qlm_atom(mpole_gau,mpole_rho,rho_atom,iso)
 
-    TYPE(mpole_rho_atom),  POINTER           :: mpole_rho
     TYPE(mpole_gau_overlap), POINTER         :: mpole_gau
+    TYPE(mpole_rho_atom), POINTER            :: mpole_rho
     TYPE(rho_atom_type), POINTER             :: rho_atom
-    INTEGER, INTENT(IN)                      ::  iso
+    INTEGER, INTENT(IN)                      :: iso
 
-    TYPE(rho_atom_coeff), DIMENSION(:),&
-                                    POINTER  :: cpc_h, cpc_s
     INTEGER                                  :: ispin, nsotot, nspins
+    TYPE(rho_atom_coeff), DIMENSION(:), &
+      POINTER                                :: cpc_h, cpc_s
 
 !   ---------------------------------------------------------------------------
 
@@ -325,44 +318,36 @@ MODULE qs_rho0_methods
   SUBROUTINE init_rho0(qs_env, gapw_control, cell, &
                        tddft, tddft_local_rho_set, error)
 
-    ! ARGUMENTS
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(gapw_control_type), POINTER         :: gapw_control
     TYPE(cell_type), POINTER                 :: cell
     LOGICAL, INTENT(IN), OPTIONAL            :: tddft
-    TYPE(local_rho_type), POINTER, OPTIONAL  :: tddft_local_rho_set
+    TYPE(local_rho_type), OPTIONAL, POINTER  :: tddft_local_rho_set
     TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error   
+      OPTIONAL                               :: error
 
-    ! PARAMETERS
-    CHARACTER(LEN=*), PARAMETER              :: routine_name = "init_rho0"
+    CHARACTER(LEN=*), PARAMETER              :: routineN = 'init_rho0'
 
-    ! LOCALS
+    INTEGER :: iat, iatom, ikind, istat, l, l_rho1_max, laddg, lmaxg, max_nr, &
+      maxl, maxnset, maxso, nat, natom, nchan_c, nchan_s, nkind, nr, nset, &
+      nsotot, output_unit
+    INTEGER, DIMENSION(:), POINTER           :: atom_list
+    LOGICAL                                  :: failure, my_tddft, paw_atom
+    REAL(dp) :: alpha_core, ecut, eps_fit, eps_Vrho0, gcut, max_rpgf0_s, &
+      radius, rc_min, rc_orb, total_rho_core_rspace, zetsoft_max
+    REAL(KIND=dp)                            :: zeff
     TYPE(atomic_kind_type), DIMENSION(:), &
-                            POINTER          :: atomic_kind_set
+      POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atom_kind
+    TYPE(cp_logger_type), POINTER            :: logger
     TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(grid_atom_type), POINTER            :: grid_atom
     TYPE(gto_basis_set_type), POINTER        :: orb_basis
     TYPE(harmonics_atom_type), POINTER       :: harmonics
-    TYPE(rho0_mpole_type), POINTER           :: rho0_mpole
     TYPE(rho0_atom_type), DIMENSION(:), &
-                           POINTER           :: rho0_atom_set
-    TYPE(grid_atom_type), POINTER            :: grid_atom
+      POINTER                                :: rho0_atom_set
+    TYPE(rho0_mpole_type), POINTER           :: rho0_mpole
     TYPE(rhoz_type), DIMENSION(:), POINTER   :: rhoz_set
-    REAL(dp)                                 :: alpha_core,&
-                                                ecut, eps_fit, eps_Vrho0,&
-                                                gcut, radius,&
-                                                rc_orb, rc_min, &
-                                                max_rpgf0_s, &
-                                                total_rho_core_rspace, &
-                                                zetsoft_max
-    INTEGER  ::  iat, iatom, ikind, istat, l, l_rho1_max, laddg,&
-         lmaxg, max_nr, maxl, maxnset, maxso, nat, &
-         natom, nchan_c, nchan_s, nkind, nr, nset, nsotot, output_unit
-    REAL(KIND=dp)                            :: zeff
-    INTEGER, DIMENSION(:), POINTER           :: atom_list
-    LOGICAL                                  :: paw_atom, my_tddft, failure
-    TYPE(cp_logger_type), POINTER            :: logger
     TYPE(section_vals_type), POINTER         :: dft_section
 
     failure = .FALSE.
@@ -447,8 +432,8 @@ MODULE qs_rho0_methods
       IF(gapw_control%lrho1_eq_lrho0) harmonics%max_iso_not0 = &
            nsoset(rho0_mpole%lmax0_kind(ikind))
 
-      rho0_mpole%lmax_0 = max(rho0_mpole%lmax_0,rho0_mpole%lmax0_kind(ikind))
-      rc_min = min(rc_min,rc_orb)
+      rho0_mpole%lmax_0 = MAX(rho0_mpole%lmax_0,rho0_mpole%lmax0_kind(ikind))
+      rc_min = MIN(rc_min,rc_orb)
 
       nchan_s = nsoset(rho0_mpole%lmax0_kind(ikind))
       nchan_c = ncoset(rho0_mpole%lmax0_kind(ikind))
@@ -557,7 +542,7 @@ MODULE qs_rho0_methods
     rho0_mpole%max_rpgf0_s = max_rpgf0_s
     ALLOCATE(rho0_mpole%orb_radius_3c(nkind),STAT=istat)
     ALLOCATE(rho0_mpole%set_radius_3c(maxnset,nkind),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "orb_radius_3c,set_radius_3c")
 
 
@@ -593,26 +578,23 @@ MODULE qs_rho0_methods
   SUBROUTINE interaction_radii_g0(rho0_mpole,grid_atom,ik,&
                                   eps_Vrho0,max_rpgf0_s,calculate_V0hmV0s)
 
-    TYPE(rho0_mpole_type), POINTER      :: rho0_mpole
-    TYPE(grid_atom_type), POINTER       :: grid_atom
-    INTEGER , INTENT(IN)                :: ik
-    REAL(dp), INTENT(IN)                :: eps_Vrho0
-    REAL(dp), INTENT(INOUT)             :: max_rpgf0_s
-    LOGICAL , INTENT(IN)                :: calculate_V0hmV0s
+    TYPE(rho0_mpole_type), POINTER           :: rho0_mpole
+    TYPE(grid_atom_type), POINTER            :: grid_atom
+    INTEGER, INTENT(IN)                      :: ik
+    REAL(dp), INTENT(IN)                     :: eps_Vrho0
+    REAL(dp), INTENT(INOUT)                  :: max_rpgf0_s
+    LOGICAL, INTENT(IN)                      :: calculate_V0hmV0s
 
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "interaction_radii_g0"
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'interaction_radii_g0'
 
-    INTEGER                             :: ir, l, lmax, nr
-    REAL(dp)                            :: z0_h, z0_s
-    REAL(dp)                            :: r_h, r_s, r_hms
-    REAL(dp)                            :: I_down_h, I_down_s
-    REAL(dp)                            :: I_up_h, I_up_s
-    REAL(dp)                            :: V_h, V_s
-    REAL(dp), DIMENSION(:), POINTER     :: ng0_h, ng0_s
-    REAL(dp), DIMENSION(:,:), POINTER   :: g0_h, g0_s
+    INTEGER                                  :: ir, l, lmax, nr
+    REAL(dp)                                 :: I_down_h, I_down_s, I_up_h, &
+                                                I_up_s, r_h, r_hms, r_s, V_h, &
+                                                V_s, z0_h, z0_s
+    REAL(dp), DIMENSION(:), POINTER          :: ng0_h, ng0_s
+    REAL(dp), DIMENSION(:, :), POINTER       :: g0_h, g0_s
 
 !   ---------------------------------------------------------------------------
-
 
     CALL get_rho0_mpole(rho0_mpole, ikind =ik, l0_ikind=lmax,&
                         zet0_h=z0_h, zet0_s=z0_s, norm_g0l_h=ng0_h,&
@@ -622,8 +604,8 @@ MODULE qs_rho0_methods
     r_h = 0.0_dp
     r_s = 0.0_dp
     DO l = 0,lmax
-      r_h = max(r_h, exp_radius(l,z0_h,eps_Vrho0,ng0_h(l)))
-      r_s = max(r_s, exp_radius(l,z0_s,eps_Vrho0,ng0_s(l)))
+      r_h = MAX(r_h, exp_radius(l,z0_h,eps_Vrho0,ng0_h(l)))
+      r_s = MAX(r_s, exp_radius(l,z0_s,eps_Vrho0,ng0_s(l)))
     END DO
 
     rho0_mpole%mp_gau(ik)%rpgf0_h = r_h 
@@ -660,9 +642,9 @@ MODULE qs_rho0_methods
           V_s = grid_atom%oorad2l(ir,l+1)*I_up_s + &
               grid_atom%rad2l(ir,l)*I_down_s
 
-          IF(abs(V_h-V_s)<eps_Vrho0 .AND.grid_atom%rad(ir)>0.7_dp ) THEN
+          IF(ABS(V_h-V_s)<eps_Vrho0 .AND.grid_atom%rad(ir)>0.7_dp ) THEN
             r_hms = MAX(r_hms,grid_atom%rad(ir))
-            exit
+            EXIT
           END IF
 
           I_up_h = I_up_h + g0_h(ir,l)*&
@@ -690,34 +672,35 @@ MODULE qs_rho0_methods
 
   SUBROUTINE radii_3c_orbxrho0(qs_env,rho0_mpole)
 
-    TYPE(qs_environment_type), POINTER         :: qs_env
-    TYPE(rho0_mpole_type),        POINTER      :: rho0_mpole
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(rho0_mpole_type), POINTER           :: rho0_mpole
 
-    TYPE(atomic_kind_type), DIMENSION(:),&
-                                  POINTER      :: atomic_kind_set
-    TYPE(all_potential_type),     POINTER      :: all_potential
-    TYPE(atomic_kind_type),       POINTER      :: atom_kind,atom_kindj
-    TYPE(gto_basis_set_type),     POINTER      :: orb_basis
+    CHARACTER(LEN=*), PARAMETER              :: routineN = 'radii_3c_orbxrho0'
+    REAL(dp), PARAMETER                      :: eps_radii_3c = 1.E-4_dp 
 
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "radii_3c_orbxrho0"
-    REAL(dp), PARAMETER         :: eps_radii_3c = 1.E-4_dp ! XXXX Marcella should this be input ?
+    INTEGER                                  :: i, ico, ico0, icoa, ikind, &
+                                                ipgf, iset, istat, jkind, l0, &
+                                                la, lmax_0, maxlgto, n, nco0, &
+                                                ncoa, nkind, nseta, nso0
+    INTEGER, DIMENSION(:), POINTER           :: la_max, la_min, npgfa
+    REAL(dp)                                 :: intmax0, r(3,0:60), r2(0:60), &
+                                                rab(3), rab2, rac(3), rac2, &
+                                                ri, rmax, rp0, z0_h, z0_s
+    REAL(dp), ALLOCATABLE, DIMENSION(:)      :: ff, Qlm, r_cut_set
+    REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: vabc
+    REAL(dp), ALLOCATABLE, &
+      DIMENSION(:, :, :)                     :: int_abc, int_tmp
+    REAL(dp), ALLOCATABLE, &
+      DIMENSION(:, :, :, :)                  :: vv
+    REAL(dp), DIMENSION(:), POINTER          :: ng0_h, ng0_s, orb_rad
+    REAL(dp), DIMENSION(:, :), POINTER       :: rpgfa, set_rad, sphi_a, zeta
+    TYPE(all_potential_type), POINTER        :: all_potential
+    TYPE(atomic_kind_type), DIMENSION(:), &
+      POINTER                                :: atomic_kind_set
+    TYPE(atomic_kind_type), POINTER          :: atom_kind, atom_kindj
+    TYPE(gto_basis_set_type), POINTER        :: orb_basis
 
-    INTEGER :: i, ic, ico, ico0, icoa, ikind, ipgf, iset, is, iso0, istat, &
-               j, jkind, l0, la, lmax_0, lx, ly, lz, maxlgto, n, nco0, nso0, ncoa, nkind, nseta
-    INTEGER, DIMENSION(:),        POINTER      :: la_max, la_min, npgfa 
-
-    REAL(dp) :: intmax0, r(3,0:60), r2(0:60), rab(3), rab2, rac(3), rac2, ri, &
-                rmax, rp0, z0_h, z0_s
-    REAL(dp), DIMENSION(:),       POINTER      :: ng0_h, ng0_s
-    REAL(dp), DIMENSION(:),       POINTER      :: orb_rad
-    REAL(dp), DIMENSION(:,:),     POINTER      :: set_rad
-    REAL(dp), DIMENSION(:,:),     POINTER      :: rpgfa, sphi_a, zeta
-    REAL(dp), DIMENSION(:), ALLOCATABLE        :: Qlm
-    REAL(dp), DIMENSION(:), ALLOCATABLE        :: r_cut_set 
-    REAL(dp), DIMENSION(:), ALLOCATABLE       :: ff
-    REAL(dp), DIMENSION(:,:), ALLOCATABLE      :: vabc
-    REAL(dp), DIMENSION(:,:,:), ALLOCATABLE    :: int_abc, int_tmp 
-    REAL(dp), DIMENSION(:,:,:,:), ALLOCATABLE  :: vv
+! XXXX Marcella should this be input ?
 
     NULLIFY(atomic_kind_set,orb_rad,set_rad)
 
@@ -733,10 +716,10 @@ MODULE qs_rho0_methods
 
     ALLOCATE(vv(ncoset(maxlgto),ncoset(maxlgto),ncoset(lmax_0),&
          maxlgto+maxlgto+lmax_0+1),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
           "vv")
     ALLOCATE(ff(0:maxlgto+maxlgto+lmax_0),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
           "ff")
 
     nco0 = ncoset(lmax_0)
@@ -748,11 +731,11 @@ MODULE qs_rho0_methods
     set_rad => rho0_mpole%set_radius_3c
 
     rmax = 20.0_dp
-    do i=0,60
+    DO i=0,60
       ri=REAL(i,dp)*rmax/60._dp+0.01_dp
       r2(i)=ri**2
       r(:,i)=(/ri,0._dp,0._dp/)
-    enddo
+    ENDDO
     rab(1:3) = 0.0_dp
     rab2 = 0.0_dp
 
@@ -844,13 +827,13 @@ MODULE qs_rho0_methods
 
         DEALLOCATE(vabc,STAT=istat)
         DEALLOCATE(int_tmp,int_abc,STAT=istat)
-        IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+        IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
               "vabc,int_tmp,int_abc")
  
       END DO  ! iset
       
       DEALLOCATE(r_cut_set,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
             "r_cut_set")
 
 !  write(*,'(A,I4,15f12.5)') 'prima ',ikind , orb_rad(ikind),set_rad(1:nseta,ikind)
@@ -868,10 +851,10 @@ MODULE qs_rho0_methods
     END DO  ! ikind
 
     DEALLOCATE(Qlm,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
           "Qlm")
     DEALLOCATE(vv,ff,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
           "vv,ff")
 
   END SUBROUTINE radii_3c_orbxrho0

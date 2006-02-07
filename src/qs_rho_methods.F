@@ -26,12 +26,10 @@
 MODULE qs_rho_methods
   USE coefficient_types,               ONLY: coeff_deallocate
   USE cp_control_types,                ONLY: dft_control_type
-  USE cp_para_types,                   ONLY: cp_para_env_type
   USE kinds,                           ONLY: dp
   USE pw_env_types,                    ONLY: pw_env_get,&
                                              pw_env_type
   USE pw_pool_types,                   ONLY: pw_pool_init_coeff,&
-                                             pw_pool_p_type,&
                                              pw_pool_type
   USE pw_types,                        ONLY: COMPLEXDATA1D,&
                                              REALDATA3D,&
@@ -40,25 +38,24 @@ MODULE qs_rho_methods
   USE qs_collocate_density,            ONLY: calculate_rho_elec
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
-  USE qs_rho_types,                    ONLY: qs_rho_type, &
-                                             qs_rho_release
-  USE sparse_matrix_types,             ONLY: allocate_matrix_set,&
+  USE qs_rho_types,                    ONLY: qs_rho_release,&
+                                             qs_rho_type
+  USE sparse_matrix_types,             ONLY: add_matrices,&
+                                             allocate_matrix_set,&
+                                             copy_matrix,&
                                              deallocate_matrix_set,&
                                              real_matrix_p_type,&
-                                             replicate_matrix_structure, &
-                                             replicate_matrix, &
-                                             copy_matrix, &
-                                             add_matrices
+                                             replicate_matrix,&
+                                             replicate_matrix_structure
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE cp_matrix_utils, only: cp_sm_write
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
   PRIVATE
 
   LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
-  CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='qs_rho_methods'
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_rho_methods'
   INTEGER, PRIVATE, SAVE :: last_rho_id_nr=0
 
   PUBLIC :: qs_rho_update_rho, qs_rho_rebuild, duplicate_rho_type, &
@@ -112,8 +109,8 @@ CONTAINS
   SUBROUTINE qs_rho_rebuild(rho, qs_env, rebuild_ao, rebuild_grids, gapw_xc, error)
     TYPE(qs_rho_type), POINTER               :: rho
     TYPE(qs_environment_type), POINTER       :: qs_env
-    LOGICAL, INTENT(in), OPTIONAL            :: rebuild_ao, rebuild_grids
-    LOGICAL, INTENT(in), OPTIONAL            :: gapw_xc
+    LOGICAL, INTENT(in), OPTIONAL            :: rebuild_ao, rebuild_grids, &
+                                                gapw_xc
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -121,8 +118,9 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, i, nspins, stat
-    LOGICAL                                  :: failure, my_rebuild_ao, &
-                                                my_rebuild_grids, my_gapw_xc
+    LOGICAL                                  :: failure, my_gapw_xc, &
+                                                my_rebuild_ao, &
+                                                my_rebuild_grids
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(pw_env_type), POINTER               :: pw_env
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
@@ -402,24 +400,22 @@ END SUBROUTINE qs_rho_update_rho
 !!*** **********************************************************************
   SUBROUTINE duplicate_rho_type(rho_input, rho_output, qs_env, error)
 
-    TYPE(qs_rho_type), POINTER                      :: rho_input, &
-                                                       rho_output
-    TYPE(qs_environment_type), POINTER              :: qs_env
-    TYPE(cp_error_type), INTENT(INOUT), OPTIONAL    :: error
-    INTEGER                                         :: handle, &
-                                                       stat, &
-                                                       nspins, &
-                                                       i
-    TYPE(dft_control_type), POINTER                 :: dft_control
-    TYPE(pw_env_type), POINTER                      :: pw_env
-    TYPE(pw_pool_type), POINTER                     :: auxbas_pw_pool
-    LOGICAL                                         :: failure
-    
+    TYPE(qs_rho_type), POINTER               :: rho_input, rho_output
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(cp_error_type), INTENT(INOUT), &
+      OPTIONAL                               :: error
+
     CHARACTER(len=*), PARAMETER :: routineN = 'duplicate_rho_type', &
       routineP = moduleN//':'//routineN
 
+    INTEGER                                  :: handle, i, nspins, stat
+    LOGICAL                                  :: failure
+    TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(pw_env_type), POINTER               :: pw_env
+    TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
+
 !   ------------------------------------------------------------------------
- 
+
     CALL timeset(routineN, "I", "", handle)
 
     failure = .FALSE.
@@ -497,7 +493,7 @@ END SUBROUTINE qs_rho_update_rho
               rho_output%rho_g(i)%pw%mass_cc(:) = rho_input%rho_g(i)%pw%mass_cc(:)
             END IF
           END DO
-        END iF
+        END IF
       END IF
     END IF
 
@@ -613,29 +609,26 @@ END SUBROUTINE qs_rho_update_rho
   SUBROUTINE diff_rho_type(alpha, rho_input1, beta, rho_input2, rho_output, &
                            qs_env, error)
 
-    TYPE(qs_rho_type), POINTER                      :: rho_input1, &
-                                                       rho_input2, &
-                                                       rho_output
-    REAL(KIND=dp), OPTIONAL                         :: alpha, &
-                                                       beta
-    TYPE(qs_environment_type), POINTER              :: qs_env
-    TYPE(cp_error_type), INTENT(INOUT), OPTIONAL    :: error
-    INTEGER                                         :: handle, &
-                                                       stat, &
-                                                       nspins, &
-                                                       i
-    TYPE(dft_control_type), POINTER                 :: dft_control
-    TYPE(pw_env_type), POINTER                      :: pw_env
-    TYPE(pw_pool_type), POINTER                     :: auxbas_pw_pool
-    REAL(KIND=dp)                                   :: a, &
-                                                       b
-    LOGICAL                                         :: failure
-    
+    REAL(KIND=dp), OPTIONAL                  :: alpha
+    TYPE(qs_rho_type), POINTER               :: rho_input1
+    REAL(KIND=dp), OPTIONAL                  :: beta
+    TYPE(qs_rho_type), POINTER               :: rho_input2, rho_output
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(cp_error_type), INTENT(INOUT), &
+      OPTIONAL                               :: error
+
     CHARACTER(len=*), PARAMETER :: routineN = 'diff_rho_type', &
       routineP = moduleN//':'//routineN
 
+    INTEGER                                  :: handle, i, nspins, stat
+    LOGICAL                                  :: failure
+    REAL(KIND=dp)                            :: a, b
+    TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(pw_env_type), POINTER               :: pw_env
+    TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
+
 !   ------------------------------------------------------------------------
- 
+
     CALL timeset(routineN, "I", "", handle)
 
     failure = .FALSE.
@@ -736,7 +729,7 @@ END SUBROUTINE qs_rho_update_rho
                                                   b*rho_input2%rho_g(i)%pw%mass_cc(:)
             END IF
           END DO
-        END iF
+        END IF
       END IF
     END IF
 
@@ -857,24 +850,22 @@ END SUBROUTINE qs_rho_update_rho
 !!*** **********************************************************************
   SUBROUTINE copy_rho_type(rho_input, rho_output, qs_env, error)
 
-    TYPE(qs_rho_type), POINTER                      :: rho_input, &
-                                                       rho_output
-    TYPE(qs_environment_type), POINTER              :: qs_env
-    TYPE(cp_error_type), INTENT(INOUT), OPTIONAL    :: error
-    INTEGER                                         :: handle, &
-                                                       stat, &
-                                                       nspins, &
-                                                       i
-    TYPE(dft_control_type), POINTER                 :: dft_control
-    TYPE(pw_env_type), POINTER                      :: pw_env
-    TYPE(pw_pool_type), POINTER                     :: auxbas_pw_pool
-    LOGICAL                                         :: failure
-    
+    TYPE(qs_rho_type), POINTER               :: rho_input, rho_output
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(cp_error_type), INTENT(INOUT), &
+      OPTIONAL                               :: error
+
     CHARACTER(len=*), PARAMETER :: routineN = 'copy_rho_type', &
       routineP = moduleN//':'//routineN
 
+    INTEGER                                  :: handle, i, nspins, stat
+    LOGICAL                                  :: failure
+    TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(pw_env_type), POINTER               :: pw_env
+    TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
+
 !   ------------------------------------------------------------------------
- 
+
     CALL timeset(routineN, "I", "", handle)
 
     failure = .FALSE.
@@ -974,7 +965,7 @@ END SUBROUTINE qs_rho_update_rho
               END IF
             END DO
           END IF
-        END iF
+        END IF
       END IF
     END IF
 

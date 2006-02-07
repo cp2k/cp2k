@@ -17,16 +17,18 @@
 
 MODULE qs_harmonics_atom
 
-  USE basis_set_types,                 ONLY: get_gto_basis_set, &
+  USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                              gto_basis_set_type
   USE kinds,                           ONLY: dp
   USE lebedev,                         ONLY: lebedev_grid
-
   USE memory_utilities,                ONLY: reallocate
-  USE orbital_pointers,                ONLY: indso,&
-                                             nsoset,nso,&
-                                             soset,& 
-                                             ncoset,nco,indco
+  USE orbital_pointers,                ONLY: indco,&
+                                             indso,&
+                                             nco,&
+                                             ncoset,&
+                                             nso,&
+                                             nsoset,&
+                                             soset
   USE orbital_transformation_matrices, ONLY: orbtramat
   USE spherical_harmonics,             ONLY: y_lm
   USE termination,                     ONLY: stop_memory,&
@@ -38,7 +40,7 @@ MODULE qs_harmonics_atom
 
 ! *** Global parameters (only in this module)
 
-  CHARACTER(LEN=*), PARAMETER :: module_name = "qs_harmonics_atom"
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_harmonics_atom'
 
   TYPE harmonics_atom_type
 
@@ -85,9 +87,9 @@ MODULE qs_harmonics_atom
 
 !   ***************************************************************************
 
-    TYPE(harmonics_atom_type), POINTER        ::  harmonics
+    TYPE(harmonics_atom_type), POINTER       :: harmonics
 
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "allocate_harmonics_atom"
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'allocate_harmonics_atom'
 
     INTEGER                                  :: istat
 
@@ -96,7 +98,7 @@ MODULE qs_harmonics_atom
     IF (ASSOCIATED(harmonics)) CALL deallocate_harmonics_atom(harmonics)
 
     ALLOCATE (harmonics,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "harmonics",0)
     
     harmonics%max_s_harm=0
@@ -132,9 +134,9 @@ MODULE qs_harmonics_atom
 
 !   ***************************************************************************
 
-    TYPE(harmonics_atom_type), POINTER        ::  harmonics
+    TYPE(harmonics_atom_type), POINTER       :: harmonics
 
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "deallocate_harmonics_atom"
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'deallocate_harmonics_atom'
 
     INTEGER                                  :: istat
 
@@ -144,86 +146,86 @@ MODULE qs_harmonics_atom
 
       IF(ASSOCIATED(harmonics%ind_cg_a)) THEN
         DEALLOCATE (harmonics%ind_cg_a,STAT=istat)
-        IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+        IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "harmonics%ind_cg_a")
       ENDIF
 
       IF(ASSOCIATED(harmonics%ind_cg_b)) THEN
         DEALLOCATE (harmonics%ind_cg_b,STAT=istat)
-        IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+        IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "harmonics%ind_cg_b")
       ENDIF
 
       IF(ASSOCIATED(harmonics%ind_cg_a_dxyz)) THEN
         DEALLOCATE (harmonics%ind_cg_a_dxyz,STAT=istat)
-        IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+        IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "harmonics%ind_cg_a_dxyz")
       ENDIF
 
       IF(ASSOCIATED(harmonics%ind_cg_b_dxyz)) THEN
         DEALLOCATE (harmonics%ind_cg_b_dxyz,STAT=istat)
-        IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+        IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "harmonics%ind_cg_b_dxyz")
       ENDIF
 
       IF(ASSOCIATED(harmonics%slm)) THEN
         DEALLOCATE (harmonics%slm,STAT=istat)
-        IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+        IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "harmonics%slm")
       ENDIF
 
       IF(ASSOCIATED(harmonics%dslm)) THEN
         DEALLOCATE (harmonics%dslm,STAT=istat)
-        IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+        IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "harmonics%dslm")
       ENDIF
 
       IF(ASSOCIATED(harmonics%dslm_dxyz)) THEN
         DEALLOCATE (harmonics%dslm_dxyz,STAT=istat)
-        IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+        IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "harmonics%dslm_dxyz")
       ENDIF
 
       IF(ASSOCIATED(harmonics%slm_int)) THEN
         DEALLOCATE (harmonics%slm_int,STAT=istat)
-        IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+        IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "harmonics%slm_int")
       ENDIF
 
       IF(ASSOCIATED(harmonics%ncg)) THEN
         DEALLOCATE (harmonics%ncg,STAT=istat)
-        IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+        IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "harmonics%ncg")
       ENDIF
       IF(ASSOCIATED(harmonics%ncg_dxyz)) THEN
         DEALLOCATE (harmonics%ncg_dxyz,STAT=istat)
-        IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+        IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "harmonics%ncg_dxyz")
       ENDIF
 
       IF(ASSOCIATED(harmonics%my_CG)) THEN
         DEALLOCATE (harmonics%my_CG,STAT=istat)
-        IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+        IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "harmonics%my_CG")
       ENDIF
 
       IF(ASSOCIATED(harmonics%my_CG_dxyz)) THEN
         DEALLOCATE (harmonics%my_CG_dxyz,STAT=istat)
-        IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+        IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "harmonics%my_CG_dxyz")
       ENDIF
 
       IF(ASSOCIATED(harmonics%a)) THEN
         DEALLOCATE (harmonics%a,STAT=istat)
-        IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+        IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "harmonics%a")
       ENDIF
 
       DEALLOCATE (harmonics,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "harmonics")
     ELSE
-      CALL stop_program(routine_name,module_name,__LINE__,&
+      CALL stop_program(routineN,moduleN,__LINE__,&
                         "The pointer harmonics is not associated and "//&
                         "cannot be deallocated")
     END IF
@@ -236,31 +238,28 @@ MODULE qs_harmonics_atom
                                    llmax,max_s_harm,ll,wa,&
                                    azi,cos_azi,pol,cos_pol,cotan_azi)
 
-    TYPE(harmonics_atom_type), POINTER     :: harmonics
-    TYPE(gto_basis_set_type), POINTER      :: orb_basis
-    REAL(dp), DIMENSION(:,:,:), POINTER    :: my_CG
-    INTEGER,  INTENT(IN)                   :: ll,na,llmax,max_s_harm 
-    REAL(dp), DIMENSION(:), INTENT(IN)     :: wa
-    REAL(dp), DIMENSION(:), INTENT(IN)     :: azi, pol, cos_azi
-    REAL(dp), DIMENSION(:), INTENT(IN)     :: cos_pol, cotan_azi
+    TYPE(harmonics_atom_type), POINTER       :: harmonics
+    TYPE(gto_basis_set_type), POINTER        :: orb_basis
+    REAL(dp), DIMENSION(:, :, :), POINTER    :: my_CG
+    INTEGER, INTENT(IN)                      :: na, llmax, max_s_harm, ll
+    REAL(dp), DIMENSION(:), INTENT(IN)       :: wa, azi, cos_azi, pol, &
+                                                cos_pol, cotan_azi
 
-    CHARACTER(len=*), PARAMETER :: routine_name = 'create_harmonics_atom', &
-      routineP = module_name//':'//routine_name
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_harmonics_atom', &
+      routineP = moduleN//':'//routineN
 
-    REAL(dp), DIMENSION(:), POINTER      :: y , slm_int
-    REAL(dp), DIMENSION(:,:), POINTER    :: dy, slm,dc
-    REAL(dp), DIMENSION(:,:,:), POINTER  :: dslm_dxyz
-    INTEGER, DIMENSION(:), POINTER       :: lmax, lmin
-    INTEGER, DIMENSION(:), ALLOCATABLE   :: ind_cg_a,ind_cg_b
-    INTEGER, DIMENSION(:), ALLOCATABLE   :: ind_cg_a_d,ind_cg_b_d
-
-    INTEGER   :: i, ia, incg, incg_d, is1, is2, iso, iso_mm, &
-                 iso_mm1, iso_mp1, iso1, iso2, l, l1, l2, &
-                 m, mm, maxcg, maxcg_d, maxl, maxs, nset,max_iso_not0,&
-                 lx, ly, lz, n, ic, is
-    REAL(dp)  :: abs_m, cosmp1, drx, dry, drz, int1, &
-                 int2, int3, l_r, m_r, rx, ry, rz, sinmp1 
-    REAL(dp), DIMENSION(:,:,:),ALLOCATABLE :: ss
+    INTEGER :: i, ia, ic, incg, incg_d, is, is1, is2, iso, iso1, iso2, &
+      iso_mm, iso_mm1, iso_mp1, l, l1, l2, lx, ly, lz, m, max_iso_not0, &
+      maxcg, maxcg_d, maxl, maxs, mm, n, nset
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: ind_cg_a, ind_cg_a_d, &
+                                                ind_cg_b, ind_cg_b_d
+    INTEGER, DIMENSION(:), POINTER           :: lmax, lmin
+    REAL(dp)                                 :: abs_m, cosmp1, drx, dry, drz, &
+                                                int1, int2, int3, l_r, m_r, &
+                                                rx, ry, rz, sinmp1
+    REAL(dp), DIMENSION(:), POINTER          :: slm_int, y
+    REAL(dp), DIMENSION(:, :), POINTER       :: dc, dy, slm
+    REAL(dp), DIMENSION(:, :, :), POINTER    :: dslm_dxyz
 
 ! *****************************************************************************
 
@@ -281,17 +280,17 @@ MODULE qs_harmonics_atom
         DO is1 = 1, maxs
           harmonics%my_CG(1:maxs,is1,i) =  my_CG(1:maxs,is1,i)
         END DO
-      END Do
+      END DO
 
 !   *** allocate and calculate the spherical harmonics LM for this grid ***
 !       and their derivatives 
-      call reallocate(harmonics%slm,1,na,1,max_s_harm)
-      call reallocate(harmonics%dslm,1,2,1,na,1,max_s_harm)
+      CALL reallocate(harmonics%slm,1,na,1,max_s_harm)
+      CALL reallocate(harmonics%dslm,1,2,1,na,1,max_s_harm)
       CALL reallocate(harmonics%dslm_dxyz,1,3,1,na,1,max_s_harm)
-      call reallocate(harmonics%ncg,1,max_s_harm,1,nset,1,nset)
-      call reallocate(harmonics%ncg_dxyz,1,max_s_harm,1,nset,1,nset)
+      CALL reallocate(harmonics%ncg,1,max_s_harm,1,nset,1,nset)
+      CALL reallocate(harmonics%ncg_dxyz,1,max_s_harm,1,nset,1,nset)
       CALL reallocate(harmonics%a,1,3,1,na)
-      call reallocate(y,1,na)
+      CALL reallocate(y,1,na)
       CALL reallocate(dy,1,3,1,na)
       CALL reallocate(dc,1,nco(llmax),1,3)
       CALL reallocate(harmonics%slm_int,1,max_s_harm)
@@ -541,15 +540,15 @@ MODULE qs_harmonics_atom
                 DO l2 = lmin(is2), lmax(is2)
                   IF(l1+l2 > llmax) CYCLE
                   DO iso2 = nsoset(l2-1)+1,nsoset(l2)
-                    IF(abs(my_CG(iso1,iso2,iso)) > 1.E-8_dp) THEN
+                    IF(ABS(my_CG(iso1,iso2,iso)) > 1.E-8_dp) THEN
                       incg = incg + 1
                       ind_cg_a(incg) = iso1
                       ind_cg_b(incg) = iso2
                       max_iso_not0 = MAX(max_iso_not0,iso)
                     END IF
-                    rx = abs(harmonics%my_CG_dxyz(1,iso1,iso2,iso))+&
-                         abs(harmonics%my_CG_dxyz(2,iso1,iso2,iso))+&
-                         abs(harmonics%my_CG_dxyz(3,iso1,iso2,iso))
+                    rx = ABS(harmonics%my_CG_dxyz(1,iso1,iso2,iso))+&
+                         ABS(harmonics%my_CG_dxyz(2,iso1,iso2,iso))+&
+                         ABS(harmonics%my_CG_dxyz(3,iso1,iso2,iso))
                     IF(rx > 1.E-8_dp) THEN
                       incg_d = incg_d + 1
                       ind_cg_a_d(incg_d) = iso1
@@ -559,7 +558,7 @@ MODULE qs_harmonics_atom
                 END DO
               END DO
             END DO
-            maxcg = max(maxcg,incg)
+            maxcg = MAX(maxcg,incg)
             maxcg_d = MAX(maxcg_d,incg_d)
 
             harmonics%ind_cg_a(1:incg,iso,is1,is2) = &
@@ -620,7 +619,7 @@ MODULE qs_harmonics_atom
 
 
     ELSE
-      CALL stop_program(routine_name,module_name,__LINE__,&
+      CALL stop_program(routineN,moduleN,__LINE__,&
                "The pointer harmonics is not associated")
     ENDIF
 

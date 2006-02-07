@@ -24,23 +24,20 @@ MODULE pair_potential
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind
   USE erf_fn,                          ONLY: erfc
-  USE ewald_environment_types,         ONLY: ewald_environment_type, &
-                                             ewald_env_get
-  USE kinds,                           ONLY: dp, default_string_length
+  USE ewald_environment_types,         ONLY: ewald_env_get,&
+                                             ewald_environment_type
+  USE input_constants,                 ONLY: do_ewald_none
+  USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: pi
-  USE pair_potential_types,            ONLY: pair_potential_single_type,&
-                                             pair_potential_pp_type
+  USE pair_potential_types,            ONLY: pair_potential_pp_type,&
+                                             pair_potential_single_type
   USE splines,                         ONLY: init_spline,&
                                              init_splinexy,&
                                              spline_data_type,&
-                                             splineh, &
-                                             spline_environment_type
-  USE termination,                     ONLY: stop_memory,&
-                                             stop_program
-  USE input_constants,                 ONLY: do_ewald_none,&
-                                             do_ewald_ewald,&
-                                             do_ewald_pme,&
-                                             do_ewald_spme
+                                             spline_environment_type,&
+                                             splineh
+  USE termination,                     ONLY: stop_program
+
   IMPLICIT NONE
 
   PRIVATE
@@ -55,15 +52,14 @@ CONTAINS
 !******************************************************************************
 
 FUNCTION ener_pot ( pot, qi, qj, r, vdw_scale14 )
-  IMPLICIT NONE
-  ! Arguments
-  TYPE(pair_potential_single_type), POINTER    :: pot
-  REAL(KIND=dp), INTENT(IN)                    :: qi, qj, r
-  REAL(KIND=dp)                                :: ener_pot
-  ! Local Variables
-  REAL(KIND=dp)                                :: scale, pp, qq 
-  INTEGER                                      :: i, index
-  REAL(KIND=dp), OPTIONAL                      :: vdw_scale14
+    TYPE(pair_potential_single_type), &
+      POINTER                                :: pot
+    REAL(KIND=dp), INTENT(IN)                :: qi, qj, r
+    REAL(KIND=dp), OPTIONAL                  :: vdw_scale14
+    REAL(KIND=dp)                            :: ener_pot
+
+    INTEGER                                  :: i, index
+    REAL(KIND=dp)                            :: pp, qq, scale
 
   IF (pot%type=='LENNARD-JONES') THEN
    IF(PRESENT(vdw_scale14)) THEN
@@ -86,14 +82,14 @@ FUNCTION ener_pot ( pot, qi, qj, r, vdw_scale14 )
        ener_pot = pot % ipbv % m * r + pot % ipbv % b
      ENDIF
   ELSE IF (pot%type=='WILLIAMS') THEN
-     ener_pot = pot%willis%a*exp(-pot%willis%b*r) - pot%willis%c/r**6 &
+     ener_pot = pot%willis%a*EXP(-pot%willis%b*r) - pot%willis%c/r**6 &
           - pot%energy_cutoff
   ELSE IF (pot%type=='GOODWIN') THEN
-     scale = exp(pot%goodwin%m*(-(r/pot%goodwin%dc)**pot%goodwin%mc+(pot% &
+     scale = EXP(pot%goodwin%m*(-(r/pot%goodwin%dc)**pot%goodwin%mc+(pot% &
           goodwin%d/pot%goodwin%dc)**pot%goodwin%mc))
      ener_pot = scale*pot%goodwin%vr0*(pot%goodwin%d/r)**pot%goodwin%m
   ELSE IF (pot%type=='BMHFT') THEN
-     ener_pot = pot%ft%a*exp(-pot%ft%b*r) - pot%ft%c/r**6 - pot%ft%d/r**8 &
+     ener_pot = pot%ft%a*EXP(-pot%ft%b*r) - pot%ft%c/r**6 - pot%ft%d/r**8 &
           - pot%energy_cutoff
   ELSE IF (pot%type=='EAM') THEN
      index = INT ( r / pot % eam % drar ) + 1
@@ -120,16 +116,19 @@ END FUNCTION ener_pot
 FUNCTION ener_coul ( pot, qi, qj, r, ewald_env, ei_scale14 )
 
 
-    TYPE(pair_potential_single_type), POINTER          :: pot
-    REAL(KIND=dp), INTENT(IN)                          :: qi, qj, r
-    TYPE(ewald_environment_type), POINTER, OPTIONAL    :: ewald_env
-    REAL(KIND=dp)                                :: ener_coul
+    TYPE(pair_potential_single_type), &
+      POINTER                                :: pot
+    REAL(KIND=dp), INTENT(IN)                :: qi, qj, r
+    TYPE(ewald_environment_type), OPTIONAL, &
+      POINTER                                :: ewald_env
+    REAL(KIND=dp), OPTIONAL                  :: ei_scale14
+    REAL(KIND=dp)                            :: ener_coul
 
     REAL(KIND=dp), PARAMETER :: eps = 1.0E-6_dp, &
       ifourpi = 1.0_dp / ( 4.0_dp * pi )
-    INTEGER :: ewald_type
-    REAL (KIND=dp) :: eps0, alpha
-    REAL (KIND=dp),OPTIONAL :: ei_scale14
+
+    INTEGER                                  :: ewald_type
+    REAL(KIND=dp)                            :: alpha, eps0
 
 !------------------------------------------------------------------------------
 
@@ -156,18 +155,18 @@ SUBROUTINE spline_nonbond_control ( spline_env, potparm, atomic_kind_set, &
                                     ewald_env, ei_scale14, vdw_scale14 )
 
 
-    TYPE ( spline_environment_type ), POINTER           :: spline_env 
-    TYPE ( pair_potential_pp_type ), POINTER            :: potparm 
+    TYPE(spline_environment_type), POINTER   :: spline_env
+    TYPE(pair_potential_pp_type), POINTER    :: potparm
     TYPE(atomic_kind_type), DIMENSION(:), &
-      POINTER                                           :: atomic_kind_set
-    TYPE(ewald_environment_type), POINTER, OPTIONAL     :: ewald_env
+      POINTER                                :: atomic_kind_set
+    TYPE(ewald_environment_type), OPTIONAL, &
+      POINTER                                :: ewald_env
+    REAL(KIND=dp), OPTIONAL                  :: ei_scale14, vdw_scale14
 
-    INTEGER                                  :: i, isos, j, jx, n, ntype
-    INTEGER                                  :: npoints
-    REAL(KIND=dp)                            :: a, cutmax, cutmin, dx2, e, &
+    INTEGER                                  :: i, j, jx, n, npoints, ntype
+    REAL(KIND=dp)                            :: cutmax, cutmin, dx2, e, &
                                                 hicut, locut, qi, qj, x, x2
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
-    REAL(KIND=dp), OPTIONAL                  :: ei_scale14, vdw_scale14
 
 !------------------------------------------------------------------------------
 
@@ -223,7 +222,7 @@ SUBROUTINE spline_nonbond_control ( spline_env, potparm, atomic_kind_set, &
         potparm%pot(j,i)%pot %energy_cutoff = potparm%pot(i,j)%pot %energy_cutoff
         potparm%pot(j,i)%pot %e_cutoff_coul = potparm%pot(i,j)%pot %e_cutoff_coul
 
-        dx2 = (hicut**2-locut**2)/real(npoints)
+        dx2 = (hicut**2-locut**2)/REAL(npoints)
         x2 = locut**2
         DO jx = 1, npoints + 1 ! jx: loop over distance**2
            x = SQRT ( x2 )
@@ -254,9 +253,9 @@ END SUBROUTINE spline_nonbond_control
 SUBROUTINE potential_s ( spline_table, rijsq, energy, fscalar )
 
 
-    REAL(KIND=dp), INTENT(IN)                    :: rijsq
-    REAL(KIND=dp), INTENT(OUT)                   :: energy, fscalar
-    TYPE ( spline_data_type ), INTENT ( IN )     :: spline_table
+    TYPE(spline_data_type), INTENT(IN)       :: spline_table
+    REAL(KIND=dp), INTENT(IN)                :: rijsq
+    REAL(KIND=dp), INTENT(OUT)               :: energy, fscalar
 
 !------------------------------------------------------------------------------
 
@@ -268,17 +267,15 @@ END SUBROUTINE potential_s
 !******************************************************************************
 
 SUBROUTINE potential_f ( rijsq, potparm, qi, qj, iatom, jatom, energy, ewald_env )
-  IMPLICIT NONE
-  ! Arguments
-  REAL(KIND=dp), INTENT(IN)                    :: rijsq
-  TYPE(pair_potential_pp_type), POINTER        :: potparm
-  REAL(KIND=dp), INTENT(IN)                    :: qi, qj
-  INTEGER, INTENT(IN)                      :: iatom, jatom
-  REAL(KIND=dp), INTENT(OUT)                   :: energy
-  TYPE(ewald_environment_type), &
-       POINTER, OPTIONAL                      :: ewald_env
-  ! Local Variables
-  REAL(KIND=dp)                                :: rij
+    REAL(KIND=dp), INTENT(IN)                :: rijsq
+    TYPE(pair_potential_pp_type), POINTER    :: potparm
+    REAL(KIND=dp), INTENT(IN)                :: qi, qj
+    INTEGER, INTENT(IN)                      :: iatom, jatom
+    REAL(KIND=dp), INTENT(OUT)               :: energy
+    TYPE(ewald_environment_type), OPTIONAL, &
+      POINTER                                :: ewald_env
+
+    REAL(KIND=dp)                            :: rij
 
   rij = SQRT ( rijsq )
 

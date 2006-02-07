@@ -43,23 +43,23 @@ MODULE qs_wf_history_methods
   USE cp_fm_types,                     ONLY: cp_fm_create,&
                                              cp_fm_get_info,&
                                              cp_fm_release,&
-                                             cp_fm_type, &
-                                             cp_fm_to_fm
+                                             cp_fm_to_fm,&
+                                             cp_fm_type
   USE cp_sm_fm_interactions,           ONLY: cp_sm_fm_multiply
   USE cp_sm_pool_types,                ONLY: cp_sm_pool_p_type,&
                                              sm_pool_create_matrix,&
                                              sm_pools_create_matrix_vect
   USE global_types,                    ONLY: global_environment_type
-  USE kg_gpw_fm_mol_types,             ONLY: kg_fm_mol_set_create,&
+  USE kg_gpw_fm_mol_types,             ONLY: duplicate_kg_fm_p_type,&
+                                             kg_fm_mol_set_create,&
                                              kg_fm_mol_set_release,&
                                              kg_fm_mol_set_type,&
-                                             kg_gpw_fm_mol_to_fm_mol, &
-                                             duplicate_kg_fm_p_type
+                                             kg_gpw_fm_mol_to_fm_mol
+  USE kg_gpw_pw_env_methods,           ONLY: kg_rho_update_rho_mol
+  USE kg_gpw_pw_env_types,             ONLY: kg_sub_pw_env_type
   USE kg_gpw_wf_history,               ONLY: kg_gpw_fm_mol_linear,&
                                              kg_gpw_fm_mol_ps,&
                                              kg_gpw_prev_wf
-  USE kg_gpw_pw_env_methods,           ONLY: kg_rho_update_rho_mol
-  USE kg_gpw_pw_env_types,             ONLY: kg_sub_pw_env_type
   USE kinds,                           ONLY: dp
   USE mathlib,                         ONLY: binomial
   USE pw_env_types,                    ONLY: pw_env_get,&
@@ -81,35 +81,25 @@ MODULE qs_wf_history_methods
   USE qs_mo_types,                     ONLY: get_mo_set,&
                                              mo_set_p_type
   USE qs_rho_atom_methods,             ONLY: calculate_rho_atom_coeff
-  USE qs_rho_methods,                  ONLY: qs_rho_update_rho, &
-                                             duplicate_rho_type, &
-                                             copy_rho_type
+  USE qs_rho_methods,                  ONLY: copy_rho_type,&
+                                             duplicate_rho_type,&
+                                             qs_rho_update_rho
   USE qs_rho_types,                    ONLY: qs_rho_get,&
-                                             qs_rho_type, &
-                                             qs_rho_release
-  USE qs_wf_history_types,             ONLY: qs_wf_history_type,&
-                                             qs_wf_snapshot_type,&
-                                             wfi_get_snapshot,&
-                                             wfi_linear_p_method_nr,&
-                                             wfi_linear_ps_method_nr,&
-                                             wfi_linear_wf_method_nr,&
-                                             wfi_ps_method_nr,&
-                                             wfi_use_guess_method_nr,&
-                                             wfi_use_prev_p_method_nr,&
-                                             wfi_use_prev_rho_r_method_nr,&
-                                             wfi_use_prev_wf_method_nr,&
-                                             wfi_frozen_method_nr,&
-                                             wfi_aspc, &
-                                             wfi_clear_history, &
-                                             wfs_release
-  USE sparse_matrix_types,             ONLY: copy_matrix,&
+                                             qs_rho_type
+  USE qs_wf_history_types,             ONLY: &
+       qs_wf_history_type, qs_wf_snapshot_type, wfi_aspc, wfi_clear_history, &
+       wfi_frozen_method_nr, wfi_get_snapshot, wfi_linear_p_method_nr, &
+       wfi_linear_ps_method_nr, wfi_linear_wf_method_nr, wfi_ps_method_nr, &
+       wfi_use_guess_method_nr, wfi_use_prev_p_method_nr, &
+       wfi_use_prev_rho_r_method_nr, wfi_use_prev_wf_method_nr, wfs_release
+  USE sparse_matrix_types,             ONLY: allocate_matrix_set,&
+                                             copy_matrix,&
                                              cp_sm_scale_and_add,&
                                              deallocate_matrix,&
                                              deallocate_matrix_set,&
                                              real_matrix_p_type,&
-                                             transfer_matrix, &
-                                             replicate_matrix, &
-                                             allocate_matrix_set
+                                             replicate_matrix,&
+                                             transfer_matrix
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "cp_common_uses.h"
@@ -118,7 +108,7 @@ MODULE qs_wf_history_methods
   PRIVATE
 
   LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
-  CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='qs_wf_history_methods'
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_wf_history_methods'
   INTEGER, SAVE, PRIVATE :: last_wfs_id=0, last_wfi_id=0
 
   PUBLIC :: wfs_create, wfi_create, wfi_update, &
@@ -222,14 +212,11 @@ END SUBROUTINE wfs_create
     CHARACTER(len=*), PARAMETER :: routineN = 'wfs_duplicate_snapshot', &
       routineP = moduleN//':'//routineN
 
+    INTEGER                                  :: handle, i, nspins, stat
     LOGICAL                                  :: failure
-    INTEGER                                  :: handle, &
-                                                i, &
-                                                stat, &
-                                                nspins
-    TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
-    TYPE(pw_env_type), POINTER               :: pw_env
     TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(pw_env_type), POINTER               :: pw_env
+    TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
 
 !   ------------------------------------------------------------------------
 
@@ -379,15 +366,11 @@ END SUBROUTINE wfs_create
     CHARACTER(len=*), PARAMETER :: routineN = 'wfs_copy_snapshot', &
       routineP = moduleN//':'//routineN
 
+    INTEGER                                  :: handle, i, nspins
     LOGICAL                                  :: failure
-    INTEGER                                  :: handle, &
-                                                i, &
-                                                stat, &
-                                                nspins, &
-                                                ispin
-    TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
-    TYPE(pw_env_type), POINTER               :: pw_env
     TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(pw_env_type), POINTER               :: pw_env
+    TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
 
 !   ------------------------------------------------------------------------
 
@@ -524,16 +507,15 @@ SUBROUTINE wfs_update(snapshot,wf_history,qs_env,dt,kg_fm_mol_set,error)
     TYPE(qs_environment_type), POINTER       :: qs_env
     REAL(KIND=dp), INTENT(in), OPTIONAL      :: dt
     TYPE(kg_fm_mol_set_type), DIMENSION(:), &
-      POINTER, OPTIONAL                      :: kg_fm_mol_set
+      OPTIONAL, POINTER                      :: kg_fm_mol_set
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'wfs_update', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, i, icount, ispin, &
-                                                nmolecule_kind,&
-                                                nspins, stat
+    INTEGER                                  :: handle, i, ispin, &
+                                                nmolecule_kind, nspins, stat
     LOGICAL                                  :: failure, kg_gpw
     TYPE(coeff_type), DIMENSION(:), POINTER  :: rho_g, rho_r
     TYPE(cp_fm_pool_p_type), DIMENSION(:), &
@@ -936,19 +918,15 @@ END FUNCTION wfi_get_method_label
 !!*** **********************************************************************
 SUBROUTINE wfi_extrapolate(globenv,wf_history, qs_env, dt, extrapolation_method_nr, &
      orthogonal_wf, kg_gpw, gapw, gapw_xc, kg_fm_mol_set, error)
-    TYPE(global_environment_type), &
-      pointer                     :: globenv
+    TYPE(global_environment_type), POINTER   :: globenv
     TYPE(qs_wf_history_type), POINTER        :: wf_history
     TYPE(qs_environment_type), POINTER       :: qs_env
     REAL(KIND=dp), INTENT(in)                :: dt
     INTEGER, INTENT(out), OPTIONAL           :: extrapolation_method_nr
     LOGICAL, INTENT(out), OPTIONAL           :: orthogonal_wf
-    LOGICAL, INTENT(IN), OPTIONAL            :: gapw
-    LOGICAL, INTENT(IN), OPTIONAL            :: gapw_xc
-    LOGICAL, INTENT(IN), OPTIONAL            :: kg_gpw
+    LOGICAL, INTENT(IN), OPTIONAL            :: kg_gpw, gapw, gapw_xc
     TYPE(kg_fm_mol_set_type), DIMENSION(:), &
-      POINTER, OPTIONAL                      :: kg_fm_mol_set
-
+      OPTIONAL, POINTER                      :: kg_fm_mol_set
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -958,14 +936,15 @@ SUBROUTINE wfi_extrapolate(globenv,wf_history, qs_env, dt, extrapolation_method_
     INTEGER                                  :: actual_extrapolation_method_nr&
                                                 , handle, i, ispin, k, n, &
                                                 nmo, nvec
-    LOGICAL                                  :: failure, my_gapw, my_gapw_xc, my_kg_gpw,&
-                                                my_orthogonal_wf, ionode
+    LOGICAL                                  :: failure, ionode, my_gapw, &
+                                                my_gapw_xc, my_kg_gpw, &
+                                                my_orthogonal_wf
     REAL(KIND=dp)                            :: alpha, beta, t0, t1, t2
     TYPE(cp_fm_pool_p_type), DIMENSION(:), &
       POINTER                                :: ao_mo_fm_pools
     TYPE(cp_fm_struct_type), POINTER         :: matrix_struct, &
                                                 matrix_struct_new
-    TYPE(cp_fm_type), POINTER                :: csc, mo_coeff, fm_tmp
+    TYPE(cp_fm_type), POINTER                :: csc, fm_tmp, mo_coeff
     TYPE(kg_sub_pw_env_type), POINTER        :: kg_sub_pw_env
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos
@@ -1123,7 +1102,7 @@ SUBROUTINE wfi_extrapolate(globenv,wf_history, qs_env, dt, extrapolation_method_
         t1_state => wfi_get_snapshot(wf_history, index=1, error=error)
         CPPrecondition(ASSOCIATED(t0_state),cp_warning_level,routineP,error,failure)
         CPPrecondition(ASSOCIATED(t1_state),cp_warning_level,routineP,error,failure)
-        IF(.not. failure .AND. my_kg_gpw) THEN
+        IF(.NOT. failure .AND. my_kg_gpw) THEN
            CPPrecondition(ASSOCIATED(t0_state%wf_mol),cp_warning_level,routineP,error,failure)
            CPPrecondition(ASSOCIATED(t1_state%wf_mol),cp_warning_level,routineP,error,failure)           
         ELSE IF (.not.failure) THEN
@@ -1240,7 +1219,7 @@ SUBROUTINE wfi_extrapolate(globenv,wf_history, qs_env, dt, extrapolation_method_
            ! use PS_2=2 PS_1-PS_0
            ! C_2 comes from using PS_2 as a projector acting on C_1
            IF(my_kg_gpw) THEN
-             stop 'kg_gpw wfi_linear_ps_method_nr and not implemented yet' 
+             STOP 'kg_gpw wfi_linear_ps_method_nr and not implemented yet' 
              CPPrecondition(PRESENT(kg_fm_mol_set),cp_failure_level,routineP,error,failure)
            ELSE
              DO ispin=1,SIZE(mos)
@@ -1482,7 +1461,7 @@ SUBROUTINE wfi_update(wf_history, qs_env, dt, kg_fm_mol_set, error)
     TYPE(qs_environment_type), POINTER       :: qs_env
     REAL(KIND=dp), INTENT(in)                :: dt
     TYPE(kg_fm_mol_set_type), DIMENSION(:), &
-      POINTER, OPTIONAL                      :: kg_fm_mol_set
+      OPTIONAL, POINTER                      :: kg_fm_mol_set
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -1539,7 +1518,7 @@ END SUBROUTINE wfi_update
   SUBROUTINE wfi_duplicate_history(input_wf_history, output_wf_history, qs_env, &
                                    error)
     TYPE(qs_wf_history_type), POINTER        :: input_wf_history, &
-                                                output_wf_history    
+                                                output_wf_history
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
@@ -1547,10 +1526,8 @@ END SUBROUTINE wfi_update
     CHARACTER(len=*), PARAMETER :: routineN = 'wfi_duplicate_history', &
       routineP = moduleN//':'//routineN
 
+    INTEGER                                  :: handle, i, stat
     LOGICAL                                  :: failure
-    INTEGER                                  :: handle, &
-                                                i, &
-                                                stat
 
 !   ------------------------------------------------------------------------
 
@@ -1637,7 +1614,7 @@ END SUBROUTINE wfi_update
   SUBROUTINE wfi_copy_history(input_wf_history, output_wf_history, qs_env, &
                               error)
     TYPE(qs_wf_history_type), POINTER        :: input_wf_history, &
-                                                output_wf_history    
+                                                output_wf_history
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
@@ -1645,10 +1622,8 @@ END SUBROUTINE wfi_update
     CHARACTER(len=*), PARAMETER :: routineN = 'wfi_copy_history', &
       routineP = moduleN//':'//routineN
 
+    INTEGER                                  :: handle, i
     LOGICAL                                  :: failure
-    INTEGER                                  :: handle, &
-                                                i, &
-                                                stat
 
 !   ------------------------------------------------------------------------
 

@@ -26,19 +26,12 @@
 !!   SOURCE
 !*****************************************************************************
 MODULE cp_matrix_utils
-  USE cp_array_utils,                  ONLY: cp_2d_i_guarantee_size,&
-                                             cp_2d_logical_guarantee_size,&
-                                             cp_2d_r_write
-  USE cp_para_types,                   ONLY: cp_para_env_type
+  USE cp_array_utils,                  ONLY: cp_2d_r_write
   USE cp_sm_struct,                    ONLY: cp_sm_struct_type,&
                                              sm_struct_add_local_block
   USE kinds,                           ONLY: dp
   USE machine,                         ONLY: m_flush
-  USE mathlib,                         ONLY: symmetrize_matrix
-  USE message_passing,                 ONLY: mp_sum
-  USE sparse_matrix_types,             ONLY: add_block_node,&
-                                             find_block_node,&
-                                             first_block_node,&
+  USE sparse_matrix_types,             ONLY: first_block_node,&
                                              get_block_node,&
                                              get_matrix_info,&
                                              next_block_node,&
@@ -52,7 +45,7 @@ MODULE cp_matrix_utils
   PRIVATE
 
   LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
-  CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='cp_matrix_utils'
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_matrix_utils'
 ! types
   PUBLIC :: cp_matrix_block_iterator
 
@@ -144,14 +137,15 @@ CONTAINS
        block_node, error)
     TYPE(cp_matrix_block_iterator), &
       INTENT(out)                            :: block_iterator
-    TYPE(real_matrix_type), pointer          :: matrix
+    TYPE(real_matrix_type), POINTER          :: matrix
     INTEGER, INTENT(in), OPTIONAL            :: block_row
     TYPE(real_block_node_type), OPTIONAL, &
-         POINTER                                 :: block_node
+      POINTER                                :: block_node
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-    CHARACTER(len=*), PARAMETER :: routineP = 'cp_matrix_utils:cp_sm_b_i_init'
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_sm_b_i_init', &
+      routineP = moduleN//':'//routineN
 
     LOGICAL                                  :: failure
 
@@ -229,7 +223,8 @@ CONTAINS
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-    CHARACTER(len=*), PARAMETER :: routineP = 'cp_matrix_utils:cp_sm_b_i_get'
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_sm_b_i_get', &
+      routineP = moduleN//':'//routineN
 
     LOGICAL                                  :: failure
 
@@ -326,7 +321,8 @@ CONTAINS
       OPTIONAL                               :: error
     LOGICAL                                  :: res
 
-    CHARACTER(len=*), PARAMETER :: routineP = 'cp_matrix_utils:cp_sm_b_i_next'
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_sm_b_i_next', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, nblock_row
     LOGICAL                                  :: failure

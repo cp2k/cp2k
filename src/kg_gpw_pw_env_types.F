@@ -32,29 +32,29 @@
 
 MODULE kg_gpw_pw_env_types
 
+  USE cell_types,                      ONLY: cell_release,&
+                                             cell_retain,&
+                                             cell_type
   USE cube_utils,                      ONLY: destroy_cube_info
+  USE input_section_types,             ONLY: section_vals_type
   USE kg_gpw_fm_mol_types,             ONLY: fm_mol_blocks_type
-  USE kinds,                           ONLY: dp,dp_size
+  USE kinds,                           ONLY: dp
   USE pw_env_types,                    ONLY: pw_env_release,&
                                              pw_env_retain,&
                                              pw_env_type
+  USE pw_poisson_types,                ONLY: pw_poisson_release,&
+                                             pw_poisson_retain,&
+                                             pw_poisson_type
   USE qs_rho_types,                    ONLY: qs_rho_release,&
                                              qs_rho_retain,&
                                              qs_rho_type
-  USE cell_types,                 ONLY: cell_release,&
-                                             cell_retain,&
-                                             cell_type
-  USE termination,                     ONLY: stop_memory,&
-                                             stop_program
-  USE input_section_types,             ONLY: section_vals_type
-
-  USE pw_poisson_types, ONLY: pw_poisson_type, pw_poisson_release, pw_poisson_retain
 #include "cp_common_uses.h"
+
   IMPLICIT NONE
 
   PRIVATE
 
-  CHARACTER(LEN=*), PARAMETER :: module_name = "kg_gpw_pw_env_types"
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'kg_gpw_pw_env_types'
 
 ! *** Define the derived structure types ***
 
@@ -100,16 +100,17 @@ CONTAINS
 
   SUBROUTINE deallocate_rho_mol_blocks(rho_mol_blocks,error)
 
-    TYPE(rho_mol_blocks_type), DIMENSION(:),POINTER :: rho_mol_blocks
+    TYPE(rho_mol_blocks_type), &
+      DIMENSION(:), POINTER                  :: rho_mol_blocks
     TYPE(cp_error_type), INTENT(inout), &
-       OPTIONAL                                :: error
+      OPTIONAL                               :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'deallocate_rho_mol_blocks',&
-      routineP = module_name//':'//routineN
+    CHARACTER(len=*), PARAMETER :: routineN = 'deallocate_rho_mol_blocks', &
+      routineP = moduleN//':'//routineN
 
-    INTEGER :: imol, istat, nmol
-    LOGICAL :: failure
-    TYPE(rho_mol_blocks_type), POINTER         :: rho_mol_iblock
+    INTEGER                                  :: imol, istat, nmol
+    LOGICAL                                  :: failure
+    TYPE(rho_mol_blocks_type), POINTER       :: rho_mol_iblock
 
     failure = .FALSE.
 
@@ -138,13 +139,13 @@ CONTAINS
   SUBROUTINE get_molbox_env(molbox_env, natom, nmolecule_local,&
                             cell_mol,poisson_env,pw_env_mol,rho_mol_blocks)
 
-    TYPE(kg_molbox_env_type), POINTER          :: molbox_env
-    INTEGER, INTENT(OUT), OPTIONAL             :: natom, nmolecule_local
-    TYPE(cell_type) , POINTER, OPTIONAL        :: cell_mol
-    TYPE(pw_poisson_type), POINTER ,OPTIONAL   :: poisson_env
-    TYPE(pw_env_type) , POINTER, OPTIONAL      :: pw_env_mol
-    TYPE(rho_mol_blocks_type), DIMENSION(:),&
-      POINTER, OPTIONAL                        :: rho_mol_blocks
+    TYPE(kg_molbox_env_type), POINTER        :: molbox_env
+    INTEGER, INTENT(OUT), OPTIONAL           :: natom, nmolecule_local
+    TYPE(cell_type), OPTIONAL, POINTER       :: cell_mol
+    TYPE(pw_poisson_type), OPTIONAL, POINTER :: poisson_env
+    TYPE(pw_env_type), OPTIONAL, POINTER     :: pw_env_mol
+    TYPE(rho_mol_blocks_type), &
+      DIMENSION(:), OPTIONAL, POINTER        :: rho_mol_blocks
 
     IF(PRESENT(natom))  natom = molbox_env%natom
     IF(PRESENT(nmolecule_local)) nmolecule_local =  molbox_env%nmolecule_local
@@ -159,10 +160,11 @@ CONTAINS
 
   SUBROUTINE get_rho_mol_block(rho_block,rho_mol,index_atom,r_in_molbox,r_in_totbox)
 
-    TYPE(rho_mol_blocks_type), POINTER          :: rho_block
-    TYPE(qs_rho_type), POINTER, OPTIONAL        :: rho_mol
-    INTEGER, DIMENSION(:), POINTER, OPTIONAL    :: index_atom
-    REAL(dp), DIMENSION(:,:), POINTER, OPTIONAL :: r_in_molbox, r_in_totbox
+    TYPE(rho_mol_blocks_type), POINTER       :: rho_block
+    TYPE(qs_rho_type), OPTIONAL, POINTER     :: rho_mol
+    INTEGER, DIMENSION(:), OPTIONAL, POINTER :: index_atom
+    REAL(dp), DIMENSION(:, :), OPTIONAL, &
+      POINTER                                :: r_in_molbox, r_in_totbox
 
     IF(PRESENT(rho_mol)) rho_mol => rho_block%rho_mol
     IF(PRESENT(index_atom)) index_atom => rho_block%index_atom
@@ -175,11 +177,11 @@ CONTAINS
 
   SUBROUTINE set_rho_mol_block(rho_block,r0_molecule,rho_mol,error)
 
-    TYPE(rho_mol_blocks_type), POINTER          :: rho_block
-    REAL(dp), INTENT(IN), OPTIONAL              :: r0_molecule(3)
-    TYPE(qs_rho_type), POINTER, OPTIONAL        :: rho_mol
+    TYPE(rho_mol_blocks_type), POINTER       :: rho_block
+    REAL(dp), INTENT(IN), OPTIONAL           :: r0_molecule(3)
+    TYPE(qs_rho_type), OPTIONAL, POINTER     :: rho_mol
     TYPE(cp_error_type), INTENT(inout), &
-       OPTIONAL                                 :: error
+      OPTIONAL                               :: error
 
     IF(PRESENT(r0_molecule)) rho_block%r0_molecule(1:3) = r0_molecule(1:3)
     IF (PRESENT(rho_mol)) THEN ! accepts also null pointers !
@@ -194,16 +196,16 @@ CONTAINS
 
   SUBROUTINE kg_sub_pw_env_create(kg_sub_pw_env,nmolecule_kind,error)
 
-    TYPE(kg_sub_pw_env_type), POINTER          :: kg_sub_pw_env
-    INTEGER                                    :: nmolecule_kind
+    TYPE(kg_sub_pw_env_type), POINTER        :: kg_sub_pw_env
+    INTEGER                                  :: nmolecule_kind
     TYPE(cp_error_type), INTENT(inout), &
-       OPTIONAL                                :: error
+      OPTIONAL                               :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'kg_sub_pw_env_create',&
-      routineP = module_name//':'//routineN
+    CHARACTER(len=*), PARAMETER :: routineN = 'kg_sub_pw_env_create', &
+      routineP = moduleN//':'//routineN
 
-    INTEGER                                    :: i, istat
-    LOGICAL                                    :: failure
+    INTEGER                                  :: i, istat
+    LOGICAL                                  :: failure
 
     failure = .FALSE.
 
@@ -233,17 +235,17 @@ CONTAINS
   SUBROUTINE kg_sub_pw_env_destroy(molbox_env_set, force_env_section, error)
 
     TYPE(kg_molbox_env_type), DIMENSION(:), &
-      POINTER                                  :: molbox_env_set
+      POINTER                                :: molbox_env_set
+    TYPE(section_vals_type), POINTER         :: force_env_section
     TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                                 :: error
-    TYPE(section_vals_type), POINTER :: force_env_section
+      OPTIONAL                               :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'kg_sub_pw_env_destroy',&
-      routineP = module_name//':'//routineN
+    CHARACTER(len=*), PARAMETER :: routineN = 'kg_sub_pw_env_destroy', &
+      routineP = moduleN//':'//routineN
 
-    INTEGER                                    :: igrid_level, ikind, imol, istat, n, nmol
-    LOGICAL                                    :: failure
-    TYPE(rho_mol_blocks_type), POINTER         :: rho_mol_block
+    INTEGER                                  :: igrid_level, ikind, istat, n, &
+                                                nmol
+    LOGICAL                                  :: failure
 
     failure=.FALSE.
 
@@ -283,16 +285,16 @@ CONTAINS
 
   SUBROUTINE kg_sub_pw_env_release(kg_sub_pw_env,force_env_section,error)
 
-    TYPE(kg_sub_pw_env_type), POINTER          :: kg_sub_pw_env
+    TYPE(kg_sub_pw_env_type), POINTER        :: kg_sub_pw_env
+    TYPE(section_vals_type), POINTER         :: force_env_section
     TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                                 :: error
-    TYPE(section_vals_type), POINTER :: force_env_section
+      OPTIONAL                               :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'kg_sub_pw_env_release',&
-      routineP = module_name//':'//routineN
+    CHARACTER(len=*), PARAMETER :: routineN = 'kg_sub_pw_env_release', &
+      routineP = moduleN//':'//routineN
 
-    INTEGER                                    :: istat
-    LOGICAL                                    :: failure
+    INTEGER                                  :: istat
+    LOGICAL                                  :: failure
 
     failure=.FALSE.
 
@@ -316,14 +318,14 @@ CONTAINS
 
   SUBROUTINE kg_sub_pw_env_retain(kg_sub_pw_env,error)
 
-    TYPE(kg_sub_pw_env_type), POINTER          :: kg_sub_pw_env
+    TYPE(kg_sub_pw_env_type), POINTER        :: kg_sub_pw_env
     TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                                 :: error
+      OPTIONAL                               :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'kg_sub_pw_env_retain',&
-      routineP = module_name//':'//routineN
+    CHARACTER(len=*), PARAMETER :: routineN = 'kg_sub_pw_env_retain', &
+      routineP = moduleN//':'//routineN
 
-    LOGICAL                                   :: failure
+    LOGICAL                                  :: failure
 
     failure=.FALSE.
   
@@ -339,18 +341,19 @@ CONTAINS
 
   SUBROUTINE rho_mol_blocks_create(rho_mol_blocks,nmol,natom,fm_mol_blocks,error)
 
-    TYPE(rho_mol_blocks_type), DIMENSION(:), POINTER :: rho_mol_blocks
-    INTEGER, INTENT(IN)                        :: natom, nmol
-    TYPE(fm_mol_blocks_type), DIMENSION(:),&
-      POINTER                                  :: fm_mol_blocks
+    TYPE(rho_mol_blocks_type), &
+      DIMENSION(:), POINTER                  :: rho_mol_blocks
+    INTEGER, INTENT(IN)                      :: nmol, natom
+    TYPE(fm_mol_blocks_type), DIMENSION(:), &
+      POINTER                                :: fm_mol_blocks
     TYPE(cp_error_type), INTENT(INOUT), &
-      OPTIONAL                                 :: error
+      OPTIONAL                               :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = "rho_mol_blocks_create", &
-      routineP = module_name//':'//routineN
+    CHARACTER(len=*), PARAMETER :: routineN = 'rho_mol_blocks_create', &
+      routineP = moduleN//':'//routineN
 
-    INTEGER :: imol, istat
-    LOGICAL :: failure
+    INTEGER                                  :: imol, istat
+    LOGICAL                                  :: failure
 
     failure = .FALSE.
 
@@ -380,19 +383,18 @@ CONTAINS
   SUBROUTINE set_molbox_env(molbox_env,cell_mol,poisson_env,force_env_section,&
        pw_env_mol,rho_mol_blocks,error)
 
-    TYPE(kg_molbox_env_type), POINTER          :: molbox_env
-    TYPE(cell_type) , POINTER, OPTIONAL        :: cell_mol
-    TYPE(pw_poisson_type), POINTER, OPTIONAL   :: poisson_env
-    TYPE(pw_env_type) , POINTER, OPTIONAL      :: pw_env_mol
-    TYPE(rho_mol_blocks_type), DIMENSION(:),&
-      POINTER, OPTIONAL                        :: rho_mol_blocks
+    TYPE(kg_molbox_env_type), POINTER        :: molbox_env
+    TYPE(cell_type), OPTIONAL, POINTER       :: cell_mol
+    TYPE(pw_poisson_type), OPTIONAL, POINTER :: poisson_env
+    TYPE(section_vals_type), POINTER         :: force_env_section
+    TYPE(pw_env_type), OPTIONAL, POINTER     :: pw_env_mol
+    TYPE(rho_mol_blocks_type), &
+      DIMENSION(:), OPTIONAL, POINTER        :: rho_mol_blocks
     TYPE(cp_error_type), INTENT(INOUT), &
-      OPTIONAL                                 :: error
-     TYPE(section_vals_type), POINTER :: force_env_section
+      OPTIONAL                               :: error
 
-
-    CHARACTER(len=*), PARAMETER :: routineN = "set_molbox_env", &
-      routineP = module_name//':'//routineN
+    CHARACTER(len=*), PARAMETER :: routineN = 'set_molbox_env', &
+      routineP = moduleN//':'//routineN
 
     LOGICAL                                  :: failure
 

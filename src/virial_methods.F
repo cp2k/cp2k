@@ -19,12 +19,12 @@
 
 MODULE virial_methods
 
-  USE atomic_kind_types,               ONLY: atomic_kind_type, &
+  USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind
   USE distribution_1d_types,           ONLY: distribution_1d_type
+  USE kinds,                           ONLY: dp
   USE message_passing,                 ONLY: mp_sum
   USE particle_types,                  ONLY: particle_type
-  USE kinds,                           ONLY: dp
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE virial_types,                    ONLY: virial_type
@@ -35,7 +35,7 @@ MODULE virial_methods
   PRIVATE
   PUBLIC:: virial_evaluate
 
-  CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='virial_methods'
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'virial_methods'
 
 !!*****
 !******************************************************************************
@@ -75,22 +75,23 @@ CONTAINS
 SUBROUTINE virial_evaluate ( atomic_kind_set, particle_set, &
                              local_particles, virial, igroup  )
 
-  IMPLICIT NONE
 
-! Arguments
-  TYPE ( atomic_kind_type ), DIMENSION ( : ), POINTER :: atomic_kind_set
-  TYPE ( particle_type ), DIMENSION ( : ), POINTER :: particle_set
-  TYPE ( distribution_1d_type ), POINTER :: local_particles
-  TYPE ( virial_type ), INTENT ( INOUT ) :: virial
-  INTEGER, INTENT ( IN ) :: igroup
+    TYPE(atomic_kind_type), DIMENSION(:), &
+      POINTER                                :: atomic_kind_set
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particle_set
+    TYPE(distribution_1d_type), POINTER      :: local_particles
+    TYPE(virial_type), INTENT(INOUT)         :: virial
+    INTEGER, INTENT(IN)                      :: igroup
 
-! Locals
-  INTEGER :: i, j, handle, iparticle_kind, nparticle_kind, nnodes
-  INTEGER :: nparticle_local, iparticle_local, iparticle
-  REAL (KIND=dp) :: mass, mfl
-  TYPE ( atomic_kind_type ), POINTER :: atomic_kind
+    INTEGER :: handle, i, iparticle, iparticle_kind, iparticle_local, j, &
+      nnodes, nparticle_kind, nparticle_local
+    REAL(KIND=dp)                            :: mass, mfl
+    TYPE(atomic_kind_type), POINTER          :: atomic_kind
+
 !
 !------------------------------------------------------------------------------
+
    IF ( virial % pv_availability ) THEN
      CALL timeset ( 'PRESSURE', 'E', 'Mflops', handle )
      mfl = 0.0_dp

@@ -18,124 +18,49 @@ MODULE cp_control_utils
                                              dft_control_type,&
                                              gapw_control_create,&
                                              qs_control_type,&
-                                             tddfpt_control_type,&
-                                             wave_control_type
-  USE input_constants,                 ONLY: do_loc_min,&
-                                             do_loc_max,&
-                                             do_loc_jacobi,&
-                                             do_loc_crazy,&
-                                             do_loc_direct,&
-                                             do_loc_none,&
-                                             op_loc_berry,&
-                                             op_loc_boys,&
-                                             op_loc_pipek,&
-                                             state_loc_all,&
-                                             state_loc_upton,&
-                                             state_loc_fromitoj,&
-                                             state_loc_list,&
-                                             state_loc_none,&
-                                             oe_none,&
-                                             oe_saop,&
-                                             oe_sic,&
-                                             sic_ad,&
-                                             sic_mauri_spz,&
-                                             sic_mauri_us,&
-                                             sic_none,&
-                                             tddfpt_davidson,&
-                                             tddfpt_excitations,&
-                                             tddfpt_lanczos,&
-                                             tddfpt_singlet,&
-                                             tddfpt_triplet,&
-                                             run_type_names
-  USE input_constants,                 ONLY: xc_debug_new_routine,&
-                                             xc_deriv_fd,&
-                                             xc_deriv_nn10_smooth,&
-                                             xc_deriv_nn50_smooth,&
-                                             xc_deriv_pw,&
-                                             xc_deriv_spline2,&
-                                             xc_deriv_spline2_smooth,&
-                                             xc_deriv_spline3,&
-                                             xc_deriv_spline3_smooth,&
-                                             xc_new_f_routine,&
-                                             xc_old_f_routine,&
-                                             xc_rho_nn10,&
-                                             xc_rho_nn50,&
-                                             xc_rho_no_smooth,&
-                                             xc_rho_spline2_smooth,&
-                                             xc_rho_spline3_smooth,&
-                                             xc_test_lsd_f_routine
-  USE cp_keywords,                     ONLY: find_keyword,&
-                                             keyword_type,&
-                                             list_keywords
+                                             tddfpt_control_type
+  USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
+                                             cp_print_key_unit_nr
   USE global_types,                    ONLY: global_environment_type
-  USE input_constants,                 ONLY: electronic_spectra_run,&
-                                             energy_force_run,&
-                                             energy_run,&
-                                             geo_opt_run,&
-                                             mon_car_run,&
-                                             hmc_run,&
-                                             ldmc_run,&
-                                             mol_dyn_run,&
-                                             qs_debug_run,&
-                                             bsse_run,&
-                                             linear_response_run
-  USE input_constants,                 ONLY: quadrature_name,&
-                                             do_pwgrid_spherical,&
-                                             do_pwgrid_ns_fullspace,&
-                                             do_pwgrid_ns_halfspace,&
-                                             do_rsgrid_distributed,&
-                                             do_rsgrid_replicated,&
-                                             elstr_method_name,&
-                                             do_method_gapw,& 
-                                             do_method_gapw_xc,& 
-                                             do_method_gpw,& 
-                                             do_method_kg_pol,&
-                                             do_method_kg_nopol,&
-                                             do_method_kg_gpw,&
-                                             do_method_eht,& 
-                                             do_method_mndo,& 
-                                             do_method_am1,& 
-                                             do_method_pm3 
+  USE input_constants,                 ONLY: &
+       bsse_run, do_loc_crazy, do_loc_direct, do_loc_jacobi, do_loc_none, &
+       do_method_eht, do_method_gapw, do_method_gapw_xc, do_method_gpw, &
+       do_method_kg_pol, do_method_mndo, do_method_pm3, &
+       do_pwgrid_ns_fullspace, do_pwgrid_ns_halfspace, do_pwgrid_spherical, &
+       electronic_spectra_run, elstr_method_name, energy_force_run, &
+       energy_run, geo_opt_run, hmc_run, ldmc_run, linear_response_run, &
+       mol_dyn_run, mon_car_run, op_loc_berry, op_loc_boys, qs_debug_run, &
+       quadrature_name, run_type_names, sic_ad, sic_mauri_spz, sic_mauri_us, &
+       sic_none, state_loc_all, state_loc_fromitoj, state_loc_list, &
+       state_loc_upton, tddfpt_excitations, xc_debug_new_routine, &
+       xc_deriv_fd, xc_deriv_nn10_smooth, xc_deriv_nn50_smooth, xc_deriv_pw, &
+       xc_deriv_spline2, xc_deriv_spline2_smooth, xc_deriv_spline3, &
+       xc_deriv_spline3_smooth, xc_new_f_routine, xc_old_f_routine, &
+       xc_rho_nn10, xc_rho_nn50, xc_rho_no_smooth, xc_rho_spline2_smooth, &
+       xc_rho_spline3_smooth, xc_test_lsd_f_routine
+  USE input_cp2k_check,                ONLY: xc_functionals_expand
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&
                                              section_vals_get_subs_vals2,&
                                              section_vals_type,&
                                              section_vals_val_get
-  USE kinds,                           ONLY: dp,&
-                                             dp_size, default_string_length
-  USE memory_utilities,                ONLY: reallocate
+  USE kinds,                           ONLY: default_string_length,&
+                                             dp,&
+                                             dp_size
   USE qs_loc_control,                  ONLY: read_loc_section
-  USE qs_wf_history_types,             ONLY: wfi_linear_p_method_nr,&
-                                             wfi_linear_ps_method_nr,&
-                                             wfi_linear_wf_method_nr,&
-                                             wfi_ps_method_nr,&
-                                             wfi_use_guess_method_nr,&
-                                             wfi_use_prev_p_method_nr,&
-                                             wfi_use_prev_rho_r_method_nr,&
-                                             wfi_use_prev_wf_method_nr, &
-                                             wfi_frozen_method_nr, &
-                                             wfi_aspc
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
-  USE xas_control,                     ONLY: read_xas_control,&
-                                             xas_control_type
+  USE xas_control,                     ONLY: read_xas_control
   USE xc_derivatives,                  ONLY: xc_functional_get_info,&
-       xc_functionals_get_needs
-  USE xc_rho_cflags_types,             ONLY: xc_rho_cflags_setall,&
-                                             xc_rho_cflags_type
-  USE input_cp2k_check, only: xc_functionals_expand
-  USE cp_output_handling,              ONLY: cp_print_key_unit_nr, &
-                                             cp_print_key_finished_output,&
-                                             cp_print_key_should_output,&
-                                             cp_p_file
-
+                                             xc_functionals_get_needs
+  USE xc_rho_cflags_types,             ONLY: xc_rho_cflags_type
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
 
   PRIVATE
 
-  CHARACTER(LEN=*), PARAMETER :: moduleN = "cp_control_utils"
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_control_utils'
 
 ! *** Public subroutines ***
 
@@ -160,17 +85,13 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: &
       routine = "SUBROUTINE read_dft_control (MODULE dft_types)"
 
-    INTEGER                                  :: excitations, i, run_id
-    LOGICAL                                  :: failure, l_param, xc_fun_set
-    LOGICAL                                  :: was_present
-    TYPE(cp_error_type)                      :: sub_error
+    CHARACTER(len=default_string_length)     :: basis_set_file_name, &
+                                                potential_file_name
+    INTEGER                                  :: excitations, run_id
+    LOGICAL                                  :: failure, l_param, was_present
     TYPE(section_vals_type), POINTER         :: dft_section, tmp_section, &
-                                                xc_fun_section, &
-                                                xc_section
-    CHARACTER(len=default_string_length) :: basis_set_file_name, potential_file_name
-    REAL(kind=dp) :: density_cut, gradient_cut, tau_cut
-    TYPE(xc_rho_cflags_type) :: needs
-         
+                                                xc_fun_section, xc_section
+    TYPE(xc_rho_cflags_type)                 :: needs
 
 !   ---------------------------------------------------------------------------
 
@@ -260,9 +181,9 @@ CONTAINS
 !   *** Read the input section ***
     CALL section_vals_val_get(dft_section,"XAS%_SECTION_PARAMETERS_",&
             l_val=dft_control%do_xas_calculation,error=error)
-    if (dft_control % do_xas_calculation) then
+    IF (dft_control % do_xas_calculation) THEN
       CALL read_xas_control(dft_control%xas_control,globenv,error=error)
-    end if
+    END IF
 
   END SUBROUTINE read_dft_control
 
@@ -270,17 +191,15 @@ CONTAINS
   SUBROUTINE read_mgrid_section(qs_control,globenv,error)
 
     TYPE(qs_control_type), INTENT(INOUT)     :: qs_control
-    TYPE(global_environment_type), &
-      pointer                          :: globenv
+    TYPE(global_environment_type), POINTER   :: globenv
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-    CHARACTER(LEN=*), PARAMETER :: &
-      routine = "SUBROUTINE read_mgrid_control "
+    CHARACTER(LEN=*), PARAMETER :: routine = "SUBROUTINE read_mgrid_control "
 
-    LOGICAL                                  :: failure,multigrid_set
-    INTEGER                                  :: j, igrid_level, istat, jj, k, n_rep, ngrid_level
-    INTEGER, DIMENSION(:), POINTER           :: tmplist
+    INTEGER                                  :: igrid_level, istat, &
+                                                ngrid_level
+    LOGICAL                                  :: failure, multigrid_set
     REAL(dp)                                 :: cutoff
     REAL(dp), DIMENSION(:), POINTER          :: cutofflist
     TYPE(section_vals_type), POINTER         :: interp_section, mgrid_section
@@ -368,22 +287,19 @@ CONTAINS
   SUBROUTINE read_qs_section(qs_control,globenv,error)
 
     TYPE(qs_control_type), INTENT(INOUT)     :: qs_control
-    TYPE(global_environment_type), &
-      pointer                          :: globenv
+    TYPE(global_environment_type), POINTER   :: globenv
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-    CHARACTER(LEN=*), PARAMETER :: &
-      routine = "SUBROUTINE read_qs_section "
+    CHARACTER(LEN=*), PARAMETER :: routine = "SUBROUTINE read_qs_section "
 
-    LOGICAL                                  :: failure, was_present
     INTEGER                                  :: j, jj, k, n_rep
     INTEGER, DIMENSION(:), POINTER           :: tmplist
-    REAL(dp) :: value
-    TYPE(section_vals_type), POINTER         :: qs_section,loc_section,&
-                                                mull_section,& 
-                                                se_section
-    
+    LOGICAL                                  :: failure, was_present
+    REAL(dp)                                 :: value
+    TYPE(section_vals_type), POINTER         :: loc_section, mull_section, &
+                                                qs_section, se_section
+
 !   ---------------------------------------------------------------------------
 
     failure=.FALSE.
@@ -511,7 +427,7 @@ CONTAINS
       CALL read_loc_section(qs_control%localized_wfn_control,loc_section,error=error)
     END IF
 
-    call section_vals_get(mull_section,explicit=qs_control%mulliken_restraint,error=error)
+    CALL section_vals_get(mull_section,explicit=qs_control%mulliken_restraint,error=error)
     IF (qs_control%mulliken_restraint) THEN
       CALL section_vals_val_get(mull_section,"STRENGTH",r_val=qs_control%mulliken_restraint_control%strength,error=error)
       CALL section_vals_val_get(mull_section,"TARGET",r_val=qs_control%mulliken_restraint_control%target,error=error)
@@ -551,19 +467,17 @@ CONTAINS
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-    CHARACTER(LEN=*), PARAMETER :: &
-      routineN = "read_tddfpt_control", &
-      routineP = moduleN//"/"//routineN
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'read_tddfpt_control', &
+      routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i
-    LOGICAL                                  :: failure, kenergy_den, was_present
-    TYPE(section_vals_type), POINTER         :: t_section, sic_section, xc_section
-    TYPE(section_vals_type), POINTER         :: tmp_section
-
+    LOGICAL                                  :: failure, kenergy_den, &
+                                                was_present
+    TYPE(section_vals_type), POINTER         :: sic_section, t_section, &
+                                                xc_section
 
     failure=.FALSE.
     kenergy_den = .FALSE.
-    nullify(sic_section, t_section, xc_section )
+    NULLIFY(sic_section, t_section, xc_section )
     t_section => section_vals_get_subs_vals(globenv%input_file,"FORCE_EVAL",error=error)
     t_section => section_vals_get_subs_vals(t_section,"DFT",error=error)
     t_section => section_vals_get_subs_vals(t_section,"TDDFPT",error=error)
@@ -606,11 +520,11 @@ CONTAINS
 
     t_control%use_kinetic_energy_density = .FALSE.
     xc_section=>section_vals_get_subs_vals(t_section,"XC",error=error)
-    call section_vals_get(xc_section,explicit=was_present,error=error)
-    if (was_present) then
+    CALL section_vals_get(xc_section,explicit=was_present,error=error)
+    IF (was_present) THEN
 !FM       CALL read_xc_control(xc_section, t_control%xc_control, nspins,&
 !FM                            t_control%use_kinetic_energy_density, error=error)
-    end if
+    END IF
 
     sic_section=>section_vals_get_subs_vals(t_section,"SIC",error=error)
     CALL section_vals_val_get(sic_section,"SIC_METHOD",&
@@ -631,20 +545,22 @@ CONTAINS
     !   ***************************************************************************
 
     TYPE(dft_control_type), POINTER          :: dft_control
-    TYPE(section_vals_type), POINTER :: dft_section
+    TYPE(section_vals_type), POINTER         :: dft_section
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-    CHARACTER(LEN=*), PARAMETER              :: routineN = "write_dft_control"
+    CHARACTER(LEN=*), PARAMETER              :: routineN = 'write_dft_control'
 
     CHARACTER(len=160)                       :: reference
     CHARACTER(len=20)                        :: tmpStr
-    INTEGER                                  :: i, output_unit, ifun
+    INTEGER                                  :: ifun, output_unit
     LOGICAL                                  :: failure, lsd
-    TYPE(section_vals_type), POINTER         :: xc_section,xc_fun_section,&
-         xc_fun
-    REAL(kind=dp) :: density_cut, gradient_cut, tau_cut, density_smooth_cut_range
+    REAL(kind=dp)                            :: density_cut, &
+                                                density_smooth_cut_range, &
+                                                gradient_cut, tau_cut
     TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(section_vals_type), POINTER         :: xc_fun, xc_fun_section, &
+                                                xc_section
 
     failure = .FALSE.
     IF (dft_control%qs_control%semi_empirical) RETURN
@@ -775,12 +691,12 @@ CONTAINS
 !   ***************************************************************************
 
     TYPE(qs_control_type), INTENT(IN)        :: qs_control
-    TYPE(section_vals_type), POINTER :: dft_section
+    TYPE(section_vals_type), POINTER         :: dft_section
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
     INTEGER                                  :: igrid_level, ngrid_level, &
-                                                nstep,output_unit
+                                                nstep, output_unit
     TYPE(cp_logger_type), POINTER            :: logger
 
     IF (qs_control%semi_empirical) RETURN

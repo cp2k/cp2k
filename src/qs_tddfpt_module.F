@@ -18,12 +18,24 @@
 
 MODULE qs_tddfpt_module
 
-  USE input_constants,                 ONLY: oe_none,&
-                                             oe_lb,&
-                                             oe_gllb,&
-                                             oe_saop,&
-                                             oe_sic, tddfpt_excitations
+  USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
+                                             cp_print_key_unit_nr
   USE global_types,                    ONLY: global_environment_type
+  USE header,                          ONLY: tddfpt_header
+  USE input_constants,                 ONLY: oe_gllb,&
+                                             oe_lb,&
+                                             oe_none,&
+                                             oe_saop,&
+                                             oe_sic,&
+                                             tddfpt_excitations
+  USE input_section_types,             ONLY: section_get_ival,&
+                                             section_vals_create,&
+                                             section_vals_get_subs_vals,&
+                                             section_vals_release,&
+                                             section_vals_retain,&
+                                             section_vals_set_subs_vals,&
+                                             section_vals_type,&
+                                             section_vals_val_get
   USE kinds,                           ONLY: dp
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
@@ -35,25 +47,18 @@ MODULE qs_tddfpt_module
   USE qs_tddfpt_utils,                 ONLY: find_contributions,&
                                              tddfpt_cleanup,&
                                              tddfpt_init
-  USE header,                          ONLY: tddfpt_header
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE xc_pot_saop,                     ONLY: add_saop_pot
-  USE input_section_types, ONLY:section_vals_type, section_vals_val_get, &
-       section_vals_get_subs_vals,  section_vals_retain, section_vals_create, &
-       section_vals_set_subs_vals, section_vals_release, section_get_ival
-  USE cp_output_handling,              ONLY: cp_print_key_unit_nr, &
-                                             cp_print_key_finished_output
-
-
 #include "cp_common_uses.h"
+
   IMPLICIT NONE
 
 
   PRIVATE
   PUBLIC :: tddfpt_calculation
 
-  CHARACTER(LEN=*), PARAMETER :: moduleN='qs_tddfpt_module'
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_tddfpt_module'
 
 CONTAINS
 
@@ -71,20 +76,20 @@ CONTAINS
   SUBROUTINE tddfpt_calculation(qs_env, glob_env, error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(global_environment_type), &
-      pointer                             :: glob_env
-    TYPE(cp_error_type), &
-         INTENT(INOUT), OPTIONAL             :: error
+    TYPE(global_environment_type), POINTER   :: glob_env
+    TYPE(cp_error_type), INTENT(INOUT), &
+      OPTIONAL                               :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'tddfpt_calculation', &
-                                   routineP = moduleN//'/'//routineN
- 
-    INTEGER                                  :: handle, excitations, oe_corr, iw
-    TYPE(qs_p_env_type), POINTER             :: p_env
-    TYPE(tddfpt_env_type)                    :: t_env
-    TYPE(section_vals_type),POINTER          :: input, dft_section
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: excitations, handle, iw, &
+                                                oe_corr
+    LOGICAL                                  :: failure
     TYPE(cp_logger_type), POINTER            :: logger
-    LOGICAL :: failure 
+    TYPE(qs_p_env_type), POINTER             :: p_env
+    TYPE(section_vals_type), POINTER         :: dft_section, input
+    TYPE(tddfpt_env_type)                    :: t_env
 
     failure = .FALSE.
     NULLIFY(logger)
@@ -141,17 +146,18 @@ CONTAINS
   SUBROUTINE orbital_eigenvalue_correction(qs_env, error)
     
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(cp_error_type), &
-         INTENT(INOUT), OPTIONAL             :: error
+    TYPE(cp_error_type), INTENT(INOUT), &
+      OPTIONAL                               :: error
 
-    INTEGER                                  :: output_unit,oe_corr
+    CHARACTER(LEN=*), PARAMETER :: &
+      routineN = 'orbital_eigenvalue_correction', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: oe_corr, output_unit
     LOGICAL                                  :: failure, ionode
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(qs_scf_env_type), POINTER           :: scf_env
-    TYPE(section_vals_type), POINTER :: input, xc_fun_orig, xc_fun_tmp
-
-    CHARACTER(LEN=*), PARAMETER              :: routineN = "orbital_eigenvalue_correction", &
-                                                routineP = moduleN//"/"//routineN
+    TYPE(section_vals_type), POINTER         :: input, xc_fun_orig, xc_fun_tmp
 
     CPPrecondition(ASSOCIATED(qs_env),cp_failure_level,routineP,error,failure)    
     
@@ -183,11 +189,11 @@ CONTAINS
          error=error)
     CALL section_vals_release(xc_fun_tmp,error=error)
 
-    call qs_ks_build_kohn_sham_matrix(ks_env=qs_env%ks_env, qs_env=qs_env, &
+    CALL qs_ks_build_kohn_sham_matrix(ks_env=qs_env%ks_env, qs_env=qs_env, &
                                       ks_matrix=qs_env%matrix_ks, rho=qs_env%rho, &
                                       energy=qs_env%energy,&
-                                      calculate_forces=.false.,&
-                                      just_energy=.false.,error=error)
+                                      calculate_forces=.FALSE.,&
+                                      just_energy=.FALSE.,error=error)
 
     CALL section_vals_set_subs_vals(input,"DFT%XC%XC_FUNCTIONAL",xc_fun_orig,&
          error=error)

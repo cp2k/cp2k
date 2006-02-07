@@ -31,39 +31,30 @@
 !!   SOURCE
 !****************************************************************************
 MODULE qs_ks_methods
-  USE cp_output_handling, ONLY: cp_print_key_unit_nr, cp_print_key_finished_output
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind_set
-  USE coefficient_types,               ONLY: coeff_add,&
-                                             coeff_subtract,&
-                                             coeff_init,&
-                                             coeff_zero,&
-                                             coeff_sumup,&
-                                             coeff_transform_space,&
-                                             coeff_type, & 
-                                             coeff_scale, &
-                                             coeff_copy
+  USE cell_types,                      ONLY: cell_type
+  USE coefficient_types,               ONLY: &
+       coeff_add, coeff_copy, coeff_init, coeff_scale, coeff_subtract, &
+       coeff_sumup, coeff_transform_space, coeff_type, coeff_zero
   USE cp_control_types,                ONLY: dft_control_type
-  USE input_constants,                 ONLY: sic_none, &
-                                             sic_mauri_us, &
-                                             sic_mauri_spz, &
-                                             sic_ad
+  USE cp_ddapc,                        ONLY: cp_decpl_ddapc
+  USE cp_fm_basic_linalg,              ONLY: cp_fm_column_scale,&
+                                             cp_fm_gemm,&
+                                             cp_fm_scale_and_add,&
+                                             cp_fm_transpose
   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                              cp_fm_struct_release,&
                                              cp_fm_struct_type
   USE cp_fm_types,                     ONLY: cp_fm_create,&
                                              cp_fm_get_info,&
-                                             cp_fm_init_random,&
-                                             cp_fm_release,&
-                                             cp_fm_retain,&
-                                             cp_fm_to_fm,&
-                                             cp_fm_type,&
                                              cp_fm_p_type,&
-                                             cp_fm_set_all
-  USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm,&
-                                             cp_fm_column_scale,&
-                                             cp_fm_scale_and_add,&
-                                             cp_fm_transpose
+                                             cp_fm_release,&
+                                             cp_fm_set_all,&
+                                             cp_fm_to_fm,&
+                                             cp_fm_type
+  USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
+                                             cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_sm_fm_interactions,           ONLY: cp_sm_fm_multiply,&
                                              cp_sm_plus_fm_fm_t
@@ -71,6 +62,12 @@ MODULE qs_ks_methods
   USE hartree_local_2centers,          ONLY: integrate_vhg0_g0
   USE hartree_local_3centers,          ONLY: integrate_a_vhg0_b
   USE hartree_local_methods,           ONLY: Vh_1c_gg_integrals
+  USE input_constants,                 ONLY: sic_ad,&
+                                             sic_mauri_spz,&
+                                             sic_mauri_us,&
+                                             sic_none
+  USE input_section_types,             ONLY: section_vals_get_subs_vals,&
+                                             section_vals_type
   USE kg_environment_types,            ONLY: get_kg_env,&
                                              kg_environment_type
   USE kg_gpw_correction,               ONLY: kg_gpw_ekin_mol
@@ -80,21 +77,23 @@ MODULE qs_ks_methods
   USE mulliken,                        ONLY: mulliken_restraint
   USE pw_env_types,                    ONLY: pw_env_get,&
                                              pw_env_type
-  USE pw_pool_types,                   ONLY: pw_pool_give_back_coeff,&
+  USE pw_poisson_methods,              ONLY: pw_poisson_solve
+  USE pw_poisson_types,                ONLY: pw_poisson_type
+  USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
+                                             pw_pool_give_back_coeff,&
+                                             pw_pool_give_back_pw,&
                                              pw_pool_init_coeff,&
                                              pw_pool_p_type,&
                                              pw_pool_retain,&
-                                             pw_pool_type,&
-                                             pw_pool_create_pw,&
-                                             pw_pool_give_back_pw
-  USE pw_types,                        ONLY: pw_type,&
-                                             COMPLEXDATA1D,&
+                                             pw_pool_type
+  USE pw_types,                        ONLY: COMPLEXDATA1D,&
                                              REALDATA3D,&
                                              REALSPACE,&
                                              RECIPROCALSPACE,&
-                                             pw_p_type, &
+                                             pw_p_type,&
                                              pw_release,&
-                                             pw_transfer
+                                             pw_transfer,&
+                                             pw_type
   USE qs_charges_types,                ONLY: qs_charges_type
   USE qs_collocate_density,            ONLY: calculate_total_rho
   USE qs_core_energies,                ONLY: calculate_ecore
@@ -104,36 +103,27 @@ MODULE qs_ks_methods
   USE qs_gapw_densities,               ONLY: prepare_gapw_den
   USE qs_integrate_potential,          ONLY: integrate_v_core_rspace,&
                                              integrate_v_rspace
-  USE qs_mo_types,                     ONLY: mo_set_type, &
-                                             mo_set_p_type, &
-                                             get_mo_set
   USE qs_ks_atom,                      ONLY: update_ks_atom
+  USE qs_ks_qmmm_methods,              ONLY: qmmm_calculate_energy,&
+                                             qmmm_modify_hartree_pot
   USE qs_ks_types,                     ONLY: qs_ks_env_type
-  USE qs_ks_qmmm_types,                ONLY: qs_ks_qmmm_env_type
+  USE qs_mo_types,                     ONLY: get_mo_set,&
+                                             mo_set_p_type,&
+                                             mo_set_type
   USE qs_rho0_ggrid,                   ONLY: integrate_vhg0_rspace
   USE qs_rho_types,                    ONLY: qs_rho_type
   USE qs_semi_empirical_hamiltonian,   ONLY: build_se_fock_matrix
   USE qs_vxc_atom,                     ONLY: calculate_vxc_atom
-  USE cell_types,                 ONLY: cell_type
   USE sparse_matrix_types,             ONLY: real_matrix_p_type,&
-                                             transfer_matrix, &
-                                             real_matrix_type, &
-                                             set_matrix
+                                             real_matrix_type,&
+                                             set_matrix,&
+                                             transfer_matrix
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE xc,                              ONLY: xc_exc_calc,&
-                                             xc_vxc_pw_create1 
-  USE qs_ks_qmmm_methods,              ONLY: qs_ks_qmmm_create,&
-                                             qmmm_calculate_energy,&
-                                             qmmm_modify_hartree_pot
-  USE input_section_types, ONLY: section_type, section_create, &
-       section_add_keyword, section_add_subsection, section_release,&
-       section_vals_type,&
-       section_vals_get_subs_vals, section_vals_get, section_vals_val_get
-  USE cp_ddapc,                        ONLY: cp_decpl_ddapc 
-  USE pw_poisson_methods, ONLY: pw_poisson_solve
-  USE pw_poisson_types, ONLY: pw_poisson_type
+                                             xc_vxc_pw_create1
 #include "cp_common_uses.h"
+
   IMPLICIT NONE
 
   PRIVATE
@@ -144,7 +134,7 @@ MODULE qs_ks_methods
   END INTERFACE
 
   LOGICAL, PARAMETER :: debug_this_module=.TRUE.
-  CHARACTER(len=*), PARAMETER :: moduleN='qs_ks_methods'
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_ks_methods'
   INTEGER, SAVE, PRIVATE :: last_ks_id_nr=0
 
   PUBLIC :: qs_ks_create, qs_ks_did_change, qs_vxc_create, calc_rho_tot_gspace, &
@@ -187,13 +177,15 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_ks_create', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, nspins, stat, auxbas_grid
+    INTEGER                                  :: auxbas_grid, handle, nspins, &
+                                                stat
     LOGICAL                                  :: failure
     TYPE(cell_type), POINTER                 :: cell
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(pw_env_type), POINTER               :: pw_env
+    TYPE(pw_pool_p_type), DIMENSION(:), &
+      POINTER                                :: pw_pools
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
-    TYPE(pw_pool_p_type), DIMENSION(:), pointer :: pw_pools
 
     CALL timeset(routineN,"I","",handle)
 
@@ -283,49 +275,50 @@ CONTAINS
     TYPE(qs_ks_env_type), POINTER            :: ks_env
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(real_matrix_p_type), DIMENSION(:), &
-        POINTER                              :: ks_matrix
+      POINTER                                :: ks_matrix
     TYPE(qs_rho_type), POINTER               :: rho
     TYPE(qs_energy_type), POINTER            :: energy
     LOGICAL, INTENT(in)                      :: calculate_forces, just_energy
-    TYPE(qs_rho_type), POINTER, OPTIONAL     :: rho_xc
+    TYPE(qs_rho_type), OPTIONAL, POINTER     :: rho_xc
     LOGICAL, INTENT(IN), OPTIONAL            :: kg_gpw
-    TYPE(kg_fm_p_type), OPTIONAL, &
-      POINTER                                :: kg_fm_set
-    TYPE(kg_sub_pw_env_type), OPTIONAL,& 
+    TYPE(kg_fm_p_type), OPTIONAL, POINTER    :: kg_fm_set
+    TYPE(kg_sub_pw_env_type), OPTIONAL, &
       POINTER                                :: kg_sub_pw_env
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'build_kohn_sham', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'qs_ks_build_kohn_sham_matrix', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, ispin, n_electrons, &
+    INTEGER                                  :: handle, ispin, k, k2, n, &
                                                 nspins, output_unit, stat
-    LOGICAL                                  :: failure, gapw, gapw_xc, ionode, my_kg_gpw
+    LOGICAL                                  :: failure, gapw, gapw_xc, &
+                                                ionode, my_kg_gpw
+    REAL(KIND=dp)                            :: mulliken_order_p
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: occupation_numbers, &
+                                                scaling_factor
     TYPE(cell_type), POINTER                 :: cell
-    TYPE(coeff_type)                         :: rho_tot_gspace,&
+    TYPE(coeff_type)                         :: rho_tot_gspace, &
                                                 v_hartree_gspace, v_sic_rspace
     TYPE(coeff_type), DIMENSION(:), POINTER  :: v_rspace_new, v_tau_rspace
+    TYPE(cp_fm_p_type), DIMENSION(:), &
+      POINTER                                :: mo_derivs
+    TYPE(cp_fm_type), POINTER                :: hc_tmp, mo_coeff
     TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(mo_set_p_type), DIMENSION(:), &
+      POINTER                                :: mo_array
     TYPE(pw_env_type), POINTER               :: pw_env
+    TYPE(pw_poisson_type), POINTER           :: poisson_env
     TYPE(pw_pool_p_type), DIMENSION(:), &
       POINTER                                :: pw_pools
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
+    TYPE(qs_rho_type), POINTER               :: my_rho_xc
     TYPE(real_matrix_p_type), DIMENSION(:), &
       POINTER                                :: matrix_h, matrix_s
-    TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(section_vals_type), POINTER         :: input, scf_section
 
-    TYPE(mo_set_p_type), DIMENSION(:), &
-         POINTER                                :: mo_array
-    TYPE(cp_fm_p_type), POINTER, DIMENSION(:)   :: mo_derivs
-    INTEGER :: n,k,k2
-    REAL(KIND=dp), DIMENSION(:), POINTER :: scaling_factor,occupation_numbers
-    TYPE(cp_fm_type), POINTER            :: mo_coeff,hc_tmp
-    REAL(KIND=dp)                        :: mulliken_order_p
-    TYPE(section_vals_type), POINTER     :: input, scf_section
-    TYPE(qs_rho_type), POINTER           :: my_rho_xc
-    TYPE(pw_poisson_type), pointer :: poisson_env
 ! shorter for output
 
     failure=.FALSE.
@@ -460,7 +453,7 @@ CONTAINS
                    v_qmmm=qs_env%ks_qmmm_env%v_qmmm_rspace,&
                    error=error)
            END IF
-       End If
+       END IF
 
        ! *** calculate the xc potential on the pw density ***       
        ! *** associates v_rspace_new if the xc potential needs to be computed.
@@ -469,7 +462,7 @@ CONTAINS
             vxc_rho=v_rspace_new, vxc_tau=v_tau_rspace, exc=energy%exc, &
             just_energy=just_energy, gapw_xc=gapw_xc, error=error)
 
-       IF (gapw .or. gapw_xc) THEN
+       IF (gapw .OR. gapw_xc) THEN
           CALL calculate_vxc_atom(qs_env,just_energy,error)
        END IF
 
@@ -723,10 +716,10 @@ CONTAINS
              WRITE (UNIT=output_unit,FMT="(/,(T3,A,T60,F20.10))")&
                 "GAPW| Exc from hard and soft atomic rho1:      ",energy%exc1
           END IF
-          If  (qs_env%qmmm) Then
+          IF  (qs_env%qmmm) THEN
              WRITE (UNIT=output_unit,FMT="(T3,A,T60,F20.10)")&
                "QM/MM Electrostatic energy:                    ",energy%qmmm_el
-          End If
+          END IF
           IF (dft_control%qs_control%mulliken_restraint) THEN
               WRITE (UNIT=output_unit,FMT="(T3,A,T40,2F20.10)")&
                 "Mulliken restraint (order_p,energy) : ",mulliken_order_p,energy%mulliken
@@ -759,15 +752,15 @@ CONTAINS
     TYPE(cp_error_type), INTENT(INOUT), &
       OPTIONAL                               :: error
 
+    CHARACTER(*), PARAMETER :: routineN = 'calc_v_sic_rspace', &
+      routineP = moduleN//':'//routineN
+
     INTEGER                                  :: nelec, nelec_a, nelec_b
     LOGICAL                                  :: failure
     REAL(kind=dp)                            :: ener, scaling
     TYPE(coeff_type)                         :: work_rho, work_v
     TYPE(mo_set_p_type), DIMENSION(:), &
-         POINTER                             :: mo_array
-
-    CHARACTER(*), PARAMETER :: routineN = "calc_v_sic_rspace", &
-                               routineP = moduleN//'/'//routineN
+      POINTER                                :: mo_array
 
     failure = .FALSE.
     NULLIFY(mo_array)
@@ -825,21 +818,19 @@ CONTAINS
 ! *****************************************************************************
 
   SUBROUTINE calc_rho_tot_gspace(rho_tot_gspace, qs_env, rho, error)
-    IMPLICIT NONE
-    ! ARGUMENTS
     TYPE(coeff_type), INTENT(INOUT)          :: rho_tot_gspace
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(qs_rho_type), POINTER               :: rho
     TYPE(cp_error_type), INTENT(INOUT), &
       OPTIONAL                               :: error
-    ! LOCALS
-    TYPE(coeff_type), POINTER                :: rho_core, rho0_s_gs
-    TYPE(qs_charges_type), POINTER           :: qs_charges
+
+    CHARACTER(*), PARAMETER :: routineN = 'calc_rho_tot_gspace', &
+      routineP = moduleN//':'//routineN
+
     INTEGER                                  :: ispin
     LOGICAL                                  :: failure
-    ! PARAMETERS
-    CHARACTER(*), PARAMETER :: routineN = "calc_rho_tot_gspace", &
-                               routineP = moduleN//'/'//routineN
+    TYPE(coeff_type), POINTER                :: rho0_s_gs, rho_core
+    TYPE(qs_charges_type), POINTER           :: qs_charges
 
     NULLIFY (rho_core, rho0_s_gs)
     CALL get_qs_env(qs_env=qs_env,&
@@ -863,21 +854,18 @@ CONTAINS
 ! *****************************************************************************
 
   SUBROUTINE print_densities(qs_env, rho_tot_gspace, rho, rho_xc, output_unit, error)
-    ! ARGUMENTS
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(coeff_type), INTENT(IN)             :: rho_tot_gspace
     TYPE(qs_rho_type), POINTER               :: rho, rho_xc
+    INTEGER, INTENT(IN)                      :: output_unit
     TYPE(cp_error_type), INTENT(INOUT), &
       OPTIONAL                               :: error
-    INTEGER, INTENT(IN) :: output_unit
-    ! LOCALS
-    TYPE(cp_logger_type), POINTER            :: logger
-    TYPE(qs_charges_type), POINTER           :: qs_charges
+
+    INTEGER                                  :: ispin, n_electrons
+    REAL(dp)                                 :: tot1_h, tot1_s
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
-    INTEGER                                  :: n_electrons, ispin
-    REAL(dp)                                 :: tot1_h, tot1_s
-
+    TYPE(qs_charges_type), POINTER           :: qs_charges
 
     NULLIFY(qs_charges, atomic_kind_set)
     CALL get_qs_env(qs_env=qs_env, &
@@ -972,7 +960,7 @@ SUBROUTINE qs_ks_update_qs_env(ks_env,qs_env, kg_env, &
      calculate_forces, just_energy, error)
     TYPE(qs_ks_env_type), POINTER            :: ks_env
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(kg_environment_type), OPTIONAL,& 
+    TYPE(kg_environment_type), OPTIONAL, &
       POINTER                                :: kg_env
     LOGICAL, INTENT(in), OPTIONAL            :: calculate_forces, just_energy
     TYPE(cp_error_type), INTENT(inout), &
@@ -988,11 +976,10 @@ SUBROUTINE qs_ks_update_qs_env(ks_env,qs_env, kg_env, &
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
-    TYPE(kg_fm_p_type),  POINTER             :: kg_fm_set
+    TYPE(kg_fm_p_type), POINTER              :: kg_fm_set
     TYPE(kg_sub_pw_env_type), POINTER        :: kg_sub_pw_env
     TYPE(qs_energy_type), POINTER            :: energy
-    TYPE(qs_rho_type), POINTER               :: rho
-    TYPE(qs_rho_type), POINTER               :: rho_xc
+    TYPE(qs_rho_type), POINTER               :: rho, rho_xc
     TYPE(real_matrix_p_type), DIMENSION(:), &
       POINTER                                :: matrix_h, matrix_ks
 
@@ -1124,11 +1111,6 @@ SUBROUTINE qs_ks_did_change(ks_env,s_mstruct_changed,rho_changed,full_reset,erro
       routineP = moduleN//':'//routineN
 
     LOGICAL                                  :: failure
-    integer :: auxbas_grid
-    TYPE(cell_type), POINTER                 :: cell
-    TYPE(dft_control_type), POINTER          :: dft_control
-    TYPE(pw_env_type), POINTER               :: pw_env
-    TYPE(pw_pool_p_type), DIMENSION(:), pointer :: pw_pools
 
   failure=.FALSE.
   
@@ -1199,40 +1181,36 @@ END SUBROUTINE qs_ks_did_change
 SUBROUTINE qs_vxc_create(vxc_rho,vxc_tau, exc, qs_env,&
       just_energy, harris, nsc_force, gapw_xc, error)
     TYPE(coeff_type), DIMENSION(:), POINTER  :: vxc_rho, vxc_tau
-    TYPE(qs_environment_type), POINTER       :: qs_env
     REAL(KIND=dp)                            :: exc
-    LOGICAL, INTENT(in), OPTIONAL            :: just_energy, &
-                                                harris, &
-                                                nsc_force, &
-                                                gapw_xc
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    LOGICAL, INTENT(in), OPTIONAL            :: just_energy, harris, &
+                                                nsc_force, gapw_xc
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_vxc_create', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, ispin, stat
-    LOGICAL                                  :: failure, my_just_energy
+    INTEGER                                  :: handle, ispin, nelec_spin(2), &
+                                                stat
+    LOGICAL                                  :: failure, harris_flag, &
+                                                my_gapw_xc, my_just_energy, &
+                                                nsc_flag, sic_scaling_b_zero, &
+                                                uf_grid
+    REAL(KIND=dp)                            :: exc_m, my_scaling, nelec_s_inv
     TYPE(cell_type), POINTER                 :: cell
+    TYPE(coeff_type), DIMENSION(:), POINTER  :: rho_m_gspace, rho_m_rspace
     TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(harris_env_type), POINTER           :: harris_env
+    TYPE(mo_set_p_type), DIMENSION(:), &
+      POINTER                                :: mo_array
     TYPE(pw_env_type), POINTER               :: pw_env
     TYPE(pw_p_type), DIMENSION(:), POINTER   :: my_vxc_rho, my_vxc_tau, &
                                                 rho_g, rho_r, tau
-    TYPE(pw_type), POINTER :: tmp_pw, tmp_g, tmp_g2
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool, xc_pw_pool
+    TYPE(pw_type), POINTER                   :: tmp_g, tmp_g2, tmp_pw
     TYPE(qs_rho_type), POINTER               :: rho_struct
-    TYPE(coeff_type), DIMENSION(:), POINTER  :: rho_m_rspace,rho_m_gspace
-    REAL(KIND=dp)                            :: exc_m
-    REAL(KIND=dp)                            :: my_scaling, nelec_s_inv
-    INTEGER                                  :: nelec_spin(2)
-    TYPE(mo_set_p_type), DIMENSION(:), &
-         POINTER                                :: mo_array
-    LOGICAL                                  :: sic_scaling_b_zero, &
-                                                harris_flag, &
-                                                nsc_flag, &
-                                                my_gapw_xc,uf_grid
-    TYPE(harris_env_type), POINTER           :: harris_env
-    TYPE(section_vals_type), POINTER :: input, xc_section
+    TYPE(section_vals_type), POINTER         :: input, xc_section
 
 !   ---------------------------------------------------------------------------
 
@@ -1662,7 +1640,7 @@ SUBROUTINE qs_vxc_create(vxc_rho,vxc_tau, exc, qs_env,&
 !FM                   auxbas_pw_pool,param_section=interp_section,error=error)
               CALL pw_pool_give_back_pw(xc_pw_pool,vxc_rho(ispin)%pw,error=error)
               vxc_rho(ispin)%pw => tmp_pw
-              nullify(tmp_pw)
+              NULLIFY(tmp_pw)
            END DO
         END IF
         IF (ASSOCIATED(vxc_tau)) THEN
@@ -1684,7 +1662,7 @@ SUBROUTINE qs_vxc_create(vxc_rho,vxc_tau, exc, qs_env,&
 !FM                   auxbas_pw_pool,param_section=interp_section,error=error)
               CALL pw_pool_give_back_pw(xc_pw_pool,vxc_tau(ispin)%pw,error=error)
               vxc_tau(ispin)%pw => tmp_pw
-              nullify(tmp_pw)
+              NULLIFY(tmp_pw)
            END DO
         END IF
         
@@ -1750,17 +1728,17 @@ END SUBROUTINE qs_vxc_create
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "calculate_w_matrix_1", &
-      routine = "SUBROUTINE "//routine_name//" (MODULE "//moduleN//")"
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_w_matrix_1', &
+      routine = "SUBROUTINE "//routineN//" (MODULE "//moduleN//")"
 
     INTEGER                                  :: handle, imo, istat
+    LOGICAL                                  :: failure
     REAL(KIND=dp), DIMENSION(:), POINTER     :: eigocc
     TYPE(cp_fm_type), POINTER                :: weighted_vectors
-    LOGICAL                                  :: failure
 
 !   ---------------------------------------------------------------------------
 
-    CALL timeset(routine_name,"I","",handle)
+    CALL timeset(routineN,"I","",handle)
     failure=.FALSE.
     NULLIFY(weighted_vectors)
 
@@ -1770,7 +1748,7 @@ END SUBROUTINE qs_vxc_create
 
     ! scale every column with the occupation
     ALLOCATE(eigocc(mo_set%homo),stat=istat)
-    CPPostcondition(istat==0,cp_failure_level,routine_name,error,failure)
+    CPPostcondition(istat==0,cp_failure_level,routineN,error,failure)
 
     DO imo=1,mo_set%homo
        eigocc(imo) = mo_set%eigenvalues(imo)*mo_set%occupation_numbers(imo)
@@ -1819,18 +1797,22 @@ END SUBROUTINE qs_vxc_create
   SUBROUTINE calculate_w_matrix_2(mo_set,mo_deriv,w_matrix,s_matrix,error)
 
     TYPE(mo_set_type), POINTER               :: mo_set
-    TYPE(real_matrix_type), POINTER          :: w_matrix,s_matrix
     TYPE(cp_fm_type), POINTER                :: mo_deriv
+    TYPE(real_matrix_type), POINTER          :: w_matrix, s_matrix
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
+
+    LOGICAL, PARAMETER                       :: check_gradient = .FALSE., &
+                                                do_symm = .FALSE.
 
     INTEGER                                  :: handle, ncol_block, &
                                                 ncol_global, nrow_block, &
                                                 nrow_global
-    TYPE(cp_fm_struct_type), POINTER         :: fm_struct_tmp
-    TYPE(cp_fm_type), POINTER                :: h_block,h_block_t,weighted_vectors,gradient
     LOGICAL                                  :: failure
-    LOGICAL, PARAMETER                       :: do_symm=.FALSE., check_gradient=.FALSE.
+    TYPE(cp_fm_struct_type), POINTER         :: fm_struct_tmp
+    TYPE(cp_fm_type), POINTER                :: gradient, h_block, h_block_t, &
+                                                weighted_vectors
+
 !   ---------------------------------------------------------------------------
 
     CALL timeset("calculate_w_matrix_2","I","",handle)
@@ -1877,7 +1859,7 @@ END SUBROUTINE qs_vxc_create
        CALL cp_fm_create(gradient,mo_set%mo_coeff%matrix_struct,"gradient")
        CALL cp_sm_fm_multiply(s_matrix,weighted_vectors,&
                                           gradient, ncol_global)
-       write(6,*) " maxabs difference ", MAXVAL(ABS(mo_deriv%local_data-2.0_dp*gradient%local_data))
+       WRITE(6,*) " maxabs difference ", MAXVAL(ABS(mo_deriv%local_data-2.0_dp*gradient%local_data))
        CALL cp_fm_release(gradient)
     ENDIF
 

@@ -25,21 +25,21 @@ MODULE qs_energy
   USE global_types,                    ONLY: global_environment_type
   USE kinds,                           ONLY: dp
   USE qs_core_hamiltonian,             ONLY: build_core_hamiltonian_matrix
-  USE qs_environment_methods,          ONLY: qs_env_update_s_mstruct
-  USE qs_environment_types,            ONLY: qs_environment_type,&
-                                             get_qs_env,&
+  USE qs_environment_methods,          ONLY: qs_env_rebuild_pw_env,&
+                                             qs_env_update_s_mstruct
+  USE qs_environment_types,            ONLY: get_qs_env,&
+                                             qs_environment_type,&
                                              set_qs_env
-  USE qs_ks_methods,                   ONLY: qs_ks_update_qs_env
+  USE qs_ks_methods,                   ONLY: qs_ks_create,&
+                                             qs_ks_update_qs_env
+  USE qs_ks_types,                     ONLY: qs_ks_env_type,&
+                                             qs_ks_release
   USE qs_neighbor_lists,               ONLY: build_qs_neighbor_lists
   USE qs_scf,                          ONLY: scf
   USE qs_semi_empirical_hamiltonian,   ONLY: build_se_core_matrix
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE xas_methods,                     ONLY: xas
-  USE qs_ks_types,                     ONLY: qs_ks_release, qs_ks_env_type
-  USE qs_ks_methods,                   ONLY: qs_ks_create
-  USE qs_environment_methods,          ONLY: qs_env_rebuild_pw_env
-
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -48,7 +48,7 @@ MODULE qs_energy
 
 ! *** Global parameters ***
 
-  CHARACTER(LEN=*), PARAMETER :: module_name = "qs_energy"
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_energy'
 
   PUBLIC :: qs_energies
 
@@ -70,15 +70,14 @@ CONTAINS
 !   ***************************************************************************
 
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(global_environment_type), POINTER   :: globenv    
+    TYPE(global_environment_type), POINTER   :: globenv
     LOGICAL, INTENT(IN), OPTIONAL            :: consistent_energies, &
-                                                calc_forces,&
-                                                box_changed
+                                                calc_forces, box_changed
     TYPE(cp_error_type), INTENT(inout), &
-         OPTIONAL                               :: error
+      OPTIONAL                               :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "qs_energies", &
-      routine = "SUBROUTINE "//routine_name//" (MODULE "//module_name//")"
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_energies', &
+      routine = "SUBROUTINE "//routineN//" (MODULE "//moduleN//")"
 
     INTEGER                                  :: handle
     LOGICAL                                  :: right_iteration_level
@@ -87,9 +86,9 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL write_checkpoint_information("entering "//routine_name,globenv,error)
+    CALL write_checkpoint_information("entering "//routineN,globenv,error)
 
-    CALL timeset(routine_name,"I","",handle)
+    CALL timeset(routineN,"I","",handle)
 
 !JCS
 !  **** Rebuild pw_env and ks_env if box has changed ****
@@ -145,7 +144,7 @@ CONTAINS
 
     CALL timestop(0.0_dp,handle)
 
-    CALL write_checkpoint_information("leaving "//routine_name,globenv,error)
+    CALL write_checkpoint_information("leaving "//routineN,globenv,error)
 
   END SUBROUTINE qs_energies
 

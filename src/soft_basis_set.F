@@ -22,26 +22,23 @@ MODULE soft_basis_set
 
 ! *****************************************************************************
 
-  USE basis_set_types,                 ONLY: allocate_gto_basis_set,&
-                                             deallocate_gto_basis_set,&
-                                             init_cphi_and_sphi,&
-                                             get_gto_basis_set,&
-                                             gto_basis_set_type
+  USE basis_set_types,                 ONLY: get_gto_basis_set,&
+                                             gto_basis_set_type,&
+                                             init_cphi_and_sphi
   USE cp_control_types,                ONLY: gapw_control_type
-  USE global_types,                    ONLY: global_environment_type
   USE kinds,                           ONLY: default_string_length,&
                                              dp
-  USE mathconstants,                   ONLY: dfac,pi
+  USE mathconstants,                   ONLY: dfac,&
+                                             pi
   USE memory_utilities,                ONLY: reallocate
-  USE orbital_pointers,                ONLY: coset,init_orbital_pointers,&
-                                             indco,nco,ncoset,nso
+  USE orbital_pointers,                ONLY: indco,&
+                                             nco,&
+                                             ncoset,&
+                                             nso
   USE orbital_symbols,                 ONLY: cgf_symbol,&
                                              sgf_symbol
-  USE orbital_transformation_matrices, ONLY: orbtramat
   USE qs_util,                         ONLY: exp_radius
-  USE termination,                     ONLY: stop_memory,&
-                                             stop_program
-
+  USE termination,                     ONLY: stop_memory
 
   IMPLICIT NONE
 
@@ -49,7 +46,7 @@ MODULE soft_basis_set
 
 ! *** Global parameters (only in this module)
 
-  CHARACTER(LEN=*), PARAMETER :: module_name = "soft_basis_set"
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'soft_basis_set'
 
   INTEGER, PARAMETER :: max_name_length = 60
 
@@ -70,27 +67,25 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(gto_basis_set_type), POINTER   :: orb_basis,soft_basis
-    TYPE(gapw_control_type),  POINTER   :: gapw
-    REAL(dp), INTENT(IN)                :: rc
-    LOGICAL, INTENT(INOUT)              :: paw_atom
+    TYPE(gto_basis_set_type), POINTER        :: orb_basis, soft_basis
+    TYPE(gapw_control_type), POINTER         :: gapw
+    REAL(dp), INTENT(IN)                     :: rc
+    LOGICAL, INTENT(INOUT)                   :: paw_atom
 
-    CHARACTER(LEN=*), PARAMETER :: routine = "create_soft_basis"
+    CHARACTER(LEN=*), PARAMETER              :: routine = "create_soft_basis"
 
-    CHARACTER(LEN=default_string_length)      :: bsname
-    INTEGER :: i, ico, ikind, ipgf, iset, ishell, istat, lshell, m, maxco, maxl, &
-      maxpgf, maxshell, ncgf, ncgf_set, nkind, nmin, nset, nsgf, &
-      ipgf_s, iset_s, lshell_old, maxpgf_s, maxshell_s, nset_s, &
-      icgf,jpgf,lx,ly,lz
-    INTEGER, DIMENSION(:), POINTER      :: lmax,lmin,npgf,nshell
-    INTEGER, DIMENSION(:,:), POINTER    :: l,n
-    REAL(dp)                            :: eps_fit, expzet, fnorm, & 
-                                           gcca, gccb, minzet, & 
-                                           prefac, radius, &
-                                           zeta,zetb
-    REAL(dp), DIMENSION(:,:), POINTER   :: zet
-    REAL(dp), DIMENSION(:,:,:), POINTER :: gcc
-    INTEGER, DIMENSION(:),ALLOCATABLE   :: iset_s2h
+    CHARACTER(LEN=default_string_length)     :: bsname
+    INTEGER :: icgf, ico, ipgf, ipgf_s, iset, iset_s, ishell, istat, jpgf, &
+      lshell, lshell_old, lx, ly, lz, m, maxco, maxpgf, maxpgf_s, maxshell, &
+      maxshell_s, ncgf, ncgf_set, nset, nset_s, nsgf
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: iset_s2h
+    INTEGER, DIMENSION(:), POINTER           :: lmax, lmin, npgf, nshell
+    INTEGER, DIMENSION(:, :), POINTER        :: l, n
+    REAL(dp)                                 :: eps_fit, expzet, fnorm, gcca, &
+                                                gccb, minzet, prefac, radius, &
+                                                zeta, zetb
+    REAL(dp), DIMENSION(:, :), POINTER       :: zet
+    REAL(dp), DIMENSION(:, :, :), POINTER    :: gcc
 
 !   ---------------------------------------------------------------------------
 
@@ -149,23 +144,23 @@ CONTAINS
           maxshell_s = nshell(iset_s)
        ENDIF
 
-       if (radius < rc ) then
+       IF (radius < rc ) THEN
 !      The soft basis does not contain this set
 !      For the moment I keep the set as a dummy set
 !      with no exponents, in order to have the right number of contractions
 !      In a second time it can be taken away, by creating a pointer
 !      which connects the remaining sets to the right contraction index
-         paw_atom = .true.
+         paw_atom = .TRUE.
          npgf(iset_s) = 0 
-         cycle
-       endif
+         CYCLE
+       ENDIF
 
        ipgf_s = 0
        DO ipgf = 1,orb_basis%npgf(iset)         ! ipgf 
          IF (orb_basis%zet(ipgf,iset) > 100.0_dp) THEN
 !          The soft basis does not contain this exponent
-           paw_atom = .true.
-           cycle
+           paw_atom = .TRUE.
+           CYCLE
          ENDIF
 
          radius = exp_radius(orb_basis%lmax(iset),&
@@ -173,8 +168,8 @@ CONTAINS
                              eps_fit,1.0_dp)
          IF (radius < rc ) THEN
 !           The soft basis does not contain this exponent
-            paw_atom = .true.
-            cycle
+            paw_atom = .TRUE.
+            CYCLE
          ENDIF
 
 !        The soft basis contains this exponent
@@ -197,7 +192,7 @@ CONTAINS
             ENDIF
             IF (radius < rc ) THEN
                gcc(ipgf_s,ishell,iset_s) = 0.0_dp
-               paw_atom = .true.
+               paw_atom = .TRUE.
             ELSE
                gcc(ipgf_s,ishell,iset_s) = orb_basis%gcc(ipgf,ishell,iset)
             ENDIF
@@ -211,10 +206,10 @@ CONTAINS
     ENDDO                                      ! iset    
     nset_s = iset_s
  
-    IF (.not. paw_atom) THEN
+    IF (.NOT. paw_atom) THEN
 !      CALL  deallocate_gto_basis_set(soft_basis)
         DEALLOCATE (soft_basis,STAT=istat)
-        IF (istat /= 0) CALL stop_memory(routine,module_name,__LINE__,&
+        IF (istat /= 0) CALL stop_memory(routine,moduleN,__LINE__,&
                                      "soft_basis_set")
       soft_basis => orb_basis
     ELSE
@@ -292,12 +287,12 @@ CONTAINS
        CALL reallocate(soft_basis%norm_cgf,1,ncgf)
        ALLOCATE (soft_basis%cgf_symbol(ncgf),STAT=istat)
        IF (istat /= 0) THEN
-         CALL stop_memory(routine,module_name,__LINE__,&
+         CALL stop_memory(routine,moduleN,__LINE__,&
                          "soft_basis_set%cgf_symbol",12*ncgf)
        END IF
        ALLOCATE (soft_basis%sgf_symbol(nsgf),STAT=istat)
        IF (istat /= 0) THEN
-          CALL stop_memory(routine,module_name,__LINE__,&
+          CALL stop_memory(routine,moduleN,__LINE__,&
                           "soft_basis_set%sgf_symbol",6*nsgf)
        END IF
 
@@ -376,7 +371,7 @@ CONTAINS
 
      DEALLOCATE (gcc,l,lmax,lmin,n,npgf,nshell,zet,iset_s2h,STAT=istat)
      IF (istat /= 0) THEN
-        CALL stop_memory(routine,module_name,__LINE__,&
+        CALL stop_memory(routine,moduleN,__LINE__,&
                         "gcc,l,lmax,lmin,n,npgf,nshell,zet")
      END IF
      

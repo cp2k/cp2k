@@ -53,8 +53,8 @@ MODULE qs_ot
                                              cp_fm_type
   USE cp_para_types,                   ONLY: cp_blacs_env_type,&
                                              cp_para_env_type
-  USE kinds,                           ONLY: dp
   USE input_constants,                 ONLY: ot_precond_full_kinetic
+  USE kinds,                           ONLY: dp
   USE preconditioner,                  ONLY: apply_preconditioner,&
                                              preconditioner_type
   USE termination,                     ONLY: stop_program
@@ -224,10 +224,8 @@ CONTAINS
 ! (or you can reuse it on the next step of the computation)
 !*******************************************************************************
 SUBROUTINE qs_ot_new_preconditioner(qs_ot_env,preconditioner)
-  TYPE(qs_ot_type)                          :: qs_ot_env
-  TYPE(preconditioner_type), POINTER        :: preconditioner
-
-  INTEGER :: ip
+    TYPE(qs_ot_type)                         :: qs_ot_env
+    TYPE(preconditioner_type), POINTER       :: preconditioner
 
 !----
 
@@ -257,7 +255,7 @@ SUBROUTINE qs_ot_allocate(qs_ot_env,fm_struct_ref,ortho_k)
     TYPE(cp_fm_struct_type), POINTER         :: fm_struct_ref
     INTEGER, OPTIONAL                        :: ortho_k
 
-    INTEGER                                  :: i, ip, k, m_diis, my_ortho_k, n
+    INTEGER                                  :: i, k, m_diis, my_ortho_k, n
     TYPE(cp_blacs_env_type), POINTER         :: context
     TYPE(cp_fm_struct_type), POINTER         :: fm_struct_k_k, fm_struct_n_o, &
                                                 fm_struct_o_k, fm_struct_o_o
@@ -430,7 +428,7 @@ END SUBROUTINE qs_ot_init
 SUBROUTINE qs_ot_destroy(qs_ot_env)
     TYPE(qs_ot_type)                         :: qs_ot_env
 
-    INTEGER                                  :: i, ip
+    INTEGER                                  :: i
 
    DEALLOCATE(qs_ot_env%evals)
    DEALLOCATE(qs_ot_env%dum)
@@ -564,7 +562,7 @@ SUBROUTINE qs_ot_generate_rotation(qs_ot_env)
 
     TYPE(qs_ot_type)                         :: qs_ot_env
 
-    CHARACTER(LEN=*), PARAMETER :: RoutineN = "qs_ot_generate_rotation"
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_ot_generate_rotation'
     COMPLEX(KIND=dp), PARAMETER              :: cone = (1.0_dp,0.0_dp), &
                                                 czero = (0.0_dp,0.0_dp)
 
@@ -625,7 +623,7 @@ END SUBROUTINE qs_ot_generate_rotation
 SUBROUTINE qs_ot_rot_mat_derivative(qs_ot_env)
     TYPE(qs_ot_type)                         :: qs_ot_env
 
-    CHARACTER(LEN=*), PARAMETER :: RoutineN = "qs_ot_rot_mat_derivative"
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_ot_rot_mat_derivative'
     COMPLEX(KIND=dp), PARAMETER              :: cI = (0.0_dp,1.0_dp), &
                                                 cone = (1.0_dp,0.0_dp), &
                                                 czero = (0.0_dp,0.0_dp)
@@ -794,7 +792,7 @@ SUBROUTINE qs_ot_get_derivative(matrix_hc,matrix_x,matrix_sx,matrix_gx, &
 
     REAL(KIND=dp), PARAMETER                 :: rone = 1.0_dp , rzero = 0.0_dp
 
-    INTEGER                                  :: handle, ip, fcol, lcol, k, k_range, n, ortho_k
+    INTEGER                                  :: handle, k, n, ortho_k
     TYPE(cp_fm_type), POINTER                :: matrix_hc_local, matrix_target
 
   CALL timeset("qs_ot_get_derivative","I","",handle)

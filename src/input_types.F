@@ -23,8 +23,8 @@
 
 MODULE input_types
 
-  USE kinds,                           ONLY: dp,&
-                                             default_string_length
+  USE kinds,                           ONLY: default_string_length,&
+                                             dp
 
   IMPLICIT NONE
 

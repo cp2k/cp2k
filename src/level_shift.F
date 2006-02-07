@@ -22,11 +22,14 @@ MODULE level_shift
 ! *****************************************************************************
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind
+  USE cell_types,                      ONLY: cell_type,&
+                                             pbc
   USE coefficient_types,               ONLY: coeff_sumup,&
                                              coeff_transform_space,&
                                              coeff_type
   USE cp_rs_pool_types,                ONLY: cp_rs_pool_type,&
                                              rs_pool_create_rs
+  USE input_section_types,             ONLY: section_vals_type
   USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: twopi
   USE particle_types,                  ONLY: particle_type
@@ -40,15 +43,11 @@ MODULE level_shift
                                              REALSPACE,&
                                              RECIPROCALSPACE
   USE qs_rho_types,                    ONLY: qs_rho_type
-  USE realspace_grid_types,            ONLY: realspace_grid_type,&
-                                             rs_pw_transfer,&
-                                             pw2rs
-  USE cell_types,                 ONLY: cell_type,&
-                                             pbc
+  USE realspace_grid_types,            ONLY: pw2rs,&
+                                             realspace_grid_type,&
+                                             rs_pw_transfer
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE input_section_types,             ONLY: section_vals_type
-
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -72,9 +71,9 @@ CONTAINS
     TYPE(pw_env_type), POINTER               :: pw_env
     TYPE(qs_rho_type)                        :: rho
     TYPE(coeff_type), POINTER                :: rho_core
+    TYPE(section_vals_type), POINTER         :: force_env_section
     TYPE(cp_error_type), INTENT(INOUT), &
       OPTIONAL                               :: error
-    TYPE(section_vals_type), POINTER :: force_env_section
 
     INTEGER                                  :: handle, ispin, power
     REAL(KIND=dp)                            :: core_eshift, &
@@ -87,10 +86,10 @@ CONTAINS
     CALL wannier_part(centers,electronic_eshift)
     CALL core_part(atomic_kind_set, particle_set, cell, core_eshift)
 
-    write(6,*) "electronic_eshift       ",electronic_eshift
-    write(6,*) "core_eshift             ",core_eshift
-    write(6,*) "total eshift            ",core_eshift+electronic_eshift
-    write(6,*) "eval shift in a.u. ", &
+    WRITE(6,*) "electronic_eshift       ",electronic_eshift
+    WRITE(6,*) "core_eshift             ",core_eshift
+    WRITE(6,*) "total eshift            ",core_eshift+electronic_eshift
+    WRITE(6,*) "eval shift in a.u. ", &
                    (core_eshift+electronic_eshift)*twopi / ( 3.0_dp * cell%deth )
 
     ! realspace based approach 
@@ -147,9 +146,9 @@ CONTAINS
     REAL(KIND=dp)                            :: core_eshift
 
     INTEGER                                  :: atom_a, iatom, ikind, natom
-    REAL(KIND=dp)                            :: zeff
     INTEGER, DIMENSION(:), POINTER           :: atom_list
-    REAL(KIND=dp)                            :: alpha, pos_part, spread_part
+    REAL(KIND=dp)                            :: alpha, pos_part, spread_part, &
+                                                zeff
     REAL(KIND=dp), DIMENSION(3)              :: center, ra
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
 
@@ -179,7 +178,7 @@ CONTAINS
     core_eshift=pos_part+spread_part
   END SUBROUTINE core_part
 
-  FUNCTION get_value(rho_g,g) result(RES)
+  FUNCTION get_value(rho_g,g) RESULT(RES)
     TYPE(coeff_type)                         :: rho_g
     INTEGER                                  :: g(3)
     COMPLEX(dp)                              :: RES
@@ -207,14 +206,14 @@ CONTAINS
     DO i=1,3
        g=0
        g(i)=1
-       write(6,*) "g_",i,get_value(rho_g,g)
+       WRITE(6,*) "g_",i,get_value(rho_g,g)
        resp=ABS(get_value(rho_g,g))
        g(i)=-1
-       write(6,*) "g_",i,get_value(rho_g,g)
+       WRITE(6,*) "g_",i,get_value(rho_g,g)
        resm=ABS(get_value(rho_g,g))
        rest=rest+cell%deth*(resp+resm)/(twopi/cell%hmat(i,i))**2
     ENDDO
-    write(6,*) "gspace number",rest
+    WRITE(6,*) "gspace number",rest
     
   END SUBROUTINE
 
@@ -224,11 +223,11 @@ CONTAINS
     TYPE(cell_type), POINTER                 :: cell
     REAL(KIND=dp)                            :: center(3)
     INTEGER                                  :: power
-    logical                                  :: ionode
-    TYPE(section_vals_type), POINTER :: force_env_section
+    LOGICAL                                  :: ionode
+    TYPE(section_vals_type), POINTER         :: force_env_section
     TYPE(cp_error_type), INTENT(inout), &
-         OPTIONAL                               :: error
-    
+      OPTIONAL                               :: error
+
     INTEGER                                  :: i, j, k, m, n
     REAL(KIND=dp)                            :: boxl(3), dipole(3), monopole, &
                                                 quadrupole(3,3), r(3)
@@ -271,13 +270,13 @@ CONTAINS
     dipole=dipole*PRODUCT(rs_rho%dr)
     quadrupole=quadrupole*PRODUCT(rs_rho%dr)
     IF (IONODE) THEN
-    write(6,'(A)') "origin centered moments"
-    write(6,'(A,F16.8)') "zero", monopole
-    write(6,'(A,3F16.8)') "one", dipole
-    write(6,'(A,3F16.8)') "two", quadrupole(1,1:3)
-    write(6,'(A,3F16.8)') "   ", quadrupole(2,1:3)
-    write(6,'(A,3F16.8)') "   ", quadrupole(3,1:3)
-    write(6,'(A,F16.8)') "two trace", quadrupole(1,1)+quadrupole(2,2)+quadrupole(3,3)
+    WRITE(6,'(A)') "origin centered moments"
+    WRITE(6,'(A,F16.8)') "zero", monopole
+    WRITE(6,'(A,3F16.8)') "one", dipole
+    WRITE(6,'(A,3F16.8)') "two", quadrupole(1,1:3)
+    WRITE(6,'(A,3F16.8)') "   ", quadrupole(2,1:3)
+    WRITE(6,'(A,3F16.8)') "   ", quadrupole(3,1:3)
+    WRITE(6,'(A,F16.8)') "two trace", quadrupole(1,1)+quadrupole(2,2)+quadrupole(3,3)
     ENDIF
   END SUBROUTINE realspace_approach
 END MODULE level_shift

@@ -27,69 +27,69 @@ MODULE harris_force
 
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind_set
-  USE coefficient_types,               ONLY: coeff_type, &
+  USE cell_types,                      ONLY: cell_type
+  USE coefficient_types,               ONLY: coeff_add,&
+                                             coeff_scale,&
+                                             coeff_subtract,&
+                                             coeff_sumup,&
                                              coeff_transform_space,&
-                                             coeff_scale, &
-                                             coeff_add, &
-                                             coeff_sumup, &
-                                             coeff_subtract
+                                             coeff_type
   USE cp_control_types,                ONLY: dft_control_type
   USE global_types,                    ONLY: global_environment_type
-  USE harris_env_types,                ONLY: harris_env_type, &
-                                             harris_env_get
+  USE harris_env_types,                ONLY: harris_env_get,&
+                                             harris_env_type
   USE harris_force_types,              ONLY: harris_force_type
-  USE input_section_types,             ONLY: section_vals_type, &
-                                             section_vals_get_subs_vals
+  USE input_section_types,             ONLY: section_vals_get_subs_vals,&
+                                             section_vals_type
   USE kinds,                           ONLY: dp
   USE message_passing,                 ONLY: mp_sum
   USE particle_types,                  ONLY: particle_type
-  USE pw_env_types,                    ONLY: pw_env_type, &
-                                             pw_env_get
+  USE pw_env_types,                    ONLY: pw_env_get,&
+                                             pw_env_type
   USE pw_poisson_methods,              ONLY: pw_poisson_solve
   USE pw_poisson_types,                ONLY: pw_poisson_type
-  USE pw_pool_types,                   ONLY: pw_pool_type, &
-                                             pw_pool_init_coeff, &
-                                             pw_pool_give_back_coeff, &
-                                             pw_pool_create_pw
-  USE pw_types,                        ONLY: pw_p_type, &
-                                             COMPLEXDATA1D, &
-                                             RECIPROCALSPACE, &
-                                             REALDATA3D, &
-                                             REALSPACE, &
-                                             pw_zero, &
-                                             pw_release
+  USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
+                                             pw_pool_give_back_coeff,&
+                                             pw_pool_init_coeff,&
+                                             pw_pool_type
+  USE pw_types,                        ONLY: COMPLEXDATA1D,&
+                                             REALDATA3D,&
+                                             REALSPACE,&
+                                             RECIPROCALSPACE,&
+                                             pw_p_type,&
+                                             pw_release,&
+                                             pw_zero
   USE qs_core_energies,                ONLY: calculate_ecore_overlap
   USE qs_core_hamiltonian,             ONLY: build_core_hamiltonian_matrix
-  USE qs_environment_types,            ONLY: get_qs_env, &
-                                             set_qs_env, &
-                                             qs_environment_type
-  USE qs_force_types,                  ONLY: qs_force_type, &
-                                             deallocate_qs_force, &
-                                             zero_qs_force, &
-                                             duplicate_qs_force
-  USE qs_integrate_potential,          ONLY: integrate_v_rspace, &
-                                             integrate_v_core_rspace
+  USE qs_environment_types,            ONLY: get_qs_env,&
+                                             qs_environment_type,&
+                                             set_qs_env
+  USE qs_force_types,                  ONLY: deallocate_qs_force,&
+                                             duplicate_qs_force,&
+                                             qs_force_type,&
+                                             zero_qs_force
+  USE qs_integrate_potential,          ONLY: integrate_v_core_rspace,&
+                                             integrate_v_rspace
   USE qs_ks_methods,                   ONLY: qs_vxc_create
   USE qs_ks_types,                     ONLY: qs_ks_env_type
   USE qs_rho_methods,                  ONLY: diff_rho_type
-  USE qs_rho_types,                    ONLY: qs_rho_type, &
-                                             qs_rho_get
-  USE cell_types,                 ONLY: cell_type
+  USE qs_rho_types,                    ONLY: qs_rho_get,&
+                                             qs_rho_type
   USE sparse_matrix_types,             ONLY: real_matrix_p_type
-  USE timings,                         ONLY: timeset, &
+  USE timings,                         ONLY: timeset,&
                                              timestop
-  USE xc,                              ONLY: xc_prep_2nd_deriv, &
-                                             xc_calc_2nd_deriv
-  USE xc_derivative_set_types,         ONLY: xc_derivative_set_type, &
+  USE xc,                              ONLY: xc_calc_2nd_deriv,&
+                                             xc_prep_2nd_deriv
+  USE xc_derivative_set_types,         ONLY: xc_derivative_set_type,&
                                              xc_dset_release
-  USE xc_rho_set_types,                ONLY: xc_rho_set_type, &
-                                             xc_rho_set_release
+  USE xc_rho_set_types,                ONLY: xc_rho_set_release,&
+                                             xc_rho_set_type
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
   PRIVATE
   
-  CHARACTER(len=*), PARAMETER :: moduleN = 'harris_force'
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'harris_force'
 
   ! *** Public subroutines ***
   PUBLIC :: harris_force_correction, &
@@ -129,61 +129,51 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE harris_force_correction(qs_env, harris_env, globenv, error)
 
-    TYPE(qs_environment_type), POINTER              :: qs_env
-    TYPE(harris_force_type),  POINTER               :: harris_force
-    TYPE(global_environment_type), POINTER          :: globenv
-    TYPE(cp_error_type), INTENT(INOUT), OPTIONAL    :: error
-    TYPE(harris_env_type), POINTER                  :: harris_env
-    TYPE(qs_force_type), DIMENSION(:), POINTER      :: force, &
-                                                       force_tmp
-    INTEGER                                         :: natom, &
-                                                       handle, &
-                                                       nkind, &
-                                                       i, &
-                                                       iatom, &
-                                                       ikind, &
-                                                       ispin, &
-                                                       stat, &
-                                                       nspins
-    INTEGER, ALLOCATABLE, DIMENSION(:)              :: atom_of_kind, &
-                                                       natom_of_kind, &
-                                                       kind_of
-    TYPE(atomic_kind_type), DIMENSION(:), &
-      POINTER                                       :: atomic_kind_set
-    TYPE(particle_type), DIMENSION(:), &
-      POINTER                                       :: particle_set
-    TYPE(coeff_type), DIMENSION(:), POINTER         :: v_rspace_new, &
-                                                       v_tau_rspace
-    REAL(KIND=dp)                                   :: Exc, &
-                                                       Ehartree
-                                                       !E_overlap_core
-    TYPE(qs_rho_type), POINTER                      :: rho
-    TYPE(real_matrix_p_type), DIMENSION(:), POINTER :: matrix_ks, &
-                                                       matrix_h
-    TYPE(pw_env_type), POINTER                      :: pw_env
-    TYPE(pw_pool_type), POINTER                     :: auxbas_pw_pool
-    TYPE(coeff_type)                                :: v_hartree_gspace, &
-                                                       v_hartree_rspace, &
-                                                       rho_tot_gspace
-    TYPE(coeff_type), POINTER                       :: rho_core
-    TYPE(cell_type), POINTER                        :: cell
-    TYPE(dft_control_type), POINTER                 :: dft_control
-    TYPE(xc_derivative_set_type), POINTER           :: deriv_set
-    TYPE(xc_rho_set_type), POINTER                  :: rho_set
-    TYPE(pw_p_type), DIMENSION(:), POINTER          :: my_rho_r, &
-                                                       v_xc
-    TYPE(coeff_type), DIMENSION(:), POINTER         :: rho_r
-    LOGICAL                                         :: failure
-    TYPE(qs_ks_env_type), POINTER                   :: ks_env
-    TYPE(pw_poisson_type), POINTER                  :: poisson_env
-    TYPE(section_vals_type), POINTER                :: xc_section, &
-                                                       input
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(harris_env_type), POINTER           :: harris_env
+    TYPE(global_environment_type), POINTER   :: globenv
+    TYPE(cp_error_type), INTENT(INOUT), &
+      OPTIONAL                               :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'harris_force_correction', &
       routineP = moduleN//':'//routineN
-    TYPE(cp_logger_type), POINTER :: logger
-    INTEGER :: unit_nr
 
+    INTEGER                                  :: handle, i, iatom, ikind, &
+                                                ispin, natom, nkind, nspins, &
+                                                stat, unit_nr
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: atom_of_kind, kind_of, &
+                                                natom_of_kind
+    LOGICAL                                  :: failure
+    REAL(KIND=dp)                            :: Ehartree, Exc
+    TYPE(atomic_kind_type), DIMENSION(:), &
+      POINTER                                :: atomic_kind_set
+    TYPE(cell_type), POINTER                 :: cell
+    TYPE(coeff_type)                         :: rho_tot_gspace, &
+                                                v_hartree_gspace, &
+                                                v_hartree_rspace
+    TYPE(coeff_type), DIMENSION(:), POINTER  :: rho_r, v_rspace_new, &
+                                                v_tau_rspace
+    TYPE(coeff_type), POINTER                :: rho_core
+    TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(harris_force_type), POINTER         :: harris_force
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particle_set
+    TYPE(pw_env_type), POINTER               :: pw_env
+    TYPE(pw_p_type), DIMENSION(:), POINTER   :: my_rho_r, v_xc
+    TYPE(pw_poisson_type), POINTER           :: poisson_env
+    TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
+    TYPE(qs_force_type), DIMENSION(:), &
+      POINTER                                :: force, force_tmp
+    TYPE(qs_ks_env_type), POINTER            :: ks_env
+    TYPE(qs_rho_type), POINTER               :: rho
+    TYPE(real_matrix_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_h, matrix_ks
+    TYPE(section_vals_type), POINTER         :: input, xc_section
+    TYPE(xc_derivative_set_type), POINTER    :: deriv_set
+    TYPE(xc_rho_set_type), POINTER           :: rho_set
+
+!E_overlap_core
 !   ------------------------------------------------------------------------
 
     CALL timeset(routineN, "I", "", handle)
@@ -460,7 +450,7 @@ CONTAINS
 
       ! Output
       IF (logger%para_env%source==logger%para_env%mepos) THEN
-        unit_nr=cp_logger_get_default_unit_nr(logger,local=.false.)
+        unit_nr=cp_logger_get_default_unit_nr(logger,local=.FALSE.)
         WRITE (unit_nr,*) ""; WRITE (unit_nr, *) ""
         WRITE (unit_nr,*) "The Harris functional force correction is performed!"
         WRITE (unit_nr,*) ""
@@ -517,60 +507,49 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE harris_force_EVal(qs_env, harris_env, globenv, error)
 
-    TYPE(qs_environment_type), POINTER              :: qs_env
-    TYPE(harris_force_type),  POINTER               :: harris_force
-    TYPE(global_environment_type), POINTER          :: globenv
-    TYPE(cp_error_type), INTENT(INOUT), OPTIONAL    :: error
-    TYPE(harris_env_type), POINTER                  :: harris_env
-    TYPE(qs_force_type), DIMENSION(:), POINTER      :: force, &
-                                                       force_tmp
-    INTEGER                                         :: natom, &
-                                                       handle, &
-                                                       nkind, &
-                                                       i, &
-                                                       iatom, &
-                                                       ikind, &
-                                                       ispin, &
-                                                       stat, &
-                                                       nspins
-    INTEGER, ALLOCATABLE, DIMENSION(:)              :: atom_of_kind, &
-                                                       natom_of_kind, &
-                                                       kind_of
-    TYPE(atomic_kind_type), DIMENSION(:), &
-      POINTER                                       :: atomic_kind_set
-    TYPE(particle_type), DIMENSION(:), &
-      POINTER                                       :: particle_set
-    TYPE(coeff_type), DIMENSION(:), POINTER         :: v_rspace_new, &
-                                                       v_tau_rspace
-    REAL(KIND=dp)                                   :: Exc, &
-                                                       Ehartree, &
-                                                       E_overlap_core
-    TYPE(qs_rho_type), POINTER                      :: rho
-    TYPE(real_matrix_p_type), DIMENSION(:), POINTER :: matrix_ks, &
-                                                       matrix_h
-    TYPE(pw_env_type), POINTER                      :: pw_env
-    TYPE(pw_pool_type), POINTER                     :: auxbas_pw_pool
-    TYPE(coeff_type)                                :: v_hartree_gspace, &
-                                                       v_hartree_rspace, &
-                                                       rho_tot_gspace
-    TYPE(coeff_type), POINTER                       :: rho_core
-    TYPE(cell_type), POINTER                        :: cell
-    TYPE(dft_control_type), POINTER                 :: dft_control
-    TYPE(xc_derivative_set_type), POINTER           :: deriv_set
-    TYPE(xc_rho_set_type), POINTER                  :: rho_set
-    TYPE(pw_p_type), DIMENSION(:), POINTER          :: my_rho_r, &
-                                                       v_xc
-    TYPE(coeff_type), DIMENSION(:), POINTER         :: rho_r
-    LOGICAL                                         :: failure
-    TYPE(qs_ks_env_type), POINTER                   :: ks_env
-    TYPE(pw_poisson_type), POINTER                  :: poisson_env
-    TYPE(section_vals_type), POINTER                :: xc_section, &
-                                                       input
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(harris_env_type), POINTER           :: harris_env
+    TYPE(global_environment_type), POINTER   :: globenv
+    TYPE(cp_error_type), INTENT(INOUT), &
+      OPTIONAL                               :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'harris_force_EVal', &
       routineP = moduleN//':'//routineN
-    TYPE(cp_logger_type), POINTER :: logger
-    INTEGER :: unit_nr
+
+    INTEGER                                  :: handle, i, iatom, ikind, &
+                                                ispin, natom, nkind, nspins, &
+                                                stat, unit_nr
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: atom_of_kind, kind_of, &
+                                                natom_of_kind
+    LOGICAL                                  :: failure
+    REAL(KIND=dp)                            :: E_overlap_core, Ehartree, Exc
+    TYPE(atomic_kind_type), DIMENSION(:), &
+      POINTER                                :: atomic_kind_set
+    TYPE(cell_type), POINTER                 :: cell
+    TYPE(coeff_type)                         :: rho_tot_gspace, &
+                                                v_hartree_gspace, &
+                                                v_hartree_rspace
+    TYPE(coeff_type), DIMENSION(:), POINTER  :: rho_r, v_rspace_new, &
+                                                v_tau_rspace
+    TYPE(coeff_type), POINTER                :: rho_core
+    TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(harris_force_type), POINTER         :: harris_force
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particle_set
+    TYPE(pw_env_type), POINTER               :: pw_env
+    TYPE(pw_p_type), DIMENSION(:), POINTER   :: my_rho_r, v_xc
+    TYPE(pw_poisson_type), POINTER           :: poisson_env
+    TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
+    TYPE(qs_force_type), DIMENSION(:), &
+      POINTER                                :: force, force_tmp
+    TYPE(qs_ks_env_type), POINTER            :: ks_env
+    TYPE(qs_rho_type), POINTER               :: rho
+    TYPE(real_matrix_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_h, matrix_ks
+    TYPE(section_vals_type), POINTER         :: input, xc_section
+    TYPE(xc_derivative_set_type), POINTER    :: deriv_set
+    TYPE(xc_rho_set_type), POINTER           :: rho_set
 
 !   ------------------------------------------------------------------------
 
@@ -974,7 +953,7 @@ CONTAINS
 
       ! Output
       IF (logger%para_env%source==logger%para_env%mepos) THEN
-        unit_nr=cp_logger_get_default_unit_nr(logger,local=.false.)
+        unit_nr=cp_logger_get_default_unit_nr(logger,local=.FALSE.)
         WRITE (unit_nr,*) ""; WRITE (unit_nr, *) ""
         WRITE (unit_nr,*) "The Harris functional force correction is performed!"
         WRITE (unit_nr,*) ""
@@ -1027,53 +1006,44 @@ CONTAINS
 !!
 !!*** **********************************************************************
   SUBROUTINE harris_calc_nsc_force(qs_env, globenv, error)
-    TYPE(qs_environment_type), POINTER              :: qs_env
-    TYPE(global_environment_type), POINTER          :: globenv
-    TYPE(cp_error_type), INTENT(INOUT), OPTIONAL    :: error
-
-    INTEGER                                         :: handle, &
-                                                       natom, &
-                                                       nkind, &
-                                                       stat, &
-                                                       ikind, &
-                                                       iatom, &
-                                                       i, &
-                                                       ispin, &
-                                                       nspins
-    LOGICAL                                         :: failure
-    INTEGER, ALLOCATABLE, DIMENSION(:)              :: atom_of_kind, &
-                                                       natom_of_kind, &
-                                                       kind_of
-    TYPE(harris_env_type), POINTER                  :: harris_env
-    TYPE(harris_force_type),  POINTER               :: harris_force
-    TYPE(atomic_kind_type), DIMENSION(:), &
-      POINTER                                       :: atomic_kind_set
-    TYPE(qs_force_type), DIMENSION(:), POINTER      :: force, &
-                                                       force_tmp
-    TYPE(particle_type), DIMENSION(:), &
-      POINTER                                       :: particle_set
-    REAL(KIND=dp)                                   :: Ehartree, &
-                                                       Exc
-    TYPE(coeff_type)                                :: v_hartree_gspace, &
-                                                       v_hartree_rspace
-    TYPE(coeff_type), DIMENSION(:), POINTER         :: v_rspace_new, &
-                                                       v_tau_rspace, &
-                                                       rho_r
-    TYPE(pw_p_type), DIMENSION(:), POINTER          :: my_rho_r, &
-                                                       v_xc
-    TYPE(dft_control_type), POINTER                 :: dft_control
-    TYPE(cell_type), POINTER                        :: cell
-    TYPE(xc_derivative_set_type), POINTER           :: deriv_set
-    TYPE(xc_rho_set_type), POINTER                  :: rho_set
-    TYPE(pw_pool_type), POINTER                     :: auxbas_pw_pool
-    TYPE(real_matrix_p_type), DIMENSION(:), POINTER :: matrix_ks
-    TYPE(pw_env_type), POINTER                      :: pw_env
-    TYPE(pw_poisson_type), POINTER                  :: poisson_env
-    TYPE(section_vals_type), POINTER                :: xc_section, &
-                                                       input
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(global_environment_type), POINTER   :: globenv
+    TYPE(cp_error_type), INTENT(INOUT), &
+      OPTIONAL                               :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'harris_calc_nsc_force', &
       routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, i, iatom, ikind, &
+                                                ispin, natom, nkind, nspins, &
+                                                stat
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: atom_of_kind, kind_of, &
+                                                natom_of_kind
+    LOGICAL                                  :: failure
+    REAL(KIND=dp)                            :: Ehartree, Exc
+    TYPE(atomic_kind_type), DIMENSION(:), &
+      POINTER                                :: atomic_kind_set
+    TYPE(cell_type), POINTER                 :: cell
+    TYPE(coeff_type)                         :: v_hartree_gspace, &
+                                                v_hartree_rspace
+    TYPE(coeff_type), DIMENSION(:), POINTER  :: rho_r, v_rspace_new, &
+                                                v_tau_rspace
+    TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(harris_env_type), POINTER           :: harris_env
+    TYPE(harris_force_type), POINTER         :: harris_force
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particle_set
+    TYPE(pw_env_type), POINTER               :: pw_env
+    TYPE(pw_p_type), DIMENSION(:), POINTER   :: my_rho_r, v_xc
+    TYPE(pw_poisson_type), POINTER           :: poisson_env
+    TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
+    TYPE(qs_force_type), DIMENSION(:), &
+      POINTER                                :: force, force_tmp
+    TYPE(real_matrix_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_ks
+    TYPE(section_vals_type), POINTER         :: input, xc_section
+    TYPE(xc_derivative_set_type), POINTER    :: deriv_set
+    TYPE(xc_rho_set_type), POINTER           :: rho_set
 
 !   ------------------------------------------------------------------------
 
@@ -1330,27 +1300,26 @@ CONTAINS
 !!
 !!*** **********************************************************************
   SUBROUTINE harris_force_test_rho_core(qs_env, harris_force, error)
-    TYPE(qs_environment_type), POINTER              :: qs_env
-    TYPE(harris_force_type),  POINTER               :: harris_force
-    TYPE(cp_error_type), INTENT(INOUT), OPTIONAL    :: error
-    INTEGER                                         :: natom, &
-                                                       nkind, &
-                                                       stat, &
-                                                       iatom, &
-                                                       ikind, &
-                                                       i
-    INTEGER, ALLOCATABLE, DIMENSION(:)              :: atom_of_kind, &
-                                                       natom_of_kind, &
-                                                       kind_of
-    TYPE(particle_type), DIMENSION(:), POINTER      :: particle_set
-    TYPE(atomic_kind_type), DIMENSION(:), POINTER   :: atomic_kind_set
-    TYPE(qs_force_type), DIMENSION(:), POINTER      :: force
-    LOGICAL                                         :: failure
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(harris_force_type), POINTER         :: harris_force
+    TYPE(cp_error_type), INTENT(INOUT), &
+      OPTIONAL                               :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'harris_force_test_rho_core', &
       routineP = moduleN//':'//routineN
-    TYPE(cp_logger_type), POINTER :: logger
-    INTEGER :: unit_nr
+
+    INTEGER                                  :: i, iatom, ikind, natom, &
+                                                nkind, stat, unit_nr
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: atom_of_kind, kind_of, &
+                                                natom_of_kind
+    LOGICAL                                  :: failure
+    TYPE(atomic_kind_type), DIMENSION(:), &
+      POINTER                                :: atomic_kind_set
+    TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particle_set
+    TYPE(qs_force_type), DIMENSION(:), &
+      POINTER                                :: force
 
 !   ------------------------------------------------------------------------
 
@@ -1363,7 +1332,7 @@ CONTAINS
     CPPrecondition(harris_force%ref_count>0, cp_failure_level, routineP, error, failure)
     
     IF (logger%para_env%source==logger%para_env%mepos) THEN
-          unit_nr=cp_logger_get_default_unit_nr(logger,local=.false.)
+          unit_nr=cp_logger_get_default_unit_nr(logger,local=.FALSE.)
           WRITE (unit_nr,*) ""; WRITE (unit_nr, *) ""
           WRITE (unit_nr,*) "The Harris force correction rho_core test is performed!"
           WRITE (unit_nr,*) ""
@@ -1390,7 +1359,7 @@ CONTAINS
                                natom_of_kind=natom_of_kind)
 
       IF (logger%para_env%source==logger%para_env%mepos) THEN
-        unit_nr=cp_logger_get_default_unit_nr(logger,local=.false.)
+        unit_nr=cp_logger_get_default_unit_nr(logger,local=.FALSE.)
         DO  iatom = 1, natom
           ikind = kind_of(iatom)
           i = atom_of_kind(iatom)
@@ -1441,28 +1410,27 @@ CONTAINS
 !!
 !!*** **********************************************************************
   SUBROUTINE harris_force_test_rho_elec(qs_env, harris_force, error)
-    TYPE(qs_environment_type), POINTER              :: qs_env
-    TYPE(harris_force_type),  POINTER               :: harris_force
-    TYPE(cp_error_type), INTENT(INOUT), OPTIONAL    :: error
-    INTEGER                                         :: natom, &
-                                                       nkind, &
-                                                       stat, &
-                                                       iatom, &
-                                                       ikind, &
-                                                       i
-    INTEGER, ALLOCATABLE, DIMENSION(:)              :: atom_of_kind, &
-                                                       natom_of_kind, &
-                                                       kind_of
-    TYPE(particle_type), DIMENSION(:), POINTER      :: particle_set
-    TYPE(atomic_kind_type), DIMENSION(:), POINTER   :: atomic_kind_set
-    TYPE(qs_force_type), DIMENSION(:), POINTER      :: force
-    LOGICAL                                         :: failure
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(harris_force_type), POINTER         :: harris_force
+    TYPE(cp_error_type), INTENT(INOUT), &
+      OPTIONAL                               :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'harris_force_test_rho_elec', &
       routineP = moduleN//':'//routineN
-    TYPE(cp_logger_type), POINTER :: logger
-    INTEGER :: unit_nr
-    
+
+    INTEGER                                  :: i, iatom, ikind, natom, &
+                                                nkind, stat, unit_nr
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: atom_of_kind, kind_of, &
+                                                natom_of_kind
+    LOGICAL                                  :: failure
+    TYPE(atomic_kind_type), DIMENSION(:), &
+      POINTER                                :: atomic_kind_set
+    TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particle_set
+    TYPE(qs_force_type), DIMENSION(:), &
+      POINTER                                :: force
+
 !   ------------------------------------------------------------------------
 
     failure = .FALSE.
@@ -1474,7 +1442,7 @@ CONTAINS
     CPPrecondition(harris_force%ref_count>0, cp_failure_level, routineP, error, failure)
     
     IF (logger%para_env%source==logger%para_env%mepos) THEN
-          unit_nr=cp_logger_get_default_unit_nr(logger,local=.false.)
+          unit_nr=cp_logger_get_default_unit_nr(logger,local=.FALSE.)
           WRITE (unit_nr,*) ""; WRITE (unit_nr, *) ""
           WRITE (unit_nr,*) "The Harris force correction rho_elec test is performed!"
           WRITE (unit_nr,*) ""
@@ -1501,7 +1469,7 @@ CONTAINS
                                natom_of_kind=natom_of_kind)
 
       IF (logger%para_env%source==logger%para_env%mepos) THEN
-        unit_nr=cp_logger_get_default_unit_nr(logger,local=.false.)
+        unit_nr=cp_logger_get_default_unit_nr(logger,local=.FALSE.)
         DO  iatom = 1, natom
           ikind = kind_of(iatom)
           i = atom_of_kind(iatom)
@@ -1551,45 +1519,42 @@ CONTAINS
 !!
 !!*** **********************************************************************
   SUBROUTINE harris_force_test_integral_vxc(qs_env, harris_force, error)
-    TYPE(qs_environment_type), POINTER              :: qs_env
-    TYPE(harris_force_type),  POINTER               :: harris_force
-    TYPE(cp_error_type), INTENT(INOUT), OPTIONAL    :: error
-    INTEGER                                         :: natom, &
-                                                       nkind, &
-                                                       stat, &
-                                                       iatom, &
-                                                       ikind, &
-                                                       i, &
-                                                       ispin, &
-                                                       nspins
-    INTEGER, ALLOCATABLE, DIMENSION(:)              :: atom_of_kind, &
-                                                       natom_of_kind, &
-                                                       kind_of
-    TYPE(particle_type), DIMENSION(:), POINTER      :: particle_set
-    TYPE(atomic_kind_type), DIMENSION(:), POINTER   :: atomic_kind_set
-    TYPE(qs_force_type), DIMENSION(:), POINTER      :: force, &
-                                                       force_tmp
-    TYPE(qs_rho_type), POINTER                      :: rho
-    TYPE(coeff_type), DIMENSION(:), POINTER         :: v_rspace_new, &
-                                                       v_tau_rspace
-    TYPE(coeff_type)                                :: v_hartree_rspace, &
-                                                       v_hartree_gspace, &
-                                                       rho_tot_gspace
-    TYPE(real_matrix_p_type), DIMENSION(:), POINTER :: matrix_ks
-    REAL(KIND=dp)                                   :: Ehartree, &
-                                                       Exc
-    TYPE(pw_pool_type), POINTER                     :: auxbas_pw_pool
-    TYPE(pw_env_type), POINTER                      :: pw_env
-    TYPE(coeff_type), POINTER                       :: rho_core
-    LOGICAL                                         :: failure
-    TYPE(pw_poisson_type), POINTER                  :: poisson_env
-    TYPE(dft_control_type), POINTER                 :: dft_control
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(harris_force_type), POINTER         :: harris_force
+    TYPE(cp_error_type), INTENT(INOUT), &
+      OPTIONAL                               :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'harris_force_test_integral_vxc', &
+    CHARACTER(len=*), PARAMETER :: &
+      routineN = 'harris_force_test_integral_vxc', &
       routineP = moduleN//':'//routineN
-    TYPE(cp_logger_type), POINTER :: logger
-    INTEGER :: unit_nr
-    
+
+    INTEGER                                  :: i, iatom, ikind, ispin, &
+                                                natom, nkind, nspins, stat, &
+                                                unit_nr
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: atom_of_kind, kind_of, &
+                                                natom_of_kind
+    LOGICAL                                  :: failure
+    REAL(KIND=dp)                            :: Ehartree, Exc
+    TYPE(atomic_kind_type), DIMENSION(:), &
+      POINTER                                :: atomic_kind_set
+    TYPE(coeff_type)                         :: rho_tot_gspace, &
+                                                v_hartree_gspace, &
+                                                v_hartree_rspace
+    TYPE(coeff_type), DIMENSION(:), POINTER  :: v_rspace_new, v_tau_rspace
+    TYPE(coeff_type), POINTER                :: rho_core
+    TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particle_set
+    TYPE(pw_env_type), POINTER               :: pw_env
+    TYPE(pw_poisson_type), POINTER           :: poisson_env
+    TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
+    TYPE(qs_force_type), DIMENSION(:), &
+      POINTER                                :: force, force_tmp
+    TYPE(qs_rho_type), POINTER               :: rho
+    TYPE(real_matrix_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_ks
+
 !   ------------------------------------------------------------------------
 
     failure = .FALSE.
@@ -1603,7 +1568,7 @@ CONTAINS
     CPPrecondition(harris_force%ref_count>0, cp_failure_level, routineP, error, failure)
     
     IF (logger%para_env%source==logger%para_env%mepos) THEN
-          unit_nr=cp_logger_get_default_unit_nr(logger,local=.false.)
+          unit_nr=cp_logger_get_default_unit_nr(logger,local=.FALSE.)
           WRITE (unit_nr,*) ""; WRITE (unit_nr, *) ""
           WRITE (unit_nr,*) "The Harris force correction integral_vxc test is performed!"
           WRITE (unit_nr,*) ""
@@ -1708,7 +1673,7 @@ CONTAINS
       CALL get_qs_env(qs_env=qs_env, force=force, error=error)
 
       IF (logger%para_env%source==logger%para_env%mepos) THEN
-        unit_nr=cp_logger_get_default_unit_nr(logger,local=.false.)
+        unit_nr=cp_logger_get_default_unit_nr(logger,local=.FALSE.)
         WRITE (unit_nr, *) ""
         DO iatom = 1, natom
           ikind = kind_of(iatom)

@@ -21,14 +21,20 @@
 
 MODULE init_extended_system_types
 
+  USE cell_types,                      ONLY: cell_type
   USE distribution_1d_types,           ONLY: distribution_1d_type
   USE dynamical_coeff_types,           ONLY: dyn_coeff_set_type
   USE extended_system_types,           ONLY: lnhc_parameters_type,&
                                              npt_info_type
   USE global_types,                    ONLY: global_environment_type
-  USE init_extended_system_variables,  ONLY: init_nhc_variables,&
-                                             init_barostat_variables
-  USE input_section_types,             ONLY: section_vals_get_subs_vals,&
+  USE init_extended_system_variables,  ONLY: init_barostat_variables,&
+                                             init_nhc_variables
+  USE input_constants,                 ONLY: nph_uniaxial_damped_ensemble,&
+                                             nph_uniaxial_ensemble,&
+                                             npt_f_ensemble,&
+                                             npt_i_ensemble
+  USE input_section_types,             ONLY: section_vals_get,&
+                                             section_vals_get_subs_vals,&
                                              section_vals_type,&
                                              section_vals_val_get
   USE kinds,                           ONLY: dp
@@ -39,23 +45,8 @@ MODULE init_extended_system_types
   USE nhc_mapping,                     ONLY: nhc_to_barostat_mapping,&
                                              nhc_to_coef_mapping,&
                                              nhc_to_particle_mapping
-  USE cell_types,                 ONLY: cell_type
-  USE termination,                     ONLY: stop_program, stop_memory
-  USE input_constants,                 ONLY: nve_ensemble,&
-                                             nvt_ensemble,&
-                                             npt_i_ensemble,&
-                                             npt_f_ensemble,&
-                                             nph_ensemble,&
-                                             nph_uniaxial_ensemble,&
-                                             nph_uniaxial_damped_ensemble,&
-                                             isokin_ensemble
-  USE input_section_types,             ONLY: section_vals_type,&
-                                             section_vals_get_subs_vals,&
-                                             section_vals_write,&
-                                             section_vals_get,&
-                                             section_vals_val_get
-  
-
+  USE termination,                     ONLY: stop_memory,&
+                                             stop_program
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -64,7 +55,7 @@ MODULE init_extended_system_types
             initialize_nhc_coef
   PRIVATE
 
-  CHARACTER(LEN=*), PARAMETER, PRIVATE :: moduleN = "init_extended_system_types"
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'init_extended_system_types'
 
 !!*****
 !******************************************************************************
@@ -92,25 +83,27 @@ CONTAINS
 
 
     TYPE(simulation_parameters_type), &
-         INTENT(INOUT)                          :: simpar
-    TYPE(global_environment_type), &
-         pointer                          :: globenv
+      INTENT(INOUT)                          :: simpar
+    TYPE(global_environment_type), POINTER   :: globenv
     TYPE(npt_info_type), DIMENSION(:, :), &
-         POINTER                                :: npt_info
+      POINTER                                :: npt_info
     TYPE(cell_type), INTENT(inout)           :: box
-    TYPE(section_vals_type), POINTER :: work_section
+    TYPE(section_vals_type), POINTER         :: work_section
     TYPE(cp_error_type), INTENT(inout), &
-         OPTIONAL                               :: error
-    CHARACTER(LEN=*), PARAMETER :: routineN = "initialize_npt", &
-         routineP = moduleN//':'//routineN   
+      OPTIONAL                               :: error
 
-    INTEGER                                  :: isos,i,j,ind
-    REAL ( KIND=dp )                         :: temp
-    REAL(KIND=dp), DIMENSION(:), POINTER :: buffer
-    LOGICAL :: explicit, failure, restart
-    TYPE(section_vals_type), POINTER :: work_section2
-    !------------------------------------------------------------------------------
-    ! first allocating the npt_info_type
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'initialize_npt', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i, ind, isos, j
+    LOGICAL                                  :: explicit, failure, restart
+    REAL(KIND=dp)                            :: temp
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: buffer
+    TYPE(section_vals_type), POINTER         :: work_section2
+
+!------------------------------------------------------------------------------
+! first allocating the npt_info_type
+
     NULLIFY(work_section2)
     explicit = .FALSE.
     failure=.FALSE.
@@ -204,25 +197,26 @@ CONTAINS
 
 
     TYPE(simulation_parameters_type), &
-         INTENT(INOUT)                          :: simpar
-    TYPE(global_environment_type), &
-         pointer                          :: globenv
+      INTENT(INOUT)                          :: simpar
+    TYPE(global_environment_type), POINTER   :: globenv
     TYPE(lnhc_parameters_type), &
-         INTENT(INOUT)                          :: nhc
-    TYPE(section_vals_type), POINTER :: work_section
+      INTENT(INOUT)                          :: nhc
+    TYPE(section_vals_type), POINTER         :: work_section
     TYPE(cp_error_type), INTENT(inout), &
-         OPTIONAL                               :: error
-    CHARACTER(len=*), PARAMETER :: routineN = 'initialize_nhc_baro', &
-         routineP = moduleN//':'//routineN
+      OPTIONAL                               :: error
 
-    REAL ( KIND = dp )                       :: temp
-    INTEGER                                  :: isos
-    REAL(KIND=dp), DIMENSION(:), POINTER :: buffer
-    INTEGER                                  :: i, j, ind
-    LOGICAL :: explicit, restart
-    TYPE(section_vals_type), POINTER :: work_section2
-    !------------------------------------------------------------------------------
-    ! fire up the thermostats, if NPT
+    CHARACTER(len=*), PARAMETER :: routineN = 'initialize_nhc_baro', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i, ind, isos, j
+    LOGICAL                                  :: explicit, restart
+    REAL(KIND=dp)                            :: temp
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: buffer
+    TYPE(section_vals_type), POINTER         :: work_section2
+
+!------------------------------------------------------------------------------
+! fire up the thermostats, if NPT
+
     NULLIFY(buffer,work_section2)
     CALL nhc_to_barostat_mapping ( simpar, nhc, globenv )
     explicit = .FALSE.
@@ -264,7 +258,7 @@ CONTAINS
        DO i = 1, SIZE ( nhc % nvt, 2)
           ind = nhc % INDEX(i)
           ind = (ind-1) * nhc % nhc_len
-          DO j = 1, size(nhc % nvt, 1)
+          DO j = 1, SIZE(nhc % nvt, 1)
              ind = ind + 1
              nhc % nvt(j,i) % eta = buffer ( ind )
           END DO
@@ -273,7 +267,7 @@ CONTAINS
        DO i = 1, SIZE ( nhc % nvt, 2)
           ind = nhc % INDEX(i)
           ind = (ind-1) * nhc % nhc_len
-          DO j = 1, size(nhc % nvt, 1)
+          DO j = 1, SIZE(nhc % nvt, 1)
              ind = ind + 1
              nhc % nvt(j,i) % v = buffer ( ind )
           END DO
@@ -282,7 +276,7 @@ CONTAINS
        DO i = 1, SIZE ( nhc % nvt, 2)
           ind = nhc % INDEX(i)
           ind = (ind-1) * nhc % nhc_len
-          DO j = 1, size(nhc % nvt, 1)
+          DO j = 1, SIZE(nhc % nvt, 1)
              ind = ind + 1
              nhc % nvt(j,i) % mass = buffer ( ind )
           END DO
@@ -291,7 +285,7 @@ CONTAINS
        DO i = 1, SIZE ( nhc % nvt, 2)
           ind = nhc % INDEX(i)
           ind = (ind-1) * nhc % nhc_len
-          DO j = 1, size(nhc % nvt, 1)
+          DO j = 1, SIZE(nhc % nvt, 1)
              ind = ind + 1
              nhc % nvt(j,i) % f = buffer ( ind )
           END DO
@@ -333,30 +327,32 @@ CONTAINS
 
     TYPE(cell_type), INTENT(IN)              :: box
     TYPE(simulation_parameters_type), &
-         INTENT(INOUT)                          :: simpar
+      INTENT(INOUT)                          :: simpar
     TYPE(distribution_1d_type), POINTER      :: local_molecules
     TYPE(molecule_type), POINTER             :: molecule( : )
     TYPE(molecule_kind_type), POINTER        :: molecule_kind_set( : )
-    TYPE(global_environment_type), &
-         pointer                          :: globenv
+    TYPE(global_environment_type), POINTER   :: globenv
     TYPE(lnhc_parameters_type), &
-         INTENT(INOUT)                          :: nhc
-    TYPE(section_vals_type), POINTER :: work_section
+      INTENT(INOUT)                          :: nhc
+    TYPE(section_vals_type), POINTER         :: work_section
     TYPE(cp_error_type), INTENT(inout), &
-         OPTIONAL                               :: error
-    CHARACTER(len=*), PARAMETER :: routineN = 'initialize_nhc_part', &
-         routineP = moduleN//':'//routineN
+      OPTIONAL                               :: error
 
-    REAL(KIND=dp), DIMENSION(:), POINTER :: buffer
-    INTEGER                                  :: iw, natom, nconstraint, nfree, isos, i, j, ind
-    LOGICAL :: explicit, restart
-    TYPE(section_vals_type), POINTER :: work_section2
-    !------------------------------------------------------------------------------
-    ! Initialize simpar%nfree to dim (because at this point no
-    ! assumptions have been made about thermostatting options
-    ! and COM is ALWAYS zeroed in this code.  If there are
-    ! multiple thermostats etc...simpar % nfree will be set
-    ! to zero in nhc_particle_setup.f)
+    CHARACTER(len=*), PARAMETER :: routineN = 'initialize_nhc_part', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i, ind, isos, iw, j, natom, &
+                                                nconstraint, nfree
+    LOGICAL                                  :: explicit, restart
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: buffer
+    TYPE(section_vals_type), POINTER         :: work_section2
+
+!------------------------------------------------------------------------------
+! Initialize simpar%nfree to dim (because at this point no
+! assumptions have been made about thermostatting options
+! and COM is ALWAYS zeroed in this code.  If there are
+! multiple thermostats etc...simpar % nfree will be set
+! to zero in nhc_particle_setup.f)
 
     NULLIFY(buffer, work_section2)
     simpar % nfree = 6 - SUM ( box % perd ( 1:3 ) )
@@ -403,7 +399,7 @@ CONTAINS
        DO i = 1, SIZE ( nhc % nvt, 2)
           ind = nhc % INDEX(i)
           ind = (ind-1) * nhc % nhc_len
-          DO j = 1, size(nhc % nvt, 1)
+          DO j = 1, SIZE(nhc % nvt, 1)
              ind = ind + 1
              nhc % nvt(j,i) % eta = buffer ( ind )
           END DO
@@ -412,7 +408,7 @@ CONTAINS
        DO i = 1, SIZE ( nhc % nvt, 2)
           ind = nhc % INDEX(i)
           ind = (ind-1) * nhc % nhc_len
-          DO j = 1, size(nhc % nvt, 1)
+          DO j = 1, SIZE(nhc % nvt, 1)
              ind = ind + 1
              nhc % nvt(j,i) % v = buffer ( ind )
           END DO
@@ -421,7 +417,7 @@ CONTAINS
        DO i = 1, SIZE ( nhc % nvt, 2)
           ind = nhc % INDEX(i)
           ind = (ind-1) * nhc % nhc_len
-          DO j = 1, size(nhc % nvt, 1)
+          DO j = 1, SIZE(nhc % nvt, 1)
              ind = ind + 1
              nhc % nvt(j,i) % mass = buffer ( ind )
           END DO
@@ -430,7 +426,7 @@ CONTAINS
        DO i = 1, SIZE ( nhc % nvt, 2)
           ind = nhc % INDEX(i)
           ind = (ind-1) * nhc % nhc_len
-          DO j = 1, size(nhc % nvt, 1)
+          DO j = 1, SIZE(nhc % nvt, 1)
              ind = ind + 1
              nhc % nvt(j,i) % f = buffer ( ind )
           END DO
@@ -487,35 +483,36 @@ CONTAINS
     !  IMPLICIT NONE
 
     TYPE(dyn_coeff_set_type), POINTER        :: dyn_coeff_set
-    TYPE(global_environment_type), &
-         pointer                          :: globenv
+    TYPE(global_environment_type), POINTER   :: globenv
     TYPE(lnhc_parameters_type), &
-         INTENT(INOUT)                          :: nhc
-    TYPE(section_vals_type), POINTER :: work_section
+      INTENT(INOUT)                          :: nhc
+    TYPE(section_vals_type), POINTER         :: work_section
     TYPE(cp_error_type), INTENT(inout), &
-         OPTIONAL                               :: error
-
+      OPTIONAL                               :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'initialize_nhc_coef', &
-         routineP = moduleN//':'//routineN
-    REAL(KIND=dp)                            :: kg_coeff_target_temp, &
-         tau_nhc, dt 
-    TYPE(section_vals_type), POINTER         :: coeff_section, nose_section, &
-         md_new_section
-    INTEGER                                  :: isos,i,j,ind
-    LOGICAL :: explicit, restart
-    REAL(KIND=dp), DIMENSION(:), POINTER :: buffer
-    TYPE(section_vals_type), POINTER :: work_section2
-    !------------------------------------------------------------------------------
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i, ind, isos, j
+    LOGICAL                                  :: explicit, restart
+    REAL(KIND=dp)                            :: dt, kg_coeff_target_temp, &
+                                                tau_nhc
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: buffer
+    TYPE(section_vals_type), POINTER         :: coeff_section, &
+                                                md_new_section, nose_section, &
+                                                work_section2
+
+!------------------------------------------------------------------------------
+
     NULLIFY(coeff_section,nose_section,buffer,work_section2) 
     explicit  =.FALSE.
     restart = .FALSE.
     md_new_section => section_vals_get_subs_vals(globenv%input_file,"MOTION%MD")
     coeff_section => section_vals_get_subs_vals(md_new_section,"KG_COEFF")
     nose_section => section_vals_get_subs_vals(coeff_section,"nose")
-    call section_vals_val_get(nose_section,"timecon",r_val=tau_nhc)
-    call section_vals_val_get(coeff_section,"temperature",r_val=kg_coeff_target_temp)
-    call section_vals_val_get(md_new_section,"timestep",r_val=dt)
+    CALL section_vals_val_get(nose_section,"timecon",r_val=tau_nhc)
+    CALL section_vals_val_get(coeff_section,"temperature",r_val=kg_coeff_target_temp)
+    CALL section_vals_val_get(md_new_section,"timestep",r_val=dt)
 
     ! fire up the thermostats
     CALL nhc_to_coef_mapping ( dyn_coeff_set, nhc, globenv )
@@ -550,7 +547,7 @@ CONTAINS
           DO i = 1, SIZE ( nhc % nvt, 2)
              ind = nhc % INDEX(i)
              ind = (ind-1) * nhc % nhc_len
-             DO j = 1, size(nhc % nvt, 1)
+             DO j = 1, SIZE(nhc % nvt, 1)
                 ind = ind + 1
                 nhc % nvt(j,i) % eta = buffer ( ind )
              END DO
@@ -559,7 +556,7 @@ CONTAINS
           DO i = 1, SIZE ( nhc % nvt, 2)
              ind = nhc % INDEX(i)
              ind = (ind-1) * nhc % nhc_len
-             DO j = 1, size(nhc % nvt, 1)
+             DO j = 1, SIZE(nhc % nvt, 1)
                 ind = ind + 1
                 nhc % nvt(j,i) % v = buffer ( ind )
              END DO
@@ -568,7 +565,7 @@ CONTAINS
           DO i = 1, SIZE ( nhc % nvt, 2)
              ind = nhc % INDEX(i)
              ind = (ind-1) * nhc % nhc_len
-             DO j = 1, size(nhc % nvt, 1)
+             DO j = 1, SIZE(nhc % nvt, 1)
                 ind = ind + 1
                 nhc % nvt(j,i) % mass = buffer ( ind )
              END DO
@@ -577,7 +574,7 @@ CONTAINS
           DO i = 1, SIZE ( nhc % nvt, 2)
              ind = nhc % INDEX(i)
              ind = (ind-1) * nhc % nhc_len
-             DO j = 1, size(nhc % nvt, 1)
+             DO j = 1, SIZE(nhc % nvt, 1)
                 ind = ind + 1
                 nhc % nvt(j,i) % f = buffer ( ind )
              END DO
@@ -628,9 +625,9 @@ SUBROUTINE set_yoshida_coef ( nhc, dt )
 
     TYPE(lnhc_parameters_type), &
       INTENT(INOUT)                          :: nhc
-    REAL(KIND=dp), INTENT(IN)                    :: dt
+    REAL(KIND=dp), INTENT(IN)                :: dt
 
-    REAL(KIND=dp), DIMENSION(nhc%nyosh)          :: yosh_wt
+    REAL(KIND=dp), DIMENSION(nhc%nyosh)      :: yosh_wt
 
 !------------------------------------------------------------------------------
 

@@ -24,34 +24,31 @@
 
 MODULE topology_psf
   USE checkpoint_handler,              ONLY: write_checkpoint_information
-  USE global_types,                    ONLY: global_environment_type
-  USE kinds,                           ONLY: dp,&
-                                             default_string_length
-  USE memory_utilities,                ONLY: reallocate
-  USE cp_parser,                       ONLY: parser_release,&
-                                             parser_get_object,&
-                                             parser_get_next_line,&
-                                             parser_search_string,&
+  USE cp_files,                        ONLY: open_file
+  USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
+                                             cp_print_key_unit_nr
+  USE cp_parser,                       ONLY: cp_parser_type,&
                                              parser_create,&
-                                             cp_parser_type
-  USE cp_files,                        ONLY: close_file,&
-                                             open_file
-  USE termination,                     ONLY: stop_memory,&
-                                             stop_program
+                                             parser_get_next_line,&
+                                             parser_get_object,&
+                                             parser_release,&
+                                             parser_search_string
+  USE global_types,                    ONLY: global_environment_type
+  USE input_section_types,             ONLY: section_vals_type
+  USE kinds,                           ONLY: default_string_length,&
+                                             dp
+  USE memory_utilities,                ONLY: reallocate
+  USE string_utilities,                ONLY: uppercase
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE topology_types,                  ONLY: topology_parameters_type,&
-                                             atom_info_type,&
-                                             connectivity_info_type
-  USE string_utilities,                ONLY: uppercase
-  USE cp_output_handling,              ONLY: cp_print_key_unit_nr, &
-                                             cp_print_key_finished_output  
-  USE input_section_types,             ONLY: section_vals_type
-
+  USE topology_types,                  ONLY: atom_info_type,&
+                                             connectivity_info_type,&
+                                             topology_parameters_type
 #include "cp_common_uses.h"
+
   IMPLICIT NONE
 
-  CHARACTER(LEN=*), PARAMETER, PRIVATE :: moduleN = "topology_psf"
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'topology_psf'
 
   PRIVATE
   PUBLIC :: read_topology_psf, write_topology_psf
@@ -75,30 +72,27 @@ CONTAINS
 !******************************************************************************
 
   SUBROUTINE read_topology_psf (topology,globenv,subsys_section, error)
-    IMPLICIT NONE
-    ! Arguments
     TYPE(topology_parameters_type), &
       INTENT(INOUT)                          :: topology
     TYPE(global_environment_type), &
-      pointer, OPTIONAL                      :: globenv
-    TYPE(section_vals_type), POINTER :: subsys_section
+      OPTIONAL, POINTER                      :: globenv
+    TYPE(section_vals_type), POINTER         :: subsys_section
     TYPE(cp_error_type), INTENT(inout), &
-         OPTIONAL                               :: error 
-    ! Local Variables
-    TYPE (atom_info_type),POINTER            :: atom_info
-    TYPE (connectivity_info_type),POINTER    :: conn_info
+      OPTIONAL                               :: error
 
-    CHARACTER(LEN=default_string_length)              :: label, dummy_field
-    INTEGER                                  :: i, iatom, ibond, stat, &
-                                                ilen, iphi, itheta, iunit, &
-                                                iw, natom, nbond, nphi, ntheta
-    CHARACTER(len=*), PARAMETER :: routineN = 'read_coordinate_psf', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'read_topology_psf', &
       routineP = moduleN//':'//routineN
-    INTEGER                                  :: handle
-    LOGICAL                                  :: found, failure
-    INTEGER :: jatom
-    TYPE(cp_parser_type), POINTER            :: parser
+
+    CHARACTER(LEN=default_string_length)     :: dummy_field, label
+    INTEGER                                  :: handle, i, iatom, ibond, &
+                                                iphi, itheta, iw, jatom, &
+                                                natom, nbond, nphi, ntheta, &
+                                                stat
+    LOGICAL                                  :: failure, found
+    TYPE(atom_info_type), POINTER            :: atom_info
+    TYPE(connectivity_info_type), POINTER    :: conn_info
     TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(cp_parser_type), POINTER            :: parser
 
     failure = .FALSE.
     NULLIFY(parser, logger)
@@ -366,26 +360,23 @@ CONTAINS
 !******************************************************************************
 
   SUBROUTINE write_topology_psf (topology,globenv,subsys_section,error)
-    IMPLICIT NONE
-    !Arguments
     TYPE(topology_parameters_type), &
       INTENT(INOUT)                          :: topology
     TYPE(global_environment_type), &
-      pointer, OPTIONAL                   :: globenv
-    TYPE(section_vals_type), POINTER :: subsys_section
+      OPTIONAL, POINTER                      :: globenv
+    TYPE(section_vals_type), POINTER         :: subsys_section
     TYPE(cp_error_type), INTENT(inout), &
-         OPTIONAL                               :: error 
-    ! Local Variables
-    INTEGER                                  :: i, j, iatom, ibond, &
-                                                ilen, iphi, itheta, iunit, &
-                                                iw, natom, nbond, nphi, ntheta
+      OPTIONAL                               :: error
+
     CHARACTER(len=*), PARAMETER :: routineN = 'write_topology_psf', &
       routineP = moduleN//':'//routineN
-    TYPE (atom_info_type),POINTER            :: atom_info
-    TYPE (connectivity_info_type),POINTER    :: conn_info
+
     CHARACTER(LEN=default_string_length)     :: record
-    INTEGER                                  :: file_unit,imol,id1,id2,handle
+    INTEGER                                  :: file_unit, handle, i, iw, j, &
+                                                natom, nbond, nphi, ntheta
     LOGICAL                                  :: failure
+    TYPE(atom_info_type), POINTER            :: atom_info
+    TYPE(connectivity_info_type), POINTER    :: conn_info
     TYPE(cp_logger_type), POINTER            :: logger
 
     failure = .FALSE.

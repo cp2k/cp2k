@@ -35,11 +35,11 @@ MODULE qs_loc_types
 
 ! *****************************************************************************
 
-  USE cp_fm_pool_types,                ONLY: cp_fm_pool_p_type,&
-                                             fm_pool_create_fm
+  USE cell_types,                      ONLY: cell_release,&
+                                             cell_retain,&
+                                             cell_type
   USE cp_fm_types,                     ONLY: cp_fm_p_type,&
-                                             cp_fm_release,&
-                                             cp_fm_type
+                                             cp_fm_release
   USE cp_para_env,                     ONLY: cp_para_env_release,&
                                              cp_para_env_retain
   USE cp_para_types,                   ONLY: cp_para_env_type
@@ -47,19 +47,12 @@ MODULE qs_loc_types
                                              distribution_1d_retain,&
                                              distribution_1d_type
   USE kinds,                           ONLY: dp
-  USE mathconstants,                   ONLY: twopi
   USE particle_types,                  ONLY: particle_type
   USE qs_loc_control,                  ONLY: localized_wfn_control_release,&
                                              localized_wfn_control_retain,&
                                              localized_wfn_control_type
-  USE cell_types,                 ONLY: cell_release,&
-                                             cell_retain,&
-                                             cell_type,&
-                                             pbc
   USE sparse_matrix_types,             ONLY: deallocate_matrix,&
                                              real_matrix_p_type
-  USE termination,                     ONLY: stop_memory,&
-                                             stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "cp_common_uses.h"
@@ -70,7 +63,7 @@ MODULE qs_loc_types
 
 ! *** Global parameters ***
 
-  CHARACTER(LEN=*), PARAMETER, PRIVATE :: module_name = "qs_loc_types"
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_loc_types'
 
 
 ! *** Public ***
@@ -156,15 +149,15 @@ CONTAINS
 
   SUBROUTINE qs_loc_env_create(qs_loc_env,error)
 
-    TYPE(qs_loc_env_new_type), POINTER         :: qs_loc_env
+    TYPE(qs_loc_env_new_type), POINTER       :: qs_loc_env
     TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                                 :: error
+      OPTIONAL                               :: error
 
-    CHARACTER(len=*), PARAMETER :: routine_name = 'qs_loc_env_create', &
-      routineP = module_name//':'//routine_name
+    CHARACTER(len=*), PARAMETER :: routineN = 'qs_loc_env_create', &
+      routineP = moduleN//':'//routineN
 
-    INTEGER                                    :: istat
-    LOGICAL                                    :: failure
+    INTEGER                                  :: istat
+    LOGICAL                                  :: failure
 
     failure=.FALSE.
 
@@ -195,15 +188,15 @@ CONTAINS
 
   SUBROUTINE qs_loc_env_destroy(qs_loc_env,error)
 
-    TYPE(qs_loc_env_new_type), POINTER         :: qs_loc_env
+    TYPE(qs_loc_env_new_type), POINTER       :: qs_loc_env
     TYPE(cp_error_type), INTENT(inout), &
-       OPTIONAL                                :: error
+      OPTIONAL                               :: error
 
-    CHARACTER(len=*), PARAMETER :: routine_name = 'qs_loc_env_destroy', &
-      routineP = module_name//':'//routine_name
+    CHARACTER(len=*), PARAMETER :: routineN = 'qs_loc_env_destroy', &
+      routineP = moduleN//':'//routineN
 
-    INTEGER                                    :: i, istat, j
-    LOGICAL                                    :: failure
+    INTEGER                                  :: i, istat, j
+    LOGICAL                                  :: failure
 
     failure =.FALSE.
     CPPrecondition(ASSOCIATED(qs_loc_env),cp_warning_level,routineP,error,failure)
@@ -259,11 +252,11 @@ CONTAINS
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-    CHARACTER(len=*), PARAMETER :: routine_name='qs_loc_env_release',&
-      routineP = module_name//':'//routine_name
+    CHARACTER(len=*), PARAMETER :: routineN = 'qs_loc_env_release', &
+      routineP = moduleN//':'//routineN
 
-    INTEGER :: istat
-    LOGICAL :: failure
+    LOGICAL                                  :: failure
+
     failure=.FALSE.
 
     IF (ASSOCIATED(qs_loc_env)) THEN
@@ -281,11 +274,11 @@ CONTAINS
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-    CHARACTER(len=*), PARAMETER :: routine_name='qs_loc_env_retain',&
-      routineP = module_name//':'//routine_name
+    CHARACTER(len=*), PARAMETER :: routineN = 'qs_loc_env_retain', &
+      routineP = moduleN//':'//routineN
 
-    INTEGER :: istat
-    LOGICAL :: failure
+    LOGICAL                                  :: failure
+
     failure=.FALSE.
 
     CPPrecondition(ASSOCIATED(qs_loc_env),cp_failure_level,routineP,error,failure)
@@ -302,31 +295,30 @@ CONTAINS
              localized_wfn_control,moloc_coeff,&
              op_sm_set,op_fm_set,para_env,particle_set,weights,error)
 
-    TYPE(qs_loc_env_new_type), POINTER         :: qs_loc_env
-    TYPE(cell_type), OPTIONAL, POINTER         :: cell
-    TYPE(cp_fm_p_type), DIMENSION(:),&
-      POINTER, OPTIONAL                        :: moloc_coeff
-    TYPE(cp_fm_p_type), DIMENSION(:,:),&
-      POINTER, OPTIONAL                        :: op_fm_set
-   TYPE(distribution_1d_type), OPTIONAL, &
-      POINTER                                  :: local_molecules
+    TYPE(qs_loc_env_new_type), POINTER       :: qs_loc_env
+    TYPE(cell_type), OPTIONAL, POINTER       :: cell
+    TYPE(distribution_1d_type), OPTIONAL, &
+      POINTER                                :: local_molecules
     TYPE(localized_wfn_control_type), &
-      POINTER, OPTIONAL                        :: localized_wfn_control
-    TYPE (real_matrix_p_type), DIMENSION(:,:),&
-      OPTIONAL, POINTER                        :: op_sm_set
+      OPTIONAL, POINTER                      :: localized_wfn_control
+    TYPE(cp_fm_p_type), DIMENSION(:), &
+      OPTIONAL, POINTER                      :: moloc_coeff
+    TYPE(real_matrix_p_type), &
+      DIMENSION(:, :), OPTIONAL, POINTER     :: op_sm_set
+    TYPE(cp_fm_p_type), DIMENSION(:, :), &
+      OPTIONAL, POINTER                      :: op_fm_set
     TYPE(cp_para_env_type), OPTIONAL, &
-      POINTER                                  :: para_env
+      POINTER                                :: para_env
     TYPE(particle_type), DIMENSION(:), &
-      OPTIONAL, POINTER                        :: particle_set
-    REAL(dp), DIMENSION(6), OPTIONAL           :: weights
+      OPTIONAL, POINTER                      :: particle_set
+    REAL(dp), DIMENSION(6), OPTIONAL         :: weights
     TYPE(cp_error_type), INTENT(inout), &
-       OPTIONAL                                :: error
+      OPTIONAL                               :: error
 
-    CHARACTER(len=*), PARAMETER :: routine_name = 'get_qs_loc_env', &
-      routineP = module_name//':'//routine_name
+    CHARACTER(len=*), PARAMETER :: routineN = 'get_qs_loc_env', &
+      routineP = moduleN//':'//routineN
 
-    INTEGER                                    :: istat
-    LOGICAL                                    :: failure
+    LOGICAL                                  :: failure
 
      failure =.FALSE.
      CPPrecondition(ASSOCIATED(qs_loc_env),cp_failure_level,routineP,error,failure)
@@ -353,32 +345,30 @@ CONTAINS
              localized_wfn_control,moloc_coeff,&
              op_sm_set,op_fm_set,para_env,particle_set,weights,error)
 
-    TYPE(qs_loc_env_new_type), POINTER         :: qs_loc_env
-    TYPE(cell_type), OPTIONAL, POINTER         :: cell
-    TYPE(cp_fm_p_type), DIMENSION(:),&
-      POINTER, OPTIONAL                        :: moloc_coeff
-    TYPE(cp_fm_p_type), DIMENSION(:,:),&
-      POINTER, OPTIONAL                        :: op_fm_set
-   TYPE(distribution_1d_type), OPTIONAL, &
-      POINTER                                  :: local_molecules
+    TYPE(qs_loc_env_new_type), POINTER       :: qs_loc_env
+    TYPE(cell_type), OPTIONAL, POINTER       :: cell
+    TYPE(distribution_1d_type), OPTIONAL, &
+      POINTER                                :: local_molecules
     TYPE(localized_wfn_control_type), &
-      POINTER, OPTIONAL                        :: localized_wfn_control
-    TYPE (real_matrix_p_type), DIMENSION(:,:),&
-      OPTIONAL, POINTER                        :: op_sm_set
+      OPTIONAL, POINTER                      :: localized_wfn_control
+    TYPE(cp_fm_p_type), DIMENSION(:), &
+      OPTIONAL, POINTER                      :: moloc_coeff
+    TYPE(real_matrix_p_type), &
+      DIMENSION(:, :), OPTIONAL, POINTER     :: op_sm_set
+    TYPE(cp_fm_p_type), DIMENSION(:, :), &
+      OPTIONAL, POINTER                      :: op_fm_set
     TYPE(cp_para_env_type), OPTIONAL, &
-      POINTER                                  :: para_env
+      POINTER                                :: para_env
     TYPE(particle_type), DIMENSION(:), &
-      OPTIONAL, POINTER                        :: particle_set
-    REAL(dp), DIMENSION(6), OPTIONAL           :: weights
+      OPTIONAL, POINTER                      :: particle_set
+    REAL(dp), DIMENSION(6), OPTIONAL         :: weights
     TYPE(cp_error_type), INTENT(inout), &
-       OPTIONAL                                :: error
+      OPTIONAL                               :: error
 
+    CHARACTER(len=*), PARAMETER :: routineN = 'set_qs_loc_env', &
+      routineP = moduleN//':'//routineN
 
-    CHARACTER(len=*), PARAMETER :: routine_name = 'set_qs_loc_env', &
-      routineP = module_name//':'//routine_name
-
-    INTEGER                                    :: istat
-    LOGICAL                                    :: failure
+    LOGICAL                                  :: failure
 
      failure =.FALSE.
      CPPrecondition(ASSOCIATED(qs_loc_env),cp_failure_level,routineP,error,failure)

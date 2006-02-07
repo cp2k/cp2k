@@ -29,11 +29,12 @@ MODULE qs_kpp1_env_types
   USE cp_array_i_utils,                ONLY: cp_2d_i_write
   USE cp_array_logical_utils,          ONLY: cp_1d_logical_write,&
                                              cp_2d_logical_write
-  USE cp_para_types,                   ONLY: cp_para_env_type
-  USE kinds,                           ONLY: dp
-  USE pw_types,                        ONLY: pw_p_type
   USE cp_files,                        ONLY: close_file,&
                                              open_file
+  USE cp_para_types,                   ONLY: cp_para_env_type
+  USE input_section_types,             ONLY: section_vals_type
+  USE kinds,                           ONLY: dp
+  USE pw_types,                        ONLY: pw_p_type
   USE realspace_grid_types,            ONLY: rs_pw_to_cube
   USE sparse_matrix_types,             ONLY: deallocate_matrix,&
                                              real_matrix_p_type
@@ -42,10 +43,8 @@ MODULE qs_kpp1_env_types
                                              timestop
   USE xc_derivative_set_types,         ONLY: xc_derivative_set_type,&
                                              xc_dset_release
-  USE xc_rho_set_types,                ONLY: xc_rho_set_type,&
-                                             xc_rho_set_release
-  USE input_section_types,             ONLY: section_vals_type
-
+  USE xc_rho_set_types,                ONLY: xc_rho_set_release,&
+                                             xc_rho_set_type
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -54,7 +53,7 @@ MODULE qs_kpp1_env_types
   PUBLIC :: kpp1_release, kpp1_retain, kpp1_write
 
   LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
-  CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='qs_kpp1_env_types'
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_kpp1_env_types'
 
 !!***
 !****************************************************************************
@@ -314,9 +313,9 @@ CONTAINS
     TYPE(qs_kpp1_env_type), POINTER          :: kpp1_env
     INTEGER, INTENT(in)                      :: unit_nr
     LOGICAL, INTENT(in), OPTIONAL            :: long_description, local
+    TYPE(section_vals_type), POINTER         :: force_env_section
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
-    TYPE(section_vals_type), POINTER :: force_env_section
 
     CHARACTER(len=*), PARAMETER :: routineN = 'kpp1_write', &
       routineP = moduleN//':'//routineN

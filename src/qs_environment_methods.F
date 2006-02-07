@@ -35,6 +35,8 @@ MODULE qs_environment_methods
                                              coeff_type
   USE cp_array_i_utils,                ONLY: cp_1d_i_p_type
   USE cp_control_types,                ONLY: dft_control_type
+  USE cp_output_handling,              ONLY: cp_p_file,&
+                                             cp_print_key_should_output
   USE cp_para_types,                   ONLY: cp_blacs_env_type,&
                                              cp_para_env_type
   USE distribution_2d_types,           ONLY: distribution_2d_create,&
@@ -43,6 +45,7 @@ MODULE qs_environment_methods
                                              distribution_2d_write
   USE distribution_methods,            ONLY: distribute_molecules_2d
   USE global_types,                    ONLY: MEDIUM
+  USE input_section_types,             ONLY: section_vals_type
   USE kinds,                           ONLY: dp,&
                                              int_size
   USE machine,                         ONLY: m_flush
@@ -72,25 +75,18 @@ MODULE qs_environment_methods
   USE qs_rho_methods,                  ONLY: qs_rho_rebuild
   USE qs_scf,                          ONLY: scf_env_did_change
   USE scf_control_types,               ONLY: scf_control_type
-  USE sparse_matrix_types,             ONLY: real_matrix_p_type, &
-                                             deallocate_matrix_set
+  USE sparse_matrix_types,             ONLY: deallocate_matrix_set,&
+                                             real_matrix_p_type
   USE termination,                     ONLY: stop_memory
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE input_section_types,             ONLY: section_vals_type,&
-       section_vals_get_subs_vals
-  USE cp_output_handling,              ONLY: cp_print_key_unit_nr, &
-                                             cp_print_key_finished_output,&
-                                             cp_print_key_should_output,&
-                                             cp_p_file
-  
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
   PRIVATE
 
   LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
-  CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='qs_environment_methods'
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_environment_methods'
 
   PUBLIC :: qs_env_update_s_mstruct,&
             qs_env_rebuild_pw_env,&
@@ -255,7 +251,8 @@ SUBROUTINE qs_env_update_s_mstruct(qs_env,error)
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
-    TYPE(real_matrix_p_type), DIMENSION(:), POINTER :: matrix_ks
+    TYPE(real_matrix_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_ks
 
   CALL timeset(routineN,"I","",handle)
   failure=.FALSE.
@@ -445,7 +442,7 @@ SUBROUTINE qs_env_rebuild_rho(qs_env, rebuild_ao, rebuild_grids, error)
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_env_rebuild_rho', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL :: gapw_xc
+    LOGICAL                                  :: gapw_xc
     TYPE(dft_control_type), POINTER          :: dft_control
 
     CALL get_qs_env(qs_env=qs_env, dft_control=dft_control)
@@ -551,12 +548,12 @@ END SUBROUTINE qs_env_update_rho_core
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(cp_blacs_env_type), POINTER         :: blacs_env
+    TYPE(section_vals_type), POINTER         :: force_env_section
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
-    TYPE(section_vals_type), POINTER :: force_env_section
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = "qs_distribution_2d_create", &
-      routineP = "SUBROUTINE "//routineN//" (MODULE "//moduleN//")"
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_distribution_2d_create', &
+      routineP = moduleN//':'//routineN
 
     INTEGER :: group, i, iatom, iatom_local, ikind, ipcol, iprow, j, mypcol, &
       myprow, natom, natom_total, nkind, npcol, nprow, nsgf, output_unit, stat

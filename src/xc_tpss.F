@@ -24,7 +24,11 @@
 !!   SOURCE
 !****************************************************************************
 MODULE xc_tpss
+  USE input_section_types,             ONLY: section_vals_type,&
+                                             section_vals_val_get
   USE kinds,                           ONLY: dp
+  USE mathconstants,                   ONLY: pi
+  USE message_passing,                 ONLY: mp_sum
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE xc_derivative_set_types,         ONLY: xc_derivative_set_type,&
@@ -34,16 +38,13 @@ MODULE xc_tpss
   USE xc_rho_cflags_types,             ONLY: xc_rho_cflags_type
   USE xc_rho_set_types,                ONLY: xc_rho_set_get,&
                                              xc_rho_set_type
-  USE input_section_types, ONLY: section_vals_type, section_vals_val_get
-  USE mathconstants, only: pi
-  USE message_passing, only: mp_sum
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
   PRIVATE
 
   LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
-  CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='xc_tpss'
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'xc_tpss'
   
   PUBLIC :: tpss_lda_info, tpss_lda_eval, tpss_lsd_info, tpss_lsd_eval
 
@@ -76,7 +77,7 @@ CONTAINS
 !!
 !!*** **********************************************************************
   SUBROUTINE tpss_lda_info(tpss_params,reference,shortform, needs, max_deriv, error)
-    TYPE(section_vals_type), pointer :: tpss_params
+    TYPE(section_vals_type), POINTER         :: tpss_params
     CHARACTER(LEN=*), INTENT(OUT), OPTIONAL  :: reference, shortform
     TYPE(xc_rho_cflags_type), &
       INTENT(inout), OPTIONAL                :: needs
@@ -86,7 +87,8 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'tpss_lda_info', &
       routineP = moduleN//':'//routineN
-    REAL(kind=dp) :: sx,sc
+
+    REAL(kind=dp)                            :: sc, sx
 
     CALL section_vals_val_get(tpss_params,"SCALE_C",r_val=sc,error=error)
     CALL section_vals_val_get(tpss_params,"SCALE_X",r_val=sx,error=error)
@@ -144,7 +146,7 @@ CONTAINS
 !!
 !!*** **********************************************************************
   SUBROUTINE tpss_lsd_info(tpss_params,reference,shortform, needs, max_deriv, error)
-    TYPE(section_vals_type), pointer :: tpss_params
+    TYPE(section_vals_type), POINTER         :: tpss_params
     CHARACTER(LEN=*), INTENT(OUT), OPTIONAL  :: reference, shortform
     TYPE(xc_rho_cflags_type), &
       INTENT(inout), OPTIONAL                :: needs
@@ -154,7 +156,8 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'tpss_lsd_info', &
       routineP = moduleN//':'//routineN
-    REAL(kind=dp) :: sx,sc
+
+    REAL(kind=dp)                            :: sc, sx
 
     CALL section_vals_val_get(tpss_params,"SCALE_C",r_val=sc,error=error)
     CALL section_vals_val_get(tpss_params,"SCALE_X",r_val=sx,error=error)
@@ -217,7 +220,7 @@ CONTAINS
     TYPE(xc_rho_set_type), POINTER           :: rho_set
     TYPE(xc_derivative_set_type), POINTER    :: deriv_set
     INTEGER, INTENT(in)                      :: grad_deriv
-    TYPE(section_vals_type), pointer :: tpss_params
+    TYPE(section_vals_type), POINTER         :: tpss_params
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -331,7 +334,7 @@ CONTAINS
     TYPE(xc_rho_set_type), POINTER           :: rho_set
     TYPE(xc_derivative_set_type), POINTER    :: deriv_set
     INTEGER, INTENT(in)                      :: grad_deriv
-    TYPE(section_vals_type), pointer :: tpss_params
+    TYPE(section_vals_type), POINTER         :: tpss_params
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -461,56 +464,53 @@ CONTAINS
        tpss_params,error)
     REAL(kind=dp), DIMENSION(*), INTENT(in)  :: rho, norm_drho, tau
     REAL(kind=dp), DIMENSION(*), &
-         INTENT(inout)                          :: e_0, e_rho, e_ndrho, e_tau
+      INTENT(inout)                          :: e_0, e_rho, e_ndrho, e_tau
     INTEGER, INTENT(in)                      :: npoints, grad_deriv
     REAL(kind=dp), INTENT(in)                :: epsilon_rho, &
-         epsilon_norm_drho, epsilon_tau
-    TYPE(section_vals_type), pointer :: tpss_params
+                                                epsilon_norm_drho, epsilon_tau
+    TYPE(section_vals_type), POINTER         :: tpss_params
     TYPE(cp_error_type), INTENT(inout), &
-         OPTIONAL                               :: error
+      OPTIONAL                               :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'tpss_lda_calc', &
-         routineP = moduleN//':'//routineN
+      routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: abs_grad_deriv, ii, non_coer,&
-         unit_nr
+    INTEGER                                  :: abs_grad_deriv, ii, non_coer, &
+                                                unit_nr
     LOGICAL                                  :: failure, t571, t639
-    real(kind=dp) :: kappa, beta, mu, gamma_var, b, c, e_var, d, p_1, A_1, &
-         alpha_1_1, beta_1_1, beta_2_1, beta_3_1, beta_4_1, p_2, A_2, &
-         alpha_1_2, beta_1_2, beta_2_2, beta_3_2, beta_4_2, p_3, scale_ec, &
-         scale_ex, my_rho, my_ndrho, t1, t2, t3, t4, t5, t6, t7, t9, &
-         rs_s1, t12, phi_s1, t13, t14, t16, k_f_s1, t19, k_s_s1, t20, t21, &
-         t22, t_s1, rs_s2, phi_s2, t26, k_s_s2, t27, t28, t29, t_s2, t35, &
-         t36, t39, t41, t42, t49, t55, t58, t60, t67, t71, t73, t77, t78
-    real(kind=dp) :: t79, t80, t84, t85, e_c_u_1_s2, t89, t94, t95, t96, t100, t101, &
-         e_c_u_1_s1, t107, t111, t112, t119, t127, t134, rs, t138, t140, &
-         t143, t145, t146, t147, t151, t152, e_c_u_0, t161, t168, t177, t184,&
-         t186, t187, t189, t190, t191, t193, t194, A_s1, t196, t197, t198, &
-         t199, t201, t202, t204, t205, t208, t209, epsilon_cGGA_1_0, t211, &
-         t212, t213, t215, t216, A_s2, t218, t219, t220, t221, t223, t224, &
-         t226, t227, t230, t231, epsilon_cGGA_0_1, t233, k_s, t234, t235, t
-    real(kind=dp) :: t238, t239, A, t241, t242, t243, t245, t246, t248, t249, t252, t253,&
-         epsilon_cGGA, t254, tau_w, my_tau, ma, mb, t256, t260, t263, t264, &
-         t265, epsilon_cRevPKZB, t267, t268, t269, t271, t272, t274, t275, &
-         t276, t277, t278, t279, t280, t281, t284, p, t286, z, t288, alpha, &
-         t290, t291, t293, t294, t295, tildeq_b, t299, t301, t302, t303, &
-         t305, t307, t310, t313, t316, t319, t322, t325, t327, t328, t329, &
-         t331, Fx, ex_unif, t337, energy, t340, t343, t344, rsrho, t351, &
-         e_c_u_0rho, t370, t371, t376, trho, t383, t385, t386, Arho, t390
-    real(kind=dp) :: t391, t395, t396, t398, t403, t404, t406, t410, t411, t419, &
-         epsilon_cGGArho, tau_wrho, prho, zrho, t430, alpharho, t437, &
-         tildeq_brho, t445, t450, t452, t464, t472, t475, t485, t489, t490, &
-         rs_s1rho, k_f_s1rho, t505, t_s1rho, t513, t517, e_c_u_1_s1rho, t536,&
-         A_s1rho, t541, t542, t546, t547, t549, t554, t555, t557, t561, &
-         t562, t569, marho, rs_s2rho, t574, t_s2rho, t585, &
-         e_c_u_1_s2rho, t604, A_s2rho, t609, t610, t614, t615, t617, t622, &
-         t623, t625, t629, t630, t637, mbrho, t642, t645
-    real(kind=dp) :: epsilon_cRevPKZBrho, t659, deriv_rho, tnorm_drho, Hnorm_drho, &
-         tau_wnorm_drho, pnorm_drho, znorm_drho, alphanorm_drho, &
-         tildeq_bnorm_drho, t_s1norm_drho, manorm_drho, t_s2norm_drho, &
-         mbnorm_drho, epsilon_cRevPKZBnorm_drho, deriv_norm_drho, &
-         epsilon_cRevPKZBtau, t799, ztau, alphatau, tildeq_btau, deriv_tau, &
-         r_eqs_lda4,m
+    REAL(kind=dp) :: A, A_1, A_2, A_s1, A_s1rho, A_s2, A_s2rho, alpha, &
+      alpha_1_1, alpha_1_2, alphanorm_drho, alpharho, alphatau, Arho, b, &
+      beta, beta_1_1, beta_1_2, beta_2_1, beta_2_2, beta_3_1, beta_3_2, &
+      beta_4_1, beta_4_2, c, d, e_c_u_0, e_c_u_0rho, e_c_u_1_s1, &
+      e_c_u_1_s1rho, e_c_u_1_s2, e_c_u_1_s2rho, e_var, epsilon_cGGA, &
+      epsilon_cGGA_0_1, epsilon_cGGA_1_0, epsilon_cGGArho, epsilon_cRevPKZB, &
+      epsilon_cRevPKZBnorm_drho, epsilon_cRevPKZBrho, epsilon_cRevPKZBtau, &
+      ex_unif, Fx, gamma_var, Hnorm_drho, k_f_s1, k_f_s1rho, k_s, k_s_s1, &
+      k_s_s2, kappa, m, ma, manorm_drho, marho, mb, mbnorm_drho, mbrho, mu, &
+      my_ndrho, my_rho
+    REAL(kind=dp) :: my_tau, p, p_1, p_2, p_3, phi_s1, phi_s2, pnorm_drho, &
+      prho, rs, rs_s1, rs_s1rho, rs_s2, rs_s2rho, rsrho, scale_ec, scale_ex, &
+      t, t1, t100, t101, t111, t12, t13, t138, t14, t140, t143, t145, t146, &
+      t147, t151, t152, t16, t161, t168, t177, t186, t187, t189, t19, t190, &
+      t191, t193, t194, t196, t197, t198, t199, t2, t20, t201, t202, t204, &
+      t205, t208, t209, t21, t211, t212, t213, t215, t216, t218, t219, t22, &
+      t220, t221, t223, t224, t226, t227, t230, t231, t233, t234, t235, t238, &
+      t239, t241, t242, t243, t245, t246, t248, t249, t252, t253, t254, t256, &
+      t26, t260, t263, t264, t265, t267, t268, t269, t27, t271
+    REAL(kind=dp) :: t272, t274, t275, t276, t277, t278, t279, t28, t280, &
+      t281, t284, t286, t288, t29, t290, t291, t293, t294, t295, t299, t3, &
+      t301, t302, t303, t305, t307, t310, t313, t316, t319, t322, t325, t327, &
+      t328, t329, t331, t337, t340, t343, t344, t35, t351, t36, t370, t371, &
+      t376, t383, t385, t386, t39, t390, t391, t395, t396, t398, t4, t403, &
+      t404, t406, t41, t410, t411, t419, t42, t430, t437, t445, t450, t452, &
+      t464, t472, t475, t485, t489, t49, t490, t5, t505, t513, t517, t536, &
+      t541, t542, t546, t547, t549, t55, t554, t555, t557, t561, t562, t569, &
+      t574, t58, t585, t6, t60, t604, t609, t610, t614, t615, t617
+    REAL(kind=dp) :: t622, t623, t625, t629, t630, t637, t642, t645, t659, &
+      t67, t7, t71, t73, t77, t78, t79, t799, t80, t84, t85, t89, t9, t94, &
+      t95, t96, t_s1, t_s1norm_drho, t_s1rho, t_s2, t_s2norm_drho, t_s2rho, &
+      tau_w, tau_wnorm_drho, tau_wrho, tildeq_b, tildeq_bnorm_drho, &
+      tildeq_brho, tildeq_btau, tnorm_drho, trho, z, znorm_drho, zrho, ztau
     TYPE(cp_logger_type), POINTER            :: logger
 
     failure=.FALSE.
@@ -523,7 +523,7 @@ CONTAINS
        kappa = 0.804e0_dp
        beta = 0.66725e-1_dp
        mu = 0.21951e0_dp
-       gamma_var = (0.1e1_dp - log(0.2e1_dp)) / pi ** 2
+       gamma_var = (0.1e1_dp - LOG(0.2e1_dp)) / pi ** 2
        b = 0.4e0_dp
        c = 0.159096e1_dp
        e_var = 0.1537e1_dp
@@ -584,7 +584,7 @@ CONTAINS
              t14 = pi ** 2
              t16 = (t14 * my_rho) ** (0.1e1_dp / 0.3e1_dp)
              k_f_s1 = t13 * t16 / 0.2e1_dp
-             t19 = sqrt(k_f_s1 * t6)
+             t19 = SQRT(k_f_s1 * t6)
              k_s_s1 = 0.2e1_dp * t19
              t20 = 0.1e1_dp / phi_s1
              t21 = my_ndrho * t20
@@ -592,23 +592,23 @@ CONTAINS
              t_s1 = t21 * t22 * t7 / 0.2e1_dp
              rs_s2 = rs_s1
              phi_s2 = phi_s1
-             t26 = sqrt(k_f_s1 * t6)
+             t26 = SQRT(k_f_s1 * t6)
              k_s_s2 = 0.2e1_dp * t26
              t27 = 0.1e1_dp / phi_s2
              t28 = my_ndrho * t27
              t29 = 0.1e1_dp / k_s_s2
              t_s2 = t28 * t29 * t7 / 0.2e1_dp
              t35 = 0.1e1_dp / A_1
-             t36 = sqrt(rs_s2)
+             t36 = SQRT(rs_s2)
              t39 = t36 * rs_s2
              t41 = p_1 + 0.1e1_dp
              t42 = rs_s2 ** t41
-             t49 = log(0.1e1_dp + t35 / (beta_1_1 * t36 + beta_2_1 * rs_s2 + &
+             t49 = LOG(0.1e1_dp + t35 / (beta_1_1 * t36 + beta_2_1 * rs_s2 + &
                   beta_3_1 * t39 + beta_4_1 * t42) / 0.2e1_dp)
-             t55 = sqrt(rs_s1)
+             t55 = SQRT(rs_s1)
              t58 = t55 * rs_s1
              t60 = rs_s1 ** t41
-             t67 = log(0.1e1_dp + t35 / (beta_1_1 * t55 + beta_2_1 * rs_s1 + &
+             t67 = LOG(0.1e1_dp + t35 / (beta_1_1 * t55 + beta_2_1 * rs_s1 + &
                   beta_3_1 * t58 + beta_4_1 * t60) / 0.2e1_dp)
              t71 = 0.1e1_dp + alpha_1_2 * rs_s2
              t73 = 0.1e1_dp / A_2
@@ -617,28 +617,28 @@ CONTAINS
              t79 = beta_4_2 * t78
              t80 = beta_1_2 * t36 + beta_2_2 * rs_s2 + beta_3_2 * t39 + t79
              t84 = 0.1e1_dp + t73 / t80 / 0.2e1_dp
-             t85 = log(t84)
+             t85 = LOG(t84)
              e_c_u_1_s2 = -0.2e1_dp * A_2 * t71 * t85
              t89 = 0.1e1_dp + alpha_1_2 * rs_s1
              t94 = rs_s1 ** t77
              t95 = beta_4_2 * t94
              t96 = beta_1_2 * t55 + beta_2_2 * rs_s1 + beta_3_2 * t58 + t95
              t100 = 0.1e1_dp + t73 / t96 / 0.2e1_dp
-             t101 = log(t100)
+             t101 = LOG(t100)
              e_c_u_1_s1 = -0.2e1_dp * A_2 * t89 * t101
              t111 = p_3 + 1._dp
              rs = t4 * t9 / 0.4e1_dp
              t138 = 0.1e1_dp + alpha_1_1 * rs
-             t140 = sqrt(rs)
+             t140 = SQRT(rs)
              t143 = t140 * rs
              t145 = rs ** t41
              t146 = beta_4_1 * t145
              t147 = beta_1_1 * t140 + beta_2_1 * rs + beta_3_1 * t143 + t146
              t151 = 0.1e1_dp + t35 / t147 / 0.2e1_dp
-             t152 = log(t151)
+             t152 = LOG(t151)
              e_c_u_0 = -0.2e1_dp * A_1 * t138 * t152
              t161 = rs ** t77
-             t168 = log(0.1e1_dp + t73 / (beta_1_2 * t140 + beta_2_2 * rs + &
+             t168 = LOG(0.1e1_dp + t73 / (beta_1_2 * t140 + beta_2_2 * rs + &
                   beta_3_2 * t143 + beta_4_2 * t161) / 0.2e1_dp)
              t177 = rs ** t111
              t186 = 0.1e1_dp / gamma_var
@@ -646,7 +646,7 @@ CONTAINS
              t189 = phi_s1 ** 2
              t190 = t189 * phi_s1
              t191 = 0.1e1_dp / t190
-             t193 = exp(-e_c_u_1_s1 * t186 * t191)
+             t193 = EXP(-e_c_u_1_s1 * t186 * t191)
              t194 = t193 - 0.1e1_dp
              A_s1 = t187 / t194
              t196 = gamma_var * t190
@@ -658,12 +658,12 @@ CONTAINS
              t204 = 0.1e1_dp + t198 + t201 * t202
              t205 = 0.1e1_dp / t204
              t208 = 0.1e1_dp + t187 * t197 * t199 * t205
-             t209 = log(t208)
+             t209 = LOG(t208)
              epsilon_cGGA_1_0 = e_c_u_1_s1 + t196 * t209
              t211 = phi_s2 ** 2
              t212 = t211 * phi_s2
              t213 = 0.1e1_dp / t212
-             t215 = exp(-e_c_u_1_s2 * t186 * t213)
+             t215 = EXP(-e_c_u_1_s2 * t186 * t213)
              t216 = t215 - 0.1e1_dp
              A_s2 = t187 / t216
              t218 = gamma_var * t212
@@ -675,14 +675,14 @@ CONTAINS
              t226 = 0.1e1_dp + t220 + t223 * t224
              t227 = 0.1e1_dp / t226
              t230 = 0.1e1_dp + t187 * t219 * t221 * t227
-             t231 = log(t230)
+             t231 = LOG(t230)
              epsilon_cGGA_0_1 = e_c_u_1_s2 + t218 * t231
-             t233 = sqrt(t1 * t16 * t6)
+             t233 = SQRT(t1 * t16 * t6)
              k_s = 0.2e1_dp * t233
              t234 = 0.1e1_dp / k_s
              t235 = my_ndrho * t234
              t = t235 * t7 / 0.2e1_dp
-             t238 = exp(-e_c_u_0 * t186)
+             t238 = EXP(-e_c_u_0 * t186)
              t239 = -0.1e1_dp + t238
              A = t187 / t239
              t241 = t ** 2
@@ -693,10 +693,10 @@ CONTAINS
              t248 = 0.1e1_dp + t242 + t245 * t246
              t249 = 0.1e1_dp / t248
              t252 = 0.1e1_dp + t187 * t241 * t243 * t249
-             t253 = log(t252)
+             t253 = LOG(t252)
              epsilon_cGGA = e_c_u_0 + gamma_var * t253
-             ma = max(epsilon_cGGA_1_0, epsilon_cGGA)
-             mb = max(epsilon_cGGA_0_1, epsilon_cGGA)
+             ma = MAX(epsilon_cGGA_1_0, epsilon_cGGA)
+             mb = MAX(epsilon_cGGA_0_1, epsilon_cGGA)
              t256 = tau_w ** 2
              t260 = ma / 0.2e1_dp + mb / 0.2e1_dp
              t263 = 0.53e0_dp * epsilon_cGGA * t256 - 0.153e1_dp * t256 * t260
@@ -725,7 +725,7 @@ CONTAINS
              t290 = alpha - 0.1e1_dp
              t291 = b * alpha
              t293 = 0.1e1_dp + t291 * t290
-             t294 = sqrt(t293)
+             t294 = SQRT(t293)
              t295 = 0.1e1_dp / t294
              tildeq_b = 0.9e1_dp / 0.20e2_dp * t290 * t295 + 0.2e1_dp / 0.3e1_dp * p
              t299 = z ** 2
@@ -735,9 +735,9 @@ CONTAINS
              t305 = 0.10e2_dp / 0.81e2_dp + c * t299 * t303
              t307 = tildeq_b ** 2
              t310 = p ** 2
-             t313 = sqrt(0.18e2_dp * t299 + 0.50e2_dp * t310)
+             t313 = SQRT(0.18e2_dp * t299 + 0.50e2_dp * t310)
              t316 = 0.1e1_dp / kappa
-             t319 = sqrt(e_var)
+             t319 = SQRT(e_var)
              t322 = e_var * mu
              t325 = t305 * p + 0.146e3_dp / 0.2025e4_dp * t307 - 0.73e2_dp / &
                   0.4050e4_dp * tildeq_b * t313 + 0.100e3_dp / 0.6561e4_dp * t316 * &
@@ -832,7 +832,7 @@ CONTAINS
                 t561 = t197 * t_s1
                 t562 = t201 * t561
                 t569 = 0.1e1_dp / t208
-                t571 = epsilon_cGGA .lt. epsilon_cGGA_1_0
+                t571 = epsilon_cGGA .LT. epsilon_cGGA_1_0
                 IF (t571) THEN
                    marho = e_c_u_1_s1rho + t196 * (0.2e1_dp * t541 * t542 &
                         * t_s1rho + t187 * t197 * (t546 + t549) * t205 - t554 * t557 * (t546&
@@ -863,13 +863,13 @@ CONTAINS
                 t629 = t219 * t_s2
                 t630 = t223 * t629
                 t637 = 0.1e1_dp / t230
-                t639 = epsilon_cGGA .lt. epsilon_cGGA_0_1
+                t639 = epsilon_cGGA .LT. epsilon_cGGA_0_1
                 IF (t639) THEN
                    mbrho = e_c_u_1_s2rho + t218 * (0.2e1_dp * t609 * t610 &
                         * t_s2rho + t187 * t219 * (t614 + t617) * t227 - t622 * t625 * (t614&
                         + t617 + 0.2e1_dp * A_s2 * t224 * A_s2rho + 0.4e1_dp * t630 * &
                         t_s2rho)) * t637
-                else
+                ELSE
                    mbrho = epsilon_cGGArho
                 END IF
                 t642 = epsilon_cGGA * tau_w
@@ -966,7 +966,7 @@ CONTAINS
        END DO
 
        IF (cp_debug) THEN
-          unit_nr=cp_logger_get_default_unit_nr(logger,local=.false.)
+          unit_nr=cp_logger_get_default_unit_nr(logger,local=.FALSE.)
           CALL mp_sum(non_coer,logger%para_env%group)
           ii=npoints
           CALL mp_sum(ii,logger%para_env%group)
@@ -1006,95 +1006,93 @@ CONTAINS
        npoints,grad_deriv,epsilon_rho,epsilon_norm_drho,epsilon_tau,&
        tpss_params,error)
     REAL(kind=dp), DIMENSION(*), INTENT(in)  :: rhoa, rhob, norm_drhoa, &
-         norm_drhob, norm_drho, tau_a, &
-         tau_b
+                                                norm_drhob, norm_drho, tau_a, &
+                                                tau_b
     REAL(kind=dp), DIMENSION(*), &
-         INTENT(inout)                          :: e_0, e_rhoa, e_rhob, &
-         e_ndrhoa, e_ndrhob, e_ndrho, &
-         e_tau_a, e_tau_b
+      INTENT(inout)                          :: e_0, e_rhoa, e_rhob, &
+                                                e_ndrhoa, e_ndrhob, e_ndrho, &
+                                                e_tau_a, e_tau_b
     INTEGER, INTENT(in)                      :: npoints, grad_deriv
     REAL(kind=dp), INTENT(in)                :: epsilon_rho, &
-         epsilon_norm_drho, epsilon_tau
-    TYPE(section_vals_type), pointer :: tpss_params
+                                                epsilon_norm_drho, epsilon_tau
+    TYPE(section_vals_type), POINTER         :: tpss_params
     TYPE(cp_error_type), INTENT(inout), &
-         OPTIONAL                               :: error
+      OPTIONAL                               :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'tpss_lsd_calc', &
-         routineP = moduleN//':'//routineN
+      routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: abs_grad_deriv, ii, non_coer, unit_nr
+    INTEGER                                  :: abs_grad_deriv, ii, non_coer, &
+                                                unit_nr
     LOGICAL                                  :: failure, t784, t863
-    real(kind=dp) :: kappa, beta, mu, gamma_var, b, c, e_var, d, f_ii_0, p_1, &
-         A_1, alpha_1_1, beta_1_1, beta_2_1, beta_3_1, beta_4_1, p_2, A_2, &
-         alpha_1_2, beta_1_2, beta_2_2, beta_3_2, beta_4_2, p_3, A_3, &
-         alpha_1_3, beta_1_3, beta_2_3, beta_3_3, beta_4_3, scale_ec, &
-         scale_ex, t1, t2, t3, my_tau_a, t5, t6, t7, my_tau_b, my_rhoa, &
-         my_rhob, my_norm_drhoa, my_norm_drhob, rho, t9, my_norm_drho, tau, &
-         t12, t13, t14, t15, t16, t18, t19, t20, t21, t22, t25, p_sp1, &
-         tau_w_sp1, t27, z_sp1, t30, alpha_sp1, t32, t33, t35, t36, t37, &
-         tildeq_b_sp1, t41, t43, t44, t45, t47, t49, t52, t55, t58, t61, t64
-    real(kind=dp) :: t67, t69, t70, t71, t73, Fx_sp1, t76, t77, t79, ex_unif_sp1, t83, &
-         t85, t86, t87, t88, t91, p_sp2, tau_w_sp2, t93, z_sp2, t96, &
-         alpha_sp2, t98, t99, t101, t102, t103, tildeq_b_sp2, t107, t109, &
-         t110, t111, t113, t115, t118, t121, t130, t132, t133, t134, t136, &
-         Fx_sp2, t140, ex_unif_sp2, t144, t146, t147, t148, t150, rs_s1, &
-         t152, phi_s1, t154, k_s_s1, t155, t156, t157, t_s1, t161, rs_s2, &
-         phi_s2, t164, k_s_s2, t165, t166, t167, t_s2, t173, t174, t177, &
-         t179, t180, t187, t193, t196, t198, t205, t209, t211, t215, t216, &
-         t217, t218, t222, t223, e_c_u_1_s2, t227, t232, t233, t234, t238
-    real(kind=dp) :: t239, e_c_u_1_s1, t245, t249, t250, t257, t265, t272, t274, t275, &
-         chi, t277, rs, t280, t282, t285, t287, t288, t289, t293, t294, &
-         e_c_u_0, t298, t303, t304, t305, t309, t310, t314, t319, t320, t321,&
-         t325, t326, alpha_c, t328, t329, t330, t331, t332, t333, t337, f, &
-         t338, t339, t340, t341, t343, t345, t346, epsilon_c_unif, t348, &
-         t349, t351, t352, t353, t355, t356, A_s1, t358, t359, t360, t361, &
-         t363, t364, t366, t367, t370, t371, epsilon_cGGA_1_0, t373, t374, &
-         t375, t377, t378, A_s2, t380, t381, t382, t383, t385, t386, t388
-    real(kind=dp) :: t389, t392, t393, epsilon_cGGA_0_1, t394, t395, phi, t397, t398, &
-         t400, k_s, t401, t402, t403, t404, t, t406, t407, t408, t409, t411, &
-         t412, A, t414, t415, t416, t417, t419, t420, t422, t423, t426, t427,&
-         epsilon_cGGA, t430, t431, t436, t437, t438, t440, t441, t442, eps, &
-         C_chi, tau_w, t449, t452, t455, t456, t457, t458, C_chi_eps, ma, mb,&
-         t459, t460, t462, t463, t464, t466, t468, t470, t471, t472, &
-         epsilon_cRevPKZB, t474, t475, t476, t478, t479, t481, energy, &
-         p_sp1rhoa, t492, z_sp1rhoa, t498, alpha_sp1rhoa, t505
-    real(kind=dp) :: tildeq_b_sp1rhoa, t513, t518, t520, t532, t540, t543, t553, t557, &
-         t558, t559, t560, t561, t570, chirhoa, t571, rsrhoa, t577, t581, &
-         t583, t584, t585, t589, t593, t597, e_c_u_0rhoa, t600, t604, t606, &
-         t607, t611, t618, t621, t625, t627, t628, t632, t639, frhoa, t650, &
-         t651, t660, epsilon_c_unifrhoa, t663, t665, phirhoa, t668, k_frhoa, &
-         t672, t675, t678, t680, t684, trhoa, t686, t687, t690, t691, Arhoa, &
-         t699, t703, t704, t708, t709, t711, t716, t717, t719, t720, t723, &
-         t724, t731, epsilon_cGGArhoa, t735, t736, t739, t746, t754, t758
-    real(kind=dp) :: tau_wrhoa, t766, t767, t769, t771, t773, t775, C_chi_epsrhoa, &
-         mbrhoa, t785, rs_s1rhoa, t795, t_s1rhoa, t806, e_c_u_1_s1rhoa, t825,&
-         t827, t828, A_s1rhoa, t833, t834, t838, t839, t841, t846, t847, &
-         t849, t853, t854, t861, marhoa, t873, t879, t882, &
-         epsilon_cRevPKZBrhoa, t888, t893, deriv_rhoa, p_sp2rhob, t908, &
-         z_sp2rhob, t914, alpha_sp2rhob, t921, tildeq_b_sp2rhob, t929, t934, &
-         t936, t948, t956, t959, t969, t973, t974, t975, t976, chirhob, &
-         rsrhob, e_c_u_0rhob, frhob, t1043, epsilon_c_unifrhob, phirhob, &
-         trhob, Arhob, t1070, t1072, epsilon_cGGArhob, tau_wrhob
-    real(kind=dp) :: C_chi_epsrhob, marhob, t1111, rs_s2rhob, t1121, t_s2rhob, t1132, &
-         e_c_u_1_s2rhob, t1151, A_s2rhob, t1156, t1157, t1161, t1162, t1164, &
-         t1169, t1170, t1172, t1176, t1177, t1184, mbrhob, &
-         epsilon_cRevPKZBrhob, deriv_rhob, p_sp1norm_drhoa, z_sp1norm_drhoa, &
-         alpha_sp1norm_drhoa, tildeq_b_sp1norm_drhoa, t_s1norm_drhoa, &
-         C_chi_epsnorm_drhoa, manorm_drhoa, epsilon_cRevPKZBnorm_drhoa, &
-         t1303, deriv_norm_drhoa, p_sp2norm_drhob, z_sp2norm_drhob, &
-         alpha_sp2norm_drhob, tildeq_b_sp2norm_drhob, t_s2norm_drhob, &
-         C_chi_epsnorm_drhob, mbnorm_drhob, epsilon_cRevPKZBnorm_drhob
-    real(kind=dp) :: deriv_norm_drhob, tnorm_drho, Hnorm_drho, tau_wnorm_drho, &
-         C_chi_epsnorm_drho, manorm_drho, mbnorm_drho, &
-         epsilon_cRevPKZBnorm_drho, deriv_norm_drho, t1457, z_sp1tau_a, &
-         alpha_sp1tau_a, tildeq_b_sp1tau_a, epsilon_cRevPKZBtau_a, t1496, &
-         t1500, deriv_tau_a, t1506, z_sp2tau_b, alpha_sp2tau_b, &
-         tildeq_b_sp2tau_b, epsilon_cRevPKZBtau_b, deriv_tau_b, r_eqs_lsd6,&
-         mean_tmp,t436a
-    REAL(kind=dp) :: err_rhoa, err_rhob, err_ndrho, err_ndrhoa, err_ndrhob, err_taua, err_taub, fdifv,analv
-
+    REAL(kind=dp) :: A, A_1, A_2, A_3, A_s1, A_s1rhoa, A_s2, A_s2rhob, &
+      alpha_1_1, alpha_1_2, alpha_1_3, alpha_c, alpha_sp1, &
+      alpha_sp1norm_drhoa, alpha_sp1rhoa, alpha_sp1tau_a, alpha_sp2, &
+      alpha_sp2norm_drhob, alpha_sp2rhob, alpha_sp2tau_b, Arhoa, Arhob, b, &
+      beta, beta_1_1, beta_1_2, beta_1_3, beta_2_1, beta_2_2, beta_2_3, &
+      beta_3_1, beta_3_2, beta_3_3, beta_4_1, beta_4_2, beta_4_3, c, C_chi, &
+      C_chi_eps, C_chi_epsnorm_drho, C_chi_epsnorm_drhoa, &
+      C_chi_epsnorm_drhob, C_chi_epsrhoa, C_chi_epsrhob, chi, chirhoa, &
+      chirhob, d, e_c_u_0, e_c_u_0rhoa, e_c_u_0rhob, e_c_u_1_s1, &
+      e_c_u_1_s1rhoa, e_c_u_1_s2, e_c_u_1_s2rhob, e_var, eps
+    REAL(kind=dp) :: epsilon_c_unif, epsilon_c_unifrhoa, epsilon_c_unifrhob, &
+      epsilon_cGGA, epsilon_cGGA_0_1, epsilon_cGGA_1_0, epsilon_cGGArhoa, &
+      epsilon_cGGArhob, epsilon_cRevPKZB, epsilon_cRevPKZBnorm_drho, &
+      epsilon_cRevPKZBnorm_drhoa, epsilon_cRevPKZBnorm_drhob, &
+      epsilon_cRevPKZBrhoa, epsilon_cRevPKZBrhob, epsilon_cRevPKZBtau_a, &
+      epsilon_cRevPKZBtau_b, err_ndrho, err_ndrhoa, err_ndrhob, err_rhoa, &
+      err_rhob, err_taua, err_taub, ex_unif_sp1, ex_unif_sp2, f, f_ii_0, &
+      frhoa, frhob, Fx_sp1, Fx_sp2, gamma_var, Hnorm_drho, k_frhoa, k_s, &
+      k_s_s1, k_s_s2, kappa, ma, manorm_drho, manorm_drhoa, marhoa, marhob, &
+      mb, mbnorm_drho, mbnorm_drhob
+    REAL(kind=dp) :: mbrhoa, mbrhob, mean_tmp, mu, my_norm_drho, &
+      my_norm_drhoa, my_norm_drhob, my_rhoa, my_rhob, my_tau_a, my_tau_b, &
+      p_1, p_2, p_3, p_sp1, p_sp1norm_drhoa, p_sp1rhoa, p_sp2, &
+      p_sp2norm_drhob, p_sp2rhob, phi, phi_s1, phi_s2, phirhoa, phirhob, rho, &
+      rs, rs_s1, rs_s1rhoa, rs_s2, rs_s2rhob, rsrhoa, rsrhob, scale_ec, &
+      scale_ex, t, t1, t101, t102, t103, t1043, t107, t1070, t1072, t109, &
+      t110, t111, t1111, t1121, t113, t1132, t115, t1151, t1156, t1157, &
+      t1161, t1162, t1164, t1169, t1170, t1172, t1176, t1177, t118, t1184, &
+      t12, t121, t13, t130, t1303, t132, t133, t134, t136, t14, t140, t144, &
+      t1457, t146, t147, t148
+    REAL(kind=dp) :: t1496, t15, t150, t1500, t1506, t152, t154, t155, t156, &
+      t157, t16, t161, t164, t165, t166, t167, t173, t174, t177, t179, t18, &
+      t180, t187, t19, t193, t196, t198, t2, t20, t205, t209, t21, t211, &
+      t215, t216, t217, t218, t22, t222, t223, t227, t232, t233, t234, t238, &
+      t239, t245, t249, t25, t250, t257, t265, t27, t272, t274, t275, t277, &
+      t280, t282, t285, t287, t288, t289, t293, t294, t298, t3, t30, t303, &
+      t304, t305, t309, t310, t314, t319, t32, t320, t321, t325, t326, t328, &
+      t329, t33, t330, t331, t332, t333, t337, t338, t339, t340, t341, t343, &
+      t345, t346, t348, t349, t35, t351, t352, t353, t355, t356
+    REAL(kind=dp) :: t358, t359, t36, t360, t361, t363, t364, t366, t367, &
+      t37, t370, t371, t373, t374, t375, t377, t378, t380, t381, t382, t383, &
+      t385, t386, t388, t389, t392, t393, t394, t395, t397, t398, t400, t401, &
+      t402, t403, t404, t406, t407, t408, t409, t41, t411, t412, t414, t415, &
+      t416, t417, t419, t420, t422, t423, t426, t427, t43, t430, t431, t436, &
+      t436a, t437, t438, t44, t440, t441, t442, t449, t45, t452, t455, t456, &
+      t457, t458, t459, t460, t462, t463, t464, t466, t468, t47, t470, t471, &
+      t472, t474, t475, t476, t478, t479, t481, t49, t492, t498, t5, t505, &
+      t513, t518, t52, t520, t532, t540, t543, t55, t553
+    REAL(kind=dp) :: t557, t558, t559, t560, t561, t570, t571, t577, t58, &
+      t581, t583, t584, t585, t589, t593, t597, t6, t600, t604, t606, t607, &
+      t61, t611, t618, t621, t625, t627, t628, t632, t639, t64, t650, t651, &
+      t660, t663, t665, t668, t67, t672, t675, t678, t680, t684, t686, t687, &
+      t69, t690, t691, t699, t7, t70, t703, t704, t708, t709, t71, t711, &
+      t716, t717, t719, t720, t723, t724, t73, t731, t735, t736, t739, t746, &
+      t754, t758, t76, t766, t767, t769, t77, t771, t773, t775, t785, t79, &
+      t795, t806, t825, t827, t828, t83, t833, t834, t838, t839, t841, t846, &
+      t847, t849, t85, t853, t854, t86, t861, t87, t873, t879, t88
+    REAL(kind=dp) :: t882, t888, t893, t9, t908, t91, t914, t921, t929, t93, &
+      t934, t936, t948, t956, t959, t96, t969, t973, t974, t975, t976, t98, &
+      t99, t_s1, t_s1norm_drhoa, t_s1rhoa, t_s2, t_s2norm_drhob, t_s2rhob, &
+      tau, tau_w, tau_w_sp1, tau_w_sp2, tau_wnorm_drho, tau_wrhoa, tau_wrhob, &
+      tildeq_b_sp1, tildeq_b_sp1norm_drhoa, tildeq_b_sp1rhoa, &
+      tildeq_b_sp1tau_a, tildeq_b_sp2, tildeq_b_sp2norm_drhob, &
+      tildeq_b_sp2rhob, tildeq_b_sp2tau_b, tnorm_drho, trhoa, trhob, z_sp1, &
+      z_sp1norm_drhoa, z_sp1rhoa, z_sp1tau_a, z_sp2, z_sp2norm_drhob, &
+      z_sp2rhob, z_sp2tau_b
     TYPE(cp_logger_type), POINTER            :: logger
-    
+
     err_rhoa=0._dp
     err_rhob=0._dp
     err_ndrho=0._dp
@@ -1110,7 +1108,7 @@ CONTAINS
     kappa = 0.804e0_dp
     beta = 0.66725e-1_dp
     mu = 0.21951e0_dp
-    gamma_var = (0.1e1_dp - log(0.2e1_dp)) / pi ** 2
+    gamma_var = (0.1e1_dp - LOG(0.2e1_dp)) / pi ** 2
     b = 0.4e0_dp
     c = 0.159096e1_dp
     e_var = 0.1537e1_dp
@@ -1218,7 +1216,7 @@ CONTAINS
              t32 = alpha_sp1 - 0.1e1_dp
              t33 = b * alpha_sp1
              t35 = 0.1e1_dp + t33 * t32
-             t36 = sqrt(t35)
+             t36 = SQRT(t35)
              t37 = 0.1e1_dp / t36
              tildeq_b_sp1 = 0.9e1_dp / 0.20e2_dp * t32 * t37 + 0.2e1_dp / &
                   0.3e1_dp * p_sp1
@@ -1229,9 +1227,9 @@ CONTAINS
              t47 = 0.10e2_dp / 0.81e2_dp + c * t41 * t45
              t49 = tildeq_b_sp1 ** 2
              t52 = p_sp1 ** 2
-             t55 = sqrt(0.18e2_dp * t41 + 0.50e2_dp * t52)
+             t55 = SQRT(0.18e2_dp * t41 + 0.50e2_dp * t52)
              t58 = 0.1e1_dp / kappa
-             t61 = sqrt(e_var)
+             t61 = SQRT(e_var)
              t64 = e_var * mu
              t67 = t47 * p_sp1 + 0.146e3_dp / 0.2025e4_dp * t49 - 0.73e2_dp / &
                   0.4050e4_dp * tildeq_b_sp1 * t55 + 0.100e3_dp / 0.6561e4_dp * t58 * &
@@ -1260,7 +1258,7 @@ CONTAINS
              t98 = alpha_sp2 - 0.1e1_dp
              t99 = b * alpha_sp2
              t101 = 0.1e1_dp + t99 * t98
-             t102 = sqrt(t101)
+             t102 = SQRT(t101)
              t103 = 0.1e1_dp / t102
              tildeq_b_sp2 = 0.9e1_dp / 0.20e2_dp * t98 * t103 + 0.2e1_dp / &
                   0.3e1_dp * p_sp2
@@ -1271,7 +1269,7 @@ CONTAINS
              t113 = 0.10e2_dp / 0.81e2_dp + c * t107 * t111
              t115 = tildeq_b_sp2 ** 2
              t118 = p_sp2 ** 2
-             t121 = sqrt(0.18e2_dp * t107 + 0.50e2_dp * t118)
+             t121 = SQRT(0.18e2_dp * t107 + 0.50e2_dp * t118)
              t130 = t113 * p_sp2 + 0.146e3_dp / 0.2025e4_dp * t115 - 0.73e2_dp &
                   / 0.4050e4_dp * tildeq_b_sp2 * t121 + 0.100e3_dp / 0.6561e4_dp * t58&
                   * t118 + 0.4e1_dp / 0.45e2_dp * t61 * t107 + t64 * t118 * p_sp2
@@ -1290,7 +1288,7 @@ CONTAINS
              rs_s1 = t148 * t150 / 0.4e1_dp
              t152 = t18 ** 2
              phi_s1 = t152 / 0.2e1_dp
-             t154 = sqrt(t12 * t79 * t76)
+             t154 = SQRT(t12 * t79 * t76)
              k_s_s1 = 0.2e1_dp * t154
              t155 = 0.1e1_dp / phi_s1
              t156 = my_norm_drhoa * t155
@@ -1299,23 +1297,23 @@ CONTAINS
              t161 = (t76 * t6) ** (0.1e1_dp / 0.3e1_dp)
              rs_s2 = t148 * t161 / 0.4e1_dp
              phi_s2 = phi_s1
-             t164 = sqrt(t12 * t140 * t76)
+             t164 = SQRT(t12 * t140 * t76)
              k_s_s2 = 0.2e1_dp * t164
              t165 = 0.1e1_dp / phi_s2
              t166 = my_norm_drhob * t165
              t167 = 0.1e1_dp / k_s_s2
              t_s2 = t166 * t167 * t6 / 0.2e1_dp
              t173 = 0.1e1_dp / A_1
-             t174 = sqrt(rs_s2)
+             t174 = SQRT(rs_s2)
              t177 = t174 * rs_s2
              t179 = p_1 + 0.1e1_dp
              t180 = rs_s2 ** t179
-             t187 = log(0.1e1_dp + t173 / (beta_1_1 * t174 + beta_2_1 * rs_s2 +&
+             t187 = LOG(0.1e1_dp + t173 / (beta_1_1 * t174 + beta_2_1 * rs_s2 +&
                   beta_3_1 * t177 + beta_4_1 * t180) / 0.2e1_dp)
-             t193 = sqrt(rs_s1)
+             t193 = SQRT(rs_s1)
              t196 = t193 * rs_s1
              t198 = rs_s1 ** t179
-             t205 = log(0.1e1_dp + t173 / (beta_1_1 * t193 + beta_2_1 * rs_s1 +&
+             t205 = LOG(0.1e1_dp + t173 / (beta_1_1 * t193 + beta_2_1 * rs_s1 +&
                   beta_3_1 * t196 + beta_4_1 * t198) / 0.2e1_dp)
              t209 = 0.1e1_dp + alpha_1_2 * rs_s2
              t211 = 0.1e1_dp / A_2
@@ -1324,22 +1322,22 @@ CONTAINS
              t217 = beta_4_2 * t216
              t218 = beta_1_2 * t174 + beta_2_2 * rs_s2 + beta_3_2 * t177 + t217
              t222 = 0.1e1_dp + t211 / t218 / 0.2e1_dp
-             t223 = log(t222)
+             t223 = LOG(t222)
              e_c_u_1_s2 = -0.2e1_dp * A_2 * t209 * t223
              t227 = 0.1e1_dp + alpha_1_2 * rs_s1
              t232 = rs_s1 ** t215
              t233 = beta_4_2 * t232
              t234 = beta_1_2 * t193 + beta_2_2 * rs_s1 + beta_3_2 * t196 + t233
              t238 = 0.1e1_dp + t211 / t234 / 0.2e1_dp
-             t239 = log(t238)
+             t239 = LOG(t238)
              e_c_u_1_s1 = -0.2e1_dp * A_2 * t227 * t239
              t245 = 0.1e1_dp / A_3
              t249 = p_3 + 0.1e1_dp
              t250 = rs_s2 ** t249
-             t257 = log(0.1e1_dp + t245 / (beta_1_3 * t174 + beta_2_3 * rs_s2 +&
+             t257 = LOG(0.1e1_dp + t245 / (beta_1_3 * t174 + beta_2_3 * rs_s2 +&
                   beta_3_3 * t177 + beta_4_3 * t250) / 0.2e1_dp)
              t265 = rs_s1 ** t249
-             t272 = log(0.1e1_dp + t245 / (beta_1_3 * t193 + beta_2_3 * rs_s1 +&
+             t272 = LOG(0.1e1_dp + t245 / (beta_1_3 * t193 + beta_2_3 * rs_s1 +&
                   beta_3_3 * t196 + beta_4_3 * t265) / 0.2e1_dp)
              t274 = my_rhoa - my_rhob
              t275 = 0.1e1_dp / rho
@@ -1347,26 +1345,26 @@ CONTAINS
              t277 = (t76 * t275) ** (0.1e1_dp / 0.3e1_dp)
              rs = t148 * t277 / 0.4e1_dp
              t280 = 0.1e1_dp + alpha_1_1 * rs
-             t282 = sqrt(rs)
+             t282 = SQRT(rs)
              t285 = t282 * rs
              t287 = rs ** t179
              t288 = beta_4_1 * t287
              t289 = beta_1_1 * t282 + beta_2_1 * rs + beta_3_1 * t285 + t288
              t293 = 0.1e1_dp + t173 / t289 / 0.2e1_dp
-             t294 = log(t293)
+             t294 = LOG(t293)
              e_c_u_0 = -0.2e1_dp * A_1 * t280 * t294
              t298 = 0.1e1_dp + alpha_1_2 * rs
              t303 = rs ** t215
              t304 = beta_4_2 * t303
              t305 = beta_1_2 * t282 + beta_2_2 * rs + beta_3_2 * t285 + t304
              t309 = 0.1e1_dp + t211 / t305 / 0.2e1_dp
-             t310 = log(t309)
+             t310 = LOG(t309)
              t314 = 0.1e1_dp + alpha_1_3 * rs
              t319 = rs ** t249
              t320 = beta_4_3 * t319
              t321 = beta_1_3 * t282 + beta_2_3 * rs + beta_3_3 * t285 + t320
              t325 = 0.1e1_dp + t245 / t321 / 0.2e1_dp
-             t326 = log(t325)
+             t326 = LOG(t325)
              alpha_c = 0.2e1_dp * A_3 * t314 * t326
              t328 = 0.1e1_dp + chi
              t329 = t328 ** (0.1e1_dp / 0.3e1_dp)
@@ -1389,7 +1387,7 @@ CONTAINS
              t351 = phi_s1 ** 2
              t352 = t351 * phi_s1
              t353 = 0.1e1_dp / t352
-             t355 = exp(-e_c_u_1_s1 * t348 * t353)
+             t355 = EXP(-e_c_u_1_s1 * t348 * t353)
              t356 = t355 - 0.1e1_dp
              A_s1 = t349 / t356
              t358 = gamma_var * t352
@@ -1401,12 +1399,12 @@ CONTAINS
              t366 = 0.1e1_dp + t360 + t363 * t364
              t367 = 0.1e1_dp / t366
              t370 = 0.1e1_dp + t349 * t359 * t361 * t367
-             t371 = log(t370)
+             t371 = LOG(t370)
              epsilon_cGGA_1_0 = e_c_u_1_s1 + t358 * t371
              t373 = phi_s2 ** 2
              t374 = t373 * phi_s2
              t375 = 0.1e1_dp / t374
-             t377 = exp(-e_c_u_1_s2 * t348 * t375)
+             t377 = EXP(-e_c_u_1_s2 * t348 * t375)
              t378 = t377 - 0.1e1_dp
              A_s2 = t349 / t378
              t380 = gamma_var * t374
@@ -1418,14 +1416,14 @@ CONTAINS
              t388 = 0.1e1_dp + t382 + t385 * t386
              t389 = 0.1e1_dp / t388
              t392 = 0.1e1_dp + t349 * t381 * t383 * t389
-             t393 = log(t392)
+             t393 = LOG(t392)
              epsilon_cGGA_0_1 = e_c_u_1_s2 + t380 * t393
              t394 = t329 ** 2
              t395 = t332 ** 2
              phi = t394 / 0.2e1_dp + t395 / 0.2e1_dp
              t397 = t14 * rho
              t398 = t397 ** (0.1e1_dp / 0.3e1_dp)
-             t400 = sqrt(t12 * t398 * t76)
+             t400 = SQRT(t12 * t398 * t76)
              k_s = 0.2e1_dp * t400
              t401 = 0.1e1_dp / phi
              t402 = my_norm_drho * t401
@@ -1436,7 +1434,7 @@ CONTAINS
              t407 = phi ** 2
              t408 = t407 * phi
              t409 = 0.1e1_dp / t408
-             t411 = exp(-t406 * t409)
+             t411 = EXP(-t406 * t409)
              t412 = t411 - 0.1e1_dp
              A = t349 / t412
              t414 = gamma_var * t408
@@ -1448,7 +1446,7 @@ CONTAINS
              t422 = 0.1e1_dp + t416 + t419 * t420
              t423 = 0.1e1_dp / t422
              t426 = 0.1e1_dp + t349 * t415 * t417 * t423
-             t427 = log(t426)
+             t427 = LOG(t426)
              epsilon_cGGA = epsilon_c_unif + t414 * t427
              t430 = my_rhoa * my_rhob
              t431 = my_norm_drho ** 2
@@ -1476,8 +1474,8 @@ CONTAINS
              t457 = t456 ** 2
              t458 = 0.1e1_dp / t457
              C_chi_eps = C_chi * t458
-             ma = max(epsilon_cGGA_1_0, epsilon_cGGA)
-             mb = max(epsilon_cGGA_0_1, epsilon_cGGA)
+             ma = MAX(epsilon_cGGA_1_0, epsilon_cGGA)
+             mb = MAX(epsilon_cGGA_0_1, epsilon_cGGA)
              t459 = epsilon_cGGA * C_chi_eps
              t460 = tau_w ** 2
              t462 = 0.1e1_dp + C_chi_eps
@@ -1619,7 +1617,7 @@ CONTAINS
                      t746) * t440 * t442 / 0.6e1_dp - t754) + t449 * (-0.4e1_dp / &
                      0.3e1_dp * t771 * chirhoa + 0.4e1_dp / 0.3e1_dp * t775 * chirhoa) / &
                      0.2e1_dp)
-                t784 = epsilon_cGGA .lt. epsilon_cGGA_0_1
+                t784 = epsilon_cGGA .LT. epsilon_cGGA_0_1
                 IF (t784) THEN
                    mbrhoa=0._dp
                 ELSE
@@ -1650,7 +1648,7 @@ CONTAINS
                 t853 = t359 * t_s1
                 t854 = t363 * t853
                 t861 = 0.1e1_dp / t370
-                t863 = epsilon_cGGA .lt. epsilon_cGGA_1_0
+                t863 = epsilon_cGGA .LT. epsilon_cGGA_1_0
                 IF (t863) THEN
                    marhoa =  e_c_u_1_s1rhoa + t358 * (0.2e1_dp * t833 * &
                         t834 * t_s1rhoa + t349 * t359 * (t838 + t841) * t367 - t846 * t849 *&
@@ -1951,7 +1949,7 @@ CONTAINS
        END DO
 
        IF (cp_debug) THEN
-          unit_nr=cp_logger_get_default_unit_nr(logger,local=.false.)
+          unit_nr=cp_logger_get_default_unit_nr(logger,local=.FALSE.)
           CALL mp_sum(non_coer,logger%para_env%group)
           ii=npoints
           CALL mp_sum(ii,logger%para_env%group)

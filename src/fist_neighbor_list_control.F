@@ -23,6 +23,9 @@
 MODULE fist_neighbor_list_control
 
   USE atomic_kind_types,               ONLY: atomic_kind_type
+  USE cell_types,                      ONLY: cell_type,&
+                                             real_to_scaled,&
+                                             scaled_to_real
   USE distribution_1d_types,           ONLY: distribution_1d_type
   USE fist_neighbor_list_types,        ONLY: neighbor_list_set_p_type
   USE fist_neighbor_lists,             ONLY: build_fist_neighbor_lists
@@ -30,25 +33,21 @@ MODULE fist_neighbor_list_control
                                              fist_nonbond_env_set,&
                                              fist_nonbond_env_type
   USE global_types,                    ONLY: global_environment_type
+  USE input_section_types,             ONLY: section_vals_type
   USE kinds,                           ONLY: dp,&
                                              dp_size
   USE message_passing,                 ONLY: mp_max
   USE particle_types,                  ONLY: particle_type
-  USE cell_types,                      ONLY: cell_type,&
-                                             real_to_scaled,&
-                                             scaled_to_real
   USE termination,                     ONLY: stop_memory
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE input_section_types, ONLY: section_vals_type, section_vals_get_subs_vals,&
-       section_vals_get, section_vals_val_get, section_vals_release
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
 
   PRIVATE
 
-  CHARACTER(LEN=*), PARAMETER :: module_name = "fist_neighbor_list_control"
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'fist_neighbor_list_control'
 
   PUBLIC :: list_control
 
@@ -72,18 +71,17 @@ SUBROUTINE list_control ( atomic_kind_set, particle_set, local_particles, &
     TYPE(distribution_1d_type), POINTER      :: local_particles
     TYPE(cell_type), POINTER                 :: cell
     TYPE(fist_nonbond_env_type), POINTER     :: fist_nonbond_env
-    TYPE(global_environment_type), &
-      pointer                             :: globenv
+    TYPE(global_environment_type), POINTER   :: globenv
+    TYPE(section_vals_type), POINTER         :: force_env_section
     TYPE(cp_error_type), INTENT(inout), &
-         OPTIONAL                               :: error
-    TYPE(section_vals_type), POINTER :: force_env_section
+      OPTIONAL                               :: error
 
-    CHARACTER(LEN=*), PARAMETER              :: routine_name = "list_control"
+    CHARACTER(LEN=*), PARAMETER              :: routineN = 'list_control'
 
     INTEGER :: counter, handle, i, iparticle, iparticle_kind, &
       iparticle_local, istat, last_update, nparticle, nparticle_kind, &
       nparticle_local, num_update
-    LOGICAL                                  :: build_from_scratch,&
+    LOGICAL                                  :: build_from_scratch, &
                                                 update_neighbor_lists
     REAL(KIND=dp)                            :: aup, dr2, dr2_max, lup, &
                                                 verlet_skin
@@ -94,7 +92,7 @@ SUBROUTINE list_control ( atomic_kind_set, particle_set, local_particles, &
 
 !------------------------------------------------------------------------------
 
-  CALL timeset(routine_name,"I"," ",handle )
+  CALL timeset(routineN,"I"," ",handle )
 
 ! *** Assigning local pointers ***
 
@@ -150,7 +148,7 @@ SUBROUTINE list_control ( atomic_kind_set, particle_set, local_particles, &
 
     ALLOCATE (r_last_update(3,nparticle),STAT=istat)
     IF (istat /= 0) THEN
-      CALL stop_memory(routine_name,module_name,__LINE__,"r_last_update",&
+      CALL stop_memory(routineN,moduleN,__LINE__,"r_last_update",&
                        3*nparticle*dp_size)
     END IF
 

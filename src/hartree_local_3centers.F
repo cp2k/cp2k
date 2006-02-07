@@ -81,7 +81,7 @@ MODULE  hartree_local_3centers
 
 ! *** Global parameters (only in this module)
 
-  CHARACTER(LEN=*), PARAMETER :: module_name = "hartree_local_3centers"
+  CHARACTER(LEN=*), PARAMETER :: moduleN = "hartree_local_3centers"
 
 ! Public Subroutine
  
@@ -137,7 +137,7 @@ MODULE  hartree_local_3centers
     TYPE(cp_error_type), INTENT(inout), &
         OPTIONAL                               :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "integrate_a_vhg0_b"
+    CHARACTER(LEN=*), PARAMETER :: routineN = "integrate_a_vhg0_b"
     REAL(dp), PARAMETER         :: EPS_a_vhg0_b = 1.E-8_dp ! other parameter for input ?
 
     TYPE(atomic_kind_type), DIMENSION(:),&
@@ -254,10 +254,10 @@ MODULE  hartree_local_3centers
     maxder = 0
     IF (calculate_forces) THEN
  
-      CALL timeset(routine_name//" (forces)","I"," ",handle)
+      CALL timeset(routineN//" (forces)","I"," ",handle)
 
       ALLOCATE (atom_of_kind(natom),STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                        "atom_of_kind",natom*int_size)
 
       CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
@@ -269,7 +269,7 @@ MODULE  hartree_local_3centers
       maxlgto1 = maxlgto + maxder
     ELSE
      
-      CALL timeset(routine_name,"I"," ",handle)
+      CALL timeset(routineN,"I"," ",handle)
 
       maxlgto1 = maxlgto
     END IF
@@ -280,20 +280,20 @@ MODULE  hartree_local_3centers
 
 !   Allocate  work arrays
     ALLOCATE(work(maxco_global,maxsgf_set),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
          "work",maxco_global*maxsgf_set)
 
     ALLOCATE(normhard(0:lmax_0),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
          "normhard",(1+lmax_0)*dp_size)
     normhard(0:) = 0.0_dp
     ALLOCATE(QN_h_c(ncoset(lmax_0)),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
          "QN_h_c",ncoset(lmax_0)*dp_size)
     QN_h_c(:) = 0.0_dp
 
     ALLOCATE(sum_ab_car(maxch0,natom),sum_ab_sph(maxch0),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
          "sum_ab_car,sum_ab_sph",(natom*maxch0+maxch0)*dp_size)
     sum_ab_car = 0.0_dp
 
@@ -318,15 +318,15 @@ MODULE  hartree_local_3centers
     END IF
 
     ALLOCATE(int_tmpp(maxco_global,maxco_global,maxch0),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
          "int_tmpp",(maxco_global*maxco_global*maxch0)*dp_size)
     
     ALLOCATE(vv(ncoset(maxlgto1),ncoset(maxlgto),ncoset(lmax_0),&
          maxlgto1+maxlgto+lmax_0+1),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
          "vv",ncoset(maxlgto1)**2*ncoset(lmax_0)*(maxlgto1+maxlgto+lmax_0+1)*dp_size)
     ALLOCATE(ff(0:maxlgto1+maxlgto+lmax_0),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
          "ff",(1+maxlgto1+maxlgto+lmax_0)*dp_size)
 
     ncotota_old = 0
@@ -406,7 +406,7 @@ MODULE  hartree_local_3centers
                                    reduced_3c_rho0=reduced_3c_rho0)
 
             rab2  = rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3)
-            dab = sqrt(rab2)
+            dab = SQRT(rab2)
 
             IF(iatom == jatom) THEN
               ieqj = 1.0_dp
@@ -1027,52 +1027,52 @@ MODULE  hartree_local_3centers
 
     IF(ASSOCIATED(Int_ab_sum)) THEN
        DEALLOCATE(Int_ab_sum,STAT=istat)
-       IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+       IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
             "Int_ab_sum")
     END IF
     IF(ASSOCIATED(Int_abc)) THEN
        DEALLOCATE(Int_abc,STAT=istat)
-       IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+       IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
             "Int_abc")
 
     END IF
     IF(calculate_forces) THEN
        DEALLOCATE (atom_of_kind,STAT=istat)
-       IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+       IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
             "atom_of_kind")
        IF(ASSOCIATED(Int_dab_sum)) THEN
          DEALLOCATE(Int_dab_sum,Int_adb_sum,STAT=istat)
-         IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+         IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                       "Int_dab_sum,Int_adb_sum")
        END IF
     END IF
     IF(ASSOCIATED(CPC_ab)) THEN
       DEALLOCATE(CPC_ab, STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
           "CPC_ab") 
     END IF
     IF(ASSOCIATED(hab)) THEN
       DEALLOCATE(hab, STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
           "hab") 
     END IF
 
     DEALLOCATE(int_tmpp,vv,ff,STAT=istat)
     IF (istat /= 0) THEN
-      CALL stop_memory(routine_name,module_name,__LINE__,&
+      CALL stop_memory(routineN,moduleN,__LINE__,&
            "int_tmpp,vv,ff")
     END IF
 
     DEALLOCATE(work,sum_ab_car,sum_ab_sph,STAT=istat)
     IF (istat /= 0) THEN
-      CALL stop_memory(routine_name,module_name,__LINE__,&
+      CALL stop_memory(routineN,moduleN,__LINE__,&
            "work,sum_ab_car,sum_ab_sph")
     END IF
     DEALLOCATE(normhard,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
          "normhard")
     DEALLOCATE(QN_h_c,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
          "QN_h_c")
 
     CALL timestop(0.0_dp,handle)
@@ -1126,7 +1126,7 @@ MODULE  hartree_local_3centers
        POINTER                         :: Int_abc,vdabc,vadbc
     REAL(dp), DIMENSION(:,:,:,:)       :: vv
 
-    CHARACTER(LEN=*), PARAMETER   :: routine_name = "sumup_3c_integrals"
+    CHARACTER(LEN=*), PARAMETER   :: routineN = "sumup_3c_integrals"
 
     INTEGER     ::  handle,ico, ico1, ico1m, ico1p, ico2, ico2m, &
                     idir, idx_1, idx_2, idx_1_L, idx_1m_L, idx_1p_L,&
@@ -1141,12 +1141,12 @@ MODULE  hartree_local_3centers
 
 !   ---------------------------------------------------------------------------
 
-    CALL timeset(routine_name,"I"," ",handle)
+    CALL timeset(routineN,"I"," ",handle)
     nch0 = ncoset(l0_max)
 
     IF(maxder > 0) THEN
       IF (.NOT.ASSOCIATED(vdabc) .OR. .NOT.ASSOCIATED(vadbc)) THEN
-        CALL stop_program(routine_name,&
+        CALL stop_program(routineN,&
              "The vadbc and vdabc pointers are not associated ")
       END IF
 
@@ -1154,7 +1154,7 @@ MODULE  hartree_local_3centers
       n2_plus = nz2*ncoset(l2_max)
       ALLOCATE(vabc_plus(n1_plus,n2_plus),STAT=istat)
       IF (istat /= 0) THEN
-        CALL stop_memory(routine_name,module_name,__LINE__,"vabc_plus",&
+        CALL stop_memory(routineN,moduleN,__LINE__,"vabc_plus",&
                          n1_plus*n2_plus*dp_size)
       END IF
 
@@ -1283,7 +1283,7 @@ MODULE  hartree_local_3centers
     IF(maxder > 0) THEN
       DEALLOCATE(vabc_plus,STAT=istat)
       IF (istat /= 0) THEN
-        CALL stop_memory(routine_name,module_name,__LINE__,"vabc_plus")
+        CALL stop_memory(routineN,moduleN,__LINE__,"vabc_plus")
       END IF
     END IF
 

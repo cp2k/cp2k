@@ -39,7 +39,7 @@ MODULE cp_fm_basic_linalg
   PRIVATE
 
   LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
-  CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='cp_fm_basic_linalg'
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_fm_basic_linalg'
 
   PUBLIC :: cp_fm_scale, &                 ! scale a matrix
             cp_fm_scale_and_add, &         ! scale and add two matrices
@@ -299,13 +299,12 @@ CONTAINS
     TYPE(cp_fm_type), POINTER                :: matrix_c
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
-    INTEGER, INTENT(IN), OPTIONAL            :: b_first_col
-    INTEGER, INTENT(IN), OPTIONAL            :: c_first_col
-    INTEGER, INTENT(IN), OPTIONAL            :: a_first_row
-    INTEGER, INTENT(IN), OPTIONAL            :: b_first_row
-    INTEGER, INTENT(IN), OPTIONAL            :: c_first_row
+    INTEGER, INTENT(IN), OPTIONAL            :: b_first_col, a_first_row, &
+                                                b_first_row, c_first_col, &
+                                                c_first_row
 
-    INTEGER                                  :: handle, i_a, i_b, i_c, j_b, j_c, lda, ldb, ldc
+    INTEGER                                  :: handle, i_a, i_b, i_c, j_b, &
+                                                j_c, lda, ldb, ldc
     INTEGER, DIMENSION(9)                    :: desca, descb, descc
     REAL(KIND=dp)                            :: flops
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: a, b, c

@@ -43,7 +43,6 @@ MODULE qs_linres_methods
                                              cp_fm_release,&
                                              cp_fm_set_all,&
                                              cp_fm_to_fm,&
-                                             cp_fm_type,&
                                              cp_fm_vectorsnorm
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
@@ -91,7 +90,7 @@ MODULE qs_linres_methods
   ! *** Public subroutines ***
   PUBLIC :: linres_localize, linres_scf
 
-  CHARACTER(LEN=*), PARAMETER :: moduleN='qs_linres_methods'
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_linres_methods'
 
 !!***
 ! *****************************************************************************
@@ -131,7 +130,7 @@ CONTAINS
       OPTIONAL                               :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'linres_localize', &
-      routineP = moduleN//'/'//routineN
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ispin, istat, n_mo(2), &
                                                 nelectron, nmoloc(2)
@@ -215,7 +214,7 @@ CONTAINS
       OPTIONAL                               :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'linres_scf', &
-      routineP = moduleN//'/'//routineN
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, homo, i, ik, ispin, &
                                                 istat, iter, last_ik, &
@@ -457,7 +456,7 @@ CONTAINS
       OPTIONAL                               :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'check_p_env_init', &
-      routineP = moduleN//'/'//routineN
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ispin, ncol, nrow
     LOGICAL                                  :: failure
@@ -537,7 +536,7 @@ CONTAINS
       OPTIONAL                               :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'linres_scf_mini', &
-      routineP = moduleN//'/'//routineN
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ispin, k, nao, nmo
     LOGICAL                                  :: failure
@@ -722,8 +721,8 @@ CONTAINS
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-    CHARACTER(len=*), PARAMETER :: routine_name = 'linres_derivative', &
-      routineP = moduleN//':'//routine_name
+    CHARACTER(len=*), PARAMETER :: routineN = 'linres_derivative', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ispin, n_ao, n_mo
     LOGICAL                                  :: failure

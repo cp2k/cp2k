@@ -23,83 +23,82 @@
 !!   SOURCE
 !****************************************************************************
 MODULE tbmd_environment
-  USE atomic_kind_list_types,                 ONLY: atomic_kind_list_create,&
-                                                    atomic_kind_list_release,&
-                                                    atomic_kind_list_type
-  USE atomic_kind_types,                      ONLY: atomic_kind_type, &
-                                                    read_atomic_kind_set, &
-                                                    get_atomic_kind, &
-                                                    get_atomic_kind_set, &
-                                                    write_atomic_kind_set
-  USE cell_types,                             ONLY: cell_type, &
-                                                    read_cell, &
-                                                    get_cell, &
-                                                    cell_release,&
-                                                    write_cell
-  USE cp_blacs_env,                           ONLY: cp_blacs_env_create
-  USE cp_fm_struct,                           ONLY: optimal_blacs_col_block_size, &
-                                                    optimal_blacs_row_block_size
-  USE cp_subsystem_methods,                   ONLY: cp_subsys_read_colvar
-  USE cp_subsystem_types,                     ONLY: cp_subsystem_type, &
-                                                    cp_subsys_create, &
-                                                    cp_subsys_release, &
-                                                    cp_subsys_set
-  USE distribution_1d_types,                  ONLY: distribution_1d_release, &
-                                                    distribution_1d_type
-  USE distribution_methods,                   ONLY: distribute_molecules_1d
-  USE global_types,                           ONLY: global_environment_type
-  USE input_constants,                        ONLY: use_gsp, &
-                                                    use_sawada, &
-                                                    use_kwon, &
-                                                    use_lenosky, &
-                                                    use_udp
-  USE input_section_types,                    ONLY: section_vals_get_subs_vals,&
-                                                    section_vals_type, &
-                                                    section_vals_val_get
-  USE kinds,                                  ONLY: dp, &
-                                                    default_string_length
-  USE mol_kind_new_list_types,                ONLY: mol_kind_new_list_create,&
-                                                    mol_kind_new_list_release,&
-                                                    mol_kind_new_list_type
-  USE mol_new_list_types,                     ONLY: mol_new_list_create,&
-                                                    mol_new_list_release,&
-                                                    mol_new_list_type
-  USE molecule_kind_types,                    ONLY: molecule_kind_type, &
-                                                    write_molecule_kind_set
-  USE molecule_types_new,                     ONLY: molecule_type
-  USE particle_list_types,                    ONLY: particle_list_create, &
-                                                    particle_list_type, &
-                                                    particle_list_release
-  USE particle_types,                         ONLY: particle_type, &
-                                                    write_particle_distances, &
-                                                    write_qs_particle_coordinates
-  USE physcon,                                ONLY: evolt, &
-                                                    angstrom
-  USE qs_mo_types,                            ONLY: allocate_mo_set, &
-                                                    mo_set_type
-  USE tbmd_energy_types,                      ONLY: tbmd_energy_type, &
-                                                    tbmd_energy_create
-  USE tbmd_environment_methods,               ONLY: tbmd_env_setup
-  USE tbmd_environment_types,                 ONLY: tbmd_environment_type, &
-                                                    tbmd_env_set
-  USE tbmd_force_types,                       ONLY: tbmd_force_type, &
-                                                    tbmd_force_create
-  USE tbmd_model_types,                       ONLY: tbmd_model_type, &
-                                                    tbmd_model_create
-  USE tbmd_neighbor_list_env_types,           ONLY: tbmd_neighbor_list_env_type, &
-                                                    tbmd_neighbor_list_env_create
-  USE timings,                                ONLY: timeset, &
-                                                    timestop
-  USE topology,                               ONLY: topology_control
-
+  USE atomic_kind_list_types,          ONLY: atomic_kind_list_create,&
+                                             atomic_kind_list_release,&
+                                             atomic_kind_list_type
+  USE atomic_kind_types,               ONLY: atomic_kind_type,&
+                                             get_atomic_kind,&
+                                             get_atomic_kind_set,&
+                                             write_atomic_kind_set
+  USE cell_types,                      ONLY: cell_release,&
+                                             cell_type,&
+                                             get_cell,&
+                                             read_cell,&
+                                             write_cell
+  USE cp_blacs_env,                    ONLY: cp_blacs_env_create
+  USE cp_fm_struct,                    ONLY: optimal_blacs_col_block_size,&
+                                             optimal_blacs_row_block_size
+  USE cp_subsystem_methods,            ONLY: cp_subsys_read_colvar
+  USE cp_subsystem_types,              ONLY: cp_subsys_create,&
+                                             cp_subsys_release,&
+                                             cp_subsys_set,&
+                                             cp_subsystem_type
+  USE distribution_1d_types,           ONLY: distribution_1d_release,&
+                                             distribution_1d_type
+  USE distribution_methods,            ONLY: distribute_molecules_1d
+  USE global_types,                    ONLY: global_environment_type
+  USE input_constants,                 ONLY: use_gsp,&
+                                             use_kwon,&
+                                             use_lenosky,&
+                                             use_sawada,&
+                                             use_udp
+  USE input_section_types,             ONLY: section_vals_get_subs_vals,&
+                                             section_vals_type,&
+                                             section_vals_val_get
+  USE kinds,                           ONLY: default_string_length,&
+                                             dp
+  USE mol_kind_new_list_types,         ONLY: mol_kind_new_list_create,&
+                                             mol_kind_new_list_release,&
+                                             mol_kind_new_list_type
+  USE mol_new_list_types,              ONLY: mol_new_list_create,&
+                                             mol_new_list_release,&
+                                             mol_new_list_type
+  USE molecule_kind_types,             ONLY: molecule_kind_type,&
+                                             write_molecule_kind_set
+  USE molecule_types_new,              ONLY: molecule_type
+  USE particle_list_types,             ONLY: particle_list_create,&
+                                             particle_list_release,&
+                                             particle_list_type
+  USE particle_types,                  ONLY: particle_type,&
+                                             write_particle_distances,&
+                                             write_qs_particle_coordinates
+  USE physcon,                         ONLY: angstrom,&
+                                             evolt
+  USE qs_mo_types,                     ONLY: allocate_mo_set,&
+                                             mo_set_type
+  USE tbmd_energy_types,               ONLY: tbmd_energy_create,&
+                                             tbmd_energy_type
+  USE tbmd_environment_methods,        ONLY: tbmd_env_setup
+  USE tbmd_environment_types,          ONLY: tbmd_env_set,&
+                                             tbmd_environment_type
+  USE tbmd_force_types,                ONLY: tbmd_force_create,&
+                                             tbmd_force_type
+  USE tbmd_model_types,                ONLY: tbmd_model_create,&
+                                             tbmd_model_type
+  USE tbmd_neighbor_list_env_types,    ONLY: tbmd_neighbor_list_env_create,&
+                                             tbmd_neighbor_list_env_type
+  USE timings,                         ONLY: timeset,&
+                                             timestop
+  USE topology,                        ONLY: topology_control
 #include "cp_common_uses.h"
+
   IMPLICIT NONE
 
   PRIVATE
 
 ! *** Global parameters ***
 
-  CHARACTER(LEN=*), PARAMETER :: moduleN = "tbmd_environment"
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'tbmd_environment'
 
 ! *** Public subroutines ***
 
@@ -143,30 +142,27 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'tbmd_init', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure, &
-                                                use_ref_cell
     INTEGER                                  :: handle
-    TYPE(section_vals_type), POINTER         :: force_env_section, &
-                                                cell_section, &
-                                                colvar_section, &
-                                                tbmd_section
-    TYPE(cell_type), POINTER                 :: cell, &
-                                                cell_ref
+    LOGICAL                                  :: failure, use_ref_cell
     REAL(KIND=dp), DIMENSION(3)              :: abc
+    TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
+    TYPE(atomic_kind_type), DIMENSION(:), &
+      POINTER                                :: atomic_kind_set
+    TYPE(cell_type), POINTER                 :: cell, cell_ref
     TYPE(cp_subsystem_type), POINTER         :: subsystem
+    TYPE(mol_kind_new_list_type), POINTER    :: molecule_kinds
+    TYPE(mol_new_list_type), POINTER         :: molecules
     TYPE(molecule_kind_type), DIMENSION(:), &
       POINTER                                :: molecule_kind_set
     TYPE(molecule_type), DIMENSION(:), &
       POINTER                                :: molecule_set
+    TYPE(particle_list_type), POINTER        :: particles
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
-    TYPE(atomic_kind_type), DIMENSION(:), &
-      POINTER                                :: atomic_kind_set
-    TYPE(particle_list_type), POINTER        :: particles
-    TYPE(mol_new_list_type), POINTER         :: molecules
-    TYPE(mol_kind_new_list_type), POINTER    :: molecule_kinds
-    TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
- 
+    TYPE(section_vals_type), POINTER         :: cell_section, colvar_section, &
+                                                force_env_section, &
+                                                tbmd_section
+
 !   ------------------------------------------------------------------------
 
     CALL timeset(routineN, "I", "", handle)
@@ -280,33 +276,28 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'tbmd_init_subsys', &
       routineP = moduleN//':'//routineN
 
+    CHARACTER(LEN=2)                         :: element_symbol
+    INTEGER                                  :: handle, ikind, n_ao, natom, &
+                                                nelectron, stat, temp_zeff
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: temp_natom_of_kind
+    LOGICAL                                  :: failure
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
+    TYPE(atomic_kind_type), POINTER          :: atomic_kind_ptr
+    TYPE(distribution_1d_type), POINTER      :: local_molecules, &
+                                                local_particles
+    TYPE(mo_set_type), POINTER               :: mos
     TYPE(molecule_kind_type), DIMENSION(:), &
       POINTER                                :: molecule_kind_set
     TYPE(molecule_type), DIMENSION(:), &
       POINTER                                :: molecule_set
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
-    INTEGER                                  :: natom, &
-                                                handle, &
-                                                nelectron, &
-                                                n_ao, &
-                                                ikind, &
-                                                temp_zeff, &
-                                                stat
-    LOGICAL                                  :: failure
-    INTEGER, DIMENSION(:), ALLOCATABLE       :: temp_natom_of_kind
     TYPE(tbmd_energy_type), POINTER          :: tbmd_energy
     TYPE(tbmd_force_type), POINTER           :: tbmd_force
     TYPE(tbmd_model_type), POINTER           :: tbmd_model
     TYPE(tbmd_neighbor_list_env_type), &
       POINTER                                :: tbmd_neighbor_list_env
-    TYPE(distribution_1d_type), POINTER      :: local_molecules, &
-                                                local_particles
-    TYPE(mo_set_type), POINTER               :: mos
-    CHARACTER(LEN=2)                         :: element_symbol
-    TYPE(atomic_kind_type), POINTER          :: atomic_kind_ptr
 
 !   ------------------------------------------------------------------------
 
@@ -435,18 +426,16 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'tbmd_init_tb_neighbor_list', &
       routineP = moduleN//':'//routineN
 
+    INTEGER                                  :: handle, nkinds, stat
     LOGICAL                                  :: failure
-    INTEGER                                  :: handle, &
-                                                stat, &
-                                                nkinds
-    TYPE(tbmd_neighbor_list_env_type), &
-      POINTER                                :: tbmd_neighbor_list_env
-    TYPE(section_vals_type), POINTER         :: force_env_section, &
-                                                tbmd_section, &
-                                                tbmd_neighbor_list_section
     REAL(KIND=dp)                            :: r_cutoff
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
+    TYPE(section_vals_type), POINTER         :: force_env_section, &
+                                                tbmd_neighbor_list_section, &
+                                                tbmd_section
+    TYPE(tbmd_neighbor_list_env_type), &
+      POINTER                                :: tbmd_neighbor_list_env
 
 !   ------------------------------------------------------------------------
 
@@ -515,20 +504,17 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'tbmd_init_tb_model', &
       routineP = moduleN//':'//routineN
 
-    TYPE(tbmd_model_type), POINTER           :: tbmd_model
+    CHARACTER(LEN=default_string_length)     :: tb_atomic_kind_name
+    INTEGER                                  :: handle, i
+    REAL(KIND=dp)                            :: a_latt, Am, eV
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: vector_ptr
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atomic_kind_ptr
-    INTEGER                                  :: i, &
-                                                handle
-    CHARACTER(LEN=default_string_length)     :: tb_atomic_kind_name
-    REAL(KIND=dp)                            :: eV, &
-                                                Am, &
-                                                a_latt
     TYPE(section_vals_type), POINTER         :: force_env_section, &
-                                                tbmd_section, &
-                                                tbmd_model_section
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: vector_ptr
+                                                tbmd_model_section, &
+                                                tbmd_section
+    TYPE(tbmd_model_type), POINTER           :: tbmd_model
 
 !   ------------------------------------------------------------------------
 

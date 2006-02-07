@@ -27,34 +27,24 @@ MODULE qs_operators_ao
                                              get_atomic_kind_set
   USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                              gto_basis_set_type
+  USE cell_types,                      ONLY: cell_type,&
+                                             pbc
   USE distribution_2d_types,           ONLY: distribution_2d_type
-  USE external_potential_types,        ONLY: all_potential_type,&
-                                             get_potential,&
-                                             gth_potential_type
   USE kinds,                           ONLY: dp
-  USE mathconstants,                   ONLY: twopi
-  USE memory_utilities,                ONLY: reallocate
   USE orbital_pointers,                ONLY: nco,&
                                              ncoset
-  USE particle_types,                  ONLY: get_particle_set,particle_type
+  USE particle_types,                  ONLY: get_particle_set,&
+                                             particle_type
   USE qs_environment_types,            ONLY: get_qs_env,&
-                                             qs_environment_type,&
-                                             set_qs_env
-  USE qs_neighbor_list_types,          ONLY: find_neighbor_list,&
-                                             first_list,&
-                                             first_node,&
-                                             get_neighbor_list,&
-                                             get_neighbor_list_set,&
-                                             get_neighbor_node,&
-                                             block_p_type,&
-                                             neighbor_list_set_p_type,&
-                                             neighbor_list_type,&
-                                             neighbor_node_type,&
-                                             next
-  USE cell_types,                 ONLY: cell_type, pbc
-  USE sparse_matrix_types,             ONLY: allocate_matrix, get_block_node,&
-                                             add_block_node,&
-                                             real_matrix_p_type, &
+                                             qs_environment_type
+  USE qs_neighbor_list_types,          ONLY: &
+       block_p_type, first_list, first_node, get_neighbor_list, &
+       get_neighbor_list_set, get_neighbor_node, neighbor_list_set_p_type, &
+       neighbor_list_type, neighbor_node_type, next
+  USE sparse_matrix_types,             ONLY: add_block_node,&
+                                             allocate_matrix,&
+                                             get_block_node,&
+                                             real_matrix_p_type,&
                                              real_matrix_type
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -63,7 +53,7 @@ MODULE qs_operators_ao
   IMPLICIT NONE
   PRIVATE
 
-  CHARACTER(len=*), PRIVATE, PARAMETER :: module_name='qs_operators_ao'
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_operators_ao'
 
 ! *** Public subroutines ***
 
@@ -104,53 +94,55 @@ CONTAINS
 
   SUBROUTINE p_xyz_ao(op_sm,qs_env,minimum_image,error)
 
-   TYPE( real_matrix_p_type ), DIMENSION(:), &
-      POINTER                                   :: op_sm
-    TYPE(qs_environment_type), POINTER          :: qs_env
-    LOGICAL, INTENT(IN), OPTIONAL               :: minimum_image
+    TYPE(real_matrix_p_type), DIMENSION(:), &
+      POINTER                                :: op_sm
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    LOGICAL, INTENT(IN), OPTIONAL            :: minimum_image
     TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                                  :: error
+      OPTIONAL                               :: error
 
-    CHARACTER(len=*), PARAMETER :: routine_name = 'get_dip_vel_operator', &
-      routineP = module_name//':'//routine_name
+    CHARACTER(len=*), PARAMETER :: routineN = 'p_xyz_ao', &
+      routineP = moduleN//':'//routineN
 
-    INTEGER  :: handle, i, iab, iat, iatom, icol, ikind, ilist, inode, irow, &
-                iset, istat, ithread, j, jat, jatom, jkind, jset, last_jatom, &
-                ldab, ldsa, ldsb, ldwork, maxl, ncoa, ncob, nkind, nlist,&
-                nnode, nrow, nthread, nseta, nsetb, sgfa, sgfb
-    INTEGER, DIMENSION(:), POINTER              :: la_max, la_min, lb_max, lb_min
-    INTEGER, DIMENSION(:), POINTER              :: npgfa, npgfb
-    INTEGER, DIMENSION(:), POINTER              :: nsgfa, nsgfb
-    INTEGER, DIMENSION(:,:), POINTER            :: first_sgfa,first_sgfb
-    LOGICAL :: failure, my_minimum_image, new_atom_b
-    REAL(KIND=dp) :: dab, Lxo2, Lyo2, Lzo2, rab2
-    REAL(KIND=dp), DIMENSION(3)                 :: ra, rb, rab
-    REAL(KIND = dp), DIMENSION(:), POINTER      :: set_radius_a,set_radius_b
-    REAL(KIND=dp), DIMENSION(:,:), POINTER      :: rpgfa, rpgfb, sphi_a,sphi_b, &
-                                                  zeta, zetb
-    REAL(KIND=dp), DIMENSION(:,:), POINTER      :: work
-    REAL(KIND=dp), DIMENSION(:,:,:), POINTER    :: difab,workt
-    REAL(KIND=dp), DIMENSION(:,:,:,:), POINTER  :: difabt
-    TYPE(atomic_kind_type), DIMENSION(:),&
-      POINTER                                   :: atomic_kind_set
-    TYPE(atomic_kind_type), POINTER             :: atomic_kind
-    TYPE(block_p_type), DIMENSION(:),  &
-          POINTER                               :: op_dip
-    TYPE(block_p_type), DIMENSION(:,:), &
-          POINTER                               :: op_dipt
-    TYPE(cell_type), POINTER                    :: cell
-    TYPE(gto_basis_set_type), POINTER           :: orb_basis_set
+    INTEGER :: handle, i, iab, iatom, icol, ikind, ilist, inode, irow, iset, &
+      istat, ithread, j, jatom, jkind, jset, last_jatom, ldab, ldsa, ldsb, &
+      ldwork, maxl, ncoa, ncob, nkind, nlist, nnode, nrow, nseta, nsetb, &
+      nthread, sgfa, sgfb
+    INTEGER, DIMENSION(:), POINTER           :: la_max, la_min, lb_max, &
+                                                lb_min, npgfa, npgfb, nsgfa, &
+                                                nsgfb
+    INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa, first_sgfb
+    LOGICAL                                  :: failure, my_minimum_image, &
+                                                new_atom_b
+    REAL(KIND=dp)                            :: dab, Lxo2, Lyo2, Lzo2, rab2
+    REAL(KIND=dp), DIMENSION(3)              :: ra, rab, rb
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: set_radius_a, set_radius_b
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: rpgfa, rpgfb, sphi_a, sphi_b, &
+                                                work, zeta, zetb
+    REAL(KIND=dp), DIMENSION(:, :, :), &
+      POINTER                                :: difab, workt
+    REAL(KIND=dp), DIMENSION(:, :, :, :), &
+      POINTER                                :: difabt
+    TYPE(atomic_kind_type), DIMENSION(:), &
+      POINTER                                :: atomic_kind_set
+    TYPE(atomic_kind_type), POINTER          :: atomic_kind
+    TYPE(block_p_type), DIMENSION(:), &
+      POINTER                                :: op_dip
+    TYPE(block_p_type), DIMENSION(:, :), &
+      POINTER                                :: op_dipt
+    TYPE(cell_type), POINTER                 :: cell
+    TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
     TYPE(neighbor_list_set_p_type), &
-      DIMENSION(:),           POINTER           :: sab_orb
-    TYPE(neighbor_list_type), POINTER           :: sab_orb_neighbor_list,&
-                                                   sab_orb_neighbor_list_local
-    TYPE(neighbor_node_type), POINTER           :: sab_orb_neighbor_node
+      DIMENSION(:), POINTER                  :: sab_orb
+    TYPE(neighbor_list_type), POINTER        :: sab_orb_neighbor_list, &
+                                                sab_orb_neighbor_list_local
+    TYPE(neighbor_node_type), POINTER        :: sab_orb_neighbor_node
     TYPE(particle_type), DIMENSION(:), &
-      POINTER                                   :: particle_set
+      POINTER                                :: particle_set
 
 !$  INTEGER :: omp_get_max_threads,omp_get_thread_num
 
-    CALL timeset(routine_name,"I"," ",handle)
+    CALL timeset(routineN,"I"," ",handle)
 
     failure = .FALSE.
     NULLIFY (atomic_kind, atomic_kind_set)
@@ -477,53 +469,55 @@ CONTAINS
 
   SUBROUTINE rmc_x_p_xyz_ao(op_sm,qs_env,minimum_image,error)
 
-   TYPE( real_matrix_p_type ), DIMENSION(:), &
-      POINTER                                   :: op_sm
-    TYPE(qs_environment_type), POINTER          :: qs_env
-    LOGICAL, INTENT(IN), OPTIONAL               :: minimum_image
+    TYPE(real_matrix_p_type), DIMENSION(:), &
+      POINTER                                :: op_sm
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    LOGICAL, INTENT(IN), OPTIONAL            :: minimum_image
     TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                                  :: error
+      OPTIONAL                               :: error
 
-    CHARACTER(len=*), PARAMETER :: routine_name = 'get_dip_vel_operator', &
-      routineP = module_name//':'//routine_name
+    CHARACTER(len=*), PARAMETER :: routineN = 'rmc_x_p_xyz_ao', &
+      routineP = moduleN//':'//routineN
 
-    INTEGER  :: handle, i, iab, iat, iatom, icol, ikind, ilist, inode, irow, &
-                iset, istat, ithread, j, jat, jatom, jkind, jset, last_jatom, &
-                ldab, ldsa, ldsb, ldwork, maxl, ncoa, ncob, nkind, nlist,&
-                nnode, nrow, nthread, nseta, nsetb, sgfa, sgfb
-    INTEGER, DIMENSION(:), POINTER              :: la_max, la_min, lb_max, lb_min
-    INTEGER, DIMENSION(:), POINTER              :: npgfa, npgfb
-    INTEGER, DIMENSION(:), POINTER              :: nsgfa, nsgfb
-    INTEGER, DIMENSION(:,:), POINTER            :: first_sgfa,first_sgfb
-    LOGICAL :: failure, my_minimum_image, new_atom_b
-    REAL(KIND=dp) :: dab, Lxo2, Lyo2, Lzo2, rab2
-    REAL(KIND=dp), DIMENSION(3)                 :: ra, rb, rc, rab, rac, rbc
-    REAL(KIND = dp), DIMENSION(:), POINTER      :: set_radius_a,set_radius_b
-    REAL(KIND=dp), DIMENSION(:,:), POINTER      :: rpgfa, rpgfb, sphi_a,sphi_b, &
-                                                   zeta, zetb
-    REAL(KIND=dp), DIMENSION(:,:), POINTER      :: work
-    REAL(KIND=dp), DIMENSION(:,:,:), POINTER    :: angab,workt
-    REAL(KIND=dp), DIMENSION(:,:,:,:), POINTER  :: angabt
-    TYPE(atomic_kind_type), DIMENSION(:),&
-      POINTER                                   :: atomic_kind_set
-    TYPE(atomic_kind_type), POINTER             :: atomic_kind
-    TYPE(block_p_type), DIMENSION(:),  &
-          POINTER                               :: op_angij,op_angji
-    TYPE(block_p_type), DIMENSION(:,:), &
-          POINTER                               :: op_angijt, op_angjit
-    TYPE(cell_type), POINTER                    :: cell
-    TYPE(gto_basis_set_type), POINTER           :: orb_basis_set
+    INTEGER :: handle, i, iab, iatom, icol, ikind, ilist, inode, irow, iset, &
+      istat, ithread, j, jatom, jkind, jset, last_jatom, ldab, ldsa, ldsb, &
+      ldwork, maxl, ncoa, ncob, nkind, nlist, nnode, nrow, nseta, nsetb, &
+      nthread, sgfa, sgfb
+    INTEGER, DIMENSION(:), POINTER           :: la_max, la_min, lb_max, &
+                                                lb_min, npgfa, npgfb, nsgfa, &
+                                                nsgfb
+    INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa, first_sgfb
+    LOGICAL                                  :: failure, my_minimum_image, &
+                                                new_atom_b
+    REAL(KIND=dp)                            :: dab, Lxo2, Lyo2, Lzo2, rab2
+    REAL(KIND=dp), DIMENSION(3)              :: ra, rab, rac, rb, rbc, rc
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: set_radius_a, set_radius_b
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: rpgfa, rpgfb, sphi_a, sphi_b, &
+                                                work, zeta, zetb
+    REAL(KIND=dp), DIMENSION(:, :, :), &
+      POINTER                                :: angab, workt
+    REAL(KIND=dp), DIMENSION(:, :, :, :), &
+      POINTER                                :: angabt
+    TYPE(atomic_kind_type), DIMENSION(:), &
+      POINTER                                :: atomic_kind_set
+    TYPE(atomic_kind_type), POINTER          :: atomic_kind
+    TYPE(block_p_type), DIMENSION(:), &
+      POINTER                                :: op_angij, op_angji
+    TYPE(block_p_type), DIMENSION(:, :), &
+      POINTER                                :: op_angijt, op_angjit
+    TYPE(cell_type), POINTER                 :: cell
+    TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
     TYPE(neighbor_list_set_p_type), &
-      DIMENSION(:),           POINTER           :: sab_orb
-    TYPE(neighbor_list_type), POINTER           :: sab_orb_neighbor_list,&
-                                                   sab_orb_neighbor_list_local
-    TYPE(neighbor_node_type), POINTER           :: sab_orb_neighbor_node
+      DIMENSION(:), POINTER                  :: sab_orb
+    TYPE(neighbor_list_type), POINTER        :: sab_orb_neighbor_list, &
+                                                sab_orb_neighbor_list_local
+    TYPE(neighbor_node_type), POINTER        :: sab_orb_neighbor_node
     TYPE(particle_type), DIMENSION(:), &
-      POINTER                                   :: particle_set
+      POINTER                                :: particle_set
 
 !$  INTEGER :: omp_get_max_threads,omp_get_thread_num
 
-    CALL timeset(routine_name,"I"," ",handle)
+    CALL timeset(routineN,"I"," ",handle)
 
     failure = .FALSE.
     NULLIFY (atomic_kind, atomic_kind_set)
@@ -823,26 +817,29 @@ CONTAINS
 
   SUBROUTINE set_up_op_rmd(matrix,qs_env,error)
 
-    TYPE(real_matrix_type), POINTER                    :: matrix
-    TYPE(qs_environment_type), POINTER                 :: qs_env
+    TYPE(real_matrix_type), POINTER          :: matrix
+    TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                                         :: error
+      OPTIONAL                               :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'set_up_op_rmd', &
-                                   routineP = module_name//'/'//routineN
+      routineP = moduleN//':'//routineN
 
-    INTEGER :: iab, iatom, ikind, istat, jkind, ilist,inode, jatom, last_jatom, natom,  neighbor_list_id, nkind, nlist, nnode, nsgf
-    INTEGER, DIMENSION(:), ALLOCATABLE                 :: first_sgf, last_sgf
-    LOGICAL :: failure, new_atom_b
-    REAL(KIND=dp), DIMENSION(:, :), POINTER            :: block
-    TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
-    TYPE(distribution_2d_type), POINTER                :: distribution_2d
-    TYPE(neighbor_list_type), POINTER                  :: sab_orb_neighbor_list,&
-                                                          sab_orb_neighbor_list_local
-    TYPE(neighbor_node_type), POINTER                  :: sab_orb_neighbor_node
-    TYPE(neighbor_list_set_p_type), DIMENSION(:),&
-      POINTER                                          :: sab_orb
-    TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
+    INTEGER :: iab, iatom, ikind, ilist, inode, istat, jatom, jkind, &
+      last_jatom, natom, neighbor_list_id, nkind, nlist, nnode, nsgf
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: first_sgf, last_sgf
+    LOGICAL                                  :: failure, new_atom_b
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: block
+    TYPE(atomic_kind_type), DIMENSION(:), &
+      POINTER                                :: atomic_kind_set
+    TYPE(distribution_2d_type), POINTER      :: distribution_2d
+    TYPE(neighbor_list_set_p_type), &
+      DIMENSION(:), POINTER                  :: sab_orb
+    TYPE(neighbor_list_type), POINTER        :: sab_orb_neighbor_list, &
+                                                sab_orb_neighbor_list_local
+    TYPE(neighbor_node_type), POINTER        :: sab_orb_neighbor_node
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particle_set
 
 !******************************************************************************
 

@@ -26,16 +26,15 @@
 !****************************************************************************
 
 MODULE qmmm_methods
-  USE mathconstants,                   ONLY: pi
+  USE cell_types,                      ONLY: cell_type,&
+                                             pbc
   USE coefficient_types,               ONLY: coeff_type,&
                                              coeff_zero
-  USE cp_output_handling, ONLY: cp_print_key_unit_nr, &
-       cp_print_key_finished_output
-  USE cp_control_types,                ONLY: dft_control_type
-  USE global_types,                    ONLY: global_environment_type
-  USE message_passing, ONLY: mp_isend, mp_irecv, mp_wait
+  USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
+                                             cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cube_utils,                      ONLY: cube_info_type
+  USE global_types,                    ONLY: global_environment_type
   USE input_constants,                 ONLY: do_qmmm_gauss,&
                                              do_qmmm_grid,&
                                              do_qmmm_none,&
@@ -43,46 +42,41 @@ MODULE qmmm_methods
                                              spline3_nopbc_interp,&
                                              spline3_pbc_interp
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
-                                             section_vals_val_get,&
-                                             section_vals_type
+                                             section_vals_type,&
+                                             section_vals_val_get
   USE kinds,                           ONLY: dp
+  USE message_passing,                 ONLY: mp_irecv,&
+                                             mp_isend,&
+                                             mp_sum,&
+                                             mp_wait
   USE mm_collocate_potential,          ONLY: collocate_gf_rspace_NoPBC,&
                                              integrate_gf_rspace_NoPBC
   USE particle_types,                  ONLY: particle_type
   USE pw_env_types,                    ONLY: pw_env_get,&
                                              pw_env_type
   USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
-                                             pw_pool_give_back_pw,&
                                              pw_pool_give_back_coeff,&
+                                             pw_pool_give_back_pw,&
                                              pw_pool_init_coeff,&
                                              pw_pool_p_type,&
                                              pw_pool_type,&
                                              pw_pools_create_pws,&
                                              pw_pools_give_back_pws
-  USE pw_spline_utils,                 ONLY: pw_prolongate_s3,&
-                                             pw_restrict_s3,&
-                                             Eval_d_Interp_Spl3_pbc
-  USE pw_types,                        ONLY: REALDATA3D,&
-                                             REALSPACE,&
-                                             pw_restrict_l_NoPBC,&
-                                             pw_p_type,&
-                                             pw_sumup,&
-                                             pw_transfer,&
-                                             pw_type,&
-                                             pw_zero,&
-                                             pw_integral_ab
+  USE pw_spline_utils,                 ONLY: pw_restrict_s3
+  USE pw_types,                        ONLY: &
+       REALDATA3D, REALSPACE, pw_integral_ab, pw_p_type, pw_restrict_l_NoPBC, &
+       pw_sumup, pw_transfer, pw_type, pw_zero
   USE qmmm_electrostatic_methods,      ONLY: qmmm_elec_with_gaussian,&
-                                             qmmm_elec_with_gaussian_LR,&
                                              qmmm_elec_with_gaussian_LG,&
-                                             qmmm_elec_with_gaussian_low,&
+                                             qmmm_elec_with_gaussian_LR,&
                                              qmmm_electrostatic_on_grid
   USE qmmm_gaussian_types,             ONLY: qmmm_gaussian_p_type,&
                                              qmmm_gaussian_type
   USE qmmm_types,                      ONLY: qmmm_env_qm_type,&
-                                             qmmm_pot_p_type,&
-                                             qmmm_pot_type,&
                                              qmmm_per_pot_p_type,&
-                                             qmmm_per_pot_type                                             
+                                             qmmm_per_pot_type,&
+                                             qmmm_pot_p_type,&
+                                             qmmm_pot_type
   USE qs_energy_types,                 ONLY: qs_energy_type
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
@@ -90,9 +84,6 @@ MODULE qmmm_methods
   USE qs_rho_types,                    ONLY: qs_rho_type
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE cell_types,                 ONLY: cell_type,&
-                                             pbc
-  USE message_passing,                 ONLY: mp_sum 
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -101,7 +92,7 @@ MODULE qmmm_methods
   LOGICAL,       PARAMETER, PRIVATE   :: debug_this_module=.FALSE.
   REAL(KIND=dp), PARAMETER, PRIVATE   :: Dx = 0.01_dp    ! Debug Variables
   REAL(KIND=dp), PARAMETER, PRIVATE   :: MaxErr = 10.0_dp ! Debug Variables
-  CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='qmmm_methods'
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qmmm_methods'
   PUBLIC :: qmmm_forces
   
 CONTAINS
@@ -129,25 +120,26 @@ CONTAINS
 !!*************************************************************************
   SUBROUTINE qmmm_forces(qs_env,qmmm_env,mm_particles,calc_force,mm_cell,&
        globenv, error)
-    TYPE(global_environment_type), &
-      OPTIONAL, POINTER                      :: globenv
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(qmmm_env_qm_type), POINTER          :: qmmm_env
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: mm_particles
     LOGICAL, INTENT(in), OPTIONAL            :: calc_force
     TYPE(cell_type), POINTER                 :: mm_cell
+    TYPE(global_environment_type), &
+      OPTIONAL, POINTER                      :: globenv
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_forces', &
-      routineP = moduleN//':'//routineN    
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, Imm, IndMM, ispin, &
-                                                stat, iw
+                                                iw, stat
     LOGICAL                                  :: failure, need_f, periodic
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: Forces, Forces_added_charges
     TYPE(coeff_type), POINTER                :: rho_core
+    TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(pw_env_type), POINTER               :: pw_env
     TYPE(pw_pool_p_type), DIMENSION(:), &
@@ -157,8 +149,8 @@ CONTAINS
     TYPE(qs_energy_type), POINTER            :: energy
     TYPE(qs_ks_qmmm_env_type), POINTER       :: ks_qmmm_env_loc
     TYPE(qs_rho_type), POINTER               :: rho
-    TYPE(section_vals_type), POINTER         :: input_section, interp_section, print_section
-    TYPE(cp_logger_type), POINTER :: logger
+    TYPE(section_vals_type), POINTER         :: input_section, &
+                                                interp_section, print_section
 
     CALL timeset(routineN,"I","",handle)
     failure=.FALSE.
@@ -338,11 +330,9 @@ CONTAINS
 !!*************************************************************************
   SUBROUTINE qmmm_forces_on_grid(rho,v_qmmm,qmmm_env,mm_particles,&
        dvol, Forces, Forces_added_charges, mm_cell, error)
-    IMPLICIT NONE
-    ! Arguments
-    TYPE(qmmm_env_qm_type), POINTER          :: qmmm_env
     TYPE(pw_type), POINTER                   :: rho
     TYPE(coeff_type), INTENT(INOUT)          :: v_qmmm
+    TYPE(qmmm_env_qm_type), POINTER          :: qmmm_env
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: mm_particles
     REAL(KIND=dp), INTENT(IN)                :: dvol
@@ -350,9 +340,10 @@ CONTAINS
     TYPE(cell_type), POINTER                 :: mm_cell
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
-    ! Local Variables
+
     CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_forces_on_grid', &
       routineP = moduleN//':'//routineN
+
     INTEGER                                  :: handle
     LOGICAL                                  :: failure
 
@@ -422,7 +413,6 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(*)              :: Rho
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: mm_particles
-    REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: dOmmOqm
     REAL(KIND=dp), DIMENSION(:), POINTER     :: mm_charges, mm_el_pot_radius
     INTEGER, DIMENSION(:), POINTER           :: mm_atom_index
     INTEGER, INTENT(IN)                      :: num_mm_atoms
@@ -431,6 +421,7 @@ CONTAINS
     TYPE(qmmm_pot_p_type), DIMENSION(:), &
       POINTER                                :: Potentials
     TYPE(cell_type), POINTER                 :: mm_cell
+    REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: dOmmOqm
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -447,8 +438,8 @@ CONTAINS
                                                 rt1, rt2, rt3, rv1, rv2, rv3, &
                                                 rx, rx2, rx3, rx4, xs1, xs2, &
                                                 xs3
-    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: pot0_2
     REAL(KIND=dp), DIMENSION(3)              :: r_pbc
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: pot0_2
     TYPE(qmmm_pot_type), POINTER             :: Pot
 
     failure=.FALSE.
@@ -557,8 +548,6 @@ CONTAINS
        aug_pools, auxbas_grid, coarser_grid, cube_info, para_env,    &
        eps_mm_rspace, pw_pools, Forces, Forces_added_charges,        &
        interp_section, iw, mm_cell, error)
-    IMPLICIT NONE
-    ! Arguments
     TYPE(pw_type), POINTER                   :: rho
     TYPE(qmmm_env_qm_type), POINTER          :: qmmm_env
     TYPE(particle_type), DIMENSION(:), &
@@ -574,21 +563,22 @@ CONTAINS
       POINTER                                :: pw_pools
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: Forces, Forces_added_charges
     TYPE(section_vals_type), POINTER         :: interp_section
+    INTEGER, INTENT(IN)                      :: iw
     TYPE(cell_type), POINTER                 :: mm_cell
-    INTEGER, INTENT(in) :: iw
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
-    ! Local Variables
+
     CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_forces_with_gaussian', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, i, igrid, j, k, ngrids,&
-         stat, kind_interp, request, group
-    INTEGER, DIMENSION(3)                    :: lb, ub,glb,gub
+    INTEGER                                  :: group, handle, i, igrid, j, &
+                                                k, kind_interp, ngrids, &
+                                                request, stat
+    INTEGER, DIMENSION(3)                    :: glb, gub, lb, ub
+    INTEGER, DIMENSION(:), POINTER           :: pos_of_x
     LOGICAL                                  :: failure
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: tmp
     TYPE(pw_p_type), DIMENSION(:), POINTER   :: grids
-    REAL(kind=dp), DIMENSION(:,:), POINTER :: tmp
-    INTEGER, DIMENSION(:), pointer :: pos_of_x
 
 ! Statements
 
@@ -642,7 +632,7 @@ CONTAINS
           grids(auxbas_grid) % pw %cr3d(ub(1)+1,j,ub(3)+1)=rho%cr3d(lb(1),j,lb(3))
        END DO
        grids(auxbas_grid) % pw %cr3d(ub(1)+1,ub(2)+1,ub(3)+1)=rho%cr3d(lb(1),lb(2),lb(3))
-    ELSE IF (lb(1)==glb(1)) then
+    ELSE IF (lb(1)==glb(1)) THEN
        ALLOCATE(tmp(rho%pw_grid%bounds_local(1,2):rho%pw_grid%bounds_local(2,2),&
             rho%pw_grid%bounds_local(1,3):rho%pw_grid%bounds_local(2,3)),&
             stat=stat)
@@ -650,7 +640,7 @@ CONTAINS
        tmp=rho%cr3d(lb(1),:,:)
        CALL mp_isend(msgin=tmp,dest=pos_of_x(rho%pw_grid%bounds(2,1)),comm=group,&
             request=request,tag=112)
-       call mp_wait(request)
+       CALL mp_wait(request)
     ELSE IF (ub(1)==gub(1)) THEN
        ALLOCATE(tmp(rho%pw_grid%bounds_local(1,2):rho%pw_grid%bounds_local(2,2),&
             rho%pw_grid%bounds_local(1,3):rho%pw_grid%bounds_local(2,3)),&
@@ -756,7 +746,6 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:), POINTER     :: mm_charges, mm_el_pot_radius
     INTEGER, DIMENSION(:), POINTER           :: mm_atom_index
     INTEGER, INTENT(IN)                      :: num_mm_atoms
-    REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: dOmmOqm
     TYPE(cube_info_type), DIMENSION(:), &
       POINTER                                :: cube_info
     TYPE(cp_para_env_type), POINTER          :: para_env
@@ -770,12 +759,13 @@ CONTAINS
     TYPE(pw_pool_p_type), DIMENSION(:), &
       POINTER                                :: aug_pools
     TYPE(cell_type), POINTER                 :: mm_cell
+    REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: dOmmOqm
+    LOGICAL, INTENT(in)                      :: periodic
+    TYPE(qmmm_per_pot_p_type), &
+      DIMENSION(:), POINTER                  :: per_potentials
+    INTEGER, INTENT(IN)                      :: iw
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
-    LOGICAL, INTENT(in)                      :: periodic
-    TYPE(qmmm_per_pot_p_type), DIMENSION(:), &
-      POINTER                                :: per_potentials  
-    INTEGER, intent(in) :: iw
 
     CHARACTER(len=*), PARAMETER :: &
       routineN = 'qmmm_forces_with_gaussian_low', &
@@ -783,17 +773,17 @@ CONTAINS
 
     INTEGER                                  :: handle, Icg, IGauss, ilevel, &
                                                 Imm, IndMM, IRadTyp, ithread, &
-                                                LIndMM, stat, iwrk
+                                                iwrk, LIndMM, n_rep_real(3), &
+                                                stat
+    INTEGER, DIMENSION(2, 3)                 :: bo2
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: alpha, dvol, height, W
     REAL(KIND=dp), DIMENSION(3)              :: force, ra
     REAL(KIND=dp), DIMENSION(:), POINTER     :: wrk, xdat, xder, ydat, yder, &
                                                 zdat, zder
     TYPE(qmmm_gaussian_type), POINTER        :: pgf
+    TYPE(qmmm_per_pot_type), POINTER         :: per_pot
     TYPE(qmmm_pot_type), POINTER             :: pot
-    TYPE(qmmm_per_pot_type), pointer         :: per_pot
-    INTEGER, DIMENSION(2,3)                  :: bo2
-    INTEGER                                  :: n_rep_real(3)
 
     NULLIFY(pgf, xdat, ydat, zdat, xder, yder, zder, wrk, pot, per_pot)    
     CALL timeset(routineN,"I","",handle)
@@ -983,7 +973,6 @@ CONTAINS
     TYPE(qmmm_gaussian_p_type), &
       DIMENSION(:), POINTER                  :: pgfs
     TYPE(pw_type), POINTER                   :: cgrid
-    REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: dOmmOqm
     INTEGER, INTENT(IN)                      :: num_mm_atoms
     REAL(KIND=dp), DIMENSION(:), POINTER     :: mm_charges
     INTEGER, DIMENSION(:), POINTER           :: mm_atom_index
@@ -993,48 +982,45 @@ CONTAINS
     TYPE(cp_para_env_type), POINTER          :: para_env
     INTEGER, INTENT(IN)                      :: coarser_grid_level
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: Forces
-    TYPE(qmmm_per_pot_p_type), DIMENSION(:), &
-      POINTER                                :: per_potentials
+    TYPE(qmmm_per_pot_p_type), &
+      DIMENSION(:), POINTER                  :: per_potentials
     TYPE(pw_pool_p_type), DIMENSION(:), &
       POINTER                                :: aug_pools
     TYPE(cell_type), POINTER                 :: mm_cell
-    INTEGER, intent(in) :: iw
+    REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: dOmmOqm
+    INTEGER, INTENT(IN)                      :: iw
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_forces_with_gaussian_LG', &
-      routineP = moduleN//':'//routineN    
+      routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, Imm, IndMM, &
-                                                IRadTyp, i, j, k, LIndMM, &
-                                                my_i, my_j, my_k,  &
-                                                stat
+    INTEGER :: handle, i, ii1, ii2, ii3, ii4, ij1, ij2, ij3, ij4, ik1, ik2, &
+      ik3, ik4, Imm, IndMM, IRadTyp, ivec(3), j, k, LIndMM, my_i, my_j, my_k, &
+      npts(3), stat
     INTEGER, DIMENSION(2, 3)                 :: bo, gbo
     LOGICAL                                  :: failure
-    REAL(KIND=dp)                            :: dr1c, dr2c, dr3c, dvol, fac, &
-                                                ft1, ft2, ft3, qt, &
-                                                rt1, rt2, rt3, rv1, rv2, rv3, &
-                                                xs1, xs2, xs3
+    REAL(KIND=dp) :: a1, a2, a3, aaa, aab, aac, aad, aba, abb, abc, abd, aca, &
+      acb, acc, acd, ada, adb, adc, add, b1, b2, b3, baa, bab, bac, bad, bba, &
+      bbb, bbc, bbd, bca, bcb, bcc, bcd, bda, bdb, bdc, bdd, c1, c2, c3, caa, &
+      cab, cac, cad, cba, cbb, cbc, cbd, cca, ccb, ccc, ccd, cda, cdb, cdc, &
+      cdd, d1, d2, d3, daa, dab, dac, dad, dba, dbb, dbc, dbd, dca, dcb, dcc, &
+      dcd, dda, ddb, ddc, ddd, dr1, dr1c, dr1i, dr2, dr2c, dr2i, dr3, dr3c, &
+      dr3i, dvol, e1, e2, e3, f1, f2, f3, fac, ft1, ft2, ft3, g1, g2, g3, h1, &
+      h2, h3, p1, p2, p3, q1, q2, q3, qt, r1, r2, r3, rt1, rt2, rt3, rv1, &
+      rv2, rv3, s1, s1d, s1o, s2, s2d, s2o, s3, s3d, s3o
+    REAL(KIND=dp) :: s4, s4d, s4o, t1, t1d, t1o, t2, t2d, t2o, t3, t3d, t3o, &
+      t4, t4d, t4o, u1, u2, u3, v1, v1d, v1o, v2, v2d, v2o, v3, v3d, v3o, v4, &
+      v4d, v4o, xd1, xd2, xd3, xs1, xs2, xs3
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: LForces
-    REAL(KIND=dp), DIMENSION(3)              :: ra, vec, val
+    REAL(KIND=dp), DIMENSION(3)              :: ra, val, vec
+    REAL(KIND=dp), DIMENSION(:, :, :), &
+      POINTER                                :: grid
+    TYPE(pw_type), POINTER                   :: pw
     TYPE(qmmm_per_pot_type), POINTER         :: per_pot
-    INTEGER       :: ivec(3), npts(3)
-    INTEGER       :: ik1, ik2, ik3, ik4, ij1, ij2, ij3, ij4, ii1, ii2, ii3, ii4
-    REAL(KIND=dp) :: dr1, dr2, dr3, xd1, xd2, xd3, dr1i, dr2i, dr3i
-    REAL(KIND=dp) :: aaa, aba, aca, ada, aab, abb, acb, adb, aac, abc, acc, adc, aad, abd, acd, add   
-    REAL(KIND=dp) :: baa, bba, bca, bda, bab, bbb, bcb, bdb, bac, bbc, bcc, bdc, bad, bbd, bcd, bdd 
-    REAL(KIND=dp) :: caa, cba, cca, cda, cab, cbb, ccb, cdb, cac, cbc, ccc, cdc, cad, cbd, ccd, cdd 
-    REAL(KIND=dp) :: daa, dba, dca, dda, dab, dbb, dcb, ddb, dac, dbc, dcc, ddc, dad, dbd, dcd, ddd 
-    REAL(KIND=dp) :: a1, a2, a3, b1, b2, b3, c1, c2, c3, d1, d2, d3, t1o, t2o, t3o, t4o
-    REAL(KIND=dp) :: t1d, t2d, t3d, t4d, t1, t2, t3, t4
-    REAL(KIND=dp) :: e1, e2, e3, f1, f2, f3, g1, g2, g3, h1, h2, h3, s1o, s2o, s3o, s4o
-    REAL(KIND=dp) :: s1d, s2d, s3d, s4d, s1, s2, s3, s4
-    REAL(KIND=dp) :: p1, p2, p3, q1, q2, q3, r1, r2, r3, u1, u2, u3, v1o, v2o, v3o, v4o
-    REAL(KIND=dp) :: v1d, v2d, v3d, v4d, v1, v2, v3, v4
-    REAL(KIND=dp), DIMENSION(:,:,:), POINTER    :: grid
-    TYPE(pw_type), POINTER                      :: pw
-    ! Statements
+
+! Statements
 
     CALL timeset(routineN,"I","",handle)
     NULLIFY(grid)
@@ -1391,7 +1377,6 @@ CONTAINS
     TYPE(qmmm_gaussian_p_type), &
       DIMENSION(:), POINTER                  :: pgfs
     TYPE(pw_type), POINTER                   :: grid
-    REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: dOmmOqm
     INTEGER, INTENT(IN)                      :: num_mm_atoms
     REAL(KIND=dp), DIMENSION(:), POINTER     :: mm_charges
     INTEGER, DIMENSION(:), POINTER           :: mm_atom_index
@@ -1406,12 +1391,13 @@ CONTAINS
     TYPE(pw_pool_p_type), DIMENSION(:), &
       POINTER                                :: aug_pools
     TYPE(cell_type), POINTER                 :: mm_cell
-    INTEGER, intent(in) :: iw
+    REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: dOmmOqm
+    INTEGER, INTENT(IN)                      :: iw
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_forces_with_gaussian_LR', &
-      routineP = moduleN//':'//routineN    
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, i, Imm, IndMM, &
                                                 IRadTyp, ix, j, k, LIndMM, &
@@ -1419,11 +1405,9 @@ CONTAINS
                                                 stat
     INTEGER, DIMENSION(2, 3)                 :: bo, gbo
     LOGICAL                                  :: failure
-    REAL(KIND=dp)                            :: dr1, dr2, dr3, dvol, dx, fac, &
-                                                ft1, ft2, ft3, qt, r, r2, &
-                                                rt1, rt2, rt3, rv1, rv2, rv3, &
-                                                rx, rx2, Term, xs1, xs2, xs3,&
-                                                rd1, rd2, rd3
+    REAL(KIND=dp) :: dr1, dr2, dr3, dvol, dx, fac, ft1, ft2, ft3, qt, r, r2, &
+      rd1, rd2, rd3, rt1, rt2, rt3, rv1, rv2, rv3, rx, rx2, Term, xs1, xs2, &
+      xs3
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: LForces
     REAL(KIND=dp), DIMENSION(3)              :: ra
@@ -1582,24 +1566,26 @@ CONTAINS
       OPTIONAL                               :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_debug_forces', &
-      routineP = moduleN//':'//routineN      
+      routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, I, IndMM, J, K, stat, iw
+    INTEGER                                  :: handle, I, IndMM, iw, J, K, &
+                                                stat
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: Coord_save
     REAL(KIND=dp), DIMENSION(2)              :: energy
     REAL(KIND=dp), DIMENSION(3)              :: Err
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: Num_Forces
     TYPE(coeff_type)                         :: v_qmmm_rspace
+    TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(pw_env_type), POINTER               :: pw_env
     TYPE(pw_pool_p_type), DIMENSION(:), &
       POINTER                                :: pw_pools
     TYPE(qs_ks_qmmm_env_type), POINTER       :: ks_qmmm_env_loc
-    TYPE(cp_logger_type), POINTER :: logger
-    TYPE(section_vals_type), POINTER :: print_section, input_section
+    TYPE(section_vals_type), POINTER         :: input_section, print_section
 
 ! Statements
+
     CALL timeset(routineN,"I","",handle)
     NULLIFY( Num_Forces )
     CALL get_qs_env(qs_env=qs_env,&
@@ -1722,7 +1708,7 @@ CONTAINS
   SUBROUTINE debug_integrate_gf_rspace_NoPBC(ilevel, zetp, rp, scale, W, pwgrid, cube_info,&
                                              eps_mm_rspace, ithread, aug_pools, debug_force,&
                                              mm_cell,auxbas_grid, n_rep_real, iw, error)
-    INTEGER, INTENT(IN)                      :: ilevel, auxbas_grid
+    INTEGER, INTENT(IN)                      :: ilevel
     REAL(KIND=dp), INTENT(IN)                :: zetp
     REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: rp
     REAL(KIND=dp), INTENT(IN)                :: scale, W
@@ -1734,10 +1720,11 @@ CONTAINS
       POINTER                                :: aug_pools
     REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: debug_force
     TYPE(cell_type), POINTER                 :: mm_cell
-    INTEGER, intent(in) :: iw
+    INTEGER, INTENT(IN)                      :: auxbas_grid
+    INTEGER, DIMENSION(3), INTENT(IN)        :: n_rep_real
+    INTEGER, INTENT(IN)                      :: iw
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
-    INTEGER, INTENT(IN), DIMENSION(3)        :: n_rep_real
 
     CHARACTER(len=*), PARAMETER :: &
       routineN = 'debug_integrate_gf_rspace_NoPBC', &
@@ -1745,13 +1732,13 @@ CONTAINS
 
     INTEGER                                  :: handle, i, igrid, k, ngrids, &
                                                 stat
+    INTEGER, DIMENSION(2, 3)                 :: bo2
     INTEGER, SAVE                            :: Icount
     LOGICAL                                  :: failure
     REAL(KIND=dp), DIMENSION(2)              :: energy
     REAL(KIND=dp), DIMENSION(3)              :: Err, force, myrp
     REAL(KIND=dp), DIMENSION(:), POINTER     :: xdat, ydat, zdat
     TYPE(pw_p_type), DIMENSION(:), POINTER   :: grids
-    INTEGER, DIMENSION(2,3)                  :: bo2
 
     DATA Icount /0/
     ! Statements
@@ -1859,25 +1846,25 @@ CONTAINS
       POINTER                                :: aug_pools
     TYPE(pw_type), POINTER                   :: rho
     REAL(KIND=dp), DIMENSION(:), POINTER     :: mm_charges
-    REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: dOmmOqm
     INTEGER, DIMENSION(:), POINTER           :: mm_atom_index
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: mm_particles
     REAL(KIND=dp), DIMENSION(:), POINTER     :: mm_el_pot_radius
     INTEGER, INTENT(IN)                      :: num_mm_atoms, &
                                                 coarser_grid_level
-    TYPE(qmmm_per_pot_p_type), DIMENSION(:), &
-      POINTER                                :: per_potentials
+    TYPE(qmmm_per_pot_p_type), &
+      DIMENSION(:), POINTER                  :: per_potentials
     REAL(KIND=dp), DIMENSION(:, :)           :: debug_force
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cell_type), POINTER                 :: mm_cell
-    INTEGER, INTENT(in) :: iw
+    REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: dOmmOqm
+    INTEGER, INTENT(IN)                      :: iw
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
     CHARACTER(len=*), PARAMETER :: &
       routineN = 'debug_qmmm_forces_with_gauss_LG', &
-      routineP = moduleN//':'//routineN    
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, I, igrid, IndMM, J, &
                                                 K, ngrids, stat
@@ -1983,7 +1970,6 @@ CONTAINS
       POINTER                                :: aug_pools
     TYPE(pw_type), POINTER                   :: rho
     REAL(KIND=dp), DIMENSION(:), POINTER     :: mm_charges
-    REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: dOmmOqm
     INTEGER, DIMENSION(:), POINTER           :: mm_atom_index
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: mm_particles
@@ -1995,13 +1981,14 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:, :)           :: debug_force
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cell_type), POINTER                 :: mm_cell
-    INTEGER, INTENT(IN) :: iw
+    REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: dOmmOqm
+    INTEGER, INTENT(IN)                      :: iw
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
     CHARACTER(len=*), PARAMETER :: &
       routineN = 'debug_qmmm_forces_with_gauss_LR', &
-      routineP = moduleN//':'//routineN    
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, I, igrid, IndMM, J, &
                                                 K, ngrids, stat

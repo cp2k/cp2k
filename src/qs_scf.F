@@ -48,10 +48,6 @@
 !******************************************************************************
 
 MODULE qs_scf
-  USE cp_output_handling,              ONLY: cp_print_key_unit_nr, &
-                                             cp_print_key_finished_output,&
-                                             cp_print_key_should_output,&
-                                             cp_p_file
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind,&
                                              get_atomic_kind_set
@@ -59,7 +55,6 @@ MODULE qs_scf
                                              gto_basis_set_type
   USE checkpoint_handler,              ONLY: write_checkpoint_information
   USE cp_control_types,                ONLY: dft_control_type
-  USE cp_files,                        ONLY: close_file,open_file
   USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm,&
                                              cp_fm_symm,&
                                              cp_fm_upper_to_full
@@ -84,6 +79,10 @@ MODULE qs_scf
                                              cp_fm_set_element,&
                                              cp_fm_to_fm,&
                                              cp_fm_type
+  USE cp_output_handling,              ONLY: cp_p_file,&
+                                             cp_print_key_finished_output,&
+                                             cp_print_key_should_output,&
+                                             cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_sm_fm_interactions,           ONLY: copy_sm_to_fm,&
                                              cp_sm_fm_multiply
@@ -95,35 +94,36 @@ MODULE qs_scf
                                              get_potential,&
                                              gth_potential_type
   USE global_types,                    ONLY: global_environment_type
+  USE harris_env_types,                ONLY: harris_env_type
+  USE harris_functional,               ONLY: harris_eigenvalue_calculation,&
+                                             harris_eigenvalue_trace_KS_Pmix,&
+                                             harris_energy_correction,&
+                                             harris_postprocessing
+  USE input_constants,                 ONLY: atomic_guess,&
+                                             core_guess,&
+                                             densities_guess,&
+                                             ot_precond_full_all,&
+                                             ot_precond_none,&
+                                             qs_debug_run,&
+                                             random_guess,&
+                                             restart_guess
+  USE input_section_types,             ONLY: section_vals_get_subs_vals,&
+                                             section_vals_type
   USE kinds,                           ONLY: dp,&
                                              dp_size,&
                                              int_size
-  USE input_constants,                 ONLY: ot_precond_none,&
-                                             ot_precond_full_all,&
-                                             xas_tp_hh, &
-                                             xas_tp_xhh, &
-                                             xas_tp_fh, &
-                                             xas_tp_xfh, &
-                                             xes_tp_val, &
-                                             qs_debug_run, &
-                                             xas_dscf,&
-                                             densities_guess,&
-                                             restart_guess,&
-                                             atomic_guess,&
-                                             core_guess, &
-                                             random_guess
   USE machine,                         ONLY: m_flush,&
                                              m_walltime
-  USE message_passing,                 ONLY: mp_bcast,&
-                                             mp_max,&
+  USE message_passing,                 ONLY: mp_max,&
                                              mp_sum
   USE particle_types,                  ONLY: get_particle_set,&
                                              particle_type
+  USE physcon,                         ONLY: evolt,&
+                                             kcalmol
   USE preconditioner,                  ONLY: destroy_preconditioner,&
                                              init_preconditioner,&
                                              make_preconditioner
   USE pw_env_types,                    ONLY: pw_env_type
-  USE physcon,                         ONLY: kcalmol,evolt
   USE qs_charges_types,                ONLY: qs_charges_type
   USE qs_collocate_density,            ONLY: collocate_atomic_charge_density
   USE qs_core_energies,                ONLY: calculate_ecore_overlap,&
@@ -138,28 +138,20 @@ MODULE qs_scf
                                              set_qs_env
   USE qs_ks_methods,                   ONLY: qs_ks_create,&
                                              qs_ks_did_change,&
-                                             qs_ks_update_qs_env,&
-                                             qs_ks_build_kohn_sham_matrix
+                                             qs_ks_update_qs_env
   USE qs_ks_types,                     ONLY: qs_ks_env_type,&
                                              qs_ks_release
   USE qs_loc_methods,                  ONLY: loc_initialize_rho
   USE qs_matrix_pools,                 ONLY: mpools_get
   USE qs_mo_methods,                   ONLY: calculate_density_matrix,&
                                              calculate_orthonormality,&
-                                             make_basis,&
-                                             calculate_subspace_eigenvalues
-  USE qs_mo_types,                     ONLY: correct_mo_eigenvalues,&
-                                             get_mo_set,& 
-                                             init_mo_set,&
-                                             mo_set_p_type,&
-                                             mo_set_type,&
-                                             read_mo_set,&
-                                             mo_set_restrict,&
-                                             set_mo_occupation,&
-                                             set_mo_set,&
-                                             write_mo_set
-  USE qs_ot,                           ONLY: qs_ot_new_preconditioner, &
-                                             qs_ot_type
+                                             calculate_subspace_eigenvalues,&
+                                             make_basis
+  USE qs_mo_types,                     ONLY: &
+       correct_mo_eigenvalues, get_mo_set, init_mo_set, mo_set_p_type, &
+       mo_set_restrict, mo_set_type, read_mo_set, set_mo_occupation, &
+       set_mo_set, write_mo_set
+  USE qs_ot,                           ONLY: qs_ot_new_preconditioner
   USE qs_ot_scf,                       ONLY: ot_scf_destroy,&
                                              ot_scf_init,&
                                              ot_scf_mini,&
@@ -167,52 +159,34 @@ MODULE qs_scf
   USE qs_overlap,                      ONLY: write_fm_with_basis_info,&
                                              write_sparse_matrix
   USE qs_rho_atom_methods,             ONLY: calculate_rho_atom_coeff
-  USE qs_rho_methods,                  ONLY: qs_rho_update_rho, &
-                                             duplicate_rho_type
+  USE qs_rho_methods,                  ONLY: duplicate_rho_type,&
+                                             qs_rho_update_rho
   USE qs_rho_types,                    ONLY: qs_rho_type
   USE qs_scf_post,                     ONLY: scf_post_calculation
   USE qs_scf_types,                    ONLY: ao_mixing_nr,&
-                                             special_diag_method_nr,&
                                              general_diag_method_nr,&
                                              no_mixing_nr,&
                                              ot_method_nr,&
                                              qs_scf_env_type,&
-                                             scf_env_release
+                                             scf_env_release,&
+                                             special_diag_method_nr
   USE qs_wf_history_methods,           ONLY: wfi_extrapolate,&
                                              wfi_get_method_label,&
                                              wfi_update
-  USE qs_wf_history_types,             ONLY: wfi_use_guess_method_nr, &
-                                             wfi_frozen_method_nr
+  USE qs_wf_history_types,             ONLY: wfi_frozen_method_nr,&
+                                             wfi_use_guess_method_nr
   USE scf_control_types,               ONLY: scf_control_type
-  USE sparse_matrix_types,             ONLY: copy_matrix,&
-                                             cp_sm_scale_and_add,&
-                                             deallocate_matrix_set,&
-                                             first_block_node,&
-                                             get_block_node,&
-                                             get_matrix_diagonal,&
-                                             get_matrix_info,&
-                                             next_block_node,&
-                                             real_block_node_type,&
-                                             real_matrix_p_type,&
-                                             real_matrix_type,&
-                                             set_matrix_diagonal,&
-                                             transfer_matrix
-  USE termination,                     ONLY: external_control,& 
+  USE sparse_matrix_types,             ONLY: &
+       cp_sm_scale_and_add, deallocate_matrix_set, first_block_node, &
+       get_block_node, get_matrix_diagonal, get_matrix_info, next_block_node, &
+       real_block_node_type, real_matrix_p_type, real_matrix_type, &
+       set_matrix_diagonal, transfer_matrix
+  USE termination,                     ONLY: external_control,&
                                              stop_memory,&
                                              stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE harris_functional,               ONLY: harris_energy_correction, &
-                                             harris_eigenvalue_trace_KS_Pmix, &
-                                             harris_eigenvalue_calculation, &
-                                             harris_postprocessing
-  USE harris_env_types,                ONLY: harris_env_type
 #include "cp_common_uses.h"
-  
-  USE input_section_types, ONLY: section_vals_type, section_vals_val_get,&
-       section_vals_get_subs_vals, section_vals_get_subs_vals2, &
-       section_get_rval, section_get_ival
-
 
   IMPLICIT NONE
 
@@ -220,7 +194,7 @@ MODULE qs_scf
 
 ! *** Global parameters ***
 
-  CHARACTER(LEN=*), PARAMETER, PRIVATE :: moduleN = "qs_scf"
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_scf'
 
   LOGICAL, PARAMETER, PRIVATE :: debug_this_module=.FALSE.
 
@@ -365,9 +339,8 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE scf(qs_env,globenv,calc_forces,error)
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(global_environment_type), &
-      POINTER                                :: globenv
-    LOGICAL, OPTIONAL, INTENT(IN)            :: calc_forces
+    TYPE(global_environment_type), POINTER   :: globenv
+    LOGICAL, INTENT(IN), OPTIONAL            :: calc_forces
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -440,19 +413,19 @@ CONTAINS
 
     TYPE(qs_scf_env_type), POINTER           :: scf_env
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(global_environment_type), &
-      POINTER                                :: globenv
+    TYPE(global_environment_type), POINTER   :: globenv
     LOGICAL, INTENT(IN), OPTIONAL            :: calc_forces
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = "scf_env_do_scf", &
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'scf_env_do_scf', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, handle2, ispin, &
+    INTEGER                                  :: handle, handle2, ispin, iw, &
                                                 output_unit
-    LOGICAL :: diis_step, do_level_shift, energy_only, failure, gapw, gapw_xc, ionode, &
-      should_stop, use_cholesky, use_jacobi, id_equal
+    LOGICAL :: diis_step, do_level_shift, EII_necessary, energy_only, &
+      failure, gapw, gapw_xc, harris_flag, has_unit_metric, id_equal, ionode, &
+      should_stop, use_cholesky, use_jacobi
     REAL(KIND=dp)                            :: diis_error, orthonormality, &
                                                 t1, t2, tot1_h, tot1_s
     TYPE(atomic_kind_type), DIMENSION(:), &
@@ -462,6 +435,7 @@ CONTAINS
     TYPE(cp_fm_type), POINTER                :: ortho, scf_work2
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(harris_env_type), POINTER           :: harris_env
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos
     TYPE(particle_type), DIMENSION(:), &
@@ -470,19 +444,16 @@ CONTAINS
     TYPE(qs_charges_type), POINTER           :: qs_charges
     TYPE(qs_energy_type), POINTER            :: energy
     TYPE(qs_ks_env_type), POINTER            :: ks_env
-    TYPE(qs_rho_type), POINTER               :: rho,rho_xc
+    TYPE(qs_rho_type), POINTER               :: rho, rho_xc
     TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_h, matrix_ks, matrix_p, matrix_s
-    TYPE(scf_control_type), POINTER          :: scf_control
-    LOGICAL                                  :: has_unit_metric
+      POINTER                                :: matrix_h, matrix_ks, &
+                                                matrix_p, matrix_s
     TYPE(real_matrix_type), POINTER          :: orthogonality_metric
-    LOGICAL                                  :: harris_flag, &
-                                                EII_necessary
-    TYPE(harris_env_type), POINTER           :: harris_env
-    TYPE(section_vals_type),POINTER          :: dft_section, input, scf_section
+    TYPE(scf_control_type), POINTER          :: scf_control
+    TYPE(section_vals_type), POINTER         :: dft_section, input, &
+                                                scf_section
+
 !dbg
-    LOGICAL :: l_val
-    INTEGER :: iw
 !   ---------------------------------------------------------------------------
 
     NULLIFY(dft_control,matrix_h,matrix_s,matrix_ks,matrix_p,rho,rho_xc,energy, &
@@ -525,7 +496,7 @@ CONTAINS
     IF (dft_control%restricted) THEN
        ! OT only right now
        IF (scf_env%method .NE. ot_method_nr) THEN 
-          IF (output_unit>0) write(output_unit,*) "OT only for restricted"
+          IF (output_unit>0) WRITE(output_unit,*) "OT only for restricted"
           CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
        ENDIF
        CPPrecondition(dft_control%nspins.EQ.2,cp_failure_level,routineP,error,failure)
@@ -1060,10 +1031,10 @@ CONTAINS
                                     qs_env,invert,error)
 
     TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                :: p_mix_new 
+      POINTER                                :: p_mix_new
     INTEGER, INTENT(IN)                      :: mixing_method
-    REAL(KIND = dp), INTENT(IN)              :: p_mix
-    REAL(KIND = dp), INTENT(INOUT)           :: iter_delta
+    REAL(KIND=dp), INTENT(IN)                :: p_mix
+    REAL(KIND=dp), INTENT(INOUT)             :: iter_delta
     TYPE(qs_environment_type), POINTER       :: qs_env
     LOGICAL, INTENT(in), OPTIONAL            :: invert
     TYPE(cp_error_type), INTENT(inout), &
@@ -1131,38 +1102,32 @@ CONTAINS
 
     TYPE(qs_scf_env_type), POINTER           :: scf_env
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(global_environment_type), &
-      POINTER                                :: globenv
+    TYPE(global_environment_type), POINTER   :: globenv
     LOGICAL, INTENT(IN), OPTIONAL            :: calc_forces
+    TYPE(section_vals_type), POINTER         :: scf_section
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
-    TYPE(section_vals_type), POINTER :: scf_section
-    CHARACTER(LEN=*), PARAMETER :: routineN = "init_scf_run", &
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'init_scf_run', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, homo, ispin, nao, &
-                                                ndep, nelectron_spin, &
-                                                output_unit, &
-                                                stat, number_of_OT_envs
-    LOGICAL                                  :: failure, &
-                                                gth_potential_present, ionode,&
-                                                my_transition_potential
+    INTEGER                                  :: handle, homo, i, ispin, iw, &
+                                                nao, ndep, nelectron_spin, &
+                                                number_of_OT_envs, &
+                                                output_unit, stat
+    LOGICAL :: do_rotation, failure, gth_potential_present, has_unit_metric, &
+      my_transition_potential
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
-    TYPE(cp_fm_type), POINTER                :: mo_coeff, ortho, &
-                                                scf_work2, e_vectors
-    TYPE(cp_fm_struct_type), POINTER         :: fm_struct_tmp
+    TYPE(cp_fm_type), POINTER                :: mo_coeff, ortho, scf_work2
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos
     TYPE(real_matrix_p_type), DIMENSION(:), &
       POINTER                                :: matrix_h, matrix_ks, matrix_s
-    TYPE(scf_control_type), POINTER          :: scf_control
-    LOGICAL                                  :: has_unit_metric,do_rotation
     TYPE(real_matrix_type), POINTER          :: orthogonality_metric
-    INTEGER :: i, iw
-
+    TYPE(scf_control_type), POINTER          :: scf_control
 
     CALL timeset("init_scf_run","I"," ",handle)
 
@@ -1442,19 +1407,24 @@ CONTAINS
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = "scf_env_check_i_alloc", &
-      routineP = moduleN//":"//routineN
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'scf_env_check_i_alloc', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, homo, ispin, nao, &
                                                 nrow_block, stat
-    LOGICAL                                  :: failure, gth_potential_present
-    LOGICAL                                  :: my_transition_potential,uniform_occupation
+    LOGICAL                                  :: failure, &
+                                                gth_potential_present, &
+                                                my_transition_potential, &
+                                                uniform_occupation
     REAL(KIND=dp), DIMENSION(:), POINTER     :: occupation_numbers
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
+    TYPE(cp_fm_p_type), DIMENSION(:), &
+      POINTER                                :: mo_derivs
     TYPE(cp_fm_pool_p_type), DIMENSION(:), &
       POINTER                                :: ao_mo_fm_pools
     TYPE(cp_fm_struct_type), POINTER         :: ao_ao_fmstruct, ao_mo_fmstruct
+    TYPE(cp_fm_type), POINTER                :: mo_coeff
     TYPE(cp_sm_pool_p_type), DIMENSION(:), &
       POINTER                                :: S_sm_pools
     TYPE(dft_control_type), POINTER          :: dft_control
@@ -1463,8 +1433,6 @@ CONTAINS
     TYPE(qs_ks_env_type), POINTER            :: ks_env
     TYPE(real_matrix_p_type), DIMENSION(:), &
       POINTER                                :: matrix_ks, matrix_s
-    TYPE(cp_fm_p_type), POINTER, DIMENSION(:):: mo_derivs
-    TYPE(cp_fm_type), POINTER                :: mo_coeff
 
 !   ---------------------------------------------------------------------------
 
@@ -1529,11 +1497,11 @@ CONTAINS
      CALL get_qs_env(qs_env,mo_derivs=mo_derivs)
      IF (.NOT.ASSOCIATED(mo_derivs)) THEN
        IF (dft_control%restricted) THEN ! right now, there might be more mos than needed derivs
-          allocate(mo_derivs(1))
+          ALLOCATE(mo_derivs(1))
           CALL get_mo_set(mos(1)%mo_set,mo_coeff=mo_coeff)
           CALL cp_fm_create(mo_derivs(1)%matrix,mo_coeff%matrix_struct)
        ELSE
-          allocate(mo_derivs(dft_control%nspins))
+          ALLOCATE(mo_derivs(dft_control%nspins))
           DO ispin=1,dft_control%nspins
              CALL get_mo_set(mos(ispin)%mo_set,mo_coeff=mo_coeff)
              CALL cp_fm_create(mo_derivs(ispin)%matrix,mo_coeff%matrix_struct)
@@ -1692,8 +1660,7 @@ CONTAINS
                                                 nao, nelectron, nmo
     LOGICAL                                  :: mo_uocc
     REAL(KIND=dp)                            :: alpha, maxocc
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: mo_eigenvalues
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: mo_occupation
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: mo_eigenvalues, mo_occupation
     TYPE(cp_fm_type), POINTER                :: mo_coeff
 
 !   ---------------------------------------------------------------------------
@@ -1809,9 +1776,7 @@ CONTAINS
     TYPE(cp_fm_type), POINTER                :: matrix_ks
     TYPE(mo_set_type), POINTER               :: mo_set
     LOGICAL, INTENT(IN)                      :: do_level_shift
-    REAL(KIND=dp), INTENT(IN)                :: level_shift
-    REAL(KIND=dp), INTENT(IN)                :: work_syevx
-    REAL(KIND=dp), INTENT(IN)                :: smear
+    REAL(KIND=dp), INTENT(IN)                :: level_shift, work_syevx, smear
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -1819,8 +1784,7 @@ CONTAINS
                                                 nao, nelectron, nmo
     LOGICAL                                  :: mo_uocc
     REAL(KIND=dp)                            :: alpha, maxocc
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: mo_eigenvalues
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: mo_occupation
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: mo_eigenvalues, mo_occupation
     TYPE(cp_fm_type), POINTER                :: mo_coeff
 
 !   ---------------------------------------------------------------------------
@@ -1908,15 +1872,16 @@ CONTAINS
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = "cp_sm_mix", &
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_sm_mix', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, i, iblock_col_m1, iblock_col_m2, &
-                                                iblock_row, j, nblock_row
+    INTEGER                                  :: handle, i, iblock_col_m1, &
+                                                iblock_col_m2, iblock_row, j, &
+                                                nblock_row
+    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: r_mix
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: p_new_block, p_old_block
     TYPE(real_block_node_type), POINTER      :: block_node_m1, block_node_m2
-    LOGICAL :: failure
 
 !   ---------------------------------------------------------------------------
 
@@ -1972,14 +1937,13 @@ CONTAINS
 
     TYPE(qs_scf_env_type), POINTER           :: scf_env
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(global_environment_type), &
-      pointer                             :: globenv
+    TYPE(global_environment_type), POINTER   :: globenv
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
     CHARACTER(LEN=*), PARAMETER :: &
-      routineN = "calculate_first_density_matrix", &
-      routineP = moduleN//":"//routineN
+      routineN = 'calculate_first_density_matrix', &
+      routineP = moduleN//':'//routineN
 
     INTEGER :: atom_a, group, handle, homo, iatom, ikind, iset, isgf, isgfa, &
       ishell, ispin, istat, la, maxl, maxll, nao, natom, ncount, nelectron, &
@@ -1987,8 +1951,9 @@ CONTAINS
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: first_sgf
     INTEGER, DIMENSION(:), POINTER           :: atom_list, elec_conf, nshell
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa, l, last_sgfa
+    LOGICAL                                  :: failure, id_equal, ortho_basis
     REAL(KIND=dp)                            :: maxocc, nelec, paa, scale, &
-                                                trps1, trps2, total_rho
+                                                total_rho, trps1, trps2
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: econf, pdiag, sdiag
     TYPE(all_potential_type), POINTER        :: all_potential
     TYPE(atomic_kind_type), DIMENSION(:), &
@@ -1996,8 +1961,7 @@ CONTAINS
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: work1
-    TYPE(cp_fm_type), POINTER                :: mo_coeff, ortho, sv, &
-                                                work2
+    TYPE(cp_fm_type), POINTER                :: mo_coeff, ortho, sv, work2
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(gth_potential_type), POINTER        :: gth_potential
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
@@ -2006,14 +1970,10 @@ CONTAINS
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                :: p_rmpv, s_sparse
-    TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                :: h_core_sparse
+      POINTER                                :: h_core_sparse, p_rmpv, &
+                                                s_sparse
     TYPE(scf_control_type), POINTER          :: scf_control
-    TYPE(section_vals_type), POINTER         :: dft_section,input
-    LOGICAL                                  :: ortho_basis, &
-                                                id_equal, &
-                                                failure
+    TYPE(section_vals_type), POINTER         :: dft_section, input
 
 !   ---------------------------------------------------------------------------
 
@@ -2417,17 +2377,19 @@ CONTAINS
   SUBROUTINE scf_env_initial_rho_setup(scf_env, qs_env, globenv, scf_section, error)
     TYPE(qs_scf_env_type), POINTER           :: scf_env
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(global_environment_type), &
-      POINTER                                :: globenv
+    TYPE(global_environment_type), POINTER   :: globenv
+    TYPE(section_vals_type), POINTER         :: scf_section
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
-    TYPE(section_vals_type), POINTER :: scf_section
+
     CHARACTER(len=*), PARAMETER :: routineN = 'scf_env_initial_rho_setup', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: extrapolation_method_nr, &
-                                                handle, ispin, nmo, output_unit
-    LOGICAL                                  :: failure, gapw, gapw_xc, ionode, orthogonal_wf
+                                                handle, ispin, nmo, &
+                                                output_unit
+    LOGICAL                                  :: failure, gapw, gapw_xc, &
+                                                orthogonal_wf
     TYPE(cp_fm_type), POINTER                :: mo_coeff
     TYPE(cp_logger_type), POINTER            :: logger
 

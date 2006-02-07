@@ -27,8 +27,11 @@ MODULE kg_environment_types
                                              atomic_kind_list_release,&
                                              atomic_kind_list_type
   USE atomic_kind_types,               ONLY: atomic_kind_type
-  USE cp_blacs_env,                    ONLY: cp_blacs_env_release,&
-                                             cp_blacs_env_create
+  USE cell_types,                      ONLY: cell_release,&
+                                             cell_retain,&
+                                             cell_type
+  USE cp_blacs_env,                    ONLY: cp_blacs_env_create,&
+                                             cp_blacs_env_release
   USE cp_control_types,                ONLY: dft_control_release,&
                                              dft_control_retain,&
                                              dft_control_type
@@ -49,26 +52,25 @@ MODULE kg_environment_types
   USE dynamical_coeff_types,           ONLY: dyn_coeff_set_release,&
                                              dyn_coeff_set_retain,&
                                              dyn_coeff_set_type
-  USE input_section_types,             ONLY: section_vals_type,&
+  USE input_section_types,             ONLY: section_vals_release,&
                                              section_vals_retain,&
-                                             section_vals_release,&
-                                             section_vals_get_subs_vals
+                                             section_vals_type
   USE kg_energy_types,                 ONLY: deallocate_kg_energy,&
                                              kg_energy_type
-  USE kg_gpw_fm_mol_types,             ONLY: kg_fm_mol_set_release,&
-                                             kg_fm_mol_set_retain,&
-                                             kg_fm_p_type 
   USE kg_force_types,                  ONLY: deallocate_kg_force,&
                                              kg_force_type
+  USE kg_gpw_fm_mol_types,             ONLY: kg_fm_mol_set_release,&
+                                             kg_fm_mol_set_retain,&
+                                             kg_fm_p_type
   USE kg_rho_types,                    ONLY: kg_rho_release,&
                                              kg_rho_retain,&
                                              kg_rho_type
   USE kg_rspw_types,                   ONLY: kg_rspw_release,&
                                              kg_rspw_retain,&
                                              kg_rspw_type
-  USE kg_scf_types,                    ONLY: kg_scf_env_type,&
+  USE kg_scf_types,                    ONLY: kg_scf_env_release,&
                                              kg_scf_env_retain,&
-                                             kg_scf_env_release
+                                             kg_scf_env_type
   USE kinds,                           ONLY: dp
   USE mol_kind_new_list_types,         ONLY: mol_kind_new_list_create,&
                                              mol_kind_new_list_release,&
@@ -82,26 +84,23 @@ MODULE kg_environment_types
                                              particle_list_release,&
                                              particle_list_type
   USE particle_types,                  ONLY: particle_type
-  USE qs_environment_types,            ONLY: qs_environment_type,&
+  USE qs_environment_types,            ONLY: qs_env_release,&
                                              qs_env_retain,&
-                                             qs_env_release
+                                             qs_environment_type
   USE qs_neighbor_list_types,          ONLY: deallocate_neighbor_list_set,&
                                              neighbor_list_set_p_type
   USE scf_control_types,               ONLY: scf_c_release,&
                                              scf_c_retain,&
                                              scf_control_type
-  USE cell_types,                 ONLY: cell_release,&
-                                             cell_retain,&
-                                             cell_type
-  USE virial_types,                    ONLY: virial_type,&
+  USE virial_types,                    ONLY: virial_release,&
                                              virial_retain,&
-                                             virial_release,&
-                                   virial_create
+                                             virial_type
 #include "cp_common_uses.h"
+
   IMPLICIT NONE
   PRIVATE
 
-  character(len=*), private, parameter :: moduleN='kg_environment_types'
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'kg_environment_types'
   INTEGER, PRIVATE, SAVE :: last_kg_env_id_nr=0
 
   TYPE kg_environment_type
@@ -164,64 +163,63 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(kg_environment_type), POINTER         :: kg_env
+    TYPE(kg_environment_type), POINTER       :: kg_env
     TYPE(atomic_kind_type), DIMENSION(:), &
-      OPTIONAL, POINTER                        :: atomic_kind_set
-    TYPE(cell_type), OPTIONAL, POINTER         :: cell, cell_ref
-    LOGICAL, OPTIONAL                          :: use_ref_cell
+      OPTIONAL, POINTER                      :: atomic_kind_set
+    TYPE(cell_type), OPTIONAL, POINTER       :: cell, cell_ref
+    LOGICAL, OPTIONAL                        :: use_ref_cell
+    TYPE(qs_environment_type), OPTIONAL, &
+      POINTER                                :: sub_qs_env
     TYPE(dft_control_type), OPTIONAL, &
-      POINTER                                  :: dft_control
-    TYPE(qs_environment_type), &
-      OPTIONAL, POINTER                        :: sub_qs_env
-    TYPE(dyn_coeff_set_type), OPTIONAL, &
-      POINTER                                  :: dyn_coeff_set
-    TYPE(kg_energy_type), OPTIONAL, POINTER    :: energy
-    TYPE(kg_force_type), DIMENSION(:), &
-      OPTIONAL, POINTER                        :: force
-    TYPE(kg_fm_p_type), OPTIONAL, POINTER      :: kg_fm_set
-    TYPE(section_vals_type), POINTER, optional :: input
-    INTEGER, INTENT(OUT), OPTIONAL             :: nao_global
-    INTEGER, INTENT(OUT), OPTIONAL             :: nelectron_global
-    REAL(dp), DIMENSION(2), INTENT(OUT), &
-      OPTIONAL                                 :: maxocc_global
-    TYPE(distribution_1d_type), OPTIONAL, &
-      POINTER                                  :: local_particles, &
-                                                  local_molecules
+      POINTER                                :: dft_control
     TYPE(distribution_2d_type), OPTIONAL, &
-      POINTER                                  :: distribution_2d
+      POINTER                                :: distribution_2d
+    TYPE(dyn_coeff_set_type), OPTIONAL, &
+      POINTER                                :: dyn_coeff_set
+    TYPE(kg_energy_type), OPTIONAL, POINTER  :: energy
+    TYPE(kg_force_type), DIMENSION(:), &
+      OPTIONAL, POINTER                      :: force
+    TYPE(section_vals_type), OPTIONAL, &
+      POINTER                                :: input
+    TYPE(kg_fm_p_type), OPTIONAL, POINTER    :: kg_fm_set
+    INTEGER, INTENT(OUT), OPTIONAL           :: nao_global, nelectron_global
+    REAL(dp), DIMENSION(2), INTENT(OUT), &
+      OPTIONAL                               :: maxocc_global
+    TYPE(distribution_1d_type), OPTIONAL, &
+      POINTER                                :: local_particles, &
+                                                local_molecules
     TYPE(molecule_kind_type), DIMENSION(:), &
-      OPTIONAL, POINTER                        :: molecule_kind_set
+      OPTIONAL, POINTER                      :: molecule_kind_set
     TYPE(molecule_type), DIMENSION(:), &
-      OPTIONAL, POINTER                        :: molecule_set
-    INTEGER, INTENT(out), OPTIONAL             :: id_nr
+      OPTIONAL, POINTER                      :: molecule_set
+    INTEGER, INTENT(OUT), OPTIONAL           :: id_nr
     TYPE(cp_para_env_type), OPTIONAL, &
-      POINTER                                  :: para_env
+      POINTER                                :: para_env
     TYPE(cp_blacs_env_type), OPTIONAL, &
-      POINTER                                  :: blacs_env
+      POINTER                                :: blacs_env
     TYPE(particle_type), DIMENSION(:), &
-      OPTIONAL, POINTER                        :: particle_set
-    TYPE(kg_rho_type), OPTIONAL, POINTER       :: rho
-    TYPE(kg_rspw_type), OPTIONAL, POINTER      :: rspw
+      OPTIONAL, POINTER                      :: particle_set
+    TYPE(kg_rho_type), OPTIONAL, POINTER     :: rho
+    TYPE(kg_rspw_type), OPTIONAL, POINTER    :: rspw
+    TYPE(kg_scf_env_type), OPTIONAL, POINTER :: scf_env
     TYPE(neighbor_list_set_p_type), &
-      DIMENSION(:), OPTIONAL, POINTER          :: sac_ppl, sac_ppl_aux
+      DIMENSION(:), OPTIONAL, POINTER        :: sac_ppl, sac_ppl_aux
     TYPE(scf_control_type), OPTIONAL, &
-      POINTER                                  :: scf_control
-    TYPE(kg_scf_env_type), OPTIONAL, &
-      POINTER                                  :: scf_env
+      POINTER                                :: scf_control
     TYPE(cp_subsystem_type), OPTIONAL, &
-      POINTER                                  :: subsys
+      POINTER                                :: subsys
     TYPE(virial_type), OPTIONAL, POINTER     :: virial
     TYPE(cp_error_type), INTENT(INOUT), &
-      OPTIONAL                                 :: error
+      OPTIONAL                               :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'get_kg_env', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                    :: failure
-    TYPE(atomic_kind_list_type), POINTER       :: atomic_kinds
-    TYPE(mol_kind_new_list_type), POINTER      :: molecule_kinds_new
-    TYPE(mol_new_list_type), POINTER           :: molecules_new
-    TYPE(particle_list_type), POINTER          :: particles
+    LOGICAL                                  :: failure
+    TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
+    TYPE(mol_kind_new_list_type), POINTER    :: molecule_kinds_new
+    TYPE(mol_new_list_type), POINTER         :: molecules_new
+    TYPE(particle_list_type), POINTER        :: particles
 
 !   ---------------------------------------------------------------------------
 
@@ -341,58 +339,55 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(kg_environment_type), &
-      POINTER                                  :: kg_env
+    TYPE(kg_environment_type), POINTER       :: kg_env
     TYPE(atomic_kind_type), DIMENSION(:), &
-      OPTIONAL, POINTER                        :: atomic_kind_set
-    TYPE(cell_type), OPTIONAL, POINTER         :: cell
-    TYPE(cell_type), OPTIONAL, POINTER         :: cell_ref
-    LOGICAL, OPTIONAL                          :: use_ref_cell
+      OPTIONAL, POINTER                      :: atomic_kind_set
+    TYPE(cell_type), OPTIONAL, POINTER       :: cell, cell_ref
+    LOGICAL, OPTIONAL                        :: use_ref_cell
     TYPE(dft_control_type), OPTIONAL, &
-      POINTER                                  :: dft_control
-    TYPE(dyn_coeff_set_type), OPTIONAL, &
-      POINTER                                  :: dyn_coeff_set
-    TYPE(kg_energy_type), OPTIONAL, POINTER    :: energy
-    TYPE(kg_force_type), DIMENSION(:), &
-      OPTIONAL, POINTER                        :: force
-    TYPE(kg_fm_p_type), OPTIONAL, POINTER      :: kg_fm_set
-    TYPE(distribution_1d_type), OPTIONAL, &
-      POINTER                                  :: local_particles, &
-                                                  local_molecules
+      POINTER                                :: dft_control
     TYPE(distribution_2d_type), OPTIONAL, &
-      POINTER                                  :: distribution_2d
+      POINTER                                :: distribution_2d
+    TYPE(dyn_coeff_set_type), OPTIONAL, &
+      POINTER                                :: dyn_coeff_set
+    TYPE(kg_energy_type), OPTIONAL, POINTER  :: energy
+    TYPE(section_vals_type), OPTIONAL, &
+      POINTER                                :: input
+    TYPE(kg_force_type), DIMENSION(:), &
+      OPTIONAL, POINTER                      :: force
+    TYPE(kg_fm_p_type), OPTIONAL, POINTER    :: kg_fm_set
+    TYPE(distribution_1d_type), OPTIONAL, &
+      POINTER                                :: local_particles, &
+                                                local_molecules
     TYPE(molecule_kind_type), DIMENSION(:), &
-      OPTIONAL, POINTER                        :: molecule_kind_set
+      OPTIONAL, POINTER                      :: molecule_kind_set
     TYPE(molecule_type), DIMENSION(:), &
-      OPTIONAL, POINTER                        :: molecule_set
-    TYPE(qs_environment_type), &
-      OPTIONAL, POINTER                        :: sub_qs_env
+      OPTIONAL, POINTER                      :: molecule_set
+    TYPE(qs_environment_type), OPTIONAL, &
+      POINTER                                :: sub_qs_env
     TYPE(particle_type), DIMENSION(:), &
-      OPTIONAL, POINTER                        :: particle_set
-    TYPE(kg_rho_type), OPTIONAL, POINTER       :: rho
-    TYPE(kg_rspw_type), OPTIONAL, POINTER      :: rspw
+      OPTIONAL, POINTER                      :: particle_set
+    TYPE(kg_rho_type), OPTIONAL, POINTER     :: rho
+    TYPE(kg_rspw_type), OPTIONAL, POINTER    :: rspw
+    TYPE(kg_scf_env_type), OPTIONAL, POINTER :: scf_env
     TYPE(neighbor_list_set_p_type), &
-      DIMENSION(:), OPTIONAL, POINTER          :: sac_ppl, sac_ppl_aux
+      DIMENSION(:), OPTIONAL, POINTER        :: sac_ppl, sac_ppl_aux
     TYPE(scf_control_type), OPTIONAL, &
-      POINTER                                  :: scf_control
-    TYPE(kg_scf_env_type), OPTIONAL, &
-      POINTER                                  :: scf_env
+      POINTER                                :: scf_control
     TYPE(cp_subsystem_type), OPTIONAL, &
-      POINTER                                  :: subsys
-    TYPE(section_vals_type), POINTER, optional :: input    
+      POINTER                                :: subsys
     TYPE(virial_type), OPTIONAL, POINTER     :: virial
     TYPE(cp_error_type), INTENT(INOUT), &
-      OPTIONAL                                 :: error
+      OPTIONAL                               :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = "set_kg_env", &
+    CHARACTER(len=*), PARAMETER :: routineN = 'set_kg_env', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                    :: failure
-    TYPE(atomic_kind_list_type), POINTER       :: atomic_kinds
-    TYPE(mol_kind_new_list_type), POINTER      :: molecule_kinds_new
-    TYPE(mol_new_list_type), POINTER           :: molecules_new
-    TYPE(particle_list_type), POINTER          :: particles
-
+    LOGICAL                                  :: failure
+    TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
+    TYPE(mol_kind_new_list_type), POINTER    :: molecule_kinds_new
+    TYPE(mol_new_list_type), POINTER         :: molecules_new
+    TYPE(particle_list_type), POINTER        :: particles
 
     failure=.FALSE.
 !    CPPrecondition(ASSOCIATED(kg_env),cp_failure_level,routineP,error,failure)
@@ -551,15 +546,16 @@ CONTAINS
 !!
 !!*** **********************************************************************
 SUBROUTINE kg_env_create(kg_env,para_env,error)
-  TYPE(kg_environment_type), POINTER             :: kg_env
-  TYPE(cp_para_env_type), POINTER                :: para_env
-  TYPE(cp_error_type), INTENT(inout), OPTIONAL   :: error
+    TYPE(kg_environment_type), POINTER       :: kg_env
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-  CHARACTER(len=*), PARAMETER :: routineN = 'kg_env_create', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'kg_env_create', &
       routineP = moduleN//':'//routineN
 
-  INTEGER                                        :: stat
-  LOGICAL                                        :: failure
+    INTEGER                                  :: stat
+    LOGICAL                                  :: failure
 
   failure=.FALSE.
 

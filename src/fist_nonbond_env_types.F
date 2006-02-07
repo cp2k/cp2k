@@ -20,20 +20,18 @@
 
 MODULE fist_nonbond_env_types
   USE convert_units,                   ONLY: convert_to_cp2k_units
-  USE global_types,                    ONLY: global_environment_type
-  USE fist_neighbor_list_types,        ONLY: neighbor_list_set_p_type, &
-                                             deallocate_neighbor_list_set
-  USE kinds,                           ONLY: dp, &
-                                             default_string_length
-  USE pair_potential_types,            ONLY: pair_potential_pp_type,&
-                                             pair_potential_pp_release
-  USE termination,                     ONLY: stop_memory
+  USE fist_neighbor_list_types,        ONLY: deallocate_neighbor_list_set,&
+                                             neighbor_list_set_p_type
+  USE kinds,                           ONLY: default_string_length,&
+                                             dp
+  USE pair_potential_types,            ONLY: pair_potential_pp_release,&
+                                             pair_potential_pp_type
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
   PRIVATE
 
-  CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='fist_nonbond_env_types'
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'fist_nonbond_env_types'
   INTEGER, PRIVATE, SAVE :: last_fist_nonbond_env_id_nr=0
   PUBLIC :: fist_nonbond_env_type, fist_nonbond_env_set, &
             fist_nonbond_env_get, fist_nonbond_env_create, &
@@ -91,19 +89,20 @@ SUBROUTINE fist_nonbond_env_get (fist_nonbond_env, potparm, &
                                  aup, lup, r_last_update, num_update,  &
                                  last_update, counter, natom_types,    &
                                  long_range_correction, error )
-  TYPE(fist_nonbond_env_type), POINTER :: fist_nonbond_env
-  TYPE ( neighbor_list_set_p_type ), POINTER, &
-       DIMENSION ( : ), OPTIONAL               :: nonbonded
-  TYPE ( pair_potential_pp_type ), OPTIONAL, POINTER     :: potparm
-  REAL (KIND=dp), DIMENSION ( :, : ), POINTER, OPTIONAL  :: rlist_cutsq
-  REAL (KIND=dp), OPTIONAL                      :: verlet_skin
-  REAL (KIND=dp), POINTER, OPTIONAL             :: r_last_update ( :, : )
-  REAL (KIND=dp), OPTIONAL                      :: long_range_correction
-  REAL (KIND=dp), OPTIONAL                      :: lup, aup
-  INTEGER, OPTIONAL                             :: last_update, &
-                                                   num_update, natom_types, &
-                                                   counter
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout)  :: error
+    TYPE(fist_nonbond_env_type), POINTER     :: fist_nonbond_env
+    TYPE(pair_potential_pp_type), OPTIONAL, &
+      POINTER                                :: potparm
+    TYPE(neighbor_list_set_p_type), &
+      DIMENSION(:), OPTIONAL, POINTER        :: nonbonded
+    REAL(KIND=dp), DIMENSION(:, :), &
+      OPTIONAL, POINTER                      :: rlist_cutsq
+    REAL(KIND=dp), OPTIONAL                  :: verlet_skin, aup, lup
+    REAL(KIND=dp), OPTIONAL, POINTER         :: r_last_update( :, : )
+    INTEGER, OPTIONAL                        :: num_update, last_update, &
+                                                counter, natom_types
+    REAL(KIND=dp), OPTIONAL                  :: long_range_correction
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
   IF ( PRESENT ( potparm ) ) potparm => fist_nonbond_env % potparm
   IF ( PRESENT ( rlist_cutsq ) ) rlist_cutsq => fist_nonbond_env % rlist_cutsq
@@ -153,20 +152,22 @@ SUBROUTINE fist_nonbond_env_set ( fist_nonbond_env,  potparm, &
                                   aup, lup, r_last_update, num_update, &
                                   last_update, counter, natom_types, &
                                   long_range_correction, error )
-  TYPE(fist_nonbond_env_type), POINTER :: fist_nonbond_env
-  TYPE ( pair_potential_pp_type ), POINTER, OPTIONAL :: potparm
-  TYPE ( neighbor_list_set_p_type ), POINTER, &
-       DIMENSION ( : ), OPTIONAL               :: nonbonded
-  REAL (KIND=dp), DIMENSION ( :, : ), POINTER, OPTIONAL  :: rlist_cutsq
-  REAL (KIND=dp), OPTIONAL                      :: verlet_skin
-  REAL (KIND=dp), DIMENSION ( :, : ), POINTER, &
-                OPTIONAL                      :: r_last_update
-  REAL (KIND=dp), OPTIONAL                      :: long_range_correction
-  REAL (KIND=dp), OPTIONAL                           :: lup, aup
-  INTEGER, OPTIONAL                           :: last_update, &
-                                                 num_update, natom_types, &
-                                                 counter
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(fist_nonbond_env_type), POINTER     :: fist_nonbond_env
+    TYPE(pair_potential_pp_type), OPTIONAL, &
+      POINTER                                :: potparm
+    REAL(KIND=dp), DIMENSION(:, :), &
+      OPTIONAL, POINTER                      :: rlist_cutsq
+    REAL(KIND=dp), OPTIONAL                  :: verlet_skin
+    TYPE(neighbor_list_set_p_type), &
+      DIMENSION(:), OPTIONAL, POINTER        :: nonbonded
+    REAL(KIND=dp), OPTIONAL                  :: aup, lup
+    REAL(KIND=dp), DIMENSION(:, :), &
+      OPTIONAL, POINTER                      :: r_last_update
+    INTEGER, OPTIONAL                        :: num_update, last_update, &
+                                                counter, natom_types
+    REAL(KIND=dp), OPTIONAL                  :: long_range_correction
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
   IF ( PRESENT ( potparm ) ) THEN
     fist_nonbond_env % potparm => potparm
@@ -214,14 +215,16 @@ END SUBROUTINE fist_nonbond_env_set
 !
 !*** **********************************************************************
 SUBROUTINE fist_nonbond_env_create(fist_nonbond_env, potparm, error)
-  TYPE(fist_nonbond_env_type), POINTER :: fist_nonbond_env
-  TYPE ( pair_potential_pp_type ), POINTER :: potparm 
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-  
-  LOGICAL :: failure
-  CHARACTER(len=*), PARAMETER :: routineN='fist_nonbond_env_create',&
-        routineP=moduleN//':'//routineN
-  INTEGER :: stat
+    TYPE(fist_nonbond_env_type), POINTER     :: fist_nonbond_env
+    TYPE(pair_potential_pp_type), POINTER    :: potparm
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'fist_nonbond_env_create', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: stat
+    LOGICAL                                  :: failure
 
   failure=.FALSE.
   
@@ -239,17 +242,19 @@ END SUBROUTINE fist_nonbond_env_create
 
 ! ***************************************************************************
 
-    TYPE(fist_nonbond_env_type), POINTER          :: fist_nonbond_env
-    TYPE(pair_potential_pp_type), POINTER         :: potparm 
-    TYPE(cp_error_type), INTENT(inout), OPTIONAL  :: error
+    TYPE(fist_nonbond_env_type), POINTER     :: fist_nonbond_env
+    TYPE(pair_potential_pp_type), POINTER    :: potparm
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'init_fist_nonbond_env', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: idim, jdim, natom_types, stat
+    LOGICAL                                  :: failure
+    REAL(KIND=dp)                            :: rcut
 
 !   ---------------------------------------------------------------------------
-    LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineN='init_fist_nonbond_create',&
-            routineP=moduleN//':'//routineN
-    INTEGER :: stat, idim, jdim, natom_types
-    REAL (KIND=dp) :: rcut
-
 
     NULLIFY (fist_nonbond_env%nonbonded)
     NULLIFY (fist_nonbond_env%r_last_update)
@@ -313,12 +318,15 @@ END SUBROUTINE fist_nonbond_env_create
 !
 !*** **********************************************************************
 SUBROUTINE fist_nonbond_env_retain(fist_nonbond_env,error)
-  TYPE(fist_nonbond_env_type), POINTER :: fist_nonbond_env
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
- 
-  LOGICAL :: failure
-  CHARACTER(len=*), PARAMETER :: routineN='fist_nonbond_env_retain',&
-        routineP=moduleN//':'//routineN
+    TYPE(fist_nonbond_env_type), POINTER     :: fist_nonbond_env
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'fist_nonbond_env_retain', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+
   failure=.FALSE.
 !!  
   CPPrecondition(ASSOCIATED(fist_nonbond_env),cp_failure_level,routineP,error,failure)
@@ -359,13 +367,16 @@ END SUBROUTINE fist_nonbond_env_retain
 !
 !*** **********************************************************************
 SUBROUTINE fist_nonbond_env_release(fist_nonbond_env,error)
-  TYPE(fist_nonbond_env_type), POINTER :: fist_nonbond_env
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(fist_nonbond_env_type), POINTER     :: fist_nonbond_env
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-  LOGICAL :: failure
-  CHARACTER(len=*), PARAMETER :: routineN='fist_nonbond_env_release',&
-       routineP=moduleN//':'//routineN
-  INTEGER :: stat, iab
+    CHARACTER(len=*), PARAMETER :: routineN = 'fist_nonbond_env_release', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: iab, stat
+    LOGICAL                                  :: failure
+
   failure=.FALSE.
 
   IF (ASSOCIATED(fist_nonbond_env)) THEN
@@ -392,7 +403,7 @@ SUBROUTINE fist_nonbond_env_release(fist_nonbond_env,error)
           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
         ENDIF
         NULLIFY (fist_nonbond_env% rlist_cutsq )
-        deallocate(fist_nonbond_env, STAT=stat)
+        DEALLOCATE(fist_nonbond_env, STAT=stat)
         CPPrecondition(stat==0,cp_warning_level,routineP,error,failure)
      END IF
   END IF

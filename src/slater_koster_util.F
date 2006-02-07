@@ -24,7 +24,6 @@
   USE kinds,                           ONLY: dp
 !
 
-
       IMPLICIT NONE
 !
       PRIVATE
@@ -40,8 +39,8 @@
 ! Spherical Harmonics up to f functions
 ! There is a factor sqrt(4*PI)/sqrt(2*l+1) omitted
     INTEGER, INTENT(IN)                      :: l
-    REAL(KIND=dp), INTENT(IN)                    :: r(3)
-    REAL(KIND=dp), INTENT(OUT)                   :: gsl(0:6)
+    REAL(KIND=dp), INTENT(IN)                :: r(3)
+    REAL(KIND=dp), INTENT(OUT)               :: gsl(0:6)
 
     REAL(KIND=dp), PARAMETER :: sq15 = 3.872983346207417_dp , &
       sq3 = 1.732050807568877_dp , sq38 = 0.612372435695794_dp , &
@@ -81,14 +80,14 @@
 ! Derivatives of Spherical Harmonics up to f functions
 ! There is a factor sqrt(4*PI)/sqrt(2*l+1)/R omitted
     INTEGER, INTENT(IN)                      :: l
-    REAL(KIND=dp), INTENT(IN)                    :: r(3)
-    REAL(KIND=dp), INTENT(OUT)                   :: dgsl(0:6,1:3)
+    REAL(KIND=dp), INTENT(IN)                :: r(3)
+    REAL(KIND=dp), INTENT(OUT)               :: dgsl(0:6,1:3)
 
     REAL(KIND=dp), PARAMETER :: sq15 = 3.872983346207417_dp , &
       sq3 = 1.732050807568877_dp , sq38 = 0.612372435695794_dp , &
       sq58 = 0.790569415042095_dp 
 
-    REAL(KIND=dp)                                :: dc(0:6)
+    REAL(KIND=dp)                            :: dc(0:6)
 
 ! sqrt(3.0_dp)
 ! sqrt(15.0_dp)
@@ -150,13 +149,13 @@
       END SUBROUTINE dsph
 !------------------------------------------------------------------------------!
       SUBROUTINE out_prod(mat,v1,v2)
-    REAL(KIND=dp), INTENT(OUT)                   :: mat(:,:)
-    REAL(KIND=dp), INTENT(IN)                    :: v1(:), v2(:)
+    REAL(KIND=dp), INTENT(OUT)               :: mat(:,:)
+    REAL(KIND=dp), INTENT(IN)                :: v1(:), v2(:)
 
     INTEGER                                  :: i, j, n1, n2
 
-        n1 = size(v1)
-        n2 = size(v2)
+        n1 = SIZE(v1)
+        n2 = SIZE(v2)
         DO j = 1, n2
           DO i = 1, n1
             mat(i,j) = v1(i)*v2(j)
@@ -165,13 +164,13 @@
       END SUBROUTINE out_prod
 !------------------------------------------------------------------------------!
       SUBROUTINE out_dprod(dmat,v1,v2,dv1,dv2)
-    REAL(KIND=dp), INTENT(OUT)                   :: dmat(:,:)
-    REAL(KIND=dp), INTENT(IN)                    :: v1(:), v2(:), dv1(:), dv2(:)
+    REAL(KIND=dp), INTENT(OUT)               :: dmat(:,:)
+    REAL(KIND=dp), INTENT(IN)                :: v1(:), v2(:), dv1(:), dv2(:)
 
     INTEGER                                  :: i, j, n1, n2
 
-        n1 = size(v1)
-        n2 = size(v2)
+        n1 = SIZE(v1)
+        n2 = SIZE(v2)
         DO j = 1, n2
           DO i = 1, n1
             dmat(i,j) = dv1(i)*v2(j) + v1(i)*dv2(j)
@@ -180,9 +179,9 @@
       END SUBROUTINE out_dprod
 !------------------------------------------------------------------------------!
       FUNCTION dpro(g1,g2,l1,l2)
-    REAL(KIND=dp), INTENT(IN)                    :: g1(0:6,0:6), g2(0:6,0:6)
+    REAL(KIND=dp), INTENT(IN)                :: g1(0:6,0:6), g2(0:6,0:6)
     INTEGER, INTENT(IN)                      :: l1, l2
-    REAL(KIND=dp)                                :: dpro
+    REAL(KIND=dp)                            :: dpro
 
     INTEGER                                  :: i, j
 

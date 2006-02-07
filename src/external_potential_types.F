@@ -21,7 +21,17 @@
 
 MODULE external_potential_types
 
+  USE cp_output_handling,              ONLY: cp_p_file,&
+                                             cp_print_key_should_output
+  USE cp_parser,                       ONLY: cp_parser_type,&
+                                             parser_create,&
+                                             parser_get_object,&
+                                             parser_release,&
+                                             parser_search_string,&
+                                             parser_test_next_token
   USE global_types,                    ONLY: global_environment_type
+  USE input_section_types,             ONLY: section_vals_type,&
+                                             section_vals_val_get
   USE kinds,                           ONLY: default_string_length,&
                                              dp
   USE mathconstants,                   ONLY: dfac,&
@@ -37,29 +47,18 @@ MODULE external_potential_types
                                              nso
   USE orbital_transformation_matrices, ONLY: orbtramat
   USE periodic_table,                  ONLY: ptable
-  USE cp_parser,                       ONLY: parser_release,&
-                                             parser_get_object,&
-                                             parser_search_string,&
-                                             parser_create,&
-                                             parser_test_next_token,&
-                                             cp_parser_type
   USE string_utilities,                ONLY: uppercase
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
-  USE input_section_types, ONLY: section_vals_val_get, section_vals_type,&
-       section_vals_get_subs_vals
- USE cp_output_handling,              ONLY: cp_print_key_unit_nr, &
-                                             cp_print_key_finished_output,&
-                                             cp_print_key_should_output,&
-                                             cp_p_file
 #include "cp_common_uses.h"
+
   IMPLICIT NONE
 
   PRIVATE
 
 ! *** Global parameters ***
 
-  CHARACTER(LEN=*), PARAMETER :: module_name = "external_potential_types"
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'external_potential_types'
 
 ! *** Define the all-electron potential type ***
 
@@ -204,7 +203,7 @@ CONTAINS
 
     TYPE(all_potential_type), POINTER        :: potential
 
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "allocate_all_potential"
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'allocate_all_potential'
 
     INTEGER                                  :: istat
 
@@ -213,7 +212,7 @@ CONTAINS
     IF (ASSOCIATED(potential)) CALL deallocate_potential(potential)
 
     ALLOCATE (potential,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "potential",0)
 
     NULLIFY (potential%elec_conf)
@@ -237,7 +236,7 @@ CONTAINS
 
     TYPE(elp_potential_type), POINTER        :: potential
 
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "allocate_elp_potential"
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'allocate_elp_potential'
 
     INTEGER                                  :: istat
 
@@ -246,7 +245,7 @@ CONTAINS
     IF (ASSOCIATED(potential)) CALL deallocate_potential(potential)
 
     ALLOCATE (potential,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "potential",0)
     NULLIFY (potential%alpha_ppl)
     NULLIFY (potential%cexp_ppl)
@@ -268,7 +267,7 @@ CONTAINS
 
     TYPE(gth_potential_type), POINTER        :: potential
 
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "allocate_gth_potential"
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'allocate_gth_potential'
 
     INTEGER                                  :: istat
 
@@ -277,7 +276,7 @@ CONTAINS
     IF (ASSOCIATED(potential)) CALL deallocate_potential(potential)
 
     ALLOCATE (potential,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "potential",0)
 
     NULLIFY (potential%alpha_ppnl)
@@ -309,7 +308,7 @@ CONTAINS
 
     TYPE(all_potential_type), POINTER        :: potential
 
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "deallocate_all_potential"
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'deallocate_all_potential'
 
     INTEGER                                  :: istat
 
@@ -318,22 +317,22 @@ CONTAINS
     IF (ASSOCIATED(potential)) THEN
 
       DEALLOCATE (potential%elec_conf,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                        "potential%elec_conf")
       DEALLOCATE (potential%orb_radius_3c,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                        "potential%orb_radius_3c")
       DEALLOCATE (potential%set_radius_3c,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                        "potential%set_radius_3c")
 
       DEALLOCATE (potential,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                        "potential")
 
     ELSE
 
-      CALL stop_program(routine_name,module_name,__LINE__,&
+      CALL stop_program(routineN,moduleN,__LINE__,&
                         "The pointer potential is not associated")
 
     END IF
@@ -351,7 +350,7 @@ CONTAINS
 
     TYPE(elp_potential_type), POINTER        :: potential
 
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "deallocate_elp_potential"
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'deallocate_elp_potential'
 
     INTEGER                                  :: istat
 
@@ -361,29 +360,29 @@ CONTAINS
 
       IF (ASSOCIATED(potential%nexp_ppl)) THEN
         DEALLOCATE (potential%nexp_ppl,STAT=istat)
-        IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+        IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                          "potential%nexp_ppl")
       END IF
 
       IF (ASSOCIATED(potential%cexp_ppl)) THEN
         DEALLOCATE (potential%cexp_ppl,STAT=istat)
-        IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+        IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                          "potential%cexp_ppl")
       END IF
 
       IF (ASSOCIATED(potential%alpha_ppl)) THEN
         DEALLOCATE (potential%alpha_ppl,STAT=istat)
-        IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+        IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                          "potential%alpha_ppl")
       END IF
 
       DEALLOCATE (potential,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                        "potential")
 
     ELSE
 
-      CALL stop_program(routine_name,module_name,__LINE__,&
+      CALL stop_program(routineN,moduleN,__LINE__,&
                         "The pointer potential is not associated")
 
     END IF
@@ -402,7 +401,7 @@ CONTAINS
 
     TYPE(gth_potential_type), POINTER        :: potential
 
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "deallocate_gth_potential"
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'deallocate_gth_potential'
 
     INTEGER                                  :: istat
 
@@ -411,14 +410,14 @@ CONTAINS
     IF (ASSOCIATED(potential)) THEN
 
       DEALLOCATE (potential%elec_conf,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                        "potential%elec_conf")
 
 !     *** Deallocate the parameters of the local part ***
 
       IF (ASSOCIATED(potential%cexp_ppl)) THEN
         DEALLOCATE (potential%cexp_ppl,STAT=istat)
-        IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+        IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                          "potential%cexp_ppl")
       END IF
 
@@ -427,38 +426,38 @@ CONTAINS
       IF (ASSOCIATED(potential%alpha_ppnl)) THEN
 
         DEALLOCATE (potential%alpha_ppnl,STAT=istat)
-        IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+        IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                          "potential%alpha_ppnl")
 
         DEALLOCATE (potential%cprj,STAT=istat)
-        IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+        IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                          "potential%cprj")
 
         DEALLOCATE (potential%cprj_ppnl,STAT=istat)
-        IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+        IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                          "potential%cprj_ppnl")
 
         DEALLOCATE (potential%hprj_ppnl,STAT=istat)
-        IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+        IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                          "potential%hprj_ppnl")
 
         DEALLOCATE (potential%nprj_ppnl,STAT=istat)
-        IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+        IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                          "potential%nprj_ppnl")
 
         DEALLOCATE (potential%vprj_ppnl,STAT=istat)
-        IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+        IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                          "potential%vprj_ppnl")
 
       END IF
 
       DEALLOCATE (potential,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                        "potential")
 
     ELSE
 
-      CALL stop_program(routine_name,module_name,__LINE__,&
+      CALL stop_program(routineN,moduleN,__LINE__,&
                         "The pointer potential is not associated")
 
     END IF
@@ -484,10 +483,10 @@ CONTAINS
                                                 ccore_charge, &
                                                 core_charge_radius
     INTEGER, INTENT(OUT), OPTIONAL           :: z
-    REAL(KIND=dp),INTENT(OUT), OPTIONAL      :: zeff, zeff_correction
+    REAL(KIND=dp), INTENT(OUT), OPTIONAL     :: zeff, zeff_correction
     INTEGER, DIMENSION(:), OPTIONAL, POINTER :: elec_conf
 
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "get_all_potential"
+    CHARACTER(LEN=*), PARAMETER              :: routineN = 'get_all_potential'
 
 !   ---------------------------------------------------------------------------
 
@@ -506,7 +505,7 @@ CONTAINS
 
     ELSE
 
-      CALL stop_program(routine_name,module_name,__LINE__,&
+      CALL stop_program(routineN,moduleN,__LINE__,&
                         "The pointer potential is not associated")
 
     END IF
@@ -538,14 +537,14 @@ CONTAINS
       OPTIONAL, POINTER                      :: cexp_ppl
     INTEGER, OPTIONAL                        :: nalpha_ppl
     REAL(KIND=dp), INTENT(OUT), OPTIONAL     :: ccore_charge, &
-                                                core_charge_radius,&
+                                                core_charge_radius, &
                                                 ccore_charge_radius
     INTEGER, DIMENSION(:), OPTIONAL, POINTER :: nexp_ppl
     REAL(KIND=dp), INTENT(OUT), OPTIONAL     :: ppl_radius
     LOGICAL, INTENT(OUT), OPTIONAL           :: ppl_present
     REAL(KIND=dp), INTENT(OUT), OPTIONAL     :: qeff
 
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "get_elp_potential"
+    CHARACTER(LEN=*), PARAMETER              :: routineN = 'get_elp_potential'
 
 !   ---------------------------------------------------------------------------
 
@@ -570,7 +569,7 @@ CONTAINS
 
     ELSE
 
-      CALL stop_program(routine_name,module_name,__LINE__,&
+      CALL stop_program(routineN,moduleN,__LINE__,&
                         "The pointer potential is not associated")
 
     END IF
@@ -612,7 +611,7 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:, :, :), &
       OPTIONAL, POINTER                      :: hprj_ppnl
 
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "get_gth_potential"
+    CHARACTER(LEN=*), PARAMETER              :: routineN = 'get_gth_potential'
 
 !   ---------------------------------------------------------------------------
 
@@ -649,7 +648,7 @@ CONTAINS
 
     ELSE
 
-      CALL stop_program(routine_name,module_name,__LINE__,&
+      CALL stop_program(routineN,moduleN,__LINE__,&
                         "The pointer potential is not associated")
 
     END IF
@@ -795,10 +794,10 @@ CONTAINS
   SUBROUTINE init_all_potential(potential,itype,zeff,zeff_correction)
 
     TYPE(all_potential_type), POINTER        :: potential
-    CHARACTER (LEN=*), OPTIONAL              :: itype
+    CHARACTER(LEN=*), OPTIONAL               :: itype
     REAL(KIND=dp), OPTIONAL                  :: zeff, zeff_correction
 
-    INTEGER   :: dz
+    INTEGER                                  :: dz
 
 !   ---------------------------------------------------------------------------
 
@@ -895,31 +894,31 @@ CONTAINS
     CHARACTER(LEN=*), INTENT(IN)             :: element_symbol, potential_name
     TYPE(all_potential_type), POINTER        :: potential
     REAL(KIND=dp)                            :: zeff_correction
-    TYPE(global_environment_type), &
-      pointer                             :: globenv
-    TYPE(cp_error_type), INTENT(inout), optional :: error
+    TYPE(global_environment_type), POINTER   :: globenv
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "read_all_potential"
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'read_all_potential'
 
     CHARACTER(LEN=240)                       :: line
     CHARACTER(LEN=242)                       :: line2
+    CHARACTER(len=default_string_length)     :: potential_file_name
     CHARACTER(LEN=LEN(element_symbol))       :: symbol
     CHARACTER(LEN=LEN(element_symbol)+2)     :: symbol2
     CHARACTER(LEN=LEN(potential_name))       :: apname
     CHARACTER(LEN=LEN(potential_name)+2)     :: apname2
-    CHARACTER(len=default_string_length)     :: potential_file_name
     INTEGER                                  :: istat, l, strlen1, strlen2
     INTEGER, DIMENSION(:), POINTER           :: elec_conf
     LOGICAL                                  :: found
     REAL(KIND=dp)                            :: alpha, r
-    TYPE(cp_parser_type), pointer :: parser
+    TYPE(cp_parser_type), POINTER            :: parser
 
 !   ---------------------------------------------------------------------------
 
     line2 = ""
     symbol2 = ""
     apname2 = ""
-    nullify(parser)
+    NULLIFY(parser)
 
     potential%name = potential_name
 
@@ -975,7 +974,7 @@ CONTAINS
           potential%zeff = REAL(SUM(elec_conf),dp)+zeff_correction
 
           DEALLOCATE (elec_conf,STAT=istat)
-          IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+          IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                            "elec_conf")
 
 !         *** Read r(loc) to define the exponent of the core charge    ***
@@ -996,7 +995,7 @@ CONTAINS
 
 !       *** Stop program, if the end of file is reached ***
 
-        CALL stop_program(routine_name,module_name,__LINE__,&
+        CALL stop_program(routineN,moduleN,__LINE__,&
                           "The requested atomic potential <"//&
                           TRIM(potential_name)//&
                           "> was not found in the potential file <"//&
@@ -1022,24 +1021,24 @@ CONTAINS
 
     CHARACTER(LEN=*), INTENT(IN)             :: element_symbol, potential_name
     TYPE(elp_potential_type), POINTER        :: potential
-    TYPE(global_environment_type), &
-      pointer                             :: globenv
-    TYPE(cp_error_type), INTENT(inout), optional :: error
+    TYPE(global_environment_type), POINTER   :: globenv
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "read_elp_potential"
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'read_elp_potential'
 
     CHARACTER(LEN=240)                       :: line
     CHARACTER(LEN=242)                       :: line2
+    CHARACTER(len=default_string_length)     :: potential_file_name
     CHARACTER(LEN=LEN(element_symbol))       :: symbol
     CHARACTER(LEN=LEN(element_symbol)+2)     :: symbol2
     CHARACTER(LEN=LEN(potential_name))       :: apname
     CHARACTER(LEN=LEN(potential_name)+2)     :: apname2
-    CHARACTER(len=default_string_length)     :: potential_file_name
     INTEGER                                  :: i, j, maxlppl, n, nalpha_ppl, &
                                                 nmax, strlen1, strlen2
     LOGICAL                                  :: found
     REAL(KIND=dp)                            :: alpha, qeff
-    TYPE(cp_parser_type), pointer :: parser
+    TYPE(cp_parser_type), POINTER            :: parser
 
 !   ---------------------------------------------------------------------------
 
@@ -1048,7 +1047,7 @@ CONTAINS
     apname2 = ""
     nalpha_ppl = 0
     nmax = 0
-    nullify(parser)
+    NULLIFY(parser)
     
     potential%name = potential_name
 
@@ -1123,7 +1122,7 @@ CONTAINS
 !           *** Check if alpha_core_charge = alpha_ppl(1) ***
  
             IF (potential%alpha_core_charge /= potential%alpha_ppl(1)) THEN
-              CALL stop_program(routine_name,module_name,__LINE__,&
+              CALL stop_program(routineN,moduleN,__LINE__,&
                                 "exponent of the core charge and "//&
                                 "alpha_ppl(1) must be equal")
             END IF
@@ -1142,7 +1141,7 @@ CONTAINS
 
 !       *** Stop program, if the end of file is reached ***
 
-        CALL stop_program(routine_name,module_name,__LINE__,&
+        CALL stop_program(routineN,moduleN,__LINE__,&
                           "The requested atomic potential <"//&
                           TRIM(potential_name)//&
                           "> was not found in the potential file <"//&
@@ -1175,19 +1174,19 @@ CONTAINS
     CHARACTER(LEN=*), INTENT(IN)             :: element_symbol, potential_name
     TYPE(gth_potential_type), POINTER        :: potential
     REAL(KIND=dp), INTENT(IN)                :: zeff_correction
-    TYPE(global_environment_type), &
-      pointer                             :: globenv
-    TYPE(cp_error_type), INTENT(inout), optional :: error
+    TYPE(global_environment_type), POINTER   :: globenv
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "read_gth_potential"
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'read_gth_potential'
 
     CHARACTER(LEN=240)                       :: line
     CHARACTER(LEN=242)                       :: line2
+    CHARACTER(len=default_string_length)     :: potential_file_name
     CHARACTER(LEN=LEN(element_symbol))       :: symbol
     CHARACTER(LEN=LEN(element_symbol)+2)     :: symbol2
     CHARACTER(LEN=LEN(potential_name))       :: apname
     CHARACTER(LEN=LEN(potential_name)+2)     :: apname2
-    CHARACTER(len=default_string_length)     :: potential_file_name
     INTEGER                                  :: i, istat, j, l, lppnl, &
                                                 lprj_ppnl_max, maxlppl, n, &
                                                 nppnl, nprj_ppnl, &
@@ -1198,14 +1197,14 @@ CONTAINS
     REAL(KIND=dp)                            :: alpha, r
     REAL(KIND=dp), DIMENSION(:, :, :), &
       POINTER                                :: hprj_ppnl
-    TYPE(cp_parser_type),POINTER :: parser
+    TYPE(cp_parser_type), POINTER            :: parser
 
 !   ---------------------------------------------------------------------------
 
     line2 = ""
     symbol2 = ""
     apname2 = ""
-    nullify(parser)
+    NULLIFY(parser)
 
     potential%name = potential_name
     
@@ -1261,7 +1260,7 @@ CONTAINS
           potential%zeff = REAL(SUM(elec_conf),dp)+zeff_correction
 
           DEALLOCATE (elec_conf,STAT=istat)
-          IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+          IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                            "elec_conf")
 
 !         *** Read r(loc) to define the exponent of the core charge    ***
@@ -1367,7 +1366,7 @@ CONTAINS
             CALL reallocate(potential%vprj_ppnl,1,nppnl,1,nppnl)
 
             DEALLOCATE (hprj_ppnl,STAT=istat)
-            IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+            IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                              "hprj_ppnl")
 
           END IF
@@ -1380,7 +1379,7 @@ CONTAINS
 
 !       *** Stop program, if the end of file is reached ***
 
-        CALL stop_program(routine_name,module_name,__LINE__,&
+        CALL stop_program(routineN,moduleN,__LINE__,&
                           "The requested atomic potential <"//&
                           TRIM(potential_name)//&
                           "> was not found in the potential file <"//&
@@ -1403,12 +1402,10 @@ CONTAINS
     REAL(KIND=dp)                            :: zeff_correction
 
     CHARACTER(LEN=default_string_length)     :: name
-    REAL(KIND=dp)                            :: r, alpha
-    REAL(KIND=dp)                            :: alpha_core_charge, &
+    INTEGER, DIMENSION(:), POINTER           :: elec_conf
+    REAL(KIND=dp)                            :: alpha, alpha_core_charge, &
                                                 ccore_charge, &
-                                                core_charge_radius
-    REAL(KIND=dp)                            :: zeff
-    INTEGER, DIMENSION(:),POINTER            :: elec_conf
+                                                core_charge_radius, r, zeff
 
     ALLOCATE ( elec_conf(0:3) )
     elec_conf(0:3) = ptable(z)%e_conv(0:3)
@@ -1460,7 +1457,7 @@ CONTAINS
     REAL(KIND=dp), INTENT(IN), OPTIONAL      :: zeff, zeff_correction
     INTEGER, DIMENSION(:), OPTIONAL, POINTER :: elec_conf
 
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "set_all_potential"
+    CHARACTER(LEN=*), PARAMETER              :: routineN = 'set_all_potential'
 
 !   ---------------------------------------------------------------------------
 
@@ -1484,7 +1481,7 @@ CONTAINS
 
     ELSE
 
-      CALL stop_program(routine_name,module_name,__LINE__,&
+      CALL stop_program(routineN,moduleN,__LINE__,&
                         "The pointer potential is not associated")
 
     END IF
@@ -1505,11 +1502,9 @@ CONTAINS
     TYPE(elp_potential_type), POINTER        :: potential
     CHARACTER(LEN=default_string_length), &
       INTENT(IN), OPTIONAL                   :: name
-    CHARACTER(LEN=default_string_length),&
-         DIMENSION(2), OPTIONAL              :: description
     REAL(KIND=dp), INTENT(IN), OPTIONAL      :: alpha_core_charge, &
                                                 ccore_charge, &
-                                                core_charge_radius,&
+                                                core_charge_radius, &
                                                 ccore_charge_radius
     REAL(KIND=dp), DIMENSION(:, :), &
       OPTIONAL, POINTER                      :: cexp_ppl
@@ -1518,11 +1513,13 @@ CONTAINS
       POINTER                                :: alpha_ppl
     INTEGER, DIMENSION(:), OPTIONAL, POINTER :: nexp_ppl
     INTEGER, OPTIONAL                        :: nalpha_ppl
+    CHARACTER(LEN=default_string_length), &
+      DIMENSION(2), OPTIONAL                 :: description
 
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "set_elp_potential"
+    CHARACTER(LEN=*), PARAMETER              :: routineN = 'set_elp_potential'
 
 !   ---------------------------------------------------------------------------
-     
+
     IF (ASSOCIATED(potential)) THEN
 
       IF (PRESENT(name)) potential%name = name
@@ -1544,7 +1541,7 @@ CONTAINS
 
     ELSE
 
-      CALL stop_program(routine_name,module_name,__LINE__,&
+      CALL stop_program(routineN,moduleN,__LINE__,&
                         "The pointer potential is not associated")
 
     END IF
@@ -1583,7 +1580,7 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:, :, :), &
       OPTIONAL, POINTER                      :: hprj_ppnl
 
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "set_gth_potential"
+    CHARACTER(LEN=*), PARAMETER              :: routineN = 'set_gth_potential'
 
 !   ---------------------------------------------------------------------------
 
@@ -1618,7 +1615,7 @@ CONTAINS
 
     ELSE
 
-      CALL stop_program(routine_name,module_name,__LINE__,&
+      CALL stop_program(routineN,moduleN,__LINE__,&
                         "The pointer potential is not associated")
 
     END IF
@@ -1637,10 +1634,10 @@ CONTAINS
 !   ***************************************************************************
 
     TYPE(all_potential_type), POINTER        :: potential
-    TYPE(section_vals_type), POINTER :: force_env_section
-    INTEGER, INTENT(in) :: output_unit
+    TYPE(section_vals_type), POINTER         :: force_env_section
+    INTEGER, INTENT(in)                      :: output_unit
     TYPE(cp_error_type), INTENT(inout), &
-         OPTIONAL                               :: error
+      OPTIONAL                               :: error
 
     TYPE(cp_logger_type), POINTER            :: logger
 
@@ -1677,13 +1674,11 @@ CONTAINS
 !   ***************************************************************************
 
     TYPE(elp_potential_type), POINTER        :: potential
-    TYPE(section_vals_type), POINTER :: force_env_section
-    INTEGER, INTENT(in) :: output_unit
+    TYPE(section_vals_type), POINTER         :: force_env_section
+    INTEGER, INTENT(in)                      :: output_unit
     TYPE(cp_error_type), INTENT(inout), &
-         OPTIONAL                               :: error
+      OPTIONAL                               :: error
 
-    INTEGER                                  :: i, j
-    REAL(KIND=dp)                            :: r
     TYPE(cp_logger_type), POINTER            :: logger
 
     NULLIFY(logger)
@@ -1717,10 +1712,10 @@ CONTAINS
 !   ***************************************************************************
 
     TYPE(gth_potential_type), POINTER        :: potential
-    TYPE(section_vals_type), POINTER :: force_env_section
-    INTEGER, intent(in) :: output_unit
+    TYPE(section_vals_type), POINTER         :: force_env_section
+    INTEGER, INTENT(in)                      :: output_unit
     TYPE(cp_error_type), INTENT(inout), &
-         OPTIONAL                               :: error
+      OPTIONAL                               :: error
 
     INTEGER                                  :: i, j, l
     REAL(KIND=dp)                            :: r

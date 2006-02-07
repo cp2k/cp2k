@@ -17,11 +17,20 @@ MODULE kg_core
 
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind
-  USE cp_para_types,                   ONLY: cp_para_env_type
+  USE cell_types,                      ONLY: cell_type,&
+                                             get_cell,&
+                                             pbc,&
+                                             real_to_scaled,&
+                                             scaled_to_real
+  USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
+                                             cp_print_key_unit_nr
   USE distribution_2d_types,           ONLY: distribution_2d_type
   USE erf_fn,                          ONLY: erfc
-  USE global_types,                    ONLY: LOW,&
-                                             global_environment_type
+  USE global_types,                    ONLY: global_environment_type
+  USE kg_energy_types,                 ONLY: kg_energy_type
+  USE kg_environment_types,            ONLY: get_kg_env,&
+                                             kg_environment_type
+  USE kg_force_types,                  ONLY: kg_force_type
   USE kinds,                           ONLY: dp,&
                                              dp_size,&
                                              int_size
@@ -30,28 +39,13 @@ MODULE kg_core
                                              twopi
   USE message_passing,                 ONLY: mp_sum
   USE particle_types,                  ONLY: particle_type
-  USE kg_energy_types,                 ONLY: kg_energy_type
-  USE kg_environment_types,            ONLY: get_kg_env,&
-                                             kg_environment_type
-  USE kg_force_types,                  ONLY: kg_force_type
   USE qs_neighbor_lists,               ONLY: allocate_subcell,&
                                              deallocate_subcell,&
                                              local_atoms_type,&
                                              subcell_type
-  USE cell_types,                 ONLY: cell_type,&
-                                             get_cell,&
-                                             pbc,&
-                                             real_to_scaled,&
-                                             scaled_to_real
-  USE termination,                     ONLY: stop_memory,&
-                                             stop_program
+  USE termination,                     ONLY: stop_memory
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE cp_output_handling,              ONLY: cp_print_key_unit_nr, &
-                                             cp_print_key_finished_output,&
-                                             cp_print_key_should_output,&
-                                             cp_p_file
-
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -60,7 +54,7 @@ MODULE kg_core
 
 ! *** Global parameters ***
 
-  CHARACTER(LEN=*), PARAMETER :: module_name = "kg_core"
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'kg_core'
 
   PUBLIC :: calculate_ecore_rspace,&
             calculate_eself
@@ -79,52 +73,49 @@ CONTAINS
 !   ***************************************************************************
 
     TYPE(kg_environment_type), POINTER       :: kg_env
-    TYPE(global_environment_type), &
-      pointer                             :: globenv
+    TYPE(global_environment_type), POINTER   :: globenv
     LOGICAL, INTENT(IN)                      :: calculate_forces
     TYPE(cp_error_type), INTENT(inout), &
-         OPTIONAL                               :: error
+      OPTIONAL                               :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "calculate_ecore_overlap", &
-      routine = "SUBROUTINE "//routine_name//" (MODULE "//module_name//")"
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_ecore_rspace', &
+      routine = "SUBROUTINE "//routineN//" (MODULE "//moduleN//")"
 
     CHARACTER(LEN=8)                         :: unit_of_length_name
     INTEGER :: atom_a, atom_b, group, handle, i, iatom, iatom_local, &
-      iatom_subcell, icell, ikind, istat, j, jatom, jatom_local, jcell, &
-      jkind, k, kkind, kcell, maxatom_local, natom, natom_local_a, natom_local_b, &
-      nkind, output_unit, nexl, iexl
-    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: zeff
+      iatom_subcell, icell, iexl, ikind, istat, j, jatom, jatom_local, jcell, &
+      jkind, k, kcell, kkind, maxatom_local, natom, natom_local_a, &
+      natom_local_b, nexl, nkind, output_unit
     INTEGER, DIMENSION(3)                    :: cell_b, ncell, nsubcell, &
                                                 periodic
-    LOGICAL                                  :: cell000, include_ab, ionode
+    INTEGER, DIMENSION(:), POINTER           :: list
+    LOGICAL                                  :: cell000, include_ab
     REAL(KIND=dp) :: aab, dab, eab, ecore_overlap, f, fab, r_skin, rab2, &
       rab2_max, rab_max, rootaab, subcells, unit_of_length, zab
-    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: alpha, radius
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: alpha, radius, zeff
     REAL(KIND=dp), DIMENSION(3)              :: deab, r, r_pbc, rab, rb, s, &
                                                 sab_max, sb, sb_max, sb_min, &
                                                 sb_pbc
-    INTEGER, DIMENSION ( : ), POINTER        :: list
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cell_type), POINTER                 :: cell
+    TYPE(cp_logger_type), POINTER            :: logger
     TYPE(distribution_2d_type), POINTER      :: distribution_2d
+    TYPE(kg_energy_type), POINTER            :: energy
+    TYPE(kg_force_type), DIMENSION(:), &
+      POINTER                                :: force
     TYPE(local_atoms_type), ALLOCATABLE, &
       DIMENSION(:)                           :: atom
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
-    TYPE(kg_energy_type), POINTER            :: energy
-    TYPE(kg_force_type), DIMENSION(:), &
-      POINTER                                :: force
     TYPE(subcell_type), DIMENSION(:, :, :), &
       POINTER                                :: subcell
-    TYPE(cp_logger_type), POINTER            :: logger
-
 
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
 
-    CALL timeset(routine_name,"I",'',handle)
+    CALL timeset(routineN,"I",'',handle)
 
     NULLIFY (atomic_kind)
     NULLIFY (atomic_kind_set)
@@ -623,7 +614,7 @@ CONTAINS
     REAL(KIND=dp), INTENT(OUT)               :: ecore_self
 
     INTEGER                                  :: ikind, natom
-    REAL(KIND=dp)                                :: alpha_core_charge, &
+    REAL(KIND=dp)                            :: alpha_core_charge, &
                                                 ccore_charge, qeff
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set

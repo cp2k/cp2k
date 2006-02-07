@@ -22,21 +22,21 @@
 !******************************************************************************
 
 MODULE force_env_types
-  USE atomic_kind_list_types,          ONLY: atomic_kind_list_type
+  USE cell_types,                      ONLY: cell_type
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_para_env,                     ONLY: cp_para_env_release
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE cp_subsystem_types,              ONLY: cp_subsys_get,&
-                                             cp_subsys_release,&
+  USE cp_subsystem_types,              ONLY: cp_subsys_release,&
                                              cp_subsystem_p_type
   USE dynamical_coeff_types,           ONLY: dyn_coeff_set_p_type,&
                                              dyn_coeff_set_release
   USE fist_energy_types,               ONLY: fist_energy_type
-  USE fist_environment_types,          ONLY: fist_environment_type,&
-                                             fist_env_release, &
+  USE fist_environment_types,          ONLY: fist_env_release,&
+                                             fist_environment_type,&
                                              get_fist_env
   USE global_types,                    ONLY: global_environment_type,&
                                              globenv_release
+  USE input_section_types,             ONLY: section_vals_type
   USE kg_energy_types,                 ONLY: kg_energy_type
   USE kg_environment_types,            ONLY: get_kg_env,&
                                              kg_env_release,&
@@ -45,29 +45,26 @@ MODULE force_env_types
   USE metadynamics_types,              ONLY: meta_env_release,&
                                              meta_env_retain,&
                                              meta_env_type
-  USE particle_list_types,             ONLY: particle_list_type
-  USE qmmm_types,                      ONLY: qmmm_env_qm_type, &
-                                             qmmm_env_qm_release
+  USE qmmm_types,                      ONLY: qmmm_env_qm_release,&
+                                             qmmm_env_qm_type
   USE qs_energy_types,                 ONLY: qs_energy_type
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_env_release,&
                                              qs_environment_type
-  USE cell_types,                      ONLY: cell_type
   USE tbmd_energy_types,               ONLY: tbmd_energy_type
-  USE tbmd_environment_types,          ONLY: tbmd_environment_type, &
-                                             tbmd_env_release, &
-                                             tbmd_env_get
-  USE virial_types,                    ONLY: virial_type,&
-                                             virial_retain, &
-                                             virial_release
-  USE input_section_types, ONLY: section_vals_type, section_vals_get_subs_vals
+  USE tbmd_environment_types,          ONLY: tbmd_env_get,&
+                                             tbmd_env_release,&
+                                             tbmd_environment_type
+  USE virial_types,                    ONLY: virial_release,&
+                                             virial_retain,&
+                                             virial_type
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
 
   PRIVATE
 
-  CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='force_env_types'
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'force_env_types'
 
   INTEGER, PARAMETER, PUBLIC :: use_fist_force=501, use_qs_force=502,&
        use_kg_force=503, use_pol_force=504, use_qmmm=505, &
@@ -128,7 +125,7 @@ MODULE force_env_types
   TYPE force_env_type
 !     PRIVATE
      INTEGER :: id_nr,ref_count,in_use
-     logical :: box_changed
+     LOGICAL :: box_changed
      TYPE ( fist_environment_type ), POINTER :: fist_env 
      TYPE ( kg_environment_type ), POINTER :: kg_env
      TYPE ( meta_env_type ), POINTER :: meta_env
@@ -288,7 +285,7 @@ RECURSIVE SUBROUTINE force_env_release(force_env, error)
            CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
         END IF
         CALL cp_para_env_release(force_env%para_env,error=error)
-        call globenv_release(force_env%globenv)
+        CALL globenv_release(force_env%globenv)
         ! not deallocated
         CPAssert(.NOT.ASSOCIATED(force_env%kg_env),cp_warning_level,routineP,error,failure)
         CPAssert(.NOT.ASSOCIATED(force_env%fist_env),cp_warning_level,routineP,error,failure)
@@ -334,50 +331,49 @@ RECURSIVE SUBROUTINE force_env_get(force_env, in_use, &
      tbmd_env, virial, box_changed, globenv, input, error)
     TYPE(force_env_type), POINTER            :: force_env
     INTEGER, INTENT(out), OPTIONAL           :: in_use
+    TYPE(fist_environment_type), OPTIONAL, &
+      POINTER                                :: fist_env
     TYPE(qs_environment_type), OPTIONAL, &
       POINTER                                :: qs_env
     TYPE(kg_environment_type), OPTIONAL, &
       POINTER                                :: kg_env
-    TYPE(tbmd_environment_type), OPTIONAL, &
-      POINTER                                :: tbmd_env
     TYPE(meta_env_type), OPTIONAL, POINTER   :: meta_env
     TYPE(dyn_coeff_set_p_type), &
       DIMENSION(:), OPTIONAL, POINTER        :: dyn_coeff_set
-    TYPE ( fist_environment_type ), OPTIONAL, &
-      POINTER                                :: fist_env 
     TYPE(cp_subsystem_p_type), &
       DIMENSION(:), OPTIONAL, POINTER        :: subsys
     TYPE(cp_para_env_type), OPTIONAL, &
       POINTER                                :: para_env
     REAL(KIND=dp), INTENT(OUT), OPTIONAL     :: potential_energy, &
                                                 kinetic_energy
-    TYPE(cell_type), OPTIONAL, POINTER       :: cell
-    TYPE(cell_type), OPTIONAL, POINTER       :: cell_ref
-    TYPE(force_env_p_type), DIMENSION(:), POINTER, OPTIONAL :: sub_force_env
-    TYPE(qmmm_env_qm_type), POINTER, OPTIONAL :: qmmm_env
-    TYPE ( virial_type ), POINTER, OPTIONAL  :: virial
-    LOGICAL, INTENT(out), optional           :: box_changed
-    TYPE(global_environment_type), POINTER, optional :: globenv
-    TYPE(section_vals_type), POINTER, optional :: input
+    TYPE(cell_type), OPTIONAL, POINTER       :: cell, cell_ref
+    TYPE(force_env_p_type), DIMENSION(:), &
+      OPTIONAL, POINTER                      :: sub_force_env
+    TYPE(qmmm_env_qm_type), OPTIONAL, &
+      POINTER                                :: qmmm_env
+    TYPE(tbmd_environment_type), OPTIONAL, &
+      POINTER                                :: tbmd_env
+    TYPE(virial_type), OPTIONAL, POINTER     :: virial
+    LOGICAL, INTENT(out), OPTIONAL           :: box_changed
+    TYPE(global_environment_type), &
+      OPTIONAL, POINTER                      :: globenv
+    TYPE(section_vals_type), OPTIONAL, &
+      POINTER                                :: input
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'force_env_get', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i
     LOGICAL                                  :: failure
-    REAL(KIND=dp)                            :: pot, kin
+    REAL(KIND=dp)                            :: kin, penergy_mm, penergy_qm, &
+                                                pot
     TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(fist_energy_type), POINTER          :: thermo
     TYPE(kg_energy_type), POINTER            :: kg_energy
     TYPE(qs_energy_type), POINTER            :: qs_energy
     TYPE(qs_environment_type), POINTER       :: my_qs_env
-
-    TYPE(fist_energy_type), POINTER          :: thermo
-    REAL(KIND=dp)                            :: penergy_mm,&
-                                                penergy_qm
     TYPE(tbmd_energy_type), POINTER          :: tbmd_energy
-
 
   failure=.FALSE.
   
@@ -501,10 +497,10 @@ RECURSIVE SUBROUTINE force_env_get(force_env, in_use, &
      END IF
      IF (PRESENT(meta_env)) meta_env => force_env%meta_env
      IF (PRESENT(sub_force_env)) sub_force_env => force_env%sub_force_env
-     if (PRESENT(qmmm_env)) qmmm_env => force_env%qmmm_env
+     IF (PRESENT(qmmm_env)) qmmm_env => force_env%qmmm_env
      IF ( PRESENT ( virial ) )   virial => force_env % virial
      IF (PRESENT(box_changed)) box_changed = force_env%box_changed
-     if (present(globenv)) globenv => force_env%globenv
+     IF (PRESENT(globenv)) globenv => force_env%globenv
   END IF
 END SUBROUTINE force_env_get
 !***************************************************************************
@@ -535,17 +531,17 @@ END SUBROUTINE force_env_get
 !!
 !!*** **********************************************************************
 SUBROUTINE force_env_set(force_env, meta_env, virial, box_changed, error)
-  TYPE(force_env_type), POINTER            :: force_env
-  TYPE(meta_env_type), OPTIONAL, POINTER   :: meta_env
-  TYPE(virial_type), OPTIONAL, POINTER     :: virial
-  LOGICAL, OPTIONAL, intent(in)            :: box_changed
-  TYPE(cp_error_type), INTENT(inout), &
-       OPTIONAL                               :: error
+    TYPE(force_env_type), POINTER            :: force_env
+    TYPE(meta_env_type), OPTIONAL, POINTER   :: meta_env
+    TYPE(virial_type), OPTIONAL, POINTER     :: virial
+    LOGICAL, INTENT(in), OPTIONAL            :: box_changed
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-  CHARACTER(len=*), PARAMETER :: routineN = 'force_env_set', &
-       routineP = moduleN//':'//routineN
+    CHARACTER(len=*), PARAMETER :: routineN = 'force_env_set', &
+      routineP = moduleN//':'//routineN
 
-  LOGICAL                                  :: failure
+    LOGICAL                                  :: failure
 
   failure=.FALSE.
   CPPrecondition(ASSOCIATED(force_env),cp_failure_level,routineP,error,failure)

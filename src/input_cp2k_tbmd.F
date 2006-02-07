@@ -23,22 +23,28 @@
 !!   SOURCE
 !****************************************************************************
 MODULE input_cp2k_tbmd
-  USE cp_output_handling,  ONLY: cp_print_key_section_create
+  USE cp_output_handling,              ONLY: cp_print_key_section_create
   USE input_constants
-  USE input_keyword_types, ONLY: keyword_type, keyword_create,&
-       keyword_release
-  USE input_section_types, ONLY: section_type, section_create, &
-       section_add_keyword, section_add_subsection, section_release
-  USE input_val_types,     ONLY: char_t, real_t, enum_t, logical_t
-  USE kinds,               ONLY: dp
-  USE string_utilities,    ONLY: s2a
+  USE input_keyword_types,             ONLY: keyword_create,&
+                                             keyword_release,&
+                                             keyword_type
+  USE input_section_types,             ONLY: section_add_keyword,&
+                                             section_add_subsection,&
+                                             section_create,&
+                                             section_release,&
+                                             section_type
+  USE input_val_types,                 ONLY: enum_t,&
+                                             logical_t,&
+                                             real_t
+  USE kinds,                           ONLY: dp
+  USE string_utilities,                ONLY: s2a
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
   PRIVATE
 
   LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
-  CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='input_cp2k_tbmd'
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'input_cp2k_tbmd'
 
   PUBLIC :: create_tbmd_section, create_tb_model_section
 !!***
@@ -70,14 +76,16 @@ CONTAINS
 !!   SOURCE
 !!*** **********************************************************************
   SUBROUTINE create_tbmd_section(section, error)
-    TYPE(section_type), POINTER                  :: section
-    TYPE(cp_error_type), OPTIONAL, INTENT(INOUT) :: error
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(INOUT), &
+      OPTIONAL                               :: error
 
-    LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineN='create_tbmd_section', &
-         routineP=moduleN//':'//routineN
-    TYPE(section_type), POINTER :: subsection
-    TYPE(keyword_type), POINTER :: keyword
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_tbmd_section', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
+    TYPE(section_type), POINTER              :: subsection
 
 !   ------------------------------------------------------------------------
 
@@ -144,13 +152,15 @@ CONTAINS
 !!   SOURCE
 !!*** **********************************************************************
   SUBROUTINE create_tb_model_section(section, error)
-    TYPE(section_type), POINTER                  :: section
-    TYPE(cp_error_type), OPTIONAL, INTENT(INOUT) :: error
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(INOUT), &
+      OPTIONAL                               :: error
 
-    LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineN='create_tb_model_section', &
-         routineP=moduleN//':'//routineN
-    TYPE(keyword_type), POINTER :: keyword
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_tb_model_section', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
 
 !   ------------------------------------------------------------------------
 
@@ -340,13 +350,16 @@ CONTAINS
 !!   SOURCE
 !!*** **********************************************************************
   SUBROUTINE create_tb_neighbor_list_section(section, error)
-    TYPE(section_type), POINTER                  :: section
-    TYPE(cp_error_type), OPTIONAL, INTENT(INOUT) :: error
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(INOUT), &
+      OPTIONAL                               :: error
 
-    LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineN='create_tb_neighbor_list_section', &
-         routineP=moduleN//':'//routineN
-    TYPE(keyword_type), POINTER :: keyword
+    CHARACTER(len=*), PARAMETER :: &
+      routineN = 'create_tb_neighbor_list_section', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
 
 !   ------------------------------------------------------------------------
 
@@ -407,13 +420,15 @@ CONTAINS
 !!   SOURCE
 !!*** **********************************************************************
   SUBROUTINE create_tb_print_section(section, error)
-    TYPE(section_type), POINTER                  :: section
-    TYPE(cp_error_type), OPTIONAL, INTENT(INOUT) :: error
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(INOUT), &
+      OPTIONAL                               :: error
 
-    LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineN='create_tb_print_section', &
-         routineP=moduleN//':'//routineN
-    TYPE(section_type), POINTER :: print_key
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_tb_print_section', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(section_type), POINTER              :: print_key
 
 !   ------------------------------------------------------------------------
 

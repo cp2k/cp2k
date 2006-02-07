@@ -23,37 +23,39 @@
 !!   SOURCE
 !****************************************************************************
 MODULE input_cp2k_dft
-  use kinds, only: dp
-  use cp_para_types, only: cp_para_env_type
-  use timings, only: timeset, timestop
-  USE input_section_types, ONLY: section_type, section_create, &
-       section_add_keyword, section_add_subsection, section_release,&
-       section_vals_type, section_vals_get_subs_vals, section_vals_get,&
-       section_vals_val_get, section_vals_val_set
+  USE cp_output_handling,              ONLY: cp_print_key_section_create
+  USE cp_units,                        ONLY: cp_unit_to_cp2k
   USE input_constants
-  USE input_keyword_types, ONLY: keyword_type, keyword_create,&
-       keyword_release
-  USE input_val_types, ONLY: val_type, no_t, logical_t, integer_t, real_t, char_t,&
-       enum_t
-  USE cp_output_handling, only: cp_print_key_section_create
-  USE cp_units, ONLY: cp_unit_to_cp2k
-  USE string_utilities, ONLY: s2a
+  USE input_keyword_types,             ONLY: keyword_create,&
+                                             keyword_release,&
+                                             keyword_type
+  USE input_section_types,             ONLY: section_add_keyword,&
+                                             section_add_subsection,&
+                                             section_create,&
+                                             section_release,&
+                                             section_type
+  USE input_val_types,                 ONLY: integer_t,&
+                                             real_t
+  USE kinds,                           ONLY: dp
+  USE string_utilities,                ONLY: s2a
+  USE timings,                         ONLY: timeset,&
+                                             timestop
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
-  private
+  PRIVATE
 
-  logical, private, parameter :: debug_this_module=.true.
-  character(len=*), private, parameter :: moduleN='input_cp2k_dft'
+  LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'input_cp2k_dft'
 
-  public :: create_dft_section
-  public :: create_mt_section
+  PUBLIC :: create_dft_section
+  PUBLIC :: create_mt_section
   PUBLIC :: create_bsse_section
   PUBLIC :: create_multipole_section, create_gspace_interp_section
   PUBLIC :: create_properties_section, create_scf_section
 !***
 !****************************************************************************
-contains
+CONTAINS
 
 !!****f* input_cp2k_dft/create_dft_section *
 !!
@@ -76,14 +78,16 @@ contains
 !!
 !!*** **********************************************************************
   SUBROUTINE create_dft_section(section,error)
-    TYPE(section_type), pointer :: section
-    type(cp_error_type), optional, intent(inout) :: error
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    logical :: failure
-    character(len=*), parameter :: routineN='create_dft_section',&
-         routineP=moduleN//':'//routineN
-    TYPE(keyword_type), pointer :: keyword
-    TYPE(section_type), pointer :: subsection
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_dft_section', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
+    TYPE(section_type), POINTER              :: subsection
 
     failure=.FALSE.
 
@@ -93,7 +97,7 @@ contains
          n_keywords=3, n_subsections=4, repeats=.FALSE., required=.TRUE.,&
          error=error)
 
-    nullify(keyword)
+    NULLIFY(keyword)
     CALL keyword_create(keyword, name="BASIS_SET_FILE_NAME",&
          description="Name of the basis set file, may include a path",&
          usage="BASIS_SET_FILE_NAME ../BASIS_SET",&
@@ -115,13 +119,13 @@ contains
     CALL keyword_create(keyword, name="LSD",&
          description="If the calculation should open shell",&
          usage="lsd",&
-         default_l_val=.FALSE.,lone_keyword_l_val=.true.,error=error)
+         default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,error=error)
     CALL section_add_keyword(section,keyword,error=error)
     CALL keyword_release(keyword,error=error)
     CALL keyword_create(keyword, name="RESTRICTED",&
          description="If the calculation should be restricted",&
          usage="RESTRICTED",&
-         default_l_val=.FALSE.,lone_keyword_l_val=.true.,error=error)
+         default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,error=error)
     CALL section_add_keyword(section,keyword,error=error)
     CALL keyword_release(keyword,error=error)
     CALL keyword_create(keyword, name="MULTIPLICITY",&
@@ -146,7 +150,7 @@ contains
     CALL section_add_keyword(section,keyword,error=error)
     CALL keyword_release(keyword,error=error)
 
-    nullify(subsection)
+    NULLIFY(subsection)
     CALL create_scf_section(subsection,error)
     CALL section_add_subsection(section, subsection, error=error)
     CALL section_release(subsection,error=error)
@@ -207,14 +211,17 @@ contains
 !!*** **********************************************************************
   SUBROUTINE create_localize_section(section, error)
 
-    TYPE(section_type), pointer :: section
-    type(cp_error_type), optional, intent(inout) :: error
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    logical :: failure
-    character(len=*), parameter :: routineN='create_localize_section',&
-          routineP=moduleN//':'//routineN
-    TYPE(keyword_type), pointer :: keyword
-    failure=.false.
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_localize_section', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
+
+    failure=.FALSE.
 
     CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
@@ -329,14 +336,17 @@ contains
 !!
 !!*** **********************************************************************
   SUBROUTINE create_print_dft_section(section,error)
-    TYPE(section_type), POINTER :: section
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineN='create_print_dft_section',&
-         routineP=moduleN//':'//routineN
-    TYPE(section_type), POINTER :: print_key, print_key2
-    TYPE(keyword_type), POINTER :: keyword
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_print_dft_section', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
+    TYPE(section_type), POINTER              :: print_key, print_key2
+
     failure=.FALSE.
 
     CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
@@ -368,32 +378,32 @@ contains
             error=error)
        CALL keyword_create(keyword, name="sab_orb",&
             description="If the printkey is activated controls the printing of s-a-b lists",&
-            default_l_val=.false., lone_keyword_l_val=.TRUE., error=error)
+            default_l_val=.FALSE., lone_keyword_l_val=.TRUE., error=error)
        CALL section_add_keyword(print_key,keyword,error=error)
        CALL keyword_release(keyword,error=error)    
        CALL keyword_create(keyword, name="sac_ppl",&
             description="If the printkey is activated controls the printing of s-a-c gth local lists",&
-            default_l_val=.false., lone_keyword_l_val=.TRUE., error=error)
+            default_l_val=.FALSE., lone_keyword_l_val=.TRUE., error=error)
        CALL section_add_keyword(print_key,keyword,error=error)
        CALL keyword_release(keyword,error=error)    
        CALL keyword_create(keyword, name="sab_ppnl",&
             description="If the printkey is activated controls the printing of s-a-c gth non local lists",&
-            default_l_val=.false., lone_keyword_l_val=.TRUE., error=error)
+            default_l_val=.FALSE., lone_keyword_l_val=.TRUE., error=error)
        CALL section_add_keyword(print_key,keyword,error=error)
        CALL keyword_release(keyword,error=error)    
        CALL keyword_create(keyword, name="sbc_ppnl",&
             description="If the printkey is activated controls the printing of s-b-c gth non local lists",&
-            default_l_val=.false., lone_keyword_l_val=.TRUE., error=error)
+            default_l_val=.FALSE., lone_keyword_l_val=.TRUE., error=error)
        CALL section_add_keyword(print_key,keyword,error=error)
        CALL keyword_release(keyword,error=error)    
        CALL keyword_create(keyword, name="sac_oce",&
             description="If the printkey is activated controls the printing of s-a-c oce lists",&
-            default_l_val=.false., lone_keyword_l_val=.TRUE., error=error)
+            default_l_val=.FALSE., lone_keyword_l_val=.TRUE., error=error)
        CALL section_add_keyword(print_key,keyword,error=error)
        CALL keyword_release(keyword,error=error)    
        CALL keyword_create(keyword, name="sbc_oce",&
             description="If the printkey is activated controls the printing of s-b-c oce lists",&
-            default_l_val=.false., lone_keyword_l_val=.TRUE., error=error)
+            default_l_val=.FALSE., lone_keyword_l_val=.TRUE., error=error)
        CALL section_add_keyword(print_key,keyword,error=error)
        CALL keyword_release(keyword,error=error)    
        CALL section_add_subsection(section,print_key,error=error)
@@ -405,49 +415,49 @@ contains
             error=error)
        CALL keyword_create(keyword, name="core_hamiltonian",&
             description="If the printkey is activated controls the printing of the hamiltonian matrix",&
-            default_l_val=.false., lone_keyword_l_val=.TRUE., error=error)
+            default_l_val=.FALSE., lone_keyword_l_val=.TRUE., error=error)
        CALL section_add_keyword(print_key,keyword,error=error)
        CALL keyword_release(keyword,error=error)    
        CALL keyword_create(keyword, name="density",&
             description="If the printkey is activated controls the printing of the density (P) matrix",&
-            default_l_val=.false., lone_keyword_l_val=.TRUE., error=error)
+            default_l_val=.FALSE., lone_keyword_l_val=.TRUE., error=error)
        CALL section_add_keyword(print_key,keyword,error=error)
        CALL keyword_release(keyword,error=error)    
    
        CALL keyword_create(keyword, name="kinetic_energy",&
             description="If the printkey is activated controls the printing of the kinetic energy matrix",&
-            default_l_val=.false., lone_keyword_l_val=.TRUE., error=error)
+            default_l_val=.FALSE., lone_keyword_l_val=.TRUE., error=error)
        CALL section_add_keyword(print_key,keyword,error=error)
        CALL keyword_release(keyword,error=error)    
        CALL keyword_create(keyword, name="kohn_sham_matrix",&
             description="If the printkey is activated controls the printing of the kohn-sham matrix",&
-            default_l_val=.false., lone_keyword_l_val=.TRUE., error=error)
+            default_l_val=.FALSE., lone_keyword_l_val=.TRUE., error=error)
        CALL section_add_keyword(print_key,keyword,error=error)
        CALL keyword_release(keyword,error=error)    
        CALL keyword_create(keyword, name="ortho",&
             description="If the printkey is activated controls the printing of the orthogonalization matrix",&
-            default_l_val=.false., lone_keyword_l_val=.TRUE., error=error)
+            default_l_val=.FALSE., lone_keyword_l_val=.TRUE., error=error)
        CALL section_add_keyword(print_key,keyword,error=error)
        CALL keyword_release(keyword,error=error)    
        CALL keyword_create(keyword, name="overlap",&
             description="If the printkey is activated controls the printing of the overlap matrix",&
-            default_l_val=.false., lone_keyword_l_val=.TRUE., error=error)
+            default_l_val=.FALSE., lone_keyword_l_val=.TRUE., error=error)
        CALL section_add_keyword(print_key,keyword,error=error)
        CALL keyword_release(keyword,error=error)    
        CALL keyword_create(keyword, name="potential_energy",&
             description="If the printkey is activated controls the printing of the potential energy matrix",&
-            default_l_val=.false., lone_keyword_l_val=.TRUE., error=error)
+            default_l_val=.FALSE., lone_keyword_l_val=.TRUE., error=error)
        CALL section_add_keyword(print_key,keyword,error=error)
        CALL keyword_release(keyword,error=error)    
        CALL keyword_create(keyword, name="w_matrix",&
             description="If the printkey is activated controls the printing of the w matrix",&
-            default_l_val=.false., lone_keyword_l_val=.TRUE., error=error)
+            default_l_val=.FALSE., lone_keyword_l_val=.TRUE., error=error)
        CALL section_add_keyword(print_key,keyword,error=error)
        CALL keyword_release(keyword,error=error)
        CALL keyword_create(keyword, name="derivatives",&
             description="If the printkey is activated controls the printing "//&
            "of derivatives (for the matrixes that support this)",&
-            default_l_val=.false., lone_keyword_l_val=.TRUE., error=error)
+            default_l_val=.FALSE., lone_keyword_l_val=.TRUE., error=error)
        CALL section_add_keyword(print_key,keyword,error=error)
        CALL keyword_release(keyword,error=error)    
        CALL section_add_subsection(section,print_key,error=error)
@@ -459,22 +469,22 @@ contains
             error=error)
        CALL keyword_create(keyword, name="cartesian",&
             description="If the printkey is activated controls the printing of the mo in the cartesian basis",&
-            default_l_val=.false., lone_keyword_l_val=.TRUE., error=error)
+            default_l_val=.FALSE., lone_keyword_l_val=.TRUE., error=error)
        CALL section_add_keyword(print_key,keyword,error=error)
        CALL keyword_release(keyword,error=error)
        CALL keyword_create(keyword, name="eigenvalues",&
             description="If the printkey is activated controls the printing of the eigenvalues of the mos",&
-            default_l_val=.false., lone_keyword_l_val=.TRUE., error=error)
+            default_l_val=.FALSE., lone_keyword_l_val=.TRUE., error=error)
        CALL section_add_keyword(print_key,keyword,error=error)
        CALL keyword_release(keyword,error=error)    
        CALL keyword_create(keyword, name="eigenvectors",&
             description="If the printkey is activated controls the printing of the eigenvectors of the mos",&
-            default_l_val=.false., lone_keyword_l_val=.TRUE., error=error)
+            default_l_val=.FALSE., lone_keyword_l_val=.TRUE., error=error)
        CALL section_add_keyword(print_key,keyword,error=error)
        CALL keyword_release(keyword,error=error)    
        CALL keyword_create(keyword, name="occupation_numbers",&
             description="If the printkey is activated controls the printing of the occupation numbers of the mos",&
-            default_l_val=.false., lone_keyword_l_val=.TRUE., error=error)
+            default_l_val=.FALSE., lone_keyword_l_val=.TRUE., error=error)
        CALL section_add_keyword(print_key,keyword,error=error)
        CALL keyword_release(keyword,error=error)    
        CALL section_add_subsection(section,print_key,error=error)
@@ -511,12 +521,12 @@ contains
        CALL keyword_create(keyword, name="projectors",&
             description="If the printkey is activated controls if information on"//&
             " the projectors is printed.",&
-            default_l_val=.TRUE.,lone_keyword_l_val=.true., error=error)
+            default_l_val=.TRUE.,lone_keyword_l_val=.TRUE., error=error)
        CALL section_add_keyword(print_key,keyword,error=error)
        CALL keyword_release(keyword,error=error)
        CALL keyword_create(keyword, name="rho0_information",&
             description="If the printkey is activated controls if information on rho0 is printed.",&
-            default_l_val=.TRUE.,lone_keyword_l_val=.true., error=error)
+            default_l_val=.TRUE.,lone_keyword_l_val=.TRUE., error=error)
        CALL section_add_keyword(print_key,keyword,error=error)
        CALL keyword_release(keyword,error=error)
        CALL section_add_subsection(section,print_key,error=error)
@@ -682,17 +692,18 @@ contains
 !!
 !!*** **********************************************************************
 SUBROUTINE create_qs_section(section,error)
-  ! Arguments
-  TYPE(section_type), pointer :: section
-  type(cp_error_type), optional, intent(inout) :: error
-  ! Local Variables
-  logical :: failure
-  character(len=*), parameter :: routineN='create_qs_section',&
-        routineP=moduleN//':'//routineN
-  TYPE(keyword_type), pointer :: keyword
-  TYPE(section_type), pointer :: subsection, print_key
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-  failure=.false.
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_qs_section', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
+    TYPE(section_type), POINTER              :: subsection
+
+  failure=.FALSE.
 
   CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
   IF (.NOT. failure) THEN
@@ -988,7 +999,7 @@ SUBROUTINE create_se_control_section(section,error)
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'create_se_section', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_se_control_section', &
       routineP = moduleN//':'//routineN
 
     LOGICAL                                  :: failure
@@ -1062,7 +1073,7 @@ SUBROUTINE create_mulliken_section(section,error)
     TYPE(keyword_type), POINTER              :: keyword
 
     failure=.FALSE.
-    nullify(keyword)
+    NULLIFY(keyword)
     CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
       CALL section_create(section,"MULLIKEN_RESTRAINT",&
@@ -1464,7 +1475,7 @@ SUBROUTINE create_xc_potential_section(section,error)
       OPTIONAL                               :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'create_xc_potential_section', &
-                                   routineP = moduleN//':'//routineN
+      routineP = moduleN//':'//routineN
 
     LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
@@ -1544,17 +1555,18 @@ END SUBROUTINE create_xc_potential_section
 !!
 !!*** **********************************************************************
 SUBROUTINE create_tddfpt_section(section,error)
-  ! Arguments
-  TYPE(section_type), pointer :: section
-  type(cp_error_type), optional, intent(inout) :: error
-  ! Local Variables
-  logical :: failure
-  character(len=*), parameter :: routineN='create_tddfpt_section',&
-        routineP=moduleN//':'//routineN
-  TYPE(section_type), pointer :: subsection
-  TYPE(keyword_type), pointer :: keyword
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-  failure=.false.
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_tddfpt_section', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
+    TYPE(section_type), POINTER              :: subsection
+
+  failure=.FALSE.
 
   CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
   IF (.NOT. failure) THEN
@@ -1711,16 +1723,18 @@ SUBROUTINE create_tddfpt_section(section,error)
 !!
 !!*** **********************************************************************
   SUBROUTINE create_xc_section(section,error)
-    TYPE(section_type), pointer :: section
-    type(cp_error_type), optional, intent(inout) :: error
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    logical :: failure
-    character(len=*), parameter :: routineN='create_xc_section',&
-         routineP=moduleN//':'//routineN
-    TYPE(section_type), pointer :: subsection
-    TYPE(keyword_type), pointer :: keyword
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_xc_section', &
+      routineP = moduleN//':'//routineN
 
-    failure=.false.
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
+    TYPE(section_type), POINTER              :: subsection
+
+    failure=.FALSE.
 
     CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
@@ -1796,7 +1810,7 @@ SUBROUTINE create_tddfpt_section(section,error)
 
        CALL keyword_create(keyword, name="use_finer_grid",&
             description="Uses a finer grid only to calculate the xc",&
-            usage="use_finer_grid", default_l_val=.false.,&
+            usage="use_finer_grid", default_l_val=.FALSE.,&
             lone_keyword_l_val=.TRUE.,error=error)
        CALL section_add_keyword(subsection,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -1837,17 +1851,19 @@ SUBROUTINE create_tddfpt_section(section,error)
 !!
 !!*** **********************************************************************
   SUBROUTINE create_scf_section(section,error)
-    TYPE(section_type), pointer :: section
-    type(cp_error_type), optional, intent(inout) :: error
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    logical :: failure
-    character(len=*), parameter :: routineN='create_scf_section',&
-         routineP=moduleN//':'//routineN
-    TYPE(keyword_type), pointer :: keyword
-    TYPE(section_type), POINTER :: subsection, print_key
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_scf_section', &
+      routineP = moduleN//':'//routineN
 
-    failure=.false.
-    nullify(print_key)
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
+    TYPE(section_type), POINTER              :: print_key, subsection
+
+    failure=.FALSE.
+    NULLIFY(print_key)
 
     CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
@@ -1856,12 +1872,12 @@ SUBROUTINE create_tddfpt_section(section,error)
             n_keywords=24, n_subsections=1, repeats=.FALSE., required=.TRUE.,&
             error=error)
 
-       nullify(subsection)
+       NULLIFY(subsection)
        CALL create_ot_section(subsection,error)
        CALL section_add_subsection(section, subsection, error=error)
        CALL section_release(subsection,error=error)
 
-       nullify(keyword)
+       NULLIFY(keyword)
        CALL keyword_create(keyword, name="WRITE_RESTART_EACH",&
             description="How often the wavefunction restart file should be "//&
             "written during an scf (0=never).",usage="WRITE_RESTART_EACH 5",&
@@ -1930,7 +1946,7 @@ SUBROUTINE create_tddfpt_section(section,error)
        CALL keyword_create(keyword, name="CHOLESKY",&
             description="If the cholesky method should be used for computing "//&
             "the inverse of S",&
-            usage="CHOLESKY OFF", default_l_val=.true.,error=error)
+            usage="CHOLESKY OFF", default_l_val=.TRUE.,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
@@ -1995,7 +2011,7 @@ SUBROUTINE create_tddfpt_section(section,error)
 
 
        CALL section_create(subsection,"PRINT","printing of information during the scf",&
-            error=error,repeats=.FALSE.,required=.false.)
+            error=error,repeats=.FALSE.,required=.FALSE.)
 
        CALL cp_print_key_section_create(print_key,"iteration_info",&
             description="Controls the printing of basic iteration information during the scf.", &
@@ -2073,13 +2089,16 @@ SUBROUTINE create_tddfpt_section(section,error)
 !!
 !!*** ********************************************************************** 
   SUBROUTINE create_properties_section(section,error)
-    TYPE(section_type), POINTER :: section
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-    
-    LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineN='create_properties_section',&
-         routineP=moduleN//':'//routineN
-    TYPE(section_type), POINTER :: subsection
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_properties_section', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(section_type), POINTER              :: subsection
+
     failure=.FALSE.
     
     CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
@@ -2125,19 +2144,21 @@ SUBROUTINE create_tddfpt_section(section,error)
 !!
 !!*** ********************************************************************** 
   SUBROUTINE create_fitcharge_section(section,error)
-    TYPE(section_type), POINTER :: section
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-    
-    LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineN='create_fitcharge_section',&
-         routineP=moduleN//':'//routineN
-    TYPE(keyword_type), POINTER :: keyword
-    TYPE(section_type), POINTER :: subsection
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_fitcharge_section', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
+
     failure=.FALSE.
     
     CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
-       call cp_print_key_section_create(section,name="FIT_CHARGE",&
+       CALL cp_print_key_section_create(section,name="FIT_CHARGE",&
             description="This section is used to set up calculation of density derived atomic point charges.",&
             print_level=high_print_level,filename="__STD_OUT__",error=error)
 
@@ -2212,14 +2233,17 @@ SUBROUTINE create_tddfpt_section(section,error)
 !!
 !!*** ********************************************************************** 
   SUBROUTINE create_bsse_section(section,error)
-    TYPE(section_type), POINTER :: section
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-    
-    LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineN='create_bsse_section',&
-         routineP=moduleN//':'//routineN
-    TYPE(keyword_type), POINTER :: keyword
-    TYPE(section_type), POINTER :: subsection
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_bsse_section', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
+    TYPE(section_type), POINTER              :: subsection
+
     failure=.FALSE.
     
     CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
@@ -2283,13 +2307,16 @@ SUBROUTINE create_tddfpt_section(section,error)
 !!
 !!*** **********************************************************************
   SUBROUTINE create_print_bsse_section(section,error)
-    TYPE(section_type), POINTER :: section
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-    
-    LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineN='create_print_bsse_section',&
-         routineP=moduleN//':'//routineN
-    TYPE(section_type), POINTER :: print_key
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_print_bsse_section', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(section_type), POINTER              :: print_key
+
     failure=.FALSE.
     
     CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
@@ -2331,16 +2358,18 @@ SUBROUTINE create_tddfpt_section(section,error)
 !!
 !!*** **********************************************************************
   SUBROUTINE create_poisson_dft_section(section,error)
-    TYPE(section_type), pointer :: section
-    type(cp_error_type), optional, intent(inout) :: error
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    logical :: failure
-    character(len=*), parameter :: routineN='create_poisson_dft_section',&
-         routineP=moduleN//':'//routineN
-    TYPE(keyword_type), pointer :: keyword
-    TYPE(section_type), pointer :: subsection
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_poisson_dft_section', &
+      routineP = moduleN//':'//routineN
 
-    failure=.false.
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
+    TYPE(section_type), POINTER              :: subsection
+
+    failure=.FALSE.
 
     CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
@@ -2405,14 +2434,17 @@ SUBROUTINE create_tddfpt_section(section,error)
 !!
 !!*** ********************************************************************** 
   SUBROUTINE create_multipole_section(section,error)
-    TYPE(section_type), POINTER :: section
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-    
-    LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineN='create_multipole_section',&
-         routineP=moduleN//':'//routineN
-    TYPE(keyword_type), POINTER :: keyword
-    TYPE(section_type), POINTER :: subsection
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_multipole_section', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
+    TYPE(section_type), POINTER              :: subsection
+
     failure=.FALSE.
     
     CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
@@ -2531,21 +2563,24 @@ SUBROUTINE create_tddfpt_section(section,error)
 !!
 !!*** **********************************************************************
   SUBROUTINE create_gspace_interp_section(section,error)
-    TYPE(section_type), POINTER :: section
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-    
-    LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineN='create_gspace_interp_section',&
-         routineP=moduleN//':'//routineN
-    TYPE(keyword_type), POINTER :: keyword
-    TYPE(section_type), POINTER :: print_key
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_gspace_interp_section', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
+    TYPE(section_type), POINTER              :: print_key
+
     failure=.FALSE.
     
     CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
        CALL section_create(section,name="interpolator",&
             description="controls the interpolation for the G-space term",&
-            n_keywords=5, n_subsections=0, repeats=.FALSE., required=.false.,&
+            n_keywords=5, n_subsections=0, repeats=.FALSE., required=.FALSE.,&
             error=error)
 
        NULLIFY(keyword, print_key)
@@ -2595,7 +2630,7 @@ SUBROUTINE create_tddfpt_section(section,error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
-       nullify(print_key)
+       NULLIFY(print_key)
        CALL cp_print_key_section_create(print_key,"conv_info",&
             description="if convergence information about the linear solver"//&
             " of the spline methods should be printed", &
@@ -2629,15 +2664,17 @@ SUBROUTINE create_tddfpt_section(section,error)
 !!
 !!*** **********************************************************************
   SUBROUTINE create_mt_section(section,error)
-    TYPE(section_type), pointer :: section
-    type(cp_error_type), optional, intent(inout) :: error
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    logical :: failure
-    character(len=*), parameter :: routineN='create_mt_section',&
-         routineP=moduleN//':'//routineN
-    TYPE(keyword_type), pointer :: keyword
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_mt_section', &
+      routineP = moduleN//':'//routineN
 
-    failure=.false.
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
+
+    failure=.FALSE.
 
     CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
@@ -2689,14 +2726,16 @@ SUBROUTINE create_tddfpt_section(section,error)
 !!
 !!*** **********************************************************************
   SUBROUTINE create_harris_section(section,error)
-    TYPE(section_type), POINTER :: section
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-    
-    LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineN='create_harris_section',&
-         routineP=moduleN//':'//routineN
-    TYPE(keyword_type), POINTER :: keyword
-    
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_harris_section', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
+
     failure=.FALSE.
     
     CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
@@ -2741,23 +2780,26 @@ SUBROUTINE create_tddfpt_section(section,error)
 !!
 !!*** **********************************************************************
   SUBROUTINE create_mgrid_section(section,error)
-    TYPE(section_type), pointer :: section
-    type(cp_error_type), optional, intent(inout) :: error
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    logical :: failure
-    character(len=*), parameter :: routineN='create_mgrid_section',&
-         routineP=moduleN//':'//routineN
-    TYPE(section_type), POINTER :: subsection
-    TYPE(keyword_type), pointer :: keyword
-    failure=.false.
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_mgrid_section', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
+    TYPE(section_type), POINTER              :: subsection
+
+    failure=.FALSE.
 
     CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
        CALL section_create(section,name="mgrid",&
             description="multigrid information",&
-            n_keywords=5, n_subsections=1, repeats=.FALSE., required=.false.,&
+            n_keywords=5, n_subsections=1, repeats=.FALSE., required=.FALSE.,&
             error=error)
-       nullify(keyword)
+       NULLIFY(keyword)
        CALL keyword_create(keyword, name="ngrids",&
             description="The number of multigrids to use",&
             usage="ngrids 1", default_i_val=4, error=error)
@@ -2853,21 +2895,24 @@ SUBROUTINE create_tddfpt_section(section,error)
 !!
 !!*** **********************************************************************
   SUBROUTINE create_interp_section(section,error)
-    TYPE(section_type), POINTER :: section
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-    
-    LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineN='create_interp_section',&
-         routineP=moduleN//':'//routineN
-    TYPE(keyword_type), POINTER :: keyword
-    TYPE(section_type), POINTER :: print_key
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_interp_section', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
+    TYPE(section_type), POINTER              :: print_key
+
     failure=.FALSE.
     
     CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
        CALL section_create(section,name="interpolator",&
             description="kind of interpolation used between the multigrids",&
-            n_keywords=5, n_subsections=0, repeats=.FALSE., required=.false.,&
+            n_keywords=5, n_subsections=0, repeats=.FALSE., required=.FALSE.,&
             error=error)
 
        NULLIFY(keyword, print_key)
@@ -2936,7 +2981,7 @@ SUBROUTINE create_tddfpt_section(section,error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
-       nullify(print_key)
+       NULLIFY(print_key)
        CALL cp_print_key_section_create(print_key,"conv_info",&
             description="if convergence information about the linear solver"//&
             " of the spline methods should be printed", &
@@ -2968,23 +3013,26 @@ SUBROUTINE create_tddfpt_section(section,error)
 !!
 !!*** **********************************************************************
 SUBROUTINE create_sic_section(section,error)
-  TYPE(section_type), pointer :: section
-  type(cp_error_type), optional, intent(inout) :: error
-  
-  logical :: failure
-  character(len=*), parameter :: routineN='create_sic_section',&
-        routineP=moduleN//':'//routineN
-  TYPE(keyword_type), pointer :: keyword
-  failure=.false.
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_sic_section', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
+
+  failure=.FALSE.
   
   CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
   IF (.NOT. failure) THEN
      CALL section_create(section,"sic",&
          description="parameters for the self interaction correction",&
-         n_keywords=6, n_subsections=0, repeats=.FALSE., required=.false.,&
+         n_keywords=6, n_subsections=0, repeats=.FALSE., required=.FALSE.,&
          error=error)
 
-     nullify(keyword)
+     NULLIFY(keyword)
 
      CALL keyword_create(keyword, name="SIC_SCALING_A",&
           description="Scaling of the coulomb term in sic [experimental]",&
@@ -3029,14 +3077,17 @@ END SUBROUTINE create_sic_section
 !!   SOURCE
 !!*** **********************************************************************
 SUBROUTINE create_ot_section(section,error)
-  TYPE(section_type), pointer :: section
-  type(cp_error_type), optional, intent(inout) :: error
-  
-  logical :: failure
-  character(len=*), parameter :: routineN='create_ot_section',&
-        routineP=moduleN//':'//routineN
-  TYPE(keyword_type), pointer :: keyword
-  failure=.false.
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_ot_section', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
+
+  failure=.FALSE.
   
   CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
   IF (.NOT. failure) THEN
@@ -3044,15 +3095,15 @@ SUBROUTINE create_ot_section(section,error)
          description="Sets the various options for the orbital transformation (OT) method. "//&
                      "Default settings already provide an efficient, yet robust method. "//&
                      "Well-behaved systems might benefit from using a DIIS minimizer.",&
-         n_keywords=6, n_subsections=0, repeats=.FALSE., required=.false.,&
+         n_keywords=6, n_subsections=0, repeats=.FALSE., required=.FALSE.,&
          error=error)
 
-     nullify(keyword)
+     NULLIFY(keyword)
 
      CALL keyword_create(keyword, name="_SECTION_PARAMETERS_",&
           description="controls the activation of the ot method",&
           usage="&OT T",&
-          default_l_val=.false.,&
+          default_l_val=.FALSE.,&
           lone_keyword_l_val=.TRUE.,&
           error=error)
      CALL section_add_keyword(section,keyword,error=error)
@@ -3074,7 +3125,7 @@ SUBROUTINE create_ot_section(section,error)
             variants=(/"SAFER_DIIS"/),&
             description="Reject DIIS steps if they point away from the"//&
             " minimum, do SD in that case ",&
-            usage="SAFE_DIIS ON", default_l_val=.true.,error=error)
+            usage="SAFE_DIIS ON", default_l_val=.TRUE.,error=error)
      CALL section_add_keyword(section,keyword,error=error)
      CALL keyword_release(keyword,error=error)
 
@@ -3157,7 +3208,7 @@ SUBROUTINE create_ot_section(section,error)
           description="Introduce additional variables so that rotations of the occupied"//&
                       " subspace are allowed as well",&
           usage="ROTATION",lone_keyword_l_val=.TRUE.,&
-          default_l_val=.false.,error=error)
+          default_l_val=.FALSE.,error=error)
      CALL section_add_keyword(section,keyword,error=error)
      CALL keyword_release(keyword,error=error)
 
@@ -3180,15 +3231,18 @@ END SUBROUTINE create_ot_section
 !!   SOURCE
 !!*** **********************************************************************
   SUBROUTINE create_xas_section(section,error)
-    TYPE(section_type), pointer :: section
-    type(cp_error_type), optional, intent(inout) :: error
-  
-    logical :: failure
-    character(len=*), parameter :: routineN='create_xas_section',&
-        routineP=moduleN//':'//routineN
-    TYPE(section_type), POINTER :: subsection, print_key
-    TYPE(keyword_type), pointer :: keyword
-    failure=.false.
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_xas_section', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
+    TYPE(section_type), POINTER              :: print_key, subsection
+
+    failure=.FALSE.
   
     CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
@@ -3197,7 +3251,7 @@ END SUBROUTINE create_ot_section
                      "The occupied states from  which we calculate the "//&
                      "excitation should be specified. "//&
                      "Localization of the orbitals may be useful.",&
-         n_keywords=10, n_subsections=1, repeats=.FALSE., required=.false.,&
+         n_keywords=10, n_subsections=1, repeats=.FALSE., required=.FALSE.,&
          error=error)
 
       NULLIFY(keyword,subsection,print_key)
@@ -3205,7 +3259,7 @@ END SUBROUTINE create_ot_section
       CALL keyword_create(keyword, name="_SECTION_PARAMETERS_",&
           description="controls the activation of the xes/xas calculation",&
           usage="&XAS T",&
-          default_l_val=.false.,&
+          default_l_val=.FALSE.,&
           lone_keyword_l_val=.TRUE.,&
           error=error)
       CALL section_add_keyword(section,keyword,error=error)
@@ -3468,16 +3522,18 @@ END SUBROUTINE create_ot_section
 !!
 !!*** **********************************************************************
   SUBROUTINE create_linres_section(section,error)
-    TYPE(section_type), pointer :: section
-    type(cp_error_type), optional, intent(inout) :: error
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    logical :: failure
-    character(len=*), parameter :: routineN='create_linres_section',&
-         routineP=moduleN//':'//routineN
-    TYPE(keyword_type), pointer :: keyword
-    TYPE(section_type), POINTER :: subsection, print_key
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_linres_section', &
+      routineP = moduleN//':'//routineN
 
-    failure=.false.
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
+    TYPE(section_type), POINTER              :: print_key, subsection
+
+    failure=.FALSE.
     NULLIFY(keyword,subsection,print_key)
 
     CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
@@ -3602,15 +3658,17 @@ END SUBROUTINE create_ot_section
   END SUBROUTINE create_linres_section
 
   SUBROUTINE create_nmr_section(section,error)
-    TYPE(section_type), pointer :: section
-    type(cp_error_type), optional, intent(inout) :: error
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    logical :: failure
-    character(len=*), parameter :: routineN='create_linres_section',&
-         routineP=moduleN//':'//routineN
-    TYPE(keyword_type), pointer :: keyword
- 
-    failure=.false.
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_nmr_section', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
+
+    failure=.FALSE.
     NULLIFY(keyword)
 
     CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
@@ -3623,7 +3681,7 @@ END SUBROUTINE create_ot_section
        CALL keyword_create(keyword, name="_SECTION_PARAMETERS_",&
            description="controls the activation of the nmr calculation",&
            usage="&NMR T",&
-           default_l_val=.false.,&
+           default_l_val=.FALSE.,&
            lone_keyword_l_val=.TRUE.,&
            error=error)
        CALL section_add_keyword(section,keyword,error=error)
@@ -3676,15 +3734,17 @@ END SUBROUTINE create_ot_section
 !!
 !!*** **********************************************************************
 SUBROUTINE create_kg_section(section,error)
-  TYPE(section_type), pointer :: section
-  type(cp_error_type), optional, intent(inout) :: error
-  
-  logical :: failure
-  character(len=*), parameter :: routineN='create_kg_section',&
-        routineP=moduleN//':'//routineN
-  TYPE(section_type), pointer :: subsection
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-  failure=.false.
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_kg_section', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(section_type), POINTER              :: subsection
+
+  failure=.FALSE.
 
   CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
   IF (.NOT. failure) THEN
@@ -3692,7 +3752,7 @@ SUBROUTINE create_kg_section(section,error)
             description="The parameters specific to kg",&
             error=error)
 
-     nullify(subsection)
+     NULLIFY(subsection)
      CALL create_xc_fun_section(subsection,error=error)
      subsection%description="kinetic functional for the coupling of molecules"
      CALL section_add_subsection(section,subsection,error=error)

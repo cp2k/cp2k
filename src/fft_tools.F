@@ -47,15 +47,9 @@ MODULE fft_tools
                                              w_mfft2d => mfft2d,&
                                              w_mltfft => mltfft
   USE kinds,                           ONLY: dp
-  USE message_passing,                 ONLY: mp_alltoall,&
-                                             mp_cart_coords,&
-                                             mp_cart_rank,&
-                                             mp_cart_sub,&
-                                             mp_comm_compare,&
-                                             mp_comm_free,&
-                                             mp_environ,&
-                                             mp_rank_compare,&
-                                             mp_sum
+  USE message_passing,                 ONLY: &
+       mp_alltoall, mp_cart_coords, mp_cart_rank, mp_cart_sub, &
+       mp_comm_compare, mp_comm_free, mp_environ, mp_rank_compare, mp_sum
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
   USE timings,                         ONLY: timeset,&
@@ -114,7 +108,7 @@ SUBROUTINE init_fft ( fftlib, fftnum )
     CHARACTER(LEN=*), INTENT(IN), OPTIONAL   :: fftlib
     INTEGER, INTENT(IN), OPTIONAL            :: fftnum
 
-    COMPLEX(KIND=dp)                             :: zz( 4, 4, 4 )
+    COMPLEX(KIND=dp)                         :: zz( 4, 4, 4 )
     INTEGER                                  :: i, n(3) = 4, stat
 
   IF ( PRESENT ( fftlib ) ) THEN
@@ -134,7 +128,7 @@ SUBROUTINE init_fft ( fftlib, fftnum )
     fft_type = fftnum
     zz = 0.1_dp
     CALL fft3d ( 1, n, zz, status=stat )
-    IF ( stat /= 0 ) call stop_program ("init_fft","FFT library not available")
+    IF ( stat /= 0 ) CALL stop_program ("init_fft","FFT library not available")
   ELSE
     zz = 0.1_dp
     DO i = 1, 100
@@ -143,12 +137,12 @@ SUBROUTINE init_fft ( fftlib, fftnum )
       IF ( stat == 0 ) EXIT
       fft_type = 0
     END DO
-    IF (fft_type == 0 ) call stop_program ("init_fft",&
+    IF (fft_type == 0 ) CALL stop_program ("init_fft",&
                                            "No FFT library available")
   END IF
 
   IF ( PRESENT ( fftnum ) ) THEN
-    IF ( fft_type /= fftnum ) call stop_program ("init_fft",&
+    IF ( fft_type /= fftnum ) CALL stop_program ("init_fft",&
        " Inconsistent Arguments ")
   END IF
 
@@ -224,32 +218,32 @@ SUBROUTINE fft_radix_operations ( radix_in, radix_out, operation )
     INTEGER, INTENT(IN)                      :: operation
 
     INTEGER                                  :: i, iloc
-    INTEGER, DIMENSION(:), POINTER           :: data
+    INTEGER, DIMENSION(:), POINTER           :: DATA
 
 !------------------------------------------------------------------------------
 
   SELECT CASE ( fft_type )
   CASE ( 1 )
-    CALL sg_fft_get_lengths ( data, max_length = 1024 )
+    CALL sg_fft_get_lengths ( DATA, max_length = 1024 )
   CASE ( 2 )
-    CALL w_fft_get_lengths ( data, max_length = 5096 )
+    CALL w_fft_get_lengths ( DATA, max_length = 5096 )
   CASE ( 3 )
-    CALL i_fft_get_lengths ( data, max_length = 5096 )
+    CALL i_fft_get_lengths ( DATA, max_length = 5096 )
   CASE ( 4 )
-    CALL sgi_fft_get_lengths ( data, max_length = 1024 )
+    CALL sgi_fft_get_lengths ( DATA, max_length = 1024 )
   CASE DEFAULT
     CALL stop_program ("fft3d","Unknown FFT library")
   END SELECT
 
   iloc = 0
-  DO i = 1, SIZE ( data )
-     IF ( data ( i ) == radix_in ) THEN
+  DO i = 1, SIZE ( DATA )
+     IF ( DATA ( i ) == radix_in ) THEN
         iloc = i
         EXIT
      ELSE
         IF ( OPERATION == FFT_RADIX_ALLOWED ) THEN
            CYCLE
-        ELSE IF ( data ( i ) > radix_in ) THEN
+        ELSE IF ( DATA ( i ) > radix_in ) THEN
            iloc = i
            EXIT
         END IF
@@ -262,31 +256,31 @@ SUBROUTINE fft_radix_operations ( radix_in, radix_out, operation )
   END IF
 
   IF ( OPERATION == FFT_RADIX_ALLOWED ) THEN
-     IF ( data ( iloc ) == radix_in ) THEN
+     IF ( DATA ( iloc ) == radix_in ) THEN
         radix_out = FFT_RADIX_ALLOWED
      ELSE
         radix_out = FFT_RADIX_DISALLOWED
      END IF
 
   ELSE IF ( OPERATION == FFT_RADIX_CLOSEST ) THEN
-     IF ( data ( iloc ) == radix_in ) THEN
-        radix_out = data ( iloc )
+     IF ( DATA ( iloc ) == radix_in ) THEN
+        radix_out = DATA ( iloc )
      ELSE
-        IF ( ABS ( data ( iloc - 1 ) - radix_in ) <= &
-             ABS ( data ( iloc ) - radix_in ) ) THEN
-           radix_out = data ( iloc - 1 )
+        IF ( ABS ( DATA ( iloc - 1 ) - radix_in ) <= &
+             ABS ( DATA ( iloc ) - radix_in ) ) THEN
+           radix_out = DATA ( iloc - 1 )
         ELSE
-           radix_out = data ( iloc )
+           radix_out = DATA ( iloc )
         END IF
      END IF
 
   ELSE IF ( OPERATION == FFT_RADIX_NEXT ) THEN
-     radix_out = data ( iloc )
+     radix_out = DATA ( iloc )
 
   ELSE IF ( OPERATION == FFT_RADIX_NEXT_ODD ) THEN
-     DO i = iloc, SIZE ( data )
-       IF ( MOD ( data ( i ), 2 ) == 1 ) THEN
-         radix_out = data ( i )
+     DO i = iloc, SIZE ( DATA )
+       IF ( MOD ( DATA ( i ), 2 ) == 1 ) THEN
+         radix_out = DATA ( i )
          EXIT
        END IF
      END DO
@@ -300,7 +294,7 @@ SUBROUTINE fft_radix_operations ( radix_in, radix_out, operation )
   END IF
 
   ! seems to be allocated in fft_get_lengths
-  DEALLOCATE(data) 
+  DEALLOCATE(DATA) 
   
 END SUBROUTINE fft_radix_operations
 
@@ -333,7 +327,7 @@ SUBROUTINE fft1dm ( fsign, tin, tout, n, m, zin, zout, scale )
       INTENT(INOUT)                          :: zin
     COMPLEX(KIND=dp), DIMENSION(:, :), &
       INTENT(INOUT), OPTIONAL                :: zout
-    REAL(KIND=dp), INTENT(IN)                    :: scale
+    REAL(KIND=dp), INTENT(IN)                :: scale
 
     INTEGER                                  :: sign
 
@@ -392,7 +386,7 @@ SUBROUTINE fft2dm ( fsign, tin, tout, na, nb, m, zin, zout, scale )
       INTENT(INOUT)                          :: zin
     COMPLEX(KIND=dp), DIMENSION(:, :, :), &
       INTENT(INOUT), OPTIONAL                :: zout
-    REAL(KIND=dp), INTENT(IN)                    :: scale
+    REAL(KIND=dp), INTENT(IN)                :: scale
 
     INTEGER                                  :: sign
 
@@ -450,13 +444,13 @@ SUBROUTINE fft3d_s ( fsign, n, zin, zout, scale, status, debug )
       INTENT(INOUT)                          :: zin
     COMPLEX(KIND=dp), DIMENSION(:, :, :), &
       INTENT(INOUT), OPTIONAL                :: zout
-    REAL(KIND=dp), INTENT(IN), OPTIONAL          :: scale
+    REAL(KIND=dp), INTENT(IN), OPTIONAL      :: scale
     INTEGER, INTENT(OUT), OPTIONAL           :: status
     LOGICAL, INTENT(IN), OPTIONAL            :: debug
 
     INTEGER                                  :: handle, ld(3), lo(3), sign
     LOGICAL                                  :: test
-    REAL(KIND=dp)                                :: flops, in_sum, norm, nx, &
+    REAL(KIND=dp)                            :: flops, in_sum, norm, nx, &
                                                 out_sum
 
 !------------------------------------------------------------------------------
@@ -550,7 +544,7 @@ SUBROUTINE fft3d_ps ( fsign, n, cin, gin, gs_group, rs_group, yzp, nyzray, &
     INTEGER, DIMENSION(0:), INTENT(IN)       :: nyzray
     INTEGER, DIMENSION(:, :, 0:, :), &
       INTENT(IN)                             :: bo
-    REAL(KIND=dp), INTENT(IN), OPTIONAL          :: scale
+    REAL(KIND=dp), INTENT(IN), OPTIONAL      :: scale
     INTEGER, INTENT(OUT), OPTIONAL           :: status
     LOGICAL, INTENT(IN), OPTIONAL            :: debug
 
@@ -562,7 +556,7 @@ SUBROUTINE fft3d_ps ( fsign, n, cin, gin, gs_group, rs_group, yzp, nyzray, &
       numtask, numtask_g, numtask_r, nx, ny, nz, r_dim(2), r_pos(2), rp, sign
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: p2p
     LOGICAL                                  :: test
-    REAL(KIND=dp)                                :: flops, nf, norm, sum_data
+    REAL(KIND=dp)                            :: flops, nf, norm, sum_data
 
 !------------------------------------------------------------------------------
 
@@ -993,7 +987,7 @@ SUBROUTINE fft3d_pb ( fsign, n, zin, gin, group, bo, scale, status, debug )
     INTEGER, INTENT(IN)                      :: group
     INTEGER, DIMENSION(:, :, 0:, :), &
       INTENT(IN)                             :: bo
-    REAL(KIND=dp), INTENT(IN), OPTIONAL          :: scale
+    REAL(KIND=dp), INTENT(IN), OPTIONAL      :: scale
     INTEGER, INTENT(OUT), OPTIONAL           :: status
     LOGICAL, INTENT(IN), OPTIONAL            :: debug
 
@@ -1003,7 +997,7 @@ SUBROUTINE fft3d_pb ( fsign, n, zin, gin, group, bo, scale, status, debug )
                                                 mx, my, my_pos, mz, np, sign
     INTEGER, DIMENSION(2)                    :: dim, pos
     LOGICAL                                  :: test
-    REAL(KIND=dp)                                :: flops, norm, nx, sum_data
+    REAL(KIND=dp)                            :: flops, norm, nx, sum_data
 
 !------------------------------------------------------------------------------
 ! "Real Space"  1) xyZ      or      1) xYZ
@@ -1058,7 +1052,7 @@ SUBROUTINE fft3d_pb ( fsign, n, zin, gin, group, bo, scale, status, debug )
     END IF
   END IF
 
-  IF ( dim ( 1 ) > 1 .AND. dim ( 2 ) > 1 ) THEN
+  IF ( DIM ( 1 ) > 1 .AND. DIM ( 2 ) > 1 ) THEN
 
     !
     ! First case; two stages of communication
@@ -1284,7 +1278,7 @@ SUBROUTINE fft3d_pb ( fsign, n, zin, gin, group, bo, scale, status, debug )
       CALL stop_program ( "fft3d", "Illegal fsign parameter" )
     ENDIF
 
-  ELSEIF ( dim ( 2 ) == 1 ) THEN
+  ELSEIF ( DIM ( 2 ) == 1 ) THEN
 
     !
     ! Second case; one stage of communication
@@ -1323,7 +1317,7 @@ SUBROUTINE fft3d_pb ( fsign, n, zin, gin, group, bo, scale, status, debug )
       ALLOCATE ( abuf ( mx*mz, n(2) ), STAT = ierr )
       IF ( ierr /= 0 ) CALL stop_memory ( "fft3d", "abuf", mx*mz*n(2) )
 
-      call zcopy ( n ( 3 ) * mx*my, bbuf,1,abuf,1)
+      CALL zcopy ( n ( 3 ) * mx*my, bbuf,1,abuf,1)
 
       DEALLOCATE ( bbuf, STAT = ierr )
       IF ( ierr /= 0 ) CALL stop_memory ( "fft3d", "bbuf" )
@@ -1540,7 +1534,7 @@ SUBROUTINE x_to_yz ( sb, group, my_pos, p2p, yzp, nray, bo, tb )
                                                 ixx, iy, iz, mpr, nm, np, nr, &
                                                 nx
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: rcount, rdispl, scount, sdispl
-    REAL(KIND=dp)                                :: flop
+    REAL(KIND=dp)                            :: flop
 
 !------------------------------------------------------------------------------
 
@@ -1640,7 +1634,7 @@ SUBROUTINE yz_to_x ( tb, group, my_pos, p2p, yzp, nray, bo, sb )
                                                 ixx, iy, iz, mpr, nm, np, nr, &
                                                 nx
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: rcount, rdispl, scount, sdispl
-    REAL(KIND=dp)                                :: flop
+    REAL(KIND=dp)                            :: flop
 
 !------------------------------------------------------------------------------
 
@@ -1743,7 +1737,7 @@ SUBROUTINE yz_to_xz ( sb, group, dims, my_pos, p2p, yzp, nray, bo, tb )
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: rcount, rdispl, scount, &
                                                 sdispl, xcor, zcor
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: pgrid
-    REAL(KIND=dp)                                :: flop
+    REAL(KIND=dp)                            :: flop
 
 !------------------------------------------------------------------------------
 
@@ -1822,7 +1816,7 @@ SUBROUTINE yz_to_xz ( sb, group, dims, my_pos, p2p, yzp, nray, bo, tb )
     DO jx = 0, bo ( 2, 1, rs_pos ) - bo ( 1, 1, rs_pos )
       DO ir = 1, nray ( ip )
         jz = yzp ( 2, ir, ip )
-        if ( zcor ( jz ) == myz ) THEN
+        IF ( zcor ( jz ) == myz ) THEN
           jj = jj + 1
           jy = yzp ( 1, ir, ip )
           jz = jz - bo ( 1, 3, rs_pos ) + 1
@@ -1894,7 +1888,7 @@ SUBROUTINE xz_to_yz ( sb, group, dims, my_pos, p2p, yzp, nray, bo, tb )
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: rcount, rdispl, scount, &
                                                 sdispl, xcor, zcor
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: pgrid
-    REAL(KIND=dp)                                :: flop
+    REAL(KIND=dp)                            :: flop
 
 !------------------------------------------------------------------------------
 
@@ -1964,7 +1958,7 @@ SUBROUTINE xz_to_yz ( sb, group, dims, my_pos, p2p, yzp, nray, bo, tb )
     ipl = p2p ( ip )
     DO ir = 1, nray ( ip )
       jz = yzp ( 2, ir, ip )
-      if ( zcor ( jz ) == myz ) THEN
+      IF ( zcor ( jz ) == myz ) THEN
         jj = jj + 1
         jy = yzp ( 1, ir, ip )
         jz = yzp ( 2, ir, ip ) - bo ( 1, 3, mp ) + 1
@@ -2065,7 +2059,7 @@ SUBROUTINE cube_transpose_1 ( sin, group, boin, boout, sout )
   CALL mp_cart_sub ( group, rdim, sub_group )
 
 
-  np = dim ( 2 )
+  np = DIM ( 2 )
   ALLOCATE ( scount ( 0 : np - 1 ), sdispl ( 0 : np - 1 ), &
              rcount ( 0 : np - 1 ), rdispl ( 0 : np - 1 ), STAT = ierr )
   IF ( ierr /= 0 ) CALL stop_memory ( "cube_transpose", "scount", 4*np )
@@ -2158,7 +2152,7 @@ SUBROUTINE cube_transpose_2 ( sin, group, boin, boout, sout )
   CALL mp_cart_rank ( group, pos, mip )
   CALL mp_cart_sub ( group, rdim, sub_group )
 
-  np = dim ( 2 )
+  np = DIM ( 2 )
   ALLOCATE ( scount ( 0 : np - 1 ), sdispl ( 0 : np - 1 ), &
              rcount ( 0 : np - 1 ), rdispl ( 0 : np - 1 ), STAT = ierr )
   IF ( ierr /= 0 ) CALL stop_memory ( "cube_transpose", "scount", 4*np )
@@ -2185,7 +2179,7 @@ SUBROUTINE cube_transpose_2 ( sin, group, boin, boout, sout )
       nz = boout ( 2, 3, ipl ) - boout ( 1, 3, ipl ) + 1
       DO iz = boout ( 1, 3, ipl ), boout ( 2, 3, ipl )
         ir = iz - boout ( 1, 3, ipl ) + 1 + ( ixy - 1 ) * nz
-        rbuf ( ir, ip ) = sin ( iz, ixy )
+        rbuf ( ir, ip ) = SIN ( iz, ixy )
       END DO
     END DO
   END DO
@@ -2252,7 +2246,7 @@ SUBROUTINE cube_transpose_3 ( sin, group, boin, boout, sout )
   CALL mp_cart_rank ( group, pos, mip )
   CALL mp_cart_sub ( group, rdim, sub_group )
 
-  np = dim ( 1 )
+  np = DIM ( 1 )
   ALLOCATE ( scount ( 0 : np - 1 ), sdispl ( 0 : np - 1 ), &
              rcount ( 0 : np - 1 ), rdispl ( 0 : np - 1 ), STAT = ierr )
   IF ( ierr /= 0 ) CALL stop_memory ( "cube_transpose", "scount", 4*np )
@@ -2345,7 +2339,7 @@ SUBROUTINE cube_transpose_4 ( sin, group, boin, boout, sout )
   CALL mp_cart_rank ( group, pos, mip )
   CALL mp_cart_sub ( group, rdim, sub_group )
 
-  np = dim ( 1 )
+  np = DIM ( 1 )
   ALLOCATE ( scount ( 0 : np - 1 ), sdispl ( 0 : np - 1 ), &
              rcount ( 0 : np - 1 ), rdispl ( 0 : np - 1 ), STAT = ierr )
   IF ( ierr /= 0 ) CALL stop_memory ( "cube_transpose", "scount", 4*np )
@@ -2372,7 +2366,7 @@ SUBROUTINE cube_transpose_4 ( sin, group, boin, boout, sout )
       ny = boout ( 2, 2, ipl ) - boout ( 1, 2, ipl ) + 1
       DO iy = boout ( 1, 2, ipl ), boout ( 2, 2, ipl )
         ir = iy - boout ( 1, 2, ipl ) + 1 + ( izx - 1 ) * ny
-        rbuf ( ir, ip ) = sin ( iy, izx )
+        rbuf ( ir, ip ) = SIN ( iy, izx )
       END DO
     END DO
   END DO
@@ -2521,7 +2515,7 @@ SUBROUTINE cube_transpose_6 ( sin, group, boin, boout, sout )
       ny = boout ( 2, 2, ip ) - boout ( 1, 2, ip ) + 1
       DO iy = boout ( 1, 2, ip ), boout ( 2, 2, ip )
         ir = iy - boout ( 1, 2, ip ) + 1 + ( izx - 1 ) * ny
-        rbuf ( ir, ip ) = sin ( iy, izx )
+        rbuf ( ir, ip ) = SIN ( iy, izx )
       END DO
     END DO
   END DO

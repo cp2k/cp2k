@@ -72,7 +72,7 @@ MODULE xc_pade
                           db3 = 0.2052004607777787E+0_dp,&
                           db4 = 0.4200005045691381E-2_dp
 
-  CHARACTER(LEN=*), PARAMETER :: moduleN = "xc_pade"
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'xc_pade'
 
   PUBLIC :: pade, pade_lda_pw_eval, pade_lsd_pw_eval
 
@@ -94,7 +94,7 @@ CONTAINS
 
   SUBROUTINE pade_init ( cutoff, debug )
 
-    REAL(KIND=dp), INTENT(IN)                    :: cutoff
+    REAL(KIND=dp), INTENT(IN)                :: cutoff
     LOGICAL, INTENT(IN), OPTIONAL            :: debug
 
     eps_rho = cutoff
@@ -120,8 +120,8 @@ CONTAINS
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = "pade_info", &
-      routineP = moduleN//"/"//routineN
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'pade_info', &
+      routineP = moduleN//':'//routineN
 
     IF ( PRESENT ( reference ) ) THEN
        reference = "S. Goedecker, M. Teter and J. Hutter," &
@@ -152,7 +152,7 @@ CONTAINS
 !   ---------------------------------------------------------------------------
 
     TYPE(xc_derivative_set_type), POINTER    :: derivative_set
-    REAL(KIND=dp), DIMENSION(:), INTENT(IN)      :: rho
+    REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: rho
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(INOUT)                          :: pot
     INTEGER, INTENT(IN), OPTIONAL            :: order
@@ -160,7 +160,7 @@ CONTAINS
     INTEGER                                  :: error, m, m1, m2, mp, mt, &
                                                 mx(0:3,2), n
     LOGICAL                                  :: calc(0:4)
-    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)     :: rs
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: rs
 
 !   ---------------------------------------------------------------------------
 
@@ -212,7 +212,7 @@ CONTAINS
 
     INTEGER                                  :: n, stat
     LOGICAL                                  :: calc(0:4)
-    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)     :: rs
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: rs
     REAL(KIND=dp), DIMENSION(:, :, :), &
       POINTER                                :: e_0, e_r, e_rr, e_rrr
     TYPE(xc_derivative_type), POINTER        :: deriv
@@ -270,7 +270,7 @@ CONTAINS
   SUBROUTINE pade_lsd ( derivative_set, rhoa, rhob, pot, order )
 
     TYPE(xc_derivative_set_type), POINTER    :: derivative_set
-    REAL(KIND=dp), DIMENSION(:), INTENT(IN)      :: rhoa, rhob
+    REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: rhoa, rhob
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(INOUT)                          :: pot
     INTEGER, INTENT(IN), OPTIONAL            :: order
@@ -278,8 +278,8 @@ CONTAINS
     INTEGER                                  :: i, m, m1, m2, mp, mt, &
                                                 mx(0:3,2), n
     LOGICAL                                  :: calc(0:4)
-    REAL(KIND=dp)                                :: rs
-    REAL(KIND=dp), DIMENSION(4)                  :: fx
+    REAL(KIND=dp)                            :: rs
+    REAL(KIND=dp), DIMENSION(4)              :: fx
 
 !   ---------------------------------------------------------------------------
 
@@ -343,8 +343,8 @@ CONTAINS
 
     INTEGER                                  :: i, j, k
     LOGICAL                                  :: calc(0:4)
-    REAL(KIND=dp)                                :: rhoa, rhob, rs
-    REAL(KIND=dp), DIMENSION(4)                  :: fx
+    REAL(KIND=dp)                            :: rhoa, rhob, rs
+    REAL(KIND=dp), DIMENSION(4)              :: fx
     REAL(KIND=dp), DIMENSION(:, :, :), &
       POINTER                                :: e_0, e_ra, e_rara, e_rarara, &
                                                 e_rararb, e_rarb, e_rarbrb, &
@@ -436,11 +436,12 @@ CONTAINS
   SUBROUTINE pade_lda_0(n, rho, rs, pot)
 
     INTEGER, INTENT(IN)                      :: n
-    REAL(KIND=dp), DIMENSION(*), INTENT(IN)      :: rho, rs
-    REAL(KIND=dp), DIMENSION(*), INTENT(INOUT)   :: pot
+    REAL(KIND=dp), DIMENSION(*), INTENT(IN)  :: rho, rs
+    REAL(KIND=dp), DIMENSION(*), &
+      INTENT(INOUT)                          :: pot
 
     INTEGER                                  :: ip
-    REAL(KIND=dp)                                :: epade, p, q
+    REAL(KIND=dp)                            :: epade, p, q
 
 !   ---------------------------------------------------------------------------
 
@@ -462,11 +463,12 @@ CONTAINS
   SUBROUTINE pade_lda_1(n, rho, rs, pot)
 
     INTEGER, INTENT(IN)                      :: n
-    REAL(KIND=dp), DIMENSION(*), INTENT(IN)      :: rho, rs
-    REAL(KIND=dp), DIMENSION(*), INTENT(INOUT)   :: pot
+    REAL(KIND=dp), DIMENSION(*), INTENT(IN)  :: rho, rs
+    REAL(KIND=dp), DIMENSION(*), &
+      INTENT(INOUT)                          :: pot
 
     INTEGER                                  :: ip
-    REAL(KIND=dp)                                :: depade, dpv, dq, epade, p, q
+    REAL(KIND=dp)                            :: depade, dpv, dq, epade, p, q
 
 !   ---------------------------------------------------------------------------
 
@@ -495,11 +497,12 @@ CONTAINS
   SUBROUTINE pade_lda_01(n, rho, rs, pot0, pot1)
 
     INTEGER, INTENT(IN)                      :: n
-    REAL(KIND=dp), DIMENSION(*), INTENT(IN)      :: rho, rs
-    REAL(KIND=dp), DIMENSION(*), INTENT(INOUT)   :: pot0, pot1
+    REAL(KIND=dp), DIMENSION(*), INTENT(IN)  :: rho, rs
+    REAL(KIND=dp), DIMENSION(*), &
+      INTENT(INOUT)                          :: pot0, pot1
 
     INTEGER                                  :: ip
-    REAL(KIND=dp)                                :: depade, dpv, dq, epade, p, q
+    REAL(KIND=dp)                            :: depade, dpv, dq, epade, p, q
 
 !   ---------------------------------------------------------------------------
 
@@ -529,11 +532,12 @@ CONTAINS
   SUBROUTINE pade_lda_2(n, rho, rs, pot)
 
     INTEGER, INTENT(IN)                      :: n
-    REAL(KIND=dp), DIMENSION(*), INTENT(IN)      :: rho, rs
-    REAL(KIND=dp), DIMENSION(*), INTENT(INOUT)   :: pot
+    REAL(KIND=dp), DIMENSION(*), INTENT(IN)  :: rho, rs
+    REAL(KIND=dp), DIMENSION(*), &
+      INTENT(INOUT)                          :: pot
 
     INTEGER                                  :: ip
-    REAL(KIND=dp)                                :: d2p, d2q, dpv, dq, p, q, rsr, &
+    REAL(KIND=dp)                            :: d2p, d2q, dpv, dq, p, q, rsr, &
                                                 t1, t2, t3
 
 !   ---------------------------------------------------------------------------
@@ -569,11 +573,12 @@ CONTAINS
   SUBROUTINE pade_lda_3(n, rho, rs, pot)
 
     INTEGER, INTENT(IN)                      :: n
-    REAL(KIND=dp), DIMENSION(*), INTENT(IN)      :: rho, rs
-    REAL(KIND=dp), DIMENSION(*), INTENT(INOUT)   :: pot
+    REAL(KIND=dp), DIMENSION(*), INTENT(IN)  :: rho, rs
+    REAL(KIND=dp), DIMENSION(*), &
+      INTENT(INOUT)                          :: pot
 
     INTEGER                                  :: ip
-    REAL(KIND=dp)                                :: ab1, ab2, ab3, d2p, d2q, d3p, &
+    REAL(KIND=dp)                            :: ab1, ab2, ab3, d2p, d2q, d3p, &
                                                 d3q, dpv, dq, p, q, rsr1, &
                                                 rsr2, rsr3
 
@@ -615,11 +620,11 @@ CONTAINS
 
   SUBROUTINE pade_lsd_0(rhoa, rhob, rs, fx, pot0 )
 
-    REAL(KIND=dp), INTENT(IN)                    :: rhoa, rhob, rs
-    REAL(KIND=dp), DIMENSION(:), INTENT(IN)      :: fx
-    REAL(KIND=dp), INTENT(INOUT)                 :: pot0
+    REAL(KIND=dp), INTENT(IN)                :: rhoa, rhob, rs
+    REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: fx
+    REAL(KIND=dp), INTENT(INOUT)             :: pot0
 
-    REAL(KIND=dp)                                :: fa0, fa1, fa2, fa3, fb1, fb2, &
+    REAL(KIND=dp)                            :: fa0, fa1, fa2, fa3, fb1, fb2, &
                                                 fb3, fb4, p, q, rhoab
 
 !   ---------------------------------------------------------------------------
@@ -650,13 +655,13 @@ CONTAINS
 
   SUBROUTINE pade_lsd_1 ( rhoa, rhob, rs, fx, pota, potb )
 
-    REAL(KIND=dp), INTENT(IN)                    :: rhoa, rhob, rs
-    REAL(KIND=dp), DIMENSION(:), INTENT(IN)      :: fx
-    REAL(KIND=dp), INTENT(INOUT)                 :: pota, potb
+    REAL(KIND=dp), INTENT(IN)                :: rhoa, rhob, rs
+    REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: fx
+    REAL(KIND=dp), INTENT(INOUT)             :: pota, potb
 
-    REAL(KIND=dp)                                :: dc, dpv, dq, dr, dx, fa0, fa1, &
-                                                fa2, fa3, fb1, fb2, fb3, fb4, &
-                                                p, q, rhoab, xp, xq
+    REAL(KIND=dp)                            :: dc, dpv, dq, dr, dx, fa0, &
+                                                fa1, fa2, fa3, fb1, fb2, fb3, &
+                                                fb4, p, q, rhoab, xp, xq
 
 !   ---------------------------------------------------------------------------
 
@@ -696,13 +701,13 @@ CONTAINS
 
   SUBROUTINE pade_lsd_01 ( rhoa, rhob, rs, fx, pot0, pota, potb )
 
-    REAL(KIND=dp), INTENT(IN)                    :: rhoa, rhob, rs
-    REAL(KIND=dp), DIMENSION(:), INTENT(IN)      :: fx
-    REAL(KIND=dp), INTENT(INOUT)                 :: pot0, pota, potb
+    REAL(KIND=dp), INTENT(IN)                :: rhoa, rhob, rs
+    REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: fx
+    REAL(KIND=dp), INTENT(INOUT)             :: pot0, pota, potb
 
-    REAL(KIND=dp)                                :: dc, dpv, dq, dr, dx, fa0, fa1, &
-                                                fa2, fa3, fb1, fb2, fb3, fb4, &
-                                                p, q, rhoab, xp, xq
+    REAL(KIND=dp)                            :: dc, dpv, dq, dr, dx, fa0, &
+                                                fa1, fa2, fa3, fb1, fb2, fb3, &
+                                                fb4, p, q, rhoab, xp, xq
 
 !   ---------------------------------------------------------------------------
 
@@ -743,11 +748,11 @@ CONTAINS
 
   SUBROUTINE pade_lsd_2 (rhoa, rhob, rs, fx, potaa, potab, potbb )
 
-    REAL(KIND=dp), INTENT(IN)                    :: rhoa, rhob, rs
-    REAL(KIND=dp), DIMENSION(:), INTENT(IN)      :: fx
-    REAL(KIND=dp), INTENT(INOUT)                 :: potaa, potab, potbb
+    REAL(KIND=dp), INTENT(IN)                :: rhoa, rhob, rs
+    REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: fx
+    REAL(KIND=dp), INTENT(INOUT)             :: potaa, potab, potbb
 
-    REAL(KIND=dp)                                :: d2p, d2q, dpv, dq, dr, drr, &
+    REAL(KIND=dp)                            :: d2p, d2q, dpv, dq, dr, drr, &
                                                 dx, dxp, dxq, dxr, dxx, fa0, &
                                                 fa1, fa2, fa3, fb1, fb2, fb3, &
                                                 fb4, or, p, q, rhoab, xp, xq, &
@@ -816,12 +821,12 @@ CONTAINS
 
   SUBROUTINE pade_lsd_3 ( rhoa, rhob, rs, fx, potaaa, potaab, potabb, potbbb )
 
-    REAL(KIND=dp), INTENT(IN)                    :: rhoa, rhob, rs
-    REAL(KIND=dp), DIMENSION(:), INTENT(IN)      :: fx
-    REAL(KIND=dp), INTENT(INOUT)                 :: potaaa, potaab, potabb, potbbb
+    REAL(KIND=dp), INTENT(IN)                :: rhoa, rhob, rs
+    REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: fx
+    REAL(KIND=dp), INTENT(INOUT)             :: potaaa, potaab, potabb, potbbb
 
-    REAL(KIND=dp) :: d2p, d2q, d2xp, d2xq, d3p, d3q, dpv, dq, dr, drr, drrr, dx, &
-      dxp, dxq, dxr, dxrr, dxx, dxxr, dxxx, fa0, fa1, fa2, fa3, fb1, fb2, &
+    REAL(KIND=dp) :: d2p, d2q, d2xp, d2xq, d3p, d3q, dpv, dq, dr, drr, drrr, &
+      dx, dxp, dxq, dxr, dxrr, dxx, dxxr, dxxx, fa0, fa1, fa2, fa3, fb1, fb2, &
       fb3, fb4, or, p, q, rhoab, xp, xq, xt, yt
 
 !   ---------------------------------------------------------------------------

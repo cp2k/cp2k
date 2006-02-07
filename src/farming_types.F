@@ -18,7 +18,7 @@ MODULE farming_types
      INTEGER :: ngroup_wish          
      LOGICAL :: ngroup_wish_set      
      LOGICAL :: restart
-     LOGICAL :: cycle
+     LOGICAL :: CYCLE
      INTEGER, DIMENSION(:), POINTER                              :: group_partition ! user preference for partitioning the cpus
      CHARACTER(LEN=default_path_length)                          :: cwd        ! directory we started from
      INTEGER                                                     :: Njobs      ! how many jobs to run

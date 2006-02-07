@@ -36,7 +36,7 @@ MODULE replica_methods
   PRIVATE
 
   LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
-  CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='replica_methods'
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'replica_methods'
 
   INTEGER, SAVE, PRIVATE :: last_rep_env_id=0
 

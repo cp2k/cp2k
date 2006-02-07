@@ -25,7 +25,8 @@
 !!   SOURCE
 !****************************************************************************
 MODULE cp_para_env
-  USE cp_para_types,                   ONLY: cp_para_env_type, cp_para_cart_type
+  USE cp_para_types,                   ONLY: cp_para_cart_type,&
+                                             cp_para_env_type
   USE kinds,                           ONLY: dp
   USE message_passing,                 ONLY: mp_comm_dup,&
                                              mp_comm_free,&
@@ -38,7 +39,7 @@ MODULE cp_para_env
   PRIVATE
 
   LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
-  CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='cp_para_env'
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_para_env'
 
   PUBLIC :: cp_para_env_retain, cp_para_env_release, cp_para_env_create, &
       cp_para_env_duplicate,&
@@ -402,9 +403,8 @@ END SUBROUTINE cp_para_env_write
 !!*** **********************************************************************
 SUBROUTINE cp_cart_create(cart, group, ndims,owns_group, error)
     TYPE(cp_para_cart_type), POINTER         :: cart
-    INTEGER, INTENT(in)                      :: group
-    INTEGER, INTENT(in) :: ndims
-    LOGICAL, INTENT(in), OPTIONAL :: owns_group
+    INTEGER, INTENT(in)                      :: group, ndims
+    LOGICAL, INTENT(in), OPTIONAL            :: owns_group
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -420,7 +420,7 @@ SUBROUTINE cp_cart_create(cart, group, ndims,owns_group, error)
     ALLOCATE(cart,stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     IF (.NOT.failure) THEN
-       cart%owns_group=.true.
+       cart%owns_group=.TRUE.
        IF (PRESENT(owns_group)) cart%owns_group=owns_group
        cart%ndims=ndims
        cart%group=group
@@ -430,7 +430,7 @@ SUBROUTINE cp_cart_create(cart, group, ndims,owns_group, error)
        
        cart%source=0
        cart%mepos=0
-       cart%periodic=.false.
+       cart%periodic=.FALSE.
        cart%ref_count=1
        cart%ntask=1
        CALL cp_cart_update(cart,error=error)
@@ -459,14 +459,16 @@ SUBROUTINE cp_cart_create(cart, group, ndims,owns_group, error)
 !!
 !!*** **********************************************************************
 SUBROUTINE cp_cart_update(cart,error)
-  TYPE(cp_para_cart_type), pointer :: cart
-  type(cp_error_type), optional, intent(inout) :: error
-  
-  logical :: failure
-  character(len=*), parameter :: routineN='cp_cart_update',&
-        routineP=moduleN//':'//routineN
+    TYPE(cp_para_cart_type), POINTER         :: cart
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-  failure=.false.
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_cart_update', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+
+  failure=.FALSE.
   
   CPPrecondition(ASSOCIATED(cart),cp_failure_level,routineP,error,failure)
   CPPrecondition(cart%ref_count>0,cp_failure_level,routineP,error,failure)
@@ -499,29 +501,31 @@ END SUBROUTINE cp_cart_update
 !!
 !!*** **********************************************************************
 SUBROUTINE cp_cart_release(cart,error)
-  TYPE(cp_para_cart_type), pointer :: cart
-  type(cp_error_type), optional, intent(inout) :: error
-  
-  logical :: failure
-  character(len=*), parameter :: routineN='cp_cart_release',&
-        routineP=moduleN//':'//routineN
-  integer :: stat
+    TYPE(cp_para_cart_type), POINTER         :: cart
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-  failure=.false.
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_cart_release', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: stat
+    LOGICAL                                  :: failure
+
+  failure=.FALSE.
   
   IF (ASSOCIATED(cart)) THEN
      CPPrecondition(cart%ref_count>0,cp_failure_level,routineP,error,failure)
      cart%ref_count=cart%ref_count-1
      IF (cart%ref_count==0) THEN
-        if (cart%owns_group) then
+        IF (cart%owns_group) THEN
             CALL mp_comm_free(cart%group)
          END IF
-        deallocate(cart%source,cart%periodic,cart%mepos,stat=stat)
+        DEALLOCATE(cart%source,cart%periodic,cart%mepos,stat=stat)
         CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
         DEALLOCATE(cart,stat=stat)
      END IF
   END IF
-  nullify(cart)
+  NULLIFY(cart)
 END SUBROUTINE cp_cart_release
 !***************************************************************************
 
@@ -546,14 +550,16 @@ END SUBROUTINE cp_cart_release
 !!
 !!*** **********************************************************************
 SUBROUTINE cp_cart_retain(cart,error)
-  TYPE(cp_para_cart_type), pointer :: cart
-  type(cp_error_type), optional, intent(inout) :: error
-  
-  logical :: failure
-  character(len=*), parameter :: routineN='cp_cart_retain',&
-        routineP=moduleN//':'//routineN
+    TYPE(cp_para_cart_type), POINTER         :: cart
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-  failure=.false.
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_cart_retain', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+
+  failure=.FALSE.
   
   CPPrecondition(ASSOCIATED(cart),cp_failure_level,routineP,error,failure)
   IF (.NOT. failure) THEN

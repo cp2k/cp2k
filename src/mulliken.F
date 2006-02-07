@@ -24,24 +24,17 @@
 MODULE mulliken
   USE atomic_kind_types,               ONLY: get_atomic_kind
   USE cp_control_types,                ONLY: mulliken_restraint_type
-  USE cp_fm_types,                     ONLY: cp_fm_create,&
-                                             cp_fm_release,&
-                                             cp_fm_type
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE kinds,                           ONLY: dp
   USE message_passing,                 ONLY: mp_sum
   USE particle_types,                  ONLY: particle_type
-  USE qs_mo_types,                     ONLY: get_mo_set,&
-                                             mo_set_p_type
-  USE sparse_matrix_types,             ONLY: get_block_node,&
+  USE sparse_matrix_types,             ONLY: first_block_node,&
+                                             get_block_node,&
                                              get_matrix_info,&
-                                             first_block_node, &
-                                             next_block_node, &
+                                             next_block_node,&
                                              real_block_node_type,&
                                              real_matrix_p_type,&
-                                             real_matrix_type,&
-                                             replicate_matrix,&
-                                             set_matrix
+                                             real_matrix_type
   USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -50,7 +43,7 @@ MODULE mulliken
 
   PRIVATE
 
-  CHARACTER(len=*), PARAMETER :: module_name = "mulliken"
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'mulliken'
 
 ! *** Public subroutines ***
 
@@ -90,24 +83,26 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE mulliken_restraint(mulliken_restraint_control,para_env, &
                                 s_matrix,p_matrix,energy,order_p,ks_matrix,w_matrix)
-    TYPE(mulliken_restraint_type), INTENT(IN):: mulliken_restraint_control
+    TYPE(mulliken_restraint_type), &
+      INTENT(IN)                             :: mulliken_restraint_control
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(real_matrix_type), POINTER          :: s_matrix
     TYPE(real_matrix_p_type), DIMENSION(:), &
-                              POINTER        :: p_matrix
-
-    TYPE(real_matrix_p_type), DIMENSION(:), &
-                    POINTER, OPTIONAL        :: ks_matrix, w_matrix
+      POINTER                                :: p_matrix
     REAL(KIND=dp), OPTIONAL                  :: energy, order_p
+    TYPE(real_matrix_p_type), DIMENSION(:), &
+      OPTIONAL, POINTER                      :: ks_matrix, w_matrix
 
-    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: charges
-    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: charges_deriv
-    INTEGER :: iblock_row, iblock_col, ispin, nspin, nblock
-    REAL(kind=dp)                            :: mult, my_energy, strength, my_order_p
+    INTEGER                                  :: iblock_col, iblock_row, &
+                                                ispin, nblock, nspin
+    REAL(kind=dp)                            :: mult, my_energy, my_order_p
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: charges, charges_deriv, &
+                                                ks_block, p_block, s_block, &
+                                                w_block
     TYPE(real_block_node_type), POINTER      :: block_node
-    REAL(kind=dp), DIMENSION(:,:), POINTER   :: s_block, ks_block, p_block, w_block
 
-    ! here we get the numbers for charges
+! here we get the numbers for charges
+
     nspin=SIZE(p_matrix)
     CALL get_matrix_info(s_matrix,nblock_row=nblock)
 
@@ -213,11 +208,13 @@ CONTAINS
 !!*** **********************************************************************
 SUBROUTINE restraint_functional(mulliken_restraint_control,charges, &
                                 charges_deriv,energy,order_p)
-    TYPE(mulliken_restraint_type), INTENT(IN)  :: mulliken_restraint_control
-    REAL(KIND=dp), DIMENSION(:,:), POINTER     :: charges, charges_deriv
-    REAL(KIND=dp), INTENT(OUT)                 :: energy,order_p
-    REAL(KIND=dp)                              :: dum
-    INTEGER                                    :: I
+    TYPE(mulliken_restraint_type), &
+      INTENT(IN)                             :: mulliken_restraint_control
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: charges, charges_deriv
+    REAL(KIND=dp), INTENT(OUT)               :: energy, order_p
+
+    INTEGER                                  :: I
+    REAL(KIND=dp)                            :: dum
 
     charges_deriv=0.0_dp
     order_p=0.0_dp
@@ -255,13 +252,16 @@ END SUBROUTINE restraint_functional
 !!   SOURCE
 !!*** **********************************************************************
 SUBROUTINE rf_deriv_check(mulliken_restraint_control,charges)
-    TYPE(mulliken_restraint_type), INTENT(IN)  :: mulliken_restraint_control
-    REAL(KIND=dp), DIMENSION(:,:), POINTER     :: charges 
+    TYPE(mulliken_restraint_type), &
+      INTENT(IN)                             :: mulliken_restraint_control
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: charges
 
-    REAL(KIND=dp), PARAMETER                   :: stepsize=0.00001_dp
-    REAL(KIND=dp)                              :: energy1,energy2,dum
-    REAL(KIND=dp), DIMENSION(:,:), POINTER     :: charges_local, charges_deriv, deriv_num
-    INTEGER                                    :: I,J
+    REAL(KIND=dp), PARAMETER                 :: stepsize = 0.00001_dp
+
+    INTEGER                                  :: I, J
+    REAL(KIND=dp)                            :: dum, energy1, energy2
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: charges_deriv, charges_local, &
+                                                deriv_num
 
     ALLOCATE(charges_local(1:SIZE(charges,1),1:SIZE(charges,2)))
     ALLOCATE(charges_deriv(1:SIZE(charges,1),1:SIZE(charges,2)))
@@ -288,7 +288,7 @@ SUBROUTINE rf_deriv_check(mulliken_restraint_control,charges)
     ! analytic results vs deriv_num
     CALL restraint_functional(mulliken_restraint_control,charges, &
                                    charges_deriv,energy2,dum)
-    write(6,*) "deriv check : max abs diff, max abs", MAXVAL(ABS(charges_deriv-deriv_num)), &
+    WRITE(6,*) "deriv check : max abs diff, max abs", MAXVAL(ABS(charges_deriv-deriv_num)), &
                                                       MAXVAL(ABS(charges_deriv))
 
     DEALLOCATE(charges_local,charges_deriv,deriv_num)
@@ -317,17 +317,19 @@ END SUBROUTINE rf_deriv_check
 !!*** **********************************************************************
   SUBROUTINE compute_charges(p_matrix,s_matrix,charges,para_env)
     TYPE(real_matrix_p_type), DIMENSION(:), &
-                              POINTER        :: p_matrix
+      POINTER                                :: p_matrix
     TYPE(real_matrix_type), POINTER          :: s_matrix
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: charges
     TYPE(cp_para_env_type), POINTER          :: para_env
 
-    INTEGER :: iblock_row, iblock_col, ispin, nspin, nblock
+    INTEGER                                  :: iblock_col, iblock_row, &
+                                                ispin, nblock, nspin
     REAL(kind=dp)                            :: mult
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: p_block, s_block
     TYPE(real_block_node_type), POINTER      :: block_node
-    REAL(kind=dp), DIMENSION(:,:), POINTER   :: s_block, p_block
 
-    ! here we get the numbers for charges
+! here we get the numbers for charges
+
     nspin=SIZE(p_matrix)
     CALL get_matrix_info(s_matrix,nblock_row=nblock)
 
@@ -392,7 +394,7 @@ END SUBROUTINE rf_deriv_check
                               scr,ionode,title)
 
     TYPE(real_matrix_p_type), DIMENSION(:), &
-                              POINTER        :: p_matrix
+      POINTER                                :: p_matrix
     TYPE(real_matrix_type), POINTER          :: s_matrix
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(particle_type), DIMENSION(:), &
@@ -402,8 +404,8 @@ END SUBROUTINE rf_deriv_check
     CHARACTER(LEN=*)                         :: title
 
     CHARACTER(LEN=2)                         :: element_symbol
-    INTEGER                                  :: handle, i, iblock, &
-                                                ispin, nblock, nspin
+    INTEGER                                  :: handle, i, iblock, nblock, &
+                                                nspin
     REAL(KIND=dp)                            :: total_charge, zeff
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: charges
 

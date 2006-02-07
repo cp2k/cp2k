@@ -61,15 +61,16 @@ CONTAINS
 
   SUBROUTINE rg_poisson ( rho, vh, nu, rg, method )
 
-    REAL(KIND=dp), DIMENSION(0:), INTENT(IN)     :: rho
-    REAL(KIND=dp), DIMENSION(0:), INTENT(OUT)    :: vh
+    REAL(KIND=dp), DIMENSION(0:), INTENT(IN) :: rho
+    REAL(KIND=dp), DIMENSION(0:), &
+      INTENT(OUT)                            :: vh
     INTEGER, INTENT(IN)                      :: nu
     TYPE(radial_grid_type), INTENT(IN)       :: rg
     CHARACTER(LEN=*), OPTIONAL               :: method
 
     INTEGER                                  :: i, ierr, n
-    REAL(KIND=dp)                                :: corr( 3 ), res, rn
-    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)     :: f, g
+    REAL(KIND=dp)                            :: corr( 3 ), res, rn
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: f, g
 
 ! the electron density
 ! the solution
@@ -83,14 +84,14 @@ CONTAINS
 
     n = rg % n
     ALLOCATE ( f ( 0:n+1 ), STAT = ierr )
-    IF ( ierr /= 0 ) call stop_memory ( "radial_poisson", "f", n )
+    IF ( ierr /= 0 ) CALL stop_memory ( "radial_poisson", "f", n )
     ALLOCATE ( g ( 0:n+1 ), STAT = ierr )
-    IF ( ierr /= 0 ) call stop_memory ( "radial_poisson", "g", n )
+    IF ( ierr /= 0 ) CALL stop_memory ( "radial_poisson", "g", n )
 
     corr = 0.0_dp
     g = (rg%r**nu) * rho / (rg%w**2)
     CALL radial_integrate ( n+2, g, rg % h, res, ierr )
-    IF ( ierr /= 0 ) call stop_program ( "radial_poisson", "radial_integrate" )
+    IF ( ierr /= 0 ) CALL stop_program ( "radial_poisson", "radial_integrate" )
     vh ( 0 ) = 0.0_dp
     vh(n+1) = res / (rg%rmax**nu)
 
@@ -124,9 +125,9 @@ CONTAINS
     vh ( 1:n ) = g ( 1:n )
 
     DEALLOCATE ( f, STAT = ierr )
-    IF ( ierr /= 0 ) call stop_memory ( "radial_poisson", "f" )
+    IF ( ierr /= 0 ) CALL stop_memory ( "radial_poisson", "f" )
     DEALLOCATE ( g, STAT = ierr )
-    IF ( ierr /= 0 ) call stop_memory ( "radial_poisson", "g" )
+    IF ( ierr /= 0 ) CALL stop_memory ( "radial_poisson", "g" )
 
   END SUBROUTINE rg_poisson
 

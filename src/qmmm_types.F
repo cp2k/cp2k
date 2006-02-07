@@ -24,36 +24,32 @@
 !!   SOURCE
 !****************************************************************************
 MODULE qmmm_types
-  USE kinds,                           ONLY: default_string_length,&
-                                             dp
-  USE timings,                         ONLY: timeset,&
-                                             timestop
-  USE qmmm_gaussian_types,             ONLY: qmmm_gaussian_p_type
+  USE force_field_types,               ONLY: deallocate_inp_info,&
+                                             init_inp_info,&
+                                             input_info_type
+  USE input_constants,                 ONLY: do_qmmm_none
+  USE kinds,                           ONLY: dp
+  USE particle_types,                  ONLY: allocate_particle_set,&
+                                             deallocate_particle_set,&
+                                             particle_type
   USE pw_grid_types,                   ONLY: pw_grid_type
   USE pw_grids,                        ONLY: pw_grid_release
-  USE pw_types,                        ONLY: pw_type,&
-                                             pw_p_type,&
-                                             pw_release
-  USE particle_types,                  ONLY: particle_type,&
-                                             deallocate_particle_set,&
-                                             allocate_particle_set
-  USE pw_pool_types,                   ONLY: pw_pool_p_type,&
+  USE pw_pool_types,                   ONLY: pw_pool_give_back_pw,&
+                                             pw_pool_p_type,&
+                                             pw_pool_release,&
                                              pw_pool_type,&
-                                             pw_pools_dealloc,&
-                                             pw_pool_give_back_pw,&
-                                             pw_pool_release
-  USE input_constants,                 ONLY: do_qmmm_grid,&
-                                             do_qmmm_gauss,&
-                                             do_qmmm_none
-  USE force_field_types,               ONLY: input_info_type,&
-                                             init_inp_info,&
-                                             deallocate_inp_info
+                                             pw_pools_dealloc
+  USE pw_types,                        ONLY: pw_type
+  USE qmmm_gaussian_types,             ONLY: qmmm_gaussian_p_type
+  USE timings,                         ONLY: timeset,&
+                                             timestop
 #include "cp_common_uses.h"
+
   IMPLICIT NONE
   PRIVATE
 
   LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
-  CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='qmmm_types'
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qmmm_types'
   INTEGER, SAVE, PRIVATE :: last_qmmm_env_id_nr=0
 
   PUBLIC :: qmmm_env_qm_type, gridlevel_info_type, qmmm_pot_type, qmmm_pot_p_type
@@ -236,16 +232,16 @@ CONTAINS
 !!
 !!*** **********************************************************************
   SUBROUTINE qmmm_env_mm_create(qmmm_env, error)
-    TYPE(qmmm_env_mm_type), POINTER             :: qmmm_env
+    TYPE(qmmm_env_mm_type), POINTER          :: qmmm_env
     TYPE(cp_error_type), INTENT(inout), &
-         OPTIONAL                               :: error
-    
+      OPTIONAL                               :: error
+
     CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_env_mm_create', &
-         routineP = moduleN//':'//routineN
-    
+      routineP = moduleN//':'//routineN
+
     INTEGER                                  :: stat
     LOGICAL                                  :: failure
-    
+
     failure=.FALSE.
     CPPrecondition(.NOT.ASSOCIATED(qmmm_env),cp_failure_level,routineP,error,failure)
     ALLOCATE(qmmm_env, stat=stat)
@@ -289,15 +285,15 @@ CONTAINS
 !!
 !!*** **********************************************************************  
   SUBROUTINE qmmm_env_mm_retain(qmmm_env,error)
-    TYPE(qmmm_env_mm_type), POINTER             :: qmmm_env
+    TYPE(qmmm_env_mm_type), POINTER          :: qmmm_env
     TYPE(cp_error_type), INTENT(inout), &
-         OPTIONAL                               :: error
-    
+      OPTIONAL                               :: error
+
     CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_env_mm_retain', &
-         routineP = moduleN//':'//routineN
-    
+      routineP = moduleN//':'//routineN
+
     LOGICAL                                  :: failure
-    
+
     failure=.FALSE.
     
     CPPrecondition(ASSOCIATED(qmmm_env),cp_failure_level,routineP,error,failure)
@@ -328,16 +324,16 @@ CONTAINS
 !!
 !!*** **********************************************************************
   SUBROUTINE qmmm_env_mm_release(qmmm_env,error)
-    TYPE(qmmm_env_mm_type), POINTER             :: qmmm_env
+    TYPE(qmmm_env_mm_type), POINTER          :: qmmm_env
     TYPE(cp_error_type), INTENT(inout), &
-         OPTIONAL                               :: error
-    
+      OPTIONAL                               :: error
+
     CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_env_mm_release', &
-         routineP = moduleN//':'//routineN
-    
-    INTEGER                                  :: stat, i
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: stat
     LOGICAL                                  :: failure
-    
+
     failure=.FALSE.
     IF (ASSOCIATED(qmmm_env)) THEN
        CPPreconditionNoFail(qmmm_env%ref_count>0,cp_failure_level,routineP,error)
@@ -396,7 +392,7 @@ CONTAINS
 !!
 !!*** **********************************************************************
 SUBROUTINE qmmm_env_qm_create(qmmm_env, error)
-    TYPE(qmmm_env_qm_type), POINTER             :: qmmm_env
+    TYPE(qmmm_env_qm_type), POINTER          :: qmmm_env
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -458,7 +454,7 @@ END SUBROUTINE qmmm_env_qm_create
 !!
 !!*** **********************************************************************
 SUBROUTINE qmmm_env_qm_retain(qmmm_env,error)
-    TYPE(qmmm_env_qm_type), POINTER             :: qmmm_env
+    TYPE(qmmm_env_qm_type), POINTER          :: qmmm_env
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -500,15 +496,15 @@ END SUBROUTINE qmmm_env_qm_retain
 !!
 !!*** **********************************************************************
 SUBROUTINE qmmm_env_qm_release(qmmm_env,error)
-  TYPE(qmmm_env_qm_type), POINTER             :: qmmm_env
-  TYPE(cp_error_type), INTENT(inout), &
-       OPTIONAL                               :: error
-  
-  CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_env_qm_release', &
-       routineP = moduleN//':'//routineN
-  
-  INTEGER                                  :: stat, i
-  LOGICAL                                  :: failure
+    TYPE(qmmm_env_qm_type), POINTER          :: qmmm_env
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_env_qm_release', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: stat
+    LOGICAL                                  :: failure
 
   failure=.FALSE.
   IF (ASSOCIATED(qmmm_env)) THEN
@@ -595,16 +591,16 @@ END SUBROUTINE qmmm_env_qm_release
 !!
 !!*** **********************************************************************
 SUBROUTINE pgfs_release(pgfs, error)
-  IMPLICIT NONE
-  ! Arguments
-  TYPE(qmmm_gaussian_p_type), DIMENSION(:),POINTER :: pgfs
-  TYPE(cp_error_type), INTENT(inout), &
-       OPTIONAL                               :: error
-  ! Local Variables
-  CHARACTER(len=*), PARAMETER :: routineN = 'pgfs_release', &
-       routineP = moduleN//':'//routineN
-  INTEGER :: I, stat  
-  LOGICAL :: failure 
+    TYPE(qmmm_gaussian_p_type), &
+      DIMENSION(:), POINTER                  :: pgfs
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'pgfs_release', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: I, stat
+    LOGICAL                                  :: failure
 
   failure = .FALSE.
   IF (.NOT.failure) THEN
@@ -650,16 +646,15 @@ END SUBROUTINE pgfs_release
 !!
 !!*** **********************************************************************
 SUBROUTINE qmmm_links_dealloc(qmmm_links, error)
-  IMPLICIT NONE
-  ! Arguments
-  TYPE(qmmm_links_type), POINTER :: qmmm_links
-  TYPE(cp_error_type), INTENT(inout), &
-       OPTIONAL                               :: error
-  ! Local Variables
-  CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_links_dealloc', &
-       routineP = moduleN//':'//routineN
-  INTEGER :: I, stat
-  
+    TYPE(qmmm_links_type), POINTER           :: qmmm_links
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_links_dealloc', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: I, stat
+
   IF (ASSOCIATED(qmmm_links%imomm)) THEN
      DO i = 1, SIZE(qmmm_links%imomm)
         IF (ASSOCIATED(qmmm_links%imomm(i)%link)) DEALLOCATE(qmmm_links%imomm(i)%link, stat=stat)
@@ -703,17 +698,16 @@ END SUBROUTINE qmmm_links_dealloc
 !!
 !!*** **********************************************************************
 SUBROUTINE qmmm_pot_type_dealloc(Potentials, error)
-  IMPLICIT NONE
-  ! Arguments
-  TYPE(qmmm_pot_p_type), DIMENSION(:), POINTER :: Potentials
-  TYPE(cp_error_type), INTENT(inout), &
-       OPTIONAL                               :: error
-  ! Local Variables
-  CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_pot_type_dealloc', &
-       routineP = moduleN//':'//routineN
-  INTEGER :: I, stat
+    TYPE(qmmm_pot_p_type), DIMENSION(:), &
+      POINTER                                :: Potentials
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-  
+    CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_pot_type_dealloc', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: I, stat
+
   DO I = 1, SIZE(Potentials)
      IF (ASSOCIATED(Potentials(I)%Pot)) THEN
         IF (ASSOCIATED(Potentials(I)%Pot%pot0_2)) THEN   
@@ -754,17 +748,16 @@ END SUBROUTINE qmmm_pot_type_dealloc
 !!
 !!*** **********************************************************************
 SUBROUTINE qmmm_per_pot_type_dealloc(Per_Potentials, error)
-  IMPLICIT NONE
-  ! Arguments
-  TYPE(qmmm_per_pot_p_type), DIMENSION(:), POINTER :: Per_Potentials
-  TYPE(cp_error_type), INTENT(inout), &
-       OPTIONAL                               :: error
-  ! Local Variables
-  CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_per_pot_type_dealloc', &
-       routineP = moduleN//':'//routineN
-  INTEGER :: I, stat
+    TYPE(qmmm_per_pot_p_type), &
+      DIMENSION(:), POINTER                  :: Per_Potentials
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-  
+    CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_per_pot_type_dealloc', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: I, stat
+
   DO I = 1, SIZE(Per_Potentials)
      IF (ASSOCIATED(Per_Potentials(I)%Pot)) THEN
         IF (ASSOCIATED(Per_Potentials(I)%Pot%LG)) THEN   
@@ -825,16 +818,14 @@ END SUBROUTINE qmmm_per_pot_type_dealloc
 !!
 !!*** **********************************************************************
 SUBROUTINE add_set_release(added_charges, error)
-  IMPLICIT NONE
-  ! Arguments
-  TYPE(add_set_type), POINTER              :: added_charges
-  TYPE(cp_error_type), INTENT(inout), &
-       OPTIONAL                               :: error
-  ! Local Variables
-  CHARACTER(len=*), PARAMETER :: routineN = 'add_set_release',&
-       routineP = moduleN//':'//routineN
-  INTEGER :: stat
-  
+    TYPE(add_set_type), POINTER              :: added_charges
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'add_set_release', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: stat
 
   IF (ASSOCIATED(added_charges)) THEN
      IF (ASSOCIATED(added_charges%add_env)) THEN
@@ -901,17 +892,16 @@ END SUBROUTINE add_set_release
 !!
 !!*** **********************************************************************
 SUBROUTINE create_add_set_type(added_charges, ndim, error)
-  IMPLICIT NONE
-  ! Arguments
-  TYPE(add_set_type), POINTER              :: added_charges
-  INTEGER, INTENT(IN)                      :: ndim
-  TYPE(cp_error_type), INTENT(inout), &
-       OPTIONAL                               :: error
-  ! Local Variables
-  CHARACTER(len=*), PARAMETER :: routineN = 'create_add_set_type',&
-       routineP = moduleN//':'//routineN
-  INTEGER :: stat
-  LOGICAL :: failure
+    TYPE(add_set_type), POINTER              :: added_charges
+    INTEGER, INTENT(IN)                      :: ndim
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_add_set_type', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: stat
+    LOGICAL                                  :: failure
 
   failure = .FALSE.
   IF (ASSOCIATED(added_charges)) CALL add_set_release(added_charges, error)

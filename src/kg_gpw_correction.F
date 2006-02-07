@@ -23,79 +23,52 @@
 MODULE kg_gpw_correction
 
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
-                                             get_atomic_kind,&
                                              get_atomic_kind_set
+  USE cell_types,                      ONLY: cell_type
   USE coefficient_types,               ONLY: coeff_init,&
-                                             coeff_zero,&
-                                             coeff_sumup,&
-                                             coeff_transform_space,&
-                                             coeff_type, & 
-                                             coeff_copy
-  USE input_constants,                 ONLY: sic_none
+                                             coeff_type
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE cp_rs_pool_types,                ONLY: cp_rs_pool_p_type,&
-                                             rs_pool_create,&
-                                             rs_pools_dealloc
-  USE cube_utils,                      ONLY: destroy_cube_info,&
-                                             init_cube_info,&
-                                             cube_info_type
-  USE gaussian_gridlevels,             ONLY: destroy_gaussian_gridlevel,&
-                                             gaussian_gridlevel,&
-                                             init_gaussian_gridlevel
+  USE input_constants,                 ONLY: sic_none
+  USE input_section_types,             ONLY: section_vals_duplicate,&
+                                             section_vals_get_subs_vals,&
+                                             section_vals_release,&
+                                             section_vals_set_subs_vals,&
+                                             section_vals_type,&
+                                             section_vals_val_get
   USE kg_gpw_collocate_den,            ONLY: integrate_mol_potential
-  USE kg_gpw_fm_mol_types,             ONLY: get_fm_mol_block,&
+  USE kg_gpw_fm_mol_types,             ONLY: fm_mol_blocks_type,&
+                                             get_fm_mol_block,&
                                              get_kg_fm_mol_set,&
-                                             fm_mol_blocks_type,&
-                                             kg_fm_mol_set_type,&
-                                             kg_fm_p_type
+                                             kg_fm_mol_set_type
   USE kg_gpw_pw_env_types,             ONLY: get_molbox_env,&
                                              get_rho_mol_block,&
                                              kg_molbox_env_type,&
-                                             kg_sub_pw_env_type,&
                                              rho_mol_blocks_type
-  USE kinds,                           ONLY: dp, dp_size, int_size
-  USE l_utils,                         ONLY: init_l_info,&
-                                             l_info_retain,&
-                                             l_info_release,&
-                                             l_info_type
+  USE kinds,                           ONLY: dp
   USE message_passing,                 ONLY: mp_sum
   USE particle_types,                  ONLY: particle_type
   USE pw_env_types,                    ONLY: pw_env_get,&
                                              pw_env_type
   USE pw_pool_types,                   ONLY: pw_pool_give_back_coeff,&
-                                             pw_pool_init_coeff,&
-                                             pw_pool_p_type,&
-                                             pw_pool_retain,&
                                              pw_pool_type
-  USE pw_types,                        ONLY: COMPLEXDATA1D,&
-                                             REALDATA3D,&
-                                             REALSPACE,&
-                                             RECIPROCALSPACE,&
-                                             pw_p_type
+  USE pw_types,                        ONLY: pw_p_type
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
   USE qs_force_types,                  ONLY: qs_force_type
   USE qs_rho_types,                    ONLY: qs_rho_type
-  USE cell_types,                 ONLY: cell_type
-  USE sparse_matrix_types,             ONLY: real_matrix_p_type,&
-                                             transfer_matrix, &
-                                             real_matrix_type, &
-                                             set_matrix
-  USE termination,                     ONLY: stop_memory,&
-                                             stop_program
+  USE sparse_matrix_types,             ONLY: real_matrix_p_type
+  USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE xc,                              ONLY: xc_exc_calc,&
                                              xc_vxc_pw_create1
-  USE input_section_types, ONLY: section_vals_type, section_vals_get_subs_vals,&
-       section_vals_duplicate, section_vals_set_subs_vals, section_vals_val_get,&
-       section_vals_release
 #include "cp_common_uses.h"
+
   IMPLICIT NONE
 
   PRIVATE
 
-  CHARACTER(len=*), PARAMETER :: module_name='kg_gpw_correction'
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'kg_gpw_correction'
 
   PUBLIC :: kg_gpw_ekin_mol
 
@@ -139,69 +112,60 @@ CONTAINS
   SUBROUTINE kg_gpw_ekin_mol(qs_env,molbox_env,fm_mol_set,ks_global,p_global,&
                              ekin_mol,calculate_forces,just_energy,error)
 
-    TYPE(qs_environment_type), POINTER           :: qs_env
+    TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(kg_molbox_env_type), DIMENSION(:), &
-      POINTER                                    :: molbox_env
+      POINTER                                :: molbox_env
     TYPE(kg_fm_mol_set_type), DIMENSION(:), &
-      POINTER                                    :: fm_mol_set
+      POINTER                                :: fm_mol_set
     TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                    :: ks_global
-    TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                    :: p_global
-    REAL(dp), INTENT(OUT)                        :: ekin_mol
-    LOGICAL, INTENT(IN), OPTIONAL                :: calculate_forces, just_energy
-        TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                                   :: error
+      POINTER                                :: ks_global, p_global
+    REAL(dp), INTENT(OUT)                    :: ekin_mol
+    LOGICAL, INTENT(IN), OPTIONAL            :: calculate_forces, just_energy
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    CHARACTER(len=*), PARAMETER :: routine_name = 'kg_gpw_ekin_mol', & 
-      routineP = module_name//':'//routine_name
+    CHARACTER(len=*), PARAMETER :: routineN = 'kg_gpw_ekin_mol', &
+      routineP = moduleN//':'//routineN
 
-    INTEGER :: handle, iat_mol, iat_kind, iatom, ikind, imol, imolecule_kind,&
-               ispin, istat, nat_mol, natom, nmol_local, nmolecule_kind, nspins 
-    INTEGER, DIMENSION(:), POINTER               :: i_atom, i_kind
-    INTEGER, DIMENSION(:), ALLOCATABLE           :: atom_of_kind
-    LOGICAL                                      :: failure, &
-                                                    my_calculate_forces, &
-                                                    my_just_energy
-    CHARACTER(LEN=40), DIMENSION(3)              :: functionals_tmp
-    INTEGER, DIMENSION(3)                        :: functionals_new_tmp
-    LOGICAL, DIMENSION(3)                        :: gradient_functionals_tmp,&
-                                                    crossterms_tmp
-    REAL(dp)                                     :: ekin_imol
-    REAL(dp), DIMENSION(:,:), POINTER            :: r_mbox
-    REAL(dp), DIMENSION(:,:), POINTER            :: forces_mol
-
+    INTEGER :: handle, iat_kind, iat_mol, iatom, ikind, imol, imolecule_kind, &
+      ispin, istat, nat_mol, natom, nmol_local, nmolecule_kind, nspins, &
+      sic_method_id
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: atom_of_kind
+    INTEGER, DIMENSION(:), POINTER           :: i_atom, i_kind
+    LOGICAL                                  :: failure, my_calculate_forces, &
+                                                my_just_energy
+    REAL(dp)                                 :: ekin_imol
+    REAL(dp), DIMENSION(:, :), POINTER       :: forces_mol, r_mbox
     TYPE(atomic_kind_type), DIMENSION(:), &
-      POINTER                                    :: atomic_kind_set
-    TYPE(cell_type), POINTER                     :: cell_mol
-    TYPE(coeff_type), DIMENSION(:), POINTER      :: vxc_rho, vxc_tau
-    TYPE(cp_para_env_type), POINTER              :: para_env
+      POINTER                                :: atomic_kind_set
+    TYPE(cell_type), POINTER                 :: cell_mol
+    TYPE(coeff_type), DIMENSION(:), POINTER  :: vxc_rho, vxc_tau
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(fm_mol_blocks_type), DIMENSION(:), &
-      POINTER                                    :: fm_mol_blocks
-    TYPE(fm_mol_blocks_type), POINTER            :: mol_block
-    TYPE(kg_fm_mol_set_type), POINTER            :: fm_mol
-    TYPE(kg_molbox_env_type), POINTER            :: molbox
+      POINTER                                :: fm_mol_blocks
+    TYPE(fm_mol_blocks_type), POINTER        :: mol_block
+    TYPE(kg_fm_mol_set_type), POINTER        :: fm_mol
+    TYPE(kg_molbox_env_type), POINTER        :: molbox
     TYPE(particle_type), DIMENSION(:), &
-      POINTER                                    :: particle_set
-    TYPE(pw_env_type) , POINTER                  :: pw_env_mol
-    TYPE(pw_p_type), DIMENSION(:), POINTER       :: my_vxc_rho, my_vxc_tau, &
-                                                    rho_g, rho_r, tau
-    TYPE(pw_pool_type), POINTER                  :: auxbas_pw_pool
-    TYPE(qs_force_type), DIMENSION(:), POINTER   :: force_global
-    TYPE(qs_rho_type), POINTER                   :: rho_global
-    TYPE(qs_rho_type), POINTER                   :: rho_mol
-    TYPE(rho_mol_blocks_type), DIMENSION(:),&
-      POINTER                                    :: rho_mol_blocks
-    TYPE(rho_mol_blocks_type), POINTER           :: rho_block
-    TYPE(section_vals_type), POINTER :: input,xc_section,xc_section_tmp,&
-         xc_fun_section
-    integer :: sic_method_id
+      POINTER                                :: particle_set
+    TYPE(pw_env_type), POINTER               :: pw_env_mol
+    TYPE(pw_p_type), DIMENSION(:), POINTER   :: my_vxc_rho, my_vxc_tau, &
+                                                rho_g, rho_r, tau
+    TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
+    TYPE(qs_force_type), DIMENSION(:), &
+      POINTER                                :: force_global
+    TYPE(qs_rho_type), POINTER               :: rho_global, rho_mol
+    TYPE(rho_mol_blocks_type), &
+      DIMENSION(:), POINTER                  :: rho_mol_blocks
+    TYPE(rho_mol_blocks_type), POINTER       :: rho_block
+    TYPE(section_vals_type), POINTER         :: input, xc_fun_section, &
+                                                xc_section, xc_section_tmp
 
 !------------------------------------------------------------------------------
 
     failure=.FALSE.
 
-    CALL timeset(routine_name,"I",'',handle)
+    CALL timeset(routineN,"I",'',handle)
 
     ! initialize to zero
     ekin_mol = 0.0_dp
@@ -223,9 +187,9 @@ CONTAINS
     CALL section_vals_val_get(input,"DFT%SIC%SIC_METHOD",&
          i_val=sic_method_id,error=error)
     IF(sic_method_id /= sic_none) &
-       CALL  stop_program(routine_name,module_name,__LINE__,"KG_GPW with SIC  not implemented")
+       CALL  stop_program(routineN,moduleN,__LINE__,"KG_GPW with SIC  not implemented")
 
-    nspins = size(p_global)
+    nspins = SIZE(p_global)
 
     ! initial allocations
     ALLOCATE(rho_r(nspins),STAT=istat)

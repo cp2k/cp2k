@@ -25,47 +25,35 @@
 !!   SOURCE
 !****************************************************************************
 MODULE qmmm_gaussian_init
-  USE cp_output_handling,              ONLY: cp_print_key_should_output,&
-                                             cp_p_file
-  USE cp_para_types,                   ONLY: cp_para_env_type
-  USE kinds,                           ONLY: default_string_length,&
-                                             dp
-  USE memory_utilities,                ONLY: reallocate
-  USE qmmm_gaussian_types,             ONLY: qmmm_gaussian_p_type,&
-                                             qmmm_gaussian_type
-  USE qmmm_gaussian_input,             ONLY: read_mm_potential,&
-                                             set_mm_potential
-  USE global_types,                    ONLY: global_environment_type
-  USE cell_types,                 ONLY: cell_type
-  USE qs_util,                         ONLY: exp_radius
-  USE mathconstants,                   ONLY: pi
-  USE pw_pool_types,                   ONLY: pw_pool_type, pw_pool_p_type
-  USE pw_env_types,                    ONLY: pw_env_type,&
-                                             pw_env_release,&
-                                             pw_env_get
-  USE qmmm_types,                      ONLY: qmmm_env_qm_type
+  USE cell_types,                      ONLY: cell_type
+  USE cp_output_handling,              ONLY: cp_p_file,&
+                                             cp_print_key_should_output
   USE gaussian_gridlevels,             ONLY: gaussian_gridlevel,&
                                              gridlevel_info_type
-  USE input_constants,                 ONLY: do_qmmm_grid,&
-                                             do_qmmm_gauss,&
-                                             do_qmmm_none
-  USE input_section_types,             ONLY: section_type,&
-                                             section_create, &
-                                             section_add_keyword,&
-                                             section_add_subsection,&
-                                             section_release,&
+  USE global_types,                    ONLY: global_environment_type
+  USE input_constants,                 ONLY: do_qmmm_gauss
+  USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type,&
-                                             section_vals_get_subs_vals,&
-                                             section_vals_get,&
                                              section_vals_val_get
+  USE kinds,                           ONLY: dp
+  USE memory_utilities,                ONLY: reallocate
+  USE pw_env_types,                    ONLY: pw_env_get,&
+                                             pw_env_type
+  USE pw_pool_types,                   ONLY: pw_pool_p_type
   USE qmmm_gaussian_data,              ONLY: max_geep_lib_gauss,&
                                              min_geep_lib_gauss
+  USE qmmm_gaussian_input,             ONLY: read_mm_potential,&
+                                             set_mm_potential
+  USE qmmm_gaussian_types,             ONLY: qmmm_gaussian_p_type,&
+                                             qmmm_gaussian_type
+  USE qs_util,                         ONLY: exp_radius
 #include "cp_common_uses.h"
+
   IMPLICIT NONE
   PRIVATE
 
   LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
-  CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='qmmm_gaussian_init'
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qmmm_gaussian_init'
   PUBLIC :: qmmm_gaussian_initialize
 
 CONTAINS
@@ -96,34 +84,39 @@ CONTAINS
        qm_cell_small, mm_cell, mm_el_pot_radius, mm_el_pot_radius_corr,  &
        qmmm_coupl_type, eps_mm_rspace, maxradius, maxchrg, compatibility,&
        print_section, qmmm_section, error)
-    IMPLICIT NONE
-    ! Arguments
     TYPE(qmmm_gaussian_p_type), &
-         DIMENSION(:), POINTER                       :: qmmm_gaussian_fns    
-    REAL(KIND=dp), DIMENSION(:), POINTER             :: mm_el_pot_radius, mm_el_pot_radius_corr 
-    INTEGER, INTENT(IN)                              :: qmmm_coupl_type  
-    REAL(KIND=dp), INTENT(IN)                        :: eps_mm_rspace, maxchrg
-    REAL(KIND=dp), DIMENSION(:), POINTER :: maxradius
+      DIMENSION(:), POINTER                  :: qmmm_gaussian_fns
     TYPE(global_environment_type), POINTER   :: globenv
-    TYPE(pw_env_type), POINTER :: pw_env
+    TYPE(pw_env_type), POINTER               :: pw_env
     TYPE(cell_type), POINTER                 :: qm_cell_small, mm_cell
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: mm_el_pot_radius, &
+                                                mm_el_pot_radius_corr
+    INTEGER, INTENT(IN)                      :: qmmm_coupl_type
+    REAL(KIND=dp), INTENT(IN)                :: eps_mm_rspace
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: maxradius
+    REAL(KIND=dp), INTENT(IN)                :: maxchrg
+    LOGICAL, INTENT(IN)                      :: compatibility
     TYPE(section_vals_type), POINTER         :: print_section, qmmm_section
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
-    LOGICAL, INTENT(IN) :: compatibility
-    ! Local Variables
+
     CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_gaussian_initialize', &
       routineP = moduleN//':'//routineN
-    REAL(KIND=dp), DIMENSION(:), POINTER :: radius, c_radius
-    INTEGER :: stat, i, j, Ndim ,ilevel, num_geep_gauss
-    LOGICAL :: Failure, Found, use_geep_lib
-    TYPE(qmmm_gaussian_type), POINTER :: mypgf
-    REAL(KIND=dp) :: alpha, mymaxradius, Prefactor
-    TYPE(pw_pool_p_type), DIMENSION(:), pointer :: pools
-    TYPE(gridlevel_info_type), POINTER :: gridlevel_info
-    TYPE(cp_logger_type), POINTER :: logger
-    TYPE(section_vals_type), POINTER :: print_gen
-    ! Statements
+
+    INTEGER                                  :: i, ilevel, j, Ndim, &
+                                                num_geep_gauss, stat
+    LOGICAL                                  :: Failure, Found, use_geep_lib
+    REAL(KIND=dp)                            :: alpha, mymaxradius, Prefactor
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: c_radius, radius
+    TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(gridlevel_info_type), POINTER       :: gridlevel_info
+    TYPE(pw_pool_p_type), DIMENSION(:), &
+      POINTER                                :: pools
+    TYPE(qmmm_gaussian_type), POINTER        :: mypgf
+    TYPE(section_vals_type), POINTER         :: print_gen
+
+! Statements
+
     NULLIFY(mypgf, gridlevel_info, radius, c_radius, print_gen, logger)
     failure = .FALSE.
     IF (.NOT.failure) THEN

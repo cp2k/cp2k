@@ -17,33 +17,29 @@
 !******************************************************************************
 
 MODULE ewald_environment_types
-  USE convert_units,                   ONLY: convert_to_cp2k_units
   USE cp2k_units,                      ONLY: get_cp2k_units,&
                                              unit_convert_type
-  USE cp_para_env,                     ONLY: cp_para_env_retain,&
-                                             cp_para_env_release
+  USE cp_para_env,                     ONLY: cp_para_env_release,&
+                                             cp_para_env_retain
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE global_types,                    ONLY: global_environment_type
-  USE kinds,                           ONLY: dp, default_string_length
-  USE string_utilities,                ONLY: uppercase,&
-                                             xstring
-  USE input_section_types,             ONLY: section_vals_get_subs_vals,&
-                                             section_vals_type,&
-                                             section_vals_get,&
-                                             section_vals_val_get,&
-                                             section_vals_retain,&
-                                             section_vals_release
-  USE input_constants,                 ONLY: do_ewald_none,&
-                                             do_ewald_ewald,&
-                                             do_ewald_pme,&
-                                             do_ewald_spme,&
-                                             ewald_name_types
-  USE physcon, only: angstrom
   USE global_types,                    ONLY: DEBUG,&
                                              HIGH,&
                                              LOW,&
-                                             MEDIUM,& 
-                                             SILENT
+                                             MEDIUM,&
+                                             SILENT,&
+                                             global_environment_type
+  USE input_constants,                 ONLY: do_ewald_none,&
+                                             do_ewald_pme,&
+                                             do_ewald_spme,&
+                                             ewald_name_types
+  USE input_section_types,             ONLY: section_vals_get_subs_vals,&
+                                             section_vals_release,&
+                                             section_vals_retain,&
+                                             section_vals_type,&
+                                             section_vals_val_get
+  USE kinds,                           ONLY: default_string_length,&
+                                             dp
+  USE physcon,                         ONLY: angstrom
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -65,7 +61,7 @@ MODULE ewald_environment_types
     INTEGER   :: ns_max                 ! # grid points for small grid (PME)
     INTEGER   :: o_spline               ! order of spline (SPME)
     TYPE ( cp_para_env_type ), POINTER :: para_env
-    TYPE(section_vals_type), pointer :: poisson_section
+    TYPE(section_vals_type), POINTER :: poisson_section
   END TYPE ewald_environment_type
 
 ! *****************************************************************************
@@ -109,7 +105,7 @@ MODULE ewald_environment_types
             ewald_env_release, &
             read_ewald_section
 
-  CHARACTER(LEN=*), PRIVATE, PARAMETER :: moduleN='ewald_environment_types'
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'ewald_environment_types'
   INTEGER, PRIVATE, SAVE :: last_ewald_env_id_nr=0
 
 !***
@@ -122,32 +118,32 @@ MODULE ewald_environment_types
   SUBROUTINE ewald_env_get( ewald_env, ewald_type, unit_type, alpha, eps0, &
                             epsilon, gmax, ns_max, o_spline, group,  &
                             para_env, id_nr, poisson_section, error )
-    IMPLICIT NONE
 
 !   Purpose: Get the EWALD environment.
 
 !   ***************************************************************************
 
-    TYPE ( ewald_environment_type ), POINTER       :: ewald_env
-    INTEGER, INTENT(OUT), OPTIONAL                 :: id_nr
-    INTEGER, OPTIONAL  :: ewald_type 
-    CHARACTER ( default_string_length ), OPTIONAL  :: unit_type 
-    REAL (KIND=dp), OPTIONAL                         :: alpha
-    REAL (KIND=dp), OPTIONAL                         :: eps0
-    REAL (KIND=dp), OPTIONAL                         :: epsilon
-    INTEGER, OPTIONAL                              :: gmax
-    INTEGER, OPTIONAL                              :: ns_max
-    INTEGER, OPTIONAL                              :: o_spline
-    INTEGER, OPTIONAL                              :: group
-    TYPE ( cp_para_env_type ), POINTER, OPTIONAL   :: para_env
-    TYPE(section_vals_type), POINTER, optional :: poisson_section
-    TYPE ( cp_error_type ), INTENT ( INOUT ), OPTIONAL :: error
+    TYPE(ewald_environment_type), POINTER    :: ewald_env
+    INTEGER, OPTIONAL                        :: ewald_type
+    CHARACTER(default_string_length), &
+      OPTIONAL                               :: unit_type
+    REAL(KIND=dp), OPTIONAL                  :: alpha, eps0, epsilon
+    INTEGER, OPTIONAL                        :: gmax, ns_max, o_spline, group
+    TYPE(cp_para_env_type), OPTIONAL, &
+      POINTER                                :: para_env
+    INTEGER, INTENT(OUT), OPTIONAL           :: id_nr
+    TYPE(section_vals_type), OPTIONAL, &
+      POINTER                                :: poisson_section
+    TYPE(cp_error_type), INTENT(INOUT), &
+      OPTIONAL                               :: error
 
-    LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineN='ewald_env_get',&
-                                   routineP=moduleN//':'//routineN
+    CHARACTER(len=*), PARAMETER :: routineN = 'ewald_env_get', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
 
 !   ---------------------------------------------------------------------------
+
     failure=.FALSE.
     CPPrecondition(ASSOCIATED(ewald_env),cp_failure_level,routineP,error,failure)
 
@@ -171,31 +167,32 @@ MODULE ewald_environment_types
   SUBROUTINE ewald_env_set( ewald_env, ewald_type, unit_type, alpha, eps0, &
                             epsilon, gmax, ns_max, o_spline, &
                             para_env, id_nr, poisson_section, error )
-    IMPLICIT NONE
 
 !   Purpose: Get the EWALD environment.
 
 !   ***************************************************************************
 
-    TYPE ( ewald_environment_type ), POINTER       :: ewald_env
-    INTEGER, INTENT(IN), OPTIONAL                  :: id_nr
-    INTEGER, OPTIONAL  :: ewald_type 
-    CHARACTER ( default_string_length ), OPTIONAL  :: unit_type 
-    REAL (KIND=dp), OPTIONAL                         :: alpha
-    REAL (KIND=dp), OPTIONAL                         :: eps0
-    REAL (KIND=dp), OPTIONAL                         :: epsilon
-    INTEGER, OPTIONAL                              :: gmax
-    INTEGER, OPTIONAL                              :: ns_max
-    INTEGER, OPTIONAL                              :: o_spline
-    TYPE ( cp_para_env_type ), POINTER, OPTIONAL   :: para_env
-    TYPE(section_vals_type), POINTER, optional     :: poisson_section
-    TYPE ( cp_error_type ), INTENT ( INOUT ), OPTIONAL :: error
+    TYPE(ewald_environment_type), POINTER    :: ewald_env
+    INTEGER, OPTIONAL                        :: ewald_type
+    CHARACTER(default_string_length), &
+      OPTIONAL                               :: unit_type
+    REAL(KIND=dp), OPTIONAL                  :: alpha, eps0, epsilon
+    INTEGER, OPTIONAL                        :: gmax, ns_max, o_spline
+    TYPE(cp_para_env_type), OPTIONAL, &
+      POINTER                                :: para_env
+    INTEGER, INTENT(IN), OPTIONAL            :: id_nr
+    TYPE(section_vals_type), OPTIONAL, &
+      POINTER                                :: poisson_section
+    TYPE(cp_error_type), INTENT(INOUT), &
+      OPTIONAL                               :: error
 
-    LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineN='ewald_env_set',&
-                                   routineP=moduleN//':'//routineN
+    CHARACTER(len=*), PARAMETER :: routineN = 'ewald_env_set', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
 
 !   ---------------------------------------------------------------------------
+
     failure=.FALSE.
     CPPrecondition(ASSOCIATED(ewald_env),cp_failure_level,routineP,error,failure)
     
@@ -248,15 +245,17 @@ MODULE ewald_environment_types
 !
 !*** **********************************************************************
 SUBROUTINE ewald_env_create ( ewald_env, para_env, error )
-  TYPE(ewald_environment_type), POINTER :: ewald_env
-  TYPE(cp_para_env_type), POINTER :: para_env
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-  
-  LOGICAL :: failure
-  CHARACTER(len=*), PARAMETER :: routineN='ewald_env_create',&
-        routineP=moduleN//':'//routineN
-  INTEGER :: stat
-  TYPE(unit_convert_type), POINTER         :: units
+    TYPE(ewald_environment_type), POINTER    :: ewald_env
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'ewald_env_create', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: stat
+    LOGICAL                                  :: failure
+    TYPE(unit_convert_type), POINTER         :: units
 
   failure=.FALSE.
   
@@ -277,7 +276,7 @@ SUBROUTINE ewald_env_create ( ewald_env, para_env, error )
     ewald_env % epsilon = 1.e-6_dp
     ewald_env % ewald_type = do_ewald_none
     ewald_env % unit_type = 'ANGSTROM'
-    nullify(ewald_env%poisson_section)
+    NULLIFY(ewald_env%poisson_section)
     CALL cp_para_env_retain ( para_env )
     ewald_env % para_env => para_env
   END IF
@@ -314,12 +313,15 @@ END SUBROUTINE ewald_env_create
 !
 !*** **********************************************************************
 SUBROUTINE ewald_env_retain(ewald_env,error)
-  TYPE(ewald_environment_type), POINTER :: ewald_env
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
- 
-  LOGICAL :: failure
-  CHARACTER(len=*), PARAMETER :: routineN='ewald_env_retain',&
-        routineP=moduleN//':'//routineN
+    TYPE(ewald_environment_type), POINTER    :: ewald_env
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'ewald_env_retain', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+
   failure=.FALSE.
 !!  
   CPPrecondition(ASSOCIATED(ewald_env),cp_failure_level,routineP,error,failure)
@@ -360,13 +362,16 @@ END SUBROUTINE ewald_env_retain
 !
 !*** **********************************************************************
 SUBROUTINE ewald_env_release(ewald_env,error)
-  TYPE(ewald_environment_type), POINTER :: ewald_env
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(ewald_environment_type), POINTER    :: ewald_env
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-  LOGICAL :: failure
-  CHARACTER(len=*), PARAMETER :: routineN='ewald_env_release',&
-       routineP=moduleN//':'//routineN
-  INTEGER :: i, stat
+    CHARACTER(len=*), PARAMETER :: routineN = 'ewald_env_release', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: stat
+    LOGICAL                                  :: failure
+
   failure=.FALSE.
 
   IF (ASSOCIATED(ewald_env)) THEN
@@ -398,17 +403,14 @@ END SUBROUTINE ewald_env_release
 !!   SOURCE
 !******************************************************************************
 SUBROUTINE read_ewald_section ( ewald_env, globenv, error )
-  IMPLICIT NONE
-  ! Arguments
-  TYPE ( ewald_environment_type ), POINTER :: ewald_env
-  TYPE ( global_environment_type ), pointer :: globenv
-  TYPE(cp_error_type), INTENT(inout), OPTIONAL   :: error 
-  ! Local Variables
-  LOGICAL :: found, setf, datf, topf
-  INTEGER :: ierror, ilen, ia, ie, i, j, n, iw, source
-  CHARACTER ( len = default_string_length ) :: string, str2, label
-  TYPE(unit_convert_type), POINTER         :: units
-  TYPE(section_vals_type), POINTER         :: ewald_section  
+    TYPE(ewald_environment_type), POINTER    :: ewald_env
+    TYPE(global_environment_type), POINTER   :: globenv
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    INTEGER                                  :: iw
+    TYPE(section_vals_type), POINTER         :: ewald_section
+    TYPE(unit_convert_type), POINTER         :: units
 
   iw = globenv % scr
   NULLIFY(ewald_section, units)
@@ -456,16 +458,15 @@ END SUBROUTINE read_ewald_section
 !
 
 SUBROUTINE read_ewald_section1(ewald_env, ewald_section, error)
-  IMPLICIT NONE
-  ! Arguments
-  TYPE ( ewald_environment_type ), POINTER :: ewald_env
-  TYPE(section_vals_type), POINTER         :: ewald_section  
-  TYPE(cp_error_type), INTENT(inout), OPTIONAL   :: error 
-  ! Local Variables
-  CHARACTER(len=*), PARAMETER :: routineN = 'read_ewald_section1', &
-       routineP = moduleN//':'//routineN
-  LOGICAL :: failure
-  INTEGER :: n_rep
+    TYPE(ewald_environment_type), POINTER    :: ewald_env
+    TYPE(section_vals_type), POINTER         :: ewald_section
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'read_ewald_section1', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
 
   failure = .FALSE.
   IF (.NOT.failure) THEN

@@ -29,9 +29,11 @@ MODULE xray_diffraction
                                              get_atomic_kind
   USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                              gto_basis_set_type
-  USE coefficient_types,               ONLY: coeff_transform_space,&
-                                             coeff_scale,&
+  USE cell_types,                      ONLY: cell_type,&
+                                             pbc
+  USE coefficient_types,               ONLY: coeff_scale,&
                                              coeff_sumup,&
+                                             coeff_transform_space,&
                                              coeff_type,&
                                              coeff_zero
   USE cp_control_types,                ONLY: dft_control_type
@@ -65,8 +67,6 @@ MODULE xray_diffraction
                                              rho_atom_coeff,&
                                              rho_atom_type
   USE qs_rho_types,                    ONLY: qs_rho_type
-  USE cell_types,                 ONLY: cell_type,&
-                                             pbc
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE util,                            ONLY: sort
@@ -78,7 +78,7 @@ MODULE xray_diffraction
 
   ! Global parameters in this module
 
-  CHARACTER(LEN=*), PARAMETER :: moduleN = "xray_diffraction"
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'xray_diffraction'
 
   ! Public subroutines
 
@@ -95,64 +95,57 @@ CONTAINS
     ! Calculate the coherent X-ray diffraction spectrum.
     ! The total electronic density in reciprocal space (g-space) is calculated.
 
-    TYPE(qs_environment_type), POINTER           :: qs_env
-    INTEGER, INTENT(IN)                          :: unit_number
-    REAL(KIND=dp), INTENT(IN)                    :: q_max
-    TYPE(cp_error_type), OPTIONAL, INTENT(INOUT) :: error
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    INTEGER, INTENT(IN)                      :: unit_number
+    REAL(KIND=dp), INTENT(IN)                :: q_max
+    TYPE(cp_error_type), INTENT(INOUT), &
+      OPTIONAL                               :: error
 
-    ! Local parameter
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'xray_diffraction_spectrum', &
+      routineP = moduleN//':'//routineN
+    INTEGER, PARAMETER                       :: nblock = 10
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = "xray_diffraction_spectrum",&
-                                   routineP = moduleN//":"//routineN
-    INTEGER, PARAMETER          :: nblock = 10
-
-    ! Local variables
-
+    INTEGER :: atom, group, handle, i, iatom, ico, ico1_pgf, ico1_set, ig, &
+      ig_shell, ikind, ipe, ipgf, iset, ishell, iso, iso1_pgf, iso1_set, &
+      ispin, istat, jco, jco1_pgf, jco1_set, jg, jpgf, jset, jso, jso1_pgf, &
+      jso1_set, la, lb, maxco, maxso, mype, na, natom, nb, ncoa, ncob, &
+      ncotot, ng, nkind, npe, nset, nshell, nshell_gather, nsoa, nsob, &
+      nsotot, nspin, source
+    INTEGER, DIMENSION(:), POINTER           :: atom_list, index, lmax, lmin, &
+                                                ng_shell, ng_shell_gather, &
+                                                npgf, nshell_pe, offset_pe
+    LOGICAL                                  :: failure, paw_atom
+    REAL(KIND=dp)                            :: eps_rho_gspace, f, f2, q, &
+                                                rho_hard, rho_soft, &
+                                                rho_total, scale
+    REAL(KIND=dp), DIMENSION(3)              :: dg, ra
+    REAL(KIND=dp), DIMENSION(:), POINTER :: f2sum, f2sum_gather, f4sum, &
+      f4sum_gather, fmax, fmax_gather, fmin, fmin_gather, fsum, fsum_gather, &
+      q_shell, q_shell_gather
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: delta_cpc, pab, work, zet
+    TYPE(atomic_kind_type), DIMENSION(:), &
+      POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cell_type), POINTER                 :: cell
-    TYPE(coeff_type), POINTER                :: rho_elec_gspace,&
+    TYPE(coeff_type), POINTER                :: rho_elec_gspace, &
                                                 rhotot_elec_gspace
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particle_set
     TYPE(pw_env_type), POINTER               :: pw_env
     TYPE(pw_grid_type), POINTER              :: pw_grid
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
     TYPE(qs_rho_type), POINTER               :: rho
-    TYPE(rho_atom_type), POINTER             :: rho_atom
-    REAL(KIND=dp)                            :: eps_rho_gspace,f,f2,q,&
-                                                rho_hard,rho_soft,rho_total,&
-                                                scale
-    INTEGER                                  :: atom,group,handle,i,iatom,&
-      ico,ico1_pgf,ico1_set,ig,ig_shell,ikind,ipe,ipgf,iset,ishell,iso,&
-      iso1_pgf,iso1_set,ispin,istat,jco,jco1_pgf,jco1_set,jg,jpgf,jset,&
-      jso,jso1_pgf,jso1_set,la,lb,maxco,maxso,mype,na,nb,natom,ncoa,ncob,&
-      ncotot,ng,nkind,npe,nset,nshell,nshell_gather,nsoa,nsob,nsotot,nspin,&
-      source
-    LOGICAL                                  :: failure,ionode,paw_atom
-
-    REAL(KIND=dp), DIMENSION(3)              :: dg,ra
-
-    TYPE(atomic_kind_type), DIMENSION(:),&
-      POINTER                                :: atomic_kind_set
-    TYPE(particle_type), DIMENSION(:),&
-      POINTER                                :: particle_set
-    TYPE(rho_atom_coeff), DIMENSION(:),&
-      POINTER                                :: cpc_h,cpc_s
-    TYPE(rho_atom_type), DIMENSION(:),&
+    TYPE(rho_atom_coeff), DIMENSION(:), &
+      POINTER                                :: cpc_h, cpc_s
+    TYPE(rho_atom_type), DIMENSION(:), &
       POINTER                                :: rho_atom_set
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: f2sum,f2sum_gather,&
-                                                f4sum,f4sum_gather,&
-                                                fmax,fmax_gather,&
-                                                fmin,fmin_gather,&
-                                                fsum,fsum_gather,&
-                                                q_shell,q_shell_gather
-    REAL(KIND=dp), DIMENSION(:,:), POINTER   :: delta_cpc,pab,work,zet
-    INTEGER, DIMENSION(:), POINTER           :: atom_list,index,lmax,lmin,&
-                                                ng_shell,ng_shell_gather,&
-                                                npgf,nshell_pe,offset_pe
+    TYPE(rho_atom_type), POINTER             :: rho_atom
 
-    ! -------------------------------------------------------------------------
+! Local parameter
+! -------------------------------------------------------------------------
 
     failure = .FALSE.
 
@@ -543,7 +536,7 @@ CONTAINS
         jg = 1
         nshell = 1
         q_shell(1) = q_shell_gather(1)
-        i = index(1)
+        i = INDEX(1)
         ng_shell(1) = ng_shell_gather(i)
         fmin(1) = fmin_gather(i)
         fmax(1) = fmax_gather(i)
@@ -552,7 +545,7 @@ CONTAINS
         f4sum(1) = f4sum_gather(i)
 
         DO ig=2,nshell_gather
-          i = index(ig)
+          i = INDEX(ig)
           IF (ABS(q_shell_gather(ig) - q_shell_gather(jg)) > 1.0E-12_dp) THEN
             nshell = nshell + 1
             q_shell(nshell) = q_shell_gather(ig)

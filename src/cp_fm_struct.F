@@ -42,7 +42,7 @@ MODULE cp_fm_struct
   PRIVATE
 
   LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
-  CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='cp_fm_struct'
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_fm_struct'
   INTEGER,SAVE,PRIVATE :: last_fmstruct_id_nr=0
 
 ! the default blacs block sizes

@@ -24,70 +24,40 @@
 !!   SOURCE
 !****************************************************************************
 MODULE xc_rho_set_types
-  USE atomic_kind_list_types,          ONLY: atomic_kind_list_type
-  USE atomic_kind_types,               ONLY: atomic_kind_type,&
-                                             get_atomic_kind
+  USE cell_types,                      ONLY: cell_type
   USE cp_array_r_utils,                ONLY: cp_3d_r_p_type
-  USE input_constants,                 ONLY: xc_deriv_fd,&
-                                             xc_deriv_nn10_smooth,&
-                                             xc_deriv_nn50_smooth,&
-                                             xc_deriv_pw,&
-                                             xc_deriv_spline2,&
-                                             xc_deriv_spline2_smooth,&
-                                             xc_deriv_spline3,&
-                                             xc_deriv_spline3_smooth,&
-                                             xc_rho_nn10,&
-                                             xc_rho_nn50,&
-                                             xc_rho_no_smooth,&
-                                             xc_rho_spline2_smooth,&
-                                             xc_rho_spline3_smooth
-  USE cp_para_types,                   ONLY: cp_para_env_type
+  USE input_constants,                 ONLY: &
+       xc_deriv_fd, xc_deriv_nn10_smooth, xc_deriv_nn50_smooth, xc_deriv_pw, &
+       xc_deriv_spline2, xc_deriv_spline2_smooth, xc_deriv_spline3, &
+       xc_deriv_spline3_smooth, xc_rho_nn10, xc_rho_nn50, xc_rho_no_smooth, &
+       xc_rho_spline2_smooth, xc_rho_spline3_smooth
   USE kinds,                           ONLY: dp
-  USE message_passing,                 ONLY: mp_sum
-  USE particle_list_types,             ONLY: particle_list_type
   USE pw_pool_types,                   ONLY: pw_pool_create_cr3d,&
                                              pw_pool_create_pw,&
                                              pw_pool_give_back_cr3d,&
                                              pw_pool_give_back_pw,&
                                              pw_pool_type
-  USE pw_spline_utils,                 ONLY: nn10_coeffs,&
-                                             nn10_deriv_coeffs,&
-                                             nn50_coeffs,&
-                                             nn50_deriv_coeffs,&
-                                             pw_nn_deriv_r,&
-                                             pw_nn_smear_r,&
-                                             pw_spline2_deriv_g,&
-                                             pw_spline2_interpolate_values_g,&
-                                             pw_spline3_deriv_g,&
-                                             pw_spline3_interpolate_values_g,&
-                                             pw_spline_scale_deriv,&
-                                             spline2_coeffs,&
-                                             spline2_deriv_coeffs,&
-                                             spline3_coeffs,&
-                                             spline3_deriv_coeffs
-  USE pw_types,                        ONLY: COMPLEXDATA1D,&
-                                             REALDATA3D,&
-                                             REALSPACE,&
-                                             RECIPROCALSPACE,&
-                                             pw_copy,&
-                                             pw_derive,&
-                                             pw_derive_fd,&
-                                             pw_p_type,&
-                                             pw_transfer,&
-                                             pw_type,&
-                                             pw_zero
-  USE cell_types,                 ONLY: cell_type
+  USE pw_spline_utils,                 ONLY: &
+       nn10_coeffs, nn10_deriv_coeffs, nn50_coeffs, nn50_deriv_coeffs, &
+       pw_nn_deriv_r, pw_nn_smear_r, pw_spline2_deriv_g, &
+       pw_spline2_interpolate_values_g, pw_spline3_deriv_g, &
+       pw_spline3_interpolate_values_g, pw_spline_scale_deriv, &
+       spline2_coeffs, spline2_deriv_coeffs, spline3_coeffs, &
+       spline3_deriv_coeffs
+  USE pw_types,                        ONLY: &
+       COMPLEXDATA1D, REALDATA3D, REALSPACE, RECIPROCALSPACE, pw_copy, &
+       pw_derive, pw_derive_fd, pw_p_type, pw_transfer, pw_type, pw_zero
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE xc_rho_cflags_types,             ONLY: xc_rho_cflags_equal,&
                                              xc_rho_cflags_setall,&
-                                             xc_rho_cflags_type,xc_rho_cflags_write
+                                             xc_rho_cflags_type
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
   PRIVATE
   LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.FALSE.
-  CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='xc_rho_set_types'
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'xc_rho_set_types'
   INTEGER, SAVE :: last_rho_set_id=0
 
   PUBLIC :: xc_rho_set_type
@@ -702,11 +672,10 @@ CONTAINS
   SUBROUTINE xc_rho_set_update(rho_set, rho_r, rho_g, tau, needs,&
        xc_deriv_method_id,xc_rho_smooth_id,cell,pw_pool,error)
     TYPE(xc_rho_set_type), POINTER           :: rho_set
-    TYPE(pw_p_type), DIMENSION(:), POINTER   :: rho_r
-    TYPE(pw_p_type), DIMENSION(:), POINTER   :: rho_g, tau
+    TYPE(pw_p_type), DIMENSION(:), POINTER   :: rho_r, rho_g, tau
     TYPE(xc_rho_cflags_type), INTENT(in)     :: needs
-    INTEGER, INTENT(IN)                      :: xc_rho_smooth_id,&
-                                                xc_deriv_method_id
+    INTEGER, INTENT(IN)                      :: xc_deriv_method_id, &
+                                                xc_rho_smooth_id
     TYPE(cell_type), POINTER                 :: cell
     TYPE(pw_pool_type), POINTER              :: pw_pool
     TYPE(cp_error_type), INTENT(inout), &
@@ -749,7 +718,7 @@ CONTAINS
     rho_set%local_bounds=rho_r(1)%pw%pw_grid%bounds_local
     rho_cutoff=0.5*rho_set%rho_cutoff
 
-    my_rho_g_local=.false.
+    my_rho_g_local=.FALSE.
     ! some checks
     SELECT CASE(nspins)
     CASE(1)

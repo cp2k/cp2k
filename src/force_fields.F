@@ -28,122 +28,81 @@
 
 MODULE force_fields
 
-  USE atomic_kind_types,               ONLY: allocate_atomic_kind_set,&
-                                             atomic_kind_type,&
+  USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind,&
-                                             init_atomic_kind_set,&
                                              set_atomic_kind
-  USE checkpoint_handler,              ONLY: write_checkpoint_information,&
-                                             Pwarning
-  USE cp_files,                        ONLY: open_file
+  USE checkpoint_handler,              ONLY: Pwarning,&
+                                             write_checkpoint_information
   USE convert_units,                   ONLY: convert_to_cp2k_units
+  USE cp_files,                        ONLY: open_file
+  USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
+                                             cp_print_key_unit_nr
+  USE cp_parser,                       ONLY: cp_parser_type,&
+                                             parser_create,&
+                                             parser_get_next_line,&
+                                             parser_get_object,&
+                                             parser_release,&
+                                             parser_search_string,&
+                                             parser_test_next_token
   USE ewald_environment_types,         ONLY: ewald_environment_type
   USE external_potential_types,        ONLY: elp_potential_type,&
-                                             allocate_potential,&
                                              get_potential,&
                                              set_potential
-  USE fist_nonbond_env_types,          ONLY: fist_nonbond_env_type, &
-                                             fist_nonbond_env_create, &
-                                             fist_nonbond_env_release
-  USE force_field_types,               ONLY: allocate_bond_kind_set,&
-                                             allocate_bend_kind_set,&
-                                             allocate_ub_kind_set,&
-                                             ub_kind_dealloc_ref,&
-                                             torsion_kind_dealloc_ref,&
-                                             impr_kind_dealloc_ref,&
-                                             allocate_onfo_kind_set,&
-                                             deallocate_bond_kind_set,&
-                                             deallocate_bend_kind_set,&
-                                             allocate_impr_kind_set,&
-                                             allocate_torsion_kind_set,&
-                                             bend_kind_type,&
-                                             bond_kind_type,&
-                                             impr_kind_type,&
-                                             onfo_kind_type,&
-                                             torsion_kind_type,&
-                                             ub_kind_type,&
-                                             charmm_info_type,&
-                                             force_field_type,&
-                                             input_info_type,&
-                                             init_ff_type,&
-                                             deallocate_ff_type
+  USE fist_nonbond_env_types,          ONLY: fist_nonbond_env_create,&
+                                             fist_nonbond_env_type
+  USE force_field_types,               ONLY: &
+       allocate_bend_kind_set, allocate_bond_kind_set, &
+       allocate_impr_kind_set, allocate_onfo_kind_set, &
+       allocate_torsion_kind_set, allocate_ub_kind_set, bend_kind_type, &
+       bond_kind_type, charmm_info_type, deallocate_bend_kind_set, &
+       deallocate_bond_kind_set, deallocate_ff_type, force_field_type, &
+       impr_kind_dealloc_ref, impr_kind_type, init_ff_type, input_info_type, &
+       onfo_kind_type, torsion_kind_dealloc_ref, torsion_kind_type, &
+       ub_kind_dealloc_ref, ub_kind_type
   USE global_types,                    ONLY: global_environment_type
-  USE kinds,                           ONLY: dp,&
-                                             default_string_length
+  USE input_constants,                 ONLY: do_qmmm_none
+  USE input_section_types,             ONLY: section_vals_get,&
+                                             section_vals_get_subs_vals,&
+                                             section_vals_type,&
+                                             section_vals_val_get
+  USE kinds,                           ONLY: default_string_length,&
+                                             dp
   USE manybody_potential,              ONLY: spline_manybody_control
-  USE mathconstants,                   ONLY: pi, twopi
   USE memory_utilities,                ONLY: reallocate
   USE message_passing,                 ONLY: mp_bcast
-  USE molecule_kind_types,             ONLY: allocate_molecule_kind_set,&
-                                             atom_type,&
-                                             bend_type,&
-                                             bond_type,&
-                                             dist_constraint_type,&
-                                             g3x3_constraint_type,&
-                                             g4x6_constraint_type,&
-                                             get_molecule_kind,&
-                                             impr_type,&
-                                             molecule_kind_type,&
-                                             onfo_type,&
-                                             set_molecule_kind,&
-                                             torsion_type,&
-                                             ub_type
-  USE molecule_types_new,              ONLY: molecule_type,&
-                                             get_molecule
+  USE molecule_kind_types,             ONLY: &
+       atom_type, bend_type, bond_type, dist_constraint_type, &
+       g3x3_constraint_type, g4x6_constraint_type, get_molecule_kind, &
+       impr_type, molecule_kind_type, onfo_type, set_molecule_kind, &
+       torsion_type, ub_type
+  USE molecule_types_new,              ONLY: get_molecule,&
+                                             molecule_type
   USE pair_potential,                  ONLY: spline_nonbond_control
-  USE pair_potential_types,            ONLY: pair_potential_type,&
-                                             pair_potential_p_type,&
-                                             pair_potential_pp_type,&
-                                             pair_potential_lj_create,&
-                                             pair_potential_single_type,&
-                                             pair_potential_single_copy,&
-                                             eam_pot_type,       &
-                                             pair_potential_reallocate, &
-                                             pair_potential_pp_create, &
-                                             pair_potential_pp_release,&
-                                             pair_potential_single_clean
-  USE cp_parser,                       ONLY: parser_release,&
-                                             parser_get_object,&
-                                             parser_get_next_line,&
-                                             parser_search_string,&
-                                             parser_create,&
-                                             cp_parser_type,&
-                                             parser_test_next_token
+  USE pair_potential_types,            ONLY: &
+       eam_pot_type, pair_potential_lj_create, pair_potential_p_type, &
+       pair_potential_pp_create, pair_potential_pp_release, &
+       pair_potential_pp_type, pair_potential_reallocate, &
+       pair_potential_single_clean, pair_potential_single_copy, &
+       pair_potential_single_type
   USE particle_types,                  ONLY: particle_type
-  USE splines,                         ONLY: spline_environment_type, &
-                                             spline_env_create, &
-                                             spline_env_release, &
-                                             spline_env_retain,&
-                                             spline_data_release, &
-                                             spline_data_retain, &
-                                             spline_data_type
-  USE string_utilities,                ONLY: str_search,&
-                                             uppercase
+  USE physcon,                         ONLY: bohr
+  USE qmmm_ff_fist,                    ONLY: qmmm_ff_precond_only_qm
+  USE qmmm_types,                      ONLY: qmmm_env_mm_type
+  USE splines,                         ONLY: spline_data_release,&
+                                             spline_data_retain,&
+                                             spline_data_type,&
+                                             spline_env_create,&
+                                             spline_env_release,&
+                                             spline_environment_type
+  USE string_utilities,                ONLY: uppercase
   USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE topology_types,                  ONLY: topology_parameters_type,&
-                                             constraint_info_type
-  USE qmmm_ff_fist,                    ONLY: qmmm_ff_precond_only_qm
-  USE qmmm_types,                      ONLY: qmmm_env_mm_type
-  USE input_constants,                 ONLY: do_qmmm_none
-  USE physcon,                         ONLY: bohr
-  USE input_section_types,             ONLY: section_type,&
-                                             section_create,&
-                                             section_add_keyword,&
-                                             section_add_subsection,&
-                                             section_release,&
-                                             section_vals_type,&
-                                             section_vals_get_subs_vals,&
-                                             section_vals_get,&
-                                             section_vals_val_get
-  USE cp_output_handling,              ONLY: cp_print_key_unit_nr, &
-                                             cp_print_key_finished_output
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
 
-  CHARACTER(LEN=*), PARAMETER, PRIVATE :: moduleN = "force_fields"
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'force_fields'
 
   PRIVATE
   PUBLIC :: force_field_control,&
@@ -178,27 +137,32 @@ CONTAINS
        molecule_kind_set,molecule_set,&
        ewald_env,fist_nonbond_env,&
        globenv, qmmm, qmmm_env, mm_section, error)
-    IMPLICIT NONE
-    ! Arguments
-    TYPE(atomic_kind_type), DIMENSION(:), POINTER       :: atomic_kind_set
-    TYPE(particle_type), DIMENSION(:), POINTER          :: particle_set
-    TYPE(molecule_kind_type), DIMENSION(:), POINTER     :: molecule_kind_set
-    TYPE(molecule_type), DIMENSION(:), POINTER          :: molecule_set
-    TYPE ( ewald_environment_type ), POINTER :: ewald_env
-    TYPE ( fist_nonbond_env_type ), POINTER ::  fist_nonbond_env
-    TYPE(global_environment_type), pointer,OPTIONAL  :: globenv
-    TYPE(section_vals_type), POINTER :: mm_section
+    TYPE(atomic_kind_type), DIMENSION(:), &
+      POINTER                                :: atomic_kind_set
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particle_set
+    TYPE(molecule_kind_type), DIMENSION(:), &
+      POINTER                                :: molecule_kind_set
+    TYPE(molecule_type), DIMENSION(:), &
+      POINTER                                :: molecule_set
+    TYPE(ewald_environment_type), POINTER    :: ewald_env
+    TYPE(fist_nonbond_env_type), POINTER     :: fist_nonbond_env
+    TYPE(global_environment_type), &
+      OPTIONAL, POINTER                      :: globenv
+    LOGICAL, INTENT(IN), OPTIONAL            :: qmmm
+    TYPE(qmmm_env_mm_type), OPTIONAL, &
+      POINTER                                :: qmmm_env
+    TYPE(section_vals_type), POINTER         :: mm_section
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    LOGICAL, INTENT(IN), OPTIONAL :: qmmm
-    TYPE (qmmm_env_mm_type), POINTER, OPTIONAL :: qmmm_env
-    TYPE(cp_error_type), INTENT(inout), OPTIONAL   :: error
-    ! Local Variables
     CHARACTER(len=*), PARAMETER :: routineN = 'force_field_control', &
-         routineP = moduleN//':'//routineN
+      routineP = moduleN//':'//routineN
+
     INTEGER                                  :: handle, iw
-    LOGICAL                                  :: found, failure
-    TYPE(force_field_type)                   :: ff_type
+    LOGICAL                                  :: failure, found
     TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(force_field_type)                   :: ff_type
 
     failure = .FALSE.
     NULLIFY(logger)
@@ -309,23 +273,22 @@ CONTAINS
 !!   SOURCE
 !******************************************************************************
   SUBROUTINE read_force_field_section1 ( ff_section, mm_section, ff_type, globenv, error )
-    IMPLICIT NONE
-    ! Arguments
-    TYPE(force_field_type), &
-         INTENT(INOUT)                          :: ff_type
     TYPE(section_vals_type), POINTER         :: ff_section, mm_section
+    TYPE(force_field_type), INTENT(INOUT)    :: ff_type
     TYPE(global_environment_type), &
-         pointer,OPTIONAL                    :: globenv
-    TYPE(cp_error_type), INTENT(inout), OPTIONAL   :: error
-    ! Local Variables
+      OPTIONAL, POINTER                      :: globenv
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
     CHARACTER(len=*), PARAMETER :: routineN = 'read_force_field_section1', &
-         routineP = moduleN//':'//routineN
-    LOGICAL :: failure, explicit
-    INTEGER :: n_rep, nlj, i, iwl, nwl, ieam, neam, ngd, igd, nipbv, ipbv, nbmhft, ibmhft, ntot
-    INTEGER :: nchg, nbonds, nbends, ntors
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: ipbv, nbends, nbmhft, nbonds, &
+                                                nchg, neam, ngd, nipbv, nlj, &
+                                                ntors, ntot, nwl
+    LOGICAL                                  :: explicit, failure
+    TYPE(input_info_type), POINTER           :: inp_info
     TYPE(section_vals_type), POINTER         :: tmp_section, tmp_section2
-    CHARACTER(len=default_string_length) ,DIMENSION(:), POINTER :: atoms
-    TYPE(input_info_type),POINTER            :: inp_info
 
     NULLIFY(tmp_section, tmp_section2)
     inp_info => ff_type%inp_info
@@ -475,11 +438,9 @@ CONTAINS
 !!   SOURCE
 !******************************************************************************
   SUBROUTINE set_IPBV_ff(at1, at2, nonbonded )
-    IMPLICIT NONE
-    ! Arguments
-    CHARACTER (LEN=*), INTENT(IN)         :: at1, at2
-    TYPE (pair_potential_single_type), POINTER     :: nonbonded
-    ! Local Variables
+    CHARACTER(LEN=*), INTENT(IN)             :: at1, at2
+    TYPE(pair_potential_single_type), &
+      POINTER                                :: nonbonded
 
     IF  ( ( at1(1:1) == 'O' ) .AND. ( at2 (1:1) == 'O' ) ) THEN
        nonbonded%ipbv%rcore = 0.9_dp       ! a.u.
@@ -561,11 +522,9 @@ CONTAINS
 !!   SOURCE
 !******************************************************************************
   SUBROUTINE set_BMHFT_ff(at1, at2, nonbonded )
-    IMPLICIT NONE
-    ! Arguments
-    CHARACTER (LEN=*), INTENT(IN) :: at1, at2
-    TYPE (pair_potential_single_type), POINTER :: nonbonded
-    ! Local Variables
+    CHARACTER(LEN=*), INTENT(IN)             :: at1, at2
+    TYPE(pair_potential_single_type), &
+      POINTER                                :: nonbonded
 
     nonbonded%ft%b =  3.1545_dp     ! Ang^-1
     CALL convert_to_cp2k_units ( "ANGSTROM", length =  nonbonded%ft%b , l_power = -1  )
@@ -620,21 +579,21 @@ CONTAINS
 !!   SOURCE
 !******************************************************************************
   SUBROUTINE read_eam_section(nonbonded, section, start, globenv, mm_section, error)
-    IMPLICIT NONE
-    ! Arguments
-    TYPE (section_vals_type), POINTER                  :: section
-    TYPE (pair_potential_p_type), POINTER              :: nonbonded
-    INTEGER, INTENT(IN) :: start
+    TYPE(pair_potential_p_type), POINTER     :: nonbonded
+    TYPE(section_vals_type), POINTER         :: section
+    INTEGER, INTENT(IN)                      :: start
     TYPE(global_environment_type), &
-         pointer,OPTIONAL                    :: globenv
+      OPTIONAL, POINTER                      :: globenv
+    TYPE(section_vals_type), POINTER         :: mm_section
     TYPE(cp_error_type), INTENT(inout), &
-         OPTIONAL                               :: error    
-    TYPE(section_vals_type), POINTER :: mm_section
-    ! Local Variables
+      OPTIONAL                               :: error
+
     CHARACTER(len=*), PARAMETER :: routineN = 'read_eam_section', &
-         routineP = moduleN//':'//routineN
-    INTEGER :: n_items, isec
-    CHARACTER(LEN=default_string_length), POINTER, DIMENSION(:) :: atm_names
+      routineP = moduleN//':'//routineN
+
+    CHARACTER(LEN=default_string_length), &
+      DIMENSION(:), POINTER                  :: atm_names
+    INTEGER                                  :: isec, n_items
 
     CALL section_vals_get(section,n_repetition=n_items,error=error)
     DO isec = 1, n_items
@@ -667,19 +626,19 @@ CONTAINS
 !!   SOURCE
 !******************************************************************************
   SUBROUTINE read_lj_section(nonbonded, section, start, error)
-    IMPLICIT NONE
-    ! Arguments
-    TYPE(section_vals_type), POINTER                  :: section
-    TYPE (pair_potential_p_type), POINTER             :: nonbonded
-    INTEGER, INTENT(IN) :: start
+    TYPE(pair_potential_p_type), POINTER     :: nonbonded
+    TYPE(section_vals_type), POINTER         :: section
+    INTEGER, INTENT(IN)                      :: start
     TYPE(cp_error_type), INTENT(inout), &
-         OPTIONAL                               :: error    
-    ! Local Variables
+      OPTIONAL                               :: error
+
     CHARACTER(len=*), PARAMETER :: routineN = 'read_lj_section', &
-         routineP = moduleN//':'//routineN
-    INTEGER :: n_items, isec
-    CHARACTER(LEN=default_string_length), POINTER, DIMENSION(:) :: atm_names
-    REAL(KIND=dp) :: epsilon, sigma, rcut
+      routineP = moduleN//':'//routineN
+
+    CHARACTER(LEN=default_string_length), &
+      DIMENSION(:), POINTER                  :: atm_names
+    INTEGER                                  :: isec, n_items
+    REAL(KIND=dp)                            :: epsilon, rcut, sigma
 
     CALL section_vals_get(section,n_repetition=n_items,error=error)
     DO isec = 1, n_items
@@ -715,19 +674,19 @@ CONTAINS
 !!   SOURCE
 !******************************************************************************
   SUBROUTINE read_wl_section(nonbonded, section, start, error)
-    IMPLICIT NONE
-    ! Arguments
-    TYPE(section_vals_type), POINTER                    :: section
-    TYPE (pair_potential_p_type), POINTER               :: nonbonded
-    INTEGER, INTENT(IN) :: start
+    TYPE(pair_potential_p_type), POINTER     :: nonbonded
+    TYPE(section_vals_type), POINTER         :: section
+    INTEGER, INTENT(IN)                      :: start
     TYPE(cp_error_type), INTENT(inout), &
-         OPTIONAL                               :: error    
-    ! Local Variables
+      OPTIONAL                               :: error
+
     CHARACTER(len=*), PARAMETER :: routineN = 'read_wl_section', &
-         routineP = moduleN//':'//routineN
-    INTEGER :: n_items, isec
-    CHARACTER(LEN=default_string_length), POINTER, DIMENSION(:) :: atm_names
-    REAL(KIND=dp) :: a,b,c, rcut
+      routineP = moduleN//':'//routineN
+
+    CHARACTER(LEN=default_string_length), &
+      DIMENSION(:), POINTER                  :: atm_names
+    INTEGER                                  :: isec, n_items
+    REAL(KIND=dp)                            :: a, b, c, rcut
 
     CALL section_vals_get(section,n_repetition=n_items,error=error)
     DO isec = 1, n_items
@@ -764,20 +723,19 @@ CONTAINS
 !!   SOURCE
 !******************************************************************************
   SUBROUTINE read_gd_section(nonbonded, section, start, error)
-    IMPLICIT NONE
-    ! Arguments
-    TYPE(section_vals_type), POINTER                   :: section
-    TYPE (pair_potential_p_type), POINTER              :: nonbonded
-    INTEGER, INTENT(IN) :: start
+    TYPE(pair_potential_p_type), POINTER     :: nonbonded
+    TYPE(section_vals_type), POINTER         :: section
+    INTEGER, INTENT(IN)                      :: start
     TYPE(cp_error_type), INTENT(inout), &
-         OPTIONAL                               :: error    
-    ! Local Variables
+      OPTIONAL                               :: error
+
     CHARACTER(len=*), PARAMETER :: routineN = 'read_gd_section', &
-         routineP = moduleN//':'//routineN  
-    INTEGER :: n_items, isec
-    CHARACTER(LEN=default_string_length), POINTER, DIMENSION(:) :: atm_names
-    REAL(KIND=dp) :: vr0, d, dc, rcut
-    INTEGER       :: m, mc
+      routineP = moduleN//':'//routineN
+
+    CHARACTER(LEN=default_string_length), &
+      DIMENSION(:), POINTER                  :: atm_names
+    INTEGER                                  :: isec, m, mc, n_items
+    REAL(KIND=dp)                            :: d, dc, rcut, vr0
 
     CALL section_vals_get(section,n_repetition=n_items,error=error)
     DO isec = 1, n_items
@@ -818,19 +776,19 @@ CONTAINS
 !!   SOURCE
 !******************************************************************************
   SUBROUTINE read_ipbv_section(nonbonded, section, start, error)
-    IMPLICIT NONE
-    ! Arguments
-    TYPE(section_vals_type), POINTER                  :: section
-    TYPE (pair_potential_p_type), POINTER             :: nonbonded
-    INTEGER, INTENT(IN) :: start
+    TYPE(pair_potential_p_type), POINTER     :: nonbonded
+    TYPE(section_vals_type), POINTER         :: section
+    INTEGER, INTENT(IN)                      :: start
     TYPE(cp_error_type), INTENT(inout), &
-         OPTIONAL                               :: error    
-    ! Local Variables
+      OPTIONAL                               :: error
+
     CHARACTER(len=*), PARAMETER :: routineN = 'read_ipbv_section', &
-         routineP = moduleN//':'//routineN  
-    INTEGER :: n_items, isec
-    CHARACTER(LEN=default_string_length), POINTER, DIMENSION(:) :: atm_names
-    REAL(KIND=dp) :: rcut
+      routineP = moduleN//':'//routineN
+
+    CHARACTER(LEN=default_string_length), &
+      DIMENSION(:), POINTER                  :: atm_names
+    INTEGER                                  :: isec, n_items
+    REAL(KIND=dp)                            :: rcut
 
     CALL section_vals_get(section,n_repetition=n_items,error=error)
     DO isec = 1, n_items         
@@ -862,19 +820,19 @@ CONTAINS
 !!   SOURCE
 !******************************************************************************
   SUBROUTINE read_bmhft_section(nonbonded, section, start, error)
-    IMPLICIT NONE
-    ! Arguments
-    TYPE(section_vals_type), POINTER                    :: section
-    TYPE (pair_potential_p_type), POINTER               :: nonbonded
-    INTEGER, INTENT(IN) :: start
+    TYPE(pair_potential_p_type), POINTER     :: nonbonded
+    TYPE(section_vals_type), POINTER         :: section
+    INTEGER, INTENT(IN)                      :: start
     TYPE(cp_error_type), INTENT(inout), &
-         OPTIONAL                               :: error    
-    ! Local Variables
+      OPTIONAL                               :: error
+
     CHARACTER(len=*), PARAMETER :: routineN = 'read_bmhft_section', &
-         routineP = moduleN//':'//routineN  
-    INTEGER :: n_items, isec
-    CHARACTER(LEN=default_string_length), POINTER, DIMENSION(:) :: atm_names
-    REAL(KIND=dp) :: rcut
+      routineP = moduleN//':'//routineN
+
+    CHARACTER(LEN=default_string_length), &
+      DIMENSION(:), POINTER                  :: atm_names
+    INTEGER                                  :: isec, n_items
+    REAL(KIND=dp)                            :: rcut
 
     CALL section_vals_get(section,n_repetition=n_items,error=error)
     DO isec = 1, n_items         
@@ -908,18 +866,18 @@ CONTAINS
 !!   SOURCE
 !******************************************************************************
   SUBROUTINE read_chrg_section(charge_atm, charge, section, start, error)
-    IMPLICIT NONE
-    ! Arguments
-    TYPE(section_vals_type), POINTER                  :: section
-    CHARACTER (LEN=default_string_length), POINTER, DIMENSION(:) :: charge_atm
-    REAL(KIND=dp), POINTER, DIMENSION(:) :: charge
-    INTEGER, INTENT(IN) :: start
+    CHARACTER(LEN=default_string_length), &
+      DIMENSION(:), POINTER                  :: charge_atm
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: charge
+    TYPE(section_vals_type), POINTER         :: section
+    INTEGER, INTENT(IN)                      :: start
     TYPE(cp_error_type), INTENT(inout), &
-         OPTIONAL                               :: error    
-    ! Local Variables
+      OPTIONAL                               :: error
+
     CHARACTER(len=*), PARAMETER :: routineN = 'read_chrg_section', &
-         routineP = moduleN//':'//routineN  
-    INTEGER :: n_items, isec
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: isec, n_items
 
     CALL section_vals_get(section,n_repetition=n_items,error=error)
     DO isec = 1, n_items         
@@ -948,23 +906,23 @@ CONTAINS
 !!   SOURCE
 !******************************************************************************
   SUBROUTINE read_bonds_section(bond_a, bond_b, bond_k, bond_r0, section, start, error)
-    IMPLICIT NONE
-    ! Arguments
-    CHARACTER (LEN=default_string_length), POINTER, DIMENSION(:) :: bond_a
-    CHARACTER (LEN=default_string_length), POINTER, DIMENSION(:) :: bond_b
-    REAL(KIND=dp), POINTER, DIMENSION(:,:)                       :: bond_k
-    REAL(KIND=dp), POINTER, DIMENSION(:)                         :: bond_r0
-    TYPE(section_vals_type), POINTER                  :: section
-    INTEGER, INTENT(IN) :: start
+    CHARACTER(LEN=default_string_length), &
+      DIMENSION(:), POINTER                  :: bond_a, bond_b
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: bond_k
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: bond_r0
+    TYPE(section_vals_type), POINTER         :: section
+    INTEGER, INTENT(IN)                      :: start
     TYPE(cp_error_type), INTENT(inout), &
-         OPTIONAL                               :: error    
-    ! Local Variables
+      OPTIONAL                               :: error
+
     CHARACTER(len=*), PARAMETER :: routineN = 'read_bonds_section', &
-         routineP = moduleN//':'//routineN  
-    INTEGER :: n_items, isec, k
-    CHARACTER(LEN=default_string_length), POINTER, DIMENSION(:) :: atm_names
-    REAL(KIND=dp), POINTER, DIMENSION(:)                        :: Kvals
-    LOGICAL :: failure
+      routineP = moduleN//':'//routineN
+
+    CHARACTER(LEN=default_string_length), &
+      DIMENSION(:), POINTER                  :: atm_names
+    INTEGER                                  :: isec, k, n_items
+    LOGICAL                                  :: failure
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: Kvals
 
     failure = .FALSE.
     NULLIFY(Kvals, atm_names)
@@ -974,7 +932,7 @@ CONTAINS
        bond_a(start+isec) = atm_names(1)
        bond_b(start+isec) = atm_names(2)
        CALL section_vals_val_get(section,"K",i_rep_section=isec,r_vals=Kvals,error=error)
-       CPPostcondition(size(Kvals) <= 3, cp_failure_level, routineP, error, failure)
+       CPPostcondition(SIZE(Kvals) <= 3, cp_failure_level, routineP, error, failure)
        bond_k(:,start+isec) = 0.0_dp
        DO k=1,SIZE(Kvals)
           bond_k(k,start+isec) = Kvals(k)
@@ -1000,24 +958,22 @@ CONTAINS
 !!   SOURCE
 !******************************************************************************
   SUBROUTINE read_bends_section(bend_a, bend_b, bend_c, bend_k, bend_theta0, section, start, error)
-    IMPLICIT NONE
-    ! Arguments
-    CHARACTER (LEN=default_string_length), POINTER, DIMENSION(:) :: bend_a
-    CHARACTER (LEN=default_string_length), POINTER, DIMENSION(:) :: bend_b
-    CHARACTER (LEN=default_string_length), POINTER, DIMENSION(:) :: bend_c
-    REAL(KIND=dp), POINTER, DIMENSION(:)                         :: bend_k
-    REAL(KIND=dp), POINTER, DIMENSION(:)                         :: bend_theta0
-    TYPE(section_vals_type), POINTER                  :: section
-    INTEGER, INTENT(IN) :: start
+    CHARACTER(LEN=default_string_length), &
+      DIMENSION(:), POINTER                  :: bend_a, bend_b, bend_c
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: bend_k, bend_theta0
+    TYPE(section_vals_type), POINTER         :: section
+    INTEGER, INTENT(IN)                      :: start
     TYPE(cp_error_type), INTENT(inout), &
-         OPTIONAL                               :: error    
-    ! Local Variables
+      OPTIONAL                               :: error
+
     CHARACTER(len=*), PARAMETER :: routineN = 'read_bends_section', &
-         routineP = moduleN//':'//routineN  
-    INTEGER :: n_items, isec
-    CHARACTER(LEN=default_string_length), POINTER, DIMENSION(:) :: atm_names
-    REAL(KIND=dp), POINTER, DIMENSION(:)                        :: Kvals
-    LOGICAL :: failure
+      routineP = moduleN//':'//routineN
+
+    CHARACTER(LEN=default_string_length), &
+      DIMENSION(:), POINTER                  :: atm_names
+    INTEGER                                  :: isec, n_items
+    LOGICAL                                  :: failure
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: Kvals
 
     failure = .FALSE.
     NULLIFY(Kvals, atm_names)
@@ -1028,7 +984,7 @@ CONTAINS
        bend_b(start+isec) = atm_names(2)
        bend_c(start+isec) = atm_names(3)
        CALL section_vals_val_get(section,"K",i_rep_section=isec,r_vals=Kvals,error=error)
-       CPPostcondition(size(Kvals) == 1, cp_failure_level, routineP, error, failure)
+       CPPostcondition(SIZE(Kvals) == 1, cp_failure_level, routineP, error, failure)
        bend_k(start+isec) = Kvals(1)
        CALL section_vals_val_get(section,"THETA0",i_rep_section=isec,r_val=bend_theta0(start+isec),error=error)
     END DO
@@ -1052,26 +1008,23 @@ CONTAINS
 !******************************************************************************
   SUBROUTINE read_torsions_section( torsion_a, torsion_b, torsion_c, torsion_d, torsion_k,&
        torsion_cosphi0, torsion_m, section, start, error )
-    IMPLICIT NONE
-    ! Arguments
-    CHARACTER (LEN=default_string_length), POINTER,DIMENSION(:)  :: torsion_a
-    CHARACTER (LEN=default_string_length), POINTER,DIMENSION(:)  :: torsion_b
-    CHARACTER (LEN=default_string_length), POINTER,DIMENSION(:)  :: torsion_c
-    CHARACTER (LEN=default_string_length), POINTER,DIMENSION(:)  :: torsion_d
-    REAL(KIND=dp), POINTER,DIMENSION(:)                          :: torsion_k
-    REAL(KIND=dp), POINTER,DIMENSION(:)                          :: torsion_m
-    REAL(KIND=dp), POINTER,DIMENSION(:)                          :: torsion_cosphi0
-    TYPE(section_vals_type), POINTER                  :: section
-    INTEGER, INTENT(IN) :: start
+    CHARACTER(LEN=default_string_length), &
+      DIMENSION(:), POINTER                  :: torsion_a, torsion_b, &
+                                                torsion_c, torsion_d
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: torsion_k, torsion_cosphi0, &
+                                                torsion_m
+    TYPE(section_vals_type), POINTER         :: section
+    INTEGER, INTENT(IN)                      :: start
     TYPE(cp_error_type), INTENT(inout), &
-         OPTIONAL                               :: error      
-    ! Local Variables
+      OPTIONAL                               :: error
+
     CHARACTER(len=*), PARAMETER :: routineN = 'read_torsions_section', &
-         routineP = moduleN//':'//routineN  
-    INTEGER :: n_items, isec, ival
-    CHARACTER(LEN=default_string_length), POINTER, DIMENSION(:) :: atm_names
-    REAL(KIND=dp) :: myval
-    LOGICAL :: failure  
+      routineP = moduleN//':'//routineN
+
+    CHARACTER(LEN=default_string_length), &
+      DIMENSION(:), POINTER                  :: atm_names
+    INTEGER                                  :: isec, n_items
+    LOGICAL                                  :: failure
 
     failure = .FALSE.
     NULLIFY( atm_names)
@@ -1107,19 +1060,14 @@ CONTAINS
 !!   SOURCE
 !******************************************************************************
   SUBROUTINE read_force_field_section ( ff_type , globenv, mm_section, error )
-    IMPLICIT NONE
-    ! Arguments
-    TYPE(force_field_type), &
-         INTENT(INOUT)                          :: ff_type
+    TYPE(force_field_type), INTENT(INOUT)    :: ff_type
     TYPE(global_environment_type), &
-         pointer,OPTIONAL                    :: globenv
-    TYPE(section_vals_type), POINTER :: mm_section
-    TYPE(cp_error_type), INTENT(inout), OPTIONAL   :: error
-    ! Local Variables
-    CHARACTER(LEN=default_string_length)     :: label
-    CHARACTER(LEN=default_string_length)     :: string
-    INTEGER                                  :: iw,ILEN,ierror
-    TYPE(section_vals_type), POINTER         :: ff_section  
+      OPTIONAL, POINTER                      :: globenv
+    TYPE(section_vals_type), POINTER         :: mm_section
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    TYPE(section_vals_type), POINTER         :: ff_section
 
     NULLIFY(ff_section)
     ff_section => section_vals_get_subs_vals(mm_section,&
@@ -1149,34 +1097,32 @@ CONTAINS
   SUBROUTINE read_force_field_charmm ( ff_type , globenv, mm_section, error )
 
 
-    TYPE(force_field_type), &
-         INTENT(INOUT)                          :: ff_type
+    TYPE(force_field_type), INTENT(INOUT)    :: ff_type
     TYPE(global_environment_type), &
-         pointer,OPTIONAL                    :: globenv
-    TYPE(section_vals_type), POINTER :: mm_section
- 
-    TYPE(cp_error_type), INTENT(inout), OPTIONAL   :: error
+      OPTIONAL, POINTER                      :: globenv
+    TYPE(section_vals_type), POINTER         :: mm_section
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'read_force_field_charmm', &
-         routineP = moduleN//':'//routineN 
-    TYPE(charmm_info_type),POINTER           :: chm_info
+      routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: found
-    INTEGER                                  :: i, iw, ilab,handle
-    INTEGER                                  :: nbond,nbend,nub,ntorsion,&
-         nimpr,nonfo,nnonbond,dummy
-
-    CHARACTER(LEN=default_string_length)     :: label
-    CHARACTER(LEN=default_string_length)     :: string,string2,string3,string4
-    TYPE(cp_parser_type), POINTER            :: parser
-    CHARACTER(LEN=default_string_length), DIMENSION(18) :: avail_section 
-    CHARACTER(LEN=default_string_length), DIMENSION(1)  :: bond_section
-    CHARACTER(LEN=default_string_length), DIMENSION(2)  :: angl_section,&
-         thet_section,&
-         impr_section,&
-         nbon_section
-    LOGICAL :: failure
+    CHARACTER(LEN=default_string_length)     :: label, string, string2, &
+                                                string3, string4
+    CHARACTER(LEN=default_string_length), &
+      DIMENSION(1)                           :: bond_section
+    CHARACTER(LEN=default_string_length), &
+      DIMENSION(18)                          :: avail_section
+    CHARACTER(LEN=default_string_length), &
+      DIMENSION(2)                           :: angl_section, impr_section, &
+                                                nbon_section, thet_section
+    INTEGER                                  :: dummy, handle, i, ilab, iw, &
+                                                nbend, nbond, nimpr, &
+                                                nnonbond, nonfo, ntorsion, nub
+    LOGICAL                                  :: failure, found
+    TYPE(charmm_info_type), POINTER          :: chm_info
     TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(cp_parser_type), POINTER            :: parser
 
     failure = .FALSE.
     NULLIFY(logger,parser)
@@ -1559,86 +1505,75 @@ CONTAINS
        ewald_env,fist_nonbond_env,ff_type,globenv,&
        qmmm, qmmm_env, mm_section, error)
 
-    TYPE ( ewald_environment_type ), POINTER :: ewald_env
-    TYPE ( fist_nonbond_env_type ), POINTER ::  fist_nonbond_env
-    TYPE(particle_type), DIMENSION(:), POINTER             :: particle_set
-    TYPE(atomic_kind_type), DIMENSION(:), POINTER          :: atomic_kind_set
-    TYPE(molecule_kind_type), DIMENSION(:), POINTER        :: molecule_kind_set
-    TYPE(molecule_type), DIMENSION(:), POINTER             :: molecule_set
-    TYPE(force_field_type), INTENT(INOUT)                  :: ff_type
-    TYPE(section_vals_type), POINTER :: mm_section
-
-    TYPE(global_environment_type), pointer, OPTIONAL    :: globenv
-    TYPE(pair_potential_pp_type), POINTER                  :: potparm_bond
-    TYPE(pair_potential_pp_type), POINTER                  :: potparm_nonbond
-    TYPE(cp_error_type), INTENT (INOUT), &
-         OPTIONAL                                    :: error
-    LOGICAL, INTENT(IN), OPTIONAL :: qmmm
-    TYPE (qmmm_env_mm_type), POINTER, OPTIONAL :: qmmm_env
-
-    TYPE(spline_environment_type), POINTER                 :: spline_bond_env
-    TYPE(spline_environment_type), POINTER                 :: spline_nonbond_env
-    TYPE(spline_environment_type), POINTER                 :: spline_manybody_env
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particle_set
+    TYPE(atomic_kind_type), DIMENSION(:), &
+      POINTER                                :: atomic_kind_set
+    TYPE(molecule_kind_type), DIMENSION(:), &
+      POINTER                                :: molecule_kind_set
+    TYPE(molecule_type), DIMENSION(:), &
+      POINTER                                :: molecule_set
+    TYPE(ewald_environment_type), POINTER    :: ewald_env
+    TYPE(fist_nonbond_env_type), POINTER     :: fist_nonbond_env
+    TYPE(force_field_type), INTENT(INOUT)    :: ff_type
+    TYPE(global_environment_type), &
+      OPTIONAL, POINTER                      :: globenv
+    LOGICAL, INTENT(IN), OPTIONAL            :: qmmm
+    TYPE(qmmm_env_mm_type), OPTIONAL, &
+      POINTER                                :: qmmm_env
+    TYPE(section_vals_type), POINTER         :: mm_section
+    TYPE(cp_error_type), INTENT(INOUT), &
+      OPTIONAL                               :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'force_field_pack', &
-         routineP = moduleN//':'//routineN
+      routineP = moduleN//':'//routineN
 
-    TYPE(input_info_type),POINTER     :: inp_info
-    TYPE(charmm_info_type),POINTER    :: chm_info
-
-    INTEGER                                  :: stat, iw, i, j, k, ikind, jkind, n
-
-    CHARACTER(LEN=default_string_length)   :: name
-    TYPE(atomic_kind_type), POINTER        :: atomic_kind
-    TYPE(molecule_kind_type), POINTER      :: molecule_kind
-
-    INTEGER                                :: natom,nbond,nbend,nub,ntorsion,&
-         nonfo,nimpr,nkinds
-    INTEGER                                :: atm_a,atm_b,atm_c,atm_d
-    CHARACTER(LEN=default_string_length)   :: name_atm_a,name_atm_b, name_atm_a_local, name_atm_b_local
-    CHARACTER(LEN=default_string_length)   :: name_atm_c,name_atm_d
-    CHARACTER(LEN=default_string_length)   :: name_atm_a2,name_atm_b2
-    CHARACTER(LEN=default_string_length)   :: name_atm_c2,name_atm_d2
-    TYPE(atom_type), DIMENSION(:), POINTER            :: atom_list
-    TYPE(bond_type), DIMENSION(:), POINTER            :: bond_list
-    TYPE(bend_type), DIMENSION(:), POINTER            :: bend_list
-    TYPE(torsion_type), DIMENSION(:), POINTER         :: torsion_list
-    TYPE(onfo_type), DIMENSION(:), POINTER            :: onfo_list
-    TYPE(ub_type), DIMENSION(:), POINTER              :: ub_list
-    TYPE(impr_type), DIMENSION(:), POINTER            :: impr_list
-    LOGICAL                                  :: found,found_a,found_b
-    INTEGER                                  :: counter
-    INTEGER,POINTER                          :: map_bond_kind(:)
-    INTEGER,POINTER                          :: map_bend_kind(:)
-    INTEGER,POINTER                          :: map_ub_kind(:)
-    INTEGER,POINTER                          :: map_torsion_kind(:)
-    INTEGER,POINTER                          :: map_impr_kind(:)
-    INTEGER,POINTER                          :: map_onfo_kind(:)
-    TYPE(bond_kind_type), DIMENSION(:), POINTER       :: bond_kind_set
-    TYPE(bend_kind_type), DIMENSION(:), POINTER       :: bend_kind_set
-    TYPE(ub_kind_type), DIMENSION(:), POINTER         :: ub_kind_set
-    TYPE(onfo_kind_type), DIMENSION(:), POINTER       :: onfo_kind_set
-    TYPE(impr_kind_type), DIMENSION(:), POINTER       :: impr_kind_set
-    TYPE(torsion_kind_type), DIMENSION(:), POINTER    :: torsion_kind_set
-
-    REAL(KIND=dp)                                :: rmin,epsilon, default_rcutsq
-    REAL(KIND=dp)                                :: rmin2_a,rmin2_b
-    REAL(KIND=dp)                                :: epsilon_a,epsilon_b,scale_factor
-    REAL(KIND=dp)                                :: qi1,qi2,qi3,qi4
-    INTEGER                                  :: ii, jj, imul, ilink
-    LOGICAL :: only_qm, my_qmmm, is_link_atom, failure,use_qmmm_ff
-    INTEGER, DIMENSION(:), POINTER :: my_atom_list
-
-    CHARACTER(LEN=default_string_length)     :: atmname
-    REAL(KIND=dp), DIMENSION(:), POINTER         :: charge
-    TYPE(elp_potential_type), POINTER        :: elp_potential
-
-    INTEGER, DIMENSION(:), POINTER           :: molecule_list
-    INTEGER                                  :: first,last,match_names,handle
-    TYPE(molecule_type), POINTER        :: molecule
-    TYPE ( spline_data_type ), POINTER :: spline_data
-    LOGICAL :: allocate_spline_bond_env
+    CHARACTER(LEN=default_string_length) :: atmname, name, name_atm_a, &
+      name_atm_a2, name_atm_a_local, name_atm_b, name_atm_b2, &
+      name_atm_b_local, name_atm_c, name_atm_c2, name_atm_d, name_atm_d2
+    INTEGER :: atm_a, atm_b, atm_c, atm_d, counter, first, handle, i, ii, &
+      ikind, ilink, imul, iw, j, jj, jkind, k, last, match_names, n, natom, &
+      nbend, nbond, nimpr, nkinds, nonfo, ntorsion, nub, stat
+    INTEGER, DIMENSION(:), POINTER           :: molecule_list, my_atom_list
+    INTEGER, POINTER :: map_bend_kind(:), map_bond_kind(:), map_impr_kind(:), &
+      map_onfo_kind(:), map_torsion_kind(:), map_ub_kind(:)
+    LOGICAL :: allocate_spline_bond_env, failure, found, found_a, found_b, &
+      is_link_atom, my_qmmm, only_qm, use_qmmm_ff
+    REAL(KIND=dp) :: default_rcutsq, epsilon, epsilon_a, epsilon_b, qi1, qi2, &
+      qi3, qi4, rmin, rmin2_a, rmin2_b, scale_factor
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: charge
+    TYPE(atom_type), DIMENSION(:), POINTER   :: atom_list
+    TYPE(atomic_kind_type), POINTER          :: atomic_kind
+    TYPE(bend_kind_type), DIMENSION(:), &
+      POINTER                                :: bend_kind_set
+    TYPE(bend_type), DIMENSION(:), POINTER   :: bend_list
+    TYPE(bond_kind_type), DIMENSION(:), &
+      POINTER                                :: bond_kind_set
+    TYPE(bond_type), DIMENSION(:), POINTER   :: bond_list
+    TYPE(charmm_info_type), POINTER          :: chm_info
     TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(elp_potential_type), POINTER        :: elp_potential
+    TYPE(impr_kind_type), DIMENSION(:), &
+      POINTER                                :: impr_kind_set
+    TYPE(impr_type), DIMENSION(:), POINTER   :: impr_list
+    TYPE(input_info_type), POINTER           :: inp_info
+    TYPE(molecule_kind_type), POINTER        :: molecule_kind
+    TYPE(molecule_type), POINTER             :: molecule
+    TYPE(onfo_kind_type), DIMENSION(:), &
+      POINTER                                :: onfo_kind_set
+    TYPE(onfo_type), DIMENSION(:), POINTER   :: onfo_list
+    TYPE(pair_potential_pp_type), POINTER    :: potparm_bond, potparm_nonbond
+    TYPE(spline_data_type), POINTER          :: spline_data
+    TYPE(spline_environment_type), POINTER   :: spline_bond_env, &
+                                                spline_manybody_env, &
+                                                spline_nonbond_env
+    TYPE(torsion_kind_type), DIMENSION(:), &
+      POINTER                                :: torsion_kind_set
+    TYPE(torsion_type), DIMENSION(:), &
+      POINTER                                :: torsion_list
+    TYPE(ub_kind_type), DIMENSION(:), &
+      POINTER                                :: ub_kind_set
+    TYPE(ub_type), DIMENSION(:), POINTER     :: ub_list
 
     failure = .FALSE.
     NULLIFY(logger)
@@ -3013,7 +2948,7 @@ CONTAINS
 
              IF(ii/=0 .AND. jj/=0) THEN
                 rmin = chm_info%nonbond_rmin2(ii)+chm_info%nonbond_rmin2(jj)
-                epsilon = sqrt(chm_info%nonbond_eps(ii)*&
+                epsilon = SQRT(chm_info%nonbond_eps(ii)*&
                      chm_info%nonbond_eps(jj))
                 CALL  pair_potential_lj_create(potparm_nonbond%pot(i,j)%pot, error)
                 potparm_nonbond%pot(i,j)%pot%type       = 'LENNARD-JONES'
@@ -3176,28 +3111,31 @@ CONTAINS
   SUBROUTINE force_field_qeff_output (particle_set,atomic_kind_set,&
        molecule_kind_set,molecule_set,globenv,mm_section,error)
 
-    TYPE(particle_type), DIMENSION(:), POINTER             :: particle_set
-    TYPE(atomic_kind_type), DIMENSION(:), POINTER          :: atomic_kind_set
-    TYPE(molecule_kind_type), DIMENSION(:), POINTER        :: molecule_kind_set
-    TYPE(molecule_type), DIMENSION(:), POINTER             :: molecule_set
-    TYPE(global_environment_type), pointer, OPTIONAL    :: globenv
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particle_set
+    TYPE(atomic_kind_type), DIMENSION(:), &
+      POINTER                                :: atomic_kind_set
+    TYPE(molecule_kind_type), DIMENSION(:), &
+      POINTER                                :: molecule_kind_set
+    TYPE(molecule_type), DIMENSION(:), &
+      POINTER                                :: molecule_set
+    TYPE(global_environment_type), &
+      OPTIONAL, POINTER                      :: globenv
+    TYPE(section_vals_type), POINTER         :: mm_section
     TYPE(cp_error_type), INTENT(inout), &
-         OPTIONAL                               :: error
-    TYPE(section_vals_type), POINTER :: mm_section
+      OPTIONAL                               :: error
+
     CHARACTER(len=*), PARAMETER :: routineN = 'force_field_qeff_output', &
-         routineP = moduleN//':'//routineN
+      routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat, iw, i, j, k
-    CHARACTER(LEN=default_string_length)     :: atmname,molname
-    TYPE(atomic_kind_type), POINTER          :: atomic_kind
-    TYPE(molecule_kind_type), POINTER        :: molecule_kind
-
-    INTEGER                                  :: iatom,imol,handle
-    REAL(KIND=dp)                                :: qeff,qeff_mol,qeff_sum
-
+    CHARACTER(LEN=default_string_length)     :: atmname, molname
+    INTEGER                                  :: handle, i, iatom, imol, iw
+    LOGICAL                                  :: failure
+    REAL(KIND=dp)                            :: qeff, qeff_mol, qeff_sum
     TYPE(atom_type), DIMENSION(:), POINTER   :: atom_list
-    LOGICAL :: failure
+    TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(molecule_kind_type), POINTER        :: molecule_kind
 
     failure = .FALSE.
     NULLIFY(logger)
@@ -3271,52 +3209,51 @@ CONTAINS
 !!*****************************************************************************
   SUBROUTINE clean_intra_force_kind (molecule_kind_set,globenv,mm_section,error)
 
-    TYPE(molecule_kind_type), DIMENSION(:), POINTER        :: molecule_kind_set
-    TYPE(global_environment_type), pointer, OPTIONAL    :: globenv
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-    TYPE(section_vals_type), POINTER :: mm_section
+    TYPE(molecule_kind_type), DIMENSION(:), &
+      POINTER                                :: molecule_kind_set
+    TYPE(global_environment_type), &
+      OPTIONAL, POINTER                      :: globenv
+    TYPE(section_vals_type), POINTER         :: mm_section
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'clean_intra_force_kind', &
-         routineP = moduleN//':'//routineN
+      routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat, iw, i, j, k
-    TYPE(bond_kind_type), DIMENSION(:), POINTER       :: bond_kind_set
-    TYPE(bond_kind_type), DIMENSION(:), POINTER       :: new_bond_kind_set
-    TYPE(bond_type), DIMENSION(:), POINTER            :: bond_list
-    TYPE(bond_type), DIMENSION(:), POINTER            :: new_bond_list
-    TYPE(bend_kind_type), DIMENSION(:), POINTER       :: bend_kind_set
-    TYPE(bend_kind_type), DIMENSION(:), POINTER       :: new_bend_kind_set
-    TYPE(bend_type), DIMENSION(:), POINTER            :: bend_list
-    TYPE(bend_type), DIMENSION(:), POINTER            :: new_bend_list
-    TYPE(ub_kind_type), DIMENSION(:), POINTER         :: ub_kind_set
-    TYPE(ub_kind_type), DIMENSION(:), POINTER         :: new_ub_kind_set
-    TYPE(ub_type), DIMENSION(:), POINTER              :: ub_list
-    TYPE(ub_type), DIMENSION(:), POINTER              :: new_ub_list
-    TYPE(torsion_kind_type), DIMENSION(:), POINTER    :: torsion_kind_set
-    TYPE(torsion_kind_type), DIMENSION(:), POINTER    :: new_torsion_kind_set
-    TYPE(torsion_type), DIMENSION(:), POINTER         :: torsion_list
-    TYPE(torsion_type), DIMENSION(:), POINTER         :: new_torsion_list
-    TYPE(impr_kind_type), DIMENSION(:), POINTER       :: impr_kind_set
-    TYPE(impr_kind_type), DIMENSION(:), POINTER       :: new_impr_kind_set
-    TYPE(impr_type), DIMENSION(:), POINTER            :: impr_list
-    TYPE(impr_type), DIMENSION(:), POINTER            :: new_impr_list
-    INTEGER                                  :: ikind,newkind,ibond,ibend,iub
-    INTEGER                                  :: itorsion,iimpr
-    TYPE(molecule_kind_type), POINTER        :: molecule_kind
-    INTEGER, POINTER                         :: bad1(:),bad2(:)
-    INTEGER                                  :: counter
-    INTEGER                                  :: nbond,nbend,nub,ntorsion,nimpr
-    INTEGER                                  :: idist,ndist
-    INTEGER                                  :: ig3x3,ng3x3
-    INTEGER                                  :: ig4x6,ng4x6
-    INTEGER                                  :: atm_a,atm_b,atm_c,atm_d
-    INTEGER                                  :: atm2_a,atm2_b,atm2_c,atm2_d
-    INTEGER                                  :: central, handle
-    TYPE(dist_constraint_type), DIMENSION(:), POINTER :: dist_list
-    TYPE(g3x3_constraint_type), DIMENSION(:), POINTER :: g3x3_list
-    TYPE(g4x6_constraint_type), DIMENSION(:), POINTER :: g4x6_list
-    LOGICAL                                  :: unsetme,valid_kind,failure
+    INTEGER :: atm2_a, atm2_b, atm2_c, atm_a, atm_b, atm_c, atm_d, central, &
+      counter, handle, i, ibend, ibond, idist, ig3x3, ig4x6, iimpr, ikind, &
+      itorsion, iub, iw, j, k, nbend, nbond, ndist, newkind, ng3x3, ng4x6, &
+      nimpr, ntorsion, nub, stat
+    INTEGER, POINTER                         :: bad1(:), bad2(:)
+    LOGICAL                                  :: failure, unsetme, valid_kind
+    TYPE(bend_kind_type), DIMENSION(:), &
+      POINTER                                :: bend_kind_set, &
+                                                new_bend_kind_set
+    TYPE(bend_type), DIMENSION(:), POINTER   :: bend_list, new_bend_list
+    TYPE(bond_kind_type), DIMENSION(:), &
+      POINTER                                :: bond_kind_set, &
+                                                new_bond_kind_set
+    TYPE(bond_type), DIMENSION(:), POINTER   :: bond_list, new_bond_list
     TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(dist_constraint_type), &
+      DIMENSION(:), POINTER                  :: dist_list
+    TYPE(g3x3_constraint_type), &
+      DIMENSION(:), POINTER                  :: g3x3_list
+    TYPE(g4x6_constraint_type), &
+      DIMENSION(:), POINTER                  :: g4x6_list
+    TYPE(impr_kind_type), DIMENSION(:), &
+      POINTER                                :: impr_kind_set, &
+                                                new_impr_kind_set
+    TYPE(impr_type), DIMENSION(:), POINTER   :: impr_list, new_impr_list
+    TYPE(molecule_kind_type), POINTER        :: molecule_kind
+    TYPE(torsion_kind_type), DIMENSION(:), &
+      POINTER                                :: new_torsion_kind_set, &
+                                                torsion_kind_set
+    TYPE(torsion_type), DIMENSION(:), &
+      POINTER                                :: new_torsion_list, torsion_list
+    TYPE(ub_kind_type), DIMENSION(:), &
+      POINTER                                :: new_ub_kind_set, ub_kind_set
+    TYPE(ub_type), DIMENSION(:), POINTER     :: new_ub_list, ub_list
 
     failure = .FALSE.
     NULLIFY(logger)
@@ -3536,7 +3473,7 @@ CONTAINS
        IF(nbond>0) THEN
           IF(iw>0) WRITE(iw,*) "    Mol(",ikind,") Old BOND Count: ",&
                SIZE(bond_list),SIZE(bond_kind_set)
-          IF (iw>0) WRITE(iw,'(2I6)')(bond_list(ibond)%a,bond_list(ibond)%b,ibond=1,size(bond_list))
+          IF (iw>0) WRITE(iw,'(2I6)')(bond_list(ibond)%a,bond_list(ibond)%b,ibond=1,SIZE(bond_list))
           NULLIFY(bad1,bad2)
           ALLOCATE(bad1(SIZE(bond_kind_set)),STAT=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -4017,23 +3954,24 @@ CONTAINS
 !!   INPUTS
 !!*****************************************************************************
   SUBROUTINE read_eam_data ( eam, globenv , mm_section, error)
-    IMPLICIT NONE
-    ! Arguments
-    TYPE ( eam_pot_type ), POINTER                             :: eam
-    TYPE ( global_environment_type ), pointer, OPTIONAL     :: globenv
-    TYPE(cp_error_type), INTENT (INOUT), &
-         OPTIONAL                                    :: error
-    TYPE(section_vals_type), POINTER :: mm_section
-    ! Local Variables
-    CHARACTER(len=*), PARAMETER :: routineN='read_eam_data',&
-         routineP=moduleN//':'//routineN
-    INTEGER :: unit_number, iw, i, ntyp, stat, handle
-    REAL (KIND=dp) :: rmass, rlatt
-    CHARACTER ( len = default_string_length ) :: title3
-    REAL (KINd=dp), POINTER, DIMENSION ( : ) :: rval, rhoval, phi, phip, frho, frhop, &
-         rho, rhop
-    REAL (KIND=dp) :: drar, drhoar, acutal
-    LOGICAL :: failure
+    TYPE(eam_pot_type), POINTER              :: eam
+    TYPE(global_environment_type), &
+      OPTIONAL, POINTER                      :: globenv
+    TYPE(section_vals_type), POINTER         :: mm_section
+    TYPE(cp_error_type), INTENT(INOUT), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'read_eam_data', &
+      routineP = moduleN//':'//routineN
+
+    CHARACTER(len=default_string_length)     :: title3
+    INTEGER                                  :: handle, i, iw, ntyp, stat, &
+                                                unit_number
+    LOGICAL                                  :: failure
+    REAL(KIND=dp)                            :: acutal, drar, drhoar, rlatt, &
+                                                rmass
+    REAL(KINd=dp), DIMENSION(:), POINTER     :: frho, frhop, phi, phip, rho, &
+                                                rhop, rhoval, rval
     TYPE(cp_logger_type), POINTER            :: logger
 
     failure = .FALSE.

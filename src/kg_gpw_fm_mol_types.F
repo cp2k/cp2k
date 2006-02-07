@@ -28,20 +28,20 @@
 
 MODULE kg_gpw_fm_mol_types
 
-#include "cp_common_uses.h"
    
-  USE kinds,                           ONLY: dp,dp_size
+  USE kinds,                           ONLY: dp,&
+                                             dp_size
   USE qs_mo_types,                     ONLY: set_mo_occupation
-  USE termination,                     ONLY: stop_memory,&
-                                             stop_program
+  USE termination,                     ONLY: stop_memory
   USE timings,                         ONLY: timeset,&
                                              timestop
+#include "cp_common_uses.h"
 
   IMPLICIT NONE
 
   PRIVATE
 
-  CHARACTER(LEN=*), PARAMETER :: module_name = "kg_gpw_fm_mol_types"
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'kg_gpw_fm_mol_types'
 
 ! *** Define the derived structure types ***
 
@@ -251,17 +251,17 @@ CONTAINS
 
   SUBROUTINE  allocate_fm_mol_blocks(kg_fm_mol_set,nmol,error)
 
-    TYPE(kg_fm_mol_set_type)                  :: kg_fm_mol_set
-    INTEGER                                   :: nmol
+    TYPE(kg_fm_mol_set_type)                 :: kg_fm_mol_set
+    INTEGER                                  :: nmol
     TYPE(cp_error_type), INTENT(inout), &
-       OPTIONAL                                :: error
+      OPTIONAL                               :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'allocate_fm_mol_blocks',&
-      routineP = module_name//':'//routineN
+    CHARACTER(len=*), PARAMETER :: routineN = 'allocate_fm_mol_blocks', &
+      routineP = moduleN//':'//routineN
 
-    TYPE(fm_mol_blocks_type), POINTER         :: fm_mol_block
-    INTEGER                                   :: imol, istat
-    LOGICAL                                   :: failure
+    INTEGER                                  :: imol, istat
+    LOGICAL                                  :: failure
+    TYPE(fm_mol_blocks_type), POINTER        :: fm_mol_block
 
     failure = .FALSE.
 
@@ -289,14 +289,15 @@ CONTAINS
 
   SUBROUTINE allocate_mol_mo_set(mo_set,n_ao,nmo,maxocc,nelectron,error)
 
-    TYPE(mol_mo_set_type), POINTER            :: mo_set
-    INTEGER, INTENT(IN)                       :: n_ao,nmo,nelectron
-    REAL(dp), INTENT(IN)                      :: maxocc
+    TYPE(mol_mo_set_type), POINTER           :: mo_set
+    INTEGER, INTENT(IN)                      :: n_ao, nmo
+    REAL(dp), INTENT(IN)                     :: maxocc
+    INTEGER, INTENT(IN)                      :: nelectron
     TYPE(cp_error_type), INTENT(inout), &
-       OPTIONAL                               :: error
+      OPTIONAL                               :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'allocate_mol_mo_set',&
-      routineP = module_name//':'//routineN
+    CHARACTER(len=*), PARAMETER :: routineN = 'allocate_mol_mo_set', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: istat
     LOGICAL                                  :: failure
@@ -324,13 +325,16 @@ CONTAINS
   SUBROUTINE get_mol_mo_set(mo_set,homo,lfomo,maxocc,nmo,nelectron,&
                             mo,eigenvalues,occupation_numbers)
 
-    TYPE(mol_mo_set_type), POINTER            :: mo_set
-    INTEGER, INTENT(OUT), OPTIONAL            :: homo,lfomo,nmo,nelectron
-    REAL(dp), INTENT(OUT), OPTIONAL           :: maxocc
-    REAL(dp), DIMENSION(:,:), POINTER,&
-      OPTIONAL                                :: mo
-    REAL(dp), DIMENSION(:), POINTER, OPTIONAL :: eigenvalues,&
-                                                 occupation_numbers
+    TYPE(mol_mo_set_type), POINTER           :: mo_set
+    INTEGER, INTENT(OUT), OPTIONAL           :: homo, lfomo
+    REAL(dp), INTENT(OUT), OPTIONAL          :: maxocc
+    INTEGER, INTENT(OUT), OPTIONAL           :: nmo, nelectron
+    REAL(dp), DIMENSION(:, :), OPTIONAL, &
+      POINTER                                :: mo
+    REAL(dp), DIMENSION(:), OPTIONAL, &
+      POINTER                                :: eigenvalues, &
+                                                occupation_numbers
+
     IF(PRESENT(mo)) mo  => mo_set%mo
     IF(PRESENT(occupation_numbers)) &
         occupation_numbers  => mo_set%occupation_numbers
@@ -348,16 +352,19 @@ CONTAINS
   SUBROUTINE set_mol_mo_set(mo_set,homo,lfomo,maxocc,nmo,nelectron,&
                             mo,eigenvalues,occupation_numbers)
 
-    TYPE(mol_mo_set_type), POINTER            :: mo_set
-    INTEGER, INTENT(IN), OPTIONAL             :: homo,lfomo,nmo,nelectron
-    REAL(dp), INTENT(In), OPTIONAL            :: maxocc
-    REAL(dp), DIMENSION(:,:), POINTER,&
-      OPTIONAL                                :: mo
-    REAL(dp), DIMENSION(:), POINTER, OPTIONAL :: eigenvalues,&
-                                                 occupation_numbers
-    CHARACTER(len=*), PARAMETER :: routineN = 'set_mol_mo_set'
+    TYPE(mol_mo_set_type), POINTER           :: mo_set
+    INTEGER, INTENT(IN), OPTIONAL            :: homo, lfomo
+    REAL(dp), INTENT(In), OPTIONAL           :: maxocc
+    INTEGER, INTENT(IN), OPTIONAL            :: nmo, nelectron
+    REAL(dp), DIMENSION(:, :), OPTIONAL, &
+      POINTER                                :: mo
+    REAL(dp), DIMENSION(:), OPTIONAL, &
+      POINTER                                :: eigenvalues, &
+                                                occupation_numbers
 
-    INTEGER                     :: istat
+    CHARACTER(len=*), PARAMETER              :: routineN = 'set_mol_mo_set'
+
+    INTEGER                                  :: istat
 
     IF(PRESENT(maxocc)) mo_set%maxocc = maxocc 
     IF(PRESENT(homo)) mo_set%homo = homo
@@ -388,17 +395,17 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE init_mol_mo_set(mo_set,n_ao,nmo,error)
 
-    TYPE(mol_mo_set_type), POINTER            :: mo_set
-    INTEGER                                   :: n_ao,nmo
+    TYPE(mol_mo_set_type), POINTER           :: mo_set
+    INTEGER                                  :: n_ao, nmo
     TYPE(cp_error_type), INTENT(inout), &
-       OPTIONAL                               :: error
+      OPTIONAL                               :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'init_mol_mo_set',&
-      routineP = module_name//':'//routineN
+    CHARACTER(len=*), PARAMETER :: routineN = 'init_mol_mo_set', &
+      routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: homo,istat,lfomo,nelectron
-    REAL(dp)                                 :: maxocc
+    INTEGER                                  :: homo, istat, lfomo, nelectron
     LOGICAL                                  :: failure, mo_uocc
+    REAL(dp)                                 :: maxocc
 
     failure=.FALSE.
     CPPrecondition(ASSOCIATED(mo_set),cp_failure_level,routineP,error,failure)
@@ -460,21 +467,18 @@ CONTAINS
   SUBROUTINE kg_gpw_fm_mol_to_fm_mol(fm_mol_set_a,fm_mol_set_b,error)
 
     TYPE(kg_fm_mol_set_type), DIMENSION(:), &
-      POINTER                                 :: fm_mol_set_a
-    TYPE(kg_fm_mol_set_type), DIMENSION(:), &
-      POINTER                                 :: fm_mol_set_b
+      POINTER                                :: fm_mol_set_a, fm_mol_set_b
     TYPE(cp_error_type), INTENT(inout), &
-       OPTIONAL                               :: error
+      OPTIONAL                               :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'kg_gpw_fm_mol_to_fm_mol',&
-      routineP = module_name//':'//routineN
+    CHARACTER(len=*), PARAMETER :: routineN = 'kg_gpw_fm_mol_to_fm_mol', &
+      routineP = moduleN//':'//routineN
 
-    INTEGER :: i, imol, ispin, istat, n_ao, n_mo(2), natom, nmol, nmolecule_kind, nspins
-    LOGICAL :: failure
-
-    TYPE(fm_mol_blocks_type), POINTER         :: mol_block_a,&
-                                                 mol_block_b
-    TYPE(kg_fm_mol_set_type), POINTER         :: fm_mol
+    INTEGER                                  :: i, imol, ispin, istat, n_ao, &
+                                                n_mo(2), natom, nmol, &
+                                                nmolecule_kind, nspins
+    LOGICAL                                  :: failure
+    TYPE(fm_mol_blocks_type), POINTER        :: mol_block_a, mol_block_b
 
 !
 !   ---------------------------------------------------------------------------
@@ -571,16 +575,16 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(kg_fm_p_type), POINTER                :: kg_fm
-    INTEGER                                    :: nmolecule_kind
+    TYPE(kg_fm_p_type), POINTER              :: kg_fm
+    INTEGER                                  :: nmolecule_kind
     TYPE(cp_error_type), INTENT(inout), &
-       OPTIONAL                                :: error
+      OPTIONAL                               :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'kg_fm_mol_set_create',&
-      routineP = module_name//':'//routineN
+    CHARACTER(len=*), PARAMETER :: routineN = 'kg_fm_mol_set_create', &
+      routineP = moduleN//':'//routineN
 
-    INTEGER                                   :: i, istat
-    LOGICAL                                   :: failure
+    INTEGER                                  :: i, istat
+    LOGICAL                                  :: failure
 
     failure = .FALSE.
 
@@ -616,17 +620,17 @@ CONTAINS
 
   SUBROUTINE kg_fm_mol_set_distroy(kg_fm_mol_set,error)
 
-    TYPE(kg_fm_mol_set_type) , DIMENSION(:), &
-       POINTER                                :: kg_fm_mol_set
+    TYPE(kg_fm_mol_set_type), DIMENSION(:), &
+      POINTER                                :: kg_fm_mol_set
     TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                                :: error
+      OPTIONAL                               :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'kg_fm_mol_set_distroy', &
-      routineP = module_name//':'//routineN
+      routineP = moduleN//':'//routineN
 
-    TYPE(fm_mol_blocks_type), POINTER         :: fm_mol_block
-    INTEGER                                   :: i, is, istat, j , n, nl, nspins
-    LOGICAL                                   :: failure
+    INTEGER                                  :: i, is, istat, j, n, nl, nspins
+    LOGICAL                                  :: failure
+    TYPE(fm_mol_blocks_type), POINTER        :: fm_mol_block
 
     failure=.FALSE.
 
@@ -693,15 +697,15 @@ CONTAINS
 
   SUBROUTINE kg_fm_mol_set_release(kg_fm,error)
 
-    TYPE(kg_fm_p_type),  POINTER              :: kg_fm
+    TYPE(kg_fm_p_type), POINTER              :: kg_fm
     TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                                :: error
+      OPTIONAL                               :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'kg_fm_mol_set_release', &
-      routineP = module_name//':'//routineN
+      routineP = moduleN//':'//routineN
 
-    INTEGER                                   :: istat
-    LOGICAL                                   :: failure
+    INTEGER                                  :: istat
+    LOGICAL                                  :: failure
 
     failure=.FALSE.
 
@@ -724,14 +728,14 @@ CONTAINS
 
   SUBROUTINE kg_fm_mol_set_retain(kg_fm,error)
 
-    TYPE(kg_fm_p_type), POINTER               :: kg_fm
+    TYPE(kg_fm_p_type), POINTER              :: kg_fm
     TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                                :: error
+      OPTIONAL                               :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'kg_fm_mol_set_retain', &
-      routineP = module_name//':'//routineN
+      routineP = moduleN//':'//routineN
 
-    LOGICAL                                   :: failure
+    LOGICAL                                  :: failure
 
     failure=.FALSE.
   
@@ -750,15 +754,14 @@ CONTAINS
                                nelectron_spin , maxocc, multiplicity,&
                                fm_mol_blocks)
 
-    TYPE(kg_fm_mol_set_type), POINTER         :: kg_fm_mol_set
-    INTEGER, INTENT(OUT), OPTIONAL            :: multiplicity,&
-                                                nmol_kind_global,&
-                                                nmolecule_local,&
-                                                natom, n_ao, n_mo(2),&
-                                                nelectron_spin(2)
-    REAL(dp), INTENT(OUT), OPTIONAL           :: maxocc
+    TYPE(kg_fm_mol_set_type), POINTER        :: kg_fm_mol_set
+    INTEGER, INTENT(OUT), OPTIONAL           :: nmol_kind_global, &
+                                                nmolecule_local, natom, n_ao, &
+                                                n_mo(2), nelectron_spin(2)
+    REAL(dp), INTENT(OUT), OPTIONAL          :: maxocc
+    INTEGER, INTENT(OUT), OPTIONAL           :: multiplicity
     TYPE(fm_mol_blocks_type), DIMENSION(:), &
-       POINTER, OPTIONAL                      :: fm_mol_blocks
+      OPTIONAL, POINTER                      :: fm_mol_blocks
 
     IF(PRESENT(maxocc)) maxocc = kg_fm_mol_set%maxocc
     IF(PRESENT(multiplicity)) multiplicity =kg_fm_mol_set%multiplicity
@@ -779,17 +782,13 @@ CONTAINS
                               index_atom,index_kind,&
                               ifirst_ao,ilast_ao)
 
-    TYPE(fm_mol_blocks_type), POINTER         :: fm_mol_block
+    TYPE(fm_mol_blocks_type), POINTER        :: fm_mol_block
     TYPE(mol_mo_set_p_type), DIMENSION(:), &
-      POINTER, OPTIONAL                       :: mos
-    REAL(dp), DIMENSION(:,:),  POINTER, &
-      OPTIONAL                                :: ortho
-    REAL(dp), DIMENSION(:,:),  POINTER, &
-      OPTIONAL                                :: work
-    INTEGER, DIMENSION(:), POINTER, OPTIONAL  :: index_atom
-    INTEGER, DIMENSION(:), POINTER, OPTIONAL  :: index_kind
-    INTEGER, DIMENSION(:), POINTER, OPTIONAL  :: ifirst_ao
-    INTEGER, DIMENSION(:), POINTER, OPTIONAL  :: ilast_ao
+      OPTIONAL, POINTER                      :: mos
+    REAL(dp), DIMENSION(:, :), OPTIONAL, &
+      POINTER                                :: ortho, work
+    INTEGER, DIMENSION(:), OPTIONAL, POINTER :: index_atom, index_kind, &
+                                                ifirst_ao, ilast_ao
 
     IF(PRESENT(mos)) mos  => fm_mol_block%mos
     IF(PRESENT(ortho)) ortho  => fm_mol_block%ortho
@@ -809,18 +808,16 @@ CONTAINS
                                fm_mol_blocks)
 
     TYPE(kg_fm_mol_set_type), POINTER        :: kg_fm_mol_set
-
-    INTEGER, INTENT(IN), OPTIONAL            :: multiplicity,&
-                                                nmol_kind_global,&
-                                                nmolecule_local,&
-                                                natom, n_ao, n_mo(2),&
-                                                nelectron_spin(2)
+    INTEGER, INTENT(IN), OPTIONAL            :: nmol_kind_global, &
+                                                nmolecule_local, natom, n_ao, &
+                                                n_mo(2), nelectron_spin(2)
     REAL(dp), INTENT(IN), OPTIONAL           :: maxocc
+    INTEGER, INTENT(IN), OPTIONAL            :: multiplicity
     TYPE(fm_mol_blocks_type), DIMENSION(:), &
-       POINTER, OPTIONAL                      :: fm_mol_blocks
+      OPTIONAL, POINTER                      :: fm_mol_blocks
 
-    CHARACTER(len=*), PARAMETER :: routineN = "set_kg_fm_mol_set", &
-      routineP = module_name//':'//routineN
+    CHARACTER(len=*), PARAMETER :: routineN = 'set_kg_fm_mol_set', &
+      routineP = moduleN//':'//routineN
 
     IF(PRESENT(maxocc)) kg_fm_mol_set%maxocc = maxocc
     IF(PRESENT(multiplicity)) kg_fm_mol_set%multiplicity = multiplicity
@@ -868,11 +865,11 @@ CONTAINS
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'wfi_duplicate_history', &
-      routineP = module_name//':'//routineN
+    CHARACTER(len=*), PARAMETER :: routineN = 'duplicate_kg_fm_p_type', &
+      routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     INTEGER                                  :: handle, i
+    LOGICAL                                  :: failure
 
 !   ------------------------------------------------------------------------
 

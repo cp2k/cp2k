@@ -26,7 +26,8 @@ MODULE mathlib
                                              dp,&
                                              dp_size,&
                                              int_size
-  USE mathconstants,                   ONLY: fac, euler
+  USE mathconstants,                   ONLY: euler,&
+                                             fac
   USE output_utilities,                ONLY: print_message
   USE termination,                     ONLY: get_error_unit,&
                                              stop_memory,&
@@ -36,7 +37,7 @@ MODULE mathlib
 
   PRIVATE
 
-  CHARACTER(LEN=*), PARAMETER :: module_name = "mathlib"
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'mathlib'
   REAL(KIND = dp), PARAMETER  :: eps_geo = 1.0E-6_dp
 
 ! *** Public subroutines ***
@@ -85,7 +86,7 @@ CONTAINS
 
 !   ***************************************************************************
 
-    REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: a,b
+    REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: a, b
     REAL(KIND=dp)                            :: angle_ab
 
     REAL(KIND=dp)                            :: length_of_a, length_of_b
@@ -151,7 +152,6 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(3)              :: d
 
 !   ---------------------------------------------------------------------------
-
 !   *** Check the length of the vector a ***
 
     length_of_a = SQRT(a(1)*a(1) + a(2)*a(2) + a(3)*a(3))
@@ -192,8 +192,9 @@ CONTAINS
 
 !   ***************************************************************************
 
-    REAL(KIND=dp), DIMENSION(3,3), INTENT(IN)  :: a
-    REAL(KIND=dp)                              :: det_a
+    REAL(KIND=dp), DIMENSION(3, 3), &
+      INTENT(IN)                             :: a
+    REAL(KIND=dp)                            :: det_a
 
 !   ---------------------------------------------------------------------------
 
@@ -213,8 +214,8 @@ CONTAINS
 
 !   ***************************************************************************
 
-    REAL(KIND=dp), DIMENSION(3), INTENT(IN)    :: a1,a2,a3
-    REAL(KIND=dp)                              :: det_a
+    REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: a1, a2, a3
+    REAL(KIND=dp)                            :: det_a
 
 !   ---------------------------------------------------------------------------
 
@@ -247,17 +248,17 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:), INTENT(OUT) :: eigval
     LOGICAL, INTENT(IN), OPTIONAL            :: dac
 
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "diamat_all"
+    CHARACTER(LEN=*), PARAMETER              :: routineN = 'diamat_all'
 
     INTEGER                                  :: info, istat, liwork, lwork, &
                                                 n, nb
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: iwork
+    INTEGER, EXTERNAL                        :: ilaenv
     LOGICAL                                  :: divide_and_conquer
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: work
 
 !   *** Externals (LAPACK 3.0) ***
 
-    INTEGER, EXTERNAL                        :: ilaenv
     EXTERNAL dsyev,dsyevd
 
 !   ---------------------------------------------------------------------------
@@ -269,14 +270,14 @@ CONTAINS
 !   *** Check the size of matrix a ***
 
     IF (SIZE(a,2) /= n) THEN
-      CALL stop_program(module_name,routine_name,__LINE__,&
+      CALL stop_program(moduleN,routineN,__LINE__,&
                         "Check the size of matrix a (parameter #1)")
     END IF
 
 !   *** Check the size of vector eigval ***
 
     IF (SIZE(eigval) /= n) THEN
-      CALL stop_program(module_name,routine_name,__LINE__,&
+      CALL stop_program(moduleN,routineN,__LINE__,&
                         "The dimension of vector eigval is too small")
     END IF
 
@@ -301,11 +302,11 @@ CONTAINS
 !   *** Allocate work storage ***
 
     ALLOCATE (work(lwork),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(module_name,routine_name,__LINE__,&
+    IF (istat /= 0) CALL stop_memory(moduleN,routineN,__LINE__,&
                                      "work",lwork*dp_size)
     IF (divide_and_conquer) THEN
       ALLOCATE (iwork(liwork),STAT=istat)
-      IF (istat /= 0) CALL stop_memory(module_name,routine_name,__LINE__,&
+      IF (istat /= 0) CALL stop_memory(moduleN,routineN,__LINE__,&
                                        "iwork",liwork*int_size)
     END IF
 
@@ -319,10 +320,10 @@ CONTAINS
 
     IF (info /= 0) THEN
       IF (divide_and_conquer) THEN
-        CALL stop_program(module_name,routine_name,__LINE__,&
+        CALL stop_program(moduleN,routineN,__LINE__,&
                           "The matrix diagonalization with dsyevd failed")
       ELSE
-        CALL stop_program(module_name,routine_name,__LINE__,&
+        CALL stop_program(moduleN,routineN,__LINE__,&
                           "The matrix diagonalization with dsyev failed")
       END IF
     END IF
@@ -330,11 +331,11 @@ CONTAINS
 !   *** Release work storage ***
 
     DEALLOCATE (work,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(module_name,routine_name,__LINE__,&
+    IF (istat /= 0) CALL stop_memory(moduleN,routineN,__LINE__,&
                                      "work")
     IF (divide_and_conquer) THEN
       DEALLOCATE (iwork,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(module_name,routine_name,__LINE__,&
+      IF (istat /= 0) CALL stop_memory(moduleN,routineN,__LINE__,&
                                        "iwork")
     END IF
 
@@ -352,14 +353,13 @@ CONTAINS
 
 !   ***************************************************************************
 
-    REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: ab,bc,cd
+    REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: ab, bc, cd
     REAL(KIND=dp)                            :: dihedral_angle_abcd
 
     REAL(KIND=dp)                            :: det_abcd
-    REAL(KIND=dp), DIMENSION(3)              :: abc,bcd
+    REAL(KIND=dp), DIMENSION(3)              :: abc, bcd
 
 !   ---------------------------------------------------------------------------
-
 !   *** Calculate the normal vectors of the planes ***
 !   *** defined by the points a,b,c and b,c,d      ***
 
@@ -444,10 +444,11 @@ CONTAINS
 
 !   ***************************************************************************
 
-    REAL(KIND=dp), DIMENSION(3,3), INTENT(IN) :: a
-    REAL(KIND=dp), DIMENSION(3,3)             :: a_inv
+    REAL(KIND=dp), DIMENSION(3, 3), &
+      INTENT(IN)                             :: a
+    REAL(KIND=dp), DIMENSION(3, 3)           :: a_inv
 
-    REAL(KIND=dp)                             :: det_a
+    REAL(KIND=dp)                            :: det_a
 
 !   ---------------------------------------------------------------------------
 
@@ -496,7 +497,7 @@ CONTAINS
     REAL(KIND=dp), INTENT(OUT)               :: error
     CHARACTER(LEN=1), INTENT(IN), OPTIONAL   :: option
 
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "invert_matrix"
+    CHARACTER(LEN=*), PARAMETER              :: routineN = 'invert_matrix'
 
     CHARACTER(LEN=1)                         :: norm, trans
     CHARACTER(LEN=80)                        :: message
@@ -507,10 +508,9 @@ CONTAINS
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: berr, ferr, work
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: a_lu, b
+    REAL(KIND=dp), EXTERNAL                  :: dlange
 
 !   *** Externals (LAPACK 3.0) ***
-
-    REAL(KIND = dp), EXTERNAL :: dlange
 
     EXTERNAL dgecon,dgerfs,dgetrf,dgetrs
 
@@ -531,49 +531,49 @@ CONTAINS
 !   *** Check array dimensions ***
 
     IF (n == 0) THEN
-      CALL stop_program(module_name,routine_name,__LINE__,&
+      CALL stop_program(moduleN,routineN,__LINE__,&
                         "Matrix to be inverted of zero size")
     ENDIF
 
     IF (n /= SIZE(a,2)) THEN
-      CALL stop_program(module_name,routine_name,__LINE__,&
+      CALL stop_program(moduleN,routineN,__LINE__,&
                         "Check the array bounds of parameter #1")
     END IF
 
     IF ((n /= SIZE(a_inverse,1)).OR.&
         (n /= SIZE(a_inverse,2))) THEN
-      CALL stop_program(module_name,routine_name,__LINE__,&
+      CALL stop_program(moduleN,routineN,__LINE__,&
                         "Check the array bounds of parameter #2")
     END IF
 
 !   *** Allocate work storage ***
 
     ALLOCATE (a_lu(n,n),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(module_name,routine_name,__LINE__,&
+    IF (istat /= 0) CALL stop_memory(moduleN,routineN,__LINE__,&
                                      "a_lu",n*n*dp_size)
 
     ALLOCATE (b(n,n),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(module_name,routine_name,__LINE__,&
+    IF (istat /= 0) CALL stop_memory(moduleN,routineN,__LINE__,&
                                      "b",n*n*dp_size)
 
     ALLOCATE (berr(n),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(module_name,routine_name,__LINE__,&
+    IF (istat /= 0) CALL stop_memory(moduleN,routineN,__LINE__,&
                                      "berr",n*dp_size)
 
     ALLOCATE (ferr(n),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(module_name,routine_name,__LINE__,&
+    IF (istat /= 0) CALL stop_memory(moduleN,routineN,__LINE__,&
                                      "ferr",n*dp_size)
 
     ALLOCATE (ipiv(n),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(module_name,routine_name,__LINE__,&
+    IF (istat /= 0) CALL stop_memory(moduleN,routineN,__LINE__,&
                                      "ipiv",n*int_size)
 
     ALLOCATE (iwork(n),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(module_name,routine_name,__LINE__,&
+    IF (istat /= 0) CALL stop_memory(moduleN,routineN,__LINE__,&
                                      "iwork",n*int_size)
 
     ALLOCATE (work(4*n),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(module_name,routine_name,__LINE__,&
+    IF (istat /= 0) CALL stop_memory(moduleN,routineN,__LINE__,&
                                      "work",4*n*int_size)
 
     a_lu(1:n,1:n) = a(1:n,1:n)
@@ -582,7 +582,7 @@ CONTAINS
     CALL dgetrf(n,n,a_lu,n,ipiv,info)
 
     IF (info /= 0) THEN
-      CALL stop_program(module_name,routine_name,__LINE__,&
+      CALL stop_program(moduleN,routineN,__LINE__,&
                         "The LU factorization in dgetrf failed")
     END IF
 
@@ -601,7 +601,7 @@ CONTAINS
     CALL dgecon(norm,n,a_lu,n,a_norm,r_cond,work,iwork,info)
 
     IF (info /= 0) THEN
-      CALL stop_program(module_name,routine_name,__LINE__,&
+      CALL stop_program(moduleN,routineN,__LINE__,&
                         "The computation of the condition number in "//&
                         "dgecon failed")
     END IF
@@ -610,7 +610,7 @@ CONTAINS
       CALL get_error_unit(output_unit)
       WRITE (message,"(A,ES10.3,A)") "R_COND =",r_cond
       CALL print_message(message,output_unit,1,1,1)
-      CALL stop_program(module_name,routine_name,__LINE__,&
+      CALL stop_program(moduleN,routineN,__LINE__,&
                         "Bad condition number (smaller than the machine "//&
                         "working precision)")
     END IF
@@ -623,7 +623,7 @@ CONTAINS
     CALL dgetrs(trans,n,n,a_lu,n,ipiv,a_inverse,n,info)
 
     IF (info /= 0) THEN
-      CALL stop_program(module_name,routine_name,__LINE__,&
+      CALL stop_program(moduleN,routineN,__LINE__,&
                         "Solving the system of linear equations in dgetrs "//&
                         "failed")
     END IF
@@ -640,7 +640,7 @@ CONTAINS
                   work,iwork,info)
 
       IF (info /= 0) THEN
-        CALL stop_program(module_name,routine_name,__LINE__,&
+        CALL stop_program(moduleN,routineN,__LINE__,&
                           "Improving the computed solution in dgerfs failed")
       END IF
 
@@ -654,25 +654,25 @@ CONTAINS
 !   *** Release work storage ***
 
     DEALLOCATE (work,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(module_name,routine_name,__LINE__,&
+    IF (istat /= 0) CALL stop_memory(moduleN,routineN,__LINE__,&
                                      "work")
     DEALLOCATE (iwork,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(module_name,routine_name,__LINE__,&
+    IF (istat /= 0) CALL stop_memory(moduleN,routineN,__LINE__,&
                                      "iwork")
     DEALLOCATE (ipiv,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(module_name,routine_name,__LINE__,&
+    IF (istat /= 0) CALL stop_memory(moduleN,routineN,__LINE__,&
                                      "ipiv")
     DEALLOCATE (ferr,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(module_name,routine_name,__LINE__,&
+    IF (istat /= 0) CALL stop_memory(moduleN,routineN,__LINE__,&
                                      "ferr")
     DEALLOCATE (berr,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(module_name,routine_name,__LINE__,&
+    IF (istat /= 0) CALL stop_memory(moduleN,routineN,__LINE__,&
                                      "berr")
     DEALLOCATE (b,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(module_name,routine_name,__LINE__,&
+    IF (istat /= 0) CALL stop_memory(moduleN,routineN,__LINE__,&
                                      "b")
     DEALLOCATE (a_lu,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(module_name,routine_name,__LINE__,&
+    IF (istat /= 0) CALL stop_memory(moduleN,routineN,__LINE__,&
                                      "a_lu")
 
   END SUBROUTINE invert_matrix
@@ -710,7 +710,7 @@ CONTAINS
     INTEGER, INTENT(OUT), OPTIONAL           :: n_dependent
     LOGICAL, INTENT(IN), OPTIONAL            :: dac
 
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "power_matrix"
+    CHARACTER(LEN=*), PARAMETER              :: routineN = 'power_matrix'
 
     INTEGER                                  :: i, istat, n, n_dep
     LOGICAL                                  :: divide_and_conquer
@@ -736,20 +736,20 @@ CONTAINS
 !   *** Check array dimensions ***
 
     IF (n /= SIZE(a,2)) THEN
-      CALL stop_program(module_name,routine_name,__LINE__,&
+      CALL stop_program(moduleN,routineN,__LINE__,&
                         "Check the array bounds of parameter #1")
     END IF
 
     IF ((n /= SIZE(a_power,1)).OR.&
         (n /= SIZE(a_power,2))) THEN
-      CALL stop_program(module_name,routine_name,__LINE__,&
+      CALL stop_program(moduleN,routineN,__LINE__,&
                         "Check the array bounds of parameter #2")
     END IF
 
 !   *** Allocate work storage ***
 
     ALLOCATE (eigval(n),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(module_name,routine_name,__LINE__,&
+    IF (istat /= 0) CALL stop_memory(moduleN,routineN,__LINE__,&
                                      "eigval",n*dp_size)
 
 !   *** Check, if the divide-and-conquer algorithm is requested ***
@@ -795,7 +795,7 @@ CONTAINS
 !   *** Release work storage ***
 
     DEALLOCATE (eigval,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(module_name,routine_name,__LINE__,&
+    IF (istat /= 0) CALL stop_memory(moduleN,routineN,__LINE__,&
                                      "eigval")
 
   END SUBROUTINE power_matrix
@@ -921,7 +921,7 @@ CONTAINS
       INTENT(INOUT)                          :: a
     REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: b
 
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "set_diag_vector"
+    CHARACTER(LEN=*), PARAMETER              :: routineN = 'set_diag_vector'
 
     INTEGER                                  :: i, n
 
@@ -934,7 +934,7 @@ CONTAINS
         a(i,i) = b(i)
       END DO
     ELSE
-      CALL stop_program(module_name,routine_name,__LINE__,&
+      CALL stop_program(moduleN,routineN,__LINE__,&
                         "Check the array bounds of the parameters")
     END IF
 
@@ -954,7 +954,7 @@ CONTAINS
       INTENT(INOUT)                          :: a
     CHARACTER(LEN=*), INTENT(IN)             :: option
 
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "symmetrize_matrix"
+    CHARACTER(LEN=*), PARAMETER              :: routineN = 'symmetrize_matrix'
 
     CHARACTER(LEN=default_string_length)     :: message
     INTEGER                                  :: i, n
@@ -982,7 +982,7 @@ CONTAINS
     ELSE
       WRITE (message,"(A)")&
         "Invalid option <"//TRIM(option)//"> was specified for parameter #2"
-      CALL stop_program(module_name,routine_name,__LINE__,message)
+      CALL stop_program(moduleN,routineN,__LINE__,message)
     END IF
 
   END SUBROUTINE symmetrize_matrix
@@ -1105,9 +1105,9 @@ CONTAINS
 !!
 !!*** *********************************************************************
   FUNCTION lcm(a,b)
-    integer                                  :: a, b, lcm
+    INTEGER                                  :: a, b, lcm
 
-    integer                                  :: tmp
+    INTEGER                                  :: tmp
 
      tmp = gcd(a,b)
      IF (tmp==0) THEN
@@ -1137,24 +1137,23 @@ CONTAINS
 !!
 !!*** *********************************************************************
   FUNCTION ei(x)
-    REAL ( dp )            :: ei
-    REAL ( dp )            :: x
+    REAL(dp)                                 :: x, ei
 
-    INTEGER, PARAMETER     :: maxit=100
-    REAL ( dp ), PARAMETER :: eps=6.e-14_dp
-    REAL ( dp ), PARAMETER :: fpmin=1.e-100_dp
+    CHARACTER(LEN=*), PARAMETER              :: routineN = 'ei'
+    INTEGER, PARAMETER                       :: maxit = 100
+    REAL(dp), PARAMETER                      :: eps = 6.e-14_dp, &
+                                                fpmin = 1.e-100_dp
 
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "ei"
-    INTEGER                :: k
-    REAL ( dp )            :: fact,prev,sum1,term
+    INTEGER                                  :: k
+    REAL(dp)                                 :: fact, prev, sum1, term
 
     IF(x <= 0._dp) THEN
-      CALL stop_program(module_name,routine_name,__LINE__,"Invalid argument")
+      CALL stop_program(moduleN,routineN,__LINE__,"Invalid argument")
     END IF
 
     IF (x < fpmin) THEN
-      ei = log(x) + euler
-    ELSE IF (x <= -log(EPS)) THEN
+      ei = LOG(x) + euler
+    ELSE IF (x <= -LOG(EPS)) THEN
       sum1 = 0._dp
       fact = 1._dp
       DO k = 1,maxit
@@ -1163,7 +1162,7 @@ CONTAINS
         sum1 = sum1+term
         IF (term < eps*sum1) EXIT
       END DO
-      ei = sum1+log(x)+euler
+      ei = sum1+LOG(x)+euler
     ELSE
       sum1 = 0._dp
       term = 1._dp
@@ -1178,7 +1177,7 @@ CONTAINS
           EXIT
         END IF
       END DO
-      ei = exp(x)*(1._dp+sum1)/x
+      ei = EXP(x)*(1._dp+sum1)/x
     END IF
 
     END FUNCTION ei

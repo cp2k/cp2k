@@ -24,73 +24,69 @@
 !!   SOURCE
 !****************************************************************************
 MODULE tbmd_environment_types
-  USE atomic_kind_list_types,                   ONLY: atomic_kind_list_type, &
-                                                      atomic_kind_list_create, &
-                                                      atomic_kind_list_release
-  USE atomic_kind_types,                        ONLY: atomic_kind_type
-  USE cell_types,                               ONLY: cell_type, &
-                                                      cell_retain, &
-                                                      cell_release
-  USE cp_blacs_env,                             ONLY: cp_blacs_env_create, &
-                                                      cp_blacs_env_release
-  USE cp_para_env,                              ONLY: cp_para_env_retain, &
-                                                      cp_para_env_release
-  USE cp_para_types,                            ONLY: cp_para_env_type, &
-                                                      cp_blacs_env_type
-  USE cp_subsystem_types,                       ONLY: cp_subsys_get, &
-                                                      cp_subsys_set, &
-                                                      cp_subsys_release, &
-                                                      cp_subsys_retain, &
-                                                      cp_subsystem_type
-  USE distribution_1d_types,                    ONLY: distribution_1d_type
-  USE distribution_2d_types,                    ONLY: distribution_2d_release,&
-                                                      distribution_2d_retain,&
-                                                      distribution_2d_type
-  USE input_section_types,                      ONLY: section_vals_type, &
-                                                      section_vals_release
-  USE mol_kind_new_list_types,                  ONLY: mol_kind_new_list_type, &
-                                                      mol_kind_new_list_create, &
-                                                      mol_kind_new_list_release
-  USE mol_new_list_types,                       ONLY: mol_new_list_type, &
-                                                      mol_new_list_create, &
-                                                      mol_new_list_release
-  USE molecule_kind_types,                      ONLY: molecule_kind_type
-  USE molecule_types_new,                       ONLY: molecule_type
-  USE particle_list_types,                      ONLY: particle_list_type, &
-                                                      particle_list_create, &
-                                                      particle_list_release
-  USE particle_types,                           ONLY: particle_type
-  USE qs_matrix_pools,                          ONLY: qs_matrix_pools_type, &
-                                                      mpools_release
-  USE qs_mo_types,                              ONLY: mo_set_type, &
-                                                      deallocate_mo_set
-  USE sparse_matrix_types,                      ONLY: real_matrix_type, &
-                                                      real_matrix_p_type, &
-                                                      deallocate_matrix, &
-                                                      deallocate_matrix_set
-  USE tbmd_energy_types,                        ONLY: tbmd_energy_type, &
-                                                      tbmd_energy_release, &
-                                                      tbmd_energy_clear
-  USE tbmd_force_types,                         ONLY: tbmd_force_type, &
-                                                      tbmd_force_clear, &
-                                                      tbmd_force_release
-  USE tbmd_model_types,                         ONLY: tbmd_model_type, &
-                                                      tbmd_model_release, &
-                                                      tbmd_model_clear
-  USE tbmd_neighbor_list_env_types,             ONLY: tbmd_neighbor_list_env_type, &
-                                                      tbmd_neighbor_list_env_release, &
-                                                      tbmd_neighbor_list_env_clear
-  USE virial_types,                             ONLY: virial_type, &
-                                                      zero_virial, &
-                                                      virial_release
-
+  USE atomic_kind_list_types,          ONLY: atomic_kind_list_create,&
+                                             atomic_kind_list_release,&
+                                             atomic_kind_list_type
+  USE atomic_kind_types,               ONLY: atomic_kind_type
+  USE cell_types,                      ONLY: cell_release,&
+                                             cell_retain,&
+                                             cell_type
+  USE cp_blacs_env,                    ONLY: cp_blacs_env_release
+  USE cp_para_env,                     ONLY: cp_para_env_release
+  USE cp_para_types,                   ONLY: cp_blacs_env_type,&
+                                             cp_para_env_type
+  USE cp_subsystem_types,              ONLY: cp_subsys_get,&
+                                             cp_subsys_release,&
+                                             cp_subsys_retain,&
+                                             cp_subsys_set,&
+                                             cp_subsystem_type
+  USE distribution_1d_types,           ONLY: distribution_1d_type
+  USE distribution_2d_types,           ONLY: distribution_2d_release,&
+                                             distribution_2d_type
+  USE input_section_types,             ONLY: section_vals_release,&
+                                             section_vals_type
+  USE mol_kind_new_list_types,         ONLY: mol_kind_new_list_create,&
+                                             mol_kind_new_list_release,&
+                                             mol_kind_new_list_type
+  USE mol_new_list_types,              ONLY: mol_new_list_create,&
+                                             mol_new_list_release,&
+                                             mol_new_list_type
+  USE molecule_kind_types,             ONLY: molecule_kind_type
+  USE molecule_types_new,              ONLY: molecule_type
+  USE particle_list_types,             ONLY: particle_list_create,&
+                                             particle_list_release,&
+                                             particle_list_type
+  USE particle_types,                  ONLY: particle_type
+  USE qs_matrix_pools,                 ONLY: mpools_release,&
+                                             qs_matrix_pools_type
+  USE qs_mo_types,                     ONLY: deallocate_mo_set,&
+                                             mo_set_type
+  USE sparse_matrix_types,             ONLY: deallocate_matrix,&
+                                             deallocate_matrix_set,&
+                                             real_matrix_p_type,&
+                                             real_matrix_type
+  USE tbmd_energy_types,               ONLY: tbmd_energy_clear,&
+                                             tbmd_energy_release,&
+                                             tbmd_energy_type
+  USE tbmd_force_types,                ONLY: tbmd_force_clear,&
+                                             tbmd_force_release,&
+                                             tbmd_force_type
+  USE tbmd_model_types,                ONLY: tbmd_model_clear,&
+                                             tbmd_model_release,&
+                                             tbmd_model_type
+  USE tbmd_neighbor_list_env_types,    ONLY: tbmd_neighbor_list_env_clear,&
+                                             tbmd_neighbor_list_env_release,&
+                                             tbmd_neighbor_list_env_type
+  USE virial_types,                    ONLY: virial_release,&
+                                             virial_type,&
+                                             zero_virial
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
   PRIVATE
 
-  CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='tbmd_environment_types'
-  INTEGER, PRIVATE, save :: last_tbmd_id=0
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'tbmd_environment_types'
+  INTEGER, PRIVATE, SAVE :: last_tbmd_id=0
 
   ! *** Public data types ***
   PUBLIC :: tbmd_environment_type, &
@@ -244,7 +240,7 @@ CONTAINS
     LOGICAL                                  :: failure
 
 !   ------------------------------------------------------------------------
-   
+
     failure = .FALSE.
   
     CPPrecondition(ASSOCIATED(tbmd_env), cp_failure_level, routineP, error, failure)
@@ -287,8 +283,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'tbmd_env_release', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat, &
-                                                i
+    INTEGER                                  :: i, stat
     LOGICAL                                  :: failure
 
 !   ------------------------------------------------------------------------
@@ -429,54 +424,61 @@ CONTAINS
                           matrix_p, distribution_2d, blacs_env, &
                           matrix_pools, error)
 
-    TYPE(tbmd_environment_type), POINTER         :: tbmd_env
-    TYPE(tbmd_energy_type), POINTER, OPTIONAL    :: tbmd_energy
-    TYPE(tbmd_force_type), POINTER, OPTIONAL     :: tbmd_force
-    TYPE(tbmd_model_type), POINTER, OPTIONAL     :: tbmd_model
-    TYPE(virial_type), POINTER, OPTIONAL         :: virial
-    TYPE(cp_subsystem_type), POINTER, OPTIONAL   :: subsystem
+    TYPE(tbmd_environment_type), POINTER     :: tbmd_env
+    TYPE(tbmd_energy_type), OPTIONAL, &
+      POINTER                                :: tbmd_energy
+    TYPE(tbmd_force_type), OPTIONAL, POINTER :: tbmd_force
+    TYPE(tbmd_model_type), OPTIONAL, POINTER :: tbmd_model
+    TYPE(virial_type), OPTIONAL, POINTER     :: virial
+    TYPE(cp_subsystem_type), OPTIONAL, &
+      POINTER                                :: subsystem
     TYPE(atomic_kind_type), DIMENSION(:), &
-         OPTIONAL, POINTER                       :: atomic_kind_set
+      OPTIONAL, POINTER                      :: atomic_kind_set
     TYPE(particle_type), DIMENSION(:), &
-         OPTIONAL, POINTER                       :: particle_set
-    TYPE(molecule_kind_type), DIMENSION(:), &
-         OPTIONAL, POINTER                       :: molecule_kind_set
-    TYPE(molecule_type), DIMENSION(:), &
-         OPTIONAL, POINTER                       :: molecule_set
+      OPTIONAL, POINTER                      :: particle_set
     TYPE(distribution_1d_type), OPTIONAL, &
-         POINTER                                 :: local_particles, &
-                                                    local_molecules
-    TYPE(cell_type), POINTER, OPTIONAL           :: cell
-    TYPE(cell_type), POINTER, OPTIONAL           :: cell_ref
-    LOGICAL, INTENT(OUT), OPTIONAL               :: use_ref_cell
-    TYPE(cp_para_env_type), POINTER, OPTIONAL    :: para_env
-    TYPE(section_vals_type), POINTER, OPTIONAL   :: tbmd_input, &
-                                                    force_env_input
-    TYPE(tbmd_neighbor_list_env_type), POINTER, &
-         OPTIONAL                                :: tbmd_neighbor_list_env
-    TYPE(real_matrix_type), POINTER, OPTIONAL    :: matrix_h, &
-                                                    matrix_p
-    TYPE(real_matrix_p_type), POINTER, &
-         DIMENSION(:), OPTIONAL                  :: matrix_dh
-    TYPE(mo_set_type), POINTER, OPTIONAL         :: mos
+      POINTER                                :: local_particles
+    TYPE(molecule_kind_type), DIMENSION(:), &
+      OPTIONAL, POINTER                      :: molecule_kind_set
+    TYPE(molecule_type), DIMENSION(:), &
+      OPTIONAL, POINTER                      :: molecule_set
+    TYPE(distribution_1d_type), OPTIONAL, &
+      POINTER                                :: local_molecules
+    TYPE(section_vals_type), OPTIONAL, &
+      POINTER                                :: tbmd_input
+    TYPE(cell_type), OPTIONAL, POINTER       :: cell, cell_ref
+    LOGICAL, INTENT(OUT), OPTIONAL           :: use_ref_cell
+    TYPE(cp_para_env_type), OPTIONAL, &
+      POINTER                                :: para_env
+    INTEGER, INTENT(OUT), OPTIONAL           :: id_nr
+    TYPE(section_vals_type), OPTIONAL, &
+      POINTER                                :: force_env_input
+    TYPE(tbmd_neighbor_list_env_type), &
+      OPTIONAL, POINTER                      :: tbmd_neighbor_list_env
+    TYPE(real_matrix_type), OPTIONAL, &
+      POINTER                                :: matrix_h
+    TYPE(real_matrix_p_type), DIMENSION(:), &
+      OPTIONAL, POINTER                      :: matrix_dh
+    TYPE(mo_set_type), OPTIONAL, POINTER     :: mos
+    TYPE(real_matrix_type), OPTIONAL, &
+      POINTER                                :: matrix_p
     TYPE(distribution_2d_type), OPTIONAL, &
-      POINTER                                    :: distribution_2d
+      POINTER                                :: distribution_2d
     TYPE(cp_blacs_env_type), OPTIONAL, &
-      POINTER                                    :: blacs_env
-    TYPE(qs_matrix_pools_type), POINTER, &
-      OPTIONAL                                   :: matrix_pools
-    INTEGER, INTENT(OUT), OPTIONAL               :: id_nr
+      POINTER                                :: blacs_env
+    TYPE(qs_matrix_pools_type), OPTIONAL, &
+      POINTER                                :: matrix_pools
     TYPE(cp_error_type), INTENT(INOUT), &
-         OPTIONAL                                :: error
+      OPTIONAL                               :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'tbmd_env_get', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                      :: failure
-    TYPE (atomic_kind_list_type), POINTER        :: atomic_kinds
-    TYPE (particle_list_type), POINTER           :: particles
-    TYPE (mol_new_list_type), POINTER            :: molecules_new
-    TYPE (mol_kind_new_list_type), POINTER       :: molecule_kinds_new
+    LOGICAL                                  :: failure
+    TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
+    TYPE(mol_kind_new_list_type), POINTER    :: molecule_kinds_new
+    TYPE(mol_new_list_type), POINTER         :: molecules_new
+    TYPE(particle_list_type), POINTER        :: particles
 
 !   ------------------------------------------------------------------------
 
@@ -606,54 +608,61 @@ CONTAINS
                           matrix_p, distribution_2d, blacs_env, &
                           matrix_pools, error)
 
-    TYPE(tbmd_environment_type), POINTER         :: tbmd_env
-    TYPE(tbmd_energy_type), POINTER, OPTIONAL    :: tbmd_energy
-    TYPE(tbmd_force_type), POINTER, OPTIONAL     :: tbmd_force
-    TYPE(tbmd_model_type), POINTER, OPTIONAL     :: tbmd_model
-    TYPE(virial_type), POINTER, OPTIONAL         :: virial
-    TYPE(cp_subsystem_type), POINTER, OPTIONAL   :: subsystem
+    TYPE(tbmd_environment_type), POINTER     :: tbmd_env
+    TYPE(tbmd_energy_type), OPTIONAL, &
+      POINTER                                :: tbmd_energy
+    TYPE(tbmd_force_type), OPTIONAL, POINTER :: tbmd_force
+    TYPE(tbmd_model_type), OPTIONAL, POINTER :: tbmd_model
+    TYPE(virial_type), OPTIONAL, POINTER     :: virial
+    TYPE(cp_subsystem_type), OPTIONAL, &
+      POINTER                                :: subsystem
     TYPE(atomic_kind_type), DIMENSION(:), &
-         OPTIONAL, POINTER                       :: atomic_kind_set
+      OPTIONAL, POINTER                      :: atomic_kind_set
     TYPE(particle_type), DIMENSION(:), &
-         OPTIONAL, POINTER                       :: particle_set
-    TYPE(molecule_kind_type), DIMENSION(:), &
-         OPTIONAL, POINTER                       :: molecule_kind_set
-    TYPE(molecule_type), DIMENSION(:), &
-         OPTIONAL, POINTER                       :: molecule_set
+      OPTIONAL, POINTER                      :: particle_set
     TYPE(distribution_1d_type), OPTIONAL, &
-         POINTER                                 :: local_particles, &
-                                                    local_molecules
-    TYPE(section_vals_type), POINTER, OPTIONAL   :: tbmd_input, &
-                                                    force_env_input
-    TYPE(cell_type), POINTER, OPTIONAL           :: cell
-    TYPE(cell_type), POINTER, OPTIONAL           :: cell_ref
-    LOGICAL, INTENT(IN), OPTIONAL                :: use_ref_cell
-    TYPE(cp_para_env_type), POINTER, OPTIONAL    :: para_env
-    TYPE(tbmd_neighbor_list_env_type), POINTER, &
-         OPTIONAL                                :: tbmd_neighbor_list_env
-    TYPE(real_matrix_type), POINTER, OPTIONAL    :: matrix_h, &
-                                                    matrix_p
-    TYPE(real_matrix_p_type), POINTER, &
-         DIMENSION(:), OPTIONAL                  :: matrix_dh
-    TYPE(mo_set_type), POINTER, OPTIONAL         :: mos
+      POINTER                                :: local_particles
+    TYPE(molecule_kind_type), DIMENSION(:), &
+      OPTIONAL, POINTER                      :: molecule_kind_set
+    TYPE(molecule_type), DIMENSION(:), &
+      OPTIONAL, POINTER                      :: molecule_set
+    TYPE(distribution_1d_type), OPTIONAL, &
+      POINTER                                :: local_molecules
+    TYPE(section_vals_type), OPTIONAL, &
+      POINTER                                :: tbmd_input
+    TYPE(cell_type), OPTIONAL, POINTER       :: cell, cell_ref
+    LOGICAL, INTENT(IN), OPTIONAL            :: use_ref_cell
+    TYPE(cp_para_env_type), OPTIONAL, &
+      POINTER                                :: para_env
+    INTEGER, INTENT(IN), OPTIONAL            :: id_nr
+    TYPE(section_vals_type), OPTIONAL, &
+      POINTER                                :: force_env_input
+    TYPE(tbmd_neighbor_list_env_type), &
+      OPTIONAL, POINTER                      :: tbmd_neighbor_list_env
+    TYPE(real_matrix_type), OPTIONAL, &
+      POINTER                                :: matrix_h
+    TYPE(real_matrix_p_type), DIMENSION(:), &
+      OPTIONAL, POINTER                      :: matrix_dh
+    TYPE(mo_set_type), OPTIONAL, POINTER     :: mos
+    TYPE(real_matrix_type), OPTIONAL, &
+      POINTER                                :: matrix_p
     TYPE(distribution_2d_type), OPTIONAL, &
-      POINTER                                    :: distribution_2d
+      POINTER                                :: distribution_2d
     TYPE(cp_blacs_env_type), OPTIONAL, &
-      POINTER                                    :: blacs_env
-    TYPE(qs_matrix_pools_type), POINTER, &
-      OPTIONAL                                   :: matrix_pools
-    INTEGER, INTENT(IN), OPTIONAL                :: id_nr
+      POINTER                                :: blacs_env
+    TYPE(qs_matrix_pools_type), OPTIONAL, &
+      POINTER                                :: matrix_pools
     TYPE(cp_error_type), INTENT(INOUT), &
-         OPTIONAL                                :: error
+      OPTIONAL                               :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'tbmd_env_set', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                      :: failure
-    TYPE (atomic_kind_list_type), POINTER        :: atomic_kinds
-    TYPE (particle_list_type), POINTER           :: particles
-    TYPE (mol_new_list_type), POINTER            :: molecules_new
-    TYPE (mol_kind_new_list_type), POINTER       :: molecule_kinds_new
+    LOGICAL                                  :: failure
+    TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
+    TYPE(mol_kind_new_list_type), POINTER    :: molecule_kinds_new
+    TYPE(mol_new_list_type), POINTER         :: molecules_new
+    TYPE(particle_list_type), POINTER        :: particles
 
 !   ------------------------------------------------------------------------
 
@@ -802,9 +811,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'tbmd_env_clear', &
       routineP = moduleN//':'//routineN
 
+    INTEGER                                  :: natom
     LOGICAL                                  :: failure
-    INTEGER                                  :: natom, &
-                                                i
 
 !   ------------------------------------------------------------------------
 

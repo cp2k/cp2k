@@ -54,7 +54,7 @@ MODULE cp_sm_pool_types
   PRIVATE
 
   LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
-  CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='cp_sm_pool_types'
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_sm_pool_types'
   INTEGER, SAVE, PRIVATE :: last_sm_pool_id_nr=0
 
   PUBLIC :: cp_sm_pool_type, cp_sm_pool_p_type
@@ -313,7 +313,7 @@ CONTAINS
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'cp_sm_pool_release', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'sm_pool_release', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: stat

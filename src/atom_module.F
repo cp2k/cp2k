@@ -87,8 +87,7 @@ CONTAINS
   SUBROUTINE atomic_code(globenv)
 
 
-    TYPE(GLOBAL_ENVIRONMENT_TYPE), &
-      pointer                          :: globenv
+    TYPE(GLOBAL_ENVIRONMENT_TYPE), POINTER   :: globenv
 
     INTEGER                                  :: handle
     TYPE(ATOM_CALCULATION_TYPE)              :: ac
@@ -119,9 +118,9 @@ CONTAINS
     INTEGER                                  :: err, it, l, matchp, max_iter, &
                                                 max_shoot, n, nodes, si
     LOGICAL                                  :: shoot_converged
-    REAL(KIND=dp)                                :: a, eg, eg_li, ev, ldd, &
-                                                mix_ang, ncv, precision, res
-    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)     :: pot, rho, wf
+    REAL(KIND=dp)                            :: a, eg, eg_li, ev, ldd, &
+                                                mix_ang, ncv, PRECISION, res
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: pot, rho, wf
 
 ! variables
 ! ground state enegy (and of last iteration)
@@ -131,7 +130,7 @@ CONTAINS
     max_iter = ac%maxiter
     max_shoot = ac%maxshoot ! maximum number of shooting iterations
     mix_ang = 0.4_dp
-    precision = ac%precision
+    PRECISION = ac%precision
 
     ALLOCATE (pot(1:np), rho(1:np), wf(1:np))
 
@@ -240,15 +239,15 @@ CONTAINS
 ! ****************************************************************************
   
   FUNCTION shoot(wf, ev, pot, matchp, rg)
-    REAL(KIND=dp), DIMENSION(:), INTENT(OUT)     :: wf
-    REAL(KIND=dp), INTENT(IN)                    :: ev
-    REAL(KIND=dp), DIMENSION(:), INTENT(IN)      :: pot
+    REAL(KIND=dp), DIMENSION(:), INTENT(OUT) :: wf
+    REAL(KIND=dp), INTENT(IN)                :: ev
+    REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: pot
     INTEGER, INTENT(IN)                      :: matchp
     TYPE(radial_grid_type), INTENT(IN)       :: rg
-    REAL(KIND=dp)                                :: shoot
+    REAL(KIND=dp)                            :: shoot
 
     INTEGER                                  :: k
-    REAL(KIND=dp)                                :: h2, h2_12, scale
+    REAL(KIND=dp)                            :: h2, h2_12, scale
 
 ! function
 ! variables

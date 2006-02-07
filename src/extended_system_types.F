@@ -63,7 +63,7 @@ MODULE extended_system_types
      TYPE ( particle_scale_type ), POINTER :: p_scale ( :, : )
      REAL (KIND=dp), POINTER :: v_scale ( : )
      REAL (KIND=dp), POINTER :: s_kin ( : )
-     INTEGER, POINTER :: index ( : )
+     INTEGER, POINTER :: INDEX ( : )
   END TYPE lnhc_parameters_type
 
   TYPE extended_system_type
@@ -77,7 +77,7 @@ MODULE extended_system_types
 
 ! *** Global parameters ***
 
-  CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='extended_systems_types'
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'extended_system_types'
 
   CONTAINS
 
@@ -85,7 +85,8 @@ MODULE extended_system_types
 !  nullify all pointers 
 !***********
   SUBROUTINE extended_type_init(extended_type)
-    TYPE(extended_system_type), INTENT(OUT) :: extended_type
+    TYPE(extended_system_type), INTENT(OUT)  :: extended_type
+
     NULLIFY(extended_type%nhc_part)
     NULLIFY(extended_type%nhc_baro)
     NULLIFY(extended_type%nhc_coef)
@@ -93,7 +94,8 @@ MODULE extended_system_types
   END SUBROUTINE
 
   SUBROUTINE lnhc_init(lnhc)
-    TYPE(lnhc_parameters_type), INTENT(OUT) :: lnhc
+    TYPE(lnhc_parameters_type), INTENT(OUT)  :: lnhc
+
     NULLIFY(lnhc%dt_yosh)
     NULLIFY(lnhc%nvt)
     NULLIFY(lnhc%p_kin)
@@ -112,9 +114,10 @@ MODULE extended_system_types
 !  deallocate lnhc_dealloc
 !******
 SUBROUTINE lnhc_dealloc ( lnhc )
-   TYPE ( lnhc_parameters_type ), POINTER, DIMENSION(:) :: lnhc
+    TYPE(lnhc_parameters_type), &
+      DIMENSION(:), POINTER                  :: lnhc
 
-   INTEGER :: isos,i
+    INTEGER                                  :: i, isos
 
    IF (ASSOCIATED(lnhc)) THEN
     DO I=1,SIZE(lnhc)
@@ -162,8 +165,9 @@ SUBROUTINE lnhc_dealloc ( lnhc )
  END SUBROUTINE lnhc_dealloc
 
  SUBROUTINE npt_dealloc ( npt_info )
-   TYPE ( npt_info_type ), POINTER :: npt_info(:,:)
-   INTEGER :: isos
+    TYPE(npt_info_type), POINTER             :: npt_info(:,:)
+
+    INTEGER                                  :: isos
 
    IF ( ASSOCIATED ( npt_info ) ) THEN
         DEALLOCATE ( npt_info , STAT = isos )

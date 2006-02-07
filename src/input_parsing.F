@@ -46,8 +46,8 @@ MODULE input_parsing
                                              max_line_length,&
                                              parser_get_object,&
                                              parser_location,&
-                                             parser_test_next_token,&
-                                             parser_skip_space
+                                             parser_skip_space,&
+                                             parser_test_next_token
   USE cp_units,                        ONLY: cp_unit_create,&
                                              cp_unit_release,&
                                              cp_unit_retain,&
@@ -66,8 +66,8 @@ MODULE input_parsing
                                              section_vals_add_values,&
                                              section_vals_type
   USE input_val_types,                 ONLY: &
-       char_t, enum_t, integer_t, logical_t, no_t, real_t, val_create, &
-       val_type, val_write,lchar_t
+       char_t, enum_t, integer_t, lchar_t, logical_t, no_t, real_t, &
+       val_create, val_type, val_write
   USE kinds,                           ONLY: default_string_length,&
                                              dp
   USE output_utilities,                ONLY: print_message
@@ -323,7 +323,7 @@ CONTAINS
                  NULLIFY(el)
 !FM                 PRINT *,"about to parse keyword ",TRIM(token)," in section ",TRIM(section%name)
                  IF (ik/=0.and.keyword%type_of_var==lchar_t) &
-                      CALL parser_skip_space(parser,.false.,error=error)
+                      CALL parser_skip_space(parser,.FALSE.,error=error)
                  CALL val_create_parsing(el,type_of_var=keyword%type_of_var,&
                       n_var=keyword%n_var,default_value=keyword%lone_keyword_value,&
                       enum=keyword%enum,unit=keyword%unit,&

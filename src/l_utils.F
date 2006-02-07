@@ -11,7 +11,7 @@ MODULE l_utils
   IMPLICIT NONE
   PRIVATE 
 
-  CHARACTER(len=*), PRIVATE, PARAMETER :: module_name='l_utils'
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'l_utils'
 
   PUBLIC :: l_info_type, init_l_info, return_l_info, destroy_l_info, & 
             l_info_release, l_set_info_type, l_info_retain
@@ -247,7 +247,7 @@ CONTAINS
       OPTIONAL                               :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'l_info_retain', &
-      routineP = module_name//':'//routineN
+      routineP = moduleN//':'//routineN
 
     LOGICAL                                  :: failure
 
@@ -266,7 +266,7 @@ CONTAINS
       OPTIONAL                               :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'l_info_release', &
-      routineP = module_name//':'//routineN
+      routineP = moduleN//':'//routineN
 
     LOGICAL                                  :: failure
 

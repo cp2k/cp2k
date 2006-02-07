@@ -25,6 +25,9 @@
 
 MODULE mc_ge_moves
   USE atomic_kind_types,               ONLY: get_atomic_kind
+  USE cell_types,                      ONLY: cell_p_type,&
+                                             cell_type,&
+                                             get_cell
   USE cp_subsystem_types,              ONLY: cp_subsys_get,&
                                              cp_subsys_set,&
                                              cp_subsystem_p_type,&
@@ -39,9 +42,9 @@ MODULE mc_ge_moves
   USE kinds,                           ONLY: dp,&
                                              dp_size
   USE mc_control,                      ONLY: mc_create_force_env
-  USE mc_coordinates,                  ONLY: generate_cbmc_swap_config,&
+  USE mc_coordinates,                  ONLY: check_for_overlap,&
+                                             generate_cbmc_swap_config,&
                                              get_center_of_mass,&
-                                             check_for_overlap,&
                                              mc_coordinate_fold
   USE mc_misc,                         ONLY: mc_make_dat_file
   USE mc_move_control,                 ONLY: move_q_reinit,&
@@ -54,15 +57,12 @@ MODULE mc_ge_moves
   USE mol_kind_new_list_types,         ONLY: mol_kind_new_list_p_type
   USE molecule_kind_types,             ONLY: get_molecule_kind,&
                                              molecule_kind_type
-  USE parallel_rng_types,              ONLY: rng_stream_type,&
-                                             next_random_number
+  USE parallel_rng_types,              ONLY: next_random_number,&
+                                             rng_stream_type
   USE particle_list_types,             ONLY: particle_list_p_type,&
                                              particle_list_type
   USE particle_types,                  ONLY: write_particle_coordinates
   USE physcon,                         ONLY: angstrom
-  USE cell_types,                 ONLY: cell_p_type,&
-                                             cell_type,&
-                                             get_cell
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
   USE timings,                         ONLY: timeset,&
@@ -75,7 +75,7 @@ MODULE mc_ge_moves
 
 ! *** Global parameters ***
 
-  CHARACTER(LEN=*), PARAMETER :: module_name = "mc_ge_moves"
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'mc_ge_moves'
 
   PUBLIC :: mc_ge_volume_move,mc_ge_swap_move,&
       mc_quickstep_move
@@ -135,43 +135,45 @@ CONTAINS
 !   ***************************************************************************
 
     TYPE(mc_simulation_parameters_p_type), &
-      DIMENSION(:),POINTER                     :: mc_par
-    TYPE(force_env_p_type),DIMENSION(:), POINTER &
-                                        :: force_env,bias_env
-    TYPE(mc_moves_p_type),DIMENSION(:), POINTER    &
-                                         :: moves, move_updates
-    TYPE(cell_p_type),POINTER,DIMENSION(:) &
-                                             :: cell
-    TYPE(cp_subsystem_pp_type), &
-      DIMENSION(:), POINTER                  :: subsys,subsys_bias
-    TYPE(particle_list_p_type), DIMENSION(:),POINTER &
-                                             :: particles,particles_bias
-    REAL(KIND=dp), DIMENSION(:,:,:), &
+      DIMENSION(:), POINTER                  :: mc_par
+    TYPE(force_env_p_type), DIMENSION(:), &
+      POINTER                                :: force_env, bias_env
+    TYPE(mc_moves_p_type), DIMENSION(:), &
+      POINTER                                :: moves
+    LOGICAL, INTENT(IN)                      :: lreject
+    TYPE(mc_moves_p_type), DIMENSION(:), &
+      POINTER                                :: move_updates
+    REAL(KIND=dp), DIMENSION(:), &
+      INTENT(INOUT)                          :: energy_check
+    REAL(KIND=dp), DIMENSION(:, :, :), &
       INTENT(INOUT)                          :: r_old
-    INTEGER, INTENT(IN)                      :: nnstep,nboxes
-    INTEGER, DIMENSION(:),INTENT(IN)         :: box_flag
-    REAL(KIND=dp), DIMENSION(:),INTENT(INOUT) &
-                                             :: old_energy,&
-                                                bias_energy_new,&
-                                                energy_check
+    INTEGER, INTENT(IN)                      :: nnstep
+    REAL(KIND=dp), DIMENSION(:), &
+      INTENT(INOUT)                          :: old_energy, bias_energy_new
+    INTEGER, INTENT(IN)                      :: nboxes
+    INTEGER, DIMENSION(:), INTENT(IN)        :: box_flag
+    TYPE(cp_subsystem_pp_type), &
+      DIMENSION(:), POINTER                  :: subsys
+    TYPE(particle_list_p_type), &
+      DIMENSION(:), POINTER                  :: particles
+    TYPE(cell_p_type), DIMENSION(:), POINTER :: cell
+    TYPE(rng_stream_type), POINTER           :: rng_stream
     TYPE(cp_error_type), INTENT(INOUT), &
       OPTIONAL                               :: error
-    LOGICAL,INTENT(IN)                       :: lreject
-    TYPE(rng_stream_type), POINTER           :: rng_stream
 
-    CHARACTER(LEN=*), PARAMETER              :: &
-      routineN = "mc_Quickstep_move"
+    CHARACTER(LEN=*), PARAMETER              :: routineN = 'mc_Quickstep_move'
 
-!   *** Local Variables ***
-    INTEGER,DIMENSION(1:nboxes)              :: diff,nchain,nunits_tot
-    INTEGER                                  :: handle, iparticle,&
-      source,group,iprint,ibox,istat
-    REAL(KIND=dp)                            :: rand, w,&
-      BETA,energies
-    REAL(KIND=dp),DIMENSION(1:nboxes)        :: bias_energy_old,&
-      new_energy
-    LOGICAL                                  :: lbias,ionode,&
-      loverlap
+    INTEGER                                  :: group, handle, ibox, &
+                                                iparticle, iprint, istat, &
+                                                source
+    INTEGER, DIMENSION(1:nboxes)             :: diff, nchain, nunits_tot
+    LOGICAL                                  :: ionode, lbias, loverlap
+    REAL(KIND=dp)                            :: BETA, energies, rand, w
+    REAL(KIND=dp), DIMENSION(1:nboxes)       :: bias_energy_old, new_energy
+    TYPE(cp_subsystem_pp_type), &
+      DIMENSION(:), POINTER                  :: subsys_bias
+    TYPE(particle_list_p_type), &
+      DIMENSION(:), POINTER                  :: particles_bias
 
 !   ---------------------------------------------------------------------------
 ! begin the timing of the subroutine
@@ -194,10 +196,10 @@ CONTAINS
 
 ! allocate some stuff
       ALLOCATE(subsys_bias(1:nboxes),STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
          "subsys_bias",nboxes)
       ALLOCATE(particles_bias(1:nboxes),STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
          "particles_bias",nboxes)
 
 ! record the attempt
@@ -276,7 +278,7 @@ CONTAINS
                   CALL check_for_overlap(bias_env(ibox)%force_env,&
                      nchain(ibox),1,nchain(ibox),loverlap)
                   IF(loverlap) CALL stop_program(routineN,&
-                     module_name,__LINE__,&
+                     moduleN,__LINE__,&
                      'Quickstep move found an overlap in the old config') 
                ENDIF
                bias_energy_old(ibox)=moves(ibox)%moves%bias_energy
@@ -291,7 +293,7 @@ CONTAINS
             ELSEIF(energies .LE. -500.0_dp) THEN
                w=0.0_dp
             ELSE
-               w=exp(energies)
+               w=EXP(energies)
             ENDIF
             
             IF(ionode) THEN
@@ -309,7 +311,7 @@ CONTAINS
             ELSEIF(energies .LE. -500.0_dp) THEN
                w=0.0_dp
             ELSE
-               w=exp(energies)
+               w=EXP(energies)
             ENDIF
 !               WRITE(6,*) 'w = ',w
          ENDIF
@@ -417,10 +419,10 @@ CONTAINS
 
  ! deallocate some stuff
       DEALLOCATE(subsys_bias,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,module_name,&
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,&
          __LINE__,"subsys_bias")
       DEALLOCATE(particles_bias,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,module_name,&
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,&
          __LINE__,"particles_bias")
 
 ! end the timing
@@ -474,7 +476,7 @@ CONTAINS
     TYPE(mc_simulation_parameters_p_type), &
       DIMENSION(:), POINTER                  :: mc_par
     TYPE(force_env_p_type), DIMENSION(:), &
-      POINTER                                :: force_env,bias_env
+      POINTER                                :: force_env, bias_env
     TYPE(mc_moves_p_type), DIMENSION(:), &
       POINTER                                :: moves
     REAL(KIND=dp), DIMENSION(1:2), &
@@ -482,54 +484,50 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:, :, :), &
       INTENT(INOUT)                          :: r_old
     REAL(KIND=dp), DIMENSION(1:2), &
-      INTENT(INOUT)                          :: old_energy,bias_energy_old
+      INTENT(INOUT)                          :: old_energy
     TYPE(global_environment_type), POINTER   :: globenv
+    REAL(KIND=dp), DIMENSION(1:2), &
+      INTENT(INOUT)                          :: bias_energy_old
     TYPE(rng_stream_type), POINTER           :: rng_stream
     TYPE(cp_error_type), INTENT(INOUT), &
       OPTIONAL                               :: error
 
-    CHARACTER(LEN=*), PARAMETER              :: &
-      routineN = "mc_ge_swap_move"
+    CHARACTER(LEN=*), PARAMETER              :: routineN = 'mc_ge_swap_move'
 
-    INTEGER :: handle, i, iatom, ibox, ii, imolecule, ins_atoms, &
-      insert_box, istat, natom, rem_atoms, remove_box,nswapmoves,&
-      group,source,ipart
-    LOGICAL                                  :: loverlap,ionode,lbias,&
-      loverlap_ins,loverlap_rem
-    REAL(KIND=dp)                            :: prefactor, rand, w,BETA,&
-                                del_quickstep_energy,rdum,&
-                                weight_old,weight_new
+    CHARACTER(LEN=200)                       :: fft_lib
+    CHARACTER(LEN=40), DIMENSION(1:2)        :: dat_file
+    INTEGER :: group, handle, i, iatom, ibox, ii, imolecule, ins_atoms, &
+      insert_box, ipart, istat, natom, nswapmoves, rem_atoms, remove_box, &
+      source
+    INTEGER, DIMENSION(1:2)                  :: nchain, nunits_tot
+    LOGICAL                                  :: ionode, lbias, loverlap, &
+                                                loverlap_ins, loverlap_rem
+    REAL(KIND=dp)                            :: BETA, del_quickstep_energy, &
+                                                prefactor, rand, rdum, w, &
+                                                weight_new, weight_old
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: mass
     REAL(KIND=dp), ALLOCATABLE, &
-      DIMENSION(:, :)                        :: r_cbmc
-    REAL(KIND=dp), ALLOCATABLE, &
-      DIMENSION(:,:)                        :: cbmc_energies
-    REAL(KIND=dp), ALLOCATABLE, &
-      DIMENSION(:, :)                        :: r_insert, r_insert_mol, &
+      DIMENSION(:, :)                        :: cbmc_energies, r_cbmc, &
+                                                r_insert, r_insert_mol, &
                                                 r_remove
-    INTEGER, DIMENSION(1:2)                  :: nchain,nunits_tot
-    REAL(KIND=dp), DIMENSION(1:2)            :: bias_energy_new, &
-                                                new_energy
-    REAL(KIND=dp), DIMENSION(:),ALLOCATABLE  :: mass
-    REAL(KIND=dp), DIMENSION(1:3)            :: center_of_mass, &
-                                                displace_molecule, &
-                                                pos_insert,abc_insert,&
-                                                abc_remove
-    TYPE(mol_kind_new_list_p_type), DIMENSION(:),POINTER  &
-                                             :: molecule_kinds_new
-    TYPE(molecule_kind_type), POINTER        :: molecule_kind
+    REAL(KIND=dp), DIMENSION(1:2)            :: bias_energy_new, new_energy
+    REAL(KIND=dp), DIMENSION(1:3)            :: abc_insert, abc_remove, &
+                                                center_of_mass, &
+                                                displace_molecule, pos_insert
     TYPE(cell_type), POINTER                 :: cell_insert, cell_remove
+    TYPE(cp_subsystem_p_type), &
+      DIMENSION(:), POINTER                  :: insert_sys, remove_sys
     TYPE(cp_subsystem_pp_type), &
       DIMENSION(:), POINTER                  :: oldsys
-    TYPE(cp_subsystem_p_type), &
-      DIMENSION(:), POINTER                  :: insert_sys,remove_sys
-    TYPE(force_env_type), POINTER            :: insert_env, remove_env,&
-      insert_env_bias,remove_env_bias
+    TYPE(force_env_type), POINTER            :: insert_env, insert_env_bias, &
+                                                remove_env, remove_env_bias
+    TYPE(mol_kind_new_list_p_type), &
+      DIMENSION(:), POINTER                  :: molecule_kinds_new
+    TYPE(molecule_kind_type), POINTER        :: molecule_kind
     TYPE(particle_list_p_type), &
       DIMENSION(:), POINTER                  :: particles_old
-    TYPE(particle_list_type),POINTER         :: particles_insert,&
-      particles_remove
-    CHARACTER(LEN=40),DIMENSION(1:2)         :: dat_file
-    CHARACTER(LEN=200)                       :: fft_lib
+    TYPE(particle_list_type), POINTER        :: particles_insert, &
+                                                particles_remove
 
 !   ---------------------------------------------------------------------------
 ! begin the timing of the subroutine
@@ -553,13 +551,13 @@ CONTAINS
 
 ! allocate some stuff
       ALLOCATE(oldsys(1:2),STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
          "oldsys",2)
       ALLOCATE(particles_old(1:2),STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
          "particles_old",2)
       ALLOCATE(molecule_kinds_new(1:2),STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
          "molecule_kinds_new",2)
 
 ! get the old coordinates
@@ -605,23 +603,23 @@ CONTAINS
 ! check for overlap
          CALL check_for_overlap(force_env(remove_box)%force_env,&
             nchain(remove_box),1,nchain(remove_box),loverlap)
-         IF(loverlap) CALL stop_program(routineN,module_name,__LINE__,&
+         IF(loverlap) CALL stop_program(routineN,moduleN,__LINE__,&
             'CBMC swap move found an overlap in the old remove config')   
          CALL check_for_overlap(force_env(insert_box)%force_env,&
             nchain(insert_box),1,nchain(insert_box),loverlap)
-         IF(loverlap) CALL stop_program(routineN,module_name,__LINE__,&
+         IF(loverlap) CALL stop_program(routineN,moduleN,__LINE__,&
             'CBMC swap move found an overlap in the old insert config')   
       ENDIF
 
       IF(loverlap) THEN
          DEALLOCATE(molecule_kinds_new,STAT=istat)
-         IF (istat /= 0) CALL stop_memory(routineN,module_name,&
+         IF (istat /= 0) CALL stop_memory(routineN,moduleN,&
             __LINE__,"molecule_kinds_new")
          DEALLOCATE(oldsys,STAT=istat)
-         IF (istat /= 0) CALL stop_memory(routineN,module_name,&
+         IF (istat /= 0) CALL stop_memory(routineN,moduleN,&
             __LINE__,"oldsys")
          DEALLOCATE(particles_old,STAT=istat)
-         IF (istat /= 0) CALL stop_memory(routineN,module_name,&
+         IF (istat /= 0) CALL stop_memory(routineN,moduleN,&
             __LINE__,"particles_old")
          CALL timestop(0.0E0_dp,handle)
          RETURN
@@ -631,7 +629,7 @@ CONTAINS
       molecule_kind => molecule_kinds_new(1)%list%els(1)
       CALL get_molecule_kind(molecule_kind,natom=natom)   
       ALLOCATE(mass(1:natom),STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                        "mass",natom*dp_size)
       DO iatom=1,natom
          CALL get_atomic_kind(particles_old(1)%list%els(iatom)%atomic_kind,&
@@ -670,10 +668,10 @@ CONTAINS
 !      CALL stop_program("natom value not defined here. Maybe ?natoms?",&
 !                        "mc_ge_moves.F")
       ALLOCATE(r_insert_mol(1:3,1:natom),STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
          "r_insert_mol",3*natom)
       ALLOCATE(r_insert(1:3,1:ins_atoms),STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
          "r_insert",3*ins_atoms*dp_size)
 
       DO i=imolecule*natom-natom+1,imolecule*natom
@@ -718,11 +716,11 @@ CONTAINS
 ! allocate r_remove
       IF (rem_atoms == 0) THEN
          ALLOCATE(r_remove(1:3,1:natom),STAT=istat)
-         IF (istat /= 0) CALL stop_memory(routineN,module_name,&
+         IF (istat /= 0) CALL stop_memory(routineN,moduleN,&
             __LINE__,"r_remove",3*natom*dp_size)
       ELSE
          ALLOCATE(r_remove(1:3,1:rem_atoms),STAT=istat)
-         IF (istat /= 0) CALL stop_memory(routineN,module_name,&
+         IF (istat /= 0) CALL stop_memory(routineN,moduleN,&
             __LINE__,"r_remove",3*rem_atoms*dp_size)
       ENDIF
       
@@ -791,10 +789,10 @@ CONTAINS
 
 ! deallocate r_remove,r_insert, and r_insert_mol
       DEALLOCATE(r_insert,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,module_name,&
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,&
          __LINE__,"r_insert")
       DEALLOCATE(r_insert_mol,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
          "r_insert_mol")
 
 ! now let's create the two new environments with the different number
@@ -818,10 +816,10 @@ CONTAINS
 
 ! allocate an array we'll need
       ALLOCATE(r_cbmc(1:3,1:ins_atoms),STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
       "r_cbmc",3*ins_atoms*dp_size)
       ALLOCATE(cbmc_energies(1:nswapmoves,1:2),STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
       "cbmc_energies",nswapmoves*dp_size)
       
       loverlap_ins=.FALSE.
@@ -867,25 +865,25 @@ CONTAINS
          CALL force_env_release(insert_env)
          CALL force_env_release(remove_env)
          DEALLOCATE(r_remove,STAT=istat)
-         IF (istat /= 0) CALL stop_memory(routineN,module_name,&
+         IF (istat /= 0) CALL stop_memory(routineN,moduleN,&
             __LINE__,"r_remove")
          DEALLOCATE(mass,STAT=istat)
-         IF (istat /= 0) CALL stop_memory(routineN,module_name,&
+         IF (istat /= 0) CALL stop_memory(routineN,moduleN,&
             __LINE__,"mass")
          DEALLOCATE(molecule_kinds_new,STAT=istat)
-         IF (istat /= 0) CALL stop_memory(routineN,module_name,&
+         IF (istat /= 0) CALL stop_memory(routineN,moduleN,&
             __LINE__,"molecule_kinds_new")
          DEALLOCATE(r_cbmc,STAT=istat)
-         IF (istat /= 0) CALL stop_memory(routineN,module_name,&
+         IF (istat /= 0) CALL stop_memory(routineN,moduleN,&
             __LINE__,"r_cbmc")
          DEALLOCATE(cbmc_energies,STAT=istat)
-         IF (istat /= 0) CALL stop_memory(routineN,module_name,&
+         IF (istat /= 0) CALL stop_memory(routineN,moduleN,&
             __LINE__,"cbmc_energies")
          DEALLOCATE(oldsys,STAT=istat)
-         IF (istat /= 0) CALL stop_memory(routineN,module_name,&
+         IF (istat /= 0) CALL stop_memory(routineN,moduleN,&
             __LINE__,"oldsys")
          DEALLOCATE(particles_old,STAT=istat)
-         IF (istat /= 0) CALL stop_memory(routineN,module_name,&
+         IF (istat /= 0) CALL stop_memory(routineN,moduleN,&
             __LINE__,"particles_old")
          CALL timestop(0.0E0_dp,handle)
          RETURN
@@ -1117,25 +1115,25 @@ CONTAINS
 
 ! deallocate some stuff
       DEALLOCATE(cbmc_energies,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,module_name,&
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,&
          __LINE__,"cbmc_energies")
       DEALLOCATE(r_cbmc,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,module_name,&
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,&
          __LINE__,"r_cbmc")
       DEALLOCATE(r_remove,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,module_name,&
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,&
          __LINE__,"r_remove")
       DEALLOCATE(mass,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,module_name,&
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,&
          __LINE__,"mass")
       DEALLOCATE(molecule_kinds_new,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,module_name,&
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,&
          __LINE__,"molecule_kinds_new")
       DEALLOCATE(oldsys,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
          "oldsys")
       DEALLOCATE(particles_old,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
          "particles_old")
 
 ! end the timing
@@ -1187,63 +1185,58 @@ CONTAINS
 !   ***************************************************************************
 
     TYPE(mc_simulation_parameters_p_type), &
-      DIMENSION(:),POINTER                   :: mc_par
-    TYPE(force_env_p_type), DIMENSION(:), POINTER &
-                                             :: force_env
-    TYPE(mc_moves_p_type), DIMENSION(:), POINTER &
-                                             :: moves, move_updates
+      DIMENSION(:), POINTER                  :: mc_par
+    TYPE(force_env_p_type), DIMENSION(:), &
+      POINTER                                :: force_env
+    TYPE(mc_moves_p_type), DIMENSION(:), &
+      POINTER                                :: moves, move_updates
     INTEGER, INTENT(IN)                      :: nnstep
-    REAL(KIND=dp), DIMENSION(:),INTENT(INOUT)&
-                                             :: old_energy
+    REAL(KIND=dp), DIMENSION(:), &
+      INTENT(INOUT)                          :: old_energy
     TYPE(global_environment_type), POINTER   :: globenv
-    REAL(KIND=dp), DIMENSION(:),INTENT(INOUT)&
-                                             :: energy_check
-    REAL(KIND=dp), &
-      DIMENSION(:, :,:), &
+    REAL(KIND=dp), DIMENSION(:), &
+      INTENT(INOUT)                          :: energy_check
+    REAL(KIND=dp), DIMENSION(:, :, :), &
       INTENT(INOUT)                          :: r_old
     TYPE(rng_stream_type), POINTER           :: rng_stream
     TYPE(cp_error_type), INTENT(INOUT), &
       OPTIONAL                               :: error
 
-    CHARACTER(LEN=*), PARAMETER              :: &
-      routineN = "mc_ge_volume_move"
+    CHARACTER(LEN=*), PARAMETER              :: routineN = 'mc_ge_volume_move'
 
-! local variables
-    REAL(KIND=dp), DIMENSION(:), ALLOCATABLE :: mass 
-
-    INTEGER                                  :: handle, i, iatom, ibox,&
-                                                j,all_atoms,jatom,&
-                                                istat,source,group,&
-                                                nunits,cl,iside,natoms
-    INTEGER,DIMENSION(1:2)                   :: nunits_tot,nchain
-    REAL(KIND=dp),DIMENSION(1:2)             :: new_energy, &
-      volume_new,volume_old
-    REAL(KIND=dp), DIMENSION(1:3,1:2)        :: abc,old_cell_length,&
-      new_cell_length
+    CHARACTER(LEN=200)                       :: fft_lib
+    CHARACTER(LEN=40), DIMENSION(1:2)        :: dat_file
+    INTEGER                                  :: all_atoms, cl, group, handle, &
+                                                i, iatom, ibox, iside, istat, &
+                                                j, jatom, natoms, nunits, &
+                                                source
+    INTEGER, DIMENSION(1:2)                  :: nchain, nunits_tot
+    LOGICAL                                  :: ionode
+    LOGICAL, ALLOCATABLE, DIMENSION(:)       :: loverlap
+    LOGICAL, DIMENSION(1:2)                  :: lempty
+    REAL(KIND=dp)                            :: BETA, prefactor, rand, &
+                                                rmvolume, vol_dis, w
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: mass
+    REAL(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:, :, :)                     :: r
+    REAL(KIND=dp), DIMENSION(1:2)            :: new_energy, volume_new, &
+                                                volume_old
     REAL(KIND=dp), DIMENSION(1:3)            :: center_of_mass, &
                                                 center_of_mass_new, diff
-    TYPE(force_env_p_type), DIMENSION(:),POINTER &
-                                             :: test_env
-    TYPE(mol_kind_new_list_p_type), DIMENSION(:),POINTER  &
-                                             :: molecule_kinds_new
-    TYPE(molecule_kind_type), POINTER        :: molecule_kind
+    REAL(KIND=dp), DIMENSION(1:3, 1:2)       :: abc, new_cell_length, &
+                                                old_cell_length
+    TYPE(cell_p_type), DIMENSION(:), POINTER :: cell_old
     TYPE(cp_subsystem_pp_type), &
       DIMENSION(:), POINTER                  :: oldsys, testsys
-    TYPE(cell_p_type), DIMENSION(:),POINTER  &
-                                             :: cell_old
-    REAL(KIND=dp), DIMENSION(:,:,:),ALLOCATABLE &
-                                             :: r
+    TYPE(force_env_p_type), DIMENSION(:), &
+      POINTER                                :: test_env
+    TYPE(mol_kind_new_list_p_type), &
+      DIMENSION(:), POINTER                  :: molecule_kinds_new
+    TYPE(molecule_kind_type), POINTER        :: molecule_kind
     TYPE(particle_list_p_type), &
-      DIMENSION(:), POINTER                  :: particles_test, particles_old
-    REAL(KIND=dp)                            :: rand,w,prefactor,vol_dis,&
-      rmvolume,BETA
-    LOGICAL,DIMENSION(1:2)                   :: lempty
-    LOGICAL                                  :: ionode
-    LOGICAL,DIMENSION(:),ALLOCATABLE       :: loverlap
-    CHARACTER(LEN=40),DIMENSION(1:2)         :: dat_file
-    CHARACTER(LEN=200)                       :: fft_lib
+      DIMENSION(:), POINTER                  :: particles_old, particles_test
+
 !   ---------------------------------------------------------------------------
-      
 ! begin the timing of the subroutine
 
       CALL timeset(routineN,'I','',handle)
@@ -1263,31 +1256,31 @@ CONTAINS
 ! allocate some stuff
       all_atoms=nunits_tot(1)+nunits_tot(2)
       ALLOCATE(r(1:3,all_atoms,1:2),STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
          "r",3*2*all_atoms)
       ALLOCATE(oldsys(1:2),STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
          "oldsys",2)
       ALLOCATE(particles_old(1:2),STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
          "particles_old",2)
       ALLOCATE(cell_old(1:2),STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
          "cell_old",2)
       ALLOCATE(test_env(1:2),STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
          "test_env",2)
       ALLOCATE(testsys(1:2),STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
          "testsys",2)
       ALLOCATE(particles_test(1:2),STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
          "particles_test",2)      
       ALLOCATE(loverlap(1:2),STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
          "loverlap",2)      
       ALLOCATE(molecule_kinds_new(2),STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
          "molecule_kinds_new",2)
 
 ! check for empty boxes...need to be careful because we can't build
@@ -1325,7 +1318,7 @@ CONTAINS
       molecule_kind => molecule_kinds_new(1)%list%els(1)
       CALL get_molecule_kind(molecule_kind,natom=natoms)   
       ALLOCATE(mass(1:natoms),STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
          "mass",natoms*dp_size)
       DO iatom=1,natoms
          CALL get_atomic_kind(particles_old(1)%list%els(iatom)%atomic_kind,&
@@ -1386,11 +1379,11 @@ CONTAINS
 ! add to one box, subtract from the other
       IF(old_cell_length(1,1)*old_cell_length(2,1)*&
          old_cell_length(3,1)+vol_dis .LE. (3.0E0_dp/angstrom)**3) &
-         CALL stop_program(routineN,module_name,__LINE__,&
+         CALL stop_program(routineN,moduleN,__LINE__,&
          'GE_volume moves are trying to make box 1 smaller than 3')
       IF(old_cell_length(1,2)*old_cell_length(2,2)*&
          old_cell_length(3,2)+vol_dis .LE. (3.0E0_dp/angstrom)**3) &
-         CALL stop_program(routineN,module_name,__LINE__,&
+         CALL stop_program(routineN,moduleN,__LINE__,&
          'GE_volume moves are trying to make box 2 smaller than 3')
       
       DO iside=1,3
@@ -1491,7 +1484,7 @@ CONTAINS
       ENDDO
       prefactor=(volume_new(1)/volume_old(1))**nchain(1)*&
          (volume_new(2)/volume_old(2))**nchain(2)
-      w=prefactor*exp(-BETA*&
+      w=prefactor*EXP(-BETA*&
          (new_energy(1)+new_energy(2)-&
          old_energy(1)-old_energy(2)))
       
@@ -1574,34 +1567,34 @@ CONTAINS
 
 ! free up some memory
       DEALLOCATE(mass,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,module_name,&
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,&
          __LINE__,"mass")
       DEALLOCATE(molecule_kinds_new,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,module_name,&
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,&
          __LINE__,"molecule_kinds_new")
       DEALLOCATE(test_env,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,module_name,&
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,&
          __LINE__,"test_env")
       DEALLOCATE(r,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
          "r")
       DEALLOCATE(oldsys,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
          "oldsys")
       DEALLOCATE(particles_old,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
          "particles_old")
       DEALLOCATE(cell_old,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
          "cell_old")
       DEALLOCATE(testsys,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
          "testsys")
       DEALLOCATE(particles_test,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
          "particles_test")      
       DEALLOCATE(loverlap,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
          "loverlap")      
 
 ! end the timing

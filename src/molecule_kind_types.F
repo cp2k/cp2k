@@ -26,42 +26,28 @@ MODULE molecule_kind_types
                                              get_atomic_kind
   USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                              gto_basis_set_type
+  USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
+                                             cp_print_key_unit_nr
   USE external_potential_types,        ONLY: all_potential_type,&
                                              get_potential,&
                                              gth_potential_type
-  USE force_field_types,               ONLY: bend_kind_type,&
-                                             bond_kind_type,&
-                                             impr_kind_type,&
-                                             onfo_kind_type,&
-                                             torsion_kind_type,&
-                                             ub_kind_type,&
-                                             ub_kind_dealloc_ref,&
-                                             onfo_kind_dealloc_ref,&
-                                             torsion_kind_dealloc_ref,&
-                                             impr_kind_dealloc_ref
-  USE global_types,                    ONLY: global_environment_type
+  USE force_field_types,               ONLY: &
+       bend_kind_type, bond_kind_type, impr_kind_dealloc_ref, impr_kind_type, &
+       onfo_kind_dealloc_ref, onfo_kind_type, torsion_kind_dealloc_ref, &
+       torsion_kind_type, ub_kind_dealloc_ref, ub_kind_type
+  USE input_section_types,             ONLY: section_vals_type
   USE kinds,                           ONLY: default_string_length,&
                                              dp,&
                                              int_size
-  USE memory_utilities,                ONLY: reallocate
-  USE string_utilities,                ONLY: ascii_to_string,&
-                                             compress,&
-                                             string_to_ascii
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
-  USE cp_output_handling,              ONLY: cp_print_key_unit_nr, &
-                                             cp_print_key_finished_output,&
-                                             cp_print_key_should_output,&
-                                             cp_p_file
-  USE input_section_types, ONLY: section_vals_type, section_vals_get_subs_vals,&
-       section_vals_get, section_vals_val_get, section_vals_release
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
 
   PRIVATE
 
-  CHARACTER(LEN=*), PARAMETER :: module_name = "molecule_kind_types"
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'molecule_kind_types'
 
 ! *** Define the derived structure types ***
 
@@ -210,7 +196,7 @@ CONTAINS
       POINTER                                :: molecule_kind_set
     INTEGER, INTENT(IN)                      :: nmolecule_kind
 
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "allocate_molecule_kind_set"
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'allocate_molecule_kind_set'
 
     INTEGER                                  :: imolecule_kind, istat
 
@@ -221,7 +207,7 @@ CONTAINS
     END IF
 
     ALLOCATE (molecule_kind_set(nmolecule_kind),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "molecule_kind_set",&
                                      nmolecule_kind*int_size)
 
@@ -278,14 +264,12 @@ CONTAINS
     TYPE(molecule_kind_type), DIMENSION(:), &
       POINTER                                :: molecule_kind_set
 
-    CHARACTER(LEN=*), PARAMETER :: &
-      routine_name = "deallocate_molecule_kind_set"
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'deallocate_molecule_kind_set'
 
-    INTEGER                                  :: imolecule_kind, istat, &
-                                                nmolecule_kind, i
+    INTEGER                                  :: i, imolecule_kind, istat, &
+                                                nmolecule_kind
 
 !   ---------------------------------------------------------------------------
-
 
     IF (ASSOCIATED(molecule_kind_set)) THEN
 
@@ -296,38 +280,38 @@ CONTAINS
         IF (ASSOCIATED(molecule_kind_set(imolecule_kind)%atom_list)) THEN
            DEALLOCATE (molecule_kind_set(imolecule_kind)%atom_list,STAT=istat)
            IF (istat /= 0) THEN
-             CALL stop_memory(routine_name,module_name,__LINE__,&
+             CALL stop_memory(routineN,moduleN,__LINE__,&
                               "molecule_kind_set(imolecule_kind)%atom_list")
            END IF
         END IF
         IF (ASSOCIATED(molecule_kind_set(imolecule_kind)%bend_kind_set)) THEN
            DEALLOCATE (molecule_kind_set(imolecule_kind)%bend_kind_set,STAT=istat)
            IF (istat /= 0) THEN
-             CALL stop_memory(routine_name,module_name,__LINE__,&
+             CALL stop_memory(routineN,moduleN,__LINE__,&
                               "molecule_kind_set(imolecule_kind)%bend_kind_set")
            END IF
         END IF
         IF (ASSOCIATED(molecule_kind_set(imolecule_kind)%bend_list)) THEN
            DEALLOCATE (molecule_kind_set(imolecule_kind)%bend_list,STAT=istat)
            IF (istat /= 0) THEN
-             CALL stop_memory(routine_name,module_name,__LINE__,&
+             CALL stop_memory(routineN,moduleN,__LINE__,&
                               "molecule_kind_set(imolecule_kind)%bend_list")
            END IF
         END IF
         IF (ASSOCIATED(molecule_kind_set(imolecule_kind)%ub_list)) THEN
            DEALLOCATE (molecule_kind_set(imolecule_kind)%ub_list,STAT=istat)
            IF (istat /= 0) THEN
-             CALL stop_memory(routine_name,module_name,__LINE__,&
+             CALL stop_memory(routineN,moduleN,__LINE__,&
                               "molecule_kind_set(imolecule_kind)%ub_list")
            END IF
         END IF
         IF (ASSOCIATED(molecule_kind_set(imolecule_kind)%ub_kind_set)) THEN
-           call ub_kind_dealloc_ref(molecule_kind_set(imolecule_kind)%ub_kind_set)
+           CALL ub_kind_dealloc_ref(molecule_kind_set(imolecule_kind)%ub_kind_set)
         END IF        
         IF (ASSOCIATED(molecule_kind_set(imolecule_kind)%impr_list)) THEN
            DEALLOCATE (molecule_kind_set(imolecule_kind)%impr_list,STAT=istat)
            IF (istat /= 0) THEN
-             CALL stop_memory(routine_name,module_name,__LINE__,&
+             CALL stop_memory(routineN,moduleN,__LINE__,&
                               "molecule_kind_set(imolecule_kind)%impr_list")
            END IF
         END IF
@@ -337,14 +321,14 @@ CONTAINS
            END DO
            DEALLOCATE (molecule_kind_set(imolecule_kind)%impr_kind_set,STAT=istat)
            IF (istat /= 0) THEN
-             CALL stop_memory(routine_name,module_name,__LINE__,&
+             CALL stop_memory(routineN,moduleN,__LINE__,&
                               "molecule_kind_set(imolecule_kind)%onfo_list")
            END IF
         END IF
         IF (ASSOCIATED(molecule_kind_set(imolecule_kind)%onfo_list)) THEN
            DEALLOCATE(molecule_kind_set(imolecule_kind)%onfo_list, STAT=istat)
            IF (istat /= 0) THEN
-              CALL stop_memory(routine_name,module_name,__LINE__,&
+              CALL stop_memory(routineN,moduleN,__LINE__,&
                    "molecule_kind_set(imolecule_kind)%onfo_list")
            END IF
         END IF
@@ -354,42 +338,42 @@ CONTAINS
         IF (ASSOCIATED(molecule_kind_set(imolecule_kind)%bond_kind_set)) THEN
            DEALLOCATE (molecule_kind_set(imolecule_kind)%bond_kind_set,STAT=istat)
            IF (istat /= 0) THEN
-             CALL stop_memory(routine_name,module_name,__LINE__,&
+             CALL stop_memory(routineN,moduleN,__LINE__,&
                               "molecule_kind_set(imolecule_kind)%bond_kind_set")
            END IF
         END IF
         IF (ASSOCIATED(molecule_kind_set(imolecule_kind)%bond_list)) THEN
            DEALLOCATE (molecule_kind_set(imolecule_kind)%bond_list,STAT=istat)
            IF (istat /= 0) THEN
-             CALL stop_memory(routine_name,module_name,__LINE__,&
+             CALL stop_memory(routineN,moduleN,__LINE__,&
                               "molecule_kind_set(imolecule_kind)%bond_list")
            END IF
         END IF
         IF (ASSOCIATED(molecule_kind_set(imolecule_kind)%dist_list)) THEN
            DEALLOCATE (molecule_kind_set(imolecule_kind)%dist_list,STAT=istat)
            IF (istat /= 0) THEN
-             CALL stop_memory(routine_name,module_name,__LINE__,&
+             CALL stop_memory(routineN,moduleN,__LINE__,&
                            "molecule_kind_set(imolecule_kind)%dist_list")
            END IF
         END IF
         IF (ASSOCIATED(molecule_kind_set(imolecule_kind)%g3x3_list)) THEN
            DEALLOCATE (molecule_kind_set(imolecule_kind)%g3x3_list,STAT=istat)
            IF (istat /= 0) THEN
-             CALL stop_memory(routine_name,module_name,__LINE__,&
+             CALL stop_memory(routineN,moduleN,__LINE__,&
                               "molecule_kind_set(imolecule_kind)%g3x3_list")
            END IF
         END IF
         IF (ASSOCIATED(molecule_kind_set(imolecule_kind)%g4x6_list)) THEN
            DEALLOCATE (molecule_kind_set(imolecule_kind)%g4x6_list,STAT=istat)
            IF (istat /= 0) THEN
-             CALL stop_memory(routine_name,module_name,__LINE__,&
+             CALL stop_memory(routineN,moduleN,__LINE__,&
                               "molecule_kind_set(imolecule_kind)%g4x6_list")
            END IF
         END IF
         IF (ASSOCIATED(molecule_kind_set(imolecule_kind)%fixd_list)) THEN
            DEALLOCATE (molecule_kind_set(imolecule_kind)%fixd_list,STAT=istat)
            IF (istat /= 0) THEN
-             CALL stop_memory(routine_name,module_name,__LINE__,&
+             CALL stop_memory(routineN,moduleN,__LINE__,&
                               "molecule_kind_set(imolecule_kind)%fixd_list")
            END IF
         END IF
@@ -399,33 +383,33 @@ CONTAINS
            END DO
            DEALLOCATE (molecule_kind_set(imolecule_kind)%torsion_kind_set,STAT=istat)
            IF (istat /= 0) THEN
-             CALL stop_memory(routine_name,module_name,__LINE__,&
+             CALL stop_memory(routineN,moduleN,__LINE__,&
                               "molecule_kind_set(imolecule_kind)%torsion_kind_set")
            END IF
         END IF
         IF (ASSOCIATED(molecule_kind_set(imolecule_kind)%torsion_list)) THEN
            DEALLOCATE (molecule_kind_set(imolecule_kind)%torsion_list,STAT=istat)
            IF (istat /= 0) THEN
-             CALL stop_memory(routine_name,module_name,__LINE__,&
+             CALL stop_memory(routineN,moduleN,__LINE__,&
                               "molecule_kind_set(imolecule_kind)%torsion_list")
            END IF
         END IF
         IF (ASSOCIATED(molecule_kind_set(imolecule_kind)%molecule_list)) THEN
            DEALLOCATE (molecule_kind_set(imolecule_kind)%molecule_list,STAT=istat)
            IF (istat /= 0) THEN
-             CALL stop_memory(routine_name,module_name,__LINE__,&
+             CALL stop_memory(routineN,moduleN,__LINE__,&
                               "molecule_kind_set(imolecule_kind)%molecule_list")
            END IF
         ENDIF
       END DO
 
       DEALLOCATE (molecule_kind_set,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                        "molecule_kind_set")
 
     ELSE
 
-      CALL stop_program(routine_name,module_name,__LINE__,&
+      CALL stop_program(routineN,moduleN,__LINE__,&
                         "The pointer molecule_kind_set is not associated "//&
                         "and cannot be deallocated")
 
@@ -454,30 +438,24 @@ CONTAINS
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
     TYPE(atom_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: atom_list
-    TYPE(bond_kind_type), DIMENSION(:), OPTIONAL,POINTER    :: bond_kind_set
-    TYPE(bend_kind_type), DIMENSION(:), OPTIONAL,POINTER    :: bend_kind_set
-    TYPE(ub_kind_type), DIMENSION(:), OPTIONAL,POINTER      :: ub_kind_set
-    TYPE(impr_kind_type), DIMENSION(:), OPTIONAL,POINTER    :: impr_kind_set
-    TYPE(onfo_kind_type), DIMENSION(:), OPTIONAL,POINTER    :: onfo_kind_set
-    TYPE(torsion_kind_type), DIMENSION(:), OPTIONAL,POINTER :: torsion_kind_set
     TYPE(bond_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: bond_list
     TYPE(bend_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: bend_list
-    TYPE(ub_type), DIMENSION(:), &
-      OPTIONAL, POINTER                      :: ub_list
+    TYPE(ub_type), DIMENSION(:), OPTIONAL, &
+      POINTER                                :: ub_list
     TYPE(impr_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: impr_list
     TYPE(onfo_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: onfo_list
     TYPE(dist_constraint_type), &
       DIMENSION(:), OPTIONAL, POINTER        :: dist_list
+    TYPE(fixd_constraint_type), &
+      DIMENSION(:), OPTIONAL, POINTER        :: fixd_list
     TYPE(g3x3_constraint_type), &
       DIMENSION(:), OPTIONAL, POINTER        :: g3x3_list
     TYPE(g4x6_constraint_type), &
       DIMENSION(:), OPTIONAL, POINTER        :: g4x6_list
-    TYPE(fixd_constraint_type), &
-      DIMENSION(:), OPTIONAL, POINTER        :: fixd_list
     TYPE(torsion_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: torsion_list
     CHARACTER(LEN=default_string_length), &
@@ -485,17 +463,25 @@ CONTAINS
     INTEGER, INTENT(OUT), OPTIONAL           :: nhcopt
     REAL(KIND=dp), DIMENSION(:), OPTIONAL, &
       POINTER                                :: mass, charge
-    INTEGER, INTENT(OUT), OPTIONAL           :: kind_number, natom, nbend, &
-                                                nbond, nconstraint, &
-                                                ndist, nelectron, nfixd,&
-                                                ng3x3, ng4x6, nmolecule, nsgf, &
-                                                ntorsion, nub, nimpr, nonfo
+    INTEGER, INTENT(OUT), OPTIONAL :: kind_number, natom, nbend, nbond, nub, &
+      nimpr, nonfo, nconstraint, nfixd, ndist, ng3x3, ng4x6, nmolecule, nsgf, &
+      ntorsion
     INTEGER, DIMENSION(:), OPTIONAL, POINTER :: molecule_list
+    INTEGER, INTENT(OUT), OPTIONAL           :: nelectron
+    TYPE(bond_kind_type), DIMENSION(:), &
+      OPTIONAL, POINTER                      :: bond_kind_set
+    TYPE(bend_kind_type), DIMENSION(:), &
+      OPTIONAL, POINTER                      :: bend_kind_set
+    TYPE(ub_kind_type), DIMENSION(:), &
+      OPTIONAL, POINTER                      :: ub_kind_set
+    TYPE(impr_kind_type), DIMENSION(:), &
+      OPTIONAL, POINTER                      :: impr_kind_set
+    TYPE(onfo_kind_type), DIMENSION(:), &
+      OPTIONAL, POINTER                      :: onfo_kind_set
+    TYPE(torsion_kind_type), DIMENSION(:), &
+      OPTIONAL, POINTER                      :: torsion_kind_set
 
-
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "get_molecule_kind"
-
-    INTEGER                                  :: iatom, n
+    CHARACTER(LEN=*), PARAMETER              :: routineN = 'get_molecule_kind'
 
 !   ---------------------------------------------------------------------------
 
@@ -553,7 +539,7 @@ CONTAINS
 
     ELSE
 
-      CALL stop_program(routine_name,module_name,__LINE__,&
+      CALL stop_program(routineN,moduleN,__LINE__,&
                         "The pointer molecule_kind is not associated")
 
     END IF
@@ -574,17 +560,16 @@ CONTAINS
 
     TYPE(molecule_kind_type), DIMENSION(:), &
       POINTER                                :: molecule_kind_set
-    INTEGER, INTENT(OUT), OPTIONAL           :: maxatom, natom, nconstraint, &
-                                                nmolecule
-    INTEGER, INTENT(OUT), OPTIONAL           :: nbond,nbend,nub,ntorsion
-    INTEGER, INTENT(OUT), OPTIONAL           :: nimpr,nonfo
+    INTEGER, INTENT(OUT), OPTIONAL           :: maxatom, natom, nbond, nbend, &
+                                                nub, ntorsion, nimpr, nonfo, &
+                                                nconstraint, nmolecule
 
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "get_molecule_kind_set"
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'get_molecule_kind_set'
 
-    INTEGER                                  :: imolecule_kind, nmolecule_kind
-    INTEGER                                  :: na, nc, nm, nfixd
-    INTEGER                                  :: ibond,ibend,iub,itorsion
-    INTEGER                                  :: iimpr,ionfo
+    INTEGER                                  :: ibend, ibond, iimpr, &
+                                                imolecule_kind, ionfo, &
+                                                itorsion, iub, na, nc, nfixd, &
+                                                nm, nmolecule_kind
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
 
 !   ---------------------------------------------------------------------------
@@ -636,7 +621,7 @@ CONTAINS
 
     ELSE
 
-      CALL stop_program(routine_name,module_name,__LINE__,&
+      CALL stop_program(routineN,moduleN,__LINE__,&
                         "The pointer molecule_kind_set is not associated")
 
     END IF
@@ -653,20 +638,19 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(molecule_kind_type), DIMENSION(:),&
+    TYPE(molecule_kind_type), DIMENSION(:), &
       POINTER                                :: molecule_kind_set
 
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "num_ao_el_per_molecule"
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'num_ao_el_per_molecule'
 
-    INTEGER                                  :: iatom, ikind, imol, istat,&
-                                                nmol_kind, natom,&
-                                                nelectron, n_ao, nsgf
+    INTEGER                                  :: iatom, imol, n_ao, natom, &
+                                                nelectron, nmol_kind, nsgf
     REAL(KIND=dp)                            :: zeff, zeff_correction
-    TYPE(molecule_kind_type), POINTER        :: molecule_kind
-    TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(all_potential_type), POINTER        :: all_potential
+    TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(gth_potential_type), POINTER        :: gth_potential
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
+    TYPE(molecule_kind_type), POINTER        :: molecule_kind
 
 !   ---------------------------------------------------------------------------
 
@@ -739,47 +723,50 @@ CONTAINS
     INTEGER, DIMENSION(:), OPTIONAL, POINTER :: molecule_list
     TYPE(atom_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: atom_list
-    INTEGER, INTENT(IN), OPTIONAL            :: nhcopt
-    INTEGER, INTENT(IN), OPTIONAL            :: nbond
-    TYPE(bond_kind_type), DIMENSION(:), OPTIONAL,POINTER :: bond_kind_set
-    TYPE(bend_kind_type), DIMENSION(:), OPTIONAL,POINTER :: bend_kind_set
-    TYPE(ub_kind_type), DIMENSION(:), OPTIONAL,POINTER   :: ub_kind_set
-    TYPE(torsion_kind_type), DIMENSION(:), OPTIONAL,POINTER :: torsion_kind_set
-    TYPE(impr_kind_type), DIMENSION(:), OPTIONAL,POINTER :: impr_kind_set
-    TYPE(onfo_kind_type), DIMENSION(:), OPTIONAL,POINTER :: onfo_kind_set
+    INTEGER, INTENT(IN), OPTIONAL            :: nhcopt, nbond
     TYPE(bond_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: bond_list
     INTEGER, INTENT(IN), OPTIONAL            :: nbend
-    INTEGER, INTENT(IN), OPTIONAL            :: nelectron, nsgf
     TYPE(bend_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: bend_list
     INTEGER, INTENT(IN), OPTIONAL            :: nub
-    TYPE(ub_type), DIMENSION(:), &
-      OPTIONAL, POINTER                      :: ub_list
-    INTEGER, INTENT(IN), OPTIONAL            :: ntorsion
-    TYPE(torsion_type), DIMENSION(:), &
-      OPTIONAL, POINTER                      :: torsion_list
+    TYPE(ub_type), DIMENSION(:), OPTIONAL, &
+      POINTER                                :: ub_list
     INTEGER, INTENT(IN), OPTIONAL            :: nimpr
     TYPE(impr_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: impr_list
     INTEGER, INTENT(IN), OPTIONAL            :: nonfo
     TYPE(onfo_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: onfo_list
+    INTEGER, INTENT(IN), OPTIONAL            :: ntorsion
+    TYPE(torsion_type), DIMENSION(:), &
+      OPTIONAL, POINTER                      :: torsion_list
+    TYPE(fixd_constraint_type), &
+      DIMENSION(:), OPTIONAL, POINTER        :: fixd_list
     INTEGER, INTENT(IN), OPTIONAL            :: ndist
     TYPE(dist_constraint_type), &
       DIMENSION(:), OPTIONAL, POINTER        :: dist_list
     INTEGER, INTENT(IN), OPTIONAL            :: ng3x3
     TYPE(g3x3_constraint_type), &
       DIMENSION(:), OPTIONAL, POINTER        :: g3x3_list
-    INTEGER, INTENT(IN), OPTIONAL            :: ng4x6
-    INTEGER, INTENT(IN), OPTIONAL            :: nfixd
+    INTEGER, INTENT(IN), OPTIONAL            :: ng4x6, nfixd
     TYPE(g4x6_constraint_type), &
       DIMENSION(:), OPTIONAL, POINTER        :: g4x6_list
-    TYPE(fixd_constraint_type), &
-      DIMENSION(:), OPTIONAL, POINTER        :: fixd_list
+    TYPE(bond_kind_type), DIMENSION(:), &
+      OPTIONAL, POINTER                      :: bond_kind_set
+    TYPE(bend_kind_type), DIMENSION(:), &
+      OPTIONAL, POINTER                      :: bend_kind_set
+    TYPE(ub_kind_type), DIMENSION(:), &
+      OPTIONAL, POINTER                      :: ub_kind_set
+    TYPE(torsion_kind_type), DIMENSION(:), &
+      OPTIONAL, POINTER                      :: torsion_kind_set
+    TYPE(impr_kind_type), DIMENSION(:), &
+      OPTIONAL, POINTER                      :: impr_kind_set
+    TYPE(onfo_kind_type), DIMENSION(:), &
+      OPTIONAL, POINTER                      :: onfo_kind_set
+    INTEGER, INTENT(IN), OPTIONAL            :: nelectron, nsgf
 
-
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "set_molecule_kind"
+    CHARACTER(LEN=*), PARAMETER              :: routineN = 'set_molecule_kind'
 
     INTEGER                                  :: n
 
@@ -796,14 +783,14 @@ CONTAINS
 !            END DO
 !            DEALLOCATE (molecule_kind%atom_list,STAT=istat)
 !            IF (istat /= 0) THEN
-!              CALL stop_memory(routine_name,module_name,__LINE__,&
+!              CALL stop_memory(routineN,moduleN,__LINE__,&
 !                               "molecule_kind%atom_list")
 !!            END IF
 !          END IF
 !          molecule_kind%natom = n
 !          ALLOCATE (molecule_kind%atom_list(n),STAT=istat)
 !          IF (istat /= 0) THEN
-!            CALL stop_memory(routine_name,module_name,__LINE__,&
+!            CALL stop_memory(routineN,moduleN,__LINE__,&
 !                             "molecule_kind%atom_list",n*int_size)
 !          END IF
 !          DO i=1,n
@@ -811,7 +798,7 @@ CONTAINS
 !            molecule_kind%atom_list(i)%name = atom_list(i)%name
 !          END DO
 !        ELSE
-!          CALL stop_program(routine_name,module_name,__LINE__,&
+!          CALL stop_program(routineN,moduleN,__LINE__,&
 !                            "An invalid atom_list was supplied")
 !        END IF
         n = SIZE(atom_list)
@@ -857,19 +844,19 @@ CONTAINS
 !          IF (ASSOCIATED(molecule_kind%molecule_list)) THEN
 !            DEALLOCATE (molecule_kind%molecule_list,STAT=istat)
 !            IF (istat /= 0) THEN
-!              CALL stop_memory(routine_name,module_name,__LINE__,&
+!              CALL stop_memory(routineN,moduleN,__LINE__,&
 !                               "molecule_kind%molecule_list")
 !            END IF
 !          END IF
 !          molecule_kind%nmolecule = n
 !          ALLOCATE (molecule_kind%molecule_list(n),STAT=istat)
 !          IF (istat /= 0) THEN
-!            CALL stop_memory(routine_name,module_name,__LINE__,&
+!            CALL stop_memory(routineN,moduleN,__LINE__,&
 !                             "molecule_kind%molecule_list",n*int_size)
 !          END IF
 !          molecule_kind%molecule_list(:) = molecule_list(:)
 !        ELSE
-!          CALL stop_program(routine_name,module_name,__LINE__,&
+!          CALL stop_program(routineN,moduleN,__LINE__,&
 !                            "An invalid molecule_list was supplied")
 !        END IF
         n = SIZE(molecule_list)
@@ -879,7 +866,7 @@ CONTAINS
 
     ELSE
 
-      CALL stop_program(routine_name,module_name,__LINE__,&
+      CALL stop_program(routineN,moduleN,__LINE__,&
                         "The pointer molecule_kind is not associated")
 
     END IF
@@ -897,17 +884,18 @@ CONTAINS
 !   ***************************************************************************
 
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
+    INTEGER, INTENT(in)                      :: output_unit
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
-    INTEGER, INTENT(in) :: output_unit
     CHARACTER(len=*), PARAMETER :: routineN = 'write_molecule_kind', &
-      routineP = module_name//':'//routineN
+      routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=default_string_length)     :: name
     INTEGER                                  :: iatom, imolecule, natom, &
                                                 nmolecule
+    LOGICAL                                  :: failure
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
-    logical :: failure
 
     failure = .FALSE.
     IF (output_unit>0) THEN
@@ -961,18 +949,19 @@ CONTAINS
 
     TYPE(molecule_kind_type), DIMENSION(:), &
       POINTER                                :: molecule_kind_set
+    TYPE(section_vals_type), POINTER         :: force_env_section
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    TYPE(section_vals_type), POINTER :: force_env_section
-    TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
     CHARACTER(len=*), PARAMETER :: routineN = 'write_molecule_kind_set', &
-         routineP = module_name//':'//routineN
+      routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: imolecule_kind, &
-                                                nmolecule_kind, output_unit
-    TYPE(molecule_kind_type), POINTER        :: molecule_kind
-    INTEGER                                  :: nbond,nbend,nub,ntors,nimpr,nonfo
+    INTEGER                                  :: imolecule_kind, nbend, nbond, &
+                                                nimpr, nmolecule_kind, nonfo, &
+                                                ntors, nub, output_unit
+    LOGICAL                                  :: failure
     TYPE(cp_logger_type), POINTER            :: logger
-    logical :: failure
+    TYPE(molecule_kind_type), POINTER        :: molecule_kind
 
     failure = .FALSE.
     NULLIFY(logger)

@@ -22,11 +22,14 @@
 MODULE qs_util
 
   USE kinds,                           ONLY: dp
-
-  USE mathconstants,                   ONLY: dfac,fac,pi,root2
-  USE orbital_pointers,                ONLY: nco, nso,&
-                                             ncoset,nsoset,&
-                                             indco
+  USE mathconstants,                   ONLY: dfac,&
+                                             fac,&
+                                             pi
+  USE orbital_pointers,                ONLY: indco,&
+                                             nco,&
+                                             ncoset,&
+                                             nso,&
+                                             nsoset
   USE orbital_transformation_matrices, ONLY: orbtramat
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
@@ -36,7 +39,7 @@ MODULE qs_util
   PRIVATE
 ! *** Global parameters (only in this module)
 
-  CHARACTER(LEN=*), PARAMETER :: module_name = "qs_util"
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_util'
 
   REAL ( dp ), PARAMETER :: sqrt05 = .70710678118654752440_dp
   REAL ( dp ), PARAMETER :: sqrt2 = 1.41421356237309504880_dp
@@ -204,11 +207,11 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    if (present(epsin)) then
+    IF (PRESENT(epsin)) THEN
        epsiter=epsin
-    else
+    ELSE
        epsiter=EPSILON(epsiter)*(1.0E-12_dp / 2.22044604925031E-16_dp)
-    endif
+    ENDIF
 
 !   *** Initialize function value ***
 
@@ -258,9 +261,9 @@ CONTAINS
     iter=0
     DO 
        iter=iter+1
-       if (iter.gt.maxiter) CALL stop_program(routine,"Maximum number of iterations exceeded")
+       IF (iter.gt.maxiter) CALL stop_program(routine,"Maximum number of iterations exceeded")
        g = d*rhigh**l*EXP(-a*rhigh**2)
-       if (g < t) exit
+       IF (g < t) EXIT
        rlow = rhigh
        rhigh =  2.0_dp*rlow+1.0_dp 
     ENDDO
@@ -269,14 +272,14 @@ CONTAINS
        rmid= (rlow+rhigh)*0.5_dp
        ar2 = a*rmid*rmid
        g   = d*rmid**l*EXP(-ar2)
-       if  (g.lt.t) then
+       IF  (g.lt.t) THEN
            rhigh=rmid
-       else
+       ELSE
            rlow=rmid
-       endif
+       ENDIF
        IF (ABS(rhigh-rlow).lt.epsiter) THEN
           radius=rhigh
-          return
+          RETURN
        ENDIF
     ENDDO 
     CALL stop_program(routine,"Maximum number of iterations exceeded")
@@ -292,22 +295,21 @@ CONTAINS
 !
 ! ***************************************************************************
 
-  IMPLICIT NONE
 !in:
-  INTEGER,  INTENT(IN)     :: l
-  REAL(dp), INTENT(IN)     :: alpha
-!out:
-  REAL(dp)                 :: gaussint_sph
+    REAL(dp), INTENT(IN)                     :: alpha
+    INTEGER, INTENT(IN)                      :: l
+    REAL(dp)                                 :: gaussint_sph
 
+!out:
 !------------------------------------------------------------------------------!
 
   IF ((l/2)*2==l) THEN
   !even l:
     gaussint_sph=ROOTPI * 0.5_dp**(l/2+2) * dfac(l+1    )&
-                 /sqrt(alpha)**(l+3)
+                 /SQRT(alpha)**(l+3)
   ELSE
   !odd l:
-    gaussint_sph=0.5_dp * fac((l+1    )/2) /sqrt(alpha)**(l+3)
+    gaussint_sph=0.5_dp * fac((l+1    )/2) /SQRT(alpha)**(l+3)
   ENDIF
 
   END FUNCTION gaussint_sph
@@ -321,14 +323,19 @@ CONTAINS
 ! *****************************************************************************
 
   !in:
-    integer          :: lda,ldb,m
-    real(dp)        :: B(ldb,*)
-  !in/out:
-    real(dp)        :: A(lda,*)
-  !locals:
-    real(dp)        :: t1,t2,t3,t4
-    integer          :: i1,i2,imod,i2minus1
-  !----------------------------------------------------------------------------!
+    INTEGER                                  :: lda
+    REAL(dp)                                 :: A(lda,*)
+    INTEGER                                  :: ldb
+    REAL(dp)                                 :: B(ldb,*)
+    INTEGER                                  :: m
+
+    INTEGER                                  :: i1, i2, i2minus1, imod
+    REAL(dp)                                 :: t1, t2, t3, t4
+
+!in/out:
+!locals:
+!----------------------------------------------------------------------------!
+
     DO i2=1,m
       i2minus1=i2-1
       DO i1=1,i2minus1-3,4
@@ -345,7 +352,7 @@ CONTAINS
         A(i2,i1+2)=A(i2,i1+2)+t3
         A(i2,i1+3)=A(i2,i1+3)+t4
       ENDDO
-      DO imod=modulo(i2minus1,4),1,-1
+      DO imod=MODULO(i2minus1,4),1,-1
         i1=i2-imod
         t1=B(i1,i2)+B(i2,i1)
         A(i1,i2)=A(i1,i2)+t1
@@ -362,69 +369,73 @@ CONTAINS
 
 ! *****************************************************************************
 
-    implicit none
   !in:
-    integer    ,intent(in) :: lda,ldb,m,n
-    real(dp),intent(in)   :: A(lda,*),B(ldb,*)
-  !out:
-    real(dp)              :: trace_r_AxB
-  !locals:
-    real(dp)              :: t1,t2,t3,t4
-    integer               :: i1,i2,imod,mminus3
+    INTEGER, INTENT(in)                      :: lda
+    REAL(dp), INTENT(in)                     :: A(lda,*)
+    INTEGER, INTENT(in)                      :: ldb
+    REAL(dp), INTENT(in)                     :: B(ldb,*)
+    INTEGER, INTENT(in)                      :: m, n
+    REAL(dp)                                 :: trace_r_AxB
 
+    INTEGER                                  :: i1, i2, imod, mminus3
+    REAL(dp)                                 :: t1, t2, t3, t4
+
+!out:
+!locals:
 ! *****************************************************************************
+
 t1=0._dp
 t2=0._dp
 t3=0._dp
 t4=0._dp
-    imod=modulo(m,4)
-    select case (imod)
-    case (0)
-      do i2=1,n
-        do i1=1,m,4
+    imod=MODULO(m,4)
+    SELECT CASE (imod)
+    CASE (0)
+      DO i2=1,n
+        DO i1=1,m,4
           t1=t1+A(i1,i2)*B(i1,i2)
           t2=t2+A(i1+1,i2)*B(i1+1,i2)
           t3=t3+A(i1+2,i2)*B(i1+2,i2)
           t4=t4+A(i1+3,i2)*B(i1+3,i2)
-        enddo
-      enddo
-    case (1)
+        ENDDO
+      ENDDO
+    CASE (1)
       mminus3=m-3
-      do i2=1,n
-        do i1=1,mminus3,4
+      DO i2=1,n
+        DO i1=1,mminus3,4
           t1=t1+A(i1,i2)*B(i1,i2)
           t2=t2+A(i1+1,i2)*B(i1+1,i2)
           t3=t3+A(i1+2,i2)*B(i1+2,i2)
           t4=t4+A(i1+3,i2)*B(i1+3,i2)
-        enddo
+        ENDDO
         t1=t1+A(m,i2)*B(m,i2)
-      enddo
-    case (2)
+      ENDDO
+    CASE (2)
       mminus3=m-3
-      do i2=1,n
-        do i1=1,mminus3,4
+      DO i2=1,n
+        DO i1=1,mminus3,4
           t1=t1+A(i1,i2)*B(i1,i2)
           t2=t2+A(i1+1,i2)*B(i1+1,i2)
           t3=t3+A(i1+2,i2)*B(i1+2,i2)
           t4=t4+A(i1+3,i2)*B(i1+3,i2)
-        enddo
+        ENDDO
         t1=t1+A(m-1,i2)*B(m-1,i2)
         t2=t2+A(m,i2)*B(m,i2)
-      enddo
-    case (3)
+      ENDDO
+    CASE (3)
       mminus3=m-3
-      do i2=1,n
-        do i1=1,mminus3,4
+      DO i2=1,n
+        DO i1=1,mminus3,4
           t1=t1+A(i1,i2)*B(i1,i2)
           t2=t2+A(i1+1,i2)*B(i1+1,i2)
           t3=t3+A(i1+2,i2)*B(i1+2,i2)
           t4=t4+A(i1+3,i2)*B(i1+3,i2)
-        enddo
+        ENDDO
         t1=t1+A(m-2,i2)*B(m-2,i2)
         t2=t2+A(m-1,i2)*B(m-1,i2)
         t3=t3+A(m,i2)*B(m,i2)
-      enddo
-    end select
+      ENDDO
+    END SELECT
     trace_r_AxB=t1+t2+t3+t4
 
   END FUNCTION trace_r_AxB
@@ -434,70 +445,73 @@ t4=0._dp
 
 ! *****************************************************************************
 
-    implicit none
   !in:
-    integer    ,intent(in) :: lda,ldb,m,n
-    real(dp),intent(in)   :: A(lda,*),B(ldb,*)
-    integer,  intent(in)   :: ia,ib, ja, jb
-  !out:
-    real(dp)              :: trace_r_AxB_new
-  !locals:
-    real(dp)              :: t1,t2,t3,t4
-    integer               :: i1,i2,imod,mminus3
+    INTEGER, INTENT(in)                      :: lda
+    REAL(dp), INTENT(in)                     :: A(lda,*)
+    INTEGER, INTENT(in)                      :: ia, ja, ldb
+    REAL(dp), INTENT(in)                     :: B(ldb,*)
+    INTEGER, INTENT(in)                      :: ib, jb, m, n
+    REAL(dp)                                 :: trace_r_AxB_new
 
+    INTEGER                                  :: i1, i2, imod, mminus3
+    REAL(dp)                                 :: t1, t2, t3, t4
+
+!out:
+!locals:
 ! *****************************************************************************
+
 t1=0._dp
 t2=0._dp
 t3=0._dp
 t4=0._dp
-    imod=modulo(m,4)
-    select case (imod)
-    case (0)
-      do i2=1,n
-        do i1=1,m,4
+    imod=MODULO(m,4)
+    SELECT CASE (imod)
+    CASE (0)
+      DO i2=1,n
+        DO i1=1,m,4
           t1=t1+A(i1+ia,i2+ja)*B(i1+ib,i2+jb)
           t2=t2+A(i1+ia+1,i2+ja)*B(i1+ib+1,i2+jb)
           t3=t3+A(i1+ia+2,i2+ja)*B(i1+ib+2,i2+jb)
           t4=t4+A(i1+ia+3,i2+ja)*B(i1+ib+3,i2+jb)
-        enddo
-      enddo
-    case (1)
+        ENDDO
+      ENDDO
+    CASE (1)
       mminus3=m-3
-      do i2=1,n
-        do i1=1,mminus3,4
+      DO i2=1,n
+        DO i1=1,mminus3,4
           t1=t1+A(i1+ia,i2+ja)*B(i1+ib,i2+jb)
           t2=t2+A(i1+ia+1,i2+ja)*B(i1+ib+1,i2+jb)
           t3=t3+A(i1+ia+2,i2+ja)*B(i1+ib+2,i2+jb)
           t4=t4+A(i1+ia+3,i2+ja)*B(i1+ib+3,i2+jb)
-        enddo
+        ENDDO
         t1=t1+A(m+ia,i2+ja)*B(m+ib,i2+jb)
-      enddo
-    case (2)
+      ENDDO
+    CASE (2)
       mminus3=m-3
-      do i2=1,n
-        do i1=1,mminus3,4
+      DO i2=1,n
+        DO i1=1,mminus3,4
           t1=t1+A(i1+ia,i2+ja)*B(i1+ib,i2+jb)
           t2=t2+A(i1+ia+1,i2+ja)*B(i1+ib+1,i2+jb)
           t3=t3+A(i1+ia+2,i2+ja)*B(i1+ib+2,i2+jb)
           t4=t4+A(i1+ia+3,i2+ja)*B(i1+ib+3,i2+jb)
-        enddo
+        ENDDO
         t1=t1+A(m-1+ia,i2+ja)*B(m-1+ib,i2+jb)
         t2=t2+A(m+ia,i2+ja)*B(m+ib,i2+jb)
-      enddo
-    case (3)
+      ENDDO
+    CASE (3)
       mminus3=m-3
-      do i2=1,n
-        do i1=1,mminus3,4
+      DO i2=1,n
+        DO i1=1,mminus3,4
           t1=t1+A(i1+ia,i2+ja)*B(i1+ib,i2+jb)
           t2=t2+A(i1+ia+1,i2+ja)*B(i1+ib+1,i2+jb)
           t3=t3+A(i1+ia+2,i2+ja)*B(i1+ib+2,i2+jb)
           t4=t4+A(i1+ia+3,i2+ja)*B(i1+ib+3,i2+jb)
-        enddo
+        ENDDO
         t1=t1+A(m-2+ia,i2+ja)*B(m-2+ib,i2+jb)
         t2=t2+A(m-1+ia,i2+ja)*B(m-1+ib,i2+jb)
         t3=t3+A(m+ia,i2+ja)*B(m+ib,i2+jb)
-      enddo
-    end select
+      ENDDO
+    END SELECT
     trace_r_AxB_new=t1+t2+t3+t4
 
   END FUNCTION trace_r_AxB_new
@@ -506,21 +520,22 @@ t4=0._dp
 
   SUBROUTINE transform_c2s(CPC_co,CPC_so,maxl,lm1,lm2)
 
-    REAL(dp), DIMENSION(:,:),INTENT(IN) :: CPC_co
-    REAL(dp), DIMENSION(:,:),INTENT(OUT):: CPC_so
-    INTEGER                             :: maxl,lm1,lm2
+    REAL(dp), DIMENSION(:, :), INTENT(IN)    :: CPC_co
+    REAL(dp), DIMENSION(:, :), INTENT(OUT)   :: CPC_so
+    INTEGER                                  :: maxl, lm1, lm2
 
     CHARACTER(len=*), PARAMETER :: routineN = 'transform_c2s', &
-      routineP = module_name//':'//routineN
+      routineP = moduleN//':'//routineN
 
-    INTEGER           :: ic1,ic2,is1,is2,ico,istat,iso,l,lx,ly,lz,ncgf,nsgf
-    REAL(dp), DIMENSION(:,:), ALLOCATABLE :: work
+    INTEGER                                  :: ic1, ic2, is1, is2, istat, l, &
+                                                lx, ly, lz
+    REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: work
 
 ! *****************************************************************************
 
     ALLOCATE (work(ncoset(maxl),nsoset(maxl)),STAT=istat)
     IF (istat /= 0) THEN
-       CALL stop_memory(routineN,module_name,__LINE__,&
+       CALL stop_memory(routineN,moduleN,__LINE__,&
                         "work",ncoset(maxl)*nsoset(maxl))
     END IF
     CPC_so = 0.0_dp
@@ -573,7 +588,7 @@ t4=0._dp
                 work(ic1,is2+nsoset(l-1)) + &
                 CPC_co(ic1,ic2+ncoset(l-1))*&
                 orbtramat(l)%c2s(is2,ic2)*& 
-                sqrt(4.0_dp*pi/dfac(2*l+1)*&
+                SQRT(4.0_dp*pi/dfac(2*l+1)*&
                      dfac(2*lx-1)*dfac(2*ly-1)*dfac(2*lz-1)) 
 !         write(*,*) 'dfac 1', dfac(2*lx-1)*dfac(2*ly-1)*dfac(2*lz-1)
            ENDDO
@@ -592,7 +607,7 @@ t4=0._dp
              CPC_so(is1+nsoset(l-1),is2) + &
               work(ic1+ncoset(l-1),is2)* &
               orbtramat(l)%c2s(is1,ic1)* &
-               sqrt(4.0_dp*pi/dfac(2*l+1)*&
+               SQRT(4.0_dp*pi/dfac(2*l+1)*&
                    dfac(2*lx-1)*dfac(2*ly-1)*dfac(2*lz-1))
 !          write(*,*) 'dfac 2', dfac(2*lx-1)*dfac(2*ly-1)*dfac(2*lz-1)
          ENDDO
@@ -602,7 +617,7 @@ t4=0._dp
 
     DEALLOCATE (work,STAT=istat)
     IF (istat /= 0) THEN
-       CALL stop_memory(routineN,module_name,__LINE__,&
+       CALL stop_memory(routineN,moduleN,__LINE__,&
                 "work")
     END IF
 
@@ -613,21 +628,22 @@ t4=0._dp
 
   SUBROUTINE transform_c2s_new(CPC_co,CPC_so,maxl)
 
-    REAL(dp), DIMENSION(:,:),INTENT(IN) :: CPC_co
-    REAL(dp), DIMENSION(:,:),INTENT(OUT):: CPC_so
-    INTEGER                             :: maxl
+    REAL(dp), DIMENSION(:, :), INTENT(IN)    :: CPC_co
+    REAL(dp), DIMENSION(:, :), INTENT(OUT)   :: CPC_so
+    INTEGER                                  :: maxl
 
     CHARACTER(len=*), PARAMETER :: routineN = 'transform_c2s_new', &
-      routineP = module_name//':'//routineN
+      routineP = moduleN//':'//routineN
 
-    INTEGER           :: ico, iso, istat, ldc, lds
-    REAL(dp), DIMENSION(:,:,:), ALLOCATABLE :: work
+    INTEGER                                  :: iso, istat, ldc, lds
+    REAL(dp), ALLOCATABLE, &
+      DIMENSION(:, :, :)                     :: work
 
 ! *****************************************************************************
 
     ALLOCATE (work(ncoset(maxl),ncoset(maxl),1),STAT=istat)
     IF (istat /= 0) THEN
-       CALL stop_memory(routineN,module_name,__LINE__,&
+       CALL stop_memory(routineN,moduleN,__LINE__,&
                         "work",ncoset(maxl)*nsoset(maxl))
     END IF
     ldc = ncoset(maxl)
@@ -645,7 +661,7 @@ t4=0._dp
 
     DEALLOCATE (work,STAT=istat)
     IF (istat /= 0) THEN
-       CALL stop_memory(routineN,module_name,__LINE__,&
+       CALL stop_memory(routineN,moduleN,__LINE__,&
                 "work")
     END IF
 
@@ -656,23 +672,23 @@ t4=0._dp
 
   SUBROUTINE transform_s2c(matso,matco,maxl,lm1,lm2)
 
-    REAL(dp), DIMENSION(:,:),INTENT(IN) :: matso 
-    REAL(dp), DIMENSION(:,:),INTENT(OUT):: matco 
-    INTEGER , INTENT(IN)                :: maxl,lm1,lm2
+    REAL(dp), DIMENSION(:, :), INTENT(IN)    :: matso
+    REAL(dp), DIMENSION(:, :), INTENT(OUT)   :: matco
+    INTEGER, INTENT(IN)                      :: maxl, lm1, lm2
 
-    CHARACTER(len=*), PARAMETER :: routine_name = 'transform_c2s', &
-      routineP = module_name//':'//routine_name
+    CHARACTER(len=*), PARAMETER :: routineN = 'transform_s2c', &
+      routineP = moduleN//':'//routineN
 
-    INTEGER           ::  istat
-    INTEGER :: ic1,ic2,ico,is1,is2,iso,l,lx,ly,lz,nc1,nc2,ns1,ns2
-    REAL(dp), DIMENSION(:,:), ALLOCATABLE :: matsc
+    INTEGER                                  :: ic1, ic2, ico, is1, is2, iso, &
+                                                istat, l, lx, ly, lz, nc1, &
+                                                nc2, ns1, ns2
+    REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: matsc
 
 ! *****************************************************************************
 
-
     ALLOCATE (matsc(nsoset(maxl),ncoset(maxl)),STAT=istat)
     IF (istat /= 0) THEN
-       CALL stop_memory(routine_name,module_name,__LINE__,&
+       CALL stop_memory(routineN,moduleN,__LINE__,&
                         "work",nsoset(maxl)*ncoset(maxl))
     END IF
     matco = 0.0_dp
@@ -699,7 +715,7 @@ t4=0._dp
             is2 = nsoset(l-1) + iso
             matsc(is1,ic2) = matsc(is1,ic2) + &
                  matso(is1,is2) * orbtramat(l)%s2c(iso,ico) *&
-                 sqrt((4.0_dp*pi)/dfac(2*l+1)*&
+                 SQRT((4.0_dp*pi)/dfac(2*l+1)*&
                  dfac(2*lx-1)*dfac(2*ly-1)*dfac(2*lz-1))
           ENDDO ! iso
         ENDDO ! ico
@@ -718,7 +734,7 @@ t4=0._dp
             is1=nsoset(l-1) + iso
             matco(ic1,ic2) = matco(ic1,ic2) + &
               matsc(is1,ic2) * orbtramat(l)%s2c(iso,ico) *&
-                 sqrt((4.0_dp*pi)/dfac(2*l+1)*&
+                 SQRT((4.0_dp*pi)/dfac(2*l+1)*&
                  dfac(2*lx-1)*dfac(2*ly-1)*dfac(2*lz-1))
           ENDDO ! iso
         ENDDO ! ico
@@ -728,7 +744,7 @@ t4=0._dp
 
     DEALLOCATE (matsc,STAT=istat)
     IF (istat /= 0) THEN
-       CALL stop_memory(routine_name,module_name,__LINE__,&
+       CALL stop_memory(routineN,moduleN,__LINE__,&
                 "matsc")
     END IF
 
@@ -739,22 +755,24 @@ t4=0._dp
   SUBROUTINE sph2cart_mat(mat,ld_mat,sd_mat,n,lmax1,lmax2)
 !------------------------------------------------------------------------------!
 !in:
-  integer            :: ld_mat,sd_mat,n,lmax1,lmax2
-  real(dp)         :: mat(ld_mat,sd_mat,n)
-!locals:
-  real(dp)         :: mat_aux(ncoset(lmax1),nsoset(lmax2),n)
-  integer            :: idx_l2,idx_l1
+    INTEGER                                  :: ld_mat, sd_mat, n
+    REAL(dp)                                 :: mat(ld_mat,sd_mat,n)
+    INTEGER                                  :: lmax1, lmax2
 
+    INTEGER                                  :: idx_l1, idx_l2
+    REAL(dp) :: mat_aux(ncoset(lmax1),nsoset(lmax2),n)
+
+!locals:
 !------------------------------------------------------------------------------!
 
-  if (lmax1>3.or.lmax2>3) CALL stop_program('sph2cart_mat',module_name,__LINE__,&
+  IF (lmax1>3.or.lmax2>3) CALL stop_program('sph2cart_mat',moduleN,__LINE__,&
                                            'l>3 not implemented')
-  do idx_l2=1,nsoset(lmax2)
+  DO idx_l2=1,nsoset(lmax2)
 
     mat_aux(1,idx_l2,:)&
      =s_root1o4pi*mat(1,idx_l2,:)
 
-    if (lmax1==0) cycle
+    IF (lmax1==0) CYCLE
 
     mat_aux(2,idx_l2,:)&
      =-s_root3o4pi*mat(4,idx_l2,:)
@@ -765,7 +783,7 @@ t4=0._dp
     mat_aux(4,idx_l2,:)&
      =s_root3o4pi*mat(3,idx_l2,:)
 
-    if (lmax1==1) cycle
+    IF (lmax1==1) CYCLE
 
     mat_aux(5,idx_l2,:)&
      =-s_root5o16pi*mat(7,idx_l2,:)&
@@ -787,7 +805,7 @@ t4=0._dp
     mat_aux(10,idx_l2,:)&
      =s_2root5o16pi*mat(7,idx_l2,:)
 
-    if (lmax1==2) cycle
+    IF (lmax1==2) CYCLE
 
     mat_aux(11,idx_l2,:)&
      =-s_root21o32pi*mat(14,idx_l2,:)&
@@ -825,14 +843,14 @@ t4=0._dp
     mat_aux(20,idx_l2,:)&
      =s_2root7o16pi*mat(13,idx_l2,:)
 
-  enddo
+  ENDDO
 
-  do idx_l1=1,ncoset(lmax1)
+  DO idx_l1=1,ncoset(lmax1)
 
     mat(idx_l1,1,:)&
      =s_root1o4pi*mat_aux(idx_l1,1,:)
 
-    if (lmax2==0) cycle
+    IF (lmax2==0) CYCLE
 
     mat(idx_l1,2,:)&
      =-s_root3o4pi*mat_aux(idx_l1,4,:)
@@ -843,7 +861,7 @@ t4=0._dp
     mat(idx_l1,4,:)&
      =s_root3o4pi*mat_aux(idx_l1,3,:)
 
-    if (lmax2==1) cycle
+    IF (lmax2==1) CYCLE
 
     mat(idx_l1,5,:)&
      =-s_root5o16pi*mat_aux(idx_l1,7,:)&
@@ -865,7 +883,7 @@ t4=0._dp
     mat(idx_l1,10,:)&
      =s_2root5o16pi*mat_aux(idx_l1,7,:)
 
-    if (lmax2==2) cycle
+    IF (lmax2==2) CYCLE
 
     mat(idx_l1,11,:)&
      =-s_root21o32pi*mat_aux(idx_l1,14,:)&
@@ -903,7 +921,7 @@ t4=0._dp
     mat(idx_l1,20,:)&
      =s_2root7o16pi*mat_aux(idx_l1,13,:)
 
-  enddo
+  ENDDO
 
 END SUBROUTINE sph2cart_mat
 
@@ -911,25 +929,27 @@ END SUBROUTINE sph2cart_mat
 SUBROUTINE cart2sph_mat(mat,ld_mat,sd_mat,n,lmax1,lmax2)
 
 !in:
-  integer             :: ld_mat,sd_mat,n,lmax1,lmax2
-  real(dp)          :: mat(ld_mat,sd_mat,n)
-!locals:
-  real(dp)          :: mat_aux(nsoset(lmax1),ncoset(lmax2),n)
-  integer             :: idx_l2,idx_lm1
+    INTEGER                                  :: ld_mat, sd_mat, n
+    REAL(dp)                                 :: mat(ld_mat,sd_mat,n)
+    INTEGER                                  :: lmax1, lmax2
 
+    INTEGER                                  :: idx_l2, idx_lm1
+    REAL(dp) :: mat_aux(nsoset(lmax1),ncoset(lmax2),n)
+
+!locals:
 ! -----------------------------------------------------------------------------
 
   IF ((lmax1 > 3).OR.(lmax2 > 3)) THEN
-    CALL stop_program("SUBROUTINE cart2sph_mat",module_name,__LINE__,&
+    CALL stop_program("SUBROUTINE cart2sph_mat",moduleN,__LINE__,&
                       "l > 3 not implemented")
   END IF
 
-  do idx_l2=1,ncoset(lmax2)
+  DO idx_l2=1,ncoset(lmax2)
 
     mat_aux(1,idx_l2,:)&
      =root4pi*mat(1,idx_l2,:)
 
-    if (lmax1==0) cycle
+    IF (lmax1==0) CYCLE
 
     mat_aux(2,idx_l2,:)&
      =-root4pio3*mat(3,idx_l2,:)
@@ -940,7 +960,7 @@ SUBROUTINE cart2sph_mat(mat,ld_mat,sd_mat,n,lmax1,lmax2)
     mat_aux(4,idx_l2,:)&
      =-root4pio3*mat(2,idx_l2,:)
 
-    if (lmax1==1) cycle
+    IF (lmax1==1) CYCLE
 
     mat_aux(5,idx_l2,:)&
      =root4pio15*mat(6,idx_l2,:)
@@ -960,7 +980,7 @@ SUBROUTINE cart2sph_mat(mat,ld_mat,sd_mat,n,lmax1,lmax2)
      =0.5_dp*root4pio15*mat(5,idx_l2,:)&
      -0.5_dp*root4pio15*mat(7,idx_l2,:)
 
-    if (lmax1==2) cycle
+    IF (lmax1==2) CYCLE
 
     mat_aux(10,idx_l2,:)&
      =-s_3root35o32pi*mat(12,idx_l2,:)&
@@ -992,14 +1012,14 @@ SUBROUTINE cart2sph_mat(mat,ld_mat,sd_mat,n,lmax1,lmax2)
      =-s_root35o32pi*mat(11,idx_l2,:)&
       +s_3root35o32pi*mat(13,idx_l2,:)
 
-  enddo
+  ENDDO
 
-  do idx_lm1=1,nsoset(lmax1)
+  DO idx_lm1=1,nsoset(lmax1)
 
     mat(idx_lm1,1,:)&
      =root4pi*mat_aux(idx_lm1,1,:)
 
-    if (lmax2==0) cycle
+    IF (lmax2==0) CYCLE
 
     mat(idx_lm1,2,:)&
      =-root4pio3*mat_aux(idx_lm1,3,:)
@@ -1010,7 +1030,7 @@ SUBROUTINE cart2sph_mat(mat,ld_mat,sd_mat,n,lmax1,lmax2)
     mat(idx_lm1,4,:)&
      =-root4pio3*mat_aux(idx_lm1,2,:)
 
-    if (lmax2==1) cycle
+    IF (lmax2==1) CYCLE
 
     mat(idx_lm1,5,:)&
      =root4pio15*mat_aux(idx_lm1,6,:)
@@ -1030,7 +1050,7 @@ SUBROUTINE cart2sph_mat(mat,ld_mat,sd_mat,n,lmax1,lmax2)
      =0.5_dp*root4pio15*mat_aux(idx_lm1,5,:)&
      -0.5_dp*root4pio15*mat_aux(idx_lm1,7,:)
 
-    if (lmax2==2) cycle
+    IF (lmax2==2) CYCLE
 
     mat(idx_lm1,10,:)&
      =-s_3root35o32pi*mat_aux(idx_lm1,12,:)&
@@ -1062,7 +1082,7 @@ SUBROUTINE cart2sph_mat(mat,ld_mat,sd_mat,n,lmax1,lmax2)
      =-s_root35o32pi*mat_aux(idx_lm1,11,:)&
       +s_3root35o32pi*mat_aux(idx_lm1,13,:)
 
-  enddo
+  ENDDO
 
 END SUBROUTINE cart2sph_mat
 

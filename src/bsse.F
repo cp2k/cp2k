@@ -25,60 +25,39 @@
 !****************************************************************************
 
 MODULE bsse
-  USE global_types,                    ONLY: global_environment_type
-  USE kinds,                           ONLY: default_string_length,&
-                                             dp  
-  USE atomic_kind_types,               ONLY: atomic_kind_type,&
-                                             get_atomic_kind,&
-                                             read_atomic_kind_set, &
-                                             set_atomic_kind
-  USE string_utilities,                ONLY: compress
-  USE memory_utilities,                ONLY: reallocate
-  USE force_env_types,                 ONLY: force_env_type, &
-                                             force_env_release,&
-                                             force_env_set, force_env_get
-  USE force_env_methods,               ONLY: force_env_calc_energy_force,&
-                                             force_env_create
-  USE input_section_types, ONLY: section_type, section_create, &
-       section_add_keyword, section_add_subsection, section_release,&
-       section_vals_type,&
-       section_vals_get_subs_vals, section_vals_get, section_vals_val_get
-  USE cp_output_handling, ONLY: cp_print_key_should_output, cp_p_file
-  USE input_constants,                 ONLY: do_qs,&
-                                             do_fist,&
-                                             do_kg,&
-                                             do_qmmm,&
-                                             do_atom,&
-                                             do_farming,&
-                                             do_test
+  USE atomic_kind_types,               ONLY: get_atomic_kind
+  USE cell_types,                      ONLY: cell_type
+  USE cp_output_handling,              ONLY: cp_p_file,&
+                                             cp_print_key_should_output
+  USE cp_para_types,                   ONLY: cp_para_env_type
+  USE cp_subsystem_methods,            ONLY: create_small_subsystem
   USE cp_subsystem_types,              ONLY: cp_subsys_get,&
                                              cp_subsys_release,&
-                                             cp_subsys_set,&
                                              cp_subsystem_p_type,&
                                              cp_subsystem_type
-  USE atomic_kind_list_types,          ONLY: atomic_kind_list_create,&
-                                             atomic_kind_list_release,&
-                                             atomic_kind_list_type
-  USE cp_para_types,                   ONLY: cp_para_env_type
-  USE cell_types,                 ONLY: cell_type,&
-                                             get_cell
-  USE particle_list_types,             ONLY: particle_list_release,&
-                                             particle_list_retain,&
-                                             particle_list_type
-  USE cp_subsystem_methods,            ONLY: create_small_subsystem  
-  USE qs_environment,                  ONLY: qs_init_subsys
-  USE qs_environment_types,            ONLY: qs_env_create,&
-                                             qs_env_release,&
-                                             qs_environment_type,&
-                                             set_qs_env
+  USE force_env_methods,               ONLY: force_env_calc_energy_force
+  USE force_env_types,                 ONLY: force_env_get,&
+                                             force_env_release,&
+                                             force_env_type
+  USE global_types,                    ONLY: global_environment_type
+  USE input_constants,                 ONLY: do_qs
+  USE input_section_types,             ONLY: section_vals_get,&
+                                             section_vals_get_subs_vals,&
+                                             section_vals_type,&
+                                             section_vals_val_get
+  USE kinds,                           ONLY: default_string_length,&
+                                             dp
+  USE memory_utilities,                ONLY: reallocate
+  USE particle_list_types,             ONLY: particle_list_type
   USE qs_main,                         ONLY: quickstep_create_force_env
+  USE string_utilities,                ONLY: compress
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
   PRIVATE
 
   LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
-  CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='bsse'
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'bsse'
 
   PUBLIC :: do_bsse_calculation
 
@@ -114,23 +93,22 @@ CONTAINS
 !!
 !!*** ********************************************************************** 
   SUBROUTINE do_bsse_calculation(force_env, globenv, error)
-    IMPLICIT NONE
-    ! Arguments
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(global_environment_type), POINTER   :: globenv
     TYPE(cp_error_type), INTENT(inout), &
-         OPTIONAL                            :: error
-    ! Local Variables
+      OPTIONAL                               :: error
+
     CHARACTER(LEN=*), PARAMETER :: routineN = 'do_bsse_calculation', &
-      routineP = moduleN//':'//routineN    
-    INTEGER :: Num_of_Frag, i, stat, k
-    TYPE(section_vals_type), POINTER         :: bsse_section, n_frags
-    LOGICAL :: explicit, failure
-    INTEGER,  POINTER, DIMENSION(:,:)        :: conf
-    REAL(KIND=dp), POINTER, DIMENSION(:)     :: Em
-    INTEGER :: num_of_conf
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i, k, num_of_conf, &
+                                                Num_of_Frag, stat
+    INTEGER, DIMENSION(:, :), POINTER        :: conf
+    LOGICAL                                  :: explicit, failure
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: Em
     TYPE(force_env_type), POINTER            :: force_env_loc
-    
+    TYPE(section_vals_type), POINTER         :: bsse_section, n_frags
+
     failure = .FALSE.
     IF (.NOT.failure) THEN
        NULLIFY(bsse_section, n_frags, Em, conf, force_env_loc)
@@ -188,25 +166,24 @@ CONTAINS
 !!
 !!*** ********************************************************************** 
   SUBROUTINE eval_bsse_energy(conf, Em, force_env, force_env_loc, n_frags, globenv, error)
-    IMPLICIT NONE
-    ! Arguments
-    INTEGER, INTENT(IN), DIMENSION(:) :: conf
-    REAL(KIND=dp), INTENT(OUT)        :: Em
-    TYPE(force_env_type), POINTER            :: force_env
-    TYPE(force_env_type), POINTER            :: force_env_loc
+    INTEGER, DIMENSION(:), INTENT(IN)        :: conf
+    REAL(KIND=dp), INTENT(OUT)               :: Em
+    TYPE(force_env_type), POINTER            :: force_env, force_env_loc
     TYPE(section_vals_type), POINTER         :: n_frags
     TYPE(global_environment_type), POINTER   :: globenv
     TYPE(cp_error_type), INTENT(inout), &
-         OPTIONAL                            :: error
-    ! Local Variables
+      OPTIONAL                               :: error
+
     CHARACTER(LEN=*), PARAMETER :: routineN = 'eval_bsse_energy', &
-      routineP = moduleN//':'//routineN    
-    INTEGER,  POINTER, DIMENSION(:,:)        :: conf_loc
-    REAL(KIND=dp), POINTER, DIMENSION(:)     :: Em_loc
-    INTEGER :: Num_of_sub_conf, Num_of_sub_frag, k, i, stat, j
-    LOGICAL :: failure
-    REAL(KIND=dp) :: my_energy
-    
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i, j, k, Num_of_sub_conf, &
+                                                Num_of_sub_frag, stat
+    INTEGER, DIMENSION(:, :), POINTER        :: conf_loc
+    LOGICAL                                  :: failure
+    REAL(KIND=dp)                            :: my_energy
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: Em_loc
+
     failure = .FALSE.
     IF (.NOT.failure) THEN
        NULLIFY(conf_loc, Em_loc)
@@ -273,35 +250,33 @@ CONTAINS
 !!*** ********************************************************************** 
   SUBROUTINE eval_bsse_energy_low(force_env, force_env_loc, conf, conf_loc, n_frags, &
        globenv, energy, error)
-    IMPLICIT NONE
-    ! Arguments
-    INTEGER, INTENT(IN), DIMENSION(:) :: conf, conf_loc
-    TYPE(force_env_type), POINTER            :: force_env
-    TYPE(force_env_type), POINTER            :: force_env_loc
+    TYPE(force_env_type), POINTER            :: force_env, force_env_loc
+    INTEGER, DIMENSION(:), INTENT(IN)        :: conf, conf_loc
     TYPE(section_vals_type), POINTER         :: n_frags
     TYPE(global_environment_type), POINTER   :: globenv
     REAL(KIND=dp), INTENT(OUT)               :: energy
     TYPE(cp_error_type), INTENT(inout), &
-         OPTIONAL                            :: error
-    ! Local Variables
+      OPTIONAL                               :: error
+
     CHARACTER(LEN=*), PARAMETER :: routineN = 'eval_bsse_energy_low', &
-      routineP = moduleN//':'//routineN    
-    LOGICAL :: failure
+      routineP = moduleN//':'//routineN
+
+    CHARACTER(LEN=default_string_length)     :: name
+    CHARACTER(len=default_string_length), &
+      DIMENSION(:), POINTER                  :: atom_type
+    INTEGER                                  :: i, isize, j, jj, k, my_targ, &
+                                                n_rep, num_of_frag, old_size, &
+                                                stat
+    INTEGER, DIMENSION(:), POINTER           :: atom_index, atom_list, &
+                                                my_conf, subsys_index, tmplist
+    LOGICAL                                  :: failure
+    TYPE(cell_type), POINTER                 :: cell
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_subsystem_p_type), &
       DIMENSION(:), POINTER                  :: subsys
     TYPE(cp_subsystem_type), POINTER         :: subsys_loc
-    TYPE(particle_list_type), POINTER        :: particles    
-    TYPE(cp_para_env_type),POINTER           :: para_env
-    TYPE(cell_type), POINTER                 :: cell
-    INTEGER :: num_of_frag, n_rep, i, j, k, jj, isize, stat, old_size, my_targ
-    INTEGER, POINTER, DIMENSION(:)           :: atom_index, tmplist, my_conf, subsys_index
-    CHARACTER(len=default_string_length), &
-      DIMENSION(:), POINTER                  :: atom_type
-    INTEGER, DIMENSION(:), POINTER           :: atom_list
-    CHARACTER(LEN=default_string_length)     :: name
-    TYPE(qs_environment_type), POINTER       :: qs_env    
+    TYPE(particle_list_type), POINTER        :: particles
     TYPE(section_vals_type), POINTER         :: force_env_section
-    REAL(KIND=dp), DIMENSION(3)              :: abc
 
     failure = .FALSE.
     CALL section_vals_get(n_frags,n_repetition=num_of_frag,error=error)
@@ -430,23 +405,22 @@ CONTAINS
 !!
 !!*** ********************************************************************** 
   SUBROUTINE  dump_bsse_info(atom_index, atom_type, conf, conf_loc, globenv, error)
-    IMPLICIT NONE
-    ! Arguments
-    INTEGER, POINTER, DIMENSION(:)              :: atom_index
+    INTEGER, DIMENSION(:), POINTER           :: atom_index
     CHARACTER(len=default_string_length), &
-         DIMENSION(:), POINTER                  :: atom_type
-    INTEGER, INTENT(IN), DIMENSION(:)           :: conf, conf_loc
-    TYPE(global_environment_type), POINTER      :: globenv
+      DIMENSION(:), POINTER                  :: atom_type
+    INTEGER, DIMENSION(:), INTENT(IN)        :: conf, conf_loc
+    TYPE(global_environment_type), POINTER   :: globenv
     TYPE(cp_error_type), INTENT(inout), &
-         OPTIONAL                               :: error
-    ! Local Variables
+      OPTIONAL                               :: error
+
     CHARACTER(LEN=*), PARAMETER :: routineN = 'dump_bsse_info', &
-      routineP = moduleN//':'//routineN 
+      routineP = moduleN//':'//routineN
+
+    CHARACTER(len=default_string_length)     :: conf_loc_s, conf_s
+    INTEGER                                  :: i, iw
+    LOGICAL                                  :: failure
+    TYPE(cp_logger_type), POINTER            :: logger
     TYPE(section_vals_type), POINTER         :: bsse_section, print_info
-    INTEGER :: iw, i
-    LOGICAL :: failure
-    TYPE(cp_logger_type), POINTER :: logger
-    CHARACTER(len=default_string_length) :: conf_s, conf_loc_s
 
     failure = .FALSE.
     NULLIFY(bsse_section, logger)
@@ -476,21 +450,20 @@ CONTAINS
   END SUBROUTINE dump_bsse_info
 
   SUBROUTINE  dump_bsse_results(conf, Em,  num_of_frag, globenv, error)
-    IMPLICIT NONE
-    ! Arguments
-    INTEGER, INTENT(IN), DIMENSION(:,:)         :: conf
-    INTEGER, INTENT(IN)                         :: num_of_frag
-    REAL(KIND=dp), POINTER, DIMENSION(:)        :: Em
-    TYPE(global_environment_type), POINTER      :: globenv
+    INTEGER, DIMENSION(:, :), INTENT(IN)     :: conf
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: Em
+    INTEGER, INTENT(IN)                      :: num_of_frag
+    TYPE(global_environment_type), POINTER   :: globenv
     TYPE(cp_error_type), INTENT(inout), &
-         OPTIONAL                               :: error
-    ! Local Variables
+      OPTIONAL                               :: error
+
     CHARACTER(LEN=*), PARAMETER :: routineN = 'dump_bsse_results', &
-      routineP = moduleN//':'//routineN 
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i, iw
+    LOGICAL                                  :: failure
+    TYPE(cp_logger_type), POINTER            :: logger
     TYPE(section_vals_type), POINTER         :: bsse_section, print_info
-    INTEGER :: iw, i
-    LOGICAL :: failure
-    TYPE(cp_logger_type), POINTER :: logger
 
     failure = .FALSE.
     NULLIFY(bsse_section, logger)
@@ -547,13 +520,11 @@ CONTAINS
 !!
 !!*** ********************************************************************** 
   SUBROUTINE gen_Nbody_conf(Num_of_frag, num_of_conf, conf)
-    IMPLICIT NONE
-    ! Arguments
-    INTEGER, INTENT(IN) :: Num_of_frag, num_of_conf
-    INTEGER, POINTER, DIMENSION(:,:) :: conf
-    ! Local Variables
-    INTEGER :: k,  my_ind
-   
+    INTEGER, INTENT(IN)                      :: Num_of_frag, num_of_conf
+    INTEGER, DIMENSION(:, :), POINTER        :: conf
+
+    INTEGER                                  :: k, my_ind
+
     my_ind      = 0
     !
     ! Set up the N-body configurations
@@ -565,12 +536,13 @@ CONTAINS
   END SUBROUTINE gen_Nbody_conf
 
   RECURSIVE SUBROUTINE build_Nbody_conf(ldown, lup, conf, k, my_ind) 
-    IMPLICIT NONE
-    INTEGER, INTENT(IN)    :: ldown, lup, k
-    INTEGER, INTENT(INOUT) :: my_ind
-    INTEGER, POINTER, DIMENSION(:,:) :: conf
-    INTEGER :: i, kloc, my_ind0
-    
+    INTEGER, INTENT(IN)                      :: ldown, lup
+    INTEGER, DIMENSION(:, :), POINTER        :: conf
+    INTEGER, INTENT(IN)                      :: k
+    INTEGER, INTENT(INOUT)                   :: my_ind
+
+    INTEGER                                  :: i, kloc, my_ind0
+
     kloc = k - 1
     my_ind0 = my_ind
     IF (kloc /= 0) THEN
@@ -588,9 +560,8 @@ CONTAINS
   END SUBROUTINE build_Nbody_conf
 
   RECURSIVE FUNCTION FACT(num) RESULT(my_fact)
-    IMPLICIT NONE
-    INTEGER, INTENT(IN)  :: num
-    INTEGER              :: my_fact
+    INTEGER, INTENT(IN)                      :: num
+    INTEGER                                  :: my_fact
 
     IF (num<=1) THEN 
        my_fact = 1
@@ -600,14 +571,12 @@ CONTAINS
   END FUNCTION FACT
 
   SUBROUTINE make_plan_conf (main_conf, conf)
-    IMPLICIT NONE
-    ! Arguments
-    INTEGER, INTENT(IN), DIMENSION(:)        :: main_conf
-    INTEGER,  POINTER, DIMENSION(:,:)        :: conf
-    ! Local Variables
-    INTEGER,  POINTER, DIMENSION(:,:)        :: tmp_conf
-    INTEGER :: stat, ind, i
-    
+    INTEGER, DIMENSION(:), INTENT(IN)        :: main_conf
+    INTEGER, DIMENSION(:, :), POINTER        :: conf
+
+    INTEGER                                  :: i, ind, stat
+    INTEGER, DIMENSION(:, :), POINTER        :: tmp_conf
+
     ALLOCATE(tmp_conf(SIZE(conf,1),SIZE(main_conf)), stat=stat)
     tmp_conf = 0
     ind = 0

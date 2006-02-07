@@ -38,19 +38,23 @@
 !!   SOURCE
 !****************************************************************************
 MODULE cp_units
-  USE kinds, ONLY: dp, default_string_length
-  use cp_para_types, only: cp_para_env_type
-  use timings, only: timeset, timestop
-  USE physcon, ONLY: evolt, kcalmol, joule, wavenum, bohr, a_bohr,&
-       femtoseconds, e_mass,massunit,kelvin, seconds, hz, h_bar
-  USE mathconstants, only: radians
-  USE string_utilities, ONLY: compress, uppercase
+  USE kinds,                           ONLY: default_string_length,&
+                                             dp
+  USE mathconstants,                   ONLY: radians
+  USE physcon,                         ONLY: &
+       a_bohr, bohr, e_mass, evolt, femtoseconds, h_bar, hz, joule, kcalmol, &
+       kelvin, massunit, seconds, wavenum
+  USE string_utilities,                ONLY: compress,&
+                                             uppercase
+  USE timings,                         ONLY: timeset,&
+                                             timestop
 #include "cp_common_uses.h"
-  IMPLICIT NONE
-  private
 
-  logical, private, parameter :: debug_this_module=.true.
-  character(len=*), private, parameter :: moduleN='cp_units'
+  IMPLICIT NONE
+  PRIVATE
+
+  LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_units'
   INTEGER, SAVE, PRIVATE :: last_unit_id=0, last_unit_set_id=0
   
   INTEGER, PARAMETER, PUBLIC :: cp_ukind_none=0, cp_ukind_energy=1, &
@@ -131,7 +135,7 @@ MODULE cp_units
   !!   SOURCE
   !***************************************************************************
   TYPE cp_unit_p_type
-     TYPE(cp_unit_type), pointer :: unit
+     TYPE(cp_unit_type), POINTER :: unit
   END TYPE cp_unit_p_type
   !!***
   !****************************************************************************
@@ -157,12 +161,12 @@ MODULE cp_units
   !***************************************************************************
   TYPE cp_unit_set_type
      INTEGER :: id_nr, ref_count
-     TYPE(cp_unit_p_type), dimension(cp_ukind_max) :: units
+     TYPE(cp_unit_p_type), DIMENSION(cp_ukind_max) :: units
   END TYPE cp_unit_set_type
   !!***
   !****************************************************************************
 
-contains
+CONTAINS
 
 !!****f* cp_units/cp_unit_create *
 !!
@@ -186,17 +190,20 @@ contains
 !!
 !!*** **********************************************************************
   SUBROUTINE cp_unit_create(unit, string, error)
-    TYPE(cp_unit_type), pointer :: unit
-    CHARACTER(len=*), intent(in) :: string
-    type(cp_error_type), optional, intent(inout) :: error
+    TYPE(cp_unit_type), POINTER              :: unit
+    CHARACTER(len=*), INTENT(in)             :: string
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    logical :: failure
-    INTEGER, DIMENSION(cp_unit_max_kinds) :: unit_id, kind_id, power
-    INTEGER :: i_low, i_high, len_string, i_unit, next_power
-    character(len=*), parameter :: routineN='cp_unit_create',&
-         routineP=moduleN//':'//routineN
-    character(default_string_length) :: desc
-    character(LEN=40)                :: formatstr
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_unit_create', &
+      routineP = moduleN//':'//routineN
+
+    CHARACTER(default_string_length)         :: desc
+    CHARACTER(LEN=40)                        :: formatstr
+    INTEGER                                  :: i_high, i_low, i_unit, &
+                                                len_string, next_power
+    INTEGER, DIMENSION(cp_unit_max_kinds)    :: kind_id, power, unit_id
+    LOGICAL                                  :: failure
 
     failure=.FALSE.
     unit_id=0
@@ -326,7 +333,7 @@ contains
           unit_id(i_unit)=cp_units_none
           kind_id(i_unit)=cp_ukind_mass
        CASE("au")
-          CALL cp_assert(.false.,cp_failure_level,&
+          CALL cp_assert(.FALSE.,cp_failure_level,&
                cp_assertion_failed,routineP,&
                "au unit without specifing its kind not accepted, use (au_e, au_t, au_temp, au_l)",&
                error,failure)
@@ -436,17 +443,20 @@ contains
 !!
 !!*** **********************************************************************
 SUBROUTINE cp_unit_create2(unit, kind_id, unit_id, power, error)
-  TYPE(cp_unit_type), pointer :: unit
-  INTEGER, INTENT(in), DIMENSION(:) :: kind_id, unit_id
-  INTEGER, INTENT(in), DIMENSION(:), OPTIONAL :: power
-  type(cp_error_type), optional, intent(inout) :: error
-  
-  LOGICAL :: failure,repeat
-  INTEGER :: stat, i, max_kind, max_pos,j
-  character(len=*), parameter :: routineN='cp_unit_init',&
-        routineP=moduleN//':'//routineN
+    TYPE(cp_unit_type), POINTER              :: unit
+    INTEGER, DIMENSION(:), INTENT(in)        :: kind_id, unit_id
+    INTEGER, DIMENSION(:), INTENT(in), &
+      OPTIONAL                               :: power
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-  failure=.false.
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_unit_create2', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i, j, max_kind, max_pos, stat
+    LOGICAL                                  :: failure, repeat
+
+  failure=.FALSE.
   
   CPPrecondition(.NOT.ASSOCIATED(unit),cp_failure_level,routineP,error,failure)
   CPPrecondition(SIZE(kind_id)<=cp_unit_max_kinds,cp_failure_level,routineP,error,failure)
@@ -461,7 +471,7 @@ SUBROUTINE cp_unit_create2(unit, kind_id, unit_id, power, error)
   unit%unit_id(1:SIZE(unit_id))=unit_id
   unit%unit_id(SIZE(unit_id):)=0
   IF (PRESENT(power)) THEN
-     unit%power(1:size(power))=power
+     unit%power(1:SIZE(power))=power
      unit%power(SIZE(power)+1:)=0
      DO i=1,SIZE(unit%power)
         IF (unit%power(i)==0) THEN
@@ -487,7 +497,7 @@ SUBROUTINE cp_unit_create2(unit, kind_id, unit_id, power, error)
      DO
         max_kind=unit%kind_id(i)
         max_pos=i
-        repeat=.false.
+        repeat=.FALSE.
         DO j=i+1,SIZE(unit%kind_id)
            IF (unit%kind_id(j)>=max_kind) THEN
               IF (unit%kind_id(j)/=0.AND.unit%kind_id(j)==max_kind.AND.&
@@ -501,7 +511,7 @@ SUBROUTINE cp_unit_create2(unit, kind_id, unit_id, power, error)
                     unit%unit_id(max_pos)=0
                     unit%power(max_pos)=0
                     repeat=.TRUE.
-                    exit
+                    EXIT
                  END IF
               ELSE IF (unit%kind_id(j)>max_kind.OR.&
                    (unit%kind_id(j)==max_kind.AND.&
@@ -511,7 +521,7 @@ SUBROUTINE cp_unit_create2(unit, kind_id, unit_id, power, error)
               END IF
            END IF
         END DO
-        if (.not.repeat) exit
+        IF (.not.repeat) EXIT
      END DO
      IF (max_kind/=0) unit%n_kinds=unit%n_kinds+1
      ! put the max at pos i
@@ -554,13 +564,16 @@ END SUBROUTINE cp_unit_create2
 !!
 !!*** **********************************************************************
 SUBROUTINE cp_unit_retain(unit,error)
-  TYPE(cp_unit_type), pointer :: unit
-  type(cp_error_type), optional, intent(inout) :: error
-  
-  logical :: failure
-  character(len=*), parameter :: routineN='cp_unit_dealloc_ref',&
-        routineP=moduleN//':'//routineN
-  failure=.false.
+    TYPE(cp_unit_type), POINTER              :: unit
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_unit_retain', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+
+  failure=.FALSE.
   
   CPPrecondition(ASSOCIATED(unit),cp_failure_level,routineP,error,failure)
   IF (.NOT. failure) THEN
@@ -591,17 +604,19 @@ END SUBROUTINE cp_unit_retain
 !!
 !!*** **********************************************************************
 SUBROUTINE cp_unit_release(unit,error)
-  TYPE(cp_unit_type), pointer :: unit
-  type(cp_error_type), optional, intent(inout) :: error
-  
-  logical :: failure
-  character(len=*), parameter :: routineN='cp_unit_dealloc_ref',&
-        routineP=moduleN//':'//routineN
-  integer :: stat
+    TYPE(cp_unit_type), POINTER              :: unit
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-  failure=.false.
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_unit_release', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: stat
+    LOGICAL                                  :: failure
+
+  failure=.FALSE.
   
-  IF (associated(unit)) THEN
+  IF (ASSOCIATED(unit)) THEN
      CPPreconditionNoFail(unit%ref_count>0,cp_failure_level,routineP,error)
      unit%ref_count=unit%ref_count-1
      IF (unit%ref_count==0) THEN
@@ -637,20 +652,22 @@ END SUBROUTINE cp_unit_release
 !!
 !!*** **********************************************************************
 FUNCTION cp_basic_unit_check(basic_kind,basic_unit,error_level,error)&
-     result(res)
-  INTEGER, INTENT(in) :: basic_kind, basic_unit
-  INTEGER, INTENT(in), OPTIONAL :: error_level
-  type(cp_error_type), optional, intent(inout) :: error
-  logical :: res
+     RESULT(res)
+    INTEGER, INTENT(in)                      :: basic_kind, basic_unit
+    INTEGER, INTENT(in), OPTIONAL            :: error_level
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+    LOGICAL                                  :: res
 
-  LOGICAL :: failure
-  integer :: my_error_level
-  character(len=*), parameter :: routineN='cp_basic_unit_check',&
-       routineP=moduleN//':'//routineN
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_basic_unit_check', &
+      routineP = moduleN//':'//routineN
 
-  failure=.false.
+    INTEGER                                  :: my_error_level
+    LOGICAL                                  :: failure
+
+  failure=.FALSE.
   my_error_level=cp_failure_level
-  if (present(error_level)) my_error_level=error_level
+  IF (PRESENT(error_level)) my_error_level=error_level
 
   IF (.NOT. failure) THEN
      SELECT CASE(basic_kind)
@@ -752,19 +769,21 @@ END FUNCTION cp_basic_unit_check
 !!*** **********************************************************************
 FUNCTION cp_basic_unit_to_cp2k(value,basic_kind,basic_unit,power,error)&
      RESULT(res)
-  REAL(kind=dp), INTENT(in) :: value
-  INTEGER, INTENT(in) :: basic_kind, basic_unit
-  INTEGER, INTENT(in), optional :: power
-  type(cp_error_type), optional, intent(inout) :: error
-  real(kind=dp) :: res
-  
-  logical :: failure
-  integer :: my_power
-  character(len=*), parameter :: routineN='cp_basic_unit_to_cp2k',&
-       routineP=moduleN//':'//routineN
-  INTEGER, parameter :: my_error_level=cp_failure_level
+    REAL(kind=dp), INTENT(in)                :: value
+    INTEGER, INTENT(in)                      :: basic_kind, basic_unit
+    INTEGER, INTENT(in), OPTIONAL            :: power
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+    REAL(kind=dp)                            :: res
 
-  failure=.false.
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_basic_unit_to_cp2k', &
+      routineP = moduleN//':'//routineN
+    INTEGER, PARAMETER :: my_error_level = cp_failure_level
+
+    INTEGER                                  :: my_power
+    LOGICAL                                  :: failure
+
+  failure=.FALSE.
   my_power=1
   IF (PRESENT(power)) my_power=power
   IF (basic_unit==cp_units_none) THEN
@@ -871,7 +890,7 @@ FUNCTION cp_basic_unit_to_cp2k(value,basic_kind,basic_unit,power,error)&
                 error,failure)
         END SELECT
      CASE(cp_ukind_none)
-        CALL cp_assert(.false.,my_error_level,&
+        CALL cp_assert(.FALSE.,my_error_level,&
              cp_assertion_failed, routineP,&
              "if the kind of the unit is none also unit must be undefined,not:"&
              //TRIM(cp_to_string(basic_unit)),&
@@ -910,23 +929,25 @@ END FUNCTION cp_basic_unit_to_cp2k
 FUNCTION cp_basic_unit_desc(basic_kind,basic_unit,power,&
      accept_undefined,error)&
      RESULT(res)
-  INTEGER, INTENT(in) :: basic_kind, basic_unit
-  INTEGER, INTENT(in), optional :: power
-  LOGICAL, INTENT(in), optional :: accept_undefined
-  type(cp_error_type), optional, intent(inout) :: error
-  character(len=cp_unit_basic_desc_length) :: res
+    INTEGER, INTENT(in)                      :: basic_kind, basic_unit
+    INTEGER, INTENT(in), OPTIONAL            :: power
+    LOGICAL, INTENT(in), OPTIONAL            :: accept_undefined
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+    CHARACTER(len=cp_unit_basic_desc_length) :: res
 
-  LOGICAL :: failure, my_accept_undefined
-  INTEGER :: my_power, a
-  character(len=*), parameter :: routineN='cp_basic_unit_desc',&
-       routineP=moduleN//':'//routineN
-  INTEGER, parameter :: my_error_level=cp_failure_level
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_basic_unit_desc', &
+      routineP = moduleN//':'//routineN
+    INTEGER, PARAMETER :: my_error_level = cp_failure_level
 
-  failure=.false.
+    INTEGER                                  :: a, my_power
+    LOGICAL                                  :: failure, my_accept_undefined
+
+  failure=.FALSE.
   my_power=1
   res=""
-  my_accept_undefined=.false.
-  if (accept_undefined) my_accept_undefined=accept_undefined
+  my_accept_undefined=.FALSE.
+  IF (accept_undefined) my_accept_undefined=accept_undefined
   IF (PRESENT(power)) my_power=power
   IF (basic_unit==cp_units_none) THEN
      CALL cp_assert(my_accept_undefined.OR.basic_kind/=cp_units_none,&
@@ -959,7 +980,7 @@ FUNCTION cp_basic_unit_desc(basic_kind,basic_unit,power,&
                 "unit not yet fully specified, unit of kind "//&
                 TRIM(res),error,failure)
         CASE default
-           CALL cp_assert(.false.,my_error_level,cp_assertion_failed,&
+           CALL cp_assert(.FALSE.,my_error_level,cp_assertion_failed,&
                 routineP,"unknown energy unit:"//TRIM(cp_to_string(basic_unit)),&
                 error,failure)
         END SELECT
@@ -973,7 +994,7 @@ FUNCTION cp_basic_unit_desc(basic_kind,basic_unit,power,&
            res="angstrom"
         CASE default
            res="length"
-           CALL cp_assert(.false.,my_error_level,cp_assertion_failed,&
+           CALL cp_assert(.FALSE.,my_error_level,cp_assertion_failed,&
                 routineP,"unknown length unit:"//TRIM(cp_to_string(basic_unit)),&
                 error,failure)
         END SELECT
@@ -990,7 +1011,7 @@ FUNCTION cp_basic_unit_desc(basic_kind,basic_unit,power,&
                 "unit not yet fully specified, unit of kind "//&
                 TRIM(res),error,failure)
         CASE default
-           CALL cp_assert(.false.,my_error_level,cp_assertion_failed,&
+           CALL cp_assert(.FALSE.,my_error_level,cp_assertion_failed,&
                 routineP,"unknown temperature unit:"//TRIM(cp_to_string(basic_unit)),&
                 error,failure)
         END SELECT
@@ -1007,7 +1028,7 @@ FUNCTION cp_basic_unit_desc(basic_kind,basic_unit,power,&
                 "unit not yet fully specified, unit of kind "//&
                 TRIM(res),error,failure)
         CASE default
-           CALL cp_assert(.false.,my_error_level,cp_assertion_failed,&
+           CALL cp_assert(.FALSE.,my_error_level,cp_assertion_failed,&
                 routineP,"unknown pressure unit:"//TRIM(cp_to_string(basic_unit)),&
                 error,failure)
         END SELECT
@@ -1024,7 +1045,7 @@ FUNCTION cp_basic_unit_desc(basic_kind,basic_unit,power,&
                 "unit not yet fully specified, unit of kind "//&
                 TRIM(res),error,failure)
         CASE default
-           CALL cp_assert(.false.,my_error_level,cp_assertion_failed,&
+           CALL cp_assert(.FALSE.,my_error_level,cp_assertion_failed,&
                 routineP,"unknown angle unit:"//TRIM(cp_to_string(basic_unit)),&
                 error,failure)
         END SELECT
@@ -1045,7 +1066,7 @@ FUNCTION cp_basic_unit_desc(basic_kind,basic_unit,power,&
                 "unit not yet fully specified, unit of kind "//&
                 TRIM(res),error,failure)
         CASE default
-           CALL cp_assert(.false.,my_error_level,cp_assertion_failed,&
+           CALL cp_assert(.FALSE.,my_error_level,cp_assertion_failed,&
                 routineP,"unknown time unit:"//TRIM(cp_to_string(basic_unit)),&
                 error,failure)
         END SELECT
@@ -1064,12 +1085,12 @@ FUNCTION cp_basic_unit_desc(basic_kind,basic_unit,power,&
                 "unit not yet fully specified, unit of kind "//&
                 TRIM(res),error,failure)
         CASE default
-           CALL cp_assert(.false.,my_error_level,cp_assertion_failed,&
+           CALL cp_assert(.FALSE.,my_error_level,cp_assertion_failed,&
                 routineP,"unknown mass unit:"//TRIM(cp_to_string(basic_unit)),&
                 error,failure)
         END SELECT
      CASE(cp_ukind_none)
-        CALL cp_assert(.false.,my_error_level,&
+        CALL cp_assert(.FALSE.,my_error_level,&
              cp_assertion_failed, routineP,&
              "if the kind of the unit is none also unit must be undefined,not:"&
              //TRIM(cp_to_string(basic_unit)),&
@@ -1083,7 +1104,7 @@ FUNCTION cp_basic_unit_desc(basic_kind,basic_unit,power,&
         a=LEN_TRIM(res)
         CPPrecondition(LEN(res)-a>=3,cp_failure_level,routineP,error,failure)
         WRITE (res(a+1:),"('^',i3)") my_power
-        CALL compress(res,.true.)
+        CALL compress(res,.TRUE.)
      END IF
   END IF
 END FUNCTION cp_basic_unit_desc
@@ -1113,32 +1134,36 @@ END FUNCTION cp_basic_unit_desc
 !!
 !!*** **********************************************************************
 FUNCTION cp_unit_desc(unit,defaults,accept_undefined,error)&
-     result(res)
-  TYPE(cp_unit_type), pointer :: unit
-  TYPE(cp_unit_set_type), POINTER, optional :: defaults
-  LOGICAL, INTENT(in), optional :: accept_undefined
-  type(cp_error_type), optional, intent(inout) :: error
-  character(len=cp_unit_desc_length) :: res
-  
-  LOGICAL :: failure,has_defaults,my_accept_undefined
-  INTEGER :: i
-  character(len=*), parameter :: routineN='cp_unit_desc',&
-        routineP=moduleN//':'//routineN
-  INTEGER :: pos, my_unit
-  failure=.false.
+     RESULT(res)
+    TYPE(cp_unit_type), POINTER              :: unit
+    TYPE(cp_unit_set_type), OPTIONAL, &
+      POINTER                                :: defaults
+    LOGICAL, INTENT(in), OPTIONAL            :: accept_undefined
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+    CHARACTER(len=cp_unit_desc_length)       :: res
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_unit_desc', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i, my_unit, pos
+    LOGICAL                                  :: failure, has_defaults, &
+                                                my_accept_undefined
+
+  failure=.FALSE.
   
   CPPrecondition(ASSOCIATED(unit),cp_failure_level,routineP,error,failure)
   IF (.NOT. failure) THEN
      res=""
      pos=1
-     my_accept_undefined=.false.
+     my_accept_undefined=.FALSE.
      IF (PRESENT(accept_undefined)) my_accept_undefined=accept_undefined
      DO i=1,unit%n_kinds
         CPPrecondition(unit%kind_id(i)/=0,cp_failure_level,routineP,error,failure)
         CPPrecondition(pos<LEN(res),cp_failure_level,routineP,error,failure)
         IF (failure) EXIT
         my_unit=unit%unit_id(i)
-        has_defaults=.false.
+        has_defaults=.FALSE.
         IF (PRESENT(defaults)) has_defaults=ASSOCIATED(defaults)
         IF (my_unit==0) THEN
            IF (has_defaults) THEN
@@ -1181,21 +1206,25 @@ END FUNCTION cp_unit_desc
 !!
 !!*** **********************************************************************
 FUNCTION cp_unit_to_cp2k1(value,unit,defaults,power,error) RESULT(res)
-  REAL(kind=dp), intent(in) :: value
-  TYPE(cp_unit_type), pointer :: unit
-  TYPE(cp_unit_set_type), POINTER, optional :: defaults
-  INTEGER, OPTIONAL, intent(in) :: power
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-  REAL(kind=dp) :: res
-  
-  LOGICAL :: failure
-  CHARACTER(len=*), PARAMETER :: routineN='cp_unit_to_cp2k1',&
-        routineP=moduleN//':'//routineN
-  INTEGER :: my_power,my_basic_unit, i_unit
-  
-  failure=.false.
+    REAL(kind=dp), INTENT(in)                :: value
+    TYPE(cp_unit_type), POINTER              :: unit
+    TYPE(cp_unit_set_type), OPTIONAL, &
+      POINTER                                :: defaults
+    INTEGER, INTENT(in), OPTIONAL            :: power
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+    REAL(kind=dp)                            :: res
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_unit_to_cp2k1', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i_unit, my_basic_unit, &
+                                                my_power
+    LOGICAL                                  :: failure
+
+  failure=.FALSE.
   my_power=1
-  if (present(power)) my_power=power
+  IF (PRESENT(power)) my_power=power
   res=value
   CPPrecondition(ASSOCIATED(unit),cp_failure_level,routineP,error,failure)
   IF (.NOT. failure) THEN
@@ -1247,21 +1276,24 @@ END FUNCTION cp_unit_to_cp2k1
 !!
 !!*** **********************************************************************
 FUNCTION cp_unit_from_cp2k1(value,unit,defaults,power,error) RESULT(res)
-  REAL(kind=dp), intent(in) :: value
-  TYPE(cp_unit_type), POINTER :: unit
-  TYPE(cp_unit_set_type), POINTER, OPTIONAL :: defaults
-  INTEGER, INTENT(in), optional :: power
-  type(cp_error_type), optional, intent(inout) :: error
-  REAL(kind=dp) :: res
+    REAL(kind=dp), INTENT(in)                :: value
+    TYPE(cp_unit_type), POINTER              :: unit
+    TYPE(cp_unit_set_type), OPTIONAL, &
+      POINTER                                :: defaults
+    INTEGER, INTENT(in), OPTIONAL            :: power
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+    REAL(kind=dp)                            :: res
 
-  logical :: failure
-  integer :: my_power
-  character(len=*), parameter :: routineN='cp_unit_from_cp2k1',&
-       routineP=moduleN//':'//routineN
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_unit_from_cp2k1', &
+      routineP = moduleN//':'//routineN
 
-  failure=.false.
+    INTEGER                                  :: my_power
+    LOGICAL                                  :: failure
+
+  failure=.FALSE.
   my_power=1
-  if (present(power)) my_power=power
+  IF (PRESENT(power)) my_power=power
   IF (PRESENT(defaults)) THEN
      res=cp_unit_to_cp2k1(value=value,unit=unit,defaults=defaults,&
           power=-my_power,error=error)
@@ -1296,19 +1328,21 @@ END FUNCTION cp_unit_from_cp2k1
 !!
 !!*** **********************************************************************
 FUNCTION cp_unit_to_cp2k(value,unit_str,defaults,power,error) RESULT(res)
-  REAL(kind=dp), intent(in) :: value
-  CHARACTER(len=*), INTENT(in) :: unit_str
-  TYPE(cp_unit_set_type), POINTER, OPTIONAL :: defaults
-  INTEGER, INTENT(in), optional :: power
-  type(cp_error_type), optional, intent(inout) :: error
-  REAL(kind=dp) :: res
+    REAL(kind=dp), INTENT(in)                :: value
+    CHARACTER(len=*), INTENT(in)             :: unit_str
+    TYPE(cp_unit_set_type), OPTIONAL, &
+      POINTER                                :: defaults
+    INTEGER, INTENT(in), OPTIONAL            :: power
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+    REAL(kind=dp)                            :: res
 
-  TYPE(cp_unit_type), POINTER :: my_unit
-  logical :: failure
-  character(len=*), parameter :: routineN='cp_unit_to_cp2k',&
-       routineP=moduleN//':'//routineN
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_unit_to_cp2k', &
+      routineP = moduleN//':'//routineN
 
-  nullify(my_unit)
+    TYPE(cp_unit_type), POINTER              :: my_unit
+
+  NULLIFY(my_unit)
   CALL cp_unit_create(my_unit,unit_str,error=error)
   IF (PRESENT(defaults)) THEN
      res=cp_unit_to_cp2k1(value=value,unit=my_unit,defaults=defaults,&
@@ -1346,19 +1380,21 @@ END FUNCTION cp_unit_to_cp2k
 !!
 !!*** **********************************************************************
 FUNCTION cp_unit_from_cp2k(value,unit_str,defaults,power,error) RESULT(res)
-  REAL(kind=dp), intent(in) :: value
-  CHARACTER(len=*), INTENT(in) :: unit_str
-  TYPE(cp_unit_set_type), POINTER, OPTIONAL :: defaults
-  INTEGER, INTENT(in), optional :: power
-  type(cp_error_type), optional, intent(inout) :: error
-  REAL(kind=dp) :: res
+    REAL(kind=dp), INTENT(in)                :: value
+    CHARACTER(len=*), INTENT(in)             :: unit_str
+    TYPE(cp_unit_set_type), OPTIONAL, &
+      POINTER                                :: defaults
+    INTEGER, INTENT(in), OPTIONAL            :: power
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+    REAL(kind=dp)                            :: res
 
-  TYPE(cp_unit_type), POINTER :: my_unit
-  logical :: failure
-  character(len=*), parameter :: routineN='cp_unit_from_cp2k',&
-       routineP=moduleN//':'//routineN
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_unit_from_cp2k', &
+      routineP = moduleN//':'//routineN
 
-  nullify(my_unit)
+    TYPE(cp_unit_type), POINTER              :: my_unit
+
+  NULLIFY(my_unit)
   CALL cp_unit_create(my_unit,unit_str,error=error)
   IF (PRESENT(defaults)) THEN
      res=cp_unit_from_cp2k1(value=value,unit=my_unit,defaults=defaults,&
@@ -1396,22 +1432,25 @@ END FUNCTION cp_unit_from_cp2k
 !!*** **********************************************************************
 FUNCTION cp_unit_transform(value,unit_from,unit_to,defaults,power,error) &
      RESULT(res)
-  REAL(kind=dp), intent(in) :: value
-  TYPE(cp_unit_type), pointer :: unit_from, unit_to
-  TYPE(cp_unit_set_type), POINTER, optional :: defaults
-  INTEGER, INTENT(in), optional :: power
-  type(cp_error_type), optional, intent(inout) :: error
-  real(kind=dp) :: res
+    REAL(kind=dp), INTENT(in)                :: value
+    TYPE(cp_unit_type), POINTER              :: unit_from, unit_to
+    TYPE(cp_unit_set_type), OPTIONAL, &
+      POINTER                                :: defaults
+    INTEGER, INTENT(in), OPTIONAL            :: power
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+    REAL(kind=dp)                            :: res
 
-  logical :: failure
-  integer :: my_power
-  character(len=*), parameter :: routineN='cp_unit_transform',&
-       routineP=moduleN//':'//routineN
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_unit_transform', &
+      routineP = moduleN//':'//routineN
 
-  failure=.false.
+    INTEGER                                  :: my_power
+    LOGICAL                                  :: failure
+
+  failure=.FALSE.
   my_power=1
   IF (PRESENT(power)) my_power=power
-  call cp_assert(cp_unit_compatible(unit_from,unit_to,error=error),&
+  CALL cp_assert(cp_unit_compatible(unit_from,unit_to,error=error),&
        cp_failure_level,cp_assertion_failed,routineP,"incompatible units"//&
        TRIM(cp_unit_desc(unit_from,error=error))//", "//&
        cp_unit_desc(unit_to,error=error),error,failure)
@@ -1446,14 +1485,17 @@ END FUNCTION cp_unit_transform
 !!
 !!*** **********************************************************************
 FUNCTION cp_unit_compatible(unit1,unit2,error) RESULT(res)
-  logical ::res
-  TYPE(cp_unit_type), POINTER :: unit1, unit2
-  type(cp_error_type), optional, intent(inout) :: error
-  
-  logical :: failure
-  character(len=*), parameter :: routineN='cp_unit_compatible',&
-        routineP=moduleN//':'//routineN
-  failure=.false.
+    TYPE(cp_unit_type), POINTER              :: unit1, unit2
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+    LOGICAL                                  :: res
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_unit_compatible', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+
+  failure=.FALSE.
   
   !FM to do (unit=none, compress, substitute reducing to basic
   !FM        SI kinds of unit, compress, compare)
@@ -1484,17 +1526,19 @@ END FUNCTION cp_unit_compatible
 !!
 !!*** **********************************************************************
 SUBROUTINE cp_unit_set_create(unit_set,name,error)
-  TYPE(cp_unit_set_type), pointer :: unit_set
-  CHARACTER(len=*), intent(in) :: name
-  type(cp_error_type), optional, intent(inout) :: error
+    TYPE(cp_unit_set_type), POINTER          :: unit_set
+    CHARACTER(len=*), INTENT(in)             :: name
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-  logical :: failure
-  character(len=*), parameter :: routineN='cp_unit_set_init',&
-       routineP=moduleN//':'//routineN
-  character(len=default_string_length) :: my_name
-  INTEGER :: stat, i
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_unit_set_create', &
+      routineP = moduleN//':'//routineN
 
-  failure=.false.
+    CHARACTER(len=default_string_length)     :: my_name
+    INTEGER                                  :: i, stat
+    LOGICAL                                  :: failure
+
+  failure=.FALSE.
   CPPrecondition(.NOT.ASSOCIATED(unit_set),cp_failure_level,routineP,error,failure)
   ALLOCATE(unit_set,stat=stat)
   CPPostcondition(stat==0,cp_fatal_level,routineP,error,failure)
@@ -1502,7 +1546,7 @@ SUBROUTINE cp_unit_set_create(unit_set,name,error)
   last_unit_set_id=last_unit_set_id+1
   unit_set%id_nr=last_unit_set_id
   my_name=name
-  call uppercase(my_name)
+  CALL uppercase(my_name)
   IF (.NOT.failure) THEN
 
      DO i=1,cp_ukind_max
@@ -1577,19 +1621,22 @@ END SUBROUTINE cp_unit_set_create
 !!
 !!*** **********************************************************************
 SUBROUTINE cp_unit_set_retain(unit_set,error)
-  TYPE(cp_unit_set_type), pointer :: unit_set
-  type(cp_error_type), optional, intent(inout) :: error
-  
-  logical :: failure
-  character(len=*), parameter :: routineN='cp_unit_set_retain',&
-        routineP=moduleN//':'//routineN
-  failure=.false.
+    TYPE(cp_unit_set_type), POINTER          :: unit_set
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_unit_set_retain', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+
+  failure=.FALSE.
 
   CPPrecondition(ASSOCIATED(unit_set),cp_failure_level,routineP,error,failure)
-  if (.not. failure) then
+  IF (.NOT. failure) THEN
      CPPrecondition(unit_set%ref_count>0,cp_failure_level,routineP,error,failure)
      unit_set%ref_count=unit_set%ref_count+1
-  end if
+  END IF
 END SUBROUTINE cp_unit_set_retain
 !***************************************************************************
 
@@ -1614,14 +1661,17 @@ END SUBROUTINE cp_unit_set_retain
 !!
 !!*** **********************************************************************
 SUBROUTINE cp_unit_set_release(unit_set,error)
-  TYPE(cp_unit_set_type), pointer :: unit_set
-  type(cp_error_type), optional, intent(inout) :: error
-  
-  logical :: failure
-  INTEGER :: stat, i
-  character(len=*), parameter :: routineN='cp_unit_set_release',&
-        routineP=moduleN//':'//routineN
-  failure=.false.
+    TYPE(cp_unit_set_type), POINTER          :: unit_set
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_unit_set_release', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i, stat
+    LOGICAL                                  :: failure
+
+  failure=.FALSE.
 
   IF (ASSOCIATED(unit_set)) THEN
      CPPrecondition(unit_set%ref_count>0,cp_failure_level,routineP,error,failure)

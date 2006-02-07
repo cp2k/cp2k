@@ -28,12 +28,12 @@ MODULE harris_force_types
 
   USE kinds,                           ONLY: dp
 #include "cp_common_uses.h"
- 
+
   IMPLICIT NONE
   PRIVATE
 
-  CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='harris_force_types'
-  INTEGER, PRIVATE, save :: last_harris_id=0
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'harris_force_types'
+  INTEGER, PRIVATE, SAVE :: last_harris_id=0
 
   ! *** Public data types ***
   PUBLIC :: harris_force_type, &
@@ -190,7 +190,7 @@ CONTAINS
     LOGICAL                                  :: failure
 
 !   ------------------------------------------------------------------------
-   
+
     failure = .FALSE.
   
     CPPrecondition(ASSOCIATED(harris_force), cp_failure_level, routineP, error, failure)
@@ -234,15 +234,15 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE harris_force_release(harris_force, error)
 
-    TYPE(harris_force_type), POINTER                :: harris_force
+    TYPE(harris_force_type), POINTER         :: harris_force
     TYPE(cp_error_type), INTENT(INOUT), &
-      OPTIONAL                                      :: error
+      OPTIONAL                               :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'harris_force_release', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                         :: stat
-    LOGICAL                                         :: failure
+    INTEGER                                  :: stat
+    LOGICAL                                  :: failure
 
 !   ------------------------------------------------------------------------
 
@@ -409,33 +409,21 @@ CONTAINS
                               f_kinetic, f_gth_pp, f_overlap, f_nsc, f_total, &
                               error)
 
-    TYPE(harris_force_type), POINTER                 :: harris_force
-    INTEGER, INTENT(OUT), OPTIONAL                   :: id_nr
-    REAL(KIND=dp), DIMENSION(:,:), POINTER, OPTIONAL :: f_trace, &
-                                                        f_V, &
-                                                        f_hartree, &
-                                                        f_integral_vxc, &
-                                                        f_delta_integral_vxc, &
-                                                        f_xc, &
-                                                        f_ovrl, &
-                                                        f_self, &
-                                                        f_rho_core, &
-                                                        f_EII, &
-                                                        f_harris, &
-                                                        f_cross_integrate_v, &
-                                                        f_cross_integrate_v_core, &
-                                                        f_kinetic, &
-                                                        f_gth_pp, &
-                                                        f_overlap, &
-                                                        f_nsc
-    REAL(KIND=dp), DIMENSION(:), POINTER, OPTIONAL   :: f_total
+    TYPE(harris_force_type), POINTER         :: harris_force
+    INTEGER, INTENT(OUT), OPTIONAL           :: id_nr
+    REAL(KIND=dp), DIMENSION(:, :), OPTIONAL, POINTER :: f_trace, f_V, &
+      f_hartree, f_integral_vxc, f_delta_integral_vxc, f_xc, f_ovrl, f_self, &
+      f_rho_core, f_EII, f_harris, f_cross_integrate_v, &
+      f_cross_integrate_v_core, f_kinetic, f_gth_pp, f_overlap, f_nsc
+    REAL(KIND=dp), DIMENSION(:), OPTIONAL, &
+      POINTER                                :: f_total
     TYPE(cp_error_type), INTENT(INOUT), &
-      OPTIONAL                                       :: error
+      OPTIONAL                               :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'harris_force_get', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                          :: failure
+    LOGICAL                                  :: failure
 
 !   ------------------------------------------------------------------------
 
@@ -548,33 +536,21 @@ CONTAINS
                               f_kinetic, f_gth_pp, f_overlap, f_nsc, f_total, &
                               error)
 
-    TYPE(harris_force_type), POINTER                 :: harris_force
-    INTEGER, INTENT(IN), OPTIONAL                    :: id_nr
-    REAL(KIND=dp), DIMENSION(:,:), POINTER, OPTIONAL :: f_trace, &
-                                                        f_V, &
-                                                        f_hartree, &
-                                                        f_integral_vxc, &
-                                                        f_delta_integral_vxc, &
-                                                        f_xc, &
-                                                        f_ovrl, &
-                                                        f_self, &
-                                                        f_rho_core, &
-                                                        f_EII, &
-                                                        f_harris, &
-                                                        f_cross_integrate_v, &
-                                                        f_cross_integrate_v_core, &
-                                                        f_kinetic, &
-                                                        f_gth_pp, &
-                                                        f_overlap, &
-                                                        f_nsc
-    REAL(KIND=dp), DIMENSION(:), POINTER, OPTIONAL   :: f_total
+    TYPE(harris_force_type), POINTER         :: harris_force
+    INTEGER, INTENT(IN), OPTIONAL            :: id_nr
+    REAL(KIND=dp), DIMENSION(:, :), OPTIONAL, POINTER :: f_trace, f_V, &
+      f_hartree, f_integral_vxc, f_delta_integral_vxc, f_xc, f_ovrl, f_self, &
+      f_rho_core, f_EII, f_harris, f_cross_integrate_v, &
+      f_cross_integrate_v_core, f_kinetic, f_gth_pp, f_overlap, f_nsc
+    REAL(KIND=dp), DIMENSION(:), OPTIONAL, &
+      POINTER                                :: f_total
     TYPE(cp_error_type), INTENT(INOUT), &
-      OPTIONAL                                       :: error
+      OPTIONAL                               :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'harris_force_set', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                          :: failure
+    LOGICAL                                  :: failure
 
 !   ------------------------------------------------------------------------
 
@@ -647,16 +623,16 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE harris_force_clear(harris_force, natom, error)
 
-    TYPE(harris_force_type), POINTER                :: harris_force
-    INTEGER                                         :: natom
+    TYPE(harris_force_type), POINTER         :: harris_force
+    INTEGER                                  :: natom
     TYPE(cp_error_type), INTENT(INOUT), &
-      OPTIONAL                                      :: error
-    INTEGER                                         :: i, j
+      OPTIONAL                               :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'harris_force_clear', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                         :: failure
+    INTEGER                                  :: i, j
+    LOGICAL                                  :: failure
 
 !   ------------------------------------------------------------------------
 
@@ -728,16 +704,16 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE harris_force_create(harris_force, natom, error)
 
-    TYPE(harris_force_type), POINTER                :: harris_force
-    INTEGER                                         :: natom
+    TYPE(harris_force_type), POINTER         :: harris_force
+    INTEGER                                  :: natom
     TYPE(cp_error_type), INTENT(INOUT), &
-      OPTIONAL                                      :: error
+      OPTIONAL                               :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'harris_force_create', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                         :: stat
-    LOGICAL                                         :: failure
+    INTEGER                                  :: stat
+    LOGICAL                                  :: failure
 
 !   ------------------------------------------------------------------------
 

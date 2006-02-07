@@ -96,7 +96,7 @@ MODULE qs_loc_methods
 
 ! *** Global parameters ***
 
-  CHARACTER(LEN=*), PARAMETER, PRIVATE :: module_name = "qs_loc_methods"
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_loc_methods'
 
 
 ! *** Public ***
@@ -123,8 +123,8 @@ CONTAINS
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-    CHARACTER(len=*), PARAMETER :: routine_name = 'centers_spreads_berry', &
-      routineP = module_name//':'//routine_name
+    CHARACTER(len=*), PARAMETER :: routineN = 'centers_spreads_berry', &
+      routineP = moduleN//':'//routineN
 
     CHARACTER(len=50)                        :: filename1, filename2
     COMPLEX(KIND=dp)                         :: almost_determinant, z
@@ -295,8 +295,8 @@ CONTAINS
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-    CHARACTER(len=*), PARAMETER :: routine_name = 'optimize_loc_berry', &
-      routineP = module_name//':'//routine_name
+    CHARACTER(len=*), PARAMETER :: routineN = 'optimize_loc_berry', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, i, j, nao, nmoloc, &
                                                 scr, sweeps
@@ -375,8 +375,8 @@ CONTAINS
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-    CHARACTER(len=*), PARAMETER :: routine_name = 'optimize_loc_pipek', &
-      routineP = module_name//':'//routine_name
+    CHARACTER(len=*), PARAMETER :: routineN = 'optimize_loc_pipek', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, iatom, isgf, istat, &
                                                 ldz, nao, natom, ncol, &
@@ -516,7 +516,7 @@ CONTAINS
       OPTIONAL                               :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'centers_spreads_pipek', &
-      routineP = module_name//':'//routineN
+      routineP = moduleN//':'//routineN
 
     CHARACTER(len=50)                        :: filename1, filename2
     INTEGER                                  :: iatom, istat, istate, iter, &
@@ -660,8 +660,8 @@ CONTAINS
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-    CHARACTER(len=*), PARAMETER :: routine_name = 'qs_loc_driver', &
-      routineP = module_name//':'//routine_name
+    CHARACTER(len=*), PARAMETER :: routineN = 'qs_loc_driver', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, imo, imoloc, ispin, istat, &
                                                 istate, iter, lb, loc_method, &
@@ -824,8 +824,8 @@ CONTAINS
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-    CHARACTER(len=*), PARAMETER :: routine_name = 'qs_print_cubes', &
-      routineP = module_name//':'//routine_name
+    CHARACTER(len=*), PARAMETER :: routineN = 'qs_print_cubes', &
+      routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=80)                        :: filename, title
     INTEGER                                  :: ia, ie, istate, ivector, &
@@ -878,8 +878,8 @@ CONTAINS
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = "loc_initialize_rho", &
-      routineP = module_name//":"//routineN
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'loc_initialize_rho', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, ispin
     LOGICAL                                  :: failure, gapw

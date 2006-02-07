@@ -31,12 +31,13 @@ MODULE termination
   USE cp_files,                        ONLY: close_file,&
                                              open_file
   USE global_types,                    ONLY: global_environment_type
-  USE message_passing,                 ONLY: mp_abort, mp_bcast
+  USE kinds,                           ONLY: dp
+  USE machine,                         ONLY: m_walltime
+  USE message_passing,                 ONLY: mp_abort,&
+                                             mp_bcast
   USE output_utilities,                ONLY: print_message
   USE string_utilities,                ONLY: compress
   USE timings,                         ONLY: print_stack
-  USE machine,                         ONLY: m_walltime
-  USE kinds,                           ONLY: dp
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -45,7 +46,7 @@ MODULE termination
 
 ! *** Global parameters ***
 
-  CHARACTER(LEN=*), PARAMETER :: moduleN = "termination"
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'termination'
 
   INTEGER :: error_unit
 
@@ -161,9 +162,9 @@ CONTAINS
     CHARACTER(LEN=240)                       :: message
 
 !   ---------------------------------------------------------------------------
+! just in case there is not enough memory do even trim... and fail with
+! with a mystery core dump
 
-    ! just in case there is not enough memory do even trim... and fail with
-    ! with a mystery core dump
     WRITE(6,*) "Out of memory ..."
     IF (memory == 0) THEN
       WRITE (message,"(A)")&
@@ -182,10 +183,10 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE stop_allocate_new(routine_name,module_name,line_number,object,&
+  SUBROUTINE stop_allocate_new(routineN,moduleN,line_number,object,&
                                memory)
 
-    CHARACTER(LEN=*), INTENT(IN)             :: routine_name, module_name
+    CHARACTER(LEN=*), INTENT(IN)             :: routineN, moduleN
     INTEGER, INTENT(IN)                      :: line_number
     CHARACTER(LEN=*), INTENT(IN)             :: object
     INTEGER, INTENT(IN)                      :: memory
@@ -204,7 +205,7 @@ CONTAINS
       CALL compress(message)
     END IF
 
-    CALL stop_program(routine_name,module_name,line_number,message)
+    CALL stop_program(routineN,moduleN,line_number,message)
 
   END SUBROUTINE stop_allocate_new
 
@@ -249,9 +250,9 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE stop_deallocate_new(routine_name,module_name,line_number,object)
+  SUBROUTINE stop_deallocate_new(routineN,moduleN,line_number,object)
 
-    CHARACTER(LEN=*), INTENT(IN)             :: routine_name, module_name
+    CHARACTER(LEN=*), INTENT(IN)             :: routineN, moduleN
     INTEGER, INTENT(IN)                      :: line_number
     CHARACTER(LEN=*), INTENT(IN)             :: object
 
@@ -262,7 +263,7 @@ CONTAINS
     message = "The memory deallocation for the data object <"//TRIM(object)//&
               "> failed"
 
-    CALL stop_program(routine_name,module_name,line_number,message)
+    CALL stop_program(routineN,moduleN,line_number,message)
 
   END SUBROUTINE stop_deallocate_new
 
@@ -292,7 +293,7 @@ CONTAINS
 
     CHARACTER(LEN=*), INTENT(IN)             :: routine, error_message
     TYPE(global_environment_type), &
-      pointer, OPTIONAL                   :: globenv
+      OPTIONAL, POINTER                      :: globenv
 
     LOGICAL                                  :: ionode
 
@@ -317,14 +318,14 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE stop_program_new(routine_name,module_name,line_number,&
+  SUBROUTINE stop_program_new(routineN,moduleN,line_number,&
                               error_message,globenv)
 
-    CHARACTER(LEN=*), INTENT(IN)             :: routine_name, module_name
+    CHARACTER(LEN=*), INTENT(IN)             :: routineN, moduleN
     INTEGER, INTENT(IN)                      :: line_number
     CHARACTER(LEN=*), INTENT(IN)             :: error_message
     TYPE(global_environment_type), &
-      pointer, OPTIONAL                   :: globenv
+      OPTIONAL, POINTER                      :: globenv
 
     CHARACTER(LEN=80)                        :: message
     LOGICAL                                  :: ionode
@@ -340,13 +341,13 @@ CONTAINS
 !   *** Print the error message ***
 
     IF (ionode) THEN
-      message = "ERROR in "//TRIM(routine_name)//&
-                " (MODULE "//TRIM(module_name)//")"
+      message = "ERROR in "//TRIM(routineN)//&
+                " (MODULE "//TRIM(moduleN)//")"
       CALL print_message(message,error_unit,2,2,0)
       CALL print_message(error_message,error_unit,1,1,0)
       WRITE (UNIT=message,FMT="(A,I6,A)")&
         "Program stopped at line number ",line_number,&
-        " of MODULE "//TRIM(module_name)
+        " of MODULE "//TRIM(moduleN)
       CALL compress(message)
       CALL print_message(message,error_unit,1,1,0)
       CALL print_stack(error_unit)
@@ -382,19 +383,19 @@ CONTAINS
     LOGICAL, INTENT(OUT)                     :: should_stop
     CHARACTER(LEN=*), INTENT(IN)             :: flag
     TYPE(global_environment_type), &
-         POINTER, OPTIONAL                   :: globenv
+      OPTIONAL, POINTER                      :: globenv
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
     CHARACTER(LEN=*), PARAMETER :: exit_fname = "EXIT", &
-      routine_name = "external_control", &
-      routineP = moduleN//':'//routine_name
+      routineN = 'external_control', routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=10)                        :: exit_fname_level
     INTEGER                                  :: unit_number
     LOGICAL                                  :: failure
-    TYPE(cp_logger_type), POINTER            :: logger
     REAL(KIND=dp)                            :: time_check
+    TYPE(cp_logger_type), POINTER            :: logger
+
 !   ---------------------------------------------------------------------------
 
     failure=.FALSE.
