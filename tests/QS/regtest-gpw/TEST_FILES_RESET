@@ -1,2 +1,7 @@
 #
-#
+# resetting due to bug in the bloechl scheme
+H+-bloechl.inp
+He2H-bloechl-md.inp
+He2H-bloechl.inp
+H2O-bloechl.inp
+H2O-bloechl-Spl.inp

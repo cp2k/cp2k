@@ -647,8 +647,9 @@ CONTAINS
        rmax3  = CEILING(rcut/cell%hmat(3,3))
        fac    = 1.d0/cell%deth
        fac2   = 1.0_dp / ( 4.0_dp * pi * eps0 )
-       fac3   = fac/8.0_dp
+       fac3   = fac*pi
        fvec   = 2.0_dp * pi / (/cell%hmat(1,1),cell%hmat(2,2),cell%hmat(3,3)/)
+       ew_neut = - fac / ( 4.0_dp * eps0 * alpha ** 2 )
        !
        ewmdim = SIZE(particle_set) * (SIZE(particle_set)+1) / 2
        ndim   = SIZE(particle_set) * SIZE(radii)
@@ -716,11 +717,9 @@ CONTAINS
                 g_ewald = Eval_Interp_Spl3_pbc(rvec, coeff, error)
              END IF
              !
-             ! G-EWALD, R-EWALD and BACKGROUND CHARGE
+             ! G-EWALD, R-EWALD
              !
              g_ewald = r_ewald*fac2 + g_ewald/eps0
-             ew_neut = - fac / ( 4.0_dp * eps0 * alpha ** 2 )
-             g_ewald = g_ewald + ew_neut
              !
              ! Self Contribution
              !
@@ -754,7 +753,7 @@ CONTAINS
                    idim1  = ip1 + igauss1
                    rc1    = radii(igauss1)
                    rc12   = rc1*rc1
-                   M(idim1,idim2) = M(idim1,idim2) - sfact * fac3*(rc12+rc22) + EwM(idim)
+                   M(idim1,idim2) = EwM(idim)  - sfact * ew_neut - sfact * fac3 * (rc12+rc22)
                    M(idim2,idim1) = M(idim1,idim2)
                 END DO
              END DO

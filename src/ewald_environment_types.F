@@ -19,8 +19,9 @@
 MODULE ewald_environment_types
   USE cp2k_units,                      ONLY: get_cp2k_units,&
                                              unit_convert_type
-  USE cp_para_env,                     ONLY: cp_para_env_release,&
-                                             cp_para_env_retain
+  USE cp_units,                        ONLY: cp_unit_from_cp2k
+  USE cp_para_env,                     ONLY: cp_para_env_retain,&
+                                             cp_para_env_release
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE global_types,                    ONLY: DEBUG,&
                                              HIGH,&
@@ -411,6 +412,7 @@ SUBROUTINE read_ewald_section ( ewald_env, globenv, error )
     INTEGER                                  :: iw
     TYPE(section_vals_type), POINTER         :: ewald_section
     TYPE(unit_convert_type), POINTER         :: units
+    REAL(KIND=dp)                            :: dummy
 
   iw = globenv % scr
   NULLIFY(ewald_section, units)
@@ -422,11 +424,11 @@ SUBROUTINE read_ewald_section ( ewald_env, globenv, error )
   !..end of parsing the input section
   IF ( globenv % ionode .AND. globenv % print_level .NE. SILENT) THEN
      IF ( ewald_env % ewald_type /= do_ewald_none ) THEN
-
+        dummy = cp_unit_from_cp2k(ewald_env % alpha,"angstrom^-1") 
         WRITE ( iw, '( A,T67,A14 )' ) ' Ewald| Summation is done by:', &
              ADJUSTR(ewald_name_types(ewald_env % ewald_type)(1:14))
-        WRITE ( iw, '( A,A18,A,T71,F10.4 )' ) ' Ewald| Alpha parameter [','ANGSTROM',']', &
-             ewald_env % alpha /  angstrom
+        WRITE ( iw, '( A,A18,A,T71,F10.4 )' ) ' Ewald| Alpha parameter [','ANGSTROM^-1',']', &
+             dummy
 
         SELECT CASE ( ewald_env % ewald_type )
         CASE DEFAULT
