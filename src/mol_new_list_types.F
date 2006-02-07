@@ -44,9 +44,11 @@
 !!   SOURCE
 !****************************************************************************
 MODULE mol_new_list_types
-  USE kinds, ONLY: dp
-  USE timings, ONLY: timeset, timestop
-  use molecule_types_new, only: molecule_type, deallocate_molecule_set
+  USE kinds,                           ONLY: dp
+  USE molecule_types_new,              ONLY: deallocate_molecule_set,&
+                                             molecule_type
+  USE timings,                         ONLY: timeset,&
+                                             timestop
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -94,7 +96,7 @@ MODULE mol_new_list_types
   TYPE mol_new_list_type
      INTEGER :: id_nr, ref_count, n_els
      LOGICAL :: owns_els
-     type(molecule_type), DIMENSION(:), POINTER :: els
+     TYPE(molecule_type), DIMENSION(:), POINTER :: els
   END TYPE mol_new_list_type
 !!***
 !****************************************************************************
@@ -160,16 +162,20 @@ CONTAINS
 !!*** **********************************************************************
 SUBROUTINE mol_new_list_create(list, els_ptr, &
      owns_els, n_els, error)
-  TYPE(mol_new_list_type), POINTER, OPTIONAL :: list
-  type(molecule_type), DIMENSION(:), POINTER, OPTIONAL :: els_ptr
-  LOGICAL, INTENT(in), OPTIONAL :: owns_els
-  INTEGER, INTENT(in), OPTIONAL :: n_els
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-  
-  LOGICAL :: failure
-  CHARACTER(len=*), PARAMETER :: routineN='mol_new_list_create',&
-        routineP=moduleN//':'//routineN
-  INTEGER :: stat
+    TYPE(mol_new_list_type), OPTIONAL, &
+      POINTER                                :: list
+    TYPE(molecule_type), DIMENSION(:), &
+      OPTIONAL, POINTER                      :: els_ptr
+    LOGICAL, INTENT(in), OPTIONAL            :: owns_els
+    INTEGER, INTENT(in), OPTIONAL            :: n_els
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'mol_new_list_create', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: stat
+    LOGICAL                                  :: failure
 
   failure=.FALSE.
 
@@ -227,12 +233,14 @@ END SUBROUTINE mol_new_list_create
 !!
 !!*** **********************************************************************
 SUBROUTINE mol_new_list_retain(list, error)
-  TYPE(mol_new_list_type), POINTER :: list
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-  
-  LOGICAL :: failure
-  CHARACTER(len=*), PARAMETER :: routineN='mol_new_list_retain',&
-        routineP=moduleN//':'//routineN
+    TYPE(mol_new_list_type), POINTER         :: list
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'mol_new_list_retain', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
 
   failure=.FALSE.
   
@@ -268,13 +276,15 @@ END SUBROUTINE mol_new_list_retain
 !!
 !!*** **********************************************************************
 SUBROUTINE mol_new_list_release(list, error)
-  TYPE(mol_new_list_type), POINTER :: list
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-  
-  LOGICAL :: failure
-  CHARACTER(len=*), PARAMETER :: routineN='mol_new_list_release',&
-        routineP=moduleN//':'//routineN
-  INTEGER :: stat
+    TYPE(mol_new_list_type), POINTER         :: list
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'mol_new_list_release', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: stat
+    LOGICAL                                  :: failure
 
   failure=.FALSE.
   
@@ -284,7 +294,7 @@ SUBROUTINE mol_new_list_release(list, error)
      IF (list%ref_count==0) THEN
         IF (list%owns_els) THEN
            IF (ASSOCIATED(list%els)) THEN
-              call deallocate_molecule_set(list%els)
+              CALL deallocate_molecule_set(list%els)
            END IF
         END IF
         NULLIFY(list%els)

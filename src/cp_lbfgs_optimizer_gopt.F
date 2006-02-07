@@ -51,37 +51,39 @@
 !!   SOURCE
 !*****************************************************************************
 MODULE cp_lbfgs_optimizer_gopt
-  USE cp_lbfgs, ONLY: setulb, cp_lbfgs_unit_nr
-  USE global_types,                    ONLY: global_environment_type  
-  USE kinds, ONLY: dp
-  USE cp_para_types, ONLY: cp_para_env_type
-  USE cp_para_env, ONLY: cp_para_env_retain, cp_para_env_release
-  USE timings, ONLY: timeset, timestop
-  USE message_passing, ONLY: mp_bcast
-  USE input_section_types, ONLY: section_vals_type, section_vals_get_subs_vals,&
-       section_vals_get, section_vals_val_get, section_vals_release
-  USE input_constants,                 ONLY: dump_xmol
-  USE cp_output_handling,              ONLY: cp_print_key_unit_nr, &
+  USE bfgs_optimizer,                  ONLY: check_converg,&
+                                             write_cycle_infos
+  USE cell_types,                      ONLY: cell_type
+  USE cp_lbfgs,                        ONLY: cp_lbfgs_unit_nr,&
+                                             setulb
+  USE cp_output_handling,              ONLY: cp_iterate,&
                                              cp_print_key_finished_output,&
-                                             cp_print_key_should_output,&
-                                             cp_p_file,&
-                                             cp_iterate
+                                             cp_print_key_unit_nr
+  USE cp_para_env,                     ONLY: cp_para_env_release,&
+                                             cp_para_env_retain
+  USE cp_para_types,                   ONLY: cp_para_env_type
+  USE cp_subsystem_types,              ONLY: cp_subsys_get,&
+                                             cp_subsystem_p_type
   USE force_env_types,                 ONLY: force_env_get,&
                                              force_env_type
-  USE cell_types,                 ONLY: cell_type
-  USE bfgs_optimizer,                  ONLY: write_cycle_infos,&
-                                             check_converg
-  USE particle_types,                  ONLY: particle_type,&
-                                             write_particle_distances,&
-                                             write_qs_particle_coordinates,&
-                                             write_particle_coordinates
-  USE cp_subsystem_types,              ONLY: cp_subsys_get,&
-                                             cp_subsystem_p_type  
+  USE global_types,                    ONLY: global_environment_type
+  USE gopt_f_types,                    ONLY: gopt_f_eval_at,&
+                                             gopt_f_release,&
+                                             gopt_f_retain,&
+                                             gopt_f_type,&
+                                             gopt_param_type
+  USE input_constants,                 ONLY: dump_xmol
+  USE input_section_types,             ONLY: section_vals_type
+  USE kinds,                           ONLY: dp
   USE machine,                         ONLY: m_flush
-  USE gopt_f_types,                    ONLY: gopt_param_type
+  USE message_passing,                 ONLY: mp_bcast
   USE particle_list_types,             ONLY: particle_list_type
+  USE particle_types,                  ONLY: particle_type,&
+                                             write_particle_coordinates
+  USE timings,                         ONLY: timeset,&
+                                             timestop
 #include "cp_common_uses.h"
-  USE gopt_f_types, ONLY: gopt_f_type, gopt_f_eval_at,gopt_f_release,gopt_f_retain
+
   IMPLICIT NONE
   PRIVATE
 
@@ -228,7 +230,7 @@ MODULE cp_lbfgs_optimizer_gopt
      REAL(kind=dp), DIMENSION(:), POINTER :: x,lower_bound,upper_bound,&
           gradient,dsave,work_array
      TYPE(cp_para_env_type), POINTER :: para_env
-     type(gopt_f_type), POINTER :: obj_funct
+     TYPE(gopt_f_type), POINTER :: obj_funct
   END TYPE cp_lbfgs_opt_gopt_type
 !!***
   !****************************************************************************
@@ -263,25 +265,28 @@ CONTAINS
        wanted_relative_f_delta, wanted_projected_gradient,&
        lower_bound,upper_bound, kind_of_bound, master, max_f_per_iter,globenv,&
        error)
-    TYPE(cp_lbfgs_opt_gopt_type), POINTER :: optimizer
-    TYPE(cp_para_env_type), POINTER :: para_env
-    TYPE(global_environment_type), &
-         POINTER                  :: globenv
-    type(gopt_f_type), pointer :: obj_funct
-    REAL(kind=dp), DIMENSION(:), INTENT(in) :: x0
-    INTEGER, INTENT(in), OPTIONAL :: m,print_every, master, max_f_per_iter
-    REAL(kind=dp), INTENT(in), OPTIONAL ::wanted_projected_gradient,&
-         wanted_relative_f_delta
-    REAL(kind=dp), INTENT(in), DIMENSION(SIZE(x0)), OPTIONAL :: lower_bound,&
-         upper_bound
-    INTEGER, INTENT(in), DIMENSION(SIZE(x0)), OPTIONAL :: kind_of_bound
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(cp_lbfgs_opt_gopt_type), POINTER    :: optimizer
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(gopt_f_type), POINTER               :: obj_funct
+    REAL(kind=dp), DIMENSION(:), INTENT(in)  :: x0
+    INTEGER, INTENT(in), OPTIONAL            :: m, print_every
+    REAL(kind=dp), INTENT(in), OPTIONAL      :: wanted_relative_f_delta, &
+                                                wanted_projected_gradient
+    REAL(kind=dp), DIMENSION(SIZE(x0)), &
+      INTENT(in), OPTIONAL                   :: lower_bound, upper_bound
+    INTEGER, DIMENSION(SIZE(x0)), &
+      INTENT(in), OPTIONAL                   :: kind_of_bound
+    INTEGER, INTENT(in), OPTIONAL            :: master, max_f_per_iter
+    TYPE(global_environment_type), POINTER   :: globenv
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    LOGICAL :: failure
-    INTEGER :: handle,n, lenwa, stat
-    CHARACTER(len=*), PARAMETER :: routineN='cp_opt_gopt_create',&
-         routineP=moduleN//':'//routineN
-    TYPE(cp_logger_type), POINTER :: logger
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_opt_gopt_create', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, lenwa, n, stat
+    LOGICAL                                  :: failure
+    TYPE(cp_logger_type), POINTER            :: logger
 
     CALL timeset(routineN//','//moduleN,'I',"",handle)
 
@@ -380,14 +385,16 @@ CONTAINS
 !!
 !!*** **********************************************************************
 SUBROUTINE cp_opt_gopt_retain(optimizer,error)
-  TYPE(cp_lbfgs_opt_gopt_type), POINTER :: optimizer
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-  
-  logical :: failure
-  character(len=*), parameter :: routineN='cp_opt_gopt_retain',&
-        routineP=moduleN//':'//routineN
+    TYPE(cp_lbfgs_opt_gopt_type), POINTER    :: optimizer
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-  failure=.false.
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_opt_gopt_retain', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+
+  failure=.FALSE.
   
   CPPrecondition(ASSOCIATED(optimizer),cp_failure_level,routineP,error,failure)
   IF (.NOT. failure) THEN
@@ -422,18 +429,20 @@ END SUBROUTINE cp_opt_gopt_retain
 !!
 !!*** **********************************************************************
 SUBROUTINE cp_opt_gopt_release(optimizer,error)
-  TYPE(cp_lbfgs_opt_gopt_type), POINTER :: optimizer
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(cp_lbfgs_opt_gopt_type), POINTER    :: optimizer
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-  LOGICAL :: failure
-  INTEGER :: handle, stat
-  CHARACTER(len=*), PARAMETER :: routineN='cp_opt_gopt_release',&
-       routineP=moduleN//':'//routineN
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_opt_gopt_release', &
+      routineP = moduleN//':'//routineN
 
-  call timeset(routineN//','//moduleN,'I',"",handle)
+    INTEGER                                  :: handle, stat
+    LOGICAL                                  :: failure
+
+  CALL timeset(routineN//','//moduleN,'I',"",handle)
   failure=.FALSE.
 
-  IF (associated(optimizer)) THEN
+  IF (ASSOCIATED(optimizer)) THEN
      CPPreconditionNoFail(optimizer%ref_count>0,cp_failure_level,routineP,error)
      optimizer%ref_count=optimizer%ref_count-1
      IF (optimizer%ref_count==0) THEN
@@ -483,7 +492,7 @@ SUBROUTINE cp_opt_gopt_release(optimizer,error)
      END IF
   END IF
   NULLIFY(optimizer)
-  call timestop(0.0_dp,handle)
+  CALL timestop(0.0_dp,handle)
 END SUBROUTINE cp_opt_gopt_release
   !***************************************************************************
 
@@ -518,25 +527,30 @@ END SUBROUTINE cp_opt_gopt_release
        actual_projected_gradient, &
        n_var, n_iter, status, max_f_per_iter,at_end,&
        is_master, last_f, f, error)
-    TYPE(cp_lbfgs_opt_gopt_type), POINTER :: optimizer
-    TYPE(cp_para_env_type), POINTER, OPTIONAL :: para_env
-    type(gopt_f_type), POINTER, OPTIONAL :: obj_funct
-    REAL(kind=dp), DIMENSION(:), POINTER, OPTIONAL :: x
-    INTEGER, INTENT(out), OPTIONAL :: m, print_every, n_var, n_iter, master,&
-         status, max_f_per_iter, id_nr
-    LOGICAL, INTENT(out), OPTIONAL :: is_master, at_end
-    REAL(kind=dp), INTENT(out), OPTIONAL ::wanted_projected_gradient,&
-         wanted_relative_f_delta, actual_projected_gradient, &
-         last_f, f
-    REAL(kind=dp), POINTER, DIMENSION(:), OPTIONAL :: lower_bound,&
-         upper_bound
-    INTEGER, POINTER, DIMENSION(:), OPTIONAL :: kind_of_bound
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(cp_lbfgs_opt_gopt_type), POINTER    :: optimizer
+    TYPE(cp_para_env_type), OPTIONAL, &
+      POINTER                                :: para_env
+    TYPE(gopt_f_type), OPTIONAL, POINTER     :: obj_funct
+    INTEGER, INTENT(out), OPTIONAL           :: m, print_every, id_nr
+    REAL(kind=dp), INTENT(out), OPTIONAL     :: wanted_relative_f_delta, &
+                                                wanted_projected_gradient
+    REAL(kind=dp), DIMENSION(:), OPTIONAL, &
+      POINTER                                :: x, lower_bound, upper_bound
+    INTEGER, DIMENSION(:), OPTIONAL, POINTER :: kind_of_bound
+    INTEGER, INTENT(out), OPTIONAL           :: master
+    REAL(kind=dp), INTENT(out), OPTIONAL     :: actual_projected_gradient
+    INTEGER, INTENT(out), OPTIONAL           :: n_var, n_iter, status, &
+                                                max_f_per_iter
+    LOGICAL, INTENT(out), OPTIONAL           :: at_end, is_master
+    REAL(kind=dp), INTENT(out), OPTIONAL     :: last_f, f
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    LOGICAL :: failure
-    INTEGER :: handle
-    CHARACTER(len=*), PARAMETER :: routineN='cp_opt_gopt_get',&
-         routineP=moduleN//':'//routineN
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_opt_gopt_get', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+
     failure=.FALSE.
 
     !  call timeset(routineN//','//moduleN,'I',"",handle)
@@ -618,31 +632,32 @@ END SUBROUTINE cp_opt_gopt_release
   SUBROUTINE cp_opt_gopt_step(optimizer,n_iter,f,last_f,&
        projected_gradient, converged, force_env_section, input, force_env,&
        gopt_param, error)
-    TYPE(cp_lbfgs_opt_gopt_type), pointer :: optimizer
-    INTEGER, INTENT(out), OPTIONAL :: n_iter
-    REAL(kind=dp), INTENT(out), OPTIONAL :: f, last_f, projected_gradient
-    TYPE(section_vals_type), POINTER :: force_env_section, input
-    LOGICAL, INTENT(out), OPTIONAL :: converged
+    TYPE(cp_lbfgs_opt_gopt_type), POINTER    :: optimizer
+    INTEGER, INTENT(out), OPTIONAL           :: n_iter
+    REAL(kind=dp), INTENT(out), OPTIONAL     :: f, last_f, projected_gradient
+    LOGICAL, INTENT(out), OPTIONAL           :: converged
+    TYPE(section_vals_type), POINTER         :: force_env_section, input
     TYPE(force_env_type), POINTER            :: force_env
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
     TYPE(gopt_param_type), POINTER           :: gopt_param
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    LOGICAL :: failure, justEntred, is_master
-    INTEGER :: handle, dataunit
-    CHARACTER(len=*), PARAMETER :: routineN='cp_opt_gopt_step',&
-         routineP=moduleN//':'//routineN
-    TYPE(cp_logger_type), POINTER            :: logger
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_opt_gopt_step', &
+      routineP = moduleN//':'//routineN
+
+    CHARACTER(LEN=5)                         :: wildcard
+    CHARACTER(LEN=80)                        :: title
+    INTEGER                                  :: dataunit, handle, stat
+    LOGICAL                                  :: conv, failure, is_master, &
+                                                justEntred
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: xold
     TYPE(cell_type), POINTER                 :: cell
+    TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_subsystem_p_type), &
       DIMENSION(:), POINTER                  :: subsys
     TYPE(particle_list_type), POINTER        :: particles
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
-    CHARACTER(LEN=80)                        :: title
-    CHARACTER(LEN=5)                         :: wildcard
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: xold
-    INTEGER       :: stat
-    LOGICAL       :: conv
 
     NULLIFY(logger,xold)
     logger => cp_error_get_logger(error)
@@ -743,7 +758,7 @@ END SUBROUTINE cp_opt_gopt_release
                optimizer%para_env%group)
           ! Dump info
           IF (optimizer%status == 3) THEN
-	     if (is_master) &
+	     IF (is_master) &
              CALL cp_iterate(logger%iter_info,iter_nr=optimizer%isave(30),error=error)
              dataunit = cp_print_key_unit_nr(logger,input,&
                   "MOTION%PRINT%TRAJECTORY",extension=".xyz",error=error)
@@ -895,21 +910,22 @@ END SUBROUTINE cp_opt_gopt_release
 !!*** **********************************************************************
   SUBROUTINE cp_opt_gopt_bcast_res(optimizer, n_iter,f,last_f,&
        projected_gradient,error)
-    TYPE(cp_lbfgs_opt_gopt_type), pointer :: optimizer
-    INTEGER, OPTIONAL, INTENT(out) :: n_iter
-    REAL(kind=dp), OPTIONAL, INTENT(inout) :: f, last_f, projected_gradient
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(cp_lbfgs_opt_gopt_type), POINTER    :: optimizer
+    INTEGER, INTENT(out), OPTIONAL           :: n_iter
+    REAL(kind=dp), INTENT(inout), OPTIONAL   :: f, last_f, projected_gradient
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    LOGICAL :: failure
-    INTEGER :: handle
-    REAL(kind=dp), DIMENSION(4) :: results
-    CHARACTER(len=*), PARAMETER :: routineN='cp_opt_gopt_bcast_res',&
-         routineP=moduleN//':'//routineN
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_opt_gopt_bcast_res', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    REAL(kind=dp), DIMENSION(4)              :: results
 
     failure=.FALSE.
 
     !  call timeset(routineN//','//moduleN,'I',"",handle)
-    CPPrecondition(associated(optimizer),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(optimizer),cp_failure_level,routineP,error,failure)
     CPPrecondition(optimizer%ref_count>0,cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
        IF (optimizer%master==optimizer%para_env%mepos) THEN
@@ -956,25 +972,26 @@ END SUBROUTINE cp_opt_gopt_release
   FUNCTION cp_opt_gopt_next(optimizer,n_iter,f,last_f,&
        projected_gradient, converged, force_env_section,input, force_env,&
        gopt_param, error) RESULT(res)
-    TYPE(cp_lbfgs_opt_gopt_type), POINTER :: optimizer
-    INTEGER, INTENT(out), OPTIONAL :: n_iter
-    REAL(kind=dp), INTENT(out), OPTIONAL :: f, last_f, projected_gradient
-    TYPE(section_vals_type), POINTER :: force_env_section, input
-    LOGICAL, INTENT(out), OPTIONAL :: converged
+    TYPE(cp_lbfgs_opt_gopt_type), POINTER    :: optimizer
+    INTEGER, INTENT(out), OPTIONAL           :: n_iter
+    REAL(kind=dp), INTENT(out), OPTIONAL     :: f, last_f, projected_gradient
+    LOGICAL, INTENT(out), OPTIONAL           :: converged
+    TYPE(section_vals_type), POINTER         :: force_env_section, input
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(gopt_param_type), POINTER           :: gopt_param
-    LOGICAL ::res
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+    LOGICAL                                  :: res
 
-    LOGICAL :: failure
-    INTEGER :: handle
-    CHARACTER(len=*), PARAMETER :: routineN='cp_opt_gopt_next',&
-         routineP=moduleN//':'//routineN
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_opt_gopt_next', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
 
     failure=.FALSE.
 
     !call timeset(routineN//','//moduleN,'I',"",handle)
-    CPPrecondition(associated(optimizer),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(optimizer),cp_failure_level,routineP,error,failure)
     CPPrecondition(optimizer%ref_count>0,cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
        CALL cp_opt_gopt_step(optimizer,n_iter=n_iter,f=f,&
@@ -1015,17 +1032,19 @@ END SUBROUTINE cp_opt_gopt_release
 !!
 !!*** **********************************************************************
   SUBROUTINE cp_opt_gopt_stop(optimizer, error)
-    TYPE(cp_lbfgs_opt_gopt_type), POINTER :: optimizer
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(cp_lbfgs_opt_gopt_type), POINTER    :: optimizer
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    LOGICAL :: failure
-    INTEGER :: handle
-    CHARACTER(len=*), PARAMETER :: routineN='cp_opt_gopt_stop',&
-         routineP=moduleN//':'//routineN
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_opt_gopt_stop', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+
     failure=.FALSE.
 
     !  call timeset(routineN//','//moduleN,'I',"",handle)
-    CPPrecondition(associated(optimizer),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(optimizer),cp_failure_level,routineP,error,failure)
     CPPrecondition(optimizer%ref_count>0,cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
        optimizer%task='STOPPED on user request'

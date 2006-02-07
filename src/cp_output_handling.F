@@ -297,7 +297,7 @@ CONTAINS
                         ' use filename to obtain projectname-filename. '//&
                         ' use ./filename to get filename ',&
             usage="FILENAME ./filename ",&
-            default_c_val=my_filename, error=error)
+            default_lc_val=my_filename, error=error)
        CALL section_add_keyword(print_key_section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
@@ -557,7 +557,7 @@ END FUNCTION cp_printkey_is_on
 !!     unique filenames (once you trim it)
 !!
 !!   NOTES
-!!     -
+!!     If the root level is 1 removes it
 !!
 !!   INPUTS
 !!     - iter_info: the iteration info from where to take the iteration
@@ -588,7 +588,7 @@ FUNCTION cp_iter_string(iter_info,print_key,for_file,error) RESULT(res)
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: c_i_level, ilevel, n_rlevel, &
-                                                shift
+                                                shift, s_level
     INTEGER, DIMENSION(:), POINTER           :: add_last, each
     LOGICAL                                  :: failure, my_for_file
     TYPE(section_vals_type), POINTER         :: my_print_key
@@ -603,6 +603,8 @@ FUNCTION cp_iter_string(iter_info,print_key,for_file,error) RESULT(res)
   IF (.NOT. failure) THEN
      NULLIFY(my_print_key)
      IF (PRESENT(print_key)) my_print_key => print_key
+     s_level=1
+!     if (iter_info%iteration(1)==1) s_level=2
      IF (ASSOCIATED(my_print_key)) THEN
         NULLIFY(each,add_last)
         CALL section_vals_val_get(my_print_key,"EACH",i_vals=each,&
@@ -615,7 +617,7 @@ FUNCTION cp_iter_string(iter_info,print_key,for_file,error) RESULT(res)
         shift=iter_info%n_rlevel-SIZE(add_last)
         n_rlevel=iter_info%n_rlevel
         IF (my_for_file) n_rlevel=MIN(n_rlevel,MAX(0,n_rlevel-c_i_level))
-        DO ilevel=1,n_rlevel
+        DO ilevel=s_level,n_rlevel
            IF (iter_info%last_iter(ilevel).and.ilevel>shift) THEN
               IF (add_last(ilevel-shift)==2) THEN
                  WRITE(res(7*ilevel-6:7*ilevel),"('l_')")
@@ -627,7 +629,7 @@ FUNCTION cp_iter_string(iter_info,print_key,for_file,error) RESULT(res)
            END IF
         END DO
      ELSE
-        DO ilevel=1,iter_info%n_rlevel
+        DO ilevel=s_level,iter_info%n_rlevel
            WRITE(res(7*ilevel-6:7*ilevel),"(i6,'_')") &
              iter_info%iteration(ilevel)
         END DO

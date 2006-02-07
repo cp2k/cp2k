@@ -49,7 +49,7 @@ MODULE cp_parser
   PUBLIC :: parser_next_token, parser_test_next_token
   PUBLIC :: parser_get_object, parser_get_real, parser_get_integer,&
        parser_get_logical, parser_get_string, parser_location,&
-       parser_search_string,parser_get_next_line
+       parser_search_string,parser_get_next_line, parser_skip_space
 
 ! *** Global parameters ***
 
@@ -329,6 +329,98 @@ FUNCTION parser_location(parser,error) RESULT(res)
   END IF
 END FUNCTION parser_location
 !***************************************************************************
+
+SUBROUTINE parser_skip_space(parser,multiline,error)
+
+  !   Purpose: skips the whitespaces
+
+  !   ***************************************************************************
+    TYPE(cp_parser_type), POINTER            :: parser
+    LOGICAL, INTENT(in), OPTIONAL :: multiline
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = "parser_skip_space", &
+      routineP = moduleN//":"//routineN
+
+    INTEGER                                  :: i, length
+    LOGICAL                                  :: failure, my_continue
+
+!   ---------------------------------------------------------------------------
+
+  failure=.FALSE.
+  my_continue=.true.
+  if (present(multiline)) my_continue=multiline
+  CPPrecondition(ASSOCIATED(parser),cp_failure_level,routineP,error,failure)
+  IF (.NOT.failure) THEN
+     CPPrecondition(parser%ref_count>0,cp_failure_level,routineP,error,failure)
+  END IF
+  IF (.NOT.failure) THEN
+     !     *** Variable input string length (automatic search) ***
+     
+     ! check for EOF
+     IF (parser%icol==-1) THEN
+        parser%icol1 = 1
+        parser%icol2 = -1
+        RETURN
+     END IF
+     
+     !     *** Search for the beginning of the next input string ***
+     
+     DO
+        
+        !       *** Increment the column counter ***
+        
+        parser%icol = parser%icol + 1
+
+        !       *** Quick return, if the end of line is found ***
+        
+        IF ((parser%icol > LEN_TRIM(parser%input_line)).OR.&
+             (parser%input_line(parser%icol:parser%icol) == parser%comment_character)) THEN
+           parser%icol1 = 1
+           parser%icol2 = -1
+           RETURN
+        END IF
+        
+        !       *** Check for input line continuation ***
+
+        !       *** Ignore all white space and accept only one     ***
+        !       *** separator token or a string in quotation marks ***
+
+        IF (.NOT.((parser%input_line(parser%icol:parser%icol) == blank_character).OR.&
+             (parser%input_line(parser%icol:parser%icol) == horizontal_tab))) THEN
+
+           IF (parser%input_line(parser%icol:parser%icol) == &
+                parser%continuation_character.and.my_continue) THEN
+              DO i=LEN(parser%input_line),1,-1
+                 IF ((parser%input_line(i:i) /= blank_character).AND.&
+                      (parser%input_line(i:i) /= horizontal_tab)) EXIT
+              END DO
+              IF (parser%icol == i.OR.parser%input_line(i:i)==&
+                   parser%comment_character) THEN
+                 CALL parser_get_next_line(parser,1,error=error) 
+                 ! does not pass at_end, it is an error to continue to EOF, change this behavoiur?
+                 CYCLE
+              ELSE
+                 parser%icol1 = i
+                 parser%icol2 = i
+                 CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
+                      routineP, "Found non-blank tokens after the "//&
+                      "line continuation character '"// &
+                      parser%continuation_character//&
+                      "' "//TRIM(parser_location(parser,error=error)),error,failure)
+                 EXIT
+              END IF
+           ELSE
+              parser%icol=parser%icol-1
+              parser%icol1=parser%icol
+              parser%icol2=parser%icol
+              EXIT
+           END IF
+        END IF
+     END DO
+  END IF
+END SUBROUTINE parser_skip_space
 
 SUBROUTINE parser_next_token(parser,string_length,error)
 

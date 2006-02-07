@@ -37,7 +37,8 @@ MODULE atoms_input
                                              use_qmmm
   USE global_types,                    ONLY: global_environment_type
   USE kinds,                           ONLY: dp,&
-                                             default_string_length
+                                             default_string_length,&
+                                             default_path_length
   USE memory_utilities,                ONLY: reallocate
   USE message_passing,                 ONLY: mp_bcast
   USE particle_types,                  ONLY: particle_type
@@ -109,7 +110,7 @@ CONTAINS
     LOGICAL                                  :: scaled_coordinates, failure, my_overwrite
     LOGICAL                                  :: explicit
     TYPE(section_vals_type), pointer :: coord_section
-    CHARACTER(len=default_string_length) :: line_att
+    CHARACTER(len=default_path_length) :: line_att
     CHARACTER(len=*), PARAMETER :: routineN="read_atoms_input",&
          routineP=moduleN//":"//routineN
 

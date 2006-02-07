@@ -320,7 +320,7 @@ contains
 
        CALL keyword_create(keyword, name="PARMFILE",&
             description="Specifies the filename that contains the parameters of the FF.",&
-            usage="PARMFILE {FILENAME}",default_c_val=" ",error=error)
+            usage="PARMFILE {FILENAME}",default_lc_val=" ",error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
@@ -816,7 +816,7 @@ contains
 
        CALL keyword_create(keyword, name="PARMFILE",&
             description="Specifies the filename that contains the parameters of the EAM FF.",&
-            usage="PARMFILE {FILENAME}",default_c_val=" ",error=error)
+            usage="PARMFILE {FILENAME}",default_lc_val=" ",error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 

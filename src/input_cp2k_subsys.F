@@ -35,7 +35,7 @@ MODULE input_cp2k_subsys
   USE input_keyword_types, ONLY: keyword_type, keyword_create,&
        keyword_release
   USE input_val_types, ONLY: val_type, no_t, logical_t, integer_t, real_t, char_t,&
-       enum_t
+       enum_t, lchar_t
   USE cp_output_handling, ONLY: cp_print_key_section_create
   USE string_utilities, ONLY: s2a
   USE physcon, ONLY: bohr
@@ -634,7 +634,7 @@ CONTAINS
        NULLIFY(keyword)
        CALL keyword_create(keyword, name="_DEFAULT_KEYWORD_",&
             description="The atoms coordinates in xyz format.",repeats=.TRUE.,&
-            usage="H 0.7 0.3 0.3", type_of_var=char_t, n_var=-2, error=error)
+            usage="H 0.7 0.3 0.3", type_of_var=lchar_t, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
@@ -1598,14 +1598,14 @@ CONTAINS
        CALL keyword_create(keyword, name="COORD_FILE",&
             variants=s2a("COORD_FI", "COORD_FILE_NAME"),&
             description="Specifies the filename that contains coordinates.",&
-            usage="COORD_FILE FILENAME",required=.TRUE.,type_of_var=char_t,error=error)
+            usage="COORD_FILE FILENAME",required=.TRUE.,type_of_var=lchar_t,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="CONN_FILE",&
             variants=(/"CONN_FIL"/),&
             description="Specifies the filename that contains the molecular connectivity.",&
-            usage="CONN_FILE FILENAME",required=.TRUE.,type_of_var=char_t,error=error)
+            usage="CONN_FILE FILENAME",required=.TRUE.,type_of_var=lchar_t,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
        

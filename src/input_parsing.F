@@ -24,9 +24,21 @@
 !!   SOURCE
 !****************************************************************************
 MODULE input_parsing
+  USE cp_linked_list_char,             ONLY: cp_create,&
+                                             cp_dealloc,&
+                                             cp_sll_char_type,&
+                                             cp_to_array
+  USE cp_linked_list_int,              ONLY: cp_create,&
+                                             cp_dealloc,&
+                                             cp_sll_int_type,&
+                                             cp_to_array
   USE cp_linked_list_logical,          ONLY: cp_create,&
                                              cp_dealloc,&
                                              cp_sll_logical_type,&
+                                             cp_to_array
+  USE cp_linked_list_real,             ONLY: cp_create,&
+                                             cp_dealloc,&
+                                             cp_sll_real_type,&
                                              cp_to_array
   USE cp_linked_list_val,              ONLY: cp_sll_val_create,&
                                              cp_sll_val_type
@@ -34,7 +46,16 @@ MODULE input_parsing
                                              max_line_length,&
                                              parser_get_object,&
                                              parser_location,&
-                                             parser_test_next_token
+                                             parser_test_next_token,&
+                                             parser_skip_space
+  USE cp_units,                        ONLY: cp_unit_create,&
+                                             cp_unit_release,&
+                                             cp_unit_retain,&
+                                             cp_unit_set_type,&
+                                             cp_unit_to_cp2k1,&
+                                             cp_unit_type
+  USE input_enumeration_types,         ONLY: enum_c2i,&
+                                             enumeration_type
   USE input_keyword_types,             ONLY: keyword_describe,&
                                              keyword_type
   USE input_section_types,             ONLY: section_describe,&
@@ -44,34 +65,22 @@ MODULE input_parsing
                                              section_type,&
                                              section_vals_add_values,&
                                              section_vals_type
-  USE input_val_types,                 ONLY: logical_t,&
-                                             no_t,&
-                                             val_create,&
-                                             val_type,&
-                                             val_write, integer_t,real_t,char_t,&
-                                             enum_t
+  USE input_val_types,                 ONLY: &
+       char_t, enum_t, integer_t, logical_t, no_t, real_t, val_create, &
+       val_type, val_write,lchar_t
   USE kinds,                           ONLY: default_string_length,&
                                              dp
   USE output_utilities,                ONLY: print_message
-  USE cp_linked_list_int, ONLY: cp_sll_int_type, cp_create,cp_to_array,&
-       cp_dealloc
-  USE cp_linked_list_real, ONLY: cp_sll_real_type, cp_create,cp_to_array,&
-       cp_dealloc
-  USE cp_linked_list_char, ONLY: cp_sll_char_type, cp_create,cp_to_array,&
-       cp_dealloc
-  USE input_enumeration_types, ONLY: enumeration_type, enum_i2c, enum_c2i
   USE string_utilities,                ONLY: uppercase
   USE timings,                         ONLY: timeset,&
-       timestop
-  USE cp_units, ONLY: cp_unit_type, cp_unit_set_type, cp_unit_create,&
-       cp_unit_to_cp2k1, cp_unit_retain, cp_unit_release
+                                             timestop
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
   PRIVATE
 
   LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
-  CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='input_parsing'
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'input_parsing'
 
   PUBLIC :: section_vals_parse, val_create_parsing
 !***
@@ -102,31 +111,28 @@ CONTAINS
        default_units,root_section,error)
     TYPE(section_vals_type), POINTER         :: section_vals
     TYPE(cp_parser_type), POINTER            :: parser
-    TYPE(cp_unit_set_type), POINTER :: default_units
-    LOGICAL, INTENT(in), optional :: root_section
+    TYPE(cp_unit_set_type), POINTER          :: default_units
+    LOGICAL, INTENT(in), OPTIONAL            :: root_section
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'section_parse', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'section_vals_parse', &
       routineP = moduleN//':'//routineN
 
     CHARACTER(len=max_line_length)           :: token
-    INTEGER                                  :: desc_level, ik, irs, is
-    LOGICAL                                  :: compatible_end, failure, &
-                                                skip_description, skip_help, &
-                                                whole_section, root_sect,&
-                                                at_end,suberror_happened
+    INTEGER                                  :: desc_level, ik, irs, is, nsub
+    LOGICAL :: at_end, compatible_end, failure, root_sect, skip_description, &
+      skip_help, suberror_happened, whole_section
     TYPE(cp_error_type)                      :: suberror
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_sll_val_type), POINTER           :: last_val, new_val
     TYPE(keyword_type), POINTER              :: keyword
     TYPE(section_type), POINTER              :: section
     TYPE(val_type), POINTER                  :: el
-    integer nsub
 
   failure=.FALSE.
-  root_sect=.true.
-  if (present(root_section)) root_sect=root_section
+  root_sect=.TRUE.
+  IF (PRESENT(root_section)) root_sect=root_section
 
   CPPrecondition(ASSOCIATED(section_vals),cp_failure_level,routineP,error,failure)
   CPPrecondition(ASSOCIATED(parser),cp_failure_level,routineP,error,failure)
@@ -168,6 +174,7 @@ CONTAINS
      IF (ASSOCIATED(section%keywords(-1)%keyword)) THEN ! reads section params
         keyword => section%keywords(-1)%keyword
         NULLIFY(el)
+        IF (keyword%type_of_var==lchar_t) CALL parser_skip_space(parser,.FALSE.,error=error)
         CALL val_create_parsing(el,type_of_var=keyword%type_of_var,&
              n_var=keyword%n_var,default_value=keyword%lone_keyword_value,&
              enum=keyword%enum,unit=keyword%unit,&
@@ -180,7 +187,7 @@ CONTAINS
            CALL cp_sll_val_create(new_val,el,error=error)
            section_vals%values(-1,irs)%list => new_val
         END IF
-        nullify(el)
+        NULLIFY(el)
      END IF
      DO WHILE (.NOT.failure)
         CALL parser_get_object(parser,token,newline=.TRUE.,&
@@ -202,7 +209,7 @@ CONTAINS
               ! end of section
               compatible_end=.TRUE.
               IF (parser_test_next_token(parser)/="EOL") THEN
-                 CALL parser_get_object(parser,token,newline=.false.,&
+                 CALL parser_get_object(parser,token,newline=.FALSE.,&
                       lower_to_upper=.TRUE.,error=suberror)
                  IF (token/="SECTION".and.token/=section%name) THEN
                     compatible_end=.FALSE.
@@ -212,7 +219,7 @@ CONTAINS
                  CALL parser_get_object(parser,token,newline=.FALSE.,&
                       lower_to_upper=.TRUE.,error=suberror)
                  IF (token/=section%name) THEN
-                    PRINT *,trim(token),"/=",trim(section%name)
+                    PRINT *,TRIM(token),"/=",TRIM(section%name)
                     compatible_end=.FALSE.
                  END IF
               END IF
@@ -234,15 +241,15 @@ CONTAINS
            IF (is>0) THEN
               CALL section_vals_parse(section_vals%subs_vals(is,irs)%section_vals,&
                    default_units=default_units,parser=parser,error=suberror)
-              suberror_happened=.false.
+              suberror_happened=.FALSE.
               CALL cp_error_propagate_error(suberror,routineP,&
                    "parsing subsection "//TRIM(section%subsections(is)%section%name)&
                    //" of section "// TRIM(section%name),&
                    error=error,failure=suberror_happened)
               IF (.NOT. failure .AND. suberror_happened) THEN
-                 failure=.true.
-                 skip_description=.true.
-                 skip_help=.true.
+                 failure=.TRUE.
+                 skip_description=.TRUE.
+                 skip_help=.TRUE.
               END IF
            ELSE
               ! this should be an error (failure)
@@ -315,6 +322,8 @@ CONTAINS
                  keyword => section%keywords(ik)%keyword
                  NULLIFY(el)
 !FM                 PRINT *,"about to parse keyword ",TRIM(token)," in section ",TRIM(section%name)
+                 IF (ik/=0.and.keyword%type_of_var==lchar_t) &
+                      CALL parser_skip_space(parser,.false.,error=error)
                  CALL val_create_parsing(el,type_of_var=keyword%type_of_var,&
                       n_var=keyword%n_var,default_value=keyword%lone_keyword_value,&
                       enum=keyword%enum,unit=keyword%unit,&
@@ -338,7 +347,7 @@ CONTAINS
                        DO
                           CALL val_write(last_val%first_el,6,keyword%unit,&
                                error=error)
-                          if (.not.ASSOCIATED(last_val%rest)) exit
+                          IF (.not.ASSOCIATED(last_val%rest)) EXIT
                           last_val => last_val%rest
                        END DO
                        END IF
@@ -405,34 +414,34 @@ END SUBROUTINE section_vals_parse
 !!*** **********************************************************************
 SUBROUTINE val_create_parsing(val,type_of_var, n_var,enum,&
      parser,unit,default_units,default_value,error)
-  TYPE(val_type), POINTER                  :: val
-  INTEGER, INTENT(in)                      :: type_of_var, n_var
-  TYPE(enumeration_type), POINTER          :: enum
-  TYPE(cp_parser_type), POINTER            :: parser
-  TYPE(cp_unit_type), POINTER              :: unit
-  TYPE(cp_unit_set_type), pointer          :: default_units
-  TYPE(val_type), OPTIONAL, POINTER        :: default_value
-  TYPE(cp_error_type), INTENT(inout), &
-       OPTIONAL                               :: error
+    TYPE(val_type), POINTER                  :: val
+    INTEGER, INTENT(in)                      :: type_of_var, n_var
+    TYPE(enumeration_type), POINTER          :: enum
+    TYPE(cp_parser_type), POINTER            :: parser
+    TYPE(cp_unit_type), POINTER              :: unit
+    TYPE(cp_unit_set_type), POINTER          :: default_units
+    TYPE(val_type), OPTIONAL, POINTER        :: default_value
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-  CHARACTER(len=*), PARAMETER :: routineN = 'val_create_parsing', &
-       routineP = moduleN//':'//routineN
+    CHARACTER(len=*), PARAMETER :: routineN = 'val_create_parsing', &
+      routineP = moduleN//':'//routineN
 
-  INTEGER                                  :: i, stat
-  LOGICAL                                  :: failure, l_val
-  LOGICAL, DIMENSION(:), POINTER           :: l_val_p
-  TYPE(cp_error_type)                      :: suberror
-  TYPE(cp_sll_logical_type), POINTER       :: l_first, l_last, l_new
-  INTEGER, DIMENSION(:), pointer :: i_val_p
-  integer :: i_val
-  TYPE(cp_sll_int_type), POINTER           :: i_first, i_last, i_new
-  real(kind=dp) :: r_val
-  CHARACTER(len=default_string_length) :: c_val
-  TYPE(cp_sll_real_type),POINTER :: r_new,r_last,r_first
-  TYPE(cp_sll_char_type),POINTER :: c_new,c_last,c_first
-  REAL(kind=dp),DIMENSION(:), POINTER :: r_val_p
-  CHARACTER(len=default_string_length),DIMENSION(:), POINTER :: c_val_p
-  TYPE(cp_unit_type), pointer :: my_unit
+    CHARACTER(len=default_string_length)     :: c_val
+    CHARACTER(len=default_string_length), &
+      DIMENSION(:), POINTER                  :: c_val_p
+    INTEGER                                  :: i, i_val, stat
+    INTEGER, DIMENSION(:), POINTER           :: i_val_p
+    LOGICAL                                  :: failure, l_val
+    LOGICAL, DIMENSION(:), POINTER           :: l_val_p
+    REAL(kind=dp)                            :: r_val
+    REAL(kind=dp), DIMENSION(:), POINTER     :: r_val_p
+    TYPE(cp_error_type)                      :: suberror
+    TYPE(cp_sll_char_type), POINTER          :: c_first, c_last, c_new
+    TYPE(cp_sll_int_type), POINTER           :: i_first, i_last, i_new
+    TYPE(cp_sll_logical_type), POINTER       :: l_first, l_last, l_new
+    TYPE(cp_sll_real_type), POINTER          :: r_first, r_last, r_new
+    TYPE(cp_unit_type), POINTER              :: my_unit
 
   failure=.FALSE.
   CALL cp_error_init(suberror,stop_level=cp_fatal_level,template_error=error)
@@ -568,7 +577,7 @@ SUBROUTINE val_create_parsing(val,type_of_var, n_var,enum,&
                  IF ('STR'==parser_test_next_token(parser,error=error)) THEN
                     CALL parser_get_object(parser,c_val,error=error)
                     CPPrecondition(c_val(1:1)=="[",cp_failure_level,routineP,error,failure)
-   CPPrecondition(c_val(len_trim(c_val):len_trim(c_val))=="]",cp_failure_level,routineP,error,failure)
+   CPPrecondition(c_val(LEN_TRIM(c_val):LEN_TRIM(c_val))=="]",cp_failure_level,routineP,error,failure)
                     CALL cp_unit_release(my_unit,error=error)
                     CALL cp_unit_create(my_unit,c_val(2:LEN_TRIM(c_val)-1),&
                          error=error)
@@ -611,7 +620,7 @@ SUBROUTINE val_create_parsing(val,type_of_var, n_var,enum,&
                        IF ('STR'==parser_test_next_token(parser,error=error)) THEN
                           CALL parser_get_object(parser,c_val,error=error)
                           CPPrecondition(c_val(1:1)=="[",cp_failure_level,routineP,error,failure)
-                          call cp_assert(c_val(LEN_TRIM(c_val):LEN_TRIM(c_val))=="]",&
+                          CALL cp_assert(c_val(LEN_TRIM(c_val):LEN_TRIM(c_val))=="]",&
                                cp_failure_level,cp_assertion_failed,routineP,&
                                "expected ']' not found",error,failure)
                           CALL cp_unit_release(my_unit,error=error)
@@ -656,23 +665,14 @@ SUBROUTINE val_create_parsing(val,type_of_var, n_var,enum,&
            END IF
         ELSE
            IF (n_var<1) THEN
+              CPAssert(n_var==-1,cp_failure_level,routineP,error,failure)
               NULLIFY(c_last,c_first)
-              IF (n_var==-2) THEN
-                 CALL parser_get_object(parser,c_val,string_length=LEN(c_val),&
-                      error=error)
-              ELSE
-                 CALL parser_get_object(parser,c_val,error=error)
-              END IF
+              CALL parser_get_object(parser,c_val,error=error)
               CALL cp_create(c_first,c_val,error=error)
               c_last => c_first
               DO WHILE(parser_test_next_token(parser,error=error)/="EOL"&
                    .AND..NOT.failure)
-                 IF (n_var==-2) THEN
-                    CALL parser_get_object(parser,c_val,string_length=LEN(c_val),&
-                         error=error)
-                 ELSE
-                    CALL parser_get_object(parser,c_val,error=error)
-                 END IF
+                 CALL parser_get_object(parser,c_val,error=error)
                  CALL cp_create(c_new,c_val,error=error)
                  c_last%rest => c_new
                  c_last => c_new
@@ -695,6 +695,37 @@ SUBROUTINE val_create_parsing(val,type_of_var, n_var,enum,&
               CALL val_create(val,c_vals_ptr=c_val_p,error=error)
            END IF
         END IF
+     CASE (lchar_t)
+        CALL cp_assert(.NOT.ASSOCIATED(default_value),cp_failure_level,cp_assertion_failed,&
+             routineP,"input variables of type lchar_t cannot have a lone keyword attribute,"//&
+             " no value is interpreted as empty string"//&
+             TRIM(parser_location(parser,error=error)),error,failure)
+        CALL cp_assert(n_var==1,cp_failure_level,cp_assertion_failed,&
+             routineP,"input variables of type lchar_t cannot be repeated,"//&
+             " one always represent a whole line, till the end"//&
+             TRIM(parser_location(parser,error=error)),error,failure)
+        IF (parser_test_next_token(parser,error=error)=="EOL") THEN
+           ALLOCATE(c_val_p(1),stat=stat)
+           CPPostcondition(stat==0,cp_fatal_level,routineP,error,failure)
+           c_val_p(1)=' '
+        ELSE
+           NULLIFY(c_last,c_first)
+           CALL parser_get_object(parser,c_val,string_length=LEN(c_val),&
+                error=error)
+           CALL cp_create(c_first,c_val,error=error)
+           c_last => c_first
+           DO WHILE(parser_test_next_token(parser,error=error)/="EOL"&
+                .AND..NOT.failure)
+              CALL parser_get_object(parser,c_val,string_length=LEN(c_val),error=error)
+              CALL cp_create(c_new,c_val,error=error)
+              c_last%rest => c_new
+              c_last => c_new
+           END DO
+           c_val_p => cp_to_array(c_first,error=error)
+           CALL cp_dealloc(c_first,error=error)
+        END IF
+        CPPostcondition(ASSOCIATED(c_val_p),cp_failure_level,routineP,error,failure)
+        CALL val_create(val,lc_vals_ptr=c_val_p,error=error)
      CASE (enum_t)
         CPPrecondition(ASSOCIATED(enum),cp_failure_level,routineP,error,failure)
         NULLIFY(i_val_p)

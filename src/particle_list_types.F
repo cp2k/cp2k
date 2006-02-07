@@ -44,9 +44,11 @@
 !!   SOURCE
 !****************************************************************************
 MODULE particle_list_types
-  USE kinds, ONLY: dp
-  USE timings, ONLY: timeset, timestop
-  use particle_types, only: particle_type, deallocate_particle_set
+  USE kinds,                           ONLY: dp
+  USE particle_types,                  ONLY: deallocate_particle_set,&
+                                             particle_type
+  USE timings,                         ONLY: timeset,&
+                                             timestop
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -94,7 +96,7 @@ MODULE particle_list_types
   TYPE particle_list_type
      INTEGER :: id_nr, ref_count, n_els
      LOGICAL :: owns_els
-     type(particle_type), DIMENSION(:), POINTER :: els
+     TYPE(particle_type), DIMENSION(:), POINTER :: els
   END TYPE particle_list_type
 !!***
 !****************************************************************************
@@ -160,16 +162,20 @@ CONTAINS
 !!*** **********************************************************************
 SUBROUTINE particle_list_create(list, els_ptr, &
      owns_els, n_els, error)
-  TYPE(particle_list_type), POINTER, OPTIONAL :: list
-  type(particle_type), DIMENSION(:), POINTER, OPTIONAL :: els_ptr
-  LOGICAL, INTENT(in), OPTIONAL :: owns_els
-  INTEGER, INTENT(in), OPTIONAL :: n_els
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-  
-  LOGICAL :: failure
-  CHARACTER(len=*), PARAMETER :: routineN='particle_list_create',&
-        routineP=moduleN//':'//routineN
-  INTEGER :: stat
+    TYPE(particle_list_type), OPTIONAL, &
+      POINTER                                :: list
+    TYPE(particle_type), DIMENSION(:), &
+      OPTIONAL, POINTER                      :: els_ptr
+    LOGICAL, INTENT(in), OPTIONAL            :: owns_els
+    INTEGER, INTENT(in), OPTIONAL            :: n_els
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'particle_list_create', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: stat
+    LOGICAL                                  :: failure
 
   failure=.FALSE.
 
@@ -227,12 +233,14 @@ END SUBROUTINE particle_list_create
 !!
 !!*** **********************************************************************
 SUBROUTINE particle_list_retain(list, error)
-  TYPE(particle_list_type), POINTER :: list
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-  
-  LOGICAL :: failure
-  CHARACTER(len=*), PARAMETER :: routineN='particle_list_retain',&
-        routineP=moduleN//':'//routineN
+    TYPE(particle_list_type), POINTER        :: list
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'particle_list_retain', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
 
   failure=.FALSE.
   
@@ -268,13 +276,15 @@ END SUBROUTINE particle_list_retain
 !!
 !!*** **********************************************************************
 SUBROUTINE particle_list_release(list, error)
-  TYPE(particle_list_type), POINTER :: list
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-  
-  LOGICAL :: failure
-  CHARACTER(len=*), PARAMETER :: routineN='particle_list_release',&
-        routineP=moduleN//':'//routineN
-  INTEGER :: stat
+    TYPE(particle_list_type), POINTER        :: list
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'particle_list_release', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: stat
+    LOGICAL                                  :: failure
 
   failure=.FALSE.
   
@@ -284,7 +294,7 @@ SUBROUTINE particle_list_release(list, error)
      IF (list%ref_count==0) THEN
         IF (list%owns_els) THEN
            IF (ASSOCIATED(list%els)) THEN
-              call deallocate_particle_set(list%els)
+              CALL deallocate_particle_set(list%els)
            END IF
         END IF
         NULLIFY(list%els)

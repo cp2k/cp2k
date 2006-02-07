@@ -34,6 +34,7 @@ MODULE input_keyword_types
   USE input_val_types,                 ONLY: char_t,&
                                              enum_t,&
                                              integer_t,&
+                                             lchar_t,&
                                              logical_t,&
                                              no_t,&
                                              real_t,&
@@ -173,7 +174,7 @@ CONTAINS
 !!*** **********************************************************************
 SUBROUTINE keyword_create(keyword, name, description, usage, type_of_var,&
      n_var,repeats,variants,required,default_val,&
-     default_l_val, default_r_val, default_c_val, default_i_val,&
+     default_l_val, default_r_val, default_lc_val, default_c_val, default_i_val,&
      default_l_vals, default_r_vals, default_c_vals, default_i_vals,&
      lone_keyword_val, lone_keyword_l_val, lone_keyword_r_val, lone_keyword_c_val,&
      lone_keyword_i_val, lone_keyword_l_vals, lone_keyword_r_vals, &
@@ -191,6 +192,7 @@ SUBROUTINE keyword_create(keyword, name, description, usage, type_of_var,&
     LOGICAL, INTENT(in), OPTIONAL            :: default_l_val
     REAL(KIND=DP), INTENT(in), OPTIONAL      :: default_r_val
     CHARACTER(LEN=*), INTENT(in), OPTIONAL   :: default_c_val
+    CHARACTER(LEN=*), INTENT(in), OPTIONAL   :: default_lc_val
     INTEGER, INTENT(in), OPTIONAL            :: default_i_val
     LOGICAL, DIMENSION(:), INTENT(in), &
       OPTIONAL                               :: default_l_vals
@@ -313,7 +315,7 @@ SUBROUTINE keyword_create(keyword, name, description, usage, type_of_var,&
         CALL val_create(keyword%default_value,l_val=default_l_val,&
              l_vals=default_l_vals,i_val=default_i_val,i_vals=default_i_vals,&
              r_val=default_r_val,r_vals=default_r_vals,c_val=default_c_val,&
-             c_vals=default_c_vals,enum=keyword%enum,error=error)
+             c_vals=default_c_vals,lc_val=default_lc_val,enum=keyword%enum,error=error)
      END IF
 
      keyword%type_of_var=keyword%default_value%type_of_var
@@ -387,6 +389,7 @@ SUBROUTINE keyword_create(keyword, name, description, usage, type_of_var,&
                 cp_failure_level,cp_assertion_failed,routineP,&
                 "lone_keyword_value type incompatible with "//&
                 "keyword type",error,failure)
+           ! lc_val cannot have lone_keyword_value!
            IF (keyword%type_of_var==enum_t) THEN
               IF (keyword%enum%strict) THEN
                  check = .FALSE.
@@ -415,14 +418,16 @@ SUBROUTINE keyword_create(keyword, name, description, usage, type_of_var,&
                  check = check .OR. (keyword%default_value%i_val(1)==keyword%enum%i_vals(i))
               END DO
               CALL cp_assert(check,cp_failure_level,&
-                      cp_assertion_failed,routineP,"default value not in enumeration : "//keyword%names(1), &
-                          error,failure) 
+                      cp_assertion_failed,routineP,"default value not in enumeration : "//&
+                      keyword%names(1), error,failure) 
            ENDIF
            keyword%n_var=SIZE(keyword%default_value%i_val)
         CASE(real_t)
            keyword%n_var=SIZE(keyword%default_value%r_val)
         CASE(char_t)
            keyword%n_var=SIZE(keyword%default_value%c_val)
+        CASE(lchar_t)
+           keyword%n_var=1
         CASE(no_t)
            keyword%n_var=0
         CASE default
@@ -430,6 +435,10 @@ SUBROUTINE keyword_create(keyword, name, description, usage, type_of_var,&
         END SELECT
      END IF
      IF (PRESENT(n_var)) keyword%n_var=n_var
+     CALL cp_assert(keyword%type_of_var/=lchar_t.or.keyword%n_var==1,cp_failure_level,&
+                   cp_assertion_failed,routineP,"arrays of lchar_t not supported : "&
+                   //keyword%names(1), error,failure) 
+     
 
      IF (PRESENT(unit_str)) THEN
         CALL cp_unit_create(keyword%unit,unit_str,error=error)

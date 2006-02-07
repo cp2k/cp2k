@@ -97,19 +97,19 @@ contains
     CALL keyword_create(keyword, name="BASIS_SET_FILE_NAME",&
          description="Name of the basis set file, may include a path",&
          usage="BASIS_SET_FILE_NAME ../BASIS_SET",&
-         default_c_val="BASIS_SET",error=error)
+         default_lc_val="BASIS_SET",error=error)
     CALL section_add_keyword(section,keyword,error=error)
     CALL keyword_release(keyword,error=error)
     CALL keyword_create(keyword, name="POTENTIAL_FILE_NAME",&
          description="Name of the pseudo potential files, may include a path",&
          usage="POTENTIAL_FILE_NAME ../POTENTIAL",&
-         default_c_val="POTENTIAL",error=error)
+         default_lc_val="POTENTIAL",error=error)
     CALL section_add_keyword(section,keyword,error=error)
     CALL keyword_release(keyword,error=error)
     CALL keyword_create(keyword, name="RESTART_FILE_NAME",&
          description="The path to the pseudo potential file",&
          usage="RESTART_FILE_NAME ../RESTART",&
-         default_c_val="RESTART",error=error)
+         default_lc_val="RESTART",error=error)
     CALL section_add_keyword(section,keyword,error=error)
     CALL keyword_release(keyword,error=error)
     CALL keyword_create(keyword, name="LSD",&
@@ -300,7 +300,7 @@ contains
       CALL keyword_create(keyword, name="FNAME",&
            description="Root of the file names where to store the spectra",&
            usage="FNAME loc_orb",&
-           default_c_val="loc_orb",error=error)
+           default_lc_val="loc_orb",error=error)
       CALL section_add_keyword(section,keyword,error=error)
       CALL keyword_release(keyword,error=error)
 
@@ -3322,7 +3322,7 @@ END SUBROUTINE create_ot_section
       CALL keyword_create(keyword, name="FNAME",&
            description="Root of the file names where to store the spectra",&
            usage="FNAME xas_1s_o",&
-           default_c_val="xas_out",error=error)
+           default_lc_val="xas_out",error=error)
       CALL section_add_keyword(section,keyword,error=error)
       CALL keyword_release(keyword,error=error)
 

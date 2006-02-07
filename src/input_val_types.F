@@ -37,7 +37,8 @@ MODULE input_val_types
                                              enum_retain,&
                                              enumeration_type
   USE kinds,                           ONLY: default_string_length,&
-                                             dp
+                                             dp,&
+                                             default_path_length
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -55,7 +56,7 @@ MODULE input_val_types
 !****************************************************************************
 
   INTEGER, PARAMETER, PUBLIC :: no_t=0, logical_t=1, &
-       integer_t=2, real_t=3, char_t=4, enum_t=5
+       integer_t=2, real_t=3, char_t=4, enum_t=5, lchar_t=6
   
 !!****s* input_val_types/val_p_type [1.0] *
 !!
@@ -132,10 +133,10 @@ CONTAINS
 !!
 !!   INPUTS
 !!     - val: the object to be created
-!!     - l_val,i_val,r_val,c_val: a logical,integer,real,string
-!!       to be stored in the val
-!!     - l_vals, i_vals, r_vals, c_vals: an array of logicals, integers, reals,
-!!       characters to be stored in val
+!!     - l_val,i_val,r_val,c_val,lc_val: a logical,integer,real,string, long
+!!       string to be stored in the val
+!!     - l_vals, i_vals, r_vals, c_vals: an array of logicals,
+!!       integers, reals, characters, long strings to be stored in val
 !!     - l_vals_ptr, i_vals_ptr, r_vals_ptr, c_vals_ptr: an array of logicals,
 !!       ... to be stored in val, val will get the ownership of the pointer 
 !!     - enum: the enumaration type this value is using
@@ -147,7 +148,8 @@ CONTAINS
 !!
 !!*** **********************************************************************
 SUBROUTINE val_create(val,l_val,l_vals,l_vals_ptr,i_val,i_vals,i_vals_ptr,&
-     r_val,r_vals,r_vals_ptr,c_val,c_vals,c_vals_ptr,enum,error)
+     r_val,r_vals,r_vals_ptr,c_val,c_vals,c_vals_ptr,lc_val,lc_vals,&
+     lc_vals_ptr,enum,error)
     TYPE(val_type), POINTER                  :: val
     LOGICAL, INTENT(in), OPTIONAL            :: l_val
     LOGICAL, DIMENSION(:), INTENT(in), &
@@ -167,6 +169,11 @@ SUBROUTINE val_create(val,l_val,l_vals,l_vals_ptr,i_val,i_vals,i_vals_ptr,&
       INTENT(in), OPTIONAL                   :: c_vals
     CHARACTER(LEN=DEFAULT_STRING_LENGTH), &
       DIMENSION(:), OPTIONAL, POINTER        :: c_vals_ptr
+    CHARACTER(LEN=*), INTENT(in), OPTIONAL   :: lc_val
+    CHARACTER(LEN=*), DIMENSION(:), &
+      INTENT(in), OPTIONAL                   :: lc_vals
+    CHARACTER(LEN=DEFAULT_STRING_LENGTH), &
+      DIMENSION(:), OPTIONAL, POINTER        :: lc_vals_ptr
     TYPE(enumeration_type), OPTIONAL, &
       POINTER                                :: enum
     TYPE(cp_error_type), INTENT(inout), &
@@ -175,7 +182,7 @@ SUBROUTINE val_create(val,l_val,l_vals,l_vals_ptr,i_val,i_vals,i_vals_ptr,&
     CHARACTER(len=*), PARAMETER :: routineN = 'val_create', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: narg, stat
+    INTEGER                                  :: narg, stat, i,nVal,len_c
     LOGICAL                                  :: failure
 
   failure=.FALSE.
@@ -262,6 +269,7 @@ SUBROUTINE val_create(val,l_val,l_vals,l_vals_ptr,i_val,i_vals,i_vals_ptr,&
      END IF
      
      IF (PRESENT(c_val)) THEN
+        CPPrecondition(LEN_TRIM(c_val)<=default_string_length,cp_failure_level,routineP,error,failure)
 !FM        CPPrecondition(.NOT.PRESENT(c_vals),cp_failure_level,routineP,error,failure)
 !FM        CPPrecondition(.NOT.PRESENT(c_vals_ptr),cp_failure_level,routineP,error,failure)
         narg=narg+1
@@ -272,6 +280,7 @@ SUBROUTINE val_create(val,l_val,l_vals,l_vals_ptr,i_val,i_vals,i_vals_ptr,&
      END IF
      IF (PRESENT(c_vals)) THEN
 !FM        CPPrecondition(.NOT.PRESENT(c_vals_ptr),cp_failure_level,routineP,error,failure)
+        CPPrecondition(all(LEN_TRIM(c_vals)<=default_string_length),cp_failure_level,routineP,error,failure)
         narg=narg+1
         ALLOCATE(val%c_val(SIZE(c_vals)),stat=stat)
         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -282,6 +291,34 @@ SUBROUTINE val_create(val,l_val,l_vals,l_vals_ptr,i_val,i_vals,i_vals_ptr,&
         narg=narg+1
         val%c_val => c_vals_ptr
         val%type_of_var=char_t
+     END IF
+     IF (PRESENT(lc_val)) THEN
+!FM        CPPrecondition(.NOT.PRESENT(lc_vals),cp_failure_level,routineP,error,failure)
+!FM        CPPrecondition(.NOT.PRESENT(lc_vals_ptr),cp_failure_level,routineP,error,failure)
+        narg=narg+1
+        len_c=LEN_TRIM(lc_val)
+        nVal=MAX(1,CEILING(REAL(len_c,dp)/80._dp))
+        ALLOCATE(val%c_val(nVal),stat=stat)
+        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+        
+        DO i=1,nVal
+           val%c_val(i)=lc_val((i-1)*default_string_length+1:&
+                MIN(len_c,i*default_string_length))
+        END DO
+        val%type_of_var=lchar_t
+     END IF
+     IF (PRESENT(lc_vals)) THEN
+        CPPrecondition(ALL(LEN_TRIM(lc_vals)<=default_string_length),cp_failure_level,routineP,error,failure)
+        narg=narg+1
+        ALLOCATE(val%c_val(SIZE(lc_vals)),stat=stat)
+        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+        val%c_val=lc_vals
+        val%type_of_var=lchar_t
+     END IF
+     IF (PRESENT(lc_vals_ptr)) THEN
+        narg=narg+1
+        val%c_val => lc_vals_ptr
+        val%type_of_var=lchar_t
      END IF
      CPPostcondition(narg<=1,cp_failure_level,routineP,error,failure)
      IF (PRESENT(enum)) THEN
@@ -415,6 +452,9 @@ END SUBROUTINE val_retain
 !!
 !!   NOTES
 !!     using an enumeration only i_val/i_vals/i_vals_ptr are accepted
+!!     add something like ignore_string_cut that if true does not warn if
+!!     the c_val is too short to contain the string
+
 !!
 !!   INPUTS
 !!     - val: the object from which you want to extract the values
@@ -422,6 +462,8 @@ END SUBROUTINE val_retain
 !!       from the val
 !!     - logical_vals: gets an array of logicals, integers, reals, chars
 !!       from the val
+!!     - len_c: len_trim of c_val (if it was a lc_val, of type lchar_t
+!!       it might be longet than default_string_length)
 !!     - error: variable to control error logging, stopping,... 
 !!       see module cp_error_handling 
 !!
@@ -429,13 +471,13 @@ END SUBROUTINE val_retain
 !!     fawzi
 !!
 !!*** **********************************************************************
-SUBROUTINE val_get(val,has_l,has_i,has_r,has_c,l_val,l_vals,i_val,&
-     i_vals,r_val,r_vals,c_val,c_vals,type_of_var,enum,error)
+SUBROUTINE val_get(val,has_l,has_i,has_r,has_lc,has_c,l_val,l_vals,i_val,&
+     i_vals,r_val,r_vals,c_val,c_vals,len_c,type_of_var,enum,error)
     TYPE(val_type), POINTER                  :: val
     LOGICAL, INTENT(out), OPTIONAL           :: has_l, has_i, has_r, has_c, &
-                                                l_val
+                                                l_val, has_lc
     LOGICAL, DIMENSION(:), OPTIONAL, POINTER :: l_vals
-    INTEGER, INTENT(out), OPTIONAL           :: i_val
+    INTEGER, INTENT(out), OPTIONAL           :: i_val, len_c
     INTEGER, DIMENSION(:), OPTIONAL, POINTER :: i_vals
     REAL(KIND=DP), INTENT(out), OPTIONAL     :: r_val
     REAL(KIND=DP), DIMENSION(:), OPTIONAL, &
@@ -452,6 +494,7 @@ SUBROUTINE val_get(val,has_l,has_i,has_r,has_c,l_val,l_vals,i_val,&
     CHARACTER(len=*), PARAMETER :: routineN = "val_get", &
       routineP = moduleN//":"//routineN
 
+    INTEGER :: l_out,l_in,i
     LOGICAL                                  :: failure
 
   failure=.FALSE.
@@ -459,7 +502,8 @@ SUBROUTINE val_get(val,has_l,has_i,has_r,has_c,l_val,l_vals,i_val,&
   IF (PRESENT(has_l)) has_l=ASSOCIATED(val%l_val)
   IF (PRESENT(has_i)) has_i=ASSOCIATED(val%i_val)
   IF (PRESENT(has_r)) has_r=ASSOCIATED(val%r_val)
-  IF (PRESENT(has_c)) has_c=ASSOCIATED(val%c_val)
+  IF (PRESENT(has_c)) has_c=ASSOCIATED(val%c_val) ! use type_of_var?
+  IF (PRESENT(has_lc)) has_lc=(val%type_of_var==lchar_t)
   IF (PRESENT(l_vals)) l_vals => val%l_val
   IF (PRESENT(l_val)) THEN
      IF (ASSOCIATED(val%l_val)) THEN
@@ -501,13 +545,33 @@ SUBROUTINE val_get(val,has_l,has_i,has_r,has_c,l_val,l_vals,i_val,&
 
   IF (PRESENT(c_vals)) c_vals => val%c_val
   IF (PRESENT(c_val)) THEN
+     l_out=LEN(c_val)
      IF (ASSOCIATED(val%c_val)) THEN
         IF (SIZE(val%c_val)>0) THEN
-           c_val=val%c_val(1)
+           IF (val%type_of_var==lchar_t) THEN
+              l_in=default_string_length*(SIZE(val%c_val)-1)+&
+                   LEN_TRIM(val%c_val(size(val%c_val)))
+              CALL cp_assert(l_out>=l_in,cp_warning_level,cp_assertion_failed,&
+                   routineP,"val_get will truncate value, value beginning with '"//&
+                   TRIM(val%c_val(1))//"' is too long for variable",error,failure)
+              DO i=1,SIZE(val%c_val)
+                 c_val((i-1)*default_string_length+1:MIN(l_out,i*default_string_length))=&
+                      val%c_val(i)(1:MIN(80,l_out-(i-1)*default_string_length))
+                 IF (l_out<=i*default_string_length) EXIT
+              END DO
+              IF (l_out>SIZE(val%c_val)*default_string_length) &
+                   c_val(SIZE(val%c_val)*default_string_length:l_out)=""
+           ELSE
+              l_in=LEN_TRIM(val%c_val(1))
+              CALL cp_assert(l_out>=l_in,cp_warning_level,cp_assertion_failed,&
+                   routineP,"val_get will truncate value, value '"//&
+                   TRIM(val%c_val(1))//"' is too long for variable",error,failure)
+              c_val=val%c_val(1)
+           END IF
         ELSE
            CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
         END IF
-     ELSE if (associated(val%i_val).and.associated(val%enum)) then
+     ELSE IF (ASSOCIATED(val%i_val).AND.ASSOCIATED(val%enum)) THEN
         IF (SIZE(val%i_val)>0) THEN
            c_val=enum_i2c(val%enum,val%i_val(1),error=error)
         ELSE
@@ -515,6 +579,29 @@ SUBROUTINE val_get(val,has_l,has_i,has_r,has_c,l_val,l_vals,i_val,&
         END IF
      ELSE
         CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
+     END IF
+  END IF
+
+  IF (PRESENT(len_c)) THEN
+     IF (ASSOCIATED(val%c_val)) THEN
+        IF (SIZE(val%c_val)>0) THEN
+           IF (val%type_of_var==lchar_t) THEN
+              len_c=default_string_length*(SIZE(val%c_val)-1)+&
+                   LEN_TRIM(val%c_val(size(val%c_val)))
+           ELSE
+              len_c=len_trim(val%c_val(1))
+           END IF
+        ELSE
+           len_c=-HUGE(0)
+        END IF
+     ELSE IF (ASSOCIATED(val%i_val).AND.ASSOCIATED(val%enum)) THEN
+        IF (SIZE(val%i_val)>0) THEN
+           len_c=len_trim(enum_i2c(val%enum,val%i_val(1),error=error))
+        ELSE
+           len_c=-huge(0)
+        END IF
+     ELSE
+        len_c=-HUGE(0)
      END IF
   END IF
 
@@ -645,6 +732,18 @@ SUBROUTINE val_write(val,unit_nr,unit,unit_str,fmt,error)
         ELSE
            CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
         END IF
+     CASE (lchar_t)
+        IF (ASSOCIATED(val%c_val)) THEN
+           l=0
+           DO i=1,SIZE(val%c_val)-1
+              WRITE(unit=unit_nr,fmt='(a)',advance="NO") val%c_val(i)
+           END DO
+           IF (SIZE(val%c_val)>0) THEN
+              WRITE(unit=unit_nr,fmt='(a)',advance="NO") TRIM(val%c_val(SIZE(val%c_val)))
+           END IF
+        ELSE
+           CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
+        END IF
      CASE (enum_t)
         IF (ASSOCIATED(val%i_val)) THEN
            l=0
@@ -752,6 +851,12 @@ END SUBROUTINE val_write
             WRITE (UNIT=string(ipos:),FMT="(A)") TRIM(ADJUSTL(val%c_val(i)))
             ipos = ipos + LEN_TRIM(ADJUSTL(val%c_val(i))) + 1
           END DO
+        ELSE
+          CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
+        END IF
+      CASE (lchar_t)
+        IF (ASSOCIATED(val%c_val)) THEN
+           CALL val_get(val,c_val=string)
         ELSE
           CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
         END IF

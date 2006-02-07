@@ -62,7 +62,7 @@ MODULE cp_linked_list_val
   PRIVATE
 
   LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
-  CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='cp_linked_list_val'
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_linked_list_val'
 
 ! type
   PUBLIC :: cp_sll_val_type, cp_sll_val_p_type
@@ -278,8 +278,8 @@ CONTAINS
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-    CHARACTER(len=*), PARAMETER :: &
-      routineP = 'cp_linked_list_val:cp_sll_val_create'
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_sll_val_create', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: stat
     LOGICAL                                  :: failure
@@ -332,8 +332,8 @@ CONTAINS
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-    CHARACTER(len=*), PARAMETER :: &
-      routineP = 'cp_linked_list_val/cp_sll_val_dealloc'
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_sll_val_dealloc', &
+      routineP = moduleN//':'//routineN
 
     CALL cp_sll_val_rm_all_el(sll,error)
   END SUBROUTINE cp_sll_val_dealloc
@@ -369,8 +369,8 @@ CONTAINS
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-    CHARACTER(len=*), PARAMETER :: &
-      routineP = 'cp_linked_list_val/cp_sll_val_dealloc_node'
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_sll_val_dealloc_node', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: stat
     LOGICAL                                  :: failure
@@ -418,8 +418,8 @@ CONTAINS
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-    CHARACTER(len=*), PARAMETER :: &
-      routineP = 'cp_linked_list_val:cp_set_sll_val'
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_sll_val_set', &
+      routineP = moduleN//':'//routineN
 
     LOGICAL                                  :: failure
 
@@ -473,8 +473,8 @@ CONTAINS
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-    CHARACTER(len=*), PARAMETER :: &
-      routineP = 'cp_linked_list_val:cp_sll_val_get'
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_sll_val_get', &
+      routineP = moduleN//':'//routineN
 
     LOGICAL                                  :: failure
 
@@ -524,8 +524,8 @@ CONTAINS
       OPTIONAL                               :: error
     TYPE(val_type), POINTER                  :: res
 
-    CHARACTER(len=*), PARAMETER :: &
-      routineP = 'cp_linked_list_val:cp_sll_val_get_first'
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_sll_val_get_first_el', &
+      routineP = moduleN//':'//routineN
 
     LOGICAL                                  :: failure
 
@@ -572,8 +572,8 @@ CONTAINS
       OPTIONAL                               :: error
     TYPE(cp_sll_val_type), POINTER           :: res
 
-    CHARACTER(len=*), PARAMETER :: &
-      routineP = 'cp_linked_list_val:cp_sll_val_get_first'
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_sll_val_get_rest', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i
     LOGICAL                                  :: failure
@@ -648,8 +648,8 @@ CPSourceFileRef,&
       OPTIONAL                               :: error
     LOGICAL                                  :: res
 
-    CHARACTER(len=*), PARAMETER :: &
-      routineP = 'cp_linked_list_val:cp_sll_val_get_empty'
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_sll_val_get_empty', &
+      routineP = moduleN//':'//routineN
 
     LOGICAL                                  :: failure
 
@@ -688,8 +688,8 @@ CPSourceFileRef,&
       OPTIONAL                               :: error
     INTEGER                                  :: res
 
-    CHARACTER(len=*), PARAMETER :: &
-      routineP = 'cp_linked_list_val/cp_sll_val_get_length'
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_sll_val_get_length', &
+      routineP = moduleN//':'//routineN
 
     LOGICAL                                  :: failure
     TYPE(cp_sll_val_type), POINTER           :: iterator
@@ -740,8 +740,8 @@ CPSourceFileRef,&
       OPTIONAL                               :: error
     TYPE(val_type), POINTER                  :: res
 
-    CHARACTER(len=*), PARAMETER :: &
-      routineP = 'cp_linked_list_val/cp_sll_val_get_el_at'
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_sll_val_get_el_at', &
+      routineP = moduleN//':'//routineN
 
     LOGICAL                                  :: failure
     TYPE(cp_sll_val_type), POINTER           :: pos
@@ -796,8 +796,8 @@ CPSourceFileRef,&
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-    CHARACTER(len=*), PARAMETER :: &
-      routineP = 'cp_linked_list_val/cp_sll_val_set_el_at'
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_sll_val_set_el_at', &
+      routineP = moduleN//':'//routineN
 
     LOGICAL                                  :: failure
     TYPE(cp_sll_val_type), POINTER           :: pos
@@ -850,8 +850,8 @@ CPSourceFileRef,&
       OPTIONAL                               :: error
     LOGICAL                                  :: res
 
-    CHARACTER(len=*), PARAMETER :: &
-      routineP = 'cp_linked_list_val:cp_sll_val_next'
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_sll_val_next', &
+      routineP = moduleN//':'//routineN
 
     LOGICAL                                  :: failure
 
@@ -900,8 +900,8 @@ CPSourceFileRef,&
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-    CHARACTER(len=*), PARAMETER :: &
-      routineP = 'cp_linked_list_val:cp_sll_val_add_el'
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_sll_val_insert_el', &
+      routineP = moduleN//':'//routineN
 
     LOGICAL                                  :: failure
     TYPE(cp_sll_val_type), POINTER           :: newSlot
@@ -943,8 +943,8 @@ CPSourceFileRef,&
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-    CHARACTER(len=*), PARAMETER :: &
-      routineP = 'cp_linked_list_val/cp_sll_val_rm_first_el'
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_sll_val_rm_first_el', &
+      routineP = moduleN//':'//routineN
 
     LOGICAL                                  :: failure
     TYPE(cp_sll_val_type), POINTER           :: node_to_rm
@@ -997,8 +997,8 @@ CPSourceFileRef,&
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-    CHARACTER(len=*), PARAMETER :: &
-      routineP = 'cp_linked_list_val/cp_sll_val_insert_el_at'
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_sll_val_insert_el_at', &
+      routineP = moduleN//':'//routineN
 
     LOGICAL                                  :: failure
     TYPE(cp_sll_val_type), POINTER           :: pos
@@ -1011,7 +1011,7 @@ CPSourceFileRef,&
        IF (index==-1) THEN
           pos => cp_sll_val_get_rest(sll, iter=-1,error=error)
        ELSE
-          pos => cp_sll_val_get_rest(sll, iter=index-2,error=error)
+          pos => cp_sll_val_get_rest(sll, iter=index-1,error=error)
        END IF
        CPPrecondition(ASSOCIATED(pos),cp_failure_level,routineP,error,failure)
        IF (.NOT.failure) THEN
@@ -1052,8 +1052,8 @@ CPSourceFileRef,&
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-    CHARACTER(len=*), PARAMETER :: &
-      routineP = 'cp_linked_list_val/cp_sll_val_remove_el_at'
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_sll_val_rm_el_at', &
+      routineP = moduleN//':'//routineN
 
     LOGICAL                                  :: failure
     TYPE(cp_sll_val_type), POINTER           :: pos
@@ -1107,8 +1107,8 @@ CPSourceFileRef,&
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-    CHARACTER(len=*), PARAMETER :: &
-      routineP = 'cp_linked_list_val/cp_sll_val_rm_all_el'
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_sll_val_rm_all_el', &
+      routineP = moduleN//':'//routineN
 
     LOGICAL                                  :: failure
     TYPE(cp_sll_val_type), POINTER           :: actual_node, next_node

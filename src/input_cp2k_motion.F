@@ -34,7 +34,7 @@ MODULE input_cp2k_motion
   USE input_keyword_types, ONLY: keyword_type, keyword_create,&
        keyword_release
   USE input_val_types, ONLY: val_type, no_t, logical_t, integer_t, real_t, char_t,&
-       enum_t
+       enum_t, lchar_t
   USE input_cp2k_colvar, ONLY: create_colvar_section
   USE cp_output_handling, ONLY: cp_print_key_section_create
   USE cp_units, ONLY: cp_unit_to_cp2k
@@ -310,63 +310,63 @@ CONTAINS
        CALL keyword_create(keyword, name="RESTART_FILE_NAME",&
             description="Name of the restart file for MC information.",&
             usage="RESTART_FILE_NAME {filename}",&
-            default_c_val="XXXXXXXX",error=error)
+            default_lc_val="XXXXXXXX",error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="MOVES_FILE_NAME",&
             description="The file to print the move statistics to.",&
             usage="MOVES_FILE_NAME {filename}",&
-            default_c_val="XXXXXXXX",error=error)
+            default_lc_val="XXXXXXXX",error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="MOLECULES_FILE_NAME",&
             description="The file to print the number of molecules to.",&
             usage="MOLECULES_FILE_NAME {filename}",&
-            default_c_val="XXXXXXXX",error=error)
+            default_lc_val="XXXXXXXX",error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="COORDINATE_FILE_NAME",&
             description="The file to print the current coordinates to.",&
             usage="COORDINATE_FILE_NAME {filename}",&
-            default_c_val="XXXXXXXX",error=error)
+            default_lc_val="XXXXXXXX",error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="ENERGY_FILE_NAME",&
             description="The file to print current energies to.",&
             usage="ENERGY_FILE_NAME {filename}",&
-            default_c_val="XXXXXXXX",error=error)
+            default_lc_val="XXXXXXXX",error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="DATA_FILE_NAME",&
             description="The file to print current configurational info to.",&
             usage="DATA_FILE_NAME {filename}",&
-            default_c_val="XXXXXXXX",error=error)
+            default_lc_val="XXXXXXXX",error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="CELL_FILE_NAME",&
             description="The file to print current cell length info to.",&
             usage="CELL_FILE_NAME {filename}",&
-            default_c_val="XXXXXXXX",error=error)
+            default_lc_val="XXXXXXXX",error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="MAX_DISP_FILE_NAME",&
             description="The file to print current maximum displacement info to.",&
             usage="MAX_DISP_FILE_NAME {filename}",&
-            default_c_val="XXXXXXXX",error=error)
+            default_lc_val="XXXXXXXX",error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="BOX2_FILE_NAME",&
             description="For GEMC, the name of the input file for the other box.",&
             usage="BOX2_FILE_NAME {filename}",&
-            default_c_val="XXXXXXXX",error=error)
+            default_lc_val="XXXXXXXX",error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
@@ -1438,7 +1438,7 @@ SUBROUTINE create_coeff_section(coeff_section, error)
        
        CALL keyword_create(keyword, name="FILENAME",&
             description="Specify the filename where the masses are stored",repeats=.FALSE.,&
-            usage="FILENAME <CHARACTER>", type_of_var=char_t, default_c_val="CMASSES", &
+            usage="FILENAME <CHARACTER>", default_lc_val="CMASSES", &
             error=error)
        CALL section_add_keyword(subsection,keyword,error=error)
        CALL keyword_release(keyword,error=error)

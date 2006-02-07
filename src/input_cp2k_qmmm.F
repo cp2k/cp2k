@@ -97,7 +97,7 @@ contains
        CALL keyword_create(keyword, name="MM_POTENTIAL_FILE_NAME",&
             description="Name of the file containing the potential expansion in gaussians.",&
             usage="MM_POTENTIAL_FILE_NAME {filename}",&
-            default_c_val="MM_POTENTIAL",error=error)
+            default_lc_val="MM_POTENTIAL",error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
        

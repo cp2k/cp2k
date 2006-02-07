@@ -29,7 +29,7 @@ MODULE input_section_types
   use cp_para_types, only: cp_para_env_type
   use timings, only: timeset, timestop
   USE input_val_types, ONLY: val_type, val_create, val_retain, val_release,&
-       val_write,val_get,no_t, val_duplicate
+       val_write,val_get,no_t, val_duplicate, lchar_t
   USE input_keyword_types, ONLY: keyword_type, keyword_create, keyword_retain,&
        keyword_release, description_string_length, keyword_p_type,&
        keyword_describe, keyword_describe_html, write_keyword_xml
@@ -1957,7 +1957,8 @@ RECURSIVE SUBROUTINE section_vals_write(section_vals,unit_nr,hide_root,error)
                             keyword%names(1)/='_SECTION_PARAMETERS_') then
                           WRITE(unit=unit_nr,fmt="("//TRIM(myfmt)//"a,' ')",advance="NO")&
                                TRIM(keyword%names(1))
-                       ELSEIF (keyword%names(1) =='_DEFAULT_KEYWORD_') THEN
+                       ELSEIF (keyword%names(1) =='_DEFAULT_KEYWORD_' .and.&
+                            keyword%type_of_var/=lchar_t) THEN
                           WRITE(unit=unit_nr,fmt="("//TRIM(myfmt)//")",advance="NO")
                        END IF
                        CALL val_write(val,unit_nr=unit_nr,unit=keyword%unit,&

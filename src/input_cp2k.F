@@ -281,14 +281,14 @@ contains
          description="Name of the output file. "//&
          "Relevant only if automatically started (through farming for example). "//&
          "If empty uses the project name as basis for it.",&
-         usage="OUTPUT_FILE_NAME {filename}",default_c_val="", error=error)
+         usage="OUTPUT_FILE_NAME {filename}",default_lc_val="", error=error)
     CALL section_add_keyword(section,keyword,error=error)
     CALL keyword_release(keyword,error=error)
 
     CALL keyword_create(keyword, name="RESTART_FILE_NAME",&
          description="Name of the restart file.",&
          usage="RESTART_FILE_NAME {filename}",&
-         default_c_val="RESTART",error=error)
+         default_lc_val="RESTART",error=error)
     CALL section_add_keyword(section,keyword,error=error)
     CALL keyword_release(keyword,error=error)
 
@@ -651,7 +651,7 @@ contains
 
        CALL keyword_create(keyword, name="EXTERNAL_FILE",&
             description="Specify tha external input file to read",&
-            default_c_val=" ", error=error)
+            default_lc_val=" ", error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
@@ -808,14 +808,14 @@ SUBROUTINE create_farming_section(section,error)
   CALL keyword_create(keyword,name="directory",&
        description="the directory in which the job should be executed",&
        usage="directory /my/path",&
-       required=.TRUE.,default_c_val=".",error=error)
+       required=.TRUE.,default_lc_val=".",error=error)
   CALL section_add_keyword(sub_section,keyword,error=error)
   CALL keyword_release(keyword,error=error)
 
   CALL keyword_create(keyword,name="input_file_name",&
        description="the filename of the input file",&
        usage="input_file my_input.inp",&
-       required=.TRUE.,default_c_val="input.inp",error=error)
+       required=.TRUE.,default_lc_val="input.inp",error=error)
   CALL section_add_keyword(sub_section,keyword,error=error)
   CALL keyword_release(keyword,error=error)
   
