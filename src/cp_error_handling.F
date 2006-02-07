@@ -1044,11 +1044,15 @@ SUBROUTINE cp_error_check(error, failure)
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_error_check', &
       routineP = moduleN//':'//routineN
+    TYPE(cp_logger_type), pointer :: logger
 
   failure=.FALSE.
   
   IF (PRESENT(error).and.PRESENT(failure)) THEN
      IF (error%error_nr /=0 .OR. error%level /=0) THEN
+        logger => cp_error_get_logger(error)
+        call cp_log(logger, level=error%level, fromWhere=routineP ,&
+             message="error was true", local=.FALSE.)
         failure=.TRUE.
      END IF
   END IF
