@@ -2042,7 +2042,7 @@ RECURSIVE SUBROUTINE section_vals_write(section_vals,unit_nr,hide_root,error)
                                TRIM(keyword%names(1))
                        ELSEIF (keyword%names(1) =='_DEFAULT_KEYWORD_' .AND.&
                             keyword%type_of_var/=lchar_t) THEN
-                          WRITE(unit=unit_nr,fmt="("//TRIM(myfmt)//")",advance="NO")
+                          WRITE(unit=unit_nr,fmt="("//TRIM(myfmt)//"a)",advance="NO") ""
                        END IF
                        CALL val_write(val,unit_nr=unit_nr,unit=keyword%unit,&
                             fmt=myfmt,error=suberror)
