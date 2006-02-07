@@ -266,9 +266,9 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'write_coordinate_pdb', &
       routineP = moduleN//':'//routineN
 
-    CHARACTER(LEN=default_string_length)     :: record
-    INTEGER                                  :: file_unit, handle, i, id1, &
-                                                id2, imol, iw, natom
+    CHARACTER(LEN=default_string_length)     :: record, line
+    INTEGER                                  :: file_unit, handle, i, &
+                                                iw, natom, idres, id1, id2
     TYPE(atom_info_type), POINTER            :: atom_info
     TYPE(cp_logger_type), POINTER            :: logger
 
@@ -292,26 +292,36 @@ CONTAINS
          unit_number=file_unit)
     
     natom = topology%natoms
-    imol = 0
-    id1 = 0 
-    id2 = 0
-    
+    idres = 0
+    id1   = 0
+    id2   = 0
     DO i=1,natom
-       IF((id1/=atom_info%map_mol_num(i)).OR.(id2/=atom_info%map_mol_typ(i))) THEN
-          imol = imol + 1
-          id1 = atom_info%map_mol_num(i)
-          id2 = atom_info%map_mol_typ(i)
+
+       IF (topology%para_res) THEN
+          idres = atom_info%label_resid(i)
+       ELSE
+          IF((id1/=atom_info%map_mol_num(i)).OR.(id2/=atom_info%map_mol_typ(i))) THEN
+             idres = idres + 1
+             id1 = atom_info%map_mol_num(i)
+             id2 = atom_info%map_mol_typ(i)
+          END IF
        END IF
-       
-       WRITE(file_unit,"(A6,I5,1X,A4,1X,A3,2X,I4,4X,3F8.3,2F6.2)") &
-            "ATOM  ",i,&
-            TRIM(atom_info%label_atmname(i)),&
-            TRIM(atom_info%label_resname(i)),&
-            imol,&
-            (atom_info%r(1,i)/bohr),&
-            (atom_info%r(2,i)/bohr),&
-            (atom_info%r(3,i)/bohr),&
-            1.0,1.0
+
+       line = ""
+       WRITE(line(1 : 6),'(A6)')"ATOM  "
+       WRITE(line(7 :11),'(I5)')i
+       WRITE(line(13:16),'(A4)')TRIM(atom_info%label_atmname(i))
+       WRITE(line(18:20),'(A3)')TRIM(atom_info%label_resname(i))
+       WRITE(line(23:26),'(I4)')idres
+       WRITE(line(31:38),'(F8.3)')atom_info%r(1,i)
+       WRITE(line(39:46),'(F8.3)')atom_info%r(2,i)
+       WRITE(line(47:54),'(F8.3)')atom_info%r(3,i)
+       WRITE(line(55:60),'(F6.2)')atom_info%occup(i)
+       WRITE(line(61:66),'(F6.2)')atom_info%beta(i)
+       WRITE(line(73:76),'(A4)')TRIM(atom_info%label_molname(i))
+       WRITE(line(77:78),'(A2)')TRIM(atom_info%element(i))
+
+       WRITE(file_unit,"(A)")line
     END DO
     CALL close_file(unit_number=file_unit)
 
