@@ -73,7 +73,7 @@ MODULE realspace_grid_types
             rs_grid_p_create,&
             rs_grid_p_release
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'realspace_grid_types'
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN="realspace_grid_types"
   INTEGER, SAVE, PRIVATE :: last_rs_id=0
   INTEGER, SAVE, PRIVATE :: allocated_rs_grid_count=0
   INTEGER, PARAMETER, PUBLIC :: rs2pw=11,pw2rs=12
@@ -142,7 +142,7 @@ CONTAINS
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'rs_grid_allocate_1', &
+    CHARACTER(LEN=*), PARAMETER :: routineN = "rs_grid_allocate_1", &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, ierr
@@ -197,7 +197,7 @@ CONTAINS
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'rs_grid_deallocate_1', &
+    CHARACTER(LEN=*), PARAMETER :: routineN = "rs_grid_deallocate_1", &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, ierr, stat
@@ -232,7 +232,7 @@ CONTAINS
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'rs_grid_deallocate_n', &
+    CHARACTER(LEN=*), PARAMETER :: routineN = "rs_grid_deallocate_n", &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, n
@@ -275,7 +275,7 @@ CONTAINS
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'rs_grid_setup_1', &
+    CHARACTER(LEN=*), PARAMETER :: routineN = "rs_grid_setup_1", &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: dir, i, ip, lb( 2 ), &
@@ -458,7 +458,7 @@ CONTAINS
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'rs_grid_setup_n', &
+    CHARACTER(LEN=*), PARAMETER :: routineN = "rs_grid_setup_n", &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i
@@ -966,8 +966,8 @@ SUBROUTINE rs_grid_to_cube ( rs, iunit, ionode, title, particles, stride, error 
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'rs_grid_to_cube', &
-      routineP = moduleN//':'//routineN
+    CHARACTER(len=*), PARAMETER :: routineN = "rs_grid_to_cube", &
+      routineP = moduleN//":"//routineN
 
     INTEGER                                  :: I1, I2, I3, iat, L1, L2, L3, &
                                                 my_stride, np, U1, U2, U3, z
@@ -1363,7 +1363,7 @@ END SUBROUTINE rs_grid_p_release
 !!
 !!*** **********************************************************************
 
-SUBROUTINE rs_get_my_tasks ( rs, tasks, npme, ival, rval, pmat, pcor )
+SUBROUTINE rs_get_my_tasks ( rs, tasks, npme, ival, rval, pmat,pmat2,pmat3, pcor ,symmetric)
 
     TYPE(realspace_grid_type), POINTER       :: rs
     INTEGER, DIMENSION(:, :), POINTER        :: tasks
@@ -1373,16 +1373,19 @@ SUBROUTINE rs_get_my_tasks ( rs, tasks, npme, ival, rval, pmat, pcor )
     REAL(KIND=dp), DIMENSION(:, :), &
       OPTIONAL, POINTER                      :: rval
     TYPE(real_matrix_type), OPTIONAL, &
-      POINTER                                :: pmat
+      POINTER                                :: pmat, pmat2, pmat3
     INTEGER, DIMENSION(:, :), OPTIONAL, &
       POINTER                                :: pcor
+    LOGICAL, INTENT(IN), OPTIONAL            :: symmetric
 
     INTEGER :: acol, arow, handle, i, ic, icmax, ileft, isend, j, k, lb, n1, &
-      npmax, nppp, plength, stat, subgroup, subpos, subsize, ub
-    INTEGER, DIMENSION(:, :), POINTER        :: ilist, plist, pls, tlist
-    LOGICAL                                  :: matrix
+      npmax, nppp, plength, plength2, plength3, stat, subgroup, subpos, &
+      subsize, ub
+    INTEGER, DIMENSION(:, :), POINTER        :: ilist, plist, pls, pls2, &
+                                                pls3, tlist
+    LOGICAL                                  :: matrix, my_symmetric
     LOGICAL, DIMENSION(2)                    :: subdim
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: ppack
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: ppack, ppack2, ppack3
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: p_block, rlist
 
   CALL timeset("rs_get_my_tasks",'I',' ',handle)
@@ -1394,6 +1397,11 @@ SUBROUTINE rs_get_my_tasks ( rs, tasks, npme, ival, rval, pmat, pcor )
     matrix = .TRUE.
   ELSE
     matrix = .FALSE.
+  END IF
+  IF(PRESENT(symmetric) )THEN
+    my_symmetric = symmetric
+  ELSE
+    my_symmetric = .TRUE.
   END IF
 
   ! get number of tasks available locally
@@ -1454,6 +1462,20 @@ SUBROUTINE rs_get_my_tasks ( rs, tasks, npme, ival, rval, pmat, pcor )
       pls = 0
       ALLOCATE(ppack(npmax),STAT=stat)
       IF (stat/=0) CALL stop_memory("get_my_tasks","ppack",npmax)
+      IF(PRESENT(pmat2))THEN
+        ALLOCATE(pls2(n1,npmax),STAT=stat)
+        IF (stat/=0) CALL stop_memory("get_my_tasks","pls",n1*npmax)
+        pls2= 0
+        ALLOCATE(ppack2(npmax),STAT=stat)
+        IF (stat/=0) CALL stop_memory("get_my_tasks","ppack",npmax)
+      END IF
+      IF(PRESENT(pmat3))THEN
+        ALLOCATE(pls3(n1,npmax),STAT=stat)
+        IF (stat/=0) CALL stop_memory("get_my_tasks","pls",n1*npmax)
+        pls3= 0
+        ALLOCATE(ppack3(npmax),STAT=stat)
+        IF (stat/=0) CALL stop_memory("get_my_tasks","ppack",npmax)
+      END IF
     END IF
 
     ! keep tasks to be processed locally
@@ -1559,12 +1581,17 @@ SUBROUTINE rs_get_my_tasks ( rs, tasks, npme, ival, rval, pmat, pcor )
         ! eliminate blocks that are already local
         j = 0
         DO i = 1, ic
-          IF ( pcor(1,i) <= pcor(2,i) ) THEN
-             arow = pcor(1,i)
-             acol = pcor(2,i)
+          IF(my_symmetric) THEN
+            IF ( pcor(1,i) <= pcor(2,i) ) THEN
+               arow = pcor(1,i)
+               acol = pcor(2,i)
+            ELSE
+               arow = pcor(2,i)
+               acol = pcor(1,i)
+            END IF
           ELSE
-             arow = pcor(2,i)
-             acol = pcor(1,i)
+            arow = pcor(1,i)
+            acol = pcor(2,i)
           END IF
           CALL get_block_node(matrix=pmat,&
                               block_row=arow,&
@@ -1585,10 +1612,30 @@ SUBROUTINE rs_get_my_tasks ( rs, tasks, npme, ival, rval, pmat, pcor )
           pls(:,ic+1:) = 0
           CALL mp_shift ( pls ( 1:2, 1:icmax ), subgroup, -isend )
           ! pack the data to be sent
-          CALL pack_matrix ( pmat, pls, ppack, plength, subgroup )
+          CALL pack_matrix ( pmat, pls, ppack, plength, subgroup ,symmetric=my_symmetric)
           CALL mp_shift ( ppack ( 1:plength ), subgroup, isend )
           CALL mp_shift ( pls ( 1:2, 1:icmax ), subgroup, isend )
-          CALL unpack_matrix ( pmat, pcor, pls, ic, ppack )
+          CALL unpack_matrix ( pmat, pcor, pls, ic, ppack , symmetric=my_symmetric)
+          IF(PRESENT(pmat2)) THEN
+            pls2(:,1:ic) = pcor(:,1:ic)
+            pls2(:,ic+1:) = 0
+            CALL mp_shift ( pls2 ( 1:2, 1:icmax ), subgroup, -isend )
+          ! pack the data to be sent
+            CALL pack_matrix ( pmat2, pls2, ppack2, plength2, subgroup,symmetric=my_symmetric )
+            CALL mp_shift ( ppack2 ( 1:plength2 ), subgroup, isend )
+            CALL mp_shift ( pls2 ( 1:2, 1:icmax ), subgroup, isend )
+            CALL unpack_matrix ( pmat2, pcor, pls2, ic, ppack2,symmetric=my_symmetric )
+          END IF
+          IF(PRESENT(pmat3)) THEN
+            pls3(:,1:ic) = pcor(:,1:ic)
+            pls3(:,ic+1:) = 0
+            CALL mp_shift ( pls3 ( 1:2, 1:icmax ), subgroup, -isend )
+          ! pack the data to be sent
+            CALL pack_matrix ( pmat3, pls3, ppack3, plength3, subgroup,symmetric=my_symmetric )
+            CALL mp_shift ( ppack3 ( 1:plength3 ), subgroup, isend )
+            CALL mp_shift ( pls3 ( 1:2, 1:icmax ), subgroup, isend )
+            CALL unpack_matrix ( pmat3, pcor, pls3, ic, ppack3,symmetric=my_symmetric )
+          END IF
         END IF
       END IF
     END DO
@@ -1613,6 +1660,18 @@ SUBROUTINE rs_get_my_tasks ( rs, tasks, npme, ival, rval, pmat, pcor )
       IF (stat/=0) CALL stop_memory("get_my_tasks","pls")
       DEALLOCATE(ppack,STAT=stat)
       IF (stat/=0) CALL stop_memory("get_my_tasks","ppack")
+      IF(PRESENT(pmat2)) THEN
+        DEALLOCATE(pls2,STAT=stat)
+        IF (stat/=0) CALL stop_memory("get_my_tasks","pls")
+        DEALLOCATE(ppack2,STAT=stat)
+        IF (stat/=0) CALL stop_memory("get_my_tasks","ppack")
+      END IF
+      IF(PRESENT(pmat3)) THEN
+        DEALLOCATE(pls3,STAT=stat)
+        IF (stat/=0) CALL stop_memory("get_my_tasks","pls")
+        DEALLOCATE(ppack3,STAT=stat)
+        IF (stat/=0) CALL stop_memory("get_my_tasks","ppack")
+      END IF
     END IF
 
     ! Release the communicator
@@ -1629,7 +1688,7 @@ SUBROUTINE rs_get_my_tasks ( rs, tasks, npme, ival, rval, pmat, pcor )
 END SUBROUTINE rs_get_my_tasks
 
 !***************************************************************************
-SUBROUTINE pack_matrix ( pmat, pls, ppack , plength, group )
+SUBROUTINE pack_matrix ( pmat, pls, ppack , plength, group , symmetric)
 
     TYPE(real_matrix_type), OPTIONAL, &
       POINTER                                :: pmat
@@ -1637,19 +1696,28 @@ SUBROUTINE pack_matrix ( pmat, pls, ppack , plength, group )
     REAL(KIND=dp), DIMENSION(:), POINTER     :: ppack
     INTEGER, INTENT(OUT)                     :: plength
     INTEGER, INTENT(IN)                      :: group
+    LOGICAL, INTENT(IN), OPTIONAL            :: symmetric
 
     INTEGER                                  :: acol, arow, i, j, k, n, nc, nr
+    LOGICAL                                  :: my_symmetric
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: p_block
 
+  my_symmetric = .TRUE.
+  IF(PRESENT(symmetric)) my_symmetric = symmetric
   plength = 0
   DO i = 1, SIZE ( pls, 2 )
     IF ( pls ( 1, i ) == 0 ) EXIT
-    IF ( pls(1,i) <= pls(2,i) ) THEN
+    IF(my_symmetric) THEN
+      IF ( pls(1,i) <= pls(2,i) ) THEN
+         arow = pls(1,i)
+         acol = pls(2,i)
+      ELSE
+         arow = pls(2,i)
+         acol = pls(1,i)
+      END IF
+    ELSE
        arow = pls(1,i)
        acol = pls(2,i)
-    ELSE
-       arow = pls(2,i)
-       acol = pls(1,i)
     END IF
     CALL get_block_node(matrix=pmat,&
                         block_row=arow,&
@@ -1679,26 +1747,35 @@ SUBROUTINE pack_matrix ( pmat, pls, ppack , plength, group )
 
 END SUBROUTINE pack_matrix 
 
-SUBROUTINE unpack_matrix ( pmat, pcor, pls, ic, ppack )
+SUBROUTINE unpack_matrix ( pmat, pcor, pls, ic, ppack , symmetric)
 
     TYPE(real_matrix_type), OPTIONAL, &
       POINTER                                :: pmat
     INTEGER, DIMENSION(:, :), POINTER        :: pcor, pls
     INTEGER, INTENT(IN)                      :: ic
     REAL(KIND=dp), DIMENSION(:), POINTER     :: ppack
+    LOGICAL, INTENT(IN), OPTIONAL            :: symmetric
 
     INTEGER                                  :: acol, arow, i, j, k, nc, nr, &
                                                 pl
+    LOGICAL                                  :: my_symmetric
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: p_block
 
+  my_symmetric = .TRUE.
+  IF(PRESENT(symmetric)) my_symmetric = symmetric
   pl = 0
   DO i = 1, ic
-    IF ( pcor(1,i) <= pcor(2,i) ) THEN
+    IF(my_symmetric) THEN
+      IF ( pcor(1,i) <= pcor(2,i) ) THEN
+         arow = pcor(1,i)
+         acol = pcor(2,i)
+      ELSE
+         arow = pcor(2,i)
+         acol = pcor(1,i)
+      END IF
+    ELSE
        arow = pcor(1,i)
        acol = pcor(2,i)
-    ELSE
-       arow = pcor(2,i)
-       acol = pcor(1,i)
     END IF
     nr = pls(1,i)
     nc = pls(2,i)
