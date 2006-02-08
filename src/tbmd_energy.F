@@ -38,6 +38,10 @@ MODULE tbmd_energy
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type
   USE kinds,                           ONLY: dp
+  USE machine,                         ONLY: m_flush
+  USE mathlib,                         ONLY: symmetrize_matrix
+  USE message_passing,                 ONLY: mp_sum, &
+                                             mp_sync
   USE molecule_kind_types,             ONLY: molecule_kind_type
   USE molecule_types_new,              ONLY: molecule_type
   USE particle_types,                  ONLY: particle_type
@@ -48,7 +52,10 @@ MODULE tbmd_energy
   USE qs_scf,                          ONLY: eigensolver,&
                                              simple_eigensolver
   USE sparse_matrix_types,             ONLY: cp_sm_sm_trace,&
-                                             replicate_matrix_structure
+                                             replicate_matrix_structure, &
+                                             get_matrix_info, &
+                                             real_matrix_type, &
+                                             copy_local_sm_to_replicated_fm
   USE tbmd_energy_types,               ONLY: tbmd_energy_clear,&
                                              tbmd_energy_type
   USE tbmd_environment_types,          ONLY: tbmd_env_get,&
@@ -56,6 +63,8 @@ MODULE tbmd_energy
   USE tbmd_hamiltonian,                ONLY: tbmd_build_hamiltonian
   USE tbmd_neighbor_list_env_types,    ONLY: tbmd_neighbor_list_env_type
   USE tbmd_neighbor_lists,             ONLY: tbmd_neighbor_list_control
+  USE termination,                     ONLY: stop_program, &
+                                             stop_memory
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "cp_common_uses.h"
@@ -184,7 +193,8 @@ CONTAINS
 
       CALL tbmd_energy_clear(tbmd_env%tbmd_energy, error=error)
 
-      CALL tbmd_build_hamiltonian(tbmd_env=tbmd_env, derivative=.FALSE., error=error)
+      CALL tbmd_build_hamiltonian(tbmd_env=tbmd_env, globenv=globenv, derivative=.FALSE., &
+                                  error=error)
 
       IF (ortho_basis) THEN
          CALL init_mo_set(mo_set=mos, fm_pool=matrix_pools%ao_mo_fm_pools(1)%pool, &
@@ -235,7 +245,7 @@ CONTAINS
         iw = cp_print_key_unit_nr(logger,force_env_section, "TBMD%PRINT%H-MATRIX", &
                                   extension=".mmLog", error=error)
 
-        CALL tbmd_print_hamiltonian(tbmd_env, output_unit=iw, error=error)
+        CALL tbmd_print_hamiltonian(tbmd_env, globenv=globenv, output_unit=iw, error=error)
         CALL cp_print_key_finished_output(iw, logger, force_env_section, &
                                           "TBMD%PRINT%H-MATRIX", error=error)
       END IF
@@ -369,8 +379,9 @@ CONTAINS
 !!     02.2006 initial create [tdk]
 !!
 !!*** **********************************************************************
-  SUBROUTINE tbmd_print_hamiltonian(tbmd_env, output_unit, error)
+  SUBROUTINE tbmd_print_hamiltonian(tbmd_env, globenv, output_unit, error)
     TYPE(tbmd_environment_type), POINTER     :: tbmd_env
+    TYPE(global_environment_type), POINTER   :: globenv
     INTEGER, INTENT(IN)                      :: output_unit
     TYPE(cp_error_type), INTENT(INOUT), &
       OPTIONAL                               :: error
@@ -378,9 +389,73 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'tbmd_print_hamiltonian', &
       routineP = moduleN//':'//routineN
 
+    INTEGER                                  :: group, &
+                                                istat, &
+                                                natom, &
+                                                size_x, &
+                                                size_y, &
+                                                i
+    TYPE(real_matrix_type), POINTER          :: sparse_matrix
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: matrix
+    CHARACTER(LEN=40)                        :: matrix_symmetry
+    CHARACTER(LEN=80)                        :: matrix_name
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particle_set
+
 !   ------------------------------------------------------------------------
 
+    NULLIFY(sparse_matrix, matrix, particle_set)
+
     IF (output_unit > 0) THEN
+
+      sparse_matrix => tbmd_env%matrix_h
+      group = globenv%group
+
+      CALL get_matrix_info(matrix=sparse_matrix, &
+                           matrix_name=matrix_name, &
+                           matrix_symmetry=matrix_symmetry)
+
+      NULLIFY (matrix)
+
+      CALL copy_local_sm_to_replicated_fm(sparse_matrix, matrix)
+
+      IF (matrix_symmetry == "symmetric") THEN
+        CALL symmetrize_matrix(matrix, "upper_to_lower")
+      ELSE IF (matrix_symmetry == "antisymmetric") THEN
+        CALL symmetrize_matrix(matrix, "anti_upper_to_lower")
+      ELSE IF (matrix_symmetry /= "none") THEN
+        CALL stop_program(routineN, moduleN, __LINE__, &
+                          "Invalid matrix structure", globenv)
+      END IF
+
+      CALL mp_sum(matrix, group)
+      CALL m_flush(output_unit)
+
+      CALL tbmd_env_get(tbmd_env, particle_set=particle_set, error=error)
+      natom = SIZE(particle_set)
+
+!     *** Write headline ***
+
+      WRITE (UNIT=output_unit, FMT="(/,/,T2,A)") TRIM(matrix_name)
+
+!     *** Write the variable format strings ***
+      WRITE (output_unit,*) ""
+      size_x = SIZE(matrix(1,:)); WRITE (output_unit,*) "sizeX", size_x
+      size_y = SIZE(matrix(:,1)); WRITE (output_unit,*) "sizeY", size_y
+      WRITE (output_unit,*) ""
+
+      DO i = 1,SIZE(matrix(1,:))
+          WRITE (UNIT=output_unit,FMT='(32F8.3)') matrix(i,:)
+      END DO
+
+      CALL mp_sync(group)
+      CALL m_flush(output_unit)
+
+      IF (ASSOCIATED(matrix)) THEN
+        DEALLOCATE (matrix, STAT=istat)
+        IF (istat /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
+                                         "matrix")
+      END IF
 
     END IF
 
@@ -543,7 +618,7 @@ CONTAINS
       WRITE (unit_nr,*) ""
       WRITE (unit_nr,*) "The eigenvectors of the H-Matrix!"
       WRITE (unit_nr,*) ""
-      
+      WRITE (unit_nr,*) "Not implemented yet: Sorry!"
     END IF
 
   END SUBROUTINE tbmd_print_eigenvectors

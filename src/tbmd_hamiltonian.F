@@ -34,6 +34,7 @@ MODULE tbmd_hamiltonian
        first_list, first_node, get_neighbor_list, get_neighbor_list_set, &
        get_neighbor_node, neighbor_list_set_type, neighbor_list_type, &
        neighbor_node_type, next
+  USE global_types,                    ONLY: global_environment_type
   USE kinds,                           ONLY: dp
   USE particle_types,                  ONLY: particle_type
   USE sparse_matrix_types,             ONLY: add_block_node,&
@@ -50,6 +51,7 @@ MODULE tbmd_hamiltonian
                                              tbmd_model_type
   USE tbmd_neighbor_list_env_types,    ONLY: tbmd_neighbor_list_env_get,&
                                              tbmd_neighbor_list_env_type
+  USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "cp_common_uses.h"
@@ -101,8 +103,9 @@ CONTAINS
 !!     01.2006 initial create [tdk]
 !!
 !!*** **********************************************************************
-  SUBROUTINE tbmd_build_hamiltonian(tbmd_env, derivative, error)
+  SUBROUTINE tbmd_build_hamiltonian(tbmd_env, globenv, derivative, error)
     TYPE(tbmd_environment_type), POINTER     :: tbmd_env
+    TYPE(global_environment_type), POINTER   :: globenv
     LOGICAL, INTENT(IN)                      :: derivative
     TYPE(cp_error_type), INTENT(INOUT), &
       OPTIONAL                               :: error
@@ -428,7 +431,8 @@ CONTAINS
                         dm = -cos_temp*m/distance
                         dn = 1.0_dp/distance * (1.0_dp - cos_temp*cos_temp)
                       CASE DEFAULT
-
+                        CALL stop_program(routineN, moduleN, __LINE__, &
+                             "Invalid matrix derivative dimension", globenv)
                     END SELECT
 
                     ! Scaling function
@@ -499,6 +503,7 @@ CONTAINS
                                                        + temp_pair_repulsion_force * m * Phi
                       tbmd_force%f_repulsion(atom_a,3) = tbmd_force%f_repulsion(atom_a,3) &
                                                        + temp_pair_repulsion_force * n * Phi
+
                     END IF
                   END DO
                 END IF
