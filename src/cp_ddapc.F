@@ -212,6 +212,7 @@ CONTAINS
        ! 
        ! Start with the linear system
        !
+       IF (only_charge) CALL cp_ddapc_release(qs_env%cp_ddapc_env,error=error)
        CALL cp_ddapc_create(qs_env%cp_ddapc_env,qs_env%cp_ddapc_ewald, qmmm_periodic,&
             particle_set, radii, cell, super_cell,rho_tot_g, gcut, iw, Vol, &
             fitcharge_section, only_charge, error)
@@ -311,7 +312,8 @@ CONTAINS
              DO j = 1, 3
                 dqv0 = - MATMUL(cp_ddapc_env%AmI,MATMUL(dAm(:,:,j),-qv))
                 Awrk = - MATMUL(cp_ddapc_env%AmI,MATMUL(dAm(:,:,j),cp_ddapc_env%AmI))
-                c3   = DOT_PRODUCT(cv,MATMUL(Awrk,bv))+DOT_PRODUCT(cv,MATMUL(cp_ddapc_env%AmI,dbv(:,j))) ; c3 = c3 / cp_ddapc_env%c0
+                c3   = DOT_PRODUCT(cv,MATMUL(Awrk,bv))+DOT_PRODUCT(cv,MATMUL(cp_ddapc_env%AmI,dbv(:,j))) 
+                c3   = c3 / cp_ddapc_env%c0
                 c4   = DOT_PRODUCT(cv,MATMUL(Awrk,cv)) / cp_ddapc_env%c0
                 dqv(:,iparticle,j) = - ( dqv0 + MATMUL(cp_ddapc_env%AmI,dbv(:,j)) - &
                      c3 * MATMUL(cp_ddapc_env%AmI,cv) + c4 * c1 * MATMUL(cp_ddapc_env%AmI,cv))
@@ -361,6 +363,7 @@ CONTAINS
             "/PROGRAM_RUN_INFO",error=error)
        CALL pw_pool_give_back_pw(auxbas_pool,rho_tot_g,&
             accept_non_compatible=.TRUE.,error=error)
+       IF (only_charge) CALL cp_ddapc_release(qs_env%cp_ddapc_env,error=error)
     END IF
     CALL timestop(0.0_dp,handle)
   END SUBROUTINE get_ddapc

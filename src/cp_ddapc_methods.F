@@ -147,7 +147,7 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:), POINTER     :: w
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
-    REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: radii
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: radii
     TYPE(pw_type), POINTER                   :: rho_tot_g
     REAL(KIND=dp), INTENT(IN)                :: gcut
     TYPE(cp_error_type), INTENT(inout), &

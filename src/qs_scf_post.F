@@ -24,7 +24,8 @@
 MODULE qs_scf_post
 
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
-                                             get_atomic_kind
+                                             get_atomic_kind,&
+                                             get_atomic_kind_set
   USE cell_types,                      ONLY: cell_type,&
                                              get_cell
   USE coefficient_types,               ONLY: coeff_copy,&
@@ -228,6 +229,7 @@ CONTAINS
     TYPE (evals_p_type), DIMENSION(:), POINTER :: unoccupied_evals
     INTEGER ::  handle, ispin, istat, n, nmo, output_unit
     INTEGER            :: file_unit,ivector,nao,nlumos, homo, unit_nr
+    INTEGER :: n_electrons
     LOGICAL            :: homoEQnmo
     CHARACTER(LEN=80)  :: filename
     CHARACTER(LEN=80) :: title
@@ -274,7 +276,9 @@ CONTAINS
             cell=cell,rho_core=rho_core,tddfpt_control=tddfpt_control,error=error)
        CALL get_qs_env(qs_env=qs_env,pw_env=pw_env)
        CALL cp_subsys_get(subsys,particles=particles)
-
+       CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set, &
+         nelectron=n_electrons)
+       n_electrons = n_electrons - qs_env%dft_control%charge
 !    *** compute the mulliken charges ***
        IF (BTEST(cp_print_key_should_output(logger%iter_info,input,&
             "DFT%PRINT%MULLIKEN",error=error),cp_p_file)) THEN
@@ -453,7 +457,7 @@ CONTAINS
                 ENDDO
              END IF
              ! compute the molecular states
-             IF ( p_molstates ) THEN
+             IF ( p_molstates .AND. n_electrons>0) THEN
                   CALL construct_molecular_states ( molecule_set, mo_localized, &
                                                     mo_coeff, mo_eigenvalues, &
                                                     ks_rmpv ( ispin ) % matrix, &
@@ -1057,9 +1061,6 @@ SUBROUTINE calc_stupid_dipole(subsystem, rho_r, rho_core_g,aux_bas_pool,&
      tot_m=tot_m+mass
      r=particles%els(ip)%r
      com=com+mass*r
-     !com(1)=com(1)+mass*(MODULO(r(1),cell%hmat(1,1))-cell%hmat(1,1)/2._dp)
-     !com(2)=com(2)+mass*(MODULO(r(2),cell%hmat(2,2))-cell%hmat(2,2)/2._dp)
-     !com(3)=com(3)+mass*(MODULO(r(3),cell%hmat(3,3))-cell%hmat(3,3)/2._dp)
   END DO
   com=com/tot_m
   com(1)=MODULO(com(1),cell%hmat(1,1))
