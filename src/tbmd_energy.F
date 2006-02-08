@@ -28,6 +28,10 @@ MODULE tbmd_energy
   USE cp_fm_pool_types,                ONLY: fm_pool_create_fm,&
                                              fm_pool_give_back_fm
   USE cp_fm_types,                     ONLY: cp_fm_type
+  USE cp_output_handling,              ONLY: cp_p_file,&
+                                             cp_print_key_finished_output,&
+                                             cp_print_key_should_output, &
+                                             cp_print_key_unit_nr
   USE cp_sm_fm_interactions,           ONLY: copy_sm_to_fm
   USE distribution_1d_types,           ONLY: distribution_1d_type
   USE global_types,                    ONLY: global_environment_type
@@ -66,7 +70,12 @@ MODULE tbmd_energy
 
 ! *** Public subroutines ***
 
-  PUBLIC :: tbmd_energies
+  PUBLIC :: tbmd_energies, &
+            tbmd_print_energies, &
+            tbmd_print_hamiltonian, &
+            tbmd_print_eigenvalues, &
+            tbmd_print_eigenvectors, &
+            tbmd_print_occupation
 
 !!***
 ! *****************************************************************************
@@ -107,7 +116,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'tbmd_energies', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, stat
+    INTEGER                                  :: handle, stat, iw
     LOGICAL                                  :: failure, ortho_basis, &
                                                 use_cholesky, use_jacobi
     TYPE(atomic_kind_type), DIMENSION(:), &
@@ -129,6 +138,7 @@ CONTAINS
     TYPE(tbmd_energy_type), POINTER          :: tbmd_energy
     TYPE(tbmd_neighbor_list_env_type), &
       POINTER                                :: tbmd_neighbor_list_env
+    TYPE(cp_logger_type), POINTER            :: logger
 
 !   ------------------------------------------------------------------------
 
@@ -137,9 +147,10 @@ CONTAINS
     NULLIFY(tbmd_energy, atomic_kind_set, particle_set, local_particles, &
             local_molecules, molecule_kind_set, molecule_set, tbmd_neighbor_list_env, &
             cell, force_env_section, mos, fm_matrix_h, fm_matrix_ortho, &
-            fm_matrix_work, matrix_pools)
+            fm_matrix_work, matrix_pools, logger)
 
     failure = .FALSE.
+    logger => cp_error_get_logger(error)
 
     IF (PRESENT(orthogonal_basis)) THEN
       ortho_basis = orthogonal_basis
@@ -171,9 +182,9 @@ CONTAINS
                                       globenv=globenv, &
                                       force_env_section=force_env_section, error=error)
 
-      CALL tbmd_build_hamiltonian(tbmd_env=tbmd_env, derivative=.FALSE., error=error)
-
       CALL tbmd_energy_clear(tbmd_env%tbmd_energy, error=error)
+
+      CALL tbmd_build_hamiltonian(tbmd_env=tbmd_env, derivative=.FALSE., error=error)
 
       IF (ortho_basis) THEN
          CALL init_mo_set(mo_set=mos, fm_pool=matrix_pools%ao_mo_fm_pools(1)%pool, &
@@ -213,6 +224,63 @@ CONTAINS
                           trace=tbmd_env%tbmd_energy%E_bandstructure, &
                           para_env=tbmd_env%para_env, error=error)
 
+
+      tbmd_env%tbmd_energy%E_tb = tbmd_env%tbmd_energy%E_kinetic &
+                                + tbmd_env%tbmd_energy%E_bandstructure &
+                                + tbmd_env%tbmd_energy%E_correction &
+                                + tbmd_env%tbmd_energy%E_repulsion
+
+      IF (BTEST(cp_print_key_should_output(logger%iter_info, &
+                force_env_section, "TBMD%PRINT%H-MATRIX", error=error), cp_p_file)) THEN
+        iw = cp_print_key_unit_nr(logger,force_env_section, "TBMD%PRINT%H-MATRIX", &
+                                  extension=".mmLog", error=error)
+
+        CALL tbmd_print_hamiltonian(tbmd_env, output_unit=iw, error=error)
+        CALL cp_print_key_finished_output(iw, logger, force_env_section, &
+                                          "TBMD%PRINT%H-MATRIX", error=error)
+      END IF
+
+      IF (BTEST(cp_print_key_should_output(logger%iter_info, &
+                force_env_section, "TBMD%PRINT%EIGENVALUES", error=error), cp_p_file)) THEN
+        iw = cp_print_key_unit_nr(logger,force_env_section, "TBMD%PRINT%EIGENVALUES", &
+                                  extension=".mmLog", error=error)
+
+        CALL tbmd_print_eigenvalues(tbmd_env, output_unit=iw, error=error)
+        CALL cp_print_key_finished_output(iw, logger, force_env_section, &
+                                          "TBMD%PRINT%EIGENVALUES", error=error)
+      END IF
+
+      IF (BTEST(cp_print_key_should_output(logger%iter_info, &
+                force_env_section, "TBMD%PRINT%OCCUPATION", error=error), cp_p_file)) THEN
+        iw = cp_print_key_unit_nr(logger,force_env_section, "TBMD%PRINT%OCCUPATION", &
+                                  extension=".mmLog", error=error)
+
+        CALL tbmd_print_occupation(tbmd_env, output_unit=iw, error=error)
+        CALL cp_print_key_finished_output(iw, logger, force_env_section, &
+                                          "TBMD%PRINT%OCCUPATION", error=error)
+      END IF
+
+      IF (BTEST(cp_print_key_should_output(logger%iter_info, &
+                force_env_section, "TBMD%PRINT%EIGENVECTORS", error=error), cp_p_file)) THEN
+        iw = cp_print_key_unit_nr(logger,force_env_section, "TBMD%PRINT%EIGENVECTORS", &
+                                  extension=".mmLog", error=error)
+
+        CALL tbmd_print_eigenvectors(tbmd_env, output_unit=iw, error=error)
+        CALL cp_print_key_finished_output(iw, logger, force_env_section, &
+                                          "TBMD%PRINT%EIGENVECTORS", error=error)
+      END IF
+
+      IF (BTEST(cp_print_key_should_output(logger%iter_info, &
+                force_env_section, "TBMD%PRINT%ENERGIES", error=error), cp_p_file)) THEN
+        iw = cp_print_key_unit_nr(logger,force_env_section, "TBMD%PRINT%ENERGIES", &
+                                  extension=".mmLog", error=error)
+
+        CALL tbmd_print_energies(tbmd_env, output_unit=iw, error=error)
+        CALL cp_print_key_finished_output(iw, logger, force_env_section, &
+                                          "TBMD%PRINT%ENERGIES", error=error)
+      END IF
+
+
       CALL fm_pool_give_back_fm(pool=matrix_pools%ao_mo_fm_pools(1)%pool, &
                                 element=mos%mo_coeff, error=error)
 
@@ -229,6 +297,256 @@ CONTAINS
     CALL timestop(0.0_dp, handle)
 
   END SUBROUTINE tbmd_energies
+!***************************************************************************
+
+!!****f* tbmd_energy/tbmd_print_energies [1.0] *
+!!
+!!   NAME
+!!     tbmd_print_energies
+!!
+!!   FUNCTION
+!!     Print routine for the TBMD energies
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     - tbmd_env: The tbmd environment to retain
+!!     - output_unit: The output unit
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling
+!!
+!!   AUTHOR
+!!     Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
+!!
+!!   MODIFICATION HISTORY
+!!     02.2006 initial create [tdk]
+!!
+!!*** **********************************************************************
+  SUBROUTINE tbmd_print_energies(tbmd_env, output_unit, error)
+    TYPE(tbmd_environment_type), POINTER     :: tbmd_env
+    INTEGER, INTENT(IN)                      :: output_unit
+    TYPE(cp_error_type), INTENT(INOUT), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'tbmd_print_energies', &
+      routineP = moduleN//':'//routineN
+
+!   ------------------------------------------------------------------------
+
+    IF (output_unit > 0) THEN
+      WRITE (UNIT=output_unit,FMT="(/,(T3,A,T55,F25.14))")&
+             "Kinetic energy [Hartree]:        ",tbmd_env%tbmd_energy%E_kinetic,&
+             "Bandstructure energy [Hartree]:  ",tbmd_env%tbmd_energy%E_bandstructure,&
+             "Pair repulsion energy [Hartree]: ",tbmd_env%tbmd_energy%E_repulsion,&
+             "Total TBMD energy [Hartree]:     ",tbmd_env%tbmd_energy%E_tb
+    END IF
+
+  END SUBROUTINE tbmd_print_energies
+!***************************************************************************
+
+!!****f* tbmd_energy/tbmd_print_hamiltonian [1.0] *
+!!
+!!   NAME
+!!     tbmd_print_hamiltonian
+!!
+!!   FUNCTION
+!!     Print routine for the TBMD Hamiltonian-Matrix
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     - tbmd_env: The tbmd environment to retain
+!!     - output_unit: The output unit
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling
+!!
+!!   AUTHOR
+!!     Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
+!!
+!!   MODIFICATION HISTORY
+!!     02.2006 initial create [tdk]
+!!
+!!*** **********************************************************************
+  SUBROUTINE tbmd_print_hamiltonian(tbmd_env, output_unit, error)
+    TYPE(tbmd_environment_type), POINTER     :: tbmd_env
+    INTEGER, INTENT(IN)                      :: output_unit
+    TYPE(cp_error_type), INTENT(INOUT), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'tbmd_print_hamiltonian', &
+      routineP = moduleN//':'//routineN
+
+!   ------------------------------------------------------------------------
+
+    IF (output_unit > 0) THEN
+
+    END IF
+
+  END SUBROUTINE tbmd_print_hamiltonian
+!***************************************************************************
+
+!!****f* tbmd_energy/tbmd_print_eigenvalues [1.0] *
+!!
+!!   NAME
+!!     tbmd_print_eigenvalues
+!!
+!!   FUNCTION
+!!     Print routine for the eigenvalues of the TBMD H-Matrix
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     - tbmd_env: The tbmd environment to retain
+!!     - output_unit: The output unit
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling
+!!
+!!   AUTHOR
+!!     Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
+!!
+!!   MODIFICATION HISTORY
+!!     02.2006 initial create [tdk]
+!!
+!!*** **********************************************************************
+  SUBROUTINE tbmd_print_eigenvalues(tbmd_env, output_unit, error)
+    TYPE(tbmd_environment_type), POINTER     :: tbmd_env
+    INTEGER, INTENT(IN)                      :: output_unit
+    TYPE(cp_error_type), INTENT(INOUT), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'tbmd_print_eigenvalues', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    INTEGER                                  :: unit_nr, &
+                                                i
+
+!   ------------------------------------------------------------------------
+
+    IF (output_unit > 0) THEN
+
+      unit_nr=output_unit
+
+      WRITE (unit_nr,*) ""
+      WRITE (unit_nr,*) "The eigenvalues of the H-Matrix!"
+      WRITE (unit_nr,*) "nmo=", tbmd_env%mos%nmo 
+      WRITE (unit_nr,*) "nao=", tbmd_env%mos%nao
+      WRITE (unit_nr,*) ""
+      DO i = 1,SIZE(tbmd_env%mos%eigenvalues)
+        WRITE (unit_nr,*) tbmd_env%mos%eigenvalues(i)
+      END DO
+
+    END IF
+
+  END SUBROUTINE tbmd_print_eigenvalues
+!***************************************************************************
+
+!!****f* tbmd_energy/tbmd_print_occupation [1.0] *
+!!
+!!   NAME
+!!     tbmd_print_occupation
+!!
+!!   FUNCTION
+!!     Print routine for the occupation numbers
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     - tbmd_env: The tbmd environment to retain
+!!     - output_unit: The output unit
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling
+!!
+!!   AUTHOR
+!!     Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
+!!
+!!   MODIFICATION HISTORY
+!!     02.2006 initial create [tdk]
+!!
+!!*** **********************************************************************
+  SUBROUTINE tbmd_print_occupation(tbmd_env, output_unit, error)
+    TYPE(tbmd_environment_type), POINTER     :: tbmd_env
+    INTEGER, INTENT(IN)                      :: output_unit
+    TYPE(cp_error_type), INTENT(INOUT), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'tbmd_print_occupation', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    INTEGER                                  :: unit_nr, &
+                                                i
+
+!   ------------------------------------------------------------------------
+
+    IF (output_unit > 0) THEN
+
+      unit_nr=output_unit
+
+      WRITE (unit_nr,*) ""
+      WRITE (unit_nr,*) "The occupation numbers!"
+      WRITE (unit_nr,*) ""
+      DO i = 1,SIZE(tbmd_env%mos%occupation_numbers)
+        WRITE (unit_nr,*) tbmd_env%mos%occupation_numbers(i)
+      END DO
+
+    END IF
+
+  END SUBROUTINE tbmd_print_occupation
+!***************************************************************************
+
+!!****f* tbmd_energy/tbmd_print_eigenvectors [1.0] *
+!!
+!!   NAME
+!!     tbmd_print_eigenvectors
+!!
+!!   FUNCTION
+!!     Print routine for the eigenvectors of the TBMD H-Matrix
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     - tbmd_env: The tbmd environment to retain
+!!     - output_unit: The output unit
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling
+!!
+!!   AUTHOR
+!!     Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
+!!
+!!   MODIFICATION HISTORY
+!!     02.2006 initial create [tdk]
+!!
+!!*** **********************************************************************
+  SUBROUTINE tbmd_print_eigenvectors(tbmd_env, output_unit, error)
+    TYPE(tbmd_environment_type), POINTER     :: tbmd_env
+    INTEGER, INTENT(IN)                      :: output_unit
+    TYPE(cp_error_type), INTENT(INOUT), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'tbmd_print_eigenvectors', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: unit_nr
+
+!   ------------------------------------------------------------------------
+
+    IF (output_unit > 0) THEN
+
+      unit_nr=output_unit
+
+      WRITE (unit_nr,*) ""
+      WRITE (unit_nr,*) "The eigenvectors of the H-Matrix!"
+      WRITE (unit_nr,*) ""
+      
+    END IF
+
+  END SUBROUTINE tbmd_print_eigenvectors
 !***************************************************************************
 
 END MODULE tbmd_energy

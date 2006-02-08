@@ -438,14 +438,63 @@ CONTAINS
     IF (.NOT. failure) THEN
        CALL section_create(section, name="PRINT", &
             description="Section of possible print options in TBMD code.", &
-            n_keywords=0, n_subsections=1, repeats=.FALSE., required=.TRUE., &
+            n_keywords=0, n_subsections=8, repeats=.FALSE., required=.TRUE., &
             error=error)
 
        NULLIFY(print_key)
 
        CALL cp_print_key_section_create(print_key, "NEIGHBOR_LISTS", &
-            description="Controls the printing of the set of neighbor lists.", &
+            description="Controls the printing of the TBMD neighbor lists.", &
             print_level=high_print_level, each=(/1/), filename="__STD_OUT__", &
+            error=error)
+       CALL section_add_subsection(section, print_key, error=error)
+       CALL section_release(print_key, error=error)
+
+       CALL cp_print_key_section_create(print_key, "ENERGIES", &
+            description="Controls the printing of the TBMD energies.", &
+            print_level=low_print_level, each=(/1/), filename="__STD_OUT__", &
+            error=error)
+       CALL section_add_subsection(section, print_key, error=error)
+       CALL section_release(print_key, error=error)
+
+       CALL cp_print_key_section_create(print_key, "FORCES", &
+            description="Controls the printing of the TBMD forces.", &
+            print_level=low_print_level, each=(/1/), filename="__STD_OUT__", &
+            error=error)
+       CALL section_add_subsection(section, print_key, error=error)
+       CALL section_release(print_key, error=error)
+
+       CALL cp_print_key_section_create(print_key, "EIGENVALUES", &
+            description="Controls the printing of the eigenvalues of the H-Matrix", &
+            print_level=high_print_level, each=(/1/), filename="__STD_OUT__", &
+            error=error)
+       CALL section_add_subsection(section, print_key, error=error)
+       CALL section_release(print_key, error=error)
+
+       CALL cp_print_key_section_create(print_key, "EIGENVECTORS", &
+            description="Controls the printing of the eigenvecotrs of the H-Matrix.", &
+            print_level=high_print_level, each=(/1/), filename="__STD_OUT__", &
+            error=error)
+       CALL section_add_subsection(section, print_key, error=error)
+       CALL section_release(print_key, error=error)
+
+       CALL cp_print_key_section_create(print_key, "OCCUPATION", &
+            description="Controls the printing of the occupation numbers", &
+            print_level=high_print_level, each=(/1/), filename="__STD_OUT__", &
+            error=error)
+       CALL section_add_subsection(section, print_key, error=error)
+       CALL section_release(print_key, error=error)
+
+       CALL cp_print_key_section_create(print_key, "H-Matrix", &
+            description="Controls the printing of the TBMD H-Matrix", &
+            print_level=debug_print_level, each=(/1/), filename="__STD_OUT__", &
+            error=error)
+       CALL section_add_subsection(section, print_key, error=error)
+       CALL section_release(print_key, error=error)
+
+       CALL cp_print_key_section_create(print_key, "H-Matrix_deriv", &
+            description="Controls the printing of the first derivative of the TBMD H-Matrix.", &
+            print_level=debug_print_level, each=(/1/), filename="__STD_OUT__", &
             error=error)
        CALL section_add_subsection(section, print_key, error=error)
        CALL section_release(print_key, error=error)

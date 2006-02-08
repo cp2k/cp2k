@@ -28,6 +28,10 @@ MODULE tbmd_force
   USE cp_fm_pool_types,                ONLY: fm_pool_create_fm,&
                                              fm_pool_give_back_fm
   USE cp_fm_types,                     ONLY: cp_fm_type
+  USE cp_output_handling,              ONLY: cp_p_file,&
+                                             cp_print_key_finished_output,&
+                                             cp_print_key_should_output, &
+                                             cp_print_key_unit_nr
   USE cp_sm_fm_interactions,           ONLY: copy_sm_to_fm
   USE distribution_1d_types,           ONLY: distribution_1d_type
   USE global_types,                    ONLY: global_environment_type
@@ -45,6 +49,12 @@ MODULE tbmd_force
                                              simple_eigensolver
   USE sparse_matrix_types,             ONLY: cp_sm_sm_trace,&
                                              replicate_matrix_structure
+  USE tbmd_energy,                     ONLY: tbmd_print_energies, &
+                                             tbmd_print_hamiltonian, &
+                                             tbmd_print_eigenvalues, &
+                                             tbmd_print_eigenvectors, &
+                                             tbmd_print_occupation
+  USE tbmd_energy_types,               ONLY: tbmd_energy_clear
   USE tbmd_environment_types,          ONLY: tbmd_env_get,&
                                              tbmd_environment_type
   USE tbmd_force_types,                ONLY: tbmd_force_clear,&
@@ -66,7 +76,9 @@ MODULE tbmd_force
 
 ! *** Public subroutines ***
 
-  PUBLIC :: tbmd_forces
+  PUBLIC :: tbmd_forces, &
+            tbmd_print_forces, &
+            tbmd_print_deriv_hamiltonian
 
 !!***
 ! *****************************************************************************
@@ -108,7 +120,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'tbmd_forces', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, i, iatom, natom, stat
+    INTEGER                                  :: handle, i, iatom, natom, stat, iw
     LOGICAL                                  :: failure, ortho_basis, &
                                                 use_cholesky, use_jacobi
     REAL(KIND=dp), DIMENSION(:), POINTER     :: trace_vec_ptr
@@ -131,6 +143,7 @@ CONTAINS
     TYPE(tbmd_force_type), POINTER           :: tbmd_force
     TYPE(tbmd_neighbor_list_env_type), &
       POINTER                                :: tbmd_neighbor_list_env
+    TYPE(cp_logger_type), POINTER            :: logger
 
 !   ------------------------------------------------------------------------
 
@@ -139,9 +152,10 @@ CONTAINS
     NULLIFY(tbmd_force, atomic_kind_set, particle_set, local_particles, &
             local_molecules, molecule_kind_set, molecule_set, tbmd_neighbor_list_env, &
             cell, force_env_section, mos, fm_matrix_h, fm_matrix_ortho, &
-            fm_matrix_work, matrix_pools, trace_vec_ptr)
+            fm_matrix_work, matrix_pools, trace_vec_ptr, logger)
 
     failure = .FALSE.
+    logger => cp_error_get_logger(error)
 
     IF (PRESENT(orthogonal_basis)) THEN
       ortho_basis = orthogonal_basis
@@ -173,11 +187,12 @@ CONTAINS
                                       globenv=globenv, &
                                       force_env_section=force_env_section, error=error)
 
+      CALL tbmd_force_clear(tbmd_env%tbmd_force, natom=natom, error=error)
+      CALL tbmd_energy_clear(tbmd_env%tbmd_energy, error=error)
+
       CALL tbmd_build_hamiltonian(tbmd_env=tbmd_env, derivative=.TRUE., error=error)
 
       natom = SIZE(particle_set)
-      CALL tbmd_force_clear(tbmd_env%tbmd_force, natom=natom, error=error)
-
       IF (ortho_basis) THEN
          CALL init_mo_set(mo_set=mos, fm_pool=matrix_pools%ao_mo_fm_pools(1)%pool, &
                           name="TBMD MO set", error=error)
@@ -211,6 +226,10 @@ CONTAINS
       CALL calculate_density_matrix(mo_set=mos, density_matrix=tbmd_env%matrix_p, &
                                     error=error)
 
+      ! E=Tr[p*H]
+      CALL cp_sm_sm_trace(matrix1=tbmd_env%matrix_p, matrix2=tbmd_env%matrix_h, &
+                          trace=tbmd_env%tbmd_energy%E_bandstructure, &
+                          para_env=tbmd_env%para_env, error=error)
 
       ! F=Tr[p*(dH/dR)]
       DO i = 1,3
@@ -223,6 +242,90 @@ CONTAINS
 
       END DO
 
+
+      tbmd_env%tbmd_energy%E_tb = tbmd_env%tbmd_energy%E_kinetic &
+                                + tbmd_env%tbmd_energy%E_bandstructure &
+                                + tbmd_env%tbmd_energy%E_correction &
+                                + tbmd_env%tbmd_energy%E_repulsion
+
+      tbmd_env%tbmd_force%f_tb(:,:) = tbmd_env%tbmd_force%f_bandstruct(:,:) &
+                                    + tbmd_env%tbmd_force%f_repulsion(:,:)
+
+      DO iatom = 1,natom
+        particle_set(iatom)%f(1:3) = tbmd_env%tbmd_force%f_tb(iatom, 1:3)
+      END DO
+
+      IF (BTEST(cp_print_key_should_output(logger%iter_info, &
+                force_env_section, "TBMD%PRINT%H-MATRIX", error=error), cp_p_file)) THEN
+        iw = cp_print_key_unit_nr(logger,force_env_section, "TBMD%PRINT%H-MATRIX", &
+                                  extension=".mmLog", error=error)
+
+        CALL tbmd_print_hamiltonian(tbmd_env, output_unit=iw, error=error)
+        CALL cp_print_key_finished_output(iw, logger, force_env_section, &
+                                          "TBMD%PRINT%H-MATRIX", error=error)
+      END IF
+
+      IF (BTEST(cp_print_key_should_output(logger%iter_info, &
+                force_env_section, "TBMD%PRINT%H-MATRIX_DERIV", error=error), cp_p_file)) THEN
+        iw = cp_print_key_unit_nr(logger,force_env_section, "TBMD%PRINT%H-MATRIX_DERIV", &
+                                  extension=".mmLog", error=error)
+
+        CALL tbmd_print_deriv_hamiltonian(tbmd_env, output_unit=iw, error=error)
+        CALL cp_print_key_finished_output(iw, logger, force_env_section, &
+                                          "TBMD%PRINT%H-MATRIX_DERIV", error=error)
+      END IF
+
+      IF (BTEST(cp_print_key_should_output(logger%iter_info, &
+                force_env_section, "TBMD%PRINT%EIGENVALUES", error=error), cp_p_file)) THEN
+        iw = cp_print_key_unit_nr(logger,force_env_section, "TBMD%PRINT%EIGENVALUES", &
+                                  extension=".mmLog", error=error)
+
+        CALL tbmd_print_eigenvalues(tbmd_env, output_unit=iw, error=error)
+        CALL cp_print_key_finished_output(iw, logger, force_env_section, &
+                                          "TBMD%PRINT%EIGENVALUES", error=error)
+      END IF
+
+      IF (BTEST(cp_print_key_should_output(logger%iter_info, &
+                force_env_section, "TBMD%PRINT%OCCUPATION", error=error), cp_p_file)) THEN
+        iw = cp_print_key_unit_nr(logger,force_env_section, "TBMD%PRINT%OCCUPATION", &
+                                  extension=".mmLog", error=error)
+
+        CALL tbmd_print_occupation(tbmd_env, output_unit=iw, error=error)
+        CALL cp_print_key_finished_output(iw, logger, force_env_section, &
+                                          "TBMD%PRINT%OCCUPATION", error=error)
+      END IF
+
+      IF (BTEST(cp_print_key_should_output(logger%iter_info, &
+                force_env_section, "TBMD%PRINT%EIGENVECTORS", error=error), cp_p_file)) THEN
+        iw = cp_print_key_unit_nr(logger,force_env_section, "TBMD%PRINT%EIGENVECTORS", &
+                                  extension=".mmLog", error=error)
+
+        CALL tbmd_print_eigenvectors(tbmd_env, output_unit=iw, error=error)
+        CALL cp_print_key_finished_output(iw, logger, force_env_section, &
+                                          "TBMD%PRINT%EIGENVECTORS", error=error)
+      END IF
+
+      IF (BTEST(cp_print_key_should_output(logger%iter_info, &
+                force_env_section, "TBMD%PRINT%ENERGIES", error=error), cp_p_file)) THEN
+        iw = cp_print_key_unit_nr(logger,force_env_section, "TBMD%PRINT%ENERGIES", &
+                                  extension=".mmLog", error=error)
+
+        CALL tbmd_print_energies(tbmd_env, output_unit=iw, error=error)
+        CALL cp_print_key_finished_output(iw, logger, force_env_section, &
+                                          "TBMD%PRINT%ENERGIES", error=error)
+      END IF
+
+      IF (BTEST(cp_print_key_should_output(logger%iter_info, &
+                force_env_section, "TBMD%PRINT%FORCES", error=error), cp_p_file)) THEN
+        iw = cp_print_key_unit_nr(logger,force_env_section, "TBMD%PRINT%FORCES", &
+                                  extension=".mmLog", error=error)
+
+        CALL tbmd_print_forces(tbmd_env, output_unit=iw, error=error)
+        CALL cp_print_key_finished_output(iw, logger, force_env_section, &
+                                          "TBMD%PRINT%FORCES", error=error)
+      END IF
+
+
       CALL fm_pool_give_back_fm(pool=matrix_pools%ao_mo_fm_pools(1)%pool, &
                                 element=mos%mo_coeff, error=error)
 
@@ -234,18 +337,125 @@ CONTAINS
       CALL fm_pool_give_back_fm(pool=matrix_pools%ao_ao_fm_pools(1)%pool, &
                                 element=fm_matrix_h, error=error)
 
-      tbmd_env%tbmd_force%f_tb(:,:) = tbmd_env%tbmd_force%f_bandstruct(:,:) &
-                                    + tbmd_env%tbmd_force%f_repulsion(:,:)
-
-      DO iatom = 1,natom
-        particle_set(iatom)%f(1:3) = tbmd_env%tbmd_force%f_tb(iatom, 1:3)
-      END DO
-
     END IF
 
     CALL timestop(0.0_dp, handle)
 
   END SUBROUTINE tbmd_forces
+!***************************************************************************
+
+!!****f* tbmd_force/tbmd_print_forces [1.0] *
+!!
+!!   NAME
+!!     tbmd_print_forces
+!!
+!!   FUNCTION
+!!     Print routine for the forces
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     - tbmd_env: The tbmd environment to retain
+!!     - globenv: The global environment
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling
+!!
+!!   AUTHOR
+!!     Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
+!!
+!!   MODIFICATION HISTORY
+!!     02.2006 initial create [tdk]
+!!
+!!*** **********************************************************************
+  SUBROUTINE tbmd_print_forces(tbmd_env, output_unit, error)
+    TYPE(tbmd_environment_type), POINTER     :: tbmd_env
+    INTEGER, INTENT(IN)                      :: output_unit
+    TYPE(cp_error_type), INTENT(INOUT), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'tbmd_print_forces', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: iatom, natom, unit_nr
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particle_set
+    TYPE(tbmd_force_type), POINTER           :: tbmd_force
+
+!   ------------------------------------------------------------------------
+
+    NULLIFY(particle_set, tbmd_force)
+
+    unit_nr = output_unit
+
+    IF (unit_nr > 0) THEN
+
+      CALL tbmd_env_get(tbmd_env=tbmd_env, tbmd_force=tbmd_force, &
+                        particle_set=particle_set, error=error)
+
+      natom = SIZE(particle_set)
+
+      WRITE (unit_nr,*) ""
+      WRITE (unit_nr,*) "The Tight-Binding forces!"
+      WRITE (unit_nr,*) ""
+      WRITE (unit_nr,*) "Bandstructure forces [Hartree/Bohr]"
+      DO iatom = 1, natom
+        WRITE (unit_nr,*) tbmd_force%f_bandstruct(iatom, 1:3)
+      END DO
+      WRITE(unit_nr, *) "Pair repulsion forces [Hartree/Bohr]"
+      DO iatom = 1, natom
+        WRITE (unit_nr,*) tbmd_force%f_repulsion(iatom, 1:3)
+      END DO
+      WRITE(unit_nr, *) "Total TBMD forces [Hartree/Bohr]"
+      DO iatom = 1, natom
+        WRITE (unit_nr,*) tbmd_force%f_tb(iatom, 1:3)
+      END DO
+
+    END IF
+
+  END SUBROUTINE tbmd_print_forces
+!***************************************************************************
+
+!!****f* tbmd_force/tbmd_print_deriv_hamiltonian [1.0] *
+!!
+!!   NAME
+!!     tbmd_print_deriv_hamiltonian
+!!
+!!   FUNCTION
+!!     Print routine for the first derivative of the TBMD Hamiltonian-Matrix
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     - tbmd_env: The tbmd environment to retain
+!!     - output_unit: The output unit
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling
+!!
+!!   AUTHOR
+!!     Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
+!!
+!!   MODIFICATION HISTORY
+!!     02.2006 initial create [tdk]
+!!
+!!*** **********************************************************************
+  SUBROUTINE tbmd_print_deriv_hamiltonian(tbmd_env, output_unit, error)
+    TYPE(tbmd_environment_type), POINTER     :: tbmd_env
+    INTEGER, INTENT(IN)                      :: output_unit
+    TYPE(cp_error_type), INTENT(INOUT), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'tbmd_print_deriv_hamiltonian', &
+      routineP = moduleN//':'//routineN
+
+!   ------------------------------------------------------------------------
+
+    IF (output_unit > 0) THEN
+
+    END IF
+
+  END SUBROUTINE tbmd_print_deriv_hamiltonian
 !***************************************************************************
 
 END MODULE tbmd_force

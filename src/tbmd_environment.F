@@ -561,7 +561,7 @@ CONTAINS
               tbmd_model%h_ppS         =  3.06_dp*eV
               tbmd_model%h_ppP         = -0.87_dp*eV
               tbmd_model%n             =  2.0_dp
-              tbmd_model%r_0           =  SQRT(3.0_dp)/4.0_dp*a_latt
+              tbmd_model%r_0           =  (SQRT(3.0_dp)/4.0_dp)*a_latt
               tbmd_model%Phi           =  3.4581_dp*eV
               tbmd_model%m             =  4.54_dp
               tbmd_model%d_c           =  3.67_dp*Am

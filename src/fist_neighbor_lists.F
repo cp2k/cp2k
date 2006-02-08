@@ -785,7 +785,7 @@ CONTAINS
       POINTER                                :: particle_set
     TYPE(cell_type), POINTER                 :: cell
     TYPE(global_environment_type), POINTER   :: globenv
-    INTEGER, INTENT(in)                      :: output_unit
+    INTEGER, INTENT(IN)                      :: output_unit
     CHARACTER(LEN=*), INTENT(IN)             :: name
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
