@@ -334,7 +334,8 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'build_tbmd_neighbor_lists'
 
     INTEGER :: atom_a, handle, iatom, iatom_local, ikind, istat, iw, maxatom, &
-      maxatom_local, natom_a, natom_local_a, nkind, output_unit
+      maxatom_local, natom_a, natom_local_a, nkind, output_unit, &
+      atom_b, natom_local_b
     LOGICAL                                  :: print_subcell_grid
     REAL(dp), DIMENSION(3)                   :: r_pbc
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
@@ -381,8 +382,11 @@ CONTAINS
 
       natom_a = SIZE(atom(ikind)%list)
       natom_local_a = local_particles%n_el(ikind)
+  !    natom_local_a = distribution_2d%n_local_rows(ikind)
+  !    natom_local_b = distribution_2d%n_local_cols(ikind)
 
-      maxatom_local = MAX(maxatom_local, natom_local_a)
+     maxatom_local = MAX(maxatom_local, natom_local_a)
+  !   maxatom_local = MAX(maxatom_local, natom_local_a, natom_local_b)
 
       IF (natom_local_a > 0) THEN
         ALLOCATE (atom(ikind)%list_local_a_index(natom_local_a), STAT=istat)
@@ -401,6 +405,29 @@ CONTAINS
           END DO
         END DO
       END IF
+
+
+!     *** Block columns ***
+   !   IF (natom_local_b > 0) THEN
+
+   !     ALLOCATE(atom(ikind)%list_local_b_index(natom_local_b), STAT=istat)
+   !     IF (istat /=0 ) CALL stop_memory(routineN, moduleN, __LINE__, &
+   !                                      "atom(ikind)%list_local_b_index", &
+   !                                      natom_local_b*int_size)
+
+!       *** Build index vector for mapping ***
+   !     DO iatom_local = 1,natom_local_b
+   !       atom_b = local_particles%list(ikind)%array(iatom_local)
+   !       DO iatom = 1,natom_a
+   !         IF (atom_b == atom(ikind)%list(iatom)) THEN
+   !           atom(ikind)%list_local_b_index(iatom_local) = iatom
+   !           EXIT
+   !         END IF
+   !       END DO
+   !     END DO
+
+   !   END IF
+
 
       ALLOCATE(atom(ikind)%r_pbc(3,natom_a), STAT=istat)
       IF (istat /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
@@ -461,6 +488,13 @@ CONTAINS
         IF (istat /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
                                          "atom(ikind)%list_local_a_index")
       END IF
+      
+   !   IF (ASSOCIATED(atom(ikind)%list_local_b_index)) THEN
+   !     DEALLOCATE(atom(ikind)%list_local_b_index, STAT=istat)
+   !     IF (istat /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
+   !                                      "atom(ikind)%list_local_b_index")
+   !   END IF
+
       IF (ASSOCIATED(atom(ikind)%r_pbc)) THEN
         DEALLOCATE(atom(ikind)%r_pbc, STAT=istat)
         IF (istat /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
