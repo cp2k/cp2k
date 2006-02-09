@@ -2727,8 +2727,6 @@ SUBROUTINE cp_sm_sm_trace_vector(matrix1, matrix2, trace_vec, para_env, error)
   trace_vec(:) = 0.0_dp
 
   CALL get_matrix_info(matrix=matrix1, nblock_row=nblock_row)
-  ! we assume symmetric matrices
-  sfactor = 2._dp
 
   DO iblock_row = 1,nblock_row
      
@@ -2741,14 +2739,17 @@ SUBROUTINE cp_sm_sm_trace_vector(matrix1, matrix2, trace_vec, para_env, error)
                             block_col=block_col1, BLOCK=matrix_block1)
         CALL get_block_node(block_node=block_node2, &
                             block_col=block_col2, BLOCK=matrix_block2)
-        CPPostcondition(block_col1==block_col2, cp_warning_level, routineP, error, failure)
+        !CPPostcondition(block_col1==block_col2, cp_warning_level, routineP, error, failure)
 
         trace_block = SUM(matrix_block1*matrix_block2)
 
         IF (iblock_row == block_col1) THEN
           trace_vec(iblock_row) = trace_vec(iblock_row) + trace_block
         ELSE
-          trace_vec(iblock_row) = trace_vec(iblock_row) + sfactor*trace_block
+          ! we assume symmetric matrices
+          trace_vec(iblock_row) = trace_vec(iblock_row) + trace_block
+          trace_vec(nblock_row-iblock_row+1) = trace_vec(nblock_row-iblock_row+1) &
+                                             + trace_block
         END IF
 
         block_node1 => block_node1%next_block_node

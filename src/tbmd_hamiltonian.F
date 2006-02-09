@@ -40,6 +40,7 @@ MODULE tbmd_hamiltonian
   USE global_types,                    ONLY: global_environment_type
   USE kinds,                           ONLY: dp
   USE particle_types,                  ONLY: particle_type
+  USE physcon,                         ONLY: angstrom
   USE sparse_matrix_types,             ONLY: add_block_node,&
                                              allocate_matrix,&
                                              allocate_matrix_set,&
@@ -141,7 +142,8 @@ CONTAINS
                                                 irow, &
                                                 icol, &
                                                 i, &
-                                                i_dim
+                                                i_dim, &
+                                                idiag
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(particle_type), DIMENSION(:), &
@@ -273,7 +275,7 @@ CONTAINS
         CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
 
         DO i = 1,4        
-          NULLIFY(sint(4)%block)
+          NULLIFY(sint(i)%block)
         END DO
       ELSE
         ALLOCATE(sint(1), STAT=stat)
@@ -281,6 +283,21 @@ CONTAINS
 
         NULLIFY(sint(1)%block)
       END IF
+
+      ! Diagonal-elements of the H-Matrix
+      DO idiag = 1,natoms
+        NULLIFY(sint(1)%block)
+        CALL add_block_node(matrix=tbmd_env%matrix_h, block_row=idiag, &
+                            block_col=idiag, BLOCK=sint(1)%block, error=error)
+
+        ! The 4x4 tight-binding hamiltonian matrix-blocks
+        sint(1)%block(:,:) = 0.0_dp
+
+        sint(1)%block(1,1) = Es
+        sint(1)%block(2,2) = Es + dEpsilon
+        sint(1)%block(3,3) = Es + dEpsilon
+        sint(1)%block(4,4) = Es + dEpsilon
+      END DO
 
       ! Loop over the neighbor-list
       DO ikind = 1,nkinds
@@ -335,7 +352,7 @@ CONTAINS
                 ELSE
                   new_atom_b = .FALSE.
                 END IF
-PRINT *, "atom_a=", atom_a, "atom_b=", atom_b
+
                 IF (new_atom_b) THEN
                   IF (atom_a <= atom_b) THEN
                     irow = atom_a
