@@ -58,6 +58,7 @@ MODULE tbmd_force
                                              copy_local_sm_to_replicated_fm
   USE tbmd_energy,                     ONLY: tbmd_print_energies, &
                                              tbmd_print_hamiltonian, &
+                                             tbmd_print_hamiltonian_pattern, &
                                              tbmd_print_eigenvalues, &
                                              tbmd_print_eigenvectors, &
                                              tbmd_print_occupation
@@ -87,7 +88,8 @@ MODULE tbmd_force
 
   PUBLIC :: tbmd_forces, &
             tbmd_print_forces, &
-            tbmd_print_deriv_hamiltonian
+            tbmd_print_deriv_hamiltonian, &
+            tbmd_print_deriv_hamiltonian_pattern
 
 !!***
 ! *****************************************************************************
@@ -109,6 +111,8 @@ CONTAINS
 !!   INPUTS
 !!     - tbmd_env: The tbmd environment to retain
 !!     - globenv: The global environment
+!!     - orthogonal_basis: Logical which indicates in the underlying
+!!                         basis-set is assumed to be orthogonal or not.
 !!     - error: variable to control error logging, stopping,... 
 !!       see module cp_error_handling
 !!
@@ -275,6 +279,17 @@ CONTAINS
                                           "TBMD%PRINT%H-MATRIX", error=error)
       END IF
 
+      IF (BTEST(cp_print_key_should_output(logger%iter_info, force_env_section, &
+                "TBMD%PRINT%SPARSITY", error=error), cp_p_file)) THEN
+        iw = cp_print_key_unit_nr(logger,force_env_section, "TBMD%PRINT%SPARSITY", &
+                                  extension=".mmLog", error=error)
+
+        CALL tbmd_print_hamiltonian_pattern(tbmd_env, globenv=globenv, output_unit=iw, &
+                                            error=error)
+        CALL cp_print_key_finished_output(iw, logger, force_env_section, &
+                                          "TBMD%PRINT%SPARSITY", error=error)
+      END IF
+
       IF (BTEST(cp_print_key_should_output(logger%iter_info, &
                 force_env_section, "TBMD%PRINT%H-MATRIX_DERIV", error=error), cp_p_file)) THEN
         iw = cp_print_key_unit_nr(logger,force_env_section, "TBMD%PRINT%H-MATRIX_DERIV", &
@@ -284,6 +299,17 @@ CONTAINS
                                           error=error)
         CALL cp_print_key_finished_output(iw, logger, force_env_section, &
                                           "TBMD%PRINT%H-MATRIX_DERIV", error=error)
+      END IF
+
+      IF (BTEST(cp_print_key_should_output(logger%iter_info, force_env_section, &
+                "TBMD%PRINT%SPARSITY_DERIV", error=error), cp_p_file)) THEN
+        iw = cp_print_key_unit_nr(logger,force_env_section, "TBMD%PRINT%SPARSITY_DERIV", &
+                                  extension=".mmLog", error=error)
+
+        CALL tbmd_print_deriv_hamiltonian_pattern(tbmd_env, globenv=globenv, output_unit=iw, &
+                                            error=error)
+        CALL cp_print_key_finished_output(iw, logger, force_env_section, &
+                                          "TBMD%PRINT%SPARSITY_DERIV", error=error)
       END IF
 
       IF (BTEST(cp_print_key_should_output(logger%iter_info, &
@@ -368,7 +394,7 @@ CONTAINS
 !!
 !!   INPUTS
 !!     - tbmd_env: The tbmd environment to retain
-!!     - globenv: The global environment
+!!     - output_unit: The output unit
 !!     - error: variable to control error logging, stopping,... 
 !!       see module cp_error_handling
 !!
@@ -440,6 +466,7 @@ CONTAINS
 !!
 !!   INPUTS
 !!     - tbmd_env: The tbmd environment to retain
+!!     - globenv: The global environment
 !!     - output_unit: The output unit
 !!     - error: variable to control error logging, stopping,... 
 !!       see module cp_error_handling
@@ -529,7 +556,7 @@ CONTAINS
         WRITE (output_unit,*) ""
 
         DO i = 1,SIZE(matrix(1,:))
-          WRITE (UNIT=output_unit,FMT='(32F8.3)') matrix(i,:)
+          WRITE (UNIT=output_unit, FMT='(32F8.3)') matrix(i,:)
         END DO
 
         CALL mp_sync(group)
@@ -546,6 +573,148 @@ CONTAINS
     END IF
 
   END SUBROUTINE tbmd_print_deriv_hamiltonian
+!***************************************************************************
+
+!!****f* tbmd_force/tbmd_print_deriv_hamiltonian_pattern [1.0] *
+!!
+!!   NAME
+!!     tbmd_print_deriv_hamiltonian_pattern
+!!
+!!   FUNCTION
+!!     Print routine for the sparsity pattern of the first derivative of 
+!!     the TBMD Hamiltonian-Matrix
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     - tbmd_env: The tbmd environment to retain
+!!     - globenv: The global environment
+!!     - output_unit: The output unit
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling
+!!
+!!   AUTHOR
+!!     Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
+!!
+!!   MODIFICATION HISTORY
+!!     02.2006 initial create [tdk]
+!!
+!!*** **********************************************************************
+  SUBROUTINE tbmd_print_deriv_hamiltonian_pattern(tbmd_env, globenv, output_unit, &
+                                                  error)
+    TYPE(tbmd_environment_type), POINTER     :: tbmd_env
+    TYPE(global_environment_type), POINTER   :: globenv
+    INTEGER, INTENT(IN)                      :: output_unit
+    TYPE(cp_error_type), INTENT(INOUT), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'tbmd_print_deriv_hamiltonian_pattern', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: k, &
+                                                group, &
+                                                natom, &
+                                                size_x, &
+                                                size_y, &
+                                                i, &
+                                                j, &
+                                                istat
+    TYPE(real_matrix_type), POINTER          :: sparse_matrix
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: matrix
+    CHARACTER(LEN=40)                        :: matrix_symmetry
+    CHARACTER(LEN=80)                        :: matrix_name
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particle_set
+    CHARACTER, DIMENSION(:), ALLOCATABLE     :: sparsity_pattern
+
+!   ------------------------------------------------------------------------
+
+    IF (output_unit > 0) THEN
+
+      DO k = 1,3
+        sparse_matrix => tbmd_env%matrix_dh(k)%matrix
+        group = globenv%group
+
+        CALL get_matrix_info(matrix=sparse_matrix, &
+                             matrix_name=matrix_name, &
+                             matrix_symmetry=matrix_symmetry)
+
+        NULLIFY (matrix)
+
+        CALL copy_local_sm_to_replicated_fm(sparse_matrix, matrix)
+
+        IF (matrix_symmetry == "symmetric") THEN
+          CALL symmetrize_matrix(matrix, "upper_to_lower")
+        ELSE IF (matrix_symmetry == "antisymmetric") THEN
+          CALL symmetrize_matrix(matrix, "anti_upper_to_lower")
+        ELSE IF (matrix_symmetry /= "none") THEN
+          CALL stop_program(routineN, moduleN, __LINE__, &
+                            "Invalid matrix structure", globenv)
+        END IF
+
+        CALL mp_sum(matrix, group)
+        CALL m_flush(output_unit)
+
+        CALL tbmd_env_get(tbmd_env, particle_set=particle_set, error=error)
+        natom = SIZE(particle_set)
+
+        ALLOCATE(sparsity_pattern(SIZE(matrix(:,1))), STAT=istat)
+        CPPostconditionNoFail(istat==0, cp_warning_level, routineP, error)
+
+!     *** Write headline ***
+
+        WRITE (output_unit,*) ""; WRITE (output_unit,*) ""
+        !WRITE (UNIT=output_unit, FMT="(/,/,T2,A)") TRIM(matrix_name)
+        SELECT CASE(k)
+          CASE(1)
+            WRITE (output_unit,*) "Sparsity Pattern of the derivative of the H-Matrix"//&
+                                  " w.r.t. the coordinates in x-direction"
+          CASE(2)
+            WRITE (output_unit,*) "Sparsity Pattern of the derivative of the H-Matrix"//&
+                                  " w.r.t. the coordinates in y-direction"
+          CASE(3)
+            WRITE (output_unit,*) "Sparsity Pattern of the derivative of the H-Matrix"//&
+                                  " w.r.t. the coordinates in z-direction"
+          CASE DEFAULT
+            CALL stop_program(routineN, moduleN, __LINE__, &
+                 "Invalid matrix derivative dimension", globenv)
+        END SELECT
+
+!     *** Write the variable format strings ***
+        WRITE (output_unit,*) ""
+        size_x = SIZE(matrix(1,:)); WRITE (output_unit,*) "sizeX", size_x
+        size_y = SIZE(matrix(:,1)); WRITE (output_unit,*) "sizeY", size_y
+        WRITE (output_unit,*) ""
+
+        DO i = 1,SIZE(matrix(1,:))
+          DO j = 1,SIZE(matrix(:,1))
+            IF (matrix(i,j) == 0.0_dp) THEN
+              sparsity_pattern(j) = "0"
+            ELSE
+              sparsity_pattern(j) = "X"
+            END IF
+          END DO
+          WRITE (UNIT=output_unit, FMT='(32A3)') sparsity_pattern(:)
+        END DO
+
+        CALL mp_sync(group)
+        CALL m_flush(output_unit)
+
+        IF (ASSOCIATED(matrix)) THEN
+          DEALLOCATE (matrix, STAT=istat)
+          IF (istat /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
+                                           "matrix")
+        END IF
+
+        DEALLOCATE(sparsity_pattern, stat=istat)
+        CPPostconditionNoFail(istat==0, cp_warning_level, routineP, error)
+
+      END DO
+
+    END IF
+
+  END SUBROUTINE tbmd_print_deriv_hamiltonian_pattern
 !***************************************************************************
 
 END MODULE tbmd_force

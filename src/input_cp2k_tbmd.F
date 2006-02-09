@@ -492,9 +492,26 @@ CONTAINS
        CALL section_add_subsection(section, print_key, error=error)
        CALL section_release(print_key, error=error)
 
+       CALL cp_print_key_section_create(print_key, "Sparsity", &
+            description="Controls the printing of the sparsity pattern of the"//&
+                        " TBMD H-Matrix", &
+            print_level=high_print_level, each=(/1/), filename="__STD_OUT__", &
+            error=error)
+       CALL section_add_subsection(section, print_key, error=error)
+       CALL section_release(print_key, error=error)
+
        CALL cp_print_key_section_create(print_key, "H-Matrix_deriv", &
-            description="Controls the printing of the first derivative of the TBMD H-Matrix.", &
+            description="Controls the printing of the first derivative of the"//&
+                        " TBMD H-Matrix.", &
             print_level=debug_print_level, each=(/1/), filename="__STD_OUT__", &
+            error=error)
+       CALL section_add_subsection(section, print_key, error=error)
+       CALL section_release(print_key, error=error)
+
+       CALL cp_print_key_section_create(print_key, "Sparsity_Deriv", &
+            description="Controls the printing of the sparsity pattern of the"//&
+                        " derivative of the TBMD H-Matrix", &
+            print_level=high_print_level, each=(/1/), filename="__STD_OUT__", &
             error=error)
        CALL section_add_subsection(section, print_key, error=error)
        CALL section_release(print_key, error=error)
