@@ -1655,7 +1655,7 @@ END SUBROUTINE create_nose_section
        
        CALL keyword_create(keyword, name="ld_steps", &
             description="Number of LD steps per MC cycle.", &
-            usage="ld_steps 20", required=.TRUE.,&
+            usage="ld_steps 20", required=.FALSE.,&
             default_i_val=10, lone_keyword_i_val=20,&
             error=error)
        CALL section_add_keyword(section, keyword, error=error)

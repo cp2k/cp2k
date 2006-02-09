@@ -182,8 +182,8 @@ CONTAINS
     CPPostconditionNoFail(istat==0,cp_warning_level,routineP,error)
     ALLOCATE( md_env % t , stat=istat )
     CPPostconditionNoFail(istat==0,cp_warning_level,routineP,error)
-    md_env % itimes    = 0
-    md_env % md_approach_nr = 0
+    md_env % itimes    = -1
+    md_env % md_approach_nr = -1
     md_env % accepted_md = 0
     md_env % constant  = 0.0_dp
     md_env % used_time = 0.0_dp

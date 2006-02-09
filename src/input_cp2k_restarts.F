@@ -253,22 +253,24 @@ CONTAINS
     END IF
     
     IF (ASSOCIATED(itimes)) THEN
-       my_itimes = itimes
-       CALL section_vals_val_set(motion_section,"MD%STEP_START_VAL",i_val=my_itimes,error=error)
-    END IF
-    IF (ASSOCIATED(t)) THEN
-       my_t = t
-       CALL section_vals_val_set(motion_section,"MD%TIME_START_VAL",r_val=my_t,error=error)
+       IF (itimes>=0) THEN
+          my_itimes = itimes
+          CALL section_vals_val_set(motion_section,"MD%STEP_START_VAL",i_val=my_itimes,error=error)
+          CPAssert(ASSOCIATED(t),cp_failure_level,routineP,error,failure)
+          my_t = t
+          CALL section_vals_val_set(motion_section,"MD%TIME_START_VAL",r_val=my_t,error=error)
+       END IF
     END IF
     IF (ASSOCIATED(md_approach_nr)) THEN
-       my_md_approach_nr = md_approach_nr
-       CALL section_vals_val_set(motion_section,"MD%HMC%MD_APPROACH_START_VAL",i_val=my_md_approach_nr,&
-            error=error)
-    END IF
-    IF (ASSOCIATED(accepted_md)) THEN
-       my_accepted_md = accepted_md
-       CALL section_vals_val_set(motion_section,"MD%HMC%ACCEPTED_MD_START_VAL",i_val=my_accepted_md,&
-            error=error)
+       IF (md_approach_nr>=0) THEN
+          my_md_approach_nr = md_approach_nr
+          CALL section_vals_val_set(motion_section,"MD%HMC%MD_APPROACH_START_VAL",i_val=my_md_approach_nr,&
+               error=error)
+          CPAssert(ASSOCIATED(accepted_md),cp_failure_level,routineP,error,failure)
+          my_accepted_md = accepted_md
+          CALL section_vals_val_set(motion_section,"MD%HMC%ACCEPTED_MD_START_VAL",i_val=my_accepted_md,&
+               error=error)
+       END IF
     END IF
     !
     ! PARTICLE THERMOSTAT
