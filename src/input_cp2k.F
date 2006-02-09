@@ -660,7 +660,7 @@ CONTAINS
        CALL section_create(section,name="EXT_RESTART",&
             description="Section for external restart, specifies an external "//&
             "input file where to take positions,...",&
-            n_keywords=1, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+            n_keywords=1, n_subsections=0, repeats=.FALSE., required=.FALSE.,&
             error=error)
        NULLIFY(keyword)
 
