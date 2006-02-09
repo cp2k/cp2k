@@ -27,7 +27,10 @@
 !****************************************************************************
 MODULE tbmd_hamiltonian
   USE atomic_kind_types,               ONLY: atomic_kind_type
-  USE cell_types,                      ONLY: cell_type
+  USE cell_types,                      ONLY: cell_type, &
+                                             get_cell, &
+                                             real_to_scaled,&
+                                             scaled_to_real
   USE cp_subsystem_types,              ONLY: cp_subsystem_type
   USE distribution_2d_types,           ONLY: distribution_2d_type
   USE fist_neighbor_list_types,        ONLY: &
@@ -172,7 +175,8 @@ CONTAINS
                                                 r_0, &
                                                 r_cutoff, &
                                                 Phi, &
-                                                temp_pair_repulsion_force
+                                                temp_pair_repulsion_force, &
+                                                unit_of_length
     REAL(KIND=dp), DIMENSION(3)              :: dra, &
                                                 drb, &
                                                 rab
@@ -191,6 +195,7 @@ CONTAINS
     TYPE(tbmd_model_type), POINTER           :: tbmd_model
     TYPE(tbmd_energy_type), POINTER          :: tbmd_energy
     TYPE(tbmd_force_type), POINTER           :: tbmd_force
+    CHARACTER(LEN=8)                         :: unit_of_length_name
 
 !   ------------------------------------------------------------------------
 
@@ -218,6 +223,9 @@ CONTAINS
       atomic_kind_set => subsystem%atomic_kinds%els
       nkinds = SIZE(atomic_kind_set)
       natoms = SIZE(particle_set)
+
+      CALL get_cell(cell=cell, unit_of_length=unit_of_length, &
+                    unit_of_length_name=unit_of_length_name)
 
       CALL tbmd_neighbor_list_env_get(tbmd_neighbor_list_env=tbmd_neighbor_list_env, &
                                       r_last_update=r_last_update, error=error)
@@ -297,9 +305,9 @@ CONTAINS
                                    atom=atom_a,&
                                    nnode=nnode)
 
-            !dra(:) = particle_set(atom_a)%r(:) - &
-            !         scaled_to_real(r_last_update(:,atom_a), cell)
-            dra(:) = particle_set(atom_a)%r(:) - r_last_update(:,atom_a)
+            dra(:) = particle_set(atom_a)%r(:) - &
+                     scaled_to_real(r_last_update(:,atom_a), cell)
+            !dra(:) = particle_set(atom_a)%r(:) - r_last_update(:,atom_a)
 
             neighbor_node => first_node(neighbor_list)
 
@@ -309,12 +317,12 @@ CONTAINS
                                      neighbor=atom_b,&
                                      r=rab)
 
-              !drb(:) = particle_set(atom_b)%r(:) -&
-              !         scaled_to_real(r_last_update(:,atom_b),cell)
-              drb(:) = particle_set(atom_b)%r(:) - r_last_update(:,atom_b)
+              drb(:) = particle_set(atom_b)%r(:) -&
+                       scaled_to_real(r_last_update(:,atom_b),cell)
+              !drb(:) = particle_set(atom_b)%r(:) - r_last_update(:,atom_b)
 
-              !rab(:) = scaled_to_real(rab(:),cell) - dra(:) + drb(:)
-              rab(:) = rab(:) - dra(:) + drb(:)
+              rab(:) = scaled_to_real(rab(:),cell) - dra(:) + drb(:)
+              !rab(:) = rab(:) - dra(:) + drb(:)
 
               rab2 = rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3)
 
@@ -327,7 +335,7 @@ CONTAINS
                 ELSE
                   new_atom_b = .FALSE.
                 END IF
-
+PRINT *, "atom_a=", atom_a, "atom_b=", atom_b
                 IF (new_atom_b) THEN
                   IF (atom_a <= atom_b) THEN
                     irow = atom_a
