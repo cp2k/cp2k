@@ -798,7 +798,7 @@ CONTAINS
     INTEGER, DIMENSION(3)                    :: cell_a, cell_b
     LOGICAL                                  :: print_headline
     REAL(dp)                                 :: dab, unit_of_length
-    REAL(dp), DIMENSION(3)                   :: ra, rab, rb
+    REAL(dp), DIMENSION(3)                   :: ra, rab, rb, rab_real
     TYPE(neighbor_list_set_type), POINTER    :: neighbor_list_set
     TYPE(neighbor_list_type), POINTER        :: neighbor_list
     TYPE(neighbor_node_type), POINTER        :: neighbor_node
@@ -894,8 +894,10 @@ CONTAINS
                              cell=cell_b,&
                              r=rab)
                         
-                        rb(:) = ra(:) + rab(:)
-                        dab = SQRT(rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3))
+                        rab_real(:) = scaled_to_real(rab(:),cell)
+                        rb(:) = ra(:) + rab_real(:)
+                        dab = SQRT(rab_real(1)*rab_real(1) + rab_real(2)*rab_real(2) &
+                                 + rab_real(3)*rab_real(3))
                         
                         WRITE (UNIT=output_unit,&
                              FMT="(T10,I6,3X,3I4,3F12.6,2X,F12.6)")&
