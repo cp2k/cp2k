@@ -2682,7 +2682,7 @@ END SUBROUTINE cp_sm_sm_trace_scalar
 !!
 !!   NOTES
 !!     - matrix1: 1st multiplier
-!!     - matrix2: 2nd multiplier1
+!!     - matrix2: 2nd multiplier
 !!     - trace_vec: The vector in which the blockwise traces are written
 !!     - para_env: The paralle environment
 !!     - error: variable to control error logging, stopping,... 
@@ -2739,7 +2739,7 @@ SUBROUTINE cp_sm_sm_trace_vector(matrix1, matrix2, trace_vec, para_env, error)
                             block_col=block_col1, BLOCK=matrix_block1)
         CALL get_block_node(block_node=block_node2, &
                             block_col=block_col2, BLOCK=matrix_block2)
-        !CPPostcondition(block_col1==block_col2, cp_warning_level, routineP, error, failure)
+        CPPostcondition(block_col1==block_col2, cp_warning_level, routineP, error, failure)
 
         trace_block = SUM(matrix_block1*matrix_block2)
 

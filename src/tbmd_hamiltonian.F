@@ -46,7 +46,8 @@ MODULE tbmd_hamiltonian
                                              allocate_matrix_set,&
                                              real_matrix_p_type,&
                                              real_matrix_type,&
-                                             replicate_matrix_structure
+                                             replicate_matrix_structure, &
+                                             replicate_matrix
   USE tbmd_energy_types,               ONLY: tbmd_energy_type
   USE tbmd_environment_types,          ONLY: tbmd_env_get,&
                                              tbmd_environment_type
@@ -267,37 +268,64 @@ CONTAINS
           CALL replicate_matrix_structure(source=tbmd_env%matrix_h, &
                                           TARGET=tbmd_env%matrix_dh(i_dim)%matrix, &
                                           target_name="Derivative of the Tight-Binding " //&
-                                          "Hamiltonian Matrix WITH respect to the nuclear "//&
+                                          "Hamiltonian Matrix with respect to the nuclear "//&
                                           "coordinates", target_symmetry="symmetric") ! antisymmetric?
         END DO
-        
+
         ALLOCATE(sint(4), STAT=stat)
         CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
 
         DO i = 1,4        
           NULLIFY(sint(i)%block)
         END DO
+
+        ! Diagonal-elements of the H-Matrix
+        DO idiag = 1,natoms
+          CALL add_block_node(matrix=tbmd_env%matrix_h, block_row=idiag, &
+                              block_col=idiag, BLOCK=sint(1)%block, error=error)
+
+          ! The 4x4 tight-binding hamiltonian matrix-blocks
+          sint(1)%block(:,:) = 0.0_dp
+
+          sint(1)%block(1,1) = Es
+          sint(1)%block(2,2) = Es + dEpsilon
+          sint(1)%block(3,3) = Es + dEpsilon
+          sint(1)%block(4,4) = Es + dEpsilon
+        END DO
+        NULLIFY(sint(1)%block)
+
+        DO i_dim = 1,3
+          ! Diagonal-elements of the dH/dR-Matrix
+          DO idiag = 1,natoms
+            CALL add_block_node(matrix=tbmd_env%matrix_dh(i_dim)%matrix, block_row=idiag, &
+                                block_col=idiag, BLOCK=sint(i_dim+1)%block, error=error)
+
+            ! The 4x4 tight-binding hamiltonian matrix-blocks
+            sint(i_dim+1)%block(:,:) = 0.0_dp
+          END DO
+          NULLIFY(sint(i_dim+1)%block)
+        END DO
       ELSE
         ALLOCATE(sint(1), STAT=stat)
         CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
 
         NULLIFY(sint(1)%block)
-      END IF
 
-      ! Diagonal-elements of the H-Matrix
-      DO idiag = 1,natoms
+        ! Diagonal-elements of the H-Matrix
+        DO idiag = 1,natoms
+          CALL add_block_node(matrix=tbmd_env%matrix_h, block_row=idiag, &
+                              block_col=idiag, BLOCK=sint(1)%block, error=error)
+
+          ! The 4x4 tight-binding hamiltonian matrix-blocks
+          sint(1)%block(:,:) = 0.0_dp
+
+          sint(1)%block(1,1) = Es
+          sint(1)%block(2,2) = Es + dEpsilon
+          sint(1)%block(3,3) = Es + dEpsilon
+          sint(1)%block(4,4) = Es + dEpsilon
+        END DO
         NULLIFY(sint(1)%block)
-        CALL add_block_node(matrix=tbmd_env%matrix_h, block_row=idiag, &
-                            block_col=idiag, BLOCK=sint(1)%block, error=error)
-
-        ! The 4x4 tight-binding hamiltonian matrix-blocks
-        sint(1)%block(:,:) = 0.0_dp
-
-        sint(1)%block(1,1) = Es
-        sint(1)%block(2,2) = Es + dEpsilon
-        sint(1)%block(3,3) = Es + dEpsilon
-        sint(1)%block(4,4) = Es + dEpsilon
-      END DO
+      END IF
 
       ! Loop over the neighbor-list
       DO ikind = 1,nkinds

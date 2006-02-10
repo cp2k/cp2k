@@ -55,7 +55,7 @@ MODULE tbmd_force
                                              mo_set_type
   USE qs_scf,                          ONLY: eigensolver,&
                                              simple_eigensolver
-  USE sparse_matrix_types,             ONLY: cp_sm_sm_trace,&
+  USE sparse_matrix_types,             ONLY: cp_sm_sm_trace, &
                                              replicate_matrix_structure, &
                                              real_matrix_type, &
                                              get_matrix_info, &
