@@ -23,7 +23,9 @@
 !!   SOURCE
 !****************************************************************************
 MODULE tbmd_energy
-  USE atomic_kind_types,               ONLY: atomic_kind_type
+  USE atomic_kind_list_types,          ONLY: atomic_kind_list_type
+  USE atomic_kind_types,               ONLY: atomic_kind_type, &
+                                             get_atomic_kind
   USE cell_types,                      ONLY: cell_type
   USE cp_fm_pool_types,                ONLY: fm_pool_create_fm,&
                                              fm_pool_give_back_fm
@@ -33,6 +35,8 @@ MODULE tbmd_energy
                                              cp_print_key_should_output, &
                                              cp_print_key_unit_nr
   USE cp_sm_fm_interactions,           ONLY: copy_sm_to_fm
+  USE cp_subsystem_types,              ONLY: cp_subsys_get,&
+                                             cp_subsystem_type
   USE distribution_1d_types,           ONLY: distribution_1d_type
   USE global_types,                    ONLY: global_environment_type
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
@@ -128,7 +132,12 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'tbmd_energies', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, stat, iw
+    INTEGER                                  :: handle, stat, iw, &
+                                                nparticle_kind, &
+                                                iparticle_kind, &
+                                                nparticle_local, &
+                                                iparticle_local, &
+                                                iparticle
     LOGICAL                                  :: failure, ortho_basis, &
                                                 use_cholesky, use_jacobi
     TYPE(atomic_kind_type), DIMENSION(:), &
@@ -151,6 +160,11 @@ CONTAINS
     TYPE(tbmd_neighbor_list_env_type), &
       POINTER                                :: tbmd_neighbor_list_env
     TYPE(cp_logger_type), POINTER            :: logger
+    REAL(KIND=dp)                            :: ekin, &
+                                                mass
+    TYPE(cp_subsystem_type), POINTER         :: subsys
+    TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
+    TYPE(atomic_kind_type), POINTER          :: atomic_kind
 
 !   ------------------------------------------------------------------------
 
@@ -159,7 +173,7 @@ CONTAINS
     NULLIFY(tbmd_energy, atomic_kind_set, particle_set, local_particles, &
             local_molecules, molecule_kind_set, molecule_set, tbmd_neighbor_list_env, &
             cell, force_env_section, mos, fm_matrix_h, fm_matrix_ortho, &
-            fm_matrix_work, matrix_pools, logger)
+            fm_matrix_work, matrix_pools, logger, subsys, atomic_kinds, atomic_kind)
 
     failure = .FALSE.
     logger => cp_error_get_logger(error)
@@ -237,6 +251,28 @@ CONTAINS
                           trace=tbmd_env%tbmd_energy%E_bandstructure, &
                           para_env=tbmd_env%para_env, error=error)
 
+      !CALL get_part_ke(md_env, tbmd_energy%E_kinetic, int_grp=globalenv%para_env%group)
+      CALL tbmd_env_get(tbmd_env=tbmd_env, subsystem=subsys, error=error)
+      CALL cp_subsys_get(subsys=subsys, atomic_kinds=atomic_kinds)
+
+      nparticle_kind = atomic_kinds%n_els
+
+      DO iparticle_kind = 1,nparticle_kind
+        atomic_kind => atomic_kind_set(iparticle_kind)
+        CALL get_atomic_kind(atomic_kind=atomic_kind, mass=mass)
+        nparticle_local = local_particles%n_el(iparticle_kind)
+        DO iparticle_local = 1,nparticle_local
+          iparticle = local_particles%list(iparticle_kind)%array(iparticle_local)
+          ekin = ekin +  0.5_dp * mass * &
+                     (particle_set(iparticle)%v(1)* particle_set(iparticle)%v(1) &
+                    + particle_set(iparticle)%v(2)* particle_set(iparticle)%v(2) &
+                    + particle_set(iparticle)%v(3)* particle_set(iparticle)%v(3))
+        END DO
+      END DO
+
+      ! sum all contributions to energy over calculated parts on all processors
+      CALL mp_sum(ekin, globenv%para_env%group)
+      tbmd_env%tbmd_energy%E_kinetic = ekin
 
       tbmd_env%tbmd_energy%E_tb = tbmd_env%tbmd_energy%E_kinetic &
                                 + tbmd_env%tbmd_energy%E_bandstructure &
