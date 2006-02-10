@@ -39,6 +39,7 @@ MODULE tbmd_hamiltonian
        neighbor_node_type, next
   USE global_types,                    ONLY: global_environment_type
   USE kinds,                           ONLY: dp
+  USE message_passing,                 ONLY: mp_sum
   USE particle_types,                  ONLY: particle_type
   USE physcon,                         ONLY: angstrom
   USE sparse_matrix_types,             ONLY: add_block_node,&
@@ -48,10 +49,12 @@ MODULE tbmd_hamiltonian
                                              real_matrix_type,&
                                              replicate_matrix_structure, &
                                              replicate_matrix
-  USE tbmd_energy_types,               ONLY: tbmd_energy_type
+  USE tbmd_energy_types,               ONLY: tbmd_energy_type, &
+                                             tbmd_energy_clear
   USE tbmd_environment_types,          ONLY: tbmd_env_get,&
                                              tbmd_environment_type
-  USE tbmd_force_types,                ONLY: tbmd_force_type
+  USE tbmd_force_types,                ONLY: tbmd_force_type, &
+                                             tbmd_force_clear
   USE tbmd_model_types,                ONLY: tbmd_model_get,&
                                              tbmd_model_type
   USE tbmd_neighbor_list_env_types,    ONLY: tbmd_neighbor_list_env_get,&
@@ -226,6 +229,9 @@ CONTAINS
       atomic_kind_set => subsystem%atomic_kinds%els
       nkinds = SIZE(atomic_kind_set)
       natoms = SIZE(particle_set)
+
+      CALL tbmd_force_clear(tbmd_force=tbmd_force, natom=natoms, error=error)
+      CALL tbmd_energy_clear(tbmd_energy=tbmd_energy, error=error)
 
       CALL get_cell(cell=cell, unit_of_length=unit_of_length, &
                     unit_of_length_name=unit_of_length_name)
@@ -448,15 +454,16 @@ CONTAINS
                   sint(1)%block(3,2) = sint(1)%block(2,3)
                   sint(1)%block(4,2) = sint(1)%block(2,4)
                   sint(1)%block(4,3) = sint(1)%block(3,4)
-
-                  ! the pair-repulsion energy
-                  tbmd_energy%E_repulsion = tbmd_energy%E_repulsion &
-                                          + tbmd_pair_repulsion_energy(r_0=r_0, r=distance, &
-                                                                       m=m_exp, r_calpha=r_calpha(1), &
-                                                                       n_calpha=n_calpha(1), &
-                                                                       r_cutoff=r_cutoff) &
-                                          * Phi
                 END IF
+
+                ! the pair-repulsion energy
+                tbmd_energy%E_repulsion = tbmd_energy%E_repulsion &
+                                        + tbmd_pair_repulsion_energy(r_0=r_0, r=distance, &
+                                                                     m=m_exp, r_calpha=r_calpha(1), &
+                                                                     n_calpha=n_calpha(1), &
+                                                                     r_cutoff=r_cutoff) &
+                                        * Phi
+
 
                 ! dH/dR Matrix built-up
                 IF (derivative) THEN
@@ -550,15 +557,22 @@ CONTAINS
                                                                                  m=m_exp, &
                                                                                  r_calpha=r_calpha(1), &
                                                                                  n_calpha=n_calpha(1))
-                      tbmd_force%f_repulsion(atom_a,1) = tbmd_force%f_repulsion(atom_a,1) &
-                                                       + temp_pair_repulsion_force * l * Phi
-                      tbmd_force%f_repulsion(atom_a,2) = tbmd_force%f_repulsion(atom_a,2) &
-                                                       + temp_pair_repulsion_force * m * Phi
-                      tbmd_force%f_repulsion(atom_a,3) = tbmd_force%f_repulsion(atom_a,3) &
-                                                       + temp_pair_repulsion_force * n * Phi
-
+                      tbmd_force%f_repulsion(atom_a,i_dim) = tbmd_force%f_repulsion(atom_a,i_dim) &
+                                                           + temp_pair_repulsion_force * cos_temp &
+                                                           * Phi
                     END IF
                   END DO
+                  !  ! the pair-repulsion force
+                  !  temp_pair_repulsion_force = (-1)*tbmd_pair_repulsion_force(r_0=r_0, r=distance, &
+                  !                                                             m=m_exp, &
+                  !                                                             r_calpha=r_calpha(1), &
+                  !                                                             n_calpha=n_calpha(1))
+                  !  tbmd_force%f_repulsion(atom_a,1) = tbmd_force%f_repulsion(atom_a,1) &
+                  !                                   + temp_pair_repulsion_force * l * Phi
+                  !  tbmd_force%f_repulsion(atom_a,2) = tbmd_force%f_repulsion(atom_a,2) &
+                  !                                   + temp_pair_repulsion_force * m * Phi
+                  !  tbmd_force%f_repulsion(atom_a,3) = tbmd_force%f_repulsion(atom_a,3) &
+                  !                                   + temp_pair_repulsion_force * n * Phi
                 END IF
 
               END IF
@@ -574,6 +588,9 @@ CONTAINS
         END DO
 
       END DO
+
+      CALL mp_sum(tbmd_energy%E_repulsion, globenv%group)
+      CALL mp_sum(tbmd_force%f_repulsion, globenv%group)
 
     END IF
 

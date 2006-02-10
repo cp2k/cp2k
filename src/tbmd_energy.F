@@ -250,6 +250,8 @@ CONTAINS
       CALL cp_sm_sm_trace(matrix1=tbmd_env%matrix_p, matrix2=tbmd_env%matrix_h, &
                           trace=tbmd_env%tbmd_energy%E_bandstructure, &
                           para_env=tbmd_env%para_env, error=error)
+      CALL mp_sum(tbmd_env%tbmd_energy%E_bandstructure, globenv%group)
+
 
       !CALL get_part_ke(md_env, tbmd_energy%E_kinetic, int_grp=globalenv%para_env%group)
       CALL tbmd_env_get(tbmd_env=tbmd_env, subsystem=subsys, error=error)
