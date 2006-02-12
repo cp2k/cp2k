@@ -1,0 +1,3 @@
+LEAPOBJ=machine.o\
+ kinds.o\
+ leap2fist.o

@@ -1,18 +1,45 @@
+!-----------------------------------------------------------------------------!
+!   CP2K: A general program to perform molecular dynamics simulations         !
+!   Copyright (C) 2002,2003,2004  CP2K developers group                       !
+!-----------------------------------------------------------------------------!
+
+
+!!****h* cp2k/leap2fist [1.0] *
+!!
+!!   NAME
+!!     leap2fist
+!!
+!!   FUNCTION
+!!     Program to convert from AMBER parm type to FIST and DL_POLY parm type
+!!
+!!   NOTES
+!!     -
+!!
+!!   AUTHOR
+!!     Teodoro Laino
+!!
+!!   MODIFICATION HISTORY
+!!     02.2004 created [tlaino]
+!!     teodoro.laino .at. gmail.com 
+!!
+!!
+!!   SOURCE
+!!     Please report any bug to the author
+!!
+!****************************************************************************
 
 PROGRAM leap2fist
-  
-  USE f90_unix
-  USE f90_unix_dir
-  USE f90_unix_env,                    ONLY: gethostname,&
-                                             getlogin
-  USE f90_unix_proc
+  USE kinds,                           ONLY: dp,&
+                                             sp
+  USE machine,                         ONLY: m_getlog,&
+                                             m_hostnm,&
+                                             m_getarg,&
+                                             m_iargc
 
   IMPLICIT NONE
   ! 
   ! Parameters Data...
   !
-  INTEGER, PARAMETER  :: sp = SELECTED_REAL_KIND ( 6, 30 )
-  INTEGER, PARAMETER  :: dp = SELECTED_REAL_KIND ( 14, 200 )
   REAL(KIND=dp), PARAMETER :: CV_CHRG = 18.2223_dp, UNDEF=9999999
   INTEGER, PARAMETER  ::                            &
                         start_io_units        =  10,&
@@ -137,13 +164,12 @@ CONTAINS
     CHARACTER (LEN=5)         :: zone
     CHARACTER (LEN=8)         :: date
     INTEGER, DIMENSION(8)     :: values
-    INTEGER                   :: len
 
     pi = ATAN(1.0_dp)*4.0_dp
     CALL DATE_AND_TIME(date=date, time=time, zone=zone, values=values)
     Today=TRIM(date)//" "//TRIM(time)//" "//TRIM(zone)
-    CALL getlogin(ThisIsMe,len)    
-    CALL gethostname(MyMachine,len)
+    CALL m_getlog(ThisIsMe)    
+    CALL m_hostnm(MyMachine)
     
   END SUBROUTINE initialize_var
     
@@ -226,13 +252,13 @@ CONTAINS
     fist            = .TRUE.
     psf_xplor       = .FALSE.
     amber_impropers = .TRUE.
-    narg = iargc()
+    narg = m_iargc()
     IF (narg.LT.2) THEN
        CALL print_help_banner
     END IF
     ALLOCATE(command_line(narg))
     DO i=1, narg
-       CALL getarg(i, command_line(i))
+       CALL m_getarg(i, command_line(i))
     END DO
     DO I = 1, SIZE(command_line)
        SELECT CASE(TRIM(command_line(i)))

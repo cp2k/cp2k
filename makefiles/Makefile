@@ -17,15 +17,16 @@ ARCHDIR      = $(CP2KHOME)/arch
 MAINEXEDIR   = $(CP2KHOME)/exe
 MAINLIBDIR   = $(CP2KHOME)/lib
 MAINOBJDIR   = $(CP2KHOME)/obj
-SRCDIR       = $(CP2KHOME)/src
-SRCDIRS      = $(SRCDIR):$(SRCDIR)/lib
 TOOLDIR      = $(OBJDIR)/tools
 TOOLSRC      = $(CP2KHOME)/tools
+SRCDIR       = $(CP2KHOME)/src
+SRCDIRS      = $(SRCDIR):$(SRCDIR)/lib:$(TOOLSRC)/Fist/topology_converter
 FORPAR       = $(TOOLDIR)/forpar.x -chkint
 MAKEFILE     = $(CP2KHOME)/makefiles/Makefile
 SFMAKEDEPEND = $(CP2KHOME)/tools/sfmakedepend -m int -s -f
 MACHINEDEFS  = $(ARCHDIR)/$(ARCH).$(VERSION)
 PROG         = $(EXEDIR)/cp2k.$(VERSION)
+LEAP2FIST    = $(EXEDIR)/leap2fist.$(VERSION)
 EXEDIR       = $(MAINEXEDIR)/$(ARCH)
 LIBDIR       = $(MAINLIBDIR)/$(ARCH)
 OBJDIR       = $(MAINOBJDIR)/$(ARCH)
@@ -33,6 +34,7 @@ OBJECTDEFS   = $(SRCDIR)/OBJECTDEFS
 LIB1_ARCHIVE = $(LIBDIR)/$(VERSION)/lib$(LIB1).a
 LIB_CP2K_ARCHIVE  = $(LIBDIR)/$(VERSION)/lib$(LIBCP2K).a
 SRCENTRY     = $(wildcard $(SRCDIR)/CVS/Entr*)
+LEAPOBJECTDEFS = $(TOOLSRC)/Fist/topology_converter/OBJECTDEFS
 
 ### Definition of the multiple targets ###
 
@@ -42,7 +44,8 @@ ALL_TARGETS = sopt/all sdbg/all popt/all pdbg/all ssmp/all psmp/all
 CLEAN_TARGETS   = sopt/clean sdbg/clean popt/clean pdbg/clean\
                   sopt/realclean sdbg/realclean popt/realclean pdbg/realclean
 .PHONY : _all libs _progr _lib build clean realclean distclean $(CLEAN_TARGETS)\
-         $(ALL_TARGETS) $(LIB_TARGETS) $(VERSION_TARGETS) dependencies
+         $(ALL_TARGETS) $(LIB_TARGETS) $(VERSION_TARGETS) dependencies leap2fist\
+         leapdep
 ### Master rules ###
 
 build:
@@ -64,6 +67,18 @@ all:
 progr:
 	$(SMAKE) -f $(MAKEFILE) VERSION=$(VERSION) WHAT=_progr build
 
+leap2fist:
+	@mkdir -p $(EXEDIR)
+	@mkdir -p $(LIBDIR)/$(VERSION)
+	@mkdir -p $(TOOLDIR)
+	@mkdir -p $(OBJDIR)/$(VERSION)
+	@echo
+	@echo "*** machine file = $(MACHINEDEFS)"
+	@echo
+	$(SMAKE) -C $(TOOLDIR) -f $(TOOLSRC)/Makefile SRCDIR=$(TOOLSRC) CC=$(CC)
+	$(SMAKE) -C $(OBJDIR)/$(VERSION) -f $(MAKEFILE) leapdep
+	$(PMAKE) -C $(OBJDIR)/$(VERSION) -f $(MAKEFILE) VERSION=$(VERSION) $(LEAP2FIST)
+
 $(VERSION_TARGETS):
 	$(SMAKE) -f $(MAKEFILE) VERSION=$@ build
 
@@ -74,6 +89,7 @@ $(ALL_TARGETS) $(LIB_TARGETS):
 	$(SMAKE) -f $(MAKEFILE) VERSION=$(@D) WHAT=_$(@F) build
 
 include $(OBJECTDEFS)
+include $(LEAPOBJECTDEFS)
 
 include $(MACHINEDEFS)
 
@@ -98,7 +114,11 @@ LIBRARIES = -L$(LIBDIR)/$(VERSION) -l$(LIB1) $(LIBS)
 
 ### Slave rules ###
 
-dependencies: $(DEPENDENCIES)
+LEAPOBJS=$(LEAPOBJ) $(OBJECTS_ARCHITECTURE)
+leapdep:$(LEAPOBJS:.o=.dep)
+	@echo $(LEAPOBJS:.o=.dep)
+
+dependencies: $(DEPENDENCIES) leapdep
 	@echo
 	@echo "** DFLAGS   = $(DFLAGS)"
 	@echo "** CPPFLAGS = $(CPPFLAGS)"
@@ -107,7 +127,7 @@ dependencies: $(DEPENDENCIES)
 	@echo "** LIBS     = $(LIBS)"
 	@echo
 
-_all: $(LIB1_ARCHIVE) $(LIB_CP2K_ARCHIVE) $(PROG)
+_all: $(LIB1_ARCHIVE) $(LIB_CP2K_ARCHIVE) $(PROG) $(LEAP2FIST)
 _progr: $(PROG)
 _lib: $(LIB1_ARCHIVE) $(LIB_CP2K_ARCHIVE)
 
@@ -116,6 +136,9 @@ $(LIB1_ARCHIVE): $(LIB1_OBJECTS)
 ifneq ($(RANLIB),)
 	$(RANLIB) $(LIB1_ARCHIVE)
 endif
+
+$(LEAP2FIST): $(LEAPOBJS)
+	$(LD) $(LDFLAGS) -o $(LEAP2FIST) $(LEAPOBJS)
 
 $(PROG): $(LIB1_ARCHIVE) $(OBJECTS) cp2k.o
 	$(LD) $(LDFLAGS) -o $(PROG) $(OBJECTS) cp2k.o $(LIBRARIES)
