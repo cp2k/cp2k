@@ -1052,7 +1052,7 @@ CONTAINS
     !
     ! Initialize cell parameters..
     !
-    CALL init_cell(qm_cell_small)
+    CALL init_cell(qm_cell_small,periodic=(/0,0,0/))
     !
     ! Build MM atoms list
     !

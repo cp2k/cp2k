@@ -44,7 +44,7 @@ MODULE qs_environment_methods
                                              distribution_2d_type,&
                                              distribution_2d_write
   USE distribution_methods,            ONLY: distribute_molecules_2d
-  USE global_types,                    ONLY: MEDIUM
+  USE global_types,                    ONLY: MEDIUM,HIGH
   USE input_section_types,             ONLY: section_vals_type
   USE kinds,                           ONLY: dp,&
                                              int_size
@@ -766,7 +766,7 @@ END SUBROUTINE qs_env_update_rho_core
       DEALLOCATE (nparticle,STAT=stat)
       IF (stat /= 0) CALL stop_memory(routineP,"nparticle")
 
-      IF (logger%print_level>MEDIUM) THEN
+      IF (logger%print_level>HIGH) THEN
          CALL distribution_2d_write(distribution_2d, &
               unit_nr=cp_logger_get_default_unit_nr(logger,local=.TRUE.),&
               local=.TRUE.,long_description=.TRUE.,&
