@@ -32,7 +32,7 @@ MODULE environment
   USE gamma,                           ONLY: deallocate_md_ftable
   USE global_types,                    ONLY: global_environment_type
   USE input_constants,                 ONLY: &
-       do_atom, do_farming, do_fist, do_kg, do_qs, do_test, energy_run, &
+       do_farming, do_fist, do_kg, do_qs, do_test, energy_run, &
        mol_dyn_run, none_run, program_names, run_type_names
   USE input_section_types,             ONLY: section_get_rval,&
                                              section_vals_get,&
@@ -484,8 +484,6 @@ SUBROUTINE cp2k_read(globenv,error)
 
     IF (globenv%run_type_id == 0) THEN
        SELECT CASE (globenv%prog_name_id)
-       CASE (do_atom)
-          globenv%run_type_id = none_run
        CASE (do_farming)
           globenv%run_type_id = none_run
        CASE (do_fist)
@@ -498,10 +496,6 @@ SUBROUTINE cp2k_read(globenv,error)
           globenv%run_type_id = none_run
        END SELECT
     END IF
-
-    IF(globenv%prog_name_id == do_atom .AND. globenv%run_type_id /= none_run) &
-       CALL stop_program(routineN,moduleN,__LINE__,&
-               "ATOM program supports only NONE as run type",globenv)
 
     IF(globenv%prog_name_id == do_farming .AND. globenv%run_type_id /= none_run) &
        CALL stop_program(routineN,moduleN,__LINE__,&

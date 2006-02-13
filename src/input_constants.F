@@ -29,13 +29,12 @@ MODULE input_constants
   PRIVATE
 
   ! Program Names
-  CHARACTER (LEN=default_string_length), PARAMETER, DIMENSION(12), PUBLIC :: program_names=&
+  CHARACTER (LEN=default_string_length), PARAMETER, DIMENSION(11), PUBLIC :: program_names=&
        (/"QS        ",&
          "FIST      ",&
          "KG        ",&
          "TBMD      ",&
          "QMMM      ",&
-         "ATOM      ",&
          "FARMING   ",&
          "TEST      ",&
          "QUICKSTEP ",&
@@ -43,13 +42,12 @@ MODULE input_constants
          "KIM_GORDON",&
          "TB-MD     " /)
 
-  CHARACTER (LEN=default_string_length), PARAMETER, DIMENSION(12), PUBLIC :: program_name_desc=&
+  CHARACTER (LEN=default_string_length), PARAMETER, DIMENSION(11), PUBLIC :: program_name_desc=&
        (/"Electronic structure methods (DFT, ...)",&
          "Molecular Mechanics                    ",&
          "Kim Gordon models (DFT)                ",&
          "Tight-Binding Molecular Dynamics       ",&
          "Hybrid quantum classical               ",&
-         "Atomic calculations                    ",&
          "Runs N independent jobs in a single run",&
          "Do some benchmarking and testing       ",&
          "Electronic structure methods (DFT, ...)",&    ! Aliases to the previous unique names
@@ -61,13 +59,12 @@ MODULE input_constants
                                 do_fist=2,&
                                 do_kg=3,&
                                 do_qmmm=4,&
-                                do_atom=5,&
-                                do_farming=6,&
-                                do_test=7,&
-                                do_tbmd=8
+                                do_farming=5,&
+                                do_test=6,&
+                                do_tbmd=7
 
-  INTEGER, PARAMETER, PUBLIC, DIMENSION(12) :: program_name_index=&
-       (/do_qs, do_fist, do_kg, do_tbmd, do_qmmm, do_atom, do_farming, do_test, do_qs, do_kg, do_kg, do_tbmd/)
+  INTEGER, PARAMETER, PUBLIC, DIMENSION(11) :: program_name_index=&
+       (/do_qs, do_fist, do_kg, do_tbmd, do_qmmm, do_farming, do_test, do_qs, do_kg, do_kg, do_tbmd/)
 
   REAL(KIND=dp), PARAMETER, PUBLIC :: RADIUS_QMMM_DEFAULT = 0.80_dp,&
                                       ALPHA_IMOMM_DEFAULT = 1.38_dp,&

@@ -24,7 +24,7 @@ MODULE header
 
   PRIVATE
   PUBLIC :: fist_header, tbmd_header, qs_header, tddfpt_header
-  PUBLIC :: atom_header, kg_header, qmmm_header
+  PUBLIC :: kg_header, qmmm_header
 
   !!*****
   !******************************************************************************
@@ -165,7 +165,7 @@ CONTAINS
          "** A hybrid Gaussian and plane wave density functional scheme,               **",&
          "** Molecular Physics, Vol. 92, Issue 3, 477-487 (1997)                       **",&
          ! GAPW references
-    "*******************************************************************************",&
+         "*******************************************************************************",&
          "** G. Lippert, J. Hutter, and M. Parrinello                                  **",&
          "** The Gaussian and augmented-plane-wave density functional method for       **",&
          "** ab initio molecular dynamics simulations                                  **",&
@@ -178,26 +178,6 @@ CONTAINS
 
   END SUBROUTINE qs_header
 
-
-  SUBROUTINE atom_header ( iw )
-    INTEGER                                  :: iw
-
-    WRITE ( iw, '( / )' )
-    WRITE ( iw, '( 14(25x,a,/) )' ) &
-         '  ****  ******  ****   ****   ', &
-         ' **  ** ****** **  ** ******  ', &
-         ' ******   **   **  ** **  **  ', &
-         ' **  **   **    ****  **  **  ', &
-         '                              ', &
-         '    University of Zurich      ', &
-         '           2000               ', &
-         '                              ', &
-         '        Version 0.0           ', &
-         '                                          '
-
-  END SUBROUTINE atom_header
-
-  !******************************************************************************
 
   SUBROUTINE kg_header ( iw, ionode )
     INTEGER                                  :: iw

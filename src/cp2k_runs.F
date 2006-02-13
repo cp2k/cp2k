@@ -6,7 +6,6 @@
 
 MODULE cp2k_runs
 
-  USE atom_module,                     ONLY: atomic_code
   USE bsse,                            ONLY: do_bsse_calculation
   USE cp_files,                        ONLY: close_file,&
                                              get_unit_number,&
@@ -43,7 +42,7 @@ MODULE cp2k_runs
                                              globenv_release
   USE harris_metropolis_mc,            ONLY: harris_mc_ld
   USE input_constants,                 ONLY: &
-       bsse_run, do_atom, do_farming, do_fist, do_kg, do_qmmm, do_qs, &
+       bsse_run, do_farming, do_fist, do_kg, do_qmmm, do_qs, &
        do_tbmd, do_test, electronic_spectra_run, energy_force_run, &
        energy_run, geo_opt_run, hmc_run, ldmc_run, linear_response_run, &
        mol_dyn_run, mon_car_run, none_run, qs_debug_run
@@ -201,8 +200,6 @@ CONTAINS
        CALL cp2k_read(globenv)
        CALL cp2k_setup(globenv,error)
        SELECT CASE (globenv%prog_name_id)
-       CASE (do_atom)
-          CALL atomic_code ( globenv )
        CASE (do_farming)
           CALL farming_run ( globenv, error )
        CASE (do_fist)

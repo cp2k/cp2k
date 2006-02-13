@@ -11,9 +11,6 @@ OBJECTS_GENERIC =\
  ai_overlap_ppl.o\
  ai_verfc.o\
  ao_types.o\
- atom_module.o\
- atom_types.o\
- atom_util.o\
  atomic_kind_list_types.o\
  atomic_kind_types.o\
  atoms_input.o\
@@ -354,11 +351,6 @@ OBJECTS_GENERIC =\
  qs_vxc_atom.o\
  qs_wf_history_methods.o\
  qs_wf_history_types.o\
- radial_grids.o\
- radial_operators.o\
- radial_poisson.o\
- radial_solver.o\
- radial_util.o\
  real_space_test.o\
  realspace_grid_types.o\
  scf_control_types.o\
