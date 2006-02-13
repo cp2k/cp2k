@@ -65,3 +65,6 @@ NaCl.inp                  2
 NaCl-H2O.inp              2
 # test topology generate/dump feature
 acn.inp                   2
+#metadynamics distance_point_plane and angle
+nh3-meta-1.inp            2
+nh3-meta-2.inp            2

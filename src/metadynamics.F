@@ -203,23 +203,6 @@ SUBROUTINE metadyn_read(meta_env,globenv,metadyn_section,error)
         IF (meta_env%metavar(i)%do_wall_m) &
         WRITE ( iw, '( A,T61,F12.6)' )    ' METAVARS| Lower Wall Height',meta_env%metavar(i)%wall_m
      ENDDO
-     !   SELECT CASE(meta_env%colvars(i)%type_id)
-     !   CASE(torsion_colvar_id)
-     !      WRITE ( iw, '( A,T61,4I5)' )   ' COLVARS| TORSION       >>> ATOMS:',meta_env%colvars(i)%torsion_param%i_at_tors
-     !   CASE(dist_colvar_id)
-     !      WRITE ( iw, '( A,T71,2I5)' )   ' COLVARS| BOND          >>> ATOMS:',meta_env%colvars(i)% dist_param%i_at,&                
-     !           meta_env%colvars(i)% dist_param%j_at
-     !   CASE(coord_colvar_id)
-     !      WRITE ( iw, '( A,T71,I10)' )  (' COLVARS| COORDINATION  >>> FROM ATOM:',meta_env%colvars(i)%coord_param%i_at_from(kk),&
-     !           kk=1,SIZE(meta_env%colvars(i)%coord_param%i_at_from))
-     !      WRITE ( iw, '( A,T71,I10)' )  (' COLVARS| COORDINATION  >>>   TO ATOM:',meta_env%colvars(i)%coord_param%i_at_to(kk),&
-     !           kk=1,SIZE(meta_env%colvars(i)%coord_param%i_at_to))
-     !      WRITE ( iw, '( A,T71,F10.5)' ) ' COLVARS| R0',meta_env%colvars(i)%coord_param%r_0
-     !      WRITE ( iw, '( A,T71,I10)' )   ' COLVARS| NN',meta_env%colvars(i)%coord_param%nncrd
-     !      WRITE ( iw, '( A,T71,I10)' )   ' COLVARS| ND',meta_env%colvars(i)%coord_param%ndcrd
-     !      WRITE ( iw, '( A )')'          ----------------------------------------------------------------------'
-     !   END SELECT
-     !END DO
   END IF
 
 END SUBROUTINE metadyn_read

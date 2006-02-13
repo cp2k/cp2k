@@ -1,0 +1,66 @@
+
+&FORCE_EVAL
+  &MM
+    &FORCEFIELD
+      parmfile nh3.pot
+      parmtype CHM
+    &END FORCEFIELD
+    &POISSON_MM
+      &EWALD
+        EWALD_TYPE spme
+        ALPHA .44
+        GMAX 30
+        O_SPLINE 6
+      &END EWALD
+    &END POISSON_MM
+  &END MM
+  &SUBSYS
+    &CELL
+      ABC 10.0 10.0 10.0
+      UNIT ANGSTROM
+    &END CELL
+    &TOPOLOGY
+      CONN_FILE nh3.psf
+      CONNECTIVITY PSF
+      COORD_FILE nh3.pdb
+      COORDINATE pdb
+    &END TOPOLOGY
+    &COLVAR
+       &DISTANCE_POINT_PLANE
+          ATOMS_PLANE 2 3 4
+          ATOM_POINT 1
+       &END DISTANCE_POINT_PLANE
+    &END COLVAR
+  &END SUBSYS
+&END FORCE_EVAL
+
+&GLOBAL
+  FFTLIB FFTSG
+  PROGRAM FIST
+  PROJECT NH3
+  RUN_TYPE md
+&END GLOBAL
+
+&MOTION
+  &MD
+    ENSEMBLE NVE
+    STEPS 50
+    TIMESTEP 1.0
+    TEMPERATURE 300.0
+    TEMP_TOL 10.0
+  &END MD
+  &METADYN
+    DO_HILLS
+    LAGRANGE
+    NT_HILLS 3
+    WW 1.0e-2
+    &METAVAR
+      LAMBDA 0.1
+      MASS 10.0
+      SCALE 0.02
+      COLVAR 1
+      SUBSYS 1
+    &END METAVAR
+  &END METADYN
+&END MOTION
+

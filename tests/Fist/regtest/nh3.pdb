@@ -1,0 +1,7 @@
+REMARK  NH3                                                         
+ATOM      1  N   GLY     1       3.373   1.570   0.000                      N
+ATOM      2  H1  GLY     1       4.057   0.827   0.000                      H
+ATOM      3  H2  GLY     1       2.794   1.495  -0.825                      H
+ATOM      4  H3  GLY     1       2.794   1.495   0.825                      H
+TER   
+END   

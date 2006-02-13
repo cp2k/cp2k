@@ -182,7 +182,7 @@ SUBROUTINE fist_init ( fist_env, globenv, error )
   ! read colvars and add to subsystem
   colvar_section => section_vals_get_subs_vals(globenv%input_file,&
        "FORCE_EVAL%SUBSYS%COLVAR",error=error)
-  CALL cp_subsys_read_colvar( subsystem, colvar_section, error=error)
+  CALL cp_subsys_read_colvar( subsystem, colvar_section, globenv, error=error)
 
   CALL read_cell( cell, cell_ref, globenv, use_ref_cell = use_ref_cell, error=error,&
        cell_section=cell_section)

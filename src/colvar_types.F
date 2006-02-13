@@ -1,3 +1,28 @@
+!-----------------------------------------------------------------------------!
+!   CP2K: A general program to perform molecular dynamics simulations         !
+!   Copyright (C) 2004  CP2K developers group                                 !
+!-----------------------------------------------------------------------------!
+
+
+!!****h* cp2k/colvar_types [1.0] *
+!!
+!!   NAME
+!!     colvar_types
+!!
+!!   FUNCTION
+!!     Initialize the collective variables types
+!!
+!!   NOTES
+!!     -
+!!
+!!   AUTHOR
+!!     Teodoro Laino
+!!
+!!   MODIFICATION HISTORY
+!!     5.2004 created [fawzi and alessandro]
+!!
+!!   SOURCE
+!****************************************************************************
 MODULE colvar_types
   USE kinds,                           ONLY: dp
 #include "cp_common_uses.h"
@@ -8,10 +33,21 @@ MODULE colvar_types
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'colvar_types'
 
-  PUBLIC :: colvar_type, coord_colvar_type,dist_colvar_type,colvar_init,&
-        colvar_dealloc_ref,torsion_colvar_type
-  INTEGER, PARAMETER, PUBLIC :: no_colvar_id=-2,dist_colvar_id=1,&
-       coord_colvar_id=2,torsion_colvar_id=3
+  PUBLIC :: colvar_type,&
+            colvar_init,&
+            colvar_dealloc_ref,&
+            dist_colvar_type,&
+            coord_colvar_type,&
+            torsion_colvar_type,&
+            angle_colvar_type,&
+            plane_distance_colvar_type
+
+  INTEGER, PARAMETER, PUBLIC :: no_colvar_id=-2,&
+                                dist_colvar_id=1,&
+                                coord_colvar_id=2,&
+                                torsion_colvar_id=3,&
+                                angle_colvar_id=4,&
+                                plane_distance_colvar_id=5
 
 !!****s* colvar/dist_colvar_param [1.0] *
 !!
@@ -32,20 +68,29 @@ MODULE colvar_types
 !!     alessandro laio and fawzi mohamed
 !!
 !!   SOURCE
-  !***************************************************************************
+!***************************************************************************
   TYPE dist_colvar_type
      INTEGER :: i_at,j_at
   END TYPE dist_colvar_type
+
   TYPE coord_colvar_type
      INTEGER :: n_atoms_to,n_atoms_from,nncrd,ndcrd
      INTEGER, POINTER, DIMENSION (:) :: i_at_from,i_at_to
      REAL(dp) :: r_0
   END TYPE coord_colvar_type
+
   TYPE torsion_colvar_type
      INTEGER, DIMENSION (4) :: i_at_tors
   END TYPE torsion_colvar_type
-!!***
-  !****************************************************************************
+
+  TYPE plane_distance_colvar_type
+     INTEGER, DIMENSION(3) :: plane
+     INTEGER               :: point
+  END TYPE plane_distance_colvar_type
+
+  TYPE angle_colvar_type
+     INTEGER, DIMENSION(3) :: i_at_angle
+  END TYPE angle_colvar_type
 
 !!****s* colvar_types/dist_colvar_param [1.0] *
 !!
@@ -71,9 +116,11 @@ MODULE colvar_types
      REAL(kind=dp), DIMENSION (:,:), POINTER :: dsdr ! derivative of colvar 
      INTEGER, DIMENSION (:), POINTER :: i_atom       ! mapping of dsdr
      INTEGER                         :: n_atom_s
-     TYPE(dist_colvar_type) :: dist_param
-     TYPE(coord_colvar_type) :: coord_param
+     TYPE(dist_colvar_type)    :: dist_param
+     TYPE(coord_colvar_type)   :: coord_param
      TYPE(torsion_colvar_type) :: torsion_param
+     TYPE(angle_colvar_type)         :: angle_param
+     TYPE(plane_distance_colvar_type) :: plane_distance_param
   END TYPE colvar_type
 !!***
   !****************************************************************************
@@ -125,6 +172,9 @@ SUBROUTINE colvar_init(colvar,error)
   colvar%coord_param%nncrd=6
   colvar%coord_param%ndcrd=12
   colvar%coord_param%R_0=3.0_dp
+  colvar%angle_param%i_at_angle=-HUGE(0)
+  colvar%plane_distance_param%plane=-HUGE(0)
+  colvar%plane_distance_param%point=-HUGE(0)
   NULLIFY(colvar%coord_param%i_at_from,colvar%coord_param%i_at_to)
   NULLIFY(colvar%i_atom,colvar%dsdr)
 END SUBROUTINE colvar_init
@@ -192,6 +242,21 @@ SUBROUTINE colvar_dealloc_ref(colvar,error)
      colvar%torsion_param%i_at_tors(2)=-HUGE(0)
      colvar%torsion_param%i_at_tors(3)=-HUGE(0)
      colvar%torsion_param%i_at_tors(4)=-HUGE(0)
+  CASE(angle_colvar_id)
+     DEALLOCATE(colvar%dsdr, stat=stat)
+     CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
+     DEALLOCATE(colvar%i_atom, stat=stat)
+     CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
+
+     colvar%angle_param%i_at_angle=-HUGE(0)
+  CASE(plane_distance_colvar_id)
+     DEALLOCATE(colvar%dsdr, stat=stat)
+     CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
+     DEALLOCATE(colvar%i_atom, stat=stat)
+     CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
+
+     colvar%plane_distance_param%plane=-HUGE(0)
+     colvar%plane_distance_param%point=-HUGE(0)
   CASE(no_colvar_id)
   CASE default
      CPAssert(.FALSE.,cp_failure_level,routinep,error,failure)

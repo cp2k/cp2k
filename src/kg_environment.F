@@ -542,7 +542,7 @@ CONTAINS
     ! read colvars and add to subsystem
     colvar_section => section_vals_get_subs_vals(globenv%input_file,&
                               "FORCE_EVAL%SUBSYS%COLVAR",error=error)
-    CALL cp_subsys_read_colvar( subsys, colvar_section, error=error)
+    CALL cp_subsys_read_colvar( subsys, colvar_section, globenv, error=error)
 
 
     CALL qs_env_create(qs_env, para_env=para_env, error=error)

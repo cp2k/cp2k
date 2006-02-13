@@ -145,6 +145,10 @@ CONTAINS
 
        CALL create_colvar_coord_section(subsection,error)
        CALL section_add_subsection(section, subsection, error=error)
+       CALL section_release(subsection,error=error)
+
+       CALL create_colvar_d_pl_section(subsection,error)
+       CALL section_add_subsection(section, subsection, error=error)
        CALL section_release(subsection,error=error)      
 
     END IF
@@ -436,4 +440,75 @@ CONTAINS
     END IF
 
   END SUBROUTINE create_colvar_dist_section
+
+!!****f* input_cp2k/create_colvar_d_pl_section *
+!!
+!!   NAME
+!!     create_colvar_d_pl_section
+!!
+!!   FUNCTION
+!!     creates the colvar section regarded to the collective variables distance 
+!!     of a point from a plane
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     - section: the section to be created
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     teo
+!!
+!!*** **********************************************************************
+  SUBROUTINE create_colvar_d_pl_section(section,error,description)
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+    CHARACTER(LEN=*), INTENT(IN), OPTIONAL   :: description
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_colvar_d_pl_section', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
+
+    failure=.FALSE.
+    
+    IF (.NOT.failure) THEN
+       CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+       IF (PRESENT(description)) THEN
+          CALL section_create(section,name="distance_point_plane",&
+               description=description,&
+               n_keywords=1, n_subsections=0, repeats=.TRUE., required=.TRUE.,&
+               error=error)
+       ELSE
+          CALL section_create(section,name="distance_point_plane",&
+               description="Section to define the distance of a point from a plane"//&
+               "as a collective variables.",&
+               n_keywords=1, n_subsections=0, repeats=.TRUE., required=.TRUE.,&
+               error=error)
+       END IF
+
+       NULLIFY(keyword)
+
+       CALL keyword_create(keyword, name="ATOMS_PLANE",&
+            description="Specifies the atom indexes defining the plane.",&
+            usage="ATOMS <INTEGER> <INTEGER> <INTEGER>",required=.TRUE.,&
+            n_var=3, type_of_var=integer_t, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="ATOM_POINT",&
+            description="Specifies the atom index defining the point.",&
+            usage="ATOMS <INTEGER>",required=.TRUE.,&
+            n_var=1, type_of_var=integer_t, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+    END IF
+
+  END SUBROUTINE create_colvar_d_pl_section
+
 END MODULE input_cp2k_colvar

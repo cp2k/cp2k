@@ -201,7 +201,7 @@ CONTAINS
       CALL write_cell(cell=cell, force_env_section=force_env_section,error=error)
 
       CALL cp_subsys_create(subsystem, para_env=globenv%para_env, error=error)
-      CALL cp_subsys_read_colvar(subsystem, colvar_section, error=error)
+      CALL cp_subsys_read_colvar(subsystem, colvar_section, globenv, error=error)
 
       CALL topology_control(atomic_kind_set, particle_set, &
                             molecule_kind_set, molecule_set, &

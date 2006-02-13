@@ -95,9 +95,10 @@ CONTAINS
 !!     2006.01 Joost VandeVondele
 !!
 !!*** **********************************************************************
-  SUBROUTINE cp_subsys_read_colvar(subsys,colvar_section,error)
+  SUBROUTINE cp_subsys_read_colvar(subsys,colvar_section,globenv,error)
     TYPE(cp_subsystem_type), POINTER         :: subsys
     TYPE(section_vals_type), POINTER         :: colvar_section
+    TYPE(global_environment_type), POINTER   :: globenv
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -114,7 +115,7 @@ CONTAINS
     IF (.NOT. failure) THEN
      DO ig= 1, ncol
        CALL colvar_init(subsys%colvar(ig),error=error)
-       CALL colvar_read(subsys%colvar(ig),ig,colvar_section, error=error)
+       CALL colvar_read(subsys%colvar(ig),ig,colvar_section, globenv, error=error)
      ENDDO
     ENDIF
   END SUBROUTINE cp_subsys_read_colvar

@@ -1,0 +1,30 @@
+PSF
+ 
+      1 !NTITLE
+ Conversion from AMBER PARMTOP ::NH3
+ 
+      4 !NATOM
+      1 MOL01      1  GLY  N    N3    -0.49260  14.01000      0
+      2 MOL01      1  GLY  H1   H      0.16420   1.00800      0
+      3 MOL01      1  GLY  H2   H      0.16420   1.00800      0
+      4 MOL01      1  GLY  H3   H      0.16420   1.00800      0
+  
+   3  !NBOND
+      1      2      1      3      1      4
+ 
+   3  !NTHETA
+      2      1      3      2      1      4      3      1      4
+ 
+   0  !NPHI
+
+ 
+   0  !NIMPHI
+ 
+  0 !NDON
+ 
+  0 !NACC
+ 
+  0 !NNB
+ 
+  0 !NGRP
+ 
