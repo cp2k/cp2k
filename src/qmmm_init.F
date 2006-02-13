@@ -32,7 +32,7 @@ MODULE qmmm_init
                                              cell_release,&
                                              cell_type,&
                                              get_cell,&
-                                             init_qmmm_cell,&
+                                             init_cell,&
                                              write_cell
   USE cp_output_handling,              ONLY: cp_p_file,&
                                              cp_print_key_finished_output,&
@@ -1052,7 +1052,7 @@ CONTAINS
     !
     ! Initialize cell parameters..
     !
-    CALL init_qmmm_cell(qm_cell_small)
+    CALL init_cell(qm_cell_small)
     !
     ! Build MM atoms list
     !

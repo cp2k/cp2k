@@ -74,7 +74,6 @@ MODULE cell_types
             get_cell_param,&
             get_hinv,&
             init_cell,&
-            init_qmmm_cell,&
             read_cell,&
             write_cell,&
             cell_create,&
@@ -257,34 +256,6 @@ CONTAINS
     box%h_inv = inv_3x3(box%hmat)
 
   END SUBROUTINE get_hinv
-
-! *****************************************************************************
-
-!!****f* cell_types/init_qmmm_cell
-!!
-!!   NAME
-!!     init_qmmm_cell
-!!
-!!   FUNCTION
-!!     Initialize the QM cell for a QM/MM calculation
-!!
-!!   INPUTS
-!!     - cell : QM cell to initialize
-!!
-!!   AUTHOR
-!!     Teodoro Laino
-!!
-!!   MODIFICATION HISTORY
-!!     05.2004 created [tlaino]
-!!
-!!*************************************************************************
-  SUBROUTINE init_qmmm_cell(cell)
-    TYPE(cell_type), POINTER                 :: cell
-
-    CALL init_cell(cell=cell)
- 
-  END SUBROUTINE init_qmmm_cell
-
 
 ! *****************************************************************************
 
