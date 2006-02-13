@@ -496,30 +496,6 @@ CONTAINS
 
   END FUNCTION pbc3
 
-! *****************************************************************************
-
-  SUBROUTINE read_cell ( cell, cell_ref, globenv, use_ref_cell, error, cell_section)
-
-!   Purpose: Read the cell parameters from the input file.
-
-!   History: - Creation (19.05.2000, Matthias Krack)
-
-!   ***************************************************************************
-
-    TYPE(cell_type), POINTER                 :: cell, cell_ref
-    TYPE(global_environment_type), POINTER   :: globenv
-    LOGICAL, INTENT(OUT), OPTIONAL           :: use_ref_cell
-    TYPE(cp_error_type), INTENT(inout)       :: error
-    TYPE(section_vals_type), OPTIONAL, &
-      POINTER                                :: cell_section
-
-    CHARACTER(LEN=*), PARAMETER :: &
-      routine = "SUBROUTINE read_cell (MODULE cell_types)"
-
-    CALL read_cell_new(cell, cell_ref, globenv, use_ref_cell, error=error, cell_section=cell_section)
-
-  END SUBROUTINE read_cell
-
 !!****f* cell_types/read_cell_new [1.0] *
 !!
 !!   NAME
@@ -543,7 +519,7 @@ CONTAINS
 !!
 !!*** **********************************************************************
 
-  RECURSIVE SUBROUTINE read_cell_new ( cell, cell_ref, globenv, use_ref_cell, error, cell_section,&
+  RECURSIVE SUBROUTINE read_cell( cell, cell_ref, globenv, use_ref_cell, error, cell_section,&
        check_for_ref)
     TYPE(cell_type), POINTER                 :: cell, cell_ref
     TYPE(global_environment_type), POINTER   :: globenv
@@ -553,7 +529,7 @@ CONTAINS
       POINTER                                :: cell_section
     LOGICAL, INTENT(IN), OPTIONAL            :: check_for_ref
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'read_cell_new', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'read_cell', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: my_per, my_val, n_rep
@@ -664,14 +640,14 @@ CONTAINS
             "CELL_REF",error=error)
        IF (parsed_cp2k_input(cell_ref_section,check_this_section=.TRUE.,error=error)) THEN
           IF(PRESENT(use_ref_cell) ) use_ref_cell = .TRUE.
-          CALL read_cell_new(cell_ref, cell_ref, globenv, use_ref_cell, error=error,&
+          CALL read_cell(cell_ref, cell_ref, globenv, use_ref_cell, error=error,&
                cell_section=cell_ref_section, check_for_ref=.FALSE.)
        ELSE
           CALL cell_clone (cell, cell_ref, error)
           IF ( PRESENT ( use_ref_cell ) ) use_ref_cell = .FALSE.
        END IF
     END IF
-  END SUBROUTINE read_cell_new
+  END SUBROUTINE read_cell
 
 ! *****************************************************************************
 
