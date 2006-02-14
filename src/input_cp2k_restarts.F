@@ -811,6 +811,8 @@ CONTAINS
             local_particles=local_particles,&
             particles=particles,&
             error=error)
+
+       IF (.NOT.ASSOCIATED(local_particles%local_particle_set)) CYCLE
        
        nparticle_kind = atomic_kinds%n_els
        nparticle = particles%n_els
@@ -821,7 +823,6 @@ CONTAINS
        
        DO iparticle=1,nparticle
           DO iparticle_kind=1,nparticle_kind
-             IF (.NOT.ASSOCIATED(local_particles%local_particle_set)) CYCLE
              nparticle_local = local_particles%n_el(iparticle_kind)
              DO iparticle_local=1,nparticle_local
                 IF (iparticle == local_particles%list(iparticle_kind)%&

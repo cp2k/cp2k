@@ -2011,12 +2011,12 @@ RECURSIVE SUBROUTINE section_vals_write(section_vals,unit_nr,hide_root,error)
           error=error)
      DO i_rep_s=1,nr
         IF (.NOT.my_hide_root) THEN
-           WRITE(myfmt,*)indent,"X,"
+           WRITE(myfmt,*)indent,"X"
            CALL compress(myfmt,full=.TRUE.)
            IF (ASSOCIATED(section%keywords(-1)%keyword)) THEN
-              WRITE(unit=unit_nr,fmt="("//TRIM(myfmt)//"'&',a,' ')",advance="NO") TRIM(section%name)
+              WRITE(unit=unit_nr,fmt="("//TRIM(myfmt)//",'&',a,' ')",advance="NO") TRIM(section%name)
            ELSE
-              WRITE(unit=unit_nr,fmt="("//TRIM(myfmt)//"'&',a)") TRIM(section%name)
+              WRITE(unit=unit_nr,fmt="("//TRIM(myfmt)//",'&',a)") TRIM(section%name)
            END IF
         END IF
         defaultSection=(SIZE(section_vals%values,2)==0)
