@@ -2022,7 +2022,7 @@ RECURSIVE SUBROUTINE section_vals_write(section_vals,unit_nr,hide_root,error)
         defaultSection=(SIZE(section_vals%values,2)==0)
         IF (.NOT.(section%required.AND.defaultSection)) THEN
            IF (.NOT.my_hide_root) indent = indent + 2
-           WRITE(myfmt,*)indent,"X,"
+           WRITE(myfmt,*)indent,"X"
            CALL compress(myfmt,full=.TRUE.)           
            DO ik=-1,section%n_keywords
               keyword => section%keywords(ik)%keyword
@@ -2038,11 +2038,11 @@ RECURSIVE SUBROUTINE section_vals_write(section_vals,unit_nr,hide_root,error)
                             TRIM(section%name),error=error, failure=failure)
                        IF (keyword%names(1)/='_DEFAULT_KEYWORD_'.AND.&
                             keyword%names(1)/='_SECTION_PARAMETERS_') THEN
-                          WRITE(unit=unit_nr,fmt="("//TRIM(myfmt)//"a,' ')",advance="NO")&
+                          WRITE(unit=unit_nr,fmt="("//TRIM(myfmt)//",a,' ')",advance="NO")&
                                TRIM(keyword%names(1))
                        ELSEIF (keyword%names(1) =='_DEFAULT_KEYWORD_' .AND.&
                             keyword%type_of_var/=lchar_t) THEN
-                          WRITE(unit=unit_nr,fmt="("//TRIM(myfmt)//"a)",advance="NO") ""
+                          WRITE(unit=unit_nr,fmt="("//TRIM(myfmt)//")",advance="NO") 
                        END IF
                        CALL val_write(val,unit_nr=unit_nr,unit=keyword%unit,&
                             fmt=myfmt,error=suberror)
@@ -2067,10 +2067,10 @@ RECURSIVE SUBROUTINE section_vals_write(section_vals,unit_nr,hide_root,error)
            END IF
         END IF
         IF (.NOT.my_hide_root) indent = indent - 2
-        WRITE(myfmt,*)indent,"X,"
+        WRITE(myfmt,*)indent,"X"
         CALL compress(myfmt,full=.TRUE.)
         IF (.NOT.my_hide_root) &
-             WRITE(unit=unit_nr,fmt="("//TRIM(myfmt)//"'&END ',a)") TRIM(section%name)
+             WRITE(unit=unit_nr,fmt="("//TRIM(myfmt)//",'&END ',a)") TRIM(section%name)
      END DO
   END IF
   CALL cp_error_dealloc_ref(suberror)
