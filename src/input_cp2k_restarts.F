@@ -836,16 +836,9 @@ CONTAINS
           END DO
        END DO
 
-       CALL mp_sum(ascii,para_env%group)
-       
-       DO iparticle=1,nparticle
-          ALLOCATE(my_ascii(SIZE(ascii,1)),stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-          my_ascii = ascii(:,iparticle)
-          CALL section_vals_val_set(rng_section,"_DEFAULT_KEYWORD_",i_rep_val=iparticle,&
-               i_vals_ptr=my_ascii, error=error)
-       END DO
-    
+       CALL mp_sum(ascii,para_env%group)       
+       CALL section_rng_val_set(rng_section, particles, ascii, error)
+
        DEALLOCATE (ascii,STAT=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END DO
@@ -1145,6 +1138,97 @@ CONTAINS
     END DO
     velocity_section%values(ik,1)%list => vals
   END SUBROUTINE section_velocity_val_set
+
+
+!!****f* input_cp2k_restarts/section_rng_val_set [1.0] *
+!!
+!!   NAME
+!!     section_rng_val_set
+!!
+!!   FUNCTION
+!!     routine to dump rngs.. fast implementation
+!!
+!!   NOTES
+!!     
+!!
+!!   ARGUMENTS
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     Teodoro Laino
+!!
+!!   MODIFICATION HISTORY
+!!     02.2006 created [teo]
+!!
+!!*** **********************************************************************
+  SUBROUTINE section_rng_val_set(rng_section, particles, ascii, error)
+
+    TYPE(section_vals_type), POINTER         :: rng_section
+    TYPE(particle_list_type), POINTER        :: particles
+    INTEGER, DIMENSION(:, :)                 :: ascii
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'section_rng_val_set', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: ik, irk, Nlist, stat
+    LOGICAL                                  :: failure
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: vel
+    TYPE(cp_sll_val_type), POINTER           :: new_pos, vals
+    TYPE(section_type), POINTER              :: section
+    TYPE(val_type), POINTER                  :: my_val, old_val
+    INTEGER, DIMENSION(:), POINTER           :: my_ascii
+
+    failure=.FALSE.
+    NULLIFY(my_val, old_val, section, vals,my_ascii)
+    CPPrecondition(ASSOCIATED(rng_section),cp_failure_level,routineP,error,failure)
+    CPPrecondition(rng_section%ref_count>0,cp_failure_level,routineP,error,failure)
+    section => rng_section%section
+    ik=section_get_keyword_index(section,"_DEFAULT_KEYWORD_",error=error)
+    CALL cp_assert(ik/=-2,cp_failure_level,cp_assertion_failed,routineP,&
+         "section "//TRIM(section%name)//" does not contain keyword "//&
+         "_DEFAULT_KEYWORD_",error,failure)
+    DO
+       IF (SIZE(rng_section%values,2)==1) EXIT
+       CALL section_vals_add_values(rng_section,error=error)
+    END DO
+    vals  => rng_section%values(ik,1)%list
+    Nlist = 0
+    IF (ASSOCIATED(vals)) THEN
+       Nlist = cp_sll_val_get_length(vals,error)
+    END IF
+    DO irk=1,particles%n_els
+       ALLOCATE(my_ascii(SIZE(ascii,1)),stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       my_ascii = ascii(:,irk)
+       CALL val_create(my_val,i_vals_ptr=my_ascii,error=error)
+       
+       IF (Nlist /= 0) THEN
+          IF (irk==1) THEN
+             new_pos => vals
+          ELSE
+             new_pos => new_pos%rest
+          END IF
+          old_val => new_pos%first_el
+          CALL val_release(old_val,error=error)
+          new_pos%first_el => my_val
+       ELSE
+          IF (irk==1) THEN
+             NULLIFY(new_pos)
+             CALL cp_sll_val_create(new_pos,first_el=my_val,rest=vals,error=error)
+             vals => new_pos             
+          ELSE
+             NULLIFY(new_pos)
+             CALL cp_sll_val_create(new_pos,first_el=my_val,rest=vals%rest,error=error)
+             vals%rest => new_pos
+          END IF
+       END IF
+       NULLIFY(my_val)
+    END DO
+    rng_section%values(ik,1)%list => vals
+  END SUBROUTINE section_rng_val_set
 
 END MODULE input_cp2k_restarts
 
