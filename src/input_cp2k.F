@@ -903,8 +903,14 @@ SUBROUTINE create_f_env_print_section(section,error)
      CALL section_release(print_key,error=error)
 
      CALL cp_print_key_section_create(print_key,"distribution",&
-          description="controls the printing of the distribution of molecules, atoms, matrix blocks,...",&
+          description="controls the printing of the distribution of molecules, atoms, ...",&
           print_level=medium_print_level, filename="__STD_OUT__",error=error)
+     CALL section_add_subsection(section,print_key,error=error)
+     CALL section_release(print_key,error=error)
+
+     CALL cp_print_key_section_create(print_key,"distribution2d",&
+          description="controls the printing of the distribution of matrix blocks,...",&
+          print_level=high_print_level, filename="__STD_OUT__",error=error)
      CALL section_add_subsection(section,print_key,error=error)
      CALL section_release(print_key,error=error)
 

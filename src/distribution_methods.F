@@ -874,18 +874,21 @@ CONTAINS
         CALL stop_memory(routineN,moduleN,__LINE__,"work")
       END IF
 
-      iw = output_unit
-      IF (output_unit<0) iw = cp_logger_get_default_unit_nr(logger,LOCAL=.TRUE.)
-
-      CALL distribution_2d_write(distribution_2d,&
-                                 unit_nr=iw,&
-                                 local=.TRUE.,&
-                                 long_description=.TRUE.,&
-                                 error=error)
-
       CALL cp_print_key_finished_output(output_unit,logger,force_env_section,&
            "PRINT%DISTRIBUTION",error=error)      
-   END IF
+    END IF
+
+    IF (BTEST(cp_print_key_should_output(logger%iter_info,&
+         force_env_section,"PRINT%DISTRIBUTION2D",error=error),cp_p_file)) THEN
+         
+         iw = cp_logger_get_default_unit_nr(logger,LOCAL=.TRUE.)
+         CALL distribution_2d_write(distribution_2d,&
+                                    unit_nr=iw,&
+                                    local=.TRUE.,&
+                                    long_description=.TRUE.,&
+                                    error=error)
+
+    ENDIF
 
 !   *** Release work storage ***
 
