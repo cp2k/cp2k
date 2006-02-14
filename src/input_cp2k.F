@@ -914,6 +914,12 @@ SUBROUTINE create_f_env_print_section(section,error)
      CALL section_add_subsection(section,print_key,error=error)
      CALL section_release(print_key,error=error)
 
+     CALL cp_print_key_section_create(print_key,"distribution1d",&
+          description="Each node prints out its distribution info...",&
+          print_level=high_print_level, filename="__STD_OUT__",error=error)
+     CALL section_add_subsection(section,print_key,error=error)
+     CALL section_release(print_key,error=error)
+
   END IF
 END SUBROUTINE create_f_env_print_section
 !***************************************************************************

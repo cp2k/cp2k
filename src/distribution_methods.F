@@ -291,9 +291,9 @@ CONTAINS
 !   *** Print distribution, if requested ***
 
     IF (BTEST(cp_print_key_should_output(logger%iter_info,&
-         force_env_section,"PRINT%DISTRIBUTION",error=error),cp_p_file)) THEN
+         force_env_section,"PRINT%DISTRIBUTION1D",error=error),cp_p_file)) THEN
 
-       output_unit = cp_print_key_unit_nr(logger,force_env_section,"PRINT%DISTRIBUTION",&
+       output_unit = cp_print_key_unit_nr(logger,force_env_section,"PRINT%DISTRIBUTION1D",&
             extension=".Log",error=error)
        
        iw = output_unit
@@ -389,7 +389,7 @@ CONTAINS
       IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"work")
 
       CALL cp_print_key_finished_output(output_unit,logger,force_env_section,&
-           "PRINT%DISTRIBUTION",error=error)           
+           "PRINT%DISTRIBUTION1D",error=error)           
    END IF
 !   *** Release work storage ***
 
