@@ -27,6 +27,9 @@ MODULE input_cp2k_restarts
   USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                              gto_basis_set_type
   USE cell_types,                      ONLY: cell_type
+  USE cp_linked_list_val,              ONLY: cp_sll_val_create,&
+                                             cp_sll_val_get_length,&
+                                             cp_sll_val_type
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_subsystem_types,              ONLY: cp_subsys_get,&
                                              cp_subsystem_p_type
@@ -43,11 +46,17 @@ MODULE input_cp2k_restarts
                                              use_unit_bohr,&
                                              use_unit_scaled_angstrom,&
                                              use_unit_scaled_bohr
-  USE input_section_types,             ONLY: section_vals_get_subs_vals,&
+  USE input_section_types,             ONLY: section_get_keyword_index,&
+                                             section_type,&
+                                             section_vals_add_values,&
+                                             section_vals_get_subs_vals,&
                                              section_vals_type,&
                                              section_vals_val_get,&
                                              section_vals_val_set,&
                                              section_vals_val_unset
+  USE input_val_types,                 ONLY: val_create,&
+                                             val_release,&
+                                             val_type
   USE kg_environment_types,            ONLY: get_kg_env,&
                                              kg_environment_type
   USE kinds,                           ONLY: default_string_length,&
@@ -879,11 +888,11 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'update_subsys', &
       routineP = moduleN//':'//routineN
 
-    CHARACTER(LEN=default_string_length)     :: line, name
-    INTEGER                                  :: i, isubsys, my_unit, stat
+    INTEGER                                  :: handle, i, isubsys, my_unit, &
+                                                stat
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: conv_factor
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: vel, work
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: work
     TYPE(cell_type), POINTER                 :: cell, cell_ref
     TYPE(cp_subsystem_p_type), &
       DIMENSION(:), POINTER                  :: subsys
@@ -891,8 +900,8 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: work_section
 
     failure = .FALSE.
-    NULLIFY(vel,work,work_section,particles,subsys,&
-         cell,cell_ref)
+    NULLIFY(work, work_section, particles, subsys, cell, cell_ref)
+    CALL timeset(routineN,"I",'',handle)
     CALL force_env_get(force_env, subsys=subsys, cell = cell, cell_ref = cell_ref,  error=error)
     !
     ! The structure for multiple subsys has to be still decided..
@@ -912,21 +921,10 @@ CONTAINS
           CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
        END SELECT
        !    Coordinates and Velocities
-       DO i=1,particles%n_els
-          CALL get_atomic_kind(particles%els(i)%atomic_kind,name=name)
-          work_section => section_vals_get_subs_vals(subsys_section,"COORD",error=error)
-          WRITE(line,'(A2,2X,3F18.9,2X,A)')name,&
-                                    particles%els(i)%r(1:3)/conv_factor,TRIM(particles%els(i)%molname)
-          CALL section_vals_val_set(work_section,"_DEFAULT_KEYWORD_",i_rep_val=i,&
-               c_val=line,error=error)
-          ALLOCATE(vel(3),stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-          ! Always stored in A.U.
-          vel = particles%els(i)%v(1:3)
-          work_section => section_vals_get_subs_vals(subsys_section,"VELOCITY",error=error)
-          CALL section_vals_val_set(work_section,"_DEFAULT_KEYWORD_",i_rep_val=i,&
-               r_vals_ptr=vel,error=error)
-       END DO
+       work_section => section_vals_get_subs_vals(subsys_section,"COORD",error=error)
+       CALL section_coord_val_set(work_section, particles, conv_factor, error)
+       work_section => section_vals_get_subs_vals(subsys_section,"VELOCITY",error=error)
+       CALL section_velocity_val_set(work_section, particles, conv_factor=1.0_dp, error=error)
        !
        ! CELL
        ! 
@@ -970,8 +968,188 @@ CONTAINS
           CALL section_vals_val_set(work_section,"C",r_vals_ptr=work,error=error)
        END IF
     END DO
-    
+    CALL timestop(0.0_dp,handle)
   END SUBROUTINE update_subsys
+
+
+!!****f* input_cp2k_restarts/section_coord_val_set [1.0] *
+!!
+!!   NAME
+!!     section_coord_val_set
+!!
+!!   FUNCTION
+!!     routine to dump coordinates.. fast implementation
+!!
+!!   NOTES
+!!     
+!!
+!!   ARGUMENTS
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     Teodoro Laino
+!!
+!!   MODIFICATION HISTORY
+!!     02.2006 created [teo]
+!!
+!!*** **********************************************************************
+  SUBROUTINE section_coord_val_set(coord_section, particles, conv_factor, error)
+
+    TYPE(section_vals_type), POINTER         :: coord_section
+    TYPE(particle_list_type), POINTER        :: particles
+    REAL(KIND=dp)                            :: conv_factor
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'section_coord_val_set', &
+      routineP = moduleN//':'//routineN
+
+    CHARACTER(LEN=default_string_length)     :: line, name
+    INTEGER                                  :: ik, irk, Nlist
+    LOGICAL                                  :: failure
+    TYPE(cp_sll_val_type), POINTER           :: new_pos, vals
+    TYPE(section_type), POINTER              :: section
+    TYPE(val_type), POINTER                  :: my_val, old_val
+
+    failure=.FALSE.
+    NULLIFY(my_val, old_val, section, vals)
+    CPPrecondition(ASSOCIATED(coord_section),cp_failure_level,routineP,error,failure)
+    CPPrecondition(coord_section%ref_count>0,cp_failure_level,routineP,error,failure)
+    section => coord_section%section
+    ik=section_get_keyword_index(section,"_DEFAULT_KEYWORD_",error=error)
+    CALL cp_assert(ik/=-2,cp_failure_level,cp_assertion_failed,routineP,&
+         "section "//TRIM(section%name)//" does not contain keyword "//&
+         "_DEFAULT_KEYWORD_",error,failure)
+    DO
+       IF (SIZE(coord_section%values,2)==1) EXIT
+       CALL section_vals_add_values(coord_section,error=error)
+    END DO
+    vals  => coord_section%values(ik,1)%list
+    Nlist = 0
+    IF (ASSOCIATED(vals)) THEN
+       Nlist = cp_sll_val_get_length(vals,error)
+    END IF
+    DO irk=1,particles%n_els
+       CALL get_atomic_kind(particles%els(irk)%atomic_kind,name=name)
+       WRITE(line,'(A2,2X,3F18.9,2X,A)')name,&
+            particles%els(irk)%r(1:3)/conv_factor,TRIM(particles%els(irk)%molname)
+       CALL val_create(my_val,c_val=line,error=error)
+       
+       IF (Nlist /= 0) THEN
+          IF (irk==1) THEN
+             new_pos => vals
+          ELSE
+             new_pos => new_pos%rest
+          END IF
+          old_val => new_pos%first_el
+          CALL val_release(old_val,error=error)
+          new_pos%first_el => my_val
+       ELSE
+          IF (irk==1) THEN
+             NULLIFY(new_pos)
+             CALL cp_sll_val_create(new_pos,first_el=my_val,rest=vals,error=error)
+             vals => new_pos             
+          ELSE
+             NULLIFY(new_pos)
+             CALL cp_sll_val_create(new_pos,first_el=my_val,rest=vals%rest,error=error)
+             vals%rest => new_pos
+          END IF
+       END IF
+       NULLIFY(my_val)
+    END DO
+    coord_section%values(ik,1)%list => vals
+  END SUBROUTINE section_coord_val_set
+
+!!****f* input_cp2k_restarts/section_velocity_val_set [1.0] *
+!!
+!!   NAME
+!!     section_velocity_val_set
+!!
+!!   FUNCTION
+!!     routine to dump velocities.. fast implementation
+!!
+!!   NOTES
+!!     
+!!
+!!   ARGUMENTS
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     Teodoro Laino
+!!
+!!   MODIFICATION HISTORY
+!!     02.2006 created [teo]
+!!
+!!*** **********************************************************************
+  SUBROUTINE section_velocity_val_set(velocity_section, particles, conv_factor, error)
+
+    TYPE(section_vals_type), POINTER         :: velocity_section
+    TYPE(particle_list_type), POINTER        :: particles
+    REAL(KIND=dp)                            :: conv_factor
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'section_velocity_val_set', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: ik, irk, Nlist, stat
+    LOGICAL                                  :: failure
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: vel
+    TYPE(cp_sll_val_type), POINTER           :: new_pos, vals
+    TYPE(section_type), POINTER              :: section
+    TYPE(val_type), POINTER                  :: my_val, old_val
+
+    failure=.FALSE.
+    NULLIFY(my_val, old_val, section, vals)
+    CPPrecondition(ASSOCIATED(velocity_section),cp_failure_level,routineP,error,failure)
+    CPPrecondition(velocity_section%ref_count>0,cp_failure_level,routineP,error,failure)
+    section => velocity_section%section
+    ik=section_get_keyword_index(section,"_DEFAULT_KEYWORD_",error=error)
+    CALL cp_assert(ik/=-2,cp_failure_level,cp_assertion_failed,routineP,&
+         "section "//TRIM(section%name)//" does not contain keyword "//&
+         "_DEFAULT_KEYWORD_",error,failure)
+    DO
+       IF (SIZE(velocity_section%values,2)==1) EXIT
+       CALL section_vals_add_values(velocity_section,error=error)
+    END DO
+    vals  => velocity_section%values(ik,1)%list
+    Nlist = 0
+    IF (ASSOCIATED(vals)) THEN
+       Nlist = cp_sll_val_get_length(vals,error)
+    END IF
+    DO irk=1,particles%n_els
+       ALLOCATE(vel(3),stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       ! Always stored in A.U.
+       vel = particles%els(irk)%v(1:3)/conv_factor       
+       CALL val_create(my_val,r_vals_ptr=vel,error=error)
+       
+       IF (Nlist /= 0) THEN
+          IF (irk==1) THEN
+             new_pos => vals
+          ELSE
+             new_pos => new_pos%rest
+          END IF
+          old_val => new_pos%first_el
+          CALL val_release(old_val,error=error)
+          new_pos%first_el => my_val
+       ELSE
+          IF (irk==1) THEN
+             NULLIFY(new_pos)
+             CALL cp_sll_val_create(new_pos,first_el=my_val,rest=vals,error=error)
+             vals => new_pos             
+          ELSE
+             NULLIFY(new_pos)
+             CALL cp_sll_val_create(new_pos,first_el=my_val,rest=vals%rest,error=error)
+             vals%rest => new_pos
+          END IF
+       END IF
+       NULLIFY(my_val)
+    END DO
+    velocity_section%values(ik,1)%list => vals
+  END SUBROUTINE section_velocity_val_set
 
 END MODULE input_cp2k_restarts
 
