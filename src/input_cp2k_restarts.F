@@ -835,12 +835,6 @@ CONTAINS
           END DO
        END DO
 
-       IF (ALL(ascii==0)) THEN 
-          DEALLOCATE (ascii,STAT=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-          CYCLE
-       END IF
-
        CALL mp_sum(ascii,para_env%group)
        
        DO iparticle=1,nparticle
