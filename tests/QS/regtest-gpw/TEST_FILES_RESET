@@ -8,3 +8,4 @@ H2O-bloechl-Spl.inp
 #reset for FFT numerics
 H2O-bloechl.inp
 H2O-bloechl-Spl.inp
+rsgrid-dist-1.inp
