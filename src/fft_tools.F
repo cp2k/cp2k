@@ -23,7 +23,7 @@
 
 MODULE fft_tools
 
-  USE kinds,                           ONLY: dp
+  USE kinds,                           ONLY: dp, sp
   USE message_passing,                 ONLY: &
        mp_alltoall, mp_cart_coords, mp_cart_rank, mp_cart_sub, &
        mp_comm_compare, mp_comm_free, mp_environ, mp_rank_compare, mp_sum
@@ -47,6 +47,7 @@ MODULE fft_tools
   INTEGER, PARAMETER :: FFT_RADIX_NEXT_ODD = 497
   
   INTEGER :: fft_type = 0
+  LOGICAL :: alltoall_sgl = .FALSE.
 
   INTERFACE fft3d
      MODULE PROCEDURE fft3d_s, fft3d_ps, fft3d_pb
@@ -70,13 +71,20 @@ CONTAINS
 !!*****
 !******************************************************************************
 
-SUBROUTINE init_fft ( fftlib, fftnum )
+SUBROUTINE init_fft ( fftlib, fftnum, alltoall )
 
-    CHARACTER(LEN=*), INTENT(IN), OPTIONAL :: fftlib
-    INTEGER, INTENT(IN), OPTIONAL          :: fftnum
+  CHARACTER(LEN=*), INTENT(IN), OPTIONAL :: fftlib
+  INTEGER, INTENT(IN), OPTIONAL          :: fftnum
+  LOGICAL, INTENT(IN), OPTIONAL          :: alltoall
 
-    COMPLEX(KIND=dp)                       :: zz( 4, 4, 4 )
-    INTEGER                                :: fft_library, i, n(3)=4, stat
+  COMPLEX(KIND=dp)                       :: zz( 4, 4, 4 )
+  INTEGER                                :: fft_library, i, n(3)=4, stat
+
+  IF ( PRESENT ( alltoall ) ) THEN
+     alltoall_sgl = alltoall
+  ELSE
+     alltoall_sgl = .FALSE.
+  END IF
 
   IF ( PRESENT ( fftlib ) ) THEN
     fft_type = fft_library ( fftlib )
@@ -1306,33 +1314,32 @@ END SUBROUTINE fft3d_pb
 !!     JGH (14-Jan-2001)
 !!
 !!   MODIFICATION HISTORY
-!!     none
-!!
-!!   NOTES
+!!     15. Feb. 2006 : single precision all_to_all
 !!
 !!*****
 !******************************************************************************
 
 SUBROUTINE x_to_yz ( sb, group, my_pos, p2p, yzp, nray, bo, tb )
 
+  COMPLEX(KIND=dp), DIMENSION(:, :), &
+    INTENT(IN)                             :: sb
+  INTEGER, INTENT(IN)                      :: group, my_pos
+  INTEGER, DIMENSION(0:), INTENT(IN)       :: p2p
+  INTEGER, DIMENSION(:, :, 0:), INTENT(IN) :: yzp
+  INTEGER, DIMENSION(0:), INTENT(IN)       :: nray
+  INTEGER, DIMENSION(:, :, 0:), INTENT(IN) :: bo
+  COMPLEX(KIND=dp), DIMENSION(:, :, :), &
+    INTENT(OUT)                            :: tb
 
-    COMPLEX(KIND=dp), DIMENSION(:, :), &
-      INTENT(IN)                             :: sb
-    INTEGER, INTENT(IN)                      :: group, my_pos
-    INTEGER, DIMENSION(0:), INTENT(IN)       :: p2p
-    INTEGER, DIMENSION(:, :, 0:), INTENT(IN) :: yzp
-    INTEGER, DIMENSION(0:), INTENT(IN)       :: nray
-    INTEGER, DIMENSION(:, :, 0:), INTENT(IN) :: bo
-    COMPLEX(KIND=dp), DIMENSION(:, :, :), &
-      INTENT(OUT)                            :: tb
-
-    COMPLEX(KIND=dp), ALLOCATABLE, &
-      DIMENSION(:, :)                        :: rr
-    INTEGER                                  :: handle, ierr, ip, ir, ix, &
-                                                ixx, iy, iz, mpr, nm, np, nr, &
-                                                nx
-    INTEGER, ALLOCATABLE, DIMENSION(:)       :: rcount, rdispl, scount, sdispl
-    REAL(KIND=dp)                            :: flop
+  COMPLEX(KIND=dp), ALLOCATABLE, &
+    DIMENSION(:, :)                        :: rr
+  COMPLEX(KIND=sp), ALLOCATABLE, &
+    DIMENSION(:, :)                        :: ss, tt
+  INTEGER                                  :: handle, ierr, ip, ir, ix, &
+                                              ixx, iy, iz, mpr, nm, np, nr, &
+                                              nx, ns1, ns2
+  INTEGER, ALLOCATABLE, DIMENSION(:)       :: rcount, rdispl, scount, sdispl
+  REAL(KIND=dp)                            :: flop
 
 !------------------------------------------------------------------------------
 
@@ -1346,10 +1353,23 @@ SUBROUTINE x_to_yz ( sb, group, my_pos, p2p, yzp, nray, bo, tb )
   mpr = p2p ( my_pos )
   nx = bo ( 2, 1, mpr ) - bo ( 1, 1, mpr ) + 1
   nm = MAXVAL ( nray ( 0 : np - 1 ) )
-  ALLOCATE ( rr ( nm * nx, 0 : np - 1 ), STAT = ierr )
-  IF ( ierr /= 0 ) CALL stop_memory ( "x_to_yz", "rr", np*nm*nx )
-  nr = SIZE ( rr )
-  CALL dcopy ( 2*nr, 0.0_dp, 0, rr, 1 )
+
+  IF ( alltoall_sgl ) THEN
+    ns1 = SIZE ( sb, 1)
+    ns2 = SIZE ( sb, 2)
+    ALLOCATE ( ss ( ns1, ns2 ), STAT = ierr )
+    IF ( ierr /= 0 ) CALL stop_memory ( "x_to_yz", "ss", ns1*ns2 )
+    ss(:,:) = sb(:,:)
+    ALLOCATE ( tt ( nm * nx, 0 : np - 1 ), STAT = ierr )
+    IF ( ierr /= 0 ) CALL stop_memory ( "x_to_yz", "tt", np*nm*nx )
+    nr = SIZE ( tt )
+    CALL scopy ( 2*nr, 0.0_sp, 0, tt, 1 )
+  ELSE
+    ALLOCATE ( rr ( nm * nx, 0 : np - 1 ), STAT = ierr )
+    IF ( ierr /= 0 ) CALL stop_memory ( "x_to_yz", "rr", np*nm*nx )
+    nr = SIZE ( rr )
+    CALL dcopy ( 2*nr, 0.0_dp, 0, rr, 1 )
+  END IF
   
   nr = nray ( my_pos )
   DO ip = 0, np - 1
@@ -1366,7 +1386,11 @@ SUBROUTINE x_to_yz ( sb, group, my_pos, p2p, yzp, nray, bo, tb )
   END DO
   flop = REAL ( nm * nx * np,KIND=dp)
 
-  CALL mp_alltoall ( sb, scount, sdispl, rr, rcount, rdispl, group )
+  IF ( alltoall_sgl ) THEN
+    CALL mp_alltoall ( ss, scount, sdispl, tt, rcount, rdispl, group )
+  ELSE
+    CALL mp_alltoall ( sb, scount, sdispl, rr, rcount, rdispl, group )
+  END IF
 
   nx = SIZE ( tb )
   CALL dcopy ( 2*nx, 0.0_dp, 0, tb, 1 )
@@ -1375,16 +1399,31 @@ SUBROUTINE x_to_yz ( sb, group, my_pos, p2p, yzp, nray, bo, tb )
     nr = nray ( ip )
     DO ix = 1, nx
       ixx = nr * ( ix - 1 )
-      DO ir = 1, nray ( ip )
-        iy = yzp ( 1, ir, ip )
-        iz = yzp ( 2, ir, ip )
-        tb ( iy, iz, ix ) = rr ( ir + ixx, ip )
-      END DO
+      IF ( alltoall_sgl ) THEN
+        DO ir = 1, nray ( ip )
+          iy = yzp ( 1, ir, ip )
+          iz = yzp ( 2, ir, ip )
+          tb ( iy, iz, ix ) = tt ( ir + ixx, ip )
+        END DO
+      ELSE
+        DO ir = 1, nray ( ip )
+          iy = yzp ( 1, ir, ip )
+          iz = yzp ( 2, ir, ip )
+          tb ( iy, iz, ix ) = rr ( ir + ixx, ip )
+        END DO
+      END IF
     END DO
   END DO
 
-  DEALLOCATE ( rr, STAT = ierr )
-  IF ( ierr /= 0 ) CALL stop_memory ( "x_to_yz", "rr" )
+  IF ( alltoall_sgl ) THEN
+    DEALLOCATE ( ss, STAT = ierr )
+    IF ( ierr /= 0 ) CALL stop_memory ( "x_to_yz", "ss" )
+    DEALLOCATE ( tt, STAT = ierr )
+    IF ( ierr /= 0 ) CALL stop_memory ( "x_to_yz", "tt" )
+  ELSE
+    DEALLOCATE ( rr, STAT = ierr )
+    IF ( ierr /= 0 ) CALL stop_memory ( "x_to_yz", "rr" )
+  END IF
   DEALLOCATE ( scount, sdispl, rcount, rdispl, STAT = ierr )
   IF ( ierr /= 0 ) CALL stop_memory ( "x_to_yz", "scount" )
 
@@ -1405,33 +1444,32 @@ END SUBROUTINE x_to_yz
 !!     JGH (14-Jan-2001)
 !!
 !!   MODIFICATION HISTORY
-!!     none
-!!
-!!   NOTES
+!!     15. Feb. 2006 : single precision all_to_all
 !!
 !!*****
 !******************************************************************************
 
 SUBROUTINE yz_to_x ( tb, group, my_pos, p2p, yzp, nray, bo, sb )
 
+  COMPLEX(KIND=dp), DIMENSION(:, :, :), &
+    INTENT(IN)                             :: tb
+  INTEGER, INTENT(IN)                      :: group, my_pos
+  INTEGER, DIMENSION(0:), INTENT(IN)       :: p2p
+  INTEGER, DIMENSION(:, :, 0:), INTENT(IN) :: yzp
+  INTEGER, DIMENSION(0:), INTENT(IN)       :: nray
+  INTEGER, DIMENSION(:, :, 0:), INTENT(IN) :: bo
+  COMPLEX(KIND=dp), DIMENSION(:, :), &
+    INTENT(OUT)                            :: sb
 
-    COMPLEX(KIND=dp), DIMENSION(:, :, :), &
-      INTENT(IN)                             :: tb
-    INTEGER, INTENT(IN)                      :: group, my_pos
-    INTEGER, DIMENSION(0:), INTENT(IN)       :: p2p
-    INTEGER, DIMENSION(:, :, 0:), INTENT(IN) :: yzp
-    INTEGER, DIMENSION(0:), INTENT(IN)       :: nray
-    INTEGER, DIMENSION(:, :, 0:), INTENT(IN) :: bo
-    COMPLEX(KIND=dp), DIMENSION(:, :), &
-      INTENT(OUT)                            :: sb
-
-    COMPLEX(KIND=dp), ALLOCATABLE, &
-      DIMENSION(:, :)                        :: rr
-    INTEGER                                  :: handle, ierr, ip, ir, ix, &
-                                                ixx, iy, iz, mpr, nm, np, nr, &
-                                                nx
-    INTEGER, ALLOCATABLE, DIMENSION(:)       :: rcount, rdispl, scount, sdispl
-    REAL(KIND=dp)                            :: flop
+  COMPLEX(KIND=dp), ALLOCATABLE, &
+    DIMENSION(:, :)                        :: rr
+  COMPLEX(KIND=sp), ALLOCATABLE, &
+    DIMENSION(:, :)                        :: ss, tt
+  INTEGER                                  :: handle, ierr, ip, ir, ix, &
+                                              ixx, iy, iz, mpr, nm, np, nr, &
+                                              nx, ns1, ns2, ns
+  INTEGER, ALLOCATABLE, DIMENSION(:)       :: rcount, rdispl, scount, sdispl
+  REAL(KIND=dp)                            :: flop
 
 !------------------------------------------------------------------------------
 
@@ -1445,21 +1483,42 @@ SUBROUTINE yz_to_x ( tb, group, my_pos, p2p, yzp, nray, bo, sb )
 
   nx = bo ( 2, 1, mpr ) - bo ( 1, 1, mpr ) + 1
   nm = MAXVAL ( nray ( 0 : np - 1 ) )
-  ALLOCATE ( rr ( nm * nx, 0 : np - 1 ), STAT = ierr )
-  IF ( ierr /= 0 ) CALL stop_memory ( "yz_to_x", "rr", np*nm*nx )
-  nx = SIZE ( rr )
-  CALL dcopy ( 2*nx, 0.0_dp, 0, rr, 1 )
+  IF ( alltoall_sgl ) THEN
+    ns1 = SIZE ( sb, 1)
+    ns2 = SIZE ( sb, 2)
+    ALLOCATE ( ss ( ns1, ns2 ), STAT = ierr )
+    IF ( ierr /= 0 ) CALL stop_memory ( "yz_to_x", "ss", ns1*ns2 )
+    ns = SIZE ( ss )
+    CALL scopy ( 2*ns, 0.0_sp, 0, ss, 1 )
+    ALLOCATE ( tt ( nm * nx, 0 : np - 1 ), STAT = ierr )
+    IF ( ierr /= 0 ) CALL stop_memory ( "yz_to_x", "tt", np*nm*nx )
+    nx = SIZE ( tt )
+    CALL scopy ( 2*nx, 0.0_sp, 0, tt, 1 )
+  ELSE
+    ALLOCATE ( rr ( nm * nx, 0 : np - 1 ), STAT = ierr )
+    IF ( ierr /= 0 ) CALL stop_memory ( "yz_to_x", "rr", np*nm*nx )
+    nx = SIZE ( rr )
+    CALL dcopy ( 2*nx, 0.0_dp, 0, rr, 1 )
+  END IF
   
   nx = bo ( 2, 1, mpr ) - bo ( 1, 1, mpr ) + 1
   DO ip = 0, np - 1
     nr = nray ( ip )
     DO ix = 1, nx
       ixx = nr * ( ix - 1 )
-      DO ir = 1, nray ( ip )
-        iy = yzp ( 1, ir, ip )
-        iz = yzp ( 2, ir, ip )
-        rr ( ir + ixx, ip ) = tb ( iy, iz, ix )
-      END DO
+      IF ( alltoall_sgl ) THEN
+        DO ir = 1, nray ( ip )
+          iy = yzp ( 1, ir, ip )
+          iz = yzp ( 2, ir, ip )
+          tt ( ir + ixx, ip ) = tb ( iy, iz, ix )
+        END DO
+      ELSE
+        DO ir = 1, nray ( ip )
+          iy = yzp ( 1, ir, ip )
+          iz = yzp ( 2, ir, ip )
+          rr ( ir + ixx, ip ) = tb ( iy, iz, ix )
+        END DO
+      END IF
     END DO
   END DO
 
@@ -1478,10 +1537,22 @@ SUBROUTINE yz_to_x ( tb, group, my_pos, p2p, yzp, nray, bo, sb )
   END DO
   flop = REAL ( nm * nx * np,KIND=dp)
 
-  CALL mp_alltoall ( rr, scount, sdispl, sb, rcount, rdispl, group )
+  IF ( alltoall_sgl ) THEN
+    CALL mp_alltoall ( tt, scount, sdispl, ss, rcount, rdispl, group )
+  ELSE
+    CALL mp_alltoall ( rr, scount, sdispl, sb, rcount, rdispl, group )
+  END IF
 
-  DEALLOCATE ( rr, STAT = ierr )
-  IF ( ierr /= 0 ) CALL stop_memory ( "yz_to_x", "rr" )
+  IF ( alltoall_sgl ) THEN
+    sb(:,:) = ss(:,:)
+    DEALLOCATE ( ss, STAT = ierr )
+    IF ( ierr /= 0 ) CALL stop_memory ( "yz_to_x", "ss" )
+    DEALLOCATE ( tt, STAT = ierr )
+    IF ( ierr /= 0 ) CALL stop_memory ( "yz_to_x", "tt" )
+  ELSE
+    DEALLOCATE ( rr, STAT = ierr )
+    IF ( ierr /= 0 ) CALL stop_memory ( "yz_to_x", "rr" )
+  END IF
   DEALLOCATE ( scount, sdispl, rcount, rdispl, STAT = ierr )
   IF ( ierr /= 0 ) CALL stop_memory ( "yz_to_x", "scount" )
 
@@ -1502,38 +1573,37 @@ END SUBROUTINE yz_to_x
 !!     JGH (18-Jan-2001)
 !!
 !!   MODIFICATION HISTORY
-!!     none
-!!
-!!   NOTES
+!!     15. Feb. 2006 : single precision all_to_all
 !!
 !!*****
 !******************************************************************************
 
 SUBROUTINE yz_to_xz ( sb, group, dims, my_pos, p2p, yzp, nray, bo, tb )
 
+  COMPLEX(KIND=dp), DIMENSION(:, :), &
+    INTENT(IN)                             :: sb
+  INTEGER, INTENT(IN)                      :: group
+  INTEGER, DIMENSION(2), INTENT(IN)        :: dims
+  INTEGER, INTENT(IN)                      :: my_pos
+  INTEGER, DIMENSION(0:), INTENT(IN)       :: p2p
+  INTEGER, DIMENSION(:, :, 0:), INTENT(IN) :: yzp
+  INTEGER, DIMENSION(0:), INTENT(IN)       :: nray
+  INTEGER, DIMENSION(:, :, 0:), INTENT(IN) :: bo
+  COMPLEX(KIND=dp), DIMENSION(:, :), &
+    INTENT(OUT)                            :: tb
 
-    COMPLEX(KIND=dp), DIMENSION(:, :), &
-      INTENT(IN)                             :: sb
-    INTEGER, INTENT(IN)                      :: group
-    INTEGER, DIMENSION(2), INTENT(IN)        :: dims
-    INTEGER, INTENT(IN)                      :: my_pos
-    INTEGER, DIMENSION(0:), INTENT(IN)       :: p2p
-    INTEGER, DIMENSION(:, :, 0:), INTENT(IN) :: yzp
-    INTEGER, DIMENSION(0:), INTENT(IN)       :: nray
-    INTEGER, DIMENSION(:, :, 0:), INTENT(IN) :: bo
-    COMPLEX(KIND=dp), DIMENSION(:, :), &
-      INTENT(OUT)                            :: tb
-
-    COMPLEX(KIND=dp), ALLOCATABLE, &
-      DIMENSION(:, :)                        :: rq, rs
-    INTEGER                                  :: cpos( 2 ), handle, ierr, ip, &
-                                                ipr, ir, ix, iz, jj, jx, jy, &
-                                                jz, myx, myz, nmax, np, npx, &
-                                                npz, nx, nz, rs_pos
-    INTEGER, ALLOCATABLE, DIMENSION(:)       :: rcount, rdispl, scount, &
-                                                sdispl, xcor, zcor
-    INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: pgrid
-    REAL(KIND=dp)                            :: flop
+  COMPLEX(KIND=dp), ALLOCATABLE, &
+    DIMENSION(:, :)                        :: rq, rs
+  COMPLEX(KIND=sp), ALLOCATABLE, &
+    DIMENSION(:, :)                        :: tq, ts
+  INTEGER                                  :: cpos( 2 ), handle, ierr, ip, &
+                                              ipr, ir, ix, iz, jj, jx, jy, &
+                                              jz, myx, myz, nmax, np, npx, &
+                                              npz, nx, nz, rs_pos
+  INTEGER, ALLOCATABLE, DIMENSION(:)       :: rcount, rdispl, scount, &
+                                              sdispl, xcor, zcor
+  INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: pgrid
+  REAL(KIND=dp)                            :: flop
 
 !------------------------------------------------------------------------------
 
@@ -1544,11 +1614,19 @@ SUBROUTINE yz_to_xz ( sb, group, dims, my_pos, p2p, yzp, nray, bo, tb )
   nmax = nx * MAXVAL ( nray ( : ) )
   rs_pos = p2p ( my_pos )
 
-  ALLOCATE ( rs ( nmax, 0:np-1 ) , STAT = ierr )
-  IF ( ierr /= 0 ) CALL stop_memory ( "yz_to_xz", "rs", nmax*np )
-  rs = 0.0_dp
-  ALLOCATE ( rq ( nmax, 0:np-1 ) , STAT = ierr )
-  IF ( ierr /= 0 ) CALL stop_memory ( "yz_to_xz", "rq", nmax*np )
+  IF ( alltoall_sgl ) THEN
+    ALLOCATE ( ts ( nmax, 0:np-1 ) , STAT = ierr )
+    IF ( ierr /= 0 ) CALL stop_memory ( "yz_to_xz", "ts", nmax*np )
+    ts = 0.0_sp
+    ALLOCATE ( tq ( nmax, 0:np-1 ) , STAT = ierr )
+    IF ( ierr /= 0 ) CALL stop_memory ( "yz_to_xz", "tq", nmax*np )
+  ELSE
+    ALLOCATE ( rs ( nmax, 0:np-1 ) , STAT = ierr )
+    IF ( ierr /= 0 ) CALL stop_memory ( "yz_to_xz", "rs", nmax*np )
+    rs = 0.0_dp
+    ALLOCATE ( rq ( nmax, 0:np-1 ) , STAT = ierr )
+    IF ( ierr /= 0 ) CALL stop_memory ( "yz_to_xz", "rq", nmax*np )
+  END IF
   npx = dims ( 1 )
   npz = dims ( 2 )
   ALLOCATE ( pgrid ( 0:npx-1, 0:npz-1 ) , STAT = ierr )
@@ -1583,13 +1661,23 @@ SUBROUTINE yz_to_xz ( sb, group, dims, my_pos, p2p, yzp, nray, bo, tb )
   scount = 0
   nx = SIZE ( sb ,2 )
   DO jx = 1, nx
-    DO ir = 1, nray ( my_pos )
-      jy = yzp ( 1, ir, my_pos )
-      jz = yzp ( 2, ir, my_pos )
-      ip = pgrid ( xcor ( jx ), zcor ( jz ) )
-      scount ( ip ) = scount ( ip ) + 1
-      rs ( scount ( ip ), ip ) = sb ( ir, jx )
-    END DO
+    IF ( alltoall_sgl ) THEN
+      DO ir = 1, nray ( my_pos )
+        jy = yzp ( 1, ir, my_pos )
+        jz = yzp ( 2, ir, my_pos )
+        ip = pgrid ( xcor ( jx ), zcor ( jz ) )
+        scount ( ip ) = scount ( ip ) + 1
+        ts ( scount ( ip ), ip ) = sb ( ir, jx )
+      END DO
+    ELSE
+      DO ir = 1, nray ( my_pos )
+        jy = yzp ( 1, ir, my_pos )
+        jz = yzp ( 2, ir, my_pos )
+        ip = pgrid ( xcor ( jx ), zcor ( jz ) )
+        scount ( ip ) = scount ( ip ) + 1
+        rs ( scount ( ip ), ip ) = sb ( ir, jx )
+      END DO
+    END IF
   END DO
 
   DO ip = 0, np - 1
@@ -1599,7 +1687,11 @@ SUBROUTINE yz_to_xz ( sb, group, dims, my_pos, p2p, yzp, nray, bo, tb )
   flop = REAL ( nmax * np,KIND=dp)
 
   CALL mp_alltoall ( scount, rcount, 1, group )
-  CALL mp_alltoall ( rs, scount, sdispl, rq, rcount, rdispl, group )
+  IF ( alltoall_sgl ) THEN
+    CALL mp_alltoall ( ts, scount, sdispl, tq, rcount, rdispl, group )
+  ELSE
+    CALL mp_alltoall ( rs, scount, sdispl, rq, rcount, rdispl, group )
+  END IF
 
   CALL mp_cart_coords ( group, rs_pos, cpos )
   myx = cpos ( 1 )
@@ -1612,20 +1704,36 @@ SUBROUTINE yz_to_xz ( sb, group, dims, my_pos, p2p, yzp, nray, bo, tb )
     DO jx = 0, bo ( 2, 1, rs_pos ) - bo ( 1, 1, rs_pos )
       DO ir = 1, nray ( ip )
         jz = yzp ( 2, ir, ip )
-        IF ( zcor ( jz ) == myz ) THEN
-          jj = jj + 1
-          jy = yzp ( 1, ir, ip )
-          jz = jz - bo ( 1, 3, rs_pos ) + 1
-          tb ( jy, jz + jx * nz ) = rq ( jj, ipr )
+        IF ( alltoall_sgl ) THEN
+          IF ( zcor ( jz ) == myz ) THEN
+            jj = jj + 1
+            jy = yzp ( 1, ir, ip )
+            jz = jz - bo ( 1, 3, rs_pos ) + 1
+            tb ( jy, jz + jx * nz ) = tq ( jj, ipr )
+          END IF
+        ELSE
+          IF ( zcor ( jz ) == myz ) THEN
+            jj = jj + 1
+            jy = yzp ( 1, ir, ip )
+            jz = jz - bo ( 1, 3, rs_pos ) + 1
+            tb ( jy, jz + jx * nz ) = rq ( jj, ipr )
+          END IF
         END IF
       END DO
     END DO
   END DO
 
-  DEALLOCATE ( rs, STAT = ierr )
-  IF ( ierr /= 0 ) CALL stop_memory ( "yz_to_xz", "rs" )
-  DEALLOCATE ( rq, STAT = ierr )
-  IF ( ierr /= 0 ) CALL stop_memory ( "yz_to_xz", "rq" )
+  IF ( alltoall_sgl ) THEN
+    DEALLOCATE ( ts, STAT = ierr )
+    IF ( ierr /= 0 ) CALL stop_memory ( "yz_to_xz", "ts" )
+    DEALLOCATE ( tq, STAT = ierr )
+    IF ( ierr /= 0 ) CALL stop_memory ( "yz_to_xz", "tq" )
+  ELSE
+    DEALLOCATE ( rs, STAT = ierr )
+    IF ( ierr /= 0 ) CALL stop_memory ( "yz_to_xz", "rs" )
+    DEALLOCATE ( rq, STAT = ierr )
+    IF ( ierr /= 0 ) CALL stop_memory ( "yz_to_xz", "rq" )
+  END IF
   DEALLOCATE ( pgrid, STAT = ierr )
   IF ( ierr /= 0 ) CALL stop_memory ( "yz_to_xz", "pgrid" )
   DEALLOCATE ( xcor, STAT = ierr )
@@ -1652,38 +1760,37 @@ END SUBROUTINE yz_to_xz
 !!     JGH (19-Jan-2001)
 !!
 !!   MODIFICATION HISTORY
-!!     none
-!!
-!!   NOTES
+!!     15. Feb. 2006 : single precision all_to_all
 !!
 !!*****
 !******************************************************************************
 
 SUBROUTINE xz_to_yz ( sb, group, dims, my_pos, p2p, yzp, nray, bo, tb )
 
+  COMPLEX(KIND=dp), DIMENSION(:, :), &
+    INTENT(IN)                             :: sb
+  INTEGER, INTENT(IN)                      :: group
+  INTEGER, DIMENSION(2), INTENT(IN)        :: dims
+  INTEGER, INTENT(IN)                      :: my_pos
+  INTEGER, DIMENSION(0:), INTENT(IN)       :: p2p
+  INTEGER, DIMENSION(:, :, 0:), INTENT(IN) :: yzp
+  INTEGER, DIMENSION(0:), INTENT(IN)       :: nray
+  INTEGER, DIMENSION(:, :, 0:), INTENT(IN) :: bo
+  COMPLEX(KIND=dp), DIMENSION(:, :), &
+    INTENT(OUT)                            :: tb
 
-    COMPLEX(KIND=dp), DIMENSION(:, :), &
-      INTENT(IN)                             :: sb
-    INTEGER, INTENT(IN)                      :: group
-    INTEGER, DIMENSION(2), INTENT(IN)        :: dims
-    INTEGER, INTENT(IN)                      :: my_pos
-    INTEGER, DIMENSION(0:), INTENT(IN)       :: p2p
-    INTEGER, DIMENSION(:, :, 0:), INTENT(IN) :: yzp
-    INTEGER, DIMENSION(0:), INTENT(IN)       :: nray
-    INTEGER, DIMENSION(:, :, 0:), INTENT(IN) :: bo
-    COMPLEX(KIND=dp), DIMENSION(:, :), &
-      INTENT(OUT)                            :: tb
-
-    COMPLEX(KIND=dp), ALLOCATABLE, &
-      DIMENSION(:, :)                        :: rq, rs
-    INTEGER                                  :: cpos( 2 ), handle, ierr, ip, &
-                                                ipl, ir, ix, ixx, iz, jj, jx, &
-                                                jy, jz, mp, myx, myz, nmax, &
-                                                np, npx, npz, nx, ny, nz
-    INTEGER, ALLOCATABLE, DIMENSION(:)       :: rcount, rdispl, scount, &
-                                                sdispl, xcor, zcor
-    INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: pgrid
-    REAL(KIND=dp)                            :: flop
+  COMPLEX(KIND=dp), ALLOCATABLE, &
+    DIMENSION(:, :)                        :: rq, rs
+  COMPLEX(KIND=sp), ALLOCATABLE, &
+    DIMENSION(:, :)                        :: tq, ts
+  INTEGER                                  :: cpos( 2 ), handle, ierr, ip, &
+                                              ipl, ir, ix, ixx, iz, jj, jx, &
+                                              jy, jz, mp, myx, myz, nmax, &
+                                              np, npx, npz, nx, ny, nz
+  INTEGER, ALLOCATABLE, DIMENSION(:)       :: rcount, rdispl, scount, &
+                                              sdispl, xcor, zcor
+  INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: pgrid
+  REAL(KIND=dp)                            :: flop
 
 !------------------------------------------------------------------------------
 
@@ -1693,12 +1800,21 @@ SUBROUTINE xz_to_yz ( sb, group, dims, my_pos, p2p, yzp, nray, bo, tb )
   ny = MAXVAL ( bo ( 2, 2, : ) - bo ( 1, 2, : ) + 1 )
   nmax = (2*ny)/np * SIZE ( sb ,2 )
 
-  ALLOCATE ( rs ( nmax, 0:np-1 ) , STAT = ierr )
-  IF ( ierr /= 0 ) CALL stop_memory ( "xz_to_yz", "rs", nmax*np )
-  rs = 0.0_dp
-  ALLOCATE ( rq ( nmax, 0:np-1 ) , STAT = ierr )
-  IF ( ierr /= 0 ) CALL stop_memory ( "xz_to_yz", "rq", nmax*np )
-  rq = 0.0_dp
+  IF ( alltoall_sgl ) THEN
+    ALLOCATE ( ts ( nmax, 0:np-1 ) , STAT = ierr )
+    IF ( ierr /= 0 ) CALL stop_memory ( "xz_to_yz", "ts", nmax*np )
+    ts = 0.0_sp
+    ALLOCATE ( tq ( nmax, 0:np-1 ) , STAT = ierr )
+    IF ( ierr /= 0 ) CALL stop_memory ( "xz_to_yz", "tq", nmax*np )
+    tq = 0.0_sp
+  ELSE
+    ALLOCATE ( rs ( nmax, 0:np-1 ) , STAT = ierr )
+    IF ( ierr /= 0 ) CALL stop_memory ( "xz_to_yz", "rs", nmax*np )
+    rs = 0.0_dp
+    ALLOCATE ( rq ( nmax, 0:np-1 ) , STAT = ierr )
+    IF ( ierr /= 0 ) CALL stop_memory ( "xz_to_yz", "rq", nmax*np )
+    rq = 0.0_dp
+  END IF
   npx = dims ( 1 )
   npz = dims ( 2 )
   ALLOCATE ( pgrid ( 0:npx-1, 0:npz-1 ) , STAT = ierr )
@@ -1757,10 +1873,17 @@ SUBROUTINE xz_to_yz ( sb, group, dims, my_pos, p2p, yzp, nray, bo, tb )
         jj = jj + 1
         jy = yzp ( 1, ir, ip )
         jz = yzp ( 2, ir, ip ) - bo ( 1, 3, mp ) + 1
-        DO jx = 0, nx - 1
-          ixx = jj + jx * scount ( ipl )/nx
-          rq ( ixx, ipl ) = sb ( jy, jz + jx * nz ) 
-        END DO
+        IF ( alltoall_sgl ) THEN
+          DO jx = 0, nx - 1
+            ixx = jj + jx * scount ( ipl )/nx
+            tq ( ixx, ipl ) = sb ( jy, jz + jx * nz ) 
+          END DO
+        ELSE
+          DO jx = 0, nx - 1
+            ixx = jj + jx * scount ( ipl )/nx
+            rq ( ixx, ipl ) = sb ( jy, jz + jx * nz ) 
+          END DO
+        END IF
       END IF
     END DO
   END DO
@@ -1771,24 +1894,45 @@ SUBROUTINE xz_to_yz ( sb, group, dims, my_pos, p2p, yzp, nray, bo, tb )
   END DO
   flop = REAL ( nmax * np,KIND=dp)
 
-  CALL mp_alltoall ( rq, scount, sdispl, rs, rcount, rdispl, group )
+  IF ( alltoall_sgl ) THEN
+    CALL mp_alltoall ( tq, scount, sdispl, ts, rcount, rdispl, group )
+  ELSE
+    CALL mp_alltoall ( rq, scount, sdispl, rs, rcount, rdispl, group )
+  END IF
 
   rcount = 0
   nx = MAXVAL ( bo ( 2, 1, : ) )
   DO jx = 1, nx
-    DO ir = 1, nray ( my_pos )
-      jy = yzp ( 1, ir, my_pos )
-      jz = yzp ( 2, ir, my_pos )
-      ip = pgrid ( xcor ( jx ), zcor ( jz ) )
-      rcount ( ip ) = rcount ( ip ) + 1
-      tb ( ir, jx ) = rs ( rcount ( ip ), ip )
-    END DO
+    IF ( alltoall_sgl ) THEN
+      DO ir = 1, nray ( my_pos )
+        jy = yzp ( 1, ir, my_pos )
+        jz = yzp ( 2, ir, my_pos )
+        ip = pgrid ( xcor ( jx ), zcor ( jz ) )
+        rcount ( ip ) = rcount ( ip ) + 1
+        tb ( ir, jx ) = ts ( rcount ( ip ), ip )
+      END DO
+    ELSE
+      DO ir = 1, nray ( my_pos )
+        jy = yzp ( 1, ir, my_pos )
+        jz = yzp ( 2, ir, my_pos )
+        ip = pgrid ( xcor ( jx ), zcor ( jz ) )
+        rcount ( ip ) = rcount ( ip ) + 1
+        tb ( ir, jx ) = rs ( rcount ( ip ), ip )
+      END DO
+    END IF
   END DO
 
-  DEALLOCATE ( rs, STAT = ierr )
-  IF ( ierr /= 0 ) CALL stop_memory ( "yz_to_xz", "rs" )
-  DEALLOCATE ( rq, STAT = ierr )
-  IF ( ierr /= 0 ) CALL stop_memory ( "yz_to_xz", "rq" )
+  IF ( alltoall_sgl ) THEN
+    DEALLOCATE ( ts, STAT = ierr )
+    IF ( ierr /= 0 ) CALL stop_memory ( "yz_to_xz", "ts" )
+    DEALLOCATE ( tq, STAT = ierr )
+    IF ( ierr /= 0 ) CALL stop_memory ( "yz_to_xz", "tq" )
+  ELSE
+    DEALLOCATE ( rs, STAT = ierr )
+    IF ( ierr /= 0 ) CALL stop_memory ( "yz_to_xz", "rs" )
+    DEALLOCATE ( rq, STAT = ierr )
+    IF ( ierr /= 0 ) CALL stop_memory ( "yz_to_xz", "rq" )
+  END IF
   DEALLOCATE ( pgrid, STAT = ierr )
   IF ( ierr /= 0 ) CALL stop_memory ( "yz_to_xz", "pgrid" )
   DEALLOCATE ( xcor, STAT = ierr )
@@ -1816,8 +1960,6 @@ END SUBROUTINE xz_to_yz
 !!
 !!   MODIFICATION HISTORY
 !!     none
-!!
-!!   NOTES
 !!
 !!*****
 !******************************************************************************

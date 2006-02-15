@@ -22,13 +22,14 @@
 !!     JGH (22-Mar-2001): New routines mp_comm_dup
 !!     fawzi (04-NOV-2004): storable performance info (for f77 interface)
 !!     Wrapper routine for mpi_gatherv added (22.12.2005,MK)
-!!     JGH (13-Feb-2006): Flexible precision
+!!     JGH (13-Feb-2006): Flexibel precision
+!!     JGH (15-Feb-2006): single precision mp_alltoall
 !!
 !!   SOURCE
 !******************************************************************************
 
 MODULE message_passing
-  USE kinds,                           ONLY: dp,&
+  USE kinds,                           ONLY: dp, sp,&
                                              dp_size,&
                                              int_size
   USE machine,                         ONLY: m_walltime
@@ -136,7 +137,8 @@ MODULE message_passing
   END INTERFACE
 
   INTERFACE mp_alltoall
-     MODULE PROCEDURE mp_alltoall_c22v, mp_alltoall_i, mp_alltoall_i11v, mp_alltoall_r11v
+     MODULE PROCEDURE mp_alltoall_c22v, mp_alltoall_i, mp_alltoall_c22v_sgl, &
+                      mp_alltoall_i11v, mp_alltoall_r11v
   END INTERFACE
 
   INTERFACE mp_sendrecv
@@ -1156,6 +1158,41 @@ SUBROUTINE mp_alltoall_c22v ( sb, scount, sdispl, rb, rcount, rdispl, group )
 #endif
 
 END SUBROUTINE mp_alltoall_c22v
+
+#if defined(__SGL)
+SUBROUTINE mp_alltoall_c22v_sgl ( dummy )
+  LOGICAL, INTENT(IN) :: dummy
+  CALL mp_stop( ierr, "mp_alltoall_c22v_sgl" )
+END SUBROUTINE mp_alltoall_c22v_sgl
+#else
+SUBROUTINE mp_alltoall_c22v_sgl ( sb, scount, sdispl, rb, rcount, rdispl, group )
+
+
+    COMPLEX(KIND=sp), DIMENSION(:, :), &
+      INTENT(IN)                             :: sb
+    INTEGER, DIMENSION(:), INTENT(IN)        :: scount, sdispl
+    COMPLEX(KIND=sp), DIMENSION(:, :), &
+      INTENT(OUT)                            :: rb
+    INTEGER, DIMENSION(:), INTENT(IN)        :: rcount, rdispl
+    INTEGER, INTENT(IN)                      :: group
+
+    INTEGER                                  :: ierr, msglen
+
+  ierr = 0
+#if defined(__parallel)
+  t_start = m_walltime ( )
+  CALL mpi_alltoallv ( sb, scount, sdispl, MPI_COMPLEX, &
+                       rb, rcount, rdispl, MPI_COMPLEX, group, ierr )
+  IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_alltoallv @ mp_alltoall_c22v" )
+  msglen = SUM ( scount ) + SUM ( rcount )
+  t_end = m_walltime ( )
+  CALL add_perf(perf_id=6,count=1,time=t_end-t_start,msg_size=msglen*reallen)
+#else
+  rb=sb
+#endif
+
+END SUBROUTINE mp_alltoall_c22v_sgl
+#endif
 
 SUBROUTINE mp_alltoall_i ( sb, rb, count, group )
 

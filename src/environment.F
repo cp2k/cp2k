@@ -34,7 +34,8 @@ MODULE environment
   USE input_constants,                 ONLY: &
        do_farming, do_fist, do_kg, do_qs, do_test, energy_run, &
        mol_dyn_run, none_run, program_names, run_type_names
-  USE input_section_types,             ONLY: section_get_rval,&
+  USE input_section_types,             ONLY: section_get_lval,&
+                                             section_get_rval,&
                                              section_vals_get,&
                                              section_vals_get_subs_vals,&
                                              section_vals_type,&
@@ -448,7 +449,7 @@ SUBROUTINE cp2k_read(globenv,error)
     CHARACTER(len=default_string_length) :: basis_set_file_name, &
       mm_potential_file_name, potential_file_name, restart_file_name
     INTEGER                                  :: num_threads, output_unit
-    LOGICAL                                  :: failure, trace
+    LOGICAL                                  :: failure, trace, ata
     TYPE(section_vals_type), POINTER         :: dft_section, global_section
 
 !$  INTEGER :: omp_get_num_threads
@@ -534,6 +535,10 @@ SUBROUTINE cp2k_read(globenv,error)
         start_section_label//"| Run type",&
         ADJUSTR(run_type_names(globenv%run_type_id)(:40))
 
+      CALL section_vals_val_get(global_section,"ALLTOALL_SGL",l_val=ata,error=error)
+      WRITE (UNIT=output_unit,FMT="(T2,A,T80,L1)")&
+        start_section_label//"| All-to-all communication in single precision",ata
+
       WRITE (UNIT=output_unit,FMT="(T2,A,T75,I6)")&
         start_section_label//"| Global print level",globenv%print_level,&
         start_section_label//"| Total number of message passing processes",&
@@ -587,7 +592,8 @@ SUBROUTINE cp2k_read(globenv,error)
     CALL read_global_section(globenv)
 
 !   *** Initialize FFT library ***
-    CALL init_fft(fftlib=TRIM(globenv%default_fft_library))
+    CALL init_fft(fftlib=TRIM(globenv%default_fft_library),&
+                  alltoall=section_get_lval(global_section,"ALLTOALL_SGL",error))
 
 !   *** Check for FFT library ***
     n(:) = 4
@@ -600,7 +606,8 @@ SUBROUTINE cp2k_read(globenv,error)
            " is not available "," Trying FFTSG as a default"
       ENDIF
       globenv%default_fft_library="FFTSG"
-      CALL init_fft(fftlib=TRIM(globenv%default_fft_library))
+      CALL init_fft(fftlib=TRIM(globenv%default_fft_library),&
+                    alltoall=section_get_lval(global_section,"ALLTOALL_SGL",error))
       CALL fft3d(1,n,zz,status=stat) 
       IF (stat /= 0) THEN
            CALL stop_program(routineN,moduleN,__LINE__,&
