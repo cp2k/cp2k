@@ -9,7 +9,7 @@ SUBROUTINE fftstp ( mm, nfft, m, nn, n, zin, zout, &
 
   IMPLICIT NONE
 
-#if defined(__SGL)
+#if defined(__SGL) || defined(__FFTSGL)
   INTEGER, PARAMETER :: dbl = KIND(0.0)
 #else
   INTEGER, PARAMETER :: dbl = SELECTED_REAL_KIND ( 14, 200 )

@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations
-!   Copyright (C) 2001 - 2002  CP2K developers group
+!   Copyright (C) 2001 - 2006  CP2K developers group
 !-----------------------------------------------------------------------------!
 !!****** cp2k/message_passing [1.0] *
 !!
@@ -22,6 +22,7 @@
 !!     JGH (22-Mar-2001): New routines mp_comm_dup
 !!     fawzi (04-NOV-2004): storable performance info (for f77 interface)
 !!     Wrapper routine for mpi_gatherv added (22.12.2005,MK)
+!!     JGH (13-Feb-2006): Flexible precision
 !!
 !!   SOURCE
 !******************************************************************************
@@ -191,6 +192,7 @@ MODULE message_passing
   INTEGER, PARAMETER :: intlen=BIT_SIZE ( 0 ) / 8, reallen=8, loglen=BIT_SIZE ( 0 ) / 8, charlen=1
   INTEGER, SAVE, PRIVATE :: last_mp_perf_env_id=0
 
+  ! Store the default type for Real and Complex in a special variable
 !!*****
 !******************************************************************************
 
@@ -991,7 +993,7 @@ SUBROUTINE mp_shift_rm( msg, group, displ_in)
   tag=18
   msglen = SIZE(msg)
   t_start = m_walltime ( )
-  CALL mpi_sendrecv_replace(msg,msglen,MPI_DOUBLE_PRECISION,right,tag,left,&
+  CALL mpi_sendrecv_replace(msg,msglen,MP_STD_REAL,right,tag,left,&
                             tag,group,status(1),ierror)
   t_end = m_walltime ( )
   IF ( ierror /= 0 ) THEN
@@ -1033,7 +1035,7 @@ SUBROUTINE mp_shift_r1( msg, group, displ_in)
   tag=19
   msglen = SIZE(msg)
   t_start = m_walltime ( )
-  CALL mpi_sendrecv_replace(msg,msglen,MPI_DOUBLE_PRECISION,right,tag,left,&
+  CALL mpi_sendrecv_replace(msg,msglen,MP_STD_REAL,right,tag,left,&
                             tag,group,status(1),ierror)
   t_end = m_walltime ( )
   IF ( ierror /= 0 ) THEN
@@ -1113,8 +1115,8 @@ SUBROUTINE mp_alltoall_r11v ( sb, scount, sdispl, rb, rcount, rdispl, group )
   ierr = 0
 #if defined(__parallel)
   t_start = m_walltime ( )
-  CALL mpi_alltoallv ( sb, scount, sdispl, MPI_DOUBLE_PRECISION, &
-                       rb, rcount, rdispl, MPI_DOUBLE_PRECISION, group, ierr )
+  CALL mpi_alltoallv ( sb, scount, sdispl, MP_STD_REAL, &
+                       rb, rcount, rdispl, MP_STD_REAL, group, ierr )
   IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_alltoallv @ mp_alltoall_r11v" )
   msglen = SUM ( scount ) + SUM ( rcount )
   t_end = m_walltime ( )
@@ -1143,8 +1145,8 @@ SUBROUTINE mp_alltoall_c22v ( sb, scount, sdispl, rb, rcount, rdispl, group )
   ierr = 0
 #if defined(__parallel)
   t_start = m_walltime ( )
-  CALL mpi_alltoallv ( sb, scount, sdispl, MPI_DOUBLE_COMPLEX, &
-                       rb, rcount, rdispl, MPI_DOUBLE_COMPLEX, group, ierr )
+  CALL mpi_alltoallv ( sb, scount, sdispl, MP_STD_COMPLEX, &
+                       rb, rcount, rdispl, MP_STD_COMPLEX, group, ierr )
   IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_alltoallv @ mp_alltoall_c22v" )
   msglen = SUM ( scount ) + SUM ( rcount )
   t_end = m_walltime ( )
@@ -1239,7 +1241,7 @@ SUBROUTINE mp_bcast_r1(msg,source,gid)
   msglen = 1
 #if defined(__parallel)
   t_start = m_walltime ( )
-  CALL mpi_bcast(msg,msglen,MPI_DOUBLE_PRECISION,source,gid,ierr)
+  CALL mpi_bcast(msg,msglen,MP_STD_REAL,source,gid,ierr)
   IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_bcast @ mp_bcast_r1" )
   t_end = m_walltime ( )
   CALL add_perf(perf_id=2,count=1,time=t_end-t_start,msg_size=msglen*reallen)
@@ -1255,7 +1257,7 @@ SUBROUTINE mp_bcast_rv(msg,source,gid)
   msglen = SIZE(msg)
 #if defined(__parallel)
   t_start = m_walltime ( )
-  CALL mpi_bcast(msg,msglen,MPI_DOUBLE_PRECISION,source,gid,ierr)
+  CALL mpi_bcast(msg,msglen,MP_STD_REAL,source,gid,ierr)
   IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_bcast @ mp_bcast_rv" )
   t_end = m_walltime ( )
   CALL add_perf(perf_id=2,count=1,time=t_end-t_start,msg_size=msglen*reallen)
@@ -1271,7 +1273,7 @@ SUBROUTINE mp_bcast_rm(msg,source,gid)
   msglen = SIZE(msg)
 #if defined(__parallel)
   t_start = m_walltime ( )
-  CALL mpi_bcast(msg,msglen,MPI_DOUBLE_PRECISION,source,gid,ierr)
+  CALL mpi_bcast(msg,msglen,MP_STD_REAL,source,gid,ierr)
   IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_bcast @ mp_bcast_rm" )
   t_end = m_walltime ( )
   CALL add_perf(perf_id=2,count=1,time=t_end-t_start,msg_size=msglen*reallen)
@@ -1287,7 +1289,7 @@ SUBROUTINE mp_bcast_rm3(msg,source,gid)
   msglen = SIZE(msg)
 #if defined(__parallel)
   t_start = m_walltime ( )
-  CALL mpi_bcast(msg,msglen,MPI_DOUBLE_PRECISION,source,gid,ierr)
+  CALL mpi_bcast(msg,msglen,MP_STD_REAL,source,gid,ierr)
   IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_bcast @ mp_bcast_rm" )
   t_end = m_walltime ( )
   CALL add_perf(perf_id=2,count=1,time=t_end-t_start,msg_size=msglen*reallen)
@@ -1303,7 +1305,7 @@ SUBROUTINE mp_bcast_c1(msg,source,gid)
   msglen = 1
 #if defined(__parallel)
   t_start = m_walltime ( )
-  CALL mpi_bcast(msg,msglen,MPI_DOUBLE_COMPLEX,source,gid,ierr)
+  CALL mpi_bcast(msg,msglen,MP_STD_COMPLEX,source,gid,ierr)
   IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_bcast @ mp_bcast_c1" )
   t_end = m_walltime ( )
   CALL add_perf(perf_id=2,count=1,time=t_end-t_start,msg_size=msglen*2*reallen)
@@ -1319,7 +1321,7 @@ SUBROUTINE mp_bcast_cv(msg,source,gid)
   msglen = SIZE(msg)
 #if defined(__parallel)
   t_start = m_walltime ( )
-  CALL mpi_bcast(msg,msglen,MPI_DOUBLE_COMPLEX,source,gid,ierr)
+  CALL mpi_bcast(msg,msglen,MP_STD_COMPLEX,source,gid,ierr)
   IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_bcast @ mp_bcast_cv" )
   t_end = m_walltime ( )
   CALL add_perf(perf_id=2,count=1,time=t_end-t_start,msg_size=msglen*2*reallen)
@@ -1335,7 +1337,7 @@ SUBROUTINE mp_bcast_cm(msg,source,gid)
   msglen = SIZE(msg)
 #if defined(__parallel)
   t_start = m_walltime ( )
-  CALL mpi_bcast(msg,msglen,MPI_DOUBLE_COMPLEX,source,gid,ierr)
+  CALL mpi_bcast(msg,msglen,MP_STD_COMPLEX,source,gid,ierr)
   IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_bcast @ mp_bcast_cm")
   t_end = m_walltime ( )
   CALL add_perf(perf_id=2,count=1,time=t_end-t_start,msg_size=msglen*2*reallen)
@@ -1479,7 +1481,7 @@ SUBROUTINE mp_sum_r1(msg,gid)
   msglen = 1
 #if defined(__parallel)
   t_start = m_walltime ( )
-  CALL mpi_allreduce(msg,res,msglen,MPI_DOUBLE_PRECISION,MPI_SUM,gid, &
+  CALL mpi_allreduce(msg,res,msglen,MP_STD_REAL,MPI_SUM,gid, &
        ierr)
   msg = res
   IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_allreduce @ mp_sum_r1" )
@@ -1498,7 +1500,7 @@ SUBROUTINE mp_sum_rv(msg,gid)
   msglen = SIZE(msg)
   ALLOCATE (res(1:msglen),STAT=ierr)
   IF ( ierr /= 0 ) CALL mp_stop( 0, "allocate @ mp_sum_rv" )
-  CALL mpi_allreduce(msg,res,msglen,MPI_DOUBLE_PRECISION,MPI_SUM,gid, &
+  CALL mpi_allreduce(msg,res,msglen,MP_STD_REAL,MPI_SUM,gid, &
        ierr)
   msg = res
   DEALLOCATE (res)
@@ -1521,7 +1523,7 @@ SUBROUTINE mp_sum_root_rv(msg,root,gid)
   m1 = SIZE(msg,1)
   ALLOCATE (res(m1),STAT=ierr)
   IF ( ierr /= 0 ) CALL mp_stop( 0, "allocate @ mp_sum_root_rv" )
-  CALL mpi_reduce(msg,res,msglen,MPI_DOUBLE_PRECISION,MPI_SUM,&
+  CALL mpi_reduce(msg,res,msglen,MP_STD_REAL,MPI_SUM,&
        root,gid,ierr)
   IF ( taskid == root ) THEN
     msg = res
@@ -1545,7 +1547,7 @@ SUBROUTINE mp_sum_rm(msg,gid)
   m2 = SIZE(msg,2)
   ALLOCATE (res(m1,m2),STAT=ierr)
   IF ( ierr /= 0 ) CALL mp_stop( 0, "allocate @ mp_sum_rm" )
-  CALL mpi_allreduce(msg,res,msglen,MPI_DOUBLE_PRECISION,MPI_SUM,gid, &
+  CALL mpi_allreduce(msg,res,msglen,MP_STD_REAL,MPI_SUM,gid, &
        ierr)
   msg = res
   DEALLOCATE (res)
@@ -1569,7 +1571,7 @@ SUBROUTINE mp_sum_root_rm(msg,root,gid)
   m2 = SIZE(msg,2)
   ALLOCATE (res(m1,m2),STAT=ierr)
   IF ( ierr /= 0 ) CALL mp_stop( 0, "allocate @ mp_sum_root_rm" )
-  CALL mpi_reduce(msg,res,msglen,MPI_DOUBLE_PRECISION,MPI_SUM,&
+  CALL mpi_reduce(msg,res,msglen,MP_STD_REAL,MPI_SUM,&
        root,gid,ierr)
   IF ( taskid == root ) THEN
     msg = res
@@ -1594,7 +1596,7 @@ SUBROUTINE mp_sum_rm3(msg,gid)
   m3 = SIZE(msg,3)
   ALLOCATE (res(m1,m2,m3),STAT=ierr)
   IF ( ierr /= 0 ) CALL mp_stop( 0, "allocate @ mp_sum_rm3" )
-  CALL mpi_allreduce(msg,res,msglen,MPI_DOUBLE_PRECISION,MPI_SUM,gid, &
+  CALL mpi_allreduce(msg,res,msglen,MP_STD_REAL,MPI_SUM,gid, &
        ierr)
   msg = res
   DEALLOCATE (res)
@@ -1619,7 +1621,7 @@ SUBROUTINE mp_sum_root_rm3(msg,root,gid)
   m3 = SIZE(msg,3)
   ALLOCATE (res(m1,m2,m3),STAT=ierr)
   IF ( ierr /= 0 ) CALL mp_stop( 0, "allocate @ mp_sum_root_rm3" )
-  CALL mpi_reduce(msg,res,msglen,MPI_DOUBLE_PRECISION,MPI_SUM,&
+  CALL mpi_reduce(msg,res,msglen,MP_STD_REAL,MPI_SUM,&
        root,gid,ierr)
   IF ( taskid == root ) THEN
     msg = res
@@ -1640,7 +1642,7 @@ SUBROUTINE mp_sum_c1(msg,gid)
   msglen = 2
 #if defined(__parallel)
   t_start = m_walltime ( )
-  CALL mpi_allreduce(msg,res,msglen,MPI_DOUBLE_PRECISION,MPI_SUM,gid, &
+  CALL mpi_allreduce(msg,res,msglen,MP_STD_REAL,MPI_SUM,gid, &
        ierr)
   msg = res
   IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_allreduce @ mp_sum_c1" )
@@ -1659,7 +1661,7 @@ SUBROUTINE mp_sum_cv(msg,gid)
   msglen = SIZE(msg)
   ALLOCATE (res(1:msglen),STAT=ierr)
   IF ( ierr /= 0 ) CALL mp_stop( 0, "allocate @ mp_sum_cv" )
-  CALL mpi_allreduce(msg,res,2*msglen,MPI_DOUBLE_PRECISION,MPI_SUM,gid, &
+  CALL mpi_allreduce(msg,res,2*msglen,MP_STD_REAL,MPI_SUM,gid, &
        ierr)
   msg = res
   DEALLOCATE (res)
@@ -1681,7 +1683,7 @@ SUBROUTINE mp_sum_cm(msg,gid)
   m2 = SIZE(msg,2)
   ALLOCATE (res(m1,m2),STAT=ierr)
   IF ( ierr /= 0 ) CALL mp_stop( 0, "allocate @ mp_sum_cm" )
-  CALL mpi_allreduce(msg,res,msglen,MPI_DOUBLE_PRECISION,MPI_SUM,gid, &
+  CALL mpi_allreduce(msg,res,msglen,MP_STD_REAL,MPI_SUM,gid, &
        ierr)
   msg = res
   DEALLOCATE (res)
@@ -1704,7 +1706,7 @@ SUBROUTINE mp_sum_cm3(msg,gid)
   m3 = SIZE(msg,3)
   ALLOCATE (res(m1,m2,m3),STAT=ierr)
   IF ( ierr /= 0 ) CALL mp_stop( 0, "allocate @ mp_sum_cm3" )
-  CALL mpi_allreduce(msg,res,msglen,MPI_DOUBLE_PRECISION,MPI_SUM,gid, &
+  CALL mpi_allreduce(msg,res,msglen,MP_STD_REAL,MPI_SUM,gid, &
        ierr)
   msg = res
   DEALLOCATE (res)
@@ -1760,7 +1762,7 @@ SUBROUTINE mp_max_r(msg,gid)
 #if defined(__parallel)
   t_start = m_walltime ( )
   msglen = 1
-  CALL mpi_allreduce(msg,res,msglen,MPI_DOUBLE_PRECISION,MPI_MAX,gid, &
+  CALL mpi_allreduce(msg,res,msglen,MP_STD_REAL,MPI_MAX,gid, &
        ierr)
   IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_allreduce @ mp_max_r" )
   msg = res
@@ -1822,7 +1824,7 @@ SUBROUTINE mp_max_rv(msg,gid)
   msglen = SIZE(msg)
   ALLOCATE (res(1:msglen),STAT=ierr)
   IF ( ierr /= 0 ) CALL mp_stop( 0, "allocate @ mp_max_rv" )
-  CALL mpi_allreduce(msg,res,msglen,MPI_DOUBLE_PRECISION,MPI_MAX,gid, &
+  CALL mpi_allreduce(msg,res,msglen,MP_STD_REAL,MPI_MAX,gid, &
        ierr)
   msg = res
   DEALLOCATE (res)
@@ -1878,7 +1880,7 @@ SUBROUTINE mp_min_r(msg,gid)
 #if defined(__parallel)
   t_start = m_walltime ( )
   msglen = 1
-  CALL mpi_allreduce(msg,res,msglen,MPI_DOUBLE_PRECISION,MPI_MIN,gid, &
+  CALL mpi_allreduce(msg,res,msglen,MP_STD_REAL,MPI_MIN,gid, &
        ierr)
   IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_allreduce @ mp_min_r" )
   msg = res
@@ -1897,7 +1899,7 @@ SUBROUTINE mp_min_rv(msg,gid)
   msglen = SIZE(msg)
   ALLOCATE (res(1:msglen),STAT=ierr)
   IF ( ierr /= 0 ) CALL mp_stop( 0, "allocate @ mp_min_rv" )
-  CALL mpi_allreduce(msg,res,msglen,MPI_DOUBLE_PRECISION,MPI_MIN,gid, &
+  CALL mpi_allreduce(msg,res,msglen,MP_STD_REAL,MPI_MIN,gid, &
        ierr)
   msg = res
   DEALLOCATE (res)
@@ -1959,8 +1961,8 @@ SUBROUTINE mp_gather_r(msg,msg_gather,root,gid)
 #if defined(__parallel)
   t_start = m_walltime ( )
   msglen = 1
-  CALL mpi_gather(msg,msglen,MPI_DOUBLE_PRECISION,msg_gather,&
-                  msglen,MPI_DOUBLE_PRECISION,root,gid,ierr)
+  CALL mpi_gather(msg,msglen,MP_STD_REAL,msg_gather,&
+                  msglen,MP_STD_REAL,root,gid,ierr)
   IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_gather @ mp_gather_r" )
   t_end = m_walltime ( )
   CALL add_perf(perf_id=4,count=1,time=t_end-t_start,msg_size=msglen*reallen)
@@ -1979,8 +1981,8 @@ SUBROUTINE mp_gather_rv(msg,msg_gather,root,gid)
 #if defined(__parallel)
   t_start = m_walltime ( )
   msglen = SIZE(msg)
-  CALL mpi_gather(msg,msglen,MPI_DOUBLE_PRECISION,msg_gather,&
-                  msglen,MPI_DOUBLE_PRECISION,root,gid,ierr)
+  CALL mpi_gather(msg,msglen,MP_STD_REAL,msg_gather,&
+                  msglen,MP_STD_REAL,root,gid,ierr)
   IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_gather @ mp_gather_rv" )
   t_end = m_walltime ( )
   CALL add_perf(perf_id=4,count=1,time=t_end-t_start,msg_size=msglen*reallen)
@@ -2036,8 +2038,8 @@ END SUBROUTINE mp_gather_rv
     sendcount = SIZE(sendbuf)
 #if defined(__parallel)
     t_start = m_walltime()
-    CALL mpi_gatherv(sendbuf,sendcount,MPI_DOUBLE_PRECISION,&
-                     recvbuf,recvcounts,displs,MPI_DOUBLE_PRECISION,&
+    CALL mpi_gatherv(sendbuf,sendcount,MP_STD_REAL,&
+                     recvbuf,recvcounts,displs,MP_STD_REAL,&
                      root,comm,ierr)
     IF (ierr /= 0) CALL mp_stop(ierr,"mpi_gatherv@mp_gatherv_rv")
     t_end = m_walltime()
@@ -2088,8 +2090,8 @@ SUBROUTINE mp_allgatherv_rv(msgout,msgin,rcount,rdispl,gid)
 
 #if defined(__parallel)
   scount = SIZE ( msgout )
-  CALL MPI_ALLGATHERV(msgout, scount, MPI_DOUBLE_PRECISION, msgin, rcount, &
-                      rdispl, MPI_DOUBLE_PRECISION, gid, ierr )
+  CALL MPI_ALLGATHERV(msgout, scount, MP_STD_REAL, msgin, rcount, &
+                      rdispl, MP_STD_REAL, gid, ierr )
   IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_allgatherv @ mp_allgatherv_rv" )
 #else
   msgin = msgout
@@ -2111,7 +2113,7 @@ SUBROUTINE mp_sum_scatter_rv(msgout,msgin,rcount,gid)
 
 #if defined(__parallel)
   t_start = m_walltime ( )
-  CALL MPI_REDUCE_SCATTER(msgout, msgin, rcount, MPI_DOUBLE_PRECISION, MPI_SUM, &
+  CALL MPI_REDUCE_SCATTER(msgout, msgin, rcount, MP_STD_REAL, MPI_SUM, &
                           gid, ierr )
   IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_reduce_scatter @ mp_sum_scatter_rv" )
 
@@ -2139,8 +2141,8 @@ SUBROUTINE mp_sendrecv_rm3(msgin,dest,msgout,source,comm)
   msglen = SIZE(msgin)
   send_tag = 0 ! cannot think of something better here, this might be dangerous
   recv_tag = 0 ! cannot think of something better here, this might be dangerous
-  CALL mpi_sendrecv(msgin,msglen,MPI_DOUBLE_PRECISION,dest,send_tag,msgout,&
-       msglen,MPI_DOUBLE_PRECISION,source,recv_tag,comm,status(1),ierr)
+  CALL mpi_sendrecv(msgin,msglen,MP_STD_REAL,dest,send_tag,msgout,&
+       msglen,MP_STD_REAL,source,recv_tag,comm,status(1),ierr)
   ! we do not check the status
   IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_sendrecv @ mp_send_recv_rm3" )
   t_end = m_walltime ( )
@@ -2166,8 +2168,8 @@ SUBROUTINE mp_sendrecv_rm2(msgin,dest,msgout,source,comm)
   msglen = SIZE(msgin,1)*SIZE(msgin,2)
   send_tag = 0 ! cannot think of something better here, this might be dangerous
   recv_tag = 0 ! cannot think of something better here, this might be dangerous
-  CALL mpi_sendrecv(msgin,msglen,MPI_DOUBLE_PRECISION,dest,send_tag,msgout,&
-       msglen,MPI_DOUBLE_PRECISION,source,recv_tag,comm,status(1),ierr)
+  CALL mpi_sendrecv(msgin,msglen,MP_STD_REAL,dest,send_tag,msgout,&
+       msglen,MP_STD_REAL,source,recv_tag,comm,status(1),ierr)
   ! we do not check the status
   IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_sendrecv @ mp_send_recv_rm2" )
   t_end = m_walltime ( )
@@ -2193,8 +2195,8 @@ SUBROUTINE mp_sendrecv_rv(msgin,dest,msgout,source,comm)
   msglen_out = SIZE(msgout)
   send_tag = 0 ! cannot think of something better here, this might be dangerous
   recv_tag = 0 ! cannot think of something better here, this might be dangerous
-  CALL mpi_sendrecv(msgin,msglen_in,MPI_DOUBLE_PRECISION,dest,send_tag,msgout,&
-       msglen_out,MPI_DOUBLE_PRECISION,source,recv_tag,comm,status(1),ierr)
+  CALL mpi_sendrecv(msgin,msglen_in,MP_STD_REAL,dest,send_tag,msgout,&
+       msglen_out,MP_STD_REAL,source,recv_tag,comm,status(1),ierr)
   ! we do not check the status
   IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_sendrecv @ mp_send_recv_rv" )
   t_end = m_walltime ( )
@@ -2242,10 +2244,10 @@ SUBROUTINE mp_isendrecv_rv(msgin,dest,msgout,source,comm,send_request,&
   msglen = SIZE(msgout,1)
   IF (msglen>0) THEN
      lower1=LBOUND(msgout,1)
-     CALL mpi_irecv(msgout(lower1),msglen,MPI_DOUBLE_PRECISION,source, my_tag,&
+     CALL mpi_irecv(msgout(lower1),msglen,MP_STD_REAL,source, my_tag,&
           comm,recv_request,ierr)
   ELSE
-     CALL mpi_irecv(foo,msglen,MPI_DOUBLE_PRECISION,source, my_tag,&
+     CALL mpi_irecv(foo,msglen,MP_STD_REAL,source, my_tag,&
           comm,recv_request,ierr)
   END IF
   IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_ircv @ mp_isendrecv_rm2" )
@@ -2253,10 +2255,10 @@ SUBROUTINE mp_isendrecv_rv(msgin,dest,msgout,source,comm,send_request,&
   msglen = SIZE(msgin,1)
   IF (msglen>0) THEN
      lower1=LBOUND(msgin,1)
-     CALL mpi_isend(msgin(lower1),msglen,MPI_DOUBLE_PRECISION,dest,my_tag,&
+     CALL mpi_isend(msgin(lower1),msglen,MP_STD_REAL,dest,my_tag,&
           comm,send_request,ierr)
   ELSE
-     CALL mpi_isend(foo,msglen,MPI_DOUBLE_PRECISION,dest,my_tag,&
+     CALL mpi_isend(foo,msglen,MP_STD_REAL,dest,my_tag,&
           comm,send_request,ierr)
   END IF
   IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_isend @ mp_isendrecv_rm2" )
@@ -2311,10 +2313,10 @@ SUBROUTINE mp_isendrecv_rm2(msgin,dest,msgout,source,comm,send_request,&
   IF (msglen>0) THEN
      lower1=LBOUND(msgout,1)
      lower2=LBOUND(msgout,2)
-     CALL mpi_irecv(msgout(lower1,lower2),msglen,MPI_DOUBLE_PRECISION,source, my_tag,&
+     CALL mpi_irecv(msgout(lower1,lower2),msglen,MP_STD_REAL,source, my_tag,&
           comm,recv_request,ierr)
   ELSE
-     CALL mpi_irecv(foo,msglen,MPI_DOUBLE_PRECISION,source, my_tag,&
+     CALL mpi_irecv(foo,msglen,MP_STD_REAL,source, my_tag,&
           comm,recv_request,ierr)
   END IF
   IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_ircv @ mp_isendrecv_rm2" )
@@ -2323,10 +2325,10 @@ SUBROUTINE mp_isendrecv_rm2(msgin,dest,msgout,source,comm,send_request,&
   IF (msglen>0) THEN
      lower1=LBOUND(msgin,1)
      lower2=LBOUND(msgin,2)
-     CALL mpi_isend(msgin(lower1,lower2),msglen,MPI_DOUBLE_PRECISION,dest,my_tag,&
+     CALL mpi_isend(msgin(lower1,lower2),msglen,MP_STD_REAL,dest,my_tag,&
           comm,send_request,ierr)
   ELSE
-     CALL mpi_isend(foo,msglen,MPI_DOUBLE_PRECISION,dest,my_tag,&
+     CALL mpi_isend(foo,msglen,MP_STD_REAL,dest,my_tag,&
           comm,send_request,ierr)
   END IF
   IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_isend @ mp_isendrecv_rm2" )
@@ -2377,10 +2379,10 @@ SUBROUTINE mp_isend_rm2(msgin,dest,comm,request,tag)
   IF (msglen>0) THEN
      lower1=LBOUND(msgin,1)
      lower2=LBOUND(msgin,2)
-     CALL mpi_isend(msgin(lower1,lower2),msglen,MPI_DOUBLE_PRECISION,dest,my_tag,&
+     CALL mpi_isend(msgin(lower1,lower2),msglen,MP_STD_REAL,dest,my_tag,&
           comm,request,ierr)
   ELSE
-     CALL mpi_isend(foo,msglen,MPI_DOUBLE_PRECISION,dest,my_tag,&
+     CALL mpi_isend(foo,msglen,MP_STD_REAL,dest,my_tag,&
           comm,request,ierr)
   END IF
   IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_isend @ mp_isend_rm2" )
@@ -2428,10 +2430,10 @@ SUBROUTINE mp_irecv_rm2(msgout,source,comm,request,tag)
   IF (msglen>0) THEN
      lower1=LBOUND(msgout,1)
      lower2=LBOUND(msgout,2)
-     CALL mpi_irecv(msgout(lower1,lower2),msglen,MPI_DOUBLE_PRECISION,source, my_tag,&
+     CALL mpi_irecv(msgout(lower1,lower2),msglen,MP_STD_REAL,source, my_tag,&
           comm,request,ierr)
   ELSE
-     CALL mpi_irecv(foo,msglen,MPI_DOUBLE_PRECISION,source, my_tag,&
+     CALL mpi_irecv(foo,msglen,MP_STD_REAL,source, my_tag,&
           comm,request,ierr)
   END IF
   IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_ircv @ mp_irecv_rm2" )

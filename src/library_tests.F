@@ -572,14 +572,23 @@ SUBROUTINE fft_test ( globenv )
       CALL init_fft ( "FFTSG" )
       method = "FFTSG  "
     CASE ( 2 )
-      CALL init_fft ( "FFTW" )
-      method = "FFTW   "
+      CALL init_fft ( "FFTW2" )
+      method = "FFTW2  "
     CASE ( 3 )
+      CALL init_fft ( "FFTW3" )
+      method = "FFTW3  "
+    CASE ( 4 )
       CALL init_fft ( "FFTESSL" )
       method = "FFTESSL"
-    CASE ( 4 )
-      CALL init_fft ( "FFTSGI" )
-      method = "FFTSGI"
+    CASE ( 5 )
+      CALL init_fft ( "FFTACML" )
+      method = "FFTACML"
+    CASE ( 6 )
+      CALL init_fft ( "FFTMKL" )
+      method = "FFTMKL"
+    CASE ( 7 )
+      CALL init_fft ( "FFTSCI" )
+      method = "FFTSCI"
     END SELECT
     n = 4
     zz =0.0_dp

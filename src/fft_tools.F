@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000  CP2K developers group                                 !
+!   Copyright (C) 2000-2006  CP2K developers group                            !
 !-----------------------------------------------------------------------------!
 !!****** cp2k/fft_tools [1.0] *
 !!
@@ -13,39 +13,16 @@
 !!     JGH
 !!
 !!   MODIFICATION HISTORY
-!!     JGH (30-Nov-2000: ESSL FFT Library added
-!!     JGH (5-Jan-2001): Added SGI library FFT
+!!     JGH (30-Nov-2000): ESSL FFT Library added
+!!     JGH (05-Jan-2001): Added SGI library FFT
 !!     JGH (14-Jan-2001): Added parallel 3d FFT
+!!     JGH (10-Feb-2006): New interface type
 !!
-!!   NOTES
-!!     How to add a new FFT library:
-!!      - create a new interface library : fftXX_lib with the entries
-!!        fft3d, mfft2d, mltfft, and fft_get_lengths, 
-!!        see fftsg_lib for a template
-!!      - add in this file the entries to the new library; in each
-!!        subroutine there will be an additional CASE
-!!
-!!   SOURCE
+!!*****
 !******************************************************************************
 
 MODULE fft_tools
 
-  USE fftessl_lib,                     ONLY: i_fft3d => fft3d,&
-                                             i_fft_get_lengths => fft_get_lengths,&
-                                             i_mfft2d => mfft2d,&
-                                             i_mltfft => mltfft
-  USE fftsg_lib,                       ONLY: sg_fft3d => fft3d,&
-                                             sg_fft_get_lengths => fft_get_lengths,&
-                                             sg_mfft2d => mfft2d,&
-                                             sg_mltfft => mltfft
-  USE fftsgi_lib,                      ONLY: sgi_fft3d => fft3d,&
-                                             sgi_fft_get_lengths => fft_get_lengths,&
-                                             sgi_mfft2d => mfft2d,&
-                                             sgi_mltfft => mltfft
-  USE fftw_lib,                        ONLY: w_fft3d => fft3d,&
-                                             w_fft_get_lengths => fft_get_lengths,&
-                                             w_mfft2d => mfft2d,&
-                                             w_mltfft => mltfft
   USE kinds,                           ONLY: dp
   USE message_passing,                 ONLY: &
        mp_alltoall, mp_cart_coords, mp_cart_rank, mp_cart_sub, &
@@ -58,7 +35,7 @@ MODULE fft_tools
   IMPLICIT NONE 
   
   PRIVATE
-  PUBLIC :: init_fft, get_fft_library, fft1dm, fft2dm, fft3d
+  PUBLIC :: init_fft, fft3d
   PUBLIC :: fft_radix_operations
   PUBLIC :: FWFFT, BWFFT
   PUBLIC :: FFT_RADIX_CLOSEST, FFT_RADIX_NEXT, FFT_RADIX_ALLOWED
@@ -75,7 +52,6 @@ MODULE fft_tools
      MODULE PROCEDURE fft3d_s, fft3d_ps, fft3d_pb
   END INTERFACE
 
-!!*****
 !******************************************************************************
 
 CONTAINS
@@ -91,39 +67,21 @@ CONTAINS
 !!   AUTHOR
 !!     JGH
 !!
-!!   MODIFICATION HISTORY
-!!     30-Nov-2000 (JGH) ESSL FFT Library added
-!!
-!!   NOTES
-!!     Label 1 : FFTsg
-!!     Label 2 : FFTw
-!!     Label 3 : FFT ESSL
-!!     Label 4 : FFT SGI
-!!
-!!   SOURCE
+!!*****
 !******************************************************************************
 
 SUBROUTINE init_fft ( fftlib, fftnum )
 
-    CHARACTER(LEN=*), INTENT(IN), OPTIONAL   :: fftlib
-    INTEGER, INTENT(IN), OPTIONAL            :: fftnum
+    CHARACTER(LEN=*), INTENT(IN), OPTIONAL :: fftlib
+    INTEGER, INTENT(IN), OPTIONAL          :: fftnum
 
-    COMPLEX(KIND=dp)                         :: zz( 4, 4, 4 )
-    INTEGER                                  :: i, n(3) = 4, stat
+    COMPLEX(KIND=dp)                       :: zz( 4, 4, 4 )
+    INTEGER                                :: fft_library, i, n(3)=4, stat
 
   IF ( PRESENT ( fftlib ) ) THEN
-    SELECT CASE ( fftlib )
-    CASE DEFAULT
+    fft_type = fft_library ( fftlib )
+    IF ( fft_type <= 0 ) &
       CALL stop_program ("init_fft","Unknown FFT library: "//TRIM(fftlib))
-    CASE ( "FFTSG" )
-      fft_type = 1
-    CASE ( "FFTW" )
-      fft_type = 2
-    CASE ( "FFTESSL" )
-      fft_type = 3
-    CASE ( "FFTSGI" )
-      fft_type = 4
-    END SELECT
   ELSE IF ( PRESENT ( fftnum ) ) THEN
     fft_type = fftnum
     zz = 0.1_dp
@@ -148,50 +106,6 @@ SUBROUTINE init_fft ( fftlib, fftnum )
 
 END SUBROUTINE init_fft
 
-!!*****
-!******************************************************************************
-!!****** fft_tools/get_fft_library [1.0] *
-!!
-!!   NAME
-!!     get_fft_library
-!!
-!!   FUNCTION
-!!
-!!   AUTHOR
-!!     JGH
-!!
-!!   MODIFICATION HISTORY
-!!     30-Nov-2000 (JGH) ESSL FFT Library added
-!!
-!!   SOURCE
-!******************************************************************************
-
-SUBROUTINE get_fft_library ( fft_handle, library )
-
-    INTEGER, INTENT(OUT)                     :: fft_handle
-    CHARACTER(LEN=*), INTENT(OUT)            :: library
-
-  SELECT CASE ( fft_type )
-  CASE DEFAULT
-    library = " No FFT library initialized "
-    fft_handle = 0
-  CASE ( 1 )
-    library = " FFTsg library initialized "
-    fft_handle = 1
-  CASE ( 2 )
-    library = " FFTw library initialized "
-    fft_handle = 2
-  CASE ( 3 )
-    library = " ESSL FFT library initialized "
-    fft_handle = 3
-  CASE ( 4 )
-    library = " SGI FFT library initialized "
-    fft_handle = 4
-  END SELECT
-
-END SUBROUTINE get_fft_library
-
-!!*****
 !******************************************************************************
 !!****** fft_tools/fft_radix_operations [1.0] *
 !!
@@ -199,6 +113,7 @@ END SUBROUTINE get_fft_library
 !!     fft_radix_operations
 !!
 !!   FUNCTION
+!!     Determine the allowed lengths of FFT's   '''
 !!
 !!   AUTHOR
 !!     Ari Seitsonen
@@ -206,37 +121,27 @@ END SUBROUTINE get_fft_library
 !!   MODIFICATION HISTORY
 !!     new library structure (JGH)
 !!
-!!   SOURCE
+!!*****
 !******************************************************************************
 
 SUBROUTINE fft_radix_operations ( radix_in, radix_out, operation )
-!! Determine the allowed lengths of FFT's   '''
-
 
     INTEGER, INTENT(IN)                      :: radix_in
     INTEGER, INTENT(OUT)                     :: radix_out
     INTEGER, INTENT(IN)                      :: operation
 
-    INTEGER                                  :: i, iloc
-    INTEGER, DIMENSION(:), POINTER           :: DATA
+    INTEGER                                  :: i, iloc, ldata
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: DATA
 
 !------------------------------------------------------------------------------
 
-  SELECT CASE ( fft_type )
-  CASE ( 1 )
-    CALL sg_fft_get_lengths ( DATA, max_length = 1024 )
-  CASE ( 2 )
-    CALL w_fft_get_lengths ( DATA, max_length = 5096 )
-  CASE ( 3 )
-    CALL i_fft_get_lengths ( DATA, max_length = 5096 )
-  CASE ( 4 )
-    CALL sgi_fft_get_lengths ( DATA, max_length = 1024 )
-  CASE DEFAULT
-    CALL stop_program ("fft3d","Unknown FFT library")
-  END SELECT
+  ldata = 1024
+  ALLOCATE ( DATA(ldata) )
+  DATA = 10000
+  CALL fft_get_lengths ( fft_type, DATA, ldata )
 
   iloc = 0
-  DO i = 1, SIZE ( DATA )
+  DO i = 1, ldata
      IF ( DATA ( i ) == radix_in ) THEN
         iloc = i
         EXIT
@@ -278,7 +183,7 @@ SUBROUTINE fft_radix_operations ( radix_in, radix_out, operation )
      radix_out = DATA ( iloc )
 
   ELSE IF ( OPERATION == FFT_RADIX_NEXT_ODD ) THEN
-     DO i = iloc, SIZE ( DATA )
+     DO i = iloc, ldata
        IF ( MOD ( DATA ( i ), 2 ) == 1 ) THEN
          radix_out = DATA ( i )
          EXIT
@@ -293,130 +198,10 @@ SUBROUTINE fft_radix_operations ( radix_in, radix_out, operation )
                          "disallowed radix operation" )
   END IF
 
-  ! seems to be allocated in fft_get_lengths
   DEALLOCATE(DATA) 
   
 END SUBROUTINE fft_radix_operations
 
-!!*****
-!******************************************************************************
-!!****** fft_tools/fft1dm [1.0] *
-!!
-!!   NAME
-!!     fft1dm
-!!
-!!   FUNCTION
-!!     Calls the multiple 1D-FFT function from the initialized library
-!!
-!!   AUTHOR
-!!     JGH (8-Feb-2001)
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!   SOURCE
-!******************************************************************************
-
-SUBROUTINE fft1dm ( fsign, tin, tout, n, m, zin, zout, scale )
-
-
-    INTEGER, INTENT(IN)                      :: fsign
-    CHARACTER(LEN=*), INTENT(IN)             :: tin, tout
-    INTEGER, INTENT(IN)                      :: n, m
-    COMPLEX(KIND=dp), DIMENSION(:, :), &
-      INTENT(INOUT)                          :: zin
-    COMPLEX(KIND=dp), DIMENSION(:, :), &
-      INTENT(INOUT), OPTIONAL                :: zout
-    REAL(KIND=dp), INTENT(IN)                :: scale
-
-    INTEGER                                  :: sign
-
-!------------------------------------------------------------------------------
-
-  IF ( m == 0 ) RETURN
-
-! CALL timeset("fft1dm","I","Mflops",handle)
-
-  sign = fsign
-
-  SELECT CASE ( fft_type )
-  CASE ( 1 )
-    CALL sg_mltfft ( tin, tout, sign, scale, n, m, zin, zout )
-  CASE ( 2 )
-    CALL w_mltfft ( tin, tout, sign, scale, n, m, zin, zout )
-  CASE ( 3 )
-    CALL i_mltfft ( tin, tout, sign, scale, n, m, zin, zout )
-  CASE ( 4 )
-    CALL sgi_mltfft ( tin, tout, sign, scale, n, m, zin, zout )
-  CASE DEFAULT
-    CALL stop_program ("fft1dm","Unknown FFT library")
-  END SELECT
-
-! flops = REAL ( m*n,KIND=dp) * 5.e-6_dp * LOG ( REAL ( n,KIND=dp) )
-! CALL timestop(flops,handle)
-
-END SUBROUTINE fft1dm
-
-!!*****
-!******************************************************************************
-!!****** fft_tools/fft2dm [1.0] *
-!!
-!!   NAME
-!!     fft2dm
-!!
-!!   FUNCTION
-!!     Calls the multiple 2D-FFT function from the initialized library
-!!
-!!   AUTHOR
-!!     JGH (9-Feb-2001)
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!   SOURCE
-!******************************************************************************
-
-SUBROUTINE fft2dm ( fsign, tin, tout, na, nb, m, zin, zout, scale )
-
-
-    INTEGER, INTENT(IN)                      :: fsign
-    CHARACTER(LEN=*), INTENT(IN)             :: tin, tout
-    INTEGER, INTENT(IN)                      :: na, nb, m
-    COMPLEX(KIND=dp), DIMENSION(:, :, :), &
-      INTENT(INOUT)                          :: zin
-    COMPLEX(KIND=dp), DIMENSION(:, :, :), &
-      INTENT(INOUT), OPTIONAL                :: zout
-    REAL(KIND=dp), INTENT(IN)                :: scale
-
-    INTEGER                                  :: sign
-
-!------------------------------------------------------------------------------
-
-  IF ( m == 0 ) RETURN
-
-! CALL timeset("fft2dm","I","Mflops",handle)
-
-  sign = fsign
-
-  SELECT CASE ( fft_type )
-  CASE ( 1 )
-    CALL sg_mfft2d ( tin, tout, sign, scale, na, nb, m, zin, zout )
-  CASE ( 2 )
-    CALL w_mfft2d ( tin, tout, sign, scale, na, nb, m, zin, zout )
-  CASE ( 3 )
-    CALL i_mfft2d ( tin, tout, sign, scale, na, nb, m, zin, zout )
-  CASE ( 4 )
-    CALL sgi_mfft2d ( tin, tout, sign, scale, na, nb, m, zin, zout )
-  CASE DEFAULT
-    CALL stop_program ("fft2dm","Unknown FFT library")
-  END SELECT
-
-! flops = 5.e-6_dp * REAL ( m*na*nb,KIND=dp) * ( LOG ( REAL ( na*nb,KIND=dp) ) )
-! CALL timestop(flops,handle)
-
-END SUBROUTINE fft2dm
-
-!!*****
 !******************************************************************************
 !!****** fft_tools/fft3d [1.0] *
 !!
@@ -432,26 +217,29 @@ END SUBROUTINE fft2dm
 !!   MODIFICATION HISTORY
 !!     30-Nov-2000 (JGH) ESSL FFT Library added
 !!
-!!   SOURCE
+!!*****
 !******************************************************************************
 
 SUBROUTINE fft3d_s ( fsign, n, zin, zout, scale, status, debug )
 
-
     INTEGER, INTENT(IN)                      :: fsign
-    INTEGER, DIMENSION(:), INTENT(IN)        :: n
+    INTEGER, DIMENSION(:), INTENT(INOUT)     :: n
     COMPLEX(KIND=dp), DIMENSION(:, :, :), &
       INTENT(INOUT)                          :: zin
     COMPLEX(KIND=dp), DIMENSION(:, :, :), &
-      INTENT(INOUT), OPTIONAL                :: zout
+      INTENT(INOUT), TARGET, OPTIONAL        :: zout
     REAL(KIND=dp), INTENT(IN), OPTIONAL      :: scale
     INTEGER, INTENT(OUT), OPTIONAL           :: status
     LOGICAL, INTENT(IN), OPTIONAL            :: debug
 
     INTEGER                                  :: handle, ld(3), lo(3), sign
-    LOGICAL                                  :: test
+    LOGICAL                                  :: fft_in_place, test
     REAL(KIND=dp)                            :: flops, in_sum, norm, nx, &
                                                 out_sum
+    COMPLEX(KIND=dp), DIMENSION(:, :, :), &
+      POINTER                                :: zptr
+    COMPLEX(KIND=dp), DIMENSION(1, 1, 1), &
+      TARGET                                 :: zdum
 
 !------------------------------------------------------------------------------
 
@@ -469,27 +257,37 @@ SUBROUTINE fft3d_s ( fsign, n, zin, zout, scale, status, debug )
     test = .FALSE.
   END IF
 
+  IF ( PRESENT ( zout ) ) THEN
+    fft_in_place = .FALSE.
+    zptr => zout
+  ELSE
+    fft_in_place = .TRUE.
+    zptr => zdum
+  END IF
+
   IF ( test ) THEN
-    ld ( 1 ) = SIZE ( zin ,1 )
-    ld ( 2 ) = SIZE ( zin ,2 )
-    ld ( 3 ) = SIZE ( zin ,3 )
     in_sum = SUM ( ABS ( zin ) )
   ENDIF
 
-  sign = fsign
+  ld ( 1 ) = SIZE ( zin ,1 )
+  ld ( 2 ) = SIZE ( zin ,2 )
+  ld ( 3 ) = SIZE ( zin ,3 )
 
-  SELECT CASE ( fft_type )
-  CASE ( 1 )
-    CALL sg_fft3d ( sign, norm, n, zin, zout )
-  CASE ( 2 )
-    CALL w_fft3d ( sign, norm, n, zin, zout )
-  CASE ( 3 )
-    CALL i_fft3d ( sign, norm, n, zin, zout )
-  CASE ( 4 )
-    CALL sgi_fft3d ( sign, norm, n, zin, zout )
-  CASE DEFAULT
-    CALL stop_program ("fft3d", "Unknown FFT library")
-  END SELECT
+  IF ( n(1) /= ld(1) .OR. n(2) /= ld(2) .OR. n(3) /= ld(3) ) THEN
+    CALL stop_program("fft3d","Size and dimension (zin) have to be the same")
+  END IF
+
+  sign = fsign
+  CALL fft_3d ( fft_type, fft_in_place, sign, norm, n, zin, zptr )
+
+  IF ( PRESENT ( zout ) ) THEN
+    lo ( 1 ) = SIZE ( zout ,1 )
+    lo ( 2 ) = SIZE ( zout ,2 )
+    lo ( 3 ) = SIZE ( zout ,3 )
+    IF ( n(1) /= lo(1) .OR. n(2) /= lo(2) .OR. n(3) /= lo(3) ) THEN
+      CALL stop_program("fft3d","Size and dimension (zout) have to be the same")
+    END IF
+  END IF
 
   IF ( PRESENT ( status ) ) THEN
     IF ( sign == 0 ) THEN
@@ -502,9 +300,6 @@ SUBROUTINE fft3d_s ( fsign, n, zin, zout, scale, status, debug )
   IF ( test ) THEN
     IF ( PRESENT ( zout ) ) THEN
       out_sum = SUM ( ABS ( zout ) )
-      lo ( 1 ) = SIZE ( zout ,1 )
-      lo ( 2 ) = SIZE ( zout ,2 )
-      lo ( 3 ) = SIZE ( zout ,3 )
       WRITE ( *, '(A)') "  Out of place 3D FFT (local)  : fft3d_s"
       WRITE ( *, '(A,T60,3I7)') "     Transform lengths ",n
       WRITE ( *, '(A,T60,3I7)') "     Input array dimensions ",ld
@@ -531,7 +326,6 @@ END SUBROUTINE fft3d_s
 
 SUBROUTINE fft3d_ps ( fsign, n, cin, gin, gs_group, rs_group, yzp, nyzray, &
                       bo, scale, status, debug )
-
 
     INTEGER, INTENT(IN)                      :: fsign
     INTEGER, DIMENSION(:), INTENT(IN)        :: n
@@ -647,7 +441,7 @@ SUBROUTINE fft3d_ps ( fsign, n, cin, gin, gs_group, rs_group, yzp, nyzray, &
 
       ! FFT along z
       CALL zcopy ( mx1*my1*n(3), cin, 1 , pbuf, 1 )
-      CALL fft1dm ( sign, "T", "N", n ( 3 ), mx1*my1, pbuf, qbuf, norm )
+      CALL fft_1dm ( fft_type, sign, .TRUE., n(3), mx1*my1, pbuf, qbuf, norm )
 
       DEALLOCATE ( pbuf, STAT = ierr )
       IF ( ierr /= 0 ) CALL stop_memory ( "fft3d", "pbuf" )
@@ -680,7 +474,7 @@ SUBROUTINE fft3d_ps ( fsign, n, cin, gin, gs_group, rs_group, yzp, nyzray, &
       IF ( ierr /= 0 ) CALL stop_memory ( "fft3d", "pbuf", mx2*mz2*n(2) )
 
       ! FFT along y
-      CALL fft1dm ( sign, "T", "N", n ( 2 ), mx2*mz2, rbuf, pbuf, 1.0_dp )
+      CALL fft_1dm ( fft_type, sign, .TRUE., n(2), mx2*mz2, rbuf, pbuf, 1.0_dp )
 
       DEALLOCATE ( rbuf, STAT = ierr )
       IF ( ierr /= 0 ) CALL stop_memory ( "fft3d", "rbuf" )
@@ -711,7 +505,8 @@ SUBROUTINE fft3d_ps ( fsign, n, cin, gin, gs_group, rs_group, yzp, nyzray, &
       IF ( ierr /= 0 ) CALL stop_memory ( "fft3d", "pbuf" )
 
       ! FFT along x
-      CALL fft1dm ( sign, "T", "N", n ( 1 ), nyzray ( g_pos ), qbuf, gin, 1.0_dp )
+      CALL fft_1dm ( fft_type, sign, .TRUE., n(1), nyzray(g_pos), &
+                     qbuf, gin, 1.0_dp )
 
       IF ( test ) THEN
         sum_data = ABS ( SUM ( gin ) )
@@ -745,7 +540,8 @@ SUBROUTINE fft3d_ps ( fsign, n, cin, gin, gs_group, rs_group, yzp, nyzray, &
       IF ( ierr /= 0 ) CALL stop_memory ( "fft3d", "qbuf", n(2)*mx2*mz2 )
 
       ! FFT along x
-      CALL fft1dm ( sign, "N", "T", n ( 1 ), nyzray ( g_pos ), gin, pbuf, norm )
+      CALL fft_1dm ( fft_type, sign, .TRUE., n(1), nyzray(g_pos), &
+                     gin, pbuf, norm )
 
       IF ( test ) THEN
         sum_data = ABS ( SUM ( pbuf ) )
@@ -773,7 +569,7 @@ SUBROUTINE fft3d_ps ( fsign, n, cin, gin, gs_group, rs_group, yzp, nyzray, &
       IF ( ierr /= 0 ) CALL stop_memory ( "fft3d", "rbuf", n ( 2 ) * mx2*mz2 )
 
       ! FFT along y
-      CALL fft1dm ( sign, "N", "T", n ( 2 ), mx2*mz2, qbuf, rbuf, 1.0_dp )
+      CALL fft_1dm ( fft_type, sign, .TRUE., n(2), mx2*mz2, qbuf, rbuf, 1.0_dp )
 
       DEALLOCATE ( qbuf, STAT = ierr )
       IF ( ierr /= 0 ) CALL stop_memory ( "fft3d", "qbuf" )
@@ -806,7 +602,7 @@ SUBROUTINE fft3d_ps ( fsign, n, cin, gin, gs_group, rs_group, yzp, nyzray, &
       IF ( ierr /= 0 ) CALL stop_memory ( "fft3d", "qbuf", mx1*my1*n(3) )
 
       ! FFT along z
-      CALL fft1dm ( sign, "N", "T", n ( 3 ), mx1*my1, pbuf, qbuf, 1.0_dp )
+      CALL fft_1dm ( fft_type, sign, .TRUE., n(3), mx1*my1, pbuf, qbuf, 1.0_dp )
       CALL zcopy ( mx1*my1*n(3), qbuf, 1 , cin, 1 )
 
       IF ( test ) THEN
@@ -862,7 +658,8 @@ SUBROUTINE fft3d_ps ( fsign, n, cin, gin, gs_group, rs_group, yzp, nyzray, &
       END IF
 
       ! FFT along y and z
-      CALL fft2dm ( sign, "T", "N", n ( 2 ), n ( 3 ), nx, cin, tbuf, 1.0_dp )
+      CALL fft_1dm ( fft_type, sign, .TRUE., nz, nx*ny, cin, sbuf, 1._dp )
+      CALL fft_1dm ( fft_type, sign, .TRUE., ny, nx*nz, sbuf, tbuf, 1._dp )
 
       IF ( test ) THEN
         sum_data = ABS ( SUM ( tbuf ) )
@@ -885,7 +682,8 @@ SUBROUTINE fft3d_ps ( fsign, n, cin, gin, gs_group, rs_group, yzp, nyzray, &
       END IF
 
       ! FFT along x
-      CALL fft1dm ( sign, "T", "N", n ( 1 ), nyzray ( g_pos ), sbuf, gin, norm )
+      CALL fft_1dm ( fft_type, sign, .TRUE., n(1), nyzray(g_pos), &
+                     sbuf, gin, norm )
 
       IF ( test ) THEN
         sum_data = ABS ( SUM ( gin ) )
@@ -910,7 +708,8 @@ SUBROUTINE fft3d_ps ( fsign, n, cin, gin, gs_group, rs_group, yzp, nyzray, &
       END IF
 
       ! FFT along x
-      CALL fft1dm ( sign, "N", "T", n ( 1 ), nyzray ( g_pos ), gin, sbuf, norm )
+      CALL fft_1dm ( fft_type, sign, .TRUE., n(1), nyzray(g_pos), &
+                     gin, sbuf, norm )
 
       IF ( test ) THEN
         sum_data = ABS ( SUM ( sbuf ) )
@@ -933,7 +732,8 @@ SUBROUTINE fft3d_ps ( fsign, n, cin, gin, gs_group, rs_group, yzp, nyzray, &
       END IF
 
       ! FFT along y and z
-      CALL fft2dm ( sign, "N", "T", n ( 2 ), n ( 3 ), nx, tbuf, cin, 1.0_dp )
+      CALL fft_1dm ( fft_type, sign, .TRUE., ny, nx*nz, tbuf, sbuf, 1._dp )
+      CALL fft_1dm ( fft_type, sign, .TRUE., nz, nx*ny, sbuf, cin, 1._dp )
 
       IF ( test ) THEN
         sum_data = ABS ( SUM ( cin ) )
@@ -1081,7 +881,7 @@ SUBROUTINE fft3d_pb ( fsign, n, zin, gin, group, bo, scale, status, debug )
       CALL zcopy ( n(3)*mx*my, zin, 1, abuf, 1 )
 
       ! FFT along z
-      CALL fft1dm ( sign, "T", "N", n ( 3 ), mx*my, abuf, bbuf, norm )
+      CALL fft_1dm ( fft_type, sign, .TRUE., n(3), mx*my, abuf, bbuf, norm )
 
       DEALLOCATE ( abuf, STAT = ierr )
       IF ( ierr /= 0 ) CALL stop_memory ( "fft3d", "abuf" )
@@ -1115,7 +915,7 @@ SUBROUTINE fft3d_pb ( fsign, n, zin, gin, group, bo, scale, status, debug )
       END IF
 
       ! FFT along y
-      CALL fft1dm ( sign, "T", "N", n ( 2 ), mx*mz, abuf, bbuf, 1.0_dp )
+      CALL fft_1dm ( fft_type, sign, .TRUE., n(2), mx*mz, abuf, bbuf, 1.0_dp )
 
       DEALLOCATE ( abuf, STAT = ierr )
       IF ( ierr /= 0 ) CALL stop_memory ( "fft3d", "abuf" )
@@ -1149,7 +949,7 @@ SUBROUTINE fft3d_pb ( fsign, n, zin, gin, group, bo, scale, status, debug )
       END IF
 
       ! FFT along x
-      CALL fft1dm ( sign, "T", "N", n ( 1 ), my*mz, abuf, bbuf, 1.0_dp )
+      CALL fft_1dm ( fft_type, sign, .TRUE., n(1), my*mz, abuf, bbuf, 1.0_dp )
 
       CALL zcopy ( n ( 1 ) * my * mz, bbuf, 1, gin, 1 )
 
@@ -1189,7 +989,7 @@ SUBROUTINE fft3d_pb ( fsign, n, zin, gin, group, bo, scale, status, debug )
       CALL zcopy ( n(1)*my*mz, gin, 1, abuf, 1 )
 
       ! FFT along x
-      CALL fft1dm ( sign, "N", "T", n ( 1 ), my*mz, abuf, bbuf, 1.0_dp )
+      CALL fft_1dm ( fft_type, sign, .TRUE., n(1), my*mz, abuf, bbuf, 1.0_dp )
 
       DEALLOCATE ( abuf, STAT = ierr )
       IF ( ierr /= 0 ) CALL stop_memory ( "fft3d", "abuf" )
@@ -1223,7 +1023,7 @@ SUBROUTINE fft3d_pb ( fsign, n, zin, gin, group, bo, scale, status, debug )
       END IF
 
       ! FFT along y
-      CALL fft1dm ( sign, "N", "T", n ( 2 ), mx*mz, abuf, bbuf, 1.0_dp )
+      CALL fft_1dm ( fft_type, sign, .TRUE., n(2), mx*mz, abuf, bbuf, 1.0_dp )
 
       DEALLOCATE ( abuf, STAT = ierr )
       IF ( ierr /= 0 ) CALL stop_memory ( "fft3d", "abuf" )
@@ -1257,7 +1057,7 @@ SUBROUTINE fft3d_pb ( fsign, n, zin, gin, group, bo, scale, status, debug )
       END IF
 
       ! FFT along z
-      CALL fft1dm ( sign, "N", "T", n ( 3 ), mx*my, abuf, bbuf, norm )
+      CALL fft_1dm ( fft_type, sign, .TRUE., n(3), mx*my, abuf, bbuf, norm )
 
       CALL zcopy ( n(3)*mx*my, bbuf, 1, zin, 1 )
 
@@ -1310,7 +1110,7 @@ SUBROUTINE fft3d_pb ( fsign, n, zin, gin, group, bo, scale, status, debug )
       CALL zcopy ( n(3)*mx*my, zin, 1, abuf, 1 )
 
       ! FFT along z
-      CALL fft1dm ( sign, "T", "N", n ( 3 ), mx*my, abuf, bbuf, norm )
+      CALL fft_1dm ( fft_type, sign, .TRUE., n(3), mx*my, abuf, bbuf, norm )
 
       DEALLOCATE ( abuf, STAT = ierr )
       IF ( ierr /= 0 ) CALL stop_memory ( "fft3d", "abuf" )
@@ -1325,7 +1125,7 @@ SUBROUTINE fft3d_pb ( fsign, n, zin, gin, group, bo, scale, status, debug )
       IF ( ierr /= 0 ) CALL stop_memory ( "fft3d", "bbuf", mx*mz*n(2) )
 
       ! FFT along y
-      CALL fft1dm ( sign, "T", "N", n ( 2 ), mx*mz, abuf, bbuf, 1.0_dp )
+      CALL fft_1dm ( fft_type, sign, .TRUE., n(2), mx*mz, abuf, bbuf, 1.0_dp )
 
       mx = bo ( 2, 1, my_pos, 3 ) - bo ( 1, 1, my_pos, 3 ) + 1
       my = bo ( 2, 2, my_pos, 3 ) - bo ( 1, 2, my_pos, 3 ) + 1
@@ -1361,8 +1161,7 @@ SUBROUTINE fft3d_pb ( fsign, n, zin, gin, group, bo, scale, status, debug )
       END IF
 
       ! FFT along x
-      CALL fft1dm ( sign, "T", "N", n ( 1 ), my*mz, abuf, bbuf, 1.0_dp )
-
+      CALL fft_1dm ( fft_type, sign, .TRUE., n(1), my*mz, abuf, bbuf, 1.0_dp )
       CALL zcopy ( n ( 1 ) * my * mz, bbuf, 1, gin, 1 )
 
       IF ( test ) THEN
@@ -1402,7 +1201,7 @@ SUBROUTINE fft3d_pb ( fsign, n, zin, gin, group, bo, scale, status, debug )
       CALL zcopy ( n(1)*my*mz, gin, 1, abuf, 1 )
 
       ! FFT along x
-      CALL fft1dm ( sign, "N", "T", n ( 1 ), my*mz, abuf, bbuf, 1.0_dp )
+      CALL fft_1dm ( fft_type, sign, .TRUE., n(1), my*mz, abuf, bbuf, 1.0_dp )
 
       mx = bo ( 2, 1, my_pos, 1 ) - bo ( 1, 1, my_pos, 1 ) + 1
       my = bo ( 2, 2, my_pos, 1 ) - bo ( 1, 2, my_pos, 1 ) + 1
@@ -1439,7 +1238,7 @@ SUBROUTINE fft3d_pb ( fsign, n, zin, gin, group, bo, scale, status, debug )
       END IF
 
       ! FFT along y
-      CALL fft1dm ( sign, "N", "T", n ( 2 ), mx*mz, abuf, bbuf, 1.0_dp )
+      CALL fft_1dm ( fft_type, sign, .TRUE., n(2), mx*mz, abuf, bbuf, 1.0_dp )
 
       DEALLOCATE ( abuf, STAT = ierr )
       IF ( ierr /= 0 ) CALL stop_memory ( "fft3d", "abuf" )
@@ -1454,7 +1253,7 @@ SUBROUTINE fft3d_pb ( fsign, n, zin, gin, group, bo, scale, status, debug )
       IF ( ierr /= 0 ) CALL stop_memory ( "fft3d", "bbuf", n(3)*mx*my )
 
       ! FFT along z
-      CALL fft1dm ( sign, "N", "T", n ( 3 ), mx*my, abuf, bbuf, norm )
+      CALL fft_1dm ( fft_type, sign, .TRUE., n(3), mx*my, abuf, bbuf, norm )
 
       CALL zcopy ( n(3)*mx*my, bbuf, 1, zin, 1 )
 
@@ -1495,7 +1294,6 @@ SUBROUTINE fft3d_pb ( fsign, n, zin, gin, group, bo, scale, status, debug )
 
 END SUBROUTINE fft3d_pb
 
-!!*****
 !******************************************************************************
 !!****** fft_tools/x_to_yz [1.0] *
 !!
@@ -1512,7 +1310,7 @@ END SUBROUTINE fft3d_pb
 !!
 !!   NOTES
 !!
-!!   SOURCE
+!!*****
 !******************************************************************************
 
 SUBROUTINE x_to_yz ( sb, group, my_pos, p2p, yzp, nray, bo, tb )
@@ -1595,7 +1393,6 @@ SUBROUTINE x_to_yz ( sb, group, my_pos, p2p, yzp, nray, bo, tb )
 
 END SUBROUTINE x_to_yz
 
-!!*****
 !******************************************************************************
 !!****** fft_tools/yz_to_x [1.0] *
 !!
@@ -1612,7 +1409,7 @@ END SUBROUTINE x_to_yz
 !!
 !!   NOTES
 !!
-!!   SOURCE
+!!*****
 !******************************************************************************
 
 SUBROUTINE yz_to_x ( tb, group, my_pos, p2p, yzp, nray, bo, sb )
@@ -1693,7 +1490,6 @@ SUBROUTINE yz_to_x ( tb, group, my_pos, p2p, yzp, nray, bo, sb )
 
 END SUBROUTINE yz_to_x
 
-!!*****
 !******************************************************************************
 !!****** fft_tools/yz_to_xz [1.0] *
 !!
@@ -1710,7 +1506,7 @@ END SUBROUTINE yz_to_x
 !!
 !!   NOTES
 !!
-!!   SOURCE
+!!*****
 !******************************************************************************
 
 SUBROUTINE yz_to_xz ( sb, group, dims, my_pos, p2p, yzp, nray, bo, tb )
@@ -1844,7 +1640,6 @@ SUBROUTINE yz_to_xz ( sb, group, dims, my_pos, p2p, yzp, nray, bo, tb )
 
 END SUBROUTINE yz_to_xz
 
-!!*****
 !******************************************************************************
 !!****** fft_tools/xz_to_yz [1.0] *
 !!
@@ -1861,7 +1656,7 @@ END SUBROUTINE yz_to_xz
 !!
 !!   NOTES
 !!
-!!   SOURCE
+!!*****
 !******************************************************************************
 
 SUBROUTINE xz_to_yz ( sb, group, dims, my_pos, p2p, yzp, nray, bo, tb )
@@ -2008,7 +1803,6 @@ SUBROUTINE xz_to_yz ( sb, group, dims, my_pos, p2p, yzp, nray, bo, tb )
 
 END SUBROUTINE xz_to_yz
 
-!!*****
 !******************************************************************************
 !!****** fft_tools/cube_transpose [1.0] *
 !!
@@ -2025,7 +1819,7 @@ END SUBROUTINE xz_to_yz
 !!
 !!   NOTES
 !!
-!!   SOURCE
+!!*****
 !******************************************************************************
 
 SUBROUTINE cube_transpose_1 ( sin, group, boin, boout, sout )
@@ -2543,7 +2337,6 @@ SUBROUTINE cube_transpose_6 ( sin, group, boin, boout, sout )
 
 END SUBROUTINE cube_transpose_6
 
-!!*****
 !******************************************************************************
 
 END MODULE fft_tools

@@ -595,10 +595,9 @@ SUBROUTINE cp2k_read(globenv,error)
     CALL fft3d(1,n,zz,status=stat)
     IF (stat /= 0) THEN
       IF (globenv%ionode) THEN
-         WRITE(globenv%scr,*) &
+         WRITE(globenv%scr,'(A,A,T55,A)') &
            " WARNING : FFT library "//TRIM(globenv%default_fft_library)//&
-           " is not available "
-         WRITE(globenv%scr,*) "           Trying FFTSG as a default "
+           " is not available "," Trying FFTSG as a default"
       ENDIF
       globenv%default_fft_library="FFTSG"
       CALL init_fft(fftlib=TRIM(globenv%default_fft_library))
@@ -610,8 +609,6 @@ SUBROUTINE cp2k_read(globenv,error)
                              "> is not available",globenv)
       ENDIF
     END IF
-
-
 
   END SUBROUTINE read_cp2k_section
 

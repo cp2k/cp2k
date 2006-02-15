@@ -24,7 +24,13 @@ MODULE parallel_include
 
 #if defined(__parallel)
   INCLUDE "mpif.h"
-
+#if defined (__SGL)
+  INTEGER     :: MP_STD_REAL = MPI_REAL
+  INTEGER     :: MP_STD_COMPLEX = MPI_COMPLEX
+#else
+  INTEGER     :: MP_STD_REAL = MPI_DOUBLE_PRECISION
+  INTEGER     :: MP_STD_COMPLEX = MPI_DOUBLE_COMPLEX
+#endif
 #endif
   PUBLIC
 

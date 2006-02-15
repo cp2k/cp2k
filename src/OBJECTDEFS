@@ -105,10 +105,6 @@ OBJECTS_GENERIC =\
  farming_types.o\
  fermi.o\
  fft_tools.o\
- fftessl_lib.o\
- fftsg_lib.o\
- fftsgi_lib.o\
- fftw_lib.o\
  fist_debug.o\
  fist_energy_types.o\
  fist_environment.o\

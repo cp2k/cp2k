@@ -54,7 +54,7 @@ MODULE pw_types
   PRIVATE
   PUBLIC :: pw_type, pw_p_type
   PUBLIC :: pw_retain, pw_release, pw_create
-  PUBLIC :: pw_zero, pw_gather, pw_scatter
+  PUBLIC :: pw_zero
   PUBLIC :: pw_copy, pw_add, pw_sumup, pw_subtract, pw_reduce, pw_transfer, pw_scale
   PUBLIC :: pw_derive, pw_derive_fd, pw_sumup_square, pw_fft_wrap, pw_write
   PUBLIC :: pw_prolongate_l, pw_restrict_l, pw_compare_debug
@@ -434,7 +434,6 @@ END SUBROUTINE pw_scale
 
 SUBROUTINE pw_derive ( pw, n )
 
-
     TYPE(pw_type), INTENT(INOUT)             :: pw
     INTEGER, DIMENSION(3), INTENT(IN)        :: n
 
@@ -531,7 +530,7 @@ END SUBROUTINE pw_derive
 !!       Implicit None
 !!       Type(pw_type), Intent (IN):: pw
 !!       Real(KIND=dp), DIMENSION(:,:), POINTER :: left,right
-!!     End Subroutine pw_derive
+!!     End Subroutine pw_get_left_right
 !!
 !!   FUNCTION
 !!     Gets the slice on the left and on the right of the pw_grid owned by the current cpu
@@ -1834,11 +1833,10 @@ END SUBROUTINE pw_reduce
 
 SUBROUTINE pw_gather_s ( pw, c, scale )
  
- 
     TYPE(pw_type), INTENT(INOUT)             :: pw
     COMPLEX(KIND=dp), DIMENSION(:, :, :), &
       INTENT(IN)                             :: c
-    COMPLEX(KIND=dp), INTENT(IN), OPTIONAL   :: scale
+    REAL(KIND=dp), INTENT(IN), OPTIONAL      :: scale
 
     INTEGER                                  :: gpt, handle, l, m, n, ngpts
     INTEGER, DIMENSION(:), POINTER           :: mapl, mapm, mapn
@@ -1873,7 +1871,7 @@ SUBROUTINE pw_gather_s ( pw, c, scale )
       l = mapl ( ghat ( 1, gpt ) ) + 1
       m = mapm ( ghat ( 2, gpt ) ) + 1
       n = mapn ( ghat ( 3, gpt ) ) + 1
-      pw % cc ( gpt ) = pw % cc ( gpt ) + scale * c ( l, m, n )
+      pw % cc ( gpt ) = scale * c ( l, m, n )
 
     END DO
 
@@ -1904,7 +1902,7 @@ SUBROUTINE pw_gather_p ( pw, c, scale )
     TYPE(pw_type), INTENT(INOUT), TARGET     :: pw
     COMPLEX(KIND=dp), DIMENSION(:, :), &
       INTENT(IN)                             :: c
-    COMPLEX(KIND=dp), INTENT(IN), OPTIONAL   :: scale
+    REAL(KIND=dp), INTENT(IN), OPTIONAL      :: scale
 
     INTEGER                                  :: gpt, handle, l, m, mn, n, &
                                                 ngpts
@@ -1946,7 +1944,7 @@ SUBROUTINE pw_gather_p ( pw, c, scale )
       m = mapm ( ghat ( 2, gpt ) ) + 1
       n = mapn ( ghat ( 3, gpt ) ) + 1
       mn = yzq ( m, n )
-      pw % cc ( gpt ) = pw % cc ( gpt ) + scale * c ( l, mn )
+      pw % cc ( gpt ) = scale * c ( l, mn )
 
     END DO
 
@@ -1995,7 +1993,7 @@ SUBROUTINE pw_scatter_s ( pw, c, scale )
     TYPE(pw_type), INTENT(IN)                :: pw
     COMPLEX(KIND=dp), DIMENSION(:, :, :), &
       INTENT(INOUT)                          :: c
-    COMPLEX(KIND=dp), INTENT(IN), OPTIONAL   :: scale
+    REAL(KIND=dp), INTENT(IN), OPTIONAL      :: scale
 
     INTEGER                                  :: gpt, handle, l, m, n, ngpts
     INTEGER, DIMENSION(:), POINTER           :: mapl, mapm, mapn
@@ -2033,7 +2031,7 @@ SUBROUTINE pw_scatter_s ( pw, c, scale )
       l = mapl ( ghat ( 1, gpt ) ) + 1
       m = mapm ( ghat ( 2, gpt ) ) + 1
       n = mapn ( ghat ( 3, gpt ) ) + 1
-      c ( l, m, n ) = c ( l, m, n ) + scale * pw % cc ( gpt )
+      c ( l, m, n ) = scale * pw % cc ( gpt )
 
     END DO
 
@@ -2065,7 +2063,7 @@ SUBROUTINE pw_scatter_s ( pw, c, scale )
         l = mapl ( ghat ( 1, gpt ) ) + 1
         m = mapm ( ghat ( 2, gpt ) ) + 1
         n = mapn ( ghat ( 3, gpt ) ) + 1
-        c ( l, m, n ) = c ( l, m, n ) + scale * CONJG ( pw % cc ( gpt ) )
+        c ( l, m, n ) = scale * CONJG ( pw % cc ( gpt ) )
 
       END DO
 
@@ -2098,7 +2096,7 @@ SUBROUTINE pw_scatter_p ( pw, c, scale )
     TYPE(pw_type), INTENT(IN), TARGET        :: pw
     COMPLEX(KIND=dp), DIMENSION(:, :), &
       INTENT(INOUT)                          :: c
-    COMPLEX(KIND=dp), INTENT(IN), OPTIONAL   :: scale
+    REAL(KIND=dp), INTENT(IN), OPTIONAL      :: scale
 
     INTEGER                                  :: gpt, handle, l, m, mn, n, &
                                                 ngpts
@@ -2143,7 +2141,7 @@ SUBROUTINE pw_scatter_p ( pw, c, scale )
       m = mapm ( ghat ( 2, gpt ) ) + 1
       n = mapn ( ghat ( 3, gpt ) ) + 1
       mn = yzq ( m, n )
-      c ( l, mn ) = c ( l, mn ) + scale * pw % cc ( gpt )
+      c ( l, mn ) = scale * pw % cc ( gpt )
 
     END DO
 
@@ -2177,7 +2175,7 @@ SUBROUTINE pw_scatter_p ( pw, c, scale )
         m = mapm ( ghat ( 2, gpt ) ) + 1
         n = mapn ( ghat ( 3, gpt ) ) + 1
         mn = yzq ( m, n )
-        c ( l, mn ) = c ( l, mn ) + scale * CONJG ( pw % cc ( gpt ) )
+        c ( l, mn ) = scale * CONJG ( pw % cc ( gpt ) )
 
       END DO
 
@@ -2374,18 +2372,27 @@ SUBROUTINE fft_wrap_pw1pw2 ( pw1, pw2, debug )
       CASE ( "FW_C3DC3D" )
         c_in => pw1 % cc3d
         c_out => pw2 % cc3d
+        CALL fft3d ( dir, n, c_in, c_out, scale = norm, debug=test )
       CASE ( "FW_R3DC3D" )
-        ! nsize=size(pw1 % cr3d,1)*size(pw1 % cr3d,2)*size(pw1 % cr3d,3)
-        ! CALL copy_rc(nsize,pw1%cr3d(1,1,1),pw2%cc3d(1,1,1))
-        pw2 % cc3d = CMPLX ( pw1 % cr3d, 0.0_dp,KIND=dp)
+        pw2 % cc3d = CMPLX ( pw1 % cr3d, 0.0_dp, KIND=dp)
         c_out => pw2 % cc3d
+        CALL fft3d ( dir, n, c_out, scale = norm, debug=test )
       CASE ( "FW_C3DC1D" )
         c_in => pw1 % cc3d
-        IF (.NOT. ASSOCIATED (c_out)) ALLOCATE ( c_out( n(1), n(2), n(3) ), STAT = ierr )
+        IF (.NOT. ASSOCIATED (c_out)) &
+            ALLOCATE ( c_out( n(1), n(2), n(3) ), STAT = ierr )
         IF ( ierr /= 0 ) CALL stop_memory ( "fft_wrap_pw1pw2", "c_out", &
             pw1 % pw_grid % ngpts )
+        ! transform
+        CALL fft3d ( dir, n, c_in, c_out, scale = norm, debug=test )
+        ! gather results
+        IF ( test ) WRITE ( *,'(A)') "  PW_GATHER : 3d -> 1d "
+        CALL pw_gather ( pw2, c_out )
+        DEALLOCATE ( c_out, STAT = ierr )
+        IF ( ierr /= 0 ) CALL stop_memory ( "fft_wrap_pw1pw2", "c_out" )
       CASE ( "FW_R3DC1D" )
-        IF (.NOT. ASSOCIATED (c_out)) ALLOCATE ( c_out( n(1), n(2), n(3) ), STAT = ierr )
+        IF (.NOT. ASSOCIATED (c_out)) &
+            ALLOCATE ( c_out( n(1), n(2), n(3) ), STAT = ierr )
         IF ( ierr /= 0 ) CALL stop_memory ( "fft_wrap_pw1pw2", "c_out", &
             pw1 % pw_grid % ngpts )
         nsize=SIZE(pw1 % cr3d,1)*SIZE(pw1 % cr3d,2)*SIZE(pw1 % cr3d,3)
@@ -2393,67 +2400,42 @@ SUBROUTINE fft_wrap_pw1pw2 ( pw1, pw2, debug )
         l2 = LBOUND(pw1%cr3d,2)
         l3 = LBOUND(pw1%cr3d,3)
         CALL copy_rc(nsize,pw1%cr3d(l1,l2,l3),c_out(1,1,1))
-        ! c_out = CMPLX ( pw1 % cr3d, 0.0_dp,KIND=dp)
-      CASE ( "BW_C3DC3D" )
-        c_in => pw1 % cc3d
-        c_out => pw2 % cc3d
-      CASE ( "BW_C3DR3D" )
-        c_in => pw1 % cc3d
-        IF (.NOT. ASSOCIATED (c_out)) ALLOCATE ( c_out( n(1), n(2), n(3) ), STAT = ierr )
-        IF ( ierr /= 0 ) CALL stop_memory ( "fft_wrap_pw1pw2", "c_out", &
-            pw1 % pw_grid % ngpts )
-      CASE ( "BW_C1DC3D" )
-        c_out => pw2 % cc3d
-        IF ( test ) WRITE ( *,'(A)') "  PW_SCATTER : 3d -> 1d "
-        CALL pw_scatter ( pw1, c_out )
-      CASE ( "BW_C1DR3D" )
-        IF (.NOT. ASSOCIATED (c_out)) ALLOCATE ( c_out( n(1), n(2), n(3) ), STAT = ierr )
-        IF ( ierr /= 0 ) CALL stop_memory ( "fft_wrap_pw1pw2", "c_out", &
-            pw1 % pw_grid % ngpts )
-        IF ( test ) WRITE ( *,'(A)') "  PW_SCATTER : 3d -> 1d "
-        CALL pw_scatter ( pw1, c_out )
-    END SELECT
-
-!..transform
-    IF ( ASSOCIATED ( c_in ) ) THEN
-      CALL fft3d ( dir, n, c_in, c_out, scale = norm, debug=test )
-    ELSE
-      CALL fft3d ( dir, n, c_out, scale = norm, debug=test )
-    ENDIF
-
-!..prepare output
-    SELECT CASE ( mode )
-      CASE DEFAULT
-        CALL stop_program ( "fft_wrap_pw1pw2", &
-                        "Illegal combination of in_use and in_space" )
-      CASE ( "FW_C3DC3D" )
-        !     nothing to do
-      CASE ( "FW_R3DC3D" )
-        !     nothing to do
-      CASE ( "FW_C3DC1D" )
-        !     gather results
+        CALL fft3d ( dir, n, c_out, scale = 1._dp, debug=test )
         IF ( test ) WRITE ( *,'(A)') "  PW_GATHER : 3d -> 1d "
-        CALL pw_gather ( pw2, c_out )
-        DEALLOCATE ( c_out, STAT = ierr )
-        IF ( ierr /= 0 ) CALL stop_memory ( "fft_wrap_pw1pw2", "c_out" )
-      CASE ( "FW_R3DC1D" )
-        !     gather results
-        IF ( test ) WRITE ( *,'(A)') "  PW_GATHER : 3d -> 1d "
-        CALL pw_gather ( pw2, c_out )
+        CALL pw_gather ( pw2, c_out, scale = norm )
         DEALLOCATE ( c_out, STAT = ierr )
         IF ( ierr /= 0 ) CALL stop_memory ( "fft_wrap_pw1pw2", "c_out" )
       CASE ( "BW_C3DC3D" )
-        !     nothing to do
+        c_in => pw1 % cc3d
+        c_out => pw2 % cc3d
+        CALL fft3d ( dir, n, c_in, c_out, scale = norm, debug=test )
       CASE ( "BW_C3DR3D" )
-        !     use real part only
+        c_in => pw1 % cc3d
+        IF (.NOT. ASSOCIATED (c_out)) &
+            ALLOCATE ( c_out( n(1), n(2), n(3) ), STAT = ierr )
+        IF ( ierr /= 0 ) CALL stop_memory ( "fft_wrap_pw1pw2", "c_out", &
+            pw1 % pw_grid % ngpts )
+        CALL fft3d ( dir, n, c_in, c_out, scale = norm, debug=test )
+        ! use real part only
         IF ( test ) WRITE ( *,'(A)') "  REAL part "
         pw2 % cr3d = REAL ( c_out,KIND=dp)
         DEALLOCATE ( c_out, STAT = ierr )
         IF ( ierr /= 0 ) CALL stop_memory ( "fft_wrap_pw1pw2", "c_out" )
       CASE ( "BW_C1DC3D" )
-        !     nothing to do
+        c_out => pw2 % cc3d
+        IF ( test ) WRITE ( *,'(A)') "  PW_SCATTER : 3d -> 1d "
+        CALL pw_scatter ( pw1, c_out )
+        CALL fft3d ( dir, n, c_out, scale = norm, debug=test )
       CASE ( "BW_C1DR3D" )
-        !     use real part only
+        IF (.NOT. ASSOCIATED (c_out)) &
+            ALLOCATE ( c_out( n(1), n(2), n(3) ), STAT = ierr )
+        IF ( ierr /= 0 ) CALL stop_memory ( "fft_wrap_pw1pw2", "c_out", &
+            pw1 % pw_grid % ngpts )
+        IF ( test ) WRITE ( *,'(A)') "  PW_SCATTER : 3d -> 1d "
+        CALL pw_scatter ( pw1, c_out )
+        ! transform
+        CALL fft3d ( dir, n, c_out, scale = norm, debug=test )
+        ! use real part only
         IF ( test ) WRITE ( *,'(A)') "  REAL part "
         ! pw2 % cr3d = REAL ( c_out,KIND=dp)
         nsize=SIZE(pw2 % cr3d,1)*SIZE(pw2 % cr3d,2)*SIZE(pw2 % cr3d,3)
@@ -2461,10 +2443,10 @@ SUBROUTINE fft_wrap_pw1pw2 ( pw1, pw2, debug )
         l2 = LBOUND(pw2%cr3d,2)
         l3 = LBOUND(pw2%cr3d,3)
         CALL copy_cr(nsize,c_out(1,1,1),pw2%cr3d(l1,l2,l3))
-        
         DEALLOCATE ( c_out, STAT = ierr )
         IF ( ierr /= 0 ) CALL stop_memory ( "fft_wrap_pw1pw2", "c_out" )
     END SELECT
+
     IF ( test ) WRITE ( *,'(A)') " End of FFT Protocol "
 
   ELSE
