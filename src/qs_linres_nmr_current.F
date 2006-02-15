@@ -35,7 +35,11 @@ MODULE qs_linres_nmr_current
                                              gto_basis_set_type
   USE cell_types,                      ONLY: cell_type,&
                                              pbc
-  USE coefficient_types,               ONLY: coeff_type
+  USE coefficient_types,               ONLY: coeff_copy,&
+                                             coeff_reduce,&
+                                             coeff_sumup,&
+                                             coeff_type,&
+                                             coeff_zero
   USE cp_array_r_utils,                ONLY: cp_2d_r_p_type
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_fm_basic_linalg,              ONLY: cp_fm_column_scale,&
@@ -46,6 +50,14 @@ MODULE qs_linres_nmr_current
                                              cp_fm_set_submatrix,&
                                              cp_fm_to_fm,&
                                              cp_fm_type
+  USE cp_output_handling,              ONLY: cp_iter_string,&
+                                             cp_p_file,&
+                                             cp_print_key_finished_output,&
+                                             cp_print_key_should_output,&
+                                             cp_print_key_unit_nr
+  USE cp_rs_pool_types,                ONLY: cp_rs_pool_type,&
+                                             rs_pool_create_rs,&
+                                             rs_pool_give_back_rs
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_rs_pool_types,                ONLY: cp_rs_pool_p_type,&
                                              rs_pools_create_rs_vect
@@ -55,7 +67,8 @@ MODULE qs_linres_nmr_current
                                              return_cube
   USE gaussian_gridlevels,             ONLY: gaussian_gridlevel,&
                                              gridlevel_info_type
-  USE input_section_types,             ONLY: section_vals_get_subs_vals,&
+  USE input_section_types,             ONLY: section_get_ival,&
+                                             section_vals_get_subs_vals,&
                                              section_vals_type
   USE kinds,                           ONLY: dp
   USE l_utils,                         ONLY: l_info_type,&
@@ -66,6 +79,19 @@ MODULE qs_linres_nmr_current
   USE particle_types,                  ONLY: particle_type
   USE pw_env_types,                    ONLY: pw_env_get,&
                                              pw_env_type
+  USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
+                                             pw_pool_give_back_coeff,&
+                                             pw_pool_give_back_pw,&
+                                             pw_pool_init_coeff,&
+                                             pw_pool_p_type,&
+                                             pw_pool_type
+  USE pw_types,                        ONLY: COMPLEXDATA1D,&
+                                             REALDATA3D,&
+                                             REALSPACE,&
+                                             RECIPROCALSPACE,&
+                                             pw_sumup,&
+                                             pw_transfer,&
+                                             pw_type
   USE qs_collocate_density,            ONLY: density_on_full_grid,&
                                              lgrid_type
   USE qs_environment_types,            ONLY: get_qs_env,&
@@ -84,7 +110,8 @@ MODULE qs_linres_nmr_current
                                              realspace_grid_type,&
                                              rs_get_loop_vars,&
                                              rs_get_my_tasks,&
-                                             rs_grid_zero
+                                             rs_grid_zero,&
+                                             rs_pw_to_cube
   USE sparse_matrix_types,             ONLY: add_block_node,&
                                              allocate_matrix,&
                                              deallocate_matrix,&
@@ -125,44 +152,80 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'nmr_response_current', &
       routineP = moduleN//'/'//routineN
 
-    INTEGER                                  :: handle, homo, i_B, iao, idir, &
+    CHARACTER(LEN=80)                        :: ext,filename
+    INTEGER                                  :: handle, homo, i_B, iao, iatom, idir, &
                                                 ii_B, iii_B, ispin, istate, &
-                                                nmo, nspins
-    LOGICAL                                  :: failure, gapw, uni_occ
+                                                natom, nmo, nspins, unit_nr
+    LOGICAL                                  :: failure, gapw, ionode, uni_occ
     REAL(dp)                                 :: alpha, dk(3), maxocc, rmu(3), &
                                                 rmu_dk(3)
     REAL(dp), DIMENSION(:), POINTER          :: occupation
     REAL(dp), DIMENSION(:, :), POINTER       :: vecbuf_psi1
     TYPE(cell_type), POINTER                 :: cell
-    TYPE(coeff_type), POINTER                :: rho_gspace, rho_rspace
+    TYPE(coeff_type), POINTER                :: rho_gspace, rho_rspace, wf_r
     TYPE(cp_2d_r_p_type), DIMENSION(3)       :: vecbuf
     TYPE(cp_fm_type), POINTER                :: mo_coeff
+    TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(cp_rs_pool_type), POINTER           :: auxbas_rs_pool
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particle_set
+    TYPE(pw_env_type), POINTER               :: pw_env
+    TYPE(pw_pool_p_type), DIMENSION(:), &
+      POINTER                                :: pw_pools
+    TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
     TYPE(qs_rho_type), POINTER               :: rho_struct
     TYPE(real_matrix_type), POINTER          :: density_matrix, &
                                                 density_matrix_2_ii, &
                                                 density_matrix_2_iii
+    TYPE(realspace_grid_type), POINTER       :: rs
+    TYPE(section_vals_type), POINTER         :: nmr_section
+
 
 !   ---------------------------------------------------------------------------
 
     failure = .FALSE.
     gapw=.FALSE.
-    NULLIFY(rho_rspace,rho_gspace)
+    NULLIFY(rho_rspace,rho_gspace,logger,nmr_section)
     NULLIFY(density_matrix,density_matrix_2_ii,density_matrix_2_iii)
-    NULLIFY(cell,dft_control,mos,rho_struct)
+    NULLIFY(cell,dft_control,mos,rho_struct,particle_set,pw_env)
+    NULLIFY(auxbas_rs_pool,auxbas_pw_pool,pw_pools,wf_r)
+
+    logger => cp_error_get_logger(error)
+    ionode = logger%para_env%mepos==logger%para_env%source
+!    IF (ionode) output_unit= cp_logger_get_default_unit_nr(logger)
+
     nspins = SIZE(psi1,1)
    
    
     CALL get_qs_env(qs_env=qs_env,rho=rho_struct,&
-         cell=cell, dft_control=dft_control,mos=mos)
+         cell=cell, dft_control=dft_control,mos=mos,&
+         particle_set=particle_set)
     gapw = dft_control%qs_control%gapw
+    natom = SIZE(particle_set,1)
     CPPrecondition(ASSOCIATED(rho_struct),cp_failure_level,routineP,error,failure)
     CPPrecondition(rho_struct%ref_count>0,cp_failure_level,routineP,error,failure)
+    nmr_section => section_vals_get_subs_vals(qs_env%input,"PROPERTIES%LINRES%NMR",&
+                   error=error)
 
     IF (.NOT. failure) THEN
        CALL timeset("nmr_response_current","I"," ",handle)
+
+     IF (BTEST(cp_print_key_should_output(logger%iter_info,nmr_section,&
+                  "PRINT%CURRENT_CUBES",error=error),cp_p_file)) THEN
+
+          CALL get_qs_env(qs_env=qs_env,pw_env=pw_env)
+          CALL pw_env_get(pw_env, auxbas_rs_pool=auxbas_rs_pool,&
+               auxbas_pw_pool=auxbas_pw_pool,pw_pools=pw_pools)
+          CALL rs_pool_create_rs(auxbas_rs_pool,rs,force_env_section=qs_env%input,&
+               error=error)
+          
+          CALL pw_pool_init_coeff(auxbas_pw_pool,wf_r,&
+                  use_data = REALDATA3D,&
+                  in_space = REALSPACE, error=error)
+      END IF
 
 ! Loop on the field direction 
       DO i_B = 1,3
@@ -207,7 +270,7 @@ CONTAINS
          ! Apply the p operator
            CALL cp_sm_fm_multiply(nmr_env%op_p_ao(idir)%matrix,psi1(ispin)%matrix,&
                 p_psi1(ispin)%matrix,ncol=nmo,alpha=-1.0_dp,error=error)
-           density_matrix => nmr_env%jp1_ao(idir,ispin,i_B)%matrix
+           density_matrix => nmr_env%jp1_ao
            CALL set_matrix(density_matrix,0.0_dp)
 
          ! Contribution to the current density matrix that does not depend 
@@ -230,9 +293,9 @@ CONTAINS
                             alpha=-alpha)
           
            ! For the position dependent term two more density matrix are needed
-           density_matrix_2_ii => nmr_env%jp2_ao(1,ispin)%matrix
+           density_matrix_2_ii => nmr_env%jp2_ao(1)%matrix
            CALL set_matrix(density_matrix_2_ii,0.0_dp)
-           density_matrix_2_iii => nmr_env%jp2_ao(2,ispin)%matrix
+           density_matrix_2_iii => nmr_env%jp2_ao(2)%matrix
            CALL set_matrix(density_matrix_2_iii,0.0_dp)
 
            CALL cp_fm_to_fm(nmr_env%psi1_p(ispin,iii_B)%matrix,psi1(ispin)%matrix)
@@ -280,12 +343,16 @@ CONTAINS
         ! generated by the magnetic field in cartesian direction i_B
         ! Use the qs_rho_type already  used for rho during the scf
 
-            rho_rspace => rho_struct%rho_r(ispin)
-            rho_gspace => rho_struct%rho_g(ispin)
-
- !           CALL calculate_jrho_resp(density_matrix, density_matrix_2_ii,&
- !                density_matrix_2_iii, ii_B, iii_B, rho_rspace, rho_gspace,qs-env,&
- !                gapw, error=error)
+            IF(nmr_env%store_current) THEN
+              rho_rspace => nmr_env%jrho1_set(idir,i_B)%rho%rho_r(ispin)
+              rho_gspace => nmr_env%jrho1_set(idir,i_B)%rho%rho_g(ispin)
+            ELSE
+              rho_rspace => rho_struct%rho_r(ispin)
+              rho_gspace => rho_struct%rho_g(ispin)
+            END IF
+            CALL calculate_jrho_resp(density_matrix, density_matrix_2_ii,&
+                 density_matrix_2_iii, ii_B, iii_B, rho_rspace, rho_gspace,qs_env,&
+                 gapw, error=error)
 
             IF(gapw) THEN
             ! compute the atomic response current densities on the spherical grids
@@ -294,7 +361,37 @@ CONTAINS
          END DO  ! idir
          
        END DO  !  ispin
-      END DO
+
+       IF (BTEST(cp_print_key_should_output(logger%iter_info,nmr_section,&
+                  "PRINT%CURRENT_CUBES",error=error),cp_p_file)) THEN
+
+          DO idir = 1,3
+            CALL coeff_zero(wf_r)
+            DO ispin =1 ,nspins
+              CALL coeff_copy(nmr_env%jrho1_set(idir,i_B)%rho%rho_r(ispin),wf_r)
+            END DO 
+            IF(gapw) THEN
+            ! Add the local hard and soft contributions
+            ! This can be done atom by atom by an spline extrapolation of the  values
+            ! on the spherical grid, on the classical grid points. It is not very
+            ! accurate, but it is used only for the printing of cube files.
+              DO iatom = 1,natom
+              END DO
+            END IF
+            filename="jresp"
+            WRITE(ext,'(a2,I1,a2,I1,a5)')  "iB",i_B,"_d",idir,".cube"
+            unit_nr=cp_print_key_unit_nr(logger,nmr_section,"PRINT%CURRENT_CUBES",&
+                    extension=TRIM(ext),middle_name=TRIM(filename),&
+                    log_filename=.FALSE.,error=error)
+            CALL rs_pw_to_cube(wf_r%pw,unit_nr,ionode,"RESPONSE CURRENT DENSITY ",&
+                    rs,stride=section_get_ival(nmr_section,"PRINT%CURRENT_CUBE%STRIDE"),&
+                    force_env_section=qs_env%input, error=error)
+            CALL cp_print_key_finished_output(unit_nr,logger,nmr_section,&
+                  "PRINT%CURRENT_CUBES",error=error)
+          END DO 
+
+       END IF
+      END DO  ! i_B
       CALL timestop(0.0_dp,handle)
     END IF  !  failure
 

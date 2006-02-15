@@ -66,6 +66,7 @@ MODULE qs_linres_methods
   USE qs_loc_methods,                  ONLY: qs_loc_driver
   USE qs_loc_types,                    ONLY: qs_loc_env_create,&
                                              qs_loc_env_destroy,&
+                                             qs_loc_env_release,&
                                              qs_loc_env_new_type
   USE qs_loc_utils,                    ONLY: qs_loc_env_init
   USE qs_matrix_pools,                 ONLY: mpools_get,&
@@ -176,9 +177,10 @@ CONTAINS
     ! The localized orbitals are copied in the mos, 
     ! The orbital centers are stored in linres_control%localized_wfn_control
     CALL qs_loc_driver(qs_env,qs_loc_env,ionode,error=error)
-    CALL qs_loc_env_destroy(qs_loc_env, error=error)
-    DEALLOCATE(qs_loc_env,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    CALL qs_loc_env_release(qs_loc_env, error=error)
+!    CALL qs_loc_env_destroy(qs_loc_env, error=error)
+!    DEALLOCATE(qs_loc_env,STAT=istat)
+!    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
   END SUBROUTINE linres_localize
   

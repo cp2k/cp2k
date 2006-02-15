@@ -230,7 +230,7 @@ CONTAINS
       CALL section_create(section,name="LOCALIZE",&
            description="Use one of the available methods to define the localization "//&
            " and possibly to optimize it to a minimum or a maximum.",&
-           n_keywords=8, n_subsections=0, repeats=.TRUE., required=.TRUE.,&
+           n_keywords=8, n_subsections=0, repeats=.TRUE., required=.FALSE.,&
            error=error)
 
       CALL keyword_create(keyword,name="MIN_OR_MAX",&
@@ -3478,6 +3478,13 @@ END SUBROUTINE create_ot_section
       CALL section_add_keyword(section,keyword,error=error)
       CALL keyword_release(keyword,error=error)
 
+      CALL keyword_create(keyword,name="CUBES_STRIDE",&
+           description="the stride used to write the cube file ",&
+           usage="CUBES_STRIDE 2",&
+           default_i_val=2,error=error)
+      CALL section_add_keyword(section,keyword,error=error)
+      CALL keyword_release(keyword,error=error)
+
       CALL create_localize_section(subsection,error)
       CALL section_add_subsection(section, subsection, error=error)
       CALL section_release(subsection,error=error)
@@ -3667,9 +3674,11 @@ END SUBROUTINE create_ot_section
 
     LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
+    TYPE(section_type), POINTER              :: print_key, subsection
+
 
     failure=.FALSE.
-    NULLIFY(keyword)
+    NULLIFY(keyword,print_key, subsection)
 
     CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
@@ -3702,12 +3711,78 @@ END SUBROUTINE create_ot_section
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
+       CALL keyword_create(keyword, name="NICS",&
+            description="Calculate the chemical shift in a set of points  "//&
+            " given from an external file", usage="NICS",&
+            default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="NICS_FILE_NAME",&
+            description="Name of the file with the NICS points coordinates",&
+            usage="NICS_FILE_NAME nics_file",&
+            default_lc_val="nics_file",error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+
        CALL keyword_create(keyword, name="RESTART_NMR",&
             description="Restart the NMR calculation from a previous run",&
             usage="RESTART_NMR",default_l_val=.FALSE.,&
             lone_keyword_l_val=.TRUE.,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
+
+       CALL section_create(subsection,name="PRINT",&
+            description="print results of nmr calculation",&
+            error=error,repeats=.FALSE.,required=.FALSE.)
+
+         CALL cp_print_key_section_create(print_key,"CURRENT_CUBES",&
+              description="Controls the printing of the current density ", &
+              print_level=high_print_level,each=(/1/),add_last=(/1/),filename="",&
+              error=error)
+           CALL keyword_create(keyword, name="stride",&
+                description="the stride used to write the cube file "//&
+                "(the bigger, the smaller the cube gets)",&
+                default_i_val=2, error=error)
+           CALL section_add_keyword(print_key,keyword,error=error)
+           CALL keyword_release(keyword,error=error)
+         CALL section_add_subsection(subsection,print_key,error=error)
+         CALL section_release(print_key,error=error)
+
+         CALL cp_print_key_section_create(print_key,"RESPONSE_FUNCTION_CUBES",&
+              description="Controls the printing of the response functions ", &
+              print_level=high_print_level,each=(/1/),add_last=(/1/),filename="",&
+              error=error)
+           CALL keyword_create(keyword, name="stride",&
+                description="the stride used to write the cube file "//&
+                "(the bigger, the smaller the cube gets)",&
+                default_i_val=2, error=error)
+           CALL section_add_keyword(print_key,keyword,error=error)
+           CALL keyword_release(keyword,error=error)
+
+           CALL keyword_create(keyword,name="CUBES_LU_BOUNDS",&
+                variants=(/"CUBES_LU"/),&
+                description="The lower and upper index of the states to be printed as cube",&
+                usage="CUBES_LU_BOUNDS integer integer",&
+                n_var=2,default_i_vals=(/0,-2/), type_of_var=integer_t,error=error)
+           CALL section_add_keyword(print_key,keyword,error=error)
+           CALL keyword_release(keyword,error=error)
+
+           CALL keyword_create(keyword,name="CUBES_LIST",&
+               description="Indexes of the states to be printed as cube files"//&
+               "This keyword can be repeated several times"//&
+               "(useful if you have to specify many indexes).",&
+               usage="CUBES_LIST 1 2",&
+               n_var=-1,type_of_var=integer_t,repeats=.TRUE.,error=error)
+           CALL section_add_keyword(print_key,keyword,error=error)
+           CALL keyword_release(keyword,error=error)
+         CALL section_add_subsection(subsection,print_key,error=error)
+         CALL section_release(print_key,error=error)
+       CALL section_add_subsection(section,subsection,error=error)
+       CALL section_release(subsection,error=error)
+
+
 
     END IF
 

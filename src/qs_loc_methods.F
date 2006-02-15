@@ -810,7 +810,7 @@ CONTAINS
 !!*** **********************************************************************
 
   SUBROUTINE qs_print_cubes(qs_env,mo_coeff,nstates,state_list,centers,&
-             iter,ispin,ionode,root,state0,error)
+             iter,ispin,ionode,root,stride,state0,error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(cp_fm_type), POINTER                :: mo_coeff
@@ -821,6 +821,7 @@ CONTAINS
     LOGICAL, INTENT(IN)                      :: ionode
     CHARACTER(LEN=*)                         :: root
     INTEGER, OPTIONAL                        :: state0
+    INTEGER, OPTIONAL                        :: stride
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -829,7 +830,7 @@ CONTAINS
 
     CHARACTER(LEN=80)                        :: filename, title
     INTEGER                                  :: ia, ie, istate, ivector, &
-                                                my_state0
+                                                my_state0, my_stride
     LOGICAL                                  :: failure
     TYPE(coeff_type)                         :: wf_g, wf_r
     TYPE(pw_env_type), POINTER               :: pw_env
@@ -848,6 +849,9 @@ CONTAINS
 
     my_state0 = 0
     IF(PRESENT(state0)) my_state0 = state0
+    my_stride = 2
+    IF(PRESENT(stride)) my_stride = stride
+
     DO istate = 1,nstates
       ivector = state_list(istate) - my_state0
 
@@ -862,7 +866,8 @@ CONTAINS
       IF (ionode) OPEN(UNIT=21,FILE=filename)
       WRITE(title,'(A7,I5.5,A1,I1.1,A1,6G10.4)') "WFN ",ivector,"_s",ispin," ",&
             centers(1:3,istate)*angstrom, centers(4:6,istate)*angstrom
-      CALL rs_pw_to_cube(wf_r%pw,21,ionode,title,force_env_section=qs_env%input)
+      CALL rs_pw_to_cube(wf_r%pw,21,ionode,title,stride=my_stride,&
+           force_env_section=qs_env%input,error=error)
       IF (ionode) CLOSE(21)
     END DO 
 

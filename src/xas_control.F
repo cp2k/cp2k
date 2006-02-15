@@ -76,6 +76,7 @@ MODULE xas_control
     INTEGER                             :: added_mos
     INTEGER                             :: max_iter_added
     INTEGER                             :: ngauss
+    INTEGER                             :: stride
     INTEGER, DIMENSION(:), POINTER      :: exc_atoms 
     LOGICAL                             :: emission
     LOGICAL                             :: localized_wfn
@@ -302,8 +303,11 @@ CONTAINS
             ncubes = ncubes + SIZE(list)
           END IF
         END DO  ! ir
+
       END IF
 
+      CALL section_vals_val_get(xas_section,"CUBES_STRIDE",&
+           i_val=xas_control%stride,error=error)
       ! If the states are not given from input, don't print any
       IF(.NOT. ASSOCIATED(xas_control%list_cubes)) xas_control%cubes = .FALSE.
     ELSE

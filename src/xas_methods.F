@@ -1135,8 +1135,10 @@ CONTAINS
     CALL get_mo_set(mos(1)%mo_set, homo=homo)
     istate0 = homo
     IF(xas_control%emission) istate0 = 0
+    write(*,*) 'stride ', xas_control%stride
     CALL qs_print_cubes(qs_env,all_vectors,nstates,xas_control%list_cubes,&
-               centers,iter,1,ionode,flag,state0=istate0,error=error)
+               centers,iter,1,ionode,flag,stride=xas_control%stride,&
+               state0=istate0,error=error)
 
     DEALLOCATE(centers,STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)

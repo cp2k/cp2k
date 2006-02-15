@@ -164,9 +164,9 @@ CONTAINS
 
          !Initialize the nmr environment
          nmr_env%ref_count=0
-         CALL nmr_env_init(nmr_env,qs_env,globenv,error=error)
+         CALL nmr_env_init(nmr_env,qs_env,error=error)
          CALL nmr_operators(nmr_env,qs_env,error=error)
-         CALL nmr_do_nmr(nmr_env,p_env,qs_env,globenv,error=error)
+         CALL nmr_do_nmr(nmr_env,p_env,qs_env,error=error)
      WRITE(*,*) 'donmr'
      STOP 'lr_calculation'
          CALL nmr_env_cleanup(nmr_env,error=error)

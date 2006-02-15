@@ -105,7 +105,7 @@ MODULE qs_scf_post
                                              localized_wfn_control_type
   USE qs_loc_methods,                  ONLY: qs_loc_driver
   USE qs_loc_types,                    ONLY: qs_loc_env_create,&
-                                             qs_loc_env_destroy,&
+                                             qs_loc_env_release,&
                                              qs_loc_env_new_type
   USE qs_loc_utils,                    ONLY: qs_loc_env_init
   USE qs_localization,                 ONLY: qs_loc_compute_properties,&
@@ -588,9 +588,10 @@ CONTAINS
 
 ! *** destroy the localization environment
        IF(dft_control%qs_control%localized_wfn .AND. my_localized_wfn) THEN
-          CALL qs_loc_env_destroy(qs_loc_env_new, error=error)
-          DEALLOCATE(qs_loc_env_new,STAT=istat)
-          CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+          CALL qs_loc_env_release(qs_loc_env_new, error=error)
+!          CALL qs_loc_env_destroy(qs_loc_env_new, error=error)
+!          DEALLOCATE(qs_loc_env_new,STAT=istat)
+!          CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
        ELSEIF (p_loc) THEN
           CALL qs_loc_destroy(qs_loc_env)
           DEALLOCATE(qs_loc_env) 

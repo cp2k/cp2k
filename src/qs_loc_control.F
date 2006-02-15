@@ -297,6 +297,7 @@ CONTAINS
       ELSE IF(localized_wfn_control%set_of_states==state_loc_none) THEN
          localized_wfn_control%nloc_states(:) = 0
       END IF
+
       CALL section_vals_val_get(loc_section,"FNAME",&
            c_val=localized_wfn_control%loc_rootfname,error=error)
 

@@ -47,7 +47,8 @@ MODULE xas_tp_scf
                                              ot_precond_full_kinetic,&
                                              xas_dscf,&
                                              xas_scf_general,&
-                                             xas_scf_ot
+                                             xas_scf_ot,&
+                                             xas_dscf,xas_tp_xfh, xas_tp_xhh
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type
   USE kinds,                           ONLY: dp
@@ -458,7 +459,7 @@ CONTAINS
                END IF 
 
                IF(xas_control%smear/=0.0_dp) THEN
-                  CALL xas_smearing(mos(ispin)%mo_set,xas_control,dft_control%xas_estate,error=error)
+                  CALL xas_smearing(mos(ispin)%mo_set,xas_control,dft_control%xas_estate,ispin,error=error)
                END IF
 
                CALL write_mo_set(mos(ispin)%mo_set,atomic_kind_set,particle_set,&
@@ -742,27 +743,46 @@ CONTAINS
 
 !!*** **********************************************************************
 
-  SUBROUTINE xas_smearing(mo_set,xas_control,estate,error)
+  SUBROUTINE xas_smearing(mo_set,xas_control,estate,ispin,error)
 
     TYPE(mo_set_type), POINTER               :: mo_set
     TYPE(xas_control_type)                   :: xas_control
-    INTEGER, INTENT(IN)                      :: estate
+    INTEGER, INTENT(IN)                      :: estate, ispin
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
     INTEGER                                  :: homo, imin, imo, lfomo, &
                                                 nelectron, nmo, nomo
     REAL(dp)                                 :: e1, e2, edelta, edist, nelec, &
-                                                occ_estate, smear
+                                                nelec0, occ_estate, smear
     REAL(dp), DIMENSION(:), POINTER          :: eigenvalues, occupation
 
     CALL get_mo_set(mo_set,eigenvalues=eigenvalues,&
          occupation_numbers=occupation,nelectron=nelectron,nmo=nmo)
 
     nomo = nelectron
-    occ_estate = occupation(estate)
-    occupation(1:nomo) = 1.0_dp
-
+    IF(ispin == 1) THEN
+      IF(xas_control%xas_method==xas_dscf .OR. xas_control%xas_method==xas_tp_xhh &
+         .OR.  xas_control%xas_method==xas_tp_xfh) THEN
+         nomo  = nomo + 1
+      END IF    
+      occ_estate = occupation(estate)
+      occupation(1:nomo) = 1.0_dp
+      occupation(estate) = occ_estate
+      occupation(nomo+1:nmo) = 0.0_dp
+      IF(xas_control%xas_method==xas_dscf .OR. xas_control%xas_method==xas_tp_xhh &
+         .OR.  xas_control%xas_method==xas_tp_xfh) THEN
+        occupation(nomo) = 1.0_dp - occ_estate
+        nelec0 = 0.0_dp
+        DO imo = 1,nomo
+          nelec0 = nelec0 + occupation(imo)
+        END DO
+      END IF    
+    ELSE
+      occupation(1:nomo) = 1.0_dp
+      occupation(nomo+1:nmo) = 0.0_dp
+    END IF
+ 
     imin = estate+1
     smear = xas_control%smear
 
@@ -817,7 +837,20 @@ CONTAINS
 
     END IF
   
-    occupation(estate) = occ_estate
+    IF(ispin==1) THEN
+      occupation(estate) = occ_estate
+      IF(xas_control%xas_method==xas_dscf .OR. xas_control%xas_method==xas_tp_xhh &
+           .OR.  xas_control%xas_method==xas_tp_xfh) THEN
+        nelec = 0.0_dp
+        DO imo = 1,homo
+          nelec = nelec + occupation(imo)
+        END DO
+        IF(nelec/=nelec0) WRITE(6,*) "WARNING different number of electrons !", nelec, nelec0
+        WRITE(*,*) 'lfomo ' , lfomo, occupation(lfomo)
+        WRITE(*,*) 'nomo ' , nomo, occupation(nomo)
+        WRITE(*,*) 'homo ' , homo, occupation(homo)
+      END IF
+    END IF
 
     CALL set_mo_set(mo_set,homo=homo,lfomo=lfomo,&
                       uniform_occupation=.FALSE.)

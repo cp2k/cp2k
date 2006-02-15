@@ -30,7 +30,8 @@ MODULE qs_linres_types
                                              localized_wfn_control_type
   USE qs_rho_atom_types,               ONLY: rho_atom_p_type
   USE qs_rho_types,                    ONLY: qs_rho_p_type
-  USE sparse_matrix_types,             ONLY: real_matrix_p_type
+  USE sparse_matrix_types,             ONLY: real_matrix_p_type,&
+                                             real_matrix_type
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -112,15 +113,7 @@ MODULE qs_linres_types
 !!                   one for each psi1_D_j vector
 !!   - chemical_shift: the tensor for each atom
 !!   - chi_tensor  : the susceptibility tensor
-!!   - jp1_ao :      current density matrices. One set for each dir. of B&
-!!                   and for each cartesian component
-!!                   If the current density has to be calculated,
-!!                   to store the current density matrixes, in the dir. x,y,and z 
-!!                   This is a sparse matrix not symmetric
-!!                   The contributions can be added very time a new psi1 is calculated
-!!                   For psi1_p and psi1_rxp the contribution is a sum over the states 
-!!                   contributions. For psi1_D instead, at each new scf only one 
-!!                   state contributes.
+!!   - jp1_ao :      current density matrices. 
 !!   - jp2_ao :      density matrices used to compute the r-dependent terms
 !!   - jrho1_set   : current density on the global grid, if gapw this is only the soft part
 !!   - jrho1_atom_set : current density on the local atomic grids (only if gapw)
@@ -132,30 +125,35 @@ MODULE qs_linres_types
 !!***
 
   TYPE nmr_env_type
-     INTEGER                                     :: ref_count, nao, nstates(2)
+     INTEGER                                     :: ref_count, n_nics, nao, nstates(2)
+     INTEGER, DIMENSION(:), POINTER              :: list_cubes
      INTEGER, DIMENSION(:,:), POINTER            :: statetrueindex
-     LOGICAL                                     :: current_density, &
+     LOGICAL                                     :: current_density, do_nics,&
                                                     full_nmr,simplenmr_done(6),&
                                                     simplenmr_converged(6),&
-                                                    restart_nmr
+                                                    store_current,restart_nmr
      LOGICAL,DIMENSION(:,:), POINTER             :: fullnmr_done
      REAL(dp)                                    :: chi_tensor(3,3)
+     REAL(dp)                                    :: chi_tensor_loc(3,3)
      REAL(dp), DIMENSION(:,:), POINTER           :: basisfun_center
+     REAL(dp), DIMENSION(:,:), POINTER           :: r_nics
      REAL(dp),DIMENSION(:,:,:), POINTER          :: chemical_shift
+     REAL(dp),DIMENSION(:,:,:), POINTER          :: chemical_shift_loc
+     REAL(dp),DIMENSION(:,:,:), POINTER          :: chemical_shift_loc_nics
+     REAL(dp),DIMENSION(:,:,:), POINTER          :: chemical_shift_nics
      TYPE(cp_2d_r_p_type), DIMENSION(:),POINTER  :: centers_set
      TYPE(cp_fm_pool_p_type), DIMENSION(:), &
        POINTER                                   :: ao_mo_fm_pools
      TYPE(real_matrix_p_type), DIMENSION(:), &
           POINTER                                :: op_p_ao, op_rmd_ao
      TYPE(cp_fm_p_type), DIMENSION(:,:), POINTER :: psi1_p, psi1_rxp, psi1_D
-     TYPE(real_matrix_p_type), DIMENSION(:,:), &
+     TYPE(real_matrix_p_type), DIMENSION(:), &
           POINTER                                :: jp2_ao
-     TYPE(real_matrix_p_type), DIMENSION(:,:,:), &
-          POINTER                                :: jp1_ao
+     TYPE(real_matrix_type), POINTER             :: jp1_ao
      TYPE(cp_fm_p_type), DIMENSION(:,:), POINTER :: p_psi0, rxp_psi0
      TYPE(cp_fm_p_type), DIMENSION(:,:), POINTER :: p_psi1
-     TYPE(qs_rho_p_type),DIMENSION(:),   POINTER :: jrho1_set
-     TYPE(rho_atom_p_type), DIMENSION(:), POINTER:: jrho1_atom_set
+     TYPE(qs_rho_p_type),DIMENSION(:,:), POINTER :: jrho1_set
+     TYPE(rho_atom_p_type),DIMENSION(:,:),POINTER:: jrho1_atom_set
   END TYPE nmr_env_type
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_linres_types'
@@ -281,7 +279,12 @@ CONTAINS
        NULLIFY(nmr_env%fullnmr_done)
        NULLIFY(nmr_env%basisfun_center)
        NULLIFY(nmr_env%chemical_shift)
+       NULLIFY(nmr_env%chemical_shift_loc)
+       NULLIFY(nmr_env%chemical_shift_loc_nics)
+       NULLIFY(nmr_env%chemical_shift_nics)
+       NULLIFY(nmr_env%r_nics)
        NULLIFY(nmr_env%statetrueindex)
+       NULLIFY(nmr_env%list_cubes)
      END IF 
 
 
