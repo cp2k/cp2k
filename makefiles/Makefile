@@ -5,8 +5,9 @@ SHELL = /bin/sh
 CP2KHOME  := $(PWD)/..
 ARCH      := $(shell $(CP2KHOME)/tools/get_arch_code)
 SMAKE     = $(MAKE) -r
-PMAKE     = $(SMAKE) -j 1
+PMAKE     = $(SMAKE) -j 4
 LIB1      = cp2k_base_lib
+LIB2      = cp2k_fft_lib
 LIBCP2K   = cp2k_lib
 export VERSION=sopt
 export WHAT   =_progr
@@ -32,6 +33,7 @@ LIBDIR       = $(MAINLIBDIR)/$(ARCH)
 OBJDIR       = $(MAINOBJDIR)/$(ARCH)
 OBJECTDEFS   = $(SRCDIR)/OBJECTDEFS
 LIB1_ARCHIVE = $(LIBDIR)/$(VERSION)/lib$(LIB1).a
+LIB2_ARCHIVE = $(LIBDIR)/$(VERSION)/lib$(LIB2).a
 LIB_CP2K_ARCHIVE  = $(LIBDIR)/$(VERSION)/lib$(LIBCP2K).a
 SRCENTRY     = $(wildcard $(SRCDIR)/CVS/Entr*)
 LEAPOBJECTDEFS = $(TOOLSRC)/Fist/topology_converter/OBJECTDEFS
@@ -103,12 +105,15 @@ CPPFLAGS += $(CPPSHELL)\
 
 OBJECTS = $(OBJECTS_GENERIC) $(OBJECTS_ARCHITECTURE)
 
-LIB1_OBJECTS = ctrig.o fftpre.o fftrot.o fftstp.o fast.o mltfftsg_tools.o\
-               mltfftsg.o grid_fast.o
+LIB1_OBJECTS = fast.o grid_fast.o
+
+LIB2_OBJECTS = fft_lib.o fftsg_lib.o fftw2_lib.o fftw3_lib.o fftacml_lib.o \
+               fftmkl_lib.o fftsci_lib.o fftessl_lib.o\
+               ctrig.o fftpre.o fftrot.o fftstp.o mltfftsg_tools.o mltfftsg.o 
 
 DEPENDENCIES = $(OBJECTS:.o=.dep) cp2k.dep
 
-LIBRARIES = -L$(LIBDIR)/$(VERSION) -l$(LIB1) $(LIBS)
+LIBRARIES = -L$(LIBDIR)/$(VERSION) -l$(LIB1) -l$(LIB2) $(LIBS)
 
 .SECONDARY: $(OBJECTS:.o=.f90) $(LIB1_OBJECTS:.o=.f90)
 
@@ -127,9 +132,9 @@ dependencies: $(DEPENDENCIES) leapdep
 	@echo "** LIBS     = $(LIBS)"
 	@echo
 
-_all: $(LIB1_ARCHIVE) $(LIB_CP2K_ARCHIVE) $(PROG) $(LEAP2FIST)
+_all: $(LIB1_ARCHIVE) $(LIB2_ARCHIVE) $(LIB_CP2K_ARCHIVE) $(PROG) $(LEAP2FIST)
 _progr: $(PROG)
-_lib: $(LIB1_ARCHIVE) $(LIB_CP2K_ARCHIVE)
+_lib: $(LIB1_ARCHIVE) $(LIB2_ARCHIVE) $(LIB_CP2K_ARCHIVE)
 
 $(LIB1_ARCHIVE): $(LIB1_OBJECTS)
 	$(AR) $(LIB1_ARCHIVE) $(LIB1_OBJECTS)
@@ -137,11 +142,17 @@ ifneq ($(RANLIB),)
 	$(RANLIB) $(LIB1_ARCHIVE)
 endif
 
+$(LIB2_ARCHIVE): $(LIB2_OBJECTS)
+	$(AR) $(LIB2_ARCHIVE) $(LIB2_OBJECTS)
+ifneq ($(RANLIB),)
+	$(RANLIB) $(LIB2_ARCHIVE)
+endif
 $(LEAP2FIST): $(LEAPOBJS)
 	$(LD) $(LDFLAGS) -o $(LEAP2FIST) $(LEAPOBJS)
 
-$(PROG): $(LIB1_ARCHIVE) $(OBJECTS) cp2k.o
+$(PROG): $(LIB1_ARCHIVE) $(LIB2_ARCHIVE) $(OBJECTS) cp2k.o
 	$(LD) $(LDFLAGS) -o $(PROG) $(OBJECTS) cp2k.o $(LIBRARIES)
+
 
 $(LIB_CP2K_ARCHIVE): $(OBJECTS) f77_int_low.o
 	$(AR) $(LIB_CP2K_ARCHIVE) $(OBJECTS) f77_int_low.o
@@ -191,6 +202,7 @@ realclean: clean
 	-test ! -d $(OBJDIR)/$(VERSION) || { cd $(OBJDIR)/$(VERSION) ; rm -f * ; }
 	-rm -f $(PROG)
 	-rm -f $(LIB1_ARCHIVE)
+	-rm -f $(LIB2_ARCHIVE)
 
 distclean:
 	rm -rf $(MAINEXEDIR) $(MAINLIBDIR) $(MAINOBJDIR)
