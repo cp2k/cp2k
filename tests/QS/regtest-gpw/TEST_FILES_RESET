@@ -5,3 +5,6 @@ He2H-bloechl-md.inp
 He2H-bloechl.inp
 H2O-bloechl.inp
 H2O-bloechl-Spl.inp
+#reset for FFT numerics
+H2O-bloechl.inp
+H2O-bloechl-Spl.inp

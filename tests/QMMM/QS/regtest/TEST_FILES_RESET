@@ -104,4 +104,7 @@ sio2-qmmm-gauss-2.inp
 sio2-qmmm-gauss-3.inp
 C4H10-qmmm-grid-8.inp
 H2O-qmmm-gauss-1.inp
+#reset for FFT numerics
+Ar-qmmm.inp
+H2O-qmmm-grid-1.inp
 

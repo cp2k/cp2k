@@ -13,3 +13,5 @@ h2o_energy.inp
 #reset after new restart
 nai-1.inp
 nai-2.inp
+#reset for FFT numerics
+nai-1.inp
