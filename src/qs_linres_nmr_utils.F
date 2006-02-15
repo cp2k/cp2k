@@ -849,10 +849,6 @@ CONTAINS
          "PRINT%PROGRAM_RUN_INFO",error=error)
 
 
- write(*,*) nmr_env%current_density, nmr_env%store_current
- write(*,*) nao, nstates
- stop 
-
   END SUBROUTINE nmr_env_init
 
 ! *****************************************************************************
