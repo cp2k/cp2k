@@ -1976,25 +1976,26 @@ END SUBROUTINE section_vals_val_unset
 !!
 !!*** **********************************************************************
 RECURSIVE SUBROUTINE section_vals_write(section_vals,unit_nr,hide_root,error)
-    TYPE(section_vals_type), POINTER         :: section_vals
-    INTEGER, INTENT(in)                      :: unit_nr
-    LOGICAL, INTENT(in), OPTIONAL            :: hide_root
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+  TYPE(section_vals_type), POINTER         :: section_vals
+  INTEGER, INTENT(in)                      :: unit_nr
+  LOGICAL, INTENT(in), OPTIONAL            :: hide_root
+  TYPE(cp_error_type), INTENT(inout), &
+       OPTIONAL                               :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'section_vals_write', &
-      routineP = moduleN//':'//routineN
+  CHARACTER(len=*), PARAMETER :: routineN = 'section_vals_write', &
+       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i_rep_s, ik, isec, ival, nr, &
-                                                nval
-    INTEGER, SAVE                            :: indent
-    LOGICAL                                  :: defaultSection, failure, &
-                                                my_hide_root
-    TYPE(cp_error_type)                      :: suberror
-    TYPE(keyword_type), POINTER              :: keyword
-    TYPE(section_type), POINTER              :: section
-    TYPE(section_vals_type), POINTER         :: sval
-    TYPE(val_type), POINTER                  :: val
+  INTEGER                                  :: i_rep_s, ik, isec, ival, nr, &
+       nval
+  INTEGER, SAVE                            :: indent
+  LOGICAL                                  :: defaultSection, failure, &
+       my_hide_root
+  TYPE(cp_error_type)                      :: suberror
+  TYPE(keyword_type), POINTER              :: keyword
+  TYPE(section_type), POINTER              :: section
+  TYPE(section_vals_type), POINTER         :: sval
+  TYPE(val_type), POINTER                  :: val
+  TYPE(cp_sll_val_type), POINTER           :: new_pos, vals
 
   DATA indent/1/
   CHARACTER(len=default_string_length) :: myfmt
@@ -2027,12 +2028,45 @@ RECURSIVE SUBROUTINE section_vals_write(section_vals,unit_nr,hide_root,error)
            DO ik=-1,section%n_keywords
               keyword => section%keywords(ik)%keyword
               IF (ASSOCIATED(keyword)) THEN
-                 IF (keyword%type_of_var/=no_t.and.keyword%names(1)(1:2)/="__") THEN
+                 IF (keyword%type_of_var/=no_t.AND.keyword%names(1)(1:2)/="__") THEN
                     CALL section_vals_val_get(section_vals,keyword%names(1),&
                          i_rep_s,n_rep_val=nval,error=error)
-                    DO ival=1,nval
-                       CALL section_vals_val_get(section_vals,keyword%names(1),&
-                            i_rep_s,i_rep_val=ival,val=val,error=suberror)
+                    IF (i_rep_s<=SIZE(section_vals%values,2)) THEN 
+                       vals  => section_vals%values(ik,i_rep_s)%list
+                       DO ival=1,nval
+                          IF (ival==1) THEN
+                             new_pos => vals
+                          ELSE
+                             new_pos => new_pos%rest
+                          END IF
+                          IF (.NOT.ASSOCIATED(new_pos)) THEN
+                             ! this keyword was not parsed
+                             IF (.NOT.keyword%required.AND. ASSOCIATED(keyword%default_value)) THEN
+                                val => keyword%default_value
+                             END IF
+                          ELSE
+                             val => new_pos%first_el
+                          END IF
+                          CALL cp_error_propagate_error(suberror, fromWhere=routineP,&
+                               message="for val "// TRIM(keyword%names(1))//" in section "//&
+                               TRIM(section%name),error=error, failure=failure)
+                          IF (keyword%names(1)/='_DEFAULT_KEYWORD_'.AND.&
+                               keyword%names(1)/='_SECTION_PARAMETERS_') THEN
+                             WRITE(unit=unit_nr,fmt="("//TRIM(myfmt)//",a,' ')",advance="NO")&
+                                  TRIM(keyword%names(1))
+                          ELSEIF (keyword%names(1) =='_DEFAULT_KEYWORD_' .AND.&
+                               keyword%type_of_var/=lchar_t) THEN
+                             WRITE(unit=unit_nr,fmt="("//TRIM(myfmt)//")",advance="NO") 
+                          END IF
+                          CALL val_write(val,unit_nr=unit_nr,unit=keyword%unit,&
+                               fmt=myfmt,error=suberror)
+                          CALL cp_error_propagate_error(suberror, fromWhere=routineP,&
+                               message="for val "// TRIM(keyword%names(1))//" in section "//&
+                               TRIM(section%name),error=error, failure=failure)
+                          IF (failure) EXIT                          
+                       END DO
+                    ELSEIF (.NOT.keyword%required.AND. ASSOCIATED(keyword%default_value)) THEN
+                       val => keyword%default_value
                        CALL cp_error_propagate_error(suberror, fromWhere=routineP,&
                             message="for val "// TRIM(keyword%names(1))//" in section "//&
                             TRIM(section%name),error=error, failure=failure)
@@ -2049,8 +2083,8 @@ RECURSIVE SUBROUTINE section_vals_write(section_vals,unit_nr,hide_root,error)
                        CALL cp_error_propagate_error(suberror, fromWhere=routineP,&
                             message="for val "// TRIM(keyword%names(1))//" in section "//&
                             TRIM(section%name),error=error, failure=failure)
-                       IF (failure) EXIT
-                    END DO
+                       IF (failure) EXIT                       
+                    END IF
                  END IF
               END IF
               IF (failure) EXIT
