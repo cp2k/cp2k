@@ -861,7 +861,7 @@ int main(int argc, char* argv[]){
   slist *p;
 
 #ifdef YYDEBUG
-  yydebug=1;
+  int yydebug=1;
 #endif
 
   flout=stdout;
