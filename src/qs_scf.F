@@ -585,7 +585,7 @@ CONTAINS
     scf_loop: DO
        CALL timeset("scf_iter","I"," ",handle2)
 
-       IF (ionode) CALL m_flush(output_unit)
+       IF (ionode .AND. output_unit > 0) CALL m_flush(output_unit)
 
        scf_env%iter_count = scf_env%iter_count + 1
 
