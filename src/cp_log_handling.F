@@ -822,7 +822,7 @@ CONTAINS
           CALL m_datum(datx)
           CALL print_message(datx(12:19)//' '//label//' in '//&
                fromWhere//' '//message,unitNr,&
-               level, level,level/2)
+               level,0,0)
 ! old (more failsafe, no trim, compress,...) code:
 !write (unit=unitNr,fmt='(a)', iostat=oErr) ' '
 !write (unit=unitNr,fmt='(5a)', iostat=oErr) label,' in ', fromWhere,',', message

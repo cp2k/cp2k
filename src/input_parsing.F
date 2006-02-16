@@ -120,7 +120,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     CHARACTER(len=max_line_length)           :: token
-    INTEGER                                  :: desc_level, ik, irs, is, nsub
+    INTEGER                                  :: desc_level, handle, ik, irs, &
+                                                is, nsub
     LOGICAL :: at_end, compatible_end, failure, root_sect, skip_description, &
       skip_help, suberror_happened, whole_section
     TYPE(cp_error_type)                      :: suberror
@@ -129,6 +130,8 @@ CONTAINS
     TYPE(keyword_type), POINTER              :: keyword
     TYPE(section_type), POINTER              :: section
     TYPE(val_type), POINTER                  :: el
+
+    CALL timeset(routineN,handle)
 
   failure=.FALSE.
   root_sect=.TRUE.
@@ -166,8 +169,8 @@ CONTAINS
           error,failure)
   END IF
   IF (.NOT. failure) THEN
-     skip_description=.FALSE.
-     skip_help=.FALSE.
+     skip_description=.TRUE.
+     skip_help=.TRUE.
      CALL section_vals_add_values(section_vals,error=error)
      irs=SIZE(section_vals%values,2)
 
@@ -253,7 +256,7 @@ CONTAINS
               END IF
            ELSE
               ! this should be an error (failure)
-              CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,&
+              CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
                    routineP,"unknown subsection "//TRIM(token)//" of section "&
                    //TRIM(section%name),error)
               nSub=1
@@ -385,6 +388,7 @@ CONTAINS
      END IF
   END IF
   CALL cp_error_dealloc_ref(suberror)
+  CALL timestop(handle)
 END SUBROUTINE section_vals_parse
 !***************************************************************************
 

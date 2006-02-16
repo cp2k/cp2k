@@ -42,10 +42,10 @@ MODULE cp2k_runs
                                              globenv_release
   USE harris_metropolis_mc,            ONLY: harris_mc_ld
   USE input_constants,                 ONLY: &
-       bsse_run, do_farming, do_fist, do_kg, do_qmmm, do_qs, &
-       do_tbmd, do_test, electronic_spectra_run, energy_force_run, &
-       energy_run, geo_opt_run, hmc_run, ldmc_run, linear_response_run, &
-       mol_dyn_run, mon_car_run, none_run, qs_debug_run
+       bsse_run, do_farming, do_fist, do_kg, do_qmmm, do_qs, do_tbmd, &
+       do_test, electronic_spectra_run, energy_force_run, energy_run, &
+       geo_opt_run, hmc_run, ldmc_run, linear_response_run, mol_dyn_run, &
+       mon_car_run, none_run, qs_debug_run
   USE input_cp2k,                      ONLY: create_cp2k_root_section,&
                                              create_global_section
   USE input_cp2k_check,                ONLY: check_cp2k_input
@@ -136,9 +136,11 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'cp2k_run', &
       routineP = moduleN//':'//routineN
 
+    INTEGER                                  :: unit_nr
     LOGICAL                                  :: echo_input, failure, &
                                                 I_was_ionode, was_present
     TYPE(cp_error_type)                      :: error
+    TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_parser_type), POINTER            :: my_parser
     TYPE(cp_unit_set_type), POINTER          :: default_units
@@ -180,23 +182,41 @@ CONTAINS
          default_units=default_units,error=error)
     CALL cp_unit_set_release(default_units,error=error)
     CALL parser_release(my_parser,error=error)
-    CALL cp_error_check(error,failure)
-    glob_section => section_vals_get_subs_vals(input_file,"GLOBAL",error=error)
-    CALL section_vals_val_get(glob_section,"ECHO_INPUT",l_val=echo_input,&
-         error=error)
-    IF (echo_input.AND.para_env%mepos==para_env%source) THEN
-       CALL section_vals_write(input_file,unit_nr=globenv%scr,&
-            hide_root=.TRUE., error=error)
-    END IF
 
-    IF (.NOT.failure) THEN
-       CALL check_cp2k_input(input_file,para_env=para_env,error=error)
-    END IF
-    globenv%input_file => input_file
-    NULLIFY(input_file)
+    ! put failure to true if this is what happened on parsing the input
     CALL cp_error_check(error,failure)
 
-    IF (.NOT.failure) THEN
+    IF (failure) THEN
+       logger => cp_error_get_logger(error)   
+       unit_nr=cp_logger_get_default_unit_nr(logger,local=.FALSE.)
+       IF (unit_nr>0) THEN
+          WRITE(unit_nr,'(T15,A)') ""
+          WRITE(unit_nr,'(T15,A)') "CP2K failed to parse the input file."
+          WRITE(unit_nr,'(T15,A)') "A full description of the input can be generated using"
+          WRITE(unit_nr,'(T15,A)') "cp2k.sopt --html-manual"
+          WRITE(unit_nr,'(T15,A)') ""
+          WRITE(unit_nr,'(T15,A)') "This is also online for the latest version of CP2K:"
+          WRITE(unit_nr,'(T15,A)') "http://cp2k.berlios.de/input/"
+          WRITE(unit_nr,'(T15,A)') "or in single file format"
+          WRITE(unit_nr,'(T15,A)') "http://cp2k.berlios.de/cp2k_input.htm "
+          WRITE(unit_nr,'(T15,A)') ""
+       ENDIF
+    ELSE
+       glob_section => section_vals_get_subs_vals(input_file,"GLOBAL",error=error)
+       CALL section_vals_val_get(glob_section,"ECHO_INPUT",l_val=echo_input,&
+            error=error)
+       IF (echo_input.AND.para_env%mepos==para_env%source) THEN
+          CALL section_vals_write(input_file,unit_nr=globenv%scr,&
+               hide_root=.TRUE., error=error)
+       END IF
+
+       IF (.NOT.failure) THEN
+          CALL check_cp2k_input(input_file,para_env=para_env,error=error)
+       END IF
+       globenv%input_file => input_file
+       NULLIFY(input_file)
+       CALL cp_error_check(error,failure) ! failure should be used afterwards, one guesses
+
        CALL cp2k_read(globenv)
        CALL cp2k_setup(globenv,error)
        SELECT CASE (globenv%prog_name_id)
@@ -286,6 +306,7 @@ CONTAINS
     I_was_ionode=globenv%ionode
     CALL cp2k_finalize(globenv,error)
     CPPostconditionNoFail(globenv%ref_count==1,cp_failure_level,routineP,error)
+    CALL globenv_release(globenv)
     CALL globenv_release(globenv)
     CALL cp_para_env_release(para_env)
     cp2k_run_OK = .NOT. failure

@@ -32,8 +32,8 @@ MODULE environment
   USE gamma,                           ONLY: deallocate_md_ftable
   USE global_types,                    ONLY: global_environment_type
   USE input_constants,                 ONLY: &
-       do_farming, do_fist, do_kg, do_qs, do_test, energy_run, &
-       mol_dyn_run, none_run, program_names, run_type_names
+       do_farming, do_fist, do_kg, do_qs, do_test, energy_run, mol_dyn_run, &
+       none_run, program_names, run_type_names
   USE input_section_types,             ONLY: section_get_lval,&
                                              section_get_rval,&
                                              section_vals_get,&
@@ -449,7 +449,7 @@ SUBROUTINE cp2k_read(globenv,error)
     CHARACTER(len=default_string_length) :: basis_set_file_name, &
       mm_potential_file_name, potential_file_name, restart_file_name
     INTEGER                                  :: num_threads, output_unit
-    LOGICAL                                  :: failure, trace, ata
+    LOGICAL                                  :: ata, failure, trace
     TYPE(section_vals_type), POINTER         :: dft_section, global_section
 
 !$  INTEGER :: omp_get_num_threads
@@ -647,7 +647,7 @@ SUBROUTINE cp2k_read(globenv,error)
     CHARACTER(LEN=30) :: host_name,user_name
     CHARACTER(LEN=26) :: datx
     INTEGER           :: l,iw,pid,unit_exit
-    LOGICAL           :: delete_it
+    LOGICAL           :: delete_it,failure
     TYPE(cp_logger_type), POINTER            :: logger
     REAL(KIND=dp)     :: r_timings
 #if defined(__HPM)
@@ -655,6 +655,11 @@ SUBROUTINE cp2k_read(globenv,error)
 #endif
 
 !   ---------------------------------------------------------------------------
+    ! look if we inherited a failure, more care is needed if so 
+    ! i.e. the input is most likely not available
+
+    failure=.FALSE.
+    CALL cp_error_check(error,failure) 
 
 !   *** Clean up ***
     NULLIFY(logger)
@@ -664,7 +669,9 @@ SUBROUTINE cp2k_read(globenv,error)
     CALL deallocate_md_ftable()
 
     ! write message passing performance info
-    CALL describe_mp_perf_env ( globenv%group,globenv%scr )
+    IF (.NOT. failure) THEN
+       CALL describe_mp_perf_env ( globenv%group,globenv%scr )
+    ENDIF
     CALL rm_mp_perf_env()
 
 #if defined(__HPM)
@@ -677,14 +684,16 @@ SUBROUTINE cp2k_read(globenv,error)
 
     CALL timestop(0.0_dp,handle) ! corresponding the "CP2K" in cp2k_init
 
-    iw = cp_print_key_unit_nr(logger,globenv%input_file,"GLOBAL%TIMINGS",&
-         extension=".Log",error=error)
-    IF (iw>0) THEN
-       r_timings = section_get_rval(globenv%input_file,"GLOBAL%TIMINGS%THRESHOLD",error)
-       CALL timeprint(iw,r_timings)
-    END IF
-    CALL cp_print_key_finished_output(iw,logger,globenv%input_file,&
-         "GLOBAL%TIMINGS",error=error)
+    IF (.NOT. failure) THEN
+       iw = cp_print_key_unit_nr(logger,globenv%input_file,"GLOBAL%TIMINGS",&
+            extension=".Log",error=error)
+       IF (iw>0) THEN
+          r_timings = section_get_rval(globenv%input_file,"GLOBAL%TIMINGS%THRESHOLD",error)
+          CALL timeprint(iw,r_timings)
+       END IF
+       CALL cp_print_key_finished_output(iw,logger,globenv%input_file,&
+            "GLOBAL%TIMINGS",error=error)
+    ENDIF
 
     CALL rm_timer_env()
 
@@ -703,7 +712,8 @@ SUBROUTINE cp2k_read(globenv,error)
          CALL close_file(unit_number=unit_exit,file_status="DELETE")
       END IF
 
-      IF (globenv%ionode) THEN
+      ! Just a choice, do not print the final banner if there is a failure
+      IF (globenv%ionode .AND. .NOT. failure) THEN
         WRITE (UNIT=iw,&
                FMT="(A,T55,A26,/,A,T51,A30,/,A,T51,A30,/,A,T71,I10)")&
          "  **** **** ******  **  PROGRAM ENDED AT   ",ADJUSTR(datx),&
