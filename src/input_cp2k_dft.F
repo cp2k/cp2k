@@ -129,9 +129,10 @@ CONTAINS
     CALL section_add_keyword(section,keyword,error=error)
     CALL keyword_release(keyword,error=error)
     CALL keyword_create(keyword, name="MULTIPLICITY",&
-         description="Two times the total spin plus one.",&
+         description="Two times the total spin plus one. "//&
+            "Default is 1 for an even number 2 for an odd number of electrons",&
          usage="MULTIPLICITY 1",&
-         default_i_val=0,error=error)
+         default_i_val=0,error=error) ! this default value is just a flag to get the above
     CALL section_add_keyword(section,keyword,error=error)
     CALL keyword_release(keyword,error=error)
     CALL keyword_create(keyword, name="CHARGE",&
@@ -633,7 +634,7 @@ CONTAINS
        CALL cp_print_key_section_create(print_key,"MULLIKEN",&
             description="Controls the printing of the Mulliken Population analysis.", &
             print_level=medium_print_level,each=(/1/),filename="__STD_OUT__",&
-            error=error)
+            common_iter_levels=1, error=error)
        CALL section_add_subsection(section,print_key,error=error)
        CALL section_release(print_key,error=error)
 
