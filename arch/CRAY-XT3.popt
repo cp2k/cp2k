@@ -1,17 +1,26 @@
-# The following settings worked for a Cray XT3 using PGI 6.0.5 and ACML 2.6
-# Note: PGI 5.2.* and 6.0.1-4 are not working due to compiler bugs.
-# Note: The -g flag is needed for unknown reasons.
 PERL     = perl
 CC       = gcc
 CPP      = cpp
 FC       = ftn -Mfree
 LD       = ftn
 AR       = ar -r
-DFLAGS   = -D__XT3 -D__FFTSG\
+DFLAGS   = -D__XT3 -D__FFTACML -D__FFTSG\
            -D__parallel -D__BLACS -D__SCALAPACK
 CPPFLAGS = -traditional -C $(DFLAGS) -P
-FCFLAGS  = -target=catamount -O4 -Mscalarsse -Mvect=sse -Mcache_align -Minfo
+FCFLAGS  = -target=catamount -O3 -Mscalarsse -Mvect=sse -Mcache_align
+FCFLAGS2 = -target=catamount -O1
 LDFLAGS  = $(FCFLAGS)
 LIBS     = -lacml
 
 OBJECTS_ARCHITECTURE = machine_xt3.o
+
+qs_oce_methods.o: qs_oce_methods.f90
+	$(FC) -c $(FCFLAGS2) $<
+qs_oce_types.o: qs_oce_types.f90
+	$(FC) -c $(FCFLAGS2) $<
+hartree_local_2centers.o: hartree_local_2centers.f90
+	$(FC) -c $(FCFLAGS2) $<
+hartree_local_3centers.o: hartree_local_3centers.f90
+	$(FC) -c $(FCFLAGS2) $<
+qs_ks_atom.o: qs_ks_atom.f90
+	$(FC) -c $(FCFLAGS2) $<
