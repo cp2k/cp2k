@@ -370,12 +370,12 @@ CONTAINS
          error=error)
     CALL keyword_create(keyword,"BASIC_DATA_TYPES",&
          description="Controls the printing of the basic data types.",&
-         default_l_val=.TRUE.,lone_keyword_l_val=.TRUE.,error=error)
+         default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,error=error)
     CALL section_add_keyword(print_key,keyword,error=error)
     CALL keyword_release(keyword,error=error)
     CALL keyword_create(keyword,"physcon",&
          description="if the printkey is active prints the physical constants",&
-         default_l_val=.TRUE.,lone_keyword_l_val=.TRUE.,error=error)
+         default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,error=error)
     CALL section_add_keyword(print_key,keyword,error=error)
     CALL keyword_release(keyword,error=error)
     CALL keyword_create(keyword,"spherical_harmonics",&

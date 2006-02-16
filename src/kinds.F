@@ -97,14 +97,14 @@ SUBROUTINE print_kind_info ( iw )
 
   WRITE ( iw, '( /, T2, A )' ) 'DATA TYPE INFORMATION:'
   
-  WRITE ( iw, '( /,T2,A,T78,A,2(/,T2,A,T75,I6),3(/,T2,A,T67,E14.8) )' ) &
+  WRITE ( iw, '( /,T2,A,T79,A,2(/,T2,A,T75,I6),3(/,T2,A,T67,E14.8) )' ) &
        'REAL: Data type name:', 'dp', '      Kind value:', KIND ( 0.0_dp ), &
        '      Precision:', PRECISION ( 0.0_dp ), &
        '      Smallest non-negligible quantity relative to 1:', &
        EPSILON ( 0.0_dp ), &
        '      Smallest positive number:', TINY ( 0.0_dp ), &
        '      Largest representable number:', HUGE ( 0.0_dp )
-  WRITE ( iw, '( /,T2,A,T78,A,2(/,T2,A,T75,I6),3(/,T2,A,T67,E14.8) )' ) &
+  WRITE ( iw, '( /,T2,A,T79,A,2(/,T2,A,T75,I6),3(/,T2,A,T67,E14.8) )' ) &
        '      Data type name:', 'sp', '      Kind value:', KIND ( 0.0_sp ), &
        '      Precision:', PRECISION ( 0.0_sp ), &
        '      Smallest non-negligible quantity relative to 1:', &
