@@ -41,13 +41,17 @@ MODULE mc_control
                                              use_kg_force,&
                                              use_qs_force
   USE global_types,                    ONLY: global_environment_type
+  USE input_constants,                 ONLY: do_kg,&
+                                             do_fist,&
+                                             do_qs
   USE input_cp2k,                      ONLY: create_cp2k_root_section
   USE input_parsing,                   ONLY: section_vals_parse
   USE input_section_types,             ONLY: section_release,&
                                              section_type,&
                                              section_vals_create,&
                                              section_vals_release,&
-                                             section_vals_type
+                                             section_vals_type,&
+                                             section_vals_val_get
   USE kg_main,                         ONLY: kg_create_force_env
   USE kinds,                           ONLY: dp,&
                                              dp_size
@@ -386,22 +390,23 @@ END SUBROUTINE read_mc_restart
 SUBROUTINE mc_create_force_env ( force_env, globenv, box_change, in_use, &
       error )
 
-    TYPE(force_env_type), POINTER            :: force_env
-    TYPE(global_environment_type), POINTER   :: globenv
-    LOGICAL, INTENT(IN)                      :: box_change
-    INTEGER, INTENT(IN)                      :: in_use
-    TYPE(cp_error_type), INTENT(INOUT), &
+      TYPE(force_env_type), POINTER            :: force_env
+      TYPE(global_environment_type), POINTER   :: globenv
+      LOGICAL, INTENT(IN)                      :: box_change
+      INTEGER, INTENT(IN)                      :: in_use
+      TYPE(cp_error_type), INTENT(INOUT), &
       OPTIONAL                               :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'mc_create_force_env', &
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'mc_create_force_env', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-    TYPE(cp_parser_type), POINTER            :: my_parser
-    TYPE(cp_unit_set_type), POINTER          :: default_units
-    TYPE(section_type), POINTER              :: input_structure
-    TYPE(section_vals_type), POINTER         :: file_temp, input_file
-
+      LOGICAL                                  :: failure
+      TYPE(cp_parser_type), POINTER            :: my_parser
+      TYPE(cp_unit_set_type), POINTER          :: default_units
+      TYPE(section_type), POINTER              :: input_structure
+      TYPE(section_vals_type), POINTER         :: file_temp, input_file
+      CHARACTER(100)                           :: c_val
+      INTEGER                                  :: i_val
 !***************************************************************************
 
       NULLIFY(file_temp,input_file,input_structure,my_parser,default_units)
@@ -421,13 +426,15 @@ SUBROUTINE mc_create_force_env ( force_env, globenv, box_change, in_use, &
       file_temp => globenv%input_file 
       globenv%input_file => input_file
 
-      SELECT CASE ( in_use )
-      CASE ( use_fist_force )
+      CALL section_vals_val_get(input_file,"GLOBAL%PROGRAM_NAME",i_val=i_val)      
+      
+      SELECT CASE ( i_val )
+      CASE ( do_fist )
          CALL fist_create_force_env(force_env, globenv, error=error)
          force_env%box_changed=.TRUE.
-      CASE ( use_qs_force )
+      CASE ( do_qs )
          CALL quickstep_create_force_env(force_env, globenv, error=error)
-      CASE ( use_kg_force )
+      CASE ( do_kg )
          CALL kg_create_force_env ( force_env, globenv, error=error)
       CASE default
          CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)

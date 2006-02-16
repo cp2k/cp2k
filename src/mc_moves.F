@@ -34,6 +34,7 @@ MODULE mc_moves
                                              force_env_type,&
                                              use_fist_force
   USE global_types,                    ONLY: global_environment_type
+  USE input_constants,                 ONLY: mc_hardcut
   USE kinds,                           ONLY: dp,&
                                              dp_size
   USE mathconstants,                   ONLY: pi
@@ -193,7 +194,7 @@ CONTAINS
     LOGICAL                                  :: ionode, lbias, loverlap
     REAL(KIND=dp)                            :: BETA, bias_energy_new, &
                                                 bias_energy_old, dis_length, &
-                                                rand, w
+                                                rand, w, value
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: r_new, r_old
     TYPE(cp_subsystem_p_type), &
@@ -354,8 +355,15 @@ CONTAINS
 ! accept or reject the move based on the Metropolis rule with a 
 ! correction factor for the change in phase space...dis_length is
 ! made unitless in change_bond_length
-            w=EXP(-BETA*(bias_energy_new-&
-               bias_energy_old))*dis_length**2
+            value=-BETA*(bias_energy_new-bias_energy_old)
+            IF(value .GT. mc_hardcut) THEN
+               w=10.0_dp
+            ELSEIF(value .LT. -mc_hardcut) THEN
+               w=0.0_dp
+            ELSE
+               w=EXP(value)*dis_length**2
+            ENDIF
+
          ENDIF
 
          IF ( w .GE. 1.0E0_dp ) THEN
@@ -364,7 +372,6 @@ CONTAINS
          ELSE
             IF(ionode) THEN
                rand=next_random_number(rng_stream)
-!            CALL RANDOM_NUMBER(rand)
             ENDIF
             CALL mp_bcast(rand,source,group)            
          ENDIF
@@ -487,7 +494,7 @@ CONTAINS
     LOGICAL                                  :: ionode, lbias, loverlap
     REAL(KIND=dp)                            :: BETA, bias_energy_new, &
                                                 bias_energy_old, dis_mol, &
-                                                rand, rmtrans, w
+                                                rand, rmtrans, w, value
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: r_old
     TYPE(cp_subsystem_p_type), &
@@ -595,8 +602,15 @@ CONTAINS
             CALL force_env_get(bias_env,&
                potential_energy=bias_energy_new,error=error)
 ! accept or reject the move based on the Metropolis rule
-            w=EXP(-BETA*(bias_energy_new-&
-               bias_energy_old))
+            value=-BETA*(bias_energy_new-bias_energy_old)
+            IF(value .GT. mc_hardcut) THEN
+               w=10.0_dp
+            ELSEIF(value .LT. -mc_hardcut) THEN
+               w=0.0_dp
+            ELSE
+               w=EXP(value)
+            ENDIF
+
          ENDIF
 
          IF ( w .GE. 1.0E0_dp ) THEN
@@ -604,7 +618,6 @@ CONTAINS
             rand=0.0E0_dp
          ELSE
             IF(ionode) rand=next_random_number(rng_stream)
-!            CALL RANDOM_NUMBER(rand)
             CALL mp_bcast(rand,source,group)
          ENDIF
 
@@ -708,7 +721,7 @@ CONTAINS
                                                 ly
     REAL(KIND=dp) :: BETA, bias_energy_new, bias_energy_old, cosdg, dgamma, &
       masstot, nxcm, nycm, nzcm, rand, rmrot, rx, rxnew, ry, rynew, rz, &
-      rznew, sindg, w
+      rznew, sindg, w, value
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: mass
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: r_old
@@ -902,8 +915,15 @@ CONTAINS
             CALL force_env_get(bias_env,&
             potential_energy=bias_energy_new,error=error)
 ! accept or reject the move based on the Metropolis rule
-            w=EXP(-BETA*(bias_energy_new-&
-               bias_energy_old))
+            value=-BETA*(bias_energy_new-bias_energy_old)
+            IF(value .GT. mc_hardcut) THEN
+               w=10.0_dp
+            ELSEIF(value .LT. -mc_hardcut) THEN
+               w=0.0_dp
+            ELSE
+               w=EXP(value)
+            ENDIF
+
          ENDIF
 
          IF ( w .GE. 1.0E0_dp ) THEN
@@ -911,7 +931,6 @@ CONTAINS
             rand=0.0E0_dp
          ELSE
             IF(ionode) rand=next_random_number(rng_stream)
-!            CALL RANDOM_NUMBER(rand)
             CALL mp_bcast(rand,source,group)
          ENDIF
 
@@ -1286,9 +1305,9 @@ CONTAINS
       pressure_term=pressure*vol_dis
 
       value=-BETA*(energy_term+volume_term+pressure_term)
-      IF(value .GT. 500.0_dp) THEN
+      IF(value .GT. mc_hardcut) THEN
          w=10.0_dp
-      ELSEIF(value .LT. -500.0_dp) THEN
+      ELSEIF(value .LT. -mc_hardcut) THEN
          w=0.0_dp
       ELSE
          w=EXP(value)
@@ -2428,9 +2447,9 @@ CONTAINS
          del_quickstep_energy=(-BETA)*(new_energy-old_energy-&
             (bias_energy_new-bias_energy_old))
          
-         IF(del_quickstep_energy .GT. 500.0_dp) THEN
+         IF(del_quickstep_energy .GT. mc_hardcut) THEN
             del_quickstep_energy=1.4E217_dp
-         ELSEIF(del_quickstep_energy .LT. -500.0_dp) THEN
+         ELSEIF(del_quickstep_energy .LT. -mc_hardcut) THEN
             del_quickstep_energy=0.0_dp
          ELSE
             del_quickstep_energy=EXP(del_quickstep_energy)

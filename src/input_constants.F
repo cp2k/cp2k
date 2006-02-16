@@ -421,4 +421,8 @@ MODULE input_constants
                                 use_udp=5
 
   INTEGER, PARAMETER, PUBLIC :: xc_pbe_orig=11,xc_rev_pbe=12
+
+! used to prevent over/underflows in MC acceptance rules
+  REAL, PARAMETER, PUBLIC    :: mc_hardcut=500.0_dp
+
 END MODULE input_constants

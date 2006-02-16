@@ -161,7 +161,8 @@ CONTAINS
     TYPE(cp_error_type), INTENT(INOUT), &
       OPTIONAL                               :: error
 
-    CHARACTER(LEN=*), PARAMETER              :: routineN = 'mc_Quickstep_move'
+    CHARACTER(LEN=*), PARAMETER&
+                                     :: routineN = 'mc_Quickstep_move'
 
     INTEGER                                  :: group, handle, ibox, &
                                                 iparticle, iprint, istat, &
