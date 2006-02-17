@@ -391,13 +391,13 @@ CONTAINS
     CALL section_add_subsection(section,print_key,error=error)
     CALL section_release(print_key,error=error)
 
-    CALL cp_print_key_section_create(print_key, "performance", description=&
-         "controls the printing of physical and mathematical constants", &
+    CALL cp_print_key_section_create(print_key, "PERFORMANCE", description=&
+         "Controls the of standard our performance indicators", &
          print_level=high_print_level,filename="__STD_OUT__",&
          error=error)
     CALL keyword_create(keyword,"HPM",&
          description="if the printkey is active controls the printing of the hpm info (if linked as"//&
-         " EXTERNAL library)",&
+         " external library, on IBM only)",&
          default_l_val=.TRUE.,lone_keyword_l_val=.TRUE.,error=error)
     CALL section_add_keyword(print_key,keyword,error=error)
     CALL keyword_release(keyword,error=error)
