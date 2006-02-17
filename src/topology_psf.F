@@ -44,6 +44,7 @@ MODULE topology_psf
   USE topology_types,                  ONLY: atom_info_type,&
                                              connectivity_info_type,&
                                              topology_parameters_type
+  USE qmmm_ff_fist,                    ONLY: qmmm_ff_precond_only_qm
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -378,6 +379,8 @@ CONTAINS
     TYPE(atom_info_type), POINTER            :: atom_info
     TYPE(connectivity_info_type), POINTER    :: conn_info
     TYPE(cp_logger_type), POINTER            :: logger
+    CHARACTER(LEN=default_string_length)     :: my_tag1, my_tag2, my_tag3
+    LOGICAL :: ldum
 
     failure = .FALSE.
     NULLIFY(logger)
@@ -407,13 +410,19 @@ CONTAINS
     
     WRITE(file_unit,*) " ",topology%natoms," !NATOM"
     DO i=1,topology%natoms
+       my_tag1 = atom_info%label_molname(i)
+       my_tag2 = atom_info%label_resname(i)
+       my_tag3 = atom_info%label_atmname(i)
+       ldum = qmmm_ff_precond_only_qm(my_tag1)
+       ldum = qmmm_ff_precond_only_qm(my_tag2)
+       ldum = qmmm_ff_precond_only_qm(my_tag3)
        WRITE(file_unit,'(I8,1X,A5,I4,1X,A5,A5,A5,F10.6,4X,F10.4,4X,I8)') &
             i,&
-            atom_info%label_molname(i),&
+            TRIM(my_tag1),&
             atom_info%map_mol_num(i),&
-            atom_info%label_resname(i),&
-            atom_info%label_atmname(i),&
-            atom_info%label_atmname(i),&
+            TRIM(my_tag2),&
+            TRIM(my_tag3),&
+            TRIM(my_tag3),&
             atom_info%atm_charge(i),&
             atom_info%atm_mass(i),0
     END DO

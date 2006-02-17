@@ -73,6 +73,7 @@ MODULE input_cp2k_restarts
   USE string_utilities,                ONLY: string_to_ascii
   USE timings,                         ONLY: timeset,&
                                              timestop
+  USE qmmm_ff_fist,                    ONLY: qmmm_ff_precond_only_qm
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -992,9 +993,9 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'section_coord_val_set', &
       routineP = moduleN//':'//routineN
 
-    CHARACTER(LEN=default_string_length)     :: line, name
+    CHARACTER(LEN=default_string_length)     :: line, name, my_tag
     INTEGER                                  :: ik, irk, Nlist
-    LOGICAL                                  :: failure
+    LOGICAL                                  :: failure, ldum
     TYPE(cp_sll_val_type), POINTER           :: new_pos, vals
     TYPE(section_type), POINTER              :: section
     TYPE(val_type), POINTER                  :: my_val, old_val
@@ -1019,8 +1020,11 @@ CONTAINS
     END IF
     DO irk=1,particles%n_els
        CALL get_atomic_kind(particles%els(irk)%atomic_kind,name=name)
+       my_tag = particles%els(irk)%molname
+       ldum = qmmm_ff_precond_only_qm(name)
+       ldum = qmmm_ff_precond_only_qm(my_tag)
        WRITE(line,'(A2,2X,3F18.9,2X,A)')name,&
-            particles%els(irk)%r(1:3)/conv_factor,TRIM(particles%els(irk)%molname)
+            particles%els(irk)%r(1:3)/conv_factor,TRIM(my_tag)
        CALL val_create(my_val,c_val=line,error=error)
        
        IF (Nlist /= 0) THEN

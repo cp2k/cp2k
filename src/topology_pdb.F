@@ -61,6 +61,7 @@ MODULE topology_pdb
                                              timestop
   USE topology_types,                  ONLY: atom_info_type,&
                                              topology_parameters_type
+  USE qmmm_ff_fist,                    ONLY: qmmm_ff_precond_only_qm
 #include "cp_common_uses.h"  
 
   IMPLICIT NONE
@@ -270,6 +271,8 @@ CONTAINS
                                                 id2, idres, iw, natom
     TYPE(atom_info_type), POINTER            :: atom_info
     TYPE(cp_logger_type), POINTER            :: logger
+    CHARACTER(LEN=default_string_length)     :: my_tag1, my_tag2, my_tag3, my_tag4
+    LOGICAL :: ldum
 
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
@@ -307,18 +310,22 @@ CONTAINS
        END IF
 
        line = ""
+       my_tag1 = atom_info%label_atmname(i); ldum=qmmm_ff_precond_only_qm(my_tag1)
+       my_tag2 = atom_info%label_resname(i); ldum=qmmm_ff_precond_only_qm(my_tag2)
+       my_tag3 = atom_info%label_molname(i); ldum=qmmm_ff_precond_only_qm(my_tag3)
+       my_tag4 = atom_info%element(i)      ; ldum=qmmm_ff_precond_only_qm(my_tag4)
        WRITE(line(1 : 6),'(A6)')"ATOM  "
        WRITE(line(7 :11),'(I5)')i
-       WRITE(line(13:16),'(A4)')TRIM(atom_info%label_atmname(i))
-       WRITE(line(18:20),'(A3)')TRIM(atom_info%label_resname(i))
+       WRITE(line(13:16),'(A4)')TRIM(my_tag1)
+       WRITE(line(18:20),'(A3)')TRIM(my_tag2)
        WRITE(line(23:26),'(I4)')idres
        WRITE(line(31:38),'(F8.3)')atom_info%r(1,i)
        WRITE(line(39:46),'(F8.3)')atom_info%r(2,i)
        WRITE(line(47:54),'(F8.3)')atom_info%r(3,i)
        WRITE(line(55:60),'(F6.2)')atom_info%occup(i)
        WRITE(line(61:66),'(F6.2)')atom_info%beta(i)
-       WRITE(line(73:76),'(A4)')TRIM(atom_info%label_molname(i))
-       WRITE(line(77:78),'(A2)')TRIM(atom_info%element(i))
+       WRITE(line(73:76),'(A4)')TRIM(my_tag3)
+       WRITE(line(77:78),'(A2)')TRIM(my_tag4)
 
        WRITE(file_unit,"(A)")line
     END DO
