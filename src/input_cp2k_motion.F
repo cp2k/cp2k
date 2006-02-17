@@ -140,7 +140,7 @@ CONTAINS
             print_level=low_print_level, common_iter_levels=1,&
             filename="",error=error)
        CALL keyword_create(keyword, name="format",&
-            description="Specifies the format of the output file for the trajectory.",&
+            description="Specifies the format of the output file for the velocities.",&
             usage="FORMAT (ATOMIC|XMOL|DCD)",&
             default_i_val=dump_xmol,&
             enum_c_vals=output_name_types,&
@@ -156,7 +156,7 @@ CONTAINS
             print_level=high_print_level, common_iter_levels=1,&
             filename="",error=error)
        CALL keyword_create(keyword, name="format",&
-            description="Specifies the format of the output file for the trajectory.",&
+            description="Specifies the format of the output file for the forces.",&
             usage="FORMAT (ATOMIC|XMOL|DCD)",&
             default_i_val=dump_xmol,&
             enum_c_vals=output_name_types,&

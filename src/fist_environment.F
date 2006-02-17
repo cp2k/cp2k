@@ -76,7 +76,7 @@ MODULE fist_environment
                                              particle_list_type
   USE particle_types,                  ONLY: particle_type,&
                                              write_particle_distances,&
-                                             write_qs_particle_coordinates
+                                             write_fist_particle_coordinates
   USE qmmm_types,                      ONLY: qmmm_env_mm_type
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -290,7 +290,7 @@ SUBROUTINE fist_init ( fist_env, globenv, error )
   CALL write_molecule_kind_set(molecule_kind_set,force_env_section,error)
 
 ! Print the atomic coordinates 
-  CALL write_qs_particle_coordinates(particle_set,cell,force_env_section,error)
+  CALL write_fist_particle_coordinates(particle_set,cell,force_env_section,error)
   CALL write_particle_distances(particle_set,cell,force_env_section,error)
 
 ! Distribute molecules and atoms using the new data structures ***

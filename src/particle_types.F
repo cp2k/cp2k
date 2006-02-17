@@ -103,6 +103,7 @@ MODULE particle_types
             deallocate_particle_set,&
             generate_particle_distances,&
             get_particle_set,&
+            write_fist_particle_coordinates,&
             write_qs_particle_coordinates,&
             write_particle_distances, &
             write_particle_coordinates,&
@@ -558,11 +559,10 @@ END SUBROUTINE clone_particle
          WRITE(iunit) x4
          WRITE(iunit) y4
          WRITE(iunit) z4
-        CASE ("POS_VEL_FORCE")
-         !ikuo - No such thing for DCD, hence dump velocity only
-         x4(:) = particle_set(:)%v(1)*angstrom*femtoseconds
-         y4(:) = particle_set(:)%v(2)*angstrom*femtoseconds
-         z4(:) = particle_set(:)%v(3)*angstrom*femtoseconds
+        CASE ("FORCE")
+         x4(:) = particle_set(:)%f(1)
+         y4(:) = particle_set(:)%f(2)
+         z4(:) = particle_set(:)%f(3)
          WRITE(iunit) x4
          WRITE(iunit) y4
          WRITE(iunit) z4
@@ -578,6 +578,71 @@ END SUBROUTINE clone_particle
   END SUBROUTINE write_particle_coordinates
 
 ! *****************************************************************************
+
+  SUBROUTINE write_fist_particle_coordinates(particle_set,cell,force_env_section,error)
+
+!   Purpose: Write the atomic coordinates to the output unit.
+
+!   History: - Creation (05.06.2000,MK)
+
+!   ***************************************************************************
+
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particle_set
+    TYPE(cell_type), POINTER                 :: cell
+    TYPE(section_vals_type), POINTER         :: force_env_section
+    TYPE(cp_error_type), INTENT(INOUT), &
+      OPTIONAL                               :: error
+
+    CHARACTER(LEN=default_string_length)     :: name
+    CHARACTER(LEN=8)                         :: unit_of_length_name
+    INTEGER                                  :: iatom, ikind, iw, natom
+    REAL(KIND=dp)                            :: mass, unit_of_length, qeff
+    TYPE(cp_logger_type), POINTER            :: logger
+
+    NULLIFY(logger)
+    logger => cp_error_get_logger(error)
+    iw = cp_print_key_unit_nr(logger,force_env_section,&
+         "SUBSYS%PRINT%ATOMIC_COORDINATES",extension=".coordLog",error=error)
+
+    IF (iw>0) THEN
+
+      CALL get_cell(cell=cell,&
+                    unit_of_length=unit_of_length,&
+                    unit_of_length_name=unit_of_length_name)
+
+      WRITE (UNIT=iw,FMT="(/,/,T2,A)")&
+        "ATOMIC COORDINATES IN "//TRIM(unit_of_length_name)
+      WRITE (UNIT=iw,&
+           FMT="(/,T3,A,7X,2(A1,11X),A1,8X,A8,5X,A6,/)")&
+        "Atom  Kind  ATM_TYP","X","Y","Z","  q(eff)","  Mass"
+
+      natom = SIZE(particle_set)
+      DO iatom=1,natom
+        CALL get_atomic_kind(atomic_kind=particle_set(iatom)%atomic_kind,&
+                             kind_number=ikind,&
+                             name=name,&
+                             mass=mass,&
+                             qeff=qeff)
+        IF (particle_set(iatom)%is_fixed) THEN
+          WRITE (iw,&
+               "(T2,I5,1X,I4,3X,A4,3X,3F12.6,4X,F6.2,2X,F11.4,1X,A1)")&
+            iatom,ikind,name,&
+            particle_set(iatom)%r(1:3)/unit_of_length,qeff,mass/massunit,"!"
+        ELSE
+          WRITE (iw,&
+               "(T2,I5,1X,I4,3X,A4,3X,3F12.6,4X,F6.2,2X,F11.4)")&
+            iatom,ikind,name,&
+            particle_set(iatom)%r(1:3)/unit_of_length,qeff,mass/massunit
+        END IF
+      END DO
+      WRITE (iw,'(/)')
+    END IF
+
+    CALL cp_print_key_finished_output(iw,logger,force_env_section,&
+         "SUBSYS%PRINT%ATOMIC_COORDINATES", error=error)
+
+  END SUBROUTINE write_fist_particle_coordinates
 
   SUBROUTINE write_qs_particle_coordinates(particle_set,cell,force_env_section,error)
 

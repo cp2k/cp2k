@@ -45,7 +45,6 @@ MODULE xas_tp_scf
   USE input_constants,                 ONLY: core_guess,&
                                              do_loc_none,&
                                              ot_precond_full_kinetic,&
-                                             xas_dscf,&
                                              xas_scf_general,&
                                              xas_scf_ot,&
                                              xas_dscf,xas_tp_xfh, xas_tp_xhh

@@ -245,7 +245,7 @@ CONTAINS
             "levels with 1. How to handle the last iteration is treated "//&
             "separately in ADD_LAST (this mean that EACH 0 might print the last "//&
             "iteration)",&
-            usage="EACH 2 5",&
+            usage="EACH 25",&
             default_val=val,error=error)
        CALL val_release(val,error=error)
        CALL section_add_keyword(print_key_section,keyword,error=error)
