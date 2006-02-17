@@ -1976,26 +1976,26 @@ END SUBROUTINE section_vals_val_unset
 !!
 !!*** **********************************************************************
 RECURSIVE SUBROUTINE section_vals_write(section_vals,unit_nr,hide_root,error)
-  TYPE(section_vals_type), POINTER         :: section_vals
-  INTEGER, INTENT(in)                      :: unit_nr
-  LOGICAL, INTENT(in), OPTIONAL            :: hide_root
-  TYPE(cp_error_type), INTENT(inout), &
-       OPTIONAL                               :: error
+    TYPE(section_vals_type), POINTER         :: section_vals
+    INTEGER, INTENT(in)                      :: unit_nr
+    LOGICAL, INTENT(in), OPTIONAL            :: hide_root
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-  CHARACTER(len=*), PARAMETER :: routineN = 'section_vals_write', &
-       routineP = moduleN//':'//routineN
+    CHARACTER(len=*), PARAMETER :: routineN = 'section_vals_write', &
+      routineP = moduleN//':'//routineN
 
-  INTEGER                                  :: i_rep_s, ik, isec, ival, nr, &
-       nval
-  INTEGER, SAVE                            :: indent
-  LOGICAL                                  :: defaultSection, failure, &
-       my_hide_root
-  TYPE(cp_error_type)                      :: suberror
-  TYPE(keyword_type), POINTER              :: keyword
-  TYPE(section_type), POINTER              :: section
-  TYPE(section_vals_type), POINTER         :: sval
-  TYPE(val_type), POINTER                  :: val
-  TYPE(cp_sll_val_type), POINTER           :: new_pos, vals
+    INTEGER                                  :: i_rep_s, ik, isec, ival, nr, &
+                                                nval
+    INTEGER, SAVE                            :: indent
+    LOGICAL                                  :: defaultSection, failure, &
+                                                my_hide_root
+    TYPE(cp_error_type)                      :: suberror
+    TYPE(cp_sll_val_type), POINTER           :: new_pos, vals
+    TYPE(keyword_type), POINTER              :: keyword
+    TYPE(section_type), POINTER              :: section
+    TYPE(section_vals_type), POINTER         :: sval
+    TYPE(val_type), POINTER                  :: val
 
   DATA indent/1/
   CHARACTER(len=default_string_length) :: myfmt

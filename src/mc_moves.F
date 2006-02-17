@@ -194,7 +194,7 @@ CONTAINS
     LOGICAL                                  :: ionode, lbias, loverlap
     REAL(KIND=dp)                            :: BETA, bias_energy_new, &
                                                 bias_energy_old, dis_length, &
-                                                rand, w, value
+                                                rand, value, w
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: r_new, r_old
     TYPE(cp_subsystem_p_type), &
@@ -494,7 +494,7 @@ CONTAINS
     LOGICAL                                  :: ionode, lbias, loverlap
     REAL(KIND=dp)                            :: BETA, bias_energy_new, &
                                                 bias_energy_old, dis_mol, &
-                                                rand, rmtrans, w, value
+                                                rand, rmtrans, value, w
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: r_old
     TYPE(cp_subsystem_p_type), &
@@ -721,7 +721,7 @@ CONTAINS
                                                 ly
     REAL(KIND=dp) :: BETA, bias_energy_new, bias_energy_old, cosdg, dgamma, &
       masstot, nxcm, nycm, nzcm, rand, rmrot, rx, rxnew, ry, rynew, rz, &
-      rznew, sindg, w, value
+      rznew, sindg, value, w
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: mass
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: r_old

@@ -820,8 +820,7 @@ CONTAINS
     INTEGER, INTENT(IN)                      :: iter, ispin
     LOGICAL, INTENT(IN)                      :: ionode
     CHARACTER(LEN=*)                         :: root
-    INTEGER, OPTIONAL                        :: state0
-    INTEGER, OPTIONAL                        :: stride
+    INTEGER, OPTIONAL                        :: stride, state0
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 

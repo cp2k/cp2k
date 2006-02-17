@@ -36,8 +36,6 @@ MODULE qs_linres_nmr_current
   USE cell_types,                      ONLY: cell_type,&
                                              pbc
   USE coefficient_types,               ONLY: coeff_copy,&
-                                             coeff_reduce,&
-                                             coeff_sumup,&
                                              coeff_type,&
                                              coeff_zero
   USE cp_array_r_utils,                ONLY: cp_2d_r_p_type
@@ -50,16 +48,14 @@ MODULE qs_linres_nmr_current
                                              cp_fm_set_submatrix,&
                                              cp_fm_to_fm,&
                                              cp_fm_type
-  USE cp_output_handling,              ONLY: cp_iter_string,&
-                                             cp_p_file,&
+  USE cp_output_handling,              ONLY: cp_p_file,&
                                              cp_print_key_finished_output,&
                                              cp_print_key_should_output,&
                                              cp_print_key_unit_nr
-  USE cp_rs_pool_types,                ONLY: cp_rs_pool_type,&
-                                             rs_pool_create_rs,&
-                                             rs_pool_give_back_rs
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_rs_pool_types,                ONLY: cp_rs_pool_p_type,&
+                                             cp_rs_pool_type,&
+                                             rs_pool_create_rs,&
                                              rs_pools_create_rs_vect
   USE cp_sm_fm_interactions,           ONLY: cp_sm_fm_multiply,&
                                              cp_sm_plus_fm_fm_t
@@ -79,19 +75,11 @@ MODULE qs_linres_nmr_current
   USE particle_types,                  ONLY: particle_type
   USE pw_env_types,                    ONLY: pw_env_get,&
                                              pw_env_type
-  USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
-                                             pw_pool_give_back_coeff,&
-                                             pw_pool_give_back_pw,&
-                                             pw_pool_init_coeff,&
+  USE pw_pool_types,                   ONLY: pw_pool_init_coeff,&
                                              pw_pool_p_type,&
                                              pw_pool_type
-  USE pw_types,                        ONLY: COMPLEXDATA1D,&
-                                             REALDATA3D,&
-                                             REALSPACE,&
-                                             RECIPROCALSPACE,&
-                                             pw_sumup,&
-                                             pw_transfer,&
-                                             pw_type
+  USE pw_types,                        ONLY: REALDATA3D,&
+                                             REALSPACE
   USE qs_collocate_density,            ONLY: density_on_full_grid,&
                                              lgrid_type
   USE qs_environment_types,            ONLY: get_qs_env,&
@@ -132,7 +120,7 @@ MODULE qs_linres_nmr_current
   ! *** Public subroutines ***
   PUBLIC :: nmr_response_current
 
-  CHARACTER(LEN=*), PARAMETER :: moduleN='qs_linres_nmr_current'
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_linres_nmr_current'
 
 !!***
 ! *****************************************************************************
@@ -150,12 +138,13 @@ CONTAINS
       OPTIONAL                               :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'nmr_response_current', &
-      routineP = moduleN//'/'//routineN
+      routineP = moduleN//':'//routineN
 
-    CHARACTER(LEN=80)                        :: ext,filename
-    INTEGER                                  :: handle, homo, i_B, iao, iatom, idir, &
-                                                ii_B, iii_B, ispin, istate, &
-                                                natom, nmo, nspins, unit_nr
+    CHARACTER(LEN=80)                        :: ext, filename
+    INTEGER                                  :: handle, homo, i_B, iao, &
+                                                iatom, idir, ii_B, iii_B, &
+                                                ispin, istate, natom, nmo, &
+                                                nspins, unit_nr
     LOGICAL                                  :: failure, gapw, ionode, uni_occ
     REAL(dp)                                 :: alpha, dk(3), maxocc, rmu(3), &
                                                 rmu_dk(3)
@@ -182,7 +171,6 @@ CONTAINS
                                                 density_matrix_2_iii
     TYPE(realspace_grid_type), POINTER       :: rs
     TYPE(section_vals_type), POINTER         :: nmr_section
-
 
 !   ---------------------------------------------------------------------------
 
@@ -411,7 +399,7 @@ CONTAINS
       OPTIONAL                               :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_jrho_resp', &
-      routineP = moduleN//'/'//routineN
+      routineP = moduleN//':'//routineN
     INTEGER, PARAMETER                       :: add_tasks = 1000, &
                                                 max_tasks = 2000
     REAL(kind=dp), PARAMETER                 :: mult_tasks = 2.0_dp

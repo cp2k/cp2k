@@ -137,7 +137,7 @@ MODULE qs_collocate_density
 
   PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN='qs_collocate_density'
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_collocate_density'
 ! *** Public subroutines ***
 
   PUBLIC :: calculate_rho_core,&
@@ -1883,8 +1883,8 @@ CONTAINS
     REAL(dp), INTENT(IN)                     :: eps_rho_gspace, gsq_max
     TYPE(pw_type), POINTER                   :: pw
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = "collocate_pgf_product_gspace", &
-      routineP = moduleN//":"//routineN
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'collocate_pgf_product_gspace', &
+      routineP = moduleN//':'//routineN
 
     COMPLEX(dp), DIMENSION(3)                :: phasefactor
     COMPLEX(dp), DIMENSION(:), POINTER       :: rag, rbg
@@ -2074,7 +2074,7 @@ CONTAINS
       OPTIONAL                               :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'density_on_full_grid', &
-      routineP = moduleN//'/'//routineN
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: igrid_level, interp_kind, stat
     LOGICAL                                  :: failure

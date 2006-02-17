@@ -23,7 +23,8 @@
 
 MODULE fft_tools
 
-  USE kinds,                           ONLY: dp, sp
+  USE kinds,                           ONLY: dp,&
+                                             sp
   USE message_passing,                 ONLY: &
        mp_alltoall, mp_cart_coords, mp_cart_rank, mp_cart_sub, &
        mp_comm_compare, mp_comm_free, mp_environ, mp_rank_compare, mp_sum
@@ -73,12 +74,12 @@ CONTAINS
 
 SUBROUTINE init_fft ( fftlib, fftnum, alltoall )
 
-  CHARACTER(LEN=*), INTENT(IN), OPTIONAL :: fftlib
-  INTEGER, INTENT(IN), OPTIONAL          :: fftnum
-  LOGICAL, INTENT(IN), OPTIONAL          :: alltoall
+    CHARACTER(LEN=*), INTENT(IN), OPTIONAL   :: fftlib
+    INTEGER, INTENT(IN), OPTIONAL            :: fftnum
+    LOGICAL, INTENT(IN), OPTIONAL            :: alltoall
 
-  COMPLEX(KIND=dp)                       :: zz( 4, 4, 4 )
-  INTEGER                                :: fft_library, i, n(3)=4, stat
+    COMPLEX(KIND=dp)                         :: zz( 4, 4, 4 )
+    INTEGER                                  :: fft_library, i, n(3) = 4, stat
 
   IF ( PRESENT ( alltoall ) ) THEN
      alltoall_sgl = alltoall
@@ -235,19 +236,19 @@ SUBROUTINE fft3d_s ( fsign, n, zin, zout, scale, status, debug )
     COMPLEX(KIND=dp), DIMENSION(:, :, :), &
       INTENT(INOUT)                          :: zin
     COMPLEX(KIND=dp), DIMENSION(:, :, :), &
-      INTENT(INOUT), TARGET, OPTIONAL        :: zout
+      INTENT(INOUT), OPTIONAL, TARGET        :: zout
     REAL(KIND=dp), INTENT(IN), OPTIONAL      :: scale
     INTEGER, INTENT(OUT), OPTIONAL           :: status
     LOGICAL, INTENT(IN), OPTIONAL            :: debug
 
+    COMPLEX(KIND=dp), DIMENSION(1, 1, 1), &
+      TARGET                                 :: zdum
+    COMPLEX(KIND=dp), DIMENSION(:, :, :), &
+      POINTER                                :: zptr
     INTEGER                                  :: handle, ld(3), lo(3), sign
     LOGICAL                                  :: fft_in_place, test
     REAL(KIND=dp)                            :: flops, in_sum, norm, nx, &
                                                 out_sum
-    COMPLEX(KIND=dp), DIMENSION(:, :, :), &
-      POINTER                                :: zptr
-    COMPLEX(KIND=dp), DIMENSION(1, 1, 1), &
-      TARGET                                 :: zdum
 
 !------------------------------------------------------------------------------
 
@@ -1321,25 +1322,25 @@ END SUBROUTINE fft3d_pb
 
 SUBROUTINE x_to_yz ( sb, group, my_pos, p2p, yzp, nray, bo, tb )
 
-  COMPLEX(KIND=dp), DIMENSION(:, :), &
-    INTENT(IN)                             :: sb
-  INTEGER, INTENT(IN)                      :: group, my_pos
-  INTEGER, DIMENSION(0:), INTENT(IN)       :: p2p
-  INTEGER, DIMENSION(:, :, 0:), INTENT(IN) :: yzp
-  INTEGER, DIMENSION(0:), INTENT(IN)       :: nray
-  INTEGER, DIMENSION(:, :, 0:), INTENT(IN) :: bo
-  COMPLEX(KIND=dp), DIMENSION(:, :, :), &
-    INTENT(OUT)                            :: tb
+    COMPLEX(KIND=dp), DIMENSION(:, :), &
+      INTENT(IN)                             :: sb
+    INTEGER, INTENT(IN)                      :: group, my_pos
+    INTEGER, DIMENSION(0:), INTENT(IN)       :: p2p
+    INTEGER, DIMENSION(:, :, 0:), INTENT(IN) :: yzp
+    INTEGER, DIMENSION(0:), INTENT(IN)       :: nray
+    INTEGER, DIMENSION(:, :, 0:), INTENT(IN) :: bo
+    COMPLEX(KIND=dp), DIMENSION(:, :, :), &
+      INTENT(OUT)                            :: tb
 
-  COMPLEX(KIND=dp), ALLOCATABLE, &
-    DIMENSION(:, :)                        :: rr
-  COMPLEX(KIND=sp), ALLOCATABLE, &
-    DIMENSION(:, :)                        :: ss, tt
-  INTEGER                                  :: handle, ierr, ip, ir, ix, &
-                                              ixx, iy, iz, mpr, nm, np, nr, &
-                                              nx, ns1, ns2
-  INTEGER, ALLOCATABLE, DIMENSION(:)       :: rcount, rdispl, scount, sdispl
-  REAL(KIND=dp)                            :: flop
+    COMPLEX(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:, :)                        :: rr
+    COMPLEX(KIND=sp), ALLOCATABLE, &
+      DIMENSION(:, :)                        :: ss, tt
+    INTEGER                                  :: handle, ierr, ip, ir, ix, &
+                                                ixx, iy, iz, mpr, nm, np, nr, &
+                                                ns1, ns2, nx
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: rcount, rdispl, scount, sdispl
+    REAL(KIND=dp)                            :: flop
 
 !------------------------------------------------------------------------------
 
@@ -1451,25 +1452,25 @@ END SUBROUTINE x_to_yz
 
 SUBROUTINE yz_to_x ( tb, group, my_pos, p2p, yzp, nray, bo, sb )
 
-  COMPLEX(KIND=dp), DIMENSION(:, :, :), &
-    INTENT(IN)                             :: tb
-  INTEGER, INTENT(IN)                      :: group, my_pos
-  INTEGER, DIMENSION(0:), INTENT(IN)       :: p2p
-  INTEGER, DIMENSION(:, :, 0:), INTENT(IN) :: yzp
-  INTEGER, DIMENSION(0:), INTENT(IN)       :: nray
-  INTEGER, DIMENSION(:, :, 0:), INTENT(IN) :: bo
-  COMPLEX(KIND=dp), DIMENSION(:, :), &
-    INTENT(OUT)                            :: sb
+    COMPLEX(KIND=dp), DIMENSION(:, :, :), &
+      INTENT(IN)                             :: tb
+    INTEGER, INTENT(IN)                      :: group, my_pos
+    INTEGER, DIMENSION(0:), INTENT(IN)       :: p2p
+    INTEGER, DIMENSION(:, :, 0:), INTENT(IN) :: yzp
+    INTEGER, DIMENSION(0:), INTENT(IN)       :: nray
+    INTEGER, DIMENSION(:, :, 0:), INTENT(IN) :: bo
+    COMPLEX(KIND=dp), DIMENSION(:, :), &
+      INTENT(OUT)                            :: sb
 
-  COMPLEX(KIND=dp), ALLOCATABLE, &
-    DIMENSION(:, :)                        :: rr
-  COMPLEX(KIND=sp), ALLOCATABLE, &
-    DIMENSION(:, :)                        :: ss, tt
-  INTEGER                                  :: handle, ierr, ip, ir, ix, &
-                                              ixx, iy, iz, mpr, nm, np, nr, &
-                                              nx, ns1, ns2, ns
-  INTEGER, ALLOCATABLE, DIMENSION(:)       :: rcount, rdispl, scount, sdispl
-  REAL(KIND=dp)                            :: flop
+    COMPLEX(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:, :)                        :: rr
+    COMPLEX(KIND=sp), ALLOCATABLE, &
+      DIMENSION(:, :)                        :: ss, tt
+    INTEGER                                  :: handle, ierr, ip, ir, ix, &
+                                                ixx, iy, iz, mpr, nm, np, nr, &
+                                                ns, ns1, ns2, nx
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: rcount, rdispl, scount, sdispl
+    REAL(KIND=dp)                            :: flop
 
 !------------------------------------------------------------------------------
 
@@ -1580,30 +1581,30 @@ END SUBROUTINE yz_to_x
 
 SUBROUTINE yz_to_xz ( sb, group, dims, my_pos, p2p, yzp, nray, bo, tb )
 
-  COMPLEX(KIND=dp), DIMENSION(:, :), &
-    INTENT(IN)                             :: sb
-  INTEGER, INTENT(IN)                      :: group
-  INTEGER, DIMENSION(2), INTENT(IN)        :: dims
-  INTEGER, INTENT(IN)                      :: my_pos
-  INTEGER, DIMENSION(0:), INTENT(IN)       :: p2p
-  INTEGER, DIMENSION(:, :, 0:), INTENT(IN) :: yzp
-  INTEGER, DIMENSION(0:), INTENT(IN)       :: nray
-  INTEGER, DIMENSION(:, :, 0:), INTENT(IN) :: bo
-  COMPLEX(KIND=dp), DIMENSION(:, :), &
-    INTENT(OUT)                            :: tb
+    COMPLEX(KIND=dp), DIMENSION(:, :), &
+      INTENT(IN)                             :: sb
+    INTEGER, INTENT(IN)                      :: group
+    INTEGER, DIMENSION(2), INTENT(IN)        :: dims
+    INTEGER, INTENT(IN)                      :: my_pos
+    INTEGER, DIMENSION(0:), INTENT(IN)       :: p2p
+    INTEGER, DIMENSION(:, :, 0:), INTENT(IN) :: yzp
+    INTEGER, DIMENSION(0:), INTENT(IN)       :: nray
+    INTEGER, DIMENSION(:, :, 0:), INTENT(IN) :: bo
+    COMPLEX(KIND=dp), DIMENSION(:, :), &
+      INTENT(OUT)                            :: tb
 
-  COMPLEX(KIND=dp), ALLOCATABLE, &
-    DIMENSION(:, :)                        :: rq, rs
-  COMPLEX(KIND=sp), ALLOCATABLE, &
-    DIMENSION(:, :)                        :: tq, ts
-  INTEGER                                  :: cpos( 2 ), handle, ierr, ip, &
-                                              ipr, ir, ix, iz, jj, jx, jy, &
-                                              jz, myx, myz, nmax, np, npx, &
-                                              npz, nx, nz, rs_pos
-  INTEGER, ALLOCATABLE, DIMENSION(:)       :: rcount, rdispl, scount, &
-                                              sdispl, xcor, zcor
-  INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: pgrid
-  REAL(KIND=dp)                            :: flop
+    COMPLEX(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:, :)                        :: rq, rs
+    COMPLEX(KIND=sp), ALLOCATABLE, &
+      DIMENSION(:, :)                        :: tq, ts
+    INTEGER                                  :: cpos( 2 ), handle, ierr, ip, &
+                                                ipr, ir, ix, iz, jj, jx, jy, &
+                                                jz, myx, myz, nmax, np, npx, &
+                                                npz, nx, nz, rs_pos
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: rcount, rdispl, scount, &
+                                                sdispl, xcor, zcor
+    INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: pgrid
+    REAL(KIND=dp)                            :: flop
 
 !------------------------------------------------------------------------------
 
@@ -1767,30 +1768,30 @@ END SUBROUTINE yz_to_xz
 
 SUBROUTINE xz_to_yz ( sb, group, dims, my_pos, p2p, yzp, nray, bo, tb )
 
-  COMPLEX(KIND=dp), DIMENSION(:, :), &
-    INTENT(IN)                             :: sb
-  INTEGER, INTENT(IN)                      :: group
-  INTEGER, DIMENSION(2), INTENT(IN)        :: dims
-  INTEGER, INTENT(IN)                      :: my_pos
-  INTEGER, DIMENSION(0:), INTENT(IN)       :: p2p
-  INTEGER, DIMENSION(:, :, 0:), INTENT(IN) :: yzp
-  INTEGER, DIMENSION(0:), INTENT(IN)       :: nray
-  INTEGER, DIMENSION(:, :, 0:), INTENT(IN) :: bo
-  COMPLEX(KIND=dp), DIMENSION(:, :), &
-    INTENT(OUT)                            :: tb
+    COMPLEX(KIND=dp), DIMENSION(:, :), &
+      INTENT(IN)                             :: sb
+    INTEGER, INTENT(IN)                      :: group
+    INTEGER, DIMENSION(2), INTENT(IN)        :: dims
+    INTEGER, INTENT(IN)                      :: my_pos
+    INTEGER, DIMENSION(0:), INTENT(IN)       :: p2p
+    INTEGER, DIMENSION(:, :, 0:), INTENT(IN) :: yzp
+    INTEGER, DIMENSION(0:), INTENT(IN)       :: nray
+    INTEGER, DIMENSION(:, :, 0:), INTENT(IN) :: bo
+    COMPLEX(KIND=dp), DIMENSION(:, :), &
+      INTENT(OUT)                            :: tb
 
-  COMPLEX(KIND=dp), ALLOCATABLE, &
-    DIMENSION(:, :)                        :: rq, rs
-  COMPLEX(KIND=sp), ALLOCATABLE, &
-    DIMENSION(:, :)                        :: tq, ts
-  INTEGER                                  :: cpos( 2 ), handle, ierr, ip, &
-                                              ipl, ir, ix, ixx, iz, jj, jx, &
-                                              jy, jz, mp, myx, myz, nmax, &
-                                              np, npx, npz, nx, ny, nz
-  INTEGER, ALLOCATABLE, DIMENSION(:)       :: rcount, rdispl, scount, &
-                                              sdispl, xcor, zcor
-  INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: pgrid
-  REAL(KIND=dp)                            :: flop
+    COMPLEX(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:, :)                        :: rq, rs
+    COMPLEX(KIND=sp), ALLOCATABLE, &
+      DIMENSION(:, :)                        :: tq, ts
+    INTEGER                                  :: cpos( 2 ), handle, ierr, ip, &
+                                                ipl, ir, ix, ixx, iz, jj, jx, &
+                                                jy, jz, mp, myx, myz, nmax, &
+                                                np, npx, npz, nx, ny, nz
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: rcount, rdispl, scount, &
+                                                sdispl, xcor, zcor
+    INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: pgrid
+    REAL(KIND=dp)                            :: flop
 
 !------------------------------------------------------------------------------
 

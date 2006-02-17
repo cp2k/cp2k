@@ -37,12 +37,10 @@ MODULE mc_control
   USE force_env_types,                 ONLY: force_env_get,&
                                              force_env_release,&
                                              force_env_type,&
-                                             use_fist_force,&
-                                             use_kg_force,&
-                                             use_qs_force
+                                             use_fist_force
   USE global_types,                    ONLY: global_environment_type
-  USE input_constants,                 ONLY: do_kg,&
-                                             do_fist,&
+  USE input_constants,                 ONLY: do_fist,&
+                                             do_kg,&
                                              do_qs
   USE input_cp2k,                      ONLY: create_cp2k_root_section
   USE input_parsing,                   ONLY: section_vals_parse
@@ -390,23 +388,23 @@ END SUBROUTINE read_mc_restart
 SUBROUTINE mc_create_force_env ( force_env, globenv, box_change, in_use, &
       error )
 
-      TYPE(force_env_type), POINTER            :: force_env
-      TYPE(global_environment_type), POINTER   :: globenv
-      LOGICAL, INTENT(IN)                      :: box_change
-      INTEGER, INTENT(IN)                      :: in_use
-      TYPE(cp_error_type), INTENT(INOUT), &
+    TYPE(force_env_type), POINTER            :: force_env
+    TYPE(global_environment_type), POINTER   :: globenv
+    LOGICAL, INTENT(IN)                      :: box_change
+    INTEGER, INTENT(IN)                      :: in_use
+    TYPE(cp_error_type), INTENT(INOUT), &
       OPTIONAL                               :: error
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'mc_create_force_env', &
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'mc_create_force_env', &
       routineP = moduleN//':'//routineN
 
-      LOGICAL                                  :: failure
-      TYPE(cp_parser_type), POINTER            :: my_parser
-      TYPE(cp_unit_set_type), POINTER          :: default_units
-      TYPE(section_type), POINTER              :: input_structure
-      TYPE(section_vals_type), POINTER         :: file_temp, input_file
-      CHARACTER(100)                           :: c_val
-      INTEGER                                  :: i_val
+    INTEGER                                  :: i_val
+    LOGICAL                                  :: failure
+    TYPE(cp_parser_type), POINTER            :: my_parser
+    TYPE(cp_unit_set_type), POINTER          :: default_units
+    TYPE(section_type), POINTER              :: input_structure
+    TYPE(section_vals_type), POINTER         :: file_temp, input_file
+
 !***************************************************************************
 
       NULLIFY(file_temp,input_file,input_structure,my_parser,default_units)

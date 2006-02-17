@@ -65,9 +65,8 @@ MODULE qs_linres_methods
                                              set_loc_wfn_lists
   USE qs_loc_methods,                  ONLY: qs_loc_driver
   USE qs_loc_types,                    ONLY: qs_loc_env_create,&
-                                             qs_loc_env_destroy,&
-                                             qs_loc_env_release,&
-                                             qs_loc_env_new_type
+                                             qs_loc_env_new_type,&
+                                             qs_loc_env_release
   USE qs_loc_utils,                    ONLY: qs_loc_env_init
   USE qs_matrix_pools,                 ONLY: mpools_get,&
                                              qs_matrix_pools_type
@@ -133,8 +132,8 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'linres_localize', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: ispin, istat, n_mo(2), &
-                                                nelectron, nmoloc(2)
+    INTEGER                                  :: ispin, n_mo(2), nelectron, &
+                                                nmoloc(2)
     LOGICAL                                  :: failure, ionode, &
                                                 my_centers_only
     REAL(dp)                                 :: maxocc

@@ -75,8 +75,8 @@ MODULE fist_environment
                                              particle_list_release,&
                                              particle_list_type
   USE particle_types,                  ONLY: particle_type,&
-                                             write_particle_distances,&
-                                             write_fist_particle_coordinates
+                                             write_fist_particle_coordinates,&
+                                             write_particle_distances
   USE qmmm_types,                      ONLY: qmmm_env_mm_type
   USE timings,                         ONLY: timeset,&
                                              timestop

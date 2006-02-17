@@ -24,7 +24,7 @@
 !****************************************************************************
 MODULE tbmd_force
   USE atomic_kind_list_types,          ONLY: atomic_kind_list_type
-  USE atomic_kind_types,               ONLY: atomic_kind_type, &
+  USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind
   USE cell_types,                      ONLY: cell_type
   USE cp_fm_pool_types,                ONLY: fm_pool_create_fm,&
@@ -32,7 +32,7 @@ MODULE tbmd_force
   USE cp_fm_types,                     ONLY: cp_fm_type
   USE cp_output_handling,              ONLY: cp_p_file,&
                                              cp_print_key_finished_output,&
-                                             cp_print_key_should_output, &
+                                             cp_print_key_should_output,&
                                              cp_print_key_unit_nr
   USE cp_sm_fm_interactions,           ONLY: copy_sm_to_fm
   USE cp_subsystem_types,              ONLY: cp_subsys_get,&
@@ -44,7 +44,7 @@ MODULE tbmd_force
   USE kinds,                           ONLY: dp
   USE machine,                         ONLY: m_flush
   USE mathlib,                         ONLY: symmetrize_matrix
-  USE message_passing,                 ONLY: mp_sum, &
+  USE message_passing,                 ONLY: mp_sum,&
                                              mp_sync
   USE molecule_kind_types,             ONLY: molecule_kind_type
   USE molecule_types_new,              ONLY: molecule_type
@@ -55,16 +55,16 @@ MODULE tbmd_force
                                              mo_set_type
   USE qs_scf,                          ONLY: eigensolver,&
                                              simple_eigensolver
-  USE sparse_matrix_types,             ONLY: cp_sm_sm_trace, &
-                                             replicate_matrix_structure, &
-                                             real_matrix_type, &
-                                             get_matrix_info, &
-                                             copy_local_sm_to_replicated_fm
-  USE tbmd_energy,                     ONLY: tbmd_print_energies, &
-                                             tbmd_print_hamiltonian, &
-                                             tbmd_print_hamiltonian_pattern, &
-                                             tbmd_print_eigenvalues, &
-                                             tbmd_print_eigenvectors, &
+  USE sparse_matrix_types,             ONLY: copy_local_sm_to_replicated_fm,&
+                                             cp_sm_sm_trace,&
+                                             get_matrix_info,&
+                                             real_matrix_type,&
+                                             replicate_matrix_structure
+  USE tbmd_energy,                     ONLY: tbmd_print_eigenvalues,&
+                                             tbmd_print_eigenvectors,&
+                                             tbmd_print_energies,&
+                                             tbmd_print_hamiltonian,&
+                                             tbmd_print_hamiltonian_pattern,&
                                              tbmd_print_occupation
   USE tbmd_energy_types,               ONLY: tbmd_energy_clear
   USE tbmd_environment_types,          ONLY: tbmd_env_get,&
@@ -74,8 +74,8 @@ MODULE tbmd_force
   USE tbmd_hamiltonian,                ONLY: tbmd_build_hamiltonian
   USE tbmd_neighbor_list_env_types,    ONLY: tbmd_neighbor_list_env_type
   USE tbmd_neighbor_lists,             ONLY: tbmd_neighbor_list_control
-  USE termination,                     ONLY: stop_program, &
-                                             stop_memory
+  USE termination,                     ONLY: stop_memory,&
+                                             stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "cp_common_uses.h"
@@ -137,21 +137,21 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'tbmd_forces', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, i, iatom, natom, stat, &
-                                                iw, &
-                                                nparticle_kind, &
-                                                iparticle_kind, &
-                                                nparticle_local, &
-                                                iparticle_local, &
-                                                iparticle
+    INTEGER :: handle, i, iatom, iparticle, iparticle_kind, iparticle_local, &
+      iw, natom, nparticle_kind, nparticle_local, stat
     LOGICAL                                  :: failure, ortho_basis, &
                                                 use_cholesky, use_jacobi
+    REAL(KIND=dp)                            :: ekin, mass
     REAL(KIND=dp), DIMENSION(:), POINTER     :: trace_vec_ptr
+    TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
+    TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_fm_type), POINTER                :: fm_matrix_h, fm_matrix_ortho, &
                                                 fm_matrix_work
+    TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(cp_subsystem_type), POINTER         :: subsys
     TYPE(distribution_1d_type), POINTER      :: local_molecules, &
                                                 local_particles
     TYPE(mo_set_type), POINTER               :: mos
@@ -166,12 +166,6 @@ CONTAINS
     TYPE(tbmd_force_type), POINTER           :: tbmd_force
     TYPE(tbmd_neighbor_list_env_type), &
       POINTER                                :: tbmd_neighbor_list_env
-    TYPE(cp_logger_type), POINTER            :: logger
-    REAL(KIND=dp)                            :: ekin, &
-                                                mass
-    TYPE(cp_subsystem_type), POINTER         :: subsys
-    TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
-    TYPE(atomic_kind_type), POINTER          :: atomic_kind
 
 !   ------------------------------------------------------------------------
 
@@ -529,19 +523,14 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'tbmd_print_deriv_hamiltonian', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: k, &
-                                                group, &
-                                                natom, &
-                                                size_x, &
-                                                size_y, &
-                                                i, &
-                                                istat
-    TYPE(real_matrix_type), POINTER          :: sparse_matrix
-    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: matrix
     CHARACTER(LEN=40)                        :: matrix_symmetry
     CHARACTER(LEN=80)                        :: matrix_name
+    INTEGER                                  :: group, i, istat, k, natom, &
+                                                size_x, size_y
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: matrix
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
+    TYPE(real_matrix_type), POINTER          :: sparse_matrix
 
 !   ------------------------------------------------------------------------
 
@@ -650,24 +639,19 @@ CONTAINS
     TYPE(cp_error_type), INTENT(INOUT), &
       OPTIONAL                               :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'tbmd_print_deriv_hamiltonian_pattern', &
+    CHARACTER(len=*), PARAMETER :: &
+      routineN = 'tbmd_print_deriv_hamiltonian_pattern', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: k, &
-                                                group, &
-                                                natom, &
-                                                size_x, &
-                                                size_y, &
-                                                i, &
-                                                j, &
-                                                istat
-    TYPE(real_matrix_type), POINTER          :: sparse_matrix
-    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: matrix
     CHARACTER(LEN=40)                        :: matrix_symmetry
     CHARACTER(LEN=80)                        :: matrix_name
+    CHARACTER, ALLOCATABLE, DIMENSION(:)     :: sparsity_pattern
+    INTEGER                                  :: group, i, istat, j, k, natom, &
+                                                size_x, size_y
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: matrix
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
-    CHARACTER, DIMENSION(:), ALLOCATABLE     :: sparsity_pattern
+    TYPE(real_matrix_type), POINTER          :: sparse_matrix
 
 !   ------------------------------------------------------------------------
 

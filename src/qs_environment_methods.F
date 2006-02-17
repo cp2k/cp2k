@@ -44,7 +44,7 @@ MODULE qs_environment_methods
                                              distribution_2d_type,&
                                              distribution_2d_write
   USE distribution_methods,            ONLY: distribute_molecules_2d
-  USE global_types,                    ONLY: MEDIUM,HIGH
+  USE global_types,                    ONLY: HIGH
   USE input_section_types,             ONLY: section_vals_type
   USE kinds,                           ONLY: dp,&
                                              int_size

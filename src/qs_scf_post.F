@@ -105,8 +105,8 @@ MODULE qs_scf_post
                                              localized_wfn_control_type
   USE qs_loc_methods,                  ONLY: qs_loc_driver
   USE qs_loc_types,                    ONLY: qs_loc_env_create,&
-                                             qs_loc_env_release,&
-                                             qs_loc_env_new_type
+                                             qs_loc_env_new_type,&
+                                             qs_loc_env_release
   USE qs_loc_utils,                    ONLY: qs_loc_env_init
   USE qs_localization,                 ONLY: qs_loc_compute_properties,&
                                              qs_loc_destroy,&

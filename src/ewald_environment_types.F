@@ -19,10 +19,10 @@
 MODULE ewald_environment_types
   USE cp2k_units,                      ONLY: get_cp2k_units,&
                                              unit_convert_type
-  USE cp_units,                        ONLY: cp_unit_from_cp2k
-  USE cp_para_env,                     ONLY: cp_para_env_retain,&
-                                             cp_para_env_release
+  USE cp_para_env,                     ONLY: cp_para_env_release,&
+                                             cp_para_env_retain
   USE cp_para_types,                   ONLY: cp_para_env_type
+  USE cp_units,                        ONLY: cp_unit_from_cp2k
   USE global_types,                    ONLY: DEBUG,&
                                              HIGH,&
                                              LOW,&
@@ -410,9 +410,9 @@ SUBROUTINE read_ewald_section ( ewald_env, globenv, error )
       OPTIONAL                               :: error
 
     INTEGER                                  :: iw
+    REAL(KIND=dp)                            :: dummy
     TYPE(section_vals_type), POINTER         :: ewald_section
     TYPE(unit_convert_type), POINTER         :: units
-    REAL(KIND=dp)                            :: dummy
 
   iw = globenv % scr
   NULLIFY(ewald_section, units)

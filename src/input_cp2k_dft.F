@@ -3677,7 +3677,6 @@ END SUBROUTINE create_ot_section
     TYPE(keyword_type), POINTER              :: keyword
     TYPE(section_type), POINTER              :: print_key, subsection
 
-
     failure=.FALSE.
     NULLIFY(keyword,print_key, subsection)
 

@@ -73,7 +73,7 @@ MODULE realspace_grid_types
             rs_grid_p_create,&
             rs_grid_p_release
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN="realspace_grid_types"
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'realspace_grid_types'
   INTEGER, SAVE, PRIVATE :: last_rs_id=0
   INTEGER, SAVE, PRIVATE :: allocated_rs_grid_count=0
   INTEGER, PARAMETER, PUBLIC :: rs2pw=11,pw2rs=12
@@ -142,7 +142,7 @@ CONTAINS
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = "rs_grid_allocate_1", &
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'rs_grid_allocate_1', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, ierr
@@ -197,7 +197,7 @@ CONTAINS
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = "rs_grid_deallocate_1", &
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'rs_grid_deallocate_1', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, ierr, stat
@@ -232,7 +232,7 @@ CONTAINS
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = "rs_grid_deallocate_n", &
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'rs_grid_deallocate_n', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, n
@@ -275,7 +275,7 @@ CONTAINS
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = "rs_grid_setup_1", &
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'rs_grid_setup_1', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: dir, i, ip, lb( 2 ), &
@@ -458,7 +458,7 @@ CONTAINS
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = "rs_grid_setup_n", &
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'rs_grid_setup_n', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i
@@ -966,8 +966,8 @@ SUBROUTINE rs_grid_to_cube ( rs, iunit, ionode, title, particles, stride, error 
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = "rs_grid_to_cube", &
-      routineP = moduleN//":"//routineN
+    CHARACTER(len=*), PARAMETER :: routineN = 'rs_grid_to_cube', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: I1, I2, I3, iat, L1, L2, L3, &
                                                 my_stride, np, U1, U2, U3, z

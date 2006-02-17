@@ -2711,7 +2711,7 @@ SUBROUTINE cp_sm_sm_trace_vector(matrix1, matrix2, trace_vec, para_env, error)
     INTEGER                                  :: block_col1, block_col2, &
                                                 iblock_row, nblock_row
     LOGICAL                                  :: failure
-    REAL(KIND=dp)                            :: sfactor, trace_block
+    REAL(KIND=dp)                            :: trace_block
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: matrix_block1, matrix_block2
     TYPE(real_block_node_type), POINTER      :: block_node1, block_node2
 

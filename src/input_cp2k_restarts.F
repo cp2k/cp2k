@@ -789,7 +789,6 @@ CONTAINS
     INTEGER :: iparticle, iparticle_kind, iparticle_local, isubsys, &
       nparticle, nparticle_kind, nparticle_local, stat
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: ascii
-    INTEGER, DIMENSION(:), POINTER           :: my_ascii
     LOGICAL                                  :: failure
     TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
     TYPE(cp_para_env_type), POINTER          :: para_env
@@ -1174,12 +1173,11 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ik, irk, Nlist, stat
+    INTEGER, DIMENSION(:), POINTER           :: my_ascii
     LOGICAL                                  :: failure
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: vel
     TYPE(cp_sll_val_type), POINTER           :: new_pos, vals
     TYPE(section_type), POINTER              :: section
     TYPE(val_type), POINTER                  :: my_val, old_val
-    INTEGER, DIMENSION(:), POINTER           :: my_ascii
 
     failure=.FALSE.
     NULLIFY(my_val, old_val, section, vals,my_ascii)

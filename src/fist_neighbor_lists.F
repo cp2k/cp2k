@@ -798,7 +798,7 @@ CONTAINS
     INTEGER, DIMENSION(3)                    :: cell_a, cell_b
     LOGICAL                                  :: print_headline
     REAL(dp)                                 :: dab, unit_of_length
-    REAL(dp), DIMENSION(3)                   :: ra, rab, rb, rab_real
+    REAL(dp), DIMENSION(3)                   :: ra, rab, rab_real, rb
     TYPE(neighbor_list_set_type), POINTER    :: neighbor_list_set
     TYPE(neighbor_list_type), POINTER        :: neighbor_list
     TYPE(neighbor_node_type), POINTER        :: neighbor_node

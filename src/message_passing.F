@@ -29,9 +29,10 @@
 !******************************************************************************
 
 MODULE message_passing
-  USE kinds,                           ONLY: dp, sp,&
+  USE kinds,                           ONLY: dp,&
                                              dp_size,&
-                                             int_size
+                                             int_size,&
+                                             sp
   USE machine,                         ONLY: m_walltime
   USE parallel_include
 
@@ -1161,7 +1162,8 @@ END SUBROUTINE mp_alltoall_c22v
 
 #if defined(__SGL)
 SUBROUTINE mp_alltoall_c22v_sgl ( dummy )
-  LOGICAL, INTENT(IN) :: dummy
+    LOGICAL, INTENT(IN)                      :: dummy
+
   CALL mp_stop( ierr, "mp_alltoall_c22v_sgl" )
 END SUBROUTINE mp_alltoall_c22v_sgl
 #else

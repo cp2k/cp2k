@@ -27,9 +27,8 @@
 !****************************************************************************
 MODULE tbmd_hamiltonian
   USE atomic_kind_types,               ONLY: atomic_kind_type
-  USE cell_types,                      ONLY: cell_type, &
-                                             get_cell, &
-                                             real_to_scaled,&
+  USE cell_types,                      ONLY: cell_type,&
+                                             get_cell,&
                                              scaled_to_real
   USE cp_subsystem_types,              ONLY: cp_subsystem_type
   USE distribution_2d_types,           ONLY: distribution_2d_type
@@ -41,20 +40,18 @@ MODULE tbmd_hamiltonian
   USE kinds,                           ONLY: dp
   USE message_passing,                 ONLY: mp_sum
   USE particle_types,                  ONLY: particle_type
-  USE physcon,                         ONLY: angstrom
   USE sparse_matrix_types,             ONLY: add_block_node,&
                                              allocate_matrix,&
                                              allocate_matrix_set,&
                                              real_matrix_p_type,&
                                              real_matrix_type,&
-                                             replicate_matrix_structure, &
-                                             replicate_matrix
-  USE tbmd_energy_types,               ONLY: tbmd_energy_type, &
-                                             tbmd_energy_clear
+                                             replicate_matrix_structure
+  USE tbmd_energy_types,               ONLY: tbmd_energy_clear,&
+                                             tbmd_energy_type
   USE tbmd_environment_types,          ONLY: tbmd_env_get,&
                                              tbmd_environment_type
-  USE tbmd_force_types,                ONLY: tbmd_force_type, &
-                                             tbmd_force_clear
+  USE tbmd_force_types,                ONLY: tbmd_force_clear,&
+                                             tbmd_force_type
   USE tbmd_model_types,                ONLY: tbmd_model_get,&
                                              tbmd_model_type
   USE tbmd_neighbor_list_env_types,    ONLY: tbmd_neighbor_list_env_get,&

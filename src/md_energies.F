@@ -111,11 +111,12 @@ CONTAINS
     CHARACTER(LEN=200)                       :: title
     CHARACTER(LEN=80)                        :: my_act, my_ext, my_form, &
                                                 my_pos, remark1, remark2
-    INTEGER                                  :: frc, crd, delta_t, ene,&
+    INTEGER                                  :: crd, delta_t, ene, frc, &
                                                 handle, i, isubsys, iw, nat, &
                                                 vel
     INTEGER, POINTER                         :: itimes
-    LOGICAL, SAVE                            :: init, init_traj, init_vel, init_force
+    LOGICAL, SAVE                            :: init, init_force, init_traj, &
+                                                init_vel
     REAL(dp)                                 :: abc( 3 ), cell_angle( 3 ), &
                                                 econs, pv_scalar, pv_xx
     REAL(KIND=dp)                            :: cons, ekin, ekin_coefs, epot, &

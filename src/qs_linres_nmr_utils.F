@@ -47,7 +47,8 @@ MODULE qs_linres_nmr_utils
                                              cp_fm_set_all,&
                                              cp_fm_set_submatrix,&
                                              cp_fm_to_fm
-  USE cp_output_handling,              ONLY: cp_p_file,cp_print_key_finished_output,&
+  USE cp_output_handling,              ONLY: cp_p_file,&
+                                             cp_print_key_finished_output,&
                                              cp_print_key_should_output,&
                                              cp_print_key_unit_nr
   USE cp_parser,                       ONLY: cp_parser_type,&
@@ -60,9 +61,18 @@ MODULE qs_linres_nmr_utils
                                              section_vals_get_subs_vals,&
                                              section_vals_type,&
                                              section_vals_val_get
-  USE kinds,                           ONLY: default_string_length,dp
+  USE kinds,                           ONLY: default_string_length,&
+                                             dp
   USE memory_utilities,                ONLY: reallocate
   USE particle_types,                  ONLY: particle_type
+  USE pw_env_types,                    ONLY: pw_env_get,&
+                                             pw_env_type
+  USE pw_pool_types,                   ONLY: pw_pool_init_coeff,&
+                                             pw_pool_type
+  USE pw_types,                        ONLY: COMPLEXDATA1D,&
+                                             REALDATA3D,&
+                                             REALSPACE,&
+                                             RECIPROCALSPACE
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
   USE qs_linres_methods,               ONLY: linres_scf
@@ -80,14 +90,6 @@ MODULE qs_linres_nmr_utils
   USE qs_p_env_types,                  ONLY: p_env_release,&
                                              qs_p_env_type
   USE qs_rho_types,                    ONLY: qs_rho_release
-  USE pw_env_types,                    ONLY: pw_env_get,&
-                                             pw_env_type
-  USE pw_pool_types,                   ONLY: pw_pool_init_coeff,&
-                                             pw_pool_type
-  USE pw_types,                        ONLY: COMPLEXDATA1D,&
-                                             REALDATA3D,&
-                                             REALSPACE,&
-                                             RECIPROCALSPACE
   USE scf_control_types,               ONLY: scf_control_type
   USE sparse_matrix_types,             ONLY: allocate_matrix_set,&
                                              deallocate_matrix,&
@@ -122,7 +124,8 @@ CONTAINS
 
     INTEGER                                  :: handle, iao, idir, idir2, ii, &
                                                 iii, ispin, ist_true, istat, &
-                                                istate, istate2, ncubes, output_unit
+                                                istate, istate2, ncubes, &
+                                                output_unit
     LOGICAL                                  :: failure, ionode
     REAL(dp)                                 :: dk(3), dkl(3), dl(3)
     REAL(dp), DIMENSION(:, :), POINTER       :: vecbuf_dklxp0
@@ -136,7 +139,7 @@ CONTAINS
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(linres_control_type), POINTER       :: linres_control
     TYPE(qs_matrix_pools_type), POINTER      :: mpools
-    TYPE(section_vals_type), POINTER         :: lr_section,nmr_section
+    TYPE(section_vals_type), POINTER         :: lr_section, nmr_section
 
     failure   = .FALSE.
     CALL timeset(routineN,"I"," ",handle)
@@ -454,10 +457,11 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'nmr_env_init', &
       routineP = moduleN//':'//routineN
 
-    CHARACTER(LEN=default_string_length)     ::  nics_file_name
     CHARACTER(LEN=2)                         :: label
-    INTEGER :: homo, i_B, icount, idir, ini, ir, ispin, istat, istate, istate2, &
-      istate_next, j, k, n_mo(2), n_rep, nao, natom, ncubes, nmoloc, nstates, output_unit
+    CHARACTER(LEN=default_string_length)     :: nics_file_name
+    INTEGER :: homo, i_B, icount, idir, ini, ir, ispin, istat, istate, &
+      istate2, istate_next, j, k, n_mo(2), n_rep, nao, natom, ncubes, nmoloc, &
+      nstates, output_unit
     INTEGER, DIMENSION(:), POINTER           :: bounds, list
     LOGICAL                                  :: failure, ionode, my_end
     LOGICAL, ALLOCATABLE, DIMENSION(:, :)    :: state_done

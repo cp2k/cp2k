@@ -56,7 +56,6 @@ MODULE topology_pdb
   USE kinds,                           ONLY: default_string_length,&
                                              dp
   USE memory_utilities,                ONLY: reallocate
-  USE physcon,                         ONLY: bohr
   USE string_utilities,                ONLY: uppercase
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -266,9 +265,9 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'write_coordinate_pdb', &
       routineP = moduleN//':'//routineN
 
-    CHARACTER(LEN=default_string_length)     :: record, line
-    INTEGER                                  :: file_unit, handle, i, &
-                                                iw, natom, idres, id1, id2
+    CHARACTER(LEN=default_string_length)     :: line, record
+    INTEGER                                  :: file_unit, handle, i, id1, &
+                                                id2, idres, iw, natom
     TYPE(atom_info_type), POINTER            :: atom_info
     TYPE(cp_logger_type), POINTER            :: logger
 

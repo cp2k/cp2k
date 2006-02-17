@@ -594,10 +594,10 @@ END SUBROUTINE clone_particle
     TYPE(cp_error_type), INTENT(INOUT), &
       OPTIONAL                               :: error
 
-    CHARACTER(LEN=default_string_length)     :: name
     CHARACTER(LEN=8)                         :: unit_of_length_name
+    CHARACTER(LEN=default_string_length)     :: name
     INTEGER                                  :: iatom, ikind, iw, natom
-    REAL(KIND=dp)                            :: mass, unit_of_length, qeff
+    REAL(KIND=dp)                            :: mass, qeff, unit_of_length
     TYPE(cp_logger_type), POINTER            :: logger
 
     NULLIFY(logger)
