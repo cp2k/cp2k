@@ -100,6 +100,11 @@ OBJECTS_GENERIC =\
  extended_system_dynamics.o\
  extended_system_types.o\
  external_potential_types.o\
+ f77_blas_poison.o\
+ f77_blas_netlib.o\
+ f77_blas_generic.o\
+ f77_blas_extra.o\
+ f77_blas.o\
  f77_interface.o\
  farming_methods.o\
  farming_types.o\
