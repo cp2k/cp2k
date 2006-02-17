@@ -94,24 +94,26 @@ SUBROUTINE fft_3d ( fft_type, fft_in_place, fsign, scale, n, zin, zout )
   COMPLEX(KIND=dp), DIMENSION(*), INTENT(INOUT)   :: zin
   COMPLEX(KIND=dp), DIMENSION(*), INTENT(INOUT)   :: zout
 
-  SELECT CASE ( fft_type )
-    CASE DEFAULT
-      STOP "fft_3d"
-    CASE ( 1 )
-      CALL fftsg3d ( fft_in_place, fsign, scale, n, zin, zout )
-    CASE ( 2 )
-      CALL fftw23d ( fft_in_place, fsign, scale, n, zin, zout )
-    CASE ( 3 )
-      CALL fftw33d ( fft_in_place, fsign, scale, n, zin, zout )
-    CASE ( 4 )
-      CALL fftessl3d ( fft_in_place, fsign, scale, n, zin, zout )
-    CASE ( 5 )
-      CALL fftacml3d ( fft_in_place, fsign, scale, n, zin, zout )
-    CASE ( 6 )
-      CALL fftmkl3d ( fft_in_place, fsign, scale, n, zin, zout )
-    CASE ( 7 )
-      CALL fftsci3d ( fft_in_place, fsign, scale, n, zin, zout )
-  END SELECT
+  IF ( n(1)*n(2)*n(3) > 0 ) THEN
+    SELECT CASE ( fft_type )
+      CASE DEFAULT
+        STOP "fft_3d"
+      CASE ( 1 )
+        CALL fftsg3d ( fft_in_place, fsign, scale, n, zin, zout )
+      CASE ( 2 )
+        CALL fftw23d ( fft_in_place, fsign, scale, n, zin, zout )
+      CASE ( 3 )
+        CALL fftw33d ( fft_in_place, fsign, scale, n, zin, zout )
+      CASE ( 4 )
+        CALL fftessl3d ( fft_in_place, fsign, scale, n, zin, zout )
+      CASE ( 5 )
+        CALL fftacml3d ( fft_in_place, fsign, scale, n, zin, zout )
+      CASE ( 6 )
+        CALL fftmkl3d ( fft_in_place, fsign, scale, n, zin, zout )
+      CASE ( 7 )
+        CALL fftsci3d ( fft_in_place, fsign, scale, n, zin, zout )
+    END SELECT
+  END IF
 
 END SUBROUTINE fft_3d
 
@@ -135,24 +137,26 @@ SUBROUTINE fft_1dm ( fft_type, fsign, trans, n, m, zin, zout, scale )
   COMPLEX (KIND=dp), DIMENSION(*), INTENT ( INOUT )     :: zout
   REAL (KIND=dp), INTENT ( IN )                         :: scale
   
-  SELECT CASE ( fft_type )
-    CASE DEFAULT
-      STOP "fft_1dm"
-    CASE ( 1 )
-      CALL fftsg1dm ( fsign, trans, n, m, zin, zout, scale )
-    CASE ( 2 )
-      CALL fftw21dm ( fsign, trans, n, m, zin, zout, scale )
-    CASE ( 3 )
-      CALL fftw31dm ( fsign, trans, n, m, zin, zout, scale )
-    CASE ( 4 )
-      CALL fftessl1dm ( fsign, trans, n, m, zin, zout, scale )
-    CASE ( 5 )
-      CALL fftacml1dm ( fsign, trans, n, m, zin, zout, scale )
-    CASE ( 6 )
-      CALL fftmkl1dm ( fsign, trans, n, m, zin, zout, scale )
-    CASE ( 7 )
-      CALL fftsci1dm ( fsign, trans, n, m, zin, zout, scale )
-  END SELECT
+  IF ( n*m > 0 ) THEN
+    SELECT CASE ( fft_type )
+      CASE DEFAULT
+        STOP "fft_1dm"
+      CASE ( 1 )
+        CALL fftsg1dm ( fsign, trans, n, m, zin, zout, scale )
+      CASE ( 2 )
+        CALL fftw21dm ( fsign, trans, n, m, zin, zout, scale )
+      CASE ( 3 )
+        CALL fftw31dm ( fsign, trans, n, m, zin, zout, scale )
+      CASE ( 4 )
+        CALL fftessl1dm ( fsign, trans, n, m, zin, zout, scale )
+      CASE ( 5 )
+        CALL fftacml1dm ( fsign, trans, n, m, zin, zout, scale )
+      CASE ( 6 )
+        CALL fftmkl1dm ( fsign, trans, n, m, zin, zout, scale )
+      CASE ( 7 )
+        CALL fftsci1dm ( fsign, trans, n, m, zin, zout, scale )
+    END SELECT
+  END IF
 
 END SUBROUTINE fft_1dm
 
