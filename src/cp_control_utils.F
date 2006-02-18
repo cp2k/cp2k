@@ -134,11 +134,6 @@ CONTAINS
 
     dft_control % xas_estate    = -1
 
-    dft_control % derive_function_rho = .FALSE.          !FM to rm
-    dft_control % integration_grid % pw_default = .TRUE. !FM to rm
-    dft_control % integration_grid % pw_cutoff  = -1._dp !FM to rm
-    dft_control % integration_grid % pw_mesh    = -1_dp  !FM to rm
-
     CALL section_vals_val_get(dft_section,"BASIS_SET_FILE_NAME",&
          c_val=basis_set_file_name , error=error)
     CALL section_vals_val_get(dft_section,"POTENTIAL_FILE_NAME",&
@@ -174,9 +169,6 @@ CONTAINS
 
     xc_section => section_vals_get_subs_vals(globenv%input_file,&
                    "FORCE_EVAL%DFT%XC", error=error)
-!FM    CALL read_xc_control(xc_section, dft_control%xc_control, dft_control%nspins,&
-!FM         dft_control%use_kinetic_energy_density, error=error)
-
     
 !   *** Read the input section ***
     CALL section_vals_val_get(dft_section,"XAS%_SECTION_PARAMETERS_",&
@@ -639,20 +631,6 @@ CONTAINS
             c_val=tmpStr,error=error)
        WRITE ( output_unit, '( A, T61, A )' ) &
             " DFT| XC derivatives ",ADJUSTR(tmpStr)
-       IF ( dft_control % derive_function_rho )  &
-            WRITE ( output_unit, '( A, T79, A )' ) &
-            " DFT| Density function derivative ","ON"
-
-       IF ( dft_control % integration_grid % pw_default ) THEN
-          WRITE ( output_unit, '( A, T74, A )' ) " DFT| XC mesh (PW density)", "default"
-       ELSE
-          IF ( dft_control % integration_grid % pw_mesh ( 1 ) > 0 ) &
-               WRITE ( output_unit, '( A, T51, 3I10 )' ) &
-               " DFT| XC mesh (PW density)", dft_control % integration_grid % pw_mesh
-          IF ( dft_control % integration_grid % pw_cutoff > 0 ) &
-               WRITE ( output_unit, '( A, T67, F10.1, "a.u." )' ) &
-               " DFT| XC mesh (PW density)", dft_control % integration_grid % pw_cutoff
-       END IF
 
        IF (.NOT.failure) THEN
           xc_fun_section => section_vals_get_subs_vals(xc_section,&

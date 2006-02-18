@@ -35,13 +35,6 @@ MODULE cp_control_types
 
   PRIVATE
 
-  TYPE xc_grid_type
-     LOGICAL                   :: pw_default
-!FM     TYPE ( pw_grid_type )     :: pw_grid
-     INTEGER                   :: pw_mesh ( 3 )
-     REAL (KIND = dp)               :: pw_cutoff
-  END TYPE xc_grid_type
-
 ! *** Control parameters for pw grids ***
 
   TYPE pw_grid_option
@@ -185,7 +178,6 @@ MODULE cp_control_types
      TYPE(tddfpt_control_type)       :: tddfpt_control
      TYPE(wave_control_type)         :: wave_control
      TYPE(xas_control_type), POINTER :: xas_control
-     TYPE(xc_grid_type)              :: integration_grid
      INTEGER                         :: nspins,&
                                         charge,&
                                         multiplicity,&
@@ -197,7 +189,6 @@ MODULE cp_control_types
      LOGICAL                         :: forces,&
                                         do_tddfpt_calculation, &
                                         do_xas_calculation, &
-                                        derive_function_rho, &
                                         use_kinetic_energy_density, & 
                                         restricted
      !FM add xc_section ?
@@ -209,7 +200,7 @@ MODULE cp_control_types
 
 ! *** Public data types ***
 
-  PUBLIC :: dft_control_type, xc_grid_type,&
+  PUBLIC :: dft_control_type,&
             qs_control_type,&
             gapw_control_type,&
             wave_control_type, tddfpt_control_type,&
@@ -368,7 +359,6 @@ SUBROUTINE dft_control_create(dft_control, error)
      CALL tddfpt_control_init(dft_control%tddfpt_control, error=error)
      CALL wave_control_init(dft_control%wave_control, error=error)
      CALL xas_control_create(dft_control%xas_control,error=error)
-     CALL xc_grid_init(dft_control%integration_grid, error=error)
   END IF
 END SUBROUTINE dft_control_create
 !***************************************************************************
@@ -458,7 +448,6 @@ SUBROUTINE dft_control_release(dft_control,error)
         CALL tddfpt_control_dealloc_ref(dft_control%tddfpt_control, error=error)
         CALL wave_control_dealloc_ref(dft_control%wave_control, error=error)
         CALL xas_control_release(dft_control%xas_control, error=error)
-        CALL xc_grid_dealloc_ref(dft_control%integration_grid, error=error)
         DEALLOCATE(dft_control, stat=stat)
         CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
      END IF
@@ -572,21 +561,5 @@ SUBROUTINE wave_control_dealloc_ref(wave_control, error)
       OPTIONAL                               :: error
 
 END SUBROUTINE wave_control_dealloc_ref
-
-SUBROUTINE xc_grid_init(xc_grid, error)
-
-    TYPE(xc_grid_type), INTENT(out)          :: xc_grid
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
-
-END SUBROUTINE xc_grid_init
-
-SUBROUTINE xc_grid_dealloc_ref(xc_grid, error)
-    TYPE(xc_grid_type), INTENT(inout)        :: xc_grid
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
-
-END SUBROUTINE xc_grid_dealloc_ref
-
 
 END MODULE cp_control_types
