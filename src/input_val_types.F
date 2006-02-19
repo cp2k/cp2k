@@ -646,7 +646,7 @@ SUBROUTINE val_write(val,unit_nr,unit,unit_str,fmt,error)
     CHARACTER(len=*), PARAMETER :: routineN = 'val_write', &
       routineP = moduleN//':'//routineN
 
-    CHARACTER(len=default_string_length)     :: c_string, myfmt
+    CHARACTER(len=default_string_length)     :: c_string, myfmt, rcval
     INTEGER                                  :: i, l
     LOGICAL                                  :: failure
     TYPE(cp_unit_type), POINTER              :: my_unit
@@ -693,17 +693,16 @@ SUBROUTINE val_write(val,unit_nr,unit,unit_str,fmt,error)
      CASE (real_t)
         IF (ASSOCIATED(val%r_val)) THEN
            DO i=1,SIZE(val%r_val)
-              IF (MODULO(i,10)==0) THEN 
+              IF (MODULO(i,5)==0) THEN 
                  WRITE(unit=unit_nr,fmt="(' \')")
                  WRITE(unit=unit_nr,fmt="("//TRIM(myfmt)//")",advance="NO")
               END IF
               IF (ASSOCIATED(my_unit)) THEN
-                 WRITE(unit=unit_nr,fmt="(' ',es16.8)",advance="NO")&
-                      cp_unit_from_cp2k1(val%r_val(i),my_unit,error=error)
+                 WRITE(rcval,*)cp_unit_from_cp2k1(val%r_val(i),my_unit,error=error)
               ELSE
-                 WRITE(unit=unit_nr,fmt="(' ',es16.8)",advance="NO")&
-                      val%r_val(i)
+                 WRITE(rcval,*)val%r_val(i)
               END IF
+              WRITE(unit=unit_nr,fmt="(' ',A)",advance="NO")TRIM(rcval)
            END DO
         ELSE
            CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)

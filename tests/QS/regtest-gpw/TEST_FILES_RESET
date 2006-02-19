@@ -9,3 +9,5 @@ H2O-bloechl-Spl.inp
 H2O-bloechl.inp
 H2O-bloechl-Spl.inp
 rsgrid-dist-1.inp
+#reset after using list-directed IO
+H2O-langevin-2.inp

@@ -17,4 +17,13 @@ H2O-32_SPME_res_4.inp
 water_1_res_1.inp
 water_1_res_2.inp
 water_1_res_3.inp
-
+# reset after using a list-directed IO
+water_1_res_1.inp
+water_1_res_2.inp
+water_1_res_3.inp
+H2O-32_SPME_res_2.inp
+H2O-32_SPME_res_3.inp
+H2O-32_SPME_res_4.inp
+H2O-32_NPT_res_2.inp
+H2O-32_NPT_res_3.inp
+H2O-32_NPT_res_4.inp

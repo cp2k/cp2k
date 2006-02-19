@@ -15,3 +15,5 @@ nai-1.inp
 nai-2.inp
 #reset for FFT numerics
 nai-1.inp
+#reset after list-directed IO
+nai-1.inp

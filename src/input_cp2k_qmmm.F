@@ -240,7 +240,7 @@ CONTAINS
 
        CALL section_create(subsection,name="MM_KIND",&
             description="Information about the mm kind in the qm/mm scheme",&
-            n_keywords=2, n_subsections=0, repeats=.TRUE., required=.FALSE.,&
+            n_keywords=2, n_subsections=0, repeats=.TRUE., required=.TRUE.,&
             error=error)
 
        CALL keyword_create(keyword, name="_SECTION_PARAMETERS_",&

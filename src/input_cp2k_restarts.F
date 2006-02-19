@@ -993,8 +993,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'section_coord_val_set', &
       routineP = moduleN//':'//routineN
 
-    CHARACTER(LEN=default_string_length)     :: line, name, my_tag
-    INTEGER                                  :: ik, irk, Nlist
+    CHARACTER(LEN=default_string_length)     :: line, name, my_tag, rcval
+    INTEGER                                  :: ik, irk, Nlist, k
     LOGICAL                                  :: failure, ldum
     TYPE(cp_sll_val_type), POINTER           :: new_pos, vals
     TYPE(section_type), POINTER              :: section
@@ -1023,8 +1023,12 @@ CONTAINS
        my_tag = particles%els(irk)%molname
        ldum = qmmm_ff_precond_only_qm(name)
        ldum = qmmm_ff_precond_only_qm(my_tag)
-       WRITE(line,'(A2,2X,3F18.9,2X,A)')name,&
-            particles%els(irk)%r(1:3)/conv_factor,TRIM(my_tag)
+       line = TRIM(name)
+       DO k = 1, 3
+          WRITE(rcval,*) particles%els(irk)%r(k)/conv_factor
+          line = TRIM(line)//" "//TRIM(rcval)
+       END DO
+       line = TRIM(line)//" "//TRIM(my_tag)
        CALL val_create(my_val,c_val=line,error=error)
        
        IF (Nlist /= 0) THEN
