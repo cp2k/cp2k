@@ -671,8 +671,8 @@ SUBROUTINE fft3d_ps ( fsign, n, cin, gin, gs_group, rs_group, yzp, nyzray, &
          CALL fft_1dm ( fft_type, sign, .TRUE., nz, nx*ny, cin, sbuf, 1._dp )
          CALL fft_1dm ( fft_type, sign, .TRUE., ny, nx*nz, sbuf, tbuf, 1._dp )
       ELSE
-         gin  = 0.0_dp
-         tbuf = 0.0_dp      
+         gin  = CMPLX(0.0_dp, 0.0_dp, KIND=dp)
+         tbuf = CMPLX(0.0_dp, 0.0_dp, KIND=dp)
       END IF
 
       IF ( test ) THEN
@@ -750,7 +750,7 @@ SUBROUTINE fft3d_ps ( fsign, n, cin, gin, gs_group, rs_group, yzp, nyzray, &
          CALL fft_1dm ( fft_type, sign, .TRUE., ny, nx*nz, tbuf, sbuf, 1._dp )
          CALL fft_1dm ( fft_type, sign, .TRUE., nz, nx*ny, sbuf, cin, 1._dp )
       ELSE
-         cin = 0.0_dp
+         cin = CMPLX(0.0_dp, 0.0_dp, KIND=dp)
       END IF
 
       IF ( test ) THEN
