@@ -242,6 +242,8 @@ CONTAINS
            END IF
            is=section_get_subsection_index(section,token(2:),error=error)
            IF (is>0) THEN
+!              PRINT *,"parsing subsection "//TRIM(section%subsections(is)%section%name)&
+!                   //" of section "// TRIM(section%name)
               CALL section_vals_parse(section_vals%subs_vals(is,irs)%section_vals,&
                    default_units=default_units,parser=parser,error=suberror)
               suberror_happened=.FALSE.
@@ -324,7 +326,7 @@ CONTAINS
               IF (.NOT.failure) THEN
                  keyword => section%keywords(ik)%keyword
                  NULLIFY(el)
-!FM                 PRINT *,"about to parse keyword ",TRIM(token)," in section ",TRIM(section%name)
+!                 PRINT *,"about to parse keyword ",TRIM(token)," in section ",TRIM(section%name)
                  IF (ik/=0.and.keyword%type_of_var==lchar_t) &
                       CALL parser_skip_space(parser,.FALSE.,error=error)
                  CALL val_create_parsing(el,type_of_var=keyword%type_of_var,&
@@ -613,6 +615,7 @@ SUBROUTINE val_create_parsing(val,type_of_var, n_var,enum,&
                  r_last%rest => r_new
                  r_last => r_new
               END DO
+              NULLIFY(r_last)
               r_val_p => cp_to_array(r_first,error=error)
               CALL cp_dealloc(r_first,error=error)
            ELSE

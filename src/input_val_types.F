@@ -300,10 +300,14 @@ SUBROUTINE val_create(val,l_val,l_vals,l_vals_ptr,i_val,i_vals,i_vals_ptr,&
         ALLOCATE(val%c_val(nVal),stat=stat)
         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
         
-        DO i=1,nVal
-           val%c_val(i)=lc_val((i-1)*default_string_length+1:&
-                MIN(len_c,i*default_string_length))
-        END DO
+        IF (len_c == 0) THEN
+           val%c_val(1) = ""
+        ELSE
+           DO i=1,nVal
+              val%c_val(i)=lc_val((i-1)*default_string_length+1:&
+                   MIN(len_c,i*default_string_length))
+           END DO
+        END IF
         val%type_of_var=lchar_t
      END IF
      IF (PRESENT(lc_vals)) THEN

@@ -596,16 +596,9 @@ CPSourceFileRef,&
                 END IF
              END DO
              IF (iter==-1) THEN
-                res => sll
-                DO i=1,iter
-                   IF (ASSOCIATED(res%rest)) THEN
-                      res => res%rest
-                   ELSE
-                      CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,&
-                           routineP, "tried to go past end in "// &
-CPSourceFileRef,&
-                           error,failure)
-                   END IF
+                DO
+                   IF (.NOT.ASSOCIATED(res%rest)) EXIT
+                   res => res%rest
                 END DO
              END IF
           ELSE
@@ -1115,7 +1108,7 @@ CPSourceFileRef,&
     actual_node => sll
     DO
        IF (.NOT.ASSOCIATED(actual_node)) EXIT
-       next_node => cp_get_rest(actual_node,error=error)
+       next_node => actual_node%rest
        CALL cp_sll_int_dealloc_node(actual_node,error=error)
        actual_node => next_node
     END DO

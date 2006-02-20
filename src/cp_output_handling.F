@@ -286,7 +286,7 @@ CONTAINS
        CALL section_add_keyword(print_key_section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
-       my_filename=" "
+       my_filename=""
        IF (PRESENT(filename)) my_filename=filename
        CALL keyword_create(keyword, name="FILENAME",&
             description=' controls part of the filename for output. '//&
