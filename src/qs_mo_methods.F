@@ -67,7 +67,8 @@ MODULE qs_mo_methods
   PUBLIC :: make_basis, &
             calculate_density_matrix,&
             calculate_subspace_eigenvalues, &
-            calculate_orthonormality
+            calculate_orthonormality, &
+            calculate_magnitude
 
 CONTAINS
 
@@ -557,5 +558,55 @@ CONTAINS
     CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE calculate_orthonormality
+
+! *****************************************************************************
+! computes the minimum/maximum magnitudes of C^T C. This could be useful
+! to detect problems in the case of nearly singular overlap matrices.
+! in this case, we expect the ratio of min/max to be large
+! this routine is only similar to mo_orthonormality if S==1
+! *****************************************************************************
+  SUBROUTINE calculate_magnitude(mo_array,mo_mag_min,mo_mag_max,error)
+    TYPE(mo_set_p_type), DIMENSION(:), &
+      POINTER                                :: mo_array
+    REAL(KIND=dp)                            :: mo_mag_min, mo_mag_max
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_magnitude'
+
+    INTEGER                                  :: handle, i, ispin, k, n, nspin
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: evals
+    TYPE(cp_fm_struct_type), POINTER         :: tmp_fm_struct
+    TYPE(cp_fm_type), POINTER                :: evecs, overlap
+
+   NULLIFY(tmp_fm_struct,overlap)
+
+   CALL timeset(routineN,"I","",handle)
+
+   nspin=SIZE(mo_array)
+   mo_mag_min= HUGE(0.0D0)
+   mo_mag_max=-HUGE(0.0D0)
+   DO ispin=1,nspin
+      CALL cp_fm_get_info(mo_array(ispin)%mo_set%mo_coeff,&
+             nrow_global=n,ncol_global=k)
+      ALLOCATE(evals(k))
+      CALL cp_fm_struct_create(tmp_fm_struct,nrow_global=k,ncol_global=k, &
+             para_env=mo_array(ispin)%mo_set%mo_coeff%matrix_struct%para_env, &
+             context=mo_array(ispin)%mo_set%mo_coeff%matrix_struct%context)
+      CALL cp_fm_create(overlap,tmp_fm_struct)
+      CALL cp_fm_create(evecs,tmp_fm_struct)
+      CALL cp_fm_struct_release(tmp_fm_struct)
+      CALL cp_fm_gemm('T','N',k,k,n,1.0_dp, mo_array(ispin)%mo_set%mo_coeff,&
+             mo_array(ispin)%mo_set%mo_coeff,0.0_dp,overlap)
+      CALL cp_fm_syevd(overlap,evecs,evals,error)
+      mo_mag_min=MIN(MINVAL(evals),mo_mag_min)
+      mo_mag_max=MAX(MAXVAL(evals),mo_mag_max)
+      CALL cp_fm_release(overlap)
+      CALL cp_fm_release(evecs)
+      DEALLOCATE(evals) 
+    ENDDO
+    CALL timestop(0.0_dp,handle)
+
+  END SUBROUTINE calculate_magnitude
 
 END MODULE qs_mo_methods

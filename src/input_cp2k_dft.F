@@ -2035,7 +2035,14 @@ SUBROUTINE create_tddfpt_section(section,error)
        CALL section_release(print_key,error=error) 
 
        CALL cp_print_key_section_create(print_key,"MO_ORTHONORMALITY",&
-            description="Controls the printing relative to the orthonormality of MOs", &
+            description="Controls the printing relative to the orthonormality of MOs (CT S C).", &
+            print_level=high_print_level,each=(/1/),add_last=(/1/),filename="__STD_OUT__",&
+            error=error)
+       CALL section_add_subsection(subsection,print_key,error=error)
+       CALL section_release(print_key,error=error)      
+
+       CALL cp_print_key_section_create(print_key,"MO_MAGNITUDE",&
+            description="Prints the min/max eigenvalues of the overlap of the MOs without S (CT C).", &
             print_level=high_print_level,each=(/1/),add_last=(/1/),filename="__STD_OUT__",&
             error=error)
        CALL section_add_subsection(subsection,print_key,error=error)

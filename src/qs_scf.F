@@ -144,6 +144,7 @@ MODULE qs_scf
   USE qs_loc_methods,                  ONLY: loc_initialize_rho
   USE qs_matrix_pools,                 ONLY: mpools_get
   USE qs_mo_methods,                   ONLY: calculate_density_matrix,&
+                                             calculate_magnitude,&
                                              calculate_orthonormality,&
                                              calculate_subspace_eigenvalues,&
                                              make_basis
@@ -426,7 +427,8 @@ CONTAINS
     LOGICAL :: diis_step, do_level_shift, EII_necessary, energy_only, &
       failure, gapw, gapw_xc, harris_flag, has_unit_metric, id_equal, ionode, &
       should_stop, use_cholesky, use_jacobi
-    REAL(KIND=dp)                            :: diis_error, orthonormality, &
+    REAL(KIND=dp)                            :: diis_error, mo_mag_max, &
+                                                mo_mag_min, orthonormality, &
                                                 t1, t2, tot1_h, tot1_s
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
@@ -653,6 +655,19 @@ CONTAINS
           ENDIF
           CALL cp_print_key_finished_output(iw,logger,scf_section,&
                "PRINT%MO_ORTHONORMALITY", error=error)
+       ENDIF
+
+       IF (BTEST(cp_print_key_should_output(logger%iter_info,&
+            scf_section,"PRINT%MO_MAGNITUDE",error=error),cp_p_file)) THEN
+          CALL calculate_magnitude(mos,mo_mag_min,mo_mag_max)
+          iw=cp_print_key_unit_nr(logger,scf_section,"PRINT%MO_MAGNITUDE",&
+               extension=".scfLog",error=error)
+          IF (iw>0) THEN
+             WRITE(output_unit,'(T8,A,T40,2E20.4)')  &
+                    " Minimum/Maximum MO magnitude ",mo_mag_min,mo_mag_max
+          ENDIF
+          CALL cp_print_key_finished_output(iw,logger,scf_section,&
+               "PRINT%MO_MAGNITUDE", error=error)
        ENDIF
 
        scf_env%p_mix = scf_control%p_mix
