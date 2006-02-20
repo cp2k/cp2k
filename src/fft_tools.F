@@ -648,15 +648,12 @@ SUBROUTINE fft3d_ps ( fsign, n, cin, gin, gs_group, rs_group, yzp, nyzray, &
     END IF
     ALLOCATE ( sbuf ( mg, lmax ), STAT = ierr )
     IF ( ierr /= 0 ) CALL stop_memory ( "fft3d", "sbuf", mg*lmax )
-    sbuf = 0.0_dp
 
     ALLOCATE ( tbuf ( ny, nz, nx ), STAT = ierr )
     IF ( ierr /= 0 ) CALL stop_memory ( "fft3d", "tbuf", nx*ny*nz )
-    tbuf = 0.0_dp
 
     IF ( sign == FWFFT ) THEN
       ! cin -> gin
-      gin = 0.0_dp
       
       IF ( test ) THEN
         sum_data = ABS ( SUM ( cin ) )
@@ -671,8 +668,11 @@ SUBROUTINE fft3d_ps ( fsign, n, cin, gin, gs_group, rs_group, yzp, nyzray, &
 
       ! FFT along y and z
       IF (SIZE(sbuf,1)/=0) THEN 
-        CALL fft_1dm ( fft_type, sign, .TRUE., nz, nx*ny, cin, sbuf, 1._dp )
-        CALL fft_1dm ( fft_type, sign, .TRUE., ny, nx*nz, sbuf, tbuf, 1._dp )
+         CALL fft_1dm ( fft_type, sign, .TRUE., nz, nx*ny, cin, sbuf, 1._dp )
+         CALL fft_1dm ( fft_type, sign, .TRUE., ny, nx*nz, sbuf, tbuf, 1._dp )
+      ELSE
+         gin  = 0.0_dp
+         tbuf = 0.0_dp      
       END IF
 
       IF ( test ) THEN
@@ -708,8 +708,7 @@ SUBROUTINE fft3d_ps ( fsign, n, cin, gin, gs_group, rs_group, yzp, nyzray, &
       END IF
 
     ELSE IF ( sign == BWFFT ) THEN
-      ! gin -> cin
-      cin = 0.0_dp
+      ! gin -> cin      
 
       IF ( test ) THEN
         sum_data = ABS ( SUM ( gin ) )
@@ -750,6 +749,8 @@ SUBROUTINE fft3d_ps ( fsign, n, cin, gin, gs_group, rs_group, yzp, nyzray, &
       IF (SIZE(sbuf,1)/=0) THEN 
          CALL fft_1dm ( fft_type, sign, .TRUE., ny, nx*nz, tbuf, sbuf, 1._dp )
          CALL fft_1dm ( fft_type, sign, .TRUE., nz, nx*ny, sbuf, cin, 1._dp )
+      ELSE
+         cin = 0.0_dp
       END IF
 
       IF ( test ) THEN
