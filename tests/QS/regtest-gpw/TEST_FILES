@@ -88,3 +88,5 @@ H2O-langevin-2.inp 1
 #Ref grid
 H2O-ref-1.inp      1
 H2O-ref-2.inp      1
+# All-to-all single communication in parallel runs
+H2O-ata.inp        1
