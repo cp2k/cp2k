@@ -158,9 +158,6 @@ SUBROUTINE shake_control( local_molecules, molecule_set, molecule_kind_set, &
 
 !------------------------------------------------------------------------------
 
-!deb
-     write(6,*) "************* start **************"
-!deb
 
      CALL timeset ( 'SHAKE_CONTROL', 'I', ' ', handle )
      nkind = SIZE ( molecule_kind_set )
@@ -198,9 +195,6 @@ MOL:  DO ikind = 1, nkind
      END DO MOL
 
      CALL timestop ( 0.0_dp, handle )
-!deb
-     write(6,*) "************* end **************"
-!deb
 
 END SUBROUTINE shake_control
 
