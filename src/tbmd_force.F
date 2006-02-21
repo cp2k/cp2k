@@ -92,8 +92,8 @@ MODULE tbmd_force
 
   PUBLIC :: tbmd_forces, &
             tbmd_print_forces, &
-            tbmd_print_deriv_hamiltonian, &
-            tbmd_print_deriv_hamiltonian_pattern
+            tbmd_pdh, &
+            tbmd_pdh_pattern
 
 !!***
 ! *****************************************************************************
@@ -330,7 +330,7 @@ CONTAINS
         iw = cp_print_key_unit_nr(logger,force_env_section, "TBMD%PRINT%H-MATRIX_DERIV", &
                                   extension=".mmLog", error=error)
 
-        CALL tbmd_print_deriv_hamiltonian(tbmd_env, globenv=globenv, output_unit=iw, &
+        CALL tbmd_pdh(tbmd_env, globenv=globenv, output_unit=iw, &
                                           error=error)
         CALL cp_print_key_finished_output(iw, logger, force_env_section, &
                                           "TBMD%PRINT%H-MATRIX_DERIV", error=error)
@@ -341,7 +341,7 @@ CONTAINS
         iw = cp_print_key_unit_nr(logger,force_env_section, "TBMD%PRINT%SPARSITY_DERIV", &
                                   extension=".mmLog", error=error)
 
-        CALL tbmd_print_deriv_hamiltonian_pattern(tbmd_env, globenv=globenv, output_unit=iw, &
+        CALL tbmd_pdh_pattern(tbmd_env, globenv=globenv, output_unit=iw, &
                                             error=error)
         CALL cp_print_key_finished_output(iw, logger, force_env_section, &
                                           "TBMD%PRINT%SPARSITY_DERIV", error=error)
@@ -488,10 +488,10 @@ CONTAINS
   END SUBROUTINE tbmd_print_forces
 !***************************************************************************
 
-!!****f* tbmd_force/tbmd_print_deriv_hamiltonian [1.0] *
+!!****f* tbmd_force/tbmd_pdh [1.0] *
 !!
 !!   NAME
-!!     tbmd_print_deriv_hamiltonian
+!!     tbmd_pdh
 !!
 !!   FUNCTION
 !!     Print routine for the first derivative of the TBMD Hamiltonian-Matrix
@@ -513,14 +513,14 @@ CONTAINS
 !!     02.2006 initial create [tdk]
 !!
 !!*** **********************************************************************
-  SUBROUTINE tbmd_print_deriv_hamiltonian(tbmd_env, globenv, output_unit, error)
+  SUBROUTINE tbmd_pdh(tbmd_env, globenv, output_unit, error)
     TYPE(tbmd_environment_type), POINTER     :: tbmd_env
     TYPE(global_environment_type), POINTER   :: globenv
     INTEGER, INTENT(IN)                      :: output_unit
     TYPE(cp_error_type), INTENT(INOUT), &
       OPTIONAL                               :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'tbmd_print_deriv_hamiltonian', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'tbmd_pdh', &
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=40)                        :: matrix_symmetry
@@ -602,13 +602,13 @@ CONTAINS
 
     END IF
 
-  END SUBROUTINE tbmd_print_deriv_hamiltonian
+  END SUBROUTINE tbmd_pdh
 !***************************************************************************
 
-!!****f* tbmd_force/tbmd_print_deriv_hamiltonian_pattern [1.0] *
+!!****f* tbmd_force/tbmd_pdh_pattern [1.0] *
 !!
 !!   NAME
-!!     tbmd_print_deriv_hamiltonian_pattern
+!!     tbmd_pdh_pattern
 !!
 !!   FUNCTION
 !!     Print routine for the sparsity pattern of the first derivative of 
@@ -631,7 +631,7 @@ CONTAINS
 !!     02.2006 initial create [tdk]
 !!
 !!*** **********************************************************************
-  SUBROUTINE tbmd_print_deriv_hamiltonian_pattern(tbmd_env, globenv, output_unit, &
+  SUBROUTINE tbmd_pdh_pattern(tbmd_env, globenv, output_unit, &
                                                   error)
     TYPE(tbmd_environment_type), POINTER     :: tbmd_env
     TYPE(global_environment_type), POINTER   :: globenv
@@ -640,7 +640,7 @@ CONTAINS
       OPTIONAL                               :: error
 
     CHARACTER(len=*), PARAMETER :: &
-      routineN = 'tbmd_print_deriv_hamiltonian_pattern', &
+      routineN = 'tbmd_pdh_pattern', &
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=40)                        :: matrix_symmetry
@@ -739,7 +739,7 @@ CONTAINS
 
     END IF
 
-  END SUBROUTINE tbmd_print_deriv_hamiltonian_pattern
+  END SUBROUTINE tbmd_pdh_pattern
 !***************************************************************************
 
 END MODULE tbmd_force
