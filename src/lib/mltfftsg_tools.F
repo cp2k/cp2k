@@ -7,7 +7,7 @@ MODULE mltfftsg_tools
 #endif
 
   PRIVATE
-  PUBLIC :: matmov, zgetmo, get_cache_size
+  PUBLIC :: matmov, zgetmo, get_cache_size, scaled
 
 CONTAINS
   
@@ -28,6 +28,18 @@ CONTAINS
     COMPLEX(dbl) :: a ( lda, n ), b ( ldb, m )
     b ( 1:n, 1:m ) = TRANSPOSE ( a ( 1:m, 1:n ) )
   END SUBROUTINE zgetmo
+  
+! *****************************************************
+
+  SUBROUTINE scaled ( n, sc, a )
+    IMPLICIT NONE
+    INTEGER  :: n
+    COMPLEX(dbl) :: a ( n )
+    REAL(dbl) :: sc
+
+    a(1:n) = sc*a(1:n)
+
+  END SUBROUTINE scaled
   
 ! *****************************************************
 
