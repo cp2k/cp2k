@@ -263,7 +263,7 @@ SUBROUTINE fft3d_s ( fsign, n, zin, zout, scale, status, debug )
   IF ( PRESENT ( scale ) ) THEN
     norm = scale
   ELSE
-    norm = 1.0_dp
+    norm = 1.0_lp
   END IF
 
   IF ( PRESENT ( debug ) ) THEN
@@ -307,9 +307,9 @@ SUBROUTINE fft3d_s ( fsign, n, zin, zout, scale, status, debug )
   IF ( ierr /= 0 ) CALL stop_memory ( "fft3d", "zoptr" )
 #else
   IF ( fft_in_place ) THEN
-    zoptr => zout
-  ELSE
     zoptr => zdum
+  ELSE
+    zoptr => zout
   END IF
   CALL fft_3d ( fft_type, fft_in_place, sign, norm, n, zin, zoptr )
 #endif
@@ -993,7 +993,7 @@ SUBROUTINE fft3d_pb ( fsign, n, zin, gin, group, bo, scale, status, debug )
       CALL fft_1dm ( fft_type, sign, .TRUE., n(1), my*mz, abuf, bbuf, 1.0_lp )
 
       CALL zcopy ( n ( 1 ) * my * mz, bbuf, 1, gin, 1 )
-!x    gin = RESHAPE(bbuf,SHAPE(gin))
+!y    gin = RESHAPE(bbuf,SHAPE(gin))
 
       IF ( test ) THEN
         sum_data = ABS ( SUM ( gin ) )
@@ -1300,7 +1300,7 @@ SUBROUTINE fft3d_pb ( fsign, n, zin, gin, group, bo, scale, status, debug )
       CALL fft_1dm ( fft_type, sign, .TRUE., n(3), mx*my, abuf, bbuf, norm )
 
       CALL zcopy ( n(3)*mx*my, bbuf, 1, zin, 1 )
-!     zin = RESHAPE(bbuf,SHAPE(zin))
+!x    zin = RESHAPE(bbuf,SHAPE(zin))
 
       IF ( test ) THEN
         sum_data = ABS ( SUM ( zin ) )
