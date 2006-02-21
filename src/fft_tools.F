@@ -542,8 +542,23 @@ SUBROUTINE fft3d_ps ( fsign, n, cin, gin, gs_group, rs_group, yzp, nyzray, &
       IF ( ierr /= 0 ) CALL stop_memory ( "fft3d", "pbuf" )
 
       ! FFT along x
+#if defined(__FFTSGL)
+      ALLOCATE ( pbuf ( lg, mg ), STAT = ierr )
+      IF ( ierr /= 0 ) CALL stop_memory ( "fft3d", "pbuf", lg*mg )
+
+      CALL fft_1dm ( fft_type, sign, .TRUE., n(1), nyzray(g_pos), &
+                     qbuf, pbuf, 1.0_lp )
+      gin(:,:) = pbuf(:,:)
+
+      DEALLOCATE ( pbuf, STAT = ierr )
+      IF ( ierr /= 0 ) CALL stop_memory ( "fft3d", "pbuf" )
+#else
       CALL fft_1dm ( fft_type, sign, .TRUE., n(1), nyzray(g_pos), &
                      qbuf, gin, 1.0_lp )
+#endif
+
+      DEALLOCATE ( qbuf, STAT = ierr )
+      IF ( ierr /= 0 ) CALL stop_memory ( "fft3d", "qbuf" )
 
       IF ( test ) THEN
         sum_data = ABS ( SUM ( gin ) )
@@ -552,9 +567,6 @@ SUBROUTINE fft3d_ps ( fsign, n, cin, gin, gs_group, rs_group, yzp, nyzray, &
           WRITE ( *, '(A,T61,E20.14)') "     Sum of data(6) ",sum_data
         END IF
       END IF
-
-      DEALLOCATE ( qbuf, STAT = ierr )
-      IF ( ierr /= 0 ) CALL stop_memory ( "fft3d", "qbuf" )
 
     ELSE IF ( sign == BWFFT ) THEN
       ! gin -> cin
@@ -573,12 +585,26 @@ SUBROUTINE fft3d_ps ( fsign, n, cin, gin, gs_group, rs_group, yzp, nyzray, &
 
       ALLOCATE ( pbuf ( mg, lg ), STAT = ierr )
       IF ( ierr /= 0 ) CALL stop_memory ( "fft3d", "pbuf", lg*mg )
-      ALLOCATE ( qbuf ( n ( 2 ), mx2*mz2 ), STAT = ierr )
-      IF ( ierr /= 0 ) CALL stop_memory ( "fft3d", "qbuf", n(2)*mx2*mz2 )
 
       ! FFT along x
+#if defined(__FFTSGL)
+      ALLOCATE ( qbuf ( lg, mg ), STAT = ierr )
+      IF ( ierr /= 0 ) CALL stop_memory ( "fft3d", "qbuf", lg*mg )
+
+      qbuf = gin
+
+      CALL fft_1dm ( fft_type, sign, .TRUE., n(1), nyzray(g_pos), &
+                     qbuf, pbuf, norm )
+
+      DEALLOCATE ( qbuf, STAT = ierr )
+      IF ( ierr /= 0 ) CALL stop_memory ( "fft3d", "qbuf" )
+#else
       CALL fft_1dm ( fft_type, sign, .TRUE., n(1), nyzray(g_pos), &
                      gin, pbuf, norm )
+#endif
+
+      ALLOCATE ( qbuf ( n ( 2 ), mx2*mz2 ), STAT = ierr )
+      IF ( ierr /= 0 ) CALL stop_memory ( "fft3d", "qbuf", n(2)*mx2*mz2 )
 
       IF ( test ) THEN
         sum_data = ABS ( SUM ( pbuf ) )
@@ -640,8 +666,11 @@ SUBROUTINE fft3d_ps ( fsign, n, cin, gin, gs_group, rs_group, yzp, nyzray, &
 
       ! FFT along z
       CALL fft_1dm ( fft_type, sign, .TRUE., n(3), mx1*my1, pbuf, qbuf, 1.0_lp )
-      CALL zcopy ( mx1*my1*n(3), qbuf, 1 , cin, 1 )
-!x    cin = RESHAPE(qbuf,SHAPE(cin))
+#if defined(__FFTSGL) && defined(__NAG)
+      call copy_cz(n(3)*mx1*my1,qbuf,cin)
+#else
+      cin = RESHAPE(qbuf,SHAPE(cin))
+#endif
 
       IF ( test ) THEN
         sum_data = ABS ( SUM ( cin ) )
@@ -671,12 +700,12 @@ SUBROUTINE fft3d_ps ( fsign, n, cin, gin, gs_group, rs_group, yzp, nyzray, &
     !
 
     IF ( mg == 0 ) THEN
-      lmax = lg
       mmax = 1
     ELSE
-      lmax = MAX ( lg, (nx*ny*nz)/mg + 1 )
       mmax = mg
     END IF
+    lmax = MAX ( lg, (nx*ny*nz)/mmax + 1 )
+
     ALLOCATE ( sbuf ( mmax, lmax ), STAT = ierr )
     IF ( ierr /= 0 ) CALL stop_memory ( "fft3d", "sbuf", mmax*lmax )
 
@@ -698,8 +727,14 @@ SUBROUTINE fft3d_ps ( fsign, n, cin, gin, gs_group, rs_group, yzp, nyzray, &
       END IF
 
       ! FFT along y and z
+#if defined(__FFTSGL)
+      tbuf = RESHAPE(cin,SHAPE(tbuf))
+      CALL fft_1dm ( fft_type, sign, .TRUE., nz, nx*ny, tbuf, sbuf, 1._lp )
+      CALL fft_1dm ( fft_type, sign, .TRUE., ny, nx*nz, sbuf, tbuf, 1._lp )
+#else
       CALL fft_1dm ( fft_type, sign, .TRUE., nz, nx*ny, cin, sbuf, 1._lp )
       CALL fft_1dm ( fft_type, sign, .TRUE., ny, nx*nz, sbuf, tbuf, 1._lp )
+#endif
 
       IF ( test ) THEN
         sum_data = ABS ( SUM ( tbuf ) )
@@ -722,8 +757,18 @@ SUBROUTINE fft3d_ps ( fsign, n, cin, gin, gs_group, rs_group, yzp, nyzray, &
       END IF
 
       ! FFT along x
+#if defined(__FFTSGL)
+      ALLOCATE ( rbuf ( lg, mg ), STAT = ierr )
+      IF ( ierr /= 0 ) CALL stop_memory ( "fft3d", "rbuf", lg*mg )
+      CALL fft_1dm ( fft_type, sign, .TRUE., n(1), nyzray(g_pos), &
+                     sbuf, rbuf, norm )
+      gin = rbuf
+      DEALLOCATE ( rbuf, STAT = ierr )
+      IF ( ierr /= 0 ) CALL stop_memory ( "fft3d", "rbuf" )
+#else
       CALL fft_1dm ( fft_type, sign, .TRUE., n(1), nyzray(g_pos), &
                      sbuf, gin, norm )
+#endif
 
       IF ( test ) THEN
         sum_data = ABS ( SUM ( gin ) )
@@ -748,8 +793,18 @@ SUBROUTINE fft3d_ps ( fsign, n, cin, gin, gs_group, rs_group, yzp, nyzray, &
       END IF
 
       ! FFT along x
+#if defined(__FFTSGL)
+      ALLOCATE ( rbuf ( lg, mg ), STAT = ierr )
+      IF ( ierr /= 0 ) CALL stop_memory ( "fft3d", "rbuf", lg*mg )
+      rbuf = gin
+      CALL fft_1dm ( fft_type, sign, .TRUE., n(1), nyzray(g_pos), &
+                     rbuf, sbuf, norm )
+      DEALLOCATE ( rbuf, STAT = ierr )
+      IF ( ierr /= 0 ) CALL stop_memory ( "fft3d", "rbuf" )
+#else
       CALL fft_1dm ( fft_type, sign, .TRUE., n(1), nyzray(g_pos), &
                      gin, sbuf, norm )
+#endif
 
       IF ( test ) THEN
         sum_data = ABS ( SUM ( sbuf ) )
@@ -772,8 +827,18 @@ SUBROUTINE fft3d_ps ( fsign, n, cin, gin, gs_group, rs_group, yzp, nyzray, &
       END IF
 
       ! FFT along y and z
+#if defined(__FFTSGL)
+      CALL fft_1dm ( fft_type, sign, .TRUE., ny, nx*nz, tbuf, sbuf, 1._lp )
+      CALL fft_1dm ( fft_type, sign, .TRUE., nz, nx*ny, sbuf, tbuf, 1._lp )
+#if defined(__NAG)
+      CALL copy_cz(nx*ny*nz,tbuf,cin)
+#else
+      cin = RESHAPE(tbuf,SHAPE(cin))
+#endif
+#else
       CALL fft_1dm ( fft_type, sign, .TRUE., ny, nx*nz, tbuf, sbuf, 1._lp )
       CALL fft_1dm ( fft_type, sign, .TRUE., nz, nx*ny, sbuf, cin, 1._lp )
+#endif
 
       IF ( test ) THEN
         sum_data = ABS ( SUM ( cin ) )
@@ -992,8 +1057,11 @@ SUBROUTINE fft3d_pb ( fsign, n, zin, gin, group, bo, scale, status, debug )
       ! FFT along x
       CALL fft_1dm ( fft_type, sign, .TRUE., n(1), my*mz, abuf, bbuf, 1.0_lp )
 
-      CALL zcopy ( n ( 1 ) * my * mz, bbuf, 1, gin, 1 )
-!y    gin = RESHAPE(bbuf,SHAPE(gin))
+#if defined(__FFTSGL) && defined(__NAG)
+      call copy_cz(n(1)*my*mz,bbuf,gin)
+#else
+      gin = RESHAPE(bbuf,SHAPE(gin))
+#endif
 
       IF ( test ) THEN
         sum_data = ABS ( SUM ( gin ) )
@@ -1101,8 +1169,11 @@ SUBROUTINE fft3d_pb ( fsign, n, zin, gin, group, bo, scale, status, debug )
       ! FFT along z
       CALL fft_1dm ( fft_type, sign, .TRUE., n(3), mx*my, abuf, bbuf, norm )
 
-      CALL zcopy ( n(3)*mx*my, bbuf, 1, zin, 1 )
-!x    zin = RESHAPE(bbuf,SHAPE(zin))
+#if defined(__FFTSGL) && defined(__NAG)
+      call copy_cz(n(3)*mx*my,bbuf,zin)
+#else
+      zin = RESHAPE(bbuf,SHAPE(zin))
+#endif
 
       IF ( test ) THEN
         sum_data = ABS ( SUM ( zin ) )
@@ -1205,8 +1276,12 @@ SUBROUTINE fft3d_pb ( fsign, n, zin, gin, group, bo, scale, status, debug )
 
       ! FFT along x
       CALL fft_1dm ( fft_type, sign, .TRUE., n(1), my*mz, abuf, bbuf, 1.0_lp )
-      CALL zcopy ( n ( 1 ) * my * mz, bbuf, 1, gin, 1 )
-!x    gin = RESHAPE(bbuf,SHAPE(gin))
+
+#if defined(__FFTSGL) && defined(__NAG)
+      call copy_cz(n(1)*my*mz,bbuf,gin)
+#else
+      gin = RESHAPE(bbuf,SHAPE(gin))
+#endif
 
       IF ( test ) THEN
         sum_data = ABS ( SUM ( gin ) )
@@ -1299,8 +1374,11 @@ SUBROUTINE fft3d_pb ( fsign, n, zin, gin, group, bo, scale, status, debug )
       ! FFT along z
       CALL fft_1dm ( fft_type, sign, .TRUE., n(3), mx*my, abuf, bbuf, norm )
 
-      CALL zcopy ( n(3)*mx*my, bbuf, 1, zin, 1 )
-!x    zin = RESHAPE(bbuf,SHAPE(zin))
+#if defined(__FFTSGL) && defined(__NAG)
+      call copy_cz(n(3)*mx*my,bbuf,zin)
+#else
+      zin = RESHAPE(bbuf,SHAPE(zin))
+#endif
 
       IF ( test ) THEN
         sum_data = ABS ( SUM ( zin ) )

@@ -178,3 +178,30 @@ SUBROUTINE copy_rc ( n, r1, z )
 END SUBROUTINE copy_rc
 
 !-----------------------------------------------------------------------------!
+
+SUBROUTINE copy_cz ( n, c, z )
+!
+! z = c
+!
+  IMPLICIT NONE
+#if defined(__SGL)
+  INTEGER, PARAMETER :: dbl = KIND(0.0)
+  INTEGER, PARAMETER :: sgl = KIND(0.0)
+#else
+  INTEGER, PARAMETER :: dbl = SELECTED_REAL_KIND ( 14, 200 )
+  INTEGER, PARAMETER :: sgl = KIND(0.0)
+#endif
+
+  INTEGER, INTENT ( IN ) :: n
+  COMPLEX ( sgl ), INTENT ( IN ) :: c(n)
+  COMPLEX ( dbl ), INTENT ( OUT ) :: z(n)
+  INTEGER :: i
+!$OMP PARALLEL DO
+  do i=1,n
+    z(i)=c(i)
+  enddo
+
+END SUBROUTINE copy_cz
+
+!-----------------------------------------------------------------------------!
+
