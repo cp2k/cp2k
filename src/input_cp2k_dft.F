@@ -1888,7 +1888,7 @@ SUBROUTINE create_tddfpt_section(section,error)
        NULLIFY(keyword)
        CALL keyword_create(keyword, name="WRITE_RESTART_EACH",&
             description="How often the wavefunction restart file should be "//&
-            "written during an scf (0=never).",usage="WRITE_RESTART_EACH 5",&
+            "written during an scf (0=only at the end, -1=never).",usage="WRITE_RESTART_EACH 5",&
             default_i_val=10,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
