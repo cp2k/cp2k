@@ -111,19 +111,19 @@ CONTAINS
     CALL section_add_keyword(section,keyword,error=error)
     CALL keyword_release(keyword,error=error)
     CALL keyword_create(keyword, name="RESTART_FILE_NAME",&
-         description="The path to the pseudo potential file",&
+         description="Name of the restart file, may include a path",&
          usage="RESTART_FILE_NAME ../RESTART",&
          default_lc_val="RESTART",error=error)
     CALL section_add_keyword(section,keyword,error=error)
     CALL keyword_release(keyword,error=error)
     CALL keyword_create(keyword, name="LSD",&
-         description="If the calculation should open shell",&
+         description="If the calculation should use alpha and beta orbitals (i.e no spin restriction)",&
          usage="lsd",&
          default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,error=error)
     CALL section_add_keyword(section,keyword,error=error)
     CALL keyword_release(keyword,error=error)
     CALL keyword_create(keyword, name="RESTRICTED",&
-         description="If the calculation should be restricted",&
+         description="If the calculation should be (spin) restricted",&
          usage="RESTRICTED",&
          default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,error=error)
     CALL section_add_keyword(section,keyword,error=error)
@@ -236,7 +236,7 @@ CONTAINS
 
       CALL keyword_create(keyword,name="MIN_OR_MAX",&
            description="Requires the maximization of the spread of the wfn",&
-           usage="MIN_OR_MAX (MINIMIZE|MAXIMIZE)",&
+           usage="MIN_OR_MAX (SPREADMIN|SPREADMAX)",&
            enum_c_vals=(/"SPREADMIN","SPREADMAX"/),&
            enum_i_vals=(/do_loc_min, do_loc_max/),&
            default_i_val=do_loc_min,error=error)
@@ -388,7 +388,7 @@ CONTAINS
        CALL section_add_keyword(print_key,keyword,error=error)
        CALL keyword_release(keyword,error=error)    
        CALL keyword_create(keyword, name="sab_ppnl",&
-            description="If the printkey is activated controls the printing of s-a-c gth non local lists",&
+            description="If the printkey is activated controls the printing of s-a-b gth non local lists",&
             default_l_val=.FALSE., lone_keyword_l_val=.TRUE., error=error)
        CALL section_add_keyword(print_key,keyword,error=error)
        CALL keyword_release(keyword,error=error)    
