@@ -755,7 +755,7 @@ CONTAINS
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="WW",&
-            description="Specifies the width of the gaussian to spawn. Default 0.1 .",&
+            description="Specifies the height of the gaussian to spawn. Default 0.1 .",&
             usage="WW {real}",&
             default_r_val=0.1_dp,error=error)
        CALL section_add_keyword(section,keyword,error=error)
