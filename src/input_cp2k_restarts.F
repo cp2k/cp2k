@@ -168,8 +168,8 @@ CONTAINS
     !
     IF (PRESENT(meta_env)) THEN
        my_meta_env => meta_env
-    ELSEIF (PRESENT(force_env)) THEN 
-       my_meta_env => force_env%meta_env
+    ELSEIF (ASSOCIATED(my_force_env)) THEN 
+       my_meta_env => my_force_env%meta_env
     END IF    
     !
     ! The real restart setting...
