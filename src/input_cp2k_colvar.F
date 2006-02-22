@@ -24,6 +24,7 @@
 !****************************************************************************
 MODULE input_cp2k_colvar
   USE input_constants
+  USE cp_output_handling,              ONLY: cp_print_key_section_create
   USE input_keyword_types,             ONLY: keyword_create,&
                                              keyword_release,&
                                              keyword_type
@@ -77,7 +78,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     LOGICAL                                  :: failure
-    TYPE(section_type), POINTER              :: subsection
+    TYPE(section_type), POINTER              :: subsection, print_key
 
     failure=.FALSE.
     
@@ -87,13 +88,27 @@ CONTAINS
             description="This section specifies the nature of the collective variables.",&
             n_keywords=1, n_subsections=1, repeats=.TRUE., required=.TRUE.,&
             error=error)
-       NULLIFY(subsection)
+       NULLIFY(subsection, print_key)
 
        CALL create_colvar_var_section(subsection, section, error)
+
+       CALL section_create(subsection,name="print",&
+            description="Controls the printing of the colvar specifications",&
+            n_keywords=0, n_subsections=1, repeats=.TRUE., required=.FALSE.,&
+            error=error)
+       NULLIFY(print_key)
+       CALL cp_print_key_section_create(print_key,"program_run_info",&
+            description="Controls the printing of basic information during colvar setup.", &
+            print_level=low_print_level,each=(/1/),add_last=(/1/),filename="__STD_OUT__",&
+            error=error)
+       CALL section_add_subsection(subsection,print_key,error=error)
+       CALL section_release(print_key,error=error)
+       CALL section_add_subsection(section, subsection, error=error)
+       CALL section_release(subsection,error=error)
+
     END IF
 
   END SUBROUTINE create_colvar_section
-
 
 !!****f* input_cp2k/create_colvar_var_section *
 !!

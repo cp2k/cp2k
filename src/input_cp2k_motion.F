@@ -725,7 +725,7 @@ CONTAINS
 
     LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
-    TYPE(section_type), POINTER              :: subsection
+    TYPE(section_type), POINTER              :: subsection, print_key
 
     failure=.FALSE.
     
@@ -736,7 +736,7 @@ CONTAINS
             n_keywords=1, n_subsections=1, repeats=.FALSE., required=.TRUE.,&
             error=error)
         
-       NULLIFY(subsection,keyword)
+       NULLIFY(subsection,keyword,print_key)
 
        CALL keyword_create(keyword, name="NT_HILLS",&
             description="Specify the number the interval of time step to spawn the hills.",&
@@ -775,12 +775,17 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
+       CALL keyword_create(keyword=keyword,name="step_start_val",&
+             description="The starting step value for metadynamics",&
+             usage="step_start_val <integer>",&
+             default_i_val=0,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
 
-       CALL keyword_create(keyword, name="RESTART_HILLS",&
-            variants=(/"RESTART"/),&
-            description="Read hills from the RESTART file.",&
-            usage="RESTART_HILLS",&
-            default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,error=error)
+       CALL keyword_create(keyword=keyword,name="nhills_start_val",&
+             description="The starting value od previously spawned hills",&
+             usage="nhills_start_val <integer>",&
+             default_i_val=0,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
@@ -788,9 +793,154 @@ CONTAINS
        CALL section_add_subsection(section, subsection, error=error)
        CALL section_release(subsection,error=error)
 
+       CALL section_create(subsection,name="print",&
+            description="Controls the printing properties during an metadynamics run",&
+            n_keywords=0, n_subsections=1, repeats=.TRUE., required=.FALSE.,&
+            error=error)
+       NULLIFY(print_key)
+       CALL cp_print_key_section_create(print_key,"program_run_info",&
+            description="Controls the printing of basic and summary information during"//&
+            " metadynamics.", &
+            print_level=low_print_level,each=(/1/),add_last=(/1/),filename="__STD_OUT__",&
+            error=error)
+       CALL section_add_subsection(subsection,print_key,error=error)
+       CALL section_release(print_key,error=error)
+
+       CALL cp_print_key_section_create(print_key,"COLVAR",&
+            description="Controls the printing of COLVAR summary information during"//&
+            " metadynamics.", &
+            print_level=high_print_level,each=(/1/),add_last=(/1/),filename="COLVAR",&
+            error=error)
+       CALL section_add_subsection(subsection,print_key,error=error)
+       CALL section_release(print_key,error=error)
+
+       CALL cp_print_key_section_create(print_key,"HILLS",&
+            description="Controls the printing of HILLS summary information during"//&
+            " metadynamics.", &
+            print_level=high_print_level,each=(/1/),add_last=(/1/),filename="HILLS",&
+            error=error)
+       CALL section_add_subsection(subsection,print_key,error=error)
+       CALL section_release(print_key,error=error)
+
+       CALL section_add_subsection(section, subsection, error=error)
+       CALL section_release(subsection,error=error)
+
+       CALL create_metadyn_history(subsection, section, error)
+
     END IF
 
   END SUBROUTINE create_metadyn_section
+
+!***************************************************************************
+!!****f* input_cp2k_motion/create_metadyn_history [1.0] *
+!!
+!!   NAME
+!!     create_metadyn_history
+!!
+!!   FUNCTION
+!!     Creates the velocity section
+!!
+!!   NOTES
+!!     -
+!!
+!!   ARGUMENTS
+!!     - section: the section to create
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     teo
+!!
+!!*** **********************************************************************
+  SUBROUTINE create_metadyn_history(section, metadyn_section, error)
+    TYPE(section_type), POINTER              :: section, metadyn_section
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_metadyn_history', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
+
+    failure=.FALSE.
+
+    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+    IF (.NOT. failure) THEN
+       CALL section_create(section,name="SPAWNED_HILLS_POS",&
+            description="The position of the spawned hills during metadynamics."//&
+            "Used for RESTART.",&
+            n_keywords=1, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+            error=error)
+       NULLIFY(keyword)
+       CALL keyword_create(keyword, name="_DEFAULT_KEYWORD_",&
+            description="Specify the spawned hills",repeats=.TRUE.,&
+            usage="<REAL> <REAL> .. <REAL>", type_of_var=real_t, n_var=-1, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+       CALL section_add_subsection(metadyn_section, section, error=error)
+       CALL section_release(section,error=error)
+
+       CALL section_create(section,name="SPAWNED_HILLS_AMPL",&
+            description="The amplitude of the spawned hills during metadynamics."//&
+            "Used for RESTART.",&
+            n_keywords=1, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+            error=error)
+       NULLIFY(keyword)
+       CALL keyword_create(keyword, name="_DEFAULT_KEYWORD_",&
+            description="Specify the spawned hills",repeats=.TRUE.,&
+            usage="<REAL> <REAL> .. <REAL>", type_of_var=real_t, n_var=-1, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+       CALL section_add_subsection(metadyn_section, section, error=error)
+       CALL section_release(section,error=error)
+
+       CALL section_create(section,name="SPAWNED_HILLS_HEIGHT",&
+            description="The height of the spawned hills during metadynamics."//&
+            "Used for RESTART.",&
+            n_keywords=1, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+            error=error)
+       NULLIFY(keyword)
+       CALL keyword_create(keyword, name="_DEFAULT_KEYWORD_",&
+            description="Specify the spawned hills",repeats=.TRUE.,&
+            usage="<REAL>", type_of_var=real_t, n_var=1, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+       CALL section_add_subsection(metadyn_section, section, error=error)
+       CALL section_release(section,error=error)
+       !
+       ! Extended Lagrangian
+       !
+       CALL section_create(section,name="EXT_LAGRANGE_SS0",&
+            description="Colvar position within an extended Lagrangian formalism."//&
+            "Used for RESTART.",&
+            n_keywords=1, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+            error=error)
+       NULLIFY(keyword)
+       CALL keyword_create(keyword, name="_DEFAULT_KEYWORD_",&
+            description="Specified the positions",repeats=.TRUE.,&
+            usage="<REAL>", type_of_var=real_t, n_var=1, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+       CALL section_add_subsection(metadyn_section, section, error=error)
+       CALL section_release(section,error=error)
+
+       CALL section_create(section,name="EXT_LAGRANGE_VVP",&
+            description="Colvar velocities within an extended Lagrangian formalism."//&
+            "Used for RESTART.",&
+            n_keywords=1, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+            error=error)
+       NULLIFY(keyword)
+       CALL keyword_create(keyword, name="_DEFAULT_KEYWORD_",&
+            description="Specified the velocities",repeats=.TRUE.,&
+            usage="<REAL>", type_of_var=real_t, n_var=1, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+       CALL section_add_subsection(metadyn_section, section, error=error)
+       CALL section_release(section,error=error)
+
+    END IF
+  END SUBROUTINE create_metadyn_history
 
 
 !!****f* input_cp2k/create_metavar_section *

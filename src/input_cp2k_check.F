@@ -247,7 +247,7 @@ SUBROUTINE handle_ext_restart(input_file,para_env,error)
     CHARACTER(default_string_length)         :: path, r_file_path
     INTEGER                                  :: i_rep_val, myi, n_rep_val
     LOGICAL                                  :: explicit1, explicit2, &
-                                                failure, flag
+                                                failure, flag, flag2
     REAL(KIND=dp)                            :: myt
     TYPE(cp_parser_type), POINTER            :: cpparser
     TYPE(cp_unit_set_type), POINTER          :: default_units
@@ -324,6 +324,19 @@ SUBROUTINE handle_ext_restart(input_file,para_env,error)
               CALL section_vals_val_set(input_file,"MOTION%MD%STEP_START_VAL",i_val=myi,error=error)
               CALL section_vals_val_set(input_file,"MOTION%MD%TIME_START_VAL",r_val=myt,error=error)
            END IF
+           !
+           work_section => section_vals_get_subs_vals(input_file,"MOTION%METADYN",error=error)
+           CALL section_vals_get(work_section,explicit=explicit1,error=error)
+           work_section => section_vals_get_subs_vals(restart_input,"MOTION%METADYN",error=error)
+           CALL section_vals_get(work_section,explicit=explicit2,error=error)
+           CALL section_vals_val_get(r_section,"RESTART_METADYNAMICS",l_val=flag2,&
+                error=error)
+           IF (explicit1.AND.explicit2.AND.flag2) THEN
+              CALL section_vals_val_get(restart_input,"MOTION%METADYN%STEP_START_VAL",i_val=myi,error=error)
+              CALL section_vals_val_set(input_file,"MOTION%METADYN%STEP_START_VAL",i_val=myi,error=error)
+              CALL section_vals_val_get(restart_input,"MOTION%METADYN%NHILLS_START_VAL",i_val=myi,error=error)
+              CALL section_vals_val_set(input_file,"MOTION%METADYN%NHILLS_START_VAL",i_val=myi,error=error)
+           END IF          
            !
            work_section => section_vals_get_subs_vals(input_file,"MOTION%MD%HMC",error=error)
            CALL section_vals_get(work_section,explicit=explicit1,error=error)
@@ -430,6 +443,31 @@ SUBROUTINE handle_ext_restart(input_file,para_env,error)
            section => section_vals_get_subs_vals(restart_input,&
                 "MOTION%MD%NOSE%FORCE",error=error)
            CALL section_vals_set_subs_vals(input_file,"MOTION%MD%NOSE%FORCE",&
+                section,error=error)
+        END IF
+        CALL section_vals_val_get(r_section,"RESTART_METADYNAMICS",l_val=flag,&
+             error=error)
+        IF (flag) THEN
+           section => section_vals_get_subs_vals(restart_input,&
+                "MOTION%METADYN%SPAWNED_HILLS_POS",error=error)
+           CALL section_vals_set_subs_vals(input_file,"MOTION%METADYN%SPAWNED_HILLS_POS",&
+                section,error=error)
+           section => section_vals_get_subs_vals(restart_input,&
+                "MOTION%METADYN%SPAWNED_HILLS_AMPL",error=error)
+           CALL section_vals_set_subs_vals(input_file,"MOTION%METADYN%SPAWNED_HILLS_AMPL",&
+                section,error=error)
+           section => section_vals_get_subs_vals(restart_input,&
+                "MOTION%METADYN%SPAWNED_HILLS_HEIGHT",error=error)
+           CALL section_vals_set_subs_vals(input_file,"MOTION%METADYN%SPAWNED_HILLS_HEIGHT",&
+                section,error=error)
+           ! Extended Lagrangian
+           section => section_vals_get_subs_vals(restart_input,&
+                "MOTION%METADYN%EXT_LAGRANGE_SS0",error=error)
+           CALL section_vals_set_subs_vals(input_file,"MOTION%METADYN%EXT_LAGRANGE_SS0",&
+                section,error=error)
+           section => section_vals_get_subs_vals(restart_input,&
+                "MOTION%METADYN%EXT_LAGRANGE_VVP",error=error)
+           CALL section_vals_set_subs_vals(input_file,"MOTION%METADYN%EXT_LAGRANGE_VVP",&
                 section,error=error)
         END IF
         CALL section_vals_val_get(r_section,"CUSTOM_PATH",n_rep_val=n_rep_val,&

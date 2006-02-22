@@ -1,8 +1,39 @@
+!-----------------------------------------------------------------------------!
+!   CP2K: A general program to perform molecular dynamics simulations         !
+!   Copyright (C) 2002  CP2K developers group                                 !
+!-----------------------------------------------------------------------------!
+
+
+!!****h* cp2k/metadynamics_types *
+!!
+!!   NAME
+!!     metadynamics_types
+!!
+!!   FUNCTION
+!!    defines types for metadynamics calculation
+!!
+!!   NOTES
+!!
+!!
+!!   AUTHOR
+!!     
+!!
+!!   MODIFICATION HISTORY
+!!     01.2005 created [fawzi and ale]
+!!
+!!   SOURCE
+!!
+!****************************************************************************
 MODULE metadynamics_types
   USE cp_para_env,                     ONLY: cp_para_env_release
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE kinds,                           ONLY: default_path_length,&
                                              dp
+  USE input_section_types,             ONLY: section_add_keyword,&
+                                             section_add_subsection,&
+                                             section_create,&
+                                             section_release,&
+                                             section_vals_type
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -15,35 +46,36 @@ MODULE metadynamics_types
             meta_env_release, metavar_type
 
   TYPE hills_env_type
-     REAL(kind=dp) :: ww
-     INTEGER :: n_hills, nt_hills
-     CHARACTER(len=default_path_length) :: hills_file_name
-     REAL(kind=dp), DIMENSION(:,:), POINTER :: ss_history
-     LOGICAL :: restart_hills
+     LOGICAL                                :: restart
+     REAL(KIND=dp)                          :: ww
+     INTEGER                                :: n_hills, nt_hills
+     REAL(KIND=dp), DIMENSION(:,:), POINTER :: ss_history
+     REAL(KIND=dp), DIMENSION(:,:), POINTER :: delta_s_history
+     REAL(KIND=dp), DIMENSION(:),   POINTER :: ww_history
   END TYPE hills_env_type
 
   TYPE metavar_type
-     REAL(kind=dp) :: mass,lambda,ss, ss0, ff_s,vv, vvp, &
-                      cv_energy,delta_s,ff_hills
-     LOGICAL :: do_wall_p,do_wall_m
-     REAL(kind=dp) :: wall_p,wall_m
-     REAL(kind=dp) :: TARGET
-     INTEGER :: icolvar,isubsys
+     REAL(KIND=dp) :: mass, lambda, ss, ss0, ff_s, vv, vvp, &
+                      cv_energy, delta_s, ff_hills
+     LOGICAL       :: do_wall_p,do_wall_m
+     REAL(KIND=dp) :: wall_p, wall_m
+     REAL(KIND=dp) :: TARGET
+     INTEGER       :: icolvar,isubsys
   END TYPE metavar_type
 
   TYPE meta_env_type
-     INTEGER :: ref_count, id_nr
-     LOGICAL :: do_hills
-     LOGICAL :: extended_lagrange
-     INTEGER :: n_colvar
-     REAL(kind=dp) :: ekin_s,cv_energy, dt
-     LOGICAL :: tempcontrol
-     REAL(kind=dp) :: temp_wanted,toll_temp
-     INTEGER :: n_steps, colvar_file_unit_nr
-     CHARACTER(len=default_path_length) :: colvar_file_name     
-     TYPE(hills_env_type) :: hills_env
+     INTEGER       :: ref_count, id_nr
+     LOGICAL       :: do_hills
+     LOGICAL       :: extended_lagrange
+     INTEGER       :: n_colvar
+     REAL(KIND=dp) :: ekin_s,cv_energy, dt
+     LOGICAL       :: tempcontrol, restart
+     REAL(KIND=dp) :: temp_wanted,toll_temp
+     INTEGER       :: n_steps
+     TYPE(hills_env_type)                      :: hills_env
      TYPE(metavar_type), POINTER, DIMENSION(:) :: metavar
-     TYPE(cp_para_env_type), POINTER :: para_env
+     TYPE(cp_para_env_type), POINTER           :: para_env
+     TYPE(section_vals_type), POINTER          :: metadyn_section
   END TYPE meta_env_type
 
 CONTAINS
@@ -130,6 +162,15 @@ SUBROUTINE meta_env_release(meta_env,error)
            DEALLOCATE(meta_env%hills_env%ss_history,stat=stat)
            CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
         END IF
+        IF (ASSOCIATED(meta_env%hills_env%delta_s_history)) THEN
+           DEALLOCATE(meta_env%hills_env%delta_s_history,stat=stat)
+           CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+        END IF
+        IF (ASSOCIATED(meta_env%hills_env%ww_history)) THEN
+           DEALLOCATE(meta_env%hills_env%ww_history,stat=stat)
+           CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+        END IF
+        NULLIFY(meta_env%metadyn_section)
         DEALLOCATE(meta_env, stat=stat)
         CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
      END IF

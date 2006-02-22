@@ -42,8 +42,12 @@ ZrO.inp            1
 # new xc routines
 Ar-12.inp          1
 Ar-13.inp          1
-# Metadynamics
+# Metadynamics and restart of metadynamics
 H2O-meta.inp       1
+H2O-meta_res0.inp  1
+H2O-meta_res1.inp  1
+H2O-meta_res2.inp  1
+H2O-meta_res3.inp  1
 # tpss
 H2O-tpss.inp       1
 # tpss new input   

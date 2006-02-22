@@ -735,6 +735,12 @@ CONTAINS
             default_l_val=.TRUE., lone_keyword_l_val=.TRUE.,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
+       CALL keyword_create(keyword, name="RESTART_METADYNAMICS",&
+            description="Restarts hills from a previous metadynamics run "//&
+            "from the EXTERNAL file",&
+            default_l_val=.TRUE., lone_keyword_l_val=.TRUE.,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
        CALL keyword_create(keyword, name="CUSTOM_PATH",&
             description="Takes the given path "//&
             "from the EXTERNAL file",&

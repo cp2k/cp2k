@@ -26,26 +26,28 @@
 MODULE colvar_methods
   USE cell_types,                      ONLY: cell_type
   USE colvar_types,                    ONLY: angle_colvar_id,&
-                                             colvar_type,&
-                                             coord_colvar_id,&
-                                             dist_colvar_id,&
-                                             plane_distance_colvar_id,&
-                                             torsion_colvar_id
+       colvar_type,&
+       coord_colvar_id,&
+       dist_colvar_id,&
+       plane_distance_colvar_id,&
+       torsion_colvar_id
   USE cp_subsystem_types,              ONLY: cp_subsys_get,&
-                                             cp_subsystem_p_type,&
-                                             cp_subsystem_type
+       cp_subsystem_p_type,&
+       cp_subsystem_type
   USE force_env_types,                 ONLY: force_env_get,&
-                                             force_env_type
+       force_env_type
   USE global_types,                    ONLY: global_environment_type
   USE input_section_types,             ONLY: section_vals_get,&
-                                             section_vals_get_subs_vals,&
-                                             section_vals_type,&
-                                             section_vals_val_get
+       section_vals_get_subs_vals,&
+       section_vals_type,&
+       section_vals_val_get
   USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: pi
   USE particle_list_types,             ONLY: particle_list_type
   USE timings,                         ONLY: timeset,&
-                                             timestop
+       timestop
+  USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
+                                             cp_print_key_unit_nr  
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -55,54 +57,60 @@ MODULE colvar_methods
 
   PUBLIC :: colvar_read, colvar_eval_f
 
-!***
-!****************************************************************************
+  !***
+  !****************************************************************************
 CONTAINS
-!!****f* colvar_methods/colvar_read *
-!!
-!!   NAME
-!!     colvar_read
-!!
-!!   FUNCTION
-!!     reads a colvar from the input
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - colvar: the place where to store what will be read
-!!     - extended_lagrange: if the extended lagrangian formalismus should 
-!!       be used
-!!     - icol: number of the current colvar (repetition in colvar_section)
-!!     - colvar_section: the colvar section
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     teo
-!!
-!!   MODIFICATION HISTORY
-!!     04.2004 created [alessandro laio and fawzi mohamed]
-!!
-!!*** **********************************************************************
+  !!****f* colvar_methods/colvar_read *
+  !!
+  !!   NAME
+  !!     colvar_read
+  !!
+  !!   FUNCTION
+  !!     reads a colvar from the input
+  !!
+  !!   NOTES
+  !!     -
+  !!
+  !!   INPUTS
+  !!     - colvar: the place where to store what will be read
+  !!     - extended_lagrange: if the extended lagrangian formalismus should 
+  !!       be used
+  !!     - icol: number of the current colvar (repetition in colvar_section)
+  !!     - colvar_section: the colvar section
+  !!     - error: variable to control error logging, stopping,... 
+  !!       see module cp_error_handling 
+  !!
+  !!   AUTHOR
+  !!     teo
+  !!
+  !!   MODIFICATION HISTORY
+  !!     04.2004 created [alessandro laio and fawzi mohamed]
+  !!
+  !!*** **********************************************************************
   SUBROUTINE colvar_read(colvar, icol, colvar_section, globenv, error)
     TYPE(colvar_type), INTENT(inout)         :: colvar
     INTEGER, INTENT(IN)                      :: icol
     TYPE(section_vals_type), POINTER         :: colvar_section
     TYPE(global_environment_type), POINTER   :: globenv
     TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+         OPTIONAL                               :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'colvar_read', &
-      routineP = moduleN//':'//routineN
+         routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, iatm, ii, iw, kk, stat
     INTEGER, DIMENSION(:), POINTER           :: iatms
     LOGICAL                                  :: failure
     LOGICAL, DIMENSION(5)                    :: my_subsection
-    TYPE(section_vals_type), POINTER :: angle_section, coordination_section, &
-      distance_section, plane_dist_section, torsion_section
+    TYPE(section_vals_type), POINTER         :: angle_section,&
+                                                coordination_section,&
+                                                distance_section,&
+                                                plane_dist_section,&
+                                                torsion_section
+    TYPE(cp_logger_type), POINTER            :: logger    
 
+    NULLIFY(logger)
+    logger => cp_error_get_logger(error)
     CALL timeset(routineN,"I","",handle)
 
     NULLIFY(iatms)
@@ -120,7 +128,7 @@ CONTAINS
     CALL section_vals_get(coordination_section,explicit=my_subsection(4),error=error)
     CALL section_vals_get(plane_dist_section,explicit=my_subsection(5),error=error)
 
-    ! only one colvar can be present 
+    ! only one colvar can be present
     CPPostcondition(COUNT(my_subsection) == 1,cp_failure_level,routinep,error,failure)
 
     IF      (my_subsection(1)) THEN
@@ -164,7 +172,7 @@ CONTAINS
        CALL section_vals_val_get(plane_dist_section,"ATOM_POINT",i_val=iatm,error=error)
        colvar%plane_distance_param%point = iatm
     END IF
-    
+
     SELECT CASE(colvar%type_id)
     CASE(dist_colvar_id)
        colvar%n_atom_s=2
@@ -216,8 +224,9 @@ CONTAINS
        colvar%i_atom(4)=colvar%plane_distance_param%point
     END SELECT
 
-    IF (globenv % ionode .AND. globenv % print_level>=0) THEN
-       iw = globenv % scr
+    iw = cp_print_key_unit_nr(logger,colvar_section,&
+         "PRINT%PROGRAM_RUN_INFO",extension=".colvarLog",error=error)
+    IF (iw>0) THEN    
        WRITE ( iw, '( A )')'          ----------------------------------------------------------------------'
        SELECT CASE(colvar%type_id)
        CASE(angle_colvar_id)
@@ -240,98 +249,100 @@ CONTAINS
        END SELECT
        WRITE ( iw, '( A )')'          ----------------------------------------------------------------------'
     END IF
+    CALL cp_print_key_finished_output(iw,logger,colvar_section,&
+         "PRINT%PROGRAM_RUN_INFO", error=error)    
 
     CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE colvar_read
 
-!!****f* colvar/colvar_eval_f [1.0] *
-!!
-!!   NAME
-!!     colvar_eval_f
-!!
-!!   FUNCTION
-!!     evaluates the force (dsdr) given and due to the given colvar
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - colvar: the collective variable to evaluate
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     Alessandro Laio and fawzi
-!!
-!!*** **********************************************************************
-SUBROUTINE colvar_eval_f(isubsys,icolvar,force_env,error)
+  !!****f* colvar/colvar_eval_f [1.0] *
+  !!
+  !!   NAME
+  !!     colvar_eval_f
+  !!
+  !!   FUNCTION
+  !!     evaluates the force (dsdr) given and due to the given colvar
+  !!
+  !!   NOTES
+  !!     -
+  !!
+  !!   ARGUMENTS
+  !!     - colvar: the collective variable to evaluate
+  !!     - error: variable to control error logging, stopping,... 
+  !!       see module cp_error_handling 
+  !!
+  !!   AUTHOR
+  !!     Alessandro Laio and fawzi
+  !!
+  !!*** **********************************************************************
+  SUBROUTINE colvar_eval_f(isubsys,icolvar,force_env,error)
     INTEGER                                  :: isubsys, icolvar
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+         OPTIONAL                               :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'colvar_eval_f', &
-      routineP = moduleN//':'//routineN
+         routineP = moduleN//':'//routineN
 
     LOGICAL                                  :: colvar_ok, failure
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_subsystem_p_type), &
-      DIMENSION(:), POINTER                  :: subsys
+         DIMENSION(:), POINTER                  :: subsys
 
-  failure=.FALSE.
-  NULLIFY(subsys,cell)
-  CALL force_env_get(force_env,subsys=subsys,cell=cell,error=error)
-  colvar_ok=ASSOCIATED(subsys(isubsys)%subsys%colvar)
-  CPAssert(colvar_ok,cp_failure_level,routineP,error,failure)
-  
-  IF (.NOT. failure) THEN
-     SELECT CASE(subsys(isubsys)%subsys%colvar(icolvar)%type_id)
-     CASE (dist_colvar_id)
-        CALL dist_colvar(icolvar,subsys(isubsys)%subsys,cell,error=error)
-     CASE (coord_colvar_id)
-        CALL coord_colvar(icolvar,subsys(isubsys)%subsys,cell, error=error)
-     CASE (torsion_colvar_id)
-        CALL torsion_colvar(icolvar,subsys(isubsys)%subsys,cell, error=error)
-     CASE (angle_colvar_id)
-        CALL angle_colvar(icolvar,subsys(isubsys)%subsys,cell, error=error)
-     CASE (plane_distance_colvar_id)
-        CALL plane_distance_colvar(icolvar,subsys(isubsys)%subsys,cell, error=error)
-     CASE default
-        CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
-     END SELECT
-  END IF
-END SUBROUTINE colvar_eval_f
-!***************************************************************************
+    failure=.FALSE.
+    NULLIFY(subsys,cell)
+    CALL force_env_get(force_env,subsys=subsys,cell=cell,error=error)
+    colvar_ok=ASSOCIATED(subsys(isubsys)%subsys%colvar)
+    CPAssert(colvar_ok,cp_failure_level,routineP,error,failure)
 
-!!****f* colvar/plane_distance_colvar [1.0] *
-!!
-!!   NAME
-!!     plane_distance_colvar
-!!
-!!   FUNCTION
-!!     evaluates the force due (and on) the distance from the plane collective variable
-!!
-!!   NOTES
-!!     -
-!!   AUTHOR
-!!     Teodoro Laino 02.2006 [created]
-!!
-!!*** **********************************************************************
+    IF (.NOT. failure) THEN
+       SELECT CASE(subsys(isubsys)%subsys%colvar(icolvar)%type_id)
+       CASE (dist_colvar_id)
+          CALL dist_colvar(icolvar,subsys(isubsys)%subsys,cell,error=error)
+       CASE (coord_colvar_id)
+          CALL coord_colvar(icolvar,subsys(isubsys)%subsys,cell, error=error)
+       CASE (torsion_colvar_id)
+          CALL torsion_colvar(icolvar,subsys(isubsys)%subsys,cell, error=error)
+       CASE (angle_colvar_id)
+          CALL angle_colvar(icolvar,subsys(isubsys)%subsys,cell, error=error)
+       CASE (plane_distance_colvar_id)
+          CALL plane_distance_colvar(icolvar,subsys(isubsys)%subsys,cell, error=error)
+       CASE default
+          CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
+       END SELECT
+    END IF
+  END SUBROUTINE colvar_eval_f
+  !***************************************************************************
+
+  !!****f* colvar/plane_distance_colvar [1.0] *
+  !!
+  !!   NAME
+  !!     plane_distance_colvar
+  !!
+  !!   FUNCTION
+  !!     evaluates the force due (and on) the distance from the plane collective variable
+  !!
+  !!   NOTES
+  !!     -
+  !!   AUTHOR
+  !!     Teodoro Laino 02.2006 [created]
+  !!
+  !!*** **********************************************************************
   SUBROUTINE plane_distance_colvar(icolvar,subsys,cell,error)
     INTEGER                                  :: icolvar
     TYPE(cp_subsystem_type), POINTER         :: subsys
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+         OPTIONAL                               :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'plane_distance_colvar', &
-      routineP = moduleN//':'//routineN
+         routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, j, k, l
     LOGICAL                                  :: failure
     REAL(dp) :: a, b, dsdxpn(3), dxpndxi(3,3), dxpndxj(3,3), dxpndxk(3,3), &
-      r12, xpij(3), xpkj(3), xpl(3), xpn(3)
+         r12, xpij(3), xpkj(3), xpl(3), xpn(3)
     TYPE(colvar_type), POINTER               :: colvar
     TYPE(particle_list_type), POINTER        :: particles_i
 
@@ -349,8 +360,8 @@ END SUBROUTINE colvar_eval_f
     xpij=particles_i%els(i)%r(1:3)-particles_i%els(j)%r(1:3)
     xpkj=particles_i%els(k)%r(1:3)-particles_i%els(j)%r(1:3)
     xpl =particles_i%els(l)%r(1:3)-(particles_i%els(i)%r(1:3)+&
-                                    particles_i%els(j)%r(1:3)+&
-                                    particles_i%els(k)%r(1:3))/3.0_dp
+         particles_i%els(j)%r(1:3)+&
+         particles_i%els(k)%r(1:3))/3.0_dp
     xpn(1)  = xpij(2)*xpkj(3)-xpij(3)*xpkj(2)
     xpn(2)  = xpij(3)*xpkj(1)-xpij(1)*xpkj(3)
     xpn(3)  = xpij(1)*xpkj(2)-xpij(2)*xpkj(1)
@@ -399,34 +410,34 @@ END SUBROUTINE colvar_eval_f
 
   END SUBROUTINE plane_distance_colvar
 
-!!****f* colvar/angle_colvar [1.0] *
-!!
-!!   NAME
-!!     angle_colvar
-!!
-!!   FUNCTION
-!!     evaluates the force due (and on) the distance from the plane collective variable
-!!
-!!   NOTES
-!!     -
-!!   AUTHOR
-!!     Teodoro Laino 02.2006 [created]
-!!
-!!*** **********************************************************************
+  !!****f* colvar/angle_colvar [1.0] *
+  !!
+  !!   NAME
+  !!     angle_colvar
+  !!
+  !!   FUNCTION
+  !!     evaluates the force due (and on) the distance from the plane collective variable
+  !!
+  !!   NOTES
+  !!     -
+  !!   AUTHOR
+  !!     Teodoro Laino 02.2006 [created]
+  !!
+  !!*** **********************************************************************
   SUBROUTINE angle_colvar(icolvar,subsys,cell,error)
     INTEGER                                  :: icolvar
     TYPE(cp_subsystem_type), POINTER         :: subsys
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+         OPTIONAL                               :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'angle_colvar', &
-      routineP = moduleN//':'//routineN
+         routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, j, k
     LOGICAL                                  :: failure
     REAL(dp)                                 :: a, b, fmod, t0, t1, t2, t3, &
-                                                xij(3), xkj(3)
+         xij(3), xkj(3)
     TYPE(colvar_type), POINTER               :: colvar
     TYPE(particle_list_type), POINTER        :: particles_i
 
@@ -458,38 +469,38 @@ END SUBROUTINE colvar_eval_f
     colvar%dsdr(:,2)=-xkj(:)*t0+xij(:)*t1*t3-xij(:)*t0+xkj(:)*t2*t3
     colvar%dsdr(:,3)= xij(:)*t0-xkj(:)*t2*t3
     colvar%dsdr = colvar%dsdr * fmod
-    
+
   END SUBROUTINE angle_colvar
 
 
-!!****f* colvar/dist_colvar [1.0] *
-!!
-!!   NAME
-!!     dist_colvar
-!!
-!!   FUNCTION
-!!     evaluates the force due (and on) the distance collective variable
-!!
-!!   NOTES
-!!     -
-!!   AUTHOR
-!!     Alessandro Laio, Fawzi Mohamed
-!!
-!!*** **********************************************************************
+  !!****f* colvar/dist_colvar [1.0] *
+  !!
+  !!   NAME
+  !!     dist_colvar
+  !!
+  !!   FUNCTION
+  !!     evaluates the force due (and on) the distance collective variable
+  !!
+  !!   NOTES
+  !!     -
+  !!   AUTHOR
+  !!     Alessandro Laio, Fawzi Mohamed
+  !!
+  !!*** **********************************************************************
   SUBROUTINE dist_colvar(icolvar,subsys,cell,error)
     INTEGER                                  :: icolvar
     TYPE(cp_subsystem_type), POINTER         :: subsys
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+         OPTIONAL                               :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dist_colvar', &
-      routineP = moduleN//':'//routineN
+         routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, j
     LOGICAL                                  :: failure
     REAL(dp)                                 :: r12, ss(3), xij(3), xpi(3), &
-                                                xpj(3)
+         xpj(3)
     TYPE(colvar_type), POINTER               :: colvar
     TYPE(particle_list_type), POINTER        :: particles_i
 
@@ -513,44 +524,44 @@ END SUBROUTINE colvar_eval_f
     colvar%dsdr(:,2)=-xij/r12
 
   END SUBROUTINE dist_colvar
-!***************************************************************************
+  !***************************************************************************
 
 
-!!****f* colvar/coord_colvar [1.0] *
-!!
-!!   NAME
-!!     coord_colvar
-!!
-!!   FUNCTION
-!!     evaluates the force due (and on) the coordination collective variable
-!!
-!!   NOTES
-!!
-!!   AUTHOR
-!!     Alessandro Laio, Fawzi Mohamed
-!!
-!!*** **********************************************************************
+  !!****f* colvar/coord_colvar [1.0] *
+  !!
+  !!   NAME
+  !!     coord_colvar
+  !!
+  !!   FUNCTION
+  !!     evaluates the force due (and on) the coordination collective variable
+  !!
+  !!   NOTES
+  !!
+  !!   AUTHOR
+  !!     Alessandro Laio, Fawzi Mohamed
+  !!
+  !!*** **********************************************************************
   SUBROUTINE coord_colvar(icolvar,subsys,cell,error)
     INTEGER                                  :: icolvar
     TYPE(cp_subsystem_type), POINTER         :: subsys
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+         OPTIONAL                               :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'coord_colvar', &
-      routineP = moduleN//':'//routineN
+         routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, ii, jj, n_atoms_from, &
-                                                n_atoms_to, ndcrd, nncrd
+         n_atoms_to, ndcrd, nncrd
     LOGICAL                                  :: failure
     REAL(dp)                                 :: dfunc, func, invden, ncoord, &
-                                                num, r12, r_0, rdist, ss(3), &
-                                                xij(3)
+         num, r12, r_0, rdist, ss(3), &
+         xij(3)
     REAL(dp), DIMENSION(3)                   :: xpi, xpj
     TYPE(colvar_type), POINTER               :: colvar
     TYPE(particle_list_type), POINTER        :: particles_i
 
-!
+    !
 
     failure=.FALSE.
     colvar=>subsys%colvar(icolvar)
@@ -566,71 +577,71 @@ END SUBROUTINE colvar_eval_f
     ncoord=0.0_dp
     colvar%dsdr=0.0_dp
     DO ii=1,n_atoms_from
-      i=colvar%coord_param%i_at_from(ii)
-      xpi(:)=particles_i%els(i)%r(1:3)
-      DO jj=1,n_atoms_to
-        i=colvar%coord_param%i_at_to(jj)
-        xpj(:)=particles_i%els(i)%r(1:3)
-        ss=MATMUL(cell%h_inv,xpi(:)-xpj(:))
-        ss=ss-NINT(ss)
-        xij=MATMUL(cell%hmat,ss)
-        r12=SQRT(xij(1)**2+xij(2)**2+xij(3)**2)
-        IF(r12 < 1.0e-8_dp)CYCLE
-        rdist = r12/r_0
-        num=(1.0_dp-rdist**nncrd)
-        invden=1.0_dp/(1.0_dp-rdist**ndcrd)
-        func=num*invden
-        dfunc= (- nncrd*rdist **(nncrd-1) *invden  &
-          + num*(invden)**2 * ndcrd *rdist **(ndcrd-1))/(r12*r_0)
-                                                                               
-        ncoord=ncoord+func
-        colvar%dsdr(:,ii)=colvar%dsdr(:,ii)+dfunc*xij
-        colvar%dsdr(:,n_atoms_from+jj)=colvar%dsdr(:,n_atoms_from+jj)-dfunc*xij
-      ENDDO
+       i=colvar%coord_param%i_at_from(ii)
+       xpi(:)=particles_i%els(i)%r(1:3)
+       DO jj=1,n_atoms_to
+          i=colvar%coord_param%i_at_to(jj)
+          xpj(:)=particles_i%els(i)%r(1:3)
+          ss=MATMUL(cell%h_inv,xpi(:)-xpj(:))
+          ss=ss-NINT(ss)
+          xij=MATMUL(cell%hmat,ss)
+          r12=SQRT(xij(1)**2+xij(2)**2+xij(3)**2)
+          IF(r12 < 1.0e-8_dp)CYCLE
+          rdist = r12/r_0
+          num=(1.0_dp-rdist**nncrd)
+          invden=1.0_dp/(1.0_dp-rdist**ndcrd)
+          func=num*invden
+          dfunc= (- nncrd*rdist **(nncrd-1) *invden  &
+               + num*(invden)**2 * ndcrd *rdist **(ndcrd-1))/(r12*r_0)
+
+          ncoord=ncoord+func
+          colvar%dsdr(:,ii)=colvar%dsdr(:,ii)+dfunc*xij
+          colvar%dsdr(:,n_atoms_from+jj)=colvar%dsdr(:,n_atoms_from+jj)-dfunc*xij
+       ENDDO
     ENDDO
     colvar%ss=ncoord
 
   END SUBROUTINE coord_colvar
-!***************************************************************************
+  !***************************************************************************
 
-!!****f* colvar/torsion_colvar [1.0] *
-!!
-!!   NAME
-!!     torsion_colvar
-!!
-!!   FUNCTION
-!!     evaluates the force due to the torsion collective variable
-!!
-!!   NOTES
-!!
-!!   AUTHOR
-!!     Alessandro Laio, Fawzi Mohamed
-!!
-!!*** **********************************************************************
+  !!****f* colvar/torsion_colvar [1.0] *
+  !!
+  !!   NAME
+  !!     torsion_colvar
+  !!
+  !!   FUNCTION
+  !!     evaluates the force due to the torsion collective variable
+  !!
+  !!   NOTES
+  !!
+  !!   AUTHOR
+  !!     Alessandro Laio, Fawzi Mohamed
+  !!
+  !!*** **********************************************************************
   SUBROUTINE torsion_colvar(icolvar,subsys,cell,error)
     INTEGER                                  :: icolvar
     TYPE(cp_subsystem_type), POINTER         :: subsys
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+         OPTIONAL                               :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'torsion_colvar', &
-      routineP = moduleN//':'//routineN
+         routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, ii
     LOGICAL                                  :: failure
     REAL(dp) :: angle, cosine, dedphi, dedxia, dedxib, dedxic, dedxid, dedxt, &
-      dedxu, dedyia, dedyib, dedyic, dedyid, dedyt, dedyu, dedzia, dedzib, &
-      dedzic, dedzid, dedzt, dedzu, dt, e, radian, rcb, rt2, rtru, ru2, sine, &
-      xba, xca, xcb, xdb, xdc, xia, xib, xic, xid, xt, xtu, xu, yba, yca, &
-      ycb, ydb, ydc, yia, yib, yic, yid, yt, ytu, yu, zba, zca, zcb, zdb, &
-      zdc, zia, zib, zic, zid, zt, ztu, zu
+         dedxu, dedyia, dedyib, dedyic, dedyid, dedyt, dedyu, dedzia, dedzib, &
+         dedzic, dedzid, dedzt, dedzu, dt, e, radian, rcb, rt2, rtru, ru2, sine, &
+         xba, xca, xcb, xdb, xdc, xia, xib, xic, xid, xt, xtu, xu, yba, yca, &
+         ycb, ydb, ydc, yia, yib, yic, yid, yt, ytu, yu, zba, zca, zcb, zdb, &
+         zdc, zia, zib, zic, zid, zt, ztu, zu
     REAL(dp), DIMENSION(3, 4)                :: rr
     TYPE(colvar_type), POINTER               :: colvar
     TYPE(particle_list_type), POINTER        :: particles_i
 
-! locals (tinker)
-!
+    ! locals (tinker)
+    !
 
     failure=.FALSE.
     colvar=>subsys%colvar(icolvar)
@@ -748,6 +759,6 @@ END SUBROUTINE colvar_eval_f
     colvar%dsdr(3,4)=dedzid
 
   END SUBROUTINE torsion_colvar
-!***************************************************************************
+  !***************************************************************************
 
 END MODULE colvar_methods
