@@ -201,6 +201,7 @@ OBJECTS_GENERIC =\
  level_shift.o\
  library_tests.o\
  linear_systems.o\
+ lowdin.o\
  machine.o\
  manybody_potential.o\
  mathconstants.o\

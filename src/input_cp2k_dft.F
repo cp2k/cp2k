@@ -638,6 +638,13 @@ CONTAINS
        CALL section_add_subsection(section,print_key,error=error)
        CALL section_release(print_key,error=error)
 
+       CALL cp_print_key_section_create(print_key,"LOWDIN",&
+            description="Controls the printing of the Lowdin charges.", &
+            print_level=medium_print_level,each=(/1/),filename="__STD_OUT__",&
+            common_iter_levels=1, error=error)
+       CALL section_add_subsection(section,print_key,error=error)
+       CALL section_release(print_key,error=error)
+
        CALL cp_print_key_section_create(&
              print_key_section=print_key,&
              name="XRAY_DIFFRACTION_SPECTRUM",&

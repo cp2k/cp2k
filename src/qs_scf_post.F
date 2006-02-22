@@ -70,6 +70,7 @@ MODULE qs_scf_post
   USE kinds,                           ONLY: default_string_length,&
                                              dp
   USE level_shift,                     ONLY: level_shift_testing
+  USE lowdin,                          ONLY: lowdin_charges
   USE message_passing,                 ONLY: mp_sum
   USE molecular_states,                ONLY: construct_molecular_states
   USE molecule_types_new,              ONLY: molecule_type
@@ -234,6 +235,7 @@ CONTAINS
     CHARACTER(LEN=80)  :: filename
     CHARACTER(LEN=80) :: title
     CHARACTER(LEN=default_string_length) :: mulliken_title
+    CHARACTER(LEN=default_string_length) :: lowdin_title
     REAL(KIND = dp)           :: q_max,volume
     REAL(KIND = dp), POINTER, DIMENSION(:,:) :: center
     TYPE(section_vals_type), POINTER :: print_key, input
@@ -283,7 +285,7 @@ CONTAINS
        IF (BTEST(cp_print_key_should_output(logger%iter_info,input,&
             "DFT%PRINT%MULLIKEN",error=error),cp_p_file)) THEN
           unit_nr=cp_print_key_unit_nr(logger,input,"DFT%PRINT%MULLIKEN",&
-               extension=".mulliken",middle_name="",log_filename=.FALSE.,error=error)
+               extension=".mulliken",log_filename=.FALSE.,error=error)
           mulliken_title="  Mulliken charges : iteration level: " &
                                 //cp_iter_string(logger%iter_info, print_key)
           CALL mulliken_charges(rho%rho_ao,matrix_s(1)%matrix,globenv%para_env,particle_set, &
@@ -292,6 +294,20 @@ CONTAINS
           CALL cp_print_key_finished_output(unit_nr, logger,input,&
                "DFT%PRINT%MULLIKEN", error=error)
        END IF
+
+!    *** compute the Lowdin charges ***
+       IF (BTEST(cp_print_key_should_output(logger%iter_info,input,&
+            "DFT%PRINT%LOWDIN",error=error),cp_p_file)) THEN
+          unit_nr=cp_print_key_unit_nr(logger,input,"DFT%PRINT%LOWDIN",&
+               extension=".lowdin",log_filename=.FALSE.,error=error)
+          lowdin_title="  Lowdin charges : iteration level: " &
+                                //cp_iter_string(logger%iter_info, print_key)
+          CALL lowdin_charges(matrix_s(1)%matrix,mos,particle_set, &
+                                  unit_nr,unit_nr>0,lowdin_title)
+          CALL cp_print_key_finished_output(unit_nr, logger,input,&
+               "DFT%PRINT%LOWDIN", error=error)
+       END IF
+
 
 !    *** Fit charges with the Bloechl scheme
        print_key => section_vals_get_subs_vals(input,"PROPERTIES%FIT_CHARGE", error=error)
