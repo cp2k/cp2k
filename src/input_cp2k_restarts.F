@@ -160,7 +160,7 @@ CONTAINS
     !
     IF (PRESENT(kg_env)) THEN
        my_kg_env => kg_env
-    ELSE
+    ELSEIF (ASSOCIATED(my_force_env)) THEN 
        my_kg_env => my_force_env%kg_env
     END IF
     !

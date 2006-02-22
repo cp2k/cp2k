@@ -76,8 +76,6 @@ MODULE integrator
   USE particle_types,                  ONLY: particle_type
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
-!  USE transformations,                 ONLY: fr2fu,&
-!                                             u2r
   USE util,                            ONLY: matmul_3x3,&
                                              matvec_3x3,&
                                              transpose_3d
