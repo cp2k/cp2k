@@ -37,7 +37,11 @@ CONTAINS
     COMPLEX(dbl) :: a ( n )
     REAL(dbl) :: sc
 
-    a(1:n) = sc*a(1:n)
+#if defined(__SGL) || defined(__FFTSGL)
+    CALL sscal(n,sc,a,1)
+#else
+    CALL dscal(n,sc,a,1)
+#endif
 
   END SUBROUTINE scaled
   
