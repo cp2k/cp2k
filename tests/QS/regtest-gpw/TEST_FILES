@@ -94,3 +94,5 @@ H2O-ref-1.inp      1
 H2O-ref-2.inp      1
 # All-to-all single communication in parallel runs
 H2O-ata.inp        1
+# Lowdin charges
+CN-lowdin.inp      0
