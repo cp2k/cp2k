@@ -11,3 +11,5 @@ H2O-bloechl-Spl.inp
 rsgrid-dist-1.inp
 #reset after using list-directed IO
 H2O-langevin-2.inp
+#changing syevx -> syevd in cp_fm_power
+Ar-2.inp
