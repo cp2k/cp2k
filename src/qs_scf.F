@@ -1638,8 +1638,7 @@ CONTAINS
     CALL timeset("calculate_ortho_matrix","I"," ",handle)
 
     CALL copy_sm_to_fm(matrix_s,ortho)
-    CALL cp_fm_power(ortho,work,-0.5_dp,eps_eigval,ndep,work_syevx)
-    CALL cp_fm_upper_to_full(ortho,work)
+    CALL cp_fm_power(ortho,work,-0.5_dp,eps_eigval,ndep)
 
     CALL timestop(0.0_dp,handle)
 

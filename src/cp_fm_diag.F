@@ -24,7 +24,8 @@
 MODULE cp_fm_diag
   USE cp_blacs_calls,                  ONLY: cp_blacs_gridexit,&
                                              cp_blacs_gridinit
-  USE cp_fm_basic_linalg,              ONLY: cp_fm_syrk
+  USE cp_fm_basic_linalg,              ONLY: cp_fm_syrk, &
+                                             cp_fm_upper_to_full
   USE cp_fm_types,                     ONLY: cp_fm_to_fm,&
                                              cp_fm_type
   USE cp_para_types,                   ONLY: cp_blacs_env_type
@@ -353,12 +354,11 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE cp_fm_power(matrix,work,exponent,threshold,n_dependent,&
-                                work_syevx)
+  SUBROUTINE cp_fm_power(matrix,work,exponent,threshold,n_dependent)
 
-!   Purpose: Raise the real symmetric n by n matrix to the power given by
+!   Purpose: Raise the real symmetric n by n 'matrix' to the power given by
 !            exponent. All eigenvectors with a corresponding eigenvalue lower
-!            than threshold are quenched.
+!            than threshold are quenched. result in 'matrix'
 
 !   History: - Creation (29.03.1999, Matthias Krack)
 !            - Parallelised using BLACS and ScaLAPACK (06.06.2001, MK)
@@ -366,7 +366,7 @@ CONTAINS
 !   ***************************************************************************
 
     TYPE(cp_fm_type), POINTER                 :: matrix,work
-    REAL(KIND = dp), INTENT(IN)                      :: exponent,threshold,work_syevx
+    REAL(KIND = dp), INTENT(IN)                      :: exponent,threshold
     INTEGER, INTENT(OUT)                      :: n_dependent
 
 !   *** Local parameters ***
@@ -411,7 +411,7 @@ CONTAINS
 
 !   *** Compute the eigenvectors and eigenvalues ***
 
-    CALL cp_fm_syevx(matrix,work,eigenvalues,ncol_global,work_syevx)
+    CALL cp_fm_syevd(matrix,work,eigenvalues)
     IF (matrix%matrix_struct%para_env%mepos.eq.0) THEN
       WRITE(cp_logger_get_default_unit_nr(),'(T2,A,2E16.8)') &
                   "S inversion : smallest and largest evals",eigenvalues(1),eigenvalues(ncol_global)
@@ -510,6 +510,7 @@ CONTAINS
 
 #endif
     CALL cp_fm_syrk("U","N",ncol_global,1.0_dp,work,1,1,0.0_dp,matrix)
+    CALL cp_fm_upper_to_full(matrix,work)
 
     DEALLOCATE (eigenvalues,STAT=istat)
     IF (istat /= 0) CALL stop_memory(routine,"eigenvalues")
