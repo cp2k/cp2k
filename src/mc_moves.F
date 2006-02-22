@@ -2448,7 +2448,11 @@ CONTAINS
             (bias_energy_new-bias_energy_old))
          
          IF(del_quickstep_energy .GT. mc_hardcut) THEN
+#if defined (__SGL)
+            del_quickstep_energy=1.6E38_dp
+#else
             del_quickstep_energy=1.4E217_dp
+#endif
          ELSEIF(del_quickstep_energy .LT. -mc_hardcut) THEN
             del_quickstep_energy=0.0_dp
          ELSE

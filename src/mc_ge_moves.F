@@ -994,6 +994,15 @@ CONTAINS
          bias_energy_new(remove_box)-bias_energy_old(insert_box)&
          -bias_energy_old(remove_box)))
          
+#if defined (__SGL)
+         IF(del_quickstep_energy .GT. 88.0_dp) THEN
+            del_quickstep_energy=1.6E38_dp
+         ELSEIF(del_quickstep_energy .LT. -103.0_dp) THEN
+            del_quickstep_energy=0.0_dp
+         ELSE
+            del_quickstep_energy=EXP(del_quickstep_energy)
+         ENDIF
+#else
          IF(del_quickstep_energy .GT. 500.0_dp) THEN
             del_quickstep_energy=1.4E217_dp
          ELSEIF(del_quickstep_energy .LT. -500.0_dp) THEN
@@ -1001,6 +1010,7 @@ CONTAINS
          ELSE
             del_quickstep_energy=EXP(del_quickstep_energy)
          ENDIF
+#endif
          
          w=prefactor*del_quickstep_energy*weight_new/weight_old
          

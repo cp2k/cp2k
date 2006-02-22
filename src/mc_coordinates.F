@@ -1136,6 +1136,15 @@ SUBROUTINE generate_cbmc_swap_config( force_env, BETA, nswapmoves,&
          trial_energy(imove)=(bias_energy-old_energy)
 
          exponent=-BETA*trial_energy(imove)
+#if defined (__SGL)
+         IF(exponent .GT. 88.0_dp) THEN
+            boltz_weights(imove)=1.6E38_dp
+         ELSEIF(exponent .LT. -103.0_dp) THEN
+            boltz_weights(imove)=0.0_dp
+         ELSE
+            boltz_weights(imove)=EXP(exponent)
+         ENDIF
+#else
          IF(exponent .GT. 500.0_dp) THEN
             boltz_weights(imove)=1.4E217_dp
          ELSEIF(exponent .LT. -500.0_dp) THEN
@@ -1143,6 +1152,7 @@ SUBROUTINE generate_cbmc_swap_config( force_env, BETA, nswapmoves,&
          ELSE
             boltz_weights(imove)=EXP(exponent)
          ENDIF
+#endif
       ENDDO
 
 ! now we need to pick a configuration based on the Rosenbluth weight,

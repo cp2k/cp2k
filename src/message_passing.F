@@ -1163,7 +1163,9 @@ END SUBROUTINE mp_alltoall_c22v
 #if defined(__SGL)
 SUBROUTINE mp_alltoall_c22v_sgl ( dummy )
     LOGICAL, INTENT(IN)                      :: dummy
+    INTEGER                                  :: ierr
 
+  ierr = 100
   CALL mp_stop( ierr, "mp_alltoall_c22v_sgl" )
 END SUBROUTINE mp_alltoall_c22v_sgl
 #else

@@ -3333,7 +3333,7 @@ END SUBROUTINE create_ot_section
            variants=(/"CONV"/),&
            description="Convergence criterion for the xas-scf",&
            usage="CONVERGENCE 0.00005",&
-           default_r_val=0.5D-6,error=error)
+           default_r_val=0.5E-6_dp,error=error)
       CALL section_add_keyword(section,keyword,error=error)
       CALL keyword_release(keyword,error=error)
  
