@@ -401,7 +401,7 @@ CONTAINS
             DO iparticle=1,nunits_tot(ibox)
                particles(ibox)%list%els(iparticle)%r(1:3)=&
                   r_old(1:3,iparticle,ibox)
-               IF(lbias) &
+               IF(lbias .AND. box_flag(ibox) == 1) &
                   particles_bias(ibox)%list%els(iparticle)%r(1:3)=&
                   r_old(1:3,iparticle,ibox)
             ENDDO
@@ -412,7 +412,7 @@ CONTAINS
       DO ibox=1,nboxes
          CALL cp_subsys_set(subsys(ibox)%subsys(1)%subsys,&
             particles=particles(ibox)%list)
-         IF(lbias) &
+         IF(lbias .AND. box_flag(ibox) == 1) &
             CALL cp_subsys_set(subsys_bias(ibox)%subsys(1)%subsys,&
             particles=particles_bias(ibox)%list)
       ENDDO
