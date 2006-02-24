@@ -684,7 +684,7 @@ SUBROUTINE val_write(val,unit_nr,unit,unit_str,fmt,error)
      CASE (integer_t)
         IF (ASSOCIATED(val%i_val)) THEN
            DO i=1,SIZE(val%i_val)
-              IF (MODULO(i,10)==0) THEN 
+              IF (MODULO(i,8)==0) THEN 
                  WRITE(unit=unit_nr,fmt="(' \')")
                  WRITE(unit=unit_nr,fmt="("//TRIM(myfmt)//")",advance="NO")
               END IF
