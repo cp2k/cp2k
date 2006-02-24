@@ -57,9 +57,8 @@ MODULE tbmd_neighbor_lists
        init_neighbor_list_set, neighbor_list_p_type, &
        neighbor_list_set_p_type, neighbor_list_set_type, neighbor_list_type, &
        neighbor_node_type, next
-!USE fist_neighbor_lists,                    ONLY: build_neighbor_lists, &
-!                                                  write_neighbor_lists, &
-!                                                  write_distribution
+  USE fist_neighbor_lists,             ONLY: write_neighbor_lists,&
+                                             write_distribution
   USE global_types,                    ONLY: global_environment_type
   USE input_section_types,             ONLY: section_vals_type
   USE kinds,                           ONLY: default_string_length,&
@@ -89,11 +88,11 @@ MODULE tbmd_neighbor_lists
 
   PRIVATE
 
-! *** Global parameters ***
+  ! Global parameters
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'tbmd_neighbor_lists'
 
-! *** Public subroutines ***
+  ! Public subroutines
 
   PUBLIC :: tbmd_neighbor_list_control, &
             build_tbmd_neighbor_lists
@@ -166,7 +165,7 @@ CONTAINS
     TYPE(neighbor_list_set_p_type), &
       DIMENSION(:), POINTER                  :: tbmd_neighbor_list
 
-!   ------------------------------------------------------------------------
+    ! -------------------------------------------------------------------------
 
     CALL timeset(routineN, "I", "", handle)
 
@@ -457,10 +456,9 @@ CONTAINS
        iw = cp_print_key_unit_nr(logger,force_env_section, &
                                  "TBMD%PRINT%NEIGHBOR_LISTS", &
                                  extension=".mmLog", error=error)
-       CALL write_neighbor_lists(tbmd_neighbor_list, particle_set, cell, &
-                                 globenv=globenv, output_unit=iw, &
-                                 name="TIGHT-BINDING NEIGHBOR LISTS", &
-                                 error=error)
+       CALL write_neighbor_lists(tbmd_neighbor_list,particle_set,cell,&
+                                 globenv,iw,"TIGHT-BINDING NEIGHBOR LISTS",&
+                                 error)
        CALL cp_print_key_finished_output(iw, logger, force_env_section, &
                                          "TBMD%PRINT%NEIGHBOR_LISTS", &
                                          error=error)
@@ -549,6 +547,7 @@ CONTAINS
 !!     02.2006 initial create [tdk]
 !!
 !!*** **********************************************************************
+
   SUBROUTINE build_neighbor_lists(ab, particle_set, atom, cell, maxatom_local, &
                                   print_subcell_grid, output_unit, r_max,&
                                   build_from_scratch)
@@ -707,27 +706,33 @@ CONTAINS
 
               sb(3) = sb_pbc(3) + REAL(kcell,dp)
               sb_min(3) = sb(3) - sab_max(3)
-              IF (sb_min(3) >= 0.5_dp) EXIT loop1_kcell
               sb_max(3) = sb(3) + sab_max(3)
-              IF (sb_max(3) < -0.5_dp) CYCLE loop1_kcell
+              IF (periodic(3) /= 0) THEN
+                IF (sb_min(3) >= 0.5_dp) EXIT loop1_kcell
+                IF (sb_max(3) < -0.5_dp) CYCLE loop1_kcell
+              END IF
               cell_b(3) = kcell
 
               loop1_jcell: DO jcell=-ncell(2),ncell(2)
 
                 sb(2) = sb_pbc(2) + REAL(jcell,dp)
                 sb_min(2) = sb(2) - sab_max(2)
-                IF (sb_min(2) >= 0.5_dp) EXIT loop1_jcell
                 sb_max(2) = sb(2) + sab_max(2)
-                IF (sb_max(2) < -0.5_dp) CYCLE loop1_jcell
+                IF (periodic(2) /= 0) THEN
+                  IF (sb_min(2) >= 0.5_dp) EXIT loop1_jcell
+                  IF (sb_max(2) < -0.5_dp) CYCLE loop1_jcell
+                END IF
                 cell_b(2) = jcell
 
                 loop1_icell: DO icell = -ncell(1),ncell(1)
 
                   sb(1) = sb_pbc(1) + REAL(icell,dp)
                   sb_min(1) = sb(1) - sab_max(1)
-                  IF (sb_min(1) >= 0.5_dp) EXIT loop1_icell
                   sb_max(1) = sb(1) + sab_max(1)
-                  IF (sb_max(1) < -0.5_dp) CYCLE loop1_icell
+                  IF (periodic(1) /= 0) THEN
+                    IF (sb_min(1) >= 0.5_dp) EXIT loop1_icell
+                    IF (sb_max(1) < -0.5_dp) CYCLE loop1_icell
+                  END IF
                   cell_b(1) = icell
 
                   cell000 = ((icell == 0).AND.&
@@ -803,27 +808,33 @@ CONTAINS
 
               sb(3) = sb_pbc(3) + REAL(kcell,dp)
               sb_min(3) = sb(3) - sab_max(3)
-              IF (sb_min(3) >= 0.5_dp) EXIT loop2_kcell
               sb_max(3) = sb(3) + sab_max(3)
-              IF (sb_max(3) < -0.5_dp) CYCLE loop2_kcell
+              IF (periodic(3) /= 0) THEN
+                IF (sb_min(3) >= 0.5_dp) EXIT loop2_kcell
+                IF (sb_max(3) < -0.5_dp) CYCLE loop2_kcell
+              END IF
               cell_b(3) = kcell
 
               loop2_jcell: DO jcell = -ncell(2),ncell(2)
 
                 sb(2) = sb_pbc(2) + REAL(jcell,dp)
                 sb_min(2) = sb(2) - sab_max(2)
-                IF (sb_min(2) >= 0.5_dp) EXIT loop2_jcell
                 sb_max(2) = sb(2) + sab_max(2)
-                IF (sb_max(2) < -0.5_dp) CYCLE loop2_jcell
+                IF (periodic(2) /= 0) THEN
+                  IF (sb_min(2) >= 0.5_dp) EXIT loop2_jcell
+                  IF (sb_max(2) < -0.5_dp) CYCLE loop2_jcell
+                END IF
                 cell_b(2) = jcell
 
                 loop2_icell: DO icell = -ncell(1),ncell(1)
 
                   sb(1) = sb_pbc(1) + REAL(icell,dp)
                   sb_min(1) = sb(1) - sab_max(1)
-                  IF (sb_min(1) >= 0.5_dp) EXIT loop2_icell
                   sb_max(1) = sb(1) + sab_max(1)
-                  IF (sb_max(1) < -0.5_dp) CYCLE loop2_icell
+                  IF (periodic(1) /= 0) THEN
+                    IF (sb_min(1) >= 0.5_dp) EXIT loop2_icell
+                    IF (sb_max(1) < -0.5_dp) CYCLE loop2_icell
+                  END IF
                   cell_b(1) = icell
 
                   cell000 = ((icell == 0).AND.&
@@ -836,17 +847,23 @@ CONTAINS
                     loop_j: DO j = 1,nsubcell(2)
                       loop_i: DO i = 1,nsubcell(1)
 
+                        IF (periodic(3) /= 0) THEN
+                          IF (sb_max(3) < subcell(i,j,k)%s_min(3)) EXIT loop_k
+                          IF (sb_min(3) >= subcell(i,j,k)%s_max(3)) CYCLE loop_k
+                        END IF
+
+                        IF (periodic(2) /= 0) THEN
+                          IF (sb_max(2) < subcell(i,j,k)%s_min(2)) EXIT loop_j
+                          IF (sb_min(2) >= subcell(i,j,k)%s_max(2)) CYCLE loop_j
+                        END IF
+
+                        IF (periodic(1) /= 0) THEN
+                          IF (sb_max(1) < subcell(i,j,k)%s_min(1)) EXIT loop_i
+                          IF (sb_min(1) >= subcell(i,j,k)%s_max(1)) CYCLE loop_i
+                        END IF
+
                         IF (subcell(i,j,k)%natom == 0) CYCLE
  
-                        IF (sb_max(3) < subcell(i,j,k)%s_min(3)) EXIT loop_k
-                        IF (sb_min(3) >= subcell(i,j,k)%s_max(3)) CYCLE loop_k
-
-                        IF (sb_max(2) < subcell(i,j,k)%s_min(2)) EXIT loop_j
-                        IF (sb_min(2) >= subcell(i,j,k)%s_max(2)) CYCLE loop_j
-
-                        IF (sb_max(1) < subcell(i,j,k)%s_min(1)) EXIT loop_i
-                        IF (sb_min(1) >= subcell(i,j,k)%s_max(1)) CYCLE loop_i
-
                         DO iatom_subcell = 1,subcell(i,j,k)%natom
                           iatom_local = subcell(i,j,k)%atom_list(iatom_subcell)
                           iatom = atom(ikind)%list_local_a_index(iatom_local)
@@ -901,346 +918,6 @@ CONTAINS
 
   END SUBROUTINE build_neighbor_lists
 
-! *****************************************************************************
-
-!!****f* tbmd_neighbor_lists/write_distribution [1.0] *
-!!
-!!   NAME
-!!     write_distribution
-!!
-!!   FUNCTION
-!!     Prints the distribution of the simple pair neighbor list.
-!!
-!!   NOTES
-!!     Pretty much Matthias' write_distribution@fist_neighbor_lists.F
-!!
-!!   INPUTS
-!!     - ab: The pointer to the neighbor-list which should be built.
-!!     - atomic_kind_set: The set of all involvolved atomic kinds
-!!     - output_unit: The output unit
-!!     - globenv: The global environment
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
-!!
-!!   MODIFICATION HISTORY
-!!     02.2006 initial create [tdk]
-!!
-!!*** **********************************************************************
-  SUBROUTINE write_distribution(ab, atomic_kind_set, output_unit, globenv, &
-                                error)
-
-    TYPE(neighbor_list_set_p_type), &
-      DIMENSION(:), POINTER                  :: ab
-    TYPE(atomic_kind_type), DIMENSION(:), &
-      POINTER                                :: atomic_kind_set
-    INTEGER, INTENT(IN)                      :: output_unit
-    TYPE(global_environment_type), POINTER   :: globenv
-    TYPE(cp_error_type), INTENT(INOUT), &
-      OPTIONAL                               :: error
-
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'write_distribution'
-
-    INTEGER                                  :: group, iab, ikind, ilist, &
-                                                ipe, istat, jkind, mype, n, &
-                                                nkind, nlist, nnode, npe, &
-                                                nsgf_a, nsgf_b
-    INTEGER, ALLOCATABLE, DIMENSION(:)       :: nblock, nelement
-    TYPE(atomic_kind_type), POINTER          :: atomic_kind
-    TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
-    TYPE(neighbor_list_set_type), POINTER    :: neighbor_list_set
-    TYPE(neighbor_list_type), POINTER        :: neighbor_list
-
-    group = globenv%group
-    mype = globenv%mepos + 1
-    npe = globenv%num_pe
-
-!   *** Allocate work storage ***
-
-    ALLOCATE(nblock(npe), STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
-                                     "nblock", npe*int_size)
-    nblock(:) = 0
-
-    ALLOCATE(nelement(npe), STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
-                                     "nelement", npe*int_size)
-    nelement(:) = 0
-
-    nkind = SIZE(atomic_kind_set)
-
-    DO ikind = 1,nkind
-
-      atomic_kind => atomic_kind_set(ikind)
-
-      CALL get_atomic_kind(atomic_kind=atomic_kind, &
-                           orb_basis_set=orb_basis_set)
-
-      IF (ASSOCIATED(orb_basis_set)) THEN
-        CALL get_gto_basis_set(gto_basis_set=orb_basis_set, nsgf=nsgf_a)
-      ELSE
-        nsgf_a = 1
-      END IF
-
-      DO jkind = 1,nkind
-
-        iab = ikind + nkind*(jkind - 1)
-
-        neighbor_list_set => ab(iab)%neighbor_list_set
-
-        IF (.NOT.ASSOCIATED(neighbor_list_set)) CYCLE
-
-        atomic_kind => atomic_kind_set(jkind)
-
-        CALL get_atomic_kind(atomic_kind=atomic_kind, &
-                             orb_basis_set=orb_basis_set)
-
-        IF (ASSOCIATED(orb_basis_set)) THEN
-          CALL get_gto_basis_set(gto_basis_set=orb_basis_set, nsgf=nsgf_b)
-        ELSE
-          nsgf_b = 1
-        END IF
-
-        n = nsgf_a*nsgf_b
-
-        CALL get_neighbor_list_set(neighbor_list_set=neighbor_list_set, &
-                                   nlist=nlist)
-
-        neighbor_list => first_list(neighbor_list_set)
-
-        DO ilist=1,nlist
-
-          CALL get_neighbor_list(neighbor_list=neighbor_list, &
-                                 nnode=nnode)
-
-          nblock(mype) = nblock(mype) + nnode
-          nelement(mype) = nelement(mype) + n*nnode
-
-          neighbor_list => next(neighbor_list)
-
-        END DO
-
-      END DO
-
-    END DO
-
-    CALL mp_sum(nblock, group)
-    CALL mp_sum(nelement, group)
-
-    IF (output_unit>0) THEN
-      WRITE(UNIT=output_unit,&
-            FMT="(/,/,T2,A,/,/,T3,A,/,/,(T4,I6,T27,I10,T55,I10))")&
-        "DISTRIBUTION OF THE TIGHT-BINDING NEIGHBOR LISTS",&
-        "Process   Number of particle pairs   Number of matrix elements",&
-        (ipe-1, nblock(ipe), nelement(ipe), ipe=1, npe)
-      WRITE(UNIT=output_unit, FMT="(/,T7,A3,T27,I10,T55,I10)")&
-        "Sum", SUM(nblock), SUM(nelement)
-    END IF
-
-!   *** Release work storage ***
-
-    DEALLOCATE(nblock,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
-                                     "nblock")
-
-    DEALLOCATE(nelement,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
-                                     "nelement")
-
-  END SUBROUTINE write_distribution
-
-! *****************************************************************************
-
-!!****f* tbmd_neighbor_lists/write_neighbor_lists [1.0] *
-!!
-!!   NAME
-!!     write_neighbor_lists
-!!
-!!   FUNCTION
-!!     Writes the set of neighbor lists to the output unit.
-!!
-!!   NOTES
-!!     Pretty much Matthias' write_neighbor_lists@fist_neighbor_lists.F
-!!
-!!   INPUTS
-!!     - ab: The pointer to the neighbor-list which should be built.
-!!     - particle_set: The set of particles
-!!     - cell: The simulation cell
-!!     - name: The name of the neighbor-list
-!!     - output_unit: The output unit
-!!     - globenv: The global environment
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling
-!!
-!!   AUTHOR
-!!     Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
-!!
-!!   MODIFICATION HISTORY
-!!     02.2006 initial create [tdk]
-!!
-!!*** **********************************************************************
-  SUBROUTINE write_neighbor_lists(ab, particle_set, cell, name, output_unit, &
-                                  globenv, error)
-
-    TYPE(neighbor_list_set_p_type), &
-      DIMENSION(:), INTENT(IN)               :: ab
-    TYPE(particle_type), DIMENSION(:), &
-      POINTER                                :: particle_set
-    TYPE(cell_type), POINTER                 :: cell
-    CHARACTER(LEN=*), INTENT(IN)             :: name
-    INTEGER, INTENT(IN)                      :: output_unit
-    TYPE(global_environment_type), POINTER   :: globenv
-    TYPE(cp_error_type), INTENT(INOUT), &
-      OPTIONAL                               :: error
-
-    CHARACTER(LEN=8)                         :: unit_of_length_name
-    CHARACTER(LEN=default_string_length)     :: string
-    INTEGER                                  :: atom_a, atom_b, group, iab, &
-                                                ilist, inode, ipe, mype, &
-                                                nlist, nneighbor, nnode, npe
-    INTEGER, DIMENSION(3)                    :: cell_a, cell_b
-    LOGICAL                                  :: print_headline
-    REAL(dp)                                 :: dab, unit_of_length
-    REAL(dp), DIMENSION(3)                   :: ra, rab, rab_real, rb
-    TYPE(neighbor_list_set_type), POINTER    :: neighbor_list_set
-    TYPE(neighbor_list_type), POINTER        :: neighbor_list
-    TYPE(neighbor_node_type), POINTER        :: neighbor_node
-
-    group = globenv%group
-    mype = globenv%mepos + 1
-    npe = globenv%num_pe
-
-
-    CALL get_cell(cell=cell, unit_of_length=unit_of_length, &
-                  unit_of_length_name=unit_of_length_name)
-
-    CALL mp_sync(group)
-    IF (output_unit>0) CALL m_flush(output_unit)
-    CALL mp_sync(group)
-
-!   *** Create the headline ***
-
-    string = ""
-
-    IF (npe == 1) THEN
-      string = TRIM(name)//" IN "//TRIM(unit_of_length_name)
-    ELSE
-      WRITE(UNIT=string,FMT="(A,I5,A)")&
-        TRIM(name)//" IN "//TRIM(unit_of_length_name)//" (PROCESS",mype-1,")"
-        CALL compress(string)
-    END IF
-
-    print_headline = .TRUE.
-
-!   *** All processes print now their neighbor lists portion consecutively ***
-
-    nneighbor = 0
-
-    DO ipe = 1,npe
-
-      IF (ipe == mype) THEN
-
-!       *** Print first part of headline ***
-
-        IF (output_unit>0) WRITE(UNIT=output_unit, FMT="(/,/,T2,A)") TRIM(string)
-
-        DO iab=1,SIZE(ab)
-
-          neighbor_list_set => ab(iab)%neighbor_list_set
-
-          IF (.NOT.ASSOCIATED(neighbor_list_set)) CYCLE
-
-!         *** Loop over all atoms and their corresponding neighbor lists ***
-
-          CALL get_neighbor_list_set(neighbor_list_set=neighbor_list_set, &
-                                     nlist=nlist)
-
-          neighbor_list => first_list(neighbor_list_set)
-
-          DO ilist=1,nlist
-
-            CALL get_neighbor_list(neighbor_list=neighbor_list, &
-                                   atom=atom_a, cell=cell_a, &
-                                   nnode=nnode)
-            nneighbor = nneighbor + nnode
-
-            IF (output_unit>0) THEN
-                  !Print second part of headline ***
-
-                  IF (print_headline) THEN
-                     WRITE(UNIT=output_unit,FMT="(/,T3,A,7X,A,2(11X,A),10X,A)")&
-                          "Atom  Neighbors  Cell(i,j,k)","X","Y","Z","Distance"
-                     print_headline = .FALSE.
-                  END IF
-                  
-                  ra(:) = pbc(particle_set(atom_a)%r,cell,cell_a)
-                  
-                  WRITE(UNIT=output_unit,FMT="(/,T2,I5,3X,I6,3X,3I4,3F12.6)")&
-                       atom_a, nnode, cell_a(1:3), ra(1:3)/unit_of_length
-                  
-                  !             *** Direct the work pointer to the  ***
-                  !             *** start point of the current list ***
-                  
-                  neighbor_node => first_node(neighbor_list)
-                  
-                  !             *** Traverse the neighbor list of the current ***
-                  !             *** atom and print the stored information     ***
-                  
-                     
-                     DO inode=1,nnode
-                        
-                        CALL get_neighbor_node(neighbor_node=neighbor_node, &
-                             neighbor=atom_b, cell=cell_b, r=rab)
-                        
-                        rab_real(:) = scaled_to_real(rab(:),cell)
-                        rb(:) = ra(:) + rab_real(:)
-                        dab = SQRT(rab_real(1)*rab_real(1) + rab_real(2)*rab_real(2) &
-                                 + rab_real(3)*rab_real(3))
-
-                        WRITE(UNIT=output_unit, &
-                             FMT="(T10,I6,3X,3I4,3F12.6,2X,F12.6)")&
-                             atom_b, cell_b(1:3), rb(1:3)/unit_of_length, &
-                             dab/unit_of_length
-                        
-                        neighbor_node => next(neighbor_node)
-                        
-                     END DO
-
-                  
-            END IF
-
-            neighbor_list => next(neighbor_list)
-
-          END DO
-
-        END DO
-
-        string = ""
-
-        IF (npe == 1) THEN
-          WRITE(UNIT=string, FMT="(A,I12)")&
-            "Total number of neighbor interactions:", nneighbor
-        ELSE
-          WRITE(UNIT=string, FMT="(A,I12,A,I12)")&
-            "Total number of neighbor interactions for process", mype-1, ":", &
-            nneighbor
-        END IF
-        CALL compress(string)
-        IF (output_unit>0) WRITE(UNIT=output_unit,FMT="(/,T2,A)") TRIM(string)
-
-      END IF
-
-      CALL mp_sync(group)
-      IF (output_unit>0) CALL m_flush(output_unit)
-      CALL mp_sync(group)
-
-   END DO
-
-
-  END SUBROUTINE write_neighbor_lists
-
-! *****************************************************************************
+  ! ***************************************************************************
 
 END MODULE tbmd_neighbor_lists

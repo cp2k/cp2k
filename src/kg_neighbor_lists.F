@@ -41,7 +41,8 @@ MODULE kg_neighbor_lists
   USE kg_environment_types,            ONLY: get_kg_env,&
                                              kg_environment_type,&
                                              set_kg_env
-  USE kinds,                           ONLY: dp,&
+  USE kinds,                           ONLY: default_string_length,&
+                                             dp,&
                                              dp_size,&
                                              int_size
   USE particle_types,                  ONLY: particle_type
@@ -119,6 +120,7 @@ CONTAINS
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'build_kg_neighbor_lists1'
 
+    CHARACTER(LEN=default_string_length)     :: print_key_path
     INTEGER :: atom_a, handle, iatom, iatom_local, ikind, istat, iw, maxatom, &
       maxatom_local, natom_a, natom_local_a, nkind, output_unit
     LOGICAL                                  :: elp_potential_present, &
@@ -345,14 +347,28 @@ CONTAINS
 
         CALL set_kg_env(kg_env=kg_env,sac_ppl=sac_ppl)
 
-        IF (BTEST(cp_print_key_should_output(logger%iter_info,&
-             force_env_section,"DFT%PRINT%NEIGHBOR_LISTS/SAC_PPL",error=error),cp_p_file)) THEN
-           iw = cp_print_key_unit_nr(logger,force_env_section,"DFT%PRINT%NEIGHBOR_LISTS/SAC_PPL",&
-                extension=".Log",error=error)
-           CALL write_neighbor_lists(sac_ppl,particle_set,cell,globenv,iw,&
-                "PPL NEIGHBOR LISTS",error)
-           CALL cp_print_key_finished_output(iw,logger,force_env_section,&
-                "DFT%PRINT%NEIGHBOR_LISTS/SAC_PPL",error=error)
+        print_key_path = "DFT%PRINT%NEIGHBOR_LISTS/SAC_PPL"
+
+        IF (BTEST(cp_print_key_should_output(logger%iter_info,force_env_section,&
+                                             print_key_path,error=error),&
+                  cp_p_file)) THEN
+          iw = cp_print_key_unit_nr(logger=logger,&
+                                    basis_section=force_env_section,&
+                                    print_key_path=print_key_path,&
+                                    extension=".out",&
+                                    middle_name="orb_sac_ppl",&
+                                    local=.TRUE.,&
+                                    log_filename=.FALSE.,&
+                                    file_position="REWIND",&
+                                    error=error)
+          CALL write_neighbor_lists(sac_ppl,particle_set,cell,globenv,iw,&
+                                    "ORBITAL GTH-PPL",error)
+          CALL cp_print_key_finished_output(unit_nr=iw,&
+                                            logger=logger,&
+                                            basis_section=force_env_section,&
+                                            print_key_path=print_key_path,&
+                                            local=.TRUE.,&
+                                            error=error)
         END IF
 
       END IF
@@ -367,14 +383,28 @@ CONTAINS
 
         CALL set_kg_env(kg_env=kg_env,sac_ppl_aux=sac_ppl_aux)
 
-        IF (BTEST(cp_print_key_should_output(logger%iter_info,&
-             force_env_section,"DFT%PRINT%NEIGHBOR_LISTS/SAC_PPL",error=error),cp_p_file)) THEN
-           iw = cp_print_key_unit_nr(logger,force_env_section,"DFT%PRINT%NEIGHBOR_LISTS/SAC_PPL",&
-                extension=".Log",error=error)
-           CALL write_neighbor_lists(sac_ppl_aux,particle_set,cell,globenv,iw,&
-                "PPL NEIGHBOR LISTS",error)
-           CALL cp_print_key_finished_output(iw,logger,force_env_section,&
-                "DFT%PRINT%NEIGHBOR_LISTS/SAC_PPL",error=error)
+        print_key_path = "DFT%PRINT%NEIGHBOR_LISTS/SAC_PPL"
+
+        IF (BTEST(cp_print_key_should_output(logger%iter_info,force_env_section,&
+                                             print_key_path,error=error),&
+                  cp_p_file)) THEN
+          iw = cp_print_key_unit_nr(logger=logger,&
+                                    basis_section=force_env_section,&
+                                    print_key_path=print_key_path,&
+                                    extension=".out",&
+                                    middle_name="aux_sac_ppl",&
+                                    local=.TRUE.,&
+                                    log_filename=.FALSE.,&
+                                    file_position="REWIND",&
+                                    error=error)
+          CALL write_neighbor_lists(sac_ppl,particle_set,cell,globenv,iw,&
+                                    "AUXILIARY ORBITAL GTH-PPL",error)
+          CALL cp_print_key_finished_output(unit_nr=iw,&
+                                            logger=logger,&
+                                            basis_section=force_env_section,&
+                                            print_key_path=print_key_path,&
+                                            local=.TRUE.,&
+                                            error=error)
         END IF
 
       END IF
@@ -439,7 +469,7 @@ CONTAINS
 
     END IF
     CALL cp_print_key_finished_output(output_unit,logger,force_env_section,&
-         "SUBSYS%PRINT%SUBCELL",error=error)    
+                                      "SUBSYS%PRINT%SUBCELL",error=error)    
     CALL timestop(0.0_dp,handle)
 
     CALL write_checkpoint_information("leaving "//routineN,globenv,error)
@@ -476,7 +506,7 @@ CONTAINS
       CALL build_qs_neighbor_lists(qs_env,globenv,.TRUE.,force_env_section,error=error)
     ELSE
       CALL stop_program(routineN,moduleN,__LINE__,&
-            "sub_qs_env not defined")
+                        "sub_qs_env not defined")
     END IF
 
     CALL timestop(0.0_dp,handle)

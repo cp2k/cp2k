@@ -20,6 +20,7 @@ MODULE kg_core
   USE cell_types,                      ONLY: cell_type,&
                                              get_cell,&
                                              pbc,&
+                                             plane_distance,&
                                              real_to_scaled,&
                                              scaled_to_real
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
@@ -68,9 +69,9 @@ CONTAINS
 
   SUBROUTINE calculate_ecore_rspace(kg_env,globenv,calculate_forces,error)
 
-!   Purpose: Calculate the overlap energy of the core charge distribution.
+    ! Purpose: Calculate the overlap energy of the core charge distribution.
 
-!   ***************************************************************************
+    ! *************************************************************************
 
     TYPE(kg_environment_type), POINTER       :: kg_env
     TYPE(global_environment_type), POINTER   :: globenv
@@ -78,8 +79,7 @@ CONTAINS
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_ecore_rspace', &
-      routine = "SUBROUTINE "//routineN//" (MODULE "//moduleN//")"
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_ecore_rspace'
 
     CHARACTER(LEN=8)                         :: unit_of_length_name
     INTEGER :: atom_a, atom_b, group, handle, i, iatom, iatom_local, &
@@ -112,6 +112,8 @@ CONTAINS
     TYPE(subcell_type), DIMENSION(:, :, :), &
       POINTER                                :: subcell
 
+    ! -------------------------------------------------------------------------
+
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
 
@@ -129,8 +131,7 @@ CONTAINS
 
     group = globenv%group
 
-
-!   *** Set Verlet skin ***
+    ! Set Verlet skin
 
     r_skin = 0.0_dp
 
@@ -148,27 +149,30 @@ CONTAINS
                   unit_of_length=unit_of_length,&
                   unit_of_length_name=unit_of_length_name)
 
-
-!   *** Allocate work storage ***
+    ! Allocate work storage
 
     nkind = SIZE(atomic_kind_set)
 
     ALLOCATE (atom(nkind),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"atom",nkind*int_size)
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                                     "atom",nkind*int_size)
 
     ALLOCATE (alpha(nkind),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"alpha",nkind*dp_size)
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                                     "alpha",nkind*dp_size)
     alpha(:) = 0.0_dp
 
     ALLOCATE (radius(nkind),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"radius",nkind*dp_size)
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                                     "radius",nkind*dp_size)
     radius(:) = 0.0_dp
 
     ALLOCATE (zeff(nkind),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"zeff",nkind*dp_size)
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                                     "zeff",nkind*dp_size)
     zeff(:) = 0.0_dp
 
-!   *** Initialize the local data structures ***
+    ! Initialize the local data structures
 
     maxatom_local = 0
 
@@ -200,11 +204,13 @@ CONTAINS
 
           ALLOCATE (atom(ikind)%list_local_a_index(natom_local_a),STAT=istat)
           IF (istat /= 0) THEN
-            CALL stop_memory(routine,"atom(ikind)%list_local_a_index",&
+            CALL stop_memory(routineN,moduleN,__LINE__,&
+                             "atom(ikind)%list_local_a_index",&
                              natom_local_a*int_size)
           END IF
 
-!         *** Build index vector for mapping ***
+          ! Build index vector for mapping
+
           DO iatom_local=1,natom_local_a
             atom_a = distribution_2d%local_rows(ikind)%array(iatom_local)
             DO iatom=1,natom
@@ -221,11 +227,12 @@ CONTAINS
 
           ALLOCATE (atom(ikind)%list_local_b_index(natom_local_b),STAT=istat)
           IF (istat /= 0) THEN
-            CALL stop_memory(routine,"atom(ikind)%list_local_b_index",&
+            CALL stop_memory(routineN,moduleN,__LINE__,&
+                             "atom(ikind)%list_local_b_index",&
                              natom_local_b*int_size)
           END IF
 
-!         *** Build index vector for mapping ***
+          ! Build index vector for mapping
 
           DO iatom_local=1,natom_local_b
             atom_b = distribution_2d%local_cols(ikind)%array(iatom_local)
@@ -240,15 +247,17 @@ CONTAINS
 
         ALLOCATE (atom(ikind)%r_pbc(3,natom),STAT=istat)
         IF (istat /= 0) THEN
-          CALL stop_memory(routine,"atom(ikind)%r_pbc",3*natom*dp_size)
+          CALL stop_memory(routineN,moduleN,__LINE__,&
+                           "atom(ikind)%r_pbc",3*natom*dp_size)
         END IF
 
         ALLOCATE (atom(ikind)%s_pbc(3,natom),STAT=istat)
         IF (istat /= 0) THEN
-          CALL stop_memory(routine,"atom(ikind)%s_pbc",3*natom*dp_size)
+          CALL stop_memory(routineN,moduleN,__LINE__,&
+                           "atom(ikind)%s_pbc",3*natom*dp_size)
         END IF
 
-!       *** Calculate PBC coordinates ***
+        ! Calculate PBC coordinates
 
         DO iatom=1,natom
           atom_a = atom(ikind)%list(iatom)
@@ -295,18 +304,19 @@ CONTAINS
         rootaab = SQRT(aab)
         fab = 2.0_dp*oorootpi*zab*rootaab
 
-!       *** Calculate the square of the maximum interaction distance ***
+        ! Calculate the square of the maximum interaction distance
 
         rab_max = radius(ikind) + radius(jkind) + r_skin
         rab2_max = rab_max*rab_max
 
-        r(:) = rab_max
-        sab_max(:) = real_to_scaled(r(:),cell)
+        sab_max(1) = rab_max/plane_distance(1,0,0,cell)
+        sab_max(2) = rab_max/plane_distance(0,1,0,cell)
+        sab_max(3) = rab_max/plane_distance(0,0,1,cell)
 
         ncell(:) = (INT(sab_max(:)) + 1)*periodic(:)
         nsubcell(:) = MIN(MAX(1,NINT(0.5_dp*subcells/sab_max(:))),20)
 
-!       *** Print subcell information for the current atomic kind pair ***
+        ! Print subcell information for the current atomic kind pair
 
         IF (output_unit>0) THEN
           s(:) = 1.0_dp/REAL(nsubcell(:),dp)
@@ -315,11 +325,11 @@ CONTAINS
             ikind,jkind,nsubcell(1:3),r(1:3)/unit_of_length
         END IF
 
-!       *** Check, if we have to consider a subcell grid ***
+        ! Check, if we have to consider a subcell grid
 
         IF (SUM(nsubcell) == 3) THEN
 
-!         *** Case 1: No subcell grid is needed ***
+          ! Case 1: No subcell grid is needed
 
           DO jatom_local=1,natom_local_b
 
@@ -331,27 +341,33 @@ CONTAINS
 
               sb(3) = sb_pbc(3) + REAL(kcell,dp)
               sb_min(3) = sb(3) - sab_max(3)
-              IF (sb_min(3) >= 0.5_dp) EXIT loop1_kcell
               sb_max(3) = sb(3) + sab_max(3)
-              IF (sb_max(3) < -0.5_dp) CYCLE loop1_kcell
+              IF (periodic(3) /= 0) THEN
+                IF (sb_min(3) >= 0.5_dp) EXIT loop1_kcell
+                IF (sb_max(3) < -0.5_dp) CYCLE loop1_kcell
+              END IF
               cell_b(3) = kcell
 
               loop1_jcell: DO jcell=-ncell(2),ncell(2)
 
                 sb(2) = sb_pbc(2) + REAL(jcell,dp)
                 sb_min(2) = sb(2) - sab_max(2)
-                IF (sb_min(2) >= 0.5_dp) EXIT loop1_jcell
                 sb_max(2) = sb(2) + sab_max(2)
-                IF (sb_max(2) < -0.5_dp) CYCLE loop1_jcell
+                IF (periodic(2) /= 0) THEN
+                  IF (sb_min(2) >= 0.5_dp) EXIT loop1_jcell
+                  IF (sb_max(2) < -0.5_dp) CYCLE loop1_jcell
+                END IF
                 cell_b(2) = jcell
 
                 loop1_icell: DO icell=-ncell(1),ncell(1)
 
                   sb(1) = sb_pbc(1) + REAL(icell,dp)
                   sb_min(1) = sb(1) - sab_max(1)
-                  IF (sb_min(1) >= 0.5_dp) EXIT loop1_icell
                   sb_max(1) = sb(1) + sab_max(1)
-                  IF (sb_max(1) < -0.5_dp) CYCLE loop1_icell
+                  IF (periodic(1) /= 0) THEN
+                    IF (sb_min(1) >= 0.5_dp) EXIT loop1_icell
+                    IF (sb_max(1) < -0.5_dp) CYCLE loop1_icell
+                  END IF
                   cell_b(1) = icell
 
                   rb(:) = scaled_to_real(sb(:),cell)
@@ -377,13 +393,15 @@ CONTAINS
                       include_ab = (MODULO(atom_a + atom_b,2) == 0)
                       f = 1.0_dp
                     END IF
-! check for exclusion
+
+                    ! Check for exclusion
+
                     IF(atom_a /= atom_b) THEN
-                      loop_out: DO kkind = 1, nkind
-                        list => particle_set(atom_b)%lpi%exclusion(kkind) % list_ei
+                      loop_out: DO kkind=1,nkind
+                        list => particle_set(atom_b)%lpi%exclusion(kkind)%list_ei
                         IF (.NOT.ASSOCIATED(list)) CYCLE
-                        nexl = SIZE ( list )
-                        loop_in: DO iexl = 1, nexl
+                        nexl = SIZE(list)
+                        loop_in: DO iexl=1,nexl
                           IF ((list(iexl)==atom_a).AND.cell000) THEN
                             include_ab = .FALSE.
                             EXIT loop_out
@@ -418,7 +436,7 @@ CONTAINS
 
         ELSE
 
-!         *** Case 2: A subcell grid is needed ***
+          ! Case 2: A subcell grid is needed
 
           CALL allocate_subcell(subcell,nsubcell,maxatom_local)
 
@@ -446,27 +464,33 @@ CONTAINS
 
               sb(3) = sb_pbc(3) + REAL(kcell,dp)
               sb_min(3) = sb(3) - sab_max(3)
-              IF (sb_min(3) >= 0.5_dp) EXIT loop2_kcell
               sb_max(3) = sb(3) + sab_max(3)
-              IF (sb_max(3) < -0.5_dp) CYCLE loop2_kcell
+              IF (periodic(3) /= 0) THEN
+                IF (sb_min(3) >= 0.5_dp) EXIT loop2_kcell
+                IF (sb_max(3) < -0.5_dp) CYCLE loop2_kcell
+              END IF
               cell_b(3) = kcell
 
               loop2_jcell: DO jcell=-ncell(2),ncell(2)
 
                 sb(2) = sb_pbc(2) + REAL(jcell,dp)
                 sb_min(2) = sb(2) - sab_max(2)
-                IF (sb_min(2) >= 0.5_dp) EXIT loop2_jcell
                 sb_max(2) = sb(2) + sab_max(2)
-                IF (sb_max(2) < -0.5_dp) CYCLE loop2_jcell
+                IF (periodic(2) /= 0) THEN
+                  IF (sb_min(2) >= 0.5_dp) EXIT loop2_jcell
+                  IF (sb_max(2) < -0.5_dp) CYCLE loop2_jcell
+                END IF
                 cell_b(2) = jcell
 
                 loop2_icell: DO icell=-ncell(1),ncell(1)
 
                   sb(1) = sb_pbc(1) + REAL(icell,dp)
                   sb_min(1) = sb(1) - sab_max(1)
-                  IF (sb_min(1) >= 0.5_dp) EXIT loop2_icell
                   sb_max(1) = sb(1) + sab_max(1)
-                  IF (sb_max(1) < -0.5_dp) CYCLE loop2_icell
+                  IF (periodic(1) /= 0) THEN
+                    IF (sb_min(1) >= 0.5_dp) EXIT loop2_icell
+                    IF (sb_max(1) < -0.5_dp) CYCLE loop2_icell
+                  END IF
                   cell_b(1) = icell
 
                   cell000 = ((icell == 0).AND.&
@@ -479,16 +503,22 @@ CONTAINS
                     loop_j: DO j=1,nsubcell(2)
                       loop_i: DO i=1,nsubcell(1)
 
+                        IF (periodic(3) /= 0) THEN
+                          IF (sb_max(3) < subcell(i,j,k)%s_min(3)) EXIT loop_k
+                          IF (sb_min(3) >= subcell(i,j,k)%s_max(3)) CYCLE loop_k
+                        END IF
+
+                        IF (periodic(2) /= 0) THEN
+                          IF (sb_max(2) < subcell(i,j,k)%s_min(2)) EXIT loop_j
+                          IF (sb_min(2) >= subcell(i,j,k)%s_max(2)) CYCLE loop_j
+                        END IF
+
+                        IF (periodic(1) /= 0) THEN
+                          IF (sb_max(1) < subcell(i,j,k)%s_min(1)) EXIT loop_i
+                          IF (sb_min(1) >= subcell(i,j,k)%s_max(1)) CYCLE loop_i
+                        END IF
+
                         IF (subcell(i,j,k)%natom == 0) CYCLE
-
-                        IF (sb_max(3) < subcell(i,j,k)%s_min(3)) EXIT loop_k
-                        IF (sb_min(3) >= subcell(i,j,k)%s_max(3)) CYCLE loop_k
-
-                        IF (sb_max(2) < subcell(i,j,k)%s_min(2)) EXIT loop_j
-                        IF (sb_min(2) >= subcell(i,j,k)%s_max(2)) CYCLE loop_j
-
-                        IF (sb_max(1) < subcell(i,j,k)%s_min(1)) EXIT loop_i
-                        IF (sb_min(1) >= subcell(i,j,k)%s_max(1)) CYCLE loop_i
 
                         DO iatom_subcell=1,subcell(i,j,k)%natom
                           iatom_local = subcell(i,j,k)%atom_list(iatom_subcell)
@@ -508,13 +538,15 @@ CONTAINS
                             include_ab = (MODULO(atom_a + atom_b,2) == 0)
                             f = 1.0_dp
                           END IF
-! check for exclusion
+
+                          ! Check for exclusion
+
                           IF(atom_a /= atom_b) THEN
-                            loop_out2: DO kkind = 1, nkind
-                              list => particle_set(atom_b)%lpi%exclusion(kkind) % list_ei
+                            loop_out2: DO kkind=1,nkind
+                              list => particle_set(atom_b)%lpi%exclusion(kkind)%list_ei
                               IF (.NOT.ASSOCIATED(list)) CYCLE
-                              nexl = SIZE ( list )
-                              loop_in2: DO iexl = 1, nexl
+                              nexl = SIZE(list)
+                              loop_in2: DO iexl=1,nexl
                                 IF ((list(iexl)==atom_a).AND.cell000) THEN
                                   include_ab = .FALSE.
                                   EXIT loop_out2
@@ -557,58 +589,68 @@ CONTAINS
       END DO
     END DO
 
-!   *** Release work storage ***
+    ! Release work storage
 
     DO ikind=1,nkind
       NULLIFY (atom(ikind)%list)
       IF (ASSOCIATED(atom(ikind)%list_local_a_index)) THEN
         DEALLOCATE (atom(ikind)%list_local_a_index,STAT=istat)
-        IF (istat /= 0) CALL stop_memory(routine,"atom(ikind)%list_local_a_index")
+        IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                                         "atom(ikind)%list_local_a_index")
       END IF
       IF (ASSOCIATED(atom(ikind)%list_local_b_index)) THEN
         DEALLOCATE (atom(ikind)%list_local_b_index,STAT=istat)
-        IF (istat /= 0) CALL stop_memory(routine,"atom(ikind)%list_local_b_index")
+        IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                                         "atom(ikind)%list_local_b_index")
       END IF
       IF (ASSOCIATED(atom(ikind)%r_pbc)) THEN
         DEALLOCATE (atom(ikind)%r_pbc,STAT=istat)
-        IF (istat /= 0) CALL stop_memory(routine,"atom(ikind)%r_pbc")
+        IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                                         "atom(ikind)%r_pbc")
       END IF
       IF (ASSOCIATED(atom(ikind)%s_pbc)) THEN
         DEALLOCATE (atom(ikind)%s_pbc,STAT=istat)
-        IF (istat /= 0) CALL stop_memory(routine,"atom(ikind)%s_pbc")
+        IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                                         "atom(ikind)%s_pbc")
       END IF
     END DO
 
     DEALLOCATE (atom,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"atom")
-
-    DEALLOCATE (alpha,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"alpha")
-
-    DEALLOCATE (radius,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"radius")
-
-    DEALLOCATE (zeff,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"zeff")
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                                     "atom")
+                                     
+    DEALLOCATE (alpha,STAT=istat)    
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                                     "alpha")
+                                     
+    DEALLOCATE (radius,STAT=istat)   
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                                     "radius")
+                                     
+    DEALLOCATE (zeff,STAT=istat)     
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                                     "zeff")
 
     CALL mp_sum(ecore_overlap,group)
 
     energy%core_overlap = ecore_overlap
+
     CALL cp_print_key_finished_output(output_unit,logger,kg_env%input,&
-         "SUBSYS%PRINT%SUBCELL",error=error)    
+                                      "SUBSYS%PRINT%SUBCELL",error=error)    
+
     CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE calculate_ecore_rspace
 
-! *****************************************************************************
+  ! ***************************************************************************
 
   SUBROUTINE calculate_eself(kg_env,ecore_self)
 
-!   Purpose: Calculate the self energy of the core charge distribution.
+    ! Purpose: Calculate the self energy of the core charge distribution.
 
-!   History: - Creation (14.10.2002)
+    ! History: - Creation (14.10.2002)
 
-!   ***************************************************************************
+    ! *************************************************************************
 
     TYPE(kg_environment_type), POINTER       :: kg_env
     REAL(KIND=dp), INTENT(OUT)               :: ecore_self
@@ -620,7 +662,7 @@ CONTAINS
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
 
-!   ---------------------------------------------------------------------------
+    ! -------------------------------------------------------------------------
 
     CALL get_kg_env(kg_env=kg_env,&
                     atomic_kind_set=atomic_kind_set)
@@ -645,6 +687,6 @@ CONTAINS
 
   END SUBROUTINE calculate_eself
 
-!*****************************************************************************
+  ! ***************************************************************************
 
 END MODULE kg_core

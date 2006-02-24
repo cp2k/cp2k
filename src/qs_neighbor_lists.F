@@ -82,7 +82,7 @@ MODULE qs_neighbor_lists
 
   PRIVATE
 
-  ! *** Type definitions ***
+  ! Type definitions
 
   TYPE local_atoms_type
     INTEGER, DIMENSION(:), POINTER                   :: list,&
@@ -101,20 +101,20 @@ MODULE qs_neighbor_lists
     INTEGER, DIMENSION(:), POINTER :: atom_list
   END TYPE subcell_type
 
-  ! *** Global parameters ***
+  ! Global parameters
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_neighbor_lists'
 
-  ! *** private counter, used to version qs neighbor lists ***
+  ! private counter, used to version qs neighbor lists
 
   INTEGER, SAVE, PRIVATE :: last_qs_neighbor_list_id_nr=0
 
-  ! *** Public data types ***
+  ! Public data types
 
   PUBLIC :: local_atoms_type,&
             subcell_type
 
-  ! *** Public subroutines ***
+  ! Public subroutines
 
   PUBLIC :: allocate_subcell,&
             build_gth_ppl_neighbor_lists,&
@@ -217,8 +217,11 @@ CONTAINS
     NULLIFY (sbc_3c)
 
     print_subcell_grid = .FALSE.
-    output_unit = cp_print_key_unit_nr(logger,force_env_section,"SUBSYS%PRINT%SUBCELL",&
-                                       extension=".Log",error=error)
+    output_unit = cp_print_key_unit_nr(logger=logger,&
+                                       basis_section=force_env_section,&
+                                       print_key_path="SUBSYS%PRINT%SUBCELL",&
+                                       extension=".Log",&
+                                       error=error)
     IF (output_unit > 0) print_subcell_grid = .TRUE.
 
     molecule_only = .FALSE.
@@ -567,7 +570,7 @@ CONTAINS
 
     CALL set_qs_env(qs_env=qs_env,sab_orb=sab_orb)
 
-    print_key_path="DFT%PRINT%NEIGHBOR_LISTS/SAB_ORB"
+    print_key_path = "DFT%PRINT%NEIGHBOR_LISTS/SAB_ORB"
 
     IF (BTEST(cp_print_key_should_output(logger%iter_info,force_env_section,&
                                          print_key_path,error=error),&
@@ -607,7 +610,7 @@ CONTAINS
 
         CALL set_qs_env(qs_env=qs_env,sac_ppl=sac_ppl)
 
-        print_key_path="DFT%PRINT%NEIGHBOR_LISTS/SAC_PPL"
+        print_key_path = "DFT%PRINT%NEIGHBOR_LISTS/SAC_PPL"
 
         IF (BTEST(cp_print_key_should_output(logger%iter_info,force_env_section,&
                                              print_key_path,error=error),&
@@ -645,7 +648,7 @@ CONTAINS
 
         CALL set_qs_env(qs_env=qs_env,sac_ppnl=sac_ppnl,sbc_ppnl=sbc_ppnl)
 
-        print_key_path="DFT%PRINT%NEIGHBOR_LISTS/SAC_PPNL"
+        print_key_path = "DFT%PRINT%NEIGHBOR_LISTS/SAC_PPNL"
 
         IF (BTEST(cp_print_key_should_output(logger%iter_info,force_env_section,&
                                              print_key_path,error=error),&
@@ -669,7 +672,7 @@ CONTAINS
                                             error=error)
         END IF
 
-        print_key_path="DFT%PRINT%NEIGHBOR_LISTS/SBC_PPNL"
+        print_key_path = "DFT%PRINT%NEIGHBOR_LISTS/SBC_PPNL"
 
         IF (BTEST(cp_print_key_should_output(logger%iter_info,force_env_section,&
                                              print_key_path,error=error),&
@@ -713,7 +716,7 @@ CONTAINS
 
         CALL set_qs_env(qs_env=qs_env,sac_oce=sac_oce,sbc_oce=sbc_oce)
 
-        print_key_path="DFT%PRINT%NEIGHBOR_LISTS/SAC_OCE"
+        print_key_path = "DFT%PRINT%NEIGHBOR_LISTS/SAC_OCE"
 
         IF (BTEST(cp_print_key_should_output(logger%iter_info,force_env_section,&
                                              print_key_path,error=error),&
@@ -737,7 +740,7 @@ CONTAINS
                                             error=error)
         END IF
 
-        print_key_path="DFT%PRINT%NEIGHBOR_LISTS/SBC_OCE"
+        print_key_path = "DFT%PRINT%NEIGHBOR_LISTS/SBC_OCE"
 
         IF (BTEST(cp_print_key_should_output(logger%iter_info,force_env_section,&
                                              print_key_path,error=error),&
@@ -778,7 +781,7 @@ CONTAINS
 
       CALL set_qs_env(qs_env=qs_env,sab_2c=sab_2c)
 
-      print_key_path="DFT%PRINT%NEIGHBOR_LISTS/SAB_2C"
+      print_key_path = "DFT%PRINT%NEIGHBOR_LISTS/SAB_2C"
 
       IF (BTEST(cp_print_key_should_output(logger%iter_info,force_env_section,&
                                            print_key_path,error=error),&
@@ -834,7 +837,7 @@ CONTAINS
 
       CALL set_qs_env(qs_env=qs_env,sac_3c=sac_3c,sbc_3c=sbc_3c)
 
-      print_key_path="DFT%PRINT%NEIGHBOR_LISTS/SAC_3C"
+      print_key_path = "DFT%PRINT%NEIGHBOR_LISTS/SAC_3C"
 
       IF (BTEST(cp_print_key_should_output(logger%iter_info,force_env_section,&
                                            print_key_path,error=error),&
@@ -858,7 +861,7 @@ CONTAINS
                                           error=error)
       END IF
 
-      print_key_path="DFT%PRINT%NEIGHBOR_LISTS/SBC_3C"
+      print_key_path = "DFT%PRINT%NEIGHBOR_LISTS/SBC_3C"
 
       IF (BTEST(cp_print_key_should_output(logger%iter_info,force_env_section,&
                                            print_key_path,error=error),&
@@ -1906,7 +1909,7 @@ CONTAINS
 
         ELSE
 
-!         *** Case 2: A subcell grid is needed ***
+          ! Case 2: A subcell grid is needed
 
           CALL allocate_subcell(subcell,nsubcell,maxatom_local)
 
@@ -2868,7 +2871,7 @@ CONTAINS
 
         IF (output_unit > 0) THEN
 
-          ! Print second part of the headline ***
+          ! Print second part of the headline
 
           IF (print_headline) THEN
             WRITE (UNIT=output_unit,FMT="(/,T3,A,7X,A,2(11X,A),10X,A)")&

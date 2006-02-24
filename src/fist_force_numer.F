@@ -3042,9 +3042,9 @@ END SUBROUTINE potential_nonbond
 
 !       *** Calculate the square of the maximum interaction distance ***
 
-
         rab2_max = potparm %pot( ikind, jkind )%pot % rcutsq 
         r(:) = SQRT ( rab2_max )
+
         sab_max(1) = r(1)/plane_distance(1,0,0,cell)
         sab_max(2) = r(2)/plane_distance(0,1,0,cell)
         sab_max(3) = r(3)/plane_distance(0,0,1,cell)
@@ -3069,27 +3069,33 @@ END SUBROUTINE potential_nonbond
 
               sb(3) = sb_pbc(3) + REAL(kcell,dp)
               sb_min(3) = sb(3) - sab_max(3)
-              IF (sb_min(3) >= 0.5_dp) EXIT loop1_kcell
               sb_max(3) = sb(3) + sab_max(3)
-              IF (sb_max(3) < -0.5_dp) CYCLE loop1_kcell
+              IF (periodic(3) /= 0) THEN
+                IF (sb_min(3) >= 0.5_dp) EXIT loop1_kcell
+                IF (sb_max(3) < -0.5_dp) CYCLE loop1_kcell
+              END IF
               cell_b(3) = kcell
 
               loop1_jcell: DO jcell=-ncell(2),ncell(2)
 
                 sb(2) = sb_pbc(2) + REAL(jcell,dp)
                 sb_min(2) = sb(2) - sab_max(2)
-                IF (sb_min(2) >= 0.5_dp) EXIT loop1_jcell
                 sb_max(2) = sb(2) + sab_max(2)
-                IF (sb_max(2) < -0.5_dp) CYCLE loop1_jcell
+                IF (periodic(2) /= 0) THEN
+                  IF (sb_min(2) >= 0.5_dp) EXIT loop1_jcell
+                  IF (sb_max(2) < -0.5_dp) CYCLE loop1_jcell
+                END IF
                 cell_b(2) = jcell
 
                 loop1_icell: DO icell=-ncell(1),ncell(1)
 
                   sb(1) = sb_pbc(1) + REAL(icell,dp)
                   sb_min(1) = sb(1) - sab_max(1)
-                  IF (sb_min(1) >= 0.5_dp) EXIT loop1_icell
                   sb_max(1) = sb(1) + sab_max(1)
-                  IF (sb_max(1) < -0.5_dp) CYCLE loop1_icell
+                  IF (periodic(1) /= 0) THEN
+                    IF (sb_min(1) >= 0.5_dp) EXIT loop1_icell
+                    IF (sb_max(1) < -0.5_dp) CYCLE loop1_icell
+                  END IF
                   cell_b(1) = icell
 
                   rb(:) = scaled_to_real(sb(:),cell)
@@ -3151,6 +3157,7 @@ END SUBROUTINE potential_nonbond
     CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE force_nonbond_evaluate
+
 !******************************************************************************
 
 SUBROUTINE finite_difference_evaluate ( ewald_env, potparm, rab,              &
