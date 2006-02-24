@@ -147,6 +147,8 @@ CONTAINS
 
     CALL mp_sum(charges,para_env%group)
 
+    IF (nspin.EQ.1) charges=2.0_dp*charges
+
     CALL cp_fm_release(matrix_work)
     CALL cp_fm_release(matrix_shalf)
 
