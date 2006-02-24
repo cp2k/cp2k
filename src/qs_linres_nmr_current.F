@@ -4,7 +4,7 @@
 !-----------------------------------------------------------------------------!
 
 
-!!****m* cp2k/qs_linres_methods *
+!!****m* cp2k/qs_linres_nmr_current *
 !!
 !!   NAME 
 !!     qs_linres_nmr_current
@@ -36,6 +36,10 @@ MODULE qs_linres_nmr_current
   USE cell_types,                      ONLY: cell_type,&
                                              pbc
   USE coefficient_types,               ONLY: coeff_copy,&
+                                             coeff_reduce,&
+                                             coeff_scale,&
+                                             coeff_sumup,&
+                                             coeff_transform_space,&
                                              coeff_type,&
                                              coeff_zero
   USE cp_array_r_utils,                ONLY: cp_2d_r_p_type
@@ -48,14 +52,16 @@ MODULE qs_linres_nmr_current
                                              cp_fm_set_submatrix,&
                                              cp_fm_to_fm,&
                                              cp_fm_type
-  USE cp_output_handling,              ONLY: cp_p_file,&
+  USE cp_output_handling,              ONLY: cp_iter_string,&
+                                             cp_p_file,&
                                              cp_print_key_finished_output,&
                                              cp_print_key_should_output,&
                                              cp_print_key_unit_nr
+  USE cp_rs_pool_types,                ONLY: cp_rs_pool_type,&
+                                             rs_pool_create_rs,&
+                                             rs_pool_give_back_rs
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_rs_pool_types,                ONLY: cp_rs_pool_p_type,&
-                                             cp_rs_pool_type,&
-                                             rs_pool_create_rs,&
                                              rs_pools_create_rs_vect
   USE cp_sm_fm_interactions,           ONLY: cp_sm_fm_multiply,&
                                              cp_sm_plus_fm_fm_t
@@ -75,17 +81,28 @@ MODULE qs_linres_nmr_current
   USE particle_types,                  ONLY: particle_type
   USE pw_env_types,                    ONLY: pw_env_get,&
                                              pw_env_type
-  USE pw_pool_types,                   ONLY: pw_pool_init_coeff,&
+  USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
+                                             pw_pool_give_back_coeff,&
+                                             pw_pool_give_back_pw,&
+                                             pw_pool_init_coeff,&
                                              pw_pool_p_type,&
                                              pw_pool_type
-  USE pw_types,                        ONLY: REALDATA3D,&
-                                             REALSPACE
-  USE qs_collocate_density,            ONLY: density_on_full_grid,&
+  USE pw_types,                        ONLY: COMPLEXDATA1D,&
+                                             REALDATA3D,&
+                                             REALSPACE,&
+                                             RECIPROCALSPACE,&
+                                             pw_sumup,&
+                                             pw_transfer,&
+                                             pw_type
+  USE qs_collocate_density,            ONLY: calculate_total_rho,&
+                                             density_on_full_grid,&
                                              lgrid_type
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
   USE qs_interactions,                 ONLY: exp_radius_very_extended
-  USE qs_linres_nmr_op,                ONLY: set_vecp
+  USE qs_linres_nmr_op,                ONLY: set_vecp, set_vecp_rev, fac_vecp
+  USE qs_linres_nmr_shift,             ONLY: interpolate_shift_pwgrid,&
+                                             mult_G_ov_G2_grid
   USE qs_linres_types,                 ONLY: nmr_env_type
   USE qs_mo_types,                     ONLY: get_mo_set,&
                                              mo_set_p_type
@@ -120,13 +137,51 @@ MODULE qs_linres_nmr_current
   ! *** Public subroutines ***
   PUBLIC :: nmr_response_current
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_linres_nmr_current'
+  CHARACTER(LEN=*), PARAMETER :: moduleN='qs_linres_nmr_current'
 
 !!***
 ! *****************************************************************************
 
 CONTAINS
 
+!!****f*  qs_linres_nmr_current%nmr_response_current
+!!
+!!  NAME 
+!!      nmr_response_current
+!!
+!!  FUNCTION
+!!      First calculate the density matrixes, for each component of the current
+!!      they are 3 because of the r dependent terms
+!!      Next it collocates on the grid to have J(r)
+!!      In the GAPW case one need to collocate on the PW grid only the soft part
+!!      while the rest goes on Lebedev grids
+!!      The contributions to the shift and to the susceptibility will be
+!!      calulated separatedly and added only at the end
+!!      The calculation of the shift tensor is performed on the position of the atoms
+!!      and on other specified points in real space summing up the contributions
+!!      from the PW grid current density and the local densities
+!!     
+!!  ARGUMENTS
+!!      nmr_env
+!!      qs_env
+!!      psi1, p_psi1 : scratch MOS coefficients 
+!!      error
+!!
+!!  NOTES
+!!      To calculate the susceptibility on the PW gris it is necessary to apply
+!!      the position operator yet another time.
+!!      This cannot be done on directly on J(r) because it is not localized and 
+!!      the usual trick of the wfn center cannot be used.
+!!      The idea would be to construct additional density matrices that somehow
+!!      contain the information on the wannier centers. 
+!!      This would mean that the entire produre used to compute on the pw grid 
+!!      the terms of the current  density of the type (r'-dk) x psi1_p(r'),
+!!      should be repeated to compute the function r x J(r)
+!!
+!!  AUTHOR
+!!    MI
+!!
+!!*** **********************************************************************
 
   SUBROUTINE nmr_response_current(nmr_env,qs_env,psi1,p_psi1,error)
 
@@ -138,20 +193,21 @@ CONTAINS
       OPTIONAL                               :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'nmr_response_current', &
-      routineP = moduleN//':'//routineN
+      routineP = moduleN//'/'//routineN
 
-    CHARACTER(LEN=80)                        :: ext, filename
-    INTEGER                                  :: handle, homo, i_B, iao, &
-                                                iatom, idir, ii_B, iii_B, &
-                                                ispin, istate, natom, nmo, &
-                                                nspins, unit_nr
+    CHARACTER(LEN=80)                        :: ext,filename
+    INTEGER                                  :: handle, homo, i_B, iao, iatom, idir, &
+                                                idir2, idir3, ii_B, iii_B, ispin, istat, istate, &
+                                                natom, nmo, nspins, unit_nr
     LOGICAL                                  :: failure, gapw, ionode, uni_occ
-    REAL(dp)                                 :: alpha, dk(3), maxocc, rmu(3), &
-                                                rmu_dk(3)
+    REAL(dp)                                 :: alpha, dk(3), jrho_tot, maxocc, rmu(3), &
+                                                rmu_dk(3), scale_fac
     REAL(dp), DIMENSION(:), POINTER          :: occupation
     REAL(dp), DIMENSION(:, :), POINTER       :: vecbuf_psi1
     TYPE(cell_type), POINTER                 :: cell
     TYPE(coeff_type), POINTER                :: rho_gspace, rho_rspace, wf_r
+    TYPE(coeff_type)                         :: pw_gspace_work,shift_pw_rspace
+    TYPE(coeff_type),DIMENSION(:),POINTER    :: shift_pw_gspace
     TYPE(cp_2d_r_p_type), DIMENSION(3)       :: vecbuf
     TYPE(cp_fm_type), POINTER                :: mo_coeff
     TYPE(cp_logger_type), POINTER            :: logger
@@ -172,6 +228,7 @@ CONTAINS
     TYPE(realspace_grid_type), POINTER       :: rs
     TYPE(section_vals_type), POINTER         :: nmr_section
 
+
 !   ---------------------------------------------------------------------------
 
     failure = .FALSE.
@@ -180,6 +237,7 @@ CONTAINS
     NULLIFY(density_matrix,density_matrix_2_ii,density_matrix_2_iii)
     NULLIFY(cell,dft_control,mos,rho_struct,particle_set,pw_env)
     NULLIFY(auxbas_rs_pool,auxbas_pw_pool,pw_pools,wf_r)
+    NULLIFY(shift_pw_gspace)
 
     logger => cp_error_get_logger(error)
     ionode = logger%para_env%mepos==logger%para_env%source
@@ -199,9 +257,9 @@ CONTAINS
                    error=error)
 
     IF (.NOT. failure) THEN
-       CALL timeset("nmr_response_current","I"," ",handle)
+      CALL timeset("nmr_response_current","I"," ",handle)
 
-     IF (BTEST(cp_print_key_should_output(logger%iter_info,nmr_section,&
+      IF (BTEST(cp_print_key_should_output(logger%iter_info,nmr_section,&
                   "PRINT%CURRENT_CUBES",error=error),cp_p_file)) THEN
 
           CALL get_qs_env(qs_env=qs_env,pw_env=pw_env)
@@ -214,6 +272,35 @@ CONTAINS
                   use_data = REALDATA3D,&
                   in_space = REALSPACE, error=error)
       END IF
+
+!-----------------------------------------------------------------------!
+!     Allocate grids for the calculation of jrho and the shift 
+      CALL pw_pool_give_back_coeff(auxbas_pw_pool,pw_gspace_work,&
+               error=error)
+      ALLOCATE(shift_pw_gspace(3),STAT=istat)
+      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+      DO idir = 1,3
+        CALL pw_pool_init_coeff(auxbas_pw_pool,shift_pw_gspace(idir), &
+                                use_data = COMPLEXDATA1D,&
+                                in_space = RECIPROCALSPACE, error=error)
+      END DO
+      CALL pw_pool_init_coeff(auxbas_pw_pool,shift_pw_rspace,&
+                 use_data=REALDATA3D, in_space=REALSPACE)
+!
+!-----------------------------------------------------------------------!
+
+
+!-----------------------------------------------------------------------!
+!     Initialize shift and chi
+      nmr_env%chemical_shift = 0.0_dp
+      nmr_env%chemical_shift_loc = 0.0_dp
+      IF(nmr_env%do_nics) THEN
+        nmr_env%chemical_shift_nics = 0.0_dp
+        nmr_env%chemical_shift_loc_nics = 0.0_dp
+      END IF
+      nmr_env%chi_tensor = 0.0_dp
+      nmr_env%chi_tensor_loc = 0.0_dp
+!-----------------------------------------------------------------------!
 
 ! Loop on the field direction 
       DO i_B = 1,3
@@ -342,6 +429,22 @@ CONTAINS
                  density_matrix_2_iii, ii_B, iii_B, rho_rspace, rho_gspace,qs_env,&
                  gapw, error=error)
 
+            jrho_tot = calculate_total_rho(rho_gspace)
+
+            ! loop over the Gvec  components: x,y,z
+            DO idir2 = 1,3
+              IF(idir /= idir2) THEN
+                ! in reciprocal space multiply (G_idir2(i)/G(i)^2)J_(idir)(G(i))
+!                CALL mult_G_ov_G2_grid(cell,rho_gspace,pw_gspace_work,idir2,error=error)
+
+                ! scale and add to the correct component of the shift column
+                 CALL set_vecp_rev(idir,idir2,idir3)
+                 scale_fac=fac_vecp(idir3,idir2,idir)
+                 CALL coeff_scale(pw_gspace_work,scale_fac)
+                 CALL coeff_sumup(pw_gspace_work,shift_pw_gspace(idir3))
+              END IF
+            END DO
+
             IF(gapw) THEN
             ! compute the atomic response current densities on the spherical grids
             END IF
@@ -349,6 +452,20 @@ CONTAINS
          END DO  ! idir
          
        END DO  !  ispin
+
+       ! Tranform the column i_B of the shift tensor from reciprocal to real space
+       ! get the values on the atomic positions and on the other required points (if any) 
+       ! this can be done by interpolation of the values of the grid 
+       ! on the required positions in real space
+
+       DO idir = 1,3
+         CALL coeff_transform_space(shift_pw_gspace(idir),shift_pw_rspace)
+         CALL interpolate_shift_pwgrid(nmr_env,particle_set,cell,shift_pw_rspace,&
+              i_B,idir,error=error)
+       END DO 
+       IF(gapw) THEN
+         ! Add the local contributions by numerical integration over the spherical grids
+       END IF
 
        IF (BTEST(cp_print_key_should_output(logger%iter_info,nmr_section,&
                   "PRINT%CURRENT_CUBES",error=error),cp_p_file)) THEN
@@ -380,6 +497,29 @@ CONTAINS
 
        END IF
       END DO  ! i_B
+
+      IF (BTEST(cp_print_key_should_output(logger%iter_info,nmr_section,&
+                  "PRINT%CURRENT_CUBES",error=error),cp_p_file)) THEN
+        CALL pw_pool_give_back_coeff(auxbas_pw_pool,wf_r,&
+               error=error)
+        CALL rs_pool_give_back_rs(auxbas_rs_pool,rs, error=error)
+      END IF
+
+!-----------------------------------------------------------------------!
+!     Dellocate grids for the calculation of jrho and the shift 
+      CALL pw_pool_give_back_coeff(auxbas_pw_pool,pw_gspace_work,&
+               error=error)
+      DO idir = 1,3
+        CALL pw_pool_give_back_coeff(auxbas_pw_pool,shift_pw_gspace(idir), &
+                                 error=error)
+      END DO
+      DeALLOCATE(shift_pw_gspace,STAT=istat)
+      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+      CALL pw_pool_give_back_coeff(auxbas_pw_pool,shift_pw_rspace,&
+               error=error)
+!
+!-----------------------------------------------------------------------!
+
       CALL timestop(0.0_dp,handle)
     END IF  !  failure
 
@@ -399,7 +539,7 @@ CONTAINS
       OPTIONAL                               :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_jrho_resp', &
-      routineP = moduleN//':'//routineN
+      routineP = moduleN//'/'//routineN
     INTEGER, PARAMETER                       :: add_tasks = 1000, &
                                                 max_tasks = 2000
     REAL(kind=dp), PARAMETER                 :: mult_tasks = 2.0_dp

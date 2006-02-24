@@ -122,6 +122,7 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'nmr_do_nmr', &
       routineP = moduleN//':'//routineN
 
+    CHARACTER(LEN=20)                        :: rootfname
     INTEGER                                  :: handle, iao, idir, idir2, ii, &
                                                 iii, ispin, ist_true, istat, &
                                                 istate, istate2, ncubes, &
@@ -230,7 +231,7 @@ CONTAINS
                 CALL qs_print_cubes(qs_env,psi1(ispin)%matrix,ncubes,nmr_env%list_cubes,&
                      nmr_env%centers_set(ispin)%array,idir,ispin,ionode,'psi1_p',&
                      stride=section_get_ival(nmr_section,&
-                     "PRINT%RESPONSE_FUNCTION_%STRIDE"),error=error)
+                     "PRINT%RESPONSE_FUNCTION_CUBES%STRIDE"),error=error)
               END DO  ! ispin
            END IF  ! print response functions
          END IF
@@ -300,7 +301,7 @@ CONTAINS
                 CALL qs_print_cubes(qs_env,psi1(ispin)%matrix,ncubes,nmr_env%list_cubes,&
                      nmr_env%centers_set(ispin)%array,idir,ispin,ionode,'psi1_rxp',&
                      stride=section_get_ival(nmr_section,&
-                     "PRINT%RESPONSE_FUNCTION_%STRIDE"),error=error)
+                     "PRINT%RESPONSE_FUNCTION_CUBES%STRIDE"),error=error)
               END DO  ! ispin
            END IF  ! print response functions
 
@@ -394,7 +395,7 @@ CONTAINS
                     ncubes,nmr_env%list_cubes,&
                     nmr_env%centers_set(ispin)%array,idir,ispin,ionode,'psi1_D',&
                     stride=section_get_ival(nmr_section,&
-                    "PRINT%RESPONSE_FUNCTION_%STRIDE"),error=error)
+                    "PRINT%RESPONSE_FUNCTION_CUBES%STRIDE"),error=error)
            END IF  ! print response functions
 
 
@@ -641,6 +642,11 @@ CONTAINS
      DEALLOCATE(state_done,STAT=istat)
      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
+!    Conversion factors
+     nmr_env%shift_factor = 1.0_dp
+     nmr_env%chi_factor = 1.0_dp
+     nmr_env%shift_SI_ppm = 1.0_dp
+     nmr_env%chi_SI_ppm = 1.0_dp
 
      nmr_env%store_current = .FALSE.
      IF (BTEST(cp_print_key_should_output(logger%iter_info,nmr_section,&

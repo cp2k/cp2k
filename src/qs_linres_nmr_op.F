@@ -56,7 +56,7 @@ MODULE qs_linres_nmr_op
   IMPLICIT NONE
 
   PRIVATE
-  PUBLIC :: nmr_operators, set_vecp
+  PUBLIC :: nmr_operators, set_vecp, set_vecp_rev, fac_vecp
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_linres_nmr_op'
 
@@ -281,6 +281,22 @@ CONTAINS
   END SUBROUTINE nmr_operators
 
 !****************************************************************************
+  FUNCTION fac_vecp(a,b,c) RESULT(factor)
+
+     INTEGER :: a,b,c
+     REAL(dp) :: factor
+
+     factor = 0.0_dp
+
+     IF ((b.eq.a+1 .or. b.eq.a-2) .and. (c.eq.b+1 .or. c.eq.b-2)) THEN
+       factor = 1.0_dp
+     ELSEif ((b.eq.a-1 .or. b.eq.a+2) .and. (c.eq.b-1 .or. c.eq.b+2)) THEN
+       factor = -1.0_dp
+     END IF
+
+  END FUNCTION fac_vecp
+
+!****************************************************************************
   SUBROUTINE set_vecp(i1,i2,i3)
 
     INTEGER, INTENT(IN)                      :: i1
@@ -299,5 +315,22 @@ CONTAINS
     END IF
 
   END SUBROUTINE set_vecp 
+!****************************************************************************
+  SUBROUTINE set_vecp_rev(i1,i2,i3)
+
+    INTEGER, INTENT(IN)                      :: i1,i2
+    INTEGER, INTENT(OUT)                     :: i3
+
+    IF((i1+i2)==3) THEN
+      i3=3
+    ELSEIF((i1+i2)==4) THEN
+      i3=2
+    ELSEIF((i1+i2)==5) THEN
+      i3=1
+    ELSE
+    END IF
+
+  END SUBROUTINE set_vecp_rev 
+
 !****************************************************************************
 END MODULE qs_linres_nmr_op

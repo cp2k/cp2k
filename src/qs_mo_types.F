@@ -811,8 +811,11 @@ CONTAINS
       READ (restart_unit) natom_read,nspin_read,nao_read,nset_max,nshell_max
 
       ! we should allow for restarting with different spin settings
+!      IF (nspin_read /= nspin) THEN
+!        CALL stop_program(routine,"nspin is not equal (program this !!)")
+!      END IF
       IF (nspin_read /= nspin) THEN
-        CALL stop_program(routine,"nspin is not equal (program this !!)")
+        WRITE(globenv%scr,*)  "READ RESTART : WARNING : nspin is not equal "
       END IF
 
       IF (natom_read /= natom) THEN
@@ -859,6 +862,8 @@ CONTAINS
                                        nao_read*dp_size)
 
     END IF
+
+    CALL mp_bcast(nspin_read,source,group)
 
     ALLOCATE (vecbuffer(1,nao),STAT=istat)
     IF (istat /= 0) CALL stop_memory(routine,"vecbuffer",nao*dp_size)
@@ -976,7 +981,18 @@ CONTAINS
                           4,6,dft_section,globenv)
       END IF
 
-    END DO
+
+      IF(ispin==1 .AND. nspin_read<nspin) THEN
+
+        mo_array(ispin+1)%mo_set%homo = mo_array(ispin)%mo_set%homo
+        mo_array(ispin+1)%mo_set%lfomo = mo_array(ispin)%mo_set%lfomo
+        mo_array(ispin+1)%mo_set%nelectron = mo_array(ispin)%mo_set%nelectron
+        mo_array(ispin+1)%mo_set%eigenvalues = mo_array(ispin)%mo_set%eigenvalues
+        mo_array(ispin+1)%mo_set%occupation_numbers = mo_array(ispin)%mo_set%occupation_numbers
+        CALL cp_fm_to_fm(mo_array(ispin)%mo_set%mo_coeff,mo_array(ispin+1)%mo_set%mo_coeff,error=error)
+        EXIT
+      END IF
+    END DO   ! ispin
 
     DEALLOCATE(vecbuffer,STAT=istat)
     IF (istat /= 0) CALL stop_memory(routine,"vecbuffer")

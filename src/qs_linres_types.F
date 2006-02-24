@@ -133,6 +133,8 @@ MODULE qs_linres_types
                                                     simplenmr_converged(6),&
                                                     store_current,restart_nmr
      LOGICAL,DIMENSION(:,:), POINTER             :: fullnmr_done
+     REAL(dp)                                    :: shift_factor, chi_factor
+     REAL(dp)                                    :: shift_SI_ppm, chi_SI_ppm
      REAL(dp)                                    :: chi_tensor(3,3)
      REAL(dp)                                    :: chi_tensor_loc(3,3)
      REAL(dp), DIMENSION(:,:), POINTER           :: basisfun_center

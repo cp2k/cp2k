@@ -460,7 +460,7 @@ CONTAINS
                END IF 
 
                IF(xas_control%smear/=0.0_dp) THEN
-                  CALL xas_smearing(mos(ispin)%mo_set,xas_control,dft_control%xas_estate,ispin,error=error)
+                  CALL xas_smearing(mos(ispin)%mo_set,xas_control,dft_control%xas_estate,ispin,ionode,error=error)
                END IF
 
                CALL write_mo_set(mos(ispin)%mo_set,atomic_kind_set,particle_set,&
@@ -744,11 +744,12 @@ CONTAINS
 
 !!*** **********************************************************************
 
-  SUBROUTINE xas_smearing(mo_set,xas_control,estate,ispin,error)
+  SUBROUTINE xas_smearing(mo_set,xas_control,estate,ispin,ionode,error)
 
     TYPE(mo_set_type), POINTER               :: mo_set
     TYPE(xas_control_type)                   :: xas_control
     INTEGER, INTENT(IN)                      :: estate, ispin
+    LOGICAL, INTENT(IN)                      :: ionode
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -801,7 +802,7 @@ CONTAINS
       END DO
 
       IF(e2 > eigenvalues(nmo)) THEN
-        WRITE(6,*) "WARNING might be too few states for the smearing !"
+        IF(ionode) WRITE(6,*) "WARNING might be too few states for the smearing !"
       END IF
       DO imo=nmo,nomo,-1
         IF (eigenvalues(imo) < e2) THEN
@@ -846,10 +847,8 @@ CONTAINS
         DO imo = 1,homo
           nelec = nelec + occupation(imo)
         END DO
-        IF(nelec/=nelec0) WRITE(6,*) "WARNING different number of electrons !", nelec, nelec0
-        WRITE(*,*) 'lfomo ' , lfomo, occupation(lfomo)
-        WRITE(*,*) 'nomo ' , nomo, occupation(nomo)
-        WRITE(*,*) 'homo ' , homo, occupation(homo)
+        IF(nelec/=nelec0 .AND. ionode)&
+            WRITE(6,*) "WARNING different number of electrons !", nelec, nelec0
       END IF
     END IF
 
