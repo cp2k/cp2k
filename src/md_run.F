@@ -362,13 +362,16 @@ CONTAINS
       CALL cp_iterate(logger%iter_info,last=(istep==simpar%nsteps),&
            iter_nr=itimes,error=error)
       CALL velocity_verlet(md_env,error)
+      ! test for EXIT_MD to exit, if so we don't overwrite the restart or append to the trajectory
+      CALL external_control(should_stop,"MD",globenv,error=error)
+      IF (should_stop) EXIT
       DO ibead=1,nbeads
         CALL temperature_control(simpar,force_env_p(ibead)%force_env,error)
       END DO
       time_iter_stop=m_walltime()
       used_time = time_iter_stop - time_iter_start
       time_iter_start=time_iter_stop
-      CALL md_energy ( md_env, globenv, error )
+      CALL md_energy ( md_env, globenv, error ) ! also writes trajectories
       IF (BTEST(cp_print_key_should_output(logger%iter_info,&
            motion_section,"MD%PRINT%RESTART",error=error),cp_p_file)) THEN
          CALL update_input(md_env=md_env,globenv=globenv,force_env_section=force_env_section,&
@@ -384,9 +387,6 @@ CONTAINS
          CALL cp_print_key_finished_output(ires,logger,motion_section,&
               "MD%PRINT%RESTART", error=error)
       END IF
-      ! test for EXIT_MD to exit
-      CALL external_control(should_stop,"MD",globenv,error=error)
-      IF (should_stop) EXIT
 
     END DO 
     CALL cp_rm_iter_level(logger%iter_info,n_rlevel_att=iter_level,&
