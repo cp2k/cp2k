@@ -254,6 +254,9 @@ SUBROUTINE handle_ext_restart(input_file,para_env,error)
     TYPE(section_type), POINTER              :: input_structure
     TYPE(section_vals_type), POINTER         :: r_section, restart_input, &
                                                 section, work_section
+    INTEGER                                  :: handle
+
+    CALL timeset(routineN,handle)
 
   failure=.FALSE.
   NULLIFY(work_section)
@@ -488,6 +491,7 @@ SUBROUTINE handle_ext_restart(input_file,para_env,error)
         CALL section_vals_release(restart_input,error=error)
      END IF
   END IF
+    CALL timestop(handle)
 END SUBROUTINE handle_ext_restart
 !***************************************************************************
 
