@@ -373,40 +373,110 @@ CONTAINS
        CALL section_add_subsection(section,print_key,error=error)
        CALL section_release(print_key,error=error)       
 
-       CALL cp_print_key_section_create(print_key,"neighbor_lists",&
-            description="controls the printing of the neighbor lists", &
-            print_level=debug_print_level,each=(/1/),filename="__STD_OUT__",&
-            error=error)
-       CALL keyword_create(keyword, name="sab_orb",&
-            description="If the printkey is activated controls the printing of s-a-b lists",&
-            default_l_val=.FALSE., lone_keyword_l_val=.TRUE., error=error)
+       CALL cp_print_key_section_create(print_key_section=print_key,&
+                                        name="neighbor_lists",&
+                                        description="Controls the printing of the neighbor lists",&
+                                        print_level=debug_print_level,&
+                                        each=(/1/),&
+                                        filename="",&
+                                        error=error)
+       CALL keyword_create(keyword=keyword,&
+                           name="sab_orb",&
+                           description="Activates the printing of the orbital "//&
+                                       "orbital neighbor lists, "//&
+                                       "i.e. the overlap neighbor lists",&
+                           default_l_val=.FALSE.,&
+                           lone_keyword_l_val=.TRUE.,&
+                           error=error)
+       CALL section_add_keyword(print_key,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword=keyword,&
+                           name="sac_ppl",&
+                           description="Activates the printing of the orbital "//&
+                                       "GTH-PPL neighbor lists (local part of the "//&
+                                       "Goedecker-Teter-Hutter pseudo potentials)",&
+                           default_l_val=.FALSE.,&
+                           lone_keyword_l_val=.TRUE.,&
+                           error=error)
+       CALL section_add_keyword(print_key,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword=keyword,&
+                           name="sac_ppnl",&
+                           description="Activates the printing of the orbital(a) "//&
+                                       "GTH-PPNL neighbor lists (non-local part of the"//&
+                                       "Goedecker-Teter-Hutter pseudo potentials)",&
+                           default_l_val=.FALSE.,&
+                           lone_keyword_l_val=.TRUE.,&
+                           error=error)
+       CALL section_add_keyword(print_key,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword=keyword,&
+                           name="sbc_ppnl",&
+                           description="Activates the printing of the orbital(b) "//&
+                                       "GTH-PPNL neighbor lists (non-local part of the"//&
+                                       "Goedecker-Teter-Hutter pseudo potentials)",&
+                           default_l_val=.FALSE.,&
+                           lone_keyword_l_val=.TRUE.,&
+                           error=error)
+       CALL section_add_keyword(print_key,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword=keyword,&
+                           name="sac_oce",&
+                           description="Activates the printing of the orbital "//&
+                                       "PAW-projector neighbor lists (only GAPW)",&
+                           default_l_val=.FALSE.,&
+                           lone_keyword_l_val=.TRUE.,&
+                           error=error)
+       CALL section_add_keyword(print_key,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword=keyword,&
+                           name="sbc_oce",&
+                           description="Activates the printing of the orbital "//&
+                                       "PAW-projector neighbor lists (only GAPW)",&
+                           default_l_val=.FALSE.,&
+                           lone_keyword_l_val=.TRUE.,&
+                           error=error)
        CALL section_add_keyword(print_key,keyword,error=error)
        CALL keyword_release(keyword,error=error)    
-       CALL keyword_create(keyword, name="sac_ppl",&
-            description="If the printkey is activated controls the printing of s-a-c gth local lists",&
-            default_l_val=.FALSE., lone_keyword_l_val=.TRUE., error=error)
+
+       CALL keyword_create(keyword=keyword,&
+                           name="sab_2c",&
+                           description="Activates the printing of the two-center "//&
+                                       "orbital V(Hartree_local) neighbor lists "//&
+                                       "(only GAPW)",&
+                            default_l_val=.FALSE.,&
+                           lone_keyword_l_val=.TRUE.,&
+                           error=error)
        CALL section_add_keyword(print_key,keyword,error=error)
        CALL keyword_release(keyword,error=error)    
-       CALL keyword_create(keyword, name="sab_ppnl",&
-            description="If the printkey is activated controls the printing of s-a-b gth non local lists",&
-            default_l_val=.FALSE., lone_keyword_l_val=.TRUE., error=error)
+
+       CALL keyword_create(keyword=keyword,&
+                           name="sac_3c",&
+                           description="Activates the printing of the three-center "//&
+                                       "orbital(a) V(Hartree_local) neighbor lists "//&
+                                       "(only GAPW)",&
+                           default_l_val=.FALSE.,&
+                           lone_keyword_l_val=.TRUE.,&
+                           error=error)
        CALL section_add_keyword(print_key,keyword,error=error)
-       CALL keyword_release(keyword,error=error)    
-       CALL keyword_create(keyword, name="sbc_ppnl",&
-            description="If the printkey is activated controls the printing of s-b-c gth non local lists",&
-            default_l_val=.FALSE., lone_keyword_l_val=.TRUE., error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword=keyword,&
+                           name="sbc_3c",&
+                           description="Activates the printing of the three-center "//&
+                                       "orbital(b) V(Hartree_local) neighbor lists "//&
+                                       "(only GAPW)",&
+                           default_l_val=.FALSE.,&
+                           lone_keyword_l_val=.TRUE.,&
+                           error=error)
        CALL section_add_keyword(print_key,keyword,error=error)
-       CALL keyword_release(keyword,error=error)    
-       CALL keyword_create(keyword, name="sac_oce",&
-            description="If the printkey is activated controls the printing of s-a-c oce lists",&
-            default_l_val=.FALSE., lone_keyword_l_val=.TRUE., error=error)
-       CALL section_add_keyword(print_key,keyword,error=error)
-       CALL keyword_release(keyword,error=error)    
-       CALL keyword_create(keyword, name="sbc_oce",&
-            description="If the printkey is activated controls the printing of s-b-c oce lists",&
-            default_l_val=.FALSE., lone_keyword_l_val=.TRUE., error=error)
-       CALL section_add_keyword(print_key,keyword,error=error)
-       CALL keyword_release(keyword,error=error)    
+       CALL keyword_release(keyword,error=error)
+
        CALL section_add_subsection(section,print_key,error=error)
        CALL section_release(print_key,error=error)
 

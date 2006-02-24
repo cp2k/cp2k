@@ -340,6 +340,7 @@ CONTAINS
                                           print_subcell_grid,output_unit,&
                                           orb_present,ppl_present,&
                                           orb_radius,ppl_radius,&
+                                          name="ORBITAL GTH-PPL",&
                                           particle_set=particle_set)
 
         CALL set_kg_env(kg_env=kg_env,sac_ppl=sac_ppl)
@@ -361,7 +362,8 @@ CONTAINS
         CALL build_gth_ppl_neighbor_lists(sac_ppl_aux,atom,cell,r_skin,maxatom_local,&
                                           print_subcell_grid,output_unit,&
                                           aux_present,ppl_present,&
-                                          aux_radius,ppl_radius)
+                                          aux_radius,ppl_radius,&
+                                          name="AUXILIARY ORBITAL GTH-PPL")
 
         CALL set_kg_env(kg_env=kg_env,sac_ppl_aux=sac_ppl_aux)
 
