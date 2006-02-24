@@ -38,6 +38,7 @@ MODULE md_run
   USE distribution_1d_types,           ONLY: distribution_1d_type
   USE dynamical_coeff_types,           ONLY: dyn_coeff_set_initialize,&
                                              dyn_coeff_set_p_type
+  USE environment,                     ONLY: compile_arch, compile_date, compile_host, compile_lastcvs
   USE extended_system_types,           ONLY: extended_system_type,&
                                              extended_type_init,&
                                              lnhc_dealloc,&
@@ -61,7 +62,7 @@ MODULE md_run
                                              section_vals_val_get,&
                                              section_vals_write
   USE kinds,                           ONLY: dp
-  USE machine,                         ONLY: m_walltime
+  USE machine,                         ONLY: m_walltime,m_getcwd,m_datum
   USE md,                              ONLY: initialize_velocities,&
                                              read_md_section,&
                                              simulation_parameters_type
@@ -181,6 +182,8 @@ CONTAINS
     TYPE(simulation_parameters_type), &
       POINTER                                :: simpar
     TYPE(virial_type), POINTER               :: virial
+    CHARACTER(LEN=256)                       :: datx,cwd
+    INTEGER                                  :: strend,strstart
 
 !   ---------------------------------------------------------------------------
 
@@ -380,9 +383,32 @@ CONTAINS
          ires = cp_print_key_unit_nr(logger,motion_section,"MD%PRINT%RESTART",&
               extension=".restart",  do_backup=.TRUE., &
               error=error)
-         IF (ires>0) &
-         CALL section_vals_write(globenv%input_file,unit_nr=ires,&
-              hide_root=.TRUE., error=error)         
+         IF (ires>0) THEN  
+              WRITE (UNIT=ires,FMT="(T2,A)") "# Version information for this restart file "
+              CALL m_datum(datx)
+              WRITE (UNIT=ires,FMT="(T2,A)") "# current date "//TRIM(datx)
+              CALL m_getcwd(cwd)
+              WRITE (UNIT=ires,FMT="(T2,A)") "# current working dir "//TRIM(cwd)
+
+              WRITE (UNIT=ires,FMT="(T2,A,T31,A50)")&
+                "# Program compiled at",&
+                ADJUSTR(compile_date(1:MIN(50,LEN(compile_date))))
+              WRITE (UNIT=ires,FMT="(T2,A,T31,A50)")&
+                "# Program compiled on",&
+                ADJUSTR(compile_host(1:MIN(50,LEN(compile_host))))
+              WRITE (UNIT=ires,FMT="(T2,A,T31,A50)")&
+                "# Program compiled for",&
+                ADJUSTR(compile_arch(1:MIN(50,LEN(compile_arch))))
+              strend=MAX(1,LEN(compile_lastcvs)-2)
+              strstart=MAX(2,strend-50)
+              WRITE (UNIT=ires,FMT="(T2,A,T31,A50)")&
+                "# Last CVS entry",&
+                ADJUSTR(compile_lastcvs(strstart:strend))
+
+            CALL section_vals_write(globenv%input_file,unit_nr=ires,&
+                  hide_root=.TRUE., error=error)         
+
+         ENDIF
 
          CALL cp_print_key_finished_output(ires,logger,motion_section,&
               "MD%PRINT%RESTART", error=error)
