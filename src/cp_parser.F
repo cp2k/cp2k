@@ -60,13 +60,13 @@ MODULE cp_parser
 
 ! *** Global variables ***
 
-  CHARACTER(LEN=4),PARAMETER :: default_separators = ",:;="
-  CHARACTER(LEN=3),PARAMETER :: default_end_section_label = "END"
-  CHARACTER(LEN=1),PARAMETER :: blank_character = " ",&
-                      default_comment_character = "#",&
-                      default_continuation_character = CHAR(92),& ! backslash
-                      default_section_character = "&",&
-                      horizontal_tab = CHAR(9)
+  CHARACTER(LEN=4),PARAMETER, PUBLIC:: default_separators = ",:;="
+  CHARACTER(LEN=3),PARAMETER, PUBLIC:: default_end_section_label = "END"
+  CHARACTER(LEN=1),PARAMETER, PUBLIC:: blank_character = " ",&
+                                       default_comment_character = "#",&
+                                       default_continuation_character = CHAR(92),& ! backslash
+                                       default_section_character = "&",&
+                                       horizontal_tab = CHAR(9)
   INTEGER,PARAMETER, PUBLIC :: max_unit_number = 999
 
   INTEGER, SAVE, PRIVATE :: last_parser_id=0

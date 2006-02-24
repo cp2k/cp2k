@@ -38,11 +38,12 @@ MODULE input_val_types
                                              enumeration_type
   USE kinds,                           ONLY: default_string_length,&
                                              dp
+  USE cp_parser,                       ONLY: default_continuation_character
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
   PRIVATE
-
+ 
   LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'input_val_types'
 
@@ -672,7 +673,7 @@ SUBROUTINE val_write(val,unit_nr,unit,unit_str,fmt,error)
         IF (ASSOCIATED(val%l_val)) THEN
            DO i=1,SIZE(val%l_val)
               IF (MODULO(i,20)==0) THEN 
-                 WRITE(unit=unit_nr,fmt="(' \')")
+                 WRITE(unit=unit_nr,fmt="(' ',A)")default_continuation_character
                  WRITE(unit=unit_nr,fmt="("//TRIM(myfmt)//")",advance="NO")
               END IF
               WRITE(unit=unit_nr,fmt="(' ',l1)",advance="NO")&
@@ -685,7 +686,7 @@ SUBROUTINE val_write(val,unit_nr,unit,unit_str,fmt,error)
         IF (ASSOCIATED(val%i_val)) THEN
            DO i=1,SIZE(val%i_val)
               IF (MODULO(i,8)==0) THEN 
-                 WRITE(unit=unit_nr,fmt="(' \')")
+                 WRITE(unit=unit_nr,fmt="(' ',A)")default_continuation_character
                  WRITE(unit=unit_nr,fmt="("//TRIM(myfmt)//")",advance="NO")
               END IF
               WRITE(unit=unit_nr,fmt="(' ',i14)",advance="NO")&
@@ -698,7 +699,7 @@ SUBROUTINE val_write(val,unit_nr,unit,unit_str,fmt,error)
         IF (ASSOCIATED(val%r_val)) THEN
            DO i=1,SIZE(val%r_val)
               IF (MODULO(i,5)==0) THEN 
-                 WRITE(unit=unit_nr,fmt="(' \')")
+                 WRITE(unit=unit_nr,fmt="(' ',A)")default_continuation_character
                  WRITE(unit=unit_nr,fmt="("//TRIM(myfmt)//")",advance="NO")
               END IF
               IF (ASSOCIATED(my_unit)) THEN
@@ -752,7 +753,7 @@ SUBROUTINE val_write(val,unit_nr,unit,unit_str,fmt,error)
            DO i=1,SIZE(val%i_val)
               c_string=enum_i2c(val%enum,val%i_val(i),error=error)
               IF (l>10.AND.l+LEN_TRIM(c_string)>76)THEN
-                 WRITE(unit=unit_nr,fmt="(' \')")
+                 WRITE(unit=unit_nr,fmt="(' ',A)")default_continuation_character
                  WRITE(unit=unit_nr,fmt="("//TRIM(myfmt)//")",advance="NO")
                  l=0
               ELSE
