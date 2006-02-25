@@ -245,7 +245,7 @@ CONTAINS
 
     CHARACTER(LEN=*), PARAMETER              :: routineN = 'get_hinv'
 
-    box%deth = det_3x3(box%hmat)
+    box%deth = ABS ( det_3x3(box%hmat) )
 
     IF (box%deth < 1.0E-10_dp) THEN
       CALL stop_program(moduleN,routineN,__LINE__,&
@@ -283,9 +283,9 @@ CONTAINS
     IF (PRESENT(hmat)) cell%hmat(:,:) = hmat(:,:)
     IF (PRESENT(periodic)) cell%perd(:) = periodic(:)
 
-!   *** Calculate the determinant of the matrix h ***
+!   *** Calculate the absolute value of the determinant of the matrix h ***
 
-    cell%deth = det_3x3(cell%hmat)
+    cell%deth = ABS ( det_3x3(cell%hmat) )
 
     IF (cell%deth < 1.0E-10_dp) THEN
       CALL stop_program(routine,&

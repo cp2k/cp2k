@@ -74,7 +74,7 @@ MODULE pw_grids
 
   PRIVATE
   PUBLIC :: pw_grid_create, pw_grid_compare
-  PUBLIC :: pw_grid_setup, pw_grid_change, pw_find_cutoff, pw_grid_find_bounds
+  PUBLIC :: pw_grid_setup, pw_grid_change, pw_find_cutoff
   PUBLIC :: pw_grid_retain, pw_grid_release, pw_grid_create_copy_no_pbc
   PUBLIC :: create_gvectors, pw_grid_find_n, pw_grid_n_from_cutoff,&
        pw_grid_n_for_fft, pw_grid_bounds_from_n, pw_grid_setup1,pw_cutoff_from_n
@@ -311,7 +311,7 @@ FUNCTION pw_grid_find_n ( cell, cutoff, fft_usage, grid_span,&
   ENDIF
 
   CPPrecondition(cutoff>0.0_dp,cp_failure_level,routineP,error,failure)
-  n= pw_grid_n_from_cutoff ( cell % h_inv, cutoff,error=error)
+  n= pw_grid_n_from_cutoff ( cell % hmat, cutoff,error=error)
   my_spherical = .FALSE.
   IF (PRESENT(spherical)) my_spherical=spherical
   
@@ -435,11 +435,10 @@ END FUNCTION pw_grid_n_for_fft
 !!     JGH (21-05-2002) : Optimise code, remove orthorhombic special case
 !!
 !!*** *************************************************************************
-FUNCTION pw_grid_n_from_cutoff ( h_inv, cutoff, error ) RESULT(n)
-
+FUNCTION pw_grid_n_from_cutoff ( hmat, cutoff, error ) RESULT(n)
 
     REAL(KIND=dp), DIMENSION(3, 3), &
-      INTENT(IN)                             :: h_inv
+      INTENT(IN)                             :: hmat
     REAL(KIND=dp), INTENT(IN)                :: cutoff
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
@@ -447,26 +446,24 @@ FUNCTION pw_grid_n_from_cutoff ( h_inv, cutoff, error ) RESULT(n)
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_grid_n_from_cutoff', &
       routineP = moduleN//':'//routineN
-    INTEGER, PARAMETER                       :: lwork = 20
 
-    INTEGER                                  :: info
+    INTEGER                                  :: i
     LOGICAL                                  :: failure
-    REAL(KIND=dp)                            :: eig( 3 ), gmat( 3, 3 ), &
-                                                work( lwork )
+    REAL(KIND=dp)                            :: alat( 3 )
 
 !------------------------------------------------------------------------------
 
     failure=.FALSE.
 
-  gmat = MATMUL ( h_inv, TRANSPOSE ( h_inv ) )
-  CALL dsyev("V","U",3,gmat,3,eig,work,lwork,info)
-  CPPostcondition(info==0,cp_failure_level,routineP,error,failure)
-  IF (.NOT.failure) THEN
-     eig = SQRT ( 2.0_dp * cutoff / eig ) / twopi
-     n = 2*FLOOR ( matvec_3x3 ( gmat, eig ) )+1
-  ELSE
-     n=-HUGE(0)
-  END IF
+    do i=1,3
+      alat(i) = SUM ( hmat(:,i)**2 )
+    enddo
+    CPPostcondition(ALL(alat/=0._dp),cp_failure_level,routineP,error,failure)
+    IF ( failure ) THEN
+      n = -HUGE(0)
+    ELSE
+      n = 2*FLOOR ( SQRT ( 2.0_dp * cutoff * alat ) / twopi ) + 1
+    END IF
 
 END FUNCTION pw_grid_n_from_cutoff
 !****************************************************************************
@@ -573,12 +570,12 @@ END FUNCTION pw_grid_bounds_from_n
 !!
 !!*** *************************************************************************
 
-SUBROUTINE pw_grid_find_bounds ( bounds, h_inv, cutoff, fft )
+SUBROUTINE pw_grid_find_bounds ( bounds, hmat, cutoff, fft )
 
 
     INTEGER, DIMENSION(2, 3), INTENT(OUT)    :: bounds
     REAL(KIND=dp), DIMENSION(3, 3), &
-      INTENT(IN)                             :: h_inv
+      INTENT(IN)                             :: hmat
     REAL(KIND=dp), INTENT(IN)                :: cutoff
     LOGICAL, INTENT(IN)                      :: fft
 
@@ -590,7 +587,7 @@ SUBROUTINE pw_grid_find_bounds ( bounds, h_inv, cutoff, fft )
 
   CALL timeset("pw_grid_find_bounds","I","",handle)
 
-  n=pw_grid_n_from_cutoff(h_inv,cutoff)
+  n=pw_grid_n_from_cutoff(hmat,cutoff)
   IF (fft) n=pw_grid_n_for_fft(n)
   bounds = pw_grid_bounds_from_n(n)
 

@@ -264,7 +264,7 @@ CONTAINS
           ELSE
              my_cutilev=my_cutilev*mt_rel_cutoff
              n_new= pw_grid_n_for_fft(&
-                  pw_grid_n_from_cutoff(cell_ref%h_inv,my_cutilev,error=error),&
+                  pw_grid_n_from_cutoff(cell_ref%hmat,my_cutilev,error=error),&
                   odd=(grid_span==HALFSPACE .and.symmetry),error=error)
              IF (ALL(n_new>n_orig)) THEN
                 CALL pw_grid_setup1(cell=cell_ref, pw_grid=mt_super_ref_pw_grid,&
