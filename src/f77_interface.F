@@ -26,7 +26,6 @@
 !!   SOURCE
 !****************************************************************************
 MODULE f77_interface
-  USE cp2k_runs,                       ONLY: cp2k_run
   USE cp2k_units,                      ONLY: init_cp2k_units,&
                                              rm_cp2k_units
   USE cp_files,                        ONLY: open_file
@@ -115,9 +114,10 @@ MODULE f77_interface
   PUBLIC :: default_para_env
   PUBLIC :: init_cp2k, finalize_cp2k
   PUBLIC :: create_force_env, destroy_force_env, set_pos, get_pos,&
-       get_force, calc_energy_force, run_input, get_energy, &
-       calc_energy, calc_force, check_input, get_natom
-  !,set_force, set_vel, get_vel 
+       get_force, calc_energy_force, get_energy, &
+       calc_energy, calc_force, check_input, get_natom,&
+       f_env_add_defaults, f_env_rm_defaults, f_env_type, f_env_p_type,&
+       set_vel, get_vel !,set_force
   !!***
   !****************************************************************************
 CONTAINS
@@ -509,72 +509,6 @@ SUBROUTINE f_env_rm_defaults(f_env,error,ierr)
   END IF
 END SUBROUTINE f_env_rm_defaults
 !***************************************************************************
-
-  !!****f* f77_interface/run_input [1.0] *
-  !!
-  !!   NAME
-  !!     run_input
-  !!
-  !!   FUNCTION
-  !!     runs the given input
-  !!
-  !!   NOTES
-  !!     -
-  !!
-  !!   INPUTS
-  !!     - input_file_path: the path of the input file
-  !!     - output_file_path: path of the output file (to which it is appended)
-  !!       if it is "__STD_OUT__" the unit 6 is used
-  !!     - mpi_comm: the mpi communicator to be used for this environment
-  !!       it will not be freed
-  !!     - ierr: will return a number different from 0 if there was an error
-  !!
-  !!   AUTHOR
-  !!     fawzi
-  !!
-  !!*** *********************************************************************
-  SUBROUTINE run_input(input_file_path,output_file_path,ierr,mpi_comm)
-    CHARACTER(len=*), INTENT(in)             :: input_file_path, &
-                                                output_file_path
-    INTEGER, INTENT(out)                     :: ierr
-    INTEGER, INTENT(in), OPTIONAL            :: mpi_comm
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'run_input', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: unit_nr
-    LOGICAL                                  :: failure, success
-    TYPE(cp_para_env_type), POINTER          :: para_env
-
-    failure=.FALSE.
-
-    IF (PRESENT(mpi_comm)) THEN
-       NULLIFY(para_env)
-       CALL cp_para_env_create(para_env, group=mpi_comm, owns_group=.FALSE.)
-    ELSE
-       para_env => default_para_env
-       CALL cp_para_env_retain(para_env)
-    END IF
-    IF (para_env%mepos==para_env%source) THEN
-       IF (output_file_path=="__STD_OUT__") THEN
-          unit_nr=6
-       ELSE
-          CALL open_file(file_name=output_file_path,file_status="UNKNOWN",&
-               file_action="WRITE", file_position="APPEND",&
-               unit_number=unit_nr)
-       END IF
-    ELSE
-       unit_nr=-1
-    END IF
-    success=cp2k_run(input_file_path,unit_nr,para_env%group)
-    IF (.NOT.success) THEN
-       ierr=cp_failure_level
-    ELSE
-       ierr=0
-    END IF
-    CALL cp_para_env_release(para_env)
-  END SUBROUTINE run_input
-  !****************************************************************************
 
   !!****f* f77_interface/create_force_env [1.0] *
   !!
@@ -1015,6 +949,165 @@ END SUBROUTINE f_env_rm_defaults
   END SUBROUTINE get_pos
   !****************************************************************************
 
+  !!****f* f77_interface/set_vel [1.0] *
+  !!
+  !!   NAME
+  !!     set_vel
+  !!
+  !!   FUNCTION
+  !!     sets the velocities of the atoms
+  !!
+  !!   NOTES
+  !!     -
+  !!
+  !!   INPUTS
+  !!     - new_vel: the array with the new velocities
+  !!     - n_el: number of velocities (3*natom) just to check
+  !!     - env_id: id of the force_env
+  !!     - ierr: will return a number different from 0 if there was an error
+  !!
+  !!   AUTHOR
+  !!     fawzi
+  !!
+  !!*** *********************************************************************
+  SUBROUTINE set_vel(env_id, new_vel, n_el, ierr)
+    INTEGER, INTENT(in)                      :: env_id, n_el
+    REAL(kind=dp), DIMENSION(1:n_el)         :: new_vel
+    INTEGER, INTENT(out)                     :: ierr
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'set_vel', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: idir, ii, ip, isub, my_n_el
+    LOGICAL                                  :: failure
+    TYPE(cp_error_type)                      :: error
+    TYPE(cp_subsystem_p_type), &
+      DIMENSION(:), POINTER                  :: subsys
+    TYPE(f_env_type), POINTER                :: f_env
+    TYPE(particle_list_type), POINTER        :: particles
+
+    failure=.FALSE.
+
+    NULLIFY(f_env)
+    CALL f_env_add_defaults(env_id,f_env,error,failure)
+    IF (.not.failure) THEN
+       NULLIFY(subsys)
+       CALL force_env_get(f_env%force_env,&
+            subsys=subsys,error=error)
+       CALL cp_error_check(error,failure)
+       IF (.NOT.failure) THEN
+          CPPrecondition(ASSOCIATED(subsys),cp_failure_level,routineP,error,failure)
+       END IF
+       IF (.NOT.failure) THEN
+          my_n_el=0
+          DO isub=1,SIZE(subsys)
+             particles => subsys(isub)%subsys%particles
+             my_n_el=my_n_el+particles%n_els
+          END DO
+          my_n_el=3*my_n_el
+          CALL cp_assert(my_n_el==n_el,cp_failure_level,cp_assertion_failed,&
+               routineP,"wrong vel size ("//cp_to_string(n_el)//" vs"//&
+               cp_to_string(my_n_el)//") "//&
+               CPSourceFileRef,&
+               error,failure)
+       END IF
+       IF (.NOT.failure) THEN
+          ii=0
+          DO isub=1,SIZE(subsys)
+             particles => subsys(isub)%subsys%particles
+             DO ip=1,particles%n_els
+                DO idir=1,3
+                   ii=ii+1
+                   particles%els(ip)%v(idir)=new_vel(ii)
+                END DO
+             END DO
+          END DO
+       END IF
+    END IF
+    CALL f_env_rm_defaults(f_env,error,ierr)
+  END SUBROUTINE set_vel
+  !****************************************************************************
+
+  !!****f* f77_interface/get_vel [1.0] *
+  !!
+  !!   NAME
+  !!     get_vel
+  !!
+  !!   FUNCTION
+  !!     gets the velocities of the atoms
+  !!
+  !!   NOTES
+  !!     -
+  !!
+  !!   INPUTS
+  !!     - vel: the array where to write the velocities
+  !!     - n_el: number of velocities (3*natom) just to check
+  !!     - env_id: id of the force_env
+  !!     - ierr: will return a number different from 0 if there was an error
+  !!
+  !!   AUTHOR
+  !!     fawzi
+  !!
+  !!*** *********************************************************************
+  SUBROUTINE get_vel(env_id, vel, n_el, ierr)
+    INTEGER, INTENT(in)                      :: env_id, n_el
+    REAL(kind=dp), DIMENSION(1:n_el)         :: vel
+    INTEGER, INTENT(out)                     :: ierr
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'get_vel', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: idir, ii, ip, isub, my_n_el
+    LOGICAL                                  :: failure
+    TYPE(cp_error_type)                      :: error
+    TYPE(cp_subsystem_p_type), &
+      DIMENSION(:), POINTER                  :: subsys
+    TYPE(f_env_type), POINTER                :: f_env
+    TYPE(particle_list_type), POINTER        :: particles
+
+    failure=.FALSE.
+
+    NULLIFY(f_env)
+    CALL f_env_add_defaults(env_id,f_env,error,failure)
+    IF (.not.failure) THEN
+       IF (.NOT.failure) THEN
+          CALL force_env_get(f_env%force_env,&
+               subsys=subsys,error=error)
+          CALL cp_error_check(error,failure)
+       END IF
+       IF (.NOT.failure) THEN
+          CPPrecondition(ASSOCIATED(subsys),cp_failure_level,routineP,error,failure)
+       END IF
+       IF (.NOT.failure) THEN
+          my_n_el=0
+          DO isub=1,SIZE(subsys)
+             particles => subsys(isub)%subsys%particles
+             my_n_el=my_n_el+particles%n_els
+          END DO
+          my_n_el=3*my_n_el
+          CALL cp_assert(my_n_el==n_el,cp_failure_level,cp_assertion_failed,&
+               routineP,"wrong vel size ("//cp_to_string(n_el)//" vs"//&
+               cp_to_string(my_n_el)//&
+               CPSourceFileRef,&
+               error,failure)
+       END IF
+       IF (.NOT.failure) THEN
+          ii=0
+          DO isub=1,SIZE(subsys)
+             particles => subsys(isub)%subsys%particles
+             DO ip=1,particles%n_els
+                DO idir=1,3
+                   ii=ii+1
+                   vel(ii)=particles%els(ip)%v(idir)
+                END DO
+             END DO
+          END DO
+       END IF
+    END IF
+    CALL f_env_rm_defaults(f_env,error,ierr)
+  END SUBROUTINE get_vel
+  !****************************************************************************
+
   !!****f* f77_interface/get_force [1.0] *
   !!
   !!   NAME
@@ -1295,18 +1388,20 @@ END SUBROUTINE f_env_rm_defaults
   !!
   !!*** **********************************************************************
   SUBROUTINE check_input(input_file_path,output_file_path,&
-       echo_input,mpi_comm,ierr)
+       echo_input,mpi_comm,permissive,ierr)
     CHARACTER(len=*), INTENT(in)             :: input_file_path, &
                                                 output_file_path
     LOGICAL, INTENT(in), OPTIONAL            :: echo_input
     INTEGER, INTENT(in), OPTIONAL            :: mpi_comm
+    LOGICAL, INTENT(in), OPTIONAL            :: permissive
     INTEGER, INTENT(out)                     :: ierr
 
     CHARACTER(len=*), PARAMETER :: routineN = 'check_input', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: unit_nr
-    LOGICAL                                  :: failure, my_echo_input
+    LOGICAL                                  :: failure, my_echo_input, &
+                                                my_permissive
     TYPE(cp_error_type)                      :: error
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
@@ -1317,6 +1412,8 @@ END SUBROUTINE f_env_rm_defaults
 
     failure=.FALSE.
     my_echo_input=.FALSE.
+    my_permissive=.FALSE.
+    IF (PRESENT(permissive)) my_permissive=permissive
     IF (PRESENT(echo_input)) my_echo_input=echo_input
 
     IF (PRESENT(mpi_comm)) THEN
@@ -1359,9 +1456,11 @@ END SUBROUTINE f_env_rm_defaults
          default_units=default_units,error=error)
     CALL cp_unit_set_release(default_units,error=error)
     CALL parser_release(cpparser,error=error)
+    IF (my_permissive) CALL cp_error_reset(error)
     CALL cp_error_check(error,failure)
     IF (.NOT.failure) THEN
        CALL check_cp2k_input(input_file,para_env=para_env,error=error)
+       IF (my_permissive) CALL cp_error_reset(error)
        IF (my_echo_input.AND.para_env%mepos==para_env%source) THEN
           CALL section_vals_write(input_file,&
                unit_nr=cp_logger_get_default_unit_nr(logger,local=.FALSE.),hide_root=.TRUE.,&

@@ -413,7 +413,7 @@ FUNCTION gasdev(idum)
      v1 = 2.0_dp*ran2(idum) - 1.0_dp
      v2 = 2.0_dp*ran2(idum) - 1.0_dp
      r = v1*v1 + v2*v2
-     IF (r>=1.0_dp) GO TO 1
+     IF (r>=1.0_dp.OR.r==0._dp) GO TO 1
      fac = SQRT(-2.0_dp*LOG(r)/r)
      gset = v1*fac
      gasdev = v2*fac

@@ -44,6 +44,8 @@ MODULE cp_para_env
   PUBLIC :: cp_para_env_retain, cp_para_env_release, cp_para_env_create, &
       cp_para_env_duplicate,&
       cp_para_env_write
+  PUBLIC :: cp_cart_create, cp_cart_release, cp_cart_update, cp_cart_retain,&
+       cp_cart_write
 !***
 !****************************************************************************
 CONTAINS
@@ -425,7 +427,8 @@ SUBROUTINE cp_cart_create(cart, group, ndims,owns_group, error)
        cart%ndims=ndims
        cart%group=group
        
-       ALLOCATE(cart%source(ndims),cart%periodic(ndims),cart%mepos(ndims),stat=stat)
+       ALLOCATE(cart%source(ndims),cart%periodic(ndims),cart%mepos(ndims),&
+            cart%num_pe(ndims),stat=stat)
        CPPostcondition(stat==0,cp_fatal_level,routineP,error,failure)
        
        cart%source=0
@@ -567,6 +570,75 @@ SUBROUTINE cp_cart_retain(cart,error)
      cart%ref_count=cart%ref_count+1
   END IF
 END SUBROUTINE cp_cart_retain
+!***************************************************************************
+
+!!****f* cp_para_env/cp_cart_write *
+!!
+!!   NAME
+!!     cp_cart_write
+!!
+!!   FUNCTION
+!!     writes out the informations about the cart
+!!
+!!   NOTES
+!!     -
+!!
+!!   ARGUMENTS
+!!     - cart: the parallel environment to output
+!!     - unit_nr: the unit where to output
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     Fawzi Mohamed
+!!
+!!*** **********************************************************************
+SUBROUTINE cp_cart_write(cart,unit_nr,error)
+    TYPE(cp_para_cart_type), POINTER         :: cart
+    INTEGER, INTENT(in)                      :: unit_nr
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_cart_write', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: iostat
+    LOGICAL                                  :: failure
+
+  failure=.FALSE.
+  
+  IF (ASSOCIATED(cart)) THEN
+     WRITE (unit=unit_nr,&
+          fmt="(' <cp_cart>:{ owns_group=',l1,',')",&
+          iostat=iostat) cart%owns_group
+     CPInvariant(iostat==0,cp_failure_level,routineP,error,failure)
+     WRITE (unit=unit_nr,fmt="('  group=',i10,', ref_count=',i10,',')",&
+          iostat=iostat) cart%group, cart%ref_count
+     CPInvariant(iostat==0,cp_failure_level,routineP,error,failure)
+     WRITE (unit=unit_nr,fmt="('  ndims=',i8,',')",&
+          iostat=iostat) cart%ndims
+     CPInvariant(iostat==0,cp_failure_level,routineP,error,failure)
+     WRITE (unit=unit_nr,fmt="('  rank=',i8,', ntask=',i8,',')",&
+          iostat=iostat) cart%rank, cart%ntask
+     CPInvariant(iostat==0,cp_failure_level,routineP,error,failure)
+     WRITE (unit=unit_nr,fmt="('  mepos=',10i8)",&
+          iostat=iostat) cart%mepos
+     CPInvariant(iostat==0,cp_failure_level,routineP,error,failure)
+     WRITE (unit=unit_nr,fmt="('  source=',10i8,',')",&
+          iostat=iostat) cart%source
+     CPInvariant(iostat==0,cp_failure_level,routineP,error,failure)
+     WRITE (unit=unit_nr,fmt="('  num_pe=',10i8,'}')",&
+          iostat=iostat) cart%num_pe
+     CPInvariant(iostat==0,cp_failure_level,routineP,error,failure)
+     WRITE (unit=unit_nr,fmt="('  periodic=',10l2,'}')",&
+          iostat=iostat) cart%periodic
+     CPInvariant(iostat==0,cp_failure_level,routineP,error,failure)
+  ELSE
+     WRITE (unit=unit_nr,&
+          fmt="(a)", iostat=iostat) ' <cp_cart>:*null* '
+     CPInvariant(iostat==0,cp_failure_level,routineP,error,failure)
+  END IF
+END SUBROUTINE cp_cart_write
 !***************************************************************************
 
 END MODULE cp_para_env

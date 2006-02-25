@@ -155,7 +155,7 @@ SUBROUTINE cp_calc_force(env_id,pos,n_el_pos,e_pot,force,n_el_force,ierr)
 END SUBROUTINE cp_calc_force
 
 SUBROUTINE cp_run_input(input_file_path,output_file_path,ierr)
-  USE f77_interface, ONLY: rin => run_input
+  USE cp2k_runs, ONLY: rin => run_input
   IMPLICIT NONE
   CHARACTER(len=*) :: input_file_path, output_file_path
   INTEGER :: ierr

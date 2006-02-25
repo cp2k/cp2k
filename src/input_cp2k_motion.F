@@ -725,7 +725,7 @@ CONTAINS
 
     LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
-    TYPE(section_type), POINTER              :: subsection, print_key
+    TYPE(section_type), POINTER              :: print_key, subsection
 
     failure=.FALSE.
     
@@ -2136,5 +2136,193 @@ END SUBROUTINE create_nose_section
 
     END IF
   END SUBROUTINE create_coord_section
+
+!!****f* input_cp2k_motion/create_pint_section *
+!!
+!!   NAME
+!!     create_pint_section
+!!
+!!   FUNCTION
+!!     creates the section for a path integral run
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     - section: will contain the pint section
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     fawzi
+!!
+!!*** **********************************************************************
+SUBROUTINE create_pint_section(section,error)
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_pint_section', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
+    TYPE(section_type), POINTER              :: print_key, subsection, &
+                                                subsubsection
+
+  failure=.FALSE.
+  
+  CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+  IF (.NOT. failure) THEN
+       CALL section_create(section,name="pint",&
+            description="The section that controls a path integral run",&
+            n_keywords=1, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+            error=error)
+       NULLIFY(keyword)
+
+       CALL keyword_create(keyword, name="p",&
+            description="Specify number beads to use",repeats=.FALSE.,&
+            default_i_val=3, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+       CALL keyword_create(keyword, name="proc_per_replica",&
+            description="Specify number of processors to use for each replica",&
+            repeats=.FALSE., default_i_val=1, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+       CALL keyword_create(keyword, name="num_steps",&
+            description="Specify number of steps to perform",repeats=.FALSE.,&
+            default_i_val=3, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+       CALL keyword_create(keyword, name="iteration",&
+            description="Specify the iteration number from which it should be "//&
+            "counted", default_i_val=0, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+       CALL keyword_create(keyword, name="Temp",&
+            description="The temperature you want to simulate",&
+            default_r_val=cp_unit_to_cp2k(300._dp,"K",error=error),&
+            unit_str="K", error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+       CALL keyword_create(keyword, name="T_tol",variants=(/"temp_to"/),&
+            description="threshold for the oscillations of the temperature "//&
+            "excedeed which the temperature is rescaled. 0 means no rescaling.",&
+            default_r_val=0._dp,unit_str="K", error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+       CALL keyword_create(keyword, name="dt",&
+            description="timestep (might be subdivised in nrespa subtimesteps",&
+            repeats=.FALSE.,&
+            default_r_val=cp_unit_to_cp2k(1.0_dp,"fs",error=error),&
+            usage="dt 1.0",unit_str="fs",error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+       CALL keyword_create(keyword, name="nrespa",&
+            description="number of respa steps for the bead for each md step",&
+            repeats=.FALSE., default_i_val=5,error=error)
+       CALL section_add_keyword(subsection,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+      
+       NULLIFY(subsection,subsubsection)
+       CALL section_create(subsection,name="staging",&
+            description="The section that controls the staging transformation",&
+            n_keywords=1, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+            error=error)
+       CALL keyword_create(keyword, name="j",&
+            description="Value of the j parameter for the staging transformation",&
+            repeats=.FALSE., default_i_val=2,error=error)
+       CALL section_add_keyword(subsection,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+       CALL keyword_create(keyword, name="j",&
+            description="Value of the nose-hoover mass for the endbead (Q_end)",&
+            repeats=.FALSE., default_i_val=2,error=error)
+       CALL section_add_keyword(subsection,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+       CALL section_add_subsection(section,subsection,error=error)
+       CALL section_release(subsection,error=error)
+
+       CALL section_create(subsection,name="nose",&
+            description="The section that controls the nose-hoover thermostats",&
+            n_keywords=1, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+            error=error)
+       CALL keyword_create(keyword, name="nnos",&
+            description="length of nose-hoover chain. 0 means no thermostat",&
+            repeats=.FALSE., default_i_val=2,error=error)
+       CALL section_add_keyword(subsection,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+       CALL create_coord_section(subsubsection,"NOSE",error=error)
+       CALL section_add_subsection(subsection,subsubsection,error=error)
+       CALL section_release(subsubsection,error=error)
+       CALL create_velocity_section(subsubsection,"NOSE",error=error)
+       CALL section_add_subsection(subsection,subsubsection,error=error)
+       CALL section_release(subsubsection,error=error)
+       CALL section_add_subsection(section,subsection,error=error)
+       CALL section_release(subsection,error=error)
+
+       CALL section_create(subsection,name="beads",&
+            description="positions, velocities of the beads",&
+            repeats=.FALSE., required=.TRUE., error=error)
+       CALL create_coord_section(subsubsection,"BEADS",error=error)
+       CALL section_add_subsection(subsection,subsubsection,error=error)
+       CALL section_release(subsubsection,error=error)
+       CALL create_velocity_section(subsubsection,"BEADS",error=error)
+       CALL section_add_subsection(subsection,subsubsection,error=error)
+       CALL section_release(subsubsection,error=error)
+       CALL section_add_subsection(section,subsection,error=error)
+       CALL section_release(subsection,error=error)
+
+       CALL section_create(subsection,name="init",&
+            description="initialization if no beads are present",&
+            repeats=.FALSE., required=.TRUE., error=error)
+       CALL keyword_create(keyword, name="randomize_pos",&
+            description="add gaussian noise to the positions of the beads",&
+            repeats=.FALSE., default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,&
+            error=error)
+       CALL section_add_keyword(subsection,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+       CALL keyword_create(keyword, name="centroid_speed",&
+            description="adds a speed to the centroid "//&
+            "(useful to correct for the averaging out of the speed ov various beads)",&
+            repeats=.FALSE., default_l_val=.FALSE., lone_keyword_l_val=.TRUE.,&
+            error=error)
+       CALL section_add_keyword(subsection,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+       CALL section_add_subsection(section,subsection,error=error)
+       CALL section_release(subsection,error=error)
+
+       CALL section_create(subsection,name="print",&
+            description="The section that controls the output of a path integral run",&
+            n_keywords=1, n_subsections=0, repeats=.FALSE., required=.FALSE.,&
+            error=error)
+
+       NULLIFY(print_key)
+       CALL cp_print_key_section_create(print_key,"restart",&
+            description="Controls how often a restart is written", &
+            print_level=low_print_level,each=(/20/),add_last=(/1/),&
+            error=error)
+       CALL section_add_subsection(subsection,print_key,error=error)
+       CALL section_release(print_key,error=error)        
+
+       CALL cp_print_key_section_create(print_key,"centroids",&
+            description="Controls how often the centroids are written", &
+            print_level=low_print_level,each=(/1/),add_last=(/1/),&
+            error=error)
+       CALL keyword_create(keyword, name="format",&
+            description="Specifies the format of the output file for the trajectory.",&
+            usage="FORMAT (ATOMIC|XMOL|DCD)",&
+            default_i_val=dump_xmol,&
+            enum_c_vals=output_name_types,&
+            enum_i_vals=output_name_index,&
+            error=error)
+       CALL section_add_keyword(print_key,keyword,error=error)
+       CALL keyword_release(keyword,error=error)    
+       CALL section_add_subsection(subsection,print_key,error=error)
+       CALL section_release(print_key,error=error)        
+
+    END IF
+  END SUBROUTINE create_pint_section
+!***************************************************************************
 
 END MODULE input_cp2k_motion

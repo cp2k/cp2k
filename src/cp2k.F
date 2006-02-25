@@ -38,18 +38,19 @@
 !------------------------------------------------------------------------------
 PROGRAM cp2k
 
-  USE cp2k_runs,         ONLY : write_cp2k_html_manual, write_xml_file
+  USE cp2k_runs,         ONLY : write_cp2k_html_manual, write_xml_file, run_input
   USE machine,           ONLY : m_iargc,m_getarg
   USE message_passing,   ONLY : mp_sync
   USE kinds,             ONLY : default_string_length
-  USE f77_interface,     ONLY : init_cp2k, finalize_cp2k, run_input, &
+  USE f77_interface,     ONLY : init_cp2k, finalize_cp2k, &
                                 check_input, default_para_env
   IMPLICIT NONE
 
   CHARACTER(LEN=default_string_length) :: input_file_name,output_file_name,arg_att
   INTEGER                              :: output_unit
   INTEGER                              :: ierr, i, n_arg, i_arg
-  LOGICAL                              :: check, manual, usage, echo_input, command_line_error
+  LOGICAL                              :: check, manual, usage, echo_input, command_line_error,&
+                                          permissive
   LOGICAL                              :: run_it, force_run, has_input, xml
   ! this is the only place that should need unit 6 all others will get 
   ! something reasonable from the cp_logger
@@ -80,6 +81,7 @@ PROGRAM cp2k
      has_input  =.FALSE.
      run_it     =.TRUE.
      force_run  =.FALSE.
+     permissive =.FALSE.
      command_line_error=.FALSE.
      xml = .FALSE.
      input_file_name  = "Missing input file name"   ! no default
@@ -100,6 +102,8 @@ arg_loop: DO WHILE (i_arg<n_arg)
         i_arg=i_arg+1
         CALL m_getarg(i_arg,arg_att)
         SELECT CASE(arg_att)
+        CASE("--permissive-echo")
+           permissive=.TRUE.
         CASE("--check","-c")
            check=.TRUE.
            run_it=.FALSE.
@@ -146,27 +150,20 @@ arg_loop: DO WHILE (i_arg<n_arg)
            run_it = .FALSE.
         CASE default
            ! if the last argument does not start with a - it is an input filename
-!MK in order to digest the additional flags of mpirun
+           !MK in order to digest the additional flags of mpirun
            IF ((.NOT.has_input).AND.&
                (i_arg == n_arg).AND.&
                (.NOT.arg_att(1:1) == "-")) THEN
               input_file_name=arg_att
               has_input=.TRUE.
-!MK           ELSE
-!MK              WRITE (output_unit,"(a)") ""
-!MK              WRITE (output_unit,"(a)") "ERROR: the command line argument "//TRIM(arg_att)//" can not be parsed"     
-!MK              IF (arg_att(1:1)=="-") THEN
-!MK                 WRITE (output_unit,"(a)") "       notice that you can not yet write [-eri] and spaces are required"
-!MK              ELSE
-!MK                 WRITE (output_unit,"(a)") "       notice that [-i] is required before the input file name,"
-!MK                 WRITE (output_unit,"(a)") "       unless it is the last argument"
-!MK              ENDIF
-!MK              command_line_error=.TRUE.
-!MK              EXIT arg_loop
            END IF
         END SELECT
      END DO arg_loop
-
+     IF (permissive) THEN
+        run_it=.FALSE.
+        echo_input=.TRUE.
+        check=.TRUE.
+     END IF
      IF ((run_it.OR.force_run.OR.check.OR.echo_input).AND.&
          (.NOT.has_input).AND.(.NOT.command_line_error)) THEN
        WRITE (UNIT=output_unit,FMT="(/,A)")&
@@ -182,7 +179,8 @@ arg_loop: DO WHILE (i_arg<n_arg)
          WRITE (UNIT=output_unit,FMT="(/,A,4(/,/,T5,A),/,(T5,A))")&
            TRIM(arg_att)//" [-c|--check] [-e|--echo] [-h|--help]"//&
                           " [--html-manual] [--xml] [-r|-run]"//&
-                          " [-o ouput_file] [[-i] input_file]",&
+                          " [-o ouput_file] [--permissive-echo]"//&
+                          " [[-i] input_file]",&
            "Starts the CP2K program, see <http://cp2k.berlios.de/>",&
            "The easiest way is "//TRIM(arg_att)//" input_file",&
            "The following options can be used:",&
@@ -191,16 +189,19 @@ arg_loop: DO WHILE (i_arg<n_arg)
            "                 argument, the -i is not needed"
          WRITE (UNIT=output_unit,FMT="(/,T5,A,/,/,(T5,A))")&
            "These switches skip the simulation, unless [-r|-run] is specified:",&
-           "--run, -r      : force a run after any of the following",&
-           "--check, -c    : perform a syntax check of [input_file]",&
-           "--echo, -e     : echos [input_file], and makes all defaults explicit",&
-           "                 The input is also checked, but only failure is reported",&
-           "--help, -h     : writes this message",&
-           "--html-manual  : writes a HTML reference manual of the CP2K input file",&
-           "                 in the current directory. index.html is a good starting",&
-           "                 point for browsing",&
-           "--xml          : dumps the whole CP2K input structure as a XML file",&
-           "                 xml2htm generates a HTML manual from this XML file"
+           "--run, -r         : force a run after any of the following",&
+           "--check, -c       : perform a syntax check of [input_file]",&
+           "--echo, -e        : echos [input_file], and makes all defaults explicit",&
+           "                    The input is also checked, but only failure is reported",&
+           "--help, -h        : writes this message",&
+           "--html-manual     : writes a HTML reference manual of the CP2K input file",&
+           "                    in the current directory. index.html is a good starting",&
+           "                    point for browsing",&
+           "--permissive-echo : ignores unknown keywords and sections in the input",&
+           "                    and echoes it, you cannot run, you have to run the",&
+           "                    dumped input",&
+           "--xml             : dumps the whole CP2K input structure as a XML file",&
+           "                    xml2htm generates a HTML manual from this XML file"
        END IF
      END IF
 
@@ -220,7 +221,7 @@ arg_loop: DO WHILE (i_arg<n_arg)
 
         IF (check) THEN
            CALL check_input(input_file_name,output_file_name,echo_input=echo_input,&
-                ierr=ierr)
+                permissive=permissive,ierr=ierr)
            IF (default_para_env%source==default_para_env%mepos) THEN
               IF (ierr==0) THEN
                 IF (.NOT. echo_input) THEN

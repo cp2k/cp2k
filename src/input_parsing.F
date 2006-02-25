@@ -133,265 +133,272 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-  failure=.FALSE.
-  root_sect=.TRUE.
-  IF (PRESENT(root_section)) root_sect=root_section
+    failure=.FALSE.
+    root_sect=.TRUE.
+    IF (PRESENT(root_section)) root_sect=root_section
 
-  CPPrecondition(ASSOCIATED(section_vals),cp_failure_level,routineP,error,failure)
-  CPPrecondition(ASSOCIATED(parser),cp_failure_level,routineP,error,failure)
-  CALL cp_error_init(suberror,stop_level=cp_fatal_level,template_error=error)
-  logger => cp_error_get_logger(error)
-  IF (.NOT.failure) THEN
-     CPPrecondition(section_vals%ref_count>0,cp_failure_level,routineP,error,failure)
-     CPPrecondition(parser%ref_count>0,cp_failure_level,routineP,error,failure)
-     IF (root_sect.and.parser%icol1>parser%icol2) &
-          CALL cp_assert(.FALSE.,cp_failure_level,&
-          cp_assertion_failed,routineP,&
-          "Error 1: this routine must be called just after having parsed the start of the section "&
-          //TRIM(parser_location(parser,error=error)),error,failure)
-  END IF
-  IF (.NOT.failure) THEN
-     section => section_vals%section
-     IF (root_sect) THEN
-        token=parser%input_line(parser%icol1:parser%icol2)
-        CALL uppercase(token)
-        IF (token/=parser%section_character//section%name)&
-             CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
-             "Error 2: this routine must be called just after having parsed the start of the section "&
-             //TRIM(parser_location(parser,error=error)), error,failure)
-     END IF
-  END IF
-  IF (.NOT.failure) THEN
-     CALL cp_assert(section%repeats.OR.SIZE(section_vals%values,2)==0,&
-          cp_failure_level,cp_assertion_failed,routineP,&
-          "Section "//TRIM(section%name)//&
-          " should not repeat "//TRIM(parser_location(parser,error=error)),&
-          error,failure)
-  END IF
-  IF (.NOT. failure) THEN
-     skip_description=.TRUE.
-     skip_help=.TRUE.
-     CALL section_vals_add_values(section_vals,error=error)
-     irs=SIZE(section_vals%values,2)
+    CPPrecondition(ASSOCIATED(section_vals),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(parser),cp_failure_level,routineP,error,failure)
+    CALL cp_error_init(suberror,stop_level=cp_fatal_level,template_error=error)
+    logger => cp_error_get_logger(error)
+    IF (.NOT.failure) THEN
+       CPPrecondition(section_vals%ref_count>0,cp_failure_level,routineP,error,failure)
+       CPPrecondition(parser%ref_count>0,cp_failure_level,routineP,error,failure)
+       IF (root_sect.and.parser%icol1>parser%icol2) &
+            CALL cp_assert(.FALSE.,cp_failure_level,&
+            cp_assertion_failed,routineP,&
+            "Error 1: this routine must be called just after having parsed the start of the section "&
+            //TRIM(parser_location(parser,error=error)),error,failure)
+    END IF
+    IF (.NOT.failure) THEN
+       section => section_vals%section
+       IF (root_sect) THEN
+          token=parser%input_line(parser%icol1:parser%icol2)
+          CALL uppercase(token)
+          IF (token/=parser%section_character//section%name)&
+               CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
+               "Error 2: this routine must be called just after having parsed the start of the section "&
+               //TRIM(parser_location(parser,error=error)), error,failure)
+       END IF
+    END IF
+    IF (.NOT.failure) THEN
+       CALL cp_assert(section%repeats.OR.SIZE(section_vals%values,2)==0,&
+            cp_failure_level,cp_assertion_failed,routineP,&
+            "Section "//TRIM(section%name)//&
+            " should not repeat "//TRIM(parser_location(parser,error=error)),&
+            error,failure)
+    END IF
+    IF (.NOT. failure) THEN
+       skip_description=.TRUE.
+       skip_help=.TRUE.
+       CALL section_vals_add_values(section_vals,error=error)
+       irs=SIZE(section_vals%values,2)
 
-     IF (ASSOCIATED(section%keywords(-1)%keyword)) THEN ! reads section params
-        keyword => section%keywords(-1)%keyword
-        NULLIFY(el)
-        IF (keyword%type_of_var==lchar_t) CALL parser_skip_space(parser,.FALSE.,error=error)
-        CALL val_create_parsing(el,type_of_var=keyword%type_of_var,&
-             n_var=keyword%n_var,default_value=keyword%lone_keyword_value,&
-             enum=keyword%enum,unit=keyword%unit,&
-             default_units=default_units,&
-             parser=parser,error=suberror)
-        CALL cp_error_propagate_error(suberror,routineP,"parsing section "//&
-             TRIM(section%name)//" parameters",error=error,failure=failure)
-        IF (.NOT.failure) THEN
-           NULLIFY(new_val)
-           CALL cp_sll_val_create(new_val,el,error=error)
-           section_vals%values(-1,irs)%list => new_val
-        END IF
-        NULLIFY(el)
-     END IF
-     DO WHILE (.NOT.failure)
-        CALL parser_get_object(parser,token,newline=.TRUE.,&
-             lower_to_upper=.TRUE.,at_end=at_end,error=suberror)
-        CALL cp_error_propagate_error(suberror,routineP,&
-             "parsing section "// TRIM(section%name),&
-             error=error,failure=failure)
-        IF (at_end) THEN
-           CALL cp_assert(.not.root_sect,cp_failure_level,&
-                cp_assertion_failed,routineP,&
-                "unexpected end of file while parsing section "//&
-                TRIM(section%name)//" "//TRIM(parser_location(parser,error=error)),&
-                error,failure)
-           EXIT
-        END IF
-        IF (failure) EXIT
-        IF (token(1:1)==parser%section_character) THEN
-           IF (token=="&END") THEN
-              ! end of section
-              compatible_end=.TRUE.
-              IF (parser_test_next_token(parser)/="EOL") THEN
-                 CALL parser_get_object(parser,token,newline=.FALSE.,&
-                      lower_to_upper=.TRUE.,error=suberror)
-                 IF (token/="SECTION".and.token/=section%name) THEN
-                    compatible_end=.FALSE.
-                 END IF
-              END IF
-              IF (parser_test_next_token(parser)/="EOL") THEN
-                 CALL parser_get_object(parser,token,newline=.FALSE.,&
-                      lower_to_upper=.TRUE.,error=suberror)
-                 IF (token/=section%name) THEN
-                    PRINT *,TRIM(token),"/=",TRIM(section%name)
-                    compatible_end=.FALSE.
-                 END IF
-              END IF
-              IF (.NOT.compatible_end) THEN
-                 CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
-                      routineP,"non-compatible end of section "//TRIM(section%name)//" "//&
-                      TRIM(parser_location(parser,error=error)),error,failure)
-                 skip_description=.TRUE.
-              ELSE
-                 CALL cp_error_propagate_error(suberror,routineP,&
-                      "parsing end of section "// TRIM(section%name),&
-                      error=error,failure=failure)
-              END IF
-!              call cp_error_dealloc_ref(suberror)
-!              RETURN
-              EXIT
-           END IF
-           is=section_get_subsection_index(section,token(2:),error=error)
-           IF (is>0) THEN
-!              PRINT *,"parsing subsection "//TRIM(section%subsections(is)%section%name)&
-!                   //" of section "// TRIM(section%name)
-              CALL section_vals_parse(section_vals%subs_vals(is,irs)%section_vals,&
-                   default_units=default_units,parser=parser,error=suberror)
-              suberror_happened=.FALSE.
-              CALL cp_error_propagate_error(suberror,routineP,&
-                   "parsing subsection "//TRIM(section%subsections(is)%section%name)&
-                   //" of section "// TRIM(section%name),&
-                   error=error,failure=suberror_happened)
-              IF (.NOT. failure .AND. suberror_happened) THEN
-                 failure=.TRUE.
-                 skip_description=.TRUE.
-                 skip_help=.TRUE.
-              END IF
-           ELSE
-              ! this should be an error (failure)
-              CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
-                   routineP,"unknown subsection "//TRIM(token)//" of section "&
-                   //TRIM(section%name),error)
-              nSub=1
-              DO WHILE (nSub>0)
-                 CALL parser_get_object(parser,token,newline=.TRUE.,&
-                      lower_to_upper=.TRUE.,error=suberror)
-                 CALL cp_error_propagate_error(suberror,routineP,&
-                      "parsing end of section "// TRIM(section%name),&
-                      error=error,failure=failure)
-                 IF (failure) EXIT
-                 IF (token(1:1)==parser%section_character) THEN
-                    IF (token=="&END") THEN
-                       nSub=nSub-1
-                    ELSE
-                       nSub=nSub+1
-                    END IF
-                 END IF
-              END DO
-           END IF
-        ELSE ! token is a keyword
-           IF (token=="DESCRIBE") THEN
-              IF (parser%para_env%mepos==parser%para_env%source) THEN
-                 WRITE(cp_logger_get_default_unit_nr(logger),&
-                      "(/,' ****** DESCRIPTION ******',/)")
-                 skip_description=.TRUE.
-                 desc_level=3
-                 IF (parser_test_next_token(parser)=="INT") THEN
-                    CALL parser_get_object(parser,desc_level)
-                 END IF
-                 whole_section=.TRUE.
-                 DO WHILE (parser_test_next_token(parser)=="STR")
-                    whole_section=.FALSE.
-                    CALL parser_get_object(parser,token,newline=.FALSE.,&
-                         lower_to_upper=.TRUE.,error=suberror)
-                    keyword => section_get_keyword(section,token,error=error)
-                    IF (.NOT.ASSOCIATED(keyword)) THEN
-                       CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,&
-                            routineP,"unknown keyword to describe "//TRIM(token)//&
-                            " in section "//TRIM(section%name),error,failure)
-                    ELSE
-                       CALL keyword_describe(keyword,&
-                            cp_logger_get_default_unit_nr(logger),&
-                            desc_level,error=error)
-                    END IF
-                 END DO
-                 IF (whole_section) THEN
-                    CALL section_describe(section,&
-                         cp_logger_get_default_unit_nr(logger),&
-                         desc_level,hide_root=.NOT.root_sect,error=error)
-                 END IF
-                 WRITE(cp_logger_get_default_unit_nr(logger),&
-                      "(/,' ****** =========== ******',/)")
-              END IF
-           ELSE ! token is a "normal" keyword
-              ik=section_get_keyword_index(section,token,error=error)
-              IF (ik<1) THEN ! don't accept pseudo keyword names
-                 parser%icol=parser%icol1-1 ! re-read also the actual token
-                 ik=0
-                 IF (.NOT.ASSOCIATED(section%keywords(0)%keyword)) THEN
-                    CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
-                         routineP,"found an unknown keyword "//TRIM(token)//&
-                         " in section "//TRIM(section%name),error,failure)
-                 END IF
-              END IF
-              IF (.NOT.failure) THEN
-                 keyword => section%keywords(ik)%keyword
-                 NULLIFY(el)
-!                 PRINT *,"about to parse keyword ",TRIM(token)," in section ",TRIM(section%name)
-                 IF (ik/=0.and.keyword%type_of_var==lchar_t) &
-                      CALL parser_skip_space(parser,.FALSE.,error=error)
-                 CALL val_create_parsing(el,type_of_var=keyword%type_of_var,&
-                      n_var=keyword%n_var,default_value=keyword%lone_keyword_value,&
-                      enum=keyword%enum,unit=keyword%unit,&
-                      default_units=default_units,parser=parser,error=suberror)
-                 CALL cp_error_propagate_error(suberror,routineP,"parsing keyword "//&
-                      TRIM(token)//" in section "// TRIM(section%name),&
-                      error=error,failure=failure)
-                 IF (.NOT.failure.AND.ASSOCIATED(el)) THEN
-                    NULLIFY(new_val)
-                    CALL cp_sll_val_create(new_val,el,error=error)
-                    last_val => section_vals%values(ik,irs)%list
-                    IF (.NOT.ASSOCIATED(last_val)) THEN
-                       section_vals%values(ik,irs)%list => new_val
-                    ELSE
-                       IF (.NOT. keyword%repeats) THEN
-                          PRINT *, "Keyword "//TRIM(token)//&
-                         " in section "//TRIM(section%name)//" should not repeat."
-                          PRINT *, "new_val="
-                          CALL val_write(el,6,keyword%unit,error=error)
-                          PRINT *,"old_val="
-                       DO
-                          CALL val_write(last_val%first_el,6,keyword%unit,&
-                               error=error)
-                          IF (.not.ASSOCIATED(last_val%rest)) EXIT
-                          last_val => last_val%rest
-                       END DO
-                       END IF
-                       CALL cp_assert(keyword%repeats,cp_failure_level,cp_assertion_failed,&
-                         routineP,"Keyword "//TRIM(token)//&
-                         " in section "//TRIM(section%name)//" should not repeat.",error,failure)
-                       DO WHILE(ASSOCIATED(last_val%rest))
-                          last_val => last_val%rest
-                       END DO
-                       last_val%rest => new_val
-                    END IF
-                 END IF
-              END IF
-           END IF
-        END IF
-     END DO
-     IF (failure.and.parser%para_env%mepos==parser%para_env%source) THEN
-        IF (.NOT.skip_help) THEN
-           CALL print_message(&
-                ' You can have a description of the input by using the keyword '//&
-                'DESCRIBE in the CP2K section optionally followed by the level of output (1-4).',&
-                cp_logger_get_default_unit_nr(logger,local=.TRUE.),0,0,0)
-           CALL print_message(&
-                ' Putting the keyword DESCRIBE in a subsection describes '//&
-                'just that section and all its subsections. '//&
-                'If you just want the description of some keywords you can '//&
-                'just add their name to the DESCRIBE directive.',&
-                cp_logger_get_default_unit_nr(logger,local=.TRUE.),0,0,0)
-        END IF
-        IF (.NOT.skip_description) THEN
-           CALL section_describe(section,&
-                cp_logger_get_default_unit_nr(logger),&
-                3,error=error)
-        END IF
-     END IF
-  END IF
-  CALL cp_error_dealloc_ref(suberror)
-  CALL timestop(handle)
-END SUBROUTINE section_vals_parse
+       IF (ASSOCIATED(section%keywords(-1)%keyword)) THEN ! reads section params
+          keyword => section%keywords(-1)%keyword
+          NULLIFY(el)
+          IF (keyword%type_of_var==lchar_t) CALL parser_skip_space(parser,.FALSE.,error=error)
+          CALL val_create_parsing(el,type_of_var=keyword%type_of_var,&
+               n_var=keyword%n_var,default_value=keyword%lone_keyword_value,&
+               enum=keyword%enum,unit=keyword%unit,&
+               default_units=default_units,&
+               parser=parser,error=suberror)
+          CALL cp_error_propagate_error(suberror,routineP,"parsing section "//&
+               TRIM(section%name)//" parameters",error=error)
+          CALL cp_error_reset(suberror)
+           IF (.NOT.failure) THEN
+             NULLIFY(new_val)
+             CALL cp_sll_val_create(new_val,el,error=error)
+             section_vals%values(-1,irs)%list => new_val
+          END IF
+          NULLIFY(el)
+       END IF
+       DO WHILE (.NOT.failure)
+          CALL parser_get_object(parser,token,newline=.TRUE.,&
+               lower_to_upper=.TRUE.,at_end=at_end,error=suberror)
+          CALL cp_error_propagate_error(suberror,routineP,&
+               "parsing section "// TRIM(section%name),&
+               error=error,failure=failure)
+          CALL cp_error_reset(suberror)
+          IF (at_end) THEN
+             CALL cp_assert(.not.root_sect,cp_failure_level,&
+                  cp_assertion_failed,routineP,&
+                  "unexpected end of file while parsing section "//&
+                  TRIM(section%name)//" "//TRIM(parser_location(parser,error=error)),&
+                  error,failure)
+             EXIT
+          END IF
+          IF (failure) EXIT
+          IF (token(1:1)==parser%section_character) THEN
+             IF (token=="&END") THEN
+                ! end of section
+                compatible_end=.TRUE.
+                IF (parser_test_next_token(parser)/="EOL") THEN
+                   CALL parser_get_object(parser,token,newline=.FALSE.,&
+                        lower_to_upper=.TRUE.,error=suberror)
+                   IF (token/="SECTION".and.token/=section%name) THEN
+                      compatible_end=.FALSE.
+                   END IF
+                END IF
+                IF (parser_test_next_token(parser)/="EOL") THEN
+                   CALL parser_get_object(parser,token,newline=.FALSE.,&
+                        lower_to_upper=.TRUE.,error=suberror)
+                   IF (token/=section%name) THEN
+                      PRINT *,TRIM(token),"/=",TRIM(section%name)
+                      compatible_end=.FALSE.
+                   END IF
+                END IF
+                IF (.NOT.compatible_end) THEN
+                   CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
+                        routineP,"non-compatible end of section "//TRIM(section%name)//" "//&
+                        TRIM(parser_location(parser,error=error)),error,failure)
+                   skip_description=.TRUE.
+                ELSE
+          CALL cp_error_propagate_error(suberror,routineP,&
+                        "parsing end of section "// TRIM(section%name),&
+                        error=error)
+          CALL cp_error_reset(suberror)
+                END IF
+                !              call cp_error_dealloc_ref(suberror)
+                !              RETURN
+                EXIT
+             END IF
+             is=section_get_subsection_index(section,token(2:),error=error)
+             IF (is>0) THEN
+                !              PRINT *,"parsing subsection "//TRIM(section%subsections(is)%section%name)&
+                !                   //" of section "// TRIM(section%name)
+                CALL section_vals_parse(section_vals%subs_vals(is,irs)%section_vals,&
+                     default_units=default_units,parser=parser,error=suberror)
+                suberror_happened=.FALSE.
+          CALL cp_error_propagate_error(suberror,routineP,&
+                     "parsing subsection "//TRIM(section%subsections(is)%section%name)&
+                     //" of section "// TRIM(section%name),&
+                     error=error,failure=suberror_happened)
+          CALL cp_error_reset(suberror)
+                IF (.NOT. failure .AND. suberror_happened) THEN
+                   skip_description=.TRUE.
+                   skip_help=.TRUE.
+                END IF
+             ELSE
+                ! this should be an error (failure)
+                CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
+                     routineP,"unknown subsection "//TRIM(token)//" of section "&
+                     //TRIM(section%name),error)
+                nSub=1
+                DO WHILE (nSub>0)
+                   CALL parser_get_object(parser,token,newline=.TRUE.,&
+                        lower_to_upper=.TRUE.,error=suberror)
+          CALL cp_error_propagate_error(suberror,routineP,&
+                        "parsing end of section "// TRIM(section%name),&
+                        error=error,failure=failure)
+          CALL cp_error_reset(suberror)
+                   IF (failure) EXIT
+                   IF (token(1:1)==parser%section_character) THEN
+                      IF (token=="&END") THEN
+                         nSub=nSub-1
+                      ELSE
+                         nSub=nSub+1
+                      END IF
+                   END IF
+                END DO
+             END IF
+          ELSE ! token is a keyword
+             IF (token=="DESCRIBE") THEN
+                IF (parser%para_env%mepos==parser%para_env%source) THEN
+                   WRITE(cp_logger_get_default_unit_nr(logger),&
+                        "(/,' ****** DESCRIPTION ******',/)")
+                   skip_description=.TRUE.
+                   desc_level=3
+                   IF (parser_test_next_token(parser)=="INT") THEN
+                      CALL parser_get_object(parser,desc_level)
+                   END IF
+                   whole_section=.TRUE.
+                   DO WHILE (parser_test_next_token(parser)=="STR")
+                      whole_section=.FALSE.
+                      CALL parser_get_object(parser,token,newline=.FALSE.,&
+                           lower_to_upper=.TRUE.,error=suberror)
+                      keyword => section_get_keyword(section,token,error=error)
+                      IF (.NOT.ASSOCIATED(keyword)) THEN
+                         CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,&
+                              routineP,"unknown keyword to describe "//TRIM(token)//&
+                              " in section "//TRIM(section%name),error,failure)
+                      ELSE
+                         CALL keyword_describe(keyword,&
+                              cp_logger_get_default_unit_nr(logger),&
+                              desc_level,error=error)
+                      END IF
+                   END DO
+                   IF (whole_section) THEN
+                      CALL section_describe(section,&
+                           cp_logger_get_default_unit_nr(logger),&
+                           desc_level,hide_root=.NOT.root_sect,error=error)
+                   END IF
+                   WRITE(cp_logger_get_default_unit_nr(logger),&
+                        "(/,' ****** =========== ******',/)")
+                END IF
+             ELSE ! token is a "normal" keyword
+                ik=section_get_keyword_index(section,token,error=error)
+                IF (ik<1) THEN ! don't accept pseudo keyword names
+                   parser%icol=parser%icol1-1 ! re-read also the actual token
+                   ik=0
+                   IF (.NOT.ASSOCIATED(section%keywords(0)%keyword)) THEN
+                      CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
+                           routineP,"found an unknown keyword "//TRIM(token)//&
+                           " in section "//TRIM(section%name),error)
+                   END IF
+                END IF
+                IF (.NOT.failure) THEN
+                   keyword => section%keywords(ik)%keyword
+                   IF (ASSOCIATED(keyword)) THEN
+                      NULLIFY(el)
+                      !                 PRINT *,"about to parse keyword ",TRIM(token)," in section ",TRIM(section%name)
+                      IF (ik/=0.and.keyword%type_of_var==lchar_t) &
+                           CALL parser_skip_space(parser,.FALSE.,error=error)
+                      CALL val_create_parsing(el,type_of_var=keyword%type_of_var,&
+                           n_var=keyword%n_var,default_value=keyword%lone_keyword_value,&
+                           enum=keyword%enum,unit=keyword%unit,&
+                           default_units=default_units,parser=parser,error=suberror)
+          CALL cp_error_propagate_error(suberror,routineP,"parsing keyword "//&
+                           TRIM(token)//" in section "// TRIM(section%name),&
+                           error=error)
+          CALL cp_error_reset(suberror)
+                      IF (.NOT.failure.AND.ASSOCIATED(el)) THEN
+                         NULLIFY(new_val)
+                         CALL cp_sll_val_create(new_val,el,error=error)
+                         last_val => section_vals%values(ik,irs)%list
+                         IF (.NOT.ASSOCIATED(last_val)) THEN
+                            section_vals%values(ik,irs)%list => new_val
+                         ELSE
+                            IF (.NOT. keyword%repeats) THEN
+                               PRINT *, "Keyword "//TRIM(token)//&
+                                    " in section "//TRIM(section%name)//" should not repeat."
+                               PRINT *, "new_val="
+                               CALL val_write(el,6,keyword%unit,error=error)
+                               PRINT *,"old_val="
+                               DO
+                                  CALL val_write(last_val%first_el,6,keyword%unit,&
+                                       error=error)
+                                  IF (.not.ASSOCIATED(last_val%rest)) EXIT
+                                  last_val => last_val%rest
+                               END DO
+                            END IF
+                            CALL cp_assert(keyword%repeats,cp_failure_level,cp_assertion_failed,&
+                                 routineP,"Keyword "//TRIM(token)//&
+                                 " in section "//TRIM(section%name)//" should not repeat.",error,failure)
+                            DO WHILE(ASSOCIATED(last_val%rest))
+                               last_val => last_val%rest
+                            END DO
+                            last_val%rest => new_val
+                         END IF
+                      END IF
+                   END IF
+                END IF
+             END IF
+          END IF
+       END DO
+       IF (failure.and.parser%para_env%mepos==parser%para_env%source) THEN
+          IF (.NOT.skip_help) THEN
+             CALL print_message(&
+                  ' You can have a description of the input by using the keyword '//&
+                  'DESCRIBE in the CP2K section optionally followed by the level of output (1-4).',&
+                  cp_logger_get_default_unit_nr(logger,local=.TRUE.),0,0,0)
+             CALL print_message(&
+                  ' Putting the keyword DESCRIBE in a subsection describes '//&
+                  'just that section and all its subsections. '//&
+                  'If you just want the description of some keywords you can '//&
+                  'just add their name to the DESCRIBE directive.',&
+                  cp_logger_get_default_unit_nr(logger,local=.TRUE.),0,0,0)
+          END IF
+          IF (.NOT.skip_description) THEN
+             CALL section_describe(section,&
+                  cp_logger_get_default_unit_nr(logger),&
+                  3,error=error)
+          END IF
+       END IF
+    END IF
+    CALL cp_error_dealloc_ref(suberror)
+    CALL timestop(handle)
+  END SUBROUTINE section_vals_parse
 !***************************************************************************
 
 !!****f* input_parsing/val_create_parsing [1.0] *
@@ -497,8 +504,9 @@ SUBROUTINE val_create_parsing(val,type_of_var, n_var,enum,&
               IF (.NOT.failure) THEN
                  DO i=1,n_var
                     CALL parser_get_object(parser,l_val_p(i),error=suberror)
-                    CALL cp_error_propagate_error(suberror,routineP,error=error,&
+          CALL cp_error_propagate_error(suberror,routineP,error=error,&
                          failure=failure)
+          CALL cp_error_reset(suberror)
                     IF (failure) EXIT
                  END DO                 
               END IF
@@ -547,8 +555,9 @@ SUBROUTINE val_create_parsing(val,type_of_var, n_var,enum,&
               IF (.NOT.failure) THEN
                  DO i=1,n_var
                     CALL parser_get_object(parser,i_val_p(i),error=suberror)
-                    CALL cp_error_propagate_error(suberror,routineP,error=error,&
+          CALL cp_error_propagate_error(suberror,routineP,error=error,&
                          failure=failure)
+          CALL cp_error_reset(suberror)
                     IF (failure) EXIT
                  END DO
               END IF
@@ -583,7 +592,10 @@ SUBROUTINE val_create_parsing(val,type_of_var, n_var,enum,&
                  IF ('STR'==parser_test_next_token(parser,error=error)) THEN
                     CALL parser_get_object(parser,c_val,error=error)
                     CPPrecondition(c_val(1:1)=="[",cp_failure_level,routineP,error,failure)
-   CPPrecondition(c_val(LEN_TRIM(c_val):LEN_TRIM(c_val))=="]",cp_failure_level,routineP,error,failure)
+   CALL cp_assert(c_val(LEN_TRIM(c_val):LEN_TRIM(c_val))=="]",&
+        cp_failure_level,cp_assertion_failed,routineP,&
+        CPSourceFileRef,&
+        error,failure)
                     CALL cp_unit_release(my_unit,error=error)
                     CALL cp_unit_create(my_unit,c_val(2:LEN_TRIM(c_val)-1),&
                          error=error)
@@ -640,8 +652,9 @@ SUBROUTINE val_create_parsing(val,type_of_var, n_var,enum,&
                        r_val_p(i)=cp_unit_to_cp2k1(r_val_p(i),my_unit,&
                             default_units,error=suberror)
                     END IF
-                    CALL cp_error_propagate_error(suberror,routineP,error=error,&
+          CALL cp_error_propagate_error(suberror,routineP,error=error,&
                          failure=failure)
+          CALL cp_error_reset(suberror)
                     IF (failure) EXIT
                  END DO
               END IF
@@ -692,8 +705,9 @@ SUBROUTINE val_create_parsing(val,type_of_var, n_var,enum,&
               IF (.NOT.failure) THEN
                  DO i=1,n_var
                     CALL parser_get_object(parser,c_val_p(i),error=suberror)
-                    CALL cp_error_propagate_error(suberror,routineP,error=error,&
+          CALL cp_error_propagate_error(suberror,routineP,error=error,&
                          failure=failure)
+          CALL cp_error_reset(suberror)
                     IF (failure) EXIT
                  END DO
               END IF
@@ -776,8 +790,9 @@ SUBROUTINE val_create_parsing(val,type_of_var, n_var,enum,&
                  DO i=1,n_var
                     CALL parser_get_object(parser,c_val,error=suberror)
                     i_val_p(i)=enum_c2i(enum,c_val,error=suberror)
-                    CALL cp_error_propagate_error(suberror,routineP,error=error,&
+          CALL cp_error_propagate_error(suberror,routineP,error=error,&
                          failure=failure)
+          CALL cp_error_reset(suberror)
                     IF (failure) EXIT
                  END DO
               END IF

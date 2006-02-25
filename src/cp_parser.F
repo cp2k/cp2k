@@ -56,7 +56,7 @@ MODULE cp_parser
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_parser'
 
-  INTEGER, PARAMETER, PUBLIC :: max_line_length = 240
+  INTEGER, PARAMETER, PUBLIC :: max_line_length = default_path_length+40
 
 ! *** Global variables ***
 
@@ -450,7 +450,7 @@ SUBROUTINE parser_next_token(parser,string_length,error)
   END IF
   IF (.NOT.failure) THEN
      IF (PRESENT(string_length)) THEN
-        length = string_length
+        length = MIN(string_length,max_line_length)
      ELSE
         length = 0
      END IF
@@ -565,7 +565,7 @@ SUBROUTINE parser_next_token(parser,string_length,error)
         !     *** Search for the end of the next input string ***
         IF(.NOT.failure) THEN
            DO
-              IF (parser%icol > LEN_TRIM(parser%input_line)) EXIT
+              IF (parser%icol > LEN_TRIM(parser%input_line).or.parser%icol==LEN(parser%input_line)) EXIT
               parser%icol = parser%icol + 1
               IF ((parser%icol > LEN_TRIM(parser%input_line)).OR.&
                    (parser%input_line(parser%icol:parser%icol) == blank_character).OR.&

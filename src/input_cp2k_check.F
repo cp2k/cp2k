@@ -245,18 +245,19 @@ SUBROUTINE handle_ext_restart(input_file,para_env,error)
       routineP = moduleN//':'//routineN
 
     CHARACTER(default_string_length)         :: path, r_file_path
-    INTEGER                                  :: i_rep_val, myi, n_rep_val
+    INTEGER                                  :: handle, i_rep_val, myi, &
+                                                n_rep_val
     LOGICAL                                  :: explicit1, explicit2, &
                                                 failure, flag, flag2
     REAL(KIND=dp)                            :: myt
+    TYPE(cp_error_type)                      :: sub_error
     TYPE(cp_parser_type), POINTER            :: cpparser
     TYPE(cp_unit_set_type), POINTER          :: default_units
     TYPE(section_type), POINTER              :: input_structure
     TYPE(section_vals_type), POINTER         :: r_section, restart_input, &
                                                 section, work_section
-    INTEGER                                  :: handle
 
-    CALL timeset(routineN,handle)
+  CALL timeset(routineN,handle)
 
   failure=.FALSE.
   NULLIFY(work_section)
@@ -267,20 +268,22 @@ SUBROUTINE handle_ext_restart(input_file,para_env,error)
           c_val=r_file_path, error=error)
 
      IF (r_file_path/=" ") THEN
+        CALL cp_error_init(sub_error,template_error=error,stop_level=cp_fatal_level)
         ! parse the input
         NULLIFY(input_structure, default_units)
-        CALL create_cp2k_root_section(input_structure,error=error)
+        CALL create_cp2k_root_section(input_structure,error=sub_error)
         NULLIFY(restart_input)
-        CALL section_vals_create(restart_input,input_structure, error=error)
-        CALL section_release(input_structure,error=error)
+        CALL section_vals_create(restart_input,input_structure, error=sub_error)
+        CALL section_release(input_structure,error=sub_error)
         NULLIFY(cpparser)
         CALL parser_create(cpparser,file_name=r_file_path,para_env=para_env,&
-             error=error)
-        CALL cp_unit_set_create(default_units, "OUTPUT",error=error)
+             error=sub_error)
+        CALL cp_unit_set_create(default_units, "OUTPUT",error=sub_error)
         CALL section_vals_parse(restart_input,cpparser,root_section=.FALSE.,&
-             default_units=default_units,error=error)
-        CALL cp_unit_set_release(default_units,error=error)
-        CALL parser_release(cpparser,error=error)
+             default_units=default_units,error=sub_error)
+        CALL cp_unit_set_release(default_units,error=sub_error)
+        CALL parser_release(cpparser,error=sub_error)
+        CALL cp_error_dealloc_ref(sub_error)
 
         CALL section_vals_val_get(r_section,"RESTART_CELL",l_val=flag,&
              error=error)

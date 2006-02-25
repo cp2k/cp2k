@@ -29,7 +29,7 @@ MODULE input_constants
   PRIVATE
 
   ! Program Names
-  CHARACTER (LEN=default_string_length), PARAMETER, DIMENSION(11), PUBLIC :: program_names=&
+  CHARACTER (LEN=default_string_length), PARAMETER, DIMENSION(12), PUBLIC :: program_names=&
        (/"QS        ",&
          "FIST      ",&
          "KG        ",&
@@ -40,9 +40,10 @@ MODULE input_constants
          "QUICKSTEP ",&
          "KIM-GORDON",&
          "KIM_GORDON",&
-         "TB-MD     " /)
+         "TB-MD     ",&
+         "PINT      "/)
 
-  CHARACTER (LEN=default_string_length), PARAMETER, DIMENSION(11), PUBLIC :: program_name_desc=&
+  CHARACTER (LEN=default_string_length), PARAMETER, DIMENSION(12), PUBLIC :: program_name_desc=&
        (/"Electronic structure methods (DFT, ...)",&
          "Molecular Mechanics                    ",&
          "Kim Gordon models (DFT)                ",&
@@ -53,7 +54,8 @@ MODULE input_constants
          "Electronic structure methods (DFT, ...)",&    ! Aliases to the previous unique names
          "Kim Gordon models (DFT)                ",&    !
          "Kim Gordon models (DFT)                ",&    !
-         "Tight-Binding Molecular Dynamics       " /)   !
+         "Tight-Binding Molecular Dynamics       ",&
+         "Path integral                          "/)   !
 
   INTEGER, PARAMETER, PUBLIC :: do_qs=1,&
                                 do_fist=2,&
@@ -61,10 +63,11 @@ MODULE input_constants
                                 do_qmmm=4,&
                                 do_farming=5,&
                                 do_test=6,&
-                                do_tbmd=7
+                                do_tbmd=7,&
+                                do_pint=8
 
-  INTEGER, PARAMETER, PUBLIC, DIMENSION(11) :: program_name_index=&
-       (/do_qs, do_fist, do_kg, do_tbmd, do_qmmm, do_farming, do_test, do_qs, do_kg, do_kg, do_tbmd/)
+  INTEGER, PARAMETER, PUBLIC, DIMENSION(12) :: program_name_index=&
+       (/do_qs, do_fist, do_kg, do_tbmd, do_qmmm, do_farming, do_test, do_qs, do_kg, do_kg, do_tbmd,do_pint/)
 
   REAL(KIND=dp), PARAMETER, PUBLIC :: RADIUS_QMMM_DEFAULT = 0.80_dp,&
                                       ALPHA_IMOMM_DEFAULT = 1.38_dp,&

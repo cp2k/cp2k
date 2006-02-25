@@ -24,10 +24,10 @@
 MODULE qs_scf_post
 
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
-                                             get_atomic_kind,&
-                                             get_atomic_kind_set
+                                             get_atomic_kind
   USE cell_types,                      ONLY: cell_type,&
-                                             get_cell
+                                             get_cell,&
+                                             pbc
   USE coefficient_types,               ONLY: coeff_copy,&
                                              coeff_reduce,&
                                              coeff_sumup,&
@@ -59,6 +59,8 @@ MODULE qs_scf_post
   USE cp_sm_fm_interactions,           ONLY: cp_sm_fm_multiply
   USE cp_subsystem_types,              ONLY: cp_subsys_get,&
                                              cp_subsystem_type
+  USE external_potential_types,        ONLY: get_potential,&
+                                             gth_potential_type
   USE global_types,                    ONLY: global_environment_type
   USE input_constants,                 ONLY: do_loc_none,&
                                              ot_precond_full_all
@@ -71,6 +73,7 @@ MODULE qs_scf_post
                                              dp
   USE level_shift,                     ONLY: level_shift_testing
   USE lowdin,                          ONLY: lowdin_charges
+  USE mathconstants,                   ONLY: twopi
   USE message_passing,                 ONLY: mp_sum
   USE molecular_states,                ONLY: construct_molecular_states
   USE molecule_types_new,              ONLY: molecule_type
@@ -106,8 +109,8 @@ MODULE qs_scf_post
                                              localized_wfn_control_type
   USE qs_loc_methods,                  ONLY: qs_loc_driver
   USE qs_loc_types,                    ONLY: qs_loc_env_create,&
-                                             qs_loc_env_new_type,&
-                                             qs_loc_env_release
+                                             qs_loc_env_destroy,&
+                                             qs_loc_env_new_type
   USE qs_loc_utils,                    ONLY: qs_loc_env_init
   USE qs_localization,                 ONLY: qs_loc_compute_properties,&
                                              qs_loc_destroy,&
@@ -228,19 +231,23 @@ CONTAINS
          REAL(KIND = dp), DIMENSION(:), POINTER :: evals
     END TYPE
     TYPE (evals_p_type), DIMENSION(:), POINTER :: unoccupied_evals
-    INTEGER ::  handle, ispin, istat, n, nmo, output_unit
+    INTEGER ::  handle, ispin, istat, n, nmo, output_unit,i
+    CHARACTER(LEN=200) :: file_name
     INTEGER            :: file_unit,ivector,nao,nlumos, homo, unit_nr
-    INTEGER :: n_electrons
     LOGICAL            :: homoEQnmo
     CHARACTER(LEN=80)  :: filename
     CHARACTER(LEN=80) :: title
     CHARACTER(LEN=default_string_length) :: mulliken_title
+    REAL(KIND = dp)           :: volume, dipole(3),r_pbc(3),zeff
+    REAL(kind=dp),SAVE,DIMENSION(3) :: old_dipole=0
     CHARACTER(LEN=default_string_length) :: lowdin_title
-    REAL(KIND = dp)           :: q_max,volume
+    REAL(KIND = dp)           :: q_max
     REAL(KIND = dp), POINTER, DIMENSION(:,:) :: center
     TYPE(section_vals_type), POINTER :: print_key, input
     TYPE(cp_rs_pool_type), POINTER           :: auxbas_rs_pool
     TYPE(realspace_grid_type), POINTER       :: rs
+    CHARACTER(len=default_string_length)     :: iter
+    TYPE(gth_potential_type), POINTER        :: gth_potential
     TYPE(preconditioner_type), POINTER       :: preconditioner
     TYPE(cp_subsystem_type), POINTER :: subsys
  
@@ -278,9 +285,7 @@ CONTAINS
             cell=cell,rho_core=rho_core,tddfpt_control=tddfpt_control,error=error)
        CALL get_qs_env(qs_env=qs_env,pw_env=pw_env)
        CALL cp_subsys_get(subsys,particles=particles)
-       CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set, &
-         nelectron=n_electrons)
-       n_electrons = n_electrons - qs_env%dft_control%charge
+
 !    *** compute the mulliken charges ***
        IF (BTEST(cp_print_key_should_output(logger%iter_info,input,&
             "DFT%PRINT%MULLIKEN",error=error),cp_p_file)) THEN
@@ -448,6 +453,32 @@ CONTAINS
              CALL cp_print_key_finished_output(unit_nr,logger,input,&
                   "DFT%PRINT%LOCALIZATION",error=error)
              IF (ionode) WRITE(output_unit,*) "Results in ",filename
+
+        NULLIFY(gth_potential)
+        dipole=0.0_dp
+        ! charges of the atoms involved
+        DO i=1,SIZE(particle_set)
+            CALL get_atomic_kind(particle_set(i)%atomic_kind,gth_potential=gth_potential)
+            CALL get_potential(gth_potential,zeff=zeff)
+            r_pbc = particle_set(i) % r
+            dipole=dipole + zeff*r_pbc
+        END DO
+        ! charges of the wfc involved
+        DO i=1,SIZE(center,1)
+           r_pbc = center(i,1:3)
+           dipole=dipole - 2.0_dp * r_pbc
+        ENDDO
+        dipole=pbc(dipole,cell)
+        IF (ionode) THEN
+           OPEN(unit=21,file="new.dipole",position="append")
+           iter=cp_iter_string(logger%iter_info,error=error)
+           WRITE(unit=21,fmt="(a,6(es18.8))")&
+                iter(1:15),&
+                dipole,pbc(dipole-old_dipole,cell)
+           CLOSE(21)
+        END IF
+        old_dipole=dipole
+                
              ! write the wannier functions to cubes
              IF (BTEST(cp_print_key_should_output(logger%iter_info,dft_section,"PRINT%LOCALIZATION%CUBES",&
                   error=error),cp_p_file).AND. .NOT. p_molstates ) THEN
@@ -473,7 +504,7 @@ CONTAINS
                 ENDDO
              END IF
              ! compute the molecular states
-             IF ( p_molstates .AND. n_electrons>0) THEN
+             IF ( p_molstates ) THEN
                   CALL construct_molecular_states ( molecule_set, mo_localized, &
                                                     mo_coeff, mo_eigenvalues, &
                                                     ks_rmpv ( ispin ) % matrix, &
@@ -604,10 +635,9 @@ CONTAINS
 
 ! *** destroy the localization environment
        IF(dft_control%qs_control%localized_wfn .AND. my_localized_wfn) THEN
-          CALL qs_loc_env_release(qs_loc_env_new, error=error)
-!          CALL qs_loc_env_destroy(qs_loc_env_new, error=error)
-!          DEALLOCATE(qs_loc_env_new,STAT=istat)
-!          CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+          CALL qs_loc_env_destroy(qs_loc_env_new, error=error)
+          DEALLOCATE(qs_loc_env_new,STAT=istat)
+          CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
        ELSEIF (p_loc) THEN
           CALL qs_loc_destroy(qs_loc_env)
           DEALLOCATE(qs_loc_env) 
@@ -1054,11 +1084,12 @@ SUBROUTINE calc_stupid_dipole(subsystem, rho_r, rho_core_g,aux_bas_pool,&
       routineP = moduleN//':'//routineN
 
     CHARACTER(len=default_string_length)     :: iter
-    INTEGER                                  :: i, ip, j, k
-    INTEGER, DIMENSION(2, 3)                 :: bo
+    COMPLEX(kind=dp), DIMENSION(3)           :: cdip, cr
+    INTEGER                                  :: i, ip, j, k, np(3)
+    INTEGER, DIMENSION(2, 3)                 :: bo, gbo
     LOGICAL                                  :: failure, my_print_header
-    REAL(kind=dp)                            :: mass, tot_m
-    REAL(kind=dp), DIMENSION(3)              :: com, dipole_center, &
+    REAL(kind=dp)                            :: arg, dvol, mass, tot_m
+    REAL(kind=dp), DIMENSION(3)              :: bdipole, com, dipole_center, &
                                                 dipole_com, dr, r, r_com, &
                                                 shift
     TYPE(cp_logger_type), POINTER            :: logger
@@ -1078,6 +1109,9 @@ SUBROUTINE calc_stupid_dipole(subsystem, rho_r, rho_core_g,aux_bas_pool,&
      tot_m=tot_m+mass
      r=particles%els(ip)%r
      com=com+mass*r
+     !com(1)=com(1)+mass*(MODULO(r(1),cell%hmat(1,1))-cell%hmat(1,1)/2._dp)
+     !com(2)=com(2)+mass*(MODULO(r(2),cell%hmat(2,2))-cell%hmat(2,2)/2._dp)
+     !com(3)=com(3)+mass*(MODULO(r(3),cell%hmat(3,3))-cell%hmat(3,3)/2._dp)
   END DO
   com=com/tot_m
   com(1)=MODULO(com(1),cell%hmat(1,1))
@@ -1093,10 +1127,14 @@ SUBROUTINE calc_stupid_dipole(subsystem, rho_r, rho_core_g,aux_bas_pool,&
   END DO
 
   dipole_center=0._dp
-  dipole_com=0._dp
   bo=total_charge%pw_grid%bounds_local
+  gbo=total_charge%pw_grid%bounds
+  np=total_charge%pw_grid%npts
+
   dr=total_charge%pw_grid%dr
-  shift=REAL(MODULO(total_charge%pw_grid%npts,2),dp)*dr
+  shift=REAL(MODULO(np,2),dp)*dr
+
+  dipole_com=0._dp
   DO k=bo(1,3),bo(2,3)
      r(3)=k*dr(3)+shift(3)
      r_com(3)=MODULO(r(3)-com(3),cell%hmat(3,3))-cell%hmat(3,3)/2._dp
@@ -1114,21 +1152,40 @@ SUBROUTINE calc_stupid_dipole(subsystem, rho_r, rho_core_g,aux_bas_pool,&
      END DO
   END DO
 
-  dipole_center=dipole_center*total_charge%pw_grid%dvol
-  dipole_com=dipole_com*total_charge%pw_grid%dvol
+  cdip=CMPLX(0._dp,0._dp,dp)
+  DO k=bo(1,3),bo(2,3)
+     arg=REAL(k-gbo(1,3),dp)/REAL(np(3),dp)*twopi
+     cr(3)=CMPLX(COS(arg),SIN(arg),dp)
+     DO j=bo(1,2),bo(2,2)
+        arg=REAL(j-gbo(1,2),dp)/REAL(np(2),dp)*twopi
+        cr(2)=CMPLX(COS(arg),SIN(arg),dp)
+        DO i=bo(1,1),bo(2,1)
+           arg=REAL(i-gbo(1,1),dp)/REAL(np(1),dp)*twopi
+           cr(1)=CMPLX(COS(arg),SIN(arg),dp)
+           cdip=cdip+cr*total_charge%cr3d(i,j,k)
+        END DO
+     END DO
+  END DO
 
+  cdip=cdip*dvol
+
+  CALL mp_sum(cdip,total_charge%pw_grid%para%group)
   CALL mp_sum(dipole_center,total_charge%pw_grid%para%group)
   CALL mp_sum(dipole_com,total_charge%pw_grid%para%group)
+
+  DO i =1,3
+     bdipole(i)=( cell % hmat ( i, i ) / twopi ) * AIMAG ( LOG ( cdip(i) ) )
+  END DO
 
   IF (unit_nr>0) THEN
      IF (my_print_header) THEN
         WRITE(unit=unit_nr,fmt="('# iteration com(x,y,z)[Angstrom]"//&
-             " dipole_com(x,y,z)[au] dipole_cell_center(x,y,z)[au]')")
+             " dipole_com(x,y,z)[au] dipole_cell_center(x,y,z)[au] bdipole(x,y,z)[au]')")
      END IF
      iter=cp_iter_string(logger%iter_info,error=error)
-     WRITE(unit=unit_nr,fmt="(a,9(es18.8))")&
+     WRITE(unit=unit_nr,fmt="(a,12(es18.8))")&
           iter(1:15),&
-          com*angstrom,-dipole_com,-dipole_center
+          com*angstrom,-dipole_com,-dipole_center,-bdipole
   END IF
   CALL pw_pool_give_back_pw(aux_bas_pool,total_charge,error=error)
 

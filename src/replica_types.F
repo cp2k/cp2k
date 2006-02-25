@@ -28,7 +28,11 @@
 !!   SOURCE
 !****************************************************************************
 MODULE replica_types
-  USE cp_para_types,                   ONLY: cp_para_env_type
+  USE cp_para_env,                     ONLY: cp_cart_release,&
+                                             cp_para_env_release
+  USE cp_para_types,                   ONLY: cp_para_cart_type,&
+                                             cp_para_env_type
+  USE f77_interface,                   ONLY: destroy_force_env
   USE kinds,                           ONLY: dp
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -57,7 +61,24 @@ MODULE replica_types
   !!     -
   !!
   !!   ATTRIBUTES
-  !!     -
+  !!     - ref_count: reference count
+  !!     - id_nr: identity number (unique or each replica_env)
+  !!     - nrep: number of replicas
+  !!     - nat: number of atoms (in each replica)
+  !!     - ndim: number of dimensions (3*nat)
+  !!     - f_env_id: id of the force env that will do the calculations for the
+  !!       replicas owned by this processor
+  !!     - r,v,f: positions, velocities and forces of the replicas.
+  !!       the indexing is as follow (idir,iat,irep)
+  !!     - replica_owner: which processor column owns the replica irep
+  !!     - cart: 2d distribution of the processors for the replicas,
+  !!       a column  work together on the same force_env (i.e. changing the 
+  !!       row you stay in the same replica), rows have different replicas
+  !!     - para_env: the global para env that contains all the replicas
+  !!     - para_env_f: parallel environment of the underlying force 
+  !!       environment
+  !!     - para_env_inter_rep: parallel environment between processors
+  !!       on the same row of cart
   !!
   !!   AUTHOR
   !!     fawzi
@@ -65,11 +86,12 @@ MODULE replica_types
   !!   SOURCE
   !***************************************************************************
   TYPE replica_env_type
-     INTEGER :: ref_count, id_nr, f_env_id
-     REAL(kind=dp), DIMENSION(:,:,:), POINTER :: x,v,f
+     INTEGER :: ref_count, id_nr, f_env_id, nrep,nat,ndim
+     REAL(kind=dp), DIMENSION(:,:), POINTER :: r,v,f     
      INTEGER, DIMENSION(:), POINTER :: replica_owner
-     TYPE(cp_para_cart_type), POINTER :: para_cart
-     TYPE(cp_para_env_type), POINTER :: para_env
+     TYPE(cp_para_cart_type), POINTER :: cart
+     TYPE(cp_para_env_type), POINTER :: para_env, para_env_f,para_env_inter_rep
+     LOGICAL :: sync_v
   END TYPE replica_env_type
   !!***
   !****************************************************************************
@@ -107,7 +129,7 @@ SUBROUTINE rep_env_retain(rep_env,error)
     LOGICAL                                  :: failure
 
   failure=.FALSE.
-  CPPrecondition(ASSOCIATED(rep_env),cp_fm_types,routineP,error,failure)
+  CPPrecondition(ASSOCIATED(rep_env),cp_failure_level,routineP,error,failure)
   IF (.NOT. failure) THEN
      CPPrecondition(rep_env%ref_count>0,cp_failure_level,routineP,error,failure)
      rep_env%ref_count=rep_env%ref_count+1
@@ -143,7 +165,7 @@ SUBROUTINE rep_env_release(rep_env,error)
     CHARACTER(len=*), PARAMETER :: routineN = 'rep_env_release', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
+    INTEGER                                  :: ierr, stat
     LOGICAL                                  :: failure
 
   failure=.FALSE.
@@ -155,10 +177,11 @@ SUBROUTINE rep_env_release(rep_env,error)
            CALL destroy_force_env(rep_env%f_env_id,ierr=ierr)
            CPPostcondition(ierr==0,cp_failure_level,routineP,error,failure)
         END IF
-        CALL cp_para_env_release(rep_env%para_env_f,error=error)
+        CALL cp_para_env_release(rep_env%para_env,error=error)
         CALL cp_cart_release(rep_env%cart,error=error)
-        IF (ASSOCIATED(rep_env%x)) THEN
-           DEALLOCATE(rep_env%x,stat=stat)
+        CALL cp_para_env_release(rep_env%para_env_f,error=error)
+        IF (ASSOCIATED(rep_env%r)) THEN
+           DEALLOCATE(rep_env%r,stat=stat)
            CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
         END IF
         IF (ASSOCIATED(rep_env%v)) THEN

@@ -134,6 +134,7 @@ MODULE parallel_rng_types
             get_rng_stream,&
             init_rng,&
             next_random_number,&
+            next_gauss,&
             next_rng_seed,&
             read_rng_stream,&
             reset_rng_stream,&
@@ -787,6 +788,54 @@ CONTAINS
   END FUNCTION next_real_random_number
 
   ! ***************************************************************************
+
+  !!****f* parallel_rng_types/next_gauss *
+  !!
+  !!   NAME
+  !!     next_gauss
+  !!
+  !!   FUNCTION
+  !!     returns a gaussian distribued random number (box-muller transformation)
+  !!
+  !!   NOTES
+  !!
+  !!   INPUTS
+  !!     - rgn_stream: the stream you take the random number from
+  !!     - var: variance of the gaussian (defaults to 1)
+  !!     - error: variable to control error logging, stopping,... 
+  !!       see module cp_error_handling 
+  !!
+  !!   AUTHOR
+  !!     fawzi
+  !!
+  !!*** *********************************************************************
+  FUNCTION next_gauss(rng_stream,var,error) RESULT(res)
+    TYPE(rng_stream_type), POINTER           :: rng_stream
+    REAL(kind=dp), INTENT(in), OPTIONAL      :: var
+    TYPE(cp_error_type), INTENT(INOUT), &
+      OPTIONAL                               :: error
+    REAL(kind=dp)                            :: res
+
+    REAL(kind=dp)                            :: fac, my_var, r, v1, v2
+
+    my_var=1._dp
+    IF (PRESENT(var)) my_var=var
+    DO
+       IF (rng_stream%extended_precision) THEN
+          v1 = 2.0_dp*rn53(rng_stream) - 1.0_dp
+          v2 = 2.0_dp*rn53(rng_stream) - 1.0_dp
+       ELSE
+          v1 = 2.0_dp*rn32(rng_stream) - 1.0_dp
+          v2 = 2.0_dp*rn32(rng_stream) - 1.0_dp
+       END IF
+       r = v1*v1 + v2*v2
+       IF (r<1._dp.AND.r/=0._dp) EXIT
+    END DO
+    fac = SQRT(-2.0_dp*LOG(r)/r*my_var)
+    res = v1*fac
+    ! v2*fac would also be gaussian distribued, dropping it we use
+    ! the stream less efficiently
+  END FUNCTION next_gauss
 
   FUNCTION next_rng_seed(seed,error) RESULT(next_seed)
 
