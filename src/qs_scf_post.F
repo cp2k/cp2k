@@ -1109,15 +1109,12 @@ SUBROUTINE calc_stupid_dipole(subsystem, rho_r, rho_core_g,aux_bas_pool,&
      tot_m=tot_m+mass
      r=particles%els(ip)%r
      com=com+mass*r
-     !com(1)=com(1)+mass*(MODULO(r(1),cell%hmat(1,1))-cell%hmat(1,1)/2._dp)
-     !com(2)=com(2)+mass*(MODULO(r(2),cell%hmat(2,2))-cell%hmat(2,2)/2._dp)
-     !com(3)=com(3)+mass*(MODULO(r(3),cell%hmat(3,3))-cell%hmat(3,3)/2._dp)
   END DO
   com=com/tot_m
   com(1)=MODULO(com(1),cell%hmat(1,1))
   com(2)=MODULO(com(2),cell%hmat(2,2))
   com(3)=MODULO(com(3),cell%hmat(3,3))
-
+  dvol = total_charge%pw_grid%dvol
   
   CALL pw_pool_create_pw(aux_bas_pool,total_charge,use_data=REALDATA3D,&
        in_space=REALSPACE,error=error)
