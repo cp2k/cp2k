@@ -438,11 +438,9 @@ CONTAINS
                        error=error)
        iw=cp_print_key_unit_nr(logger,force_env_section,"PROPERTIES%FIT_CHARGE/PROGRAM_RUN_INFO",&
             extension=".fitChargeLog",error=error)
-       poisson_section => section_vals_get_subs_vals(force_env_section,"DFT%POISSON_DFT", error=error)
-       qmmm_periodic_section   => section_vals_get_subs_vals(force_env_section,"QMMM%PERIODIC", error=error)
-       CALL section_vals_get(qmmm_periodic_section,explicit=qmmm_periodic, error=error)
-       qmmm_periodic = qmmm_periodic.AND.qs_env%qmmm
+       qmmm_periodic = qs_env%qmmm_periodic
        IF (.NOT.qmmm_periodic) THEN
+          poisson_section => section_vals_get_subs_vals(force_env_section,"DFT%POISSON_DFT", error=error)
           CALL section_vals_val_get(poisson_section,"POISSON_SOLVER",i_val=my_val,error=error)
           SELECT CASE (my_val)
           CASE (use_multipole)       
@@ -452,6 +450,7 @@ CONTAINS
              RETURN
           END SELECT
        ELSE
+          qmmm_periodic_section   => section_vals_get_subs_vals(force_env_section,"QMMM%PERIODIC", error=error)
           multipole_section => section_vals_get_subs_vals(qmmm_periodic_section,"MULTIPOLE", error=error)
        END IF
        ! First we evaluate the charges at the corresponding SCF STEP

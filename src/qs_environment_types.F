@@ -260,7 +260,7 @@ MODULE qs_environment_types
 !   PRIVATE
     INTEGER :: id_nr, ref_count
     LOGICAL :: use_ref_cell
-    LOGICAL :: qmmm
+    LOGICAL :: qmmm, qmmm_periodic
     LOGICAL :: requires_mo_derivs
     LOGICAL :: use_harris
     TYPE(cell_type), POINTER                              :: cell, super_cell 
@@ -341,7 +341,7 @@ CONTAINS
 ! *****************************************************************************
 
  SUBROUTINE get_qs_env(qs_env,atomic_kind_set,cell,super_cell,cell_ref,use_ref_cell,&
-                        dft_control,mos,sab_orb,qmmm,&
+                        dft_control,mos,sab_orb,qmmm,qmmm_periodic,&
                         sac_erfc,sac_ppl,sac_ppnl,sbc_ppnl,&
                         sac_oce,sbc_oce,sab_2c,sac_3c,sbc_3c,&
                         particle_set,energy,force,harris_env,&
@@ -376,7 +376,7 @@ CONTAINS
       OPTIONAL, POINTER                      :: mos
     TYPE(neighbor_list_set_p_type), &
       DIMENSION(:), OPTIONAL, POINTER        :: sab_orb
-    LOGICAL, OPTIONAL                        :: qmmm
+    LOGICAL, OPTIONAL                        :: qmmm, qmmm_periodic
     TYPE(neighbor_list_set_p_type), &
       DIMENSION(:), OPTIONAL, POINTER        :: sac_erfc, sac_ppl, sac_ppnl, &
                                                 sbc_ppnl, sac_oce, sbc_oce, &
@@ -481,6 +481,7 @@ CONTAINS
     IF (PRESENT(cell_ref)) cell_ref => qs_env%cell_ref
     IF (PRESENT(use_ref_cell)) use_ref_cell = qs_env%use_ref_cell
     IF (PRESENT(qmmm)) qmmm = qs_env%qmmm
+    IF (PRESENT(qmmm_periodic)) qmmm_periodic = qs_env%qmmm_periodic
     IF (PRESENT(dft_control)) dft_control => qs_env%dft_control
     IF (PRESENT(mos)) mos => qs_env%mos
     IF (PRESENT(neighbor_list_id)) neighbor_list_id=qs_env%neighbor_list_id
@@ -651,6 +652,7 @@ CONTAINS
     qs_env%id_nr=last_qs_env_id_nr
     qs_env%use_ref_cell=.FALSE.
     qs_env%qmmm=.FALSE.
+    qs_env%qmmm_periodic=.FALSE.
     qs_env%requires_mo_derivs=.FALSE.
     qs_env%use_harris=.FALSE.
     NULLIFY(qs_env%mo_derivs)
@@ -659,7 +661,7 @@ CONTAINS
 ! *****************************************************************************
 
   SUBROUTINE set_qs_env(qs_env,cell,super_cell,cell_ref,use_ref_cell, &
-                        dft_control,mos,qmmm,&
+                        dft_control,mos,qmmm,qmmm_periodic,&
                         sab_orb,sac_erfc,sac_ppl,sac_ppnl,sbc_ppnl,&
                         sac_oce,sbc_oce,sab_2c,sac_3c,sbc_3c,&
                         energy,force,harris_env,&
@@ -687,7 +689,7 @@ CONTAINS
       POINTER                                :: dft_control
     TYPE(mo_set_p_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: mos
-    LOGICAL, OPTIONAL                        :: qmmm
+    LOGICAL, OPTIONAL                        :: qmmm, qmmm_periodic
     TYPE(neighbor_list_set_p_type), &
       DIMENSION(:), OPTIONAL, POINTER        :: sab_orb, sac_erfc, sac_ppl, &
                                                 sac_ppnl, sbc_ppnl, sac_oce, &
@@ -785,6 +787,7 @@ CONTAINS
     END IF
     IF ( PRESENT ( use_ref_cell ) ) qs_env%use_ref_cell = use_ref_cell
     IF ( PRESENT ( qmmm ) ) qs_env%qmmm = qmmm
+    IF ( PRESENT ( qmmm_periodic ) ) qs_env%qmmm_periodic = qmmm_periodic
     IF (PRESENT(mos)) qs_env%mos => mos
     IF (PRESENT(neighbor_list_id)) qs_env%neighbor_list_id=neighbor_list_id
     IF (PRESENT(sab_orb)) qs_env%sab_orb => sab_orb

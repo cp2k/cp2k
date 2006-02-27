@@ -61,7 +61,7 @@ MODULE qmmm_init
   USE input_constants,                 ONLY: &
        RADIUS_QMMM_DEFAULT, do_center_grid, do_center_none, do_fist, do_qmmm, &
        do_qmmm_gauss, do_qmmm_link_gho, do_qmmm_link_imomm, &
-       do_qmmm_link_pseudo, do_qs
+       do_qmmm_link_pseudo, do_qs, do_qmmm_none
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&
                                              section_vals_type,&
@@ -86,6 +86,8 @@ MODULE qmmm_init
   USE qs_main,                         ONLY: quickstep_create_force_env
   USE timings,                         ONLY: timeset,&
                                              timestop
+  USE checkpoint_handler,              ONLY: Pwarning
+
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -222,6 +224,12 @@ CONTAINS
        ! Periodic boundary condition calculation
        CALL section_vals_get(qmmm_periodic,explicit=explicit,error=error)
        qmmm_env_qm%periodic = explicit
+       IF (qmmm_coupl_type == do_qmmm_none) THEN
+          qmmm_env_qm%periodic = .FALSE.
+          CALL Pwarning("QMMM PERIODIC CALCULATION WITH NONE COUPLING WAS REQUESTED! "//&
+                        "SWITCHING OFF THE PERIODIC KEYWORD SINCE PERIODIC AND NON-PERIODIC "//&
+                        "CALCULATION WITH NONE COUPLING REPRESENT THE SAME METHOD!",globenv, error)
+       END IF
 
        ! First Initialize Fist...
        globenv%prog_name_id=do_fist
@@ -330,7 +338,7 @@ CONTAINS
              CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
           END IF
           CALL cell_clone(mm_cell, super_cell)
-          CALL set_qs_env(qs_env, super_cell=super_cell, error=error)
+          CALL set_qs_env(qs_env, super_cell=super_cell, qmmm_periodic=qmmm_env_qm%periodic, error=error)
           CALL cell_release(super_cell, error=error)
        END IF
        iw2 = cp_print_key_unit_nr(logger,qmmm_section,"PRINT%PROGRAM_BANNER",&
