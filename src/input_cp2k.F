@@ -304,13 +304,6 @@ CONTAINS
     CALL section_add_keyword(section,keyword,error=error)
     CALL keyword_release(keyword,error=error)
 
-    CALL keyword_create(keyword, name="RESTART_FILE_NAME",&
-         description="Name of the restart file.",&
-         usage="RESTART_FILE_NAME {filename}",&
-         default_lc_val="RESTART",error=error)
-    CALL section_add_keyword(section,keyword,error=error)
-    CALL keyword_release(keyword,error=error)
-
     CALL keyword_create(keyword, name="RUN_TYPE",&
          description="Type of run that you want to perform Geometry "//&
          "optimization, md, montecarlo,...",&

@@ -1114,7 +1114,6 @@ SUBROUTINE calc_stupid_dipole(subsystem, rho_r, rho_core_g,aux_bas_pool,&
   com(1)=MODULO(com(1),cell%hmat(1,1))
   com(2)=MODULO(com(2),cell%hmat(2,2))
   com(3)=MODULO(com(3),cell%hmat(3,3))
-  dvol = total_charge%pw_grid%dvol
   
   CALL pw_pool_create_pw(aux_bas_pool,total_charge,use_data=REALDATA3D,&
        in_space=REALSPACE,error=error)
@@ -1127,7 +1126,7 @@ SUBROUTINE calc_stupid_dipole(subsystem, rho_r, rho_core_g,aux_bas_pool,&
   bo=total_charge%pw_grid%bounds_local
   gbo=total_charge%pw_grid%bounds
   np=total_charge%pw_grid%npts
-
+  dvol = total_charge%pw_grid%dvol
   dr=total_charge%pw_grid%dr
   shift=REAL(MODULO(np,2),dp)*dr
 
