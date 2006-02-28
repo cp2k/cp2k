@@ -350,8 +350,9 @@ SUBROUTINE fft3d_s ( fsign, n, zin, zout, scale, status, debug )
     END IF
   END IF
 
+  ! definition used with FFTW
   nx = 5.e-6_dp * REAL ( n(1)*n(2)*n(3),KIND=dp)
-  flops = nx * LOG ( REAL ( n(1)*n(2)*n(3),KIND=dp) ) 
+  flops = nx * LOG ( REAL ( n(1)*n(2)*n(3),KIND=dp) ) / LOG ( 2.0_dp )
   CALL timestop(flops,handle)
 
 END SUBROUTINE fft3d_s
@@ -872,7 +873,7 @@ SUBROUTINE fft3d_ps ( fsign, n, cin, gin, gs_group, rs_group, yzp, nyzray, &
 
 
   nf = 5.e-6_dp * REAL ( n(1)*n(2)*n(3),KIND=dp)
-  flops = nf * LOG ( REAL ( n(1)*n(2)*n(3),KIND=dp) )
+  flops = nf * LOG ( REAL ( n(1)*n(2)*n(3),KIND=dp) ) / LOG ( 2.0_dp) ! FFTW definition
   flops = 1.0e-3_dp*flops/numtask_r  ! per cpu
   CALL timestop(flops,handle)
 
@@ -1412,7 +1413,7 @@ SUBROUTINE fft3d_pb ( fsign, n, zin, gin, group, bo, scale, status, debug )
   END IF
 
   nx = 5.e-6_dp * REAL ( n(1)*n(2)*n(3),KIND=dp)
-  flops = nx * LOG ( REAL ( n(1)*n(2)*n(3),KIND=dp) ) 
+  flops = nx * LOG ( REAL ( n(1)*n(2)*n(3),KIND=dp) ) / LOG (2.0_dp)
   CALL timestop(flops,handle)
 
 END SUBROUTINE fft3d_pb
