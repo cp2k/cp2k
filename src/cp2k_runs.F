@@ -57,7 +57,7 @@ MODULE cp2k_runs
        section_describe_html, section_describe_index_html, section_release, &
        section_type, section_vals_create, section_vals_get_subs_vals, &
        section_vals_release, section_vals_type, section_vals_val_get, &
-       section_vals_write, write_section_xml
+       section_vals_write, write_section_xml,section_typo_match
   USE kg_main,                         ONLY: kg_create_force_env
   USE kinds,                           ONLY: default_path_length,&
                                              default_string_length,&
@@ -142,7 +142,7 @@ CONTAINS
     INTEGER                                  :: unit_nr
     LOGICAL                                  :: echo_input, failure, &
                                                 I_was_ionode, was_present
-    TYPE(cp_error_type)                      :: error
+    TYPE(cp_error_type)                      :: error, suberror
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_parser_type), POINTER            :: my_parser
@@ -153,6 +153,7 @@ CONTAINS
     TYPE(section_type), POINTER              :: input_structure
     TYPE(section_vals_type), POINTER         :: glob_section, input_file, &
                                                 metadyn_section
+    CHARACTER(LEN=512)                       :: unknown_string
 
     cp2k_run_OK = .FALSE.
     failure=.FALSE.
@@ -169,14 +170,13 @@ CONTAINS
 
     ! generate all dependent info in globenv
     CALL cp2k_init ( globenv )
-    CALL cp_error_init(error)
+    CALL cp_error_init(error, stop_level=cp_fatal_level)
 
     ! parse the input
     NULLIFY(input_structure)
     CALL create_cp2k_root_section(input_structure,error=error)
     NULLIFY(input_file)
     CALL section_vals_create(input_file,input_structure, error=error)
-    CALL section_release(input_structure,error=error)
     NULLIFY(my_parser)
     CALL parser_create(my_parser,file_name=input_file_name,para_env=para_env,&
          error=error)
@@ -185,6 +185,8 @@ CONTAINS
          default_units=default_units,error=error)
     CALL cp_unit_set_release(default_units,error=error)
     CALL parser_release(my_parser,error=error)
+    globenv%input_file => input_file
+    NULLIFY(input_file)
 
     ! put failure to true if this is what happened on parsing the input
     CALL cp_error_check(error,failure)
@@ -193,6 +195,12 @@ CONTAINS
        logger => cp_error_get_logger(error)   
        unit_nr=cp_logger_get_default_unit_nr(logger,local=.FALSE.)
        IF (unit_nr>0) THEN
+          CALL cp_error_get(error,info=unknown_string)
+          WRITE(unit_nr,'(T2,A)') ""
+          WRITE(unit_nr,'(T2,A)') "Looking for words in the input similar to the unknown "//TRIM(unknown_string)
+          WRITE(unit_nr,'(T2,A)') ""
+          CALL section_typo_match(input_structure,unknown_string,location_string="", &
+                                  unit_number=unit_nr,error=error)
           WRITE(unit_nr,'(T15,A)') ""
           WRITE(unit_nr,'(T15,A)') "CP2K failed to parse the input file."
           WRITE(unit_nr,'(T15,A)') "A full description of the input can be generated using"
@@ -204,24 +212,23 @@ CONTAINS
           WRITE(unit_nr,'(T15,A)') "http://cp2k.berlios.de/cp2k_input.htm "
           WRITE(unit_nr,'(T15,A)') ""
           WRITE(unit_nr,'(T15,A)') "If this input was an input of a previous version"
-          WRITE(unit_nr,'(T15,A)') "of cp2k, you can try to convert it with --permissive-echo"
+          WRITE(unit_nr,'(T15,A)') "of cp2k, you can try to convert it with --permissive-echo."
+          WRITE(unit_nr,'(T15,A)') "However, this will just ignore the unknown keywords..."
           WRITE(unit_nr,'(T15,A)') ""
        ENDIF
     ELSE
-       glob_section => section_vals_get_subs_vals(input_file,"GLOBAL",error=error)
+       glob_section => section_vals_get_subs_vals(globenv%input_file,"GLOBAL",error=error)
        CALL section_vals_val_get(glob_section,"ECHO_INPUT",l_val=echo_input,&
             error=error)
        IF (echo_input.AND.para_env%mepos==para_env%source) THEN
-          CALL section_vals_write(input_file,unit_nr=globenv%scr,&
+          CALL section_vals_write(globenv%input_file,unit_nr=globenv%scr,&
                hide_root=.TRUE., error=error)
        END IF
 
        IF (.NOT.failure) THEN
-          CALL check_cp2k_input(input_file,para_env=para_env,error=error)
+          CALL check_cp2k_input(globenv%input_file,para_env=para_env,error=error)
        END IF
        CALL cp_error_check(error,failure)
-       globenv%input_file => input_file
-       NULLIFY(input_file)
 
        IF (failure) THEN
           logger => cp_error_get_logger(error)
@@ -235,32 +242,33 @@ CONTAINS
           ENDIF
        ELSE
 
+          CALL cp_error_init(suberror)
           CALL cp2k_read(globenv)
-          CALL cp2k_setup(globenv,error)
+          CALL cp2k_setup(globenv,suberror)
           SELECT CASE (globenv%prog_name_id)
           CASE (do_pint)
-             CALL do_pint_run(para_env,globenv%input_file,error=error)
+             CALL do_pint_run(para_env,globenv%input_file,error=suberror)
           CASE (do_farming)
-             CALL farming_run ( globenv, error )
+             CALL farming_run ( globenv, suberror )
           CASE (do_fist)
-             CALL fist_create_force_env ( force_env, globenv,  error = error )
+             CALL fist_create_force_env ( force_env, globenv,  error = suberror )
           CASE (do_kg)
-             CALL kg_create_force_env ( force_env, globenv, error=error)
+             CALL kg_create_force_env ( force_env, globenv, error=suberror)
           CASE (do_qmmm)
-             CALL qmmm_create_force_env(force_env, globenv, error=error)
+             CALL qmmm_create_force_env(force_env, globenv, error=suberror)
           CASE (do_qs)
-             CALL quickstep_create_force_env(force_env, globenv, error=error)
+             CALL quickstep_create_force_env(force_env, globenv, error=suberror)
           CASE (do_tbmd)
-             CALL tbmd_create_force_env(force_env, globenv, error=error)
+             CALL tbmd_create_force_env(force_env, globenv, error=suberror)
           CASE (do_test)
-             CALL lib_test(globenv,error)
+             CALL lib_test(globenv,suberror)
           END SELECT
           IF (ASSOCIATED(force_env)) THEN
              NULLIFY(meta_env)
-             metadyn_section => section_vals_get_subs_vals(globenv%input_file,"MOTION%METADYN",error=error)
-             CALL metadyn_read(meta_env, globenv, metadyn_section, error=error)
-             CALL force_env_set(force_env,meta_env=meta_env,error=error)
-             CALL meta_env_release(meta_env,error=error)
+             metadyn_section => section_vals_get_subs_vals(globenv%input_file,"MOTION%METADYN",error=suberror)
+             CALL metadyn_read(meta_env, globenv, metadyn_section, error=suberror)
+             CALL force_env_set(force_env,meta_env=meta_env,error=suberror)
+             CALL meta_env_release(meta_env,error=suberror)
           END IF
 
           SELECT CASE (globenv%run_type_id)
@@ -272,63 +280,68 @@ CONTAINS
                   globenv%prog_name_id  /= do_qmmm)  &
                   CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
                   "Energy run available only with QS, KG, and QMMM programs "//&
-                  CPSourceFileRef,error,failure)
+                  CPSourceFileRef,suberror,failure)
              SELECT CASE(globenv%run_type_id)
              CASE (energy_run)
-                CALL force_env_calc_energy_force(force_env,calc_force=.FALSE.,error=error)
+                CALL force_env_calc_energy_force(force_env,calc_force=.FALSE.,error=suberror)
              CASE(energy_force_run)
-                CALL force_env_calc_energy_force(force_env,calc_force=.TRUE. ,error=error)
+                CALL force_env_calc_energy_force(force_env,calc_force=.TRUE. ,error=suberror)
              END SELECT
           CASE (mol_dyn_run)
-             CALL qs_mol_dyn ( force_env, globenv, error=error )
+             CALL qs_mol_dyn ( force_env, globenv, error=suberror )
           CASE (geo_opt_run)
-             CALL qs_geo_opt(force_env,globenv,error=error)
+             CALL qs_geo_opt(force_env,globenv,error=suberror)
           CASE (mon_car_run)
-             CALL do_mon_car ( force_env, globenv, error=error )
+             CALL do_mon_car ( force_env, globenv, error=suberror )
           CASE (hmc_run, ldmc_run)
-             CALL harris_mc_ld(force_env, globenv, error=error)
+             CALL harris_mc_ld(force_env, globenv, error=suberror)
           CASE (electronic_spectra_run)
              IF(globenv%prog_name_id /= do_qs) &
                   CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
                   "Electron spectra available only with Quickstep program "//&
-                  CPSourceFileRef,error,failure)
+                  CPSourceFileRef,suberror,failure)
              CALL force_env_calc_energy_force(force_env,calc_force=.FALSE.,&
-                  error=error)
+                  error=suberror)
              CALL tddfpt_calculation(force_env%qs_env, globenv)
           CASE (bsse_run)
-             CALL do_bsse_calculation(force_env, globenv, error=error)
+             CALL do_bsse_calculation(force_env, globenv, error=suberror)
           CASE (linear_response_run)
              IF(globenv%prog_name_id /= do_qs) CALL cp_assert(.FALSE.,cp_failure_level,&
                   cp_assertion_failed,routineP,&
                   "Property calculations by Linear Response only within the QS program "//&
-                  CPSourceFileRef,error,failure)
+                  CPSourceFileRef,suberror,failure)
              ! The Ground State is needed, it can be read from Restart
              CALL force_env_calc_energy_force(force_env,calc_force=.FALSE.,&
-                  error=error)
-             CALL linres_calculation(force_env%qs_env, globenv, error=error)
+                  error=suberror)
+             CALL linres_calculation(force_env%qs_env, globenv, error=suberror)
           CASE (qs_debug_run)
              IF( (globenv%prog_name_id == do_qs) .OR. &
                   (globenv%prog_name_id == do_qmmm) ) THEN
-                CALL qs_debug_energy_and_forces(force_env, globenv, error=error)
+                CALL qs_debug_energy_and_forces(force_env, globenv, error=suberror)
              ELSE IF(globenv%prog_name_id == do_fist) THEN
-                CALL fist_debug_control(force_env, globenv, error=error)
+                CALL fist_debug_control(force_env, globenv, error=suberror)
              ELSE
                 CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
                      "Debug run available only with QS, FIST, and QMMM program "//&
-                     CPSourceFileRef,error,failure)
+                     CPSourceFileRef,suberror,failure)
              END IF
           END SELECT
-          CALL force_env_release(force_env, error=error)
+          CALL force_env_release(force_env, error=suberror)
 
        END IF
+       CALL cp_error_propagate_error(suberror,routineP,&
+               "cp2k ending run", error=error,failure=failure)
+       CALL cp_error_dealloc_ref(suberror)
 
     END IF
-    CALL cp_error_dealloc_ref(error)
+
+    CALL section_release(input_structure,error=error)
+
 
     I_was_ionode=globenv%ionode
     CALL cp2k_finalize(globenv,error)
     CPPostconditionNoFail(globenv%ref_count==1,cp_failure_level,routineP,error)
-    CALL globenv_release(globenv)
+    CALL cp_error_dealloc_ref(error)
     CALL globenv_release(globenv)
     CALL cp_para_env_release(para_env)
     cp2k_run_OK = .NOT. failure

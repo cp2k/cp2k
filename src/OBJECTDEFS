@@ -130,6 +130,7 @@ OBJECTS_GENERIC =\
  gamma.o\
  gaussian_gridlevels.o\
  geo_opt.o\
+ glob_matching.o\
  global_types.o\
  gopt_f_types.o\
  harris_energy_types.o\

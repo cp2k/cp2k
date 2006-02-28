@@ -45,6 +45,7 @@ MODULE cp_error_handling
        cp_get_default_logger, cp_log, cp_logger_get_default_unit_nr, &
        cp_logger_release, cp_logger_retain, cp_logger_type, cp_to_string
   USE cp_para_types,                   ONLY: cp_para_env_type
+  USE kinds,                           ONLY: default_string_length
   USE message_passing,                 ONLY: mp_abort,&
                                              mp_max
   USE output_utilities,                ONLY: print_message
@@ -128,6 +129,7 @@ MODULE cp_error_handling
 !!          cp_warning_level, cp_failure_level or cp_fatal_level=3).
 !!          Definition of these constants is in cp_log_handling.
 !!     error_nr: the number of the error (0 = no error)
+!!     info: some additional info to store (error message, string ...)
 !!
 !!   AUTHOR
 !!     @author Fawzi Mohamed
@@ -146,6 +148,7 @@ MODULE cp_error_handling
      INTEGER :: print_level
      INTEGER :: level
      INTEGER :: error_nr
+     CHARACTER(LEN=512) :: info
   END TYPE cp_error_type
 !!***
 !****************************************************************************
@@ -201,6 +204,7 @@ CONTAINS
     error%print_level=CP_NOTE_LEVEL
     error%stop_level=CP_FAILURE_LEVEL
     error%print_level=CP_NOTE_LEVEL
+    error%info="No info available yet, we will keep you informed."
     NULLIFY(error%logger)
     IF (PRESENT(template_error)) THEN
        error%logger => template_error%logger
@@ -291,7 +295,7 @@ CONTAINS
 !!
 !!*** **********************************************************************
   SUBROUTINE cp_error_set(error,level,error_nr,stop_level,print_level,logger,&
-       template_error)
+       template_error,info)
     TYPE(cp_error_type), INTENT(inout)       :: error
     INTEGER, INTENT(in), OPTIONAL            :: level, error_nr, stop_level, &
                                                 print_level
@@ -300,6 +304,7 @@ CONTAINS
       OPTIONAL                               :: template_error
 
     TYPE(cp_logger_type), POINTER            :: old_logger
+    CHARACTER(LEN=*), OPTIONAL               :: info
 
     old_logger => error%logger
     IF (PRESENT(template_error)) THEN
@@ -315,6 +320,7 @@ CONTAINS
     IF (ASSOCIATED(error%logger)) THEN
        CALL cp_logger_retain(error%logger)
     END IF
+    IF (PRESENT(info)) error%info=info
     CALL cp_logger_release(old_logger)
   END SUBROUTINE cp_error_set
 !***************************************************************************
@@ -392,11 +398,12 @@ CONTAINS
 !!     none
 !!
 !!*** **********************************************************************
-  SUBROUTINE cp_error_get(error,level,error_nr,stop_level,print_level,logger)
+  SUBROUTINE cp_error_get(error,level,error_nr,stop_level,print_level,logger,info)
     TYPE(cp_error_type), INTENT(inout)       :: error
     INTEGER, INTENT(out), OPTIONAL           :: level, error_nr, stop_level, &
                                                 print_level
     TYPE(cp_logger_type), OPTIONAL, POINTER  :: logger
+    CHARACTER(LEN=*), OPTIONAL               :: info
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_error_get', &
       routineP = moduleN//':'//routineN
@@ -406,6 +413,7 @@ CONTAINS
     IF (PRESENT(stop_level)) stop_level=error%stop_level
     IF (PRESENT(print_level)) print_level=error%print_level
     IF (PRESENT(logger)) logger=>cp_error_get_logger(error)
+    IF (PRESENT(info)) info=error%info
   END SUBROUTINE cp_error_get
 !***************************************************************************
 
@@ -762,7 +770,7 @@ CONTAINS
 !!
 !!*** **********************************************************************
   SUBROUTINE cp_assert(condition, level, error_nr, fromWhere, &
-       message, error,failure)
+       message, error,failure,info)
 !! the condition that is checked, if false, an error did happen
     LOGICAL, INTENT(in)                      :: condition
     INTEGER, INTENT(in)                      :: level, error_nr
@@ -770,6 +778,7 @@ CONTAINS
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
     LOGICAL, INTENT(inout), OPTIONAL         :: failure
+    CHARACTER(len=*), OPTIONAL               :: info
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_assert', &
       routineP = moduleN//':'//routineN
@@ -792,6 +801,7 @@ CONTAINS
              error%level=level
              error%error_nr=error_nr
           END IF
+          error%info=info
        END IF
        CALL cp_error_handle_error(err, fromWhere,message)
        CALL cp_error_dealloc_ref(err)
@@ -856,6 +866,7 @@ CONTAINS
              error%level=iError%level
              error%error_nr=iError%error_nr
           END IF
+          error%info=iError%info
        END IF
        IF (iError%level >= cp_error_get_print_level(error)) THEN
           IF (PRESENT(message)) THEN

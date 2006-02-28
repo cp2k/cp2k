@@ -37,7 +37,8 @@ MODULE input_section_types
                                              keyword_release,&
                                              keyword_retain,&
                                              keyword_type,&
-                                             write_keyword_xml
+                                             write_keyword_xml,&
+                                             keyword_typo_match
   USE input_val_types,                 ONLY: lchar_t,&
                                              no_t,&
                                              val_create,&
@@ -50,7 +51,7 @@ MODULE input_section_types
                                              dp
   USE output_utilities,                ONLY: print_message
   USE string_utilities,                ONLY: compress,&
-                                             uppercase
+                                             uppercase,typo_match
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "cp_common_uses.h"
@@ -68,6 +69,7 @@ MODULE input_section_types
        section_add_keyword, section_add_subsection, section_describe_html,&
        section_describe_index_html
   PUBLIC :: section_get_subsection_index, section_get_keyword_index
+  PUBLIC :: section_typo_match
 
   PUBLIC :: section_vals_p_type,section_vals_type
   PUBLIC :: section_vals_create, section_vals_retain, section_vals_release,&
@@ -1889,7 +1891,6 @@ SUBROUTINE section_vals_val_unset(section_vals,keyword_name,i_rep_section,&
                                                 my_index, tmp_index
     LOGICAL                                  :: failure
     TYPE(cp_sll_val_type), POINTER           :: pos
-    TYPE(keyword_type), POINTER              :: keyword
     TYPE(section_type), POINTER              :: section
     TYPE(section_vals_type), POINTER         :: s_vals
     TYPE(val_type), POINTER                  :: old_val
@@ -1923,9 +1924,6 @@ SUBROUTINE section_vals_val_unset(section_vals,keyword_name,i_rep_section,&
      CALL cp_assert(ik/=-2,cp_failure_level,cp_assertion_failed,routineP,&
           "section "//TRIM(section%name)//" does not contain keyword "//&
           TRIM(keyword_name(my_index:len_key)),error,failure)
-     IF (.NOT.failure) THEN
-        keyword => section%keywords(ik)%keyword
-     END IF
   END IF
   IF (.NOT.failure) THEN
      ! ignore unset of non set values
@@ -2177,6 +2175,50 @@ END SUBROUTINE section_vals_write
   END SUBROUTINE write_section_xml
 
 ! *****************************************************************************
+
+  RECURSIVE SUBROUTINE section_typo_match(section,unknown_string,location_string,unit_number,error)
+
+    TYPE(section_type), POINTER              :: section
+    INTEGER, INTENT(IN)                      :: unit_number
+    CHARACTER(LEN=*)                         :: unknown_string,location_string
+    TYPE(cp_error_type), INTENT(INOUT), &
+      OPTIONAL                               :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'section_typo_match', &
+      routineP = moduleN//':'//routineN
+
+    CHARACTER(LEN=3)                         :: repeats, required
+    INTEGER                                  :: i
+    LOGICAL                                  :: failure
+
+!   ---------------------------------------------------------------------------
+
+    failure = .FALSE.
+    IF (ASSOCIATED(section)) THEN
+      CPPrecondition(section%ref_count>0,cp_failure_level,routineP,error,failure)
+
+      IF (typo_match(TRIM(section%name),TRIM(unknown_string))) THEN
+         write(unit_number,'(T2,A)') "In section "//TRIM(location_string)//" found subsection "//TRIM(section%name)
+      END IF
+           
+      DO i=-1,section%n_keywords
+        IF (ASSOCIATED(section%keywords(i)%keyword)) THEN
+          CALL keyword_typo_match(section%keywords(i)%keyword,unknown_string,location_string// &
+                                  "%"//TRIM(section%name),unit_number,error)
+        END IF
+      END DO
+
+      DO i=1,section%n_subsections
+        CALL section_typo_match(section%subsections(i)%section,unknown_string,&
+            location_string//"%"//TRIM(section%name),unit_number,error)
+      END DO
+
+    END IF
+
+  END SUBROUTINE section_typo_match
+
+! *****************************************************************************
+
 
 !!****f* cp_keywords/section_vals_set_subs_vals *
 !!

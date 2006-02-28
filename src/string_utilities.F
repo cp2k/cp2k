@@ -23,9 +23,16 @@
 
 MODULE string_utilities
 
+  USE glob_matching, ONLY : pattern_match=>string_match
+
   IMPLICIT NONE
 
   PRIVATE
+
+  character(len=1), parameter :: backslash = '\\'
+  character(len=1), parameter :: star      = '*'
+  character(len=1), parameter :: question  = '?'
+
 
   PUBLIC :: ascii_to_string,&
             compress,&
@@ -35,7 +42,8 @@ MODULE string_utilities
             string_to_ascii,&
             substitute_special_xml_tokens,&
             uppercase,&
-            xstring,str_search, s2a
+            xstring,str_search, s2a, &
+            pattern_match,typo_match,backslash,star,question
 
   INTERFACE s2a
     MODULE PROCEDURE s2a_1,s2a_2,s2a_3,s2a_4,s2a_5,s2a_6, &
@@ -46,6 +54,61 @@ MODULE string_utilities
 ! *****************************************************************************
 
 CONTAINS
+!!****f* string_utilities/typo_match *
+!!
+!!   NAME
+!!    typo_match
+!!
+!!   FUNCTION
+!!    returns true if typo_string equals string apart from a few typos. It is case sensitive, apart from typos.
+!! returns true if there is any string match for two 'stars'/'questions' walking the typo_string and string
+!!
+!!   NOTES
+!!    could maybe be made a bit smarter
+!!
+!!   MODIFICATION HISTORY
+!!     02.2006 created [Joost VandeVondele]
+!!
+!!   SOURCE
+!!*** **********************************************************************
+FUNCTION typo_match(string,typo_string) RESULT(match)
+    CHARACTER(LEN=*), INTENT(IN) :: string,typo_string
+    CHARACTER(LEN=LEN(typo_string)) :: tmp
+    CHARACTER(LEN=LEN(string)) :: tmp2
+    CHARACTER(LEN=1) :: kind
+    LOGICAL :: match
+    INTEGER :: i,j
+
+    match=.FALSE.
+    IF (LEN_TRIM(typo_string).LE.4) THEN
+       kind=question 
+    ELSE
+       kind=star
+    ENDIF
+    DO i=1,LEN_TRIM(typo_string)
+     DO j=i,LEN_TRIM(typo_string)
+      tmp=typo_string
+      tmp(i:i)=kind
+      tmp(j:j)=kind
+      match=match.OR.pattern_match(string=string,pattern=tmp)
+     ENDDO
+    ENDDO
+    IF (LEN_TRIM(string).LE.4) THEN
+       kind=question 
+    ELSE
+       kind=star
+    ENDIF
+    DO i=1,LEN_TRIM(string)
+     DO j=i,LEN_TRIM(string)
+      tmp2=string
+      tmp2(i:i)=kind
+      tmp2(j:j)=kind
+      match=match.OR.pattern_match(string=typo_string,pattern=tmp2)
+     ENDDO
+    ENDDO
+
+END FUNCTION typo_match
+
 !!****f* string_utilities/s2a *
 !!
 !!   NAME
