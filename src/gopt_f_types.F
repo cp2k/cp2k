@@ -25,6 +25,9 @@
 !!   SOURCE
 !*****************************************************************************
 MODULE gopt_f_types
+  USE atomic_kind_list_types,          ONLY: atomic_kind_list_type
+  USE atomic_kind_types,               ONLY: atomic_kind_type,&
+                                             get_atomic_kind
   USE cell_types,                      ONLY: cell_type
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_subsystem_types,              ONLY: cp_subsys_get,&
@@ -40,9 +43,10 @@ MODULE gopt_f_types
                                              section_vals_type,&
                                              section_vals_val_get
   USE kinds,                           ONLY: dp
-  USE particle_list_types,             ONLY: particle_list_type
+  USE particle_list_types,             ONLY: particle_list_type  
   USE particle_types,                  ONLY: write_particle_distances,&
-                                             write_qs_particle_coordinates
+                                             write_qs_particle_coordinates,&
+                                             particle_type
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "cp_common_uses.h"
@@ -56,7 +60,7 @@ MODULE gopt_f_types
   INTEGER, PRIVATE, SAVE :: last_gopt_f_id=0, last_gopt_param_id=0
 
   PUBLIC :: gopt_f_type
-  PUBLIC :: cp_eval_at, gopt_f_eval_at, gopt_f_create, gopt_f_retain,&
+  PUBLIC :: cp_eval_at, gopt_f_create, gopt_f_retain,&
             gopt_f_release, gopt_f_create_x0
 
   PUBLIC :: gopt_param_type
@@ -64,7 +68,7 @@ MODULE gopt_f_types
             gopt_param_release
 
   INTERFACE cp_eval_at
-     MODULE PROCEDURE gopt_f_eval_at
+     MODULE PROCEDURE gopt_f_eval_all_at, gopt_f_eval_rest_at
   END INTERFACE
 
 !!***
@@ -290,7 +294,8 @@ END SUBROUTINE gopt_f_release
 !!     gopt_f_eval_at
 !!
 !!   FUNCTION
-!!     evaluete the potential energy and its gradients
+!!     evaluete the potential energy and its gradients using an array
+!!     with same dimension as the particle_set
 !!
 !!   NOTES
 !!     -
@@ -311,7 +316,7 @@ END SUBROUTINE gopt_f_release
 !!     none
 !!
 !!*** **********************************************************************
-SUBROUTINE gopt_f_eval_at(gopt_env, x, f, gradient, master, para_env, force_env_section, error)
+SUBROUTINE gopt_f_eval_all_at(gopt_env, x, f, gradient, master, para_env, force_env_section, error)
     TYPE(gopt_f_type), POINTER               :: gopt_env
     REAL(KIND=dp), DIMENSION(:), INTENT(in)  :: x
     REAL(KIND=dp), INTENT(out), OPTIONAL     :: f
@@ -323,7 +328,7 @@ SUBROUTINE gopt_f_eval_at(gopt_env, x, f, gradient, master, para_env, force_env_
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'gopt_f_eval_at', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'gopt_f_eval_all_at', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, idg, idir, ip, isubsys
@@ -381,8 +386,110 @@ SUBROUTINE gopt_f_eval_at(gopt_env, x, f, gradient, master, para_env, force_env_
      END IF
   END IF
   CALL timestop(0.0_dp,handle)
-END SUBROUTINE gopt_f_eval_at
+END SUBROUTINE gopt_f_eval_all_at
 !***************************************************************************
+
+!!****f* gopt_f_types/gopt_f_eval_rest_at [1.0] *
+!!
+!!   NAME
+!!     gopt_f_eval_rest_at
+!!
+!!   FUNCTION
+!!     Main driver to evaluate energy and derivatives using a smaller array
+!!     if fixed atoms are present
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     Teodoro Laino
+!!
+!!   MODIFICATION HISTORY
+!!     10.2005 created [tlaino] 
+!!
+!!*** **********************************************************************
+  SUBROUTINE gopt_f_eval_rest_at(force_env,xvec,energy,grad,error)
+    TYPE(force_env_type), POINTER            :: force_env
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: xvec
+    REAL(KIND=dp), INTENT(OUT), OPTIONAL     :: energy
+    REAL(KIND=dp), DIMENSION(:), OPTIONAL, &
+      POINTER                                :: grad
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    INTEGER                                  :: atom, iatom, ikind, indf, j, &
+                                                natom, nkind
+    INTEGER, DIMENSION(:), POINTER           :: atom_list
+    LOGICAL                                  :: get_energy, get_gradients
+    TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
+    TYPE(atomic_kind_type), DIMENSION(:), &
+      POINTER                                :: atomic_kind_set
+    TYPE(atomic_kind_type), POINTER          :: atomic_kind
+    TYPE(cell_type), POINTER                 :: cell
+    TYPE(cp_subsystem_p_type), &
+      DIMENSION(:), POINTER                  :: subsys
+    TYPE(particle_list_type), POINTER        :: particles
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particle_set
+
+    get_gradients = PRESENT(grad)
+    get_energy    = PRESENT(energy)
+    CALL force_env_get(force_env,&
+                       cell=cell,&
+                       subsys=subsys)
+
+    CALL cp_subsys_get(subsys=subsys(1)%subsys,&
+                       atomic_kinds=atomic_kinds,&
+                       particles=particles)
+
+    nkind = atomic_kinds%n_els
+    atomic_kind_set => atomic_kinds%els
+    natom = particles%n_els  
+    particle_set => particles%els    
+    indf = 0
+    DO ikind=1,nkind
+       atomic_kind => atomic_kind_set(ikind)
+       CALL get_atomic_kind(atomic_kind=atomic_kind,&
+                            atom_list=atom_list)
+       natom = SIZE(atom_list)
+       DO iatom=1,natom
+          atom = atom_list(iatom)
+          IF (.NOT.particle_set(atom)%is_fixed) THEN
+             DO j = 1, 3
+                indf = indf + 1
+                particle_set(atom)%r(j) = xvec(indf)
+             END DO
+          END IF
+       END DO
+    END DO
+
+    CALL force_env_calc_energy_force(force_env,calc_force=get_gradients,error=error)
+
+    IF (get_gradients)  THEN
+       indf = 0
+       DO ikind=1,nkind
+          atomic_kind => atomic_kind_set(ikind)
+          CALL get_atomic_kind(atomic_kind=atomic_kind,&
+               atom_list=atom_list)
+          natom = SIZE(atom_list)
+          DO iatom=1,natom
+             atom = atom_list(iatom)
+             IF (.NOT.particle_set(atom)%is_fixed) THEN
+                DO j = 1, 3
+                   indf = indf + 1
+                   grad(indf) = -particle_set(atom)%f(j)
+                END DO
+             END IF
+          END DO
+       END DO
+    END IF
+    IF (get_energy) CALL force_env_get(force_env=force_env,potential_energy=energy)    
+
+  END SUBROUTINE gopt_f_eval_rest_at
 
 !!****f* gopt_f_types/gopt_f_create_x0 [1.0] *
 !!

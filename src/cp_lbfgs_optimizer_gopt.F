@@ -67,7 +67,7 @@ MODULE cp_lbfgs_optimizer_gopt
   USE force_env_types,                 ONLY: force_env_get,&
                                              force_env_type
   USE global_types,                    ONLY: global_environment_type
-  USE gopt_f_types,                    ONLY: gopt_f_eval_at,&
+  USE gopt_f_types,                    ONLY: cp_eval_at,&
                                              gopt_f_release,&
                                              gopt_f_retain,&
                                              gopt_f_type,&
@@ -781,7 +781,7 @@ END SUBROUTINE cp_opt_gopt_release
           SELECT CASE (optimizer%status)
           CASE (1)
              !op=1 evaluate f and g
-             CALL gopt_f_eval_at(optimizer%obj_funct, x=optimizer%x,&
+             CALL cp_eval_at(optimizer%obj_funct, x=optimizer%x,&
                   f=optimizer%f,&
                   gradient=optimizer%gradient,&
                   master=optimizer%master,para_env=optimizer%para_env,&
@@ -1068,10 +1068,10 @@ END SUBROUTINE cp_opt_gopt_release
   ! files are almost the same (multi-line use change it a bit)
   ! [template(type1,nametype1,USE,type1_retain,type1_release,type1_eval_at)]
 ! ARGS:
-!  USE = "USE gopt_f_types, ONLY: gopt_f_type, gopt_f_eval_at,gopt_f_release,gopt_f_retain"
+!  USE = "USE gopt_f_types, ONLY: gopt_f_type, cp_eval_at, gopt_f_release,gopt_f_retain"
 !  nametype1 = "gopt"
 !  type1 = "type(gopt_f_type)"
-!  type1_eval_at = "gopt_f_eval_at"
+!  type1_eval_at = "cp_eval_at"
 !  type1_release = "gopt_f_release"
 !  type1_retain = "gopt_f_retain"
 

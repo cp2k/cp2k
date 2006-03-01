@@ -40,7 +40,8 @@ MODULE cg_optimizer
   USE force_env_types,                 ONLY: force_env_get,&
                                              force_env_type
   USE global_types,                    ONLY: global_environment_type
-  USE gopt_f_types,                    ONLY: gopt_param_type
+  USE gopt_f_types,                    ONLY: gopt_param_type,&
+                                             cp_eval_at
   USE input_constants,                 ONLY: dump_xmol
   USE input_section_types,             ONLY: section_vals_type
   USE kinds,                           ONLY: dp
@@ -196,110 +197,11 @@ CONTAINS
     CALL write_checkpoint_information("Leaving "//routineN,globenv,error)
   END SUBROUTINE geoopt_cg
 
-!!****f* cg_optimizer/get_energy_and_gradients [1.0] *
-!!
-!!   NAME
-!!     get_energy_and_gradients
-!!
-!!   FUNCTION
-!!     Main driver to evaluate energy and derivatives
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     Teodoro Laino
-!!
-!!   MODIFICATION HISTORY
-!!     10.2005 created [tlaino] 
-!!
-!!*** **********************************************************************
-  SUBROUTINE get_energy_and_gradients(force_env,xvec,energy,grad,error)
-    TYPE(force_env_type), POINTER            :: force_env
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: xvec
-    REAL(KIND=dp), INTENT(OUT), OPTIONAL     :: energy
-    REAL(KIND=dp), DIMENSION(:), OPTIONAL, &
-      POINTER                                :: grad
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
-
-    INTEGER                                  :: atom, iatom, ikind, indf, j, &
-                                                natom, nkind
-    INTEGER, DIMENSION(:), POINTER           :: atom_list
-    LOGICAL                                  :: get_energy, get_gradients
-    TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
-    TYPE(atomic_kind_type), DIMENSION(:), &
-      POINTER                                :: atomic_kind_set
-    TYPE(atomic_kind_type), POINTER          :: atomic_kind
-    TYPE(cell_type), POINTER                 :: cell
-    TYPE(cp_subsystem_p_type), &
-      DIMENSION(:), POINTER                  :: subsys
-    TYPE(particle_list_type), POINTER        :: particles
-    TYPE(particle_type), DIMENSION(:), &
-      POINTER                                :: particle_set
-
-    get_gradients = PRESENT(grad)
-    get_energy    = PRESENT(energy)
-    CALL force_env_get(force_env,&
-                       cell=cell,&
-                       subsys=subsys)
-
-    CALL cp_subsys_get(subsys=subsys(1)%subsys,&
-                       atomic_kinds=atomic_kinds,&
-                       particles=particles)
-
-    nkind = atomic_kinds%n_els
-    atomic_kind_set => atomic_kinds%els
-    natom = particles%n_els  
-    particle_set => particles%els    
-    indf = 0
-    DO ikind=1,nkind
-       atomic_kind => atomic_kind_set(ikind)
-       CALL get_atomic_kind(atomic_kind=atomic_kind,&
-                            atom_list=atom_list)
-       natom = SIZE(atom_list)
-       DO iatom=1,natom
-          atom = atom_list(iatom)
-          IF (.NOT.particle_set(atom)%is_fixed) THEN
-             DO j = 1, 3
-                indf = indf + 1
-                particle_set(atom)%r(j) = xvec(indf)
-             END DO
-          END IF
-       END DO
-    END DO
-
-    CALL force_env_calc_energy_force(force_env,calc_force=get_gradients,error=error)
-
-    IF (get_gradients)  THEN
-       indf = 0
-       DO ikind=1,nkind
-          atomic_kind => atomic_kind_set(ikind)
-          CALL get_atomic_kind(atomic_kind=atomic_kind,&
-               atom_list=atom_list)
-          natom = SIZE(atom_list)
-          DO iatom=1,natom
-             atom = atom_list(iatom)
-             IF (.NOT.particle_set(atom)%is_fixed) THEN
-                DO j = 1, 3
-                   indf = indf + 1
-                   grad(indf) = -particle_set(atom)%f(j)
-                END DO
-             END IF
-          END DO
-       END DO
-    END IF
-    IF (get_energy) CALL force_env_get(force_env=force_env,potential_energy=energy)    
-  END SUBROUTINE get_energy_and_gradients
 
 !!****f* cg_optimizer/cp_cg_main [1.0] *
 !!
 !!   NAME
-!!     get_energy_and_gradients
+!!     cp_cg_main
 !!
 !!   FUNCTION
 !!     This really performs the conjugate gradients optimization
@@ -376,7 +278,7 @@ CONTAINS
        ALLOCATE(xold(SIZE(xvec)), stat=stat)
        CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
 
-       CALL get_energy_and_gradients(force_env, xvec, opt_energy, xi,error=error)
+       CALL cp_eval_at(force_env, xvec, opt_energy, xi,error=error)
        g  = -xi
        h  =   g
        xi =   h
@@ -428,7 +330,7 @@ CONTAINS
              CALL write_qs_particle_coordinates(particle_set,cell,force_env_section,error)
           END IF
           IF (conv.OR.(its==maxiter))  EXIT
-          CALL get_energy_and_gradients(force_env, xvec, opt_energy, xi,error=error)          
+          CALL cp_eval_at(force_env, xvec, opt_energy, xi,error=error)          
           gg  = DOT_PRODUCT(g,g)
           IF (Fletcher_Reeves_ON) THEN 
              dgg = DOT_PRODUCT(xi,xi)
@@ -1048,7 +950,7 @@ CONTAINS
        ALLOCATE(xvec(SIZE(pcom)), stat=stat)
        CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
        xvec = pcom + x*xicom
-       CALL get_energy_and_gradients(force_env, xvec, my_val,error=error)
+       CALL cp_eval_at(force_env, xvec, my_val,error=error)
        DEALLOCATE(xvec, stat=stat)
        CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
@@ -1101,7 +1003,7 @@ CONTAINS
        ALLOCATE(grad(SIZE(pcom)), stat=stat)
        CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
        xvec = pcom + x * xicom
-       CALL get_energy_and_gradients(force_env, xvec, energy, grad,error=error)
+       CALL cp_eval_at(force_env, xvec, energy, grad,error=error)
        my_val = DOT_PRODUCT(grad,xicom)
        fval   = energy
        DEALLOCATE(xvec, stat=stat)

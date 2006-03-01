@@ -43,7 +43,7 @@ MODULE geo_opt
   USE global_types,                    ONLY: global_environment_type
   USE gopt_f_types,                    ONLY: gopt_f_create,&
                                              gopt_f_create_x0,&
-                                             gopt_f_eval_at,&
+                                             cp_eval_at,&
                                              gopt_f_release,&
                                              gopt_f_type,&
                                              gopt_param_read,&
@@ -218,7 +218,7 @@ MODULE geo_opt
            WRITE (unit=cp_logger_get_default_unit_nr(logger),&
                 fmt="(' Reevaluating wf at minimum')")
         END IF
-        CALL gopt_f_eval_at(gopt_env,optimizer%x,f=f,master=optimizer%master,&
+        CALL cp_eval_at(gopt_env,optimizer%x,f=f,master=optimizer%master,&
              para_env=optimizer%para_env,force_env_section=force_env_section, error=error)
         ! add 'gradient=optimizer%gradient' to revaluate also the force?
 
