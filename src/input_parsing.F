@@ -440,7 +440,7 @@ SUBROUTINE val_create_parsing(val,type_of_var, n_var,enum,&
     CHARACTER(len=*), PARAMETER :: routineN = 'val_create_parsing', &
       routineP = moduleN//':'//routineN
 
-    CHARACTER(len=default_string_length)     :: c_val
+    CHARACTER(len=default_string_length)     :: c_val,info,location
     CHARACTER(len=default_string_length), &
       DIMENSION(:), POINTER                  :: c_val_p
     INTEGER                                  :: i, i_val, stat
@@ -807,10 +807,15 @@ SUBROUTINE val_create_parsing(val,type_of_var, n_var,enum,&
              CPSourceFileRef,&
              error,cp_failure_level)
      END SELECT
-     CALL cp_assert(parser_test_next_token(parser,error=error)=="EOL",&
+     IF (parser_test_next_token(parser,error=error).NE."EOL") THEN
+        location=TRIM(parser_location(parser,error=error))
+        CALL parser_get_object(parser,info,error=error)
+        CALL cp_assert(.false.,&
           cp_failure_level,cp_assertion_failed,routineP,&
-          "found unexpected extra arguments"//&
-          TRIM(parser_location(parser,error=error)),error,failure)
+          "found unexpected extra argument "//TRIM(info)//" at "//&
+          location,error,failure,info=info)
+     ENDIF
+
      IF (ASSOCIATED(my_unit)) CALL cp_unit_release(my_unit,error=error)
   END IF
 !FM  PRINT *,"parsed val:"

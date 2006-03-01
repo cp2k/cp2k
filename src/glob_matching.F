@@ -1,13 +1,13 @@
+!
+!  Imported from Arjen Markus' flibs project
+!  http://flibs.sourceforge.net/
+!
 ! globmatch.f90 --
 !     Match strings according to (simplified) glob patterns
 !
 !     The pattern matching is limited to literals, * and ?
 !     (character classes are not supported). A backslash escapes
 !     any character.
-!
-!  Imported from Arjen Markus' flibs project 
-!  http://flibs.sourceforge.net/
-!
 !
 module glob_matching
     implicit none
@@ -82,7 +82,19 @@ recursive function string_match( string, pattern ) result(match)
         !
         ! We are at the end of the pattern, and of the string?
         !
-        if ( strim == 0 ) match = .true.
+        if ( strim == 0 .and. ptrim == 0 ) then
+            match = .true.
+        else
+            !
+            ! The string matches a literal part?
+            !
+            if ( ll > 0 ) then
+                if ( string(start:min(strim,start+ll-1)) == literal(1:ll) ) then
+                    start = start + ll
+                    match = string_match( string(start:), pattern(p:) )
+                endif
+            endif
+        endif
     endif
 
     if ( method == 1 ) then
@@ -107,11 +119,11 @@ recursive function string_match( string, pattern ) result(match)
         endif
     endif
 
-    if ( method == 2 ) then
+    if ( method == 2 .and. ll > 0 ) then
         !
         ! Scan the whole of the remaining string ...
         !
-        if ( string(start:start+ll-1) == literal(1:ll) ) then
+        if ( string(start:min(strim,start+ll-1)) == literal(1:ll) ) then
             match = string_match( string(start+ll:), pattern(p:) )
         endif
     endif
