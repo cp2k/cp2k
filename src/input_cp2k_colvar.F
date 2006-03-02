@@ -23,8 +23,8 @@
 !!   SOURCE
 !****************************************************************************
 MODULE input_cp2k_colvar
-  USE input_constants
   USE cp_output_handling,              ONLY: cp_print_key_section_create
+  USE input_constants
   USE input_keyword_types,             ONLY: keyword_create,&
                                              keyword_release,&
                                              keyword_type
@@ -78,7 +78,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     LOGICAL                                  :: failure
-    TYPE(section_type), POINTER              :: subsection, print_key
+    TYPE(section_type), POINTER              :: print_key, subsection
 
     failure=.FALSE.
     

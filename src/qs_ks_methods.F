@@ -294,7 +294,8 @@ CONTAINS
                                                 nspins, output_unit, stat
     LOGICAL                                  :: failure, gapw, gapw_xc, &
                                                 ionode, my_kg_gpw
-    REAL(KIND=dp)                            :: mulliken_order_p,ddapc_order_p
+    REAL(KIND=dp)                            :: ddapc_order_p, &
+                                                mulliken_order_p
     REAL(KIND=dp), DIMENSION(:), POINTER     :: occupation_numbers, &
                                                 scaling_factor
     TYPE(cell_type), POINTER                 :: cell

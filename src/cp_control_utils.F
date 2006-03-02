@@ -289,8 +289,9 @@ CONTAINS
     INTEGER, DIMENSION(:), POINTER           :: tmplist
     LOGICAL                                  :: failure, was_present
     REAL(dp)                                 :: value
-    TYPE(section_vals_type), POINTER         :: loc_section, mull_section, &
-                                                qs_section, se_section, ddapc_restraint_section
+    TYPE(section_vals_type), POINTER         :: ddapc_restraint_section, &
+                                                loc_section, mull_section, &
+                                                qs_section, se_section
 
 !   ---------------------------------------------------------------------------
 

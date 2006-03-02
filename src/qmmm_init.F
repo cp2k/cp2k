@@ -34,6 +34,7 @@ MODULE qmmm_init
                                              get_cell,&
                                              init_cell,&
                                              write_cell
+  USE checkpoint_handler,              ONLY: Pwarning
   USE cp_output_handling,              ONLY: cp_p_file,&
                                              cp_print_key_finished_output,&
                                              cp_print_key_should_output,&
@@ -61,7 +62,7 @@ MODULE qmmm_init
   USE input_constants,                 ONLY: &
        RADIUS_QMMM_DEFAULT, do_center_grid, do_center_none, do_fist, do_qmmm, &
        do_qmmm_gauss, do_qmmm_link_gho, do_qmmm_link_imomm, &
-       do_qmmm_link_pseudo, do_qs, do_qmmm_none
+       do_qmmm_link_pseudo, do_qmmm_none, do_qs
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&
                                              section_vals_type,&
@@ -86,8 +87,6 @@ MODULE qmmm_init
   USE qs_main,                         ONLY: quickstep_create_force_env
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE checkpoint_handler,              ONLY: Pwarning
-
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

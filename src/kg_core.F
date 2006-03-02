@@ -112,7 +112,7 @@ CONTAINS
     TYPE(subcell_type), DIMENSION(:, :, :), &
       POINTER                                :: subcell
 
-    ! -------------------------------------------------------------------------
+! -------------------------------------------------------------------------
 
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
@@ -662,7 +662,7 @@ CONTAINS
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
 
-    ! -------------------------------------------------------------------------
+! -------------------------------------------------------------------------
 
     CALL get_kg_env(kg_env=kg_env,&
                     atomic_kind_set=atomic_kind_set)

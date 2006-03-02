@@ -23,15 +23,15 @@
 
 MODULE string_utilities
 
-  USE glob_matching, ONLY : pattern_match=>string_match
+  USE glob_matching,                   ONLY: pattern_match=>string_match
 
   IMPLICIT NONE
 
   PRIVATE
 
-  character(len=1), parameter :: backslash = '\\'
-  character(len=1), parameter :: star      = '*'
-  character(len=1), parameter :: question  = '?'
+  CHARACTER(len=1), PARAMETER :: backslash = '\\'
+  CHARACTER(len=1), PARAMETER :: star      = '*'
+  CHARACTER(len=1), PARAMETER :: question  = '?'
 
 
   PUBLIC :: ascii_to_string,&
@@ -72,12 +72,13 @@ CONTAINS
 !!   SOURCE
 !!*** **********************************************************************
 FUNCTION typo_match(string,typo_string) RESULT(match)
-    CHARACTER(LEN=*), INTENT(IN) :: string,typo_string
-    CHARACTER(LEN=LEN(typo_string)) :: tmp
-    CHARACTER(LEN=LEN(string)) :: tmp2
-    CHARACTER(LEN=1) :: kind
-    LOGICAL :: match
-    INTEGER :: i,j
+    CHARACTER(LEN=*), INTENT(IN)             :: string, typo_string
+    LOGICAL                                  :: match
+
+    CHARACTER(LEN=1)                         :: kind
+    CHARACTER(LEN=LEN(string))               :: tmp2
+    CHARACTER(LEN=LEN(typo_string))          :: tmp
+    INTEGER                                  :: i, j
 
     match=.FALSE.
     IF (LEN_TRIM(typo_string).LE.4) THEN

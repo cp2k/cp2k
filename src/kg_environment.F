@@ -180,9 +180,9 @@ CONTAINS
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(scf_control_type), POINTER          :: scf_control
-    TYPE(section_vals_type), POINTER         :: cell_section, dft_section, &
+    TYPE(section_vals_type), POINTER         :: cell_section, colvar_section, &
+                                                dft_section, &
                                                 force_env_section, &
-                                                colvar_section, &                                                
                                                 work_section
 
     CALL timeset(routineN,"I",'',handle)

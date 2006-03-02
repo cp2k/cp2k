@@ -39,8 +39,7 @@ MODULE cp_ddapc
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE input_constants,                 ONLY: use_multipole
-  USE input_section_types,             ONLY: section_vals_get,&
-                                             section_vals_get_subs_vals,&
+  USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type,&
                                              section_vals_val_get
   USE kinds,                           ONLY: dp
@@ -527,8 +526,7 @@ CONTAINS
 !!*** **********************************************************************
 SUBROUTINE restraint_functional(ddapc_restraint_control,charges, &
                                 charges_deriv,energy,order_p)
-    TYPE(ddapc_restraint_type), &
-      INTENT(IN)                             :: ddapc_restraint_control
+    TYPE(ddapc_restraint_type), INTENT(IN)   :: ddapc_restraint_control
     REAL(KIND=dp), DIMENSION(:), POINTER     :: charges, charges_deriv
     REAL(KIND=dp), INTENT(OUT)               :: energy, order_p
 

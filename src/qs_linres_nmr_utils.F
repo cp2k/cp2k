@@ -122,7 +122,6 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'nmr_do_nmr', &
       routineP = moduleN//':'//routineN
 
-    CHARACTER(LEN=20)                        :: rootfname
     INTEGER                                  :: handle, iao, idir, idir2, ii, &
                                                 iii, ispin, ist_true, istat, &
                                                 istate, istate2, ncubes, &

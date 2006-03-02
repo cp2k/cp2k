@@ -639,8 +639,7 @@ CONTAINS
     TYPE(cp_error_type), INTENT(INOUT), &
       OPTIONAL                               :: error
 
-    CHARACTER(len=*), PARAMETER :: &
-      routineN = 'tbmd_pdh_pattern', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'tbmd_pdh_pattern', &
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=40)                        :: matrix_symmetry

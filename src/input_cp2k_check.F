@@ -92,9 +92,9 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'check_cp2k_input', &
       routineP = moduleN//':'//routineN
 
+    INTEGER                                  :: handle
     LOGICAL                                  :: explicit, failure
     TYPE(section_vals_type), POINTER         :: section
-    INTEGER                                  :: handle
 
     CALL timeset(routineN,handle)
 

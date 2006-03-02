@@ -20,7 +20,6 @@ MODULE cp_control_types
   USE cp_fm_types,                     ONLY: cp_fm_p_type,&
                                              cp_fm_release
   USE kinds,                           ONLY: dp
-  USE pw_grid_types,                   ONLY: pw_grid_type
   USE qs_loc_control,                  ONLY: localized_wfn_control_create,&
                                              localized_wfn_control_release,&
                                              localized_wfn_control_type,&
@@ -335,7 +334,7 @@ END SUBROUTINE mulliken_control_retain
 !!   SOURCE
 !!*** **********************************************************************
 SUBROUTINE ddapc_control_create(ddapc_restraint_control,error)
-    TYPE(ddapc_restraint_type), POINTER   :: ddapc_restraint_control
+    TYPE(ddapc_restraint_type), POINTER      :: ddapc_restraint_control
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -360,7 +359,7 @@ SUBROUTINE ddapc_control_create(ddapc_restraint_control,error)
 END SUBROUTINE ddapc_control_create
 
 SUBROUTINE ddapc_control_release(ddapc_restraint_control,error)
-    TYPE(ddapc_restraint_type), POINTER   :: ddapc_restraint_control
+    TYPE(ddapc_restraint_type), POINTER      :: ddapc_restraint_control
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -385,7 +384,7 @@ SUBROUTINE ddapc_control_release(ddapc_restraint_control,error)
 END SUBROUTINE ddapc_control_release
 
 SUBROUTINE ddapc_control_retain(ddapc_restraint_control,error)
-    TYPE(ddapc_restraint_type), POINTER   :: ddapc_restraint_control
+    TYPE(ddapc_restraint_type), POINTER      :: ddapc_restraint_control
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 

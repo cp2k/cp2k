@@ -24,7 +24,7 @@
 MODULE cp_fm_diag
   USE cp_blacs_calls,                  ONLY: cp_blacs_gridexit,&
                                              cp_blacs_gridinit
-  USE cp_fm_basic_linalg,              ONLY: cp_fm_syrk, &
+  USE cp_fm_basic_linalg,              ONLY: cp_fm_syrk,&
                                              cp_fm_upper_to_full
   USE cp_fm_types,                     ONLY: cp_fm_to_fm,&
                                              cp_fm_type

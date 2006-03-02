@@ -40,7 +40,8 @@ MODULE input_keyword_types
   USE output_utilities,                ONLY: print_message
   USE string_utilities,                ONLY: compress,&
                                              substitute_special_xml_tokens,&
-                                             uppercase,typo_match
+                                             typo_match,&
+                                             uppercase
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -1090,17 +1091,16 @@ END SUBROUTINE keyword_describe_html
  SUBROUTINE keyword_typo_match(keyword,unknown_string,location_string,unit_number,error)
 
     TYPE(keyword_type), POINTER              :: keyword
+    CHARACTER(LEN=*)                         :: unknown_string, &
+                                                location_string
     INTEGER, INTENT(IN)                      :: unit_number
-    CHARACTER(LEN=*)                         :: unknown_string,location_string
     TYPE(cp_error_type), INTENT(INOUT), &
       OPTIONAL                               :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'keyword_typo_match', &
       routineP = moduleN//':'//routineN
 
-    CHARACTER(LEN=1000)                      :: string
-    CHARACTER(LEN=3)                         :: repeats, required
-    INTEGER                                  :: i,j
+    INTEGER                                  :: i, j
     LOGICAL                                  :: failure
 
 !   ---------------------------------------------------------------------------
@@ -1114,13 +1114,13 @@ END SUBROUTINE keyword_describe_html
 
       DO i=1,SIZE(keyword%names)
          IF (typo_match(TRIM(keyword%names(i)),TRIM(unknown_string))) THEN
-            write(unit_number,'(T2,A)') "In section "//TRIM(location_string)//" found keyword "//TRIM(keyword%names(i))
+            WRITE(unit_number,'(T2,A)') "In section "//TRIM(location_string)//" found keyword "//TRIM(keyword%names(i))
          END IF
     
          IF (keyword%type_of_var==enum_t) THEN
            DO j=1,SIZE(keyword%enum%c_vals)
              IF (typo_match(TRIM(keyword%enum%c_vals(j)),TRIM(unknown_string))) THEN
-                write(unit_number,'(T2,A)') "In section "//TRIM(location_string)// &
+                WRITE(unit_number,'(T2,A)') "In section "//TRIM(location_string)// &
                                             " found enum "//TRIM(keyword%enum%c_vals(j))// &
                                             " for keyword "//TRIM(keyword%names(i))
              END IF

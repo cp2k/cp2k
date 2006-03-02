@@ -55,9 +55,9 @@ MODULE cp2k_runs
   USE input_parsing,                   ONLY: section_vals_parse
   USE input_section_types,             ONLY: &
        section_describe_html, section_describe_index_html, section_release, &
-       section_type, section_vals_create, section_vals_get_subs_vals, &
-       section_vals_release, section_vals_type, section_vals_val_get, &
-       section_vals_write, write_section_xml,section_typo_match
+       section_type, section_typo_match, section_vals_create, &
+       section_vals_get_subs_vals, section_vals_release, section_vals_type, &
+       section_vals_val_get, section_vals_write, write_section_xml
   USE kg_main,                         ONLY: kg_create_force_env
   USE kinds,                           ONLY: default_path_length,&
                                              default_string_length,&
@@ -139,6 +139,7 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'cp2k_run', &
       routineP = moduleN//':'//routineN
 
+    CHARACTER(LEN=512)                       :: unknown_string
     INTEGER                                  :: unit_nr
     LOGICAL                                  :: echo_input, failure, &
                                                 I_was_ionode, was_present
@@ -153,7 +154,6 @@ CONTAINS
     TYPE(section_type), POINTER              :: input_structure
     TYPE(section_vals_type), POINTER         :: glob_section, input_file, &
                                                 metadyn_section
-    CHARACTER(LEN=512)                       :: unknown_string
 
     cp2k_run_OK = .FALSE.
     failure=.FALSE.

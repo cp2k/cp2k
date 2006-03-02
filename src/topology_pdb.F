@@ -55,12 +55,12 @@ MODULE topology_pdb
   USE kinds,                           ONLY: default_string_length,&
                                              dp
   USE memory_utilities,                ONLY: reallocate
+  USE qmmm_ff_fist,                    ONLY: qmmm_ff_precond_only_qm
   USE string_utilities,                ONLY: uppercase
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE topology_types,                  ONLY: atom_info_type,&
                                              topology_parameters_type
-  USE qmmm_ff_fist,                    ONLY: qmmm_ff_precond_only_qm
 #include "cp_common_uses.h"  
 
   IMPLICIT NONE
@@ -263,13 +263,13 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'write_coordinate_pdb', &
       routineP = moduleN//':'//routineN
 
-    CHARACTER(LEN=default_string_length)     :: line, record
+    CHARACTER(LEN=default_string_length)     :: line, my_tag1, my_tag2, &
+                                                my_tag3, my_tag4, record
     INTEGER                                  :: file_unit, handle, i, id1, &
                                                 id2, idres, iw, natom
+    LOGICAL                                  :: ldum
     TYPE(atom_info_type), POINTER            :: atom_info
     TYPE(cp_logger_type), POINTER            :: logger
-    CHARACTER(LEN=default_string_length)     :: my_tag1, my_tag2, my_tag3, my_tag4
-    LOGICAL :: ldum
 
     NULLIFY(logger)
     logger => cp_error_get_logger(error)

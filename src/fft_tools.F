@@ -247,14 +247,15 @@ SUBROUTINE fft3d_s ( fsign, n, zin, zout, scale, status, debug )
     INTEGER, INTENT(OUT), OPTIONAL           :: status
     LOGICAL, INTENT(IN), OPTIONAL            :: debug
 
-    INTEGER                                  :: handle, ld(3), lo(3), sign, ierr
+    COMPLEX(KIND=lp), DIMENSION(1, 1, 1), &
+      TARGET                                 :: zdum
+    COMPLEX(KIND=lp), DIMENSION(:, :, :), &
+      POINTER                                :: zoptr
+    INTEGER                                  :: handle, ierr, ld(3), lo(3), &
+                                                sign
     LOGICAL                                  :: fft_in_place, test
     REAL(KIND=dp)                            :: flops, in_sum, nx, out_sum
     REAL(KIND=lp)                            :: norm
-    COMPLEX(KIND=lp), DIMENSION(:, :, :), &
-      POINTER                                :: zoptr
-    COMPLEX(KIND=lp), DIMENSION(1, 1, 1), &
-      TARGET                                 :: zdum
 
 !------------------------------------------------------------------------------
 
@@ -377,18 +378,17 @@ SUBROUTINE fft3d_ps ( fsign, n, cin, gin, gs_group, rs_group, yzp, nyzray, &
     INTEGER, INTENT(OUT), OPTIONAL           :: status
     LOGICAL, INTENT(IN), OPTIONAL            :: debug
 
-    REAL(KIND=dp)                            :: flops, nf, sum_data
-
-    REAL(KIND=lp)                            :: norm
     COMPLEX(KIND=lp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: pbuf, qbuf, rbuf, sbuf
     COMPLEX(KIND=lp), ALLOCATABLE, &
       DIMENSION(:, :, :)                     :: tbuf
-    INTEGER :: g_pos, handle, ierr, iout, lg, lmax, mg, mx1, mx2, my1, mz2, &
-      numtask, numtask_g, numtask_r, nx, ny, nz, r_dim(2), r_pos(2), rp, &
-      sign, mmax
+    INTEGER :: g_pos, handle, ierr, iout, lg, lmax, mg, mmax, mx1, mx2, my1, &
+      mz2, numtask, numtask_g, numtask_r, nx, ny, nz, r_dim(2), r_pos(2), rp, &
+      sign
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: p2p
     LOGICAL                                  :: test
+    REAL(KIND=dp)                            :: flops, nf, sum_data
+    REAL(KIND=lp)                            :: norm
 
 !------------------------------------------------------------------------------
 
@@ -668,7 +668,7 @@ SUBROUTINE fft3d_ps ( fsign, n, cin, gin, gs_group, rs_group, yzp, nyzray, &
       ! FFT along z
       CALL fft_1dm ( fft_type, sign, .TRUE., n(3), mx1*my1, pbuf, qbuf, 1.0_lp )
 #if defined(__FFTSGL) && defined(__NAG)
-      call copy_cz(n(3)*mx1*my1,qbuf,cin)
+      CALL copy_cz(n(3)*mx1*my1,qbuf,cin)
 #else
       cin = RESHAPE(qbuf,SHAPE(cin))
 #endif
@@ -1059,7 +1059,7 @@ SUBROUTINE fft3d_pb ( fsign, n, zin, gin, group, bo, scale, status, debug )
       CALL fft_1dm ( fft_type, sign, .TRUE., n(1), my*mz, abuf, bbuf, 1.0_lp )
 
 #if defined(__FFTSGL) && defined(__NAG)
-      call copy_cz(n(1)*my*mz,bbuf,gin)
+      CALL copy_cz(n(1)*my*mz,bbuf,gin)
 #else
       gin = RESHAPE(bbuf,SHAPE(gin))
 #endif
@@ -1171,7 +1171,7 @@ SUBROUTINE fft3d_pb ( fsign, n, zin, gin, group, bo, scale, status, debug )
       CALL fft_1dm ( fft_type, sign, .TRUE., n(3), mx*my, abuf, bbuf, norm )
 
 #if defined(__FFTSGL) && defined(__NAG)
-      call copy_cz(n(3)*mx*my,bbuf,zin)
+      CALL copy_cz(n(3)*mx*my,bbuf,zin)
 #else
       zin = RESHAPE(bbuf,SHAPE(zin))
 #endif
@@ -1279,7 +1279,7 @@ SUBROUTINE fft3d_pb ( fsign, n, zin, gin, group, bo, scale, status, debug )
       CALL fft_1dm ( fft_type, sign, .TRUE., n(1), my*mz, abuf, bbuf, 1.0_lp )
 
 #if defined(__FFTSGL) && defined(__NAG)
-      call copy_cz(n(1)*my*mz,bbuf,gin)
+      CALL copy_cz(n(1)*my*mz,bbuf,gin)
 #else
       gin = RESHAPE(bbuf,SHAPE(gin))
 #endif
@@ -1376,7 +1376,7 @@ SUBROUTINE fft3d_pb ( fsign, n, zin, gin, group, bo, scale, status, debug )
       CALL fft_1dm ( fft_type, sign, .TRUE., n(3), mx*my, abuf, bbuf, norm )
 
 #if defined(__FFTSGL) && defined(__NAG)
-      call copy_cz(n(3)*mx*my,bbuf,zin)
+      CALL copy_cz(n(3)*mx*my,bbuf,zin)
 #else
       zin = RESHAPE(bbuf,SHAPE(zin))
 #endif
@@ -1437,25 +1437,25 @@ END SUBROUTINE fft3d_pb
 
 SUBROUTINE x_to_yz ( sb, group, my_pos, p2p, yzp, nray, bo, tb )
 
-  COMPLEX(KIND=lp), DIMENSION(:, :), &
-    INTENT(IN)                             :: sb
-  INTEGER, INTENT(IN)                      :: group, my_pos
-  INTEGER, DIMENSION(0:), INTENT(IN)       :: p2p
-  INTEGER, DIMENSION(:, :, 0:), INTENT(IN) :: yzp
-  INTEGER, DIMENSION(0:), INTENT(IN)       :: nray
-  INTEGER, DIMENSION(:, :, 0:), INTENT(IN) :: bo
-  COMPLEX(KIND=lp), DIMENSION(:, :, :), &
-    INTENT(OUT)                            :: tb
+    COMPLEX(KIND=lp), DIMENSION(:, :), &
+      INTENT(IN)                             :: sb
+    INTEGER, INTENT(IN)                      :: group, my_pos
+    INTEGER, DIMENSION(0:), INTENT(IN)       :: p2p
+    INTEGER, DIMENSION(:, :, 0:), INTENT(IN) :: yzp
+    INTEGER, DIMENSION(0:), INTENT(IN)       :: nray
+    INTEGER, DIMENSION(:, :, 0:), INTENT(IN) :: bo
+    COMPLEX(KIND=lp), DIMENSION(:, :, :), &
+      INTENT(OUT)                            :: tb
 
-  COMPLEX(KIND=lp), ALLOCATABLE, &
-    DIMENSION(:, :)                        :: rr
-  COMPLEX(KIND=sp), ALLOCATABLE, &
-    DIMENSION(:, :)                        :: ss, tt
-  INTEGER                                  :: handle, ierr, ip, ir, ix, &
-                                              ixx, iy, iz, mpr, nm, np, nr, &
-                                              nx, ns1, ns2
-  INTEGER, ALLOCATABLE, DIMENSION(:)       :: rcount, rdispl, scount, sdispl
-  REAL(KIND=dp)                            :: flop
+    COMPLEX(KIND=lp), ALLOCATABLE, &
+      DIMENSION(:, :)                        :: rr
+    COMPLEX(KIND=sp), ALLOCATABLE, &
+      DIMENSION(:, :)                        :: ss, tt
+    INTEGER                                  :: handle, ierr, ip, ir, ix, &
+                                                ixx, iy, iz, mpr, nm, np, nr, &
+                                                ns1, ns2, nx
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: rcount, rdispl, scount, sdispl
+    REAL(KIND=dp)                            :: flop
 
 !------------------------------------------------------------------------------
 
@@ -1564,25 +1564,25 @@ END SUBROUTINE x_to_yz
 
 SUBROUTINE yz_to_x ( tb, group, my_pos, p2p, yzp, nray, bo, sb )
 
-  COMPLEX(KIND=lp), DIMENSION(:, :, :), &
-    INTENT(IN)                             :: tb
-  INTEGER, INTENT(IN)                      :: group, my_pos
-  INTEGER, DIMENSION(0:), INTENT(IN)       :: p2p
-  INTEGER, DIMENSION(:, :, 0:), INTENT(IN) :: yzp
-  INTEGER, DIMENSION(0:), INTENT(IN)       :: nray
-  INTEGER, DIMENSION(:, :, 0:), INTENT(IN) :: bo
-  COMPLEX(KIND=lp), DIMENSION(:, :), &
-    INTENT(OUT)                            :: sb
+    COMPLEX(KIND=lp), DIMENSION(:, :, :), &
+      INTENT(IN)                             :: tb
+    INTEGER, INTENT(IN)                      :: group, my_pos
+    INTEGER, DIMENSION(0:), INTENT(IN)       :: p2p
+    INTEGER, DIMENSION(:, :, 0:), INTENT(IN) :: yzp
+    INTEGER, DIMENSION(0:), INTENT(IN)       :: nray
+    INTEGER, DIMENSION(:, :, 0:), INTENT(IN) :: bo
+    COMPLEX(KIND=lp), DIMENSION(:, :), &
+      INTENT(OUT)                            :: sb
 
-  COMPLEX(KIND=lp), ALLOCATABLE, &
-    DIMENSION(:, :)                        :: rr
-  COMPLEX(KIND=sp), ALLOCATABLE, &
-    DIMENSION(:, :)                        :: ss, tt
-  INTEGER                                  :: handle, ierr, ip, ir, ix, &
-                                              ixx, iy, iz, mpr, nm, np, nr, &
-                                              nx, ns1, ns2, ns
-  INTEGER, ALLOCATABLE, DIMENSION(:)       :: rcount, rdispl, scount, sdispl
-  REAL(KIND=dp)                            :: flop
+    COMPLEX(KIND=lp), ALLOCATABLE, &
+      DIMENSION(:, :)                        :: rr
+    COMPLEX(KIND=sp), ALLOCATABLE, &
+      DIMENSION(:, :)                        :: ss, tt
+    INTEGER                                  :: handle, ierr, ip, ir, ix, &
+                                                ixx, iy, iz, mpr, nm, np, nr, &
+                                                ns1, ns2, nx
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: rcount, rdispl, scount, sdispl
+    REAL(KIND=dp)                            :: flop
 
 !------------------------------------------------------------------------------
 
@@ -1690,30 +1690,30 @@ END SUBROUTINE yz_to_x
 
 SUBROUTINE yz_to_xz ( sb, group, dims, my_pos, p2p, yzp, nray, bo, tb )
 
-  COMPLEX(KIND=lp), DIMENSION(:, :), &
-    INTENT(IN)                             :: sb
-  INTEGER, INTENT(IN)                      :: group
-  INTEGER, DIMENSION(2), INTENT(IN)        :: dims
-  INTEGER, INTENT(IN)                      :: my_pos
-  INTEGER, DIMENSION(0:), INTENT(IN)       :: p2p
-  INTEGER, DIMENSION(:, :, 0:), INTENT(IN) :: yzp
-  INTEGER, DIMENSION(0:), INTENT(IN)       :: nray
-  INTEGER, DIMENSION(:, :, 0:), INTENT(IN) :: bo
-  COMPLEX(KIND=lp), DIMENSION(:, :), &
-    INTENT(OUT)                            :: tb
+    COMPLEX(KIND=lp), DIMENSION(:, :), &
+      INTENT(IN)                             :: sb
+    INTEGER, INTENT(IN)                      :: group
+    INTEGER, DIMENSION(2), INTENT(IN)        :: dims
+    INTEGER, INTENT(IN)                      :: my_pos
+    INTEGER, DIMENSION(0:), INTENT(IN)       :: p2p
+    INTEGER, DIMENSION(:, :, 0:), INTENT(IN) :: yzp
+    INTEGER, DIMENSION(0:), INTENT(IN)       :: nray
+    INTEGER, DIMENSION(:, :, 0:), INTENT(IN) :: bo
+    COMPLEX(KIND=lp), DIMENSION(:, :), &
+      INTENT(OUT)                            :: tb
 
-  COMPLEX(KIND=lp), ALLOCATABLE, &
-    DIMENSION(:, :)                        :: rq, rs
-  COMPLEX(KIND=sp), ALLOCATABLE, &
-    DIMENSION(:, :)                        :: tq, ts
-  INTEGER                                  :: cpos( 2 ), handle, ierr, ip, &
-                                              ipr, ir, ix, iz, jj, jx, jy, &
-                                              jz, myx, myz, nmax, np, npx, &
-                                              npz, nx, nz, rs_pos
-  INTEGER, ALLOCATABLE, DIMENSION(:)       :: rcount, rdispl, scount, &
-                                              sdispl, xcor, zcor
-  INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: pgrid
-  REAL(KIND=dp)                            :: flop
+    COMPLEX(KIND=lp), ALLOCATABLE, &
+      DIMENSION(:, :)                        :: rq, rs
+    COMPLEX(KIND=sp), ALLOCATABLE, &
+      DIMENSION(:, :)                        :: tq, ts
+    INTEGER                                  :: cpos( 2 ), handle, ierr, ip, &
+                                                ipr, ir, ix, iz, jj, jx, jy, &
+                                                jz, myx, myz, nmax, np, npx, &
+                                                npz, nx, nz, rs_pos
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: rcount, rdispl, scount, &
+                                                sdispl, xcor, zcor
+    INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: pgrid
+    REAL(KIND=dp)                            :: flop
 
 !------------------------------------------------------------------------------
 
@@ -1877,30 +1877,30 @@ END SUBROUTINE yz_to_xz
 
 SUBROUTINE xz_to_yz ( sb, group, dims, my_pos, p2p, yzp, nray, bo, tb )
 
-  COMPLEX(KIND=lp), DIMENSION(:, :), &
-    INTENT(IN)                             :: sb
-  INTEGER, INTENT(IN)                      :: group
-  INTEGER, DIMENSION(2), INTENT(IN)        :: dims
-  INTEGER, INTENT(IN)                      :: my_pos
-  INTEGER, DIMENSION(0:), INTENT(IN)       :: p2p
-  INTEGER, DIMENSION(:, :, 0:), INTENT(IN) :: yzp
-  INTEGER, DIMENSION(0:), INTENT(IN)       :: nray
-  INTEGER, DIMENSION(:, :, 0:), INTENT(IN) :: bo
-  COMPLEX(KIND=lp), DIMENSION(:, :), &
-    INTENT(OUT)                            :: tb
+    COMPLEX(KIND=lp), DIMENSION(:, :), &
+      INTENT(IN)                             :: sb
+    INTEGER, INTENT(IN)                      :: group
+    INTEGER, DIMENSION(2), INTENT(IN)        :: dims
+    INTEGER, INTENT(IN)                      :: my_pos
+    INTEGER, DIMENSION(0:), INTENT(IN)       :: p2p
+    INTEGER, DIMENSION(:, :, 0:), INTENT(IN) :: yzp
+    INTEGER, DIMENSION(0:), INTENT(IN)       :: nray
+    INTEGER, DIMENSION(:, :, 0:), INTENT(IN) :: bo
+    COMPLEX(KIND=lp), DIMENSION(:, :), &
+      INTENT(OUT)                            :: tb
 
-  COMPLEX(KIND=lp), ALLOCATABLE, &
-    DIMENSION(:, :)                        :: rq, rs
-  COMPLEX(KIND=sp), ALLOCATABLE, &
-    DIMENSION(:, :)                        :: tq, ts
-  INTEGER                                  :: cpos( 2 ), handle, ierr, ip, &
-                                              ipl, ir, ix, ixx, iz, jj, jx, &
-                                              jy, jz, mp, myx, myz, nmax, &
-                                              np, npx, npz, nx, ny, nz
-  INTEGER, ALLOCATABLE, DIMENSION(:)       :: rcount, rdispl, scount, &
-                                              sdispl, xcor, zcor
-  INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: pgrid
-  REAL(KIND=dp)                            :: flop
+    COMPLEX(KIND=lp), ALLOCATABLE, &
+      DIMENSION(:, :)                        :: rq, rs
+    COMPLEX(KIND=sp), ALLOCATABLE, &
+      DIMENSION(:, :)                        :: tq, ts
+    INTEGER                                  :: cpos( 2 ), handle, ierr, ip, &
+                                                ipl, ir, ix, ixx, iz, jj, jx, &
+                                                jy, jz, mp, myx, myz, nmax, &
+                                                np, npx, npz, nx, ny, nz
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: rcount, rdispl, scount, &
+                                                sdispl, xcor, zcor
+    INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: pgrid
+    REAL(KIND=dp)                            :: flop
 
 !------------------------------------------------------------------------------
 
@@ -2076,22 +2076,22 @@ END SUBROUTINE xz_to_yz
 
 SUBROUTINE cube_transpose_1 ( cin, group, boin, boout, sout )
 
-  COMPLEX(KIND=lp), DIMENSION(:, :), &
-    INTENT(IN)                             :: cin
-  INTEGER, INTENT(IN)                      :: group
-  INTEGER, DIMENSION(:, :, 0:), INTENT(IN) :: boin, boout
-  COMPLEX(KIND=lp), DIMENSION(:, :), &
-    INTENT(OUT)                            :: sout
+    COMPLEX(KIND=lp), DIMENSION(:, :), &
+      INTENT(IN)                             :: cin
+    INTEGER, INTENT(IN)                      :: group
+    INTEGER, DIMENSION(:, :, 0:), INTENT(IN) :: boin, boout
+    COMPLEX(KIND=lp), DIMENSION(:, :), &
+      INTENT(OUT)                            :: sout
 
-  COMPLEX(KIND=lp), ALLOCATABLE, &
-    DIMENSION(:, :)                        :: rbuf
-  INTEGER                                  :: handle, ierr, ip, ipl, ir, &
-                                              is, ixy, iz, mip, mz, n, np, &
-                                              nx, ny, nz, sub_group
-  INTEGER, ALLOCATABLE, DIMENSION(:)       :: pgrid, rcount, rdispl, &
-                                              scount, sdispl
-  INTEGER, DIMENSION(2)                    :: dim, pos, pp
-  LOGICAL, DIMENSION(2)                    :: rdim
+    COMPLEX(KIND=lp), ALLOCATABLE, &
+      DIMENSION(:, :)                        :: rbuf
+    INTEGER                                  :: handle, ierr, ip, ipl, ir, &
+                                                is, ixy, iz, mip, mz, n, np, &
+                                                nx, ny, nz, sub_group
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: pgrid, rcount, rdispl, &
+                                                scount, sdispl
+    INTEGER, DIMENSION(2)                    :: dim, pos, pp
+    LOGICAL, DIMENSION(2)                    :: rdim
 
 !------------------------------------------------------------------------------
 
@@ -2169,22 +2169,22 @@ END SUBROUTINE cube_transpose_1
 
 SUBROUTINE cube_transpose_2 ( cin, group, boin, boout, sout )
 
-  COMPLEX(KIND=lp), DIMENSION(:, :), &
-    INTENT(IN)                             :: cin
-  INTEGER, INTENT(IN)                      :: group
-  INTEGER, DIMENSION(:, :, 0:), INTENT(IN) :: boin, boout
-  COMPLEX(KIND=lp), DIMENSION(:, :), &
-    INTENT(OUT)                            :: sout
+    COMPLEX(KIND=lp), DIMENSION(:, :), &
+      INTENT(IN)                             :: cin
+    INTEGER, INTENT(IN)                      :: group
+    INTEGER, DIMENSION(:, :, 0:), INTENT(IN) :: boin, boout
+    COMPLEX(KIND=lp), DIMENSION(:, :), &
+      INTENT(OUT)                            :: sout
 
-  COMPLEX(KIND=lp), ALLOCATABLE, &
-    DIMENSION(:, :)                        :: rbuf
-  INTEGER                                  :: handle, ierr, ip, ipl, ir, &
-                                              ixy, iz, mip, mz, n, np, nx, &
-                                              ny, nz, sub_group
-  INTEGER, ALLOCATABLE, DIMENSION(:)       :: pgrid, rcount, rdispl, &
-                                              scount, sdispl
-  INTEGER, DIMENSION(2)                    :: dim, pos, pp
-  LOGICAL, DIMENSION(2)                    :: rdim
+    COMPLEX(KIND=lp), ALLOCATABLE, &
+      DIMENSION(:, :)                        :: rbuf
+    INTEGER                                  :: handle, ierr, ip, ipl, ir, &
+                                                ixy, iz, mip, mz, n, np, nx, &
+                                                ny, nz, sub_group
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: pgrid, rcount, rdispl, &
+                                                scount, sdispl
+    INTEGER, DIMENSION(2)                    :: dim, pos, pp
+    LOGICAL, DIMENSION(2)                    :: rdim
 
 !------------------------------------------------------------------------------
 
@@ -2262,22 +2262,22 @@ END SUBROUTINE cube_transpose_2
 
 SUBROUTINE cube_transpose_3 ( cin, group, boin, boout, sout )
 
-  COMPLEX(KIND=lp), DIMENSION(:, :), &
-    INTENT(IN)                             :: cin
-  INTEGER, INTENT(IN)                      :: group
-  INTEGER, DIMENSION(:, :, 0:), INTENT(IN) :: boin, boout
-  COMPLEX(KIND=lp), DIMENSION(:, :), &
-    INTENT(OUT)                            :: sout
+    COMPLEX(KIND=lp), DIMENSION(:, :), &
+      INTENT(IN)                             :: cin
+    INTEGER, INTENT(IN)                      :: group
+    INTEGER, DIMENSION(:, :, 0:), INTENT(IN) :: boin, boout
+    COMPLEX(KIND=lp), DIMENSION(:, :), &
+      INTENT(OUT)                            :: sout
 
-  COMPLEX(KIND=lp), ALLOCATABLE, &
-    DIMENSION(:, :)                        :: rbuf
-  INTEGER                                  :: handle, ierr, ip, ipl, ir, &
-                                              is, ixz, iy, mip, my, n, np, &
-                                              nx, ny, nz, sub_group
-  INTEGER, ALLOCATABLE, DIMENSION(:)       :: pgrid, rcount, rdispl, &
-                                              scount, sdispl
-  INTEGER, DIMENSION(2)                    :: dim, pos, pp
-  LOGICAL, DIMENSION(2)                    :: rdim
+    COMPLEX(KIND=lp), ALLOCATABLE, &
+      DIMENSION(:, :)                        :: rbuf
+    INTEGER                                  :: handle, ierr, ip, ipl, ir, &
+                                                is, ixz, iy, mip, my, n, np, &
+                                                nx, ny, nz, sub_group
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: pgrid, rcount, rdispl, &
+                                                scount, sdispl
+    INTEGER, DIMENSION(2)                    :: dim, pos, pp
+    LOGICAL, DIMENSION(2)                    :: rdim
 
 !------------------------------------------------------------------------------
 
@@ -2354,22 +2354,22 @@ END SUBROUTINE cube_transpose_3
 
 SUBROUTINE cube_transpose_4 ( cin, group, boin, boout, sout )
 
-  COMPLEX(KIND=lp), DIMENSION(:, :), &
-    INTENT(IN)                             :: cin
-  INTEGER, INTENT(IN)                      :: group
-  INTEGER, DIMENSION(:, :, 0:), INTENT(IN) :: boin, boout
-  COMPLEX(KIND=lp), DIMENSION(:, :), &
-    INTENT(OUT)                            :: sout
+    COMPLEX(KIND=lp), DIMENSION(:, :), &
+      INTENT(IN)                             :: cin
+    INTEGER, INTENT(IN)                      :: group
+    INTEGER, DIMENSION(:, :, 0:), INTENT(IN) :: boin, boout
+    COMPLEX(KIND=lp), DIMENSION(:, :), &
+      INTENT(OUT)                            :: sout
 
-  COMPLEX(KIND=lp), ALLOCATABLE, &
-    DIMENSION(:, :)                        :: rbuf
-  INTEGER                                  :: handle, ierr, ip, ipl, ir, &
-                                              iy, izx, mip, my, n, np, nx, &
-                                              ny, nz, sub_group
-  INTEGER, ALLOCATABLE, DIMENSION(:)       :: pgrid, rcount, rdispl, &
-                                              scount, sdispl
-  INTEGER, DIMENSION(2)                    :: dim, pos, pp
-  LOGICAL, DIMENSION(2)                    :: rdim
+    COMPLEX(KIND=lp), ALLOCATABLE, &
+      DIMENSION(:, :)                        :: rbuf
+    INTEGER                                  :: handle, ierr, ip, ipl, ir, &
+                                                iy, izx, mip, my, n, np, nx, &
+                                                ny, nz, sub_group
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: pgrid, rcount, rdispl, &
+                                                scount, sdispl
+    INTEGER, DIMENSION(2)                    :: dim, pos, pp
+    LOGICAL, DIMENSION(2)                    :: rdim
 
 !------------------------------------------------------------------------------
 
@@ -2446,20 +2446,20 @@ END SUBROUTINE cube_transpose_4
 
 SUBROUTINE cube_transpose_5 ( cin, group, boin, boout, sout )
 
-  COMPLEX(KIND=lp), DIMENSION(:, :), &
-    INTENT(IN)                             :: cin
-  INTEGER, INTENT(IN)                      :: group
-  INTEGER, DIMENSION(:, :, 0:), INTENT(IN) :: boin, boout
-  COMPLEX(KIND=lp), DIMENSION(:, :), &
-    INTENT(OUT)                            :: sout
+    COMPLEX(KIND=lp), DIMENSION(:, :), &
+      INTENT(IN)                             :: cin
+    INTEGER, INTENT(IN)                      :: group
+    INTEGER, DIMENSION(:, :, 0:), INTENT(IN) :: boin, boout
+    COMPLEX(KIND=lp), DIMENSION(:, :), &
+      INTENT(OUT)                            :: sout
 
-  COMPLEX(KIND=lp), ALLOCATABLE, &
-    DIMENSION(:, :)                        :: rbuf
-  INTEGER                                  :: handle, ierr, ip, ir, is, &
-                                              ixz, iy, mip, my, np, nx, ny, &
-                                              nz
-  INTEGER, ALLOCATABLE, DIMENSION(:)       :: rcount, rdispl, scount, sdispl
-  INTEGER, DIMENSION(2)                    :: dim, pos
+    COMPLEX(KIND=lp), ALLOCATABLE, &
+      DIMENSION(:, :)                        :: rbuf
+    INTEGER                                  :: handle, ierr, ip, ir, is, &
+                                                ixz, iy, mip, my, np, nx, ny, &
+                                                nz
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: rcount, rdispl, scount, sdispl
+    INTEGER, DIMENSION(2)                    :: dim, pos
 
 !------------------------------------------------------------------------------
 
@@ -2517,19 +2517,19 @@ END SUBROUTINE cube_transpose_5
 
 SUBROUTINE cube_transpose_6 ( cin, group, boin, boout, sout )
 
-  COMPLEX(KIND=lp), DIMENSION(:, :), &
-    INTENT(IN)                             :: cin
-  INTEGER, INTENT(IN)                      :: group
-  INTEGER, DIMENSION(:, :, 0:), INTENT(IN) :: boin, boout
-  COMPLEX(KIND=lp), DIMENSION(:, :), &
-    INTENT(OUT)                            :: sout
+    COMPLEX(KIND=lp), DIMENSION(:, :), &
+      INTENT(IN)                             :: cin
+    INTEGER, INTENT(IN)                      :: group
+    INTEGER, DIMENSION(:, :, 0:), INTENT(IN) :: boin, boout
+    COMPLEX(KIND=lp), DIMENSION(:, :), &
+      INTENT(OUT)                            :: sout
 
-  COMPLEX(KIND=lp), ALLOCATABLE, &
-    DIMENSION(:, :)                        :: rbuf
-  INTEGER                                  :: handle, ierr, ip, ir, iy, &
-                                              izx, mip, my, np, nx, ny, nz
-  INTEGER, ALLOCATABLE, DIMENSION(:)       :: rcount, rdispl, scount, sdispl
-  INTEGER, DIMENSION(2)                    :: dim, pos
+    COMPLEX(KIND=lp), ALLOCATABLE, &
+      DIMENSION(:, :)                        :: rbuf
+    INTEGER                                  :: handle, ierr, ip, ir, iy, &
+                                                izx, mip, my, np, nx, ny, nz
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: rcount, rdispl, scount, sdispl
+    INTEGER, DIMENSION(2)                    :: dim, pos
 
 !------------------------------------------------------------------------------
 

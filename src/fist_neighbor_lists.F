@@ -51,9 +51,7 @@ MODULE fist_neighbor_lists
                                              dp,&
                                              dp_size,&
                                              int_size
-  USE machine,                         ONLY: m_flush
-  USE message_passing,                 ONLY: mp_sum,&
-                                             mp_sync
+  USE message_passing,                 ONLY: mp_sum
   USE particle_types,                  ONLY: particle_type
   USE qs_neighbor_lists,               ONLY: allocate_subcell,&
                                              deallocate_subcell,&
@@ -72,7 +70,7 @@ MODULE fist_neighbor_lists
 
   ! Global parameters (in this module)
 
-  CHARACTER(LEN=*), PARAMETER, PRIVATE :: moduleN = 'fist_neighbor_lists'
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'fist_neighbor_lists'
 
   ! Public subroutines
 
@@ -125,7 +123,7 @@ CONTAINS
     TYPE(local_atoms_type), ALLOCATABLE, &
       DIMENSION(:)                           :: atom
 
-    ! -------------------------------------------------------------------------
+! -------------------------------------------------------------------------
 
     CALL timeset(routineN,"I","",handle)
     NULLIFY(logger)
@@ -340,7 +338,7 @@ CONTAINS
     TYPE(subcell_type), DIMENSION(:, :, :), &
       POINTER                                :: subcell
 
-    ! -------------------------------------------------------------------------
+! -------------------------------------------------------------------------
 
     CALL timeset(routineN,"I","",handle)
 
@@ -715,7 +713,7 @@ CONTAINS
     TYPE(neighbor_list_set_type), POINTER    :: neighbor_list_set
     TYPE(neighbor_list_type), POINTER        :: neighbor_list
 
-    ! -------------------------------------------------------------------------
+! -------------------------------------------------------------------------
 
     group = globenv%group
     mype = globenv%mepos + 1
@@ -840,18 +838,18 @@ CONTAINS
 
     CHARACTER(LEN=8)                         :: unit_of_length_name
     CHARACTER(LEN=default_string_length)     :: string
-    INTEGER                                  :: atom_a, atom_b, group, iab, &
-                                                ilist, inode, mype, &
-                                                nlist, nneighbor, nnode
-    LOGICAL                                  :: print_headline
+    INTEGER                                  :: atom_a, atom_b, iab, ilist, &
+                                                inode, mype, nlist, &
+                                                nneighbor, nnode
     INTEGER, DIMENSION(3)                    :: cell_a, cell_b
+    LOGICAL                                  :: print_headline
     REAL(dp)                                 :: dab, unit_of_length
     REAL(dp), DIMENSION(3)                   :: ra, rab, rb, sab
     TYPE(neighbor_list_set_type), POINTER    :: neighbor_list_set
     TYPE(neighbor_list_type), POINTER        :: neighbor_list
     TYPE(neighbor_node_type), POINTER        :: neighbor_node
 
-    ! -------------------------------------------------------------------------
+! -------------------------------------------------------------------------
 
     mype = globenv%mepos
 

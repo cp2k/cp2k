@@ -283,14 +283,14 @@ CONTAINS
 !****************************************************************************
   FUNCTION fac_vecp(a,b,c) RESULT(factor)
 
-     INTEGER :: a,b,c
-     REAL(dp) :: factor
+    INTEGER                                  :: a, b, c
+    REAL(dp)                                 :: factor
 
      factor = 0.0_dp
 
-     IF ((b.eq.a+1 .or. b.eq.a-2) .and. (c.eq.b+1 .or. c.eq.b-2)) THEN
+     IF ((b.eq.a+1 .OR. b.eq.a-2) .AND. (c.eq.b+1 .OR. c.eq.b-2)) THEN
        factor = 1.0_dp
-     ELSEif ((b.eq.a-1 .or. b.eq.a+2) .and. (c.eq.b-1 .or. c.eq.b+2)) THEN
+     ELSEIF ((b.eq.a-1 .OR. b.eq.a+2) .AND. (c.eq.b-1 .OR. c.eq.b+2)) THEN
        factor = -1.0_dp
      END IF
 
@@ -318,7 +318,7 @@ CONTAINS
 !****************************************************************************
   SUBROUTINE set_vecp_rev(i1,i2,i3)
 
-    INTEGER, INTENT(IN)                      :: i1,i2
+    INTEGER, INTENT(IN)                      :: i1, i2
     INTEGER, INTENT(OUT)                     :: i3
 
     IF((i1+i2)==3) THEN

@@ -43,10 +43,10 @@ MODULE gopt_f_types
                                              section_vals_type,&
                                              section_vals_val_get
   USE kinds,                           ONLY: dp
-  USE particle_list_types,             ONLY: particle_list_type  
-  USE particle_types,                  ONLY: write_particle_distances,&
-                                             write_qs_particle_coordinates,&
-                                             particle_type
+  USE particle_list_types,             ONLY: particle_list_type
+  USE particle_types,                  ONLY: particle_type,&
+                                             write_particle_distances,&
+                                             write_qs_particle_coordinates
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "cp_common_uses.h"

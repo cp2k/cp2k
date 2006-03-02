@@ -35,12 +35,11 @@ MODULE cg_optimizer
                                              cp_rm_iter_level
   USE cp_subsystem_types,              ONLY: cp_subsys_get,&
                                              cp_subsystem_p_type
-  USE force_env_methods,               ONLY: force_env_calc_energy_force
   USE force_env_types,                 ONLY: force_env_get,&
                                              force_env_type
   USE global_types,                    ONLY: global_environment_type
-  USE gopt_f_types,                    ONLY: gopt_param_type,&
-                                             cp_eval_at
+  USE gopt_f_types,                    ONLY: cp_eval_at,&
+                                             gopt_param_type
   USE input_constants,                 ONLY: dump_xmol
   USE input_section_types,             ONLY: section_vals_type
   USE kinds,                           ONLY: dp

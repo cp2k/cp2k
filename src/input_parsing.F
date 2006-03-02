@@ -440,10 +440,10 @@ SUBROUTINE val_create_parsing(val,type_of_var, n_var,enum,&
     CHARACTER(len=*), PARAMETER :: routineN = 'val_create_parsing', &
       routineP = moduleN//':'//routineN
 
-    CHARACTER(len=default_string_length)     :: c_val,info,location
+    CHARACTER(len=default_string_length)     :: c_val, info, location
     CHARACTER(len=default_string_length), &
       DIMENSION(:), POINTER                  :: c_val_p
-    INTEGER                                  :: i, i_val, stat
+    INTEGER                                  :: handle, i, i_val, stat
     INTEGER, DIMENSION(:), POINTER           :: i_val_p
     LOGICAL                                  :: failure, l_val
     LOGICAL, DIMENSION(:), POINTER           :: l_val_p
@@ -455,7 +455,6 @@ SUBROUTINE val_create_parsing(val,type_of_var, n_var,enum,&
     TYPE(cp_sll_logical_type), POINTER       :: l_first, l_last, l_new
     TYPE(cp_sll_real_type), POINTER          :: r_first, r_last, r_new
     TYPE(cp_unit_type), POINTER              :: my_unit
-    INTEGER                                  :: handle
 
     CALL timeset(routineN,handle)
 
@@ -813,7 +812,7 @@ SUBROUTINE val_create_parsing(val,type_of_var, n_var,enum,&
      IF (parser_test_next_token(parser,error=error).NE."EOL") THEN
         location=TRIM(parser_location(parser,error=error))
         CALL parser_get_object(parser,info,error=error)
-        CALL cp_assert(.false.,&
+        CALL cp_assert(.FALSE.,&
           cp_failure_level,cp_assertion_failed,routineP,&
           "found unexpected extra argument "//TRIM(info)//" at "//&
           location,error,failure,info=info)

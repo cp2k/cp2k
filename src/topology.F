@@ -22,6 +22,7 @@ MODULE topology
   USE atomic_kind_types,               ONLY: atomic_kind_type
   USE atoms_input,                     ONLY: read_atoms_input
   USE cell_types,                      ONLY: read_cell
+  USE colvar_types,                    ONLY: colvar_type
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE global_types,                    ONLY: global_environment_type
@@ -60,7 +61,6 @@ MODULE topology
        topology_generate_molecule, topology_generate_onfo, &
        topology_generate_ub, topology_molecules_check, &
        topology_reorder_atoms, topology_set_atm_mass
-  USE colvar_types, ONLY: colvar_type
   USE topology_xyz,                    ONLY: read_coordinate_xyz
 #include "cp_common_uses.h"
 
@@ -108,8 +108,8 @@ CONTAINS
       POINTER                                :: molecule_kind_set
     TYPE(molecule_type), DIMENSION(:), &
       POINTER                                :: molecule_set
+    TYPE(colvar_type), DIMENSION(:), POINTER :: colvar
     TYPE(global_environment_type), POINTER   :: globenv
-    TYPE(colvar_type),DIMENSION(:),POINTER   :: colvar
     LOGICAL, INTENT(IN), OPTIONAL            :: qmmm
     TYPE(qmmm_env_mm_type), OPTIONAL, &
       POINTER                                :: qmmm_env

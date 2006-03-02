@@ -32,8 +32,8 @@ MODULE qs_neighbor_lists
                                              gto_basis_set_type
   USE cell_types,                      ONLY: cell_type,&
                                              get_cell,&
-                                             plane_distance,&
                                              pbc,&
+                                             plane_distance,&
                                              real_to_scaled,&
                                              scaled_to_real
   USE cp_output_handling,              ONLY: cp_p_file,&
@@ -51,9 +51,7 @@ MODULE qs_neighbor_lists
                                              dp,&
                                              dp_size,&
                                              int_size
-  USE machine,                         ONLY: m_flush
-  USE message_passing,                 ONLY: mp_sum,&
-                                             mp_sync
+  USE message_passing,                 ONLY: mp_sum
   USE molecule_types_new,              ONLY: molecule_type
   USE particle_types,                  ONLY: particle_type
   USE paw_proj_set_types,              ONLY: get_paw_proj_set,&
@@ -186,7 +184,7 @@ CONTAINS
     TYPE(rho0_mpole_type), POINTER           :: rho0_mpole
     TYPE(rhoz_type), DIMENSION(:), POINTER   :: rhoz_set
 
-    ! -------------------------------------------------------------------------
+! -------------------------------------------------------------------------
 
     CALL timeset(routineN,"I"," ",handle)
     NULLIFY(logger)
@@ -1066,7 +1064,7 @@ CONTAINS
     TYPE(subcell_type), DIMENSION(:, :, :), &
       POINTER                                :: subcell
 
-    ! -------------------------------------------------------------------------
+! -------------------------------------------------------------------------
 
     CALL timeset(routineN,"I"," ",handle)
 
@@ -1423,7 +1421,7 @@ CONTAINS
     TYPE(subcell_type), DIMENSION(:, :, :), &
       POINTER                                :: subcell
 
-    ! -------------------------------------------------------------------------
+! -------------------------------------------------------------------------
 
     CALL timeset(routineN,"I"," ",handle)
 
@@ -1712,7 +1710,7 @@ CONTAINS
     TYPE(subcell_type), DIMENSION(:, :, :), &
       POINTER                                :: subcell
 
-    ! -------------------------------------------------------------------------
+! -------------------------------------------------------------------------
 
     CALL timeset(routineN,"I"," ",handle)
 
@@ -2101,7 +2099,7 @@ CONTAINS
     TYPE(subcell_type), DIMENSION(:, :, :), &
       POINTER                                :: subcell_a, subcell_b
 
-    ! -------------------------------------------------------------------------
+! -------------------------------------------------------------------------
 
     CALL timeset(routineN,"I"," ",handle)
 
@@ -2566,7 +2564,7 @@ CONTAINS
                                                 c_max, c_min, delta_a, &
                                                 delta_b, delta_c
 
-    ! -------------------------------------------------------------------------
+! -------------------------------------------------------------------------
 
     na = nsubcell(1)
     nb = nsubcell(2)
@@ -2628,7 +2626,7 @@ CONTAINS
 
     INTEGER                                  :: i, istat, j, k
 
-    ! -------------------------------------------------------------------------
+! -------------------------------------------------------------------------
 
     IF (ASSOCIATED(subcell)) THEN
 
@@ -2688,7 +2686,7 @@ CONTAINS
     TYPE(neighbor_list_set_type), POINTER    :: neighbor_list_set
     TYPE(neighbor_list_type), POINTER        :: neighbor_list
 
-    ! -------------------------------------------------------------------------
+! -------------------------------------------------------------------------
 
     group = globenv%group
     mype = globenv%mepos + 1
@@ -2813,18 +2811,18 @@ CONTAINS
 
     CHARACTER(LEN=8)                         :: unit_of_length_name
     CHARACTER(LEN=default_string_length)     :: string
-    INTEGER                                  :: atom_a, atom_b, group, iab, &
-                                                ilist, inode, mype, &
-                                                nlist, nneighbor, nnode
-    LOGICAL                                  :: print_headline
+    INTEGER                                  :: atom_a, atom_b, iab, ilist, &
+                                                inode, mype, nlist, &
+                                                nneighbor, nnode
     INTEGER, DIMENSION(3)                    :: cell_a, cell_b
+    LOGICAL                                  :: print_headline
     REAL(dp)                                 :: dab, unit_of_length
     REAL(dp), DIMENSION(3)                   :: ra, rab, rb
     TYPE(neighbor_list_set_type), POINTER    :: neighbor_list_set
     TYPE(neighbor_list_type), POINTER        :: neighbor_list
     TYPE(neighbor_node_type), POINTER        :: neighbor_node
 
-    ! -------------------------------------------------------------------------
+! -------------------------------------------------------------------------
 
     mype = globenv%mepos
 

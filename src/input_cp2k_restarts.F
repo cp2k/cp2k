@@ -21,7 +21,6 @@
 !******************************************************************************
 
 MODULE input_cp2k_restarts
-  USE metadynamics_types,              ONLY: meta_env_type
   USE atomic_kind_list_types,          ONLY: atomic_kind_list_type
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind
@@ -68,13 +67,14 @@ MODULE input_cp2k_restarts
   USE message_passing,                 ONLY: mp_allgather,&
                                              mp_bcast,&
                                              mp_sum
+  USE metadynamics_types,              ONLY: meta_env_type
   USE parallel_rng_types,              ONLY: dump_rng_stream
   USE particle_list_types,             ONLY: particle_list_type
   USE physcon,                         ONLY: bohr
+  USE qmmm_ff_fist,                    ONLY: qmmm_ff_precond_only_qm
   USE string_utilities,                ONLY: string_to_ascii
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE qmmm_ff_fist,                    ONLY: qmmm_ff_precond_only_qm
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -120,7 +120,7 @@ CONTAINS
     TYPE(force_env_type), OPTIONAL, POINTER  :: force_env
     TYPE(kg_environment_type), OPTIONAL, &
       POINTER                                :: kg_env
-    TYPE(meta_env_type), POINTER ,OPTIONAL   :: meta_env
+    TYPE(meta_env_type), OPTIONAL, POINTER   :: meta_env
     TYPE(global_environment_type), POINTER   :: globenv
     TYPE(section_vals_type), POINTER         :: force_env_section
     TYPE(cp_error_type), INTENT(INOUT), &
@@ -135,8 +135,8 @@ CONTAINS
       POINTER                                :: force_env_p
     TYPE(force_env_type), POINTER            :: my_force_env
     TYPE(kg_environment_type), POINTER       :: my_kg_env
-    TYPE(section_vals_type), POINTER         :: motion_section
     TYPE(meta_env_type), POINTER             :: my_meta_env
+    TYPE(section_vals_type), POINTER         :: motion_section
 
     failure = .FALSE.
     NULLIFY(logger,motion_section,my_force_env,my_kg_env,my_meta_env,force_env_p)
@@ -1032,9 +1032,10 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'section_coord_val_set', &
       routineP = moduleN//':'//routineN
+
     CHARACTER(LEN=2*default_string_length)   :: line
-    CHARACTER(LEN=default_string_length)     :: name, my_tag, rcval
-    INTEGER                                  :: ik, irk, Nlist, k
+    CHARACTER(LEN=default_string_length)     :: my_tag, name, rcval
+    INTEGER                                  :: ik, irk, k, Nlist
     LOGICAL                                  :: failure, ldum
     TYPE(cp_sll_val_type), POINTER           :: new_pos, vals
     TYPE(section_type), POINTER              :: section
@@ -1302,14 +1303,13 @@ CONTAINS
 
     TYPE(section_vals_type), POINTER         :: ss_section
     TYPE(meta_env_type), POINTER             :: meta_env
-    REAL(KIND=dp)                            :: conv_factor
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'meta_hills_val_set_ss', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: ik, irk, Nlist, stat, lsize
+    INTEGER                                  :: ik, irk, lsize, Nlist, stat
     LOGICAL                                  :: failure
     REAL(KIND=dp), DIMENSION(:), POINTER     :: ss_val
     TYPE(cp_sll_val_type), POINTER           :: new_pos, vals
@@ -1393,14 +1393,13 @@ CONTAINS
 
     TYPE(section_vals_type), POINTER         :: ds_section
     TYPE(meta_env_type), POINTER             :: meta_env
-    REAL(KIND=dp)                            :: conv_factor
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'meta_hills_val_set_ds', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: ik, irk, Nlist, stat, lsize
+    INTEGER                                  :: ik, irk, lsize, Nlist, stat
     LOGICAL                                  :: failure
     REAL(KIND=dp), DIMENSION(:), POINTER     :: ds_val
     TYPE(cp_sll_val_type), POINTER           :: new_pos, vals
@@ -1484,14 +1483,13 @@ CONTAINS
 
     TYPE(section_vals_type), POINTER         :: ww_section
     TYPE(meta_env_type), POINTER             :: meta_env
-    REAL(KIND=dp)                            :: conv_factor
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'meta_hills_val_set_ww', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: ik, Nlist, stat, lsize, irk
+    INTEGER                                  :: ik, irk, lsize, Nlist
     LOGICAL                                  :: failure
     TYPE(cp_sll_val_type), POINTER           :: new_pos, vals
     TYPE(section_type), POINTER              :: section

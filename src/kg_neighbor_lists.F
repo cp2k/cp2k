@@ -83,9 +83,9 @@ CONTAINS
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'build_kg_neighbor_lists'
 
+    INTEGER                                  :: handle
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(qs_control_type), POINTER           :: qs_control
-    INTEGER :: handle
 
     CALL timeset(routineN,handle)
 

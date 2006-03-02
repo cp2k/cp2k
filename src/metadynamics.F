@@ -27,28 +27,25 @@
 MODULE metadynamics
   USE colvar_methods,                  ONLY: colvar_eval_f
   USE colvar_types,                    ONLY: colvar_type
-  USE cp_files,                        ONLY: open_file
+  USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
+                                             cp_print_key_unit_nr
   USE cp_para_env,                     ONLY: cp_para_env_retain
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_subsystem_types,              ONLY: cp_subsys_get,&
-       cp_subsystem_p_type
+                                             cp_subsystem_p_type
   USE force_env_types,                 ONLY: force_env_get,&
-       force_env_type
+                                             force_env_type
   USE global_types,                    ONLY: global_environment_type
   USE input_section_types,             ONLY: section_vals_get,&
-       section_vals_get_subs_vals,&
-       section_vals_type,&
-       section_vals_val_get
+                                             section_vals_get_subs_vals,&
+                                             section_vals_type,&
+                                             section_vals_val_get
   USE kinds,                           ONLY: dp
   USE machine,                         ONLY: m_flush
-  USE message_passing,                 ONLY: mp_bcast
   USE metadynamics_types,              ONLY: hills_env_type,&
-       meta_env_type,&
-       metavar_type
+                                             meta_env_type,&
+                                             metavar_type
   USE particle_list_types,             ONLY: particle_list_type
-  USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
-                                             cp_print_key_unit_nr
-  
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -97,10 +94,10 @@ CONTAINS
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(section_vals_type), POINTER         :: metadyn_section
     TYPE(cp_error_type), INTENT(inout), &
-         OPTIONAL                               :: error
+      OPTIONAL                               :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'metadyn_create', &
-         routineP = moduleN//':'//routineN
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, stat
     LOGICAL                                  :: failure
@@ -187,18 +184,18 @@ CONTAINS
     TYPE(meta_env_type), POINTER             :: meta_env
     TYPE(global_environment_type)            :: globenv
     TYPE(section_vals_type), OPTIONAL, &
-         POINTER                                :: metadyn_section
+      POINTER                                :: metadyn_section
     TYPE(cp_error_type), INTENT(inout), &
-         OPTIONAL                               :: error
+      OPTIONAL                               :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'metadyn_read', &
-         routineP = moduleN//':'//routineN
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, iw, n_colvar, n_rep
     LOGICAL                                  :: explicit
     REAL(kind=dp)                            :: dt
+    TYPE(cp_logger_type), POINTER            :: logger
     TYPE(section_vals_type), POINTER         :: md_section, metavar_section
-    TYPE(cp_logger_type), POINTER            :: logger    
 
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
@@ -301,12 +298,12 @@ CONTAINS
     LOGICAL                                  :: extended_lagrange
     INTEGER, INTENT(IN)                      :: icol
     TYPE(section_vals_type), OPTIONAL, &
-         POINTER                                :: metavar_section
+      POINTER                                :: metavar_section
     TYPE(cp_error_type), INTENT(inout), &
-         OPTIONAL                               :: error
+      OPTIONAL                               :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'metavar_read', &
-         routineP = moduleN//':'//routineN
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: n_rep
     LOGICAL                                  :: failure
@@ -367,24 +364,24 @@ CONTAINS
     TYPE(meta_env_type), POINTER             :: meta_env
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(cp_error_type), INTENT(inout), &
-         OPTIONAL                               :: error
+      OPTIONAL                               :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'metadyn_add_forces', &
-         routineP = moduleN//':'//routineN
+      routineP = moduleN//':'//routineN
     REAL(kind=dp), PARAMETER                 :: FACTEM = 315795.260 
 
-    INTEGER                                  :: i, i_c, icolvar, ii, isubsys, iw
-    LOGICAL                                  :: failure, explicit
+    INTEGER                                  :: i, i_c, icolvar, ii, isubsys, &
+                                                iw
+    LOGICAL                                  :: explicit, failure
     REAL(kind=dp)                            :: dt, ekin_w, fac_t, fft, norm, &
-         scal, ss0_test, tol_ekin
+                                                rval, scal, ss0_test, tol_ekin
     TYPE(colvar_type), DIMENSION(:), POINTER :: colvar
+    TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_subsystem_p_type), &
-         DIMENSION(:), POINTER                  :: subsys
+      DIMENSION(:), POINTER                  :: subsys
     TYPE(metavar_type), POINTER              :: cv
     TYPE(particle_list_type), POINTER        :: particles
-    TYPE(cp_logger_type), POINTER            :: logger    
-    TYPE(section_vals_type), POINTER            :: ss0_section, vvp_section
-    REAL(KIND=dp)  :: rval
+    TYPE(section_vals_type), POINTER         :: ss0_section, vvp_section
 
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
@@ -571,25 +568,25 @@ CONTAINS
   SUBROUTINE hills(meta_env,error)
     TYPE(meta_env_type), POINTER             :: meta_env
     TYPE(cp_error_type), INTENT(inout), &
-         OPTIONAL                               :: error
+      OPTIONAL                               :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'hills', &
-         routineP = moduleN//':'//routineN
+      routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, ih, n_colvar, n_step, &
-         stat, iw, ndum, j
+    INTEGER                                  :: i, ih, iw, j, n_colvar, &
+                                                n_step, ndum, stat
     INTEGER, POINTER                         :: n_hills
-    LOGICAL                                  :: failure, explicit
-    REAL(dp)                                 :: dfunc, dp2, dum, rval
-    REAL(dp), DIMENSION(:, :), POINTER       :: ss_history, tmp, delta_s_history
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: ww_history, tnp
+    LOGICAL                                  :: explicit, failure
+    REAL(dp)                                 :: dfunc, dp2, rval
+    REAL(dp), DIMENSION(:, :), POINTER       :: delta_s_history, ss_history, &
+                                                tmp
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: rvals, tnp, ww_history
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(hills_env_type), POINTER            :: hills_env
     REAL(dp)                                 :: ddp(meta_env%n_colvar)
     TYPE(metavar_type), DIMENSION(:), &
-         POINTER                                :: colvars
-    TYPE(section_vals_type), POINTER            :: hills_history
-    REAL(KIND=dp), DIMENSION(:), POINTER        :: rvals
+      POINTER                                :: colvars
+    TYPE(section_vals_type), POINTER         :: hills_history
 
     failure=.FALSE.
     hills_env       => meta_env%hills_env

@@ -24,6 +24,7 @@
 !****************************************************************************
 
 MODULE input_val_types
+  USE cp_parser,                       ONLY: default_continuation_character
   USE cp_units,                        ONLY: cp_unit_create,&
                                              cp_unit_desc,&
                                              cp_unit_from_cp2k,&
@@ -37,7 +38,6 @@ MODULE input_val_types
                                              enumeration_type
   USE kinds,                           ONLY: default_string_length,&
                                              dp
-  USE cp_parser,                       ONLY: default_continuation_character
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

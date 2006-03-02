@@ -40,9 +40,9 @@ MODULE geo_opt
   USE force_env_types,                 ONLY: force_env_get,&
                                              force_env_type
   USE global_types,                    ONLY: global_environment_type
-  USE gopt_f_types,                    ONLY: gopt_f_create,&
+  USE gopt_f_types,                    ONLY: cp_eval_at,&
+                                             gopt_f_create,&
                                              gopt_f_create_x0,&
-                                             cp_eval_at,&
                                              gopt_f_release,&
                                              gopt_f_type,&
                                              gopt_param_read,&
@@ -101,10 +101,10 @@ MODULE geo_opt
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_geo_opt', &
       routineP = moduleN//':'//routineN
 
+    INTEGER                                  :: handle
     LOGICAL                                  :: failure
     TYPE(gopt_param_type), POINTER           :: gopt_param
     TYPE(section_vals_type), POINTER         :: force_env_section
-    INTEGER                                  :: handle
 
     CALL timeset(routineN,handle)
      CPPrecondition(ASSOCIATED(force_env),cp_failure_level,routineP,error,failure)

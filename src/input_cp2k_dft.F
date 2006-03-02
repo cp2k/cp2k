@@ -1192,7 +1192,8 @@ SUBROUTINE create_ddapc_restraint_section(section,error)
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'create_ddapc_restraint_section', &
+    CHARACTER(len=*), PARAMETER :: &
+      routineN = 'create_ddapc_restraint_section', &
       routineP = moduleN//':'//routineN
 
     LOGICAL                                  :: failure

@@ -37,7 +37,10 @@ MODULE md_run
   USE distribution_1d_types,           ONLY: distribution_1d_type
   USE dynamical_coeff_types,           ONLY: dyn_coeff_set_initialize,&
                                              dyn_coeff_set_p_type
-  USE environment,                     ONLY: compile_arch, compile_date, compile_host, compile_lastcvs
+  USE environment,                     ONLY: compile_arch,&
+                                             compile_date,&
+                                             compile_host,&
+                                             compile_lastcvs
   USE extended_system_types,           ONLY: extended_system_type,&
                                              extended_type_init,&
                                              lnhc_dealloc,&
@@ -61,7 +64,9 @@ MODULE md_run
                                              section_vals_val_get,&
                                              section_vals_write
   USE kinds,                           ONLY: dp
-  USE machine,                         ONLY: m_walltime,m_getcwd,m_datum
+  USE machine,                         ONLY: m_datum,&
+                                             m_getcwd,&
+                                             m_walltime
   USE md,                              ONLY: initialize_velocities,&
                                              read_md_section,&
                                              simulation_parameters_type
@@ -151,9 +156,11 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_mol_dyn2', &
       routineP = moduleN//':'//routineN
 
+    CHARACTER(LEN=256)                       :: cwd, datx
     INTEGER                                  :: handle, i, ibead, in_use, &
                                                 ires, istat, istep, isubsys, &
-                                                iter_level, nbeads
+                                                iter_level, nbeads, strend, &
+                                                strstart
     INTEGER, POINTER                         :: itimes
     LOGICAL                                  :: failure, should_stop
     REAL(KIND=dp)                            :: time_iter_start, &
@@ -181,8 +188,6 @@ CONTAINS
     TYPE(simulation_parameters_type), &
       POINTER                                :: simpar
     TYPE(virial_type), POINTER               :: virial
-    CHARACTER(LEN=256)                       :: datx,cwd
-    INTEGER                                  :: strend,strstart
 
 !   ---------------------------------------------------------------------------
 

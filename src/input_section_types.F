@@ -30,15 +30,10 @@ MODULE input_section_types
        cp_sll_val_get_length, cp_sll_val_get_rest, cp_sll_val_insert_el_at, &
        cp_sll_val_next, cp_sll_val_p_type, cp_sll_val_rm_el_at, &
        cp_sll_val_set_el_at, cp_sll_val_type
-  USE input_keyword_types,             ONLY: description_string_length,&
-                                             keyword_describe,&
-                                             keyword_describe_html,&
-                                             keyword_p_type,&
-                                             keyword_release,&
-                                             keyword_retain,&
-                                             keyword_type,&
-                                             write_keyword_xml,&
-                                             keyword_typo_match
+  USE input_keyword_types,             ONLY: &
+       description_string_length, keyword_describe, keyword_describe_html, &
+       keyword_p_type, keyword_release, keyword_retain, keyword_type, &
+       keyword_typo_match, write_keyword_xml
   USE input_val_types,                 ONLY: lchar_t,&
                                              no_t,&
                                              val_create,&
@@ -51,7 +46,8 @@ MODULE input_section_types
                                              dp
   USE output_utilities,                ONLY: print_message
   USE string_utilities,                ONLY: compress,&
-                                             uppercase,typo_match
+                                             typo_match,&
+                                             uppercase
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "cp_common_uses.h"
@@ -2179,15 +2175,15 @@ END SUBROUTINE section_vals_write
   RECURSIVE SUBROUTINE section_typo_match(section,unknown_string,location_string,unit_number,error)
 
     TYPE(section_type), POINTER              :: section
+    CHARACTER(LEN=*)                         :: unknown_string, &
+                                                location_string
     INTEGER, INTENT(IN)                      :: unit_number
-    CHARACTER(LEN=*)                         :: unknown_string,location_string
     TYPE(cp_error_type), INTENT(INOUT), &
       OPTIONAL                               :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'section_typo_match', &
       routineP = moduleN//':'//routineN
 
-    CHARACTER(LEN=3)                         :: repeats, required
     INTEGER                                  :: i
     LOGICAL                                  :: failure
 
@@ -2198,7 +2194,7 @@ END SUBROUTINE section_vals_write
       CPPrecondition(section%ref_count>0,cp_failure_level,routineP,error,failure)
 
       IF (typo_match(TRIM(section%name),TRIM(unknown_string))) THEN
-         write(unit_number,'(T2,A)') "In section "//TRIM(location_string)//" found subsection "//TRIM(section%name)
+         WRITE(unit_number,'(T2,A)') "In section "//TRIM(location_string)//" found subsection "//TRIM(section%name)
       END IF
            
       DO i=-1,section%n_keywords

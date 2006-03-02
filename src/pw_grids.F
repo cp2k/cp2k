@@ -455,9 +455,9 @@ FUNCTION pw_grid_n_from_cutoff ( hmat, cutoff, error ) RESULT(n)
 
     failure=.FALSE.
 
-    do i=1,3
+    DO i=1,3
       alat(i) = SUM ( hmat(:,i)**2 )
-    enddo
+    ENDDO
     CPPostcondition(ALL(alat/=0._dp),cp_failure_level,routineP,error,failure)
     IF ( failure ) THEN
       n = -HUGE(0)

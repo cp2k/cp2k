@@ -27,13 +27,8 @@
 MODULE metadynamics_types
   USE cp_para_env,                     ONLY: cp_para_env_release
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE kinds,                           ONLY: default_path_length,&
-                                             dp
-  USE input_section_types,             ONLY: section_add_keyword,&
-                                             section_add_subsection,&
-                                             section_create,&
-                                             section_release,&
-                                             section_vals_type
+  USE input_section_types,             ONLY: section_vals_type
+  USE kinds,                           ONLY: dp
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

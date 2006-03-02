@@ -45,7 +45,6 @@ MODULE cp_error_handling
        cp_get_default_logger, cp_log, cp_logger_get_default_unit_nr, &
        cp_logger_release, cp_logger_retain, cp_logger_type, cp_to_string
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE kinds,                           ONLY: default_string_length
   USE message_passing,                 ONLY: mp_abort,&
                                              mp_max
   USE output_utilities,                ONLY: print_message
@@ -302,9 +301,9 @@ CONTAINS
     TYPE(cp_logger_type), OPTIONAL, POINTER  :: logger
     TYPE(cp_error_type), INTENT(in), &
       OPTIONAL                               :: template_error
+    CHARACTER(LEN=*), OPTIONAL               :: info
 
     TYPE(cp_logger_type), POINTER            :: old_logger
-    CHARACTER(LEN=*), OPTIONAL               :: info
 
     old_logger => error%logger
     IF (PRESENT(template_error)) THEN

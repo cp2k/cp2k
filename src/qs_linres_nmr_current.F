@@ -36,7 +36,6 @@ MODULE qs_linres_nmr_current
   USE cell_types,                      ONLY: cell_type,&
                                              pbc
   USE coefficient_types,               ONLY: coeff_copy,&
-                                             coeff_reduce,&
                                              coeff_scale,&
                                              coeff_sumup,&
                                              coeff_transform_space,&
@@ -52,16 +51,15 @@ MODULE qs_linres_nmr_current
                                              cp_fm_set_submatrix,&
                                              cp_fm_to_fm,&
                                              cp_fm_type
-  USE cp_output_handling,              ONLY: cp_iter_string,&
-                                             cp_p_file,&
+  USE cp_output_handling,              ONLY: cp_p_file,&
                                              cp_print_key_finished_output,&
                                              cp_print_key_should_output,&
                                              cp_print_key_unit_nr
-  USE cp_rs_pool_types,                ONLY: cp_rs_pool_type,&
-                                             rs_pool_create_rs,&
-                                             rs_pool_give_back_rs
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_rs_pool_types,                ONLY: cp_rs_pool_p_type,&
+                                             cp_rs_pool_type,&
+                                             rs_pool_create_rs,&
+                                             rs_pool_give_back_rs,&
                                              rs_pools_create_rs_vect
   USE cp_sm_fm_interactions,           ONLY: cp_sm_fm_multiply,&
                                              cp_sm_plus_fm_fm_t
@@ -81,28 +79,24 @@ MODULE qs_linres_nmr_current
   USE particle_types,                  ONLY: particle_type
   USE pw_env_types,                    ONLY: pw_env_get,&
                                              pw_env_type
-  USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
-                                             pw_pool_give_back_coeff,&
-                                             pw_pool_give_back_pw,&
+  USE pw_pool_types,                   ONLY: pw_pool_give_back_coeff,&
                                              pw_pool_init_coeff,&
                                              pw_pool_p_type,&
                                              pw_pool_type
   USE pw_types,                        ONLY: COMPLEXDATA1D,&
                                              REALDATA3D,&
                                              REALSPACE,&
-                                             RECIPROCALSPACE,&
-                                             pw_sumup,&
-                                             pw_transfer,&
-                                             pw_type
+                                             RECIPROCALSPACE
   USE qs_collocate_density,            ONLY: calculate_total_rho,&
                                              density_on_full_grid,&
                                              lgrid_type
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
   USE qs_interactions,                 ONLY: exp_radius_very_extended
-  USE qs_linres_nmr_op,                ONLY: set_vecp, set_vecp_rev, fac_vecp
-  USE qs_linres_nmr_shift,             ONLY: interpolate_shift_pwgrid,&
-                                             mult_G_ov_G2_grid
+  USE qs_linres_nmr_op,                ONLY: fac_vecp,&
+                                             set_vecp,&
+                                             set_vecp_rev
+  USE qs_linres_nmr_shift,             ONLY: interpolate_shift_pwgrid
   USE qs_linres_types,                 ONLY: nmr_env_type
   USE qs_mo_types,                     ONLY: get_mo_set,&
                                              mo_set_p_type
@@ -137,7 +131,7 @@ MODULE qs_linres_nmr_current
   ! *** Public subroutines ***
   PUBLIC :: nmr_response_current
 
-  CHARACTER(LEN=*), PARAMETER :: moduleN='qs_linres_nmr_current'
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_linres_nmr_current'
 
 !!***
 ! *****************************************************************************
@@ -193,21 +187,22 @@ CONTAINS
       OPTIONAL                               :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'nmr_response_current', &
-      routineP = moduleN//'/'//routineN
+      routineP = moduleN//':'//routineN
 
-    CHARACTER(LEN=80)                        :: ext,filename
-    INTEGER                                  :: handle, homo, i_B, iao, iatom, idir, &
-                                                idir2, idir3, ii_B, iii_B, ispin, istat, istate, &
-                                                natom, nmo, nspins, unit_nr
+    CHARACTER(LEN=80)                        :: ext, filename
+    INTEGER :: handle, homo, i_B, iao, iatom, idir, idir2, idir3, ii_B, &
+      iii_B, ispin, istat, istate, natom, nmo, nspins, unit_nr
     LOGICAL                                  :: failure, gapw, ionode, uni_occ
-    REAL(dp)                                 :: alpha, dk(3), jrho_tot, maxocc, rmu(3), &
-                                                rmu_dk(3), scale_fac
+    REAL(dp)                                 :: alpha, dk(3), jrho_tot, &
+                                                maxocc, rmu(3), rmu_dk(3), &
+                                                scale_fac
     REAL(dp), DIMENSION(:), POINTER          :: occupation
     REAL(dp), DIMENSION(:, :), POINTER       :: vecbuf_psi1
     TYPE(cell_type), POINTER                 :: cell
+    TYPE(coeff_type)                         :: pw_gspace_work, &
+                                                shift_pw_rspace
+    TYPE(coeff_type), DIMENSION(:), POINTER  :: shift_pw_gspace
     TYPE(coeff_type), POINTER                :: rho_gspace, rho_rspace, wf_r
-    TYPE(coeff_type)                         :: pw_gspace_work,shift_pw_rspace
-    TYPE(coeff_type),DIMENSION(:),POINTER    :: shift_pw_gspace
     TYPE(cp_2d_r_p_type), DIMENSION(3)       :: vecbuf
     TYPE(cp_fm_type), POINTER                :: mo_coeff
     TYPE(cp_logger_type), POINTER            :: logger
@@ -227,7 +222,6 @@ CONTAINS
                                                 density_matrix_2_iii
     TYPE(realspace_grid_type), POINTER       :: rs
     TYPE(section_vals_type), POINTER         :: nmr_section
-
 
 !   ---------------------------------------------------------------------------
 
@@ -513,7 +507,7 @@ CONTAINS
         CALL pw_pool_give_back_coeff(auxbas_pw_pool,shift_pw_gspace(idir), &
                                  error=error)
       END DO
-      DeALLOCATE(shift_pw_gspace,STAT=istat)
+      DEALLOCATE(shift_pw_gspace,STAT=istat)
       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
       CALL pw_pool_give_back_coeff(auxbas_pw_pool,shift_pw_rspace,&
                error=error)
@@ -539,7 +533,7 @@ CONTAINS
       OPTIONAL                               :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_jrho_resp', &
-      routineP = moduleN//'/'//routineN
+      routineP = moduleN//':'//routineN
     INTEGER, PARAMETER                       :: add_tasks = 1000, &
                                                 max_tasks = 2000
     REAL(kind=dp), PARAMETER                 :: mult_tasks = 2.0_dp

@@ -23,6 +23,10 @@
 !******************************************************************************
 
 MODULE topology_input
+  USE colvar_types,                    ONLY: angle_colvar_id,&
+                                             colvar_type,&
+                                             dist_colvar_id,&
+                                             torsion_colvar_id
   USE global_types,                    ONLY: global_environment_type
   USE input_constants,                 ONLY: do_conn_psf,&
                                              do_coord_off
@@ -34,16 +38,10 @@ MODULE topology_input
                                              dp
   USE memory_utilities,                ONLY: reallocate
   USE string_utilities,                ONLY: xstring
-  USE timings,                         ONLY: timeset,timestop
+  USE timings,                         ONLY: timeset,&
+                                             timestop
   USE topology_types,                  ONLY: constraint_info_type,&
                                              topology_parameters_type
-  USE colvar_types, ONLY: colvar_type,&
-                          dist_colvar_id,&
-                          coord_colvar_id,&
-                          torsion_colvar_id,&
-                          angle_colvar_id,&
-                          plane_distance_colvar_id
-
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -96,8 +94,8 @@ SUBROUTINE read_topology_section ( topology, topology_section, globenv, error )
 
     CHARACTER(len=*), PARAMETER :: routineN = 'read_topology_section', &
       routineP = moduleN//':'//routineN
- 
-    INTEGER                                  :: ia, ie, n_rep, handle
+
+    INTEGER                                  :: handle, ia, ie, n_rep
     LOGICAL                                  :: failure
 
   CALL timeset(routineN,handle)
@@ -166,32 +164,30 @@ END SUBROUTINE read_topology_section
 
 SUBROUTINE read_constraints_section(topology, globenv, colvar, constraint_section, error)
 
-  TYPE(topology_parameters_type), &
-       INTENT(INOUT)                          :: topology
-  TYPE(colvar_type), DIMENSION(:), POINTER :: colvar
-  TYPE(global_environment_type), &
-       OPTIONAL, POINTER                      :: globenv
-  TYPE(section_vals_type), POINTER         :: constraint_section
-  TYPE(cp_error_type), INTENT(inout), &
-       OPTIONAL                               :: error
+    TYPE(topology_parameters_type), &
+      INTENT(INOUT)                          :: topology
+    TYPE(global_environment_type), &
+      OPTIONAL, POINTER                      :: globenv
+    TYPE(colvar_type), DIMENSION(:), POINTER :: colvar
+    TYPE(section_vals_type), POINTER         :: constraint_section
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-  CHARACTER(len=*), PARAMETER :: routineN = 'read_constraints_section', &
-       routineP = moduleN//':'//routineN
+    CHARACTER(len=*), PARAMETER :: routineN = 'read_constraints_section', &
+      routineP = moduleN//':'//routineN
 
-  CHARACTER(LEN=default_string_length), &
-       DIMENSION(:), POINTER                  :: tmpstringlist
-  INTEGER                                  :: icons, ig, isize, j, jj, &
-       n_rep, ncons, stat, icolvar
-  INTEGER, DIMENSION(:), POINTER           :: ilist, tmplist
-  LOGICAL                                  :: explicit, failure, freeze_mm, &
-       freeze_qm
-  REAL(KIND=dp), DIMENSION(:), POINTER     :: rlist
-  TYPE(constraint_info_type), POINTER      :: cons_info
-  TYPE(section_vals_type), POINTER         :: fix_atom_section,&
-       g3x3_section,&
-       g4x6_section, &
-       collective_section
-
+    CHARACTER(LEN=default_string_length), &
+      DIMENSION(:), POINTER                  :: tmpstringlist
+    INTEGER                                  :: icolvar, ig, isize, j, jj, &
+                                                n_rep, ncons, stat
+    INTEGER, DIMENSION(:), POINTER           :: ilist, tmplist
+    LOGICAL                                  :: explicit, failure, freeze_mm, &
+                                                freeze_qm
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: rlist
+    TYPE(constraint_info_type), POINTER      :: cons_info
+    TYPE(section_vals_type), POINTER         :: collective_section, &
+                                                fix_atom_section, &
+                                                g3x3_section, g4x6_section
 
   cons_info    => topology%cons_info
   failure = .FALSE.

@@ -158,7 +158,6 @@ SUBROUTINE shake_control( local_molecules, molecule_set, molecule_kind_set, &
 
 !------------------------------------------------------------------------------
 
-
      CALL timeset ( 'SHAKE_CONTROL', 'I', ' ', handle )
      nkind = SIZE ( molecule_kind_set )
 

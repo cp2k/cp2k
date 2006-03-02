@@ -151,10 +151,10 @@ CONTAINS
   SUBROUTINE colvar_init(colvar,error)
     TYPE(colvar_type), INTENT(inout)         :: colvar
     TYPE(cp_error_type), INTENT(inout), &
-         OPTIONAL                               :: error
+      OPTIONAL                               :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'colvar_init', &
-         routineP = moduleN//':'//routineN
+      routineP = moduleN//':'//routineN
 
     LOGICAL                                  :: failure
 
@@ -203,10 +203,10 @@ CONTAINS
   SUBROUTINE colvar_dealloc_ref(colvar,error)
     TYPE(colvar_type), INTENT(inout)         :: colvar
     TYPE(cp_error_type), INTENT(inout), &
-         OPTIONAL                               :: error
+      OPTIONAL                               :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'colvar_dealloc_ref', &
-         routineP = moduleN//':'//routineN
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: stat
     LOGICAL                                  :: failure

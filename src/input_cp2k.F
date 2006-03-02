@@ -94,10 +94,10 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'create_cp2k_root_section', &
       routineP = moduleN//':'//routineN
 
+    INTEGER                                  :: handle
     LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
     TYPE(section_type), POINTER              :: section
-    INTEGER                                  :: handle
 
     CALL timeset(routineN,handle)
     failure=.FALSE.

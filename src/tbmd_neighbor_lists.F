@@ -37,8 +37,6 @@ MODULE tbmd_neighbor_lists
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind,&
                                              get_atomic_kind_set
-  USE basis_set_types,                 ONLY: get_gto_basis_set,&
-                                             gto_basis_set_type
   USE cell_types,                      ONLY: cell_type,&
                                              get_cell,&
                                              pbc,&
@@ -50,31 +48,27 @@ MODULE tbmd_neighbor_lists
                                              cp_print_key_should_output,&
                                              cp_print_key_unit_nr
   USE distribution_1d_types,           ONLY: distribution_1d_type
-  USE fist_neighbor_list_types,        ONLY: &
-       add_neighbor_list, add_neighbor_node, allocate_neighbor_list_set, &
-       deallocate_neighbor_list_set, first_list, first_node, &
-       get_neighbor_list, get_neighbor_list_set, get_neighbor_node, &
-       init_neighbor_list_set, neighbor_list_p_type, &
-       neighbor_list_set_p_type, neighbor_list_set_type, neighbor_list_type, &
-       neighbor_node_type, next
-  USE fist_neighbor_lists,             ONLY: write_neighbor_lists,&
-                                             write_distribution
+  USE fist_neighbor_list_types,        ONLY: add_neighbor_list,&
+                                             add_neighbor_node,&
+                                             allocate_neighbor_list_set,&
+                                             deallocate_neighbor_list_set,&
+                                             init_neighbor_list_set,&
+                                             neighbor_list_p_type,&
+                                             neighbor_list_set_p_type,&
+                                             neighbor_list_set_type
+  USE fist_neighbor_lists,             ONLY: write_distribution,&
+                                             write_neighbor_lists
   USE global_types,                    ONLY: global_environment_type
   USE input_section_types,             ONLY: section_vals_type
-  USE kinds,                           ONLY: default_string_length,&
-                                             dp,&
+  USE kinds,                           ONLY: dp,&
                                              dp_size,&
                                              int_size
-  USE machine,                         ONLY: m_flush
-  USE message_passing,                 ONLY: mp_max,&
-                                             mp_sum,&
-                                             mp_sync
+  USE message_passing,                 ONLY: mp_max
   USE particle_types,                  ONLY: particle_type
   USE qs_neighbor_lists,               ONLY: allocate_subcell,&
                                              deallocate_subcell,&
                                              local_atoms_type,&
                                              subcell_type
-  USE string_utilities,                ONLY: compress
   USE tbmd_neighbor_list_env_types,    ONLY: tbmd_neighbor_list_env_get,&
                                              tbmd_neighbor_list_env_set,&
                                              tbmd_neighbor_list_env_type
@@ -165,7 +159,7 @@ CONTAINS
     TYPE(neighbor_list_set_p_type), &
       DIMENSION(:), POINTER                  :: tbmd_neighbor_list
 
-    ! -------------------------------------------------------------------------
+! -------------------------------------------------------------------------
 
     CALL timeset(routineN, "I", "", handle)
 

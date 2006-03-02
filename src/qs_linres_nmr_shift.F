@@ -37,13 +37,10 @@ MODULE qs_linres_nmr_shift
                                              pw_pool_type
   USE pw_spline_utils,                 ONLY: Eval_Interp_Spl3_pbc
   USE pw_types,                        ONLY: COMPLEXDATA1D,&
-                                             REALDATA3D,&
-                                             REALSPACE,&
                                              RECIPROCALSPACE,&
                                              pw_transfer,&
                                              pw_type
   USE qs_linres_types,                 ONLY: nmr_env_type
-
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -54,7 +51,7 @@ MODULE qs_linres_nmr_shift
   ! *** Public subroutines ***
   PUBLIC :: interpolate_shift_pwgrid, mult_G_ov_G2_grid
 
-  CHARACTER(LEN=*), PARAMETER :: moduleN='qs_linres_nmr_shift'
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_linres_nmr_shift'
 
 !!***
 ! **************
@@ -97,12 +94,12 @@ CONTAINS
     TYPE(cp_error_type), INTENT(INOUT), &
       OPTIONAL                               :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'nmr_response_current', &
-      routineP = moduleN//'/'//routineN
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'interpolate_shift_pwgrid', &
+      routineP = moduleN//':'//routineN
 
-    INTEGER :: natom, iatom
-    LOGICAL :: failure
-    REAL(dp) :: R_iatom(3), ra(3), shift_val
+    INTEGER                                  :: iatom, natom
+    LOGICAL                                  :: failure
+    REAL(dp)                                 :: R_iatom(3), ra(3), shift_val
 
     failure = .FALSE.
     CPPrecondition(ASSOCIATED(shift_pw_rspace%pw),cp_failure_level,routineP,error,failure)
@@ -161,8 +158,7 @@ CONTAINS
 
     TYPE(cell_type), POINTER                 :: cell
     TYPE(pw_pool_type), POINTER              :: pw_pool
-    TYPE(coeff_type), POINTER                :: rho_gspace
-    TYPE(coeff_type), POINTER                :: funcG_times_rho
+    TYPE(coeff_type), POINTER                :: rho_gspace, funcG_times_rho
     INTEGER, INTENT(IN)                      :: idir
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
@@ -170,12 +166,11 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'mult_G_ov_G2_grid', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: ig,ng
-    LOGICAL :: failure
-    REAL(dp) :: g2
+    INTEGER                                  :: ig, ng
+    LOGICAL                                  :: failure
+    REAL(dp)                                 :: g2
     TYPE(pw_grid_type), POINTER              :: grid
-    TYPE(pw_type), POINTER                   :: influence_fn, frho
-
+    TYPE(pw_type), POINTER                   :: frho, influence_fn
 
     failure = .FALSE.
 

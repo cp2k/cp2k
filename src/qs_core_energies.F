@@ -25,8 +25,8 @@ MODULE qs_core_energies
                                              get_atomic_kind
   USE cell_types,                      ONLY: cell_type,&
                                              get_cell,&
-                                             plane_distance,&
                                              pbc,&
+                                             plane_distance,&
                                              real_to_scaled,&
                                              scaled_to_real
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
@@ -100,7 +100,7 @@ CONTAINS
     REAL(KIND=dp), INTENT(OUT)               :: ecore
     TYPE(cp_para_env_type), POINTER          :: para_env
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_ecore'
+    CHARACTER(LEN=*), PARAMETER              :: routineN = 'calculate_ecore'
 
     INTEGER                                  :: handle, i, iblock_col, &
                                                 iblock_row, j, jblock_col, &
@@ -109,7 +109,7 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: h_block, p_block
     TYPE(real_block_node_type), POINTER      :: h_block_node, p_block_node
 
-    ! -------------------------------------------------------------------------
+! -------------------------------------------------------------------------
 
     CALL timeset(routineN,"I",'',handle)
 
@@ -223,7 +223,7 @@ CONTAINS
     TYPE(subcell_type), DIMENSION(:, :, :), &
       POINTER                                :: subcell
 
-    ! -------------------------------------------------------------------------
+! -------------------------------------------------------------------------
 
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
@@ -774,7 +774,7 @@ CONTAINS
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(qs_energy_type), POINTER            :: energy
 
-    ! -------------------------------------------------------------------------
+! -------------------------------------------------------------------------
 
     CALL timeset(routineN,"I","",handle)
 

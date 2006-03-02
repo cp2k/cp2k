@@ -54,8 +54,7 @@ MODULE qs_scf
                                              gto_basis_set_type
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm,&
-                                             cp_fm_symm,&
-                                             cp_fm_upper_to_full
+                                             cp_fm_symm
   USE cp_fm_cholesky,                  ONLY: cp_fm_cholesky_decompose,&
                                              cp_fm_cholesky_reduce,&
                                              cp_fm_cholesky_restore
@@ -350,7 +349,7 @@ CONTAINS
 
     NULLIFY(scf_env)
     failure=.FALSE.
-    CPPrecondition(associated(qs_env),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(qs_env),cp_failure_level,routineP,error,failure)
     IF (.NOT.failure) THEN
        CALL get_qs_env(qs_env,scf_env=scf_env,error=error)
        IF (.NOT.ASSOCIATED(scf_env)) THEN

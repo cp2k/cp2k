@@ -9,14 +9,14 @@
 !     (character classes are not supported). A backslash escapes
 !     any character.
 !
-module glob_matching
-    implicit none
+MODULE glob_matching
+    IMPLICIT NONE
 
-    character(len=1), parameter, private :: backslash = '\\'
-    character(len=1), parameter, private :: star      = '*'
-    character(len=1), parameter, private :: question  = '?'
+    CHARACTER(len=1), PARAMETER, PRIVATE :: backslash = '\\'
+    CHARACTER(len=1), PARAMETER, PRIVATE :: star      = '*'
+    CHARACTER(len=1), PARAMETER, PRIVATE :: question  = '?'
 
-contains
+CONTAINS
 
 ! string_match --
 !     Tries to match the given string with the pattern
@@ -29,24 +29,18 @@ contains
 ! Note:
 !     Trailing blanks are ignored
 !
-recursive function string_match( string, pattern ) result(match)
-    character(len=*), intent(in) :: string
-    character(len=*), intent(in) :: pattern
-    logical                      :: match
+RECURSIVE FUNCTION string_match( string, pattern ) RESULT(match)
+    CHARACTER(len=*), INTENT(in)             :: string, pattern
+    LOGICAL                                  :: match
 
-    character(len=len(pattern))  :: literal
-    integer                      :: ptrim
-    integer                      :: p
-    integer                      :: k
-    integer                      :: ll
-    integer                      :: method
-    integer                      :: start
-    integer                      :: strim
+    CHARACTER(len=LEN(pattern))              :: literal
+    INTEGER                                  :: k, ll, method, p, ptrim, &
+                                                start, strim
 
-    match  = .false.
+    match  = .FALSE.
     method = 0
-    ptrim  = len_trim( pattern )
-    strim  = len_trim( string )
+    ptrim  = LEN_TRIM( pattern )
+    strim  = LEN_TRIM( string )
     p      = 1
     ll     = 0
     start  = 1
@@ -54,80 +48,80 @@ recursive function string_match( string, pattern ) result(match)
     !
     ! Split off a piece of the pattern
     !
-    do while ( p <= ptrim )
-        select case ( pattern(p:p) )
-            case( star )
-                if ( ll .ne. 0 ) exit
+    DO WHILE ( p <= ptrim )
+        SELECT CASE ( pattern(p:p) )
+            CASE( star )
+                IF ( ll .NE. 0 ) EXIT
                 method = 1
-            case( question )
-                if ( ll .ne. 0 ) exit
+            CASE( question )
+                IF ( ll .NE. 0 ) EXIT
                 method = 2
                 start  = start + 1
-            case( backslash )
+            CASE( backslash )
                 p  = p + 1
                 ll = ll + 1
                 literal(ll:ll) = pattern(p:p)
-            case default
+            CASE default
                 ll = ll + 1
                 literal(ll:ll) = pattern(p:p)
-        end select
+        END SELECT
 
         p = p + 1
-    enddo
+    ENDDO
 
     !
     ! Now look for the literal string (if any!)
     !
-    if ( method == 0 ) then
+    IF ( method == 0 ) THEN
         !
         ! We are at the end of the pattern, and of the string?
         !
-        if ( strim == 0 .and. ptrim == 0 ) then
-            match = .true.
-        else
+        IF ( strim == 0 .AND. ptrim == 0 ) THEN
+            match = .TRUE.
+        ELSE
             !
             ! The string matches a literal part?
             !
-            if ( ll > 0 ) then
-                if ( string(start:min(strim,start+ll-1)) == literal(1:ll) ) then
+            IF ( ll > 0 ) THEN
+                IF ( string(start:MIN(strim,start+ll-1)) == literal(1:ll) ) THEN
                     start = start + ll
                     match = string_match( string(start:), pattern(p:) )
-                endif
-            endif
-        endif
-    endif
+                ENDIF
+            ENDIF
+        ENDIF
+    ENDIF
 
-    if ( method == 1 ) then
+    IF ( method == 1 ) THEN
         !
         ! Scan the whole of the remaining string ...
         !
-        if ( ll == 0 ) then
-            match = .true.
-        else
-            do while ( start <= strim )
-                k     = index( string(start:), literal(1:ll) )
-                if ( k > 0 ) then
+        IF ( ll == 0 ) THEN
+            match = .TRUE.
+        ELSE
+            DO WHILE ( start <= strim )
+                k     = INDEX( string(start:), literal(1:ll) )
+                IF ( k > 0 ) THEN
                     start = start + k + ll - 1
                     match = string_match( string(start:), pattern(p:) )
-                    if ( match ) then
-                        exit
-                    endif
-                endif
+                    IF ( match ) THEN
+                        EXIT
+                    ENDIF
+                ENDIF
 
                 start = start + 1
-            enddo
-        endif
-    endif
+            ENDDO
+        ENDIF
+    ENDIF
 
-    if ( method == 2 .and. ll > 0 ) then
+    IF ( method == 2 .AND. ll > 0 ) THEN
         !
         ! Scan the whole of the remaining string ...
         !
-        if ( string(start:min(strim,start+ll-1)) == literal(1:ll) ) then
+        IF ( string(start:MIN(strim,start+ll-1)) == literal(1:ll) ) THEN
             match = string_match( string(start+ll:), pattern(p:) )
-        endif
-    endif
-    return
-end function string_match
+        ENDIF
+    ENDIF
+    RETURN
+END FUNCTION string_match
 
-end module glob_matching
+END MODULE glob_matching
