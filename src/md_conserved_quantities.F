@@ -35,7 +35,8 @@ MODULE md_conserved_quantities
   USE extended_system_types,           ONLY: lnhc_parameters_type,&
                                              npt_info_type
   USE force_env_types,                 ONLY: force_env_get,&
-                                             force_env_p_type
+                                             force_env_p_type, &
+                                             use_eip_force
   USE input_constants,                 ONLY: &
        dyn_coeff_mass_global, isokin_ensemble, langevin_ensemble, &
        nph_ensemble, nph_uniaxial_damped_ensemble, nph_uniaxial_ensemble, &
@@ -123,6 +124,7 @@ SUBROUTINE compute_conserved_quantity (md_env, epot, cons, cons_rel, ekin,&
     TYPE(md_ener_type)                       :: md_ener
     TYPE(simulation_parameters_type), &
       POINTER                                :: simpar
+    TYPE ( force_env_p_type ), POINTER       :: force_env_p(:)
 
 !------------------------------------------------------------------------------
 
@@ -140,16 +142,17 @@ SUBROUTINE compute_conserved_quantity (md_env, epot, cons, cons_rel, ekin,&
                    constant=constant,&
                    itimes=itimes,&
                    simpar=simpar,&
-                   para_env = para_env )
+                   para_env = para_env, &
+                   force_env_p=force_env_p)
 
   int_grp =  para_env % group  
  
   CALL get_part_ke ( md_env, md_ener % ekin, int_grp )
 
-  
+
   IF (simpar%nfree /= 0) &
   md_ener % temp_part = 2.0_dp * md_ener % ekin / REAL ( simpar%nfree,KIND=dp)
-  
+
   SELECT CASE ( simpar % ensemble  )
   CASE DEFAULT
     ! hence, should be implemented 
@@ -585,6 +588,64 @@ SUBROUTINE get_part_ke ( md_env, ekin, int_grp )
 ! sum all contributions to energy over calculated parts on all processors
   CALL mp_sum ( ekin, int_grp )
 END SUBROUTINE get_part_ke 
+
+!******************************************************************************
+!!****** md_conserved_quantity/get_part_ke_serial [1.0] *
+!!
+!!   NAME
+!!     get_part_ke_serial
+!!
+!!   FUNCTION
+!!     Calculates kinetic energy of particles
+!!
+!!   AUTHOR
+!!     CJM & TdK
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!*** *************************************************************************
+SUBROUTINE get_part_ke_serial(md_env, ekin)
+
+    TYPE(md_environment_type), POINTER       :: md_env
+    REAL(KIND=dp), INTENT(OUT)               :: ekin
+
+    INTEGER                                  :: iparticle, &
+                                                nparticle_kind, &
+                                                nparticle
+    REAL(KIND=dp)                            :: mass
+    TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
+    TYPE(cp_subsystem_p_type), &
+      DIMENSION(:), POINTER                  :: subsys
+    TYPE(force_env_p_type), DIMENSION(:), &
+      POINTER                                :: force_env_p
+    TYPE(particle_list_type), POINTER        :: particles
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particle_set
+
+  ekin  = zero
+
+  CALL get_md_env(md_env, force_env_p = force_env_p)
+  CALL force_env_get(force_env = force_env_p(1)%force_env, subsys = subsys)
+
+  CALL cp_subsys_get(subsys=subsys(1)%subsys, &
+                     atomic_kinds=atomic_kinds, &
+                     particles=particles)
+
+  nparticle_kind = atomic_kinds%n_els
+
+  particle_set => particles%els
+
+  nparticle = SIZE(particle_set)
+  DO iparticle = 1,nparticle
+    CALL get_atomic_kind(atomic_kind=particle_set(iparticle)%atomic_kind, mass=mass)
+    ekin = ekin +  0.5_dp * mass *  &
+                   (particle_set(iparticle)%v(1)* particle_set(iparticle)%v(1) &
+                  + particle_set(iparticle)%v(2)* particle_set(iparticle)%v(2) &
+                  + particle_set(iparticle)%v(3)* particle_set(iparticle)%v(3))
+  END DO
+
+END SUBROUTINE get_part_ke_serial
 
 !******************************************************************************
 !!****** md_conserved_quantity/get_coef_ke [1.0] *

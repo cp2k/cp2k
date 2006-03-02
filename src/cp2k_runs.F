@@ -21,6 +21,7 @@ MODULE cp2k_runs
   USE cp_units,                        ONLY: cp_unit_set_create,&
                                              cp_unit_set_release,&
                                              cp_unit_set_type
+  USE eip_main,                        ONLY: eip_create_force_env
   USE environment,                     ONLY: compile_date,&
                                              compile_lastcvs,&
                                              cp2k_finalize,&
@@ -45,7 +46,7 @@ MODULE cp2k_runs
   USE harris_metropolis_mc,            ONLY: harris_mc_ld
   USE input_constants,                 ONLY: &
        bsse_run, do_farming, do_fist, do_kg, do_pint, do_qmmm, do_qs, &
-       do_tbmd, do_test, electronic_spectra_run, energy_force_run, &
+       do_tbmd, do_eip, do_test, electronic_spectra_run, energy_force_run, &
        energy_run, geo_opt_run, hmc_run, ldmc_run, linear_response_run, &
        mol_dyn_run, mon_car_run, none_run, qs_debug_run
   USE input_cp2k,                      ONLY: create_cp2k_root_section,&
@@ -260,6 +261,8 @@ CONTAINS
              CALL quickstep_create_force_env(force_env, globenv, error=suberror)
           CASE (do_tbmd)
              CALL tbmd_create_force_env(force_env, globenv, error=suberror)
+          CASE (do_eip)
+             CALL eip_create_force_env(force_env, globenv, error=suberror)
           CASE (do_test)
              CALL lib_test(globenv,suberror)
           END SELECT

@@ -31,15 +31,23 @@ MODULE force_env_methods
   USE cp_subsystem_types,              ONLY: cp_subsys_retain,&
                                              cp_subsystem_p_type
   USE dynamical_coeff_types,           ONLY: dyn_coeff_set_retain
+  USE eip_environment_types,           ONLY: eip_environment_type, &
+                                             eip_env_get, &
+                                             eip_env_retain
+  USE eip_silicon,                     ONLY: eip_bazant, &
+                                             eip_lenosky
   USE fist_environment_types,          ONLY: fist_env_retain,&
                                              fist_environment_type,&
                                              get_fist_env
   USE fist_force,                      ONLY: fist_force_control
   USE force_env_types,                 ONLY: &
        force_env_get, force_env_p_type, force_env_type, use_fist_force, &
-       use_kg_force, use_pol_force, use_qmmm, use_qs_force, use_tbmd_force
+       use_kg_force, use_pol_force, use_qmmm, use_qs_force, use_tbmd_force, &
+       use_eip_force
   USE global_types,                    ONLY: global_environment_type,&
                                              globenv_retain
+  USE input_constants,                 ONLY: use_lenosky_eip, &
+                                             use_bazant_eip
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type
   USE kg_energy,                       ONLY: kg_energies
@@ -196,6 +204,12 @@ RECURSIVE SUBROUTINE force_env_calc_energy_force ( force_env, &
         ELSE
           CALL tbmd_forces(force_env%tbmd_env, force_env%globenv, error=error)
         END IF
+     CASE (use_eip_force)
+        IF (force_env%eip_env%eip_model == use_lenosky_eip) THEN
+          CALL eip_lenosky(force_env, error=error)
+        ELSE IF (force_env%eip_env%eip_model == use_bazant_eip) THEN
+          CALL eip_bazant(force_env, error=error)
+        END IF
      CASE ( use_qmmm )
         CALL qmmm_energy_and_forces(force_env,need_f,error)
      CASE default
@@ -240,8 +254,9 @@ END SUBROUTINE force_env_calc_energy_force
 !!     04.2003 created [fawzi]
 !!
 !!*** **********************************************************************
-SUBROUTINE force_env_create(force_env,globenv,fist_env,&
-     qs_env,kg_env,tbmd_env,meta_env,sub_force_env,qmmm_env,error)
+SUBROUTINE force_env_create(force_env,globenv,fist_env,qs_env,kg_env,&
+                            tbmd_env,meta_env,sub_force_env,qmmm_env,&
+                            eip_env,error)
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(global_environment_type), POINTER   :: globenv
     TYPE(fist_environment_type), OPTIONAL, &
@@ -252,6 +267,8 @@ SUBROUTINE force_env_create(force_env,globenv,fist_env,&
       POINTER                                :: kg_env
     TYPE(tbmd_environment_type), OPTIONAL, &
       POINTER                                :: tbmd_env
+    TYPE(eip_environment_type), OPTIONAL, &
+      POINTER                                :: eip_env
     TYPE(meta_env_type), OPTIONAL, POINTER   :: meta_env
     TYPE(force_env_p_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: sub_force_env
@@ -319,6 +336,17 @@ SUBROUTINE force_env_create(force_env,globenv,fist_env,&
          tbmd_env%virial => force_env%virial
          CALL virial_retain(tbmd_env%virial)
        END IF
+     END IF
+     IF (PRESENT(eip_env)) THEN
+        IF (ASSOCIATED(eip_env)) THEN
+          CPPrecondition(force_env%in_use==0, cp_failure_level, routineP, error, failure)
+          force_env%in_use = use_eip_force
+          force_env%eip_env => eip_env
+          CALL eip_env_retain(eip_env, error=error)
+          CALL virial_create(force_env%virial, virial_in_use = .FALSE.)
+          eip_env%virial => force_env%virial
+          CALL virial_retain(eip_env%virial)
+        END IF
      END IF
      IF (PRESENT(qs_env)) THEN
         IF (ASSOCIATED(qs_env)) THEN
@@ -398,6 +426,16 @@ SUBROUTINE force_env_create(force_env,globenv,fist_env,&
                           subsystem=force_env%subsys(1)%subsys, &
                           error=error)
         CALL cp_subsys_retain(force_env%subsys(1)%subsys, error=error)
+     CASE(use_eip_force)
+
+        ALLOCATE(force_env%subsys(1), stat=stat)
+        CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
+        NULLIFY(force_env%subsys(1)%subsys)
+
+        CALL eip_env_get(force_env%eip_env, &
+                         subsystem=force_env%subsys(1)%subsys, &
+                         error=error)
+        CALL cp_subsys_retain(force_env%subsys(1)%subsys, error=error)
      CASE(use_qmmm)
         subsys => force_env%sub_force_env(1)%force_env%subsys
         ALLOCATE(force_env%subsys(SIZE(subsys)), stat=stat)
@@ -472,6 +510,8 @@ RECURSIVE SUBROUTINE force_env_set_cell(force_env, cell, error)
      CASE (use_kg_force)
         CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
      CASE (use_tbmd_force)
+        CPAssert(.FALSE., cp_failure_level, routineP, error, failure)
+     CASE (use_eip_force)
         CPAssert(.FALSE., cp_failure_level, routineP, error, failure)
      CASE default
         CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&

@@ -249,7 +249,7 @@ CONTAINS
 
     INTEGER :: accept, atom, force_env_in_use, handle, i, iatom, ibead, &
       ikind, in_use, iparticles, ires, istat, istep, isubsys, iter_level, iw, &
-      max_scf_tmp, mc_method, md_method, myi, nbeads, reject
+      max_scf_tmp, max_scf_aspc_tmp, mc_method, md_method, myi, nbeads, reject
     INTEGER, DIMENSION(:), POINTER           :: atom_list
     INTEGER, POINTER                         :: accepted_md, itimes, &
                                                 md_approach_nr
@@ -497,7 +497,7 @@ CONTAINS
           eps_scf_tmp = qs_env%scf_control%eps_scf
 
           qs_env%use_harris = .FALSE.
-          qs_env%scf_control%max_scf = 100
+          qs_env%scf_control%max_scf = 1000
 
           qs_env%scf_control%eps_scf = 1.0e-8
           dft_control%qs_control%eps_rho_rspace = 1.0e-16
@@ -587,12 +587,15 @@ CONTAINS
        IF (qs_ener .AND. (globenv%prog_name_id == do_qs)) THEN
           use_harris_tmp = qs_env%use_harris
           max_scf_tmp = qs_env%scf_control%max_scf
+          max_scf_aspc_tmp = qs_env%scf_control%max_scf_aspc
           qs_env%use_harris = .FALSE.
-          qs_env%scf_control%max_scf = 100
+          qs_env%scf_control%max_scf = 1000
+          qs_env%scf_control%max_scf_aspc = 1000
           CALL force_env_calc_energy_force(force_env=force_env_p(1)%force_env, &
                calc_force=.FALSE., error=error)
           qs_env%use_harris = use_harris_tmp
           qs_env%scf_control%max_scf = max_scf_tmp
+          qs_env%scf_control%max_scf_aspc = max_scf_aspc_tmp
        ELSE
           CALL force_env_calc_energy_force(force_env=force_env_p(1)%force_env, &
                calc_force=.FALSE., error=error)
@@ -633,12 +636,15 @@ CONTAINS
        IF (qs_ener .AND. (globenv%prog_name_id == do_qs)) THEN
           use_harris_tmp = qs_env%use_harris
           max_scf_tmp = qs_env%scf_control%max_scf
+          max_scf_aspc_tmp = qs_env%scf_control%max_scf_aspc
           qs_env%use_harris = .FALSE.
-          qs_env%scf_control%max_scf = 100
+          qs_env%scf_control%max_scf = 1000
+          qs_env%scf_control%max_scf_aspc = 1000
           CALL force_env_calc_energy_force(force_env=force_env_p(1)%force_env, &
                calc_force=.FALSE., error=error)
           qs_env%use_harris = use_harris_tmp
           qs_env%scf_control%max_scf = max_scf_tmp
+          qs_env%scf_control%max_scf_aspc = max_scf_aspc_tmp
        ELSE
           CALL force_env_calc_energy_force(force_env=force_env_p(1)%force_env, &
                calc_force=.FALSE., error=error)

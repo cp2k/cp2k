@@ -952,7 +952,7 @@ CONTAINS
       last_tbmd_id=last_tbmd_id+1
       tbmd_env%id_nr = last_tbmd_id
       tbmd_env%use_ref_cell = .FALSE.
-      !CALL tbmd_env_clear(tbmd_env, error=error)
+      CALL tbmd_env_clear(tbmd_env, error=error)
     END IF
   END SUBROUTINE tbmd_env_create
 !***************************************************************************

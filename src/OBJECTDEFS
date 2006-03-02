@@ -92,6 +92,10 @@ OBJECTS_GENERIC =\
  eigenvalueproblems.o\
  environment.o\
  erf_fn.o\
+ eip_environment.o\
+ eip_environment_types.o\
+ eip_main.o\
+ eip_silicon.o\
  ewald_environment_types.o\
  ewald_pw_methods.o\
  ewald_pw_types.o\
@@ -151,6 +155,7 @@ OBJECTS_GENERIC =\
  input_cp2k_check.o\
  input_cp2k_colvar.o\
  input_cp2k_dft.o\
+ input_cp2k_eip.o\
  input_cp2k_mm.o\
  input_cp2k_motion.o\
  input_cp2k_qmmm.o\

@@ -33,7 +33,7 @@ MODULE environment
   USE global_types,                    ONLY: global_environment_type
   USE input_constants,                 ONLY: &
        do_farming, do_fist, do_kg, do_qs, do_test, energy_run, mol_dyn_run, &
-       none_run, program_names, run_type_names
+       none_run, program_names, run_type_names, do_tbmd, do_eip
   USE input_section_types,             ONLY: section_get_lval,&
                                              section_get_rval,&
                                              section_vals_get,&
@@ -490,6 +490,10 @@ SUBROUTINE cp2k_read(globenv,error)
        CASE (do_fist)
           globenv%run_type_id = mol_dyn_run
        CASE (do_kg)
+          globenv%run_type_id = mol_dyn_run
+       CASE (do_tbmd)
+          globenv%run_type_id = mol_dyn_run
+       CASE (do_eip)
           globenv%run_type_id = mol_dyn_run
        CASE (do_qs)
           globenv%run_type_id = energy_run

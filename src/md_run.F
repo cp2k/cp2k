@@ -265,7 +265,7 @@ CONTAINS
           NULLIFY(work_section)
           work_section => section_vals_get_subs_vals(motion_section,"MD%BAROSTAT%NOSE",error=error)
           CALL initialize_nhc_baro(simpar,globenv, extended_type%nhc_baro(ibead),work_section=work_section,error=error)
-          
+
           IF (ASSOCIATED(dyn_coeff_set)) THEN
              !
              ! Initialize coef thermostats and setup coefficient forces, velocities and effective masses
@@ -291,7 +291,7 @@ CONTAINS
        CALL initialize_npt (simpar,globenv,extended_type%npt_info,cell,work_section=work_section,error=error)
 
        CALL virial_set ( virial,pv_availability=simpar%pv_availability,&
-                         pv_numer=simpar%pv_numerical)       
+                         pv_numer=simpar%pv_numerical)
        !
        ! Always initialize velocities 
        ! and possibly restart them
@@ -314,9 +314,9 @@ CONTAINS
        CALL init_nhc_forces ( nhc_baro=extended_type%nhc_baro(ibead),error=error)
 
     END DO
-    
+
     CALL md_env_create ( md_env, globenv % para_env, error = error )
-    
+
     CALL set_md_env(md_env=md_env,&
                     simpar=simpar,&
                     nhc_part=extended_type%nhc_part,&

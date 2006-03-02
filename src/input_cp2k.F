@@ -29,6 +29,7 @@ MODULE input_cp2k
   USE input_cp2k_dft,                  ONLY: create_bsse_section,&
                                              create_dft_section,&
                                              create_properties_section
+  USE input_cp2k_eip,                  ONLY: create_eip_section
   USE input_cp2k_mm,                   ONLY: create_mm_section
   USE input_cp2k_motion,               ONLY: create_motion_section
   USE input_cp2k_qmmm,                 ONLY: create_qmmm_section
@@ -586,7 +587,7 @@ CONTAINS
     CALL section_create(section,name="force_eval",&
          description="parameters needed to calculate energy and forces and"//&
          " describe the system you want to analyze.",&
-         n_keywords=0, n_subsections=8, repeats=.FALSE., required=.TRUE.,&
+         n_keywords=0, n_subsections=9, repeats=.FALSE., required=.TRUE.,&
          error=error)
 
     NULLIFY(subsection)
@@ -596,6 +597,10 @@ CONTAINS
     CALL section_release(subsection,error=error)
 
     CALL create_tbmd_section(subsection, error)
+    CALL section_add_subsection(section, subsection, error=error)
+    CALL section_release(subsection, error=error)
+
+    CALL create_eip_section(subsection, error)
     CALL section_add_subsection(section, subsection, error=error)
     CALL section_release(subsection, error=error)
 

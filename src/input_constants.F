@@ -29,33 +29,35 @@ MODULE input_constants
   PRIVATE
 
   ! Program Names
-  CHARACTER (LEN=default_string_length), PARAMETER, DIMENSION(12), PUBLIC :: program_names=&
+  CHARACTER (LEN=default_string_length), PARAMETER, DIMENSION(13), PUBLIC :: program_names=&
        (/"QS        ",&
          "FIST      ",&
          "KG        ",&
-         "TBMD      ",&
          "QMMM      ",&
          "FARMING   ",&
          "TEST      ",&
+         "TBMD      ",&
+         "EIP       ",&
+         "PINT      ",&
          "QUICKSTEP ",&
          "KIM-GORDON",&
          "KIM_GORDON",&
-         "TB-MD     ",&
-         "PINT      "/)
+         "TB-MD     "/)
 
-  CHARACTER (LEN=default_string_length), PARAMETER, DIMENSION(12), PUBLIC :: program_name_desc=&
+  CHARACTER (LEN=default_string_length), PARAMETER, DIMENSION(13), PUBLIC :: program_name_desc=&
        (/"Electronic structure methods (DFT, ...)",&
          "Molecular Mechanics                    ",&
          "Kim Gordon models (DFT)                ",&
-         "Tight-Binding Molecular Dynamics       ",&
          "Hybrid quantum classical               ",&
          "Runs N independent jobs in a single run",&
          "Do some benchmarking and testing       ",&
+         "Tight-Binding Molecular Dynamics       ",&
+         "Empirical Interatomic Potential        ",&
+         "Path integral                          ",&
          "Electronic structure methods (DFT, ...)",&    ! Aliases to the previous unique names
          "Kim Gordon models (DFT)                ",&    !
          "Kim Gordon models (DFT)                ",&    !
-         "Tight-Binding Molecular Dynamics       ",&
-         "Path integral                          "/)   !
+         "Tight-Binding Molecular Dynamics       "/)    !
 
   INTEGER, PARAMETER, PUBLIC :: do_qs=1,&
                                 do_fist=2,&
@@ -64,10 +66,12 @@ MODULE input_constants
                                 do_farming=5,&
                                 do_test=6,&
                                 do_tbmd=7,&
-                                do_pint=8
+                                do_eip=8,&
+                                do_pint=9
 
-  INTEGER, PARAMETER, PUBLIC, DIMENSION(12) :: program_name_index=&
-       (/do_qs, do_fist, do_kg, do_tbmd, do_qmmm, do_farming, do_test, do_qs, do_kg, do_kg, do_tbmd,do_pint/)
+  INTEGER, PARAMETER, PUBLIC, DIMENSION(13) :: program_name_index=&
+       (/do_qs, do_fist, do_kg, do_qmmm, do_farming, do_test, do_tbmd, &
+         do_eip, do_pint, do_qs, do_kg, do_kg, do_tbmd/)
 
   REAL(KIND=dp), PARAMETER, PUBLIC :: RADIUS_QMMM_DEFAULT = 0.80_dp,&
                                       ALPHA_IMOMM_DEFAULT = 1.38_dp,&
@@ -144,13 +148,13 @@ MODULE input_constants
          "MD                       ",&
          "GEO_OPT                  ",&
          "MC                       ",&
-         "LDMC                     ",&
-         "HMC                      ",&
          "SPECTRA                  ",&
          "DEBUG                    ",&
          "BSSE                     ",&
          "LR                       ",&
          "EP                       ",&
+         "LDMC                     ",&
+         "HMC                      ",&
          "WFN_OPT                  ",&   ! Aliases to the previous unique names
          "WAVEFUNCTION_OPTIMIZATION",&   !
          "MOLECULAR_DYNAMICS       ",&   !
@@ -168,13 +172,13 @@ MODULE input_constants
           mol_dyn_run,&
           geo_opt_run,&
           mon_car_run,&
-          ldmc_run,&
-          hmc_run,&
           electronic_spectra_run,&
           qs_debug_run,&
           bsse_run,&
           linear_response_run,&
           ep_run,&
+          ldmc_run,&
+          hmc_run,&
           energy_run,&
           energy_run,&
           mol_dyn_run,&
@@ -403,18 +407,22 @@ MODULE input_constants
                                 lr_ls_3pnt=2, lr_ls_gold=3 
 
   ! Hybrid MC
-  CHARACTER (LEN=default_string_length), PARAMETER, DIMENSION(7), PUBLIC :: method_name_types=&
-       (/"FIST_MD  ",&
-         "KG_MD    ",&
-         "QS_MD    ",&
-         "Harris_MD",&
-         "KG_MC    ",&
-         "QS_MC    ",&
-         "Harris_MC"/)
+  CHARACTER (LEN=default_string_length), PARAMETER, DIMENSION(10), PUBLIC :: method_name_types=&
+       (/"FIST_MD   ",&
+         "KG_MD     ",&
+         "KG_DFT_MD ",&
+         "QS_MD     ",&
+         "Harris_MD ",&
+         "KG_DFT_MC ",&
+         "QS_MC     ",&
+         "Harris_MC ",&
+         "EIP_MD    ",&
+         "SE_MD     "/)
   INTEGER, PARAMETER, PUBLIC :: FIST_MD_method=1, KG_MD_method=2, &
-                                QS_MD_method=3, Harris_MD_method=4, &
-                                KG_MC_method=5, QS_MC_method=6, &
-                                Harris_MC_method=7
+                                KG_DFT_MD_method=3, QS_MD_method=4, &
+                                Harris_MD_method=5, KG_DFT_MC_method=6, &
+                                QS_MC_method=7, Harris_MC_method=8, &
+                                EIP_MD_method=9, SE_MD_method=10
 
   ! Tight-Binding parametrization models
   INTEGER, PARAMETER, PUBLIC :: use_gsp=1,&
@@ -424,6 +432,10 @@ MODULE input_constants
                                 use_udp=5
 
   INTEGER, PARAMETER, PUBLIC :: xc_pbe_orig=11,xc_rev_pbe=12
+
+  ! EIP models
+  INTEGER, PARAMETER, PUBLIC :: use_bazant_eip=1, &
+                                use_lenosky_eip=2
 
 ! used to prevent over/underflows in MC acceptance rules
   REAL, PARAMETER, PUBLIC    :: mc_hardcut=500.0_dp

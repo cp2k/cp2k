@@ -1907,17 +1907,18 @@ END SUBROUTINE create_nose_section
        
        CALL keyword_create(keyword, name="MD_method", &
             description="Indicates which method is used for the MD approach", &
-            enum_c_vals=s2a("FIST", "KG", "QS", "HARRIS") , &
-            enum_i_vals=(/FIST_MD_method, KG_MD_method, QS_MD_method, Harris_MD_method/),&
+            enum_c_vals=s2a("FIST", "EIP", "SE", "KG", "KG_DFT", "QS", "HARRIS") , &
+            enum_i_vals=(/FIST_MD_method, EIP_MD_method, SE_MD_method, KG_MD_method, &
+                          KG_DFT_MD_method, QS_MD_method, Harris_MD_method/),&
             usage="MD_method KG", required=.FALSE., &
-            default_i_val=KG_MD_method, error=error)
+            default_i_val=KG_DFT_MD_method, error=error)
        CALL section_add_keyword(section, keyword, error=error)
        CALL keyword_release(keyword, error=error)
 
        CALL keyword_create(keyword, name="MC_method", &
             description="Indicates according to which method the MC criterion is evaluated", &
-            enum_c_vals=s2a("KG", "QS", "HARRIS") , &
-            enum_i_vals=(/KG_MC_method, QS_MC_method, Harris_MC_method/),&
+            enum_c_vals=s2a("KG_DFT", "QS", "HARRIS") , &
+            enum_i_vals=(/KG_DFT_MC_method, QS_MC_method, Harris_MC_method/),&
             usage="MC_method Harris", required=.FALSE., &
             default_i_val=Harris_MC_method, error=error)
        CALL section_add_keyword(section, keyword, error=error)

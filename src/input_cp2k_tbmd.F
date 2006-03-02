@@ -49,6 +49,7 @@ MODULE input_cp2k_tbmd
   PUBLIC :: create_tbmd_section, create_tb_model_section
 !!***
 !****************************************************************************
+
 CONTAINS
 
 !!****f* input_cp2k_tbmd/create_tbmd_section [1.0] *
@@ -459,7 +460,7 @@ CONTAINS
 
        CALL cp_print_key_section_create(print_key, "FORCES", &
             description="Controls the printing of the TBMD forces.", &
-            print_level=low_print_level, each=(/1/), filename="__STD_OUT__", &
+            print_level=medium_print_level, each=(/1/), filename="__STD_OUT__", &
             error=error)
        CALL section_add_subsection(section, print_key, error=error)
        CALL section_release(print_key, error=error)

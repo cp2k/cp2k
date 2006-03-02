@@ -247,7 +247,7 @@ CONTAINS
 !!     -
 !!
 !!   INPUTS
-!!     - tbmd_env: The tbmd environment to retain
+!!     - tbmd_env: The tbmd environment of matter
 !!     - subsystem: the subsystem
 !!     - cell: Pointer to the actual simulation cell
 !!     - cell_ref: Pointer to the reference cell, used e.g. in NPT simulations
@@ -319,15 +319,19 @@ CONTAINS
     molecule_kind_set => subsystem%molecule_kinds_new%els
 
 !   *** Print the atomic kind set ***
-    CALL write_atomic_kind_set(atomic_kind_set, tbmd_env%force_env_input, error=error)
+    CALL write_atomic_kind_set(atomic_kind_set, tbmd_env%force_env_input, &
+                               error=error)
 
 !   *** Print the molecule kind set ***
-    CALL write_molecule_kind_set(molecule_kind_set, tbmd_env%force_env_input, error=error)
+    CALL write_molecule_kind_set(molecule_kind_set, tbmd_env%force_env_input, &
+                                 error=error)
 
 !   *** Print the atomic coordinates 
     CALL write_qs_particle_coordinates(particle_set, cell=cell, &
-                                       force_env_section=tbmd_env%force_env_input, error=error)
-    CALL write_particle_distances(particle_set, cell=cell, force_env_section=tbmd_env%force_env_input, &
+                                       force_env_section=tbmd_env%force_env_input, &
+                                       error=error)
+    CALL write_particle_distances(particle_set, cell=cell, &
+                                  force_env_section=tbmd_env%force_env_input, &
                                   error=error)
 
 !   *** Distribute molecules and atoms using the new data structures ***
@@ -406,7 +410,7 @@ CONTAINS
 !!     -
 !!
 !!   INPUTS
-!!     - tbmd_env: The tbmd environment to retain
+!!     - tbmd_env: The tbmd environment of matter
 !!     - error: variable to control error logging, stopping,... 
 !!       see module cp_error_handling
 !!
@@ -484,7 +488,7 @@ CONTAINS
 !!     -
 !!
 !!   INPUTS
-!!     - tbmd_env: The tbmd environment to retain
+!!     - tbmd_env: The tbmd environment of matter
 !!     - error: variable to control error logging, stopping,... 
 !!       see module cp_error_handling
 !!

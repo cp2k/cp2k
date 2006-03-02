@@ -108,7 +108,7 @@ CONTAINS
 !!     -
 !!
 !!   INPUTS
-!!     - tbmd_env: The tbmd environment to retain
+!!     - tbmd_env: The tbmd environment of matter
 !!     - globenv: The global environment
 !!     - orthogonal_basis: Logical which indicates in the underlying
 !!                         basis-set is assumed to be orthogonal or not.
@@ -368,7 +368,7 @@ CONTAINS
 !!     -
 !!
 !!   INPUTS
-!!     - tbmd_env: The tbmd environment to retain
+!!     - tbmd_env: The tbmd environment of matter
 !!     - output_unit: The output unit
 !!     - error: variable to control error logging, stopping,... 
 !!       see module cp_error_handling
@@ -414,7 +414,7 @@ CONTAINS
 !!     -
 !!
 !!   INPUTS
-!!     - tbmd_env: The tbmd environment to retain
+!!     - tbmd_env: The tbmd environment of matter
 !!     - globenv: The global environment
 !!     - output_unit: The output unit
 !!     - error: variable to control error logging, stopping,... 
@@ -518,7 +518,7 @@ CONTAINS
 !!     -
 !!
 !!   INPUTS
-!!     - tbmd_env: The tbmd environment to retain
+!!     - tbmd_env: The tbmd environment of matter
 !!     - globenv: The global environment
 !!     - output_unit: The output unit
 !!     - error: variable to control error logging, stopping,... 
@@ -639,7 +639,7 @@ CONTAINS
 !!     -
 !!
 !!   INPUTS
-!!     - tbmd_env: The tbmd environment to retain
+!!     - tbmd_env: The tbmd environment of matter
 !!     - output_unit: The output unit
 !!     - error: variable to control error logging, stopping,... 
 !!       see module cp_error_handling
@@ -694,7 +694,7 @@ CONTAINS
 !!     -
 !!
 !!   INPUTS
-!!     - tbmd_env: The tbmd environment to retain
+!!     - tbmd_env: The tbmd environment of matter
 !!     - output_unit: The output unit
 !!     - error: variable to control error logging, stopping,... 
 !!       see module cp_error_handling
@@ -747,7 +747,7 @@ CONTAINS
 !!     -
 !!
 !!   INPUTS
-!!     - tbmd_env: The tbmd environment to retain
+!!     - tbmd_env: The tbmd environment of matter
 !!     - output_unit: The output unit
 !!     - error: variable to control error logging, stopping,... 
 !!       see module cp_error_handling
