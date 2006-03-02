@@ -1,8 +1,7 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations
-!   Copyright (C) 2001 - 2005  CP2K developers group
+!   Copyright (C) 2001 - 2006  CP2K developers group
 !-----------------------------------------------------------------------------!
-
 
 !!****** cp2k/qs_scf [1.0] *
 !!
@@ -53,7 +52,6 @@ MODULE qs_scf
                                              get_atomic_kind_set
   USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                              gto_basis_set_type
-  USE checkpoint_handler,              ONLY: write_checkpoint_information
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm,&
                                              cp_fm_symm,&
@@ -207,8 +205,7 @@ MODULE qs_scf
 
   PUBLIC :: eigensolver, simple_eigensolver, scf,&
             scf_env_cleanup, scf_env_density_mixing,&
-            scf_env_create, scf_env_do_scf, &
-            scf_env_did_change, init_scf_run
+            scf_env_create, scf_env_did_change, init_scf_run
 
 ! *****************************************************************************
 
@@ -349,14 +346,11 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     LOGICAL                                  :: failure
-    TYPE(qs_environment_type), POINTER       :: my_qs_env
     TYPE(qs_scf_env_type), POINTER           :: scf_env
 
-    NULLIFY(scf_env,my_qs_env)
-    my_qs_env => qs_env
-    failure=.FALSE.
-    ! CPPrecondition(associated(qs_env),cp_failure_level,routineP,error,failure)
     NULLIFY(scf_env)
+    failure=.FALSE.
+    CPPrecondition(associated(qs_env),cp_failure_level,routineP,error,failure)
     IF (.NOT.failure) THEN
        CALL get_qs_env(qs_env,scf_env=scf_env,error=error)
        IF (.NOT.ASSOCIATED(scf_env)) THEN
@@ -365,13 +359,8 @@ CONTAINS
           CALL scf_env_release(scf_env)
           CALL get_qs_env(qs_env,scf_env=scf_env,error=error)
        END IF
-       IF (PRESENT(calc_forces)) THEN
-         CALL scf_env_do_scf(scf_env=scf_env, qs_env=my_qs_env, globenv=globenv, &
+       CALL scf_env_do_scf(scf_env=scf_env, qs_env=qs_env, globenv=globenv, &
                              calc_forces=calc_forces, error=error)
-       ELSE
-         CALL scf_env_do_scf(scf_env=scf_env, qs_env=my_qs_env, &
-                             globenv=globenv, error=error)
-       END IF
     END IF
   END SUBROUTINE scf
 !***************************************************************************
@@ -485,8 +474,6 @@ CONTAINS
 
     IF (scf_control%max_scf < 1) RETURN
 
-    CALL write_checkpoint_information("entering "//routineN,globenv,error)
-
     CALL timeset(routineN,"I"," ",handle)
     output_unit=cp_print_key_unit_nr(logger,scf_section,"PRINT%PROGRAM_RUN_INFO",&
          extension=".scfLog",error=error)
@@ -519,13 +506,8 @@ CONTAINS
       CALL get_qs_env(qs_env=qs_env, harris_env=harris_env, error=error)
     END IF
 
-    IF (PRESENT(calc_forces)) THEN
-      CALL init_scf_run(scf_env=scf_env, qs_env=qs_env, globenv=globenv, &
+    CALL init_scf_run(scf_env=scf_env, qs_env=qs_env, globenv=globenv, &
                         calc_forces=calc_forces, scf_section=scf_section, error=error)
-    ELSE
-      CALL init_scf_run(scf_env=scf_env, qs_env=qs_env, &
-                        globenv=globenv, scf_section=scf_section, error=error)
-    END IF
 
     CALL get_qs_env(qs_env=qs_env,&
          matrix_h=matrix_h,&
@@ -542,7 +524,6 @@ CONTAINS
              has_unit_metric=.TRUE.
          ENDIF
      END IF
-
 
     scf_work1 => scf_env%scf_work1
     scf_work2 => scf_env%scf_work2
@@ -1015,8 +996,6 @@ CONTAINS
     CALL scf_env_cleanup(scf_env,qs_env=qs_env,error=error)
 
     CALL timestop(0.0_dp,handle)
-
-    CALL write_checkpoint_information("leaving "//routineN,globenv,error)
 
   END SUBROUTINE scf_env_do_scf
 
