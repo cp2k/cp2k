@@ -427,8 +427,8 @@ CONTAINS
       END IF
       IF(dft_control%qs_control%gapw) THEN
         CALL stop_program(routineP,"KG_GPW + GAPW not valid option")
-      ELSEIF(dft_control%qs_control%se_control%ewald) THEN
-        CALL stop_program(routineP,"KG_GPW + EWALD not valid option")
+      ELSEIF(dft_control%qs_control%semi_empirical) THEN
+        CALL stop_program(routineP,"KG_GPW + Semi-Empirical not valid option")
       ELSE
         NULLIFY(pw_mol%l_info_rho0)
       END IF
