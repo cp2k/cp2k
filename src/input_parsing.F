@@ -455,6 +455,9 @@ SUBROUTINE val_create_parsing(val,type_of_var, n_var,enum,&
     TYPE(cp_sll_logical_type), POINTER       :: l_first, l_last, l_new
     TYPE(cp_sll_real_type), POINTER          :: r_first, r_last, r_new
     TYPE(cp_unit_type), POINTER              :: my_unit
+    INTEGER                                  :: handle
+
+    CALL timeset(routineN,handle)
 
   failure=.FALSE.
   CALL cp_error_init(suberror,stop_level=cp_fatal_level,template_error=error)
@@ -821,6 +824,8 @@ SUBROUTINE val_create_parsing(val,type_of_var, n_var,enum,&
 !FM  PRINT *,"parsed val:"
 !FM  CALL val_write(val,6,error=error)
   CALL cp_error_dealloc_ref(suberror)
+  CALL timestop(handle)
+
 END SUBROUTINE val_create_parsing
 !***************************************************************************
 

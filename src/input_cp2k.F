@@ -97,7 +97,9 @@ CONTAINS
     LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
     TYPE(section_type), POINTER              :: section
+    INTEGER                                  :: handle
 
+    CALL timeset(routineN,handle)
     failure=.FALSE.
 
     CPPrecondition(.NOT.ASSOCIATED(root_section),cp_failure_level,routineP,error,failure)
@@ -139,6 +141,8 @@ CONTAINS
        CALL keyword_release(keyword,error=error)
 
     END IF
+    CALL timestop(handle)
+
   END SUBROUTINE create_cp2k_root_section
 !***************************************************************************
 

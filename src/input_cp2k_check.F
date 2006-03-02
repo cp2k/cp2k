@@ -94,6 +94,9 @@ CONTAINS
 
     LOGICAL                                  :: explicit, failure
     TYPE(section_vals_type), POINTER         :: section
+    INTEGER                                  :: handle
+
+    CALL timeset(routineN,handle)
 
     failure=.FALSE.
 
@@ -126,6 +129,8 @@ CONTAINS
        END IF
 
     END IF
+    CALL timestop(handle)
+
   END SUBROUTINE check_cp2k_input
 !***************************************************************************
 
