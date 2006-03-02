@@ -26,4 +26,6 @@ H2O-32_SPME_res_3.inp
 H2O-32_SPME_res_4.inp
 H2O-32_NPT_res_2.inp
 H2O-32_NPT_res_3.inp
-H2O-32_NPT_res_4.inp
+H2O-32_NPT_res_4.inp$
+# speedup test
+h2po4.inp

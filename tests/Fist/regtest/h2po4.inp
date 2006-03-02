@@ -9,7 +9,7 @@
       &EWALD
         EWALD_TYPE spme
         ALPHA .44
-        GMAX 64
+        GMAX 32
         O_SPLINE 6
       &END EWALD
     &END POISSON_MM
@@ -36,7 +36,7 @@
 &MOTION
   &MD
     ENSEMBLE NVE
-    STEPS 10
+    STEPS 2
     TIMESTEP 1.0
     TEMPERATURE 300
     &NOSE
