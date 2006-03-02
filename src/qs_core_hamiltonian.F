@@ -87,7 +87,6 @@ MODULE qs_core_hamiltonian
                                              get_atomic_kind_set
   USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                              gto_basis_set_type
-  USE checkpoint_handler,              ONLY: write_checkpoint_information
   USE cp_output_handling,              ONLY: cp_p_file,&
                                              cp_print_key_finished_output,&
                                              cp_print_key_should_output,&
@@ -326,9 +325,14 @@ CONTAINS
 #endif
     TYPE(cp_logger_type), POINTER            :: logger
 
+    IF (calculate_forces) THEN
+      CALL timeset(routineN//" (forces)","I"," ",handle)
+    ELSE
+      CALL timeset(routineN,"I"," ",handle)
+    ENDIF
+
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
-    CALL write_checkpoint_information("entering "//routineN,globenv,error)
 
     NULLIFY (atomic_kind_set)
     NULLIFY (distribution_2d)
@@ -401,7 +405,6 @@ CONTAINS
 
     IF (calculate_forces) THEN
 
-      CALL timeset(routineN//" (forces)","I"," ",handle)
 
       nder = 1
 
@@ -439,8 +442,6 @@ CONTAINS
       END IF
 
     ELSE
-
-      CALL timeset(routineN,"I"," ",handle)
 
       IF (BTEST(cp_print_key_should_output(logger%iter_info,qs_env%input,&
             "DFT%PRINT%AO_MATRICES/DERIVATIVES",error=error),cp_p_file).OR.&
@@ -2175,7 +2176,6 @@ CONTAINS
        END IF 
     ENDIF
 
-    CALL timestop(0.0_dp,handle)
 
 !   *** Print the distribution of the overlap matrix blocks ***
 
@@ -2243,7 +2243,7 @@ CONTAINS
             "DFT%PRINT%AO_MATRICES/CORE_HAMILTONIAN", error=error)       
     END IF
 
-    CALL write_checkpoint_information("leaving "//routineN,globenv,error)
+    CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE build_core_hamiltonian_matrix
 

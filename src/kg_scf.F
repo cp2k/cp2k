@@ -26,7 +26,6 @@ MODULE kg_scf
                                              get_atomic_kind_set
   USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                              gto_basis_set_type
-  USE checkpoint_handler,              ONLY: write_checkpoint_information
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_output_handling,              ONLY: cp_p_file,&
                                              cp_print_key_finished_output,&
@@ -353,8 +352,6 @@ CONTAINS
 
     ! Quick return, if no SCF iteration is requested
     IF (scf_control%max_scf < 1) RETURN
-
-    CALL write_checkpoint_information("Entering "//routineN,globenv,error)
 
     CALL timeset(routineN,"I"," ",handle)
     energy_only = .FALSE.
@@ -751,8 +748,6 @@ CONTAINS
          "PRINT%PROGRAM_RUN_INFO",error=error)
     
     CALL timestop(0.0_dp,handle)
-
-    CALL write_checkpoint_information("Leaving "//routineN,globenv,error)
 
   END SUBROUTINE scf_env_do_scf
 !**************************************************************************

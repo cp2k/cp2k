@@ -20,7 +20,6 @@
 !******************************************************************************
 
 MODULE qs_energy
-  USE checkpoint_handler,              ONLY: write_checkpoint_information
   USE cp_control_types,                ONLY: dft_control_type
   USE global_types,                    ONLY: global_environment_type
   USE kinds,                           ONLY: dp
@@ -86,8 +85,6 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL write_checkpoint_information("entering "//routineN,globenv,error)
-
     CALL timeset(routineN,"I","",handle)
 
 !JCS
@@ -143,8 +140,6 @@ CONTAINS
     END IF
 
     CALL timestop(0.0_dp,handle)
-
-    CALL write_checkpoint_information("leaving "//routineN,globenv,error)
 
   END SUBROUTINE qs_energies
 

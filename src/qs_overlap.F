@@ -28,7 +28,6 @@ MODULE qs_overlap
                                              get_atomic_kind_set
   USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                              gto_basis_set_type
-  USE checkpoint_handler,              ONLY: write_checkpoint_information
   USE cp_fm_types,                     ONLY: cp_fm_get_info,&
                                              cp_fm_get_submatrix,&
                                              cp_fm_type
@@ -166,12 +165,10 @@ CONTAINS
     TYPE(cp_logger_type), POINTER            :: logger
     INTEGER :: iw
 
+    CALL timeset(routineN,"I","",handle)
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
 
-    CALL write_checkpoint_information("entering "//routineN,globenv,error)
-
-    CALL timeset(routineN,"I","",handle)
 
     NULLIFY ( atomic_kind_set,particle_set,matrix_s,sab_orb,distribution_2d)
     CALL get_qs_env(qs_env=qs_env,&
@@ -469,7 +466,6 @@ CONTAINS
 
     CALL set_qs_env(qs_env=qs_env,&
                     matrix_s=matrix_s)
-    CALL timestop(0.0_dp,handle)
 
 !   *** Print the overlap matrix distribution ***
 
@@ -492,7 +488,7 @@ CONTAINS
             "DFT%PRINT%AO_MATRICES/OVERLAP", error=error)
     END IF
 
-    CALL write_checkpoint_information("leaving "//routineN,globenv,error)
+    CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE build_overlap_matrix
 

@@ -28,7 +28,6 @@ MODULE kg_ppl
                                              get_atomic_kind_set
   USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                              gto_basis_set_type
-  USE checkpoint_handler,              ONLY: write_checkpoint_information
   USE distribution_1d_types,           ONLY: distribution_1d_type
   USE dynamical_coeff_types,           ONLY: dyn_coeff_distributed,&
                                              dyn_coeff_set_type,&
@@ -157,8 +156,6 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:), POINTER :: my_alpha
     REAL(KIND=dp), DIMENSION(:,:), POINTER :: my_c 
 !   ---------------------------------------------------------------------------
-
-    CALL write_checkpoint_information("entering "//routineN,globenv,error)
 
     CALL timeset(routineN,"I","",handle)
     
@@ -592,8 +589,6 @@ CONTAINS
 
     energy%pseudo = e_ppl
 
-    CALL write_checkpoint_information("leaving "//routineN,globenv,error)
-
     CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE calculate_rho0_ppl
@@ -674,8 +669,6 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:,:,:,:), ALLOCATABLE :: ai_work
 
 !   ---------------------------------------------------------------------------
-
-    CALL write_checkpoint_information("entering "//routineN,globenv,error)
 
     CALL timeset(routineN,"I","",handle)
     
@@ -1111,8 +1104,6 @@ CONTAINS
     CALL mp_sum(e_ppl,group)
 
     energy%ppseudo = e_ppl
-
-    CALL write_checkpoint_information("leaving "//routineN,globenv,error)
 
     CALL timestop(0.0_dp,handle)
 

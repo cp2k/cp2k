@@ -21,7 +21,6 @@
 
 
 MODULE qmmm_topology_util
-  USE checkpoint_handler,              ONLY: write_checkpoint_information
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE global_types,                    ONLY: global_environment_type
@@ -80,11 +79,10 @@ CONTAINS
     LOGICAL                                  :: failure
     TYPE(cp_logger_type), POINTER            :: logger
 
+    CALL timeset(routineN,'I','',handle)
     failure = .FALSE.
     NULLIFY(logger)
     logger => cp_error_get_logger(error)    
-    CALL write_checkpoint_information("entering "//routineN,globenv,error)
-    CALL timeset(routineN,'I','',handle)
     iw = cp_print_key_unit_nr(logger,subsys_section,"PRINT%TOPOLOGY_INFO/UTIL_INFO",&
          extension=".subsysLog",error=error)
     IF (iw>0) WRITE(iw,*) "  Entering qmmm_coordinate_control"
@@ -117,7 +115,6 @@ CONTAINS
     CALL cp_print_key_finished_output(iw,logger,subsys_section,&
          "PRINT%TOPOLOGY_INFO/UTIL_INFO",error=error)    
     CALL timestop(0.0_dp,handle)
-    CALL write_checkpoint_information("leaving "//routineN,globenv,error)
   END SUBROUTINE qmmm_coordinate_control
   
 
@@ -165,7 +162,6 @@ CONTAINS
     failure = .FALSE.
     detected_link = .FALSE.
     iw = globenv%scr
-    CALL write_checkpoint_information("entering "//routineN,globenv,error)
     CALL timeset(routineN,'I','',handle)
     IF (.NOT.failure) THEN
        IF((globenv%ionode).AND.(globenv%print_level>0))THEN
@@ -223,11 +219,11 @@ CONTAINS
           WRITE(iw,*) "  Exiting qmmm_connectivity_control"
        END IF
     END IF
-    CALL timestop(0.0_dp,handle)
     IF((globenv%ionode).AND.(globenv%print_level>0))THEN
        WRITE(iw,*) "  Leaving qmmm_connectivity_control"
     END IF
-    CALL write_checkpoint_information("leaving "//routineN,globenv,error)
+    CALL timestop(0.0_dp,handle)
+
   END SUBROUTINE qmmm_connectivity_control
 
 END MODULE qmmm_topology_util

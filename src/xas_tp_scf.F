@@ -25,7 +25,6 @@ MODULE xas_tp_scf
   USE atomic_kind_types,               ONLY: atomic_kind_type
   USE cell_types,                      ONLY: cell_type,&
                                              pbc
-  USE checkpoint_handler,              ONLY: write_checkpoint_information
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm
   USE cp_fm_types,                     ONLY: cp_fm_get_info,&
@@ -206,6 +205,7 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: dft_section, input, &
                                                 scf_section
 
+    CALL timeset(routineN,"I"," ",handle)
     NULLIFY(dft_control,matrix_h,matrix_s,matrix_ks,matrix_p)
     NULLIFY(rho,energy,scf_control,logger, ks_env,mos,atomic_kind_set)
     NULLIFY(particle_set,vecbuffer,vecbuffer2, occupation_numbers)
@@ -232,9 +232,6 @@ CONTAINS
          scf_control=scf_control,&
          input=input)
 
-    CALL write_checkpoint_information("entering "//routineN,globenv,error=error)
-
-    CALL timeset(routineN,"I"," ",handle)
 
     ionode = logger%para_env%source==logger%para_env%mepos
     energy_only = .FALSE.
@@ -736,9 +733,6 @@ CONTAINS
     CALL cp_print_key_finished_output(output_unit,logger,scf_section,&
          "PRINT%PROGRAM_RUN_INFO", error=error)    
     CALL timestop(0.0_dp,handle)
-
-    CALL write_checkpoint_information("leaving "//routineN,globenv,error)
-
 
   END SUBROUTINE xas_do_tp_scf
 

@@ -25,7 +25,6 @@ MODULE fist_force
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind
   USE cell_types,                      ONLY: cell_type
-  USE checkpoint_handler,              ONLY: write_checkpoint_information
   USE cp_output_handling,              ONLY: cp_p_file,&
                                              cp_print_key_finished_output,&
                                              cp_print_key_should_output,&
@@ -156,11 +155,10 @@ SUBROUTINE fist_force_control ( fist_env, virial, globenv, box_change, debug ,er
                                                 force_env_section, &
                                                 print_section
 
+  CALL timeset(routineN,'I','',handle)
   failure = .FALSE.
   NULLIFY(logger)
   logger => cp_error_get_logger(error)
-  CALL write_checkpoint_information("Entering "//routineN,globenv,error)
-  CALL timeset(routineN,'I','',handle)
 
   NULLIFY(fist_section,thermo,particle_set,local_molecules,local_particles,atomic_kind_set,&
           molecule_kind_set,molecule_set,fist_nonbond_env,cell,ewald_pw,ewald_env,fist_section,print_section)
@@ -503,10 +501,9 @@ SUBROUTINE fist_force_control ( fist_env, virial, globenv, box_change, debug ,er
   DEALLOCATE ( f_nonbond, STAT = stat )
   CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
   first_time = .FALSE.
-  CALL timestop(0.0_dp,handle)
-  CALL write_checkpoint_information("Leaving "//routineN,globenv,error)
   CALL cp_print_key_finished_output(iw,logger,fist_section,&
        "PRINT%DERIVATIVES",error=error)
+  CALL timestop(0.0_dp,handle)
 
 END SUBROUTINE fist_force_control
 

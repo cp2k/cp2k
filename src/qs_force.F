@@ -22,7 +22,6 @@ MODULE qs_force
 
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind_set
-  USE checkpoint_handler,              ONLY: write_checkpoint_information
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_fm_types,                     ONLY: cp_fm_p_type
   USE cp_output_handling,              ONLY: cp_p_file,&
@@ -141,12 +140,10 @@ CONTAINS
     TYPE(scf_control_type), POINTER          :: scf_control
     TYPE(virial_type), POINTER               :: virial
 
+    CALL timeset(routineN,"I","",handle)
     failure = .FALSE.
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
-    CALL write_checkpoint_information("entering "//routineN,globenv,error)
-
-    CALL timeset(routineN,"I","",handle)
 
     NULLIFY (atomic_kind_set)
     NULLIFY (mos)
@@ -372,8 +369,6 @@ CONTAINS
     IF (istat /= 0) CALL stop_memory(routine,"kind_of")
 
     CALL timestop(0.0_dp,handle)
-
-    CALL write_checkpoint_information("leaving "//routineN,globenv,error)
 
   END SUBROUTINE qs_forces
 

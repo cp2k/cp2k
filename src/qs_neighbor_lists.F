@@ -36,7 +36,6 @@ MODULE qs_neighbor_lists
                                              pbc,&
                                              real_to_scaled,&
                                              scaled_to_real
-  USE checkpoint_handler,              ONLY: write_checkpoint_information
   USE cp_output_handling,              ONLY: cp_p_file,&
                                              cp_print_key_finished_output,&
                                              cp_print_key_should_output,&
@@ -189,11 +188,10 @@ CONTAINS
 
     ! -------------------------------------------------------------------------
 
+    CALL timeset(routineN,"I"," ",handle)
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
 
-    CALL write_checkpoint_information("entering "//routineN,globenv,error)
-    CALL timeset(routineN,"I"," ",handle)
 
     NULLIFY (atomic_kind)
     NULLIFY (atomic_kind_set)
@@ -1018,7 +1016,6 @@ CONTAINS
                                       error=error)
 
     CALL timestop(0.0_dp,handle)
-    CALL write_checkpoint_information("leaving "//routineN,globenv,error)
 
   END SUBROUTINE build_qs_neighbor_lists
 

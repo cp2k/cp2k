@@ -31,7 +31,6 @@ MODULE kg_environment
                                              get_cell,&
                                              read_cell,&
                                              write_cell
-  USE checkpoint_handler,              ONLY: write_checkpoint_information
   USE cp_control_types,                ONLY: dft_control_release,&
                                              dft_control_type
   USE cp_control_utils,                ONLY: read_dft_control,&
@@ -185,8 +184,6 @@ CONTAINS
                                                 force_env_section, &
                                                 colvar_section, &                                                
                                                 work_section
-
-    CALL write_checkpoint_information("entering "//routineN,globenv,error)
 
     CALL timeset(routineN,"I",'',handle)
 
@@ -382,8 +379,6 @@ CONTAINS
     IF (ionode) CALL m_flush(output_unit)
 
     CALL timestop(0.0_dp,handle)
-
-    CALL write_checkpoint_information("leaving "//routineN,globenv,error)
 
   END SUBROUTINE kg_init
 

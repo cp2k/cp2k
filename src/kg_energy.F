@@ -20,7 +20,6 @@
 MODULE kg_energy 
   USE atomic_kind_types,               ONLY: atomic_kind_type
   USE cell_types,                      ONLY: cell_type
-  USE checkpoint_handler,              ONLY: write_checkpoint_information
   USE coefficient_types,               ONLY: coeff_copy,&
                                              coeff_init,&
                                              coeff_sumup,&
@@ -180,7 +179,6 @@ SUBROUTINE kg_only_energies ( kg_env, globenv, error )
 
 !------------------------------------------------------------------------------
 
-  CALL write_checkpoint_information("Entering "//routine,globenv,error)
   CALL timeset ( 'kg_only_energies','I',' ',handle )
   failure=.FALSE.
   ionode=globenv%ionode
@@ -301,7 +299,6 @@ SUBROUTINE kg_only_energies ( kg_env, globenv, error )
     END IF
 
   CALL timestop(0.0_dp,handle)
-  CALL write_checkpoint_information("Leaving "//routine,globenv,error)
 
 END SUBROUTINE kg_only_energies
 
@@ -349,7 +346,6 @@ SUBROUTINE kg_std_energies ( kg_env, globenv, error )
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
  
-  CALL write_checkpoint_information("Entering "//routine,globenv,error)
   CALL timeset ( 'kg_std_energies','I',' ',handle )
 
   NULLIFY(atomic_kind_set,dyn_coeff_set,diis_info,scf_control)
@@ -452,8 +448,6 @@ scf_loop: DO
 
   CALL timestop(0.0_dp,handle)
 
-  CALL write_checkpoint_information("Leaving "//routine,globenv,error)
-
 END SUBROUTINE kg_std_energies
 
 !******************************************************************************
@@ -555,7 +549,6 @@ SUBROUTINE init_energy_calculation ( kg_env, vxc_r, globenv, error)
 
 !------------------------------------------------------------------------------
 
-  CALL write_checkpoint_information("Entering "//routine,globenv,error)
   CALL timeset ( 'init_energy_calculation','I',' ',handle )
   failure=.FALSE.
   ionode=globenv%ionode
@@ -635,7 +628,6 @@ SUBROUTINE init_energy_calculation ( kg_env, vxc_r, globenv, error)
   CALL coeff_sumup(rho_g,rho_core)
 
   CALL timestop(0.0_dp,handle)
-  CALL write_checkpoint_information("Leaving "//routine,globenv,error)
 
 END SUBROUTINE init_energy_calculation 
 !------------------------------------------------------------------------------
@@ -678,7 +670,6 @@ SUBROUTINE calc_c_gradients ( kg_env, vxc_r, maxgrad, globenv,error )
 !------------------------------------------------------------------------------
 
     failure = .FALSE.
-  CALL write_checkpoint_information("Entering "//routine,globenv,error)
   CALL timeset ( 'calc_c_gradients','I',' ',handle )
 
   ionode=globenv%ionode
@@ -829,7 +820,6 @@ SUBROUTINE calc_c_gradients ( kg_env, vxc_r, maxgrad, globenv,error )
     END IF
 
  CALL timestop ( zero, handle )
- CALL write_checkpoint_information("Leaving "//routine,globenv,error)
 
 END SUBROUTINE calc_c_gradients
 

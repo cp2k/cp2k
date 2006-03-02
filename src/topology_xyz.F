@@ -18,7 +18,6 @@
 
 MODULE topology_xyz
 
-  USE checkpoint_handler,              ONLY: write_checkpoint_information
   USE convert_units,                   ONLY: convert_to_cp2k_units
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
@@ -93,7 +92,6 @@ CONTAINS
 
     NULLIFY(parser, logger)
     logger => cp_error_get_logger(error)
-    CALL write_checkpoint_information("Entering "//routineN,globenv,error)
     iw = cp_print_key_unit_nr(logger,subsys_section,"PRINT%TOPOLOGY_INFO/XYZ_INFO",&
          extension=".subsysLog",error=error)    
     CALL timeset(routineN,'I','',handle)
@@ -169,7 +167,6 @@ CONTAINS
     IF(.NOT.topology%para_res) atom_info%label_resid(:) = 1
     topology%natoms = natom
     CALL timestop(0.0_dp,handle)
-    CALL write_checkpoint_information("exiting "//routineN,globenv,error)
     CALL cp_print_key_finished_output(iw,logger,subsys_section,&
          "PRINT%TOPOLOGY_INFO/XYZ_INFO",error=error)
 

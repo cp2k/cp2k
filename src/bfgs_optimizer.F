@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2001 - 2005  CP2K developers group                          !
+!   Copyright (C) 2001 - 2006  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 
@@ -26,7 +26,6 @@ MODULE bfgs_optimizer
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind
   USE cell_types,                      ONLY: cell_type
-  USE checkpoint_handler,              ONLY: write_checkpoint_information
   USE cp_files,                        ONLY: close_file,&
                                              open_file
   USE cp_output_handling,              ONLY: cp_add_iter_level,&
@@ -112,7 +111,6 @@ CONTAINS
     logger => cp_error_get_logger(error)
 
     CALL cp_add_iter_level(logger%iter_info,"GEO_OPT",ihandle,error)
-    CALL write_checkpoint_information("Entering "//routineN,globenv,error)
     CALL timeset(routineN,"I","",handle)
 
     ionode      = globenv%ionode
@@ -438,8 +436,6 @@ CONTAINS
 
     CALL cp_rm_iter_level(logger%iter_info,ihandle,error)
     CALL timestop(0.0_dp,handle)
-
-    CALL write_checkpoint_information("Leaving "//routineN,globenv,error)
 
   END SUBROUTINE geoopt_bfgs
 

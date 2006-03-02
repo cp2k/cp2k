@@ -24,7 +24,6 @@ MODULE kg_force
                                              get_atomic_kind,&
                                              get_atomic_kind_set
   USE cell_types,                      ONLY: cell_type
-  USE checkpoint_handler,              ONLY: write_checkpoint_information
   USE coefficient_types,               ONLY: coeff_init,&
                                              coeff_sumup,&
                                              coeff_transform_space,&
@@ -237,7 +236,6 @@ SUBROUTINE kgpol_calculate_forces ( kg_env, globenv, error )
 !  CHARACTER(LEN=8) :: force_type
 !------------------------------------------------------------------------------
 
-  CALL write_checkpoint_information("entering "//routine,globenv,error)
   CALL timeset ( 'kgpol_calculate_forces','I',' ',handle )
   failure=.FALSE.
   ionode=globenv%ionode
@@ -493,7 +491,6 @@ SUBROUTINE kgpol_calculate_forces ( kg_env, globenv, error )
   END IF
 
  CALL timestop ( zero, handle )
- CALL write_checkpoint_information("leaving "//routine,globenv,error)
 
 END SUBROUTINE kgpol_calculate_forces
 
@@ -555,7 +552,6 @@ SUBROUTINE kg_calculate_forces ( kg_env, globenv,error )
 !  CHARACTER(LEN=8) :: force_type
 !------------------------------------------------------------------------------
 
-  CALL write_checkpoint_information("entering "//routine,globenv,error)
   CALL timeset ( 'kg_calculate_forces','I',' ',handle )
   failure=.FALSE.
   ionode=globenv%ionode
@@ -756,7 +752,6 @@ SUBROUTINE kg_calculate_forces ( kg_env, globenv,error )
   END IF
 
  CALL timestop ( zero, handle )
- CALL write_checkpoint_information("leaving "//routine,globenv,error)
 
 END SUBROUTINE kg_calculate_forces
 
@@ -834,7 +829,6 @@ END SUBROUTINE kg_calculate_forces
     failure = .FALSE.
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
-    CALL write_checkpoint_information("entering "//routineP,globenv,error)
 
     CALL timeset(routineN,"I","",handle)
 
@@ -986,8 +980,6 @@ END SUBROUTINE kg_calculate_forces
     CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
 
     CALL timestop(0.0_dp,handle)
-
-    CALL write_checkpoint_information("leaving "//routineP,globenv,error)
 
   END SUBROUTINE kg_qs_calculate_forces
 

@@ -29,7 +29,6 @@ MODULE harris_metropolis_mc
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind
   USE cell_types,                      ONLY: cell_type
-  USE checkpoint_handler,              ONLY: write_checkpoint_information
   USE cp2k_units,                      ONLY: get_cp2k_units,&
                                              unit_convert_type
   USE cp_control_types,                ONLY: dft_control_type
@@ -299,8 +298,6 @@ CONTAINS
     TYPE(unit_convert_type), POINTER         :: unit
 
 !   ------------------------------------------------------------------------
-
-    CALL write_checkpoint_information("Entering "//routineN, globenv, error)
 
     CALL timeset(routineN, "I", "", handle)
     NULLIFY(force_env_section, motion_section, restart_section, subsys_section, md_approach_nr,&
@@ -1000,8 +997,6 @@ CONTAINS
     CALL wfi_release(wf_history=tmp_wf_history, error=error)
 
     CALL timestop(0.0_dp, handle)
-
-    CALL write_checkpoint_information("Leaving "//routineN,globenv,error)
 
   END SUBROUTINE harris_mc_md
 !***************************************************************************

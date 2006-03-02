@@ -33,7 +33,6 @@ MODULE fist_neighbor_lists
                                              plane_distance,&
                                              real_to_scaled,&
                                              scaled_to_real
-  USE checkpoint_handler,              ONLY: write_checkpoint_information
   USE cp_output_handling,              ONLY: cp_p_file,&
                                              cp_print_key_finished_output,&
                                              cp_print_key_should_output,&
@@ -128,11 +127,10 @@ CONTAINS
 
     ! -------------------------------------------------------------------------
 
+    CALL timeset(routineN,"I","",handle)
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
 
-    CALL write_checkpoint_information("Entering "//routineN,globenv,error)
-    CALL timeset(routineN,"I","",handle)
 
     print_subcell_grid = .FALSE.
     output_unit = cp_print_key_unit_nr(logger,force_env_section,"SUBSYS%PRINT%SUBCELL",&
@@ -293,8 +291,6 @@ CONTAINS
                                       error=error)
 
     CALL timestop(0.0_dp,handle)
-
-    CALL write_checkpoint_information("Leaving "//routineN,globenv,error)
 
   END SUBROUTINE build_fist_neighbor_lists
 

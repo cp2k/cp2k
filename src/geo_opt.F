@@ -27,7 +27,6 @@ MODULE geo_opt
   USE bfgs_optimizer,                  ONLY: geoopt_bfgs
   USE cell_types,                      ONLY: cell_type
   USE cg_optimizer,                    ONLY: geoopt_cg
-  USE checkpoint_handler,              ONLY: write_checkpoint_information
   USE cp_lbfgs_optimizer_gopt,         ONLY: cp_lbfgs_opt_gopt_type,&
                                              cp_opt_gopt_create,&
                                              cp_opt_gopt_next,&
@@ -105,8 +104,9 @@ MODULE geo_opt
     LOGICAL                                  :: failure
     TYPE(gopt_param_type), POINTER           :: gopt_param
     TYPE(section_vals_type), POINTER         :: force_env_section
+    INTEGER                                  :: handle
 
-     CALL write_checkpoint_information("Entering "//routineN,globenv,error)
+    CALL timeset(routineN,handle)
      CPPrecondition(ASSOCIATED(force_env),cp_failure_level,routineP,error,failure)
      CPPrecondition(ASSOCIATED(globenv),cp_failure_level,routineP,error,failure)
      NULLIFY (gopt_param,force_env_section)
@@ -127,7 +127,8 @@ MODULE geo_opt
      END SELECT
 
      CALL gopt_param_release(gopt_param, error=error)
-     CALL write_checkpoint_information("Leaving "//routineN,globenv,error)
+   CALL timestop(handle)
+
    END SUBROUTINE qs_geo_opt
 
 !!****f* geo_opt/gopt_do_opt [1.0] *

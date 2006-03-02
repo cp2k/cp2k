@@ -23,7 +23,6 @@
 !******************************************************************************
 
 MODULE topology_psf
-  USE checkpoint_handler,              ONLY: write_checkpoint_information
   USE cp_files,                        ONLY: open_file
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
@@ -98,7 +97,6 @@ CONTAINS
     failure = .FALSE.
     NULLIFY(parser, logger)
     logger => cp_error_get_logger(error)
-    CALL write_checkpoint_information("Entering "//routineN,globenv,error)
     iw = cp_print_key_unit_nr(logger,subsys_section,"PRINT%TOPOLOGY_INFO/PSF_INFO",&
          extension=".subsysLog",error=error)    
     CALL timeset(routineN,'I','',handle)
@@ -341,7 +339,6 @@ CONTAINS
 
     CALL parser_release(parser,error=error)
     CALL timestop(0.0_dp,handle)
-    CALL write_checkpoint_information("exiting "//routineN,globenv,error)
     CALL cp_print_key_finished_output(iw,logger,subsys_section,&
          "PRINT%TOPOLOGY_INFO/PSF_INFO",error=error)
 
@@ -385,7 +382,6 @@ CONTAINS
     failure = .FALSE.
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
-    CALL write_checkpoint_information("Entering "//routineN,globenv,error)
     iw = cp_print_key_unit_nr(logger,subsys_section,"PRINT%TOPOLOGY_INFO/PSF_INFO",&
          extension=".subsysLog",error=error)    
     CALL timeset(routineN,'I','',handle)
@@ -487,7 +483,6 @@ CONTAINS
     WRITE(file_unit,*) ""
 
     CALL timestop(0.0_dp,handle)
-    CALL write_checkpoint_information("exiting "//routineN,globenv,error)
     CALL cp_print_key_finished_output(iw,logger,subsys_section,&
          "PRINT%TOPOLOGY_INFO/PSF_INFO",error=error)  
     

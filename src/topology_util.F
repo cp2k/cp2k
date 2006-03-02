@@ -26,8 +26,7 @@ MODULE topology_util
                                              atomic_kind_type,&
                                              get_atomic_kind,&
                                              set_atomic_kind
-  USE checkpoint_handler,              ONLY: Pwarning,&
-                                             write_checkpoint_information
+  USE checkpoint_handler,              ONLY: Pwarning
   USE convert_units,                   ONLY: convert_to_cp2k_units
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
@@ -155,7 +154,6 @@ CONTAINS
     failure = .FALSE.
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
-    CALL write_checkpoint_information("Entering "//routineN,globenv,error)
     iw = cp_print_key_unit_nr(logger,subsys_section,"PRINT%TOPOLOGY_INFO/UTIL_INFO",&
          extension=".subsysLog",error=error)    
     CALL timeset(routineN,'I','',handle)
@@ -289,7 +287,6 @@ CONTAINS
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     
     CALL timestop(0.0_dp,handle)
-    CALL write_checkpoint_information("exiting "//routineN,globenv,error)
     CALL cp_print_key_finished_output(iw,logger,subsys_section,&
          "PRINT%TOPOLOGY_INFO/UTIL_INFO",error=error)
   END SUBROUTINE topology_reorder_atoms
@@ -339,7 +336,6 @@ CONTAINS
     failure = .FALSE.
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
-    CALL write_checkpoint_information("Entering "//routineN,globenv,error)
     iw = cp_print_key_unit_nr(logger,subsys_section,"PRINT%TOPOLOGY_INFO/UTIL_INFO",&
          extension=".subsysLog",error=error)    
     CALL timeset(routineN,'I','',handle)
@@ -588,7 +584,6 @@ CONTAINS
     CALL cp_print_key_finished_output(iw,logger,subsys_section,&
          "PRINT%TOPOLOGY_INFO/UTIL_INFO",error=error)
     CALL timestop(0.0_dp,handle)
-    CALL write_checkpoint_information("exiting "//routineN,globenv,error)
   END SUBROUTINE topology_generate_molecule
 
 !
@@ -636,7 +631,6 @@ CONTAINS
     failure = .FALSE.
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
-    CALL write_checkpoint_information("Entering "//routineN,globenv,error)
     iw = cp_print_key_unit_nr(logger,subsys_section,"PRINT%TOPOLOGY_INFO/UTIL_INFO",&
          extension=".subsysLog",error=error)    
     CALL timeset(routineN,'I','',handle)
@@ -684,7 +678,6 @@ CONTAINS
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
     CALL timestop(0.0_dp,handle)
-    CALL write_checkpoint_information("exiting "//routineN,globenv,error)
     CALL cp_print_key_finished_output(iw,logger,subsys_section,&
          "PRINT%TOPOLOGY_INFO/UTIL_INFO",error=error)
     
@@ -735,7 +728,6 @@ CONTAINS
     failure = .FALSE.
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
-    CALL write_checkpoint_information("Entering "//routineN,globenv,error)
     iw = cp_print_key_unit_nr(logger,subsys_section,"PRINT%TOPOLOGY_INFO/UTIL_INFO",&
          extension=".subsysLog",error=error)    
     CALL timeset(routineN,'I','',handle)
@@ -835,7 +827,6 @@ CONTAINS
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     
     CALL timestop(0.0_dp,handle)
-    CALL write_checkpoint_information("exiting "//routineN,globenv,error)
     CALL cp_print_key_finished_output(iw,logger,subsys_section,&
          "PRINT%TOPOLOGY_INFO/UTIL_INFO",error=error)
 
@@ -881,7 +872,6 @@ CONTAINS
     failure = .FALSE.
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
-    CALL write_checkpoint_information("Entering "//routineN,globenv,error)
     iw = cp_print_key_unit_nr(logger,subsys_section,"PRINT%TOPOLOGY_INFO/UTIL_INFO",&
          extension=".subsysLog",error=error)    
     CALL timeset(routineN,'I','',handle)
@@ -977,7 +967,6 @@ CONTAINS
     END DO
 
     CALL timestop(0.0_dp,handle)
-    CALL write_checkpoint_information("exiting "//routineN,globenv,error)
     CALL cp_print_key_finished_output(iw,logger,subsys_section,&
          "PRINT%TOPOLOGY_INFO/UTIL_INFO",error=error)
   END SUBROUTINE topology_generate_bend
@@ -1020,7 +1009,6 @@ CONTAINS
     failure = .FALSE.
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
-    CALL write_checkpoint_information("Entering "//routineN,globenv,error)
     iw = cp_print_key_unit_nr(logger,subsys_section,"PRINT%TOPOLOGY_INFO/UTIL_INFO",&
          extension=".subsysLog",error=error)    
     CALL timeset(routineN,'I','',handle)
@@ -1040,7 +1028,6 @@ CONTAINS
     END DO
 
     CALL timestop(0.0_dp,handle)
-    CALL write_checkpoint_information("exiting "//routineN,globenv,error)
     CALL cp_print_key_finished_output(iw,logger,subsys_section,&
          "PRINT%TOPOLOGY_INFO/UTIL_INFO",error=error)
 
@@ -1085,7 +1072,6 @@ CONTAINS
     failure = .FALSE.
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
-    CALL write_checkpoint_information("Entering "//routineN,globenv,error)
     iw = cp_print_key_unit_nr(logger,subsys_section,"PRINT%TOPOLOGY_INFO/UTIL_INFO",&
          extension=".subsysLog",error=error)    
     CALL timeset(routineN,'I','',handle)
@@ -1194,7 +1180,6 @@ CONTAINS
     END DO
 
     CALL timestop(0.0_dp,handle)
-    CALL write_checkpoint_information("exiting "//routineN,globenv,error)
     CALL cp_print_key_finished_output(iw,logger,subsys_section,&
          "PRINT%TOPOLOGY_INFO/UTIL_INFO",error=error)
     
@@ -1242,7 +1227,6 @@ CONTAINS
     failure = .FALSE.
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
-    CALL write_checkpoint_information("Entering "//routineN,globenv,error)
     iw = cp_print_key_unit_nr(logger,subsys_section,"PRINT%TOPOLOGY_INFO/UTIL_INFO",&
          extension=".subsysLog",error=error)    
     CALL timeset(routineN,'I','',handle)
@@ -1295,7 +1279,6 @@ CONTAINS
        END IF
     END DO
     CALL timestop(0.0_dp,handle)
-    CALL write_checkpoint_information("exiting "//routineN,globenv,error)
     CALL cp_print_key_finished_output(iw,logger,subsys_section,&
          "PRINT%TOPOLOGY_INFO/UTIL_INFO",error=error)
 
@@ -1339,7 +1322,6 @@ CONTAINS
     failure = .FALSE.
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
-    CALL write_checkpoint_information("Entering "//routineN,globenv,error)
     iw = cp_print_key_unit_nr(logger,subsys_section,"PRINT%TOPOLOGY_INFO/UTIL_INFO",&
          extension=".subsysLog",error=error)    
     CALL timeset(routineN,'I','',handle)
@@ -1355,7 +1337,6 @@ CONTAINS
        conn_info%onfo_b(iphi) = conn_info%phi_d(iphi)
     END DO
     CALL timestop(0.0_dp,handle)
-    CALL write_checkpoint_information("exiting "//routineN,globenv,error)
     CALL cp_print_key_finished_output(iw,logger,subsys_section,&
          "PRINT%TOPOLOGY_INFO/UTIL_INFO",error=error)
     
@@ -1424,7 +1405,6 @@ CONTAINS
     failure = .FALSE.
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
-    CALL write_checkpoint_information("Entering "//routineN,globenv,error)
     iw = cp_print_key_unit_nr(logger,subsys_section,"PRINT%TOPOLOGY_INFO/UTIL_INFO",&
          extension=".subsysLog",error=error)    
     CALL timeset(routineN,'I','',handle)
@@ -2208,7 +2188,6 @@ CONTAINS
     END DO
 
     CALL timestop(0.0_dp,handle)
-    CALL write_checkpoint_information("exiting "//routineN,globenv,error)
     CALL cp_print_key_finished_output(iw,logger,subsys_section,&
          "PRINT%TOPOLOGY_INFO/UTIL_INFO",error=error)
   END SUBROUTINE topology_connectivity_pack
@@ -2291,7 +2270,6 @@ CONTAINS
     failure = .FALSE.
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
-    CALL write_checkpoint_information("Entering "//routineN,globenv,error)
     iw = cp_print_key_unit_nr(logger,subsys_section,"PRINT%TOPOLOGY_INFO/UTIL_INFO",&
          extension=".subsysLog",error=error)    
     CALL timeset(routineN,'I','',handle)
@@ -2973,7 +2951,6 @@ CONTAINS
     END DO
 
     CALL timestop(0.0_dp,handle)
-    CALL write_checkpoint_information("exiting "//routineN,globenv,error)
     CALL cp_print_key_finished_output(iw,logger,subsys_section,&
          "PRINT%TOPOLOGY_INFO/UTIL_INFO",error=error)
   END SUBROUTINE topology_coordinate_pack
@@ -3054,7 +3031,6 @@ CONTAINS
     failure = .FALSE.
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
-    CALL write_checkpoint_information("Entering "//routineN,globenv,error)
     iw = cp_print_key_unit_nr(logger,subsys_section,"PRINT%TOPOLOGY_INFO/UTIL_INFO",&
          extension=".subsysLog",error=error)    
     CALL timeset(routineN,'I','',handle)
@@ -3436,7 +3412,6 @@ CONTAINS
        DEALLOCATE(missed_molname,STAT=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
-    CALL write_checkpoint_information("exiting "//routineN,globenv,error)
     CALL cp_print_key_finished_output(iw,logger,subsys_section,&
          "PRINT%TOPOLOGY_INFO/UTIL_INFO",error=error)
     CALL timestop(0.0_dp,handle)
@@ -3482,7 +3457,6 @@ CONTAINS
     failure = .FALSE.
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
-    CALL write_checkpoint_information("Entering "//routineN,globenv,error)
     iw = cp_print_key_unit_nr(logger,subsys_section,"PRINT%TOPOLOGY_INFO/UTIL_INFO",&
          extension=".subsysLog",error=error)    
     CALL timeset(routineN,'I','',handle)
@@ -3566,7 +3540,6 @@ CONTAINS
 
 
     CALL timestop(0.0_dp,handle)
-    CALL write_checkpoint_information("exiting "//routineN,globenv,error)
     CALL cp_print_key_finished_output(iw,logger,subsys_section,&
          "PRINT%TOPOLOGY_INFO/UTIL_INFO",error=error)
 

@@ -28,7 +28,6 @@ MODULE cg_optimizer
   USE bfgs_optimizer,                  ONLY: check_converg,&
                                              write_cycle_infos
   USE cell_types,                      ONLY: cell_type
-  USE checkpoint_handler,              ONLY: write_checkpoint_information
   USE cp_output_handling,              ONLY: cp_add_iter_level,&
                                              cp_iterate,&
                                              cp_print_key_finished_output,&
@@ -118,12 +117,11 @@ CONTAINS
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
 
+    CALL timeset(routineN,"I","",handle)   
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
     CALL cp_add_iter_level(logger%iter_info,"GEO_OPT",ihandle,error)
     failure = .FALSE.
-    CALL write_checkpoint_information("Entering "//routineN,globenv,error)
-    CALL timeset(routineN,"I","",handle)   
     IF (.NOT.failure) THEN
        ionode      = globenv%ionode
        output_unit = cp_print_key_unit_nr(logger,globenv%input_file,&
@@ -194,7 +192,6 @@ CONTAINS
     END IF
     CALL cp_rm_iter_level(logger%iter_info,ihandle,error)
     CALL timestop(0.0_dp,handle)
-    CALL write_checkpoint_information("Leaving "//routineN,globenv,error)
   END SUBROUTINE geoopt_cg
 
 

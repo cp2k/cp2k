@@ -24,7 +24,6 @@ MODULE md_run
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind
   USE cell_types,                      ONLY: cell_type
-  USE checkpoint_handler,              ONLY: write_checkpoint_information
   USE cp_output_handling,              ONLY: cp_add_iter_level,&
                                              cp_iterate,&
                                              cp_p_file,&
@@ -186,8 +185,6 @@ CONTAINS
     INTEGER                                  :: strend,strstart
 
 !   ---------------------------------------------------------------------------
-
-    CALL write_checkpoint_information("Entering "//routineN,globenv,error)
 
     CALL timeset(routineN,"I","",handle)
 
@@ -430,8 +427,6 @@ CONTAINS
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
     CALL timestop(0.0_dp,handle)
-
-    CALL write_checkpoint_information("Leaving "//routineN,globenv,error)
 
   END SUBROUTINE qs_mol_dyn2
 

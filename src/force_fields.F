@@ -31,8 +31,7 @@ MODULE force_fields
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind,&
                                              set_atomic_kind
-  USE checkpoint_handler,              ONLY: Pwarning,&
-                                             write_checkpoint_information
+  USE checkpoint_handler,              ONLY: Pwarning
   USE convert_units,                   ONLY: convert_to_cp2k_units
   USE cp_files,                        ONLY: open_file
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
@@ -164,13 +163,12 @@ CONTAINS
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(force_field_type)                   :: ff_type
 
+    CALL timeset(routineN,'I','',handle)
     failure = .FALSE.
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
-    CALL write_checkpoint_information("Entering "//routineN,globenv,error)
     iw = cp_print_key_unit_nr(logger,mm_section,"PRINT%FF_INFO",&
          extension=".mmLog",error=error)
-    CALL timeset(routineN,'I','',handle)
 
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------
@@ -249,10 +247,9 @@ CONTAINS
     !-----------------------------------------------------------------------------
     CALL deallocate_ff_type(ff_type, error=error)
 
-    CALL timestop(0.0_dp,handle)
-    CALL write_checkpoint_information("Leaving "//routineN,globenv,error)
     CALL cp_print_key_finished_output(iw,logger,mm_section,&
          "PRINT%FF_INFO",error=error)
+    CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE force_field_control
 
@@ -1124,13 +1121,12 @@ CONTAINS
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_parser_type), POINTER            :: parser
 
+    CALL timeset(routineN,'I','',handle)
     failure = .FALSE.
     NULLIFY(logger,parser)
     logger => cp_error_get_logger(error)
-    CALL write_checkpoint_information("Entering "//routineN,globenv,error)
     iw = cp_print_key_unit_nr(logger,mm_section,"PRINT%FF_INFO",&
          extension=".mmLog",error=error)
-    CALL timeset(routineN,'I','',handle)
 
 
     avail_section(1) = "BOND"     ; bond_section(1) = "BOND"
@@ -1473,10 +1469,9 @@ CONTAINS
        END DO
        CALL parser_release(parser,error=error)
     END DO
-    CALL timestop(0.0_dp,handle)
-    CALL write_checkpoint_information("Leaving "//routineN,globenv,error)
     CALL cp_print_key_finished_output(iw,logger,mm_section,&
          "PRINT%FF_INFO",error=error)
+    CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE read_force_field_charmm
 
@@ -1575,13 +1570,12 @@ CONTAINS
       POINTER                                :: ub_kind_set
     TYPE(ub_type), DIMENSION(:), POINTER     :: ub_list
 
+    CALL timeset(routineN,'I','',handle)
     failure = .FALSE.
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
-    CALL write_checkpoint_information("Entering "//routineN,globenv,error)
     iw = cp_print_key_unit_nr(logger,mm_section,"PRINT%FF_INFO",&
          extension=".mmLog",error=error)
-    CALL timeset(routineN,'I','',handle)
 
     !------------------------------------------------------------------------------
     !------------------------------------------------------------------------------
@@ -3083,10 +3077,9 @@ CONTAINS
     CALL spline_env_release (spline_nonbond_env,error)
     CALL spline_env_release (spline_bond_env,error)
 
-    CALL timestop(0.0_dp,handle)
-    CALL write_checkpoint_information("Leaving "//routineN,globenv,error)
     CALL cp_print_key_finished_output(iw,logger,mm_section,&
          "PRINT%FF_INFO",error=error)
+    CALL timestop(0.0_dp,handle)
   END SUBROUTINE force_field_pack
 
 !******************************************************************************
@@ -3137,13 +3130,12 @@ CONTAINS
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
 
+    CALL timeset(routineN,'I','',handle)
     failure = .FALSE.
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
-    CALL write_checkpoint_information("Entering "//routineN,globenv,error)
     iw = cp_print_key_unit_nr(logger,mm_section,"PRINT%FF_INFO",&
          extension=".mmLog",error=error)
-    CALL timeset(routineN,'I','',handle)
 
     qeff     = 0.0_dp
     qeff_mol = 0.0_dp
@@ -3182,10 +3174,9 @@ CONTAINS
     END DO
     IF(iw>0) WRITE(iw,*) "    Total system charge = ",qeff_sum
 
-    CALL timestop(0.0_dp,handle)
-    CALL write_checkpoint_information("Leaving "//routineN,globenv,error)
     CALL cp_print_key_finished_output(iw,logger,mm_section,&
          "PRINT%FF_INFO",error=error)
+    CALL timestop(0.0_dp,handle)
   END SUBROUTINE force_field_qeff_output
 
 !******************************************************************************
@@ -3255,13 +3246,12 @@ CONTAINS
       POINTER                                :: new_ub_kind_set, ub_kind_set
     TYPE(ub_type), DIMENSION(:), POINTER     :: new_ub_list, ub_list
 
+    CALL timeset(routineN,'I','',handle)
     failure = .FALSE.
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
-    CALL write_checkpoint_information("Entering "//routineN,globenv,error)
     iw = cp_print_key_unit_nr(logger,mm_section,"PRINT%FF_INFO",&
          extension=".mmLog",error=error)
-    CALL timeset(routineN,'I','',handle)
 
 
     !-----------------------------------------------------------------------------
@@ -3928,10 +3918,9 @@ CONTAINS
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        END IF
     END DO
-    CALL timestop(0.0_dp,handle)
-    CALL write_checkpoint_information("Leaving "//routineN,globenv,error)
     CALL cp_print_key_finished_output(iw,logger,mm_section,&
          "PRINT%FF_INFO",error=error)
+    CALL timestop(0.0_dp,handle)
   END SUBROUTINE clean_intra_force_kind
 
 !******************************************************************************
@@ -3974,13 +3963,12 @@ CONTAINS
                                                 rhop, rhoval, rval
     TYPE(cp_logger_type), POINTER            :: logger
 
+    CALL timeset(routineN,'I','',handle)
     failure = .FALSE.
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
-    CALL write_checkpoint_information("Entering "//routineN,globenv,error)
     iw = cp_print_key_unit_nr(logger,mm_section,"PRINT%FF_INFO",&
          extension=".mmLog",error=error)
-    CALL timeset(routineN,'I','',handle)
     NULLIFY ( rval, rhoval, phi, phip, frho, frhop, rho, rhop )
     IF (.NOT.failure) THEN
        IF ( globenv % ionode ) THEN
@@ -4104,10 +4092,9 @@ CONTAINS
        DEALLOCATE ( frhop, STAT = stat )
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
-    CALL timestop(0.0_dp,handle)
-    CALL write_checkpoint_information("Leaving "//routineN,globenv,error)
     CALL cp_print_key_finished_output(iw,logger,mm_section,&
          "PRINT%FF_INFO",error=error)
+    CALL timestop(0.0_dp,handle)
     
   END SUBROUTINE read_eam_data
 

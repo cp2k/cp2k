@@ -41,7 +41,6 @@
 !-------------------------------------------------------------------------------
 MODULE topology_pdb
 
-  USE checkpoint_handler,              ONLY: write_checkpoint_information
   USE convert_units,                   ONLY: convert_to_cp2k_units
   USE cp_files,                        ONLY: close_file,&
                                              open_file
@@ -119,7 +118,6 @@ CONTAINS
 
     NULLIFY(parser, logger)
     logger => cp_error_get_logger(error)
-    CALL write_checkpoint_information("Entering "//routineN,globenv,error)
     iw = cp_print_key_unit_nr(logger,subsys_section,"PRINT%TOPOLOGY_INFO/PDB_INFO",&
          extension=".subsysLog",error=error)    
     CALL timeset(routineN,'I','',handle)
@@ -236,7 +234,6 @@ CONTAINS
     topology%natoms = natom
     CALL cp_print_key_finished_output(iw,logger,subsys_section,&
          "PRINT%TOPOLOGY_INFO/PDB_INFO",error=error)
-    CALL write_checkpoint_information("exiting "//routineN,globenv,error)
     CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE read_coordinate_pdb
@@ -276,10 +273,8 @@ CONTAINS
 
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
-    CALL write_checkpoint_information("Entering "//routineN,globenv,error)
     iw = cp_print_key_unit_nr(logger,subsys_section,"PRINT%TOPOLOGY_INFO/PDB_INFO",&
          extension=".subsysLog",error=error)    
-    CALL write_checkpoint_information("entering "//routineN,globenv,error)
     
     CALL timeset(routineN,'I','',handle)
 
@@ -334,7 +329,6 @@ CONTAINS
     IF(iw>0) WRITE(iw,*) "  Exiting write_coordinate_pdb"
 
     CALL timestop(0.0_dp,handle)
-    CALL write_checkpoint_information("exiting "//routineN,globenv,error)
     CALL cp_print_key_finished_output(iw,logger,subsys_section,&
          "PRINT%TOPOLOGY_INFO/PDB_INFO",error=error)
 

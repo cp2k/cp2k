@@ -25,7 +25,6 @@ MODULE kg_neighbor_lists
   USE cell_types,                      ONLY: cell_type,&
                                              pbc,&
                                              real_to_scaled
-  USE checkpoint_handler,              ONLY: write_checkpoint_information
   USE cp_control_types,                ONLY: dft_control_type,&
                                              qs_control_type
   USE cp_output_handling,              ONLY: cp_p_file,&
@@ -86,8 +85,9 @@ CONTAINS
 
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(qs_control_type), POINTER           :: qs_control
+    INTEGER :: handle
 
-    CALL write_checkpoint_information("entering "//routineN,globenv,error)
+    CALL timeset(routineN,handle)
 
     CALL get_kg_env(kg_env=kg_env,&
                     dft_control=dft_control)
@@ -104,7 +104,7 @@ CONTAINS
       CALL stop_program(routineN,moduleN,__LINE__,"method unknown")
     END SELECT
 
-    CALL write_checkpoint_information("leaving "//routineN,globenv,error)
+    CALL timestop(handle)
 
   END SUBROUTINE build_kg_neighbor_lists
 
@@ -151,7 +151,6 @@ CONTAINS
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
 
-    CALL write_checkpoint_information("entering "//routineN,globenv,error)
     CALL timeset(routineN,"I","",handle)
 
     NULLIFY (atomic_kind)
@@ -472,8 +471,6 @@ CONTAINS
                                       "SUBSYS%PRINT%SUBCELL",error=error)    
     CALL timestop(0.0_dp,handle)
 
-    CALL write_checkpoint_information("leaving "//routineN,globenv,error)
-
   END SUBROUTINE build_kg_neighbor_lists1
 
 ! *****************************************************************************
@@ -493,8 +490,6 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL write_checkpoint_information("entering "//routineN,globenv,error)
-
     CALL timeset(routineN,"I","",handle)
 
     NULLIFY (qs_env)
@@ -510,8 +505,6 @@ CONTAINS
     END IF
 
     CALL timestop(0.0_dp,handle)
-
-    CALL write_checkpoint_information("leaving "//routineN,globenv,error)
 
   END SUBROUTINE build_kg_neighbor_lists2
 

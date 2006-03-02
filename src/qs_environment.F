@@ -14,7 +14,7 @@
 !!
 !!   MODIFICATION HISTORY
 !!     - Merged with the Quickstep MODULE method_specification (17.01.2002,MK)
-!!     - USE statements cleaned, write_checkpoint_information added
+!!     - USE statements cleaned, added
 !!       (25.09.2002,MK)
 !!     - Added more LSD structure (01.2003,Joost VandeVondele)
 !!     - New molecule data types introduced (Sep. 2003,MK)
@@ -43,7 +43,6 @@ MODULE qs_environment
                                              get_cell,&
                                              read_cell,&
                                              write_cell
-  USE checkpoint_handler,              ONLY: write_checkpoint_information
   USE cp_control_types,                ONLY: dft_control_release,&
                                              dft_control_type,&
                                              gapw_control_type,&
@@ -352,11 +351,9 @@ CONTAINS
     TYPE(semi_empirical_control_type), &
       POINTER                                :: se_control
 
+    CALL timeset(routineN,"I",'',handle)
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
-    CALL write_checkpoint_information("entering "//routineN,globenv,error)
-
-    CALL timeset(routineN,"I",'',handle)
 
     ionode = globenv%ionode
     IF(ionode) output_unit = globenv%scr
@@ -782,8 +779,6 @@ CONTAINS
     IF (ionode) CALL m_flush(output_unit)
 
     CALL timestop(0.0_dp,handle)
-
-    CALL write_checkpoint_information("leaving "//routineN,globenv,error)
 
   END SUBROUTINE qs_init_subsys
 

@@ -28,7 +28,6 @@ MODULE fist_environment
                                              get_cell,&
                                              read_cell,&
                                              write_cell
-  USE checkpoint_handler,              ONLY: write_checkpoint_information
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE cp_subsystem_methods,            ONLY: cp_subsys_read_colvar
@@ -152,11 +151,10 @@ SUBROUTINE fist_init ( fist_env, globenv, error )
                                                 force_env_section, &
                                                 mm_section, poisson_section
 
+  CALL timeset(routineN,"I",'',handle)
   failure = .FALSE.
   NULLIFY(logger)
   logger => cp_error_get_logger(error)  
-  CALL write_checkpoint_information("Entering "//routineN,globenv,error)
-  CALL timeset(routineN,"I",'',handle)
 
   NULLIFY ( subsystem, molecule_kind_set, molecule_set, atomic_kind_set,&
             particle_set,atomic_kinds,particles,mols,mol_kinds,cell,cell_ref)
@@ -233,7 +231,6 @@ SUBROUTINE fist_init ( fist_env, globenv, error )
   CALL cp_subsys_release(subsystem,error=error)
 
   CALL timestop(0.0_dp,handle)
-  CALL write_checkpoint_information("Leaving "//routineN,globenv,error)
 
   END SUBROUTINE fist_init
 
@@ -275,9 +272,8 @@ SUBROUTINE fist_init ( fist_env, globenv, error )
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
 
-  NULLIFY ( thermo, ewald_pw, local_molecules, local_particles)
-  CALL write_checkpoint_information("Entering "//routineN,globenv,error)
   CALL timeset(routineN,"I",'',handle)
+  NULLIFY ( thermo, ewald_pw, local_molecules, local_particles)
   particle_set => subsystem % particles % els
   atomic_kind_set => subsystem % atomic_kinds % els
   molecule_set => subsystem % molecules_new % els
@@ -327,8 +323,6 @@ SUBROUTINE fist_init ( fist_env, globenv, error )
   IF (globenv%ionode) CALL m_flush(globenv%scr)
 
   CALL timestop(0.0_dp,handle)
-
-  CALL write_checkpoint_information("Leaving "//routineN,globenv,error)
 
  END SUBROUTINE fist_init_subsys
 !******************************************************************************

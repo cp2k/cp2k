@@ -23,7 +23,6 @@
 !******************************************************************************
 
 MODULE topology_input
-  USE checkpoint_handler,              ONLY: write_checkpoint_information
   USE global_types,                    ONLY: global_environment_type
   USE input_constants,                 ONLY: do_conn_psf,&
                                              do_coord_off
@@ -35,6 +34,7 @@ MODULE topology_input
                                              dp
   USE memory_utilities,                ONLY: reallocate
   USE string_utilities,                ONLY: xstring
+  USE timings,                         ONLY: timeset,timestop
   USE topology_types,                  ONLY: constraint_info_type,&
                                              topology_parameters_type
   USE colvar_types, ONLY: colvar_type,&
@@ -96,11 +96,11 @@ SUBROUTINE read_topology_section ( topology, topology_section, globenv, error )
 
     CHARACTER(len=*), PARAMETER :: routineN = 'read_topology_section', &
       routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: ia, ie, n_rep
+ 
+    INTEGER                                  :: ia, ie, n_rep, handle
     LOGICAL                                  :: failure
 
-  CALL write_checkpoint_information("entering "//routineN,globenv,error)
+  CALL timeset(routineN,handle)
   CALL xstring(globenv % project_name,ia,ie)
   failure = .FALSE.
   topology % coord_file_name = globenv % project_name(ia:ie) // '.dat'
@@ -138,7 +138,7 @@ SUBROUTINE read_topology_section ( topology, topology_section, globenv, error )
      CALL section_vals_val_get(topology_section,"NHCOPT",i_val=topology % nhcopt,error=error)
 
   END IF
-  CALL write_checkpoint_information("Leaving "//routineN,globenv,error)
+  CALL timestop(handle)
 END SUBROUTINE read_topology_section
 
 !!*****
