@@ -34,20 +34,20 @@ MODULE colvar_types
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'colvar_types'
 
   PUBLIC :: colvar_type,&
-       colvar_init,&
-       colvar_dealloc_ref,&
-       dist_colvar_type,&
-       coord_colvar_type,&
-       torsion_colvar_type,&
-       angle_colvar_type,&
-       plane_distance_colvar_type
+            colvar_init,&
+            colvar_dealloc_ref,&
+            dist_colvar_type,&
+            coord_colvar_type,&
+            torsion_colvar_type,&
+            angle_colvar_type,&
+            plane_distance_colvar_type
 
-  INTEGER, PARAMETER, PUBLIC :: no_colvar_id=-2,&
-       dist_colvar_id=1,&
-       coord_colvar_id=2,&
-       torsion_colvar_id=3,&
-       angle_colvar_id=4,&
-       plane_distance_colvar_id=5
+  INTEGER, PARAMETER, PUBLIC :: no_colvar_id              =-2,&
+                                dist_colvar_id            =1,&
+                                coord_colvar_id           =2,&
+                                torsion_colvar_id         =3,&
+                                angle_colvar_id           =4,&
+                                plane_distance_colvar_id  =5
 
   !!****s* colvar/dist_colvar_param [1.0] *
   !!
@@ -70,7 +70,7 @@ MODULE colvar_types
   !!   SOURCE
   !***************************************************************************
   TYPE dist_colvar_type
-     INTEGER :: i_at,j_at
+     INTEGER :: i_at, j_at
   END TYPE dist_colvar_type
 
   TYPE coord_colvar_type
@@ -112,15 +112,15 @@ MODULE colvar_types
   !***************************************************************************
   TYPE colvar_type
      INTEGER :: type_id
-     REAL(kind=dp)                           :: ss   ! value of the colvar
-     REAL(kind=dp), DIMENSION (:,:), POINTER :: dsdr ! derivative of colvar 
-     INTEGER, DIMENSION (:), POINTER :: i_atom       ! mapping of dsdr
-     INTEGER                         :: n_atom_s
-     TYPE(dist_colvar_type)    :: dist_param
-     TYPE(coord_colvar_type)   :: coord_param
-     TYPE(torsion_colvar_type) :: torsion_param
-     TYPE(angle_colvar_type)         :: angle_param
-     TYPE(plane_distance_colvar_type) :: plane_distance_param
+     REAL(kind=dp)                           :: ss      ! value of the colvar
+     REAL(kind=dp), DIMENSION (:,:), POINTER :: dsdr    ! derivative of colvar 
+     INTEGER, DIMENSION (:), POINTER         :: i_atom  ! mapping of dsdr
+     INTEGER                                 :: n_atom_s
+     TYPE(dist_colvar_type)                  :: dist_param
+     TYPE(coord_colvar_type)                 :: coord_param
+     TYPE(torsion_colvar_type)               :: torsion_param
+     TYPE(angle_colvar_type)                 :: angle_param
+     TYPE(plane_distance_colvar_type)        :: plane_distance_param
   END TYPE colvar_type
   !!***
   !****************************************************************************

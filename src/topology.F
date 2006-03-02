@@ -61,6 +61,7 @@ MODULE topology
        topology_generate_molecule, topology_generate_onfo, &
        topology_generate_ub, topology_molecules_check, &
        topology_reorder_atoms, topology_set_atm_mass
+  USE colvar_types, ONLY: colvar_type
   USE topology_xyz,                    ONLY: read_coordinate_xyz
 #include "cp_common_uses.h"
 
@@ -98,8 +99,7 @@ CONTAINS
 !!   SOURCE
 !******************************************************************************
   SUBROUTINE topology_control (atomic_kind_set,particle_set,&
-       molecule_kind_set,molecule_set,&
-       globenv, qmmm, qmmm_env, error)
+       molecule_kind_set,molecule_set,colvar,globenv, qmmm, qmmm_env, error)
 
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
@@ -110,6 +110,7 @@ CONTAINS
     TYPE(molecule_type), DIMENSION(:), &
       POINTER                                :: molecule_set
     TYPE(global_environment_type), POINTER   :: globenv
+    TYPE(colvar_type),DIMENSION(:),POINTER   :: colvar
     LOGICAL, INTENT(IN), OPTIONAL            :: qmmm
     TYPE(qmmm_env_mm_type), OPTIONAL, &
       POINTER                                :: qmmm_env
@@ -172,7 +173,7 @@ CONTAINS
     !-----------------------------------------------------------------------------
     ! 4. Read in the constraints section
     !-----------------------------------------------------------------------------
-    CALL read_constraints_section(topology,globenv,constraint_section,error)
+    CALL read_constraints_section(topology,globenv,colvar,constraint_section,error)
 
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------

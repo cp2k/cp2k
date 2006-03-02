@@ -183,6 +183,7 @@ CONTAINS
     TYPE(scf_control_type), POINTER          :: scf_control
     TYPE(section_vals_type), POINTER         :: cell_section, dft_section, &
                                                 force_env_section, &
+                                                colvar_section, &                                                
                                                 work_section
 
     CALL write_checkpoint_information("entering "//routineN,globenv,error)
@@ -237,6 +238,11 @@ CONTAINS
     CALL write_dft_control ( dft_control, dft_section, error)
     CALL write_qs_control ( dft_control % qs_control, dft_section, error)
 
+    ! read colvars and add to subsystem
+    colvar_section => section_vals_get_subs_vals(force_env_section,&
+                              "SUBSYS%COLVAR",error=error)
+    CALL cp_subsys_read_colvar( kg_env%subsys, colvar_section, globenv, error=error)
+
 !   *** Read the input section with the cell parameters
     CALL read_cell ( cell, cell_ref, globenv,  use_ref_cell=use_ref_cell,&
          cell_section=cell_section, error=error)
@@ -248,7 +254,7 @@ CONTAINS
     ! topology
     CALL topology_control (atomic_kind_set,particle_set,&
                            molecule_kind_set,molecule_set,&
-                           globenv, error=error)
+                           kg_env%subsys%colvar,globenv, error=error)
 
     ! Read/write the atomic kind set
     CALL read_atomic_kind_set(atomic_kind_set,globenv,error)
@@ -257,7 +263,6 @@ CONTAINS
     CALL write_gto_basis_sets(atomic_kind_set,kg_env%input,error)
 
     CALL num_ao_el_per_molecule(molecule_kind_set)
-
 
     ! Initialize the spherical harmonics
     ! the orbital transformation matrices
@@ -509,8 +514,7 @@ CONTAINS
       POINTER                                :: qs_force
     TYPE(qs_wf_history_type), POINTER        :: wf_history
     TYPE(scf_control_type), POINTER          :: scf_control
-    TYPE(section_vals_type), POINTER         :: colvar_section, &
-                                                force_env_section, &
+    TYPE(section_vals_type), POINTER         :: force_env_section, &
                                                 poisson_section
 
     failure=.FALSE.
@@ -538,12 +542,6 @@ CONTAINS
                     scf_control=scf_control,&
                     subsys=subsys,&
                     error=error)
-
-    ! read colvars and add to subsystem
-    colvar_section => section_vals_get_subs_vals(globenv%input_file,&
-                              "FORCE_EVAL%SUBSYS%COLVAR",error=error)
-    CALL cp_subsys_read_colvar( subsys, colvar_section, globenv, error=error)
-
 
     CALL qs_env_create(qs_env, para_env=para_env, error=error)
 

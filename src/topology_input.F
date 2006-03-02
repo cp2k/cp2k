@@ -37,6 +37,13 @@ MODULE topology_input
   USE string_utilities,                ONLY: xstring
   USE topology_types,                  ONLY: constraint_info_type,&
                                              topology_parameters_type
+  USE colvar_types, ONLY: colvar_type,&
+                          dist_colvar_id,&
+                          coord_colvar_id,&
+                          torsion_colvar_id,&
+                          angle_colvar_id,&
+                          plane_distance_colvar_id
+
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -77,15 +84,7 @@ CONTAINS
 !!     none
 !!
 !!   NOTES
-!!I---------------------------------------------------------------------------I
-!!I SECTION: &topology ... &end                                               I
-!!I                                                                           I
-!!I coord_file       "filename"                                               I 
-!!I COORDINATE       [PDB,CHM,...]                                            I
-!!I topo_file        "filename"                                               I
-!!I TOPOLOGY         [PSF,GENERATE,OFF,...]                                   I
-!!I                                                                           I
-!!I---------------------------------------------------------------------------I
+!!
 !******************************************************************************
 SUBROUTINE read_topology_section ( topology, topology_section, globenv, error )
     TYPE(topology_parameters_type)           :: topology
@@ -165,31 +164,34 @@ END SUBROUTINE read_topology_section
 !!
 !******************************************************************************
 
-SUBROUTINE read_constraints_section(topology, globenv, constraint_section, error)
+SUBROUTINE read_constraints_section(topology, globenv, colvar, constraint_section, error)
 
-    TYPE(topology_parameters_type), &
-      INTENT(INOUT)                          :: topology
-    TYPE(global_environment_type), &
-      OPTIONAL, POINTER                      :: globenv
-    TYPE(section_vals_type), POINTER         :: constraint_section
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+  TYPE(topology_parameters_type), &
+       INTENT(INOUT)                          :: topology
+  TYPE(colvar_type), DIMENSION(:), POINTER :: colvar
+  TYPE(global_environment_type), &
+       OPTIONAL, POINTER                      :: globenv
+  TYPE(section_vals_type), POINTER         :: constraint_section
+  TYPE(cp_error_type), INTENT(inout), &
+       OPTIONAL                               :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'read_constraints_section', &
-      routineP = moduleN//':'//routineN
+  CHARACTER(len=*), PARAMETER :: routineN = 'read_constraints_section', &
+       routineP = moduleN//':'//routineN
 
-    CHARACTER(LEN=default_string_length), &
-      DIMENSION(:), POINTER                  :: tmpstringlist
-    INTEGER                                  :: icons, ig, isize, j, jj, &
-                                                n_rep, ncons, stat
-    INTEGER, DIMENSION(:), POINTER           :: ilist, tmplist
-    LOGICAL                                  :: explicit, failure, freeze_mm, &
-                                                freeze_qm
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: rlist
-    TYPE(constraint_info_type), POINTER      :: cons_info
-    TYPE(section_vals_type), POINTER :: angle_section, comb_section, &
-      dist_section, fix_atom_section, g3x3_section, g4x6_section, &
-      internal_section, tors_section
+  CHARACTER(LEN=default_string_length), &
+       DIMENSION(:), POINTER                  :: tmpstringlist
+  INTEGER                                  :: icons, ig, isize, j, jj, &
+       n_rep, ncons, stat, icolvar
+  INTEGER, DIMENSION(:), POINTER           :: ilist, tmplist
+  LOGICAL                                  :: explicit, failure, freeze_mm, &
+       freeze_qm
+  REAL(KIND=dp), DIMENSION(:), POINTER     :: rlist
+  TYPE(constraint_info_type), POINTER      :: cons_info
+  TYPE(section_vals_type), POINTER         :: fix_atom_section,&
+       g3x3_section,&
+       g4x6_section, &
+       collective_section
+
 
   cons_info    => topology%cons_info
   failure = .FALSE.
@@ -197,7 +199,7 @@ SUBROUTINE read_constraints_section(topology, globenv, constraint_section, error
      g3x3_section => section_vals_get_subs_vals(constraint_section,"G3X3",error=error)
      g4x6_section => section_vals_get_subs_vals(constraint_section,"G4X6",error=error)
      fix_atom_section => section_vals_get_subs_vals(constraint_section,"FIXED_ATOMS",error=error)
-     internal_section => section_vals_get_subs_vals(constraint_section,"INTERNALS",error=error)
+     collective_section => section_vals_get_subs_vals(constraint_section,"COLLECTIVE",error=error)
      ! G3X3
      CALL section_vals_get(g3x3_section,explicit=explicit, n_repetition=ncons, error=error)
      IF (explicit) THEN
@@ -323,21 +325,23 @@ SUBROUTINE read_constraints_section(topology, globenv, constraint_section, error
            cons_info%freeze_qm = cons_info%freeze_qm .OR. freeze_qm
         END DO
         IF (isize /= 0 .OR. cons_info%freeze_mm .OR. cons_info%freeze_qm &
-                       .OR. SIZE(cons_info%fixed_molnames,1)>0 ) THEN
+             .OR. SIZE(cons_info%fixed_molnames,1)>0 ) THEN
            topology%const_atom    = .TRUE.
            cons_info%nfixed_atoms =  isize
         END IF
      END IF
      ! INTERNAL
-     CALL section_vals_get(internal_section,explicit=explicit, n_repetition=ncons, error=error)
+     CALL section_vals_get(collective_section,explicit=explicit, n_repetition=ncons, error=error)
      IF (explicit) THEN
+        CPPostcondition(ncons<=SIZE(colvar),cp_failure_level,routineP,error,failure)
         isize = 0
         ! DISTANCE
         DO ig = 1, ncons
-           dist_section => section_vals_get_subs_vals(internal_section,"DISTANCE",i_rep_section=ig,error=error)
-           CALL section_vals_get(dist_section,explicit=explicit, n_repetition=icons, error=error)
-           isize = isize + icons 
+           CALL section_vals_val_get(collective_section,"COLVAR",i_rep_section=ig, i_val=icolvar, error=error)
+           CPPostcondition(icolvar<=SIZE(colvar),cp_failure_level,routineP,error,failure)
+           IF (colvar(icolvar)%type_id==dist_colvar_id) isize = isize + 1
         END DO
+
         IF (isize /= 0) THEN
            topology%const_dist=.TRUE.
            cons_info%nconst_dist = isize
@@ -353,27 +357,24 @@ SUBROUTINE read_constraints_section(topology, globenv, constraint_section, error
            isize = 0
            DO ig = 1, ncons
               ! DISTANCE
-              dist_section => section_vals_get_subs_vals(internal_section,"DISTANCE",i_rep_section=ig,error=error)
-              CALL section_vals_get(dist_section,explicit=explicit, n_repetition=icons, error=error)
-              DO j = 1, icons
+              CALL section_vals_val_get(collective_section,"COLVAR",i_rep_section=ig, i_val=icolvar, error=error)
+              IF (colvar(icolvar)%type_id==dist_colvar_id) THEN
                  isize = isize + 1
-                 CALL section_vals_val_get(dist_section,"MOLECULE", i_val=cons_info%const_dist_mol(isize),&
-                      i_rep_section=j,error=error)
-                 CALL section_vals_val_get(dist_section,"ATOMS", i_vals=tmplist,&
-                      i_rep_section=j,error=error)
-                 CALL section_vals_val_get(dist_section,"DISTANCE",&
-                      r_val=cons_info%const_dist_dab(isize),i_rep_section=j, error=error)
-                 cons_info%const_dist_a(isize) = tmplist(1)
-                 cons_info%const_dist_b(isize) = tmplist(2)
-              END DO
+                 CALL section_vals_val_get(collective_section,"MOLECULE",i_val=cons_info%const_dist_mol(isize),&
+                      i_rep_section=ig,error=error)
+                 CALL section_vals_val_get(collective_section,"TARGET",&
+                      r_val=cons_info%const_dist_dab(isize),i_rep_section=ig, error=error)
+                 cons_info%const_dist_a(isize) = colvar(icolvar)%dist_param%i_at
+                 cons_info%const_dist_b(isize) = colvar(icolvar)%dist_param%j_at
+              END IF
            END DO
         END IF
         ! ANGLE
         isize = 0
         DO ig = 1, ncons
-           angle_section => section_vals_get_subs_vals(internal_section,"ANGLE",i_rep_section=ig,error=error)
-           CALL section_vals_get(angle_section,explicit=explicit, n_repetition=icons, error=error)
-           isize = isize + icons 
+           CALL section_vals_val_get(collective_section,"COLVAR",i_rep_section=ig, i_val=icolvar, error=error)
+           CPPostcondition(icolvar<=SIZE(colvar),cp_failure_level,routineP,error,failure)
+           IF (colvar(icolvar)%type_id==angle_colvar_id) isize = isize + 1
         END DO
         IF (isize /= 0) THEN
            ! Not implemented yet
@@ -382,20 +383,9 @@ SUBROUTINE read_constraints_section(topology, globenv, constraint_section, error
         ! TORSION
         isize = 0
         DO ig = 1, ncons
-           tors_section => section_vals_get_subs_vals(internal_section,"TORSION",i_rep_section=ig,error=error)
-           CALL section_vals_get(tors_section,explicit=explicit, n_repetition=icons, error=error)
-           isize = isize + icons 
-        END DO
-        IF (isize /= 0) THEN
-           ! Not implemented yet
-           CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
-        END IF
-        ! COMB
-        isize = 0
-        DO ig = 1, ncons
-           comb_section => section_vals_get_subs_vals(internal_section,"COMB",i_rep_section=ig,error=error)
-           CALL section_vals_get(comb_section,explicit=explicit, n_repetition=icons, error=error)
-           isize = isize + icons 
+           CALL section_vals_val_get(collective_section,"COLVAR",i_rep_section=ig, i_val=icolvar, error=error)
+           CPPostcondition(icolvar<=SIZE(colvar),cp_failure_level,routineP,error,failure)
+           IF (colvar(icolvar)%type_id==torsion_colvar_id) isize = isize + 1
         END DO
         IF (isize /= 0) THEN
            ! Not implemented yet

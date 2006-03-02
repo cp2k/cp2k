@@ -202,7 +202,7 @@ SUBROUTINE fist_init ( fist_env, globenv, error )
   CALL get_fist_env (fist_env, qmmm=qmmm, qmmm_env=qmmm_env, error=error)
 
   CALL topology_control ( atomic_kind_set, particle_set,&
-                          molecule_kind_set, molecule_set,&
+                          molecule_kind_set, molecule_set, subsystem%colvar,&
                           globenv, qmmm=qmmm, qmmm_env=qmmm_env,&
                           error=error)
 

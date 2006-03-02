@@ -27,24 +27,37 @@
       UNIT ANGSTROM
     &END CELL
     &CONSTRAINT
-      &INTERNALS
-        &DISTANCE
-          DISTANCE 1.8897268
-          MOLECULE 1
-          ATOMS 1 2
-        &END DISTANCE
-        &DISTANCE
-          DISTANCE 1.8897268
-          MOLECULE 1
-          ATOMS 1 3
-        &END DISTANCE
-        &DISTANCE
-          DISTANCE 3.0859239
-          MOLECULE 1
-          ATOMS 2 3
-        &END DISTANCE
-      &END INTERNALS
+      &COLLECTIVE
+        TARGET 1.8897268
+        MOLECULE 1
+        COLVAR 1
+      &END COLLECTIVE
+      &COLLECTIVE
+        TARGET 1.8897268
+        MOLECULE 1
+        COLVAR 2
+      &END COLLECTIVE
+      &COLLECTIVE
+        TARGET 3.0859239
+        MOLECULE 1
+        COLVAR 3
+      &END COLLECTIVE
     &END CONSTRAINT
+    &COLVAR
+      &DISTANCE
+        ATOMS 1 2
+      &END DISTANCE
+    &END COLVAR
+    &COLVAR
+      &DISTANCE
+        ATOMS 1 3
+      &END DISTANCE
+    &END COLVAR
+    &COLVAR
+      &DISTANCE
+        ATOMS 2 3
+      &END DISTANCE
+    &END COLVAR
     &TOPOLOGY
       COORD_FILE ../sample_pdb/water_2.pdb
       COORDINATE pdb

@@ -28,39 +28,67 @@
       UNIT ANGSTROM
     &END CELL
     &CONSTRAINT
-      &INTERNALS
+      &COLLECTIVE
+        TARGET 1.9275
+        MOLECULE 1
+        COLVAR 1
+      &END COLLECTIVE
+      &COLLECTIVE
+        TARGET 1.9275
+        MOLECULE 1
+        COLVAR 2
+      &END COLLECTIVE
+      &COLLECTIVE
+        TARGET 1.9275
+        MOLECULE 1
+        COLVAR 3
+      &END COLLECTIVE
+      &COLLECTIVE
+        TARGET 3.1483
+        MOLECULE 1
+        COLVAR 4
+      &END COLLECTIVE
+      &COLLECTIVE
+        TARGET 3.1483
+        MOLECULE 1
+        COLVAR 5
+      &END COLLECTIVE
+      &COLLECTIVE
+        TARGET 3.1483
+        MOLECULE 1
+        COLVAR 6
+      &END COLLECTIVE
+    &END CONSTRAINT
+      &COLVAR
         &DISTANCE
-          DISTANCE 1.9275
-          MOLECULE 1
           ATOMS 1 2
         &END DISTANCE
+      &END COLVAR
+      &COLVAR
         &DISTANCE
-          DISTANCE 1.9275
-          MOLECULE 1
           ATOMS 1 3
         &END DISTANCE
+      &END COLVAR
+      &COLVAR
         &DISTANCE
-          DISTANCE 1.9275
-          MOLECULE 1
           ATOMS 1 4
         &END DISTANCE
+      &END COLVAR
+      &COLVAR
         &DISTANCE
-          DISTANCE 3.1483
-          MOLECULE 1
           ATOMS 2 3
         &END DISTANCE
+      &END COLVAR
+      &COLVAR
         &DISTANCE
-          DISTANCE 3.1483
-          MOLECULE 1
           ATOMS 2 4
         &END DISTANCE
+      &END COLVAR
+      &COLVAR
         &DISTANCE
-          DISTANCE 3.1483
-          MOLECULE 1
           ATOMS 3 4
         &END DISTANCE
-      &END INTERNALS
-    &END CONSTRAINT
+      &END COLVAR
     &TOPOLOGY
       COORD_FILE_NAME ../sample_pdb/NH3.pdb
       COORDINATE PDB

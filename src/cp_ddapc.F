@@ -437,8 +437,6 @@ CONTAINS
                        input=force_env_section,&
                        particle_set=particle_set,&
                        error=error)
-       iw=cp_print_key_unit_nr(logger,force_env_section,"PROPERTIES%FIT_CHARGE/PROGRAM_RUN_INFO",&
-            extension=".fitChargeLog",error=error)
        qmmm_periodic = qs_env%qmmm_periodic
        IF (.NOT.qmmm_periodic) THEN
           poisson_section => section_vals_get_subs_vals(force_env_section,"DFT%POISSON_DFT", error=error)
@@ -454,6 +452,8 @@ CONTAINS
           qmmm_periodic_section   => section_vals_get_subs_vals(force_env_section,"QMMM%PERIODIC", error=error)
           multipole_section => section_vals_get_subs_vals(qmmm_periodic_section,"MULTIPOLE", error=error)
        END IF
+       iw=cp_print_key_unit_nr(logger,multipole_section,"/PROGRAM_RUN_INFO",&
+            extension=".fitChargeLog",error=error)
        ! First we evaluate the charges at the corresponding SCF STEP
        IF (need_f) THEN
           CALL reset_ch_pulay(qs_env, error=error)
@@ -497,8 +497,8 @@ CONTAINS
           DEALLOCATE(dq, stat=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        END IF
-       CALL cp_print_key_finished_output(iw,logger,force_env_section,&
-            "PROPERTIES%FIT_CHARGE/PROGRAM_RUN_INFO",error=error)
+       CALL cp_print_key_finished_output(iw,logger,multipole_section,&
+            "/PROGRAM_RUN_INFO",error=error)
     END IF
     CALL timestop(0.0_dp, handle)
   END SUBROUTINE cp_decpl_ddapc
