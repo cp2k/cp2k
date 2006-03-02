@@ -294,7 +294,7 @@ CONTAINS
                                                 nspins, output_unit, stat
     LOGICAL                                  :: failure, gapw, gapw_xc, &
                                                 ionode, my_kg_gpw
-    REAL(KIND=dp)                            :: mulliken_order_p
+    REAL(KIND=dp)                            :: mulliken_order_p,ddapc_order_p
     REAL(KIND=dp), DIMENSION(:), POINTER     :: occupation_numbers, &
                                                 scaling_factor
     TYPE(cell_type), POINTER                 :: cell
@@ -410,6 +410,15 @@ CONTAINS
             "PRINT%TOTAL_DENSITIES", error=error)
        CALL pw_poisson_solve(poisson_env,rho_tot_gspace%pw,energy%hartree,&
             v_hartree_gspace%pw)
+
+       ! In case of a ddapc_restraint 
+       energy%ddapc_restraint=0.0_dp
+       IF (dft_control%qs_control%ddapc_restraint) THEN
+           ! do something with dft_control%qs_control%ddapc_restraint_control
+           ! set energy%ddapc_restraint, ddapc_order_p and potential
+           ! take just_energy into account
+       ENDIF
+      
        ! In case decouple periodic images
        CALL cp_decpl_ddapc(qs_env,rho_tot_gspace,energy%hartree,v_hartree_gspace,&
             calculate_forces=calculate_forces,error=error)
@@ -688,7 +697,7 @@ CONTAINS
             energy%hartree_1c + energy%hartree_2c + energy%hartree_3c +&
             energy%exc + energy%exc1 + &
             energy%qmmm_el + energy%mulliken + &
-            energy%kg_gpw_ekin_mol
+            energy%kg_gpw_ekin_mol + energy%ddapc_restraint
 
        output_unit=cp_print_key_unit_nr(logger,input,"DFT%SCF%PRINT%DETAILED_ENERGY",&
             extension=".scfLog",error=error)
@@ -723,6 +732,10 @@ CONTAINS
           IF (dft_control%qs_control%mulliken_restraint) THEN
               WRITE (UNIT=output_unit,FMT="(T3,A,T40,2F20.10)")&
                 "Mulliken restraint (order_p,energy) : ",mulliken_order_p,energy%mulliken
+          ENDIF
+          IF (dft_control%qs_control%ddapc_restraint) THEN
+              WRITE (UNIT=output_unit,FMT="(T3,A,T40,2F20.10)")&
+                "ddapc restraint (order_p,energy) : ",ddapc_order_p,energy%ddapc_restraint
           ENDIF
 
        END IF

@@ -11,7 +11,7 @@ MODULE cp_ddapc
 !!
 !!   FUNCTION
 !!     Density Derived atomic point charges from a QM calculation
-!!     (see J. Chem. Phys. Vol. 103 pp. 7422-7428)
+!!     (see Bloechl, J. Chem. Phys. Vol. 103 pp. 7422-7428)
 !!
 !!   NOTES
 !!     -
@@ -26,6 +26,7 @@ MODULE cp_ddapc
 !****************************************************************************  
   USE cell_types,                      ONLY: cell_type
   USE coefficient_types,               ONLY: coeff_type
+  USE cp_control_types,                ONLY: ddapc_restraint_type
   USE cp_ddapc_forces,                 ONLY: ewald_ddapc_force,&
                                              reset_ch_pulay
   USE cp_ddapc_methods,                ONLY: build_A_matrix,&
@@ -501,6 +502,53 @@ CONTAINS
     END IF
     CALL timestop(0.0_dp, handle)
   END SUBROUTINE cp_decpl_ddapc
+
+!!****f* cp_ddapc/restraint_functional *
+!!
+!!   NAME
+!!      restraint_functional
+!!   FUNCTION
+!!      computes energy and derivatives given a set of charges
+!!
+!!   NOTES
+!!      should be easy to adapt for other specialized cases
+!!
+!!   INPUTS
+!!        - charges : current value of the charges
+!!
+!!        - order_p : value of the restraint (i.e. charge of the group)
+!!        - energy  : energy due to the restraint
+!!        - charges_deriv : derivate of energy wrt the corresponding charge entry
+!!
+!!   MODIFICATION HISTORY
+!!     02.2006 [Joost VandeVondele]
+!!
+!!   SOURCE
+!!*** **********************************************************************
+SUBROUTINE restraint_functional(ddapc_restraint_control,charges, &
+                                charges_deriv,energy,order_p)
+    TYPE(ddapc_restraint_type), &
+      INTENT(IN)                             :: ddapc_restraint_control
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: charges, charges_deriv
+    REAL(KIND=dp), INTENT(OUT)               :: energy, order_p
+
+    INTEGER                                  :: I
+    REAL(KIND=dp)                            :: dum
+
+    charges_deriv=0.0_dp
+    order_p=0.0_dp
+    DO I=1,ddapc_restraint_control%natoms
+       order_p=order_p+charges(ddapc_restraint_control%atoms(I)) 
+    ENDDO
+    ! energy
+    energy=ddapc_restraint_control%strength*(order_p-ddapc_restraint_control%target)**2
+    ! derivative
+    dum=2*ddapc_restraint_control%strength*(order_p-ddapc_restraint_control%target)
+    DO I=1,ddapc_restraint_control%natoms
+       charges_deriv(ddapc_restraint_control%atoms(I))=  dum
+    ENDDO
+
+END SUBROUTINE restraint_functional
 
 !!****f* cp_ddapc/modify_hartree_pot [1.0] *
 !!

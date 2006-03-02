@@ -77,6 +77,14 @@ MODULE cp_control_types
     INTEGER, POINTER, DIMENSION(:)  :: atoms
   END TYPE mulliken_restraint_type
 
+! *** some parameters useful for ddapc_restraints
+  TYPE ddapc_restraint_type
+    INTEGER                         :: ref_count
+    REAL(KIND = dp)                 :: strength
+    REAL(KIND = dp)                 :: TARGET
+    INTEGER                         :: natoms
+    INTEGER, POINTER, DIMENSION(:)  :: atoms
+  END TYPE ddapc_restraint_type
 
 ! *** Control parameters for a KIM-GORDON calculation ***
 ! *** Control parameters for a QUICKSTEP calculation ***
@@ -105,8 +113,10 @@ MODULE cp_control_types
     LOGICAL                         :: semi_empirical
     LOGICAL                         :: polarization
     LOGICAL                         :: mulliken_restraint
+    LOGICAL                         :: ddapc_restraint
     LOGICAL                         :: localized_wfn
     TYPE (mulliken_restraint_type), POINTER :: mulliken_restraint_control
+    TYPE (ddapc_restraint_type), POINTER :: ddapc_restraint_control
     TYPE(localized_wfn_control_type), POINTER :: localized_wfn_control
     TYPE (semi_empirical_control_type)      :: se_control
     REAL(KIND = dp)                         :: cutoff
@@ -204,7 +214,7 @@ MODULE cp_control_types
             qs_control_type,&
             gapw_control_type,&
             wave_control_type, tddfpt_control_type,&
-            pw_grid_option, mulliken_restraint_type,&
+            pw_grid_option, mulliken_restraint_type, ddapc_restraint_type,&
             semi_empirical_control_type
 
 
@@ -218,7 +228,10 @@ MODULE cp_control_types
             set_loc_centers,&
             mulliken_control_create,&
             mulliken_control_retain,&
-            mulliken_control_release
+            mulliken_control_release,&
+            ddapc_control_create,&
+            ddapc_control_retain,&
+            ddapc_control_release
 
 !!***
 ! *****************************************************************************
@@ -305,6 +318,87 @@ SUBROUTINE mulliken_control_retain(mulliken_restraint_control,error)
 
    mulliken_restraint_control%ref_count=mulliken_restraint_control%ref_count+1
 END SUBROUTINE mulliken_control_retain
+
+!!****f* cp_control_types/ddapc_control_create/retain/release *
+!!
+!!   NAME
+!!      ddapc_control_create/retain/release
+!!   FUNCTION
+!!      create retain release the ddapc_restraint_type
+!!   NOTES
+!!      
+!!   INPUTS
+!!
+!!   MODIFICATION HISTORY
+!!     02.2006 created [Joost VandeVondele]
+!!
+!!   SOURCE
+!!*** **********************************************************************
+SUBROUTINE ddapc_control_create(ddapc_restraint_control,error)
+    TYPE(ddapc_restraint_type), POINTER   :: ddapc_restraint_control
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'ddapc_control_create', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: stat
+    LOGICAL                                  :: failure
+
+   failure=.FALSE.
+
+   CPPrecondition(.NOT.ASSOCIATED(ddapc_restraint_control),cp_failure_level,routineP,error,failure)  
+   ALLOCATE(ddapc_restraint_control,stat=stat)
+   CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+
+   ddapc_restraint_control%ref_count=1
+   ddapc_restraint_control%strength=0.1_dp
+   ddapc_restraint_control%target=1.0_dp
+   ddapc_restraint_control%natoms=0
+   NULLIFY(ddapc_restraint_control%atoms)
+
+END SUBROUTINE ddapc_control_create
+
+SUBROUTINE ddapc_control_release(ddapc_restraint_control,error)
+    TYPE(ddapc_restraint_type), POINTER   :: ddapc_restraint_control
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'ddapc_control_release', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+
+   failure=.FALSE.
+   CPPrecondition(ASSOCIATED(ddapc_restraint_control),cp_failure_level,routineP,error,failure)  
+   CPPrecondition(ddapc_restraint_control%ref_count>0,cp_failure_level,routineP,error,failure)  
+   ddapc_restraint_control%ref_count=ddapc_restraint_control%ref_count-1
+   IF (ddapc_restraint_control%ref_count==0) THEN
+      IF (ASSOCIATED(ddapc_restraint_control%atoms)) &
+          DEALLOCATE(ddapc_restraint_control%atoms)
+      ddapc_restraint_control%ref_count=0
+      ddapc_restraint_control%strength=0.0_dp
+      ddapc_restraint_control%target=0.0_dp
+      ddapc_restraint_control%natoms=0
+      DEALLOCATE(ddapc_restraint_control)
+   ENDIF
+END SUBROUTINE ddapc_control_release
+
+SUBROUTINE ddapc_control_retain(ddapc_restraint_control,error)
+    TYPE(ddapc_restraint_type), POINTER   :: ddapc_restraint_control
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'ddapc_control_retain', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+
+   failure=.FALSE.
+   CPPrecondition(ASSOCIATED(ddapc_restraint_control),cp_failure_level,routineP,error,failure)  
+
+   ddapc_restraint_control%ref_count=ddapc_restraint_control%ref_count+1
+END SUBROUTINE ddapc_control_retain
 
  
 ! *****************************************************************************
@@ -485,9 +579,11 @@ SUBROUTINE qs_control_init(qs_control, error)
   NULLIFY(qs_control%e_cutoff)
   NULLIFY(qs_control%gapw_control)
   NULLIFY(qs_control%mulliken_restraint_control)
+  NULLIFY(qs_control%ddapc_restraint_control)
   NULLIFY(qs_control%localized_wfn_control)
 
   CALL mulliken_control_create(qs_control%mulliken_restraint_control)
+  CALL ddapc_control_create(qs_control%ddapc_restraint_control)
 
   CALL localized_wfn_control_create(qs_control%localized_wfn_control, error=error)
 
@@ -504,6 +600,7 @@ SUBROUTINE qs_control_dealloc_ref(qs_control, error)
     INTEGER                                  :: stat
 
     CALL mulliken_control_release(qs_control%mulliken_restraint_control)
+    CALL ddapc_control_release(qs_control%ddapc_restraint_control)
     CALL localized_wfn_control_release(qs_control% localized_wfn_control, error=error)
 
     IF (ASSOCIATED(qs_control%e_cutoff)) THEN

@@ -290,7 +290,7 @@ CONTAINS
     LOGICAL                                  :: failure, was_present
     REAL(dp)                                 :: value
     TYPE(section_vals_type), POINTER         :: loc_section, mull_section, &
-                                                qs_section, se_section
+                                                qs_section, se_section, ddapc_restraint_section
 
 !   ---------------------------------------------------------------------------
 
@@ -303,6 +303,7 @@ CONTAINS
     qs_section => section_vals_get_subs_vals(qs_section,"QS",error=error)
     loc_section => section_vals_get_subs_vals(qs_section,"LOCALIZE",error=error)
     mull_section => section_vals_get_subs_vals(qs_section,"MULLIKEN_RESTRAINT", error=error)
+    ddapc_restraint_section => section_vals_get_subs_vals(qs_section,"DDAPC_RESTRAINT", error=error)
     se_section => section_vals_get_subs_vals(qs_section,"SE", error=error)
 
     ! Setup all defaults values and overwrite input parameters
@@ -434,6 +435,27 @@ CONTAINS
            jj = jj+1
            qs_control%mulliken_restraint_control%atoms (jj) = tmplist(j) 
          END DO 
+      END DO
+    ENDIF
+
+    CALL section_vals_get(ddapc_restraint_section,explicit=qs_control%ddapc_restraint,error=error)
+    IF (qs_control%ddapc_restraint) THEN
+      CALL section_vals_val_get(ddapc_restraint_section,"STRENGTH", &
+                                r_val=qs_control%ddapc_restraint_control%strength,error=error)
+      CALL section_vals_val_get(ddapc_restraint_section,"TARGET", &
+                                r_val=qs_control%ddapc_restraint_control%target,error=error)
+      CALL section_vals_val_get(ddapc_restraint_section,"ATOMS", &
+                                n_rep_val=n_rep,error=error)
+      qs_control%ddapc_restraint_control%natoms=n_rep
+      IF (n_rep<1) CALL stop_program(routine, "Need at least 1 atom to use ddapc contraints")
+      ALLOCATE(qs_control%ddapc_restraint_control%atoms(qs_control%ddapc_restraint_control%natoms))
+      jj = 0
+      DO k = 1,n_rep
+         CALL section_vals_val_get(ddapc_restraint_section,"ATOMS",i_rep_val=k,i_vals=tmplist, error=error)
+         DO  j = 1,SIZE(tmplist)
+           jj = jj+1
+           qs_control%ddapc_restraint_control%atoms (jj) = tmplist(j)
+         END DO
       END DO
     ENDIF
 
@@ -780,6 +802,15 @@ CONTAINS
          WRITE (UNIT=output_unit,FMT="(T2,A,T73,I8)")&
            "QS| Mulliken restraint atoms: ", qs_control%mulliken_restraint_control%natoms
          WRITE (UNIT=output_unit,FMT="(5I8)") qs_control%mulliken_restraint_control%atoms
+      END IF
+      IF (qs_control%ddapc_restraint) THEN
+         WRITE (UNIT=output_unit,FMT="(T2,A,T73,ES8.1)")&
+           "QS| ddapc restraint target", qs_control%ddapc_restraint_control%target
+         WRITE (UNIT=output_unit,FMT="(T2,A,T73,ES8.1)")&
+           "QS| ddapc restraint strength", qs_control%ddapc_restraint_control%strength
+         WRITE (UNIT=output_unit,FMT="(T2,A,T73,I8)")&
+           "QS| ddapc restraint atoms: ", qs_control%ddapc_restraint_control%natoms
+         WRITE (UNIT=output_unit,FMT="(5I8)") qs_control%ddapc_restraint_control%atoms
       END IF
       IF (qs_control%localized_wfn) THEN
          nstep = qs_control%localized_wfn_control%each_step

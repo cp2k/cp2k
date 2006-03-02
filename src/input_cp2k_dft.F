@@ -1065,6 +1065,11 @@ SUBROUTINE create_qs_section(section,error)
      CALL section_release(subsection,error=error)
 
      NULLIFY(subsection)
+     CALL create_ddapc_restraint_section(subsection,error)
+     CALL section_add_subsection(section, subsection, error=error)
+     CALL section_release(subsection,error=error)
+
+     NULLIFY(subsection)
      CALL create_harris_section(subsection,error)
      CALL section_add_subsection(section, subsection, error=error)
      CALL section_release(subsection,error=error) 
@@ -1181,6 +1186,49 @@ SUBROUTINE create_mulliken_section(section,error)
     END IF
 
 END SUBROUTINE create_mulliken_section
+
+SUBROUTINE create_ddapc_restraint_section(section,error)
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_ddapc_restraint_section', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
+
+    failure=.FALSE.
+    NULLIFY(keyword)
+    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+    IF (.NOT. failure) THEN
+      CALL section_create(section,"DDAPC_RESTRAINT",&
+           description="Use DDAPC charges in a restraint (check code for details)",&
+           n_keywords=7, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+           error=error)
+
+      CALL keyword_create(keyword, name="STRENGTH",&
+           description="force constant of the restraint",&
+           usage="STRENGTH {real} ",default_r_val=0.1_dp, error=error)
+      CALL section_add_keyword(section,keyword,error=error)
+      CALL keyword_release(keyword,error=error)
+
+      CALL keyword_create(keyword, name="TARGET",&
+           description="target value of the restraint",&
+           usage="TARGET {real} ",default_r_val=1._dp, error=error)
+      CALL section_add_keyword(section,keyword,error=error)
+      CALL keyword_release(keyword,error=error)
+
+      CALL keyword_create(keyword, name="ATOMS",&
+           description="Specifies the list of atoms that is summed in the restraint",&
+           usage="LIST {integer} {integer} .. {integer}", required=.TRUE.,&
+           n_var=-1, type_of_var=integer_t, error=error)
+      CALL section_add_keyword(section,keyword,error=error)
+      CALL keyword_release(keyword,error=error)
+    END IF
+
+END SUBROUTINE create_ddapc_restraint_section
+
 
 
 !!****f* xc_derivatives/create_xc_fun_section [1.0] *
