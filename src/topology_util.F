@@ -3627,7 +3627,7 @@ CONTAINS
           CALL Pwarning("No element specification provided for type:"//element_in//".",globenv, error)
           iwarn = iwarn - 1
           IF (iwarn == 0) THEN
-             CALL Pwarning("Further Output regarding unknown elemet types will be suppressed!",&
+             CALL Pwarning("Further Output regarding unknown element types will be suppressed!",&
                   globenv,error)
           END IF
        END IF
