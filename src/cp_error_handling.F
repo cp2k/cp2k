@@ -801,7 +801,7 @@ CONTAINS
              error%level=level
              error%error_nr=error_nr
           END IF
-          error%info=info
+          IF (PRESENT(info)) error%info=info
        END IF
        CALL cp_error_handle_error(err, fromWhere,message)
        CALL cp_error_dealloc_ref(err)
