@@ -674,7 +674,6 @@ SUBROUTINE restraint_functional_potential(v_hartree_gspace, rho_tot_gspace,&
     ENDDO
     energy_res = ddapc_restraint_control%strength*(order_p-ddapc_restraint_control%target)**2.0_dp
     ddapc_restraint_control%ddapc_order_p = order_p
-    WRITE(*,'(4f15.9)') order_p,order_p-ddapc_restraint_control%target,(order_p-ddapc_restraint_control%target)**2.0_dp, energy_res
     dE=2.0_dp*ddapc_restraint_control%strength*(order_p-ddapc_restraint_control%target)
     DO I=1,ddapc_restraint_control%natoms
        ind     = (ddapc_restraint_control%atoms(I)-1)*n_gauss
