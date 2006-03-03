@@ -701,7 +701,7 @@ CONTAINS
             energy%hartree_1c + energy%hartree_2c + energy%hartree_3c +&
             energy%exc + energy%exc1 + &
             energy%qmmm_el + energy%mulliken + &
-            energy%kg_gpw_ekin_mol
+            energy%kg_gpw_ekin_mol + energy%ddapc_restraint
 
        output_unit=cp_print_key_unit_nr(logger,input,"DFT%SCF%PRINT%DETAILED_ENERGY",&
             extension=".scfLog",error=error)

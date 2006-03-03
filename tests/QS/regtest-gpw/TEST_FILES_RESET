@@ -13,3 +13,5 @@ rsgrid-dist-1.inp
 H2O-langevin-2.inp
 #changing syevx -> syevd in cp_fm_power
 Ar-2.inp
+#reset ddapc restraint
+H2O-bloechl-restraint.inp

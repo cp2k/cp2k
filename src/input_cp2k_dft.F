@@ -1199,15 +1199,16 @@ SUBROUTINE create_ddapc_restraint_section(section,error)
 
     LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
+    TYPE(section_type), POINTER              :: print_key
 
     failure=.FALSE.
-    NULLIFY(keyword)
+    NULLIFY(keyword, print_key)
     CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
-       CALL cp_print_key_section_create(section,"DDAPC_RESTRAINT",&
-            description="Use DDAPC charges in a restraint (check code for details)",&
-            print_level=low_print_level,each=(/1/),add_last=(/1/),filename="__STD_OUT__",&
-            error=error)
+      CALL section_create(section,"DDAPC_RESTRAINT",&
+           description="Use DDAPC charges in a restraint (check code for details)",&
+           n_keywords=7, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+           error=error)
 
       CALL keyword_create(keyword, name="STRENGTH",&
            description="force constant of the restraint",&
@@ -1265,11 +1266,12 @@ SUBROUTINE create_ddapc_restraint_section(section,error)
       CALL section_add_keyword(section,keyword,error=error)
       CALL keyword_release(keyword,error=error)
 
-      CALL keyword_create(keyword, name="PROGRAM_RUN_INFO",&
-           description="Controls the printing of information regarding the run.",&
-           default_l_val=.TRUE., lone_keyword_l_val=.TRUE.,error=error)
-      CALL section_add_keyword(section,keyword,error=error)
-      CALL keyword_release(keyword,error=error)
+       CALL cp_print_key_section_create(print_key,"program_run_info",&
+            description="Controls the printing of basic information during the run", &
+            print_level=low_print_level,each=(/1/),add_last=(/1/),filename="__STD_OUT__",&
+            error=error)
+       CALL section_add_subsection(section,print_key,error=error)
+       CALL section_release(print_key,error=error)       
 
     END IF
 
@@ -2333,6 +2335,7 @@ SUBROUTINE create_tddfpt_section(section,error)
 
     LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
+    TYPE(section_type), POINTER              :: print_key
 
     failure=.FALSE.
     
@@ -2342,7 +2345,7 @@ SUBROUTINE create_tddfpt_section(section,error)
             description="This section is used to set up calculation of density derived atomic point charges.",&
             print_level=high_print_level,filename="__STD_OUT__",error=error)
 
-       NULLIFY(keyword )
+       NULLIFY(keyword, print_key )
 
        CALL keyword_create(keyword, name="NUM_GAUSS",&
             description="Specifies the numbers of gaussian used to fit the QM density for each atomic site.",&
@@ -2381,11 +2384,12 @@ SUBROUTINE create_tddfpt_section(section,error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
-       CALL keyword_create(keyword, name="PROGRAM_RUN_INFO",&
-            description="Controls the printing of information regarding the run.",&
-            default_l_val=.TRUE.,lone_keyword_l_val=.TRUE.,error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
+       CALL cp_print_key_section_create(print_key,"program_run_info",&
+            description="Controls the printing of basic information during the run", &
+            print_level=low_print_level,each=(/1/),add_last=(/1/),filename="__STD_OUT__",&
+            error=error)
+       CALL section_add_subsection(section,print_key,error=error)
+       CALL section_release(print_key,error=error)
 
     END IF
 
@@ -2629,10 +2633,11 @@ SUBROUTINE create_tddfpt_section(section,error)
     
     CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
-       CALL cp_print_key_section_create(section,name="MULTIPOLE",&
+
+       CALL section_create(section,name="MULTIPOLE",&
             description="This section is used to set up the decoupling of QM periodic images with "//&
             "the use of density derived atomic point charges.",&
-            print_level=high_print_level,filename="__STD_OUT__",&
+            n_keywords=1, n_subsections=0, repeats=.FALSE., required=.FALSE.,&
             error=error)
 
        NULLIFY(keyword, subsection)
@@ -2688,12 +2693,6 @@ SUBROUTINE create_tddfpt_section(section,error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
-       CALL keyword_create(keyword, name="PROGRAM_RUN_INFO",&
-            description="Controls the printing of information regarding the run.",&
-            default_l_val=.TRUE., lone_keyword_l_val=.TRUE.,error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
        CALL keyword_create(keyword, name="ANALYTICAL_GTERM",&
             description="Evaluates the Gterm in the Ewald Scheme analytically instead of using Splines.",&
             usage="ANALYTICAL_GTERM <LOGICAL>",&
@@ -2718,6 +2717,13 @@ SUBROUTINE create_tddfpt_section(section,error)
             error=error)
        CALL section_add_subsection(section,subsection,error=error)
        CALL section_release(subsection,error=error)       
+
+       CALL cp_print_key_section_create(subsection,"program_run_info",&
+            description="Controls the printing of basic information during the run", &
+            print_level=low_print_level,each=(/1/),add_last=(/1/),filename="__STD_OUT__",&
+            error=error)
+       CALL section_add_subsection(section,subsection,error=error)
+       CALL section_release(subsection,error=error)
 
     END IF
 

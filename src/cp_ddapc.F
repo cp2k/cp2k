@@ -162,7 +162,7 @@ CONTAINS
                        super_cell=super_cell,&
                        error=error)
        iw=cp_print_key_unit_nr(logger,param_section,&
-            "/PROGRAM_RUN_INFO",".totCharge",error=error)
+            "PROGRAM_RUN_INFO",".totCharge",error=error)
        IF (iw>0) THEN
           WRITE(iw,'(T3,A,F15.9)')" Evaluating the charges to decouple QM images. " 
        END IF       
@@ -360,7 +360,7 @@ CONTAINS
        DEALLOCATE(qtot, stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        CALL cp_print_key_finished_output(iw,logger,param_section,&
-            "/PROGRAM_RUN_INFO",error=error)
+            "PROGRAM_RUN_INFO",error=error)
        CALL pw_pool_give_back_pw(auxbas_pool,rho_tot_g,&
             accept_non_compatible=.TRUE.,error=error)
        IF (only_charge.AND.(.NOT.apply_restrain)) CALL cp_ddapc_release(qs_env%cp_ddapc_env,error=error)
@@ -462,7 +462,7 @@ CONTAINS
        END IF
        ! Start the real calculation
        IF (apply_decpl.OR.apply_restrain) THEN
-          iw=cp_print_key_unit_nr(logger,multipole_section,"/PROGRAM_RUN_INFO",&
+          iw=cp_print_key_unit_nr(logger,multipole_section,"PROGRAM_RUN_INFO",&
                extension=".fitChargeLog",error=error)
           ! First we evaluate the charges at the corresponding SCF STEP
           IF (need_f) THEN
@@ -488,13 +488,14 @@ CONTAINS
           END IF
           CALL modify_hartree_pot(v_hartree_gspace, rho_tot_gspace, multipole_section, particle_set,&
                qs_env%cp_ddapc_env%Mt, qs_env%cp_ddapc_env%AmI, radii, charges, error)
+          ! Modify the Hartree potential due to the decoupling/recoupling
+          energy = 0.5_dp * pw_integral_ab ( rho_tot_gspace % pw, v_hartree_gspace % pw )
        END IF
        IF (apply_restrain) THEN
           ! Modify the Hartree potential due to the restrain
-          energy_res = 0.5_dp * pw_integral_ab ( rho_tot_gspace % pw, v_hartree_gspace % pw )
           CALL restraint_functional_potential(v_hartree_gspace, rho_tot_gspace, multipole_section,&
                particle_set, qs_env%cp_ddapc_env%AmI, radii, charges,&
-               qs_env%dft_control%qs_control%ddapc_restraint_control, error)
+               qs_env%dft_control%qs_control%ddapc_restraint_control, energy_res, error)
        END IF
        IF (need_f) THEN
           IF (apply_decpl) THEN
@@ -509,9 +510,6 @@ CONTAINS
           CALL cp_ddapc_release(qs_env%cp_ddapc_env,error)
        END IF
        IF (apply_decpl.OR.apply_restrain) THEN
-          ! Re-evaluate Hartree Energy after the Hartree potential has been modified
-          energy = 0.5_dp * pw_integral_ab ( rho_tot_gspace % pw, v_hartree_gspace % pw )
-          energy_res = energy - energy_res
           ! Clean the allocated arrays
           DEALLOCATE(charges, stat=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)       
@@ -522,7 +520,7 @@ CONTAINS
              CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
           END IF
           CALL cp_print_key_finished_output(iw,logger,multipole_section,&
-               "/PROGRAM_RUN_INFO",error=error)
+               "PROGRAM_RUN_INFO",error=error)
        END IF
     END IF
     CALL timestop(0.0_dp, handle)
@@ -549,7 +547,7 @@ CONTAINS
 !!*** **********************************************************************
 SUBROUTINE restraint_functional_potential(v_hartree_gspace, rho_tot_gspace,&
      multipole_section, particle_set, AmI, radii, charges, ddapc_restraint_control,&
-     error)
+     energy_res, error)
     TYPE(ddapc_restraint_type), &
       INTENT(INOUT)                          :: ddapc_restraint_control
     TYPE(coeff_type)                         :: v_hartree_gspace, &
@@ -559,6 +557,7 @@ SUBROUTINE restraint_functional_potential(v_hartree_gspace, rho_tot_gspace,&
       POINTER                                :: particle_set
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: M, AmI
     REAL(KIND=dp), DIMENSION(:), POINTER     :: radii, charges
+    REAL(KIND=dp), INTENT(INOUT)             :: energy_res
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -588,7 +587,7 @@ SUBROUTINE restraint_functional_potential(v_hartree_gspace, rho_tot_gspace,&
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        uv      = 0.0_dp
        CALL evaluate_restraint_functional(ddapc_restraint_control, n_gauss, uv,&
-            charges, error)
+            charges, energy_res, error)
        !
        CALL section_vals_val_get(multipole_section,"GCUT",r_val=gcut,error=error)
        gcut2 = gcut*gcut
@@ -651,12 +650,14 @@ SUBROUTINE restraint_functional_potential(v_hartree_gspace, rho_tot_gspace,&
 !!
 !!   SOURCE
 !!*** **********************************************************************
-  SUBROUTINE evaluate_restraint_functional(ddapc_restraint_control, n_gauss, uv, charges, error)
+  SUBROUTINE evaluate_restraint_functional(ddapc_restraint_control, n_gauss, uv,&
+       charges, energy_res, error)
     TYPE(ddapc_restraint_type), &
          INTENT(INOUT)                          :: ddapc_restraint_control
     INTEGER, INTENT(in)                         :: n_gauss
     REAL(KIND=dp),  DIMENSION(:)                :: uv
     REAL(KIND=dp), DIMENSION(:), POINTER        :: charges
+    REAL(KIND=dp), INTENT(INOUT)                :: energy_res
     TYPE(cp_error_type), INTENT(inout), &
          OPTIONAL                               :: error
 
@@ -671,7 +672,9 @@ SUBROUTINE restraint_functional_potential(v_hartree_gspace, rho_tot_gspace,&
        ind     = (ddapc_restraint_control%atoms(I)-1)*n_gauss
        order_p = order_p + SUM(charges(ind+1:ind+n_gauss)) 
     ENDDO
+    energy_res = ddapc_restraint_control%strength*(order_p-ddapc_restraint_control%target)**2.0_dp
     ddapc_restraint_control%ddapc_order_p = order_p
+    WRITE(*,'(4f15.9)') order_p,order_p-ddapc_restraint_control%target,(order_p-ddapc_restraint_control%target)**2.0_dp, energy_res
     dE=2.0_dp*ddapc_restraint_control%strength*(order_p-ddapc_restraint_control%target)
     DO I=1,ddapc_restraint_control%natoms
        ind     = (ddapc_restraint_control%atoms(I)-1)*n_gauss
