@@ -15,3 +15,5 @@ H2O-langevin-2.inp
 Ar-2.inp
 #reset ddapc restraint
 H2O-bloechl-restraint.inp
+#reset due to forces
+H2O-bloechl-restraint.inp

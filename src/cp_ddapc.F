@@ -28,7 +28,9 @@ MODULE cp_ddapc
   USE coefficient_types,               ONLY: coeff_type
   USE cp_control_types,                ONLY: ddapc_restraint_type
   USE cp_ddapc_forces,                 ONLY: ewald_ddapc_force,&
-                                             reset_ch_pulay
+                                             reset_ch_pulay,&
+                                             evaluate_restraint_functional,&
+                                             restraint_functional_force
   USE cp_ddapc_methods,                ONLY: build_A_matrix,&
                                              build_b_vector,&
                                              build_der_A_matrix,&
@@ -507,6 +509,11 @@ CONTAINS
                   qmmm_periodic, multipole_section, particle_set, radii, dq, charges,&
                   error=error)
           END IF
+          IF (apply_restrain) THEN
+             CALL restraint_functional_force(qs_env,&
+                  qs_env%dft_control%qs_control%ddapc_restraint_control, dq, charges,&
+                  SIZE(radii), particle_set, error)
+          END IF
           CALL cp_ddapc_release(qs_env%cp_ddapc_env,error)
        END IF
        IF (apply_decpl.OR.apply_restrain) THEN
@@ -624,63 +631,7 @@ SUBROUTINE restraint_functional_potential(v_hartree_gspace, rho_tot_gspace,&
        END DO
     END IF
     CALL timestop(0.0_dp, handle)
-
   END SUBROUTINE restraint_functional_potential
-
-!!****f* cp_ddapc/evaluate_restraint_functional *
-!!
-!!   NAME
-!!      evaluate_restraint_functional
-!!   FUNCTION
-!!      computes energy and derivatives given a set of charges
-!!
-!!   NOTES
-!!      should be easy to adapt for other specialized cases
-!!
-!!   INPUTS
-!!        - charges : current value of the charges
-!!
-!!        - order_p : value of the restraint (i.e. charge of the group)
-!!        - energy  : energy due to the restraint
-!!        - charges_deriv : derivate of energy wrt the corresponding charge entry
-!!
-!!   MODIFICATION HISTORY
-!!     02.2006 [Joost VandeVondele] 
-!!              modified [Teo]
-!!
-!!   SOURCE
-!!*** **********************************************************************
-  SUBROUTINE evaluate_restraint_functional(ddapc_restraint_control, n_gauss, uv,&
-       charges, energy_res, error)
-    TYPE(ddapc_restraint_type), &
-         INTENT(INOUT)                          :: ddapc_restraint_control
-    INTEGER, INTENT(in)                         :: n_gauss
-    REAL(KIND=dp),  DIMENSION(:)                :: uv
-    REAL(KIND=dp), DIMENSION(:), POINTER        :: charges
-    REAL(KIND=dp), INTENT(INOUT)                :: energy_res
-    TYPE(cp_error_type), INTENT(inout), &
-         OPTIONAL                               :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'evaluate_restraint_functional', &
-      routineP = moduleN//':'//routineN
-    INTEGER :: I, ind
-    REAL(KIND=dp) :: order_p, dE
-
-    order_p = 0.0_dp
-    ! derivative of the energy
-    DO I=1,ddapc_restraint_control%natoms
-       ind     = (ddapc_restraint_control%atoms(I)-1)*n_gauss
-       order_p = order_p + SUM(charges(ind+1:ind+n_gauss)) 
-    ENDDO
-    energy_res = ddapc_restraint_control%strength*(order_p-ddapc_restraint_control%target)**2.0_dp
-    ddapc_restraint_control%ddapc_order_p = order_p
-    dE=2.0_dp*ddapc_restraint_control%strength*(order_p-ddapc_restraint_control%target)
-    DO I=1,ddapc_restraint_control%natoms
-       ind     = (ddapc_restraint_control%atoms(I)-1)*n_gauss
-       uv(ind+1:ind+n_gauss)  = dE
-    ENDDO
-    
-  END SUBROUTINE evaluate_restraint_functional
 
 !!****f* cp_ddapc/modify_hartree_pot [1.0] *
 !!

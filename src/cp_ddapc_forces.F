@@ -26,6 +26,7 @@ MODULE cp_ddapc_forces
 !****************************************************************************  
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind_set
+  USE cp_control_types,                ONLY: ddapc_restraint_type
   USE cell_types,                      ONLY: cell_type
   USE cp_control_types,                ONLY: ddapc_restraint_type
   USE cp2k_units,                      ONLY: get_cp2k_units,&
@@ -51,7 +52,10 @@ MODULE cp_ddapc_forces
 
   LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_ddapc_forces'
-  PUBLIC :: ewald_ddapc_force, reset_ch_pulay
+  PUBLIC :: ewald_ddapc_force,&
+            reset_ch_pulay,&
+            evaluate_restraint_functional,&
+            restraint_functional_force
   
 CONTAINS
 
@@ -370,5 +374,155 @@ CONTAINS
     END IF
     CALL timestop(0.0_dp, handle)
   END SUBROUTINE reset_ch_pulay
+
+!!****f* cp_ddapc/evaluate_restraint_functional *
+!!
+!!   NAME
+!!      evaluate_restraint_functional
+!!   FUNCTION
+!!      computes energy and derivatives given a set of charges
+!!
+!!   NOTES
+!!      should be easy to adapt for other specialized cases
+!!
+!!   INPUTS
+!!        - charges : current value of the charges
+!!
+!!        - order_p : value of the restraint (i.e. charge of the group)
+!!        - energy  : energy due to the restraint
+!!        - charges_deriv : derivate of energy wrt the corresponding charge entry
+!!
+!!   MODIFICATION HISTORY
+!!     02.2006 [Joost VandeVondele] 
+!!              modified [Teo]
+!!
+!!   SOURCE
+!!*** **********************************************************************
+  SUBROUTINE evaluate_restraint_functional(ddapc_restraint_control, n_gauss, uv,&
+       charges, energy_res, error)
+    TYPE(ddapc_restraint_type), &
+         INTENT(INOUT)                          :: ddapc_restraint_control
+    INTEGER, INTENT(in)                         :: n_gauss
+    REAL(KIND=dp),  DIMENSION(:)                :: uv
+    REAL(KIND=dp), DIMENSION(:), POINTER        :: charges
+    REAL(KIND=dp), INTENT(INOUT)                :: energy_res
+    TYPE(cp_error_type), INTENT(inout), &
+         OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'evaluate_restraint_functional', &
+      routineP = moduleN//':'//routineN
+    INTEGER :: I, ind
+    REAL(KIND=dp) :: order_p, dE
+
+    order_p = 0.0_dp
+    ! derivative of the energy
+    DO I=1,ddapc_restraint_control%natoms
+       ind     = (ddapc_restraint_control%atoms(I)-1)*n_gauss
+       order_p = order_p + SUM(charges(ind+1:ind+n_gauss)) 
+    ENDDO
+    energy_res = ddapc_restraint_control%strength*(order_p-ddapc_restraint_control%target)**2.0_dp
+    ddapc_restraint_control%ddapc_order_p = order_p
+    dE=2.0_dp*ddapc_restraint_control%strength*(order_p-ddapc_restraint_control%target)
+    DO I=1,ddapc_restraint_control%natoms
+       ind     = (ddapc_restraint_control%atoms(I)-1)*n_gauss
+       uv(ind+1:ind+n_gauss)  = dE
+    ENDDO
+    
+  END SUBROUTINE evaluate_restraint_functional
+
+!!****f* cp_ddapc/restraint_functional_force *
+!!
+!!   NAME
+!!      restraint_functional_force
+!!
+!!   FUNCTION
+!!      computes derivatives for DDAPC restraint
+!!
+!!   NOTES
+!!      should be easy to adapt for other specialized cases
+!!
+!!   INPUTS
+!!
+!!   MODIFICATION HISTORY
+!!     02.2006 [Joost VandeVondele]
+!!             modified [Teo]
+!!
+!!   SOURCE
+!!*** **********************************************************************
+  SUBROUTINE restraint_functional_force(qs_env, ddapc_restraint_control, dq, charges,&
+       n_gauss, particle_set, error)
+
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(ddapc_restraint_type), &
+         INTENT(INOUT)                             :: ddapc_restraint_control
+    REAL(KIND=dp), DIMENSION(:, :, :), &
+      POINTER                                :: dq
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particle_set
+    INTEGER, INTENT(in)                         :: n_gauss
+    REAL(KIND=dp), DIMENSION(:), POINTER        :: charges
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'restraint_functional_force', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, i, iatom, ikind, j, &
+                                                k, natom, stat
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: atom_of_kind, kind_of
+    LOGICAL                                  :: failure
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: uv
+    REAL(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:, :)                        :: chf
+    TYPE(atomic_kind_type), DIMENSION(:), &
+      POINTER                                :: atomic_kind_set
+    TYPE(qs_force_type), DIMENSION(:), &
+      POINTER                                :: force
+    REAL(kind=dp)                            :: dum
+
+    failure = .FALSE.
+    CALL timeset(routineN,"I","",handle)
+    IF (.NOT.failure) THEN
+       natom = SIZE(particle_set)
+       CALL get_qs_env(qs_env=qs_env,&
+                       atomic_kind_set=atomic_kind_set,&
+                       force=force)
+       ALLOCATE (atom_of_kind(natom),stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       ALLOCATE (kind_of(natom),stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       ALLOCATE (chf(3,natom),stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
+                                atom_of_kind=atom_of_kind,&
+                                kind_of=kind_of)
+
+       ALLOCATE(uv(SIZE(dq,1)), stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       uv = 0.0_dp
+       CALL evaluate_restraint_functional(ddapc_restraint_control, n_gauss, uv,&
+            charges, dum, error)
+       DO k = 1, natom
+          DO j = 1, 3
+             chf(j,k) =  DOT_PRODUCT(uv,dq(:,k,j))
+          END DO
+       END DO
+       DO iatom=1,natom
+          ikind = kind_of(iatom)
+          i = atom_of_kind(iatom)
+          force(ikind)%ch_pulay(1:3,i) = force(ikind)%ch_pulay(1:3,i) + chf(1:3,iatom)
+       END DO
+       DEALLOCATE(atom_of_kind, stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       DEALLOCATE(kind_of, stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       DEALLOCATE(chf, stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       DEALLOCATE(uv, stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    END IF
+    CALL timestop(0.0_dp, handle)
+
+  END SUBROUTINE restraint_functional_force 
 
 END MODULE cp_ddapc_forces
