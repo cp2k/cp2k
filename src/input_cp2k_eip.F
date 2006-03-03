@@ -102,7 +102,7 @@ CONTAINS
        NULLIFY(subsection, keyword)
        
        CALL keyword_create(keyword, name="EIP_MODEL", &
-            description="Turns on Noisy-TightBinding", &
+            description="Selects the empirical interaction potential model", &
             usage="EIP_MODEL BAZANT", required=.TRUE., type_of_var=enum_t, &
             n_var=1, repeats=.FALSE., variants=(/"EIP-MODEL"/), &
             enum_c_vals=s2a("BAZANT", "EDIP", "LENOSKY"), &
