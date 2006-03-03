@@ -81,6 +81,7 @@ MODULE cp_control_types
     INTEGER                         :: ref_count
     REAL(KIND = dp)                 :: strength
     REAL(KIND = dp)                 :: TARGET
+    REAL(KIND = dp)                 :: ddapc_order_p
     INTEGER                         :: natoms
     INTEGER, POINTER, DIMENSION(:)  :: atoms
   END TYPE ddapc_restraint_type
@@ -352,6 +353,7 @@ SUBROUTINE ddapc_control_create(ddapc_restraint_control,error)
 
    ddapc_restraint_control%ref_count=1
    ddapc_restraint_control%strength=0.1_dp
+   ddapc_restraint_control%ddapc_order_p=0.0_dp
    ddapc_restraint_control%target=1.0_dp
    ddapc_restraint_control%natoms=0
    NULLIFY(ddapc_restraint_control%atoms)

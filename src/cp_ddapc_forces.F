@@ -27,6 +27,7 @@ MODULE cp_ddapc_forces
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind_set
   USE cell_types,                      ONLY: cell_type
+  USE cp_control_types,                ONLY: ddapc_restraint_type
   USE cp2k_units,                      ONLY: get_cp2k_units,&
                                              unit_convert_type
   USE erf_fn,                          ONLY: erfc

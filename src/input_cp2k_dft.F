@@ -1183,6 +1183,7 @@ SUBROUTINE create_mulliken_section(section,error)
            n_var=-1, type_of_var=integer_t, error=error)
       CALL section_add_keyword(section,keyword,error=error)
       CALL keyword_release(keyword,error=error)
+
     END IF
 
 END SUBROUTINE create_mulliken_section
@@ -1203,10 +1204,10 @@ SUBROUTINE create_ddapc_restraint_section(section,error)
     NULLIFY(keyword)
     CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
-      CALL section_create(section,"DDAPC_RESTRAINT",&
-           description="Use DDAPC charges in a restraint (check code for details)",&
-           n_keywords=7, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
-           error=error)
+       CALL cp_print_key_section_create(section,"DDAPC_RESTRAINT",&
+            description="Use DDAPC charges in a restraint (check code for details)",&
+            print_level=low_print_level,each=(/1/),add_last=(/1/),filename="__STD_OUT__",&
+            error=error)
 
       CALL keyword_create(keyword, name="STRENGTH",&
            description="force constant of the restraint",&
@@ -1226,6 +1227,50 @@ SUBROUTINE create_ddapc_restraint_section(section,error)
            n_var=-1, type_of_var=integer_t, error=error)
       CALL section_add_keyword(section,keyword,error=error)
       CALL keyword_release(keyword,error=error)
+
+      CALL keyword_create(keyword, name="NUM_GAUSS",&
+           description="Specifies the numbers of gaussian used to fit the QM density for each atomic site.",&
+           usage="NUM_GAUSS {integer}", required=.FALSE.,&
+           n_var=1, type_of_var=integer_t, default_i_val=3, error=error)
+      CALL section_add_keyword(section,keyword,error=error)
+      CALL keyword_release(keyword,error=error)
+      
+      CALL keyword_create(keyword, name="PFACTOR",&
+           description="Specifies the progression factor for the gaussian exponent for each atomic site.",&
+           usage="PFACTOR {real}", required=.FALSE.,&
+           n_var=1, type_of_var=real_t, default_r_val=1.5_dp,error=error)
+      CALL section_add_keyword(section,keyword,error=error)
+      CALL keyword_release(keyword,error=error)
+      
+      CALL keyword_create(keyword, name="MIN_RADIUS",&
+           description="Specifies the smallest radius of the gaussian used in the fit. All other radius are"//&
+           " obtained with the progression factor.",&
+           usage="MIN_RADIUS {real}", required=.FALSE.,&
+           unit_str="angstrom",n_var=1, type_of_var=real_t, default_r_val=0.5_dp, error=error)
+      CALL section_add_keyword(section,keyword,error=error)
+      CALL keyword_release(keyword,error=error)
+      
+      CALL keyword_create(keyword, name="RADII",&
+           description="Specifies all the radius of the gaussian used in the fit for each atomic site. The use"//&
+           " of this keyword disables all other keywords of this section.",&
+           usage="RADII {real} {real} .. {real}", required=.FALSE.,&
+           unit_str="angstrom",n_var=-1, type_of_var=real_t, error=error)
+      CALL section_add_keyword(section,keyword,error=error)
+      CALL keyword_release(keyword,error=error)
+      
+      CALL keyword_create(keyword, name="GCUT",&
+           description="Cutoff for charge fit in G-space.",&
+           usage="GCUT {real}", required=.FALSE.,&
+           n_var=1, type_of_var=real_t, default_r_val=SQRT(6.0_dp),error=error)
+      CALL section_add_keyword(section,keyword,error=error)
+      CALL keyword_release(keyword,error=error)
+
+      CALL keyword_create(keyword, name="PROGRAM_RUN_INFO",&
+           description="Controls the printing of information regarding the run.",&
+           default_l_val=.TRUE., lone_keyword_l_val=.TRUE.,error=error)
+      CALL section_add_keyword(section,keyword,error=error)
+      CALL keyword_release(keyword,error=error)
+
     END IF
 
 END SUBROUTINE create_ddapc_restraint_section

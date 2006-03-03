@@ -118,7 +118,7 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE cp_ddapc_create(cp_ddapc_env, cp_ddapc_ewald, qmmm_periodic,&
        particle_set, radii, cell, super_cell, rho_tot_g, gcut, iw, Vol,  &
-       fitcharge_section, only_charge, error)
+       param_section, only_charge, error)
     TYPE(cp_ddapc_type), POINTER             :: cp_ddapc_env
     TYPE(cp_ddapc_ewald_type), POINTER       :: cp_ddapc_ewald
     LOGICAL, INTENT(in)                      :: qmmm_periodic
@@ -130,7 +130,7 @@ CONTAINS
     REAL(KIND=dp), INTENT(IN)                :: gcut
     INTEGER, INTENT(IN)                      :: iw
     REAL(KIND=dp), INTENT(IN)                :: Vol
-    TYPE(section_vals_type), POINTER         :: fitcharge_section
+    TYPE(section_vals_type), POINTER         :: param_section
     LOGICAL, INTENT(in)                      :: only_charge
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
@@ -164,23 +164,21 @@ CONTAINS
        CALL ddapc_eval_AmI(cp_ddapc_env%AmI, cp_ddapc_env%c0, &
             cp_ddapc_env%gfunc, cp_ddapc_env%w, particle_set, &
             gcut, rho_tot_g, radii, iw, Vol, error)
-       IF (only_charge) THEN
-          CALL timestop(0.0_dp, handle)
-          RETURN
-       END IF
-       !
-       ! Evaluate the matrix for the Classical contribution to the coupling/decoupling scheme
-       !
-       CALL ewald_ddapc_pot(cp_ddapc_ewald%coeff_qm, .FALSE.,cell, fitcharge_section, particle_set,&
+       IF (.NOT.only_charge) THEN
+          !
+          ! Evaluate the matrix for the Classical contribution to the coupling/decoupling scheme
+          !
+          CALL ewald_ddapc_pot(cp_ddapc_ewald%coeff_qm, .FALSE.,cell, param_section, particle_set,&
                cp_ddapc_env%Md, radii, error)
-       ALLOCATE(cp_ddapc_env%Mt(SIZE(cp_ddapc_env%Md,1),SIZE(cp_ddapc_env%Md,2)),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       IF (qmmm_periodic) THEN
-          CALL ewald_ddapc_pot(cp_ddapc_ewald%coeff_mm,qmmm_periodic, super_cell, fitcharge_section,&
-               particle_set, cp_ddapc_env%Mr, radii, error)
-          cp_ddapc_env%Mt = cp_ddapc_env%Md + cp_ddapc_env%Mr
-       ELSE
-          cp_ddapc_env%Mt = cp_ddapc_env%Md 
+          ALLOCATE(cp_ddapc_env%Mt(SIZE(cp_ddapc_env%Md,1),SIZE(cp_ddapc_env%Md,2)),stat=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          IF (qmmm_periodic) THEN
+             CALL ewald_ddapc_pot(cp_ddapc_ewald%coeff_mm,qmmm_periodic, super_cell, param_section,&
+                  particle_set, cp_ddapc_env%Mr, radii, error)
+             cp_ddapc_env%Mt = cp_ddapc_env%Md + cp_ddapc_env%Mr
+          ELSE
+             cp_ddapc_env%Mt = cp_ddapc_env%Md 
+          END IF
        END IF
     END IF
     CALL timestop(0.0_dp, handle)

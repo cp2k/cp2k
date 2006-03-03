@@ -34,11 +34,17 @@ MODULE qs_ks_methods
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind_set
   USE cell_types,                      ONLY: cell_type
-  USE coefficient_types,               ONLY: &
-       coeff_add, coeff_copy, coeff_init, coeff_scale, coeff_subtract, &
-       coeff_sumup, coeff_transform_space, coeff_type, coeff_zero
+  USE coefficient_types,               ONLY: coeff_add,&
+                                             coeff_copy,&
+                                             coeff_init,&
+                                             coeff_scale,&
+                                             coeff_subtract,&
+                                             coeff_sumup,&
+                                             coeff_transform_space,&
+                                             coeff_type,&
+                                             coeff_zero
   USE cp_control_types,                ONLY: dft_control_type
-  USE cp_ddapc,                        ONLY: cp_decpl_ddapc
+  USE cp_ddapc,                        ONLY: cp_ddapc_apply
   USE cp_fm_basic_linalg,              ONLY: cp_fm_column_scale,&
                                              cp_fm_gemm,&
                                              cp_fm_scale_and_add,&
@@ -411,18 +417,15 @@ CONTAINS
             "PRINT%TOTAL_DENSITIES", error=error)
        CALL pw_poisson_solve(poisson_env,rho_tot_gspace%pw,energy%hartree,&
             v_hartree_gspace%pw)
-
-       ! In case of a ddapc_restraint 
-       energy%ddapc_restraint=0.0_dp
-       IF (dft_control%qs_control%ddapc_restraint) THEN
-           ! do something with dft_control%qs_control%ddapc_restraint_control
-           ! set energy%ddapc_restraint, ddapc_order_p and potential
-           ! take just_energy into account
-       ENDIF
       
-       ! In case decouple periodic images
-       CALL cp_decpl_ddapc(qs_env,rho_tot_gspace,energy%hartree,v_hartree_gspace,&
-            calculate_forces=calculate_forces,error=error)
+       ! In case decouple periodic images and/or apply restraints to charges
+       CALL cp_ddapc_apply(qs_env,&
+                           rho_tot_gspace,&
+                           energy%hartree,&
+                           energy%ddapc_restraint,&
+                           v_hartree_gspace,&
+                           calculate_forces=calculate_forces,&
+                           error=error)
 
        IF (.NOT. just_energy) THEN
           CALL coeff_transform_space(v_hartree_gspace,&
@@ -698,7 +701,7 @@ CONTAINS
             energy%hartree_1c + energy%hartree_2c + energy%hartree_3c +&
             energy%exc + energy%exc1 + &
             energy%qmmm_el + energy%mulliken + &
-            energy%kg_gpw_ekin_mol + energy%ddapc_restraint
+            energy%kg_gpw_ekin_mol
 
        output_unit=cp_print_key_unit_nr(logger,input,"DFT%SCF%PRINT%DETAILED_ENERGY",&
             extension=".scfLog",error=error)
@@ -735,8 +738,9 @@ CONTAINS
                 "Mulliken restraint (order_p,energy) : ",mulliken_order_p,energy%mulliken
           ENDIF
           IF (dft_control%qs_control%ddapc_restraint) THEN
+             ddapc_order_p = dft_control%qs_control%ddapc_restraint_control%ddapc_order_p
               WRITE (UNIT=output_unit,FMT="(T3,A,T40,2F20.10)")&
-                "ddapc restraint (order_p,energy) : ",ddapc_order_p,energy%ddapc_restraint
+                "DDAPC restraint (order_p,energy) : ",ddapc_order_p,energy%ddapc_restraint
           ENDIF
 
        END IF
