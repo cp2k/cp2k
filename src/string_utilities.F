@@ -106,7 +106,7 @@ FUNCTION typo_match(string,typo_string) RESULT(match)
       tmp2=string
       tmp2(i:i)=kind
       tmp2(j:j)=kind
-      IF (i==j .AND. LEN_TRIM(typo_string)>1 ) tmp(i:i)=star
+      IF (i==j .AND. LEN_TRIM(typo_string)>1 ) tmp2(i:i)=star
    !dbg   IF (pattern_match(string=typo_string,pattern=tmp2)) write(6,*) "->"//typo_string//"<-","->"//TRIM(tmp2)//"<-"
       match=match.OR.pattern_match(string=typo_string,pattern=tmp2)
      ENDDO
