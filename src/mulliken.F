@@ -22,6 +22,7 @@
 !******************************************************************************
 
 MODULE mulliken
+  USE atomic_charges,                  ONLY: print_atomic_charges
   USE atomic_kind_types,               ONLY: get_atomic_kind
   USE cp_control_types,                ONLY: mulliken_restraint_type
   USE cp_para_types,                   ONLY: cp_para_env_type
@@ -391,7 +392,7 @@ END SUBROUTINE rf_deriv_check
 !!   SOURCE
 !!*** **********************************************************************
   SUBROUTINE mulliken_charges(p_matrix,s_matrix,para_env,particle_set, &
-                              scr,ionode,title)
+                              scr,title)
 
     TYPE(real_matrix_p_type), DIMENSION(:), &
       POINTER                                :: p_matrix
@@ -400,7 +401,6 @@ END SUBROUTINE rf_deriv_check
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     INTEGER                                  :: scr
-    LOGICAL                                  :: ionode
     CHARACTER(LEN=*)                         :: title
 
     CHARACTER(LEN=2)                         :: element_symbol
@@ -420,38 +420,10 @@ END SUBROUTINE rf_deriv_check
     ALLOCATE(charges(nblock,nspin))
     CALL compute_charges(p_matrix,s_matrix,charges,para_env)
 
-    ! obviously output is not yet very nice
-    IF (ionode) THEN
-       WRITE(scr,'(A)') title
-       SELECT CASE (nspin)
-       CASE(1)
-       WRITE(scr,'(A)') "  Atom     |    Charge"
-       CASE DEFAULT
-       WRITE(scr,'(A)') "  Atom     |    Charge | Spin diff charge"
-       END SELECT
-       total_charge = 0.0_dp
-       IF (SIZE(particle_set) .NE. nblock) &
-           CALL stop_program("Mulliken","unexpected number of atoms")
-       WRITE(scr,'(A)') ""
-       DO iblock=1,nblock
-          CALL get_atomic_kind(atomic_kind=particle_set(iblock)%atomic_kind,&
-                             element_symbol=element_symbol,&
-                             zeff=zeff)
+    CALL print_atomic_charges(particle_set,scr,title,electronic_charges=charges)
 
-          SELECT CASE (nspin)
-          CASE(1)
-          WRITE(scr,'(I6,A2,A2,F12.6)') iblock,"  ",element_symbol,zeff-charges(iblock,1)
-          total_charge=total_charge+ zeff-charges(iblock,1)
-          CASE DEFAULT
-          WRITE(scr,'(I6,A2,A2,2F12.6)') iblock,"  ",element_symbol, &
-                      zeff-(charges(iblock,1)+charges(iblock,2)),(charges(iblock,1)-charges(iblock,2))
-          total_charge=total_charge+ zeff-(charges(iblock,1)+charges(iblock,2))
-          END SELECT
-       ENDDO
-       WRITE(scr,'(A,F10.6)') "  Total     ",total_charge
-       WRITE(scr,'(A)') ""
-    ENDIF
     DEALLOCATE(charges)
+
     CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE

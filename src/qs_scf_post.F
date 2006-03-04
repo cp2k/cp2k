@@ -294,7 +294,7 @@ CONTAINS
           mulliken_title="  Mulliken charges : iteration level: " &
                                 //cp_iter_string(logger%iter_info, print_key)
           CALL mulliken_charges(rho%rho_ao,matrix_s(1)%matrix,globenv%para_env,particle_set, &
-                                  unit_nr,unit_nr>0,mulliken_title)
+                                  unit_nr,mulliken_title)
 
           CALL cp_print_key_finished_output(unit_nr, logger,input,&
                "DFT%PRINT%MULLIKEN", error=error)
@@ -308,7 +308,7 @@ CONTAINS
           lowdin_title="  Lowdin charges : iteration level: " &
                                 //cp_iter_string(logger%iter_info, print_key)
           CALL lowdin_charges(matrix_s(1)%matrix,mos,particle_set, &
-                                  unit_nr,unit_nr>0,lowdin_title)
+                                  unit_nr,lowdin_title)
           CALL cp_print_key_finished_output(unit_nr, logger,input,&
                "DFT%PRINT%LOWDIN", error=error)
        END IF

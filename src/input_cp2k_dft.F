@@ -1268,7 +1268,7 @@ SUBROUTINE create_ddapc_restraint_section(section,error)
 
        CALL cp_print_key_section_create(print_key,"program_run_info",&
             description="Controls the printing of basic information during the run", &
-            print_level=low_print_level,each=(/1/),add_last=(/1/),filename="__STD_OUT__",&
+            print_level=high_print_level,each=(/1/),add_last=(/1/),filename="__STD_OUT__",&
             error=error)
        CALL section_add_subsection(section,print_key,error=error)
        CALL section_release(print_key,error=error)       

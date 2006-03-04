@@ -24,6 +24,7 @@ MODULE cp_ddapc
 !!
 !!   SOURCE
 !****************************************************************************  
+  USE atomic_charges,                  ONLY: print_atomic_charges
   USE cell_types,                      ONLY: cell_type
   USE coefficient_types,               ONLY: coeff_type
   USE cp_control_types,                ONLY: ddapc_restraint_type
@@ -166,7 +167,7 @@ CONTAINS
        iw=cp_print_key_unit_nr(logger,param_section,&
             "PROGRAM_RUN_INFO",".totCharge",error=error)
        IF (iw>0) THEN
-          WRITE(iw,'(T3,A,F15.9)')" Evaluating the charges to decouple QM images. " 
+          WRITE(iw,'(T3,A,F15.9)')" Evaluating the DDAPC charges"
        END IF       
        CALL pw_env_get(pw_env=pw_env,&
                        auxbas_pw_pool=auxbas_pool,&
@@ -264,14 +265,9 @@ CONTAINS
           END IF          
           qout2 = qtot
        END IF
-       IF (iw>0) THEN
-          WRITE(iw,'(/T3,A)')" Atomic point Charges on QM atoms:"
-          DO i = 1, SIZE(particle_set)
-             WRITE(iw,'(T6,A,I5,F12.6)')"Atom: ",i,qtot(i)
-          END DO
-          WRITE(iw,'(T5,A,5X,F12.6)')"Total: ",SUM(qtot)
-          WRITE(iw,'(/)')
-       END IF
+
+       CALL print_atomic_charges(particle_set,iw,title=" DDAPC charges:",atomic_charges=qtot)
+
        CALL timestop(0.0_dp,handle2)
        !
        ! If requested evaluate also the correction to derivatives due to Pulay Forces
@@ -279,7 +275,7 @@ CONTAINS
        IF (need_f.AND.(.NOT.(only_charge.AND.(.NOT.apply_restrain)))) THEN 
           CALL timeset(routineN//"-forces","I","",handle3)
           IF (iw>0) THEN
-             WRITE(iw,'(T3,A)')" Evaluating Pulay Forces.."
+             WRITE(iw,'(T3,A)')" Evaluating DDAPC atomic derivatives .."
           END IF
           ALLOCATE(dAm(ndim, ndim,3), stat=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)

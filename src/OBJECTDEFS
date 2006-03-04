@@ -11,6 +11,7 @@ OBJECTS_GENERIC =\
  ai_overlap_ppl.o\
  ai_verfc.o\
  ao_types.o\
+ atomic_charges.o\
  atomic_kind_list_types.o\
  atomic_kind_types.o\
  atoms_input.o\
