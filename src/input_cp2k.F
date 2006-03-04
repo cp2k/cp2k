@@ -673,8 +673,10 @@ CONTAINS
             error=error)
        NULLIFY(keyword)
 
-       CALL keyword_create(keyword, name="EXTERNAL_FILE",&
-            description="Specify tha external input file to read",&
+       CALL keyword_create(keyword, name="RESTART_FILE_NAME",variants=(/"EXTERNAL_FILE"/),&
+            description="Specifies the name of restart file (or any other input file)"//&
+                        " to be read. Only fields relevant to a restart will be used"//&
+                        " (unless switched off with the keywords in this section)",&
             default_lc_val=" ", error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)

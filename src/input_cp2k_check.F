@@ -226,7 +226,7 @@ END SUBROUTINE xc_functionals_expand
 !!
 !!   FUNCTION
 !!     Replaces the requested sections in the input with those found
-!!     in the external restart (EXT_RESTART%EXTERNAL_FILE).
+!!     in the external restart (EXT_RESTART%RESTART_FILE_NAME).
 !!
 !!   NOTES
 !!     -
@@ -269,7 +269,7 @@ SUBROUTINE handle_ext_restart(input_file,para_env,error)
   IF (.NOT. failure) THEN
      r_section => section_vals_get_subs_vals(input_file,&
           "EXT_RESTART",error=error)
-     CALL section_vals_val_get(r_section,"EXTERNAL_FILE", &
+     CALL section_vals_val_get(r_section,"RESTART_FILE_NAME", &
           c_val=r_file_path, error=error)
 
      IF (r_file_path/=" ") THEN
@@ -494,7 +494,7 @@ SUBROUTINE handle_ext_restart(input_file,para_env,error)
                    section,error=error)
            END IF
         END DO
-        CALL section_vals_val_set(r_section,"EXTERNAL_FILE",&
+        CALL section_vals_val_set(r_section,"RESTART_FILE_NAME",&
              c_val=" ",error=error)
         CALL section_vals_release(restart_input,error=error)
      END IF
