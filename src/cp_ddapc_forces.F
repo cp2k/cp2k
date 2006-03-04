@@ -26,11 +26,10 @@ MODULE cp_ddapc_forces
 !****************************************************************************  
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind_set
-  USE cp_control_types,                ONLY: ddapc_restraint_type
   USE cell_types,                      ONLY: cell_type
-  USE cp_control_types,                ONLY: ddapc_restraint_type
   USE cp2k_units,                      ONLY: get_cp2k_units,&
                                              unit_convert_type
+  USE cp_control_types,                ONLY: ddapc_restraint_type
   USE erf_fn,                          ONLY: erfc
   USE input_section_types,             ONLY: section_vals_type,&
                                              section_vals_val_get
@@ -375,7 +374,7 @@ CONTAINS
     CALL timestop(0.0_dp, handle)
   END SUBROUTINE reset_ch_pulay
 
-!!****f* cp_ddapc/evaluate_restraint_functional *
+!!****f* cp_ddapc_forces/evaluate_restraint_functional *
 !!
 !!   NAME
 !!      evaluate_restraint_functional
@@ -386,11 +385,11 @@ CONTAINS
 !!      should be easy to adapt for other specialized cases
 !!
 !!   INPUTS
-!!        - charges : current value of the charges
+!!        - charges : current value of the charges (one number for each gaussian used)
 !!
 !!        - order_p : value of the restraint (i.e. charge of the group)
 !!        - energy  : energy due to the restraint
-!!        - charges_deriv : derivate of energy wrt the corresponding charge entry
+!!        - uv : derivate of energy wrt the corresponding charge entry
 !!
 !!   MODIFICATION HISTORY
 !!     02.2006 [Joost VandeVondele] 
@@ -401,27 +400,34 @@ CONTAINS
   SUBROUTINE evaluate_restraint_functional(ddapc_restraint_control, n_gauss, uv,&
        charges, energy_res, error)
     TYPE(ddapc_restraint_type), &
-         INTENT(INOUT)                          :: ddapc_restraint_control
-    INTEGER, INTENT(in)                         :: n_gauss
-    REAL(KIND=dp),  DIMENSION(:)                :: uv
-    REAL(KIND=dp), DIMENSION(:), POINTER        :: charges
-    REAL(KIND=dp), INTENT(INOUT)                :: energy_res
+      INTENT(INOUT)                          :: ddapc_restraint_control
+    INTEGER, INTENT(in)                      :: n_gauss
+    REAL(KIND=dp), DIMENSION(:)              :: uv
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: charges
+    REAL(KIND=dp), INTENT(INOUT)             :: energy_res
     TYPE(cp_error_type), INTENT(inout), &
-         OPTIONAL                               :: error
+      OPTIONAL                               :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'evaluate_restraint_functional', &
+    CHARACTER(len=*), PARAMETER :: &
+      routineN = 'evaluate_restraint_functional', &
       routineP = moduleN//':'//routineN
-    INTEGER :: I, ind
-    REAL(KIND=dp) :: order_p, dE
+
+    INTEGER                                  :: I, ind
+    REAL(KIND=dp)                            :: dE, order_p
+
+! order parameter (i.e. the sum of the charges of the selected atoms)
 
     order_p = 0.0_dp
-    ! derivative of the energy
     DO I=1,ddapc_restraint_control%natoms
        ind     = (ddapc_restraint_control%atoms(I)-1)*n_gauss
        order_p = order_p + SUM(charges(ind+1:ind+n_gauss)) 
     ENDDO
-    energy_res = ddapc_restraint_control%strength*(order_p-ddapc_restraint_control%target)**2.0_dp
     ddapc_restraint_control%ddapc_order_p = order_p
+
+    ! the restraint energy
+    energy_res = ddapc_restraint_control%strength*(order_p-ddapc_restraint_control%target)**2.0_dp
+
+    ! derivative of the energy
     dE=2.0_dp*ddapc_restraint_control%strength*(order_p-ddapc_restraint_control%target)
     DO I=1,ddapc_restraint_control%natoms
        ind     = (ddapc_restraint_control%atoms(I)-1)*n_gauss
@@ -454,13 +460,13 @@ CONTAINS
 
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(ddapc_restraint_type), &
-         INTENT(INOUT)                             :: ddapc_restraint_control
+      INTENT(INOUT)                          :: ddapc_restraint_control
     REAL(KIND=dp), DIMENSION(:, :, :), &
       POINTER                                :: dq
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: charges
+    INTEGER, INTENT(in)                      :: n_gauss
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
-    INTEGER, INTENT(in)                         :: n_gauss
-    REAL(KIND=dp), DIMENSION(:), POINTER        :: charges
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -471,6 +477,7 @@ CONTAINS
                                                 k, natom, stat
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: atom_of_kind, kind_of
     LOGICAL                                  :: failure
+    REAL(kind=dp)                            :: dum
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: uv
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: chf
@@ -478,7 +485,6 @@ CONTAINS
       POINTER                                :: atomic_kind_set
     TYPE(qs_force_type), DIMENSION(:), &
       POINTER                                :: force
-    REAL(kind=dp)                            :: dum
 
     failure = .FALSE.
     CALL timeset(routineN,"I","",handle)
