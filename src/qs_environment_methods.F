@@ -138,6 +138,7 @@ SUBROUTINE qs_env_setup(qs_env,error)
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_env_setup', &
       routineP = moduleN//':'//routineN
 
+    INTEGER                                  :: handle
     LOGICAL                                  :: failure
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
@@ -153,53 +154,57 @@ SUBROUTINE qs_env_setup(qs_env,error)
     TYPE(qs_charges_type), POINTER           :: qs_charges
     TYPE(scf_control_type), POINTER          :: scf_control
 
-  failure = .FALSE.
+    CALL timeset(routineN,handle)
 
-  NULLIFY(atomic_kind_set, dft_control, scf_control, qs_charges, para_env,&
-       distribution_2d, molecule_kind_set, molecule_set, particle_set)
-
-  CALL get_qs_env(qs_env=qs_env,&
-                  atomic_kind_set=atomic_kind_set,&
-                  dft_control=dft_control,&
-                  molecule_kind_set=molecule_kind_set,&
-                  molecule_set=molecule_set,&
-                  particle_set=particle_set,&
-                  scf_control=scf_control,&
-                  para_env=para_env,&
-                  error=error)
-  CPPrecondition(ASSOCIATED(atomic_kind_set),cp_failure_level,routineP,error,failure)
-  CPPrecondition(ASSOCIATED(dft_control),cp_failure_level,routineP,error,failure)
-  CPPrecondition(ASSOCIATED(scf_control),cp_failure_level,routineP,error,failure)
-  IF (.NOT. failure) THEN
-     ! allocate qs_charges
-     CALL qs_charges_create(qs_charges,nspins=dft_control%nspins,error=error)
-     CALL set_qs_env(qs_env, qs_charges=qs_charges,error=error)
-     CALL qs_charges_release(qs_charges,error=error)
-
-     ! set up pw_env
-     CALL qs_env_rebuild_pw_env(qs_env, error=error)
-
-     ! rebuilds fm_pools
-
-     CALL mpools_rebuild_fm_pools(qs_env%mpools,mos=qs_env%mos,&
-            blacs_env=qs_env%blacs_env, para_env=para_env,&
-            nrow_block=scf_control%nrow_block,&
-            ncol_block=scf_control%ncol_block,&
-            error=error)
-
-     ! create 2d distribution
-
-     CALL distribute_molecules_2d(particle_kind_set=atomic_kind_set,&
-                                  particle_set=particle_set,&
-                                  molecule_kind_set=molecule_kind_set,&
-                                  molecule_set=molecule_set,&
-                                  distribution_2d=distribution_2d,&
-                                  blacs_env=qs_env%blacs_env,&
-                                  force_env_section=qs_env%input, error=error)
-
-     CALL set_qs_env(qs_env,distribution_2d=distribution_2d,error=error)
-     CALL distribution_2d_release(distribution_2d, error=error)
-  END IF
+    failure = .FALSE.
+  
+    NULLIFY(atomic_kind_set, dft_control, scf_control, qs_charges, para_env,&
+         distribution_2d, molecule_kind_set, molecule_set, particle_set)
+    
+    CALL get_qs_env(qs_env=qs_env,&
+                    atomic_kind_set=atomic_kind_set,&
+                    dft_control=dft_control,&
+                    molecule_kind_set=molecule_kind_set,&
+                    molecule_set=molecule_set,&
+                    particle_set=particle_set,&
+                    scf_control=scf_control,&
+                    para_env=para_env,&
+                    error=error)
+    CPPrecondition(ASSOCIATED(atomic_kind_set),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(dft_control),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(scf_control),cp_failure_level,routineP,error,failure)
+    IF (.NOT. failure) THEN
+       ! allocate qs_charges
+       CALL qs_charges_create(qs_charges,nspins=dft_control%nspins,error=error)
+       CALL set_qs_env(qs_env, qs_charges=qs_charges,error=error)
+       CALL qs_charges_release(qs_charges,error=error)
+  
+       ! set up pw_env
+       CALL qs_env_rebuild_pw_env(qs_env, error=error)
+  
+       ! rebuilds fm_pools
+  
+       CALL mpools_rebuild_fm_pools(qs_env%mpools,mos=qs_env%mos,&
+              blacs_env=qs_env%blacs_env, para_env=para_env,&
+              nrow_block=scf_control%nrow_block,&
+              ncol_block=scf_control%ncol_block,&
+              error=error)
+  
+       ! create 2d distribution
+  
+       CALL distribute_molecules_2d(particle_kind_set=atomic_kind_set,&
+                                    particle_set=particle_set,&
+                                    molecule_kind_set=molecule_kind_set,&
+                                    molecule_set=molecule_set,&
+                                    distribution_2d=distribution_2d,&
+                                    blacs_env=qs_env%blacs_env,&
+                                    force_env_section=qs_env%input, error=error)
+  
+       CALL set_qs_env(qs_env,distribution_2d=distribution_2d,error=error)
+       CALL distribution_2d_release(distribution_2d, error=error)
+    END IF
+  
+    CALL timestop(handle)
 
 END SUBROUTINE qs_env_setup
 !***************************************************************************
@@ -254,55 +259,55 @@ SUBROUTINE qs_env_update_s_mstruct(qs_env,error)
     TYPE(real_matrix_p_type), DIMENSION(:), &
       POINTER                                :: matrix_ks
 
-  CALL timeset(routineN,"I","",handle)
-  failure=.FALSE.
-  NULLIFY(para_env, dft_control,particle_set)
-
-  CPPrecondition(ASSOCIATED(qs_env),cp_failure_level,routineP,error,failure)
-
-  CALL get_qs_env(qs_env, para_env=para_env, dft_control=dft_control,&
-       particle_set=particle_set,matrix_ks=matrix_ks, error=error)
-
-  ! *** rebuilds the S_sm_pools ***
-  CALL mpools_rebuild_s_sm_pools(qs_env%mpools,s=qs_env%matrix_s,&
-       nspins=dft_control%nspins,particle_set=particle_set,&
-       para_env=para_env, error=error)
-
-  ! *** deallocate matrices that will have the wrong structure ***
-  CALL deallocate_matrix_set(matrix_ks)
-  CALL set_qs_env(qs_env,matrix_ks=matrix_ks)
-
-  IF(dft_control%qs_control%gapw) THEN
-    qs_env%qs_charges%total_rho_core_rspace=qs_env%local_rho_set%rhoz_tot
-  ELSE IF(dft_control%qs_control%semi_empirical) THEN
-    !??
-  ELSE
-    ! *** updates rho core ***
-    CPPrecondition(ASSOCIATED(qs_env%rho_core),cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(qs_env%pw_env),cp_failure_level,routineP,error,failure)
-    CPPrecondition(qs_env%pw_env%ref_count>0,cp_failure_level,routineP,error,failure)
-    IF (.NOT. failure) THEN
-       CALL calculate_rho_core(qs_env%rho_core, &
-            qs_env%qs_charges%total_rho_core_rspace,qs_env,error=error)
+    CALL timeset(routineN,"I","",handle)
+    failure=.FALSE.
+    NULLIFY(para_env, dft_control,particle_set)
+  
+    CPPrecondition(ASSOCIATED(qs_env),cp_failure_level,routineP,error,failure)
+  
+    CALL get_qs_env(qs_env, para_env=para_env, dft_control=dft_control,&
+         particle_set=particle_set,matrix_ks=matrix_ks, error=error)
+  
+    ! *** rebuilds the S_sm_pools ***
+    CALL mpools_rebuild_s_sm_pools(qs_env%mpools,s=qs_env%matrix_s,&
+         nspins=dft_control%nspins,particle_set=particle_set,&
+         para_env=para_env, error=error)
+  
+    ! *** deallocate matrices that will have the wrong structure ***
+    CALL deallocate_matrix_set(matrix_ks)
+    CALL set_qs_env(qs_env,matrix_ks=matrix_ks)
+  
+    IF(dft_control%qs_control%gapw) THEN
+      qs_env%qs_charges%total_rho_core_rspace=qs_env%local_rho_set%rhoz_tot
+    ELSE IF(dft_control%qs_control%semi_empirical) THEN
+      !??
+    ELSE
+      ! *** updates rho core ***
+      CPPrecondition(ASSOCIATED(qs_env%rho_core),cp_failure_level,routineP,error,failure)
+      CPPrecondition(ASSOCIATED(qs_env%pw_env),cp_failure_level,routineP,error,failure)
+      CPPrecondition(qs_env%pw_env%ref_count>0,cp_failure_level,routineP,error,failure)
+      IF (.NOT. failure) THEN
+         CALL calculate_rho_core(qs_env%rho_core, &
+              qs_env%qs_charges%total_rho_core_rspace,qs_env,error=error)
+      END IF
     END IF
-  END IF
-
-  ! *** tell ks_env ***
-  IF (ASSOCIATED(qs_env%ks_env)) THEN
-     CALL qs_ks_did_change(qs_env%ks_env,s_mstruct_changed=.TRUE.,&
-          error=error)
-  END IF
-
-  !   *** Updates rho structure ***
-  CALL qs_env_rebuild_rho(qs_env=qs_env)
-
-  ! *** tell scf_env ***
-  IF (ASSOCIATED(qs_env%scf_env)) THEN
-     CALL scf_env_did_change(qs_env%scf_env,&
-          error=error)
-  END IF
-
-  CALL timestop(0.0_dp,handle)
+  
+    ! *** tell ks_env ***
+    IF (ASSOCIATED(qs_env%ks_env)) THEN
+       CALL qs_ks_did_change(qs_env%ks_env,s_mstruct_changed=.TRUE.,&
+            error=error)
+    END IF
+  
+    !   *** Updates rho structure ***
+    CALL qs_env_rebuild_rho(qs_env=qs_env)
+  
+    ! *** tell scf_env ***
+    IF (ASSOCIATED(qs_env%scf_env)) THEN
+       CALL scf_env_did_change(qs_env%scf_env,&
+            error=error)
+    END IF
+  
+    CALL timestop(0.0_dp,handle)
 
 END SUBROUTINE qs_env_update_s_mstruct
 !***************************************************************************
@@ -344,52 +349,55 @@ SUBROUTINE qs_env_rebuild_pw_env(qs_env,error)
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_env_rebuild_pw_env', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
+    INTEGER                                  :: handle, stat
     LOGICAL                                  :: failure
     TYPE(coeff_type), POINTER                :: rho_core
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(pw_env_type), POINTER               :: new_pw_env
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
 
-  failure=.FALSE.
-  ! rebuild pw_env
-  NULLIFY(dft_control)
-  CALL get_qs_env(qs_env, pw_env=new_pw_env, dft_control=dft_control)
-
-  IF (.NOT.ASSOCIATED(new_pw_env)) THEN
-     CALL pw_env_create(new_pw_env,qs_env=qs_env,error=error)
-     CALL set_qs_env(qs_env,pw_env=new_pw_env)
-     CALL pw_env_release(new_pw_env,force_env_section=qs_env%input,error=error)
-  ELSE
-     CALL pw_env_rebuild(new_pw_env,qs_env=qs_env,error=error)
-  END IF
-
-  ! reallocate rho_core
-  CALL get_qs_env(qs_env, pw_env=new_pw_env, rho_core=rho_core)
-  CPPrecondition(ASSOCIATED(new_pw_env),cp_failure_level,routineP,error,failure)
-  IF(dft_control%qs_control%gapw) THEN
-    IF (ASSOCIATED(rho_core)) THEN
-       CALL coeff_deallocate(rho_core)
-       DEALLOCATE(rho_core,stat=stat)
-       CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+    CALL timeset(routineN,handle)
+    failure=.FALSE.
+    ! rebuild pw_env
+    NULLIFY(dft_control)
+    CALL get_qs_env(qs_env, pw_env=new_pw_env, dft_control=dft_control)
+  
+    IF (.NOT.ASSOCIATED(new_pw_env)) THEN
+       CALL pw_env_create(new_pw_env,qs_env=qs_env,error=error)
+       CALL set_qs_env(qs_env,pw_env=new_pw_env)
+       CALL pw_env_release(new_pw_env,force_env_section=qs_env%input,error=error)
+    ELSE
+       CALL pw_env_rebuild(new_pw_env,qs_env=qs_env,error=error)
     END IF
-  ELSE IF (dft_control%qs_control%semi_empirical) THEN
-  ELSE
-    IF (ASSOCIATED(rho_core)) THEN
-       CALL coeff_deallocate(rho_core)
-       DEALLOCATE(rho_core,stat=stat)
-       CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-    ENDIF
-    ALLOCATE(rho_core,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    IF (.NOT.failure) THEN
-       CALL pw_env_get(new_pw_env, auxbas_pw_pool=auxbas_pw_pool,error=error)
-       CALL pw_pool_init_coeff(pool=auxbas_pw_pool, coeff=rho_core, &
-            use_data=COMPLEXDATA1D, error=error)
-       rho_core%pw%in_space=RECIPROCALSPACE
-       CALL set_qs_env(qs_env, rho_core=rho_core,error=error)
+  
+    ! reallocate rho_core
+    CALL get_qs_env(qs_env, pw_env=new_pw_env, rho_core=rho_core)
+    CPPrecondition(ASSOCIATED(new_pw_env),cp_failure_level,routineP,error,failure)
+    IF(dft_control%qs_control%gapw) THEN
+      IF (ASSOCIATED(rho_core)) THEN
+         CALL coeff_deallocate(rho_core)
+         DEALLOCATE(rho_core,stat=stat)
+         CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+      END IF
+    ELSE IF (dft_control%qs_control%semi_empirical) THEN
+    ELSE
+      IF (ASSOCIATED(rho_core)) THEN
+         CALL coeff_deallocate(rho_core)
+         DEALLOCATE(rho_core,stat=stat)
+         CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+      ENDIF
+      ALLOCATE(rho_core,stat=stat)
+      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+      IF (.NOT.failure) THEN
+         CALL pw_env_get(new_pw_env, auxbas_pw_pool=auxbas_pw_pool,error=error)
+         CALL pw_pool_init_coeff(pool=auxbas_pw_pool, coeff=rho_core, &
+              use_data=COMPLEXDATA1D, error=error)
+         rho_core%pw%in_space=RECIPROCALSPACE
+         CALL set_qs_env(qs_env, rho_core=rho_core,error=error)
+      END IF
     END IF
-  END IF
+ 
+    CALL timestop(handle)
 
 END SUBROUTINE qs_env_rebuild_pw_env
 !***************************************************************************
@@ -442,8 +450,11 @@ SUBROUTINE qs_env_rebuild_rho(qs_env, rebuild_ao, rebuild_grids, error)
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_env_rebuild_rho', &
       routineP = moduleN//':'//routineN
 
+    INTEGER                                  :: handle
     LOGICAL                                  :: gapw_xc
     TYPE(dft_control_type), POINTER          :: dft_control
+
+    CALL timeset(routineN,handle)
 
     CALL get_qs_env(qs_env=qs_env, dft_control=dft_control)
     gapw_xc=dft_control%qs_control%gapw_xc
@@ -454,6 +465,8 @@ SUBROUTINE qs_env_rebuild_rho(qs_env, rebuild_ao, rebuild_grids, error)
          rebuild_ao=rebuild_ao, rebuild_grids=rebuild_grids, gapw_xc=gapw_xc, error=error)
       qs_env%rho_xc%rho_ao => qs_env%rho%rho_ao
     END IF
+
+    CALL timestop(handle)
 
 END SUBROUTINE qs_env_rebuild_rho
 !***************************************************************************
@@ -489,28 +502,31 @@ SUBROUTINE qs_env_update_rho_core(qs_env,error)
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_env_update_rho_core', &
       routineP = moduleN//':'//routineN
 
+    INTEGER                                  :: handle
     LOGICAL                                  :: failure
     TYPE(coeff_type), POINTER                :: rho_core
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(pw_env_type), POINTER               :: pw_env
     TYPE(qs_charges_type), POINTER           :: qs_charges
 
-  failure=.FALSE.
+    CALL timeset(routineN,handle)
+    failure=.FALSE.
+    CALL get_qs_env(qs_env, dft_control=dft_control,&
+         pw_env=pw_env, rho_core=rho_core,&
+         qs_charges=qs_charges,error=error)
+    CPPrecondition(ASSOCIATED(pw_env),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(qs_charges),cp_failure_level,routineP,error,failure)
+    IF(.NOT. dft_control%qs_control%gapw) THEN
+      CPPrecondition(ASSOCIATED(rho_core),cp_failure_level,routineP,error,failure)
+      IF (.NOT. failure) THEN
+         CALL calculate_rho_core(rho_core, &
+            qs_charges%total_rho_core_rspace,qs_env,error)
+      END IF
+    ELSE
+      qs_charges%total_rho_core_rspace=qs_env%local_rho_set%rhoz_tot
+    END IF 
+    CALL timestop(handle)
 
-  CALL get_qs_env(qs_env, dft_control=dft_control,&
-       pw_env=pw_env, rho_core=rho_core,&
-       qs_charges=qs_charges,error=error)
-  CPPrecondition(ASSOCIATED(pw_env),cp_failure_level,routineP,error,failure)
-  CPPrecondition(ASSOCIATED(qs_charges),cp_failure_level,routineP,error,failure)
-  IF(.NOT. dft_control%qs_control%gapw) THEN
-    CPPrecondition(ASSOCIATED(rho_core),cp_failure_level,routineP,error,failure)
-    IF (.NOT. failure) THEN
-       CALL calculate_rho_core(rho_core, &
-          qs_charges%total_rho_core_rspace,qs_env,error)
-    END IF
-  ELSE
-    qs_charges%total_rho_core_rspace=qs_env%local_rho_set%rhoz_tot
-  END IF 
 END SUBROUTINE qs_env_update_rho_core
 !***************************************************************************
 
@@ -555,8 +571,9 @@ END SUBROUTINE qs_env_update_rho_core
     CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_distribution_2d_create', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: group, i, iatom, iatom_local, ikind, ipcol, iprow, j, mypcol, &
-      myprow, natom, natom_total, nkind, npcol, nprow, nsgf, output_unit, stat
+    INTEGER :: group, handle, i, iatom, iatom_local, ikind, ipcol, iprow, j, &
+      mypcol, myprow, natom, natom_total, nkind, npcol, nprow, nsgf, &
+      output_unit, stat
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: natom_local_col, &
                                                 natom_local_row, ncol, &
                                                 ncol_old, nparticle, nrow, &
@@ -572,6 +589,7 @@ END SUBROUTINE qs_env_update_rho_core
 
 !   ---------------------------------------------------------------------------
 
+    CALL timeset(routineN,handle)
     NULLIFY(atomic_kind, orb_basis_set, local_rows, local_cols, atom_list, row_distribution,col_distribution)
     logger => cp_error_get_logger(error)
     output_unit = cp_logger_get_default_unit_nr(logger)
@@ -788,6 +806,8 @@ END SUBROUTINE qs_env_update_rho_core
     IF (stat /= 0) CALL stop_memory(routineP,"natom_local_row")
     DEALLOCATE (natom_local_col,STAT=stat)
     IF (stat /= 0) CALL stop_memory(routineP,"natom_local_col")
+
+    CALL timestop(handle)
 
   END SUBROUTINE qs_distribution_2d_create
 

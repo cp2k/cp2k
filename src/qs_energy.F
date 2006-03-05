@@ -117,11 +117,7 @@ CONTAINS
     CALL qs_env_update_s_mstruct(qs_env)
 
     ! *** Perform a SCF run ***
-    IF (PRESENT(calc_forces)) THEN
-      CALL scf(qs_env=qs_env, globenv=globenv, calc_forces=calc_forces, error=error)
-    ELSE
-      CALL scf(qs_env=qs_env, globenv=globenv,error=error)
-    END IF
+    CALL scf(qs_env=qs_env, globenv=globenv, calc_forces=calc_forces, error=error)
 
     IF (PRESENT(consistent_energies)) THEN
       IF (consistent_energies) THEN

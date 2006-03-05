@@ -247,10 +247,12 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'scf_env_create', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
+    INTEGER                                  :: handle, stat
     LOGICAL                                  :: failure
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(scf_control_type), POINTER          :: scf_control
+
+    CALL timeset(routineN,handle)
 
     failure=.FALSE.
     NULLIFY(scf_control,dft_control)
@@ -296,6 +298,8 @@ CONTAINS
             scf_env%scf_diis_buffer)
 
     END IF
+    CALL timestop(handle)
+
   END SUBROUTINE scf_env_create
 !***************************************************************************
 

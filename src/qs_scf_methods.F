@@ -110,9 +110,11 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'scf_env_density_mixing', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: ispin
+    INTEGER                                  :: handle, ispin
     LOGICAL                                  :: failure, my_invert
     REAL(KIND=dp)                            :: tmp
+
+    CALL timeset(routineN,handle)
 
     failure=.FALSE.
     my_invert=.FALSE.
@@ -154,6 +156,8 @@ CONTAINS
                cp_to_string(mixing_method),error,failure)
        END SELECT
     END IF
+
+    CALL timestop(handle)
   END SUBROUTINE scf_env_density_mixing
 
 
