@@ -101,7 +101,7 @@ MODULE kg_scf
   USE qs_overlap,                      ONLY: write_sparse_matrix
   USE qs_rho_methods,                  ONLY: qs_rho_update_rho
   USE qs_rho_types,                    ONLY: qs_rho_type
-  USE qs_scf,                          ONLY: scf_env_density_mixing
+  USE qs_scf_methods,                  ONLY: scf_env_density_mixing
   USE qs_scf_types,                    ONLY: ao_mixing_nr,&
                                              general_diag_method_nr,&
                                              no_mixing_nr,&

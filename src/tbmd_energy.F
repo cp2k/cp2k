@@ -53,7 +53,7 @@ MODULE tbmd_energy
   USE qs_mo_methods,                   ONLY: calculate_density_matrix
   USE qs_mo_types,                     ONLY: init_mo_set,&
                                              mo_set_type
-  USE qs_scf,                          ONLY: eigensolver,&
+  USE qs_scf_methods,                  ONLY: eigensolver,&
                                              simple_eigensolver
   USE sparse_matrix_types,             ONLY: copy_local_sm_to_replicated_fm,&
                                              cp_sm_sm_trace,&

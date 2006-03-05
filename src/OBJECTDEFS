@@ -351,6 +351,7 @@ OBJECTS_GENERIC =\
  qs_rho_methods.o\
  qs_rho_types.o\
  qs_scf.o\
+ qs_scf_methods.o\
  qs_scf_post.o\
  qs_scf_types.o\
  qs_semi_empirical_hamiltonian.o\
