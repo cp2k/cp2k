@@ -424,9 +424,8 @@ SUBROUTINE mc_create_force_env ( force_env, globenv, box_change, in_use, &
       file_temp => globenv%input_file 
       globenv%input_file => input_file
 
-      CALL section_vals_val_get(input_file,"GLOBAL%PROGRAM_NAME",i_val=i_val)      
-      
-      SELECT CASE ( i_val )
+      CALL section_vals_val_get(input_file,"GLOBAL%PROGRAM_NAME",i_val=globenv%prog_name_id)      
+      SELECT CASE ( globenv%prog_name_id )
       CASE ( do_fist )
          CALL fist_create_force_env(force_env, globenv, error=error)
          force_env%box_changed=.TRUE.
