@@ -153,7 +153,7 @@ END SUBROUTINE m_datum
     CALL m_getpid(pid)
 
     WRITE(UNIT=cmdstr,FMT="(A,I8,A,I8,A)")&
-      "echo -e ""\\n Memory size of process""",pid,""" <"//TRIM(checkpoint)//&
+      "echo -e ""\\n PID""",pid,""" <"//TRIM(checkpoint)//&
       ">:"" `ps -o vsz -p",pid," | tail -1` KBytes""\\c"""
 
     CALL system(cmdstr)

@@ -140,7 +140,7 @@ END SUBROUTINE m_datum
     CALL m_getpid(pid)
 
     WRITE(UNIT=cmdstr,FMT="(A,I8,A,I8,A)")&
-      "echo -e """//Backslash//"n Memory size of process""",&
+      "echo -e """//Backslash//"n PID""",&
       pid,&
       """ <"//TRIM(checkpoint)//">:"" `ps -o rssize -p",&
       pid,&

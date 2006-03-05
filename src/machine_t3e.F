@@ -128,7 +128,7 @@ END SUBROUTINE m_datum
 !   ---------------------------------------------------------------------------
 !MK CALL m_getpid(pid)
 !MK WRITE(UNIT=cmdstr,FMT="(A,I8,A,I8,A)")&
-!MK   "echo -e ""\\n Memory size of process""",pid,""" <"//TRIM(checkpoint)//&
+!MK   "echo -e ""\\n PID""",pid,""" <"//TRIM(checkpoint)//&
 !MK   ">:"" `ps -o vsz -p",pid," | tail -1` KBytes""\\c"""
 !MK CALL ishell(cmdstr)
 
