@@ -31,6 +31,7 @@ MODULE cp_ddapc_forces
                                              unit_convert_type
   USE cp_control_types,                ONLY: ddapc_restraint_type
   USE erf_fn,                          ONLY: erfc
+  USE input_constants,                 ONLY: do_ddapc_constraint,do_ddapc_restraint
   USE input_section_types,             ONLY: section_vals_type,&
                                              section_vals_val_get
   USE kinds,                           ONLY: dp
@@ -414,8 +415,10 @@ CONTAINS
 
     INTEGER                                  :: I, ind
     REAL(KIND=dp)                            :: dE, order_p
+    LOGICAL                                  :: failure
 
 ! order parameter (i.e. the sum of the charges of the selected atoms)
+    failure = .FALSE.
 
     order_p = 0.0_dp
     DO I=1,ddapc_restraint_control%natoms
@@ -424,15 +427,29 @@ CONTAINS
     ENDDO
     ddapc_restraint_control%ddapc_order_p = order_p
 
-    ! the restraint energy
-    energy_res = ddapc_restraint_control%strength*(order_p-ddapc_restraint_control%target)**2.0_dp
+    SELECT CASE(ddapc_restraint_control%functional_form)
+    CASE(do_ddapc_restraint)
+      ! the restraint energy
+      energy_res = ddapc_restraint_control%strength*(order_p-ddapc_restraint_control%target)**2.0_dp
 
-    ! derivative of the energy
-    dE=2.0_dp*ddapc_restraint_control%strength*(order_p-ddapc_restraint_control%target)
-    DO I=1,ddapc_restraint_control%natoms
-       ind     = (ddapc_restraint_control%atoms(I)-1)*n_gauss
-       uv(ind+1:ind+n_gauss)  = dE
-    ENDDO
+      ! derivative of the energy
+      dE=2.0_dp*ddapc_restraint_control%strength*(order_p-ddapc_restraint_control%target)
+      DO I=1,ddapc_restraint_control%natoms
+         ind     = (ddapc_restraint_control%atoms(I)-1)*n_gauss
+         uv(ind+1:ind+n_gauss)  = dE
+      ENDDO
+    CASE(do_ddapc_constraint)
+      energy_res = ddapc_restraint_control%strength*(order_p-ddapc_restraint_control%target)
+
+      ! derivative of the energy
+      DO I=1,ddapc_restraint_control%natoms
+         ind     = (ddapc_restraint_control%atoms(I)-1)*n_gauss
+         uv(ind+1:ind+n_gauss)  = ddapc_restraint_control%strength
+      ENDDO
+
+    CASE DEFAULT
+       CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
+    END SELECT
     
   END SUBROUTINE evaluate_restraint_functional
 

@@ -1229,6 +1229,16 @@ SUBROUTINE create_ddapc_restraint_section(section,error)
       CALL section_add_keyword(section,keyword,error=error)
       CALL keyword_release(keyword,error=error)
 
+      CALL keyword_create(keyword, name="FUNCTIONAL_FORM",&
+           description="Specifies the functional form of the term added",&
+           usage="FUNCTIONAL_FORM RESTRAINT",&
+           enum_c_vals=s2a("RESTRAINT","CONSTRAINT"),&
+           enum_i_vals=(/ do_ddapc_restraint, do_ddapc_constraint/),&
+           enum_desc=s2a("Harmonic potential: s*(q-t)**2","Constraint form: s*(q-t)"),&
+           default_i_val=do_ddapc_restraint, error=error)
+      CALL section_add_keyword(section,keyword,error=error)
+      CALL keyword_release(keyword,error=error)
+
       CALL keyword_create(keyword, name="NUM_GAUSS",&
            description="Specifies the numbers of gaussian used to fit the QM density for each atomic site.",&
            usage="NUM_GAUSS {integer}", required=.FALSE.,&

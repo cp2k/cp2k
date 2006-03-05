@@ -37,7 +37,8 @@ MODULE cp_control_utils
        xc_deriv_spline2, xc_deriv_spline2_smooth, xc_deriv_spline3, &
        xc_deriv_spline3_smooth, xc_new_f_routine, xc_old_f_routine, &
        xc_rho_nn10, xc_rho_nn50, xc_rho_no_smooth, xc_rho_spline2_smooth, &
-       xc_rho_spline3_smooth, xc_test_lsd_f_routine
+       xc_rho_spline3_smooth, xc_test_lsd_f_routine, do_ddapc_restraint, &
+       do_ddapc_constraint
   USE input_cp2k_check,                ONLY: xc_functionals_expand
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&
@@ -445,6 +446,8 @@ CONTAINS
                                 r_val=qs_control%ddapc_restraint_control%strength,error=error)
       CALL section_vals_val_get(ddapc_restraint_section,"TARGET", &
                                 r_val=qs_control%ddapc_restraint_control%target,error=error)
+      CALL section_vals_val_get(ddapc_restraint_section,"FUNCTIONAL_FORM", &
+                                i_val=qs_control%ddapc_restraint_control%functional_form,error=error)
       CALL section_vals_val_get(ddapc_restraint_section,"ATOMS", &
                                 n_rep_val=n_rep,error=error)
       qs_control%ddapc_restraint_control%natoms=n_rep
@@ -699,6 +702,7 @@ CONTAINS
     INTEGER                                  :: igrid_level, ngrid_level, &
                                                 nstep, output_unit
     TYPE(cp_logger_type), POINTER            :: logger
+    CHARACTER(LEN=*), PARAMETER              :: routineN="write_qs_control"
 
     IF (qs_control%semi_empirical) RETURN
     NULLIFY(logger)
@@ -812,6 +816,16 @@ CONTAINS
          WRITE (UNIT=output_unit,FMT="(T2,A,T73,I8)")&
            "QS| ddapc restraint atoms: ", qs_control%ddapc_restraint_control%natoms
          WRITE (UNIT=output_unit,FMT="(5I8)") qs_control%ddapc_restraint_control%atoms
+         SELECT CASE(qs_control%ddapc_restraint_control%functional_form)
+         CASE (do_ddapc_restraint)
+           WRITE (UNIT=output_unit,FMT="(T2,A,T61,A20)")&
+           "QS| ddapc restraint functional form :","RESTRAINT"
+         CASE (do_ddapc_constraint)
+           WRITE (UNIT=output_unit,FMT="(T2,A,T61,A20)")&
+           "QS| ddapc restraint functional form :","CONSTRAINT"
+         CASE DEFAULT
+           CALL stop_program(routineN,"unknown ddapc restraint")
+         END SELECT
       END IF
       IF (qs_control%localized_wfn) THEN
          nstep = qs_control%localized_wfn_control%each_step

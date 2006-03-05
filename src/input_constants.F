@@ -440,4 +440,7 @@ MODULE input_constants
 ! used to prevent over/underflows in MC acceptance rules
   REAL, PARAMETER, PUBLIC    :: mc_hardcut=500.0_dp
 
+  ! ddapc restraint forms
+  INTEGER, PARAMETER, PUBLIC :: do_ddapc_restraint=773, do_ddapc_constraint=774
+
 END MODULE input_constants
