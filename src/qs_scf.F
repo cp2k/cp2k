@@ -108,7 +108,6 @@ MODULE qs_scf
   USE preconditioner,                  ONLY: destroy_preconditioner,&
                                              init_preconditioner,&
                                              make_preconditioner
-  USE pw_env_types,                    ONLY: pw_env_type
   USE qs_charges_types,                ONLY: qs_charges_type
   USE qs_collocate_density,            ONLY: collocate_atomic_charge_density
   USE qs_core_energies,                ONLY: calculate_ecore_overlap,&
@@ -413,7 +412,7 @@ CONTAINS
                                                 output_unit
     LOGICAL :: diis_step, EII_necessary, energy_only, failure, gapw, gapw_xc, &
       harris_flag, has_unit_metric, id_equal, should_stop, use_jacobi
-    REAL(KIND=dp)                            :: t1, t2, tot1_h, tot1_s
+    REAL(KIND=dp)                            :: t1, t2
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(cp_logger_type), POINTER            :: logger
@@ -423,7 +422,6 @@ CONTAINS
       POINTER                                :: mos
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
-    TYPE(pw_env_type), POINTER               :: pw_env
     TYPE(qs_charges_type), POINTER           :: qs_charges
     TYPE(qs_energy_type), POINTER            :: energy
     TYPE(qs_ks_env_type), POINTER            :: ks_env
@@ -435,15 +433,12 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: dft_section, input, &
                                                 scf_section
 
-!dbg
-!   ---------------------------------------------------------------------------
-
     CALL timeset(routineN,"I"," ",handle)
 
     failure=.FALSE.
 
     NULLIFY(dft_control,matrix_h,matrix_s,matrix_ks,matrix_p,rho,rho_xc,energy, &
-            scf_control,logger,pw_env, qs_charges,ks_env,mos,atomic_kind_set, &
+            scf_control,logger,qs_charges,ks_env,mos,atomic_kind_set, &
             particle_set,harris_env,dft_section,input,&
             scf_section)
 
@@ -484,7 +479,6 @@ CONTAINS
                     matrix_h=matrix_h,&
                     matrix_s=matrix_s,energy=energy,&
                     particle_set=particle_set,&
-                    pw_env=pw_env,&
                     qs_charges=qs_charges,&
                     ks_env=ks_env, &
                     harris_env=harris_env,&
@@ -651,7 +645,7 @@ CONTAINS
            END DO
        ENDIF
 
-! ** update qs_env%rho
+       ! ** update qs_env%rho
        CALL qs_rho_update_rho(rho, qs_env=qs_env, gapw=gapw, error=error)
        IF(gapw ) THEN
          CALL calculate_rho_atom_coeff(qs_env,rho%rho_ao)
@@ -667,86 +661,10 @@ CONTAINS
 
     END DO scf_loop
 
-    IF (output_unit>0) THEN
-       WRITE (UNIT=output_unit,FMT="(/,(T3,A,T40,2F20.10))")&
-            "Total electronic density (r-space): ",&
-            SUM(rho%tot_rho_r),&
-            SUM(rho%tot_rho_r)+ REAL(scf_env%nelectron,dp),&
-            "Total core charge density (r-space):",&
-            qs_charges%total_rho_core_rspace,&
-            qs_charges%total_rho_core_rspace - REAL(scf_env%nelectron+dft_control%charge,dp)
-       IF(gapw) THEN
-          tot1_h =  qs_charges%total_rho1_hard(1)
-          tot1_s =  qs_charges%total_rho1_soft(1)
-          DO ispin=2,dft_control%nspins
-            tot1_h = tot1_h + qs_charges%total_rho1_hard(ispin)
-            tot1_s = tot1_s + qs_charges%total_rho1_soft(ispin)
-          END DO
-          WRITE (UNIT=output_unit,FMT="(/,(T3,A,T40,2F20.10))")&
-                "Hard and soft densities (Lebedev):",&
-                tot1_h, tot1_s
-          WRITE (UNIT=output_unit,FMT="(T3,A,T60,F20.10)")&
-               "Total Rho_soft + Rho1_hard - Rho1_soft (r-space): ",&
-               SUM(rho%tot_rho_r)+ tot1_h - tot1_s ,&
-               "Total charge density (r-space):      ",&
-               SUM(rho%tot_rho_r)+ tot1_h - tot1_s &
-               + qs_charges%total_rho_core_rspace,&
-               "Total Rho_soft + Rho0_soft (g-space):",&
-               qs_charges%total_rho_gspace
-       ELSE
-         WRITE (UNIT=output_unit,FMT="(T3,A,T60,F20.10)")&
-            "Total charge density (r-space):     ",&
-            SUM(rho%tot_rho_r)+&
-            qs_charges%total_rho_core_rspace,&
-            "Total charge density (g-space):     ",qs_charges%total_rho_gspace
-       END IF
-       IF (dft_control%qs_control%semi_empirical) THEN
-         WRITE (UNIT=output_unit,FMT="(/,(T3,A,T55,F25.14))")&
-            "Core-core repulsion energy [eV]:               ",energy%core_overlap*evolt,&
-            "Core Hamiltonian energy [eV]:                  ",energy%core*evolt,&
-            "Two-electron integral energy [eV]:             ",energy%hartree*evolt,&
-            "Electronic energy [eV]:                        ",&
-                                              (energy%core+0.5_dp*energy%hartree)*evolt
-       ELSE
-         WRITE (UNIT=output_unit,FMT="(/,(T3,A,T55,F25.14))")&
-            "Overlap energy of the core charge distribution:",energy%core_overlap,&
-            "Self energy of the core charge distribution:   ",energy%core_self,&
-            "Core Hamiltonian energy:                       ",energy%core,&
-            "Hartree energy:                                ",energy%hartree,&
-            "Exchange-correlation energy:                   ",energy%exc
-         IF(gapw) THEN
-           WRITE (UNIT=output_unit,FMT="(/,(T3,A,T55,F25.14))")&
-              "GAPW| Exc from hard and soft atomic rho1:      ",energy%exc1,&
-              "GAPW| local Eh = 1 center integrals:           ",energy%hartree_1c,&
-              "GAPW| local Eh = 2 center integrals:           ",energy%hartree_2c,&
-              "GAPW| local Eh = 3 centers integrals:          ",energy%hartree_3c
-         END IF
-         IF(gapw_xc) THEN
-           WRITE (UNIT=output_unit,FMT="(/,(T3,A,T55,F25.14))")&
-              "GAPW_XC| Exc from hard and soft atomic rho1:      ",energy%exc1
-         END IF
-       END IF
-       IF  (qs_env%qmmm) THEN
-          WRITE (UNIT=output_unit,FMT="(T3,A,T60,F20.10)")&
-               "QM/MM Electrostatic energy:                    ",energy%qmmm_el
-       END IF
-       IF (dft_control%qs_control%mulliken_restraint) THEN
-          WRITE (UNIT=output_unit,FMT="(T3,A,T60,F20.10)")&
-                "Mulliken restraint energy: ",energy%mulliken
-       END IF
-       IF (dft_control%qs_control%semi_empirical) THEN
-         WRITE (UNIT=output_unit,FMT="(/,(T3,A,T55,F25.14))")&
-            "Total energy [eV]:                             ",energy%total*evolt
-         WRITE (UNIT=output_unit,FMT="(/,(T3,A,T55,F25.14))")&
-            "Atomic reference energy [eV]:                  ",energy%core_self*evolt,&
-            "Heat of formation [kcal/mol]:                  ",&
-            (energy%total+energy%core_self)*kcalmol
-       ELSE
-         WRITE (UNIT=output_unit,FMT="(/,(T3,A,T55,F25.14))")&
-            "Total energy:                                  ",energy%total
-       END IF
-       CALL m_flush(output_unit)
-    END IF
+!   *** now, print out energies and charges corresponding to the obtained wfn
+!   (this actually seems not 100% consistent at this point)
+    CALL qs_scf_print_summary(output_unit,rho,qs_charges,energy,scf_env, &
+                              dft_control,qs_env%qmmm,gapw,gapw_xc)
 
     IF (harris_flag) THEN
       energy%total = harris_env%harris_energy%Eharris
@@ -763,14 +681,15 @@ CONTAINS
         CALL scf_env_density_mixing(scf_env%p_mix_new,scf_env%mixing_method,&
                                     scf_env%p_mix,scf_env%iter_delta,&
                                     qs_env=qs_env,invert=.TRUE.,error=error)
-       DO ispin=1,dft_control%nspins
-         CALL transfer_matrix(scf_env%p_mix_new(ispin)%matrix,&
+        DO ispin=1,dft_control%nspins
+           CALL transfer_matrix(scf_env%p_mix_new(ispin)%matrix,&
                               rho%rho_ao(ispin)%matrix)
-       END DO
+        END DO
     ENDIF
 
 !   *** update rspace rho since the mo changed
 !   *** this might not always be needed (i.e. no post calculation / no forces )
+!   *** but guarantees that rho and wfn are consistent at this point
     CALL qs_rho_update_rho(rho, qs_env=qs_env, gapw = gapw, error=error)
     IF(gapw) THEN
        CALL calculate_rho_atom_coeff(qs_env,rho%rho_ao)
@@ -983,7 +902,7 @@ SUBROUTINE qs_scf_loop_do_ot(scf_env,mos,rho,mo_derivs,total_energy,matrix_s,ene
     TYPE(qs_rho_type), POINTER               :: rho
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: mo_derivs
-    REAL(KIND=dp), INTENT(IN)            :: total_energy
+    REAL(KIND=dp), INTENT(IN)                :: total_energy
     TYPE(real_matrix_p_type), DIMENSION(:), &
       POINTER                                :: matrix_s
     LOGICAL, INTENT(OUT)                     :: energy_only
@@ -1016,6 +935,118 @@ SUBROUTINE qs_scf_loop_do_ot(scf_env,mos,rho,mo_derivs,total_energy,matrix_s,ene
    scf_env%iter_param=scf_env%qs_ot_env(1)%ds_min
 
 END SUBROUTINE qs_scf_loop_do_ot
+
+!!****f* qs_scf/qs_scf_print_summary *
+!!
+!!   NAME
+!!     qs_scf_print_summary
+!!   FUNCTION
+!!     writes rather detailed summary of densities and energies 
+!!     after the SCF
+!!
+!!   NOTES
+!!
+!!   INPUTS
+!!
+!!   MODIFICATION HISTORY
+!!     03.2006 created [Joost VandeVondele]
+!!
+!!*** **********************************************************************
+SUBROUTINE qs_scf_print_summary(output_unit,rho,qs_charges,energy,scf_env,dft_control,qmmm,gapw,gapw_xc)
+
+    INTEGER, INTENT(IN)                      :: output_unit
+    TYPE(qs_rho_type), POINTER               :: rho
+    TYPE(qs_charges_type), POINTER           :: qs_charges
+    TYPE(qs_energy_type), POINTER            :: energy
+    TYPE(qs_scf_env_type), POINTER           :: scf_env
+    TYPE(dft_control_type), POINTER          :: dft_control
+    LOGICAL, INTENT(IN)                      :: qmmm, gapw, gapw_xc
+
+    INTEGER                                  :: ispin
+    REAL(kind=dp)                            :: tot1_h, tot1_s
+
+    IF (output_unit>0) THEN
+       WRITE (UNIT=output_unit,FMT="(/,(T3,A,T40,2F20.10))")&
+            "Total electronic density (r-space): ",&
+            SUM(rho%tot_rho_r),&
+            SUM(rho%tot_rho_r)+ REAL(scf_env%nelectron,dp),&
+            "Total core charge density (r-space):",&
+            qs_charges%total_rho_core_rspace,&
+            qs_charges%total_rho_core_rspace - REAL(scf_env%nelectron+dft_control%charge,dp)
+       IF(gapw) THEN
+          tot1_h =  qs_charges%total_rho1_hard(1)
+          tot1_s =  qs_charges%total_rho1_soft(1)
+          DO ispin=2,dft_control%nspins
+            tot1_h = tot1_h + qs_charges%total_rho1_hard(ispin)
+            tot1_s = tot1_s + qs_charges%total_rho1_soft(ispin)
+          END DO
+          WRITE (UNIT=output_unit,FMT="(/,(T3,A,T40,2F20.10))")&
+                "Hard and soft densities (Lebedev):",&
+                tot1_h, tot1_s
+          WRITE (UNIT=output_unit,FMT="(T3,A,T60,F20.10)")&
+               "Total Rho_soft + Rho1_hard - Rho1_soft (r-space): ",&
+               SUM(rho%tot_rho_r)+ tot1_h - tot1_s ,&
+               "Total charge density (r-space):      ",&
+               SUM(rho%tot_rho_r)+ tot1_h - tot1_s &
+               + qs_charges%total_rho_core_rspace,&
+               "Total Rho_soft + Rho0_soft (g-space):",&
+               qs_charges%total_rho_gspace
+       ELSE
+         WRITE (UNIT=output_unit,FMT="(T3,A,T60,F20.10)")&
+            "Total charge density (r-space):     ",&
+            SUM(rho%tot_rho_r)+&
+            qs_charges%total_rho_core_rspace,&
+            "Total charge density (g-space):     ",qs_charges%total_rho_gspace
+       END IF
+       IF (dft_control%qs_control%semi_empirical) THEN
+         WRITE (UNIT=output_unit,FMT="(/,(T3,A,T55,F25.14))")&
+            "Core-core repulsion energy [eV]:               ",energy%core_overlap*evolt,&
+            "Core Hamiltonian energy [eV]:                  ",energy%core*evolt,&
+            "Two-electron integral energy [eV]:             ",energy%hartree*evolt,&
+            "Electronic energy [eV]:                        ",&
+                                              (energy%core+0.5_dp*energy%hartree)*evolt
+       ELSE
+         WRITE (UNIT=output_unit,FMT="(/,(T3,A,T55,F25.14))")&
+            "Overlap energy of the core charge distribution:",energy%core_overlap,&
+            "Self energy of the core charge distribution:   ",energy%core_self,&
+            "Core Hamiltonian energy:                       ",energy%core,&
+            "Hartree energy:                                ",energy%hartree,&
+            "Exchange-correlation energy:                   ",energy%exc
+         IF(gapw) THEN
+           WRITE (UNIT=output_unit,FMT="(/,(T3,A,T55,F25.14))")&
+              "GAPW| Exc from hard and soft atomic rho1:      ",energy%exc1,&
+              "GAPW| local Eh = 1 center integrals:           ",energy%hartree_1c,&
+              "GAPW| local Eh = 2 center integrals:           ",energy%hartree_2c,&
+              "GAPW| local Eh = 3 centers integrals:          ",energy%hartree_3c
+         END IF
+         IF(gapw_xc) THEN
+           WRITE (UNIT=output_unit,FMT="(/,(T3,A,T55,F25.14))")&
+              "GAPW_XC| Exc from hard and soft atomic rho1:      ",energy%exc1
+         END IF
+       END IF
+       IF  (qmmm) THEN
+          WRITE (UNIT=output_unit,FMT="(T3,A,T60,F20.10)")&
+               "QM/MM Electrostatic energy:                    ",energy%qmmm_el
+       END IF
+       IF (dft_control%qs_control%mulliken_restraint) THEN
+          WRITE (UNIT=output_unit,FMT="(T3,A,T60,F20.10)")&
+                "Mulliken restraint energy: ",energy%mulliken
+       END IF
+       IF (dft_control%qs_control%semi_empirical) THEN
+         WRITE (UNIT=output_unit,FMT="(/,(T3,A,T55,F25.14))")&
+            "Total energy [eV]:                             ",energy%total*evolt
+         WRITE (UNIT=output_unit,FMT="(/,(T3,A,T55,F25.14))")&
+            "Atomic reference energy [eV]:                  ",energy%core_self*evolt,&
+            "Heat of formation [kcal/mol]:                  ",&
+            (energy%total+energy%core_self)*kcalmol
+       ELSE
+         WRITE (UNIT=output_unit,FMT="(/,(T3,A,T55,F25.14))")&
+            "Total energy:                                  ",energy%total
+       END IF
+       CALL m_flush(output_unit)
+    END IF
+
+END SUBROUTINE qs_scf_print_summary
 
 !!****f* qs_scf/qs_scf_loop_print *
 !!
