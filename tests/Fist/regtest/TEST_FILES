@@ -4,6 +4,8 @@
 #      1 compares the last total energy in the file
 #      for details see cp2k/tools/do_regtest
 #
+# EIP
+Si_1000.inp              2
 # CHARMM INTRA Forces Test
 pot_bond.inp             2
 pot_bend.inp             2
